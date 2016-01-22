@@ -1,4 +1,3 @@
-// +build linux
 package main
 
 import (
@@ -8,45 +7,18 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"os/exec"
-	"sync"
-	"syscall"
 	"time"
-
-	"golang.org/x/crypto/ssh"
 
 	winserial "github.com/tarm/serial"
 
 	"enatai-gerrit.eng.vmware.com/bonneville-container/tether"
+	"enatai-gerrit.eng.vmware.com/bonneville-container/tether/handlers"
 	"enatai-gerrit.eng.vmware.com/bonneville-container/tether/serial"
 )
 
 var (
-	tetherKey string
-	port      string
-	hup       chan os.Signal
-
-	// Set of child PIDs created by us.
-	childPidTable = make(map[int]chan syscall.WaitStatus)
-	// Exclusive access to childPidTable
-	childPidTableMutex = &sync.Mutex{}
+	port string
 )
-
-type GlobalHandler struct {
-	id string
-}
-
-type SessionHandler struct {
-	*GlobalHandler
-	// TODO: add some locking in here if non exec requests can touch exec or shell related items
-	cmd       *exec.Cmd
-	channel   *ssh.Channel
-	env       map[string]string
-	assignTty bool
-	pty       *os.File
-	waitGroup sync.WaitGroup
-	pendingFn func()
-}
 
 type NamedPort struct {
 	*winserial.Port
@@ -72,24 +44,6 @@ func OpenPort(config *winserial.Config) (*NamedPort, error) {
 	return &NamedPort{Port: port, config: *config, fd: 0}, nil
 }
 
-func privateKey(file string) ssh.Signer {
-	privateBytes, err := ioutil.ReadFile(file)
-	if err != nil {
-		log.Fatalf("failed to load private key: %v", tetherKey)
-	}
-
-	private, err := ssh.ParsePrivateKey(privateBytes)
-	if err != nil {
-		log.Fatalf("failed to parse private key: %v", tetherKey)
-	}
-	return private
-}
-
-// Hopefully this gets rolled into go.sys at some point
-func Mkdev(majorNumber int64, minorNumber int64) int {
-	return int((majorNumber << 8) | (minorNumber & 0xff) | ((minorNumber & 0xfff00) << 12))
-}
-
 func init() {
 	flag.StringVar(&tetherKey, "key", "/Windows/tether-init/init_key", "tetherd control channel private key")
 	flag.StringVar(&port, "port", "COM2", "com port to use for control")
@@ -109,7 +63,7 @@ func id() string {
 	return string(id)
 }
 
-func main() {
+func run() {
 	// get the windows service logic running so that we can play well in that mode
 	runService("VMware Tether", false)
 
@@ -163,9 +117,7 @@ func main() {
 		// TODO: the deletion routine should be a closure passed to tether as we don't know what filesystem
 		// access is still needed for basic setup
 
-		handler := GlobalHandler{
-			id: id(),
-		}
+		handler := handlers.NewGlobalHandler(id())
 
 		// ensure we don't have significant obsolete data built up
 		s.Port.Flush()
@@ -174,7 +126,7 @@ func main() {
 		serial.HandshakeServer(conn, time.Duration(10*time.Second))
 
 		log.Println("creating ssh connection over %s", s.Name())
-		tether.StartTether(conn, private, &handler)
+		tether.StartTether(conn, private, handler)
 
 		s.Close()
 	}

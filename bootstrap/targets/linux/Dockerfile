@@ -11,26 +11,24 @@ COPY vmfork.sh $ROOTFS/
 
 #RUN git clone https://ghicken@enatai-gerrit.eng.vmware.com/bonneville-container $TETHER && cd $TETHER && git checkout proxy
 # install the generic tether dependencies
-COPY tether-core $TETHER/tether/
+COPY tether $TETHER/tether/
 RUN cd $TETHER/tether && gpm install
 
 # Enable SSH debug
 #RUN sed -i -e 's/const debugMux = false/const debugMux = true/' /go/src/golang.org/x/crypto/ssh/mux.go && sed -i -e 's/const debugHandshake = false/const debugHandshake = true/' /go/src/golang.org/x/crypto/ssh/handshake.go
 
-COPY tether $TETHER/target/
-
-RUN cd $TETHER/target && \
+RUN cd $TETHER/tether && \
 	GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go test -a -x -tags netgo -installsuffix netgo -v ./...
 
-RUN cd $TETHER/target && \
-	GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build -a -x -tags netgo -installsuffix netgo -o tether && \
-	ldd tether | grep -q 'not a dynamic executable' && \
-	cp -f tether $ROOTFS/bin && \
+RUN cd $TETHER/tether/cmd/tether && \
+	GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build -a -x -tags netgo -installsuffix netgo -o tether-linux && \
+	ldd tether-linux | grep -q 'not a dynamic executable' && \
+	cp -f tether-linux $ROOTFS/bin/tether && \
 	ln -sf ../bin/tether $ROOTFS/sbin/init && return 0 || \
 	echo "error: tether is not static" && return 1
 
-COPY rpctool.go $TETHER/target/
-RUN cd $TETHER/target/ && \
+COPY rpctool.go $TETHER/
+RUN cd $TETHER/ && \
     GOARCH=amd64 GOOS=linux go build -a -x -o $ROOTFS/sbin/rpctool --ldflags '-extldflags "-static"' rpctool.go
 
 COPY init $ROOTFS/init

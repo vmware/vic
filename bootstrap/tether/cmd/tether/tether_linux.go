@@ -1,4 +1,3 @@
-// +build linux
 package main
 
 import (
@@ -9,65 +8,14 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"os/exec"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
-	"golang.org/x/crypto/ssh"
-
 	"enatai-gerrit.eng.vmware.com/bonneville-container/tether"
+	"enatai-gerrit.eng.vmware.com/bonneville-container/tether/handlers"
 	"enatai-gerrit.eng.vmware.com/bonneville-container/tether/serial"
 )
-
-var (
-	tetherKey string
-	hup       chan os.Signal
-
-	// Set of child PIDs created by us.
-	childPidTable = make(map[int]chan syscall.WaitStatus)
-	// Exclusive access to childPidTable
-	childPidTableMutex = &sync.Mutex{}
-)
-
-type GlobalHandler struct {
-	id string
-}
-
-type SessionHandler struct {
-	*GlobalHandler
-	// TODO: add some locking in here if non exec requests can touch exec or shell related items
-	cmd       *exec.Cmd
-	channel   *ssh.Channel
-	env       map[string]string
-	assignTty bool
-	pty       *os.File
-	waitGroup sync.WaitGroup
-	pendingFn func()
-}
-
-func privateKey(file string) ssh.Signer {
-	privateBytes, err := ioutil.ReadFile(file)
-	if err != nil {
-		log.Fatalf("failed to load private key: %v", tetherKey)
-	}
-
-	private, err := ssh.ParsePrivateKey(privateBytes)
-	if err != nil {
-		log.Fatalf("failed to parse private key: %v", tetherKey)
-	}
-	return private
-}
-
-// Hopefully this gets rolled into go.sys at some point
-func Mkdev(majorNumber int64, minorNumber int64) int {
-	return int((majorNumber << 8) | (minorNumber & 0xff) | ((minorNumber & 0xfff00) << 12))
-}
-
-func init() {
-	flag.StringVar(&tetherKey, "key", "/.tether-init/init_key", "tetherd control channel private key")
-}
 
 // load the ID from the file system
 func id() string {
@@ -102,10 +50,7 @@ func childReaper() {
 				log.Printf("Reaped process %d, return code: %d\n", pid, status.ExitStatus())
 				// Send this status over to exec_and_wait if this process was
 				// created by us with 'exec'.
-				var statusChan chan syscall.WaitStatus
-				childPidTableMutex.Lock()
-				statusChan, ok := childPidTable[pid]
-				childPidTableMutex.Unlock()
+				statusChan, ok := handlers.GetChildPid(pid)
 				if ok {
 					// This is one of our children. Send the status through
 					// the channel, which has a bufferring capacity of 1, so
@@ -123,7 +68,7 @@ func childReaper() {
 	}
 }
 
-func main() {
+func run() {
 	// seems necessary given rand.Reader access
 	var err error
 
@@ -194,15 +139,12 @@ func main() {
 		// TODO: the deletion routine should be a closure passed to tether as we don't know what filesystem
 		// access is still needed for basic setup
 
-		handler := GlobalHandler{
-			id: id(),
-		}
-
+		handler := handlers.NewGlobalHandler(id())
 		// HACK: currently RawConn dosn't implement timeout
 		serial.HandshakeServer(conn, time.Duration(10*time.Second))
 
 		log.Println("creating ssh connection over ttyS0")
-		tether.StartTether(conn, private, &handler)
+		tether.StartTether(conn, private, handler)
 
 		f.Close()
 	}

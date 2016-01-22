@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"encoding/binary"
@@ -7,34 +7,16 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
+	"unsafe"
 
+	"github.com/kr/pty"
 	"golang.org/x/crypto/ssh"
 
 	"enatai-gerrit.eng.vmware.com/bonneville-container/tether"
 )
 
-// The syscall struct
-type winsize struct {
-	ws_row    uint16
-	ws_col    uint16
-	ws_xpixel uint16
-	ws_ypixel uint16
-}
-
-func (ch *SessionHandler) SetChannel(channel *ssh.Channel) {
-	ch.channel = channel
-}
-
-func (ch *SessionHandler) Setenv(name, value string) (ok bool, payload []byte) {
-	ch.env[name] = value
-	log.Printf("Set environment variable: %s=%s\n", name, value)
-
-	return true, nil
-}
-
 func (ch *SessionHandler) AssignPty() {
-	// TODO: squash setting as it's not available on windows
-	ch.assignTty = false
+	ch.assignTty = true
 }
 
 func (ch *SessionHandler) ResizePty(winSize *tether.WindowChangeMsg) error {
@@ -44,33 +26,26 @@ func (ch *SessionHandler) ResizePty(winSize *tether.WindowChangeMsg) error {
 		return nil
 	}
 
-	/*
-		ws := &winsize{uint16(winSize.Rows), uint16(winSize.Columns), uint16(winSize.Width_px), uint16(winSize.Height_px)}
-
-		_, _, errno := syscall.Syscall(
-			syscall.SYS_IOCTL,
-			ch.pty.Fd(),
-			syscall.TIOCSWINSZ,
-			uintptr(unsafe.Pointer(ws)),
-		)
-		if errno != 0 {
-			return syscall.Errno(errno)
-		}
-	*/
+	ws := &winsize{uint16(winSize.Rows), uint16(winSize.Columns), uint16(winSize.Width_px), uint16(winSize.Height_px)}
+	_, _, errno := syscall.Syscall(
+		syscall.SYS_IOCTL,
+		ch.pty.Fd(),
+		syscall.TIOCSWINSZ,
+		uintptr(unsafe.Pointer(ws)),
+	)
+	if errno != 0 {
+		return syscall.Errno(errno)
+	}
 	return nil
 }
 
-func (ch *SessionHandler) Shell() (ok bool, payload []byte) {
-	//TODO: implement
-	return false, nil
-}
-
 func (ch *SessionHandler) Signal(sig ssh.Signal) error {
-	return ch.cmd.Process.Signal(syscall.Signal(tether.Signals[sig]))
-}
-
-func (ch *SessionHandler) Kill() error {
-	return ch.cmd.Process.Kill()
+	log.Printf("Sending signal %s to main process %s (%d)\n", string(sig), ch.cmd.Path, ch.cmd.Process.Pid)
+	err := ch.cmd.Process.Signal(syscall.Signal(tether.Signals[sig]))
+	if err != nil {
+		log.Printf("Failed to dispatch signal to process: %s\n", err)
+	}
+	return err
 }
 
 func (ch *SessionHandler) Exec(command string, args []string, config map[string]string) (ok bool, payload []byte) {
@@ -127,7 +102,7 @@ func (ch *SessionHandler) Exec(command string, args []string, config map[string]
 			ch.cmd.Stderr = (*ch.channel).Stderr()
 			err = ch.cmd.Start()
 		} else {
-			//			ch.pty, err = pty.Start(ch.cmd)
+			ch.pty, err = pty.Start(ch.cmd)
 		}
 
 		if err == nil {
@@ -209,7 +184,7 @@ func (ch *SessionHandler) Exec(command string, args []string, config map[string]
 		}
 
 		// ensure that changes are flushed to disk before we report exit
-		ch.Sync()
+		syscall.Sync()
 
 		if err := (*ch.channel).CloseWrite(); err != nil {
 			log.Println("Error sending channel EOF: ", err)
@@ -231,12 +206,4 @@ func (ch *SessionHandler) Exec(command string, args []string, config map[string]
 	// send the immediate reply to the exec request
 	log.Println("Started process successfully")
 	return true, nil
-}
-
-func (ch *SessionHandler) GetPendingWork() func() {
-	return ch.pendingFn
-}
-
-func (ch *SessionHandler) ClearPendingWork() {
-	ch.pendingFn = nil
 }

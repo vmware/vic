@@ -1,3 +1,4 @@
 golang.org/x/crypto/ssh
 github.com/docker/docker/pkg/term
 github.com/kr/pty
+github.com/vishvananda/netlink

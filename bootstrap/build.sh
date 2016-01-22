@@ -1,5 +1,7 @@
 #!/bin/bash
 
+[ -n "$DEBUG" ] && set -x
+
 NAME=container
 
 # set default SRCDIR & BINDIR for local builds
@@ -41,7 +43,7 @@ for i in $TARGETS; do
   BRANCH=${branch_name##refs/heads/}
   SHA=$(git $git_args rev-parse --short HEAD)
 
-  cp -r ${SRCDIR}/tether ${i}/tether-core
+  cp -r ${SRCDIR}/tether ${i}/tether
 
   # if there is a base build, run that
   if [ -d ${i}/base ]; then
@@ -65,7 +67,7 @@ for i in $TARGETS; do
   fi
 
   # clean up now the build's complete
-  rm -fr ${i}/tether-core
+  rm -fr ${i}/tether
   docker rm -v ${JOB}-${TNAME}
 
   if [ $SUCCESS -ne 0 ]; then

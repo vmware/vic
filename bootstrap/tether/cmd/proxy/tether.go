@@ -8,37 +8,20 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
-	"sync"
 	"time"
 
 	"golang.org/x/crypto/ssh"
 
 	"enatai-gerrit.eng.vmware.com/bonneville-container/tether"
+	"enatai-gerrit.eng.vmware.com/bonneville-container/tether/handlers"
 	"enatai-gerrit.eng.vmware.com/bonneville-container/tether/serial"
+	"enatai-gerrit.eng.vmware.com/bonneville-container/tether/utils"
 )
 
 var (
 	tetherKey string
 	private   ssh.Signer
 )
-
-type GlobalHandler struct {
-	id      string
-	dosconn *net.TCPConn
-
-	allowExec bool
-}
-
-type SessionHandler struct {
-	*GlobalHandler
-
-	// TODO: add some locking in here if non exec requests can touch exec or shell related items
-	channel   *ssh.Channel
-	env       map[string]string
-	assignTty bool
-	waitGroup sync.WaitGroup
-	pendingFn func()
-}
 
 const sttyArg0 = "/bin/stty"
 const magicPrompt = "Exiting DOS " // the prompt is magic because when we see the prompt, we disconnect from the container - it also serves as a useful message
@@ -117,10 +100,9 @@ func handleConnectionFromGuest(guestConn *net.TCPConn) {
 	defer guestConn.Close()
 
 	// create our per connection state
-	handler := GlobalHandler{
-		dosconn:   guestConn,
-		allowExec: true,
-	}
+	handler := handlers.GlobalProxyHandler{}
+	handler.SetConn(guestConn)
+	handler.SetAllowExec(true)
 
 	// Establish connection to daemon
 	log.Println("Establishing the connection to docker daemon")
@@ -134,14 +116,14 @@ func handleConnectionFromGuest(guestConn *net.TCPConn) {
 	log.Println("Handshaking with daemon")
 	serial.HandshakeServer(dconn, time.Duration(10*time.Second))
 
-	handler.discardUntilPrompt()
+	handler.DiscardUntilPrompt()
 
-	output, _ := handler.cmdCombinedOutput("type C:\\TETHER\\DOCKERID")
+	output, _ := handler.CmdCombinedOutput("type C:\\TETHER\\DOCKERID")
 	log.Printf("Docker ID passed back from container = \"%s\"", output)
 
-	handler.id = StripCommandOutput(output)
+	handler.SetContainerId(utils.StripCommandOutput(output))
 
-	err = handler.cmdStart("C:\\AUTOEXEC.BAT")
+	err = handler.CmdStart("C:\\AUTOEXEC.BAT")
 	if err != nil {
 		log.Printf("error running C:\\AUTOEXEC.BAT: %s", err)
 		return
@@ -150,13 +132,13 @@ func handleConnectionFromGuest(guestConn *net.TCPConn) {
 	//   expectation is that command.com is run from the magic prompt and resets to a standard prompt
 	//   this is done as the entry point of the base Dockerfile
 	// Note that magic prompt must be run after autoexec as that could reset the prompt
-	err = handler.cmdStart(fmt.Sprintf("SET PROMPT=%s$g", magicPrompt))
+	err = handler.CmdStart(fmt.Sprintf("SET PROMPT=%s$g", magicPrompt))
 	if err != nil {
 		log.Printf("error setting initial prompt: %s", err)
 		return
 	}
 
-	log.Printf("Initiating ssh command logic with handler.id = %s", handler.id)
+	log.Printf("Initiating ssh command logic with handler.id = %s", handler.ContainerId())
 	tether.StartTether(dconn, private, &handler)
 }
 
