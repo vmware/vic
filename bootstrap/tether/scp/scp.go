@@ -1,0 +1,83 @@
+package scp
+
+import (
+	"io"
+	"log"
+	"os"
+
+	"golang.org/x/crypto/ssh"
+)
+
+type ScpRequest struct {
+	ch        ssh.Channel
+	pendingFn func()
+}
+
+// From remote to local.  Remote is server (source)
+// $ { scp -vvvv luser@hasselhoff:/etc/fstab /tmp/f 2>&1; } | grep -e scp -e Sink
+// Executing: program /usr/bin/ssh host hasselhoff, user luser, command scp -v -f /etc/fstab
+// debug1: Sending command: scp -v -f /etc/fstab
+// Sink: C0644 968 fstab
+
+// To remote from local.  Remote is server (but this time is dest)
+// $ { scp -vvvv /tmp/f luser@hasselhoff:/tmp/f 2>&1; } | grep -e scp -e Sink
+// Executing: program /usr/bin/ssh host hasselhoff, user luser, command scp -v -t /tmp/f
+// debug1: Sending command: scp -v -t /tmp/f
+// Sink: C0664 968 f
+
+// For copying from a host.  This acts as the server (source).
+func (scp *ScpRequest) Source(path string) (ok bool, payload []byte) {
+
+	op, err := OpenFile(path, os.O_RDONLY, 0)
+	if err != nil {
+		return false, []byte(err.Error())
+	}
+	f := func() {
+		defer op.Close()
+		defer scp.ch.Close()
+
+		n, err := op.Read(scp.ch)
+		if err != nil {
+			log.Printf("Source: error reading %s", err)
+			return
+		}
+
+		log.Printf("Source: copied %s (%d bytes) to client", op.File.Name(), n)
+	}
+
+	scp.pendingFn = f
+	return true, nil
+}
+
+func (scp *ScpRequest) Destination(path string) (ok bool, payload []byte) {
+	f := func() {
+
+		op, err := Write(scp.ch, path)
+		if err != nil && err != io.EOF {
+			log.Printf("Source: error writing %s", err)
+			return
+		}
+
+		if err = op.Close(); err != nil {
+			log.Printf("error closing %s", err)
+			return
+		}
+
+		scp.ch.Close()
+		log.Printf("Destination: copied %s (%d bytes) from client", op.File.Name(), op.Size)
+	}
+
+	scp.pendingFn = f
+	return true, nil
+}
+
+func (scp *ScpRequest) SetChannel(channel *ssh.Channel) {
+	scp.ch = *channel
+}
+
+func (scp *ScpRequest) GetPendingWork() func() {
+	return scp.pendingFn
+}
+
+func (scp *ScpRequest) ClearPendingWork() {
+}

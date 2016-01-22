@@ -1,0 +1,3 @@
+golang.org/x/crypto/ssh
+golang.org/x/sys/windows/svc
+github.com/tarm/serial
