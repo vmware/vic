@@ -1,6 +1,6 @@
 FROM golang:1.5.3
 
-RUN apt-get update && apt-get -y install curl cpio ssh-client squashfs-tools xorriso git gcc make vim patch rpm busybox-static
+RUN apt-get update && apt-get -y install curl cpio ssh-client squashfs-tools xorriso git gcc make vim patch rpm busybox-static isolinux syslinux
 RUN cd /tmp && git clone https://github.com/pote/gpm.git && cd gpm && ./configure && make install
 
 # Prepare kernel

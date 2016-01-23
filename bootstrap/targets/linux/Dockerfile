@@ -7,6 +7,8 @@ COPY 99-vmware-memhotplug.rules $ROOTFS/etc/udev/rules.d/
 COPY 99-vmware-cpuhotplug.rules $ROOTFS/etc/udev/rules.d/
 
 COPY isolinux $BOOTFS/isolinux
+RUN cp /usr/lib/ISOLINUX/isolinux.bin $BOOTFS/isolinux/isolinux.bin
+RUN cp /usr/lib/syslinux/modules/bios/ldlinux.c32 $BOOTFS/isolinux/ldlinux.c32
 COPY vmfork.sh $ROOTFS/
 
 #RUN git clone https://ghicken@enatai-gerrit.eng.vmware.com/bonneville-container $TETHER && cd $TETHER && git checkout proxy
