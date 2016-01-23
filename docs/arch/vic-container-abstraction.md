@@ -13,7 +13,7 @@ The container host operating system along with the Docker daemon have to provide
 * **Layered filesystem** - not an absolute requirement for a container, but typically conflated in most implementations
 * **OS Kernel** - a dependency for the container executable to execute on, typically shared between containers
 
-The hypervisor in this mode provides hardware virtualization of the VM, one or more VMDKs providing local disk for the container host, one or more vNICs to provide network connectivity for the OS and possibly paravirtualization capabilities allowing the containers to directly access hypervisor infrastructure.
+The hypervisor in this mode provides hardware virtualization of the entire container host VM, one or more VMDKs providing local disk for the OS, one or more vNICs to provide network connectivity for the OS and possibly paravirtualization capabilities allowing the containers to directly access hypervisor infrastructure.
 
 #### The VIC model
 
@@ -26,7 +26,7 @@ So what does this mean in practice? Well, firstly a container host isn't a VM, i
 * **Layered filesystem** - provided entirely by vSphere. VMDK snapshots in the initial release
 * **OS Kernel** - provided as a minimal ISO from which the containerVM is either booted or forked
 
-In this mode, there is necessarily a 1:1 coupling between a container and a VM. A container image is attached to the VM as a disk, the VM is either booted or forked from the kernel ISO, then the containerVM chroots into the container filesystem effectively becoming the container. 
+In this mode, there is necessarily a 1:1 coupling between a container and a VM. A container image is attached to the VM as a disk, the VM is either booted or forked from the kernel ISO, then the containerVM chroots into the container filesystem effectively becoming the container.
 
 #### Differences
 
@@ -44,3 +44,5 @@ This model leads to some very distinct differences between a VIC container and a
 4. There is no such thing as unspecified memory or CPU limits
   * A Linux container will have access to all of the CPU and memory resource available in its host if not specified
   * A containerVM must have memory and CPU limits defined, either derived from a default or specified explicitly
+
+There are also necessarily implementation differences, transparent to the user, which are necessary to support this abstraction. For example, given that the container is entirely isolated from other containers and its host is just an esoteric resource boundary, any control operations performed within the container - launching processes, streaming stout/stderr, setting environment variables, network specialization - must be done either by modifying the container image disk before it is attached; or through a special control channel embedded in the container. These architectural and implementation details are discussed in more detail elsewhere.
