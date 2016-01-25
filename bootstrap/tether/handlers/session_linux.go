@@ -24,9 +24,8 @@ import (
 	"unsafe"
 
 	"github.com/kr/pty"
+	"github.com/vmware/vic/bootstrap/tether"
 	"golang.org/x/crypto/ssh"
-
-	"enatai-gerrit.eng.vmware.com/bonneville-container/tether"
 )
 
 func (ch *SessionHandler) AssignPty() {

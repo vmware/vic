@@ -24,10 +24,9 @@ import (
 	"time"
 
 	winserial "github.com/tarm/serial"
-
-	"enatai-gerrit.eng.vmware.com/bonneville-container/tether"
-	"enatai-gerrit.eng.vmware.com/bonneville-container/tether/handlers"
-	"enatai-gerrit.eng.vmware.com/bonneville-container/tether/serial"
+	"github.com/vmware/vic/bootstrap/tether"
+	"github.com/vmware/vic/bootstrap/tether/handlers"
+	"github.com/vmware/vic/bootstrap/tether/serial"
 )
 
 var (

@@ -23,10 +23,10 @@ import (
 	"net"
 	"sync"
 
-	"golang.org/x/crypto/ssh"
+	"github.com/vmware/vic/bootstrap/tether"
+	"github.com/vmware/vic/bootstrap/tether/utils"
 
-	"enatai-gerrit.eng.vmware.com/bonneville-container/tether"
-	"enatai-gerrit.eng.vmware.com/bonneville-container/tether/utils"
+	"golang.org/x/crypto/ssh"
 )
 
 const magicPrompt = "Exiting DOS " // the prompt is magic because when we see the prompt, we disconnect from the container - it also serves as a useful message

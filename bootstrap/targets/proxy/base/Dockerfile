@@ -5,9 +5,9 @@ FROM golang:1.5.3
 RUN cd /tmp && git clone https://github.com/pote/gpm.git && cd gpm && ./configure && make install && rm -fr /tmp/gpm
 
 # Prepare tether and init
-ENV TETHER /go/src/enatai-gerrit.eng.vmware.com/bonneville-container/
+ENV TETHER /go/src/github.com/vmware/vic/bootstrap
 # seems early docker versions are broken with WORKDIR/ENV
-WORKDIR /go/src/enatai-gerrit.eng.vmware.com/bonneville-container/
+WORKDIR /go/src/github.com/vmware/vic/bootstrap
 
 RUN mkdir -p target /binary $TETHER/tether
 

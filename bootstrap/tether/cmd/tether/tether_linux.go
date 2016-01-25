@@ -26,9 +26,9 @@ import (
 	"syscall"
 	"time"
 
-	"enatai-gerrit.eng.vmware.com/bonneville-container/tether"
-	"enatai-gerrit.eng.vmware.com/bonneville-container/tether/handlers"
-	"enatai-gerrit.eng.vmware.com/bonneville-container/tether/serial"
+	"github.com/vmware/vic/bootstrap/tether"
+	"github.com/vmware/vic/bootstrap/tether/handlers"
+	"github.com/vmware/vic/bootstrap/tether/serial"
 )
 
 // load the ID from the file system

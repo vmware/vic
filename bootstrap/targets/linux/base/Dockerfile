@@ -52,7 +52,7 @@ RUN cp /bin/busybox $ROOTFS/bin/busybox.static
 COPY default.script $ROOTFS/etc/udhcpc/default.script
 
 # Location of the tether build
-ENV TETHER /go/src/enatai-gerrit.eng.vmware.com/bonneville-container/
+ENV TETHER /go/src/github.com/vmware/vic/bootstrap
 
 RUN mkdir -p /binary
 

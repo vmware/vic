@@ -22,7 +22,7 @@ import (
 	"os/exec"
 	"syscall"
 
-	"enatai-gerrit.eng.vmware.com/bonneville-container/tether"
+	"github.com/vmware/vic/bootstrap/tether"
 
 	"golang.org/x/crypto/ssh"
 )
