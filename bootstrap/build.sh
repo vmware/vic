@@ -10,7 +10,7 @@ if [ "${SRCDIR}" == "" ]; then
 fi
 
 if [ "${BINDIR}" == "" ]; then
-  BINDIR=${SRCDIR}/../binary
+  BINDIR=${SRCDIR}/../../binary
 fi
 BINBASE=$(basename $BINDIR)
 
@@ -37,7 +37,7 @@ mkdir -p ${BINDIR}
 for i in $TARGETS; do
   TNAME=${NAME}-$(basename $i)
 
-  git_args="--git-dir=$SRCDIR/.git --work-tree=$SRCDIR"
+  git_args="--git-dir=$SRCDIR/../.git --work-tree=$SRCDIR/../"
   branch_name="$(git $git_args symbolic-ref HEAD 2>/dev/null)" ||
   branch_name="detached_head"     # detached HEAD
   BRANCH=${branch_name##refs/heads/}
