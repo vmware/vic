@@ -1,0 +1,76 @@
+{
+	"version": 0,
+	"dependencies": [
+		{
+			"importpath": "github.com/Azure/go-ansiterm",
+			"repository": "https://github.com/Azure/go-ansiterm",
+			"revision": "70b2c90b260171e829f1ebd7c17f600c11858dbe",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/Sirupsen/logrus",
+			"repository": "https://github.com/Sirupsen/logrus",
+			"revision": "f7f79f729e0fbe2fcc061db48a9ba0263f588252",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/docker/docker/pkg/system",
+			"repository": "https://github.com/docker/docker",
+			"revision": "eb729a0cb0be1f2d2ba5c616fcd4e585289f6dfc",
+			"branch": "master",
+			"path": "/pkg/system"
+		},
+		{
+			"importpath": "github.com/docker/docker/pkg/term",
+			"repository": "https://github.com/docker/docker",
+			"revision": "03864c1db07fff1db08becca1ec4e9bb4b49ecd2",
+			"branch": "master",
+			"path": "/pkg/term"
+		},
+		{
+			"importpath": "github.com/kr/pty",
+			"repository": "https://github.com/kr/pty",
+			"revision": "f7ee69f31298ecbe5d2b349c711e2547a617d398",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/tarm/serial",
+			"repository": "https://github.com/tarm/serial",
+			"revision": "edb66533729585748de3d69af96aa8c2deeb8aac",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/vishvananda/netlink",
+			"repository": "https://github.com/vishvananda/netlink",
+			"revision": "5a5eb317d73bc513ae0cfea7d9ac3c39f145e1db",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/vmware/vmw-guestinfo",
+			"repository": "https://github.com/vmware/vmw-guestinfo",
+			"revision": "e10d16ca6dbe47f1487e2118b6c8aec20630917f",
+			"branch": "master"
+		},
+		{
+			"importpath": "golang.org/x/crypto/curve25519",
+			"repository": "https://go.googlesource.com/crypto",
+			"revision": "1f22c0103821b9390939b6776727195525381532",
+			"branch": "master",
+			"path": "/curve25519"
+		},
+		{
+			"importpath": "golang.org/x/crypto/ssh",
+			"repository": "https://go.googlesource.com/crypto",
+			"revision": "1f22c0103821b9390939b6776727195525381532",
+			"branch": "master",
+			"path": "/ssh"
+		},
+		{
+			"importpath": "golang.org/x/sys/windows",
+			"repository": "https://go.googlesource.com/sys",
+			"revision": "20457ee8ea8546920d3f4e19e405da45250dc5a5",
+			"branch": "master",
+			"path": "/windows"
+		}
+	]
+}
