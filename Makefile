@@ -13,7 +13,7 @@ all: check gvt vendor test bootstrap
 
 check: goversion goimports govet
 
-bootstrap: tether.linux tether.windows
+bootstrap: tether.linux tether.windows rpctool
 
 goimports:
 	@echo checking go imports...
@@ -40,5 +40,10 @@ tether.linux:
 
 tether.windows:
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build -a -x -tags netgo -installsuffix netgo -o ./binary/tether-windows github.com/vmware/vic/bootstrap/tether/cmd/tether
+
+rpctool.linux:
+	GOARCH=amd64 GOOS=linux go build -a -x -o ./binary/rpctool --ldflags '-extldflags "-static"' github.com/vmware/vic/bootstrap/rpctool
+
+rpctool: rpctool.linux
 
 .PHONY: test vendor
