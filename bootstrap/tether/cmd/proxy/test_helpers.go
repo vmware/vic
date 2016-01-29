@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // +build linux
+
 package main
 
 import (
@@ -74,7 +75,7 @@ func testWriteConnection(conn net.Conn) {
 		//fmt.Println(text)
 		//testReadConnection(conn)
 	}
-	syscall.Wait4(pid, &ws, 0, nil)
+	// syscall.Wait4(pid, &ws, 0, nil)
 }
 
 func testReadConnection(conn net.Conn) {

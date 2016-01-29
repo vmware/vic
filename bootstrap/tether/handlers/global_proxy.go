@@ -59,8 +59,8 @@ func (ch *GlobalProxyHandler) DynamicIPAddress() (string, error) {
 }
 
 func (ch *GlobalProxyHandler) MountLabel(label, target string) error {
-	detail := fmt.Sprintf("Unable to mount %s: ", label, "mount not implemented")
-	log.Print(detail)
+	detail := fmt.Sprintf("Unable to mount %s: mount not implemented", label)
+	log.Printf(detail)
 	return errors.New(detail)
 }
 
