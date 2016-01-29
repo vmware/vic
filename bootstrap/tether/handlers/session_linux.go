@@ -108,7 +108,7 @@ func (ch *SessionHandler) Exec(command string, args []string, config map[string]
 		childPidTableMutex.Lock()
 		defer childPidTableMutex.Unlock()
 
-		log.Printf("Exec'ing command %+q\n", ch.cmd)
+		log.Printf("Exec'ing command %+q\n", ch.cmd.Args)
 		if !ch.assignTty {
 			ch.cmd.Stdin = *ch.channel
 			ch.cmd.Stdout = *ch.channel

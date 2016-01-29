@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // +build linux
+
 package main
 
 import (
@@ -169,18 +170,18 @@ func main() {
 	ext_ip, err := externalIP()
 
 	if err != nil {
-		log.Println("unable to get external IP address: %s", err)
+		log.Printf("unable to get external IP address: %s", err)
 	}
 
 	addr, err := net.ResolveTCPAddr("tcp", ext_ip+":2377")
 	if err != nil {
-		log.Println("unable to construct TCP address to listen: %s", err)
+		log.Printf("unable to construct TCP address to listen: %s", err)
 	}
 
 	log.Println("Listening for guest connections")
 	ln, err := net.ListenTCP("tcp", addr)
 	if err != nil {
-		log.Println("unable listen %s: %s", addr, err)
+		log.Printf("unable listen %s: %s", addr, err)
 	}
 	defer ln.Close()
 

@@ -56,7 +56,7 @@ func (ch *GlobalHandler) StartConnectionManager(conn *ssh.ServerConn) {
 	}
 
 	// tell client that we're disconnecting
-	if ok, _, err := conn.SendRequest("fork", true, nil); !ok || err != nil || !ok {
+	if ok, _, err := conn.SendRequest("fork", true, nil); !ok || err != nil {
 		if err != nil {
 			log.Printf("Unable to inform remote about fork (channel error): %s\n", err)
 		} else {

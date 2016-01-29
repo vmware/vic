@@ -80,14 +80,14 @@ func (ch *SessionProxyHandler) Shell() (ok bool, payload []byte) {
 
 func (ch *SessionProxyHandler) Signal(sig ssh.Signal) error {
 	log.Println("Called Signal")
-	detail := fmt.Sprintf("Unable to signal process: ", "signal not supported")
+	detail := "Unable to signal process: signal not supported"
 	log.Print(detail)
 	return errors.New(detail)
 }
 
 func (ch *SessionProxyHandler) Kill() error {
 	log.Println("Called Kill")
-	detail := fmt.Sprintf("Unable to kill process: ", "kill not supported")
+	detail := "Unable to kill process: kill not supported"
 	log.Print(detail)
 	return errors.New(detail)
 }
@@ -115,9 +115,9 @@ func (ch *SessionProxyHandler) Exec(command string, args []string, config map[st
 	output, _ := ch.CmdCombinedOutput("type C:\\TETHER\\GRAPHCOM")
 	sshChannel.Write([]byte(utils.StripCommandOutput(output) + "\r\n\r\n"))
 
-	log.Println("Sending command %+q", cmd_str)
+	log.Printf("Sending command %+q", cmd_str)
 	ch.CmdStart(cmd_str)
-	log.Println("Ccommand sent: %+q", cmd_str)
+	log.Printf("Command sent: %+q", cmd_str)
 
 	log.Printf("Copying to channel to %v\n", ch.channel)
 
@@ -198,7 +198,7 @@ func (ch *SessionProxyHandler) copyUntilPrompt() error {
 					break
 				}
 				if nw != nr {
-					fatalerr = fmt.Errorf("Short write! %n != %n", nr, nw)
+					fatalerr = fmt.Errorf("Short write! %d != %d", nr, nw)
 					break
 				}
 			}
