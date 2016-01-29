@@ -17,11 +17,11 @@ bootstrap: tether.linux tether.windows rpctool
 
 goimports:
 	@echo checking go imports...
-	@! goimports -d . 2>&1 | egrep -v '^$$'
+	@! goimports -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
 
 govet:
 	@echo checking go vet...
-	@go tool vet -structtags=false -methods=false .
+	@go tool vet -structtags=false -methods=false $$(find . -type f -name '*.go' -not -path "./vendor/*")
 
 gvt:
 	@echo getting gvt

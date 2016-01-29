@@ -138,7 +138,7 @@ func run() {
 		// HACK: currently RawConn dosn't implement timeout
 		serial.HandshakeServer(conn, time.Duration(10*time.Second))
 
-		log.Println("creating ssh connection over %s", s.Name())
+		log.Printf("creating ssh connection over %s", s.Name())
 		tether.StartTether(conn, private, handler)
 
 		s.Close()

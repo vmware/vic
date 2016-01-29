@@ -108,8 +108,6 @@ func (ch *GlobalHandler) StaticIPAddress(cidr, gateway string) error {
 			return err
 		}
 	*/
-
-	return nil
 }
 
 func (ch *GlobalHandler) DynamicIPAddress() (string, error) {
