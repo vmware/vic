@@ -46,4 +46,7 @@ rpctool.linux:
 
 rpctool: rpctool.linux
 
+clean:
+	rm -rf ./binary ./vendor
+
 .PHONY: test vendor
