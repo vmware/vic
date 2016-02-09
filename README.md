@@ -39,7 +39,7 @@ Alternatively, the iso image can be built locally.  Again, ensure `GOPATH` is se
 Package names may vary depending on the distribution being used.  Once installed, issue the following.
 
 ```
-cd bootstrap && ./build.sh docker
+cd bootstrap && ./build.sh local
 ```
 
 The iso image will be created in `./binaries`
