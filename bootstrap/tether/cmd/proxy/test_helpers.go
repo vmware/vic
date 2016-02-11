@@ -53,7 +53,7 @@ func testWriteConnection(conn net.Conn) {
 
 	std_fd := []uintptr{os.Stdin.Fd(), os.Stdout.Fd(), os.Stderr.Fd()}
 
-	pid, err := echoOff(std_fd)
+	_, err := echoOff(std_fd)
 
 	if err != nil {
 		return
