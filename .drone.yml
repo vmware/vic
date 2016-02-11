@@ -1,0 +1,12 @@
+---
+clone:
+  path: github.com/vmware/vic
+  tags: true
+build:
+  image: golang:1.5.3
+  pull: true
+  environment:
+    GOPATH: /drone
+    SHELL: /bin/bash
+  commands:
+    - make check test
