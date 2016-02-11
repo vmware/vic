@@ -1,3 +1,6 @@
+[![Build Status](https://ci.vmware.run/api/badges/vmware/vic/status.svg)](https://ci.vmware.run/vmware/vic)
+
+
 # vSphere Integrated Containers
 
 VIC is a container runtime for vSphere, allowing developers familiar with Docker to develop in containers and deploy them alongside traditional VM-based workloads on vSphere clusters, and allowing for these workloads to be managed through the vSphere UI in a way familiar to existing vSphere admins.
@@ -43,6 +46,19 @@ cd bootstrap && ./build.sh local
 ```
 
 The iso image will be created in `./binaries`
+
+[dronevic]:https://ci.vmware.run/vmware/vic
+[dronesrc]:https://github.com/drone/drone
+[dronecli]:http://readme.drone.io/devs/cli/
+## Building with CI
+
+Merges to this repository will trigger builds and [Drone][dronevic].
+
+To build locally with Drone:
+
+Ensure that you have Docker 1.6 or higher installed.
+Install the Drone command line tools.
+Run drone exec from within the root directory of the vic repository.
 
 ## License
 
