@@ -16,7 +16,7 @@ You can install vSphere Integrated Containers in the following vSphere setups:
  * vCenter Server 6.0, managing a single ESXi 6.0 or 5.5 host.
  * vCenter Server 6.0, managing a cluster of ESXi 6.0 or 5.5 hosts, with DRS enabled.
 
-In all cases, your ESXi hosts must have at least 8GB of RAM.
+In all cases, your ESXi hosts must have at least 8GB of memory.
 
 ## License Requirements
 vSphere Integrated Containers uses virtual serial ports to connect the virtual container hosts to the ESXi hosts. Virtual serial ports are available with the following vSphere licenses:
