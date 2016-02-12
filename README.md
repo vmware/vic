@@ -5,6 +5,10 @@
 
 VIC is a container runtime for vSphere, allowing developers familiar with Docker to develop in containers and deploy them alongside traditional VM-based workloads on vSphere clusters, and allowing for these workloads to be managed through the vSphere UI in a way familiar to existing vSphere admins.
 
+## Contributing
+
+See [CONTRIBUTING](CONTRIBUTING.md) for details on submitting changes and the contribution workflow.
+
 ## Building binaries for development
 
 To build the bootstrap binaries, ensure `GOPATH` is set, then issue the following.
