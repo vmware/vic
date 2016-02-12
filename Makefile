@@ -40,6 +40,7 @@ test:
 	# test everything but vendor
 	go test -v $(TEST_OPTS) github.com/vmware/vic/bootstrap/...
 	go test -v $(TEST_OPTS) github.com/vmware/vic/imageC
+	go test -v $(TEST_OPTS) github.com/vmware/vic/portlayer/...
 
 tether.linux:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./binary/tether-linux github.com/vmware/vic/bootstrap/tether/cmd/tether
