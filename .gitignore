@@ -1,3 +1,2 @@
 bootstrap/targets/linux/tether/
-vendor/**
-!vendor/manifest
+binary/

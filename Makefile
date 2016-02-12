@@ -1,25 +1,30 @@
 GO ?= go
-GOVERSION ?= go1.5
+GOVERSION ?= go1.5.3
 OS := $(shell uname)
 GO15VENDOREXPERIMENT=1
 
 export GO15VENDOREXPERIMENT
 
 goversion:
+	@echo Checking go version...
 	@( $(GO) version | grep -q $(GOVERSION) ) || ( echo "Please install $(GOVERSION) (found: $$($(GO) version))" && exit 1 )
 
 
-all: check gvt vendor test bootstrap
+all: check test bootstrap
 
 check: goversion goimports govet
 
 bootstrap: tether.linux tether.windows rpctool
 
 goimports:
+	@echo getting goimports...
+	go get golang.org/x/tools/cmd/goimports
 	@echo checking go imports...
 	@! goimports -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
 
 govet:
+	@echo getting go vet...
+	go get golang.org/x/tools/cmd/vet
 	@echo checking go vet...
 	@go tool vet -structtags=false -methods=false $$(find . -type f -name '*.go' -not -path "./vendor/*")
 
@@ -47,6 +52,6 @@ rpctool.linux:
 rpctool: rpctool.linux
 
 clean:
-	rm -rf ./binary ./vendor
+	rm -rf ./binary
 
 .PHONY: test vendor

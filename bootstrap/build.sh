@@ -65,12 +65,6 @@ for dep in "${tcz_deps[@]}"; do
      fi
 done
 
-
-# Grab and build vendor if we havent already.
-if [ $( find "$vendor"/* -maxdepth 0 -type d | wc -l) -eq "0" ]; then
-     make -C ../ gvt vendor
-fi
-
 case $1 in
      "docker")
           (cd ../ && docker build \
