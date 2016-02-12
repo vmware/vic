@@ -49,6 +49,15 @@ rpctool.linux:
 
 rpctool: rpctool.linux
 
+dockerapi:
+	@echo regenerating swagger models and operations for Docker API server...
+	@rm -rf ./apiservers/docker/models
+	@rm -rf ./apiservers/docker/restapi
+	@swagger generate server -A docker -t ./apiservers/docker -f ./apiservers/docker/swagger.json
+
+	@echo building Docker API server...
+	@go build -o ./binary/docker-server ./apiservers/docker/cmd/docker-server
+
 clean:
 	rm -rf ./binary
 
