@@ -1,4 +1,4 @@
-# vSphere Integrated Containers Installation Prerequisites
+# Environment Prerequisites for vSphere Integrated Containers Installation
 
 Before you install vSphere Integrated Containers, you must ensure that your vSphere infrastructure meets certain requirements.
 
