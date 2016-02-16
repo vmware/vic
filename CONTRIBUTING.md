@@ -76,7 +76,8 @@ Be sure to include any related GitHub issue references in the commit message.
 When opening a new issue, try to roughly follow the commit message format conventions above.
 
 We use [Zenhub](https://www.zenhub.io/) for project management on top of GitHub issues.  Once you have the Zenhub
-browser plugin installed, click on the [Boards](issues#boards) tab to open the Zenhub task board.
+browser plugin installed, click on the [Boards](https://github.com/vmware/vic/issues#boards) tab to open the Zenhub task
+board.
 
 Our task board practices are as follows:
 
