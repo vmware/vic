@@ -1,7 +1,7 @@
 package main
 
 import (
-//	"net/http"
+	//	"net/http"
 
 	"github.com/go-swagger/go-swagger/httpkit/middleware"
 
@@ -9,7 +9,7 @@ import (
 	"github.com/vmware/vic/apiservers/docker/restapi/operations/misc"
 )
 
-type MiscHandlersImpl struct {}
+type MiscHandlersImpl struct{}
 
 func (handlers *MiscHandlersImpl) Configure(api *operations.DockerAPI) {
 	api.MiscCheckAuthenticationHandler = misc.CheckAuthenticationHandlerFunc(handlers.CheckAuthentication)

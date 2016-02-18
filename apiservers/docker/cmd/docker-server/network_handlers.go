@@ -7,7 +7,7 @@ import (
 	"github.com/vmware/vic/apiservers/docker/restapi/operations/network"
 )
 
-type NetworkHandlersImpl struct {}
+type NetworkHandlersImpl struct{}
 
 func (handlers *NetworkHandlersImpl) Configure(api *operations.DockerAPI) {
 	api.NetworkDeleteNetworksIDHandler = network.DeleteNetworksIDHandlerFunc(handlers.DeleteNetworks)

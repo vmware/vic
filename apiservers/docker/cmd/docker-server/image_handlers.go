@@ -7,7 +7,7 @@ import (
 	"github.com/vmware/vic/apiservers/docker/restapi/operations/image"
 )
 
-type ImageHandlersImpl struct {}
+type ImageHandlersImpl struct{}
 
 func (handler *ImageHandlersImpl) Configure(api *operations.DockerAPI) {
 	api.ImageDeleteImagesNameHandler = image.DeleteImagesNameHandlerFunc(handler.DeleteImages)

@@ -7,7 +7,7 @@ import (
 	"github.com/vmware/vic/apiservers/docker/restapi/operations/container"
 )
 
-type ContainerHandlersImpl struct {}
+type ContainerHandlersImpl struct{}
 
 func (handlers *ContainerHandlersImpl) Configure(api *operations.DockerAPI) {
 	api.ContainerAttachHandler = container.AttachHandlerFunc(handlers.Attach)
@@ -33,7 +33,7 @@ func (handlers *ContainerHandlersImpl) Configure(api *operations.DockerAPI) {
 	api.ContainerStopHandler = container.StopHandlerFunc(handlers.Stop)
 	api.ContainerUnpauseHandler = container.UnpauseHandlerFunc(handlers.Unpause)
 	api.ContainerWaitHandler = container.WaitHandlerFunc(handlers.Wait)
-	
+
 }
 
 func (handlers *ContainerHandlersImpl) Attach(params container.AttachParams) middleware.Responder {

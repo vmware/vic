@@ -14,7 +14,7 @@
   ],
   "produces": [
     "application/json",
-	"text/plain"
+    "text/plain"
   ],
   "consumes": [
     "application/json",

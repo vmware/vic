@@ -7,7 +7,7 @@ import (
 	"github.com/vmware/vic/apiservers/docker/restapi/operations/exec"
 )
 
-type ExecHandlersImpl struct {}
+type ExecHandlersImpl struct{}
 
 func (handlers *ExecHandlersImpl) Configure(api *operations.DockerAPI) {
 	api.ExecPostContainersIDExecHandler = exec.PostContainersIDExecHandlerFunc(handlers.PostContainersIDExec)

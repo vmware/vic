@@ -7,7 +7,7 @@ import (
 	"github.com/vmware/vic/apiservers/docker/restapi/operations/volume"
 )
 
-type VolumeHandlersImpl struct {}
+type VolumeHandlersImpl struct{}
 
 func (handlers *VolumeHandlersImpl) Configure(api *operations.DockerAPI) {
 	api.VolumeDeleteVolumesNameHandler = volume.DeleteVolumesNameHandlerFunc(handlers.DeleteVolumesNames)
