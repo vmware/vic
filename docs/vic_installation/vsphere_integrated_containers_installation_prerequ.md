@@ -27,7 +27,7 @@ vSphere Integrated Containers uses virtual serial ports to connect the virtual c
 All of the ESXi hosts in your environment require an appropriate license. Installation fails if your environment includes one or more ESXi hosts that have inadequate licenses.
 
 ## Role and Permissions Requirements
-You must use an account with the vSphere Administrator role when you install vSphere Integrated Containers. **(TO BE CONFIRMED)**
+You must use an account with the vSphere Administrator role when you install vSphere Integrated Containers.
 
 ## Network Requirements
 * Use a trusted network for the deployment and use of vSphere Integrated Containers.
@@ -35,11 +35,11 @@ You must use an account with the vSphere Administrator role when you install vSp
 * Use a Gigabit connection between the machine on which you run the command line installer and the vCenter Server or ESXi hosts on which you are installing vSphere Integrated Containers. **(TO BE CONFIRMED)**
 * Use a Gigabit connection between vCenter Server and the ESXi hosts, and between the ESXi hosts and the virtual container hosts. **(TO BE CONFIRMED)**
 * Open port 2377 on all ESXi hosts, for communication between the hosts and virtual container hosts.
- * For instructions about how to open a port on an ESXi host, see [VMware KB 2008226]( http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=2008226).
+ * For an example of how to open port 2377 on an ESXi host, see [Open an Outgoing Port on ESXi Hosts](open_an_outgoing_port_on_esxi_hosts.md).
  * In test environments, you can disable the firewalls on the ESXi hosts instead of opening port 2377. To disable the firewall, log into the ESXi hosts as ```root```, and run the following command: 
    
-   ```$ esxcli network firewall set --enabled false.```  
+   ```$ esxcli network firewall set --enabled false```  
 
-* Create a private port group for the virtual container hosts. For instructions about how to create a private port group, see [Create a Private Port Group for Virtual Container Hosts](create_a_private_port_group_for_virtual_container_.md).
+* If you use the experimental vSphere Integrated Containers UI to deploy virtual container hosts, you must create a private port group for the virtual container hosts to use. For instructions about how to create a private port group, see [Create a Private Port Group for Virtual Container Hosts](create_a_private_port_group_for_virtual_container_.md).
 
 

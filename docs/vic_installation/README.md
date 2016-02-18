@@ -1,11 +1,11 @@
 # vSphere Integrated Containers Installation
 
-*vSphere Integrated Containers Installation* provides information about how to install and configure VMware vSphere Integrated Containers Installation.
+*vSphere Integrated Containers Installation* provides information about how to install and configure VMware vSphere Integrated Containers.
 
-**NOTE** this book is a work in progress.
+**NOTE**  This book is a work in progress.
 
 * For an introduction to vSphere Integrated Containers, see *vSphere Integrated Containers Overview*.
-* For information about how to perform day-to-day administration operations with vSphere Integrated Containers, see *vSphere Integrated Containers Installation Administration*.
+* For information about how to perform day-to-day administration operations with vSphere Integrated Containers, see *vSphere Integrated Containers Administration*.
 
 
 ## Intended Audience

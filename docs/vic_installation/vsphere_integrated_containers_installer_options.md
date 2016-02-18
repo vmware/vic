@@ -11,7 +11,7 @@ The command line installer for vSphere Integrated Containers provides options. T
   </thead>
   <tbody>
     <tr>
-      <td><span class="style1">ceip</span></td>
+      <td><code>ceip</cod></td>
       <td><strong>Mandatory</strong>. Enable or disable participation in the VMware Customer Experience Improvement Program. Expected values are&nbsp;enable&nbsp;ordisable.</td>
     </tr>
     <tr>
