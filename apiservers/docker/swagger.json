@@ -13,7 +13,8 @@
     "https"
   ],
   "produces": [
-    "application/json"
+    "application/json",
+	"text/plain"
   ],
   "consumes": [
     "application/json",
@@ -2707,9 +2708,15 @@
         "summary": "Ping the docker server",
         "description": "Ping the docker server",
         "operationId": "ping",
+        "produces" : [
+          "text/plain"
+        ],
         "responses": {
           "200": {
-            "description": "no error"
+            "description": "no error",
+			      "schema" : {
+				      "type" : "string"
+			      }
           },
           "500": {
             "description": "server error"

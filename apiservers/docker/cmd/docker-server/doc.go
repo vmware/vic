@@ -23,6 +23,8 @@ http://example.com/tos/
     Produces:
     - application/json
 
+    - text/plain
+
 
 swagger:meta
 */
