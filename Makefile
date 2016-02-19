@@ -1,11 +1,8 @@
 GO ?= go
-GOVERSION ?= go1.5.3
+GOVERSION ?= go1.6
 OS := $(shell uname)
-GO15VENDOREXPERIMENT=1
 
 .DEFAULT_GOAL := all
-
-export GO15VENDOREXPERIMENT
 
 goversion:
 	@echo Checking go version...

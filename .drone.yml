@@ -3,7 +3,7 @@ clone:
   path: github.com/vmware/vic
   tags: true
 build:
-  image: golang:1.5.3
+  image: golang:1.6.0
   pull: true
   environment:
     GOPATH: /drone
