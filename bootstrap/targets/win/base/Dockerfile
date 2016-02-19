@@ -1,4 +1,4 @@
-FROM golang:1.5.3
+FROM golang:1.6.0
 
 RUN apt-get update && apt-get -y install git gcc make vim file
 RUN cd /tmp && git clone https://github.com/pote/gpm.git && cd gpm && ./configure && make install && rm -fr /tmp/gpm
