@@ -1,8 +1,8 @@
 # Create a Private Port Group for Virtual Container Hosts
 
-If you use the experimental vSphere Integrated Containers UI to deploy virtual container hosts, you must create a private port group for the virtual container hosts to use. 
+If you deploy vSphere Integrated Containers to a vCenter Server cluster, you must create a private port group for each virtual container host.
 
-If you use the default command line installer to deploy a virtual container host, the installer creates the port group automatically.
+You create private port groups in the vSphere Web Client.
 
 1. Log into the vSphere Web Client for the vCenter Server instance that manages your host or cluster.
 2. In the **Home** view, click **Hosts and Clusters**. 
