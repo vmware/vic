@@ -73,6 +73,48 @@
 			"path": "/pkg/streamformatter"
 		},
 		{
+			"importpath": "github.com/docker/docker/pkg/archive",
+			"repository": "https://github.com/docker/docker",
+			"revision": "e51457eea87a52a24ad1cececbf1ca7191f2ca02",
+			"branch": "master",
+			"path": "/pkg/archive"
+		},
+		{
+			"importpath": "github.com/docker/docker/pkg/fileutils",
+			"repository": "https://github.com/docker/docker",
+			"revision": "e51457eea87a52a24ad1cececbf1ca7191f2ca02",
+			"branch": "master",
+			"path": "/pkg/fileutils"
+		},
+		{
+			"importpath": "github.com/docker/docker/pkg/idtools",
+			"repository": "https://github.com/docker/docker",
+			"revision": "e51457eea87a52a24ad1cececbf1ca7191f2ca02",
+			"branch": "master",
+			"path": "/pkg/idtools"
+		},
+		{
+			"importpath": "github.com/docker/docker/pkg/ioutils",
+			"repository": "https://github.com/docker/docker",
+			"revision": "e51457eea87a52a24ad1cececbf1ca7191f2ca02",
+			"branch": "master",
+			"path": "/pkg/ioutils"
+		},
+		{
+			"importpath": "github.com/docker/docker/pkg/pools",
+			"repository": "https://github.com/docker/docker",
+			"revision": "e51457eea87a52a24ad1cececbf1ca7191f2ca02",
+			"branch": "master",
+			"path": "/pkg/pools"
+		},
+		{
+			"importpath": "github.com/docker/docker/pkg/promise",
+			"repository": "https://github.com/docker/docker",
+			"revision": "e51457eea87a52a24ad1cececbf1ca7191f2ca02",
+			"branch": "master",
+			"path": "/pkg/promise"
+		},
+		{
 			"importpath": "github.com/docker/docker/pkg/system",
 			"repository": "https://github.com/docker/docker",
 			"revision": "eb729a0cb0be1f2d2ba5c616fcd4e585289f6dfc",
