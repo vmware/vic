@@ -1,0 +1,299 @@
+<!DOCTYPE HTML>
+<html lang="en" >
+    
+    <head>
+        
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <title>Create a Private Port Group for Virtual Container Hosts | VMWare vSphere Integrated Containers Installation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 2.6.7">
+        
+        
+        <meta name="HandheldFriendly" content="true"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black">
+        <link rel="apple-touch-icon-precomposed" sizes="152x152" href="gitbook/images/apple-touch-icon-precomposed-152.png">
+        <link rel="shortcut icon" href="gitbook/images/favicon.ico" type="image/x-icon">
+        
+    <link rel="stylesheet" href="gitbook/style.css">
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-highlight/website.css">
+        
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-search/search.css">
+        
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-fontsettings/website.css">
+        
+    
+    
+
+        
+    
+    
+    <link rel="next" href="./install_vsphere_integrated_containers_by_using_the.html" />
+    
+    
+    <link rel="prev" href="./open_an_outgoing_port_on_esxi_hosts.html" />
+    
+
+        
+    </head>
+    <body>
+        
+        
+    <div class="book"
+        data-level="2.2"
+        data-chapter-title="Create a Private Port Group for Virtual Container Hosts"
+        data-filepath="create_a_private_port_group_for_virtual_container_.md"
+        data-basepath="."
+        data-revision="Mon Feb 22 2016 09:58:55 GMT+0100 (W. Europe Standard Time)"
+        data-innerlanguage="">
+    
+
+<div class="book-summary">
+    <nav role="navigation">
+        <ul class="summary">
+            
+            
+            
+            
+
+            
+
+            
+    
+        <li class="chapter " data-level="0" data-path="index.html">
+            
+                
+                    <a href="./index.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                        Introduction
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="1" data-path="installing_vsphere_integrated_containers.html">
+            
+                
+                    <a href="./installing_vsphere_integrated_containers.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>1.</b>
+                        
+                        Installing vSphere Integrated Containers
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="2" data-path="vsphere_integrated_containers_installation_prerequ.html">
+            
+                
+                    <a href="./vsphere_integrated_containers_installation_prerequ.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.</b>
+                        
+                        Environment Prerequisites for vSphere Integrated Containers Installation
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="2.1" data-path="open_an_outgoing_port_on_esxi_hosts.html">
+            
+                
+                    <a href="./open_an_outgoing_port_on_esxi_hosts.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.1.</b>
+                        
+                        Open an Outgoing Port on ESXi Hosts
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter active" data-level="2.2" data-path="create_a_private_port_group_for_virtual_container_.html">
+            
+                
+                    <a href="./create_a_private_port_group_for_virtual_container_.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.2.</b>
+                        
+                        Create a Private Port Group for Virtual Container Hosts
+                    </a>
+            
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="3" data-path="install_vsphere_integrated_containers_by_using_the.html">
+            
+                
+                    <a href="./install_vsphere_integrated_containers_by_using_the.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>3.</b>
+                        
+                        Install vSphere Integrated Containers by Using the Command Line Installer
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="3.1" data-path="contents_of_the_vsphere_integrated_containers_comm.html">
+            
+                
+                    <a href="./contents_of_the_vsphere_integrated_containers_comm.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>3.1.</b>
+                        
+                        Contents of the vSphere Integrated Containers Command Line Installer Bundle
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="3.2" data-path="vsphere_integrated_containers_installer_options.html">
+            
+                
+                    <a href="./vsphere_integrated_containers_installer_options.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>3.2.</b>
+                        
+                        vSphere Integrated Containers Installer Options
+                    </a>
+            
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+
+
+            
+            <li class="divider"></li>
+            <li>
+                <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+                    Published with GitBook
+                </a>
+            </li>
+            
+        </ul>
+    </nav>
+</div>
+
+    <div class="book-body">
+        <div class="body-inner">
+            <div class="book-header" role="navigation">
+    <!-- Actions Left -->
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href="./" >VMWare vSphere Integrated Containers Installation</a>
+    </h1>
+</div>
+
+            <div class="page-wrapper" tabindex="-1" role="main">
+                <div class="page-inner">
+                
+                
+                    <section class="normal" id="section-">
+                    
+                        <h1 id="create-a-private-port-group-for-virtual-container-hosts">Create a Private Port Group for Virtual Container Hosts</h1>
+<p>If you deploy vSphere Integrated Containers to a vCenter Server cluster, you must create a private port group for each virtual container host.</p>
+<p>You create private port groups in the vSphere Web Client.</p>
+<ol>
+<li>Log into the vSphere Web Client for the vCenter Server instance that manages your host or cluster.</li>
+<li>In the <strong>Home</strong> view, click <strong>Hosts and Clusters</strong>. </li>
+<li>Select an ESXi host and click the <strong>Manage</strong> tab.</li>
+<li>Select <strong>Networking</strong> &gt; <strong>Virtual switches</strong>. </li>
+<li>Click the icon to <strong>Add host networking</strong>.</li>
+<li>Select <strong>Virtual Machine Port Group for a Standard Switch</strong> and click <strong>Next</strong>.</li>
+<li>Select an existing standard switch and click <strong>Next</strong>.</li>
+<li><p>Rename the network for ease identification, and click <strong>Next</strong>.</p>
+<p> For example, rename the network to <code>VIC_Network</code>.    </p>
+</li>
+<li><p>Click <strong>Finish</strong>.</p>
+</li>
+</ol>
+
+                    
+                    </section>
+                
+                
+                </div>
+            </div>
+        </div>
+
+        
+        <a href="./open_an_outgoing_port_on_esxi_hosts.html" class="navigation navigation-prev " aria-label="Previous page: Open an Outgoing Port on ESXi Hosts"><i class="fa fa-angle-left"></i></a>
+        
+        
+        <a href="./install_vsphere_integrated_containers_by_using_the.html" class="navigation navigation-next " aria-label="Next page: Install vSphere Integrated Containers by Using the Command Line Installer"><i class="fa fa-angle-right"></i></a>
+        
+    </div>
+</div>
+
+        
+<script src="gitbook/app.js"></script>
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-search/lunr.min.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-search/search.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-sharing/buttons.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-fontsettings/buttons.js"></script>
+    
+
+<script>
+require(["gitbook"], function(gitbook) {
+    var config = {"highlight":{},"search":{"maxIndexSize":1000000},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2}};
+    gitbook.start(config);
+});
+</script>
+
+        
+    </body>
+    
+</html>

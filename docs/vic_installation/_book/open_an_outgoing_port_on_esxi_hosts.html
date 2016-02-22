@@ -1,0 +1,299 @@
+<!DOCTYPE HTML>
+<html lang="en" >
+    
+    <head>
+        
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <title>Open an Outgoing Port on ESXi Hosts | VMWare vSphere Integrated Containers Installation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 2.6.7">
+        
+        
+        <meta name="HandheldFriendly" content="true"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black">
+        <link rel="apple-touch-icon-precomposed" sizes="152x152" href="gitbook/images/apple-touch-icon-precomposed-152.png">
+        <link rel="shortcut icon" href="gitbook/images/favicon.ico" type="image/x-icon">
+        
+    <link rel="stylesheet" href="gitbook/style.css">
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-highlight/website.css">
+        
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-search/search.css">
+        
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-fontsettings/website.css">
+        
+    
+    
+
+        
+    
+    
+    <link rel="next" href="./create_a_private_port_group_for_virtual_container_.html" />
+    
+    
+    <link rel="prev" href="./vsphere_integrated_containers_installation_prerequ.html" />
+    
+
+        
+    </head>
+    <body>
+        
+        
+    <div class="book"
+        data-level="2.1"
+        data-chapter-title="Open an Outgoing Port on ESXi Hosts"
+        data-filepath="open_an_outgoing_port_on_esxi_hosts.md"
+        data-basepath="."
+        data-revision="Mon Feb 22 2016 09:58:55 GMT+0100 (W. Europe Standard Time)"
+        data-innerlanguage="">
+    
+
+<div class="book-summary">
+    <nav role="navigation">
+        <ul class="summary">
+            
+            
+            
+            
+
+            
+
+            
+    
+        <li class="chapter " data-level="0" data-path="index.html">
+            
+                
+                    <a href="./index.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                        Introduction
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="1" data-path="installing_vsphere_integrated_containers.html">
+            
+                
+                    <a href="./installing_vsphere_integrated_containers.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>1.</b>
+                        
+                        Installing vSphere Integrated Containers
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="2" data-path="vsphere_integrated_containers_installation_prerequ.html">
+            
+                
+                    <a href="./vsphere_integrated_containers_installation_prerequ.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.</b>
+                        
+                        Environment Prerequisites for vSphere Integrated Containers Installation
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter active" data-level="2.1" data-path="open_an_outgoing_port_on_esxi_hosts.html">
+            
+                
+                    <a href="./open_an_outgoing_port_on_esxi_hosts.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.1.</b>
+                        
+                        Open an Outgoing Port on ESXi Hosts
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="2.2" data-path="create_a_private_port_group_for_virtual_container_.html">
+            
+                
+                    <a href="./create_a_private_port_group_for_virtual_container_.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.2.</b>
+                        
+                        Create a Private Port Group for Virtual Container Hosts
+                    </a>
+            
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="3" data-path="install_vsphere_integrated_containers_by_using_the.html">
+            
+                
+                    <a href="./install_vsphere_integrated_containers_by_using_the.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>3.</b>
+                        
+                        Install vSphere Integrated Containers by Using the Command Line Installer
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="3.1" data-path="contents_of_the_vsphere_integrated_containers_comm.html">
+            
+                
+                    <a href="./contents_of_the_vsphere_integrated_containers_comm.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>3.1.</b>
+                        
+                        Contents of the vSphere Integrated Containers Command Line Installer Bundle
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="3.2" data-path="vsphere_integrated_containers_installer_options.html">
+            
+                
+                    <a href="./vsphere_integrated_containers_installer_options.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>3.2.</b>
+                        
+                        vSphere Integrated Containers Installer Options
+                    </a>
+            
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+
+
+            
+            <li class="divider"></li>
+            <li>
+                <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+                    Published with GitBook
+                </a>
+            </li>
+            
+        </ul>
+    </nav>
+</div>
+
+    <div class="book-body">
+        <div class="body-inner">
+            <div class="book-header" role="navigation">
+    <!-- Actions Left -->
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href="./" >VMWare vSphere Integrated Containers Installation</a>
+    </h1>
+</div>
+
+            <div class="page-wrapper" tabindex="-1" role="main">
+                <div class="page-inner">
+                
+                
+                    <section class="normal" id="section-">
+                    
+                        <h1 id="open-an-outgoing-port-on-esxi-hosts">Open an Outgoing Port on ESXi Hosts</h1>
+<p>ESXi hosts communicate with the virtual container hosts via port 2377. For installation to succeed, port 2377 must be open before you install vSphere Integrated Containers. </p>
+<p>To open port 2377 on the ESXi hosts, log into each host via SSH and add the following rule after the last rule in the file <code>/etc/vmware/firewall/service.xml</code>.</p>
+<pre><code>&lt;!--Port for VIC communication --&gt;
+&lt;service id=&apos;*id_number*&apos;&gt;
+ &lt;id&gt;vicoutgoing&lt;/id&gt;
+  &lt;rule id=&apos;*id_number*&apos;&gt;
+   &lt;direction&gt;outbound&lt;/direction&gt;
+   &lt;protocol&gt;tcp&lt;/protocol&gt;
+   &lt;port type=&apos;dst&apos;&gt;&lt;/port type&gt;
+   &lt;port&gt;2377&lt;/port&gt;
+ &lt;/rule&gt;
+  &lt;enabled&gt;true&lt;/enabled&gt;
+ &lt;required&gt;true&lt;/required&gt;
+&lt;/service&gt;
+</code></pre><p>In this example, <em>id_number</em> is the number of the preceding rule in <code>service.xml</code>, incremented by 1. </p>
+<p>For detailed instructions about how to add a rule to open a port on an ESXi host, see <a href="http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&amp;cmd=displayKC&amp;externalId=2008226" target="_blank">VMware KB 2008226</a>. </p>
+
+                    
+                    </section>
+                
+                
+                </div>
+            </div>
+        </div>
+
+        
+        <a href="./vsphere_integrated_containers_installation_prerequ.html" class="navigation navigation-prev " aria-label="Previous page: Environment Prerequisites for vSphere Integrated Containers Installation"><i class="fa fa-angle-left"></i></a>
+        
+        
+        <a href="./create_a_private_port_group_for_virtual_container_.html" class="navigation navigation-next " aria-label="Next page: Create a Private Port Group for Virtual Container Hosts"><i class="fa fa-angle-right"></i></a>
+        
+    </div>
+</div>
+
+        
+<script src="gitbook/app.js"></script>
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-search/lunr.min.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-search/search.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-sharing/buttons.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-fontsettings/buttons.js"></script>
+    
+
+<script>
+require(["gitbook"], function(gitbook) {
+    var config = {"highlight":{},"search":{"maxIndexSize":1000000},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2}};
+    gitbook.start(config);
+});
+</script>
+
+        
+    </body>
+    
+</html>
