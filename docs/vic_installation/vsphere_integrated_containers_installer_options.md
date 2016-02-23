@@ -7,126 +7,157 @@ The command line installer for vSphere Integrated Containers provides options. T
     <tr>
       <th><strong>Option</strong></th>
       <th><strong>Description</strong></th>
+      <th><strong>Example</strong></th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td><code>ceip</cod></td>
-      <td><strong>Mandatory</strong>. Enable or disable participation in the VMware Customer Experience Improvement Program. Expected values are&nbsp;enable&nbsp;ordisable.</td>
+      <td><code>ceip</code></td>
+      <td><strong>Mandatory</strong>. Enable or disable participation in the VMware Customer Experience Improvement Program.</td>
+      <td><code>-ceip=enable</code> or <code>-ceip=disable</code></td>
     </tr>
     <tr>
-      <td><span class="style1">cert</span></td>
-      <td>2:3</td>
+      <td><code>cert</code></td>
+      <td>The path to the X.509 certificate for the vCenter Server instance or ESXi host on which you are installing vSphere Integrated Containers. Set this option  if your vSphere environment uses SSL certificates that have been signed by a Certificate Authority. </td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">cidr</span></td>
+      <td><code>cidr</code></td>
       <td>2:4</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">cluster</span></td>
-      <td>The path to the cluster on which to install vSphere Integrated Containers. Specify the path by using the vSphere&nbsp;<span class="style1">govc</span>&nbsp;CLI format. For example,&nbsp;<span class="style1">/&lt;<em>my_datacenter</em>&gt;/host/&lt;<em>my_cluster</em>&gt;/</span>. Specify this option if you are installing vSphere Integrated Containers on a vCenter Server instance that manages more than one cluster. Omit this option if vCenter Server only manages one cluster.</td>
+      <td><code>cluster</code></td>
+      <td><p>The path to the cluster on which to install vSphere Integrated Containers. Specify the path by using the vSphere&nbsp;<code>govc</code>&nbsp;CLI format. For example, <code>-cluster=/&lt;<em>my_datacenter</em>&gt;/host/&lt;<em>my_cluster</em>&gt;/</code>. Specify this option if you are installing vSphere Integrated Containers on a vCenter Server instance that manages more than one cluster. Omit this option if vCenter Server only manages one cluster.</p>
+      <p><b>NOTE</b>: If your datacenter includes clusters and also includes standalone hosts that are not members of any of the clusters, and if you want to install vSphere Integrated Containers on one of the standalone hosts, you must specify the host address in the <code>-cluster</code> option. </p></td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">containerNetwork</span></td>
+      <td><code>containerNetwork</code></td>
       <td>2:6</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">datacenter</span></td>
+      <td><code>datacenter</code></td>
       <td>2:7</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">datastore</span></td>
+      <td><code>datastore</code></td>
       <td>2:8</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">dns</span></td>
-      <td>The address of a DNS server, to allow you to assign static IP addresses by using the&nbsp;ip&nbsp;option. You can specify the&nbsp;<span class="style1">dns</span>&nbsp;option multiple times, to identify multiple DNS servers. If not specified, the installer assigns IP addresses by using DHCP.</td>
+      <td><code>dns</code></td>
+      <td>The address of a DNS server, to allow you to assign static IP addresses by using the&nbsp;ip&nbsp;option. You can specify the&nbsp;<code>dns</code>&nbsp;option multiple times, to identify multiple DNS servers. If not specified, the installer assigns IP addresses by using DHCP.</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">dockerOpts</span></td>
+      <td><code>dockerOpts</code></td>
       <td>2:10</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">externalNetwork</span></td>
+      <td><code>externalNetwork</code></td>
       <td>2:11</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">force</span></td>
+      <td><code>force</code></td>
       <td>2:12</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">host</span></td>
-      <td>The address of the ESXi host on which to install vSphere Integrated Containers. Specify this option if you are installing vSphere Integrated Containers on a vCenter Server instance that manages more than one host and the hosts are not included in a cluster. Omit this option if vCenter Server only manages one ESXi host.</td>
+      <td><code>host</code></td>
+      <td><p>The address of the ESXi host on which to install vSphere Integrated Containers. Specify this option if you are installing vSphere Integrated Containers on a vCenter Server instance that manages more than one host and the hosts are not included in a cluster. Omit this option if vCenter Server only manages one ESXi host.</p>
+      <p><b>NOTE</b>: If your datacenter includes clusters and also includes standalone hosts that are not members of any of the clusters, and if you want to install vSphere Integrated Containers on one of the standalone hosts, you must specify the host address in the <code>-cluster</code> option. </p></td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">ip</span></td>
-      <td>A static IPv4 address for the vSphere Integrated Containers appliance. Requires you to specify the&nbsp;<span class="style1">dns</span>&nbsp;option. If not specified, the installer assigns IP addresses by using DHCP.</td>
+      <td><code>ip</code></td>
+      <td>A static IPv4 address for the vSphere Integrated Containers appliance. Requires you to specify the&nbsp;<code>dns</code>&nbsp;option. If not specified, the installer assigns IP addresses by using DHCP.</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">key</span></td>
+      <td><code>key</code></td>
       <td>2:15</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">logfile</span></td>
+      <td><code>logfile</code></td>
       <td>2:16</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">memoryMB</span></td>
+      <td><code>memoryMB</code></td>
       <td>The amount of RAM to assign to the virtual container host. Specify this option if you intend to run large numbers of containers in this virtual container host. If not specified, the installer assigns 2048 MB of RAM to the virtual container host.</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">name</span></td>
+      <td><code>name</code></td>
       <td>A name for the vSphere Integrated Containers appliance. If not specified, the installer sets the name to&nbsp;docker-appliance.</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">numCPUs</span></td>
+      <td><code>numCPUs</code></td>
       <td>The number of CPUs to assign to the virtual container host. Specify this option if you intend to run large numbers of containers in this virtual container host. If not specified, the installer creates the appliance with 2 CPUs.</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">os</span></td>
+      <td><code>os</code></td>
       <td>2:20</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">passwd</span></td>
+      <td><code>passwd</code></td>
       <td>The password for the vCenter Server user account that you are using to install vSphere Integrated Containers, or the password for the ESXi host. If not specified, the installer prompts you to enter the password during installation.</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">pool</span></td>
-      <td>The path to a resource pool in which to place the vSphere Integrated Containers appliance. Specify the path by using the vSphere&nbsp;<span class="style1">govc</span>&nbsp;CLI format. For example, <span class="style1">/<em>&lt;my_datacenter&gt;</em>/host/<em>&lt;my_cluster&gt;</em>/Resources/<em>&lt;my_resource_pool&gt;</em></span>.</td>
+      <td><code>pool</code></td>
+      <td>The path to a resource pool in which to place the vSphere Integrated Containers appliance. Specify the path by using the vSphere&nbsp;<code>govc</code>&nbsp;CLI format. For example, <code>/<em>&lt;my_datacenter&gt;</em>/host/<em>&lt;my_cluster&gt;</em>/Resources/<em>&lt;my_resource_pool&gt;</em></code>.</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">target</span></td>
+      <td><code>target</code></td>
       <td><strong>Mandatory</strong>. The address of the ESXi host or vCenter Server instance on which you are installing vSphere Integrated containers. If an ESXi host is managed by a vCenter Server instance, you must provide the address of vCenter Server rather than of the host. To facilitate IP address changes in your infrastructure, provide a fully qualified domain name (FQDN) whenever possible, rather than an IP address.</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">timeout</span></td>
-      <td>The timeout period for uploading images to the ESXi host and powering on virtual machines. Specify a value in the format&nbsp;<span class="style1">XmYs</span>&nbsp;if the default timeout of 3m0s is insufficient.</td>
+      <td><code>timeout</code></td>
+      <td>The timeout period for uploading images to the ESXi host and powering on virtual machines. Specify a value in the format&nbsp;<code>XmYs</code>&nbsp;if the default timeout of 3m0s is insufficient.</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">uninstall</span></td>
-      <td>Uninstalls vSphere Integrated Containers. Removes all virtual machines from the vCenter Server inventory and deletes all files from storage.
+      <td><code>uninstall</code></td>
+      <td>Uninstalls vSphere Integrated Containers. Removes the vSphere Integrated Containers vApp and virtual machines from the vCenter Server inventory. Deletes all of the vAPP and VM files from storage.
           <ul>
-            <li>Requires the&nbsp;<span class="style1">target</span>&nbsp;option.</li>
-            <li>If you installed vSphere Integrated Containers on a vCenter Server instance, you must specify the&nbsp;<span class="style1">user</span>&nbsp;option.</li>
-            <li>If you do not specify the&nbsp;<span class="style1">passwd</span>&nbsp;option, the installer prompts you to enter the password.</li>
-            <li>Specify the&nbsp;<span class="style1">yes</span>&nbsp;option to answer yes to all questions during the uninstallation process.</li>
-          </ul></td>
+            <li>Requires the&nbsp;<code>-target</code>&nbsp;option.</li>
+            <li>If you installed vSphere Integrated Containers on a vCenter Server instance, you must specify the&nbsp;<code>-user</code>&nbsp;option.</li>
+            <li>If you do not specify the&nbsp;<code>-passwd</code>&nbsp;option, the installer prompts you to enter the password.</li>
+            <li>Specify the&nbsp;<code>-yes</code>&nbsp;option to answer yes to all questions during the uninstallation process.</li>
+          </ul>
+          <p><strong>NOTE</strong>: If you do not specify the <code>-yes</code> option, the installer prompts you to confirm that you want to uninstall vSphere Integrated Containers. Enter the word <code>yes</code> to confirm. If you enter <code>y</code>, the uninstall operation quits. </p></td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">user</span></td>
+      <td><code>user</code></td>
       <td>The username for the ESXi host or vCenter Server instance on which you are installing vSphere Integrated containers.
           <ul>
             <li>If you are installing vSphere Integrated Containers directly on an ESXi host and you do not specify this option, the installer uses theroot&nbsp;account for installation.</li>
             <li>This option is&nbsp;<strong>mandatory</strong>&nbsp;if you are installing vSphere Integrated Containers on a vCenter Server instance.</li>
           </ul></td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">verify</span></td>
+      <td><code>verify</code></td>
       <td>2:27</td>
+      <td>&nbsp;</td>
     </tr>
     <tr>
-      <td><span class="style1">yes</span></td>
+      <td><code>yes</code></td>
       <td>Automatically answer yes to all questions during uninstallation.</td>
+      <td>&nbsp;</td>
     </tr>
   </tbody>
 </table>
