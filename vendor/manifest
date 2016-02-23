@@ -43,6 +43,34 @@
 			"revision": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d",
 			"branch": "master",
 			"path": "/spew"
+        },
+        {
+			"importpath": "github.com/docker/docker/pkg/jsonlog",
+			"repository": "https://github.com/docker/docker",
+			"revision": "319bbff799d637ad76edfe348fedb4adc1a531f3",
+			"branch": "master",
+			"path": "/pkg/jsonlog"
+		},
+		{
+			"importpath": "github.com/docker/docker/pkg/jsonmessage",
+			"repository": "https://github.com/docker/docker",
+			"revision": "319bbff799d637ad76edfe348fedb4adc1a531f3",
+			"branch": "master",
+			"path": "/pkg/jsonmessage"
+		},
+		{
+			"importpath": "github.com/docker/docker/pkg/progress",
+			"repository": "https://github.com/docker/docker",
+			"revision": "319bbff799d637ad76edfe348fedb4adc1a531f3",
+			"branch": "master",
+			"path": "/pkg/progress"
+		},
+		{
+			"importpath": "github.com/docker/docker/pkg/streamformatter",
+			"repository": "https://github.com/docker/docker",
+			"revision": "319bbff799d637ad76edfe348fedb4adc1a531f3",
+			"branch": "master",
+			"path": "/pkg/streamformatter"
 		},
 		{
 			"importpath": "github.com/docker/docker/pkg/system",
@@ -87,6 +115,12 @@
 			"importpath": "github.com/jtolds/gls",
 			"repository": "https://github.com/jtolds/gls",
 			"revision": "8ddce2a84170772b95dd5d576c48d517b22cac63",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/docker/go-units",
+			"repository": "https://github.com/docker/go-units",
+			"revision": "5d2041e26a699eaca682e2ea41c8f891e1060444",
 			"branch": "master"
 		},
 		{
@@ -268,6 +302,13 @@
 			"revision": "b6d7b1396ec874c3b00f6c84cd4301a17c56c8ed",
 			"branch": "master",
 			"path": "/netutil"
+		},
+        {
+			"importpath": "golang.org/x/net/context/ctxhttp",
+			"repository": "https://go.googlesource.com/net",
+			"revision": "b6d7b1396ec874c3b00f6c84cd4301a17c56c8ed",
+			"branch": "master",
+			"path": "/context/ctxhttp"
 		},
 		{
 			"importpath": "golang.org/x/sys/windows",
