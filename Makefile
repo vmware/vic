@@ -14,6 +14,8 @@ check: goversion goimports govet
 
 bootstrap: tether.linux tether.windows rpctool
 
+apiservers: go-swagger dockerapi
+
 goimports:
 	@echo getting goimports...
 	go get golang.org/x/tools/cmd/goimports
@@ -49,7 +51,20 @@ rpctool.linux:
 
 rpctool: rpctool.linux
 
+go-swagger:
+	@echo getting go-swagger...
+	go get -u github.com/go-swagger/go-swagger/cmd/swagger
+	
+dockerapi:
+	@echo regenerating swagger models and operations for Docker API server...
+	@swagger generate server -A docker -t ./apiservers/docker -f ./apiservers/docker/swagger.json
+
+	@echo building Docker API server...
+	@go build -o ./binary/docker-server ./apiservers/docker/cmd/docker-server
+
 clean:
 	rm -rf ./binary
+	rm -rf ./apiservers/docker/models
+	rm -rf ./apiservers/docker/restapi
 
 .PHONY: test vendor
