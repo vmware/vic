@@ -1,2 +1,4 @@
-bootstrap/targets/linux/tether/
 binary/
+
+bootstrap/targets/linux/tether/
+imageC/imageC
