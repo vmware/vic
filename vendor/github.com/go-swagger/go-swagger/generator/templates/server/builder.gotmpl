@@ -7,11 +7,12 @@ package {{.Package}}
 import (
   "strings"
   "net/http"
-  "github.com/go-swagger/go-swagger/httpkit"
-  "github.com/go-swagger/go-swagger/spec"
-  "github.com/go-swagger/go-swagger/strfmt"
-  "github.com/go-swagger/go-swagger/httpkit/middleware"
-  "github.com/go-swagger/go-swagger/httpkit/security"
+
+  spec "github.com/go-swagger/go-swagger/spec"
+  strfmt "github.com/go-swagger/go-swagger/strfmt"
+  httpkit "github.com/go-swagger/go-swagger/httpkit"
+  middleware "github.com/go-swagger/go-swagger/httpkit/middleware"{{ if .SecurityDefinitions }}
+  security "github.com/go-swagger/go-swagger/httpkit/security"{{ end }}
 
   {{ range .DefaultImports }}{{ printf "%q" . }}
   {{ end }}
@@ -176,7 +177,7 @@ func ({{.ReceiverName}} *{{ pascalize .Name }}API) ConsumersFor(mediaTypes []str
 
 // ProducersFor gets the producers for the specified media types
 func ({{.ReceiverName}} *{{ pascalize .Name }}API) ProducersFor(mediaTypes []string) map[string]httpkit.Producer {
-  {{if.Produces}}
+  {{if .Produces}}
   result := make(map[string]httpkit.Producer)
   for _, mt := range mediaTypes {
     switch mt {

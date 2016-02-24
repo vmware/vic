@@ -59,6 +59,10 @@ func GenerateServerOperation(operationNames, tags []string, includeHandler, incl
 		if defaultProduces == "" {
 			defaultProduces = "application/json"
 		}
+		defaultConsumes := opts.DefaultConsumes
+		if defaultConsumes == "" {
+			defaultConsumes = "application/json"
+		}
 
 		apiPackage := mangleName(swag.ToFileName(opts.APIPackage), "api")
 		serverPackage := mangleName(swag.ToFileName(opts.ServerPackage), "server")
@@ -296,6 +300,7 @@ type codeGenOpBuilder struct {
 	DefaultImports  []string
 	DefaultScheme   string
 	DefaultProduces string
+	DefaultConsumes string
 	ExtraSchemas    map[string]GenSchema
 	origDefs        map[string]spec.Schema
 }
@@ -378,19 +383,22 @@ func (b *codeGenOpBuilder) MakeOperation() (GenOperation, error) {
 		extra = append(extra, sch)
 	}
 
+	swsp := resolver.Doc.Spec()
 	var extraSchemes []string
 	if ess, ok := operation.Extensions.GetStringSlice("x-schemes"); ok {
 		extraSchemes = append(extraSchemes, ess...)
 	}
 
-	if ess1, ok := resolver.Doc.Spec().Extensions.GetStringSlice("x-schemes"); ok {
+	if ess1, ok := swsp.Extensions.GetStringSlice("x-schemes"); ok {
 		extraSchemes = concatUnique(ess1, extraSchemes)
 	}
 	sort.Strings(extraSchemes)
-	schemes := concatUnique(resolver.Doc.Spec().Schemes, operation.Schemes)
+	schemes := concatUnique(swsp.Schemes, operation.Schemes)
 	sort.Strings(schemes)
-	produces := concatUnique(resolver.Doc.Spec().Produces, operation.Produces)
+	produces := producesOrDefault(operation.Produces, swsp.Produces, b.DefaultProduces)
 	sort.Strings(produces)
+	consumes := producesOrDefault(operation.Consumes, swsp.Consumes, b.DefaultConsumes)
+	sort.Strings(consumes)
 
 	return GenOperation{
 		Package:            b.APIPackage,
@@ -418,16 +426,20 @@ func (b *codeGenOpBuilder) MakeOperation() (GenOperation, error) {
 		SuccessResponse:    successResponse,
 		ExtraSchemas:       extra,
 		Schemes:            schemeOrDefault(schemes, b.DefaultScheme),
-		ProducesMediaTypes: producesOrDefault(produces, b.DefaultProduces),
+		ProducesMediaTypes: produces,
+		ConsumesMediaTypes: consumes,
 		ExtraSchemes:       extraSchemes,
 	}, nil
 }
 
-func producesOrDefault(produces []string, defaultProduces string) []string {
-	if len(produces) == 0 {
-		return []string{defaultProduces}
+func producesOrDefault(produces []string, fallback []string, defaultProduces string) []string {
+	if len(produces) > 0 {
+		return produces
 	}
-	return produces
+	if len(fallback) > 0 {
+		return fallback
+	}
+	return []string{defaultProduces}
 }
 
 func schemeOrDefault(schemes []string, defaultScheme string) []string {
@@ -720,200 +732,3 @@ func (b *codeGenOpBuilder) MakeParameter(receiver string, resolver *typeResolver
 	res.HasSliceValidations = hasSliceValidations
 	return res, nil
 }
-
-// GenResponse represents a response object for code generation
-type GenResponse struct {
-	Package       string
-	ModelsPackage string
-	ReceiverName  string
-	Name          string
-	Description   string
-
-	IsSuccess bool
-
-	Code    int
-	Method  string
-	Path    string
-	Headers GenHeaders
-	Schema  *GenSchema
-
-	Imports        map[string]string
-	DefaultImports []string
-}
-
-// GenHeader represents a header on a response for code generation
-type GenHeader struct {
-	resolvedType
-	sharedValidations
-
-	Package      string
-	ReceiverName string
-
-	Name string
-	Path string
-
-	Title       string
-	Description string
-	Default     interface{}
-
-	Converter string
-	Formatter string
-}
-
-// GenHeaders is a sorted collection of headers for codegen
-type GenHeaders []GenHeader
-
-func (g GenHeaders) Len() int           { return len(g) }
-func (g GenHeaders) Swap(i, j int)      { g[i], g[j] = g[j], g[i] }
-func (g GenHeaders) Less(i, j int) bool { return g[i].Name < g[j].Name }
-
-// GenParameter is used to represent
-// a parameter or a header for code generation.
-type GenParameter struct {
-	resolvedType
-	sharedValidations
-
-	Name            string
-	ModelsPackage   string
-	Path            string
-	ValueExpression string
-	IndexVar        string
-	ReceiverName    string
-	Location        string
-	Title           string
-	Description     string
-	Converter       string
-	Formatter       string
-
-	Schema *GenSchema
-
-	CollectionFormat string
-
-	Child  *GenItems
-	Parent *GenItems
-
-	BodyParam *GenParameter
-
-	Default         interface{}
-	Enum            []interface{}
-	ZeroValue       string
-	AllowEmptyValue bool
-}
-
-// IsQueryParam returns true when this parameter is a query param
-func (g *GenParameter) IsQueryParam() bool {
-	return g.Location == "query"
-}
-
-// IsPathParam returns true when this parameter is a path param
-func (g *GenParameter) IsPathParam() bool {
-	return g.Location == "path"
-}
-
-// IsFormParam returns true when this parameter is a form param
-func (g *GenParameter) IsFormParam() bool {
-	return g.Location == "formData"
-}
-
-// IsHeaderParam returns true when this parameter is a header param
-func (g *GenParameter) IsHeaderParam() bool {
-	return g.Location == "header"
-}
-
-// IsBodyParam returns true when this parameter is a body param
-func (g *GenParameter) IsBodyParam() bool {
-	return g.Location == "body"
-}
-
-// IsFileParam returns true when this parameter is a file param
-func (g *GenParameter) IsFileParam() bool {
-	return g.SwaggerType == "file"
-}
-
-// GenParameters represents a sorted parameter collection
-type GenParameters []GenParameter
-
-func (g GenParameters) Len() int           { return len(g) }
-func (g GenParameters) Less(i, j int) bool { return g[i].Name < g[j].Name }
-func (g GenParameters) Swap(i, j int)      { g[i], g[j] = g[j], g[i] }
-
-// GenItems represents the collection items for a collection parameter
-type GenItems struct {
-	sharedValidations
-	resolvedType
-
-	Name             string
-	Path             string
-	ValueExpression  string
-	CollectionFormat string
-	Child            *GenItems
-	Parent           *GenItems
-	Converter        string
-	Formatter        string
-
-	Location string
-}
-
-// GenOperationGroup represents a named (tagged) group of operations
-type GenOperationGroup struct {
-	Name       string
-	Operations GenOperations
-
-	Summary        string
-	Description    string
-	Imports        map[string]string
-	DefaultImports []string
-	RootPackage    string
-}
-
-// GenOperationGroups is a sorted collection of operation groups
-type GenOperationGroups []GenOperationGroup
-
-func (g GenOperationGroups) Len() int           { return len(g) }
-func (g GenOperationGroups) Swap(i, j int)      { g[i], g[j] = g[j], g[i] }
-func (g GenOperationGroups) Less(i, j int) bool { return g[i].Name < g[j].Name }
-
-// GenOperation represents an operation for code generation
-type GenOperation struct {
-	Package      string
-	ReceiverName string
-	Name         string
-	Summary      string
-	Description  string
-	Method       string
-	Path         string
-	Tags         []string
-	RootPackage  string
-
-	Imports        map[string]string
-	DefaultImports []string
-	ExtraSchemas   []GenSchema
-
-	Authorized bool
-	Principal  string
-
-	SuccessResponse *GenResponse
-	Responses       map[int]GenResponse
-	DefaultResponse *GenResponse
-
-	Params         GenParameters
-	QueryParams    GenParameters
-	PathParams     GenParameters
-	HeaderParams   GenParameters
-	FormParams     GenParameters
-	HasQueryParams bool
-	HasFormParams  bool
-	HasFileParams  bool
-
-	Schemes            []string
-	ExtraSchemes       []string
-	ProducesMediaTypes []string
-}
-
-// GenOperations represents a list of operations to generate
-// this implements a sort by operation id
-type GenOperations []GenOperation
-
-func (g GenOperations) Len() int           { return len(g) }
-func (g GenOperations) Less(i, j int) bool { return g[i].Name < g[j].Name }
-func (g GenOperations) Swap(i, j int)      { g[i], g[j] = g[j], g[i] }
