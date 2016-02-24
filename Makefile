@@ -53,23 +53,40 @@ rpctool.linux:
 
 rpctool: rpctool.linux
 
-imageC:
-	@$(GO) build -o ./binary/imageC --ldflags '-extldflags "-static"' github.com/vmware/vic/imageC
+imageC: portlayerapi
+	@echo building imageC...
+	@CGO_ENABLED=0 $(GO) build -o ./binary/imageC --ldflags '-extldflags "-static"' github.com/vmware/vic/imageC
 
 go-swagger:
 	@echo getting go-swagger...
-	go get -u github.com/go-swagger/go-swagger/cmd/swagger
+	$(GO) get -u github.com/go-swagger/go-swagger/cmd/swagger
 
 dockerapi:
 	@echo regenerating swagger models and operations for Docker API server...
 	@swagger generate server -A docker -t ./apiservers/docker -f ./apiservers/docker/swagger.json
 
 	@echo building Docker API server...
-	@go build -o ./binary/docker-server ./apiservers/docker/cmd/docker-server
+	@$(GO) build -o ./binary/docker-server ./apiservers/docker/cmd/docker-server
+
+portlayerapi:
+	@echo regenerating swagger models and operations for Portlayer API server...
+	@swagger generate server -A PortLayer -t ./apiservers/portlayer -f ./apiservers/portlayer/swagger.yml
+	@swagger generate client -A PortLayer -t ./apiservers/portlayer -f ./apiservers/portlayer/swagger.yml
+
+	@echo building Portlayer API server...
+	@$(GO) build -o ./binary/port-layer-server ./apiservers/portlayer/cmd/port-layer-server/
 
 clean:
 	rm -rf ./binary
 	rm -rf ./apiservers/docker/models
 	rm -rf ./apiservers/docker/restapi
+
+	rm -rf ./apiservers/portlayer/client/
+	rm -rf ./apiservers/portlayer/cmd/
+	rm -rf ./apiservers/portlayer/models/
+	rm -rf ./apiservers/portlayer/restapi/doc.go
+	rm -rf ./apiservers/portlayer/restapi/embedded_spec.go
+	rm -rf ./apiservers/portlayer/restapi/operations/
+	rm -rf ./apiservers/portlayer/restapi/server.go
 
 .PHONY: test vendor imageC
