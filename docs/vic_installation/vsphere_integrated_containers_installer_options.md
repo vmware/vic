@@ -2,19 +2,24 @@
 
 The command line installer for vSphere Integrated Containers provides options. The options allow you to customize the installation to match your vSphere environment.
 
-<table>
-  <thead>
+
+
+<table> 
+
+<thead>
     <tr>
       <th><strong>Option</strong></th>
       <th><strong>Description</strong></th>
       <th><strong>Example</strong></th>
     </tr>
-  </thead>
-  <tbody>
+	</thead>
+	<tbody>
     <tr>
       <td><code>ceip</code></td>
       <td><strong>Mandatory</strong>. Enable or disable participation in the VMware Customer Experience Improvement Program.</td>
-      <td><code>-ceip=enable</code> or <code>-ceip=disable</code></td>
+      <td><code>-ceip=enable</code>
+      <br> 
+	   <code>-ceip=disable</code></td>
     </tr>
     <tr>
       <td><code>cert</code></td>
@@ -28,9 +33,9 @@ The command line installer for vSphere Integrated Containers provides options. T
     </tr>
     <tr>
       <td><code>cluster</code></td>
-      <td><p>The path to the cluster on which to install vSphere Integrated Containers. Specify the path by using the vSphere&nbsp;<code>govc</code>&nbsp;CLI format. For example, <code>-cluster=/&lt;<em>my_datacenter</em>&gt;/host/&lt;<em>my_cluster</em>&gt;/</code>. Specify this option if you are installing vSphere Integrated Containers on a vCenter Server instance that manages more than one cluster. Omit this option if vCenter Server only manages one cluster.</p>
+      <td><p>The path to the cluster on which to install vSphere Integrated Containers. Specify this option if you are installing vSphere Integrated Containers in a datacenter that contains more than one cluster. Specify the path by using the vSphere&nbsp;<code>govc</code>&nbsp;CLI format, including the leading and trailing forward slashes. Omit this option if vCenter Server only manages one cluster.</p>
       <p><b>NOTE</b>: If your datacenter includes clusters and also includes standalone hosts that are not members of any of the clusters, and if you want to install vSphere Integrated Containers on one of the standalone hosts, you must specify the host address in the <code>-cluster</code> option. </p></td>
-      <td>&nbsp;</td>
+      <td><code>-cluster=/&lt;<em>my_datacenter</em>&gt; /host/&lt;<em>my_cluster</em>&gt;/</code></td>
     </tr>
     <tr>
       <td><code>containerNetwork</code></td>
@@ -39,13 +44,15 @@ The command line installer for vSphere Integrated Containers provides options. T
     </tr>
     <tr>
       <td><code>datacenter</code></td>
-      <td>2:7</td>
-      <td>&nbsp;</td>
+      <td>The name of the datacenter in which to install vSphere Integrated Containers. Specify this option if you are installing vSphere Integrated Containers on a vCenter Server instance that manages more than one datacenter. Omit this option if vCenter Server only manages one datacenter.</td>
+      <td><code>-datacenter=&lt;<em>my_datacenter</em>&gt;</code></td>
     </tr>
     <tr>
       <td><code>datastore</code></td>
-      <td>2:8</td>
-      <td>&nbsp;</td>
+      <td>The name of the datastore in which to store the files of vSphere Integrated Containers appliance. vSphere Integrated Containers uses this datastore to store container images and the files of container virtual machines. Specify this option to install vSphere Integrated Containers on an ESXi host that contains more than one datastore. A vCenter Server cluster</li>
+      </ul>
+      Omit this option if the ESXi host or vCenter Server only manages one datastore.</td>
+      <td><code>-datastore=&lt;<em>datastore_name</em>&gt;</code></td>
     </tr>
     <tr>
       <td><code>dns</code></td>
@@ -69,7 +76,7 @@ The command line installer for vSphere Integrated Containers provides options. T
     </tr>
     <tr>
       <td><code>host</code></td>
-      <td><p>The address of the ESXi host on which to install vSphere Integrated Containers. Specify this option if you are installing vSphere Integrated Containers on a vCenter Server instance that manages more than one host and the hosts are not included in a cluster. Omit this option if vCenter Server only manages one ESXi host.</p>
+      <td><p>The address of the ESXi host on which to install vSphere Integrated Containers. Specify this option if you are installing vSphere Integrated Containers on a vCenter Server instance that manages more than one ESXi host and the hosts are not included in a cluster. Omit this option if vCenter Server only manages one ESXi host.</p>
       <p><b>NOTE</b>: If your datacenter includes clusters and also includes standalone hosts that are not members of any of the clusters, and if you want to install vSphere Integrated Containers on one of the standalone hosts, you must specify the host address in the <code>-cluster</code> option. </p></td>
       <td>&nbsp;</td>
     </tr>
@@ -115,8 +122,8 @@ The command line installer for vSphere Integrated Containers provides options. T
     </tr>
     <tr>
       <td><code>pool</code></td>
-      <td>The path to a resource pool in which to place the vSphere Integrated Containers appliance. Specify the path by using the vSphere&nbsp;<code>govc</code>&nbsp;CLI format. For example, <code>/<em>&lt;my_datacenter&gt;</em>/host/<em>&lt;my_cluster&gt;</em>/Resources/<em>&lt;my_resource_pool&gt;</em></code>.</td>
-      <td>&nbsp;</td>
+      <td>The path to a resource pool in which to place the vSphere Integrated Containers appliance. Specify the path by using the vSphere&nbsp;<code>govc</code>&nbsp;CLI format, including the leading and trailing forward slashes.</td>
+      <td><code>-pool=/<em>&lt;my_datacenter&gt;</em> /host/<em>&lt;my_cluster&gt;</em> /Resources/<em>&lt;my_resource_pool&gt;</em>/</code></td>
     </tr>
     <tr>
       <td><code>target</code></td>
@@ -159,5 +166,5 @@ The command line installer for vSphere Integrated Containers provides options. T
       <td>Automatically answer yes to all questions during uninstallation.</td>
       <td>&nbsp;</td>
     </tr>
-  </tbody>
+	</tbody>
 </table>
