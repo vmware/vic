@@ -27,6 +27,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // FSLayer is a container struct for BlobSums defined in an image manifest
@@ -60,7 +62,7 @@ type V1Compatibility struct {
 
 // LearnAuthURL returns the URL of the OAuth endpoint
 func LearnAuthURL(options ImageCOptions) (*url.URL, error) {
-	defer un(trace(options.image + "/" + options.digest))
+	defer trace.End(trace.Begin(options.image + "/" + options.digest))
 
 	url, err := url.Parse(options.registry)
 	if err != nil {
@@ -86,7 +88,7 @@ func LearnAuthURL(options ImageCOptions) (*url.URL, error) {
 
 // FetchToken fetches the OAuth token from OAuth endpoint
 func FetchToken(url *url.URL) (*Token, error) {
-	defer un(trace(url.String()))
+	defer trace.End(trace.Begin(url.String()))
 
 	log.Debugf("URL: %s", url)
 
@@ -116,7 +118,7 @@ func FetchToken(url *url.URL) (*Token, error) {
 
 // FetchImageBlob fetches the image blob
 func FetchImageBlob(options ImageCOptions, layer string, history string) error {
-	defer un(trace(options.image + "/" + layer))
+	defer trace.End(trace.Begin(options.image + "/" + layer))
 
 	url, err := url.Parse(options.registry)
 	if err != nil {
@@ -180,7 +182,7 @@ func FetchImageBlob(options ImageCOptions, layer string, history string) error {
 
 // FetchImageManifest fetches the image manifest file
 func FetchImageManifest(options ImageCOptions) (*Manifest, error) {
-	defer un(trace(options.image + "/" + options.digest))
+	defer trace.End(trace.Begin(options.image + "/" + options.digest))
 
 	url, err := url.Parse(options.registry)
 	if err != nil {
