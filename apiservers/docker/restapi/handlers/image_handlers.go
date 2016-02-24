@@ -1,6 +1,10 @@
-package main
+package handlers
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/go-swagger/go-swagger/httpkit/middleware"
 
 	"github.com/vmware/vic/apiservers/docker/restapi/operations"
@@ -38,7 +42,29 @@ func (handler *ImageHandlersImpl) GetImagesName(params image.GetImagesNameJSONPa
 }
 
 func (handler *ImageHandlersImpl) PostImagesCreate(params image.PostImagesCreateParams) middleware.Responder {
-	return middleware.NotImplemented("operation image.PostImagesCreate has not yet been implemented")
+	binImageC := "imageC"
+
+	cmdArgs := make([]string, 0, 15)
+
+	if params.FromImage != nil && len(*params.FromImage) > 0 {
+		imageParts := strings.Split(*params.FromImage, ":")
+		if !strings.ContainsRune(imageParts[0], '/') {
+			cmdArgs = append(cmdArgs, "-image", "library/"+imageParts[0])
+		} else {
+			cmdArgs = append(cmdArgs, "-image", imageParts[0])
+		}
+		if len(imageParts) > 1 {
+			cmdArgs = append(cmdArgs, "-digest", imageParts[1])
+		}
+	}
+	if params.FromSrc != nil && len(*params.FromSrc) > 0 {
+		cmdArgs = append(cmdArgs, "-registry", *params.FromSrc)
+	}
+
+	fetcherPath := getImageFetcherPath(binImageC)
+	responder := NewCmdResponder(fetcherPath, cmdArgs)
+
+	return responder
 }
 
 func (handler *ImageHandlersImpl) Build(params image.BuildParams) middleware.Responder {
@@ -75,4 +101,16 @@ func (handler *ImageHandlersImpl) Search(params image.SearchParams) middleware.R
 
 func (handler *ImageHandlersImpl) Tag(params image.TagParams) middleware.Responder {
 	return middleware.NotImplemented("operation image.Tag has not yet been implemented")
+}
+
+func getImageFetcherPath(fetcherName string) string {
+	fullpath := "./" + fetcherName
+
+	dir, ferr := filepath.Abs(filepath.Dir(os.Args[0]))
+
+	if ferr == nil {
+		fullpath = dir + "/" + fetcherName
+	}
+
+	return fullpath
 }

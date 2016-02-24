@@ -1,25 +1,25 @@
-package main
+package restapi
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/go-swagger/go-swagger/errors"
 	"github.com/go-swagger/go-swagger/httpkit"
 
+	"github.com/vmware/vic/apiservers/docker/restapi/handlers"
 	"github.com/vmware/vic/apiservers/docker/restapi/operations"
 )
 
 // This file is safe to edit. Once it exists it will not be overwritten
 
 type dockerhandlers struct {
-	imageHandlers     ImageHandlersImpl
-	containerHandlers ContainerHandlersImpl
-	networkHandlers   NetworkHandlersImpl
-	volumeHandlers    VolumeHandlersImpl
-	execHandlers      ExecHandlersImpl
-	miscHandlers      MiscHandlersImpl
+	imageHandlers     handlers.ImageHandlersImpl
+	containerHandlers handlers.ContainerHandlersImpl
+	networkHandlers   handlers.NetworkHandlersImpl
+	volumeHandlers    handlers.VolumeHandlersImpl
+	execHandlers      handlers.ExecHandlersImpl
+	miscHandlers      handlers.MiscHandlersImpl
 }
 
 func configureAPI(api *operations.DockerAPI) http.Handler {
@@ -29,11 +29,13 @@ func configureAPI(api *operations.DockerAPI) http.Handler {
 	api.JSONConsumer = httpkit.JSONConsumer()
 
 	api.TxtConsumer = httpkit.ConsumerFunc(func(r io.Reader, target interface{}) error {
-		fmt.Print("Inside httpkit.ConsumerFunc")
 		return nil
 	})
 
 	api.JSONProducer = httpkit.JSONProducer()
+	api.BinConsumer = httpkit.ConsumerFunc(func(r io.Reader, target interface{}) error {
+		return nil
+	})
 
 	allhandlers := dockerhandlers{}
 
