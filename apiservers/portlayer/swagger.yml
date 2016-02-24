@@ -11,20 +11,6 @@ schemes:
 - http
 paths:
   /storage:
-    get:
-      tags: ["storage"]
-      operationId: ListImageStores
-      responses:
-        '200':
-          description: "OK"
-          schema:
-            type: array
-            items:
-              $ref: "#/definitions/ImageStore"
-        default:
-          description: "error"
-          schema:
-           $ref: "#/definitions/Error"
     post:
       tags: ["storage"]
       operationId: CreateImageStore
@@ -53,6 +39,11 @@ paths:
     get:
       tags: ["storage"]
       operationId: ListImages
+      parameters:
+        - name: id
+          type: string
+          in: query
+          collectionFormat: multi
       responses:
         '200':
           description: "OK"
@@ -70,10 +61,13 @@ paths:
       tags: ["storage"]
       operationId: WriteImage
       parameters:
-        - name: body
+        - name: id
           in: body
           schema:
-            $ref: "#/definitions/Image"
+            $ref: "#/definitions/ImageWithBody"
+      consumes:
+        - application/x-tar
+        - application/x-gzip
       responses:
         '201':
           description: "Created"
@@ -95,16 +89,14 @@ paths:
         required: true
     get:
       tags: ["storage"]
-      operationId: GetImageInfo
+      operationId: GetImage
       responses:
         '404':
           description: "Not found"
         '200':
           description: "OK"
           schema:
-            type: array
-            items:
-                $ref: "#/definitions/Image"
+            $ref: "#/definitions/Image"
         default:
           description: "error"
           schema:
@@ -166,18 +158,23 @@ definitions:
   Image:
     type: object
     required:
-      - id
-      - store
+      - ID
+      - Store
     properties:
-      id:
+      ID:
         type: string
-      selflink:
+      SelfLink:
         type: string
-      parent:
+      Parent:
         type: string
-      store:
+      Store:
         type: string
-      data:
+  ImageWithBody:
+    type: object
+    properties:
+      Image:
+        $ref: "#/definitions/Image"
+      Data:
         type: object
   ImageTar:
     type: string

@@ -113,7 +113,10 @@ func (c *NameLookupCache) GetImage(store *url.URL, ID string) (*Image, error) {
 		return nil, fmt.Errorf("store (%s) doesn't exist", store.String())
 	}
 
-	i := s[ID]
+	i, ok := s[ID]
+	if !ok {
+		return nil, fmt.Errorf("store (%s) doesn't have image %s", store.String(), ID)
+	}
 
 	return &i, nil
 }
@@ -145,4 +148,16 @@ func (c *NameLookupCache) ListImages(store *url.URL, IDs []string) ([]*Image, er
 	}
 
 	return imageList, nil
+}
+
+// ListImageStores returns a list of strings representing all existing image stores
+func (c *NameLookupCache) ListImageStores() []*url.URL {
+	c.storeCacheLock.Lock()
+	defer c.storeCacheLock.Unlock()
+
+	stores := make([]*url.URL, 0, len(c.storeCache))
+	for key := range c.storeCache {
+		stores = append(stores, &key)
+	}
+	return stores
 }
