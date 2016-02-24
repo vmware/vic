@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package trace
 
 import (
 	"runtime"
@@ -21,7 +21,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-func trace(msg string) (string, string, time.Time) {
+func Begin(msg string) (string, string, time.Time) {
 	pc, _, _, _ := runtime.Caller(1)
 	name := runtime.FuncForPC(pc).Name()
 
@@ -33,7 +33,7 @@ func trace(msg string) (string, string, time.Time) {
 	return msg, name, time.Now()
 }
 
-func un(msg string, name string, startTime time.Time) {
+func End(msg string, name string, startTime time.Time) {
 	endTime := time.Now()
 	log.Printf("[ END ] [%s] [%s] %s", name, endTime.Sub(startTime), msg)
 }

@@ -29,6 +29,8 @@ import (
 
 	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
+
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // Fetcher interface
@@ -98,7 +100,7 @@ func (u *URLFetcher) FetchWithProgress(url *url.URL, ID string) ([]byte, error) 
 }
 
 func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) ([]byte, error) {
-	defer un(trace(url.String()))
+	defer trace.End(trace.Begin(url.String()))
 
 	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
