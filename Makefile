@@ -53,7 +53,7 @@ rpctool.linux:
 
 rpctool: rpctool.linux
 
-imageC: portlayerapi
+imageC: portlayerapi-client
 	@echo building imageC...
 	@CGO_ENABLED=0 $(GO) build -o ./binary/imageC --ldflags '-extldflags "-static"' github.com/vmware/vic/imageC
 
@@ -68,11 +68,15 @@ dockerapi:
 	@echo building Docker API server...
 	@$(GO) build -o ./binary/docker-server ./apiservers/docker/cmd/docker-server
 
-portlayerapi:
-	@echo regenerating swagger models and operations for Portlayer API server...
-	@swagger generate server -A PortLayer -t ./apiservers/portlayer -f ./apiservers/portlayer/swagger.yml
+portlayerapi-client:
+	@echo regenerating swagger models and operations for Portlayer API client...
 	@swagger generate client -A PortLayer -t ./apiservers/portlayer -f ./apiservers/portlayer/swagger.yml
 
+portlayerapi-server:
+	@echo regenerating swagger models and operations for Portlayer API server...
+	@swagger generate server -A PortLayer -t ./apiservers/portlayer -f ./apiservers/portlayer/swagger.yml
+
+portlayerapi: portlayerapi-server
 	@echo building Portlayer API server...
 	@$(GO) build -o ./binary/port-layer-server ./apiservers/portlayer/cmd/port-layer-server/
 
