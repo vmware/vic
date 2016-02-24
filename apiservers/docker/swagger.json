@@ -1,8 +1,8 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "Docker Remote API",
-    "description": "The API for each docker installation.",
+    "title": "Docker compatible API for VIC",
+    "description": "Implements the docker API for vSphere Integrated Containers",
     "termsOfService": "http://example.com/tos/",
     "version": "v1.21"
   },
@@ -2361,6 +2361,10 @@
         "summary": "Create an image",
         "description": "Create an image either by pulling it from the registry or by importing it",
         "operationId": "create",
+        "consumes": [
+          "text/plain",
+          "application/octet-stream"
+        ],
         "responses": {
           "200": {
             "description": "no error"
@@ -2708,15 +2712,15 @@
         "summary": "Ping the docker server",
         "description": "Ping the docker server",
         "operationId": "ping",
-        "produces" : [
+        "produces": [
           "text/plain"
         ],
         "responses": {
           "200": {
             "description": "no error",
-			      "schema" : {
-				      "type" : "string"
-			      }
+            "schema" : {
+              "type" : "string"
+            }
           },
           "500": {
             "description": "server error"

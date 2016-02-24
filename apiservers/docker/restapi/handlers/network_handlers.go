@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"github.com/go-swagger/go-swagger/httpkit/middleware"
