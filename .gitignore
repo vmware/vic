@@ -2,3 +2,11 @@ binary/
 
 bootstrap/targets/linux/tether/
 imageC/imageC
+
+apiservers/portlayer/client/
+apiservers/portlayer/cmd/
+apiservers/portlayer/models/
+apiservers/portlayer/restapi/doc.go
+apiservers/portlayer/restapi/embedded_spec.go
+apiservers/portlayer/restapi/operations/
+apiservers/portlayer/restapi/server.go
