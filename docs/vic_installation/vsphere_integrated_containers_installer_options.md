@@ -2,8 +2,6 @@
 
 The command line installer for vSphere Integrated Containers provides options. The options allow you to customize the installation to match your vSphere environment.
 
-
-
 <table> 
 
 <thead>
@@ -16,42 +14,40 @@ The command line installer for vSphere Integrated Containers provides options. T
 	<tbody>
     <tr>
       <td><code>ceip</code></td>
-      <td><strong>Mandatory</strong>. Enable or disable participation in the VMware Customer Experience Improvement Program.</td>
-      <td><code>-ceip=enable</code>
-      <br> 
+      <td><strong>Mandatory</strong>. Enable or disable participation in the <a href="https://www.vmware.com/trustvmware/ceip" target="_blank">VMware Customer Experience Improvement Program</a>.</td>
+      <td><code>-ceip=enable</code> or 
 	   <code>-ceip=disable</code></td>
     </tr>
     <tr>
       <td><code>cert</code></td>
-      <td>The path to the X.509 certificate for the vCenter Server instance or ESXi host on which you are installing vSphere Integrated Containers. Set this option  if your vSphere environment uses SSL certificates that have been signed by a Certificate Authority. </td>
-      <td>&nbsp;</td>
+      <td>The path to an X.509 certificate for vSphere to use to authenticate with the vSphere Integrated Containers extension. This option is mandatory if your vSphere environment uses certificates that are signed by a Certificate Authority (CA). Use this option in combination with the <code>key</code> option, that provides the path to the private key file for the vCenter Server certificate. For information about how to use CA signed certificates in vSphere 6.0, see <a href="https://kb.vmware.com/kb/2111219" target="_blank">VMware KB 2111219</a>. Omit this option if vSphere does not use certificates that are signed by a CA. <strong>TO BE CONFIRMED</strong>. </td>
+      <td><code>-cert=&lt;<em>path_to_certificate</em>&gt;</code><br> <code>-key=&lt;<em>path_to_key</em>&gt;</code></td>
     </tr>
     <tr>
       <td><code>cidr</code></td>
-      <td>2:4</td>
-      <td>&nbsp;</td>
+      <td>IPv4 CIDR notation to designate the network routing for containers to use. If not specified, vSphere Integrated Containers uses the CIDR address <code>172.17.0.1/16</code>.</td>
+      <td><code>-cidr=192.168.100.0/22</code></td>
     </tr>
     <tr>
       <td><code>cluster</code></td>
-      <td><p>The path to the cluster on which to install vSphere Integrated Containers. Specify this option if you are installing vSphere Integrated Containers in a datacenter that contains more than one cluster. Specify the path by using the vSphere&nbsp;<code>govc</code>&nbsp;CLI format, including the leading and trailing forward slashes. Omit this option if vCenter Server only manages one cluster.</p>
-      <p><b>NOTE</b>: If your datacenter includes clusters and also includes standalone hosts that are not members of any of the clusters, and if you want to install vSphere Integrated Containers on one of the standalone hosts, you must specify the host address in the <code>-cluster</code> option. </p></td>
-      <td><code>-cluster=/&lt;<em>my_datacenter</em>&gt; /host/&lt;<em>my_cluster</em>&gt;/</code></td>
+      <td><p>The path to the cluster on which to install vSphere Integrated Containers. Specify this option if the target datacenter contains more than one cluster. Specify the path by using the vSphere&nbsp;<code>govc</code>&nbsp;CLI format, including the leading and trailing forward slashes. Omit this option if vCenter Server only manages one cluster.</p>
+      <p><b>NOTE</b>: If your datacenter includes clusters and also includes standalone hosts that are not members of any of the clusters, and if you want to install vSphere Integrated Containers on one of the standalone hosts, you must specify the host address in the <code>cluster</code> option. </p></td>
+      <td><code>-cluster=/&lt;<em>datacenter_name</em>&gt; /host/&lt;<em>cluster_name</em>&gt;/</code></td>
     </tr>
     <tr>
       <td><code>containerNetwork</code></td>
-      <td>2:6</td>
-      <td>&nbsp;</td>
+      <td>The name of a private port group and network for containers to use. Set this option if you want containers to use a specific private port group and network. You must create the private port group and network before you run the installer with this option. For information about creating a private group group, see <a href="create_a_private_port_group_for_virtual_container_.html">Create a Private Port Group for Virtual Container Hosts</a>. If not specified, the installer creates a private port group named <code>container_port_group</code> and a network with the same name as the vSphere Integrated Containers appliance.</td>
+      <td><code>-containerNetwork=&lt;<em>network_name</em>&gt;</code></td>
     </tr>
     <tr>
       <td><code>datacenter</code></td>
-      <td>The name of the datacenter in which to install vSphere Integrated Containers. Specify this option if you are installing vSphere Integrated Containers on a vCenter Server instance that manages more than one datacenter. Omit this option if vCenter Server only manages one datacenter.</td>
-      <td><code>-datacenter=&lt;<em>my_datacenter</em>&gt;</code></td>
+      <td>The name of the datacenter in which to install vSphere Integrated Containers. Specify this option if vCenter Server manages more than one datacenter. Omit this option if vCenter Server only manages one datacenter.</td>
+      <td><code>-datacenter=&lt;<em>datacenter</em><em>_name</em>&gt;</code></td>
     </tr>
     <tr>
       <td><code>datastore</code></td>
-      <td>The name of the datastore in which to store the files of vSphere Integrated Containers appliance. vSphere Integrated Containers uses this datastore to store container images and the files of container virtual machines. Specify this option to install vSphere Integrated Containers on an ESXi host that contains more than one datastore. A vCenter Server cluster</li>
-      </ul>
-      Omit this option if the ESXi host or vCenter Server only manages one datastore.</td>
+      <td>The name of the datastore in which to store the files of vSphere Integrated Containers appliance. vSphere Integrated Containers uses this datastore to store container images and the files of container virtual machines. Specify this option to install vSphere Integrated Containers on an ESXi host or cluster that contains more than one datastore. Omit this option if the ESXi host only has one datastore.
+      <br><br><strong>NOTE</strong>: vSphere Integrated Containers does not support datastore clusters.</td>
       <td><code>-datastore=&lt;<em>datastore_name</em>&gt;</code></td>
     </tr>
     <tr>
@@ -76,19 +72,19 @@ The command line installer for vSphere Integrated Containers provides options. T
     </tr>
     <tr>
       <td><code>host</code></td>
-      <td><p>The address of the ESXi host on which to install vSphere Integrated Containers. Specify this option if you are installing vSphere Integrated Containers on a vCenter Server instance that manages more than one ESXi host and the hosts are not included in a cluster. Omit this option if vCenter Server only manages one ESXi host.</p>
-      <p><b>NOTE</b>: If your datacenter includes clusters and also includes standalone hosts that are not members of any of the clusters, and if you want to install vSphere Integrated Containers on one of the standalone hosts, you must specify the host address in the <code>-cluster</code> option. </p></td>
-      <td>&nbsp;</td>
+      <td><p>The address of the ESXi host on which to install vSphere Integrated Containers. Specify this option if you are installing vSphere Integrated Containers on a vCenter Server instance that manages more than one ESXi host and the hosts are not included in a cluster. To facilitate IP address changes in your infrastructure, provide a fully qualified domain name (FQDN) whenever possible, rather than an IP address. Omit this option if vCenter Server only manages one ESXi host.</p>
+      <p><b>NOTE</b>: If your datacenter includes clusters and also includes standalone hosts that are not members of any of the clusters, and if you want to install vSphere Integrated Containers on one of the standalone hosts, you must specify the host address in the <code>cluster</code> option. </p></td>
+      <td><code>-host=&lt;host_address&gt;</td>
     </tr>
     <tr>
       <td><code>ip</code></td>
-      <td>A static IPv4 address for the vSphere Integrated Containers appliance. Requires you to specify the&nbsp;<code>dns</code>&nbsp;option. If not specified, the installer assigns IP addresses by using DHCP.</td>
-      <td>&nbsp;</td>
+      <td>A static IPv4 address for the vSphere Integrated Containers appliance. Requires you to specify the <code>dns</code> option. If not specified, the installer assigns IP addresses by using DHCP.</td>
+<td>&nbsp;</td>
     </tr>
     <tr>
       <td><code>key</code></td>
-      <td>2:15</td>
-      <td>&nbsp;</td>
+      <td>The path to the private key file for the vCenter Server certificate. This option is mandatory if your vSphere environment uses certificates that are signed by a Certificate Authority (CA). Use this option in combination with the <code>cert</code> option, that provides the path to an X.509 certificate file for vSphere to use to authenticate with the vSphere Integrated Containers extension. For information about how to use CA signed certificates in vSphere 6.0, see <a href="https://kb.vmware.com/kb/2111219" target="_blank">VMware KB 2111219</a>.  <strong>TO BE CONFIRMED</strong>. </td>
+      <td><code>-cert=&lt;<em>path_to_certificate</em>&gt;</code><br> <code>-key=&lt;<em>path_to_key</em>&gt;</code></td>
     </tr>
     <tr>
       <td><code>logfile</code></td>
@@ -115,6 +111,7 @@ The command line installer for vSphere Integrated Containers provides options. T
       <td>2:20</td>
       <td>&nbsp;</td>
     </tr>
+    
     <tr>
       <td><code>passwd</code></td>
       <td>The password for the vCenter Server user account that you are using to install vSphere Integrated Containers, or the password for the ESXi host. If not specified, the installer prompts you to enter the password during installation.</td>
@@ -123,7 +120,7 @@ The command line installer for vSphere Integrated Containers provides options. T
     <tr>
       <td><code>pool</code></td>
       <td>The path to a resource pool in which to place the vSphere Integrated Containers appliance. Specify the path by using the vSphere&nbsp;<code>govc</code>&nbsp;CLI format, including the leading and trailing forward slashes.</td>
-      <td><code>-pool=/<em>&lt;my_datacenter&gt;</em> /host/<em>&lt;my_cluster&gt;</em> /Resources/<em>&lt;my_resource_pool&gt;</em>/</code></td>
+      <td><code>-pool=/<em>&lt;datacenter&gt;</em> /host/<em>&lt;cluster_name&gt;</em> /Resources/<em>&lt;resource_pool_name&gt;</em>/</code></td>
     </tr>
     <tr>
       <td><code>target</code></td>
@@ -137,7 +134,7 @@ The command line installer for vSphere Integrated Containers provides options. T
     </tr>
     <tr>
       <td><code>uninstall</code></td>
-      <td>Uninstalls vSphere Integrated Containers. Removes the vSphere Integrated Containers vApp and virtual machines from the vCenter Server inventory. Deletes all of the vAPP and VM files from storage.
+      <td>Uninstalls vSphere Integrated Containers. Removes the vSphere Integrated Containers vApp and virtual machines from the vCenter Server inventory. Deletes all of the vAPP and VM files from storage. Does not delete any private port groups or networks that the installer created during installation.
           <ul>
             <li>Requires the&nbsp;<code>-target</code>&nbsp;option.</li>
             <li>If you installed vSphere Integrated Containers on a vCenter Server instance, you must specify the&nbsp;<code>-user</code>&nbsp;option.</li>
@@ -152,7 +149,7 @@ The command line installer for vSphere Integrated Containers provides options. T
       <td>The username for the ESXi host or vCenter Server instance on which you are installing vSphere Integrated containers.
           <ul>
             <li>If you are installing vSphere Integrated Containers directly on an ESXi host and you do not specify this option, the installer uses theroot&nbsp;account for installation.</li>
-            <li>This option is&nbsp;<strong>mandatory</strong>&nbsp;if you are installing vSphere Integrated Containers on a vCenter Server instance.</li>
+            <li>This option is strong>mandatory</strong> if you are installing vSphere Integrated Containers on a vCenter Server instance.</li>
           </ul></td>
       <td>&nbsp;</td>
     </tr>

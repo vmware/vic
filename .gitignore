@@ -1,3 +1,4 @@
 bootstrap/targets/linux/tether/
 vendor/**
 !vendor/manifest
+docs/vic_installation/.gitignore
