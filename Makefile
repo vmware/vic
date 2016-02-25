@@ -52,8 +52,8 @@ rpctool.linux:
 rpctool: rpctool.linux
 
 go-swagger:
-	@echo getting go-swagger...
-	go get -u github.com/go-swagger/go-swagger/cmd/swagger
+	@echo Building the go-swagger generator...
+	@go install ./vendor/github.com/go-swagger/go-swagger/cmd/swagger
 	
 dockerapi:
 	@echo regenerating swagger models and operations for Docker API server...
@@ -64,7 +64,12 @@ dockerapi:
 
 clean:
 	rm -rf ./binary
+    
+	@echo removing swagger generated files...
 	rm -rf ./apiservers/docker/models
-	rm -rf ./apiservers/docker/restapi
+	rm -rf ./apiservers/docker/restapi/operations
+	rm ./apiservers/docker/restapi/doc.go
+	rm ./apiservers/docker/restapi/server.go
+	rm ./apiservers/docker/restapi/embedded_spec.go
 
 .PHONY: test vendor

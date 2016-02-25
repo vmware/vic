@@ -212,14 +212,24 @@ func (a *appGenerator) GenerateSupport(ap *GenApp) error {
 		app = &ca
 	}
 
+	if a.GenOpts == nil || !a.GenOpts.ExcludeSpec {
+		if err := a.generateEmbeddedSwaggerJSON(app); err != nil {
+			return err
+		}
+	}
+
+	importPath := filepath.ToSlash(filepath.Join(baseImport(a.Target), a.ServerPackage, a.APIPackage))
+	app.DefaultImports = append(
+		app.DefaultImports,
+		filepath.ToSlash(filepath.Join(baseImport(a.Target), a.ServerPackage)),
+		importPath,
+	)
+
 	if err := a.generateAPIBuilder(app); err != nil {
 		return err
 	}
 
-	importPath := filepath.ToSlash(filepath.Join(baseImport(a.Target), a.ServerPackage, a.APIPackage))
-	app.DefaultImports = append(app.DefaultImports, importPath)
-
-	if err := a.generateEmbeddedSwaggerJSON(app); err != nil {
+	if err := a.generateAPIServer(app); err != nil {
 		return err
 	}
 
@@ -231,15 +241,17 @@ func (a *appGenerator) GenerateSupport(ap *GenApp) error {
 		return err
 	}
 
-	if err := a.generateMain(app); err != nil {
-		return err
+	if a.GenOpts == nil || a.GenOpts.IncludeMain {
+		if err := a.generateMain(app); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 func (a *appGenerator) generateConfigureAPI(app *GenApp) error {
-	pth := filepath.Join(a.Target, "cmd", swag.ToCommandName(swag.ToGoName(app.Name)+"Server"))
+	pth := filepath.Join(a.Target, app.APIPackage)
 	nm := "Configure" + swag.ToGoName(app.Name)
 	if fileExists(pth, nm) {
 		log.Println("skipped (already exists) configure api template:", app.Package+".Configure"+swag.ToGoName(app.Name))
@@ -271,12 +283,12 @@ func (a *appGenerator) generateMain(app *GenApp) error {
 func (a *appGenerator) generateEmbeddedSwaggerJSON(app *GenApp) error {
 	buf := bytes.NewBuffer(nil)
 	appc := *app
-	appc.Package = "main"
+	appc.Package = app.APIPackage
 	if err := embeddedSpecTemplate.Execute(buf, &appc); err != nil {
 		return err
 	}
-	log.Println("rendered embedded Swagger JSON template:", "server."+swag.ToGoName(app.Name))
-	return writeToFile(filepath.Join(a.Target, "cmd", swag.ToCommandName(swag.ToGoName(app.Name)+"Server")), "embedded_spec", buf.Bytes())
+	log.Println("rendered embedded Swagger JSON template:", app.APIPackage+"."+swag.ToGoName(app.Name))
+	return writeToFile(filepath.Join(a.Target, a.ServerPackage), "embedded_spec", buf.Bytes())
 }
 
 func (a *appGenerator) generateAPIBuilder(app *GenApp) error {
@@ -288,13 +300,22 @@ func (a *appGenerator) generateAPIBuilder(app *GenApp) error {
 	return writeToFile(filepath.Join(a.Target, a.ServerPackage, app.Package), swag.ToGoName(app.Name)+"Api", buf.Bytes())
 }
 
+func (a *appGenerator) generateAPIServer(app *GenApp) error {
+	buf := bytes.NewBuffer(nil)
+	if err := serverTemplate.Execute(buf, app); err != nil {
+		return err
+	}
+	log.Println("rendered server template:", app.APIPackage+".Server")
+	return writeToFile(filepath.Join(a.Target, a.ServerPackage), "Server", buf.Bytes())
+}
+
 func (a *appGenerator) generateDoc(app *GenApp) error {
 	buf := bytes.NewBuffer(nil)
 	if err := mainDocTemplate.Execute(buf, app); err != nil {
 		return err
 	}
 	log.Println("rendered doc template:", app.Package+"."+swag.ToGoName(app.Name))
-	return writeToFile(filepath.Join(a.Target, "cmd", swag.ToCommandName(swag.ToGoName(app.Name)+"Server")), "Doc", buf.Bytes())
+	return writeToFile(filepath.Join(a.Target, a.ServerPackage), "Doc", buf.Bytes())
 }
 
 var mediaTypeNames = map[*regexp.Regexp]string{
@@ -311,16 +332,19 @@ var mediaTypeNames = map[*regexp.Regexp]string{
 	regexp.MustCompile("text/.*javascript"):          "js",
 	regexp.MustCompile("text/.*css"):                 "css",
 	regexp.MustCompile("text/.*plain"):               "txt",
+	regexp.MustCompile("application/.*octet-stream"): "bin",
 }
 
 var knownProducers = map[string]string{
 	"json": "httpkit.JSONProducer",
 	"yaml": "httpkit.YAMLProducer",
+	"bin":  "httpkit.ByteStreamProducer",
 }
 
 var knownConsumers = map[string]string{
 	"json": "httpkit.JSONConsumer",
 	"yaml": "httpkit.YAMLConsumer",
+	"bin":  "httpkit.ByteStreamConsumer",
 }
 
 func getSerializer(sers []GenSerGroup, ext string) (*GenSerGroup, bool) {
@@ -630,6 +654,7 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 	}
 
 	return GenApp{
+		APIPackage:          a.ServerPackage,
 		Package:             a.Package,
 		ReceiverName:        receiver,
 		Name:                a.Name,
@@ -650,63 +675,6 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 		OperationGroups:     opGroups,
 		Principal:           prin,
 		SwaggerJSON:         fmt.Sprintf("%#v", jsonb),
+		ExcludeSpec:         a.GenOpts != nil && a.GenOpts.ExcludeSpec,
 	}, nil
-}
-
-// GenApp represents all the meta data needed to generate an application
-// from a swagger spec
-type GenApp struct {
-	Package             string
-	ReceiverName        string
-	Name                string
-	Principal           string
-	DefaultConsumes     string
-	DefaultProduces     string
-	Host                string
-	BasePath            string
-	Info                *spec.Info
-	ExternalDocs        *spec.ExternalDocumentation
-	Imports             map[string]string
-	DefaultImports      []string
-	Schemes             []string
-	ExtraSchemes        []string
-	Consumes            []GenSerGroup
-	Produces            []GenSerGroup
-	SecurityDefinitions []GenSecurityScheme
-	Models              []GenDefinition
-	Operations          GenOperations
-	OperationGroups     GenOperationGroups
-	SwaggerJSON         string
-}
-
-// GenSerGroup represents a group of serializers, most likely this is a media type to a list of
-// prioritized serializers.
-type GenSerGroup struct {
-	ReceiverName   string
-	AppName        string
-	Name           string
-	MediaType      string
-	Implementation string
-	AllSerializers []GenSerializer
-}
-
-// GenSerializer represents a single serializer for a particular media type
-type GenSerializer struct {
-	ReceiverName   string
-	AppName        string
-	Name           string
-	MediaType      string
-	Implementation string
-}
-
-// GenSecurityScheme represents a security scheme for code generation
-type GenSecurityScheme struct {
-	AppName      string
-	ID           string
-	Name         string
-	ReceiverName string
-	IsBasicAuth  bool
-	IsAPIKeyAuth bool
-	Source       string
-	Principal    string
 }
