@@ -1,6 +1,6 @@
 # Contents of the vSphere Integrated Containers Command Line Installer Bundle
 
-The command line installer bundle contains the following files:
+The command line installer bundle contains the following files1:
 
 | **File** | **Description** |
 | -- | -- |
