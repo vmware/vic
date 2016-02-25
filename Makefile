@@ -1,6 +1,6 @@
 GO ?= go
 GOVERSION ?= go1.6
-OS := $(shell uname)
+OS := $(shell uname | tr '[:upper:]' '[:lower:]')
 
 .DEFAULT_GOAL := all
 
@@ -39,6 +39,8 @@ vendor:
 test:
 	# test everything but vendor
 	go test -v $(TEST_OPTS) github.com/vmware/vic/bootstrap/...
+	go test -v $(TEST_OPTS) github.com/vmware/vic/imageC
+	go test -v $(TEST_OPTS) github.com/vmware/vic/portlayer/...
 
 tether.linux:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./binary/tether-linux github.com/vmware/vic/bootstrap/tether/cmd/tether
@@ -51,20 +53,36 @@ rpctool.linux:
 
 rpctool: rpctool.linux
 
+imageC: portlayerapi-client
+	@echo building imageC...
+	@CGO_ENABLED=0 $(GO) build -o ./binary/imageC --ldflags '-extldflags "-static"' github.com/vmware/vic/imageC
+
 go-swagger:
 	@echo Building the go-swagger generator...
 	@go install ./vendor/github.com/go-swagger/go-swagger/cmd/swagger
-	
+
 dockerapi:
 	@echo regenerating swagger models and operations for Docker API server...
 	@swagger generate server -A docker -t ./apiservers/docker -f ./apiservers/docker/swagger.json
 
 	@echo building Docker API server...
-	@go build -o ./binary/docker-server ./apiservers/docker/cmd/docker-server
+	@$(GO) build -o ./binary/docker-server ./apiservers/docker/cmd/docker-server
+
+portlayerapi-client:
+	@echo regenerating swagger models and operations for Portlayer API client...
+	@swagger generate client -A PortLayer -t ./apiservers/portlayer -f ./apiservers/portlayer/swagger.yml
+
+portlayerapi-server:
+	@echo regenerating swagger models and operations for Portlayer API server...
+	@swagger generate server -A PortLayer -t ./apiservers/portlayer -f ./apiservers/portlayer/swagger.yml
+
+portlayerapi: portlayerapi-server
+	@echo building Portlayer API server...
+	@$(GO) build -o ./binary/port-layer-server ./apiservers/portlayer/cmd/port-layer-server/
 
 clean:
 	rm -rf ./binary
-    
+
 	@echo removing swagger generated files...
 	rm -rf ./apiservers/docker/models
 	rm -rf ./apiservers/docker/restapi/operations
@@ -72,4 +90,12 @@ clean:
 	rm ./apiservers/docker/restapi/server.go
 	rm ./apiservers/docker/restapi/embedded_spec.go
 
-.PHONY: test vendor
+	rm -rf ./apiservers/portlayer/client/
+	rm -rf ./apiservers/portlayer/cmd/
+	rm -rf ./apiservers/portlayer/models/
+	rm -rf ./apiservers/portlayer/restapi/doc.go
+	rm -rf ./apiservers/portlayer/restapi/embedded_spec.go
+	rm -rf ./apiservers/portlayer/restapi/operations/
+	rm -rf ./apiservers/portlayer/restapi/server.go
+
+.PHONY: test vendor imageC
