@@ -27,6 +27,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/progress"
 
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -134,6 +135,8 @@ func FetchImageBlob(options ImageCOptions, layer string, history string) error {
 	}
 	log.Debugf("Metadata: %#v\n", v1)
 
+	progress.Update(po, v1.ID[:12], "Pulling fs layer")
+
 	fetcher := NewFetcher(FetcherOptions{
 		Timeout:  options.timeout,
 		Username: options.username,
@@ -147,11 +150,14 @@ func FetchImageBlob(options ImageCOptions, layer string, history string) error {
 
 	in := bytes.NewReader(blob)
 
-	destination := path.Join(options.destination, options.image, v1.ID)
+	destination := path.Join(options.destination, options.image, options.digest, v1.ID)
 	err = os.MkdirAll(destination, 0755)
 	if err != nil {
 		return err
 	}
+	progress.Update(po, v1.ID[:12], "Download complete")
+
+	progress.Update(po, v1.ID[:12], "Verifying Checksum")
 
 	h := sha256.New()
 	t := io.TeeReader(in, h)
@@ -176,6 +182,8 @@ func FetchImageBlob(options ImageCOptions, layer string, history string) error {
 		return fmt.Errorf("Failed to validate layer checksum. Expected %s got %s", layer, sum)
 	}
 	ioutil.WriteFile(path.Join(destination, v1.ID+".json"), []byte(history), 0644)
+
+	progress.Update(po, v1.ID[:12], "Pull complete")
 
 	return nil
 }
@@ -219,7 +227,7 @@ func FetchImageManifest(options ImageCOptions) (*Manifest, error) {
 		return nil, fmt.Errorf("tag doesn't match what was requested, expected: %s, downloaded: %s", options.digest, manifest.Tag)
 	}
 
-	destination := path.Join(options.destination, options.image)
+	destination := path.Join(options.destination, options.image, options.digest)
 	err = os.MkdirAll(destination, 0755)
 	if err != nil {
 		return nil, err
