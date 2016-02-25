@@ -19,13 +19,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/streamformatter"
 
 	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
@@ -133,6 +132,7 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) ([]byte
 
 	}
 
+	// FIXME: handle StatusTemporaryRedirect and StatusFound
 	if !u.IsStatusOK() {
 		return nil, fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
 	}
@@ -144,13 +144,11 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) ([]byte
 		if err != nil {
 			return nil, err
 		}
-		// https://raw.githubusercontent.com/docker/docker/master/distribution/pull_v2.go
-		po := streamformatter.NewJSONStreamFormatter().NewProgressOutput(os.Stdout, true)
 
-		in = progress.NewProgressReader(res.Body, po, cl, ID, "Downloading")
+		in = progress.NewProgressReader(
+			ioutils.NewCancelReadCloser(ctx, res.Body), po, cl, ID, "Downloading",
+		)
 		defer in.Close()
-
-		defer progress.Update(po, ID, "Download complete")
 	}
 
 	return ioutil.ReadAll(in)
