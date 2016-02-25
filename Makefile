@@ -9,29 +9,29 @@ goversion:
 	@echo Checking go version...
 	@( $(GO) version | grep -q $(GOVERSION) ) || ( echo "Please install $(GOVERSION) (found: $$($(GO) version))" && exit 1 )
 
-all: check test bootstrap
+all: check test bootstrap apiservers
 
 check: goversion goimports govet
 
 bootstrap: tether.linux tether.windows rpctool
 
-apiservers: go-swagger dockerapi
+apiservers: dockerapi portlayerapi
 
 goimports:
 	@echo getting goimports...
-	go get golang.org/x/tools/cmd/goimports
+	$(GO) get -u golang.org/x/tools/cmd/goimports
 	@echo checking go imports...
 	@! goimports -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
 
 govet:
 	@echo getting go vet...
-	go get golang.org/x/tools/cmd/vet
+	$(GO) get -u golang.org/x/tools/cmd/vet
 	@echo checking go vet...
-	@go tool vet -structtags=false -methods=false $$(find . -type f -name '*.go' -not -path "./vendor/*")
+	@$(GO) tool vet -structtags=false -methods=false $$(find . -type f -name '*.go' -not -path "./vendor/*")
 
 gvt:
 	@echo getting gvt
-	go get -u github.com/FiloSottile/gvt
+	$(GO) get -u github.com/FiloSottile/gvt
 
 vendor:
 	@echo restoring vendor
@@ -39,9 +39,9 @@ vendor:
 
 test:
 	# test everything but vendor
-	go test -v $(TEST_OPTS) github.com/vmware/vic/bootstrap/...
-	go test -v $(TEST_OPTS) github.com/vmware/vic/imageC
-	go test -v $(TEST_OPTS) github.com/vmware/vic/portlayer/...
+	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/bootstrap/...
+	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/imageC
+	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/portlayer/...
 
 tether.linux:
 	@echo building tether-linux
@@ -63,7 +63,10 @@ imageC: portlayerapi-client
 
 go-swagger:
 	@echo Building the go-swagger generator...
-	@$(GO) install ./vendor/github.com/go-swagger/go-swagger/cmd/swagger
+#   FIXME: swagger generate generates incorrect code if go-swagger is not in GOPATH
+#   Get from github until that issue gets resolved
+#	@$(GO) install ./vendor/github.com/go-swagger/go-swagger/cmd/swagger
+	@$(GO) get -u github.com/go-swagger/go-swagger/cmd/swagger
 
 dockerapi-server: go-swagger
 	@echo regenerating swagger models and operations for Docker API server...
