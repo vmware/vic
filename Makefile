@@ -65,18 +65,19 @@ go-swagger:
 	@echo Building the go-swagger generator...
 	@$(GO) install ./vendor/github.com/go-swagger/go-swagger/cmd/swagger
 
-dockerapi:
+dockerapi-server: go-swagger
 	@echo regenerating swagger models and operations for Docker API server...
 	@$(SWAGGER) generate server -A docker -t ./apiservers/docker -f ./apiservers/docker/swagger.json
 
+dockerapi: dockerapi-server
 	@echo building Docker API server...
 	@$(GO) build -o ./binary/docker-server ./apiservers/docker/cmd/docker-server
 
-portlayerapi-client:
+portlayerapi-client: go-swagger
 	@echo regenerating swagger models and operations for Portlayer API client...
 	@$(SWAGGER) generate client -A PortLayer -t ./apiservers/portlayer -f ./apiservers/portlayer/swagger.yml
 
-portlayerapi-server:
+portlayerapi-server: go-swagger
 	@echo regenerating swagger models and operations for Portlayer API server...
 	@$(SWAGGER) generate server -A PortLayer -t ./apiservers/portlayer -f ./apiservers/portlayer/swagger.yml
 
