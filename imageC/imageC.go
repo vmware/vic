@@ -23,10 +23,15 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/pkg/streamformatter"
 )
 
 var (
 	options = ImageCOptions{}
+
+	// https://raw.githubusercontent.com/docker/docker/master/distribution/pull_v2.go
+	po = streamformatter.NewJSONStreamFormatter().NewProgressOutput(os.Stdout, false)
 )
 
 // ImageCOptions wraps the cli arguments
@@ -36,6 +41,8 @@ type ImageCOptions struct {
 	digest   string
 
 	destination string
+
+	host string
 
 	logfile string
 
@@ -57,6 +64,8 @@ const (
 
 	DefaultDestination = "."
 
+	DefaultHost = "localhost:80"
+
 	DefaultLogfile = "imageC.log"
 
 	DefaultHTTPTimeout             = 60 * time.Second
@@ -69,6 +78,8 @@ func init() {
 	flag.StringVar(&options.digest, "digest", DefaultDockerDigest, "Tag name or image digest")
 
 	flag.StringVar(&options.destination, "destination", DefaultDestination, "Destination directory")
+
+	flag.StringVar(&options.host, "host", DefaultHost, "Host that runs portlayer API (FQDN:port format)")
 
 	flag.StringVar(&options.logfile, "logfile", DefaultLogfile, "Path of the installer log file")
 
@@ -104,6 +115,8 @@ func main() {
 		log.SetOutput(io.MultiWriter(os.Stdout, f))
 	}
 
+	// FIXME: Ping the portlayer to make sure that it's up and running
+
 	url, err := LearnAuthURL(options)
 	if err != nil {
 		log.Fatalf("%s", err)
@@ -124,6 +137,8 @@ func main() {
 
 	layers := manifest.FSLayers
 	histories := manifest.History
+
+	progress.Message(po, options.digest, "Pulling from "+options.image)
 
 	wg.Add(len(layers))
 	results := make(chan error, len(layers))
@@ -148,4 +163,9 @@ func main() {
 			log.Fatalf("%s", err)
 		}
 	}
+
+	// FIXME: Dump the digest
+	//progress.Message(po, "", "Digest: 0xDEAD:BEEF")
+
+	progress.Message(po, "", "Status: Downloaded newer image for "+options.image+":"+options.digest)
 }
