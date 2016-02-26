@@ -3,10 +3,11 @@ binary/
 bootstrap/targets/linux/tether/
 imageC/imageC
 
-apiservers/portlayer/client/
-apiservers/portlayer/cmd/
-apiservers/portlayer/models/
-apiservers/portlayer/restapi/doc.go
-apiservers/portlayer/restapi/embedded_spec.go
-apiservers/portlayer/restapi/operations/
-apiservers/portlayer/restapi/server.go
+apiservers/docker/**
+!apiservers/docker/swagger.yml
+!apiservers/docker/restapi/configure_docker.go
+!apiservers/docker/restapi/handlers/*
+
+apiservers/portlayer/**
+!apiservers/portlayer/swagger.yml
+!apiservers/portlayer/restapi/configure_port_layer.go

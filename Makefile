@@ -89,18 +89,19 @@ clean:
 	rm -rf ./binary
 
 	@echo removing swagger generated files...
+	rm -f ./apiservers/docker/restapi/doc.go
+	rm -f ./apiservers/docker/restapi/embedded_spec.go
+	rm -f ./apiservers/docker/restapi/server.go
+	rm -rf ./apiservers/docker/cmd
 	rm -rf ./apiservers/docker/models
 	rm -rf ./apiservers/docker/restapi/operations
-	rm -f ./apiservers/docker/restapi/doc.go
-	rm -f ./apiservers/docker/restapi/server.go
-	rm -f ./apiservers/docker/restapi/embedded_spec.go
 
+	rm -f ./apiservers/portlayer/restapi/doc.go
+	rm -f ./apiservers/portlayer/restapi/embedded_spec.go
+	rm -f ./apiservers/portlayer/restapi/server.go
 	rm -rf ./apiservers/portlayer/client/
 	rm -rf ./apiservers/portlayer/cmd/
 	rm -rf ./apiservers/portlayer/models/
-	rm -rf ./apiservers/portlayer/restapi/doc.go
-	rm -rf ./apiservers/portlayer/restapi/embedded_spec.go
 	rm -rf ./apiservers/portlayer/restapi/operations/
-	rm -rf ./apiservers/portlayer/restapi/server.go
 
 .PHONY: test vendor imageC
