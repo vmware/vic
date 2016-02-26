@@ -9,4 +9,4 @@ build:
     GOPATH: /drone
     SHELL: /bin/bash
   commands:
-    - make check test
+    - make all
