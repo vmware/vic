@@ -1,7 +1,7 @@
 binary/
 
 bootstrap/targets/linux/tether/
-imageC/imageC
+imageC/imagec
 
 apiservers/docker/**
 !apiservers/docker/swagger.yml
