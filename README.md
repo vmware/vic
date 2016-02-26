@@ -13,9 +13,18 @@ See [CONTRIBUTING](CONTRIBUTING.md) for details on submitting changes and the co
 
 To build the bootstrap binaries, ensure `GOPATH` is set, then issue the following.
 ```
-$ make gvt vendor bootstrap
+$ make all
 ```
-This will install the [gvt](https://github.com/FiloSottile/gvt) utility, retrieve the build dependencies via `gvt restore`, then build the bootstrap binaries `tether-windows`, `tether-linux`, and `rpctool`.  The binaries will be created in the `./binaries` directory.
+This will install required tools, build the bootstrap binaries `tether-windows`, `tether-linux`, `rpctool` and server binaries `docker-server`, `port-layer-server` and finally run their tests.  The binaries will be created in the `./binaries` directory.
+
+## Managing vendor/ directory
+
+To build the VIC dependencies, ensure `GOPATH` is set, then issue the following.
+``
+$ make gvt vendor
+``
+
+This will install the [gvt](https://github.com/FiloSottile/gvt) utility and retrieve the build dependencies via `gvt restore`
 
 ## Building the bootstrap container iso
 
@@ -54,15 +63,42 @@ The iso image will be created in `./binaries`
 [dronevic]:https://ci.vmware.run/vmware/vic
 [dronesrc]:https://github.com/drone/drone
 [dronecli]:http://readme.drone.io/devs/cli/
+
 ## Building with CI
 
-Merges to this repository will trigger builds and [Drone][dronevic].
+Merges to this repository will trigger builds with [Drone][dronevic].
 
 To build locally with Drone:
 
 Ensure that you have Docker 1.6 or higher installed.
 Install the Drone command line tools.
 Run drone exec from within the root directory of the vic repository.
+
+## Starting docker-server
+
+Generate certificate pair
+
+```
+go run `go env GOROOT`/src/crypto/tls/generate_cert.go --host localhost
+```
+
+Start server
+
+```
+binary/docker-server --port=2376 --tls-certificate=cert.pem --tls-key=key.pem
+```
+
+## Starting port-layer-server
+
+```
+binary/port-layer-server --port 8080
+```
+
+## Testing with docker client
+
+```
+$ DOCKER_API_VERSION=1.21 DOCKER_HOST=tcp://127.0.0.1:2376 docker pull tomcat
+```
 
 ## License
 
