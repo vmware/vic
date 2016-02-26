@@ -2,6 +2,7 @@ package restapi
 
 import (
 	"net/http"
+	"os"
 
 	errors "github.com/go-swagger/go-swagger/errors"
 	httpkit "github.com/go-swagger/go-swagger/httpkit"
@@ -60,11 +61,19 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 	api.StorageCreateImageStoreHandler = storage.CreateImageStoreHandlerFunc(func(params storage.CreateImageStoreParams) middleware.Responder {
 		url, err := cache.CreateImageStore(params.Body.Name)
 		if err != nil {
-			return storage.NewCreateImageStoreDefault(http.StatusInternalServerError).WithPayload(
-				&models.Error{
-					Code:    swag.Int64(http.StatusInternalServerError),
-					Message: err.Error(),
-				})
+			if err == os.ErrExist {
+				return storage.NewCreateImageStoreConflict().WithPayload(
+					&models.Error{
+						Code:    swag.Int64(http.StatusConflict),
+						Message: "An image store with that name already exists",
+					})
+			} else {
+				return storage.NewCreateImageStoreDefault(http.StatusInternalServerError).WithPayload(
+					&models.Error{
+						Code:    swag.Int64(http.StatusInternalServerError),
+						Message: err.Error(),
+					})
+			}
 		}
 		s := &models.StoreURL{Code: swag.Int64(http.StatusCreated), URL: url.String()}
 		return storage.NewCreateImageStoreCreated().WithPayload(s)

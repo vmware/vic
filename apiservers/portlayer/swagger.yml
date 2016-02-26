@@ -24,8 +24,10 @@ paths:
           description: "Created"
           schema:
             $ref: "#/definitions/StoreUrl"
-        '400':
+        '409':
           description: "An image store with that name already exists."
+          schema:
+            $ref: "#/definitions/Error"
         default:
           description: "error"
           schema:
