@@ -15,7 +15,12 @@ To build the bootstrap binaries, ensure `GOPATH` is set, then issue the followin
 ```
 $ make all
 ```
-This will install required tools, build the bootstrap binaries `tether-windows`, `tether-linux`, `rpctool` and server binaries `docker-server`, `port-layer-server` and finally run their tests.  The binaries will be created in the `./binaries` directory.
+This will install required tools, build the bootstrap binaries `tether-windows`, `tether-linux`, `rpctool` and server binaries `docker-server`, `port-layer-server`.  The binaries will be created in the `./binaries` directory.
+
+To run tests after a successfull build, issue the following.
+```
+$ make test
+```
 
 ## Managing vendor/ directory
 

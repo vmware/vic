@@ -9,7 +9,7 @@ goversion:
 	@echo Checking go version...
 	@( $(GO) version | grep -q $(GOVERSION) ) || ( echo "Please install $(GOVERSION) (found: $$($(GO) version))" && exit 1 )
 
-all: check test bootstrap apiservers
+all: check bootstrap apiservers
 
 check: goversion goimports govet
 
@@ -52,9 +52,12 @@ tether.windows:
 	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./binary/tether-windows github.com/vmware/vic/bootstrap/tether/cmd/tether
 
 rpctool.linux:
+ifeq ($(OS),linux)
 	@echo building rpctool
 	@GOARCH=amd64 GOOS=linux $(GO) build -o ./binary/rpctool --ldflags '-extldflags "-static"' github.com/vmware/vic/bootstrap/rpctool
-
+else
+	@echo skipping rpctool, cannot cross compile cgo
+endif
 rpctool: rpctool.linux
 
 imagec: portlayerapi-client
