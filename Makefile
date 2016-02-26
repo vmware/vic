@@ -40,7 +40,7 @@ vendor:
 test:
 	# test everything but vendor
 	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/bootstrap/...
-	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/imageC
+	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/imagec
 	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/portlayer/...
 
 tether.linux:
@@ -57,9 +57,9 @@ rpctool.linux:
 
 rpctool: rpctool.linux
 
-imageC: portlayerapi-client
-	@echo building imageC...
-	@CGO_ENABLED=0 $(GO) build -o ./binary/imageC --ldflags '-extldflags "-static"' github.com/vmware/vic/imageC
+imagec: portlayerapi-client
+	@echo building imagec...
+	@CGO_ENABLED=0 $(GO) build -o ./binary/imagec --ldflags '-extldflags "-static"' github.com/vmware/vic/imagec
 
 go-swagger:
 	@echo Building the go-swagger generator...
@@ -104,4 +104,4 @@ clean:
 	rm -rf ./apiservers/portlayer/models/
 	rm -rf ./apiservers/portlayer/restapi/operations/
 
-.PHONY: test vendor imageC
+.PHONY: test vendor imagec

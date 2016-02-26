@@ -1,4 +1,4 @@
-# imageC
+# imagec
 
 A command line utility to download Docker images from registry and push it to Storage Layer.
 

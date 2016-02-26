@@ -123,7 +123,7 @@ func TestFetchImageManifest(t *testing.T) {
 	options.token = &Token{Token: OAuthToken}
 
 	// create a temporary directory
-	dir, err := ioutil.TempDir("", "imageC")
+	dir, err := ioutil.TempDir("", "imagec")
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -155,7 +155,7 @@ func TestFetchImageBlob(t *testing.T) {
 	options.token = &Token{Token: OAuthToken}
 
 	// create a temporary directory
-	dir, err := ioutil.TempDir("", "imageC")
+	dir, err := ioutil.TempDir("", "imagec")
 	if err != nil {
 		t.Errorf(err.Error())
 	}
