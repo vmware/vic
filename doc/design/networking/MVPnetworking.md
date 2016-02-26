@@ -131,6 +131,7 @@ networks for published ports as a more resilient and scalable solution.
 #### Expected Outcome
 
 Port layer will:
+ * connect *test1* to the default bridge network
  * expose port 80 on container *test1*
  * setup NAT mapping port 8080 on the external interface of the VCH
  to port 8080 on the internal bridge interface of *test1*
