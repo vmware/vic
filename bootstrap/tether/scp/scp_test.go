@@ -47,8 +47,12 @@ func scpTest(t *testing.T, mode Mode) {
 		return
 	}
 
-	sourceFile := "/etc/fstab"
-	destFile := "./fstab"
+	sourceFile := "scp_test.go"
+	tmpFile, err := ioutil.TempFile("", sourceFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	destFile := tmpFile.Name()
 
 	var sourceFileMd5 []byte
 	var md5wg sync.WaitGroup
