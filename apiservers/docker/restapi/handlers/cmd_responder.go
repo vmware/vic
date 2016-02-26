@@ -58,7 +58,7 @@ func (cr *CmdResponder) WriteResponse(rw http.ResponseWriter, producer httpkit.P
 		err = cmd.Wait()
 
 		if err != nil {
-			log.Println("imageC exit code:", err)
+			log.Println("imagec exit code:", err)
 		}
 
 		rw.WriteHeader(http.StatusOK)

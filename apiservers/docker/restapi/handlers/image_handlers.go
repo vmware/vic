@@ -42,7 +42,7 @@ func (handler *ImageHandlersImpl) GetImagesName(params image.GetImagesNameJSONPa
 }
 
 func (handler *ImageHandlersImpl) PostImagesCreate(params image.PostImagesCreateParams) middleware.Responder {
-	binImageC := "imageC"
+	binImageC := "imagec"
 
 	cmdArgs := make([]string, 0, 15)
 

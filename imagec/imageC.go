@@ -66,7 +66,7 @@ const (
 
 	DefaultHost = "localhost:80"
 
-	DefaultLogfile = "imageC.log"
+	DefaultLogfile = "imagec.log"
 
 	DefaultHTTPTimeout             = 60 * time.Second
 	DefaultTokenExpirationDuration = 60 * time.Second
