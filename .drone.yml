@@ -10,3 +10,4 @@ build:
     SHELL: /bin/bash
   commands:
     - make all
+    - make test
