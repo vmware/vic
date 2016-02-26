@@ -63,10 +63,7 @@ imageC: portlayerapi-client
 
 go-swagger:
 	@echo Building the go-swagger generator...
-#   FIXME: swagger generate generates incorrect code if go-swagger is not in GOPATH
-#   Get from github until that issue gets resolved
-#	@$(GO) install ./vendor/github.com/go-swagger/go-swagger/cmd/swagger
-	@$(GO) get -u github.com/go-swagger/go-swagger/cmd/swagger
+	@$(GO) install ./vendor/github.com/go-swagger/go-swagger/cmd/swagger
 
 dockerapi-server: go-swagger
 	@echo regenerating swagger models and operations for Docker API server...
