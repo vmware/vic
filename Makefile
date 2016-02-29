@@ -19,13 +19,13 @@ apiservers: dockerapi portlayerapi
 
 goimports:
 	@echo getting goimports...
-	$(GO) get -u golang.org/x/tools/cmd/goimports
+	$(GO) install ./vendor/golang.org/x/tools/cmd/goimports
 	@echo checking go imports...
 	@! goimports -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
 
 govet:
 	@echo getting go vet...
-	$(GO) get -u golang.org/x/tools/cmd/vet
+	$(GO) install ./vendor/golang.org/x/tools/cmd/vet
 	@echo checking go vet...
 	@$(GO) tool vet -structtags=false -methods=false $$(find . -type f -name '*.go' -not -path "./vendor/*")
 
