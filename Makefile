@@ -13,7 +13,7 @@ all: check bootstrap apiservers
 
 check: goversion goimports govet
 
-bootstrap: tether.linux tether.windows rpctool
+bootstrap: binary/tether-linux binary/tether-windows binary/rpctool
 
 apiservers: dockerapi portlayerapi
 
@@ -44,22 +44,23 @@ test:
 	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/portlayer/...
 	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/pkg/...
 
-tether.linux:
+binary/tether-linux: $(shell find ./bootstrap/tether -name '*.go')
 	@echo building tether-linux
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./binary/tether-linux github.com/vmware/vic/bootstrap/tether/cmd/tether
 
-tether.windows:
+binary/tether-windows: $(shell find ./bootstrap/tether -name '*.go')
 	@echo building tether-windows
 	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./binary/tether-windows github.com/vmware/vic/bootstrap/tether/cmd/tether
 
-rpctool.linux:
+binary/rpctool: $(find ./bootstrap/rpctool -name '*.go')
 ifeq ($(OS),linux)
 	@echo building rpctool
 	@GOARCH=amd64 GOOS=linux $(GO) build -o ./binary/rpctool --ldflags '-extldflags "-static"' github.com/vmware/vic/bootstrap/rpctool
 else
 	@echo skipping rpctool, cannot cross compile cgo
 endif
-rpctool: rpctool.linux
+
+rpctool: binary/rpctool
 
 imagec: portlayerapi-client
 	@echo building imagec...
