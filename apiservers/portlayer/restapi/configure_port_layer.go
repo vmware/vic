@@ -61,7 +61,7 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 	api.StorageCreateImageStoreHandler = storage.CreateImageStoreHandlerFunc(func(params storage.CreateImageStoreParams) middleware.Responder {
 		url, err := cache.CreateImageStore(params.Body.Name)
 		if err != nil {
-			if err == os.ErrExist {
+			if os.IsExist(err) {
 				return storage.NewCreateImageStoreConflict().WithPayload(
 					&models.Error{
 						Code:    swag.Int64(http.StatusConflict),
