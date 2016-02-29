@@ -10,12 +10,9 @@ import (
 	"github.com/vmware/vic/portlayer/util"
 )
 
-var (
-	// XXX TODO(FA) need to get the scratch layer's SHA.
-	Scratch = Image{
-		ID: "DEADBEEF",
-	}
-)
+var Scratch = Image{
+	ID: "scratch",
+}
 
 // Caches the global view of all of the image stores.  To avoid unnecessary
 // lookups, the image cache keeps an in memory map of the store URI to the map
@@ -84,13 +81,26 @@ func (c *NameLookupCache) CreateImageStore(storeName string) (*url.URL, error) {
 	return u, nil
 }
 
+// ListImageStores returns a list of strings representing all existing image stores
+func (c *NameLookupCache) ListImageStores() ([]*url.URL, error) {
+	c.storeCacheLock.Lock()
+	defer c.storeCacheLock.Unlock()
+
+	stores := make([]*url.URL, 0, len(c.storeCache))
+	for key := range c.storeCache {
+		stores = append(stores, &key)
+	}
+	return stores, nil
+}
+
 func (c *NameLookupCache) WriteImage(parent *Image, ID string, r io.Reader) (*Image, error) {
 	// Check the parent exists (at least in the cache).
-	if _, err := c.GetImage(parent.Store, parent.ID); err != nil {
+	p, err := c.GetImage(parent.Store, parent.ID)
+	if err != nil {
 		return nil, fmt.Errorf("parent (%s) doesn't exist in %s", ID, parent.Store.String())
 	}
 
-	i, err := c.DataStore.WriteImage(parent, ID, r)
+	i, err := c.DataStore.WriteImage(p, ID, r)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +108,7 @@ func (c *NameLookupCache) WriteImage(parent *Image, ID string, r io.Reader) (*Im
 	// Add the new image to the cache
 	c.storeCacheLock.Lock()
 	defer c.storeCacheLock.Unlock()
-	c.storeCache[*parent.Store][i.ID] = *i
+	c.storeCache[*p.Store][i.ID] = *i
 
 	return i, nil
 }
@@ -148,16 +158,4 @@ func (c *NameLookupCache) ListImages(store *url.URL, IDs []string) ([]*Image, er
 	}
 
 	return imageList, nil
-}
-
-// ListImageStores returns a list of strings representing all existing image stores
-func (c *NameLookupCache) ListImageStores() []*url.URL {
-	c.storeCacheLock.Lock()
-	defer c.storeCacheLock.Unlock()
-
-	stores := make([]*url.URL, 0, len(c.storeCache))
-	for key := range c.storeCache {
-		stores = append(stores, &key)
-	}
-	return stores
 }

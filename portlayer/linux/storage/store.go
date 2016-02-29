@@ -55,6 +55,10 @@ func (s *LocalStore) GetImageStore(storeName string) (*url.URL, error) {
 	return u, nil
 }
 
+func (s *LocalStore) ListImageStores() ([]*url.URL, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
 // WriteImage creates a new image layer from the given parent.
 // Eg parentImage + newLayer = new Image built from parent
 //

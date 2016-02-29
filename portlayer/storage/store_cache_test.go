@@ -28,6 +28,10 @@ func (c *MockDataStore) CreateImageStore(storeName string) (*url.URL, error) {
 	return u, nil
 }
 
+func (c *MockDataStore) ListImageStores() ([]*url.URL, error) {
+	return nil, nil
+}
+
 func (c *MockDataStore) WriteImage(parent *Image, ID string, r io.Reader) (*Image, error) {
 	i := Image{
 		ID:     ID,
