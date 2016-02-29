@@ -372,6 +372,20 @@
 			"path": "/windows"
 		},
 		{
+			"importpath": "golang.org/x/tools/cmd/goimports",
+			"repository": "https://go.googlesource.com/tools",
+			"revision": "8b178a93c1f5b5c8f4e36cd6bd64e0d5bf0ee180",
+			"branch": "master",
+			"path": "/cmd/goimports"
+		},
+		{
+			"importpath": "golang.org/x/tools/cmd/vet",
+			"repository": "https://go.googlesource.com/tools",
+			"revision": "8b178a93c1f5b5c8f4e36cd6bd64e0d5bf0ee180",
+			"branch": "master",
+			"path": "/cmd/vet"
+		},
+		{
 			"importpath": "golang.org/x/tools/go/ast/astutil",
 			"repository": "https://go.googlesource.com/tools",
 			"revision": "bf084ef7580ee99a5efa3086138c942aca4aefd4",
@@ -393,11 +407,25 @@
 			"path": "/go/exact"
 		},
 		{
+			"importpath": "golang.org/x/tools/go/gcimporter",
+			"repository": "https://go.googlesource.com/tools",
+			"revision": "8b178a93c1f5b5c8f4e36cd6bd64e0d5bf0ee180",
+			"branch": "master",
+			"path": "/go/gcimporter"
+		},
+		{
 			"importpath": "golang.org/x/tools/go/loader",
 			"repository": "https://go.googlesource.com/tools",
 			"revision": "bf084ef7580ee99a5efa3086138c942aca4aefd4",
 			"branch": "master",
 			"path": "/go/loader"
+		},
+		{
+			"importpath": "golang.org/x/tools/go/types",
+			"repository": "https://go.googlesource.com/tools",
+			"revision": "8b178a93c1f5b5c8f4e36cd6bd64e0d5bf0ee180",
+			"branch": "master",
+			"path": "/go/types"
 		},
 		{
 			"importpath": "golang.org/x/tools/imports",
