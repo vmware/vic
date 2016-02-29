@@ -20,6 +20,9 @@ type ImageStorer interface {
 	// Gets the url to an image store via name
 	GetImageStore(storeName string) (*url.URL, error)
 
+	// ListImageStores lists the available image stores
+	ListImageStores() ([]*url.URL, error)
+
 	// WriteImage creates a new image layer from the given parent.  Eg
 	// parentImage + newLayer = new Image built from parent
 	//
