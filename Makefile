@@ -1,12 +1,20 @@
 GO ?= go
 GOVERSION ?= go1.6
 OS := $(shell uname | tr '[:upper:]' '[:lower:]')
-SWAGGER ?= $(GOPATH)/bin/swagger
+ifeq ($(USER),vagrant)
+	# assuming we are in a shared directory where host arch is different from the guest
+	BIN_ARCH := -$(OS)
+endif
+
+export GOPATH ?= $(shell echo $(CURDIR) | sed -e 's,/src/.*,,')
+SWAGGER ?= $(GOPATH)/bin/swagger$(BIN_ARCH)
+VET ?= $(GOPATH)/bin/vet$(BIN_ARCH)
+GOIMPORTS ?= $(GOPATH)/bin/goimports$(BIN_ARCH)
 
 .DEFAULT_GOAL := all
 
 goversion:
-	@echo Checking go version...
+	@echo checking go version...
 	@( $(GO) version | grep -q $(GOVERSION) ) || ( echo "Please install $(GOVERSION) (found: $$($(GO) version))" && exit 1 )
 
 all: check bootstrap apiservers
@@ -17,17 +25,26 @@ bootstrap: binary/tether-linux binary/tether-windows binary/rpctool
 
 apiservers: dockerapi portlayerapi
 
-goimports:
-	@echo getting goimports...
-	$(GO) install ./vendor/golang.org/x/tools/cmd/goimports
-	@echo checking go imports...
-	@! goimports -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
+$(GOIMPORTS): vendor/manifest
+	@echo building $(GOIMPORTS)...
+	$(GO) build -o $(GOIMPORTS) ./vendor/golang.org/x/tools/cmd/goimports
 
-govet:
-	@echo getting go vet...
-	$(GO) install ./vendor/golang.org/x/tools/cmd/vet
+goimports: $(GOIMPORTS)
+	@echo checking go imports...
+	@! $(GOIMPORTS) -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
+
+$(VET): vendor/manifest
+	@echo building $(VET)...
+	$(GO) build -o $(VET) ./vendor/golang.org/x/tools/cmd/vet
+
+govet: $(VET)
 	@echo checking go vet...
-	@$(GO) tool vet -structtags=false -methods=false $$(find . -type f -name '*.go' -not -path "./vendor/*")
+	@$(VET) -structtags=false -methods=false $$(find . -type f -name '*.go' -not -path "./vendor/*")
+
+# For use by external tools such as emacs or for example:
+# GOPATH=$(make gopath) go get ...
+gopath:
+	@echo -n $(GOPATH)
 
 gvt:
 	@echo getting gvt
@@ -66,11 +83,11 @@ imagec: portlayerapi-client
 	@echo building imagec...
 	@CGO_ENABLED=0 $(GO) build -o ./binary/imagec --ldflags '-extldflags "-static"' github.com/vmware/vic/imagec
 
-go-swagger:
-	@echo Building the go-swagger generator...
-	@$(GO) install ./vendor/github.com/go-swagger/go-swagger/cmd/swagger
+$(SWAGGER): vendor/manifest
+	@echo building $(SWAGGER)...
+	@$(GO) build -o $(SWAGGER) ./vendor/github.com/go-swagger/go-swagger/cmd/swagger
 
-dockerapi-server: go-swagger
+dockerapi-server: $(SWAGGER)
 	@echo regenerating swagger models and operations for Docker API server...
 	@$(SWAGGER) generate server -A docker -t ./apiservers/docker -f ./apiservers/docker/swagger.json
 
@@ -78,11 +95,11 @@ dockerapi: dockerapi-server
 	@echo building Docker API server...
 	@$(GO) build -o ./binary/docker-server ./apiservers/docker/cmd/docker-server
 
-portlayerapi-client: go-swagger
+portlayerapi-client: $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API client...
 	@$(SWAGGER) generate client -A PortLayer -t ./apiservers/portlayer -f ./apiservers/portlayer/swagger.yml
 
-portlayerapi-server: go-swagger
+portlayerapi-server: $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API server...
 	@$(SWAGGER) generate server -A PortLayer -t ./apiservers/portlayer -f ./apiservers/portlayer/swagger.yml
 
