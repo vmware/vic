@@ -16,7 +16,6 @@ import (
 	"github.com/vmware/vic/portlayer/util"
 )
 
-// StorageHandlersImpl
 type StorageHandlersImpl struct{}
 
 var ls = &linux.LocalStore{
@@ -46,13 +45,13 @@ func (handler *StorageHandlersImpl) CreateImageStore(params storage.CreateImageS
 					Code:    swag.Int64(http.StatusConflict),
 					Message: "An image store with that name already exists",
 				})
-		} else {
-			return storage.NewCreateImageStoreDefault(http.StatusInternalServerError).WithPayload(
-				&models.Error{
-					Code:    swag.Int64(http.StatusInternalServerError),
-					Message: err.Error(),
-				})
 		}
+
+		return storage.NewCreateImageStoreDefault(http.StatusInternalServerError).WithPayload(
+			&models.Error{
+				Code:    swag.Int64(http.StatusInternalServerError),
+				Message: err.Error(),
+			})
 	}
 	s := &models.StoreURL{Code: swag.Int64(http.StatusCreated), URL: url.String()}
 	return storage.NewCreateImageStoreCreated().WithPayload(s)

@@ -6,7 +6,6 @@ import (
 	"github.com/vmware/vic/apiservers/portlayer/restapi/operations/misc"
 )
 
-// MiscHandlersImpl
 type MiscHandlersImpl struct{}
 
 // Configure assigns functions to all the miscellaneous api handlers
