@@ -54,6 +54,8 @@ golint: $(GOLINT)
 	$(call golintf,github.com/vmware/vic/imagec/...)
 	$(call golintf,github.com/vmware/vic/pkg/...)
 	$(call golintf,github.com/vmware/vic/portlayer/...)
+	$(call golintf,github.com/vmware/vic/apiservers/docker/restapi/handlers/...)
+	$(call golintf,github.com/vmware/vic/apiservers/portlayer/restapi/handlers/...)
 
 # For use by external tools such as emacs or for example:
 # GOPATH=$(make gopath) go get ...

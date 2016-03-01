@@ -63,9 +63,9 @@ func (cr *CmdResponder) WriteResponse(rw http.ResponseWriter, producer httpkit.P
 
 		rw.WriteHeader(http.StatusOK)
 		return
-	} else {
-		log.Println("CmdResponder failed to get the HTTP flusher")
 	}
+
+	log.Println("CmdResponder failed to get the HTTP flusher")
 
 	rw.WriteHeader(http.StatusInternalServerError)
 }
