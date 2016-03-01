@@ -61,7 +61,7 @@ func (handler *StorageHandlersImpl) CreateImageStore(params storage.CreateImageS
 // GetImage retrieves an image from a store
 func (handler *StorageHandlersImpl) GetImage(params storage.GetImageParams) middleware.Responder {
 	id := params.ID
-	url, err := util.StoreNameToUrl(params.StoreName)
+	url, err := util.StoreNameToURL(params.StoreName)
 	if err != nil {
 		return storage.NewGetImageDefault(http.StatusInternalServerError).WithPayload(
 			&models.Error{
@@ -87,7 +87,7 @@ func (handler *StorageHandlersImpl) GetImageTar(params storage.GetImageTarParams
 // ListImages returns a list of images in a store
 func (handler *StorageHandlersImpl) ListImages(params storage.ListImagesParams) middleware.Responder {
 	// TODO(jzt): support multiple query args i.e.:  /storage/ListImages?id=1,2,3,4...
-	u, err := util.StoreNameToUrl(params.StoreName)
+	u, err := util.StoreNameToURL(params.StoreName)
 	if err != nil {
 		return storage.NewListImagesDefault(http.StatusInternalServerError).WithPayload(
 			&models.Error{
@@ -116,7 +116,7 @@ func (handler *StorageHandlersImpl) ListImages(params storage.ListImagesParams) 
 
 // WriteImage writes an image to an image store
 func (handler *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) middleware.Responder {
-	u, err := util.StoreNameToUrl(params.StoreName)
+	u, err := util.StoreNameToURL(params.StoreName)
 	if err != nil {
 		return storage.NewWriteImageDefault(http.StatusInternalServerError).WithPayload(
 			&models.Error{

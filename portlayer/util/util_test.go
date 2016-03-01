@@ -8,7 +8,7 @@ import (
 
 func TestServiceUrl(t *testing.T) {
 	DefaultHost, _ = url.Parse("http://foo.com/")
-	u := ServiceUrl(StoragePath)
+	u := ServiceURL(StoragePath)
 
 	if strings.Compare(u.String(), "http://foo.com/storage/") != 0 {
 		t.Fail()

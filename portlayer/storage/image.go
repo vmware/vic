@@ -38,7 +38,7 @@ func Parse(u *url.URL) (*Image, error) {
 		return nil, errors.New("uri path mismatch")
 	}
 
-	store, err := util.StoreNameToUrl(segments[2])
+	store, err := util.StoreNameToURL(segments[2])
 	if err != nil {
 		return nil, err
 	}

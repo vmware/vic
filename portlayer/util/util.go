@@ -29,8 +29,8 @@ func Host() *url.URL {
 	return thisHost
 }
 
-// Returns the URL for a given service relative to this host
-func ServiceUrl(serviceName string) *url.URL {
+// ServiceURL returns the URL for a given service relative to this host
+func ServiceURL(serviceName string) *url.URL {
 	s, err := DefaultHost.Parse(serviceName)
 	if err != nil {
 		log.Fatal(err)
