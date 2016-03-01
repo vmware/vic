@@ -39,7 +39,7 @@ $(VET): vendor/manifest
 
 govet: $(VET)
 	@echo checking go vet...
-	@$(VET) -structtags=false -methods=false $$(find . -type f -name '*.go' -not -path "./vendor/*")
+	@$(VET) -all -shadow -structtags=false -methods=false $$(find . -type f -name '*.go' -not -path "./vendor/*")
 
 # For use by external tools such as emacs or for example:
 # GOPATH=$(make gopath) go get ...
