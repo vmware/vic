@@ -162,43 +162,48 @@ func (a *appGenerator) Generate() error {
 		return nil
 	}
 
-	//if a.GenOpts.IncludeModel {
-	log.Printf("rendering %d models", len(app.Models))
-	for _, mod := range app.Models {
-		mod.IncludeValidator = true // a.GenOpts.IncludeValidator
-		gen := &definitionGenerator{
-			Name:    mod.Name,
-			SpecDoc: a.SpecDoc,
-			Target:  filepath.Join(a.Target, a.ModelsPackage),
-			Data:    &mod,
-		}
-		if err := gen.generateModel(); err != nil {
-			return err
-		}
-	}
-	//}
-
-	for _, opg := range app.OperationGroups {
-		for _, op := range opg.Operations {
-			gen := &opGen{
-				data:              &op,
-				pkg:               opg.Name,
-				cname:             swag.ToGoName(op.Name),
-				IncludeHandler:    a.GenOpts.IncludeHandler,
-				IncludeParameters: a.GenOpts.IncludeParameters,
-				IncludeResponses:  a.GenOpts.IncludeResponses,
-				Doc:               a.SpecDoc,
-				Target:            filepath.Join(a.Target, a.ServerPackage),
-				APIPackage:        a.APIPackage,
+	if a.GenOpts.IncludeModel {
+		log.Printf("rendering %d models", len(app.Models))
+		for _, mod := range app.Models {
+			mod.IncludeValidator = true // a.GenOpts.IncludeValidator
+			gen := &definitionGenerator{
+				Name:    mod.Name,
+				SpecDoc: a.SpecDoc,
+				Target:  filepath.Join(a.Target, a.ModelsPackage),
+				Data:    &mod,
 			}
-
-			if err := gen.Generate(); err != nil {
+			if err := gen.generateModel(); err != nil {
 				return err
 			}
 		}
 	}
 
-	return a.GenerateSupport(&app)
+	if a.GenOpts.IncludeHandler {
+		for _, opg := range app.OperationGroups {
+			for _, op := range opg.Operations {
+				gen := &opGen{
+					data:              &op,
+					pkg:               opg.Name,
+					cname:             swag.ToGoName(op.Name),
+					IncludeHandler:    a.GenOpts.IncludeHandler,
+					IncludeParameters: a.GenOpts.IncludeParameters,
+					IncludeResponses:  a.GenOpts.IncludeResponses,
+					Doc:               a.SpecDoc,
+					Target:            filepath.Join(a.Target, a.ServerPackage),
+					APIPackage:        a.APIPackage,
+				}
+
+				if err := gen.Generate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	if a.GenOpts.IncludeSupport {
+		return a.GenerateSupport(&app)
+	}
+	return nil
 }
 
 func (a *appGenerator) GenerateSupport(ap *GenApp) error {
@@ -333,6 +338,9 @@ var mediaTypeNames = map[*regexp.Regexp]string{
 	regexp.MustCompile("text/.*css"):                 "css",
 	regexp.MustCompile("text/.*plain"):               "txt",
 	regexp.MustCompile("application/.*octet-stream"): "bin",
+	regexp.MustCompile("application/.*tar"):          "tar",
+	regexp.MustCompile("application/.*gzip"):         "gzip",
+	regexp.MustCompile("application/.*gz"):           "gzip",
 }
 
 var knownProducers = map[string]string{
@@ -567,6 +575,7 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 		bldr.Authed = len(a.SpecDoc.SecurityRequirementsFor(o)) > 0
 		ap := a.APIPackage
 		bldr.RootAPIPackage = swag.ToFileName(a.APIPackage)
+		bldr.WithContext = a.GenOpts != nil && a.GenOpts.WithContext
 		if len(o.Tags) > 0 {
 			for _, tag := range o.Tags {
 				tns[tag] = struct{}{}
@@ -611,6 +620,7 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 			Operations:     v,
 			DefaultImports: []string{filepath.ToSlash(filepath.Join(baseImport(a.Target), a.ModelsPackage))},
 			RootPackage:    a.APIPackage,
+			WithContext:    a.GenOpts != nil && a.GenOpts.WithContext,
 		}
 		opGroups = append(opGroups, opGroup)
 		var importPath string
@@ -676,5 +686,6 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 		Principal:           prin,
 		SwaggerJSON:         fmt.Sprintf("%#v", jsonb),
 		ExcludeSpec:         a.GenOpts != nil && a.GenOpts.ExcludeSpec,
+		WithContext:         a.GenOpts != nil && a.GenOpts.WithContext,
 	}, nil
 }
