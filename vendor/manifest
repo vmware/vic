@@ -148,6 +148,12 @@
 			"path": "/makeplans"
 		},
 		{
+			"importpath": "github.com/golang/lint",
+			"repository": "https://github.com/golang/lint",
+			"revision": "32a87160691b3c96046c0c678fe57c5bef761456",
+			"branch": "master"
+		},
+		{
 			"importpath": "github.com/gorilla/context",
 			"repository": "https://github.com/gorilla/context",
 			"revision": "1c83b3eabd45b6d76072b66b746c20815fb2872d",
