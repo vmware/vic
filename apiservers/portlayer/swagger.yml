@@ -10,6 +10,17 @@ consumes:
 schemes:
 - http
 paths:
+  /_ping:
+    get:
+      tags: ["misc"]
+      operationId: Ping
+      produces:
+        - text/plain
+      responses:
+        '200':
+          description: "OK"
+          schema:
+            type: string
   /storage:
     post:
       tags: ["storage"]
@@ -59,17 +70,30 @@ paths:
           description: "error"
           schema:
            $ref: "#/definitions/Error"
+  /storage/{store_name}/writeImage:
     post:
       tags: ["storage"]
       operationId: WriteImage
+      consumes:
+        - application/octet-stream
       parameters:
-        - name: id
+        - name: image_file
           in: body
           schema:
-            $ref: "#/definitions/ImageWithBody"
-      consumes:
-        - application/x-tar
-        - application/x-gzip
+            type: string
+            format: binary
+        - name: store_name
+          type: string
+          in: path
+          required: true
+        - name: image_id
+          type: string
+          in: query
+          required: true
+        - name: parent_id
+          type: string
+          in: query
+          required: true
       responses:
         '201':
           description: "Created"
@@ -116,15 +140,14 @@ paths:
     get:
       tags: ["storage"]
       operationId: GetImageTar
-      produces:
-        - application/gzip
       responses:
         '404':
           description: "Not found"
         '200':
           description: "OK"
           schema:
-            $ref: "#/definitions/ImageTar"
+            type: string
+            format: binary
         default:
           description: "error"
           schema:
@@ -171,13 +194,3 @@ definitions:
         type: string
       Store:
         type: string
-  ImageWithBody:
-    type: object
-    properties:
-      Image:
-        $ref: "#/definitions/Image"
-      Data:
-        type: object
-  ImageTar:
-    type: string
-    format: base64

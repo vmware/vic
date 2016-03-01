@@ -11,3 +11,4 @@ apiservers/docker/**
 apiservers/portlayer/**
 !apiservers/portlayer/swagger.yml
 !apiservers/portlayer/restapi/configure_port_layer.go
+!apiservers/portlayer/restapi/handlers/*
