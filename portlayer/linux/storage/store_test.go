@@ -44,40 +44,40 @@ func TestCreateAndGetStore(t *testing.T) {
 	}
 
 	// test the create through the cache
-	createUrl, err := s.CreateImageStore("testStore")
+	createURL, err := s.CreateImageStore("testStore")
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	if !assert.NotNil(t, createUrl) {
+	if !assert.NotNil(t, createURL) {
 		return
 	}
 
 	// test the store got created on the local store
-	localUrl, err := ls.GetImageStore("testStore")
+	localURL, err := ls.GetImageStore("testStore")
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	if !assert.NotNil(t, localUrl) {
+	if !assert.NotNil(t, localURL) {
 		return
 	}
 
-	if !assert.Equal(t, createUrl.String(), localUrl.String(), "urls should be equal") {
+	if !assert.Equal(t, createURL.String(), localURL.String(), "urls should be equal") {
 		return
 	}
 
 	// test the cache gives us the same url
-	cacheUrl, err := s.GetImageStore("testStore")
+	cacheURL, err := s.GetImageStore("testStore")
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	if !assert.NotNil(t, cacheUrl) {
+	if !assert.NotNil(t, cacheURL) {
 		return
 	}
 
-	if !assert.Equal(t, createUrl.String(), cacheUrl.String(), "urls should be equal") {
+	if !assert.Equal(t, createURL.String(), cacheURL.String(), "urls should be equal") {
 		return
 	}
 }
@@ -98,7 +98,7 @@ func TestCreateImage(t *testing.T) {
 		DataStore: ls,
 	}
 
-	storeUrl, err := s.CreateImageStore("testStore")
+	storeURL, err := s.CreateImageStore("testStore")
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -148,7 +148,7 @@ func TestCreateImage(t *testing.T) {
 	}
 
 	// base this image off scratch
-	scratch, err := s.GetImage(storeUrl, portlayer.Scratch.ID)
+	scratch, err := s.GetImage(storeURL, portlayer.Scratch.ID)
 	if !assert.NoError(t, err) {
 		return
 	}

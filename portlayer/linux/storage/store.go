@@ -17,14 +17,14 @@ var (
 	tarOptions = &archive.TarOptions{}
 )
 
-// Implements the storage API on linux.  Stores images to the local filesystem.
+// LocalStore implements the storage API on linux.  Stores images to the local filesystem.
 type LocalStore struct {
 	// root to store images in relative to /
 	Path string
 }
 
 func (s *LocalStore) CreateImageStore(storeName string) (*url.URL, error) {
-	u, err := util.StoreNameToUrl(storeName)
+	u, err := util.StoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (s *LocalStore) CreateImageStore(storeName string) (*url.URL, error) {
 // GetImageStore checks to see if the image store exists on disk and returns an
 // error or the store's URL.
 func (s *LocalStore) GetImageStore(storeName string) (*url.URL, error) {
-	u, err := util.StoreNameToUrl(storeName)
+	u, err := util.StoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (s *LocalStore) WriteImage(parent *portlayer.Image, ID string, r io.Reader)
 		return nil, err
 	}
 
-	imageUrl, err := util.ImageUrl(storeName, ID)
+	imageURL, err := util.ImageURL(storeName, ID)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (s *LocalStore) WriteImage(parent *portlayer.Image, ID string, r io.Reader)
 
 	newImage := &portlayer.Image{
 		ID:       ID,
-		SelfLink: imageUrl,
+		SelfLink: imageURL,
 		Parent:   parent.SelfLink,
 		Store:    parent.Store,
 	}
@@ -114,6 +114,6 @@ func (s *LocalStore) GetImage(store *url.URL, ID string) (*portlayer.Image, erro
 	return nil, fmt.Errorf("not yet implemented")
 }
 
-func (c *LocalStore) ListImages(store *url.URL, IDs []string) ([]*portlayer.Image, error) {
+func (s *LocalStore) ListImages(store *url.URL, IDs []string) ([]*portlayer.Image, error) {
 	return nil, fmt.Errorf("not yet implemented")
 }

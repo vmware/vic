@@ -53,6 +53,7 @@ golint: $(GOLINT)
 	@echo checking go lint...
 	$(call golintf,github.com/vmware/vic/imagec/...)
 	$(call golintf,github.com/vmware/vic/pkg/...)
+	$(call golintf,github.com/vmware/vic/portlayer/...)
 
 # For use by external tools such as emacs or for example:
 # GOPATH=$(make gopath) go get ...

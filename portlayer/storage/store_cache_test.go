@@ -20,7 +20,7 @@ func (c *MockDataStore) GetImageStore(storeName string) (*url.URL, error) {
 }
 
 func (c *MockDataStore) CreateImageStore(storeName string) (*url.URL, error) {
-	u, err := util.StoreNameToUrl(storeName)
+	u, err := util.StoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
 	}
@@ -57,11 +57,11 @@ func TestListImages(t *testing.T) {
 		DataStore: &MockDataStore{},
 	}
 
-	storeUrl, err := s.CreateImageStore("testStore")
+	storeURL, err := s.CreateImageStore("testStore")
 	if !assert.NoError(t, err) {
 		return
 	}
-	if !assert.NotNil(t, storeUrl) {
+	if !assert.NotNil(t, storeURL) {
 		return
 	}
 
@@ -69,7 +69,7 @@ func TestListImages(t *testing.T) {
 	images := make(map[string]*Image)
 	images[Scratch.ID] = &Scratch
 	parent := Scratch
-	parent.Store = storeUrl
+	parent.Store = storeURL
 	for i := 1; i < 50; i++ {
 		id := fmt.Sprintf("ID-%d", i)
 
@@ -85,7 +85,7 @@ func TestListImages(t *testing.T) {
 	}
 
 	// List all images
-	outImages, err := s.ListImages(storeUrl, nil)
+	outImages, err := s.ListImages(storeURL, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -101,7 +101,7 @@ func TestListImages(t *testing.T) {
 
 	// Check we can retrieve a subset
 	inIDs := []string{"ID-1", "ID-2", "ID-3"}
-	outImages, err = s.ListImages(storeUrl, inIDs)
+	outImages, err = s.ListImages(storeURL, inIDs)
 	if !assert.NoError(t, err) {
 		return
 	}

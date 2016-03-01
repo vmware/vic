@@ -11,9 +11,9 @@ const (
 	StoragePath = "storage/"
 )
 
-// The image URLs are of the form /storage/<image store>/<image name>
-func StoreNameToUrl(storeName string) (*url.URL, error) {
-	return ServiceUrl(StoragePath).Parse(storeName)
+// StoreNameToURL parses the image URL in the form /storage/<image store>/<image name>
+func StoreNameToURL(storeName string) (*url.URL, error) {
+	return ServiceURL(StoragePath).Parse(storeName)
 }
 
 func StoreName(u *url.URL) (string, error) {
@@ -35,8 +35,8 @@ func StoreName(u *url.URL) (string, error) {
 	return segments[1], nil
 }
 
-func ImageUrl(storeName, imageName string) (*url.URL, error) {
-	u, err := StoreNameToUrl(storeName)
+func ImageURL(storeName, imageName string) (*url.URL, error) {
+	u, err := StoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
 	}

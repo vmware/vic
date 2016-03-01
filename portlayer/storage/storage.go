@@ -5,7 +5,7 @@ import (
 	"net/url"
 )
 
-// Interface to store images in the Image Store
+// ImageStorer is an interface to store images in the Image Store
 type ImageStorer interface {
 
 	// CreateImageStore creates a location to store images and creates a root

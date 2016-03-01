@@ -14,7 +14,7 @@ var Scratch = Image{
 	ID: "scratch",
 }
 
-// Caches the global view of all of the image stores.  To avoid unnecessary
+// NameLookupCache the global view of all of the image stores.  To avoid unnecessary
 // lookups, the image cache keeps an in memory map of the store URI to the map
 // of images on disk.
 type NameLookupCache struct {
@@ -35,7 +35,7 @@ type NameLookupCache struct {
 // GetImageStore checks to see if a named image store exists and returls the
 // URL to it if so or error.
 func (c *NameLookupCache) GetImageStore(storeName string) (*url.URL, error) {
-	u, err := util.StoreNameToUrl(storeName)
+	u, err := util.StoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
 	}
