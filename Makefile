@@ -10,6 +10,7 @@ export GOPATH ?= $(shell echo $(CURDIR) | sed -e 's,/src/.*,,')
 SWAGGER ?= $(GOPATH)/bin/swagger$(BIN_ARCH)
 VET ?= $(GOPATH)/bin/vet$(BIN_ARCH)
 GOIMPORTS ?= $(GOPATH)/bin/goimports$(BIN_ARCH)
+GOLINT ?= $(GOPATH)/bin/golint$(BIN_ARCH)
 
 .DEFAULT_GOAL := all
 
@@ -19,7 +20,7 @@ goversion:
 
 all: check bootstrap apiservers
 
-check: goversion goimports govet
+check: goversion goimports govet golint
 
 bootstrap: binary/tether-linux binary/tether-windows binary/rpctool
 
@@ -40,6 +41,18 @@ $(VET): vendor/manifest
 govet: $(VET)
 	@echo checking go vet...
 	@$(VET) -all -shadow -structtags=false -methods=false $$(find . -type f -name '*.go' -not -path "./vendor/*")
+
+$(GOLINT): vendor/manifest
+	@echo building $(GOLINT)...
+	$(GO) build -o $(GOLINT) ./vendor/github.com/golang/lint/golint
+
+# exit 1 if golint complains about anything other than comments
+golintf = $(GOLINT) $(1) | sh -c "! grep -v 'should have comment'"
+
+golint: $(GOLINT)
+	@echo checking go lint...
+	$(call golintf,github.com/vmware/vic/imagec/...)
+	$(call golintf,github.com/vmware/vic/pkg/...)
 
 # For use by external tools such as emacs or for example:
 # GOPATH=$(make gopath) go get ...

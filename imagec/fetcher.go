@@ -43,7 +43,8 @@ type Fetcher interface {
 	AuthURL() *url.URL
 }
 
-// https://docs.docker.com/registry/spec/auth/token/
+// Token for registry authentication
+// See: https://docs.docker.com/registry/spec/auth/token/
 type Token struct {
 	// An opaque Bearer token that clients should supply to subsequent requests in the Authorization header.
 	Token string `json:"token"`
