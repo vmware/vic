@@ -160,8 +160,8 @@
           }
         },
         "LxcConf": {
-          "type": "object",
-          "additionalProperties": {
+          "type": "array",
+          "items": {
             "type": "string"
           }
         },
@@ -170,6 +170,14 @@
           "default": 0
         },
         "MemorySwap": {
+          "type": "integer",
+          "default": 0
+        },
+        "MemoryReservation": {
+          "type": "integer",
+          "default": 0
+        },
+        "KernelMemory": {
           "type": "integer",
           "default": 0
         },
@@ -215,6 +223,12 @@
             "type": "string"
           }
         },
+        "DnsOptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "DnsSearch": {
           "type": "array",
           "items": {
@@ -245,10 +259,25 @@
             "type": "string"
           }
         },
+        "GroupAdd": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "RestartPolicy": {
           "$ref": "#/definitions/RestartPolicy"
         },
         "NetworkMode": {
+          "type": "string"
+        },
+        "IpcMode": {
+          "type": "string"
+        },
+        "PidMode": {
+          "type": "string"
+        },
+        "UTSMode": {
           "type": "string"
         },
         "Devices": {
@@ -273,6 +302,15 @@
           "$ref": "#/definitions/LogConfig"
         },
         "CgroupParent": {
+          "type": "string"
+        },
+        "ConsoleSize": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "VolumeDriver": {
           "type": "string"
         }
       }
@@ -320,13 +358,13 @@
           "type": "integer"
         },
         "Hostname": {
-          "type": "integer"
+          "type": "string"
         },
         "Domainname": {
-          "type": "integer"
+          "type": "string"
         },
         "User": {
-          "type": "integer"
+          "type": "string"
         },
         "AttachStdin": {
           "type": "boolean",
@@ -407,7 +445,7 @@
         "Gateway": {
           "type": "string"
         },
-        "IPAddress": {
+        "Address": {
           "type": "string"
         },
         "IPPrefixLen": {
@@ -2403,6 +2441,11 @@
           "required": false
         }, {
           "name": "X-Registry-Config",
+          "in": "header",
+          "description": "A base64-encoded AuthConfig object",
+          "type": "string"
+        }, {
+          "name": "X-Registry-Auth",
           "in": "header",
           "description": "A base64-encoded AuthConfig object",
           "type": "string"
