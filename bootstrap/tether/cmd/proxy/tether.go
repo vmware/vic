@@ -52,11 +52,11 @@ func privateKey(file string) ssh.Signer {
 		log.Fatalf("failed to load private key: %v", tetherKey)
 	}
 
-	private, err := ssh.ParsePrivateKey(privateBytes)
+	priv, err := ssh.ParsePrivateKey(privateBytes)
 	if err != nil {
 		log.Fatalf("failed to parse private key: %v", tetherKey)
 	}
-	return private
+	return priv
 }
 
 // Hopefully this gets rolled into go.sys at some point
