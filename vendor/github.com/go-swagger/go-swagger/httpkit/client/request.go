@@ -26,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/go-swagger/go-swagger/client"
 	"github.com/go-swagger/go-swagger/httpkit"
@@ -40,6 +41,7 @@ func newRequest(method, pathPattern string, writer client.RequestWriter) (*reque
 		writer:      writer,
 		header:      make(http.Header),
 		query:       make(url.Values),
+		timeout:     DefaultTimeout,
 	}, nil
 }
 
@@ -63,6 +65,7 @@ type request struct {
 	formFields url.Values
 	fileFields map[string]*os.File
 	payload    interface{}
+	timeout    time.Duration
 }
 
 var (
@@ -152,6 +155,16 @@ func (r *request) BuildHTTP(mediaType string, producers map[string]httpkit.Produ
 	if r.payload != nil {
 		// TODO: infer most appropriate content type based on the producer used,
 		// and the `consumers` section of the spec/operation
+		req.Header.Set(httpkit.HeaderContentType, mediaType)
+		if rdr, ok := r.payload.(io.ReadCloser); ok {
+			req.Body = rdr
+			return req, nil
+		}
+
+		if rdr, ok := r.payload.(io.Reader); ok {
+			req.Body = ioutil.NopCloser(rdr)
+			return req, nil
+		}
 
 		// set the content length of the request or else a chunked transfer is
 		// declared, and this corrupts outgoing JSON payloads. the content's
@@ -165,16 +178,15 @@ func (r *request) BuildHTTP(mediaType string, producers map[string]httpkit.Produ
 		//
 		// to that end a temporary buffer, b, is created to produce the payload
 		// body, and then its size is used to set the request's content length
-		b := &bytes.Buffer{}
+		var b bytes.Buffer
 		producer := producers[mediaType]
-		if err := producer.Produce(b, r.payload); err != nil {
+		if err := producer.Produce(&b, r.payload); err != nil {
 			return nil, err
 		}
 		req.ContentLength = int64(b.Len())
 		if _, err := buf.Write(b.Bytes()); err != nil {
 			return nil, err
 		}
-		r.SetHeaderParam(httpkit.HeaderContentType, mediaType)
 	}
 	return req, nil
 }
@@ -247,5 +259,11 @@ func (r *request) SetFileParam(name string, file *os.File) error {
 // This does not yet serialze the object, this happens as late as possible.
 func (r *request) SetBodyParam(payload interface{}) error {
 	r.payload = payload
+	return nil
+}
+
+// SetTimeout sets the timeout for a request
+func (r *request) SetTimeout(timeout time.Duration) error {
+	r.timeout = timeout
 	return nil
 }
