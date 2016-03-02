@@ -8,7 +8,7 @@ endif
 
 export GOPATH ?= $(shell echo $(CURDIR) | sed -e 's,/src/.*,,')
 SWAGGER ?= $(GOPATH)/bin/swagger$(BIN_ARCH)
-VET ?= $(GOPATH)/bin/vet$(BIN_ARCH)
+GOVET ?= $(GOPATH)/bin/vet$(BIN_ARCH)
 GOIMPORTS ?= $(GOPATH)/bin/goimports$(BIN_ARCH)
 GOLINT ?= $(GOPATH)/bin/golint$(BIN_ARCH)
 
@@ -34,13 +34,13 @@ goimports: $(GOIMPORTS)
 	@echo checking go imports...
 	@! $(GOIMPORTS) -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
 
-$(VET): vendor/manifest
-	@echo building $(VET)...
-	$(GO) build -o $(VET) ./vendor/golang.org/x/tools/cmd/vet
+$(GOVET): vendor/manifest
+	@echo building $(GOVET)...
+	$(GO) build -o $(GOVET) ./vendor/golang.org/x/tools/cmd/vet
 
-govet: $(VET)
+govet: $(GOVET)
 	@echo checking go vet...
-	@$(VET) -all -shadow -structtags=false -methods=false $$(find . -type f -name '*.go' -not -path "./vendor/*")
+	@$(GOVET) -all -shadow $$(find . -type f -name '*.go' -not -path "./vendor/*")
 
 $(GOLINT): vendor/manifest
 	@echo building $(GOLINT)...
