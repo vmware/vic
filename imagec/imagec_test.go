@@ -23,6 +23,8 @@ import (
 	"os"
 	"path"
 	"testing"
+
+	"github.com/vmware/vic/apiservers/portlayer/models"
 )
 
 const (
@@ -37,6 +39,9 @@ const (
 	// fake history
 	LayerHistory = "{\"id\":\"f9767cae14f372c98900f15bb07cb40b8e1a6d1507912489e1342db499313d32\"" + "," +
 		"\"parent\":\"09a5baea69e9c781d64df5366c36492d53d507048035abd68632264dc23a1edb\"}"
+	// fake store
+	Storename = "PetStore"
+
 	// sha256 sum of LayerContent
 	DigestSHA256LayerContent = "sha256:18adac3bcad6124ed2e0d8dcc3beef8d540786ef8ef52c1f9fd71fdbfe36aa8e"
 
@@ -163,7 +168,17 @@ func TestFetchImageBlob(t *testing.T) {
 
 	options.destination = dir
 
-	err = FetchImageBlob(options, DigestSHA256LayerContent, LayerHistory)
+	parent := "scratch"
+	image := ImageWithMeta{
+		Image: &models.Image{
+			ID:     LayerID,
+			Parent: &parent,
+			Store:  Storename,
+		},
+		history: History{V1Compatibility: LayerHistory},
+		layer:   FSLayer{BlobSum: DigestSHA256LayerContent},
+	}
+	err = FetchImageBlob(options, &image)
 	if err != nil {
 		t.Errorf(err.Error())
 	}

@@ -23,6 +23,8 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
+
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 
@@ -43,8 +45,7 @@ type Fetcher interface {
 	AuthURL() *url.URL
 }
 
-// Token for registry authentication
-// See: https://docs.docker.com/registry/spec/auth/token/
+// Token represents https://docs.docker.com/registry/spec/auth/token/
 type Token struct {
 	// An opaque Bearer token that clients should supply to subsequent requests in the Authorization header.
 	Token string `json:"token"`
@@ -128,9 +129,7 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) ([]byte
 		if err != nil {
 			return nil, err
 		}
-
 		return nil, fmt.Errorf("Authentication required")
-
 	}
 
 	// FIXME: handle StatusTemporaryRedirect and StatusFound
@@ -169,12 +168,14 @@ func (u *URLFetcher) IsStatusOK() bool {
 
 func (u *URLFetcher) SetBasicAuth(req *http.Request) {
 	if u.options.Username != "" && u.options.Password != "" {
+		log.Debugf("Setting BasicAuth: %s", u.options.Username)
 		req.SetBasicAuth(u.options.Username, u.options.Password)
 	}
 }
 
 func (u *URLFetcher) SetAuthToken(req *http.Request) {
 	if u.options.Token != nil {
+		log.Debugf("Setting AuthToken: %s", u.options.Token.Token)
 		req.Header.Set("Authorization", "Bearer "+u.options.Token.Token)
 	}
 }
