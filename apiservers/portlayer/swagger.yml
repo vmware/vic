@@ -66,6 +66,8 @@ paths:
               $ref: "#/definitions/Image"
         '404':
           description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
         default:
           description: "error"
           schema:
@@ -119,6 +121,8 @@ paths:
       responses:
         '404':
           description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
         '200':
           description: "OK"
           schema:

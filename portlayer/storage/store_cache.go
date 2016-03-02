@@ -97,7 +97,7 @@ func (c *NameLookupCache) WriteImage(parent *Image, ID string, r io.Reader) (*Im
 	// Check the parent exists (at least in the cache).
 	p, err := c.GetImage(parent.Store, parent.ID)
 	if err != nil {
-		return nil, fmt.Errorf("parent (%s) doesn't exist in %s", ID, parent.Store.String())
+		return nil, fmt.Errorf("parent (%s) doesn't exist in %s", parent.ID, parent.Store.String())
 	}
 
 	i, err := c.DataStore.WriteImage(p, ID, r)
@@ -139,7 +139,7 @@ func (c *NameLookupCache) ListImages(store *url.URL, IDs []string) ([]*Image, er
 	// check the store exists
 	_, ok := c.storeCache[*store]
 	if !ok {
-		return nil, os.ErrNotExist
+		return nil, fmt.Errorf("store (%s) doesn't exist", store.String())
 	}
 
 	var imageList []*Image
