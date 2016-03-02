@@ -14,7 +14,12 @@ import (
 )
 
 var (
-	tarOptions = &archive.TarOptions{}
+	// Set NoLchown to true if our effective uid is not 0.
+	// This way we support unprivileged usage (aka non-root users) so
+	// portlayer cannot nuke the system, by mistake.
+	//
+	// Also support dev + test cycle that doesn't require sudo or sticky bits.
+	tarOptions = &archive.TarOptions{NoLchown: os.Geteuid() != 0}
 )
 
 // LocalStore implements the storage API on linux.  Stores images to the local filesystem.
