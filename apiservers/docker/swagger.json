@@ -4,10 +4,10 @@
     "title": "Docker compatible API for VIC",
     "description": "Implements the docker API for vSphere Integrated Containers",
     "termsOfService": "http://example.com/tos/",
-    "version": "v1.21"
+    "version": "v1.22"
   },
   "host": "localhost",
-  "basePath": "/v1.21",
+  "basePath": "/v1.22",
   "schemes": [
     "http",
     "https"
@@ -43,6 +43,9 @@
           "type": "string"
         },
         "ApiVersion": {
+          "type": "string"
+        },
+        "BuildTime": {
           "type": "string"
         },
         "Experimental": {
@@ -465,6 +468,41 @@
         }
       }
     },
+    "UpdateConfig": {
+      "type": "object",
+      "properties": {
+        "BlkioWeight": {
+          "type": "integer"
+        },
+        "CpuShares": {
+          "type": "integer"
+        },
+        "CpuPeriod": {
+          "type": "integer"
+        },
+        "CpuQuota": {
+          "type": "integer"
+        },
+        "CpusetCpus": {
+          "type": "string"
+        },
+        "CpusetMems": {
+          "type": "string"
+        },
+        "Memory": {
+          "type": "integer"
+        },
+        "MemorySwap": {
+          "type": "integer"
+        },
+        "MemoryReservation": {
+          "type": "integer"
+        },
+        "KernelMemory": {
+          "type": "integer"
+        }        
+      }
+    },
     "ContainerState": {
       "type": "object",
       "properties": {
@@ -601,10 +639,12 @@
           "type": "string"
         },
         "Kind": {
-          "type": "integer"
+          "type": "integer",
+          "description": "Kind of changes",
+          "enum": [0, 1, 2]
         }
       }
-    },
+     },
     "ContainerWait": {
       "type": "object",
       "properties": {
@@ -787,7 +827,19 @@
     "SystemInformation": {
       "type": "object",
       "properties": {
+        "Architecture": {
+          "type": "string"
+        },
         "Containers": {
+          "type": "integer"
+        },
+        "ContainersRunning": {
+          "type": "integer"
+        },
+        "ContainersStopped": {
+          "type": "integer"
+        },
+        "ContainersPaused": {
           "type": "integer"
         },
         "CpuCfsPeriod": {
@@ -814,6 +866,32 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          }
+        },
+        "SystemStatus": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "Plugins": {
+          "type": "object",
+          "properties": {
+            "Volume": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "Network": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           }
         },
@@ -882,6 +960,12 @@
         },
         "OomKillDisable": {
           "type": "boolean"
+        },
+        "OSType": {
+          "type": "string"
+        },
+        "OomScoreAdj": {
+          "type": "integer"
         },
         "OperatingSystem": {
           "type": "string"
@@ -970,6 +1054,9 @@
         },
         "AttachStderr": {
           "type": "boolean"
+        },
+        "DetachKeys": {
+          "type": "string"
         },
         "Tty": {
           "type": "boolean"
@@ -1122,9 +1209,6 @@
     "IPAM": {
       "type": "object",
       "properties": {
-        "Driver": {
-          "type": "string"
-        },
         "Config": {
           "type": "array",
           "items": {
@@ -1183,6 +1267,17 @@
       "properties": {
         "Container": {
           "type": "string"
+        }
+      }
+    },
+    "ContainerDisconnect": {
+      "type": "object",
+      "properties": {
+        "Container": {
+          "type": "string"
+        },
+        "Force": {
+          "type": "boolean"
         }
       }
     },
@@ -1309,6 +1404,9 @@
         "summary": "List containers",
         "description": "List containers",
         "operationId": "findAll",
+        "produces": [
+          "application/json"
+        ],
         "parameters": [{
           "name": "all",
           "in": "query",
@@ -1371,6 +1469,12 @@
         "summary": "Create a container",
         "description": "Create a container",
         "operationId": "create",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
         "parameters": [{
           "name": "name",
           "in": "query",
@@ -1384,13 +1488,6 @@
           "schema": {
             "$ref": "#/definitions/ContainerConfig"
           }
-        }, {
-          "name": "Content-Type",
-          "required": true,
-          "in": "header",
-          "type": "string",
-          "default": "application/json",
-          "description": "Content Type of input"
         }],
         "responses": {
           "201": {
@@ -1419,6 +1516,9 @@
         "summary": "Inspect a container",
         "description": "Return low-level information on the container id",
         "operationId": "find",
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "200": {
             "description": "no error",
@@ -1558,6 +1658,9 @@
         "summary": "Inspect changes on a container’s filesystem",
         "description": "Inspect changes on a container’s filesystem",
         "operationId": "changes",
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "200": {
             "description": "no error",
@@ -1581,12 +1684,6 @@
           "required": true,
           "description": "The container id or name",
           "type": "string"
-        }, {
-          "name": "kind",
-          "in": "query",
-          "description": "Kind of changes",
-          "type": "integer",
-          "enum": [0, 1, 2]
         }],
         "tags": [
           "Container"
@@ -1598,6 +1695,9 @@
         "summary": "Export a container",
         "description": "Export the contents of container id",
         "operationId": "export",
+        "produces": [
+          "application/octet-stream"
+        ],
         "responses": {
           "200": {
             "description": "no error",
@@ -1629,6 +1729,9 @@
         "summary": "Get container stats based on resource usage",
         "description": "This endpoint returns a live stream of a container’s resource usage statistics.",
         "operationId": "stats",
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "200": {
             "description": "no error",
@@ -1653,7 +1756,8 @@
           "name": "stream",
           "in": "query",
           "description": "Stream stats",
-          "type": "boolean"
+          "type": "boolean",
+          "default": true
         }],
         "tags": [
           "Container"
@@ -1665,6 +1769,9 @@
         "summary": "Resize a container TTY",
         "description": "Resize the TTY for container with id. The unit is number of characters. You must restart the container for the resize to take effect.",
         "operationId": "resize",
+        "produces": [
+          "text/plain"
+        ],
         "responses": {
           "200": {
             "description": "no error"
@@ -1723,6 +1830,11 @@
           "required": true,
           "description": "The container id or name",
           "type": "string"
+        }, {
+          "name": "detachKeys",
+          "in": "query",
+          "description": "Override the key sequence for detaching a container. Format is a single character [a-Z] or ctrl-<value> where <value> is one of: a-z, @, ^, [, , or _.",
+          "type": "string"         
         }],
         "tags": [
           "Container"
@@ -1831,6 +1943,42 @@
         ]
       }
     },
+    "/containers/{id}/update": {
+      "post": {
+        "summary": "Update a container",
+        "description": "Update resource configs of one or more containers",
+        "operationId": "update",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "204": {
+            "description": "no error"
+          },
+          "404": {
+            "description": "no such container"
+          },
+          "500": {
+            "description": "server error"
+          }
+        },
+        "parameters": [{
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "The container id or name",
+          "type": "string"
+        }, {
+          "name": "update",
+          "in": "body",
+          "description": "Update config json",
+          "schema": {
+            "$ref": "#/definitions/UpdateConfig"
+          }
+        }]
+
+      }
+    },
     "/containers/{id}/rename": {
       "post": {
         "summary": "Rename a container",
@@ -1929,9 +2077,19 @@
         "summary": "Attach to a container",
         "description": "Attach to the container id",
         "operationId": "attach",
+        "consumes": [
+          "text/plain",
+          "application/octet-stream"
+        ],
+        "produces": [
+          "application/vnd.docker.raw-stream"
+        ],
         "responses": {
+          "101": {
+            "description": "no error, hints proxy about hijacking"
+          },
           "200": {
-            "description": "no error"
+            "description": "no error, no upgrade header found"
           },
           "400": {
             "description": "bad parameter"
@@ -1950,30 +2108,40 @@
           "description": "The container id or name",
           "type": "string"
         }, {
+          "name": "detachKeys",
+          "in": "query",
+          "description": "Override the key sequence for detaching a container. Format is a single character [a-Z] or ctrl-<value> where <value> is one of: a-z, @, ^, [, , or _.",
+          "type": "string"         
+        }, {
           "name": "logs",
           "in": "query",
           "description": "1/True/true or 0/False/false, return logs. Default false",
-          "type": "string"
+          "type": "boolean",
+          "default": false
         }, {
           "name": "stream",
           "in": "query",
           "description": "1/True/true or 0/False/false, return stream. Default false",
-          "type": "string"
+          "type": "boolean",
+          "default": false
         }, {
           "name": "stdin",
           "in": "query",
           "description": "1/True/true or 0/False/false, if stream=true, attach to stdin. Default false.",
-          "type": "string"
+          "type": "boolean",
+          "default": false
         }, {
           "name": "stdout",
           "in": "query",
           "description": "1/True/true or 0/False/false, if logs=true, return stdout log, if stream=true, attach to stdout. Default false.",
-          "type": "string"
+          "type": "boolean",
+          "default": false
         }, {
           "name": "stderr",
           "in": "query",
           "description": "1/True/true or 0/False/false, if logs=true, return stderr log, if stream=true, attach to stderr. Default false.",
-          "type": "string"
+          "type": "boolean",
+          "default": false
         }],
         "tags": [
           "Container"
@@ -2012,27 +2180,32 @@
           "name": "logs",
           "in": "query",
           "description": "1/True/true or 0/False/false, return logs. Default false",
-          "type": "string"
+          "type": "boolean",
+          "default": false
         }, {
           "name": "stream",
           "in": "query",
           "description": "1/True/true or 0/False/false, return stream. Default false",
-          "type": "string"
+          "type": "boolean",
+          "default": false
         }, {
           "name": "stdin",
           "in": "query",
           "description": "1/True/true or 0/False/false, if stream=true, attach to stdin. Default false.",
-          "type": "string"
+          "type": "boolean",
+          "default": false
         }, {
           "name": "stdout",
           "in": "query",
           "description": "1/True/true or 0/False/false, if logs=true, return stdout log, if stream=true, attach to stdout. Default false.",
-          "type": "string"
+          "type": "boolean",
+          "default": false
         }, {
           "name": "stderr",
           "in": "query",
           "description": "1/True/true or 0/False/false, if logs=true, return stderr log, if stream=true, attach to stderr. Default false.",
-          "type": "string"
+          "type": "boolean",
+          "default": false
         }],
         "tags": [
           "Container"
@@ -2044,6 +2217,9 @@
         "summary": "Wait a container",
         "description": "Block until container id stops, then returns the exit code",
         "operationId": "wait",
+        "consumes": [
+          "application/json"
+        ],
         "responses": {
           "200": {
             "description": "no error",
@@ -2114,14 +2290,17 @@
     "/containers/{id}/archive": {
       "head": {
         "summary": "Retrieving information about files and folders in a container",
-        "description": "Retrieving information about files and folders in a container",
+        "description": "Get an tar archive of a resource in the filesystem of container",
         "operationId": "getArchiveInformation",
         "responses": {
-          "204": {
+          "200": {
             "description": "no error"
           },
+          "400": {
+            "description": "client error, bad parameter, details in JSON response body, one of: must specify path parameter (path cannot be empty) not a directory (path was asserted to be a directory but exists as a file)"
+          },
           "404": {
-            "description": "no such container"
+            "description": "client error, resource not found, one of: 1) no such container (container id does not exist) 2) no such file or directory (path resource does not exist)"
           },
           "500": {
             "description": "server error"
@@ -2148,6 +2327,9 @@
         "summary": "Get an archive of a filesystem resource in a container",
         "description": "Get an tar archive of a resource in the filesystem of container id.",
         "operationId": "getArchive",
+        "produces": [
+          "application/x-tar"
+        ],
         "responses": {
           "200": {
             "description": "no error"
@@ -2155,8 +2337,8 @@
           "400": {
             "description": "client error, bad parameter, details in JSON response body, one of: must specify path parameter (path cannot be empty) not a directory (path was asserted to be a directory but exists as a file)"
           },
-          "404": {
-            "description": "no such container or path does not exist inside the container"
+         "404": {
+            "description": "client error, resource not found, one of: 1) no such container (container id does not exist) 2) no such file or directory (path resource does not exist)"
           },
           "500": {
             "description": "server error"
@@ -2183,6 +2365,9 @@
         "summary": "Extract an archive of files or folders to a directory in a container",
         "description": "Upload a tar archive to be extracted to a path in the filesystem of container id.",
         "operationId": "putArchive",
+        "consumes": [
+          "application/x-tar"
+        ],
         "responses": {
           "200": {
             "description": "The content was extracted successfully"
@@ -2236,6 +2421,9 @@
         "summary": "List Images",
         "description": "List Images",
         "operationId": "findAll",
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "200": {
             "description": "no error",
@@ -2282,6 +2470,9 @@
         "summary": "Build an image from Dockerfile via stdin",
         "description": "Build an image from Dockerfile via stdin",
         "operationId": "build",
+        "produces": [
+          "application/json"
+        ],
         "parameters": [{
           "name": "inputStream",
           "in": "body",
@@ -2403,6 +2594,9 @@
           "text/plain",
           "application/octet-stream"
         ],
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "200": {
             "description": "no error"
@@ -2460,6 +2654,9 @@
         "summary": "Inspect an image",
         "description": "Return low-level information on the image name",
         "operationId": "find",
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "200": {
             "description": "No error",
@@ -2491,6 +2688,9 @@
         "summary": "Get the history of an image",
         "description": "Return the history of the image name",
         "operationId": "history",
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "200": {
             "description": "No error",
@@ -2564,6 +2764,9 @@
         "summary": "Tag an image into a repository",
         "description": "Tag the image name into a repository",
         "operationId": "tag",
+        "produces": [
+          "text/plain"
+        ],
         "responses": {
           "201": {
             "description": "No error"
@@ -2596,7 +2799,8 @@
           "name": "force",
           "in": "query",
           "description": "1/True/true or 0/False/false, default false",
-          "type": "string"
+          "type": "boolean",
+          "default": false
         }, {
           "name": "tag",
           "in": "query",
@@ -2613,6 +2817,9 @@
         "summary": "Remove an image",
         "description": "Remove the image name from the filesystem",
         "operationId": "remove",
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "200": {
             "description": "No error"
@@ -2637,12 +2844,14 @@
           "name": "force",
           "in": "query",
           "description": "1/True/true or 0/False/false, default false",
-          "type": "string"
+          "type": "boolean",
+          "default": false
         }, {
           "name": "noprune",
           "in": "query",
           "description": "1/True/true or 0/False/false, default false.",
-          "type": "string"
+          "type": "boolean",
+          "default": false
         }],
         "tags": [
           "Image"
@@ -2654,6 +2863,9 @@
         "summary": "Search images",
         "description": "Search for an image on Docker Hub.",
         "operationId": "search",
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "200": {
             "description": "No error",
@@ -2684,6 +2896,12 @@
         "summary": "Check auth configuration",
         "description": "Check auth configuration.",
         "operationId": "checkAuthentication",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "text/plain"
+        ],
         "responses": {
           "200": {
             "description": "No error"
@@ -2713,6 +2931,9 @@
         "summary": "Display system-wide information",
         "description": "Display system-wide information.",
         "operationId": "getSystemInformation",
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "200": {
             "description": "No error",
@@ -2734,6 +2955,9 @@
         "summary": "Show the docker version information",
         "description": "Show the docker version information",
         "operationId": "getVersion",
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "200": {
             "description": "no error",
@@ -2779,12 +3003,21 @@
         "summary": "Create a new image from a container’s changes",
         "description": "Create a new image from a container’s changes",
         "operationId": "commit",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "201": {
             "description": "no error",
             "schema": {
               "$ref": "#/definitions/CommitResult"
             }
+          },
+          "404": {
+            "description": "no such container"
           },
           "500": {
             "description": "server error"
@@ -2843,6 +3076,9 @@
         "summary": "Monitor Docker’s events",
         "description": "Get container events from docker, either in real time via streaming, or via polling (using since).",
         "operationId": "getEvents",
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "200": {
             "description": "no error"
@@ -2855,12 +3091,12 @@
           "name": "since",
           "in": "query",
           "description": "Timestamp used for polling",
-          "type": "integer"
+          "type": "string"
         }, {
           "name": "until",
           "in": "query",
           "description": "Timestamp used for polling",
-          "type": "integer"
+          "type": "string"
         }, {
           "name": "filters",
           "in": "query",
@@ -2877,6 +3113,9 @@
         "summary": "Get a tarball containing all images in a repository",
         "description": "Get a tarball containing all images and metadata for the repository specified by name.",
         "operationId": "save",
+        "produces": [
+          "application/x-tar"
+        ],
         "responses": {
           "200": {
             "description": "no error",
@@ -2905,6 +3144,9 @@
         "summary": "Get a tarball containing all images.",
         "description": "Get a tarball containing all images and metadata for one or more repositories.",
         "operationId": "saveAll",
+        "produces": [
+          "application/x-tar"
+        ],
         "responses": {
           "200": {
             "description": "no error",
@@ -2935,6 +3177,12 @@
         "summary": "Load a tarball with a set of images and tags into docker.",
         "description": "Load a set of images and tags into a Docker repository. See the image tarball format for more details.",
         "operationId": "load",
+        "consumes": [
+          "application/x-tar"
+        ],
+        "produces": [
+          "text/plain"
+        ],
         "responses": {
           "200": {
             "description": "no error"
@@ -2961,6 +3209,12 @@
         "summary": "Exec Create",
         "description": "Sets up an exec instance in a running container id",
         "operationId": "create",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "201": {
             "description": "no error",
@@ -2970,6 +3224,9 @@
           },
           "404": {
             "description": "no such container"
+          },
+          "409": {
+            "description": "container is paused"
           },
           "500": {
             "description": "Server error"
@@ -3007,6 +3264,12 @@
         "summary": "Exec Start",
         "description": "Starts a previously set up exec instance id. If detach is true, this API returns after starting the exec command. Otherwise, this API sets up an interactive session with the exec command.",
         "operationId": "start",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "200": {
             "description": "No error"
@@ -3016,9 +3279,6 @@
           },
           "409": {
             "description": "Container is stopped or paused"
-          },
-          "500": {
-            "description": "Server error"
           }
         },
         "parameters": [{
@@ -3028,13 +3288,6 @@
           "schema": {
             "$ref": "#/definitions/ExecStartConfig"
           }
-        }, {
-          "name": "Content-Type",
-          "in": "header",
-          "description": "Content Type Header",
-          "required": true,
-          "type": "string",
-          "default": "application/json"
         }, {
           "name": "id",
           "in": "path",
@@ -3052,17 +3305,20 @@
         "summary": "Exec Resize",
         "description": "Resize the tty session used by the exec command id.",
         "operationId": "resize",
+        "consumes": [
+          "text/plain"
+        ],
+        "produces": [
+          "text/plain"
+        ],
         "responses": {
           "201": {
             "description": "No error"
           },
           "404": {
             "description": "No such exec instance"
-          },
-          "500": {
-            "description": "Server error"
           }
-        },
+       },
         "parameters": [{
           "name": "id",
           "in": "path",
@@ -3073,14 +3329,12 @@
           "name": "h",
           "in": "query",
           "description": "Height of the tty session",
-          "type": "integer",
-          "format": "int64"
+          "type": "integer"
         }, {
           "name": "w",
           "in": "query",
           "description": "Width of the tty session",
-          "type": "integer",
-          "format": "int64"
+          "type": "integer"
         }],
         "tags": [
           "Exec"
@@ -3092,6 +3346,9 @@
         "summary": "Exec Inspect",
         "description": "Return low-level information about the exec command id.",
         "operationId": "find",
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "200": {
             "description": "No error",
@@ -3123,6 +3380,9 @@
         "summary": "List volumes",
         "description": "List volumes.",
         "operationId": "findAll",
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "200": {
             "description": "No error",
@@ -3150,6 +3410,12 @@
         "summary": "Create a volume",
         "description": "Create a volume.",
         "operationId": "create",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "201": {
             "description": "No error",
@@ -3180,6 +3446,9 @@
         "summary": "Inspect a volume",
         "description": "Inspect a volume.",
         "operationId": "find",
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "200": {
             "description": "No error",
@@ -3270,6 +3539,9 @@
         "summary": "Inspect network",
         "description": "Inspect network.",
         "operationId": "find",
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "200": {
             "description": "No error",
@@ -3279,9 +3551,6 @@
           },
           "404": {
             "description": "Network not found"
-          },
-          "500": {
-            "description": "Server error"
           }
         },
         "parameters": [{
@@ -3304,7 +3573,7 @@
             "description": "No error"
           },
           "404": {
-            "description": "Network not found"
+            "description": "no such network"
           },
           "500": {
             "description": "Server error"
@@ -3327,6 +3596,12 @@
         "summary": "Create network",
         "description": "Create network.",
         "operationId": "create",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
         "responses": {
           "201": {
             "description": "No error",
@@ -3335,7 +3610,7 @@
             }
           },
           "404": {
-            "description": "Driver not found"
+            "description": "plugin not found"
           },
           "500": {
             "description": "Server error"
@@ -3360,6 +3635,9 @@
         "summary": "Connect a container to a network",
         "description": "Connect a container to a network.",
         "operationId": "connect",
+        "consumes": [
+          "application/json"
+        ],
         "responses": {
           "201": {
             "description": "No error"
@@ -3419,7 +3697,7 @@
           "description": "Container",
           "required": true,
           "schema": {
-            "$ref": "#/definitions/ContainerConnect"
+            "$ref": "#/definitions/ContainerDisconnect"
           }
         }],
         "tags": [
