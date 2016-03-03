@@ -87,7 +87,7 @@ Generate certificate pair
 go run `go env GOROOT`/src/crypto/tls/generate_cert.go --host localhost
 ```
 
-Start server
+Start docker-server
 
 ```
 binary/docker-server --port=2376 --tls-certificate=cert.pem --tls-key=key.pem
@@ -101,8 +101,16 @@ binary/port-layer-server --port 8080
 
 ## Testing with docker client
 
+Download docker client
 ```
-$ DOCKER_API_VERSION=1.21 DOCKER_HOST=tcp://127.0.0.1:2376 docker pull tomcat
+https://get.docker.com/builds/Linux/x86_64/docker-1.10.2
+https://get.docker.com/builds/Darwin/x86_64/docker-1.10.2
+https://get.docker.com/builds/Windows/x86_64/docker-1.10.2.exe
+```
+
+Pull an image
+```
+$ DOCKER_HOST=tcp://127.0.0.1:2376 docker pull tomcat
 ```
 
 ## License
