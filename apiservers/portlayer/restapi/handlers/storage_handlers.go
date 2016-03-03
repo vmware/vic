@@ -19,8 +19,16 @@ import (
 // StorageHandlersImpl is the receiver for all of the storage handler methods
 type StorageHandlersImpl struct{}
 
+// envOrDefault returns STORE_PATH env. variable or the default path
+func envOrDefault() string {
+	if path := os.Getenv("STORE_PATH"); path != "" {
+		return path
+	}
+	return "/var/lib/portlayer"
+}
+
 var ls = &linux.LocalStore{
-	Path: "/var/lib/portlayer",
+	Path: envOrDefault(),
 }
 
 var cache = &portlayer.NameLookupCache{
