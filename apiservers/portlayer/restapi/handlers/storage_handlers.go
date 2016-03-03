@@ -16,6 +16,7 @@ import (
 	"github.com/vmware/vic/portlayer/util"
 )
 
+// StorageHandlersImpl is the receiver for all of the storage handler methods
 type StorageHandlersImpl struct{}
 
 var ls = &linux.LocalStore{
@@ -72,7 +73,7 @@ func (handler *StorageHandlersImpl) GetImage(params storage.GetImageParams) midd
 	image, err := cache.GetImage(url, id)
 	if err != nil {
 		e := &models.Error{Code: swag.Int64(http.StatusNotFound), Message: err.Error()}
-		return storage.NewGetImageDefault(http.StatusNotFound).WithPayload(e)
+		return storage.NewGetImageNotFound().WithPayload(e)
 	}
 	result := convertImage(image)
 	return storage.NewGetImageOK().WithPayload(result)
@@ -98,7 +99,7 @@ func (handler *StorageHandlersImpl) ListImages(params storage.ListImagesParams) 
 	// FIXME(jzt): not populating the cache at startup will result in 404's
 	images, err := cache.ListImages(u, nil)
 	if err != nil {
-		return storage.NewListImagesDefault(http.StatusNotFound).WithPayload(
+		return storage.NewListImagesNotFound().WithPayload(
 			&models.Error{
 				Code:    swag.Int64(http.StatusNotFound),
 				Message: err.Error(),
@@ -143,7 +144,7 @@ func (handler *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) 
 
 // convert an SPL Image to a swagger-defined Image
 func convertImage(image *portlayer.Image) *models.Image {
-	var parent *string
+	var parent, selfLink *string
 
 	// scratch image
 	if image.Parent != nil {
@@ -151,12 +152,14 @@ func convertImage(image *portlayer.Image) *models.Image {
 		parent = &s
 	}
 
-	s := image.SelfLink.String()
-	selflink := &s
+	if image.SelfLink != nil {
+		l := image.SelfLink.String()
+		selfLink = &l
+	}
 
 	return &models.Image{
 		ID:       image.ID,
-		SelfLink: selflink,
+		SelfLink: selfLink,
 		Parent:   parent,
 		Store:    image.Store.String(),
 	}
