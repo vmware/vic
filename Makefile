@@ -18,7 +18,7 @@ goversion:
 	@echo checking go version...
 	@( $(GO) version | grep -q $(GOVERSION) ) || ( echo "Please install $(GOVERSION) (found: $$($(GO) version))" && exit 1 )
 
-all: check bootstrap apiservers
+all: check bootstrap apiservers imagec
 
 check: goversion goimports govet golint
 

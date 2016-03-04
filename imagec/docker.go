@@ -118,8 +118,12 @@ func FetchToken(url *url.URL) (*Token, error) {
 }
 
 // FetchImageBlob fetches the image blob
-func FetchImageBlob(options ImageCOptions, layer string, history string) error {
-	defer trace.End(trace.Begin(options.image + "/" + layer))
+func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) error {
+	defer trace.End(trace.Begin(options.image + "/" + image.layer.BlobSum))
+
+	id := image.ID
+	layer := image.layer.BlobSum
+	history := image.history.V1Compatibility
 
 	url, err := url.Parse(options.registry)
 	if err != nil {
@@ -129,13 +133,7 @@ func FetchImageBlob(options ImageCOptions, layer string, history string) error {
 
 	log.Debugf("URL: %s\n ", url)
 
-	v1 := V1Compatibility{}
-	if err := json.Unmarshal([]byte(history), &v1); err != nil {
-		return err
-	}
-	log.Debugf("Metadata: %#v\n", v1)
-
-	progress.Update(po, v1.ID[:12], "Pulling fs layer")
+	progress.Update(po, id[:12], "Pulling fs layer")
 
 	fetcher := NewFetcher(FetcherOptions{
 		Timeout:  options.timeout,
@@ -143,26 +141,25 @@ func FetchImageBlob(options ImageCOptions, layer string, history string) error {
 		Password: options.password,
 		Token:    options.token,
 	})
-	blob, err := fetcher.FetchWithProgress(url, v1.ID[:12])
+	blob, err := fetcher.FetchWithProgress(url, id[:12])
 	if err != nil {
 		return err
 	}
 
 	in := bytes.NewReader(blob)
 
-	destination := path.Join(options.destination, options.image, options.digest, v1.ID)
+	destination := path.Join(options.destination, options.image, options.digest, id)
 	err = os.MkdirAll(destination, 0755)
 	if err != nil {
 		return err
 	}
-	progress.Update(po, v1.ID[:12], "Download complete")
 
-	progress.Update(po, v1.ID[:12], "Verifying Checksum")
+	progress.Update(po, id[:12], "Verifying Checksum")
 
 	h := sha256.New()
 	t := io.TeeReader(in, h)
 
-	layerFile, err := os.Create(path.Join(destination, v1.ID+".tar"))
+	layerFile, err := os.Create(path.Join(destination, id+".tar"))
 	if err != nil {
 		return err
 	}
@@ -181,9 +178,9 @@ func FetchImageBlob(options ImageCOptions, layer string, history string) error {
 	if sum != layer {
 		return fmt.Errorf("Failed to validate layer checksum. Expected %s got %s", layer, sum)
 	}
-	ioutil.WriteFile(path.Join(destination, v1.ID+".json"), []byte(history), 0644)
+	ioutil.WriteFile(path.Join(destination, id+".json"), []byte(history), 0644)
 
-	progress.Update(po, v1.ID[:12], "Pull complete")
+	progress.Update(po, id[:12], "Download complete")
 
 	return nil
 }

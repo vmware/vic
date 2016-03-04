@@ -9,6 +9,7 @@ apiservers/docker/restapi/*.go
 apiservers/docker/restapi/operations
 !apiservers/docker/restapi/configure_docker.go
 
+apiservers/portlayer/client/
 apiservers/portlayer/cmd
 apiservers/portlayer/models
 apiservers/portlayer/restapi/*.go
