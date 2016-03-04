@@ -31,11 +31,9 @@ import (
 	"github.com/vmware/vic/portlayer/util"
 )
 
-type MockDataStore struct {
-}
-
 var (
 	testImageID     = "testImage"
+	testImageSum    = "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 	testHostName, _ = os.Hostname()
 	testStoreName   = "testStore"
 	testStoreURL    = url.URL{
@@ -44,6 +42,9 @@ var (
 		Path:   "/storage/" + testStoreName,
 	}
 )
+
+type MockDataStore struct {
+}
 
 // GetImageStore checks to see if a named image store exists and returls the
 // URL to it if so or error.
@@ -184,7 +185,7 @@ func TestGetImage(t *testing.T) {
 	}
 
 	// add the image to the store
-	image, err := cache.WriteImage(&parent, testImageID, nil)
+	image, err := cache.WriteImage(&parent, testImageID, testImageSum, nil)
 	if !assert.NotNil(t, image) {
 		return
 	}
@@ -251,7 +252,7 @@ func TestListImages(t *testing.T) {
 	parent.Store = &testStoreURL
 	for i := 1; i < 50; i++ {
 		id := fmt.Sprintf("id-%d", i)
-		img, err := cache.WriteImage(&parent, id, nil)
+		img, err := cache.WriteImage(&parent, id, testImageSum, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -292,6 +293,7 @@ func TestWriteImage(t *testing.T) {
 		StoreName: testStoreName,
 		ImageID:   testImageID,
 		ParentID:  "scratch",
+		Sum:       testImageSum,
 		ImageFile: nil,
 	}
 
