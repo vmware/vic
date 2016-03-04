@@ -67,10 +67,13 @@ paths:
       tags: ["storage"]
       operationId: ListImages
       parameters:
-        - name: id
+        - name: ids
           type: string
           in: query
-          collectionFormat: multi
+          type: array
+          items:
+            type: string
+            collectionFormat: csv
       responses:
         '200':
           description: "OK"

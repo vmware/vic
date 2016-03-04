@@ -273,6 +273,32 @@ func TestListImages(t *testing.T) {
 			return
 		}
 	}
+
+	// List specific images
+	var ids []string
+
+	// query for odd-numbered image ids
+	for i := 1; i < 50; i += 2 {
+		ids = append(ids, fmt.Sprintf("id-%d", i))
+	}
+	params.Ids = ids
+	outImages = s.ListImages(*params)
+	assert.IsType(t, &storage.ListImagesOK{}, outImages)
+	assert.Equal(t, len(outImages.(*storage.ListImagesOK).Payload), len(ids))
+
+	outmap := make(map[string]*models.Image)
+	for _, image := range outImages.(*storage.ListImagesOK).Payload {
+		outmap[image.ID] = image
+	}
+
+	// ensure no even-numbered image ids in our result
+	for i := 2; i < 50; i += 2 {
+		id := fmt.Sprintf("id-%d", i)
+		_, ok := outmap[id]
+		if !assert.False(t, ok) {
+			return
+		}
+	}
 }
 
 func TestWriteImage(t *testing.T) {

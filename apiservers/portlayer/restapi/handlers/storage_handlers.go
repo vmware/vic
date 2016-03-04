@@ -100,7 +100,6 @@ func (handler *StorageHandlersImpl) GetImageTar(params storage.GetImageTarParams
 
 // ListImages returns a list of images in a store
 func (handler *StorageHandlersImpl) ListImages(params storage.ListImagesParams) middleware.Responder {
-	// TODO(jzt): support multiple query args i.e.:  /storage/ListImages?id=1,2,3,4...
 	u, err := util.StoreNameToURL(params.StoreName)
 	if err != nil {
 		return storage.NewListImagesDefault(http.StatusInternalServerError).WithPayload(
@@ -111,7 +110,7 @@ func (handler *StorageHandlersImpl) ListImages(params storage.ListImagesParams) 
 	}
 
 	// FIXME(jzt): not populating the cache at startup will result in 404's
-	images, err := cache.ListImages(u, nil)
+	images, err := cache.ListImages(u, params.Ids)
 	if err != nil {
 		return storage.NewListImagesNotFound().WithPayload(
 			&models.Error{
