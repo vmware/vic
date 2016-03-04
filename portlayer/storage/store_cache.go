@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"net/url"
@@ -107,16 +108,25 @@ func (c *NameLookupCache) ListImageStores() ([]*url.URL, error) {
 	return stores, nil
 }
 
-func (c *NameLookupCache) WriteImage(parent *Image, ID string, r io.Reader) (*Image, error) {
+func (c *NameLookupCache) WriteImage(parent *Image, ID, sum string, r io.Reader) (*Image, error) {
 	// Check the parent exists (at least in the cache).
 	p, err := c.GetImage(parent.Store, parent.ID)
 	if err != nil {
 		return nil, fmt.Errorf("parent (%s) doesn't exist in %s", parent.ID, parent.Store.String())
 	}
 
-	i, err := c.DataStore.WriteImage(p, ID, r)
+	h := sha256.New()
+	t := io.TeeReader(r, h)
+
+	i, err := c.DataStore.WriteImage(p, ID, t)
 	if err != nil {
 		return nil, err
+	}
+
+	actualSum := fmt.Sprintf("sha256:%x", h.Sum(nil))
+	if actualSum != sum {
+		// TODO(jzt): cleanup?
+		return nil, fmt.Errorf("Failed to validate image checksum. Expected %s, got %s", sum, actualSum)
 	}
 
 	// Add the new image to the cache

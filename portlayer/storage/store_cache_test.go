@@ -84,10 +84,11 @@ func TestListImages(t *testing.T) {
 	images[Scratch.ID] = &Scratch
 	parent := Scratch
 	parent.Store = storeURL
+	testSum := "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 	for i := 1; i < 50; i++ {
 		id := fmt.Sprintf("ID-%d", i)
 
-		img, err := s.WriteImage(&parent, id, nil)
+		img, err := s.WriteImage(&parent, id, testSum, nil)
 		if !assert.NoError(t, err) {
 			return
 		}

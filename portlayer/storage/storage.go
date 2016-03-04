@@ -40,15 +40,16 @@ type ImageStorer interface {
 	// WriteImage creates a new image layer from the given parent.  Eg
 	// parentImage + newLayer = new Image built from parent
 	//
-	// parent - The parent image to create the new image from.  ID - textual ID
-	// for the image to be written Tag - the tag of the image to be written
+	// parent - The parent image to create the new image from.
+	// ID - textual ID for the image to be written
+	// r - the image tar to be written
 	WriteImage(parent *Image, ID string, r io.Reader) (*Image,
 		error)
 
 	// GetImage queries the image store for the specified image.
 	//
 	// store - The image store to query name - The name of the image (optional)
-	// tag - The tagged version of the image (optional)
+	// ID - textual ID for the image to be retrieved
 	GetImage(store *url.URL, ID string) (*Image, error)
 
 	// ListImages returns a list of Images given a list of image IDs, or all
