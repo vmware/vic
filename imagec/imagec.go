@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path"
 	"sync"
@@ -60,8 +61,9 @@ type ImageCOptions struct {
 
 	timeout time.Duration
 
-	stdout bool
-	debug  bool
+	stdout   bool
+	debug    bool
+	insecure bool
 }
 
 // ImageWithMeta wraps the models.Image with some additional metadata
@@ -81,7 +83,7 @@ const (
 	DefaultDockerDigest = "latest"
 
 	// DefaultDestination specifies the default directory to use
-	DefaultDestination = "."
+	DefaultDestination = "images"
 
 	// DefaultPortLayerHost specifies the default port layer server
 	DefaultPortLayerHost = "localhost:8080"
@@ -113,11 +115,49 @@ func init() {
 	flag.DurationVar(&options.timeout, "timeout", DefaultHTTPTimeout, "HTTP timeout")
 
 	flag.BoolVar(&options.stdout, "stdout", false, "Enable writing to stdout")
-	flag.BoolVar(&options.debug, "debug", true, "Enable debugging")
+	flag.BoolVar(&options.debug, "debug", false, "Show debug logging")
+	flag.BoolVar(&options.insecure, "insecure", false, "Skip certificate verification checks")
 
 	flag.Parse()
 }
 
+// DestinationDirectory returns the path of the output directory
+func DestinationDirectory() string {
+	u, _ := url.Parse(options.registry)
+
+	// Use a hierachy like following so that we can support multiple schemes, registries and versions
+	/*
+		https/
+		├── 192.168.218.5:5000
+		│   └── v2
+		│       └── busybox
+		│           └── latest
+		...
+		│               ├── fef924a0204a00b3ec67318e2ed337b189c99ea19e2bf10ed30a13b87c5e17ab
+		│               │   ├── fef924a0204a00b3ec67318e2ed337b189c99ea19e2bf10ed30a13b87c5e17ab.json
+		│               │   └── fef924a0204a00b3ec67318e2ed337b189c99ea19e2bf10ed30a13b87c5e17ab.tar
+		│               └── manifest.json
+		└── registry-1.docker.io
+		    └── v2
+		        └── library
+		            └── golang
+		                └── latest
+		                    ...
+		                    ├── f61ebe2817bb4e6a7f0a4cf249a5316223f7ecc886feac24b9887a490feaed57
+		                    │   ├── f61ebe2817bb4e6a7f0a4cf249a5316223f7ecc886feac24b9887a490feaed57.json
+		                    │   └── f61ebe2817bb4e6a7f0a4cf249a5316223f7ecc886feac24b9887a490feaed57.tar
+		                    └── manifest.json
+
+	*/
+	return path.Join(
+		options.destination,
+		u.Scheme,
+		u.Host,
+		u.Path,
+		options.image,
+		options.digest,
+	)
+}
 func main() {
 	// Open the log file
 	f, err := os.OpenFile(options.logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
@@ -158,12 +198,14 @@ func main() {
 		log.Fatalf("Failed to obtain OAuth endpoint: %s", err)
 	}
 
-	// Get the OAuth token
-	token, err := FetchToken(url)
-	if err != nil {
-		log.Fatalf("Failed to fetch OAuth token: %s", err)
+	// Get the OAuth token - if only we have a URL
+	if url != nil {
+		token, err2 := FetchToken(url)
+		if err != nil {
+			log.Fatalf("Failed to fetch OAuth token: %s", err2)
+		}
+		options.token = token
 	}
-	options.token = token
 
 	// Get the manifest
 	manifest, err := FetchImageManifest(options)
@@ -270,7 +312,7 @@ func main() {
 	// iterate from parent to children
 	// so that portlayer can extract each layer
 	// on top of previous one
-	destination := path.Join(options.destination, options.image, options.digest)
+	destination := DestinationDirectory()
 	for i := len(images) - 1; i >= 0; i-- {
 		image := images[i]
 
