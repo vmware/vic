@@ -17,6 +17,7 @@
 package network
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 )
@@ -40,17 +41,7 @@ type AddressSpace struct {
 func compareIP4(ip1 net.IP, ip2 net.IP) int {
 	ip1 = ip1.To16()
 	ip2 = ip2.To16()
-	for i := 0; i < len(ip1); i++ {
-		if ip1[i] < ip2[i] {
-			return -1
-		}
-
-		if ip1[i] > ip2[i] {
-			return 1
-		}
-	}
-
-	return 0
+	return bytes.Compare(ip1, ip2)
 }
 
 func incrementIP4(ip net.IP) net.IP {
@@ -100,17 +91,23 @@ func copyIP(ip net.IP) net.IP {
 }
 
 func isIP4(ip net.IP) bool {
-	if ip = ip.To4(); ip != nil {
-		return true
-	}
-
-	return false
+	return ip.To4() != nil
 }
 
+// lowestIP4 returns the lowest possible IP address
+// in an IP network. For example:
+//
+//     lowestIP4(net.IPNet{}IP: net.ParseIP("172.16.0.0"), Mask: net.CIDRMask(16, 32)}) -> 172.16.0.0
+//
 func lowestIP4(ipRange net.IPNet) net.IP {
 	return ipRange.IP.Mask(ipRange.Mask).To16()
 }
 
+// highestIP4 returns the highest possible IP address
+// in an IP network. For example:
+//
+//     highestIP4(net.IPNet{}IP: net.ParseIP("172.16.0.0"), Mask: net.CIDRMask(16, 32)}) -> 172.16.255.255
+//
 func highestIP4(ipRange net.IPNet) net.IP {
 	if !isIP4(ipRange.IP) {
 		return nil
@@ -140,27 +137,46 @@ func NewAddressSpaceFromRange(firstIP net.IP, lastIP net.IP) *AddressSpace {
 // ReserveNextIP4Net reserves a new sub address space within the given address
 // space, given a bitmask specifying the "width" of the requested space.
 func (s *AddressSpace) ReserveNextIP4Net(mask net.IPMask) (*AddressSpace, error) {
+	ones, _ := mask.Size()
 	for i, r := range s.availableRanges {
 		network := r.firstIP.Mask(mask).To16()
 		var firstIP net.IP
+		// check if the start of the current range
+		// is lower than the network boundary
 		if compareIP4(network, r.firstIP) >= 0 {
 			// found the start of the range
 			firstIP = network
 		} else {
-			// range does not start on the
-			// mask boundary
-			ones, _ := mask.Size()
+			// network address is lower than the first
+			// ip in the range; try the next network
+			// in the mask
 			for i := len(network) - 1; i >= 12; i-- {
 				partialByteIndex := ones/8 + 12
 				if i == partialByteIndex {
-					inc := (byte)(2 << (uint)(8-ones%8))
+					// this octet may only be occupied
+					// by the mask partially, e.g.
+					// for a /25, the last octet has
+					// only one bit in the mask
+					//
+					// in order to get the next network
+					// we need to increment starting at
+					// the last bit of the mask, e.g. 25
+					// in this example, which would be
+					// bit 8 in the last octet.
+					inc := (byte)(1 << (uint)(8-ones%8))
 					if network[i]+inc > 0 {
+						// no overflow, so we are done
 						network[i] += inc
 						firstIP = network
 						break
 					}
 				} else if i < partialByteIndex {
+					// we are past the partial octets,
+					// so this is portion where the mask
+					// occupies the octets fully, so
+					// we can just increment the last bit
 					if network[i]+1 > 0 {
+						// no overflow, so we are done
 						network[i]++
 						firstIP = network
 						break
@@ -170,8 +186,9 @@ func (s *AddressSpace) ReserveNextIP4Net(mask net.IPMask) (*AddressSpace, error)
 		}
 
 		if firstIP != nil {
-			// check if the available range can accommodate the highest address
-			// given the mask
+			// we found the first IP for the requested range,
+			// now check if the available range can accommodate
+			// the highest address given the first IP and the mask
 			lastIP := highestIP4(net.IPNet{IP: firstIP, Mask: mask})
 			if compareIP4(lastIP, r.lastIP) <= 0 {
 				s.reserveSubRange(firstIP, lastIP, i)
