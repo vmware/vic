@@ -74,9 +74,10 @@ func LearnAuthURL(options ImageCOptions) (*url.URL, error) {
 	log.Debugf("URL: %s", url)
 
 	fetcher := NewFetcher(FetcherOptions{
-		Timeout:  options.timeout,
-		Username: options.username,
-		Password: options.password,
+		Timeout:            options.timeout,
+		Username:           options.username,
+		Password:           options.password,
+		InsecureSkipVerify: options.insecure,
 	})
 	// We expect docker registry to return a 401 to us - with a WWW-Authenticate header
 	// We parse that header and learn the OAuth endpoint to fetch OAuth token.
@@ -84,7 +85,20 @@ func LearnAuthURL(options ImageCOptions) (*url.URL, error) {
 	if err != nil && fetcher.IsStatusUnauthorized() {
 		return fetcher.AuthURL(), nil
 	}
-	return nil, fmt.Errorf("%s returned an unexpected response", url)
+
+	// Private registry returned the manifest directly as auth option is optional.
+	// https://github.com/docker/distribution/blob/master/docs/configuration.md#auth
+	if err == nil && options.registry != DefaultDockerURL && fetcher.IsStatusOK() {
+		log.Debugf("%s does not support OAuth", url)
+		return nil, nil
+	}
+
+	// Do we even have the image on that registry
+	if err != nil && fetcher.IsStatusNotFound() {
+		return nil, fmt.Errorf("%s:%s does not exists at %s", options.image, options.digest, options.registry)
+	}
+
+	return nil, fmt.Errorf("%s returned an unexpected response: %s", url, err)
 }
 
 // FetchToken fetches the OAuth token from OAuth endpoint
@@ -94,9 +108,10 @@ func FetchToken(url *url.URL) (*Token, error) {
 	log.Debugf("URL: %s", url)
 
 	fetcher := NewFetcher(FetcherOptions{
-		Timeout:  options.timeout,
-		Username: options.username,
-		Password: options.password,
+		Timeout:            options.timeout,
+		Username:           options.username,
+		Password:           options.password,
+		InsecureSkipVerify: options.insecure,
 	})
 	body, err := fetcher.Fetch(url)
 	if err != nil {
@@ -136,10 +151,11 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) error {
 	progress.Update(po, id[:12], "Pulling fs layer")
 
 	fetcher := NewFetcher(FetcherOptions{
-		Timeout:  options.timeout,
-		Username: options.username,
-		Password: options.password,
-		Token:    options.token,
+		Timeout:            options.timeout,
+		Username:           options.username,
+		Password:           options.password,
+		Token:              options.token,
+		InsecureSkipVerify: options.insecure,
 	})
 	blob, err := fetcher.FetchWithProgress(url, id[:12])
 	if err != nil {
@@ -148,7 +164,7 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) error {
 
 	in := bytes.NewReader(blob)
 
-	destination := path.Join(options.destination, options.image, options.digest, id)
+	destination := path.Join(DestinationDirectory(), id)
 	err = os.MkdirAll(destination, 0755)
 	if err != nil {
 		return err
@@ -198,10 +214,11 @@ func FetchImageManifest(options ImageCOptions) (*Manifest, error) {
 	log.Debugf("URL: %s", url)
 
 	fetcher := NewFetcher(FetcherOptions{
-		Timeout:  10 * time.Second,
-		Username: options.username,
-		Password: options.password,
-		Token:    options.token,
+		Timeout:            10 * time.Second,
+		Username:           options.username,
+		Password:           options.password,
+		Token:              options.token,
+		InsecureSkipVerify: options.insecure,
 	})
 
 	blob, err := fetcher.Fetch(url)
@@ -224,7 +241,7 @@ func FetchImageManifest(options ImageCOptions) (*Manifest, error) {
 		return nil, fmt.Errorf("tag doesn't match what was requested, expected: %s, downloaded: %s", options.digest, manifest.Tag)
 	}
 
-	destination := path.Join(options.destination, options.image, options.digest)
+	destination := DestinationDirectory()
 	err = os.MkdirAll(destination, 0755)
 	if err != nil {
 		return nil, err

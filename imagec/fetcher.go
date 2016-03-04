@@ -15,6 +15,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -41,6 +42,7 @@ type Fetcher interface {
 
 	IsStatusUnauthorized() bool
 	IsStatusOK() bool
+	IsStatusNotFound() bool
 
 	AuthURL() *url.URL
 }
@@ -60,6 +62,8 @@ type FetcherOptions struct {
 	Username string
 	Password string
 
+	InsecureSkipVerify bool
+
 	Token *Token
 }
 
@@ -76,7 +80,12 @@ type URLFetcher struct {
 
 // NewFetcher creates a new Fetcher instance
 func NewFetcher(options FetcherOptions) Fetcher {
-	client := &http.Client{}
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: options.InsecureSkipVerify,
+		},
+	}
+	client := &http.Client{Transport: tr}
 
 	return &URLFetcher{
 		client:  client,
@@ -164,6 +173,10 @@ func (u *URLFetcher) IsStatusUnauthorized() bool {
 
 func (u *URLFetcher) IsStatusOK() bool {
 	return u.StatusCode == http.StatusOK
+}
+
+func (u *URLFetcher) IsStatusNotFound() bool {
+	return u.StatusCode == http.StatusNotFound
 }
 
 func (u *URLFetcher) SetBasicAuth(req *http.Request) {

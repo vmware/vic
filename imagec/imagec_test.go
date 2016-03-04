@@ -183,7 +183,7 @@ func TestFetchImageBlob(t *testing.T) {
 		t.Errorf(err.Error())
 	}
 
-	tar, err := ioutil.ReadFile(path.Join(options.destination, Image, Tag, LayerID, LayerID+".tar"))
+	tar, err := ioutil.ReadFile(path.Join(DestinationDirectory(), LayerID, LayerID+".tar"))
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -192,7 +192,7 @@ func TestFetchImageBlob(t *testing.T) {
 		t.Errorf(err.Error())
 	}
 
-	hist, err := ioutil.ReadFile(path.Join(options.destination, Image, Tag, LayerID, LayerID+".json"))
+	hist, err := ioutil.ReadFile(path.Join(DestinationDirectory(), LayerID, LayerID+".json"))
 	if err != nil {
 		t.Errorf(err.Error())
 	}
