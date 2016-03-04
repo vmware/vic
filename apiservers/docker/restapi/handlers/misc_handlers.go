@@ -17,6 +17,8 @@ package handlers
 import (
 	//	"net/http"
 
+	"runtime"
+
 	"github.com/go-swagger/go-swagger/httpkit/middleware"
 
 	"github.com/vmware/vic/apiservers/docker/models"
@@ -58,7 +60,35 @@ func (handlers *MiscHandlersImpl) GetSystemInfo() middleware.Responder {
 }
 
 func (handlers *MiscHandlersImpl) GetVersion() middleware.Responder {
-	return middleware.NotImplemented("operation misc.GetVersion has not yet been implemented")
+	APIVersion := "1.22"
+	Arch := runtime.GOARCH
+	// FIXME: fill with real build time
+	BuildTime := "-"
+	Experimental := true
+	// FIXME: fill with real commit id
+	GitCommit := "-"
+	GoVersion := runtime.Version()
+	// FIXME: fill with real kernel version
+	KernelVersion := "-"
+	Os := runtime.GOOS
+	Version := "0.0.1"
+
+	// go runtime panics without this so keep this here
+	// until we find a repro case and report it to upstream
+	_ = Arch
+
+	version := &models.Version{
+		APIVersion:    &APIVersion,
+		Arch:          &Arch,
+		BuildTime:     &BuildTime,
+		Experimental:  &Experimental,
+		GitCommit:     &GitCommit,
+		GoVersion:     &GoVersion,
+		KernelVersion: &KernelVersion,
+		Os:            &Os,
+		Version:       &Version,
+	}
+	return misc.NewGetVersionOK().WithPayload(version)
 }
 
 func (handlers *MiscHandlersImpl) Ping() middleware.Responder {
