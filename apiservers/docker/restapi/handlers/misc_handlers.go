@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-swagger/go-swagger/httpkit/middleware"
 
+	"github.com/vmware/vic/apiservers/docker/models"
 	"github.com/vmware/vic/apiservers/docker/restapi/operations"
 	"github.com/vmware/vic/apiservers/docker/restapi/operations/misc"
 )
@@ -28,7 +29,18 @@ func (handlers *MiscHandlersImpl) GetEvents(params misc.GetEventsParams) middlew
 }
 
 func (handlers *MiscHandlersImpl) GetSystemInfo() middleware.Responder {
-	return middleware.NotImplemented("operation misc.GetSystemInformation has not yet been implemented")
+	Driver := "Portlayer Storage"
+	IndexServerAddress := "https://index.docker.io/v1/"
+	ServerVersion := "0.0.1"
+	Name := "VIC"
+
+	info := &models.SystemInformation{
+		Driver:             &Driver,
+		IndexServerAddress: &IndexServerAddress,
+		ServerVersion:      &ServerVersion,
+		Name:               &Name,
+	}
+	return misc.NewGetSystemInformationOK().WithPayload(info)
 }
 
 func (handlers *MiscHandlersImpl) GetVersion() middleware.Responder {
