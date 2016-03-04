@@ -125,20 +125,20 @@ func highestIP4(ipRange net.IPNet) net.IP {
 	return newIP
 }
 
-// Creates a new AddressSpace from a network specification.
+// NewAddressSpaceFromNetwork creates a new AddressSpace from a network specification.
 func NewAddressSpaceFromNetwork(ipRange net.IPNet) *AddressSpace {
 	return &AddressSpace{
 		availableRanges: []addressRange{{firstIP: lowestIP4(ipRange),
 			lastIP: highestIP4(ipRange)}}}
 }
 
-// Creates a new AddressSpace from a range of IP addresses.
+// NewAddressSpaceFromRange creates a new AddressSpace from a range of IP addresses.
 func NewAddressSpaceFromRange(firstIP net.IP, lastIP net.IP) *AddressSpace {
 	return &AddressSpace{availableRanges: []addressRange{{firstIP: firstIP, lastIP: lastIP}}}
 }
 
-// Reserves a new sub address space within the given address space, given a
-// bitmask specifying the "width" of the requested space.
+// ReserveNextIP4Net reserves a new sub address space within the given address
+// space, given a bitmask specifying the "width" of the requested space.
 func (s *AddressSpace) ReserveNextIP4Net(mask net.IPMask) (*AddressSpace, error) {
 	for i, r := range s.availableRanges {
 		network := r.firstIP.Mask(mask).To16()
@@ -198,7 +198,7 @@ func splitRange(parentRange addressRange, firstIP net.IP, lastIP net.IP) (before
 	return
 }
 
-// Reserve a new sub address space given an IP and mask.
+// ReserveIP4Net reserves a new sub address space given an IP and mask.
 // Mask is required.
 // If IP is nil or "0.0.0.0", same as calling ReserveNextIP4Net
 // with the mask.
@@ -226,7 +226,7 @@ func (s *AddressSpace) reserveSubRange(firstIP net.IP, lastIP net.IP, index int)
 	}
 }
 
-// Reserve a sub address space given a first and last IP.
+// ReserveIP4Range reserves a sub address space given a first and last IP.
 func (s *AddressSpace) ReserveIP4Range(firstIP net.IP, lastIP net.IP) (*AddressSpace, error) {
 	for i, r := range s.availableRanges {
 		if compareIP4(firstIP, r.firstIP) < 0 ||
@@ -259,7 +259,7 @@ func insertAddressRanges(r []addressRange, index int, ranges ...addressRange) []
 	return r
 }
 
-// Reserve the next available IPv4 address.
+// ReserveNextIP4 reserves the next available IPv4 address.
 func (s *AddressSpace) ReserveNextIP4() (net.IP, error) {
 	space, err := s.ReserveIP4Net(net.IPNet{Mask: net.CIDRMask(32, 32)})
 	if err != nil {
@@ -269,13 +269,13 @@ func (s *AddressSpace) ReserveNextIP4() (net.IP, error) {
 	return space.availableRanges[0].firstIP, nil
 }
 
-// Reserve the given IPv4 address.
+// ReserveIP4 reserves the given IPv4 address.
 func (s *AddressSpace) ReserveIP4(ip net.IP) error {
 	_, err := s.ReserveIP4Range(ip, ip)
 	return err
 }
 
-// Release a sub address space into the parent address space.
+// ReleaseIP4Range releases a sub address space into the parent address space.
 // Sub address space has to have only a single available range.
 func (s *AddressSpace) ReleaseIP4Range(space *AddressSpace) error {
 	// nothing to release
@@ -317,12 +317,11 @@ func (s *AddressSpace) ReleaseIP4Range(space *AddressSpace) error {
 	return nil
 }
 
-// Release the given IPv4 address.
+// ReleaseIP4 releases the given IPv4 address.
 func (s *AddressSpace) ReleaseIP4(ip net.IP) error {
 	return s.ReleaseIP4Range(NewAddressSpaceFromRange(ip, ip))
 }
 
-// "Defragments" the available IP address ranges.
 func (s *AddressSpace) Defragment() error {
 	for i := 1; i < len(s.availableRanges); {
 		first := &s.availableRanges[i-1]
@@ -338,7 +337,7 @@ func (s *AddressSpace) Defragment() error {
 	return nil
 }
 
-// Compares two address spaces for equality.
+// Equal compares two address spaces for equality.
 func (s *AddressSpace) Equal(other *AddressSpace) bool {
 	if len(s.availableRanges) != len(other.availableRanges) {
 		return false
