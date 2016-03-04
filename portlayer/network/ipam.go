@@ -13,6 +13,15 @@
 // limitations under the License.
 
 // IP address managment
+//
+// The API here just concerns itself with tracking blocks of
+// IP addresses, as well as individual IPs within the blocks.
+// The API does not have a concept of "network", in particular
+// when managing CIDR blocks, the network and broadcast address
+// are available as valid addresses. This behavior can be
+// accomplished, however, by just reserving those two addresses
+// first thing after requesting a CIDR address space, by using
+// the ReserveIP4() call.
 
 package network
 
