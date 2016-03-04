@@ -115,6 +115,10 @@ vendor: $(GVT)
 	@echo restoring vendor
 	$(GOPATH)/bin/gvt restore
 
+integration-tests:
+	docker build -t imagec_tests -f Dockerfile.integration-tests .
+	docker run --rm imagec_tests
+
 test:
 	# test everything but vendor
 	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/bootstrap/...

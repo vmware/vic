@@ -8,6 +8,13 @@ build:
   environment:
     GOPATH: /drone
     SHELL: /bin/bash
+    DOCKER_API_VERSION: "1.21"
+  volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
   commands:
+    - wget -q https://get.docker.com/builds/Linux/x86_64/docker-latest
+    - chmod +x docker-latest
+    - mv docker-latest /usr/local/bin/docker
     - make all
     - make test
+    - make integration-tests
