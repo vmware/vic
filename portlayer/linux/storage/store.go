@@ -42,6 +42,10 @@ type LocalStore struct {
 	Path string
 }
 
+func NewLocalStore(path string) *LocalStore {
+	return &LocalStore{Path: path}
+}
+
 func (s *LocalStore) CreateImageStore(storeName string) (*url.URL, error) {
 	u, err := util.StoreNameToURL(storeName)
 	if err != nil {

@@ -24,6 +24,7 @@ import (
 	"github.com/vmware/vic/apiservers/portlayer/models"
 	"github.com/vmware/vic/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/apiservers/portlayer/restapi/operations/storage"
+	"github.com/vmware/vic/apiservers/portlayer/restapi/options"
 
 	linux "github.com/vmware/vic/portlayer/linux/storage"
 	portlayer "github.com/vmware/vic/portlayer/storage"
@@ -33,16 +34,14 @@ import (
 // StorageHandlersImpl is the receiver for all of the storage handler methods
 type StorageHandlersImpl struct{}
 
-var ls = &linux.LocalStore{
-	Path: "/var/lib/portlayer",
-}
-
-var cache = &portlayer.NameLookupCache{
-	DataStore: ls,
-}
+var (
+	cache = &portlayer.NameLookupCache{}
+)
 
 // Configure assigns functions to all the storage api handlers
 func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI) {
+	cache.DataStore = linux.NewLocalStore(options.StorageLayerOptions.Path)
+
 	api.StorageCreateImageStoreHandler = storage.CreateImageStoreHandlerFunc(handler.CreateImageStore)
 	api.StorageGetImageHandler = storage.GetImageHandlerFunc(handler.GetImage)
 	api.StorageGetImageTarHandler = storage.GetImageTarHandlerFunc(handler.GetImageTar)

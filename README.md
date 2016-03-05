@@ -96,7 +96,7 @@ binary/docker-server --port=2376 --tls-certificate=cert.pem --tls-key=key.pem
 ## Starting port-layer-server
 
 ```
-binary/port-layer-server --port 8080
+binary/port-layer-server --port 8080 --path /tmp/
 ```
 
 ## Testing with docker client
