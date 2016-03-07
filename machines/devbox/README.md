@@ -78,3 +78,9 @@ vagrant provision
 ``` shell
 vagrant destroy
 ```
+
+### Deploy to ESX
+
+``` shell
+./deploy-esx.sh
+```
