@@ -66,8 +66,7 @@ type Session struct {
 
 // Create accepts a Config and returns a Session with the cached vSphere resources.
 func Create(config Config) (*Session, error) {
-	vsphereSession := &Session{}
-	var client *govmomi.Client
+	s := &Session{}
 	var err error
 	var user *url.Userinfo
 	var ctx = context.Background()
@@ -82,13 +81,13 @@ func Create(config Config) (*Session, error) {
 	soapURL.User = nil
 
 	// 1st connect without any userinfo to get the API type
-	client, err = govmomi.NewClient(ctx, soapURL, config.Insecure)
+	s.Client, err = govmomi.NewClient(ctx, soapURL, config.Insecure)
 	if err != nil {
 		return nil, errors.Errorf("Failed to connect to %s: %s", soapURL.String(), err)
 	}
 
 	if config.HasCertificate() {
-		if !client.IsVC() {
+		if !s.IsVC() {
 			return nil, errors.Errorf("Certificate based authentication not yet supported with ESXi")
 		}
 
@@ -99,7 +98,7 @@ func Create(config Config) (*Session, error) {
 		}
 
 		// create the new client
-		client, err = govmomi.NewClientWithCertificate(ctx, soapURL, config.Insecure, cert)
+		s.Client, err = govmomi.NewClientWithCertificate(ctx, soapURL, config.Insecure, cert)
 		if err != nil {
 			return nil, errors.Errorf("Failed to connect to %s: %s", soapURL.String(), err)
 		}
@@ -107,54 +106,54 @@ func Create(config Config) (*Session, error) {
 
 	if config.Keepalive != 0 {
 		// now that we've verified everything, enable keepalive
-		client.RoundTripper = session.KeepAlive(client.RoundTripper, config.Keepalive)
+		s.RoundTripper = session.KeepAlive(s.RoundTripper, config.Keepalive)
 	}
 
 	// and now that the keepalive is registered we can log in to trigger it
 	if !config.HasCertificate() {
-		err = client.Login(ctx, user)
+		err = s.Login(ctx, user)
 	} else {
-		err = client.LoginExtensionByCertificate(ctx, user.Username(), "")
+		err = s.LoginExtensionByCertificate(ctx, user.Username(), "")
 	}
 	if err != nil {
 		return nil, errors.Errorf("Failed to log in to %s: %s", soapURL.String(), err)
 	}
 
-	// Populate vsphereSession
-	finder := find.NewFinder(client.Client, true)
+	// Populate s
+	finder := find.NewFinder(s.Client.Client, true)
 
-	vsphereSession.Datacenter, err = finder.DatacenterOrDefault(ctx, config.Datacenter)
+	s.Datacenter, err = finder.DatacenterOrDefault(ctx, config.Datacenter)
 	if err != nil {
 		return nil, err
 	}
-	finder.SetDatacenter(vsphereSession.Datacenter)
+	finder.SetDatacenter(s.Datacenter)
 
-	vsphereSession.Cluster, err = finder.ComputeResourceOrDefault(ctx, config.Cluster)
-	if err != nil {
-		return nil, err
-	}
-
-	vsphereSession.Datastore, err = finder.DatastoreOrDefault(ctx, config.Datastore)
+	s.Cluster, err = finder.ComputeResourceOrDefault(ctx, config.Cluster)
 	if err != nil {
 		return nil, err
 	}
 
-	vsphereSession.Host, err = finder.HostSystemOrDefault(ctx, config.Host)
+	s.Datastore, err = finder.DatastoreOrDefault(ctx, config.Datastore)
 	if err != nil {
-		if _, ok := err.(*find.DefaultMultipleFoundError); !ok || !client.IsVC() {
+		return nil, err
+	}
+
+	s.Host, err = finder.HostSystemOrDefault(ctx, config.Host)
+	if err != nil {
+		if _, ok := err.(*find.DefaultMultipleFoundError); !ok || !s.IsVC() {
 			return nil, err
 		}
 	}
 
-	vsphereSession.Network, err = finder.NetworkOrDefault(ctx, config.Network)
+	s.Network, err = finder.NetworkOrDefault(ctx, config.Network)
 	if err != nil {
 		return nil, err
 	}
 
-	vsphereSession.Pool, err = finder.ResourcePoolOrDefault(ctx, config.Pool)
+	s.Pool, err = finder.ResourcePoolOrDefault(ctx, config.Pool)
 	if err != nil {
 		return nil, err
 	}
 
-	return vsphereSession, nil
+	return s, nil
 }
