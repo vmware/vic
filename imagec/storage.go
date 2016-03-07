@@ -75,22 +75,28 @@ func CreateImageStore(storename string) error {
 }
 
 // ListImages lists the images from given image store
-func ListImages(storename string) (map[string]*models.Image, error) {
+func ListImages(storename string, images []ImageWithMeta) (map[string]*models.Image, error) {
 	defer trace.End(trace.Begin(storename))
 
 	transport := httptransport.New(options.host, "/", []string{"http"})
 	client := apiclient.New(transport, nil)
 
-	images, err := client.Storage.ListImages(
-		storage.NewListImagesParams().WithStoreName(storename),
+	ids := make([]string, len(images))
+
+	for i := range images {
+		ids = append(ids, images[i].ID)
+	}
+
+	imageList, err := client.Storage.ListImages(
+		storage.NewListImagesParams().WithStoreName(storename).WithIds(ids),
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	existingImages := make(map[string]*models.Image)
-	for i := range images.Payload {
-		v := images.Payload[i]
+	for i := range imageList.Payload {
+		v := imageList.Payload[i]
 		existingImages[v.ID] = v
 	}
 	return existingImages, nil
