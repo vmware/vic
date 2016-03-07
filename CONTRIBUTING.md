@@ -32,13 +32,6 @@ TODO: a few of the steps above will collapse to 'go get github.com/vmware/vic' w
 
 See the [README](README.md) for build instructions.
 
-To update:
-
-``` shell
-git fetch -a
-git rebase vmware/master
-```
-
 ## Contribution flow
 
 This is a rough outline of what a contributor's workflow looks like:
@@ -57,6 +50,43 @@ git checkout -b my-new-feature vmware/master
 git commit -a
 git push $USER my-new-feature
 ```
+
+### Stay in sync with upstream
+
+When your branch gets out of sync with the vmware/master branch, use the following to update:
+
+``` shell
+git checkout my-new-feature
+git fetch -a
+git rebase vmware/master
+git push --force-with-lease $USER my-new-feature
+```
+
+### Updating pull requests
+
+If your PR fails to pass CI or needs changes based on code review, you'll most likely want to squash these changes into
+existing commits.
+
+If your pull request contains a single commit or your changes are related to the most recent commit, you can simply
+amend the commit.
+
+``` shell
+git add .
+git commit --amend
+git push --force-with-lease $USER my-new-feature
+```
+
+If you need to squash changes into an earlier commit, you can use:
+
+``` shell
+git add .
+git commit --fixup <commit>
+git rebase -i --autosquash vmware/master
+git push --force-with-lease $USER my-new-feature
+```
+
+Be sure to add a comment to the PR indicating your new changes are ready to review, as github does not generate a
+notification when you git push.
 
 ### Code style
 
