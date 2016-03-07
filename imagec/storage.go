@@ -113,7 +113,8 @@ func WriteImage(image *ImageWithMeta, data io.ReadCloser) error {
 			WithImageID(image.ID).
 			WithParentID(*image.Parent).
 			WithStoreName(image.Store).
-			WithImageFile(data),
+			WithImageFile(data).
+			WithSum(image.layer.BlobSum),
 	)
 	if err != nil {
 		log.Debugf("Creating an image failed: %s", err)
