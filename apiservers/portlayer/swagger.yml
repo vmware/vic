@@ -110,6 +110,10 @@ paths:
           type: string
           in: query
           required: true
+        - name: sum
+          type: string
+          in: query
+          required: true
       responses:
         '201':
           description: "Created"
