@@ -55,6 +55,8 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 
 	api.JSONProducer = httpkit.JSONProducer()
 
+	api.TxtProducer = httpkit.TextProducer()
+
 	allhandlers := portlayerhandlers{}
 
 	allhandlers.storageHandlers.Configure(api)
