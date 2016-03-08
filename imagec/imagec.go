@@ -158,6 +158,7 @@ func DestinationDirectory() string {
 		options.digest,
 	)
 }
+
 func main() {
 	// Open the log file
 	f, err := os.OpenFile(options.logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
@@ -256,9 +257,8 @@ func main() {
 		log.Fatalf("Failed to create image store: %s", err)
 	}
 
-	// FIXME: https://github.com/vmware/vic/issues/201
 	// Get the list of existing images
-	existingImages, err := ListImages(hostname)
+	existingImages, err := ListImages(hostname, images)
 	if err != nil {
 		log.Fatalf("Failed to obtain list of images: %s", err)
 	}
