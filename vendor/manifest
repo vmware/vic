@@ -378,6 +378,27 @@
 			"path": "/windows"
 		},
 		{
+			"importpath": "golang.org/x/text/internal",
+			"repository": "https://go.googlesource.com/text",
+			"revision": "a71fd10341b064c10f4a81ceac72bcf70f26ea34",
+			"branch": "master",
+			"path": "/internal"
+		},
+		{
+			"importpath": "golang.org/x/text/language",
+			"repository": "https://go.googlesource.com/text",
+			"revision": "a71fd10341b064c10f4a81ceac72bcf70f26ea34",
+			"branch": "master",
+			"path": "/language"
+		},
+		{
+			"importpath": "golang.org/x/text/message",
+			"repository": "https://go.googlesource.com/text",
+			"revision": "a71fd10341b064c10f4a81ceac72bcf70f26ea34",
+			"branch": "master",
+			"path": "/message"
+		},
+		{
 			"importpath": "golang.org/x/tools/cmd/goimports",
 			"repository": "https://go.googlesource.com/tools",
 			"revision": "8b178a93c1f5b5c8f4e36cd6bd64e0d5bf0ee180",
