@@ -16,7 +16,6 @@ package session
 
 import (
 	"crypto/tls"
-	"net/url"
 	"time"
 
 	"golang.org/x/net/context"
@@ -32,16 +31,19 @@ import (
 
 // Config contains the configuration used to create a Session.
 type Config struct {
-	Service   string // SDK URL or proxy
-	Insecure  bool   // Allow insecure connection to Service
+	// SDK URL or proxy
+	Service string
+	// Allow insecure connection to Service
+	Insecure bool
+	// Keep alive duration
 	Keepalive time.Duration
 
-	Cluster    string
-	Datacenter string
-	Datastore  string
-	Host       string
-	Network    string
-	Pool       string
+	ClusterPath    string
+	DatacenterPath string
+	DatastorePath  string
+	HostPath       string
+	NetworkPath    string
+	PoolPath       string
 
 	CertFile string
 	KeyFile  string
@@ -56,6 +58,8 @@ func (c *Config) HasCertificate() bool {
 type Session struct {
 	*govmomi.Client
 
+	*Config
+
 	Cluster    *object.ComputeResource
 	Datacenter *object.Datacenter
 	Datastore  *object.Datastore
@@ -64,54 +68,54 @@ type Session struct {
 	Pool       *object.ResourcePool
 }
 
-// Create accepts a Config and returns a Session with the cached vSphere resources.
-func Create(config Config) (*Session, error) {
-	s := &Session{}
-	var err error
-	var user *url.Userinfo
-	var ctx = context.Background()
+// NewSession creates a new Session struct
+func NewSession(config *Config) *Session {
+	return &Session{Config: config}
+}
 
-	soapURL, err := soap.ParseURL(config.Service)
+// Create accepts a Config and returns a Session with the cached vSphere resources.
+func (s *Session) Create(ctx context.Context) (*Session, error) {
+	soapURL, err := soap.ParseURL(s.Service)
 	if err != nil {
-		return nil, errors.Errorf("SDK URL (%s) could not be parsed: %s", config.Service, err)
+		return nil, errors.Errorf("SDK URL (%s) could not be parsed: %s", s.Service, err)
 	}
 
 	// we can't set a keep alive if we log in directly with client creation
-	user = soapURL.User
+	user := soapURL.User
 	soapURL.User = nil
 
 	// 1st connect without any userinfo to get the API type
-	s.Client, err = govmomi.NewClient(ctx, soapURL, config.Insecure)
+	s.Client, err = govmomi.NewClient(ctx, soapURL, s.Insecure)
 	if err != nil {
 		return nil, errors.Errorf("Failed to connect to %s: %s", soapURL.String(), err)
 	}
 
-	if config.HasCertificate() {
-		if !s.IsVC() {
+	if s.HasCertificate() {
+		if !s.Client.IsVC() {
 			return nil, errors.Errorf("Certificate based authentication not yet supported with ESXi")
 		}
 
 		// load the certificates
-		cert, err2 := tls.LoadX509KeyPair(config.CertFile, config.KeyFile)
+		cert, err2 := tls.LoadX509KeyPair(s.CertFile, s.KeyFile)
 		if err2 != nil {
-			return nil, errors.Errorf("Unable to load X509 key pair(%s,%s): %s", config.CertFile, config.KeyFile, err2)
+			return nil, errors.Errorf("Unable to load X509 key pair(%s,%s): %s", s.CertFile, s.KeyFile, err2)
 		}
 
 		// create the new client
-		s.Client, err = govmomi.NewClientWithCertificate(ctx, soapURL, config.Insecure, cert)
+		s.Client, err = govmomi.NewClientWithCertificate(ctx, soapURL, s.Insecure, cert)
 		if err != nil {
 			return nil, errors.Errorf("Failed to connect to %s: %s", soapURL.String(), err)
 		}
 	}
 
-	if config.Keepalive != 0 {
+	if s.Keepalive != 0 {
 		// now that we've verified everything, enable keepalive
-		s.RoundTripper = session.KeepAlive(s.RoundTripper, config.Keepalive)
+		s.RoundTripper = session.KeepAlive(s.Client.RoundTripper, s.Keepalive)
 	}
 
 	// and now that the keepalive is registered we can log in to trigger it
-	if !config.HasCertificate() {
-		err = s.Login(ctx, user)
+	if !s.HasCertificate() {
+		err = s.Client.Login(ctx, user)
 	} else {
 		err = s.LoginExtensionByCertificate(ctx, user.Username(), "")
 	}
@@ -122,35 +126,35 @@ func Create(config Config) (*Session, error) {
 	// Populate s
 	finder := find.NewFinder(s.Client.Client, true)
 
-	s.Datacenter, err = finder.DatacenterOrDefault(ctx, config.Datacenter)
+	s.Datacenter, err = finder.DatacenterOrDefault(ctx, s.DatacenterPath)
 	if err != nil {
 		return nil, err
 	}
 	finder.SetDatacenter(s.Datacenter)
 
-	s.Cluster, err = finder.ComputeResourceOrDefault(ctx, config.Cluster)
+	s.Cluster, err = finder.ComputeResourceOrDefault(ctx, s.ClusterPath)
 	if err != nil {
 		return nil, err
 	}
 
-	s.Datastore, err = finder.DatastoreOrDefault(ctx, config.Datastore)
+	s.Datastore, err = finder.DatastoreOrDefault(ctx, s.DatastorePath)
 	if err != nil {
 		return nil, err
 	}
 
-	s.Host, err = finder.HostSystemOrDefault(ctx, config.Host)
+	s.Host, err = finder.HostSystemOrDefault(ctx, s.HostPath)
 	if err != nil {
 		if _, ok := err.(*find.DefaultMultipleFoundError); !ok || !s.IsVC() {
 			return nil, err
 		}
 	}
 
-	s.Network, err = finder.NetworkOrDefault(ctx, config.Network)
+	s.Network, err = finder.NetworkOrDefault(ctx, s.NetworkPath)
 	if err != nil {
 		return nil, err
 	}
 
-	s.Pool, err = finder.ResourcePoolOrDefault(ctx, config.Pool)
+	s.Pool, err = finder.ResourcePoolOrDefault(ctx, s.PoolPath)
 	if err != nil {
 		return nil, err
 	}

@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/find"
 )
 
@@ -31,11 +33,14 @@ func URL(t *testing.T) string {
 }
 
 func TestSessionDefaults(t *testing.T) {
-	config := Config{
+	ctx := context.Background()
+
+	config := &Config{
 		Service:  URL(t),
 		Insecure: true,
 	}
-	session, err := Create(config)
+
+	session, err := NewSession(config).Create(ctx)
 	if err != nil {
 		t.Logf("%+v", err.Error())
 		if _, ok := err.(*find.DefaultMultipleFoundError); !ok {
@@ -48,17 +53,20 @@ func TestSessionDefaults(t *testing.T) {
 }
 
 func TestSession(t *testing.T) {
-	config := Config{
-		Service:    URL(t),
-		Insecure:   true,
-		Keepalive:  time.Duration(5) * time.Minute,
-		Datacenter: "",
-		Datastore:  "/ha-datacenter/datastore/*",
-		Host:       "/ha-datacenter/host/*/*",
-		Network:    "/ha-datacenter/network/*",
-		Pool:       "/ha-datacenter/host/*/Resources",
+	ctx := context.Background()
+
+	config := &Config{
+		Service:        URL(t),
+		Insecure:       true,
+		Keepalive:      time.Duration(5) * time.Minute,
+		DatacenterPath: "",
+		DatastorePath:  "/ha-datacenter/datastore/*",
+		HostPath:       "/ha-datacenter/host/*/*",
+		NetworkPath:    "/ha-datacenter/network/*",
+		PoolPath:       "/ha-datacenter/host/*/Resources",
 	}
-	session, err := Create(config)
+
+	session, err := NewSession(config).Create(ctx)
 	if err != nil {
 		t.Logf("%+v", err.Error())
 		if _, ok := err.(*find.MultipleFoundError); !ok {
