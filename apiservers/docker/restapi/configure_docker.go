@@ -41,13 +41,24 @@ func configureAPI(api *operations.DockerAPI) http.Handler {
 	api.ServeError = errors.ServeError
 
 	api.JSONConsumer = httpkit.JSONConsumer()
-
 	api.TxtConsumer = httpkit.ConsumerFunc(func(r io.Reader, target interface{}) error {
+		return nil
+	})
+	api.TarConsumer = httpkit.ConsumerFunc(func(r io.Reader, target interface{}) error {
+		return nil
+	})
+	api.BinConsumer = httpkit.ConsumerFunc(func(r io.Reader, target interface{}) error {
 		return nil
 	})
 
 	api.JSONProducer = httpkit.JSONProducer()
-	api.BinConsumer = httpkit.ConsumerFunc(func(r io.Reader, target interface{}) error {
+	api.TxtProducer = httpkit.ProducerFunc(func(r io.Writer, target interface{}) error {
+		return nil
+	})
+	api.TarProducer = httpkit.ProducerFunc(func(r io.Writer, target interface{}) error {
+		return nil
+	})
+	api.BinProducer = httpkit.ProducerFunc(func(r io.Writer, target interface{}) error {
 		return nil
 	})
 
