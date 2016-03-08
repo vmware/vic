@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/session"
+	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/soap"
 )
 
@@ -71,6 +72,11 @@ type Session struct {
 // NewSession creates a new Session struct
 func NewSession(config *Config) *Session {
 	return &Session{Config: config}
+}
+
+// Vim25 returns the vim25.Client to the caller
+func (s *Session) Vim25() *vim25.Client {
+	return s.Client.Client
 }
 
 // Create accepts a Config and returns a Session with the cached vSphere resources.
@@ -124,7 +130,7 @@ func (s *Session) Create(ctx context.Context) (*Session, error) {
 	}
 
 	// Populate s
-	finder := find.NewFinder(s.Client.Client, true)
+	finder := find.NewFinder(s.Vim25(), true)
 
 	s.Datacenter, err = finder.DatacenterOrDefault(ctx, s.DatacenterPath)
 	if err != nil {
