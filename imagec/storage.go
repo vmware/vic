@@ -23,6 +23,7 @@ import (
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 
 	apiclient "github.com/vmware/vic/apiservers/portlayer/client"
+	"github.com/vmware/vic/apiservers/portlayer/client/misc"
 	"github.com/vmware/vic/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/apiservers/portlayer/models"
 	"github.com/vmware/vic/pkg/trace"
@@ -32,18 +33,14 @@ import (
 func PingPortLayer() (bool, error) {
 	defer trace.End(trace.Begin(options.host))
 
-	// https://github.com/vmware/vic/issues/203
-	return true, nil
-	/*
-		transport := httptransport.New(options.host, "/", []string{"http"})
-		client := apiclient.New(transport, nil)
+	transport := httptransport.New(options.host, "/", []string{"http"})
+	client := apiclient.New(transport, nil)
 
-		ok, err := client.Misc.Ping(misc.NewPingParams())
-		if err != nil {
-			return false, err
-		}
-		return ok.Payload == "OK", nil
-	*/
+	ok, err := client.Misc.Ping(misc.NewPingParams())
+	if err != nil {
+		return false, err
+	}
+	return ok.Payload == "OK", nil
 }
 
 // CreateImageStore creates an image store
