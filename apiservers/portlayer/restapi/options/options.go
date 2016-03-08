@@ -1,4 +1,4 @@
-// Copyright 2015 go-swagger maintainers
+// Copyright 2016 VMware, Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,26 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package httpkit
+package options
 
-import (
-	"encoding/json"
-	"io"
+// StorageLayerOptionsType provides the additional flags required by handlers
+type StorageLayerOptionsType struct {
+	Path string `long:"path" description:"Storage Path" required:"true"`
+}
+
+var (
+	StorageLayerOptions = new(StorageLayerOptionsType)
 )
-
-// JSONConsumer creates a new JSON consumer
-func JSONConsumer() Consumer {
-	return ConsumerFunc(func(reader io.Reader, data interface{}) error {
-		dec := json.NewDecoder(reader)
-		dec.UseNumber() // preserve number formats
-		return dec.Decode(data)
-	})
-}
-
-// JSONProducer creates a new JSON producer
-func JSONProducer() Producer {
-	return ProducerFunc(func(writer io.Writer, data interface{}) error {
-		enc := json.NewEncoder(writer)
-		return enc.Encode(data)
-	})
-}

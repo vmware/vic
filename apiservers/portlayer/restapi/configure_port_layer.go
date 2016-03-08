@@ -20,9 +20,11 @@ import (
 
 	errors "github.com/go-swagger/go-swagger/errors"
 	httpkit "github.com/go-swagger/go-swagger/httpkit"
+	"github.com/go-swagger/go-swagger/swag"
 
 	"github.com/vmware/vic/apiservers/portlayer/restapi/handlers"
 	"github.com/vmware/vic/apiservers/portlayer/restapi/operations"
+	"github.com/vmware/vic/apiservers/portlayer/restapi/options"
 )
 
 // This file is safe to edit. Once it exists it will not be overwritten
@@ -32,8 +34,19 @@ type portlayerhandlers struct {
 	miscHandlers    handlers.MiscHandlersImpl
 }
 
+func configureFlags(api *operations.PortLayerAPI) {
+	api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{
+		swag.CommandLineOptionsGroup{
+			LongDescription:  "Storage Layer Options",
+			Options:          options.StorageLayerOptions,
+			ShortDescription: "Storage Layer Options",
+		},
+	}
+}
+
 func configureAPI(api *operations.PortLayerAPI) http.Handler {
 	// configure the api here
+
 	api.ServeError = errors.ServeError
 
 	api.BinConsumer = httpkit.ByteStreamConsumer()
@@ -48,8 +61,6 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 	allhandlers.miscHandlers.Configure(api)
 
 	api.ServerShutdown = func() {}
-	// api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }
-
 	return setupGlobalMiddleware(api.Serve(setupMiddlewares))
 }
 

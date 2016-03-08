@@ -36,6 +36,10 @@ type dockerhandlers struct {
 	miscHandlers      handlers.MiscHandlersImpl
 }
 
+func configureFlags(api *operations.DockerAPI) {
+	// api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }
+}
+
 func configureAPI(api *operations.DockerAPI) http.Handler {
 	// configure the api here
 	api.ServeError = errors.ServeError
@@ -61,7 +65,6 @@ func configureAPI(api *operations.DockerAPI) http.Handler {
 	allhandlers.miscHandlers.Configure(api)
 
 	api.ServerShutdown = func() {}
-	// api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }
 
 	return setupGlobalMiddleware(api.Serve(setupMiddlewares))
 }

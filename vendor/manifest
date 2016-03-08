@@ -137,7 +137,7 @@
 		{
 			"importpath": "github.com/go-swagger/go-swagger",
 			"repository": "https://github.com/go-swagger/go-swagger",
-			"revision": "ea284b69d71d11377ca4b4618662477da50762cc",
+			"revision": "111e63c8b3ff391206986fe5271017e17237b2e8",
 			"branch": "master"
 		},
 		{
