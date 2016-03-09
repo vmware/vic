@@ -82,6 +82,14 @@ teardown() {
     assert verify_checksums "$IMAGES_DIR/$DEFAULT_IMAGE"
 }
 
+
+@test "imagec -standalone should allow us to run imagec without portlayer API" {
+    assert kill_port_layer # it was started on 8080 by setup()
+    run "$imagec" -standalone
+    assert_success
+    assert verify_checksums "$IMAGES_DIR/$DEFAULT_IMAGE"
+}
+
 @test "imagec -image should allow specifying a specific image to download" {
     run "$imagec" -image tatsushid/tinycore
     assert_success
