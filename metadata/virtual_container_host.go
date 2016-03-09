@@ -91,8 +91,10 @@ type VirtualContainerHostConfigSpec struct {
 // This is broken out so that we can have more granular configuration in here in the future
 // and so that it is insulated from changes to Virtual Container Host structure
 type CustomerExperienceImprovementProgram struct {
-	// Is phone home reporting enabled at all
-	Enabled bool
+	// The server target is as follows, where the uuid is the raw number, no dashes
+	// "https://vcsa.vmware.com/ph-stg/api/hyper/send?_v=1.0&_c=vic.1_0&_i="+vc.uuid
+	// If this is non-nil then it's enabled
+	CEIPGateway url.URL
 }
 
 // Resources is used instead of the ResourceAllocation structs in govmomi as
