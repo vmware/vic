@@ -134,7 +134,7 @@ Port layer will:
  * connect *test1* to the default bridge network
  * expose port 80 on container *test1*
  * setup NAT mapping port 8080 on the external interface of the VCH
- to port 8080 on the internal bridge interface of *test1*
+ to port 80 on the internal bridge interface of *test1*
 
 User expects port 80 on *test1* to be accessible via the
 external network interface on the VCH at port 8080.
