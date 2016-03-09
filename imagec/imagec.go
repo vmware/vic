@@ -107,7 +107,7 @@ func init() {
 
 	flag.StringVar(&options.host, "host", DefaultPortLayerHost, "Host that runs portlayer API (FQDN:port format)")
 
-	flag.StringVar(&options.logfile, "logfile", DefaultLogfile, "Path of the installer log file")
+	flag.StringVar(&options.logfile, "logfile", DefaultLogfile, "Path of the imagec log file")
 
 	flag.StringVar(&options.username, "username", "", "Username")
 	flag.StringVar(&options.password, "password", "", "Password")
