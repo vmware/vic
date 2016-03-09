@@ -1,3 +1,4 @@
+.vagrant/
 binary/
 
 bootstrap/targets/linux/tether/
