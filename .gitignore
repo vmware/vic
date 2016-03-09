@@ -1,7 +1,7 @@
 binary/
 
 bootstrap/targets/linux/tether/
-imageC/imagec
+imagec/imagec
 
 apiservers/docker/cmd
 apiservers/docker/models
