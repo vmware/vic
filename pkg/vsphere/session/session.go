@@ -26,6 +26,7 @@ package session
 
 import (
 	"crypto/tls"
+	"strings"
 	"time"
 
 	"golang.org/x/net/context"
@@ -104,6 +105,28 @@ func (s *Session) IsVSAN(ctx context.Context) bool {
 
 // Create accepts a Config and returns a Session with the cached vSphere resources.
 func (s *Session) Create(ctx context.Context) (*Session, error) {
+	_, err := s.Connect(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// we're treating this as an atomic behaviour, so log out if we failed
+	defer func() {
+		if err != nil {
+			s.Client.Logout(ctx)
+		}
+	}()
+
+	_, err = s.Populate(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return s, nil
+}
+
+// Connect establishes the connection for the session but nothing more
+func (s *Session) Connect(ctx context.Context) (*Session, error) {
 	soapURL, err := soap.ParseURL(s.Service)
 	if err != nil {
 		return nil, errors.Errorf("SDK URL (%s) could not be parsed: %s", s.Service, err)
@@ -152,40 +175,55 @@ func (s *Session) Create(ctx context.Context) (*Session, error) {
 		return nil, errors.Errorf("Failed to log in to %s: %s", soapURL.String(), err)
 	}
 
+	return s, nil
+}
+
+// Populate resolves the set of cached resources that should be presented
+// This returns accumulated error detail if there is ambiguity, but sets all
+// unambiguous or correct resources.
+func (s *Session) Populate(ctx context.Context) (*Session, error) {
+
 	// Populate s
 	finder := find.NewFinder(s.Vim25(), true)
+	var errs []string
+	var err error
 
 	s.Datacenter, err = finder.DatacenterOrDefault(ctx, s.DatacenterPath)
 	if err != nil {
-		return nil, err
+		errs = append(errs, err.Error())
+	} else {
+		finder.SetDatacenter(s.Datacenter)
 	}
-	finder.SetDatacenter(s.Datacenter)
 
 	s.Cluster, err = finder.ComputeResourceOrDefault(ctx, s.ClusterPath)
 	if err != nil {
-		return nil, err
+		errs = append(errs, err.Error())
 	}
 
 	s.Datastore, err = finder.DatastoreOrDefault(ctx, s.DatastorePath)
 	if err != nil {
-		return nil, err
+		errs = append(errs, err.Error())
 	}
 
 	s.Host, err = finder.HostSystemOrDefault(ctx, s.HostPath)
 	if err != nil {
 		if _, ok := err.(*find.DefaultMultipleFoundError); !ok || !s.IsVC() {
-			return nil, err
+			errs = append(errs, err.Error())
 		}
 	}
 
 	s.Network, err = finder.NetworkOrDefault(ctx, s.NetworkPath)
 	if err != nil {
-		return nil, err
+		errs = append(errs, err.Error())
 	}
 
 	s.Pool, err = finder.ResourcePoolOrDefault(ctx, s.PoolPath)
 	if err != nil {
-		return nil, err
+		errs = append(errs, err.Error())
+	}
+
+	if len(errs) > 0 {
+		return nil, errors.New(strings.Join(errs, "\n"))
 	}
 
 	return s, nil

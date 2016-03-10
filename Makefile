@@ -11,62 +11,107 @@ SWAGGER ?= $(GOPATH)/bin/swagger$(BIN_ARCH)
 GOVET ?= $(GOPATH)/bin/vet$(BIN_ARCH)
 GOIMPORTS ?= $(GOPATH)/bin/goimports$(BIN_ARCH)
 GOLINT ?= $(GOPATH)/bin/golint$(BIN_ARCH)
+GVT ?= $(GOPATH)/bin/gvt$(BIN_ARCH)
+
+
+.PHONY: all tools clean test check \
+	goversion govet goimports gvt gopath \
+	bootstrap apiservers  \
+
 
 .DEFAULT_GOAL := all
+
+
+# target aliases - environment variable definition
+dockerapi := binary/docker-server
+dockerapi-server := apiservers/docker/restapi/server.go
+
+portlayerapi := binary/port-layer-server
+portlayerapi-client := apiservers/portlayer/client/port_layer_client.go
+portlayerapi-server := apiservers/portlayer/restapi/server.go
+
+imagec := binary/imagec
+vicadmin := binary/vicadmin
+rpctool := binary/rpctool
+
+tether-linux := binary/tether-linux
+tether-windows := binary/tether-windows.exe
+
+# target aliases - target mapping
+dockerapi: $(dockerapi)
+dockerapi-server: $(dockerapi-server)
+portlayerapi: $(portlayerapi)
+portlayerapi-client: $(portlayerapi-client)
+portlayerapi-server: $(portlayerapi-server)
+
+imagec: $(imagec)
+vicadmin: $(vicadmin)
+rpctool: $(rpctool)
+
+tether-linux: $(tether-linux)
+tether-windows: $(tether-windows)
+
+swagger: $(SWAGGER)
+
+# convenience targets
+all: check bootstrap apiservers $(imagec) $(vicadmin)
+tools: $(GOIMPORTS) $(GOVET) $(GVT) $(GOLINT) $(SWAGGER) goversion
+check: goversion goimports govet golint
+apiservers: $(dockerapi) $(portlayerapi)
+bootstrap: $(tether-linux) $(tether-windows) $(rpctool)
+
 
 goversion:
 	@echo checking go version...
 	@( $(GO) version | grep -q $(GOVERSION) ) || ( echo "Please install $(GOVERSION) (found: $$($(GO) version))" && exit 1 )
 
-all: check bootstrap apiservers imagec
-
-check: goversion goimports govet golint
-
-bootstrap: binary/tether-linux binary/tether-windows binary/rpctool
-
-apiservers: dockerapi portlayerapi
-
-$(GOIMPORTS): vendor/manifest
+$(GOIMPORTS):
 	@echo building $(GOIMPORTS)...
 	$(GO) build -o $(GOIMPORTS) ./vendor/golang.org/x/tools/cmd/goimports
 
-goimports: $(GOIMPORTS)
-	@echo checking go imports...
-	@! $(GOIMPORTS) -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
-
-$(GOVET): vendor/manifest
+$(GOVET):
 	@echo building $(GOVET)...
 	$(GO) build -o $(GOVET) ./vendor/golang.org/x/tools/cmd/vet
 
-govet: $(GOVET)
-	@echo checking go vet...
-	@$(GOVET) -all -shadow $$(find . -type f -name '*.go' -not -path "./vendor/*")
+$(GVT):
+	@echo getting gvt
+	$(GO) get -u github.com/FiloSottile/gvt
 
 $(GOLINT): vendor/manifest
 	@echo building $(GOLINT)...
 	$(GO) build -o $(GOLINT) ./vendor/github.com/golang/lint/golint
+
+$(SWAGGER):
+	@echo building $(SWAGGER)...
+	@$(GO) build -o $(SWAGGER) ./vendor/github.com/go-swagger/go-swagger/cmd/swagger
 
 # exit 1 if golint complains about anything other than comments
 golintf = $(GOLINT) $(1) | sh -c "! grep -v 'should have comment'"
 
 golint: $(GOLINT)
 	@echo checking go lint...
-	$(call golintf,github.com/vmware/vic/imagec/...)
-	$(call golintf,github.com/vmware/vic/pkg/...)
-	$(call golintf,github.com/vmware/vic/portlayer/...)
-	$(call golintf,github.com/vmware/vic/apiservers/docker/restapi/handlers/...)
-	$(call golintf,github.com/vmware/vic/apiservers/portlayer/restapi/handlers/...)
+	@#$(call golintf,github.com/vmware/vic/bootstrap/...) # this is commented out due to number of warnings
+	@$(call golintf,github.com/vmware/vic/imagec/...)
+	@$(call golintf,github.com/vmware/vic/vicadmin/...)
+	@$(call golintf,github.com/vmware/vic/pkg/...)
+	@$(call golintf,github.com/vmware/vic/portlayer/...)
+	@$(call golintf,github.com/vmware/vic/apiservers/docker/restapi/handlers/...)
+	@$(call golintf,github.com/vmware/vic/apiservers/portlayer/restapi/handlers/...)
 
 # For use by external tools such as emacs or for example:
 # GOPATH=$(make gopath) go get ...
 gopath:
 	@echo -n $(GOPATH)
 
-gvt:
-	@echo getting gvt
-	$(GO) get -u github.com/FiloSottile/gvt
+goimports: $(GOIMPORTS)
+	@echo checking go imports...
+	@! $(GOIMPORTS) -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
 
-vendor:
+govet: $(GOVET)
+	@echo checking go vet...
+	@$(GOVET) -all -shadow $$(find . -type f -name '*.go' -not -path "./vendor/*")
+
+vendor: $(GVT)
 	@echo restoring vendor
 	$(GOPATH)/bin/gvt restore
 
@@ -74,55 +119,67 @@ test:
 	# test everything but vendor
 	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/bootstrap/...
 	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/imagec
+	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/vicadmin
 	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/portlayer/...
 	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/pkg/...
 	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/apiservers/portlayer/...
 
-binary/tether-linux: $(shell find ./bootstrap/tether -name '*.go')
+
+$(tether-linux): $(shell find bootstrap/tether -name '*.go')
 	@echo building tether-linux
-	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./binary/tether-linux github.com/vmware/vic/bootstrap/tether/cmd/tether
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./$@ ./bootstrap/tether/cmd/tether
 
-binary/tether-windows: $(shell find ./bootstrap/tether -name '*.go')
+$(tether-windows): $(shell find bootstrap/tether -name '*.go')
 	@echo building tether-windows
-	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./binary/tether-windows github.com/vmware/vic/bootstrap/tether/cmd/tether
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./$@ ./bootstrap/tether/cmd/tether
 
-binary/rpctool: $(find ./bootstrap/rpctool -name '*.go')
+
+
+$(rpctool): pkg/vsphere/rpctool/*.go
 ifeq ($(OS),linux)
 	@echo building rpctool
-	@GOARCH=amd64 GOOS=linux $(GO) build -o ./binary/rpctool --ldflags '-extldflags "-static"' github.com/vmware/vic/bootstrap/rpctool
+	@GOARCH=amd64 GOOS=linux $(GO) build -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
 else
 	@echo skipping rpctool, cannot cross compile cgo
 endif
 
-rpctool: binary/rpctool
+$(vicadmin): vicadmin/*.go pkg/vsphere/session/*.go
+	@echo building vicadmin
+	@GOARCH=amd64 GOOS=linux $(GO) build -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
 
-imagec: portlayerapi-client
+$(imagec): imagec/*.go $(portlayerapi-client)
 	@echo building imagec...
-	@CGO_ENABLED=0 $(GO) build -o ./binary/imagec --ldflags '-extldflags "-static"' github.com/vmware/vic/imagec
+	@CGO_ENABLED=0 $(GO) build -o ./$@ --ldflags '-extldflags "-static"'  ./$(dir $<)
 
-$(SWAGGER): vendor/manifest
-	@echo building $(SWAGGER)...
-	@$(GO) build -o $(SWAGGER) ./vendor/github.com/go-swagger/go-swagger/cmd/swagger
 
-dockerapi-server: $(SWAGGER)
+
+$(dockerapi-server): apiservers/docker/swagger.json apiservers/docker/restapi/configure_docker.go apiservers/docker/restapi/handlers/*.go $(SWAGGER)
 	@echo regenerating swagger models and operations for Docker API server...
-	@$(SWAGGER) generate server -A docker -t ./apiservers/docker -f ./apiservers/docker/swagger.json
+	@$(SWAGGER) generate server -A docker -t $(dir $<) -f $<
 
-dockerapi: dockerapi-server
+$(dockerapi): $(dockerapi-server) $(shell find apiservers/docker/ -name '*.go')
 	@echo building Docker API server...
-	@$(GO) build -o ./binary/docker-server ./apiservers/docker/cmd/docker-server
+	@$(GO) build -o $@ ./apiservers/docker/cmd/docker-server
 
-portlayerapi-client: $(SWAGGER)
+
+
+# Common portlayer dependencies between client and server
+PORTLAYER_DEPS ?= apiservers/portlayer/swagger.yml \
+				  apiservers/portlayer/restapi/configure_port_layer.go \
+				  apiservers/portlayer/restapi/options/*.go apiservers/portlayer/restapi/handlers/*.go
+
+$(portlayerapi-client): $(PORTLAYER_DEPS)  $(SWAGGER)  
 	@echo regenerating swagger models and operations for Portlayer API client...
-	@$(SWAGGER) generate client -A PortLayer -t ./apiservers/portlayer -f ./apiservers/portlayer/swagger.yml
+	@$(SWAGGER) generate client -A PortLayer -t $(dir $<) -f $<
 
-portlayerapi-server: $(SWAGGER)
+
+$(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API server...
-	@$(SWAGGER) generate server -A PortLayer -t ./apiservers/portlayer -f ./apiservers/portlayer/swagger.yml
+	@$(SWAGGER) generate server -A PortLayer -t $(dir $<) -f $<
 
-portlayerapi: portlayerapi-server
+$(portlayerapi): $(portlayerapi-server) $(shell find apiservers/docker/ -name '*.go')
 	@echo building Portlayer API server...
-	@$(GO) build -o ./binary/port-layer-server ./apiservers/portlayer/cmd/port-layer-server/
+	@$(GO) build -o $@ ./apiservers/portlayer/cmd/port-layer-server
 
 clean:
 	rm -rf ./binary
@@ -142,5 +199,3 @@ clean:
 	rm -rf ./apiservers/portlayer/cmd/
 	rm -rf ./apiservers/portlayer/models/
 	rm -rf ./apiservers/portlayer/restapi/operations/
-
-.PHONY: test vendor imagec
