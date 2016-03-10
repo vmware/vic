@@ -9,7 +9,8 @@ Vagrant.configure(2) do |config|
   config.vm.synced_folder ".", "/vagrant", disabled: true
 
   dirs.split(File::PATH_SEPARATOR).each do |dir|
-    config.vm.synced_folder dir, dir
+    gdir = dir.sub("C\:", "/C")
+    config.vm.synced_folder dir, gdir
   end
 
   [:vmware_fusion, :vmware_workstation].each do |visor|
