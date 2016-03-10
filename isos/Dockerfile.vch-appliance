@@ -1,0 +1,33 @@
+FROM iso-base
+
+RUN yum --installroot=$ROOTFS -y install systemd \
+                                      iptables \
+                                      iproute2 \
+                                      net-tools \
+                                      tar \
+                                      curl \
+                                      openssh \
+                                      openssl \
+                                      expat \
+                                      libgcrypt \
+                                      nfs-util \
+                                      libtirpc \
+                                      util-linux \
+                                      tcp-wrappers \
+                                      openssh \
+                                      net-utils \
+                                      e2fsprogs
+
+# Select systemd for our init process
+ENV INIT /lib/systemd/systemd
+
+ENV ISOLABEL vch-appliance
+
+#RUN echo 'root:password' | chroot $ROOTFS chpasswd >/dev/null 2>&1
+
+RUN mkdir -p $ROOTFS/sbin/docker $ROOTFS/sbin/port-layer $ROOTFS/sbin/admin
+
+COPY imagec docker-server $ROOTFS/sbin/docker/
+COPY port-layer-server $ROOTFS/sbin/port-layer/
+COPY rpctool vicadmin $ROOTFS/sbin/admin/
+

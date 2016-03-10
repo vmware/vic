@@ -181,6 +181,19 @@ $(portlayerapi): $(portlayerapi-server) $(shell find apiservers/engine/ -name '*
 	@echo building Portlayer API server...
 	@$(GO) build -o $@ ./apiservers/portlayer/cmd/port-layer-server
 
+iso-base:
+	@echo building iso-base docker image
+	@docker build -t iso-base -f isos/Dockerfile.iso-base isos
+
+binary/appliance.iso: isos/Dockerfile.vch-appliance iso-base
+	@echo building VCH appliance ISO
+	@ #docker requires the build file be in the build context
+	@cp $< binary/
+	@docker build -t appliance-iso -f binary/Dockerfile.vch-appliance binary
+	# for some reason using stdout directly managles the iso, whereas docker cp
+	# or scp'ing it out of the container works fine.
+	@docker run -it appliance-iso > $@
+
 clean:
 	rm -rf ./binary
 
