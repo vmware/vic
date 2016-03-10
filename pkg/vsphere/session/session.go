@@ -12,6 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package session caches vSphere objects to avoid having to repeatedly
+// make govmomi client calls.
+//
+// To obtain a Session, call Create with a Config. The config
+// contains the SDK URL (Service) and the desired vSphere resources.
+// Create then connects to Service and stores govmomi objects for
+// each corresponding value in Config. The Session is returned and
+// the user can use the cached govmomi objects in the exported fields of
+// Session instead of directly using a govmomi Client.
+//
 package session
 
 import (
