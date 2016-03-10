@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/govmomi/session"
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/soap"
+	"github.com/vmware/govmomi/vim25/types"
 )
 
 // Config contains the configuration used to create a Session.
@@ -77,6 +78,18 @@ func NewSession(config *Config) *Session {
 // Vim25 returns the vim25.Client to the caller
 func (s *Session) Vim25() *vim25.Client {
 	return s.Client.Client
+}
+
+// IsVC returns whether the session is backed by VC
+func (s *Session) IsVC() bool {
+	return s.Client.IsVC()
+}
+
+// IsVSAN returns whether the datastore used in the session is backed by VSAN
+func (s *Session) IsVSAN(ctx context.Context) bool {
+	dsType, _ := s.Datastore.Type(ctx)
+
+	return dsType == types.HostFileSystemVolumeFileSystemTypeVsan
 }
 
 // Create accepts a Config and returns a Session with the cached vSphere resources.
