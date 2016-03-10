@@ -16,7 +16,8 @@ package options
 
 // StorageLayerOptionsType provides the additional flags required by handlers
 type StorageLayerOptionsType struct {
-	Path string `long:"path" description:"Storage Path" required:"true"`
+	Path  string `long:"path" description:"Storage Path" required:"true"`
+	Debug bool   `long:"debug" short:"d" description:"Enable debug logging" required:"false"`
 }
 
 var (
