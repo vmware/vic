@@ -75,5 +75,8 @@ func TestSession(t *testing.T) {
 			t.SkipNow()
 		}
 	}
-	t.Logf("%+v", session)
+	t.Logf("Session: %+v", session)
+
+	t.Logf("IsVC: %t", session.IsVC())
+	t.Logf("IsVSAN: %t", session.IsVSAN(ctx))
 }
