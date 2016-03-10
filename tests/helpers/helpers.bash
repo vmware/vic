@@ -13,17 +13,24 @@
 # limitations under the License.
 
 # starts the port layer server in the background, waits for it to start, saves the pid to $port_layer_pid
+# return value 0 on success, 1 on timeout
 start_port_layer () {
     # FIXME: need to integrate with ESX_URL so disabling it now
     # https://github.com/vmware/vic/issues/304
     return
 
     [ "$1" = "" ] && port="8080" || port="$1"
-    "$GOPATH"/src/github.com/vmware/vic/binary/port-layer-server --port="$port" --path=/tmp/portlayer > /dev/null 2>&1 &
-    while ! curl localhost:"$port"/_ping > /dev/null 2>&1; do
+    "$portlayer" --port="$port" --path=/tmp/portlayer 2>&1 &
+    port_layer_pid="$!"
+
+    retval=1
+    for attempt in {1..10}; do
+        curl localhost:"$port"/_ping > /dev/null 2>&1 && retval=0 && echo "Port library started" && break
         sleep 1
     done
-    port_layer_pid="$!"
+    export port_layer_pid
+
+    return $retval
 }
 
 # kills the port layer
@@ -32,7 +39,15 @@ kill_port_layer () {
     # https://github.com/vmware/vic/issues/304
     return
 
-    kill $port_layer_pid > /dev/null 2>&1
+    kill "$port_layer_pid" > /dev/null 2>&1
+
+    retval=1
+    for attempt in {1..5}; do
+        kill -0 "$port_layer_pid" || echo "Port library stopped" && retval=0 && break
+        sleep 1
+    done
+
+    return $retval
 }
 
 # returns the IDs of each FS layer represented in the manifest

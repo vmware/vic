@@ -18,17 +18,22 @@ load helpers/helpers
 load 'helpers/bats-support/load'
 load 'helpers/bats-assert/load'
 
-imagec="$GOPATH/src/github.com/vmware/vic/binary/imagec"
+imagec="$GOPATH/src/github.com/vmware/vic/$BIN/imagec"
+portlayer="$GOPATH/src/github.com/vmware/vic/$BIN/port-layer-server"
 IMAGES_DIR="images"
 DEFAULT_IMAGE="https/registry-1.docker.io/v2/library/photon/latest"
 ALT_IMAGE="https/registry-1.docker.io/v2/tatsushid/tinycore"
 
 setup () {
+    assert [ -x "$imagec" ]
+    assert [ -x "$portlayer" ]
+
     # create temp directories & start the port layer server
     mkdir -p /tmp/imagec_test_dir
     mkdir -p /tmp/portlayer
     cd /tmp/imagec_test_dir
 #    start_port_layer
+#    assert [ ! -z "$port_layer_pid" ]
 }
 
 teardown() {
@@ -38,6 +43,12 @@ teardown() {
     # nuke everything between tests
     rm -rf /tmp/imagec_test_dir
     rm -rf /tmp/portlayer
+}
+
+@test "validate helper functions" {
+    skip "Skipping until the portlayer can be brought up without a valid SDK target"
+    assert [ ! -z "$port_layer_pid" ]
+    assert [ kill_port_layer ]
 }
 
 @test "imagec run without arguments downloads photon into default destination from Docker Hub" {

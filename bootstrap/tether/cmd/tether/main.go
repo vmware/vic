@@ -44,12 +44,12 @@ func privateKey(file string) ssh.Signer {
 		return nil
 	}
 
-	private, err := ssh.ParsePrivateKey(privateBytes)
+	priv, err := ssh.ParsePrivateKey(privateBytes)
 	if err != nil {
 		log.Fatalf("failed to parse private key: %v", tetherKey)
 		return nil
 	}
-	return private
+	return priv
 }
 
 func main() {

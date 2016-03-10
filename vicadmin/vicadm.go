@@ -33,10 +33,7 @@ import (
 )
 
 var (
-	logFiles = []string{
-		"/var/log/docker.log",
-		"/var/log/vicadm.log",
-	}
+	logFileDir = "/var/log/vic/"
 
 	config struct {
 		session.Config
@@ -68,6 +65,16 @@ func init() {
 	flag.StringVar(&config.vmPath, "vm-path", "", "Docker vm path")
 }
 
+func logFiles() []string {
+	names := []string{}
+	files, _ := ioutil.ReadDir(logFileDir)
+	for _, f := range files {
+		names = append(names, fmt.Sprintf("%s/%s", logFileDir, f.Name()))
+	}
+
+	return names
+}
+
 func configureReaders() []entryReader {
 	dockerServer := "http://" + config.dockerHost
 
@@ -92,7 +99,7 @@ func configureReaders() []entryReader {
 		commandReader("sudo ls -l /proc/self/fd"),
 	}
 
-	for _, path := range logFiles {
+	for _, path := range logFiles() {
 		readers = append(readers, fileReader(path))
 	}
 
@@ -492,10 +499,10 @@ func (s *server) serve() error {
 
 	// tail all logFiles
 	s.mux.HandleFunc("/logs/tail", func(w http.ResponseWriter, r *http.Request) {
-		s.tailFiles(w, r, logFiles)
+		s.tailFiles(w, r, logFiles())
 	})
 
-	for _, path := range logFiles {
+	for _, path := range logFiles() {
 		name := filepath.Base(path)
 		p := path
 
