@@ -86,10 +86,10 @@ binary/tether-windows: $(shell find ./bootstrap/tether -name '*.go')
 	@echo building tether-windows
 	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./binary/tether-windows github.com/vmware/vic/bootstrap/tether/cmd/tether
 
-binary/rpctool: $(find ./bootstrap/rpctool -name '*.go')
+binary/rpctool: $(find ./pkg/vsphere/rpctool -name '*.go')
 ifeq ($(OS),linux)
 	@echo building rpctool
-	@GOARCH=amd64 GOOS=linux $(GO) build -o ./binary/rpctool --ldflags '-extldflags "-static"' github.com/vmware/vic/bootstrap/rpctool
+	@GOARCH=amd64 GOOS=linux $(GO) build -o ./binary/rpctool --ldflags '-extldflags "-static"' github.com/vmware/vic/pkg/vsphere/rpctool
 else
 	@echo skipping rpctool, cannot cross compile cgo
 endif
