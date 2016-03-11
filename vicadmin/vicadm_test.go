@@ -9,9 +9,11 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -23,17 +25,22 @@ func init() {
 		flag.Set("cluster", os.Getenv("GOVC_CLUSTER"))
 	}
 
-	docker := os.Getenv("DOCKER_HOST")
-	if sdk != "" {
-		u, err := url.Parse(docker)
-		if err != nil {
-			log.Fatal(err)
-		}
-		flag.Set("docker-host", u.Host)
-	}
+	// fake up a docker-host for pprof collection
+	u := url.URL{Scheme: "http", Host: "127.0.0.1:6060"}
+
+	go func() {
+		log.Println(http.ListenAndServe(u.Host, nil))
+	}()
+
+	flag.Set("docker-host", u.Host)
+
 }
 
 func TestLogTar(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.SkipNow()
+	}
+
 	logFiles = []string{"vicadm.go", "vicadm_test.go"}
 
 	s := &server{
@@ -85,6 +92,10 @@ func TestLogTar(t *testing.T) {
 }
 
 func TestLogTail(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.SkipNow()
+	}
+
 	f, err := ioutil.TempFile("", "vicadm")
 	if err != nil {
 		t.Fatal(err)

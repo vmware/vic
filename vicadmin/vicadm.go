@@ -532,7 +532,7 @@ func (s *server) stop() error {
 }
 
 func (s *server) tarContainerLogs(res http.ResponseWriter, req *http.Request) {
-	readers := append(defaultReaders, commandReader("du -sh /var/lib/docker"))
+	readers := append(defaultReaders, commandReader("sudo du -sh /var/lib/docker"))
 
 	if config.Service != "" {
 		c, err := client()
