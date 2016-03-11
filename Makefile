@@ -186,3 +186,6 @@ clean:
 	rm -rf ./apiservers/portlayer/cmd/
 	rm -rf ./apiservers/portlayer/models/
 	rm -rf ./apiservers/portlayer/restapi/operations/
+
+	@echo removing swagger generator...
+	rm -f $(GOPATH)/bin/swagger$(BIN_ARCH)
