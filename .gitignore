@@ -1,5 +1,7 @@
 .vagrant/
 binary/
+vic_binaries*.tar.gz
+secrets.yml
 
 bootstrap/targets/linux/tether/
 imagec/imagec

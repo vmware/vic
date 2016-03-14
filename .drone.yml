@@ -3,18 +3,48 @@ clone:
   path: github.com/vmware/vic
   tags: true
 build:
-  image: golang:1.6.0
-  pull: true
-  environment:
-    GOPATH: /drone
-    SHELL: /bin/bash
-    DOCKER_API_VERSION: "1.21"
-  volumes:
+  test:
+    image: golang:1.6.0
+    pull: true
+    environment:
+      GOPATH: /drone
+      SHELL: /bin/bash
+      DOCKER_API_VERSION: "1.21"
+    volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
-  commands:
-    - wget -q https://get.docker.com/builds/Linux/x86_64/docker-latest
-    - chmod +x docker-latest
-    - mv docker-latest /usr/local/bin/docker
-    - make all
-    - make test
-    - make integration-tests
+    commands:
+      - wget -q https://get.docker.com/builds/Linux/x86_64/docker-latest
+      - chmod +x docker-latest
+      - mv docker-latest /usr/local/bin/docker
+      - make all
+      - make test
+      - make integration-tests
+  bundle:
+    image: golang:1.6.0
+    pull: true
+    environment:
+      GOPATH: /drone
+      SHELL: /bin/bash
+    commands:
+      - make all
+      - tar -cvf vic_binaries_$$BUILD_NUMBER.tar.gz binary
+    when:
+      success: true
+
+publish:
+  bintray:
+    username: $$BINTRAY_USERNAME
+    api_key: $$BINTRAY_API_KEY
+    artifacts:
+      - file: vic_binaries_$$BUILD_NUMBER.tar.gz
+        owner: vmware
+        type: executable
+        repository: vic-repo
+        package: build
+        version: 0.1
+        target: vic_binaries_$$BUILD_NUMBER.tar.gz
+        publish: true
+    when:
+      repo: vmware/vic
+      branch: master
+      success: true
