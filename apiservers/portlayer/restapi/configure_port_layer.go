@@ -18,6 +18,7 @@ import (
 	//"io"
 	"net/http"
 
+	log "github.com/Sirupsen/logrus"
 	errors "github.com/go-swagger/go-swagger/errors"
 	httpkit "github.com/go-swagger/go-swagger/httpkit"
 	"github.com/go-swagger/go-swagger/swag"
@@ -41,6 +42,10 @@ func configureFlags(api *operations.PortLayerAPI) {
 			Options:          options.StorageLayerOptions,
 			ShortDescription: "Storage Layer Options",
 		},
+	}
+
+	if options.StorageLayerOptions.Debug {
+		log.SetLevel(log.DebugLevel)
 	}
 }
 

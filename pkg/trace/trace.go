@@ -26,14 +26,14 @@ func Begin(msg string) (string, string, time.Time) {
 	name := runtime.FuncForPC(pc).Name()
 
 	if msg == "" {
-		log.Printf("[BEGIN] [%s]", name)
+		log.Debugf("[BEGIN] [%s]", name)
 	} else {
-		log.Printf("[BEGIN] [%s] %s", name, msg)
+		log.Debugf("[BEGIN] [%s] %s", name, msg)
 	}
 	return msg, name, time.Now()
 }
 
 func End(msg string, name string, startTime time.Time) {
 	endTime := time.Now()
-	log.Printf("[ END ] [%s] [%s] %s", name, endTime.Sub(startTime), msg)
+	log.Debugf("[ END ] [%s] [%s] %s", name, endTime.Sub(startTime), msg)
 }
