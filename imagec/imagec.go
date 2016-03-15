@@ -32,6 +32,8 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/stringid"
+
 	"github.com/vmware/vic/apiservers/portlayer/models"
 )
 
@@ -61,9 +63,10 @@ type ImageCOptions struct {
 
 	timeout time.Duration
 
-	stdout   bool
-	debug    bool
-	insecure bool
+	stdout     bool
+	debug      bool
+	insecure   bool
+	standalone bool
 }
 
 // ImageWithMeta wraps the models.Image with some additional metadata
@@ -117,6 +120,7 @@ func init() {
 	flag.BoolVar(&options.stdout, "stdout", false, "Enable writing to stdout")
 	flag.BoolVar(&options.debug, "debug", false, "Show debug logging")
 	flag.BoolVar(&options.insecure, "insecure", false, "Skip certificate verification checks")
+	flag.BoolVar(&options.standalone, "standalone", false, "Disable port-layer integration")
 
 	flag.Parse()
 }
@@ -187,10 +191,16 @@ func main() {
 		log.Fatalf("Failed to return the host name: %s", err)
 	}
 
-	// Ping the server to ensure it's at least running
-	ok, err := PingPortLayer()
-	if err != nil || !ok {
-		log.Fatalf("Failed to ping portlayer: %s", err)
+	if !options.standalone {
+		log.Debugf("Running with portlayer")
+
+		// Ping the server to ensure it's at least running
+		ok, err2 := PingPortLayer()
+		if err2 != nil || !ok {
+			log.Fatalf("Failed to ping portlayer: %s", err2)
+		}
+	} else {
+		log.Debugf("Running standalone")
 	}
 
 	// Get the URL of the OAuth endpoint
@@ -246,24 +256,26 @@ func main() {
 			history: history,
 			layer:   layer,
 		}
-	}
-	for i := range images {
 		log.Debugf("Manifest image: %#v", images[i])
 	}
 
-	// Create the image store
-	err = CreateImageStore(hostname)
-	if err != nil {
-		log.Fatalf("Failed to create image store: %s", err)
-	}
+	var existingImages map[string]*models.Image
 
-	// Get the list of existing images
-	existingImages, err := ListImages(hostname, images)
-	if err != nil {
-		log.Fatalf("Failed to obtain list of images: %s", err)
-	}
-	for i := range existingImages {
-		log.Debugf("Existing image: %#v", existingImages[i])
+	if !options.standalone {
+		// Create the image store
+		err = CreateImageStore(hostname)
+		if err != nil {
+			log.Fatalf("Failed to create image store: %s", err)
+		}
+
+		// Get the list of existing images
+		existingImages, err = ListImages(hostname, images)
+		if err != nil {
+			log.Fatalf("Failed to obtain list of images: %s", err)
+		}
+		for i := range existingImages {
+			log.Debugf("Existing image: %#v", existingImages[i])
+		}
 	}
 
 	// iterate from parent to children
@@ -276,7 +288,7 @@ func main() {
 			// delete existing image from images
 			images = append(images[:i], images[i+1:]...)
 
-			progress.Update(po, ID[:12], "Already exists")
+			progress.Update(po, stringid.TruncateID(ID), "Already exists")
 		}
 	}
 
@@ -309,44 +321,46 @@ func main() {
 		}
 	}
 
-	// iterate from parent to children
-	// so that portlayer can extract each layer
-	// on top of previous one
-	destination := DestinationDirectory()
-	for i := len(images) - 1; i >= 0; i-- {
-		image := images[i]
+	if !options.standalone {
 
-		id := image.Image.ID
-		f, err := os.Open(path.Join(destination, id, id+".tar"))
-		if err != nil {
-			log.Fatalf("Failed to open file: %s", err)
+		// iterate from parent to children
+		// so that portlayer can extract each layer
+		// on top of previous one
+		destination := DestinationDirectory()
+		for i := len(images) - 1; i >= 0; i-- {
+			image := images[i]
+
+			id := image.Image.ID
+			f, err := os.Open(path.Join(destination, id, id+".tar"))
+			if err != nil {
+				log.Fatalf("Failed to open file: %s", err)
+			}
+			defer f.Close()
+
+			fi, err := f.Stat()
+			if err != nil {
+				log.Fatalf("Failed to stat file: %s", err)
+			}
+
+			in := progress.NewProgressReader(
+				ioutils.NewCancelReadCloser(
+					context.Background(), f),
+				po,
+				fi.Size(),
+				stringid.TruncateID(id),
+				"Extracting",
+			)
+			defer in.Close()
+
+			// Write the image
+			// FIXME: send metadata when portlayer supports it
+			err = WriteImage(&image, in)
+			if err != nil {
+				log.Fatalf("Failed to write to image store: %s", err)
+			}
+			progress.Update(po, stringid.TruncateID(id), "Pull complete")
 		}
-		defer f.Close()
-
-		fi, err := f.Stat()
-		if err != nil {
-			log.Fatalf("Failed to stat file: %s", err)
-		}
-
-		in := progress.NewProgressReader(
-			ioutils.NewCancelReadCloser(
-				context.Background(), f),
-			po,
-			fi.Size(),
-			id[:12],
-			"Extracting",
-		)
-		defer in.Close()
-
-		// Write the image
-		// FIXME: send metadata when portlayer supports it
-		err = WriteImage(&image, in)
-		if err != nil {
-			log.Fatalf("Failed to write to image store: %s", err)
-		}
-		progress.Update(po, id[:12], "Pull complete")
 	}
-
 	// FIXME: Dump the digest
 	//progress.Message(po, "", "Digest: 0xDEAD:BEEF")
 
