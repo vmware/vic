@@ -26,6 +26,8 @@ GVT ?= $(GOPATH)/bin/gvt$(BIN_ARCH)
 dockerapi := binary/docker-server
 dockerapi-server := apiservers/docker/restapi/server.go
 
+docker-engine-api := binary/docker-engine-server
+
 portlayerapi := binary/port-layer-server
 portlayerapi-client := apiservers/portlayer/client/port_layer_client.go
 portlayerapi-server := apiservers/portlayer/restapi/server.go
@@ -40,6 +42,7 @@ tether-windows := binary/tether-windows.exe
 # target aliases - target mapping
 dockerapi: $(dockerapi)
 dockerapi-server: $(dockerapi-server)
+docker-engine-api: $(docker-engine-api)
 portlayerapi: $(portlayerapi)
 portlayerapi-client: $(portlayerapi-client)
 portlayerapi-server: $(portlayerapi-server)
@@ -57,7 +60,7 @@ swagger: $(SWAGGER)
 all: check bootstrap apiservers $(imagec) $(vicadmin)
 tools: $(GOIMPORTS) $(GOVET) $(GVT) $(GOLINT) $(SWAGGER) goversion
 check: goversion goimports govet golint
-apiservers: $(dockerapi) $(portlayerapi)
+apiservers: $(dockerapi) $(portlayerapi) $(docker-engine-api)
 bootstrap: $(tether-linux) $(tether-windows) $(rpctool)
 
 
@@ -97,6 +100,8 @@ golint: $(GOLINT)
 	@$(call golintf,github.com/vmware/vic/portlayer/...)
 	@$(call golintf,github.com/vmware/vic/apiservers/docker/restapi/handlers/...)
 	@$(call golintf,github.com/vmware/vic/apiservers/portlayer/restapi/handlers/...)
+	@$(call golintf,github.com/vmware/vic/apiservers/engine/server/...)
+	@$(call golintf,github.com/vmware/vic/apiservers/engine/backends/...)
 
 # For use by external tools such as emacs or for example:
 # GOPATH=$(make gopath) go get ...
@@ -138,7 +143,6 @@ $(tether-windows): $(shell find bootstrap/tether -name '*.go')
 	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./$@ ./bootstrap/tether/cmd/tether
 
 
-
 $(rpctool): pkg/vsphere/rpctool/*.go
 ifeq ($(OS),linux)
 	@echo building rpctool
@@ -155,8 +159,10 @@ $(imagec): imagec/*.go $(portlayerapi-client)
 	@echo building imagec...
 	@CGO_ENABLED=0 $(GO) build -o ./$@ --ldflags '-extldflags "-static"'  ./$(dir $<)
 
-
-
+$(docker-engine-api): apiservers/engine/server/*.go apiservers/engine/backends/*.go
+	@echo Building docker-engine-api server...
+	@$(GO) build -o $@ ./apiservers/engine/server
+	
 $(dockerapi-server): apiservers/docker/swagger.json apiservers/docker/restapi/configure_docker.go apiservers/docker/restapi/handlers/*.go $(SWAGGER)
 	@echo regenerating swagger models and operations for Docker API server...
 	@$(SWAGGER) generate server -A docker -t $(dir $<) -f $<
