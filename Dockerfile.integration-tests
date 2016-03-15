@@ -13,17 +13,22 @@
 # limitations under the License.
 
 FROM golang:1.6.0
-RUN apt-get update -yq
+
+# update the underlying OS and install jq
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt-get update && apt-get upgrade -y
 RUN apt-get install -yq jq
-RUN git clone https://github.com/sstephenson/bats /tmp/bats
-RUN mkdir -p /go/src/github.com/vmware/vic/tests/helpers
-WORKDIR /go/src/github.com/vmware/vic/tests/helpers
-RUN git clone https://github.com/ztombol/bats-assert
-RUN git clone https://github.com/ztombol/bats-support
-WORKDIR /tmp/bats
-RUN ./install.sh /usr/local
-WORKDIR /go/src
-RUN mkdir -p github.com/vmware/vic
-ADD ./ github.com/vmware/vic
-WORKDIR github.com/vmware/vic/tests
+
+# build imagec and port-layer-server
+ADD ./ /go/src/github.com/vmware/vic
+RUN make -C /go/src/github.com/vmware/vic imagec portlayerapi
+
+# download and install bats and helpers
+RUN git clone https://github.com/sstephenson/bats /tmp/bats && \
+        git clone https://github.com/ztombol/bats-assert /go/src/github.com/vmware/vic/tests/helpers/bats-assert && \
+        git clone https://github.com/ztombol/bats-support /go/src/github.com/vmware/vic/tests/helpers/bats-support && \
+        /tmp/bats/install.sh /usr/local
+
+# run the actual tests
+WORKDIR /go/src/github.com/vmware/vic/tests/
 CMD /usr/local/bin/bats -t .
