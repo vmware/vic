@@ -1,3 +1,7 @@
+# After any change to this file you MUST regenerate and checkin
+# a .drone.sec even if no secrets were changed. The secrets file is tied
+# to a specific .drone.yml so artifacts will not be uploaded to Bintray
+# in following builds without an updated .drone.sec
 ---
 clone:
   path: github.com/vmware/vic
