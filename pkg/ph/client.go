@@ -40,7 +40,7 @@ var (
 
 type Client struct {
 	// phone home address.
-	phUrl     *url.URL
+	phURL     *url.URL
 	Transport *http.Transport
 	doneChan  chan bool
 }
@@ -58,7 +58,7 @@ func NewClient(instanceID string) *Client {
 	}
 
 	return &Client{
-		phUrl: u,
+		phURL: u,
 	}
 }
 
@@ -69,7 +69,7 @@ func (phc *Client) SetPHAddress(addr string) error {
 		return errors.Trace(err)
 	}
 
-	phc.phUrl = u
+	phc.phURL = u
 	return nil
 }
 
@@ -106,7 +106,7 @@ func (phc *Client) POST(data interface{}) error {
 	log.Debugf("encoding json: %s", in)
 
 	// create request
-	req, err := http.NewRequest("POST", phc.phUrl.String(), in)
+	req, err := http.NewRequest("POST", phc.phURL.String(), in)
 	if err != nil {
 		return errors.Trace(err)
 	}
