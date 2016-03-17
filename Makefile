@@ -23,9 +23,6 @@ GVT ?= $(GOPATH)/bin/gvt$(BIN_ARCH)
 
 
 # target aliases - environment variable definition
-dockerapi := binary/docker-server
-dockerapi-server := apiservers/docker/restapi/server.go
-
 docker-engine-api := binary/docker-engine-server
 
 portlayerapi := binary/port-layer-server
@@ -40,8 +37,6 @@ tether-linux := binary/tether-linux
 tether-windows := binary/tether-windows.exe
 
 # target aliases - target mapping
-dockerapi: $(dockerapi)
-dockerapi-server: $(dockerapi-server)
 docker-engine-api: $(docker-engine-api)
 portlayerapi: $(portlayerapi)
 portlayerapi-client: $(portlayerapi-client)
@@ -60,7 +55,7 @@ swagger: $(SWAGGER)
 all: check bootstrap apiservers $(imagec) $(vicadmin)
 tools: $(GOIMPORTS) $(GOVET) $(GVT) $(GOLINT) $(SWAGGER) goversion
 check: goversion goimports govet golint
-apiservers: $(dockerapi) $(portlayerapi) $(docker-engine-api)
+apiservers: $(portlayerapi) $(docker-engine-api)
 bootstrap: $(tether-linux) $(tether-windows) $(rpctool)
 
 
@@ -98,7 +93,6 @@ golint: $(GOLINT)
 	@$(call golintf,github.com/vmware/vic/vicadmin/...)
 	@$(call golintf,github.com/vmware/vic/pkg/...)
 	@$(call golintf,github.com/vmware/vic/portlayer/...)
-	@$(call golintf,github.com/vmware/vic/apiservers/docker/restapi/handlers/...)
 	@$(call golintf,github.com/vmware/vic/apiservers/portlayer/restapi/handlers/...)
 	@$(call golintf,github.com/vmware/vic/apiservers/engine/server/...)
 	@$(call golintf,github.com/vmware/vic/apiservers/engine/backends/...)
@@ -163,16 +157,6 @@ $(docker-engine-api): apiservers/engine/server/*.go apiservers/engine/backends/*
 	@echo Building docker-engine-api server...
 	@$(GO) build -o $@ ./apiservers/engine/server
 	
-$(dockerapi-server): apiservers/docker/swagger.json apiservers/docker/restapi/configure_docker.go apiservers/docker/restapi/handlers/*.go $(SWAGGER)
-	@echo regenerating swagger models and operations for Docker API server...
-	@$(SWAGGER) generate server -A docker -t $(dir $<) -f $<
-
-$(dockerapi): $(dockerapi-server) $(shell find apiservers/docker/ -name '*.go')
-	@echo building Docker API server...
-	@$(GO) build -o $@ ./apiservers/docker/cmd/docker-server
-
-
-
 # Common portlayer dependencies between client and server
 PORTLAYER_DEPS ?= apiservers/portlayer/swagger.yml \
 				  apiservers/portlayer/restapi/configure_port_layer.go \
@@ -187,7 +171,7 @@ $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API server...
 	@$(SWAGGER) generate server -A PortLayer -t $(dir $<) -f $<
 
-$(portlayerapi): $(portlayerapi-server) $(shell find apiservers/docker/ -name '*.go')
+$(portlayerapi): $(portlayerapi-server) $(shell find apiservers/engine/ -name '*.go')
 	@echo building Portlayer API server...
 	@$(GO) build -o $@ ./apiservers/portlayer/cmd/port-layer-server
 
@@ -195,13 +179,6 @@ clean:
 	rm -rf ./binary
 
 	@echo removing swagger generated files...
-	rm -f ./apiservers/docker/restapi/doc.go
-	rm -f ./apiservers/docker/restapi/embedded_spec.go
-	rm -f ./apiservers/docker/restapi/server.go
-	rm -rf ./apiservers/docker/cmd
-	rm -rf ./apiservers/docker/models
-	rm -rf ./apiservers/docker/restapi/operations
-
 	rm -f ./apiservers/portlayer/restapi/doc.go
 	rm -f ./apiservers/portlayer/restapi/embedded_spec.go
 	rm -f ./apiservers/portlayer/restapi/server.go
