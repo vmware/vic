@@ -23,6 +23,7 @@ type PortLayerOptionsType struct {
 	DatacenterPath string `long:"datacenter" description:"Datacenter path" env:"DC_PATH" required:"true"`
 	ClusterPath    string `long:"cluster" description:"Cluster path" env:"CS_PATH" required:"true"`
 	DatastorePath  string `long:"datastore" description:"Datastore path" env:"DS_PATH" required:"true"`
+	NetworkPath    string `long:"network" description:"Network path" env:"NET_PATH"`
 }
 
 var (

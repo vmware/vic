@@ -20,62 +20,42 @@ import (
 )
 
 func TestIncrementIP4(t *testing.T) {
-	ip := net.ParseIP("10.10.10.255")
-	newIP := incrementIP4(ip)
-	ip = net.ParseIP("10.10.11.0")
-	if !newIP.Equal(ip) {
-		t.Fatalf("got: %s, expected: %s", newIP, ip)
+	var tests = []struct {
+		in  net.IP
+		out net.IP
+	}{
+		{net.IPv6loopback, nil},
+		{net.ParseIP("10.10.10.255"), net.ParseIP("10.10.11.0")},
+		{net.ParseIP("10.10.255.255"), net.ParseIP("10.11.0.0")},
+		{net.ParseIP("10.255.255.255"), net.ParseIP("11.0.0.0")},
+		{net.ParseIP("255.255.255.255"), net.ParseIP("0.0.0.0")},
 	}
 
-	ip = net.ParseIP("10.10.255.255")
-	newIP = incrementIP4(ip)
-	ip = net.ParseIP("10.11.0.0")
-	if !newIP.Equal(ip) {
-		t.Fatalf("got: %s, expected: %s", newIP, ip)
-	}
-
-	ip = net.ParseIP("10.255.255.255")
-	newIP = incrementIP4(ip)
-	ip = net.ParseIP("11.0.0.0")
-	if !newIP.Equal(ip) {
-		t.Fatalf("got: %s, expected: %s", newIP, ip)
-	}
-
-	ip = net.ParseIP("255.255.255.255")
-	newIP = incrementIP4(ip)
-	ip = net.ParseIP("0.0.0.0")
-	if !newIP.Equal(ip) {
-		t.Fatalf("got: %s, expected: %s", newIP, ip)
+	for _, te := range tests {
+		ip := incrementIP4(te.in)
+		if !te.out.Equal(ip) {
+			t.Errorf("got: %s, expected: %s", ip, te.out)
+		}
 	}
 }
 
 func TestDecrementIP4(t *testing.T) {
-	ip := net.ParseIP("10.10.10.0")
-	newIP := decrementIP4(ip)
-	ip = net.ParseIP("10.10.9.255")
-	if !newIP.Equal(ip) {
-		t.Fatalf("got: %s, expected: %s", newIP, ip)
+	var tests = []struct {
+		in  net.IP
+		out net.IP
+	}{
+		{net.IPv6loopback, nil},
+		{net.ParseIP("10.10.10.0"), net.ParseIP("10.10.9.255")},
+		{net.ParseIP("10.10.0.0"), net.ParseIP("10.9.255.255")},
+		{net.ParseIP("10.0.0.0"), net.ParseIP("9.255.255.255")},
+		{net.ParseIP("0.0.0.0"), net.ParseIP("255.255.255.255")},
 	}
 
-	ip = net.ParseIP("10.10.0.0")
-	newIP = decrementIP4(ip)
-	ip = net.ParseIP("10.9.255.255")
-	if !newIP.Equal(ip) {
-		t.Fatalf("got: %s, expected: %s", newIP, ip)
-	}
-
-	ip = net.ParseIP("10.0.0.0")
-	newIP = decrementIP4(ip)
-	ip = net.ParseIP("9.255.255.255")
-	if !newIP.Equal(ip) {
-		t.Fatalf("got: %s, expected: %s", newIP, ip)
-	}
-
-	ip = net.ParseIP("0.0.0.0")
-	newIP = decrementIP4(ip)
-	ip = net.ParseIP("255.255.255.255")
-	if !newIP.Equal(ip) {
-		t.Fatalf("got: %s, expected: %s", newIP, ip)
+	for _, te := range tests {
+		ip := decrementIP4(te.in)
+		if !te.out.Equal(ip) {
+			t.Errorf("got: %s, expected: %s", ip, te.out)
+		}
 	}
 }
 
@@ -112,7 +92,7 @@ func TestIsIP4(t *testing.T) {
 }
 
 func TestLowestIP4(t *testing.T) {
-	r := net.IPNet{IP: net.ParseIP("10.10.10.10").To4(), Mask: net.CIDRMask(24, 32)}
+	r := &net.IPNet{IP: net.ParseIP("10.10.10.10").To4(), Mask: net.CIDRMask(24, 32)}
 	ip := net.ParseIP("10.10.10.0")
 	if res := lowestIP4(r); !res.Equal(ip) {
 		t.Errorf("range %s got: %s expected %s", r, res, ip)
@@ -120,10 +100,18 @@ func TestLowestIP4(t *testing.T) {
 }
 
 func TestHighestIP4(t *testing.T) {
-	r := net.IPNet{IP: net.ParseIP("10.10.10.10").To4(), Mask: net.CIDRMask(24, 32)}
-	ip := net.ParseIP("10.10.10.255")
-	if res := highestIP4(r); !res.Equal(ip) {
-		t.Errorf("range %s got: %s expected %s", r, res, ip)
+	var tests = []struct {
+		in  *net.IPNet
+		out net.IP
+	}{
+		{&net.IPNet{IP: net.IPv6loopback}, nil},
+		{&net.IPNet{IP: net.ParseIP("10.10.10.10").To4(), Mask: net.CIDRMask(24, 32)}, net.ParseIP("10.10.10.255")},
+	}
+
+	for _, te := range tests {
+		if res := highestIP4(te.in); !res.Equal(te.out) {
+			t.Errorf("range %s got: %s expected %s", te.in, res, te.out)
+		}
 	}
 }
 
@@ -195,18 +183,18 @@ func TestReleaseIP4(t *testing.T) {
 
 func TestReserveNextIP4Net(t *testing.T) {
 	_, net1, _ := net.ParseCIDR("172.16.0.0/12")
-	space := NewAddressSpaceFromNetwork(*net1)
+	space := NewAddressSpaceFromNetwork(net1)
 	firstIP := net.IPv4(172, 16, 0, 0)
 	lastIP := net.IPv4(172, 16, 255, 255)
 	totalSubspaces := 0
 	subspace, err := space.ReserveNextIP4Net(net.CIDRMask(16, 32))
 	for err == nil {
 		totalSubspaces++
-		if compareIP4(firstIP, subspace.availableRanges[0].firstIP) != 0 {
-			t.Errorf("got: %s, expected: %s", subspace.availableRanges[0].firstIP, firstIP)
+		if compareIP4(firstIP, subspace.availableRanges[0].FirstIP) != 0 {
+			t.Errorf("got: %s, expected: %s", subspace.availableRanges[0].FirstIP, firstIP)
 		}
-		if compareIP4(lastIP, subspace.availableRanges[0].lastIP) != 0 {
-			t.Errorf("got: %s, expected: %s", subspace.availableRanges[0].lastIP, lastIP)
+		if compareIP4(lastIP, subspace.availableRanges[0].LastIP) != 0 {
+			t.Errorf("got: %s, expected: %s", subspace.availableRanges[0].LastIP, lastIP)
 		}
 		firstIP = net.IPv4(172, firstIP[13]+1, 0, 0)
 		lastIP = net.IPv4(172, lastIP[13]+1, 255, 255)
@@ -217,7 +205,7 @@ func TestReserveNextIP4Net(t *testing.T) {
 		t.Errorf("got: %d, expected: 16", totalSubspaces)
 	}
 
-	space = NewAddressSpaceFromNetwork(*net1)
+	space = NewAddressSpaceFromNetwork(net1)
 	// peal off one ip from the range
 	ip, err := space.ReserveNextIP4()
 	if !ip.Equal(net.ParseIP("172.16.0.0")) {
@@ -238,15 +226,15 @@ func TestReserveNextIP4Net(t *testing.T) {
 
 func TestReserveIP4Net(t *testing.T) {
 	ipNet := &net.IPNet{IP: net.ParseIP("172.16.0.0"), Mask: net.CIDRMask(12, 32)}
-	space := NewAddressSpaceFromNetwork(*ipNet)
+	space := NewAddressSpaceFromNetwork(ipNet)
 	// no mask
-	_, err := space.ReserveIP4Net(net.IPNet{IP: net.ParseIP("10.10.10.10")})
+	_, err := space.ReserveIP4Net(&net.IPNet{IP: net.ParseIP("10.10.10.10")})
 	if err == nil {
 		t.Errorf("got: nil, expected: error")
 	}
 
 	// IP == nil, Mask != nil
-	_, err = space.ReserveIP4Net(net.IPNet{Mask: net.CIDRMask(12, 32)})
+	_, err = space.ReserveIP4Net(&net.IPNet{Mask: net.CIDRMask(12, 32)})
 	if err != nil {
 		t.Errorf("got: %s, expected: nil", err)
 	}
@@ -254,10 +242,10 @@ func TestReserveIP4Net(t *testing.T) {
 	if err == nil {
 		t.Errorf("got: nil, expected: error")
 	}
-	space = NewAddressSpaceFromNetwork(*ipNet)
+	space = NewAddressSpaceFromNetwork(ipNet)
 
 	// ip == "0.0.0.0", Mask != nil
-	_, err = space.ReserveIP4Net(net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: net.CIDRMask(12, 32)})
+	_, err = space.ReserveIP4Net(&net.IPNet{IP: net.ParseIP("0.0.0.0"), Mask: net.CIDRMask(12, 32)})
 	if err != nil {
 		t.Errorf("got: %s, expected: nil", err)
 	}
@@ -265,10 +253,10 @@ func TestReserveIP4Net(t *testing.T) {
 	if err == nil {
 		t.Errorf("got: nil, expected: error")
 	}
-	space = NewAddressSpaceFromNetwork(*ipNet)
+	space = NewAddressSpaceFromNetwork(ipNet)
 
 	// reserve the full space
-	_, err = space.ReserveIP4Net(*ipNet)
+	_, err = space.ReserveIP4Net(ipNet)
 	if err != nil {
 		t.Errorf("got: %s, expected: nil", err)
 	}
@@ -279,9 +267,19 @@ func TestReserveIP4Net(t *testing.T) {
 	}
 }
 
+func TestReserveIP4Range(t *testing.T) {
+	s := NewAddressSpaceFromNetwork(&net.IPNet{IP: net.IPv4(10, 10, 10, 0), Mask: net.CIDRMask(24, 32)})
+	s.ReserveNextIP4()
+	// try to reserve an unavailable range
+	_, err := s.ReserveIP4Range(net.IPv4(10, 10, 10, 0), net.IPv4(10, 10, 10, 255))
+	if err == nil {
+		t.Errorf("got: nil, expected: error")
+	}
+}
+
 func TestReleaseIP4Range(t *testing.T) {
 	_, net1, _ := net.ParseCIDR("172.16.0.0/12")
-	space := NewAddressSpaceFromNetwork(*net1)
+	space := NewAddressSpaceFromNetwork(net1)
 	err := space.ReleaseIP4Range(nil)
 	if err != nil {
 		t.Errorf("got: %s, expected: nil", err)
@@ -333,7 +331,7 @@ func TestReleaseIP4Range(t *testing.T) {
 		t.Fail()
 	}
 
-	space = NewAddressSpaceFromNetwork(*net1)
+	space = NewAddressSpaceFromNetwork(net1)
 	// get a sub space
 	subSpace, err := space.ReserveNextIP4Net(net.CIDRMask(16, 32))
 	if err != nil {
@@ -353,7 +351,7 @@ func TestReleaseIP4Range(t *testing.T) {
 
 func TestDefragment(t *testing.T) {
 	_, net1, _ := net.ParseCIDR("172.16.0.0/24")
-	space := NewAddressSpaceFromNetwork(*net1)
+	space := NewAddressSpaceFromNetwork(net1)
 	ip, _ := space.ReserveNextIP4()
 	if compareIP4(ip, net.ParseIP("172.16.0.0")) != 0 {
 		t.Errorf("got: %s, expected: %s", ip, net.ParseIP("172.16.0.0"))
@@ -365,8 +363,8 @@ func TestDefragment(t *testing.T) {
 	}
 
 	space.ReleaseIP4(ip)
-	if len(space.availableRanges) != 3 {
-		t.Errorf("got: %d, expected: 3", len(space.availableRanges))
+	if len(space.availableRanges) != 2 {
+		t.Errorf("got: %d, expected: 2", len(space.availableRanges))
 	}
 
 	space.Defragment()
@@ -375,12 +373,54 @@ func TestDefragment(t *testing.T) {
 	}
 
 	space.ReleaseIP4(net.ParseIP("172.16.0.24"))
-	if len(space.availableRanges) != 3 {
-		t.Errorf("got: %d, expected: 3", len(space.availableRanges))
+	if len(space.availableRanges) != 1 {
+		t.Errorf("got: %d, expected: 1", len(space.availableRanges))
 	}
 
 	space.Defragment()
 	if len(space.availableRanges) != 1 {
 		t.Errorf("got: %d, expected: 1", len(space.availableRanges))
+	}
+}
+
+func TestParseIPRange(t *testing.T) {
+	var tests = []struct {
+		in  string
+		out *IPRange
+	}{
+		{"10.10.10.1-10.10.10.3-10.10.10.5", nil},
+		{"10.10.10.1", nil},
+		{"10-10.10.10.10", nil},
+		{"10.10.10.10-10", nil},
+		{"10-10", nil},
+		{"10.10.10.10-10.10.10.11", &IPRange{FirstIP: net.IPv4(10, 10, 10, 10), LastIP: net.IPv4(10, 10, 10, 11)}},
+	}
+
+	for _, te := range tests {
+		r := ParseIPRange(te.in)
+		if te.out == nil && r != nil {
+			t.Errorf("got: %q, expected: nil", r)
+			continue
+		}
+
+		if te.out != nil && !(r.FirstIP.Equal(te.out.FirstIP) && r.LastIP.Equal(te.out.LastIP)) {
+			t.Errorf("got: %q-%q, expected: %q-%q", r.FirstIP, r.LastIP, te.out.FirstIP, te.out.LastIP)
+		}
+	}
+}
+
+func TestIPRangeString(t *testing.T) {
+	var tests = []struct {
+		in  *IPRange
+		out string
+	}{
+		{&IPRange{FirstIP: net.IPv4(10, 10, 10, 10), LastIP: net.IPv4(10, 10, 10, 10)}, "10.10.10.10-10.10.10.10"},
+	}
+
+	for _, te := range tests {
+		s := te.in.String()
+		if s != te.out {
+			t.Errorf("got: %s, expected: %s", s, te.out)
+		}
 	}
 }
