@@ -18,11 +18,9 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
-	"log"
 	"os"
-	"strconv"
 
-	"github.com/Sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 	apiserver "github.com/docker/docker/api/server"
 	"github.com/docker/docker/api/server/router/container"
 	"github.com/docker/docker/api/server/router/image"
@@ -36,15 +34,16 @@ import (
 )
 
 type CliOptions struct {
-	enableTLS  bool
-	verifyTLS  bool
-	cafile     string
-	certfile   string
-	keyfile    string
-	serverAddr string
-	serverPort string
-	fullserver string
-	proto      string
+	enableTLS     bool
+	verifyTLS     bool
+	cafile        string
+	certfile      string
+	keyfile       string
+	serverAddr    string
+	serverPort    uint
+	fullserver    string
+	portLayerAddr string
+	proto         string
 }
 
 const productName = "vSphere Integrated Containers"
@@ -61,6 +60,10 @@ func main() {
 
 	if !ok {
 		os.Exit(1)
+	}
+
+	if err := vicbackends.Init(cli.portLayerAddr); err != nil {
+		log.Fatalf("failed to initialize backend: %s", err)
 	}
 
 	// Start API server wit options from command line args
@@ -87,19 +90,14 @@ func handleFlags() (*CliOptions, bool) {
 	certfile := flag.String("tls-certificate", "", "Path to TLS certificate file")
 	keyfile := flag.String("tls-key", "", "Path to TLS Key file")
 	serverAddr := flag.String("severaddr", "127.0.0.1", "Server address to listen")
-	serverPort := flag.String("port", "9000", "Port to listen")
+	serverPort := flag.Uint("port", 9000, "Port to listen")
+	portLayerAddr := flag.String("port-layer-addr", "127.0.0.1", "Port layer server address")
+	portLayerPort := flag.Uint("port-layer-port", 9001, "Port Layer server port")
 
 	flag.Parse()
 
 	if *enableTLS && (len(*certfile) == 0 || len(*keyfile) == 0) {
 		fmt.Fprintln(os.Stderr, "TLS requested, but tls-certificate and tls-key were all not specified\n")
-		return nil, false
-	}
-
-	_, err := strconv.Atoi(*serverPort)
-
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "port was specified but was not a numeric value\n")
 		return nil, false
 	}
 
@@ -113,15 +111,16 @@ func handleFlags() (*CliOptions, bool) {
 	}
 
 	cli := &CliOptions{
-		enableTLS:  *enableTLS,
-		verifyTLS:  *verifyTLS,
-		cafile:     *cafile,
-		certfile:   *certfile,
-		keyfile:    *keyfile,
-		serverAddr: *serverAddr,
-		serverPort: *serverPort,
-		fullserver: *serverAddr + ":" + *serverPort,
-		proto:      "tcp",
+		enableTLS:     *enableTLS,
+		verifyTLS:     *verifyTLS,
+		cafile:        *cafile,
+		certfile:      *certfile,
+		keyfile:       *keyfile,
+		serverAddr:    *serverAddr,
+		serverPort:    *serverPort,
+		fullserver:    fmt.Sprintf("%s:%d", *serverAddr, *serverPort),
+		portLayerAddr: fmt.Sprintf("%s:%d", *portLayerAddr, *portLayerPort),
+		proto:         "tcp",
 	}
 
 	return cli, true
@@ -149,7 +148,7 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 		tlsConfig, err := tlsconfig.Server(tlsOptions)
 
 		if err != nil {
-			logrus.Fatal(err)
+			log.Fatal(err)
 		}
 		serverConfig.TLSConfig = tlsConfig
 	}

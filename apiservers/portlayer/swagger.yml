@@ -177,6 +177,66 @@ paths:
           description: "error"
           schema:
             $ref: "#/definitions/Error"
+  /scopes:
+    post:
+      tags: ["scopes"]
+      operationId: Create
+      parameters:
+        - name: config
+          in: body
+          schema:
+            $ref: "#/definitions/ScopeConfig"
+      responses:
+        '201':
+          description: "Created"
+          type: object
+          schema:
+            $ref: "#/definitions/ScopeConfig"
+        '409':
+          description: "A scope with that name exists."
+          schema:
+            $ref: "#/definitions/Error"
+        default:
+          description: "error"
+          schema:
+            $ref: "#/definitions/Error"
+    get:
+      tags: ["scopes"]
+      operationId: ListAll
+      responses:
+        '200':
+          description: "OK"
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/ScopeConfig"
+        default:
+          description: "error"
+          schema:
+            $ref: "#/definitions/Error"
+  /scopes/{idName}:
+    get:
+      tags: ["scopes"]
+      operationId: List
+      parameters:
+        - name: idName
+          type: string
+          in: path
+          required: true
+      responses:
+        '200':
+          description: "OK"
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/ScopeConfig"
+        '404':
+          description: "Not found"
+        default:
+          description: "error"
+          schema:
+            $ref: "#/definitions/Error"
+
 definitions:
   Error:
     type: object
@@ -219,3 +279,29 @@ definitions:
         type: string
       Store:
         type: string
+  ScopeConfig:
+    type: object
+    required:
+      - name
+      - scopeType
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      scopeType:
+        type: string
+      subnet:
+        type: string
+      gateway:
+        type: string
+      dns:
+        type: array
+        items:
+          type: string
+          collectionFormat: csv
+      ipam:
+        type: array
+        items:
+          type: string
+          collectionFormat: csv
