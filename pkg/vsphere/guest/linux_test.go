@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package spec
+package guest
 
 import (
 	"fmt"
@@ -21,8 +21,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/spec"
 	"golang.org/x/net/context"
 )
 
@@ -34,7 +37,7 @@ func URL(t *testing.T) string {
 	return s
 }
 
-func TestVirtualMachineConfigSpec(t *testing.T) {
+func TestNewLinuxGuest(t *testing.T) {
 
 	ctx := context.Background()
 
@@ -59,64 +62,20 @@ func TestVirtualMachineConfigSpec(t *testing.T) {
 		}
 	}
 
-	specconfig := &VirtualMachineConfigSpecConfig{
+	specconfig := &spec.VirtualMachineConfigSpecConfig{
 		NumCPUs:       2,
 		MemoryMB:      2048,
 		VMForkEnabled: true,
 
 		ConnectorURI: "tcp://1.2.3.4:9876",
 
-		ID: "zombie_attack",
-
+		ID:            "zombie_attack",
 		BootMediaPath: session.Datastore.Path("brainz.iso"),
 		VMPathName:    fmt.Sprintf("[%s]", session.Datastore.Name()),
 		NetworkName:   strings.Split(session.Network.Reference().Value, "-")[0],
 	}
-	scsibus := 0
-	scsikey := 100
-	idekey := 200
+	t.Logf("%+v", specconfig)
 
-	root := NewVirtualMachineConfigSpec(session, specconfig)
-	scsi := NewVirtualSCSIController(scsibus, scsikey)
-
-	pv := NewParaVirtualSCSIController(scsi)
-	root.AddParaVirtualSCSIController(pv)
-
-	bl := NewVirtualBusLogicController(scsi)
-	root.AddVirtualBusLogicController(bl)
-
-	ll := NewVirtualLsiLogicController(scsi)
-	root.AddVirtualLsiLogicController(ll)
-
-	ls := NewVirtualLsiLogicSASController(scsi)
-	root.AddVirtualLsiLogicSASController(ls)
-	///
-	ide := NewVirtualIDEController(idekey)
-	root.AddVirtualIDEController(ide)
-
-	cdrom := NewVirtualCdrom(ide)
-	root.AddVirtualCdrom(cdrom)
-
-	floppy := NewVirtualFloppy(ide)
-	root.AddVirtualFloppy(floppy)
-
-	vmxnet3 := NewVirtualVmxnet3()
-	root.AddVirtualVmxnet3(vmxnet3)
-
-	pcnet32 := NewVirtualPCNet32()
-	root.AddVirtualPCNet32(pcnet32)
-
-	e1000 := NewVirtualE1000()
-	root.AddVirtualE1000(e1000)
-
-	serial := NewVirtualSerialPort()
-	root.AddVirtualSerialPort(serial)
-
-	debugserial := NewVirtualSerialPort()
-	root.AddVirtualDebugSerialPort(debugserial)
-
-	for i := 0; i < len(root.DeviceChange); i++ {
-		t.Logf("%+v", root.DeviceChange[i].GetVirtualDeviceConfigSpec().Device)
-	}
-
+	root := NewLinuxGuest(session, specconfig)
+	assert.Equal(t, "other3xLinux64Guest", root.GuestId)
 }

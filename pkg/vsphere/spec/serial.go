@@ -83,8 +83,8 @@ func (s *VirtualMachineConfigSpec) AddVirtualSerialPort(device *types.VirtualSer
 	return s.addVirtualSerialPort(device, false, false)
 }
 
-// AddVirtualConnectecSerialPort adds a connected virtual serial port.
-func (s *VirtualMachineConfigSpec) AddVirtualConnectecSerialPort(device *types.VirtualSerialPort) *VirtualMachineConfigSpec {
+// AddVirtualConnectedSerialPort adds a connected virtual serial port.
+func (s *VirtualMachineConfigSpec) AddVirtualConnectedSerialPort(device *types.VirtualSerialPort) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
 	return s.addVirtualSerialPort(device, false, true)
