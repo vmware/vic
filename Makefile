@@ -153,16 +153,16 @@ $(imagec): imagec/*.go $(portlayerapi-client)
 	@echo building imagec...
 	@CGO_ENABLED=0 $(GO) build -o ./$@ --ldflags '-extldflags "-static"'  ./$(dir $<)
 
-$(docker-engine-api): apiservers/engine/server/*.go apiservers/engine/backends/*.go
+$(docker-engine-api): $(portlayerapi-client) apiservers/engine/server/*.go apiservers/engine/backends/*.go
 	@echo Building docker-engine-api server...
 	@$(GO) build -o $@ ./apiservers/engine/server
-	
+
 # Common portlayer dependencies between client and server
 PORTLAYER_DEPS ?= apiservers/portlayer/swagger.yml \
 				  apiservers/portlayer/restapi/configure_port_layer.go \
 				  apiservers/portlayer/restapi/options/*.go apiservers/portlayer/restapi/handlers/*.go
 
-$(portlayerapi-client): $(PORTLAYER_DEPS)  $(SWAGGER)  
+$(portlayerapi-client): $(PORTLAYER_DEPS)  $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API client...
 	@$(SWAGGER) generate client -A PortLayer -t $(dir $<) -f $<
 
