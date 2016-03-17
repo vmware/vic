@@ -157,7 +157,10 @@ func (a *appGenerator) Generate() error {
 	}
 
 	if a.DumpData {
-		bb, _ := json.MarshalIndent(swag.ToDynamicJSON(app), "", "  ")
+		bb, err := json.MarshalIndent(app, "", "  ")
+		if err != nil {
+			return err
+		}
 		fmt.Fprintln(os.Stdout, string(bb))
 		return nil
 	}
@@ -341,6 +344,7 @@ var mediaTypeNames = map[*regexp.Regexp]string{
 	regexp.MustCompile("application/.*tar"):          "tar",
 	regexp.MustCompile("application/.*gzip"):         "gzip",
 	regexp.MustCompile("application/.*gz"):           "gzip",
+	regexp.MustCompile("application/.*raw-stream"):   "bin",
 }
 
 var knownProducers = map[string]string{
@@ -644,12 +648,6 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 		defaultConsumes = rc[0]
 	}
 
-	defaultProduces := "application/json"
-	rp := a.SpecDoc.RequiredProduces()
-	if len(rp) > 0 {
-		defaultProduces = rp[0]
-	}
-
 	var collectedSchemes []string
 	var extraSchemes []string
 	for _, op := range genOps {
@@ -681,7 +679,7 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 		Consumes:            consumes,
 		Produces:            produces,
 		DefaultConsumes:     defaultConsumes,
-		DefaultProduces:     defaultProduces,
+		DefaultProduces:     a.DefaultProduces,
 		DefaultImports:      defaultImports,
 		SecurityDefinitions: security,
 		Models:              genMods,
