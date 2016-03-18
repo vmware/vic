@@ -58,6 +58,7 @@ func TestVirtualMachineConfigSpec(t *testing.T) {
 			t.SkipNow()
 		}
 	}
+	defer session.Logout(ctx)
 
 	specconfig := &VirtualMachineConfigSpecConfig{
 		NumCPUs:       2,
@@ -76,7 +77,7 @@ func TestVirtualMachineConfigSpec(t *testing.T) {
 	scsikey := 100
 	idekey := 200
 
-	root := NewVirtualMachineConfigSpec(session, specconfig)
+	root := NewVirtualMachineConfigSpec(ctx, session, specconfig)
 	scsi := NewVirtualSCSIController(scsibus, scsikey)
 
 	pv := NewParaVirtualSCSIController(scsi)

@@ -18,6 +18,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/spec"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -34,8 +35,8 @@ type LinuxGuestType struct {
 }
 
 // NewLinuxGuest returns a new Linux guest spec with predefined values
-func NewLinuxGuest(session *session.Session, config *spec.VirtualMachineConfigSpecConfig) *LinuxGuestType {
-	s := spec.NewVirtualMachineConfigSpec(session, config)
+func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.VirtualMachineConfigSpecConfig) *LinuxGuestType {
+	s := spec.NewVirtualMachineConfigSpec(ctx, session, config)
 
 	// SCSI controller
 	scsi := spec.NewVirtualSCSIController(scsiBusNumber, scsiKey)
