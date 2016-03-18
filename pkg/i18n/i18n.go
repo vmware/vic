@@ -18,13 +18,19 @@
 // The messages catalog is loaded from a file containing all of the
 // strings for a given language. Here is an example:
 //
-// `messages/en`
-// greeting=hello
-// thanks=thank you
+// English
 //
-// `messages/es`
-// greeting=hola
-// thanks=gracias
+//			File: messages/en
+//
+// 			greeting=hello
+// 			thanks=thank you
+//
+// Spanish
+//
+// 			File: messages/es
+//
+// 			greeting=hola
+// 			thanks=gracias
 //
 // To use the translation functionality, call LoadLanguage with the desired
 // messages file for the local language. Replace uses of string literals
@@ -34,20 +40,41 @@
 // Once initialized, Printer can also be used directly with fmt-like print functions.
 // This can be used to include format strings for localization as below:
 //
-// `val := Printer.Sprintf("You know nothing %s", "Jon Snow")`
+// 			val := Printer.Sprintf("You know nothing %s", "Jon Snow")
 //
-//  The corresponding messages catalogs would be:
+// The corresponding messages catalogs would be:
 //
-// `messages/en`
-// You know nothing %s=You know nothing %s
+// 			File: messages/en
 //
-// `messages/es`
-// You know nothing %s=No sabes nada %s
+// 			You know nothing %s=You know nothing %s
+//
+// 			File: messages/es
+//
+// 			You know nothing %s=No sabes nada %s
+//
+//
+// Packaging message catalogs
+//
+// Instead of loading a messages file from an on disk file, it is possible to
+// load it from a byte array that has been included with the source.
+//
+// For an executable's messages files in the messages directory, use
+// https://github.com/jteeuwen/go-bindata to convert these files to Go source code.
+// This MUST be done whenever any file in messages is added or edited.
+//
+// 			go-bindata -o messages.go messages
+//
+// Use the messages by recovering the byte[] corresponding to the file in the
+// messages directory and loading it.
+//
+//			data, err := Asset("messages/en")
+//			i18n.LoadLanguageBytes(language.English, data)
 //
 package i18n
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -59,6 +86,9 @@ import (
 // Printer is the message printer used by T
 // to obtain a translated value.
 var Printer *message.Printer
+
+// DefaultLang is the default langugage, set to English
+var DefaultLang = language.English
 
 func getPrinter(scanner *bufio.Scanner, lang language.Tag) (*message.Printer, error) {
 	catalog := message.DefaultCatalog
@@ -87,6 +117,18 @@ func LoadLanguage(lang language.Tag, messagesFile string) error {
 	defer f.Close()
 
 	scanner := bufio.NewScanner(f)
+	printer, err := getPrinter(scanner, lang)
+	if err == nil {
+		Printer = printer
+	}
+	return err
+}
+
+// LoadLanguageBytes sets the package level Printer after loading
+// the desired language data from a byte array
+func LoadLanguageBytes(lang language.Tag, messagesData []byte) error {
+	data := bytes.NewReader(messagesData)
+	scanner := bufio.NewScanner(data)
 	printer, err := getPrinter(scanner, lang)
 	if err == nil {
 		Printer = printer

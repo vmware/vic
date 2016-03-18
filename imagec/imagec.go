@@ -35,6 +35,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 
 	"github.com/vmware/vic/apiservers/portlayer/models"
+	"github.com/vmware/vic/pkg/i18n"
 )
 
 var (
@@ -102,25 +103,34 @@ const (
 )
 
 func init() {
-	flag.StringVar(&options.registry, "registry", DefaultDockerURL, "Address of the registry")
-	flag.StringVar(&options.image, "image", DefaultDockerImage, "Name of the image")
-	flag.StringVar(&options.digest, "digest", DefaultDockerDigest, "Tag name or image digest")
+	// TODO: get language from host OS
+	lang := i18n.DefaultLang
+	languageFile := fmt.Sprintf("messages/%s", lang.String())
+	data, err := Asset(languageFile)
+	if err != nil {
+		panic(fmt.Sprintf("Invalid language asset: %v", languageFile))
+	}
+	i18n.LoadLanguageBytes(lang, data)
 
-	flag.StringVar(&options.destination, "destination", DefaultDestination, "Destination directory")
+	flag.StringVar(&options.registry, "registry", DefaultDockerURL, i18n.T("Address of the registry"))
+	flag.StringVar(&options.image, "image", DefaultDockerImage, i18n.T("Name of the image"))
+	flag.StringVar(&options.digest, "digest", DefaultDockerDigest, i18n.T("Tag name or image digest"))
 
-	flag.StringVar(&options.host, "host", DefaultPortLayerHost, "Host that runs portlayer API (FQDN:port format)")
+	flag.StringVar(&options.destination, "destination", DefaultDestination, i18n.T("Destination directory"))
 
-	flag.StringVar(&options.logfile, "logfile", DefaultLogfile, "Path of the imagec log file")
+	flag.StringVar(&options.host, "host", DefaultPortLayerHost, i18n.T("Host that runs portlayer API (FQDN:port format)"))
 
-	flag.StringVar(&options.username, "username", "", "Username")
-	flag.StringVar(&options.password, "password", "", "Password")
+	flag.StringVar(&options.logfile, "logfile", DefaultLogfile, i18n.T("Path of the imagec log file"))
 
-	flag.DurationVar(&options.timeout, "timeout", DefaultHTTPTimeout, "HTTP timeout")
+	flag.StringVar(&options.username, "username", "", i18n.T("Username"))
+	flag.StringVar(&options.password, "password", "", i18n.T("Password"))
 
-	flag.BoolVar(&options.stdout, "stdout", false, "Enable writing to stdout")
-	flag.BoolVar(&options.debug, "debug", false, "Show debug logging")
-	flag.BoolVar(&options.insecure, "insecure", false, "Skip certificate verification checks")
-	flag.BoolVar(&options.standalone, "standalone", false, "Disable port-layer integration")
+	flag.DurationVar(&options.timeout, "timeout", DefaultHTTPTimeout, i18n.T("HTTP timeout"))
+
+	flag.BoolVar(&options.stdout, "stdout", false, i18n.T("Enable writing to stdout"))
+	flag.BoolVar(&options.debug, "debug", false, i18n.T("Show debug logging"))
+	flag.BoolVar(&options.insecure, "insecure", false, i18n.T("Skip certificate verification checks"))
+	flag.BoolVar(&options.standalone, "standalone", false, i18n.T("Disable port-layer integration"))
 
 	flag.Parse()
 }
