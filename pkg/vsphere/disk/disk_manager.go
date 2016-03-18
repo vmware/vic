@@ -150,7 +150,9 @@ func (m *Manager) createDiskSpec(childURI, parentURI string, capacity int64) *ty
 }
 
 // Create creates a disk without a parent (and doesn't attach it).
-func (m *Manager) Create(ctx context.Context, newDiskURI string, capacityKB int64) (*VirtualDisk, error) {
+func (m *Manager) Create(ctx context.Context, newDiskURI string,
+	capacityKB int64) (*VirtualDisk, error) {
+
 	defer trace.End(trace.Begin(newDiskURI))
 
 	vdm := object.NewVirtualDiskManager(m.vm.Client())
