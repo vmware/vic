@@ -49,6 +49,8 @@ func TestSessionDefaults(t *testing.T) {
 			t.SkipNow()
 		}
 	}
+	defer session.Logout(ctx)
+
 	t.Logf("%+v", session)
 }
 
@@ -75,6 +77,8 @@ func TestSession(t *testing.T) {
 			t.SkipNow()
 		}
 	}
+	defer session.Logout(ctx)
+
 	t.Logf("Session: %+v", session)
 
 	t.Logf("IsVC: %t", session.IsVC())

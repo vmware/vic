@@ -64,10 +64,8 @@ type VirtualMachineConfigSpec struct {
 }
 
 // NewVirtualMachineConfigSpec returns a VirtualMachineConfigSpec
-func NewVirtualMachineConfigSpec(session *session.Session, config *VirtualMachineConfigSpecConfig) *VirtualMachineConfigSpec {
+func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, config *VirtualMachineConfigSpecConfig) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(config.ID))
-
-	ctx := context.Background()
 
 	if !session.IsVSAN(ctx) {
 		// VMFS requires the full path to vmx or everything but the datastore is ignored
