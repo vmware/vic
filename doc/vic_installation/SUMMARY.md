@@ -12,3 +12,8 @@
 * [Install a vSphere Integrated Containers Management Server by Using the OVA Deployment](install_vic_ova.md)
    * [Install the vSphere Web Client Extension for vSphere Integrated Containers](install_vic_client_extension.md)
    * [Deploy a Virtual Container Host from the vSphere Web Client](deploy_vch_from_vsphere.md)
+* [Using TLS Authentication with vSphere Integrated Containers](using_tls_with_vic.md)
+* [Troubleshooting vSphere Integrated Containers Installation](troubleshoot_vic_install.md)
+   * [Installation Fails with Firewall Ruleset Validation Error](ts_firewall_error.md)
+   * [Login to Target Fails Due to an Incorrect Username or Password](ts_incorrect_username_password.md)
+   * [Installation Fails with Resource Pool Creation Error](ts_resource_pool_error.md)

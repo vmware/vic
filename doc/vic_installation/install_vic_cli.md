@@ -30,13 +30,22 @@ The virtual container host allows you to use an ESXi host or cluster as the Dock
 1. Open a command prompt and navigate to the folder in which you unpacked the ```bonneville.tgz``` bundle.
 2. Run the installer executable for your operating system. 
 
-   The following examples include the fewest possible options, for installation in a simple environment.
+   The following examples include only a few options, for installation in a simple environment.
 
-   ```$ install-win.exe -target=<esx_host_or_vcenter_server_address> -user=<esx_host_vcenter_server_username> -passwd="<password>" -name=<name_for_VIC_appliance> -ceip=<enable/disable>```
+   ```$ install-win.exe 
+-target=<esx_host_or_vcenter_server_address> 
+-user=<esx_host_vcenter_server_username> 
+-ceip=<enable/disable>```
    
-   ```$ install-linux -target=<esx_host_or_vcenter_server_address> -user=<esx_host_vcenter_server_username> -passwd="<password>" -name=<name_for_VIC_appliance> -ceip=<enable/disable>```
+   ```$ install-linux 
+-target=<esx_host_or_vcenter_server_address> 
+-user=<esx_host_vcenter_server_username>  
+-ceip=<enable/disable>```
    
-   ```$ install-osx -target=10.153.199.227-target=<esx_host_or_vcenter_server_address> -user=<esx_host_vcenter_server_username> -passwd="<password>" -name=<name_for_VIC_appliance> -ceip=<enable/disable>```  
+   ```$ install-osx 
+-target=<esx_host_or_vcenter_server_address> 
+-user=<esx_host_vcenter_server_username>  
+-ceip=<enable/disable>```  
    
 3. Verify that the vSphere Integrated Containers appliance has initiated correctly. 
 

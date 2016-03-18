@@ -123,17 +123,15 @@ The number of CPUs to assign to the virtual container host. Specify this option 
 
 <pre>-numCPUs=4</pre>
 
-## `os` ##
-The type of operating system to use as the base for container virtual machines. Accepted values are `msdos` and `linux`. If not specified, vSphere Integrated Containers uses Linux.
-
-**IS THIS ONE STILL REQUIRED?**
-
-<pre>-os=msdos</pre>
-
 ## `passwd` ##
 The password for the vCenter Server user account that you are using to install vSphere Integrated Containers, or the password for the ESXi host. If not specified, the installer prompts you to enter the password during installation.
 
-<pre>-passwd=<i>esxi_host_or_vcenter_server_password</i></pre>
+**NOTE**: If you are installing on Mac OS X or Linux and your password contains special characters, you must wrap the password in single quotation marks ('). If you are installing on Windows, you can wrap the password in double quotation marks (") or omit the quotation marks.
+
+Windows:
+<pre>-passwd="<i>esxi_host_or_vcenter_server_p@ssword</i>"</pre>
+Mac OS X or Linux:
+<pre>-passwd='<i>esxi_host_or_vcenter_server_p@ssword</i>'</pre>
 
 ## `pool` ##
 The path to a resource pool in which to place the vSphere Integrated Containers appliance. vSphere Integrated Containers places containers in this resource pool. 

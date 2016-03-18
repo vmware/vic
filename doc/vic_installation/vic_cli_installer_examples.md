@@ -2,11 +2,28 @@
 
 This document provides examples of the required command line options when installing vSphere Integrated Containers in different environments.
 
+**NOTE**: If you are installing on Mac OS X or Linux and you use the `-passwd` option, and if the password contains special characters, you must wrap the password in single quotation marks ('). If you are installing on Windows, you can wrap the password in double quotation marks (") or omit the quotation marks.
+
 ## Install vSphere Integrated Containers Directly on an ESXi Host ##
 
 You can install vSphere Integrated Containers directly on an ESXi host that is not managed by a vCenter Server instance. This example provides the miniumum options required to install vSphere Integrated Containers. The example assumes that you use the `root` account to log in to the ESXi host. The installer prompts you for the password for the `root` account and deploys a vSphere Integrated Containers appliance with the default name `docker-appliance`. You can optionally specify the `user`, `passwd`, and `name` options. If the host contains more than one datastore, you must set the `datastore` option.
 <pre>install<i>-win.exe/osx/linux</i> 
 -target=<i>esxi_host_address</i> 
+-ceip=enable
+</pre>
+
+## Install vSphere Integrated Containers in a vCenter Server Cluster ##
+
+If vCenter Server manages multiple clusters, you must specify the `cluster` option. If the specified cluster contains more than one resource pool or datastore, you must specify those options. However, you cannot use the `host` option to select a specific host in a cluster. This example specifies a datacenter, a cluster in that datacenter, and a datastore in that cluster. The example also sets the vCenter Single Sign-On user and password, and gives the vSphere Integrated Containers appliance a custom name.
+
+<pre>install<i>-win.exe/osx/linux</i> 
+-target=<i>vcenter_server_address</i> 
+-user=Administrator@vsphere.local 
+-passwd=<i>vcenter_sso_password</i>
+-datacenter=<i>datacenter_name</i>  
+-cluster=/<i>datacenter_name</i>/host/<i>cluster_name</i>/ 
+-datastore=<i>datastore_name</i>
+-name=<i>VIC_appliance_name</i>
 -ceip=enable
 </pre>
  
@@ -76,21 +93,6 @@ If a standalone host contains resource pools, and you want to install vSphere In
 -host=<i>host_address</i>
 -datastore=<i>datastore_name</i>
 -pool=/<i>datacenter</i>/host/<i>host_address</i>/Resources/<i>resource_pool_name</i>/  
--name=<i>VIC_appliance_name</i>
--ceip=enable
-</pre>
-
-## Install vSphere Integrated Containers in a vCenter Server Cluster ##
-
-If vCenter Server manages multiple clusters, you must specify the `cluster` option. If the specified cluster contains more than one resource pool or datastore, you must specify those options. However, you cannot use the `host` option to select a specific host in a cluster. This example specifies a datacenter, a cluster in that datacenter, and a datastore in that cluster. The example also sets the vCenter Single Sign-On user and password, and gives the vSphere Integrated Containers appliance a custom name.
-
-<pre>install<i>-win.exe/osx/linux</i> 
--target=<i>vcenter_server_address</i> 
--user=Administrator@vsphere.local 
--passwd=<i>vcenter_sso_password</i>
--datacenter=<i>datacenter_name</i>  
--cluster=/<i>datacenter_name</i>/host/<i>cluster_name</i>/ 
--datastore=<i>datastore_name</i>
 -name=<i>VIC_appliance_name</i>
 -ceip=enable
 </pre>
