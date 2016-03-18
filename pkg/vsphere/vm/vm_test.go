@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
 
+	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/test"
 
 	"golang.org/x/net/context"
@@ -45,13 +46,9 @@ func CreateVM(ctx context.Context, session *session.Session, host *object.HostSy
 	parent := folders.VmFolder
 
 	// Create the vm
-	task, err := parent.CreateVM(ctx, *linux.Spec(), session.Pool, host)
-	if err != nil {
-		return nil, err
-	}
-
-	// Wait it's result
-	info, err := task.WaitForResult(ctx, nil)
+	info, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		return parent.CreateVM(ctx, *linux.Spec(), session.Pool, host)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -85,12 +82,9 @@ func TestVM(t *testing.T) {
 	assert.Equal(t, types.VirtualMachinePowerStatePoweredOff, state)
 
 	// Destroy the vm
-	task, err := vm.Destroy(ctx)
-	if err != nil {
-		t.Fatalf("ERROR: %s", err)
-	}
-
-	_, err = task.WaitForResult(ctx, nil)
+	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		return vm.Destroy(ctx)
+	})
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
 	}
