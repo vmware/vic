@@ -79,8 +79,8 @@ func verifyParavirtualScsiController(ctx context.Context, vm *object.VirtualMach
 		return nil, "", errors.Trace(err)
 	}
 
-	controller := devices.PickController((*types.ParaVirtualSCSIController)(nil)).(*types.ParaVirtualSCSIController)
-	if controller == nil {
+	controller, ok := devices.PickController((*types.ParaVirtualSCSIController)(nil)).(*types.ParaVirtualSCSIController)
+	if controller == nil || !ok {
 		err = errors.Errorf("vmware driver failed to find a paravirtual SCSI controller - ensure setup ran correctly")
 		log.Error(err.Error())
 		return nil, "", errors.Trace(err)
