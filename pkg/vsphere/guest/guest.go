@@ -15,23 +15,12 @@
 package guest
 
 import (
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-
-	"github.com/vmware/vic/pkg/vsphere/test"
-	"golang.org/x/net/context"
+	"github.com/vmware/govmomi/vim25/types"
 )
 
-func TestNewLinuxGuest(t *testing.T) {
-
-	ctx := context.Background()
-
-	session := test.Session(ctx, t)
-	defer session.Logout(ctx)
-
-	specconfig := test.SpecConfig(session)
-
-	root := NewLinuxGuest(ctx, session, specconfig)
-	assert.Equal(t, "other3xLinux64Guest", root.GuestID())
+// Guest interface defines the different guest types
+type Guest interface {
+	GuestID() string
+	Spec() *types.VirtualMachineConfigSpec
+	Controller() *types.BaseVirtualController
 }
