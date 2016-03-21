@@ -73,6 +73,7 @@ func TestVirtualMachineConfigSpec(t *testing.T) {
 		VMPathName:    fmt.Sprintf("[%s]", session.Datastore.Name()),
 		NetworkName:   strings.Split(session.Network.Reference().Value, "-")[0],
 	}
+	// FIXME: find a better way to pass those
 	scsibus := 0
 	scsikey := 100
 	idekey := 200

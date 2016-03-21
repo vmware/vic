@@ -36,26 +36,16 @@ func NewVirtualIDEController(key int) *types.VirtualIDEController {
 func (s *VirtualMachineConfigSpec) AddVirtualIDEController(device *types.VirtualIDEController) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
-	s.DeviceChange = append(s.DeviceChange,
-		&types.VirtualDeviceConfigSpec{
-			Operation: types.VirtualDeviceConfigSpecOperationAdd,
-			Device:    device,
-		},
-	)
-	return s
+	return s.AddVirtualDevice(device)
+
 }
 
 // RemoveVirtualIDEController removes a virtual IDE controller.
 func (s *VirtualMachineConfigSpec) RemoveVirtualIDEController(device *types.VirtualIDEController) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
-	s.DeviceChange = append(s.DeviceChange,
-		&types.VirtualDeviceConfigSpec{
-			Operation: types.VirtualDeviceConfigSpecOperationRemove,
-			Device:    device,
-		},
-	)
-	return s
+	return s.RemoveVirtualDevice(device)
+
 }
 
 // NewVirtualCdrom returns a virtual CDROM device.
@@ -82,26 +72,14 @@ func (s *VirtualMachineConfigSpec) AddVirtualCdrom(device *types.VirtualCdrom) *
 		},
 	}
 
-	s.DeviceChange = append(s.DeviceChange,
-		&types.VirtualDeviceConfigSpec{
-			Operation: types.VirtualDeviceConfigSpecOperationAdd,
-			Device:    device,
-		},
-	)
-	return s
+	return s.AddVirtualDevice(device)
 }
 
 // RemoveVirtualCdrom adds a CD-ROM device in a virtual machine.
 func (s *VirtualMachineConfigSpec) RemoveVirtualCdrom(device *types.VirtualCdrom) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
-	s.DeviceChange = append(s.DeviceChange,
-		&types.VirtualDeviceConfigSpec{
-			Operation: types.VirtualDeviceConfigSpecOperationRemove,
-			Device:    device,
-		},
-	)
-	return s
+	return s.RemoveVirtualDevice(device)
 }
 
 // NewVirtualFloppy adds a floppy device in a virtual machine.
@@ -111,13 +89,14 @@ func NewVirtualFloppy(device *types.VirtualIDEController) *types.VirtualFloppy {
 	return &types.VirtualFloppy{
 		VirtualDevice: types.VirtualDevice{
 			ControllerKey: device.Key,
-			UnitNumber:    -1,
+			// Zero value is a valid UnitNumber. Set it to -1 so that ESXi/vCenter can assign one for us.
+			UnitNumber: -1,
 		},
 	}
 }
 
 // AddVirtualFloppy adds a floppy device in a virtual machine.
-func (s *VirtualMachineConfigSpec) AddVirtualFloppy(device *types.VirtualFloppy) *types.VirtualDeviceConfigSpec {
+func (s *VirtualMachineConfigSpec) AddVirtualFloppy(device *types.VirtualFloppy) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
 	device.GetVirtualDevice().Key = s.generateNextKey()
@@ -128,18 +107,12 @@ func (s *VirtualMachineConfigSpec) AddVirtualFloppy(device *types.VirtualFloppy)
 		},
 	}
 
-	return &types.VirtualDeviceConfigSpec{
-		Operation: types.VirtualDeviceConfigSpecOperationAdd,
-		Device:    device,
-	}
+	return s.AddVirtualDevice(device)
 }
 
 // RemoveVirtualFloppyDevice removes a floppy device from the virtual machine.
-func (s *VirtualMachineConfigSpec) RemoveVirtualFloppyDevice(device *types.VirtualFloppy) *types.VirtualDeviceConfigSpec {
+func (s *VirtualMachineConfigSpec) RemoveVirtualFloppyDevice(device *types.VirtualFloppy) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
-	return &types.VirtualDeviceConfigSpec{
-		Operation: types.VirtualDeviceConfigSpecOperationRemove,
-		Device:    device,
-	}
+	return s.RemoveVirtualDevice(device)
 }

@@ -37,73 +37,53 @@ func NewVirtualSCSIController(bus int, key int) types.VirtualSCSIController {
 }
 
 // NewParaVirtualSCSIController returns ParaVirtualSCSIController spec.
-func NewParaVirtualSCSIController(device types.VirtualSCSIController) *types.ParaVirtualSCSIController {
+func NewParaVirtualSCSIController(controller types.VirtualSCSIController) *types.ParaVirtualSCSIController {
 	defer trace.End(trace.Begin(""))
 
 	return &types.ParaVirtualSCSIController{
-		VirtualSCSIController: device,
+		VirtualSCSIController: controller,
 	}
 }
 
 // NewVirtualBusLogicController returns VirtualBusLogicController spec.
-func NewVirtualBusLogicController(device types.VirtualSCSIController) *types.VirtualBusLogicController {
+func NewVirtualBusLogicController(controller types.VirtualSCSIController) *types.VirtualBusLogicController {
 	defer trace.End(trace.Begin(""))
 
 	return &types.VirtualBusLogicController{
-		VirtualSCSIController: device,
+		VirtualSCSIController: controller,
 	}
 }
 
 // NewVirtualLsiLogicController returns a VirtualLsiLogicController spec
-func NewVirtualLsiLogicController(device types.VirtualSCSIController) *types.VirtualLsiLogicController {
+func NewVirtualLsiLogicController(controller types.VirtualSCSIController) *types.VirtualLsiLogicController {
 	defer trace.End(trace.Begin(""))
 
 	return &types.VirtualLsiLogicController{
-		VirtualSCSIController: device,
+		VirtualSCSIController: controller,
 	}
 }
 
 // NewVirtualLsiLogicSASController returns VirtualLsiLogicSASController spec.
-func NewVirtualLsiLogicSASController(device types.VirtualSCSIController) *types.VirtualLsiLogicSASController {
+func NewVirtualLsiLogicSASController(controller types.VirtualSCSIController) *types.VirtualLsiLogicSASController {
 	defer trace.End(trace.Begin(""))
 
 	return &types.VirtualLsiLogicSASController{
-		VirtualSCSIController: device,
+		VirtualSCSIController: controller,
 	}
-}
-
-func (s *VirtualMachineConfigSpec) addVirtualSCSIController(device types.BaseVirtualDevice) *VirtualMachineConfigSpec {
-	s.DeviceChange = append(s.DeviceChange,
-		&types.VirtualDeviceConfigSpec{
-			Operation: types.VirtualDeviceConfigSpecOperationAdd,
-			Device:    device,
-		},
-	)
-	return s
-}
-
-func (s *VirtualMachineConfigSpec) removeVirtualSCSIController(device types.BaseVirtualDevice) *VirtualMachineConfigSpec {
-	s.DeviceChange = append(s.DeviceChange,
-		&types.VirtualDeviceConfigSpec{
-			Operation: types.VirtualDeviceConfigSpecOperationRemove,
-			Device:    device,
-		},
-	)
-	return s
 }
 
 // AddParaVirtualSCSIController adds a paravirtualized SCSI controller.
 func (s *VirtualMachineConfigSpec) AddParaVirtualSCSIController(device *types.ParaVirtualSCSIController) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
-	return s.addVirtualSCSIController(device)
+	return s.AddVirtualDevice(device)
 }
 
 // RemoveParaVirtualSCSIController removes a paravirtualized SCSI controller.
 func (s *VirtualMachineConfigSpec) RemoveParaVirtualSCSIController(device *types.ParaVirtualSCSIController) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
-	return s.removeVirtualSCSIController(device)
+	return s.RemoveVirtualDevice(device)
 
 }
 
@@ -111,7 +91,7 @@ func (s *VirtualMachineConfigSpec) RemoveParaVirtualSCSIController(device *types
 func (s *VirtualMachineConfigSpec) AddVirtualBusLogicController(device *types.VirtualBusLogicController) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
-	return s.addVirtualSCSIController(device)
+	return s.AddVirtualDevice(device)
 
 }
 
@@ -119,7 +99,7 @@ func (s *VirtualMachineConfigSpec) AddVirtualBusLogicController(device *types.Vi
 func (s *VirtualMachineConfigSpec) RemoveVirtualBusLogicController(device *types.VirtualBusLogicController) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
-	return s.removeVirtualSCSIController(device)
+	return s.RemoveVirtualDevice(device)
 
 }
 
@@ -127,7 +107,7 @@ func (s *VirtualMachineConfigSpec) RemoveVirtualBusLogicController(device *types
 func (s *VirtualMachineConfigSpec) AddVirtualLsiLogicController(device *types.VirtualLsiLogicController) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
-	return s.addVirtualSCSIController(device)
+	return s.AddVirtualDevice(device)
 
 }
 
@@ -135,7 +115,7 @@ func (s *VirtualMachineConfigSpec) AddVirtualLsiLogicController(device *types.Vi
 func (s *VirtualMachineConfigSpec) RemoveVirtualLsiLogicController(device *types.VirtualLsiLogicController) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
-	return s.removeVirtualSCSIController(device)
+	return s.RemoveVirtualDevice(device)
 
 }
 
@@ -143,7 +123,7 @@ func (s *VirtualMachineConfigSpec) RemoveVirtualLsiLogicController(device *types
 func (s *VirtualMachineConfigSpec) AddVirtualLsiLogicSASController(device *types.VirtualLsiLogicSASController) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
-	return s.addVirtualSCSIController(device)
+	return s.AddVirtualDevice(device)
 
 }
 
@@ -151,5 +131,5 @@ func (s *VirtualMachineConfigSpec) AddVirtualLsiLogicSASController(device *types
 func (s *VirtualMachineConfigSpec) RemoveVirtualLsiLogicSASController(device *types.VirtualLsiLogicSASController) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
-	return s.removeVirtualSCSIController(device)
+	return s.RemoveVirtualDevice(device)
 }
