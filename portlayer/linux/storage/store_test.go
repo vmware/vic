@@ -22,6 +22,8 @@ import (
 	"os"
 	"testing"
 
+	"golang.org/x/net/context"
+
 	"github.com/docker/docker/pkg/archive"
 	"github.com/stretchr/testify/assert"
 	portlayer "github.com/vmware/vic/portlayer/storage"
@@ -32,7 +34,7 @@ func TestGetImageStoreMissing(t *testing.T) {
 		DataStore: &LocalStore{},
 	}
 
-	u, err := s.GetImageStore("doesntexist")
+	u, err := s.GetImageStore(context.TODO(), "doesntexist")
 	if !assert.Error(t, err, "An error was expected") {
 		return
 	}
@@ -58,7 +60,7 @@ func TestCreateAndGetStore(t *testing.T) {
 	}
 
 	// test the create through the cache
-	createURL, err := s.CreateImageStore("testStore")
+	createURL, err := s.CreateImageStore(context.TODO(), "testStore")
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -68,7 +70,7 @@ func TestCreateAndGetStore(t *testing.T) {
 	}
 
 	// test the store got created on the local store
-	localURL, err := ls.GetImageStore("testStore")
+	localURL, err := ls.GetImageStore(context.TODO(), "testStore")
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -82,7 +84,7 @@ func TestCreateAndGetStore(t *testing.T) {
 	}
 
 	// test the cache gives us the same url
-	cacheURL, err := s.GetImageStore("testStore")
+	cacheURL, err := s.GetImageStore(context.TODO(), "testStore")
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -112,7 +114,7 @@ func TestCreateImage(t *testing.T) {
 		DataStore: ls,
 	}
 
-	storeURL, err := s.CreateImageStore("testStore")
+	storeURL, err := s.CreateImageStore(context.TODO(), "testStore")
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -162,7 +164,7 @@ func TestCreateImage(t *testing.T) {
 	}
 
 	// base this image off scratch
-	scratch, err := s.GetImage(storeURL, portlayer.Scratch.ID)
+	scratch, err := s.GetImage(context.TODO(), storeURL, portlayer.Scratch.ID)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -170,7 +172,7 @@ func TestCreateImage(t *testing.T) {
 	// XXX HACK
 	tarOptions = &archive.TarOptions{NoLchown: true}
 
-	newImage, err := ls.WriteImage(scratch, "EEEEEE", buf)
+	newImage, err := ls.WriteImage(context.TODO(), scratch, "EEEEEE", buf)
 	if !assert.NoError(t, err) || !assert.NotNil(t, newImage) {
 		return
 	}

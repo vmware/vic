@@ -23,6 +23,8 @@ import (
 
 	"golang.org/x/net/context"
 
+	"golang.org/x/net/context"
+
 	"github.com/go-swagger/go-swagger/httpkit/middleware"
 	"github.com/go-swagger/go-swagger/swag"
 
@@ -41,15 +43,15 @@ import (
 type StorageHandlersImpl struct{}
 
 var (
-	cache          = &portlayer.NameLookupCache{}
 	storageSession = &session.Session{}
+	storageLayer   = &portlayer.NameLookupCache{}
 )
 
 // Configure assigns functions to all the storage api handlers
 func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI) {
 	var err error
 
-	cache.DataStore = linux.NewLocalStore(options.StorageLayerOptions.Path)
+	storageLayer.DataStore = linux.NewLocalStore(options.StorageLayerOptions.Path)
 
 	api.StorageCreateImageStoreHandler = storage.CreateImageStoreHandlerFunc(handler.CreateImageStore)
 	api.StorageGetImageHandler = storage.GetImageHandlerFunc(handler.GetImage)
@@ -77,7 +79,7 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI) {
 
 // CreateImageStore creates a new image store
 func (handler *StorageHandlersImpl) CreateImageStore(params storage.CreateImageStoreParams) middleware.Responder {
-	url, err := cache.CreateImageStore(params.Body.Name)
+	url, err := storageLayer.CreateImageStore(context.TODO(), params.Body.Name)
 	if err != nil {
 		if os.IsExist(err) {
 			return storage.NewCreateImageStoreConflict().WithPayload(
@@ -109,7 +111,7 @@ func (handler *StorageHandlersImpl) GetImage(params storage.GetImageParams) midd
 			})
 	}
 
-	image, err := cache.GetImage(url, id)
+	image, err := storageLayer.GetImage(context.TODO(), url, id)
 	if err != nil {
 		e := &models.Error{Code: swag.Int64(http.StatusNotFound), Message: err.Error()}
 		return storage.NewGetImageNotFound().WithPayload(e)
@@ -135,7 +137,7 @@ func (handler *StorageHandlersImpl) ListImages(params storage.ListImagesParams) 
 	}
 
 	// FIXME(jzt): not populating the cache at startup will result in 404's
-	images, err := cache.ListImages(u, params.Ids)
+	images, err := storageLayer.ListImages(context.TODO(), u, params.Ids)
 	if err != nil {
 		return storage.NewListImagesNotFound().WithPayload(
 			&models.Error{
@@ -168,7 +170,7 @@ func (handler *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) 
 		ID:    params.ParentID,
 	}
 
-	image, err := cache.WriteImage(parent, params.ImageID, params.Sum, params.ImageFile)
+	image, err := storageLayer.WriteImage(context.TODO(), parent, params.ImageID, params.Sum, params.ImageFile)
 	if err != nil {
 		return storage.NewWriteImageDefault(http.StatusInternalServerError).WithPayload(
 			&models.Error{

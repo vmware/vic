@@ -22,6 +22,8 @@ import (
 	"path"
 	"path/filepath"
 
+	"golang.org/x/net/context"
+
 	"github.com/docker/docker/pkg/archive"
 	portlayer "github.com/vmware/vic/portlayer/storage"
 	"github.com/vmware/vic/portlayer/util"
@@ -46,7 +48,7 @@ func NewLocalStore(path string) *LocalStore {
 	return &LocalStore{Path: path}
 }
 
-func (s *LocalStore) CreateImageStore(storeName string) (*url.URL, error) {
+func (s *LocalStore) CreateImageStore(ctx context.Context, storeName string) (*url.URL, error) {
 	u, err := util.StoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
@@ -61,7 +63,7 @@ func (s *LocalStore) CreateImageStore(storeName string) (*url.URL, error) {
 
 // GetImageStore checks to see if the image store exists on disk and returns an
 // error or the store's URL.
-func (s *LocalStore) GetImageStore(storeName string) (*url.URL, error) {
+func (s *LocalStore) GetImageStore(ctx context.Context, storeName string) (*url.URL, error) {
 	u, err := util.StoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
@@ -78,7 +80,7 @@ func (s *LocalStore) GetImageStore(storeName string) (*url.URL, error) {
 	return u, nil
 }
 
-func (s *LocalStore) ListImageStores() ([]*url.URL, error) {
+func (s *LocalStore) ListImageStores(ctx context.Context) ([]*url.URL, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
@@ -88,7 +90,7 @@ func (s *LocalStore) ListImageStores() ([]*url.URL, error) {
 // parent - The parent image to create the new image from.
 // ID - textual ID for the image to be written
 // Tag - the tag of the image to be written
-func (s *LocalStore) WriteImage(parent *portlayer.Image, ID string, r io.Reader) (*portlayer.Image, error) {
+func (s *LocalStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID string, r io.Reader) (*portlayer.Image, error) {
 
 	storeName, err := util.StoreName(parent.Store)
 	if err != nil {
@@ -133,10 +135,10 @@ func (s *LocalStore) WriteImage(parent *portlayer.Image, ID string, r io.Reader)
 // store - The image store to query
 // name - The name of the image (optional)
 // tag - The tagged version of the image (optional)
-func (s *LocalStore) GetImage(store *url.URL, ID string) (*portlayer.Image, error) {
+func (s *LocalStore) GetImage(ctx context.Context, store *url.URL, ID string) (*portlayer.Image, error) {
 	return nil, fmt.Errorf("not yet implemented")
 }
 
-func (s *LocalStore) ListImages(store *url.URL, IDs []string) ([]*portlayer.Image, error) {
+func (s *LocalStore) ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*portlayer.Image, error) {
 	return nil, fmt.Errorf("not yet implemented")
 }
