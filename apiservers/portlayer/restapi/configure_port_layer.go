@@ -32,6 +32,7 @@ import (
 type portlayerhandlers struct {
 	storageHandlers handlers.StorageHandlersImpl
 	miscHandlers    handlers.MiscHandlersImpl
+	scopesHandlers  handlers.ScopesHandlersImpl
 }
 
 func configureFlags(api *operations.PortLayerAPI) {
@@ -61,6 +62,7 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 
 	allhandlers.storageHandlers.Configure(api)
 	allhandlers.miscHandlers.Configure(api)
+	allhandlers.scopesHandlers.Configure(api)
 
 	api.ServerShutdown = func() {}
 	return setupGlobalMiddleware(api.Serve(setupMiddlewares))
