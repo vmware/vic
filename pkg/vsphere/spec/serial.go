@@ -57,23 +57,7 @@ func (s *VirtualMachineConfigSpec) addVirtualSerialPort(device *types.VirtualSer
 		}
 	}
 
-	s.DeviceChange = append(s.DeviceChange,
-		&types.VirtualDeviceConfigSpec{
-			Operation: types.VirtualDeviceConfigSpecOperationAdd,
-			Device:    device,
-		},
-	)
-	return s
-}
-
-func (s *VirtualMachineConfigSpec) removeVirtualSerialPort(device types.BaseVirtualDevice) *VirtualMachineConfigSpec {
-	s.DeviceChange = append(s.DeviceChange,
-		&types.VirtualDeviceConfigSpec{
-			Operation: types.VirtualDeviceConfigSpecOperationRemove,
-			Device:    device,
-		},
-	)
-	return s
+	return s.AddVirtualDevice(device)
 }
 
 // AddVirtualSerialPort adds a virtual serial port.
@@ -101,5 +85,5 @@ func (s *VirtualMachineConfigSpec) AddVirtualDebugSerialPort(device *types.Virtu
 func (s *VirtualMachineConfigSpec) RemoveVirtualSerialPort(device *types.VirtualSerialPort) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
-	return s.removeVirtualSerialPort(device)
+	return s.RemoveVirtualDevice(device)
 }

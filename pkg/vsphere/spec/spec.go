@@ -124,6 +124,28 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 	}
 }
 
+// AddVirtualDevice appends an Add operation to the DeviceChange list
+func (s *VirtualMachineConfigSpec) AddVirtualDevice(device types.BaseVirtualDevice) *VirtualMachineConfigSpec {
+	s.DeviceChange = append(s.DeviceChange,
+		&types.VirtualDeviceConfigSpec{
+			Operation: types.VirtualDeviceConfigSpecOperationAdd,
+			Device:    device,
+		},
+	)
+	return s
+}
+
+// RemoveVirtualDevice appends a Remove operation to the DeviceChange list
+func (s *VirtualMachineConfigSpec) RemoveVirtualDevice(device types.BaseVirtualDevice) *VirtualMachineConfigSpec {
+	s.DeviceChange = append(s.DeviceChange,
+		&types.VirtualDeviceConfigSpec{
+			Operation: types.VirtualDeviceConfigSpecOperationRemove,
+			Device:    device,
+		},
+	)
+	return s
+}
+
 // ID returns the ID of the VM
 func (s *VirtualMachineConfigSpec) ID() string {
 	defer trace.End(trace.Begin(s.config.ID))

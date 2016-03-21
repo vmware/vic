@@ -62,23 +62,7 @@ func (s *VirtualMachineConfigSpec) addVirtualNIC(device types.BaseVirtualDevice)
 			DeviceName: s.NetworkName(),
 		},
 	}
-	s.DeviceChange = append(s.DeviceChange,
-		&types.VirtualDeviceConfigSpec{
-			Operation: types.VirtualDeviceConfigSpecOperationAdd,
-			Device:    device,
-		},
-	)
-	return s
-}
-
-func (s *VirtualMachineConfigSpec) removeVirtualNIC(device types.BaseVirtualDevice) *VirtualMachineConfigSpec {
-	s.DeviceChange = append(s.DeviceChange,
-		&types.VirtualDeviceConfigSpec{
-			Operation: types.VirtualDeviceConfigSpecOperationRemove,
-			Device:    device,
-		},
-	)
-	return s
+	return s.AddVirtualDevice(device)
 }
 
 // AddVirtualVmxnet3 adds a VirtualVmxnet3 device.
@@ -100,4 +84,25 @@ func (s *VirtualMachineConfigSpec) AddVirtualE1000(device *types.VirtualE1000) *
 	defer trace.End(trace.Begin(s.ID()))
 
 	return s.addVirtualNIC(device)
+}
+
+// RemoveVirtualVmxnet3 adds a VirtualVmxnet3 device.
+func (s *VirtualMachineConfigSpec) RemoveVirtualVmxnet3(device *types.VirtualVmxnet3) *VirtualMachineConfigSpec {
+	defer trace.End(trace.Begin(s.ID()))
+
+	return s.RemoveVirtualDevice(device)
+}
+
+// RemoveVirtualPCNet32 adds a VirtualPCNet32 device.
+func (s *VirtualMachineConfigSpec) RemoveVirtualPCNet32(device *types.VirtualPCNet32) *VirtualMachineConfigSpec {
+	defer trace.End(trace.Begin(s.ID()))
+
+	return s.RemoveVirtualDevice(device)
+}
+
+// RemoveVirtualE1000 adds a VirtualE1000 device.
+func (s *VirtualMachineConfigSpec) RemoveVirtualE1000(device *types.VirtualE1000) *VirtualMachineConfigSpec {
+	defer trace.End(trace.Begin(s.ID()))
+
+	return s.RemoveVirtualDevice(device)
 }
