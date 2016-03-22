@@ -154,8 +154,12 @@ $(imagec): imagec/*.go $(portlayerapi-client)
 	@CGO_ENABLED=0 $(GO) build -o ./$@ --ldflags '-extldflags "-static"'  ./$(dir $<)
 
 $(docker-engine-api): $(portlayerapi-client) apiservers/engine/server/*.go apiservers/engine/backends/*.go
+ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
 	@$(GO) build -o $@ ./apiservers/engine/server
+else
+	@echo skipping docker-engine-api server, cannot build on non-linux
+endif
 
 # Common portlayer dependencies between client and server
 PORTLAYER_DEPS ?= apiservers/portlayer/swagger.yml \
