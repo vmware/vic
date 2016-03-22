@@ -33,6 +33,9 @@ import (
 
 	"github.com/juju/errors"
 
+	log "github.com/Sirupsen/logrus"
+	flags "github.com/jessevdk/go-flags"
+
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
@@ -81,9 +84,41 @@ type Session struct {
 	Pool       *object.ResourcePool
 }
 
-// NewSession creates a new Session struct
+type Flags struct {
+	URL      string `short:"u" long:"esx-url" description:"SDK URL or proxy" env:"VC_URL"`
+	Cert     string `long:"cert" description:"Client certificate" env:"VC_CERTIFICATE"`
+	Key      string `long:"key" description:"Private key file" env:"VC_PRIVATE_KEY"`
+	Insecure bool   `short:"k" description:"Skip verification of server certificate" env:"VC_INSECURE"`
+}
+
+// NewSession creates a new Session object from a Flags object
+func (f *Flags) NewSession() *Session {
+	cfg := &Config{
+		Service:  f.URL,
+		Insecure: f.Insecure,
+		CertFile: f.Cert,
+		KeyFile:  f.Key,
+	}
+
+	return NewSession(cfg)
+}
+
+// NewSession creates a new Session struct. If config is nil,
+// it creates a Flags object from the command line arguments or
+// environment, and uses that instead to create a Session.
 func NewSession(config *Config) *Session {
-	return &Session{Config: config}
+	if config != nil {
+		return &Session{Config: config}
+	}
+
+	f := &Flags{}
+	_, err := flags.NewParser(f, flags.IgnoreUnknown).Parse()
+	if err != nil {
+		log.Errorf("could not parse command line arguments for VC options: %s", err)
+		return nil
+	}
+
+	return f.NewSession()
 }
 
 // Vim25 returns the vim25.Client to the caller

@@ -42,6 +42,11 @@ func configureFlags(api *operations.PortLayerAPI) {
 			Options:          options.StorageLayerOptions,
 			ShortDescription: "Storage Layer Options",
 		},
+		swag.CommandLineOptionsGroup{
+			LongDescription:  "VC Session Options",
+			Options:          options.SessionOptions,
+			ShortDescription: "VC Session Options",
+		},
 	}
 }
 
