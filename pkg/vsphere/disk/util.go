@@ -25,8 +25,6 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/guest"
-	"github.com/vmware/vic/pkg/vsphere/session"
 	"golang.org/x/net/context"
 )
 
@@ -188,25 +186,4 @@ func findDisk(ctx context.Context, vm *object.VirtualMachine, name string) (*typ
 	}
 
 	return candidates[0].(*types.VirtualDisk), nil
-}
-
-// getSelf gets VirtualMachine reference for the VM this process is running on
-func getSelf(ctx context.Context, s *session.Session) (*object.VirtualMachine, error) {
-	u, err := guest.UUID()
-	if err != nil {
-		return nil, err
-	}
-
-	search := object.NewSearchIndex(s.Vim25())
-	ref, err := search.FindByUuid(ctx, s.Datacenter, u, true, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if ref == nil {
-		return nil, fmt.Errorf("can't find the hosting vm")
-	}
-
-	vm := object.NewVirtualMachine(s.Client.Client, ref.Reference())
-	return vm, nil
 }

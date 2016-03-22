@@ -22,6 +22,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"golang.org/x/net/context"
 )
@@ -48,7 +49,7 @@ type Manager struct {
 }
 
 func NewDiskManager(ctx context.Context, session *session.Session) (*Manager, error) {
-	vm, err := getSelf(ctx, session)
+	vm, err := guest.GetSelf(ctx, session)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
