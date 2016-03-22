@@ -79,7 +79,8 @@ func TestCreateAndDetach(t *testing.T) {
 	// Create children which inherit from eachother
 	for i := 0; i < numChildren; i++ {
 
-		child, err := vdm.CreateAndAttach(context.TODO(), client.Datastore.Path(fmt.Sprintf("imagestore/child%d.vmdk", i)), parent.DatastoreURI, 0)
+		p := client.Datastore.Path(fmt.Sprintf("imagestore/child%d.vmdk", i))
+		child, err := vdm.CreateAndAttach(context.TODO(), p, parent.DatastoreURI, 0, os.O_RDWR)
 		if !assert.NoError(t, err) {
 			return
 		}
