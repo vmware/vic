@@ -15,11 +15,13 @@ The path to an X.509 certificate for vSphere to use to authenticate with the vSp
 - This option is mandatory if your vSphere environment uses certificates that are signed by a Certificate Authority (CA).
 - Use this option in combination with the `key` option, that provides the path to the private key file for the vCenter Server certificate.
 
-For information about how to use CA signed certificates in vSphere 6.0, see [VMware KB 2111219](http://kb.vmware.com/kb/2111219).
-
 Omit this option if vSphere does not use certificates that are signed by a CA.
 
-<pre>-cert=<i>path_to_certificate</i> -key=<i>path_to_key</i></pre>
+<pre>-cert=<i>path_to_vcenter_server_certificate</i> -key=<i>path_to_vcenter_server_key</i></pre>
+
+For information about how to use CA signed certificates in vSphere 6.0, see [VMware KB 2111219](http://kb.vmware.com/kb/2111219). 
+
+For information about how to configure TLS authentication between the virtual container host and Docker clients, see [Using TLS Authentication with vSphere Integrated Containers](using_tls_with_vic.md).
 
 ## `cidr` ##
 IPv4 CIDR notation to designate the network routing for containers to use. If not specified, vSphere Integrated Containers uses the CIDR address 172.17.0.1/16.
@@ -97,14 +99,18 @@ Omit this option if vCenter Server only manages one ESXi host.
 <pre>-host=<i>host_address</i></pre>
 
 ## `ip` ##
-A static IPv4 address for the vSphere Integrated Containers appliance. Requires you to specify the `dns` option. If not specified, the installer assigns IP addresses by using DHCP.
+An IPv4 CIDR address for the installer to use to obtain a static IP address for the vSphere Integrated Containers appliance. Requires you to specify the `dns` option. If not specified, the installer assigns an IP address by using DHCP.
 
-<pre>-dns=<i>dns_server_1</i> -dns=<i>dns_server_2</i> -ip=<i>ip_address</i></pre>
+<pre>-dns=<i>dns_server_1</i> -dns=<i>dns_server_2</i> -ip=<i>cidr_address</i>%<i>gateway_address</i></pre>
 
 ## `key` ##
-The path to the private key file for the vCenter Server certificate. This option is mandatory if your vSphere environment uses certificates that are signed by a Certificate Authority (CA). Use this option in combination with the `cert` option, that provides the path to an X.509 certificate file for vSphere to use to authenticate with the vSphere Integrated Containers extension. For information about how to use CA signed certificates in vSphere 6.0, see [VMware KB 2111219](http://kb.vmware.com/kb/2111219).
+The path to the private key file for the vCenter Server certificate. This option is mandatory if your vSphere environment uses certificates that are signed by a Certificate Authority (CA). Use this option in combination with the `cert` option, that provides the path to an X.509 certificate file for vSphere to use to authenticate with the vSphere Integrated Containers extension. 
 
-<pre>-cert=<i>path_to_certificate</i> -key=<i>path_to_key</i></pre>
+<pre>-cert=<i>path_to_vcenter_server_certificate</i> -key=<i>path_to_vcenter_server_key</i></pre>
+
+For information about how to use CA signed certificates in vSphere 6.0, see [VMware KB 2111219](http://kb.vmware.com/kb/2111219). 
+
+For information about how to configure TLS authentication between the virtual container host and Docker clients, see [Using TLS Authentication with vSphere Integrated Containers](using_tls_with_vic.md).
 
 ## `logfile` ##
 The location in which to save the vSphere Integrated Containers installation log file. If not specified, the installer saves the log file in the directory in which you run it, with the name `install.log`. 

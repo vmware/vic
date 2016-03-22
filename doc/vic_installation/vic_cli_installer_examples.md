@@ -128,7 +128,22 @@ If a datacenter includes clusters and also includes standalone hosts that are no
 -ceip=enable
 </pre>
 
-## Install vSphere Integrated Containers with Customized Settings ##
+## Install the vSphere Integrated Containers Appliance with a Static IP Address ##
+
+In environments in which you cannot use DHCP, you can assign a static IP address to the vSphere Integrated Containers appliance. You specify a static IP address by providing an IPv4 CIDR address and the default gateway address. You specify the address of the DNS servers by including one instance of the `-dns` option for each DNS server.
+
+<pre>install<i>-win.exe/osx/linux</i> 
+-target=<i>vcenter_server_address</i> 
+-user=Administrator@vsphere.local 
+-passwd=<i>vcenter_sso_password</i>
+-name=<i>VIC_appliance_name</i>
+-dns=<i>dns_server_1_address</i>
+-dns=<i>dns_server_2_address</i>
+-ip=<i>cidr_address</i>%<i>gateway_address</i>
+-ceip=enable
+</pre>
+
+## Install vSphere Integrated Containers with Customized Appliance Settings ##
 
 You can increase the amount of RAM and the number of CPUs to assign to the vSphere Integrated Containers appliance during installation. This example of a simple installation doubles the default quantities of RAM and CPUs.
 
@@ -151,10 +166,12 @@ If vCenter Server verifies extensions by using TLS certificates, you must provid
 -user=Administrator@vsphere.local 
 -passwd=<i>vcenter_sso_password</i>
 -name=<i>VIC_appliance_name</i>
--cert=<i>path_to_certificate</i>
--key=<i>path_to_key</i>
+-cert=<i>path_to_vcenter_server_certificate</i>
+-key=<i>path_to_vcenter_server_key</i>
 -ceip=enable
 </pre>
+
+For information about how to configure TLS authentication in the virtual container host and Docker clients, see [Using TLS Authentication with vSphere Integrated Containers](using_tls_with_vic.md).
 
 ## Uninstall vSphere Integrated Containers from an ESXi Host ##
 This example uninstalls vSphere Integrated Containers from an ESXi host that is not managed by vCenter Server. If you specified a custom name for the vSphere Integrated Containers appliance during installation, you must set the `name` option. If the host contains more than one datastore, you must set the `datastore` option. This example assumes that you used the `root` account during installation. You can optionally specify the `user` and `passwd` options. The example uses the `yes` option, to answer yes to questions during the uninstallation process. 

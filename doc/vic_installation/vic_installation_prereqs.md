@@ -43,6 +43,10 @@ You must use an account with the vSphere Administrator role when you install vSp
    
    ```$ esxcli network firewall set --enabled false```  
 
+* Each virtual container host requires the following network configuration:
+ * One IP address, that can be either static or set by using DHCP.
+ * One VLAN, if you use VLAN for network isolation.
+ * One IP address for each container that you run with the `docker run --net=host` option.
 * Deployment to a vCenter Server cluster requires a private port group for each virtual container host. 
  * If you install vSphere Integrated Containers by using the command line installer, you can either create a custom private port group in advance, or the installer can create a default port group. 
  * If you install vSphere Integrated Containers by using the OVA deployment, you must create a private port group in advance. 
