@@ -14,6 +14,8 @@
 
 package options
 
+import "github.com/vmware/vic/pkg/vsphere/session"
+
 // StorageLayerOptionsType provides the additional flags required by handlers
 type StorageLayerOptionsType struct {
 	Path string `long:"path" description:"Storage Path" required:"true"`
@@ -21,4 +23,5 @@ type StorageLayerOptionsType struct {
 
 var (
 	StorageLayerOptions = new(StorageLayerOptionsType)
+	SessionOptions      = new(session.Flags)
 )

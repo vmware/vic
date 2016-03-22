@@ -14,8 +14,21 @@
 
 package portlayer
 
-import "github.com/vmware/vic/portlayer/storage"
+import (
+	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/portlayer/storage"
+)
 
 type API interface {
 	storage.ImageStorer
+}
+
+var vcSession *session.Session
+
+func init() {
+	vcSession = session.NewSession(nil)
+}
+
+func GetSession() *session.Session {
+	return vcSession
 }
