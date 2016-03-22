@@ -141,7 +141,7 @@ func verifyParavirtualScsiController(ctx context.Context, vm *object.VirtualMach
 	}
 
 	formatString := fmt.Sprintf("/dev/disk/by-path/pci-%s-scsi-0:0:%%d:0", controllerName)
-	log.Debugf("Returning the following format string for disk location: %s", formatString)
+	log.Debugf("Disk location format: %s", formatString)
 	return controller, formatString, nil
 }
 
