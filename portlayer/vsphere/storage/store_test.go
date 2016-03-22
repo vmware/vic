@@ -25,39 +25,23 @@ import (
 	"path/filepath"
 	"sort"
 	"testing"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/test"
 	portlayer "github.com/vmware/vic/portlayer/storage"
 	"golang.org/x/net/context"
 )
 
-func URL(t *testing.T) string {
-	s := os.Getenv("TEST_URL")
-	if s == "" {
-		t.SkipNow()
-	}
-	return s
-}
-
 func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, error) {
 	datastoreParentPath = "testingParentDirectory"
-	// log.SetLevel(log.DebugLevel)
 
-	config := &session.Config{
-		Service:       URL(t),
-		Insecure:      true,
-		Keepalive:     time.Duration(5) * time.Minute,
-		DatastorePath: "/ha-datacenter/datastore/*",
-	}
-
-	client, err := session.NewSession(config).Create(context.Background())
-	if err != nil {
-		return nil, nil, err
+	client := test.Session(context.TODO(), t)
+	if client == nil {
+		return nil, nil, fmt.Errorf("skip")
 	}
 
 	vsImageStore, err := NewImageStore(context.TODO(), client)
