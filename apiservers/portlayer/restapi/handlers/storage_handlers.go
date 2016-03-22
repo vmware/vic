@@ -20,13 +20,9 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-
-	"golang.org/x/net/context"
-
-	"golang.org/x/net/context"
-
 	"github.com/go-swagger/go-swagger/httpkit/middleware"
 	"github.com/go-swagger/go-swagger/swag"
+	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/apiservers/portlayer/models"
 	"github.com/vmware/vic/apiservers/portlayer/restapi/operations"
@@ -34,9 +30,9 @@ import (
 	"github.com/vmware/vic/apiservers/portlayer/restapi/options"
 	"github.com/vmware/vic/pkg/vsphere/session"
 
-	linux "github.com/vmware/vic/portlayer/linux/storage"
-	portlayer "github.com/vmware/vic/portlayer/storage"
+	spl "github.com/vmware/vic/portlayer/storage"
 	"github.com/vmware/vic/portlayer/util"
+	vsphere "github.com/vmware/vic/portlayer/vsphere/storage"
 )
 
 // StorageHandlersImpl is the receiver for all of the storage handler methods
@@ -44,20 +40,12 @@ type StorageHandlersImpl struct{}
 
 var (
 	storageSession = &session.Session{}
-	storageLayer   = &portlayer.NameLookupCache{}
+	storageLayer   = &spl.NameLookupCache{}
 )
 
 // Configure assigns functions to all the storage api handlers
 func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI) {
 	var err error
-
-	storageLayer.DataStore = linux.NewLocalStore(options.StorageLayerOptions.Path)
-
-	api.StorageCreateImageStoreHandler = storage.CreateImageStoreHandlerFunc(handler.CreateImageStore)
-	api.StorageGetImageHandler = storage.GetImageHandlerFunc(handler.GetImage)
-	api.StorageGetImageTarHandler = storage.GetImageTarHandlerFunc(handler.GetImageTar)
-	api.StorageListImagesHandler = storage.ListImagesHandlerFunc(handler.ListImages)
-	api.StorageWriteImageHandler = storage.WriteImageHandlerFunc(handler.WriteImage)
 
 	ctx := context.Background()
 
@@ -75,6 +63,21 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI) {
 		log.Fatalf("ERROR: %s", err)
 	}
 
+	ds, err := vsphere.NewImageStore(ctx, storageSession)
+	if err != nil {
+		log.Panicf("Cannot instantiate storage layer: %s", err)
+	}
+
+	// The imagestore is implemented via a cache which is backed via an
+	// implementation that writes to disks.  The cache is used to avoid
+	// expensive metadata lookups.
+	storageLayer.DataStore = ds
+
+	api.StorageCreateImageStoreHandler = storage.CreateImageStoreHandlerFunc(handler.CreateImageStore)
+	api.StorageGetImageHandler = storage.GetImageHandlerFunc(handler.GetImage)
+	api.StorageGetImageTarHandler = storage.GetImageTarHandlerFunc(handler.GetImageTar)
+	api.StorageListImagesHandler = storage.ListImagesHandlerFunc(handler.ListImages)
+	api.StorageWriteImageHandler = storage.WriteImageHandlerFunc(handler.WriteImage)
 }
 
 // CreateImageStore creates a new image store
@@ -165,7 +168,7 @@ func (handler *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) 
 			})
 	}
 
-	parent := &portlayer.Image{
+	parent := &spl.Image{
 		Store: u,
 		ID:    params.ParentID,
 	}
@@ -183,7 +186,7 @@ func (handler *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) 
 }
 
 // convert an SPL Image to a swagger-defined Image
-func convertImage(image *portlayer.Image) *models.Image {
+func convertImage(image *spl.Image) *models.Image {
 	var parent, selfLink *string
 
 	// scratch image
