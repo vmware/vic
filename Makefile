@@ -118,15 +118,21 @@ integration-tests:
 	docker build -t imagec_tests -f Dockerfile.integration-tests .
 	docker run --rm imagec_tests
 
+TEST_DIRS=github.com/vmware/vic/bootstrap/...
+TEST_DIRS+=github.com/vmware/vic/imagec
+TEST_DIRS+=github.com/vmware/vic/vicadmin
+TEST_DIRS+=github.com/vmware/vic/portlayer/...
+TEST_DIRS+=github.com/vmware/vic/pkg/...
+TEST_DIRS+=github.com/vmware/vic/apiservers/portlayer/...
+
 test:
 	# test everything but vendor
-	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/bootstrap/...
-	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/imagec
-	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/vicadmin
-	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/portlayer/...
-	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/pkg/...
-	$(GO) test -v $(TEST_OPTS) github.com/vmware/vic/apiservers/portlayer/...
-
+ifdef DRONE
+	@echo generate coverage report
+	./coverage $(TEST_DIRS)
+else
+	$(foreach var,$(TEST_DIRS), $(GO) test -v $(TEST_OPTS) $(var);)
+endif
 
 $(tether-linux): $(shell find bootstrap/tether -name '*.go')
 	@echo building tether-linux

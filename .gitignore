@@ -1,4 +1,5 @@
 .vagrant/
+.cover/
 binary/
 vic_binaries*.tar.gz
 secrets.yml
