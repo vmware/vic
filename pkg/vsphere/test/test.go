@@ -71,7 +71,7 @@ func SpecConfig(session *session.Session) *spec.VirtualMachineConfigSpecConfig {
 		ID:            "zombie_attack",
 		BootMediaPath: session.Datastore.Path("brainz.iso"),
 		VMPathName:    fmt.Sprintf("[%s]", session.Datastore.Name()),
-		NetworkName:   strings.Split(session.Network.Reference().Value, "-")[0],
+		NetworkName:   strings.Split(session.Network.Reference().Value, "-")[1],
 	}
 }
 

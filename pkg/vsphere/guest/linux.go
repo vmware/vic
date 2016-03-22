@@ -32,10 +32,14 @@ const (
 // LinuxGuestType type
 type LinuxGuestType struct {
 	*spec.VirtualMachineConfigSpec
+
+	// holds the controller so that we don't end up calling
+	// FindIDEController or FindSCSIController
+	controller types.BaseVirtualController
 }
 
 // NewLinuxGuest returns a new Linux guest spec with predefined values
-func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.VirtualMachineConfigSpecConfig) *LinuxGuestType {
+func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.VirtualMachineConfigSpecConfig) Guest {
 	s := spec.NewVirtualMachineConfigSpec(ctx, session, config)
 
 	// SCSI controller
@@ -43,6 +47,10 @@ func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.V
 	// PV SCSI controller
 	pv := spec.NewParaVirtualSCSIController(scsi)
 	s.AddParaVirtualSCSIController(pv)
+
+	// Disk
+	disk := spec.NewVirtualSCSIDisk(scsi)
+	s.AddVirtualDisk(disk)
 
 	// IDE controller
 	ide := spec.NewVirtualIDEController(ideKey)
@@ -69,6 +77,7 @@ func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.V
 
 	return &LinuxGuestType{
 		VirtualMachineConfigSpec: s,
+		controller:               &scsi,
 	}
 }
 
@@ -80,4 +89,9 @@ func (l *LinuxGuestType) GuestID() string {
 // Spec returns the underlying types.VirtualMachineConfigSpec to the caller
 func (l *LinuxGuestType) Spec() *types.VirtualMachineConfigSpec {
 	return l.VirtualMachineConfigSpec.VirtualMachineConfigSpec
+}
+
+// Controller returns the types.BaseVirtualController to the caller
+func (l *LinuxGuestType) Controller() *types.BaseVirtualController {
+	return &l.controller
 }
