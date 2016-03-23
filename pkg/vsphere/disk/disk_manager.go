@@ -24,6 +24,7 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"golang.org/x/net/context"
 )
 
@@ -170,12 +171,9 @@ func (m *Manager) Create(ctx context.Context, newDiskURI string, capacityKB int6
 
 	log.Infof("Attempting to create vmdk for layer or volume %s", d.DatastoreURI)
 
-	task, err := vdm.CreateVirtualDisk(ctx, d.DatastoreURI, nil, spec)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
-	err = task.Wait(ctx)
+	err = tasks.Wait(ctx, func(ctx context.Context) (tasks.Waiter, error) {
+		return vdm.CreateVirtualDisk(ctx, d.DatastoreURI, nil, spec)
+	})
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -241,12 +239,9 @@ func (m *Manager) Detach(ctx context.Context, d *VirtualDisk) error {
 
 	spec.DeviceChange = config
 
-	task, err := m.vm.Reconfigure(ctx, spec)
-	if err != nil {
-		return errors.Trace(err)
-	}
-
-	err = task.Wait(ctx)
+	err = tasks.Wait(ctx, func(ctx context.Context) (tasks.Waiter, error) {
+		return m.vm.Reconfigure(ctx, spec)
+	})
 	if err != nil {
 		log.Warnf("detach for %s failed with %s", d.DevicePath, errors.ErrorStack(err))
 		return errors.Trace(err)

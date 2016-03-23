@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"golang.org/x/net/context"
 )
 
@@ -140,11 +141,10 @@ func TestCreateAndDetach(t *testing.T) {
 	//	}
 
 	// Nuke the image store
-	task, err := fm.DeleteDatastoreFile(context.TODO(), imagestore, nil)
-	if !assert.NoError(t, err) {
-		return
-	}
-	_, err = task.WaitForResult(context.TODO(), nil)
+	_, err = tasks.WaitForResult(context.TODO(), func(ctx context.Context) (tasks.ResultWaiter, error) {
+		return fm.DeleteDatastoreFile(ctx, imagestore, nil)
+	})
+
 	if !assert.NoError(t, err) {
 		return
 	}
