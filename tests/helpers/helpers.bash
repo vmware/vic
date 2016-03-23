@@ -13,13 +13,19 @@
 # limitations under the License.
 
 # starts the port layer server in the background, waits for it to start, saves the pid to $port_layer_pid
+# return value 0 on success, 1 on timeout
 start_port_layer () {
     [ "$1" = "" ] && port="8080" || port="$1"
     "$GOPATH"/src/github.com/vmware/vic/binary/port-layer-server --port="$port" --path=/tmp/portlayer > /dev/null 2>&1 &
-    while ! curl localhost:"$port"/_ping > /dev/null 2>&1; do
+
+    retval=1
+    for attempt in {1..10}; do
+        curl localhost:"$port"/_ping > /dev/null 2>&1 && retval=0 && break
         sleep 1
     done
     port_layer_pid="$!"
+    
+    return $retval
 }
 
 # kills the port layer

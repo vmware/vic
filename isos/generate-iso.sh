@@ -1,26 +1,77 @@
 #!/bin/bash
+# Build the base of a bootable ISO
 
-# This generates an ISO using the isolinux boot image in $BOOTFS and the
-# and initramfs generated from the contents of $ROOTFS
-: ${ROOTFS:?ROOTFS must be set} || exit 1
+# exit on failure
+set -e
 
-: ${BOOTFS:?BOOTFS must be set to the path containing boot/isolinux} || exit 2
-test -e $BOOTFS/boot/isolinux/isolinux.bin -a \
-     -e $BOOTFS/boot/isolinux/boot.cat -a \
-     -e $BOOTFS/boot/isolinux/isolinux.cfg || exit 2
-
-if [ "$INIT" != "" ]; then
-    # ensure the target init exists
-    test -e ${ROOTFS:?ROOTFS must be set}/${INIT} || exit 3
-    # set the init binary in isolinux.cfg
-    sed -i -e "s|^#\(\s*append rdinit\)=_INIT_BINARY_|\1=$INIT|" $BOOTFS/boot/isolinux/isolinux.cfg || exit 4
+if [ -n "$DEBUG" ]; then
+      set -x
 fi
 
-# create the initramfs archive
-cd $ROOTFS && find | cpio -o -H newc | gzip --fast > $BOOTFS/boot/core.gz || exit 5
+DIR=$(dirname $(readlink -f "$0"))
 
-# generate the ISO with a label of $ISOLABEL and write it to $ISOOUT
-xorriso -publisher 'VMware Inc.' -as mkisofs -V ${ISOLABEL:-boot-iso} \
-	    -l -J -R -no-emul-boot -boot-load-size 4 -boot-info-table \
-	    -b boot/isolinux/isolinux.bin -c boot/isolinux/boot.cat \
-	    -o ${ISOOUT} ${BOOTFS} || exit 6
+INIT=/bin/bash
+
+function usage() {
+     echo "Usage: $0 -p package-path [-i init-path] output-name" 1>&2
+     exit 1
+}
+
+while getopts "p:i:" flag
+do
+  case $flag in
+
+    i)
+      # Optional.  Path to kernel rpm
+      INIT="$OPTARG"
+      ;;
+
+    p)
+      # Required. Package name
+      package="$OPTARG"
+      ;;
+
+    *)
+    usage
+    ;;
+  esac
+done
+
+shift $((OPTIND-1))
+
+ISOOUT="$*"
+
+
+# check there were no extra args and the required ones are set
+if [ -z "$ISOOUT" -o -z "$package"  ]; then
+    usage
+fi
+
+# prep the build system
+# Make sure we only try this as root
+if [ "$(id -u)" == "0" ]; then
+  apt-get update && apt-get -y install cpio xorriso
+else
+  echo "Skipping apt-get - rerun as root if missing packages"
+fi
+
+# ISO to stdout
+#${ISOOUT:="stdio:/dev/fd/1"}
+
+ROOTFS=$package/rootfs
+BOOTFS=$package/bootfs
+
+: ${BOOTFS:?BOOTFS must be set to the path containing boot/isolinux} || exit 1
+test -e $BOOTFS/boot/isolinux/isolinux.bin -a \
+     -e $BOOTFS/boot/isolinux/isolinux.cfg || exit 2
+
+# ensure the target init exists
+test -e ${ROOTFS:?ROOTFS must be set}/${INIT} || exit 3
+# set the init binary in isolinux.cfg
+sed -i -e "s|^#\(\s*append rdinit\)=_INIT_BINARY_|\1=$INIT|" $BOOTFS/boot/isolinux/isolinux.cfg || exit 4
+
+# create the initramfs archive - subshell to avoid changing directory
+( cd $ROOTFS && find | cpio -o -H newc | gzip --fast > $BOOTFS/boot/core.gz ) || exit 5
+
+# generate the ISO and write it to $ISOOUT
+xorriso -publisher 'VMware Inc.' -dev "$ISOOUT" -blank as_needed -map "$BOOTFS" / -boot_image isolinux dir=/boot/isolinux || exit 6
