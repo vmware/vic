@@ -26,6 +26,8 @@ schemes:
 paths:
   /_ping:
     get:
+      description: "Pings the server to see if it's running"
+      summary: "ping the portlayer server"
       tags: ["misc"]
       operationId: Ping
       produces:
@@ -37,6 +39,8 @@ paths:
             type: string
   /storage:
     post:
+      description: "Creates a location to store images"
+      summary: "creates an image store"
       tags: ["storage"]
       operationId: CreateImageStore
       parameters:
@@ -58,15 +62,16 @@ paths:
           schema:
             $ref: "#/definitions/Error"
   /storage/{store_name}:
-    parameters:
-      - name: store_name
-        type: string
-        in: path
-        required: true
     get:
+      description: "Retrieves a list of images given a list of image IDs, or all images in the image store if no param is passed."
+      summary: "Retrieve a list of images in an image store"
       tags: ["storage"]
       operationId: ListImages
       parameters:
+        - name: store_name
+          type: string
+          in: path
+          required: true
         - name: ids
           type: string
           in: query
@@ -91,6 +96,8 @@ paths:
            $ref: "#/definitions/Error"
   /storage/{store_name}/writeImage:
     post:
+      description: "Creates a new image layer in an image store"
+      summary: "Creates a new image layer"
       tags: ["storage"]
       operationId: WriteImage
       consumes:
@@ -127,18 +134,20 @@ paths:
           schema:
            $ref: "#/definitions/Error"
   /storage/{store_name}/info/{id}:
-    parameters:
-      - name: store_name
-        type: string
-        in: path
-        required: true
-      - name: id
-        type: string
-        in: path
-        required: true
     get:
+      description: "Inspect an image by id in an image store"
+      summary: "Inspect an image"
       tags: ["storage"]
       operationId: GetImage
+      parameters:
+        - name: store_name
+          type: string
+          in: path
+          required: true
+        - name: id
+          type: string
+          in: path
+          required: true
       responses:
         '404':
           description: "Not found"
@@ -153,18 +162,20 @@ paths:
           schema:
             $ref: "#/definitions/Error"
   /storage/{store_name}/tar/{id}:
-    parameters:
-      - name: store_name
-        type: string
-        in: path
-        required: true
-      - name: id
-        type: string
-        in: path
-        required: true
     get:
+      description: "Get an image by id in an image store as a tar file"
+      summary: "Get an image as a tar file"
       tags: ["storage"]
       operationId: GetImageTar
+      parameters:
+        - name: store_name
+          type: string
+          in: path
+          required: true
+        - name: id
+          type: string
+          in: path
+          required: true
       responses:
         '404':
           description: "Not found"
@@ -236,8 +247,96 @@ paths:
           description: "error"
           schema:
             $ref: "#/definitions/Error"
-
+  /exec/container:
+    post:
+      description: "Creates a container and return the id"
+      summary: "Creates a container"
+      operationId: ContainerCreate
+      tags: ["exec"]
+      parameters:
+        - name: clientId
+          in: header
+          type: string
+          required: true
+          schema:
+            $ref: "#/definitions/ClientIdentifier"
+        - name: name
+          in: path
+          type: string
+          pattern: "/?[a-zA-Z0-9_-]+"
+        - name: createConfig
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/ContainerCreateConfig"
+      responses:
+        '404':
+          description: "Create failed"
+          schema:
+            $ref: "#/definitions/Error"
+        '200':
+          description: "OK"
+          schema:
+              $ref: "#/definitions/ContainerCreatedInfo"
+  /exec/{id}/start:
+    post:
+      description: "Starts an existing container by id"
+      summary: "Starts an existing container"
+      operationId: ContainerStart
+      tags: ["exec"]
+      parameters:
+        - name: clientId
+          in: header
+          type: string
+          required: true
+          schema:
+            $ref: "#/definitions/ClientIdentifier"
+        - name: id
+          in: path
+          type: string
+          required: true
+      responses:
+        '404':
+          description: "Container not found"
+          schema:
+            $ref: "#/definitions/Error"
+        '200':
+          description: "OK"
+  /interaction/{id}/join:
+    post:
+      description: "Establish an interaction session with a container by id"
+      summary: "Establishes an interactive session (ala docker attach)"
+      operationId: ContainerJoin
+      tags: ["interaction"]
+      parameters:
+        - name: clientId
+          in: header
+          type: string
+          required: true
+          schema:
+            $ref: "#/definitions/ClientIdentifier"
+        - name: id
+          in: path
+          type: string
+          required: true
+      responses:
+        '404':
+          description: "Container not found"
+          schema:
+            $ref: "#/definitions/Error"
+        '200':
+          description: "OK"
 definitions:
+  ClientIdentifier:
+    type: object
+    required:
+      - name
+      - version
+    properties:
+      name:
+        type: string
+      version:
+        type: string
   Error:
     type: object
     required:
@@ -305,3 +404,30 @@ definitions:
         items:
           type: string
           collectionFormat: csv
+  ContainerCreateConfig:
+    type: object
+    properties:
+      imageStore:
+        type: object
+        additionalProperties: "#/definitions/ImageStore"
+      image:
+        type: string
+      cmd:
+        type: array
+        items:
+          type: string
+      entryPoint:
+        type: string
+      workingDir:
+        type: string
+      env:
+        type: array
+        items:
+          type: string
+      networkDisabled:
+        type: boolean
+  ContainerCreatedInfo:
+    type: object
+    properties:
+      containerID:
+        type: string
