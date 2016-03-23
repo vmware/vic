@@ -23,7 +23,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/juju/errors"
+	"github.com/vmware/vic/pkg/errors"
 
 	log "github.com/Sirupsen/logrus"
 )
