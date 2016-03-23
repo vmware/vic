@@ -37,6 +37,13 @@ build:
       success: true
 
 publish:
+  coverage:
+    server: https://coverage.vmware.run
+    token: $$GITHUB_AUTOMATION_API_KEY
+    when:
+      repo: vmware/vic
+      branch: master
+      success: true
   bintray:
     username: $$BINTRAY_USERNAME
     api_key: $$BINTRAY_API_KEY
