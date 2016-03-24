@@ -254,14 +254,8 @@ paths:
       operationId: ContainerCreate
       tags: ["exec"]
       parameters:
-        - name: clientId
-          in: header
-          type: string
-          required: true
-          schema:
-            $ref: "#/definitions/ClientIdentifier"
         - name: name
-          in: path
+          in: query
           type: string
           pattern: "/?[a-zA-Z0-9_-]+"
         - name: createConfig
@@ -285,12 +279,6 @@ paths:
       operationId: ContainerStart
       tags: ["exec"]
       parameters:
-        - name: clientId
-          in: header
-          type: string
-          required: true
-          schema:
-            $ref: "#/definitions/ClientIdentifier"
         - name: id
           in: path
           type: string
@@ -309,12 +297,6 @@ paths:
       operationId: ContainerJoin
       tags: ["interaction"]
       parameters:
-        - name: clientId
-          in: header
-          type: string
-          required: true
-          schema:
-            $ref: "#/definitions/ClientIdentifier"
         - name: id
           in: path
           type: string
@@ -327,16 +309,6 @@ paths:
         '200':
           description: "OK"
 definitions:
-  ClientIdentifier:
-    type: object
-    required:
-      - name
-      - version
-    properties:
-      name:
-        type: string
-      version:
-        type: string
   Error:
     type: object
     required:
@@ -408,8 +380,7 @@ definitions:
     type: object
     properties:
       imageStore:
-        type: object
-        additionalProperties: "#/definitions/ImageStore"
+        $ref: "#/definitions/ImageStore"
       image:
         type: string
       cmd:
