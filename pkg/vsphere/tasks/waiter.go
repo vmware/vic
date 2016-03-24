@@ -20,10 +20,10 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/juju/errors"
 
 	"github.com/vmware/govmomi/vim25/progress"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/errors"
 )
 
 type Waiter interface {

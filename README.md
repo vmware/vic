@@ -79,7 +79,7 @@ To build locally with Drone:
 
 Ensure that you have Docker 1.6 or higher installed.
 Install the Drone command line tools.
-From the root directory of the `vic` repository run `drone exec -trusted`
+From the root directory of the `vic` repository run `drone exec -trusted -e VIC_ESX_TEST_URL=""`
 
 ## Starting docker-server
 

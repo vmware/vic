@@ -630,12 +630,6 @@
 			"branch": "master"
 		},
 		{
-			"importpath": "github.com/juju/errors",
-			"repository": "https://github.com/juju/errors",
-			"revision": "b2c7a7da5b2995941048f60146e67702a292e468",
-			"branch": "master"
-		},
-		{
 			"importpath": "github.com/kr/pty",
 			"repository": "https://github.com/kr/pty",
 			"revision": "f7ee69f31298ecbe5d2b349c711e2547a617d398",

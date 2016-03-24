@@ -31,8 +31,6 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/juju/errors"
-
 	log "github.com/Sirupsen/logrus"
 	flags "github.com/jessevdk/go-flags"
 
@@ -43,6 +41,7 @@ import (
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/errors"
 )
 
 // Config contains the configuration used to create a Session.
