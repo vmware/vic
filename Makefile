@@ -58,6 +58,7 @@ tether-windows: $(tether-windows)
 appliance: $(appliance)
 appliance-staging: $(appliance-staging)
 bootstrap: $(bootstrap)
+bootstrap-debug: $(bootstrap-debug)
 iso-base: $(iso-base)
 
 install: $(install)
@@ -71,6 +72,7 @@ tools: $(GOIMPORTS) $(GOVET) $(GVT) $(GOLINT) $(SWAGGER) goversion
 check: goversion goimports govet golint
 apiservers: $(portlayerapi) $(docker-engine-api)
 bootstrap: $(tether-linux) $(tether-windows) $(rpctool)
+bootstrap-debug: $(tether-linux) $(tether-windows) $(rpctool)
 components: check apiservers $(imagec) $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
 tethers: $(tether-linux) $(tether-windows)
@@ -222,6 +224,14 @@ $(appliance): isos/appliance.sh $(rpctool) $(vicadmin) $(imagec) $(portlayerapi)
 $(bootstrap): $(tether-linux) $(rpctool) $(iso-base)
 	@echo "Placeholder target for bootstrap"
 
+$(bootstrap-staging-debug): isos/bootstrap/bootstrap-staging-debug.sh $(iso-base)
+	@echo staging debug for bootstrap
+	@$< -p $(iso-base) -o $@
+
+$(bootstrap-debug): isos/bootstrap/bootstrap-debug $(tether-linux) $(rpctool) $(iso-base)
+	@echo "Making bootstrap-debug iso"
+	@$< -p $(bootstrap-debug) -b $(BIN)
+
 $(install): install/install.sh
 	@echo Building installer
 	@cp $< $@
@@ -239,4 +249,3 @@ clean:
 	rm -rf ./apiservers/portlayer/restapi/operations/
 	rm -fr ./tests/helpers/bats-assert/
 	rm -fr ./tests/helpers/bats-support/
-	
