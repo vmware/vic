@@ -46,7 +46,7 @@ vm_memory=${VM_MEMORY-$(grep memsize "$config" | awk -F'"' '{print $4}')}
 if [ -z "$(govc ls "vm/$vm_name")" ] ; then
     echo "creating VM ${vm_name}..."
 
-    govc vm.create -m "$vm_memory" -c 2 -g ubuntu64Guest -on=false "$vm_name"
+    govc vm.create -m "$vm_memory" -c 2 -g ubuntu64Guest -disk.controller=pvscsi -on=false "$vm_name"
 
     govc vm.disk.attach -vm "$vm_name" -link=true -disk "$name/$disk"
 
