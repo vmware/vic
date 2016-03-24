@@ -2,8 +2,8 @@
 # Build the appliance filesystem ontop of the base
 
 # exit on failure
-set -e
-
+set -x
+echo "BEGINNING OF BOOTSTRAP_STAGING_"
 if [ -n "$DEBUG" ]; then
       set -x
 fi
@@ -21,12 +21,14 @@ do
 
     p)
       # Required. Package name
-      package="$OPTARG"
+        package="$OPTARG"
+        echo "PACKAGE = $package"
       ;;
 
     o)
       # Required. Target for iso and source for components
       OUT="$OPTARG"
+      echo "OUT = $OUT"
       ;;
 
     *)

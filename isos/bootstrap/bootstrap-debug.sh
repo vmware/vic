@@ -2,7 +2,7 @@
 # Build the appliance filesystem ontop of the base
 
 # exit on failure
-set -e
+set -x
 
 if [ -n "$DEBUG" ]; then
       set -x
@@ -56,21 +56,16 @@ fi
 mkdir -p ${PKGDIR} && tar -C ${PKGDIR} -xf $package
 ROOTFS=${PKGDIR}/rootfs
 BOOTFS=${PKGDIR}/bootfs
-export INIT=/bin/bash
+export INIT=/sbin/init
 
 #cleanup bootfs, we need a different configuration for the bootstrap vms
-rm -rf ${BOOTFS}/base/isolinux
-cp $DIR/bootstrap/isolinux ${BOOTFS}/base/isolinux
 
 # copy in our components
 cp ${BIN}/tether-linux ${ROOTFS}/bin/tether &&
     ln -sf ../bin/tether ${ROOTFS}/sbin/init
 
-cp ${DIR}/appliance/launcher.service ${ROOTFS}/etc/systemd/system/
-ln -s /etc/systemd/system/launcher.service ${ROOTFS}/etc/systemd/system/multi-user.target.wants/launcher.service
-
 cp ${BIN}/rpctool ${ROOTFS}/sbin/
 
 # package up the result
 rm -f $BIN/bootstrap-debug.iso
-$DIR/generate-iso.sh -p $PKGDIR -i $INIT $BIN/bootstrap-debug.iso
+$DIR/../generate-iso.sh -p $PKGDIR -i $INIT $BIN/bootstrap-debug.iso

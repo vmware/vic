@@ -38,6 +38,8 @@ tether-windows := $(BIN)/tether-windows.exe
 appliance := $(BIN)/appliance.iso
 appliance-staging := $(BIN)/appliance-staging.tgz
 bootstrap := $(BIN)/bootstrap.iso
+bootstrap-staging-debug := $(BIN)/bootstrap-staging-debug.tgz
+bootstrap-debug := $(BIN)/bootstrap-debug.iso
 iso-base := $(BIN)/iso-base.tgz
 
 install := $(BIN)/install.sh
@@ -71,8 +73,6 @@ all: components isos install
 tools: $(GOIMPORTS) $(GOVET) $(GVT) $(GOLINT) $(SWAGGER) goversion
 check: goversion goimports govet golint
 apiservers: $(portlayerapi) $(docker-engine-api)
-bootstrap: $(tether-linux) $(tether-windows) $(rpctool)
-bootstrap-debug: $(tether-linux) $(tether-windows) $(rpctool)
 components: check apiservers $(imagec) $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
 tethers: $(tether-linux) $(tether-windows)
@@ -228,9 +228,9 @@ $(bootstrap-staging-debug): isos/bootstrap/bootstrap-staging-debug.sh $(iso-base
 	@echo staging debug for bootstrap
 	@$< -p $(iso-base) -o $@
 
-$(bootstrap-debug): isos/bootstrap/bootstrap-debug $(tether-linux) $(rpctool) $(iso-base)
+$(bootstrap-debug): isos/bootstrap/bootstrap-debug.sh $(tether-linux) $(rpctool) $(iso-base) $(bootstrap-staging-debug)
 	@echo "Making bootstrap-debug iso"
-	@$< -p $(bootstrap-debug) -b $(BIN)
+	@$< -p $(bootstrap-staging-debug) -b $(BIN)
 
 $(install): install/install.sh
 	@echo Building installer
