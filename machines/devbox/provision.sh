@@ -2,6 +2,13 @@
 
 apt-get update
 
+# set GOPATH based on shared folder of vagrant
+pro="/home/"${BASH_ARGV[0]}"/.profile"
+echo "export GOPATH="${BASH_ARGV[1]} >> $pro
+
+# add GOPATH/bin to the PATH
+echo "export PATH=$PATH:"${BASH_ARGV[1]}"/bin" >> $pro
+
 packages=(curl lsof strace git shellcheck)
 
 for package in "${packages[@]}" ; do

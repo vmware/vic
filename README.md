@@ -11,13 +11,15 @@ See [CONTRIBUTING](CONTRIBUTING.md) for details on submitting changes and the co
 
 ## Building binaries for development
 
-To build the bootstrap binaries, ensure `GOPATH` is set, then issue the following.
+Some of the project binaries can only be built on Linux.  If you are developing on a Mac or Windows OS, then the easiest way to facilitate a build is by utilizing the project's Vagrantfile.  The Vagrantfile will share the directory where the file is executed and set the GOPATH based on that share.
+
+To build the bootstrap binaries, ensure `GOPATH` is set, then issue the following command in the root directory:
 ```
 $ make all
 ```
 This will install required tools, build the bootstrap binaries `tether-windows`, `tether-linux`, `rpctool` and server binaries `docker-server`, `port-layer-server`.  The binaries will be created in the `./binaries` directory.
 
-To run tests after a successfull build, issue the following.
+To run tests after a successfull build, issue the following:
 ```
 $ make test
 ```
