@@ -14,6 +14,10 @@
 
 # starts the port layer server in the background, waits for it to start, saves the pid to $port_layer_pid
 start_port_layer () {
+    # FIXME: need to integrate with ESX_URL so disabling it now
+    # https://github.com/vmware/vic/issues/304
+    return
+
     [ "$1" = "" ] && port="8080" || port="$1"
     "$GOPATH"/src/github.com/vmware/vic/binary/port-layer-server --port="$port" --path=/tmp/portlayer > /dev/null 2>&1 &
     while ! curl localhost:"$port"/_ping > /dev/null 2>&1; do
@@ -24,6 +28,10 @@ start_port_layer () {
 
 # kills the port layer
 kill_port_layer () {
+    # FIXME: need to integrate with ESX_URL so disabling it now
+    # https://github.com/vmware/vic/issues/304
+    return
+
     kill $port_layer_pid > /dev/null 2>&1
 }
 

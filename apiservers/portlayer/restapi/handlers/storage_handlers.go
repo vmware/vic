@@ -17,6 +17,11 @@ package handlers
 import (
 	"net/http"
 	"os"
+	"time"
+
+	log "github.com/Sirupsen/logrus"
+
+	"golang.org/x/net/context"
 
 	"github.com/go-swagger/go-swagger/httpkit/middleware"
 	"github.com/go-swagger/go-swagger/swag"
@@ -25,6 +30,7 @@ import (
 	"github.com/vmware/vic/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/apiservers/portlayer/restapi/operations/storage"
 	"github.com/vmware/vic/apiservers/portlayer/restapi/options"
+	"github.com/vmware/vic/pkg/vsphere/session"
 
 	linux "github.com/vmware/vic/portlayer/linux/storage"
 	portlayer "github.com/vmware/vic/portlayer/storage"
@@ -35,11 +41,14 @@ import (
 type StorageHandlersImpl struct{}
 
 var (
-	cache = &portlayer.NameLookupCache{}
+	cache          = &portlayer.NameLookupCache{}
+	storageSession = &session.Session{}
 )
 
 // Configure assigns functions to all the storage api handlers
 func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI) {
+	var err error
+
 	cache.DataStore = linux.NewLocalStore(options.StorageLayerOptions.Path)
 
 	api.StorageCreateImageStoreHandler = storage.CreateImageStoreHandlerFunc(handler.CreateImageStore)
@@ -47,6 +56,23 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI) {
 	api.StorageGetImageTarHandler = storage.GetImageTarHandlerFunc(handler.GetImageTar)
 	api.StorageListImagesHandler = storage.ListImagesHandlerFunc(handler.ListImages)
 	api.StorageWriteImageHandler = storage.WriteImageHandlerFunc(handler.WriteImage)
+
+	ctx := context.Background()
+
+	sessionconfig := &session.Config{
+		Service:        options.PortLayerOptions.SDK,
+		Insecure:       options.PortLayerOptions.Insecure,
+		Keepalive:      time.Duration(5) * time.Minute,
+		DatacenterPath: options.PortLayerOptions.DatacenterPath,
+		ClusterPath:    options.PortLayerOptions.ClusterPath,
+		DatastorePath:  options.PortLayerOptions.DatastorePath,
+	}
+
+	storageSession, err = session.NewSession(sessionconfig).Create(ctx)
+	if err != nil {
+		log.Fatalf("ERROR: %s", err)
+	}
+
 }
 
 // CreateImageStore creates a new image store
