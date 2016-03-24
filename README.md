@@ -11,6 +11,8 @@ See [CONTRIBUTING](CONTRIBUTING.md) for details on submitting changes and the co
 
 ## Building binaries for development
 
+The project utilizes [git-hooks](https://github.com/icefox/git-hooks), so please install and ensure it is referenced in your PATH.
+
 Some of the project binaries can only be built on Linux.  If you are developing on a Mac or Windows OS, then the easiest way to facilitate a build is by utilizing the project's Vagrantfile.  The Vagrantfile will share the directory where the file is executed and set the GOPATH based on that share.
 
 To build the bootstrap binaries, ensure `GOPATH` is set, then issue the following command in the root directory:

@@ -78,7 +78,7 @@ goimports: $(go-imports)
 # convenience targets
 all: components isos install
 tools: $(GOIMPORTS) $(GOVET) $(GVT) $(GOLINT) $(SWAGGER) goversion
-check: goversion goimports govet golint
+check: goversion goimports govet golint copyright
 apiservers: $(portlayerapi) $(docker-engine-api)
 bootstrap: $(tether-linux) $(tether-windows) $(rpctool)
 components: check apiservers $(imagec) $(vicadmin) $(rpctool)
@@ -110,6 +110,10 @@ $(GOLINT): vendor/manifest
 $(SWAGGER): vendor/manifest
 	@echo building $(SWAGGER)...
 	@$(GO) build -o $(SWAGGER) ./vendor/github.com/go-swagger/go-swagger/cmd/swagger
+
+copyright:
+	@echo "checking copyright in header..."
+	scripts/header-check.sh
 
 # exit 1 if golint complains about anything other than comments
 golintf = $(GOLINT) $(1) | sh -c "! grep -v 'should have comment'"
