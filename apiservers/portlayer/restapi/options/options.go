@@ -14,7 +14,16 @@
 
 package options
 
-import "github.com/vmware/vic/pkg/vsphere/session"
+type PortLayerOptionsType struct {
+	SDK      string `long:"sdk" description:"SDK URL or proxy" env:"VC_URL" required:"true"`
+	Cert     string `long:"cert" description:"Client certificate" env:"VC_CERTIFICATE"`
+	Key      string `long:"key" description:"Private key file" env:"VC_PRIVATE_KEY"`
+	Insecure bool   `long:"insecure" description:"Skip verification of server certificate" env:"VC_INSECURE"`
+
+	DatacenterPath string `long:"datacenter" description:"Datacenter path" env:"DC_PATH" required:"true"`
+	ClusterPath    string `long:"cluster" description:"Cluster path" env:"CS_PATH" required:"true"`
+	DatastorePath  string `long:"datastore" description:"Datastore path" env:"DS_PATH" required:"true"`
+}
 
 // StorageLayerOptionsType provides the additional flags required by handlers
 type StorageLayerOptionsType struct {
@@ -23,5 +32,5 @@ type StorageLayerOptionsType struct {
 
 var (
 	StorageLayerOptions = new(StorageLayerOptionsType)
-	SessionOptions      = new(session.Flags)
+	PortLayerOptions    = new(PortLayerOptionsType)
 )
