@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-apt-get update
+apt-get update && apt-get -y dist-upgrade
 
 # set GOPATH based on shared folder of vagrant
 pro="/home/"${BASH_ARGV[0]}"/.profile"
@@ -9,16 +9,15 @@ echo "export GOPATH="${BASH_ARGV[1]} >> $pro
 # add GOPATH/bin to the PATH
 echo "export PATH=$PATH:"${BASH_ARGV[1]}"/bin" >> $pro
 
-packages=(curl lsof strace git shellcheck)
-
+packages=(curl lsof strace git shellcheck tree mc silversearcher-ag)
 for package in "${packages[@]}" ; do
-  apt-get -y install "$package"
+    apt-get -y install "$package"
 done
 
 if [ ! -d "/usr/local/go" ] ; then
-  (cd /usr/local &&
-   (curl --silent -L https://storage.googleapis.com/golang/go1.6.linux-amd64.tar.gz | tar -zxf -) &&
-   ln -s /usr/local/go/bin/* /usr/local/bin/)
+    (cd /usr/local &&
+        (curl --silent -L https://storage.googleapis.com/golang/go1.6.linux-amd64.tar.gz | tar -zxf -) &&
+        ln -s /usr/local/go/bin/* /usr/local/bin/)
 fi
 
 cat << EOF > /etc/systemd/system/docker.service
