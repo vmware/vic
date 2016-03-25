@@ -20,6 +20,8 @@ import (
 	"net/url"
 	"testing"
 
+	"golang.org/x/net/context"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/portlayer/util"
 )
@@ -29,11 +31,11 @@ type MockDataStore struct {
 
 // GetImageStore checks to see if a named image store exists and returls the
 // URL to it if so or error.
-func (c *MockDataStore) GetImageStore(storeName string) (*url.URL, error) {
+func (c *MockDataStore) GetImageStore(ctx context.Context, storeName string) (*url.URL, error) {
 	return nil, nil
 }
 
-func (c *MockDataStore) CreateImageStore(storeName string) (*url.URL, error) {
+func (c *MockDataStore) CreateImageStore(ctx context.Context, storeName string) (*url.URL, error) {
 	u, err := util.StoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
@@ -42,11 +44,11 @@ func (c *MockDataStore) CreateImageStore(storeName string) (*url.URL, error) {
 	return u, nil
 }
 
-func (c *MockDataStore) ListImageStores() ([]*url.URL, error) {
+func (c *MockDataStore) ListImageStores(ctx context.Context) ([]*url.URL, error) {
 	return nil, nil
 }
 
-func (c *MockDataStore) WriteImage(parent *Image, ID string, r io.Reader) (*Image, error) {
+func (c *MockDataStore) WriteImage(ctx context.Context, parent *Image, ID string, r io.Reader) (*Image, error) {
 	i := Image{
 		ID:     ID,
 		Store:  parent.Store,
@@ -57,12 +59,12 @@ func (c *MockDataStore) WriteImage(parent *Image, ID string, r io.Reader) (*Imag
 }
 
 // GetImage gets the specified image from the given store by retreiving it from the cache.
-func (c *MockDataStore) GetImage(store *url.URL, ID string) (*Image, error) {
+func (c *MockDataStore) GetImage(ctx context.Context, store *url.URL, ID string) (*Image, error) {
 	return nil, nil
 }
 
 // ListImages resturns a list of Images for a list of IDs, or all if no IDs are passed
-func (c *MockDataStore) ListImages(store *url.URL, IDs []string) ([]*Image, error) {
+func (c *MockDataStore) ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*Image, error) {
 	return nil, nil
 }
 
@@ -71,7 +73,7 @@ func TestListImages(t *testing.T) {
 		DataStore: &MockDataStore{},
 	}
 
-	storeURL, err := s.CreateImageStore("testStore")
+	storeURL, err := s.CreateImageStore(context.TODO(), "testStore")
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -88,7 +90,7 @@ func TestListImages(t *testing.T) {
 	for i := 1; i < 50; i++ {
 		id := fmt.Sprintf("ID-%d", i)
 
-		img, err := s.WriteImage(&parent, id, testSum, nil)
+		img, err := s.WriteImage(context.TODO(), &parent, id, testSum, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -100,7 +102,7 @@ func TestListImages(t *testing.T) {
 	}
 
 	// List all images
-	outImages, err := s.ListImages(storeURL, nil)
+	outImages, err := s.ListImages(context.TODO(), storeURL, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -116,7 +118,7 @@ func TestListImages(t *testing.T) {
 
 	// Check we can retrieve a subset
 	inIDs := []string{"ID-1", "ID-2", "ID-3"}
-	outImages, err = s.ListImages(storeURL, inIDs)
+	outImages, err = s.ListImages(context.TODO(), storeURL, inIDs)
 	if !assert.NoError(t, err) {
 		return
 	}

@@ -38,11 +38,6 @@ type portlayerhandlers struct {
 func configureFlags(api *operations.PortLayerAPI) {
 	api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{
 		swag.CommandLineOptionsGroup{
-			LongDescription:  "Storage Layer Options",
-			Options:          options.StorageLayerOptions,
-			ShortDescription: "Storage Layer Options",
-		},
-		swag.CommandLineOptionsGroup{
 			LongDescription:  "Port Layer Options",
 			Options:          options.PortLayerOptions,
 			ShortDescription: "Port Layer Options",

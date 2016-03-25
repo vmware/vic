@@ -22,6 +22,8 @@ import (
 	"os"
 	"testing"
 
+	"golang.org/x/net/context"
+
 	//"github.com/go-swagger/go-swagger/httpkit/middleware"
 	"github.com/go-swagger/go-swagger/swag"
 	"github.com/stretchr/testify/assert"
@@ -48,11 +50,11 @@ type MockDataStore struct {
 
 // GetImageStore checks to see if a named image store exists and returls the
 // URL to it if so or error.
-func (c *MockDataStore) GetImageStore(storeName string) (*url.URL, error) {
+func (c *MockDataStore) GetImageStore(ctx context.Context, storeName string) (*url.URL, error) {
 	return nil, nil
 }
 
-func (c *MockDataStore) CreateImageStore(storeName string) (*url.URL, error) {
+func (c *MockDataStore) CreateImageStore(ctx context.Context, storeName string) (*url.URL, error) {
 	u, err := util.StoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
@@ -61,11 +63,11 @@ func (c *MockDataStore) CreateImageStore(storeName string) (*url.URL, error) {
 	return u, nil
 }
 
-func (c *MockDataStore) ListImageStores() ([]*url.URL, error) {
+func (c *MockDataStore) ListImageStores(ctx context.Context) ([]*url.URL, error) {
 	return nil, nil
 }
 
-func (c *MockDataStore) WriteImage(parent *spl.Image, ID string, r io.Reader) (*spl.Image, error) {
+func (c *MockDataStore) WriteImage(ctx context.Context, parent *spl.Image, ID string, r io.Reader) (*spl.Image, error) {
 	i := spl.Image{
 		ID:     ID,
 		Store:  parent.Store,
@@ -76,17 +78,17 @@ func (c *MockDataStore) WriteImage(parent *spl.Image, ID string, r io.Reader) (*
 }
 
 // GetImage gets the specified image from the given store by retreiving it from the cache.
-func (c *MockDataStore) GetImage(store *url.URL, ID string) (*spl.Image, error) {
+func (c *MockDataStore) GetImage(ctx context.Context, store *url.URL, ID string) (*spl.Image, error) {
 	return nil, nil
 }
 
 // ListImages resturns a list of Images for a list of IDs, or all if no IDs are passed
-func (c *MockDataStore) ListImages(store *url.URL, IDs []string) ([]*spl.Image, error) {
+func (c *MockDataStore) ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*spl.Image, error) {
 	return nil, nil
 }
 
 func TestCreateImageStore(t *testing.T) {
-	cache = &spl.NameLookupCache{
+	storageLayer = &spl.NameLookupCache{
 		DataStore: &MockDataStore{},
 	}
 
@@ -123,7 +125,7 @@ func TestCreateImageStore(t *testing.T) {
 }
 
 func TestGetImage(t *testing.T) {
-	cache = &spl.NameLookupCache{
+	storageLayer = &spl.NameLookupCache{
 		DataStore: &MockDataStore{},
 	}
 
@@ -151,7 +153,7 @@ func TestGetImage(t *testing.T) {
 	}
 
 	// create the image store
-	url, err := cache.CreateImageStore(testStoreName)
+	url, err := storageLayer.CreateImageStore(context.TODO(), testStoreName)
 	// TODO(jzt): these are testing NameLookupCache, do we need them here?
 	if !assert.Nil(t, err, "Error while creating image store") {
 		return
@@ -185,7 +187,7 @@ func TestGetImage(t *testing.T) {
 	}
 
 	// add the image to the store
-	image, err := cache.WriteImage(&parent, testImageID, testImageSum, nil)
+	image, err := storageLayer.WriteImage(context.TODO(), &parent, testImageID, testImageSum, nil)
 	if !assert.NotNil(t, image) {
 		return
 	}
@@ -210,7 +212,7 @@ func TestGetImage(t *testing.T) {
 }
 
 func TestListImages(t *testing.T) {
-	cache = &spl.NameLookupCache{
+	storageLayer = &spl.NameLookupCache{
 		DataStore: &MockDataStore{},
 	}
 
@@ -237,7 +239,7 @@ func TestListImages(t *testing.T) {
 	}
 
 	// create the image store
-	url, err := cache.CreateImageStore(testStoreName)
+	url, err := storageLayer.CreateImageStore(context.TODO(), testStoreName)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -252,7 +254,7 @@ func TestListImages(t *testing.T) {
 	parent.Store = &testStoreURL
 	for i := 1; i < 50; i++ {
 		id := fmt.Sprintf("id-%d", i)
-		img, err := cache.WriteImage(&parent, id, testImageSum, nil)
+		img, err := storageLayer.WriteImage(context.TODO(), &parent, id, testImageSum, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -303,12 +305,12 @@ func TestListImages(t *testing.T) {
 
 func TestWriteImage(t *testing.T) {
 
-	cache = &spl.NameLookupCache{
+	storageLayer = &spl.NameLookupCache{
 		DataStore: &MockDataStore{},
 	}
 
 	// create image store
-	_, err := cache.CreateImageStore(testStoreName)
+	_, err := storageLayer.CreateImageStore(context.TODO(), testStoreName)
 	if err != nil {
 		return
 	}

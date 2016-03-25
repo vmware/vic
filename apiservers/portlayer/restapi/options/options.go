@@ -25,12 +25,6 @@ type PortLayerOptionsType struct {
 	DatastorePath  string `long:"datastore" description:"Datastore path" env:"DS_PATH" required:"true"`
 }
 
-// StorageLayerOptionsType provides the additional flags required by handlers
-type StorageLayerOptionsType struct {
-	Path string `long:"path" description:"Storage Path" required:"true"`
-}
-
 var (
-	StorageLayerOptions = new(StorageLayerOptionsType)
-	PortLayerOptions    = new(PortLayerOptionsType)
+	PortLayerOptions = new(PortLayerOptionsType)
 )

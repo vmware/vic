@@ -16,6 +16,7 @@ package disk
 
 import (
 	"fmt"
+	"os"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
@@ -76,7 +77,7 @@ func NewDiskManager(ctx context.Context, session *session.Session) (*Manager, er
 // [datastoreN] /path/to/disk.vmdk.
 func (m *Manager) CreateAndAttach(ctx context.Context, newDiskURI,
 	parentURI string,
-	capacity int64) (*VirtualDisk, error) {
+	capacity int64, flags int) (*VirtualDisk, error) {
 	defer trace.End(trace.Begin(newDiskURI))
 
 	// ensure we abide by max attached disks limits
@@ -87,9 +88,9 @@ func (m *Manager) CreateAndAttach(ctx context.Context, newDiskURI,
 		return nil, errors.Trace(err)
 	}
 
-	spec := m.createDiskSpec(newDiskURI, parentURI, capacity)
+	spec := m.createDiskSpec(newDiskURI, parentURI, capacity, flags)
 
-	log.Infof("Attempting to create/attach vmdk for layer or volume %s at %s, with parent %s", newDiskURI, newDiskURI, parentURI)
+	log.Infof("Create/attach vmdk %s from parent %s", newDiskURI, parentURI)
 
 	if err := m.vm.AddDevice(ctx, spec); err != nil {
 		log.Errorf("vmdk storage driver failed to attach disk: %s", errors.ErrorStack(err))
@@ -118,7 +119,7 @@ func (m *Manager) CreateAndAttach(ctx context.Context, newDiskURI,
 	return d, nil
 }
 
-func (m *Manager) createDiskSpec(childURI, parentURI string, capacity int64) *types.VirtualDisk {
+func (m *Manager) createDiskSpec(childURI, parentURI string, capacity int64, flags int) *types.VirtualDisk {
 	// TODO: migrate this method to govmomi CreateDisk method
 	backing := &types.VirtualDiskFlatVer2BackingInfo{
 		DiskMode:        string(types.VirtualDiskModeIndependent_persistent),
@@ -126,6 +127,11 @@ func (m *Manager) createDiskSpec(childURI, parentURI string, capacity int64) *ty
 		VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
 			FileName: childURI,
 		},
+	}
+
+	if flags == os.O_RDONLY {
+		backing.DiskMode = string(types.VirtualDiskModeIndependent_nonpersistent)
+		capacity = 0
 	}
 
 	if parentURI != "" {
@@ -150,7 +156,9 @@ func (m *Manager) createDiskSpec(childURI, parentURI string, capacity int64) *ty
 }
 
 // Create creates a disk without a parent (and doesn't attach it).
-func (m *Manager) Create(ctx context.Context, newDiskURI string, capacityKB int64) (*VirtualDisk, error) {
+func (m *Manager) Create(ctx context.Context, newDiskURI string,
+	capacityKB int64) (*VirtualDisk, error) {
+
 	defer trace.End(trace.Begin(newDiskURI))
 
 	vdm := object.NewVirtualDiskManager(m.vm.Client())
@@ -169,7 +177,7 @@ func (m *Manager) Create(ctx context.Context, newDiskURI string, capacityKB int6
 		CapacityKb: capacityKB,
 	}
 
-	log.Infof("Attempting to create vmdk for layer or volume %s", d.DatastoreURI)
+	log.Infof("Creating vmdk for layer or volume %s", d.DatastoreURI)
 
 	err = tasks.Wait(ctx, func(ctx context.Context) (tasks.Waiter, error) {
 		return vdm.CreateVirtualDisk(ctx, d.DatastoreURI, nil, spec)
@@ -214,7 +222,7 @@ func (m *Manager) Create(ctx context.Context, newDiskURI string, capacityKB int6
 
 func (m *Manager) Detach(ctx context.Context, d *VirtualDisk) error {
 	defer trace.End(trace.Begin(d.DevicePath))
-	log.Infof("starting detaching disk %s", d.DevicePath)
+	log.Infof("Detaching disk %s", d.DevicePath)
 
 	d.lock()
 	defer d.unlock()

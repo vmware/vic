@@ -19,36 +19,22 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
+	"github.com/vmware/vic/pkg/vsphere/test"
 	"golang.org/x/net/context"
 )
-
-func URL(t *testing.T) string {
-	s := os.Getenv("TEST_URL")
-	if s == "" {
-		t.SkipNow()
-	}
-	return s
-}
 
 // Create a lineage of disks inheriting from eachother, write portion of a
 // string to each, the confirm the result is the whole string
 func TestCreateAndDetach(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
-	config := &session.Config{
-		Service:       URL(t),
-		Insecure:      true,
-		Keepalive:     time.Duration(5) * time.Minute,
-		DatastorePath: "/ha-datacenter/datastore/*",
-	}
-	client, err := session.NewSession(config).Create(context.Background())
-	if !assert.NoError(t, err) {
+
+	client := test.Session(context.Background(), t)
+	if client == nil {
 		return
 	}
 
@@ -79,7 +65,8 @@ func TestCreateAndDetach(t *testing.T) {
 	// Create children which inherit from eachother
 	for i := 0; i < numChildren; i++ {
 
-		child, err := vdm.CreateAndAttach(context.TODO(), client.Datastore.Path(fmt.Sprintf("imagestore/child%d.vmdk", i)), parent.DatastoreURI, 0)
+		p := client.Datastore.Path(fmt.Sprintf("imagestore/child%d.vmdk", i))
+		child, err := vdm.CreateAndAttach(context.TODO(), p, parent.DatastoreURI, 0, os.O_RDWR)
 		if !assert.NoError(t, err) {
 			return
 		}
