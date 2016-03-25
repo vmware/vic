@@ -29,6 +29,8 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 
+	"crypto/tls"
+
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -37,9 +39,11 @@ var (
 
 	config struct {
 		session.Config
-		addr       string
-		dockerHost string
-		vmPath     string
+		addr         string
+		dockerHost   string
+		vmPath       string
+		hostCertFile string
+		hostKeyFile  string
 	}
 
 	defaultReaders []entryReader
@@ -52,8 +56,10 @@ var (
 func init() {
 	flag.StringVar(&config.addr, "l", ":2378", "Listen address")
 	flag.StringVar(&config.dockerHost, "docker-host", "127.0.0.1:2376", "Docker host")
-	flag.StringVar(&config.CertFile, "cert", "", "Client certificate file")
-	flag.StringVar(&config.KeyFile, "key", "", "Client private key file")
+	flag.StringVar(&config.CertFile, "cert", "", "VMOMI Client certificate file")
+	flag.StringVar(&config.hostCertFile, "hostcert", "", "Host certificate file")
+	flag.StringVar(&config.KeyFile, "key", "", "VMOMI Client private key file")
+	flag.StringVar(&config.hostKeyFile, "hostkey", "", "Host private key file")
 	flag.StringVar(&config.Service, "sdk", "", "The ESXi or vCenter URL")
 	flag.StringVar(&config.DatacenterPath, "dc", "", "Name of the Datacenter")
 	flag.StringVar(&config.DatastorePath, "ds", "", "Name of the Datastore")
@@ -69,7 +75,9 @@ func logFiles() []string {
 	names := []string{}
 	files, _ := ioutil.ReadDir(logFileDir)
 	for _, f := range files {
-		names = append(names, fmt.Sprintf("%s/%s", logFileDir, f.Name()))
+		if !f.IsDir() {
+			names = append(names, fmt.Sprintf("%s/%s", logFileDir, f.Name()))
+		}
 	}
 
 	return names
@@ -475,8 +483,25 @@ type server struct {
 
 func (s *server) listen() error {
 	var err error
-	s.l, err = net.Listen("tcp", s.addr)
-	return err
+	innerListener, err := net.Listen("tcp", s.addr)
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+
+	certificate, err := tls.LoadX509KeyPair(config.hostCertFile, config.hostKeyFile)
+	if err != nil {
+		log.Fatalf("Could not load either key file %s or certificate file %s",
+			config.hostKeyFile, config.hostCertFile)
+		return err
+	}
+
+	tlsconfig := tls.Config{
+		Certificates: []tls.Certificate{certificate},
+	}
+
+	s.l = tls.NewListener(innerListener, &tlsconfig)
+	return nil
 }
 
 func (s *server) listenPort() int {
