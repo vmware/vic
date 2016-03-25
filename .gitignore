@@ -3,9 +3,13 @@
 binary/
 vic_binaries*.tar.gz
 secrets.yml
+bin/
 
 bootstrap/targets/linux/tether/
 imagec/imagec
+
+tests/helpers/bats-assert
+tests/helpers/bats-support
 
 apiservers/docker/cmd
 apiservers/docker/models

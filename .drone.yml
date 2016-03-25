@@ -6,33 +6,71 @@
 clone:
   path: github.com/vmware/vic
   tags: true
+
 build:
+  components:
+    image: golang:1.6.0
+    pull: true
+    environment:
+      BIN: bin
+      SHELL: /bin/bash
+    commands:
+      - make components
+      - make install
+
+  iso-base:
+    image: golang:1.6.0
+    pull: true
+    environment:
+      BIN: bin
+    commands:
+      - make iso-base
+
+  appliance-staging:
+    image: golang:1.6.0
+    pull: true
+    environment:
+      BIN: bin
+    commands:
+      - make appliance-staging
+
+  appliance:
+    image: golang:1.6.0
+    pull: true
+    environment:
+      BIN: bin
+      INIT: /lib/systemd/systemd
+    commands:
+      - make appliance
+
   test:
     image: golang:1.6.0
     pull: true
     environment:
+      BIN: bin
       GOPATH: /drone
       SHELL: /bin/bash
       DOCKER_API_VERSION: "1.21"
-      VIC_ESX_TEST_URL: $$VIC_ESX_TEST_URL
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
     commands:
       - wget -q https://get.docker.com/builds/Linux/x86_64/docker-latest
       - chmod +x docker-latest
       - mv docker-latest /usr/local/bin/docker
-      - make all
       - make test
       - make integration-tests
+    when:
+      success: true
+
   bundle:
     image: golang:1.6.0
     pull: true
     environment:
+      BIN: bin
       GOPATH: /drone
       SHELL: /bin/bash
     commands:
-      - make all
-      - tar -cvf vic_binaries_$$BUILD_NUMBER.tar.gz binary
+      - tar -cvf $BIN/vic_$$BUILD_NUMBER.tar.gz $BIN/appliance.iso $BIN/install.sh
     when:
       success: true
 
@@ -48,15 +86,21 @@ publish:
     username: $$BINTRAY_USERNAME
     api_key: $$BINTRAY_API_KEY
     artifacts:
-      - file: vic_binaries_$$BUILD_NUMBER.tar.gz
+      - file: vic_$$BUILD_NUMBER.tar.gz
         owner: vmware
         type: executable
         repository: vic-repo
         package: build
         version: 0.1
-        target: vic_binaries_$$BUILD_NUMBER.tar.gz
+        target: vic_$$BUILD_NUMBER.tar.gz
         publish: true
     when:
       repo: vmware/vic
       branch: master
       success: true
+
+cache:
+  mount:
+    - /drone/bin
+    - bin
+

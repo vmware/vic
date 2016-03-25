@@ -41,7 +41,7 @@ func TestLogTar(t *testing.T) {
 		t.SkipNow()
 	}
 
-	logFiles = []string{"vicadm.go", "vicadm_test.go"}
+	logFileDir = "."
 
 	s := &server{
 		addr: "127.0.0.1:0",
@@ -104,7 +104,7 @@ func TestLogTail(t *testing.T) {
 
 	f.WriteString("# not much here yet\n")
 
-	logFiles = []string{f.Name(), "vicadm.go"}
+	logFileDir = "."
 	name := filepath.Base(f.Name())
 
 	s := &server{

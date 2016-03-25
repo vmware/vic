@@ -17,7 +17,7 @@ To build the bootstrap binaries, ensure `GOPATH` is set, then issue the followin
 ```
 $ make all
 ```
-This will install required tools, build the bootstrap binaries `tether-windows`, `tether-linux`, `rpctool` and server binaries `docker-server`, `port-layer-server`.  The binaries will be created in the `./binaries` directory.
+This will install required tools, build the bootstrap binaries `tether-windows`, `tether-linux`, `rpctool` and server binaries `docker-engine-server`, `port-layer-server`.  The binaries will be created in the `./binaries` directory.
 
 To run tests after a successfull build, issue the following:
 ```
@@ -81,7 +81,7 @@ Ensure that you have Docker 1.6 or higher installed.
 Install the Drone command line tools.
 From the root directory of the `vic` repository run `drone exec -trusted -e VIC_ESX_TEST_URL=""`
 
-## Starting docker-server
+## Starting docker-engine-server
 
 Generate certificate pair
 
@@ -89,10 +89,10 @@ Generate certificate pair
 go run `go env GOROOT`/src/crypto/tls/generate_cert.go --host localhost
 ```
 
-Start docker-server
+Start docker-engine-server
 
 ```
-binary/docker-server --port=2376 --tls-certificate=cert.pem --tls-key=key.pem
+binary/docker-engine-server --port=2376 --tls-certificate=cert.pem --tls-key=key.pem
 ```
 
 ## Starting port-layer-server

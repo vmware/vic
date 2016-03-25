@@ -1,0 +1,11 @@
+[Unit]
+Description=Watchdog script for VIC components
+After=network-online.target
+
+[Service]
+Type=idle
+ExecStart=/bin/launcher.sh
+
+[Install]
+WantedBy=multi-user.target
+Wants=network-online.target
