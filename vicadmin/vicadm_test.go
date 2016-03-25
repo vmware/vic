@@ -17,6 +17,7 @@ package main
 import (
 	"archive/tar"
 	"compress/gzip"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"io"
@@ -30,6 +31,11 @@ import (
 	"runtime"
 	"testing"
 )
+
+// use an http client which we modify in init()
+// to be permissive with certificates so we can
+// use a self-signed cert hardcoded into these tests
+var insecureClient *http.Client
 
 func init() {
 	sdk := os.Getenv("GOVC_URL")
@@ -46,8 +52,14 @@ func init() {
 		log.Println(http.ListenAndServe(u.Host, nil))
 	}()
 
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	insecureClient = &http.Client{Transport: transport}
 	flag.Set("docker-host", u.Host)
 
+	config.hostCertFile = "fixtures/vicadmin_test_cert.pem"
+	config.hostKeyFile = "fixtures/vicadmin_test_pkey.pem"
 }
 
 func TestLogTar(t *testing.T) {
@@ -69,8 +81,7 @@ func TestLogTar(t *testing.T) {
 	port := s.listenPort()
 
 	go s.serve()
-
-	res, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/container-logs.tar.gz", port))
+	res, err := insecureClient.Get(fmt.Sprintf("https://localhost:%d/container-logs.tar.gz", port))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,14 +160,14 @@ func TestLogTail(t *testing.T) {
 	i := 0
 
 	u := url.URL{
-		Scheme: "http",
-		Host:   fmt.Sprintf("127.0.0.1:%d", port),
+		Scheme: "https",
+		Host:   fmt.Sprintf("localhost:%d", port),
 	}
 
 	for _, path := range paths {
 		u.Path = path
 		log.Printf("GET %s:\n", u)
-		res, err := http.Get(u.String())
+		res, err := insecureClient.Get(u.String())
 		if err != nil {
 			t.Fatal(err)
 		}
