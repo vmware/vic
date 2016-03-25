@@ -213,9 +213,11 @@ func (s *Session) Populate(ctx context.Context) (*Session, error) {
 		}
 	}
 
-	s.Network, err = finder.NetworkOrDefault(ctx, s.NetworkPath)
-	if err != nil {
-		errs = append(errs, err.Error())
+	if s.NetworkPath != "" {
+		s.Network, err = finder.NetworkOrDefault(ctx, s.NetworkPath)
+		if err != nil {
+			errs = append(errs, err.Error())
+		}
 	}
 
 	s.Pool, err = finder.ResourcePoolOrDefault(ctx, s.PoolPath)
