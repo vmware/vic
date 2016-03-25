@@ -27,34 +27,55 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+func TestImageAnonymization(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+	phClient := NewClient("line001")
+	image := NewImageEvent()
+	image.ApplianceID = "vch1"
+	image.Operation = "deployment"
+	image.ParentID = "030120"
+	image.ImageID = "030121"
+	image.Registry = "localhost:5000/mytest"
+	image.VMDKPath = "vm001/vm001.vmdk"
+	phClient.AnonymizeImageEvent(image)
+	if image.Registry != "http://334389048b872a533002b34d73f8c29fd09efc50:5000/mytest" {
+		t.Errorf("Failed to anonymize image registry, was %s", image.Registry)
+	}
+	image.Registry = "https://localhost/mytest"
+	phClient.AnonymizeImageEvent(image)
+	if image.Registry != "https://334389048b872a533002b34d73f8c29fd09efc50/mytest" {
+		t.Errorf("Failed to anonymize image registry, was %s", image.Registry)
+	}
+	image.Registry = "127.0.0.1:5000/mytest"
+	image.VMDKPath = "vm001/vm001.vmdk"
+	phClient.AnonymizeImageEvent(image)
+	if image.Registry != "http://4b84b15bff6ee5796152495a230e45e3d7e947d9:5000/mytest" {
+		t.Errorf("Failed to anonymize image registry, was %s", image.Registry)
+	}
+	image.Registry = "https://127.0.0.1/mytest"
+	phClient.AnonymizeImageEvent(image)
+	if image.Registry != "https://4b84b15bff6ee5796152495a230e45e3d7e947d9/mytest" {
+		t.Errorf("Failed to anonymize image registry, was %s", image.Registry)
+	}
+}
+
 func TestMultiPost(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
 	phClient := NewClient("line001")
 	install := NewInstallationData()
 	install.ApplianceID = "line001"
-	install.CIDR = "127.0.0.0/24"
-	install.Cluster = "/Data Center/host/Cluster1"
-	install.ContainerNetwork = "net1"
 	install.ContainerPortgroupID = ""
-	install.Datacenter = "DataCenter"
-	install.Datastore = "datastore1"
 	install.DatastoreID = ""
-	install.DNS = ""
 	install.DockerOpts = ""
-	install.ExternalNetwork = "net2"
 	install.ExternalPortgroupID = ""
 	install.FailedStep = "init"
 	install.FinishTime = "10:10:10"
 	install.Force = false
-	install.Host = "/DataCenter/host/Cluster1/host1"
-	install.IP = "1.1.1.1"
 	install.Message = "failed to wait initialization status"
-	install.Name = "line-test1"
 	install.Operation = "install"
 	install.OS = "windows"
 	install.Status = "failed"
-	install.Target = "testvc"
 	install.VCID = "vc123"
 
 	array := make([]*InstallationData, 2)
@@ -100,11 +121,8 @@ func TestTimer(t *testing.T) {
 	container.CPU = 1
 	container.EventTime = time.Now().UTC().String()
 	container.ImageID = "image1"
-	container.IP = ""
 	container.Memory = 2048
-	container.Name = "random"
 	container.Operation = "create"
-	container.PortMapping = "8080:8080"
 	container.StartSeconds = 8
 	phClient.AddContainerEvent(container)
 	phClient.StartPOST(time.Millisecond*100, time.Millisecond*300)

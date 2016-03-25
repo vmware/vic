@@ -15,6 +15,11 @@
 package ph
 
 import (
+	"crypto/sha1"
+	"fmt"
+	"net"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -40,26 +45,14 @@ type InstallationData struct {
 	Version string `json:"version"`
 
 	// command params
-	Operation        string `json:"operation"`
-	Name             string `json:"name"`
-	OS               string `json:"os"`
-	CIDR             string `json:"cidr"`
-	Cluster          string `json:"cluster"`
-	ContainerNetwork string `json:"container_network"`
-	Datacenter       string `json:"datacenter"`
-	Datastore        string `json:"datastore"`
-	DNS              string `json:"dns"`
-	DockerOpts       string `json:"docker_opts"`
-	ExternalNetwork  string `json:"external_network"`
-	Force            bool   `json:"force"`
-	Host             string `json:"host"`
-	IP               string `json:"ip"`
-	MemoryMB         int    `json:"memory_mb"`
-	NumCPUs          int    `json:"num_cpus"`
-	Pool             string `json:"pool"`
-	Target           string `json:"target"`
-	Timeout          int    `json:"timeout"`
-	Verify           bool   `json:"verify"`
+	Operation  string `json:"operation"`
+	OS         string `json:"os"`
+	DockerOpts string `json:"docker_opts"`
+	Force      bool   `json:"force"`
+	MemoryMB   int    `json:"memory_mb"`
+	NumCPUs    int    `json:"num_cpus"`
+	Timeout    int    `json:"timeout"`
+	Verify     bool   `json:"verify"`
 
 	VCID                 string `json:"vc_id"`
 	ContainerPortgroupID string `json:"container_pg_id"`
@@ -67,6 +60,8 @@ type InstallationData struct {
 	HostID               string `json:"host_id"`
 	DatastoreID          string `json:"datastore_id"`
 	ApplianceID          string `json:"appliance_id"`
+	DatacenterID         string `json:"datacenter_id"`
+	ResourcePoolID       string `json:"resourcepool_id"`
 
 	Status     string `json:"status"`
 	Message    string `json:"message"`
@@ -91,19 +86,13 @@ type CRDProductInstance struct {
 // The details of service initialization might not be available from installer
 type InitData struct {
 	// name: vic_appliance
-	Type                 string `json:"@type"`
-	ApplianceID          string `json:"appliance_id"`
-	VCID                 string `json:"vc_id"`
-	ContainerPortgroupID string `json:"container_pg_id"`
-	ExternalPortgroupID  string `json:"external_pg_id"`
-	HostID               string `json:"host_id"`
-	DatastoreID          string `json:"datastore_id"`
-	MemoryMB             int    `json:"memory_mb"`
-	NumCPUs              int    `json:"num_cpus"`
-	IP                   string `json:"ip"`
-	InitStatus           string `json:"init_status"`
-	FailureMessage       string `json:"failure_message"`
-	ReportTime           string `json:"report_time"`
+	Type           string `json:"@type"`
+	ApplianceID    string `json:"appliance_id"`
+	MemoryMB       int    `json:"memory_mb"`
+	NumCPUs        int    `json:"num_cpus"`
+	InitStatus     string `json:"init_status"`
+	FailureMessage string `json:"failure_message"`
+	ReportTime     string `json:"report_time"`
 }
 
 // ContainerEvent is to record container configuration and operations
@@ -115,12 +104,9 @@ type ContainerEvent struct {
 	ImageID     string `json:"image_id"`
 	EventTime   string `json:"event_time"`
 	// run, exec, stop, rm, etc.
-	Operation   string `json:"operation"`
-	Name        string `json:"name"`
-	CPU         int    `json:"cpu"`
-	Memory      int    `json:"memory"`
-	PortMapping string `json:"port_mapping"`
-	IP          string `json:"ip"`
+	Operation string `json:"operation"`
+	CPU       int    `json:"cpu"`
+	Memory    int    `json:"memory"`
 	// the seconds to start a container if available
 	StartSeconds int `json:"start_seconds"`
 }
@@ -131,7 +117,6 @@ type ImageEvent struct {
 	Type        string `json:"@type"`
 	ApplianceID string `json:"appliance_id"`
 	ImageID     string `json:"image_id"`
-	Name        string `json:"name"`
 	Registry    string `json:"registry"`
 	// pull/push/commit, etc
 	Operation string `json:"operation"`
@@ -273,6 +258,7 @@ func (phc *Client) stopPOST() {
 }
 
 func (phc *Client) AddImageEvent(image *ImageEvent) {
+	phc.AnonymizeImageEvent(image)
 	imageMutex.Lock()
 	imageEvents = append(imageEvents, image)
 	imageMutex.Unlock()
@@ -288,4 +274,47 @@ func (phc *Client) AddConfigHandler(handler ConfigHandler) {
 	configMutex.Lock()
 	configHandler = append(configHandler, handler)
 	configMutex.Unlock()
+}
+
+func (phc *Client) anonymizeIP(str string) *string {
+	ip := net.ParseIP(str)
+	if ip == nil {
+		return nil
+	}
+	return phc.sha1String(ip.String())
+}
+
+func (phc *Client) sha1String(str string) *string {
+	h := sha1.New()
+	h.Write([]byte(str))
+	bip := h.Sum(nil)
+	sip := fmt.Sprintf("%x", bip)
+	//	sip := string(bip[:])
+	return &sip
+}
+
+func (phc *Client) AnonymizeImageEvent(image *ImageEvent) {
+	registry := image.Registry
+	if !strings.HasPrefix(registry, "http") {
+		registry = "http://" + registry
+	}
+	if u, err := url.Parse(registry); err != nil {
+		log.Debugf("Invalid registry URL: %s", image.Registry)
+		image.Registry = ""
+	} else {
+		host, port, err := net.SplitHostPort(u.Host)
+		if err != nil {
+			host = u.Host
+		}
+		sha1 := phc.anonymizeIP(host)
+		if sha1 == nil {
+			sha1 = phc.sha1String(host)
+		}
+		if port != "" {
+			u.Host = *sha1 + ":" + port
+		} else {
+			u.Host = *sha1
+		}
+		image.Registry = u.String()
+	}
 }
