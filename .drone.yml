@@ -86,7 +86,7 @@ publish:
     username: $$BINTRAY_USERNAME
     api_key: $$BINTRAY_API_KEY
     artifacts:
-      - file: vic_$$BUILD_NUMBER.tar.gz
+      - file: bin/vic_$$BUILD_NUMBER.tar.gz
         owner: vmware
         type: executable
         repository: vic-repo
