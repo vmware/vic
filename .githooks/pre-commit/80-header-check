@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -e -o pipefail
+
+echo "==> Running header check..."
+# Run header check and fix headers
+./scripts/header-check.sh fix 2>&1 > /dev/null
+
+# Readd changed files to stage
+git diff --name-only --diff-filter=M | xargs git add
