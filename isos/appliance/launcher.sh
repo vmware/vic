@@ -6,7 +6,7 @@ mkdir -p "$logFileDir"
 nameInterfaces() {
     for net in $(rpctool -get vch/networks); do
         mac=$(rpctool -get vch/networks/$net)
-        
+
         # interface name for mac, with trailing :
         dev=$(ip link | grep $mac -B 1 | head -n 1 | cut -d ' ' -f 2 | tr -d ':')
         ip link set dev $dev down
@@ -18,75 +18,88 @@ nameInterfaces() {
 
 publishClientIP() {
     echo "Waiting for IP assigning on client interface"
-    while [ -z "$ip" ]; do    
+    while [ -z "$ip" ]; do
         ip=$(ip addr show dev client | grep "inet " | tr -s ' ' | cut -d ' ' -f 3 | cut -d '/' -f 1)
         sleep 1
     done
-    echo "Publishing client IP: $ip"    
+    echo "Publishing client IP: $ip"
     rpctool -set IpAddress ${ip}
     rpctool -set vch.clientip ${ip}
+}
+
+# args:
+# component name
+# arguments
+launchComponent() {
+    component=$(basename $1)
+    args=${2}
+    pidfile=/var/run/${component}.pid
+    cmdfile=/var/run/${component}.cmd
+    logfile="$logFileDir/${component}.log"
+
+    # read existing file contents
+    pid=$(cat $pidfile)
+    cargs=$(cat $cmdfile)
+
+    # if arguments have changed, kill it
+    if [ -e "${pifdile}" -a "$cargs" != "$args" ]; then
+        echo "Component $1 arguments have changed - relaunching" | tee -a $logfile
+
+        for attempt in {1..5}; do
+            kill "$pid" || { echo "Clean shutdown of component" && break; }
+            sleep 1
+        done
+        # ensure it's gone
+        kill -9 "$pid" > /dev/null
+
+        rm -f "$pidfile"
+    fi
+
+    # if we expect the component to be there and it's not
+    if [ -e "$pidfile" ] && ! kill -0 "$pid"; then
+        echo "Component $1 has died - relaunching" | tee -a $logfile
+        rm -f "$pidfile"
+    fi
+
+    # Launch it if it's not running
+    if [ -z "$pid" ] || ! kill -0 "$pid"; then
+        echo "Launching $1 $2" | tee -a $logfile
+        echo "$args" > ${cmdfile}
+
+        "${1}" ${args} >>$logfile 2>&1 &
+        echo $! > $pidfile
+    fi
 }
 
 watchdog() {
     echo "Launching watchdog loop"
 
     while true; do
-        # do we need to launch any components?
-        components=$(rpctool -get vch/components)
-        for component in ${components}; do
-            pidfile=/var/run/$(basename $component).pid
 
-            if [ -e "$pidfile" ]; then
-                pid=$(cat $pidfile)
-                if ! kill -0 $pid; then
-                    echo "Component $component has died - relaunching all services."
-                    launch="${components}"
-                    break
-                fi
+        # reload the files in case they're dependencies of components
+        files=$(rpctool -get vch/files)
+        for file in ${files}; do
+            if [ "/" == "${file:(-1)}" ]; then
+                # it's a directory
+                mkdir -p $file
             else
-                echo "Component $component has no pid file - relaunching all services."
-                launch="${components}"
-                break
+                mkdir -p $(dirname "$file")
+
+                data=$(rpctool -get vch$file)
+                if [ ! -z "$data" ]; then
+                    echo "Generating file: $file"
+                    echo "$data" > "${file}"
+                fi
             fi
         done
-        
-        # if we found a need to relaunch
-        if [ ! -z "$launch" ]; then
-            # if we relaunching anything, then reload, kill everything, and relaunch
-            files=$(rpctool -get vch/files)
-            for file in ${files}; do
-                if [ "/" == "${file:(-1)}" ]; then
-                    # it's a directory
-                    mkdir -p $file
-                else
-                    mkdir -p $(dirname "$file")
 
-                    data=$(rpctool -get vch$file)
-                    if [ ! -z "$data" ]; then
-                        echo "Generating file: $file"
-                        echo "$data" > "${file}"
-                    fi
-                fi
-            done
+        # run through the components
+        components=$(rpctool -get vch/components)
+        for component in ${components}; do
+            args="$(rpctool -get vch$component)"
+            launchComponent "$component" "$args"
+        done
 
-            for component in ${components}; do
-                logfile="$logFileDir/$(basename ${component}).log"
-                pidfile=/var/run/$(basename $component).pid
-                if [ -e "$pidfile" ]; then
-                    pid=$(cat $pidfile)
-                    echo "Killing $component via pidfile"
-                    kill $pid && echo "Restarting all services" >> $logfile
-                    rm -f $pidfile
-                fi
-            
-                echo "Launching component: $component" | tee $logfile
-                args=$(rpctool -get vch$component)
-                "${component}" ${args} >>$logfile 2>&1 &
-                echo $! > /var/run/$(basename $component).pid
-            done
-        fi
-
-        unset launch
         sleep 15
     done
 }
