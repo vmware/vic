@@ -2,7 +2,7 @@
 # Build the appliance filesystem ontop of the base
 
 # exit on failure
-set -x
+set -e
 
 if [ -n "$DEBUG" ]; then
       set -x
@@ -56,7 +56,7 @@ fi
 mkdir -p ${PKGDIR} && tar -C ${PKGDIR} -xf $package
 ROOTFS=${PKGDIR}/rootfs
 BOOTFS=${PKGDIR}/bootfs
-export INIT=/sbin/init
+export INIT=/bin/bash
 
 #cleanup bootfs, we need a different configuration for the bootstrap vms
 

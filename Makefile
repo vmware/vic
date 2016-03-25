@@ -222,7 +222,7 @@ $(appliance): isos/appliance.sh $(rpctool) $(vicadmin) $(imagec) $(portlayerapi)
 
 # main bootstrap target
 $(bootstrap): $(tether-linux) $(rpctool) $(iso-base)
-	@echo "Placeholder target for bootstrap"
+	@echo "Run make boonstrap-debug. This is a placeholder."
 
 $(bootstrap-staging-debug): isos/bootstrap/bootstrap-staging-debug.sh $(iso-base)
 	@echo staging debug for bootstrap

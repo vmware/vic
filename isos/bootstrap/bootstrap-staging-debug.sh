@@ -2,7 +2,7 @@
 # Build the appliance filesystem ontop of the base
 
 # exit on failure
-set -x
+set -e
 echo "BEGINNING OF BOOTSTRAP_STAGING_"
 if [ -n "$DEBUG" ]; then
       set -x
@@ -22,13 +22,11 @@ do
     p)
       # Required. Package name
         package="$OPTARG"
-        echo "PACKAGE = $package"
       ;;
 
     o)
       # Required. Target for iso and source for components
       OUT="$OPTARG"
-      echo "OUT = $OUT"
       ;;
 
     *)
@@ -72,18 +70,10 @@ BOOTFS=${PKGDIR}/bootfs
 /usr/bin/yum --installroot=${ROOTFS} install \
                                   bash \
                                   iproute2 \
+                                  libtirpc \
                                   tdnf \
                                   vim \
                               -y --nogpgcheck 
-
-# configure us for autologin of root
-#COPY override.conf $ROOTFS/etc/systemd/system/getty@.service.d/
-# HACK until the issues with override.conf above are dealt with
-pwhash=$(openssl passwd -1 -salt vic password)
-sed -i -e "s/^root:[^:]*:/root:${pwhash}:/" ${ROOTFS}/etc/shadow
-
-# Allow root login via ssh
-sed -i -e "s/\#*PermitRootLogin\s.*/PermitRootLogin yes/" ${ROOTFS}/etc/ssh/sshd_config
 
 # package up the result
 tar -C $PKGDIR -zcf $OUT rootfs bootfs && rm -fr PKGDIR
