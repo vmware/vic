@@ -38,31 +38,31 @@ launchComponent() {
     logfile="$logFileDir/${component}.log"
 
     # read existing file contents
-    pid=$(cat $pidfile)
-    cargs=$(cat $cmdfile)
+    pid=$(cat $pidfile 2>/dev/null)
+    cargs=$(cat $cmdfile 2>/dev/null)
 
     # if arguments have changed, kill it
     if [ -e "${pifdile}" -a "$cargs" != "$args" ]; then
         echo "Component $1 arguments have changed - relaunching" | tee -a $logfile
 
         for attempt in {1..5}; do
-            kill "$pid" || { echo "Clean shutdown of component" && break; }
+            kill "$pid" 2>/dev/null || { echo "Clean shutdown of component" && break; }
             sleep 1
         done
         # ensure it's gone
-        kill -9 "$pid" > /dev/null
+        kill -9 "$pid" >/dev/null 2>&1
 
         rm -f "$pidfile"
     fi
 
     # if we expect the component to be there and it's not
-    if [ -e "$pidfile" ] && ! kill -0 "$pid"; then
+    if [ -e "$pidfile" ] && ! kill -0 "$pid" 2>/dev/null; then
         echo "Component $1 has died - relaunching" | tee -a $logfile
         rm -f "$pidfile"
     fi
 
     # Launch it if it's not running
-    if [ -z "$pid" ] || ! kill -0 "$pid"; then
+    if [ -z "$pid" ] || ! kill -0 "$pid" 2>/dev/null; then
         echo "Launching $1 $2" | tee -a $logfile
         echo "$args" > ${cmdfile}
 

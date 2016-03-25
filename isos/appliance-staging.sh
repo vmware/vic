@@ -1,32 +1,34 @@
 #!/bin/bash
 # Build the appliance filesystem ontop of the base
 
-# exit on failure
-set -e
-
-if [ -n "$DEBUG" ]; then
-      set -x
-fi
-
+# exit on failure and configure debug, include util functions
+set -e && [ -n "$DEBUG" ] && set -x
 DIR=$(dirname $(readlink -f "$0"))
+. $DIR/base/utils.sh
+
 
 function usage() {
-     echo "Usage: $0 -p base-package(tgz) -o output-package(tgz)" 1>&2
+     echo "Usage: $0 -c yum-cache(tgz) -p base-package(tgz) -o output-package(tgz)" 1>&2
      exit 1
 }
 
-while getopts "p:o:" flag
+while getopts "c:p:o:" flag
 do
   case $flag in
 
     p)
       # Required. Package name
-      package="$OPTARG"
+      PACKAGE="$OPTARG"
       ;;
 
     o)
       # Required. Target for iso and source for components
       OUT="$OPTARG"
+      ;;
+
+    c)
+      # Optional. Offline cache of yum packages
+      cache="$OPTARG"
       ;;
 
     *)
@@ -38,24 +40,18 @@ done
 shift $((OPTIND-1))
 
 # check there were no extra args and the required ones are set
-if [ ! -z "$*" -o -z "$package" -o -z "${OUT}" ]; then
+if [ ! -z "$*" -o -z "$PACKAGE" -o -z "${OUT}" ]; then
     usage
 fi
 
 PKGDIR=$(mktemp -d)
 
-# prep the build system
-# Make sure we only try this as root
-if [ "$(id -u)" == "0" ]; then
-  apt-get update && apt-get -y install yum
-else
-  echo "Skipping apt-get - rerun as root if missing packages"
-fi
+unpack $PACKAGE $PKGDIR
 
-# unpackage base package
-mkdir -p ${PKGDIR} && tar -C ${PKGDIR} -xf $package
-ROOTFS=${PKGDIR}/rootfs
-BOOTFS=${PKGDIR}/bootfs
+#################################################################
+# Above: arg parsing and setup
+# Below: the image authoring
+#################################################################
 
 # Install VCH base packages
 #
@@ -70,7 +66,7 @@ BOOTFS=${PKGDIR}/bootfs
 #   systemd   # for convenience only at this time
 #   tndf      # so we can deploy other packages into the appliance live - MUST BE REMOVED FOR SHIPPING
 #   vim       # basic editing function
-/usr/bin/yum --installroot=${ROOTFS} install \
+yum_cached -c $cache -u -p $PKGDIR install \
                                   systemd \
                                   openssh \
                                   e2fsprogs \
@@ -81,14 +77,18 @@ BOOTFS=${PKGDIR}/bootfs
                                   vim \
                               -y --nogpgcheck
 
+# ensure we're not including a cache in the staging bundle
+# but don't update the cache bundle we're using to install
+yum_cached -p $PKGDIR clean all
+
 # configure us for autologin of root
 #COPY override.conf $ROOTFS/etc/systemd/system/getty@.service.d/
 # HACK until the issues with override.conf above are dealt with
 pwhash=$(openssl passwd -1 -salt vic password)
-sed -i -e "s/^root:[^:]*:/root:${pwhash}:/" ${ROOTFS}/etc/shadow
+sed -i -e "s/^root:[^:]*:/root:${pwhash}:/" $(rootfs_dir $PKGDIR)/etc/shadow
 
 # Allow root login via ssh
-sed -i -e "s/\#*PermitRootLogin\s.*/PermitRootLogin yes/" ${ROOTFS}/etc/ssh/sshd_config
+sed -i -e "s/\#*PermitRootLogin\s.*/PermitRootLogin yes/" $(rootfs_dir $PKGDIR)/etc/ssh/sshd_config
 
 # package up the result
-tar -C $PKGDIR -zcf $OUT rootfs bootfs && rm -fr PKGDIR
+pack $PKGDIR $OUT

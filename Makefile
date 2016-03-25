@@ -17,9 +17,12 @@ GOIMPORTS ?= $(GOPATH)/bin/goimports$(BIN_ARCH)
 GOLINT ?= $(GOPATH)/bin/golint$(BIN_ARCH)
 GVT ?= $(GOPATH)/bin/gvt$(BIN_ARCH)
 
+REPO ?= https://dl.bintray.com/vmware/vic-repo/kernel/
+KERNEL ?= linux-esx-4.2.0-10.x86_64.rpm
+
 .PHONY: all tools clean test check \
 	goversion govet goimports gvt gopath \
-	isos tethers apiservers
+	isos tethers apiservers copyright
 
 .DEFAULT_GOAL := all
 
@@ -41,6 +44,7 @@ appliance := $(BIN)/appliance.iso
 appliance-staging := $(BIN)/appliance-staging.tgz
 bootstrap := $(BIN)/bootstrap.iso
 iso-base := $(BIN)/iso-base.tgz
+kernel := $(BIN)/$(KERNEL)
 
 install := $(BIN)/install.sh
 
@@ -65,7 +69,7 @@ appliance: $(appliance)
 appliance-staging: $(appliance-staging)
 bootstrap: $(bootstrap)
 iso-base: $(iso-base)
-
+kernel: $(kernel)
 install: $(install)
 
 swagger: $(SWAGGER)
@@ -128,18 +132,19 @@ $(go-lint): $(GOLINT)
 	@$(call golintf,github.com/vmware/vic/apiservers/portlayer/restapi/handlers/...)
 	@$(call golintf,github.com/vmware/vic/apiservers/engine/server/...)
 	@$(call golintf,github.com/vmware/vic/apiservers/engine/backends/...)
+	@touch $@
 
 # For use by external tools such as emacs or for example:
 # GOPATH=$(make gopath) go get ...
 gopath:
 	@echo -n $(GOPATH)
 
-$(go-imports): $(GOIMPORTS) $(find . -type f -name '*.go' -not -path "./vendor/*")
+$(go-imports): $(GOIMPORTS) $(find . -type f -name '*.go' -not -path "./vendor/*" -not -path "apiservers/portlayer") $(PORTLAYER_DEPS)
 	@echo checking go imports...
 	@! $(GOIMPORTS) -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
 	@touch $@
 
-$(go-vet): $(GOVET) $(find . -type f -name '*.go' -not -path "./vendor/*")
+$(go-vet): $(GOVET) $(find . -type f -name '*.go' -not -path "./vendor/*" -not -path "apiservers/portlayer") $(PORTLAYER_DEPS)
 	@echo checking go vet...
 	@$(GOVET) -all -shadow $$(find . -type f -name '*.go' -not -path "./vendor/*")
 	@touch $@
@@ -219,23 +224,27 @@ $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API server...
 	@$(SWAGGER) generate server -A PortLayer -t $(realpath $(dir $<)) -f $<
 
-$(portlayerapi): $(portlayerapi-server) $(shell find apiservers/engine/ -name '*.go')
+$(portlayerapi): $(portlayerapi-server) $(shell find pkg/ apiservers/engine/ -name '*.go')
 	@echo building Portlayer API server...
 	@$(GO) build -o $@ ./apiservers/portlayer/cmd/port-layer-server
 
+# cache the kernel locally
+$(kernel):
+	@ # ensure that the reference file exists, but date it at epoc inception
+	@-[ ! -e $(kernel) ] && touch --date="@0" $@
+	@curl -L --insecure $(REPO)/$(KERNEL) -o $(kernel) -z $(kernel)
 
-$(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/**
+$(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg $(kernel)
 	@echo building iso-base docker image
-	@ #docker build -t $@ -f $< $(dir $<)
-	@$< -p $@
+	@$< -c $(BIN)/yum-cache.tgz -p $@ -k $(BIN)/$(KERNEL)
 
 # appliance staging - allows for caching of package install
 $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 	@echo staging for VCH appliance
-	@$< -p $(iso-base) -o $@
+	@$< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@
 
 # main appliance target - depends on all top level component targets
-$(appliance): isos/appliance.sh $(rpctool) $(vicadmin) $(imagec) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
+$(appliance): isos/appliance.sh isos/appliance/* $(rpctool) $(vicadmin) $(imagec) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
 	@echo building VCH appliance ISO
 	@$< -p $(appliance-staging) -b $(BIN)
 

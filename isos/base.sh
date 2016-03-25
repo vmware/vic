@@ -1,40 +1,34 @@
 #!/bin/bash
 # Build the base of a bootable ISO
 
-# exit on failure
-set -e
-
-if [ -n "$DEBUG" ]; then
-      set -x
-fi
-
+# exit on failure and configure debug, include util functions
+set -e && [ -n "$DEBUG" ] && set -x
 DIR=$(dirname $(readlink -f "$0"))
+. $DIR/base/utils.sh
 
-REPO=https://dl.bintray.com/vmware/vic-repo/kernel/
-KERNEL=linux-esx-4.2.0-10.x86_64.rpm
 
 function usage() {
-     echo "Usage: $0 -p package-name(tgz) [-k kernel-rpm] [-p photon-repo]" 1>&2
+     echo "Usage: $0 -p package-name(tgz) [-c yum-cache] -k kernel-rpm" 1>&2
      exit 1
 }
 
-while getopts "p:r:k:" flag
+while getopts "c:p:k:" flag
 do
   case $flag in
 
     k)
-      # Optional.  Path to kernel rpm
+      # Required.  Path to kernel rpm
       KERNEL="$OPTARG"
       ;;
 
     p)
       # Required. Package name
-      package="$OPTARG"
+      PACKAGE="$OPTARG"
       ;;
 
-    r)
-      # Optional. photon repo
-      REPO="$OPTARG"
+    c)
+      # Optional. Offline cache of yum packages
+      cache="$OPTARG"
       ;;
 
     *)
@@ -46,39 +40,38 @@ done
 shift $((OPTIND-1))
 
 # check there were no extra args and the required ones are set
-if [ ! -z "$*" -o -z "$package"  ]; then
+if [ ! -z "$*" -o -z "$PACKAGE" -o -z "$KERNEL" ]; then
     usage
 fi
 
 # prep the build system
-# Make sure we only try this as root
-if [ "$(id -u)" == "0" ]; then
-  apt-get update && apt-get -y install curl cpio rpm tar yum ca-certificates
-else
-  echo "Skipping apt-get - rerun as root if missing packages"
-fi
+ensure_apt_packges cpio rpm tar ca-certificates
 
 KERNEL_TREE=$(mktemp -d)
 RPM=$(mktemp)
 PKGDIR=$(mktemp -d)
 
-# base root filesystem & package management
-ROOTFS=$PKGDIR/rootfs
-BOOTFS=$PKGDIR/bootfs
-mkdir -p $ROOTFS/{var/lib/rpm,etc/yum.repos.d} $BOOTFS/boot $KERNEL_TREE  
-ln -s /lib $ROOTFS/lib64
-rpm --root=$ROOTFS --initdb
-cp $DIR/base/*.repo $ROOTFS/etc/yum.repos.d/
-yum --installroot $ROOTFS install --nogpgcheck -y filesystem coreutils bash
+# unpack kernel and modules
+rpm2cpio $KERNEL | (cd $KERNEL_TREE && cpio -id) && rm -f $RPM
 
-# add kernel and modules
-curl -L --insecure $REPO/$KERNEL -o $RPM && rpm2cpio $RPM | (cd $KERNEL_TREE && cpio -id) && rm -f $RPM
-mv $KERNEL_TREE/boot/vmlinuz-esx-4.2.0 $BOOTFS/boot/vmlinuz64
-rm -rf $ROOTFS/lib/modules/ $ROOTFS/lib/firmware/ && mv $KERNEL_TREE/lib/modules/ $ROOTFS/lib/
-rm -fr $KERNEL_TREE 
+# initialize the bundle
+initialize_bundle $PKGDIR $KERNEL_TREE/boot/vmlinuz-esx-4.2.0
 
-# prep boot filesystem
-cp -a $DIR/base/isolinux $BOOTFS/boot/isolinux
+# base filesystem setup
+mkdir -p $(rootfs_dir $PKGDIR)/{etc/yum,etc/yum.repos.d} $KERNEL_TREE
+ln -s /lib $(rootfs_dir $PKGDIR)/lib64
+cp $DIR/base/*.repo $(rootfs_dir $PKGDIR)/etc/yum.repos.d/
+cp $DIR/base/yum.conf $(rootfs_dir $PKGDIR)/etc/yum/
+
+# install the core packages
+yum_cached -c $cache -u -p $PKGDIR install filesystem coreutils bash --nogpgcheck -y
+# strip the cache from the resulting image
+yum_cached -c $cache -p $PKGDIR clean all
+
+# add the kernel modules now the filesystem is installed
+rm -rf $(rootfs_dir $PKGDIR)/{lib/modules/,lib/firmware/}
+mv $KERNEL_TREE/lib/modules/ $(rootfs_dir $PKGDIR)/lib/
+rm -fr $KERNEL_TREE
 
 # package up the result
-tar -C $PKGDIR -zcf $package rootfs bootfs && rm -fr PKGDIR
+pack $PKGDIR $PACKAGE
