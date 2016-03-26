@@ -28,7 +28,7 @@ DIR=$(dirname "$THIS")
 set -e
 
 function usage() {
-     echo "# Usage: $0 [-v:verbose] -t=target-url -p=compute-resource -d=datastore -e=external-network -m=management-network -b=bridge-network -a=appliance-iso -c=bootstrap -g=stub -x=certificate-file -y=key-file name" 2>&1
+     echo "# Usage: $0 [-v:verbose] -t=target-url -p=compute-resource -i=image-datastore -d=container-datastore -e=external-network -m=management-network -b=bridge-network -a=appliance-iso -c=bootstrap -g=stub -x=certificate-file -y=key-file name" 2>&1
      echo "#   -g: generate the certificate and key files, using the value as a stub name"
      exit 1
 }
@@ -46,7 +46,7 @@ applianceIso="${DIR}/appliance.iso"
 bootstrapIso="${DIR}/bootstrap.iso"
 
 
-while getopts "fvt:g:p:d:e:m:b:a:c:x:y:" flag
+while getopts "fvt:g:p:i:d:e:m:b:a:c:x:y:" flag
 do
   case $flag in
     v)
@@ -61,15 +61,23 @@ do
       ;;
 
     p)
-     # Optional. Compute resource path - translated to GOVC_POOL
+     # Required. Compute resource path
+     # This should fully specify the path to the compute resource, e.g.
+     # /ha-datacenter/host/myCluster/Resources/myRP
       compute=${OPTARG}
-      export GOVC_POOL=${compute}
+      # primarily internal convenience for constructing other paths
+      datacenter=$(echo $compute | cut -d '/' -f 2)
       ;;
 
     d)
-      # Optional. Datastore path - translated to GOVC_DATASTORE
-      datastore=${OPTARG}
-      export GOVC_DATASTORE=${datastore}
+      # Optional. Container datastore path - defaults to image datastore
+      cdatastore=${OPTARG}
+      ;;
+
+    i)
+      # Required. Image datastore path - sets cdatastore too for default
+      idatastore=${OPTARG}
+      cdatastore=${OPTARG}
       ;;
 
     e)
@@ -139,6 +147,10 @@ done
 shift $((OPTIND-1))
 
 vchName="$1"
+if [ "$#" -ne 1 ]; then
+   echo "Trailing arguments after name paramenter ($vchName)"
+   usage
+fi
 
 if [ -z "$1" -o -z "$GOVC_URL" -o -z "$vchName" ]; then
      usage
@@ -193,7 +205,7 @@ networks[${bridgeNet}]=bridge
 
 # create the VM
 echo "# Creating the Virtual Container Host appliance"
-govc vm.create -iso="${appIsoPath}" -net="${bridgeNet}" -net.adapter=vmxnet3 -on=false "${vchName}"
+govc vm.create -iso="${appIsoPath}" -net="${bridgeNet}" -disk.controller=pvscsi -net.adapter=vmxnet3 -on=false "${vchName}"
 
 # short-hand the vm
 uuid=$(govc vm.info ${vchName}| grep -e "^\\s*UUID:" | awk '{print$2}')
@@ -219,25 +231,27 @@ fi
 
 echo "# Setting component configuration"
 govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/components="/sbin/docker-engine-server /sbin/port-layer-server /sbin/vicadmin"
-govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/sbin/port-layer-server="--host=localhost --port=8080 --sdk=${targetURL}"
 govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/sbin/imagec="-debug -logfile=/var/log/vic/imagec.log -insecure"
-govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/sbin/vicadmin="-docker-host=127.0.0.1:2375 -insecure -sdk=${targetURL} -ds=${datastore} -vm-path=${vmpath}"
+govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/sbin/port-layer-server="--host=localhost --port=8080 --insecure --sdk=${targetURL} --datacenter=${datacenter} --cluster=${compute} --datastore=/${datacenter}/datastore/${idatastore}"
 files="/var/tmp/images/ /var/log/vic/"
 
 # now we see if we configure TLS
 if [ -n "${certificate}" -a -n "${key}" ] ; then
    echo "# Configuring TLS server"
-   govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/home/docker-server/cert.pem="${certificate}"
-   govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/home/docker-server/key.pem="${key}"
-   govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/home/docker-engine-server/cert.pem="${certificate}"
-   govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/home/docker-engine-server/key.pem="${key}"
-   files="${files} /home/docker-engine-server/cert.pem /home/docker-engine-server/key.pem"
-   tlsargs="--tls-host=0.0.0.0 --tls-port=2376 --tls-certificate=/home/docker-engine-server/cert.pem --tls-key=/home/docker-engine-server/key.pem"
+   govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/etc/pki/tls/certs/vic-host-cert.pem="${certificate}"
+   govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/etc/pki/tls/certs/vic-host-key.pem="${key}"
+   files="${files} /etc/pki/tls/certs/vic-host-cert.pem /etc/pki/tls/certs/vic-host-key.pem"
+   dockertlsargs="-TLS -tls-certificate=/etc/pki/tls/certs/vic-host-cert.pem -tls-key=/etc/pki/tls/certs/vic-host-key.pem"
+   vicadmintlsargs=" -hostcert=/etc/pki/tls/certs/vic-host-cert.pem -hostkey=/etc/pki/tls/certs/vic-host-key.pem"
+   port=2376
+else
+   port=2375
 fi
 
-# and finalize the config
+# and finalize the config (this is the components that have frontend TLS considerations)
 govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/files="${files}"
-govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/sbin/docker-engine-server="--host=0.0.0.0 --port=2375 ${tlsargs}"
+govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/sbin/docker-engine-server="-severaddr 0.0.0.0 -port ${port} -port-layer-port 8080 ${dockertlsargs}"
+govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/sbin/vicadmin="-docker-host=unix:///var/run/docker.sock -insecure -sdk=${targetURL} -ds=/${datacenter}/datastore/${idatastore} -vm-path=${vmpath} ${vicadmintlsargs}"
 
 
 # power on the appliance
@@ -269,12 +283,9 @@ echo "# "
 echo "# Log server:"
 echo "# http://${host}:2378"
 echo "# "
-echo "# Connect to docker (insecure):"
-echo "DOCKER_HOST=${host}:2375"
-if [ -n "${tlsargs}" ]; then
-   echo "# "
-   echo "# Connect to docker (TLS):"
-   echo "# docker -H ${host}:2376 \$DOCKER_TLS_ARGS"
+if [ -n "${dockertlsargs}" ]; then
+   echo "# Connect to docker:"
+   echo "# docker -H ${host}:${port} \$DOCKER_TLS_ARGS"
    echo "DOCKER_TLS_ARGS=\"--tls --tlscert='${certf}' --tlskey='${keyf}'\""
-   echo "DOCKER_HOST=${host}:2376"
 fi
+echo "DOCKER_HOST=${host}:${port}"
