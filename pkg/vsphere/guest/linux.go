@@ -32,6 +32,9 @@ const (
 	scsiBusNumber = 0
 	scsiKey       = 100
 	ideKey        = 200
+
+	UUIDPath   = "/sys/class/dmi/id/product_serial"
+	UUIDPrefix = "VMware-"
 )
 
 // LinuxGuestType type
@@ -100,11 +103,6 @@ func (l *LinuxGuestType) Spec() *types.VirtualMachineConfigSpec {
 func (l *LinuxGuestType) Controller() *types.BaseVirtualController {
 	return &l.controller
 }
-
-const (
-	UUIDPath   = "/sys/class/dmi/id/product_serial"
-	UUIDPrefix = "VMware-"
-)
 
 // UUID gets the BIOS UUID via the sys interface.  This UUID is known by vphsere
 func UUID() (string, error) {

@@ -21,6 +21,11 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
+const (
+	//from portlayer/vsphere/storage/store.go
+	defaultCapacityInKB = 8 * 1024 * 1024
+)
+
 // NewVirtualDisk returns a new disk attached to the controller
 func NewVirtualDisk(controller types.BaseVirtualController) *types.VirtualDisk {
 
@@ -55,23 +60,31 @@ func (s *VirtualMachineConfigSpec) AddVirtualDisk(device *types.VirtualDisk) *Vi
 
 	device.GetVirtualDevice().Key = s.generateNextKey()
 
+	device.CapacityInKB = defaultCapacityInKB
+
 	moref := s.Datastore.Reference()
 	device.GetVirtualDevice().Backing = &types.VirtualDiskFlatVer2BackingInfo{
 		DiskMode:        string(types.VirtualDiskModePersistent),
 		ThinProvisioned: types.NewBool(true),
 
 		VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
-			FileName:  s.Datastore.Path(fmt.Sprintf("%s.vmdk", s.ID())),
+			FileName:  s.Datastore.Path(fmt.Sprintf("%s/%[1]s.vmdk", s.ID())),
 			Datastore: &moref,
+		},
+
+		Parent: &types.VirtualDiskFlatVer2BackingInfo{
+			VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
+				FileName: s.Datastore.Path(fmt.Sprintf("VIC/%s/%s/%[2]s.vmdk", s.ImageStoreName(), s.ParentImageID())),
+			},
 		},
 	}
 
-	return s.AddVirtualDevice(device)
+	return s.AddAndCreateVirtualDevice(device)
 }
 
 // RemoveVirtualDisk remvoes the virtual disk from a virtual machine.
 func (s *VirtualMachineConfigSpec) RemoveVirtualDisk(device *types.VirtualDisk) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
-	return s.RemoveVirtualDevice(device)
+	return s.RemoveAndDestroyVirtualDevice(device)
 }
