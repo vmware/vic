@@ -1,14 +1,11 @@
 #!/bin/bash
 # Build the appliance filesystem ontop of the base
 
-# exit on failure
-set -e
-
-if [ -n "$DEBUG" ]; then
-      set -x
-fi
-
+# exit on failure and configure debug, include util functions
+set -e && [ -n "$DEBUG" ] && set -x
 DIR=$(dirname $(readlink -f "$0"))
+. $DIR/base/utils.sh
+
 
 function usage() {
      echo "Usage: $0 -p staged-package(tgz) -b binary-dir" 1>&2
@@ -21,7 +18,7 @@ do
 
     p)
       # Required. Package name
-      package="$OPTARG"
+      PACKAGE="$OPTARG"
       ;;
 
     b)
@@ -38,39 +35,30 @@ done
 shift $((OPTIND-1))
 
 # check there were no extra args and the required ones are set
-if [ ! -z "$*" -o -z "$package" -o -z "${BIN}" ]; then
+if [ ! -z "$*" -o -z "$PACKAGE" -o -z "${BIN}" ]; then
     usage
 fi
 
 PKGDIR=$(mktemp -d)
 
-# prep the build system
-# Make sure we only try this as root
-if [ "$(id -u)" == "0" ]; then
-  apt-get update && apt-get -y install yum
-else
-  echo "Skipping apt-get - rerun as root if missing packages"
-fi
-
 # unpackage base package
-mkdir -p ${PKGDIR} && tar -C ${PKGDIR} -xf $package
-ROOTFS=${PKGDIR}/rootfs
-BOOTFS=${PKGDIR}/bootfs
+unpack $PACKAGE $PKGDIR
 
-# Select systemd for our init process
-export INIT=/lib/systemd/systemd
+#################################################################
+# Above: arg parsing and setup
+# Below: the image authoring
+#################################################################
 
-# TEMP imagec wrapper
-cp ${DIR}/appliance/imagec.sh ${ROOTFS}/sbin/imagec
+# TEMP: imagec wrapper
+cp ${DIR}/appliance/imagec.sh $(rootfs_dir $PKGDIR)/sbin/imagec
 
 # kick off our components at boot time
-cp ${DIR}/appliance/launcher.sh ${ROOTFS}/bin/
-cp ${DIR}/appliance/launcher.service ${ROOTFS}/etc/systemd/system/
-ln -s /etc/systemd/system/launcher.service ${ROOTFS}/etc/systemd/system/multi-user.target.wants/launcher.service
+cp ${DIR}/appliance/launcher.sh $(rootfs_dir $PKGDIR)/bin/
+cp ${DIR}/appliance/launcher.service $(rootfs_dir $PKGDIR)/etc/systemd/system/
+ln -s /etc/systemd/system/launcher.service $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/launcher.service
 
-cp ${BIN}/imagec ${ROOTFS}/sbin/imagec.bin
-cp ${BIN}/{docker-engine-server,port-layer-server,rpctool,vicadmin} ${ROOTFS}/sbin/
+cp ${BIN}/imagec $(rootfs_dir $PKGDIR)/sbin/imagec.bin
+cp ${BIN}/{docker-engine-server,port-layer-server,rpctool,vicadmin} $(rootfs_dir $PKGDIR)/sbin/
 
-# package up the result
-rm -f $BIN/appliance.iso
-$DIR/generate-iso.sh -p $PKGDIR -i $INIT $BIN/appliance.iso
+# Select systemd for our init process
+generate_iso $PKGDIR $BIN/appliance.iso /lib/systemd/systemd

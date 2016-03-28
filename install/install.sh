@@ -173,6 +173,9 @@ if [ ! -z "${force}" ]; then
    echo "# Cleaning up prior VM if needed"
    govc vm.destroy "${vchName}" 2>/dev/null || echo "# Target VM does not need removing"
    govc datastore.rm "${vchName}" 2>/dev/null|| echo "# Target does not need cleaning"
+
+   echo "# Cleaning up image store if present"
+   govc datastore.rm "VIC" 2>/dev/null|| echo "# Target does not need cleaning"
 fi
 
 # upload the isos
@@ -285,7 +288,7 @@ echo "# http://${host}:2378"
 echo "# "
 if [ -n "${dockertlsargs}" ]; then
    echo "# Connect to docker:"
-   echo "# docker -H ${host}:${port} \$DOCKER_TLS_ARGS"
-   echo "DOCKER_TLS_ARGS=\"--tls --tlscert='${certf}' --tlskey='${keyf}'\""
+   echo "# docker -H ${host}:${port} --tls --tlscert='${certf}' --tlskey='${keyf}'"
+   echo "DOCKER_OPTS=\"--tls --tlscert='${certf}' --tlskey='${keyf}'\""
 fi
 echo "DOCKER_HOST=${host}:${port}"

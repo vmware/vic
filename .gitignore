@@ -5,6 +5,9 @@ vic_binaries*.tar.gz
 secrets.yml
 bin/
 
+# generally a bad idea to check certificates into repos - whitelist if needed
+**/*.pem
+
 bootstrap/targets/linux/tether/
 imagec/imagec
 
