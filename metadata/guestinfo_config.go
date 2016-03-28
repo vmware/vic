@@ -12,17 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package handlers
+package metadata
 
-func (ch *GlobalHandler) DynamicIPAddress() (string, error) {
-	return "", nil
-}
+const key = "vic.configblob"
 
-func (ch *GlobalHandler) StaticIPAddress(cidr, gateway string) error {
-	return nil
-}
-func (c *GlobalHandler) MountLabel(label, target string) error {
-	return nil
-}
-func (c *GlobalHandler) Sync() {
+type ConfigLoader interface {
+	LoadConfig(string) (*ExecutorConfig, error)
+	StoreConfig(*ExecutorConfig) (string, error)
 }

@@ -12,25 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package handlers
+package metadata
 
-import (
-	"github.com/vmware/vic/bootstrap/tether"
+import "errors"
 
-	"golang.org/x/crypto/ssh"
-)
+var config = New()
 
-func (ch *SessionHandler) AssignPty() {
+type guestInfoConfig struct {
 }
 
-func (ch *SessionHandler) ResizePty(winSize *tether.WindowChangeMsg) error {
-	return nil
+// New generates a handle to a ConfigLoader
+func New() ConfigLoader {
+	config := guestInfoConfig{}
+
+	return config
 }
 
-func (ch *SessionHandler) Signal(sig ssh.Signal) error {
-	return nil
+// LoadConfig will do so from the VMs GuestInfo
+func (c guestInfoConfig) LoadConfig(blob string) (*ExecutorConfig, error) {
+	return nil, errors.New("rpc config not yet implemented for windows")
 }
 
-func (ch *SessionHandler) Exec(command string, args []string, config map[string]string) (ok bool, payload []byte) {
-	return false, nil
+func (c guestInfoConfig) StoreConfig(config *ExecutorConfig) (string, error) {
+	return "", errors.New("rpc config not yet implemented for windows")
 }
