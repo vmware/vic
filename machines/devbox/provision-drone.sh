@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # This depends on docker being on the box and running
 
 docker pull drone/drone
