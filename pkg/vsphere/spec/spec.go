@@ -15,6 +15,10 @@
 package spec
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 
 	"golang.org/x/net/context"
@@ -27,8 +31,14 @@ import (
 
 // VirtualMachineConfigSpecConfig holds the config values
 type VirtualMachineConfigSpecConfig struct {
-	// id of the VM
+	// ID of the VM
 	ID string
+
+	// ParentImageID of the VM
+	ParentImageID string
+
+	// Name of the VM
+	Name string
 
 	// Number of CPUs
 	NumCPUs int
@@ -49,6 +59,9 @@ type VirtualMachineConfigSpecConfig struct {
 
 	// Name of the network
 	NetworkName string
+
+	// Name of the image store
+	ImageStoreName string
 }
 
 // VirtualMachineConfigSpec type
@@ -67,15 +80,27 @@ type VirtualMachineConfigSpec struct {
 func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, config *VirtualMachineConfigSpecConfig) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(config.ID))
 
+	VMPathName := config.VMPathName
 	if !session.IsVSAN(ctx) {
 		// VMFS requires the full path to vmx or everything but the datastore is ignored
-		config.VMPathName = fmt.Sprintf("%s/%s/%[2]s.vmx", config.VMPathName, config.ID)
+		VMPathName = fmt.Sprintf("%s/%s/%[2]s.vmx", config.VMPathName, config.ID)
+	}
+
+	// Init key for tether
+	privateKey, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		return nil
+	}
+	privateKeyBlock := pem.Block{
+		Type:    "RSA PRIVATE KEY",
+		Headers: nil,
+		Bytes:   x509.MarshalPKCS1PrivateKey(privateKey),
 	}
 
 	spec := &types.VirtualMachineConfigSpec{
 		Name: config.ID,
 		Files: &types.VirtualMachineFileInfo{
-			VmPathName: config.VMPathName,
+			VmPathName: VMPathName,
 		},
 		NumCPUs:             config.NumCPUs,
 		CpuHotAddEnabled:    &config.VMForkEnabled, // this disables vNUMA when true
@@ -95,9 +120,9 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 			&types.OptionValue{Key: "vmotion.checkpointSVGAPrimarySize", Value: "4194304"},
 
 			&types.OptionValue{Key: "guestInfo.docker_id", Value: config.ID},
+			&types.OptionValue{Key: "guestInfo.docker_name", Value: config.Name},
 
-			// FIXME: Where is that coming from?
-			//&types.OptionValue{Key: "guestInfo.init_key", Value: string(host_key)},
+			&types.OptionValue{Key: "guestInfo.init_key", Value: string(pem.EncodeToMemory(&privateKeyBlock))},
 
 			&types.OptionValue{Key: "guestInfo.hostname", Value: stringid.TruncateID(config.ID)},
 
@@ -135,6 +160,18 @@ func (s *VirtualMachineConfigSpec) AddVirtualDevice(device types.BaseVirtualDevi
 	return s
 }
 
+// AddAndCreateVirtualDevice appends an Add operation to the DeviceChange list
+func (s *VirtualMachineConfigSpec) AddAndCreateVirtualDevice(device types.BaseVirtualDevice) *VirtualMachineConfigSpec {
+	s.DeviceChange = append(s.DeviceChange,
+		&types.VirtualDeviceConfigSpec{
+			Operation:     types.VirtualDeviceConfigSpecOperationAdd,
+			FileOperation: types.VirtualDeviceConfigSpecFileOperationCreate,
+			Device:        device,
+		},
+	)
+	return s
+}
+
 // RemoveVirtualDevice appends a Remove operation to the DeviceChange list
 func (s *VirtualMachineConfigSpec) RemoveVirtualDevice(device types.BaseVirtualDevice) *VirtualMachineConfigSpec {
 	s.DeviceChange = append(s.DeviceChange,
@@ -146,11 +183,38 @@ func (s *VirtualMachineConfigSpec) RemoveVirtualDevice(device types.BaseVirtualD
 	return s
 }
 
+// RemoveAndDestroyVirtualDevice appends a Remove operation to the DeviceChange list
+func (s *VirtualMachineConfigSpec) RemoveAndDestroyVirtualDevice(device types.BaseVirtualDevice) *VirtualMachineConfigSpec {
+	s.DeviceChange = append(s.DeviceChange,
+		&types.VirtualDeviceConfigSpec{
+			Operation:     types.VirtualDeviceConfigSpecOperationRemove,
+			FileOperation: types.VirtualDeviceConfigSpecFileOperationDestroy,
+
+			Device: device,
+		},
+	)
+	return s
+}
+
+// Name returns the name of the VM
+func (s *VirtualMachineConfigSpec) Name() string {
+	defer trace.End(trace.Begin(s.config.Name))
+
+	return s.config.Name
+}
+
 // ID returns the ID of the VM
 func (s *VirtualMachineConfigSpec) ID() string {
 	defer trace.End(trace.Begin(s.config.ID))
 
 	return s.config.ID
+}
+
+// ParentImageID returns the ID of the image that VM is based on
+func (s *VirtualMachineConfigSpec) ParentImageID() string {
+	defer trace.End(trace.Begin(s.config.ParentImageID))
+
+	return s.config.ParentImageID
 }
 
 // BootMediaPath returns the image path
@@ -179,6 +243,13 @@ func (s *VirtualMachineConfigSpec) ConnectorURI() string {
 	defer trace.End(trace.Begin(s.config.ID))
 
 	return s.config.ConnectorURI
+}
+
+// ImageStoreName returns the image store name
+func (s *VirtualMachineConfigSpec) ImageStoreName() string {
+	defer trace.End(trace.Begin(s.config.ID))
+
+	return s.config.ImageStoreName
 }
 
 func (s *VirtualMachineConfigSpec) generateNextKey() int {
