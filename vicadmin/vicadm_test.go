@@ -62,7 +62,7 @@ func init() {
 	config.hostKeyFile = "fixtures/vicadmin_test_pkey.pem"
 }
 
-func TestLogTar(t *testing.T) {
+func testLogTar(t *testing.T, plainHTTP bool) {
 	if runtime.GOOS != "linux" {
 		t.SkipNow()
 	}
@@ -73,7 +73,8 @@ func TestLogTar(t *testing.T) {
 		addr: "127.0.0.1:0",
 	}
 
-	err := s.listen()
+	err := s.listen(!plainHTTP)
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -81,7 +82,13 @@ func TestLogTar(t *testing.T) {
 	port := s.listenPort()
 
 	go s.serve()
-	res, err := insecureClient.Get(fmt.Sprintf("https://localhost:%d/container-logs.tar.gz", port))
+
+	var res *http.Response
+	if !plainHTTP {
+		res, err = insecureClient.Get(fmt.Sprintf("https://localhost:%d/container-logs.tar.gz", port))
+	} else {
+		res, err = http.Get(fmt.Sprintf("http://localhost:%d/container-logs.tar.gz", port))
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,6 +123,11 @@ func TestLogTar(t *testing.T) {
 	}
 }
 
+func TestLogTar(t *testing.T) {
+	testLogTar(t, false)
+	testLogTar(t, true)
+}
+
 func TestLogTail(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.SkipNow()
@@ -136,7 +148,7 @@ func TestLogTail(t *testing.T) {
 		addr: "127.0.0.1:0",
 	}
 
-	err = s.listen()
+	err = s.listen(true)
 	if err != nil {
 		log.Fatal(err)
 	}
