@@ -129,7 +129,7 @@ func (s *Session) Create(ctx context.Context) (*Session, error) {
 // Connect establishes the connection for the session but nothing more
 func (s *Session) Connect(ctx context.Context) (*Session, error) {
 	soapURL, err := soap.ParseURL(s.Service)
-	if err != nil {
+	if soapURL == nil || err != nil {
 		return nil, errors.Errorf("SDK URL (%s) could not be parsed: %s", s.Service, err)
 	}
 

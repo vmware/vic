@@ -29,19 +29,43 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"strings"
 )
 
-// A tuple signifying an IP address range
-type addressRange struct {
-	firstIP net.IP
-	lastIP  net.IP
+// IPRange represents a range of IP addresses
+type IPRange struct {
+	FirstIP, LastIP net.IP
 }
 
 // An AddressSpace is a collection of
 // IP address ranges
 type AddressSpace struct {
-	parent          *AddressSpace
-	availableRanges []addressRange
+	Parent          *AddressSpace
+	Network         *net.IPNet
+	Pool            *IPRange
+	availableRanges []*IPRange
+}
+
+func ParseIPRange(s string) *IPRange {
+	comps := strings.Split(s, "-")
+	if len(comps) != 2 {
+		return nil
+	}
+
+	r := &IPRange{
+		FirstIP: net.ParseIP(comps[0]),
+		LastIP:  net.ParseIP(comps[1]),
+	}
+
+	if r.FirstIP == nil || r.LastIP == nil {
+		return nil
+	}
+
+	return r
+}
+
+func (r *IPRange) String() string {
+	return r.FirstIP.String() + "-" + r.LastIP.String()
 }
 
 // compareIPv4 compares two IPv4 addresses.
@@ -108,7 +132,7 @@ func isIP4(ip net.IP) bool {
 //
 //     lowestIP4(net.IPNet{}IP: net.ParseIP("172.16.0.0"), Mask: net.CIDRMask(16, 32)}) -> 172.16.0.0
 //
-func lowestIP4(ipRange net.IPNet) net.IP {
+func lowestIP4(ipRange *net.IPNet) net.IP {
 	return ipRange.IP.Mask(ipRange.Mask).To16()
 }
 
@@ -117,7 +141,7 @@ func lowestIP4(ipRange net.IPNet) net.IP {
 //
 //     highestIP4(net.IPNet{}IP: net.ParseIP("172.16.0.0"), Mask: net.CIDRMask(16, 32)}) -> 172.16.255.255
 //
-func highestIP4(ipRange net.IPNet) net.IP {
+func highestIP4(ipRange *net.IPNet) net.IP {
 	if !isIP4(ipRange.IP) {
 		return nil
 	}
@@ -132,15 +156,22 @@ func highestIP4(ipRange net.IPNet) net.IP {
 }
 
 // NewAddressSpaceFromNetwork creates a new AddressSpace from a network specification.
-func NewAddressSpaceFromNetwork(ipRange net.IPNet) *AddressSpace {
+func NewAddressSpaceFromNetwork(ipRange *net.IPNet) *AddressSpace {
 	return &AddressSpace{
-		availableRanges: []addressRange{{firstIP: lowestIP4(ipRange),
-			lastIP: highestIP4(ipRange)}}}
+		Network: ipRange,
+		availableRanges: []*IPRange{
+			{FirstIP: lowestIP4(ipRange), LastIP: highestIP4(ipRange)}}}
 }
 
 // NewAddressSpaceFromRange creates a new AddressSpace from a range of IP addresses.
 func NewAddressSpaceFromRange(firstIP net.IP, lastIP net.IP) *AddressSpace {
-	return &AddressSpace{availableRanges: []addressRange{{firstIP: firstIP, lastIP: lastIP}}}
+	if compareIP4(firstIP, lastIP) > 0 {
+		return nil
+	}
+
+	return &AddressSpace{
+		Pool:            &IPRange{FirstIP: firstIP, LastIP: lastIP},
+		availableRanges: []*IPRange{{FirstIP: firstIP, LastIP: lastIP}}}
 }
 
 // ReserveNextIP4Net reserves a new sub address space within the given address
@@ -148,11 +179,11 @@ func NewAddressSpaceFromRange(firstIP net.IP, lastIP net.IP) *AddressSpace {
 func (s *AddressSpace) ReserveNextIP4Net(mask net.IPMask) (*AddressSpace, error) {
 	ones, _ := mask.Size()
 	for i, r := range s.availableRanges {
-		network := r.firstIP.Mask(mask).To16()
+		network := r.FirstIP.Mask(mask).To16()
 		var firstIP net.IP
 		// check if the start of the current range
 		// is lower than the network boundary
-		if compareIP4(network, r.firstIP) >= 0 {
+		if compareIP4(network, r.FirstIP) >= 0 {
 			// found the start of the range
 			firstIP = network
 		} else {
@@ -161,6 +192,7 @@ func (s *AddressSpace) ReserveNextIP4Net(mask net.IPMask) (*AddressSpace, error)
 			// in the mask
 			for i := len(network) - 1; i >= 12; i-- {
 				partialByteIndex := ones/8 + 12
+				var inc byte
 				if i == partialByteIndex {
 					// this octet may only be occupied
 					// by the mask partially, e.g.
@@ -172,25 +204,25 @@ func (s *AddressSpace) ReserveNextIP4Net(mask net.IPMask) (*AddressSpace, error)
 					// the last bit of the mask, e.g. 25
 					// in this example, which would be
 					// bit 8 in the last octet.
-					inc := (byte)(1 << (uint)(8-ones%8))
-					if network[i]+inc > 0 {
-						// no overflow, so we are done
-						network[i] += inc
-						firstIP = network
-						break
-					}
+					inc = (byte)(1 << (uint)(8-ones%8))
 				} else if i < partialByteIndex {
 					// we are past the partial octets,
 					// so this is portion where the mask
 					// occupies the octets fully, so
 					// we can just increment the last bit
-					if network[i]+1 > 0 {
-						// no overflow, so we are done
-						network[i]++
-						firstIP = network
-						break
-					}
+					inc = 1
 				}
+
+				if inc == 0 {
+					continue
+				}
+
+				network[i] += inc
+				if network[i] > 0 {
+					firstIP = network
+					break
+				}
+
 			}
 		}
 
@@ -198,10 +230,13 @@ func (s *AddressSpace) ReserveNextIP4Net(mask net.IPMask) (*AddressSpace, error)
 			// we found the first IP for the requested range,
 			// now check if the available range can accommodate
 			// the highest address given the first IP and the mask
-			lastIP := highestIP4(net.IPNet{IP: firstIP, Mask: mask})
-			if compareIP4(lastIP, r.lastIP) <= 0 {
+			lastIP := highestIP4(&net.IPNet{IP: firstIP, Mask: mask})
+			if compareIP4(lastIP, r.LastIP) <= 0 {
 				s.reserveSubRange(firstIP, lastIP, i)
-				return NewAddressSpaceFromRange(firstIP, lastIP), nil
+				subSpace := NewAddressSpaceFromRange(firstIP, lastIP)
+				subSpace.Network = &net.IPNet{IP: firstIP, Mask: mask}
+				subSpace.Parent = s
+				return subSpace, nil
 			}
 		}
 	}
@@ -209,18 +244,19 @@ func (s *AddressSpace) ReserveNextIP4Net(mask net.IPMask) (*AddressSpace, error)
 	return nil, fmt.Errorf("could not find IP range for mask %s", mask)
 }
 
-func newAddressRange(firstIP net.IP, lastIP net.IP) *addressRange {
-	return &addressRange{firstIP: firstIP.To16(), lastIP: lastIP.To16()}
+func NewIPRange(firstIP net.IP, lastIP net.IP) *IPRange {
+	return &IPRange{FirstIP: firstIP.To16(), LastIP: lastIP.To16()}
 }
 
-func splitRange(parentRange addressRange, firstIP net.IP, lastIP net.IP) (before, reserved, after *addressRange) {
-	if !firstIP.Equal(parentRange.firstIP) {
-		before = newAddressRange(parentRange.firstIP, decrementIP4(firstIP))
+func splitRange(parentRange *IPRange, firstIP net.IP, lastIP net.IP) (before, reserved, after *IPRange) {
+	if !firstIP.Equal(parentRange.FirstIP) {
+		before = NewIPRange(parentRange.FirstIP, decrementIP4(firstIP))
 	}
-	if !lastIP.Equal(parentRange.lastIP) {
-		after = newAddressRange(incrementIP4(lastIP), parentRange.lastIP)
+	if !lastIP.Equal(parentRange.LastIP) {
+		after = NewIPRange(incrementIP4(lastIP), parentRange.LastIP)
 	}
-	reserved = newAddressRange(firstIP, lastIP)
+
+	reserved = NewIPRange(firstIP, lastIP)
 	return
 }
 
@@ -228,7 +264,7 @@ func splitRange(parentRange addressRange, firstIP net.IP, lastIP net.IP) (before
 // Mask is required.
 // If IP is nil or "0.0.0.0", same as calling ReserveNextIP4Net
 // with the mask.
-func (s *AddressSpace) ReserveIP4Net(ipNet net.IPNet) (*AddressSpace, error) {
+func (s *AddressSpace) ReserveIP4Net(ipNet *net.IPNet) (*AddressSpace, error) {
 	if ipNet.Mask == nil {
 		return nil, fmt.Errorf("network mask not specified")
 	}
@@ -237,44 +273,52 @@ func (s *AddressSpace) ReserveIP4Net(ipNet net.IPNet) (*AddressSpace, error) {
 		return s.ReserveNextIP4Net(ipNet.Mask)
 	}
 
-	return s.ReserveIP4Range(lowestIP4(ipNet), highestIP4(ipNet))
+	sub, err := s.ReserveIP4Range(lowestIP4(ipNet), highestIP4(ipNet))
+	if err != nil {
+		return nil, err
+	}
+
+	sub.Network = &net.IPNet{IP: ipNet.IP, Mask: ipNet.Mask}
+	return sub, nil
 }
 
 func (s *AddressSpace) reserveSubRange(firstIP net.IP, lastIP net.IP, index int) {
 	before, _, after := splitRange(s.availableRanges[index], firstIP, lastIP)
 	s.availableRanges = append(s.availableRanges[:index], s.availableRanges[index+1:]...)
 	if before != nil {
-		s.availableRanges = insertAddressRanges(s.availableRanges, index, *before)
+		s.availableRanges = insertAddressRanges(s.availableRanges, index, before)
 		index++
 	}
 	if after != nil {
-		s.availableRanges = insertAddressRanges(s.availableRanges, index, *after)
+		s.availableRanges = insertAddressRanges(s.availableRanges, index, after)
 	}
 }
 
 // ReserveIP4Range reserves a sub address space given a first and last IP.
 func (s *AddressSpace) ReserveIP4Range(firstIP net.IP, lastIP net.IP) (*AddressSpace, error) {
 	for i, r := range s.availableRanges {
-		if compareIP4(firstIP, r.firstIP) < 0 ||
-			compareIP4(lastIP, r.lastIP) > 0 {
+		if compareIP4(firstIP, r.FirstIP) < 0 ||
+			compareIP4(lastIP, r.LastIP) > 0 {
 			continue
 		}
 
 		// found range
 		s.reserveSubRange(firstIP, lastIP, i)
-		return NewAddressSpaceFromRange(firstIP, lastIP), nil
+		subSpace := NewAddressSpaceFromRange(firstIP, lastIP)
+		subSpace.Parent = s
+		return subSpace, nil
 	}
 
 	return nil, fmt.Errorf("could not find IP range")
 }
 
-func insertAddressRanges(r []addressRange, index int, ranges ...addressRange) []addressRange {
+func insertAddressRanges(r []*IPRange, index int, ranges ...*IPRange) []*IPRange {
 	if index == len(r) {
 		return append(r, ranges...)
 	}
 
 	for i := 0; i < len(ranges); i++ {
-		r = append(r, addressRange{})
+		r = append(r, &IPRange{})
 	}
 
 	copy(r[index+len(ranges):], r[index:])
@@ -287,12 +331,12 @@ func insertAddressRanges(r []addressRange, index int, ranges ...addressRange) []
 
 // ReserveNextIP4 reserves the next available IPv4 address.
 func (s *AddressSpace) ReserveNextIP4() (net.IP, error) {
-	space, err := s.ReserveIP4Net(net.IPNet{Mask: net.CIDRMask(32, 32)})
+	space, err := s.ReserveIP4Net(&net.IPNet{Mask: net.CIDRMask(32, 32)})
 	if err != nil {
 		return nil, err
 	}
 
-	return space.availableRanges[0].firstIP, nil
+	return space.availableRanges[0].FirstIP, nil
 }
 
 // ReserveIP4 reserves the given IPv4 address.
@@ -309,51 +353,58 @@ func (s *AddressSpace) ReleaseIP4Range(space *AddressSpace) error {
 		return nil
 	}
 
+	if space.Parent != s {
+		return fmt.Errorf("cannot release subspace into another parent")
+	}
+
 	// cannot release a range if it has more than one available sub range
 	if len(space.availableRanges) > 1 {
 		return fmt.Errorf("can not release an address space with more than one available range")
 	}
 
-	firstIP := space.availableRanges[0].firstIP
-	lastIP := space.availableRanges[0].lastIP
+	firstIP := space.availableRanges[0].FirstIP
+	lastIP := space.availableRanges[0].LastIP
 	if compareIP4(firstIP, lastIP) > 0 {
 		return fmt.Errorf("address space first ip %s is greater than last ip %s", firstIP, lastIP)
 	}
 
 	i := 0
 	for ; i < len(s.availableRanges); i++ {
-		if compareIP4(lastIP, s.availableRanges[i].firstIP) < 0 {
+		if compareIP4(lastIP, s.availableRanges[i].FirstIP) < 0 {
 			if i == 0 {
 				break
 			}
 
-			if i > 0 && compareIP4(firstIP, s.availableRanges[i-1].lastIP) > 0 {
+			if i > 0 && compareIP4(firstIP, s.availableRanges[i-1].LastIP) > 0 {
 				break
 			}
 		}
 	}
 
 	if i > 0 && i == len(s.availableRanges) {
-		if compareIP4(firstIP, s.availableRanges[i-1].lastIP) <= 0 {
+		if compareIP4(firstIP, s.availableRanges[i-1].LastIP) <= 0 {
 			return fmt.Errorf("Could not release IP range")
 		}
 	}
 
 	s.availableRanges = insertAddressRanges(s.availableRanges, i, space.availableRanges...)
+	s.Defragment()
 	return nil
 }
 
 // ReleaseIP4 releases the given IPv4 address.
 func (s *AddressSpace) ReleaseIP4(ip net.IP) error {
-	return s.ReleaseIP4Range(NewAddressSpaceFromRange(ip, ip))
+	tmp := NewAddressSpaceFromRange(ip, ip)
+	tmp.Parent = s
+	return s.ReleaseIP4Range(tmp)
 }
 
 func (s *AddressSpace) Defragment() error {
 	for i := 1; i < len(s.availableRanges); {
-		first := &s.availableRanges[i-1]
-		second := &s.availableRanges[i]
-		if incrementIP4(first.lastIP).Equal(second.firstIP) {
-			first.lastIP = second.lastIP
+		first := s.availableRanges[i-1]
+		second := s.availableRanges[i]
+		if incrementIP4(first.LastIP).Equal(second.FirstIP) {
+			first.LastIP = second.LastIP
 			s.availableRanges = append(s.availableRanges[:i], s.availableRanges[i+1:]...)
 		} else {
 			i++
@@ -370,8 +421,8 @@ func (s *AddressSpace) Equal(other *AddressSpace) bool {
 	}
 
 	for i := 0; i < len(s.availableRanges); i++ {
-		if compareIP4(s.availableRanges[i].firstIP, other.availableRanges[i].firstIP) != 0 ||
-			compareIP4(s.availableRanges[i].lastIP, other.availableRanges[i].lastIP) != 0 {
+		if compareIP4(s.availableRanges[i].FirstIP, other.availableRanges[i].FirstIP) != 0 ||
+			compareIP4(s.availableRanges[i].LastIP, other.availableRanges[i].LastIP) != 0 {
 			return false
 		}
 	}
