@@ -4,7 +4,7 @@
 
 This box is an Ubuntu 15.04 VM with the following setup by default:
 
-* Docker daemon with port forwarded to localhost:12375
+* Docker daemon with port forwarded to the Fusion/Workstation host at localhost:12375
 
 * Go toolchain
 
@@ -23,7 +23,9 @@ This box is an Ubuntu 15.04 VM with the following setup by default:
 All files matching _provision*.sh_ in this directory will be applied by the Vagrantfile, you can symlink custom scripts
 if needed.  The scripts are not Vagrant specific and can be applied to a VM running on ESX for example.
 
-## Usage
+## Fusion/Workstation host usage
+
+The following commands can be used from your Fusion or Workstation host.
 
 ### Shared Folders
 
@@ -79,8 +81,61 @@ vagrant provision
 vagrant destroy
 ```
 
-### Deploy to ESX
+## VM guest usage
+
+To open a bash term in the VM, use `vagrant ssh`.
+
+The following commands can be used from devbox VM guest.
+
+``` shell
+cd $GOPATH/src/github.com/vmware/vic
+```
+
+### Local Drone CI test
+
+``` shell
+drone exec -trusted -cache
+```
+
+## Devbox on ESX
+
+The devbox can be deployed to ESX, the same provisioning scripts are applied:
 
 ``` shell
 ./deploy-esx.sh
 ```
+
+### SSH access
+
+``` shell
+ssh-add ~/.vagrant.d/insecure_private_key
+vmip=$(govc vm.ip $USER-ubuntu1504-docker)
+ssh vagrant@$vmip
+```
+
+### Shared folders
+
+You can share your folder by first exporting via NFS:
+
+```
+echo "$HOME/vic $(govc vm.ip $USER-ubuntu1504-docker) -alldirs -mapall=$(id -u):$(id -g)" | sudo tee -a /etc/exports
+sudo nfsd restart
+```
+
+Then mount within the ubuntu VM:
+
+``` shell
+ssh vagrant@$vmip sudo mkdir -p $HOME/vic
+ssh vagrant@$vmip sudo mount $(ipconfig getifaddr en1):$HOME/vic $HOME/vic
+```
+
+You can also mount your folder within ESX:
+
+``` shell
+govc datastore.create -type nfs -name nfsDatastore -remote-host $(ipconfig getifaddr en1) -remote-path $HOME/vic
+esxip=$(govc host.info -json | jq -r '.HostSystems[].Config.Network.Vnic[] | select(.Device == "vmk0") | .Spec.Ip.IpAddress')
+ssh root@$esxip mkdir -p $HOME
+ssh root@$esxip /vmfs/volumes/nfsDatastore $HOME/vic
+```
+
+Add `$esxip` to /etc/exports and restart nfsd again.
