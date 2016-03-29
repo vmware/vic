@@ -96,3 +96,14 @@ func TestUnloadedTranslate(t *testing.T) {
 	testKey := "key1"
 	T(testKey)
 }
+
+func TestLoadLanguageScanner(t *testing.T) {
+	scanner := bufio.NewScanner(strings.NewReader(testData))
+	err := loadLanguageScanner(language.English, scanner)
+	if err != nil {
+		t.Errorf("Failed to getPrinter")
+	}
+	if Printer == nil {
+		t.Errorf("Failed to set Printer")
+	}
+}

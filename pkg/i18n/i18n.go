@@ -116,20 +116,20 @@ func LoadLanguage(lang language.Tag, messagesFile string) error {
 	}
 	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
-	printer, err := getPrinter(scanner, lang)
-	if err == nil {
-		Printer = printer
-	}
-	return err
+	s := bufio.NewScanner(f)
+	return loadLanguageScanner(lang, s)
 }
 
 // LoadLanguageBytes sets the package level Printer after loading
 // the desired language data from a byte array
 func LoadLanguageBytes(lang language.Tag, messagesData []byte) error {
 	data := bytes.NewReader(messagesData)
-	scanner := bufio.NewScanner(data)
-	printer, err := getPrinter(scanner, lang)
+	s := bufio.NewScanner(data)
+	return loadLanguageScanner(lang, s)
+}
+
+func loadLanguageScanner(lang language.Tag, s *bufio.Scanner) error {
+	printer, err := getPrinter(s, lang)
 	if err == nil {
 		Printer = printer
 	}
