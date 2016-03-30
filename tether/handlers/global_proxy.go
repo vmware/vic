@@ -21,7 +21,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/vmware/vic/bootstrap/tether"
+	"github.com/vmware/vic/tether"
 
 	"golang.org/x/crypto/ssh"
 )

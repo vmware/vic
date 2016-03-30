@@ -23,8 +23,8 @@ import (
 	"net"
 	"sync"
 
-	"github.com/vmware/vic/bootstrap/tether"
-	"github.com/vmware/vic/bootstrap/tether/utils"
+	"github.com/vmware/vic/tether"
+	"github.com/vmware/vic/tether/utils"
 
 	"golang.org/x/crypto/ssh"
 )
