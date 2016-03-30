@@ -78,12 +78,20 @@ func (i *Image) PullImage(ref reference.Named, metaHeaders map[string][]string, 
 
 	binImageC := "imagec"
 
-	var cmdArgs []string
+	var cmdArgs, nameParts []string
 
-	if !strings.ContainsRune(ref.Name(), '/') {
-		cmdArgs = append(cmdArgs, "-image", "library/"+ref.Name())
+	libraryParts := strings.Split(ref.String(), "/")
+
+	if len(libraryParts) > 1 {
+		nameParts = strings.Split(libraryParts[1], ":")
 	} else {
-		cmdArgs = append(cmdArgs, "-image", ref.Name())
+		nameParts = strings.Split(libraryParts[0], ":")
+	}
+
+	cmdArgs = append(cmdArgs, "-image", "library/"+nameParts[0])
+
+	if len(nameParts) > 1 {
+		cmdArgs = append(cmdArgs, "-digest", nameParts[1])
 	}
 
 	if authConfig != nil {
@@ -95,13 +103,19 @@ func (i *Image) PullImage(ref reference.Named, metaHeaders map[string][]string, 
 		}
 	}
 
+	portLayerServer := PortLayerServer()
+
+	if portLayerServer != "" {
+		cmdArgs = append(cmdArgs, "-host", portLayerServer)
+	}
+
 	fetcherPath := getImageFetcherPath(binImageC)
 
 	log.Printf("PullImage: cmd = %s %+v\n", fetcherPath, cmdArgs)
 
 	cmd := exec.Command(fetcherPath, cmdArgs...)
 	cmd.Stdout = outStream
-	//	cmd.Stderr = outStream
+	cmd.Stderr = outStream
 
 	// Execute
 	err := cmd.Start()

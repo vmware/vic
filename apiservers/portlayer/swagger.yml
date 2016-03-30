@@ -253,6 +253,11 @@ paths:
       summary: "Creates a container"
       operationId: ContainerCreate
       tags: ["exec"]
+      consumes:
+        - application/json
+        - application/octet-stream
+      produces:
+        - application/json
       parameters:
         - name: name
           in: query
@@ -278,6 +283,8 @@ paths:
       summary: "Starts an existing container"
       operationId: ContainerStart
       tags: ["exec"]
+      consumes: 
+        - application/octet-stream
       parameters:
         - name: id
           in: path
@@ -296,6 +303,10 @@ paths:
       summary: "Establishes an interactive session (ala docker attach)"
       operationId: ContainerJoin
       tags: ["interaction"]
+      consumes:
+        - application/octet-stream
+      produces:
+        - application/json
       parameters:
         - name: id
           in: path

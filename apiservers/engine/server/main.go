@@ -89,7 +89,7 @@ func handleFlags() (*CliOptions, bool) {
 	cafile := flag.String("tls-ca-certificate", "", "Trust certs signed only by this CA")
 	certfile := flag.String("tls-certificate", "", "Path to TLS certificate file")
 	keyfile := flag.String("tls-key", "", "Path to TLS Key file")
-	serverAddr := flag.String("severaddr", "127.0.0.1", "Server address to listen")
+	serverAddr := flag.String("serveraddr", "127.0.0.1", "Server address to listen")
 	serverPort := flag.Uint("port", 9000, "Port to listen")
 	portLayerAddr := flag.String("port-layer-addr", "127.0.0.1", "Port layer server address")
 	portLayerPort := flag.Uint("port-layer-port", 9001, "Port Layer server port")
