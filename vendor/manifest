@@ -188,6 +188,13 @@
 			"path": "/dockerversion"
 		},
 		{
+			"importpath": "github.com/docker/docker/errors",
+			"repository": "https://github.com/docker/docker",
+			"revision": "e42c164763edc00cf41131ac0c1431fda27e6f21",
+			"branch": "master",
+			"path": "/errors"
+		},
+		{
 			"importpath": "github.com/docker/docker/image",
 			"repository": "https://github.com/docker/docker",
 			"revision": "0771230daac8aa2d66edddecd935d2c182850077",
