@@ -60,7 +60,6 @@ func NewImageStore(ctx context.Context, s *session.Session) (*ImageStore, error)
 		s:  s,
 	}
 
-	// Ignore the error if the parent path already exists
 	err = vis.makeImageStoreParentDir(ctx)
 	if err != nil {
 		return nil, err
@@ -254,7 +253,7 @@ func (v *ImageStore) makeImageStoreParentDir(ctx context.Context) error {
 	}
 
 	for _, f := range res.File {
-		folder, ok := f.(*types.FolderFileInfo)
+		folder, ok := f.(*types.FileInfo)
 		if !ok {
 			continue
 		}

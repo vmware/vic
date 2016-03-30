@@ -56,6 +56,21 @@ func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, error) {
 	return s, client, nil
 }
 
+func TestRestartImageStore(t *testing.T) {
+	// Start the image store once
+	_, client, err := setup(t)
+	if !assert.NoError(t, err) {
+		return
+	}
+	defer rm(t, client, "")
+
+	// now start it again
+	vsImageStore, err := NewImageStore(context.TODO(), client)
+	if !assert.NoError(t, err) || !assert.NotNil(t, vsImageStore) {
+		return
+	}
+}
+
 // Create an image store then test it exists
 func TestCreateAndGetImageStore(t *testing.T) {
 	vsis, client, err := setup(t)
