@@ -8,33 +8,33 @@ DIR=$(dirname $(readlink -f "$0"))
 
 
 function usage() {
-     echo "Usage: $0 -c yum-cache(tgz) -p base-package(tgz) -o output-package(tgz)" 1>&2
-     exit 1
+echo "Usage: $0 -c yum-cache(tgz) -p base-package(tgz) -o output-package(tgz)" 1>&2
+exit 1
 }
 
 while getopts "c:p:o:" flag
 do
-  case $flag in
+    case $flag in
 
-    p)
-      # Required. Package name
-      PACKAGE="$OPTARG"
-      ;;
+        p)
+            # Required. Package name
+            PACKAGE="$OPTARG"
+            ;;
 
-    o)
-      # Required. Target for iso and source for components
-      OUT="$OPTARG"
-      ;;
+        o)
+            # Required. Target for iso and source for components
+            OUT="$OPTARG"
+            ;;
 
-    c)
-      # Optional. Offline cache of yum packages
-      cache="$OPTARG"
-      ;;
+        c)
+            # Optional. Offline cache of yum packages
+            cache="$OPTARG"
+            ;;
 
-    *)
-    usage
-    ;;
-  esac
+        *)
+            usage
+            ;;
+    esac
 done
 
 shift $((OPTIND-1))
@@ -67,15 +67,18 @@ unpack $PACKAGE $PKGDIR
 #   tndf      # so we can deploy other packages into the appliance live - MUST BE REMOVED FOR SHIPPING
 #   vim       # basic editing function
 yum_cached -c $cache -u -p $PKGDIR install \
-                                  systemd \
-                                  openssh \
-                                  e2fsprogs \
-                                  procps-ng \
-                                  iputils \
-                                  iproute2 \
-                                  tdnf \
-                                  vim \
-                              -y --nogpgcheck
+    systemd \
+    openssh \
+    e2fsprogs \
+    procps-ng \
+    iputils \
+    iproute2 \
+    tdnf \
+    vim \
+    -y --nogpgcheck
+
+# https://www.freedesktop.org/wiki/Software/systemd/InitrdInterface/
+touch $(rootfs_dir $PKGDIR)/etc/initrd-release
 
 # ensure we're not including a cache in the staging bundle
 # but don't update the cache bundle we're using to install

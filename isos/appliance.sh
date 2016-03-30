@@ -8,28 +8,28 @@ DIR=$(dirname $(readlink -f "$0"))
 
 
 function usage() {
-     echo "Usage: $0 -p staged-package(tgz) -b binary-dir" 1>&2
-     exit 1
+echo "Usage: $0 -p staged-package(tgz) -b binary-dir" 1>&2
+exit 1
 }
 
 while getopts "p:b:" flag
 do
-  case $flag in
+    case $flag in
 
-    p)
-      # Required. Package name
-      PACKAGE="$OPTARG"
-      ;;
+        p)
+            # Required. Package name
+            PACKAGE="$OPTARG"
+            ;;
 
-    b)
-      # Required. Target for iso and source for components
-      BIN="$OPTARG"
-      ;;
+        b)
+            # Required. Target for iso and source for components
+            BIN="$OPTARG"
+            ;;
 
-    *)
-    usage
-    ;;
-  esac
+        *)
+            usage
+            ;;
+    esac
 done
 
 shift $((OPTIND-1))

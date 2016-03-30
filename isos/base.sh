@@ -8,33 +8,33 @@ DIR=$(dirname $(readlink -f "$0"))
 
 
 function usage() {
-     echo "Usage: $0 -p package-name(tgz) [-c yum-cache] -k kernel-rpm" 1>&2
-     exit 1
+echo "Usage: $0 -p package-name(tgz) [-c yum-cache] -k kernel-rpm" 1>&2
+exit 1
 }
 
 while getopts "c:p:k:" flag
 do
-  case $flag in
+    case $flag in
 
-    k)
-      # Required.  Path to kernel rpm
-      KERNEL="$OPTARG"
-      ;;
+        k)
+            # Required.  Path to kernel rpm
+            KERNEL="$OPTARG"
+            ;;
 
-    p)
-      # Required. Package name
-      PACKAGE="$OPTARG"
-      ;;
+        p)
+            # Required. Package name
+            PACKAGE="$OPTARG"
+            ;;
 
-    c)
-      # Optional. Offline cache of yum packages
-      cache="$OPTARG"
-      ;;
+        c)
+            # Optional. Offline cache of yum packages
+            cache="$OPTARG"
+            ;;
 
-    *)
-    usage
-    ;;
-  esac
+        *)
+            usage
+            ;;
+    esac
 done
 
 shift $((OPTIND-1))

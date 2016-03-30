@@ -1,9 +1,0 @@
-golang.org/x/crypto/ssh
-github.com/docker/docker/pkg/term
-github.com/Azure/go-ansiterm/winterm
-github.com/kr/pty
-github.com/vishvananda/netlink
-github.com/Sirupsen/logrus
-github.com/vmware/vmw-guestinfo/rpcvmx
-github.com/tarm/serial
-golang.org/x/sys/windows/svc
