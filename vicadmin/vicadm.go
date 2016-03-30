@@ -529,9 +529,23 @@ func (s *server) listenPort() int {
 	return s.l.Addr().(*net.TCPAddr).Port
 }
 
+// AuthorizedHandler exported comment
+func AuthorizedHandler(handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// check auth
+		user, password, ok := r.BasicAuth()
+		if !ok || (user != "root" || password != "thisisinsecure") {
+			w.Header().Add("WWW-Authenticate", "Basic")
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		handler(w, r)
+	}
+}
+
 func (s *server) handleFunc(link string, handler func(http.ResponseWriter, *http.Request)) {
 	s.links = append(s.links, link)
-	s.mux.HandleFunc(link, handler)
+	s.mux.HandleFunc(link, AuthorizedHandler(handler))
 }
 
 func (s *server) serve() error {
@@ -544,27 +558,26 @@ func (s *server) serve() error {
 	s.handleFunc("/container-logs.tar.gz", s.tarContainerLogs)
 
 	// tail all logFiles
-	s.mux.HandleFunc("/logs/tail", func(w http.ResponseWriter, r *http.Request) {
+	s.mux.HandleFunc("/logs/tail", AuthorizedHandler(func(w http.ResponseWriter, r *http.Request) {
 		s.tailFiles(w, r, logFiles())
-	})
+	}))
 
 	for _, path := range logFiles() {
 		name := filepath.Base(path)
 		p := path
 
 		// get single log file (no tail)
-		s.handleFunc("/logs/"+name, func(w http.ResponseWriter, r *http.Request) {
+		s.handleFunc("/logs/"+name, AuthorizedHandler(func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, p)
-		})
+		}))
 
 		// get single log file (with tail)
-		s.mux.HandleFunc("/logs/tail/"+name, func(w http.ResponseWriter, r *http.Request) {
+		s.mux.HandleFunc("/logs/tail/"+name, AuthorizedHandler(func(w http.ResponseWriter, r *http.Request) {
 			s.tailFiles(w, r, []string{p})
-		})
+		}))
 	}
 
-	s.mux.HandleFunc("/", s.index)
-
+	s.mux.HandleFunc("/", AuthorizedHandler(s.index))
 	server := &http.Server{
 		Handler: s.mux,
 	}
