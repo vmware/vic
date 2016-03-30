@@ -24,9 +24,9 @@ import (
 	"time"
 
 	winserial "github.com/tarm/serial"
-	"github.com/vmware/vic/bootstrap/tether"
-	"github.com/vmware/vic/bootstrap/tether/handlers"
-	"github.com/vmware/vic/bootstrap/tether/serial"
+	"github.com/vmware/vic/tether"
+	"github.com/vmware/vic/tether/handlers"
+	"github.com/vmware/vic/tether/serial"
 )
 
 var (

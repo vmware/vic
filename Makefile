@@ -10,6 +10,7 @@ BASE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
 BIN ?= bin
 IGNORE := $(shell mkdir -p $(BIN))
+
 export GOPATH ?= $(shell echo $(CURDIR) | sed -e 's,/src/.*,,')
 SWAGGER ?= $(GOPATH)/bin/swagger$(BIN_ARCH)
 GOVET ?= $(GOPATH)/bin/vet$(BIN_ARCH)
@@ -43,6 +44,9 @@ tether-windows := $(BIN)/tether-windows.exe
 appliance := $(BIN)/appliance.iso
 appliance-staging := $(BIN)/appliance-staging.tgz
 bootstrap := $(BIN)/bootstrap.iso
+bootstrap-staging := $(BIN)/bootstrap-staging.tgz
+bootstrap-staging-debug := $(BIN)/bootstrap-staging-debug.tgz
+bootstrap-debug := $(BIN)/bootstrap-debug.iso
 iso-base := $(BIN)/iso-base.tgz
 kernel := $(BIN)/$(KERNEL)
 
@@ -68,6 +72,9 @@ tether-windows: $(tether-windows)
 appliance: $(appliance)
 appliance-staging: $(appliance-staging)
 bootstrap: $(bootstrap)
+bootstrap-staging: $(bootstrap-staging)
+bootstrap-debug: $(bootstrap-debug)
+bootstrap-staging-debug: $(bootstrap-staging-debug)
 iso-base: $(iso-base)
 kernel: $(kernel)
 install: $(install)
@@ -84,7 +91,6 @@ all: components isos install
 tools: $(GOIMPORTS) $(GOVET) $(GVT) $(GOLINT) $(SWAGGER) goversion
 check: goversion goimports govet golint copyright
 apiservers: $(portlayerapi) $(docker-engine-api)
-bootstrap: $(tether-linux) $(tether-windows) $(rpctool)
 components: check apiservers $(imagec) $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
 tethers: $(tether-linux) $(tether-windows)
@@ -158,7 +164,7 @@ integration-tests: Dockerfile.integration-tests tests/imagec.bats tests/helpers/
 	@docker build -t imagec_tests -f Dockerfile.integration-tests .
 	docker run -e BIN=$(BIN) --rm imagec_tests
 
-TEST_DIRS=github.com/vmware/vic/bootstrap/...
+TEST_DIRS=github.com/vmware/vic/tether/...
 TEST_DIRS+=github.com/vmware/vic/imagec
 TEST_DIRS+=github.com/vmware/vic/vicadmin
 TEST_DIRS+=github.com/vmware/vic/portlayer/...
@@ -174,13 +180,13 @@ else
 	$(foreach var,$(TEST_DIRS), $(GO) test -v $(TEST_OPTS) $(var);)
 endif
 
-$(tether-linux): $(shell find bootstrap/tether -name '*.go')
+$(tether-linux): $(shell find tether -name '*.go')
 	@echo building tether-linux
-	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./$@ ./bootstrap/tether/cmd/tether
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./$@ ./tether/cmd/tether
 
-$(tether-windows): $(shell find bootstrap/tether -name '*.go')
+$(tether-windows): $(shell find tether -name '*.go')
 	@echo building tether-windows
-	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./$@ ./bootstrap/tether/cmd/tether
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./$@ ./tether/cmd/tether
 
 
 $(rpctool): pkg/vsphere/rpctool/*.go
@@ -207,8 +213,6 @@ ifeq ($(OS),linux)
 else
 	@echo skipping docker-engine-api server, cannot build on non-linux
 endif
-
-
 
 # Common portlayer dependencies between client and server
 PORTLAYER_DEPS ?= apiservers/portlayer/swagger.yml \
@@ -249,8 +253,21 @@ $(appliance): isos/appliance.sh isos/appliance/* $(rpctool) $(vicadmin) $(imagec
 	@$< -p $(appliance-staging) -b $(BIN)
 
 # main bootstrap target
-$(bootstrap): $(tether-linux) $(rpctool) $(iso-base)
-	@echo "Placeholder target for bootstrap"
+$(bootstrap): isos/bootstrap.sh $(tether-linux) $(rpctool) $(bootstrap-staging)
+	@echo "Making bootstrap iso"
+	@$< -p $(bootstrap-staging) -b $(BIN)
+
+$(bootstrap-debug): isos/bootstrap.sh $(tether-linux) $(rpctool) $(iso-base) $(bootstrap-staging-debug)
+	@echo "Making bootstrap-debug iso"
+	@$< -p $(bootstrap-staging-debug) -b $(BIN) -d true
+
+$(bootstrap-staging): isos/bootstrap-staging.sh $(iso-base)
+	@echo staging for bootstrap
+	@$< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@ 
+
+$(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base)
+	@echo staging debug for bootstrap
+	@$< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@ -d true
 
 $(install): install/install.sh
 	@echo Building installer
@@ -269,4 +286,3 @@ clean:
 	rm -rf ./apiservers/portlayer/restapi/operations/
 	rm -fr ./tests/helpers/bats-assert/
 	rm -fr ./tests/helpers/bats-support/
-

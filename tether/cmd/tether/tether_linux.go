@@ -26,9 +26,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vmware/vic/bootstrap/tether"
-	"github.com/vmware/vic/bootstrap/tether/handlers"
-	"github.com/vmware/vic/bootstrap/tether/serial"
+	"github.com/vmware/vic/tether"
+	"github.com/vmware/vic/tether/handlers"
+	"github.com/vmware/vic/tether/serial"
 )
 
 // load the ID from the file system
