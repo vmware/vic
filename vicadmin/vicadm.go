@@ -58,6 +58,7 @@ var (
 		vmPath       string
 		hostCertFile string
 		hostKeyFile  string
+		tls          bool
 	}
 
 	defaultReaders []entryReader
@@ -79,6 +80,7 @@ func init() {
 	flag.StringVar(&config.DatastorePath, "ds", "", "Name of the Datastore")
 	flag.StringVar(&config.ClusterPath, "cluster", "", "Name of the cluster")
 	flag.BoolVar(&config.Insecure, "insecure", false, "Allow connection when sdk certificate cannot be verified")
+	flag.BoolVar(&config.tls, "tls", true, "Set to false to disable -hostcert and -hostkey and enable plain HTTP")
 
 	// This is only applicable for containers hosted under the VCH VM folder
 	// This will not function for vSAN
@@ -495,8 +497,13 @@ type server struct {
 	links []string
 }
 
-func (s *server) listen() error {
+func (s *server) listen(useTLS bool) error {
 	var err error
+	if !useTLS {
+		s.l, err = net.Listen("tcp", s.addr)
+		return err
+	}
+
 	innerListener, err := net.Listen("tcp", s.addr)
 	if err != nil {
 		log.Fatal(err)
@@ -677,7 +684,8 @@ func main() {
 		addr: config.addr,
 	}
 
-	err := s.listen()
+	err := s.listen(config.tls)
+
 	if err != nil {
 		log.Fatal(err)
 	}
