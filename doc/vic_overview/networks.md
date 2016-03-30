@@ -156,7 +156,7 @@ Output of `docker network inspect vic-production`:
 Set up a server on the vic-production network:
 
     $ docker run -d --expose=80 --net=vic-production --name server my_webapp
-    $ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' server
+    {% raw %}$ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' server{% endraw %}
     208.91.3.2
     $ telnet 208.91.3.2 80
     Trying 208.91.3.2...
