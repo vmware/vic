@@ -5,39 +5,39 @@
 set -e
 
 if [ -n "$DEBUG" ]; then
-      set -x
+    set -x
 fi
 
 DIR=$(dirname $(readlink -f "$0"))
 . $DIR/base/utils.sh
 
 function usage() {
-     echo "Usage: $0 -p staged-package(tgz) -b binary-dir -d <activates debug when set>" 1>&2
-     exit 1
+echo "Usage: $0 -p staged-package(tgz) -b binary-dir -d <activates debug when set>" 1>&2
+exit 1
 }
 
 while getopts "p:b:d:" flag
 do
-  case $flag in
+    case $flag in
 
-    p)
-      # Required. Package name
-      package="$OPTARG"
-      ;;
+        p)
+            # Required. Package name
+            package="$OPTARG"
+            ;;
 
-    b)
-      # Required. Target for iso and source for components
-      BIN="$OPTARG"
-      ;;
-    d)
-      # Optional. directs script to make a debug iso instead of a production iso.
-      debug="$OPTARG"
-      ;;
-    *)
+        b)
+            # Required. Target for iso and source for components
+            BIN="$OPTARG"
+            ;;
+        d)
+            # Optional. directs script to make a debug iso instead of a production iso.
+            debug="$OPTARG"
+            ;;
+        *)
 
-    usage
-    ;;
-  esac
+            usage
+            ;;
+    esac
 done
 
 shift $((OPTIND-1))
@@ -68,6 +68,7 @@ unpack $package $PKGDIR
 # copy in our components
 cp ${BIN}/tether-linux $(rootfs_dir $PKGDIR)/bin/tether
 cp ${BIN}/rpctool $(rootfs_dir $PKGDIR)/sbin/
-cp ${DIR}/bootstrap/targets/linux/init $(rootfs_dir $PKGDIR)/sbin/init
+
+cp ${DIR}/bootstrap/rc.local $(rootfs_dir $PKGDIR)/etc/rc.d/rc.local
 
 generate_iso $PKGDIR $BIN/$ISONAME $INIT
