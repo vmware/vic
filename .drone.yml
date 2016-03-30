@@ -43,6 +43,23 @@ build:
     commands:
       - make appliance
 
+  bootstrap-staging:
+    image: golang:1.6.0
+    pull: true
+    environment:
+      BIN: bin
+    commands:
+      - make bootstrap-staging
+
+  bootstrap:
+    image: golang:1.6.0
+    pull: true
+    environment:
+      BIN: bin
+      INIT: /sbin/init
+    commands:
+      - make bootstrap
+
   test:
     image: golang:1.6.0
     pull: true
@@ -67,10 +84,18 @@ build:
     pull: true
     environment:
       BIN: bin
+      BIN_TEMP_DIR: bin/vic
       GOPATH: /drone
       SHELL: /bin/bash
     commands:
-      - tar -cvf $BIN/vic_$$BUILD_NUMBER.tar.gz $BIN/appliance.iso $BIN/install.sh
+      - rm -rf $BIN_TEMP_DIR
+      - mkdir $BIN_TEMP_DIR
+      - cp LICENSE $BIN_TEMP_DIR
+      - cp README $BIN_TEMP_DIR
+      - cp $BIN/install.sh $BIN_TEMP_DIR
+      - cp $BIN/appliance.iso $BIN_TEMP_DIR
+      - cp $BIN/bootstrap.iso $BIN_TEMP_DIR
+      - tar czvf $BIN/vic_$$BUILD_NUMBER.tar.gz -C $BIN vic
     when:
       success: true
 
