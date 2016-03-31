@@ -99,7 +99,9 @@ Try to limit column width to 120 characters for both code and markdown documents
 
 We follow the conventions on [How to Write a Git Commit Message](http://chris.beams.io/posts/git-commit/).
 
-Be sure to include any related GitHub issue references in the commit message.
+Be sure to include any related GitHub issue references in the commit message.  See
+[GFM syntax](https://guides.github.com/features/mastering-markdown/#GitHub-flavored-markdown) for referencing issues
+and commits.
 
 ## Reporting Bugs and Creating Issues
 
