@@ -22,7 +22,8 @@ import (
 )
 
 var (
-	portLayerClient *client.PortLayer
+	portLayerClient     *client.PortLayer
+	portLayerServerAddr string
 )
 
 func Init(portLayerAddr string) error {
@@ -33,9 +34,14 @@ func Init(portLayerAddr string) error {
 
 	t := httptransport.New(portLayerAddr, "/", []string{"http"})
 	portLayerClient = client.New(t, nil)
+	portLayerServerAddr = portLayerAddr
 	return nil
 }
 
 func PortLayerClient() *client.PortLayer {
 	return portLayerClient
+}
+
+func PortLayerServer() string {
+	return portLayerServerAddr
 }

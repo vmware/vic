@@ -17,17 +17,38 @@ package vicbackends
 import (
 	"fmt"
 	"io"
+	"net/http"
+	"os"
+	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/backend"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
+
+	"github.com/vmware/vic/apiservers/portlayer/client/exec"
+	"github.com/vmware/vic/apiservers/portlayer/client/storage"
+	"github.com/vmware/vic/apiservers/portlayer/models"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 type Container struct {
 	ProductName string
+}
+
+var hackMap = map[string]string{
+	"busybox":         "bc744c4ab376115cc45c610d53f529dd2d4249ae6b35e5d6e7a96e58863545aa",
+	"tomcat":          "7b462938183d61aeae3cac6a7a2335b8806d561498a1495353b6650d65e1e403",
+	"golang":          "a443d5a72a2ed0af201ea5b30b3fc4e28146b86b9c3cdd8d177b2c77e00d39fd",
+	"photon":          "b12b5ead0dad7bd8bf02889ccf7eacc82ce89c7ed4bad48e9d5c9f7ac110fdc2",
+	"library/busybox": "bc744c4ab376115cc45c610d53f529dd2d4249ae6b35e5d6e7a96e58863545aa",
+	"library/tomcat":  "7b462938183d61aeae3cac6a7a2335b8806d561498a1495353b6650d65e1e403",
+	"library/golang":  "a443d5a72a2ed0af201ea5b30b3fc4e28146b86b9c3cdd8d177b2c77e00d39fd",
+	"library/photon":  "b12b5ead0dad7bd8bf02889ccf7eacc82ce89c7ed4bad48e9d5c9f7ac110fdc2",
 }
 
 // docker's container.execBackend
@@ -76,8 +97,53 @@ func (c *Container) ContainerStatPath(name string, path string) (stat *types.Con
 
 // docker's container.stateBackend
 
-func (c *Container) ContainerCreate(types.ContainerCreateConfig) (types.ContainerCreateResponse, error) {
-	return types.ContainerCreateResponse{}, fmt.Errorf("%s does not implement container.ContainerCreate", c.ProductName)
+func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.ContainerCreateResponse, error) {
+	defer trace.End(trace.Begin("ContainerCreate"))
+
+	//TODO: validate the config parameters
+	log.Printf("createConfig - container = %+v", config.Config)
+
+	// Get an API client to the portlayer
+	client := PortLayerClient()
+	if client == nil {
+		return types.ContainerCreateResponse{},
+			derr.NewErrorWithStatusCode(fmt.Errorf("container.ContainerCreate failed to create a portlayer client"),
+				http.StatusInternalServerError)
+	}
+
+	// Check if the image exist
+	layerID, found := hackMap[config.Config.Image]
+	if !found {
+		return types.ContainerCreateResponse{},
+			derr.NewErrorWithStatusCode(fmt.Errorf("Container look up failed"),
+				http.StatusInternalServerError)
+	}
+
+	// Call the Exec port layer to create the container
+	host, err := os.Hostname()
+	if err != nil {
+		return types.ContainerCreateResponse{},
+			derr.NewErrorWithStatusCode(fmt.Errorf("container.ContainerCreate got unexpected error getting hostname"),
+				http.StatusInternalServerError)
+	}
+
+	plCreateParams := c.dockerContainerCreateParamsToPortlayer(config, layerID, host)
+	createResults, err := client.Exec.ContainerCreate(plCreateParams)
+
+	// transfer port layer swagger based response to Docker backend data structs and return to the REST front-end
+	if err != nil {
+		if _, isa := err.(*exec.ContainerCreateNotFound); isa {
+			return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", layerID))
+		}
+
+		// If we get here, most likely something went wrong with the port layer API server
+		return types.ContainerCreateResponse{},
+			derr.NewErrorWithStatusCode(fmt.Errorf("Unknown error from the exec port layer"), http.StatusInternalServerError)
+	}
+
+	// Success!
+	log.Printf("container.ContainerCreate succeeded.  Returning container id %s", *createResults.Payload.ContainerID)
+	return types.ContainerCreateResponse{ID: *createResults.Payload.ContainerID}, nil
 }
 
 func (c *Container) ContainerKill(name string, sig uint64) error {
@@ -105,7 +171,36 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 }
 
 func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig) error {
-	return fmt.Errorf("%s does not implement container.ContainerStart", c.ProductName)
+	defer trace.End(trace.Begin("ContainerStart"))
+
+	// Get an API client to the portlayer
+	client := PortLayerClient()
+	if client == nil {
+		return derr.NewErrorWithStatusCode(fmt.Errorf("container.ContainerCreate failed to create a portlayer client"),
+			http.StatusInternalServerError)
+	}
+
+	// handle legancy hostConfig
+	if hostConfig != nil {
+		// hostConfig exist for backwards compatibility.  TODO: Figure out which parameters we
+		// need to look at in hostConfig
+	}
+
+	// Start the container
+	// TODO: We need a resolved ID from the name
+	plStartParams := &exec.ContainerStartParams{ID: name}
+	_, err := client.Exec.ContainerStart(plStartParams)
+	if err != nil {
+		if _, isa := err.(*exec.ContainerStartNotFound); isa {
+			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
+		}
+
+		// If we get here, most likely something went wrong with the port layer API server
+		return derr.NewErrorWithStatusCode(fmt.Errorf("Unknown error from the exec port layer"),
+			http.StatusInternalServerError)
+	}
+
+	return nil
 }
 
 func (c *Container) ContainerStop(name string, seconds int) error {
@@ -154,4 +249,67 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 
 func (c *Container) ContainerAttach(name string, cac *backend.ContainerAttachConfig) error {
 	return fmt.Errorf("%s does not implement container.ContainerAttach", c.ProductName)
+}
+
+//----------
+// Utility Functions
+//----------
+
+func (c *Container) dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, layerID string, imageStore string) *exec.ContainerCreateParams {
+	//TODO: Fill in the name
+	portLayerConfig := &exec.ContainerCreateParams{Name: nil}
+
+	portLayerConfig.CreateConfig = &models.ContainerCreateConfig{}
+
+	// Image
+	portLayerConfig.CreateConfig.Image = new(string)
+	*portLayerConfig.CreateConfig.Image = layerID
+
+	// copy the cmd array
+	portLayerConfig.CreateConfig.Cmd = make([]string, len(cc.Config.Cmd))
+	copy(portLayerConfig.CreateConfig.Cmd, cc.Config.Cmd)
+
+	// copy the entrypoint
+	portLayerConfig.CreateConfig.EntryPoint = new(string)
+	*portLayerConfig.CreateConfig.EntryPoint = strings.Join(cc.Config.Entrypoint, " ")
+
+	// copy the env array
+	portLayerConfig.CreateConfig.Env = make([]string, len(cc.Config.Env))
+	copy(portLayerConfig.CreateConfig.Env, cc.Config.Env)
+
+	// image store
+	portLayerConfig.CreateConfig.ImageStore = &models.ImageStore{Name: imageStore}
+
+	// network
+	portLayerConfig.CreateConfig.NetworkDisabled = new(bool)
+	*portLayerConfig.CreateConfig.NetworkDisabled = cc.Config.NetworkDisabled
+
+	// working dir
+	portLayerConfig.CreateConfig.WorkingDir = new(string)
+	*portLayerConfig.CreateConfig.WorkingDir = cc.Config.WorkingDir
+
+	return portLayerConfig
+}
+
+func (c *Container) imageExist(imageID string) (storeName string, err error) {
+	// Call the storage port layer to determine if the image currently exist
+	host, err := os.Hostname()
+	if err != nil {
+		return "", derr.NewBadRequestError(fmt.Errorf("container.ContainerCreate got unexpected error getting hostname"))
+	}
+
+	getParams := &storage.GetImageParams{ID: imageID, StoreName: host}
+	if _, err := PortLayerClient().Storage.GetImage(getParams); err != nil {
+		// If the image does not exist
+		if _, isa := err.(*storage.GetImageNotFound); isa {
+			// return error and "No such image" which the client looks for to determine if the image didn't exist
+			return "", derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", imageID))
+		}
+
+		// If we get here, most likely something went wrong with the port layer API server
+		return "", derr.NewErrorWithStatusCode(fmt.Errorf("Unknown error from the storage portlayer"),
+			http.StatusInternalServerError)
+	}
+
+	return host, nil
 }
