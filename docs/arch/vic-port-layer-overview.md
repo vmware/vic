@@ -36,7 +36,7 @@ The Tether API and Tether codebase is where all OS differences will be encapsula
 
 So what kind of container primitives should the Port Layer provide and how are those intended to interoperate with established container standards? 
 
-It stands to reason that Networking, Storage and Execution are obvious areas for low-layer primitives. These primitives already exist in the vSphere APIs and the VIC Port Layer is designed to provide a framwork which builds on those APIs by providing both plumbing code and opinionated mappings between container concepts and vSphere concepts. 
+It stands to reason that Networking, Storage and Execution are obvious areas for low-layer primitives. These primitives already exist in the vSphere APIs and the VIC Port Layer is designed to provide a framework which builds on those APIs by providing both plumbing code and opinionated mappings between container concepts and vSphere concepts. 
 
 For example, what is a container storage Volume and how should one be configured? The Port Layer API should be responsible for deciding what vSphere construct most appropriately represents a Volume and also that it is configured appropriately. It should do this based on the parameters passed in, the vSphere features currently installed in the system and the resources that the tenant has the authorization to access. It can pass back a handle to that Volume that can then be used in the creation of a container. By doing this, the Port Layer made a choice about the most appropriate underlying representation and it also made sure it was appropriately configured and indexed.
 
