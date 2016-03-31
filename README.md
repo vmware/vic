@@ -1,9 +1,11 @@
-[![Build Status](https://ci.vmware.run/api/badges/vmware/vic/status.svg)](https://ci.vmware.run/vmware/vic)
+[![Build Status](https://ci.vmware.run/api/badges/vmware/vic/status.svg)](https://ci.vmware.run/vmware/vic) [![Coverage Status](https://coverage.vmware.run/badges/vmware/vic/coverage.svg)](https://coverage.vmware.run/vmware/vic)
 
 
 # vSphere Integrated Containers
 
 VIC is a container runtime for vSphere, allowing developers familiar with Docker to develop in containers and deploy them alongside traditional VM-based workloads on vSphere clusters, and allowing for these workloads to be managed through the vSphere UI in a way familiar to existing vSphere admins.
+
+See [VIC Containers Architecture](arch.md) for a high level overview.
 
 ## Contributing
 
