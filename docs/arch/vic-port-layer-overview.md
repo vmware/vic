@@ -16,13 +16,13 @@ The Port Layer abstractions in VIC are designed to augment the vSphere APIs with
 
 From an architectural perspective, the Port Layer should be considered functionally equivalent to a project like https://github.com/docker/libcontainer in as much as it provides low-level platform-specific primitives. It is easy to see how such an abstraction could be container engine agnostic since it provides capabilities at a much lower layer. Our goal however is that it should also be operating system agnostic, which is a more challenging goal at such a low layer. 
 
-### Operating System Independence
+##### Operating System Independence
 
 VMs are already completely operating system agnostic, since they virtualize at the hardware layer and all control plane operations through the vSphere APIs are therefore also necessarily OS agnostic. Guest differences are encapsulated in different builds of "VMware Tools" which is an optional in-guest agent that mediates between the guest and the hypervisor.
 
 The Port Layer in VIC will function in exactly the same way. Control plane operations will be expressed through an OS agnostic API and distinct differences between operating system implementations will be encapuslated in the _Tether_ process that runs in each containerVM.
 
-### The Tether Process
+##### The Tether Process
 
 A traditional container runtime, such as Linux/LXC, allows the control plane and the containers to share a kernel within a common address space. Each container gets its own private namespace, but the shared kernel allows the control plane to have visibility into the containers and also allows for processes to be started and stopped inside them. 
 
