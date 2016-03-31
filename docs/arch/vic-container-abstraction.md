@@ -32,6 +32,8 @@ In this mode, there is necessarily a 1:1 coupling between a container and a VM. 
 
 This model leads to some very distinct differences between a VIC container and a traditional container, none of which impact the portability of the container abstraction between these systems, but which are important to understand.
 
+##### Container
+
 1. There is no default shared filesystem between the container and its host
   * Volumes are attached to the container as disks and are completely isolated from each other
   * A shared filesystem could be provided by something like an NFS volume driver
@@ -45,4 +47,14 @@ This model leads to some very distinct differences between a VIC container and a
   * A Linux container will have access to all of the CPU and memory resource available in its host if not specified
   * A containerVM must have memory and CPU limits defined, either derived from a default or specified explicitly
 
-There are also necessarily implementation differences, transparent to the user, which are required to support this abstraction. For example, given that a container is entirely isolated from other containers and its host is just an esoteric resource boundary, any control operations performed within the container - launching processes, streaming stout/stderr, setting environment variables, network specialization - must be done either by modifying the container image disk before it is attached; or through a special control channel embedded in the container.
+##### Virtual Container Host
+
+A container host in VIC is a _Virtual_ Container Host (VCH). A VCH is not in itself a VM - it is an abstract dynamic resource boundary that is defined and controlled by vSphere into which containerVMs can be provisioned. As such, a VCH can be a subset of a physical host or a subset of a cluster of hosts. 
+
+However a container host also represents an API endpoint with an isolated namespace for accessing the control plane, so a functionally equivalent service must be provisioned to the vSphere infrastructure that provides the same endpoint for each VCH. There are various ways in which such an service could be deployed, but the simplest representation is to run it in a VM.
+
+Given that a VCH in many cases will represent a subset of resource from a cluster of physical hosts, it is actually closer in concept to something like Docker Swarm than a traditional container host. 
+
+There are also necessarily implementation differences, transparent to the user, which are required to support this abstraction. For example, given that a container is entirely isolated from other containers and its host is just an esoteric resource boundary, any control operations performed within the container - launching processes, streaming stout/stderr, setting environment variables, network specialization - must be done either by modifying the container image disk before it is attached; or through a special control channel embedded in the container (see Tether).
+
+
