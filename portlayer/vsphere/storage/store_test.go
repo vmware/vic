@@ -46,6 +46,9 @@ func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, error) {
 
 	vsImageStore, err := NewImageStore(context.TODO(), client)
 	if err != nil {
+		if err.Error() == "can't find the hosting vm" {
+			t.Skip("Skipping: test must be run in a VM")
+		}
 		return nil, nil, err
 	}
 
