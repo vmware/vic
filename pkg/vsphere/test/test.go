@@ -31,7 +31,7 @@ import (
 
 // URL checks whether we set TEST_URL env. var
 func URL(t *testing.T) string {
-	s := os.Getenv("TEST_URL")
+	s := os.Getenv("VIC_ESX_TEST_URL")
 	if s == "" {
 		t.SkipNow()
 	}
