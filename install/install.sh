@@ -28,8 +28,10 @@ DIR=$(dirname "$THIS")
 set -e
 
 function usage() {
-     echo "# Usage: $0 [-v:verbose] -t=target-url -p=compute-resource -i=image-datastore -d=container-datastore -e=external-network -m=management-network -b=bridge-network -a=appliance-iso -c=bootstrap -g=stub -x=certificate-file -y=key-file name" 2>&1
+     echo "# Usage: $0 -t=target-url -p=compute-resource -i=image-datastore [-d=container-datastore] [-e=external-network] [-m=management-network] [-b=bridge-network] [-a=appliance-iso] [-c=bootstrap] [-g=stub] [-x=certificate-file] [-y=key-file] [-v:verbose] [-f] name" 2>&1
      echo "#   -g: generate the certificate and key files, using the value as a stub name"
+     echo "#   -f: delete existing VM and image store if found"
+
      exit 1
 }
 
@@ -152,7 +154,7 @@ if [ "$#" -ne 1 ]; then
    usage
 fi
 
-if [ -z "$1" -o -z "$GOVC_URL" -o -z "$vchName" ]; then
+if [ -z "$1" -o -z "$GOVC_URL" -o -z "$vchName" -o -z "$compute" -o -z "$idatastore" ]; then
      usage
 fi
 
@@ -172,10 +174,10 @@ govc about > /dev/null
 if [ ! -z "${force}" ]; then
    echo "# Cleaning up prior VM if needed"
    govc vm.destroy "${vchName}" 2>/dev/null || echo "# Target VM does not need removing"
-   govc datastore.rm "${vchName}" 2>/dev/null|| echo "# Target does not need cleaning"
+   govc datastore.rm -ds "${idatastore}" "${vchName}" 2>/dev/null|| echo "# Target VM does not need cleaning"
 
    echo "# Cleaning up image store if present"
-   govc datastore.rm "VIC" 2>/dev/null|| echo "# Target does not need cleaning"
+   govc datastore.rm -ds "${idatastore}" "VIC" 2>/dev/null|| echo "# Target image store does not need cleaning"
 fi
 
 # upload the isos
@@ -235,7 +237,7 @@ fi
 echo "# Setting component configuration"
 govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/components="/sbin/docker-engine-server /sbin/port-layer-server /sbin/vicadmin"
 govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/sbin/imagec="-debug -logfile=/var/log/vic/imagec.log -insecure"
-govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/sbin/port-layer-server="--host=localhost --port=8080 --insecure --sdk=${targetURL} --datacenter=${datacenter} --cluster=${compute} --datastore=/${datacenter}/datastore/${idatastore}"
+govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/sbin/port-layer-server="--host=localhost --port=8080 --insecure --sdk=${targetURL} --datacenter=${datacenter} --cluster=${compute} --datastore=/${datacenter}/datastore/${idatastore} --network=/ha-datacenter/network/${externalNet} --vch=${vchName}"
 files="/var/tmp/images/ /var/log/vic/"
 
 # now we see if we configure TLS
@@ -253,7 +255,7 @@ fi
 
 # and finalize the config (this is the components that have frontend TLS considerations)
 govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/files="${files}"
-govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/sbin/docker-engine-server="-severaddr 0.0.0.0 -port ${port} -port-layer-port 8080 ${dockertlsargs}"
+govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/sbin/docker-engine-server="-serveraddr=0.0.0.0 -port=${port} -port-layer-port=8080 ${dockertlsargs}"
 govc vm.change -vm.uuid="${uuid}" -e guestinfo.vch/sbin/vicadmin="-docker-host=unix:///var/run/docker.sock -insecure -sdk=${targetURL} -ds=/${datacenter}/datastore/${idatastore} -vm-path=${vmpath} ${vicadmintlsargs}"
 
 
@@ -284,7 +286,7 @@ echo "# SSH to appliance (default=root:password)"
 echo "# root@${host}"
 echo "# "
 echo "# Log server:"
-echo "# http://${host}:2378"
+echo "# https://${host}:2378"
 echo "# "
 if [ -n "${dockertlsargs}" ]; then
    echo "# Connect to docker:"

@@ -101,7 +101,7 @@ goimports: $(go-imports)
 
 
 # convenience targets
-all: components isos install
+all: components tethers isos install
 tools: $(GOIMPORTS) $(GOVET) $(GVT) $(GOLINT) $(SWAGGER) goversion
 check: goversion goimports govet golint copyright whitespace
 apiservers: $(portlayerapi) $(docker-engine-api)
@@ -198,13 +198,13 @@ else
 	$(foreach var,$(TEST_DIRS), $(GO) test -v $(TEST_OPTS) $(var);)
 endif
 
-$(tether-linux): $(shell find tether -name '*.go')
+$(tether-linux): $(shell find tether -name '*.go') metadata/*.go
 	@echo building tether-linux
-	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./$@ ./tether/cmd/tether
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./$@ ./tether
 
-$(tether-windows): $(shell find tether -name '*.go')
+$(tether-windows): $(shell find tether -name '*.go') metadata/*.go
 	@echo building tether-windows
-	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./$@ ./tether/cmd/tether
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./$@ ./tether
 
 
 $(rpctool): pkg/vsphere/rpctool/*.go
@@ -246,7 +246,7 @@ $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API server...
 	@$(SWAGGER) generate server -A PortLayer -t $(realpath $(dir $<)) -f $<
 
-$(portlayerapi): $(portlayerapi-server) $(shell find pkg/ apiservers/engine/ -name '*.go')
+$(portlayerapi): $(portlayerapi-server) $(shell find pkg/ apiservers/engine/ -name '*.go') metadata/*.go
 	@echo building Portlayer API server...
 	@$(GO) build -o $@ ./apiservers/portlayer/cmd/port-layer-server
 
@@ -271,11 +271,11 @@ $(appliance): isos/appliance.sh isos/appliance/* $(rpctool) $(vicadmin) $(imagec
 	@$< -p $(appliance-staging) -b $(BIN)
 
 # main bootstrap target
-$(bootstrap): isos/bootstrap.sh $(tether-linux) $(rpctool) $(bootstrap-staging)
+$(bootstrap): isos/bootstrap.sh $(tether-linux) $(rpctool) $(bootstrap-staging) isos/bootstrap/*
 	@echo "Making bootstrap iso"
 	@$< -p $(bootstrap-staging) -b $(BIN)
 
-$(bootstrap-debug): isos/bootstrap.sh $(tether-linux) $(rpctool) $(iso-base) $(bootstrap-staging-debug)
+$(bootstrap-debug): isos/bootstrap.sh $(tether-linux) $(rpctool) $(bootstrap-staging-debug) isos/bootstrap/*
 	@echo "Making bootstrap-debug iso"
 	@$< -p $(bootstrap-staging-debug) -b $(BIN) -d true
 
