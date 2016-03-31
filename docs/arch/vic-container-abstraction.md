@@ -55,6 +55,6 @@ However a container host also represents an API endpoint with an isolated namesp
 
 Given that a VCH in many cases will represent a subset of resource from a cluster of physical hosts, it is actually closer in concept to something like Docker Swarm than a traditional container host. 
 
-There are also necessarily implementation differences, transparent to the user, which are required to support this abstraction. For example, given that a container is entirely isolated from other containers and its host is just an esoteric resource boundary, any control operations performed within the container - launching processes, streaming stout/stderr, setting environment variables, network specialization - must be done either by modifying the container image disk before it is attached; or through a special control channel embedded in the container (see Tether).
+There are also necessarily implementation differences, transparent to the user, which are required to support this abstraction. For example, given that a container is entirely isolated from other containers and its host is just an esoteric resource boundary, any control operations performed within the container - launching processes, streaming stout/stderr, setting environment variables, network specialization - must be done either by modifying the container image disk before it is attached; or through a special control channel embedded in the container (see [Tether](vic-port-layer-overview.md#the-tether-process)).
 
 
