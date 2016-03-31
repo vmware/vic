@@ -19,31 +19,3 @@ A secondary benefit of such an API is that it could easily be extended for compa
 The Port Layer is designed in such a way that the libraries can be built into static binaries or remotable services. They can be combined together into a single service endpoint or distributed for greater flexibility.
 
 [Learn more about the Port Layer](docs/arch/vic-port-layer-overview.md)
-
-##### User Management
-
-(ghicken)
-
-##### Security
-
-(mikeh)
-
-##### High-level Usage Model
-
-###### Installing VIC
-
-###### Creating a Virtual Container Host
-
-###### Container Lifecycle Operations
-
-###### Container Nesting
-
-##### Docker Compatibility
-
-##### vSphere Compatibility
-
-
-
-
-
-
