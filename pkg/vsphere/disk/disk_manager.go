@@ -146,7 +146,6 @@ func (m *Manager) createDiskSpec(childURI, parentURI string, capacity int64, fla
 		VirtualDevice: types.VirtualDevice{
 			Key:           -1,
 			ControllerKey: m.controller.Key,
-			UnitNumber:    -1,
 			Backing:       backing,
 		},
 		CapacityInKB: capacity,

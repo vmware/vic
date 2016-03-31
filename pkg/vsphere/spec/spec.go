@@ -43,7 +43,7 @@ type VirtualMachineConfigSpecConfig struct {
 	Name string
 
 	// Number of CPUs
-	NumCPUs int
+	NumCPUs int32
 	// Memory - in MB
 	MemoryMB int64
 
@@ -78,7 +78,7 @@ type VirtualMachineConfigSpec struct {
 	config *VirtualMachineConfigSpecConfig
 
 	// internal value to keep track of next ID
-	key int
+	key int32
 }
 
 // NewVirtualMachineConfigSpec returns a VirtualMachineConfigSpec
@@ -269,7 +269,7 @@ func (s *VirtualMachineConfigSpec) ImageStoreName() string {
 	return s.config.ImageStoreName
 }
 
-func (s *VirtualMachineConfigSpec) generateNextKey() int {
+func (s *VirtualMachineConfigSpec) generateNextKey() int32 {
 
 	s.key -= 10
 	return s.key

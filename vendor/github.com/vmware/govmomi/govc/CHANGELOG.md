@@ -1,6 +1,22 @@
 # changelog
 
-### (unreleased)
+### 0.5.0 (2016-03-30)
+
+* Add dvs.portgroup.info command
+
+* Add `-folder` flag to vm.create command
+
+* Add `-dump` flag to OutputFlag
+
+* Add `-f` flag to events command
+
+* Add `-mode` flag to vm.disk.create command
+
+* Add `-net` flag to device.info command
+
+* Add `-eager` and `-thick` options to vm.create command
+
+### 0.4.0 (2016-02-26)
 
 * Add support for placement in datastore cluster to vm.create command
 

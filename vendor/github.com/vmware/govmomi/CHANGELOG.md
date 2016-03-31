@@ -1,6 +1,12 @@
 # changelog
 
-### (unreleased)
+### 0.5.0 (2016-03-30)
+
+Generated fields using xsd type 'int' change to Go type 'int32'
+
+VirtualDevice.UnitNumber field changed to pointer type
+
+### 0.4.0 (2016-02-26)
 
 * Add method to convert virtual device list to array with virtual device
   changes that can be used in the VirtualMachineConfigSpec.

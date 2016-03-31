@@ -74,9 +74,9 @@ func TestVirtualMachineConfigSpec(t *testing.T) {
 		NetworkName:   strings.Split(session.Network.Reference().Value, "-")[0],
 	}
 	// FIXME: find a better way to pass those
-	scsibus := 0
-	scsikey := 100
-	idekey := 200
+	var scsibus int32
+	var scsikey int32 = 100
+	var idekey int32 = 200
 
 	root, _ := NewVirtualMachineConfigSpec(ctx, session, specconfig)
 	scsi := NewVirtualSCSIController(scsibus, scsikey)

@@ -22,7 +22,7 @@ import (
 )
 
 // NewVirtualSCSIController returns a VirtualSCSIController with bus number and key.
-func NewVirtualSCSIController(bus int, key int) types.VirtualSCSIController {
+func NewVirtualSCSIController(bus int32, key int32) types.VirtualSCSIController {
 	defer trace.End(trace.Begin(fmt.Sprintf("%d - %d", bus, key)))
 
 	return types.VirtualSCSIController{

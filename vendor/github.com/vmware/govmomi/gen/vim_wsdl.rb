@@ -141,12 +141,14 @@ class Simple
 
   def vim_type?
     ns, _ = self.type.split(":", 2)
-    ns == "vim25"
+    ns == "vim25" or ns == "internalvim25" or ns == "internalreflect"
   end
 
   def vim_type(t = self.type)
     ns, t = t.split(":", 2)
-    raise if ns != "vim25"
+    if ns != "vim25" and ns != "internalvim25" and ns != "internalreflect"
+        raise
+    end
     t
   end
 
@@ -162,6 +164,10 @@ class Simple
     self.type == "xsd:anyType"
   end
 
+  def pointer_type?
+    ["UnitNumber"].include?(var_name)
+  end
+
   def var_type
     t = self.type
     prefix = ""
@@ -173,6 +179,11 @@ class Simple
       case t
       when "string"
       when "int"
+        if pointer_type?
+          prefix += "*"
+          self.need_omitempty = false
+        end
+        t = "int32"
       when "boolean"
         t = "bool"
         if !slice? && optional?
@@ -567,6 +578,12 @@ class Schema
   def types
     return to_enum(:types) unless block_given?
 
+    imports.each do |i|
+      i.types do |t|
+        yield t
+      end
+    end
+
     includes.each do |i|
       i.types do |t|
         yield t
@@ -622,10 +639,25 @@ class Operation
     @operation_node["name"]
   end
 
+  def namespace
+    type = @operation_node.at_xpath("./xmlns:input").attr("message")
+    keep_ns(type)
+  end
+
   def remove_ns(x)
     ns, x = x.split(":", 2)
-    assert_equal "vim25", ns
+    if ns != "vim25" and ns != "internalvim25" and ns != "internalreflect"
+        raise
+    end
     x
+  end
+
+  def keep_ns(x)
+    ns, x = x.split(":", 2)
+    if ns != "vim25" and ns != "internalvim25" and ns != "internalreflect"
+        raise
+    end
+    ns
   end
 
   def find_type_for(type)
@@ -661,8 +693,8 @@ class Operation
   def dump(io)
     io.print <<EOS
   type #{name}Body struct{
-    Req *#{go_input} `xml:"urn:vim25 #{input},omitempty"`
-    Res *#{go_output} `xml:"urn:vim25 #{output},omitempty"`
+    Req *#{go_input} `xml:"urn:#{namespace} #{input},omitempty"`
+    Res *#{go_output} `xml:"urn:#{namespace} #{output},omitempty"`
     Fault_ *soap.Fault `xml:"http://schemas.xmlsoap.org/soap/envelope/ Fault,omitempty"`
   }
 
@@ -748,6 +780,22 @@ class WSDL
 
   def self.header(name)
     return <<EOF
+/*
+Copyright (c) 2014-2016 VMware, Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package #{name}
 
 EOF

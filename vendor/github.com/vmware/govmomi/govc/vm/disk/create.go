@@ -19,10 +19,13 @@ package disk
 import (
 	"errors"
 	"flag"
+	"fmt"
+	"strings"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
 	"github.com/vmware/govmomi/units"
+	"github.com/vmware/govmomi/vim25/types"
 	"golang.org/x/net/context"
 )
 
@@ -34,6 +37,18 @@ type create struct {
 	controller string
 	Name       string
 	Bytes      units.ByteSize
+	Thick      bool
+	Eager      bool
+	DiskMode   string
+}
+
+var vdmTypes = []string{
+	string(types.VirtualDiskModePersistent),
+	string(types.VirtualDiskModeNonpersistent),
+	string(types.VirtualDiskModeUndoable),
+	string(types.VirtualDiskModeIndependent_persistent),
+	string(types.VirtualDiskModeIndependent_nonpersistent),
+	string(types.VirtualDiskModeAppend),
 }
 
 func init() {
@@ -56,6 +71,9 @@ func (cmd *create) Register(ctx context.Context, f *flag.FlagSet) {
 	f.StringVar(&cmd.controller, "controller", "", "Disk controller")
 	f.StringVar(&cmd.Name, "name", "", "Name for new disk")
 	f.Var(&cmd.Bytes, "size", "Size of new disk")
+	f.BoolVar(&cmd.Thick, "thick", false, "Thick provision new disk")
+	f.BoolVar(&cmd.Eager, "eager", false, "Eagerly scrub new disk")
+	f.StringVar(&cmd.DiskMode, "mode", "persistent", fmt.Sprintf("Disk mode (%s)", strings.Join(vdmTypes, "|")))
 }
 
 func (cmd *create) Process(ctx context.Context) error {
@@ -99,6 +117,17 @@ func (cmd *create) Run(ctx context.Context, f *flag.FlagSet) error {
 		return err
 	}
 
+	vdmMatch := false
+	for _, vdm := range vdmTypes {
+		if cmd.DiskMode == vdm {
+			vdmMatch = true
+		}
+	}
+
+	if vdmMatch == false {
+		return errors.New("please specify a valid disk mode")
+	}
+
 	disk := devices.CreateDisk(controller, ds.Reference(), ds.Path(cmd.Name))
 
 	existing := devices.SelectByBackingInfo(disk.Backing)
@@ -107,6 +136,15 @@ func (cmd *create) Run(ctx context.Context, f *flag.FlagSet) error {
 		cmd.Log("Disk already present\n")
 		return nil
 	}
+
+	backing := disk.Backing.(*types.VirtualDiskFlatVer2BackingInfo)
+
+	if cmd.Thick {
+		backing.ThinProvisioned = types.NewBool(false)
+		backing.EagerlyScrub = types.NewBool(cmd.Eager)
+	}
+
+	backing.DiskMode = cmd.DiskMode
 
 	cmd.Log("Creating disk\n")
 	disk.CapacityInKB = int64(cmd.Bytes) / 1024
