@@ -103,7 +103,7 @@ goimports: $(go-imports)
 # convenience targets
 all: components isos install
 tools: $(GOIMPORTS) $(GOVET) $(GVT) $(GOLINT) $(SWAGGER) goversion
-check: goversion goimports govet golint copyright
+check: goversion goimports govet golint copyright whitespace
 apiservers: $(portlayerapi) $(docker-engine-api)
 components: check apiservers $(imagec) $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
@@ -138,6 +138,10 @@ $(SWAGGER): vendor/manifest
 copyright:
 	@echo "checking copyright in header..."
 	scripts/header-check.sh
+
+whitespace:
+	@echo "checking whitespace..."
+	scripts/whitespace-check.sh
 
 # exit 1 if golint complains about anything other than comments
 golintf = $(GOLINT) $(1) | sh -c "! grep -v 'should have comment'"

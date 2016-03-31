@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -e -o pipefail
+
+echo "==> Running whitespace check..."
+# check for whitespaces..
+./scripts/whitespace-check.sh pre
