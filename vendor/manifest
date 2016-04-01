@@ -321,6 +321,13 @@
 			"path": "/pkg/mount"
 		},
 		{
+			"importpath": "github.com/docker/docker/pkg/namesgenerator",
+			"repository": "https://github.com/docker/docker",
+			"revision": "4a7bd7eaef0038b006cf23adface84081e5aab3b",
+			"branch": "master",
+			"path": "/pkg/namesgenerator"
+		},
+		{
 			"importpath": "github.com/docker/docker/pkg/parsers/kernel",
 			"repository": "https://github.com/docker/docker",
 			"revision": "0771230daac8aa2d66edddecd935d2c182850077",
