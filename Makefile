@@ -207,7 +207,7 @@ $(tether-windows): $(shell find tether -name '*.go') metadata/*.go
 	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./$@ ./tether
 
 
-$(rpctool): pkg/vsphere/rpctool/*.go
+$(rpctool): rpctool/*.go
 ifeq ($(OS),linux)
 	@echo building rpctool
 	@GOARCH=amd64 GOOS=linux $(GO) build -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
