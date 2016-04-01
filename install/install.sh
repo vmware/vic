@@ -210,7 +210,7 @@ networks[${bridgeNet}]=bridge
 
 # create the VM
 echo "# Creating the Virtual Container Host appliance"
-govc vm.create -iso="${appIsoPath}" -net="${bridgeNet}" -disk.controller=pvscsi -net.adapter=vmxnet3 -m 2048 -on=false "${vchName}"
+govc vm.create -iso="${appIsoPath}" -net="${bridgeNet}" -disk.controller=pvscsi -net.adapter=vmxnet3 -m 2048 -on=false -g other3xLinux64Guest "${vchName}"
 
 # short-hand the vm
 uuid=$(govc vm.info ${vchName}| grep -e "^\\s*UUID:" | awk '{print$2}')
