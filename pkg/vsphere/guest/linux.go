@@ -47,8 +47,11 @@ type LinuxGuestType struct {
 }
 
 // NewLinuxGuest returns a new Linux guest spec with predefined values
-func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.VirtualMachineConfigSpecConfig) Guest {
-	s := spec.NewVirtualMachineConfigSpec(ctx, session, config)
+func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.VirtualMachineConfigSpecConfig) (Guest, error) {
+	s, err := spec.NewVirtualMachineConfigSpec(ctx, session, config)
+	if err != nil {
+		return nil, err
+	}
 
 	// SCSI controller
 	scsi := spec.NewVirtualSCSIController(scsiBusNumber, scsiKey)
@@ -78,7 +81,11 @@ func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.V
 
 	// Debug serial port - backed by datastore file
 	debugserial := spec.NewVirtualSerialPort()
-	s.AddVirtualDebugSerialPort(debugserial)
+	s.AddVirtualFileSerialPort(debugserial, "debug")
+
+	// Session log serial port - backed by datastore file
+	sessionserial := spec.NewVirtualSerialPort()
+	s.AddVirtualFileSerialPort(sessionserial, "log")
 
 	// Set the guest id
 	s.GuestId = linuxGuestID
@@ -86,7 +93,7 @@ func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.V
 	return &LinuxGuestType{
 		VirtualMachineConfigSpec: s,
 		controller:               &scsi,
-	}
+	}, nil
 }
 
 // GuestID returns the guest id of the linux guest

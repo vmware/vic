@@ -23,8 +23,10 @@ import (
 
 	"golang.org/x/net/context"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -62,6 +64,9 @@ type VirtualMachineConfigSpecConfig struct {
 
 	// Name of the image store
 	ImageStoreName string
+
+	// Temporary
+	Metadata metadata.ExecutorConfig
 }
 
 // VirtualMachineConfigSpec type
@@ -77,7 +82,7 @@ type VirtualMachineConfigSpec struct {
 }
 
 // NewVirtualMachineConfigSpec returns a VirtualMachineConfigSpec
-func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, config *VirtualMachineConfigSpecConfig) *VirtualMachineConfigSpec {
+func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, config *VirtualMachineConfigSpecConfig) (*VirtualMachineConfigSpec, error) {
 	defer trace.End(trace.Begin(config.ID))
 
 	VMPathName := config.VMPathName
@@ -89,12 +94,21 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 	// Init key for tether
 	privateKey, err := rsa.GenerateKey(rand.Reader, 1024)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	privateKeyBlock := pem.Block{
 		Type:    "RSA PRIVATE KEY",
 		Headers: nil,
 		Bytes:   x509.MarshalPKCS1PrivateKey(privateKey),
+	}
+
+	log.Debugf("Adding metadata to the configspec: %+v", config.Metadata)
+	// TEMPORARY
+
+	metadata, err := metadata.New().StoreConfig(&config.Metadata)
+	if err != nil {
+		log.Errorf("failed to marshal container metadata: %s", err)
+		return nil, err
 	}
 
 	spec := &types.VirtualMachineConfigSpec{
@@ -139,6 +153,9 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 			// http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=2030189
 			&types.OptionValue{Key: "tools.remindInstall", Value: "FALSE"},
 			&types.OptionValue{Key: "tools.upgrade.policy", Value: "manual"},
+
+			// TEMPORARY
+			&types.OptionValue{Key: "guestInfo.vic.configblob", Value: metadata},
 		},
 	}
 
@@ -146,7 +163,7 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 		Session:                  session,
 		VirtualMachineConfigSpec: spec,
 		config: config,
-	}
+	}, nil
 }
 
 // AddVirtualDevice appends an Add operation to the DeviceChange list

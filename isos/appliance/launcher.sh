@@ -80,7 +80,12 @@ launchComponent() {
         echo "Launching $1 $2" | tee -a $logfile
         echo "$args" > ${cmdfile}
 
-        "${1}" ${args} >>$logfile 2>&1 &
+        # we change IFS and then replace
+        # all " -" with ",-" so that bash can
+        # escape from regular spaces in $args
+        IFS=","
+        "${1}" ${args//\ -/,-} >>$logfile 2>&1 &
+        IFS="  "
         echo $! > $pidfile
     fi
 }

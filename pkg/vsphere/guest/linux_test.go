@@ -32,6 +32,6 @@ func TestNewLinuxGuest(t *testing.T) {
 
 	specconfig := test.SpecConfig(session)
 
-	root := NewLinuxGuest(ctx, session, specconfig)
+	root, _ := NewLinuxGuest(ctx, session, specconfig)
 	assert.Equal(t, "other3xLinux64Guest", root.GuestID())
 }

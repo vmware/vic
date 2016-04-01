@@ -63,6 +63,7 @@ func (s *VirtualMachineConfigSpec) AddVirtualDisk(device *types.VirtualDisk) *Vi
 	device.CapacityInKB = defaultCapacityInKB
 
 	moref := s.Datastore.Reference()
+
 	device.GetVirtualDevice().Backing = &types.VirtualDiskFlatVer2BackingInfo{
 		DiskMode:        string(types.VirtualDiskModePersistent),
 		ThinProvisioned: types.NewBool(true),
@@ -71,12 +72,16 @@ func (s *VirtualMachineConfigSpec) AddVirtualDisk(device *types.VirtualDisk) *Vi
 			FileName:  s.Datastore.Path(fmt.Sprintf("%s/%[1]s.vmdk", s.ID())),
 			Datastore: &moref,
 		},
+	}
 
-		Parent: &types.VirtualDiskFlatVer2BackingInfo{
+	// Add the parent if we set ParentImageID
+	backing := device.GetVirtualDevice().Backing.(*types.VirtualDiskFlatVer2BackingInfo)
+	if s.ParentImageID() != "" {
+		backing.Parent = &types.VirtualDiskFlatVer2BackingInfo{
 			VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
 				FileName: s.Datastore.Path(fmt.Sprintf("VIC/%s/%s/%[2]s.vmdk", s.ImageStoreName(), s.ParentImageID())),
 			},
-		},
+		}
 	}
 
 	return s.AddAndCreateVirtualDevice(device)

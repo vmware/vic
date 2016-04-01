@@ -14,16 +14,23 @@
 
 package options
 
-type PortLayerOptionsType struct {
-	SDK      string `long:"sdk" description:"SDK URL or proxy" env:"VC_URL" required:"true"`
-	Cert     string `long:"cert" description:"Client certificate" env:"VC_CERTIFICATE"`
-	Key      string `long:"key" description:"Private key file" env:"VC_PRIVATE_KEY"`
-	Insecure bool   `long:"insecure" description:"Skip verification of server certificate" env:"VC_INSECURE"`
+import "time"
 
-	DatacenterPath string `long:"datacenter" description:"Datacenter path" env:"DC_PATH" required:"true"`
-	ClusterPath    string `long:"cluster" description:"Cluster path" env:"CS_PATH" required:"true"`
-	DatastorePath  string `long:"datastore" description:"Datastore path" env:"DS_PATH" required:"true"`
-	NetworkPath    string `long:"network" description:"Network path" env:"NET_PATH"`
+type PortLayerOptionsType struct {
+	SDK       string        `long:"sdk" description:"SDK URL or proxy" env:"VC_URL" required:"true"`
+	Cert      string        `long:"cert" description:"Client certificate" env:"VC_CERTIFICATE"`
+	Key       string        `long:"key" description:"Private key file" env:"VC_PRIVATE_KEY"`
+	Insecure  bool          `long:"insecure" default:"true" description:"Skip verification of server certificate" env:"VC_INSECURE"`
+	Keepalive time.Duration `long:"keepalive" default:"5m" description:"Session timeout" env:"VC_KEEPALIVE"`
+
+	DatacenterPath string `long:"datacenter" default:"/ha-datacenter" description:"Datacenter path" env:"DC_PATH" required:"true"`
+	ClusterPath    string `long:"cluster" default:"" description:"Cluster path" env:"CS_PATH" required:"true"`
+	DatastorePath  string `long:"datastore" default:"/ha-datacenter/datastore/*" description:"Datastore path" env:"DS_PATH" required:"true"`
+	NetworkPath    string `long:"network" default:"/ha-datacenter/network/*" description:"Network path" env:"NET_PATH" required:"true"`
+
+	VCHName string `long:"vch" default:"" description:"VCH name" env:"VCH_NAME" required:"true"`
+
+	Debug bool `long:"debug" default:"true" description:"Debug logging"`
 }
 
 var (

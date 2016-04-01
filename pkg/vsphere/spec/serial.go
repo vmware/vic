@@ -31,12 +31,12 @@ func NewVirtualSerialPort() *types.VirtualSerialPort {
 	}
 }
 
-func (s *VirtualMachineConfigSpec) addVirtualSerialPort(device *types.VirtualSerialPort, debug bool, connected bool) *VirtualMachineConfigSpec {
+func (s *VirtualMachineConfigSpec) addVirtualSerialPort(device *types.VirtualSerialPort, suffix string, connected bool) *VirtualMachineConfigSpec {
 	device.GetVirtualDevice().Key = s.generateNextKey()
 
 	// Set serial device's backing to a datastore file when debug is true
 	// We then instruct Linux kernel to use that as a serial console
-	if !debug {
+	if suffix == "" {
 		device.GetVirtualDevice().Backing = &types.VirtualSerialPortURIBackingInfo{
 			VirtualDeviceURIBackingInfo: types.VirtualDeviceURIBackingInfo{
 				Direction:  string(types.VirtualDeviceURIBackingOptionDirectionClient),
@@ -52,7 +52,7 @@ func (s *VirtualMachineConfigSpec) addVirtualSerialPort(device *types.VirtualSer
 	} else {
 		device.GetVirtualDevice().Backing = &types.VirtualSerialPortFileBackingInfo{
 			VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
-				FileName: fmt.Sprintf("%s/%s/%[2]s.debug", s.VMPathName(), s.ID()),
+				FileName: fmt.Sprintf("%s/%s/%[2]s.%s", s.VMPathName(), s.ID(), suffix),
 			},
 		}
 	}
@@ -64,21 +64,21 @@ func (s *VirtualMachineConfigSpec) addVirtualSerialPort(device *types.VirtualSer
 func (s *VirtualMachineConfigSpec) AddVirtualSerialPort(device *types.VirtualSerialPort) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
-	return s.addVirtualSerialPort(device, false, false)
+	return s.addVirtualSerialPort(device, "", false)
 }
 
 // AddVirtualConnectedSerialPort adds a connected virtual serial port.
 func (s *VirtualMachineConfigSpec) AddVirtualConnectedSerialPort(device *types.VirtualSerialPort) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
-	return s.addVirtualSerialPort(device, false, true)
+	return s.addVirtualSerialPort(device, "", true)
 }
 
-// AddVirtualDebugSerialPort adds a file backed virtual serial port.
-func (s *VirtualMachineConfigSpec) AddVirtualDebugSerialPort(device *types.VirtualSerialPort) *VirtualMachineConfigSpec {
+// AddVirtualFileSerialPort adds a file backed virtual serial port.
+func (s *VirtualMachineConfigSpec) AddVirtualFileSerialPort(device *types.VirtualSerialPort, suffix string) *VirtualMachineConfigSpec {
 	defer trace.End(trace.Begin(s.ID()))
 
-	return s.addVirtualSerialPort(device, true, false)
+	return s.addVirtualSerialPort(device, suffix, true)
 }
 
 // RemoveVirtualSerialPort removes a virtual serial port.

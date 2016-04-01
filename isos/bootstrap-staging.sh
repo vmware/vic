@@ -104,6 +104,7 @@ fi
 yum_cached -c $cache -u -p $PKGDIR install \
     iproute2 \
     libtirpc \
+    grep \
     systemd \
     -y --nogpgcheck
 

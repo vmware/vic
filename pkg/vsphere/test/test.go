@@ -68,7 +68,8 @@ func SpecConfig(session *session.Session) *spec.VirtualMachineConfigSpecConfig {
 
 		ConnectorURI: "tcp://1.2.3.4:9876",
 
-		ID:            "zombie_attack",
+		ID:            "deadbeef",
+		Name:          "zombie_attack",
 		BootMediaPath: session.Datastore.Path("brainz.iso"),
 		VMPathName:    fmt.Sprintf("[%s]", session.Datastore.Name()),
 		NetworkName:   strings.Split(session.Network.Reference().Value, "-")[1],

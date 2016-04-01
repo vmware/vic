@@ -36,7 +36,10 @@ func CreateVM(ctx context.Context, session *session.Session, host *object.HostSy
 	specconfig := test.SpecConfig(session)
 
 	// Create a linux guest
-	linux := guest.NewLinuxGuest(ctx, session, specconfig)
+	linux, err := guest.NewLinuxGuest(ctx, session, specconfig)
+	if err != nil {
+		return nil, err
+	}
 
 	// Find the Virtual Machine folder that we use
 	folders, err := session.Datacenter.Folders(ctx)
