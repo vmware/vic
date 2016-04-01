@@ -48,6 +48,9 @@ func TestCreateFS(t *testing.T) {
 	// Nuke the image store
 	defer func() {
 		task, err := fm.DeleteDatastoreFile(context.TODO(), imagestore, nil)
+		if err != nil && err.Error() == "can't find the hosting vm" {
+			t.Skip("Skipping: test must be run in a VM")
+		}
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -58,6 +61,9 @@ func TestCreateFS(t *testing.T) {
 	}()
 
 	vdm, err := NewDiskManager(context.TODO(), client)
+	if err != nil && err.Error() == "can't find the hosting vm" {
+		t.Skip("Skipping: test must be run in a VM")
+	}
 	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
 		return
 	}

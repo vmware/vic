@@ -38,7 +38,7 @@ import (
 var insecureClient *http.Client
 
 func init() {
-	sdk := os.Getenv("GOVC_URL")
+	sdk := os.Getenv("VIC_ESX_TEST_URL")
 	if sdk != "" {
 		flag.Set("sdk", sdk)
 		flag.Set("vm-path", "docker-appliance")

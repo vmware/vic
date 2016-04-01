@@ -15,6 +15,7 @@
 package vm
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -62,6 +63,12 @@ func CreateVM(ctx context.Context, session *session.Session, host *object.HostSy
 }
 
 func TestVM(t *testing.T) {
+
+	s := os.Getenv("DRONE")
+	if s != "" {
+		t.SkipNow()
+	}
+
 	ctx := context.Background()
 
 	session := test.Session(ctx, t)
