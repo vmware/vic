@@ -34,6 +34,7 @@ func NewVirtualDisk(controller types.BaseVirtualController) *types.VirtualDisk {
 	return &types.VirtualDisk{
 		VirtualDevice: types.VirtualDevice{
 			ControllerKey: controller.GetVirtualController().Key,
+			UnitNumber:    new(int32),
 		},
 	}
 }
