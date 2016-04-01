@@ -40,7 +40,6 @@ func main() {
 	}
 
 	err = run(metadata.New(), os.Args[1])
-
 	if err != nil {
 		log.Error(err)
 		return

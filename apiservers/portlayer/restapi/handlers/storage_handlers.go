@@ -17,7 +17,6 @@ package handlers
 import (
 	"net/http"
 	"os"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-swagger/go-swagger/httpkit/middleware"
@@ -52,7 +51,7 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI) {
 	sessionconfig := &session.Config{
 		Service:        options.PortLayerOptions.SDK,
 		Insecure:       options.PortLayerOptions.Insecure,
-		Keepalive:      time.Duration(5) * time.Minute,
+		Keepalive:      options.PortLayerOptions.Keepalive,
 		DatacenterPath: options.PortLayerOptions.DatacenterPath,
 		ClusterPath:    options.PortLayerOptions.ClusterPath,
 		DatastorePath:  options.PortLayerOptions.DatastorePath,
@@ -106,6 +105,7 @@ func (handler *StorageHandlersImpl) CreateImageStore(params storage.CreateImageS
 // GetImage retrieves an image from a store
 func (handler *StorageHandlersImpl) GetImage(params storage.GetImageParams) middleware.Responder {
 	id := params.ID
+
 	url, err := util.StoreNameToURL(params.StoreName)
 	if err != nil {
 		return storage.NewGetImageDefault(http.StatusInternalServerError).WithPayload(

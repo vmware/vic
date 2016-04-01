@@ -37,7 +37,8 @@ import (
 var datastoreParentPath = "VIC"
 
 const (
-	defaultDiskSize = 8388608
+	defaultDiskLabel = "containerfs"
+	defaultDiskSize  = 8388608
 )
 
 type ImageStore struct {
@@ -189,8 +190,8 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 		}
 		defer v.dm.Detach(ctx, vmdisk)
 
-		// Make the filesystem
-		if err = vmdisk.Mkfs(ID); err != nil {
+		// Make the filesystem and set its label to defaultDiskLabel
+		if err = vmdisk.Mkfs(defaultDiskLabel); err != nil {
 			return nil, err
 		}
 	} else {

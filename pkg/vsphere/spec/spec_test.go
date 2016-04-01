@@ -78,7 +78,7 @@ func TestVirtualMachineConfigSpec(t *testing.T) {
 	scsikey := 100
 	idekey := 200
 
-	root := NewVirtualMachineConfigSpec(ctx, session, specconfig)
+	root, _ := NewVirtualMachineConfigSpec(ctx, session, specconfig)
 	scsi := NewVirtualSCSIController(scsibus, scsikey)
 
 	pv := NewParaVirtualSCSIController(scsi)
@@ -115,7 +115,7 @@ func TestVirtualMachineConfigSpec(t *testing.T) {
 	root.AddVirtualSerialPort(serial)
 
 	debugserial := NewVirtualSerialPort()
-	root.AddVirtualDebugSerialPort(debugserial)
+	root.AddVirtualFileSerialPort(debugserial, "debug")
 
 	for i := 0; i < len(root.DeviceChange); i++ {
 		t.Logf("%+v", root.DeviceChange[i].GetVirtualDeviceConfigSpec().Device)

@@ -15,8 +15,9 @@
 package restapi
 
 import (
-	//"io"
 	"net/http"
+
+	log "github.com/Sirupsen/logrus"
 
 	errors "github.com/go-swagger/go-swagger/errors"
 	httpkit "github.com/go-swagger/go-swagger/httpkit"
@@ -33,6 +34,7 @@ type portlayerhandlers struct {
 	storageHandlers handlers.StorageHandlersImpl
 	miscHandlers    handlers.MiscHandlersImpl
 	scopesHandlers  handlers.ScopesHandlersImpl
+	execHandlers    handlers.ExecHandlersImpl
 }
 
 func configureFlags(api *operations.PortLayerAPI) {
@@ -46,8 +48,11 @@ func configureFlags(api *operations.PortLayerAPI) {
 }
 
 func configureAPI(api *operations.PortLayerAPI) http.Handler {
-	// configure the api here
+	if options.PortLayerOptions.Debug {
+		log.SetLevel(log.DebugLevel)
+	}
 
+	// configure the api here
 	api.ServeError = errors.ServeError
 
 	api.BinConsumer = httpkit.ByteStreamConsumer()
@@ -63,6 +68,7 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 	allhandlers.storageHandlers.Configure(api)
 	allhandlers.miscHandlers.Configure(api)
 	allhandlers.scopesHandlers.Configure(api)
+	allhandlers.execHandlers.Configure(api)
 
 	api.ServerShutdown = func() {}
 	return setupGlobalMiddleware(api.Serve(setupMiddlewares))

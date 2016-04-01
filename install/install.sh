@@ -210,7 +210,7 @@ networks[${bridgeNet}]=bridge
 
 # create the VM
 echo "# Creating the Virtual Container Host appliance"
-govc vm.create -iso="${appIsoPath}" -net="${bridgeNet}" -disk.controller=pvscsi -net.adapter=vmxnet3 -on=false "${vchName}"
+govc vm.create -iso="${appIsoPath}" -net="${bridgeNet}" -disk.controller=pvscsi -net.adapter=vmxnet3 -m 2048 -on=false "${vchName}"
 
 # short-hand the vm
 uuid=$(govc vm.info ${vchName}| grep -e "^\\s*UUID:" | awk '{print$2}')
@@ -290,7 +290,8 @@ echo "# https://${host}:2378"
 echo "# "
 if [ -n "${dockertlsargs}" ]; then
    echo "# Connect to docker:"
-   echo "# docker -H ${host}:${port} --tls --tlscert='${certf}' --tlskey='${keyf}'"
+   echo "docker -H ${host}:${port} --tls --tlscert='${certf}' --tlskey='${keyf}'"
+   echo
    echo "DOCKER_OPTS=\"--tls --tlscert='${certf}' --tlskey='${keyf}'\""
 fi
 echo "DOCKER_HOST=${host}:${port}"

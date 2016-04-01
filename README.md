@@ -125,13 +125,13 @@ go run `go env GOROOT`/src/crypto/tls/generate_cert.go --host localhost
 Start docker-engine-server
 
 ```
-binary/docker-engine-server --port=2376 --tls-certificate=cert.pem --tls-key=key.pem
+bin/docker-engine-server -serveraddr IP --port=2376 -port-layer-addr IP -port-layer-port 8080
 ```
 
 ## Starting port-layer-server
 
 ```
-binary/port-layer-server --port 8080 --path /tmp/
+sudo bin/port-layer-server --host=IP --port=8080 --sdk="https://USERNAME:PASSWORD@IP/sdk"
 ```
 
 ## Testing with docker client
@@ -143,9 +143,16 @@ https://get.docker.com/builds/Darwin/x86_64/docker-1.10.2
 https://get.docker.com/builds/Windows/x86_64/docker-1.10.2.exe
 ```
 
-Pull an image
+Create an image
 ```
-$ DOCKER_HOST=tcp://127.0.0.1:2376 docker pull tomcat
+$ DOCKER_HOST=tcp://IP:2376 docker create busybox
+Unable to find image 'busybox:latest' locally
+latest: Pulling from library/busybox
+
+bc744c4ab376: Pull complete
+56ed16bd6310: Pull complete
+Status: Downloaded newer image for library/busybox:latest
+3d543a18b8ee3657e34f68df5d30d43c1cae6cc9e9c3c66161280c7ee2854407
 ```
 
 ## License

@@ -22,7 +22,7 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # WARNING WARNING WARNING WARNING WARNING
     # if the tmpfs is not large enough odd hangs can occur and the ESX event log will
     # report the guest disabling the CPU
-    mount -t tmpfs -o size=31m tmpfs ${MOUNTPOINT}/.tether/
+    mount -t tmpfs -o size=128m tmpfs ${MOUNTPOINT}/.tether/
 
     # if we don't have a populated init layer, pull from guestinfo
     if [ ! -f ${MOUNTPOINT}/.tether-init/docker-id ]; then
@@ -66,27 +66,42 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     echo "prepping for switch to container filesystem"
 
     # copy the init binary into the new root - ideally I'd run this purely from memory without a presence on the filesystem
-    cp /bin/tether /vmfork.sh ${MOUNTPOINT}/.tether/
+    cp /bin/tether ${MOUNTPOINT}/.tether/tether-debug
 
-    # rpctool
-    cp /sbin/rpctool ${MOUNTPOINT}/.tether/
+    /sbin/rpctool -get "vic.configblob" > ${MOUNTPOINT}/.tether/tether.config
+    
+    # temporary hack for waiting the network
+    while ! ip addr show eno1 | grep " inet "; do sleep 1;done
+    
+    cat << EOF > ${MOUNTPOINT}/.tether/tether
+#!/bin/sh
+
+
+if [ -x /sbin/ip -o -x /bin/ip ]; then
+    addr=$(ip addr show eno1  | grep " inet " | cut -d " " -f6)
+    gateway=$(ip route show | grep "^default" | cut -d " " -f3)
+    
+    echo "Setting IP addr to " \$addr > /dev/ttyS2
+    echo "Setting route to" \$gateway > /dev/ttyS2
+    
+    ip addr add \$addr dev eno1
+    ip link set dev eno1 up
+    ip route add default via \$gateway dev eno1
+fi
+
+${MOUNTPOINT}/.tether/tether-debug $(cat ${MOUNTPOINT}/.tether/tether.config)
+EOF
+    chmod +x ${MOUNTPOINT}/.tether/tether
 
     # We don't want eth0 for --net=none passed
-    if [ -d /sys/module/vmxnet3/ ] && [ $(cat /sys/class/net/eth0/address) == "ff:ff:ff:ff:ff:ff" ]; then
+    if [ -d /sys/module/vmxnet3/ ] && [ $(cat /sys/class/net/eno1/address) == "ff:ff:ff:ff:ff:ff" ]; then
         modprobe -r vmxnet3
     fi
 
     echo "switching to the new mount"
-    if [ "$SHELL" != "true" ]; then
-        systemctl switch-root ${MOUNTPOINT} /.tether/tether 2>&1
-    else
-        systemctl switch-root ${MOUNTPOINT} /bin/ash 2>&1
-    fi
+    ${MOUNTPOINT}/.tether/tether 2>&1
 else
     # TODO: what do we do here? we really need to somehow report an error
     # fail hard
     echo "Unable to chroot into container filesystem"
 fi
-
-# Shut the system down
-systemctl poweroff

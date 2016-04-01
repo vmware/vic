@@ -68,21 +68,24 @@ fi
 
 PKGDIR=$(mktemp -d)
 
+unpack $package $PKGDIR
+
 #selecting the init script as our entry point.
 if [ -v debug ]; then
-    export INIT=/bin/bash
     export ISONAME="bootstrap-debug.iso"
+    cp ${DIR}/bootstrap/bootstrap.debug $(rootfs_dir $PKGDIR)/bin/bootstrap
 else
-    export INIT=/sbin/init
     export ISONAME="bootstrap.iso"
+    cp ${DIR}/bootstrap/bootstrap $(rootfs_dir $PKGDIR)/bin/bootstrap
 fi
-
-unpack $package $PKGDIR
 
 # copy in our components
 cp ${BIN}/tether-linux $(rootfs_dir $PKGDIR)/bin/tether
 cp ${BIN}/rpctool $(rootfs_dir $PKGDIR)/sbin/
 
-cp ${DIR}/bootstrap/rc.local $(rootfs_dir $PKGDIR)/etc/rc.d/rc.local
+# kick off our components at boot time
+cp ${DIR}/bootstrap/tether.service $(rootfs_dir $PKGDIR)/etc/systemd/system/
+ln -s /etc/systemd/system/tether.service $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/tether.service
 
-generate_iso $PKGDIR $BIN/$ISONAME $INIT
+
+generate_iso $PKGDIR $BIN/$ISONAME /lib/systemd/systemd

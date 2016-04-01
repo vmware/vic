@@ -78,6 +78,8 @@ type Session struct {
 	Host       *object.HostSystem
 	Network    object.NetworkReference
 	Pool       *object.ResourcePool
+
+	Finder *find.Finder
 }
 
 // NewSession creates a new Session struct. If config is nil,
@@ -176,6 +178,8 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 		return nil, errors.Errorf("Failed to log in to %s: %s", soapURL.String(), err)
 	}
 
+	s.Finder = find.NewFinder(s.Vim25(), true)
+
 	return s, nil
 }
 
@@ -183,11 +187,11 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 // This returns accumulated error detail if there is ambiguity, but sets all
 // unambiguous or correct resources.
 func (s *Session) Populate(ctx context.Context) (*Session, error) {
-
 	// Populate s
-	finder := find.NewFinder(s.Vim25(), true)
 	var errs []string
 	var err error
+
+	finder := s.Finder
 
 	s.Datacenter, err = finder.DatacenterOrDefault(ctx, s.DatacenterPath)
 	if err != nil {
