@@ -370,6 +370,9 @@ func main() {
 			}
 			progress.Update(po, stringid.TruncateID(id), "Pull complete")
 		}
+		if err := os.RemoveAll(destination); err != nil {
+			log.Fatalf("Failed to remove download directory: %s", err)
+		}
 	}
 	// FIXME: Dump the digest
 	//progress.Message(po, "", "Digest: 0xDEAD:BEEF")
