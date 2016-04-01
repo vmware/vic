@@ -34,8 +34,6 @@ func NewVirtualDisk(controller types.BaseVirtualController) *types.VirtualDisk {
 	return &types.VirtualDisk{
 		VirtualDevice: types.VirtualDevice{
 			ControllerKey: controller.GetVirtualController().Key,
-			// Zero value is a valid UnitNumber. Set it to -1 so that ESXi/vCenter can assign one for us.
-			UnitNumber: -1,
 		},
 	}
 }

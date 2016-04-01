@@ -110,9 +110,52 @@ load test_helper
 @test "pool.destroy" {
   id=$(new_id)
 
-  # should not be any existing test pools
-  result=$(govc ls "host/*/Resources/govc-test-*" | wc -l)
+  # parent pool
+  path="*/Resources/$id"
+  run govc pool.create $path
+  assert_success
+
+  result=$(govc ls "host/$path/*" | wc -l)
   [ $result -eq 0 ]
+
+  # child pools
+  id1=$(new_id)
+  run govc pool.create $path/$id1
+  assert_success
+
+  id2=$(new_id)
+  run govc pool.create $path/$id2
+  assert_success
+
+  # 2 child pools
+  result=$(govc ls "host/$path/*" | wc -l)
+  [ $result -eq 2 ]
+
+  # 1 parent pool
+  result=$(govc ls "host/$path" | wc -l)
+  [ $result -eq 1 ]
+
+  run govc pool.destroy $path
+  assert_success
+
+  # no more parent pool
+  result=$(govc ls "host/$path" | wc -l)
+  [ $result -eq 0 ]
+
+  # the child pools are not present anymore
+  # the only place they could pop into is the parent pool
+
+  # first child pool
+  result=$(govc ls "host/*/Resources/$id1" | wc -l)
+  [ $result -eq 0 ]
+
+  # second child pool
+  result=$(govc ls "host/*/Resources/$id2" | wc -l)
+  [ $result -eq 0 ]
+}
+
+@test "pool.destroy children" {
+  id=$(new_id)
 
   # parent pool
   path="*/Resources/$id"
@@ -137,11 +180,20 @@ load test_helper
   result=$(govc ls "host/*/Resources/govc-test-*" | wc -l)
   [ $result -eq 1 ]
 
-  run govc pool.destroy -r $path
+  # delete childs
+  run govc pool.destroy -children $path
   assert_success
 
-  # if we didn't -r, the child pools would end up here
-  result=$(govc ls "host/*/Resources/govc-test-*" | wc -l)
+  # no more child pools
+  result=$(govc ls "host/$path/*" | wc -l)
+  [ $result -eq 0 ]
+
+  # cleanup
+  run govc pool.destroy $path
+  assert_success
+
+  # cleanup check
+  result=$(govc ls "host/$path" | wc -l)
   [ $result -eq 0 ]
 }
 
@@ -190,13 +242,13 @@ load test_helper
     assert_success
   done
 
-  run govc pool.change -debug -mem.limit 100 -mem.expandable=false $child_path
+  run govc pool.change -mem.limit 100 -mem.expandable=false $child_path
   assert_failure
 
-  run govc pool.change -debug -mem.limit 100 $child_path
+  run govc pool.change -mem.limit 100 $child_path
   assert_success
 
-  run govc pool.change -debug -mem.limit 120 -mem.expandable $child_path
+  run govc pool.change -mem.limit 120 -mem.expandable $child_path
   assert_success
 
   # test with glob inventory path to pools

@@ -20,7 +20,7 @@ import (
 )
 
 // NewVirtualIDEController returns a VirtualIDEController spec with key.
-func NewVirtualIDEController(key int) *types.VirtualIDEController {
+func NewVirtualIDEController(key int32) *types.VirtualIDEController {
 	defer trace.End(trace.Begin(""))
 
 	return &types.VirtualIDEController{
@@ -55,7 +55,6 @@ func NewVirtualCdrom(device *types.VirtualIDEController) *types.VirtualCdrom {
 	return &types.VirtualCdrom{
 		VirtualDevice: types.VirtualDevice{
 			ControllerKey: device.Key,
-			UnitNumber:    -1,
 		},
 	}
 }
@@ -89,8 +88,6 @@ func NewVirtualFloppy(device *types.VirtualIDEController) *types.VirtualFloppy {
 	return &types.VirtualFloppy{
 		VirtualDevice: types.VirtualDevice{
 			ControllerKey: device.Key,
-			// Zero value is a valid UnitNumber. Set it to -1 so that ESXi/vCenter can assign one for us.
-			UnitNumber: -1,
 		},
 	}
 }
