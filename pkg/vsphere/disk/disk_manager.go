@@ -146,6 +146,7 @@ func (m *Manager) createDiskSpec(childURI, parentURI string, capacity int64, fla
 		VirtualDevice: types.VirtualDevice{
 			Key:           -1,
 			ControllerKey: m.controller.Key,
+			UnitNumber:    new(int32),
 			Backing:       backing,
 		},
 		CapacityInKB: capacity,
@@ -271,5 +272,5 @@ func (m *Manager) devicePathByURI(ctx context.Context, datastoreURI string) (str
 		return "", errors.Trace(err)
 	}
 
-	return fmt.Sprintf(m.byPathFormat, disk.UnitNumber), nil
+	return fmt.Sprintf(m.byPathFormat, *disk.UnitNumber), nil
 }
