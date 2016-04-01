@@ -27,7 +27,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	winserial "github.com/tarm/serial"
-	"github.com/vmware/vic/tether/serial"
+	"github.com/vmware/vic/cmd/tether/serial"
 )
 
 type NamedPort struct {
