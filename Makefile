@@ -149,8 +149,8 @@ golintf = $(GOLINT) $(1) | sh -c "! grep -v 'should have comment'"
 $(go-lint): $(GOLINT)
 	@echo checking go lint...
 	@ #$(call golintf,github.com/vmware/vic/bootstrap/...) # this is commented out due to number of warnings
-	@$(call golintf,github.com/vmware/vic/imagec/...)
-	@$(call golintf,github.com/vmware/vic/vicadmin/...)
+	@$(call golintf,github.com/vmware/vic/cmd/imagec/...)
+	@$(call golintf,github.com/vmware/vic/cmd/vicadmin/...)
 	@$(call golintf,github.com/vmware/vic/pkg/...)
 	@$(call golintf,github.com/vmware/vic/portlayer/...)
 	@$(call golintf,github.com/vmware/vic/apiservers/portlayer/restapi/handlers/...)
@@ -182,9 +182,10 @@ integration-tests: Dockerfile.integration-tests tests/imagec.bats tests/helpers/
 	@docker build -t imagec_tests -f Dockerfile.integration-tests .
 	docker run -e BIN=$(BIN) --rm imagec_tests
 
-TEST_DIRS=github.com/vmware/vic/tether/...
-TEST_DIRS+=github.com/vmware/vic/imagec
-TEST_DIRS+=github.com/vmware/vic/vicadmin
+TEST_DIRS=github.com/vmware/vic/cmd/tether/...
+TEST_DIRS+=github.com/vmware/vic/cmd/imagec
+TEST_DIRS+=github.com/vmware/vic/cmd/vicadmin
+TEST_DIRS+=github.com/vmware/vic/cmd/rpctool
 TEST_DIRS+=github.com/vmware/vic/portlayer/...
 TEST_DIRS+=github.com/vmware/vic/pkg/...
 TEST_DIRS+=github.com/vmware/vic/apiservers/portlayer/...
@@ -198,16 +199,16 @@ else
 	$(foreach var,$(TEST_DIRS), $(GO) test -v $(TEST_OPTS) $(var);)
 endif
 
-$(tether-linux): $(shell find tether -name '*.go') metadata/*.go
+$(tether-linux): $(shell find cmd/tether -name '*.go') metadata/*.go
 	@echo building tether-linux
-	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./$@ ./tether
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./$@ ./cmd/tether
 
-$(tether-windows): $(shell find tether -name '*.go') metadata/*.go
+$(tether-windows): $(shell find cmd/tether -name '*.go') metadata/*.go
 	@echo building tether-windows
-	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./$@ ./tether
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./$@ ./cmd/tether
 
 
-$(rpctool): pkg/vsphere/rpctool/*.go
+$(rpctool): cmd/rpctool/*.go
 ifeq ($(OS),linux)
 	@echo building rpctool
 	@GOARCH=amd64 GOOS=linux $(GO) build -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
@@ -215,11 +216,11 @@ else
 	@echo skipping rpctool, cannot cross compile cgo
 endif
 
-$(vicadmin): vicadmin/*.go pkg/vsphere/session/*.go
+$(vicadmin): cmd/vicadmin/*.go pkg/vsphere/session/*.go
 	@echo building vicadmin
 	@GOARCH=amd64 GOOS=linux $(GO) build -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
 
-$(imagec): imagec/*.go $(portlayerapi-client)
+$(imagec): cmd/imagec/*.go $(portlayerapi-client)
 	@echo building imagec...
 	@CGO_ENABLED=0 $(GO) build -o ./$@ --ldflags '-extldflags "-static"'  ./$(dir $<)
 

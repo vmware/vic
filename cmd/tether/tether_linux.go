@@ -29,7 +29,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/tether/serial"
+	"github.com/vmware/vic/cmd/tether/serial"
 )
 
 // Mkdev will hopefully get rolled into go.sys at some point

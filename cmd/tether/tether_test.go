@@ -26,8 +26,8 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/vmware/vic/cmd/tether/utils"
 	"github.com/vmware/vic/metadata"
-	"github.com/vmware/vic/tether/utils"
 )
 
 // createFakeDevices creates regular files or pipes in place of the char devices used
