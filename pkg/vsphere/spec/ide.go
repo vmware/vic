@@ -55,6 +55,7 @@ func NewVirtualCdrom(device *types.VirtualIDEController) *types.VirtualCdrom {
 	return &types.VirtualCdrom{
 		VirtualDevice: types.VirtualDevice{
 			ControllerKey: device.Key,
+			UnitNumber:    new(int32),
 		},
 	}
 }
@@ -88,6 +89,7 @@ func NewVirtualFloppy(device *types.VirtualIDEController) *types.VirtualFloppy {
 	return &types.VirtualFloppy{
 		VirtualDevice: types.VirtualDevice{
 			ControllerKey: device.Key,
+			UnitNumber:    new(int32),
 		},
 	}
 }
