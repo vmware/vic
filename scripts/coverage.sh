@@ -25,7 +25,7 @@
 
 set -e
 
-workdir=.cover
+workdir=../.cover
 profile="$workdir/cover.out"
 mode=count
 

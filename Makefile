@@ -194,7 +194,7 @@ test:
 	# test everything but vendor
 ifdef DRONE
 	@echo generate coverage report
-	./coverage $(TEST_DIRS)
+	scripts/coverage.sh $(TEST_DIRS)
 else
 	$(foreach var,$(TEST_DIRS), $(GO) test -v $(TEST_OPTS) $(var);)
 endif
