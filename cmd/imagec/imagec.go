@@ -33,6 +33,7 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/reference"
 
 	"github.com/vmware/vic/apiservers/portlayer/models"
 	"github.com/vmware/vic/pkg/i18n"
@@ -47,6 +48,8 @@ var (
 
 // ImageCOptions wraps the cli arguments
 type ImageCOptions struct {
+	reference string
+
 	registry string
 	image    string
 	digest   string
@@ -81,10 +84,6 @@ type ImageWithMeta struct {
 const (
 	// DefaultDockerURL holds the URL of Docker registry
 	DefaultDockerURL = "https://registry-1.docker.io/v2/"
-	// DefaultDockerImage holds the default image name
-	DefaultDockerImage = "library/photon"
-	// DefaultDockerDigest holds the default digest name
-	DefaultDockerDigest = "latest"
 
 	// DefaultDestination specifies the default directory to use
 	DefaultDestination = "images"
@@ -112,9 +111,7 @@ func init() {
 	}
 	i18n.LoadLanguageBytes(lang, data)
 
-	flag.StringVar(&options.registry, "registry", DefaultDockerURL, i18n.T("Address of the registry"))
-	flag.StringVar(&options.image, "image", DefaultDockerImage, i18n.T("Name of the image"))
-	flag.StringVar(&options.digest, "digest", DefaultDockerDigest, i18n.T("Tag name or image digest"))
+	flag.StringVar(&options.reference, "reference", "", i18n.T("Name of the reference"))
 
 	flag.StringVar(&options.destination, "destination", DefaultDestination, i18n.T("Destination directory"))
 
@@ -133,6 +130,31 @@ func init() {
 	flag.BoolVar(&options.standalone, "standalone", false, i18n.T("Disable port-layer integration"))
 
 	flag.Parse()
+}
+
+// ParseReference parses the -reference parameter and populate options struct
+func ParseReference() error {
+	// Validate and parse reference name
+	ref, err := reference.ParseNamed(options.reference)
+	if err != nil {
+		return err
+	}
+
+	options.digest = reference.DefaultTag
+	if !reference.IsNameOnly(ref) {
+		if tagged, ok := ref.(reference.NamedTagged); ok {
+			options.digest = tagged.Tag()
+		}
+	}
+
+	options.registry = DefaultDockerURL
+	if ref.Hostname() != reference.DefaultHostname {
+		options.registry = ref.Hostname()
+	}
+
+	options.image = ref.RemoteName()
+
+	return nil
 }
 
 // DestinationDirectory returns the path of the output directory
@@ -181,18 +203,22 @@ func main() {
 	}
 	defer f.Close()
 
+	// Initiliaze logger with default TextFormatter
+	log.SetFormatter(&log.TextFormatter{DisableColors: true, FullTimestamp: true})
+
 	// Set the log level
 	if options.debug {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	// Initiliaze logger with default TextFormatter
-	log.SetFormatter(&log.TextFormatter{DisableColors: true, FullTimestamp: true})
-
 	// SetOutput to log file and/or stdout
 	log.SetOutput(f)
 	if options.stdout {
 		log.SetOutput(io.MultiWriter(os.Stdout, f))
+	}
+
+	if err := ParseReference(); err != nil {
+		log.Fatalf("Failed to parse -reference: %s", err)
 	}
 
 	// Hostname is our storename

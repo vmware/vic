@@ -21,7 +21,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
@@ -78,21 +77,9 @@ func (i *Image) PullImage(ref reference.Named, metaHeaders map[string][]string, 
 
 	binImageC := "imagec"
 
-	var cmdArgs, nameParts []string
+	var cmdArgs []string
 
-	libraryParts := strings.Split(ref.String(), "/")
-
-	if len(libraryParts) > 1 {
-		nameParts = strings.Split(libraryParts[1], ":")
-	} else {
-		nameParts = strings.Split(libraryParts[0], ":")
-	}
-
-	cmdArgs = append(cmdArgs, "-image", "library/"+nameParts[0])
-
-	if len(nameParts) > 1 {
-		cmdArgs = append(cmdArgs, "-digest", nameParts[1])
-	}
+	cmdArgs = append(cmdArgs, "-reference", ref.String())
 
 	if authConfig != nil {
 		if len(authConfig.Username) > 0 {

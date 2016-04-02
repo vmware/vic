@@ -51,8 +51,13 @@ teardown() {
     assert [ kill_port_layer ]
 }
 
-@test "imagec run without arguments downloads photon into default destination from Docker Hub" {
+@test "imagec run without arguments fails" {
     run "$imagec" -standalone
+    assert_failure
+}
+
+@test "imagec run with -reference photon should download library/photon image" {
+    run "$imagec" -standalone -reference photon
     assert_success
     assert [ -d "$IMAGES_DIR/$DEFAULT_IMAGE" ] # check that the correct dir is created
     assert [ -e imagec.log ] # check the existence of the default logfile
@@ -68,19 +73,19 @@ teardown() {
 
 @test "imagec -debug should enable debugging and -stdout outputs logs to stdout" {
     # should get at least one line with 'level=output' present
-    run [ $("$imagec" -standalone -stdout -debug | grep "level=debug" | wc -l) -ge 1 ]
+    run [ $("$imagec" -standalone -reference photon -stdout -debug | grep "level=debug" | wc -l) -ge 1 ]
     assert_success
     assert verify_checksums "$IMAGES_DIR/$DEFAULT_IMAGE"
 }
 
 @test "imagec -destination allows us to change where the image is saved" {
-    run "$imagec" -standalone -destination foo
+    run "$imagec" -standalone -reference photon -destination foo
     assert_success
     assert verify_checksums "foo/$DEFAULT_IMAGE"
 }
 
-@test "imagec -digest should specify tag name or image digest to download" {
-    run "$imagec" -standalone -digest 7.0-x86_64 -image tatsushid/tinycore
+@test "imagec -reference NAME:DIGEST should specify tag name or image digest to download" {
+    run "$imagec" -standalone -reference tatsushid/tinycore:7.0-x86_64
     assert_success
     assert verify_checksums "$IMAGES_DIR/$ALT_IMAGE"/7.0-x86_64
 }
@@ -96,19 +101,19 @@ teardown() {
 
 @test "imagec -standalone should allow us to run imagec without portlayer API" {
 #    assert kill_port_layer # it was started on 8080 by setup()
-    run "$imagec" -standalone
+    run "$imagec" -standalone -reference photon
     assert_success
     assert verify_checksums "$IMAGES_DIR/$DEFAULT_IMAGE"
 }
 
 @test "imagec -image should allow specifying a specific image to download" {
-    run "$imagec" -standalone -image tatsushid/tinycore
+    run "$imagec" -standalone -reference tatsushid/tinycore
     assert_success
     assert verify_checksums "$IMAGES_DIR/$ALT_IMAGE/latest"
 }
 
 @test "imagec -logfile should change the path of the installer log file (default \"imagec.log\")" {
-    run "$imagec" -standalone -logfile foo.log
+    run "$imagec" -standalone -reference photon -logfile foo.log
     assert_success
     assert [ $(wc -l foo.log | awk '{print $1}') -ge 1 ] # logfile shouldn't be empty
 }
