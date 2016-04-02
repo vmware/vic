@@ -11,7 +11,7 @@ Vagrant.configure(2) do |config|
   config.ssh.username = 'vagrant'
 
   dirs.split(File::PATH_SEPARATOR).each do |dir|
-    gdir = dir.sub('C\:', '/C')
+    gdir = dir.sub("C\:", "/C")
     config.vm.synced_folder dir, gdir
   end
 
