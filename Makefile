@@ -32,9 +32,6 @@ GOIMPORTS ?= $(GOPATH)/bin/goimports$(BIN_ARCH)
 GOLINT ?= $(GOPATH)/bin/golint$(BIN_ARCH)
 GVT ?= $(GOPATH)/bin/gvt$(BIN_ARCH)
 
-REPO ?= https://dl.bintray.com/vmware/vic-repo/kernel/
-KERNEL ?= linux-esx-4.2.0-10.x86_64.rpm
-
 .PHONY: all tools clean test check \
 	goversion govet goimports gvt gopath \
 	isos tethers apiservers copyright
@@ -62,7 +59,6 @@ bootstrap-staging := $(BIN)/bootstrap-staging.tgz
 bootstrap-staging-debug := $(BIN)/bootstrap-staging-debug.tgz
 bootstrap-debug := $(BIN)/bootstrap-debug.iso
 iso-base := $(BIN)/iso-base.tgz
-kernel := $(BIN)/$(KERNEL)
 
 install := $(BIN)/install.sh
 
@@ -90,7 +86,6 @@ bootstrap-staging: $(bootstrap-staging)
 bootstrap-debug: $(bootstrap-debug)
 bootstrap-staging-debug: $(bootstrap-staging-debug)
 iso-base: $(iso-base)
-kernel: $(kernel)
 install: $(install)
 
 swagger: $(SWAGGER)
@@ -251,15 +246,9 @@ $(portlayerapi): $(portlayerapi-server) $(shell find pkg/ apiservers/engine/ -na
 	@echo building Portlayer API server...
 	@$(GO) build -o $@ ./apiservers/portlayer/cmd/port-layer-server
 
-# cache the kernel locally
-$(kernel):
-	@ # ensure that the reference file exists, but date it at epoc inception
-	@-[ ! -e $(kernel) ] && touch --date="@0" $@
-	@curl -L --insecure $(REPO)/$(KERNEL) -o $(kernel) -z $(kernel)
-
-$(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg $(kernel)
+$(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
 	@echo building iso-base docker image
-	@$< -c $(BIN)/yum-cache.tgz -p $@ -k $(BIN)/$(KERNEL)
+	@$< -c $(BIN)/yum-cache.tgz -p $@
 
 # appliance staging - allows for caching of package install
 $(appliance-staging): isos/appliance-staging.sh $(iso-base)

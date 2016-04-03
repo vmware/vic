@@ -22,18 +22,13 @@ DIR=$(dirname $(readlink -f "$0"))
 
 
 function usage() {
-echo "Usage: $0 -p package-name(tgz) [-c yum-cache] -k kernel-rpm" 1>&2
+echo "Usage: $0 -p package-name(tgz) [-c yum-cache]" 1>&2
 exit 1
 }
 
-while getopts "c:p:k:" flag
+while getopts "c:p:" flag
 do
     case $flag in
-
-        k)
-            # Required.  Path to kernel rpm
-            KERNEL="$OPTARG"
-            ;;
 
         p)
             # Required. Package name
@@ -54,38 +49,31 @@ done
 shift $((OPTIND-1))
 
 # check there were no extra args and the required ones are set
-if [ ! -z "$*" -o -z "$PACKAGE" -o -z "$KERNEL" ]; then
+if [ ! -z "$*" -o -z "$PACKAGE" ]; then
     usage
 fi
 
 # prep the build system
 ensure_apt_packges cpio rpm tar ca-certificates
 
-KERNEL_TREE=$(mktemp -d)
-RPM=$(mktemp)
 PKGDIR=$(mktemp -d)
 
-# unpack kernel and modules
-rpm2cpio $KERNEL | (cd $KERNEL_TREE && cpio -id) && rm -f $RPM
-
 # initialize the bundle
-initialize_bundle $PKGDIR $KERNEL_TREE/boot/vmlinuz-esx-4.2.0
+initialize_bundle $PKGDIR
 
 # base filesystem setup
-mkdir -p $(rootfs_dir $PKGDIR)/{etc/yum,etc/yum.repos.d} $KERNEL_TREE
+mkdir -p $(rootfs_dir $PKGDIR)/{etc/yum,etc/yum.repos.d}
 ln -s /lib $(rootfs_dir $PKGDIR)/lib64
 cp $DIR/base/*.repo $(rootfs_dir $PKGDIR)/etc/yum.repos.d/
 cp $DIR/base/yum.conf $(rootfs_dir $PKGDIR)/etc/yum/
 
 # install the core packages
-yum_cached -c $cache -u -p $PKGDIR install filesystem coreutils bash --nogpgcheck -y
+yum_cached -c $cache -u -p $PKGDIR install filesystem coreutils bash linux-esx --nogpgcheck -y
 # strip the cache from the resulting image
 yum_cached -c $cache -p $PKGDIR clean all
 
-# add the kernel modules now the filesystem is installed
-rm -rf $(rootfs_dir $PKGDIR)/{lib/modules/,lib/firmware/}
-mv $KERNEL_TREE/lib/modules/ $(rootfs_dir $PKGDIR)/lib/
-rm -fr $KERNEL_TREE
+# move kernel into bootfs /boot directory so that syslinux could load it
+mv $(rootfs_dir $PKGDIR)/boot/vmlinuz-esx-* $(bootfs_dir $PKGDIR)/boot/vmlinuz64
 
 # package up the result
 pack $PKGDIR $PACKAGE

@@ -20,7 +20,6 @@ BASE_DIR=$(dirname $(readlink -f "$BASH_SOURCE"))
 
 # initialize a directory with the assumptions we make for authoring
 # 1: target directory
-# 2: kernel binary
 initialize_bundle() {
     mkdir -p $1
 
@@ -30,7 +29,6 @@ initialize_bundle() {
 
     rpm --root=$1/rootfs --initdb
     cp -a $BASE_DIR/isolinux $1/bootfs/boot/isolinux
-    cp $2 $1/bootfs/boot/vmlinuz64
 }
 
 # unpackage working ISO filesystem bundle
@@ -357,4 +355,10 @@ rootfs_cmd() {
 # 1: bundle directory
 rootfs_dir() {
     echo $1/rootfs
+}
+
+# Echos the full path of the boot filesystem, given the bundle directory
+# 1: bundle directory
+bootfs_dir() {
+    echo $1/bootfs
 }
