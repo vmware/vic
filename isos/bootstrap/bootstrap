@@ -79,10 +79,10 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
 if [ -x /sbin/ip -o -x /bin/ip ]; then
     addr=$(ip addr show eno1  | grep " inet " | cut -d " " -f6)
     gateway=$(ip route show | grep "^default" | cut -d " " -f3)
-    
-    echo "Setting IP addr to " \$addr > /dev/ttyS2
-    echo "Setting route to" \$gateway > /dev/ttyS2
-    
+
+    echo "Setting IP addr to " \$addr > /dev/ttyS1
+    echo "Setting route to" \$gateway > /dev/ttyS1
+
     ip addr add \$addr dev eno1
     ip link set dev eno1 up
     ip route add default via \$gateway dev eno1
