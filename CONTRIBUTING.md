@@ -157,3 +157,13 @@ Milestone.
 
 This pipeline is also interactive: dragging issues into this pipeline will close them, while dragging them out will
 re-open them.
+
+
+## High level project planning
+
+We use the following structure for higher level project management
+* Milestones - smallest discrete unit of work that implements a self-contained functional change - for example 'attach, stdout only'
+* Releases - one or more milestones
+* Epics (zenhub) - themes of work, either by functional area or feature, that can span multiple milestones, for example 'network create'. It is expected that new issues will be added to epics as the feature or area is refined.
+
+
