@@ -97,6 +97,17 @@ func (handler *ExecHandlersImpl) ContainerCreateHandler(params exec.ContainerCre
 		name = *params.Name
 	}
 
+	// create and fill the metadata.Cmd struct
+	cmd := metadata.Cmd{
+		Env: params.CreateConfig.Env,
+		Dir: *params.CreateConfig.WorkingDir,
+	}
+	// FIXME: https://github.com/vmware/vic/issues/411
+	if len(params.CreateConfig.Cmd) > 0 {
+		cmd.Path = params.CreateConfig.Cmd[0]
+		cmd.Args = params.CreateConfig.Cmd
+	}
+
 	m := metadata.ExecutorConfig{
 		Common: metadata.Common{
 			ID:   id,
@@ -108,12 +119,7 @@ func (handler *ExecHandlersImpl) ContainerCreateHandler(params exec.ContainerCre
 					ID: id,
 				},
 				Tty: false,
-				Cmd: metadata.Cmd{
-					Path: params.CreateConfig.Cmd[0],
-					Args: params.CreateConfig.Cmd,
-					Env:  params.CreateConfig.Env,
-					Dir:  *params.CreateConfig.WorkingDir,
-				},
+				Cmd: cmd,
 			},
 		},
 	}
