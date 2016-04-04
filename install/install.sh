@@ -43,12 +43,13 @@ datastore=${GOVC_DATASTORE}
 externalNet="VM Network"
 managementNet="VM Network"
 clientNet="VM Network"
+compute="/ha-datacenter/host/*"
 
 applianceIso="${DIR}/appliance.iso"
 bootstrapIso="${DIR}/bootstrap.iso"
 
 
-while getopts "fvt:g:p:i:d:e:m:b:a:c:x:y:" flag
+while getopts "fvt:gp:i:d:e:m:b:a:c:x:y:" flag
 do
   case $flag in
     v)
@@ -66,9 +67,9 @@ do
      # Required. Compute resource path
      # This should fully specify the path to the compute resource, e.g.
      # /ha-datacenter/host/myCluster/Resources/myRP
+     # /ha-datacenter/host/myCluster/host-fqdn
       compute=${OPTARG}
-      # primarily internal convenience for constructing other paths
-      datacenter=$(echo $compute | cut -d '/' -f 2)
+      export GOVC_HOST=${OPTARG}
       ;;
 
     d)
@@ -80,11 +81,16 @@ do
       # Required. Image datastore path - sets cdatastore too for default
       idatastore=${OPTARG}
       cdatastore=${OPTARG}
+      export GOVC_DATASTORE=${idatastore}
       ;;
 
     e)
       # Optional. The external network (can see hub.docker.com)
       externalNet=${OPTARG}
+      if [ "$clientNet" == "VM Network" ]; then
+        echo "Setting client network to specified external network"
+        clientNet=${externalNet}
+      fi
       : ${GOVC_NETWORK:=$externalNet}
       ;;
 
@@ -116,16 +122,7 @@ do
       ;;
 
     g)
-      # Optional. Generate the cert and key and store them in $OPTARG-{cert,key}.pem
-      keyf="${OPTARG}-key.pem"
-      certf="${OPTARG}-cert.pem"
-      # generate
-      echo "# Generating certificate/key pair - private key in ${keyf}"
-      openssl req -batch -nodes -new -x509  -keyout "${keyf}" -out "${certf}" > /dev/null 2>&1
-
-      # load the bits
-      key=$(cat "$keyf")
-      certificate=$(cat "$certf")
+      tlsGenerate="true"
       ;;
 
     x)
@@ -158,9 +155,25 @@ if [ -z "$1" -o -z "$GOVC_URL" -o -z "$vchName" -o -z "$compute" -o -z "$idatast
      usage
 fi
 
+if [ -n "$tlsGenerate" ]; then
+    # Optional. Generate the cert and key and store them in $OPTARG-{cert,key}.pem
+    keyf="${vchName}-key.pem"
+    certf="${vchName}-cert.pem"
+    # generate
+    echo "# Generating certificate/key pair - private key in ${keyf}"
+    openssl req -batch -nodes -new -x509  -keyout "${keyf}" -out "${certf}" > /dev/null 2>&1
+
+    # load the bits
+    key=$(cat "$keyf")
+    certificate=$(cat "$certf")
+fi
+
+# primarily internal convenience for constructing other paths
+datacenter=$(echo $compute | cut -d '/' -f 2)
 
 # if not set explicitly, bridge network has vch name
 : ${bridgeNet:=$vchName}
+
 
 # for now it's all insecure
 export GOVC_INSECURE=true
@@ -225,10 +238,6 @@ for net in "${!networks[@]}"; do
 done
 
 
-# ensure we have defaults for datastore and compute if needed
-if [ -z "${datastore}" ]; then
-   datastore=$(govc datastore.info | grep -e "^Name:" | awk '{print$2}')
-fi
 if [ -z "${compute}" ]; then
    compute=$(govc pool.info */Resources| grep -e "^\\s*Path:" | awk '{print$2}')
 fi
@@ -269,7 +278,7 @@ govc vm.power -on=true -vm.uuid="${uuid}" > ${powerstatus} 2>&1 || {
 echo "# Setting network identities"
 # Generate the network interface identiy map - MACs aren't generated until power on
 for net in "${!networks[@]}"; do
-  mac=$(govc device.ls -vm.uuid $uuid | grep "${net}" | grep ethernet | awk '{print $1}' | xargs govc device.info -vm.uuid $uuid | grep MAC | awk '{print$3}')
+  mac=$(govc device.info -vm.uuid $uuid -net "${net}" | grep MAC | awk '{print$3}')
   govc vm.change -e guestinfo.vch/networks/${networks[$net]}=$mac -vm.uuid="${uuid}"
 done
 # jump through some hoops to deal with quote behaviour for arrays
