@@ -51,11 +51,11 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     #	rm -f /mnt/.tether/volumes/containerfs
 
     # set up the hostname
-    #	if [ -f /mnt/etc/hostname ]; then
-    #		/bin/hostname -F /mnt/etc/hostname
-    #	else
-    #		/bin/hostname -F /mnt/.tether-init/hostname
-    #	fi
+    if [ -f ${MOUNTPOINT}/etc/hostname ]; then
+        hostnamectl set-hostname $(cat ${MOUNTPOINT}/etc/hostname)
+    else
+        hostnamectl set-hostname $(cat ${MOUNTPOINT}/.tether-init/hostname)
+    fi
 
     # enable full system functionality in the container
     echo "Publishing modules within container"
