@@ -29,7 +29,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/stringid"
 
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -150,7 +149,7 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) error {
 
 	log.Debugf("URL: %s\n ", url)
 
-	progress.Update(po, stringid.TruncateID(id), "Pulling fs layer")
+	progress.Update(po, image.String(), "Pulling fs layer")
 
 	fetcher := NewFetcher(FetcherOptions{
 		Timeout:            options.timeout,
@@ -159,7 +158,7 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) error {
 		Token:              options.token,
 		InsecureSkipVerify: options.insecure,
 	})
-	blob, err := fetcher.FetchWithProgress(url, stringid.TruncateID(id))
+	blob, err := fetcher.FetchWithProgress(url, image.String())
 	if err != nil {
 		return err
 	}
@@ -172,7 +171,7 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) error {
 		return err
 	}
 
-	progress.Update(po, stringid.TruncateID(id), "Verifying Checksum")
+	progress.Update(po, image.String(), "Verifying Checksum")
 
 	h := sha256.New()
 	t := io.TeeReader(in, h)
@@ -198,7 +197,7 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) error {
 	}
 	ioutil.WriteFile(path.Join(destination, id+".json"), []byte(history), 0644)
 
-	progress.Update(po, stringid.TruncateID(id), "Download complete")
+	progress.Update(po, image.String(), "Download complete")
 
 	return nil
 }

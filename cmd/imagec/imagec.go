@@ -81,6 +81,10 @@ type ImageWithMeta struct {
 	history History
 }
 
+func (i *ImageWithMeta) String() string {
+	return stringid.TruncateID(i.layer.BlobSum)
+}
+
 const (
 	// DefaultDockerURL holds the URL of Docker registry
 	DefaultDockerURL = "https://registry-1.docker.io/v2/"
@@ -324,7 +328,7 @@ func main() {
 			// delete existing image from images
 			images = append(images[:i], images[i+1:]...)
 
-			progress.Update(po, stringid.TruncateID(ID), "Already exists")
+			progress.Update(po, images[i].String(), "Already exists")
 		}
 	}
 
@@ -383,7 +387,7 @@ func main() {
 					context.Background(), f),
 				po,
 				fi.Size(),
-				stringid.TruncateID(id),
+				image.String(),
 				"Extracting",
 			)
 			defer in.Close()
@@ -394,7 +398,7 @@ func main() {
 			if err != nil {
 				log.Fatalf("Failed to write to image store: %s", err)
 			}
-			progress.Update(po, stringid.TruncateID(id), "Pull complete")
+			progress.Update(po, image.String(), "Pull complete")
 		}
 		if err := os.RemoveAll(destination); err != nil {
 			log.Fatalf("Failed to remove download directory: %s", err)
