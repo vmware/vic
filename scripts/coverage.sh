@@ -25,7 +25,7 @@
 
 set -e
 
-workdir=../.cover
+workdir=`git rev-parse --show-toplevel`/.cover
 profile="$workdir/cover.out"
 mode=count
 
