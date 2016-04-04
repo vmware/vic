@@ -81,6 +81,7 @@ unpack $PACKAGE $PKGDIR
 #   tndf      # so we can deploy other packages into the appliance live - MUST BE REMOVED FOR SHIPPING
 #   vim       # basic editing function
 yum_cached -c $cache -u -p $PKGDIR install \
+    haveged \
     systemd \
     openssh \
     e2fsprogs \
