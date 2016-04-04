@@ -30,7 +30,7 @@ echo "deploying to $(awk -F@ '{print $2}' <<<"$GOVC_URL"):"
 govc about
 
 config="$(git rev-parse --show-toplevel)/Vagrantfile"
-box=$(grep config.vm.box "$config" | awk -F'"' '{print $2}')
+box=$(grep config.vm.box "$config" | awk -F\' '{print $2}')
 provider=$(dirname "$box")
 name=$(basename "$box")
 disk="${name}.vmdk"
@@ -55,7 +55,7 @@ if ! govc datastore.ls "${name}/${disk}" 1>/dev/null 2>&1 ; then
 fi
 
 vm_name=${VM_NAME-"${USER}-${name}"}
-vm_memory=${VM_MEMORY-$(grep memsize "$config" | awk -F'"' '{print $4}')}
+vm_memory=${VM_MEMORY-$(grep memsize "$config" | awk -F\' '{print $4}')}
 
 if [ -z "$(govc ls "vm/$vm_name")" ] ; then
     echo "creating VM ${vm_name}..."
