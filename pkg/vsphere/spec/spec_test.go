@@ -29,7 +29,7 @@ import (
 func URL(t *testing.T) string {
 	s := os.Getenv("VIC_ESX_TEST_URL")
 	if s == "" {
-		t.SkipNow()
+		t.Skip("Skipping: No test ESX URL defined")
 	}
 	return s
 }
