@@ -116,7 +116,7 @@ From the root directory of the `vic` repository run `drone exec -trusted -cache 
 
 ## Starting docker-engine-server
 
-Generate certificate pair
+Generate a certificate pair
 
 ```
 go run `go env GOROOT`/src/crypto/tls/generate_cert.go --host localhost
@@ -125,22 +125,22 @@ go run `go env GOROOT`/src/crypto/tls/generate_cert.go --host localhost
 Start docker-engine-server
 
 ```
-bin/docker-engine-server -serveraddr IP --port=2376 -port-layer-addr IP -port-layer-port 8080
+bin/docker-engine-server -serveraddr IP --port=2376 -port-layer-addr IP -port-layer-port 8080 -TLS -tls-certificate=cert.pem -tls-key=key.pem
 ```
 
 ## Starting port-layer-server
 
 ```
-sudo bin/port-layer-server --host=IP --port=8080 --sdk="https://USERNAME:PASSWORD@IP/sdk"
+sudo bin/port-layer-server --host=IP --port=8080 --insecure --sdk="https://USERNAME:PASSWORD@IP/sdk --datacenter=DATACENTER --cluster=CLUSTER --datastore=DATASTORE --network=NETWORK --vch=VCH_NAME"
 ```
 
 ## Testing with docker client
 
 Download docker client
 ```
-https://get.docker.com/builds/Linux/x86_64/docker-1.10.2
-https://get.docker.com/builds/Darwin/x86_64/docker-1.10.2
-https://get.docker.com/builds/Windows/x86_64/docker-1.10.2.exe
+https://get.docker.com/builds/Linux/x86_64/docker-1.10.3
+https://get.docker.com/builds/Darwin/x86_64/docker-1.10.3
+https://get.docker.com/builds/Windows/x86_64/docker-1.10.3.exe
 ```
 
 Create an image
