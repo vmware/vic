@@ -17,6 +17,7 @@ package handlers
 import (
 	"fmt"
 	"math/rand"
+	"net"
 	"strings"
 
 	"github.com/docker/docker/pkg/namesgenerator"
@@ -37,10 +38,13 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/spec"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
+	"github.com/vmware/vic/portlayer/network"
 )
 
 // ExecHandlersImpl is the receiver for all of the exec handler methods
-type ExecHandlersImpl struct{}
+type ExecHandlersImpl struct {
+	netCtx *network.Context
+}
 
 var (
 	execSession = &session.Session{}
@@ -51,7 +55,7 @@ const (
 )
 
 // Configure assigns functions to all the exec api handlers
-func (handler *ExecHandlersImpl) Configure(api *operations.PortLayerAPI) {
+func (handler *ExecHandlersImpl) Configure(api *operations.PortLayerAPI, netCtx *network.Context) {
 	var err error
 
 	api.ExecContainerCreateHandler = exec.ContainerCreateHandlerFunc(handler.ContainerCreateHandler)
@@ -73,12 +77,73 @@ func (handler *ExecHandlersImpl) Configure(api *operations.PortLayerAPI) {
 	if err != nil {
 		log.Fatalf("ERROR: %s", err)
 	}
+
+	handler.netCtx = netCtx
+}
+
+func (handler *ExecHandlersImpl) addContainerToScope(name string, ns *models.NetworkConfig) (*metadata.NetworkEndpoint, *network.Scope, error) {
+	if ns == nil {
+		return nil, nil, nil
+	}
+
+	var err error
+	var s *network.Scope
+	switch ns.NetworkName {
+	// docker's default network, usually maps to the default bridge network
+	case "default":
+		s = handler.netCtx.DefaultScope()
+
+	default:
+		var scopes []*network.Scope
+		scopes, err = handler.netCtx.Scopes(&ns.NetworkName)
+		if err != nil || len(scopes) != 1 {
+			return nil, nil, err
+		}
+
+		// should have only one match at this point
+		s = scopes[0]
+	}
+
+	var ip *net.IP
+	if ns.Address != nil {
+		i := net.ParseIP(*ns.Address)
+		if i == nil {
+			return nil, nil, fmt.Errorf("invalid ip address")
+		}
+
+		ip = &i
+	}
+
+	var e *network.Endpoint
+	e, err = s.AddContainer(name, ip)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ne := &metadata.NetworkEndpoint{
+		IP: net.IPNet{
+			IP:   e.IP(),
+			Mask: e.Subnet().Mask,
+		},
+		Network: metadata.ContainerNetwork{
+			// FIXME: https://github.com/vmware/vic/issues/444
+			// FIXME: this needs to point to switch or port group name
+			Name: e.Scope().Name(),
+			Gateway: net.IPNet{
+				IP:   e.Gateway(),
+				Mask: e.Subnet().Mask,
+			},
+		},
+	}
+
+	return ne, s, nil
 }
 
 // ContainerCreateHandler creates a new container
 func (handler *ExecHandlersImpl) ContainerCreateHandler(params exec.ContainerCreateParams) middleware.Responder {
 	defer trace.End(trace.Begin("ContainerCreate"))
 
+	var err error
 	var name string
 	session := execSession
 
@@ -122,8 +187,25 @@ func (handler *ExecHandlersImpl) ContainerCreateHandler(params exec.ContainerCre
 				Cmd: cmd,
 			},
 		},
+		Networks: make(map[string]metadata.NetworkEndpoint),
 	}
 	log.Infof("Metadata: %#v", m)
+
+	// network config
+	ns := params.CreateConfig.NetworkSettings
+	ne, s, err := handler.addContainerToScope(name, ns)
+	defer func() {
+		if err != nil {
+			log.Errorf(err.Error())
+			if s != nil {
+				s.RemoveContainer(name)
+			}
+		}
+	}()
+
+	if ne != nil {
+		m.Networks[ne.Network.Name] = *ne
+	}
 
 	specconfig := &spec.VirtualMachineConfigSpecConfig{
 		// FIXME: hardcoded values

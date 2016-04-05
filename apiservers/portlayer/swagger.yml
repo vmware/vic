@@ -283,7 +283,7 @@ paths:
       summary: "Starts an existing container"
       operationId: ContainerStart
       tags: ["exec"]
-      consumes: 
+      consumes:
         - application/octet-stream
       parameters:
         - name: id
@@ -408,8 +408,19 @@ definitions:
           type: string
       networkDisabled:
         type: boolean
+      networkSettings:
+        $ref: "#/definitions/NetworkConfig"
   ContainerCreatedInfo:
     type: object
     properties:
       containerID:
+        type: string
+  NetworkConfig:
+    type: object
+    required:
+      - networkName
+    properties:
+      networkName:
+        type: string
+      address:
         type: string

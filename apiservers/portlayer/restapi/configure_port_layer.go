@@ -15,6 +15,7 @@
 package restapi
 
 import (
+	"net"
 	"net/http"
 
 	log "github.com/Sirupsen/logrus"
@@ -26,15 +27,20 @@ import (
 	"github.com/vmware/vic/apiservers/portlayer/restapi/handlers"
 	"github.com/vmware/vic/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/apiservers/portlayer/restapi/options"
+	"github.com/vmware/vic/portlayer/network"
 )
 
 // This file is safe to edit. Once it exists it will not be overwritten
 
-type portlayerhandlers struct {
-	storageHandlers handlers.StorageHandlersImpl
-	miscHandlers    handlers.MiscHandlersImpl
-	scopesHandlers  handlers.ScopesHandlersImpl
-	execHandlers    handlers.ExecHandlersImpl
+type handler interface {
+	Configure(api *operations.PortLayerAPI, netCtx *network.Context)
+}
+
+var portlayerhandlers = []handler{
+	&handlers.StorageHandlersImpl{},
+	&handlers.MiscHandlersImpl{},
+	&handlers.ScopesHandlersImpl{},
+	&handlers.ExecHandlersImpl{},
 }
 
 func configureFlags(api *operations.PortLayerAPI) {
@@ -63,12 +69,19 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 
 	api.TxtProducer = httpkit.TextProducer()
 
-	allhandlers := portlayerhandlers{}
+	netCtx, err := network.NewContext(
+		net.IPNet{
+			IP:   net.IPv4(172, 16, 0, 0),
+			Mask: net.CIDRMask(12, 32),
+		},
+		net.CIDRMask(16, 32))
+	if err != nil {
+		log.Fatalf("failed to create network context: %s", err)
+	}
 
-	allhandlers.storageHandlers.Configure(api)
-	allhandlers.miscHandlers.Configure(api)
-	allhandlers.scopesHandlers.Configure(api)
-	allhandlers.execHandlers.Configure(api)
+	for _, handler := range portlayerhandlers {
+		handler.Configure(api, netCtx)
+	}
 
 	api.ServerShutdown = func() {}
 	return setupGlobalMiddleware(api.Serve(setupMiddlewares))
