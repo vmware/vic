@@ -400,8 +400,11 @@ func main() {
 			}
 			progress.Update(po, image.String(), "Pull complete")
 		}
-		if err := os.RemoveAll(destination); err != nil {
-			log.Fatalf("Failed to remove download directory: %s", err)
+		// Do not remove the destination directory for the standalone mode
+		if !options.standalone {
+			if err := os.RemoveAll(destination); err != nil {
+				log.Fatalf("Failed to remove download directory: %s", err)
+			}
 		}
 	}
 	// FIXME: Dump the digest
