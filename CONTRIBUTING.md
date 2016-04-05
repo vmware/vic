@@ -157,3 +157,13 @@ Milestone.
 
 This pipeline is also interactive: dragging issues into this pipeline will close them, while dragging them out will
 re-open them.
+
+
+## High level project planning
+
+We use the following structure for higher level project management
+* Epic (zenhub) - implements a functional change - for example 'attach, stdout only', may span milestones and releases. Expected to be broken down from larger Epics into smaller epics prior to commencement.
+* Milestones - essentially higher level user stories
+* Labels - either by functional area (`component/...`) or feature (`feature/...`)
+
+
