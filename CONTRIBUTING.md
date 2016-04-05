@@ -162,8 +162,8 @@ re-open them.
 ## High level project planning
 
 We use the following structure for higher level project management
-* Milestones - smallest discrete unit of work that implements a self-contained functional change - for example 'attach, stdout only'
-* Releases - one or more milestones
-* Epics (zenhub) - themes of work, either by functional area or feature, that can span multiple milestones, for example 'network create'. It is expected that new issues will be added to epics as the feature or area is refined.
+* Epic (zenhub) - implements a functional change - for example 'attach, stdout only', may span milestones and releases. Expected to be broken down from larger Epics into smaller epics prior to commencement.
+* Milestones - essentially higher level user stories
+* Labels - either by functional area (`component/...`) or feature (`feature/...`)
 
 
