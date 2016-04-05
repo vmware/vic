@@ -18,7 +18,9 @@ You can install vSphere Integrated Containers in the following vSphere setups:
  
 You cannot use the OVA installer to deploy vSphere Integrated Containers to a vCenter Server instance that is running in Enhanced Linked Mode. The vSphere Web Client extension for vSphere Integrated Containers does not support Enhanced Linked Mode.
 
-Because the OVA deployment does not support Enhanced Linked Mode, you must deploy the vSphere Integrated Containers management server and the virtual container hosts on the same vCenter Server instance.
+Because the OVA deployment does not support Enhanced Linked Mode, you must deploy the vSphere Integrated Containers management server, the vSphere Web Client extension, and the virtual container hosts on the same vCenter Server instance.
+
+Using the command line installer to deploy vSphere Integrated Containers to a vCenter Server instance that is running in Enhanced Linked Mode is fully supported. 
 
 In all cases, your ESXi hosts must have at least 8GB of memory. 
 

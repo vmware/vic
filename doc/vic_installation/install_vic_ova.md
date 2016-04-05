@@ -10,7 +10,7 @@ If you have already installed vSphere Integrated Containers by using the command
 
 You cannot use the OVA installer to deploy vSphere Integrated Containers to a vCenter Server instance that is running in Enhanced Linked Mode. The vSphere Web Client extension for vSphere Integrated Containers does not support Enhanced Linked Mode. 
 
-Because the OVA deployment does not support Enhanced Linked Mode, you must deploy the vSphere Integrated Containers management server and the virtual container hosts on the same vCenter Server instance.
+Because the OVA deployment does not support Enhanced Linked Mode, you must deploy the vSphere Integrated Containers management server, the vSphere Web Client extension, and the virtual container hosts on the same vCenter Server instance.
 
 **Prerequisites**
 

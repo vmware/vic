@@ -7,6 +7,7 @@ After you have deployed the vSphere Integrated Containers management server and 
 * You deployed the vSphere Integrated Containers management server by using the OVA installer.
 * You installed the vSphere Web Client extension for vSphere Integrated Containers.
 * You have created a private port group on the ESXi host on which to deploy the virtual container host, as described in [Create a Private Port Group for Virtual Container Hosts](create_a_private_port_group_for_vch.md)
+* You must deploy the virtual container host on the same vCenter Server instance as the vSphere Integrated Containers management server and vSphere Web Client extension.
 
 **Procedure**
 
