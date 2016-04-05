@@ -89,7 +89,7 @@ func (c *NameLookupCache) CreateImageStore(ctx context.Context, storeName string
 	c.storeCache[*u] = make(map[string]Image)
 
 	// Create the root image
-	scratch, err := c.DataStore.WriteImage(ctx, &Image{Store: u}, Scratch.ID, nil)
+	scratch, err := c.DataStore.WriteImage(ctx, &Image{Store: u}, Scratch.ID, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ func (c *NameLookupCache) ListImageStores(ctx context.Context) ([]*url.URL, erro
 	return stores, nil
 }
 
-func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID, sum string, r io.Reader) (*Image, error) {
+func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*Image, error) {
 	// Check the parent exists (at least in the cache).
 	p, err := c.GetImage(ctx, parent.Store, parent.ID)
 	if err != nil {
@@ -120,7 +120,7 @@ func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID, sum
 	h := sha256.New()
 	t := io.TeeReader(r, h)
 
-	i, err := c.DataStore.WriteImage(ctx, p, ID, t)
+	i, err := c.DataStore.WriteImage(ctx, p, ID, meta, t)
 	if err != nil {
 		return nil, err
 	}

@@ -175,7 +175,7 @@ func (handler *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) 
 		ID:    params.ParentID,
 	}
 
-	image, err := storageLayer.WriteImage(context.TODO(), parent, params.ImageID, params.Sum, params.ImageFile)
+	image, err := storageLayer.WriteImage(context.TODO(), parent, params.ImageID, nil, params.Sum, params.ImageFile)
 	if err != nil {
 		return storage.NewWriteImageDefault(http.StatusInternalServerError).WithPayload(
 			&models.Error{
