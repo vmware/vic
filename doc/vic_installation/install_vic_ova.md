@@ -8,6 +8,10 @@ The OVA installer deploys a vSphere Integrated Containers management server. You
 
 If you have already installed vSphere Integrated Containers by using the command line installer, you also can deploy the management server OVA. If  the existing vSphere Integrated Containers command line installation is compatible with the OVA installation, you will see your existing virtual container host and any containers and container images in the vSphere Web Client extension.
 
+You cannot use the OVA installer to deploy vSphere Integrated Containers to a vCenter Server instance that is running in Enhanced Linked Mode. The vSphere Web Client extension for vSphere Integrated Containers does not support Enhanced Linked Mode. 
+
+Because the OVA deployment does not support Enhanced Linked Mode, you must deploy the vSphere Integrated Containers management server and the virtual container hosts on the same vCenter Server instance.
+
 **Prerequisites**
 
 * Verify that your vSphere infrastructure meets the requirements in [Environment Prerequisites for vSphere Integrated Containers Installation](vic_installation_prereqs.md). 
