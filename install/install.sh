@@ -28,7 +28,7 @@ DIR=$(dirname "$THIS")
 set -e
 
 function usage() {
-     echo "# Usage: $0 -t=target-url -p=compute-resource -i=image-datastore [-d=container-datastore] [-e=external-network] [-m=management-network] [-b=bridge-network] [-a=appliance-iso] [-c=bootstrap] [-g=stub] [-x=certificate-file] [-y=key-file] [-v:verbose] [-f] name" 2>&1
+     echo "# Usage: $0 -t=target-url -p=compute-resource -i=image-datastore [-d=container-datastore] [-e=external-network] [-m=management-network] [-b=bridge-network] [-a=appliance-iso] [-c=bootstrap] [-g] [-x=certificate-file] [-y=key-file] [-v:verbose] [-f] name" 2>&1
      echo "#   -g: generate the certificate and key files, using the value as a stub name"
      echo "#   -f: delete existing VM and image store if found"
 
