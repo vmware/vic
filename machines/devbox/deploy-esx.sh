@@ -55,7 +55,7 @@ if ! govc datastore.ls "${name}/${disk}" 1>/dev/null 2>&1 ; then
 fi
 
 vm_name=${VM_NAME-"${USER}-${name}"}
-vm_memory=${VM_MEMORY-$(grep memsize "$config" | awk -F\' '{print $4}')}
+vm_memory=${VM_MEMORY-$(grep memory "$config" | awk -F\= 'FNR == 1 {gsub(/ /, "", $2); print $2}')}
 
 if [ -z "$(govc ls "vm/$vm_name")" ] ; then
     echo "creating VM ${vm_name}..."
