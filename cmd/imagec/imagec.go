@@ -199,6 +199,163 @@ func DestinationDirectory() string {
 	)
 }
 
+// ImagesToDownload creates a slice of ImageWithMeta for the images that needs to be downloaded
+func ImagesToDownload(manifest *Manifest, hostname string) ([]ImageWithMeta, error) {
+	images := make([]ImageWithMeta, len(manifest.FSLayers))
+
+	v1 := V1Compatibility{}
+	// iterate from parent to children
+	for i := len(manifest.History) - 1; i >= 0; i-- {
+		history := manifest.History[i]
+		layer := manifest.FSLayers[i]
+
+		// unmarshall V1Compatibility to get the image ID
+		if err := json.Unmarshal([]byte(history.V1Compatibility), &v1); err != nil {
+			return nil, fmt.Errorf("Failed to unmarshall image history: %s", err)
+		}
+
+		// if parent is empty set it to scratch
+		parent := "scratch"
+		if v1.Parent != "" {
+			parent = v1.Parent
+		}
+
+		// add image to ImageWithMeta list
+		images[i] = ImageWithMeta{
+			Image: &models.Image{
+				ID:     v1.ID,
+				Parent: &parent,
+				Store:  hostname,
+			},
+			history: history,
+			layer:   layer,
+		}
+		log.Debugf("Manifest image: %#v", images[i])
+	}
+
+	// return early if -standalone set
+	if options.standalone {
+		return images, nil
+	}
+
+	// Create the image store just in case
+	err := CreateImageStore(hostname)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create image store: %s", err)
+	}
+
+	// Get the list of known images from the storage layer
+	existingImages, err := ListImages(hostname, images)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to obtain list of images: %s", err)
+	}
+	for i := range existingImages {
+		log.Debugf("Existing image: %#v", existingImages[i])
+	}
+
+	// iterate from parent to children
+	// so that we can delete from the slice
+	// while iterating over it
+	for i := len(images) - 1; i >= 0; i-- {
+		ID := images[i].ID
+		// Check whether storage layer knows this image ID
+		if _, ok := existingImages[ID]; ok {
+			log.Debugf("%s already exists", ID)
+			// update the progress before deleting it from the slice
+			progress.Update(po, images[i].String(), "Already exists")
+
+			// delete existing image from images
+			images = append(images[:i], images[i+1:]...)
+		}
+	}
+
+	return images, nil
+}
+
+// DownloadImageBlobs downloads the image blobs concurrently
+func DownloadImageBlobs(images []ImageWithMeta) error {
+	var wg sync.WaitGroup
+
+	wg.Add(len(images))
+
+	// iterate from parent to children
+	// so that portlayer can extract each layer
+	// on top of previous one
+	results := make(chan error, len(images))
+	for i := len(images) - 1; i >= 0; i-- {
+		go func(image ImageWithMeta) {
+			defer wg.Done()
+
+			err := FetchImageBlob(options, &image)
+			if err != nil {
+				results <- fmt.Errorf("%s/%s returned %s", options.image, image.layer.BlobSum, err)
+			} else {
+				results <- nil
+			}
+		}(images[i])
+	}
+	wg.Wait()
+	close(results)
+
+	// iterate over results chan to see whether we have a failed download
+	for err := range results {
+		if err != nil {
+			return fmt.Errorf("Failed to fetch image blob: %s", err)
+		}
+	}
+
+	return nil
+}
+
+// WriteImageBlobs writes the image blob to the storage layer
+func WriteImageBlobs(images []ImageWithMeta) error {
+	if options.standalone {
+		return nil
+	}
+
+	// iterate from parent to children
+	// so that portlayer can extract each layer
+	// on top of previous one
+	destination := DestinationDirectory()
+	for i := len(images) - 1; i >= 0; i-- {
+		image := images[i]
+
+		id := image.Image.ID
+		f, err := os.Open(path.Join(destination, id, id+".tar"))
+		if err != nil {
+			return fmt.Errorf("Failed to open file: %s", err)
+		}
+		defer f.Close()
+
+		fi, err := f.Stat()
+		if err != nil {
+			return fmt.Errorf("Failed to stat file: %s", err)
+		}
+
+		in := progress.NewProgressReader(
+			ioutils.NewCancelReadCloser(
+				context.Background(), f),
+			po,
+			fi.Size(),
+			image.String(),
+			"Extracting",
+		)
+		defer in.Close()
+
+		// Write the image
+		// FIXME: send metadata when portlayer supports it
+		err = WriteImage(&image, in)
+		if err != nil {
+			return fmt.Errorf("Failed to write to image store: %s", err)
+		}
+		progress.Update(po, image.String(), "Pull complete")
+	}
+	if err := os.RemoveAll(destination); err != nil {
+		return fmt.Errorf("Failed to remove download directory: %s", err)
+	}
+	return nil
+}
+
 func main() {
 	// Open the log file
 	f, err := os.OpenFile(options.logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
@@ -266,151 +423,27 @@ func main() {
 
 	progress.Message(po, options.digest, "Pulling from "+options.image)
 
-	// List of ImageWithMeta to hold Image structs
-	images := make([]ImageWithMeta, len(manifest.FSLayers))
-
-	v1 := V1Compatibility{}
-	// iterate from parent to children
-	for i := len(manifest.History) - 1; i >= 0; i-- {
-		history := manifest.History[i]
-		layer := manifest.FSLayers[i]
-
-		// unmarshall V1Compatibility to get the image ID
-		if err := json.Unmarshal([]byte(history.V1Compatibility), &v1); err != nil {
-			log.Fatalf("Failed to unmarshall image history: %s", err)
-		}
-
-		// if parent is empty set it to scratch
-		parent := "scratch"
-		if v1.Parent != "" {
-			parent = v1.Parent
-		}
-
-		// add image to ImageWithMeta list
-		images[i] = ImageWithMeta{
-			Image: &models.Image{
-				ID:     v1.ID,
-				Parent: &parent,
-				Store:  hostname,
-			},
-			history: history,
-			layer:   layer,
-		}
-		log.Debugf("Manifest image: %#v", images[i])
+	// Create the ImageWithMeta slice to hold Image structs
+	images, err := ImagesToDownload(manifest, hostname)
+	if err != nil {
+		log.Fatalf(err.Error())
 	}
 
-	var existingImages map[string]*models.Image
-
-	if !options.standalone {
-		// Create the image store
-		err = CreateImageStore(hostname)
-		if err != nil {
-			log.Fatalf("Failed to create image store: %s", err)
-		}
-
-		// Get the list of existing images
-		existingImages, err = ListImages(hostname, images)
-		if err != nil {
-			log.Fatalf("Failed to obtain list of images: %s", err)
-		}
-		for i := range existingImages {
-			log.Debugf("Existing image: %#v", existingImages[i])
-		}
+	// Fetch the blobs from registry
+	if err := DownloadImageBlobs(images); err != nil {
+		log.Fatalf(err.Error())
 	}
 
-	// iterate from parent to children
-	// so that we can delete from the slice
-	// while iterating over it
-	for i := len(images) - 1; i >= 0; i-- {
-		ID := images[i].ID
-		if _, ok := existingImages[ID]; ok {
-			log.Debugf("%s already exists", ID)
-			// delete existing image from images
-			images = append(images[:i], images[i+1:]...)
-
-			progress.Update(po, images[i].String(), "Already exists")
-		}
+	// Write blobs to the storage layer
+	if err := WriteImageBlobs(images); err != nil {
+		log.Fatalf(err.Error())
 	}
 
-	var wg sync.WaitGroup
-
-	wg.Add(len(images))
-
-	// iterate from parent to children
-	// so that portlayer can extract each layer
-	// on top of previous one
-	results := make(chan error, len(images))
-	for i := len(images) - 1; i >= 0; i-- {
-		go func(image ImageWithMeta) {
-			defer wg.Done()
-
-			err := FetchImageBlob(options, &image)
-			if err != nil {
-				results <- fmt.Errorf("%s/%s returned %s", options.image, image.layer.BlobSum, err)
-			} else {
-				results <- nil
-			}
-		}(images[i])
-	}
-	wg.Wait()
-	close(results)
-
-	for err := range results {
-		if err != nil {
-			log.Fatalf("Failed to fetch image blob: %s", err)
-		}
-	}
-
-	if !options.standalone {
-
-		// iterate from parent to children
-		// so that portlayer can extract each layer
-		// on top of previous one
-		destination := DestinationDirectory()
-		for i := len(images) - 1; i >= 0; i-- {
-			image := images[i]
-
-			id := image.Image.ID
-			f, err := os.Open(path.Join(destination, id, id+".tar"))
-			if err != nil {
-				log.Fatalf("Failed to open file: %s", err)
-			}
-			defer f.Close()
-
-			fi, err := f.Stat()
-			if err != nil {
-				log.Fatalf("Failed to stat file: %s", err)
-			}
-
-			in := progress.NewProgressReader(
-				ioutils.NewCancelReadCloser(
-					context.Background(), f),
-				po,
-				fi.Size(),
-				image.String(),
-				"Extracting",
-			)
-			defer in.Close()
-
-			// Write the image
-			// FIXME: send metadata when portlayer supports it
-			err = WriteImage(&image, in)
-			if err != nil {
-				log.Fatalf("Failed to write to image store: %s", err)
-			}
-			progress.Update(po, image.String(), "Pull complete")
-		}
-		if err := os.RemoveAll(destination); err != nil {
-			log.Fatalf("Failed to remove download directory: %s", err)
-		}
-	}
 	// FIXME: Dump the digest
 	//progress.Message(po, "", "Digest: 0xDEAD:BEEF")
-
 	if len(images) > 0 {
 		progress.Message(po, "", "Status: Downloaded newer image for "+options.image+":"+options.digest)
 	} else {
 		progress.Message(po, "", "Status: Image is up to date for "+options.image+":"+options.digest)
-
 	}
 }
