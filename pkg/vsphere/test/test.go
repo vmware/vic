@@ -17,7 +17,6 @@ package test
 import (
 	"fmt"
 	"math/rand"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -25,23 +24,15 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/spec"
+	"github.com/vmware/vic/pkg/vsphere/test/env"
 
 	"golang.org/x/net/context"
 )
 
-// URL checks whether we set TEST_URL env. var
-func URL(t *testing.T) string {
-	s := os.Getenv("VIC_ESX_TEST_URL")
-	if s == "" {
-		t.Skip("Skipping: No test ESX URL defined")
-	}
-	return s
-}
-
 // Session returns a session.Session struct
 func Session(ctx context.Context, t *testing.T) *session.Session {
 	config := &session.Config{
-		Service:        URL(t),
+		Service:        env.URL(t),
 		Insecure:       true,
 		Keepalive:      time.Duration(5) * time.Minute,
 		DatacenterPath: "",

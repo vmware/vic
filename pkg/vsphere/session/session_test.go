@@ -15,28 +15,20 @@
 package session
 
 import (
-	"os"
 	"testing"
 	"time"
 
 	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/find"
+	"github.com/vmware/vic/pkg/vsphere/test/env"
 )
-
-func URL(t *testing.T) string {
-	s := os.Getenv("VIC_ESX_TEST_URL")
-	if s == "" {
-		t.SkipNow()
-	}
-	return s
-}
 
 func TestSessionDefaults(t *testing.T) {
 	ctx := context.Background()
 
 	config := &Config{
-		Service:  URL(t),
+		Service:  env.URL(t),
 		Insecure: true,
 	}
 
@@ -58,7 +50,7 @@ func TestSession(t *testing.T) {
 	ctx := context.Background()
 
 	config := &Config{
-		Service:        URL(t),
+		Service:        env.URL(t),
 		Insecure:       true,
 		Keepalive:      time.Duration(5) * time.Minute,
 		DatacenterPath: "",
