@@ -283,12 +283,32 @@ func (c *Container) dockerContainerCreateParamsToPortlayer(cc types.ContainerCre
 	// network
 	portLayerConfig.CreateConfig.NetworkDisabled = new(bool)
 	*portLayerConfig.CreateConfig.NetworkDisabled = cc.Config.NetworkDisabled
+	portLayerConfig.CreateConfig.NetworkSettings = toModelsNetworkConfig(cc)
 
 	// working dir
 	portLayerConfig.CreateConfig.WorkingDir = new(string)
 	*portLayerConfig.CreateConfig.WorkingDir = cc.Config.WorkingDir
 
 	return portLayerConfig
+}
+
+func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig {
+	if cc.Config.NetworkDisabled {
+		return nil
+	}
+
+	nc := &models.NetworkConfig{
+		NetworkName: cc.HostConfig.NetworkMode.NetworkName(),
+	}
+	if cc.NetworkingConfig != nil {
+		if es, ok := cc.NetworkingConfig.EndpointsConfig[nc.NetworkName]; ok {
+			if es.IPAMConfig != nil {
+				nc.Address = &es.IPAMConfig.IPv4Address
+			}
+		}
+	}
+
+	return nc
 }
 
 func (c *Container) imageExist(imageID string) (storeName string, err error) {

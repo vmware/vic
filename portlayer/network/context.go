@@ -29,8 +29,8 @@ type Context struct {
 	defaultBridgePool *AddressSpace
 	defaultBridgeMask net.IPMask
 
-	scopes             map[string]*Scope
-	defaultBridgeScope *Scope
+	scopes       map[string]*Scope
+	defaultScope *Scope
 }
 
 func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
@@ -51,7 +51,7 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 		return nil, err
 	}
 
-	ctx.defaultBridgeScope = s
+	ctx.defaultScope = s
 	return ctx, nil
 }
 
@@ -346,4 +346,8 @@ func (c *Context) Scopes(idName *string) ([]*Scope, error) {
 	}
 
 	return _scopes, nil
+}
+
+func (c *Context) DefaultScope() *Scope {
+	return c.defaultScope
 }

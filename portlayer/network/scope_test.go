@@ -34,7 +34,7 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 		return
 	}
 
-	s := ctx.defaultBridgeScope
+	s := ctx.defaultScope
 
 	var tests1 = []struct {
 		name string

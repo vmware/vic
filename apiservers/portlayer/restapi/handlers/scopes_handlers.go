@@ -19,7 +19,6 @@ import (
 	"net"
 	"net/http"
 
-	log "github.com/Sirupsen/logrus"
 	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
 
 	"github.com/vmware/vic/apiservers/portlayer/models"
@@ -30,26 +29,16 @@ import (
 
 // ScopesHandlersImpl is the receiver for all of the storage handler methods
 type ScopesHandlersImpl struct {
-	ctx *network.Context
+	netCtx *network.Context
 }
 
-// Configure assigns functions to all the storage api handlers
-func (handler *ScopesHandlersImpl) Configure(api *operations.PortLayerAPI) {
+// Configure assigns functions to all the scopes api handlers
+func (handler *ScopesHandlersImpl) Configure(api *operations.PortLayerAPI, netCtx *network.Context) {
 	api.ScopesCreateHandler = scopes.CreateHandlerFunc(handler.ScopesCreate)
 	api.ScopesListAllHandler = scopes.ListAllHandlerFunc(handler.ScopesListAll)
 	api.ScopesListHandler = scopes.ListHandlerFunc(handler.ScopesList)
 
-	var err error
-	handler.ctx, err = network.NewContext(
-		net.IPNet{
-			IP:   net.IPv4(172, 16, 0, 0),
-			Mask: net.CIDRMask(12, 32),
-		},
-		net.CIDRMask(16, 32))
-
-	if err != nil {
-		log.Fatalf("could not create network context: %s", err)
-	}
+	handler.netCtx = netCtx
 }
 
 func parseScopeConfig(cfg *models.ScopeConfig) (subnet *net.IPNet, gateway net.IP, dns []net.IP, err error) {
@@ -104,7 +93,7 @@ func (handler *ScopesHandlersImpl) ScopesCreate(params scopes.CreateParams) midd
 		return scopes.NewCreateDefault(http.StatusServiceUnavailable).WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	s, err := handler.ctx.NewScope(cfg.ScopeType, cfg.Name, subnet, gateway, dns, cfg.IPAM)
+	s, err := handler.netCtx.NewScope(cfg.ScopeType, cfg.Name, subnet, gateway, dns, cfg.IPAM)
 	if _, ok := err.(network.DuplicateResourceError); ok {
 		return scopes.NewCreateConflict()
 	}
@@ -117,7 +106,7 @@ func (handler *ScopesHandlersImpl) ScopesCreate(params scopes.CreateParams) midd
 }
 
 func (handler *ScopesHandlersImpl) ScopesListAll() middleware.Responder {
-	cfgs, err := listScopes(handler.ctx, "")
+	cfgs, err := listScopes(handler.netCtx, "")
 	if err != nil {
 		return scopes.NewListDefault(http.StatusServiceUnavailable).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -126,7 +115,7 @@ func (handler *ScopesHandlersImpl) ScopesListAll() middleware.Responder {
 }
 
 func (handler *ScopesHandlersImpl) ScopesList(params scopes.ListParams) middleware.Responder {
-	cfgs, err := listScopes(handler.ctx, params.IDName)
+	cfgs, err := listScopes(handler.netCtx, params.IDName)
 	if _, ok := err.(network.ResourceNotFoundError); ok {
 		return scopes.NewListNotFound()
 	}

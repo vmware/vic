@@ -92,10 +92,12 @@ func (n *Network) CreateNetwork(name, driver string, ipam apinet.IPAM, options m
 	var pools []string
 	if len(ipam.Config) > 0 {
 		if ipam.Config[0].Gateway != "" {
+			gateway = new(string)
 			*gateway = ipam.Config[0].Gateway
 		}
 
 		if ipam.Config[0].Subnet != "" {
+			subnet = new(string)
 			*subnet = ipam.Config[0].Subnet
 		}
 
