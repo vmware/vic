@@ -67,11 +67,12 @@ func (c *MockDataStore) ListImageStores(ctx context.Context) ([]*url.URL, error)
 	return nil, nil
 }
 
-func (c *MockDataStore) WriteImage(ctx context.Context, parent *spl.Image, ID string, r io.Reader) (*spl.Image, error) {
+func (c *MockDataStore) WriteImage(ctx context.Context, parent *spl.Image, ID string, meta map[string][]byte, r io.Reader) (*spl.Image, error) {
 	i := spl.Image{
-		ID:     ID,
-		Store:  parent.Store,
-		Parent: parent.SelfLink,
+		ID:       ID,
+		Store:    parent.Store,
+		Parent:   parent.SelfLink,
+		Metadata: meta,
 	}
 
 	return &i, nil
@@ -187,7 +188,7 @@ func TestGetImage(t *testing.T) {
 	}
 
 	// add the image to the store
-	image, err := storageLayer.WriteImage(context.TODO(), &parent, testImageID, testImageSum, nil)
+	image, err := storageLayer.WriteImage(context.TODO(), &parent, testImageID, nil, testImageSum, nil)
 	if !assert.NotNil(t, image) {
 		return
 	}
@@ -254,7 +255,7 @@ func TestListImages(t *testing.T) {
 	parent.Store = &testStoreURL
 	for i := 1; i < 50; i++ {
 		id := fmt.Sprintf("id-%d", i)
-		img, err := storageLayer.WriteImage(context.TODO(), &parent, id, testImageSum, nil)
+		img, err := storageLayer.WriteImage(context.TODO(), &parent, id, nil, testImageSum, nil)
 		if !assert.NoError(t, err) {
 			return
 		}

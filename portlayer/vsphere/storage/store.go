@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -25,6 +26,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -39,6 +41,7 @@ var datastoreParentPath = "VIC"
 const (
 	defaultDiskLabel = "containerfs"
 	defaultDiskSize  = 8388608
+	metaDataDir      = "imageMetadata"
 )
 
 type ImageStore struct {
@@ -69,21 +72,32 @@ func NewImageStore(ctx context.Context, s *session.Session) (*ImageStore, error)
 	return vis, nil
 }
 
-// Returns the URI in the datastore for a given path
-func (v *ImageStore) imageStoreDatastoreURI(storeName string) string {
-	return v.s.Datastore.Path(path.Join(datastoreParentPath, storeName))
+// Takes a path and returns the datastore path by prepending the datastore name
+// to the path.
+func (v *ImageStore) datastorePath(p string) string {
+	return v.s.Datastore.Path(p)
 }
 
-// Returns the URI in the datastore for a given image relative to the given
+// Returns the path to a given image store
+func (v *ImageStore) imageStorePath(storeName string) string {
+	return path.Join(datastoreParentPath, storeName)
+}
+
+// Returns the path to the image relative to the given
 // store.  The dir structure for an image in the datastore is
 // `/VIC/imageStoreName/imageName/imageName.vmkd`
-func (v *ImageStore) imageDirDatastoreURI(storeName, imageName string) string {
-	return v.s.Datastore.Path(path.Join(datastoreParentPath, storeName, imageName))
+func (v *ImageStore) imageDirPath(storeName, imageName string) string {
+	return path.Join(datastoreParentPath, storeName, imageName)
 }
 
-// Uri to the vmdk itself
-func (v *ImageStore) imageDiskDatastoreURI(storeName, imageName string) string {
-	return path.Join(v.imageDirDatastoreURI(storeName, imageName), imageName+".vmdk")
+// Returns the path to the vmdk itself
+func (v *ImageStore) imageDiskPath(storeName, imageName string) string {
+	return path.Join(v.imageDirPath(storeName, imageName), imageName+".vmdk")
+}
+
+// Returns the path to the metadata directory for an image
+func (v *ImageStore) imageMetadataDirPath(storeName, imageName string) string {
+	return path.Join(v.imageDirPath(storeName, imageName), metaDataDir)
 }
 
 func (v *ImageStore) CreateImageStore(ctx context.Context, storeName string) (*url.URL, error) {
@@ -96,7 +110,7 @@ func (v *ImageStore) CreateImageStore(ctx context.Context, storeName string) (*u
 	// Create a vsphere datastore imagestore directury structure url from the
 	// storename.  We create scratch since it's the root of the image store.
 	// All images inherit from this root image.
-	imagestore := v.imageStoreDatastoreURI(storeName)
+	imagestore := v.datastorePath(v.imageStorePath(storeName))
 
 	log.Infof("Creating imagestore directory %s", imagestore)
 	if err = v.fm.MakeDirectory(ctx, imagestore, nil, false); err != nil {
@@ -115,7 +129,7 @@ func (v *ImageStore) GetImageStore(ctx context.Context, storeName string) (*url.
 	}
 
 	// Since we're statting the datastore itself, this need not be in datastore
-	// URI format.
+	// path format.
 	p := path.Join(datastoreParentPath, storeName)
 	info, err := v.s.Datastore.Stat(ctx, p)
 	if err != nil {
@@ -131,7 +145,7 @@ func (v *ImageStore) GetImageStore(ctx context.Context, storeName string) (*url.
 }
 
 func (v *ImageStore) ListImageStores(ctx context.Context) ([]*url.URL, error) {
-	res, err := lsDir(ctx, v.s.Datastore, v.imageStoreDatastoreURI(""))
+	res, err := lsDir(ctx, v.s.Datastore, v.datastorePath(v.imageStorePath("")))
 	if err != nil {
 		return nil, err
 	}
@@ -158,8 +172,10 @@ func (v *ImageStore) ListImageStores(ctx context.Context) ([]*url.URL, error) {
 //
 // parent - The parent image to create the new image from.
 // ID - textual ID for the image to be written
+// meta - metadata associated with the image
 // Tag - the tag of the image to be written
-func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID string, r io.Reader) (*portlayer.Image, error) {
+func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID string, meta map[string][]byte,
+	r io.Reader) (*portlayer.Image, error) {
 
 	storeName, err := util.StoreName(parent.Store)
 	if err != nil {
@@ -172,12 +188,12 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 	}
 
 	// Create the image directory in the store.
-	imageDirDsURI := v.imageDirDatastoreURI(storeName, ID)
+	imageDirDsURI := v.datastorePath(v.imageDirPath(storeName, ID))
 	if err = v.fm.MakeDirectory(ctx, imageDirDsURI, nil, false); err != nil {
 		return nil, err
 	}
 
-	ImageDiskDsURI := v.imageDiskDatastoreURI(storeName, ID)
+	ImageDiskDsURI := v.datastorePath(v.imageDiskPath(storeName, ID))
 	log.Infof("Creating image %s", ID)
 
 	// If this is scratch, then it's the root of the image store.  All images
@@ -201,7 +217,7 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 		}
 
 		// Create the disk
-		parentDiskDsURI := v.imageDiskDatastoreURI(storeName, parent.ID)
+		parentDiskDsURI := v.datastorePath(v.imageDiskPath(storeName, parent.ID))
 		vmdisk, err := v.dm.CreateAndAttach(ctx, ImageDiskDsURI, parentDiskDsURI, 0, os.O_RDWR)
 		if err != nil {
 			return nil, err
@@ -226,22 +242,130 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 		}
 	}
 
+	// Write the metadata to the datastore
+	err = v.writeMeta(ctx, storeName, ID, meta)
+	if err != nil {
+		return nil, err
+	}
+
 	newImage := &portlayer.Image{
 		ID:       ID,
 		SelfLink: imageURL,
 		Parent:   parent.SelfLink,
 		Store:    parent.Store,
+		Metadata: meta,
 	}
 
 	return newImage, nil
 }
 
 func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*portlayer.Image, error) {
-	return nil, fmt.Errorf("not yet implemented")
+
+	storeName, err := util.StoreName(store)
+	if err != nil {
+		return nil, err
+	}
+
+	imageURL, err := util.ImageURL(storeName, ID)
+	if err != nil {
+		return nil, err
+	}
+
+	p := v.imageDirPath(storeName, ID)
+	info, err := v.s.Datastore.Stat(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+
+	_, ok := info.(*types.FolderFileInfo)
+	if !ok {
+		return nil, fmt.Errorf("Stat error:  image doesn't exist (%s)", p)
+	}
+
+	meta, err := v.getMeta(ctx, storeName, ID)
+	if err != nil {
+		return nil, err
+	}
+
+	var s url.URL = *store
+
+	newImage := &portlayer.Image{
+		ID:       ID,
+		SelfLink: imageURL,
+		// We're relying on the cache for this since we don't currently have a
+		// way to get the disk's spec.  See VIC #482 for details.  Parent:
+		// parent.SelfLink,
+		Store:    &s,
+		Metadata: meta,
+	}
+
+	return newImage, nil
 }
 
 func (v *ImageStore) ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*portlayer.Image, error) {
 	return nil, fmt.Errorf("not yet implemented")
+}
+
+// Write the opaque metadata blobs (by name) for an image.  We create a
+// directory under the image's parent directory.  Each blob in the metadata map
+// is written to a file with the corresponding name.  Likewise, when we read it
+// back (on restart) we populate the map accordingly.
+func (v *ImageStore) writeMeta(ctx context.Context, storeName string, ID string,
+	meta map[string][]byte) error {
+	// XXX this should be done via disklib so this meta follows the disk in
+	// case of motion.
+
+	metaDataDir := v.imageMetadataDirPath(storeName, ID)
+
+	if meta != nil && len(meta) != 0 {
+		for name, value := range meta {
+			r := bytes.NewReader(value)
+			pth := path.Join(metaDataDir, name)
+			log.Infof("Writing metadata %s", pth)
+			if err := v.s.Datastore.Upload(ctx, r, pth, &soap.DefaultUpload); err != nil {
+				return err
+			}
+		}
+	} else {
+		if err := v.fm.MakeDirectory(ctx, v.datastorePath(metaDataDir), nil, false); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (v *ImageStore) getMeta(ctx context.Context, storeName string, ID string) (map[string][]byte, error) {
+	metaDataDir := v.datastorePath(v.imageMetadataDirPath(storeName, ID))
+	res, err := lsDir(ctx, v.s.Datastore, metaDataDir)
+	if err != nil {
+		return nil, err
+	}
+
+	meta := make(map[string][]byte)
+	for _, f := range res.File {
+		finfo, ok := f.(*types.FileInfo)
+		if !ok {
+			continue
+		}
+
+		p := path.Join(v.imageMetadataDirPath(storeName, ID), finfo.Path)
+		log.Infof("Getting meta for image (%s) %s", ID, p)
+		rc, _, err := v.s.Datastore.Download(ctx, p, &soap.DefaultDownload)
+		if err != nil {
+			return nil, err
+		}
+		defer rc.Close()
+
+		buf, err := ioutil.ReadAll(rc)
+		if err != nil {
+			return nil, err
+		}
+
+		meta[finfo.Path] = buf
+	}
+
+	return meta, nil
 }
 
 // Create the top level directory the image storeas are created under
@@ -265,7 +389,7 @@ func (v *ImageStore) makeImageStoreParentDir(ctx context.Context) error {
 	}
 
 	log.Infof("Creating image store parent directory %s", datastoreParentPath)
-	return v.fm.MakeDirectory(ctx, v.imageStoreDatastoreURI(""), nil, true)
+	return v.fm.MakeDirectory(ctx, v.datastorePath(v.imageStorePath("")), nil, true)
 }
 
 func lsDir(ctx context.Context, d *object.Datastore, p string) (*types.HostDatastoreBrowserSearchResults, error) {
