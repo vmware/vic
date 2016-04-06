@@ -13,7 +13,7 @@ Familiarize yourself with the instructions for protecting the Docker daemon sock
 3. Log into your Docker client.
 4. Run the following command to copy the certificate files into the `.docker` folder in your docker client. <pre>scp ca.pem server-cert.pem server-key.pem 
 root@<i>VIC_appliance_address</i>:/root/.docker/ 
-&& ssh root@vch /opt/dockerd.sh</pre>
+&& ssh root@<i>VIC_appliance_address</i> /opt/dockerd.sh</pre>
 5. Restart the Docker daemon.
 
 After you restart the Docker daemon, Docker will use TLS authentication for all connections between the client and the virtual container host. 
