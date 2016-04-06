@@ -30,6 +30,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/vmware/vic/pkg/vsphere/test/env"
 )
 
 // use an http client which we modify in init()
@@ -38,7 +40,7 @@ import (
 var insecureClient *http.Client
 
 func init() {
-	sdk := os.Getenv("VIC_ESX_TEST_URL")
+	sdk := env.URL(nil)
 	if sdk != "" {
 		flag.Set("sdk", sdk)
 		flag.Set("vm-path", "docker-appliance")

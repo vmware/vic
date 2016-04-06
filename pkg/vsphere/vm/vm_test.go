@@ -66,7 +66,7 @@ func TestVM(t *testing.T) {
 
 	s := os.Getenv("DRONE")
 	if s != "" {
-		t.SkipNow()
+		t.Skip("Skipping: test must be run in a VM")
 	}
 
 	ctx := context.Background()
