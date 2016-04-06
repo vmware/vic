@@ -82,6 +82,7 @@ unpack $PACKAGE $PKGDIR
 #   vim       # basic editing function
 yum_cached -c $cache -u -p $PKGDIR install \
     haveged \
+    dbus \
     systemd \
     openssh \
     e2fsprogs \

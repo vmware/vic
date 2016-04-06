@@ -106,6 +106,7 @@ yum_cached -c $cache -u -p $PKGDIR install \
     libtirpc \
     grep \
     haveged \
+    dbus \
     systemd \
     -y --nogpgcheck
 
