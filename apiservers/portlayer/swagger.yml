@@ -393,12 +393,12 @@ definitions:
         $ref: "#/definitions/ImageStore"
       image:
         type: string
-      cmd:
+      path:
+        type: string
+      args:
         type: array
         items:
           type: string
-      entryPoint:
-        type: string
       workingDir:
         type: string
       env:

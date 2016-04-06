@@ -168,7 +168,7 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 
 func setAPIRoutes(api *apiserver.Server) {
 	imageHandler := &vicbackends.Image{ProductName: productName}
-	containerHandler := &vicbackends.Container{ProductName: productName}
+	containerHandler := &vicbackends.Container{ProductName: productName, HackMap: make(map[string]vicbackends.V1Compatibility)}
 	volumeHandler := &vicbackends.Volume{ProductName: productName}
 	networkHandler := &vicbackends.Network{ProductName: productName}
 	systemHandler := &vicbackends.System{ProductName: productName}

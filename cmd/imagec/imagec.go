@@ -71,6 +71,7 @@ type ImageCOptions struct {
 	debug      bool
 	insecure   bool
 	standalone bool
+	resolv     bool
 }
 
 // ImageWithMeta wraps the models.Image with some additional metadata
@@ -132,6 +133,8 @@ func init() {
 	flag.BoolVar(&options.debug, "debug", false, i18n.T("Show debug logging"))
 	flag.BoolVar(&options.insecure, "insecure", false, i18n.T("Skip certificate verification checks"))
 	flag.BoolVar(&options.standalone, "standalone", false, i18n.T("Disable port-layer integration"))
+
+	flag.BoolVar(&options.resolv, "resolv", false, i18n.T("Return the name of the vmdk from given reference"))
 
 	flag.Parse()
 }
@@ -421,12 +424,22 @@ func main() {
 		log.Fatalf("Failed to fetch image manifest: %s", err)
 	}
 
-	progress.Message(po, options.digest, "Pulling from "+options.image)
+	if !options.resolv {
+		progress.Message(po, options.digest, "Pulling from "+options.image)
+	}
 
 	// Create the ImageWithMeta slice to hold Image structs
 	images, err := ImagesToDownload(manifest, hostname)
 	if err != nil {
 		log.Fatalf(err.Error())
+	}
+
+	if options.resolv {
+		if len(images) > 0 {
+			fmt.Printf("%s", images[0].history.V1Compatibility)
+			os.Exit(0)
+		}
+		os.Exit(1)
 	}
 
 	// Fetch the blobs from registry

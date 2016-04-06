@@ -15,11 +15,13 @@
 package vicbackends
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"strings"
+	goexec "os/exec"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -29,6 +31,7 @@ import (
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/strslice"
 
 	"github.com/vmware/vic/apiservers/portlayer/client/exec"
 	"github.com/vmware/vic/apiservers/portlayer/client/storage"
@@ -36,19 +39,19 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-type Container struct {
-	ProductName string
+type V1Compatibility struct {
+	ID     string
+	Config container.Config
 }
 
-var hackMap = map[string]string{
-	"busybox":         "bc744c4ab376115cc45c610d53f529dd2d4249ae6b35e5d6e7a96e58863545aa",
-	"tomcat":          "7b462938183d61aeae3cac6a7a2335b8806d561498a1495353b6650d65e1e403",
-	"golang":          "a443d5a72a2ed0af201ea5b30b3fc4e28146b86b9c3cdd8d177b2c77e00d39fd",
-	"photon":          "b12b5ead0dad7bd8bf02889ccf7eacc82ce89c7ed4bad48e9d5c9f7ac110fdc2",
-	"library/busybox": "bc744c4ab376115cc45c610d53f529dd2d4249ae6b35e5d6e7a96e58863545aa",
-	"library/tomcat":  "7b462938183d61aeae3cac6a7a2335b8806d561498a1495353b6650d65e1e403",
-	"library/golang":  "a443d5a72a2ed0af201ea5b30b3fc4e28146b86b9c3cdd8d177b2c77e00d39fd",
-	"library/photon":  "b12b5ead0dad7bd8bf02889ccf7eacc82ce89c7ed4bad48e9d5c9f7ac110fdc2",
+type Container struct {
+	ProductName string
+
+	// Protects following map
+	m sync.Mutex
+
+	// FIXME: in-memory map to keep image name to vmdk name relationship
+	HackMap map[string]V1Compatibility
 }
 
 // docker's container.execBackend
@@ -101,7 +104,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	defer trace.End(trace.Begin("ContainerCreate"))
 
 	//TODO: validate the config parameters
-	log.Printf("createConfig - container = %+v", config.Config)
+	log.Printf("config.Config = %+v", config.Config)
 
 	// Get an API client to the portlayer
 	client := PortLayerClient()
@@ -111,13 +114,55 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 				http.StatusInternalServerError)
 	}
 
-	// Check if the image exist
-	layerID, found := hackMap[config.Config.Image]
+	c.m.Lock()
+	defer c.m.Unlock()
+
+	layer, found := c.HackMap[config.Config.Image]
 	if !found {
-		return types.ContainerCreateResponse{},
-			derr.NewErrorWithStatusCode(fmt.Errorf("Container look up failed"),
-				http.StatusInternalServerError)
+		// FIXME: This is a temporary workaround until we have a name resolution story.
+		// Call imagec with -resolv parameter to learn the name of the vmdk and put it into in-memory map
+		cmdArgs := []string{"-reference", config.Config.Image, "-resolv", "-standalone"}
+
+		out, err := goexec.Command("/sbin/imagec", cmdArgs...).Output()
+		if err != nil {
+			log.Printf("imagec exit code:", err)
+			return types.ContainerCreateResponse{},
+				derr.NewErrorWithStatusCode(fmt.Errorf("Container look up failed"),
+					http.StatusInternalServerError)
+		}
+		var v1 struct {
+			ID string `json:"id"`
+			// https://github.com/docker/engine-api/blob/master/types/container/config.go
+			Config container.Config `json:"config"`
+		}
+		if err := json.Unmarshal(out, &v1); err != nil {
+			return types.ContainerCreateResponse{},
+				derr.NewErrorWithStatusCode(fmt.Errorf("Failed to unmarshall image history: %s", err),
+					http.StatusInternalServerError)
+		}
+		log.Printf("v1 = %+v", v1)
+
+		c.HackMap[config.Config.Image] = V1Compatibility{
+			v1.ID,
+			v1.Config,
+		}
+
+		layer = c.HackMap[config.Config.Image]
 	}
+
+	// Overwrite the config struct
+	if len(config.Config.Cmd) == 0 {
+		config.Config.Cmd = layer.Config.Cmd
+	}
+	if config.Config.WorkingDir == "" {
+		config.Config.WorkingDir = layer.Config.WorkingDir
+	}
+	if len(config.Config.Entrypoint) == 0 {
+		config.Config.Entrypoint = layer.Config.Entrypoint
+	}
+	config.Config.Env = append(config.Config.Env, layer.Config.Env...)
+
+	log.Printf("config.Config' = %+v", config.Config)
 
 	// Call the Exec port layer to create the container
 	host, err := os.Hostname()
@@ -127,13 +172,13 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 				http.StatusInternalServerError)
 	}
 
-	plCreateParams := c.dockerContainerCreateParamsToPortlayer(config, layerID, host)
+	plCreateParams := c.dockerContainerCreateParamsToPortlayer(config, layer.ID, host)
 	createResults, err := client.Exec.ContainerCreate(plCreateParams)
 
 	// transfer port layer swagger based response to Docker backend data structs and return to the REST front-end
 	if err != nil {
 		if _, isa := err.(*exec.ContainerCreateNotFound); isa {
-			return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", layerID))
+			return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", layer.ID))
 		}
 
 		// If we get here, most likely something went wrong with the port layer API server
@@ -265,13 +310,24 @@ func (c *Container) dockerContainerCreateParamsToPortlayer(cc types.ContainerCre
 	portLayerConfig.CreateConfig.Image = new(string)
 	*portLayerConfig.CreateConfig.Image = layerID
 
-	// copy the cmd array
-	portLayerConfig.CreateConfig.Cmd = make([]string, len(cc.Config.Cmd))
-	copy(portLayerConfig.CreateConfig.Cmd, cc.Config.Cmd)
+	var path string
+	var args []string
 
-	// copy the entrypoint
-	portLayerConfig.CreateConfig.EntryPoint = new(string)
-	*portLayerConfig.CreateConfig.EntryPoint = strings.Join(cc.Config.Entrypoint, " ")
+	// Expand cmd into entrypoint and args
+	cmd := strslice.StrSlice(cc.Config.Cmd)
+	if len(cc.Config.Entrypoint) != 0 {
+		path, args = cc.Config.Entrypoint[0], append(cc.Config.Entrypoint[1:], cmd...)
+	} else {
+		path, args = cmd[0], cmd[1:]
+	}
+
+	// copy the path
+	portLayerConfig.CreateConfig.Path = new(string)
+	*portLayerConfig.CreateConfig.Path = path
+
+	// copy the args
+	portLayerConfig.CreateConfig.Args = make([]string, len(args))
+	copy(portLayerConfig.CreateConfig.Args, args)
 
 	// copy the env array
 	portLayerConfig.CreateConfig.Env = make([]string, len(cc.Config.Env))
@@ -289,6 +345,7 @@ func (c *Container) dockerContainerCreateParamsToPortlayer(cc types.ContainerCre
 	portLayerConfig.CreateConfig.WorkingDir = new(string)
 	*portLayerConfig.CreateConfig.WorkingDir = cc.Config.WorkingDir
 
+	log.Printf("dockerContainerCreateParamsToPortlayer = %+v", portLayerConfig.CreateConfig)
 	return portLayerConfig
 }
 
