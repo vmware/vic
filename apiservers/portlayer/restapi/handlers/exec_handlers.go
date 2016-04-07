@@ -149,8 +149,8 @@ func (handler *ExecHandlersImpl) ContainerCreateHandler(params exec.ContainerCre
 
 	ctx := context.Background()
 
-	log.Debugf("Cmd: %#v", params.CreateConfig.Cmd)
-	log.Debugf("EntryPoint: %#v", params.CreateConfig.EntryPoint)
+	log.Debugf("Path: %#v", params.CreateConfig.Path)
+	log.Debugf("Args: %#v", params.CreateConfig.Args)
 	log.Debugf("Env: %#v", params.CreateConfig.Env)
 	log.Debugf("WorkingDir: %#v", params.CreateConfig.WorkingDir)
 
@@ -164,13 +164,10 @@ func (handler *ExecHandlersImpl) ContainerCreateHandler(params exec.ContainerCre
 
 	// create and fill the metadata.Cmd struct
 	cmd := metadata.Cmd{
-		Env: params.CreateConfig.Env,
-		Dir: *params.CreateConfig.WorkingDir,
-	}
-	// FIXME: https://github.com/vmware/vic/issues/411
-	if len(params.CreateConfig.Cmd) > 0 {
-		cmd.Path = params.CreateConfig.Cmd[0]
-		cmd.Args = params.CreateConfig.Cmd
+		Env:  params.CreateConfig.Env,
+		Dir:  *params.CreateConfig.WorkingDir,
+		Path: *params.CreateConfig.Path,
+		Args: append([]string{*params.CreateConfig.Path}, params.CreateConfig.Args...),
 	}
 
 	m := metadata.ExecutorConfig{
