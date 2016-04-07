@@ -292,15 +292,15 @@ done
 
 echo "# "
 echo "# SSH to appliance (default=root:password)"
-echo "# root@${host}"
+echo "ssh root@${host}"
 echo "# "
 echo "# Log server:"
-echo "# https://${host}:2378"
+echo "https://${host}:2378"
 echo "# "
 if [ -n "${dockertlsargs}" ]; then
    echo "# Connect to docker:"
-   echo "docker -H ${host}:${port} --tls --tlscert='${certf}' --tlskey='${keyf}'"
+   echo "docker -H ${host}:${port} --tls --tlscert='${certf}' --tlskey='${keyf}' info"
    echo
-   echo "DOCKER_OPTS=\"--tls --tlscert='${certf}' --tlskey='${keyf}'\""
+#   echo "DOCKER_OPTS=\"--tls --tlscert='${certf}' --tlskey='${keyf}'\""
 fi
-echo "DOCKER_HOST=${host}:${port}"
+#echo "DOCKER_HOST=${host}:${port}"
