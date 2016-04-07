@@ -94,7 +94,6 @@ paths:
           description: "error"
           schema:
            $ref: "#/definitions/Error"
-  /storage/{store_name}/writeImage:
     post:
       description: "Creates a new image layer in an image store"
       summary: "Creates a new image layer"
