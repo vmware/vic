@@ -146,6 +146,9 @@ The component follows the naming pattern introduced by OCI with 'runc' and is a 
 
 
 ### Port Layer
+
+The port layer presents container primitive operations, with APIs that express intent rather than the intricies of how.
+
 #### Port Layer - Execution
 
 This component deals handles management of containers such as create, start, stop, kill, etc, and is broken distinct from interaction primarily because the uptime requirements may be different, [see Interaction](#portlayer---interaction).
