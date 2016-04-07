@@ -1,5 +1,44 @@
 # vSphere Integrated Containers - Architecture and Design
 
+## Approach
+
+The devleopment approach taken for VIC is iterative refinement, both for the high level product and recursively throughout the lower level components that go into it. This, as with most Agile processes,is driven by a need to have a useful product in short timeframes, and to manage risk - whether risk related to larger delivery deadlines (VIC may be OSS but it's still a VMware product), changing technical landscapes, or the unknown. The day-by-day development process we follow is [documented in the contributor docs](../../CONTRIBUTING.md).
+
+The upshot of this approach is that many of these components are outline sketches at best as we start out, with specific areas being filled out over time. Avoiding any comment on business priorities, the _technical_ priorities for the project are:
+
+1. build an appliance foundation to permit secure orchestration of Virtual Infrastructure by regular users
+2. build primitves that support container style semantics, implemented with VMs
+2. present the Docker API as a language with which users can perform the orchestration they require
+
+The primary _goal_ of the project is to be useful to users - very simple to say, but much more involved to achieve. Our expectation is that most users will consume VIC via the Docker API, therefore if you have specific requirements around docker function support please raise them as issues if they are not already documented in #445 - if they are, add a +1. We will be focusing on function required on the production end of the CI pipeline initially, but knowing what _you_ require for our initial releases to be useful in that scope is invaluable.
+
+
+## Components
+
+- [Component Architecture](#component-architecture)
+- [Container](#container)
+  - [Container Base](#container-base)
+  - [Tether](#tether)
+  - [Container Logging](#container-logging)
+- [Appliance](#appliance)
+  - [Appliance Base](#appliance-base)
+  - [vicadmin](#vicadmin)
+  - [Docker API server](#docker-api-server)
+  - [imagec](#imagec)
+  - [Port Layer](#port-layer)
+    - [Port Layer - Execution](#port-layer---execution)
+    - [Port Layer - Interaction](#port-layer---interaction)
+    - [Port Layer - Networking](#port-layer---networking)
+    - [Port Layer - Storage](#port-layer---storage)
+- [Install and management](#install-and-management)
+  - [vic-machine](#vic-machine)
+  - [Validating Proxy](#validating-proxy)
+- [ESX Agents](#esx-agents)
+  - [VMOMI Authenticating Agent](#vmomi-authenticating-agent)
+  - [vSocket Relay Agent](#vsocket-relay-agent)
+  - [NSX Authenticating Agent](#nsx-authenticating-agent)
+
+
 ## Component Architecture
 
 This is a component architecture for the system, encompassing some of the main control flows. It is intended to be used as a visual map for which components interact and how those interaction occur; it does not indicate what those interaction are.
@@ -15,7 +54,7 @@ ContainerVMs are bootstrapped from a PhotonOS based liveCD, containing just enou
 * the specified container filesystem mounted as `/`
 * [a custom init binary](#tether) that provides the command & control channel for container interaction
 
-The contianer process runs as root with full privileges, however there's no way to make persistent changes to anything except the container filesystem - the core operating files are read-only on the ISO and refresh each time the container is started.
+The container process runs as root with full privileges, however there's no way to make persistent changes to anything except the container filesystem - the core operating files are read-only on the ISO and refresh each time the container is started.
 
 [Issues relating to this component](https://github.com/vmware/vic/labels/component%2Fcontainer-base)
 
@@ -74,7 +113,29 @@ This is the portion of a Virtual Container Host that provides a Docker API endpo
 
 As of the v0.1 release this makes use of the [docker engine-api](https://github.com/docker/engine-api) project to ensure API compatibility with docker.
 
+The following is commentary about why the docker API server is not actual Docker. It's not what would usually be found in design doc, but is a question that comes up enough that it becomes core to understanding the design.
+
 [Issues relating to docker API](https://github.com/vmware/vic/labels/component%2Fdocker-api-server)
+
+#### Commentary
+
+There are frequently questions asked about why we're not using Docker directly and supplying exec, graph and libnetwork drivers, which is the approach we took with [Project Bonneville](http://blogs.vmware.com/cloudnative/introducing-project-bonneville/). People who are intimately familiar with the container space may also ask why we're not using the OCI components such as runc.
+
+Being very open here, the answer comes back to the reasoning behind the [approach](#approach) - it was a choice made when starting VIC in Janurary 2016 to manage technical and project risks, and it's a trade against business risk (community perception, customer concerns about compatibility, and others).
+
+Some of the major technical assumptions in the Docker codebase do not hold true for VIC (as of decision nexus date):
+
+1. container filesystems exist on the same host the daemon is running on
+2. namespaces can be created independently of containers (e.g. libnetwork sets up interfaces prior to graphdriver.Create)
+3. operations on namespaces are _relatively_ cheap in terms of performance
+4. container lifecycles are tied to that of the docker daemon
+5. no orthogonal second management plane
+
+As Docker continues with the decomposition of the monolithic docker daemon into components, our ability to consume those components directly increases, and there are very good reasons to do so - not least is the fact it reduces the develpment and maintenance burden on the VIC team. In line with the stated approach, as docker components become available that can be consumed, we will.
+
+A good example of the planned approach regarding docker is our use of the engine-api project -- VIC was initially using a Docker API server generated from a swagger specification. Once the engine-api project became somewhat stable we contributed the swagger spec to that project and are now consumers of the engine-api directly.
+
+This leads to another question regarding why we don't simply invest our project resources in helping Docker decompose the daemon. Again the answer comes back to risk management - Docker's priorities are not VMware's and, without a formal partnership, assuming the decompostion stays on a schedule that's viable for VIC deadlines is, well, risky. This is a fine line to walk as we _want_ to be good community members and, from a more selfish perspective, don't want to invest in quickly deprecated code. Our intent is to, as with the engine-api project, move to the docker and OCI components as they become semi-stable and invest resource in them at that point - how early in the life of a given component we can do that is a function of deadlines, resources and politics.
 
 
 ### imagec
