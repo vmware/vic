@@ -50,13 +50,6 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # this is so we're not exposing the raw container disk if we wouldn't be otherwise
     #	rm -f /mnt/.tether/volumes/containerfs
 
-    # set up the hostname
-    #	if [ -f /mnt/etc/hostname ]; then
-    #		/bin/hostname -F /mnt/etc/hostname
-    #	else
-    #		/bin/hostname -F /mnt/.tether-init/hostname
-    #	fi
-
     # enable full system functionality in the container
     echo "Publishing modules within container"
     mkdir -p ${MOUNTPOINT}/lib/modules
