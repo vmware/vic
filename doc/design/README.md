@@ -7,6 +7,7 @@ Networking is broken out into a subfolder on the expectation that it will become
 
 Documentation about component interactions is ongoing with the initial docs being:
 * [configuration](configuration.md)
+* [communication between VCH appliance and containerVMs](communications.md)
 * portlayer component communication
 * security
 * installation and self-provisioning

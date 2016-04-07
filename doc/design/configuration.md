@@ -10,41 +10,47 @@ This document discusses how configuration between components is done, and why it
 
 ## Component interactions
 
-For both the VCH and containerVMs the configuration is used for two way communication, with the backchannel being for low-frequency, persistent, async information publishing
+For both the VCH and containerVMs the configuration is used for two way communication, with a component updating its own configuration as an asynch publishing mechanism for low-frequency, persistent information. The fields listed below are examples rather than comprehensive lists.
 
-### vic-machine
+### vic-machine configuration of appliance
 
-* configures VCH on initial deploy (example config elements below)
-    * _vSphere target and credentials_ (hidden)
-    * networks (external, client, management, bridge, mapped vsphere networks)
-    * vsphere compute path (e.g. resource pool)
-    * image store URI
-    * container store URI
-    * permissible URIs for volumes
-    * white/black list of registries
-    * _etc_
+
+Configures VCH on initial deploy:
+* _vSphere target and credentials_ (hidden)
+* networks (external, client, management, bridge, mapped vsphere networks)
+* vsphere compute path (e.g. resource pool)
+* image store URI
+* container store URI
+* permissible URIs for volumes
+* white/black list of registries
+* _etc_
+
+vic-machine also:
 * updates VCH config as part of management operations
 * inspects (read-only) containerVM configuration for diagnostics
 
 ### appliance
 
-* configures containerVMs with (example config elements below)
+Configuration of containers and environment:
+* Configures containerVMs with (example config elements below)
     * _appliance_ (hidden)
     * ID
     * command (executable, args, environment, working directory)
     * networks (MAC, CIDR, gateway, name, nameservers)
 * configures logical networks (whether IPAM segragation or SDN logical networks)
 * configures VMDKs (volumes, images, container read/write layers)
-* updates appliance configuration
-    * DHCP supplied network configuration
-    * system & subcomponent status
+
+Publishes the following:
+* DHCP supplied network configuration
+* system & subcomponent status
+
 
 ### ContainerVM
 
-* updates containerVM config (example config elements below)
-    * DHCP supplied network configuration
-    * container start status
-    * container process exit code
+Publishes the following:
+* DHCP supplied network configuration
+* container start status
+* container process exit code
 
 
 ## Configuration persistence mechanism
