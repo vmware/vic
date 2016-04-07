@@ -1,6 +1,7 @@
 # Configuration
 
 Three primary elements make up a functioning VCH - these are referred to as components in the rest of this document, along with their subcomponents:
+
 1. [vic-machine](vic-machine.md) - the mechanism by which the VCH is deployed, configured, and inspected
 2. appliance - a VM that runs the VCH logic ([docker personality](docker-api-server.md), [log server](vicadmin.md), [port-layer](arch/vic-port-layer-overview.md), et al)
 3. containerVMs - VMs that _are_ containers ([tether](tether.md), and container process)
@@ -53,12 +54,13 @@ VIC uses the vSphere `extraConfig` and `guestinfo` mechanisms for storing config
 Access to guestinfo data within the GuestOS is done via the vmware-rpctool, or library providing the same capability e.g. [vmware/vmw-guestinfo](https://github.com/vmware/vmw-guestinfo/). The various subcomponents in the appliance and the tether in containerVMs will access this configuration directly via library calls - there is no intermediate step that presents this data via arguments or environment variables.
 
 The reasons for taking this approach:
+
 1. it keeps the appliance VM completely stateless - a reboot will return it to a known good state
 2. no cross component dependency - containerVMs do not require an VCH for ongoing operations, including vSphere High Availability restart
 3. the configuration is protected from tampering, even if superuser priviledges are obtained
 4. configuration is visible both from within the VM and remotely via vSphere APIs
 
-ExtraConfig data is used for data that should not be visible to the GuestOS - the best example of this are the vSphere target and credentials (ideally an SSO token), which are hidden from the appliance and only visible to the [vmomi agent](validating-proxy.md) that supplies the authenticated vSphere API connection. This means that even if superuser priviledges are obtained on the appliance, the risk is limited to a controlled connection rather than leaking any form of access token or even the URI of the vSphere endpoint.
+ExtraConfig data is used for data that should not be visible to the GuestOS - the best example of this are the vSphere target and credentials (ideally an SSO token), which are hidden from the appliance and only visible to the [vmomi agent](components.md#vmomi-authenticating-agent) that supplies the authenticated vSphere API connection. This means that even if superuser priviledges are obtained on the appliance, the risk is limited to a controlled connection rather than leaking any form of access token or even the URI of the vSphere endpoint.
 
 
 ## Accessing configuration - implementation

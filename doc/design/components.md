@@ -24,7 +24,7 @@ The contianer process runs as root with full privileges, however there's no way 
 
 The tether is an init replacement used in containerVMs that provides the command & control channel necessary to perform any operation inside the container. This includes launching of the container process, setting of environment variables, configuration of networking, etc. The tether is currently based on a modified SSH server tailed specifically for this purpose.
 
-[Issues relating to this component](https://github.com/vmware/vic/labels/component%2Ftether)
+[Issues relating to tether](https://github.com/vmware/vic/labels/component%2Ftether)
 
 
 ### Container Logging
@@ -33,7 +33,7 @@ Container logging, as distinct from other logging mechanisms, is the capture mec
 
 As of the v0.1 release logs are being persisted on the datastore along with the VM.
 
-[Issues relating to this component](https://github.com/vmware/vic/labels/component%2Fcontainer-logging)
+[Issues relating to container logging](https://github.com/vmware/vic/labels/component%2Fcontainer-logging)
 
 
 ## Appliance
@@ -51,7 +51,7 @@ The intent behind having the appliance be diskless and bootstrap off an ISO each
 * robustness - a reboot will return the appliance to a known good state, assuming an administrator has not altered the configuration in the meantime
 * simplicity of update - using [vic-machine](#vic-machine) to update a VCH should be as simple as pointing the appliance VM at a new ISO version and rebooting, so long as there's no metadata migration needed; in that case the migration should be viable as a background task prior to VCH update.
 
-[Issues relating to this component](https://github.com/vmware/vic/labels/component%2Fappliance-base)
+[Issues relating to appliance base](https://github.com/vmware/vic/labels/component%2Fappliance-base)
 
 
 ### vicadmin
@@ -68,7 +68,7 @@ Speculative list of functions (via docker-machine as a client?):
 - [ ] Add authentication around the server - local system or full PAM
 - [ ] Retrieve client certificate from VCH when using TLS
 
-[Issues relating to this component](https://github.com/vmware/vic/labels/component%2Fvicadmin)
+[Issues relating to vicadmin](https://github.com/vmware/vic/labels/component%2Fvicadmin)
 
 
 ### Docker API server
@@ -77,22 +77,22 @@ This is the portion of a Virtual Container Host that provides a Docker API endpo
 
 As of the v0.1 release this makes use of the [docker engine-api](https://github.com/docker/engine-api) project to ensure API compatibility with docker.
 
-[Issues relating to this component](https://github.com/vmware/vic/labels/component%2Fdocker-api-server)
+[Issues relating to docker API](https://github.com/vmware/vic/labels/component%2Fdocker-api-server)
 
 
 ### imagec
 
 The component follows the naming pattern introduced by OCI with 'runc' and is a docker registry client library, purely concerned with the pull/push aspects of the registry with login becoming a transitive dependency.
 
-[Current open issues relating to this component](https://github.com/vmware/vic/labels/component%2Fimagec)
+[Current open issues relating to imagec](https://github.com/vmware/vic/labels/component%2Fimagec)
 
 
 ### Port Layer
 #### Port Layer - Execution
 
-This component deals handles management of containers such as create, start, stop, kill, etc, and is broken distinct from interaction primarily because the uptime requirements may be different, [see Interaction](#portlayer-interaction).
+This component deals handles management of containers such as create, start, stop, kill, etc, and is broken distinct from interaction primarily because the uptime requirements may be different, [see Interaction](#portlayer---interaction).
 
-[Issues relating to this component](https://github.com/vmware/vic/labels/component%2Fportlayer%2Fexecution)
+[Issues relating to portlayer execution](https://github.com/vmware/vic/labels/component%2Fportlayer%2Fexecution)
 
 
 #### Port Layer - Interaction
@@ -103,7 +103,7 @@ If the execution portion of the port layer is unavailable then only container ma
 
 If the interaction portions are unavailable it impacts ongoing use of interactive sessions and potentially loses chunks of the container output (unless serialized to vSphere infrastructure as an intermediate step - [container logging](#container-logging), [container base](#container-base), and [tether](#tether)) are the other components that factor into the log persistence discussion).
 
-[Issues relating to this component](https://github.com/vmware/vic/labels/component%2Fportlayer%2Finteraction)
+[Issues relating to portlayer interaction](https://github.com/vmware/vic/labels/component%2Fportlayer%2Finteraction)
 
 
 #### Port Layer - Networking
@@ -111,16 +111,16 @@ If the interaction portions are unavailable it impacts ongoing use of interactiv
 A Virtual Container Host presents a cluster of resource as a single endpoint, so while we must also supply transparent cross host networking, it must be there without requiring any user configuration.
 In conjunction with [the provisioning workflows](#vic-machine) it should also allow mapping of specific vSphere/NSX networks into the docker network namespace, and mapping of existing network entities (e.g. database servers) into the docker container namespace with defined aliases.
 
-Initial design and implementation details for MVP are [here](networking/MVPnetworking.md).
+Initial design and implementation details for MVP are [here](networking/README.md).
 
-[Issues relating to this component](https://github.com/vmware/vic/labels/component%2Fportlayer%2Fnetwork)
+[Issues relating to portlayer networking](https://github.com/vmware/vic/labels/component%2Fportlayer%2Fnetwork)
 
 
 #### Port Layer - Storage
 
 This provides the storage manipulation portions of the port layer, including container image storage, layering along with volume creation and manipulation. [imagec](#imagec) uses this component to translate registry images into a layered format the can be used directly by vSphere, namely VMDK disk chains.
 
-[Issues relating to this component](https://github.com/vmware/vic/labels/component%2Fportlayer%2Fstorage)
+[Issues relating to portlayer storage](https://github.com/vmware/vic/labels/component%2Fportlayer%2Fstorage)
 
 
 ## Install and management
@@ -133,16 +133,16 @@ There is a significant amount of vSphere specific behaviour that needs to be exp
 Ideally we'll provide vic-machine in a form that makes it viable as a docker-machine plugin, allowing some reuse of existing knowledge, with VIC specific options and behaviours presented to the user via plugin options.
 It is possible that the value provided by keeping the _docker-machine_ naming is overshadowed by the flexibility that changing the name provides (perhaps _vic-machine_) - lacking concrete knowledge one way or another, this component is currently named vic-machine so as to avoid confusion with the docker binary.
 
-While deployment of a Virtual Container Host is relatively simple if performed by someone with vSphere administrative credentials, conversations with customers have shown that the self-provisioning facet of docker is a significant portion of it's value. This component, in conjunction with [the validating proxy](#validating_proxy), provides self-provisioning capabilities and the requisite delegation of authority and specification of restrictions.
+While deployment of a Virtual Container Host is relatively simple if performed by someone with vSphere administrative credentials, conversations with customers have shown that the self-provisioning facet of docker is a significant portion of it's value. This component, in conjunction with [the validating proxy](#validating-proxy), provides self-provisioning capabilities and the requisite delegation of authority and specification of restrictions.
 
-[Issues relating to this component](https://github.com/vmware/vic/labels/component%2Fvic-machine)
+[Issues relating to vic-machine](https://github.com/vmware/vic/labels/component%2Fvic-machine)
 
 
 ### Validating Proxy
 
 The self-provisioning workflow for vSphere Integrated Containers is an authority delegation and resource restriction model. That requires that there be an active endpoint accessible to both the user and the viadmin that is capable of generating delgation tokens to be passed to the user, and validating those that are received from a user. The validating proxy fills this niche; the described proxy is very, very simple and does not include elements such as directory services integration.
 
-[Issues relating to this component](https://github.com/vmware/vic/labels/component%2Fvalidating-proxy)
+[Issues relating to validating proxy](https://github.com/vmware/vic/labels/component%2Fvalidating-proxy)
 
 
 
@@ -156,7 +156,7 @@ As with [access to NSX management](#nsx-authenticating-agent), vSphere orchestra
 * no access to management networks is required for infrastructure orchestration
 
 
-[Issues relating to this component](https://github.com/vmware/vic/labels/component%2Fvmomi-authenticating-agent)
+[Issues relating to vmomi agent](https://github.com/vmware/vic/labels/component%2Fvmomi-authenticating-agent)
 
 
 # vSocket Relay Agent
@@ -169,7 +169,7 @@ Network serial ports as a communication channel have several drawbacks:
 
 The alternative we're looking at is vSocket (uses PIO based VMCI communication), however that it Host<->VM only so we need a mechanism to relay that communication to the VCH. Initially it's expected that the Host->VCH communication still be a TCP connection for a staged delivery approach, with the longer term being an agent<->agent relay between the two hosts.
 
-[Issues relating to this component](https://github.com/vmware/vic/labels/component%2Fvsocket-relay-agent)
+[Issues relating to vsocket relay agent](https://github.com/vmware/vic/labels/component%2Fvsocket-relay-agent)
 
 
 ### NSX Authenticating Agent
@@ -179,4 +179,4 @@ As with [access to vSphere](#vmomi-authenticating-agent), NSX management interac
 * IDS style inspection and validation can be performed on each infrastructure operation performed by a VCH
 * no access to management networks is required for infrastructure orchestration
 
-[Issues relating to this component](https://github.com/vmware/vic/labels/component%2Fnsx-authenticating-agent)
+[Issues relating to nsx agent](https://github.com/vmware/vic/labels/component%2Fnsx-authenticating-agent)
