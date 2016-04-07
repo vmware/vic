@@ -13,6 +13,7 @@
    * [Install the vSphere Web Client Extension for vSphere Integrated Containers](install_vic_client_extension.md)
    * [Deploy a Virtual Container Host from the vSphere Web Client](deploy_vch_from_vsphere.md)
 * [Using TLS Authentication with vSphere Integrated Containers](using_tls_with_vic.md)
+* [Add Pre- and Post-Initialization Scripts to the vSphere Integrated Containers Appliance](pre_post_install_scripts.md)
 * [Troubleshooting vSphere Integrated Containers Installation](troubleshoot_vic_install.md)
    * [Installation Fails with Firewall Ruleset Validation Error](ts_firewall_error.md)
    * [Login to Target Fails Due to an Incorrect Username or Password](ts_incorrect_username_password.md)
