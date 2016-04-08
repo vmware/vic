@@ -24,6 +24,8 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/stringid"
+	"github.com/vmware/vic/cmd/tether/utils"
 	"github.com/vmware/vic/metadata"
 )
 
@@ -92,6 +94,12 @@ func run(loader metadata.ConfigLoader, configblob string) error {
 		}
 
 		logConfig(Config)
+
+		if err := utils.SetHostname(stringid.TruncateID(Config.ID)); err != nil {
+			detail := fmt.Sprintf("failed to set hostname: %s", err)
+			log.Error(detail)
+			return errors.New(detail)
+		}
 
 		// process the sessions and launch if needed
 		tty := false

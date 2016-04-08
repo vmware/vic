@@ -196,7 +196,7 @@ endif
 
 $(tether-linux): $(shell find cmd/tether -name '*.go') metadata/*.go
 	@echo building tether-linux
-	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./$@ ./cmd/tether
+	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./cmd/tether
 
 $(tether-windows): $(shell find cmd/tether -name '*.go') metadata/*.go
 	@echo building tether-windows
