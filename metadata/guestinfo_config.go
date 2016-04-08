@@ -17,6 +17,6 @@ package metadata
 const key = "vic.configblob"
 
 type ConfigLoader interface {
-	LoadConfig(string) (*ExecutorConfig, error)
+	LoadConfig() (*ExecutorConfig, error)
 	StoreConfig(*ExecutorConfig) (string, error)
 }

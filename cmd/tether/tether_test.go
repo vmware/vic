@@ -59,7 +59,7 @@ type TestMissingBinaryConfig struct{}
 func (c *TestMissingBinaryConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
 	return "", errors.New("not implemented")
 }
-func (c *TestMissingBinaryConfig) LoadConfig(blobl string) (*metadata.ExecutorConfig, error) {
+func (c *TestMissingBinaryConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 	config := metadata.ExecutorConfig{}
 
 	config.ID = "deadbeef"
@@ -119,7 +119,7 @@ type TestAbsPathConfig struct{}
 func (c *TestAbsPathConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
 	return "", errors.New("not implemented")
 }
-func (c *TestAbsPathConfig) LoadConfig(blobl string) (*metadata.ExecutorConfig, error) {
+func (c *TestAbsPathConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 	config := metadata.ExecutorConfig{}
 
 	config.ID = "deadbeef"

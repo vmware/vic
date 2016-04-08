@@ -58,15 +58,14 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # switch to the new root
     echo "prepping for switch to container filesystem"
 
-    # copy the init binary into the new root - ideally I'd run this purely from memory without a presence on the filesystem
-    cp /bin/tether ${MOUNTPOINT}/.tether/tether-bin
+    if [ -x ${MOUNTPOINT}/bin/sh ]; then
+        # copy the init binary into the new root - ideally I'd run this purely from memory without a presence on the filesystem
+        cp /bin/tether ${MOUNTPOINT}/.tether/tether-bin
 
-    /sbin/rpctool -get "vic.configblob" > ${MOUNTPOINT}/.tether/tether.config
+        # temporary hack for waiting the network
+        while ! ip addr show eno1 | grep " inet "; do sleep 1;done
 
-    # temporary hack for waiting the network
-    while ! ip addr show eno1 | grep " inet "; do sleep 1;done
-
-    cat << EOF > ${MOUNTPOINT}/.tether/tether
+        cat << EOF > ${MOUNTPOINT}/.tether/tether
 #!/bin/sh
 
 if [ -x /sbin/ip -o -x /bin/ip ]; then
@@ -81,9 +80,13 @@ if [ -x /sbin/ip -o -x /bin/ip ]; then
     ip route add default via \$gateway dev eno1
 fi
 
-/.tether/tether-bin $(cat ${MOUNTPOINT}/.tether/tether.config)
+/.tether/tether-bin
 EOF
-    chmod +x  ${MOUNTPOINT}/.tether/tether
+        chmod +x ${MOUNTPOINT}/.tether/tether
+    else
+        # Just copy tether as container vm doesn't come with sh
+        cp /bin/tether ${MOUNTPOINT}/.tether/tether
+    fi
 
     # We don't want eth0 for --net=none passed
     if [ -d /sys/module/vmxnet3/ ] && [ $(cat /sys/class/net/eno1/address) == "ff:ff:ff:ff:ff:ff" ]; then

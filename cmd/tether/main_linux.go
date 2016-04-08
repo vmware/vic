@@ -39,7 +39,7 @@ func main() {
 		return
 	}
 
-	err = run(metadata.New(), os.Args[1])
+	err = run(metadata.New())
 	if err != nil {
 		log.Error(err)
 		return

@@ -29,7 +29,7 @@ func New() ConfigLoader {
 }
 
 // LoadConfig will do so from the VMs GuestInfo
-func (c guestInfoConfig) LoadConfig(blob string) (*ExecutorConfig, error) {
+func (c guestInfoConfig) LoadConfig() (*ExecutorConfig, error) {
 	return nil, errors.New("rpc config not yet implemented for windows")
 }
 

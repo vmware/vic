@@ -16,7 +16,6 @@ package main
 
 import (
 	_ "net/http/pprof"
-	"os"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/metadata"
@@ -29,8 +28,7 @@ func main() {
 	// where to look for the various devices and files related to tether
 	pathPrefix = "com://"
 
-	err := run(metadata.New(), os.Args[1])
-
+	err = run(metadata.New())
 	if err != nil {
 		log.Error(err)
 	} else {
