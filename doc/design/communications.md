@@ -1,6 +1,6 @@
 # Communications
 
-How the interactions between the
+This document discusses the communication channels that are possible between components, but not what flows over them. This is essentially Layer2/3 and Layer7 is discussed in the documents relating to specific components that talk over these channels.
 
 
 ## ContainerVM to Appliance
