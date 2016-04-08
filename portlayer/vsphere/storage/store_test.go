@@ -51,9 +51,7 @@ func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, error) {
 		return nil, nil, err
 	}
 
-	s := &portlayer.NameLookupCache{
-		DataStore: vsImageStore,
-	}
+	s := portlayer.NewLookupCache(vsImageStore)
 
 	return s, client, nil
 }
@@ -143,6 +141,13 @@ func TestCreateImageLayers(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
+
+	// Get an image that doesn't exist and check for error
+	grbg, err := cacheStore.GetImage(context.TODO(), storeURL, "garbage")
+	if !assert.Error(t, err) || !assert.Nil(t, grbg) {
+		return
+	}
+
 	// base this image off scratch
 	parent, err := cacheStore.GetImage(context.TODO(), storeURL, portlayer.Scratch.ID)
 	if !assert.NoError(t, err) {
