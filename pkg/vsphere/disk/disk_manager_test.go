@@ -47,9 +47,10 @@ func TestCreateAndDetach(t *testing.T) {
 	fm.MakeDirectory(context.TODO(), imagestore, nil, true)
 
 	vdm, err := NewDiskManager(context.TODO(), client)
-	if err.Error() == "can't find the hosting vm" {
+	if err != nil && err.Error() == "can't find the hosting vm" {
 		t.Skip("Skipping: test must be run in a VM")
 	}
+
 	if !assert.NoError(t, err) || !assert.NotNil(t, vdm) {
 		return
 	}
