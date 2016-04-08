@@ -177,13 +177,13 @@ integration-tests: Dockerfile.integration-tests tests/imagec.bats tests/helpers/
 	@docker build -t imagec_tests -f Dockerfile.integration-tests .
 	docker run -e BIN=$(BIN) --rm imagec_tests
 
-TEST_DIRS=github.com/vmware/vic/cmd/tether/...
+TEST_DIRS=github.com/vmware/vic/cmd/tether
 TEST_DIRS+=github.com/vmware/vic/cmd/imagec
 TEST_DIRS+=github.com/vmware/vic/cmd/vicadmin
 TEST_DIRS+=github.com/vmware/vic/cmd/rpctool
-TEST_DIRS+=github.com/vmware/vic/portlayer/...
-TEST_DIRS+=github.com/vmware/vic/pkg/...
-TEST_DIRS+=github.com/vmware/vic/apiservers/portlayer/...
+TEST_DIRS+=github.com/vmware/vic/portlayer
+TEST_DIRS+=github.com/vmware/vic/pkg
+TEST_DIRS+=github.com/vmware/vic/apiservers/portlayer
 
 test:
 	# test everything but vendor
@@ -191,7 +191,7 @@ ifdef DRONE
 	@echo generate coverage report
 	scripts/coverage.sh $(TEST_DIRS)
 else
-	$(foreach var,$(TEST_DIRS), $(GO) test -v $(TEST_OPTS) $(var);)
+	$(foreach var,$(TEST_DIRS), $(GO) test -tags mock -v $(TEST_OPTS) $(var)/...;)
 endif
 
 $(tether-linux): $(shell find cmd/tether -name '*.go') metadata/*.go

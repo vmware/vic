@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build !mock,!mock_hostname
+
 package utils
 
 import (
@@ -22,6 +24,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/pkg/trace"
 )
+
+var hostnameFile = "/etc/hostname"
 
 // SetHostname sets both the kernel hostname and /etc/hostname to the specified string
 func SetHostname(hostname string) error {
@@ -40,16 +44,16 @@ func SetHostname(hostname string) error {
 	log.Debugf("Updated kernel hostname")
 
 	// update /etc/hostname to match
-	err = ioutil.WriteFile("/etc/hostname", []byte(hostname), 0644)
+	err = ioutil.WriteFile(pathPrefix+hostnameFile, []byte(hostname), 0644)
 	if err != nil {
-		log.Errorf("Failed to update hostname in /etc/hostname")
+		log.Errorf("Failed to update hostname in %s%s", pathPrefix, hostnameFile)
 
 		// revert the hostname
 		if old != "" {
 			log.Warnf("Reverting kernel hostname to %s", old)
 			err2 := syscall.Sethostname([]byte(old))
 			if err2 != nil {
-				log.Errorf("Unable to revert kernel hostname - kernel and /etc/hostname are out of sync! Error: %s", err2)
+				log.Errorf("Unable to revert kernel hostname - kernel and hostname file are out of sync! Error: %s", err2)
 			}
 		}
 
