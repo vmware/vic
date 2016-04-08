@@ -42,6 +42,20 @@ Cons:
 * serial port access and access semantics differ significantly between OSes
 
 
+### Pipe back serial port with relay agent
+The pipe backed serial port is a mechanism provided by vSphere that maps serial port IO to a named pipe on the ESX host. This allows an agent on the host to act as a relay for that data.
+
+Pros:
+* does not require Enterprise license
+* serial support can be assumed in most OSes
+* does not inhibit vMotion
+
+Cons:
+* requires agent on all hosts in the cluster that will run containerVMs
+* requires route from host to appliance VM
+* serial port access and access semantics differ significantly between OSes
+
+
 #### vSocket relay
 [vSocket relay](components.md#vsocket-relay-agent) makes use of the paravirtual vSocket mechanism for VM to Host communication. This model requires a agent running on all ESX hosts in the cluster that can receive incoming vSocket communications and forward them to the appliance.
 
