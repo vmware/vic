@@ -197,10 +197,7 @@ func TestCreateImageLayers(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, writtenImage.ID, vsImage.ID)
-		assert.Equal(t, writtenImage.SelfLink, vsImage.SelfLink)
-		assert.Equal(t, writtenImage.Store, vsImage.Store)
-		assert.Equal(t, writtenImage.Metadata, vsImage.Metadata)
+		assert.Equal(t, writtenImage, vsImage)
 
 		// make the next image a child of the one we just created
 		parent = writtenImage

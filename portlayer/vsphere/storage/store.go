@@ -50,6 +50,14 @@ type ImageStore struct {
 
 	// govmomi session
 	s *session.Session
+
+	// Parent relationships
+	// This will go away when First Class Disk support is added to vsphere.
+	// Currently, we can't get a disk spec for a disk outside of creating the
+	// disk (and the spec).  This spec has the parent relationship for the
+	// disk.  So, for now, persist this data in the datastore and look it up
+	// when we need it.
+	parents *parentM
 }
 
 func NewImageStore(ctx context.Context, s *session.Session) (*ImageStore, error) {
@@ -58,10 +66,16 @@ func NewImageStore(ctx context.Context, s *session.Session) (*ImageStore, error)
 		return nil, err
 	}
 
+	pm, err := restoreParentMap(ctx, s)
+	if err != nil {
+		return nil, err
+	}
+
 	vis := &ImageStore{
-		dm: dm,
-		fm: object.NewFileManager(s.Vim25()),
-		s:  s,
+		dm:      dm,
+		fm:      object.NewFileManager(s.Vim25()),
+		s:       s,
+		parents: pm,
 	}
 
 	err = vis.makeImageStoreParentDir(ctx)
@@ -240,6 +254,13 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 		if err != nil {
 			return nil, err
 		}
+
+		// persist the relationship
+		v.parents.Add(ID, parent.ID)
+
+		if err = v.parents.Save(ctx); err != nil {
+			return nil, err
+		}
 	}
 
 	// Write the metadata to the datastore
@@ -287,15 +308,22 @@ func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*
 		return nil, err
 	}
 
-	var s url.URL = *store
+	var s = *store
+	var parentURL *url.URL
+
+	parentID := v.parents.Get(ID)
+	if parentID != "" {
+		parentURL, _ = util.ImageURL(storeName, parentID)
+	}
 
 	newImage := &portlayer.Image{
 		ID:       ID,
 		SelfLink: imageURL,
-		// We're relying on the cache for this since we don't currently have a
+		// We're relying on the parent map for this since we don't currently have a
 		// way to get the disk's spec.  See VIC #482 for details.  Parent:
 		// parent.SelfLink,
 		Store:    &s,
+		Parent:   parentURL,
 		Metadata: meta,
 	}
 
