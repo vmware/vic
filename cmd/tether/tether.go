@@ -66,7 +66,7 @@ func LenChildPid() int {
 	return len(childPidTable)
 }
 
-func run(loader metadata.ConfigLoader, configblob string) error {
+func run(loader metadata.ConfigLoader) error {
 	reload = make(chan bool, 1)
 
 	// HACK: workaround file descriptor conflict in pipe2 return from the exec.Command.Start
@@ -86,7 +86,7 @@ func run(loader metadata.ConfigLoader, configblob string) error {
 	reload <- true
 	for _ = range reload {
 		// load the config - this modifies the structure values in place
-		Config, err := loader.LoadConfig(configblob)
+		Config, err := loader.LoadConfig()
 		if err != nil {
 			detail := fmt.Sprintf("failed to load config: %s", err)
 			log.Error(detail)

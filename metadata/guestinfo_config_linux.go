@@ -18,33 +18,33 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
+
+	"github.com/vmware/vmw-guestinfo/rpcvmx"
+	"github.com/vmware/vmw-guestinfo/vmcheck"
 )
 
 type guestInfoConfig struct {
-	// guestinfo *rpcvmx.Config
+	guestinfo *rpcvmx.Config
 }
 
 // New generates a handle to a ConfigLoader
 func New() ConfigLoader {
 	config := guestInfoConfig{}
-	// config.guestinfo = rpcvmx.NewConfig()
+	config.guestinfo = rpcvmx.NewConfig()
 
 	return config
 }
 
 // LoadConfig will do so from the VMs GuestInfo
-func (c guestInfoConfig) LoadConfig(configblob string) (*ExecutorConfig, error) {
-	// commented out until we move rpc tools to pure Go - we need a static binary
-	// if !vmcheck.IsVirtualWorld() {
-	// 	return nil, errors.New("not in a virtual world")
-	// }
+func (c guestInfoConfig) LoadConfig() (*ExecutorConfig, error) {
+	if !vmcheck.IsVirtualWorld() {
+		return nil, errors.New("not in a virtual world")
+	}
 
-	// configblob, err := c.guestinfo.String(key, "")
-	// if err != nil {
-	// 	return nil, err
-	// }
-	if len(configblob) == 0 {
-		return nil, errors.New("failed to retrieve populated config blob from guestinfo." + key)
+	configblob, err := c.guestinfo.String(key, "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve populated config blob from guestinfo. %s: %s", key, err)
 	}
 
 	config := &ExecutorConfig{}
