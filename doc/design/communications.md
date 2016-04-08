@@ -5,6 +5,7 @@ How the interactions between the
 
 ## ContainerVM to Appliance
 There are two types of communication that occur between a containerVM and the [VCH appliance](components.md#appliance):
+
 1. application level network traffic
 2. VIC control channel, which includes user interaction with the container console
 
@@ -13,6 +14,7 @@ This section addresses the VIC control channel
 
 ### Async - guestinfo
 The containerVM guestinfo is used as a persistent, asynch publishing mechanism for specific data related to container state, primarily:
+
 1. assigned DHCP address
 2. error reporting for [containerVM components](#components.md#container)
 3. exit status of the container process
@@ -52,6 +54,7 @@ Pros:
 Cons:
 * requires driver in the OS (easily supplied in the bootstrap image if driver exists)
 * requires agent on all hosts in the cluster that will run containerVMs
+* requires route from host to appliance VM
 
 #### vSocket peer-to-peer relay
 An extension of this approach has the vSocket relay agent forwarding to another vSocket relay agent on the host running the applianceVM, with that connection then relayed via vSocket into the appliance. The pros and cons below are in addition to those without the peer-to-peer relay.
