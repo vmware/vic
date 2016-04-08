@@ -23,7 +23,7 @@ echo "export GOPATH="${BASH_ARGV[1]} >> $pro
 # add GOPATH/bin to the PATH
 echo "export PATH=$PATH:"${BASH_ARGV[1]}"/bin" >> $pro
 
-packages=(curl lsof strace git shellcheck tree mc silversearcher-ag)
+packages=(curl lsof strace git shellcheck tree mc silversearcher-ag jq)
 for package in "${packages[@]}" ; do
     apt-get -y install "$package"
 done
