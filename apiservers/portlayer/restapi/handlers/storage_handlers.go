@@ -72,7 +72,7 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, netC
 	// The imagestore is implemented via a cache which is backed via an
 	// implementation that writes to disks.  The cache is used to avoid
 	// expensive metadata lookups.
-	storageLayer.DataStore = ds
+	storageLayer = spl.NewLookupCache(ds)
 
 	api.StorageCreateImageStoreHandler = storage.CreateImageStoreHandlerFunc(handler.CreateImageStore)
 	api.StorageGetImageHandler = storage.GetImageHandlerFunc(handler.GetImage)
