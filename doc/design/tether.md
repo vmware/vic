@@ -36,6 +36,7 @@ The vast bulk of container operations can be performed without a synchronous con
 The initial communication will be via plain network serial port, configured in client mode:
 
 Overall flow:
+
 1. ContainerVM is powered on
 2. ContainerVM is configured so com1 is a client network serial port targeting the appliance VM
 2. ESX initiates a serial-over-TCP connection to the applianceVM - this link is treated as a reliable bytestream
