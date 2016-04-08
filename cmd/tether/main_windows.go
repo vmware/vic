@@ -28,7 +28,7 @@ func main() {
 	// where to look for the various devices and files related to tether
 	pathPrefix = "com://"
 
-	err = run(metadata.New())
+	err := run(metadata.New())
 	if err != nil {
 		log.Error(err)
 	} else {
