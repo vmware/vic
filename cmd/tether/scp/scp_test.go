@@ -40,7 +40,7 @@ func TestScpToHost(t *testing.T) {
 
 func scpTest(t *testing.T, mode Mode) {
 	port := 0
-	req := &ScpRequest{}
+	req := &Request{}
 	serverWg, err := StartSSHExecServer(&port, req)
 	if err != nil {
 		t.Error(err)
