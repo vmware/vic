@@ -18,7 +18,16 @@ logFileDir="/var/log/vic/"
 mkdir -p "$logFileDir"
 
 nameInterfaces() {
-    for net in $(rpctool -get vch/networks); do
+    echo "Waiting for network interface configuration"
+    while true ; do
+        networks=($(rpctool -get vch/networks))
+        if [ ${#networks[@]} -ne 0 ] ; then
+            break
+        fi
+        sleep 1
+    done
+
+    for net in "${networks[@]}" ; do
         mac=$(rpctool -get vch/networks/$net)
 
         # interface name for mac, with trailing :
