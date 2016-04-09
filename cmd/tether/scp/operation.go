@@ -33,15 +33,15 @@ type opType string
 //Constants
 const (
 	// C0644 6511 test_utils.go
-	BEGIN_FILE   = opType("C")
-	BEGIN_FOLDER = opType("D")
+	BEGINFILE   = opType("C")
+	BEGINFOLDER = opType("D")
 
-	BEGIN_END_FOLDER = opType("0")
-	END_FOLDER       = opType("E")
+	BEGINENDFOLDER = opType("0")
+	ENDFOLDER      = opType("E")
 
 	// Not yet supported
 	// T1449462739 0 1449507489 0
-	UPDATE_TIME = opType("T")
+	UPDATETIME = opType("T")
 
 	END = opType("\x00")
 )
@@ -61,10 +61,10 @@ func Unmarshal(h string) (*Operation, error) {
 
 	s := &Operation{}
 	op := opType(h[0:1])
-	if op == BEGIN_END_FOLDER ||
-		op == END_FOLDER ||
+	if op == BEGINENDFOLDER ||
+		op == ENDFOLDER ||
 		op == END ||
-		op == UPDATE_TIME {
+		op == UPDATETIME {
 
 		return s, nil
 	}
@@ -75,16 +75,16 @@ func Unmarshal(h string) (*Operation, error) {
 	}
 
 	switch op {
-	case BEGIN_FILE:
+	case BEGINFILE:
 		fallthrough
-	case BEGIN_FOLDER:
+	case BEGINFOLDER:
 		mode, err := strconv.ParseUint(res[2], 8, 32)
 		if err != nil {
 			return nil, err
 		}
 		s.Mode = os.FileMode(mode)
 
-		if op == BEGIN_FOLDER {
+		if op == BEGINFOLDER {
 			s.Mode = s.Mode | os.ModeDir
 		} else {
 			s.Size, err = strconv.ParseInt(res[3], 10, 64)
@@ -106,9 +106,9 @@ func (s *Operation) String() string {
 
 	size := s.Size
 
-	typ := BEGIN_FILE
+	typ := BEGINFILE
 	if s.Mode.IsDir() {
-		typ = BEGIN_FOLDER
+		typ = BEGINFOLDER
 		// folders don't have a size.
 		size = 0
 	}

@@ -107,7 +107,7 @@ func (conn *RawConn) Write(b []byte) (n int, err error) {
 }
 
 func (conn *RawConn) Close() error {
-	var closed bool = false
+	var closed bool
 
 	conn.mutex.Lock()
 	closed = conn.closed

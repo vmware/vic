@@ -22,7 +22,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-type ScpRequest struct {
+type Request struct {
 	ch        ssh.Channel
 	pendingFn func()
 }
@@ -40,7 +40,7 @@ type ScpRequest struct {
 // Sink: C0664 968 f
 
 // For copying from a host.  This acts as the server (source).
-func (scp *ScpRequest) Source(path string) (ok bool, payload []byte) {
+func (scp *Request) Source(path string) (ok bool, payload []byte) {
 
 	op, err := OpenFile(path, os.O_RDONLY, 0)
 	if err != nil {
@@ -63,7 +63,7 @@ func (scp *ScpRequest) Source(path string) (ok bool, payload []byte) {
 	return true, nil
 }
 
-func (scp *ScpRequest) Destination(path string) (ok bool, payload []byte) {
+func (scp *Request) Destination(path string) (ok bool, payload []byte) {
 	f := func() {
 
 		op, err := Write(scp.ch, path)
@@ -85,13 +85,13 @@ func (scp *ScpRequest) Destination(path string) (ok bool, payload []byte) {
 	return true, nil
 }
 
-func (scp *ScpRequest) SetChannel(channel *ssh.Channel) {
+func (scp *Request) SetChannel(channel *ssh.Channel) {
 	scp.ch = *channel
 }
 
-func (scp *ScpRequest) GetPendingWork() func() {
+func (scp *Request) GetPendingWork() func() {
 	return scp.pendingFn
 }
 
-func (scp *ScpRequest) ClearPendingWork() {
+func (scp *Request) ClearPendingWork() {
 }

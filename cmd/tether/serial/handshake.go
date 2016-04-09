@@ -94,22 +94,21 @@ func HandshakeClient(conn net.Conn, interval time.Duration) error {
 func readMultiple(conn net.Conn, b []byte) (int, error) {
 	if runtime.GOOS != "windows" {
 		return conn.Read(b)
-	} else {
-		// we want a blocking read, but the behaviour described in the remarks section
-		// here is a problem as we never get the syn in the same read as the rest.
-		// https://msdn.microsoft.com/en-us/library/aa363190(v=VS.85).aspx
-
-		// we know we're never reading single bytes for the handshake, so we hack this
-		// multi read path into place
-		// ideally we'd allow fine tweaking of the ReadIntervalTimeout so that we could
-		// toggle between this behaviour and blocking read at a windows level
-		n, err := conn.Read(b)
-		if err == nil && n == 1 {
-			n, err := conn.Read(b[1:])
-			return n + 1, err
-		}
-		return n, err
 	}
+	// we want a blocking read, but the behaviour described in the remarks section
+	// here is a problem as we never get the syn in the same read as the rest.
+	// https://msdn.microsoft.com/en-us/library/aa363190(v=VS.85).aspx
+
+	// we know we're never reading single bytes for the handshake, so we hack this
+	// multi read path into place
+	// ideally we'd allow fine tweaking of the ReadIntervalTimeout so that we could
+	// toggle between this behaviour and blocking read at a windows level
+	n, err := conn.Read(b)
+	if err == nil && n == 1 {
+		n, err := conn.Read(b[1:])
+		return n + 1, err
+	}
+	return n, err
 }
 
 func HandshakeServer(conn net.Conn, interval time.Duration) {
