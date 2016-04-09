@@ -139,13 +139,11 @@ whitespace:
 	scripts/whitespace-check.sh
 
 # exit 1 if golint complains about anything other than comments
-golintf = $(GOLINT) $(1) | sh -c "! grep -v 'should have comment'"
+golintf = $(GOLINT) $(1) | sh -c "! grep -v 'should have comment'" | sh -c "! grep -v 'comment on exported'"
 
 $(go-lint): $(GOLINT)
 	@echo checking go lint...
-	@ #$(call golintf,github.com/vmware/vic/bootstrap/...) # this is commented out due to number of warnings
-	@$(call golintf,github.com/vmware/vic/cmd/imagec/...)
-	@$(call golintf,github.com/vmware/vic/cmd/vicadmin/...)
+	@$(call golintf,github.com/vmware/vic/cmd/...)
 	@$(call golintf,github.com/vmware/vic/pkg/...)
 	@$(call golintf,github.com/vmware/vic/portlayer/...)
 	@$(call golintf,github.com/vmware/vic/apiservers/portlayer/restapi/handlers/...)
