@@ -195,7 +195,16 @@ func (c *NameLookupCache) ListImages(ctx context.Context, store *url.URL, IDs []
 	// check the store exists
 	_, ok := c.storeCache[*store]
 	if !ok {
-		return nil, fmt.Errorf("store (%s) doesn't exist", store.String())
+		images, err := c.DataStore.ListImages(ctx, store, IDs)
+		if err != nil {
+			return nil, err
+		}
+
+		c.storeCache[*store] = make(map[string]Image)
+
+		for _, v := range images {
+			c.storeCache[*store][v.ID] = *v
+		}
 	}
 
 	var imageList []*Image
