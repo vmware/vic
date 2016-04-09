@@ -34,6 +34,9 @@ type Image struct {
 	Parent *url.URL
 
 	Store *url.URL
+
+	// Metadata associated with the image.
+	Metadata map[string][]byte
 }
 
 func Parse(u *url.URL) (*Image, error) {

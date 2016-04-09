@@ -51,7 +51,11 @@ type MockDataStore struct {
 // GetImageStore checks to see if a named image store exists and returls the
 // URL to it if so or error.
 func (c *MockDataStore) GetImageStore(ctx context.Context, storeName string) (*url.URL, error) {
-	return nil, nil
+	u, err := util.StoreNameToURL(storeName)
+	if err != nil {
+		return nil, err
+	}
+	return nil, fmt.Errorf("store (%s) doesn't exist", u.String())
 }
 
 func (c *MockDataStore) CreateImageStore(ctx context.Context, storeName string) (*url.URL, error) {
@@ -67,11 +71,12 @@ func (c *MockDataStore) ListImageStores(ctx context.Context) ([]*url.URL, error)
 	return nil, nil
 }
 
-func (c *MockDataStore) WriteImage(ctx context.Context, parent *spl.Image, ID string, r io.Reader) (*spl.Image, error) {
+func (c *MockDataStore) WriteImage(ctx context.Context, parent *spl.Image, ID string, meta map[string][]byte, r io.Reader) (*spl.Image, error) {
 	i := spl.Image{
-		ID:     ID,
-		Store:  parent.Store,
-		Parent: parent.SelfLink,
+		ID:       ID,
+		Store:    parent.Store,
+		Parent:   parent.SelfLink,
+		Metadata: meta,
 	}
 
 	return &i, nil
@@ -79,18 +84,20 @@ func (c *MockDataStore) WriteImage(ctx context.Context, parent *spl.Image, ID st
 
 // GetImage gets the specified image from the given store by retreiving it from the cache.
 func (c *MockDataStore) GetImage(ctx context.Context, store *url.URL, ID string) (*spl.Image, error) {
-	return nil, nil
+	if ID == spl.Scratch.ID {
+		return &spl.Image{Store: store}, nil
+	}
+
+	return nil, fmt.Errorf("store (%s) doesn't have image %s", store.String(), ID)
 }
 
 // ListImages resturns a list of Images for a list of IDs, or all if no IDs are passed
 func (c *MockDataStore) ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*spl.Image, error) {
-	return nil, nil
+	return nil, fmt.Errorf("store (%s) doesn't exist", store.String())
 }
 
 func TestCreateImageStore(t *testing.T) {
-	storageLayer = &spl.NameLookupCache{
-		DataStore: &MockDataStore{},
-	}
+	storageLayer = spl.NewLookupCache(&MockDataStore{})
 
 	s := &StorageHandlersImpl{}
 	store := &models.ImageStore{
@@ -125,9 +132,7 @@ func TestCreateImageStore(t *testing.T) {
 }
 
 func TestGetImage(t *testing.T) {
-	storageLayer = &spl.NameLookupCache{
-		DataStore: &MockDataStore{},
-	}
+	storageLayer = spl.NewLookupCache(&MockDataStore{})
 
 	s := &StorageHandlersImpl{}
 
@@ -187,7 +192,7 @@ func TestGetImage(t *testing.T) {
 	}
 
 	// add the image to the store
-	image, err := storageLayer.WriteImage(context.TODO(), &parent, testImageID, testImageSum, nil)
+	image, err := storageLayer.WriteImage(context.TODO(), &parent, testImageID, nil, testImageSum, nil)
 	if !assert.NotNil(t, image) {
 		return
 	}
@@ -212,9 +217,7 @@ func TestGetImage(t *testing.T) {
 }
 
 func TestListImages(t *testing.T) {
-	storageLayer = &spl.NameLookupCache{
-		DataStore: &MockDataStore{},
-	}
+	storageLayer = spl.NewLookupCache(&MockDataStore{})
 
 	s := &StorageHandlersImpl{}
 
@@ -254,7 +257,7 @@ func TestListImages(t *testing.T) {
 	parent.Store = &testStoreURL
 	for i := 1; i < 50; i++ {
 		id := fmt.Sprintf("id-%d", i)
-		img, err := storageLayer.WriteImage(context.TODO(), &parent, id, testImageSum, nil)
+		img, err := storageLayer.WriteImage(context.TODO(), &parent, id, nil, testImageSum, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -304,10 +307,7 @@ func TestListImages(t *testing.T) {
 }
 
 func TestWriteImage(t *testing.T) {
-
-	storageLayer = &spl.NameLookupCache{
-		DataStore: &MockDataStore{},
-	}
+	storageLayer = spl.NewLookupCache(&MockDataStore{})
 
 	// create image store
 	_, err := storageLayer.CreateImageStore(context.TODO(), testStoreName)

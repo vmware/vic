@@ -152,6 +152,9 @@ func (m *Manager) createDiskSpec(childURI, parentURI string, capacity int64, fla
 		CapacityInKB: capacity,
 	}
 
+	// It's possible the VCH has a disk already attached.
+	*disk.VirtualDevice.UnitNumber = -1
+
 	return disk
 }
 
