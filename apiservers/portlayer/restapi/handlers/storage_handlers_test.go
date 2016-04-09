@@ -93,7 +93,7 @@ func (c *MockDataStore) GetImage(ctx context.Context, store *url.URL, ID string)
 
 // ListImages resturns a list of Images for a list of IDs, or all if no IDs are passed
 func (c *MockDataStore) ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*spl.Image, error) {
-	return nil, nil
+	return nil, fmt.Errorf("store (%s) doesn't exist", store.String())
 }
 
 func TestCreateImageStore(t *testing.T) {

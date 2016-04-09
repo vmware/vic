@@ -28,13 +28,15 @@ import (
 
 type MockDataStore struct {
 	// id -> image
-	images map[string]*Image
+	db map[url.URL]map[string]*Image
 }
 
 func NewMockDataStore() *MockDataStore {
-	return &MockDataStore{
-		images: make(map[string]*Image),
+	m := &MockDataStore{
+		db: make(map[url.URL]map[string]*Image),
 	}
+
+	return m
 }
 
 // GetImageStore checks to see if a named image store exists and returls the
@@ -49,6 +51,7 @@ func (c *MockDataStore) CreateImageStore(ctx context.Context, storeName string) 
 		return nil, err
 	}
 
+	c.db[*u] = make(map[string]*Image)
 	return u, nil
 }
 
@@ -64,14 +67,14 @@ func (c *MockDataStore) WriteImage(ctx context.Context, parent *Image, ID string
 		Metadata: meta,
 	}
 
-	c.images[ID] = i
+	c.db[*parent.Store][ID] = i
 
 	return i, nil
 }
 
 // GetImage gets the specified image from the given store by retreiving it from the cache.
 func (c *MockDataStore) GetImage(ctx context.Context, store *url.URL, ID string) (*Image, error) {
-	i, ok := c.images[ID]
+	i, ok := c.db[*store][ID]
 	if !ok {
 		return nil, fmt.Errorf("not found")
 	}
@@ -80,7 +83,11 @@ func (c *MockDataStore) GetImage(ctx context.Context, store *url.URL, ID string)
 
 // ListImages resturns a list of Images for a list of IDs, or all if no IDs are passed
 func (c *MockDataStore) ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*Image, error) {
-	return nil, nil
+	var imageList []*Image
+	for _, i := range c.db[*store] {
+		imageList = append(imageList, i)
+	}
+	return imageList, nil
 }
 
 func TestListImages(t *testing.T) {
@@ -132,6 +139,7 @@ func TestListImages(t *testing.T) {
 	// Check we can retrieve a subset
 	inIDs := []string{"ID-1", "ID-2", "ID-3"}
 	outImages, err = s.ListImages(context.TODO(), storeURL, inIDs)
+
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -198,6 +206,26 @@ func TestImageStoreRestart(t *testing.T) {
 	secondCache.DataStore = nil
 	for id, expectedImg := range expectedImages {
 		img, err := secondCache.GetImage(context.TODO(), storeURL, id)
+		if !assert.NoError(t, err) || !assert.Equal(t, expectedImg, img) {
+			return
+		}
+	}
+
+	// Same should happen with a third cache when image list is called
+	thirdCache := NewLookupCache(ds)
+	imageList, err := thirdCache.ListImages(context.TODO(), storeURL, nil)
+	if !assert.NoError(t, err) || !assert.NotNil(t, imageList) {
+		return
+	}
+
+	// add 1 for scratch
+	if !assert.Equal(t, len(expectedImages)+1, len(imageList)) {
+		return
+	}
+
+	// check the image data is the same
+	for id, expectedImg := range expectedImages {
+		img, err := thirdCache.GetImage(context.TODO(), storeURL, id)
 		if !assert.NoError(t, err) || !assert.Equal(t, expectedImg, img) {
 			return
 		}

@@ -68,7 +68,37 @@ func (c *NameLookupCache) GetImageStore(ctx context.Context, storeName string) (
 	defer c.storeCacheLock.Unlock()
 	_, ok := c.storeCache[*u]
 	if !ok {
-		return nil, os.ErrNotExist
+		// Store isn't in the cache.  Look it up in the datastore.
+		storeName, err := util.StoreName(store)
+		if err != nil {
+			return nil, err
+		}
+
+		// If the store doesn't exist, we'll fall out here.
+		_, err = c.DataStore.GetImageStore(ctx, storeName)
+		if err != nil {
+			return nil, err
+		}
+
+		c.storeCache[*store] = make(map[string]Image)
+
+		// Fall out here if there are no images.  We should at least have a scratch.
+		images, err := c.DataStore.ListImages(ctx, store, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		c.storeCache[*store] = make(map[string]Image)
+
+		// add the images we retrieved to the cache.
+		for _, v := range images {
+			c.storeCache[*store][v.ID] = *v
+		}
+
+		// Assert there's a scratch
+		if _, ok = c.storeCache[*store][Scratch.ID]; !ok {
+			return nil, fmt.Errorf("Scratch does not exist.  Imagestore is corrrupt.")
+		}
 	}
 
 	return u, nil
@@ -189,15 +219,20 @@ func (c *NameLookupCache) GetImage(ctx context.Context, store *url.URL, ID strin
 
 // ListImages resturns a list of Images for a list of IDs, or all if no IDs are passed
 func (c *NameLookupCache) ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*Image, error) {
+	storeName, err := util.StoreName(store)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check the store exists before we start iterating it.  This will populate the cache if it's empty.
+	if _, err := c.GetImageStore(ctx, storeName); err != nil {
+		return nil, err
+	}
+
 	c.storeCacheLock.Lock()
 	defer c.storeCacheLock.Unlock()
 
-	// check the store exists
-	_, ok := c.storeCache[*store]
-	if !ok {
-		return nil, fmt.Errorf("store (%s) doesn't exist", store.String())
-	}
-
+	// Filter the results
 	var imageList []*Image
 	if len(IDs) > 0 {
 		for _, id := range IDs {
