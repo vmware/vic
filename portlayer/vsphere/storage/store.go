@@ -164,7 +164,7 @@ func (v *ImageStore) ListImageStores(ctx context.Context) ([]*url.URL, error) {
 		return nil, err
 	}
 
-	images := []*url.URL{}
+	stores := []*url.URL{}
 	for _, f := range res.File {
 		folder, ok := f.(*types.FolderFileInfo)
 		if !ok {
@@ -174,11 +174,11 @@ func (v *ImageStore) ListImageStores(ctx context.Context) ([]*url.URL, error) {
 		if err != nil {
 			return nil, err
 		}
-		images = append(images, u)
+		stores = append(stores, u)
 
 	}
 
-	return images, nil
+	return stores, nil
 }
 
 // WriteImage creates a new image layer from the given parent.
@@ -331,7 +331,38 @@ func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*
 }
 
 func (v *ImageStore) ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*portlayer.Image, error) {
-	return nil, fmt.Errorf("not yet implemented")
+
+	storeName, err := util.StoreName(store)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := lsDir(ctx, v.s.Datastore, v.datastorePath(v.imageStorePath(storeName)))
+	if err != nil {
+		return nil, err
+	}
+
+	images := []*portlayer.Image{}
+	for _, f := range res.File {
+		file, ok := f.(*types.FileInfo)
+		if !ok {
+			continue
+		}
+
+		ID := file.Path
+		if ID == portlayer.Scratch.ID {
+			continue
+		}
+
+		img, err := v.GetImage(ctx, store, ID)
+		if err != nil {
+			return nil, err
+		}
+
+		images = append(images, img)
+	}
+
+	return images, nil
 }
 
 // Write the opaque metadata blobs (by name) for an image.  We create a

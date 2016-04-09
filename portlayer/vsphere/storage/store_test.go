@@ -125,7 +125,7 @@ func TestListImageStore(t *testing.T) {
 
 // Creates a tar archive in memory for each layer and uses this to test image creation of layers
 func TestCreateImageLayers(t *testing.T) {
-	numLayers := 3
+	numLayers := 4
 
 	cacheStore, client, err := setup(t)
 	if !assert.NoError(t, err) {
@@ -157,6 +157,9 @@ func TestCreateImageLayers(t *testing.T) {
 	// Keep a list of all files we're extracting via layers so we can verify
 	// they exist in the leaf layer.  Ext adds lost+found, so add it here.
 	expectedFilesOnDisk := []string{"lost+found"}
+
+	// Keep a list of images we created
+	expectedImages := make(map[string]*portlayer.Image)
 
 	for layer := 0; layer < numLayers; layer++ {
 
@@ -196,6 +199,8 @@ func TestCreateImageLayers(t *testing.T) {
 			return
 		}
 
+		expectedImages[dirName] = writtenImage
+
 		// Get the image directly via the vsphere image store impl.
 		vsImage, err := vsStore.GetImage(context.TODO(), parent.Store, dirName)
 		if !assert.NoError(t, err) || !assert.NotNil(t, vsImage) {
@@ -206,6 +211,17 @@ func TestCreateImageLayers(t *testing.T) {
 
 		// make the next image a child of the one we just created
 		parent = writtenImage
+	}
+
+	// Test list images on the datastore
+	listedImages, err := vsStore.ListImages(context.TODO(), parent.Store, nil)
+	if !assert.NoError(t, err) || !assert.NotNil(t, listedImages) {
+		return
+	}
+	for _, img := range listedImages {
+		if !assert.Equal(t, expectedImages[img.ID], img) {
+			return
+		}
 	}
 
 	// verify the disk's data by attaching the last layer rdonly
