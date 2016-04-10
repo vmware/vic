@@ -15,35 +15,16 @@
 package main
 
 import (
-	_ "net/http/pprof"
-
-	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/metadata"
+	"golang.org/x/net/context"
 )
 
-func main() {
-	// get the windows service logic running so that we can play well in that mode
-	runService("VMware Tether", false)
+// ops is here so we can switch the impl for test mocking
+var ops osops
 
-	// where to look for the various devices and files related to tether
-	pathPrefix = "com://"
-	// the OS ops to use
-	ops = &osopsWin{}
-
-	server = &attachServerSSH{}
-	err := run(metadata.New())
-	if err != nil {
-		log.Error(err)
-	} else {
-		log.Info("Clean exit from tether")
-	}
-
-	halt()
-}
-
-// exit reports completion detail in persistent fashion then cleanly
-// shuts down the system
-func halt() {
-	log.Infof("Powering off the system")
-	// TODO: windows fast halt command
+type osops interface {
+	SetHostname(hostname string) error
+	Apply(endpoint *metadata.NetworkEndpoint) error
+	MountLabel(label, target string, ctx context.Context) error
+	Fork(config *metadata.ExecutorConfig) error
 }

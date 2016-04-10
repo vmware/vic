@@ -38,8 +38,10 @@ var hostsFile = "/etc/hosts"
 var resolvFile = "/etc/resolv.conf"
 var byLabelDir = "/dev/disk/by-label"
 
+type osopsLinux struct{}
+
 // SetHostname sets both the kernel hostname and /etc/hostname to the specified string
-func SetHostname(hostname string) error {
+func (t *osopsLinux) SetHostname(hostname string) error {
 	defer trace.End(trace.Begin("setting hostname to " + hostname))
 
 	old, err := os.Hostname()
@@ -105,7 +107,7 @@ func linkByAddress(address string) (netlink.Link, error) {
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
-func Apply(endpoint *metadata.NetworkEndpoint) error {
+func (t *osopsLinux) Apply(endpoint *metadata.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
 
 	// Locate interface
@@ -207,7 +209,7 @@ func Apply(endpoint *metadata.NetworkEndpoint) error {
 
 // MountLabel performs a mount with the source treated as a disk label
 // This assumes that /dev/disk/by-label is being populated, probably by udev
-func MountLabel(label, target string, ctx context.Context) error {
+func (t *osopsLinux) MountLabel(label, target string, ctx context.Context) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", label, target)))
 
 	if err := os.MkdirAll(target, 0600); err != nil {
@@ -243,7 +245,7 @@ func MountLabel(label, target string, ctx context.Context) error {
 }
 
 // Fork triggers vmfork and handles the necessary pre/post OS level operations
-func Fork(config *metadata.ExecutorConfig) error {
+func (t *osopsLinux) Fork(config *metadata.ExecutorConfig) error {
 	// unload vmxnet3 module
 
 	// fork

@@ -31,6 +31,9 @@ func main() {
 	// where to look for the various devices and files related to tether
 	pathPrefix = "/.tether"
 
+	// the OS ops to use
+	ops = &osopsLinux{}
+
 	// TODO: hard code executor initialization status reporting via guestinfo here
 	err := createDevices()
 	if err != nil {
@@ -39,6 +42,7 @@ func main() {
 		return
 	}
 
+	server = &attachServerSSH{}
 	err = run(metadata.New())
 	if err != nil {
 		log.Error(err)

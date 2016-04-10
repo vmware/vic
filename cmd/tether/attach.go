@@ -52,7 +52,12 @@ type signalMsg struct {
 	Signal string
 }
 
-var attachServer *attachServerSSH
+var server attachServer
+
+type attachServer interface {
+	start() error
+	stop()
+}
 
 // conn is held directly as it's how we stop the attach server
 type attachServerSSH struct {
@@ -64,6 +69,10 @@ type attachServerSSH struct {
 
 // start is not thread safe with stop
 func (t *attachServerSSH) start() error {
+	if t == nil {
+		return errors.New("attach server is not configured")
+	}
+
 	if t.enabled {
 		return nil
 	}
@@ -96,6 +105,7 @@ func (t *attachServerSSH) start() error {
 	}
 	t.config.AddHostKey(pkey)
 
+	t.enabled = true
 	go t.run()
 
 	return nil
@@ -103,7 +113,7 @@ func (t *attachServerSSH) start() error {
 
 // stop is not thread safe with start
 func (t *attachServerSSH) stop() {
-	if !t.enabled {
+	if t == nil || !t.enabled {
 		return
 	}
 
@@ -114,7 +124,8 @@ func (t *attachServerSSH) stop() {
 	}
 }
 
-// start will establish an ssh server listening on the backchannel
+// run should not be called directly, but via start
+// run will establish an ssh server listening on the backchannel
 func (t *attachServerSSH) run() error {
 	var sConn *ssh.ServerConn
 	var chans <-chan ssh.NewChannel
@@ -196,7 +207,12 @@ func (t *attachServerSSH) run() error {
 			dmwStdout.Add(channel)
 			dmwStderr.Add(channel.Stderr())
 
-			go t.channelMux(requests, session.Cmd.Cmd.Process, nil)
+			// cleanup on detach from the session
+			detach := func() {
+				dmwStdout.Remove(channel)
+				dmwStderr.Add(channel.Stderr())
+			}
+			go t.channelMux(requests, session.Cmd.Cmd.Process, nil, detach)
 			continue
 		}
 
@@ -206,7 +222,11 @@ func (t *attachServerSSH) run() error {
 		ptysession.writer.Add(channel)
 		// PTY merges stdout & stderr so the two are the same
 
-		go t.channelMux(requests, session.Cmd.Cmd.Process, ptysession.pty)
+		// cleanup on detach from the session
+		detach := func() {
+			ptysession.writer.Remove(channel)
+		}
+		go t.channelMux(requests, session.Cmd.Cmd.Process, ptysession.pty, detach)
 	}
 
 	log.Println("incoming attach channel closed")
@@ -253,7 +273,7 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 	}
 }
 
-func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process, pty *os.File) {
+func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process, pty *os.File, detach func()) {
 	var err error
 	for req := range in {
 		var pendingFn func()
@@ -304,5 +324,8 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 			pendingFn = nil
 		}
 	}
+
+	detach()
+
 	log.Println("incoming attach request channel closed")
 }

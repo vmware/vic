@@ -99,18 +99,18 @@ func run(loader metadata.ConfigLoader) error {
 	reload <- true
 	for _ = range reload {
 		// load the config - this modifies the structure values in place
-		config, err := loader.LoadConfig()
+		config, err = loader.LoadConfig()
 		if err != nil {
 			detail := fmt.Sprintf("failed to load config: %s", err)
 			log.Error(detail)
-			// we don't attempt to recover from this - our async backchannel isn't working
+			// we don't attempt to recover from this - our async config and reporting channel isn't working
 			// as expected so just exit
 			return errors.New(detail)
 		}
 
 		logConfig(config)
 
-		if err := SetHostname(stringid.TruncateID(config.ID)); err != nil {
+		if err := ops.SetHostname(stringid.TruncateID(config.ID)); err != nil {
 			detail := fmt.Sprintf("failed to set hostname: %s", err)
 			log.Error(detail)
 			// we don't attempt to recover from this - it's a fundemental misconfiguration
@@ -128,7 +128,7 @@ func run(loader metadata.ConfigLoader) error {
 
 			if session.Attach {
 				// this will return nil if already running
-				err := attachServer.start()
+				err := server.start()
 				if err != nil {
 					detail := fmt.Sprintf("unable to start attach server: %s", err)
 					log.Error(detail)
@@ -159,8 +159,9 @@ func run(loader metadata.ConfigLoader) error {
 			// TODO
 		}
 
+		// none of the sessions allows attach, so stop the server
 		if !attach {
-			attachServer.stop()
+			server.stop()
 		}
 	}
 
@@ -268,7 +269,7 @@ func forkHandler() {
 		// TODO: record fork trigger in Config and persist
 
 		// TODO: do we need to rebind session executions stdio to /dev/null or to files?
-		err := Fork(config)
+		err := ops.Fork(config)
 		if err != nil {
 			log.Errorf("vmfork failed:%s\n", err)
 			// TODO: how do we handle fork failure behaviour at a container level?

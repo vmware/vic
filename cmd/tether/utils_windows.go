@@ -24,15 +24,17 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
+type osopsWin struct{}
+
 // SetHostname sets the system hostname
-func SetHostname(hostname string) error {
+func (t *osopsWin) SetHostname(hostname string) error {
 	defer trace.End(trace.Begin("setting hostname to " + hostname))
 
 	return errors.New("not implemented on windows")
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
-func Apply(endpoint *metadata.NetworkEndpoint) error {
+func (t *osopsWin) Apply(endpoint *metadata.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
 
 	return errors.New("not implemented on windows")
@@ -40,13 +42,13 @@ func Apply(endpoint *metadata.NetworkEndpoint) error {
 
 // MountLabel performs a mount with the source treated as a disk label
 // This assumes that /dev/disk/by-label is being populated, probably by udev
-func MountLabel(label, target string, ctx context.Context) error {
+func (t *osopsWin) MountLabel(label, target string, ctx context.Context) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", label, target)))
 
 	return errors.New("not implemented on windows")
 }
 
 // Fork triggers a vmfork, address the pre and post-fork operations necessary at an OS level
-func Fork(config *metadata.ExecutorConfig) error {
+func (t *osopsWin) Fork(config *metadata.ExecutorConfig) error {
 	return errors.New("not implemented on windows")
 }
