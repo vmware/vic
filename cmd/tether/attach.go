@@ -1,3 +1,17 @@
+// Copyright 2016 VMware, Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
@@ -10,6 +24,10 @@ import (
 	"github.com/vmware/vic/pkg/dio"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
+)
+
+const (
+	attachChannelType = "attach"
 )
 
 var (
@@ -160,8 +178,8 @@ func (t *attachServerSSH) run() error {
 	log.Println("ready to service attach requests")
 	// Service the incoming channels
 	for attachchan := range chans {
-		// The only channel type we'll support is "attach"
-		if attachchan.ChannelType() != "attach" {
+		// The only channel type we'll support is attach
+		if attachchan.ChannelType() != attachChannelType {
 			detail := fmt.Sprintf("unknown channel type %s", attachchan.ChannelType())
 			log.Error(detail)
 			attachchan.Reject(ssh.UnknownChannelType, "unknown channel type")

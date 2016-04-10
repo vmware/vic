@@ -22,15 +22,15 @@ import (
 
 // DynamicMultiWriter adds dynamic add/remove to the base multiwriter behaviour
 type DynamicMultiWriter interface {
-	io.Writer
-	Add(...io.Writer)
-	Remove(io.Writer)
+	io.WriteCloser
+	Add(...io.WriteCloser)
+	Remove(io.WriteCloser)
 }
 
 type multiWriter struct {
 	mutex sync.Mutex
 
-	writers []io.Writer
+	writers []io.WriteCloser
 }
 
 func (t *multiWriter) Write(p []byte) (n int, err error) {
@@ -51,7 +51,7 @@ func (t *multiWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func (t *multiWriter) Add(writer ...io.Writer) {
+func (t *multiWriter) Add(writer ...io.WriteCloser) {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 
@@ -60,7 +60,7 @@ func (t *multiWriter) Add(writer ...io.Writer) {
 
 // Remove doesn't return an error if element isn't found as the end result is
 // identical
-func (t *multiWriter) Remove(writer io.Writer) {
+func (t *multiWriter) Remove(writer io.WriteCloser) {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 
@@ -74,10 +74,25 @@ func (t *multiWriter) Remove(writer io.Writer) {
 	}
 }
 
+func (t *multiWriter) Close() error {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	var err error
+	for _, w := range t.writers {
+		err2 := w.Close()
+		if err2 != nil && err == nil {
+			err = err2
+		}
+	}
+
+	return err
+}
+
 // MultiWriter extends io.MultiWriter to allow add/remove of writers dynamically
 // without disrupting existing writing
-func MultiWriter(writers ...io.Writer) DynamicMultiWriter {
-	w := make([]io.Writer, len(writers))
+func MultiWriter(writers ...io.WriteCloser) DynamicMultiWriter {
+	w := make([]io.WriteCloser, len(writers))
 	copy(w, writers)
 	return &multiWriter{writers: w}
 }

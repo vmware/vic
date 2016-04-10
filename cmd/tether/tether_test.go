@@ -22,13 +22,18 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path"
 	"runtime"
 	"testing"
+
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/net/context"
 
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/vmware/vic/metadata"
@@ -52,10 +57,19 @@ func TestMain(m *testing.M) {
 // createFakeDevices creates regular files or pipes in place of the char devices used
 // in a full VM
 func createFakeDevices() error {
-	// create serial devices
-	for i := 0; i < 3; i++ {
-		path := fmt.Sprintf("%s/ttyS%d", pathPrefix, i)
-		_, err := os.Create(path)
+	var err error
+	// create control channel
+	path := fmt.Sprintf("%s/ttyS0", pathPrefix)
+	mockOps.pipe, err = os.OpenFile(path, os.O_CREATE, os.ModeNamedPipe)
+	if err != nil {
+		detail := fmt.Sprintf("failed to create %s for com0: %s", path, err)
+		return errors.New(detail)
+	}
+
+	// others are non-interactive
+	for i := 1; i < 3; i++ {
+		path = fmt.Sprintf("%s/ttyS%d", pathPrefix, i)
+		_, err = os.Create(path)
 		if err != nil {
 			detail := fmt.Sprintf("failed to create %s for com%d: %s", path, i+1, err)
 			return errors.New(detail)
@@ -63,8 +77,8 @@ func createFakeDevices() error {
 	}
 
 	// make an access to urandom
-	path := fmt.Sprintf("%s/urandom", pathPrefix)
-	err := os.Symlink("/dev/urandom", path)
+	path = fmt.Sprintf("%s/urandom", pathPrefix)
+	err = os.Symlink("/dev/urandom", path)
 	if err != nil {
 		detail := fmt.Sprintf("failed to create urandom access: %s", err)
 		return errors.New(detail)
@@ -275,7 +289,7 @@ func TestAbsPath(t *testing.T) {
 	}
 
 	// check the exit code was sets
-	if !testConfig.Sessions["feeddead"].Cmd.Cmd.ProcessState.Success() {
+	if !config.Sessions["feeddead"].Cmd.Cmd.ProcessState.Success() {
 		t.Error("reference process 'data --reference=/' did not exit cleanly")
 		return
 	}
@@ -536,9 +550,54 @@ func TestAttach(t *testing.T) {
 		return
 	}
 
-	// TEST LOGIC GOES HERE
-	_ = testConfig
+	// create client on the mock pipe
+	conn, err := backchannel(context.Background())
+	if err != nil {
+		t.Error(err)
+		return
+	}
 
+	cconfig := &ssh.ClientConfig{
+		User: "daemon",
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			return nil
+		},
+	}
+
+	// create the SSH client
+	sConn, chans, reqs, err := ssh.NewClientConn(conn, "notappliable", cconfig)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer sConn.Close()
+	client := ssh.NewClient(sConn, chans, reqs)
+
+	session, err := SSHAttach(client, testConfig.ID)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	stdout := session.Stdout()
+
+	testBytes := []byte("hello world!")
+	// read from session into buffer
+	buf := &bytes.Buffer{}
+	done := make(chan bool)
+	go func() { io.Copy(buf, stdout); done <- true }()
+
+	// write something to echo
+	session.Stdin().Write(testBytes)
+	session.Stdin().Close()
+
+	// wait for the close to propogate
+	<-done
+
+	if !bytes.Equal(buf.Bytes(), testBytes) {
+		t.Errorf("expected: %s, actual: %s", string(testBytes), buf.String())
+		return
+	}
 }
 
 //

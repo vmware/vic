@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 
 	"golang.org/x/net/context"
 
@@ -26,7 +27,11 @@ import (
 )
 
 type osopsMock struct {
+	// allow tests to tell when the struct has been updated
 	updated chan bool
+	// shortcut for the control channel - named pipe
+	pipe *os.File
+
 	// the hostname of the system
 	hostname string
 	// the ip configuration for mac indexed interfaces
