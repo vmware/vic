@@ -20,13 +20,14 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"sync"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/vmware/vic/cmd/tether/utils"
 	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/pkg/dio"
 )
 
 // pathPrefix is used for testing - it allows for creating and manupulating files outside of
@@ -39,8 +40,19 @@ var pathPrefix string
 // 2. post-vmfork
 var reload chan bool
 
-// Config holds the main configuration for the executor
-var Config *metadata.ExecutorConfig
+// config holds the main configuration for the executor
+var config *metadata.ExecutorConfig
+
+// pty holds the map of sessions to PTY multiwriters for now - should be updated when we can
+// extend the core config structs
+var ptys map[string]*ptySession
+
+// ptySession groups up those elements we need for pty enabled sessions
+type ptySession struct {
+	pty    *os.File
+	writer dio.DynamicMultiWriter
+	wait   sync.WaitGroup
+}
 
 // Set of child PIDs created by us.
 var childPidTable = make(map[int]*metadata.Cmd)
@@ -68,6 +80,7 @@ func LenChildPid() int {
 
 func run(loader metadata.ConfigLoader) error {
 	reload = make(chan bool, 1)
+	ptys = make(map[string]*ptySession)
 
 	// HACK: workaround file descriptor conflict in pipe2 return from the exec.Command.Start
 	// it's not clear whether this is a cross platform issue, or still an issue as of this commit
@@ -86,31 +99,41 @@ func run(loader metadata.ConfigLoader) error {
 	reload <- true
 	for _ = range reload {
 		// load the config - this modifies the structure values in place
-		Config, err := loader.LoadConfig()
+		config, err := loader.LoadConfig()
 		if err != nil {
 			detail := fmt.Sprintf("failed to load config: %s", err)
 			log.Error(detail)
+			// we don't attempt to recover from this - our async backchannel isn't working
+			// as expected so just exit
 			return errors.New(detail)
 		}
 
-		logConfig(Config)
+		logConfig(config)
 
-		if err := utils.SetHostname(stringid.TruncateID(Config.ID)); err != nil {
+		if err := SetHostname(stringid.TruncateID(config.ID)); err != nil {
 			detail := fmt.Sprintf("failed to set hostname: %s", err)
 			log.Error(detail)
+			// we don't attempt to recover from this - it's a fundemental misconfiguration
+			// so just exit
 			return errors.New(detail)
 		}
 
 		// process the sessions and launch if needed
-		tty := false
-		for id, session := range Config.Sessions {
+		attach := false
+		for id, session := range config.Sessions {
 			var proc *os.Process
 			if session.Cmd.Cmd != nil {
 				proc = session.Cmd.Cmd.Process
 			}
 
-			if !tty && session.Tty {
-				tty = true
+			if session.Attach {
+				// this will return nil if already running
+				err := attachServer.start()
+				if err != nil {
+					detail := fmt.Sprintf("unable to start attach server: %s", err)
+					log.Error(detail)
+					continue
+				}
 			}
 
 			// check if session is alive and well
@@ -124,6 +147,8 @@ func run(loader metadata.ConfigLoader) error {
 				if err != nil {
 					detail := fmt.Sprintf("failed to launch %s for %s: %s", session.Cmd.Path, id, err)
 					log.Error(detail)
+
+					// TODO: check if failure to launch this is fatal to everything in this containerVM
 					return errors.New(detail)
 				}
 
@@ -134,23 +159,8 @@ func run(loader metadata.ConfigLoader) error {
 			// TODO
 		}
 
-		// launch the ssh server for interaction if any of the components were assigned a tty
-		if tty {
-			_, err := backchannel()
-			if err != nil {
-				detail := fmt.Sprintf("failed to open backchannel: %s", err)
-				log.Error(detail)
-				return errors.New(detail)
-			}
-
-			// handler := NewGlobalHandler(Config.ID)
-			// log.Info("Starting ssh handler for backchannel")
-			// err = StartTether(conn, &Config, handler)
-			// if err != nil {
-			// 	detail := fmt.Sprintf("failed to start server on backchannel: %s", err)
-			// 	log.Error(detail)
-			// 	exit(BACKCHANNEL, 2, detail)
-			// }
+		if !attach {
+			attachServer.stop()
 		}
 	}
 
@@ -200,15 +210,15 @@ func launch(session *metadata.SessionConfig) error {
 		defer childPidTableMutex.Unlock()
 
 		log.Infof("Launching command %+q\n", cmd.Args)
+		cmd.Stdin = nil
+		cmd.Stdout = writer
+		cmd.Stderr = writer
 		if !session.Tty {
-			cmd.Stdin = nil
-			cmd.Stdout = writer
-			cmd.Stderr = writer
-
 			err = cmd.Start()
 		} else {
-			// pty, err = pty.Start(cmd)
-			err = errors.New("TTY enabled sessions not yet supported")
+			var p *ptySession
+			p, err = establishPty(cmd)
+			ptys[session.ID] = p
 		}
 
 		if err != nil {
@@ -236,4 +246,37 @@ func logConfig(config *metadata.ExecutorConfig) {
 	}
 
 	log.Debug(string(json))
+}
+
+func forkHandler() {
+	log.Println("Registering fork trigger signal handler")
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("Recovered in StartConnectionManager", r)
+		}
+	}()
+
+	incoming := make(chan os.Signal, 1)
+	signal.Notify(incoming, syscall.SIGABRT)
+
+	log.Println("SIGABRT handling initialized for fork support")
+	for _ = range incoming {
+		// validate that this is a fork trigger and not just a random signal from
+		// container processes
+		log.Println("Received SIGABRT - preparing to transition to fork parent")
+
+		// TODO: record fork trigger in Config and persist
+
+		// TODO: do we need to rebind session executions stdio to /dev/null or to files?
+		err := Fork(config)
+		if err != nil {
+			log.Errorf("vmfork failed:%s\n", err)
+			// TODO: how do we handle fork failure behaviour at a container level?
+			// Does it differ if triggered manually vs via pointcut conditions in a build file
+			continue
+		}
+
+		// trigger a reload of the configuration
+		reload <- true
+	}
 }

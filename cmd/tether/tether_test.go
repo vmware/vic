@@ -26,7 +26,6 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/vmware/vic/cmd/tether/utils"
 	"github.com/vmware/vic/metadata"
 )
 
@@ -132,9 +131,53 @@ func (c *TestAbsPathConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 			},
 			Tty: false,
 			Cmd: metadata.Cmd{
-				// test relative path
+				// test abs path
 				Path: "/bin/date",
 				Args: []string{"date", "--reference=/"},
+				Env:  []string{},
+				Dir:  "/",
+			},
+		},
+	}
+
+	return &config, nil
+}
+
+type TestSetHostnameConfig struct{}
+
+func (c *TestSetHostnameConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
+	return "", errors.New("not implemented")
+}
+func (c *TestSetHostnameConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
+	config := metadata.ExecutorConfig{}
+
+	config.ID = "deadbeef"
+	config.Name = "tether_test_executor"
+
+	return &config, nil
+}
+
+type TestAttachConfig struct{}
+
+func (c *TestAttachConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
+	return "", errors.New("not implemented")
+}
+func (c *TestAttachConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
+	config := metadata.ExecutorConfig{}
+
+	config.ID = "deadbeef"
+	config.Name = "tether_test_executor"
+	config.Sessions = map[string]metadata.SessionConfig{
+		"feebdaed": metadata.SessionConfig{
+			Common: metadata.Common{
+				ID:   "feebdaed",
+				Name: "tether_test_session",
+			},
+			Tty: false,
+			Cmd: metadata.Cmd{
+				Path: "/bin/grep",
+				// grep, matching everything, reading from stdin
+				Args: []string{"/bin/grep", ".", "-"},
 				Env:  []string{},
 				Dir:  "/",
 			},
@@ -155,8 +198,6 @@ func testSetup(t *testing.T) {
 		fmt.Println(err)
 		t.Error(err)
 	}
-
-	utils.SetPathPrefix(pathPrefix)
 
 	err = os.MkdirAll(pathPrefix, 0777)
 	if err != nil {
@@ -238,10 +279,28 @@ func TestMissingBinary(t *testing.T) {
 	testTeardown(t)
 }
 
+func TestSetHostname(t *testing.T) {
+	testSetup(t)
+
+	// err := run(&TestIPConfig{})
+
+	testTeardown(t)
+}
+
 func TestSetIpAddress(t *testing.T) {
 	testSetup(t)
 
 	// err := run(&TestIPConfig{})
+
+	testTeardown(t)
+}
+
+func TestAttach(t *testing.T) {
+	testSetup(t)
+
+	if err := run(&TestAttachConfig{}); err != nil {
+		t.Error(err)
+	}
 
 	testTeardown(t)
 }

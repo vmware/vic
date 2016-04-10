@@ -12,20 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !mock,!mock_interfaces
-
-package utils
+package main
 
 import (
 	"errors"
+	"fmt"
+
+	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/trace"
 )
 
+// SetHostname sets the system hostname
+func SetHostname(hostname string) error {
+	defer trace.End(trace.Begin("setting hostname to " + hostname))
+
+	return errors.New("not implemented on OSX")
+}
+
 // Apply takes the network endpoint configuration and applies it to the system
 func Apply(endpoint *metadata.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
 
-	return errors.New("not implemented on windows")
+	return errors.New("not implemented on OSX")
+}
+
+// MountLabel performs a mount with the source treated as a disk label
+// This assumes that /dev/disk/by-label is being populated, probably by udev
+func MountLabel(label, target string, ctx context.Context) error {
+	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", label, target)))
+
+	return errors.New("not implemented on OSX")
+}
+
+func Fork(config *metadata.ExecutorConfig) error {
+	return errors.New("not implemented on OSX")
 }

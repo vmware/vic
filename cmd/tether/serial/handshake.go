@@ -17,11 +17,16 @@ package serial
 import (
 	"bytes"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"runtime"
 	"time"
+
+	"golang.org/x/net/context"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 const (
@@ -40,50 +45,47 @@ func HandshakeClient(conn net.Conn, interval time.Duration) error {
 	synack[0] = ACK
 	ack[0] = ACK
 
-	for {
-		// read until the incoming channel is empty
-		// TODO: raw socket doesn't yet have read timeout
-		fmt.Printf("purging incoming channel\n")
-		conn.SetReadDeadline(time.Now().Add(time.Duration(10 * time.Millisecond)))
-		for n, err := conn.Read(buf); n != 0 || err == nil; n, err = conn.Read(buf) {
-			fmt.Printf("discarding following %d bytes from input channel\n", n)
-			fmt.Printf("%+v\n", buf[0:n])
-		}
-
-		fmt.Println("Incoming channel is purged of content")
-
-		// set the read deadline for timeout
-		conn.SetReadDeadline(time.Now().Add(interval))
-
-		rand.Read(syn[1:])
-
-		fmt.Println("writing syn")
-		conn.Write(syn)
-		fmt.Println("reading synack")
-		if n, err := io.ReadFull(conn, buf[:3]); n != 3 || err != nil {
-			fmt.Printf("Failed to read expected SYN-ACK: n=%d, err=%s buf=[%#x]\n", n, err, buf[:n])
-			if err != nil {
-				return err
-			}
-
-			continue
-		}
-
-		synack[1] = syn[1] + 1
-		if bytes.Compare(synack, buf[:2]) != 0 {
-			fmt.Printf("Did not receive synack: %#x != %#x\n", synack, buf[:2])
-			conn.Write([]byte{NAK})
-			//time.Sleep(time.Duration(10 * time.Second))
-			continue
-		} else {
-			fmt.Printf("Received synack: %#x == %#x\n", synack, buf[:2])
-		}
-
-		fmt.Println("writing ack")
-		ack[1] = buf[2] + 1
-		conn.Write(ack)
-		break
+	// read until the incoming channel is empty
+	// TODO: raw socket doesn't yet have read timeout
+	log.Debug("purging incoming channel")
+	conn.SetReadDeadline(time.Now().Add(time.Duration(10 * time.Millisecond)))
+	for n, err := conn.Read(buf); n != 0 || err == nil; n, err = conn.Read(buf) {
+		log.Debugf("discarding following %d bytes from input channel\n", n)
+		log.Debugf("%+v\n", buf[0:n])
 	}
+
+	log.Debug("Incoming channel is purged of content")
+
+	// set the read deadline for timeout
+	conn.SetReadDeadline(time.Now().Add(interval))
+
+	rand.Read(syn[1:])
+
+	log.Debug("writing syn")
+	conn.Write(syn)
+	log.Debug("reading synack")
+	if n, err := io.ReadFull(conn, buf[:3]); n != 3 || err != nil {
+		msg := fmt.Sprintf("Failed to read expected SYN-ACK: n=%d, err=%s buf=[%#x]", n, err, buf[:n])
+		if err != nil {
+			log.Error(msg)
+		} else {
+			log.Debug(msg)
+		}
+		return errors.New(msg)
+	}
+
+	synack[1] = syn[1] + 1
+	if bytes.Compare(synack, buf[:2]) != 0 {
+		msg := fmt.Sprintf("Did not receive synack: %#x != %#x", synack, buf[:2])
+		log.Debugf(msg)
+		conn.Write([]byte{NAK})
+		return errors.New(msg)
+	}
+
+	log.Debugf("Received synack: %#x == %#x\n", synack, buf[:2])
+	log.Debug("writing ack")
+	ack[1] = buf[2] + 1
+	conn.Write(ack)
 
 	// disable the read timeout
 	conn.SetReadDeadline(time.Time{})
@@ -95,6 +97,7 @@ func readMultiple(conn net.Conn, b []byte) (int, error) {
 	if runtime.GOOS != "windows" {
 		return conn.Read(b)
 	}
+
 	// we want a blocking read, but the behaviour described in the remarks section
 	// here is a problem as we never get the syn in the same read as the rest.
 	// https://msdn.microsoft.com/en-us/library/aa363190(v=VS.85).aspx
@@ -111,65 +114,68 @@ func readMultiple(conn net.Conn, b []byte) (int, error) {
 	return n, err
 }
 
-func HandshakeServer(conn net.Conn, interval time.Duration) {
+func HandshakeServer(ctx context.Context, conn net.Conn) error {
 	syn := make([]byte, 3)
 	synack := make([]byte, 3)
 	buf := make([]byte, 2)
 	ack := make([]byte, 2)
 
-	for {
-		// set the read deadline for timeout
-		// this has no effect on windows as the deadline is set at port open time
-		conn.SetReadDeadline(time.Now().Add(interval))
-
-		fmt.Println("reading syn")
-		// loop here until we get a valid syn opening. syn is 3 bytes as that will eventually
-		// syn us again if we're offset
-		if n, err := readMultiple(conn, syn); n != 2 || err != nil || syn[0] != SYN {
-			if err != nil {
-				fmt.Printf("Failed to read expected SYN: n=%d, err=%s\n", n, err)
-			} else if syn[0] != SYN {
-				fmt.Printf("Did not receive syn (read %v bytes): %#x != %#x\n", n, SYN, syn[0])
-				conn.Write([]byte{NAK})
-			} else {
-				fmt.Printf("Received syn but expected single sequence byte\n")
-			}
-
-			// to aid in debug we always dump the full handhsake
-			fmt.Printf("read %v bytes: ", n)
-			for i := 0; i < n; i++ {
-				fmt.Printf("%#x ", syn[i])
-			}
-			fmt.Println()
-
-			continue
-		}
-		fmt.Printf("Received syn: %#x\n", syn)
-
-		fmt.Println("writing synack")
-		synack[0] = ACK
-		synack[1] = syn[1] + 1
-		rand.Read(synack[2:])
-
-		conn.Write(synack)
-
-		ack[0] = ACK
-		ack[1] = synack[2] + 1
-		fmt.Println("reading ack")
-		readMultiple(conn, buf)
-		if bytes.Compare(ack, buf) != 0 {
-			fmt.Printf("Did not receive ack: %#x != %#x\n", ack, buf)
-			conn.Write([]byte{NAK})
-			//time.Sleep(time.Duration(10 * time.Second))
-			continue
-		} else {
-			fmt.Printf("Received ack: %#x == %#x\n", ack, buf)
-		}
-
-		break
+	// set the read deadline for timeout
+	// this has no effect on windows as the deadline is set at port open time
+	deadline, ok := ctx.Deadline()
+	if ok {
+		conn.SetReadDeadline(deadline)
 	}
+
+	fmt.Println("reading syn")
+	// loop here until we get a valid syn opening. syn is 3 bytes as that will eventually
+	// syn us again if we're offset
+	if n, err := readMultiple(conn, syn); n != 2 || err != nil || syn[0] != SYN {
+		var msg string
+		if err != nil {
+			msg = fmt.Sprintf("Failed to read expected SYN: n=%d, err=%s", n, err)
+		} else if syn[0] != SYN {
+			msg = fmt.Sprintf("Did not receive syn (read %v bytes): %#x != %#x", n, SYN, syn[0])
+			conn.Write([]byte{NAK})
+		} else {
+			msg = fmt.Sprintf("Received syn but expected single sequence byte")
+		}
+
+		// to aid in debug we always dump the full handhsake
+		log.Debug(msg)
+		log.Debugf("read %v bytes: ", n)
+		for i := 0; i < n; i++ {
+			log.Debugf("%#x ", syn[i])
+		}
+		log.Debug("")
+
+		return errors.New(msg)
+	}
+	log.Debugf("Received syn: %#x\n", syn)
+
+	log.Debug("writing synack")
+	synack[0] = ACK
+	synack[1] = syn[1] + 1
+	rand.Read(synack[2:])
+
+	conn.Write(synack)
+
+	ack[0] = ACK
+	ack[1] = synack[2] + 1
+	log.Debug("reading ack")
+	readMultiple(conn, buf)
+	if bytes.Compare(ack, buf) != 0 {
+		msg := fmt.Sprintf("Did not receive ack: %#x != %#x", ack, buf)
+		log.Debug(msg)
+		conn.Write([]byte{NAK})
+		return errors.New(msg)
+	}
+
+	log.Debugf("Received ack: %#x == %#x\n", ack, buf)
 
 	// disable the read timeout
 	// this has no effect on windows as the deadline is set at port open time
 	conn.SetReadDeadline(time.Time{})
+
+	return nil
 }

@@ -124,6 +124,9 @@ type SessionConfig struct {
 	// The primary process for the session
 	Cmd Cmd
 
+	// Allow attach
+	Attach bool
+
 	// Allocate a tty or not
 	Tty bool
 

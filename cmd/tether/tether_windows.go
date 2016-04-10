@@ -22,8 +22,12 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 	winserial "github.com/tarm/serial"
@@ -117,11 +121,12 @@ func setup() error {
 	return nil
 }
 
-func backchannel() (net.Conn, error) {
+func backchannel(ctx context.Context) (net.Conn, error) {
 	com := "COM1"
 
 	// redirect backchannel to the serial connection
 	log.Infof("opening %s%s for backchannel", pathPrefix, com)
+	// TODO: set read timeout on port during open
 	_, err := OpenPort(fmt.Sprintf("%s%s", pathPrefix, com))
 	if err != nil {
 		detail := fmt.Sprintf("failed to open serial port for backchannel: %s", err)
@@ -142,10 +147,21 @@ func backchannel() (net.Conn, error) {
 		return nil, errors.New(detail)
 	}
 
-	// HACK: currently RawConn dosn't implement timeout
-	serial.HandshakeServer(conn, time.Duration(10*time.Second))
-
-	return conn, nil
+	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
+	ticker := time.NewTicker(50 * time.Millisecond)
+	for {
+		select {
+		case <-ticker.C:
+			err := serial.HandshakeServer(ctx, conn)
+			if err == nil {
+				return conn, nil
+			}
+		case <-ctx.Done():
+			conn.Close()
+			ticker.Stop()
+			return nil, ctx.Err()
+		}
+	}
 }
 
 // sessionLogWriter returns a writer that will persist the session output
@@ -180,4 +196,16 @@ func processEnvOS(env []string) []string {
 	}
 
 	return env
+}
+
+func signalProcess(process *os.Process, sig ssh.Signal) error {
+	return errors.New("unimplemented on windows")
+}
+
+func establishPty(cmd *exec.Cmd) (*ptySession, error) {
+	return nil, errors.New("unimplemented on windows")
+}
+
+func resizePty(pty uintptr, winSize *WindowChangeMsg) error {
+	return errors.New("unimplemented on windows")
 }

@@ -23,13 +23,20 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
+	"unsafe"
+
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/kr/pty"
 	"github.com/vmware/vic/cmd/tether/serial"
+	"github.com/vmware/vic/pkg/dio"
 )
 
 // Mkdev will hopefully get rolled into go.sys at some point
@@ -105,7 +112,7 @@ func setup() error {
 	return nil
 }
 
-func backchannel() (net.Conn, error) {
+func backchannel(ctx context.Context) (net.Conn, error) {
 	log.Info("opening ttyS0 for backchannel")
 	f, err := os.OpenFile(pathPrefix+"/ttyS0", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, 0777)
 	if err != nil {
@@ -123,10 +130,21 @@ func backchannel() (net.Conn, error) {
 		return nil, errors.New(detail)
 	}
 
-	// HACK: currently RawConn dosn't implement timeout
-	serial.HandshakeServer(conn, time.Duration(10*time.Second))
-
-	return conn, nil
+	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
+	ticker := time.NewTicker(50 * time.Millisecond)
+	for {
+		select {
+		case <-ticker.C:
+			err := serial.HandshakeServer(ctx, conn)
+			if err == nil {
+				return conn, nil
+			}
+		case <-ctx.Done():
+			conn.Close()
+			ticker.Stop()
+			return nil, ctx.Err()
+		}
+	}
 }
 
 // processEnvOS does OS specific checking and munging on the process environment prior to launch
@@ -159,5 +177,53 @@ func sessionLogWriter() (io.Writer, error) {
 	}
 
 	// use multi-writer so it goes to both screen and session log
-	return io.MultiWriter(f, os.Stdout), nil
+	return dio.MultiWriter(f, os.Stdout), nil
+}
+
+func establishPty(cmd *exec.Cmd) (*ptySession, error) {
+	// TODO: if we want to allow raw output to the log so that subsequent tty enabled
+	// processing receives the control characters then we should be binding the PTY
+	// during attach, and using the same path we have for non-tty here
+	writer := cmd.Stdout
+
+	p := &ptySession{}
+	var err error
+	p.pty, err = pty.Start(cmd)
+	if p.pty != nil {
+		p.writer = dio.MultiWriter(writer)
+
+		// TODO: do we need to ensure all reads have completed before calling Wait on the process?
+		// it frees up all resources - does that mean it frees the output buffers?
+		go io.Copy(p.writer, p.pty)
+		// lazily initialize the stdin copy
+	}
+
+	return p, err
+}
+
+// The syscall struct
+type winsize struct {
+	wsRow    uint16
+	wsCol    uint16
+	wsXpixel uint16
+	wsYpixel uint16
+}
+
+func resizePty(pty uintptr, winSize *WindowChangeMsg) error {
+	ws := &winsize{uint16(winSize.Rows), uint16(winSize.Columns), uint16(winSize.WidthPx), uint16(winSize.HeightPx)}
+	_, _, errno := syscall.Syscall(
+		syscall.SYS_IOCTL,
+		pty,
+		syscall.TIOCSWINSZ,
+		uintptr(unsafe.Pointer(ws)),
+	)
+	if errno != 0 {
+		return syscall.Errno(errno)
+	}
+	return nil
+}
+
+func signalProcess(process *os.Process, sig ssh.Signal) error {
+	s := syscall.Signal(Signals[sig])
+	return process.Signal(s)
 }

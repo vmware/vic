@@ -14,4 +14,56 @@
 
 package main
 
-func run() {}
+import (
+	"errors"
+	"io"
+	"net"
+	"os"
+	"os/exec"
+	"strings"
+
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/net/context"
+)
+
+func setup() error {
+}
+
+func backchannel(ctx context.Context) (net.Conn, error) {
+	return nil, errors.New("unimplemented on OSX")
+}
+
+// sessionLogWriter returns a writer that will persist the session output
+func sessionLogWriter() (io.Writer, error) {
+	return nil, errors.New("unimplemented on OSX")
+}
+
+// processEnvOS does OS specific checking and munging on the process environment prior to launch
+func processEnvOS(env []string) []string {
+	// TODO: figure out how we're going to specify user and pass all the settings along
+	// in the meantime, hardcode HOME to /root
+	homeIndex := -1
+	for i, tuple := range env {
+		if strings.HasPrefix(tuple, "HOME=") {
+			homeIndex = i
+			break
+		}
+	}
+	if homeIndex == -1 {
+		return append(env, "HOME=/root")
+	}
+
+	return env
+}
+
+func establishPty(cmd *exec.Cmd) (*ptySession, error) {
+	return nil, errors.New("unimplemented on OSX")
+}
+
+func resizePty(pty uintptr, winSize *WindowChangeMsg) error {
+	return errors.New("unimplemented on OSX")
+}
+
+func signalProcess(process *os.Process, sig ssh.Signal) error {
+	return nil, errors.New("unimplemented on OSX")
+}
