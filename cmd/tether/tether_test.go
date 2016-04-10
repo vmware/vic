@@ -89,7 +89,7 @@ type TestRelativePathConfig struct{}
 func (c *TestRelativePathConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
 	return "", errors.New("not implemented")
 }
-func (c *TestRelativePathConfig) LoadConfig(blobl string) (*metadata.ExecutorConfig, error) {
+func (c *TestRelativePathConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 	config := metadata.ExecutorConfig{}
 
 	config.ID = "deadbeef"
@@ -155,6 +155,7 @@ func testSetup(t *testing.T) {
 		fmt.Println(err)
 		t.Error(err)
 	}
+
 	utils.SetPathPrefix(pathPrefix)
 
 	err = os.MkdirAll(pathPrefix, 0777)
@@ -181,7 +182,7 @@ func TestRelativePath(t *testing.T) {
 
 	testSetup(t)
 
-	if err := run(&TestRelativePathConfig{}, ""); err != nil {
+	if err := run(&TestRelativePathConfig{}); err != nil {
 		t.Error(err)
 	}
 
@@ -191,7 +192,7 @@ func TestRelativePath(t *testing.T) {
 func TestAbsPath(t *testing.T) {
 	testSetup(t)
 
-	if err := run(&TestAbsPathConfig{}, ""); err != nil {
+	if err := run(&TestAbsPathConfig{}); err != nil {
 		t.Error(err)
 	}
 
@@ -220,7 +221,7 @@ func TestAbsPath(t *testing.T) {
 func TestMissingBinary(t *testing.T) {
 	testSetup(t)
 
-	err := run(&TestMissingBinaryConfig{}, "")
+	err := run(&TestMissingBinaryConfig{})
 	if err == nil {
 		t.Error("Expected error from missing binary")
 	}

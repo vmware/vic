@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build !mock,!mock_interfaces
+
 package utils
 
 import (
@@ -24,7 +26,11 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/pkg/trace"
 )
+
+var hostsFile = "/etc/hosts"
+var resolvFile = "/etc/resolv.conf"
 
 func linkByAddress(address string) (netlink.Link, error) {
 	nis, err := net.Interfaces()
@@ -44,6 +50,8 @@ func linkByAddress(address string) (netlink.Link, error) {
 
 // Apply takes the network endpoint configuration and applies it to the system
 func Apply(endpoint *metadata.NetworkEndpoint) error {
+	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
+
 	// Locate interface
 	link, err := linkByAddress(endpoint.MAC)
 	if err != nil {
@@ -108,7 +116,7 @@ func Apply(endpoint *metadata.NetworkEndpoint) error {
 
 	// Add /etc/hosts entry
 	// TODO - figure out how to name us for each network
-	hosts, err := os.OpenFile(pathPrefix+"/etc/hosts", os.O_APPEND|os.O_WRONLY, 0644)
+	hosts, err := os.OpenFile(pathPrefix+hostsFile, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		detail := fmt.Sprintf("failed to update hosts for endpoint %s: %s", endpoint.Network.Name, err)
 		return errors.New(detail)
@@ -123,9 +131,9 @@ func Apply(endpoint *metadata.NetworkEndpoint) error {
 
 	// Add nameservers
 	// This is incredibly trivial for now - should be updated to a less messy approach
-	resolv, err := os.OpenFile(pathPrefix+"/etc/resolv.conf", os.O_APPEND|os.O_WRONLY, 0644)
+	resolv, err := os.OpenFile(pathPrefix+resolvFile, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		detail := fmt.Sprintf("failed to update resolv.confg for endpoint %s: %s", endpoint.Network.Name, err)
+		detail := fmt.Sprintf("failed to update %s for endpoint %s: %s", resolvFile, endpoint.Network.Name, err)
 		return errors.New(detail)
 	}
 	defer resolv.Close()

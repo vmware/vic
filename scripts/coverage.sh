@@ -37,7 +37,7 @@ generate_cover_data() {
       pkgs=$(go list $dir/... | grep -v /vendor/)
       for pkg in $pkgs; do
           f="$workdir/$(echo $pkg | tr / -).cover"
-          go test -v -covermode="$mode" -coverprofile="$f" "$pkg"
+          go test -tags mock -v -covermode="$mode" -coverprofile="$f" "$pkg"
       done
     done
 

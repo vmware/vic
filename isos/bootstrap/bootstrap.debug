@@ -27,24 +27,20 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # if we don't have a populated init layer, pull from guestinfo
     if [ ! -f ${MOUNTPOINT}/.tether-init/docker-id ]; then
         mount -t tmpfs -o size=1m tmpfs ${MOUNTPOINT}/.tether-init/
-
-        # TODO: check for "No such value" and do something sane if the guestinfo values aren't present
-        /sbin/rpctool -get docker_id > ${MOUNTPOINT}/.tether-init/docker-id
-        /sbin/rpctool -get init_key > ${MOUNTPOINT}/.tether-init/init_key
-
-        # The container will start and connect without the following being correct, so error handling is easier
-        /sbin/rpctool -get hostname > ${MOUNTPOINT}/.tether-init/hostname
-        /sbin/rpctool -get resolv.conf > ${MOUNTPOINT}/.tether-init/resolv.conf
-        echo "127.0.0.1 localhost localhost.localdomain" > ${MOUNTPOINT}/.tether-init/hosts
-
         # create the assumed structure
         # TODO: this cannot be in guest and still not show up in diffs
         mkdir -p ${MOUNTPOINT}/dev ${MOUNTPOINT}/proc ${MOUNTPOINT}/sys ${MOUNTPOINT}/etc
         # ln -sf /proc/mounts ${MOUNTPOINT}/etc/mtab
 
-        touch ${MOUNTPOINT}/etc/hostname && mount --bind ${MOUNTPOINT}/.tether-init/hostname ${MOUNTPOINT}/etc/hostname
-        touch ${MOUNTPOINT}/etc/resolv.conf && mount --bind ${MOUNTPOINT}/.tether-init/resolv.conf ${MOUNTPOINT}/etc/resolv.conf
-        touch ${MOUNTPOINT}/etc/hosts && mount --bind ${MOUNTPOINT}/.tether-init/hosts ${MOUNTPOINT}/etc/hosts
+        # ensure both the source and destination files exist for bind mounting
+        touch ${MOUNTPOINT}/etc/hostname ${MOUNTPOINT}/.tether-init/hostname
+        touch ${MOUNTPOINT}/.tether-init/resolv.conf ${MOUNTPOINT}/.tether-init/resolv.conf
+        touch ${MOUNTPOINT}/etc/hosts
+        echo "127.0.0.1 localhost localhost.localdomain" > ${MOUNTPOINT}/.tether-init/hosts
+
+        mount --bind ${MOUNTPOINT}/.tether-init/hostname ${MOUNTPOINT}/etc/hostname
+        mount --bind ${MOUNTPOINT}/.tether-init/resolv.conf ${MOUNTPOINT}/etc/resolv.conf
+        mount --bind ${MOUNTPOINT}/.tether-init/hosts ${MOUNTPOINT}/etc/hosts
     fi
 
     # this is so we're not exposing the raw container disk if we wouldn't be otherwise

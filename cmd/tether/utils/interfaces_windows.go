@@ -12,35 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+// +build !mock,!mock_interfaces
+
+package utils
 
 import (
-	_ "net/http/pprof"
+	"errors"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/pkg/trace"
 )
 
-func main() {
-	// get the windows service logic running so that we can play well in that mode
-	runService("VMware Tether", false)
+// Apply takes the network endpoint configuration and applies it to the system
+func Apply(endpoint *metadata.NetworkEndpoint) error {
+	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
 
-	// where to look for the various devices and files related to tether
-	pathPrefix = "com://"
-
-	err := run(metadata.New())
-	if err != nil {
-		log.Error(err)
-	} else {
-		log.Info("Clean exit from tether")
-	}
-
-	halt()
-}
-
-// exit reports completion detail in persistent fashion then cleanly
-// shuts down the system
-func halt() {
-	log.Infof("Powering off the system")
-	// TODO: windows fast halt command
+	return errors.New("not implemented on windows")
 }
