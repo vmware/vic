@@ -97,6 +97,12 @@ func TestCreateAndGetImageStore(t *testing.T) {
 	if !assert.Error(t, err) || !assert.Nil(t, u) {
 		return
 	}
+
+	// Test for a store that already exists
+	u, err = vsis.CreateImageStore(context.TODO(), storeName)
+	if !assert.Error(t, err) || !assert.Nil(t, u) || !assert.Equal(t, err, os.ErrExist) {
+		return
+	}
 }
 
 func TestListImageStore(t *testing.T) {

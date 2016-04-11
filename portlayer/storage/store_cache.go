@@ -59,14 +59,16 @@ func NewLookupCache(ds ImageStorer) *NameLookupCache {
 // GetImageStore checks to see if a named image store exists and returls the
 // URL to it if so or error.
 func (c *NameLookupCache) GetImageStore(ctx context.Context, storeName string) (*url.URL, error) {
-	u, err := util.StoreNameToURL(storeName)
+	store, err := util.StoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
 	}
 
 	c.storeCacheLock.Lock()
 	defer c.storeCacheLock.Unlock()
-	_, ok := c.storeCache[*u]
+
+	// check the cache
+	_, ok := c.storeCache[*store]
 	if !ok {
 		// Store isn't in the cache.  Look it up in the datastore.
 		storeName, err := util.StoreName(store)
@@ -88,8 +90,6 @@ func (c *NameLookupCache) GetImageStore(ctx context.Context, storeName string) (
 			return nil, err
 		}
 
-		c.storeCache[*store] = make(map[string]Image)
-
 		// add the images we retrieved to the cache.
 		for _, v := range images {
 			c.storeCache[*store][v.ID] = *v
@@ -101,7 +101,7 @@ func (c *NameLookupCache) GetImageStore(ctx context.Context, storeName string) (
 		}
 	}
 
-	return u, nil
+	return store, nil
 }
 
 func (c *NameLookupCache) CreateImageStore(ctx context.Context, storeName string) (*url.URL, error) {
@@ -173,48 +173,33 @@ func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID stri
 
 // GetImage gets the specified image from the given store by retreiving it from the cache.
 func (c *NameLookupCache) GetImage(ctx context.Context, store *url.URL, ID string) (*Image, error) {
+	storeName, err := util.StoreName(store)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check the store exists
+	if _, err = c.GetImageStore(ctx, storeName); err != nil {
+		return nil, err
+	}
+
 	c.storeCacheLock.Lock()
 	defer c.storeCacheLock.Unlock()
 
-	_, ok := c.storeCache[*store]
-	if !ok {
-		// Store isn't in the cache.  Look it up in the datastore.
-		storeName, err := util.StoreName(store)
-		if err != nil {
-			return nil, err
-		}
-
-		_, err = c.DataStore.GetImageStore(ctx, storeName)
-		if err != nil {
-			return nil, err
-		}
-
-		// Get scratch
-		scratch, err := c.DataStore.GetImage(ctx, store, Scratch.ID)
-		if err != nil {
-			return nil, err
-		}
-
-		// add it to the image store
-		c.storeCache[*store] = make(map[string]Image)
-		c.storeCache[*store][Scratch.ID] = *scratch
-	}
-
-	s := c.storeCache[*store]
-
-	_, ok = s[ID]
+	var ok bool
+	i := &Image{}
+	*i, ok = c.storeCache[*store][ID]
 	if !ok {
 		// Not in the cache.  Try to load it.
-		i, err := c.DataStore.GetImage(ctx, store, ID)
+		i, err = c.DataStore.GetImage(ctx, store, ID)
 		if err != nil {
 			return nil, err
 		}
 
-		s[ID] = *i
+		c.storeCache[*store][ID] = *i
 	}
 
-	i := s[ID]
-	return &i, nil
+	return i, nil
 }
 
 // ListImages resturns a list of Images for a list of IDs, or all if no IDs are passed

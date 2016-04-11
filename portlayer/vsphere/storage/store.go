@@ -128,6 +128,11 @@ func (v *ImageStore) CreateImageStore(ctx context.Context, storeName string) (*u
 
 	log.Infof("Creating imagestore directory %s", imagestore)
 	if err = v.fm.MakeDirectory(ctx, imagestore, nil, false); err != nil {
+		soapFault := soap.ToSoapFault(err)
+		if _, ok := soapFault.VimFault().(types.FileAlreadyExists); ok {
+			// Rest API expects this error
+			err = os.ErrExist
+		}
 		return nil, err
 	}
 
