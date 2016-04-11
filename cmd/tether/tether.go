@@ -43,31 +43,32 @@ var reload chan bool
 // config holds the main configuration for the executor
 var config *metadata.ExecutorConfig
 
-// pty holds the map of sessions to PTY multiwriters for now - should be updated when we can
-// extend the core config structs
-var ptys map[string]*ptySession
+// holds the map of sessions to PTY multiwriters for now - should be updated when we can
+// extend the core config structs and use a map of pointers for Sessions
+var sessions map[string]*liveSession
 
 // ptySession groups up those elements we need for pty enabled sessions
-type ptySession struct {
+type liveSession struct {
 	pty    *os.File
 	writer dio.DynamicMultiWriter
-	wait   sync.WaitGroup
+	reader dio.DynamicMultiReader
+	cmd    *exec.Cmd
 }
 
 // Set of child PIDs created by us.
-var childPidTable = make(map[int]*metadata.Cmd)
+var childPidTable = make(map[int]*metadata.SessionConfig)
 
 // Exclusive access to childPidTable
 var childPidTableMutex = &sync.Mutex{}
 
 // RemoveChildPid is a synchronized accessor for the pid map the deletes the entry and returns the value
-func RemoveChildPid(pid int) (*metadata.Cmd, bool) {
+func RemoveChildPid(pid int) (*metadata.SessionConfig, bool) {
 	childPidTableMutex.Lock()
 	defer childPidTableMutex.Unlock()
 
-	cmd, ok := childPidTable[pid]
+	session, ok := childPidTable[pid]
 	delete(childPidTable, pid)
-	return cmd, ok
+	return session, ok
 }
 
 // LenChildPid returns the number of entries
@@ -80,7 +81,7 @@ func LenChildPid() int {
 
 func run(loader metadata.ConfigLoader) error {
 	reload = make(chan bool, 1)
-	ptys = make(map[string]*ptySession)
+	sessions = make(map[string]*liveSession)
 
 	// HACK: workaround file descriptor conflict in pipe2 return from the exec.Command.Start
 	// it's not clear whether this is a cross platform issue, or still an issue as of this commit
@@ -121,12 +122,16 @@ func run(loader metadata.ConfigLoader) error {
 		// process the sessions and launch if needed
 		attach := false
 		for id, session := range config.Sessions {
+			log.Debugf("Processing config for session %s", session.ID)
 			var proc *os.Process
-			if session.Cmd.Cmd != nil {
-				proc = session.Cmd.Cmd.Process
+			live := sessions[session.ID]
+			if live != nil {
+				proc = live.cmd.Process
 			}
 
 			if session.Attach {
+				attach = true
+				log.Debugf("Session %s is configured for attach", session.ID)
 				// this will return nil if already running
 				err := server.start()
 				if err != nil {
@@ -138,11 +143,13 @@ func run(loader metadata.ConfigLoader) error {
 
 			// check if session is alive and well
 			if proc != nil && proc.Signal(syscall.Signal(0)) != nil {
+				log.Debugf("Process for session %s is already running", session.ID)
 				continue
 			}
 
 			// check if session has never been started
 			if proc == nil {
+				log.Infof("Launching process for session %s\n", session.ID)
 				err := launch(&session)
 				if err != nil {
 					detail := fmt.Sprintf("failed to launch %s for %s: %s", session.Cmd.Path, id, err)
@@ -170,7 +177,7 @@ func run(loader metadata.ConfigLoader) error {
 
 // handleSessionExit processes the result from the session command, records it in persistent
 // maner and determines if the Executor should exit
-func handleSessionExit(cmd *metadata.Cmd) error {
+func handleSessionExit(session *metadata.SessionConfig) error {
 	// flush session log output
 
 	// record exit status
@@ -178,7 +185,10 @@ func handleSessionExit(cmd *metadata.Cmd) error {
 	// check for executor behaviour
 	if LenChildPid() == 0 {
 		// let the main loop exit if there's no more sessions to wait on
-		close(reload)
+		if reload != nil {
+			close(reload)
+			reload = nil
+		}
 	}
 
 	return nil
@@ -187,14 +197,16 @@ func handleSessionExit(cmd *metadata.Cmd) error {
 // launch will launch the command defined in the session.
 // This will return an error if the session fails to launch
 func launch(session *metadata.SessionConfig) error {
-	c := &session.Cmd
-	cmd := &exec.Cmd{
-		Path: c.Path,
-		Args: c.Args,
-		Env:  processEnvOS(c.Env),
-		Dir:  c.Dir,
+	live := &liveSession{
+		cmd: &exec.Cmd{
+			Path: session.Cmd.Path,
+			Args: session.Cmd.Args,
+			Env:  processEnvOS(session.Cmd.Env),
+			Dir:  session.Cmd.Dir,
+		},
 	}
-	c.Cmd = cmd
+
+	sessions[session.ID] = live
 
 	writer, err := sessionLogWriter()
 	if err != nil {
@@ -210,16 +222,14 @@ func launch(session *metadata.SessionConfig) error {
 		childPidTableMutex.Lock()
 		defer childPidTableMutex.Unlock()
 
-		log.Infof("Launching command %+q\n", cmd.Args)
-		cmd.Stdin = nil
-		cmd.Stdout = writer
-		cmd.Stderr = writer
+		log.Infof("Launching command %+q\n", live.cmd.Args)
+		live.cmd.Stdin = dio.MultiReader()
+		live.cmd.Stdout = writer
+		live.cmd.Stderr = writer
 		if !session.Tty {
-			err = cmd.Start()
+			err = live.cmd.Start()
 		} else {
-			var p *ptySession
-			p, err = establishPty(cmd)
-			ptys[session.ID] = p
+			err = establishPty(live)
 		}
 
 		if err != nil {
@@ -229,7 +239,7 @@ func launch(session *metadata.SessionConfig) error {
 		}
 
 		// ChildReaper will use this channel to inform us the wait status of the child.
-		childPidTable[cmd.Process.Pid] = c
+		childPidTable[live.cmd.Process.Pid] = session
 
 		return nil
 	}()

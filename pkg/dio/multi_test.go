@@ -54,7 +54,7 @@ func TestMultiWrite(t *testing.T) {
 	}
 }
 
-func TestAdd(t *testing.T) {
+func TestWriteAdd(t *testing.T) {
 	pipeAR, pipeAW := io.Pipe()
 	pipeBR, pipeBW := io.Pipe()
 
@@ -109,7 +109,7 @@ func TestAdd(t *testing.T) {
 
 }
 
-func TestRemove(t *testing.T) {
+func TestWriteRemove(t *testing.T) {
 	pipeAR, pipeAW := io.Pipe()
 	pipeBR, pipeBW := io.Pipe()
 
@@ -163,6 +163,108 @@ func TestRemove(t *testing.T) {
 	}
 }
 
-func TestConcurrentRemove(t *testing.T) {
+func TestWriteConcurrentRemove(t *testing.T) {
+	t.Skip("not sure how to test concurrency in this case")
+}
+
+func TestMultiRead(t *testing.T) {
+	dataA := "verify base multireader functionA"
+	dataB := "verify base multireader functionB"
+
+	readerA := bytes.NewReader([]byte(dataA))
+	readerB := bytes.NewReader([]byte(dataB))
+
+	mreader := MultiReader(readerA, readerB)
+
+	var buf bytes.Buffer
+
+	// do the read
+	_, err := io.Copy(&buf, mreader)
+	if err != nil || err == io.EOF {
+		t.Error(err)
+	}
+
+	// compare the data
+	if buf.String() != dataA+dataB {
+		t.Errorf("A: expected: %s, actual: %s", dataA+dataB, buf.String())
+		return
+	}
+}
+
+func TestReadAdd(t *testing.T) {
+	dataA := "verify base multireader functionA"
+	dataB := "verify base multireader functionB"
+
+	readerA := bytes.NewReader([]byte(dataA))
+	readerB := bytes.NewReader([]byte(dataB))
+
+	mreader := MultiReader(readerA)
+
+	var buf bytes.Buffer
+
+	// do the read
+	_, err := io.Copy(&buf, mreader)
+	if err != nil || err == io.EOF {
+		t.Error(err)
+	}
+
+	// compare the data
+	if buf.String() != dataA {
+		t.Errorf("A: expected: %s, actual: %s", dataA, buf.String())
+		return
+	}
+
+	// Add reader to existing MultiReader
+	// this should furnish new data to the copy without further action being
+	// taken
+	mreader.Add(readerB)
+
+	// do the read
+	io.Copy(&buf, mreader)
+
+	// compare the data
+	if buf.String() != dataA+dataB {
+		t.Errorf("A: expected: %s, actual: %s", dataA+dataB, buf.String())
+		return
+	}
+}
+
+func TestReadRemove(t *testing.T) {
+	dataA := "verify base multireader functionA"
+	dataB := "verify base multireader functionB"
+
+	readerA := bytes.NewReader([]byte(dataA))
+	readerB := &bytes.Buffer{}
+	readerB.Write([]byte(dataB))
+
+	mreader := MultiReader(readerA, readerB)
+
+	var buf bytes.Buffer
+
+	// do the read
+	io.Copy(&buf, mreader)
+
+	// compare the data
+	if buf.String() != dataA+dataB {
+		t.Errorf("A: expected: %s, actual: %s", dataA+dataB, buf.String())
+		return
+	}
+
+	mreader.Remove(readerB)
+
+	// write more data to dataB, which should not show up in the buffer
+	readerB.WriteString("should not be read")
+
+	// do the read
+	io.Copy(&buf, mreader)
+
+	// compare the data
+	if buf.String() != dataA+dataB {
+		t.Errorf("A: expected: %s, actual: %s", dataA+dataB, buf.String())
+		return
+	}
+}
+
+func TestReadConcurrentRemove(t *testing.T) {
 	t.Skip("not sure how to test concurrency in this case")
 }

@@ -23,7 +23,6 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -38,6 +37,8 @@ import (
 	"github.com/vmware/vic/cmd/tether/serial"
 	"github.com/vmware/vic/pkg/dio"
 )
+
+var backchannelMode = os.ModePerm
 
 // Mkdev will hopefully get rolled into go.sys at some point
 func Mkdev(majorNumber int, minorNumber int) int {
@@ -64,9 +65,9 @@ func childReaper() {
 			if err == nil {
 				log.Debugf("Reaped process %d, return code: %d\n", pid, status.ExitStatus())
 
-				cmd, ok := RemoveChildPid(pid)
+				session, ok := RemoveChildPid(pid)
 				if ok {
-					handleSessionExit(cmd)
+					handleSessionExit(session)
 				} else {
 					// This is an adopted zombie. The Wait4 call
 					// already clean it up from the kernel
@@ -85,7 +86,7 @@ func setup() error {
 
 	// redirect logging to the serial log
 	log.Infof("opening %s/ttyS1 for debug log", pathPrefix)
-	out, err := os.OpenFile(pathPrefix+"/ttyS1", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, 0777)
+	out, err := os.OpenFile(pathPrefix+"/ttyS1", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, backchannelMode)
 	if err != nil {
 		detail := fmt.Sprintf("failed to open serial port for debug log: %s", err)
 		log.Error(detail)
@@ -121,7 +122,7 @@ func backchannel(ctx context.Context) (net.Conn, error) {
 		return nil, errors.New(detail)
 	}
 
-	log.Errorf("creating raw connection from ttyS0 (fd=%d)\n", f.Fd())
+	log.Infof("creating raw connection from ttyS0 (fd=%d)\n", f.Fd())
 	conn, err := serial.NewFileConn(f)
 
 	if err != nil {
@@ -131,7 +132,7 @@ func backchannel(ctx context.Context) (net.Conn, error) {
 	}
 
 	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
-	ticker := time.NewTicker(50 * time.Millisecond)
+	ticker := time.NewTicker(1000 * time.Millisecond)
 	for {
 		select {
 		case <-ticker.C:
@@ -180,25 +181,30 @@ func sessionLogWriter() (io.Writer, error) {
 	return dio.MultiWriter(f, os.Stdout), nil
 }
 
-func establishPty(cmd *exec.Cmd) (*ptySession, error) {
+func establishPty(live *liveSession) error {
 	// TODO: if we want to allow raw output to the log so that subsequent tty enabled
 	// processing receives the control characters then we should be binding the PTY
 	// during attach, and using the same path we have for non-tty here
-	writer := cmd.Stdout
+	writer := live.cmd.Stdout
 
-	p := &ptySession{}
 	var err error
-	p.pty, err = pty.Start(cmd)
-	if p.pty != nil {
-		p.writer = dio.MultiWriter(writer)
+	live.pty, err = pty.Start(live.cmd)
+	if live.pty != nil {
+		live.writer = dio.MultiWriter(writer)
 
 		// TODO: do we need to ensure all reads have completed before calling Wait on the process?
 		// it frees up all resources - does that mean it frees the output buffers?
-		go io.Copy(p.writer, p.pty)
-		// lazily initialize the stdin copy
+		go func() {
+			_, err := io.Copy(live.writer, live.pty)
+			log.Debug(err)
+		}()
+		go func() {
+			_, err := io.Copy(live.pty, live.reader)
+			log.Debug(err)
+		}()
 	}
 
-	return p, err
+	return err
 }
 
 // The syscall struct

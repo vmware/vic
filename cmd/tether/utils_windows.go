@@ -17,6 +17,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"golang.org/x/net/context"
 
@@ -50,5 +51,9 @@ func (t *osopsWin) MountLabel(label, target string, ctx context.Context) error {
 
 // Fork triggers a vmfork, address the pre and post-fork operations necessary at an OS level
 func (t *osopsWin) Fork(config *metadata.ExecutorConfig) error {
+	return errors.New("not implemented on windows")
+}
+
+func MkNamedPipe(path string, mode os.FileMode) error {
 	return errors.New("not implemented on windows")
 }

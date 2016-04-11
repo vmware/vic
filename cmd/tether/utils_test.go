@@ -18,19 +18,21 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
+	"time"
 
-	"golang.org/x/net/context"
-
+	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/cmd/tether/serial"
 	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/trace"
+	"golang.org/x/net/context"
 )
 
 type osopsMock struct {
 	// allow tests to tell when the struct has been updated
 	updated chan bool
-	// shortcut for the control channel - named pipe
-	pipe *os.File
+	// shortcut for the control channel - unix socket
+	sconn net.Conn
+	cconn net.Conn
 
 	// the hostname of the system
 	hostname string
@@ -81,4 +83,24 @@ func (t *osopsMock) Fork(config *metadata.ExecutorConfig) error {
 
 	t.updated <- true
 	return errors.New("Fork test not implemented")
+}
+
+func (t *osopsMock) Backchannel(ctx context.Context) (net.Conn, error) {
+	log.Info("using unix socket for backchannel in test")
+
+	// still run handshake over it to test that
+	ticker := time.NewTicker(1000 * time.Millisecond)
+	for {
+		select {
+		case <-ticker.C:
+			err := serial.HandshakeServer(ctx, t.cconn)
+			if err == nil {
+				return t.cconn, nil
+			}
+		case <-ctx.Done():
+			t.cconn.Close()
+			ticker.Stop()
+			return nil, ctx.Err()
+		}
+	}
 }

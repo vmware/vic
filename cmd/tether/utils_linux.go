@@ -274,3 +274,7 @@ func (t *osopsLinux) Fork(config *metadata.ExecutorConfig) error {
 
 	return nil
 }
+
+func MkNamedPipe(path string, mode os.FileMode) error {
+	return syscall.Mkfifo(path, (uint32(mode)))
+}

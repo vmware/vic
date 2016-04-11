@@ -153,7 +153,7 @@ func (t *attachServerSSH) run() error {
 	// keep waiting for the connection to establish
 	for t.enabled && sConn == nil {
 		// wait for backchannel to establish
-		conn, err := backchannel(context.Background())
+		conn, err := ops.Backchannel(context.Background())
 		t.conn = &conn
 
 		// create the SSH server
@@ -195,9 +195,10 @@ func (t *attachServerSSH) run() error {
 			continue
 		}
 
-		session, ok := config.Sessions[string(bytes)]
-		if !ok || session.Cmd.Cmd == nil || session.Cmd.Cmd.ProcessState.Exited() {
-			detail := fmt.Sprintf("specified ID for attach is unavailable: %s", string(bytes))
+		sessionid := string(bytes)
+		live, ok := sessions[sessionid]
+		if !ok || live.cmd == nil || live.cmd.ProcessState.Exited() {
+			detail := fmt.Sprintf("specified ID for attach is unavailable: %s", sessionid)
 			log.Error(detail)
 			attachchan.Reject(ssh.Prohibited, detail)
 			continue
@@ -211,11 +212,12 @@ func (t *attachServerSSH) run() error {
 		}
 
 		// bind the channel to the Session
-		if !session.Tty {
+		if live.pty == nil {
 			// if it's not a TTY then bind the channel directly to the multiwriter that's already associated with the process
-			dmwStdout, okA := session.Cmd.Cmd.Stdout.(dio.DynamicMultiWriter)
-			dmwStderr, okB := session.Cmd.Cmd.Stdout.(dio.DynamicMultiWriter)
-			if !okA || !okB {
+			dmwStdout, okA := live.cmd.Stdout.(dio.DynamicMultiWriter)
+			dmwStderr, okB := live.cmd.Stdout.(dio.DynamicMultiWriter)
+			dmrStdin, okC := live.cmd.Stdin.(dio.DynamicMultiReader)
+			if !okA || !okB || !okC {
 				detail := fmt.Sprintf("target session IO cannot be duplicated to attach streams: %s", string(bytes))
 				log.Error(detail)
 				attachchan.Reject(ssh.ConnectionFailed, detail)
@@ -224,27 +226,29 @@ func (t *attachServerSSH) run() error {
 
 			dmwStdout.Add(channel)
 			dmwStderr.Add(channel.Stderr())
+			dmrStdin.Add(channel)
 
 			// cleanup on detach from the session
 			detach := func() {
 				dmwStdout.Remove(channel)
-				dmwStderr.Add(channel.Stderr())
+				dmwStderr.Remove(channel.Stderr())
+				dmrStdin.Remove(channel)
 			}
-			go t.channelMux(requests, session.Cmd.Cmd.Process, nil, detach)
+			go t.channelMux(requests, live.cmd.Process, nil, detach)
 			continue
 		}
 
 		// if it's a TTY bind the channel to the multiwriter that's on the far side of the PTY from the process
 		// this is done so the logging is done with processed output
-		ptysession, ok := ptys[session.ID]
-		ptysession.writer.Add(channel)
+		live.writer.Add(channel)
 		// PTY merges stdout & stderr so the two are the same
 
 		// cleanup on detach from the session
 		detach := func() {
-			ptysession.writer.Remove(channel)
+			live.writer.Remove(channel)
+			live.reader.Remove(channel)
 		}
-		go t.channelMux(requests, session.Cmd.Cmd.Process, ptysession.pty, detach)
+		go t.channelMux(requests, live.cmd.Process, live.pty, detach)
 	}
 
 	log.Println("incoming attach channel closed")

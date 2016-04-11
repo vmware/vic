@@ -17,20 +17,15 @@ package main
 import (
 	"errors"
 	"io"
-	"net"
 	"os"
-	"os/exec"
 	"strings"
 
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/context"
 )
 
-func setup() error {
-}
+var backchannelMode = os.ModePerm
 
-func backchannel(ctx context.Context) (net.Conn, error) {
-	return nil, errors.New("unimplemented on OSX")
+func setup() error {
 }
 
 // sessionLogWriter returns a writer that will persist the session output
@@ -56,8 +51,8 @@ func processEnvOS(env []string) []string {
 	return env
 }
 
-func establishPty(cmd *exec.Cmd) (*ptySession, error) {
-	return nil, errors.New("unimplemented on OSX")
+func establishPty(live *liveSession) error {
+	return errors.New("unimplemented on OSX")
 }
 
 func resizePty(pty uintptr, winSize *WindowChangeMsg) error {

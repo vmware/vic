@@ -22,7 +22,6 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -33,6 +32,8 @@ import (
 	winserial "github.com/tarm/serial"
 	"github.com/vmware/vic/cmd/tether/serial"
 )
+
+var backchannelMode = os.ModePerm
 
 type NamedPort struct {
 	*winserial.Port
@@ -202,8 +203,8 @@ func signalProcess(process *os.Process, sig ssh.Signal) error {
 	return errors.New("unimplemented on windows")
 }
 
-func establishPty(cmd *exec.Cmd) (*ptySession, error) {
-	return nil, errors.New("unimplemented on windows")
+func establishPty(live *liveSession) error {
+	return errors.New("unimplemented on windows")
 }
 
 func resizePty(pty uintptr, winSize *WindowChangeMsg) error {

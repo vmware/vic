@@ -24,18 +24,21 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"os"
 	"os/exec"
 	"path"
 	"runtime"
+	"syscall"
 	"testing"
+	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/vmware/vic/cmd/tether/serial"
 	"github.com/vmware/vic/metadata"
 )
 
@@ -44,9 +47,11 @@ var mockOps osopsMock
 func TestMain(m *testing.M) {
 	// use the mock ops
 	mockOps = osopsMock{
-		updated: make(chan bool, 1),
+		// there's 4 util functions that will write to this
+		updated: make(chan bool, 5),
 	}
 	ops = &mockOps
+	log.SetLevel(log.DebugLevel)
 
 	retCode := m.Run()
 
@@ -60,7 +65,12 @@ func createFakeDevices() error {
 	var err error
 	// create control channel
 	path := fmt.Sprintf("%s/ttyS0", pathPrefix)
-	mockOps.pipe, err = os.OpenFile(path, os.O_CREATE, os.ModeNamedPipe)
+	err = MkNamedPipe(path, os.ModePerm)
+	if err != nil {
+		detail := fmt.Sprintf("failed to create fifo pipe %s for com0: %s", path, err)
+		return errors.New(detail)
+	}
+	mockOps.pipe, err = os.OpenFile(path, os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, backchannelMode)
 	if err != nil {
 		detail := fmt.Sprintf("failed to create %s for com0: %s", path, err)
 		return errors.New(detail)
@@ -97,10 +107,14 @@ func (t *testAttachServer) start() error {
 	err := t.attachServerSSH.start()
 
 	t.updated <- true
+	log.Info("Started test attach server")
 	return err
 }
 
 func (t *testAttachServer) stop() {
+	t.attachServerSSH.stop()
+
+	log.Info("Stopped test attach server")
 	t.updated <- true
 }
 
@@ -122,23 +136,50 @@ func testSetup(t *testing.T) {
 		t.Error(err)
 	}
 
+	backchannelMode = os.ModeNamedPipe | os.ModePerm
 	err = createFakeDevices()
 	if err != nil {
 		fmt.Println(err)
 		t.Error(err)
 	}
 
-	if server != nil {
+	if server == nil {
 		server = &attachServerSSH{}
 	}
 }
 
 func testTeardown(t *testing.T) {
 	// let the main tether loop exit
-	close(reload)
+	if reload != nil {
+		close(reload)
+		reload = nil
+	}
 	// cleanup
 	os.RemoveAll(pathPrefix)
 	log.SetOutput(os.Stdout)
+}
+
+func clientBackchannel(ctx context.Context) (net.Conn, error) {
+	log.Info("opening ttyS0 for backchannel")
+
+	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
+	ticker := time.NewTicker(1000 * time.Millisecond)
+	for {
+		select {
+		case <-ticker.C:
+			// FIXME: need to implement timeout of purging hangs with no content
+			// on the pipe
+			// serial.PurgeIncoming(ctx, conn)
+			err := serial.HandshakeClient(ctx, conn)
+			if err == nil {
+				return conn, nil
+			}
+		case <-ctx.Done():
+			conn.Close()
+			ticker.Stop()
+			return nil, ctx.Err()
+		}
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -155,12 +196,12 @@ func (c *TestPathLookupConfig) StoreConfig(*metadata.ExecutorConfig) (string, er
 func (c *TestPathLookupConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 	config := metadata.ExecutorConfig{}
 
-	config.ID = "deadbeef"
+	config.ID = "pathlookup"
 	config.Name = "tether_test_executor"
 	config.Sessions = map[string]metadata.SessionConfig{
-		"feebdaed": metadata.SessionConfig{
+		"pathlookup": metadata.SessionConfig{
 			Common: metadata.Common{
-				ID:   "feebdaed",
+				ID:   "pathlookup",
 				Name: "tether_test_session",
 			},
 			Tty: false,
@@ -205,12 +246,12 @@ func (c *TestRelativePathConfig) StoreConfig(*metadata.ExecutorConfig) (string, 
 func (c *TestRelativePathConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 	config := metadata.ExecutorConfig{}
 
-	config.ID = "deadbeef"
+	config.ID = "relpath"
 	config.Name = "tether_test_executor"
 	config.Sessions = map[string]metadata.SessionConfig{
-		"feebdaed": metadata.SessionConfig{
+		"relpath": metadata.SessionConfig{
 			Common: metadata.Common{
-				ID:   "feebdaed",
+				ID:   "relpath",
 				Name: "tether_test_session",
 			},
 			Tty: false,
@@ -254,12 +295,12 @@ func (c *TestAbsPathConfig) StoreConfig(*metadata.ExecutorConfig) (string, error
 func (c *TestAbsPathConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 	config := metadata.ExecutorConfig{}
 
-	config.ID = "deadbeef"
+	config.ID = "abspath"
 	config.Name = "tether_test_executor"
 	config.Sessions = map[string]metadata.SessionConfig{
-		"feebdaed": metadata.SessionConfig{
+		"abspath": metadata.SessionConfig{
 			Common: metadata.Common{
-				ID:   "feebdaed",
+				ID:   "abspath",
 				Name: "tether_test_session",
 			},
 			Tty: false,
@@ -282,15 +323,15 @@ func TestAbsPath(t *testing.T) {
 
 	// if there's no session command with guaranteed exit then tether needs to run in the background
 	cfg := &TestAbsPathConfig{}
-	testConfig, _ := cfg.LoadConfig()
 
 	if err := run(cfg); err != nil {
 		t.Error(err)
 	}
 
-	// check the exit code was sets
-	if !config.Sessions["feeddead"].Cmd.Cmd.ProcessState.Success() {
-		t.Error("reference process 'data --reference=/' did not exit cleanly")
+	// check the exit code was set
+	err := sessions["abspath"].cmd.Wait()
+	if err != nil {
+		t.Error("reference process 'data --reference=/' did not exit cleanly: %s", err)
 		return
 	}
 
@@ -332,12 +373,12 @@ func (c *TestMissingBinaryConfig) StoreConfig(*metadata.ExecutorConfig) (string,
 func (c *TestMissingBinaryConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 	config := metadata.ExecutorConfig{}
 
-	config.ID = "deadbeef"
+	config.ID = "missing"
 	config.Name = "tether_test_executor"
 	config.Sessions = map[string]metadata.SessionConfig{
-		"feebdaed": metadata.SessionConfig{
+		"missing": metadata.SessionConfig{
 			Common: metadata.Common{
-				ID:   "feebdaed",
+				ID:   "missing",
 				Name: "tether_test_session",
 			},
 			Tty: false,
@@ -389,7 +430,7 @@ func (c *TestSetHostnameConfig) StoreConfig(*metadata.ExecutorConfig) (string, e
 func (c *TestSetHostnameConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 	config := metadata.ExecutorConfig{}
 
-	config.ID = "deadbeef"
+	config.ID = "sethostname"
 	config.Name = "tether_test_executor"
 
 	return &config, nil
@@ -434,7 +475,7 @@ func (c *TestIPConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
 func (c *TestIPConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 	config := metadata.ExecutorConfig{}
 
-	config.ID = "deadbeef"
+	config.ID = "ipconfig"
 	config.Name = "tether_test_executor"
 
 	return &config, nil
@@ -479,12 +520,12 @@ func (c *TestAttachConfig) StoreConfig(*metadata.ExecutorConfig) (string, error)
 func (c *TestAttachConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 	config := metadata.ExecutorConfig{}
 
-	config.ID = "deadbeef"
+	config.ID = "attach"
 	config.Name = "tether_test_executor"
 	config.Sessions = map[string]metadata.SessionConfig{
-		"deadbeef": metadata.SessionConfig{
+		"attach": metadata.SessionConfig{
 			Common: metadata.Common{
-				ID:   "deadbeef",
+				ID:   "attach",
 				Name: "tether_test_session",
 			},
 			Tty:    false,
@@ -551,7 +592,7 @@ func TestAttach(t *testing.T) {
 	}
 
 	// create client on the mock pipe
-	conn, err := backchannel(context.Background())
+	conn, err := clientBackchannel(context.Background())
 	if err != nil {
 		t.Error(err)
 		return

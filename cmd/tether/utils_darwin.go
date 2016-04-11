@@ -17,6 +17,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"golang.org/x/net/context"
 
@@ -49,5 +50,9 @@ func (t *osopsOSX) MountLabel(label, target string, ctx context.Context) error {
 }
 
 func (t *osopsOSX) Fork(config *metadata.ExecutorConfig) error {
+	return errors.New("not implemented on OSX")
+}
+
+func MkNamedPipe(path string, mode os.FileMode) error {
 	return errors.New("not implemented on OSX")
 }

@@ -15,11 +15,13 @@
 package main
 
 import (
+	"net"
+
 	"github.com/vmware/vic/metadata"
 	"golang.org/x/net/context"
 )
 
-// ops is here so we can switch the impl for test mocking
+// ops is here so we can switch the OS Ops impls for test mocking
 var ops osops
 
 type osops interface {
@@ -27,4 +29,5 @@ type osops interface {
 	Apply(endpoint *metadata.NetworkEndpoint) error
 	MountLabel(label, target string, ctx context.Context) error
 	Fork(config *metadata.ExecutorConfig) error
+	Backchannel(ctx context.Context) (net.Conn, error)
 }
