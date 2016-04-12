@@ -9,6 +9,8 @@ If you install vSphere Integrated Containers by using the command line installer
 
 You create private port groups in the vSphere Web Client.
 
+**IMPORTANT** vSphere Integrated Containers does not support tagging on private port groups. Do not apply tags to the private port groups that you create. 
+
 1. Log into the vSphere Web Client for the vCenter Server instance that manages your host or cluster.
 2. In the **Home** view, click **Hosts and Clusters**. 
 3. Select an ESXi host and click the **Manage** tab.

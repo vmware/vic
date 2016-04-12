@@ -5,27 +5,10 @@ ESXi hosts communicate with the virtual container hosts via port 2377. For insta
 Failure to open port 2377 on all ESXi hosts affects installation differently, depending on whether you install by using the command line installer or by using the OVA deployment.
  
 - Installation by using the command line installer fails at the verification stage. 
-- Installation of the management server by using the OVA deployment succeeds, but deployment of a virtual container fails.  
+- Installation of the management server by using the OVA deployment succeeds, but deployment of a virtual container host fails.  
 
 To open port 2377 on the ESXi hosts, log into each ESXi host via SSH and add the following rule after the last rule in the file ```/etc/vmware/firewall/service.xml```.
 
-**ESXi 6.x:**
-
-<pre>&lt;!--Port for VIC communication --&gt;
-   &lt;service id='<i>id_number</i>'&gt;
-   &lt;id&gt;vicoutgoing&lt;/id&gt;
-   &lt;rule id='0000'&gt;
-      &lt;direction&gt;outbound&lt;/direction&gt;
-      &lt;protocol&gt;tcp&lt;/protocol&gt;
-      &lt;port type='dst'&gt;2377&lt;/port type&gt;
-   &lt;/rule&gt;
-   &lt;enabled&gt;true&lt;/enabled&gt;
-   &lt;required&gt;true&lt;/required&gt;
-   &lt;/service&gt;
-</pre>
-
-**ESXi 5.x:**
-  
 <pre>&lt;!--Port for VIC communication --&gt;
    &lt;service id='<i>id_number</i>'&gt;
    &lt;id&gt;vicoutgoing&lt;/id&gt;
@@ -41,7 +24,7 @@ To open port 2377 on the ESXi hosts, log into each ESXi host via SSH and add the
 </pre>
 
   
-In these examples, *id_number* is the number of the preceding rule in ```service.xml```, incremented by 1. 
+In this example, *id_number* is the number of the preceding rule in ```service.xml```, incremented by 1. 
 
 **IMPORTANT**: If you reboot the ESXi hosts, any firewall rules that you set are lost. You must recreate firewall rules after a reboot.
 
