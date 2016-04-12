@@ -32,6 +32,19 @@ import (
 
 const parentMFile = "parentMap"
 
+// Parent relationships This file will go away when First Class Disk
+// support is added to vsphere.  Currently, we can't get a disk spec for a
+// disk after creating the disk (and the spec) from vsphere.  Basically, if
+// we have a vmdk in the datastore, we have no way of getting the delta
+// disk's (if it even is a delta disk) spec to find it's immediate parent.
+// This map is used to persist the parent relationship for the disk which
+// we maintain outside of the vsphere API.  So, for now, persist this data
+// in the datastore and look it up when we need it.  We write a map file
+// every time a new disk is created, and swap it with the original map
+// file.  Then, at startup, we read the file, and rebuild this map in
+// memory.  At runtime, we consult the map to find which disk is the parent
+// of a given disk.
+
 // Implements the cache used to lookup an image's parent
 type parentM struct {
 	// location in the datastore in datastore URI format
