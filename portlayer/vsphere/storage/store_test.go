@@ -26,7 +26,6 @@ import (
 	"sort"
 	"testing"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/vsphere/disk"
@@ -52,9 +51,7 @@ func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, error) {
 		return nil, nil, err
 	}
 
-	s := &portlayer.NameLookupCache{
-		DataStore: vsImageStore,
-	}
+	s := portlayer.NewLookupCache(vsImageStore)
 
 	return s, client, nil
 }
@@ -100,6 +97,12 @@ func TestCreateAndGetImageStore(t *testing.T) {
 	if !assert.Error(t, err) || !assert.Nil(t, u) {
 		return
 	}
+
+	// Test for a store that already exists
+	u, err = vsis.CreateImageStore(context.TODO(), storeName)
+	if !assert.Error(t, err) || !assert.Nil(t, u) || !assert.Equal(t, err, os.ErrExist) {
+		return
+	}
 }
 
 func TestListImageStore(t *testing.T) {
@@ -128,9 +131,9 @@ func TestListImageStore(t *testing.T) {
 
 // Creates a tar archive in memory for each layer and uses this to test image creation of layers
 func TestCreateImageLayers(t *testing.T) {
-	numLayers := 3
+	numLayers := 4
 
-	vsis, client, err := setup(t)
+	cacheStore, client, err := setup(t)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -138,86 +141,97 @@ func TestCreateImageLayers(t *testing.T) {
 	// Nuke the parent image store directory
 	defer rm(t, client, "")
 
-	storeURL, err := vsis.CreateImageStore(context.TODO(), "testStore")
+	vsStore := cacheStore.DataStore.(*ImageStore)
+
+	storeURL, err := cacheStore.CreateImageStore(context.TODO(), "testStore")
 	if !assert.NoError(t, err) {
 		return
 	}
+
+	// Get an image that doesn't exist and check for error
+	grbg, err := cacheStore.GetImage(context.TODO(), storeURL, "garbage")
+	if !assert.Error(t, err) || !assert.Nil(t, grbg) {
+		return
+	}
+
 	// base this image off scratch
-	parent, err := vsis.GetImage(context.TODO(), storeURL, portlayer.Scratch.ID)
+	parent, err := cacheStore.GetImage(context.TODO(), storeURL, portlayer.Scratch.ID)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	// Keep a list of all files we're extracting via layers so we can verify
 	// they exist in the leaf layer.  Ext adds lost+found, so add it here.
-	expected := []string{"lost+found"}
+	expectedFilesOnDisk := []string{"lost+found"}
+
+	// Keep a list of images we created
+	expectedImages := make(map[string]*portlayer.Image)
 
 	for layer := 0; layer < numLayers; layer++ {
-		// Create a buffer to write our archive to.
-		buf := new(bytes.Buffer)
-
-		// Create a new tar archive.
-		tw := tar.NewWriter(buf)
 
 		dirName := fmt.Sprintf("dir%d", layer)
-
 		// Add some files to the archive.
-		var files = []struct {
-			Name string
-			Type byte
-			Body string
-		}{
+		var files = []tarFile{
 			{dirName, tar.TypeDir, ""},
 			{dirName + "/readme.txt", tar.TypeReg, "This archive contains some text files."},
 			{dirName + "/gopher.txt", tar.TypeReg, "Gopher names:\nGeorge\nGeoffrey\nGonzo"},
 			{dirName + "/todo.txt", tar.TypeReg, "Get animal handling license."},
 		}
 
-		for _, file := range files {
-			hdr := &tar.Header{
-				Name:     file.Name,
-				Mode:     0777,
-				Typeflag: file.Type,
-				Size:     int64(len(file.Body)),
-			}
-
-			if err := tw.WriteHeader(hdr); err != nil {
-				log.Fatalln(err)
-			}
-
-			expected = append(expected, file.Name)
-
-			if file.Type == tar.TypeDir {
-				continue
-			}
-
-			if _, err := tw.Write([]byte(file.Body)); err != nil {
-				log.Fatalln(err)
-			}
+		for _, i := range files {
+			expectedFilesOnDisk = append(expectedFilesOnDisk, i.Name)
 		}
 
-		// Make sure to check the error on Close.
-		if err := tw.Close(); err != nil {
-			log.Fatalln(err)
+		// meta for the image
+		meta := make(map[string][]byte)
+		meta[dirName+"_meta"] = []byte("Some Meta")
+		meta[dirName+"_moreMeta"] = []byte("Some More Meta")
+		meta[dirName+"_scorpions"] = []byte("Here I am, rock you like a hurricane")
+
+		// Tar the files
+		buf, err := tarFiles(files, meta)
+		if !assert.NoError(t, err) {
+			return
 		}
 
+		// Calculate the checksum
 		h := sha256.New()
 		h.Write(buf.Bytes())
 		sum := fmt.Sprintf("sha256:%x", h.Sum(nil))
 
-		newImage, err := vsis.WriteImage(context.TODO(), parent, dirName, sum, buf)
-		if !assert.NoError(t, err) || !assert.NotNil(t, newImage) {
+		// Write the image via the cache (which writes to the vsphere impl)
+		writtenImage, err := cacheStore.WriteImage(context.TODO(), parent, dirName, meta, sum, buf)
+		if !assert.NoError(t, err) || !assert.NotNil(t, writtenImage) {
 			return
 		}
 
+		expectedImages[dirName] = writtenImage
+
+		// Get the image directly via the vsphere image store impl.
+		vsImage, err := vsStore.GetImage(context.TODO(), parent.Store, dirName)
+		if !assert.NoError(t, err) || !assert.NotNil(t, vsImage) {
+			return
+		}
+
+		assert.Equal(t, writtenImage, vsImage)
+
 		// make the next image a child of the one we just created
-		parent = newImage
+		parent = writtenImage
 	}
 
-	// verify we did anything by attaching the last layer rdonly
-	v := vsis.DataStore.(*ImageStore)
+	// Test list images on the datastore
+	listedImages, err := vsStore.ListImages(context.TODO(), parent.Store, nil)
+	if !assert.NoError(t, err) || !assert.NotNil(t, listedImages) {
+		return
+	}
+	for _, img := range listedImages {
+		if !assert.Equal(t, expectedImages[img.ID], img) {
+			return
+		}
+	}
 
-	roDisk, err := mountLayerRO(v, parent)
+	// verify the disk's data by attaching the last layer rdonly
+	roDisk, err := mountLayerRO(vsStore, parent)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -227,12 +241,12 @@ func TestCreateImageLayers(t *testing.T) {
 		return
 	}
 
-	defer v.dm.Detach(context.TODO(), roDisk)
+	defer vsStore.dm.Detach(context.TODO(), roDisk)
 	defer os.RemoveAll(p)
 	defer roDisk.Unmount()
 
-	actual := []string{}
-	// Diff the contents
+	filesFoundOnDisk := []string{}
+	// Diff the contents of the RO file of the last child (with all of the contents)
 	err = filepath.Walk(p, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -241,7 +255,7 @@ func TestCreateImageLayers(t *testing.T) {
 		f := path[len(p):]
 		if f != "" {
 			// strip the slash
-			actual = append(actual, f[1:])
+			filesFoundOnDisk = append(filesFoundOnDisk, f[1:])
 		}
 		return nil
 	})
@@ -249,19 +263,60 @@ func TestCreateImageLayers(t *testing.T) {
 		return
 	}
 
-	sort.Strings(actual)
-	sort.Strings(expected)
+	sort.Strings(filesFoundOnDisk)
+	sort.Strings(expectedFilesOnDisk)
 
-	log.Infof("actual = %s", actual)
-	log.Infof("expected = %s", expected)
-	if !assert.Equal(t, expected, actual) {
+	if !assert.Equal(t, expectedFilesOnDisk, filesFoundOnDisk) {
 		return
 	}
 }
 
+type tarFile struct {
+	Name string
+	Type byte
+	Body string
+}
+
+func tarFiles(files []tarFile, meta map[string][]byte) (*bytes.Buffer, error) {
+	// Create a buffer to write our archive to.
+	buf := new(bytes.Buffer)
+
+	// Create a new tar archive.
+	tw := tar.NewWriter(buf)
+
+	// Write data to the tar as if it came from the hub
+	for _, file := range files {
+		hdr := &tar.Header{
+			Name:     file.Name,
+			Mode:     0777,
+			Typeflag: file.Type,
+			Size:     int64(len(file.Body)),
+		}
+
+		if err := tw.WriteHeader(hdr); err != nil {
+			return nil, err
+		}
+
+		if file.Type == tar.TypeDir {
+			continue
+		}
+
+		if _, err := tw.Write([]byte(file.Body)); err != nil {
+			return nil, err
+		}
+	}
+
+	// Make sure to check the error on Close.
+	if err := tw.Close(); err != nil {
+		return nil, err
+	}
+
+	return buf, nil
+}
+
 func mountLayerRO(v *ImageStore, parent *portlayer.Image) (*disk.VirtualDisk, error) {
-	roName := v.imageStoreDatastoreURI("testStore") + "/" + parent.ID + "-ro.vmdk"
-	parentDsURI := v.imageDiskDatastoreURI("testStore", parent.ID)
+	roName := v.datastorePath(v.imageStorePath("testStore")) + "/" + parent.ID + "-ro.vmdk"
+	parentDsURI := v.datastorePath(v.imageDiskPath("testStore", parent.ID))
 	roDisk, err := v.dm.CreateAndAttach(context.TODO(), roName, parentDsURI, 0, os.O_RDONLY)
 	if err != nil {
 		return nil, err

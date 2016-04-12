@@ -49,22 +49,59 @@ type NameLookupCache struct {
 	DataStore ImageStorer
 }
 
+func NewLookupCache(ds ImageStorer) *NameLookupCache {
+	return &NameLookupCache{
+		DataStore:  ds,
+		storeCache: make(map[url.URL]map[string]Image),
+	}
+}
+
 // GetImageStore checks to see if a named image store exists and returls the
 // URL to it if so or error.
 func (c *NameLookupCache) GetImageStore(ctx context.Context, storeName string) (*url.URL, error) {
-	u, err := util.StoreNameToURL(storeName)
+	store, err := util.StoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
 	}
 
 	c.storeCacheLock.Lock()
 	defer c.storeCacheLock.Unlock()
-	_, ok := c.storeCache[*u]
+
+	// check the cache
+	_, ok := c.storeCache[*store]
 	if !ok {
-		return nil, os.ErrNotExist
+		// Store isn't in the cache.  Look it up in the datastore.
+		storeName, err := util.StoreName(store)
+		if err != nil {
+			return nil, err
+		}
+
+		// If the store doesn't exist, we'll fall out here.
+		_, err = c.DataStore.GetImageStore(ctx, storeName)
+		if err != nil {
+			return nil, err
+		}
+
+		c.storeCache[*store] = make(map[string]Image)
+
+		// Fall out here if there are no images.  We should at least have a scratch.
+		images, err := c.DataStore.ListImages(ctx, store, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		// add the images we retrieved to the cache.
+		for _, v := range images {
+			c.storeCache[*store][v.ID] = *v
+		}
+
+		// Assert there's a scratch
+		if _, ok = c.storeCache[*store][Scratch.ID]; !ok {
+			return nil, fmt.Errorf("Scratch does not exist.  Imagestore is corrrupt.")
+		}
 	}
 
-	return u, nil
+	return store, nil
 }
 
 func (c *NameLookupCache) CreateImageStore(ctx context.Context, storeName string) (*url.URL, error) {
@@ -82,18 +119,13 @@ func (c *NameLookupCache) CreateImageStore(ctx context.Context, storeName string
 	c.storeCacheLock.Lock()
 	defer c.storeCacheLock.Unlock()
 
-	if c.storeCache == nil {
-		c.storeCache = make(map[url.URL]map[string]Image)
-	}
-
-	c.storeCache[*u] = make(map[string]Image)
-
 	// Create the root image
-	scratch, err := c.DataStore.WriteImage(ctx, &Image{Store: u}, Scratch.ID, nil)
+	scratch, err := c.DataStore.WriteImage(ctx, &Image{Store: u}, Scratch.ID, nil, nil)
 	if err != nil {
 		return nil, err
 	}
 
+	c.storeCache[*u] = make(map[string]Image)
 	c.storeCache[*u][scratch.ID] = *scratch
 	return u, nil
 }
@@ -110,7 +142,7 @@ func (c *NameLookupCache) ListImageStores(ctx context.Context) ([]*url.URL, erro
 	return stores, nil
 }
 
-func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID, sum string, r io.Reader) (*Image, error) {
+func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*Image, error) {
 	// Check the parent exists (at least in the cache).
 	p, err := c.GetImage(ctx, parent.Store, parent.ID)
 	if err != nil {
@@ -120,7 +152,7 @@ func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID, sum
 	h := sha256.New()
 	t := io.TeeReader(r, h)
 
-	i, err := c.DataStore.WriteImage(ctx, p, ID, t)
+	i, err := c.DataStore.WriteImage(ctx, p, ID, meta, t)
 	if err != nil {
 		return nil, err
 	}
@@ -141,33 +173,51 @@ func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID, sum
 
 // GetImage gets the specified image from the given store by retreiving it from the cache.
 func (c *NameLookupCache) GetImage(ctx context.Context, store *url.URL, ID string) (*Image, error) {
+	storeName, err := util.StoreName(store)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check the store exists
+	if _, err = c.GetImageStore(ctx, storeName); err != nil {
+		return nil, err
+	}
+
 	c.storeCacheLock.Lock()
 	defer c.storeCacheLock.Unlock()
 
-	s, ok := c.storeCache[*store]
+	var ok bool
+	i := &Image{}
+	*i, ok = c.storeCache[*store][ID]
 	if !ok {
-		return nil, fmt.Errorf("store (%s) doesn't exist", store.String())
+		// Not in the cache.  Try to load it.
+		i, err = c.DataStore.GetImage(ctx, store, ID)
+		if err != nil {
+			return nil, err
+		}
+
+		c.storeCache[*store][ID] = *i
 	}
 
-	i, ok := s[ID]
-	if !ok {
-		return nil, fmt.Errorf("store (%s) doesn't have image %s", store.String(), ID)
-	}
-
-	return &i, nil
+	return i, nil
 }
 
 // ListImages resturns a list of Images for a list of IDs, or all if no IDs are passed
 func (c *NameLookupCache) ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*Image, error) {
+	storeName, err := util.StoreName(store)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check the store exists before we start iterating it.  This will populate the cache if it's empty.
+	if _, err := c.GetImageStore(ctx, storeName); err != nil {
+		return nil, err
+	}
+
 	c.storeCacheLock.Lock()
 	defer c.storeCacheLock.Unlock()
 
-	// check the store exists
-	_, ok := c.storeCache[*store]
-	if !ok {
-		return nil, fmt.Errorf("store (%s) doesn't exist", store.String())
-	}
-
+	// Filter the results
 	var imageList []*Image
 	if len(IDs) > 0 {
 		for _, id := range IDs {
