@@ -31,6 +31,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/vmware/vic/pkg/auth"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 )
 
@@ -62,6 +63,73 @@ func init() {
 
 	config.hostCertFile = "fixtures/vicadmin_test_cert.pem"
 	config.hostKeyFile = "fixtures/vicadmin_test_pkey.pem"
+
+}
+
+func TestLoginFailure(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.SkipNow()
+	}
+
+	s := &server{
+		addr:          "127.0.0.1:0",
+		Authenticator: auth.NewBasicHTTP("root", "thisisinsecure"),
+	}
+
+	err := s.listen(true)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	port := s.listenPort()
+
+	go s.serve()
+
+	var res *http.Response
+	res, err = insecureClient.Get(fmt.Sprintf("https://root:notthepassword@localhost:%d/", port))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.StatusCode != http.StatusUnauthorized {
+		log.Fatal("Authenticator accepted incorrect password")
+	}
+
+}
+
+func TestNoAuth(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.SkipNow()
+	}
+
+	s := &server{
+		addr:          "127.0.0.1:0",
+		Authenticator: &auth.None{},
+	}
+
+	err := s.listen(true)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	port := s.listenPort()
+
+	go s.serve()
+
+	var res *http.Response
+	res, err = insecureClient.Get(fmt.Sprintf("https://localhost:%d/", port))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.StatusCode != http.StatusOK {
+		log.Fatal("Failed to disable authentication")
+	}
+
 }
 
 func testLogTar(t *testing.T, plainHTTP bool) {
@@ -72,7 +140,8 @@ func testLogTar(t *testing.T, plainHTTP bool) {
 	logFileDir = "."
 
 	s := &server{
-		addr: "127.0.0.1:0",
+		addr:          "127.0.0.1:0",
+		Authenticator: auth.NewBasicHTTP("root", "thisisinsecure"),
 	}
 
 	err := s.listen(!plainHTTP)
@@ -87,9 +156,9 @@ func testLogTar(t *testing.T, plainHTTP bool) {
 
 	var res *http.Response
 	if !plainHTTP {
-		res, err = insecureClient.Get(fmt.Sprintf("https://localhost:%d/container-logs.tar.gz", port))
+		res, err = insecureClient.Get(fmt.Sprintf("https://root:thisisinsecure@localhost:%d/container-logs.tar.gz", port))
 	} else {
-		res, err = http.Get(fmt.Sprintf("http://localhost:%d/container-logs.tar.gz", port))
+		res, err = http.Get(fmt.Sprintf("http://root:thisisinsecure@localhost:%d/container-logs.tar.gz", port))
 	}
 	if err != nil {
 		t.Fatal(err)
@@ -147,7 +216,8 @@ func TestLogTail(t *testing.T) {
 	name := filepath.Base(f.Name())
 
 	s := &server{
-		addr: "127.0.0.1:0",
+		addr:          "127.0.0.1:0",
+		Authenticator: auth.NewBasicHTTP("root", "thisisinsecure"),
 	}
 
 	err = s.listen(true)
@@ -174,6 +244,7 @@ func TestLogTail(t *testing.T) {
 	i := 0
 
 	u := url.URL{
+		User:   url.UserPassword("root", "thisisinsecure"),
 		Scheme: "https",
 		Host:   fmt.Sprintf("localhost:%d", port),
 	}

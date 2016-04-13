@@ -45,19 +45,20 @@ import (
 
 	"crypto/tls"
 
+	"github.com/vmware/vic/pkg/auth"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 var (
 	logFileDir = "/var/log/vic/"
-
-	config struct {
+	config     struct {
 		session.Config
 		addr         string
 		dockerHost   string
 		vmPath       string
 		hostCertFile string
 		hostKeyFile  string
+		authType     string
 		tls          bool
 	}
 
@@ -85,6 +86,12 @@ func init() {
 	// This is only applicable for containers hosted under the VCH VM folder
 	// This will not function for vSAN
 	flag.StringVar(&config.vmPath, "vm-path", "", "Docker vm path")
+
+	// generate help text so it doesn't need to be updated later
+	authTypes := []string{"basic", "none"}
+	flag.StringVar(&config.authType, "auth-type",
+		"basic", "Set the authentication type to use. Valid types: "+strings.Join(authTypes, "|"))
+
 }
 
 func logFiles() []string {
@@ -491,6 +498,7 @@ func tarEntries(readers []entryReader, out io.Writer) error {
 }
 
 type server struct {
+	auth.Authenticator
 	l     net.Listener
 	addr  string
 	mux   *http.ServeMux
@@ -529,22 +537,28 @@ func (s *server) listenPort() int {
 	return s.l.Addr().(*net.TCPAddr).Port
 }
 
-func (s *server) handleFunc(link string, handler func(http.ResponseWriter, *http.Request)) {
+// indexFunc registers and handler for a URL and adds a hyperlink to `link` on index.html
+func (s *server) indexFunc(link string, handler func(http.ResponseWriter, *http.Request)) {
 	s.links = append(s.links, link)
-	s.mux.HandleFunc(link, handler)
+	s.handleFunc(link, handler)
+}
+
+// handleFunc does preparatory work and then calls the HandleFunc method owned by the HTTP multiplexer
+func (s *server) handleFunc(link string, handler func(http.ResponseWriter, *http.Request)) {
+	s.mux.HandleFunc(link, s.Authenticate(handler))
 }
 
 func (s *server) serve() error {
 	s.mux = http.NewServeMux()
 
 	// tar of appliance system logs
-	s.handleFunc("/logs.tar.gz", s.tarDefaultLogs)
+	s.indexFunc("/logs.tar.gz", s.tarDefaultLogs)
 
 	// tar of appliance system logs + container logs
-	s.handleFunc("/container-logs.tar.gz", s.tarContainerLogs)
+	s.indexFunc("/container-logs.tar.gz", s.tarContainerLogs)
 
 	// tail all logFiles
-	s.mux.HandleFunc("/logs/tail", func(w http.ResponseWriter, r *http.Request) {
+	s.handleFunc("/logs/tail", func(w http.ResponseWriter, r *http.Request) {
 		s.tailFiles(w, r, logFiles())
 	})
 
@@ -553,18 +567,17 @@ func (s *server) serve() error {
 		p := path
 
 		// get single log file (no tail)
-		s.handleFunc("/logs/"+name, func(w http.ResponseWriter, r *http.Request) {
+		s.indexFunc("/logs/"+name, func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, p)
 		})
 
 		// get single log file (with tail)
-		s.mux.HandleFunc("/logs/tail/"+name, func(w http.ResponseWriter, r *http.Request) {
+		s.handleFunc("/logs/tail/"+name, func(w http.ResponseWriter, r *http.Request) {
 			s.tailFiles(w, r, []string{p})
 		})
 	}
 
-	s.mux.HandleFunc("/", s.index)
-
+	s.handleFunc("/", s.index)
 	server := &http.Server{
 		Handler: s.mux,
 	}
@@ -684,6 +697,14 @@ func main() {
 		addr: config.addr,
 	}
 
+	// create the appropriate authenticator
+	switch config.authType {
+	case "none":
+		s.Authenticator = &auth.None{}
+	case "basic":
+		s.Authenticator = auth.NewBasicHTTP("", "")
+	}
+
 	err := s.listen(config.tls)
 
 	if err != nil {
@@ -691,7 +712,6 @@ func main() {
 	}
 
 	log.Printf("listening on %s", s.addr)
-
 	signals := []syscall.Signal{
 		syscall.SIGTERM,
 		syscall.SIGINT,
