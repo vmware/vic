@@ -45,6 +45,9 @@ func Mkdev(majorNumber int, minorNumber int) int {
 	return (majorNumber << 8) | (minorNumber & 0xff) | ((minorNumber & 0xfff00) << 12)
 }
 
+// childReaper is used to handle events from child processes, including child exit.
+// If running as pid=1 then this means it handles zombie process reaping for orphaned children
+// as well as direct child processes.
 func childReaper() {
 	var incoming = make(chan os.Signal, 10)
 	signal.Notify(incoming, syscall.SIGCHLD)
@@ -54,29 +57,40 @@ func childReaper() {
 	for _ = range incoming {
 		var status syscall.WaitStatus
 
-		// reap until no more children to process
-		for {
-			log.Debugf("Inspecting children with status change")
-			pid, err := syscall.Wait4(-1, &status, syscall.WNOHANG, nil)
-			if pid == 0 || err == syscall.ECHILD {
-				log.Debug("No more child processes to reap")
-				break
-			}
-			if err == nil {
-				log.Debugf("Reaped process %d, return code: %d\n", pid, status.ExitStatus())
+		func() {
+			// general resiliency
+			defer recover()
 
-				session, ok := RemoveChildPid(pid)
-				if ok {
-					handleSessionExit(session)
-				} else {
-					// This is an adopted zombie. The Wait4 call
-					// already clean it up from the kernel
-					log.Infof("Reaped zombie process PID %d\n", pid)
+			// reap until no more children to process
+			for {
+				log.Debugf("Inspecting children with status change")
+				pid, err := syscall.Wait4(-1, &status, syscall.WNOHANG, nil)
+				if pid == 0 || err == syscall.ECHILD {
+					log.Debug("No more child processes to reap")
+					break
 				}
-			} else {
-				log.Warnf("Wait4 got error: %v\n", err)
+				if err == nil {
+					if !status.Exited() {
+						log.Debugf("Received notifcation about non-exit status change for %d:", pid)
+						// no reaping or exit handling required
+						continue
+					}
+
+					log.Debugf("Reaped process %d, return code: %d\n", pid, status.ExitStatus())
+
+					session, ok := RemoveChildPid(pid)
+					if ok {
+						handleSessionExit(session, status.ExitStatus())
+					} else {
+						// This is an adopted zombie. The Wait4 call
+						// already clean it up from the kernel
+						log.Infof("Reaped zombie process PID %d\n", pid)
+					}
+				} else {
+					log.Warnf("Wait4 got error: %v\n", err)
+				}
 			}
-		}
+		}()
 	}
 }
 
@@ -86,7 +100,7 @@ func setup() error {
 
 	// redirect logging to the serial log
 	log.Infof("opening %s/ttyS1 for debug log", pathPrefix)
-	out, err := os.OpenFile(pathPrefix+"/ttyS1", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, backchannelMode)
+	out, err := os.OpenFile(pathPrefix+"/ttyS1", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, 0777)
 	if err != nil {
 		detail := fmt.Sprintf("failed to open serial port for debug log: %s", err)
 		log.Error(detail)
@@ -113,9 +127,9 @@ func setup() error {
 	return nil
 }
 
-func backchannel(ctx context.Context) (net.Conn, error) {
+func (t *osopsLinux) backchannel(ctx context.Context) (net.Conn, error) {
 	log.Info("opening ttyS0 for backchannel")
-	f, err := os.OpenFile(pathPrefix+"/ttyS0", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, 0777)
+	f, err := os.OpenFile(pathPrefix+"/ttyS0", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, backchannelMode)
 	if err != nil {
 		detail := fmt.Sprintf("failed to open serial port for backchannel: %s", err)
 		log.Error(detail)
@@ -167,7 +181,7 @@ func processEnvOS(env []string) []string {
 }
 
 // sessionLogWriter returns a writer that will persist the session output
-func sessionLogWriter() (io.Writer, error) {
+func sessionLogWriter() (dio.DynamicMultiWriter, error) {
 	// open SttyS2 for session logging
 	log.Info("opening ttyS2 for session logging")
 	f, err := os.OpenFile(pathPrefix+"/ttyS2", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, 777)
@@ -190,12 +204,12 @@ func establishPty(live *liveSession) error {
 	var err error
 	live.pty, err = pty.Start(live.cmd)
 	if live.pty != nil {
-		live.writer = dio.MultiWriter(writer)
+		live.outwriter = dio.MultiWriter(writer)
 
 		// TODO: do we need to ensure all reads have completed before calling Wait on the process?
 		// it frees up all resources - does that mean it frees the output buffers?
 		go func() {
-			_, err := io.Copy(live.writer, live.pty)
+			_, err := io.Copy(live.outwriter, live.pty)
 			log.Debug(err)
 		}()
 		go func() {

@@ -31,6 +31,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	winserial "github.com/tarm/serial"
 	"github.com/vmware/vic/cmd/tether/serial"
+	"github.com/vmware/vic/pkg/dio"
 )
 
 var backchannelMode = os.ModePerm
@@ -122,7 +123,7 @@ func setup() error {
 	return nil
 }
 
-func backchannel(ctx context.Context) (net.Conn, error) {
+func (t *osopsWin) backchannel(ctx context.Context) (net.Conn, error) {
 	com := "COM1"
 
 	// redirect backchannel to the serial connection
@@ -166,7 +167,7 @@ func backchannel(ctx context.Context) (net.Conn, error) {
 }
 
 // sessionLogWriter returns a writer that will persist the session output
-func sessionLogWriter() (io.Writer, error) {
+func sessionLogWriter() (dio.DynamicMultiWriter, error) {
 	com := "COM3"
 
 	// redirect backchannel to the serial connection
@@ -178,7 +179,8 @@ func sessionLogWriter() (io.Writer, error) {
 		return nil, errors.New(detail)
 	}
 
-	return f, nil
+	// use multi-writer so it goes to both screen and session log
+	return dio.MultiWriter(f, os.Stdout), nil
 }
 
 // processEnvOS does OS specific checking and munging on the process environment prior to launch

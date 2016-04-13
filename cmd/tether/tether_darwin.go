@@ -16,11 +16,14 @@ package main
 
 import (
 	"errors"
-	"io"
+	"net"
 	"os"
 	"strings"
 
+	"github.com/vmware/vic/pkg/dio"
+
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/net/context"
 )
 
 var backchannelMode = os.ModePerm
@@ -29,7 +32,7 @@ func setup() error {
 }
 
 // sessionLogWriter returns a writer that will persist the session output
-func sessionLogWriter() (io.Writer, error) {
+func sessionLogWriter() (dio.DynamicMultiWriter, error) {
 	return nil, errors.New("unimplemented on OSX")
 }
 
@@ -60,5 +63,9 @@ func resizePty(pty uintptr, winSize *WindowChangeMsg) error {
 }
 
 func signalProcess(process *os.Process, sig ssh.Signal) error {
+	return nil, errors.New("unimplemented on OSX")
+}
+
+func (t *osopsOSX) backchannel(ctx context.Context) (net.Conn, error) {
 	return nil, errors.New("unimplemented on OSX")
 }

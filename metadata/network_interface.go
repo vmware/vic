@@ -14,11 +14,7 @@
 
 package metadata
 
-import (
-	"net"
-
-	"github.com/vmware/govmomi/object"
-)
+import "net"
 
 // NetworkEndpoint describes a network presence in the form a vNIC in sufficient detail that it can be:
 // a. created - the vNIC added to a VM
@@ -48,7 +44,3 @@ type ContainerNetwork struct {
 	// The set of nameservers associated with this network - may be empty
 	Nameservers []net.IP
 }
-
-// NetworkMapping records which vSphere networks are mapped to a given symbolic
-// network at a consumption level
-type NetworkMapping map[string]object.Network

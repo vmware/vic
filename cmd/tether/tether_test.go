@@ -45,12 +45,6 @@ import (
 var mockOps osopsMock
 
 func TestMain(m *testing.M) {
-	// use the mock ops
-	mockOps = osopsMock{
-		// there's 4 util functions that will write to this
-		updated: make(chan bool, 5),
-	}
-	ops = &mockOps
 	log.SetLevel(log.DebugLevel)
 
 	retCode := m.Run()
@@ -65,16 +59,17 @@ func createFakeDevices() error {
 	var err error
 	// create control channel
 	path := fmt.Sprintf("%s/ttyS0", pathPrefix)
-	err = MkNamedPipe(path, os.ModePerm)
+	err = MkNamedPipe(path+"s", os.ModePerm)
 	if err != nil {
-		detail := fmt.Sprintf("failed to create fifo pipe %s for com0: %s", path, err)
+		detail := fmt.Sprintf("failed to create fifo pipe %ss for com0: %s", path, err)
 		return errors.New(detail)
 	}
-	mockOps.pipe, err = os.OpenFile(path, os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, backchannelMode)
+	err = MkNamedPipe(path+"c", os.ModePerm)
 	if err != nil {
-		detail := fmt.Sprintf("failed to create %s for com0: %s", path, err)
+		detail := fmt.Sprintf("failed to create fifo pipe %sc for com0: %s", path, err)
 		return errors.New(detail)
 	}
+	log.Debugf("created %s/ttyS0{c,s} as raw conn pipes", pathPrefix)
 
 	// others are non-interactive
 	for i := 1; i < 3; i++ {
@@ -84,6 +79,7 @@ func createFakeDevices() error {
 			detail := fmt.Sprintf("failed to create %s for com%d: %s", path, i+1, err)
 			return errors.New(detail)
 		}
+		log.Debugf("created %s as persistent log destinations", path)
 	}
 
 	// make an access to urandom
@@ -124,6 +120,13 @@ func testSetup(t *testing.T) {
 	pc, _, _, _ := runtime.Caller(1)
 	name := runtime.FuncForPC(pc).Name()
 
+	// use the mock ops - fresh one each time
+	mockOps = osopsMock{
+		// there's 4 util functions that will write to this
+		updated: make(chan bool, 5),
+	}
+	ops = &mockOps
+
 	pathPrefix, err = ioutil.TempDir("", path.Base(name))
 	if err != nil {
 		fmt.Println(err)
@@ -135,6 +138,7 @@ func testSetup(t *testing.T) {
 		fmt.Println(err)
 		t.Error(err)
 	}
+	log.Infof("Using %s as test prefix", pathPrefix)
 
 	backchannelMode = os.ModeNamedPipe | os.ModePerm
 	err = createFakeDevices()
@@ -160,7 +164,29 @@ func testTeardown(t *testing.T) {
 }
 
 func clientBackchannel(ctx context.Context) (net.Conn, error) {
-	log.Info("opening ttyS0 for backchannel")
+	log.Info("opening ttyS0 pipe pair for backchannel")
+	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_RDONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		detail := fmt.Sprintf("failed to open cpipe for backchannel: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	s, err := os.OpenFile(pathPrefix+"/ttyS0s", os.O_WRONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		detail := fmt.Sprintf("failed to open spipe for backchannel: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	log.Infof("creating raw connection from ttyS0 pipe pair (c=%d, s=%d)\n", c.Fd(), s.Fd())
+	conn, err := serial.NewHalfDuplixFileConn(c, s, pathPrefix+"/ttyS0", "file")
+
+	if err != nil {
+		detail := fmt.Sprintf("failed to create raw connection from ttyS0 pipe pair: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
 
 	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
 	ticker := time.NewTicker(1000 * time.Millisecond)
@@ -329,9 +355,9 @@ func TestAbsPath(t *testing.T) {
 	}
 
 	// check the exit code was set
-	err := sessions["abspath"].cmd.Wait()
-	if err != nil {
-		t.Error("reference process 'data --reference=/' did not exit cleanly: %s", err)
+	status := sessions["abspath"].exitStatus
+	if status != 0 {
+		t.Error("reference process 'data --reference=/' did not exit cleanly: %d", status)
 		return
 	}
 
@@ -531,9 +557,9 @@ func (c *TestAttachConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 			Tty:    false,
 			Attach: true,
 			Cmd: metadata.Cmd{
-				Path: "/bin/grep",
+				Path: "/usr/bin/tee",
 				// grep, matching everything, reading from stdin
-				Args: []string{"/bin/grep", ".", "-"},
+				Args: []string{"/usr/bin/tee", pathPrefix + "/tee.out"},
 				Env:  []string{},
 				Dir:  "/",
 			},
@@ -566,7 +592,7 @@ func TestAttach(t *testing.T) {
 	server = testServer
 
 	testSetup(t)
-	defer testTeardown(t)
+	// defer testTeardown(t)
 
 	// if there's no session command with guaranteed exit then tether needs to run in the background
 	cfg := &TestAttachConfig{}
@@ -622,21 +648,181 @@ func TestAttach(t *testing.T) {
 
 	stdout := session.Stdout()
 
-	testBytes := []byte("hello world!")
+	// FIXME: the pipe pair are line buffered - how do I disable that so we don't have odd hangs to diagnose
+	// when the trailing \n is missed
+	testBytes := []byte("hello world!\n")
 	// read from session into buffer
 	buf := &bytes.Buffer{}
 	done := make(chan bool)
-	go func() { io.Copy(buf, stdout); done <- true }()
+	go func() { io.CopyN(buf, stdout, int64(len(testBytes))); done <- true }()
 
 	// write something to echo
+	log.Debug("sending test data")
 	session.Stdin().Write(testBytes)
-	session.Stdin().Close()
+	log.Debug("sent test data")
 
 	// wait for the close to propogate
 	<-done
+	session.Stdin().Close()
 
 	if !bytes.Equal(buf.Bytes(), testBytes) {
-		t.Errorf("expected: %s, actual: %s", string(testBytes), buf.String())
+		t.Errorf("expected: \"%s\", actual: \"%s\"", string(testBytes), buf.String())
+		return
+	}
+}
+
+//
+/////////////////////////////////////////////////////////////////////////////////////
+
+/////////////////////////////////////////////////////////////////////////////////////
+// TestAttachConfig sets up the config for attach testing - the grep will echo anything
+// sent and adds colour which is useful for tty testing
+//
+type TestAttachTTYConfig struct{}
+
+func (c *TestAttachTTYConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
+	return "", errors.New("not implemented")
+}
+func (c *TestAttachTTYConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
+	config := metadata.ExecutorConfig{}
+
+	config.ID = "attach"
+	config.Name = "tether_test_executor"
+	config.Sessions = map[string]metadata.SessionConfig{
+		"attach": metadata.SessionConfig{
+			Common: metadata.Common{
+				ID:   "attach",
+				Name: "tether_test_session",
+			},
+			Tty:    true,
+			Attach: true,
+			// Cmd: metadata.Cmd{
+			// 	Path: "/bin/grep",
+			// 	// grep, matching everything, reading from stdin
+			// 	Args: []string{"/bin/grep", ".", "-"},
+			// 	Env:  []string{},
+			// 	Dir:  "/",
+			// },
+			// Cmd: metadata.Cmd{
+			// 	Path: "/bin/bash",
+			// 	// grep, matching everything, reading from stdin
+			// 	Args: []string{},
+			// 	Env:  []string{},
+			// 	Dir:  "/",
+			// },
+			Cmd: metadata.Cmd{
+				Path: "/usr/bin/tee",
+				// grep, matching everything, reading from stdin
+				Args: []string{"/usr/bin/tee", pathPrefix + "/tee.out"},
+				Env:  []string{},
+				Dir:  "/",
+			},
+		},
+	}
+
+	// generate a host key for the tether
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2014)
+	if err != nil {
+		return nil, err
+	}
+
+	privateKeyDer := x509.MarshalPKCS1PrivateKey(privateKey)
+	privateKeyBlock := pem.Block{
+		Type:    "RSA PRIVATE KEY",
+		Headers: nil,
+		Bytes:   privateKeyDer,
+	}
+
+	config.Key = pem.EncodeToMemory(&privateKeyBlock)
+
+	return &config, nil
+}
+
+func TestAttachTTY(t *testing.T) {
+	t.Skip("not sure how to test TTY yet")
+
+	// supply custom attach server so we can inspect its state
+	testServer := &testAttachServer{
+		updated: make(chan bool, 10),
+	}
+	server = testServer
+
+	testSetup(t)
+	// defer testTeardown(t)
+
+	// if there's no session command with guaranteed exit then tether needs to run in the background
+	cfg := &TestAttachTTYConfig{}
+	testConfig, err := cfg.LoadConfig()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	go func() {
+		err := run(cfg)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
+
+	// wait for updates to occur
+	<-testServer.updated
+
+	if !testServer.enabled {
+		t.Error("attach server was not enabled")
+		return
+	}
+
+	// create client on the mock pipe
+	conn, err := clientBackchannel(context.Background())
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	cconfig := &ssh.ClientConfig{
+		User: "daemon",
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			return nil
+		},
+	}
+
+	// create the SSH client
+	sConn, chans, reqs, err := ssh.NewClientConn(conn, "notappliable", cconfig)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer sConn.Close()
+	client := ssh.NewClient(sConn, chans, reqs)
+
+	session, err := SSHAttach(client, testConfig.ID)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	stdout := session.Stdout()
+
+	// FIXME: this is line buffered - how do I disable that so we don't have odd hangs to diagnose
+	// when the trailing \n is missed
+	testBytes := []byte("hello world!\n")
+	// read from session into buffer
+	buf := &bytes.Buffer{}
+	done := make(chan bool)
+	go func() { io.CopyN(buf, stdout, int64(len(testBytes))); done <- true }()
+
+	// write something to echo
+	log.Debug("sending test data")
+	session.Stdin().Write(testBytes)
+	log.Debug("sent test data")
+
+	// wait for the close to propogate
+	<-done
+	session.Stdin().Close()
+
+	if !bytes.Equal(buf.Bytes(), testBytes) {
+		t.Errorf("expected: \"%s\", actual: \"%s\"", string(testBytes), buf.String())
 		return
 	}
 }

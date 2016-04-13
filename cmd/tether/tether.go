@@ -49,10 +49,12 @@ var sessions map[string]*liveSession
 
 // ptySession groups up those elements we need for pty enabled sessions
 type liveSession struct {
-	pty    *os.File
-	writer dio.DynamicMultiWriter
-	reader dio.DynamicMultiReader
-	cmd    *exec.Cmd
+	pty        *os.File
+	outwriter  dio.DynamicMultiWriter
+	errwriter  dio.DynamicMultiWriter
+	reader     dio.DynamicMultiReader
+	cmd        *exec.Cmd
+	exitStatus int
 }
 
 // Set of child PIDs created by us.
@@ -177,10 +179,23 @@ func run(loader metadata.ConfigLoader) error {
 
 // handleSessionExit processes the result from the session command, records it in persistent
 // maner and determines if the Executor should exit
-func handleSessionExit(session *metadata.SessionConfig) error {
+func handleSessionExit(session *metadata.SessionConfig, exitStatus int) error {
+	// TODO: we cannot remove this from the live session map until we're updating the underlying
+	// session config - we need to persist the exit status
+	// remove from the live session map
+	live := sessions[session.ID]
+	// delete(sessions, session.ID)
+
+	// close down the IO
+	live.reader.Close()
+	// live.outwriter.Close()
+	// live.errwriter.Close()
+
 	// flush session log output
 
 	// record exit status
+	live.exitStatus = exitStatus
+	log.Infof("%s exit code: %d", session.ID, exitStatus)
 
 	// check for executor behaviour
 	if LenChildPid() == 0 {
@@ -197,6 +212,13 @@ func handleSessionExit(session *metadata.SessionConfig) error {
 // launch will launch the command defined in the session.
 // This will return an error if the session fails to launch
 func launch(session *metadata.SessionConfig) error {
+	logwriter, err := sessionLogWriter()
+	if err != nil {
+		detail := fmt.Sprintf("failed to get log writer for session: %s", err)
+		log.Error(detail)
+		return errors.New(detail)
+	}
+
 	live := &liveSession{
 		cmd: &exec.Cmd{
 			Path: session.Cmd.Path,
@@ -204,16 +226,12 @@ func launch(session *metadata.SessionConfig) error {
 			Env:  processEnvOS(session.Cmd.Env),
 			Dir:  session.Cmd.Dir,
 		},
+		outwriter: dio.MultiWriter(logwriter),
+		errwriter: dio.MultiWriter(logwriter),
+		reader:    dio.MultiReader(),
 	}
 
 	sessions[session.ID] = live
-
-	writer, err := sessionLogWriter()
-	if err != nil {
-		detail := fmt.Sprintf("failed to get log writer for session: %s", err)
-		log.Error(detail)
-		return errors.New(detail)
-	}
 
 	// Use the mutex to make creating a child and adding the child pid into the
 	// childPidTable appear atomic to the reaper function. Use a anonymous function
@@ -223,9 +241,9 @@ func launch(session *metadata.SessionConfig) error {
 		defer childPidTableMutex.Unlock()
 
 		log.Infof("Launching command %+q\n", live.cmd.Args)
-		live.cmd.Stdin = dio.MultiReader()
-		live.cmd.Stdout = writer
-		live.cmd.Stderr = writer
+		live.cmd.Stdin = live.reader
+		live.cmd.Stdout = live.outwriter
+		live.cmd.Stderr = live.errwriter
 		if !session.Tty {
 			err = live.cmd.Start()
 		} else {
@@ -240,6 +258,8 @@ func launch(session *metadata.SessionConfig) error {
 
 		// ChildReaper will use this channel to inform us the wait status of the child.
 		childPidTable[live.cmd.Process.Pid] = session
+
+		log.Debugf("Launched command with pid %d", live.cmd.Process.Pid)
 
 		return nil
 	}()

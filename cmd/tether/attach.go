@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"syscall"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/pkg/dio"
@@ -153,7 +154,7 @@ func (t *attachServerSSH) run() error {
 	// keep waiting for the connection to establish
 	for t.enabled && sConn == nil {
 		// wait for backchannel to establish
-		conn, err := ops.Backchannel(context.Background())
+		conn, err := ops.backchannel(context.Background())
 		t.conn = &conn
 
 		// create the SSH server
@@ -197,14 +198,26 @@ func (t *attachServerSSH) run() error {
 
 		sessionid := string(bytes)
 		live, ok := sessions[sessionid]
-		if !ok || live.cmd == nil || live.cmd.ProcessState.Exited() {
-			detail := fmt.Sprintf("specified ID for attach is unavailable: %s", sessionid)
+
+		reason := ""
+		if !ok || live.cmd == nil {
+			reason = "is unknown"
+		} else if live.cmd.Process == nil {
+			reason = "process has not been launched"
+		} else if live.cmd.Process.Signal(syscall.Signal(0)) != nil {
+			reason = "process has exited"
+		}
+
+		if reason != "" {
+			detail := fmt.Sprintf("attach request: session %s %s", sessionid, reason)
 			log.Error(detail)
 			attachchan.Reject(ssh.Prohibited, detail)
 			continue
 		}
 
+		log.Debugf("accepting incoming channel for %s", sessionid)
 		channel, requests, err := attachchan.Accept()
+		log.Debugf("accepted incoming channel for %s", sessionid)
 		if err != nil {
 			detail := fmt.Sprintf("could not accept channel: %s", err)
 			log.Println(detail)
@@ -215,7 +228,7 @@ func (t *attachServerSSH) run() error {
 		if live.pty == nil {
 			// if it's not a TTY then bind the channel directly to the multiwriter that's already associated with the process
 			dmwStdout, okA := live.cmd.Stdout.(dio.DynamicMultiWriter)
-			dmwStderr, okB := live.cmd.Stdout.(dio.DynamicMultiWriter)
+			dmwStderr, okB := live.cmd.Stderr.(dio.DynamicMultiWriter)
 			dmrStdin, okC := live.cmd.Stdin.(dio.DynamicMultiReader)
 			if !okA || !okB || !okC {
 				detail := fmt.Sprintf("target session IO cannot be duplicated to attach streams: %s", string(bytes))
@@ -224,9 +237,11 @@ func (t *attachServerSSH) run() error {
 				continue
 			}
 
+			log.Debugf("binding reader/writers for channel for %s", sessionid)
 			dmwStdout.Add(channel)
 			dmwStderr.Add(channel.Stderr())
 			dmrStdin.Add(channel)
+			log.Debugf("reader/writers bound for channel for %s", sessionid)
 
 			// cleanup on detach from the session
 			detach := func() {
@@ -240,12 +255,13 @@ func (t *attachServerSSH) run() error {
 
 		// if it's a TTY bind the channel to the multiwriter that's on the far side of the PTY from the process
 		// this is done so the logging is done with processed output
-		live.writer.Add(channel)
+		live.outwriter.Add(channel)
 		// PTY merges stdout & stderr so the two are the same
+		live.reader.Add(channel)
 
 		// cleanup on detach from the session
 		detach := func() {
-			live.writer.Remove(channel)
+			live.outwriter.Remove(channel)
 			live.reader.Remove(channel)
 		}
 		go t.channelMux(requests, live.cmd.Process, live.pty, detach)

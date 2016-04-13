@@ -29,5 +29,5 @@ type osops interface {
 	Apply(endpoint *metadata.NetworkEndpoint) error
 	MountLabel(label, target string, ctx context.Context) error
 	Fork(config *metadata.ExecutorConfig) error
-	Backchannel(ctx context.Context) (net.Conn, error)
+	backchannel(ctx context.Context) (net.Conn, error)
 }

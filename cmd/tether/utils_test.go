@@ -18,6 +18,8 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
+	"syscall"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -30,9 +32,6 @@ import (
 type osopsMock struct {
 	// allow tests to tell when the struct has been updated
 	updated chan bool
-	// shortcut for the control channel - unix socket
-	sconn net.Conn
-	cconn net.Conn
 
 	// the hostname of the system
 	hostname string
@@ -85,20 +84,42 @@ func (t *osopsMock) Fork(config *metadata.ExecutorConfig) error {
 	return errors.New("Fork test not implemented")
 }
 
-func (t *osopsMock) Backchannel(ctx context.Context) (net.Conn, error) {
-	log.Info("using unix socket for backchannel in test")
+func (t *osopsMock) backchannel(ctx context.Context) (net.Conn, error) {
+	log.Info("opening ttyS0 pipe pair for backchannel")
+	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_WRONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		detail := fmt.Sprintf("failed to open cpipe for backchannel: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	s, err := os.OpenFile(pathPrefix+"/ttyS0s", os.O_RDONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		detail := fmt.Sprintf("failed to open spipe for backchannel: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	log.Infof("creating raw connection from ttyS0 pipe pair (c=%d, s=%d)\n", c.Fd(), s.Fd())
+	conn, err := serial.NewHalfDuplixFileConn(s, c, pathPrefix+"/ttyS0", "file")
+
+	if err != nil {
+		detail := fmt.Sprintf("failed to create raw connection from ttyS0 pipe pair: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
 
 	// still run handshake over it to test that
 	ticker := time.NewTicker(1000 * time.Millisecond)
 	for {
 		select {
 		case <-ticker.C:
-			err := serial.HandshakeServer(ctx, t.cconn)
+			err := serial.HandshakeServer(ctx, conn)
 			if err == nil {
-				return t.cconn, nil
+				return conn, nil
 			}
 		case <-ctx.Done():
-			t.cconn.Close()
+			conn.Close()
 			ticker.Stop()
 			return nil, ctx.Err()
 		}
