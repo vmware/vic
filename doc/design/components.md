@@ -185,6 +185,14 @@ This provides the storage manipulation portions of the port layer, including con
 [Issues relating to portlayer storage](https://github.com/vmware/vic/labels/component%2Fportlayer%2Fstorage)
 
 
+#### VMOMI gateway
+
+This is the GuestOS side of the [VMOMI authenticating proxy](#vmomi-authenticating-proxy) that provides a 'paravirtual' vmomi interface to the underlying vSphere infrastructure. This is structured as a library for direct consumption by other components, for example [vic-machine](#vic-machine), and may be wrapped in a service presenting a URI endpoint for shared consumption between components such as portlayer and vicadmin. This latter approach is less secure by virtue of exposing that mechanism generally within the Appliance, but has the benefit of simplicity regarding managing multiple connections over a single channel.
+
+[Issues relating to portlayer storage](https://github.com/vmware/vic/labels/component%2Fvmomi%2Fgateway)
+
+
+
 ## Install and management
 
 ### vic-machine
