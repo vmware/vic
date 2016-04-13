@@ -63,6 +63,41 @@ To create a VCH, disambiguation of which resource to use from the available set 
   - volumes
 
 
+## Implementation approach
+
+My current approach is to have several components that get rolled into both vic-machine. Initial implementation should focus on:
+* CLI parsing into config structs
+* validation of config struct values
+* reification of VCH from config struct
+
+Components:
+* command line argument parsing
+  - maps command line arguments to internal config data structures
+* validation of config structure values
+  - given an internal config data structure it's necessary to check the specifics against the target vSphere to ensure they are valid - past validity is no indicator of current validity
+  - this may also translate from symbolic names to morefs, resulting in a manifest that is resilient to name changes, but fragile across vSphere instances with identical naming schemes. This should be a user selectable behaviour, I prefer it on by default.
+* reification of configuration
+  - when a manifest has been validated against a vSphere, this component creates the corresponding vSphere objects - this is primarily the VCH applianceVM, but may also include port groups and other objects.
+* [vmomi gateway](components.md#vmomi_gateway)
+* manifest creation and consistency
+  - logic to validate that layered restrictions don't violate prior restrictions, e.g. refining [datastore1]/a/path to [datastore1]/a/path/to/vch is acceptable, but not to [datastore1]/a/second/path
+  - this should operate on the internal config data structures - probably a sliding window of two layers of the composite manifest each loaded into a config struct
+  - signing and signature validation
+* load/save manifest to/from internal config data structures
+  - this is the mapping from the config held in the compositied manifest to the current end configuration, held in a serializable config structure
+  - signing and signature validation of manifest layers
+
+The reason for this breakdown is because some of these elements need to be duplicated in the:
+* [validating proxy](components.md#validating-proxy):
+  - load/save manifest
+  - manifest consistency
+  - validation
+  - reification
+  - vmomi gateway
+* applianceVM
+  - validation
+  - vmomi gateway
+
 
 ## =================================================
 below this point is working notes.
