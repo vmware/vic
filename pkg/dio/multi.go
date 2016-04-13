@@ -143,7 +143,15 @@ func (t *multiReader) Read(p []byte) (int, error) {
 		defer log.Debugf("[%p] read \"%s\" from %d readers", t, string(p), len(t.readers))
 	}
 
+	// if there's no readers we are steady state
+	if len(t.readers) == 0 {
+		return 0, nil
+	}
+
 	if t.err == io.EOF {
+		if verbose {
+			log.Debug("[%p] read from close multi-reader, returning EOF")
+		}
 		return 0, io.EOF
 	}
 

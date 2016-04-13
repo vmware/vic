@@ -97,7 +97,9 @@ func NewHalfDuplixFileConn(read *os.File, write *os.File, name string, net strin
 }
 
 func (conn *RawConn) Read(b []byte) (n int, err error) {
-	defer log.Debugf("Returning error and bytes from read: %d, %s", n, err)
+	if verbose {
+		defer log.Debugf("Returning error and bytes from read: %d, %s", n, err)
+	}
 
 	// TODO: this is horrific from a performance perspective - really need a better
 	// way to interrupt that file.Read call
