@@ -45,7 +45,7 @@ import (
 
 	"crypto/tls"
 
-	"github.com/vmware/vic/pkg/auth"
+	"github.com/vmware/vic/cmd/vicadmin/pkg/auth"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -90,7 +90,7 @@ func init() {
 	// generate help text so it doesn't need to be updated later
 	authTypes := []string{"basic", "none"}
 	flag.StringVar(&config.authType, "auth-type",
-		"basic", "Set the authentication type to use. Valid types: "+strings.Join(authTypes, "|"))
+		"none", "Set the authentication type to use. Valid types: "+strings.Join(authTypes, "|"))
 
 }
 

@@ -31,7 +31,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/vmware/vic/pkg/auth"
+	"github.com/vmware/vic/cmd/vicadmin/pkg/auth"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 )
 
