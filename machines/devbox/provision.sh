@@ -26,7 +26,7 @@ echo "export PATH=$PATH:"${BASH_ARGV[1]}"/bin" >> $pro
 # vmwaretools automatic kernel update
 echo "answer AUTO_KMODS_ENABLED yes" | tee -a /etc/vmware-tools/locations
 
-packages=(curl lsof strace git shellcheck tree mc silversearcher-ag jq)
+packages=(curl lsof strace git shellcheck tree mc silversearcher-ag jq htpdate)
 for package in "${packages[@]}" ; do
     apt-get -y install "$package"
 done
