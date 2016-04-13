@@ -10,4 +10,4 @@ Documentation about component interactions is ongoing with the initial docs bein
 * [communication between VCH appliance and containerVMs](communications.md)
 * portlayer component communication
 * security
-* installation and self-provisioning
+* [installation and self-provisioning](vic-machine.md)
