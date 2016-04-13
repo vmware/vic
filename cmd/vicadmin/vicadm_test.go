@@ -31,7 +31,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/vmware/vic/cmd/vicadmin/pkg/auth"
+	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 )
 
@@ -66,37 +66,41 @@ func init() {
 
 }
 
+type credentials struct {
+	// the expected user
+	username string
+
+	// the expected password
+	password string
+}
+
+// Checks credentials for the given user/password combo
+func (c *credentials) Validate(u string, p string) bool {
+	return u == c.username && p == c.password
+}
+
 func TestLoginFailure(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.SkipNow()
 	}
 
 	s := &server{
-		addr:          "127.0.0.1:0",
-		Authenticator: auth.NewBasicHTTP("root", "thisisinsecure"),
+		addr: "127.0.0.1:0",
+		auth: &credentials{"root", "thisisinsecure"},
 	}
 
 	err := s.listen(true)
-
-	if err != nil {
-		log.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	port := s.listenPort()
 
 	go s.serve()
+	defer s.stop()
 
 	var res *http.Response
 	res, err = insecureClient.Get(fmt.Sprintf("https://root:notthepassword@localhost:%d/", port))
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if res.StatusCode != http.StatusUnauthorized {
-		log.Fatal("Authenticator accepted incorrect password")
-	}
-
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
 }
 
 func TestNoAuth(t *testing.T) {
@@ -105,31 +109,22 @@ func TestNoAuth(t *testing.T) {
 	}
 
 	s := &server{
-		addr:          "127.0.0.1:0",
-		Authenticator: &auth.None{},
+		addr: "127.0.0.1:0",
+		auth: nil,
 	}
 
 	err := s.listen(true)
-
-	if err != nil {
-		log.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	port := s.listenPort()
 
 	go s.serve()
+	defer s.stop()
 
 	var res *http.Response
 	res, err = insecureClient.Get(fmt.Sprintf("https://localhost:%d/", port))
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if res.StatusCode != http.StatusOK {
-		log.Fatal("Failed to disable authentication")
-	}
-
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, res.StatusCode)
 }
 
 func testLogTar(t *testing.T, plainHTTP bool) {
@@ -140,19 +135,17 @@ func testLogTar(t *testing.T, plainHTTP bool) {
 	logFileDir = "."
 
 	s := &server{
-		addr:          "127.0.0.1:0",
-		Authenticator: auth.NewBasicHTTP("root", "thisisinsecure"),
+		addr: "127.0.0.1:0",
+		auth: &credentials{"root", "thisisinsecure"},
 	}
 
 	err := s.listen(!plainHTTP)
-
-	if err != nil {
-		log.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	port := s.listenPort()
 
 	go s.serve()
+	defer s.stop()
 
 	var res *http.Response
 	if !plainHTTP {
@@ -216,18 +209,17 @@ func TestLogTail(t *testing.T) {
 	name := filepath.Base(f.Name())
 
 	s := &server{
-		addr:          "127.0.0.1:0",
-		Authenticator: auth.NewBasicHTTP("root", "thisisinsecure"),
+		addr: "127.0.0.1:0",
+		auth: &credentials{"root", "thisisinsecure"},
 	}
 
 	err = s.listen(true)
-	if err != nil {
-		log.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	port := s.listenPort()
 
 	go s.serve()
+	defer s.stop()
 
 	out := ioutil.Discard
 	if testing.Verbose() {
@@ -269,8 +261,6 @@ func TestLogTail(t *testing.T) {
 		out.Write([]byte("...\n"))
 		res.Body.Close()
 
-		if n != size {
-			t.Errorf("expected %d, got %d", size, n)
-		}
+		assert.Equal(t, size, n)
 	}
 }
