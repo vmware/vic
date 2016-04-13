@@ -61,7 +61,7 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, netC
 
 	storageSession, err = session.NewSession(sessionconfig).Create(ctx)
 	if err != nil {
-		log.Fatalf("ERROR: %s", err)
+		log.Fatalf("StorageHandler ERROR: %s", err)
 	}
 
 	ds, err := vsphere.NewImageStore(ctx, storageSession)

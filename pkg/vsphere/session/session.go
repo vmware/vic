@@ -25,10 +25,13 @@
 package session
 
 import (
+	// "bytes"
 	"crypto/tls"
+	"fmt"
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi"
@@ -179,7 +182,8 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 	}
 
 	s.Finder = find.NewFinder(s.Vim25(), true)
-
+	// log high-level environement information
+	s.logEnvironmentInfo()
 	return s, nil
 }
 
@@ -193,45 +197,76 @@ func (s *Session) Populate(ctx context.Context) (*Session, error) {
 
 	finder := s.Finder
 
+	log.Debug("vSphere resource cache populating...")
 	s.Datacenter, err = finder.DatacenterOrDefault(ctx, s.DatacenterPath)
 	if err != nil {
-		errs = append(errs, err.Error())
+		errs = append(errs, fmt.Sprintf("Failure finding dc (%s): %s", s.DatacenterPath, err.Error()))
 	} else {
 		finder.SetDatacenter(s.Datacenter)
+		log.Debugf("Cached dc: %s", s.DatacenterPath)
 	}
+
+	finder.SetDatacenter(s.Datacenter)
 
 	s.Cluster, err = finder.ComputeResourceOrDefault(ctx, s.ClusterPath)
 	if err != nil {
-		errs = append(errs, err.Error())
+		errs = append(errs, fmt.Sprintf("Failure finding cluster (%s): %s", s.ClusterPath, err.Error()))
+	} else {
+		log.Debugf("Cached cluster: %s", s.ClusterPath)
 	}
 
 	s.Datastore, err = finder.DatastoreOrDefault(ctx, s.DatastorePath)
 	if err != nil {
-		errs = append(errs, err.Error())
+		errs = append(errs, fmt.Sprintf("Failure finding ds (%s): %s", s.DatastorePath, err.Error()))
+	} else {
+		log.Debugf("Cached ds: %s", s.DatastorePath)
 	}
 
 	s.Host, err = finder.HostSystemOrDefault(ctx, s.HostPath)
 	if err != nil {
 		if _, ok := err.(*find.DefaultMultipleFoundError); !ok || !s.IsVC() {
-			errs = append(errs, err.Error())
+			errs = append(errs, fmt.Sprintf("Failure finding host (%s): %s", s.HostPath, err.Error()))
 		}
+	} else {
+		log.Debugf("Cached host: %s", s.HostPath)
 	}
 
 	if s.NetworkPath != "" {
 		s.Network, err = finder.NetworkOrDefault(ctx, s.NetworkPath)
 		if err != nil {
-			errs = append(errs, err.Error())
+			errs = append(errs, fmt.Sprintf("Failure finding net (%s): %s", s.NetworkPath, err.Error()))
 		}
+	} else {
+		log.Debugf("Cached net: %s", s.NetworkPath)
 	}
 
 	s.Pool, err = finder.ResourcePoolOrDefault(ctx, s.PoolPath)
 	if err != nil {
-		errs = append(errs, err.Error())
+		errs = append(errs, fmt.Sprintf("Failure finding pool (%s): %s", s.PoolPath, err.Error()))
+	} else {
+		log.Debugf("Cached pool: %s", s.PoolPath)
 	}
 
 	if len(errs) > 0 {
+		log.Debugf("Error count populating vSphere cache: (%d)", len(errs))
 		return nil, errors.New(strings.Join(errs, "\n"))
 	}
-
+	log.Debug("vSphere resource cache populated...")
 	return s, nil
+}
+
+func (s *Session) logEnvironmentInfo() {
+	a := s.ServiceContent.About
+	log.WithFields(log.Fields{
+		"Name":        a.Name,
+		"Vendor":      a.Vendor,
+		"Version":     a.Version,
+		"Build":       a.Build,
+		"OS Type":     a.OsType,
+		"API Type":    a.ApiType,
+		"API Version": a.ApiVersion,
+		"Product ID":  a.ProductLineId,
+		"UUID":        a.InstanceUuid,
+	}).Debug("Session Environment Info: ")
+	return
 }

@@ -75,7 +75,7 @@ func (handler *ExecHandlersImpl) Configure(api *operations.PortLayerAPI, netCtx 
 
 	execSession, err = session.NewSession(sessionconfig).Create(ctx)
 	if err != nil {
-		log.Fatalf("ERROR: %s", err)
+		log.Fatalf("ExecHandler ERROR: %s", err)
 	}
 
 	handler.netCtx = netCtx
