@@ -76,3 +76,33 @@ func TestSession(t *testing.T) {
 	t.Logf("IsVC: %t", session.IsVC())
 	t.Logf("IsVSAN: %t", session.IsVSAN(ctx))
 }
+
+func TestFolder(t *testing.T) {
+	ctx := context.Background()
+
+	config := &Config{
+		Service:        env.URL(t),
+		Insecure:       true,
+		Keepalive:      time.Duration(5) * time.Minute,
+		DatacenterPath: "",
+		DatastorePath:  "/ha-datacenter/datastore/*",
+		HostPath:       "/ha-datacenter/host/*/*",
+		PoolPath:       "/ha-datacenter/host/*/Resources",
+	}
+
+	session, err := NewSession(config).Create(ctx)
+	if err != nil {
+		t.Logf("%+v", err.Error())
+		if _, ok := err.(*find.MultipleFoundError); !ok {
+			t.Errorf(err.Error())
+		} else {
+			t.SkipNow()
+		}
+	}
+	defer session.Logout(ctx)
+
+	folders := session.Folders(ctx)
+	if folders == nil || folders.VmFolder == nil {
+		t.Errorf("Get empty folder")
+	}
+}
