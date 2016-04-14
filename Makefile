@@ -13,10 +13,10 @@
 # limitations under the License.
 
 GO ?= go
-GOVERSION ?= go1.6
+GOVERSION ?= go1.6.1
 OS := $(shell uname | tr '[:upper:]' '[:lower:]')
 ifeq ($(USER),vagrant)
-	# assuming we are in a shared directory where host arch is different from the guest 
+	# assuming we are in a shared directory where host arch is different from the guest
 	BIN_ARCH := -$(OS)
 endif
 

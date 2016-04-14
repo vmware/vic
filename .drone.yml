@@ -9,7 +9,7 @@ clone:
 
 build:
   components:
-    image: golang:1.6.0
+    image: golang:1.6.1
     pull: true
     environment:
       BIN: bin
@@ -20,7 +20,7 @@ build:
       - make install
 
   iso-base:
-    image: golang:1.6.0
+    image: golang:1.6.1
     pull: true
     environment:
       BIN: bin
@@ -28,7 +28,7 @@ build:
       - make iso-base
 
   appliance-staging:
-    image: golang:1.6.0
+    image: golang:1.6.1
     pull: true
     environment:
       BIN: bin
@@ -36,7 +36,7 @@ build:
       - make appliance-staging
 
   appliance:
-    image: golang:1.6.0
+    image: golang:1.6.1
     pull: true
     environment:
       BIN: bin
@@ -45,7 +45,7 @@ build:
       - make appliance
 
   bootstrap-staging:
-    image: golang:1.6.0
+    image: golang:1.6.1
     pull: true
     environment:
       BIN: bin
@@ -53,7 +53,7 @@ build:
       - make bootstrap-staging
 
   bootstrap:
-    image: golang:1.6.0
+    image: golang:1.6.1
     pull: true
     environment:
       BIN: bin
@@ -62,7 +62,7 @@ build:
       - make bootstrap
 
   test:
-    image: golang:1.6.0
+    image: golang:1.6.1
     pull: true
     environment:
       BIN: bin
@@ -82,7 +82,7 @@ build:
       success: true
 
   bundle:
-    image: golang:1.6.0
+    image: golang:1.6.1
     pull: true
     environment:
       BIN: bin

@@ -33,7 +33,7 @@ done
 
 if [ ! -d "/usr/local/go" ] ; then
     (cd /usr/local &&
-        (curl --silent -L https://storage.googleapis.com/golang/go1.6.linux-amd64.tar.gz | tar -zxf -) &&
+        (curl --silent -L https://storage.googleapis.com/golang/go1.6.1.linux-amd64.tar.gz | tar -zxf -) &&
         ln -s /usr/local/go/bin/* /usr/local/bin/)
 fi
 
