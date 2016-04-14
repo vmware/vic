@@ -1,6 +1,6 @@
 # Port Layer - Interaction
 
-This component deals handles interaction with a running container and is broken distinct from execution primarily because the uptime requirements may be different.
+This component handles interaction with a running container and is distinct from execution primarily because the uptime requirements may be different.
 
 If the execution portion of the port layer is unavailable then only container management operations around creating, starting, stopping, et al are impacted, and then only for as long as the VCH is unavailable.
 
