@@ -9,7 +9,7 @@ Speculative list of functions (via docker-machine as a client?):
 * docker API user management
 * reconfigure operations (e.g. add --insecure-registry)
 
-- [ ] Add authentication around the server - local system or full PAM 
+- [ ] Add authentication around the server - local system or full PAM
 - [ ] Retrieve client certificate from VCH when using TLS
 
 [Issues relating to this component](https://github.com/vmware/vic/labels/component%2Fvicadmin)

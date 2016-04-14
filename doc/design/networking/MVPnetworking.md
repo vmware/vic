@@ -42,7 +42,7 @@ are explained later in this document.
 
 ![Networks connected to VCH](pics/vch-net.png)
 
-### vSphere Management Network  
+### vSphere Management Network
 
 The VCH will use the vSphere Management Network to communicate with
 vCenter and the hosts as needed. In addition, the tether within the
@@ -51,7 +51,7 @@ the VCH (using either serial-over-LAN or vSocket, etc).
 
 ![VCH to Management Network](pics/vch-management-net.png)
 
-### Docker Management Endpoint Network  
+### Docker Management Endpoint Network
 
 We need to allow customers to isolate the docker endpoint from the
 more public external network. This will basically allow for a
@@ -239,8 +239,8 @@ for external networks is a post-MVP feature.
 In this use case we assume a couple external networks have been setup
 on the vSphere side.
 
-`default-external` is `10.2.0.0/16` and has a gateway @ `10.2.0.1`  
-`vic-production` is `208.91.3.0/24` and has a gateway @ `208.91.3.1`  
+`default-external` is `10.2.0.0/16` and has a gateway @ `10.2.0.1`
+`vic-production` is `208.91.3.0/24` and has a gateway @ `208.91.3.1`
 
 The VCH is attached to the *default-external* network at 208.91.3.2.
 
@@ -251,7 +251,7 @@ Therefore `docker network ls` shows the following:
     e2113b821ead        none                null
     37470ed9992f        default-external    bridge
     ea96a6b919de        vic-production      bridge
-    b7e91524f3e2        bridge              bridge  
+    b7e91524f3e2        bridge              bridge
 
 The user has a container providing a web service that they want to
 expose outside of the vIC environment.
@@ -327,7 +327,7 @@ configuration error.
 #### Expected Outcome
 
 The Port Layer will add the container *server* to the
-*vic-production* network.  
+*vic-production* network.
 
 The user expects the *server* container to have it's port exposed on
 the external network *vic-production*.
