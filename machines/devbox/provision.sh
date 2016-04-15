@@ -32,7 +32,7 @@ for package in "${packages[@]}" ; do
 done
 
 # install / upgrade go
-go_file="https://storage.googleapis.com/golang/go1.6.1.linux-amd64.tar.gz"
+go_file="https://storage.googleapis.com/golang/go1.6.2.linux-amd64.tar.gz"
 go_version=$(basename $go_file | cut -d. -f1-3)
 go_current=$(go version | awk '{print $(3)}')
 
