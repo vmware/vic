@@ -154,7 +154,7 @@ func (t *attachServerSSH) run() error {
 	// keep waiting for the connection to establish
 	for t.enabled && sConn == nil {
 		// wait for backchannel to establish
-		conn, err := ops.backchannel(context.Background())
+		conn, err := utils.backchannel(context.Background())
 		t.conn = &conn
 
 		// create the SSH server
@@ -327,7 +327,7 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 			} else if err = ssh.Unmarshal(req.Payload, &msg); err != nil {
 				ok = false
 				payload = []byte(err.Error())
-			} else if err := resizePty(pty.Fd(), &msg); err != nil {
+			} else if err := utils.resizePty(pty.Fd(), &msg); err != nil {
 				ok = false
 				payload = []byte(err.Error())
 			}
@@ -338,7 +338,7 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 				payload = []byte(err.Error())
 			} else {
 				log.Printf("Sending signal %s to container process, pid=%d\n", string(msg.Signal), process.Pid)
-				err := signalProcess(process, ssh.Signal(msg.Signal))
+				err := utils.signalProcess(process, ssh.Signal(msg.Signal))
 				if err != nil {
 					log.Printf("Failed to dispatch signal to process: %s\n", err)
 				}

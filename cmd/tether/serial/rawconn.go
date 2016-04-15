@@ -98,7 +98,7 @@ func NewHalfDuplixFileConn(read *os.File, write *os.File, name string, net strin
 
 func (conn *RawConn) Read(b []byte) (n int, err error) {
 	if verbose {
-		defer log.Debugf("Returning error and bytes from read: %d, %s", n, err)
+		defer log.Debugf("Returning error and bytes from read (%s:%s): %d, %s", conn.rchannel.Name(), conn.wchannel.Name(), n, err)
 	}
 
 	// TODO: this is horrific from a performance perspective - really need a better
@@ -120,7 +120,7 @@ func (conn *RawConn) Read(b []byte) (n int, err error) {
 		}
 		return n, err
 	case e := <-conn.err:
-		log.Debug("Returning error from read: %s", e)
+		log.Debugf("Returning error from read: %s", e)
 		// only one close will send an error and we have that, so this won't block
 		// we do need to interrupt all reads
 		conn.err <- e
@@ -142,22 +142,22 @@ func (conn *RawConn) Close() error {
 	conn.mutex.Unlock()
 
 	if closed {
-		log.Debug("Close called again on RawConn")
+		log.Debugf("Close called again on RawConn (%s:%s) - dropping", conn.rchannel.Name(), conn.wchannel.Name())
 		return nil
 	}
 
 	// process the close
-	log.Debug("Closing the RawConn")
+	log.Debugf("Closing the RawConn (%s:%s)", conn.rchannel.Name(), conn.wchannel.Name())
 	errR := conn.rchannel.Close()
 	errW := conn.wchannel.Close()
 
 	buf := make([]byte, 4096)
 	bytes := runtime.Stack(buf, false)
 	if verbose {
-		log.Debugf("Close called on RawConn:\n%s", string(buf[:bytes]))
+		log.Debugf("Close called on RawConn (%s:%s):\n%s", conn.rchannel.Name(), conn.wchannel.Name(), string(buf[:bytes]))
 	}
 
-	log.Debug("Pushing EOF to any blocked readers on the raw connection")
+	log.Debugf("Pushing EOF to any blocked readers on the raw connection (%s:%s)", conn.rchannel.Name(), conn.wchannel.Name())
 	conn.err <- io.EOF
 
 	if errR != nil {

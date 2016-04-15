@@ -58,7 +58,7 @@ type liveSession struct {
 }
 
 // Set of child PIDs created by us.
-var childPidTable = make(map[int]*metadata.SessionConfig)
+var childPidTable map[int]*metadata.SessionConfig
 
 // Exclusive access to childPidTable
 var childPidTableMutex = &sync.Mutex{}
@@ -82,8 +82,10 @@ func LenChildPid() int {
 }
 
 func run(loader metadata.ConfigLoader) error {
+	// remake all of the main management structures so there's no cross contamination between tests
 	reload = make(chan bool, 1)
 	sessions = make(map[string]*liveSession)
+	childPidTable = make(map[int]*metadata.SessionConfig)
 
 	// HACK: workaround file descriptor conflict in pipe2 return from the exec.Command.Start
 	// it's not clear whether this is a cross platform issue, or still an issue as of this commit
@@ -91,12 +93,23 @@ func run(loader metadata.ConfigLoader) error {
 	_, _, _ = os.Pipe()
 
 	// perform basic one off OS specific setup
-	err := setup()
+	err := utils.setup()
 	if err != nil {
 		detail := fmt.Sprintf("failed during setup: %s", err)
 		log.Error(detail)
 		return errors.New(detail)
 	}
+
+	defer func() {
+		// perform basic cleanup
+		reload = nil
+		childPidTable = nil
+		// FIXME: Cannot clean up sessions until we are persisting exit status elsewhere for test validation
+		//    also referenced in handleSessionExit
+		// sessions = nil
+
+		utils.cleanup()
+	}()
 
 	// initial setup, so seed this
 	reload <- true
@@ -180,7 +193,7 @@ func run(loader metadata.ConfigLoader) error {
 // handleSessionExit processes the result from the session command, records it in persistent
 // maner and determines if the Executor should exit
 func handleSessionExit(session *metadata.SessionConfig, exitStatus int) error {
-	// TODO: we cannot remove this from the live session map until we're updating the underlying
+	// FIXME: we cannot remove this from the live session map until we're updating the underlying
 	// session config - we need to persist the exit status
 	// remove from the live session map
 	live := sessions[session.ID]
@@ -212,7 +225,7 @@ func handleSessionExit(session *metadata.SessionConfig, exitStatus int) error {
 // launch will launch the command defined in the session.
 // This will return an error if the session fails to launch
 func launch(session *metadata.SessionConfig) error {
-	logwriter, err := sessionLogWriter()
+	logwriter, err := utils.sessionLogWriter()
 	if err != nil {
 		detail := fmt.Sprintf("failed to get log writer for session: %s", err)
 		log.Error(detail)
@@ -223,7 +236,7 @@ func launch(session *metadata.SessionConfig) error {
 		cmd: &exec.Cmd{
 			Path: session.Cmd.Path,
 			Args: session.Cmd.Args,
-			Env:  processEnvOS(session.Cmd.Env),
+			Env:  utils.processEnvOS(session.Cmd.Env),
 			Dir:  session.Cmd.Dir,
 		},
 		outwriter: dio.MultiWriter(logwriter),
@@ -247,7 +260,7 @@ func launch(session *metadata.SessionConfig) error {
 		if !session.Tty {
 			err = live.cmd.Start()
 		} else {
-			err = establishPty(live)
+			err = utils.establishPty(live)
 		}
 
 		if err != nil {

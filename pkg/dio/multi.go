@@ -55,7 +55,7 @@ func (t *multiWriter) Write(p []byte) (n int, err error) {
 			}
 
 			// remove the writer
-			log.Debug("[%p] removing writer due to EOF", t)
+			log.Debugf("[%p] removing writer due to EOF", t)
 			t.Remove(w)
 		}
 
@@ -143,16 +143,17 @@ func (t *multiReader) Read(p []byte) (int, error) {
 		defer log.Debugf("[%p] read \"%s\" from %d readers", t, string(p), len(t.readers))
 	}
 
-	// if there's no readers we are steady state
-	if len(t.readers) == 0 {
-		return 0, nil
-	}
-
 	if t.err == io.EOF {
 		if verbose {
-			log.Debug("[%p] read from close multi-reader, returning EOF")
+			log.Debugf("[%p] read from closed multi-reader, returning EOF", t)
 		}
 		return 0, io.EOF
+	}
+
+	// if there's no readers we are steady state - has to be after t.err check to
+	// get correct Close behaviour
+	if len(t.readers) == 0 {
+		return 0, nil
 	}
 
 	eof := io.EOF

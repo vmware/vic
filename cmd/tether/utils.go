@@ -16,18 +16,32 @@ package main
 
 import (
 	"net"
+	"os"
 
 	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/pkg/dio"
+	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 )
 
 // ops is here so we can switch the OS Ops impls for test mocking
 var ops osops
+var utils utilities
 
 type osops interface {
 	SetHostname(hostname string) error
 	Apply(endpoint *metadata.NetworkEndpoint) error
 	MountLabel(label, target string, ctx context.Context) error
 	Fork(config *metadata.ExecutorConfig) error
+}
+
+type utilities interface {
+	setup() error
+	cleanup()
+	sessionLogWriter() (dio.DynamicMultiWriter, error)
+	processEnvOS(env []string) []string
+	establishPty(live *liveSession) error
+	resizePty(pty uintptr, winSize *WindowChangeMsg) error
+	signalProcess(process *os.Process, sig ssh.Signal) error
 	backchannel(ctx context.Context) (net.Conn, error)
 }

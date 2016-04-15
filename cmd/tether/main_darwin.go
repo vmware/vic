@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
@@ -32,9 +31,9 @@ func main() {
 	pathPrefix = "/.tether"
 
 	// the OS ops and utils to use
-	lnx := &osopsLinux{}
-	ops = lnx
-	utils = lnx
+	osx := osopsOSX{}
+	ops = &osx
+	utils = &osx
 
 	// TODO: hard code executor initialization status reporting via guestinfo here
 	err := createDevices()
@@ -85,11 +84,8 @@ func createDevices() error {
 // exit cleanly shuts down the system
 func halt() {
 	log.Infof("Powering off the system")
-	if strings.HasSuffix(os.Args[0], "-debug") {
-		log.Info("Squashing power off for debug tether")
-		return
-	}
-
-	syscall.Sync()
-	syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
+	// if strings.HasSuffix(os.Args[0], "-debug") {
+	log.Info("Squashing power off for WIP tether")
+	return
+	// }
 }

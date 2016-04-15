@@ -27,18 +27,32 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/cmd/tether/serial"
 	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
 )
 
-var mockOps osopsMock
+var mocked mocker
 
-type osopsMock struct {
-	// allow tests to tell when the struct has been updated
-	updated chan bool
+// store the OS specific ops
+var specificOps osops
+
+// store the OS specific utils
+var specificUtils utilities
+
+type mocker struct {
+	// so that we can call through to the core methods where viable
+	ops   osops
+	utils utilities
+
+	// allow tests to tell when the tether has finished setup
+	started chan bool
+	// allow tests to tell when the tether has finished
+	cleaned chan bool
 
 	// the hostname of the system
 	hostname string
@@ -48,39 +62,56 @@ type osopsMock struct {
 	mounts map[string]string
 }
 
-// TestMain simply so we have control of debugging level and somewhere to call package wide test setup
-func TestMain(m *testing.M) {
-	log.SetLevel(log.DebugLevel)
+func (t *mocker) setup() error {
+	err := t.utils.setup()
+	close(t.started)
+	return err
+}
 
-	retCode := m.Run()
+func (t *mocker) cleanup() {
+	t.utils.cleanup()
+	close(t.cleaned)
+}
 
-	// call with result of m.Run()
-	os.Exit(retCode)
+func (t *mocker) sessionLogWriter() (dio.DynamicMultiWriter, error) {
+	return t.utils.sessionLogWriter()
+}
+
+func (t *mocker) processEnvOS(env []string) []string {
+	return t.utils.processEnvOS(env)
+}
+
+func (t *mocker) establishPty(live *liveSession) error {
+	return t.utils.establishPty(live)
+}
+
+func (t *mocker) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
+	return t.utils.resizePty(pty, winSize)
+}
+
+func (t *mocker) signalProcess(process *os.Process, sig ssh.Signal) error {
+	return t.utils.signalProcess(process, sig)
 }
 
 // SetHostname sets both the kernel hostname and /etc/hostname to the specified string
-func (t *osopsMock) SetHostname(hostname string) error {
+func (t *mocker) SetHostname(hostname string) error {
 	defer trace.End(trace.Begin("mocking hostname to " + hostname))
 
 	// TODO: we could mock at a much finer granularity, only extracting the syscall
 	// that would exercise the file modification paths, however it's much less generalizable
 	t.hostname = hostname
-
-	t.updated <- true
 	return nil
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
-func (t *osopsMock) Apply(endpoint *metadata.NetworkEndpoint) error {
+func (t *mocker) Apply(endpoint *metadata.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("mocking endpoint configuration for " + endpoint.Network.Name))
-
-	t.updated <- true
 	return errors.New("Apply test not implemented")
 }
 
 // MountLabel performs a mount with the source treated as a disk label
 // This assumes that /dev/disk/by-label is being populated, probably by udev
-func (t *osopsMock) MountLabel(label, target string, ctx context.Context) error {
+func (t *mocker) MountLabel(label, target string, ctx context.Context) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("mocking mounting %s on %s", label, target)))
 
 	if t.mounts == nil {
@@ -88,20 +119,16 @@ func (t *osopsMock) MountLabel(label, target string, ctx context.Context) error 
 	}
 
 	t.mounts[label] = target
-
-	t.updated <- true
 	return nil
 }
 
 // Fork triggers vmfork and handles the necessary pre/post OS level operations
-func (t *osopsMock) Fork(config *metadata.ExecutorConfig) error {
+func (t *mocker) Fork(config *metadata.ExecutorConfig) error {
 	defer trace.End(trace.Begin("mocking fork"))
-
-	t.updated <- true
 	return errors.New("Fork test not implemented")
 }
 
-func (t *osopsMock) backchannel(ctx context.Context) (net.Conn, error) {
+func (t *mocker) backchannel(ctx context.Context) (net.Conn, error) {
 	log.Info("opening ttyS0 pipe pair for backchannel")
 	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_WRONLY|syscall.O_NOCTTY, 0777)
 	if err != nil {
@@ -204,18 +231,37 @@ func (t *testAttachServer) stop() {
 	t.updated <- true
 }
 
+// TestMain simply so we have control of debugging level and somewhere to call package wide test setup
+func TestMain(m *testing.M) {
+	log.SetLevel(log.DebugLevel)
+
+	// save the base os specific structures
+	specificOps = ops
+	specificUtils = utils
+
+	retCode := m.Run()
+
+	// call with result of m.Run()
+	os.Exit(retCode)
+}
+
 func testSetup(t *testing.T) {
 	var err error
 
 	pc, _, _, _ := runtime.Caller(1)
 	name := runtime.FuncForPC(pc).Name()
 
-	// use the mock ops - fresh one each time
-	mockOps = osopsMock{
-		// there's 4 util functions that will write to this
-		updated: make(chan bool, 5),
+	log.Infof("Started test setup for %s", name)
+
+	// use the mock ops - fresh one each time as tests might apply different mocked calls
+	mocked = mocker{
+		ops:     specificOps,
+		utils:   specificUtils,
+		started: make(chan bool, 0),
+		cleaned: make(chan bool, 0),
 	}
-	ops = &mockOps
+	ops = &mocked
+	utils = &mocked
 
 	pathPrefix, err = ioutil.TempDir("", path.Base(name))
 	if err != nil {
@@ -244,13 +290,21 @@ func testSetup(t *testing.T) {
 
 func testTeardown(t *testing.T) {
 	// let the main tether loop exit
-	if reload != nil {
-		close(reload)
-		reload = nil
+	r := reload
+	reload = nil
+	if r != nil {
+		close(r)
 	}
 	// cleanup
 	os.RemoveAll(pathPrefix)
 	log.SetOutput(os.Stdout)
+
+	<-mocked.cleaned
+
+	pc, _, _, _ := runtime.Caller(1)
+	name := runtime.FuncForPC(pc).Name()
+
+	log.Infof("Finished test teardown for %s", name)
 }
 
 func clientBackchannel(ctx context.Context) (net.Conn, error) {

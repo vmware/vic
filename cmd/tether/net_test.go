@@ -53,12 +53,17 @@ func TestSetHostname(t *testing.T) {
 		}
 	}()
 
-	// wait for updates to occur
-	<-mockOps.updated
+	<-mocked.started
+
+	// prevent indefinite wait in tether - normally session exit would trigger this
+	close(reload)
+
+	// wait for tether to exit
+	<-mocked.cleaned
 
 	expected := stringid.TruncateID(testConfig.ID)
-	if mockOps.hostname != expected {
-		t.Errorf("expected: %s, actual: %s", expected, mockOps.hostname)
+	if mocked.hostname != expected {
+		t.Errorf("expected: %s, actual: %s", expected, mocked.hostname)
 	}
 
 	testTeardown(t)
@@ -100,10 +105,15 @@ func TestSetIpAddress(t *testing.T) {
 		}
 	}()
 
-	// wait for updates to occur
-	<-mockOps.updated
+	<-mocked.started
 
-	// TEST LOGIC GOES HERE
+	// prevent indefinite wait in tether - normally session exit would trigger this
+	close(reload)
+
+	// wait for tether to exit
+	<-mocked.cleaned
+
+	// mocked state still exists and can be verified
 	_ = testConfig
 
 	testTeardown(t)

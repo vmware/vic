@@ -27,8 +27,10 @@ func main() {
 
 	// where to look for the various devices and files related to tether
 	pathPrefix = "com://"
-	// the OS ops to use
-	ops = &osopsWin{}
+	// the OS ops and utils to use
+	win := &osopsWin{}
+	ops = win
+	utils = win
 
 	server = &attachServerSSH{}
 	err := run(metadata.New())

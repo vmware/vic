@@ -26,18 +26,28 @@ import (
 	"golang.org/x/net/context"
 )
 
+// allow us to pick up some of the osops implementations when mocking
+// allowing it to be less all or nothing
+func init() {
+	ops = &osopsOSX{}
+	utils = &osopsOSX{}
+}
+
 var backchannelMode = os.ModePerm
 
-func setup() error {
+func (t *osopsOSX) setup() error {
+}
+
+func (t *osopsOSX) cleanup() {
 }
 
 // sessionLogWriter returns a writer that will persist the session output
-func sessionLogWriter() (dio.DynamicMultiWriter, error) {
+func (t *osopsOSX) sessionLogWriter() (dio.DynamicMultiWriter, error) {
 	return nil, errors.New("unimplemented on OSX")
 }
 
 // processEnvOS does OS specific checking and munging on the process environment prior to launch
-func processEnvOS(env []string) []string {
+func (t *osopsOSX) processEnvOS(env []string) []string {
 	// TODO: figure out how we're going to specify user and pass all the settings along
 	// in the meantime, hardcode HOME to /root
 	homeIndex := -1
@@ -54,15 +64,15 @@ func processEnvOS(env []string) []string {
 	return env
 }
 
-func establishPty(live *liveSession) error {
+func (t *osopsOSX) establishPty(live *liveSession) error {
 	return errors.New("unimplemented on OSX")
 }
 
-func resizePty(pty uintptr, winSize *WindowChangeMsg) error {
+func (t *osopsOSX) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
 	return errors.New("unimplemented on OSX")
 }
 
-func signalProcess(process *os.Process, sig ssh.Signal) error {
+func (t *osopsOSX) signalProcess(process *os.Process, sig ssh.Signal) error {
 	return nil, errors.New("unimplemented on OSX")
 }
 

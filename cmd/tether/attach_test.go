@@ -23,6 +23,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"sync"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
@@ -90,7 +91,7 @@ func TestAttach(t *testing.T) {
 	server = testServer
 
 	testSetup(t)
-	// defer testTeardown(t)
+	defer testTeardown(t)
 
 	// if there's no session command with guaranteed exit then tether needs to run in the background
 	cfg := &TestAttachConfig{}
@@ -231,7 +232,7 @@ func TestAttachTTY(t *testing.T) {
 	server = testServer
 
 	testSetup(t)
-	// defer testTeardown(t)
+	defer testTeardown(t)
 
 	// if there's no session command with guaranteed exit then tether needs to run in the background
 	cfg := &TestAttachTTYConfig{}
@@ -292,8 +293,9 @@ func TestAttachTTY(t *testing.T) {
 	testBytes := []byte("hello world!\n")
 	// read from session into buffer
 	buf := &bytes.Buffer{}
-	done := make(chan bool)
-	go func() { io.CopyN(buf, stdout, int64(len(testBytes))); done <- true }()
+
+	var wg sync.WaitGroup
+	go func() { wg.Add(1); io.CopyN(buf, stdout, int64(len(testBytes))); wg.Done() }()
 
 	// write something to echo
 	log.Debug("sending test data")
@@ -301,7 +303,7 @@ func TestAttachTTY(t *testing.T) {
 	log.Debug("sent test data")
 
 	// wait for the close to propogate
-	<-done
+	wg.Wait()
 	session.Stdin().Close()
 
 	if !bytes.Equal(buf.Bytes(), testBytes) {
@@ -386,7 +388,7 @@ func TestAttachTwo(t *testing.T) {
 	server = testServer
 
 	testSetup(t)
-	// defer testTeardown(t)
+	defer testTeardown(t)
 
 	// if there's no session command with guaranteed exit then tether needs to run in the background
 	cfg := &TestAttachTwoConfig{}
@@ -404,6 +406,7 @@ func TestAttachTwo(t *testing.T) {
 	}()
 
 	// wait for updates to occur
+	<-mocked.started
 	<-testServer.updated
 
 	if !testServer.enabled {
@@ -457,10 +460,12 @@ func TestAttachTwo(t *testing.T) {
 	bufA := &bytes.Buffer{}
 	bufB := &bytes.Buffer{}
 
-	doneA := make(chan bool)
-	doneB := make(chan bool)
-	go func() { io.CopyN(bufA, stdoutA, int64(len(testBytesA))); doneA <- true }()
-	go func() { io.CopyN(bufB, stdoutB, int64(len(testBytesB))); doneB <- true }()
+	var wg sync.WaitGroup
+	// wg.Add cannot go inside the go routines as the Add may not have happened by the time we
+	// call Wait
+	wg.Add(2)
+	go func() { io.CopyN(bufA, stdoutA, int64(len(testBytesA))); wg.Done() }()
+	go func() { io.CopyN(bufB, stdoutB, int64(len(testBytesB))); wg.Done() }()
 
 	// write something to echo
 	log.Debug("sending test data")
@@ -469,10 +474,11 @@ func TestAttachTwo(t *testing.T) {
 	log.Debug("sent test data")
 
 	// wait for the close to propogate
-	<-doneA
-	<-doneB
+	wg.Wait()
 	sessionA.Stdin().Close()
 	sessionB.Stdin().Close()
+
+	<-mocked.cleaned
 
 	if !bytes.Equal(bufA.Bytes(), testBytesA) {
 		t.Errorf("expected: \"%s\", actual: \"%s\"", string(testBytesA), bufA.String())
@@ -508,7 +514,7 @@ func (c *TestAttachInvalidConfig) LoadConfig() (*metadata.ExecutorConfig, error)
 				ID:   "valid",
 				Name: "tether_test_session",
 			},
-			Tty:    true,
+			Tty:    false,
 			Attach: true,
 			Cmd: metadata.Cmd{
 				Path: "/usr/bin/tee",
@@ -546,7 +552,7 @@ func TestAttachInvalid(t *testing.T) {
 	server = testServer
 
 	testSetup(t)
-	// defer testTeardown(t)
+	defer testTeardown(t)
 
 	// if there's no session command with guaranteed exit then tether needs to run in the background
 	cfg := &TestAttachInvalidConfig{}

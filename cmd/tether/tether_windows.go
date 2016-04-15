@@ -34,6 +34,13 @@ import (
 	"github.com/vmware/vic/pkg/dio"
 )
 
+// allow us to pick up some of the osops implementations when mocking
+// allowing it to be less all or nothing
+func init() {
+	ops = &osopsWin{}
+	utils = &osopsWin{}
+}
+
 var backchannelMode = os.ModePerm
 
 type NamedPort struct {
@@ -100,7 +107,7 @@ func childReaper() {
 	// TODO: windows child process notifications
 }
 
-func setup() error {
+func (t *osopsWin) setup() error {
 	com := "COM2"
 
 	// redirect logging to the serial log
@@ -121,6 +128,9 @@ func setup() error {
 	go childReaper()
 
 	return nil
+}
+
+func (t *osopsWin) cleanup() {
 }
 
 func (t *osopsWin) backchannel(ctx context.Context) (net.Conn, error) {
@@ -167,7 +177,7 @@ func (t *osopsWin) backchannel(ctx context.Context) (net.Conn, error) {
 }
 
 // sessionLogWriter returns a writer that will persist the session output
-func sessionLogWriter() (dio.DynamicMultiWriter, error) {
+func (t *osopsWin) sessionLogWriter() (dio.DynamicMultiWriter, error) {
 	com := "COM3"
 
 	// redirect backchannel to the serial connection
@@ -184,7 +194,7 @@ func sessionLogWriter() (dio.DynamicMultiWriter, error) {
 }
 
 // processEnvOS does OS specific checking and munging on the process environment prior to launch
-func processEnvOS(env []string) []string {
+func (t *osopsWin) processEnvOS(env []string) []string {
 	// TODO: figure out how we're going to specify user and pass all the settings along
 	// in the meantime, hardcode HOME to /root
 	homeIndex := -1
@@ -201,14 +211,14 @@ func processEnvOS(env []string) []string {
 	return env
 }
 
-func signalProcess(process *os.Process, sig ssh.Signal) error {
+func (t *osopsWin) signalProcess(process *os.Process, sig ssh.Signal) error {
 	return errors.New("unimplemented on windows")
 }
 
-func establishPty(live *liveSession) error {
+func (t *osopsWin) establishPty(live *liveSession) error {
 	return errors.New("unimplemented on windows")
 }
 
-func resizePty(pty uintptr, winSize *WindowChangeMsg) error {
+func (t *osopsWin) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
 	return errors.New("unimplemented on windows")
 }
