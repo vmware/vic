@@ -19,7 +19,15 @@ import (
 	"bytes"
 	"io"
 	"testing"
+
+	log "github.com/Sirupsen/logrus"
 )
+
+func init() {
+	// enable verbose logging during tests
+	log.SetLevel(log.DebugLevel)
+	verbose = true
+}
 
 func TestMultiWrite(t *testing.T) {
 	pipeAR, pipeAW := io.Pipe()
@@ -200,17 +208,19 @@ func TestReadAdd(t *testing.T) {
 
 	mreader := MultiReader(readerA)
 
-	var buf bytes.Buffer
+	var bufA bytes.Buffer
+	var bufB bytes.Buffer
 
-	// do the read
-	_, err := io.Copy(&buf, mreader)
-	if err != nil || err == io.EOF {
+	// do the read - bytes.NewReader does not return data and EOF
+	// from the same call, so this should have err==nil
+	_, err := io.Copy(&bufA, mreader)
+	if err != nil {
 		t.Error(err)
 	}
 
 	// compare the data
-	if buf.String() != dataA {
-		t.Errorf("A: expected: %s, actual: %s", dataA, buf.String())
+	if bufA.String() != dataA {
+		t.Errorf("A: expected: %s, actual: %s", dataA, bufA.String())
 		return
 	}
 
@@ -219,12 +229,16 @@ func TestReadAdd(t *testing.T) {
 	// taken
 	mreader.Add(readerB)
 
-	// do the read
-	io.Copy(&buf, mreader)
+	// do the read - we expect mreader to now switch to the new source, which
+	// has the standard bytes.NewReader behaviour
+	_, err = io.Copy(&bufB, mreader)
+	if err != nil {
+		t.Error(err)
+	}
 
 	// compare the data
-	if buf.String() != dataA+dataB {
-		t.Errorf("A: expected: %s, actual: %s", dataA+dataB, buf.String())
+	if bufB.String() != dataB {
+		t.Errorf("A: expected: %s, actual: %s", dataB, bufB.String())
 		return
 	}
 }

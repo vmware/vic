@@ -22,7 +22,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-const verbose = false
+var verbose = true
 
 // DynamicMultiWriter adds dynamic add/remove to the base multiwriter behaviour
 type DynamicMultiWriter interface {
@@ -80,7 +80,7 @@ func (t *multiWriter) Add(writer ...io.Writer) {
 }
 
 // FIXME: provide a mechanism for selectively closing writers
-//  - currently this closes /dev/stdout and logging as well
+//  - currently this closes /dev/stdout and logging as well if present
 func (t *multiWriter) Close() error {
 	for _, w := range t.writers {
 		if c, ok := w.(io.Closer); ok {
@@ -133,14 +133,16 @@ type DynamicMultiReader interface {
 
 type multiReader struct {
 	mutex sync.Mutex
+	cond  *sync.Cond
 
 	readers []io.Reader
 	err     error
 }
 
 func (t *multiReader) Read(p []byte) (int, error) {
+	n := 0
 	if verbose {
-		defer log.Debugf("[%p] read \"%s\" from %d readers", t, string(p), len(t.readers))
+		defer log.Debugf("[%p] read \"%s\" from %d readers", t, string(p[:n]), len(t.readers))
 	}
 
 	if t.err == io.EOF {
@@ -151,13 +153,19 @@ func (t *multiReader) Read(p []byte) (int, error) {
 	}
 
 	// if there's no readers we are steady state - has to be after t.err check to
-	// get correct Close behaviour
-	if len(t.readers) == 0 {
-		return 0, nil
+	// get correct Close behaviour.
+	// Blocking behaviour!
+	t.mutex.Lock()
+	for len(t.readers) == 0 && t.err == nil {
+		t.cond.Wait()
+	}
+	t.mutex.Unlock()
+
+	if t.err != nil {
+		return 0, t.err
 	}
 
 	eof := io.EOF
-	n := 0
 	for _, r := range t.readers {
 		slice := p[n:]
 		if len(slice) == 0 {
@@ -202,6 +210,9 @@ func (t *multiReader) Add(reader ...io.Reader) {
 	defer t.mutex.Unlock()
 
 	t.readers = append(t.readers, reader...)
+	// if we've got a new reader, we're not EOF any more until that reader EOFs
+	t.err = nil
+	t.cond.Broadcast()
 
 	if verbose {
 		log.Debugf("[%p] adding reader - now %d readers", t, len(t.readers))
@@ -239,6 +250,8 @@ func MultiReader(readers ...io.Reader) DynamicMultiReader {
 	r := make([]io.Reader, len(readers))
 	copy(r, readers)
 	t := &multiReader{readers: r}
+	t.cond = sync.NewCond(&t.mutex)
+
 	if verbose {
 		log.Debugf("[%p] created multireader", t)
 	}
