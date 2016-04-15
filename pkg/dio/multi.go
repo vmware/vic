@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package io adds dynamic behaviour to the standard io package mutliX types
+// Package dio adds dynamic behaviour to the standard io package mutliX types
 package dio
 
 import (

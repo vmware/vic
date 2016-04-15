@@ -231,12 +231,12 @@ func (t *osopsLinux) establishPty(live *liveSession) error {
 		// TODO: do we need to ensure all reads have completed before calling Wait on the process?
 		// it frees up all resources - does that mean it frees the output buffers?
 		go func() {
-			_, err := io.Copy(live.outwriter, live.pty)
-			log.Debug(err)
+			_, gerr := io.Copy(live.outwriter, live.pty)
+			log.Debug(gerr)
 		}()
 		go func() {
-			_, err := io.Copy(live.pty, live.reader)
-			log.Debug(err)
+			_, gerr := io.Copy(live.pty, live.reader)
+			log.Debug(gerr)
 		}()
 	}
 
