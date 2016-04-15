@@ -191,12 +191,16 @@ func TestGetImage(t *testing.T) {
 		Store:    &testStoreURL,
 	}
 
+	expectedMeta := make(map[string][]byte)
+	expectedMeta["foo"] = []byte("bar")
 	// add the image to the store
-	image, err := storageLayer.WriteImage(context.TODO(), &parent, testImageID, nil, testImageSum, nil)
+	image, err := storageLayer.WriteImage(context.TODO(), &parent, testImageID, expectedMeta, testImageSum, nil)
 	if !assert.NotNil(t, image) {
 		return
 	}
 
+	eMeta := make(map[string]string)
+	eMeta["foo"] = "bar"
 	// expect our image back now that we've created it
 	expected := &storage.GetImageOK{
 		Payload: &models.Image{
@@ -204,6 +208,7 @@ func TestGetImage(t *testing.T) {
 			SelfLink: nil,
 			Parent:   nil,
 			Store:    testStoreURL.String(),
+			Metadata: eMeta,
 		},
 	}
 
@@ -317,12 +322,22 @@ func TestWriteImage(t *testing.T) {
 
 	s := &StorageHandlersImpl{}
 
+	eMeta := make(map[string]string)
+	eMeta["foo"] = "bar"
+
+	name := new(string)
+	val := new(string)
+	*name = "foo"
+	*val = eMeta["foo"]
+
 	params := &storage.WriteImageParams{
-		StoreName: testStoreName,
-		ImageID:   testImageID,
-		ParentID:  "scratch",
-		Sum:       testImageSum,
-		ImageFile: nil,
+		StoreName:   testStoreName,
+		ImageID:     testImageID,
+		ParentID:    "scratch",
+		Sum:         testImageSum,
+		Metadatakey: name,
+		Metadataval: val,
+		ImageFile:   nil,
 	}
 
 	expected := &storage.WriteImageCreated{
@@ -330,6 +345,7 @@ func TestWriteImage(t *testing.T) {
 			ID:       testImageID,
 			Parent:   nil,
 			Store:    testStoreURL.String(),
+			Metadata: eMeta,
 			SelfLink: nil,
 		},
 	}

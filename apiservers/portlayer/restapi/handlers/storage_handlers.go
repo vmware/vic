@@ -208,10 +208,18 @@ func convertImage(image *spl.Image) *models.Image {
 		selfLink = &l
 	}
 
+	meta := make(map[string]string)
+	if image.Metadata != nil {
+		for k, v := range image.Metadata {
+			meta[k] = string(v)
+		}
+	}
+
 	return &models.Image{
 		ID:       image.ID,
 		SelfLink: selfLink,
 		Parent:   parent,
+		Metadata: meta,
 		Store:    image.Store.String(),
 	}
 }
