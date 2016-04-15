@@ -15,7 +15,6 @@
 package restapi
 
 import (
-	"net"
 	"net/http"
 
 	"golang.org/x/net/context"
@@ -30,21 +29,20 @@ import (
 	"github.com/vmware/vic/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/apiservers/portlayer/restapi/options"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/portlayer/network"
 )
 
 // This file is safe to edit. Once it exists it will not be overwritten
 
 type handler interface {
-	Configure(api *operations.PortLayerAPI, netCtx *network.Context)
+	Configure(api *operations.PortLayerAPI, handlerCtx *handlers.HandlerContext)
 }
 
 var portlayerhandlers = []handler{
 	&handlers.StorageHandlersImpl{},
 	&handlers.MiscHandlersImpl{},
 	&handlers.ScopesHandlersImpl{},
-	&handlers.ExecHandlersImpl{},
 	&handlers.AttachHandlersImpl{},
+	&handlers.ContainersHandlersImpl{},
 }
 
 func configureFlags(api *operations.PortLayerAPI) {
@@ -91,19 +89,11 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 
 	api.TxtProducer = httpkit.TextProducer()
 
-	netCtx, err := network.NewContext(
-		net.IPNet{
-			IP:   net.IPv4(172, 16, 0, 0),
-			Mask: net.CIDRMask(12, 32),
-		},
-		net.CIDRMask(16, 32),
-		sess)
-	if err != nil {
-		log.Fatalf("failed to create network context: %s", err)
+	handlerCtx := &handlers.HandlerContext{
+		Session: sess,
 	}
-
 	for _, handler := range portlayerhandlers {
-		handler.Configure(api, netCtx)
+		handler.Configure(api, handlerCtx)
 	}
 
 	api.ServerShutdown = func() {}

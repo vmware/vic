@@ -70,11 +70,6 @@ func TestPathLookup(t *testing.T) {
 //
 /////////////////////////////////////////////////////////////////////////////////////
 
-/////////////////////////////////////////////////////////////////////////////////////
-// TestRelativePathConfig constructs the spec for a Session with relative path to existing
-// binary - this tests resolution vs the working directory
-//
-
 func TestRelativePath(t *testing.T) {
 	t.Skip("Relative path resolution not yet implemented")
 
@@ -113,12 +108,6 @@ func TestRelativePath(t *testing.T) {
 
 //
 /////////////////////////////////////////////////////////////////////////////////////
-
-/////////////////////////////////////////////////////////////////////////////////////
-// TestAbsPathConfig constructs the spec for a Session with absolute path to existing
-// binary
-//
-
 func TestAbsPath(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)

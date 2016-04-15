@@ -267,7 +267,6 @@ func TestAttachTTY(t *testing.T) {
 // TestAttachTwoConfig sets up the config for attach testing - tests launching and
 // attaching to two different processes simultaneously
 //
-
 func TestAttachTwo(t *testing.T) {
 
 	testSetup(t)

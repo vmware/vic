@@ -52,8 +52,8 @@ func TestToExtraConfig(t *testing.T) {
 				},
 			},
 		},
-		Networks: map[string]metadata.NetworkEndpoint{
-			"eth0": metadata.NetworkEndpoint{
+		Networks: map[string]*metadata.NetworkEndpoint{
+			"eth0": &metadata.NetworkEndpoint{
 				IP:  net.IPNet{IP: localhost, Mask: lmask.Mask},
 				MAC: "a-mac-address",
 				Network: metadata.ContainerNetwork{
@@ -74,7 +74,7 @@ func TestToExtraConfig(t *testing.T) {
 	extraconfig.Decode(extraconfig.MapSource(encoded), &decoded)
 
 	// the networks should be identical
-	assert.Equal(t, exec.Networks["eth0"], *(decoded.Networks["eth0"]))
+	assert.Equal(t, exec.Networks["eth0"], decoded.Networks["eth0"])
 
 	// the source and destination structs are different - we're doing a sparse comparison
 	expected := exec.Sessions["deadbeef"]

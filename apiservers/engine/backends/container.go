@@ -33,7 +33,8 @@ import (
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/strslice"
 
-	"github.com/vmware/vic/apiservers/portlayer/client/exec"
+	"github.com/vmware/vic/apiservers/portlayer/client/containers"
+	"github.com/vmware/vic/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/apiservers/portlayer/models"
 	"github.com/vmware/vic/pkg/trace"
@@ -173,22 +174,41 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	}
 
 	plCreateParams := c.dockerContainerCreateParamsToPortlayer(config, layer.ID, host)
-	createResults, err := client.Exec.ContainerCreate(plCreateParams)
-
+	createResults, err := client.Containers.Create(plCreateParams)
 	// transfer port layer swagger based response to Docker backend data structs and return to the REST front-end
 	if err != nil {
-		if _, isa := err.(*exec.ContainerCreateNotFound); isa {
+		if _, ok := err.(*containers.CreateNotFound); ok {
 			return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", layer.ID))
 		}
 
 		// If we get here, most likely something went wrong with the port layer API server
-		return types.ContainerCreateResponse{},
-			derr.NewErrorWithStatusCode(fmt.Errorf("Unknown error from the exec port layer"), http.StatusInternalServerError)
+		return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+	}
+
+	id := createResults.Payload.ID
+	h := createResults.Payload.Handle
+
+	// configure networking
+	netConf := toModelsNetworkConfig(config)
+	if netConf != nil {
+		addContRes, err := client.Scopes.AddContainer(
+			scopes.NewAddContainerParams().WithHandle(h).WithNetworkConfig(netConf))
+		if err != nil {
+			return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		}
+
+		h = addContRes.Payload
+	}
+
+	// commit the create op
+	_, err = client.Containers.Commit(containers.NewCommitParams().WithHandle(h))
+	if err != nil {
+		return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 	}
 
 	// Success!
-	log.Printf("container.ContainerCreate succeeded.  Returning container id %s", *createResults.Payload.ContainerID)
-	return types.ContainerCreateResponse{ID: *createResults.Payload.ContainerID}, nil
+	log.Printf("container.ContainerCreate succeeded.  Returning container handle %s", *createResults.Payload)
+	return types.ContainerCreateResponse{ID: id}, nil
 }
 
 func (c *Container) ContainerKill(name string, sig uint64) error {
@@ -231,18 +251,52 @@ func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig
 		// need to look at in hostConfig
 	}
 
-	// Start the container
-	// TODO: We need a resolved ID from the name
-	plStartParams := exec.NewContainerStartParams().WithID(name)
-	_, err := client.Exec.ContainerStart(plStartParams)
+	// get a handle to the container
+	getRes, err := client.Containers.Get(containers.NewGetParams().WithID(name))
 	if err != nil {
-		if _, isa := err.(*exec.ContainerStartNotFound); isa {
+		if _, ok := err.(*containers.GetNotFound); ok {
+			return derr.NewRequestNotFoundError(err)
+		}
+
+		return derr.NewErrorWithStatusCode(err, http.StatusServiceUnavailable)
+	}
+
+	h := getRes.Payload
+
+	// bind network
+	bindRes, err := client.Scopes.BindContainer(scopes.NewBindContainerParams().WithHandle(h))
+	if err != nil {
+		if _, ok := err.(*scopes.BindContainerNotFound); ok {
+			return derr.NewRequestNotFoundError(err)
+		}
+
+		return derr.NewErrorWithStatusCode(err, http.StatusServiceUnavailable)
+	}
+
+	h = bindRes.Payload
+
+	// change the state of the container
+	// TODO: We need a resolved ID from the name
+	stateChangeRes, err := client.Containers.StateChange(containers.NewStateChangeParams().WithHandle(h).WithState("RUNNING"))
+	if err != nil {
+		if _, ok := err.(*containers.StateChangeNotFound); ok {
 			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
 		}
 
 		// If we get here, most likely something went wrong with the port layer API server
-		return derr.NewErrorWithStatusCode(fmt.Errorf("Unknown error from the exec port layer"),
-			http.StatusInternalServerError)
+		return derr.NewErrorWithStatusCode(fmt.Errorf("Unknown error from the exec port layer"), http.StatusInternalServerError)
+	}
+
+	h = stateChangeRes.Payload
+
+	// commit the handle; this will reconfigure and start the vm
+	_, err = client.Containers.Commit(containers.NewCommitParams().WithHandle(h))
+	if err != nil {
+		if _, ok := err.(*containers.CommitNotFound); ok {
+			return derr.NewRequestNotFoundError(err)
+		}
+
+		return derr.NewErrorWithStatusCode(err, http.StatusServiceUnavailable)
 	}
 
 	return nil
@@ -300,7 +354,7 @@ func (c *Container) ContainerAttach(name string, cac *backend.ContainerAttachCon
 // Utility Functions
 //----------
 
-func (c *Container) dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, layerID string, imageStore string) *exec.ContainerCreateParams {
+func (c *Container) dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, layerID string, imageStore string) *containers.CreateParams {
 	config := &models.ContainerCreateConfig{}
 
 	// Image
@@ -336,15 +390,18 @@ func (c *Container) dockerContainerCreateParamsToPortlayer(cc types.ContainerCre
 	// network
 	config.NetworkDisabled = new(bool)
 	*config.NetworkDisabled = cc.Config.NetworkDisabled
-	config.NetworkSettings = toModelsNetworkConfig(cc)
 
 	// working dir
 	config.WorkingDir = new(string)
 	*config.WorkingDir = cc.Config.WorkingDir
 
+	// tty
+	config.Tty = new(bool)
+	*config.Tty = cc.Config.Tty
+
 	log.Printf("dockerContainerCreateParamsToPortlayer = %+v", config)
 	//TODO: Fill in the name
-	return exec.NewContainerCreateParams().WithCreateConfig(config)
+	return containers.NewCreateParams().WithCreateConfig(config)
 }
 
 func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig {
@@ -376,7 +433,7 @@ func (c *Container) imageExist(imageID string) (storeName string, err error) {
 	getParams := storage.NewGetImageParams().WithID(imageID).WithStoreName(host)
 	if _, err := PortLayerClient().Storage.GetImage(getParams); err != nil {
 		// If the image does not exist
-		if _, isa := err.(*storage.GetImageNotFound); isa {
+		if _, ok := err.(*storage.GetImageNotFound); ok {
 			// return error and "No such image" which the client looks for to determine if the image didn't exist
 			return "", derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", imageID))
 		}
