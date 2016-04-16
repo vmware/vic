@@ -175,7 +175,13 @@ func (handler *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) 
 		ID:    params.ParentID,
 	}
 
-	image, err := storageLayer.WriteImage(context.TODO(), parent, params.ImageID, nil, params.Sum, params.ImageFile)
+	var meta map[string][]byte
+
+	if params.Metadatakey != nil && params.Metadataval != nil {
+		meta = map[string][]byte{*params.Metadatakey: []byte(*params.Metadataval)}
+	}
+
+	image, err := storageLayer.WriteImage(context.TODO(), parent, params.ImageID, meta, params.Sum, params.ImageFile)
 	if err != nil {
 		return storage.NewWriteImageDefault(http.StatusInternalServerError).WithPayload(
 			&models.Error{
@@ -202,10 +208,18 @@ func convertImage(image *spl.Image) *models.Image {
 		selfLink = &l
 	}
 
+	meta := make(map[string]string)
+	if image.Metadata != nil {
+		for k, v := range image.Metadata {
+			meta[k] = string(v)
+		}
+	}
+
 	return &models.Image{
 		ID:       image.ID,
 		SelfLink: selfLink,
 		Parent:   parent,
+		Metadata: meta,
 		Store:    image.Store.String(),
 	}
 }

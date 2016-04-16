@@ -123,6 +123,12 @@ paths:
           type: string
           in: query
           required: true
+        - name: metadatakey
+          type: string
+          in: query
+        - name: metadataval
+          type: string
+          in: query
       responses:
         '201':
           description: "Created"
@@ -360,6 +366,10 @@ definitions:
         type: string
       Store:
         type: string
+      Metadata:
+        type: object
+        additionalProperties:
+                type: string
   ScopeConfig:
     type: object
     required:
