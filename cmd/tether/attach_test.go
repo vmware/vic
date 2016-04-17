@@ -66,7 +66,7 @@ func (c *TestAttachConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 	}
 
 	// generate a host key for the tether
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2014)
+	privateKey, err := rsa.GenerateKey(rand.Reader, 512)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +205,7 @@ func (c *TestAttachTTYConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 	}
 
 	// generate a host key for the tether
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2014)
+	privateKey, err := rsa.GenerateKey(rand.Reader, 512)
 	if err != nil {
 		return nil, err
 	}
@@ -363,7 +363,7 @@ func (c *TestAttachTwoConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 	}
 
 	// generate a host key for the tether
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2014)
+	privateKey, err := rsa.GenerateKey(rand.Reader, 512)
 	if err != nil {
 		return nil, err
 	}
@@ -527,7 +527,7 @@ func (c *TestAttachInvalidConfig) LoadConfig() (*metadata.ExecutorConfig, error)
 	}
 
 	// generate a host key for the tether
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2014)
+	privateKey, err := rsa.GenerateKey(rand.Reader, 512)
 	if err != nil {
 		return nil, err
 	}
