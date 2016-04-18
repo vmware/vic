@@ -17,11 +17,11 @@
 apt-get update && apt-get -y dist-upgrade
 
 # set GOPATH based on shared folder of vagrant
-pro="/home/"${BASH_ARGV[0]}"/.profile"
-echo "export GOPATH="${BASH_ARGV[1]} >> $pro
+pro="/home/${BASH_ARGV[0]}/.profile"
+echo "export GOPATH=${BASH_ARGV[1]}" >> "$pro"
 
 # add GOPATH/bin to the PATH
-echo "export PATH=$PATH:"${BASH_ARGV[1]}"/bin" >> $pro
+echo "export PATH=$PATH:${BASH_ARGV[1]}/bin" >> "$pro"
 
 # vmwaretools automatic kernel update
 echo "answer AUTO_KMODS_ENABLED yes" | tee -a /etc/vmware-tools/locations
@@ -31,10 +31,15 @@ for package in "${packages[@]}" ; do
     apt-get -y install "$package"
 done
 
-if [ ! -d "/usr/local/go" ] ; then
+# install / upgrade go
+go_file="https://storage.googleapis.com/golang/go1.6.1.linux-amd64.tar.gz"
+go_version=$(basename $go_file | cut -d. -f1-3)
+go_current=$(go version | awk '{print $(3)}')
+
+if [[ ! -d "/usr/local/go" || "$go_current" != "$go_version" ]] ; then
     (cd /usr/local &&
-        (curl --silent -L https://storage.googleapis.com/golang/go1.6.1.linux-amd64.tar.gz | tar -zxf -) &&
-        ln -s /usr/local/go/bin/* /usr/local/bin/)
+        (curl --silent -L $go_file | tar -zxf -) &&
+        ln -fs /usr/local/go/bin/* /usr/local/bin/)
 fi
 
 cat << EOF > /etc/systemd/system/docker.service
