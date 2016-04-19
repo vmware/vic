@@ -67,7 +67,8 @@ echo "Done!  Now copy your certs to your client and then reboot this server."
 4. Save `cert.sh`.
 5. Log into your Docker client.
 4. Create a folder named `.docker` in the `/root` folder.<pre>mkdir /root/.docker</pre>
-4. Run the following command to copy the certificate files into the `/root/.docker` folder in your Docker client. <pre>scp ca.pem server-cert.pem server-key.pem 
-root@<i>VIC_appliance_address</i>:/root/.docker/</pre>
+4. Run the following commands to copy the certificate files into the `/root/.docker` folder in your Docker client. <pre>scp root@<i>VIC_appliance_address</i>:/root/.docker/ca.pem /root/.docker</pre>
+<pre>scp root@<i>VIC_appliance_address</i>:/root/.docker/server-cert.pem /root/.docker</pre>
+<pre>scp root@<i>VIC_appliance_address</i>:/root/.docker/server-key.pem  /root/.docker</pre>
 5. Run the following command to restart the Docker daemon.<pre>ssh root@<i>VIC_appliance_address</i> /opt/dockerd.sh</pre>
 6. Run the following command in a Docker client terminal to connect the Docker client to the virtual container host with TLS authentication.<pre>docker --tlsverify -H tcp://<i>VIC_appliance_address</i>:2376 ps</pre>

@@ -41,7 +41,7 @@ Omit this option if vCenter Server only manages one cluster. Specify the path by
 
 ## `containerNetwork` ##
 
-The name of a private port group and network for containers to use. Set this option if you want containers to use a specific private port group and network. You must create the private port group and network before you run the installer with this option. For information about creating a private group group, see [Create a Private Port Group for Virtual Container Hosts](create_a_private_port_group_for_vch.md).
+The name of a private port group and network for containers to use. Set this option if you want containers to use a specific private port group and network, or if you want to install more than one virtual container host on an ESXi host. You must create the private port group and network before you run the installer with this option. For information about creating a private group group, see [Create a Private Port Group for Virtual Container Hosts](create_a_private_port_group_for_vch.md).
 
 If not specified, the installer creates a private port group named `container_port_group` and a network with the same name as the vSphere Integrated Containers appliance.
 
