@@ -33,6 +33,25 @@ import (
 	"github.com/vmware/vic/metadata"
 )
 
+func addKey(config *metadata.ExecutorConfig) (*metadata.ExecutorConfig, error) {
+
+	// generate a host key for the tether
+	privateKey, err := rsa.GenerateKey(rand.Reader, 512)
+	if err != nil {
+		return nil, err
+	}
+
+	privateKeyDer := x509.MarshalPKCS1PrivateKey(privateKey)
+	privateKeyBlock := pem.Block{
+		Type:    "RSA PRIVATE KEY",
+		Headers: nil,
+		Bytes:   privateKeyDer,
+	}
+
+	config.Key = pem.EncodeToMemory(&privateKeyBlock)
+	return config, nil
+}
+
 /////////////////////////////////////////////////////////////////////////////////////
 // TestAttachConfig sets up the config for attach testing - the grep will echo anything
 // sent and adds colour which is useful for tty testing
@@ -65,22 +84,7 @@ func (c *TestAttachConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 		},
 	}
 
-	// generate a host key for the tether
-	privateKey, err := rsa.GenerateKey(rand.Reader, 512)
-	if err != nil {
-		return nil, err
-	}
-
-	privateKeyDer := x509.MarshalPKCS1PrivateKey(privateKey)
-	privateKeyBlock := pem.Block{
-		Type:    "RSA PRIVATE KEY",
-		Headers: nil,
-		Bytes:   privateKeyDer,
-	}
-
-	config.Key = pem.EncodeToMemory(&privateKeyBlock)
-
-	return &config, nil
+	return addKey(&config)
 }
 
 func TestAttach(t *testing.T) {
@@ -149,7 +153,7 @@ func TestAttach(t *testing.T) {
 
 	// FIXME: the pipe pair are line buffered - how do I disable that so we don't have odd hangs to diagnose
 	// when the trailing \n is missed
-	testBytes := []byte("hello world!\n")
+	testBytes := []byte("\x1b[32mhello world\x1b[39m!\n")
 	// read from session into buffer
 	buf := &bytes.Buffer{}
 	done := make(chan bool)
@@ -165,7 +169,7 @@ func TestAttach(t *testing.T) {
 	session.Stdin().Close()
 
 	if !bytes.Equal(buf.Bytes(), testBytes) {
-		t.Errorf("expected: \"%s\", actual: \"%s\"", string(testBytes), buf.String())
+		t.Errorf("expected: [% x], actual: [% x]", string(testBytes), buf.Bytes())
 		return
 	}
 }
@@ -204,27 +208,10 @@ func (c *TestAttachTTYConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 		},
 	}
 
-	// generate a host key for the tether
-	privateKey, err := rsa.GenerateKey(rand.Reader, 512)
-	if err != nil {
-		return nil, err
-	}
-
-	privateKeyDer := x509.MarshalPKCS1PrivateKey(privateKey)
-	privateKeyBlock := pem.Block{
-		Type:    "RSA PRIVATE KEY",
-		Headers: nil,
-		Bytes:   privateKeyDer,
-	}
-
-	config.Key = pem.EncodeToMemory(&privateKeyBlock)
-
-	return &config, nil
+	return addKey(&config)
 }
 
 func TestAttachTTY(t *testing.T) {
-	t.Skip("not sure how to test TTY yet")
-
 	// supply custom attach server so we can inspect its state
 	testServer := &testAttachServer{
 		updated: make(chan bool, 10),
@@ -290,12 +277,15 @@ func TestAttachTTY(t *testing.T) {
 
 	// FIXME: this is line buffered - how do I disable that so we don't have odd hangs to diagnose
 	// when the trailing \n is missed
-	testBytes := []byte("hello world!\n")
+	testBytes := []byte("\x1b[32mhello world\x1b[39m!\n")
+	// after tty translation the above string should result in the following
+	refBytes := []byte("\x5e[[32mhello world\x5e[[39m!\n")
+
 	// read from session into buffer
 	buf := &bytes.Buffer{}
 
 	var wg sync.WaitGroup
-	go func() { wg.Add(1); io.CopyN(buf, stdout, int64(len(testBytes))); wg.Done() }()
+	go func() { wg.Add(1); io.CopyN(buf, stdout, int64(len(refBytes))); wg.Done() }()
 
 	// write something to echo
 	log.Debug("sending test data")
@@ -307,7 +297,7 @@ func TestAttachTTY(t *testing.T) {
 	session.Stdin().Close()
 
 	if !bytes.Equal(buf.Bytes(), testBytes) {
-		t.Errorf("expected: \"%s\", actual: \"%s\"", string(testBytes), buf.String())
+		t.Errorf("expected: [% x](%s), actual: [% x](%s)", refBytes, string(refBytes), buf.Bytes(), buf.String())
 		return
 	}
 }
@@ -362,22 +352,7 @@ func (c *TestAttachTwoConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 		},
 	}
 
-	// generate a host key for the tether
-	privateKey, err := rsa.GenerateKey(rand.Reader, 512)
-	if err != nil {
-		return nil, err
-	}
-
-	privateKeyDer := x509.MarshalPKCS1PrivateKey(privateKey)
-	privateKeyBlock := pem.Block{
-		Type:    "RSA PRIVATE KEY",
-		Headers: nil,
-		Bytes:   privateKeyDer,
-	}
-
-	config.Key = pem.EncodeToMemory(&privateKeyBlock)
-
-	return &config, nil
+	return addKey(&config)
 }
 
 func TestAttachTwo(t *testing.T) {
@@ -436,6 +411,27 @@ func TestAttachTwo(t *testing.T) {
 	}
 	defer sConn.Close()
 	client := ssh.NewClient(sConn, chans, reqs)
+
+	ids, err := SSHls(client)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	// there's no ordering guarantee in the returned ids
+	if len(ids) != 2 {
+		t.Errorf("ID list - expected 2, got ", len(ids))
+		return
+	}
+
+	reference, _ := cfg.LoadConfig()
+	for _, id := range ids {
+		if _, ok := reference.Sessions[id]; !ok {
+			t.Errorf("Expected sessions to have an entry for %s", id)
+			return
+		}
+		delete(reference.Sessions, id)
+	}
 
 	sessionA, err := SSHAttach(client, "tee1")
 	if err != nil {
@@ -526,22 +522,7 @@ func (c *TestAttachInvalidConfig) LoadConfig() (*metadata.ExecutorConfig, error)
 		},
 	}
 
-	// generate a host key for the tether
-	privateKey, err := rsa.GenerateKey(rand.Reader, 512)
-	if err != nil {
-		return nil, err
-	}
-
-	privateKeyDer := x509.MarshalPKCS1PrivateKey(privateKey)
-	privateKeyBlock := pem.Block{
-		Type:    "RSA PRIVATE KEY",
-		Headers: nil,
-		Bytes:   privateKeyDer,
-	}
-
-	config.Key = pem.EncodeToMemory(&privateKeyBlock)
-
-	return &config, nil
+	return addKey(&config)
 }
 
 func TestAttachInvalid(t *testing.T) {

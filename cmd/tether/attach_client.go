@@ -16,8 +16,10 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io"
 
+	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -40,7 +42,29 @@ type attachSSH struct {
 }
 
 // SSHAttach returns a stream connection to the requested session
-// The ssh client is assumed to be provided by the Executor hosting the session
+// The ssh client is assumed to be connected to the Executor hosting the session
+func SSHls(client *ssh.Client) ([]string, error) {
+	ok, reply, err := client.SendRequest("container-ids", true, nil)
+	if !ok || err != nil {
+		detail := fmt.Sprintf("failed to get container IDs from remote: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	ids := stringArrayMsg{}
+	err = ssh.Unmarshal(reply, &ids)
+	if err != nil {
+		detail := fmt.Sprintf("failed to unmarshall ids from remote: %s", err)
+		log.Error(detail)
+		log.Debugf("raw IDs response: %+v", reply)
+		return nil, err
+	}
+
+	return ids.Strings, nil
+}
+
+// SSHAttach returns a stream connection to the requested session
+// The ssh client is assumed to be connected to the Executor hosting the session
 func SSHAttach(client *ssh.Client, id string) (SessionInteraction, error) {
 	sessionSSH := &attachSSH{
 		client: client,

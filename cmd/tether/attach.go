@@ -67,8 +67,12 @@ type WindowChangeMsg struct {
 	HeightPx uint32
 }
 
-type signalMsg struct {
+type stringMsg struct {
 	Signal string
+}
+
+type stringArrayMsg struct {
+	Strings []string
 }
 
 var server attachServer
@@ -154,7 +158,13 @@ func (t *attachServerSSH) run() error {
 	// keep waiting for the connection to establish
 	for t.enabled && sConn == nil {
 		// wait for backchannel to establish
-		conn, err := utils.backchannel(context.Background())
+		conn, errb := utils.backchannel(context.Background())
+		if errb != nil {
+			err = errb
+			detail := fmt.Sprintf("failed to establish backchannel: %s", err)
+			log.Error(detail)
+			continue
+		}
 		t.conn = &conn
 
 		// create the SSH server
@@ -164,14 +174,14 @@ func (t *attachServerSSH) run() error {
 			log.Error(detail)
 			continue
 		}
-
-		defer sConn.Close()
 	}
 	if err != nil {
 		detail := fmt.Sprintf("abandoning attempt to start attach server: %s", err)
 		log.Error(detail)
 		return err
 	}
+
+	defer sConn.Close()
 
 	// Global requests
 	go t.globalMux(reqs)
@@ -288,8 +298,9 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 				keys[i] = k
 				i++
 			}
+			msg := stringArrayMsg{Strings: keys}
 
-			payload = []byte(ssh.Marshal(keys))
+			payload = []byte(ssh.Marshal(msg))
 		default:
 			ok = false
 			payload = []byte("unknown global request type: " + req.Type)
@@ -332,7 +343,7 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 				payload = []byte(err.Error())
 			}
 		case "signal":
-			msg := signalMsg{}
+			msg := stringMsg{}
 			if err = ssh.Unmarshal(req.Payload, &msg); err != nil {
 				ok = false
 				payload = []byte(err.Error())
