@@ -12,9 +12,9 @@ VIC attempts to be compatible with the Docker remote API; however, there are som
 |inspect a container| YES|
 |List processes running inside a container|YES|
 |Get Container Logs|YES|
-|Inspect changes on a containers filesystem|YES|
+|Inspect changes on a containers filesystem|YES - in the future|
 |Export a container|YES - In the future|
-|Get Container stats based on resource usage|__NO__|
+|Get Container stats based on resource usage|Yes - in the future|
 |Resize a container TTY|__NO__|
 |Start a Container|YES|
 |Stop a container|YES|
@@ -25,7 +25,7 @@ VIC attempts to be compatible with the Docker remote API; however, there are som
 |Pause a Container|*maybe*|
 |Unpause a Container|*maybe*|
 |Attach a Container|YES|
-|Attach a Container(websocket)|YES|
+|Attach a Container(websocket)|*maybe*|
 |wait a container|*maybe*|
 |Remove a Container|YES|
 |Copy files or folders from a Container|YES|
