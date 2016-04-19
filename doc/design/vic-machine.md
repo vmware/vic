@@ -17,7 +17,7 @@ This workflow is the bridge between the infrastructure administration portion of
 * _user_ - identified by granted API access to a specific VCH
   - controls the specifics of _what_ is done with the available resources, by way of an API client such as the Docker client
 
-This model provides for a form of multi-tenancy, with the _viadmin_ able to specify a service account that will be configured with appropriate RBAC rules. It's unclear at this time if it's viable to create sub-users with further restricted RBAC rulesets, so the working assumption is that all sub-division performed by _admin_ operate with the same service account, and the sub-division is enforced by configuration of vSphere constructs such as resource pools, but without the authority isolation provided by different vSphere users. How a VCH prevents manipulation of those sub-division limits is covered in [the security architecture](security.md).  
+This model provides for a form of multi-tenancy, with the _viadmin_ able to specify a service account that will be configured with appropriate RBAC rules. It's unclear at this time if it's viable to create sub-users with further restricted RBAC rulesets, so the working assumption is that all sub-division performed by _admin_ operate with the same service account, and the sub-division is enforced by configuration of vSphere constructs such as resource pools, but without the authority isolation provided by different vSphere users. How a VCH prevents manipulation of those sub-division limits is covered in [the security architecture](security.md).
 It is not intended that there be RBAC within a VCH at this time.
 
 How this multi-tenacy model is used is left up to the business, but there are two primary models that we consider during development:
@@ -68,24 +68,31 @@ To create a VCH, disambiguation of which resource to use from the available set 
 My current approach is to have several components that get rolled into both vic-machine. Initial implementation should focus on:
 * CLI parsing into config structs
 * validation of config struct values
-* reification of VCH from config struct
+* creation of VCH from config struct
+
+![vic-machine high level logic](images/vic-machine-high-level.png)
 
 Components:
 * command line argument parsing
   - maps command line arguments to internal config data structures
+  - _package: main, path: cmd/vic-machine_
 * validation of config structure values
   - given an internal config data structure it's necessary to check the specifics against the target vSphere to ensure they are valid - past validity is no indicator of current validity
   - this may also translate from symbolic names to morefs, resulting in a manifest that is resilient to name changes, but fragile across vSphere instances with identical naming schemes. This should be a user selectable behaviour, I prefer it on by default.
-* reification of configuration
+  - _package: spec, path: pkg/vsphere/spec_
+* creation of VCH from configuration
   - when a manifest has been validated against a vSphere, this component creates the corresponding vSphere objects - this is primarily the VCH applianceVM, but may also include port groups and other objects.
+  - _package: management, path: install/management_
 * [vmomi gateway](components.md#vmomi_gateway)
 * manifest creation and consistency
   - logic to validate that layered restrictions don't violate prior restrictions, e.g. refining [datastore1]/a/path to [datastore1]/a/path/to/vch is acceptable, but not to [datastore1]/a/second/path
   - this should operate on the internal config data structures - probably a sliding window of two layers of the composite manifest each loaded into a config struct
   - signing and signature validation
+  - _package: manifest, path: install/manifest_
 * load/save manifest to/from internal config data structures
   - this is the mapping from the config held in the compositied manifest to the current end configuration, held in a serializable config structure
   - signing and signature validation of manifest layers
+  - _package: manifest, path: install/manifest_
 
 The reason for this breakdown is because some of these elements need to be duplicated in the:
 * [validating proxy](components.md#validating-proxy):

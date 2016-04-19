@@ -41,9 +41,9 @@ The primary _goal_ of the project is to be useful to users - very simple to say,
 
 ## Component Architecture
 
-This is a component architecture for the system, encompassing some of the main control flows. It is intended to be used as a visual map for which components interact and how those interaction occur; it does not indicate what those interaction are.
+This is a component architecture for the system, encompassing some of the main control flows. It is intended to be used as a visual map for which components interact and how those interaction occur; it does not indicate what those interaction are. Components are marked as _new code_ are entirely new for vSphere Integrated Containers, where as others are either part of vSphere or we have a functioning reference implementation from Project Bonneville.
 
-![system component architecture](https://github.com/vmware/vic/blob/master/doc/design/component_architecture.svg)
+![system component architecture](images/component_architecture.png)
 
 
 ## Container
@@ -63,7 +63,7 @@ The container process runs as root with full privileges, however there's no way 
 
 The tether is an init replacement used in containerVMs that provides the command & control channel necessary to perform any operation inside the container. This includes launching of the container process, setting of environment variables, configuration of networking, etc. The tether is currently based on a modified SSH server tailed specifically for this purpose.
 
-[Additional detail](tether.md)  
+[Additional detail](tether.md)
 [Issues relating to tether](https://github.com/vmware/vic/labels/component%2Ftether)
 
 
