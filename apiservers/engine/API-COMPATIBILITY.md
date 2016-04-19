@@ -1,7 +1,7 @@
 # Docker Remote API Compatibility
 VIC attempts to be compatible with the Docker remote API; however, there are some differences.  The API differences are documented below, grouped together by functional areas.
 
-# support Matrix
+# Support Matrix
 
 ## Container API Support
 
@@ -12,9 +12,9 @@ VIC attempts to be compatible with the Docker remote API; however, there are som
 |inspect a container| YES|
 |List processes running inside a container|YES|
 |Get Container Logs|YES|
-|Inspect changes on a containers filesystem|YES - in the future|
-|Export a container|YES - In the future|
-|Get Container stats based on resource usage|Yes - in the future|
+|Inspect changes on a containers filesystem|Future|
+|Export a container|Future|
+|Get Container stats based on resource usage|Future|
 |Resize a container TTY|__NO__|
 |Start a Container|YES|
 |Stop a container|YES|
@@ -38,11 +38,11 @@ VIC attempts to be compatible with the Docker remote API; however, there are som
 |API|support?|
 |---|---|
 |List Images|YES|
-|Build image from a Dockerfile|YES - In the Future|
+|Build image from a Dockerfile|Future|
 |Create an Image|YES|
 |Inspect and Image |YES|
 |Get the History of an Image|YES|
-|Push an image on the registry|YES - In the Future|
+|Push an image on the registry|Future|
 |Tag an image into a repository|YES|
 |Remove and Image|YES|
 |Search Images|YES|
@@ -55,10 +55,10 @@ VIC attempts to be compatible with the Docker remote API; however, there are som
 |Display System-wide Information|YES|
 |Show the docker version information|YES|
 |Ping the Docker server|YES|
-|Create a New Image from a containers changes|YES - in the future|
+|Create a New Image from a containers changes|Future|
 |Monitor Docker Events|YES|
-|Get a tarball containing all images in a repository|YES - in the future|
-|Get a tarball containing all images|YES - in the future|
+|Get a tarball containing all images in a repository|Future|
+|Get a tarball containing all images|Future|
 |Load a Tarball with a set of images and tags into docker|YES|
 |Exec Create |*maybe*|
 |Exec Start |*maybe*|
@@ -91,14 +91,14 @@ POST /containers/create
 |AttachStdin|Attach to Stdin|YES|
 |AttachStdout|Attach to STDOUT|YES|
 |AttachStderr|Attach to STDERR|YES|
-|Cmd|Array of strings which specify commands to run|*maybe*|
+|Cmd|Array of strings which specify commands to run|YES|
 |Domainname|string to use for the containers domain|YES|
 |Env|Set environment variables|YES|
 |Entrypoint=""|Overwrite the default ENTRYPOINT of the image|YES|
 |Hostname|Container host name|YES|
 |Image|Image name to be used for the container|*maybe*|
-|OpenStdin|Keep STDIN open even if not attached|*maybe*|
-|StdinOnce|close stdin once single attached client disconnects|*maybe*|
+|OpenStdin|Keep STDIN open even if not attached|YES|
+|StdinOnce|close stdin once single attached client disconnects|YES|
 |NetworkDisabled|boolean value that controls the presence of a network for the container.|YES|
 |ExposedPorts|Object mapping to an empty object |YES|
 |StopSignal|Signal to stop the container. can be a string or unsigned integer| *maybe*|
@@ -247,7 +247,7 @@ is invoked. This is a __supported API__.
 
 ```GET containers/(id)/top```
 
-__Not Supported By VIC__
+__SUPPORTED in the Future__
 
 ## Get container logs
 
