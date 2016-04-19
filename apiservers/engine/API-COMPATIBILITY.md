@@ -67,7 +67,6 @@ VIC attempts to be compatible with the Docker remote API; however, there are som
 
 
 # Container APIs
->>>>>>> origin/docker-support-docs
 
 ### List containers
 ```
@@ -86,24 +85,24 @@ POST /containers/create
 ### Json Fields
 
 **misc**
-|field|description|supported|
+|field|description|supported?|
 |---|---|---|
-| AttachStdin | Attach to Stdin | YES |
-| AttachStdout | Attach to STDOUT | YES |
-| AttachStderr | Attach to STDERR | YES |
+|AttachStdin|Attach to Stdin|YES|
+|AttachStdout|Attach to STDOUT|YES|
+|AttachStderr|Attach to STDERR|YES|
 |Cmd|Array of strings which specify commands to run|*maybe*|
-|Domainname| string to use for the containers domain | YES |
+|Domainname|string to use for the containers domain|YES|
 |Env|Set environment variables|YES|
 |Entrypoint=""|Overwrite the default ENTRYPOINT of the image|YES|
-| Hostname |Container host name|YES|
-|Image|Image name to be used for the container| *maybe* |
-| OpenStdin | Keep STDIN open even if not attached | *maybe* |
-| StdinOnce| close stdin once single attached client disconnects | *maybe* |
+|Hostname|Container host name|YES|
+|Image|Image name to be used for the container|*maybe*|
+|OpenStdin|Keep STDIN open even if not attached|*maybe*|
+|StdinOnce|close stdin once single attached client disconnects|*maybe*|
 |NetworkDisabled|boolean value that controls the presence of a network for the container.|YES|
 |ExposedPorts|Object mapping to an empty object |YES|
 |StopSignal|Signal to stop the container. can be a string or unsigned integer| *maybe*|
-| Tty |Allocate a pseudo-TTY| *diff* |
-| User | Username or UID | *diff* |
+|Tty|Allocate a pseudo-TTY|*diff*|
+|User|Username or UID|*diff*|
 |WorkingDir|Working directory inside the container|YES|
 
 
