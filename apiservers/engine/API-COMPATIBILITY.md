@@ -15,7 +15,7 @@ VIC attempts to be compatible with the Docker remote API; however, there are som
 |Inspect changes on a containers filesystem|Future|
 |Export a container|Future|
 |Get Container stats based on resource usage|Future|
-|Resize a container TTY|__NO__|
+|Resize a container TTY|YES|
 |Start a Container|YES|
 |Stop a container|YES|
 |Restart a Container|YES|
@@ -26,7 +26,7 @@ VIC attempts to be compatible with the Docker remote API; however, there are som
 |Unpause a Container|*maybe*|
 |Attach a Container|YES|
 |Attach a Container(websocket)|*maybe*|
-|wait a container|*maybe*|
+|wait a container|YES|
 |Remove a Container|YES|
 |Copy files or folders from a Container|YES|
 |Retrieve information about files and folders in a container|YES|
@@ -336,7 +336,22 @@ the isolation unit of a containerVM is a vm so these stats are actively availabl
 
 ## Resize a container TTY
 
-__Not Supported by VIC__
+```POST /containers/(id or name)/resize```
+
+resize the TTY of the target container. The unit for height and width is in characters. A restart is required for the resize to finalize.
+
+### Query Parameters
+
+|parameter|description|support?|
+|---|---|---|
+|h|height of tty session|YES|
+|w|width|YES|
+
+### Status Codes
+
+* 200 : no error
+* 404 : no such container
+* 500 : cannot resize container
 
 ## Start a container
 
@@ -453,7 +468,7 @@ __Not Supported By VIC__
  
 ```POST /containers/(id or name)/attach```
 
-This call will return a stream of the targeted containers common io streams(stdout, stdin, stderr). It is important to not that this involves a `HTTP UPGRADE` response.
+This call will return a stream of the targeted containers common io streams(stdout, stdin, stderr). It is important to note that this involves a `HTTP UPGRADE` response.
 
 ### Query Parameters 
 
@@ -506,7 +521,15 @@ Handshake according to `RFC 6455`
 
 ## Wait a container
 
-__Not Supported By VIC__
+```POST /containers/(id or name)/wait```
+
+block until container id stops. Then returns an exit code.
+
+### Status Codes 
+
+* 200 : no error
+* 404 : no such container
+* 500 : server error
 
 ## Remove a container
 
@@ -543,7 +566,7 @@ The request will have one paramter in it's json object.
 
 The response will return a tar stream of the requested files.
 
-###Status COdes
+###Status Codes
 
 * 200 : no error
 * 404 : no such container
