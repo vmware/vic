@@ -16,70 +16,97 @@ package serial
 
 import (
 	"io"
-	"log"
 	"net"
 	"os"
 	"runtime"
 	"sync"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/term"
 )
 
-type NamedChannel interface {
-	io.ReadWriteCloser
+const verbose = false
+
+type NamedReadChannel interface {
+	io.ReadCloser
+	Name() string
+	Fd() uintptr
+}
+
+type NamedWriteChannel interface {
+	io.WriteCloser
 	Name() string
 	Fd() uintptr
 }
 
 type RawConn struct {
-	channel    NamedChannel
+	rchannel   NamedReadChannel
+	wchannel   NamedWriteChannel
 	localAddr  net.Addr
 	remoteAddr net.Addr
-	state      *term.State
 	err        chan error
 	mutex      sync.Mutex
 	closed     bool
 }
 
-func NewTypedConn(channel NamedChannel, net string) (*RawConn, error) {
+func NewTypedConn(r NamedReadChannel, w NamedWriteChannel, net string) (*RawConn, error) {
 	conn := &RawConn{
-		channel:    channel,
-		localAddr:  *NewRawAddr(net, channel.Name()),
-		remoteAddr: *NewRawAddr("void", "void"),
+		rchannel: r,
+		wchannel: w,
+
+		localAddr:  *NewRawAddr(net, r.Name()),
+		remoteAddr: *NewRawAddr(net, w.Name()),
 		err:        make(chan error, 1),
 		closed:     false,
 	}
 
-	// set the provided FD to raw if it's a termial
+	// set the provided FDs to raw if it's a termial
 	// 0 is the uninitialized value for Fd
-	if channel.Fd() != 0 && term.IsTerminal(channel.Fd()) {
-		log.Println("setting terminal into raw mode")
-		terminal, err := term.SetRawTerminal(channel.Fd())
-		if err != nil {
-			return nil, err
+	fds := []uintptr{r.Fd(), w.Fd()}
+	for _, fd := range fds {
+		if fd != 0 && term.IsTerminal(fd) {
+			log.Debug("setting terminal into raw mode")
+			_, err := term.SetRawTerminal(fd)
+			if err != nil {
+				return nil, err
+			}
 		}
-		conn.state = terminal
 	}
 
 	return conn, nil
 }
 
+// NewFileConn creates a connection of the provided file - assumes file is a
+// full duplex comm mechanism
 func NewFileConn(file *os.File) (*RawConn, error) {
-	return NewTypedConn(file, "file")
+	return NewTypedConn(file, file, "file")
 }
 
+// NewFileConn creates a connection via the provided file descriptor - assumes file is a
+// full duplex comm mechanism
 func NewRawConn(fd uintptr, name string, net string) (*RawConn, error) {
-	return NewTypedConn(os.NewFile(fd, name), net)
+	file := os.NewFile(fd, name)
+	return NewTypedConn(file, file, net)
+}
+
+// NewHalfDuplixFileConn creates a connection via the provided files - this assumes that
+// each file is a half-duplex mechanism, such as a linux fifo pipe
+func NewHalfDuplixFileConn(read *os.File, write *os.File, name string, net string) (*RawConn, error) {
+	return NewTypedConn(read, write, net)
 }
 
 func (conn *RawConn) Read(b []byte) (n int, err error) {
+	if verbose {
+		defer log.Debugf("Returning error and bytes from read (%s:%s): %d, %s", conn.rchannel.Name(), conn.wchannel.Name(), n, err)
+	}
+
 	// TODO: this is horrific from a performance perspective - really need a better
 	// way to interrupt that file.Read call
 	bytes := make(chan int, 1)
 
 	go func() {
-		n, err = conn.channel.Read(b)
+		n, err = conn.rchannel.Read(b)
 
 		// if we've got any bytes we need to pass them back so we cannot return
 		// the error via conn.err
@@ -88,12 +115,12 @@ func (conn *RawConn) Read(b []byte) (n int, err error) {
 
 	select {
 	case n = <-bytes:
-		if err != nil {
-			log.Printf("Returning error and bytes from read: %d, %s\n", n, err)
+		if err != nil && conn.closed {
+			err = io.EOF
 		}
 		return n, err
 	case e := <-conn.err:
-		log.Printf("Returning error from read: %s\n", e)
+		log.Debugf("Returning error from read: %s", e)
 		// only one close will send an error and we have that, so this won't block
 		// we do need to interrupt all reads
 		conn.err <- e
@@ -102,7 +129,7 @@ func (conn *RawConn) Read(b []byte) (n int, err error) {
 }
 
 func (conn *RawConn) Write(b []byte) (n int, err error) {
-	n, err = conn.channel.Write(b)
+	n, err = conn.wchannel.Write(b)
 	return
 }
 
@@ -115,21 +142,28 @@ func (conn *RawConn) Close() error {
 	conn.mutex.Unlock()
 
 	if closed {
-		log.Printf("Close called again on RawConn\n")
+		log.Debugf("Close called again on RawConn (%s:%s) - dropping", conn.rchannel.Name(), conn.wchannel.Name())
 		return nil
 	}
 
 	// process the close
-	err := conn.channel.Close()
+	log.Debugf("Closing the RawConn (%s:%s)", conn.rchannel.Name(), conn.wchannel.Name())
+	errR := conn.rchannel.Close()
+	errW := conn.wchannel.Close()
 
 	buf := make([]byte, 4096)
 	bytes := runtime.Stack(buf, false)
-	log.Printf("Close called on RawConn:\n%s\n", string(buf[:bytes]))
+	if verbose {
+		log.Debugf("Close called on RawConn (%s:%s):\n%s", conn.rchannel.Name(), conn.wchannel.Name(), string(buf[:bytes]))
+	}
 
-	log.Println("Pushing EOF to any blocked readers on the raw connection")
+	log.Debugf("Pushing EOF to any blocked readers on the raw connection (%s:%s)", conn.rchannel.Name(), conn.wchannel.Name())
 	conn.err <- io.EOF
 
-	return err
+	if errR != nil {
+		return errR
+	}
+	return errW
 }
 
 func (conn *RawConn) LocalAddr() net.Addr {

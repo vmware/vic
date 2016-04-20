@@ -177,14 +177,18 @@ TEST_DIRS+=github.com/vmware/vic/portlayer
 TEST_DIRS+=github.com/vmware/vic/pkg
 TEST_DIRS+=github.com/vmware/vic/apiservers/portlayer
 
+
 test:
+	@echo Running unit tests
 	# test everything but vendor
 ifdef DRONE
-	@echo generate coverage report
+	@echo Generating coverage data
 	scripts/coverage.sh $(TEST_DIRS)
 else
-	$(foreach var,$(TEST_DIRS), $(GO) test -tags mock -v $(TEST_OPTS) $(var)/...;)
+	@echo Generating local html coverage report
+	scripts/coverage.sh --html $(TEST_DIRS)
 endif
+
 
 $(tether-linux): $(shell find cmd/tether -name '*.go') metadata/*.go
 	@echo building tether-linux

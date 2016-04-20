@@ -14,4 +14,68 @@
 
 package main
 
-func run() {}
+import (
+	"errors"
+	"net"
+	"os"
+	"strings"
+
+	"github.com/vmware/vic/pkg/dio"
+
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/net/context"
+)
+
+// allow us to pick up some of the osops implementations when mocking
+// allowing it to be less all or nothing
+func init() {
+	ops = &osopsOSX{}
+	utils = &osopsOSX{}
+}
+
+var backchannelMode = os.ModePerm
+
+func (t *osopsOSX) setup() error {
+}
+
+func (t *osopsOSX) cleanup() {
+}
+
+// sessionLogWriter returns a writer that will persist the session output
+func (t *osopsOSX) sessionLogWriter() (dio.DynamicMultiWriter, error) {
+	return nil, errors.New("unimplemented on OSX")
+}
+
+// processEnvOS does OS specific checking and munging on the process environment prior to launch
+func (t *osopsOSX) processEnvOS(env []string) []string {
+	// TODO: figure out how we're going to specify user and pass all the settings along
+	// in the meantime, hardcode HOME to /root
+	homeIndex := -1
+	for i, tuple := range env {
+		if strings.HasPrefix(tuple, "HOME=") {
+			homeIndex = i
+			break
+		}
+	}
+	if homeIndex == -1 {
+		return append(env, "HOME=/root")
+	}
+
+	return env
+}
+
+func (t *osopsOSX) establishPty(live *liveSession) error {
+	return errors.New("unimplemented on OSX")
+}
+
+func (t *osopsOSX) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
+	return errors.New("unimplemented on OSX")
+}
+
+func (t *osopsOSX) signalProcess(process *os.Process, sig ssh.Signal) error {
+	return nil, errors.New("unimplemented on OSX")
+}
+
+func (t *osopsOSX) backchannel(ctx context.Context) (net.Conn, error) {
+	return nil, errors.New("unimplemented on OSX")
+}

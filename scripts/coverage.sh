@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Copyright 2016 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,8 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# Generate test coverage statistics for Go packages.
 #
 # Works around the fact that `go test -coverprofile` does not work
 # with multiple packages, see https://code.google.com/p/go/issues/detail?id=6909
@@ -23,32 +21,59 @@
 #     --html        Create HTML report and open it in browser
 #
 
-set -e
+set -e -x
 
 workdir=`git rev-parse --show-toplevel`/.cover
 profile="$workdir/cover.out"
+dir=$(dirname $0)
 mode=count
 
-generate_cover_data() {
+# list any files (or patterns) to explicitly exclude from coverage
+# you should have a pretty good reason before putting items here
+exclude_files=(
+
+)
+
+join() { local IFS="$1"; shift; echo "$*"; }
+
+excludes=$(join "|" ${exclude_files[@]} | sed -e 's/\./\\./g')
+
+generate_pkg_cover_data() {
     rm -rf "$workdir"
     mkdir "$workdir"
-    echo "Generating coverage report for: $@"
-    for dir in $@; do
-      pkgs=$(go list $dir/... | grep -v /vendor/)
-      for pkg in $pkgs; do
-          f="$workdir/$(echo $pkg | tr / -).cover"
-          go test -tags mock -v -covermode="$mode" -coverprofile="$f" "$pkg"
-      done
+
+    for pkg in "$@"; do
+        f="$workdir/$(echo $pkg | tr / -).cover"
+        go test -v -covermode="$mode" -coverprofile="$f" "$pkg"
     done
 
     echo "mode: $mode" >"$profile"
-    grep -h -v "^mode:" $workdir/*.cover >>"$profile"
+    if [ -n "$excludes" ]; then
+        grep -h -v "^mode:" "$workdir"/*.cover | egrep -v "$excludes" >>"$profile"
+    else
+        grep -h -v "^mode:" "$workdir"/*.cover >>"$profile"
+    fi
+}
+
+# translate dirs to packages and strip args
+dir_to_pkg() {
+    for dir in $@; do
+        if test "$dir" == "--html"; then
+            export html="true"
+        else
+            pkgs="$pkgs $(go list $dir/... | grep -v /vendor/)"
+        fi
+    done
+    echo $pkgs
 }
 
 show_cover_report() {
     go tool cover -${1}="$profile"
 }
 
-TEST_DIRS=$@
-generate_cover_data $TEST_DIRS
+generate_pkg_cover_data $(dir_to_pkg "$@")
+
 show_cover_report func
+if test "$html" == "true"; then
+    show_cover_report html
+fi

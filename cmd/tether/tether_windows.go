@@ -25,10 +25,23 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/net/context"
+
 	log "github.com/Sirupsen/logrus"
 	winserial "github.com/tarm/serial"
 	"github.com/vmware/vic/cmd/tether/serial"
+	"github.com/vmware/vic/pkg/dio"
 )
+
+// allow us to pick up some of the osops implementations when mocking
+// allowing it to be less all or nothing
+func init() {
+	ops = &osopsWin{}
+	utils = &osopsWin{}
+}
+
+var backchannelMode = os.ModePerm
 
 type NamedPort struct {
 	*winserial.Port
@@ -74,15 +87,15 @@ func OpenPort(name string) (io.ReadWriteCloser, error) {
 	scheme := parts[0]
 	switch scheme {
 	case "com":
-		config := &winserial.Config{Name: parts[1], Baud: 115200}
-		port, err := winserial.OpenPort(config)
+		cfg := &winserial.Config{Name: parts[1], Baud: 115200}
+		port, err := winserial.OpenPort(cfg)
 		if err != nil {
 			return nil, err
 		}
 
 		// ensure we don't have significant obsolete data built up
 		port.Flush()
-		return &NamedPort{Port: port, config: *config, fd: 0}, nil
+		return &NamedPort{Port: port, config: *cfg, fd: 0}, nil
 	case "file":
 		return os.OpenFile(parts[1], os.O_RDWR|os.O_SYNC, 0777)
 	default:
@@ -94,7 +107,7 @@ func childReaper() {
 	// TODO: windows child process notifications
 }
 
-func setup() error {
+func (t *osopsWin) setup() error {
 	com := "COM2"
 
 	// redirect logging to the serial log
@@ -117,11 +130,15 @@ func setup() error {
 	return nil
 }
 
-func backchannel() (net.Conn, error) {
+func (t *osopsWin) cleanup() {
+}
+
+func (t *osopsWin) backchannel(ctx context.Context) (net.Conn, error) {
 	com := "COM1"
 
 	// redirect backchannel to the serial connection
 	log.Infof("opening %s%s for backchannel", pathPrefix, com)
+	// TODO: set read timeout on port during open
 	_, err := OpenPort(fmt.Sprintf("%s%s", pathPrefix, com))
 	if err != nil {
 		detail := fmt.Sprintf("failed to open serial port for backchannel: %s", err)
@@ -142,14 +159,25 @@ func backchannel() (net.Conn, error) {
 		return nil, errors.New(detail)
 	}
 
-	// HACK: currently RawConn dosn't implement timeout
-	serial.HandshakeServer(conn, time.Duration(10*time.Second))
-
-	return conn, nil
+	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
+	ticker := time.NewTicker(50 * time.Millisecond)
+	for {
+		select {
+		case <-ticker.C:
+			err := serial.HandshakeServer(ctx, conn)
+			if err == nil {
+				return conn, nil
+			}
+		case <-ctx.Done():
+			conn.Close()
+			ticker.Stop()
+			return nil, ctx.Err()
+		}
+	}
 }
 
 // sessionLogWriter returns a writer that will persist the session output
-func sessionLogWriter() (io.Writer, error) {
+func (t *osopsWin) sessionLogWriter() (dio.DynamicMultiWriter, error) {
 	com := "COM3"
 
 	// redirect backchannel to the serial connection
@@ -161,11 +189,12 @@ func sessionLogWriter() (io.Writer, error) {
 		return nil, errors.New(detail)
 	}
 
-	return f, nil
+	// use multi-writer so it goes to both screen and session log
+	return dio.MultiWriter(f, os.Stdout), nil
 }
 
 // processEnvOS does OS specific checking and munging on the process environment prior to launch
-func processEnvOS(env []string) []string {
+func (t *osopsWin) processEnvOS(env []string) []string {
 	// TODO: figure out how we're going to specify user and pass all the settings along
 	// in the meantime, hardcode HOME to /root
 	homeIndex := -1
@@ -180,4 +209,16 @@ func processEnvOS(env []string) []string {
 	}
 
 	return env
+}
+
+func (t *osopsWin) signalProcess(process *os.Process, sig ssh.Signal) error {
+	return errors.New("unimplemented on windows")
+}
+
+func (t *osopsWin) establishPty(live *liveSession) error {
+	return errors.New("unimplemented on windows")
+}
+
+func (t *osopsWin) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
+	return errors.New("unimplemented on windows")
 }

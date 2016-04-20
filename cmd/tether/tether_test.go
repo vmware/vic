@@ -15,37 +15,193 @@
 package main
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
+	"net"
 	"os"
-	"os/exec"
 	"path"
 	"runtime"
+	"syscall"
 	"testing"
+	"time"
 
-	"github.com/vmware/vic/cmd/tether/utils"
+	log "github.com/Sirupsen/logrus"
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/net/context"
+
+	"github.com/vmware/vic/cmd/tether/serial"
 	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/pkg/dio"
+	"github.com/vmware/vic/pkg/trace"
 )
+
+var mocked mocker
+
+// store the OS specific ops
+var specificOps osops
+
+// store the OS specific utils
+var specificUtils utilities
+
+type mocker struct {
+	// so that we can call through to the core methods where viable
+	ops   osops
+	utils utilities
+
+	// allow tests to tell when the tether has finished setup
+	started chan bool
+	// allow tests to tell when the tether has finished
+	cleaned chan bool
+
+	// the hostname of the system
+	hostname string
+	// the ip configuration for mac indexed interfaces
+	ips map[string]net.IPNet
+	// filesystem mounts, indexed by disk label
+	mounts map[string]string
+}
+
+func (t *mocker) setup() error {
+	err := t.utils.setup()
+	close(t.started)
+	return err
+}
+
+func (t *mocker) cleanup() {
+	t.utils.cleanup()
+	close(t.cleaned)
+}
+
+func (t *mocker) sessionLogWriter() (dio.DynamicMultiWriter, error) {
+	return t.utils.sessionLogWriter()
+}
+
+func (t *mocker) processEnvOS(env []string) []string {
+	return t.utils.processEnvOS(env)
+}
+
+func (t *mocker) establishPty(live *liveSession) error {
+	return t.utils.establishPty(live)
+}
+
+func (t *mocker) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
+	return t.utils.resizePty(pty, winSize)
+}
+
+func (t *mocker) signalProcess(process *os.Process, sig ssh.Signal) error {
+	return t.utils.signalProcess(process, sig)
+}
+
+// SetHostname sets both the kernel hostname and /etc/hostname to the specified string
+func (t *mocker) SetHostname(hostname string) error {
+	defer trace.End(trace.Begin("mocking hostname to " + hostname))
+
+	// TODO: we could mock at a much finer granularity, only extracting the syscall
+	// that would exercise the file modification paths, however it's much less generalizable
+	t.hostname = hostname
+	return nil
+}
+
+// Apply takes the network endpoint configuration and applies it to the system
+func (t *mocker) Apply(endpoint *metadata.NetworkEndpoint) error {
+	defer trace.End(trace.Begin("mocking endpoint configuration for " + endpoint.Network.Name))
+	return errors.New("Apply test not implemented")
+}
+
+// MountLabel performs a mount with the source treated as a disk label
+// This assumes that /dev/disk/by-label is being populated, probably by udev
+func (t *mocker) MountLabel(label, target string, ctx context.Context) error {
+	defer trace.End(trace.Begin(fmt.Sprintf("mocking mounting %s on %s", label, target)))
+
+	if t.mounts == nil {
+		t.mounts = make(map[string]string)
+	}
+
+	t.mounts[label] = target
+	return nil
+}
+
+// Fork triggers vmfork and handles the necessary pre/post OS level operations
+func (t *mocker) Fork(config *metadata.ExecutorConfig) error {
+	defer trace.End(trace.Begin("mocking fork"))
+	return errors.New("Fork test not implemented")
+}
+
+func (t *mocker) backchannel(ctx context.Context) (net.Conn, error) {
+	log.Info("opening ttyS0 pipe pair for backchannel")
+	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_WRONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		detail := fmt.Sprintf("failed to open cpipe for backchannel: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	s, err := os.OpenFile(pathPrefix+"/ttyS0s", os.O_RDONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		detail := fmt.Sprintf("failed to open spipe for backchannel: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	log.Infof("creating raw connection from ttyS0 pipe pair (c=%d, s=%d)\n", c.Fd(), s.Fd())
+	conn, err := serial.NewHalfDuplixFileConn(s, c, pathPrefix+"/ttyS0", "file")
+
+	if err != nil {
+		detail := fmt.Sprintf("failed to create raw connection from ttyS0 pipe pair: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	// still run handshake over it to test that
+	ticker := time.NewTicker(1000 * time.Millisecond)
+	for {
+		select {
+		case <-ticker.C:
+			err := serial.HandshakeServer(ctx, conn)
+			if err == nil {
+				return conn, nil
+			}
+		case <-ctx.Done():
+			conn.Close()
+			ticker.Stop()
+			return nil, ctx.Err()
+		}
+	}
+}
 
 // createFakeDevices creates regular files or pipes in place of the char devices used
 // in a full VM
 func createFakeDevices() error {
-	// create serial devices
-	for i := 0; i < 3; i++ {
-		path := fmt.Sprintf("%s/ttyS%d", pathPrefix, i)
-		_, err := os.Create(path)
+	var err error
+	// create control channel
+	path := fmt.Sprintf("%s/ttyS0", pathPrefix)
+	err = MkNamedPipe(path+"s", os.ModePerm)
+	if err != nil {
+		detail := fmt.Sprintf("failed to create fifo pipe %ss for com0: %s", path, err)
+		return errors.New(detail)
+	}
+	err = MkNamedPipe(path+"c", os.ModePerm)
+	if err != nil {
+		detail := fmt.Sprintf("failed to create fifo pipe %sc for com0: %s", path, err)
+		return errors.New(detail)
+	}
+	log.Debugf("created %s/ttyS0{c,s} as raw conn pipes", pathPrefix)
+
+	// others are non-interactive
+	for i := 1; i < 3; i++ {
+		path = fmt.Sprintf("%s/ttyS%d", pathPrefix, i)
+		_, err = os.Create(path)
 		if err != nil {
 			detail := fmt.Sprintf("failed to create %s for com%d: %s", path, i+1, err)
 			return errors.New(detail)
 		}
+		log.Debugf("created %s as persistent log destinations", path)
 	}
 
 	// make an access to urandom
-	path := fmt.Sprintf("%s/urandom", pathPrefix)
-	err := os.Symlink("/dev/urandom", path)
+	path = fmt.Sprintf("%s/urandom", pathPrefix)
+	err = os.Symlink("/dev/urandom", path)
 	if err != nil {
 		detail := fmt.Sprintf("failed to create urandom access: %s", err)
 		return errors.New(detail)
@@ -54,94 +210,39 @@ func createFakeDevices() error {
 	return nil
 }
 
-type TestMissingBinaryConfig struct{}
+type testAttachServer struct {
+	attachServerSSH
 
-func (c *TestMissingBinaryConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
-	return "", errors.New("not implemented")
-}
-func (c *TestMissingBinaryConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
-	config := metadata.ExecutorConfig{}
-
-	config.ID = "deadbeef"
-	config.Name = "tether_test_executor"
-	config.Sessions = map[string]metadata.SessionConfig{
-		"feebdaed": metadata.SessionConfig{
-			Common: metadata.Common{
-				ID:   "feebdaed",
-				Name: "tether_test_session",
-			},
-			Tty: false,
-			Cmd: metadata.Cmd{
-				// test relative path
-				Path: "/not/there",
-				Args: []string{"/not/there"},
-				Env:  []string{"PATH=/not"},
-				Dir:  "/",
-			},
-		},
-	}
-
-	return &config, nil
+	updated chan bool
 }
 
-type TestRelativePathConfig struct{}
+func (t *testAttachServer) start() error {
+	err := t.attachServerSSH.start()
 
-func (c *TestRelativePathConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
-	return "", errors.New("not implemented")
-}
-func (c *TestRelativePathConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
-	config := metadata.ExecutorConfig{}
-
-	config.ID = "deadbeef"
-	config.Name = "tether_test_executor"
-	config.Sessions = map[string]metadata.SessionConfig{
-		"feebdaed": metadata.SessionConfig{
-			Common: metadata.Common{
-				ID:   "feebdaed",
-				Name: "tether_test_session",
-			},
-			Tty: false,
-			Cmd: metadata.Cmd{
-				// test relative path
-				Path: "date",
-				Args: []string{"date", "--reference=/"},
-				Env:  []string{"PATH=/bin"},
-				Dir:  "/bin",
-			},
-		},
-	}
-
-	return &config, nil
+	t.updated <- true
+	log.Info("Started test attach server")
+	return err
 }
 
-type TestAbsPathConfig struct{}
+func (t *testAttachServer) stop() {
+	t.attachServerSSH.stop()
 
-func (c *TestAbsPathConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
-	return "", errors.New("not implemented")
+	log.Info("Stopped test attach server")
+	t.updated <- true
 }
-func (c *TestAbsPathConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
-	config := metadata.ExecutorConfig{}
 
-	config.ID = "deadbeef"
-	config.Name = "tether_test_executor"
-	config.Sessions = map[string]metadata.SessionConfig{
-		"feebdaed": metadata.SessionConfig{
-			Common: metadata.Common{
-				ID:   "feebdaed",
-				Name: "tether_test_session",
-			},
-			Tty: false,
-			Cmd: metadata.Cmd{
-				// test relative path
-				Path: "/bin/date",
-				Args: []string{"date", "--reference=/"},
-				Env:  []string{},
-				Dir:  "/",
-			},
-		},
-	}
+// TestMain simply so we have control of debugging level and somewhere to call package wide test setup
+func TestMain(m *testing.M) {
+	log.SetLevel(log.DebugLevel)
 
-	return &config, nil
+	// save the base os specific structures
+	specificOps = ops
+	specificUtils = utils
+
+	retCode := m.Run()
+
+	// call with result of m.Run()
+	os.Exit(retCode)
 }
 
 func testSetup(t *testing.T) {
@@ -150,98 +251,103 @@ func testSetup(t *testing.T) {
 	pc, _, _, _ := runtime.Caller(1)
 	name := runtime.FuncForPC(pc).Name()
 
+	log.Infof("Started test setup for %s", name)
+
+	// use the mock ops - fresh one each time as tests might apply different mocked calls
+	mocked = mocker{
+		ops:     specificOps,
+		utils:   specificUtils,
+		started: make(chan bool, 0),
+		cleaned: make(chan bool, 0),
+	}
+	ops = &mocked
+	utils = &mocked
+
 	pathPrefix, err = ioutil.TempDir("", path.Base(name))
 	if err != nil {
 		fmt.Println(err)
 		t.Error(err)
 	}
 
-	utils.SetPathPrefix(pathPrefix)
-
 	err = os.MkdirAll(pathPrefix, 0777)
 	if err != nil {
 		fmt.Println(err)
 		t.Error(err)
 	}
+	log.Infof("Using %s as test prefix", pathPrefix)
 
+	backchannelMode = os.ModeNamedPipe | os.ModePerm
 	err = createFakeDevices()
 	if err != nil {
 		fmt.Println(err)
 		t.Error(err)
 	}
+
+	if server == nil {
+		server = &attachServerSSH{}
+	}
 }
 
 func testTeardown(t *testing.T) {
+	// let the main tether loop exit
+	r := reload
+	reload = nil
+	if r != nil {
+		close(r)
+	}
 	// cleanup
 	os.RemoveAll(pathPrefix)
 	log.SetOutput(os.Stdout)
+
+	<-mocked.cleaned
+
+	pc, _, _, _ := runtime.Caller(1)
+	name := runtime.FuncForPC(pc).Name()
+
+	log.Infof("Finished test teardown for %s", name)
 }
 
-func TestRelativePath(t *testing.T) {
-	t.Skip("Relative path resolution not yet implemented")
-
-	testSetup(t)
-
-	if err := run(&TestRelativePathConfig{}); err != nil {
-		t.Error(err)
-	}
-
-	testTeardown(t)
-}
-
-func TestAbsPath(t *testing.T) {
-	testSetup(t)
-
-	if err := run(&TestAbsPathConfig{}); err != nil {
-		t.Error(err)
-	}
-
-	// read the output from the session
-	log, err := ioutil.ReadFile(pathPrefix + "/ttyS2")
+func clientBackchannel(ctx context.Context) (net.Conn, error) {
+	log.Info("opening ttyS0 pipe pair for backchannel")
+	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_RDONLY|syscall.O_NOCTTY, 0777)
 	if err != nil {
-		fmt.Printf("Failed to open log file for command: %s", err)
-		t.Error(err)
+		detail := fmt.Sprintf("failed to open cpipe for backchannel: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
 	}
 
-	// run the command directly
-	out, err := exec.Command("/bin/date", "--reference=/").Output()
+	s, err := os.OpenFile(pathPrefix+"/ttyS0s", os.O_WRONLY|syscall.O_NOCTTY, 0777)
 	if err != nil {
-		fmt.Printf("Failed to run date for comparison data: %s", err)
-		t.Error(err)
+		detail := fmt.Sprintf("failed to open spipe for backchannel: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
 	}
 
-	if !bytes.Equal(out, log) {
-		err := fmt.Errorf("Actual and expected output did not match\nExpected: %s\nActual:   %s\n", out, log)
-		t.Error(err)
-	}
+	log.Infof("creating raw connection from ttyS0 pipe pair (c=%d, s=%d)\n", c.Fd(), s.Fd())
+	conn, err := serial.NewHalfDuplixFileConn(c, s, pathPrefix+"/ttyS0", "file")
 
-	testTeardown(t)
-}
-
-func TestMissingBinary(t *testing.T) {
-	testSetup(t)
-
-	err := run(&TestMissingBinaryConfig{})
-	if err == nil {
-		t.Error("Expected error from missing binary")
-	}
-
-	// read the output from the session
-	log, err := ioutil.ReadFile(pathPrefix + "/ttyS2")
 	if err != nil {
-		fmt.Printf("Failed to open log file for command: %s", err)
+		detail := fmt.Sprintf("failed to create raw connection from ttyS0 pipe pair: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
 	}
-	if len(log) > 0 {
-		fmt.Printf("Command output: %s", string(log))
+
+	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
+	ticker := time.NewTicker(1000 * time.Millisecond)
+	for {
+		select {
+		case <-ticker.C:
+			// FIXME: need to implement timeout of purging hangs with no content
+			// on the pipe
+			// serial.PurgeIncoming(ctx, conn)
+			err := serial.HandshakeClient(ctx, conn)
+			if err == nil {
+				return conn, nil
+			}
+		case <-ctx.Done():
+			conn.Close()
+			ticker.Stop()
+			return nil, ctx.Err()
+		}
 	}
-
-	testTeardown(t)
-}
-
-func TestSetIpAddress(t *testing.T) {
-	testSetup(t)
-
-	// err := run(&TestIPConfig{})
-
-	testTeardown(t)
 }

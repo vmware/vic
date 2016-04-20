@@ -27,52 +27,85 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unsafe"
+
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/kr/pty"
 	"github.com/vmware/vic/cmd/tether/serial"
+	"github.com/vmware/vic/pkg/dio"
 )
+
+// allow us to pick up some of the osops implementations when mocking
+// allowing it to be less all or nothing
+func init() {
+	ops = &osopsLinux{}
+	utils = &osopsLinux{}
+}
+
+var backchannelMode = os.ModePerm
 
 // Mkdev will hopefully get rolled into go.sys at some point
 func Mkdev(majorNumber int, minorNumber int) int {
 	return (majorNumber << 8) | (minorNumber & 0xff) | ((minorNumber & 0xfff00) << 12)
 }
 
+var incoming chan os.Signal
+
+// childReaper is used to handle events from child processes, including child exit.
+// If running as pid=1 then this means it handles zombie process reaping for orphaned children
+// as well as direct child processes.
 func childReaper() {
-	var incoming = make(chan os.Signal, 10)
+	incoming = make(chan os.Signal, 10)
 	signal.Notify(incoming, syscall.SIGCHLD)
 
 	log.Info("Started reaping child processes")
 
-	for _ = range incoming {
-		var status syscall.WaitStatus
+	go func() {
+		for _ = range incoming {
+			var status syscall.WaitStatus
 
-		// reap until no more children to process
-		for {
-			log.Debugf("Inspecting children with status change")
-			pid, err := syscall.Wait4(-1, &status, syscall.WNOHANG, nil)
-			if pid == 0 || err == syscall.ECHILD {
-				log.Debug("No more child processes to reap")
-				break
-			}
-			if err == nil {
-				log.Debugf("Reaped process %d, return code: %d\n", pid, status.ExitStatus())
+			func() {
+				// general resiliency
+				defer recover()
 
-				cmd, ok := RemoveChildPid(pid)
-				if ok {
-					handleSessionExit(cmd)
-				} else {
-					// This is an adopted zombie. The Wait4 call
-					// already clean it up from the kernel
-					log.Infof("Reaped zombie process PID %d\n", pid)
+				// reap until no more children to process
+				for {
+					log.Debugf("Inspecting children with status change")
+					pid, err := syscall.Wait4(-1, &status, syscall.WNOHANG, nil)
+					if pid == 0 || err == syscall.ECHILD {
+						log.Debug("No more child processes to reap")
+						break
+					}
+					if err == nil {
+						if !status.Exited() {
+							log.Debugf("Received notifcation about non-exit status change for %d:", pid)
+							// no reaping or exit handling required
+							continue
+						}
+
+						log.Debugf("Reaped process %d, return code: %d", pid, status.ExitStatus())
+
+						session, ok := RemoveChildPid(pid)
+						if ok {
+							handleSessionExit(session, status.ExitStatus())
+						} else {
+							// This is an adopted zombie. The Wait4 call
+							// already clean it up from the kernel
+							log.Infof("Reaped zombie process PID %d\n", pid)
+						}
+					} else {
+						log.Warnf("Wait4 got error: %v\n", err)
+					}
 				}
-			} else {
-				log.Warnf("Wait4 got error: %v\n", err)
-			}
+			}()
 		}
-	}
+	}()
 }
 
-func setup() error {
+func (t *osopsLinux) setup() error {
 	// seems necessary given rand.Reader access
 	var err error
 
@@ -100,21 +133,32 @@ func setup() error {
 
 	// TODO: Call prctl with PR_SET_CHILD_SUBREAPER so that we reap regardless of pid 1 or not
 	// we already get our direct children, but not lower in the hierarchy
-	go childReaper()
+	childReaper()
 
 	return nil
 }
 
-func backchannel() (net.Conn, error) {
+// cleanup does exactly that - this is called when the tether is being shut down.
+// This should log errors, but no error is returned as this is a path of not return and
+// there's not likely to be a remediation available
+func (t *osopsLinux) cleanup() {
+	// stop child reaping
+	log.Info("Shutting down reaper")
+	signal.Reset(syscall.SIGCHLD)
+	close(incoming)
+	incoming = nil
+}
+
+func (t *osopsLinux) backchannel(ctx context.Context) (net.Conn, error) {
 	log.Info("opening ttyS0 for backchannel")
-	f, err := os.OpenFile(pathPrefix+"/ttyS0", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, 0777)
+	f, err := os.OpenFile(pathPrefix+"/ttyS0", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, backchannelMode)
 	if err != nil {
 		detail := fmt.Sprintf("failed to open serial port for backchannel: %s", err)
 		log.Error(detail)
 		return nil, errors.New(detail)
 	}
 
-	log.Errorf("creating raw connection from ttyS0 (fd=%d)\n", f.Fd())
+	log.Infof("creating raw connection from ttyS0 (fd=%d)\n", f.Fd())
 	conn, err := serial.NewFileConn(f)
 
 	if err != nil {
@@ -123,14 +167,25 @@ func backchannel() (net.Conn, error) {
 		return nil, errors.New(detail)
 	}
 
-	// HACK: currently RawConn dosn't implement timeout
-	serial.HandshakeServer(conn, time.Duration(10*time.Second))
-
-	return conn, nil
+	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
+	ticker := time.NewTicker(1000 * time.Millisecond)
+	for {
+		select {
+		case <-ticker.C:
+			err := serial.HandshakeServer(ctx, conn)
+			if err == nil {
+				return conn, nil
+			}
+		case <-ctx.Done():
+			conn.Close()
+			ticker.Stop()
+			return nil, ctx.Err()
+		}
+	}
 }
 
 // processEnvOS does OS specific checking and munging on the process environment prior to launch
-func processEnvOS(env []string) []string {
+func (t *osopsLinux) processEnvOS(env []string) []string {
 	// TODO: figure out how we're going to specify user and pass all the settings along
 	// in the meantime, hardcode HOME to /root
 	homeIndex := -1
@@ -148,7 +203,7 @@ func processEnvOS(env []string) []string {
 }
 
 // sessionLogWriter returns a writer that will persist the session output
-func sessionLogWriter() (io.Writer, error) {
+func (t *osopsLinux) sessionLogWriter() (dio.DynamicMultiWriter, error) {
 	// open SttyS2 for session logging
 	log.Info("opening ttyS2 for session logging")
 	f, err := os.OpenFile(pathPrefix+"/ttyS2", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, 777)
@@ -159,5 +214,58 @@ func sessionLogWriter() (io.Writer, error) {
 	}
 
 	// use multi-writer so it goes to both screen and session log
-	return io.MultiWriter(f, os.Stdout), nil
+	return dio.MultiWriter(f, os.Stdout), nil
+}
+
+func (t *osopsLinux) establishPty(live *liveSession) error {
+	// TODO: if we want to allow raw output to the log so that subsequent tty enabled
+	// processing receives the control characters then we should be binding the PTY
+	// during attach, and using the same path we have for non-tty here
+	writer := live.cmd.Stdout
+
+	var err error
+	live.pty, err = pty.Start(live.cmd)
+	if live.pty != nil {
+		live.outwriter = dio.MultiWriter(writer)
+
+		// TODO: do we need to ensure all reads have completed before calling Wait on the process?
+		// it frees up all resources - does that mean it frees the output buffers?
+		go func() {
+			_, gerr := io.Copy(live.outwriter, live.pty)
+			log.Debug(gerr)
+		}()
+		go func() {
+			_, gerr := io.Copy(live.pty, live.reader)
+			log.Debug(gerr)
+		}()
+	}
+
+	return err
+}
+
+// The syscall struct
+type winsize struct {
+	wsRow    uint16
+	wsCol    uint16
+	wsXpixel uint16
+	wsYpixel uint16
+}
+
+func (t *osopsLinux) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
+	ws := &winsize{uint16(winSize.Rows), uint16(winSize.Columns), uint16(winSize.WidthPx), uint16(winSize.HeightPx)}
+	_, _, errno := syscall.Syscall(
+		syscall.SYS_IOCTL,
+		pty,
+		syscall.TIOCSWINSZ,
+		uintptr(unsafe.Pointer(ws)),
+	)
+	if errno != 0 {
+		return syscall.Errno(errno)
+	}
+	return nil
+}
+
+func (t *osopsLinux) signalProcess(process *os.Process, sig ssh.Signal) error {
+	s := syscall.Signal(Signals[sig])
+	return process.Signal(s)
 }

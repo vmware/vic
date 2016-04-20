@@ -20,13 +20,14 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"sync"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/vmware/vic/cmd/tether/utils"
 	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/pkg/dio"
 )
 
 // pathPrefix is used for testing - it allows for creating and manupulating files outside of
@@ -39,23 +40,37 @@ var pathPrefix string
 // 2. post-vmfork
 var reload chan bool
 
-// Config holds the main configuration for the executor
-var Config *metadata.ExecutorConfig
+// config holds the main configuration for the executor
+var config *metadata.ExecutorConfig
+
+// holds the map of sessions to PTY multiwriters for now - should be updated when we can
+// extend the core config structs and use a map of pointers for Sessions
+var sessions map[string]*liveSession
+
+// ptySession groups up those elements we need for pty enabled sessions
+type liveSession struct {
+	pty        *os.File
+	outwriter  dio.DynamicMultiWriter
+	errwriter  dio.DynamicMultiWriter
+	reader     dio.DynamicMultiReader
+	cmd        *exec.Cmd
+	exitStatus int
+}
 
 // Set of child PIDs created by us.
-var childPidTable = make(map[int]*metadata.Cmd)
+var childPidTable map[int]*metadata.SessionConfig
 
 // Exclusive access to childPidTable
 var childPidTableMutex = &sync.Mutex{}
 
 // RemoveChildPid is a synchronized accessor for the pid map the deletes the entry and returns the value
-func RemoveChildPid(pid int) (*metadata.Cmd, bool) {
+func RemoveChildPid(pid int) (*metadata.SessionConfig, bool) {
 	childPidTableMutex.Lock()
 	defer childPidTableMutex.Unlock()
 
-	cmd, ok := childPidTable[pid]
+	session, ok := childPidTable[pid]
 	delete(childPidTable, pid)
-	return cmd, ok
+	return session, ok
 }
 
 // LenChildPid returns the number of entries
@@ -67,7 +82,10 @@ func LenChildPid() int {
 }
 
 func run(loader metadata.ConfigLoader) error {
+	// remake all of the main management structures so there's no cross contamination between tests
 	reload = make(chan bool, 1)
+	sessions = make(map[string]*liveSession)
+	childPidTable = make(map[int]*metadata.SessionConfig)
 
 	// HACK: workaround file descriptor conflict in pipe2 return from the exec.Command.Start
 	// it's not clear whether this is a cross platform issue, or still an issue as of this commit
@@ -75,55 +93,84 @@ func run(loader metadata.ConfigLoader) error {
 	_, _, _ = os.Pipe()
 
 	// perform basic one off OS specific setup
-	err := setup()
+	err := utils.setup()
 	if err != nil {
 		detail := fmt.Sprintf("failed during setup: %s", err)
 		log.Error(detail)
 		return errors.New(detail)
 	}
 
+	defer func() {
+		// perform basic cleanup
+		reload = nil
+		childPidTable = nil
+		// FIXME: Cannot clean up sessions until we are persisting exit status elsewhere for test validation
+		//    also referenced in handleSessionExit
+		// sessions = nil
+
+		utils.cleanup()
+	}()
+
 	// initial setup, so seed this
 	reload <- true
 	for _ = range reload {
 		// load the config - this modifies the structure values in place
-		Config, err := loader.LoadConfig()
+		config, err = loader.LoadConfig()
 		if err != nil {
 			detail := fmt.Sprintf("failed to load config: %s", err)
 			log.Error(detail)
+			// we don't attempt to recover from this - our async config and reporting channel isn't working
+			// as expected so just exit
 			return errors.New(detail)
 		}
 
-		logConfig(Config)
+		logConfig(config)
 
-		if err := utils.SetHostname(stringid.TruncateID(Config.ID)); err != nil {
+		if err := ops.SetHostname(stringid.TruncateID(config.ID)); err != nil {
 			detail := fmt.Sprintf("failed to set hostname: %s", err)
 			log.Error(detail)
+			// we don't attempt to recover from this - it's a fundemental misconfiguration
+			// so just exit
 			return errors.New(detail)
 		}
 
 		// process the sessions and launch if needed
-		tty := false
-		for id, session := range Config.Sessions {
+		attach := false
+		for id, session := range config.Sessions {
+			log.Debugf("Processing config for session %s", session.ID)
 			var proc *os.Process
-			if session.Cmd.Cmd != nil {
-				proc = session.Cmd.Cmd.Process
+			live := sessions[session.ID]
+			if live != nil {
+				proc = live.cmd.Process
 			}
 
-			if !tty && session.Tty {
-				tty = true
+			if session.Attach {
+				attach = true
+				log.Debugf("Session %s is configured for attach", session.ID)
+				// this will return nil if already running
+				err := server.start()
+				if err != nil {
+					detail := fmt.Sprintf("unable to start attach server: %s", err)
+					log.Error(detail)
+					continue
+				}
 			}
 
 			// check if session is alive and well
 			if proc != nil && proc.Signal(syscall.Signal(0)) != nil {
+				log.Debugf("Process for session %s is already running", session.ID)
 				continue
 			}
 
 			// check if session has never been started
 			if proc == nil {
+				log.Infof("Launching process for session %s\n", session.ID)
 				err := launch(&session)
 				if err != nil {
 					detail := fmt.Sprintf("failed to launch %s for %s: %s", session.Cmd.Path, id, err)
 					log.Error(detail)
+
+					// TODO: check if failure to launch this is fatal to everything in this containerVM
 					return errors.New(detail)
 				}
 
@@ -134,23 +181,9 @@ func run(loader metadata.ConfigLoader) error {
 			// TODO
 		}
 
-		// launch the ssh server for interaction if any of the components were assigned a tty
-		if tty {
-			_, err := backchannel()
-			if err != nil {
-				detail := fmt.Sprintf("failed to open backchannel: %s", err)
-				log.Error(detail)
-				return errors.New(detail)
-			}
-
-			// handler := NewGlobalHandler(Config.ID)
-			// log.Info("Starting ssh handler for backchannel")
-			// err = StartTether(conn, &Config, handler)
-			// if err != nil {
-			// 	detail := fmt.Sprintf("failed to start server on backchannel: %s", err)
-			// 	log.Error(detail)
-			// 	exit(BACKCHANNEL, 2, detail)
-			// }
+		// none of the sessions allows attach, so stop the server
+		if !attach {
+			server.stop()
 		}
 	}
 
@@ -159,15 +192,31 @@ func run(loader metadata.ConfigLoader) error {
 
 // handleSessionExit processes the result from the session command, records it in persistent
 // maner and determines if the Executor should exit
-func handleSessionExit(cmd *metadata.Cmd) error {
+func handleSessionExit(session *metadata.SessionConfig, exitStatus int) error {
+	// FIXME: we cannot remove this from the live session map until we're updating the underlying
+	// session config - we need to persist the exit status
+	// remove from the live session map
+	live := sessions[session.ID]
+	// delete(sessions, session.ID)
+
+	// close down the IO
+	live.reader.Close()
+	// live.outwriter.Close()
+	// live.errwriter.Close()
+
 	// flush session log output
 
 	// record exit status
+	live.exitStatus = exitStatus
+	log.Infof("%s exit code: %d", session.ID, exitStatus)
 
 	// check for executor behaviour
 	if LenChildPid() == 0 {
 		// let the main loop exit if there's no more sessions to wait on
-		close(reload)
+		if reload != nil {
+			close(reload)
+			reload = nil
+		}
 	}
 
 	return nil
@@ -176,21 +225,26 @@ func handleSessionExit(cmd *metadata.Cmd) error {
 // launch will launch the command defined in the session.
 // This will return an error if the session fails to launch
 func launch(session *metadata.SessionConfig) error {
-	c := &session.Cmd
-	cmd := &exec.Cmd{
-		Path: c.Path,
-		Args: c.Args,
-		Env:  processEnvOS(c.Env),
-		Dir:  c.Dir,
-	}
-	c.Cmd = cmd
-
-	writer, err := sessionLogWriter()
+	logwriter, err := utils.sessionLogWriter()
 	if err != nil {
 		detail := fmt.Sprintf("failed to get log writer for session: %s", err)
 		log.Error(detail)
 		return errors.New(detail)
 	}
+
+	live := &liveSession{
+		cmd: &exec.Cmd{
+			Path: session.Cmd.Path,
+			Args: session.Cmd.Args,
+			Env:  utils.processEnvOS(session.Cmd.Env),
+			Dir:  session.Cmd.Dir,
+		},
+		outwriter: dio.MultiWriter(logwriter),
+		errwriter: dio.MultiWriter(logwriter),
+		reader:    dio.MultiReader(),
+	}
+
+	sessions[session.ID] = live
 
 	// Use the mutex to make creating a child and adding the child pid into the
 	// childPidTable appear atomic to the reaper function. Use a anonymous function
@@ -199,16 +253,14 @@ func launch(session *metadata.SessionConfig) error {
 		childPidTableMutex.Lock()
 		defer childPidTableMutex.Unlock()
 
-		log.Infof("Launching command %+q\n", cmd.Args)
+		log.Infof("Launching command %+q\n", live.cmd.Args)
+		live.cmd.Stdin = live.reader
+		live.cmd.Stdout = live.outwriter
+		live.cmd.Stderr = live.errwriter
 		if !session.Tty {
-			cmd.Stdin = nil
-			cmd.Stdout = writer
-			cmd.Stderr = writer
-
-			err = cmd.Start()
+			err = live.cmd.Start()
 		} else {
-			// pty, err = pty.Start(cmd)
-			err = errors.New("TTY enabled sessions not yet supported")
+			err = utils.establishPty(live)
 		}
 
 		if err != nil {
@@ -218,7 +270,9 @@ func launch(session *metadata.SessionConfig) error {
 		}
 
 		// ChildReaper will use this channel to inform us the wait status of the child.
-		childPidTable[cmd.Process.Pid] = c
+		childPidTable[live.cmd.Process.Pid] = session
+
+		log.Debugf("Launched command with pid %d", live.cmd.Process.Pid)
 
 		return nil
 	}()
@@ -236,4 +290,37 @@ func logConfig(config *metadata.ExecutorConfig) {
 	}
 
 	log.Debug(string(json))
+}
+
+func forkHandler() {
+	log.Println("Registering fork trigger signal handler")
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("Recovered in StartConnectionManager", r)
+		}
+	}()
+
+	incoming := make(chan os.Signal, 1)
+	signal.Notify(incoming, syscall.SIGABRT)
+
+	log.Println("SIGABRT handling initialized for fork support")
+	for _ = range incoming {
+		// validate that this is a fork trigger and not just a random signal from
+		// container processes
+		log.Println("Received SIGABRT - preparing to transition to fork parent")
+
+		// TODO: record fork trigger in Config and persist
+
+		// TODO: do we need to rebind session executions stdio to /dev/null or to files?
+		err := ops.Fork(config)
+		if err != nil {
+			log.Errorf("vmfork failed:%s\n", err)
+			// TODO: how do we handle fork failure behaviour at a container level?
+			// Does it differ if triggered manually vs via pointcut conditions in a build file
+			continue
+		}
+
+		// trigger a reload of the configuration
+		reload <- true
+	}
 }

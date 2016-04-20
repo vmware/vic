@@ -381,7 +381,7 @@ func main() {
 		log.SetOutput(io.MultiWriter(os.Stdout, f))
 	}
 
-	if err := ParseReference(); err != nil {
+	if err = ParseReference(); err != nil {
 		log.Fatalf("Failed to parse -reference: %s", err)
 	}
 

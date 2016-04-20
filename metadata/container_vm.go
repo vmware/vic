@@ -14,10 +14,7 @@
 
 package metadata
 
-import (
-	"net/url"
-	"os/exec"
-)
+import "net/url"
 
 // Common data between managed entities, across execution environments
 type Common struct {
@@ -109,9 +106,6 @@ type Cmd struct {
 
 	// Dir specifies the working directory of the command
 	Dir string
-
-	// The exec.Cmd for the command once started
-	Cmd *exec.Cmd
 }
 
 // SessionConfig defines the content of a session - this maps to the root of a process tree
@@ -123,6 +117,9 @@ type SessionConfig struct {
 
 	// The primary process for the session
 	Cmd Cmd
+
+	// Allow attach
+	Attach bool
 
 	// Allocate a tty or not
 	Tty bool

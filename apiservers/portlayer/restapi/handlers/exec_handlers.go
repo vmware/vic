@@ -181,7 +181,9 @@ func (handler *ExecHandlersImpl) ContainerCreateHandler(params exec.ContainerCre
 					ID: id,
 				},
 				Tty: false,
-				Cmd: cmd,
+				// FIXME: default to true for now until we can have a more sophisticated approach
+				Attach: true,
+				Cmd:    cmd,
 			},
 		},
 		Networks: make(map[string]metadata.NetworkEndpoint),
