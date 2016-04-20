@@ -49,9 +49,9 @@ type CliOptions struct {
 const productName = "vSphere Integrated Containers"
 
 func Usage() {
-	fmt.Fprintln(os.Stderr, "\nvSphere Integrated Container Daemon Usage:\n")
+	fmt.Fprintf(os.Stderr, "\nvSphere Integrated Container Daemon Usage:\n")
 	flag.PrintDefaults()
-	fmt.Fprintln(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\n")
 }
 
 func main() {
@@ -97,7 +97,7 @@ func handleFlags() (*CliOptions, bool) {
 	flag.Parse()
 
 	if *enableTLS && (len(*certfile) == 0 || len(*keyfile) == 0) {
-		fmt.Fprintln(os.Stderr, "TLS requested, but tls-certificate and tls-key were all not specified\n")
+		fmt.Fprintf(os.Stderr, "TLS requested, but tls-certificate and tls-key were all not specified\n")
 		return nil, false
 	}
 
@@ -105,7 +105,7 @@ func handleFlags() (*CliOptions, bool) {
 		*enableTLS = true
 
 		if len(*certfile) == 0 || len(*keyfile) == 0 || len(*cafile) == 0 {
-			fmt.Fprintln(os.Stderr, "tlsverfiy requested, but tls-ca-certificate, tls-certificate, tls-key were all not specified\n")
+			fmt.Fprintf(os.Stderr, "tlsverfiy requested, but tls-ca-certificate, tls-certificate, tls-key were all not specified\n")
 			return nil, false
 		}
 	}

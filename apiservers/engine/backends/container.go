@@ -125,7 +125,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 
 		out, err := goexec.Command("/sbin/imagec", cmdArgs...).Output()
 		if err != nil {
-			log.Printf("imagec exit code:", err)
+			log.Printf("imagec exit code: %s", err)
 			return types.ContainerCreateResponse{},
 				derr.NewErrorWithStatusCode(fmt.Errorf("Container look up failed"),
 					http.StatusInternalServerError)
