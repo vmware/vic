@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Copyright 2016 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,11 +25,13 @@ set -e -x
 
 workdir=`git rev-parse --show-toplevel`/.cover
 profile="$workdir/cover.out"
+dir=$(dirname $0)
 mode=count
 
 # list any files (or patterns) to explicitly exclude from coverage
 # you should have a pretty good reason before putting items here
 exclude_files=(
+
 )
 
 join() { local IFS="$1"; shift; echo "$*"; }
@@ -46,7 +48,7 @@ generate_pkg_cover_data() {
     done
 
     echo "mode: $mode" >"$profile"
-    grep -h -v "^mode:" "$workdir"/*.cover | $dir/exclude_ignore | egrep -v "$excludes" >>"$profile"
+    grep -h -v "^mode:" "$workdir"/*.cover | egrep -v "$excludes" >>"$profile"
 }
 
 # translate dirs to packages and strip args
