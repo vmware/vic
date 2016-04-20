@@ -65,7 +65,7 @@ To create a VCH, disambiguation of which resource to use from the available set 
 
 ## Implementation approach
 
-My current approach is to have several components that get rolled into both vic-machine. Initial implementation should focus on:
+Recommended initial approach is to have several components that get rolled into both vic-machine. Initial implementation should focus on:
 * CLI parsing into config structs
 * validation of config struct values
 * creation of VCH from config struct

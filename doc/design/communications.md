@@ -1,6 +1,6 @@
 # Communications
 
-This document discusses the communication channels that are possible between components, but not what flows over them. This is essentially Layer2/3 and Layer7 is discussed in the documents relating to specific components that talk over these channels.
+This document discusses possible communication channels between components, but not what flows over them. This is essentially Layer2/3 with Layer7 discussed in the documents relating to specific components.
 
 
 ## ContainerVM to Appliance
@@ -19,7 +19,7 @@ The containerVM guestinfo is used as a persistent, asynch publishing mechanism f
 2. error reporting for [containerVM components](#components.md#container)
 3. exit status of the container process
 
-The other direction, appliance to containerVM, is addressed in a little more depth under [configuration](configuration.md#appliance)
+Appliance to containerVM communication also uses guestinfo as a channel and is addressed in a little more depth under [configuration](configuration.md#appliance)
 
 
 ### Synchronous
@@ -42,7 +42,20 @@ Cons:
 * serial port access and access semantics differ significantly between OSes
 
 
-### Pipe back serial port with relay agent
+#### vSPC relay
+A vSPC is explicitly to enable vMotion for VMs that have network serial connections. When connecting to a vSPC the connection is an extended TELNET protocol rather than raw TCP. In the case of a regular vSPC appliance, the vSPC has to bridge between the management network (network serial originates from the ESX host, not the VM) and a network the VIC appliance is attached to.
+The vSPC relay is an agent on ESX that does dumb forwarding of the incoming Telnet connection via vSocket into the VCH appliance, which provides a very basic vSPC implementation. In this case the containerVM would be configured with a network serial port with a vSPC target that is the ESX host running the applianceVM.
+
+Pros:
+* appliance does not require connectivity with the management network (when combined with [vmomi agent](#components.md#vmomi-authenticating-agent) )
+* containerVM vMotion
+
+Cons:
+* requires Enterprise license
+* require knowledge of applianceVM host and reconfiguration if applianceVM vMotion occurs
+
+
+### Pipe backed serial port with relay agent
 The pipe backed serial port is a mechanism provided by vSphere that maps serial port IO to a named pipe on the ESX host. This allows an agent on the host to act as a relay for that data.
 
 Pros:
@@ -79,14 +92,3 @@ Pros:
 Cons:
 * require knowledge of applianceVM host and reconfiguration if applianceVM vMotion occurs
 
-#### vSPC relay
-A vSPC is explicitly to enable vMotion for VMs that have network serial connections. When connecting to a vSPC the connection is an extended TELNET protocol rather than raw TCP. In the case of a regular vSPC appliance, the vSPC has to bridge between the management network (network serial originates from the ESX host, not the VM) and a network the VIC appliance is attached to.
-The vSPC relay is an agent on ESX that does dumb forwarding of the incoming Telnet connection via vSocket into the VCH appliance, which provides a very basic vSPC implementation. In this case the containerVM would be configured with a network serial port with a vSPC target that is the ESX host running the applianceVM.
-
-Pros:
-* appliance does not require connectivity with the management network (when combined with [vmomi agent](#components.md#vmomi-authenticating-agent) )
-* containerVM vMotion
-
-Cons:
-* requires Enterprise license
-* require knowledge of applianceVM host and reconfiguration if applianceVM vMotion occurs
