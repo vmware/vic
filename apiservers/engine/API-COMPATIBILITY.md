@@ -1,6 +1,8 @@
 # Docker Remote API Compatibility
 VIC attempts to be compatible with the Docker remote API; however, there are some differences.  The API differences are documented below, grouped together by functional areas.
 
+Here are the [Docker v1.22 docs](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/) for the readers convenience. Only the calls that will have differences in implementation are documented below.
+
 # Support Matrix
 
 ## Container API Support
