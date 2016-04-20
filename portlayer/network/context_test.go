@@ -18,6 +18,12 @@ import (
 	"net"
 	"reflect"
 	"testing"
+
+	"github.com/vmware/vic/pkg/vsphere/session"
+)
+
+const (
+	testBridgeName = "testBridge"
 )
 
 type params struct {
@@ -66,10 +72,27 @@ var validScopeTests = []struct {
 		nil},
 }
 
+// mockBridgeNetworkName mocks getBridgeNetworkName so that tests don't
+// need to query guestInfo
+func mockBridgeNetworkName(sess *session.Session) (string, error) {
+	return testBridgeName, nil
+}
+
 func TestContext(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
+	origBridgeNetworkName := getBridgeNetworkName
+	getBridgeNetworkName = mockBridgeNetworkName
+	defer func() { getBridgeNetworkName = origBridgeNetworkName }()
+
+	sess := &session.Session{}
+
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), sess)
 	if err != nil {
 		t.Errorf("NewContext() => (nil, %s), want (ctx, nil)", err)
+		return
+	}
+
+	if ctx.BridgeNetworkName != testBridgeName {
+		t.Errorf("ctx.BridgeNetworkName => %v, want %s", ctx.BridgeNetworkName, testBridgeName)
 		return
 	}
 
@@ -181,6 +204,16 @@ func TestContext(t *testing.T) {
 			continue
 		}
 
+		if s.Type() == "bridge" && s.NetworkName != testBridgeName {
+			t.Errorf("s.NetworkName => %v, want %s", s.NetworkName, testBridgeName)
+			continue
+		}
+
+		if s.Type() == "external" && s.NetworkName != "" {
+			t.Errorf("s.NetworkName => %v, want %s", s.NetworkName, "")
+			continue
+		}
+
 		if te.in.ipam != nil && len(ipam.spaces) != len(te.in.ipam) {
 			t.Errorf("len(ipam.spaces) => %d != len(te.in.ipam) => %d", len(ipam.spaces), len(te.in.ipam))
 		}
@@ -210,7 +243,13 @@ func TestContext(t *testing.T) {
 }
 
 func TestScopes(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
+	origBridgeNetworkName := getBridgeNetworkName
+	getBridgeNetworkName = mockBridgeNetworkName
+	defer func() { getBridgeNetworkName = origBridgeNetworkName }()
+
+	sess := &session.Session{}
+
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), sess)
 	if err != nil {
 		t.Errorf("NewContext() => (nil, %s), want (ctx, nil)", err)
 		return

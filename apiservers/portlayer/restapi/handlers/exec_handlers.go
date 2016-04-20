@@ -88,6 +88,7 @@ func (handler *ExecHandlersImpl) addContainerToScope(name string, ns *models.Net
 
 	var err error
 	var s *network.Scope
+
 	switch ns.NetworkName {
 	// docker's default network, usually maps to the default bridge network
 	case "default":
@@ -126,8 +127,6 @@ func (handler *ExecHandlersImpl) addContainerToScope(name string, ns *models.Net
 			Mask: e.Subnet().Mask,
 		},
 		Network: metadata.ContainerNetwork{
-			// FIXME: https://github.com/vmware/vic/issues/444
-			// FIXME: this needs to point to switch or port group name
 			Name: e.Scope().Name(),
 			Gateway: net.IPNet{
 				IP:   e.Gateway(),

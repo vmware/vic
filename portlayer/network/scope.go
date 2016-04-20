@@ -37,6 +37,8 @@ type Scope struct {
 	containers map[string]*Container
 	endpoints  []*Endpoint
 	space      *AddressSpace
+
+	NetworkName string // portgroup name specified in VCH guestinfo (e.g. under "networks/bridge")
 }
 
 type IPAM struct {

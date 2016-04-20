@@ -21,6 +21,16 @@ import (
 	"net"
 	"strings"
 	"sync"
+
+	"golang.org/x/net/context"
+
+	"github.com/vmware/vic/pkg/vsphere/guest"
+	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/vm"
+)
+
+const (
+	bridgeNetworkKey = "guestinfo.vch/networks/bridge"
 )
 
 type Context struct {
@@ -31,19 +41,42 @@ type Context struct {
 
 	scopes       map[string]*Scope
 	defaultScope *Scope
+
+	BridgeNetworkName string // Portgroup name of the bridge network
 }
 
-func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
+var getBridgeNetworkName = func(sess *session.Session) (string, error) {
+	c := context.Background()
+	vch, err := guest.GetSelf(c, sess)
+	if err != nil {
+		return "", fmt.Errorf("unable to get VCH ref")
+	}
+
+	vchVM := vm.NewVirtualMachine(c, sess, vch.Reference())
+	guestInfo, err := vchVM.FetchExtraConfig(c)
+	if err != nil {
+		return "", err
+	}
+	return guestInfo[bridgeNetworkKey], nil
+}
+
+func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask, sess *session.Session) (*Context, error) {
 	pones, pbits := bridgePool.Mask.Size()
 	mones, mbits := bridgeMask.Size()
 	if pbits != mbits || mones < pones {
 		return nil, fmt.Errorf("bridge mask is not compatiable with bridge pool mask")
 	}
 
+	bnn, err := getBridgeNetworkName(sess)
+	if err != nil {
+		return nil, err
+	}
+
 	ctx := &Context{
 		defaultBridgeMask: bridgeMask,
 		defaultBridgePool: NewAddressSpaceFromNetwork(&bridgePool),
 		scopes:            make(map[string]*Scope),
+		BridgeNetworkName: bnn,
 	}
 
 	s, err := ctx.NewScope("bridge", "bridge", nil, net.IPv4(0, 0, 0, 0), nil, nil)
@@ -80,7 +113,7 @@ func isUnspecifiedSubnet(n *net.IPNet) bool {
 	return bits == 0 || ones == 0
 }
 
-func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (*Scope, error) {
+func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM, networkName string) (*Scope, error) {
 	if isUnspecifiedSubnet(subnet) {
 		subnet = defaultSubnet
 	}
@@ -139,15 +172,16 @@ func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, 
 	}
 
 	newScope := &Scope{
-		id:         id,
-		name:       name,
-		subnet:     *subnet,
-		gateway:    gateway,
-		ipam:       ipam,
-		containers: make(map[string]*Container),
-		scopeType:  scopeType,
-		space:      space,
-		dns:        dns,
+		id:          id,
+		name:        name,
+		subnet:      *subnet,
+		gateway:     gateway,
+		ipam:        ipam,
+		containers:  make(map[string]*Container),
+		scopeType:   scopeType,
+		space:       space,
+		dns:         dns,
+		NetworkName: networkName,
 	}
 
 	c.scopes[name] = newScope
@@ -156,7 +190,7 @@ func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, 
 }
 
 func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (newScope *Scope, err error) {
-	s, err := c.newScopeCommon(id, name, "bridge", subnet, gateway, dns, ipam)
+	s, err := c.newScopeCommon(id, name, "bridge", subnet, gateway, dns, ipam, c.BridgeNetworkName)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +214,8 @@ func (c *Context) newExternalScope(id, name string, subnet *net.IPNet, gateway n
 		return nil, fmt.Errorf("external network cannot overlap with default bridge network")
 	}
 
-	return c.newScopeCommon(id, name, "external", subnet, gateway, dns, ipam)
+	// TODO Get the correct networkName
+	return c.newScopeCommon(id, name, "external", subnet, gateway, dns, ipam, "")
 }
 
 func isDefaultSubnet(subnet *net.IPNet) bool {
