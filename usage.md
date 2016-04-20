@@ -1,6 +1,6 @@
 ## Installing Virtual Integrated Containers
 
-The intent is that vSphere Integrated Containers (VIC) should not _require_ an installation step - deploying a [Virtual Container Host](doc/arch/vic-container-abstraction.md#virtual-container-host) (VHC) directly without any prior steps should always be possible. At the current time this is the only approach available.
+The intent is that vSphere Integrated Containers (VIC) should not _require_ an installation step - deploying a [Virtual Container Host](doc/design/arch/vic-container-abstraction.md#virtual-container-host) (VCH) directly without any prior steps should always be possible. At the current time this is the only approach available.
 
 Installation will be required for capabilities such as [self-provisioning](doc/design/validating-proxy.md) and management network isolation via [vmomi proxy](doc/design/vmomi-authenticating-agent.md).
 
@@ -16,7 +16,7 @@ The first three requirements derive from a placeholder install script. These wil
 4. DHCP - the VCH currently requires there be DHCP on the external network (-e flag if not "VM Network")
 
 
-Replace the `<fields>` in the example with values specific to your environment - this will install to the top level resource pool of the host (specify -g to generate certificates and configure TLS). Add -f to remove an existing folder or VM with the same name:
+Replace the `<fields>` in the example with values specific to your environment - this will install to the top-level resource pool of the host (specify -g to generate certificates and configure TLS). Add -f to remove an existing folder or VM with the same name:
 ```
 bin/install.sh -g -t '<user>:<password>@<target-host>' -i <datastore-name> <vch-name>
 ```

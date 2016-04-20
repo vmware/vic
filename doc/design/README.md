@@ -1,10 +1,14 @@
 # vSphere Integrated Containers - Architecture and Design
 
-## Component Architecture
+The bulk of the design notes currently relate to [components and their role in the sytem](components.md) - high level descriptions primarily.
 
-This is a component architecture for the system, encompassing some of the main control flows. It is intended to be used as a visual map for which components interact and how those interaction occur; it does not indicate what those interaction are. The diagram is an imagemap and clicking on a component, and some connectors, should take you to detail documents.
+Networking is broken out into a subfolder on the expectation that it will become a significantly larger area once NSX integration is addressed - [the 1.0 MVP network design](networking/README.md) does not encompass NSX.
 
-![system component architecture](https://github.com/vmware/vic/blob/master/doc/design/component_architecture.svg)
 
-Experiementing with a rawgit.com link as github rendering appears to be broken:
-![system component architecture](https://rawgit.com/vmware/vic/master/doc/design/component_architecture.svg)
+Documentation about component interactions is ongoing with the initial docs being:
+* [configuration](configuration.md)
+* [communication between VCH appliance and containerVMs](communications.md)
+* portlayer component communication
+* security
+* [installation and self-provisioning - usage examples](usage.md)
+* [installation and self-provisioning - technical](vic-machine.md)

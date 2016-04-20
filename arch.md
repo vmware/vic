@@ -4,7 +4,7 @@
 
 VIC is a product designed to tightly integrate container workflow, lifecycle and provisioning with the vSphere SDDC. In VIC, a container is a hardware-virtualized first-class citizen on the hypervisor provisioned into a _Virtual Container Host_ (VCH) and able to directly integrate with vSphere infrastructure capabilities, such as networking and storage features.
 
-[Learn more about the differences between the VIC model and a traditional software-virtualized container](doc/arch/vic-container-abstraction.md)
+[Learn more about the differences between the VIC model and a traditional software-virtualized container](doc/design/arch/vic-container-abstraction.md)
 
 The architecture of VIC is designed to allow for significant modularity and flexibility and includes the following key components:
 
@@ -18,4 +18,4 @@ A secondary benefit of such an API is that it could easily be extended for compa
 
 The Port Layer is designed in such a way that the libraries can be built into static binaries or remotable services. They can be combined together into a single service endpoint or distributed for greater flexibility.
 
-[Learn more about the Port Layer](doc/arch/vic-port-layer-overview.md)
+[Learn more about the Port Layer](doc/design/arch/vic-port-layer-overview.md)
