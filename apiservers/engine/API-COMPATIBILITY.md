@@ -68,14 +68,6 @@ VIC attempts to be compatible with the Docker remote API; however, there are som
 
 # Container APIs
 
-### List containers
-```
-GET /containers/json
-
-```
-No differences
-
-
 ## Create a container
 
 ```
@@ -230,30 +222,11 @@ it will return these two fields as json object in the body of an HTTP call.
 * 506 : impossible to attach
 * 500 : server error
 
-## Inspect a container
-
-``` GET /containers/(id)/json ```
-
-This remote API returns low level metadata for the container. This includes almost all of what is previded at the time a create call
-is invoked. This is a __supported API__.
-
-### Status Codes
-
-* 200 : no error
-* 404 : no such container
-* 500 : no error
-
-## List processes running inside a container
-
-```GET containers/(id)/top```
-
-__SUPPORTED in the Future__
-
 ## Get container logs
 
 ```GET /containers/(id)/logs```
 
-This operation will return StdOut and StdErr logs from the target container. __Supported in VIC__
+This operation will return StdOut and StdErr logs from the target container. 
 
 ### Query parameters
 
@@ -273,41 +246,6 @@ This operation will return StdOut and StdErr logs from the target container. __S
 * 404 : no such container
 * 500 : server error
 
-## Inspect changes on a container’s filesystem
-
-```GET /containers/(id)/changes```
-
-inspects the r/w layer of a container for changes to it's filesystem.
-
-
-
-### Response
-
-the response for this api involves a json based HTTP response that is a json array of objects.
-
-__JSON OBJECT STRUCTURE__
-
-```
-{
-    "Path" : <string, path to file>,
-    "Kind" : <integer, kind code>
-}
-```
-
-__Kind Codes__
-
-|code number| description|
-|---|---|
-|0|Modify|
-|1|Add|
-|2|Delete|
-
-### Response Status Codes
-
-* 200 : no error
-* 404 : no such container
-* 500 : server error
-
 ## Export a container
 
 ```GET /containers/(id)/export```
@@ -324,145 +262,6 @@ HTTP response that returns a binary stream of the flattened file in a tarball. T
 * 200 : no error
 * 404 : no such container
 * 500 : server error
-
-## Get container stats based on resource usage
-```GET /containers/(id)/stats```
-
-This api returns a stream of the containers resource usage.
-
-__Not Supported BY VIC__
-
-the isolation unit of a containerVM is a vm so these stats are actively available from vSphere.
-
-## Resize a container TTY
-
-```POST /containers/(id or name)/resize```
-
-resize the TTY of the target container. The unit for height and width is in characters. A restart is required for the resize to finalize.
-
-### Query Parameters
-
-|parameter|description|support?|
-|---|---|---|
-|h|height of tty session|YES|
-|w|width|YES|
-
-### Status Codes
-
-* 200 : no error
-* 404 : no such container
-* 500 : cannot resize container
-
-## Start a container
-
-```POST /containers/(id or name)/start```
-
-This call starts the indicated container, if it exists. The body of this post call is empty.
-
-### Query Parameter
-
-This call also has one query parameter, __detachKeys__ that allows for overriding the key sequence for detaching a container.       
-
-###Response
-
-```HTTP/1.1 <error code and message>```
-
-###Response Codes
-
-* 204 : no error
-* 304 : container already started
-* 404 - no such container
-* 500 : server error
-
-## Stop a container
-
-```POST /containers/(id or name)/stop```
-
-This call stops the indicated container, if it exists. The body of this post call is empty.
-
-### Query Parameter
-
-This call also has one query parameter, __t__ that specifies how long to wait before killing the indicated container.       
-
-###Response
-
-```HTTP/1.1 <error code and message>```
-
-###Response Codes
-
-* 204 : no error
-* 304 : container already started
-* 404 - no such container
-* 500 : server error
-
-## Restart a container
-```POST /containers/(id or name)/restart```
-
-This call restarts the indicated container, if it exists. The body of this post call is empty.
-
-### Query Parameter
-
-This call also has one query parameter, __t__ that specifies how long to wait before restarting the indicated container. 
-      
-###Response
-
-```HTTP/1.1 <error code and message>```
-
-###Response Codes
-
-* 204 : no error
-* 304 : container already started
-* 404 - no such container
-* 500 : server error
-
-## Kill a container
-```POST /containers/(id or name)/restart```
-
-This call restarts the indicated container, if it exists. The body of this post call is empty.
-
-### Query Parameter
-
-This call also has one query parameter, __signal__ that specifies what signal to send with the kill command. e.g. `SIGKILL` 
-      
-###Response
-
-```HTTP/1.1 <error code and message>```
-
-###Response Codes
-
-* 204 : no error
-* 304 : container already started
-* 404 - no such container
-* 500 : server error
-
-## Update a container
-
-__Might Be Supported By VIC__
-
-## Rename a container
-
-```POST /containers/(id or name)/rename```
-
-rename the target container to the name relayed in the query parameter.
-
-### Query Parameter(s)
-
-* name : new name for the indicated container.
-
-### Status Codes
-
-* 204 : no error
-* 404 : no such container found
-* 409 : name collision
-* 500 : server error
-
-## Pause a container
-
-__Not Supported By VIC__
-
-## Unpause a container
-
-__Not Supported By VIC__
 
 ## Attach to a container
  
@@ -519,18 +318,6 @@ Handshake according to `RFC 6455`
 * 404 : no such container
 * 500 : server error
 
-## Wait a container
-
-```POST /containers/(id or name)/wait```
-
-block until container id stops. Then returns an exit code.
-
-### Status Codes 
-
-* 200 : no error
-* 404 : no such container
-* 500 : server error
-
 ## Remove a container
 
 ```Delete /containers/(id or name)```
@@ -551,84 +338,7 @@ removes indicated container.
 * 404 : no container
 * 500 : server error
 
-## Copy files or folders from a container
-
-```POST /containers/(id or name)/copy```
-
-copies files from the target container.
-
-### Request
-The request will have one paramter in it's json object.
-
-* resource : the file or folder you want to copy from docker.
-
-### Response
-
-The response will return a tar stream of the requested files.
-
-###Status Codes
-
-* 200 : no error
-* 404 : no such container
-* 500 : server error 
-
-## Retrieving information about files and folders in a container
-
-```HEAD /containers/(id or name)/archive```
-
-## Get an archive of a filesystem resource in a container
-
-```Get /containers/(id or name)/archive```
-
-get a tar archive of a file or directory in the filesystem of the target container.
-
-
-
-### Query Parameters
-
-* __Path__ : required, if it is not an absolute path, it should be a path from the root directory. path should end in `/` or `/.` to assure that the target is a directory. A symlink is always resolved to it's target. When using `/.` this should indicate that only the contents of the directory targeted are copied. 
-
-### Status Codes:
-
-* 200 : success, returns resource as tar stream.
-* 400 : client error, bad parameter, details in json response body must specify path, not a directory error.
-* 404 : client error, resource not found, no such container found. 
-* 500: server error.
-
-## Extract an archive of files or folders to a directory in a container
-
-```PUT /containers/(id or name)/archive```
-
-upload a tar archive to be extracted onto the target container.
-
-### Query Parameter
-
-|parameter|description|supported?|
-|---|---|---|
-|path|path to extact to. Thepath must exist.| YES|
-|noOverwriteDirNonDir|1/true/True. if true, then an error will be returned if the extraction would replace an existing directory with a non directory|YES|
-
-### Status Codes
-
-* 200 : Success
-* 400 : client error, bad parameter, must specify path error, not a directory, unable to overwrite existing directory with non directory, unable to overwrite existing non directory with directory
-* 403 : client error, permission denied, the volume or container rootfs is marked read-only
-* 404 : client error, resource not found, no such container, no such file or directory
-* 500 : server error
-
 # Image APIs
-
-## List Images
-
-```Get /images/json```
-
-### Query Parameters
-
-|parameter|description|Supported?|
-|---|---|---|
-|all|1/true/True or 0/false/False. If true all images are listed| YES |
-|filters|json encoded filters. options: `dangling=true` and `label="key=value`"|YES|
-|filter| only return the image by the name specified| YES |
 
 ## Build image from a Dockerfile
 
@@ -675,117 +385,6 @@ the request should probide a tar stream of the file to be used as the docker fil
 * 200 : no error
 * 500 : server error
 
-## Create an image
-
-```POST /images/create```
-
-create image by pulling or importing it. 
-
-### Query Parameters
-
-|parameter|description|supported?|
-|---|---|---|
-|fromImage|Name of the image to pull|YES|
-|fromSrc|Source to import|YES|
-|repo|the repo name attached to the image when it is imported. May include a tag.|YES|
-|tag|tag or digest|YES|
-
-### Request Headers
-|header| description|supported?|
-|---|---|---|
-|x-Registry-Config| JSON config object that allows for providing mapped credentials to different registries that may be needed to build a specific image| YES|
-
-### Status Codes
-
-* 200 : no error
-* 500 : server error
-
-## Inspect an image
-
-```GET /images/(name)/json```
-
-returns low level metadata on the indicated image.
-
-### Status Codes
-
-* 200 : no error
-* 404 : no such image
-* 500 : server error
-
-## Get the history of an image
-
-```GET /images/(name)/history```
-
-returns the history of the indicated image.
-
-### Response 
-
-The response will have several json array where each element in an image manifest for an image that is in the history of the target image. they are in historical order. newest first.
-
-### Status Codes
-
-* 200 : no error
-* 404 : no such image
-* 500 : server error
-
-## Push an image on the registry
-__Supported at a Future Date__
-
-## Tag an image into a repository
-
-```POST /images/(name)/tag```
-
-tag the target image with the indicated tag.
-
-### Query Parameters
-
-|parameter|description|supported?|
-|---|---|---|
-|repo|target repo for the tag|YES|
-|force|1/true/True or 0/false/False|YES|
-|tag|The tag for the target image|YES|
-
-### Status Codes
-
-* 201 : no error(note different than the noremall 200)
-* 400 : bad parameter
-* 404 : no such image
-* 409 : conflict 
-* 500 : server error
-
-## Remove an image
-
-```DELETE /images(name)```
-
-### Query Parameters
-
-|parameter|description|supported?|
-|---|---|---|
-|force|1/true/True or 0/false/False|YES|
-|noprune|1/true/True or 0/false/False. default false.|YES|
-
-### Status Codes
-
-* 200 : no error(note different than the noremall 200)
-* 404 : no such image
-* 409 : conflict 
-* 500 : server error
-
-## Search images
-
-```GET /images/search```
-
-### Query Parameters
-
-|parameter|description|supported?|
-|---|---|---|
-|term|substring to search for|YES|
-
-### Status Codes
-
-* 200 : no error(note different than the noremall 200)
-* 500 : server error
-
 # Network APIs
 
 ### List networks
@@ -803,109 +402,3 @@ tag the target image with the indicated tag.
 ### Inspect a volume
 ### Remove a volume
 
-# MISC APIs
-
-## Check auth configuration
-
-```POST /auth```
-
-default credentials.
-
-### Request 
-
-`Content-type : application/json` 
-
-|parameters|
-|---|
-|username|
-|password|
-|email|
-|serveraddress|
-
-### Status Codes
-note: the 1.22 api docs do not explain a difference between 200 and 204. so standard difference is assumed.
-
-* 200 : no error
-* 204 : no error
-* 500 : server error
-
-## Display system-wide information
-
-```GET /info```
-
-Gets system-wide information about the machine running the daemon.
-
-### Status Codes 
-
-* 200 : no error
-* 500 : server error
-
-## Show the docker version information
-
-```Get /version```
-
-responds with the version of docker the daemon is currently running. The response
-comes as a json object.
-
-### Status Codes
-
-* 200 : no error
-* 500 : server error
-
-## Ping the docker server
-
-```GET /_ping```
-
-makes a simple ping against the docker server. 
-
-### Status Codes
-
-* 200 : no error
-* 500 : server error
-
-## Monitor Docker’s events
-
-```GET /events```
-
-Fetches the events for containers, images, volumes, and networks.
-
-*Note: this needs more information*
-
-### Query Parameters
-
-|parameters|description|supported?|
-|---|---|---|
-|since|timestamp for all events since a certain time.|YES|
-|until|Timestamp indicating events that are occuring up until a specified time|YES|
-|filters| a json object that contains the following key value |YES|
-
-NOTE:
-this is the format of the filters object
-```
-{
-    containers=<string>,//container name to look for.
-    event=<string>,//event to look for.
-    image=<string>,//image to look for.
-    label=<string>,//image and container label to look for.
-    type=<string>,//this will be one of: container, image, volume, or network
-    volume=<string>,//the volume to look for.
-    network=<string>//the network to look for.
-}
-```
-
-## Create a new image from a container’s changes
-__Supported at a Future Date__
-## Get a tarball containing all images in a repository
-__Supported at a Future Date__
-## Get a tarball containing all images.
-__Supported at a Future Date__
-## Load a tarball with a set of images and tags into docker
-__Supported at a Future Date__
-## Exec Create
-__Not Supported By VIC__
-## Exec Start
-__Not Supported By VIC__
-## Exec Resize
-__Not Supported By VIC__
-## Exec Inspect
-__Not Supported By VIC__
