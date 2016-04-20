@@ -107,9 +107,9 @@ func TestAttach(t *testing.T) {
 	}
 
 	go func() {
-		err := run(cfg)
-		if err != nil {
-			t.Error(err)
+		erR := run(cfg)
+		if erR != nil {
+			t.Error(erR)
 		}
 	}()
 
@@ -232,9 +232,9 @@ func TestAttachTTY(t *testing.T) {
 	}
 
 	go func() {
-		err := run(cfg)
-		if err != nil {
-			t.Error(err)
+		erR := run(cfg)
+		if erR != nil {
+			t.Error(erR)
 		}
 	}()
 
@@ -375,9 +375,9 @@ func TestAttachTwo(t *testing.T) {
 	}
 
 	go func() {
-		err := run(cfg)
-		if err != nil {
-			t.Error(err)
+		erR := run(cfg)
+		if erR != nil {
+			t.Error(erR)
 		}
 	}()
 
@@ -421,7 +421,7 @@ func TestAttachTwo(t *testing.T) {
 
 	// there's no ordering guarantee in the returned ids
 	if len(ids) != 2 {
-		t.Errorf("ID list - expected 2, got ", len(ids))
+		t.Errorf("ID list - expected 2, got %d", len(ids))
 		return
 	}
 
@@ -543,9 +543,9 @@ func TestAttachInvalid(t *testing.T) {
 	}
 
 	go func() {
-		err := run(cfg)
-		if err != nil {
-			t.Error(err)
+		erR := run(cfg)
+		if erR != nil {
+			t.Error(erR)
 		}
 	}()
 

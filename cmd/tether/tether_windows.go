@@ -87,15 +87,15 @@ func OpenPort(name string) (io.ReadWriteCloser, error) {
 	scheme := parts[0]
 	switch scheme {
 	case "com":
-		config := &winserial.Config{Name: parts[1], Baud: 115200}
-		port, err := winserial.OpenPort(config)
+		cfg := &winserial.Config{Name: parts[1], Baud: 115200}
+		port, err := winserial.OpenPort(cfg)
 		if err != nil {
 			return nil, err
 		}
 
 		// ensure we don't have significant obsolete data built up
 		port.Flush()
-		return &NamedPort{Port: port, config: *config, fd: 0}, nil
+		return &NamedPort{Port: port, config: *cfg, fd: 0}, nil
 	case "file":
 		return os.OpenFile(parts[1], os.O_RDWR|os.O_SYNC, 0777)
 	default:

@@ -174,7 +174,7 @@ func TestAbsPath(t *testing.T) {
 	// check the exit code was set
 	status := sessions["abspath"].exitStatus
 	if status != 0 {
-		t.Error("reference process 'data --reference=/' did not exit cleanly: %d", status)
+		t.Errorf("reference process 'data --reference=/' did not exit cleanly: %d", status)
 		return
 	}
 

@@ -152,7 +152,7 @@ func (t *osopsLinux) Apply(endpoint *metadata.NetworkEndpoint) error {
 		return errors.New(detail)
 	}
 
-	if err := netlink.AddrAdd(link, addr); err != nil {
+	if err = netlink.AddrAdd(link, addr); err != nil {
 		detail := fmt.Sprintf("failed to add address to %s: %s", endpoint.Network.Name, err)
 		return errors.New(detail)
 	}

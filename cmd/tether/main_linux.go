@@ -64,7 +64,7 @@ func createDevices() error {
 	for i := 0; i < 3; i++ {
 		path := fmt.Sprintf("%s/ttyS%d", pathPrefix, i)
 		minor := 64 + i
-		err := syscall.Mknod(path, syscall.S_IFCHR|uint32(os.FileMode(0660)), Mkdev(4, minor))
+		err = syscall.Mknod(path, syscall.S_IFCHR|uint32(os.FileMode(0660)), Mkdev(4, minor))
 		if err != nil {
 			detail := fmt.Sprintf("failed to create %s for com%d: %s", path, i+1, err)
 			return errors.New(detail)
