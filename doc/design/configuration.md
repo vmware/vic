@@ -3,7 +3,7 @@
 Three primary elements make up a functioning VCH - these are referred to as components in the rest of this document, along with their subcomponents:
 
 1. [vic-machine](vic-machine.md) - the mechanism by which the VCH is deployed, configured, and inspected
-2. appliance - a VM that runs the VCH logic ([docker personality](docker-api-server.md), [log server](vicadmin.md), [port-layer](arch/vic-port-layer-overview.md), et al)
+2. appliance - a VM that runs the VCH logic ([docker personality](components.md#docker-api-server), [log server](components.md#vicadmin), [port-layer](arch/vic-port-layer-overview.md), et al)
 3. containerVMs - VMs that _are_ containers ([tether](tether.md), and container process)
 
 This document discusses how configuration between components is done, and why it's done in that manner.
@@ -71,7 +71,7 @@ ExtraConfig data is used for data that should not be visible to the GuestOS - th
 
 ## Accessing configuration - implementation
 
-The defacto model for holding configuration in Go is a struct with Fields that contain the specifics. The idiomatic way of populating a struct from a serialized form is with a Decoder from the [Go encoding](https://golang.org/pkg/encoding/)package.
+The defacto model for holding configuration in Go is a struct with Fields that contain the specifics. The idiomatic way of populating a struct from a serialized form is with a Decoder from the [Go encoding](https://golang.org/pkg/encoding/) package.
 
 It is expected that use of the configuration be performed via two endcoder/decoder pairs - one that operates directly on guestinfo via the vmx-guestinfo library, the other that takes a [VirtualMachineConfigSpec](pubs.vmware.com/vsphere-60/topic/com.vmware.wssdk.apiref.doc/vim.vm.ConfigSpec.html) and operates on the ExtraConfig field of the spec.
 
