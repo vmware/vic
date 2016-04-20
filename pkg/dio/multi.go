@@ -82,6 +82,9 @@ func (t *multiWriter) Add(writer ...io.Writer) {
 // FIXME: provide a mechanism for selectively closing writers
 //  - currently this closes /dev/stdout and logging as well if present
 func (t *multiWriter) Close() error {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
 	for _, w := range t.writers {
 		if c, ok := w.(io.Closer); ok {
 			c.Close()
@@ -195,6 +198,9 @@ func (t *multiReader) Read(p []byte) (int, error) {
 // TODO: add a WriteTo for more efficient copy
 
 func (t *multiReader) Close() error {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
 	for _, r := range t.readers {
 		if c, ok := r.(io.Closer); ok {
 			c.Close()

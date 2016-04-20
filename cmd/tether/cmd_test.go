@@ -15,13 +15,13 @@
 package main
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/metadata"
 )
 
@@ -194,12 +194,9 @@ func TestAbsPath(t *testing.T) {
 		return
 	}
 
-	if !bytes.Equal(out, log) {
-		err := fmt.Errorf("Actual and expected output did not match\nExpected: %s\nActual:   %s\n", out, log)
-		t.Error(err)
+	if !assert.Equal(t, out, log) {
 		return
 	}
-
 }
 
 //

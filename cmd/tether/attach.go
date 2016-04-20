@@ -49,16 +49,6 @@ var (
 	}
 )
 
-// PtyRequestMsg the RFC4254 struct
-type ptyRequestMsg struct {
-	Term     string
-	Columns  uint32
-	Rows     uint32
-	Width    uint32
-	Height   uint32
-	Modelist string
-}
-
 // WindowChangeMsg the RFC4254 struct
 type WindowChangeMsg struct {
 	Columns  uint32
@@ -75,6 +65,8 @@ type stringArrayMsg struct {
 	Strings []string
 }
 
+// server is the singleton attachServer for the tether - there can be only one
+// as the backchannel line protocol may not provide multiplexing of connections
 var server attachServer
 
 type attachServer interface {
@@ -225,12 +217,12 @@ func (t *attachServerSSH) run() error {
 			continue
 		}
 
-		log.Debugf("accepting incoming channel for %s", sessionid)
+		log.Infof("accepting incoming channel for %s", sessionid)
 		channel, requests, err := attachchan.Accept()
 		log.Debugf("accepted incoming channel for %s", sessionid)
 		if err != nil {
 			detail := fmt.Sprintf("could not accept channel: %s", err)
-			log.Println(detail)
+			log.Errorf(detail)
 			continue
 		}
 
@@ -277,7 +269,7 @@ func (t *attachServerSSH) run() error {
 		go t.channelMux(requests, live.cmd.Process, live.pty, detach)
 	}
 
-	log.Println("incoming attach channel closed")
+	log.Info("incoming attach channel closed")
 
 	return nil
 }
@@ -288,7 +280,7 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 		var payload []byte
 		ok := true
 
-		log.Printf("received global request type %v", req.Type)
+		log.Infof("received global request type %v", req.Type)
 
 		switch req.Type {
 		case "container-ids":
@@ -348,17 +340,17 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 				ok = false
 				payload = []byte(err.Error())
 			} else {
-				log.Printf("Sending signal %s to container process, pid=%d\n", string(msg.Signal), process.Pid)
+				log.Infof("Sending signal %s to container process, pid=%d\n", string(msg.Signal), process.Pid)
 				err := utils.signalProcess(process, ssh.Signal(msg.Signal))
 				if err != nil {
-					log.Printf("Failed to dispatch signal to process: %s\n", err)
+					log.Errorf("Failed to dispatch signal to process: %s\n", err)
 				}
 				payload = []byte{}
 			}
 		default:
 			ok = false
 			err = fmt.Errorf("ssh request type %s is not supported", req.Type)
-			log.Println(err.Error())
+			log.Error(err.Error())
 		}
 
 		// make sure that errors get send back if we failed
@@ -376,5 +368,5 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 
 	detach()
 
-	log.Println("incoming attach request channel closed")
+	log.Info("incoming attach request channel closed")
 }
