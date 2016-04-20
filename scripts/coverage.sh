@@ -48,7 +48,11 @@ generate_pkg_cover_data() {
     done
 
     echo "mode: $mode" >"$profile"
-    grep -h -v "^mode:" "$workdir"/*.cover | egrep -v "$excludes" >>"$profile"
+    if [ -n "$excludes" ]; then
+        grep -h -v "^mode:" "$workdir"/*.cover | egrep -v "$excludes" >>"$profile"
+    else
+        grep -h -v "^mode:" "$workdir"/*.cover >>"$profile"
+    fi
 }
 
 # translate dirs to packages and strip args
