@@ -27,13 +27,12 @@ IGNORE := $(shell mkdir -p $(BIN))
 
 export GOPATH ?= $(shell echo $(CURDIR) | sed -e 's,/src/.*,,')
 SWAGGER ?= $(GOPATH)/bin/swagger$(BIN_ARCH)
-GOVET ?= $(GOPATH)/bin/vet$(BIN_ARCH)
 GOIMPORTS ?= $(GOPATH)/bin/goimports$(BIN_ARCH)
 GOLINT ?= $(GOPATH)/bin/golint$(BIN_ARCH)
 GVT ?= $(GOPATH)/bin/gvt$(BIN_ARCH)
 
 .PHONY: all tools clean test check \
-	goversion govet goimports gvt gopath \
+	goversion goimports gvt gopath \
 	isos tethers apiservers copyright
 
 .DEFAULT_GOAL := all
@@ -63,7 +62,6 @@ iso-base := $(BIN)/iso-base.tgz
 install := $(BIN)/install.sh
 
 go-lint := $(BIN)/.golint
-go-vet := $(BIN)/.govet
 go-imports := $(BIN)/.goimports
 
 # target aliases - target mapping
@@ -91,13 +89,12 @@ install: $(install)
 swagger: $(SWAGGER)
 
 golint: $(go-lint)
-govet: $(go-vet)
 goimports: $(go-imports)
 
 
 # convenience targets
 all: components tethers isos install
-tools: $(GOIMPORTS) $(GOVET) $(GVT) $(GOLINT) $(SWAGGER) goversion
+tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) goversion
 check: goversion goimports govet golint copyright whitespace
 apiservers: $(portlayerapi) $(docker-engine-api)
 components: check apiservers $(imagec) $(vicadmin) $(rpctool)
@@ -113,10 +110,6 @@ goversion:
 $(GOIMPORTS): vendor/manifest
 	@echo building $(GOIMPORTS)...
 	$(GO) build -o $(GOIMPORTS) ./vendor/golang.org/x/tools/cmd/goimports
-
-$(GOVET): vendor/manifest
-	@echo building $(GOVET)...
-	$(GO) build -o $(GOVET) ./vendor/golang.org/x/tools/cmd/vet
 
 $(GVT):
 	@echo getting gvt
@@ -161,9 +154,10 @@ $(go-imports): $(GOIMPORTS) $(find . -type f -name '*.go' -not -path "./vendor/*
 	@! $(GOIMPORTS) -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
 	@touch $@
 
-$(go-vet): $(GOVET) $(find . -type f -name '*.go' -not -path "./vendor/*" -not -path "apiservers/portlayer") $(PORTLAYER_DEPS)
+govet: $(find . -type f -name '*.go' -not -path "./vendor/*" -not -path "apiservers/portlayer") $(PORTLAYER_DEPS)
 	@echo checking go vet...
-	@$(GOVET) -all -shadow $$(find . -type f -name '*.go' -not -path "./vendor/*")
+	@$(GO) tool vet -all $$(find . -type f -name '*.go' -not -path "./vendor/*")
+	@$(GO) tool vet -shadow $$(find . -type f -name '*.go' -not -path "./vendor/*")
 	@touch $@
 
 vendor: $(GVT)
