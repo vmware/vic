@@ -18,6 +18,7 @@ build:
     commands:
       - make components
       - make install
+      - make vic-machine
 
   iso-base:
     image: golang:1.6.1
@@ -96,6 +97,7 @@ build:
       - cp LICENSE $BIN_TEMP_DIR
       - cp README $BIN_TEMP_DIR
       - cp $BIN/install.sh $BIN_TEMP_DIR
+      - cp $BIN/vic-machine $BIN_TEMP_DIR
       - cp $BIN/appliance.iso $BIN_TEMP_DIR
       - cp $BIN/bootstrap.iso $BIN_TEMP_DIR
       - tar czvf $BIN/vic_$$BUILD_NUMBER.tar.gz -C $BIN vic

@@ -47,6 +47,7 @@ portlayerapi-server := apiservers/portlayer/restapi/server.go
 imagec := $(BIN)/imagec
 vicadmin := $(BIN)/vicadmin
 rpctool := $(BIN)/rpctool
+vic-machine := $(BIN)/vic-machine
 
 tether-linux := $(BIN)/tether-linux
 tether-windows := $(BIN)/tether-windows.exe
@@ -85,6 +86,7 @@ bootstrap-debug: $(bootstrap-debug)
 bootstrap-staging-debug: $(bootstrap-staging-debug)
 iso-base: $(iso-base)
 install: $(install)
+vic-machine: $(vic-machine)
 
 swagger: $(SWAGGER)
 
@@ -93,7 +95,7 @@ goimports: $(go-imports)
 
 
 # convenience targets
-all: components tethers isos install
+all: components tethers isos install vic-machine
 tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) goversion
 check: goversion goimports govet golint copyright whitespace
 apiservers: $(portlayerapi) $(docker-engine-api)
@@ -138,6 +140,7 @@ $(go-lint): $(GOLINT)
 	@echo checking go lint...
 	@$(call golintf,github.com/vmware/vic/cmd/...)
 	@$(call golintf,github.com/vmware/vic/pkg/...)
+	@$(call golintf,github.com/vmware/vic/install/...)
 	@$(call golintf,github.com/vmware/vic/portlayer/...)
 	@$(call golintf,github.com/vmware/vic/apiservers/portlayer/restapi/handlers/...)
 	@$(call golintf,github.com/vmware/vic/apiservers/engine/server/...)
@@ -173,9 +176,11 @@ TEST_DIRS=github.com/vmware/vic/cmd/tether
 TEST_DIRS+=github.com/vmware/vic/cmd/imagec
 TEST_DIRS+=github.com/vmware/vic/cmd/vicadmin
 TEST_DIRS+=github.com/vmware/vic/cmd/rpctool
+TEST_DIRS+=github.com/vmware/vic/cmd/vic-machine
 TEST_DIRS+=github.com/vmware/vic/portlayer
 TEST_DIRS+=github.com/vmware/vic/pkg
 TEST_DIRS+=github.com/vmware/vic/apiservers/portlayer
+TEST_DIRS+=github.com/vmware/vic/install
 
 
 test:
@@ -276,6 +281,10 @@ $(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base)
 $(install): install/install.sh
 	@echo Building installer
 	@cp $< $@
+
+$(vic-machine): cmd/vic-machine/*.go install/**
+	@echo building vic-machine...
+	@CGO_ENABLED=0 $(GO) build -o ./$@ --ldflags '-extldflags "-static"'  ./$(dir $<)
 
 clean:
 	rm -rf $(BIN)

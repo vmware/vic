@@ -83,6 +83,8 @@ type Session struct {
 	Pool       *object.ResourcePool
 
 	Finder *find.Finder
+
+	folders *object.DatacenterFolders
 }
 
 // NewSession creates a new Session struct. If config is nil,
@@ -269,4 +271,18 @@ func (s *Session) logEnvironmentInfo() {
 		"UUID":        a.InstanceUuid,
 	}).Debug("Session Environment Info: ")
 	return
+}
+
+func (s *Session) Folders(ctx context.Context) *object.DatacenterFolders {
+	var err error
+
+	if s.folders != nil {
+		return s.folders
+	}
+
+	if s.folders, err = s.Datacenter.Folders(ctx); err != nil {
+		return nil
+	}
+
+	return s.folders
 }

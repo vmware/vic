@@ -116,3 +116,60 @@ func TestVMFailureWithTimeout(t *testing.T) {
 		t.Fatalf("ERROR: %s", err)
 	}
 }
+
+func TestVMAttributes(t *testing.T) {
+
+	ctx := context.Background()
+
+	session := test.Session(ctx, t)
+	defer session.Logout(ctx)
+
+	host := test.PickRandomHost(ctx, session, t)
+
+	moref, err := CreateVM(ctx, session, host)
+	if err != nil {
+		t.Fatalf("ERROR: %s", err)
+	}
+	// Wrap the result with our version of VirtualMachine
+	vm := NewVirtualMachine(ctx, session, *moref)
+
+	if folder, err := vm.FolderName(ctx); err != nil {
+		t.Fatalf("ERROR: %s", err)
+	} else {
+		assert.Equal(t, "deadbeef", folder)
+	}
+
+	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		return vm.PowerOn(ctx)
+	})
+	if err != nil {
+		t.Fatalf("ERROR: %s", err)
+	}
+	if address, err := vm.MacAddresses(ctx); err != nil {
+		t.Fatalf("ERROR: %s", err)
+	} else {
+		t.Logf("Got mac address: %s", address)
+		assert.NotEmpty(t, address)
+	}
+
+	if guest, err := vm.FetchExtraConfig(ctx); err != nil {
+		t.Fatalf("ERROR: %s", err)
+	} else {
+		assert.NotEmpty(t, guest)
+	}
+	defer func() {
+		// Destroy the vm
+		_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+			return vm.PowerOff(ctx)
+		})
+		if err != nil {
+			t.Fatalf("ERROR: %s", err)
+		}
+		_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+			return vm.Destroy(ctx)
+		})
+		if err != nil {
+			t.Fatalf("ERROR: %s", err)
+		}
+	}()
+}
