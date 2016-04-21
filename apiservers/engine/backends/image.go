@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -26,6 +25,7 @@ import (
 	"sort"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/errors"
 	v1 "github.com/docker/docker/image"
 	"github.com/docker/docker/reference"
@@ -87,8 +87,8 @@ func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Ima
 
 	images, err := client.Storage.ListImages(params)
 	if err != nil {
-		return result,
-			derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		log.Warning(err)
+		return result, nil
 	}
 
 	// build a map from image id to image v1Compatibility metadata

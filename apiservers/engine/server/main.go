@@ -160,7 +160,7 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 		log.Fatal(err)
 	}
 
-	log.Println("Listener created for HTTP on TCP ", cli.fullserver)
+	log.Println("Listener created for HTTP on TCP", cli.fullserver)
 	api.Accept(cli.fullserver, l...)
 
 	return api
