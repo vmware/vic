@@ -5,10 +5,12 @@ After a successful installation of vSphere Integrated Containers, connecting a D
 After you have set the `DOCKER_HOST` variable to point to your virtual container host, when you attempt a Docker operation in your Docker client, the connection fails with the error `An error occurred trying to connect: Get https://<vic_appliance_address>:2376/v1.22/info: tls: oversized record received with length 20527`.
 
 ## Cause ##
-The Docker client uses TLS authentication by default. The client is attempting to authenticate the connection with the virtual container host. TLS authentication is not activated on the virtual container host, or the Docker client does not have the appropriate certificate and key.
+The Docker client is attempting to authenticate the connection with the virtual container host. TLS authentication is not activated on the virtual container host, or the Docker client does not have the appropriate certificate and key.
 
 ## Solution ##
-Activate TLS authentication on the virtual container host and copy the certificate and key to the Docker client. For information about how to activate TLS authentication, see [Using TLS Authentication with vSphere Integrated Containers](using_tls_with_vic.md).
+
+- Activate TLS authentication between the virtual container host and Docker client by following the instructions in [Using TLS Authentication with vSphere Integrated Containers](using_tls_with_vic.md).
+- Specify the `-tls` and `-tlsverify` options when you connect to the virtual container host. 
 
 Alternatively, disable TLS authentication in the Docker client. 
 

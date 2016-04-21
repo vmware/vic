@@ -9,9 +9,7 @@ Familiarize yourself with the instructions for protecting the Docker daemon sock
 **Procedure**
 
 1. Use SSH to log in to the vSphere Integrated Containers appliance as `root`.
-2. Make sure that you are indeed logged in to the appliance as `root`. 
-
- If you are logged in as user `tc`, change user to `root`.<pre>su root</pre>
+2. Change the shell interpreter to `ash`.<pre>sudo /bin/ash</pre>
 2. Follow the instructions at https://docs.docker.com/engine/security/https/ to create TLS certificates on the virtual container host.
 3. Copy the certificates into the `/root/.docker` folder on the vSphere Integrated Containers appliance.
 3. Log into your Docker client host machine.
@@ -25,4 +23,7 @@ Familiarize yourself with the instructions for protecting the Docker daemon sock
 
 Docker now uses TLS authentication for all connections between the client and the virtual container host.
 
-**NOTE**: The `/root/.docker` folder is rebuilt with each reboot of the vSphere Integrated Containers appliance. As a consequence, the configuration in this procedure will not persist across a reboot of the  appliance. To make TLS authentication persistent across reboots, you must provide the certificates by using  post-initializaton scripting. For information about pre- and post-initialization scripting, see [Add Pre- and Post-Initialization Scripts to the vSphere Integrated Containers Appliance](pre_post_install_scripts.md).
+**NOTE**: The `/root/.docker` folder is rebuilt with each reboot of the vSphere Integrated Containers appliance. As a consequence, the configuration in this procedure will not persist across a reboot of the  appliance. To make TLS authentication persistent across reboots, you must provide the certificates by using  post-initializaton scripting. 
+
+- For information about pre- and post-initialization scripting, see [Add Pre- and Post-Initialization Scripts to the vSphere Integrated Containers Appliance](pre_post_install_scripts.md). 
+- For an example of how to use post-initialization scripting to implement persistent TLS authentication, see [Appendix: Example of Implementing Persistent TLS Authentication](appendix_persistent_tls.md).

@@ -21,3 +21,4 @@
    * [Connection to Docker Client Fails with a TLS Connection Error](ts_tls_connection_error.md)
    * [Connection to Docker Client Fails with a Docker Version Error](ts_docker_version_error.md)
    * [Connection to Docker Daemon Fails](ts_docker_daemon_error.md)
+* [Appendix: Example of Implementing Persistent TLS Authentication](appendix_persistent_tls.md)
