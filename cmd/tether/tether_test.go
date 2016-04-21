@@ -30,9 +30,9 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 
-	"github.com/vmware/vic/cmd/tether/serial"
 	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/dio"
+	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
 )
 
