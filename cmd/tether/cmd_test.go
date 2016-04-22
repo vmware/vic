@@ -199,6 +199,12 @@ func TestAbsPath(t *testing.T) {
 	}
 }
 
+func TestAbsPathRepeat(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		TestAbsPath(t)
+	}
+}
+
 //
 /////////////////////////////////////////////////////////////////////////////////////
 
