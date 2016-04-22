@@ -4,9 +4,10 @@ After you have deployed the vSphere Integrated Containers management server and 
 
 **Prerequisites**
 
-* You deployed the vSphere Integrated Containers management server by using the OVA installer.
+* You deployed the vSphere Integrated Containers management server to a vCenter Server cluster by using the OVA installer.
 * You installed the vSphere Web Client extension for vSphere Integrated Containers.
 * You have created a private port group on the ESXi host on which to deploy the virtual container host, as described in [Create a Private Port Group for Virtual Container Hosts](create_a_private_port_group_for_vch.md)
+* You must deploy the virtual container host on the same vCenter Server instance as the vSphere Integrated Containers management server and vSphere Web Client extension.
 
 **Procedure**
 
@@ -14,7 +15,7 @@ After you have deployed the vSphere Integrated Containers management server and 
 2. Select **vSphere Integrated Containers Home** and click the **Getting Started** tab.
 4. Click **Create a Virtual Container Host**.
 5. Enter a name for the virtual container host and click **Next**.
-6. Select the resource on which to run the virtual container host and click **Next**.
+6. Select the cluster or resource pool in which to run the virtual container host and click **Next**.
 7. Select the datastore in which to store the virtual container host VM files.
 8. Select the networks for the virtual container host to use, and click **Next**.
 

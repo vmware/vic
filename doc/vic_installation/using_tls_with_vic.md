@@ -8,14 +8,22 @@ Familiarize yourself with the instructions for protecting the Docker daemon sock
 
 **Procedure**
 
-1. Use SSH to log in to the vSphere Integrated Containers appliance.
+1. Use SSH to log in to the vSphere Integrated Containers appliance as `root`.
+2. Change the shell interpreter to `ash`.<pre>sudo /bin/ash</pre>
 2. Follow the instructions at https://docs.docker.com/engine/security/https/ to create TLS certificates on the virtual container host.
-3. Log into your Docker client.
-4. Run the following command to copy the certificate files into the `.docker` folder in your docker client. <pre>scp ca.pem server-cert.pem server-key.pem 
-root@<i>VIC_appliance_address</i>:/root/.docker/ 
-&& ssh root@vch /opt/dockerd.sh</pre>
-5. Restart the Docker daemon.
+3. Copy the certificates into the `/root/.docker` folder on the vSphere Integrated Containers appliance.
+3. Log into your Docker client host machine.
+4. Create a folder named `.docker` in the `/root` folder.<pre>mkdir /root/.docker</pre>
+4. Run the following commands to copy the certificate files into the `/root/.docker` folder in your Docker client. <pre>scp root@<i>VIC_appliance_address</i>:/root/.docker/ca.pem /root/.docker</pre>
+<pre>scp root@<i>VIC_appliance_address</i>:/root/.docker/server-cert.pem /root/.docker</pre>
+<pre>scp root@<i>VIC_appliance_address</i>:/root/.docker/server-key.pem  /root/.docker</pre>
+5. Run the following command in a Docker client terminal to restart the Docker daemon in the vSphere Integrated Containers appliance.<pre>ssh root@<i>VIC_appliance_address</i> /opt/dockerd.sh</pre>
+6. Run the following command in a Docker client terminal to restart the Docker client.<pre>docker-machine restart</pre>
+6. Run the following command in a Docker client terminal to connect the Docker client to the virtual container host with TLS authentication.<pre>docker --tlsverify -H tcp://<i>VIC_appliance_address</i>:2376 ps</pre>
 
-After you restart the Docker daemon, Docker will use TLS authentication for all connections between the client and the virtual container host. 
+Docker now uses TLS authentication for all connections between the client and the virtual container host.
 
+**NOTE**: The `/root/.docker` folder is rebuilt with each reboot of the vSphere Integrated Containers appliance. As a consequence, the configuration in this procedure will not persist across a reboot of the  appliance. To make TLS authentication persistent across reboots, you must provide the certificates by using  post-initializaton scripting. 
 
+- For information about pre- and post-initialization scripting, see [Add Pre- and Post-Initialization Scripts to the vSphere Integrated Containers Appliance](pre_post_install_scripts.md). 
+- For an example of how to use post-initialization scripting to implement persistent TLS authentication, see [Appendix: Example of Implementing Persistent TLS Authentication](appendix_persistent_tls.md).

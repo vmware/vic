@@ -26,6 +26,25 @@ If vCenter Server manages multiple clusters, you must specify the `cluster` opti
 -name=<i>VIC_appliance_name</i>
 -ceip=enable
 </pre>
+
+## Install vSphere Integrated Containers and Specify External and Container Networks ##
+
+If your vSphere environment includes multiple networks, or if you need to send all traffic between vCenter Server and the virtual container host over a specific network, you must specify the `externalNetwork` option. If you do not specify the `externalNetwork` option, the vSphere Integrated Containers uses the default VM Network for external traffic. 
+
+If you want to send all container-related traffic over a specific network, specify the `containerNetwork` option. The value of the `containerNetwork` option is the name of a private port group that you  must create on the ESXi host before you install vSphere Integrated Containers. For information about creating a private port group, see [Create a Private Port Group for Virtual Container Hosts](create_a_private_port_group_for_vch.md). If you run multiple virtual container hosts on the same ESXi host, you must create a private port group for each virtual container host and specify the `containerNetwork` option. If you only install one virtual container host on an ESXi host and you do not specify the `containerNetwork` option, the installer creates a private port group and a network with the same name as the vSphere Integrated Containers appliance.
+
+<pre>install<i>-win.exe/osx/linux</i> 
+-target=<i>vcenter_server_address</i> 
+-user=Administrator@vsphere.local 
+-passwd=<i>vcenter_sso_password</i>
+-datacenter=<i>datacenter_name</i>  
+-cluster=/<i>datacenter_name</i>/host/<i>cluster_name</i>/ 
+-datastore=<i>datastore_name</i>
+-name=<i>VIC_appliance_name</i>
+-externalNetwork=<i>network_name</i>
+-containerNetwork=<i>port_group_name</i>
+-ceip=enable
+</pre>
  
 ## Install vSphere Integrated Containers on vCenter Server with a Single Standalone Host##
 

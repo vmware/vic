@@ -9,12 +9,18 @@ Before you install vSphere Integrated Containers, you must ensure that your vSph
 You can install vSphere Integrated Containers in the following vSphere setups:
 
 * Command Line Installer (Default):
- * Standalone ESXi 6.0 host that is not managed by a vCenter Server instance.
- * vCenter Server 6.0, managing a single ESXi 6.0 or 5.5 host.
- * vCenter Server 6.0, managing a cluster of ESXi 6.0 or 5.5 hosts, with DRS enabled.
+ * Standalone ESXi 6.0 or 5.5 host that is not managed by a vCenter Server instance.
+ * vCenter Server 6.0, managing a single ESXi 6.0 host.
+ * vCenter Server 6.0, managing a cluster of ESXi 6.0 hosts, with DRS enabled.
 * OVA Installer (Experimental):
- * vCenter Server 6.0, managing a single ESXi 6.0 or 5.5 host.
- * vCenter Server 6.0, managing a cluster of ESXi 6.0 or 5.5 hosts, with DRS enabled.
+ * vCenter Server 6.0, managing a single ESXi 6.0 host.
+ * vCenter Server 6.0, managing a cluster of ESXi 6.0 hosts, with DRS enabled.
+ 
+You cannot use the OVA installer to deploy vSphere Integrated Containers to a vCenter Server instance that is running in Enhanced Linked Mode. The vSphere Web Client extension for vSphere Integrated Containers does not support Enhanced Linked Mode.
+
+Because the OVA deployment does not support Enhanced Linked Mode, you must deploy the vSphere Integrated Containers management server, the vSphere Web Client extension, and the virtual container hosts on the same vCenter Server instance.
+
+Using the command line installer to deploy vSphere Integrated Containers to a vCenter Server instance that is running in Enhanced Linked Mode is fully supported. 
 
 In all cases, your ESXi hosts must have at least 8GB of memory. 
 

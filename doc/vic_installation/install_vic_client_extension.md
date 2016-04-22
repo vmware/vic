@@ -4,7 +4,8 @@ After you have deployed the vSphere Integrated Containers management server, you
 
 **Prerequisites**
 
-You deployed the vSphere Integrated Containers management server by using the OVA installer.
+* You deployed the vSphere Integrated Containers management server by using the OVA installer.
+* You must deploy the vSphere Web Client extension on the same vCenter Server instance as the vSphere Integrated Containers management server.
 
 **Procedure**
 

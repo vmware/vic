@@ -4,16 +4,20 @@ The OVA deployment is an alternative means by which you can install vSphere Inte
 
 **IMPORTANT** In this technical preview, the OVA deployment is experimental.
 
-The OVA installer deploys a vSphere Integrated Containers management server. You can use the OVA installer to deploy a vSphere Integrated Containers management server to a vApp, host, or cluster that is managed by vCenter Server.
+The OVA installer deploys a vSphere Integrated Containers management server. You can use the OVA installer to deploy a vSphere Integrated Containers management server to a cluster that is managed by vCenter Server.
 
 If you have already installed vSphere Integrated Containers by using the command line installer, you also can deploy the management server OVA. If  the existing vSphere Integrated Containers command line installation is compatible with the OVA installation, you will see your existing virtual container host and any containers and container images in the vSphere Web Client extension.
+
+You cannot use the OVA installer to deploy vSphere Integrated Containers to a vCenter Server instance that is running in Enhanced Linked Mode. The vSphere Web Client extension for vSphere Integrated Containers does not support Enhanced Linked Mode. 
+
+Because the OVA deployment does not support Enhanced Linked Mode, you must deploy the vSphere Integrated Containers management server, the vSphere Web Client extension, and the virtual container hosts on the same vCenter Server instance.
 
 **Prerequisites**
 
 * Verify that your vSphere infrastructure meets the requirements in [Environment Prerequisites for vSphere Integrated Containers Installation](vic_installation_prereqs.md). 
 * Obtain the latest build of the OVA installer, ```management-server.ova```, from your VMware representative.
 * Save ```management-server.ova``` into an appropriate folder on your local machine.
-* Install a Docker 1.9.1 client. 
+* Install a Docker client. 
  
    **NOTE**: The vSphere Integrated Containers technical preview is not compatible with Docker 1.10. To use vSphere Integrated Containers with a Docker 1.10 client, you must set `DOCKER_API_VERSION=1.21` as an environment variable in your Docker client. 
 * Log into the vSphere Web Client for the vCenter Server instance on which to deploy the vSphere Integrated Containers management server.
@@ -31,7 +35,9 @@ If you have already installed vSphere Integrated Containers by using the command
 5. On the Select name and folder page, optionally change the name of the management server VM, select a datacenter or folder in which to install the management server, and click **Next**.
 6. Select a vApp, host, or cluster in which to install the management server, and click **Next**. 
 
-  If you have already succeeded with a command line installation, you must select the correct resources when you deploy the OVA, in order for the existing installation to appear in the list of virtual container hosts in the vSphere Web Client extension. For example, if you used the command line installer to install vSphere Integrated Containers in a cluster, you must select the same cluster when you deploy the OVA. 
+ **IMPORTANT** The OVA installer allows you to select a vApp, host, or cluster as the installation target. To install the management server on a specific host or in a vApp, the host or vApp must be part of a cluster. If you select a host or vApp that is not part of a cluster,  installation of the management server succeeds but you will not be able to deploy virtual container hosts.
+  
+ If you have already succeeded with a command line installation, you must select the correct resources when you deploy the OVA, in order for the existing installation to appear in the list of virtual container hosts in the vSphere Web Client extension. For example, if you used the command line installer to install vSphere Integrated Containers in a cluster, you must select the same cluster when you deploy the OVA. 
 7. Select a virtual disk format, storage policy, and datastore in which to store the management server VM files, and click **Next**. 
 8. Select the network to use for traffic between the management server and vSphere, for example, **VM Network**.
 9. Optionally configure the network properties for the management server VM, or leave them blank to use DHCP, and click **Next**.
