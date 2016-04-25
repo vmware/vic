@@ -37,6 +37,11 @@ GVT ?= $(GOPATH)/bin/gvt$(BIN_ARCH)
 
 .DEFAULT_GOAL := all
 
+ifeq ($(ENABLE_RACE_DETECTOR),true)
+	RACE := -race
+else
+	RACE :=
+endif
 
 # target aliases - environment variable definition
 docker-engine-api := $(BIN)/docker-engine-server
@@ -111,19 +116,19 @@ goversion:
 
 $(GOIMPORTS): vendor/manifest
 	@echo building $(GOIMPORTS)...
-	$(GO) build -o $(GOIMPORTS) ./vendor/golang.org/x/tools/cmd/goimports
+	@$(GO) build $(RACE) -o $(GOIMPORTS) ./vendor/golang.org/x/tools/cmd/goimports
 
 $(GVT):
 	@echo getting gvt
-	$(GO) get -u github.com/FiloSottile/gvt
+	@$(GO) get -u github.com/FiloSottile/gvt
 
 $(GOLINT): vendor/manifest
 	@echo building $(GOLINT)...
-	$(GO) build -o $(GOLINT) ./vendor/github.com/golang/lint/golint
+	@$(GO) build $(RACE) -o $(GOLINT) ./vendor/github.com/golang/lint/golint
 
 $(SWAGGER): vendor/manifest
 	@echo building $(SWAGGER)...
-	@$(GO) build -o $(SWAGGER) ./vendor/github.com/go-swagger/go-swagger/cmd/swagger
+	@$(GO) build $(RACE) -o $(SWAGGER) ./vendor/github.com/go-swagger/go-swagger/cmd/swagger
 
 copyright:
 	@echo "checking copyright in header..."
@@ -197,34 +202,34 @@ endif
 
 $(tether-linux): $(shell find cmd/tether -name '*.go') metadata/*.go
 	@echo building tether-linux
-	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./cmd/tether
+	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./cmd/tether
 
 $(tether-windows): $(shell find cmd/tether -name '*.go') metadata/*.go
 	@echo building tether-windows
-	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 $(GO) build -tags netgo -installsuffix netgo -o ./$@ ./cmd/tether
+	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./cmd/tether
 
 
 $(rpctool): cmd/rpctool/*.go
 ifeq ($(OS),linux)
 	@echo building rpctool
-	@GOARCH=amd64 GOOS=linux $(GO) build -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(GO) build $(RACE) -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
 else
 	@echo skipping rpctool, cannot cross compile cgo
 endif
 
 $(vicadmin): cmd/vicadmin/*.go pkg/vsphere/session/*.go
 	@echo building vicadmin
-	@GOARCH=amd64 GOOS=linux $(GO) build -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(GO) build $(RACE) -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
 
 $(imagec): cmd/imagec/*.go $(portlayerapi-client)
 	@echo building imagec...
-	@CGO_ENABLED=0 $(GO) build -o ./$@ --ldflags '-extldflags "-static"'  ./$(dir $<)
+	@$(GO) build $(RACE) -o ./$@ ./$(dir $<)
 
 
 $(docker-engine-api): $(portlayerapi-client) apiservers/engine/server/*.go apiservers/engine/backends/*.go
 ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
-	@$(GO) build -o $@ ./apiservers/engine/server
+	@$(GO) build $(RACE) -o $@ ./apiservers/engine/server
 else
 	@echo skipping docker-engine-api server, cannot build on non-linux
 endif
@@ -245,7 +250,7 @@ $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 
 $(portlayerapi): $(portlayerapi-server) $(shell find pkg/ apiservers/engine/ -name '*.go') metadata/*.go
 	@echo building Portlayer API server...
-	@$(GO) build -o $@ ./apiservers/portlayer/cmd/port-layer-server
+	@$(GO) build $(RACE) -o $@ ./apiservers/portlayer/cmd/port-layer-server
 
 $(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
 	@echo building iso-base docker image
@@ -284,7 +289,7 @@ $(install): install/install.sh
 
 $(vic-machine): cmd/vic-machine/*.go install/**
 	@echo building vic-machine...
-	@CGO_ENABLED=0 $(GO) build -o ./$@ --ldflags '-extldflags "-static"'  ./$(dir $<)
+	@$(GO) build $(RACE) -o ./$@ ./$(dir $<)
 
 clean:
 	rm -rf $(BIN)
