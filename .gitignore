@@ -26,3 +26,4 @@ apiservers/portlayer/models
 apiservers/portlayer/restapi/*.go
 apiservers/portlayer/restapi/operations
 !apiservers/portlayer/restapi/configure_port_layer.go
+govet
