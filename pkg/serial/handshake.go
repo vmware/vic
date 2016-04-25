@@ -93,7 +93,7 @@ func HandshakeClient(ctx context.Context, conn net.Conn) error {
 		return errors.New(msg)
 	}
 
-	log.Debugf("HandshakeClientclient: received synack: %#x == %#x\n", synack, buf[:2])
+	log.Debugf("HandshakeClient: received synack: %#x == %#x\n", synack, buf[:2])
 	log.Debug("client: writing ack")
 	ack[1] = buf[2] + 1
 	conn.Write(ack)
