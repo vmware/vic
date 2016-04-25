@@ -172,10 +172,11 @@ vendor: $(GVT)
 	@echo restoring vendor
 	$(GOPATH)/bin/gvt restore
 
-integration-tests: Dockerfile.integration-tests tests/imagec.bats tests/helpers/helpers.bash components
+#integration-tests: Dockerfile.integration-tests tests/imagec.bats tests/helpers/helpers.bash components
+integration-tests: Dockerfile.integration-tests tests/imagec.bats tests/helpers/helpers.bash
 	@echo Running integration tests
 	@docker build -t imagec_tests -f Dockerfile.integration-tests .
-	docker run -e BIN=$(BIN) --rm imagec_tests
+	docker run -e VIC_ESX_TEST_URL=$(VIC_ESX_TEST_URL) --rm -v $(BASE_DIR)tests:/tests -v $(BASE_DIR)bin:/sbin imagec_tests
 
 TEST_DIRS=github.com/vmware/vic/cmd/tether
 TEST_DIRS+=github.com/vmware/vic/cmd/imagec

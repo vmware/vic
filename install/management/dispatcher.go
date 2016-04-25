@@ -93,6 +93,7 @@ func (d *Dispatcher) initDiagnosticLogs(conf *configuration.Configuration) {
 	}
 
 	if d.session.Host == nil {
+		log.Infof("Host is nil")
 		// vCenter w/ auto DRS.
 		// Set collect=false here as we do not want to collect all hosts logs,
 		// just the hostd log where the VM is placed.
@@ -103,7 +104,10 @@ func (d *Dispatcher) initDiagnosticLogs(conf *configuration.Configuration) {
 	} else {
 		// vCenter w/ manual DRS or standalone ESXi
 		var host *object.HostSystem
-		host = d.session.Host
+		if d.isVC {
+			host = d.session.Host
+		}
+		log.Infof("host: %s", host)
 
 		diagnosticLogs[d.session.Host.Reference().Value] =
 			&diagnosticLog{"hostd", "hostd.log", 0, host, true}
