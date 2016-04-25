@@ -41,7 +41,7 @@ drone exec -trusted -cache
 
 To build without modifying the local system:
 ```
-docker run -v $(pwd):/go/src/github.com/vmware/vic -w /go/src/github.com/vmware/vic golang:1.6 make all
+docker run -v $(pwd):/go/src/github.com/vmware/vic -w /go/src/github.com/vmware/vic golang:1.6.2 make all
 ```
 
 To build directly:
