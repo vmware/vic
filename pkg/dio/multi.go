@@ -208,6 +208,7 @@ func (t *multiReader) Close() error {
 	}
 
 	t.err = io.EOF
+	t.cond.Broadcast()
 	return nil
 }
 
