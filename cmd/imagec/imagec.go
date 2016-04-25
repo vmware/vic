@@ -37,6 +37,8 @@ import (
 
 	"github.com/vmware/vic/apiservers/portlayer/models"
 	"github.com/vmware/vic/pkg/i18n"
+
+	"github.com/pkg/profile"
 )
 
 var (
@@ -72,6 +74,8 @@ type ImageCOptions struct {
 	insecure   bool
 	standalone bool
 	resolv     bool
+
+	profiling string
 }
 
 // ImageWithMeta wraps the models.Image with some additional metadata
@@ -135,6 +139,8 @@ func init() {
 	flag.BoolVar(&options.standalone, "standalone", false, i18n.T("Disable port-layer integration"))
 
 	flag.BoolVar(&options.resolv, "resolv", false, i18n.T("Return the name of the vmdk from given reference"))
+
+	flag.StringVar(&options.profiling, "profile.mode", "", i18n.T("Enable profiling mode, one of [cpu, mem, block]"))
 
 	flag.Parse()
 }
@@ -360,6 +366,18 @@ func WriteImageBlobs(images []ImageWithMeta) error {
 }
 
 func main() {
+	// Enable profiling if mode is set
+	switch options.profiling {
+	case "cpu":
+		defer profile.Start(profile.CPUProfile, profile.ProfilePath("."), profile.Quiet).Stop()
+	case "mem":
+		defer profile.Start(profile.MemProfile, profile.ProfilePath("."), profile.Quiet).Stop()
+	case "block":
+		defer profile.Start(profile.BlockProfile, profile.ProfilePath("."), profile.Quiet).Stop()
+	default:
+		// do nothing
+	}
+
 	// Open the log file
 	f, err := os.OpenFile(options.logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
