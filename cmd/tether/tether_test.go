@@ -316,7 +316,8 @@ func testTeardown(t *testing.T) {
 	log.Infof("Finished test teardown for %s", name)
 }
 
-func clientBackchannel(ctx context.Context) (net.Conn, error) {
+// create client on the mock pipe
+func mockSerialConnection(ctx context.Context) (net.Conn, error) {
 	log.Info("opening ttyS0 pipe pair for backchannel")
 	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_RDONLY|syscall.O_NOCTTY, 0777)
 	if err != nil {

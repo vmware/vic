@@ -41,8 +41,6 @@ type attachSSH struct {
 	requests <-chan *ssh.Request
 }
 
-// SSHAttach returns a stream connection to the requested session
-// The ssh client is assumed to be connected to the Executor hosting the session
 func SSHls(client *ssh.Client) ([]string, error) {
 	ok, reply, err := client.SendRequest("container-ids", true, nil)
 	if !ok || err != nil {
