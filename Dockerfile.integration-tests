@@ -19,9 +19,12 @@ ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update && apt-get upgrade -y
 RUN apt-get install -yq jq
 
-# build imagec and port-layer-server
-ADD ./ $GOPATH/src/github.com/vmware/vic
-RUN make -C $GOPATH/src/github.com/vmware/vic imagec portlayerapi
+RUN go get github.com/vmware/govmomi/govc
+
+# prepare bats dependencies
+ADD ./tests $GOPATH/src/github.com/vmware/vic/tests
+
+RUN curl -L https://get.docker.com/builds/Linux/x86_64/docker-1.10.3 > /usr/bin/docker && chmod +x /usr/bin/docker
 
 # download and install bats and helpers
 RUN git clone https://github.com/sstephenson/bats /tmp/bats && \
@@ -31,4 +34,4 @@ RUN git clone https://github.com/sstephenson/bats /tmp/bats && \
 
 # run the actual tests
 WORKDIR $GOPATH/src/github.com/vmware/vic/tests/
-CMD /usr/local/bin/bats -t .
+CMD cp /tests/*.bats ./ && /usr/local/bin/bats -t .
