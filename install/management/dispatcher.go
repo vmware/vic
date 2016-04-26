@@ -103,7 +103,9 @@ func (d *Dispatcher) initDiagnosticLogs(conf *configuration.Configuration) {
 	} else {
 		// vCenter w/ manual DRS or standalone ESXi
 		var host *object.HostSystem
-		host = d.session.Host
+		if d.isVC {
+			host = d.session.Host
+		}
 
 		diagnosticLogs[d.session.Host.Reference().Value] =
 			&diagnosticLog{"hostd", "hostd.log", 0, host, true}
