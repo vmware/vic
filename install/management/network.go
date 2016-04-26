@@ -48,7 +48,7 @@ func (d *Dispatcher) createBridgeNetwork(conf *configuration.Configuration) erro
 		return err
 	}
 
-	if err = hostNetSystem.AddVirtualSwitch(d.ctx, conf.BridgeNetworkPath, &types.HostVirtualSwitchSpec{
+	if err = hostNetSystem.AddVirtualSwitch(d.ctx, conf.BridgeNetworkName, &types.HostVirtualSwitchSpec{
 		NumPorts: 1024,
 	}); err != nil {
 		err = errors.Errorf("Failed to add virtual switch (%s): %s", conf.BridgeNetworkName, err)
