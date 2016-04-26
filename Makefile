@@ -241,7 +241,7 @@ PORTLAYER_DEPS ?= apiservers/portlayer/swagger.yml \
 
 $(portlayerapi-client): $(PORTLAYER_DEPS)  $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API client...
-	@$(SWAGGER) generate client -A PortLayer -t $(realpath $(dir $<)) -f $<
+	@$(SWAGGER) generate client -A PortLayer --template-dir templates  -t $(realpath $(dir $<)) -f $<
 
 
 $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
