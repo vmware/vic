@@ -18,6 +18,8 @@ import (
 	"net"
 	"net/http"
 
+	"golang.org/x/net/context"
+
 	log "github.com/Sirupsen/logrus"
 
 	errors "github.com/go-swagger/go-swagger/errors"
@@ -27,6 +29,7 @@ import (
 	"github.com/vmware/vic/apiservers/portlayer/restapi/handlers"
 	"github.com/vmware/vic/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/apiservers/portlayer/restapi/options"
+	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/portlayer/network"
 )
 
@@ -58,6 +61,23 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 		log.SetLevel(log.DebugLevel)
 	}
 
+	ctx := context.Background()
+
+	sessionconfig := &session.Config{
+		Service:        options.PortLayerOptions.SDK,
+		Insecure:       options.PortLayerOptions.Insecure,
+		Keepalive:      options.PortLayerOptions.Keepalive,
+		DatacenterPath: options.PortLayerOptions.DatacenterPath,
+		ClusterPath:    options.PortLayerOptions.ClusterPath,
+		DatastorePath:  options.PortLayerOptions.DatastorePath,
+		NetworkPath:    options.PortLayerOptions.NetworkPath,
+	}
+
+	sess, err := session.NewSession(sessionconfig).Create(ctx)
+	if err != nil {
+		log.Fatalf("configure_port_layer ERROR: %s", err)
+	}
+
 	// configure the api here
 	api.ServeError = errors.ServeError
 
@@ -74,7 +94,8 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 			IP:   net.IPv4(172, 16, 0, 0),
 			Mask: net.CIDRMask(12, 32),
 		},
-		net.CIDRMask(16, 32))
+		net.CIDRMask(16, 32),
+		sess)
 	if err != nil {
 		log.Fatalf("failed to create network context: %s", err)
 	}

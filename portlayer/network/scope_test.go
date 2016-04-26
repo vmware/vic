@@ -19,6 +19,8 @@ import (
 	"net"
 	"reflect"
 	"testing"
+
+	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 func makeIP(a, b, c, d byte) *net.IP {
@@ -27,8 +29,14 @@ func makeIP(a, b, c, d byte) *net.IP {
 }
 
 func TestScopeAddRemoveContainer(t *testing.T) {
+	origBridgeNetworkName := getBridgeNetworkName
+	getBridgeNetworkName = mockBridgeNetworkName
+	defer func() { getBridgeNetworkName = origBridgeNetworkName }()
+
 	var err error
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
+	sess := &session.Session{}
+
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), sess)
 	if err != nil {
 		t.Errorf("NewContext() => (nil, %s), want (ctx, nil)", err)
 		return
