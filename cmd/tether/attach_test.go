@@ -89,14 +89,10 @@ func (c *TestAttachConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 }
 
 func TestAttach(t *testing.T) {
-	// supply custom attach server so we can inspect its state
-	testServer := &testAttachServer{
-		updated: make(chan bool, 10),
-	}
-	server = testServer
-
 	testSetup(t)
 	defer testTeardown(t)
+
+	testServer, _ := server.(*testAttachServer)
 
 	// if there's no session command with guaranteed exit then tether needs to run in the background
 	cfg := &TestAttachConfig{}
@@ -214,14 +210,10 @@ func (c *TestAttachTTYConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 func TestAttachTTY(t *testing.T) {
 	t.Skip("TTY test skipped - not sure how to test this correctly")
 
-	// supply custom attach server so we can inspect its state
-	testServer := &testAttachServer{
-		updated: make(chan bool, 10),
-	}
-	server = testServer
-
 	testSetup(t)
 	defer testTeardown(t)
+
+	testServer, _ := server.(*testAttachServer)
 
 	// if there's no session command with guaranteed exit then tether needs to run in the background
 	cfg := &TestAttachTTYConfig{}
@@ -357,14 +349,11 @@ func (c *TestAttachTwoConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
 }
 
 func TestAttachTwo(t *testing.T) {
-	// supply custom attach server so we can inspect its state
-	testServer := &testAttachServer{
-		updated: make(chan bool, 10),
-	}
-	server = testServer
 
 	testSetup(t)
 	defer testTeardown(t)
+
+	testServer, _ := server.(*testAttachServer)
 
 	// if there's no session command with guaranteed exit then tether needs to run in the background
 	cfg := &TestAttachTwoConfig{}
@@ -525,14 +514,10 @@ func (c *TestAttachInvalidConfig) LoadConfig() (*metadata.ExecutorConfig, error)
 }
 
 func TestAttachInvalid(t *testing.T) {
-	// supply custom attach server so we can inspect its state
-	testServer := &testAttachServer{
-		updated: make(chan bool, 10),
-	}
-	server = testServer
-
 	testSetup(t)
 	defer testTeardown(t)
+
+	testServer, _ := server.(*testAttachServer)
 
 	// if there's no session command with guaranteed exit then tether needs to run in the background
 	cfg := &TestAttachInvalidConfig{}
