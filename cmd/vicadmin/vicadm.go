@@ -78,7 +78,8 @@ func init() {
 	flag.StringVar(&config.Service, "sdk", "", "The ESXi or vCenter URL")
 	flag.StringVar(&config.DatacenterPath, "dc", "", "Name of the Datacenter")
 	flag.StringVar(&config.DatastorePath, "ds", "", "Name of the Datastore")
-	flag.StringVar(&config.ClusterPath, "cluster", "", "Name of the cluster")
+	flag.StringVar(&config.ClusterPath, "cluster", "", "Path of the cluster")
+	flag.StringVar(&config.PoolPath, "pool", "", "Path of the resource pool")
 	flag.BoolVar(&config.Insecure, "insecure", false, "Allow connection when sdk certificate cannot be verified")
 	flag.BoolVar(&config.tls, "tls", true, "Set to false to disable -hostcert and -hostkey and enable plain HTTP")
 

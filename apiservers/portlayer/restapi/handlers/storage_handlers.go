@@ -55,6 +55,7 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, netC
 		Keepalive:      options.PortLayerOptions.Keepalive,
 		DatacenterPath: options.PortLayerOptions.DatacenterPath,
 		ClusterPath:    options.PortLayerOptions.ClusterPath,
+		PoolPath:       options.PortLayerOptions.PoolPath,
 		DatastorePath:  options.PortLayerOptions.DatastorePath,
 		NetworkPath:    options.PortLayerOptions.NetworkPath,
 	}

@@ -127,15 +127,15 @@ func (v *ImageStore) CreateImageStore(ctx context.Context, storeName string) (*u
 	imagestore := v.datastorePath(v.imageStorePath(storeName))
 
 	log.Infof("Creating imagestore directory %s", imagestore)
-	if err = v.fm.MakeDirectory(ctx, imagestore, nil, false); err != nil {
+	if err = v.fm.MakeDirectory(ctx, imagestore, v.s.Datacenter, false); err != nil {
 		soapFault := soap.ToSoapFault(err)
 		if _, ok := soapFault.VimFault().(types.FileAlreadyExists); ok {
 			// Rest API expects this error
+			log.Debugf("File exists. %s", err)
 			err = os.ErrExist
 		}
 		return nil, err
 	}
-
 	return u, nil
 }
 
@@ -208,7 +208,7 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 
 	// Create the image directory in the store.
 	imageDirDsURI := v.datastorePath(v.imageDirPath(storeName, ID))
-	if err = v.fm.MakeDirectory(ctx, imageDirDsURI, nil, false); err != nil {
+	if err = v.fm.MakeDirectory(ctx, imageDirDsURI, v.s.Datacenter, false); err != nil {
 		return nil, err
 	}
 
@@ -391,7 +391,7 @@ func (v *ImageStore) writeMeta(ctx context.Context, storeName string, ID string,
 			}
 		}
 	} else {
-		if err := v.fm.MakeDirectory(ctx, v.datastorePath(metaDataDir), nil, false); err != nil {
+		if err := v.fm.MakeDirectory(ctx, v.datastorePath(metaDataDir), v.s.Datacenter, false); err != nil {
 			return err
 		}
 	}
@@ -453,7 +453,7 @@ func (v *ImageStore) makeImageStoreParentDir(ctx context.Context) error {
 	}
 
 	log.Infof("Creating image store parent directory %s", datastoreParentPath)
-	return v.fm.MakeDirectory(ctx, v.datastorePath(v.imageStorePath("")), nil, true)
+	return v.fm.MakeDirectory(ctx, v.datastorePath(v.imageStorePath("")), v.s.Datacenter, false)
 }
 
 func lsDir(ctx context.Context, d *object.Datastore, p string) (*types.HostDatastoreBrowserSearchResults, error) {

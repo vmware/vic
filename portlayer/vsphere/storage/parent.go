@@ -115,7 +115,7 @@ func (p *parentM) Save(ctx context.Context) error {
 	fm := object.NewFileManager(p.sess.Vim25())
 	err = tasks.Wait(ctx, func(context.Context) (tasks.Waiter, error) {
 		log.Infof("Saving parent map (%s)", p.mFilePath)
-		return fm.MoveDatastoreFile(ctx, tmpURI, nil, parentMURI, nil, true)
+		return fm.MoveDatastoreFile(ctx, tmpURI, p.sess.Datacenter, parentMURI, p.sess.Datacenter, true)
 	})
 
 	if err != nil {

@@ -69,8 +69,7 @@ func (d *Dispatcher) removeApplianceIfForced(conf *configuration.Configuration) 
 			return vm.PowerOff(ctx)
 		})
 		if err != nil {
-			err = errors.Errorf("Failed to power off existing appliance: %s", err)
-			return err
+			log.Warnf("Failed to power off existing appliance for %s, try to remove anyway", err)
 		}
 		_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 			return vm.Destroy(ctx)
@@ -171,8 +170,8 @@ func (d *Dispatcher) createApplianceSpec(conf *configuration.Configuration) (*ty
 			&types.OptionValue{Key: "guestinfo.vch/components", Value: "/sbin/docker-engine-server /sbin/port-layer-server /sbin/vicadmin"},
 			&types.OptionValue{Key: "guestinfo.vch/sbin/imagec", Value: "-debug -logfile=/var/log/vic/imagec.log -insecure"},
 			&types.OptionValue{Key: "guestinfo.vch/sbin/port-layer-server",
-				Value: fmt.Sprintf("--host=localhost --port=8080 --insecure --sdk=%s --datacenter=%s --cluster=%s --datastore=%s --network=%s --vch=%s",
-					conf.TargetPath, conf.DatacenterName, conf.ClusterPath, conf.ImageStorePath, conf.ExtenalNetworkPath, conf.DisplayName)},
+				Value: fmt.Sprintf("--host=localhost --port=8080 --insecure --sdk=%s --datacenter=%s --cluster=%s --pool=%s --datastore=%s --network=%s --vch=%s",
+					conf.TargetPath, conf.DatacenterName, conf.ClusterPath, conf.ResourcePoolPath, conf.ImageStorePath, conf.ExtenalNetworkPath, conf.DisplayName)},
 		},
 		DeviceChange: []types.BaseVirtualDeviceConfigSpec{
 			&types.VirtualDeviceConfigSpec{
@@ -304,8 +303,8 @@ func (d *Dispatcher) createAppliance(conf *configuration.Configuration) error {
 	spec.ExtraConfig = append(spec.ExtraConfig, &types.OptionValue{Key: "guestinfo.vch/sbin/docker-engine-server",
 		Value: fmt.Sprintf("-serveraddr=0.0.0.0 -port=%s -port-layer-port=8080 %s", d.DockerPort, d.dockertlsargs)})
 	spec.ExtraConfig = append(spec.ExtraConfig, &types.OptionValue{Key: "guestinfo.vch/sbin/vicadmin",
-		Value: fmt.Sprintf("-docker-host=unix:///var/run/docker.sock -insecure -sdk=%s -ds=%s -vm-path=%s %s",
-			conf.TargetPath, conf.ImageStorePath, vm.InventoryPath, vicadmintlsargs)})
+		Value: fmt.Sprintf("-docker-host=unix:///var/run/docker.sock -insecure -sdk=%s -ds=%s -vm-path=%s -cluster=%s -pool=%s %s",
+			conf.TargetPath, conf.ImageStorePath, vm.InventoryPath, conf.ClusterPath, conf.ResourcePoolPath, vicadmintlsargs)})
 
 	// reconfig
 	info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
