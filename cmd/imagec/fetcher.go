@@ -17,9 +17,11 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -37,8 +39,8 @@ import (
 
 // Fetcher interface
 type Fetcher interface {
-	Fetch(url *url.URL) (body []byte, err error)
-	FetchWithProgress(url *url.URL, ID string) (body []byte, err error)
+	Fetch(url *url.URL) (string, error)
+	FetchWithProgress(url *url.URL, ID string) (string, error)
 
 	IsStatusUnauthorized() bool
 	IsStatusOK() bool
@@ -93,28 +95,28 @@ func NewFetcher(options FetcherOptions) Fetcher {
 	}
 }
 
-// Fetch fetches a web page from url.
-func (u *URLFetcher) Fetch(url *url.URL) ([]byte, error) {
+// Fetch fetches a web page from url and stores in a temporary file.
+func (u *URLFetcher) Fetch(url *url.URL) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), u.options.Timeout)
 	defer cancel()
 
 	return u.fetch(ctx, url, "")
 }
 
-// FetchWithProgress fetches a web page from url and shows progress bar.
-func (u *URLFetcher) FetchWithProgress(url *url.URL, ID string) ([]byte, error) {
+// FetchWithProgress fetches a web page from url and stores in a temporary file while showing a progress bar.
+func (u *URLFetcher) FetchWithProgress(url *url.URL, ID string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), u.options.Timeout)
 	defer cancel()
 
 	return u.fetch(ctx, url, ID)
 }
 
-func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) ([]byte, error) {
+func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string, error) {
 	defer trace.End(trace.Begin(url.String()))
 
 	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	u.SetBasicAuth(req)
@@ -123,7 +125,7 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) ([]byte
 
 	res, err := ctxhttp.Do(ctx, u.client, req)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer res.Body.Close()
 
@@ -132,26 +134,26 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) ([]byte
 	if u.IsStatusUnauthorized() {
 		hdr := res.Header.Get("www-authenticate")
 		if hdr == "" {
-			return nil, fmt.Errorf("www-authenticate header is missing")
+			return "", fmt.Errorf("www-authenticate header is missing")
 		}
 		u.OAuthEndpoint, err = u.ExtractQueryParams(hdr, url)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
-		return nil, fmt.Errorf("Authentication required")
+		return "", fmt.Errorf("Authentication required")
 	}
 
 	// FIXME: handle StatusTemporaryRedirect and StatusFound
 	if !u.IsStatusOK() {
-		return nil, fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
+		return "", fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
 	}
 
 	in := res.Body
-	// stream progress as json only if we have an ID and ontent-Length header
+	// stream progress as json and body into a file - only if we have an ID and a Content-Length header
 	if hdr := res.Header.Get("Content-Length"); ID != "" && hdr != "" {
 		cl, err := strconv.ParseInt(hdr, 10, 64)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 
 		in = progress.NewProgressReader(
@@ -160,7 +162,21 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) ([]byte
 		defer in.Close()
 	}
 
-	return ioutil.ReadAll(in)
+	// Create a temporary file and stream the res.Body into it
+	out, err := ioutil.TempFile(os.TempDir(), ID)
+	if err != nil {
+		return "", err
+	}
+	defer out.Close()
+
+	// Stream into it
+	_, err = io.Copy(out, in)
+	if err != nil {
+		return "", err
+	}
+
+	// Return the temporary file name
+	return out.Name(), nil
 }
 
 func (u *URLFetcher) AuthURL() *url.URL {

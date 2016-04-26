@@ -198,6 +198,9 @@ func (i *Image) PullImage(ref reference.Named, metaHeaders map[string][]string, 
 		cmdArgs = append(cmdArgs, "-host", portLayerServer)
 	}
 
+	// intruct imagec to use os.TempDir
+	cmdArgs = append(cmdArgs, "-destination", os.TempDir())
+
 	fetcherPath := getImageFetcherPath(binImageC)
 
 	log.Printf("PullImage: cmd = %s %+v\n", fetcherPath, cmdArgs)

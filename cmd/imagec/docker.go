@@ -15,7 +15,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -114,14 +113,25 @@ func FetchToken(url *url.URL) (*Token, error) {
 		Password:           options.password,
 		InsecureSkipVerify: options.insecure,
 	})
-	body, err := fetcher.Fetch(url)
+	tokenFileName, err := fetcher.Fetch(url)
+	if err != nil {
+		return nil, err
+	}
+
+	// Clenaup function
+	defer func() {
+		os.Remove(tokenFileName)
+	}()
+
+	// Read the file content into []byte for json.Unmarshal
+	content, err := ioutil.ReadFile(tokenFileName)
 	if err != nil {
 		return nil, err
 	}
 
 	token := &Token{}
 
-	err = json.Unmarshal(body, &token)
+	err = json.Unmarshal(content, &token)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +140,7 @@ func FetchToken(url *url.URL) (*Token, error) {
 		token.Expires = time.Now().Add(DefaultTokenExpirationDuration)
 	}
 
-	return token, err
+	return token, nil
 }
 
 // FetchImageBlob fetches the image blob
@@ -158,44 +168,56 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) error {
 		Token:              options.token,
 		InsecureSkipVerify: options.insecure,
 	})
-	blob, err := fetcher.FetchWithProgress(url, image.String())
+	imageFileName, err := fetcher.FetchWithProgress(url, image.String())
 	if err != nil {
 		return err
 	}
 
-	in := bytes.NewReader(blob)
+	// Cleanup function for the error case
+	defer func() {
+		if err != nil {
+			os.Remove(imageFileName)
+		}
+	}()
 
+	// Open the file so that we can use it as a io.Reader for sha256 calculation
+	in, err := os.Open(string(imageFileName))
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	h := sha256.New()
+
+	progress.Update(po, image.String(), "Verifying Checksum")
+	if _, err := io.Copy(h, in); err != nil {
+		return err
+	}
+
+	// Calculate the sum
+	sum := fmt.Sprintf("sha256:%x", h.Sum(nil))
+	if sum != layer {
+		return fmt.Errorf("Failed to validate layer checksum. Expected %s got %s", layer, sum)
+	}
+
+	// Ensure the parent directory exists
 	destination := path.Join(DestinationDirectory(), id)
 	err = os.MkdirAll(destination, 0755)
 	if err != nil {
 		return err
 	}
 
-	progress.Update(po, image.String(), "Verifying Checksum")
-
-	h := sha256.New()
-	t := io.TeeReader(in, h)
-
-	layerFile, err := os.Create(path.Join(destination, id+".tar"))
-	if err != nil {
-		return err
-	}
-	defer layerFile.Close()
-
-	_, err = io.Copy(layerFile, t)
+	// Move(rename) the temporary file to its final destination
+	err = os.Rename(string(imageFileName), path.Join(destination, id+".tar"))
 	if err != nil {
 		return err
 	}
 
-	if err := layerFile.Sync(); err != nil {
+	// Dump the history next to it
+	err = ioutil.WriteFile(path.Join(destination, id+".json"), []byte(history), 0644)
+	if err != nil {
 		return err
 	}
-
-	sum := fmt.Sprintf("sha256:%x", h.Sum(nil))
-	if sum != layer {
-		return fmt.Errorf("Failed to validate layer checksum. Expected %s got %s", layer, sum)
-	}
-	ioutil.WriteFile(path.Join(destination, id+".json"), []byte(history), 0644)
 
 	progress.Update(po, image.String(), "Download complete")
 
@@ -221,15 +243,27 @@ func FetchImageManifest(options ImageCOptions) (*Manifest, error) {
 		Token:              options.token,
 		InsecureSkipVerify: options.insecure,
 	})
+	manifestFileName, err := fetcher.Fetch(url)
+	if err != nil {
+		return nil, err
+	}
 
-	blob, err := fetcher.Fetch(url)
+	// Cleanup function for the error case
+	defer func() {
+		if err != nil {
+			os.Remove(manifestFileName)
+		}
+	}()
+
+	// Read the entire file into []byte for json.Unmarshal
+	content, err := ioutil.ReadFile(manifestFileName)
 	if err != nil {
 		return nil, err
 	}
 
 	manifest := &Manifest{}
 
-	err = json.Unmarshal(blob, manifest)
+	err = json.Unmarshal(content, manifest)
 	if err != nil {
 		return nil, err
 	}
@@ -242,12 +276,18 @@ func FetchImageManifest(options ImageCOptions) (*Manifest, error) {
 		return nil, fmt.Errorf("tag doesn't match what was requested, expected: %s, downloaded: %s", options.digest, manifest.Tag)
 	}
 
+	// Ensure the parent directory exists
 	destination := DestinationDirectory()
 	err = os.MkdirAll(destination, 0755)
 	if err != nil {
 		return nil, err
 	}
-	ioutil.WriteFile(path.Join(destination, "manifest.json"), blob, 0644)
+
+	// Move(rename) the temporary file to its final destination
+	err = os.Rename(string(manifestFileName), path.Join(destination, "manifest.json"))
+	if err != nil {
+		return nil, err
+	}
 
 	return manifest, nil
 }
