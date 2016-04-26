@@ -25,6 +25,7 @@ type PortLayerOptionsType struct {
 
 	DatacenterPath string `long:"datacenter" default:"/ha-datacenter" description:"Datacenter path" env:"DC_PATH" required:"true"`
 	ClusterPath    string `long:"cluster" default:"" description:"Cluster path" env:"CS_PATH" required:"true"`
+	PoolPath       string `long:"pool" default:"" description:"Resource pool path" env:"POOL_PATH" required:"true"`
 	DatastorePath  string `long:"datastore" default:"/ha-datacenter/datastore/*" description:"Datastore path" env:"DS_PATH" required:"true"`
 	NetworkPath    string `long:"network" default:"/ha-datacenter/network/*" description:"Network path" env:"NET_PATH" required:"true"`
 

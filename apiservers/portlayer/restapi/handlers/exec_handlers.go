@@ -69,6 +69,7 @@ func (handler *ExecHandlersImpl) Configure(api *operations.PortLayerAPI, netCtx 
 		Keepalive:      options.PortLayerOptions.Keepalive,
 		DatacenterPath: options.PortLayerOptions.DatacenterPath,
 		ClusterPath:    options.PortLayerOptions.ClusterPath,
+		PoolPath:       options.PortLayerOptions.PoolPath,
 		DatastorePath:  options.PortLayerOptions.DatastorePath,
 		NetworkPath:    options.PortLayerOptions.NetworkPath,
 	}

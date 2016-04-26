@@ -69,6 +69,7 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 		Keepalive:      options.PortLayerOptions.Keepalive,
 		DatacenterPath: options.PortLayerOptions.DatacenterPath,
 		ClusterPath:    options.PortLayerOptions.ClusterPath,
+		PoolPath:       options.PortLayerOptions.PoolPath,
 		DatastorePath:  options.PortLayerOptions.DatastorePath,
 		NetworkPath:    options.PortLayerOptions.NetworkPath,
 	}
