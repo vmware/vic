@@ -121,7 +121,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	if !found {
 		// FIXME: This is a temporary workaround until we have a name resolution story.
 		// Call imagec with -resolv parameter to learn the name of the vmdk and put it into in-memory map
-		cmdArgs := []string{"-reference", config.Config.Image, "-resolv", "-standalone"}
+		cmdArgs := []string{"-reference", config.Config.Image, "-resolv", "-standalone", "-destination", os.TempDir()}
 
 		out, err := goexec.Command("/sbin/imagec", cmdArgs...).Output()
 		if err != nil {
