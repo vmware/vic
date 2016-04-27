@@ -239,8 +239,8 @@ func launch(session *metadata.SessionConfig) error {
 			Env:  utils.processEnvOS(session.Cmd.Env),
 			Dir:  session.Cmd.Dir,
 		},
-		outwriter: dio.MultiWriter(logwriter),
-		errwriter: dio.MultiWriter(logwriter),
+		outwriter: logwriter,
+		errwriter: logwriter,
 		reader:    dio.MultiReader(),
 	}
 

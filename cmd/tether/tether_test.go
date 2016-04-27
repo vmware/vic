@@ -212,23 +212,30 @@ func createFakeDevices() error {
 
 type testAttachServer struct {
 	attachServerSSH
-
+	enabled bool
 	updated chan bool
 }
 
 func (t *testAttachServer) start() error {
 	err := t.attachServerSSH.start()
 
-	t.updated <- true
+	if err == nil {
+		t.updated <- true
+		t.enabled = true
+	}
+
 	log.Info("Started test attach server")
 	return err
 }
 
 func (t *testAttachServer) stop() {
-	t.attachServerSSH.stop()
+	if t.enabled {
+		t.attachServerSSH.stop()
 
-	log.Info("Stopped test attach server")
-	t.updated <- true
+		log.Info("Stopped test attach server")
+		t.updated <- true
+		t.enabled = false
+	}
 }
 
 // TestMain simply so we have control of debugging level and somewhere to call package wide test setup
@@ -283,9 +290,11 @@ func testSetup(t *testing.T) {
 		t.Error(err)
 	}
 
-	if server == nil {
-		server = &attachServerSSH{}
+	// supply custom attach server so we can inspect its state
+	testServer := &testAttachServer{
+		updated: make(chan bool, 10),
 	}
+	server = testServer
 }
 
 func testTeardown(t *testing.T) {

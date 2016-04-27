@@ -199,6 +199,14 @@ func TestAbsPath(t *testing.T) {
 	}
 }
 
+func TestAbsPathRepeat(t *testing.T) {
+	t.Skip("Occasional issues with output not being flushed to log - #577")
+
+	for i := 0; i < 1000; i++ {
+		TestAbsPath(t)
+	}
+}
+
 //
 /////////////////////////////////////////////////////////////////////////////////////
 
