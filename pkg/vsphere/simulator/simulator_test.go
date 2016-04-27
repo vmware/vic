@@ -28,8 +28,11 @@ import (
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/vim25/methods"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
+	"github.com/vmware/vic/pkg/vsphere/simulator/vc"
 )
 
 func TestUnmarshal(t *testing.T) {
@@ -141,8 +144,8 @@ func TestUnmarshalError(t *testing.T) {
 
 func TestServeHTTP(t *testing.T) {
 	services := []*Service{
-		New().AsESX(),
-		New().AsVC(),
+		New(NewServiceInstance(esx.ServiceContent)),
+		New(NewServiceInstance(vc.ServiceContent)),
 	}
 
 	for _, s := range services {
@@ -176,9 +179,9 @@ func TestServeHTTP(t *testing.T) {
 	}
 }
 
-type errorMarshal struct{}
-
-func (*errorMarshal) Name() string { return "CurrentTime" }
+type errorMarshal struct {
+	mo.ServiceInstance
+}
 
 func (*errorMarshal) Fault() *soap.Fault {
 	return nil
@@ -188,12 +191,25 @@ func (*errorMarshal) MarshalText() ([]byte, error) {
 	return nil, errors.New("time has stopped")
 }
 
-func (h *errorMarshal) Call(method *Method) soap.HasFault {
+func (h *errorMarshal) CurrentTime(types.AnyType) soap.HasFault {
 	return h
 }
 
+type errorNoSuchMethod struct {
+	mo.ServiceInstance
+}
+
+type errorInvalidMethod struct {
+	mo.ServiceInstance
+}
+
+func (h *errorInvalidMethod) CurrentTime() soap.HasFault {
+	return serverFault("notreached")
+}
+
 func TestServeHTTPErrors(t *testing.T) {
-	s := New().AsESX()
+	s := New(NewServiceInstance(esx.ServiceContent))
+
 	ts := s.NewServer()
 	defer ts.Close()
 
@@ -215,15 +231,29 @@ func TestServeHTTPErrors(t *testing.T) {
 
 	typeFunc = types.TypeFunc() // reset
 
-	// unregister handler, covering the ServerHTTP no handler error path
-	delete(s.handlers, "CurrentTime")
+	// cover the does not implement method error path
+	s.handlers[serviceInstance] = &errorNoSuchMethod{}
+	_, err = methods.GetCurrentTime(ctx, client)
+	if err == nil {
+		t.Error("expected error")
+	}
+
+	// cover the invalid method error path
+	s.handlers[serviceInstance] = &errorInvalidMethod{}
 	_, err = methods.GetCurrentTime(ctx, client)
 	if err == nil {
 		t.Error("expected error")
 	}
 
 	// cover the xml encode error path
-	s.Register(&errorMarshal{})
+	s.handlers[serviceInstance] = &errorMarshal{}
+	_, err = methods.GetCurrentTime(ctx, client)
+	if err == nil {
+		t.Error("expected error")
+	}
+
+	// cover the no such object path
+	delete(s.handlers, serviceInstance)
 	_, err = methods.GetCurrentTime(ctx, client)
 	if err == nil {
 		t.Error("expected error")

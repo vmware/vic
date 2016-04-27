@@ -25,28 +25,22 @@ import (
 	"net/url"
 	"reflect"
 
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/govmomi/vim25/xml"
-	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
-	"github.com/vmware/vic/pkg/vsphere/simulator/vc"
 )
 
 // Method encapsulates a decoded SOAP client request
 type Method struct {
 	Name string
-	Body interface{}
-}
-
-// Handler implements a response handler for a Method request
-type Handler interface {
-	Name() string
-	Call(*Method) soap.HasFault
+	This types.ManagedObjectReference
+	Body types.AnyType
 }
 
 // Service decodes incoming requests and dispatches to a Handler
 type Service struct {
-	handlers map[string]Handler
+	handlers map[types.ManagedObjectReference]object.Reference
 
 	readAll func(io.Reader) ([]byte, error)
 }
@@ -58,44 +52,24 @@ type Server struct {
 }
 
 // New returns an initialized simulator Service instance
-func New() *Service {
+func New(instance ServiceInstanceReference) *Service {
 	s := &Service{
-		handlers: make(map[string]Handler),
+		handlers: make(map[types.ManagedObjectReference]object.Reference),
 
 		readAll: ioutil.ReadAll,
 	}
+
+	s.Register(instance)
+	s.Register(instance.Handlers()...)
 
 	return s
 }
 
 // Register method handlers with a Service
-func (s *Service) Register(handlers ...Handler) {
+func (s *Service) Register(handlers ...object.Reference) {
 	for _, handler := range handlers {
-		s.handlers[handler.Name()] = handler
+		s.handlers[handler.Reference()] = handler
 	}
-}
-
-var handlers = []Handler{
-	&Login{},
-	&CurrentTime{},
-}
-
-// AsESX registers service handlers with an ESX personality
-func (s *Service) AsESX() *Service {
-	h := []Handler{
-		&RetrieveServiceContent{esx.ServiceContent},
-	}
-	s.Register(append(handlers, h...)...)
-	return s
-}
-
-// AsVC registers service handlers with a vCenter personality
-func (s *Service) AsVC() *Service {
-	h := []Handler{
-		&RetrieveServiceContent{vc.ServiceContent},
-	}
-	s.Register(append(handlers, h...)...)
-	return s
 }
 
 type serverFaultBody struct {
@@ -120,6 +94,26 @@ func Fault(msg string, fault types.BaseMethodFault) *soap.Fault {
 	return f
 }
 
+func (s *Service) call(method *Method) soap.HasFault {
+	handler, ok := s.handlers[method.This]
+
+	if !ok {
+		return serverFault(fmt.Sprintf("no such object: %s", method.This))
+	}
+
+	m := reflect.ValueOf(handler).MethodByName(method.Name)
+	if !m.IsValid() {
+		return serverFault(fmt.Sprintf("%s does not implement: %s", method.This, method.Name))
+	}
+
+	f, ok := m.Interface().(func(types.AnyType) soap.HasFault)
+	if ok {
+		return f(method.Body)
+	}
+
+	return serverFault(fmt.Sprintf("%#v.%s: invalid signature", method.This, method.Name))
+}
+
 // ServeHTTP implements the http.Handler interface
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
@@ -141,11 +135,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		res = serverFault(err.Error())
 	} else {
-		if handler, ok := s.handlers[method.Name]; ok {
-			res = handler.Call(method)
-		} else {
-			res = serverFault(fmt.Sprintf("no handler for %s", method.Name))
-		}
+		res = s.call(method)
 	}
 
 	if res.Fault() == nil {
@@ -231,5 +221,11 @@ func UnmarshalBody(data []byte) (*Method, error) {
 		return nil, fmt.Errorf("decoding %s: %s", kind, err)
 	}
 
-	return &Method{Name: kind, Body: val}, nil
+	method := &Method{Name: kind, Body: val}
+
+	field := reflect.ValueOf(val).Elem().FieldByName("This")
+
+	method.This = field.Interface().(types.ManagedObjectReference)
+
+	return method, nil
 }

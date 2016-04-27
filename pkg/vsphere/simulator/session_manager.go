@@ -15,21 +15,40 @@
 package simulator
 
 import (
+	"time"
+
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/methods"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-type RetrieveServiceContent struct {
-	types.ServiceContent
+type SessionManager struct {
+	mo.SessionManager
 }
 
-func (*RetrieveServiceContent) Name() string { return "RetrieveServiceContent" }
+func NewSessionManager(ref types.ManagedObjectReference) object.Reference {
+	s := &SessionManager{}
+	s.Self = ref
+	return s
+}
 
-func (r *RetrieveServiceContent) Call(method *Method) soap.HasFault {
-	return &methods.RetrieveServiceContentBody{
-		Res: &types.RetrieveServiceContentResponse{
-			Returnval: r.ServiceContent,
-		},
+func (s *SessionManager) Login(req types.AnyType) soap.HasFault {
+	login := req.(*types.Login)
+	body := &methods.LoginBody{}
+
+	if login.UserName == "" || login.Password == "" {
+		body.Fault_ = Fault("Login failure", &types.InvalidLogin{})
+	} else {
+		body.Res = &types.LoginResponse{
+			Returnval: types.UserSession{
+				UserName:  login.UserName,
+				FullName:  login.UserName,
+				LoginTime: time.Now(),
+			},
+		}
 	}
+
+	return body
 }
