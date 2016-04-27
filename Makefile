@@ -166,7 +166,6 @@ govet: $(find . -type f -name '*.go' -not -path "./vendor/*" -not -path "apiserv
 	@echo checking go vet...
 	@$(GO) tool vet -all $$(find . -type f -name '*.go' -not -path "./vendor/*")
 	@$(GO) tool vet -shadow $$(find . -type f -name '*.go' -not -path "./vendor/*")
-	@touch $@
 
 vendor: $(GVT)
 	@echo restoring vendor
