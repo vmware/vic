@@ -1,3 +1,2 @@
 .vagrant
-
-bin/*.iso
+bin/**
