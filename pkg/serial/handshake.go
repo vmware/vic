@@ -76,7 +76,7 @@ func HandshakeClient(ctx context.Context, conn net.Conn) error {
 	conn.Write(syn)
 	log.Debug("client: reading synack")
 	if n, err := io.ReadFull(conn, buf[:3]); n != 3 || err != nil {
-		msg := fmt.Sprintf("client: failed to read expected SYN-ACK: n=%d, err=%s buf=[%#x]", n, err, buf[:n])
+		msg := fmt.Sprintf("HandshakeClient: failed to read expected SYN-ACK: n=%d, err=%s buf=[%#x]", n, err, buf[:n])
 		if err != nil {
 			log.Error(msg)
 		} else {
@@ -87,13 +87,13 @@ func HandshakeClient(ctx context.Context, conn net.Conn) error {
 
 	synack[1] = syn[1] + 1
 	if bytes.Compare(synack, buf[:2]) != 0 {
-		msg := fmt.Sprintf("client: did not receive synack: %#x != %#x", synack, buf[:2])
+		msg := fmt.Sprintf("HandshakeClient: did not receive synack: %#x != %#x", synack, buf[:2])
 		log.Debugf(msg)
 		conn.Write([]byte{NAK})
 		return errors.New(msg)
 	}
 
-	log.Debugf("client: received synack: %#x == %#x\n", synack, buf[:2])
+	log.Debugf("HandshakeClient: received synack: %#x == %#x\n", synack, buf[:2])
 	log.Debug("client: writing ack")
 	ack[1] = buf[2] + 1
 	conn.Write(ack)

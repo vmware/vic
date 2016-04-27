@@ -30,8 +30,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	winserial "github.com/tarm/serial"
-	"github.com/vmware/vic/cmd/tether/serial"
 	"github.com/vmware/vic/pkg/dio"
+	"github.com/vmware/vic/pkg/serial"
 )
 
 // allow us to pick up some of the osops implementations when mocking

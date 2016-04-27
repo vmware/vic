@@ -102,6 +102,7 @@ func TestAttach(t *testing.T) {
 		return
 	}
 
+	// run the tether to service the attach
 	go func() {
 		erR := run(cfg)
 		if erR != nil {
@@ -118,38 +119,39 @@ func TestAttach(t *testing.T) {
 	}
 
 	// create client on the mock pipe
-	conn, err := clientBackchannel(context.Background())
+	conn, err := mockSerialConnection(context.Background())
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	cconfig := &ssh.ClientConfig{
+	containerConfig := &ssh.ClientConfig{
 		User: "daemon",
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 			return nil
 		},
 	}
 
-	// create the SSH client
-	sConn, chans, reqs, err := ssh.NewClientConn(conn, "notappliable", cconfig)
+	// create the SSH client from the mocked connection
+	sshConn, chans, reqs, err := ssh.NewClientConn(conn, "notappliable", containerConfig)
+	if !assert.NoError(t, err) {
+		return
+	}
+	defer sshConn.Close()
+
+	attachClient := ssh.NewClient(sshConn, chans, reqs)
+
+	sshSession, err := SSHAttach(attachClient, testConfig.ID)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	defer sConn.Close()
-	client := ssh.NewClient(sConn, chans, reqs)
 
-	session, err := SSHAttach(client, testConfig.ID)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	stdout := sshSession.Stdout()
 
-	stdout := session.Stdout()
+	// FIXME: the pipe pair are line buffered - how do I disable that so we
+	// don't have odd hangs to diagnose when the trailing \n is missed
 
-	// FIXME: the pipe pair are line buffered - how do I disable that so we don't have odd hangs to diagnose
-	// when the trailing \n is missed
 	testBytes := []byte("\x1b[32mhello world\x1b[39m!\n")
 	// read from session into buffer
 	buf := &bytes.Buffer{}
@@ -158,12 +160,12 @@ func TestAttach(t *testing.T) {
 
 	// write something to echo
 	log.Debug("sending test data")
-	session.Stdin().Write(testBytes)
+	sshSession.Stdin().Write(testBytes)
 	log.Debug("sent test data")
 
 	// wait for the close to propogate
 	<-done
-	session.Stdin().Close()
+	sshSession.Stdin().Close()
 
 	if !assert.Equal(t, buf.Bytes(), testBytes) {
 		return
@@ -239,7 +241,7 @@ func TestAttachTTY(t *testing.T) {
 	}
 
 	// create client on the mock pipe
-	conn, err := clientBackchannel(context.Background())
+	conn, err := mockSerialConnection(context.Background())
 	if err != nil {
 		t.Error(err)
 		return
@@ -380,7 +382,7 @@ func TestAttachTwo(t *testing.T) {
 	}
 
 	// create client on the mock pipe
-	conn, err := clientBackchannel(context.Background())
+	conn, err := mockSerialConnection(context.Background())
 	if err != nil {
 		t.Error(err)
 		return
@@ -543,7 +545,7 @@ func TestAttachInvalid(t *testing.T) {
 	}
 
 	// create client on the mock pipe
-	conn, err := clientBackchannel(context.Background())
+	conn, err := mockSerialConnection(context.Background())
 	if err != nil {
 		t.Error(err)
 		return
