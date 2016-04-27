@@ -21,6 +21,8 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"path"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -90,6 +92,47 @@ func (t *osopsLinux) SetHostname(hostname string) error {
 	return nil
 }
 
+func slotToPCIAddr(pciSlot int32) (string, error) {
+	slotPath := path.Join("/sys/bus/pci/slots/", strconv.Itoa(int(pciSlot)), "/address")
+	f, err := os.Open(slotPath)
+	if err != nil {
+		return "", fmt.Errorf("unable to open slotPath %s: %s", slotPath, err)
+	}
+	defer f.Close()
+
+	buf, err := ioutil.ReadAll(f)
+	if err != nil {
+		return "", err
+	}
+
+	return string(buf), nil
+}
+
+func pciToMAC(pciAddr string) (string, error) {
+	intPath := path.Join("/sys/bus/pci/devices/", pciAddr+".0", "/net")
+	ifaces, err := ioutil.ReadDir(intPath)
+	if err != nil {
+		return "", fmt.Errorf("unable to read intPath %s", intPath)
+	}
+	if len(ifaces) != 1 {
+		return "", fmt.Errorf("unexpected number of interfaces found at %s", intPath)
+	}
+
+	addrPath := path.Join(intPath, ifaces[0].Name(), "address")
+	f, err := os.Open(addrPath)
+	if err != nil {
+		return "", fmt.Errorf("unable to open addrPath %s: %s", addrPath, err)
+	}
+	defer f.Close()
+
+	buf, err := ioutil.ReadAll(f)
+	if err != nil {
+		return "", err
+	}
+
+	return string(buf), nil
+}
+
 func linkByAddress(address string) (netlink.Link, error) {
 	nis, err := net.Interfaces()
 	if err != nil {
@@ -106,12 +149,30 @@ func linkByAddress(address string) (netlink.Link, error) {
 	return nil, fmt.Errorf("unable to locate interface for address %s", address)
 }
 
+func linkByPCIAddr(pciAddr string) (netlink.Link, error) {
+	mac, err := pciToMAC(pciAddr)
+	if err != nil {
+		return nil, err
+	}
+	_, err = net.ParseMAC(mac)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugf("MAC addr for PCI slot %s: %s", pciAddr, mac)
+
+	return linkByAddress(mac)
+}
+
 // Apply takes the network endpoint configuration and applies it to the system
 func (t *osopsLinux) Apply(endpoint *metadata.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
 
 	// Locate interface
-	link, err := linkByAddress(endpoint.MAC)
+	pciAddr, err := slotToPCIAddr(endpoint.PCISlot)
+	if err != nil {
+		return err
+	}
+	link, err := linkByPCIAddr(pciAddr)
 	if err != nil {
 		return err
 	}
@@ -128,21 +189,6 @@ func (t *osopsLinux) Apply(endpoint *metadata.NetworkEndpoint) error {
 	if err != nil {
 		detail := fmt.Sprintf("unable to set interface name: %s", err)
 		return errors.New(detail)
-	}
-
-	// Remove any existing addresses
-	existingAddr, err := netlink.AddrList(link, syscall.AF_UNSPEC)
-	if err != nil {
-		detail := fmt.Sprintf("failed to list existing address for %s: %s", endpoint.Network.Name, err)
-		return errors.New(detail)
-	}
-
-	for _, oldAddr := range existingAddr {
-		err = netlink.AddrDel(link, &oldAddr)
-		if err != nil {
-			detail := fmt.Sprintf("failed to del existing address for %s: %s", endpoint.Network.Name, err)
-			return errors.New(detail)
-		}
 	}
 
 	// Set IP address
