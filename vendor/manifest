@@ -192,6 +192,20 @@
 			"path": "/builder"
 		},
 		{
+			"importpath": "github.com/docker/docker/cliconfig",
+			"repository": "https://github.com/docker/docker",
+			"revision": "f832183e33a690e297bd6dacf7a9cd812025daac",
+			"branch": "master",
+			"path": "/cliconfig"
+		},
+		{
+			"importpath": "github.com/docker/docker/daemon/events/testutils",
+			"repository": "https://github.com/docker/docker",
+			"revision": "f832183e33a690e297bd6dacf7a9cd812025daac",
+			"branch": "master",
+			"path": "/daemon/events/testutils"
+		},
+		{
 			"importpath": "github.com/docker/docker/daemon/graphdriver",
 			"repository": "https://github.com/docker/docker",
 			"vcs": "",
@@ -230,6 +244,13 @@
 			"revision": "0771230daac8aa2d66edddecd935d2c182850077",
 			"branch": "master",
 			"path": "/image"
+		},
+		{
+			"importpath": "github.com/docker/docker/integration-cli",
+			"repository": "https://github.com/docker/docker",
+			"revision": "f832183e33a690e297bd6dacf7a9cd812025daac",
+			"branch": "master",
+			"path": "/integration-cli"
 		},
 		{
 			"importpath": "github.com/docker/docker/layer",
@@ -328,6 +349,13 @@
 			"path": "/pkg/idtools"
 		},
 		{
+			"importpath": "github.com/docker/docker/pkg/integration",
+			"repository": "https://github.com/docker/docker",
+			"revision": "f832183e33a690e297bd6dacf7a9cd812025daac",
+			"branch": "master",
+			"path": "/pkg/integration"
+		},
+		{
 			"importpath": "github.com/docker/docker/pkg/ioutils",
 			"repository": "https://github.com/docker/docker",
 			"vcs": "",
@@ -374,6 +402,13 @@
 			"revision": "4a7bd7eaef0038b006cf23adface84081e5aab3b",
 			"branch": "master",
 			"path": "/pkg/namesgenerator"
+		},
+		{
+			"importpath": "github.com/docker/docker/pkg/parsers",
+			"repository": "https://github.com/docker/docker",
+			"revision": "f832183e33a690e297bd6dacf7a9cd812025daac",
+			"branch": "master",
+			"path": "/pkg/parsers"
 		},
 		{
 			"importpath": "github.com/docker/docker/pkg/parsers/kernel",
@@ -472,12 +507,26 @@
 			"path": "/pkg/stringid"
 		},
 		{
+			"importpath": "github.com/docker/docker/pkg/stringutils",
+			"repository": "https://github.com/docker/docker",
+			"revision": "f832183e33a690e297bd6dacf7a9cd812025daac",
+			"branch": "master",
+			"path": "/pkg/stringutils"
+		},
+		{
 			"importpath": "github.com/docker/docker/pkg/symlink",
 			"repository": "https://github.com/docker/docker",
 			"vcs": "",
 			"revision": "0771230daac8aa2d66edddecd935d2c182850077",
 			"branch": "master",
 			"path": "/pkg/symlink"
+		},
+		{
+			"importpath": "github.com/docker/docker/pkg/sysinfo",
+			"repository": "https://github.com/docker/docker",
+			"revision": "f832183e33a690e297bd6dacf7a9cd812025daac",
+			"branch": "master",
+			"path": "/pkg/sysinfo"
 		},
 		{
 			"importpath": "github.com/docker/docker/pkg/system",
@@ -626,6 +675,12 @@
 			"vcs": "",
 			"revision": "9cbd2a1374f46905c68a4eb3694a130610adc62a",
 			"branch": "master"
+		},
+		{
+			"importpath": "github.com/go-check/check",
+			"repository": "https://github.com/go-check/check",
+			"revision": "4f90aeace3a26ad7021961c297b22c42160c7b25",
+			"branch": "v1"
 		},
 		{
 			"importpath": "github.com/go-swagger/go-swagger",
@@ -961,6 +1016,12 @@
 			"revision": "e2a62d6b0d98fd7f1a57646812c74564fda999b4",
 			"branch": "master",
 			"path": "/tar/storage"
+		},
+		{
+			"importpath": "github.com/vdemeester/shakers",
+			"repository": "https://github.com/vdemeester/shakers",
+			"revision": "24d7f1d6a71aa5d9cbe7390e4afb66b7eef9e1b3",
+			"branch": "master"
 		},
 		{
 			"importpath": "github.com/vishvananda/netlink",

@@ -199,6 +199,9 @@ else
 	scripts/coverage.sh --html $(TEST_DIRS)
 endif
 
+docker-integration-tests:
+	@echo Running Docker integration tests
+	tests/docker-tests/run-tests.sh
 
 $(tether-linux): $(shell find cmd/tether -name '*.go') metadata/*.go
 	@echo building tether-linux
@@ -304,3 +307,6 @@ clean:
 	rm -rf ./apiservers/portlayer/restapi/operations/
 	rm -fr ./tests/helpers/bats-assert/
 	rm -fr ./tests/helpers/bats-support/
+
+	@tests/docker-tests/run-tests.sh clean
+	
