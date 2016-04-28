@@ -79,6 +79,19 @@ func TestAttachSshSession(t *testing.T) {
 	assert.NoError(t, s.Start())
 	defer s.Stop()
 
+	expectedID := "foo"
+
+	// This should block until the ssh server returns its container ID
+	wg := sync.WaitGroup{}
+	go func() {
+		wg.Add(1)
+		defer wg.Done()
+		_, err := s.connServer.Get(context.Background(), expectedID, 5*time.Second)
+		if !assert.NoError(t, err) {
+			return
+		}
+	}()
+
 	// Dial the attach server.  This is a TCP client
 	networkClientCon, err := net.Dial("tcp", s.l.Addr().String())
 	if !assert.NoError(t, err) {
@@ -100,23 +113,35 @@ func TestAttachSshSession(t *testing.T) {
 	containerConfig.AddHostKey(signer)
 
 	// create the SSH server on the client.  The attach server will ssh connect to this.
-	sshConn, _, reqs, err := ssh.NewServerConn(networkClientCon, containerConfig)
+	sshConn, chans, reqs, err := ssh.NewServerConn(networkClientCon, containerConfig)
 	if !assert.NoError(t, err) {
 		return
 	}
 	defer sshConn.Close()
 
 	// Service the incoming Channel channel.
-	expectedID := "foo"
-	for req := range reqs {
-		if req.Type == containerID {
-			req.Reply(false, []byte(expectedID))
+	go func() {
+		wg.Add(1)
+		defer wg.Done()
+		for req := range reqs {
+			if req.Type == requestContainerIDs {
+				req.Reply(true, ssh.Marshal(struct {
+					Strings []string
+				}{[]string{expectedID}}))
+				break
+			}
+		}
+	}()
+
+	go func() {
+		wg.Add(1)
+		defer wg.Done()
+		for ch := range chans {
+			assert.Equal(t, ch.ChannelType(), attachChannelType)
+			_, _, _ = ch.Accept()
 			break
 		}
-	}
+	}()
 
-	_, err = s.connServer.Get(context.Background(), expectedID, 5*time.Second)
-	if !assert.NoError(t, err) {
-		return
-	}
+	wg.Wait()
 }

@@ -29,16 +29,20 @@ import (
 	"golang.org/x/net/context"
 )
 
+// XXX This should be a shared data struct
+// The supported requests on the tether ssh server
+const (
+	requestContainerIDs = "container-ids"
+)
+
 // Connection represents a communication channel initiated by the client TO the
 // client.  The client connects (via TCP) to the server, then the server
 // initiates an SSH connection over the same sock to the client.
 type Connection struct {
-	*ssh.Client
+	spty SessionInteraction
 
 	// the container's ID
 	id string
-
-	requests <-chan *ssh.Request
 }
 
 type Connector struct {
@@ -124,7 +128,9 @@ func (c *Connector) Remove(id string) {
 	defer c.mutex.Unlock()
 
 	if c.connections[id] != nil {
-		c.connections[id].Close()
+		if c.connections[id].id == id {
+			c.connections[id].spty.Close()
+		}
 		delete(c.connections, id)
 	}
 }
@@ -142,7 +148,7 @@ func (c *Connector) processIncoming(conn net.Conn) {
 		// TODO needs timeout handling.  This could take 30s.
 		ctx, cancel := context.WithTimeout(context.TODO(), 50*time.Millisecond)
 		if err := serial.HandshakeClient(ctx, conn); err == nil {
-			log.Infof("New connection")
+			log.Debugf("New connection")
 			cancel()
 			break
 		} else if err == io.EOF {
@@ -162,32 +168,39 @@ func (c *Connector) processIncoming(conn net.Conn) {
 
 	log.Debugf("Initiating ssh handshake with new connection attempt")
 	ccon, newchan, request, err := ssh.NewClientConn(conn, "", config)
-
 	if err != nil {
 		log.Errorf("SSH connection could not be established: %s", errors.ErrorStack(err))
 		return
 	}
 
-	// get the container id
-	ok, reply, err := ccon.SendRequest(containerID, true, nil)
-	if ok || err != nil {
-		log.Errorf("Error retrieving container ID via global ssh request: %s", errors.ErrorStack(err))
+	client := ssh.NewClient(ccon, newchan, request)
+	ids, err := SSHls(client)
+	if err != nil {
+		log.Errorf("SSH connection could not be established: %s", errors.ErrorStack(err))
 		return
 	}
 
-	log.Debugf("Established connection with container VM: %s", string(reply))
+	for _, id := range ids {
+		si, err := SSHAttach(client, id)
+		if err != nil {
+			log.Errorf("SSH connection could not be established (id=%s): %s", id, errors.ErrorStack(err))
+			return
+		}
 
-	c.mutex.Lock()
-	connection := &Connection{
-		Client:   ssh.NewClient(ccon, newchan, nil),
-		id:       string(reply),
-		requests: request,
+		log.Infof("Established connection with container VM: %s", id)
+
+		c.mutex.Lock()
+		connection := &Connection{
+			spty: si,
+			id:   id,
+		}
+
+		c.connections[connection.id] = connection
+
+		c.cond.Broadcast()
+		c.mutex.Unlock()
+
 	}
-
-	c.connections[connection.id] = connection
-
-	c.cond.Broadcast()
-	c.mutex.Unlock()
 
 	return
 }
