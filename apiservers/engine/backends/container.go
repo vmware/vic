@@ -233,7 +233,7 @@ func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig
 
 	// Start the container
 	// TODO: We need a resolved ID from the name
-	plStartParams := &exec.ContainerStartParams{ID: name}
+	plStartParams := exec.NewContainerStartParams().WithID(name)
 	_, err := client.Exec.ContainerStart(plStartParams)
 	if err != nil {
 		if _, isa := err.(*exec.ContainerStartNotFound); isa {
@@ -301,14 +301,11 @@ func (c *Container) ContainerAttach(name string, cac *backend.ContainerAttachCon
 //----------
 
 func (c *Container) dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, layerID string, imageStore string) *exec.ContainerCreateParams {
-	//TODO: Fill in the name
-	portLayerConfig := &exec.ContainerCreateParams{Name: nil}
-
-	portLayerConfig.CreateConfig = &models.ContainerCreateConfig{}
+	config := &models.ContainerCreateConfig{}
 
 	// Image
-	portLayerConfig.CreateConfig.Image = new(string)
-	*portLayerConfig.CreateConfig.Image = layerID
+	config.Image = new(string)
+	*config.Image = layerID
 
 	var path string
 	var args []string
@@ -322,31 +319,32 @@ func (c *Container) dockerContainerCreateParamsToPortlayer(cc types.ContainerCre
 	}
 
 	// copy the path
-	portLayerConfig.CreateConfig.Path = new(string)
-	*portLayerConfig.CreateConfig.Path = path
+	config.Path = new(string)
+	*config.Path = path
 
 	// copy the args
-	portLayerConfig.CreateConfig.Args = make([]string, len(args))
-	copy(portLayerConfig.CreateConfig.Args, args)
+	config.Args = make([]string, len(args))
+	copy(config.Args, args)
 
 	// copy the env array
-	portLayerConfig.CreateConfig.Env = make([]string, len(cc.Config.Env))
-	copy(portLayerConfig.CreateConfig.Env, cc.Config.Env)
+	config.Env = make([]string, len(cc.Config.Env))
+	copy(config.Env, cc.Config.Env)
 
 	// image store
-	portLayerConfig.CreateConfig.ImageStore = &models.ImageStore{Name: imageStore}
+	config.ImageStore = &models.ImageStore{Name: imageStore}
 
 	// network
-	portLayerConfig.CreateConfig.NetworkDisabled = new(bool)
-	*portLayerConfig.CreateConfig.NetworkDisabled = cc.Config.NetworkDisabled
-	portLayerConfig.CreateConfig.NetworkSettings = toModelsNetworkConfig(cc)
+	config.NetworkDisabled = new(bool)
+	*config.NetworkDisabled = cc.Config.NetworkDisabled
+	config.NetworkSettings = toModelsNetworkConfig(cc)
 
 	// working dir
-	portLayerConfig.CreateConfig.WorkingDir = new(string)
-	*portLayerConfig.CreateConfig.WorkingDir = cc.Config.WorkingDir
+	config.WorkingDir = new(string)
+	*config.WorkingDir = cc.Config.WorkingDir
 
-	log.Printf("dockerContainerCreateParamsToPortlayer = %+v", portLayerConfig.CreateConfig)
-	return portLayerConfig
+	log.Printf("dockerContainerCreateParamsToPortlayer = %+v", config)
+	//TODO: Fill in the name
+	return exec.NewContainerCreateParams().WithCreateConfig(config)
 }
 
 func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig {
@@ -375,7 +373,7 @@ func (c *Container) imageExist(imageID string) (storeName string, err error) {
 		return "", derr.NewBadRequestError(fmt.Errorf("container.ContainerCreate got unexpected error getting hostname"))
 	}
 
-	getParams := &storage.GetImageParams{ID: imageID, StoreName: host}
+	getParams := storage.NewGetImageParams().WithID(imageID).WithStoreName(host)
 	if _, err := PortLayerClient().Storage.GetImage(getParams); err != nil {
 		// If the image does not exist
 		if _, isa := err.(*storage.GetImageNotFound); isa {
