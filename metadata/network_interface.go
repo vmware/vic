@@ -26,6 +26,10 @@ type NetworkEndpoint struct {
 
 	// The MAC address for the vNIC - this allows for interface idenitifcaton in the guest
 	MAC string
+
+	// The PCI slot for the vNIC - this allows for interface idenitifcaton in the guest
+	PCISlot int32
+
 	// The network in which this information should be interpreted. This is embedded directly rather than
 	// as a pointer so that we can ensure the data is consistent
 	Network ContainerNetwork
