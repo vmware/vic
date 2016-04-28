@@ -32,7 +32,7 @@ func (v *Volume) VolumeInspect(name string) (*types.Volume, error) {
 	return nil, fmt.Errorf("%s does not implement volume.VolumeInspect", v.ProductName)
 }
 
-func (v *Volume) VolumeCreate(name, driverName string, opts map[string]string) (*types.Volume, error) {
+func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]string) (*types.Volume, error) {
 	return nil, fmt.Errorf("%s does not implement volume.VolumeCreate", v.ProductName)
 }
 

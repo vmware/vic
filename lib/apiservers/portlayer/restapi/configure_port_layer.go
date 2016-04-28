@@ -40,8 +40,8 @@ var portlayerhandlers = []handler{
 	&handlers.StorageHandlersImpl{},
 	&handlers.MiscHandlersImpl{},
 	&handlers.ScopesHandlersImpl{},
-	&handlers.AttachHandlersImpl{},
 	&handlers.ContainersHandlersImpl{},
+	&handlers.InteractionHandlersImpl{},
 }
 
 func configureFlags(api *operations.PortLayerAPI) {

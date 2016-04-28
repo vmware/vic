@@ -14,6 +14,8 @@
 
 package client
 
+import "golang.org/x/net/context"
+
 // Operation represents the context for a swagger operation to be submitted to the transport
 type Operation struct {
 	ID                 string
@@ -25,6 +27,7 @@ type Operation struct {
 	AuthInfo           AuthInfoWriter
 	Params             RequestWriter
 	Reader             ResponseReader
+	Context            context.Context
 }
 
 // A Transport implementor knows how to submit Request objects to some destination

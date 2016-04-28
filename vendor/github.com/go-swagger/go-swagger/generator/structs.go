@@ -334,6 +334,22 @@ type GenOperation struct {
 	WithContext        bool
 }
 
+// HasStreamingResponse returns true when this operation has a streaming response
+func (o *GenOperation) HasStreamingResponse() bool {
+	if o.DefaultResponse != nil && o.DefaultResponse.Schema != nil && o.DefaultResponse.Schema.IsStream {
+		return true
+	}
+	if o.SuccessResponse != nil && o.SuccessResponse.Schema != nil && o.SuccessResponse.Schema.IsStream {
+		return true
+	}
+	for _, k := range o.Responses {
+		if k.Schema != nil && k.Schema.IsStream {
+			return true
+		}
+	}
+	return false
+}
+
 // GenOperations represents a list of operations to generate
 // this implements a sort by operation id
 type GenOperations []GenOperation

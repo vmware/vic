@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"runtime"
 
+	"golang.org/x/net/context"
+
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/events"
 	"github.com/docker/engine-api/types/filters"
@@ -84,6 +86,6 @@ func (s *System) UnsubscribeFromEvents(chan interface{}) {
 
 }
 
-func (s *System) AuthenticateToRegistry(authConfig *types.AuthConfig) (string, error) {
-	return "", fmt.Errorf("%s does not implement System.AuthenticateToRegistry", s.ProductName)
+func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.AuthConfig) (string, string, error) {
+	return "", "", fmt.Errorf("%s does not implement System.AuthenticateToRegistry", s.ProductName)
 }

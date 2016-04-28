@@ -27,16 +27,14 @@ import (
 	log "github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/errors"
 	v1 "github.com/docker/docker/image"
+	"golang.org/x/net/context"
+
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/registry"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
-)
-
-const (
-	imagec = "imagec"
 )
 
 // byCreated is a temporary type used to sort a list of images by creation
@@ -130,7 +128,7 @@ func (i *Image) ExportImage(names []string, outStream io.Writer) error {
 	return fmt.Errorf("%s does not implement image.ExportImage", i.ProductName)
 }
 
-func (i *Image) PullImage(ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	log.Printf("PullImage: ref = %+v, metaheaders = %+v\n", ref, metaHeaders)
 
 	var cmdArgs []string
@@ -155,9 +153,9 @@ func (i *Image) PullImage(ref reference.Named, metaHeaders map[string][]string, 
 	// intruct imagec to use os.TempDir
 	cmdArgs = append(cmdArgs, "-destination", os.TempDir())
 
-	log.Printf("PullImage: cmd = %s %+v\n", imagec, cmdArgs)
+	log.Printf("PullImage: cmd = %s %+v\n", Imagec, cmdArgs)
 
-	cmd := exec.Command(imagec, cmdArgs...)
+	cmd := exec.Command(Imagec, cmdArgs...)
 	cmd.Stdout = outStream
 	cmd.Stderr = outStream
 
@@ -165,8 +163,8 @@ func (i *Image) PullImage(ref reference.Named, metaHeaders map[string][]string, 
 	err := cmd.Start()
 
 	if err != nil {
-		log.Printf("Error starting %s - %s\n", imagec, err)
-		return fmt.Errorf("Error starting %s - %s\n", imagec, err)
+		log.Printf("Error starting %s - %s\n", Imagec, err)
+		return fmt.Errorf("Error starting %s - %s\n", Imagec, err)
 	}
 
 	err = cmd.Wait()
@@ -179,11 +177,11 @@ func (i *Image) PullImage(ref reference.Named, metaHeaders map[string][]string, 
 	return nil
 }
 
-func (i *Image) PushImage(ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (i *Image) PushImage(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	return fmt.Errorf("%s does not implement image.PushImage", i.ProductName)
 }
 
-func (i *Image) SearchRegistryForImages(term string, authConfig *types.AuthConfig, metaHeaders map[string][]string) (*registry.SearchResults, error) {
+func (i *Image) SearchRegistryForImages(ctx context.Context, term string, authConfig *types.AuthConfig, metaHeaders map[string][]string) (*registry.SearchResults, error) {
 	return nil, fmt.Errorf("%s does not implement image.SearchRegistryForImages", i.ProductName)
 }
 
