@@ -24,7 +24,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-var Map *Registry
+var Map = NewRegistry()
 
 type Registry struct {
 	m       sync.Mutex

@@ -144,8 +144,8 @@ func TestUnmarshalError(t *testing.T) {
 
 func TestServeHTTP(t *testing.T) {
 	services := []*Service{
-		New(NewServiceInstance(esx.ServiceContent)),
-		New(NewServiceInstance(vc.ServiceContent)),
+		New(NewServiceInstance(esx.ServiceContent, esx.RootFolder)),
+		New(NewServiceInstance(vc.ServiceContent, vc.RootFolder)),
 	}
 
 	for _, s := range services {
@@ -200,7 +200,7 @@ type errorNoSuchMethod struct {
 }
 
 func TestServeHTTPErrors(t *testing.T) {
-	s := New(NewServiceInstance(esx.ServiceContent))
+	s := New(NewServiceInstance(esx.ServiceContent, esx.RootFolder))
 
 	ts := s.NewServer()
 	defer ts.Close()
@@ -224,21 +224,21 @@ func TestServeHTTPErrors(t *testing.T) {
 	typeFunc = types.TypeFunc() // reset
 
 	// cover the does not implement method error path
-	s.handlers[serviceInstance] = &errorNoSuchMethod{}
+	Map.objects[serviceInstance] = &errorNoSuchMethod{}
 	_, err = methods.GetCurrentTime(ctx, client)
 	if err == nil {
 		t.Error("expected error")
 	}
 
 	// cover the xml encode error path
-	s.handlers[serviceInstance] = &errorMarshal{}
+	Map.objects[serviceInstance] = &errorMarshal{}
 	_, err = methods.GetCurrentTime(ctx, client)
 	if err == nil {
 		t.Error("expected error")
 	}
 
 	// cover the no such object path
-	delete(s.handlers, serviceInstance)
+	Map.Remove(serviceInstance)
 	_, err = methods.GetCurrentTime(ctx, client)
 	if err == nil {
 		t.Error("expected error")

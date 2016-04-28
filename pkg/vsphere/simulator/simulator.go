@@ -25,7 +25,6 @@ import (
 	"net/url"
 	"reflect"
 
-	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/govmomi/vim25/xml"
@@ -40,8 +39,6 @@ type Method struct {
 
 // Service decodes incoming requests and dispatches to a Handler
 type Service struct {
-	handlers map[types.ManagedObjectReference]object.Reference
-
 	readAll func(io.Reader) ([]byte, error)
 }
 
@@ -52,24 +49,12 @@ type Server struct {
 }
 
 // New returns an initialized simulator Service instance
-func New(instance ServiceInstanceReference) *Service {
+func New(instance *ServiceInstance) *Service {
 	s := &Service{
-		handlers: make(map[types.ManagedObjectReference]object.Reference),
-
 		readAll: ioutil.ReadAll,
 	}
 
-	s.Register(instance)
-	s.Register(instance.Handlers()...)
-
 	return s
-}
-
-// Register method handlers with a Service
-func (s *Service) Register(handlers ...object.Reference) {
-	for _, handler := range handlers {
-		s.handlers[handler.Reference()] = handler
-	}
 }
 
 type serverFaultBody struct {
@@ -95,9 +80,9 @@ func Fault(msg string, fault types.BaseMethodFault) *soap.Fault {
 }
 
 func (s *Service) call(method *Method) soap.HasFault {
-	handler, ok := s.handlers[method.This]
+	handler := Map.Get(method.This)
 
-	if !ok {
+	if handler == nil {
 		return serverFault(fmt.Sprintf("no such object: %s", method.This))
 	}
 

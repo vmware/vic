@@ -24,11 +24,6 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-type ServiceInstanceReference interface {
-	object.Reference
-	Handlers() []object.Reference
-}
-
 type ServiceInstance struct {
 	mo.ServiceInstance
 }
@@ -38,19 +33,25 @@ var serviceInstance = types.ManagedObjectReference{
 	Value: "ServiceInstance",
 }
 
-func NewServiceInstance(content types.ServiceContent) ServiceInstanceReference {
+func NewServiceInstance(content types.ServiceContent, folder mo.Folder) *ServiceInstance {
+	Map = NewRegistry()
+
 	s := &ServiceInstance{}
 
 	s.Self = serviceInstance
 	s.Content = content
 
-	return s
-}
+	Map.Put(s)
 
-func (s *ServiceInstance) Handlers() []object.Reference {
-	return []object.Reference{
+	objects := []object.Reference{
 		NewSessionManager(*s.Content.SessionManager),
 	}
+
+	for _, o := range objects {
+		Map.Put(o)
+	}
+
+	return s
 }
 
 func (s *ServiceInstance) RetrieveServiceContent(*types.RetrieveServiceContent) soap.HasFault {
