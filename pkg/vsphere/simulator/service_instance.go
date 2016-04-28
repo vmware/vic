@@ -43,6 +43,15 @@ func NewServiceInstance(content types.ServiceContent, folder mo.Folder) *Service
 
 	Map.Put(s)
 
+	if content.About.ApiType == "VirtualCenter" {
+		// Folder methods are only supported by VC
+		f := &Folder{Folder: folder}
+		Map.Put(f)
+	} else {
+		// ESX defaults
+		Map.Put(folder)
+	}
+
 	objects := []object.Reference{
 		NewSessionManager(*s.Content.SessionManager),
 	}
