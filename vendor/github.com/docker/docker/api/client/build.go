@@ -62,6 +62,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd.Var(&flBuildArg, []string{"-build-arg"}, "Set build-time variables")
 	isolation := cmd.String([]string{"-isolation"}, "", "Container isolation technology")
 
+	flLabels := opts.NewListOpts(nil)
+	cmd.Var(&flLabels, []string{"-label"}, "Set metadata for an image")
+
 	ulimits := make(map[string]*units.Ulimit)
 	flUlimits := runconfigopts.NewUlimitOpt(&ulimits)
 	cmd.Var(flUlimits, []string{"-ulimit"}, "Ulimit options")
@@ -230,12 +233,14 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		Ulimits:        flUlimits.GetList(),
 		BuildArgs:      runconfigopts.ConvertKVStringsToMap(flBuildArg.GetAll()),
 		AuthConfigs:    cli.retrieveAuthConfigs(),
+		Labels:         runconfigopts.ConvertKVStringsToMap(flLabels.GetAll()),
 	}
 
 	response, err := cli.client.ImageBuild(context.Background(), options)
 	if err != nil {
 		return err
 	}
+	defer response.Body.Close()
 
 	err = jsonmessage.DisplayJSONMessagesStream(response.Body, buildBuff, cli.outFd, cli.isTerminalOut, nil)
 	if err != nil {
@@ -284,22 +289,6 @@ func validateTag(rawRepo string) (string, error) {
 	}
 
 	return rawRepo, nil
-}
-
-// writeToFile copies from the given reader and writes it to a file with the
-// given filename.
-func writeToFile(r io.Reader, filename string) error {
-	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0600))
-	if err != nil {
-		return fmt.Errorf("unable to create file: %v", err)
-	}
-	defer file.Close()
-
-	if _, err := io.Copy(file, r); err != nil {
-		return fmt.Errorf("unable to write file: %v", err)
-	}
-
-	return nil
 }
 
 var dockerfileFromLinePattern = regexp.MustCompile(`(?i)^[\s]*FROM[ \f\r\t\v]+(?P<image>[^ \f\r\t\v\n#]+)`)

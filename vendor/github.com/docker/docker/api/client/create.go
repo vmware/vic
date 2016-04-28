@@ -92,29 +92,30 @@ func (cli *DockerCli) createContainer(config *container.Config, hostConfig *cont
 		defer containerIDFile.Close()
 	}
 
-	ref, err := reference.ParseNamed(config.Image)
+	var trustedRef reference.Canonical
+	_, ref, err := reference.ParseIDOrReference(config.Image)
 	if err != nil {
 		return nil, err
 	}
-	ref = reference.WithDefaultTag(ref)
+	if ref != nil {
+		ref = reference.WithDefaultTag(ref)
 
-	var trustedRef reference.Canonical
-
-	if ref, ok := ref.(reference.NamedTagged); ok && isTrusted() {
-		var err error
-		trustedRef, err = cli.trustedReference(ref)
-		if err != nil {
-			return nil, err
+		if ref, ok := ref.(reference.NamedTagged); ok && isTrusted() {
+			var err error
+			trustedRef, err = cli.trustedReference(ref)
+			if err != nil {
+				return nil, err
+			}
+			config.Image = trustedRef.String()
 		}
-		config.Image = trustedRef.String()
 	}
 
 	//create the container
-	response, err := cli.client.ContainerCreate(config, hostConfig, networkingConfig, name)
+	response, err := cli.client.ContainerCreate(context.Background(), config, hostConfig, networkingConfig, name)
 
 	//if image not found try to pull it
 	if err != nil {
-		if client.IsErrImageNotFound(err) {
+		if client.IsErrImageNotFound(err) && ref != nil {
 			fmt.Fprintf(cli.err, "Unable to find image '%s' locally\n", ref.String())
 
 			// we don't want to write to stdout anything apart from container.ID
@@ -128,7 +129,7 @@ func (cli *DockerCli) createContainer(config *container.Config, hostConfig *cont
 			}
 			// Retry
 			var retryErr error
-			response, retryErr = cli.client.ContainerCreate(config, hostConfig, networkingConfig, name)
+			response, retryErr = cli.client.ContainerCreate(context.Background(), config, hostConfig, networkingConfig, name)
 			if retryErr != nil {
 				return nil, retryErr
 			}

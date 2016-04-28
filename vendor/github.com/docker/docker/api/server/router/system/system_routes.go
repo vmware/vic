@@ -55,11 +55,10 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 
-	timer := time.NewTimer(0)
-	timer.Stop()
+	var timeout <-chan time.Time
 	if until > 0 || untilNano > 0 {
 		dur := time.Unix(until, untilNano).Sub(time.Now())
-		timer = time.NewTimer(dur)
+		timeout = time.NewTimer(dur).C
 	}
 
 	ef, err := filters.FromParam(r.Form.Get("filters"))
@@ -99,7 +98,7 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 			if err := enc.Encode(jev); err != nil {
 				return err
 			}
-		case <-timer.C:
+		case <-timeout:
 			return nil
 		case <-closeNotify:
 			logrus.Debug("Client disconnected, stop sending events")
@@ -115,11 +114,12 @@ func (s *systemRouter) postAuth(ctx context.Context, w http.ResponseWriter, r *h
 	if err != nil {
 		return err
 	}
-	status, err := s.backend.AuthenticateToRegistry(config)
+	status, token, err := s.backend.AuthenticateToRegistry(ctx, config)
 	if err != nil {
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, &types.AuthResponse{
-		Status: status,
+		Status:        status,
+		IdentityToken: token,
 	})
 }

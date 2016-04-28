@@ -168,8 +168,9 @@
 			"path": "/registry/api/errcode"
 		},
 		{
-			"importpath": "github.com/docker/docker/api",
+			"importpath": "github.com/docker/docker",
 			"repository": "https://github.com/docker/docker",
+<<<<<<< HEAD
 			"vcs": "",
 			"revision": "0771230daac8aa2d66edddecd935d2c182850077",
 			"branch": "master",
@@ -590,14 +591,20 @@
 			"revision": "0771230daac8aa2d66edddecd935d2c182850077",
 			"branch": "master",
 			"path": "/runconfig"
+=======
+			"vcs": "git",
+			"revision": "4dc5990d7565a4a15d641bc6a0bc50a02cfcf302",
+			"branch": "HEAD",
+			"notests": true
+>>>>>>> feb45c2... Updated docker, engine-api, libnetwork vendor
 		},
 		{
-			"importpath": "github.com/docker/docker/volume",
-			"repository": "https://github.com/docker/docker",
-			"vcs": "",
-			"revision": "0771230daac8aa2d66edddecd935d2c182850077",
-			"branch": "master",
-			"path": "/volume"
+			"importpath": "github.com/docker/engine-api",
+			"repository": "https://github.com/docker/engine-api",
+			"vcs": "git",
+			"revision": "0df83fcc24fb4a997df5537526306fb55aa5dca8",
+			"branch": "HEAD",
+			"notests": true
 		},
 		{
 			"importpath": "github.com/docker/engine-api/types",
@@ -648,9 +655,16 @@
 		{
 			"importpath": "github.com/docker/libnetwork",
 			"repository": "https://github.com/docker/libnetwork",
+<<<<<<< HEAD
 			"vcs": "",
 			"revision": "f20612eae4270043e9cf5972b6a2db4efb190819",
 			"branch": "master"
+=======
+			"vcs": "git",
+			"revision": "61f291b994b43e52de6313f5c73ffacb58d656f1",
+			"branch": "HEAD",
+			"notests": true
+>>>>>>> feb45c2... Updated docker, engine-api, libnetwork vendor
 		},
 		{
 			"importpath": "github.com/docker/libtrust",
