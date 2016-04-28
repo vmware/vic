@@ -199,14 +199,6 @@ type errorNoSuchMethod struct {
 	mo.ServiceInstance
 }
 
-type errorInvalidMethod struct {
-	mo.ServiceInstance
-}
-
-func (h *errorInvalidMethod) CurrentTime() soap.HasFault {
-	return serverFault("notreached")
-}
-
 func TestServeHTTPErrors(t *testing.T) {
 	s := New(NewServiceInstance(esx.ServiceContent))
 
@@ -233,13 +225,6 @@ func TestServeHTTPErrors(t *testing.T) {
 
 	// cover the does not implement method error path
 	s.handlers[serviceInstance] = &errorNoSuchMethod{}
-	_, err = methods.GetCurrentTime(ctx, client)
-	if err == nil {
-		t.Error("expected error")
-	}
-
-	// cover the invalid method error path
-	s.handlers[serviceInstance] = &errorInvalidMethod{}
 	_, err = methods.GetCurrentTime(ctx, client)
 	if err == nil {
 		t.Error("expected error")

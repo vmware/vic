@@ -106,12 +106,9 @@ func (s *Service) call(method *Method) soap.HasFault {
 		return serverFault(fmt.Sprintf("%s does not implement: %s", method.This, method.Name))
 	}
 
-	f, ok := m.Interface().(func(types.AnyType) soap.HasFault)
-	if ok {
-		return f(method.Body)
-	}
+	res := m.Call([]reflect.Value{reflect.ValueOf(method.Body)})
 
-	return serverFault(fmt.Sprintf("%#v.%s: invalid signature", method.This, method.Name))
+	return res[0].Interface().(soap.HasFault)
 }
 
 // ServeHTTP implements the http.Handler interface

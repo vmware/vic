@@ -34,8 +34,7 @@ func NewSessionManager(ref types.ManagedObjectReference) object.Reference {
 	return s
 }
 
-func (s *SessionManager) Login(req types.AnyType) soap.HasFault {
-	login := req.(*types.Login)
+func (s *SessionManager) Login(login *types.Login) soap.HasFault {
 	body := &methods.LoginBody{}
 
 	if login.UserName == "" || login.Password == "" {

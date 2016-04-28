@@ -53,7 +53,7 @@ func (s *ServiceInstance) Handlers() []object.Reference {
 	}
 }
 
-func (s *ServiceInstance) RetrieveServiceContent(types.AnyType) soap.HasFault {
+func (s *ServiceInstance) RetrieveServiceContent(*types.RetrieveServiceContent) soap.HasFault {
 	return &methods.RetrieveServiceContentBody{
 		Res: &types.RetrieveServiceContentResponse{
 			Returnval: s.Content,
@@ -61,7 +61,7 @@ func (s *ServiceInstance) RetrieveServiceContent(types.AnyType) soap.HasFault {
 	}
 }
 
-func (*ServiceInstance) CurrentTime(types.AnyType) soap.HasFault {
+func (*ServiceInstance) CurrentTime(*types.CurrentTime) soap.HasFault {
 	return &methods.CurrentTimeBody{
 		Res: &types.CurrentTimeResponse{
 			Returnval: time.Now(),
