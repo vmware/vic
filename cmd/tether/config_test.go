@@ -18,15 +18,9 @@ import (
 	"net"
 	"testing"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
-)
-
-var (
-	localhost, lmask, _ = net.ParseCIDR("127.0.0.2/24")
-	gateway, gmask, _   = net.ParseCIDR("127.0.0.1/24")
 )
 
 func TestToExtraConfig(t *testing.T) {
@@ -55,11 +49,11 @@ func TestToExtraConfig(t *testing.T) {
 		},
 		Networks: map[string]metadata.NetworkEndpoint{
 			"eth0": metadata.NetworkEndpoint{
-				IP:  net.IPNet{IP: localhost, Mask: lmask.Mask},
+				IP:  net.IPNet{IP: net.IP("127.0.0.2"), Mask: net.IPMask("255.255.255.0")},
 				MAC: "a-mac-address",
 				Network: metadata.ContainerNetwork{
 					Name:        "notsure",
-					Gateway:     net.IPNet{IP: gateway, Mask: gmask.Mask},
+					Gateway:     net.IPNet{IP: net.IP("127.0.0.1"), Mask: net.IPMask("255.255.255.0")},
 					Nameservers: []net.IP{},
 				},
 			},
@@ -67,23 +61,12 @@ func TestToExtraConfig(t *testing.T) {
 	}
 
 	// encode metadata package's ExecutorConfig
-	encoded := map[string]string{}
-	extraconfig.Encode(extraconfig.MapSink(encoded), exec)
-
+	encoded := extraconfig.Encode(exec)
 	// decode into this package's ExecutorConfig
 	var decoded ExecutorConfig
-	extraconfig.DecodeLogLevel = log.DebugLevel
-	extraconfig.Decode(extraconfig.MapSource(encoded), &decoded)
+	extraconfig.Decode(extraconfig.OptionValueSource(encoded), &decoded)
 
-	// the networks should be identical
+	assert.Equal(t, exec.Sessions["deadbeef"], *(decoded.Sessions["deadbeef"]))
+	assert.Equal(t, exec.Sessions["beefed"], *(decoded.Sessions["beefed"]))
 	assert.Equal(t, exec.Networks["eth0"], *(decoded.Networks["eth0"]))
-
-	// the source and destination structs are different - we're doing a sparse comparison
-	expected := exec.Sessions["deadbeef"]
-	actual := *decoded.Sessions["deadbeef"]
-
-	assert.Equal(t, expected.Cmd.Path, actual.Cmd.Path)
-	assert.Equal(t, expected.Cmd.Args, actual.Cmd.Args)
-	assert.Equal(t, expected.Cmd.Dir, actual.Cmd.Dir)
-	assert.Equal(t, expected.Cmd.Env, actual.Cmd.Env)
 }
