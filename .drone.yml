@@ -101,6 +101,7 @@ build:
       - cp $BIN/appliance.iso $BIN_TEMP_DIR
       - cp $BIN/bootstrap.iso $BIN_TEMP_DIR
       - tar czvf $BIN/vic_$$BUILD_NUMBER.tar.gz -C $BIN vic
+      - shasum -a 256 $BIN/vic_$$BUILD_NUMBER.tar.gz
     when:
       success: true
 
