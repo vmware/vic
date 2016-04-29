@@ -19,9 +19,9 @@ Project Bonneville was research aimed at determining best approaches to enabling
 
 ## Installing
 
-Once built, the result can be installed with the following command. This is just an example - see the install help output for all options, and a slightly more indepth example [here](usage.md):
+Once built, the result can be installed with the following command. This is just an example - see the vic-machine help output for all options, and a slightly more indepth example [here](usage.md):
 ```
-install.sh -g -t '<user>:<password>@<target-host>' -i <datastore-name> <vch-name>
+/vic-machine -target target-host -image-store <datastore name> -name <vch-name> -user root -passwd <password> -compute-resource <resource pool path in govc format> -generate-cert
 ```
 
 Starting a container currently requires the container metadata be specified on the command line (environment, working directory, and absolute path to the command) as the image metadata parsing is still in progress (#195, #411). Container output is found in a log file on the datastore ([datastore]/containerid/containerid.log).

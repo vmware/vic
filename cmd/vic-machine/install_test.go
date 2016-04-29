@@ -35,7 +35,7 @@ func TestImageNotFound(t *testing.T) {
 
 	defer os.Remove(tmpfile.Name()) // clean up
 
-	os.Args = []string{"cmd", fmt.Sprintf("-appIso=%s", tmpfile.Name())}
+	os.Args = []string{"cmd", fmt.Sprintf("-appliance-iso=%s", tmpfile.Name())}
 	flag.Parse()
 	data.osType = "linux"
 	data.conf = configuration.NewConfig()
@@ -59,7 +59,7 @@ func TestImageChecks(t *testing.T) {
 	}
 	defer os.Remove("appliance.iso")
 
-	os.Args = []string{"cmd", fmt.Sprintf("-bootIso=%s", tmpfile.Name())}
+	os.Args = []string{"cmd", fmt.Sprintf("-bootstrap-iso=%s", tmpfile.Name())}
 	flag.Parse()
 	data.applianceISO = ""
 	data.osType = "linux"
