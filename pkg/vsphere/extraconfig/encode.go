@@ -166,12 +166,11 @@ func encodeSlice(sink DataSink, src reflect.Value, prefix string, depth recursio
 		for i := 0; i < length; i++ {
 			values[i] = toString(src.Index(i))
 		}
-
-		// convert key to name|index format
-		key := fmt.Sprintf("%s~", prefix)
-		err := sink(key, strings.Join(values, "|"))
-		if err != nil {
-			log.Errorf("Failed to encode slice data for key %s: %s", key, err)
+		// set the slice key with the values seperated by |
+		if len(values) > 0 {
+			// sort the values before joining
+			// prefix~ contains the items
+			config = append(config, &types.OptionValue{Key: fmt.Sprintf("%s~", prefix), Value: strings.Join(values, "|")})
 		}
 
 	} else {
