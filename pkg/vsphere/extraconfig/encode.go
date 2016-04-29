@@ -16,6 +16,7 @@ package extraconfig
 
 import (
 	"fmt"
+	"net"
 	"reflect"
 	"sort"
 	"strconv"
@@ -252,6 +253,9 @@ func encodeWithPrefix(src interface{}, prefix string) []types.BaseOptionValue {
 				switch field.Interface().(type) {
 				case time.Time:
 					config = append(config, &types.OptionValue{Key: key, Value: field.Interface().(time.Time).String()})
+				case net.IPNet:
+					n := field.Interface().(net.IPNet)
+					config = append(config, &types.OptionValue{Key: key, Value: n.String()})
 				default:
 					config = append(config, encodeWithPrefix(field.Interface(), key)...)
 				}
@@ -287,6 +291,9 @@ func encodeWithPrefix(src interface{}, prefix string) []types.BaseOptionValue {
 				switch field.Elem().Interface().(type) {
 				case time.Time:
 					config = append(config, &types.OptionValue{Key: key, Value: field.Interface().(*time.Time).String()})
+				case net.IPNet:
+					n := field.Interface().(*net.IPNet)
+					config = append(config, &types.OptionValue{Key: key, Value: n.String()})
 				default:
 					// follow the pointer and recurse
 					config = append(config, encodeWithPrefix(field.Elem().Interface(), key)...)
