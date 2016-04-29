@@ -177,7 +177,6 @@ func encodeWithPrefix(src interface{}, prefix string) []types.BaseOptionValue {
 		// set the slice key with the values seperated by |
 		if len(values) > 0 {
 			// sort the values before joining
-			sort.Strings(values)
 			// prefix~ contains the items
 			config = append(config, &types.OptionValue{Key: fmt.Sprintf("%s~", prefix), Value: strings.Join(values, "|")})
 		}
