@@ -22,6 +22,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
 )
 
 type ServiceInstance struct {
@@ -50,6 +51,10 @@ func NewServiceInstance(content types.ServiceContent, folder mo.Folder) *Service
 	} else {
 		// ESX defaults
 		Map.Put(folder)
+
+		dc := esx.Datacenter
+		createDatacenterFolders(&dc, false)
+		Map.PutEntity(&folder, &dc)
 	}
 
 	objects := []object.Reference{

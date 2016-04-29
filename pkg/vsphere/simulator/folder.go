@@ -84,6 +84,8 @@ func (f *Folder) CreateDatacenter(c *types.CreateDatacenter) soap.HasFault {
 
 		f.putChild(dc)
 
+		createDatacenterFolders(dc, true)
+
 		r.Res = &types.CreateDatacenterResponse{
 			Returnval: dc.Self,
 		}
