@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"runtime/trace"
 	"sync"
 	"time"
 
@@ -76,6 +77,7 @@ type ImageCOptions struct {
 	resolv     bool
 
 	profiling string
+	tracing   bool
 }
 
 // ImageWithMeta wraps the models.Image with some additional metadata
@@ -141,6 +143,7 @@ func init() {
 	flag.BoolVar(&options.resolv, "resolv", false, i18n.T("Return the name of the vmdk from given reference"))
 
 	flag.StringVar(&options.profiling, "profile.mode", "", i18n.T("Enable profiling mode, one of [cpu, mem, block]"))
+	flag.BoolVar(&options.tracing, "tracing", false, i18n.T("Enable runtime tracing"))
 
 	flag.Parse()
 }
@@ -376,6 +379,20 @@ func main() {
 		defer profile.Start(profile.BlockProfile, profile.ProfilePath("."), profile.Quiet).Stop()
 	default:
 		// do nothing
+	}
+
+	// Enable runtime tracing if tracing is true
+	if options.tracing {
+		tracing, err := os.Create(time.Now().Format("2006-01-02T150405.pprof"))
+		if err != nil {
+			log.Fatalf("Failed to create tracing logfile: %s", err)
+		}
+		defer tracing.Close()
+
+		if err := trace.Start(tracing); err != nil {
+			log.Fatalf("Failed to start tracing: %s", err)
+		}
+		defer trace.Stop()
 	}
 
 	// Open the log file
