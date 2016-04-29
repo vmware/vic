@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package attach
 
 import (
 	"errors"
@@ -21,6 +21,10 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
+)
+
+const (
+	attachChannelType = "attach"
 )
 
 type SessionInteraction interface {
@@ -32,6 +36,7 @@ type SessionInteraction interface {
 	Stderr() io.Reader
 	// Stdin stream
 	Stdin() io.WriteCloser
+	Close() error
 }
 
 type attachSSH struct {
@@ -42,14 +47,17 @@ type attachSSH struct {
 }
 
 func SSHls(client *ssh.Client) ([]string, error) {
-	ok, reply, err := client.SendRequest("container-ids", true, nil)
+	ok, reply, err := client.SendRequest(requestContainerIDs, true, nil)
 	if !ok || err != nil {
 		detail := fmt.Sprintf("failed to get container IDs from remote: %s", err)
 		log.Error(detail)
 		return nil, errors.New(detail)
 	}
 
-	ids := stringArrayMsg{}
+	ids := struct {
+		Strings []string
+	}{}
+
 	err = ssh.Unmarshal(reply, &ids)
 	if err != nil {
 		detail := fmt.Sprintf("failed to unmarshall ids from remote: %s", err)
@@ -99,4 +107,8 @@ func (t *attachSSH) Stderr() io.Reader {
 
 func (t *attachSSH) Stdin() io.WriteCloser {
 	return t.channel
+}
+
+func (t *attachSSH) Close() error {
+	return t.channel.Close()
 }

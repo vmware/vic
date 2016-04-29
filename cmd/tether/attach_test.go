@@ -32,6 +32,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/portlayer/attach"
 )
 
 func addKey(config *metadata.ExecutorConfig) (*metadata.ExecutorConfig, error) {
@@ -141,7 +142,7 @@ func TestAttach(t *testing.T) {
 
 	attachClient := ssh.NewClient(sshConn, chans, reqs)
 
-	sshSession, err := SSHAttach(attachClient, testConfig.ID)
+	sshSession, err := attach.SSHAttach(attachClient, testConfig.ID)
 	if err != nil {
 		t.Error(err)
 		return
@@ -263,7 +264,7 @@ func TestAttachTTY(t *testing.T) {
 	defer sConn.Close()
 	client := ssh.NewClient(sConn, chans, reqs)
 
-	session, err := SSHAttach(client, testConfig.ID)
+	session, err := attach.SSHAttach(client, testConfig.ID)
 	if err != nil {
 		t.Error(err)
 		return
@@ -404,7 +405,7 @@ func TestAttachTwo(t *testing.T) {
 	defer sConn.Close()
 	client := ssh.NewClient(sConn, chans, reqs)
 
-	ids, err := SSHls(client)
+	ids, err := attach.SSHls(client)
 	if err != nil {
 		t.Error(err)
 		return
@@ -425,13 +426,13 @@ func TestAttachTwo(t *testing.T) {
 		delete(reference.Sessions, id)
 	}
 
-	sessionA, err := SSHAttach(client, "tee1")
+	sessionA, err := attach.SSHAttach(client, "tee1")
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sessionB, err := SSHAttach(client, "tee2")
+	sessionB, err := attach.SSHAttach(client, "tee2")
 	if err != nil {
 		t.Error(err)
 		return
@@ -567,7 +568,7 @@ func TestAttachInvalid(t *testing.T) {
 	defer sConn.Close()
 	client := ssh.NewClient(sConn, chans, reqs)
 
-	_, err = SSHAttach(client, "invalidID")
+	_, err = attach.SSHAttach(client, "invalidID")
 	if err != nil {
 		t.Log(err)
 		return
