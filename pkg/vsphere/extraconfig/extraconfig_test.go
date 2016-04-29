@@ -90,6 +90,7 @@ type SessionConfig struct {
 // make it verbose during testing
 func init() {
 	DecodeLogLevel = log.DebugLevel
+	EncodeLogLevel = log.DebugLevel
 }
 
 func TestBasic(t *testing.T) {
