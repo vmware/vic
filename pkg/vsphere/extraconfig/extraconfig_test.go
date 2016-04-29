@@ -15,6 +15,7 @@
 package extraconfig
 
 import (
+	"net"
 	"net/url"
 	"os/exec"
 	"testing"
@@ -253,6 +254,50 @@ func TestTime(t *testing.T) {
 	Decode(encoded, &decoded)
 
 	assert.Equal(t, Time, decoded, "Encoded and decoded does not match")
+}
+
+func TestNet(t *testing.T) {
+	type Type struct {
+		Net net.IPNet `vic:"0.1" scope:"read-only" key:"net"`
+	}
+
+	_, n, _ := net.ParseCIDR("127.0.0.1/8")
+	Net := Type{
+		Net: *n,
+	}
+
+	encoded := Encode(Net)
+	expected := []types.BaseOptionValue{
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/net", Value: "127.0.0.0/8"},
+	}
+	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
+
+	var decoded Type
+	Decode(encoded, &decoded)
+
+	assert.Equal(t, Net, decoded, "Encoded and decoded does not match")
+}
+
+func TestNetPointer(t *testing.T) {
+	type Type struct {
+		Net *net.IPNet `vic:"0.1" scope:"read-only" key:"net"`
+	}
+
+	_, n, _ := net.ParseCIDR("127.0.0.1/8")
+	Net := Type{
+		Net: n,
+	}
+
+	encoded := Encode(Net)
+	expected := []types.BaseOptionValue{
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/net", Value: "127.0.0.0/8"},
+	}
+	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
+
+	var decoded Type
+	Decode(encoded, &decoded)
+
+	assert.Equal(t, Net, decoded, "Encoded and decoded does not match")
 }
 
 func TestTimePointer(t *testing.T) {

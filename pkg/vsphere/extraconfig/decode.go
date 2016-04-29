@@ -16,6 +16,7 @@ package extraconfig
 
 import (
 	"fmt"
+	"net"
 	"reflect"
 	"strconv"
 	"strings"
@@ -154,6 +155,12 @@ func decodeWithPrefix(kv map[string]string, dest interface{}, prefix string) int
 						log.Errorf("Failed to convert value %#v to time: %s", v, err.Error())
 					}
 					field.Set(reflect.ValueOf(t))
+				case net.IPNet:
+					_, n, err := net.ParseCIDR(v)
+					if err != nil {
+						log.Errorf("Failed to convert value %#v to IPNET: %s", v, err.Error())
+					}
+					field.Set(reflect.ValueOf(*n))
 				default:
 					member := reflect.New(field.Type())
 					decodeWithPrefix(kv, member.Interface(), key)
@@ -248,6 +255,12 @@ func decodeWithPrefix(kv map[string]string, dest interface{}, prefix string) int
 							}
 							// set the pointer
 							field.Set(reflect.ValueOf(&t))
+						} else if field.Type().Elem() == reflect.TypeOf(net.IPNet{}) {
+							_, n, err := net.ParseCIDR(v)
+							if err != nil {
+								log.Errorf("Failed to convert value %#v to IPNET: %s", v, err.Error())
+							}
+							field.Set(reflect.ValueOf(n))
 						} else {
 							member := reflect.New(field.Type().Elem())
 
