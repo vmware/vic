@@ -22,29 +22,29 @@ import "net"
 // c. configured - the guestOS can configure the interface correctly
 type NetworkEndpoint struct {
 	// IP addresses to assign - may be empty if DHCP
-	IP net.IPNet
+	IP net.IPNet `vic:"0.1" scope:"read-only" key:"ip"`
 
 	// The MAC address for the vNIC - this allows for interface idenitifcaton in the guest
-	MAC string
+	MAC string `vic:"0.1" scope:"read-only" key:"mac"`
 
 	// The PCI slot for the vNIC - this allows for interface idenitifcaton in the guest
-	PCISlot int32
+	PCISlot int32 `vic:"0.1" scope:"read-only" key:"pcislot"`
 
 	// The network in which this information should be interpreted. This is embedded directly rather than
 	// as a pointer so that we can ensure the data is consistent
-	Network ContainerNetwork
+	Network ContainerNetwork `vic:"0.1" scope:"read-only" key:"network"`
 }
 
 // ContainerNetwork is the data needed on a per container basis both for vSphere to ensure it's attached
 // to the correct network, and in the guest to ensure the interface is correctly configured.
 type ContainerNetwork struct {
 	// The symbolic name of the network
-	Name string
+	Name string `vic:"0.1" scope:"read-only" key:"name"`
 
 	// The network scope the IP belongs to.
 	// The IP address is the default gateway
-	Gateway net.IPNet
+	Gateway net.IPNet `vic:"0.1" scope:"read-only" key:"gateway"`
 
 	// The set of nameservers associated with this network - may be empty
-	Nameservers []net.IP
+	Nameservers []net.IP `vic:"0.1" scope:"read-only" key:"dns"`
 }
