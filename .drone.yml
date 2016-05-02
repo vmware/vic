@@ -122,7 +122,7 @@ publish:
         type: executable
         repository: vic-repo
         package: build
-        version: 0.1
+        version: $$BUILD_NUMBER
         target: vic_$$BUILD_NUMBER.tar.gz
         publish: true
     when:
