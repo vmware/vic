@@ -114,7 +114,7 @@ func processParams() {
 	}
 
 	if data.target == "" {
-		log.Errorf("Target argument must be specified")
+		log.Errorf("-target argument must be specified")
 		flag.Usage()
 	}
 
@@ -124,12 +124,12 @@ func processParams() {
 	}
 
 	if data.computeResourcePath == "" {
-		log.Errorf("-pool Compute resource path must be specified")
+		log.Errorf("-compute-resource Compute resource path must be specified")
 		flag.Usage()
 	}
 
 	if data.imageDatastoreName == "" {
-		log.Errorf("-iStore Image datastore name must be specified")
+		log.Errorf("-image-store Image datastore name must be specified")
 		flag.Usage()
 	}
 
