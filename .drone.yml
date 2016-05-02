@@ -17,7 +17,6 @@ build:
       VIC_ESX_TEST_URL: $$VIC_ESX_TEST_URL
     commands:
       - make components
-      - make install
       - make vic-machine
 
   iso-base:
@@ -96,7 +95,6 @@ build:
       - mkdir $BIN_TEMP_DIR
       - cp LICENSE $BIN_TEMP_DIR
       - cp README $BIN_TEMP_DIR
-      - cp $BIN/install.sh $BIN_TEMP_DIR
       - cp $BIN/vic-machine $BIN_TEMP_DIR
       - cp $BIN/appliance.iso $BIN_TEMP_DIR
       - cp $BIN/bootstrap.iso $BIN_TEMP_DIR
