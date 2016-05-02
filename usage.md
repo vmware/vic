@@ -8,45 +8,45 @@ Installation will be required for capabilities such as [self-provisioning](doc/d
 
 ### Requirements
 
-The first three requirements derive from a placeholder install script. These will be addressed in #121.
+- ESXi/vCenter - the target virtualization environment.
+   - ESXi - Enterprise license
+   - vCenter - Enterprise plus license, only very simple configurations have been tested. 
+- DHCP - the VCH currently requires there be DHCP on the external network (-external-network flag if not "VM Network")
+- Bridge network - when installed in a vCenter environment vic-machine does not automatically create a bridge network. An existing vSwitch or Distributed Portgroup should be specified via the -bridge-network flag, and should not be the same as the external network.
 
-1. bash - deploying a Virtual Container Host is currently done with an install script written in `bash`
-2. govc - [These directions](https://github.com/vmware/govmomi/tree/master/govc#govc) instruct how to install `govc` - release 0.5.0
-3. ESX - while this can and will function against vCenter, the placeholder installation script doesn't handle distributed port groups at this time
-4. DHCP - the VCH currently requires there be DHCP on the external network (-e flag if not "VM Network")
+Replace the `<fields>` in the example with values specific to your environment - this will install VCH to the specified resource pool of ESXi or vCenter, and the container VMs will be created under that resource pool. Bug #539 is tracking the container VM creation issue.
 
+Here is one resource pool path sample: /ha-datacenter/host/localhost/Resources/test 
+-generate-cert flag is to generate certificates and configure TLS
+-force flag is to remove an existing datastore folder or VM with the same name:
 
-Replace the `<fields>` in the example with values specific to your environment - this will install to the top-level resource pool of the host (specify -g to generate certificates and configure TLS). Add -f to remove an existing folder or VM with the same name:
 ```
-bin/install.sh -g -t '<user>:<password>@<target-host>' -i <datastore-name> <vch-name>
+/vic-machine -target target-host -image-store <datastore name> -name <vch-name> -user root -passwd <password> -compute-resource <resource pool path in govc format> -generate-cert
 ```
 This will, if successful, produce output similar to the following:
 ```
-# Generating certificate/key pair - private key in vch-name-key.pem
-# Logging into the target
-# Uploading ISOs
-[02-04-16 23:16:55] Uploading... OK
-[02-04-16 23:16:58] Uploading... OK
-# Creating vSwitch
-# Creating Portgroup
-# Creating the Virtual Container Host appliance
-# Adding network interfaces
-# Setting component configuration
-# Configuring TLS server
-# Powering on the Virtual Container Host
-# Setting network identities
-# Waiting for IP information
-#
-# SSH to appliance (default=root:password)
-# root@x.x.x.x
-#
-# Log server:
-# https://x.x.x.x:2378
-#
-# Connect to docker:
-# docker -H x.x.x.x:2376 --tls --tlscert='vch-name-cert.pem' --tlskey='vch-name-key.pem'
-DOCKER_OPTS="--tls --tlscert='vch-name-cert.pem' --tlskey='vch-name-key.pem'"
-DOCKER_HOST=x.x.x.x:2376
+INFO[2016-04-29T20:17:21-05:00] ### Installing VCH ####                      
+INFO[2016-04-29T20:17:21-05:00] Generating certificate/key pair - private key in ./vch-name-key.pem 
+INFO[2016-04-29T20:17:21-05:00] Validating supplied configuration            
+INFO[2016-04-29T20:17:34-05:00] Creating a Resource Pool                     
+INFO[2016-04-29T20:17:36-05:00] Creating VirtualSwitch                       
+INFO[2016-04-29T20:17:36-05:00] Creating Portgroup                           
+INFO[2016-04-29T20:17:37-05:00] Creating appliance on target                 
+INFO[2016-04-29T20:17:41-05:00] Uploading images for container               
+INFO[2016-04-29T20:17:41-05:00] 	bootstrap.iso 
+INFO[2016-04-29T20:17:41-05:00] 	appliance.iso 
+INFO[2016-04-29T20:19:15-05:00] Waiting for IP information                   
+INFO[2016-04-29T20:19:33-05:00] Initialization of appliance successful       
+INFO[2016-04-29T20:19:33-05:00]                                              
+INFO[2016-04-29T20:19:33-05:00] SSH to appliance (default=root:password)     
+INFO[2016-04-29T20:19:33-05:00] ssh root@x.x.x.x                        
+INFO[2016-04-29T20:19:33-05:00]                                              
+INFO[2016-04-29T20:19:33-05:00] Log server:                                  
+INFO[2016-04-29T20:19:33-05:00] https://x.x.x.x:2378                    
+INFO[2016-04-29T20:19:33-05:00]                                              
+INFO[2016-04-29T20:19:33-05:00] Connect to docker:                           
+INFO[2016-04-29T20:19:33-05:00] docker -H x.x.x.x:2376 --tls --tlscert='./vch-name-cert.pem' --tlskey='./vch-name-key.pem' info 
+INFO[2016-04-29T20:19:33-05:00] Installer completed successfully...          
 ```
 
 

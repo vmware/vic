@@ -65,8 +65,6 @@ bootstrap-staging-debug := $(BIN)/bootstrap-staging-debug.tgz
 bootstrap-debug := $(BIN)/bootstrap-debug.iso
 iso-base := $(BIN)/iso-base.tgz
 
-install := $(BIN)/install.sh
-
 go-lint := $(BIN)/.golint
 go-imports := $(BIN)/.goimports
 
@@ -90,7 +88,6 @@ bootstrap-staging: $(bootstrap-staging)
 bootstrap-debug: $(bootstrap-debug)
 bootstrap-staging-debug: $(bootstrap-staging-debug)
 iso-base: $(iso-base)
-install: $(install)
 vic-machine: $(vic-machine)
 
 swagger: $(SWAGGER)
@@ -100,7 +97,7 @@ goimports: $(go-imports)
 
 
 # convenience targets
-all: components tethers isos install vic-machine
+all: components tethers isos vic-machine
 tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) goversion
 check: goversion goimports govet golint copyright whitespace
 apiservers: $(portlayerapi) $(docker-engine-api)
@@ -284,10 +281,6 @@ $(bootstrap-staging): isos/bootstrap-staging.sh $(iso-base)
 $(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base)
 	@echo staging debug for bootstrap
 	@$< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@ -d true
-
-$(install): install/install.sh
-	@echo Building installer
-	@cp $< $@
 
 $(vic-machine): cmd/vic-machine/*.go install/**
 	@echo building vic-machine...
