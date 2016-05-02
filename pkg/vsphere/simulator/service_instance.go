@@ -22,12 +22,8 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
 )
-
-type ServiceInstanceReference interface {
-	object.Reference
-	Handlers() []object.Reference
-}
 
 type ServiceInstance struct {
 	mo.ServiceInstance
@@ -38,22 +34,41 @@ var serviceInstance = types.ManagedObjectReference{
 	Value: "ServiceInstance",
 }
 
-func NewServiceInstance(content types.ServiceContent) ServiceInstanceReference {
+func NewServiceInstance(content types.ServiceContent, folder mo.Folder) *ServiceInstance {
+	Map = NewRegistry()
+
 	s := &ServiceInstance{}
 
 	s.Self = serviceInstance
 	s.Content = content
 
+	Map.Put(s)
+
+	if content.About.ApiType == "VirtualCenter" {
+		// Folder methods are only supported by VC
+		f := &Folder{Folder: folder}
+		Map.Put(f)
+	} else {
+		// ESX defaults
+		Map.Put(folder)
+
+		dc := esx.Datacenter
+		createDatacenterFolders(&dc, false)
+		Map.PutEntity(&folder, &dc)
+	}
+
+	objects := []object.Reference{
+		NewSessionManager(*s.Content.SessionManager),
+	}
+
+	for _, o := range objects {
+		Map.Put(o)
+	}
+
 	return s
 }
 
-func (s *ServiceInstance) Handlers() []object.Reference {
-	return []object.Reference{
-		NewSessionManager(*s.Content.SessionManager),
-	}
-}
-
-func (s *ServiceInstance) RetrieveServiceContent(types.AnyType) soap.HasFault {
+func (s *ServiceInstance) RetrieveServiceContent(*types.RetrieveServiceContent) soap.HasFault {
 	return &methods.RetrieveServiceContentBody{
 		Res: &types.RetrieveServiceContentResponse{
 			Returnval: s.Content,
@@ -61,7 +76,7 @@ func (s *ServiceInstance) RetrieveServiceContent(types.AnyType) soap.HasFault {
 	}
 }
 
-func (*ServiceInstance) CurrentTime(types.AnyType) soap.HasFault {
+func (*ServiceInstance) CurrentTime(*types.CurrentTime) soap.HasFault {
 	return &methods.CurrentTimeBody{
 		Res: &types.CurrentTimeResponse{
 			Returnval: time.Now(),

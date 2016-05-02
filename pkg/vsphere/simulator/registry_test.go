@@ -15,39 +15,36 @@
 package simulator
 
 import (
-	"time"
+	"testing"
 
-	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
-	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-type SessionManager struct {
-	mo.SessionManager
-}
+func TestRegistry(t *testing.T) {
+	r := NewRegistry()
 
-func NewSessionManager(ref types.ManagedObjectReference) object.Reference {
-	s := &SessionManager{}
-	s.Self = ref
-	return s
-}
+	ref := types.ManagedObjectReference{Type: "Test", Value: "Test"}
+	f := &mo.Folder{}
+	f.Self = ref
+	r.PutEntity(nil, f)
 
-func (s *SessionManager) Login(login *types.Login) soap.HasFault {
-	body := &methods.LoginBody{}
+	e := r.Get(ref)
 
-	if login.UserName == "" || login.Password == "" {
-		body.Fault_ = Fault("Login failure", &types.InvalidLogin{})
-	} else {
-		body.Res = &types.LoginResponse{
-			Returnval: types.UserSession{
-				UserName:  login.UserName,
-				FullName:  login.UserName,
-				LoginTime: time.Now(),
-			},
-		}
+	if e.Reference() != ref {
+		t.Error()
 	}
 
-	return body
+	r.Remove(ref)
+
+	if r.Get(ref) != nil {
+		t.Error()
+	}
+
+	r.Put(e)
+	e = r.Get(ref)
+
+	if e.Reference() != ref {
+		t.Error()
+	}
 }
