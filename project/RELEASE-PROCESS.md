@@ -18,22 +18,25 @@ http://semver.org/
 
 ## Example VIC Versions
 Major revisions:
-	v1.0.0-beta1
-	v1.0.0-beta2
-	v1.0.0-beta
-	v1.0.0
-	v2.0.0-alpha
-	v2.0.0-beta
-	v2.0.0
+
+    v1.0.0-beta1
+    v1.0.0-beta2
+    v1.0.0-beta
+    v1.0.0
+    v2.0.0-alpha
+    v2.0.0-beta
+    v2.0.0
 
 Minor revisions:
-	v1.1.0-beta
-	v1.1.0
-	v2.2.0
+
+    v1.1.0-beta
+    v1.1.0
+    v2.2.0
 
 Update or patch revisions:
-	v1.12.1
-	v1.12.20
+
+    v1.12.1
+    v1.12.20
 
 ## Release details
 
