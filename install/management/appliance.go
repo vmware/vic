@@ -170,8 +170,9 @@ func (d *Dispatcher) createApplianceSpec(conf *configuration.Configuration) (*ty
 			&types.OptionValue{Key: "guestinfo.vch/components", Value: "/sbin/docker-engine-server /sbin/port-layer-server /sbin/vicadmin"},
 			&types.OptionValue{Key: "guestinfo.vch/sbin/imagec", Value: "-debug -logfile=/var/log/vic/imagec.log -insecure"},
 			&types.OptionValue{Key: "guestinfo.vch/sbin/port-layer-server",
-				Value: fmt.Sprintf("--host=localhost --port=8080 --insecure --sdk=%s --datacenter=%s --cluster=%s --pool=%s --datastore=%s --network=%s --vch=%s",
-					conf.TargetPath, conf.DatacenterName, conf.ClusterPath, conf.ResourcePoolPath, conf.ImageStorePath, conf.ExtenalNetworkPath, conf.DisplayName)},
+				Value: fmt.Sprintf("--host=localhost --port=8080 --insecure --sdk=%s --datacenter=%s --cluster=%s --pool=%s/%s --datastore=%s --network=%s --vch=%s",
+					conf.TargetPath, conf.DatacenterName, conf.ClusterPath, conf.ResourcePoolPath, conf.DisplayName,
+					conf.ImageStorePath, conf.ExtenalNetworkPath, conf.DisplayName)},
 		},
 		DeviceChange: []types.BaseVirtualDeviceConfigSpec{
 			&types.VirtualDeviceConfigSpec{
