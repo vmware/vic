@@ -48,6 +48,12 @@ publishClientIP() {
     echo "Publishing client IP: $ip"
     rpctool -set IpAddress ${ip}
     rpctool -set vch.clientip ${ip}
+
+    echo "${ip} client.localhost" >> /etc/hosts
+    if [ -d /sys/class/net/management ] ; then
+        ip=$(ip addr show dev management | grep "inet " | tr -s ' ' | cut -d ' ' -f 3 | cut -d '/' -f 1)
+    fi
+    echo "${ip} management.localhost" >> /etc/hosts
 }
 
 # args:

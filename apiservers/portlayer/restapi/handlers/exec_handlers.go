@@ -16,9 +16,7 @@ package handlers
 
 import (
 	"fmt"
-	"math/rand"
 	"net"
-	"strings"
 
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/stringid"
@@ -33,12 +31,10 @@ import (
 	"github.com/vmware/vic/apiservers/portlayer/restapi/options"
 	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/pkg/vsphere/spec"
-	"github.com/vmware/vic/pkg/vsphere/tasks"
-	"github.com/vmware/vic/pkg/vsphere/vm"
 	"github.com/vmware/vic/portlayer/network"
+
+	executor "github.com/vmware/vic/portlayer/exec"
 )
 
 // ExecHandlersImpl is the receiver for all of the exec handler methods
@@ -48,10 +44,6 @@ type ExecHandlersImpl struct {
 
 var (
 	execSession = &session.Session{}
-)
-
-const (
-	serialOverLANPort = 2377
 )
 
 // Configure assigns functions to all the exec api handlers
@@ -143,31 +135,17 @@ func (handler *ExecHandlersImpl) addContainerToScope(name string, ns *models.Net
 func (handler *ExecHandlersImpl) ContainerCreateHandler(params exec.ContainerCreateParams) middleware.Responder {
 	defer trace.End(trace.Begin("ContainerCreate"))
 
-	var err error
-	var name string
-	session := execSession
-
 	ctx := context.Background()
 
-	log.Debugf("Path: %#v", params.CreateConfig.Path)
-	log.Debugf("Args: %#v", params.CreateConfig.Args)
-	log.Debugf("Env: %#v", params.CreateConfig.Env)
-	log.Debugf("WorkingDir: %#v", params.CreateConfig.WorkingDir)
-
+	// FIXME: Move id/name creation into personality
 	id := stringid.GenerateNonCryptoID()
+
+	var name string
 	// Autogenerate a name if client doesn't specify one
 	if params.Name == nil {
 		name = namesgenerator.GetRandomName(0)
 	} else {
 		name = *params.Name
-	}
-
-	// create and fill the metadata.Cmd struct
-	cmd := metadata.Cmd{
-		Env:  params.CreateConfig.Env,
-		Dir:  *params.CreateConfig.WorkingDir,
-		Path: *params.CreateConfig.Path,
-		Args: append([]string{*params.CreateConfig.Path}, params.CreateConfig.Args...),
 	}
 
 	m := metadata.ExecutorConfig{
@@ -183,7 +161,12 @@ func (handler *ExecHandlersImpl) ContainerCreateHandler(params exec.ContainerCre
 				Tty: false,
 				// FIXME: default to true for now until we can have a more sophisticated approach
 				Attach: true,
-				Cmd:    cmd,
+				Cmd: metadata.Cmd{
+					Env:  params.CreateConfig.Env,
+					Dir:  *params.CreateConfig.WorkingDir,
+					Path: *params.CreateConfig.Path,
+					Args: append([]string{*params.CreateConfig.Path}, params.CreateConfig.Args...),
+				},
 			},
 		},
 		Networks: make(map[string]metadata.NetworkEndpoint),
@@ -206,62 +189,28 @@ func (handler *ExecHandlersImpl) ContainerCreateHandler(params exec.ContainerCre
 		m.Networks[ne.Network.Name] = *ne
 	}
 
-	specconfig := &spec.VirtualMachineConfigSpecConfig{
-		// FIXME: hardcoded values
-		NumCPUs:  2,
-		MemoryMB: 2048,
-		// FIXME: hardcoded value
-		ConnectorURI: fmt.Sprintf("tcp://%s:%d", "127.0.0.1", serialOverLANPort),
-
-		// They will be redundant with the Metadata
-		ID:   id,
-		Name: name,
-
-		ParentImageID: *params.CreateConfig.Image,
-
-		// FIXME: hardcoded value
-		BootMediaPath: session.Datastore.Path(fmt.Sprintf("%s/bootstrap.iso", options.PortLayerOptions.VCHName)),
-		VMPathName:    fmt.Sprintf("[%s]", session.Datastore.Name()),
-		NetworkName:   strings.Split(session.Network.Reference().Value, "-")[1],
-
-		ImageStoreName: params.CreateConfig.ImageStore.Name,
-
+	// Create the executor.ExecutorCreateConfig
+	c := &executor.ExecutorCreateConfig{
 		Metadata: m,
-	}
-	log.Debugf("Config: %#v", specconfig)
 
-	// Create a linux guest
-	linux, err := guest.NewLinuxGuest(ctx, session, specconfig)
-	if err != nil {
-		return exec.NewContainerCreateNotFound().WithPayload(&models.Error{Message: fmt.Sprintf("Error constructing container vm specification: %s", err)})
+		ParentImageID:  *params.CreateConfig.Image,
+		ImageStoreName: params.CreateConfig.ImageStore.Name,
+		VCHName:        options.PortLayerOptions.VCHName,
 	}
 
-	// Find the Virtual Machine folder that we use
-	folders, err := session.Datacenter.Folders(ctx)
+	// Create new portlayer executor and call Create on it
+	executor, err := executor.NewExecutor(ctx, execSession)
 	if err != nil {
 		return exec.NewContainerCreateNotFound().WithPayload(&models.Error{Message: err.Error()})
 	}
-	parent := folders.VmFolder
-
-	// FIXME: Replace this simple logic with DRS placement
-	// Pick a random host
-	hosts, err := session.Datastore.AttachedClusterHosts(ctx, session.Cluster)
-	if err != nil {
-		return exec.NewContainerCreateNotFound().WithPayload(&models.Error{Message: err.Error()})
-	}
-	host := hosts[rand.Intn(len(hosts))]
-
-	// Create the vm
-	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return parent.CreateVM(ctx, *linux.Spec(), session.Pool, host)
-	})
+	err = executor.Create(ctx, c)
 	if err != nil {
 		return exec.NewContainerCreateNotFound().WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	//  send the container id back
+	//  send the container id back to the caller
 	payload := &models.ContainerCreatedInfo{
-		ContainerID: &specconfig.ID,
+		ContainerID: &id,
 	}
 	return exec.NewContainerCreateOK().WithPayload(payload)
 
@@ -271,21 +220,17 @@ func (handler *ExecHandlersImpl) ContainerCreateHandler(params exec.ContainerCre
 func (handler *ExecHandlersImpl) ContainerStartHandler(params exec.ContainerStartParams) middleware.Responder {
 	defer trace.End(trace.Begin("ContainerStart"))
 
-	session := execSession
 	ctx := context.Background()
 
-	foundvm, err := session.Finder.VirtualMachine(ctx, params.ID)
+	c := &executor.ExecutorStartConfig{
+		ID: params.ID,
+	}
+	// Create new portlayer executor and call Start on it
+	executor, err := executor.NewExecutor(ctx, execSession)
 	if err != nil {
 		return exec.NewContainerCreateNotFound().WithPayload(&models.Error{Message: err.Error()})
 	}
-
-	// Wrap the result with our version of VirtualMachine
-	vm := vm.NewVirtualMachine(ctx, session, foundvm.Reference())
-
-	// Power on
-	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return vm.PowerOn(ctx)
-	})
+	err = executor.Start(ctx, c)
 	if err != nil {
 		return exec.NewContainerCreateNotFound().WithPayload(&models.Error{Message: err.Error()})
 	}
