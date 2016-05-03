@@ -159,6 +159,7 @@ func TestCreateImageLayers(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
+	parent.Metadata = make(map[string][]byte)
 
 	// Keep a list of all files we're extracting via layers so we can verify
 	// they exist in the leaf layer.  Ext adds lost+found, so add it here.
@@ -166,6 +167,7 @@ func TestCreateImageLayers(t *testing.T) {
 
 	// Keep a list of images we created
 	expectedImages := make(map[string]*portlayer.Image)
+	expectedImages[parent.ID] = parent
 
 	for layer := 0; layer < numLayers; layer++ {
 

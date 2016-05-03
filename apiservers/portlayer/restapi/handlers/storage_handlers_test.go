@@ -257,7 +257,6 @@ func TestListImages(t *testing.T) {
 
 	// create a set of images
 	images := make(map[string]*spl.Image)
-	images[spl.Scratch.ID] = &spl.Scratch
 	parent := spl.Scratch
 	parent.Store = &testStoreURL
 	for i := 1; i < 50; i++ {

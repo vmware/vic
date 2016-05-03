@@ -355,9 +355,6 @@ func (v *ImageStore) ListImages(ctx context.Context, store *url.URL, IDs []strin
 		}
 
 		ID := file.Path
-		if ID == portlayer.Scratch.ID {
-			continue
-		}
 
 		img, err := v.GetImage(ctx, store, ID)
 		if err != nil {

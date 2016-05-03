@@ -142,7 +142,6 @@ func (handler *StorageHandlersImpl) ListImages(params storage.ListImagesParams) 
 			})
 	}
 
-	// FIXME(jzt): not populating the cache at startup will result in 404's
 	images, err := storageLayer.ListImages(context.TODO(), u, params.Ids)
 	if err != nil {
 		return storage.NewListImagesNotFound().WithPayload(

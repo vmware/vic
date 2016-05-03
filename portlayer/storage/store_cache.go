@@ -24,6 +24,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/portlayer/util"
 )
 
@@ -70,6 +71,7 @@ func (c *NameLookupCache) GetImageStore(ctx context.Context, storeName string) (
 	// check the cache
 	_, ok := c.storeCache[*store]
 	if !ok {
+		log.Info("Refreshing image cache from datastore.")
 		// Store isn't in the cache.  Look it up in the datastore.
 		storeName, err := util.StoreName(store)
 		if err != nil {
@@ -92,6 +94,7 @@ func (c *NameLookupCache) GetImageStore(ctx context.Context, storeName string) (
 
 		// add the images we retrieved to the cache.
 		for _, v := range images {
+			log.Infof("Found image %s", v.ID)
 			c.storeCache[*store][v.ID] = *v
 		}
 
@@ -190,6 +193,7 @@ func (c *NameLookupCache) GetImage(ctx context.Context, store *url.URL, ID strin
 	i := &Image{}
 	*i, ok = c.storeCache[*store][ID]
 	if !ok {
+		log.Infof("Image %s not in cache, retreiving from datastore", ID)
 		// Not in the cache.  Try to load it.
 		i, err = c.DataStore.GetImage(ctx, store, ID)
 		if err != nil {
@@ -228,6 +232,10 @@ func (c *NameLookupCache) ListImages(ctx context.Context, store *url.URL, IDs []
 		}
 	} else {
 		for _, v := range c.storeCache[*store] {
+			// filter out scratch
+			if v.ID == Scratch.ID {
+				continue
+			}
 			newImage := v
 			imageList = append(imageList, &newImage)
 		}
