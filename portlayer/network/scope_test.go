@@ -66,24 +66,24 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 
 	for _, te := range tests1 {
 		t.Logf("testing name = %s, ip = %v", te.name, te.ip)
-		e, err := s.AddContainer(te.name, te.ip)
+		e, aerr := s.AddContainer(te.name, te.ip)
 		if te.err != nil {
-			if err == nil {
+			if aerr == nil {
 				t.Errorf("s.AddContainer() => (_, nil), want (_, err)")
 				continue
 			}
 
-			if reflect.TypeOf(err) != reflect.TypeOf(te.err) {
-				t.Errorf("s.AddContainer() => (_, %v), want (_, %v)", reflect.TypeOf(err), reflect.TypeOf(te.err))
+			if reflect.TypeOf(aerr) != reflect.TypeOf(te.err) {
+				t.Errorf("s.AddContainer() => (_, %v), want (_, %v)", reflect.TypeOf(aerr), reflect.TypeOf(te.err))
 				continue
 			}
 
 			// for any other error other than DuplicateResourcError
 			// verify that the container was not added
-			if _, ok := err.(DuplicateResourceError); !ok {
-				c, err := s.Container(te.name)
-				if _, ok := err.(ResourceNotFoundError); !ok || c != nil {
-					t.Errorf("s.Container(%s) => (%v, %v), want (nil, err)", te.name, c, err)
+			if _, ok := aerr.(DuplicateResourceError); !ok {
+				c, cerr := s.Container(te.name)
+				if _, ok := cerr.(ResourceNotFoundError); !ok || c != nil {
+					t.Errorf("s.Container(%s) => (%v, %v), want (nil, err)", te.name, c, cerr)
 				}
 			}
 
@@ -122,9 +122,9 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 			t.Errorf("s.endpoints does not contain %v", e)
 		}
 
-		c, err := s.Container(te.name)
-		if err != nil {
-			t.Errorf("s.Container(%s) => (nil, %s), want (c, nil)", te.name, err)
+		c, aerr := s.Container(te.name)
+		if aerr != nil {
+			t.Errorf("s.Container(%s) => (nil, %s), want (c, nil)", te.name, aerr)
 			continue
 		}
 

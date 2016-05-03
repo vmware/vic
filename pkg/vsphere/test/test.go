@@ -42,12 +42,12 @@ func Session(ctx context.Context, t *testing.T) *session.Session {
 		PoolPath:       "/ha-datacenter/host/*/Resources",
 	}
 
-	session, err := session.NewSession(config).Create(ctx)
+	s, err := session.NewSession(config).Create(ctx)
 	if err != nil {
 		t.Errorf("ERROR: %s", err)
 		t.SkipNow()
 	}
-	return session
+	return s
 }
 
 // SpecConfig returns a spec.VirtualMachineConfigSpecConfig struct

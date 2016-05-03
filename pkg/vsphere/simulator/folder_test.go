@@ -84,7 +84,7 @@ func TestFolderVC(t *testing.T) {
 
 		e := o.(mo.Entity).Entity()
 		if *e.Parent != f.Reference() {
-			t.Error()
+			t.Fail()
 		}
 	}
 

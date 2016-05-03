@@ -190,8 +190,8 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) error {
 	h := sha256.New()
 
 	progress.Update(po, image.String(), "Verifying Checksum")
-	if _, err := io.Copy(h, in); err != nil {
-		return err
+	if _, cerr := io.Copy(h, in); cerr != nil {
+		return cerr
 	}
 
 	// Calculate the sum

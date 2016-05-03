@@ -219,15 +219,15 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 	// will be descended from this created and prepared fs.
 	if ID == portlayer.Scratch.ID {
 		// Create the disk
-		vmdisk, err := v.dm.CreateAndAttach(ctx, ImageDiskDsURI, "", defaultDiskSize, os.O_RDWR)
-		if err != nil {
-			return nil, err
+		vmdisk, cerr := v.dm.CreateAndAttach(ctx, ImageDiskDsURI, "", defaultDiskSize, os.O_RDWR)
+		if cerr != nil {
+			return nil, cerr
 		}
 		defer v.dm.Detach(ctx, vmdisk)
 
 		// Make the filesystem and set its label to defaultDiskLabel
-		if err = vmdisk.Mkfs(defaultDiskLabel); err != nil {
-			return nil, err
+		if cerr = vmdisk.Mkfs(defaultDiskLabel); cerr != nil {
+			return nil, cerr
 		}
 	} else {
 
@@ -237,34 +237,34 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 
 		// Create the disk
 		parentDiskDsURI := v.datastorePath(v.imageDiskPath(storeName, parent.ID))
-		vmdisk, err := v.dm.CreateAndAttach(ctx, ImageDiskDsURI, parentDiskDsURI, 0, os.O_RDWR)
-		if err != nil {
-			return nil, err
+		vmdisk, cerr := v.dm.CreateAndAttach(ctx, ImageDiskDsURI, parentDiskDsURI, 0, os.O_RDWR)
+		if cerr != nil {
+			return nil, cerr
 		}
 		defer v.dm.Detach(ctx, vmdisk)
 
-		dir, err := ioutil.TempDir("", "mnt-"+ID)
-		if err != nil {
-			return nil, err
+		dir, cerr := ioutil.TempDir("", "mnt-"+ID)
+		if cerr != nil {
+			return nil, cerr
 		}
 		defer os.RemoveAll(dir)
 
-		if err := vmdisk.Mount(dir, nil); err != nil {
-			return nil, err
+		if merr := vmdisk.Mount(dir, nil); merr != nil {
+			return nil, merr
 		}
 		defer vmdisk.Unmount()
 
 		// Untar the archive
-		err = archive.Untar(r, dir, &archive.TarOptions{})
-		if err != nil {
-			return nil, err
+		cerr = archive.Untar(r, dir, &archive.TarOptions{})
+		if cerr != nil {
+			return nil, cerr
 		}
 
 		// persist the relationship
 		v.parents.Add(ID, parent.ID)
 
-		if err = v.parents.Save(ctx); err != nil {
-			return nil, err
+		if cerr = v.parents.Save(ctx); cerr != nil {
+			return nil, cerr
 		}
 	}
 

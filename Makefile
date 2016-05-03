@@ -32,7 +32,7 @@ GOLINT ?= $(GOPATH)/bin/golint$(BIN_ARCH)
 GVT ?= $(GOPATH)/bin/gvt$(BIN_ARCH)
 
 .PHONY: all tools clean test check \
-	goversion goimports gvt gopath \
+	goversion goimports gvt gopath govet \
 	isos tethers apiservers copyright
 
 .DEFAULT_GOAL := all
@@ -159,10 +159,10 @@ $(go-imports): $(GOIMPORTS) $(find . -type f -name '*.go' -not -path "./vendor/*
 	@! $(GOIMPORTS) -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
 	@touch $@
 
-govet: $(find . -type f -name '*.go' -not -path "./vendor/*" -not -path "apiservers/portlayer") $(PORTLAYER_DEPS)
+govet:
 	@echo checking go vet...
-	@$(GO) tool vet -all $$(find . -type f -name '*.go' -not -path "./vendor/*")
-	@$(GO) tool vet -shadow $$(find . -type f -name '*.go' -not -path "./vendor/*")
+	@$(GO) tool vet -all $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
+	@$(GO) tool vet -shadow $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
 
 vendor: $(GVT)
 	@echo restoring vendor
@@ -301,4 +301,3 @@ clean:
 	rm -fr ./tests/helpers/bats-support/
 
 	@tests/docker-tests/run-tests.sh clean
-	

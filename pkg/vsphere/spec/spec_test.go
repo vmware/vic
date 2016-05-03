@@ -41,7 +41,7 @@ func TestVirtualMachineConfigSpec(t *testing.T) {
 		PoolPath:       "/ha-datacenter/host/*/Resources",
 	}
 
-	session, err := session.NewSession(sessionconfig).Create(ctx)
+	s, err := session.NewSession(sessionconfig).Create(ctx)
 	if err != nil {
 		t.Logf("%+v", err.Error())
 		if _, ok := err.(*find.MultipleFoundError); !ok {
@@ -50,7 +50,7 @@ func TestVirtualMachineConfigSpec(t *testing.T) {
 			t.SkipNow()
 		}
 	}
-	defer session.Logout(ctx)
+	defer s.Logout(ctx)
 
 	specconfig := &VirtualMachineConfigSpecConfig{
 		NumCPUs:       2,
@@ -61,16 +61,16 @@ func TestVirtualMachineConfigSpec(t *testing.T) {
 
 		ID: "zombie_attack",
 
-		BootMediaPath: session.Datastore.Path("brainz.iso"),
-		VMPathName:    fmt.Sprintf("[%s]", session.Datastore.Name()),
-		NetworkName:   strings.Split(session.Network.Reference().Value, "-")[0],
+		BootMediaPath: s.Datastore.Path("brainz.iso"),
+		VMPathName:    fmt.Sprintf("[%s]", s.Datastore.Name()),
+		NetworkName:   strings.Split(s.Network.Reference().Value, "-")[0],
 	}
 	// FIXME: find a better way to pass those
 	var scsibus int32
 	var scsikey int32 = 100
 	var idekey int32 = 200
 
-	root, _ := NewVirtualMachineConfigSpec(ctx, session, specconfig)
+	root, _ := NewVirtualMachineConfigSpec(ctx, s, specconfig)
 	scsi := NewVirtualSCSIController(scsibus, scsikey)
 
 	pv := NewParaVirtualSCSIController(scsi)

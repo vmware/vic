@@ -60,9 +60,9 @@ func (d *Dispatcher) removeApplianceIfForced(conf *configuration.Configuration) 
 	}
 	log.Debugf("Appliance is found")
 	if vm != nil && d.force {
-		if ok, err := d.isVCH(vm); !ok {
-			err = errors.Errorf("VM %s is found, but is not VCH appliance, please choose different name", conf.DisplayName)
-			return err
+		if ok, verr := d.isVCH(vm); !ok {
+			verr = errors.Errorf("VM %s is found, but is not VCH appliance, please choose different name", conf.DisplayName)
+			return verr
 		}
 		log.Infof("Appliance exists, remove it...")
 		_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {

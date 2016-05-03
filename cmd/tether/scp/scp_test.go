@@ -113,54 +113,54 @@ func scp(port int, serverMode Mode, sourceFile, destFile string) error {
 	// copy from the server
 	if serverMode == SOURCE {
 
-		sshPipe, err := session.StdoutPipe()
-		if err != nil {
-			return fmt.Errorf("error openning pipe %s", err)
+		sshPipe, serr := session.StdoutPipe()
+		if serr != nil {
+			return fmt.Errorf("error openning pipe %s", serr)
 		}
 
-		ok, err := session.SendRequest(string(serverMode), true, []byte(sourceFile))
+		ok, serr := session.SendRequest(string(serverMode), true, []byte(sourceFile))
 		if !ok {
 			return fmt.Errorf("not ok")
 		}
-		if err != nil {
-			return fmt.Errorf("error sending request %s", err)
+		if serr != nil {
+			return fmt.Errorf("error sending request %s", serr)
 		}
 
 		// write the result locally using the scp protocol operation
-		op, err = Write(ioutil.NopCloser(sshPipe), destFile)
-		if err != nil {
-			return fmt.Errorf("error writing %s", err)
+		op, serr = Write(ioutil.NopCloser(sshPipe), destFile)
+		if serr != nil {
+			return fmt.Errorf("error writing %s", serr)
 		}
 
 	} else {
 
-		sshPipe, err := session.StdinPipe()
-		if err != nil {
-			return fmt.Errorf("error openning pipe %s", err)
+		sshPipe, serr := session.StdinPipe()
+		if serr != nil {
+			return fmt.Errorf("error openning pipe %s", serr)
 		}
 
 		// copy to the server
-		ok, err := session.SendRequest(string(serverMode), true, []byte(destFile))
+		ok, serr := session.SendRequest(string(serverMode), true, []byte(destFile))
 		if !ok {
 			return fmt.Errorf("not ok")
 		}
-		if err != nil {
-			return fmt.Errorf("error sending request %s", err)
+		if serr != nil {
+			return fmt.Errorf("error sending request %s", serr)
 		}
 
 		// open the file for reading locally
-		op, err = OpenFile(sourceFile, os.O_RDONLY, 0)
-		if err != nil {
-			return err
+		op, serr = OpenFile(sourceFile, os.O_RDONLY, 0)
+		if serr != nil {
+			return serr
 		}
 		// read the file into the pipe
-		n, err := op.Read(sshPipe)
-		if err != nil {
-			return fmt.Errorf("error reading %s", err)
+		n, serr := op.Read(sshPipe)
+		if serr != nil {
+			return fmt.Errorf("error reading %s", serr)
 		}
 
-		if err = session.Close(); err != nil {
-			return fmt.Errorf("error closing sesson %s", err)
+		if serr = session.Close(); serr != nil {
+			return fmt.Errorf("error closing sesson %s", serr)
 		}
 
 		log.Printf("scp copied %d bytes to server", n)
