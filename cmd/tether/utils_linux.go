@@ -59,9 +59,9 @@ func (t *osopsLinux) SetHostname(hostname string) error {
 	log.Debugf("Updated kernel hostname")
 
 	// update /etc/hostname to match
-	err = ioutil.WriteFile(pathPrefix+hostnameFile, []byte(hostname), 0644)
+	err = ioutil.WriteFile(hostnameFile, []byte(hostname), 0644)
 	if err != nil {
-		log.Errorf("Failed to update hostname in %s%s", pathPrefix, hostnameFile)
+		log.Errorf("Failed to update hostname in %s", hostnameFile)
 
 		// revert the hostname
 		if old != "" {
@@ -76,7 +76,7 @@ func (t *osopsLinux) SetHostname(hostname string) error {
 	}
 
 	// add entry to hosts for resolution without nameservers
-	hosts, err := os.OpenFile(pathPrefix+"/etc/hosts", os.O_APPEND|os.O_WRONLY, 0644)
+	hosts, err := os.OpenFile("/etc/hosts", os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		detail := fmt.Sprintf("failed to update hosts with hostname: %s", err)
 		return errors.New(detail)
@@ -220,7 +220,7 @@ func (t *osopsLinux) Apply(endpoint *metadata.NetworkEndpoint) error {
 
 	// Add /etc/hosts entry
 	// TODO - figure out how to name us for each network
-	hosts, err := os.OpenFile(pathPrefix+hostsFile, os.O_APPEND|os.O_WRONLY, 0644)
+	hosts, err := os.OpenFile(hostsFile, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		detail := fmt.Sprintf("failed to update hosts for endpoint %s: %s", endpoint.Network.Name, err)
 		return errors.New(detail)
@@ -235,7 +235,7 @@ func (t *osopsLinux) Apply(endpoint *metadata.NetworkEndpoint) error {
 
 	// Add nameservers
 	// This is incredibly trivial for now - should be updated to a less messy approach
-	resolv, err := os.OpenFile(pathPrefix+resolvFile, os.O_APPEND|os.O_WRONLY, 0644)
+	resolv, err := os.OpenFile(resolvFile, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		detail := fmt.Sprintf("failed to update %s for endpoint %s: %s", resolvFile, endpoint.Network.Name, err)
 		return errors.New(detail)
