@@ -20,7 +20,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"io"
 	"net"
 	"sync"
@@ -32,15 +31,16 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/portlayer/attach"
 )
 
-func addKey(config *metadata.ExecutorConfig) (*metadata.ExecutorConfig, error) {
+func genKey() []byte {
 
 	// generate a host key for the tether
 	privateKey, err := rsa.GenerateKey(rand.Reader, 512)
 	if err != nil {
-		return nil, err
+		panic("unable to generate private key during test")
 	}
 
 	privateKeyDer := x509.MarshalPKCS1PrivateKey(privateKey)
@@ -50,62 +50,54 @@ func addKey(config *metadata.ExecutorConfig) (*metadata.ExecutorConfig, error) {
 		Bytes:   privateKeyDer,
 	}
 
-	config.Key = pem.EncodeToMemory(&privateKeyBlock)
-	return config, nil
+	return pem.EncodeToMemory(&privateKeyBlock)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
 // TestAttachConfig sets up the config for attach testing - the grep will echo anything
 // sent and adds colour which is useful for tty testing
 //
-type TestAttachConfig struct{}
-
-func (c *TestAttachConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
-	return "", errors.New("not implemented")
-}
-func (c *TestAttachConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
-	config := metadata.ExecutorConfig{}
-
-	config.ID = "attach"
-	config.Name = "tether_test_executor"
-	config.Sessions = map[string]metadata.SessionConfig{
-		"attach": metadata.SessionConfig{
-			Common: metadata.Common{
-				ID:   "attach",
-				Name: "tether_test_session",
-			},
-			Tty:    false,
-			Attach: true,
-			Cmd: metadata.Cmd{
-				Path: "/usr/bin/tee",
-				// grep, matching everything, reading from stdin
-				Args: []string{"/usr/bin/tee", pathPrefix + "/tee.out"},
-				Env:  []string{},
-				Dir:  "/",
-			},
-		},
-	}
-
-	return addKey(&config)
-}
-
 func TestAttach(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 
 	testServer, _ := server.(*testAttachServer)
 
-	// if there's no session command with guaranteed exit then tether needs to run in the background
-	cfg := &TestAttachConfig{}
-	testConfig, err := cfg.LoadConfig()
-	if err != nil {
-		t.Error(err)
-		return
+	cfg := metadata.ExecutorConfig{
+		Common: metadata.Common{
+			ID:   "attach",
+			Name: "tether_test_executor",
+		},
+
+		Sessions: map[string]metadata.SessionConfig{
+			"attach": metadata.SessionConfig{
+				Common: metadata.Common{
+					ID:   "attach",
+					Name: "tether_test_session",
+				},
+				Tty:    false,
+				Attach: true,
+				Cmd: metadata.Cmd{
+					Path: "/usr/bin/tee",
+					// grep, matching everything, reading from stdin
+					Args: []string{"/usr/bin/tee", pathPrefix + "/tee.out"},
+					Env:  []string{},
+					Dir:  "/",
+				},
+			},
+		},
+		Key: genKey(),
 	}
+
+	// if there's no session command with guaranteed exit then tether needs to run in the background
+	sink := map[string]string{}
+	extraconfig.Encode(extraconfig.MapSink(sink), cfg)
+	src := extraconfig.MapSource(sink)
+	log.Debugf("Test configuration: %#v", sink)
 
 	// run the tether to service the attach
 	go func() {
-		erR := run(cfg)
+		erR := run(src)
 		if erR != nil {
 			t.Error(erR)
 		}
@@ -142,7 +134,7 @@ func TestAttach(t *testing.T) {
 
 	attachClient := ssh.NewClient(sshConn, chans, reqs)
 
-	sshSession, err := attach.SSHAttach(attachClient, testConfig.ID)
+	sshSession, err := attach.SSHAttach(attachClient, cfg.ID)
 	if err != nil {
 		t.Error(err)
 		return
@@ -179,37 +171,6 @@ func TestAttach(t *testing.T) {
 /////////////////////////////////////////////////////////////////////////////////////
 // TestAttachTTYConfig sets up the config for attach testing
 //
-type TestAttachTTYConfig struct{}
-
-func (c *TestAttachTTYConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
-	return "", errors.New("not implemented")
-}
-func (c *TestAttachTTYConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
-	config := metadata.ExecutorConfig{}
-
-	config.ID = "attach"
-	config.Name = "tether_test_executor"
-	config.Sessions = map[string]metadata.SessionConfig{
-		"attach": metadata.SessionConfig{
-			Common: metadata.Common{
-				ID:   "attach",
-				Name: "tether_test_session",
-			},
-			Tty:    true,
-			Attach: true,
-			Cmd: metadata.Cmd{
-				Path: "/usr/bin/tee",
-				// grep, matching everything, reading from stdin
-				Args: []string{"/usr/bin/tee", pathPrefix + "/tee.out"},
-				Env:  []string{},
-				Dir:  "/",
-			},
-		},
-	}
-
-	return addKey(&config)
-}
-
 func TestAttachTTY(t *testing.T) {
 	t.Skip("TTY test skipped - not sure how to test this correctly")
 
@@ -218,16 +179,40 @@ func TestAttachTTY(t *testing.T) {
 
 	testServer, _ := server.(*testAttachServer)
 
-	// if there's no session command with guaranteed exit then tether needs to run in the background
-	cfg := &TestAttachTTYConfig{}
-	testConfig, err := cfg.LoadConfig()
-	if err != nil {
-		t.Error(err)
-		return
+	cfg := metadata.ExecutorConfig{
+		Common: metadata.Common{
+			ID:   "attach",
+			Name: "tether_test_executor",
+		},
+
+		Sessions: map[string]metadata.SessionConfig{
+			"attach": metadata.SessionConfig{
+				Common: metadata.Common{
+					ID:   "attach",
+					Name: "tether_test_session",
+				},
+				Tty:    true,
+				Attach: true,
+				Cmd: metadata.Cmd{
+					Path: "/usr/bin/tee",
+					// grep, matching everything, reading from stdin
+					Args: []string{"/usr/bin/tee", pathPrefix + "/tee.out"},
+					Env:  []string{},
+					Dir:  "/",
+				},
+			},
+		},
+		Key: genKey(),
 	}
 
+	// if there's no session command with guaranteed exit then tether needs to run in the background
+	sink := map[string]string{}
+	extraconfig.Encode(extraconfig.MapSink(sink), cfg)
+	src := extraconfig.MapSource(sink)
+	log.Debugf("Test configuration: %#v", sink)
+
 	go func() {
-		erR := run(cfg)
+		erR := run(src)
 		if erR != nil {
 			t.Error(erR)
 		}
@@ -264,7 +249,7 @@ func TestAttachTTY(t *testing.T) {
 	defer sConn.Close()
 	client := ssh.NewClient(sConn, chans, reqs)
 
-	session, err := attach.SSHAttach(client, testConfig.ID)
+	session, err := attach.SSHAttach(client, config.ID)
 	if err != nil {
 		t.Error(err)
 		return
@@ -305,51 +290,6 @@ func TestAttachTTY(t *testing.T) {
 // TestAttachTwoConfig sets up the config for attach testing - tests launching and
 // attaching to two different processes simultaneously
 //
-type TestAttachTwoConfig struct{}
-
-func (c *TestAttachTwoConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
-	return "", errors.New("not implemented")
-}
-func (c *TestAttachTwoConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
-	config := metadata.ExecutorConfig{}
-
-	config.ID = "attachtwo"
-	config.Name = "tether_test_executor"
-	config.Sessions = map[string]metadata.SessionConfig{
-		"tee1": metadata.SessionConfig{
-			Common: metadata.Common{
-				ID:   "tee1",
-				Name: "tether_test_session1",
-			},
-			Tty:    false,
-			Attach: true,
-			Cmd: metadata.Cmd{
-				Path: "/usr/bin/tee",
-				// grep, matching everything, reading from stdin
-				Args: []string{"/usr/bin/tee", pathPrefix + "/tee.out"},
-				Env:  []string{},
-				Dir:  "/",
-			},
-		},
-		"tee2": metadata.SessionConfig{
-			Common: metadata.Common{
-				ID:   "tee2",
-				Name: "tether_test_session2",
-			},
-			Tty:    false,
-			Attach: true,
-			Cmd: metadata.Cmd{
-				Path: "/usr/bin/tee",
-				// grep, matching everything, reading from stdin
-				Args: []string{"/usr/bin/tee", pathPrefix + "/tee2.out"},
-				Env:  []string{},
-				Dir:  "/",
-			},
-		},
-	}
-
-	return addKey(&config)
-}
 
 func TestAttachTwo(t *testing.T) {
 
@@ -358,16 +298,55 @@ func TestAttachTwo(t *testing.T) {
 
 	testServer, _ := server.(*testAttachServer)
 
-	// if there's no session command with guaranteed exit then tether needs to run in the background
-	cfg := &TestAttachTwoConfig{}
-	_, err := cfg.LoadConfig()
-	if err != nil {
-		t.Error(err)
-		return
+	cfg := metadata.ExecutorConfig{
+		Common: metadata.Common{
+			ID:   "attachtwo",
+			Name: "tether_test_executor",
+		},
+
+		Sessions: map[string]metadata.SessionConfig{
+			"tee1": metadata.SessionConfig{
+				Common: metadata.Common{
+					ID:   "tee1",
+					Name: "tether_test_session",
+				},
+				Tty:    false,
+				Attach: true,
+				Cmd: metadata.Cmd{
+					Path: "/usr/bin/tee",
+					// grep, matching everything, reading from stdin
+					Args: []string{"/usr/bin/tee", pathPrefix + "/tee.out"},
+					Env:  []string{},
+					Dir:  "/",
+				},
+			},
+			"tee2": metadata.SessionConfig{
+				Common: metadata.Common{
+					ID:   "tee2",
+					Name: "tether_test_session2",
+				},
+				Tty:    false,
+				Attach: true,
+				Cmd: metadata.Cmd{
+					Path: "/usr/bin/tee",
+					// grep, matching everything, reading from stdin
+					Args: []string{"/usr/bin/tee", pathPrefix + "/tee2.out"},
+					Env:  []string{},
+					Dir:  "/",
+				},
+			},
+		},
+		Key: genKey(),
 	}
 
+	// if there's no session command with guaranteed exit then tether needs to run in the background
+	sink := map[string]string{}
+	extraconfig.Encode(extraconfig.MapSink(sink), cfg)
+	src := extraconfig.MapSource(sink)
+	log.Debugf("Test configuration: %#v", sink)
+
 	go func() {
-		erR := run(cfg)
+		erR := run(src)
 		if erR != nil {
 			t.Error(erR)
 		}
@@ -412,18 +391,17 @@ func TestAttachTwo(t *testing.T) {
 	}
 
 	// there's no ordering guarantee in the returned ids
-	if len(ids) != 2 {
-		t.Errorf("ID list - expected 2, got %d", len(ids))
+	if len(ids) != len(cfg.Sessions) {
+		t.Errorf("ID list - expected %d, got %d", len(cfg.Sessions), len(ids))
 		return
 	}
 
-	reference, _ := cfg.LoadConfig()
+	// check the ids we got correspond to those in the config
 	for _, id := range ids {
-		if _, ok := reference.Sessions[id]; !ok {
+		if _, ok := cfg.Sessions[id]; !ok {
 			t.Errorf("Expected sessions to have an entry for %s", id)
 			return
 		}
-		delete(reference.Sessions, id)
 	}
 
 	sessionA, err := attach.SSHAttach(client, "tee1")
@@ -485,53 +463,46 @@ func TestAttachTwo(t *testing.T) {
 // TestAttachInvalid sets up the config for attach testing - launches a process but
 // tries to attach to an invalid session id
 //
-type TestAttachInvalidConfig struct{}
-
-func (c *TestAttachInvalidConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
-	return "", errors.New("not implemented")
-}
-func (c *TestAttachInvalidConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
-	config := metadata.ExecutorConfig{}
-
-	config.ID = "attachinvalid"
-	config.Name = "tether_test_executor"
-	config.Sessions = map[string]metadata.SessionConfig{
-		"valid": metadata.SessionConfig{
-			Common: metadata.Common{
-				ID:   "valid",
-				Name: "tether_test_session",
-			},
-			Tty:    false,
-			Attach: true,
-			Cmd: metadata.Cmd{
-				Path: "/usr/bin/tee",
-				// grep, matching everything, reading from stdin
-				Args: []string{"/usr/bin/tee", pathPrefix + "/tee.out"},
-				Env:  []string{},
-				Dir:  "/",
-			},
-		},
-	}
-
-	return addKey(&config)
-}
-
 func TestAttachInvalid(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 
 	testServer, _ := server.(*testAttachServer)
 
-	// if there's no session command with guaranteed exit then tether needs to run in the background
-	cfg := &TestAttachInvalidConfig{}
-	_, err := cfg.LoadConfig()
-	if err != nil {
-		t.Error(err)
-		return
+	cfg := metadata.ExecutorConfig{
+		Common: metadata.Common{
+			ID:   "attachinvalid",
+			Name: "tether_test_executor",
+		},
+
+		Sessions: map[string]metadata.SessionConfig{
+			"valid": metadata.SessionConfig{
+				Common: metadata.Common{
+					ID:   "valid",
+					Name: "tether_test_session",
+				},
+				Tty:    true,
+				Attach: true,
+				Cmd: metadata.Cmd{
+					Path: "/usr/bin/tee",
+					// grep, matching everything, reading from stdin
+					Args: []string{"/usr/bin/tee", pathPrefix + "/tee.out"},
+					Env:  []string{},
+					Dir:  "/",
+				},
+			},
+		},
+		Key: genKey(),
 	}
 
+	// if there's no session command with guaranteed exit then tether needs to run in the background
+	sink := map[string]string{}
+	extraconfig.Encode(extraconfig.MapSink(sink), cfg)
+	src := extraconfig.MapSource(sink)
+	log.Debugf("Test configuration: %#v", sink)
+
 	go func() {
-		erR := run(cfg)
+		erR := run(src)
 		if erR != nil {
 			t.Error(erR)
 		}

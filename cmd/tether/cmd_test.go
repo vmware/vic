@@ -15,14 +15,15 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
 	"testing"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -31,43 +32,42 @@ import (
 // Cmd handling where that is done during creation of Cmd
 //
 
-type TestPathLookupConfig struct{}
-
-func (c *TestPathLookupConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
-	return "", errors.New("not implemented")
-}
-func (c *TestPathLookupConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
-	config := metadata.ExecutorConfig{}
-
-	config.ID = "pathlookup"
-	config.Name = "tether_test_executor"
-	config.Sessions = map[string]metadata.SessionConfig{
-		"pathlookup": metadata.SessionConfig{
-			Common: metadata.Common{
-				ID:   "pathlookup",
-				Name: "tether_test_session",
-			},
-			Tty: false,
-			Cmd: metadata.Cmd{
-				// test relative path
-				Path: "date",
-				Args: []string{"date", "--reference=/"},
-				Env:  []string{"PATH=/bin"},
-				Dir:  "/bin",
-			},
-		},
-	}
-
-	return &config, nil
-}
-
 func TestPathLookup(t *testing.T) {
 	t.Skip("PATH based lookup not yet implemented")
 
 	testSetup(t)
 	defer testTeardown(t)
 
-	if err := run(&TestPathLookupConfig{}); err != nil {
+	cfg := metadata.ExecutorConfig{
+		Common: metadata.Common{
+			ID:   "pathlookup",
+			Name: "tether_test_executor",
+		},
+
+		Sessions: map[string]metadata.SessionConfig{
+			"pathlookup": metadata.SessionConfig{
+				Common: metadata.Common{
+					ID:   "pathlookup",
+					Name: "tether_test_session",
+				},
+				Tty: false,
+				Cmd: metadata.Cmd{
+					// test relative path
+					Path: "date",
+					Args: []string{"date", "--reference=/"},
+					Env:  []string{"PATH=/bin"},
+					Dir:  "/bin",
+				},
+			},
+		},
+	}
+
+	sink := map[string]string{}
+	extraconfig.Encode(extraconfig.MapSink(sink), cfg)
+	src := extraconfig.MapSource(sink)
+	log.Debugf("Test configuration: %#v", sink)
+
+	if err := run(src); err != nil {
 		t.Error(err)
 		return
 	}
@@ -81,43 +81,42 @@ func TestPathLookup(t *testing.T) {
 // binary - this tests resolution vs the working directory
 //
 
-type TestRelativePathConfig struct{}
-
-func (c *TestRelativePathConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
-	return "", errors.New("not implemented")
-}
-func (c *TestRelativePathConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
-	config := metadata.ExecutorConfig{}
-
-	config.ID = "relpath"
-	config.Name = "tether_test_executor"
-	config.Sessions = map[string]metadata.SessionConfig{
-		"relpath": metadata.SessionConfig{
-			Common: metadata.Common{
-				ID:   "relpath",
-				Name: "tether_test_session",
-			},
-			Tty: false,
-			Cmd: metadata.Cmd{
-				// test relative path
-				Path: "date",
-				Args: []string{"date", "--reference=/"},
-				Env:  []string{"PATH=/bin"},
-				Dir:  "/bin",
-			},
-		},
-	}
-
-	return &config, nil
-}
-
 func TestRelativePath(t *testing.T) {
 	t.Skip("Relative path resolution not yet implemented")
 
 	testSetup(t)
 	defer testTeardown(t)
 
-	if err := run(&TestRelativePathConfig{}); err != nil {
+	cfg := metadata.ExecutorConfig{
+		Common: metadata.Common{
+			ID:   "relpath",
+			Name: "tether_test_executor",
+		},
+
+		Sessions: map[string]metadata.SessionConfig{
+			"relpath": metadata.SessionConfig{
+				Common: metadata.Common{
+					ID:   "relpath",
+					Name: "tether_test_session",
+				},
+				Tty: false,
+				Cmd: metadata.Cmd{
+					// test relative path
+					Path: "date",
+					Args: []string{"date", "--reference=/"},
+					Env:  []string{"PATH=/bin"},
+					Dir:  "/bin",
+				},
+			},
+		},
+	}
+
+	sink := map[string]string{}
+	extraconfig.Encode(extraconfig.MapSink(sink), cfg)
+	src := extraconfig.MapSource(sink)
+	log.Debugf("Test configuration: %#v", sink)
+
+	if err := run(src); err != nil {
 		t.Error(err)
 		return
 	}
@@ -130,49 +129,46 @@ func TestRelativePath(t *testing.T) {
 // TestAbsPathConfig constructs the spec for a Session with absolute path to existing
 // binary
 //
-type TestAbsPathConfig struct{}
-
-func (c *TestAbsPathConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
-	return "", errors.New("not implemented")
-}
-func (c *TestAbsPathConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
-	config := metadata.ExecutorConfig{}
-
-	config.ID = "abspath"
-	config.Name = "tether_test_executor"
-	config.Sessions = map[string]metadata.SessionConfig{
-		"abspath": metadata.SessionConfig{
-			Common: metadata.Common{
-				ID:   "abspath",
-				Name: "tether_test_session",
-			},
-			Tty: false,
-			Cmd: metadata.Cmd{
-				// test abs path
-				Path: "/bin/date",
-				Args: []string{"date", "--reference=/"},
-				Env:  []string{},
-				Dir:  "/",
-			},
-		},
-	}
-
-	return &config, nil
-}
 
 func TestAbsPath(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 
-	// if there's no session command with guaranteed exit then tether needs to run in the background
-	cfg := &TestAbsPathConfig{}
+	cfg := metadata.ExecutorConfig{
+		Common: metadata.Common{
+			ID:   "abspath",
+			Name: "tether_test_executor",
+		},
 
-	if err := run(cfg); err != nil {
+		Sessions: map[string]metadata.SessionConfig{
+			"abspath": metadata.SessionConfig{
+				Common: metadata.Common{
+					ID:   "abspath",
+					Name: "tether_test_session",
+				},
+				Tty: false,
+				Cmd: metadata.Cmd{
+					// test abs path
+					Path: "/bin/date",
+					Args: []string{"date", "--reference=/"},
+					Env:  []string{},
+					Dir:  "/",
+				},
+			},
+		},
+	}
+
+	sink := map[string]string{}
+	extraconfig.Encode(extraconfig.MapSink(sink), cfg)
+	src := extraconfig.MapSource(sink)
+	log.Debugf("Test configuration: %#v", sink)
+
+	if err := run(src); err != nil {
 		t.Error(err)
 	}
 
 	// check the exit code was set
-	status := sessions["abspath"].exitStatus
+	status := config.Sessions["abspath"].ExitStatus
 	if status != 0 {
 		t.Errorf("reference process 'data --reference=/' did not exit cleanly: %d", status)
 		return
@@ -213,40 +209,41 @@ func TestAbsPathRepeat(t *testing.T) {
 /////////////////////////////////////////////////////////////////////////////////////
 // TestMissingBinaryConfig constructs the spec for a Session with invalid binary path
 //
-type TestMissingBinaryConfig struct{}
 
-func (c *TestMissingBinaryConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
-	return "", errors.New("not implemented")
-}
-func (c *TestMissingBinaryConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
-	config := metadata.ExecutorConfig{}
+func TestMissingBinary(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
 
-	config.ID = "missing"
-	config.Name = "tether_test_executor"
-	config.Sessions = map[string]metadata.SessionConfig{
-		"missing": metadata.SessionConfig{
-			Common: metadata.Common{
-				ID:   "missing",
-				Name: "tether_test_session",
-			},
-			Tty: false,
-			Cmd: metadata.Cmd{
-				// test relative path
-				Path: "/not/there",
-				Args: []string{"/not/there"},
-				Env:  []string{"PATH=/not"},
-				Dir:  "/",
+	cfg := metadata.ExecutorConfig{
+		Common: metadata.Common{
+			ID:   "missing",
+			Name: "tether_test_executor",
+		},
+
+		Sessions: map[string]metadata.SessionConfig{
+			"missing": metadata.SessionConfig{
+				Common: metadata.Common{
+					ID:   "missing",
+					Name: "tether_test_session",
+				},
+				Tty: false,
+				Cmd: metadata.Cmd{
+					// test relative path
+					Path: "/not/there",
+					Args: []string{"/not/there"},
+					Env:  []string{"PATH=/not"},
+					Dir:  "/",
+				},
 			},
 		},
 	}
 
-	return &config, nil
-}
+	sink := map[string]string{}
+	extraconfig.Encode(extraconfig.MapSink(sink), cfg)
+	src := extraconfig.MapSource(sink)
+	log.Debugf("Test configuration: %#v", sink)
 
-func TestMissingBinary(t *testing.T) {
-	testSetup(t)
-
-	err := run(&TestMissingBinaryConfig{})
+	err := run(src)
 	if err == nil {
 		t.Error("Expected error from missing binary")
 	}
@@ -259,8 +256,6 @@ func TestMissingBinary(t *testing.T) {
 	if len(log) > 0 {
 		fmt.Printf("Command output: %s", string(log))
 	}
-
-	testTeardown(t)
 }
 
 //

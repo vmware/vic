@@ -215,7 +215,7 @@ func (t *osopsWin) signalProcess(process *os.Process, sig ssh.Signal) error {
 	return errors.New("unimplemented on windows")
 }
 
-func (t *osopsWin) establishPty(live *liveSession) error {
+func (t *osopsWin) establishPty(session *SessionConfig) error {
 	return errors.New("unimplemented on windows")
 }
 

@@ -25,7 +25,7 @@ import (
 
 type ExecutorConfig struct {
 	// ID corresponds to that of the primary session
-	ID string `vic:"0.1" scope:"read-only" key:"common~id"`
+	ID string `vic:"0.1" scope:"read-only" key:"common/id"`
 
 	// Exclusive access to childPidTable
 	pidMutex sync.Mutex
