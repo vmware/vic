@@ -27,7 +27,7 @@ import (
 
 // [BEGIN] SLIMMED DOWNED and MODIFIED VERSION of github.com/vmware/vic/metadata
 type Common struct {
-	ExecutionEnvironment string `vic:"0.1" recurse:"depth=0"`
+	ExecutionEnvironment string `vic:"0.1" key:"nil,omitnested"`
 
 	ID string `vic:"0.1" scope:"read-only" key:"id"`
 
@@ -41,11 +41,11 @@ type ContainerVM struct {
 
 	Version string `vic:"0.1" scope:"hidden" key:"version"`
 
-	Aliases map[string]string `vic:"0.1" recurse:"depth=0"`
+	Aliases map[string]string `vic:"0.1" key:"nil,omitnested"`
 
-	Interaction url.URL `vic:"0.1" recurse:"depth=0"`
+	Interaction url.URL `vic:"0.1" key:"nil,omitnested"`
 
-	AgentKey []byte `vic:"0.1" recurse:"depth=0"`
+	AgentKey []byte `vic:"0.1" key:"nil,omitnested"`
 }
 
 type ExecutorConfig struct {
@@ -73,7 +73,7 @@ type Cmd struct {
 
 	Dir string `vic:"0.1" scope:"hidden" key:"dir"`
 
-	Cmd *exec.Cmd `vic:"0.1" scope:"hidden" key:"cmd" recurse:"depth=0"`
+	Cmd *exec.Cmd `vic:"0.1" scope:"hidden" key:"cmd,omitnested"`
 }
 
 type SessionConfig struct {
@@ -117,7 +117,7 @@ func TestBasic(t *testing.T) {
 		"guestinfo.string": "Grrr",
 	}
 
-	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
+	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
 
 	var decoded Type
 	Decode(MapSource(encoded), &decoded)
@@ -145,7 +145,7 @@ func TestBasicMap(t *testing.T) {
 		"guestinfo/intmap|2nd": "67890",
 		"guestinfo/intmap":     "1st|2nd",
 	}
-	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
+	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
 
 	// Decode to new variable
 	var decoded Type
@@ -280,7 +280,7 @@ func TestNet(t *testing.T) {
 func TestPointer(t *testing.T) {
 	type Type struct {
 		Pointer           *ContainerVM `vic:"0.1" scope:"hidden" key:"pointer"`
-		PointerOmitnested *ContainerVM `vic:"0.1" scope:"non-persistent" key:"pointeromitnested" recurse:"depth=0"`
+		PointerOmitnested *ContainerVM `vic:"0.1" scope:"non-persistent" key:"pointeromitnested,omitnested"`
 	}
 
 	Pointer := Type{
