@@ -75,6 +75,76 @@ func TestUnmarshal(t *testing.T) {
                            </Body>
                          </Envelope>`,
 		},
+		{
+			&types.RetrieveProperties{
+				This: types.ManagedObjectReference{Type: "PropertyCollector", Value: "ha-property-collector"},
+				SpecSet: []types.PropertyFilterSpec{
+					{
+						DynamicData: types.DynamicData{},
+						PropSet: []types.PropertySpec{
+							{
+								DynamicData: types.DynamicData{},
+								Type:        "ManagedEntity",
+								All:         (*bool)(nil),
+								PathSet:     []string{"name", "parent"},
+							},
+						},
+						ObjectSet: []types.ObjectSpec{
+							{
+								DynamicData: types.DynamicData{},
+								Obj:         types.ManagedObjectReference{Type: "Folder", Value: "ha-folder-root"},
+								Skip:        types.NewBool(false),
+								SelectSet: []types.BaseSelectionSpec{ // test decode of interface
+									&types.TraversalSpec{
+										SelectionSpec: types.SelectionSpec{
+											DynamicData: types.DynamicData{},
+											Name:        "traverseParent",
+										},
+										Type: "ManagedEntity",
+										Path: "parent",
+										Skip: types.NewBool(false),
+										SelectSet: []types.BaseSelectionSpec{
+											&types.SelectionSpec{
+												DynamicData: types.DynamicData{},
+												Name:        "traverseParent",
+											},
+										},
+									},
+								},
+							},
+						},
+						ReportMissingObjectsInResults: (*bool)(nil),
+					},
+				}},
+			`<?xml version="1.0" encoding="UTF-8"?>
+                         <Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
+                          <Body>
+                           <RetrieveProperties xmlns="urn:vim25">
+                            <_this type="PropertyCollector">ha-property-collector</_this>
+                            <specSet>
+                             <propSet>
+                              <type>ManagedEntity</type>
+                              <pathSet>name</pathSet>
+                              <pathSet>parent</pathSet>
+                             </propSet>
+                             <objectSet>
+                              <obj type="Folder">ha-folder-root</obj>
+                              <skip>false</skip>
+                              <selectSet xmlns:XMLSchema-instance="http://www.w3.org/2001/XMLSchema-instance" XMLSchema-instance:type="TraversalSpec">
+                               <name>traverseParent</name>
+                               <type>ManagedEntity</type>
+                               <path>parent</path>
+                               <skip>false</skip>
+                               <selectSet XMLSchema-instance:type="SelectionSpec">
+                                <name>traverseParent</name>
+                               </selectSet>
+                              </selectSet>
+                             </objectSet>
+                            </specSet>
+                           </RetrieveProperties>
+                          </Body>
+                         </Envelope>`,
+		},
 	}
 
 	for i, req := range requests {

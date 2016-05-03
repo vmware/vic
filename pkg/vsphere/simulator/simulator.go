@@ -172,6 +172,7 @@ func UnmarshalBody(data []byte) (*Method, error) {
 	}
 
 	decoder := xml.NewDecoder(bytes.NewReader([]byte(body.Content)))
+	decoder.TypeFunc = typeFunc // required to decode interface types
 
 	var start *xml.StartElement
 
