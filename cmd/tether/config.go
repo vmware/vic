@@ -15,15 +15,27 @@
 package main
 
 import (
+	"os"
 	"os/exec"
+	"sync"
 
 	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/pkg/dio"
 )
 
 type ExecutorConfig struct {
+	// ID corresponds to that of the primary session
+	ID string `vic:"0.1" scope:"read-only" key:"common~id"`
+
+	// Exclusive access to childPidTable
+	pidMutex sync.Mutex
+
+	// Set of child PIDs created by us.
+	pids map[int]*SessionConfig
+
 	// Sessions is the set of sessions currently hosted by this executor
 	// These are keyed by session ID
-	Sessions map[string]*metadata.SessionConfig `vic:"0.1" scope:"read-only" key:"sessions"`
+	Sessions map[string]*SessionConfig `vic:"0.1" scope:"read-only" key:"sessions"`
 
 	// Maps the mount name to the detail mount specification
 	Mounts map[string]metadata.MountSpec `vic:"0.1" scope:"read-only" key:"mounts"`
@@ -34,24 +46,7 @@ type ExecutorConfig struct {
 
 	// Key is the host key used during communicate back with the Interaction endpoint if any
 	// Used if the in-guest tether is responsible for authenticating the connection
-	Key []byte
-}
-
-// Cmd is here because the encoding packages seem to have issues with the full exec.Cmd struct
-type Cmd struct {
-	exec.Cmd `vic:"0.1" scope:"read-only" key:"cmd"`
-
-	// Path is the command to run
-	Path string `vic:"0.1" scope:"read-only" key:"path"`
-
-	// Args is the command line arguments including the command in Args[0]
-	Args []string `vic:"0.1" scope:"read-only" key:"args"`
-
-	// Env specifies the environment of the process
-	Env []string `vic:"0.1" scope:"read-only" key:"env"`
-
-	// Dir specifies the working directory of the command
-	Dir string `vic:"0.1" scope:"read-only" key:"dir"`
+	Key string `vic:"0.1" scope:"read-only" key:"key"`
 }
 
 // SessionConfig defines the content of a session - this maps to the root of a process tree
@@ -62,11 +57,20 @@ type SessionConfig struct {
 	metadata.Common `vic:"0.1" scope:"read-only" key:"common"`
 
 	// The primary process for the session
-	Cmd Cmd `vic:"0.1" scope:"read-only" key:"cmd"`
+	Cmd exec.Cmd `vic:"0.1" scope:"read-only" key:"cmd"`
+
+	// The exit status of the process, if any
+	ExitStatus int `vic:"0.1" scope:"read-write" key:"status"`
 
 	// Allow attach
 	Attach bool `vic:"0.1" scope:"read-only" key:"attach"`
 
 	// Allocate a tty or not
 	Tty bool `vic:"0.1" scope:"read-only" key:"tty"`
+
+	// if there's a pty then we need additional management data
+	pty       *os.File
+	outwriter dio.DynamicMultiWriter
+	errwriter dio.DynamicMultiWriter
+	reader    dio.DynamicMultiReader
 }
