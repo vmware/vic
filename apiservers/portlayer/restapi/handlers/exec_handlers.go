@@ -15,6 +15,10 @@
 package handlers
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"net"
 
@@ -148,6 +152,17 @@ func (handler *ExecHandlersImpl) ContainerCreateHandler(params exec.ContainerCre
 		name = *params.Name
 	}
 
+	// Init key for tether
+	privateKey, err := rsa.GenerateKey(rand.Reader, 512)
+	if err != nil {
+		return exec.NewContainerCreateNotFound().WithPayload(&models.Error{Message: err.Error()})
+	}
+	privateKeyBlock := pem.Block{
+		Type:    "RSA PRIVATE KEY",
+		Headers: nil,
+		Bytes:   x509.MarshalPKCS1PrivateKey(privateKey),
+	}
+
 	m := metadata.ExecutorConfig{
 		Common: metadata.Common{
 			ID:   id,
@@ -170,6 +185,7 @@ func (handler *ExecHandlersImpl) ContainerCreateHandler(params exec.ContainerCre
 			},
 		},
 		Networks: make(map[string]metadata.NetworkEndpoint),
+		Key:      pem.EncodeToMemory(&privateKeyBlock),
 	}
 	log.Infof("Metadata: %#v", m)
 

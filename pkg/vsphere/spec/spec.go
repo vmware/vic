@@ -15,16 +15,11 @@
 package spec
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/trace"
@@ -91,17 +86,6 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 		VMPathName = fmt.Sprintf("%s/%s/%[2]s.vmx", config.VMPathName, config.ID)
 	}
 
-	// Init key for tether
-	privateKey, err := rsa.GenerateKey(rand.Reader, 1024)
-	if err != nil {
-		return nil, err
-	}
-	privateKeyBlock := pem.Block{
-		Type:    "RSA PRIVATE KEY",
-		Headers: nil,
-		Bytes:   x509.MarshalPKCS1PrivateKey(privateKey),
-	}
-
 	log.Debugf("Adding metadata to the configspec: %+v", config.Metadata)
 	// TEMPORARY
 
@@ -132,16 +116,6 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 			&types.OptionValue{Key: "sched.mem.lpage.maxSharedPages", Value: "256"},
 			// seems to be needed to avoid children hanging shortly after fork
 			&types.OptionValue{Key: "vmotion.checkpointSVGAPrimarySize", Value: "4194304"},
-
-			&types.OptionValue{Key: "guestInfo.docker_id", Value: config.ID},
-			&types.OptionValue{Key: "guestInfo.docker_name", Value: config.Name},
-
-			&types.OptionValue{Key: "guestInfo.init_key", Value: string(pem.EncodeToMemory(&privateKeyBlock))},
-
-			&types.OptionValue{Key: "guestInfo.hostname", Value: stringid.TruncateID(config.ID)},
-
-			// FIXME: Where is that coming from?
-			//&types.OptionValue{Key: "guestInfo.resolv.conf", Value: m.resolvconf()},
 
 			// trying this out - if it works then we need to determine if we can rely on serial0 being the correct index.
 			&types.OptionValue{Key: "serial0.hardwareFlowControl", Value: "TRUE"},
