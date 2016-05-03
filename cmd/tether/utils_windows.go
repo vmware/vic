@@ -50,7 +50,7 @@ func (t *osopsWin) MountLabel(label, target string, ctx context.Context) error {
 }
 
 // Fork triggers a vmfork, address the pre and post-fork operations necessary at an OS level
-func (t *osopsWin) Fork(config *metadata.ExecutorConfig) error {
+func (t *osopsWin) Fork(config *ExecutorConfig) error {
 	return errors.New("not implemented on windows")
 }
 

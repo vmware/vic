@@ -21,7 +21,7 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 func main() {
@@ -44,7 +44,13 @@ func main() {
 	}
 
 	server = &attachServerSSH{}
-	err = run(metadata.New())
+	src, err := extraconfig.GuestInfoSource()
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	err = run(src)
 	if err != nil {
 		log.Error(err)
 		return

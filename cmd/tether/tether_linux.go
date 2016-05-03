@@ -90,7 +90,8 @@ func childReaper() {
 
 						session, ok := RemoveChildPid(pid)
 						if ok {
-							handleSessionExit(session, status.ExitStatus())
+							session.ExitStatus = status.ExitStatus()
+							handleSessionExit(session)
 						} else {
 							// This is an adopted zombie. The Wait4 call
 							// already clean it up from the kernel
@@ -217,25 +218,25 @@ func (t *osopsLinux) sessionLogWriter() (dio.DynamicMultiWriter, error) {
 	return dio.MultiWriter(f, os.Stdout), nil
 }
 
-func (t *osopsLinux) establishPty(live *liveSession) error {
+func (t *osopsLinux) establishPty(session *SessionConfig) error {
 	// TODO: if we want to allow raw output to the log so that subsequent tty enabled
 	// processing receives the control characters then we should be binding the PTY
 	// during attach, and using the same path we have for non-tty here
-	writer := live.cmd.Stdout
+	writer := session.Cmd.Stdout
 
 	var err error
-	live.pty, err = pty.Start(live.cmd)
-	if live.pty != nil {
-		live.outwriter = dio.MultiWriter(writer)
+	session.pty, err = pty.Start(&session.Cmd.Cmd)
+	if session.pty != nil {
+		session.outwriter = dio.MultiWriter(writer)
 
 		// TODO: do we need to ensure all reads have completed before calling Wait on the process?
 		// it frees up all resources - does that mean it frees the output buffers?
 		go func() {
-			_, gerr := io.Copy(live.outwriter, live.pty)
+			_, gerr := io.Copy(session.outwriter, session.pty)
 			log.Debug(gerr)
 		}()
 		go func() {
-			_, gerr := io.Copy(live.pty, live.reader)
+			_, gerr := io.Copy(session.pty, session.reader)
 			log.Debug(gerr)
 		}()
 	}

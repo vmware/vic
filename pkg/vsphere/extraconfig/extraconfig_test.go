@@ -21,13 +21,14 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/vim25/types"
 )
 
 // [BEGIN] SLIMMED DOWNED and MODIFIED VERSION of github.com/vmware/vic/metadata
 type Common struct {
-	ExecutionEnvironment string
+	ExecutionEnvironment string `vic:"0.1" key:"nil,omitnested"`
 
 	ID string `vic:"0.1" scope:"hidden" key:"id"`
 
@@ -53,7 +54,15 @@ type ExecutorConfig struct {
 
 	Sessions map[string]SessionConfig `vic:"0.1" scope:"hidden" key:"sessions"`
 
-	Key []byte `json:"byte"`
+	Key string `json:"string"`
+}
+
+type ExecutorConfigPointers struct {
+	Common `vic:"0.1" scope:"read-only" key:"common"`
+
+	Sessions map[string]*SessionConfig `vic:"0.1" scope:"hidden" key:"sessions"`
+
+	Key string `json:"string"`
 }
 
 type Cmd struct {
@@ -78,6 +87,12 @@ type SessionConfig struct {
 
 // [END] SLIMMED VERSION of github.com/vmware/vic/metadata
 
+// make it verbose during testing
+func init() {
+	DecodeLogLevel = log.DebugLevel
+	EncodeLogLevel = log.DebugLevel
+}
+
 func TestBasic(t *testing.T) {
 	type Type struct {
 		Int    int     `vic:"0.1" scope:"read-write" key:"int"`
@@ -93,7 +108,10 @@ func TestBasic(t *testing.T) {
 		"Grrr",
 	}
 
-	encoded := Encode(Struct)
+	sink := map[string]string{}
+	Encode(MapSink(sink), Struct)
+	encoded := OptionValueFromMap(sink)
+
 	expected := []types.BaseOptionValue{
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo.int", Value: "42"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo.bool", Value: "true"},
@@ -103,7 +121,7 @@ func TestBasic(t *testing.T) {
 	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
 
 	var decoded Type
-	Decode(encoded, &decoded)
+	Decode(OptionValueSource(encoded), &decoded)
 
 	assert.Equal(t, Struct, decoded, "Encoded and decoded does not match")
 }
@@ -123,7 +141,10 @@ func TestBasicMap(t *testing.T) {
 	}
 
 	// Encode
-	encoded := Encode(IntMap)
+	sink := map[string]string{}
+	Encode(MapSink(sink), IntMap)
+	encoded := OptionValueFromMap(sink)
+
 	expected := []types.BaseOptionValue{
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/intmap|1st", Value: "12345"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/intmap|2nd", Value: "67890"},
@@ -133,7 +154,7 @@ func TestBasicMap(t *testing.T) {
 
 	// Decode to new variable
 	var decoded Type
-	Decode(encoded, &decoded)
+	Decode(OptionValueSource(encoded), &decoded)
 
 	assert.Equal(t, IntMap, decoded, "Encoded and decoded does not match")
 
@@ -145,7 +166,7 @@ func TestBasicMap(t *testing.T) {
 			"1st":    0,
 		},
 	}
-	Decode(encoded, &IntMapOptimusPrime)
+	Decode(OptionValueSource(encoded), &IntMapOptimusPrime)
 
 	// We expect a merge and over-write
 	expectedOptimusPrime := Type{
@@ -169,15 +190,18 @@ func TestBasicSlice(t *testing.T) {
 		[]int{1, 2, 3, 4, 5},
 	}
 
-	encoded := Encode(IntSlice)
+	sink := map[string]string{}
+	Encode(MapSink(sink), IntSlice)
+	encoded := OptionValueFromMap(sink)
+
 	expected := []types.BaseOptionValue{
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/intslice~", Value: "1|2|3|4|5"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/intslice", Value: "4"},
 	}
-	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
 	var decoded Type
-	Decode(encoded, &decoded)
+	Decode(OptionValueSource(encoded), &decoded)
 
 	assert.Equal(t, IntSlice, decoded, "Encoded and decoded does not match")
 }
@@ -195,16 +219,19 @@ func TestEmbedded(t *testing.T) {
 		},
 	}
 
-	encoded := Encode(Embedded)
+	sink := map[string]string{}
+	Encode(MapSink(sink), Embedded)
+	encoded := OptionValueFromMap(sink)
+
 	expected := []types.BaseOptionValue{
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/common~id", Value: "0xDEADBEEF"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/common~name", Value: "Embedded"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/common~notes", Value: ""},
 	}
-	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
 	var decoded Type
-	Decode(encoded, &decoded)
+	Decode(OptionValueSource(encoded), &decoded)
 
 	assert.Equal(t, Embedded, decoded, "Encoded and decoded does not match")
 }
@@ -221,16 +248,19 @@ func TestStruct(t *testing.T) {
 		},
 	}
 
-	encoded := Encode(Struct)
+	sink := map[string]string{}
+	Encode(MapSink(sink), Struct)
+	encoded := OptionValueFromMap(sink)
+
 	expected := []types.BaseOptionValue{
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/common~id", Value: "0xDEADBEEF"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/common~name", Value: "Struct"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/common~notes", Value: ""},
 	}
-	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
 	var decoded Type
-	Decode(encoded, &decoded)
+	Decode(OptionValueSource(encoded), &decoded)
 
 	assert.Equal(t, Struct, decoded, "Encoded and decoded does not match")
 }
@@ -244,14 +274,17 @@ func TestTime(t *testing.T) {
 		Time: time.Date(2009, 11, 10, 23, 00, 00, 0, time.UTC),
 	}
 
-	encoded := Encode(Time)
+	sink := map[string]string{}
+	Encode(MapSink(sink), Time)
+	encoded := OptionValueFromMap(sink)
+
 	expected := []types.BaseOptionValue{
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/time", Value: "2009-11-10 23:00:00 +0000 UTC"},
 	}
 	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
 
 	var decoded Type
-	Decode(encoded, &decoded)
+	Decode(OptionValueSource(encoded), &decoded)
 
 	assert.Equal(t, Time, decoded, "Encoded and decoded does not match")
 }
@@ -261,19 +294,24 @@ func TestNet(t *testing.T) {
 		Net net.IPNet `vic:"0.1" scope:"read-only" key:"net"`
 	}
 
-	_, n, _ := net.ParseCIDR("127.0.0.1/8")
+	// 127.0.0.1/8
+	n := net.IPNet{IP: net.IP{0x7f, 0x0, 0x0, 0x1}, Mask: net.IPMask{0xff, 0x0, 0x0, 0x0}}
 	Net := Type{
-		Net: *n,
+		Net: n,
 	}
 
-	encoded := Encode(Net)
+	sink := map[string]string{}
+	Encode(MapSink(sink), Net)
+	encoded := OptionValueFromMap(sink)
+
 	expected := []types.BaseOptionValue{
-		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/net", Value: "127.0.0.0/8"},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/net/IP", Value: "\u007f\x00\x00\x01"},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/net/Mask", Value: "\xff\x00\x00\x00"},
 	}
-	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
 	var decoded Type
-	Decode(encoded, &decoded)
+	Decode(OptionValueSource(encoded), &decoded)
 
 	assert.Equal(t, Net, decoded, "Encoded and decoded does not match")
 }
@@ -283,19 +321,24 @@ func TestNetPointer(t *testing.T) {
 		Net *net.IPNet `vic:"0.1" scope:"read-only" key:"net"`
 	}
 
-	_, n, _ := net.ParseCIDR("127.0.0.1/8")
+	// 127.0.0.1/8
+	n := net.IPNet{IP: net.IP{0x7f, 0x0, 0x0, 0x1}, Mask: net.IPMask{0xff, 0x0, 0x0, 0x0}}
 	Net := Type{
-		Net: n,
+		Net: &n,
 	}
 
-	encoded := Encode(Net)
+	sink := map[string]string{}
+	Encode(MapSink(sink), Net)
+	encoded := OptionValueFromMap(sink)
+
 	expected := []types.BaseOptionValue{
-		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/net", Value: "127.0.0.0/8"},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/net/IP", Value: "\u007f\x00\x00\x01"},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/net/Mask", Value: "\xff\x00\x00\x00"},
 	}
-	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
 	var decoded Type
-	Decode(encoded, &decoded)
+	Decode(OptionValueSource(encoded), &decoded)
 
 	assert.Equal(t, Net, decoded, "Encoded and decoded does not match")
 }
@@ -311,14 +354,17 @@ func TestTimePointer(t *testing.T) {
 		Time: &d,
 	}
 
-	encoded := Encode(Time)
+	sink := map[string]string{}
+	Encode(MapSink(sink), Time)
+	encoded := OptionValueFromMap(sink)
+
 	expected := []types.BaseOptionValue{
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/time", Value: "2009-11-10 23:00:00 +0000 UTC"},
 	}
-	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
 	var decoded Type
-	Decode(encoded, &decoded)
+	Decode(OptionValueSource(encoded), &decoded)
 
 	assert.Equal(t, Time, decoded, "Encoded and decoded does not match")
 }
@@ -347,7 +393,10 @@ func TestStructMap(t *testing.T) {
 		},
 	}
 
-	encoded := Encode(StructMap)
+	sink := map[string]string{}
+	Encode(MapSink(sink), StructMap)
+	encoded := OptionValueFromMap(sink)
+
 	expected := []types.BaseOptionValue{
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/map|Key1~id", Value: "0xDEADBEEF"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/map|Key1~name", Value: "beef"},
@@ -360,10 +409,10 @@ func TestStructMap(t *testing.T) {
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/map|Key3~notes", Value: ""},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/map", Value: "Key1|Key2|Key3"},
 	}
-	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
 	var decoded Type
-	Decode(encoded, &decoded)
+	Decode(OptionValueSource(encoded), &decoded)
 
 	assert.Equal(t, StructMap, decoded, "Encoded and decoded does not match")
 }
@@ -392,7 +441,10 @@ func TestIntStructMap(t *testing.T) {
 		},
 	}
 
-	encoded := Encode(StructMap)
+	sink := map[string]string{}
+	Encode(MapSink(sink), StructMap)
+	encoded := OptionValueFromMap(sink)
+
 	expected := []types.BaseOptionValue{
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/map|1~id", Value: "0xDEADBEEF"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/map|1~name", Value: "beef"},
@@ -405,10 +457,10 @@ func TestIntStructMap(t *testing.T) {
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/map|3~notes", Value: ""},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/map", Value: "1|2|3"},
 	}
-	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
 	var decoded Type
-	Decode(encoded, &decoded)
+	Decode(OptionValueSource(encoded), &decoded)
 
 	assert.Equal(t, StructMap, decoded, "Encoded and decoded does not match")
 }
@@ -431,7 +483,10 @@ func TestStructSlice(t *testing.T) {
 		},
 	}
 
-	encoded := Encode(StructSlice)
+	sink := map[string]string{}
+	Encode(MapSink(sink), StructSlice)
+	encoded := OptionValueFromMap(sink)
+
 	expected := []types.BaseOptionValue{
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/slice|0~id", Value: "0xDEADFEED"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/slice|0~name", Value: "feed"},
@@ -441,10 +496,10 @@ func TestStructSlice(t *testing.T) {
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/slice|1~notes", Value: ""},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/slice", Value: "1"},
 	}
-	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
 	var decoded Type
-	Decode(encoded, &decoded)
+	Decode(OptionValueSource(encoded), &decoded)
 
 	assert.Equal(t, StructSlice, decoded, "Encoded and decoded does not match")
 }
@@ -456,9 +511,12 @@ func TestMultipleScope(t *testing.T) {
 		"MultipleScope",
 	}
 
-	encoded := Encode(MultipleScope)
+	sink := map[string]string{}
+	Encode(MapSink(sink), MultipleScope)
+	encoded := OptionValueFromMap(sink)
+
 	var expected []types.BaseOptionValue
-	assert.Equal(t, encoded, expected, "Not equal")
+	assert.Equal(t, expected, encoded, "Not equal")
 }
 
 func TestUnknownScope(t *testing.T) {
@@ -468,7 +526,10 @@ func TestUnknownScope(t *testing.T) {
 		42,
 	}
 
-	encoded := Encode(UnknownScope)
+	sink := map[string]string{}
+	Encode(MapSink(sink), UnknownScope)
+	encoded := OptionValueFromMap(sink)
+
 	var expected []types.BaseOptionValue
 	assert.Equal(t, encoded, expected, "Not equal")
 }
@@ -480,7 +541,10 @@ func TestUnknownProperty(t *testing.T) {
 		42,
 	}
 
-	encoded := Encode(UnknownProperty)
+	sink := map[string]string{}
+	Encode(MapSink(sink), UnknownProperty)
+	encoded := OptionValueFromMap(sink)
+
 	var expected []types.BaseOptionValue
 	assert.Equal(t, encoded, expected, "Not equal")
 }
@@ -494,12 +558,15 @@ func TestOmitNested(t *testing.T) {
 		CurrentTime: time.Date(2009, 11, 10, 23, 00, 00, 0, time.UTC),
 	}
 
-	encoded := Encode(OmitNested)
+	sink := map[string]string{}
+	Encode(MapSink(sink), OmitNested)
+	encoded := OptionValueFromMap(sink)
+
 	expected := []types.BaseOptionValue{
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "time", Value: ""},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "time", Value: "2009-11-10 23:00:00 +0000 UTC"},
 	}
-	assert.Equal(t, encoded, expected, "Encoded and decoded does not match")
+	assert.Equal(t, expected, encoded, "Encoded and decoded does not match")
 
 }
 
@@ -513,7 +580,10 @@ func TestPointer(t *testing.T) {
 		Pointer: &ContainerVM{Version: "0.1"},
 	}
 
-	encoded := Encode(Pointer)
+	sink := map[string]string{}
+	Encode(MapSink(sink), Pointer)
+	encoded := OptionValueFromMap(sink)
+
 	expected := []types.BaseOptionValue{
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/pointer/common~id", Value: ""},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/pointer/common~name", Value: ""},
@@ -522,10 +592,10 @@ func TestPointer(t *testing.T) {
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "pointer", Value: "pointer~version"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "pointeromitnested", Value: ""},
 	}
-	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
 	var decoded Type
-	Decode(encoded, &decoded)
+	Decode(OptionValueSource(encoded), &decoded)
 
 	assert.Equal(t, Pointer, decoded, "Encoded and decoded does not match")
 }
@@ -546,7 +616,7 @@ func TestComplex(t *testing.T) {
 					Tty: true,
 					Cmd: Cmd{
 						Path: "/vmware",
-						Args: []string{"-standalone", "/bin/imagec"},
+						Args: []string{"/bin/imagec", "-standalone"},
 						Env:  []string{"PATH=/bin", "USER=imagec"},
 						Dir:  "/",
 					},
@@ -554,7 +624,11 @@ func TestComplex(t *testing.T) {
 			},
 		},
 	}
-	encoded := Encode(ExecutorConfig)
+
+	sink := map[string]string{}
+	Encode(MapSink(sink), ExecutorConfig)
+	encoded := OptionValueFromMap(sink)
+
 	expected := []types.BaseOptionValue{
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/executorconfig/common~id", Value: ""},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/executorconfig/common~name", Value: ""},
@@ -563,7 +637,7 @@ func TestComplex(t *testing.T) {
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions|Session1~common~name", Value: "SessionName"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions|Session1~common~notes", Value: ""},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions|Session1~cmd~path", Value: "/vmware"},
-		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions|Session1~cmd~args~", Value: "-standalone|/bin/imagec"},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions|Session1~cmd~args~", Value: "/bin/imagec|-standalone"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions|Session1~cmd~args", Value: "1"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions|Session1~cmd~env~", Value: "PATH=/bin|USER=imagec"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions|Session1~cmd~env", Value: "1"},
@@ -571,10 +645,10 @@ func TestComplex(t *testing.T) {
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions|Session1~tty", Value: "true"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions", Value: "Session1"},
 	}
-	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
 	var decoded Type
-	Decode(encoded, &decoded)
+	Decode(OptionValueSource(encoded), &decoded)
 
 	assert.Equal(t, ExecutorConfig, decoded, "Encoded and decoded does not match")
 }
@@ -595,7 +669,7 @@ func TestComplexPointer(t *testing.T) {
 					Tty: true,
 					Cmd: Cmd{
 						Path: "/vmware",
-						Args: []string{"-standalone", "/bin/imagec"},
+						Args: []string{"/bin/imagec", "-standalone"},
 						Env:  []string{"PATH=/bin", "USER=imagec"},
 						Dir:  "/",
 					},
@@ -604,7 +678,10 @@ func TestComplexPointer(t *testing.T) {
 		},
 	}
 
-	encoded := Encode(ExecutorConfig)
+	sink := map[string]string{}
+	Encode(MapSink(sink), ExecutorConfig)
+	encoded := OptionValueFromMap(sink)
+
 	expected := []types.BaseOptionValue{
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/executorconfig/common~id", Value: ""},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/executorconfig/common~name", Value: ""},
@@ -613,7 +690,7 @@ func TestComplexPointer(t *testing.T) {
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions|Session1~common~name", Value: "SessionName"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions|Session1~common~notes", Value: ""},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions|Session1~cmd~path", Value: "/vmware"},
-		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions|Session1~cmd~args~", Value: "-standalone|/bin/imagec"},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions|Session1~cmd~args~", Value: "/bin/imagec|-standalone"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions|Session1~cmd~args", Value: "1"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions|Session1~cmd~env~", Value: "PATH=/bin|USER=imagec"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions|Session1~cmd~env", Value: "1"},
@@ -622,12 +699,62 @@ func TestComplexPointer(t *testing.T) {
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig~sessions", Value: "Session1"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "executorconfig", Value: "executorconfig~sessions"},
 	}
-	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
 	var decoded Type
-	Decode(encoded, &decoded)
+	Decode(OptionValueSource(encoded), &decoded)
 
 	assert.Equal(t, ExecutorConfig, decoded, "Encoded and decoded does not match")
+}
+
+func TestPointerDecode(t *testing.T) {
+	reference := ExecutorConfig{
+		Sessions: map[string]SessionConfig{
+			"Session1": SessionConfig{
+				Common: Common{
+					ID:   "SessionID",
+					Name: "SessionName",
+				},
+				Tty: true,
+				Cmd: Cmd{
+					Path: "/vmware",
+					Args: []string{"/bin/imagec", "-standalone"},
+					Env:  []string{"PATH=/bin", "USER=imagec"},
+					Dir:  "/",
+				},
+			},
+		},
+	}
+
+	sink := map[string]string{}
+	Encode(MapSink(sink), reference)
+	encoded := OptionValueFromMap(sink)
+
+	expected := []types.BaseOptionValue{
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/common~id", Value: ""},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/common~name", Value: ""},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/common~notes", Value: ""},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "sessions|Session1~common~id", Value: "SessionID"},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "sessions|Session1~common~name", Value: "SessionName"},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "sessions|Session1~common~notes", Value: ""},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "sessions|Session1~cmd~path", Value: "/vmware"},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "sessions|Session1~cmd~args~", Value: "/bin/imagec|-standalone"},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "sessions|Session1~cmd~args", Value: "1"},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "sessions|Session1~cmd~env~", Value: "PATH=/bin|USER=imagec"},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "sessions|Session1~cmd~env", Value: "1"},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "sessions|Session1~cmd~dir", Value: "/"},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "sessions|Session1~tty", Value: "true"},
+		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "sessions", Value: "Session1"},
+	}
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
+
+	var decoded ExecutorConfigPointers
+	Decode(OptionValueSource(encoded), &decoded)
+
+	// cannot assert equality at a high level because of the different structure types, but we can test the
+	// common structure fragments
+	assert.Equal(t, reference.Sessions["Session1"], *decoded.Sessions["Session1"], "Encoded and decoded sessions do not match")
+
 }
 
 func TestInsideOutside(t *testing.T) {
@@ -650,17 +777,20 @@ func TestInsideOutside(t *testing.T) {
 		Name: "Outside",
 	}
 
-	encoded := Encode(outside)
+	sink := map[string]string{}
+	Encode(MapSink(sink), outside)
+	encoded := OptionValueFromMap(sink)
+
 	expected := []types.BaseOptionValue{
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/inside.id", Value: "inside"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo/inside.name", Value: "Inside"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo.id", Value: "outside"},
 		&types.OptionValue{DynamicData: types.DynamicData{}, Key: "guestinfo.name", Value: "Outside"},
 	}
-	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
 	var decoded Outside
-	Decode(encoded, &decoded)
+	Decode(OptionValueSource(encoded), &decoded)
 
 	assert.Equal(t, outside, decoded, "Encoded and decoded does not match")
 
