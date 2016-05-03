@@ -96,16 +96,16 @@ type ExecutorConfig struct {
 // Cmd is here because the encoding packages seem to have issues with the full exec.Cmd struct
 type Cmd struct {
 	// Path is the command to run
-	Path string `vic:"0.1" scope:"read-only" key:"path"`
+	Path string `vic:"0.1" scope:"read-only" key:"Path"`
 
 	// Args is the command line arguments including the command in Args[0]
-	Args []string `vic:"0.1" scope:"read-only" key:"args"`
+	Args []string `vic:"0.1" scope:"read-only" key:"Args"`
 
 	// Env specifies the environment of the process
-	Env []string `vic:"0.1" scope:"read-only" key:"env"`
+	Env []string `vic:"0.1" scope:"read-only" key:"Env"`
 
 	// Dir specifies the working directory of the command
-	Dir string `vic:"0.1" scope:"read-only" key:"dir"`
+	Dir string `vic:"0.1" scope:"read-only" key:"Dir"`
 }
 
 // SessionConfig defines the content of a session - this maps to the root of a process tree

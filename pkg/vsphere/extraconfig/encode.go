@@ -81,12 +81,19 @@ func encode(sink DataSink, src reflect.Value, prefix string) {
 
 // encodeString is the degenerative case where what we get is what we need
 func encodeString(sink DataSink, src reflect.Value, prefix string) {
-	sink(prefix, src.String())
+	err := sink(prefix, src.String())
+	if err != nil {
+		log.Errorf("Failed to encode string for key %s: %s", prefix, err)
+	}
+
 }
 
 // encodePrimitive wraps the toString primitive encoding in a manner that can be called via encode
 func encodePrimitive(sink DataSink, src reflect.Value, prefix string) {
-	sink(prefix, toString(src))
+	err := sink(prefix, toString(src))
+	if err != nil {
+		log.Errorf("Failed to encode primitive for key %s: %s", prefix, err)
+	}
 }
 
 func encodePtr(sink DataSink, src reflect.Value, prefix string) {
@@ -153,7 +160,11 @@ func encodeSlice(sink DataSink, src reflect.Value, prefix string) {
 
 		// convert key to name|index format
 		key := fmt.Sprintf("%s~", prefix)
-		sink(key, strings.Join(values, "|"))
+		err := sink(key, strings.Join(values, "|"))
+		if err != nil {
+			log.Errorf("Failed to encode slice data for key %s: %s", key, err)
+		}
+
 	} else {
 		for i := 0; i < length; i++ {
 			// convert key to name|index format
@@ -164,7 +175,11 @@ func encodeSlice(sink DataSink, src reflect.Value, prefix string) {
 
 	// prefix contains the length of the array
 	// seems insane calling toString(ValueOf(..)) but it means we're using the same path for everything
-	sink(prefix, toString(reflect.ValueOf(length-1)))
+	err := sink(prefix, toString(reflect.ValueOf(length-1)))
+	if err != nil {
+		log.Errorf("Failed to encode slice length for key %s: %s", prefix, err)
+	}
+
 }
 
 func encodeMap(sink DataSink, src reflect.Value, prefix string) {
@@ -186,11 +201,19 @@ func encodeMap(sink DataSink, src reflect.Value, prefix string) {
 	}
 	// sort the keys before joining - purely to make testing viable
 	sort.Strings(keys)
-	sink(prefix, strings.Join(keys, "|"))
+	err := sink(prefix, strings.Join(keys, "|"))
+	if err != nil {
+		log.Errorf("Failed to encode map keys for key %s: %s", prefix, err)
+	}
+
 }
 
 func encodeTime(sink DataSink, src reflect.Value, prefix string) {
-	sink(prefix, src.Interface().(time.Time).String())
+	err := sink(prefix, src.Interface().(time.Time).String())
+	if err != nil {
+		log.Errorf("Failed to encode time for key %s: %s", prefix, err)
+	}
+
 }
 
 // toString converts a basic type to its string representation
@@ -213,7 +236,7 @@ func toString(field reflect.Value) string {
 
 // DataSink provides a function that, given a key/value will persist that
 // in some manner suited for later retrieval
-type DataSink func(string, string)
+type DataSink func(string, string) error
 
 // Encode convert given type to []types.BaseOptionValue
 func Encode(sink DataSink, dest interface{}) {
@@ -225,8 +248,9 @@ func Encode(sink DataSink, dest interface{}) {
 
 // MapSink takes a map and populates it with key/value pairs from the encode
 func MapSink(sink map[string]string) DataSink {
-	return func(key, value string) {
+	return func(key, value string) error {
 		sink[key] = value
+		return nil
 	}
 }
 
