@@ -56,6 +56,7 @@ func NewServiceInstance(content types.ServiceContent, folder mo.Folder) *Service
 
 	objects := []object.Reference{
 		NewSessionManager(*s.Content.SessionManager),
+		NewPropertyCollector(s.Content.PropertyCollector),
 	}
 
 	for _, o := range objects {
