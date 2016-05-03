@@ -291,7 +291,7 @@ func (t *osopsLinux) MountLabel(label, target string, ctx context.Context) error
 }
 
 // Fork triggers vmfork and handles the necessary pre/post OS level operations
-func (t *osopsLinux) Fork(config *metadata.ExecutorConfig) error {
+func (t *osopsLinux) Fork(config *ExecutorConfig) error {
 	// unload vmxnet3 module
 
 	// fork

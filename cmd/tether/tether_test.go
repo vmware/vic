@@ -30,6 +30,7 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/serial"
@@ -81,8 +82,8 @@ func (t *mocker) processEnvOS(env []string) []string {
 	return t.utils.processEnvOS(env)
 }
 
-func (t *mocker) establishPty(live *liveSession) error {
-	return t.utils.establishPty(live)
+func (t *mocker) establishPty(session *SessionConfig) error {
+	return t.utils.establishPty(session)
 }
 
 func (t *mocker) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
@@ -123,7 +124,7 @@ func (t *mocker) MountLabel(label, target string, ctx context.Context) error {
 }
 
 // Fork triggers vmfork and handles the necessary pre/post OS level operations
-func (t *mocker) Fork(config *metadata.ExecutorConfig) error {
+func (t *mocker) Fork(config *ExecutorConfig) error {
 	defer trace.End(trace.Begin("mocking fork"))
 	return errors.New("Fork test not implemented")
 }
@@ -360,4 +361,16 @@ func mockSerialConnection(ctx context.Context) (net.Conn, error) {
 			return nil, ctx.Err()
 		}
 	}
+}
+
+func OptionValueArrayToString(options []types.BaseOptionValue) string {
+	// create the key/value store from the extraconfig slice for lookups
+	kv := make(map[string]string)
+	for i := range options {
+		k := options[i].GetOptionValue().Key
+		v := options[i].GetOptionValue().Value.(string)
+		kv[k] = v
+	}
+
+	return fmt.Sprintf("%#v", kv)
 }

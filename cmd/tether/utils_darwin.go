@@ -49,7 +49,7 @@ func (t *osopsOSX) MountLabel(label, target string, ctx context.Context) error {
 	return errors.New("not implemented on OSX")
 }
 
-func (t *osopsOSX) Fork(config *metadata.ExecutorConfig) error {
+func (t *osopsOSX) Fork(config *ExecutorConfig) error {
 	return errors.New("not implemented on OSX")
 }
 

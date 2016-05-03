@@ -18,10 +18,12 @@ import (
 	_ "net/http/pprof"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 func main() {
+	defer halt()
+
 	// get the windows service logic running so that we can play well in that mode
 	runService("VMware Tether", false)
 
@@ -33,14 +35,19 @@ func main() {
 	utils = win
 
 	server = &attachServerSSH{}
-	err := run(metadata.New())
+	src, err := extraconfig.GuestInfoSource()
 	if err != nil {
 		log.Error(err)
-	} else {
-		log.Info("Clean exit from tether")
+		return
 	}
 
-	halt()
+	err = run(src)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	log.Info("Clean exit from tether")
 }
 
 // exit reports completion detail in persistent fashion then cleanly
