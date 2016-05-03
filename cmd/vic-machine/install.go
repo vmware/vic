@@ -101,7 +101,7 @@ func init() {
 	flag.StringVar(&data.applianceISO, "appliance-iso", "", "The appliance iso")
 	flag.StringVar(&data.bootstrapISO, "bootstrap-iso", "", "The bootstrap iso")
 	flag.BoolVar(&data.force, "force", false, "Force the install, removing existing if present")
-	flag.BoolVar(&data.tlsGenerate, "generate-cert", false, "Generate certificate for Virtual Container Host")
+	flag.BoolVar(&data.tlsGenerate, "generate-cert", true, "Generate certificate for Virtual Container Host")
 
 	flag.Parse()
 }
@@ -216,7 +216,7 @@ func loadCertificate() error {
 		keypair = NewKeyPair(true, data.key, data.cert)
 	}
 	if keypair == nil {
-		log.Warnf("Configuring without TLS - to enable use -gen or -key/-cert parameters")
+		log.Warnf("Configuring without TLS - to enable use -generate-cert or -key/-cert parameters")
 		return nil
 	}
 	if err := keypair.GetCertificate(); err != nil {
@@ -306,7 +306,7 @@ func main() {
 	log.Infof("ssh root@%s", executor.HostIP)
 	log.Infof("")
 	log.Infof("Log server:")
-	log.Infof("https://%s:2378", executor.HostIP)
+	log.Infof("%s://%s:2378", executor.VICAdminProto, executor.HostIP)
 	log.Infof("")
 	if data.key != "" {
 		log.Infof("Connect to docker:")
