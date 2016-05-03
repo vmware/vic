@@ -74,9 +74,7 @@ func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Ima
 				http.StatusInternalServerError)
 	}
 
-	params := &storage.ListImagesParams{
-		StoreName: host,
-	}
+	params := storage.NewListImagesParams().WithStoreName(host)
 
 	client := PortLayerClient()
 	if client == nil {
