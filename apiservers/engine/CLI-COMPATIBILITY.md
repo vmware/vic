@@ -3,51 +3,52 @@ VIC attempts to be compatible with the Docker client (CLI); however, there are s
 
 The list is organized into 3 separate tables. The first table lists CLI operations that are supported in the first version of VIC. The second table lists operations that VIC may support in the future.
 
-### Supported in VIC 1.0
+### VIC Support
 
-|Docker CLI Operation | VIC Supported?|
-|--- | ---|
-|attach | YES|
-|cp | YES|
-|create | *Yes - differences*|
-|events | *Yes - differences*|
-|history | YES|
-|images | YES|
-|login | YES|
-|logout | YES|
-|logs | YES|
-|network connect| YES|
-|network create| *Yes - differences*|
-|network disconnect| YES|
-|network ls| YES|
-|network rm| YES|
-|port | YES|
-|ps | YES|
-|pull | YES|
-|rm | YES|
-|rmi | YES|
-|run | *Yes - differences*|
-|rename | YES|
-|restart | YES|
-|start | YES|
-|stop | YES|
-|tag| YES|
-|version | YES|
-|volume create| *Yes - differences*|
-|volume inspect| YES|
-|volume ls| YES|
-|volume rm| YES|
+|Docker CLI Operation | support viable | technical priority |
+|--- | ---| ---|
+|attach | YES| P0 - feel good factor and interactive debug |
+|cp | YES| P1 - live copy |
+|create | *Yes - differences*| P0 - core function: use |
+|events | *Yes - differences*| P1 - necessary for automation |
+|history | YES| - |
+|images | YES| P0 - core function: admin |
+|login | YES| - |
+|logout | YES| - |
+|logs | YES| P0 - core function: use |
+|network connect| YES| P2 - necessary only for dynamic topology changes |
+|network create| *Yes - differences*| P0 - core function: use/admin |
+|network disconnect| YES| P2 - symmetrical with connect |
+|network ls| YES| P0 - core function: use |
+|network rm| YES| - |
+|port | YES| P1 - core function: use - necessity reduced if not using NAT model |
+|ps | YES| P0 - core function: use/admin |
+|pull | YES| P0 - core function: use |
+|rm | YES| P0 - core function: use/admin |
+|rmi | YES| P1 - core function: admin - maybe less critical in production |
+|run | *Yes - differences*| P0 - core function: use |
+|rename | YES| - |
+|restart | YES| P0 - core function: use |
+|start | YES| P0 - core function: use |
+|stop | YES| P0 - core function: use |
+|tag| YES| - |
+|version | YES| P0 - core function: admin |
+|volume create| *Yes - differences*| P0 - core function: use/admin |
+|volume inspect| YES| P1 - core function: admin - maybe less critical in production | 
+|volume ls| YES| P0 - core function: use |
+|volume rm| YES| P1 - core function: use/admin - depends on dynamism of volume use | 
+|exec | YES | P1 - interactive debug |
+|pause | YES| - |
+|stats | YES| P1 - core function: diagnostics |
+|top | YES| - |
+|unpause | YES| - |
+|wait | YES | P1 - necessary for automation |
 
-### Support not Guaranteed
-
-|Docker CLI Operation |
-|--- |
-|exec |
-|pause |
-|stats |
-|top |
-|unpause |
-|wait |
+The technical priority ranking is as follows (assessed with regard to production deployment):
+P0 - delay GA if not available
+P1 - significant reduction in capability - consider slipping
+P2 - confined reduction in capability
+-  - not significant in initial use cases
 
 ### Future Support
 
