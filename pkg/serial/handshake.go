@@ -82,7 +82,7 @@ func HandshakeClient(ctx context.Context, conn net.Conn) error {
 		} else {
 			log.Debug(msg)
 		}
-		return errors.New(msg)
+		return err
 	}
 
 	synack[1] = syn[1] + 1

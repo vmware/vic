@@ -48,12 +48,13 @@ func NewAttachServer(ip string, port int) *Server {
 
 // Start starts the TCP listener.
 func (n *Server) Start() error {
+	log.Infof("Attach server listening on %s:%d", n.ip, n.port)
 
 	addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", n.ip, n.port))
 
 	n.l, err = net.ListenTCP("tcp", addr)
 	if err != nil {
-		err = fmt.Errorf("vmware exec driver unable listen for spawned container VMs on %s: %s", addr, errors.ErrorStack(err))
+		err = fmt.Errorf("Attach server error %s: %s", addr, errors.ErrorStack(err))
 		log.Errorf("%s", err)
 		return err
 	}
