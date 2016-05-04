@@ -80,7 +80,6 @@ func encode(sink DataSink, src reflect.Value, prefix string, depth recursion) {
 		enc(sink, src, prefix, depth)
 		return
 	}
-	depth.depth--
 
 	log.Debugf("Skipping unsupported field, interface: %T, kind %s", src, src.Kind())
 }
@@ -114,7 +113,6 @@ func encodePtr(sink DataSink, src reflect.Value, prefix string, depth recursion)
 		// no need to attempt anything
 		return
 	}
-}
 
 	encode(sink, src.Elem(), prefix, depth)
 }
@@ -249,11 +247,11 @@ func toString(field reflect.Value) string {
 type DataSink func(string, string) error
 
 // Encode convert given type to []types.BaseOptionValue
-func Encode(sink DataSink, dest interface{}) {
+func Encode(sink DataSink, src interface{}) {
 	defer log.SetLevel(log.GetLevel())
 	log.SetLevel(EncodeLogLevel)
 
-	encode(sink, reflect.ValueOf(dest), DefaultPrefix, Unbounded)
+	encode(sink, reflect.ValueOf(src), DefaultPrefix, Unbounded)
 }
 
 // MapSink takes a map and populates it with key/value pairs from the encode
