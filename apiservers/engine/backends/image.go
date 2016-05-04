@@ -32,6 +32,7 @@ import (
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/registry"
 	"github.com/vmware/vic/apiservers/portlayer/client/storage"
+	"github.com/vmware/vic/apiservers/portlayer/models"
 )
 
 const (
@@ -93,66 +94,20 @@ func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Ima
 	}
 
 	// build a map from image id to image v1Compatibility metadata
-	v1Map := make(map[string]*v1.V1Image)
-	for _, image := range images.Payload {
+	v1Map := getV1MapFromImages(images.Payload)
 
-		if image.ID == "scratch" {
-			continue
-		}
-
-		v1Image := &v1.V1Image{}
-		decoder := json.NewDecoder(strings.NewReader(image.Metadata["v1Compatibility"]))
-		if err := decoder.Decode(v1Image); err != nil {
-			log.Fatal(err)
-		}
-		v1Map[image.ID] = v1Image
-	}
-
+	// traverse the image graph to calculate sizes for each image
 	resolveImageSizes(v1Map)
 
+	// convert results into Docker image format
 	for _, v1Image := range v1Map {
-		newImage := &types.Image{
-			ID:       v1Image.ID,
-			ParentID: v1Image.Parent,
-			RepoTags: []string{"<fixme>:<fixme>"}, // TODO(jzt): replace with actual tags
-			//RepoDigests: []string{"<fixme>:<fixme>"},
-			Created:     v1Image.Created.Unix(),
-			VirtualSize: v1Image.Size,
-			Labels:      v1Image.Config.Labels,
-		}
+		newImage := convertV1ImageToDockerImage(v1Image)
 		result = append(result, newImage)
 	}
 
 	sort.Sort(sort.Reverse(byCreated(result)))
 
 	return result, nil
-}
-
-func resolveImageSizes(v1Map map[string]*v1.V1Image) {
-	resolved := map[string]int64{}
-	for id := range v1Map {
-		resolveImageSize(v1Map, resolved, id)
-	}
-}
-
-func resolveImageSize(v1Map map[string]*v1.V1Image, resolved map[string]int64, id string) {
-
-	// this image's size has already been resolved by a previous traversal
-	if _, ok := resolved[id]; ok {
-		return
-	}
-
-	parentID := v1Map[id].Parent
-	if parentID != "" {
-		// If we have already resolved the parent image's size, we don't need to traverse up the chain
-		if parentSize, ok := resolved[parentID]; ok {
-			v1Map[id].Size += parentSize
-		} else {
-			resolveImageSize(v1Map, resolved, parentID)
-			v1Map[id].Size += resolved[parentID]
-		}
-	}
-	resolved[id] = v1Map[id].Size
 }
 
 func (i *Image) LookupImage(name string) (*types.ImageInspect, error) {
@@ -230,4 +185,64 @@ func (i *Image) PushImage(ref reference.Named, metaHeaders map[string][]string, 
 
 func (i *Image) SearchRegistryForImages(term string, authConfig *types.AuthConfig, metaHeaders map[string][]string) (*registry.SearchResults, error) {
 	return nil, fmt.Errorf("%s does not implement image.SearchRegistryForImages", i.ProductName)
+}
+
+// Utility functions
+
+func getV1MapFromImages(images []*models.Image) map[string]*v1.V1Image {
+	// build a map from image id to image v1Compatibility metadata
+	v1Map := make(map[string]*v1.V1Image)
+	for _, image := range images {
+
+		if image.ID == "scratch" {
+			continue
+		}
+
+		v1Image := &v1.V1Image{}
+		decoder := json.NewDecoder(strings.NewReader(image.Metadata["v1Compatibility"]))
+		if err := decoder.Decode(v1Image); err != nil {
+			log.Fatal(err)
+		}
+		v1Map[image.ID] = v1Image
+	}
+	return v1Map
+}
+
+func resolveImageSizes(v1Map map[string]*v1.V1Image) {
+	resolved := map[string]int64{}
+	for id := range v1Map {
+		resolveImageSize(v1Map, resolved, id)
+	}
+}
+
+func resolveImageSize(v1Map map[string]*v1.V1Image, resolved map[string]int64, id string) {
+
+	// this image's size has already been resolved by a previous traversal
+	if _, ok := resolved[id]; ok {
+		return
+	}
+
+	parentID := v1Map[id].Parent
+	if parentID != "" {
+		// If we have already resolved the parent image's size, we don't need to traverse up the chain
+		if parentSize, ok := resolved[parentID]; ok {
+			v1Map[id].Size += parentSize
+		} else {
+			resolveImageSize(v1Map, resolved, parentID)
+			v1Map[id].Size += resolved[parentID]
+		}
+	}
+	resolved[id] = v1Map[id].Size
+}
+
+func convertV1ImageToDockerImage(v1Image *v1.V1Image) *types.Image {
+	return &types.Image{
+		ID:       v1Image.ID,
+		ParentID: v1Image.Parent,
+		RepoTags: []string{"<fixme>:<fixme>"}, // TODO(jzt): replace with actual tags
+		//RepoDigests: []string{"<fixme>:<fixme>"},
+		Created:     v1Image.Created.Unix(),
+		VirtualSize: v1Image.Size,
+		Labels:      v1Image.Config.Labels,
+	}
 }
