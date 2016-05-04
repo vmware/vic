@@ -119,8 +119,8 @@ func readMultiple(conn net.Conn, b []byte) (int, error) {
 	// toggle between this behaviour and blocking read at a windows level
 	n, err := conn.Read(b)
 	if err == nil && n == 1 {
-		n, err := conn.Read(b[1:])
-		return n + 1, err
+		cn, cerr := conn.Read(b[1:])
+		return cn + 1, cerr
 	}
 	return n, err
 }

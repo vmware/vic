@@ -70,16 +70,16 @@ func TestCreateAndDetach(t *testing.T) {
 	for i := 0; i < numChildren; i++ {
 
 		p := client.Datastore.Path(fmt.Sprintf("imagestore/child%d.vmdk", i))
-		child, err := vdm.CreateAndAttach(context.TODO(), p, parent.DatastoreURI, 0, os.O_RDWR)
-		if !assert.NoError(t, err) {
+		child, cerr := vdm.CreateAndAttach(context.TODO(), p, parent.DatastoreURI, 0, os.O_RDWR)
+		if !assert.NoError(t, cerr) {
 			return
 		}
 
 		children[i] = child
 
 		// Write directly to the disk
-		f, err := os.OpenFile(child.DevicePath, os.O_RDWR, os.FileMode(0777))
-		if !assert.NoError(t, err) {
+		f, cerr := os.OpenFile(child.DevicePath, os.O_RDWR, os.FileMode(0777))
+		if !assert.NoError(t, cerr) {
 			return
 		}
 
@@ -88,15 +88,15 @@ func TestCreateAndDetach(t *testing.T) {
 
 		if i == numChildren-1 {
 			// last chunk, write to the end.
-			_, err = f.WriteAt([]byte(testString[start:]), int64(start))
-			if !assert.NoError(t, err) {
+			_, cerr = f.WriteAt([]byte(testString[start:]), int64(start))
+			if !assert.NoError(t, cerr) {
 				return
 			}
 			// Try to read the whole string
 			b := make([]byte, len(testString))
 			f.Seek(0, 0)
-			_, err = f.Read(b)
-			if !assert.NoError(t, err) {
+			_, cerr = f.Read(b)
+			if !assert.NoError(t, cerr) {
 				return
 			}
 
@@ -106,16 +106,16 @@ func TestCreateAndDetach(t *testing.T) {
 			}
 
 		} else {
-			_, err = f.WriteAt([]byte(testString[start:end]), int64(start))
-			if !assert.NoError(t, err) {
+			_, cerr = f.WriteAt([]byte(testString[start:end]), int64(start))
+			if !assert.NoError(t, cerr) {
 				return
 			}
 		}
 
 		f.Close()
 
-		err = vdm.Detach(context.TODO(), child)
-		if !assert.NoError(t, err) {
+		cerr = vdm.Detach(context.TODO(), child)
+		if !assert.NoError(t, cerr) {
 			return
 		}
 

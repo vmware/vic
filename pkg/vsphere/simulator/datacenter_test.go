@@ -51,11 +51,11 @@ func TestDatacenterCreateFolders(t *testing.T) {
 			e := Map.Get(ref).(mo.Entity)
 
 			if e.Entity().Name == "" {
-				t.Errorf("empty name")
+				t.Error("empty name")
 			}
 
 			if *e.Entity().Parent != test.dc.Self {
-				t.Error()
+				t.Fail()
 			}
 
 			if test.isVC {
@@ -65,7 +65,7 @@ func TestDatacenterCreateFolders(t *testing.T) {
 				}
 
 				if len(f.ChildType) < 2 {
-					t.Error()
+					t.Fail()
 				}
 			} else {
 				f, ok := e.(*mo.Folder)
@@ -74,7 +74,7 @@ func TestDatacenterCreateFolders(t *testing.T) {
 				}
 
 				if len(f.ChildType) != 1 {
-					t.Error()
+					t.Fail()
 				}
 			}
 		}

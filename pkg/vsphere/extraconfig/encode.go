@@ -269,8 +269,8 @@ func encodeWithPrefix(src interface{}, prefix string) []types.BaseOptionValue {
 				// iterate over keys and recurse
 				for _, v := range field.MapKeys() {
 					keys = append(keys, toString(v))
-					key := fmt.Sprintf("%s|%s", key, toString(v))
-					config = append(config, encodeWithPrefix(field.MapIndex(v).Interface(), key)...)
+					mkey := fmt.Sprintf("%s|%s", key, toString(v))
+					config = append(config, encodeWithPrefix(field.MapIndex(v).Interface(), mkey)...)
 				}
 				// sort the keys before joining
 				sort.Strings(keys)

@@ -151,9 +151,9 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string
 	in := res.Body
 	// stream progress as json and body into a file - only if we have an ID and a Content-Length header
 	if hdr := res.Header.Get("Content-Length"); ID != "" && hdr != "" {
-		cl, err := strconv.ParseInt(hdr, 10, 64)
-		if err != nil {
-			return "", err
+		cl, cerr := strconv.ParseInt(hdr, 10, 64)
+		if cerr != nil {
+			return "", cerr
 		}
 
 		in = progress.NewProgressReader(

@@ -32,19 +32,19 @@ func TestRegistry(t *testing.T) {
 	e := r.Get(ref)
 
 	if e.Reference() != ref {
-		t.Error()
+		t.Fail()
 	}
 
 	r.Remove(ref)
 
 	if r.Get(ref) != nil {
-		t.Error()
+		t.Fail()
 	}
 
 	r.Put(e)
 	e = r.Get(ref)
 
 	if e.Reference() != ref {
-		t.Error()
+		t.Fail()
 	}
 }

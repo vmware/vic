@@ -89,10 +89,10 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 	log.Debugf("Adding metadata to the configspec: %+v", config.Metadata)
 	// TEMPORARY
 
-	metadata, err := metadata.New().StoreConfig(&config.Metadata)
-	if err != nil {
-		log.Errorf("failed to marshal container metadata: %s", err)
-		return nil, err
+	md, cerr := metadata.New().StoreConfig(&config.Metadata)
+	if cerr != nil {
+		log.Errorf("failed to marshal container metadata: %s", cerr)
+		return nil, cerr
 	}
 
 	spec := &types.VirtualMachineConfigSpec{
@@ -129,7 +129,7 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 			&types.OptionValue{Key: "tools.upgrade.policy", Value: "manual"},
 
 			// TEMPORARY
-			&types.OptionValue{Key: "guestInfo.vic.configblob", Value: metadata},
+			&types.OptionValue{Key: "guestInfo.vic.configblob", Value: md},
 		},
 	}
 

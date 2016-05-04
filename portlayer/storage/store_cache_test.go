@@ -109,8 +109,8 @@ func TestListImages(t *testing.T) {
 	for i := 1; i < 50; i++ {
 		id := fmt.Sprintf("ID-%d", i)
 
-		img, err := s.WriteImage(context.TODO(), &parent, id, nil, testSum, nil)
-		if !assert.NoError(t, err) {
+		img, werr := s.WriteImage(context.TODO(), &parent, id, nil, testSum, nil)
+		if !assert.NoError(t, werr) {
 			return
 		}
 		if !assert.NotNil(t, img) {
@@ -182,8 +182,8 @@ func TestImageStoreRestart(t *testing.T) {
 	for i := 1; i < 50; i++ {
 		id := fmt.Sprintf("ID-%d", i)
 
-		img, err := firstCache.WriteImage(context.TODO(), &parent, id, nil, testSum, nil)
-		if !assert.NoError(t, err) {
+		img, werr := firstCache.WriteImage(context.TODO(), &parent, id, nil, testSum, nil)
+		if !assert.NoError(t, werr) {
 			return
 		}
 		if !assert.NotNil(t, img) {
@@ -195,8 +195,8 @@ func TestImageStoreRestart(t *testing.T) {
 
 	// get the images from the second cache to ensure it goes to the ds
 	for id, expectedImg := range expectedImages {
-		img, err := secondCache.GetImage(context.TODO(), storeURL, id)
-		if !assert.NoError(t, err) || !assert.Equal(t, expectedImg, img) {
+		img, werr := secondCache.GetImage(context.TODO(), storeURL, id)
+		if !assert.NoError(t, werr) || !assert.Equal(t, expectedImg, img) {
 			return
 		}
 	}
@@ -204,8 +204,8 @@ func TestImageStoreRestart(t *testing.T) {
 	// Nuke the second cache's datastore.  All data should come from the cache.
 	secondCache.DataStore = nil
 	for id, expectedImg := range expectedImages {
-		img, err := secondCache.GetImage(context.TODO(), storeURL, id)
-		if !assert.NoError(t, err) || !assert.Equal(t, expectedImg, img) {
+		img, gerr := secondCache.GetImage(context.TODO(), storeURL, id)
+		if !assert.NoError(t, gerr) || !assert.Equal(t, expectedImg, img) {
 			return
 		}
 	}

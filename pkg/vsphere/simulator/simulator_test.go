@@ -150,7 +150,7 @@ func TestUnmarshal(t *testing.T) {
 	for i, req := range requests {
 		method, err := UnmarshalBody([]byte(req.data))
 		if err != nil {
-			t.Errorf("failed to decode %d (%s):", i, req, err)
+			t.Errorf("failed to decode %d (%s): %s", i, req, err)
 		}
 		if !reflect.DeepEqual(method.Body, req.body) {
 			t.Errorf("malformed body %d (%#v):", i, method.Body)
@@ -244,7 +244,7 @@ func TestServeHTTP(t *testing.T) {
 		}
 
 		if now.After(time.Now()) {
-			t.Error()
+			t.Fail()
 		}
 	}
 }

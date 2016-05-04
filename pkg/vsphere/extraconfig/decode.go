@@ -181,21 +181,21 @@ func decodeWithPrefix(kv map[string]string, dest interface{}, prefix string) int
 					for i := 0; i < length; i++ {
 						member := reflect.New(field.Type().Elem())
 						// convert key to name|index format
-						key := fmt.Sprintf("%s|%d", key, i)
-						decodeWithPrefix(kv, member.Interface(), key)
+						mkey := fmt.Sprintf("%s|%d", key, i)
+						decodeWithPrefix(kv, member.Interface(), mkey)
 
 						// set the i'th slice item
 						slice.Index(i).Set(member.Elem())
 					}
 				} else {
 					// convert key to name~ format
-					key := fmt.Sprintf("%s~", key)
+					mkey := fmt.Sprintf("%s~", key)
 					// lookup the key and split it
-					values := strings.Split(kv[key], "|")
+					values := strings.Split(kv[mkey], "|")
 					for i := 0; i < length; i++ {
-						v := values[i]
+						x := values[i]
 						t := field.Type().Elem()
-						k := fromString(reflect.Zero(t), v)
+						k := fromString(reflect.Zero(t), x)
 						// set the i'th slice item
 						slice.Index(i).Set(k)
 					}
@@ -218,8 +218,8 @@ func decodeWithPrefix(kv map[string]string, dest interface{}, prefix string) int
 					if field.Type().Elem().Kind() == reflect.Struct {
 						member := reflect.New(field.Type().Elem())
 
-						key := fmt.Sprintf("%s|%s", key, value)
-						decodeWithPrefix(kv, member.Interface(), key)
+						mkey := fmt.Sprintf("%s|%s", key, value)
+						decodeWithPrefix(kv, member.Interface(), mkey)
 
 						t := field.Type().Key()
 						k := fromString(reflect.Zero(t), value)
@@ -229,9 +229,9 @@ func decodeWithPrefix(kv map[string]string, dest interface{}, prefix string) int
 						for i := 0; i < len(values); i++ {
 							v := values[i]
 							// convert key to name|mapkey format
-							key := fmt.Sprintf("%s|%s", key, v)
+							mkey := fmt.Sprintf("%s|%s", key, v)
 							t := field.Type().Elem()
-							k := fromString(reflect.Zero(t), kv[key])
+							k := fromString(reflect.Zero(t), kv[mkey])
 
 							// set the map item
 							field.SetMapIndex(reflect.ValueOf(v), k)

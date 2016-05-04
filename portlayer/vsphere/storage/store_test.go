@@ -191,8 +191,8 @@ func TestCreateImageLayers(t *testing.T) {
 		meta[dirName+"_scorpions"] = []byte("Here I am, rock you like a hurricane")
 
 		// Tar the files
-		buf, err := tarFiles(files, meta)
-		if !assert.NoError(t, err) {
+		buf, terr := tarFiles(files, meta)
+		if !assert.NoError(t, terr) {
 			return
 		}
 
@@ -202,16 +202,16 @@ func TestCreateImageLayers(t *testing.T) {
 		sum := fmt.Sprintf("sha256:%x", h.Sum(nil))
 
 		// Write the image via the cache (which writes to the vsphere impl)
-		writtenImage, err := cacheStore.WriteImage(context.TODO(), parent, dirName, meta, sum, buf)
-		if !assert.NoError(t, err) || !assert.NotNil(t, writtenImage) {
+		writtenImage, terr := cacheStore.WriteImage(context.TODO(), parent, dirName, meta, sum, buf)
+		if !assert.NoError(t, terr) || !assert.NotNil(t, writtenImage) {
 			return
 		}
 
 		expectedImages[dirName] = writtenImage
 
 		// Get the image directly via the vsphere image store impl.
-		vsImage, err := vsStore.GetImage(context.TODO(), parent.Store, dirName)
-		if !assert.NoError(t, err) || !assert.NotNil(t, vsImage) {
+		vsImage, terr := vsStore.GetImage(context.TODO(), parent.Store, dirName)
+		if !assert.NoError(t, terr) || !assert.NotNil(t, vsImage) {
 			return
 		}
 
