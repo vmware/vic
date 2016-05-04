@@ -16,6 +16,7 @@ package extraconfig
 
 import (
 	"reflect"
+	"strconv"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -44,6 +45,16 @@ const (
 	// Volatile value
 	Volatile
 )
+
+type recursion struct {
+	// depth is a recursion depth, 0 equating to skip field
+	depth int
+	// follow controls whether we follow pointers
+	follow bool
+}
+
+// Unbounded is the value used for unbounded recursion
+var Unbounded = recursion{depth: -1, follow: true}
 
 // calculateScope returns the uint representation of scope tag
 func calculateScope(scopes []string) uint {
@@ -83,11 +94,12 @@ func calculateScopeFromKey(key string) []string {
 	return scopes
 }
 
-func calculateKeyFromField(field reflect.StructField, prefix string) string {
+func calculateKeyFromField(field reflect.StructField, prefix string, depth recursion) (string, recursion) {
+	skip := recursion{}
 	//skip unexported fields
 	if field.PkgPath != "" {
 		log.Debugf("Skipping %s (not exported)", field.Name)
-		return ""
+		return "", skip
 	}
 
 	// get the annotations
@@ -97,43 +109,65 @@ func calculateKeyFromField(field reflect.StructField, prefix string) string {
 	var key string
 	var scopes []string
 
-	// do we have DefaultTagName?
-	if tags.Get(DefaultTagName) == "" {
-		log.Debugf("%s not tagged - inheriting parent scope", field.Name)
+	fdepth := depth
 
-		key = field.Name
-		scopes = calculateScopeFromKey(prefix)
-	} else {
+	// do we have DefaultTagName?
+	if tags.Get(DefaultTagName) != "" {
 		// get the scopes
 		scopes = strings.Split(tags.Get("scope"), ",")
 		log.Debugf("Scopes: %#v", scopes)
 
 		// get the keys and split properties from it
-		keys := strings.Split(tags.Get("key"), ",")
-		key = keys[0]
-		properties := keys[1:]
-		log.Debugf("Keys: %#v Properties: %#v", key, properties)
+		key = tags.Get("key")
+		log.Debugf("Key specified: %s", key)
 
-		// process properties
-		if len(properties) > 0 {
-			// do not recurse into nested type
-			if properties[0] == "omitnested" {
-				log.Debugf("Skipping %s (omitnested)", key)
-				return ""
+		// get the keys and split properties from it
+		recurse := tags.Get("recurse")
+		if recurse != "" {
+			props := strings.Split(recurse, ",")
+			// process properties
+			for _, prop := range props {
+				// determine recursion depth
+				if strings.HasPrefix(prop, "depth") {
+					parts := strings.Split(prop, "=")
+					if len(parts) != 2 {
+						log.Warnf("Skipping field with incorrect recurse property: %s", prop)
+						return "", skip
+					}
+
+					val, err := strconv.ParseInt(parts[1], 10, 64)
+					if err != nil {
+						log.Warnf("Skipping field with incorrect recurse value: %s", parts[1])
+						return "", skip
+					}
+					fdepth.depth = int(val)
+				} else if prop == "nofollow" {
+					fdepth.follow = false
+				} else if prop == "follow" {
+					fdepth.follow = true
+				} else {
+					log.Warnf("Ignoring unknown recurse property %s (%s)", key, prop)
+					continue
+				}
 			}
-
-			log.Debugf("Unknown property %s (%s)", key, properties[0])
-			return ""
 		}
+	} else {
+		log.Debugf("%s not tagged - inheriting parent scope", field.Name)
+		scopes = calculateScopeFromKey(prefix)
+	}
+
+	if key == "" {
+		log.Debugf("%s does not specify key - defaulting to fieldname", field.Name)
+		key = field.Name
 	}
 
 	// re-calculate the key based on the scope and prefix
 	if key = calculateKey(scopes, prefix, key); key == "" {
-		log.Debugf("Skipping %s (unknown scope %s)", key, scopes)
-		return ""
+		log.Warnf("Skipping %s (unknown scope %s)", key, scopes)
+		return "", skip
 	}
 
-	return key
+	return key, fdepth
 }
 
 // calculateKey calculates the key based on the scope and prefix

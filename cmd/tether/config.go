@@ -57,7 +57,7 @@ type SessionConfig struct {
 	metadata.Common `vic:"0.1" scope:"read-only" key:"common"`
 
 	// The primary process for the session
-	Cmd exec.Cmd `vic:"0.1" scope:"read-only" key:"cmd"`
+	Cmd exec.Cmd `vic:"0.1" scope:"read-only" key:"cmd" recurse:"depth=2,nofollow"`
 
 	// The exit status of the process, if any
 	ExitStatus int `vic:"0.1" scope:"read-write" key:"status"`
