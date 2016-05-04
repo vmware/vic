@@ -51,6 +51,7 @@ type Dispatcher struct {
 	dockertlsargs string
 	DockerPort    string
 	HostIP        string
+	VICAdminProto string
 
 	vchPool   *compute.ResourcePool
 	appliance *vm.VirtualMachine

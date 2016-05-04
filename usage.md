@@ -16,12 +16,12 @@ Installation will be required for capabilities such as [self-provisioning](doc/d
 
 Replace the `<fields>` in the example with values specific to your environment - this will install VCH to the specified resource pool of ESXi or vCenter, and the container VMs will be created under that resource pool. Bug #539 is tracking the container VM creation issue.
 
-Here is one resource pool path sample: /ha-datacenter/host/localhost/Resources/test 
--generate-cert flag is to generate certificates and configure TLS
--force flag is to remove an existing datastore folder or VM with the same name:
+- Here is one resource pool path sample: `/ha-datacenter/host/localhost/Resources/test`
+- -generate-cert flag is to generate certificates and configure TLS. 
+- -force flag is to remove an existing datastore folder or VM with the same name.
 
 ```
-/vic-machine -target target-host -image-store <datastore name> -name <vch-name> -user root -passwd <password> -compute-resource <resource pool path in govc format> -generate-cert
+vic-machine -target target-host -image-store <datastore name> -name <vch-name> -user root -passwd <password> -compute-resource <resource pool path in govc format> -generate-cert
 ```
 This will, if successful, produce output similar to the following:
 ```

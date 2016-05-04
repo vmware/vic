@@ -283,8 +283,8 @@ func (d *Dispatcher) createAppliance(conf *configuration.Configuration) error {
 
 	files := "/var/tmp/images/ /var/log/vic/"
 
-	var vicadmintlsargs string
 	if conf.CertPEM != "" && conf.KeyPEM != "" {
+		d.VICAdminProto = "https"
 		spec.ExtraConfig = append(
 			spec.ExtraConfig,
 			&types.OptionValue{Key: "guestinfo.vch/etc/pki/tls/certs/vic-host-cert.pem", Value: conf.CertPEM},
@@ -294,18 +294,24 @@ func (d *Dispatcher) createAppliance(conf *configuration.Configuration) error {
 			&types.OptionValue{Key: "guestinfo.vch/etc/pki/tls/certs/vic-host-key.pem", Value: conf.KeyPEM},
 		)
 		d.dockertlsargs = "-TLS -tls-certificate=/etc/pki/tls/certs/vic-host-cert.pem -tls-key=/etc/pki/tls/certs/vic-host-key.pem"
-		vicadmintlsargs = " -hostcert=/etc/pki/tls/certs/vic-host-cert.pem -hostkey=/etc/pki/tls/certs/vic-host-key.pem"
+		vicadmintlsargs := " -hostcert=/etc/pki/tls/certs/vic-host-cert.pem -hostkey=/etc/pki/tls/certs/vic-host-key.pem"
 		files = fmt.Sprintf("%s /etc/pki/tls/certs/vic-host-cert.pem /etc/pki/tls/certs/vic-host-key.pem", files)
 		d.DockerPort = "2376"
+		spec.ExtraConfig = append(spec.ExtraConfig, &types.OptionValue{Key: "guestinfo.vch/sbin/docker-engine-server",
+			Value: fmt.Sprintf("-serveraddr=0.0.0.0 -port=%s -port-layer-port=8080 %s", d.DockerPort, d.dockertlsargs)})
+		spec.ExtraConfig = append(spec.ExtraConfig, &types.OptionValue{Key: "guestinfo.vch/sbin/vicadmin",
+			Value: fmt.Sprintf("-docker-host=unix:///var/run/docker.sock -insecure -sdk=%s -ds=%s -vm-path=%s -cluster=%s -pool=%s %s",
+				conf.TargetPath, conf.ImageStorePath, vm.InventoryPath, conf.ClusterPath, conf.ResourcePoolPath, vicadmintlsargs)})
 	} else {
+		d.VICAdminProto = "http"
 		d.DockerPort = "2375"
+		spec.ExtraConfig = append(spec.ExtraConfig, &types.OptionValue{Key: "guestinfo.vch/sbin/docker-engine-server",
+			Value: fmt.Sprintf("-serveraddr=0.0.0.0 -port=%s -port-layer-port=8080", d.DockerPort)})
+		spec.ExtraConfig = append(spec.ExtraConfig, &types.OptionValue{Key: "guestinfo.vch/sbin/vicadmin",
+			Value: fmt.Sprintf("-docker-host=unix:///var/run/docker.sock -insecure -sdk=%s -ds=%s -vm-path=%s -cluster=%s -pool=%s -tls=%t",
+				conf.TargetPath, conf.ImageStorePath, vm.InventoryPath, conf.ClusterPath, conf.ResourcePoolPath, false)})
 	}
 	spec.ExtraConfig = append(spec.ExtraConfig, &types.OptionValue{Key: "guestinfo.vch/files", Value: files})
-	spec.ExtraConfig = append(spec.ExtraConfig, &types.OptionValue{Key: "guestinfo.vch/sbin/docker-engine-server",
-		Value: fmt.Sprintf("-serveraddr=0.0.0.0 -port=%s -port-layer-port=8080 %s", d.DockerPort, d.dockertlsargs)})
-	spec.ExtraConfig = append(spec.ExtraConfig, &types.OptionValue{Key: "guestinfo.vch/sbin/vicadmin",
-		Value: fmt.Sprintf("-docker-host=unix:///var/run/docker.sock -insecure -sdk=%s -ds=%s -vm-path=%s -cluster=%s -pool=%s %s",
-			conf.TargetPath, conf.ImageStorePath, vm.InventoryPath, conf.ClusterPath, conf.ResourcePoolPath, vicadmintlsargs)})
 
 	// reconfig
 	info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
