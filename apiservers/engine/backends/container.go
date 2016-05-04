@@ -123,9 +123,9 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		// Call imagec with -resolv parameter to learn the name of the vmdk and put it into in-memory map
 		cmdArgs := []string{"-reference", config.Config.Image, "-resolv", "-standalone", "-destination", os.TempDir()}
 
-		out, err := goexec.Command("/sbin/imagec", cmdArgs...).Output()
+		out, err := goexec.Command(imagec, cmdArgs...).Output()
 		if err != nil {
-			log.Printf("imagec exit code: %s", err)
+			log.Printf("%s exit code: %s", imagec, err)
 			return types.ContainerCreateResponse{},
 				derr.NewErrorWithStatusCode(fmt.Errorf("Container look up failed"),
 					http.StatusInternalServerError)

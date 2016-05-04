@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -33,6 +32,10 @@ import (
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/registry"
 	"github.com/vmware/vic/apiservers/portlayer/client/storage"
+)
+
+const (
+	imagec = "imagec"
 )
 
 // byCreated is a temporary type used to sort a list of images by creation
@@ -175,8 +178,6 @@ func (i *Image) ExportImage(names []string, outStream io.Writer) error {
 func (i *Image) PullImage(ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	log.Printf("PullImage: ref = %+v, metaheaders = %+v\n", ref, metaHeaders)
 
-	binImageC := "imagec"
-
 	var cmdArgs []string
 
 	cmdArgs = append(cmdArgs, "-reference", ref.String())
@@ -199,11 +200,9 @@ func (i *Image) PullImage(ref reference.Named, metaHeaders map[string][]string, 
 	// intruct imagec to use os.TempDir
 	cmdArgs = append(cmdArgs, "-destination", os.TempDir())
 
-	fetcherPath := getImageFetcherPath(binImageC)
+	log.Printf("PullImage: cmd = %s %+v\n", imagec, cmdArgs)
 
-	log.Printf("PullImage: cmd = %s %+v\n", fetcherPath, cmdArgs)
-
-	cmd := exec.Command(fetcherPath, cmdArgs...)
+	cmd := exec.Command(imagec, cmdArgs...)
 	cmd.Stdout = outStream
 	cmd.Stderr = outStream
 
@@ -211,8 +210,8 @@ func (i *Image) PullImage(ref reference.Named, metaHeaders map[string][]string, 
 	err := cmd.Start()
 
 	if err != nil {
-		log.Printf("Error starting %s - %s\n", fetcherPath, err)
-		return fmt.Errorf("Error starting %s - %s\n", fetcherPath, err)
+		log.Printf("Error starting %s - %s\n", imagec, err)
+		return fmt.Errorf("Error starting %s - %s\n", imagec, err)
 	}
 
 	err = cmd.Wait()
@@ -231,16 +230,4 @@ func (i *Image) PushImage(ref reference.Named, metaHeaders map[string][]string, 
 
 func (i *Image) SearchRegistryForImages(term string, authConfig *types.AuthConfig, metaHeaders map[string][]string) (*registry.SearchResults, error) {
 	return nil, fmt.Errorf("%s does not implement image.SearchRegistryForImages", i.ProductName)
-}
-
-func getImageFetcherPath(fetcherName string) string {
-	fullpath := "./" + fetcherName
-
-	dir, ferr := filepath.Abs(filepath.Dir(os.Args[0]))
-
-	if ferr == nil {
-		fullpath = dir + "/" + fetcherName
-	}
-
-	return fullpath
 }
