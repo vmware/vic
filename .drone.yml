@@ -70,15 +70,8 @@ build:
       SHELL: /bin/bash
       DOCKER_API_VERSION: "1.21"
       VIC_ESX_TEST_URL: $$VIC_ESX_TEST_URL
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock"
     commands:
-      - wget -q https://get.docker.com/builds/Linux/x86_64/docker-latest.tgz
-      - tar -zxf docker-latest.tgz docker/docker
-      - mv docker/docker /usr/local/bin/docker
-      - chmod +x /usr/local/bin/docker
       - make test
-      - make integration-tests
     when:
       success: true
 

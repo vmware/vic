@@ -56,7 +56,7 @@ func TestSession(t *testing.T) {
 		DatacenterPath: "",
 		DatastorePath:  "/ha-datacenter/datastore/*",
 		HostPath:       "/ha-datacenter/host/*/*",
-		NetworkPath:    "/ha-datacenter/network/*",
+		NetworkPath:    "/ha-datacenter/network/VM Network",
 		PoolPath:       "/ha-datacenter/host/*/Resources",
 	}
 

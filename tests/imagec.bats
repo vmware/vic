@@ -18,8 +18,9 @@ load helpers/helpers
 load 'helpers/bats-support/load'
 load 'helpers/bats-assert/load'
 
-imagec="$GOPATH/src/github.com/vmware/vic/$BIN/imagec"
-portlayer="$GOPATH/src/github.com/vmware/vic/$BIN/port-layer-server"
+curr=$PWD
+imagec="${curr}/../bin/imagec"
+portlayer="${curr}/../bin/port-layer-server"
 IMAGES_DIR="images"
 DEFAULT_IMAGE="https/registry-1.docker.io/v2/library/photon/latest"
 ALT_IMAGE="https/registry-1.docker.io/v2/tatsushid/tinycore"

@@ -27,6 +27,7 @@ import (
 
 	"github.com/vmware/vic/install/configuration"
 	"github.com/vmware/vic/install/management"
+	"github.com/vmware/vic/pkg/flags"
 
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -46,7 +47,7 @@ const (
 type Data struct {
 	target              string
 	user                string
-	passwd              string
+	passwd              *string
 	computeResourcePath string
 	imageDatastoreName  string
 	displayName         string
@@ -88,7 +89,7 @@ var (
 func init() {
 	flag.StringVar(&data.target, "target", "", "ESXi or vCenter FQDN or IPv4 address")
 	flag.StringVar(&data.user, "user", "", "ESX or vCenter user")
-	flag.StringVar(&data.passwd, "passwd", "", "ESX or vCenter password")
+	flag.Var(flags.NewOptionalString(&data.passwd), "passwd", "ESX or vCenter password")
 	flag.StringVar(&data.cert, "cert", "", "Virtual Container Host x509 certificate file")
 	flag.StringVar(&data.key, "key", "", "Virtual Container Host private key file")
 	flag.StringVar(&data.computeResourcePath, "compute-resource", "", "Compute resource path, e.g. /ha-datacenter/host/myCluster/Resources/myRP")
@@ -185,15 +186,16 @@ func processParams() {
 		data.conf.ManagementNetworkName = data.managementNetworkName
 	}
 	//prompt for passwd if not specified
-	if data.passwd == "" {
+	if data.passwd == nil {
 		log.Print("Please enter ESX or vCenter password: ")
 		b, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			log.Fatalf("Failed to read password from stdin: %s", err)
 		}
-		data.passwd = string(b)
+		sb := string(b)
+		data.passwd = &sb
 	}
-	data.conf.TargetPath = fmt.Sprintf("%s:%s@%s/sdk", data.user, data.passwd, data.target)
+	data.conf.TargetPath = fmt.Sprintf("%s:%s@%s/sdk", data.user, *data.passwd, data.target)
 }
 
 func validateConfiguration() error {
