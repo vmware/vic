@@ -103,7 +103,6 @@ func TestListImages(t *testing.T) {
 
 	// Create a set of images
 	images := make(map[string]*Image)
-	images[Scratch.ID] = &Scratch
 	parent := Scratch
 	parent.Store = storeURL
 	testSum := "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -218,8 +217,7 @@ func TestImageStoreRestart(t *testing.T) {
 		return
 	}
 
-	// add 1 for scratch
-	if !assert.Equal(t, len(expectedImages)+1, len(imageList)) {
+	if !assert.Equal(t, len(expectedImages), len(imageList)) {
 		return
 	}
 
