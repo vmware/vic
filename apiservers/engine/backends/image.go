@@ -35,6 +35,12 @@ import (
 	"github.com/vmware/vic/apiservers/portlayer/client/storage"
 )
 
+var imagec string
+
+func init() {
+	imagec = imagecPath()
+}
+
 // byCreated is a temporary type used to sort a list of images by creation
 // time.
 type byCreated []*types.Image
@@ -175,8 +181,6 @@ func (i *Image) ExportImage(names []string, outStream io.Writer) error {
 func (i *Image) PullImage(ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	log.Printf("PullImage: ref = %+v, metaheaders = %+v\n", ref, metaHeaders)
 
-	binImageC := "imagec"
-
 	var cmdArgs []string
 
 	cmdArgs = append(cmdArgs, "-reference", ref.String())
@@ -199,11 +203,9 @@ func (i *Image) PullImage(ref reference.Named, metaHeaders map[string][]string, 
 	// intruct imagec to use os.TempDir
 	cmdArgs = append(cmdArgs, "-destination", os.TempDir())
 
-	fetcherPath := getImageFetcherPath(binImageC)
+	log.Printf("PullImage: cmd = %s %+v\n", imagec, cmdArgs)
 
-	log.Printf("PullImage: cmd = %s %+v\n", fetcherPath, cmdArgs)
-
-	cmd := exec.Command(fetcherPath, cmdArgs...)
+	cmd := exec.Command(imagec, cmdArgs...)
 	cmd.Stdout = outStream
 	cmd.Stderr = outStream
 
@@ -211,8 +213,8 @@ func (i *Image) PullImage(ref reference.Named, metaHeaders map[string][]string, 
 	err := cmd.Start()
 
 	if err != nil {
-		log.Printf("Error starting %s - %s\n", fetcherPath, err)
-		return fmt.Errorf("Error starting %s - %s\n", fetcherPath, err)
+		log.Printf("Error starting %s - %s\n", imagec, err)
+		return fmt.Errorf("Error starting %s - %s\n", imagec, err)
 	}
 
 	err = cmd.Wait()
@@ -233,13 +235,14 @@ func (i *Image) SearchRegistryForImages(term string, authConfig *types.AuthConfi
 	return nil, fmt.Errorf("%s does not implement image.SearchRegistryForImages", i.ProductName)
 }
 
-func getImageFetcherPath(fetcherName string) string {
-	fullpath := "./" + fetcherName
+func imagecPath() string {
+	bin := "imagec"
+	fullpath := "./" + bin
 
 	dir, ferr := filepath.Abs(filepath.Dir(os.Args[0]))
 
 	if ferr == nil {
-		fullpath = dir + "/" + fetcherName
+		fullpath = dir + "/" + bin
 	}
 
 	return fullpath
