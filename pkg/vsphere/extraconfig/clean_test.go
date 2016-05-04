@@ -267,7 +267,7 @@ func TestUnknownScope(t *testing.T) {
 
 func TestUnknownProperty(t *testing.T) {
 	UnknownProperty := struct {
-		UnknownProperty int `vic:"0.1" scope:"hidden" key:"unknownproperty,unknownproperty"`
+		UnknownProperty int `vic:"0.1" scope:"hidden" key:"unknownproperty" recurse:"unknownproperty"`
 	}{
 		42,
 	}
@@ -275,13 +275,15 @@ func TestUnknownProperty(t *testing.T) {
 	encoded := map[string]string{}
 	Encode(MapSink(encoded), UnknownProperty)
 
-	expected := map[string]string{}
-	assert.Equal(t, encoded, expected, "Not equal")
+	expected := map[string]string{
+		"unknownproperty": "42",
+	}
+	assert.Equal(t, expected, encoded, "Not equal")
 }
 
 func TestOmitNested(t *testing.T) {
 	OmitNested := struct {
-		Time        time.Time `vic:"0.1" scope:"volatile" key:"time,omitnested"`
+		Time        time.Time `vic:"0.1" scope:"volatile" key:"time" recurse:"depth=0"`
 		CurrentTime time.Time `vic:"0.1" scope:"volatile" key:"time"`
 	}{
 		Time:        time.Date(2009, 11, 10, 23, 00, 00, 0, time.UTC),

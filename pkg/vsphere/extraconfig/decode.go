@@ -30,7 +30,7 @@ var (
 	DecodeLogLevel = log.InfoLevel
 )
 
-type decoder func(src DataSource, dest reflect.Value, prefix string) reflect.Value
+type decoder func(src DataSource, dest reflect.Value, prefix string, depth recursion) reflect.Value
 
 var kindDecoders map[reflect.Kind]decoder
 var intfDecoders map[reflect.Type]decoder
@@ -59,16 +59,22 @@ func init() {
 }
 
 // decode is the generic switcher that decides which decoder to use for a field
-func decode(src DataSource, dest reflect.Value, prefix string) reflect.Value {
+func decode(src DataSource, dest reflect.Value, prefix string, depth recursion) reflect.Value {
+	// if depth has reached zero, we skip decoding entirely
+	if depth.depth == 0 {
+		return dest
+	}
+	depth.depth--
+
 	// obtain the handler from the map, checking for the more specific interfaces first
 	dec, ok := intfDecoders[dest.Type()]
 	if ok {
-		return dec(src, dest, prefix)
+		return dec(src, dest, prefix, depth)
 	}
 
 	dec, ok = kindDecoders[dest.Kind()]
 	if ok {
-		return dec(src, dest, prefix)
+		return dec(src, dest, prefix, depth)
 	}
 
 	log.Debugf("Skipping unsupported field, interface: %T, kind %s", dest, dest.Kind())
@@ -76,7 +82,7 @@ func decode(src DataSource, dest reflect.Value, prefix string) reflect.Value {
 }
 
 // decodeString is the degenerative case where what we get is what we need
-func decodeString(src DataSource, dest reflect.Value, prefix string) reflect.Value {
+func decodeString(src DataSource, dest reflect.Value, prefix string, depth recursion) reflect.Value {
 
 	value, err := src(prefix)
 	if err != nil {
@@ -87,7 +93,7 @@ func decodeString(src DataSource, dest reflect.Value, prefix string) reflect.Val
 }
 
 // decodePrimitive wraps the fromString primitive decoding in a manner that can be called via decode
-func decodePrimitive(src DataSource, dest reflect.Value, prefix string) reflect.Value {
+func decodePrimitive(src DataSource, dest reflect.Value, prefix string, depth recursion) reflect.Value {
 	var this reflect.Value
 	if !dest.CanAddr() {
 		log.Debugf("Making new primitive for %s", prefix)
@@ -112,7 +118,12 @@ func decodePrimitive(src DataSource, dest reflect.Value, prefix string) reflect.
 	return this
 }
 
-func decodePtr(src DataSource, dest reflect.Value, prefix string) reflect.Value {
+func decodePtr(src DataSource, dest reflect.Value, prefix string, depth recursion) reflect.Value {
+	// if we're not following pointers, then return immediately
+	if !depth.follow {
+		return dest
+	}
+
 	// value representing the run-time data
 	log.Debugf("Decoding pointer into object: %#v", dest)
 
@@ -126,7 +137,7 @@ func decodePtr(src DataSource, dest reflect.Value, prefix string) reflect.Value 
 
 	// check to see if the resulting object is not nil
 	// If it is nil, then there was nothing to decode and the pointer remains nil
-	result := decode(src, target, prefix)
+	result := decode(src, target, prefix, depth)
 	log.Debugf("target is now %#v, %+q ", target, target.Type())
 	kind := result.Kind()
 	if kind == reflect.Ptr {
@@ -150,7 +161,7 @@ func decodePtr(src DataSource, dest reflect.Value, prefix string) reflect.Value 
 
 var typeType = reflect.TypeOf((*reflect.Type)(nil)).Elem()
 
-func decodeStruct(src DataSource, dest reflect.Value, prefix string) reflect.Value {
+func decodeStruct(src DataSource, dest reflect.Value, prefix string, depth recursion) reflect.Value {
 	// value representing the run-time data
 	log.Debugf("Decoding struct into object: %#v, type: %s", dest, dest.Type().Name())
 
@@ -170,7 +181,7 @@ func decodeStruct(src DataSource, dest reflect.Value, prefix string) reflect.Val
 	// iterate through every field in the struct
 	for i := 0; i < this.NumField(); i++ {
 		field := this.Field(i)
-		key := calculateKeyFromField(this.Type().Field(i), prefix)
+		key, fdepth := calculateKeyFromField(this.Type().Field(i), prefix, depth)
 		if key == "" {
 			// this is either a malformed key or explicitly skipped
 			continue
@@ -181,7 +192,7 @@ func decodeStruct(src DataSource, dest reflect.Value, prefix string) reflect.Val
 
 		// check to see if the resulting object is not nil
 		// If it is nil, then there was nothing to decode
-		result := decode(src, field, key)
+		result := decode(src, field, key, fdepth)
 		if result.IsValid() {
 			log.Debugf("Setting field %s to %#v", this.Type().Field(i).Name, result)
 			field.Set(result)
@@ -199,7 +210,7 @@ func decodeStruct(src DataSource, dest reflect.Value, prefix string) reflect.Val
 	return this
 }
 
-func decodeByteSlice(src DataSource, dest reflect.Value, prefix string) reflect.Value {
+func decodeByteSlice(src DataSource, dest reflect.Value, prefix string, depth recursion) reflect.Value {
 	log.Debugf("Converting string to []byte")
 	bytes, err := src(prefix)
 	if err != nil {
@@ -220,13 +231,13 @@ func decodeByteSlice(src DataSource, dest reflect.Value, prefix string) reflect.
 	return reflect.ValueOf(this)
 }
 
-func decodeSlice(src DataSource, dest reflect.Value, prefix string) reflect.Value {
+func decodeSlice(src DataSource, dest reflect.Value, prefix string, depth recursion) reflect.Value {
 	// value representing the run-time data
 	log.Debugf("Decoding struct into object: %#v", dest)
 	kind := dest.Type().Elem().Kind()
 
 	if kind == reflect.Uint8 {
-		return decodeByteSlice(src, dest, prefix)
+		return decodeByteSlice(src, dest, prefix, depth)
 	}
 
 	// do we have any data for this struct at all
@@ -268,7 +279,7 @@ func decodeSlice(src DataSource, dest reflect.Value, prefix string) reflect.Valu
 				cur = reflect.Zero(dest.Type().Elem())
 			}
 
-			result := decode(src, cur, key)
+			result := decode(src, cur, key, depth)
 			if result.IsValid() {
 				this.Index(i).Set(result)
 			}
@@ -300,7 +311,7 @@ func decodeSlice(src DataSource, dest reflect.Value, prefix string) reflect.Valu
 	return this
 }
 
-func decodeMap(src DataSource, dest reflect.Value, prefix string) reflect.Value {
+func decodeMap(src DataSource, dest reflect.Value, prefix string, depth recursion) reflect.Value {
 	// value representing the run-time data
 	log.Debugf("Decoding struct into object: %#v", dest)
 
@@ -334,7 +345,7 @@ func decodeMap(src DataSource, dest reflect.Value, prefix string) reflect.Value 
 
 		// check to see if the resulting object is not nil
 		// If it is nil, then there was nothing to decode and the pointer remains nil
-		result := decode(src, target, key)
+		result := decode(src, target, key, depth)
 		if result.IsValid() {
 			this.SetMapIndex(k, result)
 		}
@@ -343,7 +354,7 @@ func decodeMap(src DataSource, dest reflect.Value, prefix string) reflect.Value 
 	return this
 }
 
-func decodeTime(src DataSource, dest reflect.Value, prefix string) reflect.Value {
+func decodeTime(src DataSource, dest reflect.Value, prefix string, depth recursion) reflect.Value {
 	v, err := src(prefix)
 	if err != nil {
 		log.Debugf("No value found in data source for time \"%s\"", prefix)
@@ -410,7 +421,7 @@ func Decode(src DataSource, dest interface{}) interface{} {
 	defer log.SetLevel(log.GetLevel())
 	log.SetLevel(DecodeLogLevel)
 
-	value := decode(src, reflect.ValueOf(dest), DefaultPrefix)
+	value := decode(src, reflect.ValueOf(dest), DefaultPrefix, Unbounded)
 
 	return value.Interface()
 }
