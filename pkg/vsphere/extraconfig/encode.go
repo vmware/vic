@@ -16,7 +16,6 @@ package extraconfig
 
 import (
 	"fmt"
-	"net"
 	"reflect"
 	"sort"
 	"strconv"
@@ -28,40 +27,211 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-const (
-	// DefaultTagName value
-	DefaultTagName = "vic"
-	// DefaultPrefix value
-	DefaultPrefix = ""
-	// DefaultGuestInfoPrefix value
-	DefaultGuestInfoPrefix = "guestinfo"
-)
-
-const (
-	// Invalid value
-	Invalid = 1 << iota
-	// Hidden value
-	Hidden
-	// ReadOnly value
-	ReadOnly
-	// ReadWrite value
-	ReadWrite
-	// NonPersistent value
-	NonPersistent
-	// Volatile value
-	Volatile
-)
-
 var (
 	// EncodeLogLevel value
 	EncodeLogLevel = log.InfoLevel
 )
+
+type encoder func(sink DataSink, src reflect.Value, prefix string, depth recursion)
+
+var kindEncoders map[reflect.Kind]encoder
+var intfEncoders map[reflect.Type]encoder
+
+func init() {
+	kindEncoders = map[reflect.Kind]encoder{
+		reflect.String:  encodeString,
+		reflect.Struct:  encodeStruct,
+		reflect.Slice:   encodeSlice,
+		reflect.Array:   encodeSlice,
+		reflect.Map:     encodeMap,
+		reflect.Ptr:     encodePtr,
+		reflect.Int:     encodePrimitive,
+		reflect.Int8:    encodePrimitive,
+		reflect.Int16:   encodePrimitive,
+		reflect.Int32:   encodePrimitive,
+		reflect.Int64:   encodePrimitive,
+		reflect.Bool:    encodePrimitive,
+		reflect.Float32: encodePrimitive,
+		reflect.Float64: encodePrimitive,
+	}
+
+	intfEncoders = map[reflect.Type]encoder{
+		reflect.TypeOf(time.Time{}): encodeTime,
+	}
+}
+
+// decode is the generic switcher that decides which decoder to use for a field
+func encode(sink DataSink, src reflect.Value, prefix string, depth recursion) {
+	// if depth has reached zero, we skip encoding entirely
+	if depth.depth == 0 {
+		return
+	}
+	depth.depth--
+
+	// obtain the handler from the map, checking for the more specific interfaces first
+	enc, ok := intfEncoders[src.Type()]
+	if ok {
+		enc(sink, src, prefix, depth)
+		return
+	}
+
+	enc, ok = kindEncoders[src.Kind()]
+	if ok {
+		enc(sink, src, prefix, depth)
+		return
+	}
+
+	log.Debugf("Skipping unsupported field, interface: %T, kind %s", src, src.Kind())
+}
+
+// encodeString is the degenerative case where what we get is what we need
+func encodeString(sink DataSink, src reflect.Value, prefix string, depth recursion) {
+	err := sink(prefix, src.String())
+	if err != nil {
+		log.Errorf("Failed to encode string for key %s: %s", prefix, err)
+	}
+
+}
+
+// encodePrimitive wraps the toString primitive encoding in a manner that can be called via encode
+func encodePrimitive(sink DataSink, src reflect.Value, prefix string, depth recursion) {
+	err := sink(prefix, toString(src))
+	if err != nil {
+		log.Errorf("Failed to encode primitive for key %s: %s", prefix, err)
+	}
+}
+
+func encodePtr(sink DataSink, src reflect.Value, prefix string, depth recursion) {
+	// if we're not following pointers, return immediately
+	if !depth.follow {
+		return
+	}
+
+	log.Debugf("Encoding object: %#v", src)
+
+	if src.IsNil() {
+		// no need to attempt anything
+		return
+	}
+
+	encode(sink, src.Elem(), prefix, depth)
+}
+
+func encodeStruct(sink DataSink, src reflect.Value, prefix string, depth recursion) {
+	log.Debugf("Encoding object: %#v", src)
+
+	// iterate through every field in the struct
+	for i := 0; i < src.NumField(); i++ {
+		field := src.Field(i)
+		key, fdepth := calculateKeyFromField(src.Type().Field(i), prefix, depth)
+		if key == "" {
+			log.Debugf("Skipping field %s with empty computed key", src.Type().Field(i).Name)
+			continue
+		}
+
+		// Dump what we have so far
+		log.Debugf("Key: %s, Kind: %s Value: %s", key, field.Kind(), field.String())
+
+		encode(sink, field, key, fdepth)
+	}
+}
+
+func encodeSlice(sink DataSink, src reflect.Value, prefix string, depth recursion) {
+	log.Debugf("Encoding object: %#v", src)
+
+	length := src.Len()
+	if length == 0 {
+		log.Debug("Skipping empty slice")
+		return
+	}
+
+	// determine the key given the array type
+	kind := src.Type().Elem().Kind()
+	if kind == reflect.Uint8 {
+		// special []byte array handling
+
+		log.Debugf("Converting []byte to string")
+		encode(sink, src.Convert(reflect.TypeOf("")), prefix, depth)
+		return
+
+	} else if kind != reflect.Struct {
+		// else assume it's primitive - we'll panic/recover and continue it not
+		defer func() {
+			if err := recover(); err != nil {
+				log.Errorf("unable to encode %s (slice): %s", src.Type(), err)
+			}
+		}()
+
+		values := make([]string, length)
+		for i := 0; i < length; i++ {
+			values[i] = toString(src.Index(i))
+		}
+
+		// convert key to name|index format
+		key := fmt.Sprintf("%s~", prefix)
+		err := sink(key, strings.Join(values, "|"))
+		if err != nil {
+			log.Errorf("Failed to encode slice data for key %s: %s", key, err)
+		}
+
+	} else {
+		for i := 0; i < length; i++ {
+			// convert key to name|index format
+			key := fmt.Sprintf("%s|%d", prefix, i)
+			encode(sink, src.Index(i), key, depth)
+		}
+	}
+
+	// prefix contains the length of the array
+	// seems insane calling toString(ValueOf(..)) but it means we're using the same path for everything
+	err := sink(prefix, toString(reflect.ValueOf(length-1)))
+	if err != nil {
+		log.Errorf("Failed to encode slice length for key %s: %s", prefix, err)
+	}
+
+}
+
+func encodeMap(sink DataSink, src reflect.Value, prefix string, depth recursion) {
+	log.Debugf("Encoding object: %#v", src)
+
+	// iterate over keys and recurse
+	mkeys := src.MapKeys()
+	length := len(mkeys)
+	if length == 0 {
+		log.Debug("Skipping empty map")
+		return
+	}
+
+	keys := make([]string, length)
+	for i, v := range mkeys {
+		keys[i] = toString(v)
+		key := fmt.Sprintf("%s|%s", prefix, keys[i])
+		encode(sink, src.MapIndex(v), key, depth)
+	}
+	// sort the keys before joining - purely to make testing viable
+	sort.Strings(keys)
+	err := sink(prefix, strings.Join(keys, "|"))
+	if err != nil {
+		log.Errorf("Failed to encode map keys for key %s: %s", prefix, err)
+	}
+
+}
+
+func encodeTime(sink DataSink, src reflect.Value, prefix string, depth recursion) {
+	err := sink(prefix, src.Interface().(time.Time).String())
+	if err != nil {
+		log.Errorf("Failed to encode time for key %s: %s", prefix, err)
+	}
+
+}
 
 // toString converts a basic type to its string representation
 func toString(field reflect.Value) string {
 	switch field.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return strconv.FormatInt(field.Int(), 10)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return strconv.FormatUint(field.Uint(), 10)
 	case reflect.Bool:
 		return strconv.FormatBool(field.Bool())
 	case reflect.String:
@@ -69,258 +239,43 @@ func toString(field reflect.Value) string {
 	case reflect.Float32, reflect.Float64:
 		return strconv.FormatFloat(field.Float(), 'E', -1, 64)
 	default:
-		return ""
+		panic(field.Type().String() + " is an unhandled type")
 	}
 }
 
-// calculateScope returns the uint representation of scope tag
-func calculateScope(scopes []string) uint {
-	var scope uint
-	for _, v := range scopes {
-		switch v {
-		case "hidden":
-			scope |= Hidden
-		case "read-only":
-			scope |= ReadOnly
-		case "read-write":
-			scope |= ReadWrite
-		case "non-persistent":
-			scope |= NonPersistent
-		case "volatile":
-			scope |= Volatile
-		default:
-			return Invalid
-		}
-	}
-	return scope
-}
+// DataSink provides a function that, given a key/value will persist that
+// in some manner suited for later retrieval
+type DataSink func(string, string) error
 
-// calculateKey calculates the key based on the scope and prefix
-func calculateKey(scopes []string, prefix string, key string) string {
-	scope := calculateScope(scopes)
-	if scope&Invalid != 0 || scope&NonPersistent != 0 {
-		return ""
-	}
-
-	var guestinfo string
-	var seperator string
-
-	// Trim the whitespaces
-	key = strings.TrimSpace(key)
-
-	if scope&Hidden != 0 {
-		guestinfo = ""
-		seperator = "~"
-	}
-	if scope&ReadOnly != 0 {
-		guestinfo = DefaultGuestInfoPrefix
-		seperator = "/"
-	}
-	if scope&ReadWrite != 0 {
-		guestinfo = DefaultGuestInfoPrefix
-		seperator = "."
-	}
-
-	// no need to add another DefaultGuestInfoPrefix as a prefix if we already have one
-	if strings.Contains(prefix, DefaultGuestInfoPrefix) {
-		guestinfo = ""
-	}
-
-	if guestinfo == "" && prefix == "" {
-		return key
-	}
-
-	if guestinfo == "" {
-		return strings.Join([]string{prefix, key}, seperator)
-	}
-
-	if prefix == "" {
-		return strings.Join([]string{guestinfo, key}, seperator)
-	}
-
-	return strings.Join([]string{guestinfo, prefix, key}, seperator)
-}
-
-func encodeWithPrefix(src interface{}, prefix string) []types.BaseOptionValue {
-	var config []types.BaseOptionValue
-
-	// value representing the run-time data
-	value := reflect.ValueOf(src)
-	log.Debugf("Value: %#v", value)
-
-	// determine the kind as it changes how we get underlying data
-	switch value.Kind() {
-	case reflect.Invalid:
-		log.Errorf("Invalid Kind: %#v", value)
-		return nil
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Bool, reflect.String, reflect.Float32, reflect.Float64:
-		// handle basic types directly
-		log.Debugf("Basic type: %s", prefix)
-
-		return append(config, &types.OptionValue{Key: prefix, Value: toString(value)})
-	case reflect.Slice, reflect.Array:
-		log.Debugf("Slice BEGIN: %s", prefix)
-
-		var values []string
-		// iterate over slice to find what's underneath
-		for i := 0; i < value.Len(); i++ {
-			// recurse if we have a struct type
-			// otherwise add its value to values
-			if value.Index(i).Kind() == reflect.Struct {
-				key := fmt.Sprintf("%s|%d", prefix, i)
-				config = append(config, encodeWithPrefix(value.Index(i).Interface(), key)...)
-			} else {
-				values = append(values, toString(value.Index(i)))
-			}
-		}
-		// set the slice key with the values seperated by |
-		if len(values) > 0 {
-			// sort the values before joining
-			sort.Strings(values)
-			// prefix~ contains the items
-			config = append(config, &types.OptionValue{Key: fmt.Sprintf("%s~", prefix), Value: strings.Join(values, "|")})
-		}
-		// prefix contains the count
-		config = append(config, &types.OptionValue{Key: prefix, Value: fmt.Sprintf("%d", value.Len()-1)})
-
-		log.Debugf("Slice END %s %s", prefix, values)
-
-		return config
-
-	case reflect.Struct:
-		// iterate through every struct type field
-		for i := 0; i < value.NumField(); i++ {
-			// get the underlying struct field
-			structField := value.Type().Field(i)
-			//skip unexported fields
-			if structField.PkgPath != "" {
-				log.Debugf("Skipping %s (not exported)", structField.Name)
-				continue
-			}
-
-			// get the annotations
-			tags := structField.Tag
-			log.Debugf("Tags: %#v", tags)
-
-			// do we have DefaultTagName?
-			if tags.Get(DefaultTagName) == "" {
-				log.Debugf("Skipping %s (not vic)", structField.Name)
-				continue
-			}
-
-			// get the scopes
-			scopes := strings.Split(tags.Get("scope"), ",")
-			log.Debugf("Scopes: %#v", scopes)
-
-			// get the keys and split properties from it
-			keys := strings.Split(tags.Get("key"), ",")
-			key, properties := keys[0], keys[1:]
-			log.Debugf("Keys: %#v Properties: %#v", key, properties)
-
-			// returns the i'th field of the struct src
-			field := value.Field(i)
-
-			// process properties
-			if len(properties) > 0 {
-				// do not recurse into nested type
-				if properties[0] == "omitnested" {
-					config = append(config, &types.OptionValue{Key: key, Value: toString(field)})
-					log.Debugf("Skipping %s (omitnested)", key)
-					continue
-				}
-
-				log.Debugf("Unknown property %s (%s)", key, properties[0])
-				continue
-			}
-
-			// re-calculate the key based on the scope and prefix
-			if key = calculateKey(scopes, prefix, key); key == "" {
-				log.Debugf("Skipping %s (unknown scope %s)", key, scopes)
-				continue
-			}
-
-			// Dump what we have so far
-			log.Debugf("Key: %s, Properties: %q Kind: %s Value: %s", key, properties, field.Kind(), field.String())
-
-			// all check passed, start to work on i'th field of the struct src
-			switch field.Kind() {
-			case reflect.Struct, reflect.Slice, reflect.Array:
-				// recurse for struct, slice and array types
-				log.Debugf("Struct|Slice|Array begin")
-
-				// type cast struct to supported types (eg; time.Time, url.Url etc.)
-				switch field.Interface().(type) {
-				case time.Time:
-					config = append(config, &types.OptionValue{Key: key, Value: field.Interface().(time.Time).String()})
-				case net.IPNet:
-					n := field.Interface().(net.IPNet)
-					config = append(config, &types.OptionValue{Key: key, Value: n.String()})
-				default:
-					config = append(config, encodeWithPrefix(field.Interface(), key)...)
-				}
-				log.Debugf("Struct|Slice|Array end")
-				continue
-
-			case reflect.Map:
-				log.Debugf("Map begin")
-
-				var keys []string
-				// iterate over keys and recurse
-				for _, v := range field.MapKeys() {
-					keys = append(keys, toString(v))
-					mkey := fmt.Sprintf("%s|%s", key, toString(v))
-					config = append(config, encodeWithPrefix(field.MapIndex(v).Interface(), mkey)...)
-				}
-				// sort the keys before joining
-				sort.Strings(keys)
-				config = append(config, &types.OptionValue{Key: key, Value: strings.Join(keys, "|")})
-
-				log.Debugf("Map end")
-				continue
-
-			case reflect.Ptr:
-				log.Debugf("Prt begin")
-
-				if field.IsNil() {
-					log.Debugf("Skipping nil pointer")
-					continue
-				}
-
-				// type cast struct to supported types (eg; time.Time, url.Url etc.) or recurse
-				switch field.Elem().Interface().(type) {
-				case time.Time:
-					config = append(config, &types.OptionValue{Key: key, Value: field.Interface().(*time.Time).String()})
-				case net.IPNet:
-					n := field.Interface().(*net.IPNet)
-					config = append(config, &types.OptionValue{Key: key, Value: n.String()})
-				default:
-					// follow the pointer and recurse
-					config = append(config, encodeWithPrefix(field.Elem().Interface(), key)...)
-
-					if len(config) > 0 {
-						// add the ptr itself
-						config = append(config, &types.OptionValue{Key: key, Value: config[len(config)-1].GetOptionValue().Key})
-					}
-				}
-
-				log.Debugf("Ptr end")
-				continue
-			}
-			// otherwise add it directly
-			config = append(config, &types.OptionValue{Key: key, Value: toString(field)})
-		}
-		return config
-
-	default:
-		log.Debugf("Skipping not supported kind %s", value.Kind())
-		return nil
-	}
-}
-
-// Encode converts given type to []types.BaseOptionValue slice
-func Encode(src interface{}) []types.BaseOptionValue {
+// Encode convert given type to []types.BaseOptionValue
+func Encode(sink DataSink, dest interface{}) {
+	defer log.SetLevel(log.GetLevel())
 	log.SetLevel(EncodeLogLevel)
 
-	return encodeWithPrefix(src, DefaultPrefix)
+	encode(sink, reflect.ValueOf(dest), DefaultPrefix, Unbounded)
+}
+
+// MapSink takes a map and populates it with key/value pairs from the encode
+func MapSink(sink map[string]string) DataSink {
+	return func(key, value string) error {
+		sink[key] = value
+		return nil
+	}
+}
+
+// OptionValueFromMap is a convenience method to convert a map into a BaseOptionValue array
+func OptionValueFromMap(data map[string]string) []types.BaseOptionValue {
+	if len(data) == 0 {
+		return nil
+	}
+
+	array := make([]types.BaseOptionValue, len(data))
+
+	i := 0
+	for k, v := range data {
+		array[i] = &types.OptionValue{Key: k, Value: v}
+		i++
+	}
+
+	return array
 }

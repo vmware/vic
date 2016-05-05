@@ -22,13 +22,13 @@ type Common struct {
 	ExecutionEnvironment string
 
 	// Unambiguous ID with meaning in the context of its hosting execution environment
-	ID string
+	ID string `vic:"0.1" scope:"read-only" key:"id"`
 
 	// Convenience field to record a human readable name
-	Name string
+	Name string `vic:"0.1" scope:"read-only" key:"name"`
 
 	// Freeform notes related to the entity
-	Notes string
+	Notes string `vic:"0.1" scope:"hidden" key:"notes"`
 }
 
 // MountSpec details a mount that must be executed within the executor
@@ -38,14 +38,14 @@ type Common struct {
 type MountSpec struct {
 	// A URI->path mapping, e.g.
 	// May contain credentials
-	Source url.URL
+	Source url.URL `vic:"0.1" scope:"read-only" key:"source"`
 
 	// The path in the executor at which this should be mounted
-	Path string
+	Path string `vic:"0.1" scope:"read-only" key:"dest"`
 
 	// Freeform mode string, which could translate directly to mount options
 	// We may want to turn this into a more structured form eventually
-	Mode string
+	Mode string `vic:"0.1" scope:"read-only" key:"mode"`
 }
 
 // ContainerVM holds that data tightly associated with a containerVM, but that should not
@@ -75,18 +75,18 @@ type ContainerVM struct {
 // in that there is no process inherently associated - this is closer to a ThreadPool than a Thread and
 // is the owner of the shared filesystem environment. This is the guest visible complement to ContainerVM.
 type ExecutorConfig struct {
-	Common
+	Common `vic:"0.1" scope:"read-only" key:"common"`
 
 	// Sessions is the set of sessions currently hosted by this executor
 	// These are keyed by session ID
-	Sessions map[string]SessionConfig
+	Sessions map[string]SessionConfig `vic:"0.1" scope:"read-only" key:"sessions"`
 
 	// Maps the mount name to the detail mount specification
-	Mounts map[string]MountSpec
+	Mounts map[string]MountSpec `vic:"0.1" scope:"read-only" key:"mounts"`
 
 	// This describes an executors presence on a network, and contains sufficient
 	// information to configure the interface in the guest.
-	Networks map[string]NetworkEndpoint
+	Networks map[string]NetworkEndpoint `vic:"0.1" scope:"read-only" key:"networks"`
 
 	// Key is the host key used during communicate back with the Interaction endpoint if any
 	// Used if the in-guest tether is responsible for authenticating the connection
@@ -96,16 +96,16 @@ type ExecutorConfig struct {
 // Cmd is here because the encoding packages seem to have issues with the full exec.Cmd struct
 type Cmd struct {
 	// Path is the command to run
-	Path string
+	Path string `vic:"0.1" scope:"read-only" key:"Path"`
 
 	// Args is the command line arguments including the command in Args[0]
-	Args []string
+	Args []string `vic:"0.1" scope:"read-only" key:"Args"`
 
 	// Env specifies the environment of the process
-	Env []string
+	Env []string `vic:"0.1" scope:"read-only" key:"Env"`
 
 	// Dir specifies the working directory of the command
-	Dir string
+	Dir string `vic:"0.1" scope:"read-only" key:"Dir"`
 }
 
 // SessionConfig defines the content of a session - this maps to the root of a process tree
@@ -113,16 +113,16 @@ type Cmd struct {
 // This is close to but not perfectly aligned with the new docker/docker/daemon/execdriver/driver:CommonProcessConfig
 type SessionConfig struct {
 	// The primary session may have the same ID as the executor owning it
-	Common
+	Common `vic:"0.1" scope:"read-only" key:"common"`
 
 	// The primary process for the session
-	Cmd Cmd
+	Cmd Cmd `vic:"0.1" scope:"read-only" key:"cmd"`
 
 	// Allow attach
-	Attach bool
+	Attach bool `vic:"0.1" scope:"read-only" key:"attach"`
 
 	// Allocate a tty or not
-	Tty bool
+	Tty bool `vic:"0.1" scope:"read-only" key:"tty"`
 
 	// Maps the intent to the signal for this specific app
 	// Signals map[int]int
