@@ -4,7 +4,6 @@ package bridge
 #cgo CFLAGS: -I../include
 #include <stdlib.h>
 #include "message.h"
-#include "vmcheck.h"
 void Warning(const char *fmt, ...) {}
 void Debug(const char *fmt, ...) {}
 void Panic(const char *fmt, ...) {}
@@ -44,17 +43,4 @@ func MessageReceive(c MessageChannel) ([]byte, bool) {
 
 	res := C.GoBytes(unsafe.Pointer(reply), (C.int)(replyLen))
 	return res, status != 0
-}
-
-// VMCheckIsVirtualWorld checks if current code is running in a VMware virtual machine
-func VMCheckIsVirtualWorld() bool {
-	return C.VmCheck_IsVirtualWorld() != 0
-}
-
-// VMCheckGetVersion returns the identifiers of the current hypervisor
-func VMCheckGetVersion() (uint32, uint32) {
-	var version C.uint32
-	var typ C.uint32
-	C.VmCheck_GetVersion(&version, &typ)
-	return uint32(version), uint32(typ)
 }

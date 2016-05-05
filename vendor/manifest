@@ -862,6 +862,14 @@
 			"path": "/zk"
 		},
 		{
+			"importpath": "github.com/sigma/bdoor",
+			"repository": "https://github.com/sigma/bdoor",
+			"vcs": "git",
+			"revision": "babf2a4017b020d4ce04e8167076186e82645dd1",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/smartystreets/assertions",
 			"repository": "https://github.com/smartystreets/assertions",
 			"vcs": "",
@@ -1056,8 +1064,8 @@
 		{
 			"importpath": "github.com/vmware/vmw-guestinfo",
 			"repository": "https://github.com/vmware/vmw-guestinfo",
-			"vcs": "",
-			"revision": "e10d16ca6dbe47f1487e2118b6c8aec20630917f",
+			"vcs": "git",
+			"revision": "6ed766f83febfc16683b8a23e5e25407b33751be",
 			"branch": "master"
 		},
 		{
