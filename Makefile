@@ -111,7 +111,6 @@ components: check apiservers $(imagec) $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
 tethers: $(tether-linux) $(tether-windows)
 
-
 # utility targets
 goversion:
 	@echo checking go version...
@@ -174,10 +173,9 @@ vendor: $(GVT)
 	@echo restoring vendor
 	$(GOPATH)/bin/gvt restore
 
-integration-tests: Dockerfile.integration-tests tests/imagec.bats tests/helpers/helpers.bash components
+integration-tests: tests/run_test.sh components isos vic-machine
 	@echo Running integration tests
-	@docker build -t imagec_tests -f Dockerfile.integration-tests .
-	docker run -e BIN=$(BIN) --rm imagec_tests
+	@$<
 
 TEST_DIRS=github.com/vmware/vic/cmd/tether
 TEST_DIRS+=github.com/vmware/vic/cmd/imagec
