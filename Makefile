@@ -21,6 +21,7 @@ ifeq ($(USER),vagrant)
 endif
 
 BASE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+BASE_PKG := github.com/vmware/vic/
 
 BIN ?= bin
 IGNORE := $(shell mkdir -p $(BIN))
@@ -42,6 +43,11 @@ ifeq ($(ENABLE_RACE_DETECTOR),true)
 else
 	RACE :=
 endif
+
+# utility function to dynamically generate go dependencies
+define godeps
+	$(wildcard $1) $(shell $(BASE_DIR)/scripts/go-deps.sh $(BASE_PKG)/$(dir $1))
+endef
 
 # target aliases - environment variable definition
 docker-engine-api := $(BIN)/docker-engine-server
@@ -129,11 +135,11 @@ $(SWAGGER): vendor/manifest
 
 copyright:
 	@echo "checking copyright in header..."
-	scripts/header-check.sh
+	@scripts/header-check.sh
 
 whitespace:
 	@echo "checking whitespace..."
-	scripts/whitespace-check.sh
+	@scripts/whitespace-check.sh
 
 # exit 1 if golint complains about anything other than comments
 golintf = $(GOLINT) $(1) | sh -c "! grep -v 'should have comment'" | sh -c "! grep -v 'comment on exported'"
@@ -189,26 +195,26 @@ test:
 	# test everything but vendor
 ifdef DRONE
 	@echo Generating coverage data
-	scripts/coverage.sh $(TEST_DIRS)
+	@scripts/coverage.sh $(TEST_DIRS)
 else
 	@echo Generating local html coverage report
-	scripts/coverage.sh --html $(TEST_DIRS)
+	@scripts/coverage.sh --html $(TEST_DIRS)
 endif
 
 docker-integration-tests:
 	@echo Running Docker integration tests
-	tests/docker-tests/run-tests.sh
+	@tests/docker-tests/run-tests.sh
 
-$(tether-linux): $(shell find cmd/tether -name '*.go') metadata/*.go
+$(tether-linux): $(call godeps,cmd/tether/*.go)
 	@echo building tether-linux
-	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./cmd/tether
+	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
-$(tether-windows): $(shell find cmd/tether -name '*.go') metadata/*.go
+$(tether-windows): $(call godeps,cmd/tether/*.go)
 	@echo building tether-windows
-	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./cmd/tether
+	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 
-$(rpctool): cmd/rpctool/*.go
+$(rpctool): $(call godeps,cmd/rpctool/*.go)
 ifeq ($(OS),linux)
 	@echo building rpctool
 	@GOARCH=amd64 GOOS=linux $(GO) build $(RACE) -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
@@ -216,16 +222,16 @@ else
 	@echo skipping rpctool, cannot cross compile cgo
 endif
 
-$(vicadmin): cmd/vicadmin/*.go pkg/vsphere/session/*.go
+$(vicadmin): $(call godeps,cmd/vicadmin/*.go)
 	@echo building vicadmin
 	@GOARCH=amd64 GOOS=linux $(GO) build $(RACE) -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
 
-$(imagec): cmd/imagec/*.go $(portlayerapi-client)
+$(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@echo building imagec...
 	@$(GO) build $(RACE) -o ./$@ ./$(dir $<)
 
 
-$(docker-engine-api): $(portlayerapi-client) apiservers/engine/server/*.go apiservers/engine/backends/*.go
+$(docker-engine-api): $(call godeps,apiservers/engine/server/*.go) $(portlayerapi-client)
 ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
 	@$(GO) build $(RACE) -o $@ ./apiservers/engine/server
@@ -247,9 +253,9 @@ $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API server...
 	@$(SWAGGER) generate server -A PortLayer -t $(realpath $(dir $<)) -f $<
 
-$(portlayerapi): $(portlayerapi-server) $(shell find pkg/ apiservers/engine/ -name '*.go') metadata/*.go
+$(portlayerapi): $(call godeps,apiservers/portlayer/cmd/port-layer-server/*.go) $(portlayerapi-server)
 	@echo building Portlayer API server...
-	@$(GO) build $(RACE) -o $@ ./apiservers/portlayer/cmd/port-layer-server
+	@$(GO) build $(RACE) -o $@ ./$(dir $<)
 
 $(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
 	@echo building iso-base docker image
@@ -282,7 +288,8 @@ $(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base)
 	@echo staging debug for bootstrap
 	@$< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@ -d true
 
-$(vic-machine): cmd/vic-machine/*.go install/**
+
+$(vic-machine): $(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine...
 	@$(GO) build $(RACE) -o ./$@ ./$(dir $<)
 
