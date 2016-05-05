@@ -416,12 +416,23 @@ func fromString(field reflect.Value, value string) reflect.Value {
 // this is to be used during extraConfig decode to obtain values
 type DataSource func(string) (string, error)
 
-// Decode convert given type to []types.BaseOptionValue
+// Decode populates a destination with data from the supplied data source
 func Decode(src DataSource, dest interface{}) interface{} {
 	defer log.SetLevel(log.GetLevel())
 	log.SetLevel(DecodeLogLevel)
 
 	value := decode(src, reflect.ValueOf(dest), DefaultPrefix, Unbounded)
+
+	return value.Interface()
+}
+
+// DecodeWithPrefix populates a destination with data from the supplied data source, using
+// the specified prefix - this allows for decode into substructres.
+func DecodeWithPrefix(src DataSource, dest interface{}, prefix string) interface{} {
+	defer log.SetLevel(log.GetLevel())
+	log.SetLevel(DecodeLogLevel)
+
+	value := decode(src, reflect.ValueOf(dest), prefix, Unbounded)
 
 	return value.Interface()
 }

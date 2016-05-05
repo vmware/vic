@@ -35,6 +35,7 @@ import (
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 var mocked mocker
@@ -315,6 +316,37 @@ func testTeardown(t *testing.T) {
 	name := runtime.FuncForPC(pc).Name()
 
 	log.Infof("Finished test teardown for %s", name)
+}
+
+func startTether(t *testing.T, cfg *metadata.ExecutorConfig) extraconfig.DataSource {
+	store := map[string]string{}
+	sink := extraconfig.MapSink(store)
+	src := extraconfig.MapSource(store)
+	extraconfig.Encode(sink, cfg)
+	log.Debugf("Test configuration: %#v", sink)
+
+	// run the tether to service the attach
+	go func() {
+		erR := run(src, sink)
+		if erR != nil {
+			t.Error(erR)
+		}
+	}()
+
+	return src
+}
+
+func runTether(t *testing.T, cfg *metadata.ExecutorConfig) (extraconfig.DataSource, error) {
+	store := map[string]string{}
+	sink := extraconfig.MapSink(store)
+	src := extraconfig.MapSource(store)
+	extraconfig.Encode(sink, cfg)
+	log.Debugf("Test configuration: %#v", sink)
+
+	// run the tether to service the attach
+	erR := run(src, sink)
+
+	return src, erR
 }
 
 // create client on the mock pipe

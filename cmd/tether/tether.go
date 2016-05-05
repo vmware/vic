@@ -40,6 +40,9 @@ var reload chan bool
 // config holds the main configuration for the executor
 var config *ExecutorConfig
 
+var dataSource extraconfig.DataSource
+var dataSink extraconfig.DataSink
+
 // RemoveChildPid is a synchronized accessor for the pid map the deletes the entry and returns the value
 func RemoveChildPid(pid int) (*SessionConfig, bool) {
 	config.pidMutex.Lock()
@@ -58,12 +61,15 @@ func LenChildPid() int {
 	return len(config.pids)
 }
 
-func run(src extraconfig.DataSource) error {
+func run(src extraconfig.DataSource, sink extraconfig.DataSink) error {
 	// remake all of the main management structures so there's no cross contamination between tests
 	reload = make(chan bool, 1)
 	config = &ExecutorConfig{
 		pids: make(map[int]*SessionConfig),
 	}
+
+	dataSource = src
+	dataSink = sink
 
 	// HACK: workaround file descriptor conflict in pipe2 return from the exec.Command.Start
 	// it's not clear whether this is a cross platform issue, or still an issue as of this commit
@@ -174,9 +180,6 @@ func run(src extraconfig.DataSource) error {
 // handleSessionExit processes the result from the session command, records it in persistent
 // maner and determines if the Executor should exit
 func handleSessionExit(session *SessionConfig) error {
-	// FIXME: we cannot remove this from the live session map until we're updating the underlying
-	// session config - we need to persist the exit status
-
 	// close down the IO
 	session.reader.Close()
 	// live.outwriter.Close()
@@ -185,6 +188,9 @@ func handleSessionExit(session *SessionConfig) error {
 	// flush session log output
 
 	// record exit status
+	// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
+	// currently sure how to expose it neatly via a utility function
+	extraconfig.EncodeWithPrefix(dataSink, session.ExitStatus, fmt.Sprintf("sessions|%s/status", session.ID))
 	log.Infof("%s exit code: %d", session.ID, session.ExitStatus)
 
 	// check for executor behaviour

@@ -41,7 +41,13 @@ func main() {
 		return
 	}
 
-	err = run(src)
+	sink, err := extraconfig.GuestInfoSink()
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	err = run(src, sink)
 	if err != nil {
 		log.Error(err)
 		return

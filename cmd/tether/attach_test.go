@@ -31,7 +31,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/metadata"
-	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/portlayer/attach"
 )
 
@@ -89,19 +88,7 @@ func TestAttach(t *testing.T) {
 		Key: genKey(),
 	}
 
-	// if there's no session command with guaranteed exit then tether needs to run in the background
-	sink := map[string]string{}
-	extraconfig.Encode(extraconfig.MapSink(sink), cfg)
-	src := extraconfig.MapSource(sink)
-	log.Debugf("Test configuration: %#v", sink)
-
-	// run the tether to service the attach
-	go func() {
-		erR := run(src)
-		if erR != nil {
-			t.Error(erR)
-		}
-	}()
+	startTether(t, &cfg)
 
 	// wait for updates to occur
 	<-testServer.updated
@@ -205,18 +192,7 @@ func TestAttachTTY(t *testing.T) {
 		Key: genKey(),
 	}
 
-	// if there's no session command with guaranteed exit then tether needs to run in the background
-	sink := map[string]string{}
-	extraconfig.Encode(extraconfig.MapSink(sink), cfg)
-	src := extraconfig.MapSource(sink)
-	log.Debugf("Test configuration: %#v", sink)
-
-	go func() {
-		erR := run(src)
-		if erR != nil {
-			t.Error(erR)
-		}
-	}()
+	startTether(t, &cfg)
 
 	// wait for updates to occur
 	<-testServer.updated
@@ -339,18 +315,7 @@ func TestAttachTwo(t *testing.T) {
 		Key: genKey(),
 	}
 
-	// if there's no session command with guaranteed exit then tether needs to run in the background
-	sink := map[string]string{}
-	extraconfig.Encode(extraconfig.MapSink(sink), cfg)
-	src := extraconfig.MapSource(sink)
-	log.Debugf("Test configuration: %#v", sink)
-
-	go func() {
-		erR := run(src)
-		if erR != nil {
-			t.Error(erR)
-		}
-	}()
+	startTether(t, &cfg)
 
 	// wait for updates to occur
 	<-mocked.started
@@ -495,18 +460,7 @@ func TestAttachInvalid(t *testing.T) {
 		Key: genKey(),
 	}
 
-	// if there's no session command with guaranteed exit then tether needs to run in the background
-	sink := map[string]string{}
-	extraconfig.Encode(extraconfig.MapSink(sink), cfg)
-	src := extraconfig.MapSource(sink)
-	log.Debugf("Test configuration: %#v", sink)
-
-	go func() {
-		erR := run(src)
-		if erR != nil {
-			t.Error(erR)
-		}
-	}()
+	startTether(t, &cfg)
 
 	// wait for updates to occur
 	<-testServer.updated

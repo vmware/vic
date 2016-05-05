@@ -246,12 +246,22 @@ func toString(field reflect.Value) string {
 // in some manner suited for later retrieval
 type DataSink func(string, string) error
 
-// Encode convert given type to []types.BaseOptionValue
+// Encode serializes the given type to the supplied data sink
 func Encode(sink DataSink, src interface{}) {
 	defer log.SetLevel(log.GetLevel())
 	log.SetLevel(EncodeLogLevel)
 
 	encode(sink, reflect.ValueOf(src), DefaultPrefix, Unbounded)
+}
+
+// EncodeWithPrefix serializes the given type to the supplied data sink, using
+// the supplied prefix - this allows for serialization of subsections of a
+// struct
+func EncodeWithPrefix(sink DataSink, src interface{}, prefix string) {
+	defer log.SetLevel(log.GetLevel())
+	log.SetLevel(EncodeLogLevel)
+
+	encode(sink, reflect.ValueOf(src), prefix, Unbounded)
 }
 
 // MapSink takes a map and populates it with key/value pairs from the encode

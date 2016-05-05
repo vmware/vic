@@ -17,10 +17,8 @@ package main
 import (
 	"testing"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/vmware/vic/metadata"
-	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -38,18 +36,7 @@ func TestSetHostname(t *testing.T) {
 		},
 	}
 
-	sink := map[string]string{}
-	extraconfig.Encode(extraconfig.MapSink(sink), cfg)
-	src := extraconfig.MapSource(sink)
-	log.Debugf("Test configuration: %#v", sink)
-
-	// run the tether to service the attach
-	go func() {
-		erR := run(src)
-		if erR != nil {
-			t.Error(erR)
-		}
-	}()
+	startTether(t, &cfg)
 
 	<-mocked.started
 
@@ -85,18 +72,7 @@ func TestSetIpAddress(t *testing.T) {
 		},
 	}
 
-	sink := map[string]string{}
-	extraconfig.Encode(extraconfig.MapSink(sink), cfg)
-	src := extraconfig.MapSource(sink)
-	log.Debugf("Test configuration: %#v", sink)
-
-	// run the tether to service the attach
-	go func() {
-		erR := run(src)
-		if erR != nil {
-			t.Error(erR)
-		}
-	}()
+	startTether(t, &cfg)
 
 	<-mocked.started
 

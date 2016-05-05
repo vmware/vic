@@ -20,7 +20,6 @@ import (
 	"os/exec"
 	"testing"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -62,14 +61,9 @@ func TestPathLookup(t *testing.T) {
 		},
 	}
 
-	sink := map[string]string{}
-	extraconfig.Encode(extraconfig.MapSink(sink), cfg)
-	src := extraconfig.MapSource(sink)
-	log.Debugf("Test configuration: %#v", sink)
-
-	if err := run(src); err != nil {
+	_, err := runTether(t, &cfg)
+	if err != nil {
 		t.Error(err)
-		return
 	}
 }
 
@@ -111,14 +105,9 @@ func TestRelativePath(t *testing.T) {
 		},
 	}
 
-	sink := map[string]string{}
-	extraconfig.Encode(extraconfig.MapSink(sink), cfg)
-	src := extraconfig.MapSource(sink)
-	log.Debugf("Test configuration: %#v", sink)
-
-	if err := run(src); err != nil {
+	_, err := runTether(t, &cfg)
+	if err != nil {
 		t.Error(err)
-		return
 	}
 }
 
@@ -158,17 +147,16 @@ func TestAbsPath(t *testing.T) {
 		},
 	}
 
-	sink := map[string]string{}
-	extraconfig.Encode(extraconfig.MapSink(sink), cfg)
-	src := extraconfig.MapSource(sink)
-	log.Debugf("Test configuration: %#v", sink)
-
-	if err := run(src); err != nil {
+	src, err := runTether(t, &cfg)
+	if err != nil {
 		t.Error(err)
 	}
 
+	// refresh the cfg with current data
+	extraconfig.Decode(src, &cfg)
+
 	// check the exit code was set
-	status := config.Sessions["abspath"].ExitStatus
+	status := cfg.Sessions["abspath"].ExitStatus
 	if status != 0 {
 		t.Errorf("reference process 'data --reference=/' did not exit cleanly: %d", status)
 		return
@@ -238,15 +226,19 @@ func TestMissingBinary(t *testing.T) {
 		},
 	}
 
-	sink := map[string]string{}
-	extraconfig.Encode(extraconfig.MapSink(sink), cfg)
-	src := extraconfig.MapSource(sink)
-	log.Debugf("Test configuration: %#v", sink)
-
-	err := run(src)
+	src, err := runTether(t, &cfg)
 	if err == nil {
 		t.Error("Expected error from missing binary")
 	}
+
+	// refresh the cfg with current data
+	extraconfig.Decode(src, &cfg)
+
+	// check the launch status was failed
+	// status := cfg.Sessions["abspath"].ExitStatus
+	// if err == nil {
+	// 	t.Error("Expected error from missing binary")
+	// }
 
 	// read the output from the session
 	log, err := ioutil.ReadFile(pathPrefix + "/ttyS2")
