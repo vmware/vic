@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
@@ -29,6 +30,12 @@ func main() {
 
 	// where to look for the various devices and files related to tether
 	pathPrefix = "/.tether"
+
+	if strings.HasSuffix(os.Args[0], "-debug") {
+		extraconfig.DecodeLogLevel = log.DebugLevel
+		extraconfig.EncodeLogLevel = log.DebugLevel
+		log.SetLevel(log.DebugLevel)
+	}
 
 	// the OS ops and utils to use
 	osx := osopsOSX{}

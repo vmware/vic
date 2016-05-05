@@ -16,6 +16,8 @@ package main
 
 import (
 	_ "net/http/pprof"
+	"os"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -24,15 +26,22 @@ import (
 func main() {
 	defer halt()
 
-	// get the windows service logic running so that we can play well in that mode
-	runService("VMware Tether", false)
-
 	// where to look for the various devices and files related to tether
 	pathPrefix = "com://"
+
+	if strings.HasSuffix(os.Args[0], "-debug") {
+		extraconfig.DecodeLogLevel = log.DebugLevel
+		extraconfig.EncodeLogLevel = log.DebugLevel
+		log.SetLevel(log.DebugLevel)
+	}
+
 	// the OS ops and utils to use
 	win := &osopsWin{}
 	ops = win
 	utils = win
+
+	// get the windows service logic running so that we can play well in that mode
+	runService("VMware Tether", false)
 
 	server = &attachServerSSH{}
 	src, err := extraconfig.GuestInfoSource()
