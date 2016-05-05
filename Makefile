@@ -187,6 +187,7 @@ TEST_DIRS+=github.com/vmware/vic/cmd/vic-machine
 TEST_DIRS+=github.com/vmware/vic/portlayer
 TEST_DIRS+=github.com/vmware/vic/pkg
 TEST_DIRS+=github.com/vmware/vic/apiservers/portlayer
+TEST_DIRS+=github.com/vmware/vic/apiservers/engine/backends
 TEST_DIRS+=github.com/vmware/vic/install
 
 
