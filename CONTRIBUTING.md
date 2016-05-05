@@ -145,6 +145,24 @@ members of the team; each team member should be working on one thing at a time.
 This pipeline is a good candidate for WIP (work-in-progress) limits. WIP limits help ensure your work flows smoothly,
 and help bring to light any blockers or bottlenecks. Adjust WIP limits according to the size of your team.
 
+To move an issue into the In Progress swim lane several steps must be taken.
+
+1. Assign yourself as the owner.
+2. Ensure the milestone is set (if there is one) and also review the labels to ensure they accurately reflect the issue.
+3. Assign an estimateed level of effort. See the below table for guidance for effort mapping.
+
+After an issue is In Progress it is the best practice to regularily update the issue with current progress and any discussions that may occur via the various collaboration tools used. An issue that is in progress should not go more than 2 days without updates. 
+
+Story Points | Story Size
+------------ | -------------------------------------------------------
+1            | Less than 1 day of effort
+2            | 2 - 3 days of effort
+3            | 3 - 5 days of effort
+5            | 5 - 10 days of effort, consider splitting this if it's 7 - 10 days
+8            | > 10 days, anything of this size should be split before moving into In Progress
+
+Note: Epics should never be In Progress
+
 ### Done
 
 A "Done" issue normally means the feature or fix is in code review and/or awaiting further testing.  We review these
@@ -157,7 +175,6 @@ Milestone.
 
 This pipeline is also interactive: dragging issues into this pipeline will close them, while dragging them out will
 re-open them.
-
 
 ## High level project planning
 
