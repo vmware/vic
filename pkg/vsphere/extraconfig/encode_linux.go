@@ -31,6 +31,9 @@ func GuestInfoSink() (DataSink, error) {
 	}
 
 	return func(key, value string) error {
+		if v == "" {
+			v = "<nil>"
+		}
 		return guestinfo.SetString(key, value)
 	}, nil
 }

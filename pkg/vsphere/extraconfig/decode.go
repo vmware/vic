@@ -446,6 +446,9 @@ func OptionValueSource(src []types.BaseOptionValue) DataSource {
 	for i := range src {
 		k := src[i].GetOptionValue().Key
 		v := src[i].GetOptionValue().Value.(string)
+		if v == "<nil>" {
+			v = ""
+		}
 		kv[k] = v
 	}
 

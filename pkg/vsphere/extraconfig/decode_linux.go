@@ -31,6 +31,10 @@ func GuestInfoSource() (func(string) (string, error), error) {
 	}
 
 	return func(key string) (string, error) {
-		return guestinfo.String(key, "")
+		v, err := guestinfo.String(key, "")
+		if v == "<nil>" {
+			v = ""
+		}
+		return v, err
 	}, nil
 }

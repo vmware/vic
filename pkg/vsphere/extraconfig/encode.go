@@ -272,6 +272,9 @@ func OptionValueFromMap(data map[string]string) []types.BaseOptionValue {
 
 	i := 0
 	for k, v := range data {
+		if v == "" {
+			v = "<nil>"
+		}
 		array[i] = &types.OptionValue{Key: k, Value: v}
 		i++
 	}
