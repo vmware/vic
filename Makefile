@@ -253,7 +253,7 @@ $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API server...
 	@$(SWAGGER) generate server -A PortLayer -t $(realpath $(dir $<)) -f $<
 
-$(portlayerapi): $(call godeps,apiservers/portlayer/cmd/port-layer-server/*.go) $(portlayerapi-server)
+$(portlayerapi): $(call godeps,apiservers/portlayer/cmd/port-layer-server/*.go) $(portlayerapi-server) $(portlayerapi-client)
 	@echo building Portlayer API server...
 	@$(GO) build $(RACE) -o $@ ./$(dir $<)
 
