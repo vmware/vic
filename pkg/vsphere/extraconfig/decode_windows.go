@@ -20,6 +20,6 @@ import (
 
 // GuestInfoSource uses the rpcvmx mechanism to access the guestinfo key/value map as
 // the datasource for decoding into target structures
-func GuestInfoSource() (func(string) (string, error), error) {
+func GuestInfoSource() (DataSource, error) {
 	return nil, errors.New("Not implemented on Windows")
 }

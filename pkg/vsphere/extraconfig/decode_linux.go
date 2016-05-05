@@ -23,7 +23,7 @@ import (
 
 // GuestInfoSource uses the rpcvmx mechanism to access the guestinfo key/value map as
 // the datasource for decoding into target structures
-func GuestInfoSource() (func(string) (string, error), error) {
+func GuestInfoSource() (DataSource, error) {
 	guestinfo := rpcvmx.NewConfig()
 
 	if !vmcheck.IsVirtualWorld() {
@@ -34,10 +34,10 @@ func GuestInfoSource() (func(string) (string, error), error) {
 	prefixLen := len("guestinfo.")
 
 	return func(key string) (string, error) {
-		v, err := guestinfo.String(key[prefixLen:], "")
-		if v == "<nil>" {
-			v = ""
+		value, err := guestinfo.String(key[prefixLen:], "")
+		if value == "<nil>" {
+			value = ""
 		}
-		return v, err
+		return value, err
 	}, nil
 }
