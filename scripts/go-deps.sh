@@ -23,5 +23,9 @@
 
 PKG=$1
 
-echo "Generating deps for $PKG" >&2
-go list -f '{{join .Deps "\n"}}' $PKG |  xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' | sed -e 's:github.com/vmware/vic/\(.*\)$:\1/*:'
+if [ -d $PKG ]; then
+    echo "Generating deps for $PKG" >&2
+    go list -f '{{join .Deps "\n"}}' github.com/vmware/vic/$PKG 2>/dev/null |  xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' 2>/dev/null | sed -e 's:github.com/vmware/vic/\(.*\)$:\1/*:'
+else
+    echo "Skipping generation of deps for non-existant package $PKG" >&2
+fi

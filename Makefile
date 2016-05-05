@@ -46,7 +46,7 @@ endif
 
 # utility function to dynamically generate go dependencies
 define godeps
-	$(wildcard $1) $(shell $(BASE_DIR)/scripts/go-deps.sh $(BASE_PKG)/$(dir $1))
+	$(wildcard $1) $(shell $(BASE_DIR)/scripts/go-deps.sh $(dir $1))
 endef
 
 # target aliases - environment variable definition
