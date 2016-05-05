@@ -24,6 +24,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/vmware/vic/pkg/dio"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
@@ -62,6 +63,8 @@ func LenChildPid() int {
 }
 
 func run(src extraconfig.DataSource, sink extraconfig.DataSink) error {
+	defer trace.End(trace.Begin("main tether loop"))
+
 	// remake all of the main management structures so there's no cross contamination between tests
 	reload = make(chan bool, 1)
 	config = &ExecutorConfig{
@@ -180,6 +183,8 @@ func run(src extraconfig.DataSource, sink extraconfig.DataSink) error {
 // handleSessionExit processes the result from the session command, records it in persistent
 // maner and determines if the Executor should exit
 func handleSessionExit(session *SessionConfig) error {
+	defer trace.End(trace.Begin("handling exit of session " + session.ID))
+
 	// close down the IO
 	session.reader.Close()
 	// live.outwriter.Close()
@@ -208,6 +213,8 @@ func handleSessionExit(session *SessionConfig) error {
 // launch will launch the command defined in the session.
 // This will return an error if the session fails to launch
 func launch(session *SessionConfig) error {
+	defer trace.End(trace.Begin("launching session " + session.ID))
+
 	logwriter, err := utils.sessionLogWriter()
 	if err != nil {
 		detail := fmt.Sprintf("failed to get log writer for session: %s", err)
@@ -274,7 +281,8 @@ func logConfig(config *ExecutorConfig) {
 }
 
 func forkHandler() {
-	log.Println("Registering fork trigger signal handler")
+	defer trace.End(trace.Begin("start fork trigger handler"))
+
 	defer func() {
 		if r := recover(); r != nil {
 			log.Println("Recovered in StartConnectionManager", r)
@@ -284,11 +292,11 @@ func forkHandler() {
 	incoming := make(chan os.Signal, 1)
 	signal.Notify(incoming, syscall.SIGABRT)
 
-	log.Println("SIGABRT handling initialized for fork support")
+	log.Info("SIGABRT handling initialized for fork support")
 	for _ = range incoming {
 		// validate that this is a fork trigger and not just a random signal from
 		// container processes
-		log.Println("Received SIGABRT - preparing to transition to fork parent")
+		log.Info("Received SIGABRT - preparing to transition to fork parent")
 
 		// TODO: record fork trigger in Config and persist
 
@@ -302,6 +310,7 @@ func forkHandler() {
 		}
 
 		// trigger a reload of the configuration
+		log.Info("Triggering reload of config after fork")
 		reload <- true
 	}
 }

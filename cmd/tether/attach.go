@@ -22,6 +22,7 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/pkg/trace"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 )
@@ -83,6 +84,8 @@ type attachServerSSH struct {
 
 // start is not thread safe with stop
 func (t *attachServerSSH) start() error {
+	defer trace.End(trace.Begin("start attach server"))
+
 	if t == nil {
 		return errors.New("attach server is not configured")
 	}
@@ -127,6 +130,8 @@ func (t *attachServerSSH) start() error {
 
 // stop is not thread safe with start
 func (t *attachServerSSH) stop() {
+	defer trace.End(trace.Begin("stop attach server"))
+
 	if t == nil || !t.enabled {
 		return
 	}
@@ -141,6 +146,8 @@ func (t *attachServerSSH) stop() {
 // run should not be called directly, but via start
 // run will establish an ssh server listening on the backchannel
 func (t *attachServerSSH) run() error {
+	defer trace.End(trace.Begin("main attach server loop"))
+
 	var sConn *ssh.ServerConn
 	var chans <-chan ssh.NewChannel
 	var reqs <-chan *ssh.Request
@@ -259,6 +266,8 @@ func (t *attachServerSSH) run() error {
 }
 
 func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
+	defer trace.End(trace.Begin("start attach server global request handler"))
+
 	for req := range reqchan {
 		var pendingFn func()
 		var payload []byte
@@ -299,6 +308,8 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 }
 
 func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process, pty *os.File, detach func()) {
+	defer trace.End(trace.Begin("start attach server channel request handler"))
+
 	var err error
 	for req := range in {
 		var pendingFn func()
@@ -351,6 +362,4 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 	}
 
 	detach()
-
-	log.Info("incoming attach request channel closed")
 }

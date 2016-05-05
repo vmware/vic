@@ -15,6 +15,7 @@
 package extraconfig
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"reflect"
@@ -212,9 +213,15 @@ func decodeStruct(src DataSource, dest reflect.Value, prefix string, depth recur
 
 func decodeByteSlice(src DataSource, dest reflect.Value, prefix string, depth recursion) reflect.Value {
 	log.Debugf("Converting string to []byte")
-	bytes, err := src(prefix)
+	base, err := src(prefix)
 	if err != nil {
 		log.Debugf("No value found in data source for []byte \"%s\"", prefix)
+		return dest
+	}
+
+	bytes, err := base64.StdEncoding.DecodeString(base)
+	if err != nil {
+		log.Debugf("Expected base64 encoded string for []byte \"%s\": %s", prefix, err)
 		return dest
 	}
 

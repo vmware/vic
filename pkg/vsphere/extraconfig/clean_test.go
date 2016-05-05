@@ -15,6 +15,7 @@
 package extraconfig
 
 import (
+	"encoding/base64"
 	"net"
 	"testing"
 	"time"
@@ -73,8 +74,8 @@ func TestNetPointer(t *testing.T) {
 	Encode(MapSink(encoded), Net)
 
 	expected := map[string]string{
-		"guestinfo/net/IP":   "\u007f\x00\x00\x01",
-		"guestinfo/net/Mask": "\xff\x00\x00\x00",
+		"guestinfo/net/IP":   base64.StdEncoding.EncodeToString(n.IP),
+		"guestinfo/net/Mask": base64.StdEncoding.EncodeToString(n.Mask),
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 

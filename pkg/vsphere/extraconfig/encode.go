@@ -15,6 +15,7 @@
 package extraconfig
 
 import (
+	"encoding/base64"
 	"fmt"
 	"reflect"
 	"sort"
@@ -150,8 +151,9 @@ func encodeSlice(sink DataSink, src reflect.Value, prefix string, depth recursio
 	if kind == reflect.Uint8 {
 		// special []byte array handling
 
-		log.Debugf("Converting []byte to string")
-		encode(sink, src.Convert(reflect.TypeOf("")), prefix, depth)
+		log.Debugf("Converting []byte to base64 string")
+		str := base64.StdEncoding.EncodeToString(src.Bytes())
+		encode(sink, reflect.ValueOf(str), prefix, depth)
 		return
 
 	} else if kind != reflect.Struct {
