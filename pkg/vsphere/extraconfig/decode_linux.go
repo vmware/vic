@@ -30,8 +30,11 @@ func GuestInfoSource() (func(string) (string, error), error) {
 		return nil, errors.New("not in a virtual world")
 	}
 
+	// prefix is "guestinfo." or "guestinfo/"
+	prefixLen := len("guestinfo.")
+
 	return func(key string) (string, error) {
-		v, err := guestinfo.String(key, "")
+		v, err := guestinfo.String(key[prefixLen:], "")
 		if v == "<nil>" {
 			v = ""
 		}

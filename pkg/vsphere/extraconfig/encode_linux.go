@@ -30,10 +30,13 @@ func GuestInfoSink() (DataSink, error) {
 		return nil, errors.New("not in a virtual world")
 	}
 
+	// prefix is "guestinfo." or "guestinfo/"
+	prefixLen := len("guestinfo.")
+
 	return func(key, value string) error {
 		if value == "" {
 			value = "<nil>"
 		}
-		return guestinfo.SetString(key, value)
+		return guestinfo.SetString(key[prefixLen:], value)
 	}, nil
 }
