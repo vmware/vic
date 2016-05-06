@@ -17,12 +17,14 @@ package extraconfig
 import (
 	"errors"
 
+	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vmw-guestinfo/rpcvmx"
 	"github.com/vmware/vmw-guestinfo/vmcheck"
 )
 
-// GuestInfoSource uses the rpcvmx mechanism to access the guestinfo key/value map as
-// the datasource for decoding into target structures
+// GuestInfoSink uses the rpcvmx mechanism to update the guestinfo key/value map as
+// the datasink for encoding target structures
 func GuestInfoSink() (DataSink, error) {
 	guestinfo := rpcvmx.NewConfig()
 
@@ -30,13 +32,13 @@ func GuestInfoSink() (DataSink, error) {
 		return nil, errors.New("not in a virtual world")
 	}
 
-	// prefix is "guestinfo." or "guestinfo/"
-	prefixLen := len("guestinfo.")
-
 	return func(key, value string) error {
 		if value == "" {
 			value = "<nil>"
 		}
-		return guestinfo.SetString(key[prefixLen:], value)
+
+		log.Debugf("GuestInfoSink: setting key: %s, value: %#v", key, value)
+		err := guestinfo.SetString(key, value)
+		return err
 	}, nil
 }

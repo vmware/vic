@@ -28,7 +28,7 @@ const (
 	// DefaultPrefix value
 	DefaultPrefix = ""
 	// DefaultGuestInfoPrefix value
-	DefaultGuestInfoPrefix = "guestinfo"
+	DefaultGuestInfoPrefix = "guestinfo."
 )
 
 const (
@@ -59,6 +59,10 @@ var Unbounded = recursion{depth: -1, follow: true}
 // calculateScope returns the uint representation of scope tag
 func calculateScope(scopes []string) uint {
 	var scope uint
+	if len(scopes) == 0 {
+		return Hidden | ReadOnly
+	}
+
 	for _, v := range scopes {
 		switch v {
 		case "hidden":
@@ -170,61 +174,51 @@ func calculateKeyFromField(field reflect.StructField, prefix string, depth recur
 	return key, fdepth
 }
 
-// calculateKey calculates the key based on the scope and prefix
+// calculateKey calculates the key based on the scope and current prefix
 func calculateKey(scopes []string, prefix string, key string) string {
 	scope := calculateScope(scopes)
 	if scope&Invalid != 0 || scope&NonPersistent != 0 {
+		log.Debugf("invalid scope")
 		return ""
 	}
 
-	var guestinfo string
-	var seperator string
-	var oseperator string
-
-	// Trim the whitespaces
+	newSep := "/"
+	oldSep := "."
 	key = strings.TrimSpace(key)
 
-	if scope&Hidden != 0 {
-		guestinfo = ""
-		seperator = "/"
-		oseperator = "."
-	}
-	if scope&ReadOnly != 0 {
-		guestinfo = DefaultGuestInfoPrefix
-		seperator = "/"
-		oseperator = "."
-	}
-	if scope&ReadWrite != 0 {
-		guestinfo = DefaultGuestInfoPrefix
-		seperator = "."
-		oseperator = "/"
+	hide := scope&Hidden != 0
+	write := scope&ReadWrite != 0
+	visible := strings.HasPrefix(prefix, DefaultGuestInfoPrefix)
+
+	if !hide && write {
+		oldSep = "/"
+		newSep = "."
 	}
 
-	// set up the correct base prefix first
-	base := strings.Replace(prefix, oseperator, seperator, -1)
+	// assemble the actual keypath with appropriate separators
+	out := key
+	if prefix != "" {
+		out = strings.Join([]string{prefix, key}, newSep)
+	}
 
-	if strings.HasPrefix(base, DefaultGuestInfoPrefix) {
-		if guestinfo == "" {
-			// this key is hidden - strip the prefix and separator
-			base = base[len(DefaultGuestInfoPrefix)+1:]
-		} else {
-			// this key is already exposed
-			guestinfo = ""
+	// we don't care about existing separators when hiden
+	if hide {
+		if !visible {
+			return out
 		}
+
+		// strip the prefix and the leading r/w signifier
+		return out[len(DefaultGuestInfoPrefix)+1:]
 	}
 
-	// the add detail to the base
-	if guestinfo == "" && prefix == "" {
-		return key
+	// ensure that separators are correct
+	out = strings.Replace(out, oldSep, newSep, -1)
+
+	// Assemble the base that controls key publishing in guest
+	if !visible {
+		return DefaultGuestInfoPrefix + newSep + out
 	}
 
-	if guestinfo == "" {
-		return strings.Join([]string{base, key}, seperator)
-	}
-
-	if prefix == "" {
-		return strings.Join([]string{guestinfo, key}, seperator)
-	}
-
-	return strings.Join([]string{guestinfo, prefix, key}, seperator)
+	// prefix will have been mangled by strings.Replace
+	return DefaultGuestInfoPrefix + out[len(DefaultGuestInfoPrefix):]
 }

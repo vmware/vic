@@ -126,6 +126,8 @@ type SessionConfig struct {
 
 	ExitStatus int `vic:"0.1" scope:"read-write" key:"status"`
 
+	Started string `vic:"0.1" scope:"read-write" key:"started"`
+
 	// Maps the intent to the signal for this specific app
 	// Signals map[int]int
 
