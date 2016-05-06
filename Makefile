@@ -253,7 +253,7 @@ $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 
 $(portlayerapi): $(call godeps,apiservers/portlayer/cmd/port-layer-server/*.go) $(portlayerapi-server) $(portlayerapi-client)
 	@echo building Portlayer API server...
-	@$(GO) build $(RACE) -o $@ ./$(dir $<)
+	@$(GO) build $(RACE) -o $@ ./apiservers/portlayer/cmd/port-layer-server
 
 $(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
 	@echo building iso-base docker image
