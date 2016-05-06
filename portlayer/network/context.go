@@ -57,7 +57,7 @@ var getBridgeNetworkName = func(sess *session.Session) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return guestInfo[bridgeNetworkKey], nil
+	return guestInfo[fmt.Sprintf("%s/%s", bridgeNetworkKey, "portgroup")], nil
 }
 
 func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask, sess *session.Session) (*Context, error) {
