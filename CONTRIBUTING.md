@@ -149,9 +149,9 @@ To move an issue into the In Progress swim lane several steps must be taken.
 
 1. Assign yourself as the owner.
 2. Ensure the milestone is set (if there is one) and also review the labels to ensure they accurately reflect the issue.
-3. Assign an estimateed level of effort. See the below table for guidance for effort mapping.
+3. Assign an estimated level of effort. See the below table for guidance for effort mapping.
 
-After an issue is In Progress it is the best practice to regularily update the issue with current progress and any discussions that may occur via the various collaboration tools used. An issue that is in progress should not go more than 2 days without updates. 
+After an issue is In Progress it is the best practice to update the issue with current progress and any discussions that may occur via the various collaboration tools used. An issue that is in progress should not go more than 2 days without updates. 
 
 Story Points | Story Size
 ------------ | -------------------------------------------------------
