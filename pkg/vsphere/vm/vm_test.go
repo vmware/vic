@@ -145,7 +145,7 @@ func TestVMAttributes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
 	}
-	if address, err := vm.MacAddresses(ctx); err != nil {
+	if address, err := vm.WaitForMAC(ctx); err != nil {
 		t.Fatalf("ERROR: %s", err)
 	} else {
 		t.Logf("Got mac address: %s", address)

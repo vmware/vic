@@ -332,9 +332,9 @@ func (d *Dispatcher) createAppliance(conf *configuration.Configuration) error {
 }
 
 func (d *Dispatcher) setMacToGuestInfo() error {
-	m, err := d.appliance.MacAddresses(d.ctx)
-	if err != nil || len(m) == 0 {
-		err = errors.Errorf("Failed to get VM mac address: %s", err)
+	m, err := d.appliance.WaitForMAC(d.ctx)
+	if err != nil {
+		err = errors.Errorf("Failed to get VM mac address %s", err)
 		return err
 	}
 	var spec types.VirtualMachineConfigSpec
@@ -343,6 +343,11 @@ func (d *Dispatcher) setMacToGuestInfo() error {
 	}
 	var keys []string
 	for key, value := range m {
+		if value == "" {
+			// timeout to wait MAC address, so empty mac address is returned
+			err = errors.Errorf("Timeout to get VM MAC address")
+			return err
+		}
 		netName := d.nics[key]
 		spec.ExtraConfig = append(spec.ExtraConfig, &types.OptionValue{Key: fmt.Sprintf("guestinfo.vch/networks/%s/portgroup", netName), Value: d.networks[netName].(*object.Network).Name()})
 		spec.ExtraConfig = append(spec.ExtraConfig, &types.OptionValue{Key: fmt.Sprintf("guestinfo.vch/networks/%s/mac", netName), Value: value})
@@ -365,14 +370,15 @@ func (d *Dispatcher) setMacToGuestInfo() error {
 
 func (d *Dispatcher) waitingForIP(dul time.Duration) (map[string]string, error) {
 	timeout := time.After(dul)
-	tick := time.Tick(3 * time.Second)
+	tick := time.NewTicker(3 * time.Second)
+	defer tick.Stop()
 
 	// Keep trying until we're timed out or got a result or got an error
 	for {
 		select {
 		case <-timeout:
 			return nil, errors.New("Timeout")
-		case <-tick:
+		case <-tick.C:
 			info, err := d.appliance.FetchExtraConfig(d.ctx)
 			if err != nil {
 				return nil, err
@@ -385,7 +391,7 @@ func (d *Dispatcher) waitingForIP(dul time.Duration) (map[string]string, error) 
 	}
 }
 
-func (d *Dispatcher) makeSureApplianceRuns(timeout time.Duration) error {
+func (d *Dispatcher) makeSureApplianceRuns() error {
 	var err error
 
 	if d.appliance == nil {
@@ -393,7 +399,7 @@ func (d *Dispatcher) makeSureApplianceRuns(timeout time.Duration) error {
 	}
 	log.Infof("Waiting for IP information")
 
-	_, err = d.waitingForIP(timeout)
+	_, err = d.waitingForIP(d.timeout)
 	if err != nil {
 		err = fmt.Errorf("Timed out waiting for appliance to publish URI for docker API")
 		log.Infof("Log files can be found on the appliance:")
