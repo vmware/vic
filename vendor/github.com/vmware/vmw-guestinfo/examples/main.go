@@ -13,9 +13,6 @@ func main() {
 		return
 	}
 
-	version, typ := vmcheck.Version()
-	fmt.Println(version, typ)
-
 	config := rpcvmx.NewConfig()
 
 	fmt.Println(config.SetString("foo", "bar"))

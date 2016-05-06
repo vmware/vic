@@ -3,8 +3,13 @@ package rpcvmx
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/vmware/vmw-guestinfo/rpcout"
+)
+
+const (
+	prefix = "guestinfo"
 )
 
 // Config gives access to the vmx config through the VMware backdoor
@@ -17,7 +22,12 @@ func NewConfig() *Config {
 
 // String returns the config string in the guestinfo.* namespace
 func (c *Config) String(key string, defaultValue string) (string, error) {
-	out, ok, err := rpcout.SendOne("info-get guestinfo.%s", key)
+	// add "guestinfo." prefix if missing
+	if !strings.HasPrefix(key, prefix) {
+		key = fmt.Sprintf("%s.%s", prefix, key)
+	}
+
+	out, ok, err := rpcout.SendOne("info-get %s", key)
 	if err != nil {
 		return "", err
 	} else if !ok {
@@ -54,7 +64,12 @@ func (c *Config) Int(key string, defaultValue int) (int, error) {
 
 // SetString sets the guestinfo.KEY with the string VALUE
 func (c *Config) SetString(key string, value string) error {
-	_, _, err := rpcout.SendOne("info-set guestinfo.%s %s", key, value)
+	// add "guestinfo." prefix if missing
+	if !strings.HasPrefix(key, prefix) {
+		key = fmt.Sprintf("%s.%s", prefix, key)
+	}
+
+	_, _, err := rpcout.SendOne("info-set %s %s", key, value)
 	if err != nil {
 		return err
 	}

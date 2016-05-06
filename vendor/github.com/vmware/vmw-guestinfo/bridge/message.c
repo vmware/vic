@@ -60,7 +60,6 @@ extern "C" {
 #else
 #   include <stdio.h>
 #   include <stdlib.h>
-#   include "debug.h"
 #endif
 
 #include "backdoor_def.h"
