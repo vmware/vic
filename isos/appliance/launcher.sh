@@ -28,7 +28,7 @@ nameInterfaces() {
     done
 
     for net in "${networks[@]}" ; do
-        mac=$(rpctool -get vch/networks/$net)
+        mac=$(rpctool -get vch/networks/$net/mac)
 
         # interface name for mac, with trailing :
         dev=$(ip link | grep $mac -B 1 | head -n 1 | cut -d ' ' -f 2 | tr -d ':')

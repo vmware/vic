@@ -343,8 +343,10 @@ func (d *Dispatcher) setMacToGuestInfo() error {
 	}
 	var keys []string
 	for key, value := range m {
-		spec.ExtraConfig = append(spec.ExtraConfig, &types.OptionValue{Key: fmt.Sprintf("guestinfo.vch/networks/%s", d.nics[key]), Value: value})
-		keys = append(keys, d.nics[key])
+		netName := d.nics[key]
+		spec.ExtraConfig = append(spec.ExtraConfig, &types.OptionValue{Key: fmt.Sprintf("guestinfo.vch/networks/%s/portgroup", netName), Value: d.networks[netName].(*object.Network).Name()})
+		spec.ExtraConfig = append(spec.ExtraConfig, &types.OptionValue{Key: fmt.Sprintf("guestinfo.vch/networks/%s/mac", netName), Value: value})
+		keys = append(keys, netName)
 	}
 	spec.ExtraConfig = append(spec.ExtraConfig, &types.OptionValue{Key: "guestinfo.vch/networks", Value: strings.Join(keys, " ")})
 
