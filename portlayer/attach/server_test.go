@@ -42,6 +42,12 @@ func TestAttachStartStop(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, c)
 
+		buf := make([]byte, 1)
+		c.Read(buf)
+		if !assert.Error(t, serial.HandshakeServer(context.Background(), c)) {
+			return
+		}
+
 		if !assert.NoError(t, serial.HandshakeServer(context.Background(), c)) {
 			return
 		}

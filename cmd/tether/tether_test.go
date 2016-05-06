@@ -350,7 +350,7 @@ func runTether(t *testing.T, cfg *metadata.ExecutorConfig) (extraconfig.DataSour
 }
 
 // create client on the mock pipe
-func mockSerialConnection(ctx context.Context) (net.Conn, error) {
+func mockBackChannel(ctx context.Context) (net.Conn, error) {
 	log.Info("opening ttyS0 pipe pair for backchannel")
 	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_RDONLY|syscall.O_NOCTTY, 0777)
 	if err != nil {

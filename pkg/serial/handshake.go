@@ -36,7 +36,7 @@ const (
 )
 
 // PurgeIncoming is used to clear a channel of bytes prior to handshaking
-func PurgeIncoming(ctx context.Context, conn net.Conn) {
+func PurgeIncoming(conn net.Conn) {
 	buf := make([]byte, 255)
 
 	// read until the incoming channel is empty
@@ -76,6 +76,11 @@ func HandshakeClient(ctx context.Context, conn net.Conn) error {
 	conn.Write(syn)
 	log.Debug("client: reading synack")
 	if n, err := io.ReadFull(conn, buf[:3]); n != 3 || err != nil {
+
+		if n == 0 && err != nil {
+			return err
+		}
+
 		msg := fmt.Sprintf("HandshakeClient: failed to read expected SYN-ACK: n=%d, err=%s buf=[%#x]", n, err, buf[:n])
 		if err != nil {
 			log.Error(msg)
@@ -93,7 +98,7 @@ func HandshakeClient(ctx context.Context, conn net.Conn) error {
 		return errors.New(msg)
 	}
 
-	log.Debugf("HandshakeClient: received synack: %#x == %#x\n", synack, buf[:2])
+	log.Infof("HandshakeClient: received synack: %#x == %#x\n", synack, buf[:2])
 	log.Debug("client: writing ack")
 	ack[1] = buf[2] + 1
 	conn.Write(ack)
@@ -138,18 +143,17 @@ func HandshakeServer(ctx context.Context, conn net.Conn) error {
 		conn.SetReadDeadline(deadline)
 	}
 
-	fmt.Println("server: reading syn")
-	// loop here until we get a valid syn opening. syn is 3 bytes as that will eventually
-	// syn us again if we're offset
+	log.Debug("server: reading syn")
+	// syn is 3 bytes as that will eventually syn us again if we're offset
 	if n, err := readMultiple(conn, syn); n != 2 || err != nil || syn[0] != SYN {
 		var msg string
 		if err != nil {
 			msg = fmt.Sprintf("server: failed to read expected SYN: n=%d, err=%s", n, err)
 		} else if syn[0] != SYN {
-			msg = fmt.Sprintf("server: did not receive syn (read %v bytes): %#x != %#x", n, SYN, syn[0])
+			msg = fmt.Sprintf("server: did not receive SYN (read %v bytes): %#x != %#x", n, SYN, syn[0])
 			conn.Write([]byte{NAK})
 		} else {
-			msg = fmt.Sprintf("server: received syn but expected single sequence byte")
+			msg = fmt.Sprintf("server: received SYN (read %d) bytes", n)
 		}
 
 		// to aid in debug we always dump the full handhsake
@@ -182,7 +186,7 @@ func HandshakeServer(ctx context.Context, conn net.Conn) error {
 		return errors.New(msg)
 	}
 
-	log.Debugf("server: received ack: %#x == %#x\n", ack, buf)
+	log.Infof("server: received ack: %#x == %#x\n", ack, buf)
 
 	// disable the read timeout
 	// this has no effect on windows as the deadline is set at port open time

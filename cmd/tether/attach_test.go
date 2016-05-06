@@ -99,7 +99,7 @@ func TestAttach(t *testing.T) {
 	}
 
 	// create client on the mock pipe
-	conn, err := mockSerialConnection(context.Background())
+	conn, err := mockBackChannel(context.Background())
 	if err != nil {
 		t.Error(err)
 		return
@@ -203,7 +203,7 @@ func TestAttachTTY(t *testing.T) {
 	}
 
 	// create client on the mock pipe
-	conn, err := mockSerialConnection(context.Background())
+	conn, err := mockBackChannel(context.Background())
 	if err != nil {
 		t.Error(err)
 		return
@@ -327,7 +327,7 @@ func TestAttachTwo(t *testing.T) {
 	}
 
 	// create client on the mock pipe
-	conn, err := mockSerialConnection(context.Background())
+	conn, err := mockBackChannel(context.Background())
 	if err != nil {
 		t.Error(err)
 		return
@@ -471,7 +471,7 @@ func TestAttachInvalid(t *testing.T) {
 	}
 
 	// create client on the mock pipe
-	conn, err := mockSerialConnection(context.Background())
+	conn, err := mockBackChannel(context.Background())
 	if err != nil {
 		t.Error(err)
 		return

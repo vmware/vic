@@ -34,6 +34,8 @@ func main() {
 		halt()
 	}()
 
+	log.SetLevel(log.DebugLevel)
+
 	// where to look for the various devices and files related to tether
 	pathPrefix = "/.tether"
 
