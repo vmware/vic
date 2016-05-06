@@ -73,7 +73,7 @@ func (t *osopsOSX) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
 }
 
 func (t *osopsOSX) signalProcess(process *os.Process, sig ssh.Signal) error {
-	return nil, errors.New("unimplemented on OSX")
+	return errors.New("unimplemented on OSX")
 }
 
 func (t *osopsOSX) backchannel(ctx context.Context) (net.Conn, error) {

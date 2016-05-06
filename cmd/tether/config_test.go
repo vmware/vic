@@ -18,7 +18,6 @@ import (
 	"net"
 	"testing"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -72,7 +71,6 @@ func TestToExtraConfig(t *testing.T) {
 
 	// decode into this package's ExecutorConfig
 	var decoded ExecutorConfig
-	extraconfig.DecodeLogLevel = log.DebugLevel
 	extraconfig.Decode(extraconfig.MapSource(encoded), &decoded)
 
 	// the networks should be identical

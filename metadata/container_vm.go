@@ -90,7 +90,7 @@ type ExecutorConfig struct {
 
 	// Key is the host key used during communicate back with the Interaction endpoint if any
 	// Used if the in-guest tether is responsible for authenticating the connection
-	Key []byte
+	Key []byte `vic:"0.1" scope:"read-only" key:"key"`
 }
 
 // Cmd is here because the encoding packages seem to have issues with the full exec.Cmd struct
@@ -123,6 +123,10 @@ type SessionConfig struct {
 
 	// Allocate a tty or not
 	Tty bool `vic:"0.1" scope:"read-only" key:"tty"`
+
+	ExitStatus int `vic:"0.1" scope:"read-write" key:"status"`
+
+	Started string `vic:"0.1" scope:"read-write" key:"started"`
 
 	// Maps the intent to the signal for this specific app
 	// Signals map[int]int

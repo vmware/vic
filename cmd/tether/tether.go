@@ -15,19 +15,17 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
-	"sync"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/dio"
+	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 // pathPrefix is used for testing - it allows for creating and manupulating files outside of
@@ -41,51 +39,40 @@ var pathPrefix string
 var reload chan bool
 
 // config holds the main configuration for the executor
-var config *metadata.ExecutorConfig
+var config *ExecutorConfig
 
-// holds the map of sessions to PTY multiwriters for now - should be updated when we can
-// extend the core config structs and use a map of pointers for Sessions
-var sessions map[string]*liveSession
-
-// ptySession groups up those elements we need for pty enabled sessions
-type liveSession struct {
-	pty        *os.File
-	outwriter  dio.DynamicMultiWriter
-	errwriter  dio.DynamicMultiWriter
-	reader     dio.DynamicMultiReader
-	cmd        *exec.Cmd
-	exitStatus int
-}
-
-// Set of child PIDs created by us.
-var childPidTable map[int]*metadata.SessionConfig
-
-// Exclusive access to childPidTable
-var childPidTableMutex = &sync.Mutex{}
+var dataSource extraconfig.DataSource
+var dataSink extraconfig.DataSink
 
 // RemoveChildPid is a synchronized accessor for the pid map the deletes the entry and returns the value
-func RemoveChildPid(pid int) (*metadata.SessionConfig, bool) {
-	childPidTableMutex.Lock()
-	defer childPidTableMutex.Unlock()
+func RemoveChildPid(pid int) (*SessionConfig, bool) {
+	config.pidMutex.Lock()
+	defer config.pidMutex.Unlock()
 
-	session, ok := childPidTable[pid]
-	delete(childPidTable, pid)
+	session, ok := config.pids[pid]
+	delete(config.pids, pid)
 	return session, ok
 }
 
 // LenChildPid returns the number of entries
 func LenChildPid() int {
-	childPidTableMutex.Lock()
-	defer childPidTableMutex.Unlock()
+	config.pidMutex.Lock()
+	defer config.pidMutex.Unlock()
 
-	return len(childPidTable)
+	return len(config.pids)
 }
 
-func run(loader metadata.ConfigLoader) error {
+func run(src extraconfig.DataSource, sink extraconfig.DataSink) error {
+	defer trace.End(trace.Begin("main tether loop"))
+
 	// remake all of the main management structures so there's no cross contamination between tests
 	reload = make(chan bool, 1)
-	sessions = make(map[string]*liveSession)
-	childPidTable = make(map[int]*metadata.SessionConfig)
+	config = &ExecutorConfig{
+		pids: make(map[int]*SessionConfig),
+	}
+
+	dataSource = src
+	dataSink = sink
 
 	// HACK: workaround file descriptor conflict in pipe2 return from the exec.Command.Start
 	// it's not clear whether this is a cross platform issue, or still an issue as of this commit
@@ -103,10 +90,9 @@ func run(loader metadata.ConfigLoader) error {
 	defer func() {
 		// perform basic cleanup
 		reload = nil
-		childPidTable = nil
 		// FIXME: Cannot clean up sessions until we are persisting exit status elsewhere for test validation
 		//    also referenced in handleSessionExit
-		// sessions = nil
+		// config = nil
 
 		utils.cleanup()
 	}()
@@ -115,7 +101,7 @@ func run(loader metadata.ConfigLoader) error {
 	reload <- true
 	for _ = range reload {
 		// load the config - this modifies the structure values in place
-		config, err = loader.LoadConfig()
+		extraconfig.Decode(src, config)
 		if err != nil {
 			detail := fmt.Sprintf("failed to load config: %s", err)
 			log.Error(detail)
@@ -133,24 +119,22 @@ func run(loader metadata.ConfigLoader) error {
 			// so just exit
 			return errors.New(detail)
 		}
+
 		/*
 			for _, v := range config.Networks {
-				if err := ops.Apply(&v); err != nil {
+				if err := ops.Apply(v); err != nil {
 					detail := fmt.Sprintf("failed to apply network endpoint config: %s", err)
 					log.Error(detail)
 					return errors.New(detail)
 				}
 			}
 		*/
+
 		// process the sessions and launch if needed
 		attach := false
 		for id, session := range config.Sessions {
 			log.Debugf("Processing config for session %s", session.ID)
-			var proc *os.Process
-			live := sessions[session.ID]
-			if live != nil {
-				proc = live.cmd.Process
-			}
+			var proc = session.Cmd.Process
 
 			if session.Attach {
 				attach = true
@@ -173,7 +157,7 @@ func run(loader metadata.ConfigLoader) error {
 			// check if session has never been started
 			if proc == nil {
 				log.Infof("Launching process for session %s\n", session.ID)
-				err := launch(&session)
+				err := launch(session)
 				if err != nil {
 					detail := fmt.Sprintf("failed to launch %s for %s: %s", session.Cmd.Path, id, err)
 					log.Error(detail)
@@ -200,23 +184,21 @@ func run(loader metadata.ConfigLoader) error {
 
 // handleSessionExit processes the result from the session command, records it in persistent
 // maner and determines if the Executor should exit
-func handleSessionExit(session *metadata.SessionConfig, exitStatus int) error {
-	// FIXME: we cannot remove this from the live session map until we're updating the underlying
-	// session config - we need to persist the exit status
-	// remove from the live session map
-	live := sessions[session.ID]
-	// delete(sessions, session.ID)
+func handleSessionExit(session *SessionConfig) error {
+	defer trace.End(trace.Begin("handling exit of session " + session.ID))
 
 	// close down the IO
-	live.reader.Close()
+	session.reader.Close()
 	// live.outwriter.Close()
 	// live.errwriter.Close()
 
 	// flush session log output
 
 	// record exit status
-	live.exitStatus = exitStatus
-	log.Infof("%s exit code: %d", session.ID, exitStatus)
+	// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
+	// currently sure how to expose it neatly via a utility function
+	extraconfig.EncodeWithPrefix(dataSink, session.ExitStatus, fmt.Sprintf("sessions|%s/status", session.ID))
+	log.Infof("%s exit code: %d", session.ID, session.ExitStatus)
 
 	// check for executor behaviour
 	if LenChildPid() == 0 {
@@ -232,7 +214,9 @@ func handleSessionExit(session *metadata.SessionConfig, exitStatus int) error {
 
 // launch will launch the command defined in the session.
 // This will return an error if the session fails to launch
-func launch(session *metadata.SessionConfig) error {
+func launch(session *SessionConfig) error {
+	defer trace.End(trace.Begin("launching session " + session.ID))
+
 	logwriter, err := utils.sessionLogWriter()
 	if err != nil {
 		detail := fmt.Sprintf("failed to get log writer for session: %s", err)
@@ -240,35 +224,29 @@ func launch(session *metadata.SessionConfig) error {
 		return errors.New(detail)
 	}
 
-	live := &liveSession{
-		cmd: &exec.Cmd{
-			Path: session.Cmd.Path,
-			Args: session.Cmd.Args,
-			Env:  utils.processEnvOS(session.Cmd.Env),
-			Dir:  session.Cmd.Dir,
-		},
-		outwriter: logwriter,
-		errwriter: logwriter,
-		reader:    dio.MultiReader(),
-	}
+	// we store these outside of the session.Cmd struct so that there's consistent
+	// handling between tty & non-tty paths
+	session.outwriter = logwriter
+	session.errwriter = logwriter
+	session.reader = dio.MultiReader()
 
-	sessions[session.ID] = live
+	session.Cmd.Env = utils.processEnvOS(session.Cmd.Env)
+	session.Cmd.Stdout = session.outwriter
+	session.Cmd.Stderr = session.errwriter
+	session.Cmd.Stdin = session.reader
 
 	// Use the mutex to make creating a child and adding the child pid into the
 	// childPidTable appear atomic to the reaper function. Use a anonymous function
 	// so we can defer unlocking locally
 	err = func() error {
-		childPidTableMutex.Lock()
-		defer childPidTableMutex.Unlock()
+		config.pidMutex.Lock()
+		defer config.pidMutex.Unlock()
 
-		log.Infof("Launching command %+q\n", live.cmd.Args)
-		live.cmd.Stdin = live.reader
-		live.cmd.Stdout = live.outwriter
-		live.cmd.Stderr = live.errwriter
+		log.Infof("Launching command %#v\n", session.Cmd.Args)
 		if !session.Tty {
-			err = live.cmd.Start()
+			err = session.Cmd.Start()
 		} else {
-			err = utils.establishPty(live)
+			err = utils.establishPty(session)
 		}
 
 		if err != nil {
@@ -278,9 +256,9 @@ func launch(session *metadata.SessionConfig) error {
 		}
 
 		// ChildReaper will use this channel to inform us the wait status of the child.
-		childPidTable[live.cmd.Process.Pid] = session
+		config.pids[session.Cmd.Process.Pid] = session
 
-		log.Debugf("Launched command with pid %d", live.cmd.Process.Pid)
+		log.Debugf("Launched command with pid %d", session.Cmd.Process.Pid)
 
 		return nil
 	}()
@@ -288,20 +266,25 @@ func launch(session *metadata.SessionConfig) error {
 	return err
 }
 
-func logConfig(config *metadata.ExecutorConfig) {
+func logConfig(config *ExecutorConfig) {
 	// just pretty print the json for now
 	log.Info("Loaded executor config")
-	json, err := json.MarshalIndent(config, "", "   ")
-	if err != nil {
-		log.Debugf("Failed to marshal config into json for logging: %s", err)
-		return
-	}
 
-	log.Debug(string(json))
+	// TODO: investigate whether it's the govmomi types package cause the binary size
+	// inflation - if so we need an alternative approach here or in extraconfig
+	if log.GetLevel() == log.DebugLevel {
+		sink := map[string]string{}
+		extraconfig.Encode(extraconfig.MapSink(sink), config)
+
+		for k, v := range sink {
+			log.Debugf("%s: %s", k, v)
+		}
+	}
 }
 
 func forkHandler() {
-	log.Println("Registering fork trigger signal handler")
+	defer trace.End(trace.Begin("start fork trigger handler"))
+
 	defer func() {
 		if r := recover(); r != nil {
 			log.Println("Recovered in StartConnectionManager", r)
@@ -311,11 +294,11 @@ func forkHandler() {
 	incoming := make(chan os.Signal, 1)
 	signal.Notify(incoming, syscall.SIGABRT)
 
-	log.Println("SIGABRT handling initialized for fork support")
+	log.Info("SIGABRT handling initialized for fork support")
 	for _ = range incoming {
 		// validate that this is a fork trigger and not just a random signal from
 		// container processes
-		log.Println("Received SIGABRT - preparing to transition to fork parent")
+		log.Info("Received SIGABRT - preparing to transition to fork parent")
 
 		// TODO: record fork trigger in Config and persist
 
@@ -329,6 +312,7 @@ func forkHandler() {
 		}
 
 		// trigger a reload of the configuration
+		log.Info("Triggering reload of config after fork")
 		reload <- true
 	}
 }

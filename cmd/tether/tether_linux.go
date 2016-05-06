@@ -36,6 +36,7 @@ import (
 	"github.com/kr/pty"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/serial"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // allow us to pick up some of the osops implementations when mocking
@@ -90,7 +91,8 @@ func childReaper() {
 
 						session, ok := RemoveChildPid(pid)
 						if ok {
-							handleSessionExit(session, status.ExitStatus())
+							session.ExitStatus = status.ExitStatus()
+							handleSessionExit(session)
 						} else {
 							// This is an adopted zombie. The Wait4 call
 							// already clean it up from the kernel
@@ -106,6 +108,8 @@ func childReaper() {
 }
 
 func (t *osopsLinux) setup() error {
+	defer trace.End(trace.Begin("run OS specific tether setup"))
+
 	// seems necessary given rand.Reader access
 	var err error
 
@@ -142,6 +146,8 @@ func (t *osopsLinux) setup() error {
 // This should log errors, but no error is returned as this is a path of not return and
 // there's not likely to be a remediation available
 func (t *osopsLinux) cleanup() {
+	defer trace.End(trace.Begin("running OS specific tether cleanup"))
+
 	// stop child reaping
 	log.Info("Shutting down reaper")
 	signal.Reset(syscall.SIGCHLD)
@@ -150,6 +156,8 @@ func (t *osopsLinux) cleanup() {
 }
 
 func (t *osopsLinux) backchannel(ctx context.Context) (net.Conn, error) {
+	defer trace.End(trace.Begin("establish tether backchannel"))
+
 	log.Info("opening ttyS0 for backchannel")
 	f, err := os.OpenFile(pathPrefix+"/ttyS0", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, backchannelMode)
 	if err != nil {
@@ -204,6 +212,8 @@ func (t *osopsLinux) processEnvOS(env []string) []string {
 
 // sessionLogWriter returns a writer that will persist the session output
 func (t *osopsLinux) sessionLogWriter() (dio.DynamicMultiWriter, error) {
+	defer trace.End(trace.Begin("configure tether session log writer"))
+
 	// open SttyS2 for session logging
 	log.Info("opening ttyS2 for session logging")
 	f, err := os.OpenFile(pathPrefix+"/ttyS2", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, 777)
@@ -217,25 +227,23 @@ func (t *osopsLinux) sessionLogWriter() (dio.DynamicMultiWriter, error) {
 	return dio.MultiWriter(f, os.Stdout), nil
 }
 
-func (t *osopsLinux) establishPty(live *liveSession) error {
+func (t *osopsLinux) establishPty(session *SessionConfig) error {
+	defer trace.End(trace.Begin("initializing pty handling for session " + session.ID))
+
 	// TODO: if we want to allow raw output to the log so that subsequent tty enabled
 	// processing receives the control characters then we should be binding the PTY
 	// during attach, and using the same path we have for non-tty here
-	writer := live.cmd.Stdout
-
 	var err error
-	live.pty, err = pty.Start(live.cmd)
-	if live.pty != nil {
-		live.outwriter = dio.MultiWriter(writer)
-
+	session.pty, err = pty.Start(&session.Cmd)
+	if session.pty != nil {
 		// TODO: do we need to ensure all reads have completed before calling Wait on the process?
 		// it frees up all resources - does that mean it frees the output buffers?
 		go func() {
-			_, gerr := io.Copy(live.outwriter, live.pty)
+			_, gerr := io.Copy(session.outwriter, session.pty)
 			log.Debug(gerr)
 		}()
 		go func() {
-			_, gerr := io.Copy(live.pty, live.reader)
+			_, gerr := io.Copy(session.pty, session.reader)
 			log.Debug(gerr)
 		}()
 	}
@@ -252,6 +260,8 @@ type winsize struct {
 }
 
 func (t *osopsLinux) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
+	defer trace.End(trace.Begin("resize pty"))
+
 	ws := &winsize{uint16(winSize.Rows), uint16(winSize.Columns), uint16(winSize.WidthPx), uint16(winSize.HeightPx)}
 	_, _, errno := syscall.Syscall(
 		syscall.SYS_IOCTL,
@@ -266,6 +276,9 @@ func (t *osopsLinux) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
 }
 
 func (t *osopsLinux) signalProcess(process *os.Process, sig ssh.Signal) error {
-	s := syscall.Signal(Signals[sig])
+	signal := Signals[sig]
+	defer trace.End(trace.Begin(fmt.Sprintf("signal process %d: %d", process.Pid, signal)))
+
+	s := syscall.Signal(signal)
 	return process.Signal(s)
 }

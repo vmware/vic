@@ -15,6 +15,7 @@
 package extraconfig
 
 import (
+	"encoding/base64"
 	"net"
 	"testing"
 	"time"
@@ -46,9 +47,9 @@ func TestEmbedded(t *testing.T) {
 	Encode(MapSink(encoded), Embedded)
 
 	expected := map[string]string{
-		"guestinfo/common/id":    "0xDEADBEEF",
-		"guestinfo/common/name":  "Embedded",
-		"guestinfo/common/notes": "",
+		visibleRO("common/id"):    "0xDEADBEEF",
+		visibleRO("common/name"):  "Embedded",
+		visibleRO("common/notes"): "",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -73,8 +74,8 @@ func TestNetPointer(t *testing.T) {
 	Encode(MapSink(encoded), Net)
 
 	expected := map[string]string{
-		"guestinfo/net/IP":   "\u007f\x00\x00\x01",
-		"guestinfo/net/Mask": "\xff\x00\x00\x00",
+		visibleRO("net/IP"):   base64.StdEncoding.EncodeToString(n.IP),
+		visibleRO("net/Mask"): base64.StdEncoding.EncodeToString(n.Mask),
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -99,7 +100,7 @@ func TestTimePointer(t *testing.T) {
 	Encode(MapSink(encoded), Time)
 
 	expected := map[string]string{
-		"guestinfo/time": "2009-11-10 23:00:00 +0000 UTC",
+		visibleRO("time"): "2009-11-10 23:00:00 +0000 UTC",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -135,16 +136,16 @@ func TestStructMap(t *testing.T) {
 	Encode(MapSink(encoded), StructMap)
 
 	expected := map[string]string{
-		"guestinfo/map|Key1/id":    "0xDEADBEEF",
-		"guestinfo/map|Key1/name":  "beef",
-		"guestinfo/map|Key1/notes": "",
-		"guestinfo/map|Key2/id":    "0x8BADF00D",
-		"guestinfo/map|Key2/name":  "food",
-		"guestinfo/map|Key2/notes": "",
-		"guestinfo/map|Key3/id":    "0xDEADF00D",
-		"guestinfo/map|Key3/name":  "dead",
-		"guestinfo/map|Key3/notes": "",
-		"guestinfo/map":            "Key1|Key2|Key3",
+		visibleRO("map|Key1/id"):    "0xDEADBEEF",
+		visibleRO("map|Key1/name"):  "beef",
+		visibleRO("map|Key1/notes"): "",
+		visibleRO("map|Key2/id"):    "0x8BADF00D",
+		visibleRO("map|Key2/name"):  "food",
+		visibleRO("map|Key2/notes"): "",
+		visibleRO("map|Key3/id"):    "0xDEADF00D",
+		visibleRO("map|Key3/name"):  "dead",
+		visibleRO("map|Key3/notes"): "",
+		visibleRO("map"):            "Key1|Key2|Key3",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -180,16 +181,16 @@ func TestIntStructMap(t *testing.T) {
 	Encode(MapSink(encoded), StructMap)
 
 	expected := map[string]string{
-		"guestinfo/map|1/id":    "0xDEADBEEF",
-		"guestinfo/map|1/name":  "beef",
-		"guestinfo/map|1/notes": "",
-		"guestinfo/map|2/id":    "0x8BADF00D",
-		"guestinfo/map|2/name":  "food",
-		"guestinfo/map|2/notes": "",
-		"guestinfo/map|3/id":    "0xDEADF00D",
-		"guestinfo/map|3/name":  "dead",
-		"guestinfo/map|3/notes": "",
-		"guestinfo/map":         "1|2|3",
+		visibleRO("map|1/id"):    "0xDEADBEEF",
+		visibleRO("map|1/name"):  "beef",
+		visibleRO("map|1/notes"): "",
+		visibleRO("map|2/id"):    "0x8BADF00D",
+		visibleRO("map|2/name"):  "food",
+		visibleRO("map|2/notes"): "",
+		visibleRO("map|3/id"):    "0xDEADF00D",
+		visibleRO("map|3/name"):  "dead",
+		visibleRO("map|3/notes"): "",
+		visibleRO("map"):         "1|2|3",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -221,13 +222,13 @@ func TestStructSlice(t *testing.T) {
 	Encode(MapSink(encoded), StructSlice)
 
 	expected := map[string]string{
-		"guestinfo/slice":         "1",
-		"guestinfo/slice|0/id":    "0xDEADFEED",
-		"guestinfo/slice|0/name":  "feed",
-		"guestinfo/slice|0/notes": "",
-		"guestinfo/slice|1/id":    "0xFACEFEED",
-		"guestinfo/slice|1/name":  "face",
-		"guestinfo/slice|1/notes": "",
+		visibleRO("slice"):         "1",
+		visibleRO("slice|0/id"):    "0xDEADFEED",
+		visibleRO("slice|0/name"):  "feed",
+		visibleRO("slice|0/notes"): "",
+		visibleRO("slice|1/id"):    "0xFACEFEED",
+		visibleRO("slice|1/name"):  "face",
+		visibleRO("slice|1/notes"): "",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -276,7 +277,7 @@ func TestUnknownProperty(t *testing.T) {
 	Encode(MapSink(encoded), UnknownProperty)
 
 	expected := map[string]string{
-		"unknownproperty": "42",
+		hidden("unknownproperty"): "42",
 	}
 	assert.Equal(t, expected, encoded, "Not equal")
 }
@@ -294,7 +295,7 @@ func TestOmitNested(t *testing.T) {
 	Encode(MapSink(encoded), OmitNested)
 
 	expected := map[string]string{
-		"time": "2009-11-10 23:00:00 +0000 UTC",
+		visibleRO("time"): "2009-11-10 23:00:00 +0000 UTC",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and decoded does not match")
 
@@ -329,21 +330,21 @@ func TestComplex(t *testing.T) {
 	Encode(MapSink(encoded), ExecutorConfig)
 
 	expected := map[string]string{
-		"guestinfo/executorconfig/common/id":                      "",
-		"guestinfo/executorconfig/common/name":                    "",
-		"guestinfo/executorconfig/common/notes":                   "",
-		"guestinfo/executorconfig/sessions|Session1/common/id":    "SessionID",
-		"guestinfo/executorconfig/sessions|Session1/common/name":  "SessionName",
-		"guestinfo/executorconfig/sessions|Session1/common/notes": "",
-		"executorconfig/sessions|Session1/cmd/path":               "/vmware",
-		"executorconfig/sessions|Session1/cmd/args~":              "/bin/imagec|-standalone",
-		"executorconfig/sessions|Session1/cmd/args":               "1",
-		"executorconfig/sessions|Session1/cmd/env~":               "PATH=/bin|USER=imagec",
-		"executorconfig/sessions|Session1/cmd/env":                "1",
-		"executorconfig/sessions|Session1/cmd/dir":                "/",
-		"executorconfig/sessions|Session1/tty":                    "true",
-		"executorconfig/sessions":                                 "Session1",
-		"guestinfo.executorconfig.Key":                            "",
+		visibleRO("executorconfig/common/id"):                      "",
+		visibleRO("executorconfig/common/name"):                    "",
+		visibleRO("executorconfig/common/notes"):                   "",
+		visibleRO("executorconfig/sessions|Session1/common/id"):    "SessionID",
+		visibleRO("executorconfig/sessions|Session1/common/name"):  "SessionName",
+		visibleRO("executorconfig/sessions|Session1/common/notes"): "",
+		hidden("executorconfig/sessions|Session1/cmd/path"):        "/vmware",
+		hidden("executorconfig/sessions|Session1/cmd/args~"):       "/bin/imagec|-standalone",
+		hidden("executorconfig/sessions|Session1/cmd/args"):        "1",
+		hidden("executorconfig/sessions|Session1/cmd/env~"):        "PATH=/bin|USER=imagec",
+		hidden("executorconfig/sessions|Session1/cmd/env"):         "1",
+		hidden("executorconfig/sessions|Session1/cmd/dir"):         "/",
+		hidden("executorconfig/sessions|Session1/tty"):             "true",
+		hidden("executorconfig/sessions"):                          "Session1",
+		hidden("executorconfig/Key"):                               "",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -382,21 +383,21 @@ func TestComplexPointer(t *testing.T) {
 	Encode(MapSink(encoded), ExecutorConfig)
 
 	expected := map[string]string{
-		"guestinfo/executorconfig/common/id":                      "",
-		"guestinfo/executorconfig/common/name":                    "",
-		"guestinfo/executorconfig/common/notes":                   "",
-		"guestinfo/executorconfig/sessions|Session1/common/id":    "SessionID",
-		"guestinfo/executorconfig/sessions|Session1/common/name":  "SessionName",
-		"guestinfo/executorconfig/sessions|Session1/common/notes": "",
-		"executorconfig/sessions|Session1/cmd/path":               "/vmware",
-		"executorconfig/sessions|Session1/cmd/args~":              "/bin/imagec|-standalone",
-		"executorconfig/sessions|Session1/cmd/args":               "1",
-		"executorconfig/sessions|Session1/cmd/env~":               "PATH=/bin|USER=imagec",
-		"executorconfig/sessions|Session1/cmd/env":                "1",
-		"executorconfig/sessions|Session1/cmd/dir":                "/",
-		"executorconfig/sessions|Session1/tty":                    "true",
-		"executorconfig/sessions":                                 "Session1",
-		"guestinfo.executorconfig.Key":                            "",
+		visibleRO("executorconfig/common/id"):                      "",
+		visibleRO("executorconfig/common/name"):                    "",
+		visibleRO("executorconfig/common/notes"):                   "",
+		visibleRO("executorconfig/sessions|Session1/common/id"):    "SessionID",
+		visibleRO("executorconfig/sessions|Session1/common/name"):  "SessionName",
+		visibleRO("executorconfig/sessions|Session1/common/notes"): "",
+		hidden("executorconfig/sessions|Session1/cmd/path"):        "/vmware",
+		hidden("executorconfig/sessions|Session1/cmd/args~"):       "/bin/imagec|-standalone",
+		hidden("executorconfig/sessions|Session1/cmd/args"):        "1",
+		hidden("executorconfig/sessions|Session1/cmd/env~"):        "PATH=/bin|USER=imagec",
+		hidden("executorconfig/sessions|Session1/cmd/env"):         "1",
+		hidden("executorconfig/sessions|Session1/cmd/dir"):         "/",
+		hidden("executorconfig/sessions|Session1/tty"):             "true",
+		hidden("executorconfig/sessions"):                          "Session1",
+		hidden("executorconfig/Key"):                               "",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -431,21 +432,21 @@ func TestPointerDecode(t *testing.T) {
 	Encode(MapSink(encoded), reference)
 
 	expected := map[string]string{
-		"guestinfo/common/id":                      "",
-		"guestinfo/common/name":                    "",
-		"guestinfo/common/notes":                   "",
-		"guestinfo/sessions|Session1/common/id":    "SessionID",
-		"guestinfo/sessions|Session1/common/name":  "SessionName",
-		"guestinfo/sessions|Session1/common/notes": "",
-		"sessions|Session1/cmd/path":               "/vmware",
-		"sessions|Session1/cmd/args~":              "/bin/imagec|-standalone",
-		"sessions|Session1/cmd/args":               "1",
-		"sessions|Session1/cmd/env~":               "PATH=/bin|USER=imagec",
-		"sessions|Session1/cmd/env":                "1",
-		"sessions|Session1/cmd/dir":                "/",
-		"sessions|Session1/tty":                    "true",
-		"sessions":                                 "Session1",
-		"guestinfo.Key":                            "",
+		visibleRO("common/id"):                      "",
+		visibleRO("common/name"):                    "",
+		visibleRO("common/notes"):                   "",
+		visibleRO("sessions|Session1/common/id"):    "SessionID",
+		visibleRO("sessions|Session1/common/name"):  "SessionName",
+		visibleRO("sessions|Session1/common/notes"): "",
+		hidden("sessions|Session1/cmd/path"):        "/vmware",
+		hidden("sessions|Session1/cmd/args~"):       "/bin/imagec|-standalone",
+		hidden("sessions|Session1/cmd/args"):        "1",
+		hidden("sessions|Session1/cmd/env~"):        "PATH=/bin|USER=imagec",
+		hidden("sessions|Session1/cmd/env"):         "1",
+		hidden("sessions|Session1/cmd/dir"):         "/",
+		hidden("sessions|Session1/tty"):             "true",
+		hidden("sessions"):                          "Session1",
+		hidden("Key"):                               "",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -482,10 +483,10 @@ func TestInsideOutside(t *testing.T) {
 	Encode(MapSink(encoded), outside)
 
 	expected := map[string]string{
-		"guestinfo.inside.id":   "inside",
-		"guestinfo.inside.name": "Inside",
-		"guestinfo.id":          "outside",
-		"guestinfo.name":        "Outside",
+		visibleRW("inside.id"):   "inside",
+		visibleRW("inside.name"): "Inside",
+		visibleRW("id"):          "outside",
+		visibleRW("name"):        "Outside",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 

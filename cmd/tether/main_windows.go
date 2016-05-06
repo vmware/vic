@@ -16,31 +16,53 @@ package main
 
 import (
 	_ "net/http/pprof"
+	"os"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 func main() {
-	// get the windows service logic running so that we can play well in that mode
-	runService("VMware Tether", false)
+	defer halt()
 
 	// where to look for the various devices and files related to tether
 	pathPrefix = "com://"
+
+	if strings.HasSuffix(os.Args[0], "-debug") {
+		extraconfig.DecodeLogLevel = log.DebugLevel
+		extraconfig.EncodeLogLevel = log.DebugLevel
+		log.SetLevel(log.DebugLevel)
+	}
+
 	// the OS ops and utils to use
 	win := &osopsWin{}
 	ops = win
 	utils = win
 
+	// get the windows service logic running so that we can play well in that mode
+	runService("VMware Tether", false)
+
 	server = &attachServerSSH{}
-	err := run(metadata.New())
+	src, err := extraconfig.GuestInfoSource()
 	if err != nil {
 		log.Error(err)
-	} else {
-		log.Info("Clean exit from tether")
+		return
 	}
 
-	halt()
+	sink, err := extraconfig.GuestInfoSink()
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	err = run(src, sink)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	log.Info("Clean exit from tether")
 }
 
 // exit reports completion detail in persistent fashion then cleanly

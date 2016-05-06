@@ -15,7 +15,6 @@
 package main
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/docker/docker/pkg/stringid"
@@ -26,32 +25,18 @@ import (
 // TestHostnameConfig constructs the spec with no sesisons specifically for testing
 // hostname setting - this checks the value passed to the mocked SetHostname
 //
-type TestSetHostnameConfig struct{}
-
-func (c *TestSetHostnameConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
-	return "", errors.New("not implemented")
-}
-func (c *TestSetHostnameConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
-	config := metadata.ExecutorConfig{}
-
-	config.ID = "sethostname"
-	config.Name = "tether_test_executor"
-
-	return &config, nil
-}
-
 func TestSetHostname(t *testing.T) {
 	testSetup(t)
+	defer testTeardown(t)
 
-	// if there's no session command with guaranteed exit then tether needs to run in the background
-	cfg := &TestSetHostnameConfig{}
-	testConfig, _ := cfg.LoadConfig()
-	go func() {
-		err := run(cfg)
-		if err != nil {
-			t.Error(err)
-		}
-	}()
+	cfg := metadata.ExecutorConfig{
+		Common: metadata.Common{
+			ID:   "sethostname",
+			Name: "tether_test_executor",
+		},
+	}
+
+	startTether(t, &cfg)
 
 	<-mocked.started
 
@@ -61,12 +46,10 @@ func TestSetHostname(t *testing.T) {
 	// wait for tether to exit
 	<-mocked.cleaned
 
-	expected := stringid.TruncateID(testConfig.ID)
+	expected := stringid.TruncateID(cfg.ID)
 	if mocked.hostname != expected {
 		t.Errorf("expected: %s, actual: %s", expected, mocked.hostname)
 	}
-
-	testTeardown(t)
 }
 
 //
@@ -76,34 +59,20 @@ func TestSetHostname(t *testing.T) {
 // TestSetIpAddressConfig constructs the spec for setting IP addresses - this checks
 // the values passed to the Apply mock match those from the test config
 //
-type TestIPConfig struct{}
-
-func (c *TestIPConfig) StoreConfig(*metadata.ExecutorConfig) (string, error) {
-	return "", errors.New("not implemented")
-}
-func (c *TestIPConfig) LoadConfig() (*metadata.ExecutorConfig, error) {
-	config := metadata.ExecutorConfig{}
-
-	config.ID = "ipconfig"
-	config.Name = "tether_test_executor"
-
-	return &config, nil
-}
-
 func TestSetIpAddress(t *testing.T) {
-	t.Skip("Network configuration processing not yet implemented")
+	t.Skip("Not yet testing network config")
 
 	testSetup(t)
+	defer testTeardown(t)
 
-	// if there's no session command with guaranteed exit then tether needs to run in the background
-	cfg := &TestIPConfig{}
-	testConfig, _ := cfg.LoadConfig()
-	go func() {
-		err := run(cfg)
-		if err != nil {
-			t.Error(err)
-		}
-	}()
+	cfg := metadata.ExecutorConfig{
+		Common: metadata.Common{
+			ID:   "ipconfig",
+			Name: "tether_test_executor",
+		},
+	}
+
+	startTether(t, &cfg)
 
 	<-mocked.started
 
@@ -112,9 +81,6 @@ func TestSetIpAddress(t *testing.T) {
 
 	// wait for tether to exit
 	<-mocked.cleaned
-
-	// mocked state still exists and can be verified
-	_ = testConfig
 
 	testTeardown(t)
 }

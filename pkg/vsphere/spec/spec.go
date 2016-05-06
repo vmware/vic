@@ -23,6 +23,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -89,12 +90,6 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 	log.Debugf("Adding metadata to the configspec: %+v", config.Metadata)
 	// TEMPORARY
 
-	md, cerr := metadata.New().StoreConfig(&config.Metadata)
-	if cerr != nil {
-		log.Errorf("failed to marshal container metadata: %s", cerr)
-		return nil, cerr
-	}
-
 	spec := &types.VirtualMachineConfigSpec{
 		Name: config.ID,
 		Files: &types.VirtualMachineFileInfo{
@@ -127,11 +122,16 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 			// http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=2030189
 			&types.OptionValue{Key: "tools.remindInstall", Value: "FALSE"},
 			&types.OptionValue{Key: "tools.upgrade.policy", Value: "manual"},
-
-			// TEMPORARY
-			&types.OptionValue{Key: "guestInfo.vic.configblob", Value: md},
 		},
 	}
+
+	// encode the config as optionvalues
+	cfg := map[string]string{}
+	extraconfig.Encode(extraconfig.MapSink(cfg), config.Metadata)
+	metaCfg := extraconfig.OptionValueFromMap(cfg)
+
+	// merge it with the sec
+	spec.ExtraConfig = append(spec.ExtraConfig, metaCfg...)
 
 	return &VirtualMachineConfigSpec{
 		Session:                  session,

@@ -30,10 +30,12 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 var mocked mocker
@@ -81,8 +83,8 @@ func (t *mocker) processEnvOS(env []string) []string {
 	return t.utils.processEnvOS(env)
 }
 
-func (t *mocker) establishPty(live *liveSession) error {
-	return t.utils.establishPty(live)
+func (t *mocker) establishPty(session *SessionConfig) error {
+	return t.utils.establishPty(session)
 }
 
 func (t *mocker) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
@@ -123,7 +125,7 @@ func (t *mocker) MountLabel(label, target string, ctx context.Context) error {
 }
 
 // Fork triggers vmfork and handles the necessary pre/post OS level operations
-func (t *mocker) Fork(config *metadata.ExecutorConfig) error {
+func (t *mocker) Fork(config *ExecutorConfig) error {
 	defer trace.End(trace.Begin("mocking fork"))
 	return errors.New("Fork test not implemented")
 }
@@ -316,6 +318,37 @@ func testTeardown(t *testing.T) {
 	log.Infof("Finished test teardown for %s", name)
 }
 
+func startTether(t *testing.T, cfg *metadata.ExecutorConfig) extraconfig.DataSource {
+	store := map[string]string{}
+	sink := extraconfig.MapSink(store)
+	src := extraconfig.MapSource(store)
+	extraconfig.Encode(sink, cfg)
+	log.Debugf("Test configuration: %#v", sink)
+
+	// run the tether to service the attach
+	go func() {
+		erR := run(src, sink)
+		if erR != nil {
+			t.Error(erR)
+		}
+	}()
+
+	return src
+}
+
+func runTether(t *testing.T, cfg *metadata.ExecutorConfig) (extraconfig.DataSource, error) {
+	store := map[string]string{}
+	sink := extraconfig.MapSink(store)
+	src := extraconfig.MapSource(store)
+	extraconfig.Encode(sink, cfg)
+	log.Debugf("Test configuration: %#v", sink)
+
+	// run the tether to service the attach
+	erR := run(src, sink)
+
+	return src, erR
+}
+
 // create client on the mock pipe
 func mockSerialConnection(ctx context.Context) (net.Conn, error) {
 	log.Info("opening ttyS0 pipe pair for backchannel")
@@ -360,4 +393,16 @@ func mockSerialConnection(ctx context.Context) (net.Conn, error) {
 			return nil, ctx.Err()
 		}
 	}
+}
+
+func OptionValueArrayToString(options []types.BaseOptionValue) string {
+	// create the key/value store from the extraconfig slice for lookups
+	kv := make(map[string]string)
+	for i := range options {
+		k := options[i].GetOptionValue().Key
+		v := options[i].GetOptionValue().Value.(string)
+		kv[k] = v
+	}
+
+	return fmt.Sprintf("%#v", kv)
 }
