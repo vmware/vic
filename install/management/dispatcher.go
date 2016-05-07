@@ -44,6 +44,7 @@ type Dispatcher struct {
 	session *session.Session
 	ctx     context.Context
 	force   bool
+	timeout time.Duration
 
 	isVC          bool
 	vchPoolPath   string
@@ -71,13 +72,14 @@ type diagnosticLog struct {
 
 var diagnosticLogs = make(map[string]*diagnosticLog)
 
-func NewDispatcher(conf *configuration.Configuration, force bool) *Dispatcher {
+func NewDispatcher(conf *configuration.Configuration, force bool, timeout time.Duration) *Dispatcher {
 	isVC := conf.Session.IsVC()
 	e := &Dispatcher{
 		session: conf.Session,
 		ctx:     conf.Context,
 		isVC:    isVC,
 		force:   force,
+		timeout: timeout,
 	}
 	e.initDiagnosticLogs(conf)
 	e.networks = make(map[string]object.NetworkReference)
@@ -128,7 +130,7 @@ func (d *Dispatcher) initDiagnosticLogs(conf *configuration.Configuration) {
 	}
 }
 
-func (d *Dispatcher) Dispatch(conf *configuration.Configuration, timeout time.Duration) error {
+func (d *Dispatcher) Dispatch(conf *configuration.Configuration) error {
 	var err error
 	if d.vchPool, err = d.createResourcePool(conf); err != nil && !d.force {
 		return errors.Errorf("Creating resource pool failed with %s. Exiting...", err)
@@ -157,7 +159,7 @@ func (d *Dispatcher) Dispatch(conf *configuration.Configuration, timeout time.Du
 	if err = d.setMacToGuestInfo(); err != nil {
 		return errors.Errorf("Failed to set Mac address %s. Exiting...", err)
 	}
-	if err = d.makeSureApplianceRuns(timeout); err != nil && !d.force {
+	if err = d.makeSureApplianceRuns(); err != nil && !d.force {
 		return errors.Errorf("Waiting for confirmation of initialization failed with %s. Exiting...", err)
 	}
 	return nil

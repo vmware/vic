@@ -21,6 +21,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"golang.org/x/net/context"
@@ -67,28 +68,34 @@ func (vm *VirtualMachine) FolderName(ctx context.Context) (string, error) {
 	return path, nil
 }
 
-// Addresses are not assigned to vNICs when generated until the VM is first powered on
-func (vm *VirtualMachine) MacAddresses(ctx context.Context) (map[string]string, error) {
-	devices, err := vm.Device(ctx)
-	if err != nil {
-		log.Errorf("Unable to get device listing for VM")
-		return nil, err
-	}
+func (vm VirtualMachine) WaitForMAC(ctx context.Context) (map[string]string, error) {
+	macs := make(map[string]string)
 
-	nics := devices.SelectByType(&types.VirtualEthernetCard{})
+	p := property.DefaultCollector(vm.Session.Vim25())
 
-	addresses := make(map[string]string)
-	for _, nic := range nics {
-		n, ok := nic.(types.BaseVirtualEthernetCard)
-		if ok {
-			summary := n.GetVirtualEthernetCard().DeviceInfo.GetDescription().Summary
-			addresses[summary] = n.GetVirtualEthernetCard().MacAddress
-		} else {
-			log.Infof("Failed to get address for vNIC: %v", nic)
+	// Wait for all NICs to have a MacAddress, which may not be generated yet.
+	err := property.Wait(ctx, p, vm.Reference(), []string{"config.hardware.device"}, func(pc []types.PropertyChange) bool {
+		for _, c := range pc {
+			if c.Op != types.PropertyChangeOpAssign {
+				continue
+			}
+
+			devices := c.Val.(types.ArrayOfVirtualDevice).VirtualDevice
+			for _, device := range devices {
+				if nic, ok := device.(types.BaseVirtualEthernetCard); ok {
+					mac := nic.GetVirtualEthernetCard().MacAddress
+					if mac == "" {
+						return false
+					}
+					summary := nic.GetVirtualEthernetCard().DeviceInfo.GetDescription().Summary
+					macs[summary] = mac
+				}
+			}
 		}
-	}
 
-	return addresses, nil
+		return true
+	})
+	return macs, err
 }
 
 func (vm *VirtualMachine) FetchExtraConfig(ctx context.Context) (map[string]string, error) {

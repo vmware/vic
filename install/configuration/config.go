@@ -104,7 +104,7 @@ func (conf *Configuration) ValidateConfiguration() error {
 	}
 
 	if _, err = conf.Session.Finder.NetworkOrDefault(conf.Context, conf.ExtenalNetworkPath); err != nil {
-		log.Errorf("Unable to get locate network: %s", err)
+		log.Errorf("Unable to get network: %s", err)
 		return err
 	}
 
