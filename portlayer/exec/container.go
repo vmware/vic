@@ -18,12 +18,13 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
+	"time"
 
-	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 	"golang.org/x/net/context"
 )
 
@@ -39,6 +40,8 @@ type State int
 const (
 	StateRunning = iota
 	StateStopped = iota
+
+	propertyCollectorTimeout = 3 * time.Minute
 )
 
 type Container struct {
@@ -46,7 +49,7 @@ type Container struct {
 
 	ID ID
 
-	vm *object.VirtualMachine
+	vm *vm.VirtualMachine
 }
 
 func NewContainer(id ID) *Handle {
@@ -113,7 +116,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, s *types.
 			return err
 		}
 
-		c.vm = object.NewVirtualMachine(sess.Client.Client, res.Result.(types.ManagedObjectReference))
+		c.vm = vm.NewVirtualMachine(ctx, sess, res.Result.(types.ManagedObjectReference))
 	}
 
 	return nil
@@ -135,5 +138,29 @@ func (c *Container) Start(ctx context.Context) error {
 		return err
 	}
 
-	return nil
+	waitFunc := func(pc []types.PropertyChange) bool {
+		// guestinfo key that we want to wait for
+		key := fmt.Sprintf("guestinfo..sessions|%s.started", c.ID)
+
+		for _, c := range pc {
+			if c.Op != types.PropertyChangeOpAssign {
+				continue
+			}
+
+			values := c.Val.(types.ArrayOfOptionValue).OptionValue
+			for _, value := range values {
+				// check the status of the key and return true if it's "true"
+				if key == value.GetOptionValue().Key && value.GetOptionValue().Value.(string) == "true" {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	// Wait some before giving up...
+	ctx, cancel := context.WithTimeout(ctx, propertyCollectorTimeout)
+	defer cancel()
+
+	return c.vm.WaitForExtraConfig(ctx, waitFunc)
 }
