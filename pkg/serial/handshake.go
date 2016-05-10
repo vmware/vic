@@ -40,7 +40,6 @@ func PurgeIncoming(conn net.Conn) {
 	buf := make([]byte, 255)
 
 	// read until the incoming channel is empty
-	log.Debug("purging incoming channel")
 	conn.SetReadDeadline(time.Now().Add(time.Duration(10 * time.Millisecond)))
 	for n, err := conn.Read(buf); n != 0 || err == nil; n, err = conn.Read(buf) {
 		log.Debugf("discarding following %d bytes from input channel\n", n)
@@ -72,9 +71,8 @@ func HandshakeClient(ctx context.Context, conn net.Conn) error {
 
 	rand.Read(syn[1:])
 
-	log.Debug("client: writing syn")
 	conn.Write(syn)
-	log.Debug("client: reading synack")
+
 	if n, err := io.ReadFull(conn, buf[:3]); n != 3 || err != nil {
 
 		if n == 0 && err != nil {
