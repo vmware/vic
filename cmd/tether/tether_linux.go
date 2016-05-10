@@ -189,6 +189,10 @@ func (t *osopsLinux) backchannel(ctx context.Context) (net.Conn, error) {
 	}
 
 	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
+
+	// This needs to tick *faster* than the ticker in connection.go on the
+	// portlayer side.  The PL sends the first syn and if this isn't waiting,
+	// alignment will take a few rounds (or it may never happen).
 	ticker := time.NewTicker(10 * time.Millisecond)
 	for {
 		select {

@@ -153,6 +153,11 @@ func (c *Connector) processIncoming(conn net.Conn) {
 		serial.PurgeIncoming(conn)
 
 		// TODO needs timeout handling.  This could take 30s.
+
+		// This needs to timeout with a *longer* wait than the ticker set on
+		// the tether side (in tether_linux.go) or alignment may not happen.
+		// The PL sends the first SYN in the handshake and if the tether is not
+		// waiting, the handshake may never succeed.
 		ctx, cancel := context.WithTimeout(context.TODO(), 50*time.Millisecond)
 		if err = serial.HandshakeClient(ctx, conn); err == nil {
 			log.Debugf("New connection")
