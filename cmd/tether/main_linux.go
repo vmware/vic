@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"strings"
 	"syscall"
 
@@ -26,7 +27,12 @@ import (
 )
 
 func main() {
-	defer halt()
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("run time panic: %s : %s", r, debug.Stack())
+		}
+		halt()
+	}()
 
 	// where to look for the various devices and files related to tether
 	pathPrefix = "/.tether"
