@@ -17,6 +17,9 @@ package attach
 import (
 	"fmt"
 	"net"
+	"time"
+
+	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/pkg/errors"
@@ -69,4 +72,12 @@ func (n *Server) Stop() error {
 	err := n.l.Close()
 	n.connServer.Stop()
 	return err
+}
+
+func (n *Server) Addr() string {
+	return n.l.Addr().String()
+}
+
+func (n *Server) Get(ctx context.Context, id string, timeout time.Duration) (*Connection, error) {
+	return n.connServer.Get(ctx, id, timeout)
 }

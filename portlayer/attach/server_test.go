@@ -80,8 +80,8 @@ func TestAttachStartStop(t *testing.T) {
 
 func TestAttachSshSession(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	s := NewAttachServer("", -1)
 
+	s := NewAttachServer("", -1)
 	assert.NoError(t, s.Start())
 	defer s.Stop()
 

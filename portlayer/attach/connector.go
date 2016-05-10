@@ -246,6 +246,7 @@ func (c *Connector) serve() {
 			continue
 		}
 
+		log.Info("Received incoming connection")
 		go c.processIncoming(conn)
 	}
 }
