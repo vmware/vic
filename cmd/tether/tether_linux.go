@@ -30,6 +30,7 @@ import (
 	"unsafe"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
@@ -166,6 +167,18 @@ func (t *osopsLinux) backchannel(ctx context.Context) (net.Conn, error) {
 		return nil, errors.New(detail)
 	}
 
+	// set the provided FDs to raw if it's a termial
+	// 0 is the uninitialized value for Fd
+	if f.Fd() != 0 && terminal.IsTerminal(int(f.Fd())) {
+		log.Debug("setting terminal to raw mode")
+		s, err := terminal.MakeRaw(int(f.Fd()))
+		if err != nil {
+			return nil, err
+		}
+
+		log.Infof("s = %#v", s)
+	}
+
 	log.Infof("creating raw connection from ttyS0 (fd=%d)\n", f.Fd())
 	conn, err := serial.NewFileConn(f)
 
@@ -176,7 +189,11 @@ func (t *osopsLinux) backchannel(ctx context.Context) (net.Conn, error) {
 	}
 
 	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
-	ticker := time.NewTicker(1000 * time.Millisecond)
+
+	// This needs to tick *faster* than the ticker in connection.go on the
+	// portlayer side.  The PL sends the first syn and if this isn't waiting,
+	// alignment will take a few rounds (or it may never happen).
+	ticker := time.NewTicker(10 * time.Millisecond)
 	for {
 		select {
 		case <-ticker.C:

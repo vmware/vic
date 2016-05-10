@@ -17,11 +17,13 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"os"
 	"path"
 	"runtime"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -156,7 +158,7 @@ func (t *mocker) backchannel(ctx context.Context) (net.Conn, error) {
 	}
 
 	// still run handshake over it to test that
-	ticker := time.NewTicker(1000 * time.Millisecond)
+	ticker := time.NewTicker(10 * time.Millisecond)
 	for {
 		select {
 		case <-ticker.C:
@@ -350,7 +352,7 @@ func runTether(t *testing.T, cfg *metadata.ExecutorConfig) (extraconfig.DataSour
 }
 
 // create client on the mock pipe
-func mockSerialConnection(ctx context.Context) (net.Conn, error) {
+func mockBackChannel(ctx context.Context) (net.Conn, error) {
 	log.Info("opening ttyS0 pipe pair for backchannel")
 	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_RDONLY|syscall.O_NOCTTY, 0777)
 	if err != nil {
@@ -405,4 +407,47 @@ func OptionValueArrayToString(options []types.BaseOptionValue) string {
 	}
 
 	return fmt.Sprintf("%#v", kv)
+}
+
+// create client on the mock pipe and dial the given host:port
+func mockNetworkToSerialConnection(host string) (*sync.WaitGroup, error) {
+	log.Info("opening ttyS0 pipe pair for backchannel")
+	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_RDONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open cpipe for backchannel: %s", err)
+	}
+
+	fmt.Println("Here")
+	s, err := os.OpenFile(pathPrefix+"/ttyS0s", os.O_WRONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open spipe for backchannel: %s", err)
+	}
+
+	log.Infof("creating raw connection from ttyS0 pipe pair (c=%d, s=%d)\n", c.Fd(), s.Fd())
+	fconn, err := serial.NewHalfDuplixFileConn(c, s, pathPrefix+"/ttyS0", "file")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create raw connection from ttyS0 pipe pair: %s", err)
+	}
+
+	// Dial the attach server.  This is a TCP client
+	networkClientCon, err := net.Dial("tcp", host)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugf("dialed %s", host)
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+
+	go func() {
+		io.Copy(networkClientCon, fconn)
+		wg.Done()
+	}()
+
+	go func() {
+		io.Copy(fconn, networkClientCon)
+		wg.Done()
+	}()
+
+	return &wg, nil
 }

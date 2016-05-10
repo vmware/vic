@@ -24,6 +24,7 @@ import (
 	"net"
 	"sync"
 	"testing"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -99,7 +100,7 @@ func TestAttach(t *testing.T) {
 	}
 
 	// create client on the mock pipe
-	conn, err := mockSerialConnection(context.Background())
+	conn, err := mockBackChannel(context.Background())
 	if err != nil {
 		t.Error(err)
 		return
@@ -203,7 +204,7 @@ func TestAttachTTY(t *testing.T) {
 	}
 
 	// create client on the mock pipe
-	conn, err := mockSerialConnection(context.Background())
+	conn, err := mockBackChannel(context.Background())
 	if err != nil {
 		t.Error(err)
 		return
@@ -327,7 +328,7 @@ func TestAttachTwo(t *testing.T) {
 	}
 
 	// create client on the mock pipe
-	conn, err := mockSerialConnection(context.Background())
+	conn, err := mockBackChannel(context.Background())
 	if err != nil {
 		t.Error(err)
 		return
@@ -471,7 +472,7 @@ func TestAttachInvalid(t *testing.T) {
 	}
 
 	// create client on the mock pipe
-	conn, err := mockSerialConnection(context.Background())
+	conn, err := mockBackChannel(context.Background())
 	if err != nil {
 		t.Error(err)
 		return
@@ -504,3 +505,54 @@ func TestAttachInvalid(t *testing.T) {
 
 //
 /////////////////////////////////////////////////////////////////////////////////////
+
+// Start the tether, start a mock esx serial to tcp connection, start the
+// attach server, try to Get() the tether's attached session.
+func TestMockAttachTetherToPL(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
+
+	// Start the PL attach server
+	testServer := attach.NewAttachServer("", 2377)
+	assert.NoError(t, testServer.Start())
+	defer testServer.Stop()
+
+	cfg := metadata.ExecutorConfig{
+		Common: metadata.Common{
+			ID:   "attach",
+			Name: "tether_test_executor",
+		},
+
+		Sessions: map[string]metadata.SessionConfig{
+			"attach": metadata.SessionConfig{
+				Common: metadata.Common{
+					ID:   "attach",
+					Name: "tether_test_session",
+				},
+				Tty:    false,
+				Attach: true,
+				Cmd: metadata.Cmd{
+					Path: "/usr/bin/tee",
+					// grep, matching everything, reading from stdin
+					Args: []string{"/usr/bin/tee", pathPrefix + "/tee.out"},
+					Env:  []string{},
+					Dir:  "/",
+				},
+			},
+		},
+		Key: genKey(),
+	}
+
+	startTether(t, &cfg)
+
+	// create a conn on the mock pipe.  Reads from pipe, echos to network.
+	_, err := mockNetworkToSerialConnection(testServer.Addr())
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	_, err = testServer.Get(context.Background(), "attach", 600*time.Second)
+	if !assert.NoError(t, err) {
+		return
+	}
+}
