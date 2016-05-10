@@ -62,6 +62,7 @@ vic-machine := $(BIN)/vic-machine
 
 tether-linux := $(BIN)/tether-linux
 tether-windows := $(BIN)/tether-windows.exe
+tether-darwin := $(BIN)/tether-darwin
 
 appliance := $(BIN)/appliance.iso
 appliance-staging := $(BIN)/appliance-staging.tgz
@@ -86,6 +87,7 @@ rpctool: $(rpctool)
 
 tether-linux: $(tether-linux)
 tether-windows: $(tether-windows)
+tether-darwin: $(tether-darwin)
 
 appliance: $(appliance)
 appliance-staging: $(appliance-staging)
@@ -109,7 +111,7 @@ check: goversion goimports govet golint copyright whitespace
 apiservers: $(portlayerapi) $(docker-engine-api)
 components: check apiservers $(imagec) $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
-tethers: $(tether-linux) $(tether-windows)
+tethers: $(tether-linux) $(tether-windows) $(tether-darwin)
 
 # utility targets
 goversion:
@@ -210,6 +212,10 @@ $(tether-linux): $(call godeps,cmd/tether/*.go)
 $(tether-windows): $(call godeps,cmd/tether/*.go)
 	@echo building tether-windows
 	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+
+$(tether-darwin): $(call godeps,cmd/tether/*.go)
+	@echo building tether-darwin
+	@CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 
 $(rpctool): $(call godeps,cmd/rpctool/*.go)
