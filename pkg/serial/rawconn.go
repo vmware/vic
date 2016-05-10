@@ -23,7 +23,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/term"
 )
 
 const verbose = false
@@ -59,19 +58,6 @@ func NewTypedConn(r NamedReadChannel, w NamedWriteChannel, net string) (*RawConn
 		remoteAddr: *NewRawAddr(net, w.Name()),
 		err:        make(chan error, 1),
 		closed:     false,
-	}
-
-	// set the provided FDs to raw if it's a termial
-	// 0 is the uninitialized value for Fd
-	fds := []uintptr{r.Fd(), w.Fd()}
-	for _, fd := range fds {
-		if fd != 0 && term.IsTerminal(fd) {
-			log.Debug("setting terminal into raw mode")
-			_, err := term.SetRawTerminal(fd)
-			if err != nil {
-				return nil, err
-			}
-		}
 	}
 
 	return conn, nil
