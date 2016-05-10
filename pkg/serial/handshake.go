@@ -106,6 +106,41 @@ func HandshakeClient(ctx context.Context, conn net.Conn) error {
 	// disable the read timeout
 	conn.SetReadDeadline(time.Time{})
 
+	// Check for lossiness
+	rxbuf := make([]byte, 23)
+	log.Debugf("Checking for lossiness")
+	n, err := io.ReadFull(conn, rxbuf)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	if n != len(rxbuf) {
+		err = fmt.Errorf("packet size mismatch (expected %d, received %d)", len(rxbuf), n)
+		log.Error(err)
+		return err
+	}
+
+	// echo the data back
+	_, err = conn.Write(rxbuf)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	// wait for the ack
+	if _, err = conn.Read(ack[:1]); err != nil {
+		log.Error(err)
+		return err
+	}
+
+	if ack[0] != ACK {
+		err = fmt.Errorf("lossiness check FAILED")
+		log.Error(err)
+		return err
+	}
+	log.Infof("lossiness check PASSED")
+
 	return nil
 }
 
@@ -185,12 +220,52 @@ func HandshakeServer(ctx context.Context, conn net.Conn) error {
 		conn.Write([]byte{NAK})
 		return errors.New(msg)
 	}
-
 	log.Infof("server: received ack: %#x == %#x\n", ack, buf)
 
 	// disable the read timeout
 	// this has no effect on windows as the deadline is set at port open time
 	conn.SetReadDeadline(time.Time{})
+
+	// Verify packet length handling works.  We're going to send a known stream
+	// of data to the container and it will echo it back.  Verify the sent and
+	// received bufs are the same and we know the channel is lossless.
+
+	log.Debugf("Checking for lossiness")
+	txbuf := []byte("\x1b[32mhello world\x1b[39m!\n")
+	rxbuf := make([]byte, len(txbuf))
+
+	_, err := conn.Write(txbuf)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	var n int
+	n, err = io.ReadFull(conn, rxbuf)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	if n != len(rxbuf) {
+		err = fmt.Errorf("packet size mismatch (expected %d, received %d)", len(rxbuf), n)
+		log.Error(err)
+		return err
+	}
+
+	if bytes.Compare(rxbuf, txbuf) != 0 {
+		conn.Write([]byte{NAK})
+		err = fmt.Errorf("lossiness check FAILED")
+		log.Error(err)
+		return err
+	}
+
+	// Tell the server we're good.
+	if _, err = conn.Write([]byte{ACK}); err != nil {
+		return err
+	}
+
+	log.Infof("lossiness check PASSED")
 
 	return nil
 }
