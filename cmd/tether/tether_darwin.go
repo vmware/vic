@@ -35,7 +35,13 @@ func init() {
 
 var backchannelMode = os.ModePerm
 
+// Mkdev will hopefully get rolled into go.sys at some point
+func Mkdev(majorNumber int, minorNumber int) int {
+	return (majorNumber << 8) | (minorNumber & 0xff) | ((minorNumber & 0xfff00) << 12)
+}
+
 func (t *osopsOSX) setup() error {
+	return nil
 }
 
 func (t *osopsOSX) cleanup() {
@@ -64,7 +70,7 @@ func (t *osopsOSX) processEnvOS(env []string) []string {
 	return env
 }
 
-func (t *osopsOSX) establishPty(live *liveSession) error {
+func (t *osopsOSX) establishPty(session *SessionConfig) error {
 	return errors.New("unimplemented on OSX")
 }
 
