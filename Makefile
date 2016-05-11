@@ -213,10 +213,10 @@ $(tether-windows): $(call godeps,cmd/tether/*.go)
 	@echo building tether-windows
 	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
+# CGO is disabled for darwin otherwise build fails with "gcc: error: unrecognized command line option '-mmacosx-version-min=10.6'"
 $(tether-darwin): $(call godeps,cmd/tether/*.go)
 	@echo building tether-darwin
-	@CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
-
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 $(rpctool): $(call godeps,cmd/rpctool/*.go)
 ifeq ($(OS),linux)
