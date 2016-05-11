@@ -61,5 +61,7 @@ LimitCORE=infinity
 WantedBy=multi-user.target
 EOF
 
+timedatectl set-timezone US/Pacific-New
+
 systemctl daemon-reload
 systemctl restart docker
