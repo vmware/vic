@@ -178,8 +178,8 @@ func processParams() {
 	data.conf.ResourcePoolPath = data.computeResourcePath
 	data.conf.ImageDatastoreName = data.imageDatastoreName
 	data.conf.ImageStorePath = fmt.Sprintf("/%s/datastore/%s", data.conf.DatacenterName, data.imageDatastoreName)
-	data.conf.ExtenalNetworkPath = fmt.Sprintf("/%s/network/%s", data.conf.DatacenterName, data.externalNetworkName)
-	data.conf.ExtenalNetworkName = data.externalNetworkName
+	data.conf.ExternalNetworkPath = fmt.Sprintf("/%s/network/%s", data.conf.DatacenterName, data.externalNetworkName)
+	data.conf.ExternalNetworkName = data.externalNetworkName
 	data.conf.BridgeNetworkPath = fmt.Sprintf("/%s/network/%s", data.conf.DatacenterName, data.bridgeNetworkName)
 	data.conf.BridgeNetworkName = data.bridgeNetworkName
 	if data.managementNetworkName != "" {

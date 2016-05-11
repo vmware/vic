@@ -107,13 +107,13 @@ func (d *Dispatcher) getNetworkDevices(conf *configuration.Configuration) ([]typ
 	d.nics[conf.BridgeNetworkName] = "bridge"
 
 	// client network
-	network, err = d.session.Finder.NetworkOrDefault(d.ctx, conf.ExtenalNetworkPath)
+	network, err = d.session.Finder.NetworkOrDefault(d.ctx, conf.ExternalNetworkPath)
 	if err != nil {
 		err = errors.Errorf("Failed to get external network: %s", err)
 		return nil, err
 	}
 	d.networks["client"] = network
-	d.nics[conf.ExtenalNetworkName] = "client"
+	d.nics[conf.ExternalNetworkName] = "client"
 
 	// management network
 	if conf.ManagementNetworkName != "" {
