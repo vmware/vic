@@ -26,10 +26,7 @@ echo "export PATH=$PATH:${BASH_ARGV[1]}/bin" >> "$pro"
 # vmwaretools automatic kernel update
 echo "answer AUTO_KMODS_ENABLED yes" | tee -a /etc/vmware-tools/locations
 
-packages=(curl lsof strace git shellcheck tree mc silversearcher-ag jq htpdate)
-for package in "${packages[@]}" ; do
-    apt-get -y install "$package"
-done
+apt-get -y install curl lsof strace git shellcheck tree mc silversearcher-ag jq htpdate
 
 # install / upgrade go
 go_file="https://storage.googleapis.com/golang/go1.6.2.linux-amd64.tar.gz"

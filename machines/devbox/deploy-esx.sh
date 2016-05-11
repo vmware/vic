@@ -30,7 +30,7 @@ echo "deploying to $(awk -F@ '{print $2}' <<<"$GOVC_URL"):"
 govc about
 
 config="$(git rev-parse --show-toplevel)/Vagrantfile"
-box=$(grep config.vm.box "$config" | awk -F\' '{print $2}')
+box=$(grep vic_dev.vm.box "$config" | awk -F\' '{print $2}')
 provider=$(dirname "$box")
 name=$(basename "$box")
 disk="${name}.vmdk"
@@ -84,7 +84,7 @@ done
 
 echo "VM ip=$ip"
 
-for script in provision*.sh ; do
+for script in provision.sh provision-drone.sh; do
     echo "Applying $script..."
     ssh -i ~/.vagrant.d/insecure_private_key "vagrant@$ip" sudo bash -s - < "$script"
 done
