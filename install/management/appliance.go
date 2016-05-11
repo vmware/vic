@@ -107,13 +107,13 @@ func (d *Dispatcher) getNetworkDevices(conf *configuration.Configuration) ([]typ
 	d.nics[conf.BridgeNetworkName] = "bridge"
 
 	// client network
-	network, err = d.session.Finder.NetworkOrDefault(d.ctx, conf.ExtenalNetworkPath)
+	network, err = d.session.Finder.NetworkOrDefault(d.ctx, conf.ExternalNetworkPath)
 	if err != nil {
 		err = errors.Errorf("Failed to get external network: %s", err)
 		return nil, err
 	}
 	d.networks["client"] = network
-	d.nics[conf.ExtenalNetworkName] = "client"
+	d.nics[conf.ExternalNetworkName] = "client"
 
 	// management network
 	if conf.ManagementNetworkName != "" {
@@ -170,9 +170,9 @@ func (d *Dispatcher) createApplianceSpec(conf *configuration.Configuration) (*ty
 			&types.OptionValue{Key: "guestinfo.vch/components", Value: "/sbin/docker-engine-server /sbin/port-layer-server /sbin/vicadmin"},
 			&types.OptionValue{Key: "guestinfo.vch/sbin/imagec", Value: "-debug -logfile=/var/log/vic/imagec.log -insecure"},
 			&types.OptionValue{Key: "guestinfo.vch/sbin/port-layer-server",
-				Value: fmt.Sprintf("--host=localhost --port=8080 --insecure --sdk=%s --datacenter=%s --cluster=%s --pool=%s/%s --datastore=%s --network=%s --vch=%s",
-					conf.TargetPath, conf.DatacenterName, conf.ClusterPath, conf.ResourcePoolPath, conf.DisplayName,
-					conf.ImageStorePath, conf.ExtenalNetworkPath, conf.DisplayName)},
+				Value: fmt.Sprintf("--host=localhost --port=8080 --insecure --sdk=%s --datacenter=%s --cluster=%s --pool=%s --datastore=%s --network=%s --vch=%s",
+					conf.TargetPath, conf.DatacenterName, conf.ClusterPath, d.vchPoolPath,
+					conf.ImageStorePath, conf.ExternalNetworkPath, conf.DisplayName)},
 		},
 		DeviceChange: []types.BaseVirtualDeviceConfigSpec{
 			&types.VirtualDeviceConfigSpec{
