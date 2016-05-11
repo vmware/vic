@@ -31,8 +31,8 @@ import (
 
 	"github.com/vmware/vic/portlayer/network"
 	spl "github.com/vmware/vic/portlayer/storage"
+	vsphere "github.com/vmware/vic/portlayer/storage/vsphere"
 	"github.com/vmware/vic/portlayer/util"
-	vsphere "github.com/vmware/vic/portlayer/vsphere/storage"
 )
 
 // StorageHandlersImpl is the receiver for all of the storage handler methods
