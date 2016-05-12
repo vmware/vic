@@ -38,6 +38,7 @@ import (
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/portlayer/attach"
 )
 
 // allow us to pick up some of the osops implementations when mocking
@@ -276,7 +277,7 @@ type winsize struct {
 	wsYpixel uint16
 }
 
-func (t *osopsLinux) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
+func (t *osopsLinux) resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
 	defer trace.End(trace.Begin("resize pty"))
 
 	ws := &winsize{uint16(winSize.Rows), uint16(winSize.Columns), uint16(winSize.WidthPx), uint16(winSize.HeightPx)}

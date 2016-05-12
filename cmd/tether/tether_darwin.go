@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/vmware/vic/pkg/dio"
+	"github.com/vmware/vic/portlayer/attach"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
@@ -74,7 +75,7 @@ func (t *osopsOSX) establishPty(session *SessionConfig) error {
 	return errors.New("unimplemented on OSX")
 }
 
-func (t *osopsOSX) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
+func (t *osopsOSX) resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
 	return errors.New("unimplemented on OSX")
 }
 

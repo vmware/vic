@@ -37,6 +37,9 @@ type SessionInteraction interface {
 	// Stdin stream
 	Stdin() io.WriteCloser
 	Close() error
+
+	// Resize the terminal
+	Resize(cols, rows, widthpx, heightpx uint32) error
 }
 
 type attachSSH struct {
@@ -111,4 +114,20 @@ func (t *attachSSH) Stdin() io.WriteCloser {
 
 func (t *attachSSH) Close() error {
 	return t.channel.Close()
+}
+
+// Resize resizes the terminal.
+func (t *attachSSH) Resize(cols, rows, widthpx, heightpx uint32) error {
+
+	msg := ssh.Marshal(WindowChangeMsg{cols, rows, widthpx, heightpx})
+	ok, err := t.channel.SendRequest(WindowChangeReq, true, msg)
+	if err == nil && !ok {
+		return fmt.Errorf("unknown error")
+	}
+
+	if err != nil {
+		return fmt.Errorf("resize error: %s", err)
+	}
+
+	return nil
 }

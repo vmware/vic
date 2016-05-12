@@ -38,6 +38,7 @@ import (
 	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+	"github.com/vmware/vic/portlayer/attach"
 )
 
 var mocked mocker
@@ -64,6 +65,9 @@ type mocker struct {
 	ips map[string]net.IPNet
 	// filesystem mounts, indexed by disk label
 	mounts map[string]string
+
+	windowCol uint32
+	windowRow uint32
 }
 
 func (t *mocker) setup() error {
@@ -89,8 +93,10 @@ func (t *mocker) establishPty(session *SessionConfig) error {
 	return t.utils.establishPty(session)
 }
 
-func (t *mocker) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
-	return t.utils.resizePty(pty, winSize)
+func (t *mocker) resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
+	t.windowCol = winSize.Columns
+	t.windowRow = winSize.Rows
+	return nil
 }
 
 func (t *mocker) signalProcess(process *os.Process, sig ssh.Signal) error {
@@ -417,7 +423,6 @@ func mockNetworkToSerialConnection(host string) (*sync.WaitGroup, error) {
 		return nil, fmt.Errorf("failed to open cpipe for backchannel: %s", err)
 	}
 
-	fmt.Println("Here")
 	s, err := os.OpenFile(pathPrefix+"/ttyS0s", os.O_WRONLY|syscall.O_NOCTTY, 0777)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open spipe for backchannel: %s", err)

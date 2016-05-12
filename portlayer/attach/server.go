@@ -78,6 +78,6 @@ func (n *Server) Addr() string {
 	return n.l.Addr().String()
 }
 
-func (n *Server) Get(ctx context.Context, id string, timeout time.Duration) (*Connection, error) {
+func (n *Server) Get(ctx context.Context, id string, timeout time.Duration) (SessionInteraction, error) {
 	return n.connServer.Get(ctx, id, timeout)
 }

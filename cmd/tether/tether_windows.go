@@ -32,6 +32,7 @@ import (
 	winserial "github.com/tarm/serial"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/serial"
+	"github.com/vmware/vic/portlayer/attach"
 )
 
 // allow us to pick up some of the osops implementations when mocking
@@ -219,6 +220,6 @@ func (t *osopsWin) establishPty(session *SessionConfig) error {
 	return errors.New("unimplemented on windows")
 }
 
-func (t *osopsWin) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
+func (t *osopsWin) resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
 	return errors.New("unimplemented on windows")
 }
