@@ -13,7 +13,6 @@ You can install vSphere Integrated Containers in the following vSphere setups:
 
 In all cases, your ESXi hosts must have at least 8GB of memory.
 
-
 Deploying vSphere Integrated Containers to a vCenter Server instance that is running in Enhanced Linked Mode is fully supported.  
 
 ## License Requirements
