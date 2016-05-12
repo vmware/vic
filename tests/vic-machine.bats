@@ -63,28 +63,28 @@ teardown() {
 
 @test "vic-machine usage" {
     run "${installer}"
-    [ $status -eq 1 ]
+    assert_failure
     echo ${lines[0]}
     [[ ${lines[0]} =~ "-target argument must be specified" ]]
 }
 
 @test "vic-machine user is missing" {
     run "${installer}" -target ${TEST_URL}
-    [ $status -eq 1 ]
+    assert_failure
     echo ${lines[0]}
     [[ ${lines[0]} =~ "-user User to login target must be specified" ]]
 }
 
 @test "vic-machine compute-resource is missing" {
     run "${installer}" -target ${TEST_URL} -user root
-    [ $status -eq 1 ]
+    assert_failure
     echo ${lines[0]}
     [[ ${lines[0]} =~ "-compute-resource Compute resource path must be specified" ]]
 }
 
 @test "vic-machine image-store is missing" {
     run "${installer}" -target ${TEST_URL} -user root -compute-resource $POOL_PATH
-    [ $status -ne 0 ]
+    assert_failure
     echo ${lines[0]}
     [[ ${lines[0]} =~ "-image-store Image datastore name must be specified" ]]
 }
@@ -98,6 +98,7 @@ teardown() {
     echo "${installer}" $params
     params="$params -passwd ${PASSWORD}"
     run "${installer}" $params
+    assert_success
     len=${#lines[@]}
     echo ${lines[len-2]}
     echo ${lines[len-1]}
@@ -106,6 +107,7 @@ teardown() {
     echo "docker_cmd="$docker_cmd
     # execute sample docker command
     run "$docker" $docker_cmd info
+    assert_success
     echo ${lines[0]}
 
     #reinstall with same name
@@ -116,24 +118,28 @@ teardown() {
     echo "${installer}" $params
     params="$params -passwd ${PASSWORD}"
     run "${installer}" $params
+    assert_success
     len=${#lines[@]}
     echo ${lines[len-1]}
     [[ ${lines[len-1]} =~ "Installer completed successfully..." ]]
     docker_cmd=`echo ${lines[len-2]} | awk '{$1=$2=""; $(NF--)=""; print$0}'`
     # execute docker pull command
     run "$docker" $docker_cmd info
-    [ $status -eq 0 ]
+    assert_success
     sleep 5
     run "$docker" $docker_cmd pull busybox
+    assert_success
     len=${#lines[@]}
     echo ${lines[len-2]}
     echo ${lines[len-1]}
     # execute docker create/start command
     run "$docker" $docker_cmd create busybox
+    assert_success
     len=${#lines[@]}
     echo ${lines[len-1]}
     name=${lines[0]}
     run "$docker" $docker_cmd start ${name}
+    assert_success
     len=${#lines[@]}
     echo ${lines[len-1]}
     govc vm.destroy ${name}
