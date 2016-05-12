@@ -1,9 +1,0 @@
-{
-	"title": "VMWare vSphere Integrated Containers Overview, Document version 0.1",
-
-	"pdf": {
-		"headerTemplate": "_TITLE_",
-		"footerTemplate": "_PAGENUM_"
-	}
-
-}
