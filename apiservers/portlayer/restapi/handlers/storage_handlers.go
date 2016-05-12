@@ -31,7 +31,7 @@ import (
 
 	"github.com/vmware/vic/portlayer/network"
 	spl "github.com/vmware/vic/portlayer/storage"
-	vsphere "github.com/vmware/vic/portlayer/storage/vsphere"
+	"github.com/vmware/vic/portlayer/storage/vsphere"
 	"github.com/vmware/vic/portlayer/util"
 )
 
