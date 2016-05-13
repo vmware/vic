@@ -51,3 +51,44 @@ func (wc *WindowChangeMsg) Marshal() []byte {
 func (wc *WindowChangeMsg) Unmarshal(payload []byte) error {
 	return ssh.Unmarshal(payload, wc)
 }
+
+var (
+	Signals = map[ssh.Signal]int{
+		ssh.SIGABRT: 6,
+		ssh.SIGALRM: 14,
+		ssh.SIGFPE:  8,
+		ssh.SIGHUP:  1,
+		ssh.SIGILL:  4,
+		ssh.SIGINT:  2,
+		ssh.SIGKILL: 9,
+		ssh.SIGPIPE: 13,
+		ssh.SIGQUIT: 3,
+		ssh.SIGSEGV: 11,
+		ssh.SIGTERM: 15,
+		ssh.SIGUSR1: 10,
+		ssh.SIGUSR2: 12,
+	}
+)
+
+// SignalMsg
+const SignalReq = "signal"
+
+type SignalMsg struct {
+	Signal ssh.Signal
+}
+
+func (s *SignalMsg) RequestType() string {
+	return SignalReq
+}
+
+func (s *SignalMsg) Marshal() []byte {
+	return ssh.Marshal(*s)
+}
+
+func (s *SignalMsg) Unmarshal(payload []byte) error {
+	return ssh.Unmarshal(payload, s)
+}
+
+func (s *SignalMsg) Signum() int {
+	return Signals[s.Signal]
+}

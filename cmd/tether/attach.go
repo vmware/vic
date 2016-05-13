@@ -32,24 +32,6 @@ const (
 	attachChannelType = "attach"
 )
 
-var (
-	Signals = map[ssh.Signal]int{
-		ssh.SIGABRT: 6,
-		ssh.SIGALRM: 14,
-		ssh.SIGFPE:  8,
-		ssh.SIGHUP:  1,
-		ssh.SIGILL:  4,
-		ssh.SIGINT:  2,
-		ssh.SIGKILL: 9,
-		ssh.SIGPIPE: 13,
-		ssh.SIGQUIT: 3,
-		ssh.SIGSEGV: 11,
-		ssh.SIGTERM: 15,
-		ssh.SIGUSR1: 10,
-		ssh.SIGUSR2: 12,
-	}
-)
-
 type stringMsg struct {
 	Signal string
 }
@@ -321,14 +303,14 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 				ok = false
 				log.Errorf(err.Error())
 			}
-		case "signal":
-			msg := stringMsg{}
-			if err = ssh.Unmarshal(req.Payload, &msg); err != nil {
+		case attach.SignalReq:
+			msg := attach.SignalMsg{}
+			if err = msg.Unmarshal(req.Payload); err != nil {
 				ok = false
 				log.Errorf(err.Error())
 			} else {
 				log.Infof("Sending signal %s to container process, pid=%d\n", string(msg.Signal), process.Pid)
-				err = utils.signalProcess(process, ssh.Signal(msg.Signal))
+				err = utils.signalProcess(process, msg.Signal)
 				if err != nil {
 					log.Errorf("Failed to dispatch signal to process: %s\n", err)
 				}
