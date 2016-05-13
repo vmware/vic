@@ -15,14 +15,13 @@
 package main
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
 	"path"
-	"strconv"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -39,6 +38,8 @@ var hostnameFile = "/etc/hostname"
 var hostsFile = "/etc/hosts"
 var resolvFile = "/etc/resolv.conf"
 var byLabelDir = "/dev/disk/by-label"
+
+const pciDevPath = "/sys/bus/pci/devices"
 
 type osopsLinux struct{}
 
@@ -92,75 +93,52 @@ func (t *osopsLinux) SetHostname(hostname string) error {
 	return nil
 }
 
-func slotToPCIAddr(pciSlot int32) (string, error) {
-	slotPath := path.Join("/sys/bus/pci/slots/", strconv.Itoa(int(pciSlot)), "/address")
-	f, err := os.Open(slotPath)
-	if err != nil {
-		return "", fmt.Errorf("unable to open slotPath %s: %s", slotPath, err)
-	}
-	defer f.Close()
-
-	buf, err := ioutil.ReadAll(f)
-	if err != nil {
-		return "", err
+func slotToPCIPath(pciSlot int32) (string, error) {
+	// see https://kb.vmware.com/kb/2047927
+	dev := pciSlot & 0x1f
+	bus := (pciSlot >> 5) & 0x1f
+	fun := (pciSlot >> 10) & 0x7
+	if bus == 0 {
+		return path.Join(pciDevPath, fmt.Sprintf("0000:%02x:%02x.%d", bus, dev, fun)), nil
 	}
 
-	return string(buf), nil
-}
-
-func pciToMAC(pciAddr string) (string, error) {
-	intPath := path.Join("/sys/bus/pci/devices/", pciAddr+".0", "/net")
-	ifaces, err := ioutil.ReadDir(intPath)
-	if err != nil {
-		return "", fmt.Errorf("unable to read intPath %s", intPath)
-	}
-	if len(ifaces) != 1 {
-		return "", fmt.Errorf("unexpected number of interfaces found at %s", intPath)
-	}
-
-	addrPath := path.Join(intPath, ifaces[0].Name(), "address")
-	f, err := os.Open(addrPath)
-	if err != nil {
-		return "", fmt.Errorf("unable to open addrPath %s: %s", addrPath, err)
-	}
-	defer f.Close()
-
-	buf, err := ioutil.ReadAll(f)
+	// device on secondary bus, prepend pci bridge address
+	bridgeSlot := 0x11 + (bus - 1)
+	bridgeAddr, err := slotToPCIPath(bridgeSlot)
 	if err != nil {
 		return "", err
 	}
 
-	return string(buf), nil
+	return path.Join(bridgeAddr, fmt.Sprintf("0000:*:%02x.%d", dev, fun)), nil
 }
 
-func linkByAddress(address string) (netlink.Link, error) {
-	nis, err := net.Interfaces()
+func pciToLinkName(pciPath string) (string, error) {
+	p := filepath.Join(pciPath, "net", "*")
+	matches, err := filepath.Glob(p)
 	if err != nil {
-		detail := fmt.Sprintf("unable to iterate interfaces for LinkByAddress: %s", err)
-		return nil, errors.New(detail)
+		return "", err
 	}
 
-	for _, iface := range nis {
-		if bytes.Equal([]byte(address), iface.HardwareAddr) {
-			return netlink.LinkByName(iface.Name)
-		}
+	if len(matches) != 1 {
+		return "", fmt.Errorf("more than one eth interface matches %s", p)
 	}
 
-	return nil, fmt.Errorf("unable to locate interface for address %s", address)
+	return path.Base(matches[0]), nil
 }
 
-func linkByPCIAddr(pciAddr string) (netlink.Link, error) {
-	mac, err := pciToMAC(pciAddr)
+func linkBySlot(slot int32) (netlink.Link, error) {
+	pciPath, err := slotToPCIPath(slot)
 	if err != nil {
 		return nil, err
 	}
-	_, err = net.ParseMAC(mac)
+
+	name, err := pciToLinkName(pciPath)
 	if err != nil {
 		return nil, err
 	}
-	log.Debugf("MAC addr for PCI slot %s: %s", pciAddr, mac)
 
-	return linkByAddress(mac)
+	log.Debugf("got link name: %#v", name)
+	return netlink.LinkByName(name)
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
@@ -168,27 +146,9 @@ func (t *osopsLinux) Apply(endpoint *metadata.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
 
 	// Locate interface
-	pciAddr, err := slotToPCIAddr(endpoint.PCISlot)
+	link, err := linkBySlot(endpoint.PCISlot)
 	if err != nil {
 		return err
-	}
-	link, err := linkByPCIAddr(pciAddr)
-	if err != nil {
-		return err
-	}
-
-	// Take interface down
-	err = netlink.LinkSetDown(link)
-	if err != nil {
-		detail := fmt.Sprintf("unable to take interface down for setup: %s", err)
-		return errors.New(detail)
-	}
-
-	// Rename interface
-	err = netlink.LinkSetName(link, endpoint.Network.Name)
-	if err != nil {
-		detail := fmt.Sprintf("unable to set interface name: %s", err)
-		return errors.New(detail)
 	}
 
 	// Set IP address
@@ -203,52 +163,18 @@ func (t *osopsLinux) Apply(endpoint *metadata.NetworkEndpoint) error {
 		return errors.New(detail)
 	}
 
-	// Bring up interface
-	if err = netlink.LinkSetUp(link); err != nil {
-		detail := fmt.Sprintf("failed to bring up %s: %s", endpoint.Network.Name, err)
-		return errors.New(detail)
-	}
-
 	// Add routes
 	_, defaultNet, _ := net.ParseCIDR("0.0.0.0/0")
 	route := netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet, Gw: endpoint.Network.Gateway.IP}
 	err = netlink.RouteAdd(&route)
 	if err != nil {
-		detail := fmt.Sprintf("failed to add gateway route for endpoint %s: %s", endpoint.Network.Name, err)
-		return errors.New(detail)
-	}
-
-	// Add /etc/hosts entry
-	// TODO - figure out how to name us for each network
-	hosts, err := os.OpenFile(hostsFile, os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		detail := fmt.Sprintf("failed to update hosts for endpoint %s: %s", endpoint.Network.Name, err)
-		return errors.New(detail)
-	}
-	defer hosts.Close()
-
-	_, err = hosts.WriteString(fmt.Sprintf("localhost.%s %s", endpoint.Network.Name, endpoint.IP.IP))
-	if err != nil {
-		detail := fmt.Sprintf("failed to add hosts entry for endpoint %s: %s", endpoint.Network.Name, err)
-		return errors.New(detail)
-	}
-
-	// Add nameservers
-	// This is incredibly trivial for now - should be updated to a less messy approach
-	resolv, err := os.OpenFile(resolvFile, os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		detail := fmt.Sprintf("failed to update %s for endpoint %s: %s", resolvFile, endpoint.Network.Name, err)
-		return errors.New(detail)
-	}
-	defer resolv.Close()
-
-	for _, server := range endpoint.Network.Nameservers {
-		_, err = resolv.WriteString("nameserver " + server.String())
-		if err != nil {
-			detail := fmt.Sprintf("failed to add nameserver for endpoint %s: %s", endpoint.Network.Name, err)
+		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
+			detail := fmt.Sprintf("failed to add gateway route for endpoint %s: %s", endpoint.Network.Name, err)
 			return errors.New(detail)
 		}
 	}
+
+	// TODO update /etc/hosts and /etc/resolv.conf
 
 	return nil
 }

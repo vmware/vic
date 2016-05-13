@@ -27,6 +27,9 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
+// NilSlot is an invalid PCI slot number
+const NilSlot int32 = 0
+
 // VirtualMachineConfigSpecConfig holds the config values
 type VirtualMachineConfigSpecConfig struct {
 	// ID of the VM
@@ -90,7 +93,7 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 	log.Debugf("Adding metadata to the configspec: %+v", config.Metadata)
 	// TEMPORARY
 
-	spec := &types.VirtualMachineConfigSpec{
+	s := &types.VirtualMachineConfigSpec{
 		Name: config.ID,
 		Files: &types.VirtualMachineFileInfo{
 			VmPathName: VMPathName,
@@ -131,11 +134,11 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 	metaCfg := extraconfig.OptionValueFromMap(cfg)
 
 	// merge it with the sec
-	spec.ExtraConfig = append(spec.ExtraConfig, metaCfg...)
+	s.ExtraConfig = append(s.ExtraConfig, metaCfg...)
 
 	return &VirtualMachineConfigSpec{
 		Session:                  session,
-		VirtualMachineConfigSpec: spec,
+		VirtualMachineConfigSpec: s,
 		config: config,
 	}, nil
 }
@@ -247,4 +250,36 @@ func (s *VirtualMachineConfigSpec) generateNextKey() int32 {
 
 	s.key -= 10
 	return s.key
+}
+
+// Spec returns the base types.VirtualMachineConfigSpec object
+func (s *VirtualMachineConfigSpec) Spec() *types.VirtualMachineConfigSpec {
+	return s.VirtualMachineConfigSpec
+}
+
+// VirtualDeviceSlotNumber returns the PCI slot number of a device
+func VirtualDeviceSlotNumber(d types.BaseVirtualDevice) int32 {
+	s := d.GetVirtualDevice().SlotInfo
+	if s == nil {
+		return NilSlot
+	}
+
+	if i, ok := s.(*types.VirtualDevicePciBusSlotInfo); ok {
+		return i.PciSlotNumber
+	}
+
+	return NilSlot
+}
+
+// CollectSlotNumbers returns a collection of all the PCI slot numbers for devices in the spec
+func (s *VirtualMachineConfigSpec) CollectSlotNumbers() []int32 {
+	// collect all the already assigned slot numbers
+	var slots []int32
+	for _, c := range s.DeviceChange {
+		if s := VirtualDeviceSlotNumber(c.GetVirtualDeviceConfigSpec().Device); s != NilSlot {
+			slots = append(slots, s)
+		}
+	}
+
+	return slots
 }

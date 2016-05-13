@@ -12,27 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metadata
+package exec
 
-import "errors"
+import "github.com/docker/docker/pkg/stringid"
 
-var config = New()
+// ID is a container's unique id
+type ID string
 
-type guestInfoConfig struct {
+// NilID is a placeholder for an empty container ID
+const NilID ID = ID("")
+
+// ParseID converts a string to ID
+func ParseID(id string) ID {
+	return ID(id)
 }
 
-// New generates a handle to a ConfigLoader
-func New() ConfigLoader {
-	config := guestInfoConfig{}
-
-	return config
+func (id ID) String() string {
+	return string(id)
 }
 
-// LoadConfig will do so from the VMs GuestInfo
-func (c guestInfoConfig) LoadConfig() (*ExecutorConfig, error) {
-	return nil, errors.New("rpc config not yet implemented for darwin")
-}
-
-func (c guestInfoConfig) StoreConfig(config *ExecutorConfig) (string, error) {
-	return "", errors.New("rpc config not yet implemented for darwin")
+// GeneratID generates a new container ID
+func GenerateID() ID {
+	return ParseID(stringid.GenerateNonCryptoID())
 }

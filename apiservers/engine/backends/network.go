@@ -114,7 +114,7 @@ func (n *Network) CreateNetwork(name, driver string, ipam apinet.IPAM, options m
 		IPAM:      pools,
 	}
 
-	created, err := PortLayerClient().Scopes.Create(scopes.NewCreateParams().WithConfig(cfg))
+	created, err := PortLayerClient().Scopes.CreateScope(scopes.NewCreateScopeParams().WithConfig(cfg))
 	if err != nil {
 		return nil, err
 	}

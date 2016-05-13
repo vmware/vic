@@ -86,7 +86,7 @@ type ExecutorConfig struct {
 
 	// This describes an executors presence on a network, and contains sufficient
 	// information to configure the interface in the guest.
-	Networks map[string]NetworkEndpoint `vic:"0.1" scope:"read-only" key:"networks"`
+	Networks map[string]*NetworkEndpoint `vic:"0.1" scope:"read-only" key:"networks"`
 
 	// Key is the host key used during communicate back with the Interaction endpoint if any
 	// Used if the in-guest tether is responsible for authenticating the connection

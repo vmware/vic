@@ -120,15 +120,13 @@ func run(src extraconfig.DataSource, sink extraconfig.DataSink) error {
 			return errors.New(detail)
 		}
 
-		/*
-			for _, v := range config.Networks {
-				if err := ops.Apply(v); err != nil {
-					detail := fmt.Sprintf("failed to apply network endpoint config: %s", err)
-					log.Error(detail)
-					return errors.New(detail)
-				}
+		for _, v := range config.Networks {
+			if err := ops.Apply(v); err != nil {
+				detail := fmt.Sprintf("failed to apply network endpoint config: %s", err)
+				log.Error(detail)
+				return errors.New(detail)
 			}
-		*/
+		}
 
 		// process the sessions and launch if needed
 		attach := false

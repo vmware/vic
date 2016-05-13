@@ -14,20 +14,25 @@
 
 package network
 
-import "net"
+import (
+	"net"
+
+	"github.com/vmware/vic/metadata"
+)
 
 type Endpoint struct {
 	id        string
 	container *Container
 	scope     *Scope
 	ip        net.IP
-	link      string
-	mac       string
+	pciSlot   int32
 	gateway   net.IP
 	subnet    net.IPNet
+	static    bool
+	bound     bool
 }
 
-func newEndpoint(container *Container, scope *Scope, ip *net.IP, subnet net.IPNet, gateway net.IP, link *string, mac *string) *Endpoint {
+func newEndpoint(container *Container, scope *Scope, ip *net.IP, subnet net.IPNet, gateway net.IP, pciSlot *int32) *Endpoint {
 	e := &Endpoint{
 		id:        generateID(),
 		container: container,
@@ -35,16 +40,15 @@ func newEndpoint(container *Container, scope *Scope, ip *net.IP, subnet net.IPNe
 		gateway:   gateway,
 		subnet:    subnet,
 		ip:        net.IPv4(0, 0, 0, 0),
+		static:    false,
+		bound:     false,
 	}
 
 	if ip != nil {
 		e.ip = *ip
 	}
-	if link != nil {
-		e.link = *link
-	}
-	if mac != nil {
-		e.mac = *mac
+	if pciSlot != nil {
+		e.pciSlot = *pciSlot
 	}
 
 	return e
@@ -66,10 +70,6 @@ func (e *Endpoint) IP() net.IP {
 	return e.ip
 }
 
-func (e *Endpoint) Link() string {
-	return e.link
-}
-
 func (e *Endpoint) Scope() *Scope {
 	return e.scope
 }
@@ -78,8 +78,8 @@ func (e *Endpoint) Subnet() *net.IPNet {
 	return &e.subnet
 }
 
-func (e *Endpoint) Mac() string {
-	return e.mac
+func (e *Endpoint) PciSlot() int32 {
+	return e.pciSlot
 }
 
 func (e *Endpoint) Container() *Container {
@@ -92,4 +92,54 @@ func (e *Endpoint) ID() string {
 
 func (e *Endpoint) Gateway() net.IP {
 	return e.gateway
+}
+
+func (e *Endpoint) metadataEndpoint() *metadata.NetworkEndpoint {
+	ne := &metadata.NetworkEndpoint{
+		IP: net.IPNet{
+			IP:   e.ip,
+			Mask: e.subnet.Mask,
+		},
+		PCISlot: e.pciSlot,
+		Network: metadata.ContainerNetwork{
+			Name: e.scope.name,
+		},
+	}
+	ne.Network.Gateway = net.IPNet{IP: e.gateway, Mask: e.subnet.Mask}
+	// ip should be unspecified if endpoint is not bound
+	if !e.bound {
+		ne.IP.IP = net.IPv4zero
+	}
+
+	return ne
+}
+
+func (e *Endpoint) IsBound() bool {
+	return e.bound
+}
+
+func (e *Endpoint) bind(s *Scope) error {
+	if e.bound {
+		return nil // already bound
+	}
+
+	if err := s.reserveEndpointIP(e); err != nil {
+		return err
+	}
+
+	e.bound = true
+	return nil
+}
+
+func (e *Endpoint) unbind(s *Scope) error {
+	if !e.IsBound() {
+		return nil // not bound
+	}
+
+	if err := s.releaseEndpointIP(e); err != nil {
+		return err
+	}
+
+	e.bound = false
+	return nil
 }

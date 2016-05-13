@@ -18,10 +18,17 @@ import (
 	"fmt"
 	"net"
 	"sync"
+
+	"github.com/vmware/vic/portlayer/exec"
 )
 
 var (
 	defaultSubnet *net.IPNet
+)
+
+const (
+	bridgeScopeType   = "bridge"
+	externalScopeType = "external"
 )
 
 type Scope struct {
@@ -34,7 +41,7 @@ type Scope struct {
 	gateway    net.IP
 	dns        []net.IP
 	ipam       *IPAM
-	containers map[string]*Container
+	containers map[exec.ID]*Container
 	endpoints  []*Endpoint
 	space      *AddressSpace
 
@@ -70,7 +77,7 @@ func (s *Scope) reserveEndpointIP(e *Endpoint) error {
 	// reserve an ip address
 	var err error
 	for _, p := range s.ipam.spaces {
-		if !e.ip.IsUnspecified() {
+		if e.static {
 			if err = p.ReserveIP4(e.ip); err == nil {
 				break
 			}
@@ -89,6 +96,9 @@ func (s *Scope) reserveEndpointIP(e *Endpoint) error {
 func (s *Scope) releaseEndpointIP(e *Endpoint) error {
 	for _, p := range s.ipam.spaces {
 		if err := p.ReleaseIP4(e.ip); err == nil {
+			if !e.static {
+				e.ip = net.IPv4(0, 0, 0, 0)
+			}
 			return nil
 		}
 	}
@@ -96,73 +106,84 @@ func (s *Scope) releaseEndpointIP(e *Endpoint) error {
 	return fmt.Errorf("could not release IP for endpoint")
 }
 
-func (s *Scope) AddContainer(name string, ip *net.IP) (*Endpoint, error) {
-	if name == "" {
-		return nil, fmt.Errorf("empty container name")
-	}
-
+func (s *Scope) addContainer(con *Container, ip *net.IP) (*Endpoint, error) {
 	s.Lock()
 	defer s.Unlock()
 
-	c, ok := s.containers[name]
+	if con == nil {
+		return nil, fmt.Errorf("container is nil")
+	}
+
+	_, ok := s.containers[con.id]
 	if ok {
-		return nil, DuplicateResourceError{resID: name}
+		return nil, DuplicateResourceError{resID: con.id.String()}
 	}
 
-	e := newEndpoint(c, s, ip, s.subnet, s.gateway, nil, nil)
-
-	var err error
-	err = s.reserveEndpointIP(e)
-	defer func() {
-		if err != nil {
-			s.releaseEndpointIP(e)
-		}
-	}()
-
-	if err != nil {
-		return nil, err
+	e := newEndpoint(con, s, ip, s.subnet, s.gateway, nil)
+	if ip != nil {
+		e.static = true
 	}
 
+	con.addEndpoint(e)
 	s.endpoints = append(s.endpoints, e)
-
-	c = &Container{
-		name:     name,
-		endpoint: e,
-	}
-
-	e.container = c
-	s.containers[name] = c
+	s.containers[con.id] = con
 	return e, nil
 }
 
-func (s *Scope) RemoveContainer(name string) error {
+func (s *Scope) removeContainer(con *Container) error {
 	s.Lock()
 	defer s.Unlock()
 
-	c, ok := s.containers[name]
-	if !ok {
+	c, ok := s.containers[con.ID()]
+	if !ok || c != con {
 		return ResourceNotFoundError{}
 	}
 
-	var e *Endpoint
-	for _, e = range s.endpoints {
-		if e.container == c {
-			break
-		}
-	}
-
-	if e == nil || e.container != c {
+	e := c.Endpoint(s)
+	if e == nil {
 		return ResourceNotFoundError{}
 	}
 
-	err := s.releaseEndpointIP(e)
-	if err != nil {
-		return err
+	if e.IsBound() {
+		return fmt.Errorf("unbind container first")
 	}
 
+	delete(s.containers, c.id)
 	s.endpoints = removeEndpointHelper(e, s.endpoints)
-	delete(s.containers, name)
+	c.removeEndpoint(e)
 	return nil
+}
+
+func (s *Scope) bindContainer(con *Container) error {
+	s.Lock()
+	defer s.Unlock()
+
+	if con == nil {
+		return fmt.Errorf("invalid args")
+	}
+
+	c, ok := s.containers[con.ID()]
+	if !ok || c != con {
+		return ResourceNotFoundError{}
+	}
+
+	return c.bind(s)
+}
+
+func (s *Scope) unbindContainer(con *Container) error {
+	s.Lock()
+	defer s.Unlock()
+
+	if con == nil {
+		return fmt.Errorf("invalid args")
+	}
+
+	c, ok := s.containers[con.ID()]
+	if !ok || c != con {
+		return ResourceNotFoundError{}
+	}
+
+	return c.unbind(s)
 }
 
 func (s *Scope) Containers() []*Container {
@@ -179,16 +200,15 @@ func (s *Scope) Containers() []*Container {
 	return containers
 }
 
-func (s *Scope) Container(name string) (*Container, error) {
+func (s *Scope) Container(id exec.ID) *Container {
 	s.Lock()
 	defer s.Unlock()
 
-	c, ok := s.containers[name]
-	if !ok {
-		return nil, ResourceNotFoundError{}
+	if c, ok := s.containers[id]; ok {
+		return c
 	}
 
-	return c, nil
+	return nil
 }
 
 func (s *Scope) Endpoints() []*Endpoint {

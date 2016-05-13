@@ -195,8 +195,9 @@ paths:
             $ref: "#/definitions/Error"
   /scopes:
     post:
+      summary: "Create a new scope"
       tags: ["scopes"]
-      operationId: Create
+      operationId: CreateScope
       parameters:
         - name: config
           in: body
@@ -205,7 +206,6 @@ paths:
       responses:
         '201':
           description: "Created"
-          type: object
           schema:
             $ref: "#/definitions/ScopeConfig"
         '409':
@@ -252,12 +252,94 @@ paths:
           description: "error"
           schema:
             $ref: "#/definitions/Error"
-  /exec/container:
+  /scopes/containers/{handle}:
     post:
-      description: "Creates a container and return the id"
-      summary: "Creates a container"
-      operationId: ContainerCreate
-      tags: ["exec"]
+      description: "Add a container to scopes modifying the conatiner VM's config as necessary"
+      tags: ["scopes"]
+      operationId: AddContainer
+      parameters:
+        - name: handle
+          required: true
+          in: path
+          type: string
+        - name: networkConfig
+          in: body
+          schema:
+            $ref: "#/definitions/NetworkConfig"
+          required: true
+      responses:
+        '200':
+          description: "OK"
+          schema:
+            type: string
+        '404':
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+        default:
+          description: "error"
+          schema:
+            $ref: "#/definitions/Error"
+  /scopes/containers/{handle}/binding:
+    post:
+      tags: ["scopes"]
+      description: "Perform scope initialization for each of the scopes the container belongs to. Network initialization may include, for example, assigning addresses on a scope."
+      operationId: BindContainer
+      consumes:
+        - application/octet-stream
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: handle
+          required: true
+          in: path
+          type: string
+      responses:
+        '200':
+          description: "OK"
+          schema:
+            type: string
+        '404':
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+        default:
+          description: "error"
+          schema:
+            $ref: "#/definitions/Error"
+    delete:
+      tags: ["scopes"]
+      operationId: UnbindContainer
+      consumes:
+        - application/octet-stream
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: handle
+          required: true
+          in: path
+          type: string
+      responses:
+        '200':
+          description: "OK"
+          schema:
+            type: string
+        '404':
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+        default:
+          description: "error"
+          schema:
+            $ref: "#/definitions/Error"
+  /containers:
+    post:
+      description: "Initiates a container create operation"
+      summary: "Initiates a container create operation"
+      operationId: Create
+      tags: ["containers"]
       consumes:
         - application/json
         - application/octet-stream
@@ -281,27 +363,91 @@ paths:
         '200':
           description: "OK"
           schema:
-              $ref: "#/definitions/ContainerCreatedInfo"
-  /exec/{id}/start:
-    post:
-      description: "Starts an existing container by id"
-      summary: "Starts an existing container"
-      operationId: ContainerStart
-      tags: ["exec"]
+            $ref: "#/definitions/ContainerCreatedInfo"
+  /containers/{id}:
+    get:
+      description: "Get a container handle"
+      operationId: Get
+      tags: ["containers"]
       consumes:
+        - application/json
         - application/octet-stream
+      produces:
+        - application/json
       parameters:
         - name: id
+          required: true
           in: path
           type: string
-          required: true
       responses:
         '404':
-          description: "Container not found"
+          description: "not found"
+        '200':
+          description: "OK"
+          schema:
+            type: string
+        default:
+          description: "Error"
+          schema:
+            $ref: "#/definitions/Error"
+  /containers/{handle}:
+    put:
+      description: "Commit and close a container handle"
+      operationId: Commit
+      tags: ["containers"]
+      consumes:
+        - application/json
+        - application/octet-stream
+      produces:
+        - application/json
+      parameters:
+        - name: handle
+          in: path
+          required: true
+          type: string
+      responses:
+        '404':
+          description: "not found"
+        '200':
+          description: "OK"
+        default:
+          description: "Error"
+          schema:
+            $ref: "#/definitions/Error"
+  /containers/{handle}/state:
+    put:
+      description: "Changes the state of a container"
+      operationId: StateChange
+      tags: ["containers"]
+      consumes:
+        - application/octet-stream
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: handle
+          required: true
+          in: path
+          type: string
+        - name: state
+          required: true
+          in: body
+          schema:
+            type: string
+            enum: ["RUNNING", "STOPPED"]
+      responses:
+        '404':
+          description: "not found"
           schema:
             $ref: "#/definitions/Error"
         '200':
           description: "OK"
+          schema:
+            type: string
+        default:
+          description: "Error"
+          schema:
+            $ref: "#/definitions/Error"
   /interaction/{id}/join:
     post:
       description: "Establish an interaction session with a container by id"
@@ -390,12 +536,10 @@ definitions:
         type: array
         items:
           type: string
-          collectionFormat: csv
       ipam:
         type: array
         items:
           type: string
-          collectionFormat: csv
   ContainerCreateConfig:
     type: object
     properties:
@@ -417,12 +561,18 @@ definitions:
           type: string
       networkDisabled:
         type: boolean
-      networkSettings:
-        $ref: "#/definitions/NetworkConfig"
+      tty:
+        type: boolean
+        default: false
   ContainerCreatedInfo:
     type: object
+    required:
+      - handle
+      - id
     properties:
-      containerID:
+      handle:
+        type: string
+      id:
         type: string
   NetworkConfig:
     type: object

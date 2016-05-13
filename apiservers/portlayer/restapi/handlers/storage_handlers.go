@@ -29,7 +29,6 @@ import (
 	"github.com/vmware/vic/apiservers/portlayer/restapi/options"
 	"github.com/vmware/vic/pkg/vsphere/session"
 
-	"github.com/vmware/vic/portlayer/network"
 	spl "github.com/vmware/vic/portlayer/storage"
 	"github.com/vmware/vic/portlayer/storage/vsphere"
 	"github.com/vmware/vic/portlayer/util"
@@ -44,7 +43,7 @@ var (
 )
 
 // Configure assigns functions to all the storage api handlers
-func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, netCtx *network.Context) {
+func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx *HandlerContext) {
 	var err error
 
 	ctx := context.Background()

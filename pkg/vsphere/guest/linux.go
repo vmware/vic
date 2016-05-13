@@ -102,8 +102,8 @@ func (l *LinuxGuestType) GuestID() string {
 }
 
 // Spec returns the underlying types.VirtualMachineConfigSpec to the caller
-func (l *LinuxGuestType) Spec() *types.VirtualMachineConfigSpec {
-	return l.VirtualMachineConfigSpec.VirtualMachineConfigSpec
+func (l *LinuxGuestType) Spec() *spec.VirtualMachineConfigSpec {
+	return l.VirtualMachineConfigSpec
 }
 
 // Controller returns the types.BaseVirtualController to the caller

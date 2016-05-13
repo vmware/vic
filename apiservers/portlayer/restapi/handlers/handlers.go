@@ -12,27 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metadata
+package handlers
 
-import "errors"
+import "github.com/vmware/vic/pkg/vsphere/session"
 
-var config = New()
-
-type guestInfoConfig struct {
-}
-
-// New generates a handle to a ConfigLoader
-func New() ConfigLoader {
-	config := guestInfoConfig{}
-
-	return config
-}
-
-// LoadConfig will do so from the VMs GuestInfo
-func (c guestInfoConfig) LoadConfig() (*ExecutorConfig, error) {
-	return nil, errors.New("rpc config not yet implemented for windows")
-}
-
-func (c guestInfoConfig) StoreConfig(config *ExecutorConfig) (string, error) {
-	return "", errors.New("rpc config not yet implemented for windows")
+// HandlerContext is set of shared objects for the port layer server handlers
+type HandlerContext struct {
+	Session *session.Session
 }

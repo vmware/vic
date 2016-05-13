@@ -16,11 +16,12 @@ package guest
 
 import (
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/vsphere/spec"
 )
 
 // Guest interface defines the different guest types
 type Guest interface {
 	GuestID() string
-	Spec() *types.VirtualMachineConfigSpec
+	Spec() *spec.VirtualMachineConfigSpec
 	Controller() *types.BaseVirtualController
 }

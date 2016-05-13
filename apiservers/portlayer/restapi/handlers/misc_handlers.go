@@ -18,13 +18,12 @@ import (
 	"github.com/go-swagger/go-swagger/httpkit/middleware"
 	"github.com/vmware/vic/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/apiservers/portlayer/restapi/operations/misc"
-	"github.com/vmware/vic/portlayer/network"
 )
 
 type MiscHandlersImpl struct{}
 
 // Configure assigns functions to all the miscellaneous api handlers
-func (handler *MiscHandlersImpl) Configure(api *operations.PortLayerAPI, netCtx *network.Context) {
+func (handler *MiscHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx *HandlerContext) {
 	api.MiscPingHandler = misc.PingHandlerFunc(handler.Ping)
 }
 

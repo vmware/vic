@@ -18,7 +18,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/portlayer/attach"
-	"github.com/vmware/vic/portlayer/network"
 )
 
 // AttachHandlersImpl is the receiver for all container attach methods.
@@ -26,7 +25,7 @@ type AttachHandlersImpl struct {
 	s *attach.Server
 }
 
-func (a *AttachHandlersImpl) Configure(api *operations.PortLayerAPI, dc *network.Context) {
+func (a *AttachHandlersImpl) Configure(api *operations.PortLayerAPI, _ *HandlerContext) {
 	// XXX this needs to live on the mgmt netwerk
 	a.s = attach.NewAttachServer("", 0)
 

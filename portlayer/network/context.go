@@ -24,13 +24,21 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/vsphere/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/spec"
 	"github.com/vmware/vic/pkg/vsphere/vm"
+	"github.com/vmware/vic/portlayer/exec"
 )
 
 const (
-	bridgeNetworkKey = "guestinfo.vch/networks/bridge"
+	bridgeNetworkKey         = "guestinfo.vch/networks/bridge"
+	pciSlotNumberBegin int32 = 0xc0
+	pciSlotNumberEnd   int32 = 1 << 10
+	pciSlotNumberInc   int32 = 1 << 5
 )
 
 type Context struct {
@@ -40,6 +48,7 @@ type Context struct {
 	defaultBridgeMask net.IPMask
 
 	scopes       map[string]*Scope
+	containers   map[exec.ID]*Container
 	defaultScope *Scope
 
 	BridgeNetworkName string // Portgroup name of the bridge network
@@ -57,7 +66,12 @@ var getBridgeNetworkName = func(sess *session.Session) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return guestInfo[fmt.Sprintf("%s/%s", bridgeNetworkKey, "portgroup")], nil
+
+	if bnn, ok := guestInfo[fmt.Sprintf("%s/portgroup", bridgeNetworkKey)]; ok {
+		return bnn, nil
+	}
+
+	return "", fmt.Errorf("bridge network name not found")
 }
 
 func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask, sess *session.Session) (*Context, error) {
@@ -76,10 +90,11 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask, sess *session.Sessi
 		defaultBridgeMask: bridgeMask,
 		defaultBridgePool: NewAddressSpaceFromNetwork(&bridgePool),
 		scopes:            make(map[string]*Scope),
+		containers:        make(map[exec.ID]*Container),
 		BridgeNetworkName: bnn,
 	}
 
-	s, err := ctx.NewScope("bridge", "bridge", nil, net.IPv4(0, 0, 0, 0), nil, nil)
+	s, err := ctx.NewScope("bridge", bridgeScopeType, nil, net.IPv4(0, 0, 0, 0), nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +192,7 @@ func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, 
 		subnet:      *subnet,
 		gateway:     gateway,
 		ipam:        ipam,
-		containers:  make(map[string]*Container),
+		containers:  make(map[exec.ID]*Container),
 		scopeType:   scopeType,
 		space:       space,
 		dns:         dns,
@@ -190,7 +205,7 @@ func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, 
 }
 
 func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (newScope *Scope, err error) {
-	s, err := c.newScopeCommon(id, name, "bridge", subnet, gateway, dns, ipam, c.BridgeNetworkName)
+	s, err := c.newScopeCommon(id, name, bridgeScopeType, subnet, gateway, dns, ipam, c.BridgeNetworkName)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +230,7 @@ func (c *Context) newExternalScope(id, name string, subnet *net.IPNet, gateway n
 	}
 
 	// TODO Get the correct networkName
-	return c.newScopeCommon(id, name, "external", subnet, gateway, dns, ipam, "")
+	return c.newScopeCommon(id, name, externalScopeType, subnet, gateway, dns, ipam, "")
 }
 
 func isDefaultSubnet(subnet *net.IPNet) bool {
@@ -340,10 +355,10 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 	}
 
 	switch scopeType {
-	case "bridge":
+	case bridgeScopeType:
 		return c.newBridgeScope(generateID(), name, subnet, gateway, dns, &IPAM{pools: pools})
 
-	case "external":
+	case externalScopeType:
 		return c.newExternalScope(generateID(), name, subnet, gateway, dns, &IPAM{pools: pools})
 
 	default:
@@ -351,10 +366,7 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 	}
 }
 
-func (c *Context) Scopes(idName *string) ([]*Scope, error) {
-	c.Lock()
-	defer c.Unlock()
-
+func (c *Context) findScope(idName *string) ([]*Scope, error) {
 	if idName != nil && *idName != "" {
 		// search by name
 		scope, ok := c.scopes[*idName]
@@ -383,6 +395,257 @@ func (c *Context) Scopes(idName *string) ([]*Scope, error) {
 	return _scopes, nil
 }
 
+func (c *Context) Scopes(idName *string) ([]*Scope, error) {
+	c.Lock()
+	defer c.Unlock()
+
+	return c.findScope(idName)
+}
+
 func (c *Context) DefaultScope() *Scope {
 	return c.defaultScope
+}
+
+func (c *Context) BindContainer(h *exec.Handle) error {
+	c.Lock()
+	defer c.Unlock()
+
+	con, ok := c.containers[h.Container.ID]
+	if !ok {
+		return fmt.Errorf("container not found")
+	}
+
+	scopes := con.Scopes()
+	if len(scopes) == 0 {
+		return nil // container not part of any scopes
+	}
+
+	var err error
+	var bound []*Scope
+	defer func() {
+		if err == nil {
+			return
+		}
+
+		for _, s := range bound {
+			s.unbindContainer(con)
+		}
+	}()
+
+	for _, s := range scopes {
+		if err = s.bindContainer(con); err != nil {
+			return err
+		}
+
+		bound = append(bound, s)
+	}
+
+	updateMetadata(h, con.Endpoints())
+	return nil
+}
+
+func (c *Context) UnbindContainer(h *exec.Handle) error {
+	c.Lock()
+	defer c.Unlock()
+
+	con, ok := c.containers[h.Container.ID]
+	if !ok {
+		return fmt.Errorf("container not found")
+	}
+
+	scopes := con.Scopes()
+	if len(scopes) == 0 {
+		return nil // container not part of any scopes
+	}
+
+	var err error
+	var unbound []*Scope
+	defer func() {
+		if err == nil {
+			return
+		}
+
+		for _, s := range unbound {
+			s.bindContainer(con)
+		}
+	}()
+
+	for _, s := range scopes {
+		if err = s.unbindContainer(con); err != nil {
+			return err
+		}
+
+		unbound = append(unbound, s)
+	}
+
+	updateMetadata(h, con.Endpoints())
+	return nil
+}
+
+func updateMetadata(h *exec.Handle, endpoints []*Endpoint) {
+	h.SetSpec(nil)
+	if h.ExecConfig.Networks == nil {
+		h.ExecConfig.Networks = make(map[string]*metadata.NetworkEndpoint)
+	}
+
+	for _, e := range endpoints {
+		h.ExecConfig.Networks[e.Scope().Name()] = e.metadataEndpoint()
+	}
+}
+
+func findSlotNumber(slots map[int32]bool) int32 {
+	// see https://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=2047927
+	slot := pciSlotNumberBegin
+	for _, ok := slots[slot]; ok && slot != pciSlotNumberEnd; {
+		slot += pciSlotNumberInc
+		_, ok = slots[slot]
+	}
+
+	if slot == pciSlotNumberEnd {
+		return spec.NilSlot
+	}
+
+	return slot
+}
+
+var addEthernetCard = func(h *exec.Handle, s *Scope, con *Container) (types.BaseVirtualDevice, error) {
+	var err error
+
+	// find if we already have a NIC attached to the network we want
+	d, err := h.Spec.FindNIC(s.NetworkName)
+	if d != nil {
+		return d, nil
+	}
+
+	var devices object.VirtualDeviceList
+	backing := &types.VirtualEthernetCardNetworkBackingInfo{
+		VirtualDeviceDeviceBackingInfo: types.VirtualDeviceDeviceBackingInfo{
+			DeviceName: s.NetworkName,
+		},
+	}
+
+	d, err = devices.CreateEthernetCard("vmxnet3", backing)
+	if err != nil {
+		return nil, err
+	}
+
+	slots := con.collectSlotNumbers()
+	for _, slot := range h.Spec.CollectSlotNumbers() {
+		slots[slot] = true
+	}
+
+	// collect slot numbers from existing endpoints
+	for _, e := range con.Endpoints() {
+		slots[e.PciSlot()] = true
+	}
+
+	slot := findSlotNumber(slots)
+	if slot == spec.NilSlot {
+		return nil, fmt.Errorf("out of slots")
+	}
+
+	d.GetVirtualDevice().SlotInfo = &types.VirtualDevicePciBusSlotInfo{PciSlotNumber: slot}
+
+	devices = append(devices, d)
+	deviceSpecs, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
+	if err != nil {
+		return nil, err
+	}
+
+	h.Spec.DeviceChange = append(h.Spec.DeviceChange, deviceSpecs...)
+	return d, nil
+}
+
+func (c *Context) resolveScope(scope string) (*Scope, error) {
+	var s *Scope
+	switch scope {
+	// docker's default network, usually maps to the default bridge network
+	case "default":
+		s = c.DefaultScope()
+
+	default:
+		scopes, err := c.findScope(&scope)
+		if err != nil || len(scopes) != 1 {
+			return nil, err
+		}
+
+		// should have only one match at this point
+		s = scopes[0]
+	}
+
+	return s, nil
+}
+
+// AddContainer add a container to the specified scope, optionally specifying an ip address
+// for the container in the scope
+func (c *Context) AddContainer(h *exec.Handle, scope string, ip *net.IP) (*Endpoint, error) {
+	c.Lock()
+	defer c.Unlock()
+
+	if h == nil {
+		return nil, fmt.Errorf("handle is required")
+	}
+
+	var err error
+	s, err := c.resolveScope(scope)
+	if err != nil {
+		return nil, err
+	}
+
+	con, ok := c.containers[h.Container.ID]
+	if !ok {
+		con = &Container{id: h.Container.ID}
+	}
+
+	e, err := s.addContainer(con, ip)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			s.removeContainer(con)
+		}
+	}()
+
+	addNIC := true
+	if s.Type() == bridgeScopeType {
+		for _, ec := range con.endpoints {
+			if s == ec.Scope() {
+				continue
+			}
+
+			if ec.Scope().Type() == bridgeScopeType {
+				e.pciSlot = ec.pciSlot
+				addNIC = false
+				break
+			}
+		}
+	}
+
+	h.SetSpec(nil)
+
+	if addNIC {
+		var d types.BaseVirtualDevice
+		d, err = addEthernetCard(h, s, con)
+		if err != nil {
+			return nil, err
+		}
+
+		e.pciSlot = spec.VirtualDeviceSlotNumber(d)
+	}
+
+	c.containers[con.ID()] = con
+	updateMetadata(h, []*Endpoint{e})
+	return e, nil
+}
+
+func (c *Context) Container(id exec.ID) *Container {
+	c.Lock()
+	defer c.Unlock()
+
+	if con, ok := c.containers[id]; ok {
+		return con
+	}
+
+	return nil
 }
