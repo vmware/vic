@@ -15,7 +15,6 @@
 package attach
 
 import (
-	"errors"
 	"fmt"
 	"io"
 
@@ -52,19 +51,14 @@ type attachSSH struct {
 func SSHls(client *ssh.Client) ([]string, error) {
 	ok, reply, err := client.SendRequest(ContainersReq, true, nil)
 	if !ok || err != nil {
-		detail := fmt.Sprintf("failed to get container IDs from remote: %s", err)
-		log.Error(detail)
-		return nil, errors.New(detail)
+		return nil, fmt.Errorf("failed to get container IDs from remote: %s", err)
 	}
 
 	ids := ContainersMsg{}
 
-	err = ids.Unmarshal(reply)
-	if err != nil {
-		detail := fmt.Sprintf("failed to unmarshall ids from remote: %s", err)
-		log.Error(detail)
+	if err = ids.Unmarshal(reply); err != nil {
 		log.Debugf("raw IDs response: %+v", reply)
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal ids from remote: %s", err)
 	}
 
 	return ids.IDs, nil
