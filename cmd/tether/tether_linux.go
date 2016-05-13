@@ -294,7 +294,7 @@ func (t *osopsLinux) resizePty(pty uintptr, winSize *attach.WindowChangeMsg) err
 }
 
 func (t *osopsLinux) signalProcess(process *os.Process, sig ssh.Signal) error {
-	signal := Signals[sig]
+	signal := attach.Signals[sig]
 	defer trace.End(trace.Begin(fmt.Sprintf("signal process %d: %d", process.Pid, signal)))
 
 	s := syscall.Signal(signal)

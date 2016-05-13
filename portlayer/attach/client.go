@@ -15,7 +15,6 @@
 package attach
 
 import (
-	"errors"
 	"fmt"
 	"io"
 
@@ -50,26 +49,19 @@ type attachSSH struct {
 }
 
 func SSHls(client *ssh.Client) ([]string, error) {
-	ok, reply, err := client.SendRequest(requestContainerIDs, true, nil)
+	ok, reply, err := client.SendRequest(ContainersReq, true, nil)
 	if !ok || err != nil {
-		detail := fmt.Sprintf("failed to get container IDs from remote: %s", err)
-		log.Error(detail)
-		return nil, errors.New(detail)
+		return nil, fmt.Errorf("failed to get container IDs from remote: %s", err)
 	}
 
-	ids := struct {
-		Strings []string
-	}{}
+	ids := ContainersMsg{}
 
-	err = ssh.Unmarshal(reply, &ids)
-	if err != nil {
-		detail := fmt.Sprintf("failed to unmarshall ids from remote: %s", err)
-		log.Error(detail)
+	if err = ids.Unmarshal(reply); err != nil {
 		log.Debugf("raw IDs response: %+v", reply)
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal ids from remote: %s", err)
 	}
 
-	return ids.Strings, nil
+	return ids.IDs, nil
 }
 
 // SSHAttach returns a stream connection to the requested session
@@ -97,7 +89,17 @@ func SSHAttach(client *ssh.Client, id string) (SessionInteraction, error) {
 }
 
 func (t *attachSSH) Signal(signal ssh.Signal) error {
-	return errors.New("signal is unimplemented")
+	msg := SignalMsg{signal}
+	ok, err := t.channel.SendRequest(SignalReq, true, msg.Marshal())
+	if err == nil && !ok {
+		return fmt.Errorf("unknown error")
+	}
+
+	if err != nil {
+		return fmt.Errorf("signal error: %s", err)
+	}
+
+	return nil
 }
 
 func (t *attachSSH) Stdout() io.Reader {
@@ -118,9 +120,8 @@ func (t *attachSSH) Close() error {
 
 // Resize resizes the terminal.
 func (t *attachSSH) Resize(cols, rows, widthpx, heightpx uint32) error {
-
-	msg := ssh.Marshal(WindowChangeMsg{cols, rows, widthpx, heightpx})
-	ok, err := t.channel.SendRequest(WindowChangeReq, true, msg)
+	msg := WindowChangeMsg{cols, rows, widthpx, heightpx}
+	ok, err := t.channel.SendRequest(WindowChangeReq, true, msg.Marshal())
 	if err == nil && !ok {
 		return fmt.Errorf("unknown error")
 	}

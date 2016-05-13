@@ -32,32 +32,6 @@ const (
 	attachChannelType = "attach"
 )
 
-var (
-	Signals = map[ssh.Signal]int{
-		ssh.SIGABRT: 6,
-		ssh.SIGALRM: 14,
-		ssh.SIGFPE:  8,
-		ssh.SIGHUP:  1,
-		ssh.SIGILL:  4,
-		ssh.SIGINT:  2,
-		ssh.SIGKILL: 9,
-		ssh.SIGPIPE: 13,
-		ssh.SIGQUIT: 3,
-		ssh.SIGSEGV: 11,
-		ssh.SIGTERM: 15,
-		ssh.SIGUSR1: 10,
-		ssh.SIGUSR2: 12,
-	}
-)
-
-type stringMsg struct {
-	Signal string
-}
-
-type stringArrayMsg struct {
-	Strings []string
-}
-
 // server is the singleton attachServer for the tether - there can be only one
 // as the backchannel line protocol may not provide multiplexing of connections
 var server attachServer
@@ -269,16 +243,16 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 		log.Infof("received global request type %v", req.Type)
 
 		switch req.Type {
-		case "container-ids":
+		case attach.ContainersReq:
 			keys := make([]string, len(config.Sessions))
 			i := 0
 			for k := range config.Sessions {
 				keys[i] = k
 				i++
 			}
-			msg := stringArrayMsg{Strings: keys}
+			msg := attach.ContainersMsg{IDs: keys}
+			payload = msg.Marshal()
 
-			payload = []byte(ssh.Marshal(msg))
 		default:
 			ok = false
 			payload = []byte("unknown global request type: " + req.Type)
@@ -314,21 +288,21 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 			if pty == nil {
 				ok = false
 				log.Errorf("illegal window-change request for non-tty")
-			} else if err = ssh.Unmarshal(req.Payload, &msg); err != nil {
+			} else if err = msg.Unmarshal(req.Payload); err != nil {
 				ok = false
 				log.Errorf(err.Error())
 			} else if err = utils.resizePty(pty.Fd(), &msg); err != nil {
 				ok = false
 				log.Errorf(err.Error())
 			}
-		case "signal":
-			msg := stringMsg{}
-			if err = ssh.Unmarshal(req.Payload, &msg); err != nil {
+		case attach.SignalReq:
+			msg := attach.SignalMsg{}
+			if err = msg.Unmarshal(req.Payload); err != nil {
 				ok = false
 				log.Errorf(err.Error())
 			} else {
 				log.Infof("Sending signal %s to container process, pid=%d\n", string(msg.Signal), process.Pid)
-				err = utils.signalProcess(process, ssh.Signal(msg.Signal))
+				err = utils.signalProcess(process, msg.Signal)
 				if err != nil {
 					log.Errorf("Failed to dispatch signal to process: %s\n", err)
 				}

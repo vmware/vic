@@ -14,17 +14,100 @@
 
 package attach
 
+import "golang.org/x/crypto/ssh"
+
 // All of the messages passed over the ssh channel/global mux are (or will be)
 // defined here.
 
-const (
-	WindowChangeReq = "window-change"
-)
+type Message interface {
+	// Returns the message name
+	RequestType() string
+
+	// Marshalled version of the message
+	Marshal() []byte
+
+	// Unmarshal unpacks the message
+	Unmarshal([]byte) error
+}
 
 // WindowChangeMsg the RFC4254 struct
+const WindowChangeReq = "window-change"
+
 type WindowChangeMsg struct {
 	Columns  uint32
 	Rows     uint32
 	WidthPx  uint32
 	HeightPx uint32
+}
+
+func (wc *WindowChangeMsg) RequestType() string {
+	return WindowChangeReq
+}
+
+func (wc *WindowChangeMsg) Marshal() []byte {
+	return ssh.Marshal(*wc)
+}
+
+func (wc *WindowChangeMsg) Unmarshal(payload []byte) error {
+	return ssh.Unmarshal(payload, wc)
+}
+
+var (
+	Signals = map[ssh.Signal]int{
+		ssh.SIGABRT: 6,
+		ssh.SIGALRM: 14,
+		ssh.SIGFPE:  8,
+		ssh.SIGHUP:  1,
+		ssh.SIGILL:  4,
+		ssh.SIGINT:  2,
+		ssh.SIGKILL: 9,
+		ssh.SIGPIPE: 13,
+		ssh.SIGQUIT: 3,
+		ssh.SIGSEGV: 11,
+		ssh.SIGTERM: 15,
+		ssh.SIGUSR1: 10,
+		ssh.SIGUSR2: 12,
+	}
+)
+
+// SignalMsg
+const SignalReq = "signal"
+
+type SignalMsg struct {
+	Signal ssh.Signal
+}
+
+func (s *SignalMsg) RequestType() string {
+	return SignalReq
+}
+
+func (s *SignalMsg) Marshal() []byte {
+	return ssh.Marshal(*s)
+}
+
+func (s *SignalMsg) Unmarshal(payload []byte) error {
+	return ssh.Unmarshal(payload, s)
+}
+
+func (s *SignalMsg) Signum() int {
+	return Signals[s.Signal]
+}
+
+// ContainersMsg
+const ContainersReq = "container-ids"
+
+type ContainersMsg struct {
+	IDs []string
+}
+
+func (s *ContainersMsg) RequestType() string {
+	return ContainersReq
+}
+
+func (s *ContainersMsg) Marshal() []byte {
+	return ssh.Marshal(*s)
+}
+
+func (s *ContainersMsg) Unmarshal(payload []byte) error {
+	return ssh.Unmarshal(payload, s)
 }

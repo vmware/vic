@@ -130,10 +130,9 @@ func TestAttachSshSession(t *testing.T) {
 		wg.Add(1)
 		defer wg.Done()
 		for req := range reqs {
-			if req.Type == requestContainerIDs {
-				req.Reply(true, ssh.Marshal(struct {
-					Strings []string
-				}{[]string{expectedID}}))
+			if req.Type == ContainersReq {
+				msg := ContainersMsg{IDs: []string{expectedID}}
+				req.Reply(true, msg.Marshal())
 				break
 			}
 		}

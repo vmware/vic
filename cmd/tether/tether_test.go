@@ -68,6 +68,7 @@ type mocker struct {
 
 	windowCol uint32
 	windowRow uint32
+	signal    ssh.Signal
 }
 
 func (t *mocker) setup() error {
@@ -100,6 +101,7 @@ func (t *mocker) resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
 }
 
 func (t *mocker) signalProcess(process *os.Process, sig ssh.Signal) error {
+	t.signal = sig
 	return t.utils.signalProcess(process, sig)
 }
 
