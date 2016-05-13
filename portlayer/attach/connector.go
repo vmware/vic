@@ -74,7 +74,7 @@ func NewConnector(listener net.Listener) *Connector {
 // Returns a connection corresponding to the specified ID. If the connection doesn't exist
 // the method will wait for the specified timeout, returning when the connection is created
 // or the timeout expires, whichever occurs first
-func (c *Connector) Get(ctx context.Context, id string, timeout time.Duration) (*Connection, error) {
+func (c *Connector) Get(ctx context.Context, id string, timeout time.Duration) (SessionInteraction, error) {
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -83,7 +83,7 @@ func (c *Connector) Get(ctx context.Context, id string, timeout time.Duration) (
 	conn := c.connections[id]
 	c.mutex.RUnlock()
 	if conn != nil {
-		return conn, nil
+		return conn.spty, nil
 	} else if timeout == 0 {
 		return nil, fmt.Errorf("no such connection")
 	}
@@ -113,7 +113,7 @@ func (c *Connector) Get(ctx context.Context, id string, timeout time.Duration) (
 	select {
 	case client := <-result:
 		log.Debugf("Found connection for %s: %p", id, client)
-		return client, nil
+		return client.spty, nil
 	case <-ctx.Done():
 		err := fmt.Errorf("id:%s: %s", id, ctx.Err())
 		log.Error(err)

@@ -20,6 +20,7 @@ import (
 
 	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/dio"
+	"github.com/vmware/vic/portlayer/attach"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 )
@@ -41,7 +42,7 @@ type utilities interface {
 	sessionLogWriter() (dio.DynamicMultiWriter, error)
 	processEnvOS(env []string) []string
 	establishPty(session *SessionConfig) error
-	resizePty(pty uintptr, winSize *WindowChangeMsg) error
+	resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error
 	signalProcess(process *os.Process, sig ssh.Signal) error
 	backchannel(ctx context.Context) (net.Conn, error)
 }

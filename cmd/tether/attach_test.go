@@ -529,7 +529,7 @@ func TestMockAttachTetherToPL(t *testing.T) {
 					ID:   "attach",
 					Name: "tether_test_session",
 				},
-				Tty:    false,
+				Tty:    true,
 				Attach: true,
 				Cmd: metadata.Cmd{
 					Path: "/usr/bin/tee",
@@ -551,8 +551,22 @@ func TestMockAttachTetherToPL(t *testing.T) {
 		return
 	}
 
-	_, err = testServer.Get(context.Background(), "attach", 600*time.Second)
+	var pty attach.SessionInteraction
+	pty, err = testServer.Get(context.Background(), "attach", 600*time.Second)
 	if !assert.NoError(t, err) {
+		return
+	}
+
+	err = pty.Resize(1, 2, 3, 4)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	if !assert.Equal(t, mocked.windowCol, uint32(1)) {
+		return
+	}
+
+	if !assert.Equal(t, mocked.windowRow, uint32(2)) {
 		return
 	}
 }

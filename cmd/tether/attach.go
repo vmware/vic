@@ -23,6 +23,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/portlayer/attach"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 )
@@ -48,14 +49,6 @@ var (
 		ssh.SIGUSR2: 12,
 	}
 )
-
-// WindowChangeMsg the RFC4254 struct
-type WindowChangeMsg struct {
-	Columns  uint32
-	Rows     uint32
-	WidthPx  uint32
-	HeightPx uint32
-}
 
 type stringMsg struct {
 	Signal string
@@ -313,34 +306,32 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 	var err error
 	for req := range in {
 		var pendingFn func()
-		var payload []byte
 		ok := true
 
 		switch req.Type {
-		case "window-change":
-			msg := WindowChangeMsg{}
+		case attach.WindowChangeReq:
+			msg := attach.WindowChangeMsg{}
 			if pty == nil {
 				ok = false
-				payload = []byte("illegal window-change request for non-tty")
+				log.Errorf("illegal window-change request for non-tty")
 			} else if err = ssh.Unmarshal(req.Payload, &msg); err != nil {
 				ok = false
-				payload = []byte(err.Error())
+				log.Errorf(err.Error())
 			} else if err = utils.resizePty(pty.Fd(), &msg); err != nil {
 				ok = false
-				payload = []byte(err.Error())
+				log.Errorf(err.Error())
 			}
 		case "signal":
 			msg := stringMsg{}
 			if err = ssh.Unmarshal(req.Payload, &msg); err != nil {
 				ok = false
-				payload = []byte(err.Error())
+				log.Errorf(err.Error())
 			} else {
 				log.Infof("Sending signal %s to container process, pid=%d\n", string(msg.Signal), process.Pid)
 				err = utils.signalProcess(process, ssh.Signal(msg.Signal))
 				if err != nil {
 					log.Errorf("Failed to dispatch signal to process: %s\n", err)
 				}
-				payload = []byte{}
 			}
 		default:
 			ok = false
@@ -348,9 +339,9 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 			log.Error(err.Error())
 		}
 
-		// make sure that errors get send back if we failed
+		// payload is ignored on channel specific replies.  The ok is passed, however.
 		if req.WantReply {
-			req.Reply(ok, payload)
+			req.Reply(ok, nil)
 		}
 
 		// run any pending work now that a reply has been sent
