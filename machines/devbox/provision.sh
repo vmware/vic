@@ -13,6 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# add key for docker repo
+apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+# add docker apt sources
+echo "deb https://apt.dockerproject.org/repo ubuntu-xenial main" >> /etc/apt/sources.list.d/docker.list
 
 apt-get update && apt-get -y dist-upgrade
 
@@ -23,40 +27,24 @@ echo "export GOPATH=${BASH_ARGV[1]}" >> "$pro"
 # add GOPATH/bin to the PATH
 echo "export PATH=$PATH:${BASH_ARGV[1]}/bin" >> "$pro"
 
-# vmwaretools automatic kernel update
-echo "answer AUTO_KMODS_ENABLED yes" | tee -a /etc/vmware-tools/locations
+apt-get -y install curl lsof strace git shellcheck tree mc silversearcher-ag jq htpdate apt-transport-https ca-certificates
 
-apt-get -y install curl lsof strace git shellcheck tree mc silversearcher-ag jq htpdate
+function update_go {
+    (cd /usr/local &&
+            (curl --silent -L $go_file | tar -zxf -) &&
+            ln -fs /usr/local/go/bin/* /usr/local/bin/)
+}
 
 # install / upgrade go
 go_file="https://storage.googleapis.com/golang/go1.6.2.linux-amd64.tar.gz"
 go_version=$(basename $go_file | cut -d. -f1-3)
-go_current=$(go version | awk '{print $(3)}')
 
-if [[ ! -d "/usr/local/go" || "$go_current" != "$go_version" ]] ; then
-    (cd /usr/local &&
-        (curl --silent -L $go_file | tar -zxf -) &&
-        ln -fs /usr/local/go/bin/* /usr/local/bin/)
+if [[ ! -d "/usr/local/go" || $(go version | awk '{print $(3)}') != "$go_version" ]] ; then
+    update_go
 fi
 
-cat << EOF > /etc/systemd/system/docker.service
-[Unit]
-Description=Docker Application Container Engine
-Documentation=https://docs.docker.com
-After=network.target docker.socket
-Requires=docker.socket
-
-[Service]
-Type=notify
-ExecStart=/usr/bin/docker daemon -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock -D
-MountFlags=slave
-LimitNOFILE=1048576
-LimitNPROC=1048576
-LimitCORE=infinity
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
-systemctl restart docker
+# Install docker
+apt-get -y install linux-image-extra-$(uname -r)
+apt-get -y install docker-engine
+service docker start
+usermod -aG docker vagrant

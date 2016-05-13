@@ -4,7 +4,7 @@ Vagrant.configure(2) do |config|
   dirs = ENV['GOPATH'] || Dir.home
   gdir = nil
   config.vm.define "vic_dev" do | vic_dev |
-    vic_dev.vm.box = 'boxcutter/ubuntu1504-docker'
+    vic_dev.vm.box = 'cbednarski/ubuntu-1604'
     vic_dev.vm.network 'forwarded_port', guest: 2375, host: 12375
     vic_dev.vm.host_name = 'devbox'
     vic_dev.vm.synced_folder '.', '/vagrant', disabled: true
@@ -25,7 +25,7 @@ Vagrant.configure(2) do |config|
       end
     end
 
-    Dir['machines/devbox/provision*.sh'].each do |path|
+    Dir['machines/devbox/provision.sh', 'machines/devbox/provision-drone.sh'].each do |path|
       vic_dev.vm.provision 'shell', path: path, args: [gdir, vic_dev.ssh.username]
     end
   end
