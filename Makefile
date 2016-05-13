@@ -169,7 +169,6 @@ $(go-imports): $(GOIMPORTS) $(find . -type f -name '*.go' -not -path "./vendor/*
 govet:
 	@echo checking go vet...
 	@$(GO) tool vet -all $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
-	@$(GO) tool vet -shadow $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
 
 vendor: $(GVT)
 	@echo restoring vendor
