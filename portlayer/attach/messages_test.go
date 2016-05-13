@@ -43,3 +43,15 @@ func TestSignal(t *testing.T) {
 
 	assert.Equal(t, s, out)
 }
+
+func TestContainers(t *testing.T) {
+	s := &ContainersMsg{IDs: []string{"foo", "bar", "baz"}}
+
+	assert.Equal(t, s.RequestType(), ContainersReq)
+
+	tmp := s.Marshal()
+	out := &ContainersMsg{}
+	out.Unmarshal(tmp)
+
+	assert.Equal(t, s, out)
+}

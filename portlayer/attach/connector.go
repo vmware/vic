@@ -29,12 +29,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-// XXX This should be a shared data struct
-// The supported requests on the tether ssh server
-const (
-	requestContainerIDs = "container-ids"
-)
-
 // Connection represents a communication channel initiated by the client TO the
 // client.  The client connects (via TCP) to the server, then the server
 // initiates an SSH connection over the same sock to the client.

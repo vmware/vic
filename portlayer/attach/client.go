@@ -50,18 +50,16 @@ type attachSSH struct {
 }
 
 func SSHls(client *ssh.Client) ([]string, error) {
-	ok, reply, err := client.SendRequest(requestContainerIDs, true, nil)
+	ok, reply, err := client.SendRequest(ContainersReq, true, nil)
 	if !ok || err != nil {
 		detail := fmt.Sprintf("failed to get container IDs from remote: %s", err)
 		log.Error(detail)
 		return nil, errors.New(detail)
 	}
 
-	ids := struct {
-		Strings []string
-	}{}
+	ids := ContainersMsg{}
 
-	err = ssh.Unmarshal(reply, &ids)
+	err = ids.Unmarshal(reply)
 	if err != nil {
 		detail := fmt.Sprintf("failed to unmarshall ids from remote: %s", err)
 		log.Error(detail)
@@ -69,7 +67,7 @@ func SSHls(client *ssh.Client) ([]string, error) {
 		return nil, err
 	}
 
-	return ids.Strings, nil
+	return ids.IDs, nil
 }
 
 // SSHAttach returns a stream connection to the requested session

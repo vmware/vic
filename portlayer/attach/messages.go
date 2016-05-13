@@ -92,3 +92,22 @@ func (s *SignalMsg) Unmarshal(payload []byte) error {
 func (s *SignalMsg) Signum() int {
 	return Signals[s.Signal]
 }
+
+// ContainersMsg
+const ContainersReq = "container-ids"
+
+type ContainersMsg struct {
+	IDs []string
+}
+
+func (s *ContainersMsg) RequestType() string {
+	return ContainersReq
+}
+
+func (s *ContainersMsg) Marshal() []byte {
+	return ssh.Marshal(*s)
+}
+
+func (s *ContainersMsg) Unmarshal(payload []byte) error {
+	return ssh.Unmarshal(payload, s)
+}

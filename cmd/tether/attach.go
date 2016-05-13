@@ -32,14 +32,6 @@ const (
 	attachChannelType = "attach"
 )
 
-type stringMsg struct {
-	Signal string
-}
-
-type stringArrayMsg struct {
-	Strings []string
-}
-
 // server is the singleton attachServer for the tether - there can be only one
 // as the backchannel line protocol may not provide multiplexing of connections
 var server attachServer
@@ -251,16 +243,16 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 		log.Infof("received global request type %v", req.Type)
 
 		switch req.Type {
-		case "container-ids":
+		case attach.ContainersReq:
 			keys := make([]string, len(config.Sessions))
 			i := 0
 			for k := range config.Sessions {
 				keys[i] = k
 				i++
 			}
-			msg := stringArrayMsg{Strings: keys}
+			msg := attach.ContainersMsg{IDs: keys}
+			payload = msg.Marshal()
 
-			payload = []byte(ssh.Marshal(msg))
 		default:
 			ok = false
 			payload = []byte("unknown global request type: " + req.Type)
