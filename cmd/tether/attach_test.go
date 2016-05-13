@@ -561,12 +561,14 @@ func TestMockAttachTetherToPL(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-
-	if !assert.Equal(t, mocked.windowCol, uint32(1)) {
+	if !assert.Equal(t, mocked.windowCol, uint32(1)) || !assert.Equal(t, mocked.windowRow, uint32(2)) {
 		return
 	}
 
-	if !assert.Equal(t, mocked.windowRow, uint32(2)) {
+	if err = pty.Signal("HUP"); !assert.NoError(t, err) {
+		return
+	}
+	if !assert.Equal(t, mocked.signal, ssh.Signal("HUP")) {
 		return
 	}
 }

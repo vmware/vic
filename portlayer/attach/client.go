@@ -95,7 +95,17 @@ func SSHAttach(client *ssh.Client, id string) (SessionInteraction, error) {
 }
 
 func (t *attachSSH) Signal(signal ssh.Signal) error {
-	return errors.New("signal is unimplemented")
+	msg := SignalMsg{signal}
+	ok, err := t.channel.SendRequest(SignalReq, true, msg.Marshal())
+	if err == nil && !ok {
+		return fmt.Errorf("unknown error")
+	}
+
+	if err != nil {
+		return fmt.Errorf("signal error: %s", err)
+	}
+
+	return nil
 }
 
 func (t *attachSSH) Stdout() io.Reader {
