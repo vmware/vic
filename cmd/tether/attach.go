@@ -314,7 +314,7 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 			if pty == nil {
 				ok = false
 				log.Errorf("illegal window-change request for non-tty")
-			} else if err = ssh.Unmarshal(req.Payload, &msg); err != nil {
+			} else if err = msg.Unmarshal(req.Payload); err != nil {
 				ok = false
 				log.Errorf(err.Error())
 			} else if err = utils.resizePty(pty.Fd(), &msg); err != nil {

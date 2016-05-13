@@ -119,8 +119,8 @@ func (t *attachSSH) Close() error {
 // Resize resizes the terminal.
 func (t *attachSSH) Resize(cols, rows, widthpx, heightpx uint32) error {
 
-	msg := ssh.Marshal(WindowChangeMsg{cols, rows, widthpx, heightpx})
-	ok, err := t.channel.SendRequest(WindowChangeReq, true, msg)
+	msg := WindowChangeMsg{cols, rows, widthpx, heightpx}
+	ok, err := t.channel.SendRequest(WindowChangeReq, true, msg.Marshal())
 	if err == nil && !ok {
 		return fmt.Errorf("unknown error")
 	}
