@@ -23,10 +23,10 @@ import (
 	"github.com/go-swagger/go-swagger/swag"
 	"golang.org/x/net/context"
 
-	"github.com/vmware/vic/apiservers/portlayer/models"
-	"github.com/vmware/vic/apiservers/portlayer/restapi/operations"
-	"github.com/vmware/vic/apiservers/portlayer/restapi/operations/storage"
-	"github.com/vmware/vic/apiservers/portlayer/restapi/options"
+	"github.com/vmware/vic/cmd/servers/portlayer/models"
+	"github.com/vmware/vic/cmd/servers/portlayer/restapi/operations"
+	"github.com/vmware/vic/cmd/servers/portlayer/restapi/operations/storage"
+	"github.com/vmware/vic/cmd/servers/portlayer/restapi/options"
 	"github.com/vmware/vic/pkg/vsphere/session"
 
 	spl "github.com/vmware/vic/portlayer/storage"

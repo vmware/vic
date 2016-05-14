@@ -28,10 +28,10 @@ import (
 
 	"net/http"
 
-	"github.com/vmware/vic/apiservers/portlayer/models"
-	"github.com/vmware/vic/apiservers/portlayer/restapi/operations"
-	"github.com/vmware/vic/apiservers/portlayer/restapi/operations/containers"
-	"github.com/vmware/vic/apiservers/portlayer/restapi/options"
+	"github.com/vmware/vic/cmd/servers/portlayer/models"
+	"github.com/vmware/vic/cmd/servers/portlayer/restapi/operations"
+	"github.com/vmware/vic/cmd/servers/portlayer/restapi/operations/containers"
+	"github.com/vmware/vic/cmd/servers/portlayer/restapi/options"
 	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/portlayer/exec"

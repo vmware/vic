@@ -22,9 +22,9 @@ import (
 
 	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
 
-	"github.com/vmware/vic/apiservers/portlayer/models"
-	"github.com/vmware/vic/apiservers/portlayer/restapi/operations"
-	"github.com/vmware/vic/apiservers/portlayer/restapi/operations/scopes"
+	"github.com/vmware/vic/cmd/servers/portlayer/models"
+	"github.com/vmware/vic/cmd/servers/portlayer/restapi/operations"
+	"github.com/vmware/vic/cmd/servers/portlayer/restapi/operations/scopes"
 	"github.com/vmware/vic/portlayer/exec"
 	"github.com/vmware/vic/portlayer/network"
 

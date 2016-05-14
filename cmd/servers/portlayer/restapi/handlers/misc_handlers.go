@@ -16,8 +16,8 @@ package handlers
 
 import (
 	"github.com/go-swagger/go-swagger/httpkit/middleware"
-	"github.com/vmware/vic/apiservers/portlayer/restapi/operations"
-	"github.com/vmware/vic/apiservers/portlayer/restapi/operations/misc"
+	"github.com/vmware/vic/cmd/servers/portlayer/restapi/operations"
+	"github.com/vmware/vic/cmd/servers/portlayer/restapi/operations/misc"
 )
 
 type MiscHandlersImpl struct{}

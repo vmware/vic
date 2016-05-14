@@ -34,9 +34,9 @@ The list is organized into 3 separate tables. The first table lists CLI operatio
 |tag| YES| - |
 |version | YES| P0 - core function: admin |
 |volume create| *Yes - differences*| P0 - core function: use/admin |
-|volume inspect| YES| P1 - core function: admin - maybe less critical in production | 
+|volume inspect| YES| P1 - core function: admin - maybe less critical in production |
 |volume ls| YES| P0 - core function: use |
-|volume rm| YES| P1 - core function: use/admin - depends on dynamism of volume use | 
+|volume rm| YES| P1 - core function: use/admin - depends on dynamism of volume use |
 |exec | YES | P1 - interactive debug |
 |pause | YES| - |
 |stats | YES| P1 - core function: diagnostics |

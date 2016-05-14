@@ -208,14 +208,14 @@ This is the structure of the `Mounts` field in the request.
     ]
 ```
 
-###Response 
+###Response
 
 The response for the create call is very simple in nature
 
 it will return these two fields as json object in the body of an HTTP call.
 
 * __Id__ : this is the id of the created containers.
-* __Warnings__ : an array of strings that contain warning messages. 
+* __Warnings__ : an array of strings that contain warning messages.
 
 ### Status Codes
 
@@ -228,20 +228,20 @@ it will return these two fields as json object in the body of an HTTP call.
 
 ```GET /containers/(id)/logs```
 
-This operation will return StdOut and StdErr logs from the target container. 
+This operation will return StdOut and StdErr logs from the target container.
 
 ### Query parameters
 
 |Paramter|Description|support|
 |---|---|---|
 | __follow__ |1/true/True or 0/false/False, defaults to false. This determines if a stream is returned. | YES |
-| __stdout__ |1/true/True or 0/false/False, defaults to false. Indicates whether stdout logs are desired. | YES | 
-| __stderr__ | 1/true/True or 0/false/False, defaults to false. Indicates whether stderr logs are desired.| YES | 
+| __stdout__ |1/true/True or 0/false/False, defaults to false. Indicates whether stdout logs are desired. | YES |
+| __stderr__ | 1/true/True or 0/false/False, defaults to false. Indicates whether stderr logs are desired.| YES |
 | __since__ | integer based UNIX timestamp with which to filter logs. Only logs since the timestamp will be returned. Default: 0. | *maybe* |
 | __timestamps__ | 1/true/True or 0/false/False, defaults to false. timestamped log lines. Defaults to false.| *maybe* |
 | __tail__ | all or <number>. indicates how many lines to output since the end of the logs. | *maybe* |
 
-### Status Codes 
+### Status Codes
 
 * 101 : no error, indicates proxy about hijacking
 * 200 : no error, no upgrade header from attach found
@@ -252,12 +252,12 @@ This operation will return StdOut and StdErr logs from the target container.
 
 ```GET /containers/(id)/export```
 
-This exports the contents of a container as a flattened file for other than docker use. 
+This exports the contents of a container as a flattened file for other than docker use.
 __VIC plans to support this in the future__
 
 ### Response
 
-HTTP response that returns a binary stream of the flattened file in a tarball. The response is of type application/octet-stream. 
+HTTP response that returns a binary stream of the flattened file in a tarball. The response is of type application/octet-stream.
 
 ### Response Status Codes
 
@@ -266,12 +266,12 @@ HTTP response that returns a binary stream of the flattened file in a tarball. T
 * 500 : server error
 
 ## Attach to a container
- 
+
 ```POST /containers/(id or name)/attach```
 
 This call will return a stream of the targeted containers common io streams(stdout, stdin, stderr). It is important to note that this involves a `HTTP UPGRADE` response.
 
-### Query Parameters 
+### Query Parameters
 
 |parameter| description| supported |
 |---|---|---|
@@ -301,7 +301,7 @@ __TBD__
 
 Handshake according to `RFC 6455`
 
-### Query Parameters 
+### Query Parameters
 
 |parameter| description| supported |
 |---|---|---|
@@ -403,4 +403,3 @@ the request should probide a tar stream of the file to be used as the docker fil
 ### Create a volume
 ### Inspect a volume
 ### Remove a volume
-

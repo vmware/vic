@@ -22,10 +22,10 @@ import (
 	"github.com/go-swagger/go-swagger/httpkit"
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 
-	apiclient "github.com/vmware/vic/apiservers/portlayer/client"
-	"github.com/vmware/vic/apiservers/portlayer/client/misc"
-	"github.com/vmware/vic/apiservers/portlayer/client/storage"
-	"github.com/vmware/vic/apiservers/portlayer/models"
+	apiclient "github.com/vmware/vic/cmd/servers/portlayer/client"
+	"github.com/vmware/vic/cmd/servers/portlayer/client/misc"
+	"github.com/vmware/vic/cmd/servers/portlayer/client/storage"
+	"github.com/vmware/vic/cmd/servers/portlayer/models"
 	"github.com/vmware/vic/pkg/trace"
 )
 

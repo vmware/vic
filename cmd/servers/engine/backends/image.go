@@ -31,8 +31,8 @@ import (
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/registry"
-	"github.com/vmware/vic/apiservers/portlayer/client/storage"
-	"github.com/vmware/vic/apiservers/portlayer/models"
+	"github.com/vmware/vic/cmd/servers/portlayer/client/storage"
+	"github.com/vmware/vic/cmd/servers/portlayer/models"
 )
 
 const (
