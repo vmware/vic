@@ -21,11 +21,20 @@
 #     pkg       This is github.com/vmware/vic/cmd/imagec for example
 #
 
-PKG=$1
+pkg=$1
+flags=$2
 
-if [ -d $PKG ]; then
-    echo "Generating deps for $PKG" >&2
-    go list -f '{{join .Deps "\n"}}' github.com/vmware/vic/$PKG 2>/dev/null |  xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' 2>/dev/null | sed -e 's:github.com/vmware/vic/\(.*\)$:\1/*:'
+if [ -d "$pkg" ]; then
+    if [[ "$flags" == *d* ]]
+    then
+        # Only output if make is given the '-d' flag
+        echo "Generating deps for $pkg" >&2
+    fi
+
+    go list -f '{{join .Deps "\n"}}' github.com/vmware/vic/"$pkg" 2>/dev/null | \
+        xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' 2>/dev/null | \
+        sed -e 's:github.com/vmware/vic/\(.*\)$:\1/*:'
 else
-    echo "Skipping generation of deps for non-existant package $PKG" >&2
+    echo "$0: package '$pkg' does not exist" >&2
+    exit 1
 fi
