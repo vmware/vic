@@ -103,6 +103,12 @@ while true; do
     sleep 1
 done
 
+echo "Installing host client..."
+govc host.esxcli -- software vib install -v http://download3.vmware.com/software/vmw-tools/esxui/esxui-signed-3843236.vib
+
+echo "Enabling MOB..."
+govc host.option.set Config.HostAgent.plugins.solo.enableMob true
+
 echo "Propagating \$GOVC_URL password to $name host root account..."
 govc host.account.update -id root -password "$password"
 
