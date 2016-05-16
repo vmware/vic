@@ -15,12 +15,9 @@
 #!/usr/bin/env bats
 
 load helpers/helpers
-load 'helpers/bats-support/load'
-load 'helpers/bats-assert/load'
 
-curr=$PWD
-imagec="${curr}/../bin/imagec"
-portlayer="${curr}/../bin/port-layer-server"
+imagec="$VIC_DIR/bin/imagec"
+portlayer="$VIC_DIR/bin/port-layer-server"
 IMAGES_DIR="images"
 DEFAULT_IMAGE="https/registry-1.docker.io/v2/library/photon/latest"
 ALT_IMAGE="https/registry-1.docker.io/v2/tatsushid/tinycore"

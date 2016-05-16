@@ -14,11 +14,9 @@
 # limitations under the License.
 
 load helpers/helpers
-load 'helpers/bats-support/load'
-load 'helpers/bats-assert/load'
 
 setup () {
-    installer="$(git rev-parse --show-toplevel)/bin/vic-machine"
+    installer="$VIC_DIR/bin/vic-machine"
     docker="$(which docker)"
 
     assert [ -n "$VIC_ESX_TEST_URL" ]

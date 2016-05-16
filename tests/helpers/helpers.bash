@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load 'vendor/github.com/ztombol/bats-support/load'
+load 'vendor/github.com/ztombol/bats-assert/load'
+
+VIC_DIR=$(git rev-parse --show-toplevel)
+
 # starts the port layer server in the background, waits for it to start, saves the pid to $port_layer_pid
 # return value 0 on success, 1 on timeout
 start_port_layer () {
@@ -87,4 +92,15 @@ verify_checksums () {
     done
 
     popd
+}
+
+govc () {
+    govc_bin=${GOVC:-$(which govc)}
+
+    if [ -z "$govc_bin" ] ; then
+        echo "govc: command not found" >&2
+        exit 1
+    fi
+
+    $govc_bin "$@"
 }
