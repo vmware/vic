@@ -15,6 +15,7 @@
 package exec
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -138,6 +139,7 @@ func (c *Container) Start(ctx context.Context) error {
 		return err
 	}
 
+	var detail string
 	waitFunc := func(pc []types.PropertyChange) bool {
 		// guestinfo key that we want to wait for
 		key := fmt.Sprintf("guestinfo..sessions|%s.started", c.ID)
@@ -149,9 +151,10 @@ func (c *Container) Start(ctx context.Context) error {
 
 			values := c.Val.(types.ArrayOfOptionValue).OptionValue
 			for _, value := range values {
-				// check the status of the key and return true if it's "true"
-				if key == value.GetOptionValue().Key && value.GetOptionValue().Value.(string) == "true" {
-					return true
+				// check the status of the key and return true if it's been set to non-nil
+				if key == value.GetOptionValue().Key {
+					detail = value.GetOptionValue().Value.(string)
+					return detail != "" && detail != "<nil>"
 				}
 			}
 		}
@@ -162,5 +165,10 @@ func (c *Container) Start(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, propertyCollectorTimeout)
 	defer cancel()
 
-	return c.vm.WaitForExtraConfig(ctx, waitFunc)
+	c.vm.WaitForExtraConfig(ctx, waitFunc)
+	if detail != "true" {
+		return errors.New(detail)
+	}
+
+	return nil
 }
