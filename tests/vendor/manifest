@@ -9,6 +9,15 @@
 			"branch": "master",
 			"notests": true,
 			"allfiles": true
+		},
+		{
+			"importpath": "github.com/ztombol/bats-assert",
+			"repository": "https://github.com/ztombol/bats-assert",
+			"vcs": "git",
+			"revision": "9f88b4207da750093baabc4e3f41bf68f0dd3630",
+			"branch": "master",
+			"notests": true,
+			"allfiles": true
 		}
 	]
 }
