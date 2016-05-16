@@ -14,14 +14,14 @@ Installation will be required for capabilities such as [self-provisioning](doc/d
 - DHCP - the VCH currently requires there be DHCP on the external network (-external-network flag if not "VM Network")
 - Bridge network - when installed in a vCenter environment vic-machine does not automatically create a bridge network. An existing vSwitch or Distributed Portgroup should be specified via the -bridge-network flag, and should not be the same as the external network.
 
-Replace the `<fields>` in the example with values specific to your environment - this will install VCH to the specified resource pool of ESXi or vCenter, and the container VMs will be created under that resource pool. Bug #539 is tracking the container VM creation issue.
+Replace the `<fields>` in the example with values specific to your environment - this will install VCH to the specified resource pool of ESXi or vCenter, and the container VMs will be created under that resource pool.
 
-- Here is one resource pool path sample: `/ha-datacenter/host/localhost/Resources/test`
+- -compute-resource is the resource pool where VCH will be deployed to, which should be in govc format. Here is one resource pool path sample: `/ha-datacenter/host/localhost/Resources/test`. For users not familar with govc, please check [govc](https://github.com/vmware/govmomi/blob/master/govc) document.
 - -generate-cert flag is to generate certificates and configure TLS. 
 - -force flag is to remove an existing datastore folder or VM with the same name.
 
 ```
-vic-machine -target target-host -image-store <datastore name> -name <vch-name> -user root -passwd <password> -compute-resource <resource pool path in govc format> -generate-cert
+vic-machine -target target-host -image-store <datastore name> -name <vch-name> -user root -passwd <password> -compute-resource <resource pool path> -generate-cert
 ```
 This will, if successful, produce output similar to the following:
 ```
