@@ -18,6 +18,15 @@
 			"branch": "master",
 			"notests": true,
 			"allfiles": true
+		},
+		{
+			"importpath": "github.com/ztombol/bats-support",
+			"repository": "https://github.com/ztombol/bats-support",
+			"vcs": "git",
+			"revision": "d0a131831c487a1f1141e76d3ab386c89642cdff",
+			"branch": "master",
+			"notests": true,
+			"allfiles": true
 		}
 	]
 }
