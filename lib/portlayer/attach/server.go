@@ -78,6 +78,9 @@ func (n *Server) Addr() string {
 	return n.l.Addr().String()
 }
 
+// Get returns the session interface for the given container.  If the container
+// cannot be found, this call will wait for the given timeout.
+// id is ID of the container.
 func (n *Server) Get(ctx context.Context, id string, timeout time.Duration) (SessionInteraction, error) {
 	return n.connServer.Get(ctx, id, timeout)
 }
