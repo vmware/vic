@@ -1,3 +1,4 @@
+#!/usr/bin/env bats
 # Copyright 2016 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,135 +13,126 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/usr/bin/env bats
-
 load helpers/helpers
 load 'helpers/bats-support/load'
 load 'helpers/bats-assert/load'
 
-installer="${PWD}/../bin/vic-machine"
-docker="$(which docker)"
-log="/sbin"
-
 setup () {
-    assert [ -x "${installer}" ]
+    installer="$(git rev-parse --show-toplevel)/bin/vic-machine"
+    docker="$(which docker)"
+
+    assert [ -n "$VIC_ESX_TEST_URL" ]
+    assert [ -x "$installer" ]
     assert [ -x "$docker" ]
 
-    export GOVC_URL=$VIC_ESX_TEST_URL
-    export GOVC_INSECURE=true
-    export GOVC_PERSIST_SESSION=true
+    export GOVC_URL=$VIC_ESX_TEST_URL GOVC_INSECURE=true
+    export GOVC_USERNAME GOVC_PASSWORD GOVC_RESOURCE_POOL GOVC_DATASTORE
 
-    datacenter=`govc ls / | awk -F/ '{print $2}'`
-    host=`govc ls /${datacenter}/host/`
-    host=`echo ${host} | awk '{print $1}'`
-    POOL_PATH=`govc ls $host/Resources`
-    datastore=`govc ls /$datacenter/datastore | awk -F/ '{print $4}'`
-    IMAGE_STORE_NAME=`echo $datastore | awk '{print $1}'`
-    USER=$(awk -F: '{print $1}' <<<"$GOVC_URL")
-    passurl=$(awk -F: '{print $2}' <<<"$GOVC_URL")
-    PASSWORD=$(awk -F@ '{print $1}' <<<"$passurl")
-    TEST_URL=$(awk -F@ '{print $2}' <<<"$passurl")
-    vch_name="VCH-${RANDOM}"
-    about=`govc about`
-    if [[ "$about" == *"ESX"* ]]; then
-      ISVC=0
-    else
-      ISVC=1
+    if [ -z "$GOVC_RESOURCE_POOL" ] ; then
+        GOVC_RESOURCE_POOL=$(govc ls /*/host/*/Resources | head -1)
     fi
+
+    if [ -z "$GOVC_DATASTORE" ] ; then
+        GOVC_DATASTORE=$(govc ls /*/datastore | head -1 | xargs basename)
+    fi
+
+    # split GOVC_URL into GOVC_{URL,USERNAME,PASSWORD}
+    eval "$(govc env | sed -e 's/\$/\\$/g')"
+
+    vch_name="VCH-${RANDOM}"
 }
 
 teardown() {
-    echo "Clear VCH deployments if exists"
+    if [ -n "$(govc vm.info $vch_name)" ] ; then
+        govc vm.destroy $vch_name
+        govc pool.destroy "$GOVC_RESOURCE_POOL/$vch_name"
+        govc datastore.rm -f $vch_name
+        govc datastore.rm -f VIC
+        if govc host.vswitch.info | grep Name: | grep -q $vch_name ; then
+            govc host.vswitch.remove $vch_name
+        fi
+    fi
 
-    govc vm.destroy "${vch_name}" || echo "no need to delete VCH"
-    govc pool.destroy "${POOL_PATH}/${vch_name}" || echo "no need to delete resource pool"
-    govc datastore.rm -ds ${IMAGE_STORE_NAME} "${vch_name}" || echo "no need to delete datastore files"
-    govc datastore.rm -ds ${IMAGE_STORE_NAME} "VIC" || echo "no need to delete datastore file VIC"
-    govc host.vswitch.remove "${vch_name}" || echo "no need to remove vswitch"
-    rm *.pem || echo "no pem file found"
-    rm *.log || echo "no log file found"
+    rm -f ./$vch_name-*.pem
 }
 
 @test "vic-machine usage" {
-    run "${installer}"
+    run "$installer"
     assert_failure
-    echo ${lines[0]}
-    [[ ${lines[0]} =~ "-target argument must be specified" ]]
+    assert_line -e "-target argument must be specified"
 }
 
 @test "vic-machine user is missing" {
-    run "${installer}" -target ${TEST_URL}
+    run "$installer" -target "$GOVC_URL"
     assert_failure
-    echo ${lines[0]}
-    [[ ${lines[0]} =~ "-user User to login target must be specified" ]]
+    assert_line -e "-user User to login target must be specified"
 }
 
 @test "vic-machine compute-resource is missing" {
-    run "${installer}" -target ${TEST_URL} -user root
+    run "$installer" -target "$GOVC_URL" -user root
     assert_failure
-    echo ${lines[0]}
-    [[ ${lines[0]} =~ "-compute-resource Compute resource path must be specified" ]]
+    assert_line -e "-compute-resource Compute resource path must be specified"
 }
 
 @test "vic-machine image-store is missing" {
-    run "${installer}" -target ${TEST_URL} -user root -compute-resource $POOL_PATH
+    run "$installer" -target "$GOVC_URL" -user root -compute-resource "$GOVC_RESOURCE_POOL"
     assert_failure
-    echo ${lines[0]}
-    [[ ${lines[0]} =~ "-image-store Image datastore name must be specified" ]]
+    assert_line -e "-image-store Image datastore name must be specified"
 }
 
 @test "vic-machine deployment and docker commands" {
-    params="-target $TEST_URL -name ${vch_name} -user ${USER} -compute-resource $POOL_PATH -image-store $IMAGE_STORE_NAME"
-    if [ $ISVC == 1 ]; then
-	  assert [ -n $BRIDGE_NETWORK ]
-	  params="$params -bridge-network $BRIDGE_NETWORK"
-	fi
-    echo "${installer}" $params
-    params="$params -passwd ${PASSWORD}"
-    run "${installer}" $params
-    assert_success
-    len=${#lines[@]}
-    echo ${lines[len-2]}
-    echo ${lines[len-1]}
-    [[ ${lines[len-1]} =~ "Installer completed successfully..." ]]
-    docker_cmd=`echo ${lines[len-2]} | awk '{$1=$2=""; $(NF--)=""; print$0}'`
-    echo "docker_cmd="$docker_cmd
-    # execute sample docker command
-    run "$docker" $docker_cmd info
-    assert_success
-    echo ${lines[0]}
+    params=(-name $vch_name -target $GOVC_URL -user $GOVC_USERNAME -passwd $GOVC_PASSWORD
+            -compute-resource $GOVC_RESOURCE_POOL -image-store $GOVC_DATASTORE)
 
-    #reinstall with same name
-    params="-target $TEST_URL -name ${vch_name} -user ${USER} -compute-resource $POOL_PATH -image-store $IMAGE_STORE_NAME -force -key ./${vch_name}-key.pem -cert ./${vch_name}-cert.pem"
-    if [ $ISVC == 1 ]; then
-	  params="$params -bridge-network $BRIDGE_NETWORK"
-	fi
-    echo "${installer}" $params
-    params="$params -passwd ${PASSWORD}"
-    run "${installer}" $params
+    if [ "$(govc about -json | jq -r .About.ApiType)" = "VirtualCenter" ] ; then
+        assert [ -n "$BRIDGE_NETWORK" ]
+        params+=(-bridge-network $BRIDGE_NETWORK)
+    fi
+
+    local output status
+    run "$installer" "${params[@]}"
     assert_success
-    len=${#lines[@]}
-    echo ${lines[len-1]}
-    [[ ${lines[len-1]} =~ "Installer completed successfully..." ]]
-    docker_cmd=`echo ${lines[len-2]} | awk '{$1=$2=""; $(NF--)=""; print$0}'`
+    assert_line -e "Installer completed successfully"
+    docker_cmd=($(grep 'docker -H' <<<"$output" | cut -d' ' -f3-7))
+
+    # execute docker info command
+    for _ in $(seq 1 5) ; do
+      run "$docker" "${docker_cmd[@]}" info
+
+      if [ "$status" -eq 0 ] ; then
+          assert_line "Name: VIC"
+          break
+      fi
+
+      # retry as listener may not be up yet
+      sleep 1
+    done
+
+    assert_success
+
     # execute docker pull command
-    run "$docker" $docker_cmd info
+    run "$docker" "${docker_cmd[@]}" pull busybox
     assert_success
-    sleep 5
-    run "$docker" $docker_cmd pull busybox
-    assert_success
-    len=${#lines[@]}
-    echo ${lines[len-2]}
-    echo ${lines[len-1]}
+    assert_line -e "Status: .* for library/busybox:latest"
+
     # execute docker create/start command
-    run "$docker" $docker_cmd create busybox
+    run "$docker" "${docker_cmd[@]}" create busybox
     assert_success
-    len=${#lines[@]}
-    echo ${lines[len-1]}
-    name=${lines[0]}
-    run "$docker" $docker_cmd start ${name}
+    name="$output"
+
+    run "$docker" "${docker_cmd[@]}" start "$name"
     assert_success
-    len=${#lines[@]}
-    echo ${lines[len-1]}
-    govc vm.destroy ${name}
+
+    run govc vm.destroy "$name"
+    assert_success
+
+    run govc datastore.rm -f "$name"
+    assert_success
+
+    # test reinstall with same name
+    params+=(-force -key ./${vch_name}-key.pem -cert ./${vch_name}-cert.pem)
+
+    run "$installer" "${params[@]}"
+    assert_success
+    assert_line -e "Installer completed successfully"
 }
