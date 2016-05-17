@@ -224,19 +224,9 @@ func TestMissingBinary(t *testing.T) {
 	extraconfig.Decode(src, &cfg)
 
 	// check the launch status was failed
-	// status := cfg.Sessions["abspath"].ExitStatus
-	// if err == nil {
-	// 	t.Error("Expected error from missing binary")
-	// }
+	status := cfg.Sessions["missing"].Started
 
-	// read the output from the session
-	log, err := ioutil.ReadFile(pathPrefix + "/ttyS2")
-	if err != nil {
-		fmt.Printf("Failed to open log file for command: %s", err)
-	}
-	if len(log) > 0 {
-		fmt.Printf("Command output: %s", string(log))
-	}
+	assert.Equal(t, "fork/exec /not/there: no such file or directory", status, "Expected status to have a command not found error message")
 }
 
 //

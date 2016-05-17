@@ -165,7 +165,11 @@ func (c *Container) Start(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, propertyCollectorTimeout)
 	defer cancel()
 
-	c.vm.WaitForExtraConfig(ctx, waitFunc)
+	err = c.vm.WaitForExtraConfig(ctx, waitFunc)
+	if err != nil {
+		return fmt.Errorf("unable to wait for process launch status: %s", err.Error())
+	}
+
 	if detail != "true" {
 		return errors.New(detail)
 	}
