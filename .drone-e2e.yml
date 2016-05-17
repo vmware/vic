@@ -1,0 +1,36 @@
+# After any change to this file you MUST regenerate and checkin
+# a .drone.sec even if no secrets were changed. The secrets file is tied
+# to a specific .drone.yml so artifacts will not be uploaded to Bintray
+# in following builds without an updated .drone.sec
+---
+clone:
+  path: github.com/vmware/vic
+  tags: true
+
+build:
+  all:
+    image: golang:1.6.2
+    pull: true
+    environment:
+      BIN: bin
+    commands:
+      - make all
+
+  integration-test:
+    image: golang:1.6.2
+    pull: true
+    environment:
+      BIN: bin
+      GOPATH: /drone
+      SHELL: /bin/bash
+      DOCKER_API_VERSION: "1.21"
+      VIC_ESX_TEST_URL: $$VIC_ESX_TEST_URL
+    commands:
+      - make integration-tests
+    when:
+      success: true
+
+cache:
+  mount:
+    - /drone/bin
+    - bin
