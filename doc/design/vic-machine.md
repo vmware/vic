@@ -63,6 +63,111 @@ To create a VCH, disambiguation of which resource to use from the available set 
   - volumes
 
 
+## Usage Examples
+
+These are various examples intended to illustrate how vic-machine is intended to be used. These are illustrations rather than the finalized naming so if something doesn't make sense ask about it. 
+
+### Fully specified command line
+
+```
+vic-machine create
+-TO=https://root@****:vcenter/
+-name=edw-web
+-compute-resource=/example-datacenter/host/mycluster/Resources/edw-pool/web
+-image-store=ds://datastore/containers/edw
+-container-store=ds://datastore/edw/edw/web
+-client-network="VM Network"
+-management-network="management-net"
+-volume-store=ds://edw-san/reports:reports
+-volume-store=ds://edw-san/data:data
+-docker-network=private-vlan12d7f2:bridge
+-docker-network=edw-corp-net:backend
+-docker-network-ipam=edw-corp-net:10.118.78.128-192/24,10.118.78.1
+-container=oracledb.edw.corp.net:db.backend
+```
+
+The first block of these options control the core configuration of the VCH:
+* name - the textual name by which this VCH is identified.
+* compute-resource - resource pool, host, cluster, or other compute boundry into which the VCH should be deployed.
+* image-store - the datastore location where images will be placed, whether pulled via `docker pull` or created via `docker commit`.
+* contianer-store - the datastore location where containerVMs will be created. This does not have to be on the same datastore as the images, but both must be visible to all hosts on which containerVMs are to be created.
+* client-network - the network on which users will connect to the VCH to issue DOCKER_API commands.
+* management-network - the network providing access to a VMOMI SDK, in deployments where access to the management network is required.
+
+The second block of options control how exisiting vSphere resources are presented to users of the VCH. These are specified as a `source:destination` mapping with vSphere identifier as the source; it is the viadmin role that is providing this data and mapping mydomain:targetdomain aligns with how people tend to think.
+* -volume-store - datastore prefixes under which volumes can be created. These prefixes are mapped to labels that can be reference via the --opts mechanism when calling `docker volume create`
+* -docker-network - vSphere networks that should be exposed via `docker network` commands. As with the datastores this is a mapping from vSphere name to docker name. Ideally the docker name should express something about the purpose of presenting the network such as `internet`, `intranet`, or `databases`
+* -docker-network-ipam - this is an optional argument furnishing additional information for controlling IP address management on the network, in the form `ipaddress-range/mask,gateway`. If not specified, DHCP is used.
+* -container - this allows containers to address a specific FQDN as if it were itself a container managed by the VCH, specified in the form of `FQDN:alias.network`.  
+
+
+### Manifest file - create
+Note that the various resource paths end in a `/` - this signifies that it's acceptable for additional refinement to be provided when using this manifest file:
+
+```
+vic-machine create
+-TO=file::///home/joe/vch/edw.manifest
+-target=vcenter
+-user=root
+-password=****
+-compute-resource=/example-datacenter/host/mycluster/Resources/edw-pool/
+-image-store=ds://vsan-datastore/containers/edw
+-container-store=ds://vsan-datastore/edw/edw/
+-client-network="VM Network"
+-management-network="management-net"
+-volume-store=ds://edw-san/reports/:reports
+-volume-store=ds://edw-san/data/:data
+-docker-network=private-vlan12d7f2:bridge
+-docker-network=edw-corp-net:backend
+-docker-network-ipam=edw-corp-net:10.118.78.128-192/24,10.118.78.1
+-docker-network=internet-corp-net:frontend
+-container=oracledb.edw.corp.net:db.backend
+```
+
+### Manifest file - use
+When using a manifest file it's necessary to fully qualify resources that are left open (i.e. trailing `/` in the manifest). In the case of mappings where it is `source/:destination`, the destination label is used as the resource reference; this avoids a requirement to know the manifest path, although there is no intent at this time to obfuscate specifications beyond encrypting credentials and target URI.
+
+```
+vic-machine create
+-FROM=file::///home/joe/vch/edw.manifest
+-compute-resource=webteam
+-container-store=web
+-volume-store=reports/web:report
+-docker-network=bridge
+-name=web-team-private
+```
+
+The exact consumption mechanic of manifests is still quite uncertain. The example above is working on the premise that all mappings in the manifest are optional and are bound only if referenced, whether simply by label or as part of a refinement. The example above does not reference the _frontend_ network, so no containers can be attached to it.
+
+### List existing VCHs
+List the existing VCHs under the specified compute resource. The example below will list all VCHs in the target vCenter.
+```
+vic-machine ls
+-FROM=https://root@****:vcenter/
+```
+The following example lists VCHs under a specific resource
+```
+vic-machine ls
+-FROM=https://root@****:vcenter/example-datacenter/host/mycluster/Resources/edw-pool/
+```
+
+
+## Inspect existing VCH
+Inspect the configuration of an existing VCH by path:
+```
+vic-machine
+-FROM=https://root@****:vcenter/example-datacenter/host/mycluster/Resources/edw-pool/web-team-vch
+```
+
+Inspect the configuration of an existing VCH by moref - I feel leaking vCenter abstractions is unavoidable if allowing any specifier other than full paths:
+```
+vic-machine
+-FROM=https://root@****:vcenter/moref=vm-10324
+```
+
+## Updating an existing VCH configuration
+
+
 ## Implementation approach
 
 Recommended initial approach is to have several components that get rolled into both vic-machine. Initial implementation should focus on:
