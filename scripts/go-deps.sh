@@ -35,6 +35,8 @@ if [ -d "$pkg" ]; then
         xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' 2>/dev/null | \
         sed -e 's:github.com/vmware/vic/\(.*\)$:\1/*:'
 else
-    echo "$0: package '$pkg' does not exist" >&2
-    exit 1
+    if [[ "$flags" == *d* ]]
+    then
+        echo "$0: package '$pkg' does not exist" >&2
+    fi
 fi
