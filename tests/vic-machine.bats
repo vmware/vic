@@ -108,6 +108,8 @@ teardown() {
 
     assert_success
 
+    sleep 5 # TODO: should not need this
+
     # execute docker pull command
     run "$docker" "${docker_cmd[@]}" pull busybox
     assert_success
