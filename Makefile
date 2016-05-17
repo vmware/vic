@@ -15,7 +15,7 @@
 GO ?= go
 GOVERSION ?= go1.6.2
 OS := $(shell uname | tr '[:upper:]' '[:lower:]')
-ifeq ($(USER),vagrant)
+ifeq (vagrant, $(filter vagrant,$(USER) $(SUDO_USER)))
 	# assuming we are in a shared directory where host arch is different from the guest
 	BIN_ARCH := -$(OS)
 endif
@@ -31,6 +31,7 @@ SWAGGER ?= $(GOPATH)/bin/swagger$(BIN_ARCH)
 GOIMPORTS ?= $(GOPATH)/bin/goimports$(BIN_ARCH)
 GOLINT ?= $(GOPATH)/bin/golint$(BIN_ARCH)
 GVT ?= $(GOPATH)/bin/gvt$(BIN_ARCH)
+GOVC ?= $(GOPATH)/bin/govc$(BIN_ARCH)
 
 .PHONY: all tools clean test check \
 	goversion goimports gvt gopath govet \
@@ -134,6 +135,10 @@ $(SWAGGER): vendor/manifest
 	@echo building $(SWAGGER)...
 	@$(GO) build $(RACE) -o $(SWAGGER) ./vendor/github.com/go-swagger/go-swagger/cmd/swagger
 
+$(GOVC): vendor/manifest
+	@echo building $(GOVC)...
+	@$(GO) build $(RACE) -o $(GOVC) ./vendor/github.com/vmware/govmomi/govc
+
 copyright:
 	@echo "checking copyright in header..."
 	@scripts/header-check.sh
@@ -174,9 +179,12 @@ vendor: $(GVT)
 	@echo restoring vendor
 	$(GOPATH)/bin/gvt restore
 
-integration-tests: tests/run_test.sh components isos vic-machine
+$(GOPATH)/bin/bats:
+	@./tests/vendor/github.com/sstephenson/bats/install.sh $(GOPATH)
+
+integration-tests: $(GOPATH)/bin/bats $(GOVC) components isos vic-machine
 	@echo Running integration tests
-	@$<
+	@GOVC=$(GOVC) $(GOPATH)/bin/bats -t tests
 
 TEST_DIRS=github.com/vmware/vic/cmd/tether
 TEST_DIRS+=github.com/vmware/vic/cmd/imagec
