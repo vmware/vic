@@ -29,20 +29,12 @@ All of the ESXi hosts in a cluster require an appropriate license. Installation 
 You must use an account with the vSphere Administrator role when you install vSphere Integrated Containers.
 
 ## Network Requirements
+* Virtual container hosts require DHCP on the external network.
 * Use a trusted network for the deployment and use of vSphere Integrated Containers.
 * Use a trused network for connections between Docker clients and the virtual container hosts.
 * Use a Gigabit connection between the machine on which you run the command line installer and the vCenter Server or ESXi hosts on which you are installing vSphere Integrated Containers.
 * Use a Gigabit connection between vCenter Server and the ESXi hosts, and between the ESXi hosts and the virtual container hosts.
-* Open outgoing port 2377 on all ESXi hosts, for communication between the hosts and virtual container hosts.
- * For an example of how to open port 2377 on an ESXi host, see [Open an Outgoing Port on ESXi Hosts](open_an_outgoing_port_on_esxi_hosts.md).
- * In test environments, you can disable the firewalls on the ESXi hosts instead of opening port 2377. To disable the firewall, log into the ESXi hosts as ```root```, and run the following command: 
-   
-   ```$ esxcli network firewall set --enabled false```  
-
 * Each virtual container host requires the following network configuration:
  * One IP address, that can be either static or set by using DHCP.
  * One VLAN, if you use VLAN for network isolation.
  * One IP address for each container that you run with the `docker run --net=host` option.
-* Deployment to a vCenter Server cluster requires a private port group for each virtual container host. You must create the custom private port group in advance, or the installation fails. For instructions about how to create a private port group, see [Create a Private Port Group for Virtual Container Hosts](create_a_private_port_group_for_vch.md).
-
-
