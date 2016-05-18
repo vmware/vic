@@ -5,13 +5,13 @@
 
 vSphere Integrated Containers (VIC) is a container runtime for vSphere, allowing developers familiar with Docker to develop in containers and deploy them alongside traditional VM-based workloads on vSphere clusters, and allowing for these workloads to be managed through the vSphere UI in a way familiar to existing vSphere admins.
 
-See [VIC Containers Architecture](arch.md) for a high level overview.
+See [VIC Containers Architecture](doc/design/arch/arch.md) for a high level overview.
 
 ## Project Status
 
 VIC can currently pull images, create and start containers in a very limited fashion - most significantly you cannot attach to a container to see its output or interact with it. Interaction is only via the network - containers will be exposed directly on the VCH external network rather than via port forwarding.
 
-We are working hard to add functionality while building out our [foundation](arch.md#port-layer-abstractions) so continue to watch the repo for new features. Initial focus is on the production end of the CI pipeline, building backwards towards developer laptop scenarios.
+We are working hard to add functionality while building out our [foundation](doc/design/arch/arch.md#port-layer-abstractions) so continue to watch the repo for new features. Initial focus is on the production end of the CI pipeline, building backwards towards developer laptop scenarios.
 
 This extremely limited set of current capabilities may come as a surprise to people who are familiar with [Project Bonneville](http://blogs.vmware.com/cloudnative/introducing-project-bonneville/) that was [reasonably fully featured](https://www.youtube.com/watch?v=XkFQw8ueT1w) when demonstrated at VMworld in 2015.
 Project Bonneville was research aimed at determining best approaches to enabling container workflows in a vSphere environment and therefore enabled a broad set of features, but not in a manner that made it a viable product for large scale consumption. Building on top of research code is a great shortcut for fast time-to-market, but does not provide a good foundation for an enterprise quality product. vSphere Integrated Containers is a full re-architecture and re-write, building off the knowledge gained during Project Bonneville while keeping almost zero code.
@@ -19,9 +19,9 @@ Project Bonneville was research aimed at determining best approaches to enabling
 
 ## Installing
 
-Once built, the result can be installed with the following command. This is just an example - see the vic-machine help output for all options, and a slightly more indepth example [here](usage.md):
+Once built, the result can be installed with the following command. This is just an example - see the vic-machine help output for all options, and a slightly more indepth example [here](doc/user/usage.md):
 ```
-/vic-machine -target target-host -image-store <datastore name> -name <vch-name> -user root -passwd <password> -compute-resource <resource pool path in govc format> -generate-cert
+bin/vic-machine -target target-host -image-store <datastore name> -name <vch-name> -user root -passwd <password> -compute-resource <resource pool path in govc format> -generate-cert
 ```
 
 Starting a container currently requires the container metadata be specified on the command line (environment, working directory, and absolute path to the command) as the image metadata parsing is still in progress (#195, #411). Container output is found in a log file on the datastore ([datastore]/containerid/containerid.log).
