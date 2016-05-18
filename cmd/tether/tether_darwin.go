@@ -71,6 +71,10 @@ func (t *osopsOSX) processEnvOS(env []string) []string {
 	return env
 }
 
+func lookPath(file string, env []string) (string, error) {
+	return "", errors.New("unimplemented on OSX")
+}
+
 func (t *osopsOSX) establishPty(session *SessionConfig) error {
 	return errors.New("unimplemented on OSX")
 }
