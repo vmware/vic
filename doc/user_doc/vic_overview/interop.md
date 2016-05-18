@@ -1,6 +1,6 @@
 # vSphere Integrated Containers Interoperability with Other VMware Software
 
-IT administrators use vCenter Server to view and manage containers.
+IT administrators use vCenter Server to view and manage containers. vSphere Integrated Containers work seamlessly with VMware products. 
 
 #### vRealize Suite 
 
