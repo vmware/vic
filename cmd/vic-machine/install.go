@@ -20,12 +20,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/vmware/vic/install/configuration"
 	"github.com/vmware/vic/install/management"
 	"github.com/vmware/vic/pkg/flags"
 
@@ -58,8 +56,9 @@ type Data struct {
 	managementNetworkName  string
 	bridgeNetworkName      string
 
-	numCPUs  int32
+	numCPUs  int64
 	memoryMB int64
+	insecure bool
 
 	applianceISO string
 	bootstrapISO string
@@ -74,7 +73,6 @@ type Data struct {
 	timeout time.Duration
 	logfile string
 
-	conf     *configuration.Configuration
 	executor *management.Dispatcher
 }
 
@@ -155,37 +153,6 @@ func processParams() {
 		log.Fatalf("Display name %s exceeds the permitted 31 characters limit. Please use a shorter -name parameter", data.displayName)
 	}
 
-	// FIXME: add parameters for these configurations
-	data.osType = "linux"
-	data.logfile = "install.log"
-
-	data.conf = configuration.NewConfig()
-	// FIXME: add parameters for these configurations
-	data.conf.NumCPUs = 1
-	data.conf.MemoryMB = 2048
-	data.conf.DisplayName = data.displayName
-	resources := strings.Split(data.computeResourcePath, "/")
-	if len(resources) < 2 || resources[1] == "" {
-		log.Fatalf("Could not determine datacenter from specified -compute path, %s", data.computeResourcePath)
-	}
-	data.conf.DatacenterName = resources[1]
-	data.conf.ClusterPath = strings.Split(data.computeResourcePath, "/Resources")[0]
-
-	if data.conf.ClusterPath == "" {
-		log.Fatalf("Could not determine cluster from specified -compute path, %s", data.computeResourcePath)
-	}
-
-	data.conf.ResourcePoolPath = data.computeResourcePath
-	data.conf.ImageDatastoreName = data.imageDatastoreName
-	data.conf.ImageStorePath = fmt.Sprintf("/%s/datastore/%s", data.conf.DatacenterName, data.imageDatastoreName)
-	data.conf.ExternalNetworkPath = fmt.Sprintf("/%s/network/%s", data.conf.DatacenterName, data.externalNetworkName)
-	data.conf.ExternalNetworkName = data.externalNetworkName
-	data.conf.BridgeNetworkPath = fmt.Sprintf("/%s/network/%s", data.conf.DatacenterName, data.bridgeNetworkName)
-	data.conf.BridgeNetworkName = data.bridgeNetworkName
-	if data.managementNetworkName != "" {
-		data.conf.ManagementNetworkPath = fmt.Sprintf("/%s/network/%s", data.conf.DatacenterName, data.managementNetworkName)
-		data.conf.ManagementNetworkName = data.managementNetworkName
-	}
 	//prompt for passwd if not specified
 	if data.passwd == nil {
 		log.Print("Please enter ESX or vCenter password: ")
@@ -196,18 +163,18 @@ func processParams() {
 		sb := string(b)
 		data.passwd = &sb
 	}
-	data.conf.TargetPath = fmt.Sprintf("%s:%s@%s/sdk", data.user, *data.passwd, data.target)
+
+	// FIXME: add parameters for these configurations
+	data.osType = "linux"
+	data.logfile = "install.log"
+
+	// FIXME: add parameters for these configurations
+	data.numCPUs = 1
+	data.memoryMB = 2048
+	data.insecure = true
 }
 
-func validateConfiguration() error {
-	if err := loadCertificate(); err != nil {
-		return err
-	}
-
-	return data.conf.ValidateConfiguration()
-}
-
-func loadCertificate() error {
+func loadCertificate() (*Keypair, error) {
 	var keypair *Keypair
 	if data.cert != "" && data.key != "" {
 		log.Infof("Loading certificate/key pair - private key in %s", data.key)
@@ -220,25 +187,24 @@ func loadCertificate() error {
 	}
 	if keypair == nil {
 		log.Warnf("Configuring without TLS - to enable use -generate-cert or -key/-cert parameters")
-		return nil
+		return nil, nil
 	}
 	if err := keypair.GetCertificate(); err != nil {
 		log.Errorf("Failed to read/generate certificate: %s", err)
-		return err
+		return nil, err
 	}
-	data.conf.KeyPEM = keypair.KeyPEM
-	data.conf.CertPEM = keypair.CertPEM
-	return nil
+	return keypair, nil
 }
 
-func checkImagesFiles() error {
+func checkImagesFiles() ([]string, error) {
 	// detect images files
 	osImgs, ok := images[data.osType]
 	if !ok {
-		return fmt.Errorf("Specified OS \"%s\" is not known to this installer", data.osType)
+		return nil, fmt.Errorf("Specified OS \"%s\" is not known to this installer", data.osType)
 	}
 
 	var imgs []string
+	var result []string
 	if data.applianceISO != "" {
 		imgs = append(imgs, data.applianceISO)
 	} else {
@@ -263,18 +229,19 @@ func checkImagesFiles() error {
 
 		if os.IsNotExist(err) {
 			log.Warnf("\t\tUnable to locate %s in the current or installer directory.", img)
-			return err
+			return nil, err
 		}
-		data.conf.ImageFiles = append(data.conf.ImageFiles, img)
+		result = append(result, img)
 	}
-	return nil
+	return result, nil
 }
 
 func main() {
 	var err error
 	processParams()
 
-	if err = checkImagesFiles(); err != nil {
+	var images []string
+	if images, err = checkImagesFiles(); err != nil {
 		log.Fatalf("%s", err)
 	}
 
@@ -292,15 +259,28 @@ func main() {
 
 	log.Infof("### Installing VCH ####")
 
-	if err = validateConfiguration(); err != nil {
-		log.Fatalf("Validating supplied configuration failed. Exiting...")
+	var keypair *Keypair
+	if keypair, err = loadCertificate(); err != nil {
+		log.Fatalf("Loading certificate failed with %s. Exiting...", err)
 	}
 
+	validator := NewValidator()
+	vchConfig, err := validator.Validate(data)
+	if err != nil {
+		log.Fatalf("%s. Exiting...", err)
+	}
+
+	if keypair != nil {
+		vchConfig.KeyPEM = keypair.KeyPEM
+		vchConfig.CertPEM = keypair.CertPEM
+	}
+	vchConfig.ImageFiles = images
+
 	var cancel context.CancelFunc
-	data.conf.Context, cancel = context.WithTimeout(data.conf.Context, data.timeout)
+	validator.Context, cancel = context.WithTimeout(validator.Context, data.timeout)
 	defer cancel()
-	executor := management.NewDispatcher(data.conf, data.force, data.timeout)
-	if err = executor.Dispatch(data.conf); err != nil {
+	executor := management.NewDispatcher(validator.Context, validator.Session, vchConfig, data.force, data.timeout)
+	if err = executor.Dispatch(vchConfig); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Fatal(err)
 	}

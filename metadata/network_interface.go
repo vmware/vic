@@ -47,4 +47,11 @@ type ContainerNetwork struct {
 
 	// The set of nameservers associated with this network - may be empty
 	Nameservers []net.IP `vic:"0.1" scope:"read-only" key:"dns"`
+
+	// Subnet for the network
+	Subnet net.IPNet `vic:"0.1" scope:"read-only" key:"subnet"`
+
+	// The IP range for this network
+	FirstIP net.IP `vic:"0.1" scope:"read-only" key:"first_ip"`
+	LastIP  net.IP `vic:"0.1" scope:"read-only" key:"last_ip"`
 }

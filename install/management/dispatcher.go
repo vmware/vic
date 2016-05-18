@@ -25,7 +25,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/vic/install/configuration"
+	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/diagnostic"
@@ -34,10 +34,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	"golang.org/x/net/context"
-)
-
-var (
-	insecure = true
 )
 
 type Dispatcher struct {
@@ -56,10 +52,6 @@ type Dispatcher struct {
 
 	vchPool   *compute.ResourcePool
 	appliance *vm.VirtualMachine
-
-	// TODO: remove temp structure after refactor network configuration
-	networks map[string]object.NetworkReference
-	nics     map[string]string
 }
 
 type diagnosticLog struct {
@@ -72,34 +64,40 @@ type diagnosticLog struct {
 
 var diagnosticLogs = make(map[string]*diagnosticLog)
 
-func NewDispatcher(conf *configuration.Configuration, force bool, timeout time.Duration) *Dispatcher {
-	isVC := conf.Session.IsVC()
+func NewDispatcher(ctx context.Context, s *session.Session,
+	conf *metadata.VirtualContainerHostConfigSpec, force bool, timeout time.Duration) *Dispatcher {
+	isVC := s.IsVC()
 	e := &Dispatcher{
-		session: conf.Session,
-		ctx:     conf.Context,
+		session: s,
+		ctx:     ctx,
 		isVC:    isVC,
 		force:   force,
 		timeout: timeout,
 	}
 	e.initDiagnosticLogs(conf)
-	e.networks = make(map[string]object.NetworkReference)
-	e.nics = make(map[string]string)
 	return e
 }
 
 // Get the current log header LineEnd of the hostd/vpxd logs.
 // With this we avoid collecting log file data that existed prior to install.
-func (d *Dispatcher) initDiagnosticLogs(conf *configuration.Configuration) {
+func (d *Dispatcher) initDiagnosticLogs(conf *metadata.VirtualContainerHostConfigSpec) {
 	if d.isVC {
 		diagnosticLogs[d.session.ServiceContent.About.InstanceUuid] =
 			&diagnosticLog{"vpxd:vpxd.log", "vpxd.log", 0, nil, true}
+	}
+
+	// find the host(s) attached to given storage
+	hosts, err := d.session.Datastore.AttachedClusterHosts(d.ctx, d.session.Cluster)
+	if err != nil {
+		log.Errorf("Unable to get the list of hosts attached to given storage: %s", err)
+		return
 	}
 
 	if d.session.Host == nil {
 		// vCenter w/ auto DRS.
 		// Set collect=false here as we do not want to collect all hosts logs,
 		// just the hostd log where the VM is placed.
-		for _, host := range conf.Hosts {
+		for _, host := range hosts {
 			diagnosticLogs[host.Reference().Value] =
 				&diagnosticLog{"hostd", "hostd.log", 0, host, false}
 		}
@@ -130,14 +128,10 @@ func (d *Dispatcher) initDiagnosticLogs(conf *configuration.Configuration) {
 	}
 }
 
-func (d *Dispatcher) Dispatch(conf *configuration.Configuration) error {
+func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec) error {
 	var err error
 	if d.vchPool, err = d.createResourcePool(conf); err != nil && !d.force {
 		return errors.Errorf("Creating resource pool failed with %s. Exiting...", err)
-	}
-
-	if err = d.createBridgeNetwork(conf); err != nil && !d.force {
-		return errors.Errorf("Creating bridge network failed with %s. Exiting...", err)
 	}
 
 	if err = d.removeApplianceIfForced(conf); err != nil {
@@ -156,7 +150,7 @@ func (d *Dispatcher) Dispatch(conf *configuration.Configuration) error {
 	if err != nil {
 		return errors.Errorf("Failed to power on appliance %s. Exiting...", err)
 	}
-	if err = d.setMacToGuestInfo(); err != nil {
+	if err = d.setMacToGuestInfo(conf); err != nil {
 		return errors.Errorf("Failed to set Mac address %s. Exiting...", err)
 	}
 	if err = d.makeSureApplianceRuns(); err != nil && !d.force {
@@ -165,7 +159,7 @@ func (d *Dispatcher) Dispatch(conf *configuration.Configuration) error {
 	return nil
 }
 
-func (d *Dispatcher) uploadImages(conf *configuration.Configuration) error {
+func (d *Dispatcher) uploadImages(conf *metadata.VirtualContainerHostConfigSpec) error {
 	var err error
 	var wg sync.WaitGroup
 

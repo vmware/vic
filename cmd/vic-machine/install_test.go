@@ -22,8 +22,6 @@ import (
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
-
-	"github.com/vmware/vic/install/configuration"
 )
 
 func TestImageNotFound(t *testing.T) {
@@ -38,8 +36,7 @@ func TestImageNotFound(t *testing.T) {
 	os.Args = []string{"cmd", fmt.Sprintf("-appliance-iso=%s", tmpfile.Name())}
 	flag.Parse()
 	data.osType = "linux"
-	data.conf = configuration.NewConfig()
-	if err = checkImagesFiles(); err == nil {
+	if _, err = checkImagesFiles(); err == nil {
 		t.Errorf("Error is expected for boot iso file is not found.")
 	}
 }
@@ -63,19 +60,19 @@ func TestImageChecks(t *testing.T) {
 	flag.Parse()
 	data.applianceISO = ""
 	data.osType = "linux"
-	data.conf = configuration.NewConfig()
-	if err = checkImagesFiles(); err != nil {
+	var imageFiles []string
+	if imageFiles, err = checkImagesFiles(); err != nil {
 		t.Errorf("Error returned: %s", err)
 	}
 	found := false
-	for _, file := range data.conf.ImageFiles {
+	for _, file := range imageFiles {
 		if file == tmpfile.Name() {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("Image file list does not contain input, %s", data.conf.ImageFiles)
+		t.Errorf("Image file list does not contain input, %s", imageFiles)
 	}
 }
 
@@ -83,7 +80,7 @@ func TestLoadKey(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
 	os.Args = []string{"cmd"}
 	flag.Parse()
-	if err := loadCertificate(); err != nil {
+	if _, err := loadCertificate(); err != nil {
 		t.Errorf("Error returned: %s", err)
 	}
 }
@@ -93,7 +90,7 @@ func TestGenKey(t *testing.T) {
 	os.Args = []string{"cmd"}
 	flag.Parse()
 	data.tlsGenerate = true
-	if err := loadCertificate(); err != nil {
+	if _, err := loadCertificate(); err != nil {
 		t.Errorf("Error returned: %s", err)
 	}
 }
