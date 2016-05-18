@@ -195,7 +195,7 @@ func handleSessionExit(session *SessionConfig) error {
 	// record exit status
 	// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
 	// currently sure how to expose it neatly via a utility function
-	extraconfig.EncodeWithPrefix(dataSink, session.ExitStatus, fmt.Sprintf("sessions|%s/status", session.ID))
+	extraconfig.EncodeWithPrefix(dataSink, session.ExitStatus, fmt.Sprintf("guestinfo..sessions|%s.status", session.ID))
 	log.Infof("%s exit code: %d", session.ID, session.ExitStatus)
 
 	// check for executor behaviour
@@ -250,11 +250,21 @@ func launch(session *SessionConfig) error {
 		if err != nil {
 			detail := fmt.Sprintf("failed to start container process: %s", err)
 			log.Error(detail)
+
+			// Set the Started key to the detailed error message
+			session.Started = err.Error()
+			// save the modified value back to the vmx file
+			extraconfig.EncodeWithPrefix(dataSink, session.Started, fmt.Sprintf("guestinfo..sessions|%s.started", session.ID))
+
 			return errors.New(detail)
 		}
 
 		// ChildReaper will use this channel to inform us the wait status of the child.
 		config.pids[session.Cmd.Process.Pid] = session
+		// Set the Started key to "true"
+		session.Started = "true"
+		// save the modified value back to the vmx file
+		extraconfig.EncodeWithPrefix(dataSink, session.Started, fmt.Sprintf("guestinfo..sessions|%s.started", session.ID))
 
 		log.Debugf("Launched command with pid %d", session.Cmd.Process.Pid)
 

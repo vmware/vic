@@ -116,3 +116,18 @@ func (vm *VirtualMachine) FetchExtraConfig(ctx context.Context) (map[string]stri
 	}
 	return info, nil
 }
+
+// WaitForExtraConfig waits until key shows up with the expected value inside the ExtraConfig
+func (vm *VirtualMachine) WaitForExtraConfig(ctx context.Context, waitFunc func(pc []types.PropertyChange) bool) error {
+	// Get the default collector
+	p := property.DefaultCollector(vm.Vim25())
+
+	// Wait on config.extraConfig
+	// https://www.vmware.com/support/developer/vc-sdk/visdk2xpubs/ReferenceGuide/vim.vm.ConfigInfo.html
+	err := property.Wait(ctx, p, vm.Reference(), []string{"config.extraConfig"}, waitFunc)
+	if err != nil {
+		log.Errorf("Property collector error: %s", err)
+		return err
+	}
+	return nil
+}
