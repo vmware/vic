@@ -71,8 +71,6 @@ func TestPathLookup(t *testing.T) {
 /////////////////////////////////////////////////////////////////////////////////////
 
 func TestRelativePath(t *testing.T) {
-	t.Skip("Relative path resolution not yet implemented")
-
 	testSetup(t)
 	defer testTeardown(t)
 
@@ -226,7 +224,7 @@ func TestMissingBinary(t *testing.T) {
 	// check the launch status was failed
 	status := cfg.Sessions["missing"].Started
 
-	assert.Equal(t, "fork/exec /not/there: no such file or directory", status, "Expected status to have a command not found error message")
+	assert.Equal(t, "/not/there: no such file or directory", status, "Expected status to have a command not found error message")
 }
 
 //
