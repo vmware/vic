@@ -83,7 +83,7 @@ vic-machine create
 -docker-network=private-vlan12d7f2:bridge
 -docker-network=edw-corp-net:backend
 -docker-network-ipam=edw-corp-net:10.118.78.128-192/24,10.118.78.1
--container=oracledb.edw.corp.net:db.backend
+-alias=oracledb.edw.corp.net:db.backend
 ```
 
 The first block of these options control the core configuration of the VCH:
@@ -98,7 +98,7 @@ The second block of options control how exisiting vSphere resources are presente
 * -volume-store - datastore prefixes under which volumes can be created. These prefixes are mapped to labels that can be reference via the --opts mechanism when calling `docker volume create`
 * -docker-network - vSphere networks that should be exposed via `docker network` commands. As with the datastores this is a mapping from vSphere name to docker name. Ideally the docker name should express something about the purpose of presenting the network such as `internet`, `intranet`, or `databases`
 * -docker-network-ipam - this is an optional argument furnishing additional information for controlling IP address management on the network, in the form `ipaddress-range/mask,gateway`. If not specified, DHCP is used.
-* -container - this allows containers to address a specific FQDN as if it were itself a container managed by the VCH, specified in the form of `FQDN:alias.network`.  
+* -alias - this allows containers to address a specific FQDN as if it were itself a container managed by the VCH, specified in the form of `FQDN:alias.network`.  
 
 
 ### Manifest file - create
@@ -107,9 +107,7 @@ Note that the various resource paths end in a `/` - this signifies that it's acc
 ```
 vic-machine create
 -TO=file::///home/joe/vch/edw.manifest
--target=vcenter
--user=root
--password=****
+-TO=https://root@****:vcenter/
 -compute-resource=/example-datacenter/host/mycluster/Resources/edw-pool/
 -image-store=ds://vsan-datastore/containers/edw
 -container-store=ds://vsan-datastore/edw/edw/
@@ -121,7 +119,7 @@ vic-machine create
 -docker-network=edw-corp-net:backend
 -docker-network-ipam=edw-corp-net:10.118.78.128-192/24,10.118.78.1
 -docker-network=internet-corp-net:frontend
--container=oracledb.edw.corp.net:db.backend
+-alias=oracledb.edw.corp.net:db.backend
 ```
 
 ### Manifest file - use
