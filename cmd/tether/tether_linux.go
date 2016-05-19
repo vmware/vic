@@ -24,6 +24,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -226,6 +227,56 @@ func (t *osopsLinux) processEnvOS(env []string) []string {
 	}
 
 	return env
+}
+
+func findExecutable(file string) error {
+	d, err := os.Stat(file)
+	if err != nil {
+		return err
+	}
+	if m := d.Mode(); !m.IsDir() && m&0111 != 0 {
+		return nil
+	}
+	return os.ErrPermission
+}
+
+// lookPath searches for an executable binary named file in the directories
+// specified by the path argument.
+// This is a direct modification of the unix os/exec core libary impl
+func lookPath(file string, env []string) (string, error) {
+	// check if it's already a path spec
+	if strings.Contains(file, "/") {
+		err := findExecutable(file)
+		if err == nil {
+			return file, nil
+		}
+		return "", err
+	}
+
+	// extract path from the env
+	var pathenv string
+	for _, value := range env {
+		if strings.HasPrefix(value, "PATH=") {
+			pathenv = value
+			break
+		}
+	}
+
+	pathval := strings.TrimPrefix(pathenv, "PATH=")
+
+	dirs := filepath.SplitList(pathval)
+	for _, dir := range dirs {
+		if dir == "" {
+			// Unix shell semantics: path element "" means "."
+			dir = "."
+		}
+		path := dir + "/" + file
+		if err := findExecutable(path); err == nil {
+			return path, nil
+		}
+	}
+
+	return "", fmt.Errorf("%s: no such executable in PATH", file)
 }
 
 // sessionLogWriter returns a writer that will persist the session output
