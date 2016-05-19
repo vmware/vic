@@ -77,7 +77,7 @@ func (f *Folder) CreateFolder(c *types.CreateFolder) soap.HasFault {
 func (f *Folder) CreateDatacenter(c *types.CreateDatacenter) soap.HasFault {
 	r := &methods.CreateDatacenterBody{}
 
-	if f.hasChildType("Datacenter") {
+	if f.hasChildType("Datacenter") && f.hasChildType("Folder") {
 		dc := &mo.Datacenter{}
 
 		dc.Name = c.Name

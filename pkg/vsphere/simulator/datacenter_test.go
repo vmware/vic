@@ -58,21 +58,16 @@ func TestDatacenterCreateFolders(t *testing.T) {
 				t.Fail()
 			}
 
-			if test.isVC {
-				f, ok := e.(*Folder)
-				if !ok {
-					t.Fatalf("unexpected type (%T) for %#v", e, ref)
-				}
+			f, ok := e.(*Folder)
+			if !ok {
+				t.Fatalf("unexpected type (%T) for %#v", e, ref)
+			}
 
+			if test.isVC {
 				if len(f.ChildType) < 2 {
 					t.Fail()
 				}
 			} else {
-				f, ok := e.(*mo.Folder)
-				if !ok {
-					t.Fatalf("unexpected type (%T) for %#v", e, ref)
-				}
-
 				if len(f.ChildType) != 1 {
 					t.Fail()
 				}

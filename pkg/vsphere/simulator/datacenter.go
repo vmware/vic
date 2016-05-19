@@ -36,12 +36,12 @@ func createDatacenterFolders(dc *mo.Datacenter, isVC bool) {
 	}
 
 	for _, f := range folders {
-		folder := &mo.Folder{}
+		folder := &Folder{}
 		folder.Name = f.name
 
 		if isVC {
 			folder.ChildType = f.types
-			e := Map.PutEntity(dc, &Folder{Folder: *folder})
+			e := Map.PutEntity(dc, folder)
 
 			// propagate the generated morefs to Datacenter
 			ref := e.Reference()
