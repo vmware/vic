@@ -41,6 +41,11 @@ setup () {
 }
 
 teardown() {
+    if [ -n "$installer_output" ] ; then
+        run get_logs "$installer_output"
+        installer_output=""
+    fi
+
     if [ -n "$(govc vm.info $vch_name)" ] ; then
         govc vm.destroy $vch_name
         govc pool.destroy "$GOVC_RESOURCE_POOL/$vch_name"
@@ -52,6 +57,14 @@ teardown() {
     fi
 
     rm -f ./$vch_name-*.pem
+}
+
+# pass this the installer output & it will download the logs from the vicadmin server
+get_logs () {
+    vicadmin_url=$(grep -n1 'Log server' <<<"$1" | grep http | cut -d' ' -f2)
+    time="$(date -Iseconds)"
+    wget $vicadmin_url/container-logs.tar.gz --no-check-certificate -O install-container-logs-"$time".tar.gz
+    wget $vicadmin_url/logs.tar.gz --no-check-certificate -O install-logs-"$time".tar.gz
 }
 
 @test "vic-machine usage" {
@@ -89,6 +102,7 @@ teardown() {
 
     local output status
     run "$installer" "${params[@]}"
+    installer_output="$output" # save this before checking for success
     assert_success
     assert_line -e "Installer completed successfully"
     docker_cmd=($(grep 'docker -H' <<<"$output" | cut -d' ' -f3-7))
@@ -129,10 +143,16 @@ teardown() {
     run govc datastore.rm -f "$name"
     assert_success
 
+    # since the test is passing up until this point, teardown() has not been called
+    # since teardown() has not been called, logs need to be saved before we call
+    # 'run $installer' again or they'll be lost so we call get_logs here to do that
+    get_logs "$installer_output"
+
     # test reinstall with same name
     params+=(-force -key ./${vch_name}-key.pem -cert ./${vch_name}-cert.pem)
 
     run "$installer" "${params[@]}"
+    installer_output="$output"
     assert_success
     assert_line -e "Installer completed successfully"
 }
