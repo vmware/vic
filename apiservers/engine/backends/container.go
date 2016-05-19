@@ -258,7 +258,7 @@ func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig
 			return derr.NewRequestNotFoundError(err)
 		}
 
-		return derr.NewErrorWithStatusCode(err, http.StatusServiceUnavailable)
+		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 	}
 
 	h := getRes.Payload
@@ -270,7 +270,7 @@ func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig
 			return derr.NewRequestNotFoundError(err)
 		}
 
-		return derr.NewErrorWithStatusCode(err, http.StatusServiceUnavailable)
+		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 	}
 
 	h = bindRes.Payload
