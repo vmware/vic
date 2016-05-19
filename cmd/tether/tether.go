@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"syscall"
 
@@ -241,12 +240,11 @@ func launch(session *SessionConfig) error {
 	session.Cmd.Stderr = session.errwriter
 	session.Cmd.Stdin = session.reader
 
-	resolved, err := exec.LookPath(session.Cmd.Path)
+	resolved, err := lookPath(session.Cmd.Path, session.Cmd.Env)
 	if err != nil {
-		pretty := fmt.Errorf("%s: no such file or directory", session.Cmd.Path)
 		log.Errorf("Path lookup failed for %s: %s", session.Cmd.Path, err)
-		session.Started = pretty.Error()
-		return pretty
+		session.Started = err.Error()
+		return err
 	}
 	log.Debugf("Resolved %s to %s", session.Cmd.Path, resolved)
 	session.Cmd.Path = resolved

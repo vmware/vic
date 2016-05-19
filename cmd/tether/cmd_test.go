@@ -224,7 +224,56 @@ func TestMissingBinary(t *testing.T) {
 	// check the launch status was failed
 	status := cfg.Sessions["missing"].Started
 
-	assert.Equal(t, "/not/there: no such file or directory", status, "Expected status to have a command not found error message")
+	assert.Equal(t, "stat /not/there: no such file or directory", status, "Expected status to have a command not found error message")
+}
+
+//
+/////////////////////////////////////////////////////////////////////////////////////
+
+/////////////////////////////////////////////////////////////////////////////////////
+// TestMissingRelativeBinaryConfig constructs the spec for a Session with invalid binary path
+//
+
+func TestMissingRelativeBinary(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
+
+	cfg := metadata.ExecutorConfig{
+		Common: metadata.Common{
+			ID:   "missing",
+			Name: "tether_test_executor",
+		},
+
+		Sessions: map[string]metadata.SessionConfig{
+			"missing": metadata.SessionConfig{
+				Common: metadata.Common{
+					ID:   "missing",
+					Name: "tether_test_session",
+				},
+				Tty: false,
+				Cmd: metadata.Cmd{
+					// test relative path
+					Path: "notthere",
+					Args: []string{"notthere"},
+					Env:  []string{"PATH=/not"},
+					Dir:  "/",
+				},
+			},
+		},
+	}
+
+	src, err := runTether(t, &cfg)
+	if err == nil {
+		t.Error("Expected error from missing binary")
+	}
+
+	// refresh the cfg with current data
+	extraconfig.Decode(src, &cfg)
+
+	// check the launch status was failed
+	status := cfg.Sessions["missing"].Started
+
+	assert.Equal(t, "notthere: no such executable in PATH", status, "Expected status to have a command not found error message")
 }
 
 //
