@@ -50,8 +50,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	content.About.Name += " (govmomi simulator)"
+	tag := " (govmomi simulator)"
+	content.About.Name += tag
 	content.About.OsType = runtime.GOOS + "-" + runtime.GOARCH
+
+	esx.HostSystem.Summary.Hardware.Vendor += tag
 
 	service := simulator.NewServiceInstance(*content, *folder)
 	simulator.New(service).NewServer()
