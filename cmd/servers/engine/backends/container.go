@@ -33,10 +33,10 @@ import (
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/strslice"
 
-	"github.com/vmware/vic/apiservers/portlayer/client/containers"
-	"github.com/vmware/vic/apiservers/portlayer/client/scopes"
-	"github.com/vmware/vic/apiservers/portlayer/client/storage"
-	"github.com/vmware/vic/apiservers/portlayer/models"
+	"github.com/vmware/vic/cmd/servers/portlayer/client/containers"
+	"github.com/vmware/vic/cmd/servers/portlayer/client/scopes"
+	"github.com/vmware/vic/cmd/servers/portlayer/client/storage"
+	"github.com/vmware/vic/cmd/servers/portlayer/models"
 	"github.com/vmware/vic/pkg/trace"
 )
 

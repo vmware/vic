@@ -12,25 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package handlers
+package vicbackends
 
 import (
-	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/apiservers/portlayer/restapi/operations"
-	"github.com/vmware/vic/portlayer/attach"
+	"net"
+
+	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
+	"github.com/vmware/vic/cmd/servers/portlayer/client"
 )
 
-// AttachHandlersImpl is the receiver for all container attach methods.
-type AttachHandlersImpl struct {
-	s *attach.Server
+var (
+	portLayerClient     *client.PortLayer
+	portLayerServerAddr string
+)
+
+func Init(portLayerAddr string) error {
+	_, _, err := net.SplitHostPort(portLayerAddr)
+	if err != nil {
+		return err
+	}
+
+	t := httptransport.New(portLayerAddr, "/", []string{"http"})
+	portLayerClient = client.New(t, nil)
+	portLayerServerAddr = portLayerAddr
+	return nil
 }
 
-func (a *AttachHandlersImpl) Configure(api *operations.PortLayerAPI, _ *HandlerContext) {
-	// XXX this needs to live on the mgmt netwerk
-	a.s = attach.NewAttachServer("", 0)
+func PortLayerClient() *client.PortLayer {
+	return portLayerClient
+}
 
-	if err := a.s.Start(); err != nil {
-		log.Fatalf("Attach server unable to start: %s", err)
-		return
-	}
+func PortLayerServer() string {
+	return portLayerServerAddr
 }

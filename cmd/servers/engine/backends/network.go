@@ -21,8 +21,8 @@ import (
 
 	apinet "github.com/docker/engine-api/types/network"
 	"github.com/docker/libnetwork"
-	"github.com/vmware/vic/apiservers/portlayer/client/scopes"
-	"github.com/vmware/vic/apiservers/portlayer/models"
+	"github.com/vmware/vic/cmd/servers/portlayer/client/scopes"
+	"github.com/vmware/vic/cmd/servers/portlayer/models"
 )
 
 type Network struct {

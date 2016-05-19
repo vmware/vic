@@ -21,7 +21,7 @@ import (
 	v1 "github.com/docker/docker/image"
 	"github.com/docker/engine-api/types/container"
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/vic/apiservers/portlayer/models"
+	"github.com/vmware/vic/cmd/servers/portlayer/models"
 )
 
 func TestGetV1ImageMapEmpty(t *testing.T) {

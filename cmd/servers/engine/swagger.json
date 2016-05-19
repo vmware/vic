@@ -500,7 +500,7 @@
         },
         "KernelMemory": {
           "type": "integer"
-        }        
+        }
       }
     },
     "ContainerState": {
@@ -1834,7 +1834,7 @@
           "name": "detachKeys",
           "in": "query",
           "description": "Override the key sequence for detaching a container. Format is a single character [a-Z] or ctrl-<value> where <value> is one of: a-z, @, ^, [, , or _.",
-          "type": "string"         
+          "type": "string"
         }],
         "tags": [
           "Container"
@@ -2111,7 +2111,7 @@
           "name": "detachKeys",
           "in": "query",
           "description": "Override the key sequence for detaching a container. Format is a single character [a-Z] or ctrl-<value> where <value> is one of: a-z, @, ^, [, , or _.",
-          "type": "string"         
+          "type": "string"
         }, {
           "name": "logs",
           "in": "query",

@@ -35,7 +35,7 @@ GOVC ?= $(GOPATH)/bin/govc$(BIN_ARCH)
 
 .PHONY: all tools clean test check \
 	goversion goimports gvt gopath govet \
-	isos tethers apiservers copyright
+	isos tethers servers copyright
 
 .DEFAULT_GOAL := all
 
@@ -53,8 +53,8 @@ endef
 # target aliases - environment variable definition
 docker-engine-api := $(BIN)/docker-engine-server
 portlayerapi := $(BIN)/port-layer-server
-portlayerapi-client := apiservers/portlayer/client/port_layer_client.go
-portlayerapi-server := apiservers/portlayer/restapi/server.go
+portlayerapi-client := cmd/servers/portlayer/client/port_layer_client.go
+portlayerapi-server := cmd/servers/portlayer/restapi/server.go
 
 imagec := $(BIN)/imagec
 vicadmin := $(BIN)/vicadmin
@@ -109,8 +109,8 @@ goimports: $(go-imports)
 all: components tethers isos vic-machine
 tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) goversion
 check: goversion goimports govet golint copyright whitespace
-apiservers: $(portlayerapi) $(docker-engine-api)
-components: check apiservers $(imagec) $(vicadmin) $(rpctool)
+servers: $(portlayerapi) $(docker-engine-api)
+components: check servers $(imagec) $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
 tethers: $(tether-linux) $(tether-windows) $(tether-darwin)
 
@@ -156,9 +156,9 @@ $(go-lint): $(GOLINT)
 	@$(call golintf,github.com/vmware/vic/pkg/...)
 	@$(call golintf,github.com/vmware/vic/install/...)
 	@$(call golintf,github.com/vmware/vic/portlayer/...)
-	@$(call golintf,github.com/vmware/vic/apiservers/portlayer/restapi/handlers/...)
-	@$(call golintf,github.com/vmware/vic/apiservers/engine/server/...)
-	@$(call golintf,github.com/vmware/vic/apiservers/engine/backends/...)
+	@$(call golintf,github.com/vmware/vic/cmd/servers/portlayer/restapi/handlers/...)
+	@$(call golintf,github.com/vmware/vic/cmd/servers/engine/server/...)
+	@$(call golintf,github.com/vmware/vic/cmd/servers/engine/backends/...)
 	@touch $@
 
 # For use by external tools such as emacs or for example:
@@ -166,7 +166,7 @@ $(go-lint): $(GOLINT)
 gopath:
 	@echo -n $(GOPATH)
 
-$(go-imports): $(GOIMPORTS) $(find . -type f -name '*.go' -not -path "./vendor/*" -not -path "apiservers/portlayer") $(PORTLAYER_DEPS)
+$(go-imports): $(GOIMPORTS) $(find . -type f -name '*.go' -not -path "./vendor/*" -not -path "cmd/servers/portlayer") $(PORTLAYER_DEPS)
 	@echo checking go imports...
 	@! $(GOIMPORTS) -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
 	@touch $@
@@ -191,9 +191,9 @@ TEST_DIRS+=github.com/vmware/vic/cmd/imagec
 TEST_DIRS+=github.com/vmware/vic/cmd/vicadmin
 TEST_DIRS+=github.com/vmware/vic/cmd/rpctool
 TEST_DIRS+=github.com/vmware/vic/cmd/vic-machine
+TEST_DIRS+=github.com/vmware/vic/cmd/servers/portlayer
 TEST_DIRS+=github.com/vmware/vic/portlayer
 TEST_DIRS+=github.com/vmware/vic/pkg
-TEST_DIRS+=github.com/vmware/vic/apiservers/portlayer
 TEST_DIRS+=github.com/vmware/vic/install
 
 
@@ -242,18 +242,19 @@ $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@$(GO) build $(RACE) -o ./$@ ./$(dir $<)
 
 
-$(docker-engine-api): $(call godeps,apiservers/engine/server/*.go) $(portlayerapi-client)
+$(docker-engine-api): $(call godeps,cmd/servers/engine/server/*.go) $(portlayerapi-client)
 ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
-	@$(GO) build $(RACE) -o $@ ./apiservers/engine/server
+	@$(GO) build $(RACE) -o $@ ./cmd/servers/engine/server
 else
 	@echo skipping docker-engine-api server, cannot build on non-linux
 endif
 
 # Common portlayer dependencies between client and server
-PORTLAYER_DEPS ?= apiservers/portlayer/swagger.yml \
-				  apiservers/portlayer/restapi/configure_port_layer.go \
-				  apiservers/portlayer/restapi/options/*.go apiservers/portlayer/restapi/handlers/*.go
+PORTLAYER_DEPS ?= cmd/servers/portlayer/swagger.yml \
+				  cmd/servers/portlayer/restapi/configure_port_layer.go \
+				  cmd/servers/portlayer/restapi/options/*.go \
+				  cmd/servers/portlayer/restapi/handlers/*.go
 
 $(portlayerapi-client): $(PORTLAYER_DEPS)  $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API client...
@@ -264,9 +265,9 @@ $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API server...
 	@$(SWAGGER) generate server -A PortLayer -t $(realpath $(dir $<)) -f $<
 
-$(portlayerapi): $(call godeps,apiservers/portlayer/cmd/port-layer-server/*.go) $(portlayerapi-server) $(portlayerapi-client)
+$(portlayerapi): $(call godeps,cmd/servers/portlayer/cmd/port-layer-server/*.go) $(portlayerapi-server) $(portlayerapi-client)
 	@echo building Portlayer API server...
-	@$(GO) build $(RACE) -o $@ ./apiservers/portlayer/cmd/port-layer-server
+	@$(GO) build $(RACE) -o $@ ./cmd/servers/portlayer/cmd/port-layer-server
 
 $(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
 	@echo building iso-base docker image
@@ -308,13 +309,13 @@ clean:
 	rm -rf $(BIN)
 
 	@echo removing swagger generated files...
-	rm -f ./apiservers/portlayer/restapi/doc.go
-	rm -f ./apiservers/portlayer/restapi/embedded_spec.go
-	rm -f ./apiservers/portlayer/restapi/server.go
-	rm -rf ./apiservers/portlayer/client/
-	rm -rf ./apiservers/portlayer/cmd/
-	rm -rf ./apiservers/portlayer/models/
-	rm -rf ./apiservers/portlayer/restapi/operations/
+	rm -f ./cmd/servers/portlayer/restapi/doc.go
+	rm -f ./cmd/servers/portlayer/restapi/embedded_spec.go
+	rm -f ./cmd/servers/portlayer/restapi/server.go
+	rm -rf ./cmd/servers/portlayer/client/
+	rm -rf ./cmd/servers/portlayer/cmd/
+	rm -rf ./cmd/servers/portlayer/models/
+	rm -rf ./cmd/servers/portlayer/restapi/operations/
 	rm -fr ./tests/helpers/bats-assert/
 	rm -fr ./tests/helpers/bats-support/
 

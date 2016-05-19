@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate swagger generate client -A PortLayer -t ../../apiservers/portlayer -f ../../apiservers/portlayer/swagger.yml
+//go:generate swagger generate client -A PortLayer -t ../cmd/servers/portlayer -f ../cmd/servers/portlayer/swagger.yml
 package main

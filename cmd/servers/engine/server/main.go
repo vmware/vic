@@ -30,7 +30,7 @@ import (
 	"github.com/docker/docker/docker/listeners"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/vmware/vic/apiservers/engine/backends"
+	"github.com/vmware/vic/cmd/servers/engine/backends"
 )
 
 type CliOptions struct {

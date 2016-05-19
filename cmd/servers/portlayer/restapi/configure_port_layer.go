@@ -25,9 +25,9 @@ import (
 	httpkit "github.com/go-swagger/go-swagger/httpkit"
 	"github.com/go-swagger/go-swagger/swag"
 
-	"github.com/vmware/vic/apiservers/portlayer/restapi/handlers"
-	"github.com/vmware/vic/apiservers/portlayer/restapi/operations"
-	"github.com/vmware/vic/apiservers/portlayer/restapi/options"
+	"github.com/vmware/vic/cmd/servers/portlayer/restapi/handlers"
+	"github.com/vmware/vic/cmd/servers/portlayer/restapi/operations"
+	"github.com/vmware/vic/cmd/servers/portlayer/restapi/options"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 

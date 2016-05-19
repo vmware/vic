@@ -27,8 +27,8 @@ import (
 	//"github.com/go-swagger/go-swagger/httpkit/middleware"
 	"github.com/go-swagger/go-swagger/swag"
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/vic/apiservers/portlayer/models"
-	"github.com/vmware/vic/apiservers/portlayer/restapi/operations/storage"
+	"github.com/vmware/vic/cmd/servers/portlayer/models"
+	"github.com/vmware/vic/cmd/servers/portlayer/restapi/operations/storage"
 	spl "github.com/vmware/vic/portlayer/storage"
 	"github.com/vmware/vic/portlayer/util"
 )
