@@ -36,7 +36,6 @@ The virtual container host maintains filesystem layers inherent in container ima
 
 You deploy a virtual container host using the CLI installer, then access Virtual Container Host endpoints remotely through a Docker command line interface or other API client.
 
-
 ## vSphere Web Client Plugin
 
 You can monitor and manage containers using the vSphere Integrated Containers plugin in the vSphere Web Client.
@@ -52,5 +51,3 @@ Docker clients communicate with the virtual container host, not each container, 
 You can pull standard container images from the Docker hub or private registry.
 
 You can create, run, stop, and delete containers using standard docker commands and verify these actions in the vSphere Web Client.
-
-
