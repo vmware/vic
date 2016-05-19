@@ -18,6 +18,7 @@ import (
 	"crypto/tls"
 	"net/mail"
 	"net/url"
+	"time"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
@@ -36,13 +37,18 @@ type VirtualContainerHostConfigSpec struct {
 	// The base config for the appliance. This includes the networks that are to be attached
 	// and disks to be mounted.
 	// Networks are keyed by interface name
-	ExecutorConfig
+	ExecutorConfig `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
-	// The set of components to launch
-	ComponentConfig []SessionConfig
-
+	// The sdk URL
+	Target string `vic:"0.1" scope:"read-only" key:"target"`
+	// Whether the session connection is secure
+	Insecure bool `vic:"0.1" scope:"read-only" key:"insecure"`
+	// The session timeout
+	Keepalive time.Duration `vic:"0.1" scope:"read-only" key:"keepalive"`
+	// Turn on debug logging
+	Debug bool `vic:"0.1" scope:"read-only" key:"debug"`
 	// Virtual Container Host version
-	Version string
+	Version string `vic:"0.1" scope:"read-only" key:"version"`
 
 	// Administrative contact for the Virtual Container Host
 	Admin []mail.Address
@@ -58,32 +64,59 @@ type VirtualContainerHostConfigSpec struct {
 
 	// Port Layer - storage
 	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
-	ImageStores []url.URL
+	ImageStores []string `vic:"0.1" scope:"read-only" key:"image_stores"`
 	// Permitted datastore URL roots for volumes
-	VolumeLocations []url.URL
+	VolumeLocations []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	// Permitted datastore URLs for container storage for this virtual container host
-	ContainerStores []url.URL
-	// Compute resource roots under which all containers will be created
-	ComputeResource []object.ComputeResource
+	ContainerStores []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	// Resource pools under which all containers will be created
+	ComputeResources []*object.ResourcePool `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
 	// Port Layer - network
 	// The default bridge network supplied for the Virtual Container Host
-	BridgeNetwork object.Network
+	BridgeNetwork string `vic:"0.1" scope:"read-only" key:"bridge_network"`
 	// Published networks available for containers to join, keyed by consumption name
-	ContainerNetworks map[string]ContainerNetwork
+	ContainerNetworks map[string]*ContainerNetwork `vic:"0.1" scope:"read-only" key:"container_networks"`
+
+	// Virtual Container Host capacity
+	VCHSize Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	// Appliance capacity
+	ApplianceSize Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
 	// Port Layer - exec
 	// Default containerVM capacity
-	ContainerVMSize Resources
+	ContainerVMSize Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
 	// Allow custom naming convention for containerVMs
 	ContainerNameConvention string
 
 	// Imagec
 	// Whitelist of registries
-	RegistryWhitelist []url.URL
+	RegistryWhitelist []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	// Blacklist of registries
-	RegistryBlacklist []url.URL
+	RegistryBlacklist []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+
+	KeyPEM  string `vic:"0.1" scope:"read-only" key:"key_pem"`
+	CertPEM string `vic:"0.1" scope:"read-only" key:"cert_pem"`
+
+	//FIXME: remove following attributes after port-layer-server read config from guestinfo
+	DatacenterName   string `vic:"0.1" scope:"read-only" key:"datacenter_name"`
+	ClusterPath      string `vic:"0.1" scope:"read-only" key:"cluster_path"`
+	ImageStoreName   string `vic:"0.1" scope:"read-only" key:"image_store_name"`
+	ResourcePoolPath string `vic:"0.1" scope:"read-only" key:"resource_pool_path"`
+
+	// FIXME: remove following attributes after change to launch through tether
+	// Networks represents mapping between nic name and network info object. For example: bridge: vmomi object
+	Networks map[string]*NetworkInfo `vic:"0.1" scope:"read-only" key:"networks"`
+
+	ImageFiles []string `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+}
+
+type NetworkInfo struct {
+	PortGroupName string                  `vic:"0.1" scope:"read-only" key:"portgroup"`
+	Mac           string                  `vic:"0.1" scope:"read-only" key:"mac"`
+	PortGroup     object.NetworkReference `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	InventoryPath string                  `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 }
 
 // CustomerExperienceImprovementProgram provides configuration for the phone home mechanism
@@ -103,17 +136,4 @@ type Resources struct {
 	Memory  types.ResourceAllocationInfo
 	IO      types.ResourceAllocationInfo
 	Storage types.ResourceAllocationInfo
-}
-
-// VirtualContainerHostTargetConfigSpec holds the metadata for a Virtual Container Host that should be visible only to the infrastructure on which it is running.
-type VirtualContainerHostTargetConfigSpec struct {
-	// Target and credentials for the environment - experimenting with storing this as an OAuth2 config
-	// TargetConfig oauth2.Config
-
-	// Virtual Container Host capacity
-	VCHSize Resources
-	// Appliance capacity
-	ApplianceSize Resources
-	// Freeform notes for target administrator user
-	Notes string
 }

@@ -68,13 +68,38 @@ func (vm *VirtualMachine) FolderName(ctx context.Context) (string, error) {
 	return path, nil
 }
 
+// WaitForMac will wait until VM get mac for all attached nics.
+// Returns map "Virtual Network Name": "nic MAC address"
 func (vm VirtualMachine) WaitForMAC(ctx context.Context) (map[string]string, error) {
+	devices, err := vm.Device(ctx)
+	if err != nil {
+		log.Errorf("Unable to get device listing for VM")
+		return nil, err
+	}
+
+	nics := devices.SelectByType(&types.VirtualEthernetCard{})
 	macs := make(map[string]string)
+	nicMappings := make(map[string]string)
+	for _, nic := range nics {
+		if n, ok := nic.(types.BaseVirtualEthernetCard); ok {
+			netName, err := vm.getNetworkName(ctx, n)
+			if err != nil {
+				log.Errorf("failed to get network name: %s", err)
+				return nil, err
+			}
+			macs[netName] = ""
+
+			nicMappings[n.GetVirtualEthernetCard().DeviceInfo.GetDescription().Summary] = netName
+		} else {
+			log.Errorf("Failed to get network name of vNIC: %v", nic)
+			return nil, err
+		}
+	}
 
 	p := property.DefaultCollector(vm.Session.Vim25())
 
 	// Wait for all NICs to have a MacAddress, which may not be generated yet.
-	err := property.Wait(ctx, p, vm.Reference(), []string{"config.hardware.device"}, func(pc []types.PropertyChange) bool {
+	err = property.Wait(ctx, p, vm.Reference(), []string{"config.hardware.device"}, func(pc []types.PropertyChange) bool {
 		for _, c := range pc {
 			if c.Op != types.PropertyChangeOpAssign {
 				continue
@@ -85,17 +110,41 @@ func (vm VirtualMachine) WaitForMAC(ctx context.Context) (map[string]string, err
 				if nic, ok := device.(types.BaseVirtualEthernetCard); ok {
 					mac := nic.GetVirtualEthernetCard().MacAddress
 					if mac == "" {
-						return false
+						continue
 					}
-					summary := nic.GetVirtualEthernetCard().DeviceInfo.GetDescription().Summary
-					macs[summary] = mac
+					netName := nicMappings[nic.GetVirtualEthernetCard().DeviceInfo.GetDescription().Summary]
+					macs[netName] = mac
 				}
 			}
 		}
-
+		for key, value := range macs {
+			if value == "" {
+				log.Debugf("Didn't get mac address for nic on %s, continue", key)
+				return false
+			}
+		}
 		return true
 	})
 	return macs, err
+}
+
+func (vm *VirtualMachine) getNetworkName(ctx context.Context, nic types.BaseVirtualEthernetCard) (string, error) {
+	if card, ok := nic.GetVirtualEthernetCard().Backing.(*types.VirtualEthernetCardDistributedVirtualPortBackingInfo); ok {
+		pg := card.Port.PortgroupKey
+		pgref := object.NewDistributedVirtualPortgroup(vm.Session.Client.Client, types.ManagedObjectReference{
+			Type:  "DistributedVirtualPortgroup",
+			Value: pg,
+		})
+
+		var pgo mo.DistributedVirtualPortgroup
+		err := pgref.Properties(ctx, pgref.Reference(), []string{"config"}, &pgo)
+		if err != nil {
+			log.Errorf("Failed to query portgroup %s for %s", pg, err)
+			return "", err
+		}
+		return pgo.Config.Name, nil
+	}
+	return nic.GetVirtualEthernetCard().DeviceInfo.GetDescription().Summary, nil
 }
 
 func (vm *VirtualMachine) FetchExtraConfig(ctx context.Context) (map[string]string, error) {
