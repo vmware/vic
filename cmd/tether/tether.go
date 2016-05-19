@@ -215,10 +215,17 @@ func handleSessionExit(session *SessionConfig) error {
 func launch(session *SessionConfig) error {
 	defer trace.End(trace.Begin("launching session " + session.ID))
 
+	// encode the result whether success or error
+	defer func() {
+		extraconfig.EncodeWithPrefix(dataSink, session.Started, fmt.Sprintf("guestinfo..sessions|%s.started", session.ID))
+	}()
+
 	logwriter, err := utils.sessionLogWriter()
 	if err != nil {
 		detail := fmt.Sprintf("failed to get log writer for session: %s", err)
 		log.Error(detail)
+		session.Started = detail
+
 		return errors.New(detail)
 	}
 
@@ -233,9 +240,19 @@ func launch(session *SessionConfig) error {
 	session.Cmd.Stderr = session.errwriter
 	session.Cmd.Stdin = session.reader
 
+	resolved, err := lookPath(session.Cmd.Path, session.Cmd.Env)
+	if err != nil {
+		log.Errorf("Path lookup failed for %s: %s", session.Cmd.Path, err)
+		session.Started = err.Error()
+		return err
+	}
+	log.Debugf("Resolved %s to %s", session.Cmd.Path, resolved)
+	session.Cmd.Path = resolved
+
 	// Use the mutex to make creating a child and adding the child pid into the
 	// childPidTable appear atomic to the reaper function. Use a anonymous function
 	// so we can defer unlocking locally
+	// logging is done after the function to keep the locked time as low as possible
 	err = func() error {
 		config.pidMutex.Lock()
 		defer config.pidMutex.Unlock()
@@ -248,30 +265,30 @@ func launch(session *SessionConfig) error {
 		}
 
 		if err != nil {
-			detail := fmt.Sprintf("failed to start container process: %s", err)
-			log.Error(detail)
-
-			// Set the Started key to the detailed error message
-			session.Started = err.Error()
-			// save the modified value back to the vmx file
-			extraconfig.EncodeWithPrefix(dataSink, session.Started, fmt.Sprintf("guestinfo..sessions|%s.started", session.ID))
-
-			return errors.New(detail)
+			return err
 		}
 
 		// ChildReaper will use this channel to inform us the wait status of the child.
 		config.pids[session.Cmd.Process.Pid] = session
-		// Set the Started key to "true"
-		session.Started = "true"
-		// save the modified value back to the vmx file
-		extraconfig.EncodeWithPrefix(dataSink, session.Started, fmt.Sprintf("guestinfo..sessions|%s.started", session.ID))
-
-		log.Debugf("Launched command with pid %d", session.Cmd.Process.Pid)
 
 		return nil
 	}()
 
-	return err
+	if err != nil {
+		detail := fmt.Sprintf("failed to start container process: %s", err)
+		log.Error(detail)
+
+		// Set the Started key to the undecorated error message
+		session.Started = err.Error()
+
+		return errors.New(detail)
+	}
+
+	// Set the Started key to "true" - this indicates a successful launch
+	session.Started = "true"
+	log.Debugf("Launched command with pid %d", session.Cmd.Process.Pid)
+
+	return nil
 }
 
 func logConfig(config *ExecutorConfig) {

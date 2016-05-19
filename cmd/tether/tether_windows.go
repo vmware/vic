@@ -212,6 +212,10 @@ func (t *osopsWin) processEnvOS(env []string) []string {
 	return env
 }
 
+func lookPath(file string, env []string) (string, error) {
+	return "", errors.New("unimplemented on windows")
+}
+
 func (t *osopsWin) signalProcess(process *os.Process, sig ssh.Signal) error {
 	return errors.New("unimplemented on windows")
 }
