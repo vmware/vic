@@ -2,7 +2,7 @@
 
 This book introduces vSphere Integrated Containers.
 
-**Document version 0.1**
+**Product version 0.2.0**
 
 **NOTE**  This book is a work in progress.
 
