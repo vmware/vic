@@ -130,7 +130,7 @@ get_logs () {
     assert_line -e "Status: .* for library/busybox:latest"
 
     # execute docker create/start command
-    run "$docker" "${docker_cmd[@]}" create busybox
+    run "$docker" "${docker_cmd[@]}" create busybox /bin/date
     assert_success
     name="$output"
 
