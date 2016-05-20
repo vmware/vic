@@ -16,6 +16,7 @@ package vsphere
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -42,6 +43,7 @@ const (
 	defaultDiskLabel = "containerfs"
 	defaultDiskSize  = 8388608
 	metaDataDir      = "imageMetadata"
+	layerDiffIDKey   = "diff_id"
 )
 
 type ImageStore struct {
@@ -254,11 +256,26 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 		}
 		defer vmdisk.Unmount()
 
-		// Untar the archive
-		cerr = archive.Untar(r, dir, &archive.TarOptions{})
+		// Decompress the archive into memory (this would happen anyway within the call to Untar)
+		decompressedTar, cerr := archive.DecompressStream(r)
 		if cerr != nil {
 			return nil, cerr
 		}
+
+		// Get the SHA256 sum of the decompressed archive (layer diffID)
+		h := sha256.New()
+		t := io.TeeReader(decompressedTar, h)
+
+		// untar to filesystem
+		cerr = archive.UntarUncompressed(t, dir, &archive.TarOptions{})
+		if cerr != nil {
+			return nil, cerr
+		}
+
+		sum := fmt.Sprintf("sha256:%x", h.Sum(nil))
+
+		// Add sha256 to layer metadata
+		meta[layerDiffIDKey] = []byte(sum)
 
 		// persist the relationship
 		v.parents.Add(ID, parent.ID)
