@@ -16,7 +16,7 @@
 # Create a VM and boot stateless ESXi via cdrom/iso
 
 usage() {
-    echo "Usage: $0 [-d DISK_GB] [-m MEM_GB] [-i ESX_ISO] ESX_URL VM_NAME" 1>&2
+    echo "Usage: $0 [-d DISK_GB] [-m MEM_GB] [-i ESX_ISO] [-s] ESX_URL VM_NAME" 1>&2
     exit 1
 }
 
@@ -24,7 +24,7 @@ disk=48
 mem=16
 iso=VMware-VMvisor-6.0.0-3634798.x86_64.iso
 
-while getopts d:i:m: flag
+while getopts d:i:m:s: flag
 do
     case $flag in
         d)
@@ -35,6 +35,9 @@ do
             ;;
         m)
             mem=$OPTARG
+            ;;
+        s)
+            standalone=true
             ;;
         *)
             usage
@@ -75,11 +78,16 @@ id=$(govc device.cdrom.add -vm "$name")
 echo "Inserting $boot in $name cdrom device..."
 govc device.cdrom.insert -vm "$name" -device "$id" "$boot"
 
-echo "Creating $name disks for use by vSAN..."
-govc vm.disk.create -vm "$name" -name "$name"/vsan-cache -size "$((disk/2))G"
-govc vm.disk.create -vm "$name" -name "$name"/vsan-store -size "${disk}G"
+if [ -n "$standalone" ] ; then
+    echo "Creating $name disk for use by ESXi..."
+    govc vm.disk.create -vm "$name" -name "$name"/disk1 -size "${disk}G"
+else
+    echo "Creating $name disks for use by vSAN..."
+    govc vm.disk.create -vm "$name" -name "$name"/vsan-cache -size "$((disk/2))G"
+    govc vm.disk.create -vm "$name" -name "$name"/vsan-store -size "${disk}G"
 
-govc vm.change -e scsi0:0.virtualSSD=1 -e scsi0:1.virtualSSD=0 -vm "$name"
+    govc vm.change -e scsi0:0.virtualSSD=1 -e scsi0:1.virtualSSD=0 -vm "$name"
+fi
 
 echo "Powering on $name VM..."
 govc vm.power -on "$name"
@@ -102,6 +110,14 @@ while true; do
     printf "."
     sleep 1
 done
+
+if [ -z "$standalone" ] ; then
+    # Stateless esx will claim disks for its own use,
+    # vSAN cannot autoclaim mounted disks, so unmount.
+    echo "Unmounting datastores for use with vSAN..."
+
+    govc ls datastore | xargs -n1 -I% govc datastore.remove -ds % '*'
+fi
 
 echo "Installing host client..."
 govc host.esxcli -- software vib install -v http://download3.vmware.com/software/vmw-tools/esxui/esxui-signed-3843236.vib
