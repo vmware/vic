@@ -245,7 +245,7 @@ func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig
 			http.StatusInternalServerError)
 	}
 
-	// handle legancy hostConfig
+	// handle legacy hostConfig
 	if hostConfig != nil {
 		// hostConfig exist for backwards compatibility.  TODO: Figure out which parameters we
 		// need to look at in hostConfig
@@ -255,10 +255,9 @@ func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig
 	getRes, err := client.Containers.Get(containers.NewGetParams().WithID(name))
 	if err != nil {
 		if _, ok := err.(*containers.GetNotFound); ok {
-			return derr.NewRequestNotFoundError(err)
+			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
 		}
-
-		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer"), http.StatusInternalServerError)
 	}
 
 	h := getRes.Payload
@@ -267,10 +266,9 @@ func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig
 	bindRes, err := client.Scopes.BindContainer(scopes.NewBindContainerParams().WithHandle(h))
 	if err != nil {
 		if _, ok := err.(*scopes.BindContainerNotFound); ok {
-			return derr.NewRequestNotFoundError(err)
+			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer"))
 		}
-
-		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer"), http.StatusInternalServerError)
 	}
 
 	h = bindRes.Payload
@@ -280,10 +278,11 @@ func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig
 	stateChangeRes, err := client.Containers.StateChange(containers.NewStateChangeParams().WithHandle(h).WithState("RUNNING"))
 	if err != nil {
 		if _, ok := err.(*containers.StateChangeNotFound); ok {
-			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
+			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer"))
 		}
 
 		// If we get here, most likely something went wrong with the port layer API server
+
 		return derr.NewErrorWithStatusCode(fmt.Errorf("Unknown error from the exec port layer"), http.StatusInternalServerError)
 	}
 
@@ -293,17 +292,54 @@ func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig
 	_, err = client.Containers.Commit(containers.NewCommitParams().WithHandle(h))
 	if err != nil {
 		if _, ok := err.(*containers.CommitNotFound); ok {
-			return derr.NewRequestNotFoundError(err)
+			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer"))
 		}
-
-		return derr.NewErrorWithStatusCode(err, http.StatusServiceUnavailable)
+		return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer"), http.StatusInternalServerError)
 	}
 
 	return nil
 }
 
 func (c *Container) ContainerStop(name string, seconds int) error {
-	return fmt.Errorf("%s does not implement container.ContainerStop", c.ProductName)
+	defer trace.End(trace.Begin("ContainerStop"))
+	//retrieve client to portlayer
+	client := PortLayerClient()
+	if client == nil {
+		return derr.NewErrorWithStatusCode(fmt.Errorf("container.ContainerCreate failed to create a portlayer client"),
+			http.StatusInternalServerError)
+	}
+
+	getResponse, err := client.Containers.Get(containers.NewGetParams().WithID(name))
+	if err != nil {
+		if _, ok := err.(*containers.GetNotFound); ok {
+			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
+		}
+		return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer"), http.StatusInternalServerError)
+	}
+
+	handle := getResponse.Payload
+
+	// change the state of the container
+	// TODO: We need a resolved ID from the name
+	stateChangeResponse, err := client.Containers.StateChange(containers.NewStateChangeParams().WithHandle(handle).WithState("STOPPED"))
+	if err != nil {
+		if _, ok := err.(*containers.StateChangeNotFound); ok {
+			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer"))
+		}
+		return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer"), http.StatusInternalServerError)
+	}
+
+	handle = stateChangeResponse.Payload
+
+	_, err = client.Containers.Commit(containers.NewCommitParams().WithHandle(handle))
+	if err != nil {
+		if _, ok := err.(*containers.CommitNotFound); ok {
+			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer"))
+		}
+		return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer"), http.StatusInternalServerError)
+	}
+
+	return nil
 }
 
 func (c *Container) ContainerUnpause(name string) error {

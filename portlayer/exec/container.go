@@ -126,6 +126,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, s *types.
 // Start starts a container vm with the given params
 func (c *Container) Start(ctx context.Context) error {
 	defer trace.End(trace.Begin("Container.Start"))
+	//no need to grab the lock, there is no state change to the container
 
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
@@ -172,6 +173,27 @@ func (c *Container) Start(ctx context.Context) error {
 
 	if detail != "true" {
 		return errors.New(detail)
+	}
+
+	return nil
+}
+
+func (c *Container) Stop(ctx context.Context) error {
+	defer trace.End(trace.Begin("Container.Stop"))
+	//no need to grab the lock, there is no state change to the container
+
+	if c.vm == nil {
+		return fmt.Errorf("vm not set")
+	}
+
+	//TODO: make the shutdown much cleaner, right now we just pull the plug on the vm.(may need corresponding work in tether.)
+
+	// Power off
+	_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		return c.vm.PowerOff(ctx)
+	})
+	if err != nil {
+		return err
 	}
 
 	return nil
