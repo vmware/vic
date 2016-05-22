@@ -20,8 +20,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/pkg/dio"
-	"github.com/vmware/vic/portlayer/attach"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"

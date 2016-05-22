@@ -19,7 +19,7 @@ import (
 	"os/exec"
 	"sync"
 
-	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/dio"
 )
 

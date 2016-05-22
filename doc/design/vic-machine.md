@@ -79,7 +79,7 @@ Components:
 * validation of config structure values
   - given an internal config data structure it's necessary to check the specifics against the target vSphere to ensure they are valid - past validity is no indicator of current validity
   - this may also translate from symbolic names to morefs, resulting in a manifest that is resilient to name changes, but fragile across vSphere instances with identical naming schemes. This should be a user selectable behaviour, I prefer it on by default.
-  - _package: spec, path: pkg/vsphere/spec_
+  - _package: spec, path: lib/spec_
 * creation of VCH from configuration
   - when a manifest has been validated against a vSphere, this component creates the corresponding vSphere objects - this is primarily the VCH applianceVM, but may also include port groups and other objects.
   - _package: management, path: install/management_

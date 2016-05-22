@@ -31,8 +31,8 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 
-	"github.com/vmware/vic/metadata"
-	"github.com/vmware/vic/portlayer/attach"
+	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/portlayer/attach"
 )
 
 func genKey() []byte {

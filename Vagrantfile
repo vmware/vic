@@ -26,7 +26,7 @@ Vagrant.configure(2) do |config|
       end
     end
 
-    Dir['machines/devbox/provision.sh', 'machines/devbox/provision-drone.sh'].each do |path|
+    Dir['infra/machines/devbox/provision.sh', 'infra/machines/devbox/provision-drone.sh'].each do |path|
       vic_dev.vm.provision 'shell', path: path, args: [gdir, vic_dev.ssh.username]
     end
   end

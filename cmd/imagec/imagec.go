@@ -36,7 +36,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/reference"
 
-	"github.com/vmware/vic/apiservers/portlayer/models"
+	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/pkg/i18n"
 
 	"github.com/pkg/profile"

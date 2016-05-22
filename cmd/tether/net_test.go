@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/lib/metadata"
 )
 
 /////////////////////////////////////////////////////////////////////////////////////

@@ -30,9 +30,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	winserial "github.com/tarm/serial"
+	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/serial"
-	"github.com/vmware/vic/portlayer/attach"
 )
 
 // allow us to pick up some of the osops implementations when mocking
