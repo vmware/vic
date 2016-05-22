@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// [BEGIN] SLIMMED DOWNED and MODIFIED VERSION of github.com/vmware/vic/metadata
+// [BEGIN] SLIMMED DOWNED and MODIFIED VERSION of github.com/vmware/vic/lib/metadata
 type Common struct {
 	ExecutionEnvironment string `vic:"0.1" recurse:"depth=0"`
 
@@ -85,7 +85,7 @@ type SessionConfig struct {
 	Tty bool `vic:"0.1" scope:"hidden" key:"tty"`
 }
 
-// [END] SLIMMED VERSION of github.com/vmware/vic/metadata
+// [END] SLIMMED VERSION of github.com/vmware/vic/lib/metadata
 
 // make it verbose during testing
 func init() {

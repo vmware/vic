@@ -33,12 +33,12 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
-	"github.com/vmware/vic/portlayer/attach"
 )
 
 var mocked mocker

@@ -16,7 +16,7 @@ package guest
 
 import (
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/pkg/vsphere/spec"
+	"github.com/vmware/vic/lib/spec"
 )
 
 // Guest interface defines the different guest types

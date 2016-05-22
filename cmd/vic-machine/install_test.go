@@ -23,7 +23,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/vmware/vic/install/configuration"
+	"github.com/vmware/vic/lib/install/configuration"
 )
 
 func TestImageNotFound(t *testing.T) {
