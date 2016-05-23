@@ -22,7 +22,6 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/exec"
-	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 func makeIP(a, b, c, d byte) *net.IP {
@@ -41,9 +40,7 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 	defer func() { getBridgeNetworkName = origBridgeNetworkName }()
 
 	var err error
-	sess := &session.Session{}
-
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), sess)
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
 	if err != nil {
 		t.Errorf("NewContext() => (nil, %s), want (ctx, nil)", err)
 		return
@@ -196,9 +193,7 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 
 func TestScopeBindUnbindContainer(t *testing.T) {
 	var err error
-	sess := &session.Session{}
-
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), sess)
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}

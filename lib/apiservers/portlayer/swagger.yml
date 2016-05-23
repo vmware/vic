@@ -248,11 +248,13 @@ paths:
               $ref: "#/definitions/ScopeConfig"
         '404':
           description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
         default:
           description: "error"
           schema:
             $ref: "#/definitions/Error"
-  /scopes/containers/{handle}:
+  /containers/{handle}/scopes:
     post:
       description: "Add a container to scopes modifying the conatiner VM's config as necessary"
       tags: ["scopes"]
@@ -280,7 +282,34 @@ paths:
           description: "error"
           schema:
             $ref: "#/definitions/Error"
-  /scopes/containers/{handle}/binding:
+  /containers/{handle}/scopes/{scope}:
+    delete:
+      description: "Remove a container from a scope"
+      tags: ["scopes"]
+      operationId: RemoveContainer
+      parameters:
+        - name: handle
+          required: true
+          in: path
+          type: string
+        - name: scope
+          in: path
+          required: true
+          type: string
+      responses:
+        '200':
+          description: "OK"
+          schema:
+            type: string
+        '404':
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+        default:
+          description: "error"
+          schema:
+            $ref: "#/definitions/Error"
+  /containers/{handle}/scopes/binding:
     post:
       tags: ["scopes"]
       description: "Perform scope initialization for each of the scopes the container belongs to. Network initialization may include, for example, assigning addresses on a scope."
@@ -382,6 +411,8 @@ paths:
       responses:
         '404':
           description: "not found"
+          schema:
+            $ref: "#/definitions/Error"
         '200':
           description: "OK"
           schema:
@@ -408,6 +439,8 @@ paths:
       responses:
         '404':
           description: "not found"
+          schema:
+            $ref: "#/definitions/Error"
         '200':
           description: "OK"
         default:
@@ -444,6 +477,33 @@ paths:
           description: "OK"
           schema:
             type: string
+        default:
+          description: "Error"
+          schema:
+            $ref: "#/definitions/Error"
+    get:
+      description: "Get the current state of the a container"
+      operationId: GetState
+      tags: ["containers"]
+      consumes:
+        - application/octet-stream
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: handle
+          required: true
+          in: path
+          type: string
+      responses:
+        '404':
+          description: "not found"
+          schema:
+            $ref: "#/definitions/Error"
+        '200':
+          description: "OK"
+          schema:
+            $ref: "#/definitions/ContainerGetStateResponse"
         default:
           description: "Error"
           schema:
@@ -583,3 +643,14 @@ definitions:
         type: string
       address:
         type: string
+  ContainerGetStateResponse:
+    type: object
+    required:
+      - handle
+      - state
+    properties:
+      handle:
+        type: string
+      state:
+        type: string
+        enum: ["RUNNING", "STOPPED"]

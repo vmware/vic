@@ -25,7 +25,6 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
-	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 const (
@@ -80,7 +79,7 @@ var validScopeTests = []struct {
 
 // mockBridgeNetworkName mocks getBridgeNetworkName so that tests don't
 // need to query guestInfo
-func mockBridgeNetworkName(sess *session.Session) (string, error) {
+func mockBridgeNetworkName() (string, error) {
 	return testBridgeName, nil
 }
 
@@ -96,9 +95,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestContext(t *testing.T) {
-	sess := &session.Session{}
-
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), sess)
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
 	if err != nil {
 		t.Errorf("NewContext() => (nil, %s), want (ctx, nil)", err)
 		return
@@ -256,13 +253,7 @@ func TestContext(t *testing.T) {
 }
 
 func TestScopes(t *testing.T) {
-	origBridgeNetworkName := getBridgeNetworkName
-	getBridgeNetworkName = mockBridgeNetworkName
-	defer func() { getBridgeNetworkName = origBridgeNetworkName }()
-
-	sess := &session.Session{}
-
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), sess)
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
 	if err != nil {
 		t.Errorf("NewContext() => (nil, %s), want (ctx, nil)", err)
 		return
@@ -357,9 +348,7 @@ func TestScopes(t *testing.T) {
 }
 
 func TestContextAddContainer(t *testing.T) {
-	sess := &session.Session{}
-
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), sess)
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
 	if err != nil {
 		t.Errorf("NewContext() => (nil, %s), want (ctx, nil)", err)
 		return
@@ -394,7 +383,7 @@ func TestContextAddContainer(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	aecErr := func(_ *exec.Handle, _ *Scope, _ *Container) (types.BaseVirtualDevice, error) {
+	aecErr := func(_ *exec.Handle, _ *Scope) (types.BaseVirtualDevice, error) {
 		return nil, fmt.Errorf("error")
 	}
 
@@ -404,7 +393,7 @@ func TestContextAddContainer(t *testing.T) {
 	}
 
 	var tests = []struct {
-		aec      func(h *exec.Handle, s *Scope, con *Container) (types.BaseVirtualDevice, error)
+		aec      func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, error)
 		h        *exec.Handle
 		s        *spec.VirtualMachineConfigSpec
 		scope    string
@@ -577,9 +566,7 @@ func TestFindSlotNumber(t *testing.T) {
 }
 
 func TestContextBindUnbindContainer(t *testing.T) {
-	sess := &session.Session{}
-
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), sess)
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
@@ -747,6 +734,93 @@ func TestContextBindUnbindContainer(t *testing.T) {
 			if !ne.IP.IP.IsUnspecified() {
 				t.Fatalf("%d: endpoint IP should be unspecified in %v", te.i, ne)
 			}
+		}
+	}
+}
+
+func TestContextRemoveContainer(t *testing.T) {
+
+	hFoo := exec.NewContainer("foo")
+
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
+	if err != nil {
+		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
+	}
+
+	scope, err := ctx.NewScope(bridgeScopeType, "scope", nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("ctx.NewScope() => (nil, %s), want (scope, nil)", err)
+	}
+
+	ctx.AddContainer(hFoo, scope.Name(), nil)
+	ctx.BindContainer(hFoo)
+
+	// container that is added to multiple bridge scopes
+	hBar := exec.NewContainer("bar")
+	ctx.AddContainer(hBar, "default", nil)
+	ctx.AddContainer(hBar, scope.Name(), nil)
+
+	var tests = []struct {
+		h     *exec.Handle
+		scope string
+		err   error
+	}{
+		{nil, "", fmt.Errorf("")},                                  // nil handle
+		{hFoo, "bar", fmt.Errorf("")},                              // scope not found
+		{exec.NewContainer("notfound"), "default", fmt.Errorf("")}, // container not found
+		{hFoo, "default", fmt.Errorf("")},                          // container not found
+		{hFoo, "default", fmt.Errorf("")},                          // container present in context, but not in scope
+		{hFoo, scope.Name(), fmt.Errorf("")},                       // bound container
+		{hBar, "default", nil},
+		{hBar, scope.Name(), nil},
+	}
+
+	for _, te := range tests {
+		err = ctx.RemoveContainer(te.h, te.scope)
+		if te.err != nil {
+			// expect error
+			if err == nil {
+				t.Fatalf("ctx.RemoveContainer(%#v, %s) => nil want err", te.h, te.scope)
+			}
+
+			continue
+		}
+
+		s, err := ctx.resolveScope(te.scope)
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+
+		if s.Container(te.h.Container.ID) != nil {
+			t.Fatalf("container is still part of scope")
+		}
+
+		// should have a remove spec for NIC, if container was only part of one bridge scope
+		c := ctx.Container(te.h.Container.ID)
+		if len(c.Scopes()) == 0 {
+			dcs, err := te.h.Spec.FindNICs(s.NetworkName)
+			if err != nil {
+				t.Fatalf(err.Error())
+			}
+
+			found := false
+			for _, dc := range dcs {
+				if dc.GetVirtualDeviceConfigSpec().Operation != types.VirtualDeviceConfigSpecOperationRemove {
+					continue
+				}
+
+				found = true
+				break
+			}
+
+			if !found {
+				t.Fatalf("no remove spec for NIC in %#v: %s", te.h.Spec, err)
+			}
+		}
+
+		// metadata should be gone
+		if _, ok := te.h.ExecConfig.Networks[te.scope]; ok {
+			t.Fatalf("endpoint metadata for container still present in handle %#v", te.h.ExecConfig)
 		}
 	}
 }

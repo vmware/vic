@@ -109,21 +109,18 @@ func (s *VirtualMachineConfigSpec) RemoveVirtualE1000(device *types.VirtualE1000
 	return s.RemoveVirtualDevice(device)
 }
 
-func (s *VirtualMachineConfigSpec) FindNIC(networkName string) (types.BaseVirtualDevice, error) {
+func (s *VirtualMachineConfigSpec) FindNICs(networkName string) ([]types.BaseVirtualDeviceConfigSpec, error) {
 	if networkName == "" {
 		return nil, fmt.Errorf("no network name provided")
 	}
 
+	var dcs []types.BaseVirtualDeviceConfigSpec
 	for _, d := range s.DeviceChange {
-		if d.GetVirtualDeviceConfigSpec().Operation == types.VirtualDeviceConfigSpecOperationRemove {
-			continue
-		}
-
 		dev := d.GetVirtualDeviceConfigSpec().Device
 		if backing, ok := dev.GetVirtualDevice().Backing.(*types.VirtualEthernetCardNetworkBackingInfo); ok && backing.DeviceName == networkName {
-			return dev, nil
+			dcs = append(dcs, d)
 		}
 	}
 
-	return nil, fmt.Errorf("nic not found")
+	return dcs, nil
 }

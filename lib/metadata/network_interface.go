@@ -24,9 +24,6 @@ type NetworkEndpoint struct {
 	// IP addresses to assign - may be empty if DHCP
 	IP net.IPNet `vic:"0.1" scope:"read-only" key:"ip"`
 
-	// The MAC address for the vNIC - this allows for interface idenitifcaton in the guest
-	MAC string `vic:"0.1" scope:"read-only" key:"mac"`
-
 	// The PCI slot for the vNIC - this allows for interface idenitifcaton in the guest
 	PCISlot int32 `vic:"0.1" scope:"read-only" key:"pcislot"`
 

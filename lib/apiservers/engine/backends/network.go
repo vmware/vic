@@ -19,8 +19,13 @@ import (
 	"net"
 	"sync"
 
+	"net/http"
+
+	log "github.com/Sirupsen/logrus"
+	derr "github.com/docker/docker/errors"
 	apinet "github.com/docker/engine-api/types/network"
 	"github.com/docker/libnetwork"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 )
@@ -36,23 +41,39 @@ func (n *Network) NetworkControllerEnabled() bool {
 func (n *Network) FindNetwork(idName string) (libnetwork.Network, error) {
 	ok, err := PortLayerClient().Scopes.List(scopes.NewListParams().WithIDName(idName))
 	if err != nil {
-		return nil, err
+		switch err := err.(type) {
+		case *scopes.ListNotFound:
+			return nil, derr.NewRequestNotFoundError(fmt.Errorf("network %s not found", idName))
+
+		case *scopes.ListDefault:
+			return nil, derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+
+		default:
+
+			return nil, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		}
 	}
 
 	return &network{cfg: ok.Payload[0]}, nil
 }
 
 func (n *Network) GetNetworkByName(idName string) (libnetwork.Network, error) {
-	nw, err := n.FindNetwork(idName)
-	if _, ok := err.(*scopes.ListNotFound); ok {
-		return nil, nil
-	}
-
+	ok, err := PortLayerClient().Scopes.List(scopes.NewListParams().WithIDName(idName))
 	if err != nil {
-		return nil, err
+		switch err := err.(type) {
+		case *scopes.ListNotFound:
+			return nil, nil
+
+		case *scopes.ListDefault:
+			return nil, derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+
+		default:
+
+			return nil, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		}
 	}
 
-	return nw, nil
+	return &network{cfg: ok.Payload[0]}, nil
 }
 
 func (n *Network) GetNetworksByID(partialID string) []libnetwork.Network {
@@ -106,6 +127,10 @@ func (n *Network) CreateNetwork(name, driver string, ipam apinet.IPAM, options m
 		}
 	}
 
+	if driver == "" {
+		driver = "bridge"
+	}
+
 	cfg := &models.ScopeConfig{
 		Gateway:   gateway,
 		Name:      name,
@@ -116,14 +141,126 @@ func (n *Network) CreateNetwork(name, driver string, ipam apinet.IPAM, options m
 
 	created, err := PortLayerClient().Scopes.CreateScope(scopes.NewCreateScopeParams().WithConfig(cfg))
 	if err != nil {
-		return nil, err
+		switch err := err.(type) {
+		case *scopes.CreateScopeConflict:
+			return nil, derr.NewErrorWithStatusCode(fmt.Errorf("network %s already exists", name), http.StatusConflict)
+
+		case *scopes.CreateScopeDefault:
+			return nil, derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+
+		default:
+			return nil, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		}
 	}
 
 	return &network{cfg: created.Payload}, nil
 }
 
 func (n *Network) ConnectContainerToNetwork(containerName, networkName string, endpointConfig *apinet.EndpointSettings) error {
-	return fmt.Errorf("%s does not implement network.ConnectContainerToNetwork", n.ProductName)
+	client := PortLayerClient()
+	getRes, err := client.Containers.Get(containers.NewGetParams().WithID(containerName))
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.GetNotFound:
+			return derr.NewRequestNotFoundError(fmt.Errorf(err.Payload.Message))
+
+		case *containers.GetDefault:
+			return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+
+		default:
+			return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		}
+	}
+
+	h := getRes.Payload
+	nc := &models.NetworkConfig{NetworkName: networkName}
+	if endpointConfig != nil && endpointConfig.IPAMConfig != nil && endpointConfig.IPAMConfig.IPv4Address != "" {
+		nc.Address = &endpointConfig.IPAMConfig.IPv4Address
+	}
+
+	addConRes, err := client.Scopes.AddContainer(scopes.NewAddContainerParams().WithHandle(h).WithNetworkConfig(nc))
+	if err != nil {
+		switch err := err.(type) {
+		case *scopes.AddContainerNotFound:
+			return derr.NewRequestNotFoundError(fmt.Errorf(err.Payload.Message))
+
+		case *scopes.AddContainerDefault:
+			return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+
+		default:
+			return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		}
+	}
+
+	defer func() {
+		if err != nil {
+			if _, err2 := client.Scopes.RemoveContainer(scopes.NewRemoveContainerParams().WithHandle(h).WithScope(nc.NetworkName)); err2 != nil {
+				log.Warnf("failed add container to network rollback: %s", err2)
+			}
+		}
+	}()
+
+	h = addConRes.Payload
+
+	// only bind if the container is running
+	// get the state of the container
+	getStateRes, err := client.Containers.GetState(containers.NewGetStateParams().WithHandle(h))
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.GetStateNotFound:
+			return derr.NewRequestNotFoundError(fmt.Errorf(err.Payload.Message))
+
+		case *containers.GetStateDefault:
+			return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+
+		default:
+			return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		}
+	}
+
+	h = getStateRes.Payload.Handle
+	if getStateRes.Payload.State == "RUNNING" {
+		bindRes, err := client.Scopes.BindContainer(scopes.NewBindContainerParams().WithHandle(h))
+		if err != nil {
+			switch err := err.(type) {
+			case *scopes.BindContainerNotFound:
+				return derr.NewRequestNotFoundError(fmt.Errorf(err.Payload.Message))
+
+			case *scopes.BindContainerDefault:
+				return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+
+			default:
+				return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+			}
+		}
+
+		defer func() {
+			if err == nil {
+				return
+			}
+			if _, err2 := client.Scopes.UnbindContainer(scopes.NewUnbindContainerParams().WithHandle(h)); err2 != nil {
+				log.Warnf("failed bind container rollback: %s", err2)
+			}
+		}()
+		h = bindRes.Payload
+	}
+
+	// commit handle
+	_, err = client.Containers.Commit(containers.NewCommitParams().WithHandle(h))
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.CommitNotFound:
+			return derr.NewRequestNotFoundError(fmt.Errorf(err.Payload.Message))
+
+		case *containers.CommitDefault:
+			return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+
+		default:
+			return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		}
+	}
+
+	return nil
 }
 
 func (n *Network) DisconnectContainerFromNetwork(containerName string, network libnetwork.Network, force bool) error {

@@ -61,7 +61,7 @@ func init() {
 
 type Handle struct {
 	Spec       *spec.VirtualMachineConfigSpec
-	ExecConfig *metadata.ExecutorConfig
+	ExecConfig metadata.ExecutorConfig
 	Container  *Container
 	State      *State
 
@@ -81,7 +81,7 @@ func newHandle(con *Container) *Handle {
 		key:        newHandleKey(),
 		committed:  false,
 		Container:  con,
-		ExecConfig: &metadata.ExecutorConfig{},
+		ExecConfig: *con.ExecConfig,
 	}
 
 	handlesLock.Lock()
@@ -143,29 +143,15 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session) error {
 		return nil // already committed
 	}
 
+	// make sure there is a spec
 	h.SetSpec(nil)
 	cfg := make(map[string]string)
 	extraconfig.Encode(extraconfig.MapSink(cfg), h.ExecConfig)
 	s := h.Spec.Spec()
 	s.ExtraConfig = append(s.ExtraConfig, extraconfig.OptionValueFromMap(cfg)...)
-	if err := h.Container.Commit(ctx, sess, s); err != nil {
+
+	if err := h.Container.Commit(ctx, sess, h); err != nil {
 		return err
-	}
-
-	if h.State != nil {
-		switch *h.State {
-		case StateRunning:
-			// start the container
-			if err := h.Container.Start(ctx); err != nil {
-				return err
-			}
-
-		case StateStopped:
-			// stop the container
-			if err := h.Container.Stop(ctx); err != nil {
-				return err
-			}
-		}
 	}
 
 	h.committed = true

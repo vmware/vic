@@ -20,12 +20,10 @@ type DuplicateResourceError struct {
 	resID string
 }
 
-type ResourceNotFoundError struct{}
+type ResourceNotFoundError struct {
+	error
+}
 
 func (e DuplicateResourceError) Error() string {
 	return fmt.Sprintf("%s already exists", e.resID)
-}
-
-func (e ResourceNotFoundError) Error() string {
-	return ""
 }

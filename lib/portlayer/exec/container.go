@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -50,12 +51,17 @@ type Container struct {
 
 	ID ID
 
+	ExecConfig *metadata.ExecutorConfig
+	State      State
+
 	vm *vm.VirtualMachine
 }
 
 func NewContainer(id ID) *Handle {
 	con := &Container{
-		ID: id,
+		ID:         id,
+		ExecConfig: &metadata.ExecutorConfig{},
+		State:      StateStopped,
 	}
 
 	containersLock.Lock()
@@ -80,44 +86,78 @@ func (c *Container) newHandle() *Handle {
 	return newHandle(c)
 }
 
-func (c *Container) Commit(ctx context.Context, sess *session.Session, s *types.VirtualMachineConfigSpec) error {
+func (c *Container) cacheExecConfig(ec *metadata.ExecutorConfig) {
 	c.Lock()
 	defer c.Unlock()
 
-	if c.vm != nil {
-		// reconfigure
-		_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-			return c.vm.Reconfigure(ctx, *s)
-		})
+	c.ExecConfig = ec
+}
 
-		if err != nil {
-			return err
-		}
-	} else {
-		// Find the Virtual Machine folder that we use
-		folders, err := sess.Datacenter.Folders(ctx)
-		if err != nil {
-			return err
-		}
-		parent := folders.VmFolder
+func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle) error {
+	c.Lock()
+	defer c.Unlock()
 
-		// FIXME: Replace this simple logic with DRS placement
-		// Pick a random host
-		hosts, err := sess.Datastore.AttachedClusterHosts(ctx, sess.Cluster)
-		if err != nil {
-			return err
-		}
-		host := hosts[rand.Intn(len(hosts))]
+	if h.Spec != nil {
+		s := h.Spec.Spec()
+		if c.vm != nil {
+			// reconfigure
+			_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+				return c.vm.Reconfigure(ctx, *s)
+			})
 
-		// Create the vm
-		res, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-			return parent.CreateVM(ctx, *s, sess.Pool, host)
-		})
-		if err != nil {
-			return err
+			if err != nil {
+				return err
+			}
+		} else {
+			// Find the Virtual Machine folder that we use
+			folders, err := sess.Datacenter.Folders(ctx)
+			if err != nil {
+				return err
+			}
+			parent := folders.VmFolder
+
+			// FIXME: Replace this simple logic with DRS placement
+			// Pick a random host
+			hosts, err := sess.Datastore.AttachedClusterHosts(ctx, sess.Cluster)
+			if err != nil {
+				return err
+			}
+			host := hosts[rand.Intn(len(hosts))]
+
+			// Create the vm
+			res, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+				return parent.CreateVM(ctx, *s, sess.Pool, host)
+			})
+			if err != nil {
+				return err
+			}
+
+			c.vm = vm.NewVirtualMachine(ctx, sess, res.Result.(types.ManagedObjectReference))
+		}
+	}
+
+	c.ExecConfig = &h.ExecConfig
+
+	if h.State != nil {
+		if c.vm == nil {
+			return fmt.Errorf("no VM to do state change")
 		}
 
-		c.vm = vm.NewVirtualMachine(ctx, sess, res.Result.(types.ManagedObjectReference))
+		switch *h.State {
+		case StateRunning:
+			// start the container
+			if err := h.Container.Start(ctx); err != nil {
+				return err
+			}
+
+		case StateStopped:
+			// stop the container
+			if err := h.Container.Stop(ctx); err != nil {
+				return err
+			}
+		}
+
+		c.State = *h.State
 	}
 
 	return nil

@@ -82,7 +82,7 @@ func (c *Container) removeEndpoint(e *Endpoint) {
 	c.Lock()
 	defer c.Unlock()
 
-	removeEndpointHelper(e, c.endpoints)
+	c.endpoints = removeEndpointHelper(e, c.endpoints)
 }
 
 func (c *Container) collectSlotNumbers() map[int32]bool {
