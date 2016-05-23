@@ -19,16 +19,13 @@ Change _$USER_ below to your github username if they are not the same.
 ``` shell
 export GOPATH=$HOME/vic
 mkdir -p $GOPATH/src/github.com/vmware
-cd $GOPATH/src/github.com/vmware
-git clone git@github.com:vmware/vic.git
-cd vic
+go get github.com/vmware/vic
+cd $GOPATH/src/github.com/vmware/vic
 git config push.default nothing # anything to avoid pushing to vmware/vic by default
 git remote rename origin vmware
 git remote add $USER git@github.com:$USER/vic.git
 git fetch $USER
 ```
-
-TODO: a few of the steps above will collapse to 'go get github.com/vmware/vic' when the repo is no longer private.
 
 See the [README](README.md) for build instructions.
 
@@ -151,7 +148,7 @@ To move an issue into the In Progress swim lane several steps must be taken.
 2. Ensure the milestone is set (if there is one) and also review the labels to ensure they accurately reflect the issue.
 3. Assign an estimated level of effort. See the below table for guidance for effort mapping.
 
-After an issue is In Progress it is the best practice to update the issue with current progress and any discussions that may occur via the various collaboration tools used. An issue that is in progress should not go more than 2 days without updates. 
+After an issue is In Progress it is the best practice to update the issue with current progress and any discussions that may occur via the various collaboration tools used. An issue that is in progress should not go more than 2 days without updates.
 
 Story Points | Story Size
 ------------ | -------------------------------------------------------

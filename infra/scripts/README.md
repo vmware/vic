@@ -8,9 +8,9 @@ fail the job if headers are not correctly set. It can also be called with the
 
 Check if headers are fine:
 ```
-  $ ./scripts/header-check.sh
+  $ ./infra/scripts/header-check.sh
 ```
 Check and fix headers:
 ```
-  $ ./scripts/header-check.sh fix
+  $ ./infra/scripts/header-check.sh fix
 ```

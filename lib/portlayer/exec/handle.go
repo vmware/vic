@@ -27,11 +27,11 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/golang/groupcache/lru"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
-	"github.com/vmware/vic/pkg/vsphere/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
