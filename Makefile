@@ -157,7 +157,6 @@ $(go-lint): $(GOLINT)
 	@$(call golintf,github.com/vmware/vic/lib/install/...)
 	@$(call golintf,github.com/vmware/vic/lib/portlayer/...)
 	@$(call golintf,github.com/vmware/vic/lib/apiservers/portlayer/restapi/handlers/...)
-	@$(call golintf,github.com/vmware/vic/lib/apiservers/engine/server/...)
 	@$(call golintf,github.com/vmware/vic/lib/apiservers/engine/backends/...)
 	@touch $@
 
@@ -179,12 +178,9 @@ vendor: $(GVT)
 	@echo restoring vendor
 	$(GOPATH)/bin/gvt restore
 
-$(GOPATH)/bin/bats:
-	@./tests/vendor/github.com/sstephenson/bats/install.sh $(GOPATH)
-
-integration-tests: $(GOPATH)/bin/bats $(GOVC) components isos vic-machine
+integration-tests: $(GOVC) components isos vic-machine
 	@echo Running integration tests
-	@GOVC=$(GOVC) $(GOPATH)/bin/bats -t tests
+	@GOVC=$(GOVC) ./tests/vendor/github.com/sstephenson/bats/libexec/bats -t tests
 
 TEST_DIRS=github.com/vmware/vic/cmd/tether
 TEST_DIRS+=github.com/vmware/vic/cmd/imagec
