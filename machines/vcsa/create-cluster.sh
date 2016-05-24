@@ -19,8 +19,8 @@ export GOVC_INSECURE=1
 export GOVC_USERNAME=${GOVC_USERNAME:-"Administrator@vsphere.local"}
 if [ -z "$GOVC_PASSWORD" ] ; then
     # extract password from $GOVC_URL
-    eval "$(govc env | grep GOVC_PASSWORD=)"
-    export GOVC_PASSWORD
+    password=$(govc env | grep GOVC_PASSWORD= | cut -d= -f 2-)
+    export GOVC_PASSWORD="$password"
 fi
 
 usage() {
