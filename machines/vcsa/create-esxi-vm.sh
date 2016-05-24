@@ -16,7 +16,7 @@
 # Create a VM and boot stateless ESXi via cdrom/iso
 
 usage() {
-    echo "Usage: $0 [-d DISK_GB] [-m MEM_GB] [-i ESX_ISO] ESX_URL VM_NAME" 1>&2
+    echo "Usage: $0 [-d DISK_GB] [-m MEM_GB] [-i ESX_ISO] [-s] ESX_URL VM_NAME" 1>&2
     exit 1
 }
 
@@ -24,7 +24,7 @@ disk=48
 mem=16
 iso=VMware-VMvisor-6.0.0-3634798.x86_64.iso
 
-while getopts d:i:m: flag
+while getopts d:i:m:s flag
 do
     case $flag in
         d)
@@ -35,6 +35,9 @@ do
             ;;
         m)
             mem=$OPTARG
+            ;;
+        s)
+            standalone=true
             ;;
         *)
             usage
@@ -75,12 +78,6 @@ id=$(govc device.cdrom.add -vm "$name")
 echo "Inserting $boot in $name cdrom device..."
 govc device.cdrom.insert -vm "$name" -device "$id" "$boot"
 
-echo "Creating $name disks for use by vSAN..."
-govc vm.disk.create -vm "$name" -name "$name"/vsan-cache -size "$((disk/2))G"
-govc vm.disk.create -vm "$name" -name "$name"/vsan-store -size "${disk}G"
-
-govc vm.change -e scsi0:0.virtualSSD=1 -e scsi0:1.virtualSSD=0 -vm "$name"
-
 echo "Powering on $name VM..."
 govc vm.power -on "$name"
 
@@ -92,16 +89,45 @@ vm_ip=$(govc vm.ip "$name")
 # extract password from $GOVC_URL
 password=$(govc env | grep GOVC_PASSWORD= | cut -d= -f 2-)
 
-GOVC_URL="root:@${vm_ip}"
-echo "Waiting for $name hostd (via GOVC_URL=$GOVC_URL)..."
+esx_url="root:@${vm_ip}"
+echo "Waiting for $name hostd (via GOVC_URL=$esx_url)..."
 while true; do
-    if govc about 2>/dev/null; then
+    if govc about -u "$esx_url" 2>/dev/null; then
         break
     fi
 
     printf "."
     sleep 1
 done
+
+if [ -n "$standalone" ] ; then
+    echo "Creating $name disk for use by ESXi..."
+    govc vm.disk.create -vm "$name" -name "$name"/disk1 -size "${disk}G"
+else
+    echo "Creating $name disks for use by vSAN..."
+    govc vm.disk.create -vm "$name" -name "$name"/vsan-cache -size "$((disk/2))G"
+    govc vm.disk.create -vm "$name" -name "$name"/vsan-store -size "${disk}G"
+fi
+
+# Set target to the ESXi VM
+GOVC_URL="$esx_url"
+
+if [ -n "$standalone" ] ; then
+    disk=$(govc host.storage.info -rescan | grep /vmfs/devices/disks | awk '{print $1}' | xargs basename)
+    echo "Creating datastore on disk ${disk}..."
+    govc datastore.create -type vmfs -name datastore1 -disk="$disk" '*'
+else
+    echo "Rescanning HBA for new devices..."
+    disk=$(govc host.storage.info -rescan | grep /vmfs/devices/disks | awk '{print $1}' | sort | head -n1)
+    echo "Marking ${disk} as SSD..."
+    govc host.storage.mark -ssd "$disk"
+fi
+
+echo "Installing host client..."
+govc host.esxcli -- software vib install -v http://download3.vmware.com/software/vmw-tools/esxui/esxui-signed-3843236.vib
+
+echo "Enabling MOB..."
+govc host.option.set Config.HostAgent.plugins.solo.enableMob true
 
 echo "Propagating \$GOVC_URL password to $name host root account..."
 govc host.account.update -id root -password "$password"

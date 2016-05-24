@@ -25,7 +25,7 @@ import (
 
 type ExecutorConfig struct {
 	// ID corresponds to that of the primary session
-	ID string `vic:"0.1" scope:"read-only" key:"common~id"`
+	ID string `vic:"0.1" scope:"read-only" key:"common/id"`
 
 	// Exclusive access to childPidTable
 	pidMutex sync.Mutex
@@ -46,7 +46,7 @@ type ExecutorConfig struct {
 
 	// Key is the host key used during communicate back with the Interaction endpoint if any
 	// Used if the in-guest tether is responsible for authenticating the connection
-	Key string `vic:"0.1" scope:"read-only" key:"key"`
+	Key []byte `vic:"0.1" scope:"read-only" key:"key"`
 }
 
 // SessionConfig defines the content of a session - this maps to the root of a process tree
@@ -61,6 +61,8 @@ type SessionConfig struct {
 
 	// The exit status of the process, if any
 	ExitStatus int `vic:"0.1" scope:"read-write" key:"status"`
+
+	Started string `vic:"0.1" scope:"read-write" key:"started"`
 
 	// Allow attach
 	Attach bool `vic:"0.1" scope:"read-only" key:"attach"`

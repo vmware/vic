@@ -20,6 +20,7 @@ import (
 
 	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/dio"
+	"github.com/vmware/vic/portlayer/attach"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 )
@@ -32,7 +33,7 @@ type osops interface {
 	SetHostname(hostname string) error
 	Apply(endpoint *metadata.NetworkEndpoint) error
 	MountLabel(label, target string, ctx context.Context) error
-	Fork(config *metadata.ExecutorConfig) error
+	Fork(config *ExecutorConfig) error
 }
 
 type utilities interface {
@@ -40,8 +41,8 @@ type utilities interface {
 	cleanup()
 	sessionLogWriter() (dio.DynamicMultiWriter, error)
 	processEnvOS(env []string) []string
-	establishPty(live *liveSession) error
-	resizePty(pty uintptr, winSize *WindowChangeMsg) error
+	establishPty(session *SessionConfig) error
+	resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error
 	signalProcess(process *os.Process, sig ssh.Signal) error
 	backchannel(ctx context.Context) (net.Conn, error)
 }

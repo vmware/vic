@@ -51,7 +51,7 @@ func CreateVM(ctx context.Context, session *session.Session, host *object.HostSy
 
 	// Create the vm
 	info, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return parent.CreateVM(ctx, *linux.Spec(), session.Pool, host)
+		return parent.CreateVM(ctx, *linux.Spec().Spec(), session.Pool, host)
 	})
 	if err != nil {
 		return nil, err
@@ -145,7 +145,7 @@ func TestVMAttributes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
 	}
-	if address, err := vm.MacAddresses(ctx); err != nil {
+	if address, err := vm.WaitForMAC(ctx); err != nil {
 		t.Fatalf("ERROR: %s", err)
 	} else {
 		t.Logf("Got mac address: %s", address)

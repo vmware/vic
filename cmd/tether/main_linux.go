@@ -18,18 +18,30 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"strings"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 func main() {
-	defer halt()
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("run time panic: %s : %s", r, debug.Stack())
+		}
+		halt()
+	}()
 
 	// where to look for the various devices and files related to tether
 	pathPrefix = "/.tether"
+
+	if strings.HasSuffix(os.Args[0], "-debug") {
+		extraconfig.DecodeLogLevel = log.DebugLevel
+		extraconfig.EncodeLogLevel = log.DebugLevel
+		log.SetLevel(log.DebugLevel)
+	}
 
 	// the OS ops and utils to use
 	lnx := &osopsLinux{}
@@ -45,7 +57,19 @@ func main() {
 	}
 
 	server = &attachServerSSH{}
-	err = run(metadata.New())
+	src, err := extraconfig.GuestInfoSource()
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	sink, err := extraconfig.GuestInfoSink()
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	err = run(src, sink)
 	if err != nil {
 		log.Error(err)
 		return

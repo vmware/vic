@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/vic/pkg/flags"
 
 	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -103,6 +104,7 @@ func init() {
 	flag.StringVar(&data.bootstrapISO, "bootstrap-iso", "", "The bootstrap iso")
 	flag.BoolVar(&data.force, "force", false, "Force the install, removing existing if present")
 	flag.BoolVar(&data.tlsGenerate, "generate-cert", true, "Generate certificate for Virtual Container Host")
+	flag.DurationVar(&data.timeout, "timeout", 3*time.Minute, "Time to wait for appliance initialization")
 
 	flag.Parse()
 }
@@ -155,7 +157,6 @@ func processParams() {
 
 	// FIXME: add parameters for these configurations
 	data.osType = "linux"
-	data.timeout = 3 * time.Minute
 	data.logfile = "install.log"
 
 	data.conf = configuration.NewConfig()
@@ -177,8 +178,8 @@ func processParams() {
 	data.conf.ResourcePoolPath = data.computeResourcePath
 	data.conf.ImageDatastoreName = data.imageDatastoreName
 	data.conf.ImageStorePath = fmt.Sprintf("/%s/datastore/%s", data.conf.DatacenterName, data.imageDatastoreName)
-	data.conf.ExtenalNetworkPath = fmt.Sprintf("/%s/network/%s", data.conf.DatacenterName, data.externalNetworkName)
-	data.conf.ExtenalNetworkName = data.externalNetworkName
+	data.conf.ExternalNetworkPath = fmt.Sprintf("/%s/network/%s", data.conf.DatacenterName, data.externalNetworkName)
+	data.conf.ExternalNetworkName = data.externalNetworkName
 	data.conf.BridgeNetworkPath = fmt.Sprintf("/%s/network/%s", data.conf.DatacenterName, data.bridgeNetworkName)
 	data.conf.BridgeNetworkName = data.bridgeNetworkName
 	if data.managementNetworkName != "" {
@@ -295,8 +296,11 @@ func main() {
 		log.Fatalf("Validating supplied configuration failed. Exiting...")
 	}
 
-	executor := management.NewDispatcher(data.conf, data.force)
-	if err = executor.Dispatch(data.conf, data.timeout); err != nil {
+	var cancel context.CancelFunc
+	data.conf.Context, cancel = context.WithTimeout(data.conf.Context, data.timeout)
+	defer cancel()
+	executor := management.NewDispatcher(data.conf, data.force, data.timeout)
+	if err = executor.Dispatch(data.conf); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Fatal(err)
 	}

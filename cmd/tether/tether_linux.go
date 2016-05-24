@@ -24,18 +24,22 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 	"unsafe"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/kr/pty"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/serial"
+	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/portlayer/attach"
 )
 
 // allow us to pick up some of the osops implementations when mocking
@@ -90,7 +94,8 @@ func childReaper() {
 
 						session, ok := RemoveChildPid(pid)
 						if ok {
-							handleSessionExit(session, status.ExitStatus())
+							session.ExitStatus = status.ExitStatus()
+							handleSessionExit(session)
 						} else {
 							// This is an adopted zombie. The Wait4 call
 							// already clean it up from the kernel
@@ -106,6 +111,8 @@ func childReaper() {
 }
 
 func (t *osopsLinux) setup() error {
+	defer trace.End(trace.Begin("run OS specific tether setup"))
+
 	// seems necessary given rand.Reader access
 	var err error
 
@@ -142,6 +149,8 @@ func (t *osopsLinux) setup() error {
 // This should log errors, but no error is returned as this is a path of not return and
 // there's not likely to be a remediation available
 func (t *osopsLinux) cleanup() {
+	defer trace.End(trace.Begin("running OS specific tether cleanup"))
+
 	// stop child reaping
 	log.Info("Shutting down reaper")
 	signal.Reset(syscall.SIGCHLD)
@@ -150,12 +159,26 @@ func (t *osopsLinux) cleanup() {
 }
 
 func (t *osopsLinux) backchannel(ctx context.Context) (net.Conn, error) {
+	defer trace.End(trace.Begin("establish tether backchannel"))
+
 	log.Info("opening ttyS0 for backchannel")
 	f, err := os.OpenFile(pathPrefix+"/ttyS0", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, backchannelMode)
 	if err != nil {
 		detail := fmt.Sprintf("failed to open serial port for backchannel: %s", err)
 		log.Error(detail)
 		return nil, errors.New(detail)
+	}
+
+	// set the provided FDs to raw if it's a termial
+	// 0 is the uninitialized value for Fd
+	if f.Fd() != 0 && terminal.IsTerminal(int(f.Fd())) {
+		log.Debug("setting terminal to raw mode")
+		s, err := terminal.MakeRaw(int(f.Fd()))
+		if err != nil {
+			return nil, err
+		}
+
+		log.Infof("s = %#v", s)
 	}
 
 	log.Infof("creating raw connection from ttyS0 (fd=%d)\n", f.Fd())
@@ -168,7 +191,11 @@ func (t *osopsLinux) backchannel(ctx context.Context) (net.Conn, error) {
 	}
 
 	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
-	ticker := time.NewTicker(1000 * time.Millisecond)
+
+	// This needs to tick *faster* than the ticker in connection.go on the
+	// portlayer side.  The PL sends the first syn and if this isn't waiting,
+	// alignment will take a few rounds (or it may never happen).
+	ticker := time.NewTicker(10 * time.Millisecond)
 	for {
 		select {
 		case <-ticker.C:
@@ -202,8 +229,60 @@ func (t *osopsLinux) processEnvOS(env []string) []string {
 	return env
 }
 
+func findExecutable(file string) error {
+	d, err := os.Stat(file)
+	if err != nil {
+		return err
+	}
+	if m := d.Mode(); !m.IsDir() && m&0111 != 0 {
+		return nil
+	}
+	return os.ErrPermission
+}
+
+// lookPath searches for an executable binary named file in the directories
+// specified by the path argument.
+// This is a direct modification of the unix os/exec core libary impl
+func lookPath(file string, env []string) (string, error) {
+	// check if it's already a path spec
+	if strings.Contains(file, "/") {
+		err := findExecutable(file)
+		if err == nil {
+			return file, nil
+		}
+		return "", err
+	}
+
+	// extract path from the env
+	var pathenv string
+	for _, value := range env {
+		if strings.HasPrefix(value, "PATH=") {
+			pathenv = value
+			break
+		}
+	}
+
+	pathval := strings.TrimPrefix(pathenv, "PATH=")
+
+	dirs := filepath.SplitList(pathval)
+	for _, dir := range dirs {
+		if dir == "" {
+			// Unix shell semantics: path element "" means "."
+			dir = "."
+		}
+		path := dir + "/" + file
+		if err := findExecutable(path); err == nil {
+			return path, nil
+		}
+	}
+
+	return "", fmt.Errorf("%s: no such executable in PATH", file)
+}
+
 // sessionLogWriter returns a writer that will persist the session output
 func (t *osopsLinux) sessionLogWriter() (dio.DynamicMultiWriter, error) {
+	defer trace.End(trace.Begin("configure tether session log writer"))
+
 	// open SttyS2 for session logging
 	log.Info("opening ttyS2 for session logging")
 	f, err := os.OpenFile(pathPrefix+"/ttyS2", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, 777)
@@ -217,25 +296,23 @@ func (t *osopsLinux) sessionLogWriter() (dio.DynamicMultiWriter, error) {
 	return dio.MultiWriter(f, os.Stdout), nil
 }
 
-func (t *osopsLinux) establishPty(live *liveSession) error {
+func (t *osopsLinux) establishPty(session *SessionConfig) error {
+	defer trace.End(trace.Begin("initializing pty handling for session " + session.ID))
+
 	// TODO: if we want to allow raw output to the log so that subsequent tty enabled
 	// processing receives the control characters then we should be binding the PTY
 	// during attach, and using the same path we have for non-tty here
-	writer := live.cmd.Stdout
-
 	var err error
-	live.pty, err = pty.Start(live.cmd)
-	if live.pty != nil {
-		live.outwriter = dio.MultiWriter(writer)
-
+	session.pty, err = pty.Start(&session.Cmd)
+	if session.pty != nil {
 		// TODO: do we need to ensure all reads have completed before calling Wait on the process?
 		// it frees up all resources - does that mean it frees the output buffers?
 		go func() {
-			_, gerr := io.Copy(live.outwriter, live.pty)
+			_, gerr := io.Copy(session.outwriter, session.pty)
 			log.Debug(gerr)
 		}()
 		go func() {
-			_, gerr := io.Copy(live.pty, live.reader)
+			_, gerr := io.Copy(session.pty, session.reader)
 			log.Debug(gerr)
 		}()
 	}
@@ -251,7 +328,9 @@ type winsize struct {
 	wsYpixel uint16
 }
 
-func (t *osopsLinux) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
+func (t *osopsLinux) resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
+	defer trace.End(trace.Begin("resize pty"))
+
 	ws := &winsize{uint16(winSize.Rows), uint16(winSize.Columns), uint16(winSize.WidthPx), uint16(winSize.HeightPx)}
 	_, _, errno := syscall.Syscall(
 		syscall.SYS_IOCTL,
@@ -266,6 +345,9 @@ func (t *osopsLinux) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
 }
 
 func (t *osopsLinux) signalProcess(process *os.Process, sig ssh.Signal) error {
-	s := syscall.Signal(Signals[sig])
+	signal := attach.Signals[sig]
+	defer trace.End(trace.Begin(fmt.Sprintf("signal process %d: %d", process.Pid, signal)))
+
+	s := syscall.Signal(signal)
 	return process.Signal(s)
 }

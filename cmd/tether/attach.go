@@ -22,7 +22,8 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/pkg/dio"
+	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/portlayer/attach"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 )
@@ -30,40 +31,6 @@ import (
 const (
 	attachChannelType = "attach"
 )
-
-var (
-	Signals = map[ssh.Signal]int{
-		ssh.SIGABRT: 6,
-		ssh.SIGALRM: 14,
-		ssh.SIGFPE:  8,
-		ssh.SIGHUP:  1,
-		ssh.SIGILL:  4,
-		ssh.SIGINT:  2,
-		ssh.SIGKILL: 9,
-		ssh.SIGPIPE: 13,
-		ssh.SIGQUIT: 3,
-		ssh.SIGSEGV: 11,
-		ssh.SIGTERM: 15,
-		ssh.SIGUSR1: 10,
-		ssh.SIGUSR2: 12,
-	}
-)
-
-// WindowChangeMsg the RFC4254 struct
-type WindowChangeMsg struct {
-	Columns  uint32
-	Rows     uint32
-	WidthPx  uint32
-	HeightPx uint32
-}
-
-type stringMsg struct {
-	Signal string
-}
-
-type stringArrayMsg struct {
-	Strings []string
-}
 
 // server is the singleton attachServer for the tether - there can be only one
 // as the backchannel line protocol may not provide multiplexing of connections
@@ -84,6 +51,8 @@ type attachServerSSH struct {
 
 // start is not thread safe with stop
 func (t *attachServerSSH) start() error {
+	defer trace.End(trace.Begin("start attach server"))
+
 	if t == nil {
 		return errors.New("attach server is not configured")
 	}
@@ -93,7 +62,7 @@ func (t *attachServerSSH) start() error {
 	}
 
 	// don't assume that the key hasn't changed
-	pkey, err := ssh.ParsePrivateKey(config.Key)
+	pkey, err := ssh.ParsePrivateKey([]byte(config.Key))
 	if err != nil {
 		detail := fmt.Sprintf("failed to load key for attach: %s", err)
 		log.Error(detail)
@@ -128,6 +97,8 @@ func (t *attachServerSSH) start() error {
 
 // stop is not thread safe with start
 func (t *attachServerSSH) stop() {
+	defer trace.End(trace.Begin("stop attach server"))
+
 	if t == nil || !t.enabled {
 		return
 	}
@@ -142,6 +113,8 @@ func (t *attachServerSSH) stop() {
 // run should not be called directly, but via start
 // run will establish an ssh server listening on the backchannel
 func (t *attachServerSSH) run() error {
+	defer trace.End(trace.Begin("main attach server loop"))
+
 	var sConn *ssh.ServerConn
 	var chans <-chan ssh.NewChannel
 	var reqs <-chan *ssh.Request
@@ -199,14 +172,14 @@ func (t *attachServerSSH) run() error {
 		}
 
 		sessionid := string(bytes)
-		live, ok := sessions[sessionid]
+		session, ok := config.Sessions[sessionid]
 
 		reason := ""
-		if !ok || live.cmd == nil {
+		if !ok {
 			reason = "is unknown"
-		} else if live.cmd.Process == nil {
+		} else if session.Cmd.Process == nil {
 			reason = "process has not been launched"
-		} else if live.cmd.Process.Signal(syscall.Signal(0)) != nil {
+		} else if session.Cmd.Process.Signal(syscall.Signal(0)) != nil {
 			reason = "process has exited"
 		}
 
@@ -227,46 +200,31 @@ func (t *attachServerSSH) run() error {
 		}
 
 		// bind the channel to the Session
-		if live.pty == nil {
-			// if it's not a TTY then bind the channel directly to the multiwriter that's already associated with the process
-			dmwStdout, okA := live.cmd.Stdout.(dio.DynamicMultiWriter)
-			dmwStderr, okB := live.cmd.Stderr.(dio.DynamicMultiWriter)
-			dmrStdin, okC := live.cmd.Stdin.(dio.DynamicMultiReader)
-			if !okA || !okB || !okC {
-				detail := fmt.Sprintf("target session IO cannot be duplicated to attach streams: %s", string(bytes))
-				log.Error(detail)
-				attachchan.Reject(ssh.ConnectionFailed, detail)
-				continue
-			}
-
-			log.Debugf("binding reader/writers for channel for %s", sessionid)
-			dmwStdout.Add(channel)
-			dmwStderr.Add(channel.Stderr())
-			dmrStdin.Add(channel)
-			log.Debugf("reader/writers bound for channel for %s", sessionid)
-
-			// cleanup on detach from the session
-			detach := func() {
-				dmwStdout.Remove(channel)
-				dmwStderr.Remove(channel.Stderr())
-				dmrStdin.Remove(channel)
-			}
-			go t.channelMux(requests, live.cmd.Process, nil, detach)
-			continue
-		}
-
-		// if it's a TTY bind the channel to the multiwriter that's on the far side of the PTY from the process
-		// this is done so the logging is done with processed output
-		live.outwriter.Add(channel)
-		// PTY merges stdout & stderr so the two are the same
-		live.reader.Add(channel)
+		log.Debugf("binding reader/writers for channel for %s", sessionid)
+		session.outwriter.Add(channel)
+		session.reader.Add(channel)
 
 		// cleanup on detach from the session
 		detach := func() {
-			live.outwriter.Remove(channel)
-			live.reader.Remove(channel)
+			session.outwriter.Remove(channel)
+			session.reader.Remove(channel)
 		}
-		go t.channelMux(requests, live.cmd.Process, live.pty, detach)
+
+		// tty's merge stdout and stderr so we don't bind an additional reader in that case
+		// but we need to do so for non-tty
+		if session.pty == nil {
+			session.errwriter.Add(channel.Stderr())
+
+			// no good way to function chain, so reimplement appropriately
+			detach = func() {
+				session.outwriter.Remove(channel)
+				session.reader.Remove(channel)
+				session.errwriter.Remove(channel)
+			}
+		}
+		log.Debugf("reader/writers bound for channel for %s", sessionid)
+
+		go t.channelMux(requests, session.Cmd.Process, session.pty, detach)
 	}
 
 	log.Info("incoming attach channel closed")
@@ -275,6 +233,8 @@ func (t *attachServerSSH) run() error {
 }
 
 func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
+	defer trace.End(trace.Begin("start attach server global request handler"))
+
 	for req := range reqchan {
 		var pendingFn func()
 		var payload []byte
@@ -283,16 +243,16 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 		log.Infof("received global request type %v", req.Type)
 
 		switch req.Type {
-		case "container-ids":
+		case attach.ContainersReq:
 			keys := make([]string, len(config.Sessions))
 			i := 0
 			for k := range config.Sessions {
 				keys[i] = k
 				i++
 			}
-			msg := stringArrayMsg{Strings: keys}
+			msg := attach.ContainersMsg{IDs: keys}
+			payload = msg.Marshal()
 
-			payload = []byte(ssh.Marshal(msg))
 		default:
 			ok = false
 			payload = []byte("unknown global request type: " + req.Type)
@@ -315,37 +275,37 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 }
 
 func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process, pty *os.File, detach func()) {
+	defer trace.End(trace.Begin("start attach server channel request handler"))
+
 	var err error
 	for req := range in {
 		var pendingFn func()
-		var payload []byte
 		ok := true
 
 		switch req.Type {
-		case "window-change":
-			msg := WindowChangeMsg{}
+		case attach.WindowChangeReq:
+			msg := attach.WindowChangeMsg{}
 			if pty == nil {
 				ok = false
-				payload = []byte("illegal window-change request for non-tty")
-			} else if err = ssh.Unmarshal(req.Payload, &msg); err != nil {
+				log.Errorf("illegal window-change request for non-tty")
+			} else if err = msg.Unmarshal(req.Payload); err != nil {
 				ok = false
-				payload = []byte(err.Error())
+				log.Errorf(err.Error())
 			} else if err = utils.resizePty(pty.Fd(), &msg); err != nil {
 				ok = false
-				payload = []byte(err.Error())
+				log.Errorf(err.Error())
 			}
-		case "signal":
-			msg := stringMsg{}
-			if err = ssh.Unmarshal(req.Payload, &msg); err != nil {
+		case attach.SignalReq:
+			msg := attach.SignalMsg{}
+			if err = msg.Unmarshal(req.Payload); err != nil {
 				ok = false
-				payload = []byte(err.Error())
+				log.Errorf(err.Error())
 			} else {
 				log.Infof("Sending signal %s to container process, pid=%d\n", string(msg.Signal), process.Pid)
-				err = utils.signalProcess(process, ssh.Signal(msg.Signal))
+				err = utils.signalProcess(process, msg.Signal)
 				if err != nil {
 					log.Errorf("Failed to dispatch signal to process: %s\n", err)
 				}
-				payload = []byte{}
 			}
 		default:
 			ok = false
@@ -353,9 +313,9 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 			log.Error(err.Error())
 		}
 
-		// make sure that errors get send back if we failed
+		// payload is ignored on channel specific replies.  The ok is passed, however.
 		if req.WantReply {
-			req.Reply(ok, payload)
+			req.Reply(ok, nil)
 		}
 
 		// run any pending work now that a reply has been sent
@@ -367,6 +327,4 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 	}
 
 	detach()
-
-	log.Info("incoming attach request channel closed")
 }

@@ -15,6 +15,8 @@
 package spec
 
 import (
+	"fmt"
+
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -105,4 +107,23 @@ func (s *VirtualMachineConfigSpec) RemoveVirtualE1000(device *types.VirtualE1000
 	defer trace.End(trace.Begin(s.ID()))
 
 	return s.RemoveVirtualDevice(device)
+}
+
+func (s *VirtualMachineConfigSpec) FindNIC(networkName string) (types.BaseVirtualDevice, error) {
+	if networkName == "" {
+		return nil, fmt.Errorf("no network name provided")
+	}
+
+	for _, d := range s.DeviceChange {
+		if d.GetVirtualDeviceConfigSpec().Operation == types.VirtualDeviceConfigSpecOperationRemove {
+			continue
+		}
+
+		dev := d.GetVirtualDeviceConfigSpec().Device
+		if backing, ok := dev.GetVirtualDevice().Backing.(*types.VirtualEthernetCardNetworkBackingInfo); ok && backing.DeviceName == networkName {
+			return dev, nil
+		}
+	}
+
+	return nil, fmt.Errorf("nic not found")
 }

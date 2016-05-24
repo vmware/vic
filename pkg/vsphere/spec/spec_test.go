@@ -20,7 +20,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/find"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 	"golang.org/x/net/context"
@@ -113,4 +115,32 @@ func TestVirtualMachineConfigSpec(t *testing.T) {
 		t.Logf("%+v", root.DeviceChange[i].GetVirtualDeviceConfigSpec().Device)
 	}
 
+}
+
+func TestCollectSlotNumbers(t *testing.T) {
+	s := &VirtualMachineConfigSpec{
+		config: &VirtualMachineConfigSpecConfig{
+			ID: "foo",
+		},
+		VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{},
+	}
+
+	slots := s.CollectSlotNumbers()
+	assert.Empty(t, slots)
+
+	s.AddVirtualVmxnet3(NewVirtualVmxnet3())
+	s.DeviceChange[0].GetVirtualDeviceConfigSpec().Device.GetVirtualDevice().SlotInfo = &types.VirtualDevicePciBusSlotInfo{PciSlotNumber: 32}
+	slots = s.CollectSlotNumbers()
+	assert.EqualValues(t, []int32{32}, slots)
+
+	// add a device without a slot number
+	s.AddVirtualVmxnet3(NewVirtualVmxnet3())
+	slots = s.CollectSlotNumbers()
+	assert.EqualValues(t, []int32{32}, slots)
+
+	// add another device with slot number
+	s.AddVirtualVmxnet3(NewVirtualVmxnet3())
+	s.DeviceChange[len(s.DeviceChange)-1].GetVirtualDeviceConfigSpec().Device.GetVirtualDevice().SlotInfo = &types.VirtualDevicePciBusSlotInfo{PciSlotNumber: 33}
+	slots = s.CollectSlotNumbers()
+	assert.EqualValues(t, []int32{32, 33}, slots)
 }

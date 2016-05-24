@@ -15,6 +15,7 @@
 package extraconfig
 
 import (
+	"encoding/base64"
 	"net"
 	"net/url"
 	"os/exec"
@@ -61,7 +62,7 @@ type ExecutorConfigPointers struct {
 
 	Sessions map[string]*SessionConfig `vic:"0.1" scope:"hidden" key:"sessions"`
 
-	Key string `json:"string"`
+	Key string `json:"string"` // will inherit parent vic attributes
 }
 
 type Cmd struct {
@@ -111,10 +112,10 @@ func TestBasic(t *testing.T) {
 	Encode(MapSink(encoded), Struct)
 
 	expected := map[string]string{
-		"guestinfo.int":    "42",
-		"guestinfo.bool":   "true",
-		"guestinfo.float":  "3.14E+00",
-		"guestinfo.string": "Grrr",
+		visibleRW("int"):    "42",
+		visibleRW("bool"):   "true",
+		visibleRW("float"):  "3.14E+00",
+		visibleRW("string"): "Grrr",
 	}
 
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
@@ -141,9 +142,9 @@ func TestBasicMap(t *testing.T) {
 	Encode(MapSink(encoded), IntMap)
 
 	expected := map[string]string{
-		"guestinfo/intmap|1st": "12345",
-		"guestinfo/intmap|2nd": "67890",
-		"guestinfo/intmap":     "1st|2nd",
+		visibleRO("intmap|1st"): "12345",
+		visibleRO("intmap|2nd"): "67890",
+		visibleRO("intmap"):     "1st|2nd",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -189,8 +190,8 @@ func TestBasicSlice(t *testing.T) {
 	Encode(MapSink(encoded), IntSlice)
 
 	expected := map[string]string{
-		"guestinfo/intslice~": "1|2|3|4|5",
-		"guestinfo/intslice":  "4",
+		visibleRO("intslice~"): "1|2|3|4|5",
+		visibleRO("intslice"):  "4",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -216,9 +217,9 @@ func TestStruct(t *testing.T) {
 	Encode(MapSink(encoded), Struct)
 
 	expected := map[string]string{
-		"guestinfo/common/id":    "0xDEADBEEF",
-		"guestinfo/common/name":  "Struct",
-		"guestinfo/common/notes": "",
+		visibleRO("common/id"):    "0xDEADBEEF",
+		visibleRO("common/name"):  "Struct",
+		visibleRO("common/notes"): "",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -241,7 +242,7 @@ func TestTime(t *testing.T) {
 	Encode(MapSink(encoded), Time)
 
 	expected := map[string]string{
-		"guestinfo/time": "2009-11-10 23:00:00 +0000 UTC",
+		visibleRO("time"): "2009-11-10 23:00:00 +0000 UTC",
 	}
 	assert.Equal(t, encoded, expected, "Encoded and expected does not match")
 
@@ -266,8 +267,8 @@ func TestNet(t *testing.T) {
 	Encode(MapSink(encoded), Net)
 
 	expected := map[string]string{
-		"guestinfo/net/IP":   "\u007f\x00\x00\x01",
-		"guestinfo/net/Mask": "\xff\x00\x00\x00",
+		visibleRO("net/IP"):   base64.StdEncoding.EncodeToString(n.IP),
+		visibleRO("net/Mask"): base64.StdEncoding.EncodeToString(n.Mask),
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
@@ -291,10 +292,10 @@ func TestPointer(t *testing.T) {
 	Encode(MapSink(encoded), Pointer)
 
 	expected := map[string]string{
-		"guestinfo/pointer/common/id":    "",
-		"guestinfo/pointer/common/name":  "",
-		"guestinfo/pointer/common/notes": "",
-		"pointer/version":                "0.1",
+		visibleRO("pointer/common/id"):    "",
+		visibleRO("pointer/common/name"):  "",
+		visibleRO("pointer/common/notes"): "",
+		"pointer/version":                 "0.1",
 	}
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 

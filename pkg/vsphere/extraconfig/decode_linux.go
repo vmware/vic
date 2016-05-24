@@ -17,13 +17,15 @@ package extraconfig
 import (
 	"errors"
 
+	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vmw-guestinfo/rpcvmx"
 	"github.com/vmware/vmw-guestinfo/vmcheck"
 )
 
 // GuestInfoSource uses the rpcvmx mechanism to access the guestinfo key/value map as
 // the datasource for decoding into target structures
-func GuestInfoSource() (func(string) (string, error), error) {
+func GuestInfoSource() (DataSource, error) {
 	guestinfo := rpcvmx.NewConfig()
 
 	if !vmcheck.IsVirtualWorld() {
@@ -31,6 +33,11 @@ func GuestInfoSource() (func(string) (string, error), error) {
 	}
 
 	return func(key string) (string, error) {
-		return guestinfo.String(key, "")
+		value, err := guestinfo.String(key, "")
+		if value == "<nil>" {
+			value = ""
+		}
+		log.Debugf("GuestInfoSource: key: %s, value: %#v, error: %s", key, value, err)
+		return value, err
 	}, nil
 }

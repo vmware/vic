@@ -713,6 +713,14 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/golang/groupcache/lru",
+			"repository": "https://github.com/golang/groupcache",
+			"vcs": "git",
+			"revision": "4eab30f13db9d8b25c752e99d1583628ac2fa422",
+			"branch": "master",
+			"path": "/lru"
+		},
+		{
 			"importpath": "github.com/golang/lint",
 			"repository": "https://github.com/golang/lint",
 			"vcs": "",
@@ -840,10 +848,9 @@
 		{
 			"importpath": "github.com/pkg/profile",
 			"repository": "https://github.com/pkg/profile",
-			"vcs": "git",
+			"vcs": "",
 			"revision": "19396ecfda37c1c9ddaa52019adca59d582e4832",
-			"branch": "master",
-			"notests": true
+			"branch": "master"
 		},
 		{
 			"importpath": "github.com/pmezard/go-difflib/difflib",
@@ -1058,7 +1065,7 @@
 			"importpath": "github.com/vmware/govmomi",
 			"repository": "https://github.com/vmware/govmomi",
 			"vcs": "git",
-			"revision": "18154e511bc8f6bc1fffe2e47d11ef4f1931a044",
+			"revision": "9051bd6b44125d9472e0c148b5965692ab283d4a",
 			"branch": "master"
 		},
 		{

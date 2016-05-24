@@ -40,8 +40,8 @@ type Configuration struct {
 	ImageStorePath        string
 	ImageDatastoreName    string
 	ResourcePoolPath      string
-	ExtenalNetworkPath    string
-	ExtenalNetworkName    string
+	ExternalNetworkPath   string
+	ExternalNetworkName   string
 	ManagementNetworkPath string
 	ManagementNetworkName string
 	BridgeNetworkName     string
@@ -103,8 +103,8 @@ func (conf *Configuration) ValidateConfiguration() error {
 		return err
 	}
 
-	if _, err = conf.Session.Finder.NetworkOrDefault(conf.Context, conf.ExtenalNetworkPath); err != nil {
-		log.Errorf("Unable to get locate network: %s", err)
+	if _, err = conf.Session.Finder.NetworkOrDefault(conf.Context, conf.ExternalNetworkPath); err != nil {
+		log.Errorf("Unable to get network: %s", err)
 		return err
 	}
 

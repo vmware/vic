@@ -15,6 +15,7 @@
 package extraconfig
 
 import (
+	"encoding/base64"
 	"fmt"
 	"reflect"
 	"sort"
@@ -150,8 +151,9 @@ func encodeSlice(sink DataSink, src reflect.Value, prefix string, depth recursio
 	if kind == reflect.Uint8 {
 		// special []byte array handling
 
-		log.Debugf("Converting []byte to string")
-		encode(sink, src.Convert(reflect.TypeOf("")), prefix, depth)
+		log.Debugf("Converting []byte to base64 string")
+		str := base64.StdEncoding.EncodeToString(src.Bytes())
+		encode(sink, reflect.ValueOf(str), prefix, depth)
 		return
 
 	} else if kind != reflect.Struct {
@@ -173,7 +175,6 @@ func encodeSlice(sink DataSink, src reflect.Value, prefix string, depth recursio
 		if err != nil {
 			log.Errorf("Failed to encode slice data for key %s: %s", key, err)
 		}
-
 	} else {
 		for i := 0; i < length; i++ {
 			// convert key to name|index format
@@ -188,7 +189,6 @@ func encodeSlice(sink DataSink, src reflect.Value, prefix string, depth recursio
 	if err != nil {
 		log.Errorf("Failed to encode slice length for key %s: %s", prefix, err)
 	}
-
 }
 
 func encodeMap(sink DataSink, src reflect.Value, prefix string, depth recursion) {
@@ -208,6 +208,7 @@ func encodeMap(sink DataSink, src reflect.Value, prefix string, depth recursion)
 		key := fmt.Sprintf("%s|%s", prefix, keys[i])
 		encode(sink, src.MapIndex(v), key, depth)
 	}
+
 	// sort the keys before joining - purely to make testing viable
 	sort.Strings(keys)
 	err := sink(prefix, strings.Join(keys, "|"))
@@ -247,12 +248,22 @@ func toString(field reflect.Value) string {
 // in some manner suited for later retrieval
 type DataSink func(string, string) error
 
-// Encode convert given type to []types.BaseOptionValue
-func Encode(sink DataSink, dest interface{}) {
+// Encode serializes the given type to the supplied data sink
+func Encode(sink DataSink, src interface{}) {
 	defer log.SetLevel(log.GetLevel())
 	log.SetLevel(EncodeLogLevel)
 
-	encode(sink, reflect.ValueOf(dest), DefaultPrefix, Unbounded)
+	encode(sink, reflect.ValueOf(src), DefaultPrefix, Unbounded)
+}
+
+// EncodeWithPrefix serializes the given type to the supplied data sink, using
+// the supplied prefix - this allows for serialization of subsections of a
+// struct
+func EncodeWithPrefix(sink DataSink, src interface{}, prefix string) {
+	defer log.SetLevel(log.GetLevel())
+	log.SetLevel(EncodeLogLevel)
+
+	encode(sink, reflect.ValueOf(src), prefix, Unbounded)
 }
 
 // MapSink takes a map and populates it with key/value pairs from the encode
@@ -273,6 +284,9 @@ func OptionValueFromMap(data map[string]string) []types.BaseOptionValue {
 
 	i := 0
 	for k, v := range data {
+		if v == "" {
+			v = "<nil>"
+		}
 		array[i] = &types.OptionValue{Key: k, Value: v}
 		i++
 	}

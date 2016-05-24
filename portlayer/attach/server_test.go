@@ -42,6 +42,12 @@ func TestAttachStartStop(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, c)
 
+		buf := make([]byte, 1)
+		c.Read(buf)
+		if !assert.Error(t, serial.HandshakeServer(context.Background(), c)) {
+			return
+		}
+
 		if !assert.NoError(t, serial.HandshakeServer(context.Background(), c)) {
 			return
 		}
@@ -74,8 +80,8 @@ func TestAttachStartStop(t *testing.T) {
 
 func TestAttachSshSession(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	s := NewAttachServer("", -1)
 
+	s := NewAttachServer("", -1)
 	assert.NoError(t, s.Start())
 	defer s.Stop()
 
@@ -124,10 +130,9 @@ func TestAttachSshSession(t *testing.T) {
 		wg.Add(1)
 		defer wg.Done()
 		for req := range reqs {
-			if req.Type == requestContainerIDs {
-				req.Reply(true, ssh.Marshal(struct {
-					Strings []string
-				}{[]string{expectedID}}))
+			if req.Type == ContainersReq {
+				msg := ContainersMsg{IDs: []string{expectedID}}
+				req.Reply(true, msg.Marshal())
 				break
 			}
 		}

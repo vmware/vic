@@ -15,17 +15,24 @@
 package network
 
 import (
-	"errors"
+	"fmt"
 	"net"
 	"reflect"
 	"testing"
 
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/portlayer/exec"
 )
 
 func makeIP(a, b, c, d byte) *net.IP {
 	i := net.IPv4(a, b, c, d)
 	return &i
+}
+
+var addEthernetCardOrig = addEthernetCard
+var addEthernetCardErr = func(_ *exec.Handle, _ *Scope) (types.BaseVirtualDevice, error) {
+	return nil, fmt.Errorf("")
 }
 
 func TestScopeAddRemoveContainer(t *testing.T) {
@@ -45,45 +52,46 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 	s := ctx.defaultScope
 
 	var tests1 = []struct {
-		name string
-		ip   *net.IP
-		out  *Endpoint
-		err  error
+		c   *Container
+		ip  *net.IP
+		out *Endpoint
+		err error
 	}{
-		// empty container id
-		{"", nil, nil, errors.New("")},
+		// no container
+		{nil, nil, nil, fmt.Errorf("")},
 		// add a new container to scope
-		{"foo", nil, &Endpoint{ip: net.IPv4(172, 16, 0, 2), subnet: s.subnet, gateway: s.gateway}, nil},
+		{&Container{id: "foo"}, nil, &Endpoint{ip: net.IPv4(0, 0, 0, 0), subnet: s.subnet, gateway: s.gateway}, nil},
 		// container already part of scope
-		{"foo", nil, nil, DuplicateResourceError{}},
+		{&Container{id: "foo"}, nil, nil, DuplicateResourceError{}},
 		// container with ip
-		{"bar", makeIP(172, 16, 0, 3), &Endpoint{ip: net.IPv4(172, 16, 0, 3), subnet: s.subnet, gateway: s.gateway}, nil},
-		// container with ip that is not available
-		{"baz", makeIP(172, 16, 0, 3), nil, errors.New("")},
-		{"baz", makeIP(172, 16, 0, 0), nil, errors.New("")},
-		{"baz", makeIP(172, 16, 255, 255), nil, errors.New("")},
+		{&Container{id: "bar"}, makeIP(172, 16, 0, 3), &Endpoint{ip: net.IPv4(172, 16, 0, 3), subnet: s.subnet, gateway: s.gateway, static: true}, nil},
 	}
 
 	for _, te := range tests1 {
-		t.Logf("testing name = %s, ip = %v", te.name, te.ip)
-		e, aerr := s.AddContainer(te.name, te.ip)
+		t.Logf("testing id = %v, ip = %v", te.c, te.ip)
+		var e *Endpoint
+		e, err = s.addContainer(te.c, te.ip)
 		if te.err != nil {
-			if aerr == nil {
+			if err == nil {
 				t.Errorf("s.AddContainer() => (_, nil), want (_, err)")
 				continue
 			}
 
-			if reflect.TypeOf(aerr) != reflect.TypeOf(te.err) {
-				t.Errorf("s.AddContainer() => (_, %v), want (_, %v)", reflect.TypeOf(aerr), reflect.TypeOf(te.err))
+			if reflect.TypeOf(err) != reflect.TypeOf(te.err) {
+				t.Errorf("s.AddContainer() => (_, %v), want (_, %v)", reflect.TypeOf(err), reflect.TypeOf(te.err))
+				continue
+			}
+
+			if te.c == nil {
 				continue
 			}
 
 			// for any other error other than DuplicateResourcError
 			// verify that the container was not added
-			if _, ok := aerr.(DuplicateResourceError); !ok {
-				c, cerr := s.Container(te.name)
-				if _, ok := cerr.(ResourceNotFoundError); !ok || c != nil {
-					t.Errorf("s.Container(%s) => (%v, %v), want (nil, err)", te.name, c, cerr)
+			if _, ok := err.(DuplicateResourceError); !ok {
+				c := s.Container(te.c.ID())
+				if c != nil {
+					t.Errorf("s.Container(%s) => (%v, %v), want (nil, err)", te.c.ID(), c, err)
 				}
 			}
 
@@ -105,8 +113,12 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 			continue
 		}
 
-		if e.container.Name() != te.name {
-			t.Errorf("s.AddContainer() => e.container == %s, want e.container == %s", e.container.Name(), te.name)
+		if e.static != te.out.static {
+			t.Errorf("s.AddContainer() => e.static == %#v, want e.static == %#v", e.static, te.out.static)
+		}
+
+		if e.container.ID() != te.c.ID() {
+			t.Errorf("s.AddContainer() => e.container == %s, want e.container == %s", e.container.ID(), te.c.ID())
 			continue
 		}
 
@@ -122,29 +134,36 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 			t.Errorf("s.endpoints does not contain %v", e)
 		}
 
-		c, aerr := s.Container(te.name)
-		if aerr != nil {
-			t.Errorf("s.Container(%s) => (nil, %s), want (c, nil)", te.name, aerr)
+		c := s.Container(te.c.id)
+		if c == nil {
+			t.Errorf("s.Container(%s) => nil, want %v", te.c.ID(), te.c)
 			continue
 		}
 
-		if c.Endpoint() != e {
-			t.Errorf("container %s does not contain %v", te.name, e)
+		if c.Endpoint(s) != e {
+			t.Errorf("container %s does not contain %v", te.c.ID(), e)
 		}
 	}
 
+	bound := exec.NewContainer("bound")
+	ctx.AddContainer(bound, ctx.defaultScope.Name(), nil)
+	ctx.BindContainer(bound)
+
 	// test RemoveContainer
 	var tests2 = []struct {
-		name string
-		err  error
+		c   *Container
+		err error
 	}{
-		{"", ResourceNotFoundError{}},
-		{"c1", ResourceNotFoundError{}},
-		{"foo", nil},
+		// container not found
+		{&Container{id: "c1"}, ResourceNotFoundError{}},
+		// try to remove a bound container
+		{s.Container(bound.Container.ID), fmt.Errorf("")},
+		// remove a container
+		{s.Container(exec.ParseID("foo")), nil},
 	}
 
 	for _, te := range tests2 {
-		err = s.RemoveContainer(te.name)
+		err = s.removeContainer(te.c)
 		if te.err != nil {
 			if err == nil {
 				t.Errorf("s.RemoveContainer() => nil, want %v", te.err)
@@ -159,18 +178,74 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 			continue
 		}
 
-		_, ok := s.containers[te.name]
-		if ok {
-			t.Errorf("s.RemoveContainer() did not remove container %s", te.name)
+		c := s.Container(te.c.ID())
+		if c != nil {
+			t.Errorf("s.RemoveContainer() did not remove container %s", te.c.ID())
 			continue
 		}
 
 		for _, e := range s.endpoints {
-			if e.container.Name() == te.name {
-				t.Errorf("s.RemoveContainer() did not remove endpoint for container %s", te.name)
+			if e.container.ID() == te.c.ID() {
+				t.Errorf("s.RemoveContainer() did not remove endpoint for container %s", te.c.ID())
 				break
 			}
 		}
 
+	}
+}
+
+func TestScopeBindUnbindContainer(t *testing.T) {
+	var err error
+	sess := &session.Session{}
+
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), sess)
+	if err != nil {
+		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
+	}
+
+	// add a container that is not part of the scope
+	e, err := ctx.AddContainer(exec.NewContainer("notAdded"), ctx.DefaultScope().Name(), nil)
+	notAdded := e.Container()
+	ctx.DefaultScope().removeContainer(notAdded)
+
+	var tests = []struct {
+		i   int
+		c   *Container
+		err error
+	}{
+		{0, nil, fmt.Errorf("")},
+		// bind a container that is not part of scope
+		{1, notAdded, fmt.Errorf("")},
+	}
+
+	for _, te := range tests {
+		err = ctx.DefaultScope().bindContainer(te.c)
+		if te.err != nil {
+			if te.err == nil {
+				t.Fatalf("%d: Scope.bindContainer(%s) => nil, want err", te.i, te.c.ID())
+			}
+
+			continue
+		}
+	}
+
+	tests = []struct {
+		i   int
+		c   *Container
+		err error
+	}{
+		{0, nil, fmt.Errorf("")},
+		{1, notAdded, fmt.Errorf("")},
+	}
+
+	for _, te := range tests {
+		err = ctx.DefaultScope().unbindContainer(te.c)
+		if te.err != nil {
+			if te.err == nil {
+				t.Fatalf("%d: Scope.unbindContainer(%s) => nil, want err", te.i, te.c.ID())
+			}
+
+			continue
+		}
 	}
 }

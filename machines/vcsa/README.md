@@ -20,7 +20,7 @@ But, you should already be using and loving jq for other tasks: http://stedolan.
 ### create-esxi-vm.sh
 
 This script creates a VM running stateless ESXi, booted via cdrom/iso.
-It will create 2 disks:
+It will create 2 disks by default:
 
 * vSAN cache disk (Virtual SSD)
 
@@ -31,6 +31,13 @@ by a vSAN enabled cluster.
 
 Note that for a cluster to use vSAN, it will need at least 3 of these
 ESXi VMs.
+
+To create an ESXi VM for standalone use, use the `-s` flag and optionally increase the default disk size with the `-d`
+flag:
+
+```
+./create-esxi-vm.sh -s -d 56 $GOVC_URL my-esxi-vm
+```
 
 ### create-vcsa-vm.sh
 
@@ -95,5 +102,5 @@ Where "ESX_LICENSE" should be that of "vSphere 6 per CPU, Enterprise Plus".
 And "VCSA_LICENSE" should be that of "vCenter Server 6, Standard".
 
 ```
-ESX_LICENSE=... VCSA_LICENSE=... /assign-licenses.sh
+ESX_LICENSE=... VCSA_LICENSE=... ./assign-licenses.sh
 ```

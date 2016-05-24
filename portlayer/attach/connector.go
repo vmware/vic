@@ -29,12 +29,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-// XXX This should be a shared data struct
-// The supported requests on the tether ssh server
-const (
-	requestContainerIDs = "container-ids"
-)
-
 // Connection represents a communication channel initiated by the client TO the
 // client.  The client connects (via TCP) to the server, then the server
 // initiates an SSH connection over the same sock to the client.
@@ -74,7 +68,7 @@ func NewConnector(listener net.Listener) *Connector {
 // Returns a connection corresponding to the specified ID. If the connection doesn't exist
 // the method will wait for the specified timeout, returning when the connection is created
 // or the timeout expires, whichever occurs first
-func (c *Connector) Get(ctx context.Context, id string, timeout time.Duration) (*Connection, error) {
+func (c *Connector) Get(ctx context.Context, id string, timeout time.Duration) (SessionInteraction, error) {
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -83,7 +77,7 @@ func (c *Connector) Get(ctx context.Context, id string, timeout time.Duration) (
 	conn := c.connections[id]
 	c.mutex.RUnlock()
 	if conn != nil {
-		return conn, nil
+		return conn.spty, nil
 	} else if timeout == 0 {
 		return nil, fmt.Errorf("no such connection")
 	}
@@ -113,7 +107,7 @@ func (c *Connector) Get(ctx context.Context, id string, timeout time.Duration) (
 	select {
 	case client := <-result:
 		log.Debugf("Found connection for %s: %p", id, client)
-		return client, nil
+		return client.spty, nil
 	case <-ctx.Done():
 		err := fmt.Errorf("id:%s: %s", id, ctx.Err())
 		log.Error(err)
@@ -137,22 +131,35 @@ func (c *Connector) Remove(id string) {
 
 // takes the base connection, determines the ID of the source and stashes it in the map
 func (c *Connector) processIncoming(conn net.Conn) {
+	var err error
+	defer func() {
+		if err != nil && conn != nil {
+			conn.Close()
+		}
+	}()
 
 	for {
 		if conn == nil {
 			log.Infof("connection closed")
 			return
 		}
-		defer conn.Close()
+
+		serial.PurgeIncoming(conn)
 
 		// TODO needs timeout handling.  This could take 30s.
+
+		// This needs to timeout with a *longer* wait than the ticker set on
+		// the tether side (in tether_linux.go) or alignment may not happen.
+		// The PL sends the first SYN in the handshake and if the tether is not
+		// waiting, the handshake may never succeed.
 		ctx, cancel := context.WithTimeout(context.TODO(), 50*time.Millisecond)
-		if err := serial.HandshakeClient(ctx, conn); err == nil {
+		if err = serial.HandshakeClient(ctx, conn); err == nil {
 			log.Debugf("New connection")
 			cancel()
 			break
 		} else if err == io.EOF {
 			log.Debugf("caught EOF")
+			conn.Close()
 			return
 		}
 	}
@@ -167,21 +174,30 @@ func (c *Connector) processIncoming(conn net.Conn) {
 	}
 
 	log.Debugf("Initiating ssh handshake with new connection attempt")
-	ccon, newchan, request, err := ssh.NewClientConn(conn, "", config)
+	var (
+		ccon    ssh.Conn
+		newchan <-chan ssh.NewChannel
+		request <-chan *ssh.Request
+	)
+
+	ccon, newchan, request, err = ssh.NewClientConn(conn, "", config)
 	if err != nil {
 		log.Errorf("SSH connection could not be established: %s", errors.ErrorStack(err))
 		return
 	}
 
 	client := ssh.NewClient(ccon, newchan, request)
-	ids, err := SSHls(client)
+
+	var ids []string
+	ids, err = SSHls(client)
 	if err != nil {
 		log.Errorf("SSH connection could not be established: %s", errors.ErrorStack(err))
 		return
 	}
 
+	var si SessionInteraction
 	for _, id := range ids {
-		si, err := SSHAttach(client, id)
+		si, err = SSHAttach(client, id)
 		if err != nil {
 			log.Errorf("SSH connection could not be established (id=%s): %s", id, errors.ErrorStack(err))
 			return
@@ -199,7 +215,6 @@ func (c *Connector) processIncoming(conn net.Conn) {
 
 		c.cond.Broadcast()
 		c.mutex.Unlock()
-
 	}
 
 	return
@@ -230,6 +245,7 @@ func (c *Connector) serve() {
 			continue
 		}
 
+		log.Info("Received incoming connection")
 		go c.processIncoming(conn)
 	}
 }

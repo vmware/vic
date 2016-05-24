@@ -1,0 +1,32 @@
+{
+	"version": 0,
+	"dependencies": [
+		{
+			"importpath": "github.com/sstephenson/bats",
+			"repository": "https://github.com/sstephenson/bats",
+			"vcs": "git",
+			"revision": "03608115df2071fff4eaaff1605768c275e5f81f",
+			"branch": "master",
+			"notests": true,
+			"allfiles": true
+		},
+		{
+			"importpath": "github.com/ztombol/bats-assert",
+			"repository": "https://github.com/ztombol/bats-assert",
+			"vcs": "git",
+			"revision": "9f88b4207da750093baabc4e3f41bf68f0dd3630",
+			"branch": "master",
+			"notests": true,
+			"allfiles": true
+		},
+		{
+			"importpath": "github.com/ztombol/bats-support",
+			"repository": "https://github.com/ztombol/bats-support",
+			"vcs": "git",
+			"revision": "d0a131831c487a1f1141e76d3ab386c89642cdff",
+			"branch": "master",
+			"notests": true,
+			"allfiles": true
+		}
+	]
+}

@@ -15,6 +15,7 @@
 package extraconfig
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"reflect"
@@ -212,9 +213,15 @@ func decodeStruct(src DataSource, dest reflect.Value, prefix string, depth recur
 
 func decodeByteSlice(src DataSource, dest reflect.Value, prefix string, depth recursion) reflect.Value {
 	log.Debugf("Converting string to []byte")
-	bytes, err := src(prefix)
+	base, err := src(prefix)
 	if err != nil {
 		log.Debugf("No value found in data source for []byte \"%s\"", prefix)
+		return dest
+	}
+
+	bytes, err := base64.StdEncoding.DecodeString(base)
+	if err != nil {
+		log.Debugf("Expected base64 encoded string for []byte \"%s\": %s", prefix, err)
 		return dest
 	}
 
@@ -370,6 +377,14 @@ func decodeTime(src DataSource, dest reflect.Value, prefix string, depth recursi
 
 // fromString converts string representation of a basic type to basic type
 func fromString(field reflect.Value, value string) reflect.Value {
+	// handle the zero value
+	// TODO: can probably handle this more efficiently with a nil pointer return
+	// as whatever we're populating with primitives will already have their zero
+	// value.
+	if value == "" {
+		return reflect.Zero(field.Type())
+	}
+
 	switch field.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		s, err := strconv.ParseInt(value, 10, 64)
@@ -416,12 +431,23 @@ func fromString(field reflect.Value, value string) reflect.Value {
 // this is to be used during extraConfig decode to obtain values
 type DataSource func(string) (string, error)
 
-// Decode convert given type to []types.BaseOptionValue
+// Decode populates a destination with data from the supplied data source
 func Decode(src DataSource, dest interface{}) interface{} {
 	defer log.SetLevel(log.GetLevel())
 	log.SetLevel(DecodeLogLevel)
 
 	value := decode(src, reflect.ValueOf(dest), DefaultPrefix, Unbounded)
+
+	return value.Interface()
+}
+
+// DecodeWithPrefix populates a destination with data from the supplied data source, using
+// the specified prefix - this allows for decode into substructres.
+func DecodeWithPrefix(src DataSource, dest interface{}, prefix string) interface{} {
+	defer log.SetLevel(log.GetLevel())
+	log.SetLevel(DecodeLogLevel)
+
+	value := decode(src, reflect.ValueOf(dest), prefix, Unbounded)
 
 	return value.Interface()
 }
@@ -446,6 +472,9 @@ func OptionValueSource(src []types.BaseOptionValue) DataSource {
 	for i := range src {
 		k := src[i].GetOptionValue().Key
 		v := src[i].GetOptionValue().Value.(string)
+		if v == "<nil>" {
+			v = ""
+		}
 		kv[k] = v
 	}
 

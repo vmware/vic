@@ -17,11 +17,13 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"os"
 	"path"
 	"runtime"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -30,10 +32,13 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+	"github.com/vmware/vic/portlayer/attach"
 )
 
 var mocked mocker
@@ -60,6 +65,10 @@ type mocker struct {
 	ips map[string]net.IPNet
 	// filesystem mounts, indexed by disk label
 	mounts map[string]string
+
+	windowCol uint32
+	windowRow uint32
+	signal    ssh.Signal
 }
 
 func (t *mocker) setup() error {
@@ -81,15 +90,18 @@ func (t *mocker) processEnvOS(env []string) []string {
 	return t.utils.processEnvOS(env)
 }
 
-func (t *mocker) establishPty(live *liveSession) error {
-	return t.utils.establishPty(live)
+func (t *mocker) establishPty(session *SessionConfig) error {
+	return t.utils.establishPty(session)
 }
 
-func (t *mocker) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
-	return t.utils.resizePty(pty, winSize)
+func (t *mocker) resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
+	t.windowCol = winSize.Columns
+	t.windowRow = winSize.Rows
+	return nil
 }
 
 func (t *mocker) signalProcess(process *os.Process, sig ssh.Signal) error {
+	t.signal = sig
 	return t.utils.signalProcess(process, sig)
 }
 
@@ -123,7 +135,7 @@ func (t *mocker) MountLabel(label, target string, ctx context.Context) error {
 }
 
 // Fork triggers vmfork and handles the necessary pre/post OS level operations
-func (t *mocker) Fork(config *metadata.ExecutorConfig) error {
+func (t *mocker) Fork(config *ExecutorConfig) error {
 	defer trace.End(trace.Begin("mocking fork"))
 	return errors.New("Fork test not implemented")
 }
@@ -154,7 +166,7 @@ func (t *mocker) backchannel(ctx context.Context) (net.Conn, error) {
 	}
 
 	// still run handshake over it to test that
-	ticker := time.NewTicker(1000 * time.Millisecond)
+	ticker := time.NewTicker(10 * time.Millisecond)
 	for {
 		select {
 		case <-ticker.C:
@@ -316,8 +328,39 @@ func testTeardown(t *testing.T) {
 	log.Infof("Finished test teardown for %s", name)
 }
 
+func startTether(t *testing.T, cfg *metadata.ExecutorConfig) extraconfig.DataSource {
+	store := map[string]string{}
+	sink := extraconfig.MapSink(store)
+	src := extraconfig.MapSource(store)
+	extraconfig.Encode(sink, cfg)
+	log.Debugf("Test configuration: %#v", sink)
+
+	// run the tether to service the attach
+	go func() {
+		erR := run(src, sink)
+		if erR != nil {
+			t.Error(erR)
+		}
+	}()
+
+	return src
+}
+
+func runTether(t *testing.T, cfg *metadata.ExecutorConfig) (extraconfig.DataSource, error) {
+	store := map[string]string{}
+	sink := extraconfig.MapSink(store)
+	src := extraconfig.MapSource(store)
+	extraconfig.Encode(sink, cfg)
+	log.Debugf("Test configuration: %#v", sink)
+
+	// run the tether to service the attach
+	erR := run(src, sink)
+
+	return src, erR
+}
+
 // create client on the mock pipe
-func mockSerialConnection(ctx context.Context) (net.Conn, error) {
+func mockBackChannel(ctx context.Context) (net.Conn, error) {
 	log.Info("opening ttyS0 pipe pair for backchannel")
 	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_RDONLY|syscall.O_NOCTTY, 0777)
 	if err != nil {
@@ -360,4 +403,58 @@ func mockSerialConnection(ctx context.Context) (net.Conn, error) {
 			return nil, ctx.Err()
 		}
 	}
+}
+
+func OptionValueArrayToString(options []types.BaseOptionValue) string {
+	// create the key/value store from the extraconfig slice for lookups
+	kv := make(map[string]string)
+	for i := range options {
+		k := options[i].GetOptionValue().Key
+		v := options[i].GetOptionValue().Value.(string)
+		kv[k] = v
+	}
+
+	return fmt.Sprintf("%#v", kv)
+}
+
+// create client on the mock pipe and dial the given host:port
+func mockNetworkToSerialConnection(host string) (*sync.WaitGroup, error) {
+	log.Info("opening ttyS0 pipe pair for backchannel")
+	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_RDONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open cpipe for backchannel: %s", err)
+	}
+
+	s, err := os.OpenFile(pathPrefix+"/ttyS0s", os.O_WRONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open spipe for backchannel: %s", err)
+	}
+
+	log.Infof("creating raw connection from ttyS0 pipe pair (c=%d, s=%d)\n", c.Fd(), s.Fd())
+	fconn, err := serial.NewHalfDuplixFileConn(c, s, pathPrefix+"/ttyS0", "file")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create raw connection from ttyS0 pipe pair: %s", err)
+	}
+
+	// Dial the attach server.  This is a TCP client
+	networkClientCon, err := net.Dial("tcp", host)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugf("dialed %s", host)
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+
+	go func() {
+		io.Copy(networkClientCon, fconn)
+		wg.Done()
+	}()
+
+	go func() {
+		io.Copy(fconn, networkClientCon)
+		wg.Done()
+	}()
+
+	return &wg, nil
 }

@@ -15,7 +15,7 @@
 GO ?= go
 GOVERSION ?= go1.6.2
 OS := $(shell uname | tr '[:upper:]' '[:lower:]')
-ifeq ($(USER),vagrant)
+ifeq (vagrant, $(filter vagrant,$(USER) $(SUDO_USER)))
 	# assuming we are in a shared directory where host arch is different from the guest
 	BIN_ARCH := -$(OS)
 endif
@@ -31,6 +31,7 @@ SWAGGER ?= $(GOPATH)/bin/swagger$(BIN_ARCH)
 GOIMPORTS ?= $(GOPATH)/bin/goimports$(BIN_ARCH)
 GOLINT ?= $(GOPATH)/bin/golint$(BIN_ARCH)
 GVT ?= $(GOPATH)/bin/gvt$(BIN_ARCH)
+GOVC ?= $(GOPATH)/bin/govc$(BIN_ARCH)
 
 .PHONY: all tools clean test check \
 	goversion goimports gvt gopath govet \
@@ -46,7 +47,7 @@ endif
 
 # utility function to dynamically generate go dependencies
 define godeps
-	$(wildcard $1) $(shell $(BASE_DIR)/scripts/go-deps.sh $(dir $1))
+	$(wildcard $1) $(shell $(BASE_DIR)/scripts/go-deps.sh $(dir $1) $(MAKEFLAGS))
 endef
 
 # target aliases - environment variable definition
@@ -62,6 +63,7 @@ vic-machine := $(BIN)/vic-machine
 
 tether-linux := $(BIN)/tether-linux
 tether-windows := $(BIN)/tether-windows.exe
+tether-darwin := $(BIN)/tether-darwin
 
 appliance := $(BIN)/appliance.iso
 appliance-staging := $(BIN)/appliance-staging.tgz
@@ -86,6 +88,7 @@ rpctool: $(rpctool)
 
 tether-linux: $(tether-linux)
 tether-windows: $(tether-windows)
+tether-darwin: $(tether-darwin)
 
 appliance: $(appliance)
 appliance-staging: $(appliance-staging)
@@ -109,7 +112,7 @@ check: goversion goimports govet golint copyright whitespace
 apiservers: $(portlayerapi) $(docker-engine-api)
 components: check apiservers $(imagec) $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
-tethers: $(tether-linux) $(tether-windows)
+tethers: $(tether-linux) $(tether-windows) $(tether-darwin)
 
 # utility targets
 goversion:
@@ -131,6 +134,10 @@ $(GOLINT): vendor/manifest
 $(SWAGGER): vendor/manifest
 	@echo building $(SWAGGER)...
 	@$(GO) build $(RACE) -o $(SWAGGER) ./vendor/github.com/go-swagger/go-swagger/cmd/swagger
+
+$(GOVC): vendor/manifest
+	@echo building $(GOVC)...
+	@$(GO) build $(RACE) -o $(GOVC) ./vendor/github.com/vmware/govmomi/govc
 
 copyright:
 	@echo "checking copyright in header..."
@@ -167,15 +174,17 @@ $(go-imports): $(GOIMPORTS) $(find . -type f -name '*.go' -not -path "./vendor/*
 govet:
 	@echo checking go vet...
 	@$(GO) tool vet -all $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
-	@$(GO) tool vet -shadow $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
 
 vendor: $(GVT)
 	@echo restoring vendor
 	$(GOPATH)/bin/gvt restore
 
-integration-tests: tests/run_test.sh components isos vic-machine
+$(GOPATH)/bin/bats:
+	@./tests/vendor/github.com/sstephenson/bats/install.sh $(GOPATH)
+
+integration-tests: $(GOPATH)/bin/bats $(GOVC) components isos vic-machine
 	@echo Running integration tests
-	@$<
+	@GOVC=$(GOVC) $(GOPATH)/bin/bats -t tests
 
 TEST_DIRS=github.com/vmware/vic/cmd/tether
 TEST_DIRS+=github.com/vmware/vic/cmd/imagec
@@ -211,6 +220,10 @@ $(tether-windows): $(call godeps,cmd/tether/*.go)
 	@echo building tether-windows
 	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
+# CGO is disabled for darwin otherwise build fails with "gcc: error: unrecognized command line option '-mmacosx-version-min=10.6'"
+$(tether-darwin): $(call godeps,cmd/tether/*.go)
+	@echo building tether-darwin
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 $(rpctool): $(call godeps,cmd/rpctool/*.go)
 ifeq ($(OS),linux)
