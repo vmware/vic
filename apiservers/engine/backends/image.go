@@ -239,9 +239,10 @@ func convertV1ImageToDockerImage(v1Image *v1.V1Image) *types.Image {
 	return &types.Image{
 		ID:       v1Image.ID,
 		ParentID: v1Image.Parent,
-		RepoTags: []string{"<fixme>:<fixme>"}, // TODO(jzt): replace with actual tags
+		RepoTags: []string{"test:test"}, // TODO(jzt): replace with actual tags
 		//RepoDigests: []string{"<fixme>:<fixme>"},
 		Created:     v1Image.Created.Unix(),
+		Size:        v1Image.Size,
 		VirtualSize: v1Image.Size,
 		Labels:      v1Image.Config.Labels,
 	}
