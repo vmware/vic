@@ -143,6 +143,7 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session) error {
 		return nil // already committed
 	}
 
+	h.SetSpec(nil)
 	cfg := make(map[string]string)
 	extraconfig.Encode(extraconfig.MapSink(cfg), h.ExecConfig)
 	s := h.Spec.Spec()
@@ -160,7 +161,10 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session) error {
 			}
 
 		case StateStopped:
-			// TODO
+			// stop the container
+			if err := h.Container.Stop(ctx); err != nil {
+				return err
+			}
 		}
 	}
 
