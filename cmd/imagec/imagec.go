@@ -84,6 +84,7 @@ type ImageCOptions struct {
 type ImageWithMeta struct {
 	*models.Image
 
+	diffID  string
 	layer   FSLayer
 	history History
 }
@@ -298,10 +299,11 @@ func DownloadImageBlobs(images []ImageWithMeta) error {
 		go func(image ImageWithMeta) {
 			defer wg.Done()
 
-			err := FetchImageBlob(options, &image)
+			diffID, err := FetchImageBlob(options, &image)
 			if err != nil {
 				results <- fmt.Errorf("%s/%s returned %s", options.image, image.layer.BlobSum, err)
 			} else {
+				image.diffID = diffID
 				results <- nil
 			}
 		}(images[i])

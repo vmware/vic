@@ -178,9 +178,12 @@ func TestFetchImageBlob(t *testing.T) {
 		history: History{V1Compatibility: LayerHistory},
 		layer:   FSLayer{BlobSum: DigestSHA256LayerContent},
 	}
-	err = FetchImageBlob(options, &image)
+	diffID, err := FetchImageBlob(options, &image)
 	if err != nil {
 		t.Errorf(err.Error())
+	}
+	if diffID == "" {
+		t.Errorf("Expected a diffID, got nil.")
 	}
 
 	tar, err := ioutil.ReadFile(path.Join(DestinationDirectory(), LayerID, LayerID+".tar"))

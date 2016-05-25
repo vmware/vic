@@ -118,9 +118,13 @@ if [ -n "$standalone" ] ; then
     govc datastore.create -type vmfs -name datastore1 -disk="$disk" '*'
 else
     echo "Rescanning HBA for new devices..."
-    disk=$(govc host.storage.info -rescan | grep /vmfs/devices/disks | awk '{print $1}' | sort | head -n1)
-    echo "Marking ${disk} as SSD..."
-    govc host.storage.mark -ssd "$disk"
+    disk=($(govc host.storage.info -rescan | grep /vmfs/devices/disks | awk '{print $1}' | sort))
+
+    echo "Marking disk ${disk[0]} as SSD..."
+    govc host.storage.mark -ssd "${disk[0]}"
+
+    echo "Marking disk ${disk[1]} as HDD..."
+    govc host.storage.mark -ssd=false "${disk[1]}"
 fi
 
 echo "Installing host client..."
