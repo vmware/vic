@@ -21,7 +21,7 @@ import (
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/install/configuration"
+	"github.com/vmware/vic/metadata"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -29,8 +29,9 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (d *Dispatcher) createResourcePool(conf *configuration.Configuration) (*compute.ResourcePool, error) {
-	d.vchPoolPath = path.Join(d.session.Pool.InventoryPath, conf.DisplayName)
+func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfigSpec) (*compute.ResourcePool, error) {
+	d.vchPoolPath = path.Join(d.session.Pool.InventoryPath, conf.Name)
+	conf.ResourcePoolPath = d.vchPoolPath
 
 	rp, err := d.session.Finder.ResourcePool(d.ctx, d.vchPoolPath)
 	if err != nil {
@@ -40,6 +41,7 @@ func (d *Dispatcher) createResourcePool(conf *configuration.Configuration) (*com
 			return nil, err
 		}
 	} else {
+		conf.ComputeResources = append(conf.ComputeResources, rp)
 		return compute.NewResourcePool(d.ctx, d.session, rp.Reference()), nil
 	}
 
@@ -65,7 +67,7 @@ func (d *Dispatcher) createResourcePool(conf *configuration.Configuration) (*com
 		},
 	}
 
-	_, err = d.session.Pool.Create(d.ctx, conf.DisplayName, resSpec)
+	_, err = d.session.Pool.Create(d.ctx, conf.Name, resSpec)
 	if err != nil {
 		return nil, err
 	}
@@ -73,11 +75,11 @@ func (d *Dispatcher) createResourcePool(conf *configuration.Configuration) (*com
 	if err != nil {
 		return nil, err
 	}
-
+	conf.ComputeResources = append(conf.ComputeResources, rp)
 	return vrp, nil
 }
 
-func (d *Dispatcher) destroyResourcePool(conf *configuration.Configuration) error {
+func (d *Dispatcher) destroyResourcePool(conf *metadata.VirtualContainerHostConfigSpec) error {
 	log.Infof("Destroying the Resource Pool")
 
 	vrp, err := compute.FindResourcePool(d.ctx, d.session, d.vchPoolPath)
