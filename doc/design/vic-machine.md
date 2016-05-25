@@ -73,7 +73,8 @@ These are various examples intended to illustrate how vic-machine is intended to
 vic-machine create
 -TO=https://root@****:vcenter/
 -name=edw-web
--compute-resource=/example-datacenter/host/mycluster/Resources/edw-pool/web
+-datacenter=example-datacenter
+-compute=mycluster/edw-pool/web
 -image-store=ds://datastore/containers/edw
 -container-store=ds://datastore/edw/edw/web
 -client-network="VM Network"
@@ -88,6 +89,7 @@ vic-machine create
 
 The first block of these options control the core configuration of the VCH:
 * name - the textual name by which this VCH is identified.
+* datacenter - the datacenter to deploy into. If deploying to ESX or a VC with a single datacenter this can be omitted.
 * compute-resource - resource pool, host, cluster, or other compute boundry into which the VCH should be deployed.
 * image-store - the datastore location where images will be placed, whether pulled via `docker pull` or created via `docker commit`.
 * contianer-store - the datastore location where containerVMs will be created. This does not have to be on the same datastore as the images, but both must be visible to all hosts on which containerVMs are to be created.
@@ -105,10 +107,11 @@ The second block of options control how exisiting vSphere resources are presente
 Note that the various resource paths end in a `/` - this signifies that it's acceptable for additional refinement to be provided when using this manifest file:
 
 ```
-vic-machine create
--TO=file::///home/joe/vch/edw.manifest
+vic-machine manifest
+-manifest=file::///home/joe/vch/edw.manifest
 -TO=https://root@****:vcenter/
--compute-resource=/example-datacenter/host/mycluster/Resources/edw-pool/
+-datacenter=example-datacenter
+-compute=mycluster/edw-pool/
 -image-store=ds://vsan-datastore/containers/edw
 -container-store=ds://vsan-datastore/edw/edw/
 -client-network="VM Network"
@@ -127,8 +130,8 @@ When using a manifest file it's necessary to fully qualify resources that are le
 
 ```
 vic-machine create
--FROM=file::///home/joe/vch/edw.manifest
--compute-resource=webteam
+-manifest=file::///home/joe/vch/edw.manifest
+-compute=webteam
 -container-store=web
 -volume-store=reports/web:report
 -docker-network=bridge
@@ -142,24 +145,34 @@ List the existing VCHs under the specified compute resource. The example below w
 ```
 vic-machine ls
 -FROM=https://root@****:vcenter/
+
+ID        Path                                Notes
+vm-239    mycluster/edw-pool/web/edw-web      Notes from the VCH config that get truncated after...
+vm-2372   mycluster/random/someother          Another VCH in the random pool
+vm-15     mycluster/xyz                       VCH in the root of the cluster
 ```
 The following example lists VCHs under a specific resource
 ```
 vic-machine ls
 -FROM=https://root@****:vcenter/example-datacenter/host/mycluster/Resources/edw-pool/
 ```
+The following example lists VCHs under a specific resource, described by manifest. Using the example above, this would list all VCHs under /example-datacenter/host/mycluster/Resources/edw-pool/
+```
+vic-machine ls
+-FROM=file::///home/joe/vch/edw.manifest
+```
 
 
 ## Inspect existing VCH
 Inspect the configuration of an existing VCH by path:
 ```
-vic-machine
+vic-machine inspect
 -FROM=https://root@****:vcenter/example-datacenter/host/mycluster/Resources/edw-pool/web-team-vch
 ```
 
 Inspect the configuration of an existing VCH by moref - I feel leaking vCenter abstractions is unavoidable if allowing any specifier other than full paths:
 ```
-vic-machine
+vic-machine inspect
 -FROM=https://root@****:vcenter/moref=vm-10324
 ```
 
