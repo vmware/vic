@@ -27,6 +27,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progress"
 
 	"github.com/vmware/vic/pkg/trace"
@@ -144,16 +145,17 @@ func FetchToken(url *url.URL) (*Token, error) {
 }
 
 // FetchImageBlob fetches the image blob
-func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) error {
+func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) (string, error) {
 	defer trace.End(trace.Begin(options.image + "/" + image.layer.BlobSum))
 
 	id := image.ID
 	layer := image.layer.BlobSum
 	history := image.history.V1Compatibility
+	diffID := ""
 
 	url, err := url.Parse(options.registry)
 	if err != nil {
-		return err
+		return diffID, err
 	}
 	url.Path = path.Join(url.Path, options.image, "blobs", layer)
 
@@ -170,7 +172,7 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) error {
 	})
 	imageFileName, err := fetcher.FetchWithProgress(url, image.String())
 	if err != nil {
-		return err
+		return diffID, err
 	}
 
 	// Cleanup function for the error case
@@ -181,47 +183,64 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) error {
 	}()
 
 	// Open the file so that we can use it as a io.Reader for sha256 calculation
-	in, err := os.Open(string(imageFileName))
+	imageFile, err := os.Open(string(imageFileName))
 	if err != nil {
-		return err
+		return diffID, err
 	}
-	defer in.Close()
+	defer imageFile.Close()
 
-	h := sha256.New()
+	// blobSum is the sha of the compressed layer
+	blobSum := sha256.New()
+
+	// diffIDSum is the sha of the uncompressed layer
+	diffIDSum := sha256.New()
+
+	// blobTr is an io.TeeReader that writes bytes to blobSum that it reads from imageFile
+	// see https://golang.org/pkg/io/#TeeReader
+	blobTr := io.TeeReader(imageFile, blobSum)
 
 	progress.Update(po, image.String(), "Verifying Checksum")
-	if _, cerr := io.Copy(h, in); cerr != nil {
-		return cerr
+	tar, err := archive.DecompressStream(blobTr)
+	if err != nil {
+		return diffID, err
 	}
 
-	// Calculate the sum
-	sum := fmt.Sprintf("sha256:%x", h.Sum(nil))
-	if sum != layer {
-		return fmt.Errorf("Failed to validate layer checksum. Expected %s got %s", layer, sum)
+	// Copy bytes from decompressed layer into diffIDSum to calculate diffID
+	if _, cerr := io.Copy(diffIDSum, tar); cerr != nil {
+		return diffID, cerr
 	}
+
+	bs := fmt.Sprintf("sha256:%x", blobSum.Sum(nil))
+	if bs != layer {
+		return diffID, fmt.Errorf("Failed to validate layer checksum. Expected %s got %s", layer, bs)
+	}
+
+	diffID = fmt.Sprintf("sha256:%x", diffIDSum.Sum(nil))
+
+	log.Infof("diffID for layer %s: %s", id, diffID)
 
 	// Ensure the parent directory exists
 	destination := path.Join(DestinationDirectory(), id)
 	err = os.MkdirAll(destination, 0755)
 	if err != nil {
-		return err
+		return diffID, err
 	}
 
 	// Move(rename) the temporary file to its final destination
 	err = os.Rename(string(imageFileName), path.Join(destination, id+".tar"))
 	if err != nil {
-		return err
+		return diffID, err
 	}
 
 	// Dump the history next to it
 	err = ioutil.WriteFile(path.Join(destination, id+".json"), []byte(history), 0644)
 	if err != nil {
-		return err
+		return diffID, err
 	}
 
 	progress.Update(po, image.String(), "Download complete")
 
-	return nil
+	return diffID, nil
 }
 
 // FetchImageManifest fetches the image manifest file
