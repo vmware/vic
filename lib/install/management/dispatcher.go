@@ -20,7 +20,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -40,7 +39,6 @@ type Dispatcher struct {
 	session *session.Session
 	ctx     context.Context
 	force   bool
-	timeout time.Duration
 
 	isVC          bool
 	vchPoolPath   string
@@ -65,14 +63,13 @@ type diagnosticLog struct {
 var diagnosticLogs = make(map[string]*diagnosticLog)
 
 func NewDispatcher(ctx context.Context, s *session.Session,
-	conf *metadata.VirtualContainerHostConfigSpec, force bool, timeout time.Duration) *Dispatcher {
+	conf *metadata.VirtualContainerHostConfigSpec, force bool) *Dispatcher {
 	isVC := s.IsVC()
 	e := &Dispatcher{
 		session: s,
 		ctx:     ctx,
 		isVC:    isVC,
 		force:   force,
-		timeout: timeout,
 	}
 	e.initDiagnosticLogs(conf)
 	return e
@@ -150,11 +147,12 @@ func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec) err
 	if err != nil {
 		return errors.Errorf("Failed to power on appliance %s. Exiting...", err)
 	}
+
 	if err = d.setMacToGuestInfo(conf); err != nil {
 		return errors.Errorf("Failed to set Mac address %s. Exiting...", err)
 	}
-	if err = d.makeSureApplianceRuns(); err != nil && !d.force {
-		return errors.Errorf("Waiting for confirmation of initialization failed with %s. Exiting...", err)
+	if err = d.makeSureApplianceRuns(); err != nil {
+		return errors.Errorf("%s. Exiting...", err)
 	}
 	return nil
 }
@@ -240,10 +238,10 @@ func (d *Dispatcher) CollectDiagnosticLogs() {
 			log.Errorf("Failed to create local %s: %s", l.name, err)
 			continue
 		}
+		defer f.Close()
 
 		for _, line := range lines {
 			fmt.Fprintln(f, line)
 		}
-		f.Close()
 	}
 }

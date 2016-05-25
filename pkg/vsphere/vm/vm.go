@@ -180,3 +180,30 @@ func (vm *VirtualMachine) WaitForExtraConfig(ctx context.Context, waitFunc func(
 	}
 	return nil
 }
+
+func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key string) (string, error) {
+	var detail string
+	waitFunc := func(pc []types.PropertyChange) bool {
+		for _, c := range pc {
+			if c.Op != types.PropertyChangeOpAssign {
+				continue
+			}
+
+			values := c.Val.(types.ArrayOfOptionValue).OptionValue
+			for _, value := range values {
+				// check the status of the key and return true if it's been set to non-nil
+				if key == value.GetOptionValue().Key {
+					detail = value.GetOptionValue().Value.(string)
+					return detail != "" && detail != "<nil>"
+				}
+			}
+		}
+		return false
+	}
+
+	if err := vm.WaitForExtraConfig(ctx, waitFunc); err != nil {
+		log.Errorf("Unable to wait for extra config property %s: %s", key, err.Error())
+		return "", err
+	}
+	return detail, nil
+}
