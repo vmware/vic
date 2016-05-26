@@ -71,10 +71,9 @@ These are various examples intended to illustrate how vic-machine is intended to
 
 ```
 vic-machine create
--TO=https://root@****:vcenter/
--name=edw-web
--datacenter=example-datacenter
--compute=mycluster/edw-pool/web
+-target=https://root@****:vcenter.fqdn/path/to/datacenter
+-compute=mycluster/edw-pool/web/edw-web
+-path=/folder/path/orthogonal/to/compute
 -image-store=ds://datastore/containers/edw
 -container-store=ds://datastore/edw/edw/web
 -client-network="VM Network"
@@ -82,15 +81,15 @@ vic-machine create
 -volume-store=ds://edw-san/reports:reports
 -volume-store=ds://edw-san/data:data
 -docker-network=private-vlan12d7f2:bridge
+-docker-network-ipam=private-vlan12d7f2:172.17.0.128-192/24,172.17.0.1
 -docker-network=edw-corp-net:backend
--docker-network-ipam=edw-corp-net:10.118.78.128-192/24,10.118.78.1
 -alias=oracledb.edw.corp.net:db.backend
 ```
 
 The first block of these options control the core configuration of the VCH:
-* name - the textual name by which this VCH is identified.
-* datacenter - the datacenter to deploy into. If deploying to ESX or a VC with a single datacenter this can be omitted.
-* compute-resource - resource pool, host, cluster, or other compute boundry into which the VCH should be deployed.
+* target - the destination ESX or VC datacenter
+* compute - resource pool, host, cluster, or other compute boundry into which the VCH should be deployed.
+* path - the folder path into which the VCH VMs will be placed - this is VC only
 * image-store - the datastore location where images will be placed, whether pulled via `docker pull` or created via `docker commit`.
 * contianer-store - the datastore location where containerVMs will be created. This does not have to be on the same datastore as the images, but both must be visible to all hosts on which containerVMs are to be created.
 * client-network - the network on which users will connect to the VCH to issue DOCKER_API commands.
@@ -99,7 +98,7 @@ The first block of these options control the core configuration of the VCH:
 The second block of options control how exisiting vSphere resources are presented to users of the VCH. These are specified as a `source:destination` mapping with vSphere identifier as the source; it is the viadmin role that is providing this data and mapping mydomain:targetdomain aligns with how people tend to think.
 * -volume-store - datastore prefixes under which volumes can be created. These prefixes are mapped to labels that can be reference via the --opts mechanism when calling `docker volume create`
 * -docker-network - vSphere networks that should be exposed via `docker network` commands. As with the datastores this is a mapping from vSphere name to docker name. Ideally the docker name should express something about the purpose of presenting the network such as `internet`, `intranet`, or `databases`
-* -docker-network-ipam - this is an optional argument furnishing additional information for controlling IP address management on the network, in the form `ipaddress-range/mask,gateway`. If not specified, DHCP is used.
+* -docker-network-ipam - this is an optional argument furnishing additional information for controlling IP address management on the network, in the form `ipaddress-range/mask,gateway`. If not specified DHCP is used. 
 * -alias - this allows containers to address a specific FQDN as if it were itself a container managed by the VCH, specified in the form of `FQDN:alias.network`.  
 
 
@@ -109,8 +108,7 @@ Note that the various resource paths end in a `/` - this signifies that it's acc
 ```
 vic-machine manifest
 -manifest=file::///home/joe/vch/edw.manifest
--TO=https://root@****:vcenter/
--datacenter=example-datacenter
+-target=https://root@****:vcenter.fqdn/path/to/datacenter
 -compute=mycluster/edw-pool/
 -image-store=ds://vsan-datastore/containers/edw
 -container-store=ds://vsan-datastore/edw/edw/
