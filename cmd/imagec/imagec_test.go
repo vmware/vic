@@ -24,7 +24,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/vmware/vic/apiservers/portlayer/models"
+	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 )
 
 const (

@@ -16,7 +16,7 @@ This section addresses the VIC control channel
 The containerVM guestinfo is used as a persistent, asynch publishing mechanism for specific data related to container state, primarily:
 
 1. assigned DHCP address
-2. error reporting for [containerVM components](#components.md#container)
+2. error reporting for [containerVM components](components.md#container)
 3. exit status of the container process
 
 Appliance to containerVM communication also uses guestinfo as a channel and is addressed in a little more depth under [configuration](configuration.md#appliance)

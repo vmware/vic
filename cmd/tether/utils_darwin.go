@@ -21,7 +21,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
 )
 

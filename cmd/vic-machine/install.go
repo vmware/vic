@@ -24,7 +24,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/vmware/vic/install/management"
+	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/pkg/flags"
 
 	"golang.org/x/crypto/ssh/terminal"

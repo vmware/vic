@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 

@@ -29,7 +29,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
-	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vmw-guestinfo/rpcout"
 )
