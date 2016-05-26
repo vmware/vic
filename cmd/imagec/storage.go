@@ -74,7 +74,7 @@ func CreateImageStore(storename string) error {
 }
 
 // ListImages lists the images from given image store
-func ListImages(storename string, images []ImageWithMeta) (map[string]*models.Image, error) {
+func ListImages(storename string, images []*ImageWithMeta) (map[string]*models.Image, error) {
 	defer trace.End(trace.Begin(storename))
 
 	transport := httptransport.New(options.host, "/", []string{"http"})
