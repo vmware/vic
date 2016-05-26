@@ -52,6 +52,43 @@ func (f *Folder) typeNotSupported() *soap.Fault {
 	return Fault(fmt.Sprintf("%s supports types: %#v", f.Self, f.ChildType), &types.NotSupported{})
 }
 
+type addStandaloneHostTask struct {
+	*Folder
+
+	req *types.AddStandaloneHost_Task
+}
+
+func (add *addStandaloneHostTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
+	host, err := CreateStandaloneHost(add.Folder, add.req.Spec)
+	if err != nil {
+		return nil, err
+	}
+
+	if add.req.AddConnected {
+		host.Runtime.ConnectionState = types.HostSystemConnectionStateConnected
+	}
+
+	return host.Reference(), nil
+}
+
+func (f *Folder) AddStandaloneHostTask(a *types.AddStandaloneHost_Task) soap.HasFault {
+	r := &methods.AddStandaloneHost_TaskBody{}
+
+	if f.hasChildType("ComputeResource") && f.hasChildType("Folder") {
+		task := NewTask(&addStandaloneHostTask{f, a})
+
+		r.Res = &types.AddStandaloneHost_TaskResponse{
+			Returnval: task.Self,
+		}
+
+		task.Run()
+	} else {
+		r.Fault_ = f.typeNotSupported()
+	}
+
+	return r
+}
+
 func (f *Folder) CreateFolder(c *types.CreateFolder) soap.HasFault {
 	r := &methods.CreateFolderBody{}
 

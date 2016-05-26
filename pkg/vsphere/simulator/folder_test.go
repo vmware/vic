@@ -18,12 +18,32 @@ import (
 	"testing"
 
 	"github.com/vmware/govmomi"
+	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
 	"github.com/vmware/vic/pkg/vsphere/simulator/vc"
 	"golang.org/x/net/context"
 )
+
+func addStandaloneHost(folder *object.Folder, spec types.HostConnectSpec) (*object.Task, error) {
+	// TODO: add govmomi wrapper
+	req := types.AddStandaloneHost_Task{
+		This:         folder.Reference(),
+		Spec:         spec,
+		AddConnected: true,
+	}
+
+	res, err := methods.AddStandaloneHost_Task(context.TODO(), folder.Client(), &req)
+	if err != nil {
+		return nil, err
+	}
+
+	task := object.NewTask(folder.Client(), res.Returnval)
+	return task, nil
+}
 
 func TestFolderESX(t *testing.T) {
 	content := esx.ServiceContent
@@ -48,6 +68,23 @@ func TestFolderESX(t *testing.T) {
 	_, err = f.CreateDatacenter(ctx, "foo")
 	if err == nil {
 		t.Error("expected error")
+	}
+
+	finder := find.NewFinder(c.Client, false)
+	dc, err := finder.DatacenterOrDefault(ctx, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	folders, err := dc.Folders(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	spec := types.HostConnectSpec{}
+	_, err = addStandaloneHost(folders.HostFolder, spec)
+	if err == nil {
+		t.Fatal("expected error")
 	}
 }
 
@@ -88,9 +125,61 @@ func TestFolderVC(t *testing.T) {
 		}
 	}
 
-	_, err = ff.CreateDatacenter(ctx, "biz")
+	dc, err = ff.CreateDatacenter(ctx, "biz")
 	if err != nil {
 		t.Error(err)
+	}
+
+	folders, err := dc.Folders(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name  string
+		state types.TaskInfoState
+	}{
+		{"", types.TaskInfoStateError},
+		{"foo.local", types.TaskInfoStateSuccess},
+	}
+
+	for _, test := range tests {
+		spec := types.HostConnectSpec{
+			HostName: test.name,
+		}
+
+		task, err := addStandaloneHost(folders.HostFolder, spec)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		res, err := task.WaitForResult(ctx, nil)
+		if test.state == types.TaskInfoStateError {
+			if err == nil {
+				t.Error("expected error")
+			}
+
+			if res.Result != nil {
+				t.Error("expected nil")
+			}
+		} else {
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			ref, ok := res.Result.(types.ManagedObjectReference)
+			if !ok {
+				t.Errorf("expected moref, got type=%T", res.Result)
+			}
+			host := Map.Get(ref).(*HostSystem)
+			if host.Name != test.name {
+				t.Fail()
+			}
+		}
+
+		if res.State != test.state {
+			t.Fatalf("%s", res.State)
+		}
 	}
 }
 
