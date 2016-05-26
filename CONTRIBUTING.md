@@ -181,3 +181,16 @@ We use the following structure for higher level project management
 * Labels - either by functional area (`component/...`) or feature (`feature/...`)
 
 
+## Repository structure
+
+The layout in the repo is as follows - this is a recent reorganisation so there is still some mixing between directories:
+* cmd - the main packages for compiled components
+* doc - all project documentation other than the standard files in the root
+* infra - supporting scripts, utilities, et al
+* isos - ISO mastering scripts and uncompiled content
+* lib - common library packages that are tightly coupled to vmware/vic
+* pkg - packages that are not tightly coupled to vmware/vic and could be usefully consumed in other projects. There is still some sanitization to do here.
+* tests - integration and system test code that doesn't use go test
+* vendor - standard Go vendor model
+
+
