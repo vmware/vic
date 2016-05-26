@@ -15,6 +15,10 @@
 #
 # Create a VM and boot stateless ESXi via cdrom/iso
 
+set -o pipefail
+
+echo "Checking govc version...$(govc version -require 0.7.0 2>&1)"
+
 usage() {
     echo "Usage: $0 [-d DISK_GB] [-m MEM_GB] [-i ESX_ISO] [-s] ESX_URL VM_NAME" 1>&2
     exit 1
@@ -23,10 +27,14 @@ usage() {
 disk=48
 mem=16
 iso=VMware-VMvisor-6.0.0-3634798.x86_64.iso
+vib=http://download3.vmware.com/software/vmw-tools/esxui/esxui-signed-3843236.vib
 
-while getopts d:i:m:s flag
+while getopts c:d:i:m:s flag
 do
     case $flag in
+        c)
+            vib=$OPTARG
+            ;;
         d)
             disk=$OPTARG
             ;;
@@ -127,13 +135,26 @@ else
     govc host.storage.mark -ssd=false "${disk[1]}"
 fi
 
-echo "Installing host client..."
-govc host.esxcli -- software vib install -v http://download3.vmware.com/software/vmw-tools/esxui/esxui-signed-3843236.vib
-
 echo "Enabling MOB..."
 govc host.option.set Config.HostAgent.plugins.solo.enableMob true
 
+echo "Enabling ESXi Shell and SSH..."
+for id in TSM TSM-SSH ; do
+    govc host.service enable $id
+    govc host.service start $id
+done
+
 echo "Propagating \$GOVC_URL password to $name host root account..."
 govc host.account.update -id root -password "$password"
+
+if [ -n "$vib" ] ; then
+    echo -n "Installing host client ($(basename "$vib"))..."
+
+    if govc host.esxcli -- software vib install -v "$vib" > /dev/null 2>&1 ; then
+        echo "OK"
+    else
+        echo "Failed"
+    fi
+fi
 
 echo "Done."
