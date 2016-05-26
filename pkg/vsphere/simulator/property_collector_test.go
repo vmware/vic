@@ -23,6 +23,7 @@ import (
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
@@ -230,5 +231,63 @@ func TestRetrieveProperties(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error")
 		}
+	}
+}
+
+func TestWaitForUpdates(t *testing.T) {
+	folder := esx.RootFolder
+	s := New(NewServiceInstance(esx.ServiceContent, folder))
+
+	ts := s.NewServer()
+	defer ts.Close()
+
+	ctx := context.Background()
+
+	c, err := govmomi.NewClient(ctx, ts.URL, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cb := func(once bool) func([]types.PropertyChange) bool {
+		return func(pc []types.PropertyChange) bool {
+			if len(pc) != 1 {
+				t.Fail()
+			}
+
+			c := pc[0]
+			if c.Op != types.PropertyChangeOpAssign {
+				t.Fail()
+			}
+			if c.Name != "name" {
+				t.Fail()
+			}
+			if c.Val.(string) != folder.Name {
+				t.Fail()
+			}
+
+			return once
+		}
+	}
+
+	pc := property.DefaultCollector(c.Client)
+	props := []string{"name"}
+
+	err = property.Wait(ctx, pc, folder.Reference(), props, cb(true))
+	if err != nil {
+		t.Error(err)
+	}
+
+	// incremental updates not yet suppported
+	err = property.Wait(ctx, pc, folder.Reference(), props, cb(false))
+	if err == nil {
+		t.Error("expected error")
+	}
+
+	// test object not found
+	Map.Remove(folder.Reference())
+
+	err = property.Wait(ctx, pc, folder.Reference(), props, cb(true))
+	if err == nil {
+		t.Error("expected error")
 	}
 }
