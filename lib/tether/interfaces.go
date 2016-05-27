@@ -12,37 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package tether
 
 import (
-	"net"
-	"os"
+	"io"
 
 	"github.com/vmware/vic/lib/metadata"
-	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/pkg/dio"
-	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 )
 
-// ops is here so we can switch the OS Ops impls for test mocking
-var ops osops
-var utils utilities
+type Operations interface {
+	Setup() error
+	Cleanup() error
+	Log() (io.Writer, error)
 
-type osops interface {
 	SetHostname(hostname string) error
 	Apply(endpoint *metadata.NetworkEndpoint) error
 	MountLabel(label, target string, ctx context.Context) error
-	Fork(config *ExecutorConfig) error
+	Fork() error
+
+	SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, error)
+	HandleSessionExit(config *ExecutorConfig, session *SessionConfig) bool
+	ProcessEnv(env []string) []string
 }
 
-type utilities interface {
-	setup() error
-	cleanup()
-	sessionLogWriter() (dio.DynamicMultiWriter, error)
-	processEnvOS(env []string) []string
-	establishPty(session *SessionConfig) error
-	resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error
-	signalProcess(process *os.Process, sig ssh.Signal) error
-	backchannel(ctx context.Context) (net.Conn, error)
+type Tether interface {
+	Start() error
+	Stop() error
+	Reload()
+	Register(name string, ext Extension)
+}
+
+type Extension interface {
+	Start() error
+	Reload(config *ExecutorConfig) error
+	Stop() error
 }

@@ -20,9 +20,13 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
+	"fmt"
 	"io"
 	"net"
+	"os"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -33,7 +37,166 @@ import (
 
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/portlayer/attach"
+	"github.com/vmware/vic/pkg/serial"
 )
+
+type testAttachServer struct {
+	attachServerSSH
+	enabled bool
+	updated chan bool
+}
+
+func (t *testAttachServer) start() error {
+	err := t.attachServerSSH.start()
+
+	if err == nil {
+		t.updated <- true
+		t.enabled = true
+	}
+
+	log.Info("Started test attach server")
+	return err
+}
+
+func (t *testAttachServer) stop() {
+	if t.enabled {
+		t.attachServerSSH.stop()
+
+		log.Info("Stopped test attach server")
+		t.updated <- true
+		t.enabled = false
+	}
+}
+
+func (t *mocker) backchannel(ctx context.Context) (net.Conn, error) {
+	log.Info("opening ttyS0 pipe pair for backchannel")
+	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_WRONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		detail := fmt.Sprintf("failed to open cpipe for backchannel: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	s, err := os.OpenFile(pathPrefix+"/ttyS0s", os.O_RDONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		detail := fmt.Sprintf("failed to open spipe for backchannel: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	log.Infof("creating raw connection from ttyS0 pipe pair (c=%d, s=%d)\n", c.Fd(), s.Fd())
+	conn, err := serial.NewHalfDuplixFileConn(s, c, pathPrefix+"/ttyS0", "file")
+
+	if err != nil {
+		detail := fmt.Sprintf("failed to create raw connection from ttyS0 pipe pair: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	// still run handshake over it to test that
+	ticker := time.NewTicker(10 * time.Millisecond)
+	for {
+		select {
+		case <-ticker.C:
+			err := serial.HandshakeServer(ctx, conn)
+			if err == nil {
+				return conn, nil
+			}
+		case <-ctx.Done():
+			conn.Close()
+			ticker.Stop()
+			return nil, ctx.Err()
+		}
+	}
+}
+
+// create client on the mock pipe
+func mockBackChannel(ctx context.Context) (net.Conn, error) {
+	log.Info("opening ttyS0 pipe pair for backchannel")
+	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_RDONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		detail := fmt.Sprintf("failed to open cpipe for backchannel: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	s, err := os.OpenFile(pathPrefix+"/ttyS0s", os.O_WRONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		detail := fmt.Sprintf("failed to open spipe for backchannel: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	log.Infof("creating raw connection from ttyS0 pipe pair (c=%d, s=%d)\n", c.Fd(), s.Fd())
+	conn, err := serial.NewHalfDuplixFileConn(c, s, pathPrefix+"/ttyS0", "file")
+
+	if err != nil {
+		detail := fmt.Sprintf("failed to create raw connection from ttyS0 pipe pair: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
+	ticker := time.NewTicker(1000 * time.Millisecond)
+	for {
+		select {
+		case <-ticker.C:
+			// FIXME: need to implement timeout of purging hangs with no content
+			// on the pipe
+			// serial.PurgeIncoming(ctx, conn)
+			err := serial.HandshakeClient(ctx, conn)
+			if err == nil {
+				return conn, nil
+			}
+		case <-ctx.Done():
+			conn.Close()
+			ticker.Stop()
+			return nil, ctx.Err()
+		}
+	}
+}
+
+// create client on the mock pipe and dial the given host:port
+func mockNetworkToSerialConnection(host string) (*sync.WaitGroup, error) {
+	log.Info("opening ttyS0 pipe pair for backchannel")
+	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_RDONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open cpipe for backchannel: %s", err)
+	}
+
+	s, err := os.OpenFile(pathPrefix+"/ttyS0s", os.O_WRONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open spipe for backchannel: %s", err)
+	}
+
+	log.Infof("creating raw connection from ttyS0 pipe pair (c=%d, s=%d)\n", c.Fd(), s.Fd())
+	fconn, err := serial.NewHalfDuplixFileConn(c, s, pathPrefix+"/ttyS0", "file")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create raw connection from ttyS0 pipe pair: %s", err)
+	}
+
+	// Dial the attach server.  This is a TCP client
+	networkClientCon, err := net.Dial("tcp", host)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugf("dialed %s", host)
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+
+	go func() {
+		io.Copy(networkClientCon, fconn)
+		wg.Done()
+	}()
+
+	go func() {
+		io.Copy(fconn, networkClientCon)
+		wg.Done()
+	}()
+
+	return &wg, nil
+}
 
 func genKey() []byte {
 

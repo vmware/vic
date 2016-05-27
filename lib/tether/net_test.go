@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package tether
 
 import (
 	"testing"
@@ -36,12 +36,12 @@ func TestSetHostname(t *testing.T) {
 		},
 	}
 
-	startTether(t, &cfg)
+	tthr, _ := startTether(t, &cfg)
 
 	<-mocked.started
 
 	// prevent indefinite wait in tether - normally session exit would trigger this
-	close(reload)
+	tthr.Stop()
 
 	// wait for tether to exit
 	<-mocked.cleaned
@@ -72,12 +72,12 @@ func TestSetIpAddress(t *testing.T) {
 		},
 	}
 
-	startTether(t, &cfg)
+	tthr, _ := startTether(t, &cfg)
 
 	<-mocked.started
 
 	// prevent indefinite wait in tether - normally session exit would trigger this
-	close(reload)
+	tthr.Stop()
 
 	// wait for tether to exit
 	<-mocked.cleaned

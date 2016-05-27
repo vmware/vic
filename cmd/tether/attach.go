@@ -15,6 +15,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"net"
@@ -22,6 +23,7 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/pkg/trace"
 	"golang.org/x/crypto/ssh"
@@ -49,9 +51,42 @@ type attachServerSSH struct {
 	enabled bool
 }
 
+func (t *attachServerSSH) Reload(config *metadata.ExecutorConfig) error {
+	defer trace.End(trace.Begin("attach reload"))
+
+	// process the sessions and launch if needed
+	for id, session := range config.Sessions {
+		log.Debugf("Processing config for session %s", session.ID)
+		if session.Attach {
+			attach = true
+			log.Debugf("Session %s is configured for attach", session.ID)
+			// this will return nil if already running
+			err := t.start()
+			if err != nil {
+				detail := fmt.Sprintf("unable to start attach server: %s", err)
+				log.Error(detail)
+				return errors.New(detail)
+			}
+
+			return nil
+		}
+	}
+
+	// none of the sessions allows attach, so stop the server
+	t.stop()
+	return nil
+}
+
 // start is not thread safe with stop
 func (t *attachServerSSH) start() error {
 	defer trace.End(trace.Begin("start attach server"))
+
+	rand.Reader, err = os.Open(pathPrefix + "/urandom")
+	if err != nil {
+		detail := fmt.Sprintf("failed to open new urandom device: %s", err)
+		log.Error(detail)
+		return errors.New(detail)
+	}
 
 	if t == nil {
 		return errors.New("attach server is not configured")
