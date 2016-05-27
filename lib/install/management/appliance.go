@@ -96,8 +96,16 @@ func (d *Dispatcher) removeApplianceIfForced(conf *metadata.VirtualContainerHost
 func (d *Dispatcher) addNetworkDevices(conf *metadata.VirtualContainerHostConfigSpec, devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
 	var err error
 	var backing types.BaseVirtualDeviceBackingInfo
+	// network name:alias, to avoid create multiple devices for same network
+	nics := make(map[string]string)
 
-	for _, info := range conf.Networks {
+	for nicAlias, info := range conf.Networks {
+		if alias, ok := nics[info.PortGroupName]; ok {
+			// already has device to this portgroup, skip it
+			log.Debugf("device %s and %s are connected to same network, only one nic will be created.", alias, nicAlias)
+			continue
+		}
+		nics[info.PortGroupName] = nicAlias
 		network := info.PortGroup
 		backing, err = network.EthernetCardBackingInfo(d.ctx)
 		if err != nil {

@@ -79,6 +79,7 @@ func (vm VirtualMachine) WaitForMAC(ctx context.Context) (map[string]string, err
 
 	nics := devices.SelectByType(&types.VirtualEthernetCard{})
 	macs := make(map[string]string)
+	// device name:network name
 	nicMappings := make(map[string]string)
 	for _, nic := range nics {
 		if n, ok := nic.(types.BaseVirtualEthernetCard); ok {
@@ -89,7 +90,7 @@ func (vm VirtualMachine) WaitForMAC(ctx context.Context) (map[string]string, err
 			}
 			macs[netName] = ""
 
-			nicMappings[n.GetVirtualEthernetCard().DeviceInfo.GetDescription().Summary] = netName
+			nicMappings[devices.Name(nic)] = netName
 		} else {
 			log.Errorf("Failed to get network name of vNIC: %v", nic)
 			return nil, err
@@ -105,14 +106,14 @@ func (vm VirtualMachine) WaitForMAC(ctx context.Context) (map[string]string, err
 				continue
 			}
 
-			devices := c.Val.(types.ArrayOfVirtualDevice).VirtualDevice
-			for _, device := range devices {
+			changedDevices := c.Val.(types.ArrayOfVirtualDevice).VirtualDevice
+			for _, device := range changedDevices {
 				if nic, ok := device.(types.BaseVirtualEthernetCard); ok {
 					mac := nic.GetVirtualEthernetCard().MacAddress
 					if mac == "" {
 						continue
 					}
-					netName := nicMappings[nic.GetVirtualEthernetCard().DeviceInfo.GetDescription().Summary]
+					netName := nicMappings[devices.Name(device)]
 					macs[netName] = mac
 				}
 			}
