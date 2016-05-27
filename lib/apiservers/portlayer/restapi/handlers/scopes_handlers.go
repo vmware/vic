@@ -43,6 +43,7 @@ func (handler *ScopesHandlersImpl) Configure(api *operations.PortLayerAPI, handl
 	api.ScopesListAllHandler = scopes.ListAllHandlerFunc(handler.ScopesListAll)
 	api.ScopesListHandler = scopes.ListHandlerFunc(handler.ScopesList)
 	api.ScopesAddContainerHandler = scopes.AddContainerHandlerFunc(handler.ScopesAddContainer)
+	api.ScopesRemoveContainerHandler = scopes.RemoveContainerHandlerFunc(handler.ScopesRemoveContainer)
 	api.ScopesBindContainerHandler = scopes.BindContainerHandlerFunc(handler.ScopesBindContainer)
 	api.ScopesUnbindContainerHandler = scopes.UnbindContainerHandlerFunc(handler.ScopesUnbindContainer)
 
@@ -52,7 +53,6 @@ func (handler *ScopesHandlersImpl) Configure(api *operations.PortLayerAPI, handl
 			Mask: net.CIDRMask(12, 32),
 		},
 		net.CIDRMask(16, 32),
-		handlerCtx.Session,
 	)
 	if err != nil {
 		log.Fatalf("failed to create network context: %s", err)
@@ -148,7 +148,7 @@ func (handler *ScopesHandlersImpl) ScopesList(params scopes.ListParams) middlewa
 
 	cfgs, err := listScopes(handler.netCtx, params.IDName)
 	if _, ok := err.(network.ResourceNotFoundError); ok {
-		return scopes.NewListNotFound()
+		return scopes.NewListNotFound().WithPayload(errorPayload(err))
 	}
 
 	return scopes.NewListOK().WithPayload(cfgs)
@@ -159,7 +159,7 @@ func (handler *ScopesHandlersImpl) ScopesAddContainer(params scopes.AddContainer
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {
-		return scopes.NewAddContainerNotFound()
+		return scopes.NewAddContainerNotFound().WithPayload(&models.Error{Message: "container not found"})
 	}
 
 	err := func() error {
@@ -178,10 +178,33 @@ func (handler *ScopesHandlersImpl) ScopesAddContainer(params scopes.AddContainer
 	}()
 
 	if err != nil {
+		if _, ok := err.(*network.ResourceNotFoundError); ok {
+			return scopes.NewAddContainerNotFound().WithPayload(errorPayload(err))
+		}
+
 		return scopes.NewAddContainerDefault(http.StatusServiceUnavailable).WithPayload(errorPayload(err))
 	}
 
 	return scopes.NewAddContainerOK().WithPayload(h.String())
+}
+
+func (handler *ScopesHandlersImpl) ScopesRemoveContainer(params scopes.RemoveContainerParams) middleware.Responder {
+	defer trace.End(trace.Begin("ScopesRemoveContainer"))
+
+	h := exec.GetHandle(params.Handle)
+	if h == nil {
+		return scopes.NewRemoveContainerNotFound().WithPayload(&models.Error{Message: "container not found"})
+	}
+
+	if err := handler.netCtx.RemoveContainer(h, params.Scope); err != nil {
+		if _, ok := err.(*network.ResourceNotFoundError); ok {
+			return scopes.NewRemoveContainerNotFound().WithPayload(errorPayload(err))
+		}
+
+		return scopes.NewRemoveContainerDefault(http.StatusServiceUnavailable).WithPayload(errorPayload(err))
+	}
+
+	return scopes.NewRemoveContainerOK().WithPayload(h.String())
 }
 
 func (handler *ScopesHandlersImpl) ScopesBindContainer(params scopes.BindContainerParams) middleware.Responder {
@@ -189,7 +212,7 @@ func (handler *ScopesHandlersImpl) ScopesBindContainer(params scopes.BindContain
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {
-		return scopes.NewBindContainerNotFound()
+		return scopes.NewBindContainerNotFound().WithPayload(&models.Error{Message: "container not found"})
 	}
 
 	if err := handler.netCtx.BindContainer(h); err != nil {

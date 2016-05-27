@@ -19,6 +19,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 
 	"github.com/docker/docker/pkg/namesgenerator"
 	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
@@ -52,6 +53,7 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 	api.ContainersStateChangeHandler = containers.StateChangeHandlerFunc(handler.StateChangeHandler)
 	api.ContainersGetHandler = containers.GetHandlerFunc(handler.GetHandler)
 	api.ContainersCommitHandler = containers.CommitHandlerFunc(handler.CommitHandler)
+	api.ContainersGetStateHandler = containers.GetStateHandlerFunc(handler.GetStateHandler)
 
 	handler.handlerCtx = handlerCtx
 }
@@ -160,12 +162,35 @@ func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.Stat
 	return containers.NewStateChangeOK().WithPayload(h.String())
 }
 
+func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStateParams) middleware.Responder {
+	defer trace.End(trace.Begin("Containers.GetStateHandler"))
+
+	h := exec.GetHandle(params.Handle)
+	if h == nil {
+		return containers.NewGetStateNotFound()
+	}
+
+	var state string
+	switch h.Container.State {
+	case exec.StateRunning:
+		state = "RUNNING"
+
+	case exec.StateStopped:
+		state = "STOPPED"
+
+	default:
+		return containers.NewGetStateDefault(http.StatusServiceUnavailable)
+	}
+
+	return containers.NewGetStateOK().WithPayload(&models.ContainerGetStateResponse{Handle: h.String(), State: state})
+}
+
 func (handler *ContainersHandlersImpl) GetHandler(params containers.GetParams) middleware.Responder {
 	defer trace.End(trace.Begin("Containers.GetHandler"))
 
 	h := exec.GetContainer(exec.ParseID(params.ID))
 	if h == nil {
-		return containers.NewGetNotFound()
+		return containers.NewGetNotFound().WithPayload(&models.Error{Message: fmt.Sprintf("container %s not found", params.ID)})
 	}
 
 	return containers.NewGetOK().WithPayload(h.String())
@@ -176,7 +201,7 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {
-		return containers.NewCommitNotFound()
+		return containers.NewCommitNotFound().WithPayload(&models.Error{Message: "container not found"})
 	}
 
 	if err := h.Commit(context.Background(), handler.handlerCtx.Session); err != nil {

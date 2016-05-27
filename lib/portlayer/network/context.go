@@ -22,16 +22,12 @@ import (
 	"strings"
 	"sync"
 
-	"golang.org/x/net/context"
-
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
-	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/pkg/vsphere/vm"
+	"github.com/vmware/vmw-guestinfo/rpcvmx"
 )
 
 const (
@@ -54,34 +50,28 @@ type Context struct {
 	BridgeNetworkName string // Portgroup name of the bridge network
 }
 
-var getBridgeNetworkName = func(sess *session.Session) (string, error) {
-	c := context.Background()
-	vch, err := guest.GetSelf(c, sess)
-	if err != nil {
-		return "", fmt.Errorf("unable to get VCH ref")
-	}
-
-	vchVM := vm.NewVirtualMachine(c, sess, vch.Reference())
-	guestInfo, err := vchVM.FetchExtraConfig(c)
+var getBridgeNetworkName = func() (string, error) {
+	config := rpcvmx.NewConfig()
+	bnn, err := config.String(fmt.Sprintf("%s/portgroup", bridgeNetworkKey), "")
 	if err != nil {
 		return "", err
 	}
 
-	if bnn, ok := guestInfo[fmt.Sprintf("%s/portgroup", bridgeNetworkKey)]; ok {
-		return bnn, nil
+	if bnn == "" {
+		return bnn, fmt.Errorf("bridge network name not set")
 	}
 
-	return "", fmt.Errorf("bridge network name not found")
+	return bnn, nil
 }
 
-func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask, sess *session.Session) (*Context, error) {
+func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 	pones, pbits := bridgePool.Mask.Size()
 	mones, mbits := bridgeMask.Size()
 	if pbits != mbits || mones < pones {
 		return nil, fmt.Errorf("bridge mask is not compatiable with bridge pool mask")
 	}
 
-	bnn, err := getBridgeNetworkName(sess)
+	bnn, err := getBridgeNetworkName()
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +371,7 @@ func (c *Context) findScope(idName *string) ([]*Scope, error) {
 			}
 		}
 
-		return nil, ResourceNotFoundError{}
+		return nil, ResourceNotFoundError{error: fmt.Errorf("scope %s not found", *idName)}
 	}
 
 	_scopes := make([]*Scope, len(c.scopes))
@@ -412,7 +402,7 @@ func (c *Context) BindContainer(h *exec.Handle) error {
 
 	con, ok := c.containers[h.Container.ID]
 	if !ok {
-		return fmt.Errorf("container not found")
+		return ResourceNotFoundError{error: fmt.Errorf("container %s not found", h.Container.ID)}
 	}
 
 	scopes := con.Scopes()
@@ -450,7 +440,7 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 
 	con, ok := c.containers[h.Container.ID]
 	if !ok {
-		return fmt.Errorf("container not found")
+		return ResourceNotFoundError{error: fmt.Errorf("container %s not found", h.Container.ID)}
 	}
 
 	scopes := con.Scopes()
@@ -508,51 +498,61 @@ func findSlotNumber(slots map[int32]bool) int32 {
 	return slot
 }
 
-var addEthernetCard = func(h *exec.Handle, s *Scope, con *Container) (types.BaseVirtualDevice, error) {
+var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, error) {
 	var err error
-
-	// find if we already have a NIC attached to the network we want
-	d, err := h.Spec.FindNIC(s.NetworkName)
-	if d != nil {
-		return d, nil
-	}
-
 	var devices object.VirtualDeviceList
-	backing := &types.VirtualEthernetCardNetworkBackingInfo{
-		VirtualDeviceDeviceBackingInfo: types.VirtualDeviceDeviceBackingInfo{
-			DeviceName: s.NetworkName,
-		},
+	var d types.BaseVirtualDevice
+	var dc types.BaseVirtualDeviceConfigSpec
+
+	dcs, err := h.Spec.FindNICs(s.NetworkName)
+	for _, ds := range dcs {
+		if ds.GetVirtualDeviceConfigSpec().Operation == types.VirtualDeviceConfigSpecOperationAdd {
+			d = ds.GetVirtualDeviceConfigSpec().Device
+		}
 	}
 
-	d, err = devices.CreateEthernetCard("vmxnet3", backing)
-	if err != nil {
-		return nil, err
+	if d == nil {
+		backing := &types.VirtualEthernetCardNetworkBackingInfo{
+			VirtualDeviceDeviceBackingInfo: types.VirtualDeviceDeviceBackingInfo{
+				DeviceName: s.NetworkName,
+			},
+		}
+
+		if d, err = devices.CreateEthernetCard("vmxnet3", backing); err != nil {
+			return nil, err
+		}
 	}
 
-	slots := con.collectSlotNumbers()
-	for _, slot := range h.Spec.CollectSlotNumbers() {
-		slots[slot] = true
+	if spec.VirtualDeviceSlotNumber(d) == spec.NilSlot {
+		slots := make(map[int32]bool)
+		for _, e := range h.ExecConfig.Networks {
+			if e.PCISlot > 0 {
+				slots[e.PCISlot] = true
+			}
+		}
+
+		for _, slot := range h.Spec.CollectSlotNumbers() {
+			slots[slot] = true
+		}
+
+		slot := findSlotNumber(slots)
+		if slot == spec.NilSlot {
+			return nil, fmt.Errorf("out of slots")
+		}
+
+		d.GetVirtualDevice().SlotInfo = &types.VirtualDevicePciBusSlotInfo{PciSlotNumber: slot}
 	}
 
-	// collect slot numbers from existing endpoints
-	for _, e := range con.Endpoints() {
-		slots[e.PciSlot()] = true
+	if dc == nil {
+		devices = append(devices, d)
+		deviceSpecs, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
+		if err != nil {
+			return nil, err
+		}
+
+		h.Spec.DeviceChange = append(h.Spec.DeviceChange, deviceSpecs...)
 	}
 
-	slot := findSlotNumber(slots)
-	if slot == spec.NilSlot {
-		return nil, fmt.Errorf("out of slots")
-	}
-
-	d.GetVirtualDevice().SlotInfo = &types.VirtualDevicePciBusSlotInfo{PciSlotNumber: slot}
-
-	devices = append(devices, d)
-	deviceSpecs, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
-	if err != nil {
-		return nil, err
-	}
-
-	h.Spec.DeviceChange = append(h.Spec.DeviceChange, deviceSpecs...)
 	return d, nil
 }
 
@@ -626,7 +626,7 @@ func (c *Context) AddContainer(h *exec.Handle, scope string, ip *net.IP) (*Endpo
 
 	if addNIC {
 		var d types.BaseVirtualDevice
-		d, err = addEthernetCard(h, s, con)
+		d, err = addEthernetCard(h, s)
 		if err != nil {
 			return nil, err
 		}
@@ -637,6 +637,90 @@ func (c *Context) AddContainer(h *exec.Handle, scope string, ip *net.IP) (*Endpo
 	c.containers[con.ID()] = con
 	updateMetadata(h, []*Endpoint{e})
 	return e, nil
+}
+
+func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
+	c.Lock()
+	defer c.Unlock()
+
+	if h == nil {
+		return fmt.Errorf("handle is required")
+	}
+
+	var err error
+	s, err := c.resolveScope(scope)
+	if err != nil {
+		return err
+	}
+
+	con, ok := c.containers[h.Container.ID]
+	if !ok {
+		return ResourceNotFoundError{error: fmt.Errorf("container %s not found", h.Container.ID)}
+	}
+
+	e := con.Endpoint(s)
+	if e == nil {
+		return ResourceNotFoundError{error: fmt.Errorf("endpoint for container %s not found in scope %s", con.ID(), s.Name())}
+	}
+
+	if err = s.removeContainer(con); err != nil {
+		return err
+	}
+
+	defer func() {
+		if err == nil {
+			return
+		}
+
+		var ip *net.IP
+		if e.static {
+			i := e.IP()
+			ip = &i
+		}
+
+		s.addContainer(con, ip)
+	}()
+
+	// remove NIC if no other scopes in the container need
+	// it
+	removeNIC := true
+	if s.Type() == bridgeScopeType {
+		for _, ec := range con.Endpoints() {
+			if ec.Scope().Type() == bridgeScopeType {
+				removeNIC = false
+				break
+			}
+		}
+	}
+
+	if removeNIC {
+		// ensure spec is not nil
+		h.SetSpec(nil)
+
+		var devices object.VirtualDeviceList
+		backing := &types.VirtualEthernetCardNetworkBackingInfo{
+			VirtualDeviceDeviceBackingInfo: types.VirtualDeviceDeviceBackingInfo{
+				DeviceName: s.NetworkName,
+			},
+		}
+
+		d, err := devices.CreateEthernetCard("vmxnet3", backing)
+		if err != nil {
+			return err
+		}
+
+		devices = append(devices, d)
+		spec, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationRemove)
+		if err != nil {
+			return err
+		}
+		h.Spec.DeviceChange = append(h.Spec.DeviceChange, spec...)
+	}
+
+	// remove metadata
+	delete(h.ExecConfig.Networks, scope)
+
+	return nil
 }
 
 func (c *Context) Container(id exec.ID) *Container {

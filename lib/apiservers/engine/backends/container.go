@@ -104,6 +104,8 @@ func (c *Container) ContainerStatPath(name string, path string) (stat *types.Con
 func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.ContainerCreateResponse, error) {
 	defer trace.End(trace.Begin("ContainerCreate"))
 
+	var err error
+
 	//TODO: validate the config parameters
 	log.Printf("config.Config = %+v", config.Config)
 
@@ -197,6 +199,17 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 			return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 		}
 
+		defer func() {
+			if err == nil {
+				return
+			}
+			// roll back the AddContainer call
+			if _, err2 := client.Scopes.RemoveContainer(scopes.NewRemoveContainerParams().WithHandle(h).WithScope(netConf.NetworkName)); err2 != nil {
+				log.Warnf("could not roll back container add: %s", err2)
+
+			}
+		}()
+
 		h = addContRes.Payload
 	}
 
@@ -238,6 +251,8 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig) error {
 	defer trace.End(trace.Begin("ContainerStart"))
 
+	var err error
+
 	// Get an API client to the portlayer
 	client := PortLayerClient()
 	if client == nil {
@@ -270,6 +285,15 @@ func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig
 		}
 		return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer"), http.StatusInternalServerError)
 	}
+
+	defer func() {
+		if err != nil {
+			// roll back the BindContainer call
+			if _, err = client.Scopes.UnbindContainer(scopes.NewUnbindContainerParams().WithHandle(h)); err != nil {
+				log.Warnf("failed to roll back container bind: %s", err.Error())
+			}
+		}
+	}()
 
 	h = bindRes.Payload
 
