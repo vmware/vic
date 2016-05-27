@@ -180,33 +180,15 @@ func (c *Container) Start(ctx context.Context) error {
 		return err
 	}
 
+	// guestinfo key that we want to wait for
+	key := fmt.Sprintf("guestinfo..sessions|%s.started", c.ID)
 	var detail string
-	waitFunc := func(pc []types.PropertyChange) bool {
-		// guestinfo key that we want to wait for
-		key := fmt.Sprintf("guestinfo..sessions|%s.started", c.ID)
-
-		for _, c := range pc {
-			if c.Op != types.PropertyChangeOpAssign {
-				continue
-			}
-
-			values := c.Val.(types.ArrayOfOptionValue).OptionValue
-			for _, value := range values {
-				// check the status of the key and return true if it's been set to non-nil
-				if key == value.GetOptionValue().Key {
-					detail = value.GetOptionValue().Value.(string)
-					return detail != "" && detail != "<nil>"
-				}
-			}
-		}
-		return false
-	}
 
 	// Wait some before giving up...
 	ctx, cancel := context.WithTimeout(ctx, propertyCollectorTimeout)
 	defer cancel()
 
-	err = c.vm.WaitForExtraConfig(ctx, waitFunc)
+	detail, err = c.vm.WaitForKeyInExtraConfig(ctx, key)
 	if err != nil {
 		return fmt.Errorf("unable to wait for process launch status: %s", err.Error())
 	}

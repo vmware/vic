@@ -279,7 +279,7 @@ func main() {
 	var cancel context.CancelFunc
 	validator.Context, cancel = context.WithTimeout(validator.Context, data.timeout)
 	defer cancel()
-	executor := management.NewDispatcher(validator.Context, validator.Session, vchConfig, data.force, data.timeout)
+	executor := management.NewDispatcher(validator.Context, validator.Session, vchConfig, data.force)
 	if err = executor.Dispatch(vchConfig); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Fatal(err)

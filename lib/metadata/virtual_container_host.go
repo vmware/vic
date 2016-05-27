@@ -100,10 +100,11 @@ type VirtualContainerHostConfigSpec struct {
 	CertPEM string `vic:"0.1" scope:"read-only" key:"cert_pem"`
 
 	//FIXME: remove following attributes after port-layer-server read config from guestinfo
-	DatacenterName   string `vic:"0.1" scope:"read-only" key:"datacenter_name"`
-	ClusterPath      string `vic:"0.1" scope:"read-only" key:"cluster_path"`
-	ImageStoreName   string `vic:"0.1" scope:"read-only" key:"image_store_name"`
-	ResourcePoolPath string `vic:"0.1" scope:"read-only" key:"resource_pool_path"`
+	DatacenterName         string `vic:"0.1" scope:"read-only" key:"datacenter_name"`
+	ClusterPath            string `vic:"0.1" scope:"read-only" key:"cluster_path"`
+	ImageStoreName         string `vic:"0.1" scope:"read-only" key:"image_store_name"`
+	ResourcePoolPath       string `vic:"0.1" scope:"read-only" key:"resource_pool_path"`
+	ApplianceInventoryPath string `vic:"0.1" scope:"read-only" key:"appliance_path"`
 
 	// FIXME: remove following attributes after change to launch through tether
 	// Networks represents mapping between nic name and network info object. For example: bridge: vmomi object
