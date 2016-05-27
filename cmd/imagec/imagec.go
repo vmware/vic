@@ -15,6 +15,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -23,6 +24,7 @@ import (
 	"os"
 	"path"
 	"runtime/trace"
+	"strings"
 	"sync"
 	"time"
 
@@ -30,6 +32,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	docker "github.com/docker/docker/image"
+	dockerLayer "github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -213,10 +217,10 @@ func DestinationDirectory() string {
 }
 
 // ImagesToDownload creates a slice of ImageWithMeta for the images that needs to be downloaded
-func ImagesToDownload(manifest *Manifest, hostname string) ([]ImageWithMeta, error) {
-	images := make([]ImageWithMeta, len(manifest.FSLayers))
+func ImagesToDownload(manifest *Manifest, hostname string) ([]*ImageWithMeta, error) {
+	images := make([]*ImageWithMeta, len(manifest.FSLayers))
 
-	v1 := V1Compatibility{}
+	v1 := docker.V1Image{}
 	// iterate from parent to children
 	for i := len(manifest.History) - 1; i >= 0; i-- {
 		history := manifest.History[i]
@@ -234,7 +238,7 @@ func ImagesToDownload(manifest *Manifest, hostname string) ([]ImageWithMeta, err
 		}
 
 		// add image to ImageWithMeta list
-		images[i] = ImageWithMeta{
+		images[i] = &ImageWithMeta{
 			Image: &models.Image{
 				ID:     v1.ID,
 				Parent: &parent,
@@ -242,6 +246,7 @@ func ImagesToDownload(manifest *Manifest, hostname string) ([]ImageWithMeta, err
 			},
 			history: history,
 			layer:   layer,
+			diffID:  "",
 		}
 		log.Debugf("Manifest image: %#v", images[i])
 	}
@@ -286,7 +291,7 @@ func ImagesToDownload(manifest *Manifest, hostname string) ([]ImageWithMeta, err
 }
 
 // DownloadImageBlobs downloads the image blobs concurrently
-func DownloadImageBlobs(images []ImageWithMeta) error {
+func DownloadImageBlobs(images []*ImageWithMeta) error {
 	var wg sync.WaitGroup
 
 	wg.Add(len(images))
@@ -296,10 +301,10 @@ func DownloadImageBlobs(images []ImageWithMeta) error {
 	// on top of previous one
 	results := make(chan error, len(images))
 	for i := len(images) - 1; i >= 0; i-- {
-		go func(image ImageWithMeta) {
+		go func(image *ImageWithMeta) {
 			defer wg.Done()
 
-			diffID, err := FetchImageBlob(options, &image)
+			diffID, err := FetchImageBlob(options, image)
 			if err != nil {
 				results <- fmt.Errorf("%s/%s returned %s", options.image, image.layer.BlobSum, err)
 			} else {
@@ -322,7 +327,7 @@ func DownloadImageBlobs(images []ImageWithMeta) error {
 }
 
 // WriteImageBlobs writes the image blob to the storage layer
-func WriteImageBlobs(images []ImageWithMeta) error {
+func WriteImageBlobs(images []*ImageWithMeta) error {
 	if options.standalone {
 		return nil
 	}
@@ -358,7 +363,7 @@ func WriteImageBlobs(images []ImageWithMeta) error {
 
 		// Write the image
 		// FIXME: send metadata when portlayer supports it
-		err = WriteImage(&image, in)
+		err = WriteImage(image, in)
 		if err != nil {
 			return fmt.Errorf("Failed to write to image store: %s", err)
 		}
@@ -367,6 +372,60 @@ func WriteImageBlobs(images []ImageWithMeta) error {
 	if err := os.RemoveAll(destination); err != nil {
 		return fmt.Errorf("Failed to remove download directory: %s", err)
 	}
+	return nil
+}
+
+// CreateImageConfig constructs the image metadata from layers that compose the image
+func CreateImageConfig(images []*ImageWithMeta) error {
+
+	image := docker.Image{}
+	rootFS := docker.NewRootFS()
+	history := make([]docker.History, 0, len(images))
+
+	// step through layers to get command history and diffID from oldest to newest
+	for i := len(images) - 1; i >= 0; i-- {
+		layer := images[i]
+		if err := json.Unmarshal([]byte(layer.history.V1Compatibility), &image); err != nil {
+			return fmt.Errorf("Failed to unmarshall layer history: %s", err)
+		}
+		h := docker.History{
+			Created:   image.Created,
+			Author:    image.Author,
+			CreatedBy: strings.Join(image.ContainerConfig.Cmd, " "),
+			Comment:   image.Comment,
+		}
+		history = append(history, h)
+		rootFS.DiffIDs = append(rootFS.DiffIDs, dockerLayer.DiffID(layer.diffID))
+	}
+
+	// result is constructed without unused fields
+	result := docker.Image{
+		V1Image: docker.V1Image{
+			Comment:         image.Comment,
+			Created:         image.Created,
+			Container:       image.Container,
+			ContainerConfig: image.ContainerConfig,
+			DockerVersion:   image.DockerVersion,
+			Author:          image.Author,
+			Config:          image.Config,
+			Architecture:    image.Architecture,
+			OS:              image.OS,
+		},
+		RootFS:  rootFS,
+		History: history,
+	}
+
+	bytes, err := result.MarshalJSON()
+	if err != nil {
+		return fmt.Errorf("Failed to marshall image metadata: %s", err)
+	}
+
+	// calculate image ID
+	sum := sha256.Sum256(bytes)
+	imageID := fmt.Sprintf("%x", sum)
+
+	log.Infof("Image ID: sha256:%s", imageID)
+
 	return nil
 }
 
@@ -481,6 +540,10 @@ func main() {
 
 	// Fetch the blobs from registry
 	if err := DownloadImageBlobs(images); err != nil {
+		log.Fatalf(err.Error())
+	}
+
+	if err := CreateImageConfig(images); err != nil {
 		log.Fatalf(err.Error())
 	}
 
