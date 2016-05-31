@@ -104,6 +104,9 @@ func init() {
 	flag.BoolVar(&data.tlsGenerate, "generate-cert", true, "Generate certificate for Virtual Container Host")
 	flag.DurationVar(&data.timeout, "timeout", 3*time.Minute, "Time to wait for appliance initialization")
 
+	flag.Int64Var(&data.memoryMB, "appliance-memory", 2048, "Memory for the appliance VM, in MB")
+	flag.Int64Var(&data.numCPUs, "appliance-cpu", 1, "vCPUs for the appliance VM")
+
 	flag.Parse()
 }
 
@@ -168,9 +171,6 @@ func processParams() {
 	data.osType = "linux"
 	data.logfile = "install.log"
 
-	// FIXME: add parameters for these configurations
-	data.numCPUs = 1
-	data.memoryMB = 2048
 	data.insecure = true
 }
 
