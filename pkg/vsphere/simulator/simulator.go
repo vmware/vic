@@ -24,6 +24,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"strings"
 
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
@@ -86,7 +87,14 @@ func (s *Service) call(method *Method) soap.HasFault {
 		return serverFault(fmt.Sprintf("no such object: %s", method.This))
 	}
 
-	m := reflect.ValueOf(handler).MethodByName(method.Name)
+	name := method.Name
+
+	if strings.HasSuffix(name, vTaskSuffix) {
+		// Make golint happy renaming "Foo_Task" -> "FooTask"
+		name = name[:len(name)-len(vTaskSuffix)] + sTaskSuffix
+	}
+
+	m := reflect.ValueOf(handler).MethodByName(name)
 	if !m.IsValid() {
 		return serverFault(fmt.Sprintf("%s does not implement: %s", method.This, method.Name))
 	}
