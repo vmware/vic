@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
 )
 
@@ -65,4 +66,35 @@ func CreateDefaultESX(f *Folder) {
 	Map.PutEntity(cr, &pool)
 
 	Map.Get(dc.HostFolder).(*Folder).putChild(cr)
+}
+
+// CreateStandaloneHost uses esx.HostSystem as a template, applying the given spec
+// and creating the ComputeResource parent and ResourcePool sibling.
+func CreateStandaloneHost(f *Folder, spec types.HostConnectSpec) (*HostSystem, types.BaseMethodFault) {
+	if spec.HostName == "" {
+		return nil, &types.NoHost{}
+	}
+
+	host := NewHostSystem(esx.HostSystem)
+
+	host.Summary.Config.Name = spec.HostName
+	host.Name = host.Summary.Config.Name
+	host.Self = Map.CreateReference(host)
+
+	cr := &mo.ComputeResource{}
+	cr.Self = Map.CreateReference(cr)
+	cr.Name = host.Name
+	cr.Host = append(cr.Host, host.Reference())
+	Map.PutEntity(cr, host)
+
+	pool := esx.ResourcePool
+	pool.Self = Map.CreateReference(&pool)
+	cr.ResourcePool = &pool.Self
+	Map.PutEntity(cr, &pool)
+
+	f.putChild(cr)
+
+	host.Runtime.ConnectionState = types.HostSystemConnectionStateDisconnected
+
+	return host, nil
 }

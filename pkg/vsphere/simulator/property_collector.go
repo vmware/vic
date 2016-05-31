@@ -306,6 +306,51 @@ func (pc *PropertyCollector) collect(r *types.RetrievePropertiesEx) (*types.Retr
 	return rr.RetrieveResult, nil
 }
 
+func (pc *PropertyCollector) CreateFilter(c *types.CreateFilter) soap.HasFault {
+	body := &methods.CreateFilterBody{}
+
+	filter := &PropertyFilter{}
+	filter.PartialUpdates = c.PartialUpdates
+	filter.Spec = c.Spec
+	filter.Self = Map.CreateReference(filter)
+	pc.Filter = append(pc.Filter, filter.Self)
+	Map.Put(filter)
+
+	body.Res = &types.CreateFilterResponse{
+		Returnval: filter.Self,
+	}
+
+	return body
+}
+
+func (pc *PropertyCollector) CreatePropertyCollector(c *types.CreatePropertyCollector) soap.HasFault {
+	body := &methods.CreatePropertyCollectorBody{}
+
+	cpc := &PropertyCollector{}
+	cpc.Self = Map.CreateReference(cpc)
+	Map.Put(cpc)
+
+	body.Res = &types.CreatePropertyCollectorResponse{
+		Returnval: cpc.Self,
+	}
+
+	return body
+}
+
+func (pc *PropertyCollector) DestroyPropertyCollector(c *types.DestroyPropertyCollector) soap.HasFault {
+	body := &methods.DestroyPropertyCollectorBody{}
+
+	for _, filter := range pc.Filter {
+		(&PropertyFilter{}).DestroyPropertyFilter(&types.DestroyPropertyFilter{This: filter})
+	}
+
+	Map.Remove(c.This)
+
+	body.Res = &types.DestroyPropertyCollectorResponse{}
+
+	return body
+}
+
 func (pc *PropertyCollector) RetrievePropertiesEx(r *types.RetrievePropertiesEx) soap.HasFault {
 	body := &methods.RetrievePropertiesExBody{}
 
@@ -337,6 +382,64 @@ func (pc *PropertyCollector) RetrieveProperties(r *types.RetrieveProperties) soa
 		body.Res = &types.RetrievePropertiesResponse{
 			Returnval: res.(*methods.RetrievePropertiesExBody).Res.Returnval.Objects,
 		}
+	}
+
+	return body
+}
+
+func (pc *PropertyCollector) WaitForUpdatesEx(r *types.WaitForUpdatesEx) soap.HasFault {
+	body := &methods.WaitForUpdatesExBody{}
+
+	// At the moment we need to support Task completion.  Handlers can simply set the Task
+	// state before returning and the non-incremental update is enough for the client.
+	// We can wait for incremental updates to simulate timeouts, etc.
+	if r.Version != "" {
+		body.Fault_ = Fault("incremental updates not supported yet", &types.NotSupported{})
+		return body
+	}
+
+	update := &types.UpdateSet{
+		Version: "-",
+	}
+
+	for _, ref := range pc.Filter {
+		filter := Map.Get(ref).(*PropertyFilter)
+
+		r := &types.RetrievePropertiesEx{}
+		r.SpecSet = append(r.SpecSet, filter.Spec)
+
+		res, fault := pc.collect(r)
+		if fault != nil {
+			body.Fault_ = Fault("", fault)
+			return body
+		}
+
+		fu := types.PropertyFilterUpdate{
+			Filter: ref,
+		}
+
+		for _, o := range res.Objects {
+			ou := types.ObjectUpdate{
+				Obj:  o.Obj,
+				Kind: types.ObjectUpdateKindEnter,
+			}
+
+			for _, p := range o.PropSet {
+				ou.ChangeSet = append(ou.ChangeSet, types.PropertyChange{
+					Op:   types.PropertyChangeOpAssign,
+					Name: p.Name,
+					Val:  p.Val,
+				})
+			}
+
+			fu.ObjectSet = append(fu.ObjectSet, ou)
+		}
+
+		update.FilterSet = append(update.FilterSet, fu)
+	}
+
+	body.Res = &types.WaitForUpdatesExResponse{
+		Returnval: update,
 	}
 
 	return body
