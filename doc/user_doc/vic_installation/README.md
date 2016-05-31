@@ -6,8 +6,7 @@
 
 **NOTE**  This book is a work in progress.
 
-For an introduction to vSphere Integrated Containers, see *vSphere Integrated Containers Overview*.
-
+For an introduction to vSphere Integrated Containers and descriptions of its main components, see *vSphere Integrated Containers Overview*.
 
 ## Intended Audience
 

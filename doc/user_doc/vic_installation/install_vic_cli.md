@@ -1,95 +1,57 @@
 # Deploy a Virtual Container Host
 
-You use a command line installer to deploy a vSphere Integrated Containers virtual container host. 
+You use the `vic-machine` command line utility to deploy a vSphere Integrated Containers virtual container host. 
 
-The command line installer deploys a vSphere Integrated Containers virtual container host in one of the following setups: 
-* A vCenter Server with a cluster
-* A vCenter Server with a single host
-* A standalone ESXi host. 
+The `vic-machine` utility can deploy a virtual container host in one of the following setups: 
+* vCenter Server with a cluster
+* vCenter Server with one or more standalone ESXi hosts
+* A standalone ESXi host
 
-The virtual container host allows you to use an ESXi host or cluster as the Docker endpoint for a Docker client. The containers that you 
+The virtual container host allows you to use an ESXi host or vCenter Server instance as the Docker endpoint for a Docker client. The containers that you pull or create in your Docker client are stored and managed in the vSphere environment.
 
-**NOTE** The command line installer does not add an extension in the vSphere Web Client. 
+**NOTE** The `vic-machine` utility does not add an extension in the vSphere Web Client. 
 
 **Prerequisites**
 
 * Verify that your vSphere infrastructure meets the requirements in [Environment Prerequisites for vSphere Integrated Containers Installation](vic_installation_prereqs.md).
-* Obtain the latest build of the command line installer bundle, ```bonneville.tgz```, from your VMware representative.
-* Familiarize yourself with the installer options described in [vSphere Integrated Containers Installer Options](cli_installer_options.md).
-* Familiarize yourself with the contents of the vSphere Integrated Containers installer bundle, as described in [Contents of the vSphere Integrated Containers Command Line Installer Bundle](contents_of_vic_cli_bundle.md).
-* Install a Docker 1.11.1 client. 
+* If you are deploying a virtual container host in a vSphere environment with more than one ESXi host, create a private port group for container VMs to use to communicate with each other. For information about how to create a private port group, see [Create a Private Port Group for Virtual Container Hosts](create_a_private_port_group_for_vch.md).
+* Obtain a Linux OS system on which to optionally build the binaries and run the `vic-machine` utility. For information about how to use the preconfigured Vagrant Ubuntu DevBox VM, see [Use the Vagrant DevBox VM to Build the vSphere Integrated Containers Binaries](set_up_devbox.md).
+* Obtain either a verified build, the latest daily build, or the source code of vSphere Integrated Containers: 
+ * Download the most recent verified build of vSphere Integrated Containers from https://github.com/vmware/vic/releases and unpack it on a Linux OS system. This version has been tested and approved, but it does not reflect the most up-to-date version of the code.
+ * Download the latest daily build of vSphere Integrated Containers from https://bintray.com/vmware/vic-repo/build/view#files and unpack it on a Linux OS system. This version reflects the version of the code as it was at the last daily build. It has not been tested or approved.
+ * For the very latest version, for example to include changes that you have made since the last daily build, build the vSphere Integrated Containers binaries from the source code. Use a Linux OS system to perform the build. For information about building the binaries, see [Use the Vagrant DevBox VM to Build the vSphere Integrated Containers Binaries](set_up_devbox.md).
+* Familiarize yourself with the vSphere Integrated Containers binaries, as described in [Contents of the vSphere Integrated Containers Binaries](contents_of_vic_binaries.md). 
+* Familiarize yourself with the options of the `vic-machine` utility described in [Virtual Container Host Deployment Options](vch_installer_options.md).
+* For examples of commands to deploy a virtual container host in various vSphere configurations, see [Examples of Deploying a Virtual Container Host](vch_installer_examples.md).
  
-**NOTE**: The vSphere Integrated Containers technical preview is not compatible with Docker 1.10. To use vSphere Integrated Containers with a Docker 1.10 client, you must set `DOCKER_API_VERSION=1.21` as an environment variable in your Docker client.   
 
 **Procedure**
 
-1. Open a command prompt and navigate to the folder in which you unpacked the ```bonneville.tgz``` bundle.
-2. Run the installer executable for your operating system. 
+1. Open a bash shell on your Linux OS system or Vagrant DevBox VM.
+2. Navigate to the directory that contains the `vic-machine` utility:
+ * If you downloaded the most recent verified build or the latest daily build, go to the location in which you unpacked the vSphere Integrated Containers bundle.
+ * If you built the vSphere Integrated Containers binaries, go to <code><i>installation_dir</i>/vic/bin</code>.
+2. Run the `vic-machine` executable. 
 
-   The following examples include only a few options, for installation in a simple environment.
+   The following example includes the fewest possible options, for installation in a simple vCenter Server environment with a cluster:
 
-   ```$ install-win.exe 
--target=<esx_host_or_vcenter_server_address> 
--user=<esx_host_vcenter_server_username> 
--ceip=<enable/disable>```
+   <pre>$ vic-machine 
+-target <i>vcenter_server_address</i>
+-image-store <i>datastore_name</i> 
+-user <i>username</i>
+-compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/</pre>  
+
+   At the end of a successful installation, `vic-machine` displays a success message:
    
-   ```$ install-linux 
--target=<esx_host_or_vcenter_server_address> 
--user=<esx_host_vcenter_server_username>  
--ceip=<enable/disable>```
-   
-   ```$ install-osx 
--target=<esx_host_or_vcenter_server_address> 
--user=<esx_host_vcenter_server_username>  
--ceip=<enable/disable>```  
-   
-3. Verify that the vSphere Integrated Containers appliance has initiated correctly. 
+   <pre>Initialization of appliance successful
+SSH to appliance (default=root:password)
+ssh root@<i>vch_address</i>
+Log server:
+https://<i>vch_address</i>:2378
+Connect to docker:docker -H <i>vch_address</i>:2376 
+--tls --tlscert='./<i>vch_name</i>-cert.pem' 
+--tlskey='./<i>vch_name</i>.pem' info</pre>
 
-   At the end of a successful installation, the installer displays a success message:
-   
-   ```Initialization of appliance successful.```
-   
-   ```You can run docker commands via: set DOCKER_HOST=tcp://<virtual_container_host_address>:2376 docker```
-   
-   ```You can access logs via: https://<virtual_container_host_address>:2378```
-   
-   ```Installer completed successfully...```
-4. (Optional) If you installed onto a vCenter Server instance, log into the vSphere Web Client.
-5. (Optional) In the Hosts and Clusters view, navigate to the cluster on which you installed the appliance.
-
-    vSphere Integrated Containers version 0.0.1 is displayed in the **Summary** tab for the appliance vApp. The vApp contains a virtual machine and a virtual machine template, both with the name that you provided during installation. 
-6.  (Optional) Select the virtual machine running inside the vApp and click the **Summary** tab.
-
-    The **Notes** panel includes the address of the Docker endpoint to use to run Docker commands.
-    
-7.  On the machine where you installed the Docker client, connect the Docker client to the virtual container host that is running in your vSphere infrastructure. 
- 
-  ```$ export DOCKER_HOST=tcp://<virtual_container_host_address>:2376 docker```
-8.  Check that the Docker client is connected to the virtual container host.
- 
-  ```$ docker info```
-
-    You should see confirmation that the Storage Driver is ```vmware-01```. If you installed onto a vCenter Server instance, you should see that the Operating System is ```VMware vCenter Server/6.0.0```. The datastore for containers should be a datastore in your vSphere environment.
-9.  Pull a test Docker container image into the virtual container host.
-
-    For example, pull in the BusyBox container.
-
-    ```$ docker pull busybox:latest```
-    
-10. In the vSphere Web Client, go to **Storage**, and navigate to the datastore that the virtual container host uses to store containers.
-11. Select **Manage** > **Files**, and navigate to *datastore_name* > *name_of_VIC_appliance* > **images**. 
- 
-    You should see a VMDK file for every container image that you have pulled into the virtual container host.
-
-12. Run a Docker container.
-
-    For example, run the BusyBox container.
-
-    ```$ docker run busybox```
-    
-10. In the **Hosts and Clusters** view of the vSphere Web Client, navigate to the vSphere Integrated Containers appliance, click **Related Objects** > **Virtual Machines**.
- 
-    You should see a virtual machine for every container that you are running.
-
+To test your virtual container host, see [Verify the Deployment of a Virtual Container Host to vCenter Server](verify_vch_deployment.md) or [Verify the Deployment of a Virtual Container Host to an ESXi Host](verify_vch_deployment_esx.md).
     
     
