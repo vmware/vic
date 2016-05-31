@@ -89,6 +89,7 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 		return nil, err
 	}
 
+	s.builtin = true
 	ctx.defaultScope = s
 	return ctx, nil
 }
@@ -186,6 +187,7 @@ func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, 
 		scopeType:   scopeType,
 		space:       space,
 		dns:         dns,
+		builtin:     false,
 		NetworkName: networkName,
 	}
 
@@ -731,5 +733,33 @@ func (c *Context) Container(id exec.ID) *Container {
 		return con
 	}
 
+	return nil
+}
+
+func (c *Context) DeleteScope(name string) error {
+	c.Lock()
+	defer c.Unlock()
+
+	s, err := c.resolveScope(name)
+	if err != nil {
+		return err
+	}
+
+	if s == nil {
+		return ResourceNotFoundError{}
+	}
+
+	if s.builtin {
+		return fmt.Errorf("cannot remove builtin scope")
+	}
+
+	// check if any of the scope's endpoints are bound
+	for _, e := range s.Endpoints() {
+		if e.IsBound() {
+			return fmt.Errorf("scope has bound endpoints")
+		}
+	}
+
+	delete(c.scopes, name)
 	return nil
 }
