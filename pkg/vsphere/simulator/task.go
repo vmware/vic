@@ -47,7 +47,7 @@ func NewTask(runner TaskRunner) *Task {
 		runner: runner,
 	}
 
-	task.Self = Map.CreateReference(task)
+	Map.Put(task)
 
 	task.Info.Key = task.Self.Value
 	task.Info.Task = task.Self
@@ -58,8 +58,6 @@ func NewTask(runner TaskRunner) *Task {
 
 	task.Info.QueueTime = time.Now()
 	task.Info.State = types.TaskInfoStateQueued
-
-	Map.Put(task)
 
 	return task
 }
