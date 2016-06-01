@@ -134,8 +134,11 @@ func (v *Validator) validateConfiguration(input *Data, vchConfig *metadata.Virtu
 	if err = v.setNetworks(vchConfig); err != nil {
 		return errors.Errorf("Find networks failed with %s", err)
 	}
-	vchConfig.ComputeResources = append(vchConfig.ComputeResources, v.Session.Pool)
-	vchConfig.ImageStores = append(vchConfig.ImageStores, v.ImageStorePath)
+	vchConfig.Cluster = v.Session.Cluster.Reference()
+	vchConfig.Datacenter = v.Session.Datacenter.Reference()
+	vchConfig.ComputeResources = append(vchConfig.ComputeResources, v.Session.Pool.Reference())
+	vchConfig.ImageStore = v.ImageStorePath
+
 	//TODO: Add more configuration validation
 	return nil
 }
@@ -174,6 +177,7 @@ func (v *Validator) setNetworks(vchConfig *metadata.VirtualContainerHostConfigSp
 	vchConfig.Networks["bridge"] = &metadata.NetworkInfo{
 		PortGroup:     network,
 		PortGroupName: name,
+		PortGroupRef:  network.Reference(),
 		InventoryPath: path,
 	}
 
@@ -192,6 +196,7 @@ func (v *Validator) setNetworks(vchConfig *metadata.VirtualContainerHostConfigSp
 	vchConfig.Networks["client"] = &metadata.NetworkInfo{
 		PortGroup:     network,
 		PortGroupName: name,
+		PortGroupRef:  network.Reference(),
 		InventoryPath: path,
 	}
 
@@ -210,6 +215,7 @@ func (v *Validator) setNetworks(vchConfig *metadata.VirtualContainerHostConfigSp
 		vchConfig.Networks["management"] = &metadata.NetworkInfo{
 			PortGroup:     network,
 			PortGroupName: name,
+			PortGroupRef:  network.Reference(),
 			InventoryPath: path,
 		}
 	}
