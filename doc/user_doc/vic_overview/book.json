@@ -1,9 +1,0 @@
-{
-	"title": "VMWare vSphere Integrated Containers Overview, Product version 0.2.0",
-
-	"pdf": {
-		"headerTemplate": "_TITLE_",
-		"footerTemplate": "_PAGENUM_"
-	}
-
-}
