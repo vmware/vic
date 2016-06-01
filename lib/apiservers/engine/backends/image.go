@@ -236,13 +236,17 @@ func resolveImageSize(v1Map map[string]*v1.V1Image, resolved map[string]int64, i
 }
 
 func convertV1ImageToDockerImage(v1Image *v1.V1Image) *types.Image {
+	var labels map[string]string
+	if v1Image.Config != nil {
+		labels = v1Image.Config.Labels
+	}
+
 	return &types.Image{
-		ID:       v1Image.ID,
-		ParentID: v1Image.Parent,
-		RepoTags: []string{"<fixme>:<fixme>"}, // TODO(jzt): replace with actual tags
-		//RepoDigests: []string{"<fixme>:<fixme>"},
+		ID:          v1Image.ID,
+		ParentID:    v1Image.Parent,
+		RepoTags:    []string{"fixme:fixme"}, // TODO(jzt): replace with actual tags
 		Created:     v1Image.Created.Unix(),
 		VirtualSize: v1Image.Size,
-		Labels:      v1Image.Config.Labels,
+		Labels:      labels,
 	}
 }
