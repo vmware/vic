@@ -33,7 +33,7 @@ func (a *addWaterTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 
 func TestNewTask(t *testing.T) {
 	f := &mo.Folder{}
-	f.Self = Map.CreateReference(f)
+	Map.NewEntity(f)
 
 	add := &addWaterTask{f, nil}
 	task := NewTask(add)

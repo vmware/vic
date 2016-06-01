@@ -75,26 +75,24 @@ func CreateStandaloneHost(f *Folder, spec types.HostConnectSpec) (*HostSystem, t
 		return nil, &types.NoHost{}
 	}
 
+	pool := esx.ResourcePool
 	host := NewHostSystem(esx.HostSystem)
 
 	host.Summary.Config.Name = spec.HostName
 	host.Name = host.Summary.Config.Name
-	host.Self = Map.CreateReference(host)
+	host.Runtime.ConnectionState = types.HostSystemConnectionStateDisconnected
 
 	cr := &mo.ComputeResource{}
-	cr.Self = Map.CreateReference(cr)
+
+	Map.PutEntity(cr, Map.NewEntity(host))
+
+	Map.PutEntity(cr, Map.NewEntity(&pool))
+
 	cr.Name = host.Name
 	cr.Host = append(cr.Host, host.Reference())
-	Map.PutEntity(cr, host)
-
-	pool := esx.ResourcePool
-	pool.Self = Map.CreateReference(&pool)
 	cr.ResourcePool = &pool.Self
-	Map.PutEntity(cr, &pool)
 
 	f.putChild(cr)
-
-	host.Runtime.ConnectionState = types.HostSystemConnectionStateDisconnected
 
 	return host, nil
 }

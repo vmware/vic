@@ -312,9 +312,8 @@ func (pc *PropertyCollector) CreateFilter(c *types.CreateFilter) soap.HasFault {
 	filter := &PropertyFilter{}
 	filter.PartialUpdates = c.PartialUpdates
 	filter.Spec = c.Spec
-	filter.Self = Map.CreateReference(filter)
-	pc.Filter = append(pc.Filter, filter.Self)
-	Map.Put(filter)
+
+	pc.Filter = append(pc.Filter, Map.Put(filter).Reference())
 
 	body.Res = &types.CreateFilterResponse{
 		Returnval: filter.Self,
@@ -327,11 +326,9 @@ func (pc *PropertyCollector) CreatePropertyCollector(c *types.CreatePropertyColl
 	body := &methods.CreatePropertyCollectorBody{}
 
 	cpc := &PropertyCollector{}
-	cpc.Self = Map.CreateReference(cpc)
-	Map.Put(cpc)
 
 	body.Res = &types.CreatePropertyCollectorResponse{
-		Returnval: cpc.Self,
+		Returnval: Map.Put(cpc).Reference(),
 	}
 
 	return body

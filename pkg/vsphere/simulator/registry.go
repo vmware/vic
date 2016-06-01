@@ -40,22 +40,32 @@ func NewRegistry() *Registry {
 	return r
 }
 
-func (r *Registry) CreateReference(item mo.Reference) types.ManagedObjectReference {
-	r.counter++
-	kind := reflect.TypeOf(item).Elem().Name()
+func (r *Registry) newReference(item mo.Reference) types.ManagedObjectReference {
+	ref := item.Reference()
 
-	return types.ManagedObjectReference{
-		Type:  kind,
-		Value: fmt.Sprintf("%s-%d", strings.ToLower(kind), r.counter),
+	if ref.Type == "" {
+		ref.Type = reflect.TypeOf(item).Elem().Name()
 	}
+
+	if ref.Value == "" {
+		r.counter++
+		ref.Value = fmt.Sprintf("%s-%d", strings.ToLower(ref.Type), r.counter)
+	}
+
+	return ref
+}
+
+// NewEntity sets Entity().Self with a new, unique Value.
+// Useful for creating object instances from templates.
+func (r *Registry) NewEntity(item mo.Entity) mo.Entity {
+	e := item.Entity()
+	e.Self.Value = ""
+	e.Self = r.newReference(item)
+	return item
 }
 
 func (r *Registry) PutEntity(parent mo.Entity, item mo.Entity) mo.Entity {
 	e := item.Entity()
-
-	if e.Self.Type == "" {
-		e.Self = r.CreateReference(item)
-	}
 
 	if parent != nil {
 		e.Parent = &parent.Entity().Self
@@ -73,11 +83,20 @@ func (r *Registry) Get(ref types.ManagedObjectReference) mo.Reference {
 	return r.objects[ref]
 }
 
-func (r *Registry) Put(item mo.Reference) {
+func (r *Registry) Put(item mo.Reference) mo.Reference {
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	r.objects[item.Reference()] = item
+	ref := item.Reference()
+	if ref.Type == "" || ref.Value == "" {
+		ref = r.newReference(item)
+		// mo.Reference() returns a value, not a pointer so use reflect to set the Self field
+		reflect.ValueOf(item).Elem().FieldByName("Self").Set(reflect.ValueOf(ref))
+	}
+
+	r.objects[ref] = item
+
+	return item
 }
 
 func (r *Registry) Remove(item types.ManagedObjectReference) {
