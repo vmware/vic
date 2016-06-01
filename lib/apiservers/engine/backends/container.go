@@ -37,6 +37,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -168,10 +169,10 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	log.Printf("config.Config' = %+v", config.Config)
 
 	// Call the Exec port layer to create the container
-	host, err := os.Hostname()
+	host, err := guest.UUID()
 	if err != nil {
 		return types.ContainerCreateResponse{},
-			derr.NewErrorWithStatusCode(fmt.Errorf("container.ContainerCreate got unexpected error getting hostname"),
+			derr.NewErrorWithStatusCode(fmt.Errorf("container.ContainerCreate got unexpected error getting VCH UUID"),
 				http.StatusInternalServerError)
 	}
 

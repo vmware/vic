@@ -93,6 +93,7 @@ func (v *ImageStore) datastorePath(p string) string {
 }
 
 // Returns the path to a given image store
+// `/VIC/imageStoreName/
 func (v *ImageStore) imageStorePath(storeName string) string {
 	return path.Join(datastoreParentPath, storeName)
 }
