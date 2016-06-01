@@ -74,9 +74,12 @@ type ImageCOptions struct {
 
 	timeout time.Duration
 
-	stdout     bool
-	debug      bool
-	insecure   bool
+	stdout bool
+	debug  bool
+
+	insecureSkipVerify bool
+	insecureAllowHTTP  bool
+
 	standalone bool
 	resolv     bool
 
@@ -99,7 +102,7 @@ func (i *ImageWithMeta) String() string {
 
 const (
 	// DefaultDockerURL holds the URL of Docker registry
-	DefaultDockerURL = "https://registry-1.docker.io/v2/"
+	DefaultDockerURL = "registry-1.docker.io"
 
 	// DefaultDestination specifies the default directory to use
 	DefaultDestination = "images"
@@ -142,7 +145,8 @@ func init() {
 
 	flag.BoolVar(&options.stdout, "stdout", false, i18n.T("Enable writing to stdout"))
 	flag.BoolVar(&options.debug, "debug", false, i18n.T("Show debug logging"))
-	flag.BoolVar(&options.insecure, "insecure", false, i18n.T("Skip certificate verification checks"))
+	flag.BoolVar(&options.insecureSkipVerify, "insecure-skip-verify", false, i18n.T("Don't verify certificates when fetching images"))
+	flag.BoolVar(&options.insecureAllowHTTP, "insecure-allow-http", false, i18n.T("Uses unencrypted connections when fetching images"))
 	flag.BoolVar(&options.standalone, "standalone", false, i18n.T("Disable port-layer integration"))
 
 	flag.BoolVar(&options.resolv, "resolv", false, i18n.T("Return the name of the vmdk from given reference"))
@@ -352,8 +356,7 @@ func WriteImageBlobs(images []*ImageWithMeta) error {
 		}
 
 		in := progress.NewProgressReader(
-			ioutils.NewCancelReadCloser(
-				context.Background(), f),
+			ioutils.NewCancelReadCloser(context.Background(), f),
 			po,
 			fi.Size(),
 			image.String(),
@@ -491,12 +494,18 @@ func main() {
 		log.Debugf("Running with portlayer")
 
 		// Ping the server to ensure it's at least running
-		ok, err2 := PingPortLayer()
-		if err2 != nil || !ok {
-			log.Fatalf("Failed to ping portlayer: %s", err2)
+		ok, err := PingPortLayer()
+		if err != nil || !ok {
+			log.Fatalf("Failed to ping portlayer: %s", err)
 		}
 	} else {
 		log.Debugf("Running standalone")
+	}
+
+	// Calculate (and overwrite) the registry URL and make sure that it responds to requests
+	options.registry, err = LearnRegistryURL(options)
+	if err != nil {
+		log.Fatalf("Failed to communicate with registry: %s", err)
 	}
 
 	// Get the URL of the OAuth endpoint
@@ -507,9 +516,9 @@ func main() {
 
 	// Get the OAuth token - if only we have a URL
 	if url != nil {
-		token, err2 := FetchToken(url)
+		token, err := FetchToken(url)
 		if err != nil {
-			log.Fatalf("Failed to fetch OAuth token: %s", err2)
+			log.Fatalf("Failed to fetch OAuth token: %s", err)
 		}
 		options.token = token
 	}
@@ -520,6 +529,8 @@ func main() {
 		log.Fatalf("Failed to fetch image manifest: %s", err)
 	}
 
+	// HACK: Required to learn the name of the vmdk from given reference
+	// Used by docker personality until metadata support lands
 	if !options.resolv {
 		progress.Message(po, options.digest, "Pulling from "+options.image)
 	}
@@ -530,6 +541,8 @@ func main() {
 		log.Fatalf(err.Error())
 	}
 
+	// HACK: Required to learn the name of the vmdk from given reference
+	// Used by docker personality until metadata support lands
 	if options.resolv {
 		if len(images) > 0 {
 			fmt.Printf("%s", images[0].history.V1Compatibility)
