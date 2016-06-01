@@ -42,6 +42,8 @@ type Fetcher interface {
 	Fetch(url *url.URL) (string, error)
 	FetchWithProgress(url *url.URL, ID string) (string, error)
 
+	Head(url *url.URL) (http.Header, error)
+
 	IsStatusUnauthorized() bool
 	IsStatusOK() bool
 	IsStatusNotFound() bool
@@ -131,7 +133,7 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string
 
 	u.StatusCode = res.StatusCode
 
-	if u.IsStatusUnauthorized() {
+	if u.options.Token == nil && u.IsStatusUnauthorized() {
 		hdr := res.Header.Get("www-authenticate")
 		if hdr == "" {
 			return "", fmt.Errorf("www-authenticate header is missing")
@@ -141,6 +143,10 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string
 			return "", err
 		}
 		return "", fmt.Errorf("Authentication required")
+	}
+
+	if u.IsStatusNotFound() {
+		return "", fmt.Errorf("Not found: %d, URL: %s", u.StatusCode, url)
 	}
 
 	// FIXME: handle StatusTemporaryRedirect and StatusFound
@@ -177,6 +183,31 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string
 
 	// Return the temporary file name
 	return out.Name(), nil
+}
+
+// Head sends a HEAD request to url
+func (u *URLFetcher) Head(url *url.URL) (http.Header, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), u.options.Timeout)
+	defer cancel()
+
+	return u.head(ctx, url, "")
+}
+
+func (u *URLFetcher) head(ctx context.Context, url *url.URL, ID string) (http.Header, error) {
+	defer trace.End(trace.Begin(url.String()))
+
+	res, err := ctxhttp.Head(ctx, u.client, url.String())
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	u.StatusCode = res.StatusCode
+
+	if u.IsStatusUnauthorized() || u.IsStatusOK() {
+		return res.Header, nil
+	}
+	return nil, fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
 }
 
 func (u *URLFetcher) AuthURL() *url.URL {

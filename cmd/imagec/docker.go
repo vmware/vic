@@ -62,6 +62,48 @@ type V1Compatibility struct {
 	Container string    `json:"container,omitempty"`
 }
 
+// LearnRegistryURL returns the registry URL after making sure that it responds to queries
+func LearnRegistryURL(options ImageCOptions) (string, error) {
+	log.Debugf("Registry: %s", options.registry)
+
+	req := func(schema string) (string, error) {
+		registry := fmt.Sprintf("%s://%s/v2/", schema, options.registry)
+
+		url, err := url.Parse(registry)
+		if err != nil {
+			return "", err
+		}
+		log.Debugf("URL: %s", url)
+
+		fetcher := NewFetcher(FetcherOptions{
+			Timeout:            options.timeout,
+			Username:           options.username,
+			Password:           options.password,
+			InsecureSkipVerify: options.insecureSkipVerify,
+		})
+		headers, err := fetcher.Head(url)
+		if err != nil {
+			return "", err
+		}
+		// v2 API requires this check
+		if headers.Get("Docker-Distribution-API-Version") != "registry/2.0" {
+			return "", fmt.Errorf("Missing Docker-Distribution-API-Version header")
+		}
+		return registry, nil
+	}
+
+	// first try https
+	log.Debugf("Trying https scheme")
+	registry, err := req("https")
+	if err != nil && options.insecureAllowHTTP {
+		// fallback to http if it's allowed
+		log.Debugf("Falling back to http scheme")
+		registry, err = req("http")
+	}
+
+	return registry, err
+}
+
 // LearnAuthURL returns the URL of the OAuth endpoint
 func LearnAuthURL(options ImageCOptions) (*url.URL, error) {
 	defer trace.End(trace.Begin(options.image + "/" + options.digest))
@@ -78,7 +120,7 @@ func LearnAuthURL(options ImageCOptions) (*url.URL, error) {
 		Timeout:            options.timeout,
 		Username:           options.username,
 		Password:           options.password,
-		InsecureSkipVerify: options.insecure,
+		InsecureSkipVerify: options.insecureSkipVerify,
 	})
 	// We expect docker registry to return a 401 to us - with a WWW-Authenticate header
 	// We parse that header and learn the OAuth endpoint to fetch OAuth token.
@@ -112,7 +154,7 @@ func FetchToken(url *url.URL) (*Token, error) {
 		Timeout:            options.timeout,
 		Username:           options.username,
 		Password:           options.password,
-		InsecureSkipVerify: options.insecure,
+		InsecureSkipVerify: options.insecureSkipVerify,
 	})
 	tokenFileName, err := fetcher.Fetch(url)
 	if err != nil {
@@ -168,7 +210,7 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) (string, error)
 		Username:           options.username,
 		Password:           options.password,
 		Token:              options.token,
-		InsecureSkipVerify: options.insecure,
+		InsecureSkipVerify: options.insecureSkipVerify,
 	})
 	imageFileName, err := fetcher.FetchWithProgress(url, image.String())
 	if err != nil {
@@ -260,7 +302,7 @@ func FetchImageManifest(options ImageCOptions) (*Manifest, error) {
 		Username:           options.username,
 		Password:           options.password,
 		Token:              options.token,
-		InsecureSkipVerify: options.insecure,
+		InsecureSkipVerify: options.insecureSkipVerify,
 	})
 	manifestFileName, err := fetcher.Fetch(url)
 	if err != nil {
