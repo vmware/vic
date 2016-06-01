@@ -2,15 +2,15 @@
 
  vSphere Integrated Containers supports these container operations.
 
-| **Docker Command** | **Reference** | **Supported in TP3** |
+| **Docker Command** | **Docker Reference** | **Supported in TP3** |
 | --- | --- | --- |
 |Docker inspect|[https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#inspect-a-container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#inspect-a-container)|Yes|
 |Docker start|[https://docs.docker.com/engine/reference/commandline/start/](https://docs.docker.com/engine/reference/commandline/start/)|Yes|
 |Docker stop|[https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#stop-a-container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#stop-a-container) [https://docs.docker.com/engine/reference/commandline/stop/](https://docs.docker.com/engine/reference/commandline/stop/)|Yes|
 |Docker attach|[https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#attach-to-a-container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#attach-to-a-container) [https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#attach-to-a-container-websocket](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#attach-to-a-container-websocket)|Yes|
-|Docker rm| [https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#remove-a-container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#remove-a-container)|Yes|
-|Docker images|[https://docs.docker.com/engine/reference/commandline/images/](https://docs.docker.com/engine/reference/commandline/images/) [https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#list-images](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#list-images)|Yes|
-Docker ps|[https://docs.docker.com/engine/reference/commandline/ps/](https://docs.docker.com/engine/reference/commandline/ps/)|Yes|
+|Docker rm| [remove-a-container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#remove-a-container)|Yes|
+|Docker images|[images](https://docs.docker.com/engine/reference/commandline/images/)<br>[list-images](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#list-images)|Yes|
+|Docker ps|[https://docs.docker.com/engine/reference/commandline/ps/](https://docs.docker.com/engine/reference/commandline/ps/)|Yes|
 |Network create|[https://docs.docker.com/engine/reference/commandline/network_create/](https://docs.docker.com/engine/reference/commandline/network_create/)|Yes. See the use case to connect to an external network <link to networks.md>. Bridge is also supported.|
 |Network ls|[https://docs.docker.com/engine/reference/commandline/network_ls/](https://docs.docker.com/engine/reference/commandline/network_ls/)|Yes|
 |Network inspect|[https://docs.docker.com/engine/reference/commandline/network_inspect/](https://docs.docker.com/engine/reference/commandline/network_inspect/)|Yes|
