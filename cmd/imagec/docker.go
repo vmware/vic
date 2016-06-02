@@ -84,7 +84,7 @@ func LearnRegistryURL(options ImageCOptions) (string, error) {
 		}
 		log.Debugf("URL: %s", url)
 
-		fetcher := NewFetcher(FetcherOptions{
+		fetcher := NewURLFetcher(FetcherOptions{
 			Timeout:            options.timeout,
 			Username:           options.username,
 			Password:           options.password,
@@ -125,7 +125,7 @@ func LearnAuthURL(options ImageCOptions) (*url.URL, error) {
 
 	log.Debugf("URL: %s", url)
 
-	fetcher := NewFetcher(FetcherOptions{
+	fetcher := NewURLFetcher(FetcherOptions{
 		Timeout:            options.timeout,
 		Username:           options.username,
 		Password:           options.password,
@@ -159,7 +159,7 @@ func FetchToken(url *url.URL) (*Token, error) {
 
 	log.Debugf("URL: %s", url)
 
-	fetcher := NewFetcher(FetcherOptions{
+	fetcher := NewURLFetcher(FetcherOptions{
 		Timeout:            options.timeout,
 		Username:           options.username,
 		Password:           options.password,
@@ -214,7 +214,7 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) (string, error)
 
 	progress.Update(po, image.String(), "Pulling fs layer")
 
-	fetcher := NewFetcher(FetcherOptions{
+	fetcher := NewURLFetcher(FetcherOptions{
 		Timeout:            options.timeout,
 		Username:           options.username,
 		Password:           options.password,
@@ -312,7 +312,7 @@ func FetchImageManifest(options ImageCOptions) (*Manifest, error) {
 
 	log.Debugf("URL: %s", url)
 
-	fetcher := NewFetcher(FetcherOptions{
+	fetcher := NewURLFetcher(FetcherOptions{
 		Timeout:            10 * time.Second,
 		Username:           options.username,
 		Password:           options.password,

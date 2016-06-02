@@ -82,8 +82,8 @@ type URLFetcher struct {
 	options FetcherOptions
 }
 
-// NewFetcher creates a new Fetcher instance
-func NewFetcher(options FetcherOptions) Fetcher {
+// NewURLFetcher creates a new URLFetcher
+func NewURLFetcher(options FetcherOptions) Fetcher {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: options.InsecureSkipVerify,
