@@ -59,7 +59,9 @@ portlayerapi-server := lib/apiservers/portlayer/restapi/server.go
 imagec := $(BIN)/imagec
 vicadmin := $(BIN)/vicadmin
 rpctool := $(BIN)/rpctool
-vic-machine := $(BIN)/vic-machine
+vic-machine-linux := $(BIN)/vic-machine-linux
+vic-machine-windows := $(BIN)/vic-machine-windows.exe
+vic-machine-darwin := $(BIN)/vic-machine-darwin
 
 tether-linux := $(BIN)/tether-linux
 tether-windows := $(BIN)/tether-windows.exe
@@ -97,7 +99,7 @@ bootstrap-staging: $(bootstrap-staging)
 bootstrap-debug: $(bootstrap-debug)
 bootstrap-staging-debug: $(bootstrap-staging-debug)
 iso-base: $(iso-base)
-vic-machine: $(vic-machine)
+vic-machine: $(vic-machine-linux) $(vic-machine-windows) $(vic-machine-darwin)
 
 swagger: $(SWAGGER)
 
@@ -297,9 +299,17 @@ $(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base)
 	@time -f "t%E" $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@ -d true
 
 
-$(vic-machine): $(call godeps,cmd/vic-machine/*.go)
-	@echo building vic-machine...
-	@time -f "t%E" $(GO) build $(RACE) -o ./$@ ./$(dir $<)
+$(vic-machine-linux): $(call godeps,cmd/vic-machine/*.go)
+	@echo building vic-machine linux...
+	@GOARCH=amd64 GOOS=linux time -f "t%E" $(GO) build $(RACE) --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+
+$(vic-machine-windows): $(call godeps,cmd/vic-machine/*.go)
+	@echo building vic-machine windows...
+	@GOARCH=amd64 GOOS=windows time -f "t%E" $(GO) build $(RACE) --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+
+$(vic-machine-darwin): $(call godeps,cmd/vic-machine/*.go)
+	@echo building vic-machine darwin...
+	@GOARCH=amd64 GOOS=darwin time -f "t%E" $(GO) build $(RACE) --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 clean:
 	rm -rf $(BIN)

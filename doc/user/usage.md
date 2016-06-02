@@ -21,7 +21,7 @@ Replace the `<fields>` in the example with values specific to your environment -
 - -force flag is to remove an existing datastore folder or VM with the same name.
 
 ```
-vic-machine -target target-host -image-store <datastore name> -name <vch-name> -user root -passwd <password> -compute-resource <resource pool path> -generate-cert
+vic-machine-linux -target target-host -image-store <datastore name> -name <vch-name> -user root -passwd <password> -compute-resource <resource pool path> -generate-cert
 ```
 This will, if successful, produce output similar to the following:
 ```
