@@ -27,11 +27,17 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	docker "github.com/docker/docker/image"
+	dlayer "github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progress"
 
 	"github.com/vmware/vic/pkg/trace"
 )
+
+// DigestSHA256EmptyTar is the canonical sha256 digest of empty tar file -
+// (1024 NULL bytes)
+const DigestSHA256EmptyTar = string(dlayer.DigestSHA256EmptyTar)
 
 // FSLayer is a container struct for BlobSums defined in an image manifest
 type FSLayer struct {
@@ -53,13 +59,16 @@ type Manifest struct {
 	// ignoring signatures
 }
 
-// V1Compatibility represents some parts of V1Compatibility
-type V1Compatibility struct {
-	ID        string    `json:"id"`
-	Parent    string    `json:"parent,omitempty"`
-	Comment   string    `json:"comment,omitempty"`
-	Created   time.Time `json:"created"`
-	Container string    `json:"container,omitempty"`
+// ImageConfig contains configuration data describing images and their layers
+type ImageConfig struct {
+	docker.V1Image
+
+	// image specific data
+	ImageID string            `json:"image_id,omitempty"`
+	Tag     string            `json:"tag,omitempty"`
+	Name    string            `json:"name,omitempty"`
+	DiffIDs map[string]string `json:"diff_ids,omitempty"`
+	History []docker.History  `json:"history,omitempty"`
 }
 
 // LearnRegistryURL returns the registry URL after making sure that it responds to queries
@@ -192,7 +201,7 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) (string, error)
 
 	id := image.ID
 	layer := image.layer.BlobSum
-	history := image.history.V1Compatibility
+	meta := image.meta
 	diffID := ""
 
 	url, err := url.Parse(options.registry)
@@ -248,7 +257,8 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) (string, error)
 	}
 
 	// Copy bytes from decompressed layer into diffIDSum to calculate diffID
-	if _, cerr := io.Copy(diffIDSum, tar); cerr != nil {
+	bytesRead, cerr := io.Copy(diffIDSum, tar)
+	if cerr != nil {
 		return diffID, cerr
 	}
 
@@ -258,6 +268,11 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) (string, error)
 	}
 
 	diffID = fmt.Sprintf("sha256:%x", diffIDSum.Sum(nil))
+
+	if diffID != string(DigestSHA256EmptyTar) {
+		// bytesRead represents the size of the decompressed layer data
+		image.size = bytesRead
+	}
 
 	log.Infof("diffID for layer %s: %s", id, diffID)
 
@@ -275,7 +290,7 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) (string, error)
 	}
 
 	// Dump the history next to it
-	err = ioutil.WriteFile(path.Join(destination, id+".json"), []byte(history), 0644)
+	err = ioutil.WriteFile(path.Join(destination, id+".json"), []byte(meta), 0644)
 	if err != nil {
 		return diffID, err
 	}

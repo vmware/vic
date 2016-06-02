@@ -29,7 +29,7 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-const HistoryKey = "v1Compatibility"
+const MetaDataKey = "metaData"
 
 // PingPortLayer calls the _ping endpoint of the portlayer
 func PingPortLayer() (bool, error) {
@@ -113,18 +113,19 @@ func WriteImage(image *ImageWithMeta, data io.ReadCloser) error {
 	transport.Consumers["application/octet-stream"] = httpkit.ByteStreamConsumer()
 	transport.Producers["application/octet-stream"] = httpkit.ByteStreamProducer()
 
-	history := new(string)
-	historyBlob := new(string)
-	*history = HistoryKey
-	*historyBlob = image.history.V1Compatibility
+	key := new(string)
+	blob := new(string)
+
+	*key = MetaDataKey
+	*blob = image.meta
 
 	r, err := client.Storage.WriteImage(
 		storage.NewWriteImageParams().
 			WithImageID(image.ID).
 			WithParentID(*image.Parent).
 			WithStoreName(image.Store).
-			WithMetadatakey(history).
-			WithMetadataval(historyBlob).
+			WithMetadatakey(key).
+			WithMetadataval(blob).
 			WithImageFile(data).
 			WithSum(image.layer.BlobSum),
 	)
