@@ -15,6 +15,8 @@
 GO ?= go
 GOVERSION ?= go1.6.2
 OS := $(shell uname | tr '[:upper:]' '[:lower:]')
+TIME ?= $(shell which time)
+
 ifeq (vagrant, $(filter vagrant,$(USER) $(SUDO_USER)))
 	# assuming we are in a shared directory where host arch is different from the guest
 	BIN_ARCH := -$(OS)
@@ -83,6 +85,8 @@ iso-base := $(BIN)/iso-base.tgz
 
 go-lint := $(BIN)/.golint
 go-imports := $(BIN)/.goimports
+
+
 
 # target aliases - target mapping
 docker-engine-api: $(docker-engine-api)
@@ -245,7 +249,6 @@ $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@echo building imagec...
 	@$(TIME) $(GO) build $(RACE) -o ./$@ ./$(dir $<)
 
-
 $(docker-engine-api): $(call godeps,cmd/docker/*.go) $(portlayerapi-client)
 ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
@@ -303,7 +306,6 @@ $(bootstrap-staging): isos/bootstrap-staging.sh $(iso-base)
 $(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base)
 	@echo staging debug for bootstrap
 	@$(TIME) $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@ -d true
-
 
 $(vic-machine-linux): $(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine linux...
