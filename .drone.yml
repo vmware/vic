@@ -16,6 +16,8 @@ build:
       SHELL: /bin/bash
       VIC_ESX_TEST_URL: $$VIC_ESX_TEST_URL
     commands:
+      - apt-get update
+      - apt-get install -yq time
       - make components
       - make vic-machine
 
@@ -25,6 +27,8 @@ build:
     environment:
       BIN: bin
     commands:
+      - apt-get update
+      - apt-get install -yq time
       - make iso-base
 
   appliance-staging:
@@ -33,6 +37,8 @@ build:
     environment:
       BIN: bin
     commands:
+      - apt-get update
+      - apt-get install -yq time
       - make appliance-staging
 
   appliance:
@@ -42,6 +48,8 @@ build:
       BIN: bin
       INIT: /lib/systemd/systemd
     commands:
+      - apt-get update
+      - apt-get install -yq time
       - make appliance
 
   bootstrap-staging:
@@ -50,6 +58,8 @@ build:
     environment:
       BIN: bin
     commands:
+      - apt-get update
+      - apt-get install -yq time
       - make bootstrap-staging
 
   bootstrap:
@@ -59,6 +69,8 @@ build:
       BIN: bin
       INIT: /sbin/init
     commands:
+      - apt-get update
+      - apt-get install -yq time
       - make bootstrap
 
   test:
@@ -71,6 +83,8 @@ build:
       DOCKER_API_VERSION: "1.21"
       VIC_ESX_TEST_URL: $$VIC_ESX_TEST_URL
     commands:
+      - apt-get update
+      - apt-get install -yq time
       - make test
     when:
       success: true
@@ -84,6 +98,8 @@ build:
       GOPATH: /drone
       SHELL: /bin/bash
     commands:
+      - apt-get update
+      - apt-get install -yq time
       - rm -rf $BIN_TEMP_DIR
       - mkdir $BIN_TEMP_DIR
       - cp LICENSE $BIN_TEMP_DIR
@@ -95,6 +111,15 @@ build:
       - shasum -a 256 $BIN/vic_$$BUILD_NUMBER.tar.gz
     when:
       success: true
+
+notify:
+  slack:
+    channel: vic-bots
+    webhook_url: $$SLACK_URL
+    username: drone
+    when:
+      repo: vmware/vic
+      branch: master
 
 publish:
   coverage:
