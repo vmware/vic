@@ -268,7 +268,17 @@ func (n *Network) DisconnectContainerFromNetwork(containerName string, network l
 }
 
 func (n *Network) DeleteNetwork(name string) error {
-	return fmt.Errorf("%s does not implement network.DeleteNetwork", n.ProductName)
+	client := PortLayerClient()
+
+	if _, err := client.Scopes.DeleteScope(scopes.NewDeleteScopeParams().WithIDName(name)); err != nil {
+		if _, ok := err.(*scopes.DeleteScopeNotFound); ok {
+			return derr.NewRequestNotFoundError(err)
+		}
+
+		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+	}
+
+	return nil
 }
 
 // network implements the libnetwork.Network and libnetwork.NetworkInfo interfaces

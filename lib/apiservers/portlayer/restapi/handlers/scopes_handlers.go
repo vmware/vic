@@ -40,6 +40,7 @@ type ScopesHandlersImpl struct {
 // Configure assigns functions to all the scopes api handlers
 func (handler *ScopesHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx *HandlerContext) {
 	api.ScopesCreateScopeHandler = scopes.CreateScopeHandlerFunc(handler.ScopesCreate)
+	api.ScopesDeleteScopeHandler = scopes.DeleteScopeHandlerFunc(handler.ScopesDelete)
 	api.ScopesListAllHandler = scopes.ListAllHandlerFunc(handler.ScopesListAll)
 	api.ScopesListHandler = scopes.ListHandlerFunc(handler.ScopesList)
 	api.ScopesAddContainerHandler = scopes.AddContainerHandlerFunc(handler.ScopesAddContainer)
@@ -130,6 +131,22 @@ func (handler *ScopesHandlersImpl) ScopesCreate(params scopes.CreateScopeParams)
 	}
 
 	return scopes.NewCreateScopeCreated().WithPayload(toScopeConfig(s))
+}
+
+func (handler *ScopesHandlersImpl) ScopesDelete(params scopes.DeleteScopeParams) middleware.Responder {
+	defer trace.End(trace.Begin("ScopesDelete"))
+
+	if err := handler.netCtx.DeleteScope(params.IDName); err != nil {
+		switch err := err.(type) {
+		case network.ResourceNotFoundError:
+			return scopes.NewDeleteScopeNotFound().WithPayload(errorPayload(err))
+
+		default:
+			return scopes.NewDeleteScopeDefault(http.StatusInternalServerError).WithPayload(errorPayload(err))
+		}
+	}
+
+	return scopes.NewDeleteScopeOK()
 }
 
 func (handler *ScopesHandlersImpl) ScopesListAll() middleware.Responder {

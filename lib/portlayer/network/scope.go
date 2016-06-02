@@ -44,6 +44,7 @@ type Scope struct {
 	containers map[exec.ID]*Container
 	endpoints  []*Endpoint
 	space      *AddressSpace
+	builtin    bool
 
 	NetworkName string // portgroup name specified in VCH guestinfo (e.g. under "networks/bridge")
 }

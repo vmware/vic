@@ -254,6 +254,25 @@ paths:
           description: "error"
           schema:
             $ref: "#/definitions/Error"
+    delete:
+      tags: ["scopes"]
+      operationId: DeleteScope
+      parameters:
+        - name: idName
+          type: string
+          in: path
+          required: true
+      responses:
+        '200':
+          description: "OK"
+        '404':
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+        default:
+          description: "error"
+          schema:
+            $ref: "#/definitions/Error"
   /containers/{handle}/scopes:
     post:
       description: "Add a container to scopes modifying the conatiner VM's config as necessary"

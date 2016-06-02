@@ -824,3 +824,57 @@ func TestContextRemoveContainer(t *testing.T) {
 		}
 	}
 }
+
+func TestDeleteScope(t *testing.T) {
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
+	if err != nil {
+		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
+	}
+
+	foo, err := ctx.NewScope(bridgeScopeType, "foo", nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("ctx.NewScope(%s, \"foo\", nil, nil, nil, nil) => (nil, %#v), want (foo, nil)", bridgeScopeType, err)
+	}
+	h := exec.NewContainer("container")
+	ctx.AddContainer(h, foo.Name(), nil)
+
+	// bar is a scope with bound endpoints
+	bar, err := ctx.NewScope(bridgeScopeType, "bar", nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("ctx.NewScope(%s, \"bar\", nil, nil, nil, nil) => (nil, %#v), want (bar, nil)", bridgeScopeType, err)
+	}
+
+	h = exec.NewContainer("container2")
+	ctx.AddContainer(h, bar.Name(), nil)
+	ctx.BindContainer(h)
+
+	var tests = []struct {
+		name string
+		err  error
+	}{
+		{"", ResourceNotFoundError{}},
+		{ctx.DefaultScope().Name(), fmt.Errorf("cannot delete builtin scopes")},
+		{bar.Name(), fmt.Errorf("cannot delete scope with bound endpoints")},
+		{foo.Name(), nil},
+	}
+
+	for _, te := range tests {
+		err := ctx.DeleteScope(te.name)
+		if te.err != nil {
+			if err == nil {
+				t.Fatalf("DeleteScope(%s) => nil, expected err", te.name)
+			}
+
+			if reflect.TypeOf(te.err) != reflect.TypeOf(err) {
+				t.Fatalf("DeleteScope(%s) => %#v, want %#v", te.name, err, te.err)
+			}
+
+			continue
+		}
+
+		scopes, err := ctx.Scopes(&te.name)
+		if _, ok := err.(ResourceNotFoundError); !ok || len(scopes) != 0 {
+			t.Fatalf("scope %s not deleted", te.name)
+		}
+	}
+}
