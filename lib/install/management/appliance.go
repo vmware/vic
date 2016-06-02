@@ -185,7 +185,7 @@ func (d *Dispatcher) getPresetExtraconfig(conf *metadata.VirtualContainerHostCon
 			},
 			&types.OptionValue{
 				Key:   "guestinfo.vch/sbin/imagec",
-				Value: "-debug -logfile=/var/log/vic/imagec.log -insecure",
+				Value: "-debug -logfile=/var/log/vic/imagec.log -insecure-skip-verify",
 			},
 			&types.OptionValue{
 				Key: "guestinfo.vch/sbin/port-layer-server",
