@@ -121,9 +121,9 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string
 		return "", err
 	}
 
-	u.SetBasicAuth(req)
+	u.setBasicAuth(req)
 
-	u.SetAuthToken(req)
+	u.setAuthToken(req)
 
 	res, err := ctxhttp.Do(ctx, u.client, req)
 	if err != nil {
@@ -138,7 +138,7 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string
 		if hdr == "" {
 			return "", fmt.Errorf("www-authenticate header is missing")
 		}
-		u.OAuthEndpoint, err = u.ExtractQueryParams(hdr, url)
+		u.OAuthEndpoint, err = u.extractQueryParams(hdr, url)
 		if err != nil {
 			return "", err
 		}
@@ -226,21 +226,21 @@ func (u *URLFetcher) IsStatusNotFound() bool {
 	return u.StatusCode == http.StatusNotFound
 }
 
-func (u *URLFetcher) SetBasicAuth(req *http.Request) {
+func (u *URLFetcher) setBasicAuth(req *http.Request) {
 	if u.options.Username != "" && u.options.Password != "" {
 		log.Debugf("Setting BasicAuth: %s", u.options.Username)
 		req.SetBasicAuth(u.options.Username, u.options.Password)
 	}
 }
 
-func (u *URLFetcher) SetAuthToken(req *http.Request) {
+func (u *URLFetcher) setAuthToken(req *http.Request) {
 	if u.options.Token != nil {
 		log.Debugf("Setting AuthToken: %s", u.options.Token.Token)
 		req.Header.Set("Authorization", "Bearer "+u.options.Token.Token)
 	}
 }
 
-func (u *URLFetcher) ExtractQueryParams(hdr string, repository *url.URL) (*url.URL, error) {
+func (u *URLFetcher) extractQueryParams(hdr string, repository *url.URL) (*url.URL, error) {
 	tokens := strings.Split(hdr, " ")
 	if len(tokens) != 2 || strings.ToLower(tokens[0]) != "bearer" {
 		return nil, fmt.Errorf("www-authenticate header is corrupted")
