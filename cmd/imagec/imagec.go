@@ -147,8 +147,8 @@ func init() {
 
 	flag.BoolVar(&options.stdout, "stdout", false, i18n.T("Enable writing to stdout"))
 	flag.BoolVar(&options.debug, "debug", false, i18n.T("Show debug logging"))
-	flag.BoolVar(&options.insecureSkipVerify, "insecure-skip-verify", false, i18n.T("Don't verify certificates when fetching images"))
-	flag.BoolVar(&options.insecureAllowHTTP, "insecure-allow-http", false, i18n.T("Uses unencrypted connections when fetching images"))
+	flag.BoolVar(&options.insecureSkipVerify, "insecure_skip_verify", false, i18n.T("Don't verify certificates when fetching images"))
+	flag.BoolVar(&options.insecureAllowHTTP, "insecure_allow_http", false, i18n.T("Uses unencrypted connections when fetching images"))
 	flag.BoolVar(&options.standalone, "standalone", false, i18n.T("Disable port-layer integration"))
 
 	flag.BoolVar(&options.resolv, "resolv", false, i18n.T("Return the name of the vmdk from given reference"))
