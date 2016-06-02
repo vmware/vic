@@ -132,3 +132,23 @@ func (f *Folder) CreateDatacenter(c *types.CreateDatacenter) soap.HasFault {
 
 	return r
 }
+
+func (f *Folder) CreateClusterEx(c *types.CreateClusterEx) soap.HasFault {
+	r := &methods.CreateClusterExBody{}
+
+	if f.hasChildType("ComputeResource") && f.hasChildType("Folder") {
+		cluster, err := CreateClusterComputeResource(f, c.Name, c.Spec)
+		if err != nil {
+			r.Fault_ = Fault("", err)
+			return r
+		}
+
+		r.Res = &types.CreateClusterExResponse{
+			Returnval: cluster.Self,
+		}
+	} else {
+		r.Fault_ = f.typeNotSupported()
+	}
+
+	return r
+}
