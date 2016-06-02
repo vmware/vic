@@ -23,17 +23,15 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
 )
 
 type operations struct {
-	logging bool
-}
+	tether.BaseOperations
 
-// Mkdev will hopefully get rolled into go.sys at some point
-func Mkdev(majorNumber int, minorNumber int) int {
-	return (majorNumber << 8) | (minorNumber & 0xff) | ((minorNumber & 0xfff00) << 12)
+	logging bool
 }
 
 func (t *operations) Log() (io.Writer, error) {
@@ -45,14 +43,14 @@ func (t *operations) Log() (io.Writer, error) {
 	if err != nil {
 		detail := fmt.Sprintf("failed to open serial port for debug log: %s", err)
 		log.Error(detail)
-		return errors.New(detail)
+		return nil, errors.New(detail)
 	}
 
-	return out
+	return out, nil
 }
 
 // sessionLogWriter returns a writer that will persist the session output
-func (t *operations) SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, error) {
+func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, error) {
 	defer trace.End(trace.Begin("configure session log writer"))
 
 	if t.logging {

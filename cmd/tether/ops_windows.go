@@ -24,11 +24,14 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	winserial "github.com/tarm/serial"
+	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
 )
 
 type operations struct {
+	tether.BaseOperations
+
 	logging bool
 }
 
@@ -105,14 +108,14 @@ func (t *operations) Log() (io.Writer, error) {
 	if err != nil {
 		detail := fmt.Sprintf("failed to open serial port for debug log: %s", err)
 		log.Error(detail)
-		return errors.New(detail)
+		return nil, errors.New(detail)
 	}
 
-	return out
+	return out, nil
 }
 
 // sessionLogWriter returns a writer that will persist the session output
-func (t *operations) SessionLog() (dio.DynamicMultiWriter, error) {
+func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, error) {
 	com := "COM3"
 
 	defer trace.End(trace.Begin("configure session log writer"))

@@ -23,13 +23,9 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-	"unsafe"
-
-	"golang.org/x/crypto/ssh"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/kr/pty"
-	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -93,7 +89,7 @@ func (t *tether) childReaper() {
 }
 
 func (t *tether) stopReaper() {
-	defer trace.End(trace.Begin("running OS specific tether cleanup"))
+	defer trace.End(trace.Begin("Shutting down child reaping"))
 
 	// stop child reaping
 	log.Info("Shutting down reaper")
@@ -170,51 +166,19 @@ func establishPty(session *SessionConfig) error {
 	// processing receives the control characters then we should be binding the PTY
 	// during attach, and using the same path we have for non-tty here
 	var err error
-	session.pty, err = pty.Start(&session.Cmd)
-	if session.pty != nil {
+	session.Pty, err = pty.Start(&session.Cmd)
+	if session.Pty != nil {
 		// TODO: do we need to ensure all reads have completed before calling Wait on the process?
 		// it frees up all resources - does that mean it frees the output buffers?
 		go func() {
-			_, gerr := io.Copy(session.outwriter, session.pty)
+			_, gerr := io.Copy(session.Outwriter, session.Pty)
 			log.Debug(gerr)
 		}()
 		go func() {
-			_, gerr := io.Copy(session.pty, session.reader)
+			_, gerr := io.Copy(session.Pty, session.Reader)
 			log.Debug(gerr)
 		}()
 	}
 
 	return err
-}
-
-// The syscall struct
-type winsize struct {
-	wsRow    uint16
-	wsCol    uint16
-	wsXpixel uint16
-	wsYpixel uint16
-}
-
-func resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
-	defer trace.End(trace.Begin("resize pty"))
-
-	ws := &winsize{uint16(winSize.Rows), uint16(winSize.Columns), uint16(winSize.WidthPx), uint16(winSize.HeightPx)}
-	_, _, errno := syscall.Syscall(
-		syscall.SYS_IOCTL,
-		pty,
-		syscall.TIOCSWINSZ,
-		uintptr(unsafe.Pointer(ws)),
-	)
-	if errno != 0 {
-		return syscall.Errno(errno)
-	}
-	return nil
-}
-
-func signalProcess(process *os.Process, sig ssh.Signal) error {
-	signal := attach.Signals[sig]
-	defer trace.End(trace.Begin(fmt.Sprintf("signal process %d: %d", process.Pid, signal)))
-
-	s := syscall.Signal(signal)
-	return process.Signal(s)
 }

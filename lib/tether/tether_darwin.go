@@ -21,7 +21,6 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -35,11 +34,11 @@ func Mkdev(majorNumber int, minorNumber int) int {
 // If running as pid=1 then this means it handles zombie process reaping for orphaned children
 // as well as direct child processes.
 func (t *tether) childReaper() error {
-	log.Error("Child reaping unimplemented on OSX")
+	return errors.New("Child reaping unimplemented on OSX")
 }
 
 func (t *tether) stopReaper() {
-	defer trace.End(trace.Begin("running OS specific tether cleanup"))
+	defer trace.End(trace.Begin("Shutting down child reaping"))
 }
 
 // processEnvOS does OS specific checking and munging on the process environment prior to launch

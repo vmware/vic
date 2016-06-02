@@ -20,7 +20,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"runtime"
+	"syscall"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
@@ -32,12 +32,12 @@ func createFakeDevices() error {
 	var err error
 	// create control channel
 	path := fmt.Sprintf("%s/ttyS0", pathPrefix)
-	err = MkNamedPipe(path+"s", os.ModePerm)
+	err = syscall.Mkfifo(path+"s", uint32(backchannelMode))
 	if err != nil {
 		detail := fmt.Sprintf("failed to create fifo pipe %ss for com0: %s", path, err)
 		return errors.New(detail)
 	}
-	err = MkNamedPipe(path+"c", os.ModePerm)
+	err = syscall.Mkfifo(path+"c", uint32(backchannelMode))
 	if err != nil {
 		detail := fmt.Sprintf("failed to create fifo pipe %sc for com0: %s", path, err)
 		return errors.New(detail)
@@ -66,37 +66,10 @@ func createFakeDevices() error {
 	return nil
 }
 
-// TestMain simply so we have control of debugging level and somewhere to call package wide test setup
-func TestMain(m *testing.M) {
-	log.SetLevel(log.DebugLevel)
-
-	// save the base os specific structures
-	specificOps = ops
-	specificUtils = utils
-
-	retCode := m.Run()
-
-	// call with result of m.Run()
-	os.Exit(retCode)
-}
-
 func testSetup(t *testing.T) {
 	var err error
 
-	pc, _, _, _ := runtime.Caller(1)
-	name := runtime.FuncForPC(pc).Name()
-
-	log.Infof("Started test setup for %s", name)
-
-	// use the mock ops - fresh one each time as tests might apply different mocked calls
-	mocked = mocker{
-		ops:     specificOps,
-		utils:   specificUtils,
-		started: make(chan bool, 0),
-		cleaned: make(chan bool, 0),
-	}
-	ops = &mocked
-	utils = &mocked
+	name := tetherTestSetup(t)
 
 	pathPrefix, err = ioutil.TempDir("", path.Base(name))
 	if err != nil {
@@ -126,20 +99,5 @@ func testSetup(t *testing.T) {
 }
 
 func testTeardown(t *testing.T) {
-	// let the main tether loop exit
-	r := reload
-	reload = nil
-	if r != nil {
-		close(r)
-	}
-	// cleanup
-	os.RemoveAll(pathPrefix)
-	log.SetOutput(os.Stdout)
-
-	<-mocked.cleaned
-
-	pc, _, _, _ := runtime.Caller(1)
-	name := runtime.FuncForPC(pc).Name()
-
-	log.Infof("Finished test teardown for %s", name)
+	tetherTestTeardown(t)
 }

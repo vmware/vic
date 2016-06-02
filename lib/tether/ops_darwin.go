@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -49,7 +50,25 @@ func (t *BaseOperations) MountLabel(label, target string, ctx context.Context) e
 	return errors.New("not implemented on OSX")
 }
 
-func (t *BaseOperations) Fork(config *ExecutorConfig) error {
+// ProcessEnv does OS specific checking and munging on the process environment prior to launch
+func (t *BaseOperations) ProcessEnv(env []string) []string {
+	// TODO: figure out how we're going to specify user and pass all the settings along
+	// in the meantime, hardcode HOME to /root
+	homeIndex := -1
+	for i, tuple := range env {
+		if strings.HasPrefix(tuple, "HOME=") {
+			homeIndex = i
+			break
+		}
+	}
+	if homeIndex == -1 {
+		return append(env, "HOME=/root")
+	}
+
+	return env
+}
+
+func (t *BaseOperations) Fork() error {
 	return errors.New("not implemented on OSX")
 }
 

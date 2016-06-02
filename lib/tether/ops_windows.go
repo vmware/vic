@@ -57,7 +57,7 @@ func (t *BaseOperations) ProcessEnv(env []string) []string {
 }
 
 // Fork triggers a vmfork, address the pre and post-fork operations necessary at an OS level
-func (t *BaseOperations) Fork(config *ExecutorConfig) error {
+func (t *BaseOperations) Fork() error {
 	return errors.New("not implemented on windows")
 }
 

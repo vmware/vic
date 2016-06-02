@@ -15,16 +15,17 @@
 package main
 
 import (
-	"errors"
-	"fmt"
 	"os"
 	"runtime/debug"
 	"strings"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
+
+var tthr tether.Tether
 
 func main() {
 	defer func() {
@@ -34,27 +35,15 @@ func main() {
 		reboot()
 	}()
 
+	// where to look for the various devices and files related to tether
+	pathPrefix = "/.tether"
+
 	if strings.HasSuffix(os.Args[0], "-debug") {
 		extraconfig.DecodeLogLevel = log.DebugLevel
 		extraconfig.EncodeLogLevel = log.DebugLevel
 		log.SetLevel(log.DebugLevel)
 	}
 
-
-	// the OS ops and utils to use
-	lnx := &osopsLinux{}
-	ops = lnx
-	utils = lnx
-
-	// TODO: hard code executor initialization status reporting via guestinfo here
-	err := createDevices()
-	if err != nil {
-		log.Error(err)
-		// return gives us good behaviour in the case of "-debug" binary
-		return
-	}
-
-	server = &attachServerSSH{}
 	src, err := extraconfig.GuestInfoSource()
 	if err != nil {
 		log.Error(err)
@@ -67,41 +56,16 @@ func main() {
 		return
 	}
 
-	err = run(src, sink)
+	// create the tether and register the attach extension
+	tthr = tether.New(src, sink, &operations{})
+
+	err = tthr.Start()
 	if err != nil {
 		log.Error(err)
 		return
 	}
 
 	log.Info("Clean exit from tether")
-}
-
-func createDevices() error {
-	err := os.MkdirAll(pathPrefix, 644)
-	if err != nil {
-		log.Warnf("Failed to ensure presence of tether device directory: %s", err)
-	}
-
-	// create serial devices
-	for i := 0; i < 3; i++ {
-		path := fmt.Sprintf("%s/ttyS%d", pathPrefix, i)
-		minor := 64 + i
-		err = syscall.Mknod(path, syscall.S_IFCHR|uint32(os.FileMode(0660)), Mkdev(4, minor))
-		if err != nil {
-			detail := fmt.Sprintf("failed to create %s for com%d: %s", path, i+1, err)
-			return errors.New(detail)
-		}
-	}
-
-	// make an access to urandom
-	path := fmt.Sprintf("%s/urandom", pathPrefix)
-	err = syscall.Mknod(path, syscall.S_IFCHR|uint32(os.FileMode(0444)), Mkdev(1, 9))
-	if err != nil {
-		detail := fmt.Sprintf("failed to create urandom access %s: %s", path, err)
-		return errors.New(detail)
-	}
-
-	return nil
 }
 
 // exit cleanly shuts down the system
@@ -114,4 +78,15 @@ func halt() {
 
 	syscall.Sync()
 	syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
+}
+
+func reboot() {
+	log.Infof("Rebooting the system")
+	if strings.HasSuffix(os.Args[0], "-debug") {
+		log.Info("Squashing reboot for debug tether")
+		return
+	}
+
+	syscall.Sync()
+	syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART)
 }

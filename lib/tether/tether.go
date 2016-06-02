@@ -111,7 +111,7 @@ func (t *tether) setup() error {
 		log.Infof("Starting extension %s", name)
 		err := ext.Start()
 		if err != nil {
-			log.Errorf("Failed to start extension %s: %s", err)
+			log.Errorf("Failed to start extension %s: %s", name, err)
 			return err
 		}
 	}
@@ -236,7 +236,7 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 	defer trace.End(trace.Begin("handling exit of session " + session.ID))
 
 	// close down the IO
-	session.reader.Close()
+	session.Reader.Close()
 	// live.outwriter.Close()
 	// live.errwriter.Close()
 
@@ -274,14 +274,14 @@ func (t *tether) launch(session *SessionConfig) error {
 
 	// we store these outside of the session.Cmd struct so that there's consistent
 	// handling between tty & non-tty paths
-	session.outwriter = logwriter
-	session.errwriter = logwriter
-	session.reader = dio.MultiReader()
+	session.Outwriter = logwriter
+	session.Errwriter = logwriter
+	session.Reader = dio.MultiReader()
 
 	session.Cmd.Env = t.ops.ProcessEnv(session.Cmd.Env)
-	session.Cmd.Stdout = session.outwriter
-	session.Cmd.Stderr = session.errwriter
-	session.Cmd.Stdin = session.reader
+	session.Cmd.Stdout = session.Outwriter
+	session.Cmd.Stderr = session.Errwriter
+	session.Cmd.Stdin = session.Reader
 
 	resolved, err := lookPath(session.Cmd.Path, session.Cmd.Env, session.Cmd.Dir)
 	if err != nil {

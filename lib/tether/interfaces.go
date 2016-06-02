@@ -25,6 +25,7 @@ import (
 type Operations interface {
 	Setup() error
 	Cleanup() error
+	// Log returns the tether debug log writer
 	Log() (io.Writer, error)
 
 	SetHostname(hostname string) error

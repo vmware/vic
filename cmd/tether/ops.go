@@ -14,10 +14,20 @@
 
 package main
 
-import "net/http"
+import (
+	"net/http"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/lib/tether"
+)
+
+// pathPrefix is present to allow the various files referenced by tether to be placed
+// in specific directories, primarily for testing.
+var pathPrefix string
 
 func (t *operations) Setup() error {
 	// TODO: enabled for initial dev debugging only
+	log.Info("Launching pprof server on port 6060")
 	go func() {
 		log.Info(http.ListenAndServe("0.0.0.0:6060", nil))
 	}()
@@ -25,5 +35,13 @@ func (t *operations) Setup() error {
 	return nil
 }
 
-func (t *operations) Cleanup() {
+func (t *operations) Cleanup() error {
+	return nil
+}
+
+// HandleSessionExit controls the behaviour on session exit - for the tether if the session exiting
+// is the primary session (i.e. SessionID matches ExecutorID) then we exit everything.
+func (t *operations) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) bool {
+	// if the session that's exiting is the primary session, stop the tether
+	return session.ID == config.ID
 }

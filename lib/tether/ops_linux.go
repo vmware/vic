@@ -233,7 +233,7 @@ func (t *BaseOperations) ProcessEnv(env []string) []string {
 }
 
 // Fork triggers vmfork and handles the necessary pre/post OS level operations
-func (t *BaseOperations) Fork(config *ExecutorConfig) error {
+func (t *BaseOperations) Fork() error {
 	// unload vmxnet3 module
 
 	// fork
@@ -261,8 +261,4 @@ func (t *BaseOperations) Fork(config *ExecutorConfig) error {
 	// ensure memory and cores are brought online if not using udev
 
 	return nil
-}
-
-func MkNamedPipe(path string, mode os.FileMode) error {
-	return syscall.Mkfifo(path, (uint32(mode)))
 }

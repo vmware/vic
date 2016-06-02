@@ -16,7 +16,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	_ "net/http/pprof"
 	"os"
@@ -25,7 +24,6 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/pkg/serial"
 )
@@ -50,39 +48,13 @@ func backchannel(ctx context.Context, conn *net.Conn) error {
 }
 
 func (t *attachServerSSH) Start() error {
-	var err error
-
-	com := "COM1"
-
-	// redirect backchannel to the serial connection
-	log.Infof("opening %s%s for backchannel", pathPrefix, com)
-	// TODO: set read timeout on port during open
-	_, err = OpenPort(fmt.Sprintf("%s%s", pathPrefix, com))
-	if err != nil {
-		detail := fmt.Sprintf("failed to open serial port for backchannel: %s", err)
-		log.Error(detail)
-		return errors.New(detail)
-	}
-
-	log.Errorf("creating raw connection from %s\n", com)
-
-	// TODO: sort out the named port impl so that we can transparently switch from that to/from
-	// regular files for testing
-	// t.conn, err := serial.NewTypedConn(f, "file")
-
-	if err != nil {
-		detail := fmt.Sprintf("failed to create raw connection from %s file handle: %s", com, err)
-		log.Error(detail)
-		return errors.New(detail)
-	}
-
-	return nil
+	return errors.New("not supported on OSX")
 }
 
 func resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
-	return errors.New("not supported on windows")
+	return errors.New("not supported on OSX")
 }
 
 func signalProcess(process *os.Process, sig ssh.Signal) error {
-	return errors.New("not supported on windows")
+	return errors.New("not supported on OSX")
 }

@@ -29,7 +29,7 @@ func (t *tether) childReaper() {
 }
 
 func (t *tether) stopReaper() {
-	defer trace.End(trace.Begin("running OS specific tether cleanup"))
+	defer trace.End(trace.Begin("Shutting down child reaping"))
 }
 
 func lookPath(file string, env []string, dir string) (string, error) {

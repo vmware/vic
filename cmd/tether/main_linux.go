@@ -23,6 +23,7 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
@@ -43,11 +44,6 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	// the OS ops and utils to use
-	lnx := &osopsLinux{}
-	ops = lnx
-	utils = lnx
-
 	// TODO: hard code executor initialization status reporting via guestinfo here
 	err := createDevices()
 	if err != nil {
@@ -56,7 +52,8 @@ func main() {
 		return
 	}
 
-	server = &attachServerSSH{}
+	sshserver := &attachServerSSH{}
+	server = sshserver
 	src, err := extraconfig.GuestInfoSource()
 	if err != nil {
 		log.Error(err)
@@ -69,7 +66,11 @@ func main() {
 		return
 	}
 
-	err = run(src, sink)
+	// create the tether and register the attach extension
+	tthr := tether.New(src, sink, &operations{})
+	tthr.Register("Attach", sshserver)
+
+	err = tthr.Start()
 	if err != nil {
 		log.Error(err)
 		return
@@ -88,7 +89,7 @@ func createDevices() error {
 	for i := 0; i < 3; i++ {
 		path := fmt.Sprintf("%s/ttyS%d", pathPrefix, i)
 		minor := 64 + i
-		err = syscall.Mknod(path, syscall.S_IFCHR|uint32(os.FileMode(0660)), Mkdev(4, minor))
+		err = syscall.Mknod(path, syscall.S_IFCHR|uint32(os.FileMode(0660)), tether.Mkdev(4, minor))
 		if err != nil {
 			detail := fmt.Sprintf("failed to create %s for com%d: %s", path, i+1, err)
 			return errors.New(detail)
@@ -97,7 +98,7 @@ func createDevices() error {
 
 	// make an access to urandom
 	path := fmt.Sprintf("%s/urandom", pathPrefix)
-	err = syscall.Mknod(path, syscall.S_IFCHR|uint32(os.FileMode(0444)), Mkdev(1, 9))
+	err = syscall.Mknod(path, syscall.S_IFCHR|uint32(os.FileMode(0444)), tether.Mkdev(1, 9))
 	if err != nil {
 		detail := fmt.Sprintf("failed to create urandom access %s: %s", path, err)
 		return errors.New(detail)
