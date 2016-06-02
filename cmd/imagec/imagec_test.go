@@ -45,8 +45,8 @@ const (
 	// sha256 sum of LayerContent
 	DigestSHA256LayerContent = "sha256:18adac3bcad6124ed2e0d8dcc3beef8d540786ef8ef52c1f9fd71fdbfe36aa8e"
 
-	//DigestSHA256EmptyTar is the canonical sha256 digest of empty data
-	DigestSHA256EmptyTar = "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+	//DigestSHA256EmptyData is the canonical sha256 digest of empty data
+	DigestSHA256EmptyData = "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 )
 
 func TestLearnAuthURL(t *testing.T) {
@@ -110,7 +110,7 @@ func TestFetchImageManifest(t *testing.T) {
 			manifest := &Manifest{
 				Name:     Image,
 				Tag:      Tag,
-				FSLayers: []FSLayer{FSLayer{BlobSum: DigestSHA256EmptyTar}},
+				FSLayers: []FSLayer{FSLayer{BlobSum: DigestSHA256EmptyData}},
 			}
 
 			body, err := json.Marshal(manifest)
@@ -140,7 +140,7 @@ func TestFetchImageManifest(t *testing.T) {
 	if err != nil {
 		t.Errorf(err.Error())
 	}
-	if manifest.FSLayers[0].BlobSum != DigestSHA256EmptyTar {
+	if manifest.FSLayers[0].BlobSum != DigestSHA256EmptyData {
 		t.Errorf("Returned manifest %#v is different than expected", manifest)
 	}
 }
@@ -175,8 +175,8 @@ func TestFetchImageBlob(t *testing.T) {
 			Parent: &parent,
 			Store:  Storename,
 		},
-		history: History{V1Compatibility: LayerHistory},
-		layer:   FSLayer{BlobSum: DigestSHA256LayerContent},
+		meta:  LayerHistory,
+		layer: FSLayer{BlobSum: DigestSHA256LayerContent},
 	}
 	diffID, err := FetchImageBlob(options, &image)
 	if err != nil {

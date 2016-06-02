@@ -92,9 +92,10 @@ type ImageCOptions struct {
 type ImageWithMeta struct {
 	*models.Image
 
-	diffID  string
-	layer   FSLayer
-	history History
+	diffID string
+	layer  FSLayer
+	meta   string
+	size   int64
 }
 
 func (i *ImageWithMeta) String() string {
@@ -249,9 +250,9 @@ func ImagesToDownload(manifest *Manifest, storeName string) ([]*ImageWithMeta, e
 				Parent: &parent,
 				Store:  storeName,
 			},
-			history: history,
-			layer:   layer,
-			diffID:  "",
+			meta:   history.V1Compatibility,
+			layer:  layer,
+			diffID: "",
 		}
 		log.Debugf("Manifest image: %#v", images[i])
 	}
@@ -380,16 +381,19 @@ func WriteImageBlobs(images []*ImageWithMeta) error {
 }
 
 // CreateImageConfig constructs the image metadata from layers that compose the image
-func CreateImageConfig(images []*ImageWithMeta) error {
+func CreateImageConfig(images []*ImageWithMeta, manifest *Manifest) error {
 
-	image := docker.Image{}
+	imageLayer := images[0] // the layer that represents the actual image
+	image := docker.V1Image{}
 	rootFS := docker.NewRootFS()
 	history := make([]docker.History, 0, len(images))
+	diffIDs := make(map[string]string)
+	var size int64
 
 	// step through layers to get command history and diffID from oldest to newest
 	for i := len(images) - 1; i >= 0; i-- {
 		layer := images[i]
-		if err := json.Unmarshal([]byte(layer.history.V1Compatibility), &image); err != nil {
+		if err := json.Unmarshal([]byte(layer.meta), &image); err != nil {
 			return fmt.Errorf("Failed to unmarshall layer history: %s", err)
 		}
 		h := docker.History{
@@ -400,6 +404,8 @@ func CreateImageConfig(images []*ImageWithMeta) error {
 		}
 		history = append(history, h)
 		rootFS.DiffIDs = append(rootFS.DiffIDs, dockerLayer.DiffID(layer.diffID))
+		diffIDs[layer.diffID] = layer.ID
+		size += layer.size
 	}
 
 	// result is constructed without unused fields
@@ -425,10 +431,28 @@ func CreateImageConfig(images []*ImageWithMeta) error {
 	}
 
 	// calculate image ID
-	sum := sha256.Sum256(bytes)
-	imageID := fmt.Sprintf("%x", sum)
+	sum := fmt.Sprintf("%x", sha256.Sum256(bytes))
+	log.Infof("Image ID: sha256:%s", sum)
 
-	log.Infof("Image ID: sha256:%s", imageID)
+	// prepare metadata
+	result.V1Image.Parent = image.Parent
+	result.Size = size
+	metaData := ImageConfig{
+		V1Image: result.V1Image,
+		ImageID: sum,
+		Tag:     manifest.Tag,
+		Name:    manifest.Name,
+		DiffIDs: diffIDs,
+		History: history,
+	}
+
+	blob, err := json.Marshal(metaData)
+	if err != nil {
+		return fmt.Errorf("Failed to marshal image metadata: %s", err)
+	}
+
+	// store metadata
+	imageLayer.meta = string(blob)
 
 	return nil
 }
@@ -554,7 +578,7 @@ func main() {
 	// Used by docker personality until metadata support lands
 	if options.resolv {
 		if len(images) > 0 {
-			fmt.Printf("%s", images[0].history.V1Compatibility)
+			fmt.Printf("%s", images[0].meta)
 			os.Exit(0)
 		}
 		os.Exit(1)
@@ -565,7 +589,7 @@ func main() {
 		log.Fatalf(err.Error())
 	}
 
-	if err := CreateImageConfig(images); err != nil {
+	if err := CreateImageConfig(images, manifest); err != nil {
 		log.Fatalf(err.Error())
 	}
 
