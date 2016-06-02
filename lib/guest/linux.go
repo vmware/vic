@@ -115,7 +115,7 @@ func (l *LinuxGuestType) Controller() *types.BaseVirtualController {
 func UUID() (string, error) {
 	id, err := ioutil.ReadFile(UUIDPath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error retrieving vm uuid: %s", err)
 	}
 
 	uuidstr := string(id[:])

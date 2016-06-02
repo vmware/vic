@@ -41,6 +41,7 @@ import (
 	"github.com/docker/docker/reference"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/pkg/i18n"
 
 	"github.com/pkg/profile"
@@ -221,7 +222,7 @@ func DestinationDirectory() string {
 }
 
 // ImagesToDownload creates a slice of ImageWithMeta for the images that needs to be downloaded
-func ImagesToDownload(manifest *Manifest, hostname string) ([]*ImageWithMeta, error) {
+func ImagesToDownload(manifest *Manifest, storeName string) ([]*ImageWithMeta, error) {
 	images := make([]*ImageWithMeta, len(manifest.FSLayers))
 
 	v1 := docker.V1Image{}
@@ -246,7 +247,7 @@ func ImagesToDownload(manifest *Manifest, hostname string) ([]*ImageWithMeta, er
 			Image: &models.Image{
 				ID:     v1.ID,
 				Parent: &parent,
-				Store:  hostname,
+				Store:  storeName,
 			},
 			history: history,
 			layer:   layer,
@@ -261,13 +262,13 @@ func ImagesToDownload(manifest *Manifest, hostname string) ([]*ImageWithMeta, er
 	}
 
 	// Create the image store just in case
-	err := CreateImageStore(hostname)
+	err := CreateImageStore(storeName)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create image store: %s", err)
 	}
 
 	// Get the list of known images from the storage layer
-	existingImages, err := ListImages(hostname, images)
+	existingImages, err := ListImages(storeName, images)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to obtain list of images: %s", err)
 	}
@@ -484,10 +485,18 @@ func main() {
 		log.Fatalf("Failed to parse -reference: %s", err)
 	}
 
-	// Hostname is our storename
-	hostname, err := os.Hostname()
+	// Host is either the host's UUID (if run on vsphere) or the hostname of
+	// the system (iff run standalone)
+	host, err := guest.UUID()
+	if host != "" {
+		log.Infof("Using UUID (%s) for imagestore name", host)
+	} else if options.standalone {
+		host, err = os.Hostname()
+		log.Infof("Using host (%s) for imagestore name", host)
+	}
+
 	if err != nil {
-		log.Fatalf("Failed to return the host name: %s", err)
+		log.Fatalf("Failed to return the UUID or host name: %s", err)
 	}
 
 	if !options.standalone {
@@ -536,7 +545,7 @@ func main() {
 	}
 
 	// Create the ImageWithMeta slice to hold Image structs
-	images, err := ImagesToDownload(manifest, hostname)
+	images, err := ImagesToDownload(manifest, host)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}

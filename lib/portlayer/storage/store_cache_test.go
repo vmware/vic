@@ -155,6 +155,60 @@ func TestListImages(t *testing.T) {
 	}
 }
 
+// Create an image on the datastore directly and try to WriteImage via the
+// cache.  The datastore should reflect the image already exists and bale out
+// without an error.
+func TestOutsideCacheWriteImage(t *testing.T) {
+	s := NewLookupCache(NewMockDataStore())
+
+	storeURL, err := s.CreateImageStore(context.TODO(), "testStore")
+	if !assert.NoError(t, err) {
+		return
+	}
+	if !assert.NotNil(t, storeURL) {
+		return
+	}
+
+	// Create a set of images
+	images := make(map[string]*Image)
+	parent := Scratch
+	parent.Store = storeURL
+	for i := 1; i < 50; i++ {
+		id := fmt.Sprintf("ID-%d", i)
+
+		// Write to the datastore creating images
+		img, werr := s.DataStore.WriteImage(context.TODO(), &parent, id, nil, nil)
+		if !assert.NoError(t, werr) {
+			return
+		}
+		if !assert.NotNil(t, img) {
+			return
+		}
+
+		images[id] = img
+	}
+
+	testSum := "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+	// Try to write the same images as above, but this time via the cache.  WriteImage should return right away without any data written.
+	for i := 1; i < 50; i++ {
+		id := fmt.Sprintf("ID-%d", i)
+
+		// Write to the datastore creating images
+		img, werr := s.WriteImage(context.TODO(), &parent, id, nil, testSum, nil)
+		if !assert.NoError(t, werr) {
+			return
+		}
+		if !assert.NotNil(t, img) {
+			return
+		}
+
+		// assert it's the same image
+		if !assert.Equal(t, images[img.ID], img) {
+			return
+		}
+	}
+}
+
 // Create 2 store caches but use the same backing datastore.  Create images
 // with the first cache, then get the image with the second.  This simulates
 // restart since the second cache is empty and has to go to the backing store.

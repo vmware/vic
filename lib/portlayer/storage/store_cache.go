@@ -94,7 +94,7 @@ func (c *NameLookupCache) GetImageStore(ctx context.Context, storeName string) (
 
 		// add the images we retrieved to the cache.
 		for _, v := range images {
-			log.Infof("Found image %s", v.ID)
+			log.Infof("Imagestore: Found image %s on datastore.", v.ID)
 			c.storeCache[*store][v.ID] = *v
 		}
 
@@ -152,10 +152,18 @@ func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID stri
 		return nil, fmt.Errorf("parent (%s) doesn't exist in %s", parent.ID, parent.Store.String())
 	}
 
+	// Check the image doesn't already exist in the cache.  A miss in this will trigger a datastore lookup.
+	i, err := c.GetImage(ctx, p.Store, ID)
+	if err == nil && i != nil {
+		// TODO(FA) check sums to make sure this is the right image
+		return i, nil
+	}
+
+	// Definitely not in cache or image store, create image.
 	h := sha256.New()
 	t := io.TeeReader(r, h)
 
-	i, err := c.DataStore.WriteImage(ctx, p, ID, meta, t)
+	i, err = c.DataStore.WriteImage(ctx, p, ID, meta, t)
 	if err != nil {
 		return nil, err
 	}

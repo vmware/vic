@@ -26,6 +26,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/soap"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
@@ -60,8 +61,15 @@ type parentM struct {
 
 // Starts here.  Tries to create a new parentM or load an existing one.
 func restoreParentMap(ctx context.Context, s *session.Session) (*parentM, error) {
+
+	// Use the UUID of VCH as the root in the datastore.
+	host, err := guest.UUID()
+	if err != nil {
+		return nil, err
+	}
+
 	p := &parentM{
-		mFilePath: path.Join(datastoreParentPath, parentMFile),
+		mFilePath: path.Join(datastoreParentPath, host, parentMFile),
 		sess:      s,
 	}
 
