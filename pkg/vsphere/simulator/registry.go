@@ -40,11 +40,17 @@ func NewRegistry() *Registry {
 	return r
 }
 
+func TypeName(item mo.Reference) string {
+	return reflect.TypeOf(item).Elem().Name()
+}
+
+// newReference returns a new MOR, where Type defaults to type of the given item
+// and Value defaults to a unique id for the given type.
 func (r *Registry) newReference(item mo.Reference) types.ManagedObjectReference {
 	ref := item.Reference()
 
 	if ref.Type == "" {
-		ref.Type = reflect.TypeOf(item).Elem().Name()
+		ref.Type = TypeName(item)
 	}
 
 	if ref.Value == "" {
@@ -104,4 +110,40 @@ func (r *Registry) Remove(item types.ManagedObjectReference) {
 	defer r.m.Unlock()
 
 	delete(r.objects, item)
+}
+
+// getEntityParent traverses up the inventory and returns the first object of type kind.
+// If no object of type kind is found, the method will panic when it reaches the
+// inventory root Folder where the Parent field is nil.
+func (r *Registry) getEntityParent(item mo.Entity, kind string) mo.Entity {
+	for {
+		parent := item.Entity().Parent
+
+		item = Map.Get(*parent).(mo.Entity)
+
+		if item.Reference().Type == kind {
+			return item
+		}
+	}
+}
+
+// getEntityDatacenter returns the Datacenter containing the given item
+func (r *Registry) getEntityDatacenter(item mo.Entity) *mo.Datacenter {
+	return r.getEntityParent(item, "Datacenter").(*mo.Datacenter)
+}
+
+// FindByName returns the first mo.Entity of the given refs whose Name field is equal to the given name.
+// If there is no match, nil is returned.
+// This method is useful for cases where objects are required to have a unique name, such as Datastore with
+// a HostStorageSystem or HostSystem within a ClusterComputeResource.
+func (r *Registry) FindByName(name string, refs []types.ManagedObjectReference) mo.Entity {
+	for _, ref := range refs {
+		e := Map.Get(ref).(mo.Entity)
+
+		if name == e.Entity().Name {
+			return e
+		}
+	}
+
+	return nil
 }
