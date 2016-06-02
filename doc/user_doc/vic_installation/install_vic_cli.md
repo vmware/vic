@@ -52,6 +52,14 @@ Connect to docker:docker -H <i>vch_address</i>:2376
 --tls --tlscert='./<i>vch_name</i>-cert.pem' 
 --tlskey='./<i>vch_name</i>.pem' info</pre>
 
+3. (Optional) Copy the generated certificate and key files to the Docker client system.
+
+  If you did not explicitly disable TLS certificate generation by using the `generate-cert=false` option, and if your Docker client is not on the same system as the one that you used to run `vic-machine`, you must copy the <code><i>vch_name</i>-cert.pem</code> and <code><i>vch_name</i>-key.pem</code> files to the Docker client system.
+
+**What to Do Next**
+
+If you did not explicitly disable TLS certificate generation by using the `generate-cert=false` option, and if your Docker client is not on the same system as the one that you used to run `vic-machine`, copy the <code><i>vch_name</i>-cert.pem</code> and <code><i>vch_name</i>-key.pem</code> files to the Docker client system. 
+
 To test your virtual container host, see [Verify the Deployment of a Virtual Container Host to vCenter Server](verify_vch_deployment.md) or [Verify the Deployment of a Virtual Container Host to an ESXi Host](verify_vch_deployment_esx.md).
     
     

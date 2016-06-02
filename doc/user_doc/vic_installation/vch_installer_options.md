@@ -181,3 +181,13 @@ The ISO image from which the virtual container host appliance boots. Omit this o
 The ISO image from which container VMs boot. Omit this option to boot container VMs from the default Photon OS ISO that is included with `vic-machine`. Set this option to a different ISO file to boot container VMs with an operating system other than Photon OS.
 
 <pre>-bootstrap-iso <i>path_to_ISO_file</i></pre>
+
+### `appliance-cpu ` ###
+The number of virtual CPUs for the virtual container host appliance VM. The default is 1. Set this option to increase the number of CPUs in the virtual container host VM, for example if the virtual container host will handle large volumes of containers, or containers that require a lot of processing power.
+
+<pre>-appliance-cpu <i>number_of_CPUs</i></pre>
+
+### `appliance-memory ` ###
+The amount of memory for the virtual container host appliance VM. The default is 2048MB. Set this option to increase the amount of memory in the virtual container host VM, for example if the virtual container host will handle large volumes of containers, or containers that consume a lot of memory.
+
+<pre>-appliance-memory <i>amount_of_memory</i></pre>
