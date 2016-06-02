@@ -34,9 +34,24 @@ func NewHostSystem(host mo.HostSystem) *HostSystem {
 	host.Summary.Runtime = &host.Runtime
 	host.Summary.Runtime.BootTime = &now
 
-	return &HostSystem{
+	hs := &HostSystem{
 		HostSystem: host,
 	}
+
+	config := []struct {
+		ref **types.ManagedObjectReference
+		obj mo.Reference
+	}{
+		{&hs.ConfigManager.DatastoreSystem, &HostDatastoreSystem{Host: &hs.HostSystem}},
+	}
+
+	for _, c := range config {
+		ref := Map.Put(c.obj).Reference()
+
+		*c.ref = &ref
+	}
+
+	return hs
 }
 
 // CreateDefaultESX creates a standalone ESX
