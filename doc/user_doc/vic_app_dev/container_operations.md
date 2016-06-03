@@ -12,7 +12,7 @@
 |Docker images|[Images](https://docs.docker.com/engine/reference/commandline/images/)<br>[list-images](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#list-images)|Yes|
 |Docker ps|[Show running containers](https://docs.docker.com/engine/reference/commandline/ps/)|Yes|
 |Docker logs|[Get container logs](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#get-container-logs)|No, onsite beta|
-|Docker restart|[Restart a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#restart-a-container)<br> [Restart](https://docs.docker.com/engine/reference/commandline/restart/)|No, onsite|
+|Docker restart|[Restart a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#restart-a-container)<br> [Restart](https://docs.docker.com/engine/reference/commandline/restart/)|No, onsite beta|
 |Docker kill|[Kill a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#kill-a-container)<br> [Kill](https://docs.docker.com/engine/reference/commandline/kill/)|TBD|
 
 | **Network** | **Docker Reference** | **Supported in TP3** |
@@ -32,7 +32,7 @@
 | **Commands** | **Docker Reference** | **Supported version** |
 | --- | --- | --- |
 |Link|[Link](https://docs.docker.com/v1.8/userguide/dockerlinks/)|TBD|
-|List|[https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#list-containers](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#list-containers)|No|
+|List|[List Containers](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#list-containers)|No|
 |Docker export|[Export a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#export-a-container)|Future release|
 |Docker save|[Save images](https://docs.docker.com/engine/reference/commandline/save/)|Future release|
 |Docker stats|[Get container stats based on resource usage](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#get-container-stats-based-on-resource-usage)<br> [Stats](https://docs.docker.com/engine/reference/commandline/stats/)|Future release|
