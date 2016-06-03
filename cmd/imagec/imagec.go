@@ -51,7 +51,8 @@ var (
 	options = ImageCOptions{}
 
 	// https://raw.githubusercontent.com/docker/docker/master/distribution/pull_v2.go
-	po = streamformatter.NewJSONStreamFormatter().NewProgressOutput(os.Stdout, false)
+	sf = streamformatter.NewJSONStreamFormatter()
+	po = sf.NewProgressOutput(os.Stdout, false)
 )
 
 // ImageCOptions wraps the cli arguments
@@ -470,6 +471,9 @@ func main() {
 		// do nothing
 	}
 
+	// Register our custom Error hook
+	log.AddHook(NewErrorHook("ErrorHook"))
+
 	// Enable runtime tracing if tracing is true
 	if options.tracing {
 		tracing, err := os.Create(time.Now().Format("2006-01-02T150405.pprof"))
@@ -505,12 +509,13 @@ func main() {
 		log.SetOutput(io.MultiWriter(os.Stdout, f))
 	}
 
+	// Parse the -reference parameter
 	if err = ParseReference(); err != nil {
-		log.Fatalf("Failed to parse -reference: %s", err)
+		log.Fatalf(err.Error())
 	}
 
 	// Host is either the host's UUID (if run on vsphere) or the hostname of
-	// the system (iff run standalone)
+	// the system (if run standalone)
 	host, err := guest.UUID()
 	if host != "" {
 		log.Infof("Using UUID (%s) for imagestore name", host)
@@ -538,7 +543,7 @@ func main() {
 	// Calculate (and overwrite) the registry URL and make sure that it responds to requests
 	options.registry, err = LearnRegistryURL(options)
 	if err != nil {
-		log.Fatalf("Failed to communicate with registry: %s", err)
+		log.Fatalf("Error while pulling image: %s", err)
 	}
 
 	// Get the URL of the OAuth endpoint
@@ -559,7 +564,7 @@ func main() {
 	// Get the manifest
 	manifest, err := FetchImageManifest(options)
 	if err != nil {
-		log.Fatalf("Failed to fetch image manifest: %s", err)
+		log.Fatalf("Error while pulling image manifest: %s", err)
 	}
 
 	// HACK: Required to learn the name of the vmdk from given reference
