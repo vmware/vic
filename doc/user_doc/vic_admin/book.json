@@ -1,0 +1,9 @@
+{
+	"title": "VMWare vSphere Integrated Containers for vSphere Administrators, version 0.3.0",
+
+	"pdf": {
+		"headerTemplate": "_TITLE_",
+		"footerTemplate": "_PAGENUM_"
+	}
+
+}

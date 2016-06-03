@@ -1,0 +1,9 @@
+{
+	"title": "Developing Container Applications with VMWare vSphere Integrated Containers, version 0.3.0",
+
+	"pdf": {
+		"headerTemplate": "_TITLE_",
+		"footerTemplate": "_PAGENUM_"
+	}
+
+}
