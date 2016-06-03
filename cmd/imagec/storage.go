@@ -29,7 +29,9 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-const MetaDataKey = "metaData"
+const (
+	MetaDataKey = "metaData"
+)
 
 // PingPortLayer calls the _ping endpoint of the portlayer
 func PingPortLayer() (bool, error) {

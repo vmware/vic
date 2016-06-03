@@ -49,6 +49,55 @@ const (
 	DigestSHA256EmptyData = "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 )
 
+func TestParseReference(t *testing.T) {
+	options.reference = "busybox"
+	if err := ParseReference(); err != nil {
+		t.Errorf(err.Error())
+	}
+
+	options.reference = "library/busybox"
+	if err := ParseReference(); err != nil {
+		t.Errorf(err.Error())
+	}
+
+	options.reference = "library/busybox:latest"
+	if err := ParseReference(); err != nil {
+		t.Errorf(err.Error())
+	}
+
+	// should fail
+	options.reference = "library/busybox@invalid"
+	if err := ParseReference(); err == nil {
+		t.Errorf(err.Error())
+	}
+}
+
+func TestLearnRegistryURL(t *testing.T) {
+	s := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Docker-Distribution-API-Version", "registry/2.0")
+			http.Error(w, "You shall not pass", http.StatusUnauthorized)
+		}))
+	defer s.Close()
+
+	options.registry = s.URL[7:]
+	options.image = Image
+	options.digest = Tag
+
+	// should fail
+	_, err := LearnRegistryURL(options)
+	if err == nil {
+		t.Errorf(err.Error())
+	}
+
+	// should pass
+	options.insecureAllowHTTP = true
+	_, err = LearnRegistryURL(options)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+}
+
 func TestLearnAuthURL(t *testing.T) {
 	s := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -202,5 +251,78 @@ func TestFetchImageBlob(t *testing.T) {
 
 	if string(hist) != LayerHistory {
 		t.Errorf(err.Error())
+	}
+}
+
+func TestPingPortLayer(t *testing.T) {
+	s := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte("\"OK\""))
+		}))
+	defer s.Close()
+
+	options.host = s.URL[7:]
+
+	b, err := PingPortLayer()
+	if err != nil || b != true {
+		t.Errorf(err.Error())
+	}
+}
+
+func TestCreateImageStore(t *testing.T) {
+	s := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+
+			resp := `
+			{
+				"code":201,"url":"http://Photon/storage/PetStore"
+			}
+			`
+			w.Write([]byte(resp))
+		}))
+	defer s.Close()
+
+	options.host = s.URL[7:]
+
+	err := CreateImageStore(Storename)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+}
+
+func TestListImages(t *testing.T) {
+	s := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+
+			resp := `
+[
+  {
+    "ID": "7bd023c8937ded982c1b98da453b1a5afec86f390ffad8fa0f4fba244a6155f1",
+    "Metadata": {
+      "v1Compatibility": "{\"id\":\"7bd023c8937ded982c1b98da453b1a5afec86f390ffad8fa0f4fba244a6155f1\",\"parent\":\"b873f334fa5259acb24cf0e2cd2639d3a9fb3eb9bafbca06ed4f702c289b31c0\",\"created\":\"2016-05-27T14:15:02.359284074Z\",\"container\":\"b8bd6a8e8874a87f626871ce370f4775bdf598865637082da2949ee0f4786432\",\"container_config\":{\"Hostname\":\"914cf42a3e15\",\"Domainname\":\"\",\"User\":\"\",\"AttachStdin\":false,\"AttachStdout\":false,\"AttachStderr\":false,\"Tty\":false,\"OpenStdin\":false,\"StdinOnce\":false,\"Env\":[],\"Cmd\":[\"/bin/sh\",\"-c\",\"#(nop) CMD [\\\"/bin/bash\\\"]\"],\"Image\":\"b873f334fa5259acb24cf0e2cd2639d3a9fb3eb9bafbca06ed4f702c289b31c0\",\"Volumes\":null,\"WorkingDir\":\"\",\"Entrypoint\":null,\"OnBuild\":null,\"Labels\":{}},\"docker_version\":\"1.9.1\",\"config\":{\"Hostname\":\"914cf42a3e15\",\"Domainname\":\"\",\"User\":\"\",\"AttachStdin\":false,\"AttachStdout\":false,\"AttachStderr\":false,\"Tty\":false,\"OpenStdin\":false,\"StdinOnce\":false,\"Env\":[],\"Cmd\":[\"/bin/bash\"],\"Image\":\"b873f334fa5259acb24cf0e2cd2639d3a9fb3eb9bafbca06ed4f702c289b31c0\",\"Volumes\":null,\"WorkingDir\":\"\",\"Entrypoint\":null,\"OnBuild\":null,\"Labels\":{}},\"architecture\":\"amd64\",\"os\":\"linux\"}"
+    },
+    "SelfLink": "http://Photon/storage/7bd023c8937ded982c1b98da453b1a5afec86f390ffad8fa0f4fba244a6155f1",
+    "Store": "http://Photon/storage/PetStore"
+  }
+]
+`
+			w.Write([]byte(resp))
+		}))
+	defer s.Close()
+
+	options.host = s.URL[7:]
+
+	m, err := ListImages(Storename, nil)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	if m["7bd023c8937ded982c1b98da453b1a5afec86f390ffad8fa0f4fba244a6155f1"].ID != "7bd023c8937ded982c1b98da453b1a5afec86f390ffad8fa0f4fba244a6155f1" {
+		t.Errorf("Returned list %#v is different than expected", m)
 	}
 }
