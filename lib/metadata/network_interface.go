@@ -42,8 +42,7 @@ type NetworkEndpoint struct {
 // ContainerNetwork is the data needed on a per container basis both for vSphere to ensure it's attached
 // to the correct network, and in the guest to ensure the interface is correctly configured.
 type ContainerNetwork struct {
-	// The symbolic name of the network
-	Name string `vic:"0.1" scope:"read-only" key:"name"`
+	Common
 
 	// The network scope the IP belongs to.
 	// The IP address is the default gateway

@@ -15,6 +15,7 @@
 package tether
 
 import (
+	"crypto/tls"
 	"os"
 	"os/exec"
 	"sync"
@@ -24,6 +25,9 @@ import (
 )
 
 type ExecutorConfig struct {
+	// The name of the system
+	Name string `vic:"0.1" scope:"read-only" key:"common/name"`
+
 	// ID corresponds to that of the primary session
 	ID string `vic:"0.1" scope:"read-only" key:"common/id"`
 
@@ -46,7 +50,7 @@ type ExecutorConfig struct {
 
 	// Key is the host key used during communicate back with the Interaction endpoint if any
 	// Used if the in-guest tether is responsible for authenticating the connection
-	Key []byte `vic:"0.1" scope:"read-only" key:"key"`
+	Certificate tls.Certificate `vic:"0.1" scope:"read-only" key:"cert" recurse:"0"`
 }
 
 // SessionConfig defines the content of a session - this maps to the root of a process tree

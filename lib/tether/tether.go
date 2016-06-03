@@ -153,7 +153,7 @@ func (t *tether) Start() error {
 		extraconfig.Decode(t.src, t.config)
 		logConfig(t.config)
 
-		if err := t.ops.SetHostname(stringid.TruncateID(t.config.ID)); err != nil {
+		if err := t.ops.SetHostname(stringid.TruncateID(t.config.ID), t.config.Name); err != nil {
 			detail := fmt.Sprintf("failed to set hostname: %s", err)
 			log.Error(detail)
 			// we don't attempt to recover from this - it's a fundemental misconfiguration

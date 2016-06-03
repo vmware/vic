@@ -16,6 +16,7 @@ package metadata
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net/mail"
 	"net/url"
 	"time"
@@ -37,10 +38,10 @@ type VirtualContainerHostConfigSpec struct {
 	// The base config for the appliance. This includes the networks that are to be attached
 	// and disks to be mounted.
 	// Networks are keyed by interface name
-	ExecutorConfig `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	ExecutorConfig `vic:"0.1" scope:"read-only" key:"init"`
 
 	// The sdk URL
-	Target string `vic:"0.1" scope:"read-only" key:"target"`
+	Target url.URL `vic:"0.1" scope:"read-only" key:"target"`
 	// Whether the session connection is secure
 	Insecure bool `vic:"0.1" scope:"read-only" key:"insecure"`
 	// The session timeout
@@ -63,15 +64,14 @@ type VirtualContainerHostConfigSpec struct {
 	HostCertificates map[string]tls.Certificate
 
 	// Port Layer - storage
-	// Datastore used for the ImageStore
-	// TODO this will change, probably to url.URL, as needed by the port layer
-	ImageStore string `vic:"0.1" scope:"read-only" key:"image_store"`
+	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
+	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores"`
 	// Permitted datastore URL roots for volumes
-	VolumeLocations []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	VolumeLocations map[string]url.URL `vic:"0.1" scope:"read-only"`
 	// Permitted datastore URLs for container storage for this virtual container host
 	ContainerStores []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	// Resource pools under which all containers will be created
-	ComputeResources []types.ManagedObjectReference `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	ComputeResources []types.ManagedObjectReference `vic:"0.1" scope:"read-only"`
 
 	// Port Layer - network
 	// The default bridge network supplied for the Virtual Container Host
@@ -142,4 +142,84 @@ type Resources struct {
 	Memory  types.ResourceAllocationInfo
 	IO      types.ResourceAllocationInfo
 	Storage types.ResourceAllocationInfo
+}
+
+// SetHostCertificate sets the certificate for authenticting with the appliance itself
+func (t *VirtualContainerHostConfigSpec) SetHostCertificate(key *[]byte) {
+	t.ExecutorConfig.Key = *key
+}
+
+// SetName sets the name of the VCH - this will be used as the hostname for the appliance
+func (t *VirtualContainerHostConfigSpec) SetName(name string) {
+	t.ExecutorConfig.Common.Name = name
+}
+
+// SetMoref sets the moref of the VCH - this allows components to acquire a handle to
+// the appliance VM.
+func (t *VirtualContainerHostConfigSpec) SetMoref(moref *types.ManagedObjectReference) {
+	if moref != nil {
+		t.ExecutorConfig.Common.ID = fmt.Sprintf("%s-%s", moref.Type, moref.Value)
+	}
+}
+
+// AddNetwork adds a network that will be configured on the appliance VM
+func (t *VirtualContainerHostConfigSpec) AddNetwork(net *NetworkEndpoint) {
+	if net != nil {
+		if t.ExecutorConfig.Networks == nil {
+			t.ExecutorConfig.Networks = make(map[string]*NetworkEndpoint)
+		}
+
+		t.ExecutorConfig.Networks[net.Network.Common.Name] = net
+	}
+}
+
+func (t *VirtualContainerHostConfigSpec) AddComponent(name string, component *SessionConfig) {
+	if component != nil {
+		if t.ExecutorConfig.Sessions == nil {
+			t.ExecutorConfig.Sessions = make(map[string]SessionConfig)
+		}
+
+		t.ExecutorConfig.Sessions[name] = *component
+	}
+}
+
+func (t *VirtualContainerHostConfigSpec) AddImageStore(url *url.URL) {
+	if url != nil {
+		t.ImageStores = append(t.ImageStores, *url)
+	}
+}
+
+func (t *VirtualContainerHostConfigSpec) AddVolumeLocation(name string, url *url.URL) {
+	if url != nil {
+		t.VolumeLocations[name] = *url
+	}
+}
+
+// AddComputeResource adds a moref to the set of permitted root pools. It takes a ResourcePool rather than
+// an inventory path to encourage validation.
+func (t *VirtualContainerHostConfigSpec) AddComputeResource(pool *types.ManagedObjectReference) {
+	if pool != nil {
+		t.ComputeResources = append(t.ComputeResources, *pool)
+	}
+}
+
+func (t *VirtualContainerHostConfigSpec) SetvSphereTarget(url *url.URL) {
+	if url != nil {
+		t.Target = *url
+	}
+}
+
+func CreateSession(cmd string, args ...string) *SessionConfig {
+	cfg := &SessionConfig{
+		Cmd: Cmd{
+			Path: cmd,
+			Args: []string{
+				cmd,
+			},
+		},
+	}
+
+	cfg.Cmd.Args = append(cfg.Cmd.Args, args...)
+
+	return cfg
 }

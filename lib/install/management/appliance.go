@@ -147,12 +147,16 @@ func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConf
 	var devices object.VirtualDeviceList
 	var err error
 
+	cfg := make(map[string]string)
+	extraconfig.Encode(extraconfig.MapSink(cfg), conf)
+
 	spec := &types.VirtualMachineConfigSpec{
-		Name:     conf.Name,
-		GuestId:  "other3xLinux64Guest",
-		Files:    &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStoreName)},
-		NumCPUs:  int32(conf.ApplianceSize.CPU.Limit),
-		MemoryMB: conf.ApplianceSize.Memory.Limit,
+		Name:        conf.Name,
+		GuestId:     "other3xLinux64Guest",
+		Files:       &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStoreName)},
+		NumCPUs:     int32(conf.ApplianceSize.CPU.Limit),
+		MemoryMB:    conf.ApplianceSize.Memory.Limit,
+		ExtraConfig: extraconfig.OptionValueFromMap(cfg),
 	}
 
 	if devices, err = d.addIDEController(devices); err != nil {
@@ -394,14 +398,8 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *metad
 	spec.ExtraConfig = d.getPresetExtraconfig(conf)
 
 	cfg := make(map[string]string)
-	extraconfig.EncodeWithPrefix(extraconfig.MapSink(cfg), conf, "guestinfo.vch")
+	extraconfig.Encode(extraconfig.MapSink(cfg), conf)
 	spec.ExtraConfig = append(spec.ExtraConfig, extraconfig.OptionValueFromMap(cfg)...)
-	// Work with launcher.sh for mac settings, we can only set the value while mac address is ready
-	spec.ExtraConfig = append(spec.ExtraConfig,
-		&types.OptionValue{
-			Key:   "guestinfo.vch/networks",
-			Value: " ",
-		})
 	return spec, nil
 }
 

@@ -46,7 +46,7 @@ type BaseOperations struct {
 }
 
 // SetHostname sets both the kernel hostname and /etc/hostname to the specified string
-func (t *BaseOperations) SetHostname(hostname string) error {
+func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	defer trace.End(trace.Begin("setting hostname to " + hostname))
 
 	old, err := os.Hostname()
@@ -86,7 +86,8 @@ func (t *BaseOperations) SetHostname(hostname string) error {
 	}
 	defer hosts.Close()
 
-	_, err = hosts.WriteString(fmt.Sprintf("\n127.0.0.1 %s\n", hostname))
+	names := strings.Join(aliases, " ")
+	_, err = hosts.WriteString(fmt.Sprintf("127.0.0.1 %s %s", hostname, names))
 	if err != nil {
 		detail := fmt.Sprintf("failed to add hosts entry for hostname %s: %s", hostname, err)
 		return errors.New(detail)

@@ -16,6 +16,7 @@ package validate
 
 import (
 	"fmt"
+	"net/url"
 	"reflect"
 	"strings"
 
@@ -27,6 +28,8 @@ import (
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/vsphere/session"
+
+	"github.com/vmware/govmomi/vim25/types"
 
 	"golang.org/x/net/context"
 )
@@ -45,13 +48,183 @@ type Validator struct {
 
 	Session *session.Session
 	Context context.Context
+
+	issues []error
 }
 
 func NewValidator() *Validator {
 	return &Validator{}
 }
 
-func (v *Validator) Validate(input *data.Data) (*metadata.VirtualContainerHostConfigSpec, error) {
+func (v *Validator) NoteIssue(err error) {
+	if err != nil {
+		v.issues = append(v.issues, err)
+	}
+}
+
+func (v *Validator) ListIssues() error {
+	if len(v.issues) == 0 {
+		return nil
+	}
+
+	for _, err := range v.issues {
+		fmt.Println(err)
+	}
+
+	return errors.New("Validation of configuration failed")
+}
+
+func (v *Validator) Validate2(ctx context.Context, input *Data, conf *metadata.VirtualContainerHostConfigSpec) (*metadata.VirtualContainerHostConfigSpec, error) {
+	var targetURL url.URL
+	targetURL.Host = input.target
+	targetURL.Path = "sdk"
+	targetURL.User = url.UserPassword(input.user, *input.passwd)
+
+	conf.Target = targetURL
+	conf.Insecure = input.insecure
+
+	// TODO: ensure that displayname doesn't violate constraints (length, characters, etc)
+	conf.SetName(input.displayName)
+
+	// Compute
+	pool, err := v.ResourcePool(ctx, input.computeResourcePath)
+	v.NoteIssue(err)
+	conf.AddComputeResource(pool)
+
+	// Image Store
+	ds, err := v.DatastorePath(ctx, input.imageDatastoreName)
+	v.NoteIssue(err)
+	conf.AddImageStore(ds)
+
+	// TODO: add volume locations
+
+	// External net
+	extMoref, err := v.Network(ctx, input.externalNetworkName)
+	v.NoteIssue(err)
+	conf.AddNetwork(&metadata.NetworkEndpoint{
+		Network: metadata.ContainerNetwork{
+			Common: metadata.Common{
+				Name: "external",
+				ID:   fmt.Sprintf("%s-%s", extMoref.Type, extMoref.Value),
+			},
+		},
+	})
+
+	// Bridge net
+	bridgeMoref, err := v.Network(ctx, input.bridgeNetworkName)
+	v.NoteIssue(err)
+	conf.AddNetwork(&metadata.NetworkEndpoint{
+		Network: metadata.ContainerNetwork{
+			Common: metadata.Common{
+				Name: "bridge",
+				ID:   fmt.Sprintf("%s-%s", bridgeMoref.Type, bridgeMoref.Value),
+			},
+		},
+	})
+
+	// Management net
+	if input.managementNetworkName != "" {
+		managementMoref, err := v.Network(ctx, input.managementNetworkName)
+		v.NoteIssue(err)
+		conf.AddNetwork(&metadata.NetworkEndpoint{
+			Network: metadata.ContainerNetwork{
+				Common: metadata.Common{
+					Name: "bridge",
+					ID:   fmt.Sprintf("%s-%s", managementMoref.Type, managementMoref.Value),
+				},
+			},
+		})
+	}
+
+	// TODO: add client network
+
+	// TODO: add mapped networks
+
+	// Perform the higher level compatibility and consistency checks
+	err = v.CompatibilityChecks(ctx, conf)
+	v.NoteIssue(err)
+
+	// TODO: determine if this is where we should turn the noted issues into message
+	return conf, v.ListIssues()
+}
+
+func (v *Validator) Network(ctx context.Context, path string) (*types.ManagedObjectReference, error) {
+	nets, err := v.Session.Finder.NetworkList(ctx, path)
+	if err != nil {
+		// TODO: error message about no such match and how to get a network list
+		return nil, errors.New("no such network " + path)
+	}
+	if len(nets) > 1 {
+		// TODO: error about required disabmiguation and list entries in nets
+		return nil, errors.New("ambiguous network " + path)
+	}
+
+	moref := nets[0].Reference()
+	return &moref, nil
+}
+
+func (v *Validator) DatastorePath(ctx context.Context, path string) (*url.URL, error) {
+	dsURL, err := url.Parse(path)
+	if err != nil {
+		// try treating it as a plain path
+		pathElements := strings.Split(path, "/")
+		if pathElements[0] == "" {
+			// TODO: error about requiring datastore path and how to get a datastore list
+			return nil, errors.New("requires datastore name")
+		}
+
+		dsURL.Scheme = "ds://"
+		dsURL.Host = pathElements[0]
+		dsURL.Path = strings.Join(pathElements[1:], "/")
+	}
+
+	// if a datastore name (e.g. "datastore1") is specifed with no decoration then this
+	// is interpreted as the Path
+	if dsURL.Host == "" && dsURL.Path != "" {
+		dsURL.Host = dsURL.Path
+		dsURL.Path = ""
+	}
+
+	stores, err := v.Session.Finder.DatastoreList(ctx, dsURL.Host)
+	if err != nil {
+		// TODO: error message about no such match and how to get a network list
+		return nil, fmt.Errorf("no such datastore %#v", dsURL)
+	}
+	if len(stores) > 1 {
+		// TODO: error about required disabmiguation and list entries in nets
+		return nil, errors.New("ambiguous datastore " + dsURL.Host)
+	}
+
+	dsURL.Host = stores[0].Reference().Value
+
+	return dsURL, nil
+}
+
+func (v *Validator) ResourcePool(ctx context.Context, path string) (*types.ManagedObjectReference, error) {
+	pools, err := v.Session.Finder.ResourcePoolList(ctx, path)
+	if err != nil {
+		// TODO: error message about no such match and how to get a network list
+		return nil, errors.New("no such compute resource " + path)
+	}
+	if len(pools) > 1 {
+		// TODO: error about required disabmiguation and list entries in nets
+		return nil, errors.New("ambiguous compute resource " + path)
+	}
+
+	moref := pools[0].Reference()
+	return &moref, nil
+}
+
+func (v *Validator) CompatibilityChecks(ctx context.Context, conf *metadata.VirtualContainerHostConfigSpec) error {
+	// TODO: add checks such as datastore is acessible from target cluster
+	return nil
+}
+
+func (v *Validator) Validate(input *Data) (*metadata.VirtualContainerHostConfigSpec, error) {
+	var targetURL url.URL
+	targetURL.Host = input.target
+	targetURL.Path = "sdk"
+	targetURL.User = url.UserPassword(input.user, *input.passwd)
 
 	vchConfig := &metadata.VirtualContainerHostConfigSpec{}
 	vchConfig.ApplianceSize.CPU.Limit = int64(input.NumCPUs)
@@ -164,11 +337,11 @@ func (v *Validator) validateConfiguration(input *data.Data, vchConfig *metadata.
 	if err = v.setNetworks(vchConfig); err != nil {
 		return errors.Errorf("Find networks failed with %s", err)
 	}
-	vchConfig.Cluster = v.Session.Cluster.Reference()
-	vchConfig.Datacenter = v.Session.Datacenter.Reference()
-	vchConfig.ComputeResources = append(vchConfig.ComputeResources, v.Session.Pool.Reference())
-	vchConfig.ImageStore = v.ImageStorePath
 
+	vchConfig.ComputeResources = append(vchConfig.ComputeResources, v.Session.Pool.Reference())
+	var imageURL url.URL
+	imageURL.Host = v.Session.Datastore.Reference().Value
+	vchConfig.ImageStores = append(vchConfig.ImageStores, imageURL)
 	//TODO: Add more configuration validation
 	return nil
 }
