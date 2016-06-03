@@ -51,12 +51,7 @@ func TestDefaultESX(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	name, err := host.Name(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if name != esx.HostSystem.Summary.Config.Name {
+	if host.Name() != esx.HostSystem.Summary.Config.Name {
 		t.Fail()
 	}
 
@@ -65,12 +60,7 @@ func TestDefaultESX(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	name, err = pool.Name(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if name != "Resources" {
+	if pool.Name() != "Resources" {
 		t.Fail()
 	}
 }

@@ -176,14 +176,6 @@
 			"path": "/api"
 		},
 		{
-			"importpath": "github.com/docker/docker/api/server",
-			"repository": "https://github.com/docker/docker",
-			"vcs": "",
-			"revision": "0771230daac8aa2d66edddecd935d2c182850077",
-			"branch": "master",
-			"path": "/api/server"
-		},
-		{
 			"importpath": "github.com/docker/docker/builder",
 			"repository": "https://github.com/docker/docker",
 			"vcs": "",
@@ -414,14 +406,6 @@
 			"revision": "f832183e33a690e297bd6dacf7a9cd812025daac",
 			"branch": "master",
 			"path": "/pkg/parsers"
-		},
-		{
-			"importpath": "github.com/docker/docker/pkg/parsers/kernel",
-			"repository": "https://github.com/docker/docker",
-			"vcs": "",
-			"revision": "0771230daac8aa2d66edddecd935d2c182850077",
-			"branch": "master",
-			"path": "/pkg/parsers/kernel"
 		},
 		{
 			"importpath": "github.com/docker/docker/pkg/plugins",
@@ -667,14 +651,6 @@
 			"vcs": "",
 			"revision": "f20612eae4270043e9cf5972b6a2db4efb190819",
 			"branch": "master"
-		},
-		{
-			"importpath": "github.com/docker/libnetwork/portallocator",
-			"repository": "https://github.com/docker/libnetwork",
-			"vcs": "",
-			"revision": "67f3a50153be8c04b2a04f050ac8834d7b94cb27",
-			"branch": "master",
-			"path": "/portallocator"
 		},
 		{
 			"importpath": "github.com/docker/libtrust",
@@ -1065,7 +1041,7 @@
 			"importpath": "github.com/vmware/govmomi",
 			"repository": "https://github.com/vmware/govmomi",
 			"vcs": "git",
-			"revision": "9051bd6b44125d9472e0c148b5965692ab283d4a",
+			"revision": "6906d3015475c4bd38fc6932f32574029d7b7020",
 			"branch": "master"
 		},
 		{
@@ -1098,14 +1074,6 @@
 			"revision": "b6d7b1396ec874c3b00f6c84cd4301a17c56c8ed",
 			"branch": "master",
 			"path": "/context"
-		},
-		{
-			"importpath": "golang.org/x/net/context/ctxhttp",
-			"repository": "https://go.googlesource.com/net",
-			"vcs": "",
-			"revision": "b6d7b1396ec874c3b00f6c84cd4301a17c56c8ed",
-			"branch": "master",
-			"path": "/context/ctxhttp"
 		},
 		{
 			"importpath": "golang.org/x/net/netutil",
