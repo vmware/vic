@@ -23,7 +23,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/pkg/vsphere/guest"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
 
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -51,7 +51,7 @@ func CreateVM(ctx context.Context, session *session.Session, host *object.HostSy
 
 	// Create the vm
 	info, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return parent.CreateVM(ctx, *linux.Spec(), session.Pool, host)
+		return parent.CreateVM(ctx, *linux.Spec().Spec(), session.Pool, host)
 	})
 	if err != nil {
 		return nil, err

@@ -15,6 +15,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -23,6 +24,7 @@ import (
 	"os"
 	"path"
 	"runtime/trace"
+	"strings"
 	"sync"
 	"time"
 
@@ -30,13 +32,16 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	docker "github.com/docker/docker/image"
+	dockerLayer "github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/reference"
 
-	"github.com/vmware/vic/apiservers/portlayer/models"
+	"github.com/vmware/vic/lib/apiservers/portlayer/models"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/pkg/i18n"
 
 	"github.com/pkg/profile"
@@ -70,9 +75,12 @@ type ImageCOptions struct {
 
 	timeout time.Duration
 
-	stdout     bool
-	debug      bool
-	insecure   bool
+	stdout bool
+	debug  bool
+
+	insecureSkipVerify bool
+	insecureAllowHTTP  bool
+
 	standalone bool
 	resolv     bool
 
@@ -84,8 +92,10 @@ type ImageCOptions struct {
 type ImageWithMeta struct {
 	*models.Image
 
-	layer   FSLayer
-	history History
+	diffID string
+	layer  FSLayer
+	meta   string
+	size   int64
 }
 
 func (i *ImageWithMeta) String() string {
@@ -94,7 +104,7 @@ func (i *ImageWithMeta) String() string {
 
 const (
 	// DefaultDockerURL holds the URL of Docker registry
-	DefaultDockerURL = "https://registry-1.docker.io/v2/"
+	DefaultDockerURL = "registry-1.docker.io"
 
 	// DefaultDestination specifies the default directory to use
 	DefaultDestination = "images"
@@ -137,7 +147,8 @@ func init() {
 
 	flag.BoolVar(&options.stdout, "stdout", false, i18n.T("Enable writing to stdout"))
 	flag.BoolVar(&options.debug, "debug", false, i18n.T("Show debug logging"))
-	flag.BoolVar(&options.insecure, "insecure", false, i18n.T("Skip certificate verification checks"))
+	flag.BoolVar(&options.insecureSkipVerify, "insecure-skip-verify", false, i18n.T("Don't verify certificates when fetching images"))
+	flag.BoolVar(&options.insecureAllowHTTP, "insecure-allow-http", false, i18n.T("Uses unencrypted connections when fetching images"))
 	flag.BoolVar(&options.standalone, "standalone", false, i18n.T("Disable port-layer integration"))
 
 	flag.BoolVar(&options.resolv, "resolv", false, i18n.T("Return the name of the vmdk from given reference"))
@@ -212,10 +223,10 @@ func DestinationDirectory() string {
 }
 
 // ImagesToDownload creates a slice of ImageWithMeta for the images that needs to be downloaded
-func ImagesToDownload(manifest *Manifest, hostname string) ([]ImageWithMeta, error) {
-	images := make([]ImageWithMeta, len(manifest.FSLayers))
+func ImagesToDownload(manifest *Manifest, storeName string) ([]*ImageWithMeta, error) {
+	images := make([]*ImageWithMeta, len(manifest.FSLayers))
 
-	v1 := V1Compatibility{}
+	v1 := docker.V1Image{}
 	// iterate from parent to children
 	for i := len(manifest.History) - 1; i >= 0; i-- {
 		history := manifest.History[i]
@@ -233,14 +244,15 @@ func ImagesToDownload(manifest *Manifest, hostname string) ([]ImageWithMeta, err
 		}
 
 		// add image to ImageWithMeta list
-		images[i] = ImageWithMeta{
+		images[i] = &ImageWithMeta{
 			Image: &models.Image{
 				ID:     v1.ID,
 				Parent: &parent,
-				Store:  hostname,
+				Store:  storeName,
 			},
-			history: history,
-			layer:   layer,
+			meta:   history.V1Compatibility,
+			layer:  layer,
+			diffID: "",
 		}
 		log.Debugf("Manifest image: %#v", images[i])
 	}
@@ -251,13 +263,13 @@ func ImagesToDownload(manifest *Manifest, hostname string) ([]ImageWithMeta, err
 	}
 
 	// Create the image store just in case
-	err := CreateImageStore(hostname)
+	err := CreateImageStore(storeName)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create image store: %s", err)
 	}
 
 	// Get the list of known images from the storage layer
-	existingImages, err := ListImages(hostname, images)
+	existingImages, err := ListImages(storeName, images)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to obtain list of images: %s", err)
 	}
@@ -285,7 +297,7 @@ func ImagesToDownload(manifest *Manifest, hostname string) ([]ImageWithMeta, err
 }
 
 // DownloadImageBlobs downloads the image blobs concurrently
-func DownloadImageBlobs(images []ImageWithMeta) error {
+func DownloadImageBlobs(images []*ImageWithMeta) error {
 	var wg sync.WaitGroup
 
 	wg.Add(len(images))
@@ -295,13 +307,14 @@ func DownloadImageBlobs(images []ImageWithMeta) error {
 	// on top of previous one
 	results := make(chan error, len(images))
 	for i := len(images) - 1; i >= 0; i-- {
-		go func(image ImageWithMeta) {
+		go func(image *ImageWithMeta) {
 			defer wg.Done()
 
-			err := FetchImageBlob(options, &image)
+			diffID, err := FetchImageBlob(options, image)
 			if err != nil {
 				results <- fmt.Errorf("%s/%s returned %s", options.image, image.layer.BlobSum, err)
 			} else {
+				image.diffID = diffID
 				results <- nil
 			}
 		}(images[i])
@@ -320,7 +333,7 @@ func DownloadImageBlobs(images []ImageWithMeta) error {
 }
 
 // WriteImageBlobs writes the image blob to the storage layer
-func WriteImageBlobs(images []ImageWithMeta) error {
+func WriteImageBlobs(images []*ImageWithMeta) error {
 	if options.standalone {
 		return nil
 	}
@@ -345,8 +358,7 @@ func WriteImageBlobs(images []ImageWithMeta) error {
 		}
 
 		in := progress.NewProgressReader(
-			ioutils.NewCancelReadCloser(
-				context.Background(), f),
+			ioutils.NewCancelReadCloser(context.Background(), f),
 			po,
 			fi.Size(),
 			image.String(),
@@ -356,7 +368,7 @@ func WriteImageBlobs(images []ImageWithMeta) error {
 
 		// Write the image
 		// FIXME: send metadata when portlayer supports it
-		err = WriteImage(&image, in)
+		err = WriteImage(image, in)
 		if err != nil {
 			return fmt.Errorf("Failed to write to image store: %s", err)
 		}
@@ -365,6 +377,83 @@ func WriteImageBlobs(images []ImageWithMeta) error {
 	if err := os.RemoveAll(destination); err != nil {
 		return fmt.Errorf("Failed to remove download directory: %s", err)
 	}
+	return nil
+}
+
+// CreateImageConfig constructs the image metadata from layers that compose the image
+func CreateImageConfig(images []*ImageWithMeta, manifest *Manifest) error {
+
+	imageLayer := images[0] // the layer that represents the actual image
+	image := docker.V1Image{}
+	rootFS := docker.NewRootFS()
+	history := make([]docker.History, 0, len(images))
+	diffIDs := make(map[string]string)
+	var size int64
+
+	// step through layers to get command history and diffID from oldest to newest
+	for i := len(images) - 1; i >= 0; i-- {
+		layer := images[i]
+		if err := json.Unmarshal([]byte(layer.meta), &image); err != nil {
+			return fmt.Errorf("Failed to unmarshall layer history: %s", err)
+		}
+		h := docker.History{
+			Created:   image.Created,
+			Author:    image.Author,
+			CreatedBy: strings.Join(image.ContainerConfig.Cmd, " "),
+			Comment:   image.Comment,
+		}
+		history = append(history, h)
+		rootFS.DiffIDs = append(rootFS.DiffIDs, dockerLayer.DiffID(layer.diffID))
+		diffIDs[layer.diffID] = layer.ID
+		size += layer.size
+	}
+
+	// result is constructed without unused fields
+	result := docker.Image{
+		V1Image: docker.V1Image{
+			Comment:         image.Comment,
+			Created:         image.Created,
+			Container:       image.Container,
+			ContainerConfig: image.ContainerConfig,
+			DockerVersion:   image.DockerVersion,
+			Author:          image.Author,
+			Config:          image.Config,
+			Architecture:    image.Architecture,
+			OS:              image.OS,
+		},
+		RootFS:  rootFS,
+		History: history,
+	}
+
+	bytes, err := result.MarshalJSON()
+	if err != nil {
+		return fmt.Errorf("Failed to marshall image metadata: %s", err)
+	}
+
+	// calculate image ID
+	sum := fmt.Sprintf("%x", sha256.Sum256(bytes))
+	log.Infof("Image ID: sha256:%s", sum)
+
+	// prepare metadata
+	result.V1Image.Parent = image.Parent
+	result.Size = size
+	metaData := ImageConfig{
+		V1Image: result.V1Image,
+		ImageID: sum,
+		Tag:     manifest.Tag,
+		Name:    manifest.Name,
+		DiffIDs: diffIDs,
+		History: history,
+	}
+
+	blob, err := json.Marshal(metaData)
+	if err != nil {
+		return fmt.Errorf("Failed to marshal image metadata: %s", err)
+	}
+
+	// store metadata
+	imageLayer.meta = string(blob)
+
 	return nil
 }
 
@@ -420,22 +509,36 @@ func main() {
 		log.Fatalf("Failed to parse -reference: %s", err)
 	}
 
-	// Hostname is our storename
-	hostname, err := os.Hostname()
+	// Host is either the host's UUID (if run on vsphere) or the hostname of
+	// the system (iff run standalone)
+	host, err := guest.UUID()
+	if host != "" {
+		log.Infof("Using UUID (%s) for imagestore name", host)
+	} else if options.standalone {
+		host, err = os.Hostname()
+		log.Infof("Using host (%s) for imagestore name", host)
+	}
+
 	if err != nil {
-		log.Fatalf("Failed to return the host name: %s", err)
+		log.Fatalf("Failed to return the UUID or host name: %s", err)
 	}
 
 	if !options.standalone {
 		log.Debugf("Running with portlayer")
 
 		// Ping the server to ensure it's at least running
-		ok, err2 := PingPortLayer()
-		if err2 != nil || !ok {
-			log.Fatalf("Failed to ping portlayer: %s", err2)
+		ok, err := PingPortLayer()
+		if err != nil || !ok {
+			log.Fatalf("Failed to ping portlayer: %s", err)
 		}
 	} else {
 		log.Debugf("Running standalone")
+	}
+
+	// Calculate (and overwrite) the registry URL and make sure that it responds to requests
+	options.registry, err = LearnRegistryURL(options)
+	if err != nil {
+		log.Fatalf("Failed to communicate with registry: %s", err)
 	}
 
 	// Get the URL of the OAuth endpoint
@@ -446,9 +549,9 @@ func main() {
 
 	// Get the OAuth token - if only we have a URL
 	if url != nil {
-		token, err2 := FetchToken(url)
+		token, err := FetchToken(url)
 		if err != nil {
-			log.Fatalf("Failed to fetch OAuth token: %s", err2)
+			log.Fatalf("Failed to fetch OAuth token: %s", err)
 		}
 		options.token = token
 	}
@@ -459,19 +562,23 @@ func main() {
 		log.Fatalf("Failed to fetch image manifest: %s", err)
 	}
 
+	// HACK: Required to learn the name of the vmdk from given reference
+	// Used by docker personality until metadata support lands
 	if !options.resolv {
 		progress.Message(po, options.digest, "Pulling from "+options.image)
 	}
 
 	// Create the ImageWithMeta slice to hold Image structs
-	images, err := ImagesToDownload(manifest, hostname)
+	images, err := ImagesToDownload(manifest, host)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
 
+	// HACK: Required to learn the name of the vmdk from given reference
+	// Used by docker personality until metadata support lands
 	if options.resolv {
 		if len(images) > 0 {
-			fmt.Printf("%s", images[0].history.V1Compatibility)
+			fmt.Printf("%s", images[0].meta)
 			os.Exit(0)
 		}
 		os.Exit(1)
@@ -479,6 +586,10 @@ func main() {
 
 	// Fetch the blobs from registry
 	if err := DownloadImageBlobs(images); err != nil {
+		log.Fatalf(err.Error())
+	}
+
+	if err := CreateImageConfig(images, manifest); err != nil {
 		log.Fatalf(err.Error())
 	}
 

@@ -68,34 +68,84 @@ func (vm *VirtualMachine) FolderName(ctx context.Context) (string, error) {
 	return path, nil
 }
 
+// WaitForMac will wait until VM get mac for all attached nics.
+// Returns map "Virtual Network Name": "nic MAC address"
 func (vm VirtualMachine) WaitForMAC(ctx context.Context) (map[string]string, error) {
+	devices, err := vm.Device(ctx)
+	if err != nil {
+		log.Errorf("Unable to get device listing for VM")
+		return nil, err
+	}
+
+	nics := devices.SelectByType(&types.VirtualEthernetCard{})
 	macs := make(map[string]string)
+	// device name:network name
+	nicMappings := make(map[string]string)
+	for _, nic := range nics {
+		if n, ok := nic.(types.BaseVirtualEthernetCard); ok {
+			netName, err := vm.getNetworkName(ctx, n)
+			if err != nil {
+				log.Errorf("failed to get network name: %s", err)
+				return nil, err
+			}
+			macs[netName] = ""
+
+			nicMappings[devices.Name(nic)] = netName
+		} else {
+			log.Errorf("Failed to get network name of vNIC: %v", nic)
+			return nil, err
+		}
+	}
 
 	p := property.DefaultCollector(vm.Session.Vim25())
 
 	// Wait for all NICs to have a MacAddress, which may not be generated yet.
-	err := property.Wait(ctx, p, vm.Reference(), []string{"config.hardware.device"}, func(pc []types.PropertyChange) bool {
+	err = property.Wait(ctx, p, vm.Reference(), []string{"config.hardware.device"}, func(pc []types.PropertyChange) bool {
 		for _, c := range pc {
 			if c.Op != types.PropertyChangeOpAssign {
 				continue
 			}
 
-			devices := c.Val.(types.ArrayOfVirtualDevice).VirtualDevice
-			for _, device := range devices {
+			changedDevices := c.Val.(types.ArrayOfVirtualDevice).VirtualDevice
+			for _, device := range changedDevices {
 				if nic, ok := device.(types.BaseVirtualEthernetCard); ok {
 					mac := nic.GetVirtualEthernetCard().MacAddress
 					if mac == "" {
-						return false
+						continue
 					}
-					summary := nic.GetVirtualEthernetCard().DeviceInfo.GetDescription().Summary
-					macs[summary] = mac
+					netName := nicMappings[devices.Name(device)]
+					macs[netName] = mac
 				}
 			}
 		}
-
+		for key, value := range macs {
+			if value == "" {
+				log.Debugf("Didn't get mac address for nic on %s, continue", key)
+				return false
+			}
+		}
 		return true
 	})
 	return macs, err
+}
+
+func (vm *VirtualMachine) getNetworkName(ctx context.Context, nic types.BaseVirtualEthernetCard) (string, error) {
+	if card, ok := nic.GetVirtualEthernetCard().Backing.(*types.VirtualEthernetCardDistributedVirtualPortBackingInfo); ok {
+		pg := card.Port.PortgroupKey
+		pgref := object.NewDistributedVirtualPortgroup(vm.Session.Client.Client, types.ManagedObjectReference{
+			Type:  "DistributedVirtualPortgroup",
+			Value: pg,
+		})
+
+		var pgo mo.DistributedVirtualPortgroup
+		err := pgref.Properties(ctx, pgref.Reference(), []string{"config"}, &pgo)
+		if err != nil {
+			log.Errorf("Failed to query portgroup %s for %s", pg, err)
+			return "", err
+		}
+		return pgo.Config.Name, nil
+	}
+	return nic.GetVirtualEthernetCard().DeviceInfo.GetDescription().Summary, nil
 }
 
 func (vm *VirtualMachine) FetchExtraConfig(ctx context.Context) (map[string]string, error) {
@@ -115,4 +165,46 @@ func (vm *VirtualMachine) FetchExtraConfig(ctx context.Context) (map[string]stri
 		info[ov.Key] = value
 	}
 	return info, nil
+}
+
+// WaitForExtraConfig waits until key shows up with the expected value inside the ExtraConfig
+func (vm *VirtualMachine) WaitForExtraConfig(ctx context.Context, waitFunc func(pc []types.PropertyChange) bool) error {
+	// Get the default collector
+	p := property.DefaultCollector(vm.Vim25())
+
+	// Wait on config.extraConfig
+	// https://www.vmware.com/support/developer/vc-sdk/visdk2xpubs/ReferenceGuide/vim.vm.ConfigInfo.html
+	err := property.Wait(ctx, p, vm.Reference(), []string{"config.extraConfig"}, waitFunc)
+	if err != nil {
+		log.Errorf("Property collector error: %s", err)
+		return err
+	}
+	return nil
+}
+
+func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key string) (string, error) {
+	var detail string
+	waitFunc := func(pc []types.PropertyChange) bool {
+		for _, c := range pc {
+			if c.Op != types.PropertyChangeOpAssign {
+				continue
+			}
+
+			values := c.Val.(types.ArrayOfOptionValue).OptionValue
+			for _, value := range values {
+				// check the status of the key and return true if it's been set to non-nil
+				if key == value.GetOptionValue().Key {
+					detail = value.GetOptionValue().Value.(string)
+					return detail != "" && detail != "<nil>"
+				}
+			}
+		}
+		return false
+	}
+
+	if err := vm.WaitForExtraConfig(ctx, waitFunc); err != nil {
+		log.Errorf("Unable to wait for extra config property %s: %s", key, err.Error())
+		return "", err
+	}
+	return detail, nil
 }

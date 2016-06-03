@@ -15,7 +15,7 @@
 GO ?= go
 GOVERSION ?= go1.6.2
 OS := $(shell uname | tr '[:upper:]' '[:lower:]')
-ifeq ($(USER),vagrant)
+ifeq (vagrant, $(filter vagrant,$(USER) $(SUDO_USER)))
 	# assuming we are in a shared directory where host arch is different from the guest
 	BIN_ARCH := -$(OS)
 endif
@@ -31,6 +31,7 @@ SWAGGER ?= $(GOPATH)/bin/swagger$(BIN_ARCH)
 GOIMPORTS ?= $(GOPATH)/bin/goimports$(BIN_ARCH)
 GOLINT ?= $(GOPATH)/bin/golint$(BIN_ARCH)
 GVT ?= $(GOPATH)/bin/gvt$(BIN_ARCH)
+GOVC ?= $(GOPATH)/bin/govc$(BIN_ARCH)
 
 .PHONY: all tools clean test check \
 	goversion goimports gvt gopath govet \
@@ -46,22 +47,25 @@ endif
 
 # utility function to dynamically generate go dependencies
 define godeps
-	$(wildcard $1) $(shell $(BASE_DIR)/scripts/go-deps.sh $(dir $1))
+	$(wildcard $1) $(shell $(BASE_DIR)/infra/scripts/go-deps.sh $(dir $1) $(MAKEFLAGS))
 endef
 
 # target aliases - environment variable definition
 docker-engine-api := $(BIN)/docker-engine-server
 portlayerapi := $(BIN)/port-layer-server
-portlayerapi-client := apiservers/portlayer/client/port_layer_client.go
-portlayerapi-server := apiservers/portlayer/restapi/server.go
+portlayerapi-client := lib/apiservers/portlayer/client/port_layer_client.go
+portlayerapi-server := lib/apiservers/portlayer/restapi/server.go
 
 imagec := $(BIN)/imagec
 vicadmin := $(BIN)/vicadmin
 rpctool := $(BIN)/rpctool
-vic-machine := $(BIN)/vic-machine
+vic-machine-linux := $(BIN)/vic-machine-linux
+vic-machine-windows := $(BIN)/vic-machine-windows.exe
+vic-machine-darwin := $(BIN)/vic-machine-darwin
 
 tether-linux := $(BIN)/tether-linux
 tether-windows := $(BIN)/tether-windows.exe
+tether-darwin := $(BIN)/tether-darwin
 
 appliance := $(BIN)/appliance.iso
 appliance-staging := $(BIN)/appliance-staging.tgz
@@ -86,6 +90,7 @@ rpctool: $(rpctool)
 
 tether-linux: $(tether-linux)
 tether-windows: $(tether-windows)
+tether-darwin: $(tether-darwin)
 
 appliance: $(appliance)
 appliance-staging: $(appliance-staging)
@@ -94,7 +99,7 @@ bootstrap-staging: $(bootstrap-staging)
 bootstrap-debug: $(bootstrap-debug)
 bootstrap-staging-debug: $(bootstrap-staging-debug)
 iso-base: $(iso-base)
-vic-machine: $(vic-machine)
+vic-machine: $(vic-machine-linux) $(vic-machine-windows) $(vic-machine-darwin)
 
 swagger: $(SWAGGER)
 
@@ -109,7 +114,7 @@ check: goversion goimports govet golint copyright whitespace
 apiservers: $(portlayerapi) $(docker-engine-api)
 components: check apiservers $(imagec) $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
-tethers: $(tether-linux) $(tether-windows)
+tethers: $(tether-linux) $(tether-windows) $(tether-darwin)
 
 # utility targets
 goversion:
@@ -132,13 +137,17 @@ $(SWAGGER): vendor/manifest
 	@echo building $(SWAGGER)...
 	@$(GO) build $(RACE) -o $(SWAGGER) ./vendor/github.com/go-swagger/go-swagger/cmd/swagger
 
+$(GOVC): vendor/manifest
+	@echo building $(GOVC)...
+	@$(GO) build $(RACE) -o $(GOVC) ./vendor/github.com/vmware/govmomi/govc
+
 copyright:
 	@echo "checking copyright in header..."
-	@scripts/header-check.sh
+	@infra/scripts/header-check.sh
 
 whitespace:
 	@echo "checking whitespace..."
-	@scripts/whitespace-check.sh
+	@infra/scripts/whitespace-check.sh
 
 # exit 1 if golint complains about anything other than comments
 golintf = $(GOLINT) $(1) | sh -c "! grep -v 'should have comment'" | sh -c "! grep -v 'comment on exported'"
@@ -147,11 +156,10 @@ $(go-lint): $(GOLINT)
 	@echo checking go lint...
 	@$(call golintf,github.com/vmware/vic/cmd/...)
 	@$(call golintf,github.com/vmware/vic/pkg/...)
-	@$(call golintf,github.com/vmware/vic/install/...)
-	@$(call golintf,github.com/vmware/vic/portlayer/...)
-	@$(call golintf,github.com/vmware/vic/apiservers/portlayer/restapi/handlers/...)
-	@$(call golintf,github.com/vmware/vic/apiservers/engine/server/...)
-	@$(call golintf,github.com/vmware/vic/apiservers/engine/backends/...)
+	@$(call golintf,github.com/vmware/vic/lib/install/...)
+	@$(call golintf,github.com/vmware/vic/lib/portlayer/...)
+	@$(call golintf,github.com/vmware/vic/lib/apiservers/portlayer/restapi/handlers/...)
+	@$(call golintf,github.com/vmware/vic/lib/apiservers/engine/backends/...)
 	@touch $@
 
 # For use by external tools such as emacs or for example:
@@ -159,7 +167,7 @@ $(go-lint): $(GOLINT)
 gopath:
 	@echo -n $(GOPATH)
 
-$(go-imports): $(GOIMPORTS) $(find . -type f -name '*.go' -not -path "./vendor/*" -not -path "apiservers/portlayer") $(PORTLAYER_DEPS)
+$(go-imports): $(GOIMPORTS) $(find . -type f -name '*.go' -not -path "./vendor/*" -not -path "lib/apiservers/portlayer") $(PORTLAYER_DEPS)
 	@echo checking go imports...
 	@! $(GOIMPORTS) -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
 	@touch $@
@@ -167,25 +175,24 @@ $(go-imports): $(GOIMPORTS) $(find . -type f -name '*.go' -not -path "./vendor/*
 govet:
 	@echo checking go vet...
 	@$(GO) tool vet -all $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
-	@$(GO) tool vet -shadow $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
 
 vendor: $(GVT)
 	@echo restoring vendor
 	$(GOPATH)/bin/gvt restore
 
-integration-tests: tests/run_test.sh components isos vic-machine
+integration-tests: $(GOVC) components isos vic-machine
 	@echo Running integration tests
-	@$<
+	@GOVC=$(GOVC) ./tests/vendor/github.com/sstephenson/bats/libexec/bats -t tests
 
 TEST_DIRS=github.com/vmware/vic/cmd/tether
 TEST_DIRS+=github.com/vmware/vic/cmd/imagec
 TEST_DIRS+=github.com/vmware/vic/cmd/vicadmin
 TEST_DIRS+=github.com/vmware/vic/cmd/rpctool
 TEST_DIRS+=github.com/vmware/vic/cmd/vic-machine
-TEST_DIRS+=github.com/vmware/vic/portlayer
+TEST_DIRS+=github.com/vmware/vic/lib/apiservers/portlayer
+TEST_DIRS+=github.com/vmware/vic/lib/install
+TEST_DIRS+=github.com/vmware/vic/lib/portlayer
 TEST_DIRS+=github.com/vmware/vic/pkg
-TEST_DIRS+=github.com/vmware/vic/apiservers/portlayer
-TEST_DIRS+=github.com/vmware/vic/install
 
 
 test:
@@ -193,115 +200,136 @@ test:
 	# test everything but vendor
 ifdef DRONE
 	@echo Generating coverage data
-	@scripts/coverage.sh $(TEST_DIRS)
+	@time -f "t%E" infra/scripts/coverage.sh $(TEST_DIRS)
 else
 	@echo Generating local html coverage report
-	@scripts/coverage.sh --html $(TEST_DIRS)
+	@time -f "t%E" infra/scripts/coverage.sh --html $(TEST_DIRS)
 endif
 
 docker-integration-tests:
 	@echo Running Docker integration tests
-	@tests/docker-tests/run-tests.sh
+	@time -f "t%E" tests/docker-tests/run-tests.sh
 
 $(tether-linux): $(call godeps,cmd/tether/*.go)
 	@echo building tether-linux
-	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 time -f "t%E" $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 $(tether-windows): $(call godeps,cmd/tether/*.go)
 	@echo building tether-windows
-	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 time -f "t%E" $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
+# CGO is disabled for darwin otherwise build fails with "gcc: error: unrecognized command line option '-mmacosx-version-min=10.6'"
+$(tether-darwin): $(call godeps,cmd/tether/*.go)
+	@echo building tether-darwin
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 time -f "t%E" $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 $(rpctool): $(call godeps,cmd/rpctool/*.go)
 ifeq ($(OS),linux)
 	@echo building rpctool
-	@GOARCH=amd64 GOOS=linux $(GO) build $(RACE) -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux time -f "t%E" $(GO) build $(RACE) -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
 else
 	@echo skipping rpctool, cannot cross compile cgo
 endif
 
 $(vicadmin): $(call godeps,cmd/vicadmin/*.go)
 	@echo building vicadmin
-	@GOARCH=amd64 GOOS=linux $(GO) build $(RACE) -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux time -f "t%E" $(GO) build $(RACE) -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
 
 $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@echo building imagec...
-	@$(GO) build $(RACE) -o ./$@ ./$(dir $<)
+	@time -f "t%E" $(GO) build $(RACE) -o ./$@ ./$(dir $<)
 
 
-$(docker-engine-api): $(call godeps,apiservers/engine/server/*.go) $(portlayerapi-client)
+$(docker-engine-api): $(call godeps,cmd/docker/*.go) $(portlayerapi-client)
 ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
-	@$(GO) build $(RACE) -o $@ ./apiservers/engine/server
+	@time -f "t%E" $(GO) build $(RACE) -o $@ ./cmd/docker
 else
 	@echo skipping docker-engine-api server, cannot build on non-linux
 endif
 
 # Common portlayer dependencies between client and server
-PORTLAYER_DEPS ?= apiservers/portlayer/swagger.yml \
-				  apiservers/portlayer/restapi/configure_port_layer.go \
-				  apiservers/portlayer/restapi/options/*.go apiservers/portlayer/restapi/handlers/*.go
+PORTLAYER_DEPS ?= lib/apiservers/portlayer/swagger.yml \
+				  lib/apiservers/portlayer/restapi/configure_port_layer.go \
+				  lib/apiservers/portlayer/restapi/options/*.go \
+				  lib/apiservers/portlayer/restapi/handlers/*.go
 
 $(portlayerapi-client): $(PORTLAYER_DEPS)  $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API client...
-	@$(SWAGGER) generate client -A PortLayer --template-dir templates  -t $(realpath $(dir $<)) -f $<
+	@$(SWAGGER) generate client -A PortLayer --template-dir lib/apiservers/templates  -t $(realpath $(dir $<)) -f $<
 
 
 $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API server...
-	@$(SWAGGER) generate server -A PortLayer -t $(realpath $(dir $<)) -f $<
+	@$(SWAGGER) generate server -A PortLayer --template-dir lib/apiservers/templates -t $(realpath $(dir $<)) -f $<
 
-$(portlayerapi): $(call godeps,apiservers/portlayer/cmd/port-layer-server/*.go) $(portlayerapi-server) $(portlayerapi-client)
+$(portlayerapi): $(call godeps,lib/apiservers/portlayer/cmd/port-layer-server/*.go) $(portlayerapi-server) $(portlayerapi-client)
 	@echo building Portlayer API server...
-	@$(GO) build $(RACE) -o $@ ./apiservers/portlayer/cmd/port-layer-server
+	@time -f "t%E" $(GO) build $(RACE) -o $@ ./lib/apiservers/portlayer/cmd/port-layer-server
 
 $(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
 	@echo building iso-base docker image
-	@$< -c $(BIN)/yum-cache.tgz -p $@
+	@time -f "t%E" $< -c $(BIN)/yum-cache.tgz -p $@
 
 # appliance staging - allows for caching of package install
 $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 	@echo staging for VCH appliance
-	@$< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@
+	@time -f "t%E" $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@
 
 # main appliance target - depends on all top level component targets
 $(appliance): isos/appliance.sh isos/appliance/* $(rpctool) $(vicadmin) $(imagec) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
 	@echo building VCH appliance ISO
-	@$< -p $(appliance-staging) -b $(BIN)
+	@time -f "t%E" $< -p $(appliance-staging) -b $(BIN)
 
 # main bootstrap target
 $(bootstrap): isos/bootstrap.sh $(tether-linux) $(rpctool) $(bootstrap-staging) isos/bootstrap/*
 	@echo "Making bootstrap iso"
-	@$< -p $(bootstrap-staging) -b $(BIN)
+	@time -f "t%E" $< -p $(bootstrap-staging) -b $(BIN)
 
 $(bootstrap-debug): isos/bootstrap.sh $(tether-linux) $(rpctool) $(bootstrap-staging-debug) isos/bootstrap/*
 	@echo "Making bootstrap-debug iso"
-	@$< -p $(bootstrap-staging-debug) -b $(BIN) -d true
+	@time -f "t%E" $< -p $(bootstrap-staging-debug) -b $(BIN) -d true
 
 $(bootstrap-staging): isos/bootstrap-staging.sh $(iso-base)
 	@echo staging for bootstrap
-	@$< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@
+	@time -f "t%E" $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@
 
 $(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base)
 	@echo staging debug for bootstrap
-	@$< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@ -d true
+	@time -f "t%E" $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@ -d true
 
 
-$(vic-machine): $(call godeps,cmd/vic-machine/*.go)
-	@echo building vic-machine...
-	@$(GO) build $(RACE) -o ./$@ ./$(dir $<)
+$(vic-machine-linux): $(call godeps,cmd/vic-machine/*.go)
+	@echo building vic-machine linux...
+	@GOARCH=amd64 GOOS=linux time -f "t%E" $(GO) build $(RACE) --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+
+$(vic-machine-windows): $(call godeps,cmd/vic-machine/*.go)
+	@echo building vic-machine windows...
+	@GOARCH=amd64 GOOS=windows time -f "t%E" $(GO) build $(RACE) --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+
+$(vic-machine-darwin): $(call godeps,cmd/vic-machine/*.go)
+	@echo building vic-machine darwin...
+	@GOARCH=amd64 GOOS=darwin time -f "t%E" $(GO) build $(RACE) --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 clean:
 	rm -rf $(BIN)
 
 	@echo removing swagger generated files...
-	rm -f ./apiservers/portlayer/restapi/doc.go
-	rm -f ./apiservers/portlayer/restapi/embedded_spec.go
-	rm -f ./apiservers/portlayer/restapi/server.go
-	rm -rf ./apiservers/portlayer/client/
-	rm -rf ./apiservers/portlayer/cmd/
-	rm -rf ./apiservers/portlayer/models/
-	rm -rf ./apiservers/portlayer/restapi/operations/
+	rm -f ./lib/apiservers/portlayer/restapi/doc.go
+	rm -f ./lib/apiservers/portlayer/restapi/embedded_spec.go
+	rm -f ./lib/apiservers/portlayer/restapi/server.go
+	rm -rf ./lib/apiservers/portlayer/client/
+	rm -rf ./lib/apiservers/portlayer/cmd/
+	rm -rf ./lib/apiservers/portlayer/models/
+	rm -rf ./lib/apiservers/portlayer/restapi/operations/
+
+	rm -f lib/apiservers/docker/restapi/doc.go
+	rm -f lib/apiservers/docker/restapi/embedded_spec.go
+	rm -f lib/apiservers/docker/restapi/server.go
+	rm -fr lib/apiservers/docker/cmd
+	rm -fr lib/apiservers/docker/models
+	rm -fr lib/apiservers/docker/restapi/operations
+
 	rm -fr ./tests/helpers/bats-assert/
 	rm -fr ./tests/helpers/bats-support/
 

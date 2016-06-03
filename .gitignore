@@ -14,17 +14,17 @@ imagec/imagec
 tests/helpers/bats-assert
 tests/helpers/bats-support
 
-apiservers/docker/cmd
-apiservers/docker/models
-apiservers/docker/restapi/*.go
-apiservers/docker/restapi/operations
-!apiservers/docker/restapi/configure_docker.go
+lib/apiservers/docker/cmd
+lib/apiservers/docker/models
+lib/apiservers/docker/restapi/*.go
+lib/apiservers/docker/restapi/operations
+!lib/apiservers/docker/restapi/configure_docker.go
 
-apiservers/portlayer/client/
-apiservers/portlayer/cmd
-apiservers/portlayer/models
-apiservers/portlayer/restapi/*.go
-apiservers/portlayer/restapi/operations
-!apiservers/portlayer/restapi/configure_port_layer.go
+lib/apiservers/portlayer/client/
+lib/apiservers/portlayer/cmd
+lib/apiservers/portlayer/models
+lib/apiservers/portlayer/restapi/*.go
+lib/apiservers/portlayer/restapi/operations
+!lib/apiservers/portlayer/restapi/configure_port_layer.go
 
 tests/docker-tests/integration-tests

@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/pkg/vsphere/spec"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 
 	"golang.org/x/net/context"

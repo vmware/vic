@@ -176,14 +176,6 @@
 			"path": "/api"
 		},
 		{
-			"importpath": "github.com/docker/docker/api/server",
-			"repository": "https://github.com/docker/docker",
-			"vcs": "",
-			"revision": "0771230daac8aa2d66edddecd935d2c182850077",
-			"branch": "master",
-			"path": "/api/server"
-		},
-		{
 			"importpath": "github.com/docker/docker/builder",
 			"repository": "https://github.com/docker/docker",
 			"vcs": "",
@@ -414,14 +406,6 @@
 			"revision": "f832183e33a690e297bd6dacf7a9cd812025daac",
 			"branch": "master",
 			"path": "/pkg/parsers"
-		},
-		{
-			"importpath": "github.com/docker/docker/pkg/parsers/kernel",
-			"repository": "https://github.com/docker/docker",
-			"vcs": "",
-			"revision": "0771230daac8aa2d66edddecd935d2c182850077",
-			"branch": "master",
-			"path": "/pkg/parsers/kernel"
 		},
 		{
 			"importpath": "github.com/docker/docker/pkg/plugins",
@@ -669,14 +653,6 @@
 			"branch": "master"
 		},
 		{
-			"importpath": "github.com/docker/libnetwork/portallocator",
-			"repository": "https://github.com/docker/libnetwork",
-			"vcs": "",
-			"revision": "67f3a50153be8c04b2a04f050ac8834d7b94cb27",
-			"branch": "master",
-			"path": "/portallocator"
-		},
-		{
 			"importpath": "github.com/docker/libtrust",
 			"repository": "https://github.com/docker/libtrust",
 			"vcs": "",
@@ -711,6 +687,14 @@
 			"vcs": "",
 			"revision": "230e4b23db2fd81c53eaa0073f76659d4849ce51",
 			"branch": "master"
+		},
+		{
+			"importpath": "github.com/golang/groupcache/lru",
+			"repository": "https://github.com/golang/groupcache",
+			"vcs": "git",
+			"revision": "4eab30f13db9d8b25c752e99d1583628ac2fa422",
+			"branch": "master",
+			"path": "/lru"
 		},
 		{
 			"importpath": "github.com/golang/lint",
@@ -840,10 +824,9 @@
 		{
 			"importpath": "github.com/pkg/profile",
 			"repository": "https://github.com/pkg/profile",
-			"vcs": "git",
+			"vcs": "",
 			"revision": "19396ecfda37c1c9ddaa52019adca59d582e4832",
-			"branch": "master",
-			"notests": true
+			"branch": "master"
 		},
 		{
 			"importpath": "github.com/pmezard/go-difflib/difflib",
@@ -1058,7 +1041,7 @@
 			"importpath": "github.com/vmware/govmomi",
 			"repository": "https://github.com/vmware/govmomi",
 			"vcs": "git",
-			"revision": "18154e511bc8f6bc1fffe2e47d11ef4f1931a044",
+			"revision": "6906d3015475c4bd38fc6932f32574029d7b7020",
 			"branch": "master"
 		},
 		{
@@ -1091,14 +1074,6 @@
 			"revision": "b6d7b1396ec874c3b00f6c84cd4301a17c56c8ed",
 			"branch": "master",
 			"path": "/context"
-		},
-		{
-			"importpath": "golang.org/x/net/context/ctxhttp",
-			"repository": "https://go.googlesource.com/net",
-			"vcs": "",
-			"revision": "b6d7b1396ec874c3b00f6c84cd4301a17c56c8ed",
-			"branch": "master",
-			"path": "/context/ctxhttp"
 		},
 		{
 			"importpath": "golang.org/x/net/netutil",

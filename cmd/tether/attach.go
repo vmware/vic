@@ -22,6 +22,7 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/pkg/trace"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
@@ -30,40 +31,6 @@ import (
 const (
 	attachChannelType = "attach"
 )
-
-var (
-	Signals = map[ssh.Signal]int{
-		ssh.SIGABRT: 6,
-		ssh.SIGALRM: 14,
-		ssh.SIGFPE:  8,
-		ssh.SIGHUP:  1,
-		ssh.SIGILL:  4,
-		ssh.SIGINT:  2,
-		ssh.SIGKILL: 9,
-		ssh.SIGPIPE: 13,
-		ssh.SIGQUIT: 3,
-		ssh.SIGSEGV: 11,
-		ssh.SIGTERM: 15,
-		ssh.SIGUSR1: 10,
-		ssh.SIGUSR2: 12,
-	}
-)
-
-// WindowChangeMsg the RFC4254 struct
-type WindowChangeMsg struct {
-	Columns  uint32
-	Rows     uint32
-	WidthPx  uint32
-	HeightPx uint32
-}
-
-type stringMsg struct {
-	Signal string
-}
-
-type stringArrayMsg struct {
-	Strings []string
-}
 
 // server is the singleton attachServer for the tether - there can be only one
 // as the backchannel line protocol may not provide multiplexing of connections
@@ -276,16 +243,16 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 		log.Infof("received global request type %v", req.Type)
 
 		switch req.Type {
-		case "container-ids":
+		case attach.ContainersReq:
 			keys := make([]string, len(config.Sessions))
 			i := 0
 			for k := range config.Sessions {
 				keys[i] = k
 				i++
 			}
-			msg := stringArrayMsg{Strings: keys}
+			msg := attach.ContainersMsg{IDs: keys}
+			payload = msg.Marshal()
 
-			payload = []byte(ssh.Marshal(msg))
 		default:
 			ok = false
 			payload = []byte("unknown global request type: " + req.Type)
@@ -313,34 +280,32 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 	var err error
 	for req := range in {
 		var pendingFn func()
-		var payload []byte
 		ok := true
 
 		switch req.Type {
-		case "window-change":
-			msg := WindowChangeMsg{}
+		case attach.WindowChangeReq:
+			msg := attach.WindowChangeMsg{}
 			if pty == nil {
 				ok = false
-				payload = []byte("illegal window-change request for non-tty")
-			} else if err = ssh.Unmarshal(req.Payload, &msg); err != nil {
+				log.Errorf("illegal window-change request for non-tty")
+			} else if err = msg.Unmarshal(req.Payload); err != nil {
 				ok = false
-				payload = []byte(err.Error())
+				log.Errorf(err.Error())
 			} else if err = utils.resizePty(pty.Fd(), &msg); err != nil {
 				ok = false
-				payload = []byte(err.Error())
+				log.Errorf(err.Error())
 			}
-		case "signal":
-			msg := stringMsg{}
-			if err = ssh.Unmarshal(req.Payload, &msg); err != nil {
+		case attach.SignalReq:
+			msg := attach.SignalMsg{}
+			if err = msg.Unmarshal(req.Payload); err != nil {
 				ok = false
-				payload = []byte(err.Error())
+				log.Errorf(err.Error())
 			} else {
 				log.Infof("Sending signal %s to container process, pid=%d\n", string(msg.Signal), process.Pid)
-				err = utils.signalProcess(process, ssh.Signal(msg.Signal))
+				err = utils.signalProcess(process, msg.Signal)
 				if err != nil {
 					log.Errorf("Failed to dispatch signal to process: %s\n", err)
 				}
-				payload = []byte{}
 			}
 		default:
 			ok = false
@@ -348,9 +313,9 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 			log.Error(err.Error())
 		}
 
-		// make sure that errors get send back if we failed
+		// payload is ignored on channel specific replies.  The ok is passed, however.
 		if req.WantReply {
-			req.Reply(ok, payload)
+			req.Reply(ok, nil)
 		}
 
 		// run any pending work now that a reply has been sent

@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/vic/metadata"
+	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
@@ -70,14 +70,7 @@ func TestPathLookup(t *testing.T) {
 //
 /////////////////////////////////////////////////////////////////////////////////////
 
-/////////////////////////////////////////////////////////////////////////////////////
-// TestRelativePathConfig constructs the spec for a Session with relative path to existing
-// binary - this tests resolution vs the working directory
-//
-
 func TestRelativePath(t *testing.T) {
-	t.Skip("Relative path resolution not yet implemented")
-
 	testSetup(t)
 	defer testTeardown(t)
 
@@ -113,12 +106,6 @@ func TestRelativePath(t *testing.T) {
 
 //
 /////////////////////////////////////////////////////////////////////////////////////
-
-/////////////////////////////////////////////////////////////////////////////////////
-// TestAbsPathConfig constructs the spec for a Session with absolute path to existing
-// binary
-//
-
 func TestAbsPath(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
@@ -235,19 +222,58 @@ func TestMissingBinary(t *testing.T) {
 	extraconfig.Decode(src, &cfg)
 
 	// check the launch status was failed
-	// status := cfg.Sessions["abspath"].ExitStatus
-	// if err == nil {
-	// 	t.Error("Expected error from missing binary")
-	// }
+	status := cfg.Sessions["missing"].Started
 
-	// read the output from the session
-	log, err := ioutil.ReadFile(pathPrefix + "/ttyS2")
-	if err != nil {
-		fmt.Printf("Failed to open log file for command: %s", err)
+	assert.Equal(t, "stat /not/there: no such file or directory", status, "Expected status to have a command not found error message")
+}
+
+//
+/////////////////////////////////////////////////////////////////////////////////////
+
+/////////////////////////////////////////////////////////////////////////////////////
+// TestMissingRelativeBinaryConfig constructs the spec for a Session with invalid binary path
+//
+
+func TestMissingRelativeBinary(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
+
+	cfg := metadata.ExecutorConfig{
+		Common: metadata.Common{
+			ID:   "missing",
+			Name: "tether_test_executor",
+		},
+
+		Sessions: map[string]metadata.SessionConfig{
+			"missing": metadata.SessionConfig{
+				Common: metadata.Common{
+					ID:   "missing",
+					Name: "tether_test_session",
+				},
+				Tty: false,
+				Cmd: metadata.Cmd{
+					// test relative path
+					Path: "notthere",
+					Args: []string{"notthere"},
+					Env:  []string{"PATH=/not"},
+					Dir:  "/",
+				},
+			},
+		},
 	}
-	if len(log) > 0 {
-		fmt.Printf("Command output: %s", string(log))
+
+	src, err := runTether(t, &cfg)
+	if err == nil {
+		t.Error("Expected error from missing binary")
 	}
+
+	// refresh the cfg with current data
+	extraconfig.Decode(src, &cfg)
+
+	// check the launch status was failed
+	status := cfg.Sessions["missing"].Started
+
+	assert.Equal(t, "notthere: no such executable in PATH", status, "Expected status to have a command not found error message")
 }
 
 //

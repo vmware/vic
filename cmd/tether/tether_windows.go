@@ -30,6 +30,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	winserial "github.com/tarm/serial"
+	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/serial"
 )
@@ -211,6 +212,10 @@ func (t *osopsWin) processEnvOS(env []string) []string {
 	return env
 }
 
+func lookPath(file string, env []string) (string, error) {
+	return "", errors.New("unimplemented on windows")
+}
+
 func (t *osopsWin) signalProcess(process *os.Process, sig ssh.Signal) error {
 	return errors.New("unimplemented on windows")
 }
@@ -219,6 +224,6 @@ func (t *osopsWin) establishPty(session *SessionConfig) error {
 	return errors.New("unimplemented on windows")
 }
 
-func (t *osopsWin) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
+func (t *osopsWin) resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
 	return errors.New("unimplemented on windows")
 }

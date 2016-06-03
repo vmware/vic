@@ -24,16 +24,19 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 	"unsafe"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/kr/pty"
+	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
@@ -166,6 +169,18 @@ func (t *osopsLinux) backchannel(ctx context.Context) (net.Conn, error) {
 		return nil, errors.New(detail)
 	}
 
+	// set the provided FDs to raw if it's a termial
+	// 0 is the uninitialized value for Fd
+	if f.Fd() != 0 && terminal.IsTerminal(int(f.Fd())) {
+		log.Debug("setting terminal to raw mode")
+		s, err := terminal.MakeRaw(int(f.Fd()))
+		if err != nil {
+			return nil, err
+		}
+
+		log.Infof("s = %#v", s)
+	}
+
 	log.Infof("creating raw connection from ttyS0 (fd=%d)\n", f.Fd())
 	conn, err := serial.NewFileConn(f)
 
@@ -176,7 +191,11 @@ func (t *osopsLinux) backchannel(ctx context.Context) (net.Conn, error) {
 	}
 
 	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
-	ticker := time.NewTicker(1000 * time.Millisecond)
+
+	// This needs to tick *faster* than the ticker in connection.go on the
+	// portlayer side.  The PL sends the first syn and if this isn't waiting,
+	// alignment will take a few rounds (or it may never happen).
+	ticker := time.NewTicker(10 * time.Millisecond)
 	for {
 		select {
 		case <-ticker.C:
@@ -208,6 +227,56 @@ func (t *osopsLinux) processEnvOS(env []string) []string {
 	}
 
 	return env
+}
+
+func findExecutable(file string) error {
+	d, err := os.Stat(file)
+	if err != nil {
+		return err
+	}
+	if m := d.Mode(); !m.IsDir() && m&0111 != 0 {
+		return nil
+	}
+	return os.ErrPermission
+}
+
+// lookPath searches for an executable binary named file in the directories
+// specified by the path argument.
+// This is a direct modification of the unix os/exec core libary impl
+func lookPath(file string, env []string) (string, error) {
+	// check if it's already a path spec
+	if strings.Contains(file, "/") {
+		err := findExecutable(file)
+		if err == nil {
+			return file, nil
+		}
+		return "", err
+	}
+
+	// extract path from the env
+	var pathenv string
+	for _, value := range env {
+		if strings.HasPrefix(value, "PATH=") {
+			pathenv = value
+			break
+		}
+	}
+
+	pathval := strings.TrimPrefix(pathenv, "PATH=")
+
+	dirs := filepath.SplitList(pathval)
+	for _, dir := range dirs {
+		if dir == "" {
+			// Unix shell semantics: path element "" means "."
+			dir = "."
+		}
+		path := dir + "/" + file
+		if err := findExecutable(path); err == nil {
+			return path, nil
+		}
+	}
+
+	return "", fmt.Errorf("%s: no such executable in PATH", file)
 }
 
 // sessionLogWriter returns a writer that will persist the session output
@@ -259,7 +328,7 @@ type winsize struct {
 	wsYpixel uint16
 }
 
-func (t *osopsLinux) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
+func (t *osopsLinux) resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
 	defer trace.End(trace.Begin("resize pty"))
 
 	ws := &winsize{uint16(winSize.Rows), uint16(winSize.Columns), uint16(winSize.WidthPx), uint16(winSize.HeightPx)}
@@ -276,7 +345,7 @@ func (t *osopsLinux) resizePty(pty uintptr, winSize *WindowChangeMsg) error {
 }
 
 func (t *osopsLinux) signalProcess(process *os.Process, sig ssh.Signal) error {
-	signal := Signals[sig]
+	signal := attach.Signals[sig]
 	defer trace.End(trace.Begin(fmt.Sprintf("signal process %d: %d", process.Pid, signal)))
 
 	s := syscall.Signal(signal)
