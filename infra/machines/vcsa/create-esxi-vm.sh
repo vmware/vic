@@ -17,7 +17,7 @@
 
 set -o pipefail
 
-echo "Checking govc version...$(govc version -require 0.7.0 2>&1)"
+echo "Checking govc version...$(govc version -require 0.7.1 2>&1)"
 
 usage() {
     echo "Usage: $0 [-d DISK_GB] [-m MEM_GB] [-i ESX_ISO] [-s] ESX_URL VM_NAME" 1>&2
