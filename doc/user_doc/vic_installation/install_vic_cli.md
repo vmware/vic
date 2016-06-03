@@ -16,8 +16,8 @@ The virtual container host allows you to use an ESXi host or vCenter Server inst
 * Verify that your vSphere infrastructure meets the requirements in [Environment Prerequisites for vSphere Integrated Containers Installation](vic_installation_prereqs.md).
 * If you are deploying a virtual container host in a vSphere environment with more than one ESXi host, create a private port group for container VMs to use to communicate with each other. For information about how to create a private port group, see [Create a Private Port Group for Virtual Container Hosts](create_a_private_port_group_for_vch.md).
 * Obtain either a verified build, the latest daily build, or the source code of vSphere Integrated Containers: 
- * Download the most recent verified build of vSphere Integrated Containers from https://github.com/vmware/vic/releases and unpack it on a Linux OS system. This version has been tested and approved, but it does not reflect the most up-to-date version of the code.
- * Download the latest daily build of vSphere Integrated Containers from https://bintray.com/vmware/vic-repo/build/view#files and unpack it on a Linux OS system. This version reflects the version of the code as it was at the last daily build. It has not been tested or approved.
+ * Download the most recent verified build of vSphere Integrated Containers from https://github.com/vmware/vic/releases and unpack it. This version has been tested and approved, but it does not reflect the most up-to-date version of the code.
+ * Download the latest daily build of vSphere Integrated Containers from https://bintray.com/vmware/vic-repo/build/view#files and unpack it. This version reflects the version of the code as it was at the last daily build. It has not been tested or approved.
  * For the very latest version, for example to include changes that you have made since the last daily build, build the vSphere Integrated Containers binaries from the source code.
 * Familiarize yourself with the vSphere Integrated Containers binaries, as described in [Contents of the vSphere Integrated Containers Binaries](contents_of_vic_binaries.md). 
 * Familiarize yourself with the options of the `vic-machine` utility described in [Virtual Container Host Deployment Options](vch_installer_options.md).
@@ -32,13 +32,31 @@ The virtual container host allows you to use an ESXi host or vCenter Server inst
  * If you built the vSphere Integrated Containers binaries, go to <code><i>installation_dir</i>/vic/bin</code>.
 2. Run the `vic-machine` executable. 
 
-   The following example includes the fewest possible options, for installation in a simple vCenter Server environment with a cluster:
+   The following examples include the fewest possible options, for installation in a simple vCenter Server environment with a cluster.
 
-   <pre>$ vic-machine 
+   Deploy a virtual container host from a Mac OS system:
+
+   <pre>$ vic-machine-darwin 
 -target <i>vcenter_server_address</i>
 -image-store <i>datastore_name</i> 
 -user <i>username</i>
 -compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/</pre>  
+
+   Deploy a virtual container host from a Linux OS system:
+
+   <pre>$ vic-machine-linux
+-target <i>vcenter_server_address</i>
+-image-store <i>datastore_name</i> 
+-user <i>username</i>
+-compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/</pre> 
+
+   Deploy a virtual container host from a Windows system:
+
+   <pre>$ vic-machine-windows 
+-target <i>vcenter_server_address</i>
+-image-store <i>datastore_name</i> 
+-user <i>username</i>
+-compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/</pre> 
 
    At the end of a successful installation, `vic-machine` displays a success message:
    
