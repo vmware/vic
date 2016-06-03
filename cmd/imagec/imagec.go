@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"runtime/debug"
 	"runtime/trace"
 	"strings"
 	"sync"
@@ -459,6 +460,12 @@ func CreateImageConfig(images []*ImageWithMeta, manifest *Manifest) error {
 }
 
 func main() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, string(sf.FormatError(fmt.Errorf("%s : %s", r, debug.Stack()))))
+		}
+	}()
+
 	// Enable profiling if mode is set
 	switch options.profiling {
 	case "cpu":
