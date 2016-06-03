@@ -166,7 +166,8 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 // Start starts a container vm with the given params
 func (c *Container) Start(ctx context.Context) error {
 	defer trace.End(trace.Begin("Container.Start"))
-	//no need to grab the lock, there is no state change to the container
+	c.Lock()
+	defer c.Unlock()
 
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
@@ -202,7 +203,8 @@ func (c *Container) Start(ctx context.Context) error {
 
 func (c *Container) Stop(ctx context.Context) error {
 	defer trace.End(trace.Begin("Container.Stop"))
-	//no need to grab the lock, there is no state change to the container
+	c.Lock()
+	defer c.Unlock()
 
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
@@ -217,6 +219,30 @@ func (c *Container) Stop(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func (c *Container) Remove(ctx context.Context) error {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.vm == nil {
+		return fmt.Errorf("VM has already been removed")
+	}
+
+	//removes the vm from vsphere
+	_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		return c.vm.Destroy(ctx)
+	})
+	if err != nil {
+		return err
+	}
+
+	//removes container from map
+	containersLock.Lock()
+	delete(containers, c.ID)
+	containersLock.Unlock()
 
 	return nil
 }

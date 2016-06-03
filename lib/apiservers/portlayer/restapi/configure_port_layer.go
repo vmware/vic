@@ -17,18 +17,17 @@ package restapi
 import (
 	"net/http"
 
-	"golang.org/x/net/context"
-
 	log "github.com/Sirupsen/logrus"
 
 	errors "github.com/go-swagger/go-swagger/errors"
 	httpkit "github.com/go-swagger/go-swagger/httpkit"
 	"github.com/go-swagger/go-swagger/swag"
-
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/handlers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
 	"github.com/vmware/vic/pkg/vsphere/session"
+
+	"golang.org/x/net/context"
 )
 
 // This file is safe to edit. Once it exists it will not be overwritten
