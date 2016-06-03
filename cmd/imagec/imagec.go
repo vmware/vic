@@ -385,6 +385,10 @@ func WriteImageBlobs(images []*ImageWithMeta) error {
 // CreateImageConfig constructs the image metadata from layers that compose the image
 func CreateImageConfig(images []*ImageWithMeta, manifest *Manifest) error {
 
+	if len(images) == 0 {
+		return nil
+	}
+
 	imageLayer := images[0] // the layer that represents the actual image
 	image := docker.V1Image{}
 	rootFS := docker.NewRootFS()
