@@ -41,6 +41,8 @@ func backchannel(ctx context.Context, conn *net.Conn) error {
 	defer trace.End(trace.Begin("establish tether backchannel"))
 
 	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
+	// it does implement the Timeout methods so the intermediary code can be written
+	// to support it, but they are stub implementation in rawconn impl.
 
 	// This needs to tick *faster* than the ticker in connection.go on the
 	// portlayer side.  The PL sends the first syn and if this isn't waiting,

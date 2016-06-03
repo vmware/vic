@@ -22,6 +22,10 @@ import (
 	"golang.org/x/net/context"
 )
 
+// Operations defines the set of operations that Tether depends upon. These are split out for:
+// * portability
+// * dependency injection (primarily for testing)
+// * behavioural control (e.g. what behaviour is required when a session exits)
 type Operations interface {
 	Setup() error
 	Cleanup() error
@@ -38,6 +42,7 @@ type Operations interface {
 	ProcessEnv(env []string) []string
 }
 
+// Tether presents the consumption interface for code needing to run a tether
 type Tether interface {
 	Start() error
 	Stop() error
@@ -45,6 +50,8 @@ type Tether interface {
 	Register(name string, ext Extension)
 }
 
+// Extension is a very simple extension interface for supporting code that need to be
+// notified when the configuration is reloaded.
 type Extension interface {
 	Start() error
 	Reload(config *ExecutorConfig) error

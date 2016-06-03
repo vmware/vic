@@ -60,11 +60,11 @@ func (t *attachServerSSH) Reload(config *tether.ExecutorConfig) error {
 	t.config = config
 	// process the sessions and launch if needed
 	for id, session := range config.Sessions {
-		log.Debugf("Processing config for session %s", id)
+		log.Infof("Processing config for session %s", id)
 		if session.Attach {
-			log.Debugf("Session %s is configured for attach", id)
+			log.Infof("Session %s is configured for attach", id)
 			// this will return nil if already running - calling server.start not t.start so that
-			// test impl gets invoked
+			// test impl gets invoked (couldn't find a better way of doing this without full polymorphism)
 			err := server.start()
 			if err != nil {
 				detail := fmt.Sprintf("unable to start attach server: %s", err)
@@ -84,6 +84,8 @@ func (t *attachServerSSH) Reload(config *tether.ExecutorConfig) error {
 
 // Stop needed for tether.Extensions interface
 func (t *attachServerSSH) Stop() error {
+	// calling server.start not t.start so that test impl gets invoked
+	server.stop()
 	return nil
 }
 
