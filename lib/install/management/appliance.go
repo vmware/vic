@@ -335,12 +335,11 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 		log.Errorf("Create appliance reported: %s", info.Error.LocalizedMessage)
 	}
 
-	// get VM
-	vm, err := d.findAppliance(conf)
-	if err != nil || vm == nil {
-		err = errors.Errorf("Failed query back appliance: %s", err)
-		return err
-	}
+	// get VM reference and save it
+	moref := info.Result.(types.ManagedObjectReference)
+	conf.SetMoref(&moref)
+	vm := vm.NewVirtualMachine(d.ctx, d.session, moref)
+
 	// update the displayname to the actual folder name used
 	if d.vmPathName, err = vm.FolderName(d.ctx); err != nil {
 		log.Errorf("Failed to get canonical name for appliance: %s", err)
@@ -350,6 +349,59 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 	log.Debugf("vm inventory path: %s", vm.InventoryPath)
 
 	conf.ApplianceInventoryPath = vm.InventoryPath
+
+	conf.AddComponent("vicadmin", &metadata.SessionConfig{
+		Cmd: metadata.Cmd{
+			Path: "/sbin/vicadmin",
+			Args: []string{
+				"/sbin/vicadmin",
+				"-docker-host=unix:///var/run/docker.sock",
+				// FIXME: hack during config migration
+				"-insecure",
+				"-sdk=" + conf.Target.String(),
+				"-ds=" + conf.ImageStores[0].String(),
+				"-vm-path=" + conf.ApplianceInventoryPath,
+				"-cluster=" + conf.ClusterPath,
+				"-pool=" + conf.ResourcePoolPath,
+			},
+		},
+	},
+	)
+
+	conf.AddComponent("docker-personality", &metadata.SessionConfig{
+		Cmd: metadata.Cmd{
+			Path: "/sbin/docker-engine-server",
+			Args: []string{
+				"/sbin/docker-engine-server",
+				//FIXME: hack during config migration
+				"-serveraddr=0.0.0.0",
+				"-port=2375",
+				"-port-layer-port=8080",
+			},
+		},
+	},
+	)
+
+	conf.AddComponent("port-layer", &metadata.SessionConfig{
+		Cmd: metadata.Cmd{
+			Path: "/sbin/port-layer-server",
+			Args: []string{
+				"/sbin/port-layer-server",
+				//FIXME: hack during config migration
+				"--host=localhost",
+				"--port=8080",
+				"--insecure",
+				"--sdk=" + conf.Target.String(),
+				"--datacenter=" + conf.DatacenterName,
+				"--cluster=" + conf.ClusterPath,
+				"--pool=" + conf.ResourcePoolPath,
+				"--datastore=" + conf.ImageStores[0].String(),
+				"--network=" + conf.Networks["client"].InventoryPath,
+				"--vch=" + conf.Common.Name,
+			},
+		},
+	},
+	)
 
 	spec, err = d.reconfigureApplianceSpec(vm, conf)
 
@@ -376,11 +428,9 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *metad
 	var err error
 
 	spec := &types.VirtualMachineConfigSpec{
-		Name:     conf.Name,
-		GuestId:  "other3xLinux64Guest",
-		Files:    &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStoreName)},
-		NumCPUs:  int32(conf.ApplianceSize.CPU.Limit),
-		MemoryMB: conf.ApplianceSize.Memory.Limit,
+		Name:    conf.Name,
+		GuestId: "other3xLinux64Guest",
+		Files:   &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStoreName)},
 	}
 
 	if devices, err = d.configIso(conf, vm); err != nil {

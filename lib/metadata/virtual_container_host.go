@@ -60,18 +60,16 @@ type VirtualContainerHostConfigSpec struct {
 	UserCertificates []tls.Certificate
 	// Certificates for general outgoing network access, keyed by CIDR (IPNet.String())
 	NetworkCertificates map[string]tls.Certificate
+	// The certificate used to validate the appliance to clients
+	HostCertificate tls.Certificate
 	// Certificates for specific system access, keyed by FQDN
 	HostCertificates map[string]tls.Certificate
 
 	// Port Layer - storage
 	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
-	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores"`
+	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores" recurse:"depth=1"`
 	// Permitted datastore URL roots for volumes
-	VolumeLocations map[string]url.URL `vic:"0.1" scope:"read-only"`
-	// Permitted datastore URLs for container storage for this virtual container host
-	ContainerStores []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-	// Resource pools under which all containers will be created
-	ComputeResources []types.ManagedObjectReference `vic:"0.1" scope:"read-only"`
+	VolumeLocations map[string]url.URL `vic:"0.1" scope:"read-only" recurse:"depth=1"`
 
 	// Port Layer - network
 	// The default bridge network supplied for the Virtual Container Host
@@ -79,14 +77,20 @@ type VirtualContainerHostConfigSpec struct {
 	// Published networks available for containers to join, keyed by consumption name
 	ContainerNetworks map[string]*ContainerNetwork `vic:"0.1" scope:"read-only" key:"container_networks"`
 
+	// Port Layer - exec
+	// Default containerVM capacity
+	ContainerVMSize Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	// Permitted datastore URLs for container storage for this virtual container host
+	ContainerStores []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	// Resource pools under which all containers will be created
+	ComputeResources []types.ManagedObjectReference `vic:"0.1" scope:"read-only"`
+	// Path of the ISO to use for bootstrapping containers
+	BootstrapImagePath url.URL `vic:"0.1" scope:"read-only" recurse:"depth=1"`
+
 	// Virtual Container Host capacity
 	VCHSize Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	// Appliance capacity
 	ApplianceSize Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-
-	// Port Layer - exec
-	// Default containerVM capacity
-	ContainerVMSize Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
 	// Allow custom naming convention for containerVMs
 	ContainerNameConvention string
