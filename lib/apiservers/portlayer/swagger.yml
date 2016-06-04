@@ -440,6 +440,30 @@ paths:
           description: "Error"
           schema:
             $ref: "#/definitions/Error"
+    delete:
+      description: "Remove a container from existence"
+      operationId: ContainerRemove
+      tags: ["containers"]
+      consumes:
+        - application/octet-stream
+      parameters:
+        - name: id
+          required: true
+          in: path
+          type: string
+      responses:
+        '200': 
+          description: "OK"
+        '400':
+          description: "bad parameter"
+        '404':
+          description: "no such container"
+        '500':
+          description: "server error"
+        default:
+          description: "Error"
+          schema:
+            $ref: "#/definitions/Error"
   /containers/{handle}:
     put:
       description: "Commit and close a container handle"

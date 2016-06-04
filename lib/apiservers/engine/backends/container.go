@@ -165,7 +165,6 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		config.Config.Entrypoint = layer.Config.Entrypoint
 	}
 	config.Config.Env = append(config.Config.Env, layer.Config.Env...)
-
 	log.Printf("config.Config' = %+v", config.Config)
 
 	// Call the Exec port layer to create the container
@@ -246,7 +245,28 @@ func (c *Container) ContainerRestart(name string, seconds int) error {
 }
 
 func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) error {
-	return fmt.Errorf("%s does not implement container.ContainerRm", c.ProductName)
+	defer trace.End(trace.Begin("ContainerRm"))
+
+	// Get the portlayer Client API
+	client := PortLayerClient()
+	if client == nil {
+		return derr.NewErrorWithStatusCode(fmt.Errorf("container.ContainerRm failed to create a portlayer client"),
+			http.StatusInternalServerError)
+	}
+
+	//TODO: verify params that are passed in(like -f) and then pass them along.
+
+	//FIXME: currently the portlayer yaml does not support more params than the simple name param
+
+	//call the remove directly on the name. No need for using a handle.
+	_, err := client.Containers.ContainerRemove(containers.NewContainerRemoveParams().WithID(name))
+	if err != nil {
+		if _, ok := err.(*containers.ContainerRemoveNotFound); ok {
+			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
+		}
+		return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer"), http.StatusInternalServerError)
+	}
+	return nil
 }
 
 func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig) error {
@@ -486,9 +506,9 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 
 func (c *Container) imageExist(imageID string) (storeName string, err error) {
 	// Call the storage port layer to determine if the image currently exist
-	host, err := os.Hostname()
+	host, err := guest.UUID()
 	if err != nil {
-		return "", derr.NewBadRequestError(fmt.Errorf("container.ContainerCreate got unexpected error getting hostname"))
+		return "", derr.NewBadRequestError(fmt.Errorf("container.ContainerCreate got unexpected error getting VCH UUID"))
 	}
 
 	getParams := storage.NewGetImageParams().WithID(imageID).WithStoreName(host)

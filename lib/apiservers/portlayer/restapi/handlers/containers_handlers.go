@@ -54,7 +54,7 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 	api.ContainersGetHandler = containers.GetHandlerFunc(handler.GetHandler)
 	api.ContainersCommitHandler = containers.CommitHandlerFunc(handler.CommitHandler)
 	api.ContainersGetStateHandler = containers.GetStateHandlerFunc(handler.GetStateHandler)
-
+	api.ContainersContainerRemoveHandler = containers.ContainerRemoveHandlerFunc(handler.RemoveContainerHandler)
 	handler.handlerCtx = handlerCtx
 }
 
@@ -209,4 +209,22 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 	}
 
 	return containers.NewCommitOK()
+}
+
+func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.ContainerRemoveParams) middleware.Responder {
+	defer trace.End(trace.Begin("Containers.RemoveContainerHandler"))
+
+	//get the indicated container for removal
+	cID := exec.ParseID(params.ID)
+	h := exec.GetContainer(cID)
+	if h == nil {
+		return containers.NewContainerRemoveNotFound()
+	}
+
+	err := h.Container.Remove(context.Background())
+	if err != nil {
+		return containers.NewContainerRemoveInternalServerError()
+	}
+
+	return containers.NewContainerRemoveOK()
 }
