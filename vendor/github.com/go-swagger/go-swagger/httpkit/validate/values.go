@@ -35,8 +35,21 @@ func Enum(path, in string, data interface{}, enum interface{}) *errors.Validatio
 	for i := 0; i < val.Len(); i++ {
 		ele := val.Index(i)
 		enumValue := ele.Interface()
-		if data != nil && reflect.DeepEqual(data, enumValue) {
-			return nil
+		if data != nil {
+			if reflect.DeepEqual(data, enumValue) {
+				return nil
+			}
+			actualType := reflect.TypeOf(enumValue)
+			if actualType == nil {
+				continue
+			}
+			expectedValue := reflect.ValueOf(data)
+			if expectedValue.IsValid() && expectedValue.Type().ConvertibleTo(actualType) {
+				// Attempt comparison after type conversion
+				if reflect.DeepEqual(expectedValue.Convert(actualType).Interface(), enumValue) {
+					return nil
+				}
+			}
 		}
 		values = append(values, enumValue)
 	}
@@ -99,10 +112,13 @@ func MaxLength(path, in, data string, maxLength int64) *errors.Validation {
 // Required validates an interface for requiredness
 func Required(path, in string, data interface{}) *errors.Validation {
 	val := reflect.ValueOf(data)
-	if reflect.DeepEqual(reflect.Zero(val.Type()), val) {
-		return errors.Required(path, in)
+	if val.IsValid() {
+		if reflect.DeepEqual(reflect.Zero(val.Type()).Interface(), val.Interface()) {
+			return errors.Required(path, in)
+		}
+		return nil
 	}
-	return nil
+	return errors.Required(path, in)
 }
 
 // RequiredString validates a string for requiredness

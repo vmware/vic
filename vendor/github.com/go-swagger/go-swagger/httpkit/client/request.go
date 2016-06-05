@@ -28,6 +28,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-openapi/runtime"
 	"github.com/go-swagger/go-swagger/client"
 	"github.com/go-swagger/go-swagger/httpkit"
 	"github.com/go-swagger/go-swagger/strfmt"
@@ -144,10 +145,12 @@ func (r *request) BuildHTTP(mediaType string, producers map[string]httpkit.Produ
 
 			}()
 			return req, nil
+		} else {
+			req.Header.Set(runtime.HeaderContentType, mediaType)
+			// write the form values as the body
+			buf.WriteString(r.formFields.Encode())
+			return req, nil
 		}
-		// write the form values as the body
-		buf.WriteString(r.formFields.Encode())
-		return req, nil
 	}
 
 	// if there is payload, use the producer to write the payload, and then

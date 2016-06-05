@@ -217,26 +217,28 @@ func (c *Context) BindValidRequest(request *http.Request, route *MatchedRoute, b
 
 	requestContentType := "*/*"
 	// check and validate content type, select consumer
-	if httpkit.CanHaveBody(request.Method) {
-		ct, _, err := httpkit.ContentType(request.Header, httpkit.IsDelete(request.Method))
+	if httpkit.HasBody(request) {
+		ct, _, err := httpkit.ContentType(request.Header)
 		if err != nil {
 			res = append(res, err)
 		} else {
 			if err := validateContentType(route.Consumes, ct); err != nil {
 				res = append(res, err)
 			}
-			cons, ok := route.Consumers[ct]
-			if !ok {
-				res = append(res, err)
-			} else {
-				route.Consumer = cons
-				requestContentType = ct
+			if len(res) == 0 {
+				cons, ok := route.Consumers[ct]
+				if !ok {
+					res = append(res, errors.New(500, "no consumer registered for %s", ct))
+				} else {
+					route.Consumer = cons
+					requestContentType = ct
+				}
 			}
 		}
 	}
 
 	// check and validate the response format
-	if len(res) == 0 && httpkit.NeedsContentType(request.Method) {
+	if len(res) == 0 && httpkit.HasBody(request) {
 		if str := NegotiateContentType(request, route.Produces, requestContentType); str == "" {
 			res = append(res, errors.InvalidResponseFormat(request.Header.Get(httpkit.HeaderAccept), route.Produces))
 		}
@@ -265,7 +267,7 @@ func (c *Context) ContentType(request *http.Request) (string, string, *errors.Pa
 		}
 	}
 
-	mt, cs, err := httpkit.ContentType(request.Header, httpkit.IsDelete(request.Method))
+	mt, cs, err := httpkit.ContentType(request.Header)
 	if err != nil {
 		return "", "", err
 	}
@@ -365,12 +367,13 @@ func (c *Context) NotFound(rw http.ResponseWriter, r *http.Request) {
 
 // Respond renders the response after doing some content negotiation
 func (c *Context) Respond(rw http.ResponseWriter, r *http.Request, produces []string, route *MatchedRoute, data interface{}) {
-	offers := []string{c.api.DefaultProduces()}
+	offers := []string{}
 	for _, mt := range produces {
 		if mt != c.api.DefaultProduces() {
 			offers = append(offers, mt)
 		}
 	}
+	offers = append(offers, c.api.DefaultProduces())
 
 	format := c.ResponseFormat(r, offers)
 	rw.Header().Set(httpkit.HeaderContentType, format)
