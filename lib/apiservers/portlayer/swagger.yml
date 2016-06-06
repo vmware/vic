@@ -483,6 +483,36 @@ paths:
           description: "error"
           schema:
             $ref: "#/definitions/Error"
+  /scopes/containers/{handleOrId}:
+    get:
+      tags: ["scopes"]
+      description: "Get a list of the endpoints for a container"
+      operationId: GetContainerEndpoints
+      consumes:
+        - application/octet-stream
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: handleOrId
+          required: true
+          in: path
+          type: string
+      responses:
+        '200':
+          description: "OK"
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/EndpointConfig"
+        '404':
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+        '500':
+          description: "error"
+          schema:
+            $ref: "#/definitions/Error"
   /scopes/containers/{handle}/binding:
     post:
       tags: ["scopes"]
@@ -502,7 +532,7 @@ paths:
         '200':
           description: "OK"
           schema:
-            type: string
+            $ref: "#/definitions/BindContainerResponse"
         '404':
           description: "Not found"
           schema:
@@ -995,23 +1025,26 @@ definitions:
     required:
       - id
       - name
-      - network
+      - scope
       - address
       - gateway
       - container
+      - ports
     properties:
       id:
         type: string
       name:
         type: string
-      network:
+      scope:
         type: string
       address:
         type: string
-      gateway:
-        type: string
       container:
         type: string
+      ports:
+        type: array
+        items:
+          type: string
   ContainerCreateConfig:
     type: object
     properties:
@@ -1070,6 +1103,10 @@ definitions:
       address:
         type: string
       aliases:
+        type: array
+        items:
+          type: string
+      ports:
         type: array
         items:
           type: string
@@ -1305,4 +1342,15 @@ definitions:
         type: string
       readWrite:
         type: boolean
-
+  BindContainerResponse:
+    type: object
+    required:
+      - handle
+      - endpoints
+    properties:
+      handle:
+        type: string
+      endpoints:
+        type: array
+        items:
+          $ref: "#/definitions/EndpointConfig"

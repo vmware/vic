@@ -29,6 +29,7 @@ var notImplementedError = derr.NewErrorWithStatusCode(fmt.Errorf("not implemente
 
 type endpoint struct {
 	ep *models.EndpointConfig
+	sc *models.ScopeConfig
 }
 
 // A system generated id for this endpoint.
@@ -43,7 +44,7 @@ func (e *endpoint) Name() string {
 
 // Network returns the name of the network to which this endpoint is attached.
 func (e *endpoint) Network() string {
-	return e.ep.Network
+	return e.ep.Scope
 }
 
 // Join joins the sandbox to the endpoint and populates into the sandbox
@@ -83,7 +84,11 @@ func (e *endpoint) Iface() libnetwork.InterfaceInfo {
 // Gateway returns the IPv4 gateway assigned by the driver.
 // This will only return a valid value if a container has joined the endpoint.
 func (e *endpoint) Gateway() net.IP {
-	return net.ParseIP(e.ep.Gateway)
+	if e.sc.Gateway != nil {
+		return net.ParseIP(*e.sc.Gateway)
+	}
+
+	return nil
 }
 
 // GatewayIPv6 returns the IPv6 gateway assigned by the driver.
@@ -110,7 +115,16 @@ func (e *endpoint) MacAddress() net.HardwareAddr {
 
 // Address returns the IPv4 address assigned to the endpoint.
 func (e *endpoint) Address() *net.IPNet {
-	ip, snet, err := net.ParseCIDR(e.ep.Address)
+	ip := net.ParseIP(e.ep.Address)
+	if ip == nil {
+		return nil
+	}
+
+	if e.sc.Subnet == nil {
+		return nil
+	}
+
+	_, snet, err := net.ParseCIDR(*e.sc.Subnet)
 	if err != nil {
 		return nil
 	}

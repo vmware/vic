@@ -39,6 +39,8 @@ const (
 	pciSlotNumberBegin int32 = 0xc0
 	pciSlotNumberEnd   int32 = 1 << 10
 	pciSlotNumberInc   int32 = 1 << 5
+
+	DefaultScopeName = "bridge"
 )
 
 type Context struct {
@@ -56,6 +58,7 @@ type AddContainerOptions struct {
 	Scope   string
 	IP      *net.IP
 	Aliases []string
+	Ports   []string
 }
 
 func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
@@ -72,7 +75,7 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 		containers:        make(map[exec.ID]*Container),
 	}
 
-	s, err := ctx.NewScope("bridge", BridgeScopeType, nil, net.IPv4(0, 0, 0, 0), nil, nil)
+	s, err := ctx.NewScope(DefaultScopeName, BridgeScopeType, nil, net.IPv4(0, 0, 0, 0), nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -473,6 +476,8 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		id:   exec.ParseID(h.ExecConfig.ID),
 		name: h.ExecConfig.Name,
 	}
+	defaultMarked := false
+	var endpoints []*Endpoint
 	for _, ne := range h.ExecConfig.Networks {
 		var s *Scope
 		s, ok := c.scopes[ne.Network.Name]
@@ -492,21 +497,27 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		if ne.Static != nil {
 			ip = &ne.Static.IP
 		}
-		if _, err = s.addContainer(con, ip); err != nil {
+
+		var e *Endpoint
+		if e, err = s.addContainer(con, ip); err != nil {
 			return nil, err
 		}
-	}
 
-	endpoints := con.Endpoints()
-	defaultMarked := false
-	for i := range endpoints {
-		e := endpoints[i]
-		ne := h.ExecConfig.Networks[e.Scope().Name()]
-		ne.Static = nil
-		ip := e.IP()
-		if ip != nil && !ip.IsUnspecified() {
+		for _, p := range ne.Ports {
+			var port Port
+			if port, err = ParsePort(p); err != nil {
+				return nil, err
+			}
+
+			if err = e.addPort(port); err != nil {
+				return nil, err
+			}
+		}
+
+		eip := e.IP()
+		if eip != nil && !eip.IsUnspecified() {
 			ne.Static = &net.IPNet{
-				IP:   ip,
+				IP:   eip,
 				Mask: e.Scope().Subnet().Mask,
 			}
 		}
@@ -517,6 +528,8 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			defaultMarked = true
 			ne.Network.Default = true
 		}
+
+		endpoints = append(endpoints, e)
 	}
 
 	// FIXME: if there was no external network to mark as default,
@@ -864,6 +877,7 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 			},
 			Aliases: options.Aliases,
 		},
+		Ports: options.Ports,
 	}
 
 	if options.IP != nil && !options.IP.IsUnspecified() {

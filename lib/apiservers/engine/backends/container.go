@@ -17,6 +17,7 @@ package vicbackends
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -40,11 +41,17 @@ import (
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/strslice"
+	"github.com/docker/go-connections/nat"
+
+	"strconv"
 
 	"github.com/google/uuid"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
+
+	"github.com/vishvananda/netlink"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/portmap"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/interaction"
@@ -55,6 +62,20 @@ import (
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
 )
+
+const bridgeIfaceName = "bridge"
+const clientIfaceName = "client"
+
+var defaultScope struct {
+	sync.Mutex
+	scope string
+}
+
+var portMapper portmap.PortMapper
+
+func init() {
+	portMapper = portmap.NewPortMapper()
+}
 
 // Container struct represents the Container
 type Container struct {
@@ -339,6 +360,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	container.Config.Tty = config.Config.Tty
 	container.Config.OpenStdin = config.Config.OpenStdin
 	container.Config.StdinOnce = config.Config.StdinOnce
+	container.HostConfig = config.HostConfig
 	container.ContainerID = createResults.Payload.ID
 	container.Name = config.Name
 
@@ -484,7 +506,8 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 	var err error
 
 	// Look up the container name in the metadata cache to get long ID
-	if vc := cache.ContainerCache().GetContainer(name); vc != nil {
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc != nil {
 		log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
 		name = vc.ContainerID
 	}
@@ -500,10 +523,17 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 	if hostConfig != nil {
 		// hostConfig exist for backwards compatibility.  TODO: Figure out which parameters we
 		// need to look at in hostConfig
+	} else if vc != nil {
+		hostConfig = vc.HostConfig
+	}
+
+	if vc != nil && hostConfig.NetworkMode.NetworkName() == "" {
+		hostConfig.NetworkMode = vc.HostConfig.NetworkMode
 	}
 
 	// get a handle to the container
-	getRes, err := client.Containers.Get(containers.NewGetParams().WithID(name))
+	var getRes *containers.GetOK
+	getRes, err = client.Containers.Get(containers.NewGetParams().WithID(name))
 	if err != nil {
 		if _, ok := err.(*containers.GetNotFound); ok {
 			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
@@ -516,19 +546,11 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 
 	h := getRes.Payload
 
-	// error handling just in case bind fails
-	defer func() {
-		if err != nil {
-			// roll back the BindContainer call
-			if _, err = client.Scopes.UnbindContainer(scopes.NewUnbindContainerParams().WithHandle(h)); err != nil {
-				log.Warnf("failed to roll back container bind: %s", err.Error())
-			}
-		}
-	}()
-
+	var endpoints []*models.EndpointConfig
 	// bind network
 	if bind {
-		bindRes, err := client.Scopes.BindContainer(scopes.NewBindContainerParams().WithHandle(h))
+		var bindRes *scopes.BindContainerOK
+		bindRes, err = client.Scopes.BindContainer(scopes.NewBindContainerParams().WithHandle(h))
 		if err != nil {
 			switch err := err.(type) {
 			case *scopes.BindContainerNotFound:
@@ -542,15 +564,24 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 			}
 		}
 
-		h = bindRes.Payload
+		h = bindRes.Payload.Handle
+		endpoints = bindRes.Payload.Endpoints
+
+		// unbind in case we fail later
+		defer func() {
+			if err != nil {
+				client.Scopes.UnbindContainer(scopes.NewUnbindContainerParams().WithHandle(h))
+			}
+		}()
+
 	}
 
 	// change the state of the container
 	// TODO: We need a resolved ID from the name
-	stateChangeRes, err := client.Containers.StateChange(containers.NewStateChangeParams().WithHandle(h).WithState("RUNNING"))
+	var stateChangeRes *containers.StateChangeOK
+	stateChangeRes, err = client.Containers.StateChange(containers.NewStateChangeParams().WithHandle(h).WithState("RUNNING"))
 	if err != nil {
 		switch err := err.(type) {
-
 		case *containers.StateChangeNotFound:
 			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err.Payload.Message))
 
@@ -564,11 +595,18 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 
 	h = stateChangeRes.Payload
 
+	if bind {
+		if err = c.mapPorts(portmap.Map, hostConfig, c.findPortBoundNetworkEndpoint(hostConfig, endpoints)); err != nil {
+			err = fmt.Errorf("error mapping ports: %s", err)
+			log.Error(err)
+			return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		}
+	}
+
 	// commit the handle; this will reconfigure and start the vm
 	_, err = client.Containers.Commit(containers.NewCommitParams().WithHandle(h))
 	if err != nil {
 		switch err := err.(type) {
-
 		case *containers.CommitNotFound:
 			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err.Payload.Message))
 
@@ -576,6 +614,135 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err.Payload.Message))
 		default:
 			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err))
+		}
+	}
+
+	return nil
+}
+
+func getIfaceIPAddr(iface string) (net.IP, error) {
+	l, err := netlink.LinkByName(iface)
+	if l == nil {
+		l, err = netlink.LinkByAlias(iface)
+		if err != nil {
+			return nil, fmt.Errorf("interface %s not found", iface)
+		}
+	}
+
+	addrs, err := netlink.AddrList(l, netlink.FAMILY_V4)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(addrs) > 1 {
+		return nil, fmt.Errorf("multiple addresses found for interface %s", iface)
+	}
+	if len(addrs) == 0 {
+		return nil, fmt.Errorf("no addresses found for interface %s", iface)
+	}
+
+	return addrs[0].IP, nil
+}
+
+func (c *Container) mapPorts(op portmap.Operation, hostconfig *container.HostConfig, endpoint *models.EndpointConfig) error {
+	if len(hostconfig.PortBindings) == 0 || endpoint == nil {
+		return nil
+	}
+
+	clientIP, err := getIfaceIPAddr(clientIfaceName)
+	if err != nil {
+		return err
+	}
+
+	var containerIP net.IP
+	containerIP = net.ParseIP(endpoint.Address)
+	if containerIP == nil {
+		return fmt.Errorf("invalid endpoint address %s", endpoint.Address)
+	}
+
+	for _, p := range endpoint.Ports {
+		proto, port := nat.SplitProtoPort(p)
+		var nport nat.Port
+		nport, err = nat.NewPort(proto, port)
+		if err != nil {
+			return err
+		}
+
+		pbs, ok := hostconfig.PortBindings[nport]
+		if !ok {
+			continue
+		}
+
+		sp, ep, err := nport.Range()
+		if err != nil {
+			return err
+		}
+
+		if sp != ep {
+			return fmt.Errorf("port ranges not supported")
+		}
+
+		for _, pb := range pbs {
+			var hostPort int
+			hostPort, err = strconv.Atoi(pb.HostPort)
+			if err != nil {
+				return err
+			}
+
+			if err = portMapper.MapPort(op, clientIP, hostPort, nport.Proto(), containerIP.String(), sp, clientIfaceName, bridgeIfaceName); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (c *Container) defaultScope() string {
+	defaultScope.Lock()
+	defer defaultScope.Unlock()
+
+	if defaultScope.scope != "" {
+		return defaultScope.scope
+	}
+
+	client := PortLayerClient()
+	listRes, err := client.Scopes.List(scopes.NewListParams().WithIDName("default"))
+	if err != nil {
+		log.Error(err)
+		return ""
+	}
+
+	if len(listRes.Payload) != 1 {
+		log.Errorf("could not get default scope name")
+		return ""
+	}
+
+	defaultScope.scope = listRes.Payload[0].Name
+	return defaultScope.scope
+}
+
+func (c *Container) findPortBoundNetworkEndpoint(hostconfig *container.HostConfig, endpoints []*models.EndpointConfig) *models.EndpointConfig {
+	if len(hostconfig.PortBindings) == 0 {
+		return nil
+	}
+
+	// check if the port binding network is a bridge type
+	listRes, err := PortLayerClient().Scopes.List(scopes.NewListParams().WithIDName(hostconfig.NetworkMode.NetworkName()))
+	if err != nil {
+		log.Error(err)
+		return nil
+	}
+
+	if len(listRes.Payload) != 1 || listRes.Payload[0].ScopeType != "bridge" {
+		log.Warnf("port binding for network %s is not bridge type", hostconfig.NetworkMode.NetworkName())
+		return nil
+	}
+
+	// look through endpoints to find the container's IP on the network that has the port binding
+	for _, e := range endpoints {
+		if hostconfig.NetworkMode.NetworkName() == e.Scope || (hostconfig.NetworkMode.IsDefault() && e.Scope == c.defaultScope()) {
+			return e
 		}
 	}
 
@@ -595,7 +762,8 @@ func (c *Container) ContainerStop(name string, seconds int) error {
 
 func (c *Container) containerStop(name string, seconds int, unbound bool) error {
 	// Look up the container name in the metadata cache to get long ID
-	if vc := cache.ContainerCache().GetContainer(name); vc != nil {
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc != nil {
 		log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
 		name = vc.ContainerID
 	}
@@ -625,6 +793,18 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 	handle := getResponse.Payload
 
 	if unbound {
+		// get the endpoints for the container
+		conEpsRes, err := client.Scopes.GetContainerEndpoints(scopes.NewGetContainerEndpointsParams().WithHandleOrID(handle))
+		if err != nil {
+			switch err := err.(type) {
+			case *scopes.GetContainerEndpointsNotFound:
+				return derr.NewRequestNotFoundError(fmt.Errorf("container %s not found", name))
+
+			case *scopes.GetContainerEndpointsInternalServerError:
+				return derr.NewErrorWithStatusCode(fmt.Errorf("%s", err.Payload.Message), http.StatusInternalServerError)
+			}
+		}
+
 		ub, err := client.Scopes.UnbindContainer(scopes.NewUnbindContainerParams().WithHandle(handle))
 		if err != nil {
 			switch err := err.(type) {
@@ -640,15 +820,18 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 		}
 
 		handle = ub.Payload
+
+		// unmap ports
+		if err = c.mapPorts(portmap.Unmap, vc.HostConfig, c.findPortBoundNetworkEndpoint(vc.HostConfig, conEpsRes.Payload)); err != nil {
+			return err
+		}
 	}
 
 	// change the state of the container
 	// TODO: We need a resolved ID from the name
 	stateChangeResponse, err := client.Containers.StateChange(containers.NewStateChangeParams().WithHandle(handle).WithState("STOPPED"))
 	if err != nil {
-
 		switch err := err.(type) {
-
 		case *containers.StateChangeNotFound:
 			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s ", err.Payload.Message))
 
@@ -663,10 +846,8 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 	handle = stateChangeResponse.Payload
 
 	_, err = client.Containers.Commit(containers.NewCommitParams().WithHandle(handle))
-
 	if err != nil {
 		switch err := err.(type) {
-
 		case *containers.CommitNotFound:
 			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s ", err.Payload.Message))
 
@@ -674,7 +855,6 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s ", err.Payload.Message))
 
 		default:
-
 			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s ", err))
 		}
 
@@ -937,8 +1117,17 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 			}
 			// Pass Links and Aliases to PL
 			nc.Aliases = EP2Alias(es)
+
 		}
 	}
+
+	nc.Ports = make([]string, len(cc.HostConfig.PortBindings))
+	i := 0
+	for p := range cc.HostConfig.PortBindings {
+		nc.Ports[i] = string(p)
+		i++
+	}
+
 	return nc
 }
 

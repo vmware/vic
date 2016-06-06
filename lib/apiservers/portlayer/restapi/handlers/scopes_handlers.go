@@ -47,6 +47,7 @@ func (handler *ScopesHandlersImpl) Configure(api *operations.PortLayerAPI, handl
 	api.ScopesDeleteScopeHandler = scopes.DeleteScopeHandlerFunc(handler.ScopesDelete)
 	api.ScopesListAllHandler = scopes.ListAllHandlerFunc(handler.ScopesListAll)
 	api.ScopesListHandler = scopes.ListHandlerFunc(handler.ScopesList)
+	api.ScopesGetContainerEndpointsHandler = scopes.GetContainerEndpointsHandlerFunc(handler.ScopesGetContainerEndpoints)
 	api.ScopesAddContainerHandler = scopes.AddContainerHandlerFunc(handler.ScopesAddContainer)
 	api.ScopesRemoveContainerHandler = scopes.RemoveContainerHandlerFunc(handler.ScopesRemoveContainer)
 	api.ScopesBindContainerHandler = scopes.BindContainerHandlerFunc(handler.ScopesBindContainer)
@@ -200,6 +201,30 @@ func (handler *ScopesHandlersImpl) ScopesList(params scopes.ListParams) middlewa
 	return scopes.NewListOK().WithPayload(cfgs)
 }
 
+func (handler *ScopesHandlersImpl) ScopesGetContainerEndpoints(params scopes.GetContainerEndpointsParams) middleware.Responder {
+	defer trace.End(trace.Begin("ScopesGetContainerEndpoint"))
+
+	id := exec.ParseID(params.HandleOrID)
+	// lookup by handle
+	h := exec.GetHandle(id.String())
+	if h != nil {
+		id = exec.ParseID(h.ExecConfig.ID)
+	}
+
+	c := handler.netCtx.Container(id)
+	if c == nil {
+		return scopes.NewGetContainerEndpointsNotFound().WithPayload(errorPayload(fmt.Errorf("container not found")))
+	}
+
+	eps := c.Endpoints()
+	ecs := make([]*models.EndpointConfig, len(eps))
+	for i, e := range eps {
+		ecs[i] = toEndpointConfig(e)
+	}
+
+	return scopes.NewGetContainerEndpointsOK().WithPayload(ecs)
+}
+
 func (handler *ScopesHandlersImpl) ScopesAddContainer(params scopes.AddContainerParams) middleware.Responder {
 	defer trace.End(trace.Begin("ScopesAddContainer"))
 
@@ -227,6 +252,7 @@ func (handler *ScopesHandlersImpl) ScopesAddContainer(params scopes.AddContainer
 			Scope:   params.Config.NetworkConfig.NetworkName,
 			IP:      ip,
 			Aliases: params.Config.NetworkConfig.Aliases,
+			Ports:   params.Config.NetworkConfig.Ports,
 		}
 		return handler.netCtx.AddContainer(h, options)
 	}()
@@ -269,11 +295,21 @@ func (handler *ScopesHandlersImpl) ScopesBindContainer(params scopes.BindContain
 		return scopes.NewBindContainerNotFound().WithPayload(&models.Error{Message: "container not found"})
 	}
 
-	if _, err := handler.netCtx.BindContainer(h); err != nil {
+	var endpoints []*network.Endpoint
+	var err error
+	if endpoints, err = handler.netCtx.BindContainer(h); err != nil {
 		return scopes.NewBindContainerInternalServerError().WithPayload(errorPayload(err))
 	}
 
-	return scopes.NewBindContainerOK().WithPayload(h.String())
+	res := &models.BindContainerResponse{
+		Handle:    h.String(),
+		Endpoints: make([]*models.EndpointConfig, len(endpoints)),
+	}
+	for i, e := range endpoints {
+		res.Endpoints[i] = toEndpointConfig(e)
+	}
+
+	return scopes.NewBindContainerOK().WithPayload(res)
 }
 
 func (handler *ScopesHandlersImpl) ScopesUnbindContainer(params scopes.UnbindContainerParams) middleware.Responder {
@@ -320,22 +356,30 @@ func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
 	eps := scope.Endpoints()
 	sc.Endpoints = make([]*models.EndpointConfig, len(eps))
 	for i, e := range eps {
-		addr := ""
-		ip := e.IP()
-		if ip != nil {
-			a := net.IPNet{IP: ip, Mask: e.Subnet().Mask}
-			addr = a.String()
-		}
-		sc.Endpoints[i] = &models.EndpointConfig{
-			Address:   addr,
-			Gateway:   e.Gateway().String(),
-			ID:        e.ID(),
-			Name:      e.Container().Name(),
-			Network:   e.Scope().Name(),
-			Container: e.Container().ID().String(),
-		}
-
+		sc.Endpoints[i] = toEndpointConfig(e)
 	}
 
 	return sc
+}
+
+func toEndpointConfig(e *network.Endpoint) *models.EndpointConfig {
+	addr := ""
+	if !ip.IsUnspecifiedIP(e.IP()) {
+		addr = e.IP().String()
+	}
+
+	ports := e.Ports()
+	ecports := make([]string, len(ports))
+	for i, p := range e.Ports() {
+		ecports[i] = p.String()
+	}
+
+	return &models.EndpointConfig{
+		Address:   addr,
+		Container: e.Container().ID().String(),
+		ID:        e.ID(),
+		Name:      e.Container().Name(),
+		Scope:     e.Scope().Name(),
+		Ports:     ecports,
+	}
 }

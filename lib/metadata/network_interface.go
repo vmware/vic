@@ -38,6 +38,9 @@ type NetworkEndpoint struct {
 	// The network in which this information should be interpreted. This is embedded directly rather than
 	// as a pointer so that we can ensure the data is consistent
 	Network ContainerNetwork `vic:"0.1" scope:"read-only" key:"network"`
+
+	// The list of exposed ports on the container
+	Ports []string `vic:"0.1" scope:"read-only" key:"ports"`
 }
 
 // ContainerNetwork is the data needed on a per container basis both for vSphere to ensure it's attached
