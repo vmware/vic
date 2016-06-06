@@ -73,7 +73,7 @@ type ImageConfig struct {
 
 // LearnRegistryURL returns the registry URL after making sure that it responds to queries
 func LearnRegistryURL(options ImageCOptions) (string, error) {
-	log.Debugf("Registry: %s", options.registry)
+	defer trace.End(trace.Begin(options.registry))
 
 	req := func(schema string) (string, error) {
 		registry := fmt.Sprintf("%s://%s/v2/", schema, options.registry)
