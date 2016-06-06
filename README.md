@@ -7,6 +7,7 @@ vSphere Integrated Containers (VIC) is a container runtime for vSphere, allowing
 
 See [VIC Containers Architecture](doc/design/arch/arch.md) for a high level overview.
 
+
 ## Project Status
 
 VIC can currently pull images, create and start containers in a very limited fashion - most significantly you cannot attach to a container to see its output or interact with it. Interaction is only via the network - containers will be exposed directly on the VCH external network rather than via port forwarding.
@@ -86,16 +87,19 @@ This will install the [gvt](https://github.com/FiloSottile/gvt) utility and retr
 
 The component binaries above are packaged into ISO files, appliance.iso and bootstrap.iso, that are used by the installer. The generation of the ISOs is split into the following targets:
 iso-base, appliance-staging, bootstrap-staging, appliance, and bootstrap. Generation of the ISOs involves authoring a new root filesystem, meaning running a package manager (currently yum) and packing/unpacking archives. To install packages and preserve file permissions while unpacking these steps should be run as root, whether directly or in a container. To generate the ISOs:
+
 ```
 # make isos
 ```
 
 The appliance and bootstrap ISOs are bootable CD images used to start the VMs that make up VIC. To build the image using [docker](https://www.docker.com/), ensure `GOPATH` is set and `docker` is installed, then issue the following.
+
 ```
 docker run -v $(pwd):/go/src/github.com/vmware/vic -w /go/src/github.com/vmware/vic golang:1.6 make isos
 ```
 
 Alternatively, the iso image can be built locally.  Again, ensure `GOPATH` is set, but also ensure the following packages are installed. This will attempt to install the following packages if not present using apt-get:
+
 ```
 	curl \
 	cpio \
@@ -114,19 +118,21 @@ make iso-base appliance-staging appliance bootstrap-staging bootstrap
 
 The iso image will be created in `$BIN`
 
+
 [dronevic]:https://ci.vmware.run/vmware/vic
 [dronesrc]:https://github.com/drone/drone
 [dronecli]:http://readme.drone.io/devs/cli/
 
 ## Building with CI
 
-Merges to this repository will trigger builds with [Drone][dronevic].
+PRs to this repository will trigger builds on our [Drone CI][dronevic].
 
 To build locally with Drone:
 
 Ensure that you have Docker 1.6 or higher installed.
-Install the Drone command line tools.
+Install the [Drone command line tools][dronecli].
 From the root directory of the `vic` repository run `drone exec -trusted -cache -e VIC_ESX_TEST_URL=""`
+
 
 ## Starting docker-engine-server
 
@@ -142,13 +148,15 @@ Start docker-engine-server
 bin/docker-engine-server -serveraddr IP --port=2376 -port-layer-addr IP -port-layer-port 8080 -TLS -tls-certificate=cert.pem -tls-key=key.pem
 ```
 
+
 ## Starting port-layer-server
 
 ```
 sudo bin/port-layer-server --host=IP --port=8080 --insecure --sdk="https://USERNAME:PASSWORD@IP/sdk --datacenter=DATACENTER --cluster=CLUSTER --datastore=DATASTORE --network=NETWORK --vch=VCH_NAME"
 ```
 
-## Testing with docker client
+
+## Using VIC with docker client
 
 Download docker client
 ```
@@ -168,6 +176,10 @@ bc744c4ab376: Pull complete
 Status: Downloaded newer image for library/busybox:latest
 3d543a18b8ee3657e34f68df5d30d43c1cae6cc9e9c3c66161280c7ee2854407
 ```
+
+## Test Case Documentation
+
+See: [VIC Integration Test Suite](tests/README.md)
 
 ## License
 

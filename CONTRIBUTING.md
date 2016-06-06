@@ -37,6 +37,7 @@ This is a rough outline of what a contributor's workflow looks like:
 - Make commits of logical units.
 - Make sure your commit messages are in the proper format (see below).
 - Push your changes to a topic branch in your fork of the repository.
+- Test your changes as detailed in the [Automated Testing](#automated-testing) section.
 - Submit a pull request to vmware/vic.
 - Your PR must receive at least one LGTM from a maintainer before merging.
 
@@ -99,6 +100,50 @@ We follow the conventions on [How to Write a Git Commit Message](http://chris.be
 Be sure to include any related GitHub issue references in the commit message.  See
 [GFM syntax](https://guides.github.com/features/mastering-markdown/#GitHub-flavored-markdown) for referencing issues
 and commits.
+
+
+[dronevic]:https://ci.vmware.run/vmware/vic
+[e2edronevic]:https://e2e.ci.vmware.run/vmware/vic
+[dronesrc]:https://github.com/drone/drone
+[dronecli]:http://readme.drone.io/devs/cli/
+
+## Automated Testing
+
+Automated testing uses [Drone][dronesrc].
+
+PRs must pass unit tests and integration tests before being merged into `master`.
+
+You can run the tests locally before making a PR or view the Drone build results for [unit tests][dronevic]
+and [integration tests][e2edronevic].
+
+If you don't have a running ESX required for tests, you can leverage the automated Drone servers for
+running tests. Add `WIP` (work in progress) to the PR title to alert reviewers that the PR is not ready to be merged.
+
+
+### Testing locally
+
+Developers need to install [Drone CLI][dronecli].
+
+#### Unit tests
+
+``` shell
+drone exec --yaml .drone.yml -e VIC_ESX_TEST_URL="<USER>:<PASS>@<ESX IP>"
+```
+
+If you don't have a running ESX, tests requiring an ESX can be skipped with the following:
+
+``` shell
+drone exec --yaml .drone.yml -e VIC_ESX_TEST_URL=""
+```
+
+#### Integration tests
+
+Integration tests require a running ESX on which to deploy VIC.
+
+``` shell
+drone exec --yaml .drone-e2e.yml -e VIC_ESX_TEST_URL="<USER>:<PASS>@<ESX IP>"
+```
+
 
 ## Reporting Bugs and Creating Issues
 
