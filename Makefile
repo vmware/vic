@@ -282,7 +282,8 @@ $(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorri
 	@$(TIME) $< -c $(BIN)/yum-cache.tgz -p $@
 
 # appliance staging - allows for caching of package install
-$(appliance-staging): isos/appliance-staging.sh $(iso-base)
+$(appliance-staging): isos/appliance-staging.sh $(i
+so-base)
 	@echo staging for VCH appliance
 	@$(TIME) $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@
 
