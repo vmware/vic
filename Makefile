@@ -202,15 +202,15 @@ test:
 	# test everything but vendor
 ifdef DRONE
 	@echo Generating coverage data
-	@time -f "t%E" infra/scripts/coverage.sh $(TEST_DIRS)
+	@$(TIME) infra/scripts/coverage.sh $(TEST_DIRS)
 else
 	@echo Generating local html coverage report
-	@time -f "t%E" infra/scripts/coverage.sh --html $(TEST_DIRS)
+	@$(TIME) infra/scripts/coverage.sh --html $(TEST_DIRS)
 endif
 
 docker-integration-tests:
 	@echo Running Docker integration tests
-	@time -f "t%E" tests/docker-tests/run-tests.sh
+	@$(TIME) tests/docker-tests/run-tests.sh
 
 $(vch-init): $(call godeps,cmd/vch-init/*.go)
 	@echo building vch-init
@@ -218,38 +218,38 @@ $(vch-init): $(call godeps,cmd/vch-init/*.go)
 
 $(tether-linux): $(call godeps,cmd/tether/*.go)
 	@echo building tether-linux
-	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 time -f "t%E" $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 $(tether-windows): $(call godeps,cmd/tether/*.go)
 	@echo building tether-windows
-	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 time -f "t%E" $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 # CGO is disabled for darwin otherwise build fails with "gcc: error: unrecognized command line option '-mmacosx-version-min=10.6'"
 $(tether-darwin): $(call godeps,cmd/tether/*.go)
 	@echo building tether-darwin
-	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 time -f "t%E" $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 $(rpctool): $(call godeps,cmd/rpctool/*.go)
 ifeq ($(OS),linux)
 	@echo building rpctool
-	@GOARCH=amd64 GOOS=linux time -f "t%E" $(GO) build $(RACE) -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
 else
 	@echo skipping rpctool, cannot cross compile cgo
 endif
 
 $(vicadmin): $(call godeps,cmd/vicadmin/*.go)
 	@echo building vicadmin
-	@GOARCH=amd64 GOOS=linux time -f "t%E" $(GO) build $(RACE) -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
 
 $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@echo building imagec...
-	@time -f "t%E" $(GO) build $(RACE) -o ./$@ ./$(dir $<)
+	@$(TIME) $(GO) build $(RACE) -o ./$@ ./$(dir $<)
 
 
 $(docker-engine-api): $(call godeps,cmd/docker/*.go) $(portlayerapi-client)
 ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
-	@time -f "t%E" $(GO) build $(RACE) -o $@ ./cmd/docker
+	@$(TIME) $(GO) build $(RACE) -o $@ ./cmd/docker
 else
 	@echo skipping docker-engine-api server, cannot build on non-linux
 endif
@@ -271,51 +271,51 @@ $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 
 $(portlayerapi): $(call godeps,lib/apiservers/portlayer/cmd/port-layer-server/*.go) $(portlayerapi-server) $(portlayerapi-client)
 	@echo building Portlayer API server...
-	@time -f "t%E" $(GO) build $(RACE) -o $@ ./lib/apiservers/portlayer/cmd/port-layer-server
+	@$(TIME) $(GO) build $(RACE) -o $@ ./lib/apiservers/portlayer/cmd/port-layer-server
 
 $(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
 	@echo building iso-base docker image
-	@time -f "t%E" $< -c $(BIN)/yum-cache.tgz -p $@
+	@$(TIME) $< -c $(BIN)/yum-cache.tgz -p $@
 
 # appliance staging - allows for caching of package install
 $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 	@echo staging for VCH appliance
-	@time -f "t%E" $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@
+	@$(TIME) $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@
 
 # main appliance target - depends on all top level component targets
 $(appliance): isos/appliance.sh isos/appliance/* $(rpctool) $(vicadmin) $(imagec) $(vch-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
 	@echo building VCH appliance ISO
-	@time -f "t%E" $< -p $(appliance-staging) -b $(BIN)
+	@$(TIME) $< -p $(appliance-staging) -b $(BIN)
 
 # main bootstrap target
 $(bootstrap): isos/bootstrap.sh $(tether-linux) $(rpctool) $(bootstrap-staging) isos/bootstrap/*
 	@echo "Making bootstrap iso"
-	@time -f "t%E" $< -p $(bootstrap-staging) -b $(BIN)
+	@$(TIME) $< -p $(bootstrap-staging) -b $(BIN)
 
 $(bootstrap-debug): isos/bootstrap.sh $(tether-linux) $(rpctool) $(bootstrap-staging-debug) isos/bootstrap/*
 	@echo "Making bootstrap-debug iso"
-	@time -f "t%E" $< -p $(bootstrap-staging-debug) -b $(BIN) -d true
+	@$(TIME) $< -p $(bootstrap-staging-debug) -b $(BIN) -d true
 
 $(bootstrap-staging): isos/bootstrap-staging.sh $(iso-base)
 	@echo staging for bootstrap
-	@time -f "t%E" $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@
+	@$(TIME) $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@
 
 $(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base)
 	@echo staging debug for bootstrap
-	@time -f "t%E" $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@ -d true
+	@$(TIME) $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@ -d true
 
 
 $(vic-machine-linux): $(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine linux...
-	@GOARCH=amd64 GOOS=linux time -f "t%E" $(GO) build $(RACE) --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 $(vic-machine-windows): $(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine windows...
-	@GOARCH=amd64 GOOS=windows time -f "t%E" $(GO) build $(RACE) --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 $(vic-machine-darwin): $(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine darwin...
-	@GOARCH=amd64 GOOS=darwin time -f "t%E" $(GO) build $(RACE) --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 clean:
 	rm -rf $(BIN)
