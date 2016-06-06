@@ -144,10 +144,12 @@ func (r *request) BuildHTTP(mediaType string, producers map[string]httpkit.Produ
 
 			}()
 			return req, nil
+		} else {
+			req.Header.Set(httpkit.HeaderContentType, mediaType)
+			// write the form values as the body
+			buf.WriteString(r.formFields.Encode())
+			return req, nil
 		}
-		// write the form values as the body
-		buf.WriteString(r.formFields.Encode())
-		return req, nil
 	}
 
 	// if there is payload, use the producer to write the payload, and then

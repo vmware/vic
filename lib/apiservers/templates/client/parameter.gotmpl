@@ -77,7 +77,7 @@ func ({{ $.ReceiverName }} *{{ pascalize $.Name }}Params) With{{ pascalize .Name
 {{ end }}
 // WriteToRequest writes these params to a swagger request
 func ({{ .ReceiverName }} *{{ pascalize .Name }}Params) WriteToRequest(r client.Request, reg strfmt.Registry) error {
-
+  
   r.SetTimeout({{ .ReceiverName }}.timeout)
   var res []error
   {{range .Params}}

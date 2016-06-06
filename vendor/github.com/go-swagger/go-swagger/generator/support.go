@@ -662,7 +662,7 @@ func (a *appGenerator) makeCodegenApp() (GenApp, error) {
 
 	basePath := "/"
 	if sw.BasePath != "" {
-		basePath = "/"
+		basePath = sw.BasePath
 	}
 
 	return GenApp{
