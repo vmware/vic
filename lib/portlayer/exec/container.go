@@ -146,13 +146,13 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		switch *h.State {
 		case StateRunning:
 			// start the container
-			if err := h.Container.Start(ctx); err != nil {
+			if err := h.Container.start(ctx); err != nil {
 				return err
 			}
 
 		case StateStopped:
 			// stop the container
-			if err := h.Container.Stop(ctx); err != nil {
+			if err := h.Container.stop(ctx); err != nil {
 				return err
 			}
 		}
@@ -164,10 +164,8 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 }
 
 // Start starts a container vm with the given params
-func (c *Container) Start(ctx context.Context) error {
-	defer trace.End(trace.Begin("Container.Start"))
-	c.Lock()
-	defer c.Unlock()
+func (c *Container) start(ctx context.Context) error {
+	defer trace.End(trace.Begin("Container.start"))
 
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
@@ -201,10 +199,8 @@ func (c *Container) Start(ctx context.Context) error {
 	return nil
 }
 
-func (c *Container) Stop(ctx context.Context) error {
-	defer trace.End(trace.Begin("Container.Stop"))
-	c.Lock()
-	defer c.Unlock()
+func (c *Container) stop(ctx context.Context) error {
+	defer trace.End(trace.Begin("Container.stop"))
 
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
