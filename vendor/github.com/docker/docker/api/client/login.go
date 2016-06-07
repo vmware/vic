@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/cliconfig/credentials"
@@ -52,17 +54,21 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return err
 	}
 
-	response, err := cli.client.RegistryLogin(authConfig)
+	response, err := cli.client.RegistryLogin(context.Background(), authConfig)
 	if err != nil {
 		return err
 	}
 
+	if response.IdentityToken != "" {
+		authConfig.Password = ""
+		authConfig.IdentityToken = response.IdentityToken
+	}
 	if err := storeCredentials(cli.configFile, authConfig); err != nil {
 		return fmt.Errorf("Error saving credentials: %v", err)
 	}
 
 	if response.Status != "" {
-		fmt.Fprintf(cli.out, "%s\n", response.Status)
+		fmt.Fprintln(cli.out, response.Status)
 	}
 	return nil
 }
@@ -120,6 +126,7 @@ func (cli *DockerCli) configureAuth(flUser, flPassword, serverAddress string, is
 	authconfig.Username = flUser
 	authconfig.Password = flPassword
 	authconfig.ServerAddress = serverAddress
+	authconfig.IdentityToken = ""
 
 	return authconfig, nil
 }

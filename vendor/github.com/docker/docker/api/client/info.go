@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/ioutils"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -20,7 +22,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	info, err := cli.client.Info()
+	info, err := cli.client.Info(context.Background())
 	if err != nil {
 		return err
 	}
@@ -93,8 +95,8 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		u := cli.configFile.AuthConfigs[info.IndexServerAddress].Username
 		if len(u) > 0 {
 			fmt.Fprintf(cli.out, "Username: %v\n", u)
-			fmt.Fprintf(cli.out, "Registry: %v\n", info.IndexServerAddress)
 		}
+		fmt.Fprintf(cli.out, "Registry: %v\n", info.IndexServerAddress)
 	}
 
 	// Only output these warnings if the server does not support these features

@@ -34,39 +34,58 @@ import (
 )
 
 func init() {
-	cmd := exec.Command(dockerBinary, "images", "-f", "dangling=false", "--format", "{{.Repository}}:{{.Tag}}")
+	cmd := exec.Command(dockerBinary, "images")
 	cmd.Env = appendBaseEnv(true)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		panic(fmt.Errorf("err=%v\nout=%s\n", err, out))
 	}
-	images := strings.Split(strings.TrimSpace(string(out)), "\n")
-	for _, img := range images {
-		protectedImages[img] = struct{}{}
+	lines := strings.Split(string(out), "\n")[1:]
+	for _, l := range lines {
+		if l == "" {
+			continue
+		}
+		fields := strings.Fields(l)
+		imgTag := fields[0] + ":" + fields[1]
+		// just for case if we have dangling images in tested daemon
+		if imgTag != "<none>:<none>" {
+			protectedImages[imgTag] = struct{}{}
+		}
 	}
 
-	res, body, err := sockRequestRaw("GET", "/info", nil, "application/json")
-	if err != nil {
-		panic(fmt.Errorf("Init failed to get /info: %v", err))
+	// Obtain the daemon platform so that it can be used by tests to make
+	// intelligent decisions about how to configure themselves, and validate
+	// that the target platform is valid.
+	res, _, err := sockRequestRaw("GET", "/version", nil, "application/json")
+	if err != nil || res == nil || (res != nil && res.StatusCode != http.StatusOK) {
+		panic(fmt.Errorf("Init failed to get version: %v. Res=%v", err.Error(), res))
 	}
-	defer body.Close()
-	if res.StatusCode != http.StatusOK {
-		panic(fmt.Errorf("Init failed to get /info. Res=%v", res))
-	}
-
 	svrHeader, _ := httputils.ParseServerHeader(res.Header.Get("Server"))
 	daemonPlatform = svrHeader.OS
 	if daemonPlatform != "linux" && daemonPlatform != "windows" {
 		panic("Cannot run tests against platform: " + daemonPlatform)
 	}
 
-	// Now we know the daemon platform, can set paths used by tests.
-	var info types.Info
-	err = json.NewDecoder(body).Decode(&info)
-	if err != nil {
-		panic(fmt.Errorf("Init failed to unmarshal docker info: %v", err))
+	// On Windows, extract out the version as we need to make selective
+	// decisions during integration testing as and when features are implemented.
+	if daemonPlatform == "windows" {
+		if body, err := ioutil.ReadAll(res.Body); err == nil {
+			var server types.Version
+			if err := json.Unmarshal(body, &server); err == nil {
+				// eg in "10.0 10550 (10550.1000.amd64fre.branch.date-time)" we want 10550
+				windowsDaemonKV, _ = strconv.Atoi(strings.Split(server.KernelVersion, " ")[1])
+			}
+		}
 	}
 
+	// Now we know the daemon platform, can set paths used by tests.
+	_, body, err := sockRequest("GET", "/info", nil)
+	if err != nil {
+		panic(err)
+	}
+
+	var info types.Info
+	err = json.Unmarshal(body, &info)
 	daemonStorageDriver = info.Driver
 	dockerBasePath = info.DockerRootDir
 	volumesConfigPath = filepath.Join(dockerBasePath, "volumes")
@@ -76,10 +95,6 @@ func init() {
 	if daemonPlatform == "windows" {
 		volumesConfigPath = strings.Replace(volumesConfigPath, `/`, `\`, -1)
 		containerStoragePath = strings.Replace(containerStoragePath, `/`, `\`, -1)
-		// On Windows, extract out the version as we need to make selective
-		// decisions during integration testing as and when features are implemented.
-		// eg in "10.0 10550 (10550.1000.amd64fre.branch.date-time)" we want 10550
-		windowsDaemonKV, _ = strconv.Atoi(strings.Split(info.KernelVersion, " ")[1])
 	} else {
 		volumesConfigPath = strings.Replace(volumesConfigPath, `\`, `/`, -1)
 		containerStoragePath = strings.Replace(containerStoragePath, `\`, `/`, -1)
@@ -269,10 +284,6 @@ func deleteAllNetworks() error {
 		if n.Name == "bridge" || n.Name == "none" || n.Name == "host" {
 			continue
 		}
-		if daemonPlatform == "windows" && strings.ToLower(n.Name) == "nat" {
-			// nat is a pre-defined network on Windows and cannot be removed
-			continue
-		}
 		status, b, err := sockRequest("DELETE", "/networks/"+n.Name, nil)
 		if err != nil {
 			errors = append(errors, err.Error())
@@ -458,11 +469,7 @@ func dockerCmdWithError(args ...string) (string, int, error) {
 	if err := validateArgs(args...); err != nil {
 		return "", 0, err
 	}
-	out, code, err := integration.DockerCmdWithError(dockerBinary, args...)
-	if err != nil {
-		err = fmt.Errorf("%v: %s", err, out)
-	}
-	return out, code, err
+	return integration.DockerCmdWithError(dockerBinary, args...)
 }
 
 func dockerCmdWithStdoutStderr(c *check.C, args ...string) (string, string, int) {

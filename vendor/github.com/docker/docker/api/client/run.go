@@ -14,15 +14,14 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/docker/pkg/stringid"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/libnetwork/resolvconf/dns"
 )
 
 const (
-	errCmdNotFound          = "Container command not found or does not exist."
-	errCmdCouldNotBeInvoked = "Container command could not be invoked."
+	errCmdNotFound          = "not found or does not exist."
+	errCmdCouldNotBeInvoked = "could not be invoked."
 )
 
 func (cid *cidFile) Close() error {
@@ -52,12 +51,14 @@ func runStartContainerErr(err error) error {
 	trimmedErr := strings.Trim(err.Error(), "Error response from daemon: ")
 	statusError := Cli.StatusError{StatusCode: 125}
 
-	switch trimmedErr {
-	case errCmdNotFound:
-		statusError = Cli.StatusError{StatusCode: 127}
-	case errCmdCouldNotBeInvoked:
-		statusError = Cli.StatusError{StatusCode: 126}
+	if strings.HasPrefix(trimmedErr, "Container command") {
+		if strings.Contains(trimmedErr, errCmdNotFound) {
+			statusError = Cli.StatusError{StatusCode: 127}
+		} else if strings.Contains(trimmedErr, errCmdCouldNotBeInvoked) {
+			statusError = Cli.StatusError{StatusCode: 126}
+		}
 	}
+
 	return statusError
 }
 
@@ -203,7 +204,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			DetachKeys:  cli.configFile.DetachKeys,
 		}
 
-		resp, err := cli.client.ContainerAttach(options)
+		resp, err := cli.client.ContainerAttach(context.Background(), options)
 		if err != nil {
 			return err
 		}
@@ -227,7 +228,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	//start the container
-	if err := cli.client.ContainerStart(createResponse.ID); err != nil {
+	if err := cli.client.ContainerStart(context.Background(), createResponse.ID); err != nil {
 		cmd.ReportError(err.Error(), false)
 		return runStartContainerErr(err)
 	}
@@ -256,16 +257,6 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	// Attached mode
 	if *flAutoRemove {
-		// Warn user if they detached us
-		js, err := cli.client.ContainerInspect(createResponse.ID)
-		if err != nil {
-			return runStartContainerErr(err)
-		}
-		if js.State.Running == true || js.State.Paused == true {
-			fmt.Fprintf(cli.out, "Detached from %s, awaiting its termination in order to uphold \"--rm\".\n",
-				stringid.TruncateID(createResponse.ID))
-		}
-
 		// Autoremove: wait for the container to finish, retrieve
 		// the exit code and remove the container
 		if status, err = cli.client.ContainerWait(context.Background(), createResponse.ID); err != nil {

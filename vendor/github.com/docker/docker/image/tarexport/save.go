@@ -70,9 +70,17 @@ func (l *tarexporter) parseNames(names []string) (map[image.ID]*imageDescriptor,
 	}
 
 	for _, name := range names {
-		ref, err := reference.ParseNamed(name)
+		id, ref, err := reference.ParseIDOrReference(name)
 		if err != nil {
 			return nil, err
+		}
+		if id != "" {
+			_, err := l.is.Get(image.ID(id))
+			if err != nil {
+				return nil, err
+			}
+			addAssoc(image.ID(id), nil)
+			continue
 		}
 		if ref.Name() == string(digest.Canonical) {
 			imgID, err := l.is.Search(name)
@@ -120,6 +128,7 @@ func (s *saveSession) save(outStream io.Writer) error {
 	reposLegacy := make(map[string]map[string]string)
 
 	var manifest []manifestItem
+	var parentLinks []parentLink
 
 	for id, imageDescr := range s.images {
 		if err = s.saveImage(id); err != nil {
@@ -146,6 +155,15 @@ func (s *saveSession) save(outStream io.Writer) error {
 			RepoTags: repoTags,
 			Layers:   layers,
 		})
+
+		parentID, _ := s.is.GetParent(id)
+		parentLinks = append(parentLinks, parentLink{id, parentID})
+	}
+
+	for i, p := range validatedParentLinks(parentLinks) {
+		if p.parentID != "" {
+			manifest[i].Parent = p.parentID
+		}
 	}
 
 	if len(reposLegacy) > 0 {

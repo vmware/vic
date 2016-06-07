@@ -52,6 +52,20 @@ func New{{ pascalize .Name }}ParamsWithTimeout(timeout time.Duration) *{{ pascal
   }
 }
 
+// New{{ pascalize .Name }}ParamsWithContext creates a new {{ pascalize .Name }}Params object
+// with the default values initialized, and the ability to set a context on the request
+func New{{ pascalize .Name }}ParamsWithContext(ctx context.Context) *{{ pascalize .Name }}Params {
+  {{ if .Params }}var (
+  {{ range .Params }}{{ if .HasDefault }}{{ if not .IsFileParam }}{{ camelize .Name}}Default {{ .GoType }} = {{ if .IsPrimitive}}{{.GoType}}({{ end}}{{ printf "%#v" .Default }}{{ if .IsPrimitive }}){{ end }}
+  {{ end }}{{ end }}{{end}}
+  ){{ end }}
+  return &{{ pascalize .Name}}Params{
+  {{ range .Params }}{{ if .HasDefault }}{{ pascalize .Name}}: {{ if and (not .IsArray) (not .IsMap) (not .HasDiscriminator) (or .IsNullable  ) }}&{{ end }}{{ camelize .Name }}Default,
+  {{ end }}{{ end }}
+    Context: ctx,
+  }
+}
+
 /*{{ pascalize .Name }}Params contains all the parameters to send to the API endpoint
 for the {{ humanize .Name }} operation typically these are written to a http.Request
 */
@@ -65,6 +79,7 @@ type {{ pascalize .Name }}Params struct {
   {{ end }}
 
   timeout time.Duration
+  Context context.Context
 }
 
 {{ range .Params }}

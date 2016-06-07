@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
+	"golang.org/x/net/context"
 )
 
 var validCommitCommands = map[string]bool{
@@ -52,8 +53,9 @@ type Builder struct {
 	Stderr io.Writer
 	Output io.Writer
 
-	docker  builder.Backend
-	context builder.Context
+	docker    builder.Backend
+	context   builder.Context
+	clientCtx context.Context
 
 	dockerfile       *parser.Node
 	runConfig        *container.Config // runconfig for cmd, run, entrypoint etc.
@@ -86,7 +88,7 @@ func NewBuildManager(b builder.Backend) (bm *BuildManager) {
 // NewBuilder creates a new Dockerfile builder from an optional dockerfile and a Config.
 // If dockerfile is nil, the Dockerfile specified by Config.DockerfileName,
 // will be read from the Context passed to Build().
-func NewBuilder(config *types.ImageBuildOptions, backend builder.Backend, context builder.Context, dockerfile io.ReadCloser) (b *Builder, err error) {
+func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, backend builder.Backend, context builder.Context, dockerfile io.ReadCloser) (b *Builder, err error) {
 	if config == nil {
 		config = new(types.ImageBuildOptions)
 	}
@@ -94,6 +96,7 @@ func NewBuilder(config *types.ImageBuildOptions, backend builder.Backend, contex
 		config.BuildArgs = make(map[string]string)
 	}
 	b = &Builder{
+		clientCtx:        clientCtx,
 		options:          config,
 		Stdout:           os.Stdout,
 		Stderr:           os.Stderr,
@@ -142,6 +145,9 @@ func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 
 		if _, isTagged := ref.(reference.NamedTagged); !isTagged {
 			ref, err = reference.WithTag(ref, reference.DefaultTag)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		nameWithTag := ref.String()
@@ -155,8 +161,8 @@ func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 }
 
 // Build creates a NewBuilder, which builds the image.
-func (bm *BuildManager) Build(config *types.ImageBuildOptions, context builder.Context, stdout io.Writer, stderr io.Writer, out io.Writer, clientGone <-chan bool) (string, error) {
-	b, err := NewBuilder(config, bm.backend, context, nil)
+func (bm *BuildManager) Build(clientCtx context.Context, config *types.ImageBuildOptions, context builder.Context, stdout io.Writer, stderr io.Writer, out io.Writer, clientGone <-chan bool) (string, error) {
+	b, err := NewBuilder(clientCtx, config, bm.backend, context, nil)
 	if err != nil {
 		return "", err
 	}
@@ -212,6 +218,10 @@ func (b *Builder) build(config *types.ImageBuildOptions, context builder.Context
 
 	var shortImgID string
 	for i, n := range b.dockerfile.Children {
+		// we only want to add labels to the last layer
+		if i == len(b.dockerfile.Children)-1 {
+			b.addLabels()
+		}
 		select {
 		case <-b.cancelled:
 			logrus.Debug("Builder: build cancelled!")
@@ -226,6 +236,17 @@ func (b *Builder) build(config *types.ImageBuildOptions, context builder.Context
 			}
 			return "", err
 		}
+
+		// Commit the layer when there are only one children in
+		// the dockerfile, this is only the `FROM` tag, and
+		// build labels. Otherwise, the new image won't be
+		// labeled properly.
+		// Commit here, so the ID of the final image is reported
+		// properly.
+		if len(b.dockerfile.Children) == 1 && len(b.options.Labels) > 0 {
+			b.commit("", b.runConfig.Cmd, "")
+		}
+
 		shortImgID = stringid.TruncateID(b.image)
 		fmt.Fprintf(b.Stdout, " ---> %s\n", shortImgID)
 		if b.options.Remove {
@@ -288,7 +309,7 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 		}
 	}
 
-	b, err := NewBuilder(nil, nil, nil, nil)
+	b, err := NewBuilder(context.Background(), nil, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}

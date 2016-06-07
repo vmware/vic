@@ -5,10 +5,13 @@ import (
 	"text/template"
 	"time"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/dockerversion"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/utils"
+	"github.com/docker/docker/utils/templates"
 	"github.com/docker/engine-api/types"
 )
 
@@ -48,7 +51,7 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 	}
 
 	var tmpl *template.Template
-	if tmpl, err = template.New("").Funcs(funcMap).Parse(templateFormat); err != nil {
+	if tmpl, err = templates.Parse(templateFormat); err != nil {
 		return Cli.StatusError{StatusCode: 64,
 			Status: "Template parsing error: " + err.Error()}
 	}
@@ -66,7 +69,7 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 		},
 	}
 
-	serverVersion, err := cli.client.ServerVersion()
+	serverVersion, err := cli.client.ServerVersion(context.Background())
 	if err == nil {
 		vd.Server = &serverVersion
 	}

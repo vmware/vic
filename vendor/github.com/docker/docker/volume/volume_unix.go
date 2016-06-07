@@ -110,6 +110,13 @@ func ParseMountSpec(spec, volumeDriver string) (*MountPoint, error) {
 		mp.Source = filepath.Clean(source)
 	}
 
+	copyData, isSet := getCopyMode(mp.Mode)
+	// do not allow copy modes on binds
+	if len(name) == 0 && isSet {
+		return nil, errInvalidMode(mp.Mode)
+	}
+
+	mp.CopyData = copyData
 	mp.Name = name
 
 	return mp, nil
@@ -137,23 +144,25 @@ func ValidMountMode(mode string) bool {
 	rwModeCount := 0
 	labelModeCount := 0
 	propagationModeCount := 0
+	copyModeCount := 0
 
 	for _, o := range strings.Split(mode, ",") {
-		if rwModes[o] {
+		switch {
+		case rwModes[o]:
 			rwModeCount++
-			continue
-		} else if labelModes[o] {
+		case labelModes[o]:
 			labelModeCount++
-			continue
-		} else if propagationModes[o] {
+		case propagationModes[o]:
 			propagationModeCount++
-			continue
+		case copyModeExists(o):
+			copyModeCount++
+		default:
+			return false
 		}
-		return false
 	}
 
 	// Only one string for each mode is allowed.
-	if rwModeCount > 1 || labelModeCount > 1 || propagationModeCount > 1 {
+	if rwModeCount > 1 || labelModeCount > 1 || propagationModeCount > 1 || copyModeCount > 1 {
 		return false
 	}
 	return true
@@ -161,7 +170,7 @@ func ValidMountMode(mode string) bool {
 
 // ReadWrite tells you if a mode string is a valid read-write mode or not.
 // If there are no specifications w.r.t read write mode, then by default
-// it returs true.
+// it returns true.
 func ReadWrite(mode string) bool {
 	if !ValidMountMode(mode) {
 		return false

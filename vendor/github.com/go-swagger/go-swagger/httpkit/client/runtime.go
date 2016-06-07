@@ -179,11 +179,23 @@ func (r *Runtime) Submit(operation *client.Operation) (interface{}, error) {
 		fmt.Println(string(b))
 	}
 
-	pctx := r.Context
+	var hasTimeout bool
+	pctx := operation.Context
+	if pctx == nil {
+		pctx = r.Context
+	} else {
+		hasTimeout = true
+	}
 	if pctx == nil {
 		pctx = context.Background()
 	}
-	ctx, cancel := context.WithTimeout(pctx, request.timeout)
+	var ctx context.Context
+	var cancel context.CancelFunc
+	if hasTimeout {
+		ctx, cancel = context.WithCancel(pctx)
+	} else {
+		ctx, cancel = context.WithTimeout(pctx, request.timeout)
+	}
 	defer cancel()
 
 	res, err := ctxhttp.Do(ctx, r.client, req) // make requests, by default follows 10 redirects before failing

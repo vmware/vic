@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -59,6 +60,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flPrivileged        = cmd.Bool([]string{"-privileged"}, false, "Give extended privileges to this container")
 		flPidMode           = cmd.String([]string{"-pid"}, "", "PID namespace to use")
 		flUTSMode           = cmd.String([]string{"-uts"}, "", "UTS namespace to use")
+		flUsernsMode        = cmd.String([]string{"-userns"}, "", "User namespace to use")
 		flPublishAll        = cmd.Bool([]string{"P", "-publish-all"}, false, "Publish all exposed ports to random ports")
 		flStdin             = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
 		flTty               = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
@@ -239,15 +241,14 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	if *flEntrypoint != "" {
 		entrypoint = strslice.StrSlice{*flEntrypoint}
 	}
-
-	var (
-		domainname string
-		hostname   = *flHostname
-		parts      = strings.SplitN(hostname, ".", 2)
-	)
-	if len(parts) > 1 {
-		hostname = parts[0]
-		domainname = parts[1]
+	// Validate if the given hostname is RFC 1123 (https://tools.ietf.org/html/rfc1123) compliant.
+	hostname := *flHostname
+	if hostname != "" {
+		// Linux hostname is limited to HOST_NAME_MAX=64, not not including the terminating null byte.
+		matched, _ := regexp.MatchString("^(([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])\\.)*([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])$", hostname)
+		if len(hostname) > 64 || !matched {
+			return nil, nil, nil, cmd, fmt.Errorf("invalid hostname format for --hostname: %s", hostname)
+		}
 	}
 
 	ports, portBindings, err := nat.ParsePortSpecs(flPublish.GetAll())
@@ -316,6 +317,11 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		return nil, nil, nil, cmd, fmt.Errorf("--uts: invalid UTS mode")
 	}
 
+	usernsMode := container.UsernsMode(*flUsernsMode)
+	if !usernsMode.Valid() {
+		return nil, nil, nil, cmd, fmt.Errorf("--userns: invalid USER mode")
+	}
+
 	restartPolicy, err := ParseRestartPolicy(*flRestartPolicy)
 	if err != nil {
 		return nil, nil, nil, cmd, err
@@ -356,8 +362,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	}
 
 	config := &container.Config{
-		Hostname:     hostname,
-		Domainname:   domainname,
+		Hostname:     *flHostname,
 		ExposedPorts: ports,
 		User:         *flUser,
 		Tty:          *flTty,
@@ -404,6 +409,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		IpcMode:        ipcMode,
 		PidMode:        pidMode,
 		UTSMode:        utsMode,
+		UsernsMode:     usernsMode,
 		CapAdd:         strslice.StrSlice(flCapAdd.GetAll()),
 		CapDrop:        strslice.StrSlice(flCapDrop.GetAll()),
 		GroupAdd:       flGroupAdd.GetAll(),
@@ -501,9 +507,13 @@ func parseLoggingOpts(loggingDriver string, loggingOpts []string) (map[string]st
 // takes a local seccomp daemon, reads the file contents for sending to the daemon
 func parseSecurityOpts(securityOpts []string) ([]string, error) {
 	for key, opt := range securityOpts {
-		con := strings.SplitN(opt, ":", 2)
+		con := strings.SplitN(opt, "=", 2)
 		if len(con) == 1 && con[0] != "no-new-privileges" {
-			return securityOpts, fmt.Errorf("Invalid --security-opt: %q", opt)
+			if strings.Index(opt, ":") != -1 {
+				con = strings.SplitN(opt, ":", 2)
+			} else {
+				return securityOpts, fmt.Errorf("Invalid --security-opt: %q", opt)
+			}
 		}
 		if con[0] == "seccomp" && con[1] != "unconfined" {
 			f, err := ioutil.ReadFile(con[1])
@@ -514,7 +524,7 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 			if err := json.Compact(b, f); err != nil {
 				return securityOpts, fmt.Errorf("compacting json for seccomp profile (%s) failed: %v", con[1], err)
 			}
-			securityOpts[key] = fmt.Sprintf("seccomp:%s", b.Bytes())
+			securityOpts[key] = fmt.Sprintf("seccomp=%s", b.Bytes())
 		}
 	}
 
@@ -695,8 +705,12 @@ func validatePath(val string, validator func(string) bool) (string, error) {
 }
 
 // volumeSplitN splits raw into a maximum of n parts, separated by a separator colon.
-// A separator colon is the last `:` character in the regex `[/:\\]?[a-zA-Z]:` (note `\\` is `\` escaped).
-// This allows to correctly split strings such as `C:\foo:D:\:rw`.
+// A separator colon is the last `:` character in the regex `[:\\]?[a-zA-Z]:` (note `\\` is `\` escaped).
+// In Windows driver letter appears in two situations:
+// a. `^[a-zA-Z]:` (A colon followed  by `^[a-zA-Z]:` is OK as colon is the separator in volume option)
+// b. A string in the format like `\\?\C:\Windows\...` (UNC).
+// Therefore, a driver letter can only follow either a `:` or `\\`
+// This allows to correctly split strings such as `C:\foo:D:\:rw` or `/tmp/q:/foo`.
 func volumeSplitN(raw string, n int) []string {
 	var array []string
 	if len(raw) == 0 || raw[0] == ':' {
@@ -721,7 +735,8 @@ func volumeSplitN(raw string, n int) []string {
 		if (potentialDriveLetter >= 'A' && potentialDriveLetter <= 'Z') || (potentialDriveLetter >= 'a' && potentialDriveLetter <= 'z') {
 			if right > 1 {
 				beforePotentialDriveLetter := raw[right-2]
-				if beforePotentialDriveLetter != ':' && beforePotentialDriveLetter != '/' && beforePotentialDriveLetter != '\\' {
+				// Only `:` or `\\` are checked (`/` could fall into the case of `/tmp/q:/foo`)
+				if beforePotentialDriveLetter != ':' && beforePotentialDriveLetter != '\\' {
 					// e.g. `C:` is not preceded by any delimiter, therefore it was not a drive letter but a path ending with `C:`.
 					array = append(array, raw[left:right])
 					left = right + 1

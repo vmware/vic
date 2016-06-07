@@ -37,6 +37,19 @@ import (
 	"github.com/docker/engine-api/types/strslice"
 )
 
+func (b *Builder) addLabels() {
+	// merge labels
+	if len(b.options.Labels) > 0 {
+		logrus.Debugf("[BUILDER] setting labels %v", b.options.Labels)
+		if b.runConfig.Labels == nil {
+			b.runConfig.Labels = make(map[string]string)
+		}
+		for kL, vL := range b.options.Labels {
+			b.runConfig.Labels[kL] = vL
+		}
+	}
+}
+
 func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) error {
 	if b.disableCommit {
 		return nil
@@ -45,6 +58,7 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 		return fmt.Errorf("Please provide a source image with `from` prior to commit")
 	}
 	b.runConfig.Image = b.image
+
 	if id == "" {
 		cmd := b.runConfig.Cmd
 		if runtime.GOOS != "windows" {
@@ -81,6 +95,7 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 	if err != nil {
 		return err
 	}
+
 	b.image = imageID
 	return nil
 }
@@ -398,7 +413,20 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 		b.image = img.ImageID()
 
 		if img.RunConfig() != nil {
-			b.runConfig = img.RunConfig()
+			imgConfig := *img.RunConfig()
+			// inherit runConfig labels from the current
+			// state if they've been set already.
+			// Ensures that images with only a FROM
+			// get the labels populated properly.
+			if b.runConfig.Labels != nil {
+				if imgConfig.Labels == nil {
+					imgConfig.Labels = make(map[string]string)
+				}
+				for k, v := range b.runConfig.Labels {
+					imgConfig.Labels[k] = v
+				}
+			}
+			b.runConfig = &imgConfig
 		}
 	}
 
@@ -527,11 +555,9 @@ func (b *Builder) create() (string, error) {
 	b.tmpContainers[c.ID] = struct{}{}
 	fmt.Fprintf(b.Stdout, " ---> Running in %s\n", stringid.TruncateID(c.ID))
 
-	if len(config.Cmd) > 0 {
-		// override the entry point that may have been picked up from the base image
-		if err := b.docker.ContainerUpdateCmdOnBuild(c.ID, config.Cmd); err != nil {
-			return "", err
-		}
+	// override the entry point that may have been picked up from the base image
+	if err := b.docker.ContainerUpdateCmdOnBuild(c.ID, config.Cmd); err != nil {
+		return "", err
 	}
 
 	return c.ID, nil

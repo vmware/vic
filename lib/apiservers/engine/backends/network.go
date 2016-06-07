@@ -104,7 +104,7 @@ func (n *Network) GetAllNetworks() []libnetwork.Network {
 	return nets
 }
 
-func (n *Network) CreateNetwork(name, driver string, ipam apinet.IPAM, options map[string]string, internal bool, enableIPv6 bool) (libnetwork.Network, error) {
+func (n *Network) CreateNetwork(name, driver string, ipam apinet.IPAM, options map[string]string, labels map[string]string, internal bool, enableIPv6 bool) (libnetwork.Network, error) {
 	if len(ipam.Config) > 1 {
 		return nil, fmt.Errorf("at most one ipam config supported")
 	}
@@ -338,7 +338,7 @@ func (n *network) EndpointByID(id string) (libnetwork.Endpoint, error) {
 
 // Return certain operational data belonging to this network
 func (n *network) Info() libnetwork.NetworkInfo {
-	return n
+	return n.Info()
 }
 
 func (n *network) IpamConfig() (string, map[string]string, []*libnetwork.IpamConf, []*libnetwork.IpamConf) {

@@ -551,14 +551,15 @@ paths:
           description: "Error"
           schema:
             $ref: "#/definitions/Error"
-  /interaction/{id}/join:
+  /interaction/{id}/resize:
     post:
-      description: "Establish an interaction session with a container by id"
-      summary: "Establishes an interactive session (ala docker attach)"
-      operationId: ContainerJoin
+      description: "Resize the container's tty session"
+      summary: "Resize tty session"
+      operationId: ContainerResize
       tags: ["interaction"]
       consumes:
         - application/octet-stream
+        - application/json
       produces:
         - application/json
       parameters:
@@ -566,13 +567,113 @@ paths:
           in: path
           type: string
           required: true
+        - name: height
+          in: query
+          type: integer
+          format: int32
+          required: true
+        - name: width
+          in: query
+          type: integer
+          format: int32
+          required: true
       responses:
+        '500':
+          description: "Container resize failed"
+          schema:
+            $ref: "#/definitions/Error"
         '404':
           description: "Container not found"
           schema:
             $ref: "#/definitions/Error"
         '200':
           description: "OK"
+  /interaction/{id}/stdin:
+    post:
+      description: "Set a stdin for the container"
+      summary: "Set stdin"
+      operationId: ContainerSetStdin
+      tags: ["interaction"]
+      consumes:
+        - application/raw-stream
+        # - application/json
+      parameters:
+        - name: id
+          in: path
+          type: string
+          required: true
+        - name: raw_stream
+          in: body
+          schema:
+            type: string
+            format: binary
+      responses:
+        '500':
+          description: "Failed to Set stdin"
+          schema:
+            $ref: "#/definitions/Error"
+        '404':
+          description: "Container not found"
+          schema:
+            $ref: "#/definitions/Error"
+        '200':
+          description: "OK"
+  /interaction/{id}/stdout:
+    get:
+      description: "Get a stdout for the container"
+      summary: "Get stdout"
+      operationId: ContainerGetStdout
+      tags: ["interaction"]
+      consumes:
+        - application/octet-stream
+      produces:
+        - application/octet-stream
+      parameters:
+        - name: id
+          in: path
+          type: string
+          required: true
+      responses:
+        '500':
+          description: "Failed to get stdout"
+          schema:
+            $ref: "#/definitions/Error"
+        '404':
+          description: "Container not found"
+          schema:
+            $ref: "#/definitions/Error"
+        '200':
+          description: "OK"
+          schema:
+            format: binary
+  /interaction/{id}/stderr:
+    get:
+      description: "Get a stderr for the container"
+      summary: "Get stderr"
+      operationId: ContainerGetStderr
+      tags: ["interaction"]
+      consumes:
+        - application/octet-stream
+      produces:
+        - application/octet-stream
+      parameters:
+        - name: id
+          in: path
+          type: string
+          required: true
+      responses:
+        '500':
+          description: "Failed to get stderr"
+          schema:
+            $ref: "#/definitions/Error"
+        '404':
+          description: "Container not found"
+          schema:
+            $ref: "#/definitions/Error"
+        '200':
+          description: "OK"
+          schema:
+            format: binary
 definitions:
   Error:
     type: object

@@ -12,6 +12,7 @@ type mountedLayer struct {
 	mountID    string
 	initID     string
 	parent     *roLayer
+	path       string
 	layerStore *layerStore
 
 	references map[RWLayer]*referencedRWLayer
@@ -82,6 +83,18 @@ func (ml *mountedLayer) hasReferences() bool {
 	return len(ml.references) > 0
 }
 
+func (ml *mountedLayer) incActivityCount(ref RWLayer) error {
+	rl, ok := ml.references[ref]
+	if !ok {
+		return ErrLayerNotRetained
+	}
+
+	if err := rl.acquire(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (ml *mountedLayer) deleteReference(ref RWLayer) error {
 	rl, ok := ml.references[ref]
 	if !ok {
@@ -110,6 +123,15 @@ type referencedRWLayer struct {
 	activityCount int
 }
 
+func (rl *referencedRWLayer) acquire() error {
+	rl.activityL.Lock()
+	defer rl.activityL.Unlock()
+
+	rl.activityCount++
+
+	return nil
+}
+
 func (rl *referencedRWLayer) release() error {
 	rl.activityL.Lock()
 	defer rl.activityL.Unlock()
@@ -131,10 +153,21 @@ func (rl *referencedRWLayer) Mount(mountLabel string) (string, error) {
 		return "", ErrLayerNotRetained
 	}
 
-	rl.activityCount++
-	return rl.mountedLayer.Mount(mountLabel)
+	if rl.activityCount > 0 {
+		rl.activityCount++
+		return rl.path, nil
+	}
+
+	m, err := rl.mountedLayer.Mount(mountLabel)
+	if err == nil {
+		rl.activityCount++
+		rl.path = m
+	}
+	return m, err
 }
 
+// Unmount decrements the activity count and unmounts the underlying layer
+// Callers should only call `Unmount` once per call to `Mount`, even on error.
 func (rl *referencedRWLayer) Unmount() error {
 	rl.activityL.Lock()
 	defer rl.activityL.Unlock()
@@ -145,7 +178,11 @@ func (rl *referencedRWLayer) Unmount() error {
 	if rl.activityCount == -1 {
 		return ErrLayerNotRetained
 	}
+
 	rl.activityCount--
+	if rl.activityCount > 0 {
+		return nil
+	}
 
 	return rl.mountedLayer.Unmount()
 }
