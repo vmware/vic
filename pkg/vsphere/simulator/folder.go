@@ -167,13 +167,29 @@ func (c *createVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 	}
 
 	vm.ResourcePool = &c.req.Pool
+
 	if c.req.Host == nil {
-		hostFolder := Map.getEntityDatacenter(c.Folder).HostFolder
-		hosts := Map.Get(hostFolder).(*Folder).ChildEntity
+		var hosts []types.ManagedObjectReference
+
+		pool := Map.Get(c.req.Pool).(mo.Entity)
+
+		switch cr := Map.getEntityComputeResource(pool).(type) {
+		case *mo.ComputeResource:
+			hosts = cr.Host
+		case *ClusterComputeResource:
+			hosts = cr.Host
+		}
+
+		// Assuming for now that all hosts have access to the datastore
 		host := hosts[rand.Intn(len(hosts))]
 		vm.Runtime.Host = &host
 	} else {
 		vm.Runtime.Host = c.req.Host
+	}
+
+	err = vm.create(&c.req.Config)
+	if err != nil {
+		return nil, err
 	}
 
 	c.Folder.putChild(vm)

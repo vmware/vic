@@ -15,14 +15,17 @@
 package simulator
 
 import (
+	"os"
 	"path"
 	"strings"
 	"time"
 
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
 )
 
 type VirtualMachine struct {
@@ -40,12 +43,17 @@ func NewVirtualMachine(spec *types.VirtualMachineConfigSpec) (*VirtualMachine, t
 		return nil, &types.InvalidVmConfig{Property: "configSpec.files.vmPathName"}
 	}
 
-	dsPath := spec.Files.VmPathName
-	if strings.HasSuffix(dsPath, ".vmx") {
-		dsPath = path.Dir(dsPath)
+	vm.Config = &types.VirtualMachineConfigInfo{}
+	vm.Summary.Guest = &types.VirtualMachineGuestSummary{}
+
+	// Add the default devices
+	devices, _ := object.VirtualDeviceList(esx.VirtualDevice).ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
+
+	if !strings.HasSuffix(spec.Files.VmPathName, ".vmx") {
+		spec.Files.VmPathName = path.Join(spec.Files.VmPathName, spec.Name+".vmx")
 	}
 
-	vm.Config = &types.VirtualMachineConfigInfo{}
+	dsPath := path.Dir(spec.Files.VmPathName)
 
 	defaults := types.VirtualMachineConfigSpec{
 		NumCPUs:           1,
@@ -58,6 +66,7 @@ func NewVirtualMachine(spec *types.VirtualMachineConfigSpec) (*VirtualMachine, t
 			SuspendDirectory:  dsPath,
 			LogDirectory:      dsPath,
 		},
+		DeviceChange: devices,
 	}
 
 	err := vm.configure(&defaults)
@@ -77,6 +86,11 @@ func NewVirtualMachine(spec *types.VirtualMachineConfigSpec) (*VirtualMachine, t
 }
 
 func (vm *VirtualMachine) configure(spec *types.VirtualMachineConfigSpec) types.BaseMethodFault {
+	err := vm.configureDevices(spec)
+	if err != nil {
+		return err
+	}
+
 	apply := []struct {
 		src string
 		dst *string
@@ -85,6 +99,8 @@ func (vm *VirtualMachine) configure(spec *types.VirtualMachineConfigSpec) types.
 		{spec.Name, &vm.Config.Name},
 		{spec.GuestId, &vm.Config.GuestId},
 		{spec.GuestId, &vm.Config.GuestFullName},
+		{spec.GuestId, &vm.Summary.Guest.GuestId},
+		{spec.GuestId, &vm.Summary.Guest.GuestFullName},
 		{spec.Uuid, &vm.Config.Uuid},
 		{spec.Version, &vm.Config.Version},
 		{spec.Files.VmPathName, &vm.Config.Files.VmPathName},
@@ -109,6 +125,65 @@ func (vm *VirtualMachine) configure(spec *types.VirtualMachineConfigSpec) types.
 	}
 
 	vm.Config.Modified = time.Now()
+
+	return nil
+}
+
+func (vm *VirtualMachine) create(spec *types.VirtualMachineConfigSpec) types.BaseMethodFault {
+	p, fault := parseDatastorePath(spec.Files.VmPathName)
+	if fault != nil {
+		return fault
+	}
+
+	host := Map.Get(*vm.Runtime.Host).(*HostSystem)
+	ds := Map.FindByName(p.Datastore, host.Datastore).(*Datastore)
+
+	// Assuming local datastore for now.  TODO: should be via datastore browser / file manager
+	dir := ds.Info.GetDatastoreInfo().Url
+
+	vmx := path.Join(dir, p.Path)
+
+	_, err := os.Stat(vmx)
+	if err == nil {
+		return &types.FileAlreadyExists{
+			FileFault: types.FileFault{
+				File: vmx,
+			},
+		}
+	}
+
+	_ = os.MkdirAll(path.Dir(vmx), 0700)
+
+	f, err := os.Create(vmx)
+	if err != nil {
+		return &types.FileFault{
+			File: vmx,
+		}
+	}
+
+	_ = f.Close()
+
+	return nil
+}
+
+func (vm *VirtualMachine) configureDevices(spec *types.VirtualMachineConfigSpec) types.BaseMethodFault {
+	devices := object.VirtualDeviceList(vm.Config.Hardware.Device)
+
+	for i, change := range spec.DeviceChange {
+		dspec := change.GetVirtualDeviceConfigSpec()
+		device := dspec.Device.GetVirtualDevice()
+		invalid := &types.InvalidDeviceSpec{DeviceIndex: int32(i)}
+
+		switch dspec.Operation {
+		case types.VirtualDeviceConfigSpecOperationAdd:
+			if devices.FindByKey(device.Key) != nil {
+				return invalid
+			}
+			devices = append(devices, device)
+		}
+	}
+
+	vm.Config.Hardware.Device = []types.BaseVirtualDevice(devices)
 
 	return nil
 }
