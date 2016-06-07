@@ -16,6 +16,7 @@ package simulator
 
 import (
 	"fmt"
+	"math/rand"
 	"sync"
 
 	"github.com/vmware/govmomi/vim25/methods"
@@ -149,6 +150,47 @@ func (f *Folder) CreateClusterEx(c *types.CreateClusterEx) soap.HasFault {
 	} else {
 		r.Fault_ = f.typeNotSupported()
 	}
+
+	return r
+}
+
+type createVMTask struct {
+	*Folder
+
+	req *types.CreateVM_Task
+}
+
+func (c *createVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
+	vm, err := NewVirtualMachine(&c.req.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	vm.ResourcePool = &c.req.Pool
+	if c.req.Host == nil {
+		hostFolder := Map.getEntityDatacenter(c.Folder).HostFolder
+		hosts := Map.Get(hostFolder).(*Folder).ChildEntity
+		host := hosts[rand.Intn(len(hosts))]
+		vm.Runtime.Host = &host
+	} else {
+		vm.Runtime.Host = c.req.Host
+	}
+
+	c.Folder.putChild(vm)
+
+	return vm.Reference(), nil
+}
+
+func (f *Folder) CreateVMTask(c *types.CreateVM_Task) soap.HasFault {
+	r := &methods.CreateVM_TaskBody{}
+
+	task := NewTask(&createVMTask{f, c})
+
+	r.Res = &types.CreateVM_TaskResponse{
+		Returnval: task.Self,
+	}
+
+	task.Run()
 
 	return r
 }

@@ -21,27 +21,10 @@ import (
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
 	"golang.org/x/net/context"
 )
-
-func createLocalDatastore(dss *object.HostDatastoreSystem, name string, path string) (*object.Datastore, error) {
-	// TODO: add govmomi wrapper
-	req := types.CreateLocalDatastore{
-		This: dss.Reference(),
-		Name: name,
-		Path: path,
-	}
-
-	res, err := methods.CreateLocalDatastore(context.TODO(), dss.Client(), &req)
-	if err != nil {
-		return nil, err
-	}
-
-	return object.NewDatastore(dss.Client(), res.Returnval), nil
-}
 
 func TestHostDatastoreSystem(t *testing.T) {
 	s := New(NewServiceInstance(esx.ServiceContent, esx.RootFolder))
@@ -80,7 +63,7 @@ func TestHostDatastoreSystem(t *testing.T) {
 			return dss.CreateNasDatastore(ctx, spec)
 		},
 		func(dir string) (*object.Datastore, error) {
-			return createLocalDatastore(dss, filepath.Base(dir), dir)
+			return dss.CreateLocalDatastore(ctx, filepath.Base(dir), dir)
 		},
 	}
 
