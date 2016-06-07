@@ -12,49 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package tether
 
 import (
 	"errors"
-	"net"
 	"os"
 	"strings"
 
-	"github.com/vmware/vic/lib/portlayer/attach"
-	"github.com/vmware/vic/pkg/dio"
-
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/context"
+
+	"github.com/vmware/vic/lib/portlayer/attach"
+	"github.com/vmware/vic/pkg/trace"
 )
-
-// allow us to pick up some of the osops implementations when mocking
-// allowing it to be less all or nothing
-func init() {
-	ops = &osopsOSX{}
-	utils = &osopsOSX{}
-}
-
-var backchannelMode = os.ModePerm
 
 // Mkdev will hopefully get rolled into go.sys at some point
 func Mkdev(majorNumber int, minorNumber int) int {
 	return (majorNumber << 8) | (minorNumber & 0xff) | ((minorNumber & 0xfff00) << 12)
 }
 
-func (t *osopsOSX) setup() error {
-	return nil
+// childReaper is used to handle events from child processes, including child exit.
+// If running as pid=1 then this means it handles zombie process reaping for orphaned children
+// as well as direct child processes.
+func (t *tether) childReaper() error {
+	return errors.New("Child reaping unimplemented on OSX")
 }
 
-func (t *osopsOSX) cleanup() {
-}
-
-// sessionLogWriter returns a writer that will persist the session output
-func (t *osopsOSX) sessionLogWriter() (dio.DynamicMultiWriter, error) {
-	return nil, errors.New("unimplemented on OSX")
+func (t *tether) stopReaper() {
+	defer trace.End(trace.Begin("Shutting down child reaping"))
 }
 
 // processEnvOS does OS specific checking and munging on the process environment prior to launch
-func (t *osopsOSX) processEnvOS(env []string) []string {
+func (t *tether) processEnvOS(env []string) []string {
 	// TODO: figure out how we're going to specify user and pass all the settings along
 	// in the meantime, hardcode HOME to /root
 	homeIndex := -1
@@ -71,22 +59,33 @@ func (t *osopsOSX) processEnvOS(env []string) []string {
 	return env
 }
 
-func lookPath(file string, env []string) (string, error) {
+// lookPath searches for an executable binary named file in the directories
+// specified by the path argument.
+// This is a direct modification of the unix os/exec core libary impl
+func lookPath(file string, env []string, dir string) (string, error) {
 	return "", errors.New("unimplemented on OSX")
 }
 
-func (t *osopsOSX) establishPty(session *SessionConfig) error {
+func establishPty(session *SessionConfig) error {
+	defer trace.End(trace.Begin("initializing pty handling for session " + session.ID))
+
 	return errors.New("unimplemented on OSX")
 }
 
-func (t *osopsOSX) resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
+// The syscall struct
+type winsize struct {
+	wsRow    uint16
+	wsCol    uint16
+	wsXpixel uint16
+	wsYpixel uint16
+}
+
+func resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
+	defer trace.End(trace.Begin("resize pty"))
+
 	return errors.New("unimplemented on OSX")
 }
 
-func (t *osopsOSX) signalProcess(process *os.Process, sig ssh.Signal) error {
+func signalProcess(process *os.Process, sig ssh.Signal) error {
 	return errors.New("unimplemented on OSX")
-}
-
-func (t *osopsOSX) backchannel(ctx context.Context) (net.Conn, error) {
-	return nil, errors.New("unimplemented on OSX")
 }

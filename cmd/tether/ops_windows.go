@@ -18,28 +18,21 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
-	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"strings"
-	"time"
-
-	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 	winserial "github.com/tarm/serial"
-	"github.com/vmware/vic/lib/portlayer/attach"
+	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
-	"github.com/vmware/vic/pkg/serial"
+	"github.com/vmware/vic/pkg/trace"
 )
 
-// allow us to pick up some of the osops implementations when mocking
-// allowing it to be less all or nothing
-func init() {
-	ops = &osopsWin{}
-	utils = &osopsWin{}
+type operations struct {
+	tether.BaseOperations
+
+	logging bool
 }
 
 var backchannelMode = os.ModePerm
@@ -104,11 +97,9 @@ func OpenPort(name string) (io.ReadWriteCloser, error) {
 	}
 }
 
-func childReaper() {
-	// TODO: windows child process notifications
-}
+func (t *operations) Log() (io.Writer, error) {
+	defer trace.End(trace.Begin("operations.Log"))
 
-func (t *osopsWin) setup() error {
 	com := "COM2"
 
 	// redirect logging to the serial log
@@ -117,69 +108,25 @@ func (t *osopsWin) setup() error {
 	if err != nil {
 		detail := fmt.Sprintf("failed to open serial port for debug log: %s", err)
 		log.Error(detail)
-		return errors.New(detail)
-	}
-	log.SetOutput(out)
-
-	// TODO: enabled for initial dev debugging only
-	go func() {
-		log.Info(http.ListenAndServe("0.0.0.0:6060", nil))
-	}()
-
-	go childReaper()
-
-	return nil
-}
-
-func (t *osopsWin) cleanup() {
-}
-
-func (t *osopsWin) backchannel(ctx context.Context) (net.Conn, error) {
-	com := "COM1"
-
-	// redirect backchannel to the serial connection
-	log.Infof("opening %s%s for backchannel", pathPrefix, com)
-	// TODO: set read timeout on port during open
-	_, err := OpenPort(fmt.Sprintf("%s%s", pathPrefix, com))
-	if err != nil {
-		detail := fmt.Sprintf("failed to open serial port for backchannel: %s", err)
-		log.Error(detail)
 		return nil, errors.New(detail)
 	}
 
-	log.Errorf("creating raw connection from %s\n", com)
-
-	// TODO: sort out the named port impl so that we can transparently switch from that to/from
-	// regular files for testing
-	// conn, err := serial.NewTypedConn(f, "file")
-	var conn net.Conn
-
-	if err != nil {
-		detail := fmt.Sprintf("failed to create raw connection from %s file handle: %s", com, err)
-		log.Error(detail)
-		return nil, errors.New(detail)
-	}
-
-	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
-	ticker := time.NewTicker(50 * time.Millisecond)
-	for {
-		select {
-		case <-ticker.C:
-			err := serial.HandshakeServer(ctx, conn)
-			if err == nil {
-				return conn, nil
-			}
-		case <-ctx.Done():
-			conn.Close()
-			ticker.Stop()
-			return nil, ctx.Err()
-		}
-	}
+	return out, nil
 }
 
 // sessionLogWriter returns a writer that will persist the session output
-func (t *osopsWin) sessionLogWriter() (dio.DynamicMultiWriter, error) {
+func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, error) {
 	com := "COM3"
+
+	defer trace.End(trace.Begin("configure session log writer"))
+
+	if t.logging {
+		detail := "unable to log more than one session concurrently"
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	t.logging = true
 
 	// redirect backchannel to the serial connection
 	log.Infof("opening %s%s for session logging", pathPrefix, com)
@@ -192,38 +139,4 @@ func (t *osopsWin) sessionLogWriter() (dio.DynamicMultiWriter, error) {
 
 	// use multi-writer so it goes to both screen and session log
 	return dio.MultiWriter(f, os.Stdout), nil
-}
-
-// processEnvOS does OS specific checking and munging on the process environment prior to launch
-func (t *osopsWin) processEnvOS(env []string) []string {
-	// TODO: figure out how we're going to specify user and pass all the settings along
-	// in the meantime, hardcode HOME to /root
-	homeIndex := -1
-	for i, tuple := range env {
-		if strings.HasPrefix(tuple, "HOME=") {
-			homeIndex = i
-			break
-		}
-	}
-	if homeIndex == -1 {
-		return append(env, "HOME=/root")
-	}
-
-	return env
-}
-
-func lookPath(file string, env []string) (string, error) {
-	return "", errors.New("unimplemented on windows")
-}
-
-func (t *osopsWin) signalProcess(process *os.Process, sig ssh.Signal) error {
-	return errors.New("unimplemented on windows")
-}
-
-func (t *osopsWin) establishPty(session *SessionConfig) error {
-	return errors.New("unimplemented on windows")
-}
-
-func (t *osopsWin) resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
-	return errors.New("unimplemented on windows")
 }

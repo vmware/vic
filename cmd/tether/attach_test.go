@@ -20,9 +20,13 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
+	"fmt"
 	"io"
 	"net"
+	"os"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -33,7 +37,163 @@ import (
 
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/portlayer/attach"
+	"github.com/vmware/vic/lib/tether"
+	"github.com/vmware/vic/pkg/serial"
 )
+
+type testAttachServer struct {
+	attachServerSSH
+	enabled bool
+	updated chan bool
+}
+
+func (t *testAttachServer) start() error {
+	err := t.attachServerSSH.start()
+
+	if err == nil {
+		t.updated <- true
+		t.enabled = true
+	}
+
+	log.Info("Started test attach server")
+	return err
+}
+
+func (t *testAttachServer) stop() {
+	if t.enabled {
+		t.attachServerSSH.stop()
+
+		log.Info("Stopped test attach server")
+		t.updated <- true
+		t.enabled = false
+	}
+}
+
+func (t *testAttachServer) Reload(config *tether.ExecutorConfig) error {
+	log.Info("Parsing config in test attach server")
+	return t.attachServerSSH.Reload(config)
+}
+
+func (t *testAttachServer) Start() error {
+	log.Info("opening ttyS0 pipe pair for backchannel (server)")
+	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_WRONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		detail := fmt.Sprintf("failed to open cpipe for backchannel: %s", err)
+		log.Error(detail)
+		return errors.New(detail)
+	}
+
+	s, err := os.OpenFile(pathPrefix+"/ttyS0s", os.O_RDONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		detail := fmt.Sprintf("failed to open spipe for backchannel: %s", err)
+		log.Error(detail)
+		return errors.New(detail)
+	}
+
+	log.Infof("creating raw connection from ttyS0 pipe pair (c=%d, s=%d)\n", c.Fd(), s.Fd())
+	var conn net.Conn
+	conn, err = serial.NewHalfDuplixFileConn(s, c, pathPrefix+"/ttyS0", "file")
+	if err != nil {
+		detail := fmt.Sprintf("failed to create raw connection from ttyS0 pipe pair: %s", err)
+		log.Error(detail)
+		return errors.New(detail)
+	}
+
+	t.conn = &conn
+	return nil
+}
+
+func (t *testAttachServer) Stop() error {
+	return t.attachServerSSH.Stop()
+}
+
+// create client on the mock pipe
+func mockBackChannel(ctx context.Context) (net.Conn, error) {
+	log.Info("opening ttyS0 pipe pair for backchannel (client)")
+	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_RDONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		detail := fmt.Sprintf("failed to open cpipe for backchannel: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	s, err := os.OpenFile(pathPrefix+"/ttyS0s", os.O_WRONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		detail := fmt.Sprintf("failed to open spipe for backchannel: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	log.Infof("creating raw connection from ttyS0 pipe pair (c=%d, s=%d)\n", c.Fd(), s.Fd())
+	conn, err := serial.NewHalfDuplixFileConn(c, s, pathPrefix+"/ttyS0", "file")
+
+	if err != nil {
+		detail := fmt.Sprintf("failed to create raw connection from ttyS0 pipe pair: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
+	ticker := time.NewTicker(1000 * time.Millisecond)
+	for {
+		select {
+		case <-ticker.C:
+			// FIXME: need to implement timeout of purging hangs with no content
+			// on the pipe
+			// serial.PurgeIncoming(ctx, conn)
+			err := serial.HandshakeClient(ctx, conn)
+			if err == nil {
+				return conn, nil
+			}
+		case <-ctx.Done():
+			conn.Close()
+			ticker.Stop()
+			return nil, ctx.Err()
+		}
+	}
+}
+
+// create client on the mock pipe and dial the given host:port
+func mockNetworkToSerialConnection(host string) (*sync.WaitGroup, error) {
+	log.Info("opening ttyS0 pipe pair for backchannel")
+	c, err := os.OpenFile(pathPrefix+"/ttyS0c", os.O_RDONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open cpipe for backchannel: %s", err)
+	}
+
+	s, err := os.OpenFile(pathPrefix+"/ttyS0s", os.O_WRONLY|syscall.O_NOCTTY, 0777)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open spipe for backchannel: %s", err)
+	}
+
+	log.Infof("creating raw connection from ttyS0 pipe pair (c=%d, s=%d)\n", c.Fd(), s.Fd())
+	fconn, err := serial.NewHalfDuplixFileConn(c, s, pathPrefix+"/ttyS0", "file")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create raw connection from ttyS0 pipe pair: %s", err)
+	}
+
+	// Dial the attach server.  This is a TCP client
+	networkClientCon, err := net.Dial("tcp", host)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugf("dialed %s", host)
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+
+	go func() {
+		io.Copy(networkClientCon, fconn)
+		wg.Done()
+	}()
+
+	go func() {
+		io.Copy(fconn, networkClientCon)
+		wg.Done()
+	}()
+
+	return &wg, nil
+}
 
 func genKey() []byte {
 
@@ -89,20 +249,13 @@ func TestAttach(t *testing.T) {
 		Key: genKey(),
 	}
 
-	startTether(t, &cfg)
+	_, _, conn := StartAttachTether(t, &cfg)
 
 	// wait for updates to occur
 	<-testServer.updated
 
 	if !testServer.enabled {
 		t.Error("attach server was not enabled")
-		return
-	}
-
-	// create client on the mock pipe
-	conn, err := mockBackChannel(context.Background())
-	if err != nil {
-		t.Error(err)
 		return
 	}
 
@@ -193,20 +346,13 @@ func TestAttachTTY(t *testing.T) {
 		Key: genKey(),
 	}
 
-	startTether(t, &cfg)
+	_, _, conn := StartAttachTether(t, &cfg)
 
 	// wait for updates to occur
 	<-testServer.updated
 
 	if !testServer.enabled {
 		t.Error("attach server was not enabled")
-		return
-	}
-
-	// create client on the mock pipe
-	conn, err := mockBackChannel(context.Background())
-	if err != nil {
-		t.Error(err)
 		return
 	}
 
@@ -226,7 +372,7 @@ func TestAttachTTY(t *testing.T) {
 	defer sConn.Close()
 	client := ssh.NewClient(sConn, chans, reqs)
 
-	session, err := attach.SSHAttach(client, config.ID)
+	session, err := attach.SSHAttach(client, cfg.ID)
 	if err != nil {
 		t.Error(err)
 		return
@@ -276,7 +422,7 @@ func TestAttachTwo(t *testing.T) {
 
 	cfg := metadata.ExecutorConfig{
 		Common: metadata.Common{
-			ID:   "attachtwo",
+			ID:   "tee1",
 			Name: "tether_test_executor",
 		},
 
@@ -315,21 +461,14 @@ func TestAttachTwo(t *testing.T) {
 		Key: genKey(),
 	}
 
-	startTether(t, &cfg)
+	_, _, conn := StartAttachTether(t, &cfg)
 
 	// wait for updates to occur
-	<-mocked.started
+	<-Mocked.Started
 	<-testServer.updated
 
 	if !testServer.enabled {
 		t.Error("attach server was not enabled")
-		return
-	}
-
-	// create client on the mock pipe
-	conn, err := mockBackChannel(context.Background())
-	if err != nil {
-		t.Error(err)
 		return
 	}
 
@@ -410,7 +549,7 @@ func TestAttachTwo(t *testing.T) {
 	sessionA.Stdin().Close()
 	sessionB.Stdin().Close()
 
-	<-mocked.cleaned
+	<-Mocked.Cleaned
 
 	if !assert.Equal(t, bufA.Bytes(), testBytesA) {
 		return
@@ -460,20 +599,13 @@ func TestAttachInvalid(t *testing.T) {
 		Key: genKey(),
 	}
 
-	startTether(t, &cfg)
+	tthr, _, conn := StartAttachTether(t, &cfg)
 
 	// wait for updates to occur
 	<-testServer.updated
 
 	if !testServer.enabled {
 		t.Error("attach server was not enabled")
-		return
-	}
-
-	// create client on the mock pipe
-	conn, err := mockBackChannel(context.Background())
-	if err != nil {
-		t.Error(err)
 		return
 	}
 
@@ -494,12 +626,13 @@ func TestAttachInvalid(t *testing.T) {
 	client := ssh.NewClient(sConn, chans, reqs)
 
 	_, err = attach.SSHAttach(client, "invalidID")
-	if err != nil {
-		t.Log(err)
-		return
+	tthr.Stop()
+	if err == nil {
+		t.Error("Expected to fail on attempt to attach to invalid session")
 	}
 
-	t.Error("Expected to fail on attempt to attach to invalid session")
+	t.Log(err)
+
 }
 
 //
@@ -507,6 +640,7 @@ func TestAttachInvalid(t *testing.T) {
 
 // Start the tether, start a mock esx serial to tcp connection, start the
 // attach server, try to Get() the tether's attached session.
+/*
 func TestMockAttachTetherToPL(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
@@ -542,7 +676,7 @@ func TestMockAttachTetherToPL(t *testing.T) {
 		Key: genKey(),
 	}
 
-	startTether(t, &cfg)
+	StartTether(t, &cfg)
 
 	// create a conn on the mock pipe.  Reads from pipe, echos to network.
 	_, err := mockNetworkToSerialConnection(testServer.Addr())
@@ -560,14 +694,15 @@ func TestMockAttachTetherToPL(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	if !assert.Equal(t, mocked.windowCol, uint32(1)) || !assert.Equal(t, mocked.windowRow, uint32(2)) {
+	if !assert.Equal(t, Mocked.WindowCol, uint32(1)) || !assert.Equal(t, Mocked.WindowRow, uint32(2)) {
 		return
 	}
 
 	if err = pty.Signal("HUP"); !assert.NoError(t, err) {
 		return
 	}
-	if !assert.Equal(t, mocked.signal, ssh.Signal("HUP")) {
+	if !assert.Equal(t, Mocked.Signal, ssh.Signal("HUP")) {
 		return
 	}
 }
+*/

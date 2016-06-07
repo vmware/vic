@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package tether
 
 import (
 	"errors"
@@ -25,17 +25,19 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-type osopsWin struct{}
+const pciDevPath = ""
+
+type BaseOperations struct{}
 
 // SetHostname sets the system hostname
-func (t *osopsWin) SetHostname(hostname string) error {
+func (t *BaseOperations) SetHostname(hostname string) error {
 	defer trace.End(trace.Begin("setting hostname to " + hostname))
 
 	return errors.New("not implemented on windows")
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
-func (t *osopsWin) Apply(endpoint *metadata.NetworkEndpoint) error {
+func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
 
 	return errors.New("not implemented on windows")
@@ -43,14 +45,19 @@ func (t *osopsWin) Apply(endpoint *metadata.NetworkEndpoint) error {
 
 // MountLabel performs a mount with the source treated as a disk label
 // This assumes that /dev/disk/by-label is being populated, probably by udev
-func (t *osopsWin) MountLabel(label, target string, ctx context.Context) error {
+func (t *BaseOperations) MountLabel(label, target string, ctx context.Context) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", label, target)))
 
 	return errors.New("not implemented on windows")
 }
 
+// processEnvOS does OS specific checking and munging on the process environment prior to launch
+func (t *BaseOperations) ProcessEnv(env []string) []string {
+	return env
+}
+
 // Fork triggers a vmfork, address the pre and post-fork operations necessary at an OS level
-func (t *osopsWin) Fork(config *ExecutorConfig) error {
+func (t *BaseOperations) Fork() error {
 	return errors.New("not implemented on windows")
 }
 

@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package tether
 
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -28,91 +29,131 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
-// pathPrefix is used for testing - it allows for creating and manupulating files outside of
-// a full containerVM environment
-var pathPrefix string
+type tether struct {
+	// the implementation to use for tailored operations
+	ops Operations
 
-// the reload channel is used to block reloading of the config
-// there will only be something on this channel on two occasions:
-// 1. initial start
-// 2. post-vmfork
-var reload chan bool
+	// the reload channel is used to block reloading of the config
+	reload chan bool
 
-// config holds the main configuration for the executor
-var config *ExecutorConfig
+	// config holds the main configuration for the executor
+	config *ExecutorConfig
 
-var dataSource extraconfig.DataSource
-var dataSink extraconfig.DataSink
+	// a set of extensions that get to operate on the config
+	extensions map[string]Extension
 
-// RemoveChildPid is a synchronized accessor for the pid map the deletes the entry and returns the value
-func RemoveChildPid(pid int) (*SessionConfig, bool) {
-	config.pidMutex.Lock()
-	defer config.pidMutex.Unlock()
+	src  extraconfig.DataSource
+	sink extraconfig.DataSink
 
-	session, ok := config.pids[pid]
-	delete(config.pids, pid)
-	return session, ok
+	incoming chan os.Signal
 }
 
-// LenChildPid returns the number of entries
-func LenChildPid() int {
-	config.pidMutex.Lock()
-	defer config.pidMutex.Unlock()
-
-	return len(config.pids)
-}
-
-func run(src extraconfig.DataSource, sink extraconfig.DataSink) error {
-	defer trace.End(trace.Begin("main tether loop"))
-
-	// remake all of the main management structures so there's no cross contamination between tests
-	reload = make(chan bool, 1)
-	config = &ExecutorConfig{
-		pids: make(map[int]*SessionConfig),
+func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) Tether {
+	t := &tether{
+		ops:    ops,
+		reload: make(chan bool, 1),
+		config: &ExecutorConfig{
+			pids: make(map[int]*SessionConfig),
+		},
+		extensions: make(map[string]Extension),
+		src:        src,
+		sink:       sink,
+		incoming:   make(chan os.Signal, 10),
 	}
-
-	dataSource = src
-	dataSink = sink
 
 	// HACK: workaround file descriptor conflict in pipe2 return from the exec.Command.Start
 	// it's not clear whether this is a cross platform issue, or still an issue as of this commit
 	// keeping it until there's time to verify and fix properly with a Go PR.
 	_, _, _ = os.Pipe()
 
-	// perform basic one off OS specific setup
-	err := utils.setup()
+	return t
+}
+
+// removeChildPid is a synchronized accessor for the pid map the deletes the entry and returns the value
+func (t *tether) removeChildPid(pid int) (*SessionConfig, bool) {
+	t.config.pidMutex.Lock()
+	defer t.config.pidMutex.Unlock()
+
+	session, ok := t.config.pids[pid]
+	delete(t.config.pids, pid)
+	return session, ok
+}
+
+// lenChildPid returns the number of entries
+func (t *tether) lenChildPid() int {
+	t.config.pidMutex.Lock()
+	defer t.config.pidMutex.Unlock()
+
+	return len(t.config.pids)
+}
+
+func (t *tether) setup() error {
+	// set up tether logging destination
+	out, err := t.ops.Log()
 	if err != nil {
-		detail := fmt.Sprintf("failed during setup: %s", err)
-		log.Error(detail)
-		return errors.New(detail)
+		log.Errorf("failed to open tether log: %s", err)
+		return err
+	}
+	if out != nil {
+		log.SetOutput(io.MultiWriter(out, os.Stdout))
 	}
 
-	defer func() {
-		// perform basic cleanup
-		reload = nil
-		// FIXME: Cannot clean up sessions until we are persisting exit status elsewhere for test validation
-		//    also referenced in handleSessionExit
-		// config = nil
+	t.reload = make(chan bool, 1)
+	t.config = &ExecutorConfig{
+		pids: make(map[int]*SessionConfig),
+	}
 
-		utils.cleanup()
-	}()
+	t.childReaper()
 
-	// initial setup, so seed this
-	reload <- true
-	for _ = range reload {
-		// load the config - this modifies the structure values in place
-		extraconfig.Decode(src, config)
+	t.ops.Setup()
+
+	for name, ext := range t.extensions {
+		log.Infof("Starting extension %s", name)
+		err := ext.Start()
 		if err != nil {
-			detail := fmt.Sprintf("failed to load config: %s", err)
-			log.Error(detail)
-			// we don't attempt to recover from this - our async config and reporting channel isn't working
-			// as expected so just exit
-			return errors.New(detail)
+			log.Errorf("Failed to start extension %s: %s", name, err)
+			return err
 		}
+	}
 
-		logConfig(config)
+	return nil
+}
 
-		if err := ops.SetHostname(stringid.TruncateID(config.ID)); err != nil {
+func (t *tether) cleanup() {
+	// stop child reaping
+	t.stopReaper()
+
+	// stop the extensions first as they may use the config
+	for name, ext := range t.extensions {
+		log.Infof("Stopping extension %s", name)
+		err := ext.Stop()
+		if err != nil {
+			log.Warnf("Failed to cleanly stop extension %s", name)
+		}
+	}
+
+	// return logging to standard location
+	log.SetOutput(os.Stdout)
+
+	// perform basic cleanup
+	t.reload = nil
+	t.ops.Cleanup()
+}
+
+func (t *tether) Start() error {
+	defer trace.End(trace.Begin("main tether setup"))
+
+	t.setup()
+	defer t.cleanup()
+
+	// initial entry, so seed this
+	t.reload <- true
+	for _ = range t.reload {
+		// load the config - this modifies the structure values in place
+		extraconfig.Decode(t.src, t.config)
+		logConfig(t.config)
+
+		if err := t.ops.SetHostname(stringid.TruncateID(t.config.ID)); err != nil {
 			detail := fmt.Sprintf("failed to set hostname: %s", err)
 			log.Error(detail)
 			// we don't attempt to recover from this - it's a fundemental misconfiguration
@@ -120,8 +161,8 @@ func run(src extraconfig.DataSource, sink extraconfig.DataSink) error {
 			return errors.New(detail)
 		}
 
-		for _, v := range config.Networks {
-			if err := ops.Apply(v); err != nil {
+		for _, v := range t.config.Networks {
+			if err := t.ops.Apply(v); err != nil {
 				detail := fmt.Sprintf("failed to apply network endpoint config: %s", err)
 				log.Error(detail)
 				return errors.New(detail)
@@ -129,22 +170,9 @@ func run(src extraconfig.DataSource, sink extraconfig.DataSink) error {
 		}
 
 		// process the sessions and launch if needed
-		attach := false
-		for id, session := range config.Sessions {
+		for id, session := range t.config.Sessions {
 			log.Debugf("Processing config for session %s", session.ID)
 			var proc = session.Cmd.Process
-
-			if session.Attach {
-				attach = true
-				log.Debugf("Session %s is configured for attach", session.ID)
-				// this will return nil if already running
-				err := server.start()
-				if err != nil {
-					detail := fmt.Sprintf("unable to start attach server: %s", err)
-					log.Error(detail)
-					continue
-				}
-			}
 
 			// check if session is alive and well
 			if proc != nil && proc.Signal(syscall.Signal(0)) != nil {
@@ -154,8 +182,8 @@ func run(src extraconfig.DataSource, sink extraconfig.DataSink) error {
 
 			// check if session has never been started
 			if proc == nil {
-				log.Infof("Launching process for session %s\n", session.ID)
-				err := launch(session)
+				log.Infof("Launching process for session %s", session.ID)
+				err := t.launch(session)
 				if err != nil {
 					detail := fmt.Sprintf("failed to launch %s for %s: %s", session.Cmd.Path, id, err)
 					log.Error(detail)
@@ -171,22 +199,44 @@ func run(src extraconfig.DataSource, sink extraconfig.DataSink) error {
 			// TODO
 		}
 
-		// none of the sessions allows attach, so stop the server
-		if !attach {
-			server.stop()
+		for name, ext := range t.extensions {
+			log.Info("Passing config to " + name)
+			err := ext.Reload(t.config)
+			if err != nil {
+				log.Errorf("Failed to cleanly reload config for extension %s: %s", name, err)
+				return err
+			}
 		}
 	}
 
 	return nil
 }
 
+func (t *tether) Stop() error {
+	// TODO: kill all the children
+	if t.reload != nil {
+		close(t.reload)
+		t.reload = nil
+	}
+
+	return nil
+}
+
+func (t *tether) Reload() {
+	t.reload <- true
+}
+
+func (t *tether) Register(name string, extension Extension) {
+	t.extensions[name] = extension
+}
+
 // handleSessionExit processes the result from the session command, records it in persistent
 // maner and determines if the Executor should exit
-func handleSessionExit(session *SessionConfig) error {
+func (t *tether) handleSessionExit(session *SessionConfig) {
 	defer trace.End(trace.Begin("handling exit of session " + session.ID))
 
 	// close down the IO
-	session.reader.Close()
+	session.Reader.Close()
 	// live.outwriter.Close()
 	// live.errwriter.Close()
 
@@ -195,32 +245,25 @@ func handleSessionExit(session *SessionConfig) error {
 	// record exit status
 	// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
 	// currently sure how to expose it neatly via a utility function
-	extraconfig.EncodeWithPrefix(dataSink, session.ExitStatus, fmt.Sprintf("guestinfo..sessions|%s.status", session.ID))
+	extraconfig.EncodeWithPrefix(t.sink, session.ExitStatus, fmt.Sprintf("guestinfo..sessions|%s.status", session.ID))
 	log.Infof("%s exit code: %d", session.ID, session.ExitStatus)
 
-	// check for executor behaviour
-	if LenChildPid() == 0 {
-		// let the main loop exit if there's no more sessions to wait on
-		if reload != nil {
-			close(reload)
-			reload = nil
-		}
+	if t.ops.HandleSessionExit(t.config, session) {
+		t.Stop()
 	}
-
-	return nil
 }
 
 // launch will launch the command defined in the session.
 // This will return an error if the session fails to launch
-func launch(session *SessionConfig) error {
+func (t *tether) launch(session *SessionConfig) error {
 	defer trace.End(trace.Begin("launching session " + session.ID))
 
 	// encode the result whether success or error
 	defer func() {
-		extraconfig.EncodeWithPrefix(dataSink, session.Started, fmt.Sprintf("guestinfo..sessions|%s.started", session.ID))
+		extraconfig.EncodeWithPrefix(t.sink, session.Started, fmt.Sprintf("guestinfo..sessions|%s.started", session.ID))
 	}()
 
-	logwriter, err := utils.sessionLogWriter()
+	logwriter, err := t.ops.SessionLog(session)
 	if err != nil {
 		detail := fmt.Sprintf("failed to get log writer for session: %s", err)
 		log.Error(detail)
@@ -231,16 +274,16 @@ func launch(session *SessionConfig) error {
 
 	// we store these outside of the session.Cmd struct so that there's consistent
 	// handling between tty & non-tty paths
-	session.outwriter = logwriter
-	session.errwriter = logwriter
-	session.reader = dio.MultiReader()
+	session.Outwriter = logwriter
+	session.Errwriter = logwriter
+	session.Reader = dio.MultiReader()
 
-	session.Cmd.Env = utils.processEnvOS(session.Cmd.Env)
-	session.Cmd.Stdout = session.outwriter
-	session.Cmd.Stderr = session.errwriter
-	session.Cmd.Stdin = session.reader
+	session.Cmd.Env = t.ops.ProcessEnv(session.Cmd.Env)
+	session.Cmd.Stdout = session.Outwriter
+	session.Cmd.Stderr = session.Errwriter
+	session.Cmd.Stdin = session.Reader
 
-	resolved, err := lookPath(session.Cmd.Path, session.Cmd.Env)
+	resolved, err := lookPath(session.Cmd.Path, session.Cmd.Env, session.Cmd.Dir)
 	if err != nil {
 		log.Errorf("Path lookup failed for %s: %s", session.Cmd.Path, err)
 		session.Started = err.Error()
@@ -254,14 +297,14 @@ func launch(session *SessionConfig) error {
 	// so we can defer unlocking locally
 	// logging is done after the function to keep the locked time as low as possible
 	err = func() error {
-		config.pidMutex.Lock()
-		defer config.pidMutex.Unlock()
+		t.config.pidMutex.Lock()
+		defer t.config.pidMutex.Unlock()
 
-		log.Infof("Launching command %#v\n", session.Cmd.Args)
+		log.Infof("Launching command %#v", session.Cmd.Args)
 		if !session.Tty {
 			err = session.Cmd.Start()
 		} else {
-			err = utils.establishPty(session)
+			err = establishPty(session)
 		}
 
 		if err != nil {
@@ -269,7 +312,7 @@ func launch(session *SessionConfig) error {
 		}
 
 		// ChildReaper will use this channel to inform us the wait status of the child.
-		config.pids[session.Cmd.Process.Pid] = session
+		t.config.pids[session.Cmd.Process.Pid] = session
 
 		return nil
 	}()
@@ -307,12 +350,12 @@ func logConfig(config *ExecutorConfig) {
 	}
 }
 
-func forkHandler() {
+func (t *tether) forkHandler() {
 	defer trace.End(trace.Begin("start fork trigger handler"))
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("Recovered in StartConnectionManager", r)
+			log.Println("Recovered in forkHandler", r)
 		}
 	}()
 
@@ -328,7 +371,7 @@ func forkHandler() {
 		// TODO: record fork trigger in Config and persist
 
 		// TODO: do we need to rebind session executions stdio to /dev/null or to files?
-		err := ops.Fork(config)
+		err := t.ops.Fork()
 		if err != nil {
 			log.Errorf("vmfork failed:%s\n", err)
 			// TODO: how do we handle fork failure behaviour at a container level?
@@ -338,6 +381,6 @@ func forkHandler() {
 
 		// trigger a reload of the configuration
 		log.Info("Triggering reload of config after fork")
-		reload <- true
+		t.reload <- true
 	}
 }

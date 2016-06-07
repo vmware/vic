@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package tether
 
 import (
 	"testing"
@@ -21,10 +21,6 @@ import (
 	"github.com/vmware/vic/lib/metadata"
 )
 
-/////////////////////////////////////////////////////////////////////////////////////
-// TestHostnameConfig constructs the spec with no sesisons specifically for testing
-// hostname setting - this checks the value passed to the mocked SetHostname
-//
 func TestSetHostname(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
@@ -36,29 +32,44 @@ func TestSetHostname(t *testing.T) {
 		},
 	}
 
-	startTether(t, &cfg)
+	tthr, _ := StartTether(t, &cfg)
 
-	<-mocked.started
+	<-Mocked.Started
 
 	// prevent indefinite wait in tether - normally session exit would trigger this
-	close(reload)
+	tthr.Stop()
 
 	// wait for tether to exit
-	<-mocked.cleaned
+	<-Mocked.Cleaned
 
 	expected := stringid.TruncateID(cfg.ID)
-	if mocked.hostname != expected {
-		t.Errorf("expected: %s, actual: %s", expected, mocked.hostname)
+	if Mocked.Hostname != expected {
+		t.Errorf("expected: %s, actual: %s", expected, Mocked.Hostname)
 	}
 }
 
-//
-/////////////////////////////////////////////////////////////////////////////////////
+func TestNoNetwork(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
 
-/////////////////////////////////////////////////////////////////////////////////////
-// TestSetIpAddressConfig constructs the spec for setting IP addresses - this checks
-// the values passed to the Apply mock match those from the test config
-//
+	cfg := metadata.ExecutorConfig{
+		Common: metadata.Common{
+			ID:   "ipconfig",
+			Name: "tether_test_executor",
+		},
+	}
+
+	tthr, _ := StartTether(t, &cfg)
+
+	<-Mocked.Started
+
+	// prevent indefinite wait in tether - normally session exit would trigger this
+	tthr.Stop()
+
+	// wait for tether to exit
+	<-Mocked.Cleaned
+}
+
 func TestSetIpAddress(t *testing.T) {
 	t.Skip("Not yet testing network config")
 
@@ -72,18 +83,13 @@ func TestSetIpAddress(t *testing.T) {
 		},
 	}
 
-	startTether(t, &cfg)
+	tthr, _ := StartTether(t, &cfg)
 
-	<-mocked.started
+	<-Mocked.Started
 
 	// prevent indefinite wait in tether - normally session exit would trigger this
-	close(reload)
+	tthr.Stop()
 
 	// wait for tether to exit
-	<-mocked.cleaned
-
-	testTeardown(t)
+	<-Mocked.Cleaned
 }
-
-//
-/////////////////////////////////////////////////////////////////////////////////////

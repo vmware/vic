@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package tether
 
 import (
 	"os"
@@ -71,8 +71,8 @@ type SessionConfig struct {
 	Tty bool `vic:"0.1" scope:"read-only" key:"tty"`
 
 	// if there's a pty then we need additional management data
-	pty       *os.File
-	outwriter dio.DynamicMultiWriter
-	errwriter dio.DynamicMultiWriter
-	reader    dio.DynamicMultiReader
+	Pty       *os.File
+	Outwriter dio.DynamicMultiWriter
+	Errwriter dio.DynamicMultiWriter
+	Reader    dio.DynamicMultiReader
 }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package tether
 
 import (
 	"errors"
@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -41,10 +42,11 @@ var byLabelDir = "/dev/disk/by-label"
 
 const pciDevPath = "/sys/bus/pci/devices"
 
-type osopsLinux struct{}
+type BaseOperations struct {
+}
 
 // SetHostname sets both the kernel hostname and /etc/hostname to the specified string
-func (t *osopsLinux) SetHostname(hostname string) error {
+func (t *BaseOperations) SetHostname(hostname string) error {
 	defer trace.End(trace.Begin("setting hostname to " + hostname))
 
 	old, err := os.Hostname()
@@ -142,7 +144,7 @@ func linkBySlot(slot int32) (netlink.Link, error) {
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
-func (t *osopsLinux) Apply(endpoint *metadata.NetworkEndpoint) error {
+func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
 
 	// Locate interface
@@ -179,17 +181,13 @@ func (t *osopsLinux) Apply(endpoint *metadata.NetworkEndpoint) error {
 	return nil
 }
 
-// MountLabel performs a mount with the source treated as a disk label
-// This assumes that /dev/disk/by-label is being populated, probably by udev
-func (t *osopsLinux) MountLabel(label, target string, ctx context.Context) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", label, target)))
+// MountLabel performs a mount with the source and target being absolute paths
+func (t *BaseOperations) MountLabel(source, target string, ctx context.Context) error {
+	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", source, target)))
 
 	if err := os.MkdirAll(target, 0600); err != nil {
 		return fmt.Errorf("unable to create mount point %s: %s", target, err)
 	}
-
-	volumes := pathPrefix + byLabelDir
-	source := volumes + "/" + label
 
 	// do..while ! timedout
 	var timeout bool
@@ -216,8 +214,26 @@ func (t *osopsLinux) MountLabel(label, target string, ctx context.Context) error
 	return nil
 }
 
+// ProcessEnv does OS specific checking and munging on the process environment prior to launch
+func (t *BaseOperations) ProcessEnv(env []string) []string {
+	// TODO: figure out how we're going to specify user and pass all the settings along
+	// in the meantime, hardcode HOME to /root
+	homeIndex := -1
+	for i, tuple := range env {
+		if strings.HasPrefix(tuple, "HOME=") {
+			homeIndex = i
+			break
+		}
+	}
+	if homeIndex == -1 {
+		return append(env, "HOME=/root")
+	}
+
+	return env
+}
+
 // Fork triggers vmfork and handles the necessary pre/post OS level operations
-func (t *osopsLinux) Fork(config *ExecutorConfig) error {
+func (t *BaseOperations) Fork() error {
 	// unload vmxnet3 module
 
 	// fork
@@ -245,8 +261,4 @@ func (t *osopsLinux) Fork(config *ExecutorConfig) error {
 	// ensure memory and cores are brought online if not using udev
 
 	return nil
-}
-
-func MkNamedPipe(path string, mode os.FileMode) error {
-	return syscall.Mkfifo(path, (uint32(mode)))
 }

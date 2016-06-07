@@ -23,6 +23,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/lib/portlayer/attach"
+	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/trace"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
@@ -37,16 +38,55 @@ const (
 var server attachServer
 
 type attachServer interface {
+	tether.Extension
+
 	start() error
 	stop()
 }
 
 // conn is held directly as it's how we stop the attach server
 type attachServerSSH struct {
-	conn   *net.Conn
-	config *ssh.ServerConfig
+	conn      *net.Conn
+	config    *tether.ExecutorConfig
+	sshConfig *ssh.ServerConfig
 
 	enabled bool
+}
+
+// Reload - tether.Extension implementation
+func (t *attachServerSSH) Reload(config *tether.ExecutorConfig) error {
+	defer trace.End(trace.Begin("attach reload"))
+
+	t.config = config
+	// process the sessions and launch if needed
+	for id, session := range config.Sessions {
+		log.Infof("Processing config for session %s", id)
+		if session.Attach {
+			log.Infof("Session %s is configured for attach", id)
+			// this will return nil if already running - calling server.start not t.start so that
+			// test impl gets invoked (couldn't find a better way of doing this without full polymorphism)
+			err := server.start()
+			if err != nil {
+				detail := fmt.Sprintf("unable to start attach server: %s", err)
+				log.Error(detail)
+				return errors.New(detail)
+			}
+
+			return nil
+		}
+	}
+
+	// none of the sessions allows attach, so stop the server - calling server.start not t.start so that
+	// test impl gets invoked
+	server.stop()
+	return nil
+}
+
+// Stop needed for tether.Extensions interface
+func (t *attachServerSSH) Stop() error {
+	// calling server.start not t.start so that test impl gets invoked
+	server.stop()
+	return nil
 }
 
 // start is not thread safe with stop
@@ -62,7 +102,7 @@ func (t *attachServerSSH) start() error {
 	}
 
 	// don't assume that the key hasn't changed
-	pkey, err := ssh.ParsePrivateKey([]byte(config.Key))
+	pkey, err := ssh.ParsePrivateKey([]byte(t.config.Key))
 	if err != nil {
 		detail := fmt.Sprintf("failed to load key for attach: %s", err)
 		log.Error(detail)
@@ -72,7 +112,7 @@ func (t *attachServerSSH) start() error {
 	// An SSH server is represented by a ServerConfig, which holds
 	// certificate details and handles authentication of ServerConns.
 	// TODO: update this with generated credentials for the appliance
-	t.config = &ssh.ServerConfig{
+	t.sshConfig = &ssh.ServerConfig{
 		PublicKeyCallback: func(c ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
 			if c.User() == "daemon" {
 				return &ssh.Permissions{}, nil
@@ -87,7 +127,7 @@ func (t *attachServerSSH) start() error {
 		},
 		NoClientAuth: true,
 	}
-	t.config.AddHostKey(pkey)
+	t.sshConfig.AddHostKey(pkey)
 
 	t.enabled = true
 	go t.run()
@@ -123,17 +163,15 @@ func (t *attachServerSSH) run() error {
 	// keep waiting for the connection to establish
 	for t.enabled && sConn == nil {
 		// wait for backchannel to establish
-		conn, errb := utils.backchannel(context.Background())
-		if errb != nil {
-			err = errb
+		err = backchannel(context.Background(), t.conn)
+		if err != nil {
 			detail := fmt.Sprintf("failed to establish backchannel: %s", err)
 			log.Error(detail)
 			continue
 		}
-		t.conn = &conn
 
 		// create the SSH server
-		sConn, chans, reqs, err = ssh.NewServerConn(*t.conn, t.config)
+		sConn, chans, reqs, err = ssh.NewServerConn(*t.conn, t.sshConfig)
 		if err != nil {
 			detail := fmt.Sprintf("failed to establish ssh handshake: %s", err)
 			log.Error(detail)
@@ -172,7 +210,7 @@ func (t *attachServerSSH) run() error {
 		}
 
 		sessionid := string(bytes)
-		session, ok := config.Sessions[sessionid]
+		session, ok := t.config.Sessions[sessionid]
 
 		reason := ""
 		if !ok {
@@ -201,30 +239,30 @@ func (t *attachServerSSH) run() error {
 
 		// bind the channel to the Session
 		log.Debugf("binding reader/writers for channel for %s", sessionid)
-		session.outwriter.Add(channel)
-		session.reader.Add(channel)
+		session.Outwriter.Add(channel)
+		session.Reader.Add(channel)
 
 		// cleanup on detach from the session
 		detach := func() {
-			session.outwriter.Remove(channel)
-			session.reader.Remove(channel)
+			session.Outwriter.Remove(channel)
+			session.Reader.Remove(channel)
 		}
 
 		// tty's merge stdout and stderr so we don't bind an additional reader in that case
 		// but we need to do so for non-tty
-		if session.pty == nil {
-			session.errwriter.Add(channel.Stderr())
+		if session.Pty == nil {
+			session.Errwriter.Add(channel.Stderr())
 
 			// no good way to function chain, so reimplement appropriately
 			detach = func() {
-				session.outwriter.Remove(channel)
-				session.reader.Remove(channel)
-				session.errwriter.Remove(channel)
+				session.Outwriter.Remove(channel)
+				session.Reader.Remove(channel)
+				session.Errwriter.Remove(channel)
 			}
 		}
 		log.Debugf("reader/writers bound for channel for %s", sessionid)
 
-		go t.channelMux(requests, session.Cmd.Process, session.pty, detach)
+		go t.channelMux(requests, session.Cmd.Process, session.Pty, detach)
 	}
 
 	log.Info("incoming attach channel closed")
@@ -244,9 +282,9 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 
 		switch req.Type {
 		case attach.ContainersReq:
-			keys := make([]string, len(config.Sessions))
+			keys := make([]string, len(t.config.Sessions))
 			i := 0
-			for k := range config.Sessions {
+			for k := range t.config.Sessions {
 				keys[i] = k
 				i++
 			}
@@ -291,7 +329,7 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 			} else if err = msg.Unmarshal(req.Payload); err != nil {
 				ok = false
 				log.Errorf(err.Error())
-			} else if err = utils.resizePty(pty.Fd(), &msg); err != nil {
+			} else if err = resizePty(pty.Fd(), &msg); err != nil {
 				ok = false
 				log.Errorf(err.Error())
 			}
@@ -302,7 +340,7 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 				log.Errorf(err.Error())
 			} else {
 				log.Infof("Sending signal %s to container process, pid=%d\n", string(msg.Signal), process.Pid)
-				err = utils.signalProcess(process, msg.Signal)
+				err = signalProcess(process, msg.Signal)
 				if err != nil {
 					log.Errorf("Failed to dispatch signal to process: %s\n", err)
 				}
@@ -327,4 +365,12 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 	}
 
 	detach()
+}
+
+// The syscall struct
+type winsize struct {
+	wsRow    uint16
+	wsCol    uint16
+	wsXpixel uint16
+	wsYpixel uint16
 }

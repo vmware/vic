@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
@@ -41,15 +42,12 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	// the OS ops and utils to use
-	win := &osopsWin{}
-	ops = win
-	utils = win
-
 	// get the windows service logic running so that we can play well in that mode
 	runService("VMware Tether", false)
 
-	server = &attachServerSSH{}
+	sshserver := &attachServerSSH{}
+	server = sshserver
+
 	src, err := extraconfig.GuestInfoSource()
 	if err != nil {
 		log.Error(err)
@@ -62,7 +60,11 @@ func main() {
 		return
 	}
 
-	err = run(src, sink)
+	// create the tether and register the attach extension
+	tthr := tether.New(src, sink, &operations{})
+	tthr.Register("Attach", sshserver)
+
+	err = tthr.Start()
 	if err != nil {
 		log.Error(err)
 		return

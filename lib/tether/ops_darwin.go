@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package tether
 
 import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -25,17 +26,17 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-type osopsOSX struct{}
+type BaseOperations struct{}
 
 // SetHostname sets the system hostname
-func (t *osopsOSX) SetHostname(hostname string) error {
+func (t *BaseOperations) SetHostname(hostname string) error {
 	defer trace.End(trace.Begin("setting hostname to " + hostname))
 
 	return errors.New("not implemented on OSX")
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
-func (t *osopsOSX) Apply(endpoint *metadata.NetworkEndpoint) error {
+func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
 
 	return errors.New("not implemented on OSX")
@@ -43,13 +44,31 @@ func (t *osopsOSX) Apply(endpoint *metadata.NetworkEndpoint) error {
 
 // MountLabel performs a mount with the source treated as a disk label
 // This assumes that /dev/disk/by-label is being populated, probably by udev
-func (t *osopsOSX) MountLabel(label, target string, ctx context.Context) error {
+func (t *BaseOperations) MountLabel(label, target string, ctx context.Context) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", label, target)))
 
 	return errors.New("not implemented on OSX")
 }
 
-func (t *osopsOSX) Fork(config *ExecutorConfig) error {
+// ProcessEnv does OS specific checking and munging on the process environment prior to launch
+func (t *BaseOperations) ProcessEnv(env []string) []string {
+	// TODO: figure out how we're going to specify user and pass all the settings along
+	// in the meantime, hardcode HOME to /root
+	homeIndex := -1
+	for i, tuple := range env {
+		if strings.HasPrefix(tuple, "HOME=") {
+			homeIndex = i
+			break
+		}
+	}
+	if homeIndex == -1 {
+		return append(env, "HOME=/root")
+	}
+
+	return env
+}
+
+func (t *BaseOperations) Fork() error {
 	return errors.New("not implemented on OSX")
 }
 

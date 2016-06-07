@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package tether
 
 import (
 	"bytes"
@@ -31,21 +31,15 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
-	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
-// Copied from lib/tether
-// because there's no easy way to use test code from other packages and a separate
-// package causes cyclic dependencies.
-// Some modifications to deal with the change of package and attach usage
-
 var Mocked Mocker
 
 type Mocker struct {
-	Base tether.BaseOperations
+	Base BaseOperations
 
 	// allow tests to tell when the tether has finished setup
 	Started chan bool
@@ -72,23 +66,7 @@ type Mocker struct {
 
 // Start implements the extension method
 func (t *Mocker) Start() error {
-	return nil
-}
-
-// Stop implements the extension method
-func (t *Mocker) Stop() error {
-	return nil
-}
-
-// Reload implements the extension method
-func (t *Mocker) Reload(config *tether.ExecutorConfig) error {
-	// the tether has definitely finished it's startup by the time we hit this
-	close(t.Started)
-	return nil
-}
-
-func (t *Mocker) Setup() error {
-	log.Info("Launching pprof server for test on port 6060")
+	// TODO: enabled for initial dev debugging only
 	go func() {
 		log.Info(http.ListenAndServe("0.0.0.0:6060", nil))
 	}()
@@ -96,8 +74,24 @@ func (t *Mocker) Setup() error {
 	return nil
 }
 
-func (t *Mocker) Cleanup() error {
+// Stop implements the extension method
+func (t *Mocker) Stop() error {
 	close(t.Cleaned)
+	return nil
+}
+
+// Reload implements the extension method
+func (t *Mocker) Reload(config *ExecutorConfig) error {
+	// the tether has definitely finished it's startup by the time we hit this
+	close(t.Started)
+	return nil
+}
+
+func (t *Mocker) Setup() error {
+	return nil
+}
+
+func (t *Mocker) Cleanup() error {
 	return nil
 }
 
@@ -105,11 +99,11 @@ func (t *Mocker) Log() (io.Writer, error) {
 	return &t.LogBuffer, nil
 }
 
-func (t *Mocker) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, error) {
+func (t *Mocker) SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, error) {
 	return dio.MultiWriter(&t.SessionLogBuffer, os.Stdout), nil
 }
 
-func (t *Mocker) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) bool {
+func (t *Mocker) HandleSessionExit(config *ExecutorConfig, session *SessionConfig) bool {
 	// check for executor behaviour
 	return session.ID == config.ID
 }
@@ -165,16 +159,15 @@ func TestMain(m *testing.M) {
 	os.Exit(retCode)
 }
 
-func StartAttachTether(t *testing.T, cfg *metadata.ExecutorConfig) (tether.Tether, extraconfig.DataSource, net.Conn) {
+func StartTether(t *testing.T, cfg *metadata.ExecutorConfig) (Tether, extraconfig.DataSource) {
 	store := map[string]string{}
 	sink := extraconfig.MapSink(store)
 	src := extraconfig.MapSource(store)
 	extraconfig.Encode(sink, cfg)
 	log.Debugf("Test configuration: %#v", sink)
 
-	tthr := tether.New(src, sink, &Mocked)
+	tthr := New(src, sink, &Mocked)
 	tthr.Register("mocker", &Mocked)
-	tthr.Register("Attach", server)
 
 	// run the tether to service the attach
 	go func() {
@@ -184,13 +177,23 @@ func StartAttachTether(t *testing.T, cfg *metadata.ExecutorConfig) (tether.Tethe
 		}
 	}()
 
-	// create client on the mock pipe
-	conn, err := mockBackChannel(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
+	return tthr, src
+}
 
-	return tthr, src, conn
+func RunTether(t *testing.T, cfg *metadata.ExecutorConfig) (Tether, extraconfig.DataSource, error) {
+	store := map[string]string{}
+	sink := extraconfig.MapSink(store)
+	src := extraconfig.MapSource(store)
+	extraconfig.Encode(sink, cfg)
+	log.Debugf("Test configuration: %#v", sink)
+
+	tthr := New(src, sink, &Mocked)
+	tthr.Register("Mocker", &Mocked)
+
+	// run the tether to service the attach
+	erR := tthr.Start()
+
+	return tthr, src, erR
 }
 
 func OptionValueArrayToString(options []types.BaseOptionValue) string {
@@ -205,8 +208,8 @@ func OptionValueArrayToString(options []types.BaseOptionValue) string {
 	return fmt.Sprintf("%#v", kv)
 }
 
-func tetherTestSetup(t *testing.T) string {
-	pc, _, _, _ := runtime.Caller(2)
+func testSetup(t *testing.T) {
+	pc, _, _, _ := runtime.Caller(1)
 	name := runtime.FuncForPC(pc).Name()
 
 	log.Infof("Started test setup for %s", name)
@@ -216,21 +219,17 @@ func tetherTestSetup(t *testing.T) string {
 		Started: make(chan bool, 0),
 		Cleaned: make(chan bool, 0),
 	}
-
-	return name
 }
 
-func tetherTestTeardown(t *testing.T) string {
+func testTeardown(t *testing.T) {
 	// cleanup
-	os.RemoveAll(pathPrefix)
+	// os.RemoveAll(pathPrefix)
 	log.SetOutput(os.Stdout)
 
 	<-Mocked.Cleaned
 
-	pc, _, _, _ := runtime.Caller(2)
+	pc, _, _, _ := runtime.Caller(1)
 	name := runtime.FuncForPC(pc).Name()
 
 	log.Infof("Finished test teardown for %s", name)
-
-	return name
 }

@@ -34,9 +34,14 @@ func GuestInfoSource() (DataSource, error) {
 
 	return func(key string) (string, error) {
 		value, err := guestinfo.String(key, "")
-		if value == "<nil>" {
+		if value == "" {
+			// if we don't assume this then we never return error for missing keys
+			// which is problematic for decoding
+			err = errors.New("no value for key")
+		} else if value == "<nil>" {
 			value = ""
 		}
+
 		log.Debugf("GuestInfoSource: key: %s, value: %#v, error: %s", key, value, err)
 		return value, err
 	}, nil

@@ -15,8 +15,6 @@
 package main
 
 import (
-	"errors"
-	"fmt"
 	"os"
 	"runtime/debug"
 	"strings"
@@ -27,12 +25,14 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
+var tthr tether.Tether
+
 func main() {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Errorf("run time panic: %s : %s", r, debug.Stack())
 		}
-		halt()
+		reboot()
 	}()
 
 	// where to look for the various devices and files related to tether
@@ -44,16 +44,6 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	// TODO: hard code executor initialization status reporting via guestinfo here
-	err := createDevices()
-	if err != nil {
-		log.Error(err)
-		// return gives us good behaviour in the case of "-debug" binary
-		return
-	}
-
-	sshserver := &attachServerSSH{}
-	server = sshserver
 	src, err := extraconfig.GuestInfoSource()
 	if err != nil {
 		log.Error(err)
@@ -67,8 +57,7 @@ func main() {
 	}
 
 	// create the tether and register the attach extension
-	tthr := tether.New(src, sink, &operations{})
-	tthr.Register("Attach", sshserver)
+	tthr = tether.New(src, sink, &operations{})
 
 	err = tthr.Start()
 	if err != nil {
@@ -79,39 +68,25 @@ func main() {
 	log.Info("Clean exit from tether")
 }
 
-func createDevices() error {
-	err := os.MkdirAll(pathPrefix, 644)
-	if err != nil {
-		log.Warnf("Failed to ensure presence of tether device directory: %s", err)
-	}
-
-	// create serial devices
-	for i := 0; i < 3; i++ {
-		path := fmt.Sprintf("%s/ttyS%d", pathPrefix, i)
-		minor := 64 + i
-		err = syscall.Mknod(path, syscall.S_IFCHR|uint32(os.FileMode(0660)), tether.Mkdev(4, minor))
-		if err != nil {
-			detail := fmt.Sprintf("failed to create %s for com%d: %s", path, i+1, err)
-			return errors.New(detail)
-		}
-	}
-
-	// make an access to urandom
-	path := fmt.Sprintf("%s/urandom", pathPrefix)
-	err = syscall.Mknod(path, syscall.S_IFCHR|uint32(os.FileMode(0444)), tether.Mkdev(1, 9))
-	if err != nil {
-		detail := fmt.Sprintf("failed to create urandom access %s: %s", path, err)
-		return errors.New(detail)
-	}
-
-	return nil
-}
-
 // exit cleanly shuts down the system
 func halt() {
 	log.Infof("Powering off the system")
-	// if strings.HasSuffix(os.Args[0], "-debug") {
-	log.Info("Squashing power off for WIP tether")
-	return
-	// }
+	if strings.HasSuffix(os.Args[0], "-debug") {
+		log.Info("Squashing power off for debug tether")
+		return
+	}
+
+	syscall.Sync()
+	syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
+}
+
+func reboot() {
+	log.Infof("Rebooting the system")
+	if strings.HasSuffix(os.Args[0], "-debug") {
+		log.Info("Squashing reboot for debug tether")
+		return
+	}
+
+	syscall.Sync()
+	syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART)
 }

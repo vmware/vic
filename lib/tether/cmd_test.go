@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package tether
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os/exec"
 	"testing"
 
@@ -32,8 +31,6 @@ import (
 //
 
 func TestPathLookup(t *testing.T) {
-	t.Skip("PATH based lookup not yet implemented")
-
 	testSetup(t)
 	defer testTeardown(t)
 
@@ -61,10 +58,14 @@ func TestPathLookup(t *testing.T) {
 		},
 	}
 
-	_, err := runTether(t, &cfg)
-	if err != nil {
-		t.Error(err)
-	}
+	_, src, err := RunTether(t, &cfg)
+	assert.NoError(t, err, "Didn't expected error from runTether")
+
+	result := ExecutorConfig{}
+	extraconfig.Decode(src, &result)
+
+	assert.Equal(t, "true", result.Sessions["pathlookup"].Started, "Expected command to have been started successfully")
+	assert.Equal(t, 0, result.Sessions["pathlookup"].ExitStatus, "Expected command to have exited cleanly")
 }
 
 //
@@ -89,19 +90,23 @@ func TestRelativePath(t *testing.T) {
 				Tty: false,
 				Cmd: metadata.Cmd{
 					// test relative path
-					Path: "date",
-					Args: []string{"date", "--reference=/"},
-					Env:  []string{"PATH=/bin"},
+					Path: "./date",
+					Args: []string{"./date", "--reference=/"},
+					Env:  []string{"PATH="},
 					Dir:  "/bin",
 				},
 			},
 		},
 	}
 
-	_, err := runTether(t, &cfg)
-	if err != nil {
-		t.Error(err)
-	}
+	_, src, err := RunTether(t, &cfg)
+	assert.NoError(t, err, "Didn't expected error from RunTether")
+
+	result := ExecutorConfig{}
+	extraconfig.Decode(src, &result)
+
+	assert.Equal(t, "true", result.Sessions["relpath"].Started, "Expected command to have been started successfully")
+	assert.Equal(t, 0, result.Sessions["relpath"].ExitStatus, "Expected command to have exited cleanly")
 }
 
 //
@@ -134,28 +139,17 @@ func TestAbsPath(t *testing.T) {
 		},
 	}
 
-	src, err := runTether(t, &cfg)
-	if err != nil {
-		t.Error(err)
-	}
+	_, src, err := RunTether(t, &cfg)
+	assert.NoError(t, err, "Didn't expected error from RunTether")
 
-	// refresh the cfg with current data
-	extraconfig.Decode(src, &cfg)
+	result := ExecutorConfig{}
+	extraconfig.Decode(src, &result)
 
-	// check the exit code was set
-	status := cfg.Sessions["abspath"].ExitStatus
-	if status != 0 {
-		t.Errorf("reference process 'data --reference=/' did not exit cleanly: %d", status)
-		return
-	}
+	assert.Equal(t, "true", result.Sessions["abspath"].Started, "Expected command to have been started successfully")
+	assert.Equal(t, 0, result.Sessions["abspath"].ExitStatus, "Expected command to have exited cleanly")
 
 	// read the output from the session
-	log, err := ioutil.ReadFile(pathPrefix + "/ttyS2")
-	if err != nil {
-		fmt.Printf("Failed to open log file for command: %s", err)
-		t.Error(err)
-		return
-	}
+	log := Mocked.SessionLogBuffer.Bytes()
 
 	// run the command directly
 	out, err := exec.Command("/bin/date", "--reference=/").Output()
@@ -213,10 +207,8 @@ func TestMissingBinary(t *testing.T) {
 		},
 	}
 
-	src, err := runTether(t, &cfg)
-	if err == nil {
-		t.Error("Expected error from missing binary")
-	}
+	_, src, err := RunTether(t, &cfg)
+	assert.Error(t, err, "Expected error from RunTether")
 
 	// refresh the cfg with current data
 	extraconfig.Decode(src, &cfg)
@@ -262,10 +254,8 @@ func TestMissingRelativeBinary(t *testing.T) {
 		},
 	}
 
-	src, err := runTether(t, &cfg)
-	if err == nil {
-		t.Error("Expected error from missing binary")
-	}
+	_, src, err := RunTether(t, &cfg)
+	assert.Error(t, err, "Expected error from RunTether")
 
 	// refresh the cfg with current data
 	extraconfig.Decode(src, &cfg)

@@ -332,7 +332,7 @@ func decodeMap(src DataSource, dest reflect.Value, prefix string, depth recursio
 	}
 
 	mapkeys, err := src(prefix)
-	if err != nil {
+	if mapkeys == "" || err != nil {
 		log.Debugf("No value found in data source for maps keys \"%s\"", prefix)
 		return this
 	}
