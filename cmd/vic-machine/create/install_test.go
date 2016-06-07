@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package create
 
 import (
 	"flag"
@@ -24,6 +24,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+var (
+	data = &Create{}
+)
+
 func TestImageNotFound(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
 	tmpfile, err := ioutil.TempFile("", "appIso")
@@ -33,10 +37,11 @@ func TestImageNotFound(t *testing.T) {
 
 	defer os.Remove(tmpfile.Name()) // clean up
 
-	os.Args = []string{"cmd", fmt.Sprintf("-appliance-iso=%s", tmpfile.Name())}
+	os.Args = []string{"cmd", "create", fmt.Sprintf("-appliance-iso=%s", tmpfile.Name())}
 	flag.Parse()
+	data.applianceISO = tmpfile.Name()
 	data.osType = "linux"
-	if _, err = checkImagesFiles(); err == nil {
+	if _, err = data.checkImagesFiles(); err == nil {
 		t.Errorf("Error is expected for boot iso file is not found.")
 	}
 }
@@ -56,12 +61,13 @@ func TestImageChecks(t *testing.T) {
 	}
 	defer os.Remove("appliance.iso")
 
-	os.Args = []string{"cmd", fmt.Sprintf("-bootstrap-iso=%s", tmpfile.Name())}
+	os.Args = []string{"cmd", "create", fmt.Sprintf("-bootstrap-iso=%s", tmpfile.Name())}
 	flag.Parse()
 	data.applianceISO = ""
+	data.bootstrapISO = tmpfile.Name()
 	data.osType = "linux"
 	var imageFiles []string
-	if imageFiles, err = checkImagesFiles(); err != nil {
+	if imageFiles, err = data.checkImagesFiles(); err != nil {
 		t.Errorf("Error returned: %s", err)
 	}
 	found := false
@@ -78,19 +84,19 @@ func TestImageChecks(t *testing.T) {
 
 func TestLoadKey(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	os.Args = []string{"cmd"}
+	os.Args = []string{"cmd", "create"}
 	flag.Parse()
-	if _, err := loadCertificate(); err != nil {
+	if _, err := data.loadCertificate(); err != nil {
 		t.Errorf("Error returned: %s", err)
 	}
 }
 
 func TestGenKey(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	os.Args = []string{"cmd"}
+	os.Args = []string{"cmd", "create"}
 	flag.Parse()
 	data.tlsGenerate = true
-	if _, err := loadCertificate(); err != nil {
+	if _, err := data.loadCertificate(); err != nil {
 		t.Errorf("Error returned: %s", err)
 	}
 }

@@ -15,7 +15,7 @@ Install VIC Appliance To Test Server
     ${status}  ${message} =  Run Keyword And Ignore Error  Variable Should Exist  ${params}
     Run Keyword If  "${status}" == "FAIL"  Log To Console  \nInstalling VCH to test server...
     Run Keyword If  "${status}" == "FAIL"  Set Suite Variable  ${vch-name}  ${name}
-    ${output}=  Run Keyword If  "${status}" == "FAIL"  Run  bin/vic-machine-linux -name ${vch-name} -target=%{TEST_URL} -user=%{TEST_USERNAME} -image-store=datastore1 -appliance-iso=bin/appliance.iso -bootstrap-iso=bin/bootstrap.iso -generate-cert=true -passwd=%{TEST_PASSWORD} -force=true -bridge-network=network -compute-resource=%{TEST_RESOURCE}
+    ${output}=  Run Keyword If  "${status}" == "FAIL"  Run  bin/vic-machine-linux create --name ${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=datastore1 --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --generate-cert=true --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE}
     Run Keyword If  "${status}" == "FAIL"  Log  ${output}
     ${line}=  Run Keyword If  "${status}" == "FAIL"  Get Line  ${output}  -2
     ${ret}=  Run Keyword If  "${status}" == "FAIL"  Fetch From Right  ${line}  ] docker
