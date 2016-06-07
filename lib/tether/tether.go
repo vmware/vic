@@ -175,8 +175,8 @@ func (t *tether) Start() error {
 			var proc = session.Cmd.Process
 
 			// check if session is alive and well
-			if proc != nil && proc.Signal(syscall.Signal(0)) != nil {
-				log.Debugf("Process for session %s is already running", session.ID)
+			if proc != nil && proc.Signal(syscall.Signal(0)) == nil {
+				log.Debugf("Process for session %s is already running (pid: %d)", session.ID, proc.Pid)
 				continue
 			}
 

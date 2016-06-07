@@ -475,21 +475,6 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 	return nil
 }
 
-func findSlotNumber(slots map[int32]bool) int32 {
-	// see https://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=2047927
-	slot := pciSlotNumberBegin
-	for _, ok := slots[slot]; ok && slot != pciSlotNumberEnd; {
-		slot += pciSlotNumberInc
-		_, ok = slots[slot]
-	}
-
-	if slot == pciSlotNumberEnd {
-		return spec.NilSlot
-	}
-
-	return slot
-}
-
 var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, error) {
 	var devices object.VirtualDeviceList
 	var d types.BaseVirtualDevice
@@ -518,6 +503,10 @@ var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, e
 		if d, err = devices.CreateEthernetCard("vmxnet3", backing); err != nil {
 			return nil, err
 		}
+
+		d.GetVirtualDevice().DeviceInfo = &types.Description{
+			Label: s.name,
+		}
 	}
 
 	if spec.VirtualDeviceSlotNumber(d) == spec.NilSlot {
@@ -528,16 +517,7 @@ var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, e
 			}
 		}
 
-		for _, slot := range h.Spec.CollectSlotNumbers() {
-			slots[slot] = true
-		}
-
-		slot := findSlotNumber(slots)
-		if slot == spec.NilSlot {
-			return nil, fmt.Errorf("out of slots")
-		}
-
-		d.GetVirtualDevice().SlotInfo = &types.VirtualDevicePciBusSlotInfo{PciSlotNumber: slot}
+		h.Spec.AssignSlotNumber(d, slots)
 	}
 
 	if dc == nil {

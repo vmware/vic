@@ -76,6 +76,7 @@ func (v *Validator) ListIssues() error {
 
 func (v *Validator) Validate2(ctx context.Context, input *Data, conf *metadata.VirtualContainerHostConfigSpec) (*metadata.VirtualContainerHostConfigSpec, error) {
 	var targetURL url.URL
+	targetURL.Scheme = "https"
 	targetURL.Host = input.target
 	targetURL.Path = "sdk"
 	targetURL.User = url.UserPassword(input.user, *input.passwd)
@@ -145,14 +146,17 @@ func (v *Validator) Validate2(ctx context.Context, input *Data, conf *metadata.V
 	}
 	managementMoref, err := v.Network(ctx, input.managementNetworkName)
 	v.NoteIssue(err)
-	conf.AddNetwork(&metadata.NetworkEndpoint{
+	mnet := &metadata.NetworkEndpoint{
 		Network: metadata.ContainerNetwork{
 			Common: metadata.Common{
 				Name: "management",
 				ID:   fmt.Sprintf("%s-%s", managementMoref.Type, managementMoref.Value),
 			},
 		},
-	})
+	}
+	conf.AddNetwork(mnet)
+	// the management nic shouldn't need an alias if it's sharing with another nic
+	mnet.Network.Common.Name = ""
 
 	// add mapped networks
 	for name, net := range input.mappedNetworks {

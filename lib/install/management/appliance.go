@@ -94,7 +94,7 @@ func (d *Dispatcher) removeApplianceIfForced(conf *metadata.VirtualContainerHost
 	return nil
 }
 
-func (d *Dispatcher) addNetworkDevices(conf *metadata.VirtualContainerHostConfigSpec, devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
+func (d *Dispatcher) addNetworkDevices(conf *metadata.VirtualContainerHostConfigSpec, cspec *spec.VirtualMachineConfigSpec, devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
 	var err error
 	var backing types.BaseVirtualDeviceBackingInfo
 	// network name:alias, to avoid create multiple devices for same network
@@ -182,13 +182,15 @@ func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConf
 	cfg := make(map[string]string)
 	extraconfig.Encode(extraconfig.MapSink(cfg), conf)
 
-	spec := &types.VirtualMachineConfigSpec{
-		Name:        conf.Name,
-		GuestId:     "other3xLinux64Guest",
-		Files:       &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStoreName)},
-		NumCPUs:     int32(conf.ApplianceSize.CPU.Limit),
-		MemoryMB:    conf.ApplianceSize.Memory.Limit,
-		ExtraConfig: extraconfig.OptionValueFromMap(cfg),
+	spec := &spec.VirtualMachineConfigSpec{
+		VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{
+			Name:        conf.Name,
+			GuestId:     "other3xLinux64Guest",
+			Files:       &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStoreName)},
+			NumCPUs:     int32(conf.ApplianceSize.CPU.Limit),
+			MemoryMB:    conf.ApplianceSize.Memory.Limit,
+			ExtraConfig: extraconfig.OptionValueFromMap(cfg),
+		},
 	}
 
 	if devices, err = d.addIDEController(devices); err != nil {
@@ -199,7 +201,7 @@ func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConf
 		return nil, err
 	}
 
-	if devices, err = d.addNetworkDevices(conf, devices); err != nil {
+	if devices, err = d.addNetworkDevices(conf, spec, devices); err != nil {
 		return nil, err
 	}
 
@@ -209,7 +211,7 @@ func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConf
 	}
 
 	spec.DeviceChange = deviceChange
-	return spec, nil
+	return spec.VirtualMachineConfigSpec, nil
 }
 
 func (d *Dispatcher) getPresetExtraconfig(conf *metadata.VirtualContainerHostConfigSpec) []types.BaseOptionValue {
@@ -226,8 +228,8 @@ func (d *Dispatcher) getPresetExtraconfig(conf *metadata.VirtualContainerHostCon
 			&types.OptionValue{
 				Key: "guestinfo.vch/sbin/port-layer-server",
 				Value: fmt.Sprintf("--host=localhost --port=8080 --insecure --sdk=%s --datacenter=%s --cluster=%s --pool=%s --datastore=%s --network=%s --vch=%s",
-					conf.Target, conf.DatacenterName, conf.ClusterPath, d.vchPoolPath,
-					conf.ImageStore, conf.Networks["client"].InventoryPath, conf.Name)},
+					conf.Target.String(), conf.DatacenterName, conf.ClusterPath, d.vchPoolPath,
+					conf.ImageStores[0], conf.Networks["client"].InventoryPath, conf.Name)},
 		}
 
 	files := "/var/tmp/images/ /var/log/vic/"
@@ -261,7 +263,7 @@ func (d *Dispatcher) getPresetExtraconfig(conf *metadata.VirtualContainerHostCon
 			&types.OptionValue{
 				Key: "guestinfo.vch/sbin/vicadmin",
 				Value: fmt.Sprintf("-docker-host=unix:///var/run/docker.sock -insecure -sdk=%s -ds=%s -vm-path=%s -cluster=%s -pool=%s %s",
-					conf.Target, conf.ImageStore, conf.ApplianceInventoryPath, conf.ClusterPath, d.vchPoolPath, vicadmintlsargs),
+					conf.Target.String(), conf.ImageStores[0], conf.ApplianceInventoryPath, conf.ClusterPath, d.vchPoolPath, vicadmintlsargs),
 			})
 	} else {
 		d.VICAdminProto = "http"
@@ -274,7 +276,7 @@ func (d *Dispatcher) getPresetExtraconfig(conf *metadata.VirtualContainerHostCon
 		extraConfig = append(extraConfig,
 			&types.OptionValue{Key: "guestinfo.vch/sbin/vicadmin",
 				Value: fmt.Sprintf("-docker-host=unix:///var/run/docker.sock -insecure -sdk=%s -ds=%s -vm-path=%s -cluster=%s -pool=%s -tls=%t",
-					conf.Target, conf.ImageStore, conf.ApplianceInventoryPath, conf.ClusterPath, d.vchPoolPath, false),
+					conf.Target.String(), conf.ImageStores[0], conf.ApplianceInventoryPath, conf.ClusterPath, d.vchPoolPath, false),
 			})
 	}
 	extraConfig = append(extraConfig,

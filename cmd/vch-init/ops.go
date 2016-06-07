@@ -93,7 +93,12 @@ func (t *operations) Log() (io.Writer, error) {
 func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, error) {
 	defer trace.End(trace.Begin("configure session log writer"))
 
-	logPath := strings.Join([]string{pathPrefix, logDir, session.Name}, string(os.PathSeparator))
+	name := session.ID
+	if name == "" {
+		name = session.Name
+	}
+
+	logPath := strings.Join([]string{pathPrefix, logDir, name}, string(os.PathSeparator))
 
 	// open SttyS2 for session logging
 	log.Infof("opening %s for session logging", logPath)

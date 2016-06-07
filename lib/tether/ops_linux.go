@@ -321,6 +321,7 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 		detail := fmt.Sprintf("unable to reacquire link %s after rename pass: %s", endpoint.ID, err)
 		return errors.New(detail)
 	}
+	defer hosts.Close()
 
 	// assign IP address as needed
 	updated, err := assignIP(link, endpoint)
@@ -353,7 +354,7 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 	if endpoint.Network.Name != "" {
 		hosts, err := os.OpenFile(hostsFile, os.O_APPEND|os.O_WRONLY, 0644)
 		if err != nil {
-			detail := fmt.Sprintf("failed to update hosts for endpoint %s: %s", endpoint.Network.Name, err)
+			detail := fmt.Sprintf("failed to update %s for endpoint %s: %s", hostsFile, endpoint.Network.Name, err)
 			return errors.New(detail)
 		}
 		defer hosts.Close()
@@ -361,7 +362,7 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 		entry := fmt.Sprintf("%s localhost.%s", endpoint.Assigned, endpoint.Network.Name)
 		_, err = hosts.WriteString(fmt.Sprintf("\n%s\n", entry))
 		if err != nil {
-			detail := fmt.Sprintf("failed to add nameserver for endpoint %s: %s", endpoint.Network.Name, err)
+			detail := fmt.Sprintf("failed to add host entries for endpoint %s: %s", endpoint.Network.Name, err)
 			return errors.New(detail)
 		}
 

@@ -194,6 +194,12 @@ func (t *VirtualContainerHostConfigSpec) AddComponent(name string, component *Se
 			t.ExecutorConfig.Sessions = make(map[string]SessionConfig)
 		}
 
+		if component.Name == "" {
+			component.Name = name
+		}
+		if component.ID == "" {
+			component.ID = name
+		}
 		t.ExecutorConfig.Sessions[name] = *component
 	}
 }
