@@ -99,6 +99,8 @@ func NewURLFetcher(options FetcherOptions) Fetcher {
 
 // Fetch fetches a web page from url and stores in a temporary file.
 func (u *URLFetcher) Fetch(url *url.URL) (string, error) {
+	defer trace.End(trace.Begin(url.String()))
+
 	ctx, cancel := context.WithTimeout(context.Background(), u.options.Timeout)
 	defer cancel()
 
@@ -107,6 +109,8 @@ func (u *URLFetcher) Fetch(url *url.URL) (string, error) {
 
 // FetchWithProgress fetches a web page from url and stores in a temporary file while showing a progress bar.
 func (u *URLFetcher) FetchWithProgress(url *url.URL, ID string) (string, error) {
+	defer trace.End(trace.Begin(url.String()))
+
 	ctx, cancel := context.WithTimeout(context.Background(), u.options.Timeout)
 	defer cancel()
 
@@ -114,8 +118,6 @@ func (u *URLFetcher) FetchWithProgress(url *url.URL, ID string) (string, error) 
 }
 
 func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string, error) {
-	defer trace.End(trace.Begin(url.String()))
-
 	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return "", err
@@ -187,6 +189,8 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string
 
 // Head sends a HEAD request to url
 func (u *URLFetcher) Head(url *url.URL) (http.Header, error) {
+	defer trace.End(trace.Begin(url.String()))
+
 	ctx, cancel := context.WithTimeout(context.Background(), u.options.Timeout)
 	defer cancel()
 
@@ -194,8 +198,6 @@ func (u *URLFetcher) Head(url *url.URL) (http.Header, error) {
 }
 
 func (u *URLFetcher) head(ctx context.Context, url *url.URL, ID string) (http.Header, error) {
-	defer trace.End(trace.Begin(url.String()))
-
 	res, err := ctxhttp.Head(ctx, u.client, url.String())
 	if err != nil {
 		return nil, err
