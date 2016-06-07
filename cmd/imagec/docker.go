@@ -15,6 +15,7 @@
 package main
 
 import (
+	"archive/tar"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -27,7 +28,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	docker "github.com/docker/docker/image"
 	dlayer "github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progress"
@@ -57,18 +57,6 @@ type Manifest struct {
 	FSLayers []FSLayer `json:"fsLayers"`
 	History  []History `json:"history"`
 	// ignoring signatures
-}
-
-// ImageConfig contains configuration data describing images and their layers
-type ImageConfig struct {
-	docker.V1Image
-
-	// image specific data
-	ImageID string            `json:"image_id,omitempty"`
-	Tag     string            `json:"tag,omitempty"`
-	Name    string            `json:"name,omitempty"`
-	DiffIDs map[string]string `json:"diff_ids,omitempty"`
-	History []docker.History  `json:"history,omitempty"`
 }
 
 // LearnRegistryURL returns the registry URL after making sure that it responds to queries
@@ -251,13 +239,13 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) (string, error)
 	blobTr := io.TeeReader(imageFile, blobSum)
 
 	progress.Update(po, image.String(), "Verifying Checksum")
-	tar, err := archive.DecompressStream(blobTr)
+	decompressedTar, err := archive.DecompressStream(blobTr)
 	if err != nil {
 		return diffID, err
 	}
 
 	// Copy bytes from decompressed layer into diffIDSum to calculate diffID
-	bytesRead, cerr := io.Copy(diffIDSum, tar)
+	_, cerr := io.Copy(diffIDSum, decompressedTar)
 	if cerr != nil {
 		return diffID, cerr
 	}
@@ -269,9 +257,35 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) (string, error)
 
 	diffID = fmt.Sprintf("sha256:%x", diffIDSum.Sum(nil))
 
+	// this isn't an empty layer, so we need to calculate the size
 	if diffID != string(DigestSHA256EmptyTar) {
-		// bytesRead represents the size of the decompressed layer data
-		image.size = bytesRead
+		var layerSize int64
+
+		// seek to the beginning of the file
+		imageFile.Seek(0, 0)
+
+		// recreate the decompressed tar Reader
+		decompressedTar, err := archive.DecompressStream(imageFile)
+		if err != nil {
+			return "", err
+		}
+
+		// get a tar reader for access to the files in the archive
+		tr := tar.NewReader(decompressedTar)
+
+		// iterate through tar headers to get file sizes
+		for {
+			tarHeader, err := tr.Next()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return "", err
+			}
+			layerSize += tarHeader.Size
+		}
+
+		image.size = layerSize
 	}
 
 	log.Infof("diffID for layer %s: %s", id, diffID)

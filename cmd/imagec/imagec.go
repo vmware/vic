@@ -43,6 +43,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/guest"
+	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/i18n"
 
 	"github.com/pkg/profile"
@@ -369,7 +370,6 @@ func WriteImageBlobs(images []*ImageWithMeta) error {
 		defer in.Close()
 
 		// Write the image
-		// FIXME: send metadata when portlayer supports it
 		err = WriteImage(image, in)
 		if err != nil {
 			return fmt.Errorf("Failed to write to image store: %s", err)
@@ -443,10 +443,10 @@ func CreateImageConfig(images []*ImageWithMeta, manifest *Manifest) error {
 	// prepare metadata
 	result.V1Image.Parent = image.Parent
 	result.Size = size
-	metaData := ImageConfig{
+	metaData := metadata.ImageConfig{
 		V1Image: result.V1Image,
 		ImageID: sum,
-		Tag:     manifest.Tag,
+		Tag:     options.digest,
 		Name:    manifest.Name,
 		DiffIDs: diffIDs,
 		History: history,
