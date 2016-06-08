@@ -11,7 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package main
+
+package create
 
 import (
 	"fmt"
@@ -48,11 +49,11 @@ func NewValidator() *Validator {
 	return &Validator{}
 }
 
-func (v *Validator) Validate(input *Data) (*metadata.VirtualContainerHostConfigSpec, error) {
+func (v *Validator) Validate(input *Create) (*metadata.VirtualContainerHostConfigSpec, error) {
 
 	vchConfig := &metadata.VirtualContainerHostConfigSpec{}
-	vchConfig.ApplianceSize.CPU.Limit = input.numCPUs
-	vchConfig.ApplianceSize.Memory.Limit = input.memoryMB
+	vchConfig.ApplianceSize.CPU.Limit = int64(input.numCPUs)
+	vchConfig.ApplianceSize.Memory.Limit = int64(input.memoryMB)
 	vchConfig.Name = input.displayName
 
 	resources := strings.Split(input.computeResourcePath, "/")
@@ -71,7 +72,7 @@ func (v *Validator) Validate(input *Data) (*metadata.VirtualContainerHostConfigS
 	v.ResourcePoolPath = input.computeResourcePath
 	v.ImageStorePath = fmt.Sprintf("/%s/datastore/%s", v.DatacenterName, input.imageDatastoreName)
 
-	v.TargetPath = fmt.Sprintf("%s:%s@%s/sdk", input.user, *input.passwd, input.target)
+	v.TargetPath = fmt.Sprintf("%s:%s@%s/sdk", input.user, *input.password, input.target)
 	vchConfig.Target = v.TargetPath
 	vchConfig.Insecure = input.insecure
 
@@ -92,7 +93,7 @@ func (v *Validator) Validate(input *Data) (*metadata.VirtualContainerHostConfigS
 	return vchConfig, nil
 }
 
-func (v *Validator) validateConfiguration(input *Data, vchConfig *metadata.VirtualContainerHostConfigSpec) error {
+func (v *Validator) validateConfiguration(input *Create, vchConfig *metadata.VirtualContainerHostConfigSpec) error {
 	log.Infof("Validating supplied configuration")
 
 	var err error
