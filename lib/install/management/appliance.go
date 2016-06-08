@@ -191,7 +191,7 @@ func (d *Dispatcher) getPresetExtraconfig(conf *metadata.VirtualContainerHostCon
 				Key: "guestinfo.vch/sbin/port-layer-server",
 				Value: fmt.Sprintf("--host=localhost --port=8080 --insecure --sdk=%s --datacenter=%s --cluster=%s --pool=%s --datastore=%s --network=%s --vch=%s",
 					conf.Target, conf.DatacenterName, conf.ClusterPath, d.vchPoolPath,
-					conf.ImageStores[0], conf.Networks["client"].InventoryPath, conf.Name)},
+					conf.ImageStore, conf.Networks["client"].InventoryPath, conf.Name)},
 		}
 
 	files := "/var/tmp/images/ /var/log/vic/"
@@ -225,7 +225,7 @@ func (d *Dispatcher) getPresetExtraconfig(conf *metadata.VirtualContainerHostCon
 			&types.OptionValue{
 				Key: "guestinfo.vch/sbin/vicadmin",
 				Value: fmt.Sprintf("-docker-host=unix:///var/run/docker.sock -insecure -sdk=%s -ds=%s -vm-path=%s -cluster=%s -pool=%s %s",
-					conf.Target, conf.ImageStores[0], conf.ApplianceInventoryPath, conf.ClusterPath, d.vchPoolPath, vicadmintlsargs),
+					conf.Target, conf.ImageStore, conf.ApplianceInventoryPath, conf.ClusterPath, d.vchPoolPath, vicadmintlsargs),
 			})
 	} else {
 		d.VICAdminProto = "http"
@@ -238,7 +238,7 @@ func (d *Dispatcher) getPresetExtraconfig(conf *metadata.VirtualContainerHostCon
 		extraConfig = append(extraConfig,
 			&types.OptionValue{Key: "guestinfo.vch/sbin/vicadmin",
 				Value: fmt.Sprintf("-docker-host=unix:///var/run/docker.sock -insecure -sdk=%s -ds=%s -vm-path=%s -cluster=%s -pool=%s -tls=%t",
-					conf.Target, conf.ImageStores[0], conf.ApplianceInventoryPath, conf.ClusterPath, d.vchPoolPath, false),
+					conf.Target, conf.ImageStore, conf.ApplianceInventoryPath, conf.ClusterPath, d.vchPoolPath, false),
 			})
 	}
 	extraConfig = append(extraConfig,

@@ -63,14 +63,15 @@ type VirtualContainerHostConfigSpec struct {
 	HostCertificates map[string]tls.Certificate
 
 	// Port Layer - storage
-	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
-	ImageStores []string `vic:"0.1" scope:"read-only" key:"image_stores"`
+	// Datastore used for the ImageStore
+	// TODO this will change, probably to url.URL, as needed by the port layer
+	ImageStore string `vic:"0.1" scope:"read-only" key:"image_store"`
 	// Permitted datastore URL roots for volumes
 	VolumeLocations []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	// Permitted datastore URLs for container storage for this virtual container host
 	ContainerStores []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	// Resource pools under which all containers will be created
-	ComputeResources []*object.ResourcePool `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	ComputeResources []types.ManagedObjectReference `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
 	// Port Layer - network
 	// The default bridge network supplied for the Virtual Container Host
@@ -106,6 +107,9 @@ type VirtualContainerHostConfigSpec struct {
 	ResourcePoolPath       string `vic:"0.1" scope:"read-only" key:"resource_pool_path"`
 	ApplianceInventoryPath string `vic:"0.1" scope:"read-only" key:"appliance_path"`
 
+	Datacenter types.ManagedObjectReference `vic:"0.1" scope:"read-only" key:"datacenter"`
+	Cluster    types.ManagedObjectReference `vic:"0.1" scope:"read-only" key:"cluster"`
+
 	// FIXME: remove following attributes after change to launch through tether
 	// Networks represents mapping between nic name and network info object. For example: bridge: vmomi object
 	Networks map[string]*NetworkInfo `vic:"0.1" scope:"read-only" key:"networks"`
@@ -114,10 +118,11 @@ type VirtualContainerHostConfigSpec struct {
 }
 
 type NetworkInfo struct {
-	PortGroupName string                  `vic:"0.1" scope:"read-only" key:"portgroup"`
-	Mac           string                  `vic:"0.1" scope:"read-only" key:"mac"`
-	PortGroup     object.NetworkReference `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-	InventoryPath string                  `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	InventoryPath string                       `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	Mac           string                       `vic:"0.1" scope:"read-only" key:"mac"`
+	PortGroup     object.NetworkReference      `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	PortGroupName string                       `vic:"0.1" scope:"read-only" key:"portgroup"`
+	PortGroupRef  types.ManagedObjectReference `vic:"0.1" scope:"read-only" key:"portgroup_ref"`
 }
 
 // CustomerExperienceImprovementProgram provides configuration for the phone home mechanism

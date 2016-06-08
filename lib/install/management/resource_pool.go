@@ -41,7 +41,7 @@ func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfi
 			return nil, err
 		}
 	} else {
-		conf.ComputeResources = append(conf.ComputeResources, rp)
+		conf.ComputeResources = append(conf.ComputeResources, rp.Reference())
 		return compute.NewResourcePool(d.ctx, d.session, rp.Reference()), nil
 	}
 
@@ -75,7 +75,7 @@ func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfi
 	if err != nil {
 		return nil, err
 	}
-	conf.ComputeResources = append(conf.ComputeResources, rp)
+	conf.ComputeResources = append(conf.ComputeResources, vrp.Reference())
 	return vrp, nil
 }
 
