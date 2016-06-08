@@ -340,6 +340,177 @@ import (
 )
 `,
 	},
+	// Issue 10337: Preserve comment position
+	{
+		name: "issue 10337",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	"bytes" // a
+	"log" // c
+)
+`,
+		out: `package main
+
+import (
+	"bytes" // a
+	"fmt"
+	"log" // c
+)
+`,
+	},
+	{
+		name: "issue 10337 new import at the start",
+		pkg:  "bytes",
+		in: `package main
+
+import (
+	"fmt" // b
+	"log" // c
+)
+`,
+		out: `package main
+
+import (
+	"bytes"
+	"fmt" // b
+	"log" // c
+)
+`,
+	},
+	{
+		name: "issue 10337 new import at the end",
+		pkg:  "log",
+		in: `package main
+
+import (
+	"bytes" // a
+	"fmt" // b
+)
+`,
+		out: `package main
+
+import (
+	"bytes" // a
+	"fmt"   // b
+	"log"
+)
+`,
+	},
+	// Issue 14075: Merge import declarations
+	{
+		name: "issue 14075",
+		pkg:  "bufio",
+		in: `package main
+
+import "bytes"
+import "fmt"
+`,
+		out: `package main
+
+import (
+	"bufio"
+	"bytes"
+	"fmt"
+)
+`,
+	},
+	{
+		name: "issue 14075 update position",
+		pkg:  "bufio",
+		in: `package main
+
+import "bytes"
+import (
+	"fmt"
+)
+`,
+		out: `package main
+
+import (
+	"bufio"
+	"bytes"
+	"fmt"
+)
+`,
+	},
+	{
+		name: `issue 14075 ignore import "C"`,
+		pkg:  "bufio",
+		in: `package main
+
+// Comment
+import "C"
+
+import "bytes"
+import "fmt"
+`,
+		out: `package main
+
+// Comment
+import "C"
+
+import (
+	"bufio"
+	"bytes"
+	"fmt"
+)
+`,
+	},
+	{
+		name: `issue 14075 ignore adjacent import "C"`,
+		pkg:  "bufio",
+		in: `package main
+
+// Comment
+import "C"
+import "fmt"
+`,
+		out: `package main
+
+// Comment
+import "C"
+import (
+	"bufio"
+	"fmt"
+)
+`,
+	},
+	{
+		name: `issue 14075 ignore adjacent import "C" (without factored import)`,
+		pkg:  "bufio",
+		in: `package main
+
+// Comment
+import "C"
+import "fmt"
+`,
+		out: `package main
+
+// Comment
+import "C"
+import (
+	"bufio"
+	"fmt"
+)
+`,
+	},
+	{
+		name: `issue 14075 ignore single import "C"`,
+		pkg:  "bufio",
+		in: `package main
+
+// Comment
+import "C"
+`,
+		out: `package main
+
+// Comment
+import "C"
+import "bufio"
+`,
+	},
 }
 
 func TestAddImport(t *testing.T) {
@@ -705,12 +876,42 @@ import (
 		out: `package main
 `,
 	},
+	{
+		name:       "import.18",
+		renamedPkg: "x",
+		pkg:        "fmt",
+		in: `package main
+
+import (
+	"fmt"
+	x "fmt"
+)
+`,
+		out: `package main
+
+import "fmt"
+`,
+	},
+	{
+		name:       "import.18",
+		renamedPkg: "x",
+		pkg:        "fmt",
+		in: `package main
+
+import x "fmt"
+import y "fmt"
+`,
+		out: `package main
+
+import y "fmt"
+`,
+	},
 }
 
 func TestDeleteImport(t *testing.T) {
 	for _, test := range deleteTests {
 		file := parse(t, test.name, test.in)
-		DeleteImport(fset, file, test.pkg)
+		DeleteNamedImport(fset, file, test.renamedPkg, test.pkg)
 		if got := print(t, test.name, file); got != test.out {
 			t.Errorf("%s:\ngot: %s\nwant: %s", test.name, got, test.out)
 		}

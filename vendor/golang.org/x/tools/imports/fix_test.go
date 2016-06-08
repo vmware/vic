@@ -19,8 +19,9 @@ import (
 var only = flag.String("only", "", "If non-empty, the fix test to run")
 
 var tests = []struct {
-	name    string
-	in, out string
+	name       string
+	formatOnly bool
+	in, out    string
 }{
 	// Adding an import to an existing parenthesized import
 	{
@@ -729,6 +730,52 @@ import "fmt"
 func main() { fmt.Println() }
 `,
 	},
+
+	// Unused named import is mistaken for unnamed import
+	// golang.org/issue/8149
+	{
+		name: "issue 8149",
+		in: `package main
+
+import (
+	"fmt"
+	x "fmt"
+)
+
+func main() { fmt.Println() }
+`,
+		out: `package main
+
+import "fmt"
+
+func main() { fmt.Println() }
+`,
+	},
+
+	// FormatOnly
+	{
+		name:       "format only",
+		formatOnly: true,
+		in: `package main
+
+import (
+"fmt"
+"golang.org/x/foo"
+)
+
+func main() {}
+`,
+		out: `package main
+
+import (
+	"fmt"
+
+	"golang.org/x/foo"
+)
+
+func main() {}
+`,
+	},
 }
 
 func TestFixImports(t *testing.T) {
@@ -761,6 +808,7 @@ func TestFixImports(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		options.FormatOnly = tt.formatOnly
 		if *only != "" && tt.name != *only {
 			continue
 		}
@@ -775,6 +823,60 @@ func TestFixImports(t *testing.T) {
 	}
 }
 
+// Test for correctly identifying the name of a vendored package when it
+// differs from its directory name. In this test, the import line
+// "mypkg.com/mypkg.v1" would be removed if goimports wasn't able to detect
+// that the package name is "mypkg".
+func TestFixImportsVendorPackage(t *testing.T) {
+	// Skip this test on go versions with no vendor support.
+	if _, err := os.Stat(filepath.Join(runtime.GOROOT(), "src/vendor")); err != nil {
+		t.Skip(err)
+	}
+
+	newGoPath, err := ioutil.TempDir("", "vendortest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(newGoPath)
+
+	vendoredPath := newGoPath + "/src/mypkg.com/outpkg/vendor/mypkg.com/mypkg.v1"
+	if err := os.MkdirAll(vendoredPath, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	pkgIndexOnce = &sync.Once{}
+	oldGOPATH := build.Default.GOPATH
+	build.Default.GOPATH = newGoPath
+	defer func() {
+		build.Default.GOPATH = oldGOPATH
+	}()
+
+	if err := ioutil.WriteFile(vendoredPath+"/f.go", []byte("package mypkg\nvar Foo = 123\n"), 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	input := `package p
+
+import (
+	"fmt"
+
+	"mypkg.com/mypkg.v1"
+)
+
+var (
+	_ = fmt.Print
+	_ = mypkg.Foo
+)
+`
+	buf, err := Process(newGoPath+"/src/mypkg.com/outpkg/toformat.go", []byte(input), &Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(buf); got != input {
+		t.Fatalf("results differ\nGOT:\n%s\nWANT:\n%s\n", got, input)
+	}
+}
+
 func TestFindImportGoPath(t *testing.T) {
 	goroot, err := ioutil.TempDir("", "goimports-")
 	if err != nil {
@@ -782,7 +884,7 @@ func TestFindImportGoPath(t *testing.T) {
 	}
 	defer os.RemoveAll(goroot)
 
-	pkgIndexOnce = sync.Once{}
+	pkgIndexOnce = &sync.Once{}
 
 	origStdlib := stdlib
 	defer func() {
@@ -837,14 +939,17 @@ type Buffer2 struct {}
 }
 
 func TestFindImportInternal(t *testing.T) {
-	pkgIndexOnce = sync.Once{}
+	pkgIndexOnce = &sync.Once{}
 	oldGOPATH := build.Default.GOPATH
 	build.Default.GOPATH = ""
 	defer func() {
 		build.Default.GOPATH = oldGOPATH
 	}()
 
-	_, err := os.Stat(filepath.Join(runtime.GOROOT(), "src/internal"))
+	// Check for src/internal/race, not just src/internal,
+	// so that we can run this test also against go1.5
+	// (which doesn't contain that file).
+	_, err := os.Stat(filepath.Join(runtime.GOROOT(), "src/internal/race"))
 	if err != nil {
 		t.Skip(err)
 	}
@@ -868,7 +973,7 @@ func TestFindImportInternal(t *testing.T) {
 }
 
 func TestFindImportVendor(t *testing.T) {
-	pkgIndexOnce = sync.Once{}
+	pkgIndexOnce = &sync.Once{}
 	oldGOPATH := build.Default.GOPATH
 	build.Default.GOPATH = ""
 	defer func() {
@@ -884,8 +989,14 @@ func TestFindImportVendor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "golang.org/x/net/http2/hpack" || rename {
-		t.Errorf(`findImportGoPath("hpack", HuffmanDecode ...)=%q, %t, want "golang.org/x/net/http2/hpack", false`, got, rename)
+	want := "golang.org/x/net/http2/hpack"
+	// Pre-1.7, we temporarily had this package under "internal" - adjust want accordingly.
+	_, err = os.Stat(filepath.Join(runtime.GOROOT(), "src/vendor", want))
+	if err != nil {
+		want = filepath.Join("internal", want)
+	}
+	if got != want || rename {
+		t.Errorf(`findImportGoPath("hpack", HuffmanDecode ...)=%q, %t, want %q, false`, got, rename, want)
 	}
 
 	// should not be able to use vendor from outside that tree
@@ -899,7 +1010,7 @@ func TestFindImportVendor(t *testing.T) {
 }
 
 func TestProcessVendor(t *testing.T) {
-	pkgIndexOnce = sync.Once{}
+	pkgIndexOnce = &sync.Once{}
 	oldGOPATH := build.Default.GOPATH
 	build.Default.GOPATH = ""
 	defer func() {
@@ -917,7 +1028,8 @@ func TestProcessVendor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(out, []byte("\"golang.org/x/net/http2/hpack\"")) {
+	want := "golang.org/x/net/http2/hpack"
+	if !bytes.Contains(out, []byte(want)) {
 		t.Fatalf("Process(%q) did not add expected hpack import:\n%s", target, out)
 	}
 }
