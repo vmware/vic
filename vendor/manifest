@@ -579,6 +579,14 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/urfave/cli",
+			"repository": "https://github.com/urfave/cli",
+			"vcs": "git",
+			"revision": "fa949b48f384d8916e1ca94880d665deaa1105c2",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/vbatts/tar-split/archive/tar",
 			"repository": "https://github.com/vbatts/tar-split",
 			"vcs": "",
