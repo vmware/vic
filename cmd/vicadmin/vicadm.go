@@ -49,8 +49,16 @@ import (
 )
 
 var (
-	logFileDir = "/var/log/vic/"
-	config     struct {
+	logFileDir  = "/var/log/vic/"
+	logFileList = []string{
+		"docker-engine-server.log",
+		"imagec.log",
+		"port-layer-server.log",
+		"vicadmin.log",
+		"watchdog.log",
+	}
+
+	config struct {
 		session.Config
 		addr         string
 		dockerHost   string
@@ -95,11 +103,8 @@ type Authenticator interface {
 
 func logFiles() []string {
 	names := []string{}
-	files, _ := ioutil.ReadDir(logFileDir)
-	for _, f := range files {
-		if !f.IsDir() {
-			names = append(names, fmt.Sprintf("%s/%s", logFileDir, f.Name()))
-		}
+	for _, f := range logFileList {
+		names = append(names, fmt.Sprintf("%s/%s", logFileDir, f))
 	}
 
 	return names
