@@ -23,7 +23,6 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/vic/pkg/vsphere/test"
 	"golang.org/x/net/context"
 )
 
@@ -32,7 +31,7 @@ import (
 func TestCreateFS(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
-	client := test.Session(context.Background(), t)
+	client := Session(context.Background(), t)
 	if client == nil {
 		return
 	}
