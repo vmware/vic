@@ -23,6 +23,14 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/FiloSottile/gvt",
+			"repository": "https://github.com/FiloSottile/gvt",
+			"vcs": "git",
+			"revision": "a050c666bb8c423c61da7bbb2660bf14f0c25f6a",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/PuerkitoBio/purell",
 			"repository": "https://github.com/PuerkitoBio/purell",
 			"vcs": "",

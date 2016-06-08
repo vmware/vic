@@ -34,7 +34,7 @@ GVT ?= $(GOPATH)/bin/gvt$(BIN_ARCH)
 GOVC ?= $(GOPATH)/bin/govc$(BIN_ARCH)
 
 .PHONY: all tools clean test check \
-	goversion goimports gvt gopath govet \
+	goversion goimports gopath govet \
 	isos tethers apiservers copyright
 
 .DEFAULT_GOAL := all
@@ -127,9 +127,9 @@ $(GOIMPORTS): vendor/manifest
 	@echo building $(GOIMPORTS)...
 	@$(GO) build $(RACE) -o $(GOIMPORTS) ./vendor/golang.org/x/tools/cmd/goimports
 
-$(GVT):
-	@echo getting gvt
-	@$(GO) get -u github.com/FiloSottile/gvt
+$(GVT): vendor/manifest
+	@echo building $(GVT)...
+	@$(GO) build $(RACE) -o $(GVT) ./vendor/github.com/FiloSottile/gvt
 
 $(GOLINT): vendor/manifest
 	@echo building $(GOLINT)...
@@ -180,7 +180,7 @@ govet:
 
 vendor: $(GVT)
 	@echo restoring vendor
-	$(GOPATH)/bin/gvt restore
+	$(GVT) restore
 
 integration-tests: $(GOVC) components isos vic-machine
 	@echo Running integration tests
