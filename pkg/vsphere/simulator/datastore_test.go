@@ -20,6 +20,43 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
+func TestParseDatastorePath(t *testing.T) {
+	tests := []struct {
+		dsPath string
+		dsFile string
+		fail   bool
+	}{
+		{"", "", true},
+		{"x", "", true},
+		{"[", "", true},
+		{"[nope", "", true},
+		{"[test]", "", false},
+		{"[test] foo", "foo", false},
+		{"[test] foo/foo.vmx", "foo/foo.vmx", false},
+		{"[test]foo bar/foo bar.vmx", "foo bar/foo bar.vmx", false},
+	}
+
+	for _, test := range tests {
+		p, err := parseDatastorePath(test.dsPath)
+		if test.fail {
+			if err == nil {
+				t.Errorf("expected error for: %s", test.dsPath)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("unexpected error '%#v' for: %s", err, test.dsPath)
+			} else {
+				if test.dsFile != p.Path {
+					t.Errorf("dsFile=%s", p.Path)
+				}
+				if p.Datastore != "test" {
+					t.Errorf("ds=%s", p.Datastore)
+				}
+			}
+		}
+	}
+}
+
 func TestRefreshDatastore(t *testing.T) {
 	tests := []struct {
 		dir  string

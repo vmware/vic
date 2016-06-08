@@ -56,6 +56,10 @@ func fieldValueInterface(f reflect.StructField, rval reflect.Value) interface{} 
 			}
 		default:
 			kind := f.Type.Elem().Name()
+			// Remove govmomi interface prefix name
+			if strings.HasPrefix(kind, "Base") {
+				kind = kind[4:]
+			}
 			akind, _ := typeFunc("ArrayOf" + kind)
 			a := reflect.New(akind)
 			a.Elem().FieldByName(kind).Set(rval)
@@ -67,15 +71,15 @@ func fieldValueInterface(f reflect.StructField, rval reflect.Value) interface{} 
 }
 
 func fieldValue(rval reflect.Value, p string) (interface{}, error) {
-	if rval.Type().Kind() == reflect.Ptr {
-		rval = rval.Elem()
-	}
-
 	var value interface{}
 
 	fields := strings.Split(p, ".")
 
 	for i, name := range fields {
+		if rval.Type().Kind() == reflect.Ptr {
+			rval = rval.Elem()
+		}
+
 		x := ucFirst(name)
 		val := rval.FieldByName(x)
 		if !val.IsValid() {

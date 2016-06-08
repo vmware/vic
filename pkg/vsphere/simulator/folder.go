@@ -16,6 +16,7 @@ package simulator
 
 import (
 	"fmt"
+	"math/rand"
 	"sync"
 
 	"github.com/vmware/govmomi/vim25/methods"
@@ -149,6 +150,63 @@ func (f *Folder) CreateClusterEx(c *types.CreateClusterEx) soap.HasFault {
 	} else {
 		r.Fault_ = f.typeNotSupported()
 	}
+
+	return r
+}
+
+type createVMTask struct {
+	*Folder
+
+	req *types.CreateVM_Task
+}
+
+func (c *createVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
+	vm, err := NewVirtualMachine(&c.req.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	vm.ResourcePool = &c.req.Pool
+
+	if c.req.Host == nil {
+		var hosts []types.ManagedObjectReference
+
+		pool := Map.Get(c.req.Pool).(mo.Entity)
+
+		switch cr := Map.getEntityComputeResource(pool).(type) {
+		case *mo.ComputeResource:
+			hosts = cr.Host
+		case *ClusterComputeResource:
+			hosts = cr.Host
+		}
+
+		// Assuming for now that all hosts have access to the datastore
+		host := hosts[rand.Intn(len(hosts))]
+		vm.Runtime.Host = &host
+	} else {
+		vm.Runtime.Host = c.req.Host
+	}
+
+	err = vm.create(&c.req.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	c.Folder.putChild(vm)
+
+	return vm.Reference(), nil
+}
+
+func (f *Folder) CreateVMTask(c *types.CreateVM_Task) soap.HasFault {
+	r := &methods.CreateVM_TaskBody{}
+
+	task := NewTask(&createVMTask{f, c})
+
+	r.Res = &types.CreateVM_TaskResponse{
+		Returnval: task.Self,
+	}
+
+	task.Run()
 
 	return r
 }

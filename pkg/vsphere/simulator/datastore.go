@@ -30,6 +30,36 @@ type Datastore struct {
 	mo.Datastore
 }
 
+type datastorePath struct {
+	Datastore string
+	Path      string
+}
+
+func parseDatastorePath(dsPath string) (*datastorePath, types.BaseMethodFault) {
+	invalid := func() (*datastorePath, types.BaseMethodFault) {
+		return nil, &types.InvalidDatastorePath{DatastorePath: dsPath}
+	}
+
+	if len(dsPath) == 0 {
+		return invalid()
+	}
+
+	if !strings.HasPrefix(dsPath, "[") {
+		return invalid()
+	}
+	dsPath = dsPath[1:]
+
+	ix := strings.Index(dsPath, "]")
+	if ix < 0 {
+		return invalid()
+	}
+
+	return &datastorePath{
+		Datastore: dsPath[:ix],
+		Path:      strings.TrimSpace(dsPath[ix+1:]),
+	}, nil
+}
+
 func (ds *Datastore) RefreshDatastore(*types.RefreshDatastore) soap.HasFault {
 	r := &methods.RefreshDatastoreBody{}
 

@@ -291,3 +291,14 @@ func TestWaitForUpdates(t *testing.T) {
 		t.Error("expected error")
 	}
 }
+
+func TestCollectInterfaceType(t *testing.T) {
+	// test that we properly collect an interface type (types.BaseVirtualDevice in this case)
+	var config types.VirtualMachineConfigInfo
+	config.Hardware.Device = append(config.Hardware.Device, new(types.VirtualFloppy))
+
+	_, err := fieldValue(reflect.ValueOf(&config), "hardware.device")
+	if err != nil {
+		t.Fatal(err)
+	}
+}

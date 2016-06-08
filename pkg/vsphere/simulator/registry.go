@@ -119,7 +119,7 @@ func (r *Registry) getEntityParent(item mo.Entity, kind string) mo.Entity {
 	for {
 		parent := item.Entity().Parent
 
-		item = Map.Get(*parent).(mo.Entity)
+		item = r.Get(*parent).(mo.Entity)
 
 		if item.Reference().Type == kind {
 			return item
@@ -132,13 +132,31 @@ func (r *Registry) getEntityDatacenter(item mo.Entity) *mo.Datacenter {
 	return r.getEntityParent(item, "Datacenter").(*mo.Datacenter)
 }
 
+// getEntityComputeResource returns the ComputeResource parent for the given item.
+// A ResourcePool for example may have N Parents of type ResourcePool, but the top
+// most Parent pool is always a ComputeResource child.
+func (r *Registry) getEntityComputeResource(item mo.Entity) mo.Entity {
+	for {
+		parent := item.Entity().Parent
+
+		item = r.Get(*parent).(mo.Entity)
+
+		switch item.Reference().Type {
+		case "ComputeResource":
+			return item
+		case "ClusterComputeResource":
+			return item
+		}
+	}
+}
+
 // FindByName returns the first mo.Entity of the given refs whose Name field is equal to the given name.
 // If there is no match, nil is returned.
 // This method is useful for cases where objects are required to have a unique name, such as Datastore with
 // a HostStorageSystem or HostSystem within a ClusterComputeResource.
 func (r *Registry) FindByName(name string, refs []types.ManagedObjectReference) mo.Entity {
 	for _, ref := range refs {
-		e := Map.Get(ref).(mo.Entity)
+		e := r.Get(ref).(mo.Entity)
 
 		if name == e.Entity().Name {
 			return e
