@@ -14,6 +14,7 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/token"
+	"go/types"
 	"regexp"
 	"sort"
 	"strconv"
@@ -21,8 +22,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"golang.org/x/tools/go/gcimporter"
-	"golang.org/x/tools/go/types"
+	"golang.org/x/tools/go/gcimporter15"
 )
 
 const styleGuideBase = "https://golang.org/wiki/CodeReviewComments"
@@ -236,11 +236,28 @@ argLoop:
 
 var gcImporter = gcimporter.Import
 
+// importer implements go/types.Importer.
+// It also implements go/types.ImporterFrom, which was new in Go 1.6,
+// so vendoring will work.
+type importer struct {
+	impFn    func(packages map[string]*types.Package, path, srcDir string) (*types.Package, error)
+	packages map[string]*types.Package
+}
+
+func (i importer) Import(path string) (*types.Package, error) {
+	return i.impFn(i.packages, path, "")
+}
+
+// (importer).ImportFrom is in lint16.go.
+
 func (p *pkg) typeCheck() error {
 	config := &types.Config{
 		// By setting a no-op error reporter, the type checker does as much work as possible.
-		Error:  func(error) {},
-		Import: gcImporter,
+		Error: func(error) {},
+		Importer: importer{
+			impFn:    gcImporter,
+			packages: make(map[string]*types.Package),
+		},
 	}
 	info := &types.Info{
 		Types:  make(map[ast.Expr]types.TypeAndValue),
@@ -397,7 +414,7 @@ func (f *file) lintPackageComment() {
 		s = ts
 	}
 	// Only non-main packages need to keep to this form.
-	if f.f.Name.Name != "main" && !strings.HasPrefix(s, prefix) {
+	if !f.pkg.main && !strings.HasPrefix(s, prefix) {
 		f.errorf(f.f.Doc, 1, link(ref), category("comments"), `package comment should be of the form "%s..."`, prefix)
 	}
 }
@@ -505,6 +522,14 @@ func (f *file) lintExported() {
 
 var allCapsRE = regexp.MustCompile(`^[A-Z0-9_]+$`)
 
+// knownNameExceptions is a set of names that are known to be exempt from naming checks.
+// This is usually because they are constrained by having to match names in the
+// standard library.
+var knownNameExceptions = map[string]bool{
+	"LastInsertId": true, // must match database/sql
+	"kWh":          true,
+}
+
 // lintNames examines all names in the file.
 // It complains if any use underscores or incorrect known initialisms.
 func (f *file) lintNames() {
@@ -515,6 +540,9 @@ func (f *file) lintNames() {
 
 	check := func(id *ast.Ident, thing string) {
 		if id.Name == "_" {
+			return
+		}
+		if knownNameExceptions[id.Name] {
 			return
 		}
 
