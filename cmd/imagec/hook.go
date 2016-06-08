@@ -16,25 +16,25 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"io"
 
 	"github.com/Sirupsen/logrus"
 )
 
 // ErrorHook is a simple logrus hook to duplicate Fatalf leveled error messages to stderr
 type ErrorHook struct {
-	id string
+	w io.Writer
 }
 
 // NewErrorHook returns an empty ErrorHook struct
-func NewErrorHook(id string) *ErrorHook {
-	return &ErrorHook{id: id}
+func NewErrorHook(w io.Writer) *ErrorHook {
+	return &ErrorHook{w: w}
 }
 
 // Fire dumps the entry.Message to Stderr
 func (hook *ErrorHook) Fire(entry *logrus.Entry) error {
 	err := fmt.Errorf("%s", entry.Message)
-	fmt.Fprintf(os.Stderr, string(sf.FormatError(err)))
+	fmt.Fprintf(hook.w, string(sf.FormatError(err)))
 
 	return nil
 }

@@ -483,7 +483,7 @@ func main() {
 	}
 
 	// Register our custom Error hook
-	log.AddHook(NewErrorHook("ErrorHook"))
+	log.AddHook(NewErrorHook(os.Stderr))
 
 	// Enable runtime tracing if tracing is true
 	if options.tracing {
