@@ -22,11 +22,10 @@ import (
 	"os"
 	"os/exec"
 	"sort"
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/errors"
-	v1 "github.com/docker/docker/image"
+
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/reference"
@@ -34,7 +33,9 @@ import (
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/registry"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
-	"github.com/vmware/vic/lib/apiservers/portlayer/models"
+	"github.com/vmware/vic/lib/metadata"
+
+	"github.com/vmware/vic/lib/guest"
 )
 
 // byCreated is a temporary type used to sort a list of images by creation
@@ -69,7 +70,10 @@ func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Ima
 
 	result := []*types.Image{}
 
-	host, err := os.Hostname()
+	host, err := guest.UUID()
+	if host == "" {
+		host, err = os.Hostname()
+	}
 	if err != nil {
 		return result,
 			derr.NewErrorWithStatusCode(fmt.Errorf("image.Images got unexpected error getting hostname"),
@@ -85,24 +89,30 @@ func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Ima
 				http.StatusInternalServerError)
 	}
 
-	images, err := client.Storage.ListImages(params)
+	layers, err := client.Storage.ListImages(params)
 	if err != nil {
 		log.Warning(err)
 		return result, nil
 	}
 
-	// build a map from image id to image v1Compatibility metadata
-	v1Map := getV1MapFromImages(images.Payload)
+	// TODO(jzt): avoid this by having portlayer send back only images (not layers)
+	// find actual image layers
+	for _, layer := range layers.Payload {
+		imageConfig := &metadata.ImageConfig{}
+		if err := json.Unmarshal([]byte(layer.Metadata["metaData"]), imageConfig); err != nil {
+			derr.NewErrorWithStatusCode(fmt.Errorf("image.Images failed to create a portlayer client"),
+				http.StatusInternalServerError)
+		}
 
-	// traverse the image graph to calculate sizes for each image
-	resolveImageSizes(v1Map)
-
-	// convert results into Docker image format
-	for _, v1Image := range v1Map {
-		newImage := convertV1ImageToDockerImage(v1Image)
-		result = append(result, newImage)
+		// HACK(jzt): we could add a marker to models.Image indicating whether or not it represents an image or a layer
+		if imageConfig.ImageID != "" {
+			// convert to dockert image format
+			result = append(result, convertV1ImageToDockerImage(imageConfig))
+			log.Debugf("Found image %#v", imageConfig)
+		}
 	}
 
+	// sort on creation time
 	sort.Sort(sort.Reverse(byCreated(result)))
 
 	return result, nil
@@ -187,64 +197,22 @@ func (i *Image) SearchRegistryForImages(ctx context.Context, term string, authCo
 
 // Utility functions
 
-func getV1MapFromImages(images []*models.Image) map[string]*v1.V1Image {
-	// build a map from image id to image v1Compatibility metadata
-	v1Map := make(map[string]*v1.V1Image)
-	for _, image := range images {
-
-		if image.ID == "scratch" {
-			continue
-		}
-
-		v1Image := &v1.V1Image{}
-		decoder := json.NewDecoder(strings.NewReader(image.Metadata["v1Compatibility"]))
-		if err := decoder.Decode(v1Image); err != nil {
-			log.Fatal(err)
-		}
-		v1Map[image.ID] = v1Image
-	}
-	return v1Map
-}
-
-func resolveImageSizes(v1Map map[string]*v1.V1Image) {
-	resolved := map[string]int64{}
-	for id := range v1Map {
-		resolveImageSize(v1Map, resolved, id)
-	}
-}
-
-func resolveImageSize(v1Map map[string]*v1.V1Image, resolved map[string]int64, id string) {
-
-	// this image's size has already been resolved by a previous traversal
-	if _, ok := resolved[id]; ok {
-		return
-	}
-
-	parentID := v1Map[id].Parent
-	if parentID != "" {
-		// If we have already resolved the parent image's size, we don't need to traverse up the chain
-		if parentSize, ok := resolved[parentID]; ok {
-			v1Map[id].Size += parentSize
-		} else {
-			resolveImageSize(v1Map, resolved, parentID)
-			v1Map[id].Size += resolved[parentID]
-		}
-	}
-	resolved[id] = v1Map[id].Size
-}
-
-func convertV1ImageToDockerImage(v1Image *v1.V1Image) *types.Image {
+func convertV1ImageToDockerImage(image *metadata.ImageConfig) *types.Image {
 	var labels map[string]string
-	if v1Image.Config != nil {
-		labels = v1Image.Config.Labels
+	if image.Config != nil {
+		labels = image.Config.Labels
 	}
+
+	// TODO(jzt): change ImageConfig to contain a map from image name to all of its tags
+	repoTag := fmt.Sprintf("%s:%s", image.Name, image.Tag)
 
 	return &types.Image{
-		ID:          v1Image.ID,
-		ParentID:    v1Image.Parent,
-		RepoTags:    []string{"fixme:fixme"}, // TODO(jzt): replace with actual tags
-		Created:     v1Image.Created.Unix(),
-		VirtualSize: v1Image.Size,
+		ID:          image.ImageID,
+		ParentID:    image.Parent,
+		RepoTags:    []string{repoTag},
+		Created:     image.Created.Unix(),
+		Size:        image.Size,
+		VirtualSize: image.Size,
 		Labels:      labels,
 	}
 }

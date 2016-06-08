@@ -15,13 +15,17 @@
 package main
 
 import (
+	"archive/tar"
+	"bytes"
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -43,7 +47,7 @@ const (
 	Storename = "PetStore"
 
 	// sha256 sum of LayerContent
-	DigestSHA256LayerContent = "sha256:18adac3bcad6124ed2e0d8dcc3beef8d540786ef8ef52c1f9fd71fdbfe36aa8e"
+	DigestSHA256LayerContent = "sha256:1f1f9635040c465c7f7b32a396e56e26c1396dbadfbed744b0aab9337a24ad5a"
 
 	//DigestSHA256EmptyData is the canonical sha256 digest of empty data
 	DigestSHA256EmptyData = "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -195,11 +199,33 @@ func TestFetchImageManifest(t *testing.T) {
 }
 
 func TestFetchImageBlob(t *testing.T) {
+	// create a tar archive from our dummy data
+	r := strings.NewReader(LayerContent)
+	buf := new(bytes.Buffer)
+	tw := tar.NewWriter(buf)
+	defer tw.Close()
+
+	// create and populate tar header
+	header := new(tar.Header)
+	header.Size = r.Size()
+	header.Name = LayerID
+	header.Mode = 0644
+
+	// write the header
+	if err := tw.WriteHeader(header); err != nil {
+		t.Errorf(err.Error())
+	}
+
+	// write the file into the tar archive
+	if _, err := io.Copy(tw, r); err != nil {
+		t.Error(err.Error())
+	}
+
 	s := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/x-gzip")
-
-			w.Write([]byte(LayerContent))
+			// return our tar archive
+			w.Write(buf.Bytes())
 		}))
 	defer s.Close()
 
@@ -235,12 +261,30 @@ func TestFetchImageBlob(t *testing.T) {
 		t.Errorf("Expected a diffID, got nil.")
 	}
 
-	tar, err := ioutil.ReadFile(path.Join(DestinationDirectory(), LayerID, LayerID+".tar"))
+	tarFile, err := ioutil.ReadFile(path.Join(DestinationDirectory(), LayerID, LayerID+".tar"))
 	if err != nil {
 		t.Errorf(err.Error())
 	}
+	br := bytes.NewReader(tarFile)
+	tr := tar.NewReader(br)
+	out := new(bytes.Buffer)
 
-	if string(tar) != LayerContent {
+	// extract the tar file
+	for {
+		_, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+		if _, err := io.Copy(out, tr); err != nil {
+			t.Errorf(err.Error())
+		}
+	}
+
+	// compare contents of tar file to dummy data
+	if out.String() != LayerContent {
 		t.Errorf(err.Error())
 	}
 
