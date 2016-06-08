@@ -16,6 +16,7 @@ package main
 
 import (
 	"archive/tar"
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"io"
@@ -28,6 +29,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 )
 
@@ -368,5 +370,24 @@ func TestListImages(t *testing.T) {
 
 	if m["7bd023c8937ded982c1b98da453b1a5afec86f390ffad8fa0f4fba244a6155f1"].ID != "7bd023c8937ded982c1b98da453b1a5afec86f390ffad8fa0f4fba244a6155f1" {
 		t.Errorf("Returned list %#v is different than expected", m)
+	}
+}
+
+func TestNewHook(t *testing.T) {
+	var b bytes.Buffer
+	w := bufio.NewWriter(&b)
+
+	hook := NewErrorHook(w)
+	levels := hook.Levels()
+	if len(levels) != 1 && levels[0] != logrus.FatalLevel {
+		t.Errorf("Returned levels %#v are different than expected", levels)
+	}
+
+	w.Reset(&b)
+	hook.Fire(&logrus.Entry{Message: "Fatal Test", Level: logrus.FatalLevel})
+	w.Flush()
+
+	if string(b.Bytes()) == "" {
+		t.Errorf("Fatal test failed %s", string(b.Bytes()))
 	}
 }
