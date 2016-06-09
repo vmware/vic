@@ -213,12 +213,16 @@ func TestUnmarshalError(t *testing.T) {
 }
 
 func TestServeHTTP(t *testing.T) {
-	services := []*Service{
-		New(NewServiceInstance(esx.ServiceContent, esx.RootFolder)),
-		New(NewServiceInstance(vc.ServiceContent, vc.RootFolder)),
+	configs := []struct {
+		content types.ServiceContent
+		folder  mo.Folder
+	}{
+		{esx.ServiceContent, esx.RootFolder},
+		{vc.ServiceContent, vc.RootFolder},
 	}
 
-	for _, s := range services {
+	for _, config := range configs {
+		s := New(NewServiceInstance(config.content, config.folder))
 		ts := s.NewServer()
 		defer ts.Close()
 
@@ -238,13 +242,23 @@ func TestServeHTTP(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		now, err := methods.GetCurrentTime(ctx, client)
-		if err != nil {
-			t.Fatal(err)
-		}
+		// Testing http client + reflect client
+		clients := []soap.RoundTripper{client, s.client}
+		for _, c := range clients {
+			now, err := methods.GetCurrentTime(ctx, c)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		if now.After(time.Now()) {
-			t.Fail()
+			if now.After(time.Now()) {
+				t.Fail()
+			}
+
+			// test the fail/Fault path
+			_, err = methods.QueryVMotionCompatibility(ctx, c, &types.QueryVMotionCompatibility{})
+			if err == nil {
+				t.Errorf("expected error")
+			}
 		}
 	}
 }

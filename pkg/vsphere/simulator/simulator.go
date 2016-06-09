@@ -24,13 +24,16 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
 
 	"golang.org/x/net/context"
 
+	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/govmomi/vim25/xml"
@@ -45,6 +48,8 @@ type Method struct {
 
 // Service decodes incoming requests and dispatches to a Handler
 type Service struct {
+	client *vim25.Client
+
 	readAll func(io.Reader) ([]byte, error)
 }
 
@@ -62,6 +67,8 @@ func New(instance *ServiceInstance) *Service {
 	s := &Service{
 		readAll: ioutil.ReadAll,
 	}
+
+	s.client, _ = vim25.NewClient(context.Background(), s)
 
 	return s
 }
@@ -112,6 +119,36 @@ func (s *Service) call(method *Method) soap.HasFault {
 	return res[0].Interface().(soap.HasFault)
 }
 
+// RoundTrip implements the soap.RoundTripper interface in process.
+// Rather than encode/decode SOAP over HTTP, this implementation uses reflection.
+func (s *Service) RoundTrip(ctx context.Context, request, response soap.HasFault) error {
+	field := func(r soap.HasFault, name string) reflect.Value {
+		return reflect.ValueOf(r).Elem().FieldByName(name)
+	}
+
+	// Every struct passed to soap.RoundTrip has "Req" and "Res" fields
+	req := field(request, "Req")
+
+	// Every request has a "This" field.
+	this := req.Elem().FieldByName("This")
+
+	method := &Method{
+		Name: req.Elem().Type().Name(),
+		This: this.Interface().(types.ManagedObjectReference),
+		Body: req.Interface(),
+	}
+
+	res := s.call(method)
+
+	if err := res.Fault(); err != nil {
+		return soap.WrapSoapFault(err)
+	}
+
+	field(response, "Res").Set(field(res, "Res"))
+
+	return nil
+}
+
 // ServeHTTP implements the http.Handler interface
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
@@ -153,16 +190,89 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Service) findDatastore(query url.Values) (*Datastore, error) {
+	ctx := context.Background()
+
+	finder := find.NewFinder(s.client, false)
+	dc, err := finder.DatacenterOrDefault(ctx, query.Get("dcName"))
+	if err != nil {
+		return nil, err
+	}
+
+	finder.SetDatacenter(dc)
+
+	ds, err := finder.DatastoreOrDefault(ctx, query.Get("dsName"))
+	if err != nil {
+		return nil, err
+	}
+
+	return Map.Get(ds.Reference()).(*Datastore), nil
+}
+
+const folderPrefix = "/folder/"
+
+func (s *Service) ServeDatastore(w http.ResponseWriter, r *http.Request) {
+	ds, ferr := s.findDatastore(r.URL.Query())
+	if ferr != nil {
+		log.Printf("failed to locate datastore with query params: %s", r.URL.RawQuery)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	file := strings.TrimPrefix(r.URL.Path, folderPrefix)
+	p := path.Join(ds.Info.GetDatastoreInfo().Url, file)
+
+	switch r.Method {
+	case "GET":
+		f, err := os.Open(p)
+		if err != nil {
+			log.Printf("failed to %s '%s': %s", r.Method, p, err)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		defer f.Close()
+
+		_, _ = io.Copy(w, f)
+	case "POST":
+		_, err := os.Stat(p)
+		if err == nil {
+			// File exists
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
+
+		// File does not exist, fallthrough to create via PUT logic
+		fallthrough
+	case "PUT":
+		f, err := os.Create(p)
+		if err != nil {
+			log.Printf("failed to %s '%s': %s", r.Method, p, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		defer f.Close()
+
+		_, _ = io.Copy(f, r.Body)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
 // NewServer returns an http Server instance for the given service
 func (s *Service) NewServer() *Server {
 	mux := http.NewServeMux()
 	path := "/sdk"
 	mux.Handle(path, s)
 
+	mux.HandleFunc(folderPrefix, s.ServeDatastore)
+
 	ts := httptest.NewServer(mux)
 
 	u, _ := url.Parse(ts.URL)
 	u.Path = path
+
+	// Redirect clients to this http server, rather than HostSystem.Name
+	Map.Get(*s.client.ServiceContent.SessionManager).(*SessionManager).ServiceHostName = u.Host
 
 	return &Server{
 		Server: ts,

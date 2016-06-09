@@ -41,6 +41,10 @@ var errMissingField = errors.New("missing field")
 var errEmptyField = errors.New("empty field")
 
 func fieldValueInterface(f reflect.StructField, rval reflect.Value) interface{} {
+	if rval.Kind() == reflect.Ptr {
+		rval = rval.Elem()
+	}
+
 	pval := rval.Interface()
 
 	if rval.Kind() == reflect.Slice {
@@ -106,8 +110,6 @@ func fieldRefs(f interface{}) []types.ManagedObjectReference {
 	switch fv := f.(type) {
 	case types.ManagedObjectReference:
 		return []types.ManagedObjectReference{fv}
-	case *types.ManagedObjectReference:
-		return []types.ManagedObjectReference{*fv}
 	case *types.ArrayOfManagedObjectReference:
 		return fv.ManagedObjectReference
 	case nil:
