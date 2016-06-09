@@ -24,6 +24,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -98,13 +99,27 @@ func (d *Dispatcher) addNetworkDevices(conf *metadata.VirtualContainerHostConfig
 	var backing types.BaseVirtualDeviceBackingInfo
 	// network name:alias, to avoid create multiple devices for same network
 	nics := make(map[string]string)
+	slots := make(map[int32]bool)
 
 	for nicAlias, info := range conf.Networks {
 		if alias, ok := nics[info.PortGroupName]; ok {
 			// already has device to this portgroup, skip it
 			log.Debugf("device %s and %s are connected to same network, only one nic will be created.", alias, nicAlias)
+
+			aliasEndpoint, ok := conf.ExecutorConfig.Networks[alias]
+			if !ok {
+				return nil, errors.Errorf("Unable to find network endpoint config for network %s", alias)
+			}
+			endpoint, ok := conf.ExecutorConfig.Networks[nicAlias]
+			if !ok {
+				return nil, errors.Errorf("Unable to find network endpoint config for network %s", nicAlias)
+			}
+			log.Infof("Setting %s to slot %d (sharing with %s)", nicAlias, aliasEndpoint.PCISlot, alias)
+			endpoint.PCISlot = aliasEndpoint.PCISlot
+
 			continue
 		}
+
 		nics[info.PortGroupName] = nicAlias
 		network := info.PortGroup
 		backing, err = network.EthernetCardBackingInfo(d.ctx)
@@ -118,6 +133,23 @@ func (d *Dispatcher) addNetworkDevices(conf *metadata.VirtualContainerHostConfig
 			err = errors.Errorf("Failed to create Ethernet Card spec for %s", err)
 			return nil, err
 		}
+
+		slot := cspec.AssignSlotNumber(nic, slots)
+		if slot == spec.NilSlot {
+			err = errors.Errorf("Failed to assign stable PCI slot for %s network card", nicAlias)
+		}
+		endpoint, ok := conf.ExecutorConfig.Networks[nicAlias]
+		if !ok {
+			return nil, errors.Errorf("Unable to find network endpoint config for network %s", nicAlias)
+		}
+		endpoint.PCISlot = slot
+		slots[slot] = true
+		log.Infof("Setting %s to slot %d", nicAlias, slot)
+
+		nic.GetVirtualDevice().DeviceInfo = &types.Description{
+			Label: nicAlias,
+		}
+
 		devices = append(devices, nic)
 	}
 	return devices, nil
