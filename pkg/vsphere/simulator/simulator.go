@@ -31,6 +31,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/govmomi/vim25/xml"
@@ -45,6 +46,8 @@ type Method struct {
 
 // Service decodes incoming requests and dispatches to a Handler
 type Service struct {
+	client *vim25.Client
+
 	readAll func(io.Reader) ([]byte, error)
 }
 
@@ -62,6 +65,8 @@ func New(instance *ServiceInstance) *Service {
 	s := &Service{
 		readAll: ioutil.ReadAll,
 	}
+
+	s.client, _ = vim25.NewClient(context.Background(), s)
 
 	return s
 }
@@ -110,6 +115,36 @@ func (s *Service) call(method *Method) soap.HasFault {
 	res := m.Call([]reflect.Value{reflect.ValueOf(method.Body)})
 
 	return res[0].Interface().(soap.HasFault)
+}
+
+// RoundTrip implements the soap.RoundTripper interface in process.
+// Rather than encode/decode SOAP over HTTP, this implementation uses reflection.
+func (s *Service) RoundTrip(ctx context.Context, request, response soap.HasFault) error {
+	field := func(r soap.HasFault, name string) reflect.Value {
+		return reflect.ValueOf(r).Elem().FieldByName(name)
+	}
+
+	// Every struct passed to soap.RoundTrip has "Req" and "Res" fields
+	req := field(request, "Req")
+
+	// Every request has a "This" field.
+	this := req.Elem().FieldByName("This")
+
+	method := &Method{
+		Name: req.Elem().Type().Name(),
+		This: this.Interface().(types.ManagedObjectReference),
+		Body: req.Interface(),
+	}
+
+	res := s.call(method)
+
+	if err := res.Fault(); err != nil {
+		return soap.WrapSoapFault(err)
+	}
+
+	field(response, "Res").Set(field(res, "Res"))
+
+	return nil
 }
 
 // ServeHTTP implements the http.Handler interface
