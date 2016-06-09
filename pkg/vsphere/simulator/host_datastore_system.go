@@ -93,6 +93,15 @@ func (dss *HostDatastoreSystem) CreateLocalDatastore(c *types.CreateLocalDatasto
 		return r
 	}
 
+	ds.Host = append(ds.Host, types.DatastoreHostMount{
+		Key: dss.Host.Reference(),
+		MountInfo: types.HostMountInfo{
+			AccessMode: string(types.HostMountModeReadWrite),
+			Mounted:    types.NewBool(true),
+			Accessible: types.NewBool(true),
+		},
+	})
+
 	_ = ds.RefreshDatastore(&types.RefreshDatastore{This: ds.Self})
 
 	r.Res = &types.CreateLocalDatastoreResponse{
