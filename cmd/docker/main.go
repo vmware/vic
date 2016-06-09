@@ -50,7 +50,7 @@ type CliOptions struct {
 	proto         string
 }
 
-const productName = "vSphere Integrated Containers"
+const productName = "vSphere Integrated Containers 0.3"
 
 var vchConfig metadata.VirtualContainerHostConfigSpec
 

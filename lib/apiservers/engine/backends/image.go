@@ -25,11 +25,13 @@ import (
 
 	"golang.org/x/net/context"
 
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/registry"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // byCreated is a temporary type used to sort a list of images by creation
@@ -61,6 +63,7 @@ func (i *Image) ImageHistory(imageName string) ([]*types.ImageHistory, error) {
 }
 
 func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Image, error) {
+	defer trace.End(trace.Begin("Images"))
 
 	imageCache := ImageCache()
 
@@ -81,8 +84,17 @@ func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Ima
 	return result, nil
 }
 
+// Docker Inspect.  LookupImage looks up an image by name and returns it as an
+// ImageInspect structure.
 func (i *Image) LookupImage(name string) (*types.ImageInspect, error) {
-	return nil, fmt.Errorf("%s does not implement image.LookupImage", i.ProductName)
+	defer trace.End(trace.Begin("LookupImage (docker inspect)"))
+
+	imageConfig, err := getImageConfigFromCache(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return imageConfigToDockerImageInspect(imageConfig, i.ProductName), nil
 }
 
 func (i *Image) TagImage(newTag reference.Named, imageName string) error {
@@ -102,6 +114,8 @@ func (i *Image) ExportImage(names []string, outStream io.Writer) error {
 }
 
 func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+	defer trace.End(trace.Begin("PullImage"))
+
 	log.Printf("PullImage: ref = %+v, metaheaders = %+v\n", ref, metaHeaders)
 
 	var cmdArgs []string
@@ -182,4 +196,87 @@ func convertV1ImageToDockerImage(image *metadata.ImageConfig) *types.Image {
 		VirtualSize: image.Size,
 		Labels:      labels,
 	}
+}
+
+// Retrieve the image metadata from the image cache.
+func getImageConfigFromCache(image string) (*metadata.ImageConfig, error) {
+	// Use docker reference code to validate the id's format
+	digest, named, err := reference.ParseIDOrReference(image)
+	if err != nil {
+		return nil, err
+	}
+
+	// Try to get the image config from our image cache
+	imageCache := ImageCache()
+
+	if digest != "" {
+		config, err := imageCache.GetImageByDigest(digest)
+		if err != nil {
+			log.Errorf("Inspect lookup failed for image %s: %s.  Returning no such image.", image, err)
+			return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", image))
+		}
+		if config != nil {
+			return config, nil
+		}
+	} else {
+		config, err := imageCache.GetImageByNamed(named)
+		if err != nil {
+			log.Errorf("Inspect lookup failed for image %s: %s.  Returning no such image.", image, err)
+			return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", image))
+		}
+		if config != nil {
+			return config, nil
+		}
+	}
+
+	return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", image))
+}
+
+// Converts the data structure retrieved from the portlayer.  This src datastructure
+// represents the unmarshalled data saved in the storage port layer.  The return
+// data is what the Docker CLI understand and returns to user.
+func imageConfigToDockerImageInspect(imageConfig *metadata.ImageConfig, productName string) *types.ImageInspect {
+	if imageConfig == nil {
+		return nil
+	}
+
+	rootfs := types.RootFS{
+		Type:      "layers",
+		Layers:    make([]string, 0, len(imageConfig.History)),
+		BaseLayer: "",
+	}
+
+	for k := range imageConfig.DiffIDs {
+		rootfs.Layers = append(rootfs.Layers, k)
+	}
+
+	inspectData := &types.ImageInspect{
+		RepoTags:        make([]string, 0),
+		RepoDigests:     make([]string, 0),
+		Parent:          imageConfig.Parent,
+		Comment:         imageConfig.Comment,
+		Created:         imageConfig.Created.String(),
+		Container:       imageConfig.Container,
+		ContainerConfig: &imageConfig.ContainerConfig,
+		DockerVersion:   imageConfig.DockerVersion,
+		Author:          imageConfig.Author,
+		Config:          imageConfig.Config,
+		Architecture:    imageConfig.Architecture,
+		Os:              imageConfig.OS,
+		Size:            imageConfig.Size,
+		VirtualSize:     imageConfig.Size,
+		RootFS:          rootfs,
+	}
+
+	//FIXME: Image tags storage is not yet fully implemented in the portlayer.
+	//The following code dealing with tags needs to be revisited.
+	taggedName := imageConfig.Name + ":" + imageConfig.Tag
+	inspectData.RepoTags = append(inspectData.RepoTags, taggedName)
+	inspectData.GraphDriver.Name = productName + " " + PortlayerName
+
+	//imageid is currently stored within VIC without "sha256:" so we add it to
+	//match Docker
+	inspectData.ID = "sha256:" + imageConfig.ImageID
+
+	return inspectData
 }
