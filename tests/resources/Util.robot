@@ -11,19 +11,22 @@ ${bin-dir}  /drone/src/github.com/vmware/vic/bin
 *** Keywords ***
 Install VIC Appliance To Test Server
     [Tags]  secret
+    [Arguments]  ${certs}=true
     ${name}=  Evaluate  'VCH-' + str(random.randint(1000,9999))  modules=random
-    ${status}  ${message} =  Run Keyword And Ignore Error  Variable Should Exist  ${params}
-    Run Keyword If  "${status}" == "FAIL"  Log To Console  \nInstalling VCH to test server...
-    Run Keyword If  "${status}" == "FAIL"  Set Suite Variable  ${vch-name}  ${name}
-    ${output}=  Run Keyword If  "${status}" == "FAIL"  Run  bin/vic-machine-linux create --name ${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=datastore1 --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --generate-cert=true --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE}
-    Run Keyword If  "${status}" == "FAIL"  Log  ${output}
-    ${line}=  Run Keyword If  "${status}" == "FAIL"  Get Line  ${output}  -2
-    ${ret}=  Run Keyword If  "${status}" == "FAIL"  Fetch From Right  ${line}  ] docker
-    ${ret}=  Run Keyword If  "${status}" == "FAIL"  Remove String  ${ret}  info
-    Run Keyword If  "${status}" == "FAIL"  Log  ${ret}
-    Run Keyword If  "${status}" == "FAIL"  Set Suite Variable  ${params}  ${ret}
-    ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${params}  --tlscert=
+    Log To Console  \nInstalling VCH to test server...
+    Set Suite Variable  ${vch-name}  ${name}
+    ${output}=  Run  bin/vic-machine-linux create --name ${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=datastore1 --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --generate-cert=${certs} --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE}
+    ${status}  ${message} =  Run Keyword And Ignore Error  Should Contain  ${output}  Installer completed successfully...
     Run Keyword If  "${status}" == "FAIL"  Fail  Installing the VIC appliance failed, wrong credentials or network problems?
+    ${line}=  Get Line  ${output}  -2
+    # Parse output when we are not using TLS
+    ${ret}=  Run Keyword If  "${certs}" == "false"  Fetch From Right  ${line}  ] DOCKER_HOST=
+    Run Keyword If  "${certs}" == "false"  Set Suite Variable  ${params}  ${ret}
+    # Parse output when we are using TLS
+    ${ret}=  Run Keyword If  "${certs}" == "true"  Fetch From Right  ${line}  ] docker
+    ${ret}=  Run Keyword If  "${certs}" == "true"  Remove String  ${ret}  info
+    Run Keyword If  "${certs}" == "true"  Set Suite Variable  ${params}  ${ret}
+    Log To Console  Installer completed successfully...
 
 Cleanup VIC Appliance On Test Server
     ${output}=  Run  govc vm.destroy ${vch-name}

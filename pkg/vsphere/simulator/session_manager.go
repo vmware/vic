@@ -26,6 +26,8 @@ import (
 
 type SessionManager struct {
 	mo.SessionManager
+
+	ServiceHostName string
 }
 
 func NewSessionManager(ref types.ManagedObjectReference) object.Reference {
@@ -50,4 +52,15 @@ func (s *SessionManager) Login(login *types.Login) soap.HasFault {
 	}
 
 	return body
+}
+
+func (s *SessionManager) AcquireGenericServiceTicket(ticket *types.AcquireGenericServiceTicket) soap.HasFault {
+	return &methods.AcquireGenericServiceTicketBody{
+		Res: &types.AcquireGenericServiceTicketResponse{
+			Returnval: types.SessionManagerGenericServiceTicket{
+				Id:       "TODO",
+				HostName: s.ServiceHostName,
+			},
+		},
+	}
 }
