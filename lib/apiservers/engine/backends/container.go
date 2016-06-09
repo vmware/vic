@@ -33,6 +33,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
@@ -166,8 +167,15 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		config.Config.Entrypoint = layer.Config.Entrypoint
 	}
 	config.Config.Env = append(config.Config.Env, layer.Config.Env...)
-	log.Printf("config.Config' = %+v", config.Config)
 
+	// Was a name provided - if not create a friendly name
+	if config.Name == "" {
+		//TODO: Assume we could have a name collison here : need to
+		// provide validation / retry CDG June 9th 2016
+		config.Name = namesgenerator.GetRandomName(0)
+	}
+
+	log.Printf("ContainerCreate config' = %+v", config)
 	// Call the Exec port layer to create the container
 	host, err := guest.UUID()
 	if err != nil {
@@ -612,6 +620,10 @@ func (c *Container) dockerContainerCreateParamsToPortlayer(cc types.ContainerCre
 		path, args = cmd[0], cmd[1:]
 	}
 
+	//copy friendly name
+	config.Name = new(string)
+	*config.Name = cc.Name
+
 	// copy the path
 	config.Path = new(string)
 	*config.Path = path
@@ -640,7 +652,7 @@ func (c *Container) dockerContainerCreateParamsToPortlayer(cc types.ContainerCre
 	*config.Tty = cc.Config.Tty
 
 	log.Printf("dockerContainerCreateParamsToPortlayer = %+v", config)
-	//TODO: Fill in the name
+
 	return containers.NewCreateParams().WithCreateConfig(config)
 }
 

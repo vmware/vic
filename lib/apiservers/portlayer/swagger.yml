@@ -747,6 +747,8 @@ definitions:
   ContainerCreateConfig:
     type: object
     properties:
+      name:
+        type: string
       imageStore:
         $ref: "#/definitions/ImageStore"
       image:
