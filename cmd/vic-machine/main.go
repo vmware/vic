@@ -21,6 +21,7 @@ import (
 
 	"github.com/urfave/cli"
 	"github.com/vmware/vic/cmd/vic-machine/create"
+	uninstall "github.com/vmware/vic/cmd/vic-machine/delete"
 )
 
 var (
@@ -36,12 +37,19 @@ func main() {
 	app.EnableBashCompletion = true
 
 	create := create.NewCreate()
+	uninstall := uninstall.NewUninstall()
 	app.Commands = []cli.Command{
 		{
 			Name:   "create",
 			Usage:  "Deploy VCH",
 			Action: create.Run,
 			Flags:  create.Flags(),
+		},
+		{
+			Name:   "delete",
+			Usage:  "Delete VCH and associated resources",
+			Action: uninstall.Run,
+			Flags:  uninstall.Flags(),
 		},
 	}
 	app.Version = fmt.Sprintf("%s.%s", MajorVersion, BuildID)

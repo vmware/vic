@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	data = &Create{}
+	create = NewCreate()
 )
 
 func TestImageNotFound(t *testing.T) {
@@ -39,9 +39,9 @@ func TestImageNotFound(t *testing.T) {
 
 	os.Args = []string{"cmd", "create", fmt.Sprintf("-appliance-iso=%s", tmpfile.Name())}
 	flag.Parse()
-	data.applianceISO = tmpfile.Name()
-	data.osType = "linux"
-	if _, err = data.checkImagesFiles(); err == nil {
+	create.applianceISO = tmpfile.Name()
+	create.osType = "linux"
+	if _, err = create.checkImagesFiles(); err == nil {
 		t.Errorf("Error is expected for boot iso file is not found.")
 	}
 }
@@ -63,11 +63,11 @@ func TestImageChecks(t *testing.T) {
 
 	os.Args = []string{"cmd", "create", fmt.Sprintf("-bootstrap-iso=%s", tmpfile.Name())}
 	flag.Parse()
-	data.applianceISO = ""
-	data.bootstrapISO = tmpfile.Name()
-	data.osType = "linux"
+	create.applianceISO = ""
+	create.bootstrapISO = tmpfile.Name()
+	create.osType = "linux"
 	var imageFiles []string
-	if imageFiles, err = data.checkImagesFiles(); err != nil {
+	if imageFiles, err = create.checkImagesFiles(); err != nil {
 		t.Errorf("Error returned: %s", err)
 	}
 	found := false
@@ -86,7 +86,7 @@ func TestLoadKey(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
 	os.Args = []string{"cmd", "create"}
 	flag.Parse()
-	if _, err := data.loadCertificate(); err != nil {
+	if _, err := create.loadCertificate(); err != nil {
 		t.Errorf("Error returned: %s", err)
 	}
 }
@@ -95,8 +95,8 @@ func TestGenKey(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
 	os.Args = []string{"cmd", "create"}
 	flag.Parse()
-	data.tlsGenerate = true
-	if _, err := data.loadCertificate(); err != nil {
+	create.tlsGenerate = true
+	if _, err := create.loadCertificate(); err != nil {
 		t.Errorf("Error returned: %s", err)
 	}
 }

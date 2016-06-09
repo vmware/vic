@@ -173,7 +173,7 @@ func (d *Dispatcher) uploadImages(conf *metadata.VirtualContainerHostConfigSpec)
 			base := filepath.Base(image)
 			err = d.session.Datastore.UploadFile(d.ctx, image, d.vmPathName+"/"+base, nil)
 			if err != nil {
-				log.Errorf("\t\tUpload failed for %s", image)
+				log.Errorf("\t\tUpload failed for %s, %s", image, err)
 				if d.force {
 					log.Warnf("\t\tSkipping %s...", image)
 					results <- nil
