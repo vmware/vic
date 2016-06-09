@@ -1,0 +1,367 @@
+<!DOCTYPE HTML>
+<html lang="en" >
+    
+    <head>
+        
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <title>Supported Docker Commands | Developing Container Applications with VMWare vSphere Integrated Containers</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 2.6.7">
+        
+        
+        <meta name="HandheldFriendly" content="true"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black">
+        <link rel="apple-touch-icon-precomposed" sizes="152x152" href="gitbook/images/apple-touch-icon-precomposed-152.png">
+        <link rel="shortcut icon" href="gitbook/images/favicon.ico" type="image/x-icon">
+        
+    <link rel="stylesheet" href="gitbook/style.css">
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-highlight/website.css">
+        
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-search/search.css">
+        
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-fontsettings/website.css">
+        
+    
+    
+
+        
+    
+    
+    
+    <link rel="prev" href="./index.html" />
+    
+
+        
+    </head>
+    <body>
+        
+        
+    <div class="book"
+        data-level="1"
+        data-chapter-title="Supported Docker Commands"
+        data-filepath="container_operations.md"
+        data-basepath="."
+        data-revision="Thu Jun 09 2016 13:51:57 GMT+0200 (W. Europe Daylight Time)"
+        data-innerlanguage="">
+    
+
+<div class="book-summary">
+    <nav role="navigation">
+        <ul class="summary">
+            
+            
+            
+            
+
+            
+
+            
+    
+        <li class="chapter " data-level="0" data-path="index.html">
+            
+                
+                    <a href="./index.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                        Introduction
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter active" data-level="1" data-path="container_operations.html">
+            
+                
+                    <a href="./container_operations.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>1.</b>
+                        
+                        Supported Docker Commands
+                    </a>
+            
+            
+        </li>
+    
+
+
+            
+            <li class="divider"></li>
+            <li>
+                <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+                    Published with GitBook
+                </a>
+            </li>
+            
+        </ul>
+    </nav>
+</div>
+
+    <div class="book-body">
+        <div class="body-inner">
+            <div class="book-header" role="navigation">
+    <!-- Actions Left -->
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href="./" >Developing Container Applications with VMWare vSphere Integrated Containers</a>
+    </h1>
+</div>
+
+            <div class="page-wrapper" tabindex="-1" role="main">
+                <div class="page-inner">
+                
+                
+                    <section class="normal" id="section-">
+                    
+                        <h1 id="supported-docker-commands">Supported Docker Commands</h1>
+<p> vSphere Integrated Containers supports these container operations.</p>
+<table>
+<thead>
+<tr>
+<th><strong>Container</strong></th>
+<th><strong>Docker Reference</strong></th>
+<th><strong>Supported in TP3</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Docker inspect</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#inspect-a-container" target="_blank">Inspect a container</a></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Docker start</td>
+<td><a href="https://docs.docker.com/engine/reference/commandline/start/" target="_blank">Start a container</a></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Docker stop</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#stop-a-container" target="_blank">Stop a container</a><br> <a href="https://docs.docker.com/engine/reference/commandline/stop/" target="_blank">Stop</a></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Docker attach</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#attach-to-a-container" target="_blank">Attach to a container</a><br> <a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#attach-to-a-container-websocket" target="_blank">Attach to a container websocket</a></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Docker rm</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#remove-a-container" target="_blank">Remove a container</a></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Docker images</td>
+<td><a href="https://docs.docker.com/engine/reference/commandline/images/" target="_blank">Images</a><br><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#list-images" target="_blank">list-images</a></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Docker ps</td>
+<td><a href="https://docs.docker.com/engine/reference/commandline/ps/" target="_blank">Show running containers</a></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Docker logs</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#get-container-logs" target="_blank">Get container logs</a></td>
+<td>No, onsite beta</td>
+</tr>
+<tr>
+<td>Docker restart</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#restart-a-container" target="_blank">Restart a container</a><br> <a href="https://docs.docker.com/engine/reference/commandline/restart/" target="_blank">Restart</a></td>
+<td>No, onsite beta</td>
+</tr>
+<tr>
+<td>Docker kill</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#kill-a-container" target="_blank">Kill a container</a><br> <a href="https://docs.docker.com/engine/reference/commandline/kill/" target="_blank">Kill</a></td>
+<td>TBD</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th><strong>Network</strong></th>
+<th><strong>Docker Reference</strong></th>
+<th><strong>Supported in TP3</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Network create</td>
+<td><a href="https://docs.docker.com/engine/reference/commandline/network_create/" target="_blank">Create a network</a></td>
+<td>Yes. See the use case to connect to an external network <link to="" networks.md="">. Bridge is also supported.</td>
+</tr>
+<tr>
+<td>Network ls</td>
+<td><a href="https://docs.docker.com/engine/reference/commandline/network_ls/" target="_blank">List networks/</a></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Network inspect</td>
+<td><a href="https://docs.docker.com/engine/reference/commandline/network_inspect/" target="_blank">Inspect a network</a></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Network connect</td>
+<td><a href="https://docs.docker.com/engine/reference/commandline/network_connect/" target="_blank">Connect to a network</a></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Network rm</td>
+<td><a href="https://docs.docker.com/engine/reference/commandline/network_rm/" target="_blank">Remove a network</a></td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th><strong>Volume</strong></th>
+<th><strong>Docker Reference</strong></th>
+<th><strong>Supported by TP3</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Docker volume create</td>
+<td><a href="https://docs.docker.com/engine/reference/commandline/volume_create/" target="_blank">Create a volume</a></td>
+<td>Onsite beta</td>
+</tr>
+<tr>
+<td>Docker volume ls</td>
+<td><a href="https://docs.docker.com/engine/reference/commandline/volume_ls/" target="_blank">List volumes</a></td>
+<td>Onsite beta</td>
+</tr>
+<tr>
+<td>Docker volume rm</td>
+<td><a href="https://docs.docker.com/engine/reference/commandline/volume_rm/" target="_blank">Remove a volume</a></td>
+<td>Onsite beta</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th><strong>Commands</strong></th>
+<th><strong>Docker Reference</strong></th>
+<th><strong>Supported version</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Link</td>
+<td><a href="https://docs.docker.com/v1.8/userguide/dockerlinks/" target="_blank">Link</a></td>
+<td>TBD</td>
+</tr>
+<tr>
+<td>List</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#list-containers" target="_blank">List Containers</a></td>
+<td>No</td>
+</tr>
+<tr>
+<td>Docker export</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#export-a-container" target="_blank">Export a container</a></td>
+<td>Future release</td>
+</tr>
+<tr>
+<td>Docker save</td>
+<td><a href="https://docs.docker.com/engine/reference/commandline/save/" target="_blank">Save images</a></td>
+<td>Future release</td>
+</tr>
+<tr>
+<td>Docker stats</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#get-container-stats-based-on-resource-usage" target="_blank">Get container stats based on resource usage</a><br> <a href="https://docs.docker.com/engine/reference/commandline/stats/" target="_blank">Stats</a></td>
+<td>Future release</td>
+</tr>
+<tr>
+<td>Docker update</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#update-a-container" target="_blank">Update a container</a> <br> <a href="https://docs.docker.com/engine/reference/commandline/update/" target="_blank">Update</a></td>
+<td>Future release</td>
+</tr>
+<tr>
+<td>Docker rename</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#rename-a-container" target="_blank">Rename a container</a> <a href="https://docs.docker.com/engine/reference/commandline/rename/" target="_blank">Rename</a></td>
+<td>Future release</td>
+</tr>
+<tr>
+<td>Docker pause</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#pause-a-container" target="_blank">Pause processes in a container</a><br> <a href="https://docs.docker.com/engine/reference/commandline/pause/" target="_blank">Pause</a></td>
+<td>Future release</td>
+</tr>
+<tr>
+<td>Docker unpause</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#unpause-a-container" target="_blank">Unpause processes in a container</a><br> <a href="https://docs.docker.com/engine/reference/commandline/unpause/" target="_blank">Unpause</a></td>
+<td>Future release</td>
+</tr>
+<tr>
+<td>Docker cp</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#copy-files-or-folders-from-a-container" target="_blank">Copy files or folders in a container</a> <br> <a href="https://docs.docker.com/engine/reference/commandline/cp/" target="_blank">Copy</a></td>
+<td>Future release</td>
+</tr>
+<tr>
+<td>Wait</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#wait-a-container" target="_blank">Wait for a container</a> <br><a href="https://docs.docker.com/engine/reference/commandline/wait/" target="_blank">Wait</a></td>
+<td>Future release</td>
+</tr>
+</tbody>
+</table>
+
+                    
+                    </section>
+                
+                
+                </div>
+            </div>
+        </div>
+
+        
+        <a href="./index.html" class="navigation navigation-prev navigation-unique" aria-label="Previous page: Introduction"><i class="fa fa-angle-left"></i></a>
+        
+        
+    </div>
+</div>
+
+        
+<script src="gitbook/app.js"></script>
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-search/lunr.min.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-search/search.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-sharing/buttons.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-fontsettings/buttons.js"></script>
+    
+
+<script>
+require(["gitbook"], function(gitbook) {
+    var config = {"highlight":{},"search":{"maxIndexSize":1000000},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2}};
+    gitbook.start(config);
+});
+</script>
+
+        
+    </body>
+    
+</html>

@@ -1,0 +1,455 @@
+<!DOCTYPE HTML>
+<html lang="en" >
+    
+    <head>
+        
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <title>Virtual Container Host Deployment Options | VMWare vSphere Integrated Containers Installation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 2.6.7">
+        
+        
+        <meta name="HandheldFriendly" content="true"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black">
+        <link rel="apple-touch-icon-precomposed" sizes="152x152" href="gitbook/images/apple-touch-icon-precomposed-152.png">
+        <link rel="shortcut icon" href="gitbook/images/favicon.ico" type="image/x-icon">
+        
+    <link rel="stylesheet" href="gitbook/style.css">
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-highlight/website.css">
+        
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-search/search.css">
+        
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-fontsettings/website.css">
+        
+    
+    
+
+        
+    
+    
+    <link rel="next" href="./vch_installer_examples.html" />
+    
+    
+    <link rel="prev" href="./install_vic_cli.html" />
+    
+
+        
+    </head>
+    <body>
+        
+        
+    <div class="book"
+        data-level="4.1"
+        data-chapter-title="Virtual Container Host Deployment Options"
+        data-filepath="vch_installer_options.md"
+        data-basepath="."
+        data-revision="Thu Jun 09 2016 13:50:16 GMT+0200 (W. Europe Daylight Time)"
+        data-innerlanguage="">
+    
+
+<div class="book-summary">
+    <nav role="navigation">
+        <ul class="summary">
+            
+            
+            
+            
+
+            
+
+            
+    
+        <li class="chapter " data-level="0" data-path="index.html">
+            
+                
+                    <a href="./index.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                        Introduction
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="1" data-path="installing_vic.html">
+            
+                
+                    <a href="./installing_vic.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>1.</b>
+                        
+                        Installing vSphere Integrated Containers
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="2" data-path="vic_installation_prereqs.html">
+            
+                
+                    <a href="./vic_installation_prereqs.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.</b>
+                        
+                        Environment Prerequisites for vSphere Integrated Containers Installation
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="2.1" data-path="create_a_private_port_group_for_vch.html">
+            
+                
+                    <a href="./create_a_private_port_group_for_vch.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.1.</b>
+                        
+                        Create a Private Port Group for Virtual Container Hosts
+                    </a>
+            
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="3" data-path="contents_of_vic_binaries.html">
+            
+                
+                    <a href="./contents_of_vic_binaries.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>3.</b>
+                        
+                        Contents of the vSphere Integrated Containers Binaries
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="4" data-path="install_vic_cli.html">
+            
+                
+                    <a href="./install_vic_cli.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.</b>
+                        
+                        Deploy a Virtual Container Host
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter active" data-level="4.1" data-path="vch_installer_options.html">
+            
+                
+                    <a href="./vch_installer_options.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.1.</b>
+                        
+                        Virtual Container Host Deployment Options
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="4.2" data-path="vch_installer_examples.html">
+            
+                
+                    <a href="./vch_installer_examples.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.2.</b>
+                        
+                        Examples of Deploying a Virtual Container Host
+                    </a>
+            
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="5" data-path="verify_vch_deployment.html">
+            
+                
+                    <a href="./verify_vch_deployment.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.</b>
+                        
+                        Verify the Deployment of a Virtual Container Host to vCenter Server
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="6" data-path="verify_vch_deployment_esx.html">
+            
+                
+                    <a href="./verify_vch_deployment_esx.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>6.</b>
+                        
+                        Verify the Deployment of a Virtual Container Host to an ESXi Host
+                    </a>
+            
+            
+        </li>
+    
+
+
+            
+            <li class="divider"></li>
+            <li>
+                <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+                    Published with GitBook
+                </a>
+            </li>
+            
+        </ul>
+    </nav>
+</div>
+
+    <div class="book-body">
+        <div class="body-inner">
+            <div class="book-header" role="navigation">
+    <!-- Actions Left -->
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href="./" >VMWare vSphere Integrated Containers Installation</a>
+    </h1>
+</div>
+
+            <div class="page-wrapper" tabindex="-1" role="main">
+                <div class="page-inner">
+                
+                
+                    <section class="normal" id="section-">
+                    
+                        <h1 id="virtual-container-host-deployment-options">Virtual Container Host Deployment Options</h1>
+<p>The command line utility for vSphere Integrated Containers, <code>vic-machine</code>, provides a <code>create</code> command that has options to allow you to customize the deployment of a virtual container host to correspond to your vSphere environment.</p>
+<ul>
+<li><a href="#mandatory">Mandatory Options</a></li>
+<li><a href="#networking">Networking Options</a></li>
+<li><a href="#datastore">Datastore Options</a></li>
+<li><a href="#security">Security Options</a></li>
+<li><a href="#deployment">Deployment Options</a></li>
+</ul>
+<p><a name="mandatory"></a></p>
+<h2 id="mandatory-options">Mandatory Options</h2>
+<p>The <code>create</code> command of the <code>vic-machine</code> utility requires you to provide information about where in your vSphere environment to deploy the virtual container host, the user account to use, and the location in which to store files. The options in this section are <strong>mandatory</strong> in all cases.</p>
+<h3 id="target"><code>target</code></h3>
+<p>The IPv4 address or fully qualified domain name (FQDN) of the ESXi host or vCenter Server instance on which you are installing vSphere Integrated containers.</p>
+<ul>
+<li>If an ESXi host is managed by vCenter Server, you must provide the address of vCenter Server rather than the address of the host.</li>
+<li>If you are installing vSphere Integrated Containers on a vCenter Server instance, you must specify the <code>user</code> option. </li>
+<li>If you are installing vSphere Integrated Containers directly on an ESXi host and you do not specify the <code>user</code> option, <code>vic-machine</code> uses the <code>root</code> account for installation.</li>
+<li>If you do not specify the <code>passwd</code> option, <code>vic-machine</code> prompts you to enter the password.</li>
+</ul>
+<p>To facilitate IP address changes in your infrastructure, provide an FQDN whenever possible, rather than an IP address.</p>
+<pre>--target <i>esxi_host_or_vcenter_server_address</i></pre>
+
+<h3 id="user"><code>user</code></h3>
+<p>The username for the ESXi host or vCenter Server instance on which you are installing vSphere Integrated containers.</p>
+<p>If you are deploying vSphere Integrated Containers on vCenter Server, specify a username for an account that has the Administrator role on that vCenter Server.</p>
+<pre>--user <i>esxi_or_vcenter_server_username</i></pre>
+
+<h3 id="computeresource"><code>compute-resource</code></h3>
+<p>The path to the host, cluster, or resource pool in which to deploy the virtual container host. You must specify the paths in the <code>govc</code> format, including the forward slashes at the beginning and end of the paths. </p>
+<ul>
+<li>To deploy to an ESXi host that is not managed by vCenter Server, specify the name of an existing resource pool: <pre>--compute-resource 
+/ha-datacenter/host/localhost.eng.vmware.com/Resources/<i>resource_pool_name</i>/</pre></li>
+<li>To deploy to an ESXi host that is not managed by vCenter Server, when the host has no existing resource pools, specify the root resource pool:<pre>--compute-resource /ha-datacenter/host/localhost.eng.vmware.com/Resources/</pre></li>
+<li>To deploy to a vCenter Server instance that has one or more hosts but no clusters, specify the IPv4 address or fully qualified domain name (FQDN) of the target host:<pre>--compute-resource /<i>datacenter_name</i>/host/<i>host_address</i>/</pre></li>
+<li>To deploy to a vCenter Server with one or more clusters, specify the name of the target cluster: <pre>--compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/</pre></li>
+<li>To deploy to a specific resource pool on a standalone host that is managed by vCenter Server, specify the IPv4 address or FQDN of the target host and name of the resource pool:<pre>--compute-resource /<i>datacenter_name</i>/host/<i>host_name</i>/Resources/<i>resource_pool_name</i>/</pre></li>
+<li>To deploy to a specific resource pool in a cluster, specify the names of the target cluster and the resource pool:<pre>--compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/Resources/<i>resource_pool_name</i>/</pre></li>
+</ul>
+<p><a name="image"></a></p>
+<h3 id="imagedatastore"><code>image-datastore</code></h3>
+<p>The datastore in which to store container image files. When you deploy a virtual container host, <code>vic-machine</code> creates a folder named <code>VIC</code> on the target datastore,  in which to store all of the container images that you pull into a virtual container host. The <code>vic-machine</code> utility also places the VM files for the virtual container host in the datastore that you designate as the image store, in a folder that has the same name as the virtual container host.</p>
+<p>You can designate the same datastore as the image store for multiple virtual container hosts. In this case, only one <code>VIC</code> folder is created in the datastore and the container image files are made available to all of the virtual container hosts that use that image store. </p>
+<p><strong>NOTE</strong>: In the current builds the <code>container-store</code> option is not enabled. As a consequence, container VM files are also stored in the datastore that you designate as the image store.</p>
+<pre>--image-store <i>datastore_name</i></pre> 
+
+<p><a name="networking"></a></p>
+<h2 id="networking-options">Networking Options</h2>
+<p>The <code>vic-machine</code> utility allows you to specify different networks for the different types of traffic between containers, the virtual container host, the external internet, and your vSphere environment.</p>
+<h3 id="bridgenetwork"><code>bridge-network</code></h3>
+<p>The network that container VMs use to communicate with each other. You can assign the same network to multiple virtual container hosts. </p>
+<p>The <code>bridge-network</code> option is <strong>optional</strong> when your environment only has one host. For example:</p>
+<ul>
+<li>ESXi host with no vCenter Server </li>
+<li>vCenter Server with no cluster and one ESXi host</li>
+<li>vCenter Server with a cluster and one ESXi host</li>
+</ul>
+<p>In a single host environment, if you do not specify <code>bridge-network</code>, <code>vic-machine</code> creates a standard virtual switch and a port group that each have the same name as the virtual container host. You can optionally specify this option to assign an existing port group for use as the bridge network for container VMs. You can also optionally specify this option to create a new virtual switch and port group that have a different name to the virtual container host.</p>
+<p>The <code>bridge-network</code> option is <strong>mandatory</strong> in environments with more than one host. For example:</p>
+<ul>
+<li>vCenter Server with no cluster and more than one standalone ESXi host </li>
+<li>vCenter Server with a cluster with more than one ESXi host</li>
+</ul>
+<p>In a multiple-host environment, you must create a private port group before you run <code>vic-machine</code>, and pass the port group name to the <code>bridge-network</code> option. For information about how to create a port group, see <a href="create_a_private_port_group_for_vch.html">Create a Private Port Group for Virtual Container Hosts</a>.</p>
+<pre>--bridge-network <i>network_name</i></pre>
+
+<h3 id="externalnetwork"><code>external-network</code></h3>
+<p>The network for containers to use to connect to the Internet. Containers use the external network to pull container images, for example from <a href="https://hub.docker.com/" target="_blank">https://hub.docker.com/</a>, and to publish network services. If you define the external network, you can deploy containers directly on the external interface. </p>
+<p>If not specified, containers use the default VM Network for external traffic.</p>
+<pre>--external-network <i>network_name</i></pre>
+
+<h3 id="managementnetwork"><code>management-network</code></h3>
+<p>The network that the virtual container host uses to communicate with vCenter Server and ESXi hosts. Container VMs use this network to communicate with the virtual container host. </p>
+<p>If not specified, the virtual container host uses the bridge network for management traffic.</p>
+<pre>--management-network <i>network_name</i></pre>
+
+<p><a name="datastore"></a></p>
+<h2 id="datastore-options">Datastore Options</h2>
+<p>The <code>vic-machine</code> utility allows you to specify the datastores in which to store container VM files and container image files. </p>
+<h3 id="imagedatastore"><code>image-datastore</code></h3>
+<p>See <a href="#image">image-datastore</a> in the section on mandatory options.</p>
+<h3 id="containerdatastore"><code>container-datastore</code></h3>
+<p>The datastore in which to store container VM files. When you run a container, container VM files are stored in folders at the top level of the designated datastore. If multiple virtual container hosts use the same container store, all of the container VM files appear at the top level of the container store. You cannot currently designate a specific datastore folder for the VM files of the containers that run in a particular virtual container host.</p>
+<p>If you do not specify the <code>container-store</code> option, vSphere Integrated Containers stores container VM files in the same datastore that you specify in the mandatory <code>image-store</code> option.</p>
+<p><strong>NOTE</strong>: In the current builds the <code>container-store</code> option is not enabled. Container VM files are stored in the datastore that you designate as the image store.</p>
+<pre>--container-datastore <i>datastore_name</i></pre> 
+
+<p><a name="security"></a></p>
+<h2 id="security-options">Security Options</h2>
+<p>You can configure a virtual container host to use an automatically generated certificate, no certificate, or a Certificate Authority (CA) certificate to authenticate connections with Docker clients.</p>
+<h3 id="generatecert"><code>generate-cert</code></h3>
+<p>If you do not set the <code>generate-cert</code> option, <code>vic-machine</code> by default generates a TLS certificate and key for the virtual container host to  use to authenticate with a Docker client. Set the <code>generate-cert</code> option to <code>false</code> if you do not require certificate-based authentication between the virtual container host and the Docker client. If you use the <code>cert</code> and <code>key</code> options to upload a custom CA certificate, <code>vic-machine</code> does not auto-generate a certificate, without requiring you to set <code>generate-cert</code> to <code>false</code>.</p>
+<pre>--generate-cert=false</pre>
+
+<h3 id="cert"><code>cert</code></h3>
+<p>The path to an X.509 certificate for the Docker API to use to authenticate the virtual container host with a Docker client.</p>
+<ul>
+<li>This option is mandatory if your Docker environment uses TLS certificates that are signed by a CA. For information about how to set up a Docker client to use CA certificates, see <a href="https://docs.docker.com/engine/security/https/" target="_blank">https://docs.docker.com/engine/security/https/</a>.</li>
+<li>Use this option in combination with the <code>key</code> option, that provides the path to the private key file for the CA certificate.</li>
+</ul>
+<p>If you use the <code>cert</code> and <code>key</code> options, <code>vic-machine</code> does not automatically generate certificates. Omit this option if your Docker environment does not use certificates that are signed by a CA. </p>
+<pre>--cert <i>path_to_vcenter_server_certificate</i> --key <i>path_to_vcenter_server_key</i></pre> 
+
+<h3 id="key"><code>key</code></h3>
+<p>The path to the private key file for use with a custom CA certificate. This option is mandatory if your Docker environment uses certificates that are signed by a CA. For information about how to set up a Docker client to use CA certificates, see <a href="https://docs.docker.com/engine/security/https/" target="_blank">https://docs.docker.com/engine/security/https/</a>.</p>
+<p>Use this option in combination with the <code>cert</code> option, that provides the path to an X.509 certificate file. </p>
+<pre>--cert <i>path_to_vcenter_server_certificate</i> --key <i>path_to_vcenter_server_key</i></pre>
+
+
+<p><a name="deployment"></a></p>
+<h2 id="deployment-options">Deployment Options</h2>
+<p>The <code>vic-machine</code> utility provides options to customize the deployment of virtual container hosts.</p>
+<h3 id="name"><code>name</code></h3>
+<p>A name for the virtual container host appliance. If not specified, <code>vic-machine</code> sets the name of the virtual container host to <code>docker-appliance</code>. If a virtual container host of the same name exists on the ESXi host or in the vCenter Server inventory, or if a folder of the same name exists in the target datastore, the deployment of the virtual container host fails. Use the <code>force</code> option to replace an existing virtual container host with a new one with the same name.</p>
+<pre>--name <i>vch_appliance_name</i></pre>
+
+<h3 id="password"><code>password</code></h3>
+<p>The password for the user account on the vCenter Server on which you  are deploying the virtual container host, or the password for the ESXi host if you are deploying directly to an ESXi host. If not specified, <code>vic-machine</code> prompts you to enter the password during deployment.</p>
+<p><strong>NOTE</strong>: If your password contains special characters, you must wrap the password in single quotation marks (&apos;).</p>
+<pre>--password &apos;<i>esxi_host_or_vcenter_server_p@ssword</i>&apos;</pre>
+
+<h3 id="force"><code>force</code></h3>
+<p>Forces <code>vic-machine</code> to ignore warnings and non-fatal errors and continue with the deployment of a virtual container host. Errors such as an incorrect compute resource still cause the installation to fail. Using the <code>force</code> option deletes any existing virtual container host appliances or datastore folders that have the same name as the one you are specifying in the current deployment. </p>
+<pre>--force</pre>
+
+<h3 id="timeout"><code>timeout</code></h3>
+<p>The timeout period for uploading the vSphere Integrated Containers  appliance and container images to the ESXi host, and for powering on the appliance. Specify a value in the format <code>XmYs</code> if the default timeout of 3m0s is insufficient.</p>
+<pre>--timeout 5m0s</pre> 
+
+<h3 id="applianceiso"><code>appliance-iso</code></h3>
+<p>The ISO image from which the virtual container host appliance boots. Omit this option to boot the appliance from the default ISO that is included with <code>vic-machine</code>. Set this option to boot the appliance from a different ISO file, for example to reinstall an existing virtual container host or to update it to a newer version.</p>
+<pre>--appliance-iso <i>path_to_ISO_file</i></pre>
+
+<h3 id="bootstrapiso"><code>bootstrap-iso</code></h3>
+<p>The ISO image from which container VMs boot. Omit this option to boot container VMs from the default Photon OS ISO that is included with <code>vic-machine</code>. Set this option to a different ISO file to boot container VMs with an operating system other than Photon OS.</p>
+<pre>--bootstrap-iso <i>path_to_ISO_file</i></pre>
+
+<h3 id="appliancecpu"><code>appliance-cpu</code></h3>
+<p>The number of virtual CPUs for the virtual container host appliance VM. The default is 1. Set this option to increase the number of CPUs in the virtual container host VM, for example if the virtual container host will handle large volumes of containers, or containers that require a lot of processing power.</p>
+<pre>--appliance-cpu <i>number_of_CPUs</i></pre>
+
+<h3 id="appliancememory"><code>appliance-memory</code></h3>
+<p>The amount of memory for the virtual container host appliance VM. The default is 2048MB. Set this option to increase the amount of memory in the virtual container host VM, for example if the virtual container host will handle large volumes of containers, or containers that consume a lot of memory.</p>
+<pre>--appliance-memory <i>amount_of_memory</i></pre>
+                    
+                    </section>
+                
+                
+                </div>
+            </div>
+        </div>
+
+        
+        <a href="./install_vic_cli.html" class="navigation navigation-prev " aria-label="Previous page: Deploy a Virtual Container Host"><i class="fa fa-angle-left"></i></a>
+        
+        
+        <a href="./vch_installer_examples.html" class="navigation navigation-next " aria-label="Next page: Examples of Deploying a Virtual Container Host"><i class="fa fa-angle-right"></i></a>
+        
+    </div>
+</div>
+
+        
+<script src="gitbook/app.js"></script>
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-search/lunr.min.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-search/search.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-sharing/buttons.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-fontsettings/buttons.js"></script>
+    
+
+<script>
+require(["gitbook"], function(gitbook) {
+    var config = {"highlight":{},"search":{"maxIndexSize":1000000},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2}};
+    gitbook.start(config);
+});
+</script>
+
+        
+    </body>
+    
+</html>
