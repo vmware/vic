@@ -19,48 +19,39 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/pkg/vsphere/test"
-	"golang.org/x/net/context"
 )
 
-func parentSetup(t *testing.T) *session.Session {
-	datastoreParentPath = "testingParentDirectory"
-
-	return test.Session(context.TODO(), t)
-}
-
 func TestParentEmptyRestore(t *testing.T) {
-	client := parentSetup(t)
-	if client == nil {
+	ctx, ds, cleanupfunc := dSsetup(t)
+	if t.Failed() {
 		return
 	}
+	defer cleanupfunc()
 
-	par, err := restoreParentMap(context.TODO(), client)
+	par, err := restoreParentMap(ctx, ds)
 	if !assert.NoError(t, err) && !assert.NotNil(t, par) {
 		return
 	}
 }
 
 func TestParentEmptySaveRestore(t *testing.T) {
-	client := parentSetup(t)
-	if client == nil {
+	ctx, ds, cleanupfunc := dSsetup(t)
+	if t.Failed() {
 		return
 	}
-	// Nuke the parent image store directory
-	defer rm(t, client, "")
+	defer cleanupfunc()
 
-	par, err := restoreParentMap(context.TODO(), client)
+	par, err := restoreParentMap(ctx, ds)
 	if !assert.NoError(t, err) && !assert.NotNil(t, par) {
 		return
 	}
 
-	err = par.Save(context.TODO())
+	err = par.Save(ctx)
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	p, err := restoreParentMap(context.TODO(), client)
+	p, err := restoreParentMap(ctx, ds)
 	if !assert.NoError(t, err) && !assert.NotNil(t, p) {
 		return
 	}
@@ -68,14 +59,13 @@ func TestParentEmptySaveRestore(t *testing.T) {
 
 // Write some child -> parent mappings and see if we can read them.
 func TestParentSaveRestore(t *testing.T) {
-	client := parentSetup(t)
-	if client == nil {
+	ctx, ds, cleanupfunc := dSsetup(t)
+	if t.Failed() {
 		return
 	}
-	// Nuke the parent image store directory
-	defer rm(t, client, "")
+	defer cleanupfunc()
 
-	par, err := restoreParentMap(context.TODO(), client)
+	par, err := restoreParentMap(ctx, ds)
 	if !assert.NoError(t, err) && !assert.NotNil(t, par) {
 		return
 	}
@@ -87,13 +77,13 @@ func TestParentSaveRestore(t *testing.T) {
 		expected[child] = parent
 		par.Add(child, parent)
 	}
-	err = par.Save(context.TODO())
+	err = par.Save(ctx)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	// load into a different map
-	p, err := restoreParentMap(context.TODO(), client)
+	p, err := restoreParentMap(ctx, ds)
 	if !assert.NoError(t, err) && !assert.NotNil(t, p) {
 		return
 	}
@@ -104,7 +94,7 @@ func TestParentSaveRestore(t *testing.T) {
 	}
 
 	// Now save it to be extra paranoid
-	err = p.Save(context.TODO())
+	err = p.Save(ctx)
 	if !assert.NoError(t, err) {
 		return
 	}

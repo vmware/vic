@@ -28,3 +28,11 @@ func URL(t *testing.T) string {
 	}
 	return s
 }
+
+func DS(t *testing.T) string {
+	s := os.Getenv("VIC_ESX_TEST_DATASTORE")
+	if s == "" && t != nil {
+		t.Skip("Skipping: No test ESX DATASTORE defined")
+	}
+	return s
+}
