@@ -10,10 +10,10 @@ To run these tests locally:
 1. Create a secrets.yml file that includes:  
 ```
 environment:  
-  ESX_URL: <IP address of your ESX server>  
-  ESX_USERNAME: <username you use to login to ESX server>  
-  ESX_PASSWORD: <password you use to login to ESX server>  
-  ESX_RESOURCE: <resource pool, e.g. /ha-datacenter/host/localhost.localdomain/Resources>  
+  TEST_URL: <IP address of your ESX server>  
+  TEST_USERNAME: <username you use to login to ESX server>  
+  TEST_PASSWORD: <password you use to login to ESX server>  
+  TEST_RESOURCE: <resource pool, e.g. /ha-datacenter/host/localhost.localdomain/Resources>  
 ```
 2. Execute drone from the projects root directory:
 

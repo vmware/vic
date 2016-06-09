@@ -12,10 +12,10 @@ This test requires that an ESXi or vCenter server is running and available.
 
 #Test Steps:
 1. Deploy VIC appliance to the test server using vic-machine
-2. Re-deploy VIC appliance to the test server using vic-machine -force
+2. Re-deploy VIC appliance to the test server using vic-machine --force
 
 #Expected Outcome:
-vic-machine should succeed at both installs, no errors thrown and provide the IP address of the VCH appliance at the end.
+vic-machine should succeed at both installs, no errors observed and provide the IP address of the VCH appliance at the end.
 
 #Possible Problems:
 None
