@@ -122,23 +122,49 @@ func (v *Validator) Validate2(ctx context.Context, input *Data, conf *metadata.V
 		},
 	})
 
+	// Client net
+	// if client net is not specified, use external
+	if input.clientNetworkName == "" {
+		input.clientNetworkName = input.externalNetworkName
+	}
+	clientMoref, err := v.Network(ctx, input.clientNetworkName)
+	v.NoteIssue(err)
+	conf.AddNetwork(&metadata.NetworkEndpoint{
+		Network: metadata.ContainerNetwork{
+			Common: metadata.Common{
+				Name: "client",
+				ID:   fmt.Sprintf("%s-%s", clientMoref.Type, clientMoref.Value),
+			},
+		},
+	})
+
 	// Management net
-	if input.managementNetworkName != "" {
-		managementMoref, err := v.Network(ctx, input.managementNetworkName)
+	// if not specified, use client network
+	if input.managementNetworkName == "" {
+		input.managementNetworkName = input.clientNetworkName
+	}
+	managementMoref, err := v.Network(ctx, input.managementNetworkName)
+	v.NoteIssue(err)
+	conf.AddNetwork(&metadata.NetworkEndpoint{
+		Network: metadata.ContainerNetwork{
+			Common: metadata.Common{
+				Name: "management",
+				ID:   fmt.Sprintf("%s-%s", managementMoref.Type, managementMoref.Value),
+			},
+		},
+	})
+
+	// add mapped networks
+	for name, net := range input.mappedNetworks {
+		moref, err := v.Network(ctx, net)
 		v.NoteIssue(err)
-		conf.AddNetwork(&metadata.NetworkEndpoint{
-			Network: metadata.ContainerNetwork{
-				Common: metadata.Common{
-					Name: "bridge",
-					ID:   fmt.Sprintf("%s-%s", managementMoref.Type, managementMoref.Value),
-				},
+		conf.AddContainerNetwork(&metadata.ContainerNetwork{
+			Common: metadata.Common{
+				Name: name,
+				ID:   fmt.Sprintf("%s-%s", moref.Type, moref.Value),
 			},
 		})
 	}
-
-	// TODO: add client network
-
-	// TODO: add mapped networks
 
 	// Perform the higher level compatibility and consistency checks
 	err = v.CompatibilityChecks(ctx, conf)
@@ -195,7 +221,8 @@ func (v *Validator) DatastorePath(ctx context.Context, path string) (*url.URL, e
 		return nil, errors.New("ambiguous datastore " + dsURL.Host)
 	}
 
-	dsURL.Host = stores[0].Reference().Value
+	// FIXME: commented out until components can consume moid
+	// dsURL.Host = stores[0].Reference().Value
 
 	return dsURL, nil
 }

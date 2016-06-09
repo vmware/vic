@@ -39,7 +39,6 @@ import (
 	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/serial"
-	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 type testAttachServer struct {
@@ -217,63 +216,6 @@ func genKey() []byte {
 	}
 
 	return pem.EncodeToMemory(&privateKeyBlock)
-}
-
-/////////////////////////////////////////////////////////////////////////////////////
-// TestAttachHalt ensure that the normal command and tether lifecycle occurs even
-// when there's an attach extension running.
-func TestAttachHalt(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
-
-	testServer, _ := server.(*testAttachServer)
-
-	cfg := metadata.ExecutorConfig{
-		Common: metadata.Common{
-			ID:   "halt",
-			Name: "tether_test_executor",
-		},
-
-		Sessions: map[string]metadata.SessionConfig{
-			"halt": metadata.SessionConfig{
-				Common: metadata.Common{
-					ID:   "halt",
-					Name: "tether_test_session",
-				},
-				Tty:    false,
-				Attach: true,
-				Cmd: metadata.Cmd{
-					Path: "/bin/date",
-					// grep, matching everything, reading from stdin
-					Args: []string{"/bin/date"},
-					Env:  []string{},
-					Dir:  "/",
-				},
-			},
-		},
-		Key: genKey(),
-	}
-
-	_, src, _ := StartAttachTether(t, &cfg)
-
-	// wait for updates to occur
-	<-testServer.updated
-
-	if !testServer.enabled {
-		t.Error("attach server was not enabled")
-		return
-	}
-
-	// wait for tether to halt
-	<-Mocked.Cleaned
-
-	result := tether.ExecutorConfig{}
-	extraconfig.Decode(src, &result)
-
-	// wait for the command to exit
-	assert.Equal(t, "true", result.Sessions["halt"].Started, "Expected command to have been started successfully")
-	assert.Equal(t, 0, result.Sessions["halt"].ExitStatus, "Expected command to have exited cleanly")
-
 }
 
 /////////////////////////////////////////////////////////////////////////////////////

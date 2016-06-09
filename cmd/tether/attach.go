@@ -46,7 +46,6 @@ type attachServer interface {
 
 // conn is held directly as it's how we stop the attach server
 type attachServerSSH struct {
-	ctx       context.Context
 	conn      *net.Conn
 	config    *tether.ExecutorConfig
 	sshConfig *ssh.ServerConfig
@@ -88,7 +87,6 @@ func (t *attachServerSSH) Stop() error {
 	defer trace.End(trace.Begin("stop attach server"))
 	// calling server.start not t.start so that test impl gets invoked
 	server.stop()
-	ctx.Cancel()
 	return nil
 }
 
@@ -166,7 +164,7 @@ func (t *attachServerSSH) run() error {
 	// keep waiting for the connection to establish
 	for t.enabled && sConn == nil {
 		// wait for backchannel to establish
-		err = backchannel(t.ctx, t.conn)
+		err = backchannel(context.Background(), t.conn)
 		if err != nil {
 			detail := fmt.Sprintf("failed to establish backchannel: %s", err)
 			log.Error(detail)

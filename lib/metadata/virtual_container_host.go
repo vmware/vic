@@ -177,6 +177,17 @@ func (t *VirtualContainerHostConfigSpec) AddNetwork(net *NetworkEndpoint) {
 	}
 }
 
+// AddContainerNetwork adds a network that will be configured on the appliance VM
+func (t *VirtualContainerHostConfigSpec) AddContainerNetwork(net *ContainerNetwork) {
+	if net != nil {
+		if t.ContainerNetworks == nil {
+			t.ContainerNetworks = make(map[string]*ContainerNetwork)
+		}
+
+		t.ContainerNetworks[net.Common.Name] = net
+	}
+}
+
 func (t *VirtualContainerHostConfigSpec) AddComponent(name string, component *SessionConfig) {
 	if component != nil {
 		if t.ExecutorConfig.Sessions == nil {

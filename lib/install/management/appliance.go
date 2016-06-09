@@ -360,7 +360,6 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 				"-insecure",
 				"-sdk=" + conf.Target.String(),
 				"-ds=" + conf.ImageStores[0].String(),
-				"-vm-path=" + conf.ApplianceInventoryPath,
 				"-cluster=" + conf.ClusterPath,
 				"-pool=" + conf.ResourcePoolPath,
 			},
