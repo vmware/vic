@@ -148,9 +148,9 @@ func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec) err
 		return errors.Errorf("Failed to power on appliance %s. Exiting...", err)
 	}
 
-	if err = d.setMacToGuestInfo(conf); err != nil {
-		return errors.Errorf("Failed to set Mac address %s. Exiting...", err)
-	}
+	// if err = d.setMacToGuestInfo(conf); err != nil {
+	// 	return errors.Errorf("Failed to set Mac address %s. Exiting...", err)
+	// }
 	if err = d.makeSureApplianceRuns(); err != nil {
 		return errors.Errorf("%s. Exiting...", err)
 	}

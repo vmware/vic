@@ -98,35 +98,39 @@ func (d *Dispatcher) addNetworkDevices(conf *metadata.VirtualContainerHostConfig
 	var err error
 	var backing types.BaseVirtualDeviceBackingInfo
 	// network name:alias, to avoid create multiple devices for same network
-	nics := make(map[string]string)
 	slots := make(map[int32]bool)
+	nets := make(map[string]*metadata.NetworkEndpoint)
 
-	for nicAlias, info := range conf.Networks {
-		if alias, ok := nics[info.PortGroupName]; ok {
-			// already has device to this portgroup, skip it
-			log.Debugf("device %s and %s are connected to same network, only one nic will be created.", alias, nicAlias)
-
-			aliasEndpoint, ok := conf.ExecutorConfig.Networks[alias]
-			if !ok {
-				return nil, errors.Errorf("Unable to find network endpoint config for network %s", alias)
-			}
-			endpoint, ok := conf.ExecutorConfig.Networks[nicAlias]
-			if !ok {
-				return nil, errors.Errorf("Unable to find network endpoint config for network %s", nicAlias)
-			}
-			log.Infof("Setting %s to slot %d (sharing with %s)", nicAlias, aliasEndpoint.PCISlot, alias)
-			endpoint.PCISlot = aliasEndpoint.PCISlot
-
+	for name, endpoint := range conf.ExecutorConfig.Networks {
+		if pnic, ok := nets[endpoint.Network.Common.ID]; ok {
+			// there's already a NIC on this network
+			endpoint.PCISlot = pnic.PCISlot
+			log.Infof("Network role %s is sharing NIC with %s", name, pnic.Network.Common.Name)
 			continue
 		}
 
-		nics[info.PortGroupName] = nicAlias
-		network := info.PortGroup
+		refparts := strings.SplitN(endpoint.Network.Common.ID, "-", 2)
+		if len(refparts) != 2 {
+			err = errors.Errorf("Network identifier for %s role was not in expected format: %s", name, endpoint.Network.Common.ID)
+			return nil, err
+		}
+
+		log.Infof("Rehydrating network from %s and %s", refparts[0], refparts[1])
+		network := object.NewReference(d.session.Client.Client, types.ManagedObjectReference{Type: refparts[0], Value: refparts[1]}).(object.NetworkReference)
+
+		// FIXME: hack to work around rehydration issues - must not assume the net name like this
 		backing, err = network.EthernetCardBackingInfo(d.ctx)
 		if err != nil {
 			err = errors.Errorf("Failed to get network backing info for %s: %s", network, err)
 			return nil, err
 		}
+		backing2 := backing.(*types.VirtualEthernetCardNetworkBackingInfo)
+		netname := strings.SplitN(refparts[1], "-", 2)
+		backing2.DeviceName = netname[1]
+
+		// END FIXME
+
+		log.Infof("Using network %s for network role %s: %s", netname[1], name, err)
 
 		nic, err := devices.CreateEthernetCard("vmxnet3", backing)
 		if err != nil {
@@ -136,21 +140,16 @@ func (d *Dispatcher) addNetworkDevices(conf *metadata.VirtualContainerHostConfig
 
 		slot := cspec.AssignSlotNumber(nic, slots)
 		if slot == spec.NilSlot {
-			err = errors.Errorf("Failed to assign stable PCI slot for %s network card", nicAlias)
+			err = errors.Errorf("Failed to assign stable PCI slot for %s network card", name)
 		}
-		endpoint, ok := conf.ExecutorConfig.Networks[nicAlias]
-		if !ok {
-			return nil, errors.Errorf("Unable to find network endpoint config for network %s", nicAlias)
-		}
+
 		endpoint.PCISlot = slot
 		slots[slot] = true
-		log.Infof("Setting %s to slot %d", nicAlias, slot)
-
-		nic.GetVirtualDevice().DeviceInfo = &types.Description{
-			Label: nicAlias,
-		}
+		log.Infof("Setting %s to slot %d", name, slot)
 
 		devices = append(devices, nic)
+
+		nets[endpoint.Network.Common.ID] = endpoint
 	}
 	return devices, nil
 }
