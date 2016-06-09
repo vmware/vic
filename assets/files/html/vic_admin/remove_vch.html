@@ -1,0 +1,247 @@
+<!DOCTYPE HTML>
+<html lang="en" >
+    
+    <head>
+        
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <title>Remove a Virtual Container Host | VMWare vSphere Integrated Containers for vSphere Administrators</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 2.6.7">
+        
+        
+        <meta name="HandheldFriendly" content="true"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black">
+        <link rel="apple-touch-icon-precomposed" sizes="152x152" href="gitbook/images/apple-touch-icon-precomposed-152.png">
+        <link rel="shortcut icon" href="gitbook/images/favicon.ico" type="image/x-icon">
+        
+    <link rel="stylesheet" href="gitbook/style.css">
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-highlight/website.css">
+        
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-search/search.css">
+        
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-fontsettings/website.css">
+        
+    
+    
+
+        
+    
+    
+    
+    <link rel="prev" href="./networks.html" />
+    
+
+        
+    </head>
+    <body>
+        
+        
+    <div class="book"
+        data-level="4"
+        data-chapter-title="Remove a Virtual Container Host"
+        data-filepath="remove_vch.md"
+        data-basepath="."
+        data-revision="Thu Jun 09 2016 15:26:47 GMT+0200 (W. Europe Daylight Time)"
+        data-innerlanguage="">
+    
+
+<div class="book-summary">
+    <nav role="navigation">
+        <ul class="summary">
+            
+            
+            
+            
+
+            
+
+            
+    
+        <li class="chapter " data-level="0" data-path="index.html">
+            
+                
+                    <a href="./index.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                        Introduction
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="1" data-path="vicarch.html">
+            
+                
+                    <a href="./vicarch.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>1.</b>
+                        
+                        vSphere Integrated Containers Architecture
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="2" data-path="interop.html">
+            
+                
+                    <a href="./interop.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.</b>
+                        
+                        vSphere Integrated Containers Interoperability with Other VMware Software
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="3" data-path="networks.html">
+            
+                
+                    <a href="./networks.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>3.</b>
+                        
+                        vSphere Integrated Containers Network Overview
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter active" data-level="4" data-path="remove_vch.html">
+            
+                
+                    <a href="./remove_vch.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.</b>
+                        
+                        Remove a Virtual Container Host
+                    </a>
+            
+            
+        </li>
+    
+
+
+            
+            <li class="divider"></li>
+            <li>
+                <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+                    Published with GitBook
+                </a>
+            </li>
+            
+        </ul>
+    </nav>
+</div>
+
+    <div class="book-body">
+        <div class="body-inner">
+            <div class="book-header" role="navigation">
+    <!-- Actions Left -->
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href="./" >VMWare vSphere Integrated Containers for vSphere Administrators</a>
+    </h1>
+</div>
+
+            <div class="page-wrapper" tabindex="-1" role="main">
+                <div class="page-inner">
+                
+                
+                    <section class="normal" id="section-">
+                    
+                        <h1 id="remove-a-virtual-container-host">Remove a Virtual Container Host</h1>
+<p>In the current builds of vSphere Integrated Containers, you remove virtual container hosts manually.</p>
+<p>Removing a virtual container host involves several operations in the vSphere Web Client.</p>
+<p><strong>Prerequisites</strong></p>
+<ul>
+<li>You have a virtual container host that you no longer require.</li>
+<li>Connect a vSphere Web Client to the vCenter Server instance on which you deployed the virtual container host.</li>
+</ul>
+<p><strong>Procedure</strong></p>
+<ol>
+<li>In the vSphere Web Client, go to <strong>Hosts and Clusters</strong> and select the cluster or host on which you deployed the virtual container host.</li>
+<li>Select the resource pool for the virtual container host and click <strong>Related Objects</strong> &gt; <strong>Top Level Objects</strong>.</li>
+<li>Select the VM for the virtual container host and any container VMs, right-click, and select <strong>Power</strong> &gt; <strong>Power Off</strong>.</li>
+<li>Select the VM for the virtual container host and the container VMs, right-click, and select <strong>Delete from Disk</strong>.</li>
+<li>Right-click the resource pool for the virtual container host and select <strong>Delete</strong>.</li>
+<li><p>Go to <strong>Storage</strong>, select the datastore that you designated as the image datastore, and delete the folder for the virtual container host.</p>
+<p>If other virtual container hosts on this vCenter Server instance use this datastore, do not delete the <code>VIC</code> folder. The <code>VIC</code> folder contains container images that are shared between all virtual container hosts.</p>
+</li>
+<li><p>Select the datastore that you designated as the container datastore, and delete the folders for the container VMs that this virtual container host manages.</p>
+<p>In the current builds, container VM files are stored in the image datastore. </p>
+</li>
+<li>(Optional) Go to <strong>Hosts and Clusters</strong>, select the host on which you configured a private port group for the virtual container host, and select <strong>Manage</strong> &gt; <strong>Networking</strong> &gt; <strong>Virtual switches</strong>.</li>
+<li><p>(Optional) Select the private port group and click the delete button.</p>
+<p>Do not delete the port group if other virtual container hosts on this vCenter Server instance use it.</p>
+</li>
+</ol>
+
+                    
+                    </section>
+                
+                
+                </div>
+            </div>
+        </div>
+
+        
+        <a href="./networks.html" class="navigation navigation-prev navigation-unique" aria-label="Previous page: vSphere Integrated Containers Network Overview"><i class="fa fa-angle-left"></i></a>
+        
+        
+    </div>
+</div>
+
+        
+<script src="gitbook/app.js"></script>
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-search/lunr.min.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-search/search.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-sharing/buttons.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-fontsettings/buttons.js"></script>
+    
+
+<script>
+require(["gitbook"], function(gitbook) {
+    var config = {"highlight":{},"search":{"maxIndexSize":1000000},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2}};
+    gitbook.start(config);
+});
+</script>
+
+        
+    </body>
+    
+</html>
