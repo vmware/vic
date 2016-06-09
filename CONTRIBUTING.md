@@ -113,8 +113,8 @@ Automated testing uses [Drone][dronesrc].
 
 PRs must pass unit tests and integration tests before being merged into `master`.
 
-If CI shouldn't run tests (when making a commit that doesn't change code), add `[ci skip]` or `[skip ci]`
-to the commit message.
+If CI shouldn't run tests (when making a commit that doesn't change code), add `[skip ci]` to the PR
+body.
 
 You can run the tests locally before making a PR or view the Drone build results for [unit tests][dronevic]
 and [integration tests][e2edronevic].
