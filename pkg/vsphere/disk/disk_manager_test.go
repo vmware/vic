@@ -19,21 +19,45 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
-	"github.com/vmware/vic/pkg/vsphere/test"
+	"github.com/vmware/vic/pkg/vsphere/test/env"
 	"golang.org/x/net/context"
 )
+
+func Session(ctx context.Context, t *testing.T) *session.Session {
+	config := &session.Config{
+		Service: env.URL(t),
+
+		DatastorePath: env.DS(t),
+
+		Insecure:  true,
+		Keepalive: time.Duration(5) * time.Minute,
+	}
+
+	s, err := session.NewSession(config).Create(ctx)
+	// Vsan has special UUID / URI handling of top level directories which
+	// we've implemented at another level.  We can't import them here or it'd
+	// be a circular dependency.  Also, we already have tests that test these
+	// cases but from a higher level.
+	if err != nil || s.IsVSAN(ctx) {
+		t.SkipNow()
+	}
+
+	return s
+}
 
 // Create a lineage of disks inheriting from eachother, write portion of a
 // string to each, the confirm the result is the whole string
 func TestCreateAndDetach(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
-	client := test.Session(context.Background(), t)
+	client := Session(context.Background(), t)
 	if client == nil {
 		return
 	}

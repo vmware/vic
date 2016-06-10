@@ -28,17 +28,17 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/types"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/pkg/vsphere/test"
 	"golang.org/x/net/context"
 )
 
 func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, error) {
-	datastoreParentPath = "testingParentDirectory"
+	datastoreParentPath = RandomString(10) + "imageTests"
 
-	client := test.Session(context.TODO(), t)
+	client := Session(context.TODO(), t)
 	if client == nil {
 		return nil, nil, fmt.Errorf("skip")
 	}
@@ -58,15 +58,22 @@ func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, error) {
 
 func TestRestartImageStore(t *testing.T) {
 	// Start the image store once
-	_, client, err := setup(t)
+	cacheStore, client, err := setup(t)
 	if !assert.NoError(t, err) {
 		return
 	}
-	defer rm(t, client, "")
+	defer rm(t, client, client.Datastore.Path(datastoreParentPath))
+
+	origVsStore := cacheStore.DataStore.(*ImageStore)
 
 	// now start it again
-	vsImageStore, err := NewImageStore(context.TODO(), client)
-	if !assert.NoError(t, err) || !assert.NotNil(t, vsImageStore) {
+	restartedVsStore, err := NewImageStore(context.TODO(), client)
+	if !assert.NoError(t, err) || !assert.NotNil(t, restartedVsStore) {
+		return
+	}
+
+	// Check we didn't create a new UUID directory (relevant if vsan)
+	if !assert.NotEqual(t, origVsStore.ds.rooturl, restartedVsStore.ds.rootdir) {
 		return
 	}
 }
@@ -79,9 +86,9 @@ func TestCreateAndGetImageStore(t *testing.T) {
 	}
 
 	// Nuke the parent image store directory
-	defer rm(t, client, "")
+	defer rm(t, client, client.Datastore.Path(datastoreParentPath))
 
-	storeName := "storeName"
+	storeName := "bogusStoreName"
 	u, err := vsis.CreateImageStore(context.TODO(), storeName)
 	if !assert.NoError(t, err) || !assert.NotNil(t, u) {
 		return
@@ -112,7 +119,7 @@ func TestListImageStore(t *testing.T) {
 	}
 
 	// Nuke the parent image store directory
-	defer rm(t, client, "")
+	defer rm(t, client, client.Datastore.Path(datastoreParentPath))
 
 	count := 3
 	for i := 0; i < count; i++ {
@@ -138,10 +145,32 @@ func TestCreateImageLayers(t *testing.T) {
 		return
 	}
 
-	// Nuke the parent image store directory
-	defer rm(t, client, "")
-
 	vsStore := cacheStore.DataStore.(*ImageStore)
+
+	// Nuke the files and then the parent dir.  Unfortunately, because this is
+	// vsan, we need to delete the files in the directories first (maybe
+	// because they're linked vmkds) before we can delete the parent directory.
+	defer func() {
+		res, err := vsStore.ds.LsDirs(context.TODO(), "")
+		if err != nil {
+			t.Logf("error: %s", err)
+			return
+		}
+
+		for _, dir := range res.HostDatastoreBrowserSearchResults {
+			for _, f := range dir.File {
+				file, ok := f.(*types.FileInfo)
+				if !ok {
+					continue
+				}
+
+				rm(t, client, path.Join(dir.FolderPath, file.Path))
+			}
+			rm(t, client, dir.FolderPath)
+		}
+
+		rm(t, client, client.Datastore.Path(datastoreParentPath))
+	}()
 
 	storeURL, err := cacheStore.CreateImageStore(context.TODO(), "testStore")
 	if !assert.NoError(t, err) {
@@ -317,8 +346,9 @@ func tarFiles(files []tarFile, meta map[string][]byte) (*bytes.Buffer, error) {
 }
 
 func mountLayerRO(v *ImageStore, parent *portlayer.Image) (*disk.VirtualDisk, error) {
-	roName := v.datastorePath(v.imageStorePath("testStore")) + "/" + parent.ID + "-ro.vmdk"
-	parentDsURI := v.datastorePath(v.imageDiskPath("testStore", parent.ID))
+	roName := v.imageDiskPath("testStore", parent.ID) + "-ro.vmdk"
+	parentDsURI := v.imageDiskPath("testStore", parent.ID)
+
 	roDisk, err := v.dm.CreateAndAttach(context.TODO(), roName, parentDsURI, 0, os.O_RDONLY)
 	if err != nil {
 		return nil, err
@@ -338,13 +368,9 @@ func mountLayerRO(v *ImageStore, parent *portlayer.Image) (*disk.VirtualDisk, er
 
 func rm(t *testing.T, client *session.Session, name string) {
 	fm := object.NewFileManager(client.Vim25())
-	p := client.Datastore.Path(path.Join(datastoreParentPath, name))
-	task, err := fm.DeleteDatastoreFile(context.TODO(), p, nil)
+	task, err := fm.DeleteDatastoreFile(context.TODO(), name, client.Datacenter)
 	if !assert.NoError(t, err) {
 		return
 	}
-	_, err = task.WaitForResult(context.TODO(), nil)
-	if !assert.NoError(t, err) {
-		return
-	}
+	_, _ = task.WaitForResult(context.TODO(), nil)
 }

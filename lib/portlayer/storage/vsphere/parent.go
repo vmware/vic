@@ -18,17 +18,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
-	"path"
 	"sync"
 
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/soap"
-	"github.com/vmware/vic/lib/guest"
-	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
 const parentMFile = "parentMap"
@@ -48,29 +42,19 @@ const parentMFile = "parentMap"
 
 // Implements the cache used to lookup an image's parent
 type parentM struct {
-	// location in the datastore in datastore URI format
-	mFilePath string
-
 	// map of image ID to parent ID
 	db map[string]string
 
-	sess *session.Session
+	// roots where the map is stored
+	ds *datastore
 
 	l sync.Mutex
 }
 
 // Starts here.  Tries to create a new parentM or load an existing one.
-func restoreParentMap(ctx context.Context, s *session.Session) (*parentM, error) {
-
-	// Use the UUID of VCH as the root in the datastore.
-	host, err := guest.UUID()
-	if err != nil {
-		return nil, err
-	}
-
+func restoreParentMap(ctx context.Context, ds *datastore) (*parentM, error) {
 	p := &parentM{
-		mFilePath: path.Join(datastoreParentPath, host, parentMFile),
-		sess:      s,
+		ds: ds,
 	}
 
 	// Download the map file
@@ -109,24 +93,17 @@ func (p *parentM) Save(ctx context.Context) error {
 	}
 
 	// upload to an ephemeral file
-	tmp := p.mFilePath + ".tmp"
-	tmpURI := p.sess.Datastore.Path(tmp)
-
-	parentMURI := p.sess.Datastore.Path(p.mFilePath)
+	tmpURI := parentMFile + ".tmp"
 
 	r := bytes.NewReader(buf)
-	if err = p.sess.Datastore.Upload(ctx, r, tmp, &soap.DefaultUpload); err != nil {
-		log.Errorf("Error uploading %s: %s", tmp, err)
+	if err = p.ds.Upload(ctx, r, tmpURI); err != nil {
+		log.Errorf("Error uploading %s: %s", tmpURI, err)
 		return err
 	}
 
-	fm := object.NewFileManager(p.sess.Vim25())
-	err = tasks.Wait(ctx, func(context.Context) (tasks.Waiter, error) {
-		log.Infof("Saving parent map (%s)", p.mFilePath)
-		return fm.MoveDatastoreFile(ctx, tmpURI, p.sess.Datacenter, parentMURI, p.sess.Datacenter, true)
-	})
-
-	if err != nil {
+	log.Infof("Saving parent map (%s)", parentMFile)
+	if err := p.ds.Mv(ctx, tmpURI, parentMFile); err != nil {
+		log.Errorf("Error moving %s: %s", tmpURI, err)
 		return err
 	}
 
@@ -139,7 +116,7 @@ func (p *parentM) download(ctx context.Context) error {
 
 	p.db = make(map[string]string)
 
-	rc, _, err := p.sess.Datastore.Download(ctx, p.mFilePath, &soap.DefaultDownload)
+	rc, err := p.ds.Download(ctx, parentMFile)
 	if err != nil {
 		// We need to check for 404 vs something else here.
 		return nil
