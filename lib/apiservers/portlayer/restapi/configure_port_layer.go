@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/handlers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
+	"github.com/vmware/vic/lib/portlayer"
 	"github.com/vmware/vic/pkg/vsphere/session"
 
 	"golang.org/x/net/context"
@@ -75,6 +76,11 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 	sess, err := session.NewSession(sessionconfig).Create(ctx)
 	if err != nil {
 		log.Fatalf("configure_port_layer ERROR: %s", err)
+	}
+
+	// initialize the port layer
+	if err = portlayer.Init(ctx, sess); err != nil {
+		log.Fatalf("could not initialize port layer: %s", err)
 	}
 
 	// configure the api here

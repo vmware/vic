@@ -35,10 +35,6 @@ var addEthernetCardErr = func(_ *exec.Handle, _ *Scope) (types.BaseVirtualDevice
 }
 
 func TestScopeAddRemoveContainer(t *testing.T) {
-	origBridgeNetworkName := getBridgeNetworkName
-	getBridgeNetworkName = mockBridgeNetworkName
-	defer func() { getBridgeNetworkName = origBridgeNetworkName }()
-
 	var err error
 	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
 	if err != nil {

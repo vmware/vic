@@ -19,6 +19,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/portlayer/exec"
 )
 
@@ -45,8 +46,7 @@ type Scope struct {
 	endpoints  []*Endpoint
 	space      *AddressSpace
 	builtin    bool
-
-	NetworkName string // portgroup name specified in VCH guestinfo (e.g. under "networks/bridge")
+	network    object.NetworkReference
 }
 
 type IPAM struct {
@@ -72,6 +72,10 @@ func (s *Scope) Type() string {
 
 func (s *Scope) IPAM() *IPAM {
 	return s.ipam
+}
+
+func (s *Scope) Network() object.NetworkReference {
+	return s.network
 }
 
 func (s *Scope) reserveEndpointIP(e *Endpoint) error {

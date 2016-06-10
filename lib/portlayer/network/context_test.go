@@ -21,16 +21,17 @@ import (
 	"reflect"
 	"testing"
 
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/portlayer"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 )
 
-const (
-	testBridgeName = "testBridge"
-)
+var testBridgeNetwork object.NetworkReference
 
 type params struct {
 	scopeType, name string
@@ -78,19 +79,20 @@ var validScopeTests = []struct {
 		nil},
 }
 
-// mockBridgeNetworkName mocks getBridgeNetworkName so that tests don't
-// need to query guestInfo
-func mockBridgeNetworkName() (string, error) {
-	return testBridgeName, nil
-}
-
 func TestMain(m *testing.M) {
-	origBridgeNetworkName := getBridgeNetworkName
-	getBridgeNetworkName = mockBridgeNetworkName
+	n := object.NewNetwork(nil, types.ManagedObjectReference{})
+	n.InventoryPath = "testBridge"
+	testBridgeNetwork = n
+
+	portlayer.Config = metadata.VirtualContainerHostConfigSpec{
+		Networks: map[string]*metadata.NetworkInfo{
+			"bridge": &metadata.NetworkInfo{
+				PortGroup: testBridgeNetwork,
+			},
+		},
+	}
 
 	rc := m.Run()
-
-	getBridgeNetworkName = origBridgeNetworkName
 
 	os.Exit(rc)
 }
@@ -99,11 +101,6 @@ func TestContext(t *testing.T) {
 	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
 	if err != nil {
 		t.Errorf("NewContext() => (nil, %s), want (ctx, nil)", err)
-		return
-	}
-
-	if ctx.BridgeNetworkName != testBridgeName {
-		t.Errorf("ctx.BridgeNetworkName => %v, want %s", ctx.BridgeNetworkName, testBridgeName)
 		return
 	}
 
@@ -215,13 +212,8 @@ func TestContext(t *testing.T) {
 			continue
 		}
 
-		if s.Type() == "bridge" && s.NetworkName != testBridgeName {
-			t.Errorf("s.NetworkName => %v, want %s", s.NetworkName, testBridgeName)
-			continue
-		}
-
-		if s.Type() == "external" && s.NetworkName != "" {
-			t.Errorf("s.NetworkName => %v, want %s", s.NetworkName, "")
+		if s.Type() == bridgeScopeType && s.Network() != testBridgeNetwork {
+			t.Errorf("s.NetworkName => %v, want %s", s.Network(), testBridgeNetwork)
 			continue
 		}
 
@@ -358,11 +350,7 @@ func TestContextAddContainer(t *testing.T) {
 	h := exec.NewContainer("foo")
 
 	var devices object.VirtualDeviceList
-	backing := &types.VirtualEthernetCardNetworkBackingInfo{
-		VirtualDeviceDeviceBackingInfo: types.VirtualDeviceDeviceBackingInfo{
-			DeviceName: ctx.DefaultScope().NetworkName,
-		},
-	}
+	backing, _ := ctx.DefaultScope().Network().EthernetCardBackingInfo(context.TODO())
 
 	specWithEthCard := &spec.VirtualMachineConfigSpec{
 		VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{},
@@ -475,9 +463,9 @@ func TestContextAddContainer(t *testing.T) {
 
 		// spec should have a nic attached to the scope's network
 		var dev types.BaseVirtualDevice
-		dcs, err := te.h.Spec.FindNICs(s.NetworkName)
+		dcs, err := te.h.Spec.FindNICs(context.TODO(), s.Network())
 		if len(dcs) != 1 {
-			t.Fatalf("case %d: ctx.AddContainer(%v, %s, %s) more than one NIC added for scope %s", i, te.h, te.scope, te.ip, s.NetworkName)
+			t.Fatalf("case %d: ctx.AddContainer(%v, %s, %s) more than one NIC added for scope %s", i, te.h, te.scope, te.ip, s.Network())
 		}
 		dev = dcs[0].GetVirtualDeviceConfigSpec().Device
 		if spec.VirtualDeviceSlotNumber(dev) == spec.NilSlot {
@@ -799,7 +787,7 @@ func TestContextRemoveContainer(t *testing.T) {
 		}
 
 		// should have a remove spec for NIC, if container was only part of one bridge scope
-		dcs, err := te.h.Spec.FindNICs(s.NetworkName)
+		dcs, err := te.h.Spec.FindNICs(context.TODO(), s.Network())
 		if err != nil {
 			t.Fatalf(err.Error())
 		}
