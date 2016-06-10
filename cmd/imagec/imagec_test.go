@@ -88,7 +88,7 @@ func TestLearnRegistryURL(t *testing.T) {
 
 	options.registry = s.URL[7:]
 	options.image = Image
-	options.digest = Tag
+	options.tag = Tag
 
 	// should fail
 	_, err := LearnRegistryURL(options)
@@ -115,7 +115,7 @@ func TestLearnAuthURL(t *testing.T) {
 
 	options.registry = s.URL
 	options.image = Image
-	options.digest = Tag
+	options.tag = Tag
 
 	url, err := LearnAuthURL(options)
 	if err != nil {
@@ -162,24 +162,48 @@ func TestFetchImageManifest(t *testing.T) {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 
-			manifest := &Manifest{
-				Name:     Image,
-				Tag:      Tag,
-				FSLayers: []FSLayer{FSLayer{BlobSum: DigestSHA256EmptyData}},
+			manifest := `
+{
+	"schemaVersion": 1,
+	"name": "library/photon",
+	"tag": "latest",
+	"architecture": "amd64",
+	"fsLayers": [
+			{
+				"blobSum": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 			}
-
-			body, err := json.Marshal(manifest)
-			if err != nil {
-				t.Errorf(err.Error())
+	],
+	"history": [
+			{
+				"v1Compatibility": "{\"architecture\":\"amd64\",\"config\":{\"Hostname\":\"156e10b83429\",\"Domainname\":\"\",\"User\":\"\",\"AttachStdin\":false,\"AttachStdout\":false,\"AttachStderr\":false,\"Tty\":false,\"OpenStdin\":false,\"StdinOnce\":false,\"Env\":null,\"Cmd\":[\"sh\"],\"Image\":\"56ed16bd6310cca65920c653a9bb22de6b235990dcaa1742ff839867aed730e5\",\"Volumes\":null,\"WorkingDir\":\"\",\"Entrypoint\":null,\"OnBuild\":null,\"Labels\":{}},\"container\":\"5f8098ec29947b5bea80483cd3275008911ce87438fed628e34ec0c522665510\",\"container_config\":{\"Hostname\":\"156e10b83429\",\"Domainname\":\"\",\"User\":\"\",\"AttachStdin\":false,\"AttachStdout\":false,\"AttachStderr\":false,\"Tty\":false,\"OpenStdin\":false,\"StdinOnce\":false,\"Env\":null,\"Cmd\":[\"/bin/sh\",\"-c\",\"#(nop) CMD [\\\"sh\\\"]\"],\"Image\":\"56ed16bd6310cca65920c653a9bb22de6b235990dcaa1742ff839867aed730e5\",\"Volumes\":null,\"WorkingDir\":\"\",\"Entrypoint\":null,\"OnBuild\":null,\"Labels\":{}},\"created\":\"2016-03-18T18:22:48.810791943Z\",\"docker_version\":\"1.9.1\",\"id\":\"437595becdebaaaf3a4fc3db02c59a980f955dee825c153308c670610bb694e1\",\"os\":\"linux\",\"parent\":\"920777304d1d5e337bc59877253e946f224df5aae64c72538672eb74637b3c9e\"}"
 			}
-			w.Write(body)
+	],
+	"signatures": [
+			{
+				"header": {
+						"jwk": {
+							"crv": "P-256",
+							"kid": "LUQI:WBTB:JRDU:TTD2:FUVY:EMCB:64HP:MZF6:SGFS:XAB6:JPUK:6PK4",
+							"kty": "EC",
+							"x": "zjkAuFGpCuWOBl-iMMzZqgl_1cid-04S04-k-A1qEeU",
+							"y": "9HWcOMfVFUMXJGeNajIAlPicL4UOsCJSpqRcIxpUl0Q"
+						},
+						"alg": "ES256"
+				},
+				"signature": "dTXnnt3IkTScpZhyyqRlmZFcQV1QzD7lWDqnjlD4Cj-KsMuGd1pl5QpFL2Cadw-8KeTBlSleSecxjHU4t3yhCQ",
+				"protected": "eyJmb3JtYXRMZW5ndGgiOjE5MjIsImZvcm1hdFRhaWwiOiJDbjAiLCJ0aW1lIjoiMjAxNi0wNi0wOVQxNzoyMzo1NFoifQ"
+			}
+	]
+}
+`
+			w.Write([]byte(manifest))
 
 		}))
 	defer s.Close()
 
 	options.registry = s.URL
 	options.image = Image
-	options.digest = Tag
+	options.tag = Tag
 	options.token = &Token{Token: OAuthToken}
 
 	// create a temporary directory
@@ -233,7 +257,7 @@ func TestFetchImageBlob(t *testing.T) {
 
 	options.registry = s.URL
 	options.image = Image
-	options.digest = Tag
+	options.tag = Tag
 	options.token = &Token{Token: OAuthToken}
 
 	// create a temporary directory
