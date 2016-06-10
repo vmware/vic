@@ -27,8 +27,11 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/pkg/certificate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+
+	"bytes"
 
 	"golang.org/x/net/context"
 )
@@ -223,16 +226,16 @@ func (c *Create) processParams() error {
 	return nil
 }
 
-func (c *Create) loadCertificate() (*Keypair, error) {
-	var keypair *Keypair
+func (c *Create) loadCertificate() (*certificate.Keypair, error) {
+	var keypair *certificate.Keypair
 	if c.cert != "" && c.key != "" {
 		log.Infof("Loading certificate/key pair - private key in %s", c.key)
-		keypair = NewKeyPair(false, c.key, c.cert)
+		keypair = certificate.NewKeyPair(false, c.key, c.cert)
 	} else if c.tlsGenerate && c.DisplayName != "" {
 		c.key = fmt.Sprintf("./%s-key.pem", c.DisplayName)
 		c.cert = fmt.Sprintf("./%s-cert.pem", c.DisplayName)
 		log.Infof("Generating certificate/key pair - private key in %s", c.key)
-		keypair = NewKeyPair(true, c.key, c.cert)
+		keypair = certificate.NewKeyPair(true, c.key, c.cert)
 	}
 	if keypair == nil {
 		log.Warnf("Configuring without TLS - to enable use -generate-cert or -key/-cert parameters")
@@ -316,7 +319,7 @@ func (c *Create) Run(cli *cli.Context) error {
 
 	log.Infof("### Installing VCH ####")
 
-	var keypair *Keypair
+	var keypair *certificate.Keypair
 	if keypair, err = c.loadCertificate(); err != nil {
 		log.Error("Creation cannot continue: unable to load certificate")
 		return err
@@ -342,8 +345,22 @@ func (c *Create) Run(cli *cli.Context) error {
 		return err
 	}
 
+	if keypair != nil {
+		vchConfig.UserKeyPEM = string(keypair.KeyPEM)
+		vchConfig.UserCertPEM = string(keypair.CertPEM)
+	}
+
 	vConfig := validator.AddDeprecatedFields(ctx, vchConfig, c.Data)
 	vConfig.ImageFiles = images
+
+	{ // create certificates for VCH extension
+		var certbuffer, keybuffer bytes.Buffer
+		if certbuffer, keybuffer, err = certificate.CreateRawKeyPair(); err != nil {
+			return errors.Errorf("Failed to create certificate for VIC vSphere extension: %s", err)
+		}
+		vchConfig.ExtensionCert = certbuffer.String()
+		vchConfig.ExtensionKey = keybuffer.String()
+	}
 
 	executor := management.NewDispatcher(ctx, validator.Session, vchConfig, c.Force)
 	if err = executor.Dispatch(vchConfig, vConfig); err != nil {

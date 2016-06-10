@@ -23,6 +23,7 @@ import (
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/metadata"
@@ -301,6 +302,26 @@ func (d *Dispatcher) findAppliance(conf *metadata.VirtualContainerHostConfigSpec
 	return newVM, nil
 }
 
+func (d *Dispatcher) generateExtensionName(conf *metadata.VirtualContainerHostConfigSpec) error {
+	// must be called after appliance VM is created
+	vm, err := d.findAppliance(conf)
+
+	if err != nil {
+		return errors.Errorf("Could not find appliance at extension creation time; failed with error: %s", err)
+	}
+
+	var o mo.VirtualMachine
+	err = vm.Properties(d.ctx, vm.Reference(), []string{"config.uuid"}, &o)
+	if err != nil {
+		return errors.Errorf("Could get VM UUID from appliance VM")
+	}
+
+	// identifier for extension, which vSphere calls a 'key' but we want to avoid confusion w/ privkey
+	extensionIDKey := "com.vmware.vic." + o.Config.Uuid
+	conf.ExtensionName = extensionIDKey
+	return nil
+}
+
 func (d *Dispatcher) configIso(conf *metadata.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) (object.VirtualDeviceList, error) {
 	var devices object.VirtualDeviceList
 	var err error
@@ -368,6 +389,18 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 	}
 	log.Debugf("vm folder name: %s", d.vmPathName)
 	log.Debugf("vm inventory path: %s", vm2.InventoryPath)
+
+	// create an extension to register the appliance as
+	d.generateExtensionName(conf)
+	settings.Extension = types.Extension{
+		Description: &types.Description{
+			Label:   "VIC",
+			Summary: "vSphere Integrated Containers Virtual Container Host",
+		},
+		Company: "VMware, Inc.",
+		Version: "0.0",
+		Key:     conf.ExtensionName,
+	}
 
 	conf.AddComponent("vicadmin", &metadata.SessionConfig{
 		Cmd: metadata.Cmd{

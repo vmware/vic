@@ -87,9 +87,9 @@ func init() {
 
 	flag.StringVar(&config.addr, "l", ":2378", "Listen address")
 	flag.StringVar(&config.dockerHost, "docker-host", "127.0.0.1:2376", "Docker host")
-	flag.StringVar(&config.CertFile, "cert", "", "VMOMI Client certificate file")
+	flag.StringVar(&config.ExtensionCert, "cert", "", "VMOMI Client certificate file")
 	flag.StringVar(&config.hostCertFile, "hostcert", "", "Host certificate file")
-	flag.StringVar(&config.KeyFile, "key", "", "VMOMI Client private key file")
+	flag.StringVar(&config.ExtensionKey, "key", "", "VMOMI Client private key file")
 	flag.StringVar(&config.hostKeyFile, "hostkey", "", "Host private key file")
 	flag.StringVar(&config.Service, "sdk", "", "The ESXi or vCenter URL")
 	flag.StringVar(&config.DatacenterPath, "dc", "", "Name of the Datacenter")

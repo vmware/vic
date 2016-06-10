@@ -360,11 +360,7 @@ func (v *Validator) generateBridgeName(ctx, input *data.Data, conf *metadata.Vir
 func (v *Validator) target(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
-	targetURL, err := url.Parse(v.Session.Service)
-	if err != nil {
-		v.NoteIssue(fmt.Errorf("Error processing target after transformation to SOAP endpoint: %s, %s", v.Session.Service, err))
-		return
-	}
+	targetURL := input.Target.URLWithoutPassword()
 
 	conf.Target = *targetURL
 	conf.Insecure = input.Insecure
