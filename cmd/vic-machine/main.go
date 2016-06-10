@@ -45,5 +45,7 @@ func main() {
 		},
 	}
 	app.Version = fmt.Sprintf("%s.%s", MajorVersion, BuildID)
-	app.Run(os.Args)
+	if err := app.Run(os.Args); err != nil {
+		fmt.Fprintln(os.Stderr, "Error: ", err.Error())
+	}
 }
