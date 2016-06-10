@@ -166,6 +166,10 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	if len(config.Config.Entrypoint) == 0 {
 		config.Config.Entrypoint = layer.Config.Entrypoint
 	}
+	// Set TERM to xterm if tty is set
+	if config.Config.Tty {
+		config.Config.Env = append(config.Config.Env, "TERM=xterm")
+	}
 	config.Config.Env = append(config.Config.Env, layer.Config.Env...)
 
 	// Was a name provided - if not create a friendly name
