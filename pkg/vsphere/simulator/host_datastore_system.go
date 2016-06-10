@@ -65,6 +65,10 @@ func (dss *HostDatastoreSystem) add(ds *Datastore) *soap.Fault {
 	dss.Datastore = append(dss.Datastore, ds.Self)
 	dss.Host.Datastore = dss.Datastore
 
+	browser := &HostDatastoreBrowser{}
+	browser.Datastore = dss.Datastore
+	ds.Browser = Map.Put(browser).Reference()
+
 	folder := Map.Get(Map.getEntityDatacenter(dss.Host).DatastoreFolder).(*Folder)
 	folder.putChild(ds)
 
