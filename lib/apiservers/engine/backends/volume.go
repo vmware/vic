@@ -16,8 +16,13 @@ package vicbackends
 
 import (
 	"fmt"
+	"net/http"
+
+	derr "github.com/docker/docker/errors"
 
 	"github.com/docker/engine-api/types"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 type Volume struct {
@@ -37,5 +42,23 @@ func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]s
 }
 
 func (v *Volume) VolumeRm(name string) error {
-	return fmt.Errorf("%s does not implement volume.VolumeRm", v.ProductName)
+	defer trace.End(trace.Begin("Volume.VolumeRm"))
+
+	client := PortLayerClient()
+	if client == nil {
+		return derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get a portlayer client"), http.StatusInternalServerError)
+	}
+
+	//FIXME: check whether this is a name or a UUID. UUID expected for now.
+	_, err := client.Storage.RemoveVolume(storage.NewRemoveVolumeParams().WithName(name))
+	if err != nil {
+		if _, ok := err.(*storage.RemoveVolumeNotFound); ok {
+			return derr.NewRequestNotFoundError(fmt.Errorf("Get %s: no such volume", name))
+		}
+		if _, ok := err.(*storage.RemoveVolumeConflict); ok {
+			return derr.NewRequestConflictError(fmt.Errorf("Volume is in use"))
+		}
+		return derr.NewErrorWithStatusCode(fmt.Errorf("Server error form portlayer"), http.StatusInternalServerError)
+	}
+	return nil
 }

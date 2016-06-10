@@ -32,6 +32,7 @@ import (
 	spl "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/lib/portlayer/util"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // StorageHandlersImpl is the receiver for all of the storage handler methods
@@ -79,6 +80,7 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, hand
 	api.StorageGetImageTarHandler = storage.GetImageTarHandlerFunc(handler.GetImageTar)
 	api.StorageListImagesHandler = storage.ListImagesHandlerFunc(handler.ListImages)
 	api.StorageWriteImageHandler = storage.WriteImageHandlerFunc(handler.WriteImage)
+	api.StorageRemoveVolumeHandler = storage.RemoveVolumeHandlerFunc(handler.RemoveVolume)
 }
 
 // CreateImageStore creates a new image store
@@ -190,6 +192,12 @@ func (handler *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) 
 	}
 	i := convertImage(image)
 	return storage.NewWriteImageCreated().WithPayload(i)
+}
+
+//RemoveVolume : Remove a Volume from existence
+func (handler *StorageHandlersImpl) RemoveVolume(storage.RemoveVolumeParams) middleware.Responder {
+	defer trace.End(trace.Begin("storage_handlers.RemoveVolume"))
+	return storage.NewRemoveVolumeOK() //TODO: this is just a stub for now.
 }
 
 // convert an SPL Image to a swagger-defined Image

@@ -2,9 +2,15 @@
 
 Before you install vSphere Integrated Containers, you must ensure that your infrastructure meets certain requirements.
 
-## Supported Installation Environments
+## Supported Platforms for `vic-machine`
 
-The current builds of vSphere Integrated Containers run on Linux OS, Windows, and Mac OS systems.
+The current builds of the vSphere Integrated Containers installation and management utility, `vic-machine`, have been tested and verified on the following Linux OS, Windows, and Mac OS systems.
+
+|**Platform**|**Supported Versions**|
+|---|---|
+|Windows|7, 10|
+|Mac OS X |10.11 (TBC)|
+|Linux|Ubuntu 15.04, others TBD|
 
 ## Supported vSphere Configurations
 

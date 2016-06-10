@@ -193,6 +193,56 @@ paths:
           description: "error"
           schema:
             $ref: "#/definitions/Error"
+  /storage/volumes/{name}:
+    get:
+      description: "Get a Volume Handle"
+      operationId: GetVolume
+      tags: ["storage"]
+      consumes:
+        - application/json
+        - application/octet-stream
+      produces:
+        - application/json
+      parameters:
+        - name: name
+          required: true
+          in: path
+          type: string
+      responses:
+        '404':
+          description: "Volume not found"
+          schema:
+            $ref: "#/definitions/Error"
+        '200':
+          description: "OK"
+          schema:
+            type: string
+    delete:
+      summary: "Remove a volume"
+      tags: ["storage"]
+      operationId: RemoveVolume
+      parameters:
+        - name: name
+          type: string
+          in: path
+          required: true
+      responses:
+        '200':
+          description: "Volume successfully removed"
+          schema:
+            $ref: "#/definitions/Error"
+        '404':
+          description: "Volume not found"
+          schema:
+            $ref: "#/definitions/Error"
+        '409':
+          description: "Volume in use"
+          schema:
+            $ref: "#/definitions/Error"
+        '500':
+          description: "Server Error"
+          schema:
+            $ref: "#/definitions/Error"
   /scopes:
     post:
       summary: "Create a new scope"

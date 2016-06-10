@@ -4,7 +4,7 @@ After you have deployed a virtual container host to vCenter Server, you can veri
 
 **Prerequisites**
 
-- You used `vic-machine` to deploy a virtual container host to vCenter Server. For information about running `vic-machine`, see [Deploy a Virtual Container Host](install_vic_cli.md).
+- You used `vic-machine` `create` to deploy a virtual container host to vCenter Server. For information about running `vic-machine`, see [Deploy a Virtual Container Host](install_vic_cli.md).
 - You have installed a Docker client.
 - If you did not explicitly disable certificate generation when you deployed the virtual container host, copy the <code><i>vch_name</i>-cert.pem</code> and <code><i>vch_name</i>-key.pem</code> files to the system on which you you are running the Docker client. 
 - Connect a vSphere Web Client to the vCenter Server instance on which you deployed the virtual container host.

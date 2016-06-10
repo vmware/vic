@@ -24,6 +24,7 @@ type ImageConfig struct {
 
 	// image specific data
 	ImageID string            `json:"image_id,omitempty"`
+	Digest  string            `json:"digest,omitempty"`
 	Tag     string            `json:"tag,omitempty"`
 	Name    string            `json:"name,omitempty"`
 	DiffIDs map[string]string `json:"diff_ids,omitempty"`

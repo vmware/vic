@@ -205,11 +205,13 @@ func convertV1ImageToDockerImage(image *metadata.ImageConfig) *types.Image {
 
 	// TODO(jzt): change ImageConfig to contain a map from image name to all of its tags
 	repoTag := fmt.Sprintf("%s:%s", image.Name, image.Tag)
+	repoDigest := fmt.Sprintf("%s:%s", image.Name, image.Digest)
 
 	return &types.Image{
 		ID:          image.ImageID,
 		ParentID:    image.Parent,
 		RepoTags:    []string{repoTag},
+		RepoDigests: []string{repoDigest},
 		Created:     image.Created.Unix(),
 		Size:        image.Size,
 		VirtualSize: image.Size,
