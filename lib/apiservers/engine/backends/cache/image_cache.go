@@ -130,17 +130,20 @@ func (c *ImageCache) Update(client *client.PortLayer) error {
 				continue
 			}
 
-			ref, err = reference.WithTag(ref, imageConfig.Tag)
-			if err != nil {
-				log.Errorf("Tried to create tagged reference from %s and tag %s: %s", imageConfig.Name, imageConfig.Tag, err.Error())
-				continue
-			}
+			for id := range imageConfig.Tags {
+				tag := imageConfig.Tags[id]
+				ref, err = reference.WithTag(ref, tag)
+				if err != nil {
+					log.Errorf("Tried to create tagged reference from %s and tag %s: %s", imageConfig.Name, tag, err.Error())
+					continue
+				}
 
-			if tagged, ok := ref.(reference.NamedTagged); ok {
-				taggedName := tagged.Name() + ":" + tagged.Tag()
-				c.cacheByName[taggedName] = imageConfig
-			} else {
-				c.cacheByName[ref.Name()] = imageConfig
+				if tagged, ok := ref.(reference.NamedTagged); ok {
+					taggedName := fmt.Sprintf("%s:%s", tagged.Name(), tagged.Tag())
+					c.cacheByName[taggedName] = imageConfig
+				} else {
+					c.cacheByName[ref.Name()] = imageConfig
+				}
 			}
 		}
 	}
