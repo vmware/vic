@@ -15,7 +15,6 @@
 package simulator
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"path"
@@ -28,8 +27,6 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
-	"github.com/vmware/vic/pkg/vsphere/simulator/vc"
 )
 
 func TestParseDatastorePath(t *testing.T) {
@@ -102,35 +99,55 @@ func TestRefreshDatastore(t *testing.T) {
 }
 
 func TestDatastoreHTTP(t *testing.T) {
-	models := []func() (*browseDatastoreModel, error){
-		browseDatastoreModelWithESX,
-		browseDatastoreModelWithVC,
-	}
-
 	ctx := context.Background()
 	src := "datastore_test.go"
 	dst := "tmp.go"
 
-	for _, model := range models {
-		m, err := model()
-		defer m.Server.Close()
-
-		dsPath := m.Datastore.Path
-
-		if !m.Client.IsVC() {
-			m.Datacenter = nil // test using the default
+	for _, model := range []*Model{ESX(), VPX()} {
+		defer model.Remove()
+		err := model.Create()
+		if err != nil {
+			t.Fatal(err)
 		}
 
-		fm := object.NewFileManager(m.Client.Client)
-		browser, err := m.Datastore.Browser(ctx)
+		s := model.Service.NewServer()
+		defer s.Close()
+
+		c, err := govmomi.NewClient(ctx, s.URL, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		finder := find.NewFinder(c.Client, false)
+
+		dc, err := finder.DefaultDatacenter(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		finder.SetDatacenter(dc)
+
+		ds, err := finder.DefaultDatastore(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		dsPath := ds.Path
+
+		if !c.IsVC() {
+			dc = nil // test using the default
+		}
+
+		fm := object.NewFileManager(c.Client)
+		browser, err := ds.Browser(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		download := func(name string, fail bool) {
-			st, serr := m.Datastore.Stat(ctx, name)
+			st, serr := ds.Stat(ctx, name)
 
-			_, _, err = m.Datastore.Download(ctx, name, nil)
+			_, _, err = ds.Download(ctx, name, nil)
 			if fail {
 				if err == nil {
 					t.Fatal("expected Download error")
@@ -163,7 +180,7 @@ func TestDatastoreHTTP(t *testing.T) {
 			p := soap.DefaultUpload
 			p.Method = method
 
-			err = m.Datastore.Upload(ctx, f, name, &p)
+			err = ds.Upload(ctx, f, name, &p)
 			if fail {
 				if err == nil {
 					t.Fatalf("%s %s: expected error", method, name)
@@ -176,7 +193,7 @@ func TestDatastoreHTTP(t *testing.T) {
 		}
 
 		rm := func(name string, fail bool) {
-			task, err := fm.DeleteDatastoreFile(ctx, dsPath(name), m.Datacenter)
+			task, err := fm.DeleteDatastoreFile(ctx, dsPath(name), dc)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -194,7 +211,7 @@ func TestDatastoreHTTP(t *testing.T) {
 		}
 
 		mv := func(src string, dst string, fail bool, force bool) {
-			task, err := fm.MoveDatastoreFile(ctx, dsPath(src), m.Datacenter, dsPath(dst), m.Datacenter, force)
+			task, err := fm.MoveDatastoreFile(ctx, dsPath(src), dc, dsPath(dst), dc, force)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -212,7 +229,7 @@ func TestDatastoreHTTP(t *testing.T) {
 		}
 
 		mkdir := func(name string, fail bool, p bool) {
-			err := fm.MakeDirectory(ctx, dsPath(name), m.Datacenter, p)
+			err := fm.MakeDirectory(ctx, dsPath(name), dc, p)
 			if fail {
 				if err == nil {
 					t.Fatalf("mkdir %s: expected error", name)
@@ -225,7 +242,7 @@ func TestDatastoreHTTP(t *testing.T) {
 		}
 
 		stat := func(name string, fail bool) {
-			_, err := m.Datastore.Stat(ctx, name)
+			_, err := ds.Stat(ctx, name)
 			if fail {
 				if err == nil {
 					t.Fatalf("stat %s: expected error", name)
@@ -345,19 +362,19 @@ func TestDatastoreHTTP(t *testing.T) {
 				if name == dst {
 					return p
 				}
-				return m.Datastore.Path(name)
+				return ds.Path(name)
 			}
 			mv(target, dst, true, false)
 		}
 
 		dsPath = func(name string) string {
-			return m.Datastore.Path("enoent")
+			return ds.Path("enoent")
 		}
 		ls(target, true)
 
 		// cover the case where datacenter or datastore lookup fails
 		for _, q := range []string{"dcName=nope", "dsName=nope"} {
-			u := *m.Server.URL
+			u := *s.URL
 			u.RawQuery = q
 			u.Path = path.Join(folderPrefix, dst)
 
@@ -371,151 +388,4 @@ func TestDatastoreHTTP(t *testing.T) {
 			}
 		}
 	}
-}
-
-// TODO: this is a copy of vmCreateModel; we should make these helpers public elsewhere
-type browseDatastoreModel struct {
-	Service *Service
-	Server  *Server
-
-	Client     *govmomi.Client
-	Finder     *find.Finder
-	Datacenter *object.Datacenter
-	Folders    *object.DatacenterFolders
-	Cluster    *object.ClusterComputeResource
-	Pool       *object.ResourcePool
-	Host       *object.HostSystem
-	Datastore  *object.Datastore
-}
-
-func browseDatastoreModelWithESX() (*browseDatastoreModel, error) {
-	m := new(browseDatastoreModel)
-
-	m.Service = New(NewServiceInstance(esx.ServiceContent, esx.RootFolder))
-	m.Server = m.Service.NewServer()
-
-	ctx := context.Background()
-
-	c, err := govmomi.NewClient(ctx, m.Server.URL, true)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Client = c
-
-	m.Finder = find.NewFinder(c.Client, false)
-
-	m.Datacenter, err = m.Finder.DefaultDatacenter(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Finder.SetDatacenter(m.Datacenter)
-
-	m.Folders, err = m.Datacenter.Folders(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Host, err = m.Finder.DefaultHostSystem(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Pool, err = m.Finder.DefaultResourcePool(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = m.Server.TempDatastore(ctx, m.Host)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Datastore, err = m.Finder.DefaultDatastore(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return m, nil
-}
-
-func browseDatastoreModelWithVC() (*browseDatastoreModel, error) {
-	m := new(browseDatastoreModel)
-
-	m.Service = New(NewServiceInstance(vc.ServiceContent, vc.RootFolder))
-
-	m.Server = m.Service.NewServer()
-
-	ctx := context.Background()
-
-	c, err := govmomi.NewClient(ctx, m.Server.URL, true)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Client = c
-
-	f := object.NewRootFolder(c.Client)
-
-	m.Datacenter, err = f.CreateDatacenter(ctx, "dc1")
-	if err != nil {
-		return nil, err
-	}
-
-	m.Finder = find.NewFinder(c.Client, false)
-
-	m.Datacenter, err = m.Finder.DefaultDatacenter(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Finder.SetDatacenter(m.Datacenter)
-
-	m.Folders, err = m.Datacenter.Folders(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Cluster, err = m.Folders.HostFolder.CreateCluster(ctx, "cluster1", types.ClusterConfigSpecEx{})
-	if err != nil {
-		return nil, err
-	}
-
-	m.Pool, err = m.Finder.ResourcePool(ctx, "*/*")
-	if err != nil {
-		return nil, err
-	}
-
-	var hosts []*object.HostSystem
-
-	for i := 0; i < 3; i++ {
-		spec := types.HostConnectSpec{
-			HostName: fmt.Sprintf("host-%d", i),
-		}
-
-		task, cerr := m.Cluster.AddHost(ctx, spec, true, nil, nil)
-		if cerr != nil {
-			return nil, cerr
-		}
-
-		info, cerr := task.WaitForResult(ctx, nil)
-		if cerr != nil {
-			return nil, cerr
-		}
-
-		hosts = append(hosts, object.NewHostSystem(c.Client, info.Result.(types.ManagedObjectReference)))
-	}
-
-	_, err = m.Server.TempDatastore(ctx, hosts...)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Datastore, err = m.Finder.DefaultDatastore(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return m, nil
 }

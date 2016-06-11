@@ -16,18 +16,25 @@ package main
 
 import (
 	"flag"
-	"os"
+	"log"
 	"runtime"
 
-	"github.com/vmware/govmomi/vim25/mo"
-	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/vsphere/simulator"
 	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
-	"github.com/vmware/vic/pkg/vsphere/simulator/vc"
 )
 
 func main() {
-	kind := flag.String("s", "esx", "simulator service (esx,vc)")
+	model := simulator.VPX()
+
+	flag.IntVar(&model.Datacenter, "dc", model.Datacenter, "Number of datacenters")
+	flag.IntVar(&model.Cluster, "cluster", model.Cluster, "Number of clusters")
+	flag.IntVar(&model.ClusterHost, "host", model.ClusterHost, "Number of hosts per cluster")
+	flag.IntVar(&model.Host, "standalone-host", model.Host, "Number of standalone hosts")
+	flag.IntVar(&model.Datastore, "ds", model.Datastore, "Number of local datastores")
+	flag.IntVar(&model.Machine, "vm", model.Machine, "Number of virtual machines per resource pool")
+
+	isESX := flag.Bool("esx", false, "Simulate standalone ESX")
+
 	flag.Parse()
 
 	f := flag.Lookup("httptest.serve")
@@ -35,27 +42,26 @@ func main() {
 		f.Value.Set("localhost:8989")
 	}
 
-	var content *types.ServiceContent
-	var folder *mo.Folder
-
-	switch *kind {
-	case "esx":
-		content = &esx.ServiceContent
-		folder = &esx.RootFolder
-	case "vc":
-		content = &vc.ServiceContent
-		folder = &vc.RootFolder
-	default:
-		flag.Usage()
-		os.Exit(1)
+	if *isESX {
+		opts := model
+		model = simulator.ESX()
+		// Preserve options that also apply to ESX
+		model.Datastore = opts.Datastore
+		model.Machine = opts.Machine
 	}
 
 	tag := " (govmomi simulator)"
-	content.About.Name += tag
-	content.About.OsType = runtime.GOOS + "-" + runtime.GOARCH
+	model.ServiceContent.About.Name += tag
+	model.ServiceContent.About.OsType = runtime.GOOS + "-" + runtime.GOARCH
 
 	esx.HostSystem.Summary.Hardware.Vendor += tag
 
-	service := simulator.NewServiceInstance(*content, *folder)
-	simulator.New(service).NewServer()
+	defer model.Remove()
+
+	err := model.Create()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	model.Service.NewServer()
 }

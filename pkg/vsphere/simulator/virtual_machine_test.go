@@ -16,28 +16,33 @@ package simulator
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
-	"github.com/vmware/vic/pkg/vsphere/simulator/vc"
 	"golang.org/x/net/context"
 )
 
 func TestCreateVm(t *testing.T) {
-	models := []func() (*vmCreateModel, error){
-		vmCreateModelWithVC,
-		vmCreateModelWithESX,
-	}
-
 	ctx := context.Background()
 
-	for _, model := range models {
-		m, err := model()
-		defer m.Server.Close()
+	for _, model := range []*Model{ESX(), VPX()} {
+		defer model.Remove()
+		err := model.Create()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		s := model.Service.NewServer()
+		defer s.Close()
+
+		c, err := govmomi.NewClient(ctx, s.URL, true)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		spec := types.VirtualMachineConfigSpec{
 			// Note: real ESX allows the VM to be created without a GuestId,
@@ -51,28 +56,59 @@ func TestCreateVm(t *testing.T) {
 			},
 			func() {
 				spec.Files = &types.VirtualMachineFileInfo{
-					VmPathName: fmt.Sprintf("[%s] %s/%s.vmx", m.Datastore.Name(), spec.Name, spec.Name),
+					VmPathName: fmt.Sprintf("[LocalDS_0] %s/%s.vmx", spec.Name, spec.Name),
 				}
 			},
 		}
 
-		vmFolder := m.Folders.VmFolder
+		finder := find.NewFinder(c.Client, false)
+
+		dc, err := finder.DefaultDatacenter(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		finder.SetDatacenter(dc)
+
+		folders, err := dc.Folders(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		hosts, err := finder.HostSystemList(ctx, "*/*")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		nhosts := len(hosts)
+		host := hosts[rand.Intn(nhosts)]
+		pool, err := host.ResourcePool(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if nhosts == 1 {
+			// test the default path against the ESX model
+			host = nil
+		}
+
+		vmFolder := folders.VmFolder
 		// expecting CreateVM to fail until all steps are taken
 		for _, step := range steps {
-			task, err := vmFolder.CreateVM(ctx, spec, m.Pool, m.Host)
-			if err != nil {
+			task, cerr := vmFolder.CreateVM(ctx, spec, pool, host)
+			if cerr != nil {
 				t.Fatal(err)
 			}
 
-			_, err = task.WaitForResult(ctx, nil)
-			if err == nil {
+			_, cerr = task.WaitForResult(ctx, nil)
+			if cerr == nil {
 				t.Error("expected error")
 			}
 
 			step()
 		}
 
-		task, err := vmFolder.CreateVM(ctx, spec, m.Pool, m.Host)
+		task, err := vmFolder.CreateVM(ctx, spec, pool, host)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -82,7 +118,7 @@ func TestCreateVm(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		vm := object.NewVirtualMachine(m.Client.Client, info.Result.(types.ManagedObjectReference))
+		vm := object.NewVirtualMachine(c.Client, info.Result.(types.ManagedObjectReference))
 
 		name, err := vm.ObjectName(ctx)
 		if err != nil {
@@ -99,7 +135,7 @@ func TestCreateVm(t *testing.T) {
 		}
 
 		recreate := func(context.Context) (*object.Task, error) {
-			return vmFolder.CreateVM(ctx, spec, m.Pool, nil)
+			return vmFolder.CreateVM(ctx, spec, pool, nil)
 		}
 
 		ops := []struct {
@@ -160,150 +196,4 @@ func TestCreateVm(t *testing.T) {
 			}
 		}
 	}
-}
-
-type vmCreateModel struct {
-	Service *Service
-	Server  *Server
-
-	Client     *govmomi.Client
-	Finder     *find.Finder
-	Datacenter *object.Datacenter
-	Folders    *object.DatacenterFolders
-	Cluster    *object.ClusterComputeResource
-	Pool       *object.ResourcePool
-	Host       *object.HostSystem
-	Datastore  *object.Datastore
-}
-
-func vmCreateModelWithESX() (*vmCreateModel, error) {
-	m := new(vmCreateModel)
-
-	m.Service = New(NewServiceInstance(esx.ServiceContent, esx.RootFolder))
-	m.Server = m.Service.NewServer()
-
-	ctx := context.Background()
-
-	c, err := govmomi.NewClient(ctx, m.Server.URL, true)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Client = c
-
-	m.Finder = find.NewFinder(c.Client, false)
-
-	m.Datacenter, err = m.Finder.DefaultDatacenter(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Finder.SetDatacenter(m.Datacenter)
-
-	m.Folders, err = m.Datacenter.Folders(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Host, err = m.Finder.DefaultHostSystem(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Pool, err = m.Finder.DefaultResourcePool(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = m.Server.TempDatastore(ctx, m.Host)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Datastore, err = m.Finder.DefaultDatastore(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return m, nil
-}
-
-func vmCreateModelWithVC() (*vmCreateModel, error) {
-	m := new(vmCreateModel)
-
-	m.Service = New(NewServiceInstance(vc.ServiceContent, vc.RootFolder))
-
-	m.Server = m.Service.NewServer()
-
-	ctx := context.Background()
-
-	c, err := govmomi.NewClient(ctx, m.Server.URL, true)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Client = c
-
-	f := object.NewRootFolder(c.Client)
-
-	m.Datacenter, err = f.CreateDatacenter(ctx, "dc1")
-	if err != nil {
-		return nil, err
-	}
-
-	m.Finder = find.NewFinder(c.Client, false)
-
-	m.Datacenter, err = m.Finder.DefaultDatacenter(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Finder.SetDatacenter(m.Datacenter)
-
-	m.Folders, err = m.Datacenter.Folders(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Cluster, err = m.Folders.HostFolder.CreateCluster(ctx, "cluster1", types.ClusterConfigSpecEx{})
-	if err != nil {
-		return nil, err
-	}
-
-	m.Pool, err = m.Finder.ResourcePool(ctx, "*/*")
-	if err != nil {
-		return nil, err
-	}
-
-	var hosts []*object.HostSystem
-
-	for i := 0; i < 3; i++ {
-		spec := types.HostConnectSpec{
-			HostName: fmt.Sprintf("host-%d", i),
-		}
-
-		task, cerr := m.Cluster.AddHost(ctx, spec, true, nil, nil)
-		if cerr != nil {
-			return nil, cerr
-		}
-
-		info, cerr := task.WaitForResult(ctx, nil)
-		if cerr != nil {
-			return nil, cerr
-		}
-
-		hosts = append(hosts, object.NewHostSystem(c.Client, info.Result.(types.ManagedObjectReference)))
-	}
-
-	_, err = m.Server.TempDatastore(ctx, hosts...)
-	if err != nil {
-		return nil, err
-	}
-
-	m.Datastore, err = m.Finder.DefaultDatastore(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return m, nil
 }
