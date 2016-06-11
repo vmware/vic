@@ -66,7 +66,7 @@ func (t *operations) HandleSessionExit(config *tether.ExecutorConfig, session *t
 
 func (t *operations) SetHostname(name string, aliases ...string) error {
 	// switch the names around so we get the pretty name and not the ID
-	return t.BaseOperations.SetHostname(aliases[0], name)
+	return t.BaseOperations.SetHostname(aliases[0])
 }
 
 func (t *operations) Log() (io.Writer, error) {
@@ -98,7 +98,7 @@ func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMulti
 		name = session.Name
 	}
 
-	logPath := strings.Join([]string{pathPrefix, logDir, name}, string(os.PathSeparator))
+	logPath := strings.Join([]string{pathPrefix, logDir, name + ".log"}, string(os.PathSeparator))
 
 	// open SttyS2 for session logging
 	log.Infof("opening %s for session logging", logPath)

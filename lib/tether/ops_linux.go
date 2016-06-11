@@ -87,7 +87,7 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	defer hosts.Close()
 
 	names := strings.Join(aliases, " ")
-	_, err = hosts.WriteString(fmt.Sprintf("127.0.0.1 %s %s", hostname, names))
+	_, err = hosts.WriteString(fmt.Sprintf("\n127.0.0.1 %s %s\n", hostname, names))
 	if err != nil {
 		detail := fmt.Sprintf("failed to add hosts entry for hostname %s: %s", hostname, err)
 		return errors.New(detail)
@@ -147,12 +147,15 @@ func linkBySlot(slot int32) (netlink.Link, error) {
 func renameLink(link netlink.Link, slot int32, endpoint *metadata.NetworkEndpoint) (netlink.Link, error) {
 	if link.Attrs().Name == endpoint.Name || link.Attrs().Alias == endpoint.Name || endpoint.Name == "" {
 		// if the network is already identified, whether as primary name or alias it doesn't need repeating.
-		// if the name is empty then it should not be aliases or named directly. IPAM data should still be applied.
+		// if the name is empty then it should not be aliased or named directly. IPAM data should still be applied.
 		return link, nil
 	}
 
+	// TODO: add dhcp client code
+
+	// if link isn't yet named, name it
 	if strings.HasPrefix(link.Attrs().Name, "eno") {
-		log.Infof("Renaming link %s to %s", link.Attrs().Name, endpoint.Name)
+		log.Infof("Renaming link %s to %s", link.Attrs().Name, endpoint.Network.Name)
 
 		err := netlink.LinkSetDown(link)
 		if err != nil {
