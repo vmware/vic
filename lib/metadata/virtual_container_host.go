@@ -57,19 +57,19 @@ type VirtualContainerHostConfigSpec struct {
 	InfrastructureAdmin []mail.Address
 
 	// Certificates for user authentication - this needs to be expanded to allow for directory server auth
-	UserCertificates []tls.Certificate
+	UserCertificates []*RawCertificate
 	// Certificates for general outgoing network access, keyed by CIDR (IPNet.String())
-	NetworkCertificates map[string]tls.Certificate
+	NetworkCertificates map[string]*RawCertificate
 	// The certificate used to validate the appliance to clients
-	HostCertificate tls.Certificate
+	HostCertificate RawCertificate `vic:"0.1" scope:"read-only"`
 	// Certificates for specific system access, keyed by FQDN
-	HostCertificates map[string]tls.Certificate
+	HostCertificates map[string]*RawCertificate
 
 	// Port Layer - storage
 	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
-	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores" recurse:"depth=1"`
+	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores"`
 	// Permitted datastore URL roots for volumes
-	VolumeLocations map[string]url.URL `vic:"0.1" scope:"read-only" recurse:"depth=1"`
+	VolumeLocations map[string]url.URL `vic:"0.1" scope:"read-only"`
 
 	// Port Layer - network
 	// The default bridge network supplied for the Virtual Container Host
@@ -119,6 +119,13 @@ type VirtualContainerHostConfigSpec struct {
 	Networks map[string]*NetworkInfo `vic:"0.1" scope:"read-only" key:"networks2"`
 
 	ImageFiles []string `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+}
+
+// RawCertificate is present until we add extraconfig support for [][]byte slices that are present
+// in tls.Certificate
+type RawCertificate struct {
+	Key  []byte
+	Cert []byte
 }
 
 type NetworkInfo struct {
@@ -243,4 +250,8 @@ func CreateSession(cmd string, args ...string) *SessionConfig {
 	cfg.Cmd.Args = append(cfg.Cmd.Args, args...)
 
 	return cfg
+}
+
+func (t *RawCertificate) Certificate() (tls.Certificate, error) {
+	return tls.X509KeyPair(t.Cert, t.Key)
 }

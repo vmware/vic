@@ -15,6 +15,7 @@
 package validate
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/url"
 	"reflect"
@@ -74,33 +75,53 @@ func (v *Validator) ListIssues() error {
 	return errors.New("Validation of configuration failed")
 }
 
+// Validate2 runs through various validations, starting with basics such as naming, moving onto vSphere entities
+// and then the compatibility between those entities. It assembles a set of issues that are found for reporting.
 func (v *Validator) Validate2(ctx context.Context, input *Data, conf *metadata.VirtualContainerHostConfigSpec) (*metadata.VirtualContainerHostConfigSpec, error) {
-	var targetURL url.URL
-	targetURL.Scheme = "https"
-	targetURL.Host = input.target
-	targetURL.Path = "sdk"
-	targetURL.User = url.UserPassword(input.user, *input.passwd)
 
-	conf.Target = targetURL
-	conf.Insecure = input.insecure
+	v.Basics(ctx, input, conf)
 
+	v.Target(ctx, input, conf)
+	v.Compute(ctx, input, conf)
+	v.Storage(ctx, input, conf)
+	v.Network(ctx, input, conf)
+
+	v.Certificate(ctx, input, conf)
+
+	// Perform the higher level compatibility and consistency checks
+	v.Compatibility(ctx, conf)
+
+	// TODO: determine if this is where we should turn the noted issues into message
+	return conf, v.ListIssues()
+
+}
+
+func (v *Validator) Basics(ctx context.Context, input *Data, conf *metadata.VirtualContainerHostConfigSpec) {
 	// TODO: ensure that displayname doesn't violate constraints (length, characters, etc)
 	conf.SetName(input.displayName)
+}
 
+func (v *Validator) Compute(ctx context.Context, input *Data, conf *metadata.VirtualContainerHostConfigSpec) {
 	// Compute
-	pool, err := v.ResourcePool(ctx, input.computeResourcePath)
+	pool, err := v.resourcePoolHelper(ctx, input.computeResourcePath)
 	v.NoteIssue(err)
 	conf.AddComputeResource(pool)
+}
+
+func (v *Validator) Storage(ctx context.Context, input *Data, conf *metadata.VirtualContainerHostConfigSpec) {
 
 	// Image Store
-	ds, err := v.DatastorePath(ctx, input.imageDatastoreName)
+	ds, err := v.datastoreHelper(ctx, input.imageDatastoreName)
 	v.NoteIssue(err)
 	conf.AddImageStore(ds)
 
 	// TODO: add volume locations
 
+}
+
+func (v *Validator) Network(ctx context.Context, input *Data, conf *metadata.VirtualContainerHostConfigSpec) {
 	// External net
-	extMoref, err := v.Network(ctx, input.externalNetworkName)
+	extMoref, err := v.networkHelper(ctx, input.externalNetworkName)
 	v.NoteIssue(err)
 	conf.AddNetwork(&metadata.NetworkEndpoint{
 		Network: metadata.ContainerNetwork{
@@ -112,7 +133,7 @@ func (v *Validator) Validate2(ctx context.Context, input *Data, conf *metadata.V
 	})
 
 	// Bridge net
-	bridgeMoref, err := v.Network(ctx, input.bridgeNetworkName)
+	bridgeMoref, err := v.networkHelper(ctx, input.bridgeNetworkName)
 	v.NoteIssue(err)
 	conf.AddNetwork(&metadata.NetworkEndpoint{
 		Network: metadata.ContainerNetwork{
@@ -128,7 +149,7 @@ func (v *Validator) Validate2(ctx context.Context, input *Data, conf *metadata.V
 	if input.clientNetworkName == "" {
 		input.clientNetworkName = input.externalNetworkName
 	}
-	clientMoref, err := v.Network(ctx, input.clientNetworkName)
+	clientMoref, err := v.networkHelper(ctx, input.clientNetworkName)
 	v.NoteIssue(err)
 	conf.AddNetwork(&metadata.NetworkEndpoint{
 		Network: metadata.ContainerNetwork{
@@ -144,7 +165,7 @@ func (v *Validator) Validate2(ctx context.Context, input *Data, conf *metadata.V
 	if input.managementNetworkName == "" {
 		input.managementNetworkName = input.clientNetworkName
 	}
-	managementMoref, err := v.Network(ctx, input.managementNetworkName)
+	managementMoref, err := v.networkHelper(ctx, input.managementNetworkName)
 	v.NoteIssue(err)
 	mnet := &metadata.NetworkEndpoint{
 		Network: metadata.ContainerNetwork{
@@ -160,7 +181,7 @@ func (v *Validator) Validate2(ctx context.Context, input *Data, conf *metadata.V
 
 	// add mapped networks
 	for name, net := range input.mappedNetworks {
-		moref, err := v.Network(ctx, net)
+		moref, err := v.networkHelper(ctx, net)
 		v.NoteIssue(err)
 		conf.AddContainerNetwork(&metadata.ContainerNetwork{
 			Common: metadata.Common{
@@ -169,16 +190,38 @@ func (v *Validator) Validate2(ctx context.Context, input *Data, conf *metadata.V
 			},
 		})
 	}
-
-	// Perform the higher level compatibility and consistency checks
-	err = v.CompatibilityChecks(ctx, conf)
-	v.NoteIssue(err)
-
-	// TODO: determine if this is where we should turn the noted issues into message
-	return conf, v.ListIssues()
 }
 
-func (v *Validator) Network(ctx context.Context, path string) (*types.ManagedObjectReference, error) {
+func (v *Validator) Target(ctx context.Context, input *Data, conf *metadata.VirtualContainerHostConfigSpec) {
+	var targetURL url.URL
+	targetURL.Scheme = "https"
+	targetURL.Host = input.target
+	targetURL.Path = "sdk"
+	targetURL.User = url.UserPassword(input.user, *input.passwd)
+
+	conf.Target = targetURL
+	conf.Insecure = input.insecure
+
+	// TODO: more checks needed here if specifying service account for VCH
+}
+
+func (v *Validator) Certificate(ctx context.Context, input *Data, conf *metadata.VirtualContainerHostConfigSpec) {
+	// check the cert can be loaded
+	_, err := tls.X509KeyPair(input.cert, input.key)
+	v.NoteIssue(err)
+
+	conf.HostCertificate = metadata.RawCertificate{
+		Key:  input.key,
+		Cert: input.cert,
+	}
+}
+
+func (v *Validator) Compatibility(ctx context.Context, conf *metadata.VirtualContainerHostConfigSpec) {
+	// TODO: add checks such as datastore is acessible from target cluster
+
+}
+
+func (v *Validator) networkHelper(ctx context.Context, path string) (*types.ManagedObjectReference, error) {
 	nets, err := v.Session.Finder.NetworkList(ctx, path)
 	if err != nil {
 		// TODO: error message about no such match and how to get a network list
@@ -193,7 +236,7 @@ func (v *Validator) Network(ctx context.Context, path string) (*types.ManagedObj
 	return &moref, nil
 }
 
-func (v *Validator) DatastorePath(ctx context.Context, path string) (*url.URL, error) {
+func (v *Validator) datastoreHelper(ctx context.Context, path string) (*url.URL, error) {
 	dsURL, err := url.Parse(path)
 	if err != nil {
 		// try treating it as a plain path
@@ -231,7 +274,7 @@ func (v *Validator) DatastorePath(ctx context.Context, path string) (*url.URL, e
 	return dsURL, nil
 }
 
-func (v *Validator) ResourcePool(ctx context.Context, path string) (*types.ManagedObjectReference, error) {
+func (v *Validator) resourcePoolHelper(ctx context.Context, path string) (*types.ManagedObjectReference, error) {
 	pools, err := v.Session.Finder.ResourcePoolList(ctx, path)
 	if err != nil {
 		// TODO: error message about no such match and how to get a network list
@@ -244,11 +287,6 @@ func (v *Validator) ResourcePool(ctx context.Context, path string) (*types.Manag
 
 	moref := pools[0].Reference()
 	return &moref, nil
-}
-
-func (v *Validator) CompatibilityChecks(ctx context.Context, conf *metadata.VirtualContainerHostConfigSpec) error {
-	// TODO: add checks such as datastore is acessible from target cluster
-	return nil
 }
 
 func (v *Validator) Validate(input *Data) (*metadata.VirtualContainerHostConfigSpec, error) {
@@ -370,9 +408,9 @@ func (v *Validator) validateConfiguration(input *data.Data, vchConfig *metadata.
 	}
 
 	vchConfig.ComputeResources = append(vchConfig.ComputeResources, v.Session.Pool.Reference())
-	var imageURL url.URL
-	imageURL.Host = v.Session.Datastore.Reference().Value
-	vchConfig.ImageStores = append(vchConfig.ImageStores, imageURL)
+	// var imageURL url.URL
+	// imageURL.Host = v.Session.Datastore.Reference().Value
+	// vchConfig.ImageStores = append(vchConfig.ImageStores, imageURL)
 	//TODO: Add more configuration validation
 	return nil
 }

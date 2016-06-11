@@ -262,7 +262,7 @@ func (d *Dispatcher) getPresetExtraconfig(conf *metadata.VirtualContainerHostCon
 			&types.OptionValue{
 				Key: "guestinfo.vch/sbin/vicadmin",
 				Value: fmt.Sprintf("-docker-host=unix:///var/run/docker.sock -insecure -sdk=%s -ds=%s -vm-path=%s -cluster=%s -pool=%s %s",
-					conf.Target.String(), conf.ImageStores[0], conf.ApplianceInventoryPath, conf.ClusterPath, d.vchPoolPath, vicadmintlsargs),
+					conf.Target.String(), conf.ImageStores[0].String(), conf.ApplianceInventoryPath, conf.ClusterPath, d.vchPoolPath, vicadmintlsargs),
 			})
 	} else {
 		d.VICAdminProto = "http"
@@ -275,7 +275,7 @@ func (d *Dispatcher) getPresetExtraconfig(conf *metadata.VirtualContainerHostCon
 		extraConfig = append(extraConfig,
 			&types.OptionValue{Key: "guestinfo.vch/sbin/vicadmin",
 				Value: fmt.Sprintf("-docker-host=unix:///var/run/docker.sock -insecure -sdk=%s -ds=%s -vm-path=%s -cluster=%s -pool=%s -tls=%t",
-					conf.Target.String(), conf.ImageStores[0], conf.ApplianceInventoryPath, conf.ClusterPath, d.vchPoolPath, false),
+					conf.Target.String(), conf.ImageStores[0].String(), conf.ApplianceInventoryPath, conf.ClusterPath, d.vchPoolPath, false),
 			})
 	}
 	extraConfig = append(extraConfig,
@@ -392,9 +392,12 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 				// FIXME: hack during config migration
 				"-insecure",
 				"-sdk=" + conf.Target.String(),
-				"-ds=" + conf.ImageStores[0].String(),
+				"-ds=" + conf.ImageStores[0].Host,
 				"-cluster=" + conf.ClusterPath,
 				"-pool=" + conf.ResourcePoolPath,
+				// FIXME: tls is hardcoded false until vicadmin is migrated to extraconfig
+				// this is to avoid having to put in code to push files into the appliance
+				"-tls=false",
 			},
 		},
 	},
@@ -427,7 +430,7 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 				"--datacenter=" + conf.DatacenterName,
 				"--cluster=" + conf.ClusterPath,
 				"--pool=" + conf.ResourcePoolPath,
-				"--datastore=" + conf.ImageStores[0].String(),
+				"--datastore=" + conf.ImageStores[0].Host,
 				"--network=" + conf.Networks["client"].InventoryPath,
 				"--vch=" + conf.Common.Name,
 			},
