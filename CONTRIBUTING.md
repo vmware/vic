@@ -240,5 +240,3 @@ The layout in the repo is as follows - this is a recent reorganisation so there 
 * pkg - packages that are not tightly coupled to vmware/vic and could be usefully consumed in other projects. There is still some sanitization to do here.
 * tests - integration and system test code that doesn't use go test
 * vendor - standard Go vendor model
-
-
