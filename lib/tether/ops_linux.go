@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -81,7 +82,7 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	// add entry to hosts for resolution without nameservers
 	hosts, err := os.OpenFile(hostsFile, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		detail := fmt.Sprintf("failed to update %s with hostname: %s", hostsFile, err)
+		detail := fmt.Sprintf("failed to update hosts with hostname: %s", err)
 		return errors.New(detail)
 	}
 	defer hosts.Close()
@@ -147,15 +148,12 @@ func linkBySlot(slot int32) (netlink.Link, error) {
 func renameLink(link netlink.Link, slot int32, endpoint *metadata.NetworkEndpoint) (netlink.Link, error) {
 	if link.Attrs().Name == endpoint.Name || link.Attrs().Alias == endpoint.Name || endpoint.Name == "" {
 		// if the network is already identified, whether as primary name or alias it doesn't need repeating.
-		// if the name is empty then it should not be aliased or named directly. IPAM data should still be applied.
+		// if the name is empty then it should not be aliases or named directly. IPAM data should still be applied.
 		return link, nil
 	}
 
-	// TODO: add dhcp client code
-
-	// if link isn't yet named, name it
 	if strings.HasPrefix(link.Attrs().Name, "eno") {
-		log.Infof("Renaming link %s to %s", link.Attrs().Name, endpoint.Network.Name)
+		log.Infof("Renaming link %s to %s", link.Attrs().Name, endpoint.Name)
 
 		err := netlink.LinkSetDown(link)
 		if err != nil {
@@ -310,7 +308,12 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
 
 	// Locate interface
-	link, err := linkBySlot(endpoint.PCISlot)
+	slot, err := strconv.Atoi(endpoint.ID)
+	if err != nil {
+		detail := fmt.Sprintf("endpoint ID must be a base10 numeric pci slot identifier: %s", err)
+		return errors.New(detail)
+	}
+	link, err := linkBySlot(int32(slot))
 	if err != nil {
 		detail := fmt.Sprintf("unable to acquire reference to link %s: %s", endpoint.ID, err)
 		return errors.New(detail)
@@ -319,12 +322,11 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 	// TODO: add dhcp client code
 
 	// rename the link if needed
-	link, err = renameLink(link, endpoint.PCISlot, endpoint)
+	link, err = renameLink(link, int32(slot), endpoint)
 	if err != nil {
 		detail := fmt.Sprintf("unable to reacquire link %s after rename pass: %s", endpoint.ID, err)
 		return errors.New(detail)
 	}
-	defer hosts.Close()
 
 	// assign IP address as needed
 	updated, err := assignIP(link, endpoint)
@@ -365,7 +367,7 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 		entry := fmt.Sprintf("%s localhost.%s", endpoint.Assigned, endpoint.Network.Name)
 		_, err = hosts.WriteString(fmt.Sprintf("\n%s\n", entry))
 		if err != nil {
-			detail := fmt.Sprintf("failed to add host entries for endpoint %s: %s", endpoint.Network.Name, err)
+			detail := fmt.Sprintf("failed to add host entry for endpoint %s: %s", endpoint.Network.Name, err)
 			return errors.New(detail)
 		}
 

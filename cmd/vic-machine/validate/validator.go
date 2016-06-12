@@ -124,6 +124,9 @@ func (v *Validator) Network(ctx context.Context, input *Data, conf *metadata.Vir
 	extMoref, err := v.networkHelper(ctx, input.externalNetworkName)
 	v.NoteIssue(err)
 	conf.AddNetwork(&metadata.NetworkEndpoint{
+		Common: metadata.Common{
+			Name: "external",
+		},
 		Network: metadata.ContainerNetwork{
 			Common: metadata.Common{
 				Name: "external",
@@ -136,6 +139,9 @@ func (v *Validator) Network(ctx context.Context, input *Data, conf *metadata.Vir
 	bridgeMoref, err := v.networkHelper(ctx, input.bridgeNetworkName)
 	v.NoteIssue(err)
 	conf.AddNetwork(&metadata.NetworkEndpoint{
+		Common: metadata.Common{
+			Name: "bridge",
+		},
 		Network: metadata.ContainerNetwork{
 			Common: metadata.Common{
 				Name: "bridge",
@@ -152,6 +158,9 @@ func (v *Validator) Network(ctx context.Context, input *Data, conf *metadata.Vir
 	clientMoref, err := v.networkHelper(ctx, input.clientNetworkName)
 	v.NoteIssue(err)
 	conf.AddNetwork(&metadata.NetworkEndpoint{
+		Common: metadata.Common{
+			Name: "client",
+		},
 		Network: metadata.ContainerNetwork{
 			Common: metadata.Common{
 				Name: "client",
@@ -176,8 +185,6 @@ func (v *Validator) Network(ctx context.Context, input *Data, conf *metadata.Vir
 		},
 	}
 	conf.AddNetwork(mnet)
-	// the management nic shouldn't need an alias if it's sharing with another nic
-	mnet.Network.Common.Name = ""
 
 	// add mapped networks
 	for name, net := range input.mappedNetworks {

@@ -478,8 +478,8 @@ func TestContextAddContainer(t *testing.T) {
 			t.Fatalf("case %d: ctx.AddContainer(%v, %s, %s) no network endpoint info added", i, te.h, te.scope, te.ip)
 		}
 
-		if spec.VirtualDeviceSlotNumber(dev) != ne.PCISlot {
-			t.Fatalf("case %d; ctx.AddContainer(%v, %s, %s) => ne.PCISlot == %d, want %d", i, te.h, te.scope, te.ip, ne.PCISlot, spec.VirtualDeviceSlotNumber(dev))
+		if spec.VirtualDeviceSlotNumber(dev) != atoiOrZero(ne.ID) {
+			t.Fatalf("case %d; ctx.AddContainer(%v, %s, %s) => ne.ID == %d, want %d", i, te.h, te.scope, te.ip, atoiOrZero(ne.ID), spec.VirtualDeviceSlotNumber(dev))
 		}
 
 		if ne.Network.Name != s.Name() {
@@ -490,7 +490,7 @@ func TestContextAddContainer(t *testing.T) {
 			t.Fatalf("case %d; ctx.AddContainer(%v, %s, %s) => ne.Static.IP == %s, want %s", i, te.h, te.scope, te.ip, ne.Static.IP, te.ip)
 		}
 
-		if te.ip == nil && !ne.Static.IP.Equal(net.IPv4zero) {
+		if te.ip == nil && ne.Static != nil && !ne.Static.IP.Equal(net.IPv4zero) {
 			t.Fatalf("case %d; ctx.AddContainer(%v, %s, %s) => ne.Static.IP == %s, want %s", i, te.h, te.scope, te.ip, ne.Static.IP, net.IPv4zero)
 		}
 	}

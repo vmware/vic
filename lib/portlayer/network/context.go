@@ -19,6 +19,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -512,8 +513,11 @@ var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, e
 	if spec.VirtualDeviceSlotNumber(d) == spec.NilSlot {
 		slots := make(map[int32]bool)
 		for _, e := range h.ExecConfig.Networks {
-			if e.PCISlot > 0 {
-				slots[e.PCISlot] = true
+			if e.Common.ID != "" {
+				slot, err := strconv.Atoi(e.Common.ID)
+				if err == nil {
+					slots[slot] = true
+				}
 			}
 		}
 

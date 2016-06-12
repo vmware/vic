@@ -278,6 +278,29 @@ func TestNet(t *testing.T) {
 	assert.Equal(t, Net, decoded, "Encoded and decoded does not match")
 }
 
+func TestNilNetPointer(t *testing.T) {
+	t.Skip("Skipping zero value deep structure trees referenced by pointers is not yet implemented")
+	type Type struct {
+		Net *net.IPNet `vic:"0.1" scope:"read-only" key:"net"`
+	}
+
+	Net := Type{
+		Net: nil,
+	}
+
+	// Net should be nil - pointers are supposed to be nil if the referenced tree is zero valued
+	encoded := map[string]string{}
+	Encode(MapSink(encoded), Net)
+
+	expected := map[string]string{}
+	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
+
+	var decoded Type
+	Decode(MapSource(encoded), &decoded)
+
+	assert.Equal(t, Net, decoded, "Encoded and decoded does not match")
+}
+
 func TestPointer(t *testing.T) {
 	type Type struct {
 		Pointer           *ContainerVM `vic:"0.1" scope:"hidden" key:"pointer"`

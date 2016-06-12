@@ -16,6 +16,7 @@ package management
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -104,7 +105,7 @@ func (d *Dispatcher) addNetworkDevices(conf *metadata.VirtualContainerHostConfig
 	for name, endpoint := range conf.ExecutorConfig.Networks {
 		if pnic, ok := nets[endpoint.Network.Common.ID]; ok {
 			// there's already a NIC on this network
-			endpoint.PCISlot = pnic.PCISlot
+			endpoint.Common.ID = pnic.Common.ID
 			log.Infof("Network role %s is sharing NIC with %s", name, pnic.Network.Common.Name)
 			continue
 		}
@@ -143,7 +144,7 @@ func (d *Dispatcher) addNetworkDevices(conf *metadata.VirtualContainerHostConfig
 			err = errors.Errorf("Failed to assign stable PCI slot for %s network card", name)
 		}
 
-		endpoint.PCISlot = slot
+		endpoint.Common.ID = strconv.Itoa(int(slot))
 		slots[slot] = true
 		log.Infof("Setting %s to slot %d", name, slot)
 

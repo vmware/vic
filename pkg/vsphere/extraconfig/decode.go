@@ -204,6 +204,7 @@ func decodeStruct(src DataSource, dest reflect.Value, prefix string, depth recur
 	}
 
 	if !valid {
+		log.Debugf("No valid result, returning zero value")
 		return reflect.Value{}
 	}
 
