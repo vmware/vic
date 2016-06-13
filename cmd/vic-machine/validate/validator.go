@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package create
+package validate
 
 import (
 	"fmt"
@@ -21,7 +21,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/cmd/vic-machine/data"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -49,41 +51,31 @@ func NewValidator() *Validator {
 	return &Validator{}
 }
 
-func (v *Validator) Validate(input *Create) (*metadata.VirtualContainerHostConfigSpec, error) {
+func (v *Validator) Validate(input *data.Data) (*metadata.VirtualContainerHostConfigSpec, error) {
 
 	vchConfig := &metadata.VirtualContainerHostConfigSpec{}
-	vchConfig.ApplianceSize.CPU.Limit = int64(input.numCPUs)
-	vchConfig.ApplianceSize.Memory.Limit = int64(input.memoryMB)
-	vchConfig.Name = input.displayName
+	vchConfig.ApplianceSize.CPU.Limit = int64(input.NumCPUs)
+	vchConfig.ApplianceSize.Memory.Limit = int64(input.MemoryMB)
+	vchConfig.Name = input.DisplayName
 
-	resources := strings.Split(input.computeResourcePath, "/")
-	if len(resources) < 2 || resources[1] == "" {
-		err := errors.Errorf("Could not determine datacenter from specified -compute path, %s", input.computeResourcePath)
-		return nil, err
-	}
-	v.DatacenterName = resources[1]
-	v.ClusterPath = strings.Split(input.computeResourcePath, "/Resources")[0]
-
-	if v.ClusterPath == "" {
-		err := errors.Errorf("Could not determine cluster from specified -compute path, %s", input.computeResourcePath)
+	if err := v.ParseComputeResourcePath(input.ComputeResourcePath); err != nil {
 		return nil, err
 	}
 
-	v.ResourcePoolPath = input.computeResourcePath
-	v.ImageStorePath = fmt.Sprintf("/%s/datastore/%s", v.DatacenterName, input.imageDatastoreName)
+	v.ImageStorePath = fmt.Sprintf("/%s/datastore/%s", v.DatacenterName, input.ImageDatastoreName)
 
-	v.TargetPath = fmt.Sprintf("%s:%s@%s/sdk", input.user, *input.password, input.target)
+	v.TargetPath = input.URL.String()
 	vchConfig.Target = v.TargetPath
-	vchConfig.Insecure = input.insecure
+	vchConfig.Insecure = input.Insecure
 
-	v.ExternalNetworkPath = fmt.Sprintf("/%s/network/%s", v.DatacenterName, input.externalNetworkName)
-	v.BridgeNetworkPath = fmt.Sprintf("/%s/network/%s", v.DatacenterName, input.bridgeNetworkName)
-	v.BridgeNetworkName = input.bridgeNetworkName
-	if input.managementNetworkName != "" {
-		v.ManagementNetworkPath = fmt.Sprintf("/%s/network/%s", v.DatacenterName, input.managementNetworkName)
-		v.ManagementNetworkName = input.managementNetworkName
+	v.ExternalNetworkPath = fmt.Sprintf("/%s/network/%s", v.DatacenterName, input.ExternalNetworkName)
+	v.BridgeNetworkPath = fmt.Sprintf("/%s/network/%s", v.DatacenterName, input.BridgeNetworkName)
+	v.BridgeNetworkName = input.BridgeNetworkName
+	if input.ManagementNetworkName != "" {
+		v.ManagementNetworkPath = fmt.Sprintf("/%s/network/%s", v.DatacenterName, input.ManagementNetworkName)
+		v.ManagementNetworkName = input.ManagementNetworkName
 	}
-	vchConfig.ImageStoreName = input.imageDatastoreName
+	vchConfig.ImageStoreName = input.ImageDatastoreName
 	vchConfig.DatacenterName = v.DatacenterName
 	vchConfig.ClusterPath = v.ClusterPath
 
@@ -93,14 +85,45 @@ func (v *Validator) Validate(input *Create) (*metadata.VirtualContainerHostConfi
 	return vchConfig, nil
 }
 
-func (v *Validator) validateConfiguration(input *Create, vchConfig *metadata.VirtualContainerHostConfigSpec) error {
-	log.Infof("Validating supplied configuration")
+func (v *Validator) ParseComputeResourcePath(rp string) error {
+	resources := strings.Split(rp, "/")
+	if len(resources) < 2 || resources[1] == "" {
+		err := errors.Errorf("Could not determine datacenter from specified -compute-resource path, %s", rp)
+		return err
+	}
+	v.DatacenterName = resources[1]
+	v.ClusterPath = strings.Split(rp, "/Resources")[0]
 
+	if v.ClusterPath == "" {
+		err := errors.Errorf("Could not determine cluster from specified -compute-resource path, %s", rp)
+		return err
+	}
+	v.ResourcePoolPath = rp
+	return nil
+}
+
+func (v *Validator) GetResourcePool(input *data.Data) (*object.ResourcePool, error) {
+	if err := v.ParseComputeResourcePath(input.ComputeResourcePath); err != nil {
+		return nil, err
+	}
+	if err := v.getConnection(input); err != nil {
+		return nil, err
+	}
+
+	if err := v.getResources(v.Context); err != nil {
+		log.Errorf("Failed to get resources: %s", err)
+		return nil, err
+	}
+
+	return v.Session.Pool, nil
+}
+
+func (v *Validator) getConnection(input *data.Data) error {
 	var err error
 	v.Context = context.TODO()
 	sessionconfig := &session.Config{
-		Service:        v.TargetPath,
-		Insecure:       input.insecure,
+		Service:        input.URL.String(),
+		Insecure:       input.Insecure,
 		DatacenterPath: v.DatacenterName,
 		ClusterPath:    v.ClusterPath,
 		DatastorePath:  v.ImageStorePath,
@@ -112,12 +135,19 @@ func (v *Validator) validateConfiguration(input *Create, vchConfig *metadata.Vir
 		log.Errorf("Failed to create session: %s", err)
 		return err
 	}
-	_, err = v.Session.Connect(v.Context)
-	if err != nil {
+	if _, err = v.Session.Connect(v.Context); err != nil {
+		return err
+	}
+	return nil
+}
+func (v *Validator) validateConfiguration(input *data.Data, vchConfig *metadata.VirtualContainerHostConfigSpec) error {
+	log.Infof("Validating supplied configuration")
+	var err error
+	if err = v.getConnection(input); err != nil {
 		return err
 	}
 
-	if _, err = v.Session.Populate(v.Context); err != nil {
+	if err = v.getResources(v.Context); err != nil {
 		log.Errorf("Failed to get resources: %s", err)
 		return err
 	}
@@ -128,7 +158,7 @@ func (v *Validator) validateConfiguration(input *Create, vchConfig *metadata.Vir
 		return err
 	}
 
-	if err = v.createBridgeNetwork(); err != nil && !input.force {
+	if err = v.createBridgeNetwork(); err != nil && !input.Force {
 		return errors.Errorf("Creating bridge network failed with %s", err)
 	}
 
@@ -141,6 +171,67 @@ func (v *Validator) validateConfiguration(input *Create, vchConfig *metadata.Vir
 	vchConfig.ImageStore = v.ImageStorePath
 
 	//TODO: Add more configuration validation
+	return nil
+}
+
+func (v *Validator) getResources(ctx context.Context) error {
+	var errs []string
+	var err error
+
+	finder := v.Session.Finder
+
+	log.Debug("Check vSphere resources ...")
+	if v.DatacenterName != "" {
+		v.Session.Datacenter, err = finder.DatacenterOrDefault(ctx, v.DatacenterName)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("Failure finding dc (%s): %s", v.DatacenterName, err.Error()))
+		} else {
+			finder.SetDatacenter(v.Session.Datacenter)
+			log.Debugf("Found dc: %s", v.DatacenterName)
+		}
+	}
+
+	if v.ClusterPath != "" {
+		v.Session.Cluster, err = finder.ComputeResourceOrDefault(ctx, v.ClusterPath)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("Failure finding cluster (%s): %s", v.ClusterPath, err.Error()))
+		} else {
+			log.Debugf("Found cluster: %s", v.ClusterPath)
+		}
+	}
+
+	if v.ImageStorePath != "" {
+		v.Session.Datastore, err = finder.DatastoreOrDefault(ctx, v.ImageStorePath)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("Failure finding ds (%s): %s", v.ImageStorePath, err.Error()))
+		} else {
+			log.Debugf("Found ds: %s", v.ImageStorePath)
+		}
+	}
+
+	v.Session.Host, err = finder.HostSystemOrDefault(ctx, v.Session.HostPath)
+	if err != nil {
+		if _, ok := err.(*find.DefaultMultipleFoundError); !ok || !v.Session.IsVC() {
+			errs = append(errs, fmt.Sprintf("Failure finding host (%s): %s", v.Session.HostPath, err.Error()))
+		}
+	} else {
+		log.Debugf("Found host: %s", v.Session.HostPath)
+	}
+
+	if v.ResourcePoolPath != "" {
+		v.Session.Pool, err = finder.ResourcePoolOrDefault(ctx, v.ResourcePoolPath)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("Failure finding pool (%s): %s", v.ResourcePoolPath, err.Error()))
+		} else {
+			log.Debugf("Found pool: %s", v.ResourcePoolPath)
+		}
+	}
+
+	if len(errs) > 0 {
+		log.Debugf("Error count populating vSphere cache: (%d)", len(errs))
+		return errors.New(strings.Join(errs, "\n"))
+	}
+	log.Debug("vSphere resources populated...")
 	return nil
 }
 

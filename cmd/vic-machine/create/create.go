@@ -24,11 +24,11 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/urfave/cli"
+	"github.com/vmware/vic/cmd/vic-machine/data"
+	"github.com/vmware/vic/cmd/vic-machine/validate"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/pkg/errors"
-	"github.com/vmware/vic/pkg/flags"
 
-	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/net/context"
 )
 
@@ -45,21 +45,7 @@ const (
 
 // Create has all input parameters for vic-machine create command
 type Create struct {
-	target              string
-	user                string
-	password            *string
-	computeResourcePath string
-	imageDatastoreName  string
-	displayName         string
-
-	containerDatastoreName string
-	externalNetworkName    string
-	managementNetworkName  string
-	bridgeNetworkName      string
-
-	numCPUs  int
-	memoryMB int
-	insecure bool
+	*data.Data
 
 	applianceISO string
 	bootstrapISO string
@@ -67,11 +53,9 @@ type Create struct {
 	cert string
 	key  string
 
-	force       bool
 	tlsGenerate bool
 
 	osType  string
-	timeout time.Duration
 	logfile string
 
 	executor *management.Dispatcher
@@ -85,29 +69,14 @@ var (
 )
 
 func NewCreate() *Create {
-	return &Create{}
+	create := &Create{}
+	create.Data = data.NewData()
+	return create
 }
 
 // Flags return all cli flags for create
 func (c *Create) Flags() []cli.Flag {
-	return []cli.Flag{
-		cli.StringFlag{
-			Name:        "target",
-			Value:       "",
-			Usage:       "ESXi or vCenter FQDN or IPv4 address",
-			Destination: &c.target,
-		},
-		cli.StringFlag{
-			Name:        "user",
-			Value:       "",
-			Usage:       "ESX or vCenter user",
-			Destination: &c.user,
-		},
-		cli.GenericFlag{
-			Name:  "password, p",
-			Value: flags.NewOptionalString(&c.password),
-			Usage: "ESX or vCenter password",
-		},
+	flags := []cli.Flag{
 		cli.StringFlag{
 			Name:        "cert",
 			Value:       "",
@@ -124,43 +93,43 @@ func (c *Create) Flags() []cli.Flag {
 			Name:        "compute-resource",
 			Value:       "",
 			Usage:       "Compute resource path, e.g. /ha-datacenter/host/myCluster/Resources/myRP",
-			Destination: &c.computeResourcePath,
+			Destination: &c.ComputeResourcePath,
 		},
 		cli.StringFlag{
 			Name:        "image-datastore",
 			Value:       "",
 			Usage:       "Image datastore name",
-			Destination: &c.imageDatastoreName,
+			Destination: &c.ImageDatastoreName,
 		},
 		cli.StringFlag{
 			Name:        "container-datastore",
 			Value:       "",
 			Usage:       "Container datastore name - defaults to image datastore",
-			Destination: &c.containerDatastoreName,
+			Destination: &c.ContainerDatastoreName,
 		},
 		cli.StringFlag{
 			Name:        "name",
 			Value:       "docker-appliance",
 			Usage:       "The name of the Virtual Container Host",
-			Destination: &c.displayName,
+			Destination: &c.DisplayName,
 		},
 		cli.StringFlag{
 			Name:        "external-network",
 			Value:       "",
 			Usage:       "The external network (can see hub.docker.com)",
-			Destination: &c.externalNetworkName,
+			Destination: &c.ExternalNetworkName,
 		},
 		cli.StringFlag{
 			Name:        "management-network",
 			Value:       "",
 			Usage:       "The management network (can see target)",
-			Destination: &c.managementNetworkName,
+			Destination: &c.ManagementNetworkName,
 		},
 		cli.StringFlag{
 			Name:        "bridge-network",
 			Value:       "",
 			Usage:       "The bridge network",
-			Destination: &c.bridgeNetworkName,
+			Destination: &c.BridgeNetworkName,
 		},
 		cli.StringFlag{
 			Name:        "appliance-iso",
@@ -177,7 +146,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.BoolFlag{
 			Name:        "force",
 			Usage:       "Force the install, removing existing if present",
-			Destination: &c.force,
+			Destination: &c.Force,
 		},
 		cli.BoolTFlag{
 			Name:        "generate-cert",
@@ -188,76 +157,62 @@ func (c *Create) Flags() []cli.Flag {
 			Name:        "timeout",
 			Value:       3 * time.Minute,
 			Usage:       "Time to wait for appliance initialization",
-			Destination: &c.timeout,
+			Destination: &c.Timeout,
 		},
 		cli.IntFlag{
 			Name:        "appliance-memory",
 			Value:       2048,
 			Usage:       "Memory for the appliance VM, in MB",
-			Destination: &c.memoryMB,
+			Destination: &c.MemoryMB,
 		},
 		cli.IntFlag{
 			Name:        "appliance-cpu",
 			Value:       1,
 			Usage:       "vCPUs for the appliance VM",
-			Destination: &c.numCPUs,
+			Destination: &c.NumCPUs,
 		},
 	}
+	flags = append(c.TargetFlags(), flags...)
+	return flags
 }
 
 func (c *Create) processParams() error {
-	if c.target == "" {
-		return cli.NewExitError("--target argument must be specified", 1)
+	if err := c.ProcessTargets(); err != nil {
+		return err
 	}
 
-	if c.user == "" {
-		return cli.NewExitError("--user User to login target must be specified", 1)
-	}
-
-	if c.computeResourcePath == "" {
+	if c.ComputeResourcePath == "" {
 		return cli.NewExitError("--compute-resource Compute resource path must be specified", 1)
 	}
 
-	if c.imageDatastoreName == "" {
+	if c.ImageDatastoreName == "" {
 		return cli.NewExitError("--image-datastore Image datastore name must be specified", 1)
 	}
 
 	if c.cert != "" && c.key == "" {
-		return cli.NewExitError("key and cert should be specified at the same time", 1)
+		return cli.NewExitError("key cert should be specified at the same time", 1)
 	}
 	if c.cert == "" && c.key != "" {
-		return cli.NewExitError("key and cert should be specified at the same time", 1)
+		return cli.NewExitError("key cert should be specified at the same time", 1)
 	}
 
-	if c.externalNetworkName == "" {
-		c.externalNetworkName = "VM Network"
+	if c.ExternalNetworkName == "" {
+		c.ExternalNetworkName = "VM Network"
 	}
 
-	if c.bridgeNetworkName == "" {
-		c.bridgeNetworkName = c.displayName
+	if c.BridgeNetworkName == "" {
+		c.BridgeNetworkName = c.DisplayName
 	}
 
-	if len(c.displayName) > MaxDisplayNameLen {
-		return cli.NewExitError(fmt.Sprintf("Display name %s exceeds the permitted 31 characters limit. Please use a shorter -name parameter", c.displayName), 1)
-	}
-
-	//prompt for passwd if not specified
-	if c.password == nil {
-		log.Print("Please enter ESX or vCenter password: ")
-		b, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-		if err != nil {
-			message := fmt.Sprintf("Failed to read password from stdin: %s", err)
-			cli.NewExitError(message, 1)
-		}
-		sb := string(b)
-		c.password = &sb
+	if len(c.DisplayName) > MaxDisplayNameLen {
+		return cli.NewExitError(fmt.Sprintf("Display name %s exceeds the permitted 31 characters limit. Please use a shorter -name parameter", c.DisplayName), 1)
 	}
 
 	// FIXME: add parameters for these configurations
 	c.osType = "linux"
-	c.logfile = "install.log"
+	c.logfile = "create.log"
 
-	c.insecure = true
+	c.Insecure = true
 	return nil
 }
 
@@ -267,8 +222,8 @@ func (c *Create) loadCertificate() (*Keypair, error) {
 		log.Infof("Loading certificate/key pair - private key in %s", c.key)
 		keypair = NewKeyPair(false, c.key, c.cert)
 	} else if c.tlsGenerate {
-		c.key = fmt.Sprintf("./%s-key.pem", c.displayName)
-		c.cert = fmt.Sprintf("./%s-cert.pem", c.displayName)
+		c.key = fmt.Sprintf("./%s-key.pem", c.DisplayName)
+		c.cert = fmt.Sprintf("./%s-cert.pem", c.DisplayName)
 		log.Infof("Generating certificate/key pair - private key in %s", c.key)
 		keypair = NewKeyPair(true, c.key, c.cert)
 	}
@@ -355,8 +310,8 @@ func (c *Create) Run(cli *cli.Context) error {
 		return err
 	}
 
-	validator := NewValidator()
-	vchConfig, err := validator.Validate(c)
+	validator := validate.NewValidator()
+	vchConfig, err := validator.Validate(c.Data)
 	if err != nil {
 		err = errors.Errorf("%s. Exiting...", err)
 		return err
@@ -369,9 +324,9 @@ func (c *Create) Run(cli *cli.Context) error {
 	vchConfig.ImageFiles = images
 
 	var cancel context.CancelFunc
-	validator.Context, cancel = context.WithTimeout(validator.Context, c.timeout)
+	validator.Context, cancel = context.WithTimeout(validator.Context, c.Timeout)
 	defer cancel()
-	executor := management.NewDispatcher(validator.Context, validator.Session, vchConfig, c.force)
+	executor := management.NewDispatcher(validator.Context, validator.Session, vchConfig, c.Force)
 	if err = executor.Dispatch(vchConfig); err != nil {
 		executor.CollectDiagnosticLogs()
 		return err
