@@ -1,6 +1,6 @@
 # Examples of Deploying a Virtual Container Host #
 
-This topic provides examples of the `vic-machine` options to use when deploying virtual container hosts in different vSphere configurations.
+This topic provides examples of the options of the `vic-machine` `create` command to use when deploying virtual container hosts in different vSphere configurations.
 
 - [Deploy a Virtual Container Host Directly on an ESXi Host with no Resource Pools](#esxi)
 - [Deploy a Virtual Container Host in a vCenter Server Cluster](#cluster)
@@ -18,11 +18,11 @@ This topic provides examples of the `vic-machine` options to use when deploying 
 
 You can install vSphere Integrated Containers directly on an ESXi host that is not managed by a vCenter Server instance. This example provides the miniumum options required to install vSphere Integrated Containers. The installer prompts you for the password for the ESXi host and deploys a virtual container host appliance with the default name `docker-appliance`. When an ESXi host has no resource pools, you must provide the address of  the root resource pool in the `compute-resource` option in the `govc` format, exactly as shown in the example. You specify the datastore in which to store the virtual container host files and container image files in the mandatory `image-store` option.
  
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i>
--target <i>esxi_host_IPv4_address_or_FQDN</i>
--user root
--compute-resource /ha-datacenter/host/localhost.eng.vmware.com/Resources/
--image-store <i>datastore_name</i>
+<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+--target <i>esxi_host_IPv4_address_or_FQDN</i>
+--user root
+--compute-resource /ha-datacenter/host/localhost.eng.vmware.com/Resources/
+--image-datastore <i>datastore_name</i>
 </pre>
 
 <a name="cluster"></a>
@@ -34,14 +34,14 @@ In clusters that have more than one host, you must use the `bridge-network` opti
 
 In addition to the mandatory options for deployment to a cluster, this example sets the vCenter Single Sign-On user and password and gives the virtual container host a custom name, `vch1`.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i>
--target <i>vcenter_server_IPv4_address_or_FQDN</i>
--user Administrator@vsphere.local
--passwd <i>vcenter_sso_password</i>
--compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
--image-store <i>datastore_name</i>
--bridge-network <i>network_name</i>
--name vch1
+<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+--target <i>vcenter_server_IPv4_address_or_FQDN</i>
+--user Administrator@vsphere.local
+--password <i>vcenter_sso_password</i>
+--compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
+--image-datastore <i>datastore_name</i>
+--bridge-network <i>network_name</i>
+--name vch1
 </pre>
 
 <a name="networks"></a>
@@ -57,16 +57,16 @@ To specify networking options, you must provide the name of a network or private
 
 In addition to the mandatory options for deployment to a cluster, this example sets the vCenter Single Sign-On user and password, specifies different networks for the different types of traffic, and gives the virtual container host a custom name, `vch1`.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i>
--target <i>vcenter_server_IPv4_address_or_FQDN</i>
--user Administrator@vsphere.local
--passwd <i>vcenter_sso_password</i>
--compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
--image-store <i>datastore_name</i>
--bridge-network <i>network_1_name</i>
--management-network <i>network_2_name</i>
--external-network <i>network_3_name</i>
--name vch1
+<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+--target <i>vcenter_server_IPv4_address_or_FQDN</i>
+--user Administrator@vsphere.local
+--password <i>vcenter_sso_password</i>
+--compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
+--image-datastore <i>datastore_name</i>
+--bridge-network <i>network_1_name</i>
+--management-network <i>network_2_name</i>
+--external-network <i>network_3_name</i>
+--name vch1
 </pre>
 
 <a name="datastores"></a>
@@ -76,15 +76,15 @@ If your vSphere environment includes multiple datastores, you can specify differ
 
 In addition to the mandatory options for deployment to a cluster, this example sets the vCenter Single Sign-On user and password, specifies a different datastore for container VM files, and gives the virtual container host a custom name, `vch1`.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i>
--target <i>vcenter_server_IPv4_address_or_FQDN</i>
--user Administrator@vsphere.local
--passwd <i>vcenter_sso_password</i>
--compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
--image-store <i>datastore_1_name</i>
--container-store <i>datastore_2_name</i>
--bridge-network <i>network_1_name</i>
--name vch1
+<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+--target <i>vcenter_server_IPv4_address_or_FQDN</i>
+--user Administrator@vsphere.local
+--password <i>vcenter_sso_password</i>
+--compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
+--image-datastore <i>datastore_1_name</i>
+--container-datastore <i>datastore_2_name</i>
+--bridge-network <i>network_1_name</i>
+--name vch1
 </pre>
 
 <a name="standalone"></a> 
@@ -94,14 +94,14 @@ If vCenter Server manages standalone ESXi hosts that are not part of a cluster, 
 
 In addition to the mandatory options, this example specifies the vCenter Single Sign-On user and password, and gives the virtual container host a custom name, `vch1`.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i>
--target <i>vcenter_server_IPv4_address_or_FQDN</i> 
--user Administrator@vsphere.local
--passwd <i>vcenter_sso_password</i>
--compute-resource /<i>datacenter_name</i>/host/<i>host_IPv4_address_or_FQDN</i>/
--image-store <i>datastore_name</i>
--bridge-network <i>network_name</i>
--name vch1
+<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+--target <i>vcenter_server_IPv4_address_or_FQDN</i> 
+--user Administrator@vsphere.local
+--password <i>vcenter_sso_password</i>
+--compute-resource /<i>datacenter_name</i>/host/<i>host_IPv4_address_or_FQDN</i>/
+--image-datastore <i>datastore_name</i>
+--bridge-network <i>network_name</i>
+--name vch1
 </pre>
 
 <a name="rp_host"></a>
@@ -111,12 +111,12 @@ To deploy a virtual container host in a resource pool on an ESXi host that is no
 
 This example uses the minimum required options.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i>
--target <i>esxi_host_IPv4_address_or_FQDN</i>
--user root
--compute-resource 
+<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+--target <i>esxi_host_IPv4_address_or_FQDN</i>
+--user root
+--compute-resource 
 /ha-datacenter/host/localhost.eng.vmware.com/Resources/<i>resource_pool_name</i>/
--image-store <i>datastore_name</i>
+--image-datastore <i>datastore_name</i>
 </pre>
 
 <a name="rp_cluster"></a>
@@ -126,14 +126,14 @@ To deploy a virtual container host in a resource pool in a vCenter Server Cluste
 
 In addition to the mandatory options, this example sets the vCenter Single Sign-On user and password, and gives the virtual container host a custom name, `vch1`.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i>
--target <i>vcenter_server_IPv4_address_or_FQDN</i>
--user Administrator@vsphere.local
--passwd <i>vcenter_sso_password</i>
--compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/Resources/<i>resource_pool_name</i>/
--image-store <i>datastore_name</i>
--bridge-network <i>network_name</i>
--name vch1
+<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+--target <i>vcenter_server_IPv4_address_or_FQDN</i>
+--user Administrator@vsphere.local
+--password <i>vcenter_sso_password</i>
+--compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/Resources/<i>resource_pool_name</i>/
+--image-datastore <i>datastore_name</i>
+--bridge-network <i>network_name</i>
+--name vch1
 </pre>
 
 <a name="ca_cert"></a>
@@ -143,16 +143,16 @@ If your development environment uses custom CA certificates to authenticate conn
 
 In addition to the mandatory options for deployment to a cluster, this example sets the vCenter Single Sign-On user and password, and gives the virtual container host a custom name, `vch1`.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i>
--target <i>vcenter_server_IPv4_address_or_FQDN</i>
--user Administrator@vsphere.local
--passwd <i>vcenter_sso_password</i>
--compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
--image-store <i>datastore_name</i>
--bridge-network <i>network_name</i>
--cert <i>path_to_certificate_file</i>
--key <i>path_to_certificate_file</i>
--name vch1
+<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+--target <i>vcenter_server_IPv4_address_or_FQDN</i>
+--user Administrator@vsphere.local
+--password <i>vcenter_sso_password</i>
+--compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
+--image-datastore <i>datastore_name</i>
+--bridge-network <i>network_name</i>
+--cert <i>path_to_certificate_file</i>
+--key <i>path_to_certificate_file</i>
+--name vch1
 </pre>
 
 <a name="no_tls"></a>
@@ -162,15 +162,15 @@ If your development environment does not require authentication of the connectio
 
 In addition to the mandatory options for deployment to a cluster, this example sets the vCenter Single Sign-On user and password, and gives the virtual container host a custom name, `vch1`.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i>
--target <i>vcenter_server_IPv4_address_or_FQDN</i>
--user Administrator@vsphere.local
--passwd <i>vcenter_sso_password</i>
--compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
--image-store <i>datastore_name</i>
--bridge-network <i>network_name</i>
--name vch1
--generate-cert=false
+<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+--target <i>vcenter_server_IPv4_address_or_FQDN</i>
+--user Administrator@vsphere.local
+--password <i>vcenter_sso_password</i>
+--compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
+--image-datastore <i>datastore_name</i>
+--bridge-network <i>network_name</i>
+--name vch1
+--generate-cert=false
 </pre>
 
 <a name="customized"></a>
@@ -180,14 +180,14 @@ If a virtual container host is likely to handle heavy container workloads, you c
 
 In addition to the mandatory options for deployment to a cluster, this example sets the vCenter Single Sign-On user and password and gives the virtual container host a custom name, `vch1`.
 
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i>
--target <i>vcenter_server_IPv4_address_or_FQDN</i>
--user Administrator@vsphere.local
--passwd <i>vcenter_sso_password</i>
--compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
--image-store <i>datastore_name</i>
--bridge-network <i>network_name</i>
--name vch1
--appliance-cpu <i>number_of_CPUs</i>
--appliance-memory <i>amount_of_memory</i>
+<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+--target <i>vcenter_server_IPv4_address_or_FQDN</i>
+--user Administrator@vsphere.local
+--password <i>vcenter_sso_password</i>
+--compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
+--image-datastore <i>datastore_name</i>
+--bridge-network <i>network_name</i>
+--name vch1
+--appliance-cpu <i>number_of_CPUs</i>
+--appliance-memory <i>amount_of_memory</i>
 </pre>

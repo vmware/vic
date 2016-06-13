@@ -21,7 +21,6 @@ import (
 	"encoding/pem"
 	"fmt"
 
-	"github.com/docker/docker/pkg/namesgenerator"
 	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
 	"golang.org/x/net/context"
 
@@ -63,7 +62,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	defer trace.End(trace.Begin("Containers.CreateHandler"))
 
 	var err error
-	var name string
+
 	session := handler.handlerCtx.Session
 
 	ctx := context.Background()
@@ -74,12 +73,6 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	log.Debugf("WorkingDir: %#v", params.CreateConfig.WorkingDir)
 
 	id := exec.GenerateID().String()
-	// Autogenerate a name if client doesn't specify one
-	if params.Name == nil {
-		name = namesgenerator.GetRandomName(0)
-	} else {
-		name = *params.Name
-	}
 
 	// Init key for tether
 	privateKey, err := rsa.GenerateKey(rand.Reader, 512)
@@ -95,12 +88,13 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	m := metadata.ExecutorConfig{
 		Common: metadata.Common{
 			ID:   id,
-			Name: name,
+			Name: *params.CreateConfig.Name,
 		},
 		Sessions: map[string]metadata.SessionConfig{
 			id: metadata.SessionConfig{
 				Common: metadata.Common{
-					ID: id,
+					ID:   id,
+					Name: *params.CreateConfig.Name,
 				},
 				Tty: *params.CreateConfig.Tty,
 				// FIXME: default to true for now until we can have a more sophisticated approach
@@ -115,7 +109,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		},
 		Key: pem.EncodeToMemory(&privateKeyBlock),
 	}
-	log.Infof("Metadata: %#v", m)
+	log.Infof("CreateHandler Metadata: %#v", m)
 
 	// Create new portlayer executor and call Create on it
 	h := exec.NewContainer(exec.ParseID(id))

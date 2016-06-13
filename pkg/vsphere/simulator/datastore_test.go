@@ -115,15 +115,40 @@ func TestDatastoreHTTP(t *testing.T) {
 		m, err := model()
 		defer m.Server.Close()
 
+		dsPath := m.Datastore.Path
+
+		if !m.Client.IsVC() {
+			m.Datacenter = nil // test using the default
+		}
+
+		fm := object.NewFileManager(m.Client.Client)
+		browser, err := m.Datastore.Browser(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		download := func(name string, fail bool) {
+			st, serr := m.Datastore.Stat(ctx, name)
+
 			_, _, err = m.Datastore.Download(ctx, name, nil)
 			if fail {
 				if err == nil {
-					t.Fatal("expected error")
+					t.Fatal("expected Download error")
+				}
+				if serr == nil {
+					t.Fatal("expected Stat error")
 				}
 			} else {
 				if err != nil {
-					t.Error(err)
+					t.Errorf("Download error: %s", err)
+				}
+				if serr != nil {
+					t.Errorf("Stat error: %s", serr)
+				}
+
+				p := st.GetFileInfo().Path
+				if p != name {
+					t.Errorf("path=%s", p)
 				}
 			}
 		}
@@ -150,11 +175,106 @@ func TestDatastoreHTTP(t *testing.T) {
 			}
 		}
 
+		rm := func(name string, fail bool) {
+			task, err := fm.DeleteDatastoreFile(ctx, dsPath(name), m.Datacenter)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = task.Wait(ctx)
+			if fail {
+				if err == nil {
+					t.Fatalf("rm %s: expected error", name)
+				}
+			} else {
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+
+		mv := func(src string, dst string, fail bool, force bool) {
+			task, err := fm.MoveDatastoreFile(ctx, dsPath(src), m.Datacenter, dsPath(dst), m.Datacenter, force)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = task.Wait(ctx)
+			if fail {
+				if err == nil {
+					t.Fatalf("mv %s %s: expected error", src, dst)
+				}
+			} else {
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+
+		mkdir := func(name string, fail bool, p bool) {
+			err := fm.MakeDirectory(ctx, dsPath(name), m.Datacenter, p)
+			if fail {
+				if err == nil {
+					t.Fatalf("mkdir %s: expected error", name)
+				}
+			} else {
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+
+		stat := func(name string, fail bool) {
+			_, err := m.Datastore.Stat(ctx, name)
+			if fail {
+				if err == nil {
+					t.Fatalf("stat %s: expected error", name)
+				}
+			} else {
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+
+		ls := func(name string, fail bool) []types.BaseFileInfo {
+			spec := types.HostDatastoreBrowserSearchSpec{
+				MatchPattern: []string{"*"},
+			}
+
+			task, err := browser.SearchDatastore(ctx, dsPath(name), &spec)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			info, err := task.WaitForResult(ctx, nil)
+			if err != nil {
+				if fail {
+					if err == nil {
+						t.Fatalf("ls %s: expected error", name)
+					}
+				} else {
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
+				return nil
+			}
+
+			return info.Result.(types.HostDatastoreBrowserSearchResults).File
+		}
+
 		// GET file does not exist = fail
 		download(dst, true)
+		stat(dst, true)
+		ls(dst, true)
+
+		// delete file does not exist = fail
+		rm(dst, true)
 
 		// PUT file = ok
 		upload(dst, false, "PUT")
+		stat(dst, false)
 
 		// GET file exists = ok
 		download(dst, false)
@@ -162,8 +282,15 @@ func TestDatastoreHTTP(t *testing.T) {
 		// POST file exists = fail
 		upload(dst, true, "POST")
 
+		// delete existing file = ok
+		rm(dst, false)
+		stat(dst, true)
+
+		// GET file does not exist = fail
+		download(dst, true)
+
 		// POST file does not exist = ok
-		upload(dst+".post", false, "POST")
+		upload(dst, false, "POST")
 
 		// PATCH method not supported = fail
 		upload(dst+".patch", true, "PATCH")
@@ -171,8 +298,62 @@ func TestDatastoreHTTP(t *testing.T) {
 		// PUT path is directory = fail
 		upload("", true, "PUT")
 
-		// GET datastore does not exist = fail
-		download(dst, false)
+		// mkdir parent does not exist = fail
+		mkdir("foo/bar", true, false)
+
+		// mkdir -p parent does not exist = ok
+		mkdir("foo/bar", false, true)
+
+		// mkdir = ok
+		mkdir("foo/bar/baz", false, false)
+
+		target := path.Join("foo", dst)
+
+		// mv dst not exist = ok
+		mv(dst, target, false, false)
+
+		// POST file does not exist = ok
+		upload(dst, false, "POST")
+
+		// mv dst exists = fail
+		mv(dst, target, true, false)
+
+		// mv dst exists, force=true = ok
+		mv(dst, target, false, true)
+
+		// mv src does not exist = fail
+		mv(dst, target, true, true)
+
+		invalid := []string{
+			"",       //InvalidDatastorePath
+			"[nope]", // InvalidDatastore
+		}
+
+		for _, p := range invalid {
+			dsPath = func(name string) string {
+				return p
+			}
+			mv(target, dst, true, false)
+			mkdir("sorry", true, false)
+			rm(target, true)
+			ls(target, true)
+		}
+
+		// cover the dst failure path
+		for _, p := range invalid {
+			dsPath = func(name string) string {
+				if name == dst {
+					return p
+				}
+				return m.Datastore.Path(name)
+			}
+			mv(target, dst, true, false)
+		}
+
+		dsPath = func(name string) string {
+			return m.Datastore.Path("enoent")
+		}
+		ls(target, true)
 
 		// cover the case where datacenter or datastore lookup fails
 		for _, q := range []string{"dcName=nope", "dsName=nope"} {

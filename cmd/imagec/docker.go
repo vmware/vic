@@ -28,9 +28,11 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	ddigest "github.com/docker/distribution/digest"
 	dlayer "github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/libtrust"
 
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -54,6 +56,7 @@ type History struct {
 type Manifest struct {
 	Name     string    `json:"name"`
 	Tag      string    `json:"tag"`
+	Digest   string    `json:"digest,omitempty"`
 	FSLayers []FSLayer `json:"fsLayers"`
 	History  []History `json:"history"`
 	// ignoring signatures
@@ -103,13 +106,13 @@ func LearnRegistryURL(options ImageCOptions) (string, error) {
 
 // LearnAuthURL returns the URL of the OAuth endpoint
 func LearnAuthURL(options ImageCOptions) (*url.URL, error) {
-	defer trace.End(trace.Begin(options.image + "/" + options.digest))
+	defer trace.End(trace.Begin(options.image + "/" + options.tag))
 
 	url, err := url.Parse(options.registry)
 	if err != nil {
 		return nil, err
 	}
-	url.Path = path.Join(url.Path, options.image, "manifests", options.digest)
+	url.Path = path.Join(url.Path, options.image, "manifests", options.tag)
 
 	log.Debugf("URL: %s", url)
 
@@ -135,7 +138,7 @@ func LearnAuthURL(options ImageCOptions) (*url.URL, error) {
 
 	// Do we even have the image on that registry
 	if err != nil && fetcher.IsStatusNotFound() {
-		return nil, fmt.Errorf("%s:%s does not exists at %s", options.image, options.digest, options.registry)
+		return nil, fmt.Errorf("%s:%s does not exists at %s", options.image, options.tag, options.registry)
 	}
 
 	return nil, fmt.Errorf("%s returned an unexpected response: %s", url, err)
@@ -316,13 +319,13 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) (string, error)
 
 // FetchImageManifest fetches the image manifest file
 func FetchImageManifest(options ImageCOptions) (*Manifest, error) {
-	defer trace.End(trace.Begin(options.image + "/" + options.digest))
+	defer trace.End(trace.Begin(options.image + "/" + options.tag))
 
 	url, err := url.Parse(options.registry)
 	if err != nil {
 		return nil, err
 	}
-	url.Path = path.Join(url.Path, options.image, "manifests", options.digest)
+	url.Path = path.Join(url.Path, options.image, "manifests", options.tag)
 
 	log.Debugf("URL: %s", url)
 
@@ -362,9 +365,16 @@ func FetchImageManifest(options ImageCOptions) (*Manifest, error) {
 		return nil, fmt.Errorf("name doesn't match what was requested, expected: %s, downloaded: %s", options.image, manifest.Name)
 	}
 
-	if manifest.Tag != options.digest {
-		return nil, fmt.Errorf("tag doesn't match what was requested, expected: %s, downloaded: %s", options.digest, manifest.Tag)
+	if manifest.Tag != options.tag {
+		return nil, fmt.Errorf("tag doesn't match what was requested, expected: %s, downloaded: %s", options.tag, manifest.Tag)
 	}
+
+	digest, err := getManifestDigest(content)
+	if err != nil {
+		return nil, err
+	}
+
+	manifest.Digest = digest
 
 	// Ensure the parent directory exists
 	destination := DestinationDirectory()
@@ -380,4 +390,23 @@ func FetchImageManifest(options ImageCOptions) (*Manifest, error) {
 	}
 
 	return manifest, nil
+}
+
+func getManifestDigest(content []byte) (string, error) {
+	jsonSig, err := libtrust.ParsePrettySignature(content, "signatures")
+	if err != nil {
+		return "", err
+	}
+
+	// Resolve the payload in the manifest.
+	bytes, err := jsonSig.Payload()
+	if err != nil {
+		return "", err
+	}
+
+	log.Debugf("Canonical Bytes: %d", len(bytes))
+	digest := ddigest.FromBytes(bytes)
+	// Correct Manifest Digest
+	log.Debugf("Manifest Digest: %v", digest)
+	return string(digest), nil
 }

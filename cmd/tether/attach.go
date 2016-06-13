@@ -184,7 +184,11 @@ func (t *attachServerSSH) run() error {
 		return err
 	}
 
-	defer sConn.Close()
+	defer func() {
+		if sConn != nil {
+			sConn.Close()
+		}
+	}()
 
 	// Global requests
 	go t.globalMux(reqs)

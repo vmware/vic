@@ -8,10 +8,10 @@ To verify that docker pull command is supported by VIC appliance
 [1 - Docker Command Line Reference](https://docs.docker.com/engine/reference/commandline/pull/)
 
 #Environment:
-This test requires that an ESXi server is running and available.
+This test requires that an vSphere server is running and available.
 
 #Test Steps:
-1. Deploy VIC appliance to ESXi server
+1. Deploy VIC appliance to vSphere server
 2. Issue a docker pull command to the new VIC appliance for each of the top 10 most popular images in hub.docker.com
     * nginx, busybox, ubuntu, registry, swarm, redis, mongo, mysql, node, postgres
 3. Issue a docker pull command to the new VIC appliance using a tag that isn't the default latest

@@ -63,7 +63,7 @@ type ImageCOptions struct {
 
 	registry string
 	image    string
-	digest   string
+	tag      string
 
 	destination string
 
@@ -170,10 +170,10 @@ func ParseReference() error {
 		return err
 	}
 
-	options.digest = reference.DefaultTag
+	options.tag = reference.DefaultTag
 	if !reference.IsNameOnly(ref) {
 		if tagged, ok := ref.(reference.NamedTagged); ok {
-			options.digest = tagged.Tag()
+			options.tag = tagged.Tag()
 		}
 	}
 
@@ -221,7 +221,7 @@ func DestinationDirectory() string {
 		u.Host,
 		u.Path,
 		options.image,
-		options.digest,
+		options.tag,
 	)
 }
 
@@ -446,7 +446,8 @@ func CreateImageConfig(images []*ImageWithMeta, manifest *Manifest) error {
 	metaData := metadata.ImageConfig{
 		V1Image: result.V1Image,
 		ImageID: sum,
-		Tag:     options.digest,
+		Digest:  manifest.Digest,
+		Tag:     options.tag,
 		Name:    manifest.Name,
 		DiffIDs: diffIDs,
 		History: history,
@@ -581,7 +582,7 @@ func main() {
 	// HACK: Required to learn the name of the vmdk from given reference
 	// Used by docker personality until metadata support lands
 	if !options.resolv {
-		progress.Message(po, options.digest, "Pulling from "+options.image)
+		progress.Message(po, options.tag, "Pulling from "+options.image)
 	}
 
 	// Create the ImageWithMeta slice to hold Image structs
@@ -614,11 +615,10 @@ func main() {
 		log.Fatalf(err.Error())
 	}
 
-	// FIXME: Dump the digest
-	//progress.Message(po, "", "Digest: 0xDEAD:BEEF")
+	progress.Message(po, "", "Digest: "+manifest.Digest)
 	if len(images) > 0 {
-		progress.Message(po, "", "Status: Downloaded newer image for "+options.image+":"+options.digest)
+		progress.Message(po, "", "Status: Downloaded newer image for "+options.image+":"+options.tag)
 	} else {
-		progress.Message(po, "", "Status: Image is up to date for "+options.image+":"+options.digest)
+		progress.Message(po, "", "Status: Image is up to date for "+options.image+":"+options.tag)
 	}
 }

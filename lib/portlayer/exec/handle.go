@@ -21,6 +21,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -171,6 +172,10 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 		return fmt.Errorf("spec already set")
 	}
 
+	// update the handle with Metadata
+	h.ExecConfig = config.Metadata
+	// add create time to config
+	h.ExecConfig.Common.Created = time.Now().UTC().String()
 	// Convert the management hostname to IP
 	ips, err := net.LookupIP(managementHostName)
 	if err != nil {
