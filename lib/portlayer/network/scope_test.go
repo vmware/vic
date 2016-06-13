@@ -57,7 +57,7 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 		// no container
 		{nil, nil, nil, fmt.Errorf("")},
 		// add a new container to scope
-		{&Container{id: "foo"}, nil, &Endpoint{ip: net.IPv4(0, 0, 0, 0), subnet: s.subnet, gateway: s.gateway}, nil},
+		{&Container{id: "foo"}, nil, &Endpoint{ip: net.IPv4(172, 16, 0, 2), subnet: s.subnet, gateway: s.gateway}, nil},
 		// container already part of scope
 		{&Container{id: "foo"}, nil, nil, DuplicateResourceError{}},
 		// container with ip
@@ -153,8 +153,6 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 	}{
 		// container not found
 		{&Container{id: "c1"}, ResourceNotFoundError{}},
-		// try to remove a bound container
-		{s.Container(bound.Container.ID), fmt.Errorf("")},
 		// remove a container
 		{s.Container(exec.ParseID("foo")), nil},
 	}
@@ -188,59 +186,5 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 			}
 		}
 
-	}
-}
-
-func TestScopeBindUnbindContainer(t *testing.T) {
-	var err error
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
-	if err != nil {
-		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
-	}
-
-	// add a container that is not part of the scope
-	e, err := ctx.AddContainer(exec.NewContainer("notAdded"), ctx.DefaultScope().Name(), nil)
-	notAdded := e.Container()
-	ctx.DefaultScope().removeContainer(notAdded)
-
-	var tests = []struct {
-		i   int
-		c   *Container
-		err error
-	}{
-		{0, nil, fmt.Errorf("")},
-		// bind a container that is not part of scope
-		{1, notAdded, fmt.Errorf("")},
-	}
-
-	for _, te := range tests {
-		err = ctx.DefaultScope().bindContainer(te.c)
-		if te.err != nil {
-			if te.err == nil {
-				t.Fatalf("%d: Scope.bindContainer(%s) => nil, want err", te.i, te.c.ID())
-			}
-
-			continue
-		}
-	}
-
-	tests = []struct {
-		i   int
-		c   *Container
-		err error
-	}{
-		{0, nil, fmt.Errorf("")},
-		{1, notAdded, fmt.Errorf("")},
-	}
-
-	for _, te := range tests {
-		err = ctx.DefaultScope().unbindContainer(te.c)
-		if te.err != nil {
-			if te.err == nil {
-				t.Fatalf("%d: Scope.unbindContainer(%s) => nil, want err", te.i, te.c.ID())
-			}
-
-			continue
-		}
 	}
 }

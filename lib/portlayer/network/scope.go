@@ -121,8 +121,8 @@ func (s *Scope) addContainer(con *Container, ip *net.IP) (*Endpoint, error) {
 	}
 
 	e := newEndpoint(con, s, ip, s.subnet, s.gateway, nil)
-	if ip != nil {
-		e.static = true
+	if err := s.reserveEndpointIP(e); err != nil {
+		return nil, err
 	}
 
 	con.addEndpoint(e)
@@ -145,46 +145,14 @@ func (s *Scope) removeContainer(con *Container) error {
 		return ResourceNotFoundError{}
 	}
 
-	if e.IsBound() {
-		return fmt.Errorf("unbind container first")
+	if err := s.releaseEndpointIP(e); err != nil {
+		return err
 	}
 
 	delete(s.containers, c.id)
 	s.endpoints = removeEndpointHelper(e, s.endpoints)
 	c.removeEndpoint(e)
 	return nil
-}
-
-func (s *Scope) bindContainer(con *Container) error {
-	s.Lock()
-	defer s.Unlock()
-
-	if con == nil {
-		return fmt.Errorf("invalid args")
-	}
-
-	c, ok := s.containers[con.ID()]
-	if !ok || c != con {
-		return ResourceNotFoundError{}
-	}
-
-	return c.bind(s)
-}
-
-func (s *Scope) unbindContainer(con *Container) error {
-	s.Lock()
-	defer s.Unlock()
-
-	if con == nil {
-		return fmt.Errorf("invalid args")
-	}
-
-	c, ok := s.containers[con.ID()]
-	if !ok || c != con {
-		return ResourceNotFoundError{}
-	}
-
-	return c.unbind(s)
 }
 
 func (s *Scope) Containers() []*Container {

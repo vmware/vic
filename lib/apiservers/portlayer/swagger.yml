@@ -319,24 +319,23 @@ paths:
           description: "Not found"
           schema:
             $ref: "#/definitions/Error"
-        default:
-          description: "error"
+        '500':
           schema:
             $ref: "#/definitions/Error"
-  /containers/{handle}/scopes:
+  /scopes/{scope}/containers:
     post:
       description: "Add a container to scopes modifying the conatiner VM's config as necessary"
       tags: ["scopes"]
       operationId: AddContainer
       parameters:
-        - name: handle
+        - name: scope
           required: true
           in: path
           type: string
-        - name: networkConfig
+        - name: config
           in: body
           schema:
-            $ref: "#/definitions/NetworkConfig"
+            $ref: "#/definitions/ScopesAddContainerConfig"
           required: true
       responses:
         '200':
@@ -347,11 +346,11 @@ paths:
           description: "Not found"
           schema:
             $ref: "#/definitions/Error"
-        default:
+        '500':
           description: "error"
           schema:
             $ref: "#/definitions/Error"
-  /containers/{handle}/scopes/{scope}:
+  /scopes/{scope}/containers/{handle}:
     delete:
       description: "Remove a container from a scope"
       tags: ["scopes"]
@@ -374,11 +373,11 @@ paths:
           description: "Not found"
           schema:
             $ref: "#/definitions/Error"
-        default:
+        '500':
           description: "error"
           schema:
             $ref: "#/definitions/Error"
-  /containers/{handle}/scopes/binding:
+  /scopes/containers/{handle}/binding:
     post:
       tags: ["scopes"]
       description: "Perform scope initialization for each of the scopes the container belongs to. Network initialization may include, for example, assigning addresses on a scope."
@@ -402,7 +401,7 @@ paths:
           description: "Not found"
           schema:
             $ref: "#/definitions/Error"
-        default:
+        '500':
           description: "error"
           schema:
             $ref: "#/definitions/Error"
@@ -428,7 +427,7 @@ paths:
           description: "Not found"
           schema:
             $ref: "#/definitions/Error"
-        default:
+        '500':
           description: "error"
           schema:
             $ref: "#/definitions/Error"
@@ -502,7 +501,7 @@ paths:
           in: path
           type: string
       responses:
-        '200': 
+        '200':
           description: "OK"
         '400':
           description: "bad parameter"
@@ -829,6 +828,16 @@ definitions:
       handle:
         type: string
       id:
+        type: string
+  ScopesAddContainerConfig:
+    type: object
+    required:
+      - networkConfig
+      - handle
+    properties:
+      networkConfig:
+        $ref: "#/definitions/NetworkConfig"
+      handle:
         type: string
   NetworkConfig:
     type: object

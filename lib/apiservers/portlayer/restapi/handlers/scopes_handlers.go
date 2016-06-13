@@ -142,7 +142,7 @@ func (handler *ScopesHandlersImpl) ScopesDelete(params scopes.DeleteScopeParams)
 			return scopes.NewDeleteScopeNotFound().WithPayload(errorPayload(err))
 
 		default:
-			return scopes.NewDeleteScopeDefault(http.StatusInternalServerError).WithPayload(errorPayload(err))
+			return scopes.NewDeleteScopeInternalServerError().WithPayload(errorPayload(err))
 		}
 	}
 
@@ -174,15 +174,15 @@ func (handler *ScopesHandlersImpl) ScopesList(params scopes.ListParams) middlewa
 func (handler *ScopesHandlersImpl) ScopesAddContainer(params scopes.AddContainerParams) middleware.Responder {
 	defer trace.End(trace.Begin("ScopesAddContainer"))
 
-	h := exec.GetHandle(params.Handle)
+	h := exec.GetHandle(params.Config.Handle)
 	if h == nil {
 		return scopes.NewAddContainerNotFound().WithPayload(&models.Error{Message: "container not found"})
 	}
 
 	err := func() error {
 		var ip *net.IP
-		if params.NetworkConfig.Address != nil {
-			i := net.ParseIP(*params.NetworkConfig.Address)
+		if params.Config.NetworkConfig.Address != nil {
+			i := net.ParseIP(*params.Config.NetworkConfig.Address)
 			if i == nil {
 				return fmt.Errorf("invalid ip address")
 			}
@@ -190,8 +190,7 @@ func (handler *ScopesHandlersImpl) ScopesAddContainer(params scopes.AddContainer
 			ip = &i
 		}
 
-		_, err := handler.netCtx.AddContainer(h, params.NetworkConfig.NetworkName, ip)
-		return err
+		return handler.netCtx.AddContainer(h, params.Config.NetworkConfig.NetworkName, ip)
 	}()
 
 	if err != nil {
@@ -199,7 +198,7 @@ func (handler *ScopesHandlersImpl) ScopesAddContainer(params scopes.AddContainer
 			return scopes.NewAddContainerNotFound().WithPayload(errorPayload(err))
 		}
 
-		return scopes.NewAddContainerDefault(http.StatusServiceUnavailable).WithPayload(errorPayload(err))
+		return scopes.NewAddContainerInternalServerError().WithPayload(errorPayload(err))
 	}
 
 	return scopes.NewAddContainerOK().WithPayload(h.String())
@@ -218,7 +217,7 @@ func (handler *ScopesHandlersImpl) ScopesRemoveContainer(params scopes.RemoveCon
 			return scopes.NewRemoveContainerNotFound().WithPayload(errorPayload(err))
 		}
 
-		return scopes.NewRemoveContainerDefault(http.StatusServiceUnavailable).WithPayload(errorPayload(err))
+		return scopes.NewRemoveContainerInternalServerError().WithPayload(errorPayload(err))
 	}
 
 	return scopes.NewRemoveContainerOK().WithPayload(h.String())
@@ -232,8 +231,8 @@ func (handler *ScopesHandlersImpl) ScopesBindContainer(params scopes.BindContain
 		return scopes.NewBindContainerNotFound().WithPayload(&models.Error{Message: "container not found"})
 	}
 
-	if err := handler.netCtx.BindContainer(h); err != nil {
-		return scopes.NewBindContainerDefault(http.StatusServiceUnavailable).WithPayload(errorPayload(err))
+	if _, err := handler.netCtx.BindContainer(h); err != nil {
+		return scopes.NewBindContainerInternalServerError().WithPayload(errorPayload(err))
 	}
 
 	return scopes.NewBindContainerOK().WithPayload(h.String())
@@ -248,7 +247,7 @@ func (handler *ScopesHandlersImpl) ScopesUnbindContainer(params scopes.UnbindCon
 	}
 
 	if err := handler.netCtx.UnbindContainer(h); err != nil {
-		return scopes.NewUnbindContainerDefault(http.StatusServiceUnavailable).WithPayload(errorPayload(err))
+		return scopes.NewUnbindContainerInternalServerError().WithPayload(errorPayload(err))
 	}
 
 	return scopes.NewUnbindContainerOK().WithPayload(h.String())

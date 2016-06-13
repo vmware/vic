@@ -206,8 +206,13 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	// configure networking
 	netConf := toModelsNetworkConfig(config)
 	if netConf != nil {
-		addContRes, err := client.Scopes.AddContainer(
-			scopes.NewAddContainerParams().WithHandle(h).WithNetworkConfig(netConf))
+		addContRes, err := client.Scopes.AddContainer(scopes.NewAddContainerParams().
+			WithScope(netConf.NetworkName).
+			WithConfig(&models.ScopesAddContainerConfig{
+				Handle:        h,
+				NetworkConfig: netConf,
+			}))
+
 		if err != nil {
 			return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 		}
@@ -378,14 +383,6 @@ func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig
 	h := getRes.Payload
 
 	// bind network
-	bindRes, err := client.Scopes.BindContainer(scopes.NewBindContainerParams().WithHandle(h))
-	if err != nil {
-		if _, ok := err.(*scopes.BindContainerNotFound); ok {
-			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer"))
-		}
-		return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer"), http.StatusInternalServerError)
-	}
-
 	defer func() {
 		if err != nil {
 			// roll back the BindContainer call
@@ -394,6 +391,20 @@ func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig
 			}
 		}
 	}()
+
+	bindRes, err := client.Scopes.BindContainer(scopes.NewBindContainerParams().WithHandle(h))
+	if err != nil {
+		switch err := err.(type) {
+		case *scopes.BindContainerNotFound:
+			return derr.NewRequestNotFoundError(fmt.Errorf(err.Payload.Message))
+
+		case *scopes.BindContainerInternalServerError:
+			return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+
+		default:
+			return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		}
+	}
 
 	h = bindRes.Payload
 
@@ -448,6 +459,22 @@ func (c *Container) ContainerStop(name string, seconds int) error {
 	}
 
 	handle := getResponse.Payload
+
+	ub, err := client.Scopes.UnbindContainer(scopes.NewUnbindContainerParams().WithHandle(handle))
+	if err != nil {
+		switch err := err.(type) {
+		case *scopes.UnbindContainerNotFound:
+			return derr.NewRequestNotFoundError(fmt.Errorf("container %s not found", name))
+
+		case *scopes.UnbindContainerInternalServerError:
+			return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+
+		default:
+			return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		}
+	}
+
+	handle = ub.Payload
 
 	// change the state of the container
 	// TODO: We need a resolved ID from the name
