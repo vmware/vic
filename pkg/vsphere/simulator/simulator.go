@@ -25,14 +25,12 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"path/filepath"
 	"reflect"
 	"strings"
 
 	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/find"
-	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
@@ -57,9 +55,6 @@ type Service struct {
 type Server struct {
 	*httptest.Server
 	URL *url.URL
-
-	tempDir func() (string, error)
-	dirs    []string
 }
 
 // New returns an initialized simulator Service instance
@@ -277,44 +272,7 @@ func (s *Service) NewServer() *Server {
 	return &Server{
 		Server: ts,
 		URL:    u,
-
-		tempDir: func() (string, error) {
-			return ioutil.TempDir("", "govcsim-")
-		},
 	}
-}
-
-func (s *Server) TempDatastore(ctx context.Context, hosts ...*object.HostSystem) (string, error) {
-	dir, err := s.tempDir()
-	if err != nil {
-		return "", err
-	}
-
-	s.dirs = append(s.dirs, dir)
-
-	dsName := filepath.Base(dir)
-
-	for _, host := range hosts {
-		dss, err := host.ConfigManager().DatastoreSystem(ctx)
-		if err != nil {
-			return "", err
-		}
-
-		_, err = dss.CreateLocalDatastore(ctx, dsName, dir)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	return dsName, nil
-}
-
-func (s *Server) Close() {
-	for _, dir := range s.dirs {
-		_ = os.RemoveAll(dir)
-	}
-
-	s.Server.Close()
 }
 
 var typeFunc = types.TypeFunc()
