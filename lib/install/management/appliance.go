@@ -49,9 +49,15 @@ func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
 		err = errors.Errorf("Failed to fetch guest info of appliance vm, %s", err)
 		return false, err
 	}
-	if _, ok := info["guestinfo.vch/components"]; ok {
+
+	var remoteConf metadata.VirtualContainerHostConfigSpec
+	extraconfig.Decode(extraconfig.MapSource(info), &remoteConf)
+
+	// if the moref of the target matches where we expect to find it for a VCH, run with it
+	if remoteConf.ExecutorConfig.ID != vm.Reference().String() {
 		return true, nil
 	}
+
 	return false, nil
 }
 
@@ -96,8 +102,6 @@ func (d *Dispatcher) removeApplianceIfForced(conf *metadata.VirtualContainerHost
 }
 
 func (d *Dispatcher) addNetworkDevices(conf *metadata.VirtualContainerHostConfigSpec, cspec *spec.VirtualMachineConfigSpec, devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
-	var err error
-	var backing types.BaseVirtualDeviceBackingInfo
 	// network name:alias, to avoid create multiple devices for same network
 	slots := make(map[int32]bool)
 	nets := make(map[string]*metadata.NetworkEndpoint)
@@ -110,28 +114,24 @@ func (d *Dispatcher) addNetworkDevices(conf *metadata.VirtualContainerHostConfig
 			continue
 		}
 
-		refparts := strings.SplitN(endpoint.Network.Common.ID, "-", 2)
-		if len(refparts) != 2 {
-			err = errors.Errorf("Network identifier for %s role was not in expected format: %s", name, endpoint.Network.Common.ID)
-			return nil, err
+		moref := new(types.ManagedObjectReference)
+		if ok := moref.FromString(endpoint.Network.ID); !ok {
+			return nil, fmt.Errorf("serialized managed object reference in unexpected format: %s", endpoint.Network.ID)
+		}
+		obj, err := d.session.Finder.ObjectReference(d.ctx, *moref)
+		if err != nil {
+			return nil, fmt.Errorf("unable to reacquire reference for network %s from serialized form: %s", endpoint.Network.Name, endpoint.Network.ID)
+		}
+		network, ok := obj.(object.NetworkReference)
+		if !ok {
+			return nil, fmt.Errorf("reacquired reference for network %s, from serialized form %s, was not a network: %T", endpoint.Network.Name, endpoint.Network.ID, obj)
 		}
 
-		log.Infof("Rehydrating network from %s and %s", refparts[0], refparts[1])
-		network := object.NewReference(d.session.Client.Client, types.ManagedObjectReference{Type: refparts[0], Value: refparts[1]}).(object.NetworkReference)
-
-		// FIXME: hack to work around rehydration issues - must not assume the net name like this
-		backing, err = network.EthernetCardBackingInfo(d.ctx)
+		backing, err := network.EthernetCardBackingInfo(d.ctx)
 		if err != nil {
 			err = errors.Errorf("Failed to get network backing info for %s: %s", network, err)
 			return nil, err
 		}
-		backing2 := backing.(*types.VirtualEthernetCardNetworkBackingInfo)
-		netname := strings.SplitN(refparts[1], "-", 2)
-		backing2.DeviceName = netname[1]
-
-		// END FIXME
-
-		log.Infof("Using network %s for network role %s: %s", netname[1], name, err)
 
 		nic, err := devices.CreateEthernetCard("vmxnet3", backing)
 		if err != nil {
@@ -175,7 +175,7 @@ func (d *Dispatcher) addParaVirtualSCSIController(devices object.VirtualDeviceLi
 	return devices, nil
 }
 
-func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConfigSpec) (*types.VirtualMachineConfigSpec, error) {
+func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConfigSpec, vConf *InstallerData) (*types.VirtualMachineConfigSpec, error) {
 	var devices object.VirtualDeviceList
 	var err error
 
@@ -186,9 +186,9 @@ func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConf
 		VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{
 			Name:        conf.Name,
 			GuestId:     "other3xLinux64Guest",
-			Files:       &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStoreName)},
-			NumCPUs:     int32(conf.ApplianceSize.CPU.Limit),
-			MemoryMB:    conf.ApplianceSize.Memory.Limit,
+			Files:       &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
+			NumCPUs:     int32(vConf.ApplianceSize.CPU.Limit),
+			MemoryMB:    vConf.ApplianceSize.Memory.Limit,
 			ExtraConfig: extraconfig.OptionValueFromMap(cfg),
 		},
 	}
@@ -212,98 +212,6 @@ func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConf
 
 	spec.DeviceChange = deviceChange
 	return spec.VirtualMachineConfigSpec, nil
-}
-
-func (d *Dispatcher) getPresetExtraconfig(conf *metadata.VirtualContainerHostConfigSpec) []types.BaseOptionValue {
-	extraConfig :=
-		[]types.BaseOptionValue{
-			&types.OptionValue{
-				Key:   "guestinfo.vch/components",
-				Value: "/sbin/docker-engine-server /sbin/port-layer-server /sbin/vicadmin",
-			},
-			&types.OptionValue{
-				Key:   "guestinfo.vch/sbin/imagec",
-				Value: "-debug -logfile=/var/log/vic/imagec.log -insecure-skip-verify",
-			},
-			&types.OptionValue{
-				Key: "guestinfo.vch/sbin/port-layer-server",
-				Value: fmt.Sprintf("--host=localhost --port=8080 --insecure --sdk=%s --datacenter=%s --cluster=%s --pool=%s --datastore=%s --network=%s --vch=%s",
-					conf.Target.String(), conf.DatacenterName, conf.ClusterPath, d.vchPoolPath,
-					conf.ImageStores[0], conf.Networks["client"].InventoryPath, conf.Name)},
-		}
-
-	files := "/var/tmp/images/ /var/log/vic/"
-
-	if conf.CertPEM != "" && conf.KeyPEM != "" {
-		d.VICAdminProto = "https"
-		extraConfig = append(
-			extraConfig,
-			&types.OptionValue{
-				Key:   "guestinfo.vch/etc/pki/tls/certs/vic-host-cert.pem",
-				Value: conf.CertPEM,
-			},
-		)
-		extraConfig = append(
-			extraConfig,
-			&types.OptionValue{
-				Key:   "guestinfo.vch/etc/pki/tls/certs/vic-host-key.pem",
-				Value: conf.KeyPEM,
-			},
-		)
-		d.dockertlsargs = "-TLS -tls-certificate=/etc/pki/tls/certs/vic-host-cert.pem -tls-key=/etc/pki/tls/certs/vic-host-key.pem"
-		vicadmintlsargs := " -hostcert=/etc/pki/tls/certs/vic-host-cert.pem -hostkey=/etc/pki/tls/certs/vic-host-key.pem"
-		files = fmt.Sprintf("%s /etc/pki/tls/certs/vic-host-cert.pem /etc/pki/tls/certs/vic-host-key.pem", files)
-		d.DockerPort = "2376"
-		extraConfig = append(extraConfig,
-			&types.OptionValue{
-				Key:   "guestinfo.vch/sbin/docker-engine-server",
-				Value: fmt.Sprintf("-serveraddr=0.0.0.0 -port=%s -port-layer-port=8080 %s", d.DockerPort, d.dockertlsargs),
-			})
-		extraConfig = append(extraConfig,
-			&types.OptionValue{
-				Key: "guestinfo.vch/sbin/vicadmin",
-				Value: fmt.Sprintf("-docker-host=unix:///var/run/docker.sock -insecure -sdk=%s -ds=%s -vm-path=%s -cluster=%s -pool=%s %s",
-					conf.Target.String(), conf.ImageStores[0].String(), conf.ApplianceInventoryPath, conf.ClusterPath, d.vchPoolPath, vicadmintlsargs),
-			})
-	} else {
-		d.VICAdminProto = "http"
-		d.DockerPort = "2375"
-		extraConfig = append(extraConfig,
-			&types.OptionValue{
-				Key:   "guestinfo.vch/sbin/docker-engine-server",
-				Value: fmt.Sprintf("-serveraddr=0.0.0.0 -port=%s -port-layer-port=8080", d.DockerPort),
-			})
-		extraConfig = append(extraConfig,
-			&types.OptionValue{Key: "guestinfo.vch/sbin/vicadmin",
-				Value: fmt.Sprintf("-docker-host=unix:///var/run/docker.sock -insecure -sdk=%s -ds=%s -vm-path=%s -cluster=%s -pool=%s -tls=%t",
-					conf.Target.String(), conf.ImageStores[0].String(), conf.ApplianceInventoryPath, conf.ClusterPath, d.vchPoolPath, false),
-			})
-	}
-	extraConfig = append(extraConfig,
-		&types.OptionValue{
-			Key:   "guestinfo.vch/files",
-			Value: files,
-		})
-	// Set network info into guestinfo before VM is powered on, although the mac address is not availalbe yet.
-	// This is to make sure the related attrs are persisted
-	for nicName, netInfo := range conf.Networks {
-		extraConfig = append(extraConfig,
-			&types.OptionValue{
-				Key:   fmt.Sprintf("guestinfo.vch/networks/%s/portgroup", nicName),
-				Value: netInfo.PortGroupName},
-		)
-		extraConfig = append(extraConfig,
-			&types.OptionValue{
-				Key:   fmt.Sprintf("guestinfo.vch/networks/%s/mac", nicName),
-				Value: " ",
-			})
-	}
-	extraConfig = append(extraConfig,
-		&types.OptionValue{
-			Key:   "guestinfo.vch/networks",
-			Value: " ",
-		})
-	return extraConfig
 }
 
 func (d *Dispatcher) findAppliance(conf *metadata.VirtualContainerHostConfigSpec) (*vm.VirtualMachine, error) {
@@ -342,15 +250,15 @@ func (d *Dispatcher) configIso(conf *metadata.VirtualContainerHostConfigSpec, vm
 		log.Errorf("Failed to create Cdrom device for appliance: %s", err)
 		return nil, err
 	}
-	cdrom = devices.InsertIso(cdrom, fmt.Sprintf("[%s] %s/appliance.iso", conf.ImageStoreName, d.vmPathName))
+	cdrom = devices.InsertIso(cdrom, fmt.Sprintf("[%s] %s/appliance.iso", conf.ImageStores[0].Host, d.vmPathName))
 	devices = append(devices, cdrom)
 	return devices, nil
 }
 
-func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSpec, settings *InstallerData) error {
 	log.Infof("Creating appliance on target")
 
-	spec, err := d.createApplianceSpec(conf)
+	spec, err := d.createApplianceSpec(conf, settings)
 	if err != nil {
 		log.Errorf("Unable to create appliance spec: %s", err)
 		return err
@@ -358,7 +266,7 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 
 	// create test VM
 	info, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return d.session.Folders(ctx).VmFolder.CreateVM(ctx, *spec, d.vchPool.ResourcePool, d.session.Host)
+		return d.session.Folders(ctx).VmFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
 	})
 
 	if err != nil {
@@ -372,17 +280,24 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 	// get VM reference and save it
 	moref := info.Result.(types.ManagedObjectReference)
 	conf.SetMoref(&moref)
-	vm := vm.NewVirtualMachine(d.ctx, d.session, moref)
+	obj, err := d.session.Finder.ObjectReference(d.ctx, moref)
+	if err != nil {
+		log.Errorf("Failed to reacquire reference to appliance VM after creation: %s", err)
+		return err
+	}
+	gvm, ok := obj.(*object.VirtualMachine)
+	if !ok {
+		return fmt.Errorf("Required reference after appliance creation was not for a VM: %T", obj)
+	}
+	vm2 := vm.NewVirtualMachineFromVM(d.ctx, d.session, gvm)
 
 	// update the displayname to the actual folder name used
-	if d.vmPathName, err = vm.FolderName(d.ctx); err != nil {
+	if d.vmPathName, err = vm2.FolderName(d.ctx); err != nil {
 		log.Errorf("Failed to get canonical name for appliance: %s", err)
 		return err
 	}
 	log.Debugf("vm folder name: %s", d.vmPathName)
-	log.Debugf("vm inventory path: %s", vm.InventoryPath)
-
-	conf.ApplianceInventoryPath = vm.InventoryPath
+	log.Debugf("vm inventory path: %s", vm2.InventoryPath)
 
 	conf.AddComponent("vicadmin", &metadata.SessionConfig{
 		Cmd: metadata.Cmd{
@@ -394,8 +309,9 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 				"-insecure",
 				"-sdk=" + conf.Target.String(),
 				"-ds=" + conf.ImageStores[0].Host,
-				"-cluster=" + conf.ClusterPath,
-				"-pool=" + conf.ResourcePoolPath,
+				"-cluster=" + settings.ClusterPath,
+				"-pool=" + settings.ResourcePoolPath,
+				"-vm-path=" + vm2.InventoryPath,
 				// FIXME: tls is hardcoded false until vicadmin is migrated to extraconfig
 				// this is to avoid having to put in code to push files into the appliance
 				"-tls=false",
@@ -403,7 +319,11 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 		},
 	},
 	)
+	// TODO: remove this hardcoding once we migrate the components to extraconfig
+	d.VICAdminProto = "http"
 
+	// TODO: remove this hardcoding once we migrate the components to extraconfig
+	d.DockerPort = "2375"
 	conf.AddComponent("docker-personality", &metadata.SessionConfig{
 		Cmd: metadata.Cmd{
 			Path: "/sbin/docker-engine-server",
@@ -411,13 +331,14 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 				"/sbin/docker-engine-server",
 				//FIXME: hack during config migration
 				"-serveraddr=0.0.0.0",
-				"-port=2375",
+				"-port=" + d.DockerPort,
 				"-port-layer-port=8080",
 			},
 		},
 	},
 	)
 
+	netname := strings.Split(conf.Networks["client"].Network.ID, "-")[1]
 	conf.AddComponent("port-layer", &metadata.SessionConfig{
 		Cmd: metadata.Cmd{
 			Path: "/sbin/port-layer-server",
@@ -428,22 +349,22 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 				"--port=8080",
 				"--insecure",
 				"--sdk=" + conf.Target.String(),
-				"--datacenter=" + conf.DatacenterName,
-				"--cluster=" + conf.ClusterPath,
-				"--pool=" + conf.ResourcePoolPath,
+				"--datacenter=" + settings.DatacenterName,
+				"--cluster=" + settings.ClusterPath,
+				"--pool=" + settings.ResourcePoolPath,
 				"--datastore=" + conf.ImageStores[0].Host,
-				"--network=" + conf.Networks["client"].InventoryPath,
-				"--vch=" + conf.Common.Name,
+				"--network=" + fmt.Sprintf("/%s/network/%s", settings.DatacenterName, netname),
+				"--vch=" + conf.ExecutorConfig.Name,
 			},
 		},
 	},
 	)
 
-	spec, err = d.reconfigureApplianceSpec(vm, conf)
+	spec, err = d.reconfigureApplianceSpec(vm2, conf)
 
 	// reconfig
 	info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return vm.Reconfigure(ctx, *spec)
+		return vm2.Reconfigure(ctx, *spec)
 	})
 
 	if err != nil {
@@ -455,7 +376,7 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 		return err
 	}
 
-	d.appliance = vm
+	d.appliance = vm2
 	return nil
 }
 
@@ -466,7 +387,7 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *metad
 	spec := &types.VirtualMachineConfigSpec{
 		Name:    conf.Name,
 		GuestId: "other3xLinux64Guest",
-		Files:   &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStoreName)},
+		Files:   &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
 	}
 
 	if devices, err = d.configIso(conf, vm); err != nil {
@@ -480,8 +401,6 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *metad
 	}
 
 	spec.DeviceChange = deviceChange
-	// set component execution parameters into guestinfo
-	spec.ExtraConfig = d.getPresetExtraconfig(conf)
 
 	cfg := make(map[string]string)
 	extraconfig.Encode(extraconfig.MapSink(cfg), conf)
@@ -489,82 +408,49 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *metad
 	return spec, nil
 }
 
-func (d *Dispatcher) setMacToGuestInfo(conf *metadata.VirtualContainerHostConfigSpec) error {
-	m, err := d.appliance.WaitForMAC(d.ctx)
-	if err != nil {
-		err = errors.Errorf("Failed to get VM mac address %s", err)
-		return err
-	}
-	var spec types.VirtualMachineConfigSpec
-	spec = types.VirtualMachineConfigSpec{
-		ExtraConfig: []types.BaseOptionValue{},
-	}
-
-	var keys []string
-	for nicName, netInfo := range conf.Networks {
-		mac, ok := m[netInfo.PortGroupName]
-		if !ok || mac == "" {
-			// timeout to wait MAC address, so empty mac address is returned
-			err = errors.Errorf("Timeout to get VM MAC address")
-			return err
-		}
-
-		spec.ExtraConfig = append(spec.ExtraConfig,
-			&types.OptionValue{
-				Key:   fmt.Sprintf("guestinfo.vch/networks/%s/mac", nicName),
-				Value: mac,
-			})
-		netInfo.Mac = mac
-		keys = append(keys, nicName)
-	}
-
-	// Do not persist VirtualContainerHost now cause only MAC address is changed in this object.
-	// guestinfo update has bug through SDK, so all values updated after VM is powered on, will be removed from vmx file, that means those values
-	// will lose after VM is restarted.
-	// Need to revisit this, while the above MAC address guestinfo update is removed.
-
-	//	cfg := make(map[string]string)
-	//	extraconfig.EncodeWithPrefix(extraconfig.MapSink(cfg), conf, "guestinfo.vch")
-	//	spec.ExtraConfig = append(spec.ExtraConfig, extraconfig.OptionValueFromMap(cfg)...)
-	spec.ExtraConfig = append(spec.ExtraConfig,
-		&types.OptionValue{
-			Key:   "guestinfo.vch/networks",
-			Value: strings.Join(keys, " "),
-		})
-
-	// reconfig
-	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return d.appliance.Reconfigure(ctx, spec)
-	})
-
-	if err != nil {
-		log.Errorf("Error to set MacAddress into guestinfo: %s", err)
-		return err
-	}
-
+// applianceConfiguration updates the configuration passed in with the latest from the appliance VM.
+// there's no guarantee of consistency within the configuration at this time
+func (d *Dispatcher) applianceConfiguration(conf *metadata.VirtualContainerHostConfigSpec) error {
 	return nil
 }
 
-func (d *Dispatcher) waitingForIP() error {
-	var err error
-	if d.HostIP, err = d.appliance.WaitForKeyInExtraConfig(d.ctx, "guestinfo.vch.clientip"); err != nil {
-		return err
-	}
-	return nil
+// waitForKey squashes the return values and simpy blocks until the key is updated or there is an error
+func (d *Dispatcher) waitForKey(key string) {
+	d.appliance.WaitForKeyInExtraConfig(d.ctx, key)
+	return
 }
 
-func (d *Dispatcher) makeSureApplianceRuns() error {
-	var err error
-
+func (d *Dispatcher) makeSureApplianceRuns(conf *metadata.VirtualContainerHostConfigSpec) error {
 	if d.appliance == nil {
-		return nil
+		return errors.New("cannot validate appliance due to missing VM reference")
 	}
-	log.Infof("Waiting for IP information")
 
-	if err = d.waitingForIP(); err != nil {
-		err = fmt.Errorf("Timed out waiting for appliance to publish URI for docker API: %s", err.Error())
-		log.Infof("Log files can be found on the appliance:")
-		return err
+	log.Infof("Waiting for IP information")
+	d.waitForKey("guestinfo..init.networks|client.ip")
+
+	// now that we
+	err := d.applianceConfiguration(conf)
+	if err != nil {
+		return fmt.Errorf("unable to retrieve updated configuration from appliance: %s", err)
 	}
+	if len(conf.ExecutorConfig.Networks["client"].Assigned) == 0 {
+		return fmt.Errorf("could not retrieve docker API URL from appliance")
+	}
+
+	log.Info("Waiting for major appliance components to launch")
+
+	d.waitForKey("guestinfo..init.sessions|vicadmin.started")
+	d.waitForKey("guestinfo..init.sessions|docker-personality.started")
+	d.waitForKey("guestinfo..init.sessions|port-layer.started")
+
+	err = d.applianceConfiguration(conf)
+	if err != nil {
+		return fmt.Errorf("unable to retrieve updated configuration from appliance: %s", err)
+	}
+
+	// TODO: we should call to the general vic-machine inspect implementation here for more detail
+	// but instead...
+	d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.String()
+
 	return nil
 }

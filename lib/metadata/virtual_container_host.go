@@ -87,38 +87,14 @@ type VirtualContainerHostConfigSpec struct {
 	// Path of the ISO to use for bootstrapping containers
 	BootstrapImagePath url.URL `vic:"0.1" scope:"read-only" recurse:"depth=1"`
 
-	// Virtual Container Host capacity
-	VCHSize Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-	// Appliance capacity
-	ApplianceSize Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-
-	// Allow custom naming convention for containerVMs
-	ContainerNameConvention string
-
 	// Imagec
 	// Whitelist of registries
 	RegistryWhitelist []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	// Blacklist of registries
 	RegistryBlacklist []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
-	KeyPEM  string `vic:"0.1" scope:"read-only" key:"key_pem"`
-	CertPEM string `vic:"0.1" scope:"read-only" key:"cert_pem"`
-
-	//FIXME: remove following attributes after port-layer-server read config from guestinfo
-	DatacenterName         string `vic:"0.1" scope:"read-only" key:"datacenter_name"`
-	ClusterPath            string `vic:"0.1" scope:"read-only" key:"cluster_path"`
-	ImageStoreName         string `vic:"0.1" scope:"read-only" key:"image_store_name"`
-	ResourcePoolPath       string `vic:"0.1" scope:"read-only" key:"resource_pool_path"`
-	ApplianceInventoryPath string `vic:"0.1" scope:"read-only" key:"appliance_path"`
-
-	Datacenter types.ManagedObjectReference `vic:"0.1" scope:"read-only" key:"datacenter"`
-	Cluster    types.ManagedObjectReference `vic:"0.1" scope:"read-only" key:"cluster"`
-
-	// FIXME: remove following attributes after change to launch through tether
-	// Networks represents mapping between nic name and network info object. For example: bridge: vmomi object
-	Networks map[string]*NetworkInfo `vic:"0.1" scope:"read-only" key:"networks2"`
-
-	ImageFiles []string `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	// Allow custom naming convention for containerVMs
+	ContainerNameConvention string
 }
 
 // RawCertificate is present until we add extraconfig support for [][]byte slices that are present
@@ -162,14 +138,14 @@ func (t *VirtualContainerHostConfigSpec) SetHostCertificate(key *[]byte) {
 
 // SetName sets the name of the VCH - this will be used as the hostname for the appliance
 func (t *VirtualContainerHostConfigSpec) SetName(name string) {
-	t.ExecutorConfig.Common.Name = name
+	t.ExecutorConfig.Name = name
 }
 
 // SetMoref sets the moref of the VCH - this allows components to acquire a handle to
 // the appliance VM.
 func (t *VirtualContainerHostConfigSpec) SetMoref(moref *types.ManagedObjectReference) {
 	if moref != nil {
-		t.ExecutorConfig.Common.ID = fmt.Sprintf("%s-%s", moref.Type, moref.Value)
+		t.ExecutorConfig.ID = fmt.Sprintf("%s-%s", moref.Type, moref.Value)
 	}
 }
 
@@ -180,7 +156,7 @@ func (t *VirtualContainerHostConfigSpec) AddNetwork(net *NetworkEndpoint) {
 			t.ExecutorConfig.Networks = make(map[string]*NetworkEndpoint)
 		}
 
-		t.ExecutorConfig.Networks[net.Network.Common.Name] = net
+		t.ExecutorConfig.Networks[net.Network.Name] = net
 	}
 }
 
@@ -191,7 +167,7 @@ func (t *VirtualContainerHostConfigSpec) AddContainerNetwork(net *ContainerNetwo
 			t.ContainerNetworks = make(map[string]*ContainerNetwork)
 		}
 
-		t.ContainerNetworks[net.Common.Name] = net
+		t.ContainerNetworks[net.Name] = net
 	}
 }
 

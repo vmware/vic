@@ -149,6 +149,7 @@ func (t *tether) Start() error {
 	// initial entry, so seed this
 	t.reload <- true
 	for _ = range t.reload {
+		log.Info("Loading main configuration")
 		// load the config - this modifies the structure values in place
 		extraconfig.Decode(t.src, t.config)
 		logConfig(t.config)
@@ -161,6 +162,7 @@ func (t *tether) Start() error {
 			return errors.New(detail)
 		}
 
+		// process the networks then publish any dynamic data
 		for _, v := range t.config.Networks {
 			if err := t.ops.Apply(v); err != nil {
 				detail := fmt.Sprintf("failed to apply network endpoint config: %s", err)
@@ -168,6 +170,7 @@ func (t *tether) Start() error {
 				return errors.New(detail)
 			}
 		}
+		extraconfig.Encode(t.sink, t.config)
 
 		// process the sessions and launch if needed
 		for id, session := range t.config.Sessions {

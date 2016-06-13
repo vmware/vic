@@ -17,8 +17,9 @@ package validate
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/url"
-	"reflect"
+	"path/filepath"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -26,6 +27,7 @@ import (
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/cmd/vic-machine/data"
+	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -53,8 +55,75 @@ type Validator struct {
 	issues []error
 }
 
-func NewValidator() *Validator {
-	return &Validator{}
+func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
+	var err error
+
+	v := &Validator{}
+	v.Context = ctx
+	tURL := input.URL
+	if err != nil {
+		log.Errorf("Specified target is not a valid URL: %s", err)
+		return nil, err
+	}
+
+	if tURL.Scheme == "" {
+		tURL.Scheme = "https"
+	}
+
+	// if they specified only an IP address the parser for some reason considers that a path
+	if tURL.Host == "" {
+		tURL.Host = tURL.Path
+		tURL.Path = ""
+	}
+
+	if tURL.User == nil {
+		// there were no credentials specified with the target URI
+		tURL.User = url.UserPassword(input.User, *input.Password)
+	}
+
+	sessionconfig := &session.Config{
+		Insecure: input.Insecure,
+	}
+
+	// only allow the datacenter to be specified in the taget url, if any
+	pElems := filepath.SplitList(tURL.Path)
+	if len(pElems) > 1 {
+		detail := "Target should specify only the datacenter in the path component (e.g. https://addr/datacenter) - resource pools or folders are separate arguments"
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	// if a datacenter was specified, set it
+	v.DatacenterName = tURL.Path
+	if v.DatacenterName != "" {
+		sessionconfig.DatacenterPath = v.DatacenterName
+		// path needs to be stripped before we can use it as a service url
+		tURL.Path = ""
+	}
+
+	sessionconfig.Service = tURL.String()
+
+	v.Session, err = session.NewSession(sessionconfig).Create(v.Context)
+	if err != nil {
+		log.Errorf("Failed to create session: %s", err)
+		return nil, err
+	}
+	v.Session, err = v.Session.Connect(v.Context)
+	if err != nil {
+		return nil, err
+	}
+
+	v.Session.Populate(ctx)
+
+	if v.Session.Datacenter == nil {
+		detail := "Target should specify datacenter when there are multiple possibilities, e.g. https://addr/datacenter"
+		log.Error(detail)
+		// TODO: list available datacenters
+		return nil, errors.New(detail)
+	}
+
+	return v, nil
+
 }
 
 func (v *Validator) NoteIssue(err error) {
@@ -75,9 +144,12 @@ func (v *Validator) ListIssues() error {
 	return errors.New("Validation of configuration failed")
 }
 
-// Validate2 runs through various validations, starting with basics such as naming, moving onto vSphere entities
+// Validate runs through various validations, starting with basics such as naming, moving onto vSphere entities
 // and then the compatibility between those entities. It assembles a set of issues that are found for reporting.
-func (v *Validator) Validate2(ctx context.Context, input *Data, conf *metadata.VirtualContainerHostConfigSpec) (*metadata.VirtualContainerHostConfigSpec, error) {
+func (v *Validator) Validate(ctx context.Context, input *data.Data) (*metadata.VirtualContainerHostConfigSpec, error) {
+	log.Infof("Validating supplied configuration")
+
+	conf := &metadata.VirtualContainerHostConfigSpec{}
 
 	v.Basics(ctx, input, conf)
 
@@ -96,22 +168,25 @@ func (v *Validator) Validate2(ctx context.Context, input *Data, conf *metadata.V
 
 }
 
-func (v *Validator) Basics(ctx context.Context, input *Data, conf *metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) Basics(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
 	// TODO: ensure that displayname doesn't violate constraints (length, characters, etc)
-	conf.SetName(input.displayName)
+	conf.SetName(input.DisplayName)
+
+	conf.Name = input.DisplayName
 }
 
-func (v *Validator) Compute(ctx context.Context, input *Data, conf *metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) Compute(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
 	// Compute
-	pool, err := v.resourcePoolHelper(ctx, input.computeResourcePath)
+	pool, err := v.GetResourcePool(ctx, input.ComputeResourcePath)
 	v.NoteIssue(err)
-	conf.AddComputeResource(pool)
+	moref := pool.Reference()
+	conf.AddComputeResource(&moref)
 }
 
-func (v *Validator) Storage(ctx context.Context, input *Data, conf *metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) Storage(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
 
 	// Image Store
-	ds, err := v.datastoreHelper(ctx, input.imageDatastoreName)
+	ds, err := v.datastoreHelper(ctx, input.ImageDatastoreName)
 	v.NoteIssue(err)
 	conf.AddImageStore(ds)
 
@@ -119,9 +194,9 @@ func (v *Validator) Storage(ctx context.Context, input *Data, conf *metadata.Vir
 
 }
 
-func (v *Validator) Network(ctx context.Context, input *Data, conf *metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) Network(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
 	// External net
-	extMoref, err := v.networkHelper(ctx, input.externalNetworkName)
+	extMoref, err := v.networkHelper(ctx, input.ExternalNetworkName)
 	v.NoteIssue(err)
 	conf.AddNetwork(&metadata.NetworkEndpoint{
 		Common: metadata.Common{
@@ -130,32 +205,16 @@ func (v *Validator) Network(ctx context.Context, input *Data, conf *metadata.Vir
 		Network: metadata.ContainerNetwork{
 			Common: metadata.Common{
 				Name: "external",
-				ID:   fmt.Sprintf("%s-%s", extMoref.Type, extMoref.Value),
-			},
-		},
-	})
-
-	// Bridge net
-	bridgeMoref, err := v.networkHelper(ctx, input.bridgeNetworkName)
-	v.NoteIssue(err)
-	conf.AddNetwork(&metadata.NetworkEndpoint{
-		Common: metadata.Common{
-			Name: "bridge",
-		},
-		Network: metadata.ContainerNetwork{
-			Common: metadata.Common{
-				Name: "bridge",
-				ID:   fmt.Sprintf("%s-%s", bridgeMoref.Type, bridgeMoref.Value),
+				ID:   extMoref,
 			},
 		},
 	})
 
 	// Client net
-	// if client net is not specified, use external
-	if input.clientNetworkName == "" {
-		input.clientNetworkName = input.externalNetworkName
+	if input.ClientNetworkName == "" {
+		input.ClientNetworkName = input.ExternalNetworkName
 	}
-	clientMoref, err := v.networkHelper(ctx, input.clientNetworkName)
+	clientMoref, err := v.networkHelper(ctx, input.ClientNetworkName)
 	v.NoteIssue(err)
 	conf.AddNetwork(&metadata.NetworkEndpoint{
 		Common: metadata.Common{
@@ -164,83 +223,173 @@ func (v *Validator) Network(ctx context.Context, input *Data, conf *metadata.Vir
 		Network: metadata.ContainerNetwork{
 			Common: metadata.Common{
 				Name: "client",
-				ID:   fmt.Sprintf("%s-%s", clientMoref.Type, clientMoref.Value),
+				ID:   clientMoref,
 			},
 		},
 	})
 
 	// Management net
-	// if not specified, use client network
-	if input.managementNetworkName == "" {
-		input.managementNetworkName = input.clientNetworkName
+	if input.ManagementNetworkName == "" {
+		input.ManagementNetworkName = input.ClientNetworkName
 	}
-	managementMoref, err := v.networkHelper(ctx, input.managementNetworkName)
+	managementMoref, err := v.networkHelper(ctx, input.ManagementNetworkName)
 	v.NoteIssue(err)
-	mnet := &metadata.NetworkEndpoint{
+	conf.AddNetwork(&metadata.NetworkEndpoint{
 		Network: metadata.ContainerNetwork{
 			Common: metadata.Common{
 				Name: "management",
-				ID:   fmt.Sprintf("%s-%s", managementMoref.Type, managementMoref.Value),
+				ID:   managementMoref,
 			},
 		},
+	})
+
+	// Bridge net -
+	//   vCenter: must exist and must be a DPG
+	//   ESX: doesn't need to exist
+	bridgeMoref, err := v.dpgHelper(ctx, input.BridgeNetworkName)
+	if err != nil {
+		if _, ok := err.(*find.NotFoundError); !ok || v.Session.Client.IsVC() {
+			v.NoteIssue(err)
+		}
 	}
-	conf.AddNetwork(mnet)
+
+	gateway, ok := input.MappedNetworksGateway["bridge"]
+	if !ok {
+		// TODO: put the default somewhere less inline
+		ip, mask, _ := net.ParseCIDR("172.16.0.1/24")
+		gateway = &net.IPNet{
+			IP:   ip,
+			Mask: mask.Mask,
+		}
+	}
+	conf.AddNetwork(&metadata.NetworkEndpoint{
+		Common: metadata.Common{
+			Name: "bridge",
+		},
+		Static: gateway,
+		Network: metadata.ContainerNetwork{
+			Common: metadata.Common{
+				Name: "bridge",
+				ID:   bridgeMoref,
+			},
+			Gateway: *gateway,
+		},
+	})
 
 	// add mapped networks
-	for name, net := range input.mappedNetworks {
-		moref, err := v.networkHelper(ctx, net)
+	//   these should be a distributed port groups in vCenter
+	for name, net := range input.MappedNetworks {
+		moref, err := v.dpgHelper(ctx, net)
 		v.NoteIssue(err)
-		conf.AddContainerNetwork(&metadata.ContainerNetwork{
+		mappedNet := &metadata.ContainerNetwork{
 			Common: metadata.Common{
 				Name: name,
-				ID:   fmt.Sprintf("%s-%s", moref.Type, moref.Value),
+				ID:   moref,
 			},
-		})
+		}
+
+		gateway, ok = input.MappedNetworksGateway[name]
+		if ok {
+			mappedNet.Gateway = *gateway
+		}
+		conf.AddContainerNetwork(mappedNet)
 	}
 }
 
-func (v *Validator) Target(ctx context.Context, input *Data, conf *metadata.VirtualContainerHostConfigSpec) {
-	var targetURL url.URL
-	targetURL.Scheme = "https"
-	targetURL.Host = input.target
+func (v *Validator) Target(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
+	targetURL := *input.URL
+	if targetURL.Scheme == "" {
+		targetURL.Scheme = "https"
+	}
 	targetURL.Path = "sdk"
-	targetURL.User = url.UserPassword(input.user, *input.passwd)
+	targetURL.User = url.UserPassword(input.User, *input.Password)
 
 	conf.Target = targetURL
-	conf.Insecure = input.insecure
+	conf.Insecure = input.Insecure
 
 	// TODO: more checks needed here if specifying service account for VCH
 }
 
-func (v *Validator) Certificate(ctx context.Context, input *Data, conf *metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) Certificate(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
 	// check the cert can be loaded
-	_, err := tls.X509KeyPair(input.cert, input.key)
+	_, err := tls.X509KeyPair(input.CertPEM, input.KeyPEM)
 	v.NoteIssue(err)
 
 	conf.HostCertificate = metadata.RawCertificate{
-		Key:  input.key,
-		Cert: input.cert,
+		Key:  input.KeyPEM,
+		Cert: input.CertPEM,
 	}
 }
 
 func (v *Validator) Compatibility(ctx context.Context, conf *metadata.VirtualContainerHostConfigSpec) {
 	// TODO: add checks such as datastore is acessible from target cluster
-
+	_, err := v.Session.Datastore.AttachedClusterHosts(v.Context, v.Session.Cluster)
+	v.NoteIssue(err)
 }
 
-func (v *Validator) networkHelper(ctx context.Context, path string) (*types.ManagedObjectReference, error) {
+func (v *Validator) networkHelper(ctx context.Context, path string) (string, error) {
 	nets, err := v.Session.Finder.NetworkList(ctx, path)
 	if err != nil {
 		// TODO: error message about no such match and how to get a network list
-		return nil, errors.New("no such network " + path)
+		return "", errors.New("no such network " + path)
 	}
 	if len(nets) > 1 {
 		// TODO: error about required disabmiguation and list entries in nets
-		return nil, errors.New("ambiguous network " + path)
+		return "", errors.New("ambiguous network " + path)
 	}
 
 	moref := nets[0].Reference()
-	return &moref, nil
+	return moref.String(), nil
+}
+
+func (v *Validator) dpgMorefHelper(ctx context.Context, ref string) (string, error) {
+	moref := new(types.ManagedObjectReference)
+	ok := moref.FromString(ref)
+	if !ok {
+		// TODO: error message about no such match and how to get a network list
+		return "", errors.New("could not restore serialized managed object reference: " + ref)
+	}
+
+	net, err := v.Session.Finder.ObjectReference(ctx, *moref)
+	if err != nil {
+		// TODO: error message about no such match and how to get a network list
+		return "", errors.New("unable to locate network from moref: " + ref)
+	}
+
+	// ensure that the type of the network is a Distributed Port Group if the target is a vCenter
+	// if it's not then any network suffices
+	if v.Session.Client.IsVC() {
+		_, dpg := net.(*object.DistributedVirtualPortgroup)
+		if !dpg {
+			return "", fmt.Errorf("%s is not a Distributed Port Group", ref)
+		}
+	}
+
+	return ref, nil
+}
+
+func (v *Validator) dpgHelper(ctx context.Context, path string) (string, error) {
+	nets, err := v.Session.Finder.NetworkList(ctx, path)
+	if err != nil {
+		// TODO: error message about no such match and how to get a network list
+		return "", errors.New("no such network " + path)
+	}
+	if len(nets) > 1 {
+		// TODO: error about required disabmiguation and list entries in nets
+		return "", errors.New("ambiguous network " + path)
+	}
+
+	// ensure that the type of the network is a Distributed Port Group if the target is a vCenter
+	// if it's not then any network suffices
+	if v.Session.Client.IsVC() {
+		_, dpg := nets[0].(*object.DistributedVirtualPortgroup)
+		if !dpg {
+			return "", fmt.Errorf("%s is not a Distributed Port Group", path)
+		}
+	}
+
+	moref := nets[0].Reference()
+	return moref.String(), nil
 }
 
 func (v *Validator) datastoreHelper(ctx context.Context, path string) (*url.URL, error) {
@@ -281,7 +430,7 @@ func (v *Validator) datastoreHelper(ctx context.Context, path string) (*url.URL,
 	return dsURL, nil
 }
 
-func (v *Validator) resourcePoolHelper(ctx context.Context, path string) (*types.ManagedObjectReference, error) {
+func (v *Validator) GetResourcePool(ctx context.Context, path string) (*object.ResourcePool, error) {
 	pools, err := v.Session.Finder.ResourcePoolList(ctx, path)
 	if err != nil {
 		// TODO: error message about no such match and how to get a network list
@@ -292,47 +441,7 @@ func (v *Validator) resourcePoolHelper(ctx context.Context, path string) (*types
 		return nil, errors.New("ambiguous compute resource " + path)
 	}
 
-	moref := pools[0].Reference()
-	return &moref, nil
-}
-
-func (v *Validator) Validate(input *Data) (*metadata.VirtualContainerHostConfigSpec, error) {
-	var targetURL url.URL
-	targetURL.Host = input.target
-	targetURL.Path = "sdk"
-	targetURL.User = url.UserPassword(input.user, *input.passwd)
-
-	vchConfig := &metadata.VirtualContainerHostConfigSpec{}
-	vchConfig.ApplianceSize.CPU.Limit = int64(input.NumCPUs)
-	vchConfig.ApplianceSize.Memory.Limit = int64(input.MemoryMB)
-	vchConfig.Name = input.DisplayName
-
-	v.ParseComputeResourcePath(input.ComputeResourcePath) // Ignore error so we can suggest values
-
-	v.TargetPath = input.URL.String()
-	vchConfig.Target = v.TargetPath
-	vchConfig.Insecure = input.Insecure
-
-	if v.DatacenterName != "" {
-		v.ImageStorePath = fmt.Sprintf("/%s/datastore/%s", v.DatacenterName, input.ImageDatastoreName)
-		v.ExternalNetworkPath = fmt.Sprintf("/%s/network/%s", v.DatacenterName, input.ExternalNetworkName)
-		v.BridgeNetworkPath = fmt.Sprintf("/%s/network/%s", v.DatacenterName, input.BridgeNetworkName)
-		v.ManagementNetworkPath = fmt.Sprintf("/%s/network/%s", v.DatacenterName, input.ManagementNetworkName)
-		vchConfig.DatacenterName = v.DatacenterName
-	}
-
-	v.BridgeNetworkName = input.BridgeNetworkName
-	v.ManagementNetworkName = input.ManagementNetworkName
-	vchConfig.ImageStoreName = input.ImageDatastoreName
-
-	if v.ClusterPath != "" {
-		vchConfig.ClusterPath = v.ClusterPath
-	}
-
-	if err := v.validateConfiguration(input, vchConfig); err != nil {
-		return nil, err
-	}
-	return vchConfig, nil
+	return pools[0], nil
 }
 
 func (v *Validator) ParseComputeResourcePath(rp string) error {
@@ -352,256 +461,24 @@ func (v *Validator) ParseComputeResourcePath(rp string) error {
 	return nil
 }
 
-func (v *Validator) GetResourcePool(input *data.Data) (*object.ResourcePool, error) {
-	if err := v.ParseComputeResourcePath(input.ComputeResourcePath); err != nil {
-		return nil, err
+func (v *Validator) addDeprecatedFields(ctx context.Context, conf *metadata.VirtualContainerHostConfigSpec, input *data.Data) *management.InstallerData {
+
+	dconfig := management.InstallerData{}
+
+	dconfig.ApplianceSize.CPU.Limit = int64(input.NumCPUs)
+	dconfig.ApplianceSize.Memory.Limit = int64(input.MemoryMB)
+
+	dconfig.DatacenterName = v.Session.Datacenter.Name()
+	dconfig.ClusterPath = v.Session.Cluster.InventoryPath
+
+	// first element is the cluster or host, then resource pool path
+	pElem := filepath.SplitList(input.ComputeResourcePath)
+	path := ""
+	if len(pElem) > 1 {
+		pElem = pElem[1:]
+		path = strings.Join(pElem, "/")
 	}
-	if _, err := v.getConnection(input); err != nil {
-		return nil, err
-	}
+	dconfig.ResourcePoolPath = fmt.Sprintf("%s/Resources/%s", dconfig.ClusterPath, path)
 
-	if err := v.getResources(v.Context); err != nil {
-		log.Errorf("Failed to get resources:\n%s", err)
-		return nil, err
-	}
-
-	return v.Session.Pool, nil
-}
-
-func (v *Validator) getConnection(input *data.Data) (bool, error) {
-	var err error
-	v.Context = context.TODO()
-	sessionconfig := &session.Config{
-		Service:        input.URL.String(),
-		Insecure:       input.Insecure,
-		DatacenterPath: v.DatacenterName,
-		ClusterPath:    v.ClusterPath,
-		DatastorePath:  v.ImageStorePath,
-		PoolPath:       v.ResourcePoolPath,
-	}
-
-	v.Session = session.NewSession(sessionconfig)
-
-	if _, err = v.Session.Connect(v.Context); err != nil {
-		return false, errors.Errorf("%s\nFailed to connect. Verify --target, --user, and --password", err.Error())
-	}
-
-	return true, nil
-}
-func (v *Validator) validateConfiguration(input *data.Data, vchConfig *metadata.VirtualContainerHostConfigSpec) error {
-	log.Infof("Validating supplied configuration")
-	var err error
-
-	connected, err := v.getConnection(input) // Continue to validate if connected
-	if connected == false {
-		return err
-	}
-
-	if err = v.getResources(v.Context); err != nil {
-		return err
-	}
-	// find the host(s) attached to given storage
-	if _, err = v.Session.Datastore.AttachedClusterHosts(v.Context, v.Session.Cluster); err != nil {
-		log.Errorf("Unable to get the list of hosts attached to given storage: %s", err)
-		return err
-	}
-
-	if err = v.createBridgeNetwork(); err != nil && !input.Force {
-		return errors.Errorf("Creating bridge network failed with %s", err)
-	}
-
-	if err = v.setNetworks(vchConfig); err != nil {
-		return errors.Errorf("Find networks failed with %s", err)
-	}
-
-	vchConfig.ComputeResources = append(vchConfig.ComputeResources, v.Session.Pool.Reference())
-	// var imageURL url.URL
-	// imageURL.Host = v.Session.Datastore.Reference().Value
-	// vchConfig.ImageStores = append(vchConfig.ImageStores, imageURL)
-	//TODO: Add more configuration validation
-	return nil
-}
-
-func (v *Validator) suggestComputeResource() {
-	log.Info("Suggesting valid values for --compute-resource")
-
-	numPools := v.suggestResourcePools(v.ClusterPath)
-	if numPools == 0 {
-		// ClusterPath not valid, suggest ALL the things!
-		log.Info("Failed to find resource pool in the provided path. Showing all resource pools.")
-		numPools = v.suggestAllResourcePools()
-	}
-	if numPools == 0 {
-		log.Info("No resource pools found")
-	}
-}
-
-func (v *Validator) suggestAllResourcePools() int {
-	return v.suggestResourcePools("*")
-}
-
-func (v *Validator) suggestResourcePools(path string) int {
-	var numPools int
-	clusters, _ := v.Session.Finder.ComputeResourceList(v.Context, path)
-	if clusters != nil {
-		for _, c := range clusters {
-			numPools += v.listResourcePools(c)
-		}
-	}
-	return numPools
-}
-
-func (v *Validator) listResourcePools(c *object.ComputeResource) int {
-	children := fmt.Sprintf("%s/Resources/*", c.InventoryPath)
-	log.Infof("  %s/Resources", c.InventoryPath) // Suggest `/Resources`
-	pools, _ := v.Session.Finder.ResourcePoolList(v.Context, children)
-	if len(pools) > 0 {
-		for _, p := range pools {
-			log.Infof("    %s", p.InventoryPath)
-		}
-	}
-	return len(pools)
-}
-
-func (v *Validator) getResources(ctx context.Context) error {
-	var errs []string
-	var err error
-
-	finder := v.Session.Finder
-
-	log.Debug("Check vSphere resources ...")
-	if v.DatacenterName != "" {
-		v.Session.Datacenter, err = finder.DatacenterOrDefault(ctx, v.DatacenterName)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("Failure finding dc (%s): %s", v.DatacenterName, err.Error()))
-		} else {
-			finder.SetDatacenter(v.Session.Datacenter)
-			log.Debugf("Found dc: %s", v.DatacenterName)
-		}
-	}
-
-	if v.ClusterPath != "" {
-		v.Session.Cluster, err = finder.ComputeResourceOrDefault(ctx, v.ClusterPath)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("Failure finding cluster (%s): %s", v.ClusterPath, err.Error()))
-		} else {
-			log.Debugf("Found cluster: %s", v.ClusterPath)
-		}
-	}
-
-	if v.ImageStorePath != "" {
-		v.Session.Datastore, err = finder.DatastoreOrDefault(ctx, v.ImageStorePath)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("Failure finding ds (%s): %s", v.ImageStorePath, err.Error()))
-		} else {
-			log.Debugf("Found ds: %s", v.ImageStorePath)
-		}
-	}
-
-	v.Session.Host, err = finder.HostSystemOrDefault(ctx, v.Session.HostPath)
-	if err != nil {
-		if _, ok := err.(*find.DefaultMultipleFoundError); !ok || !v.Session.IsVC() {
-			errs = append(errs, fmt.Sprintf("Failure finding host (%s): %s", v.Session.HostPath, err.Error()))
-		}
-	} else {
-		log.Debugf("Found host: %s", v.Session.HostPath)
-	}
-
-	v.Session.Pool, err = finder.ResourcePoolOrDefault(ctx, v.ResourcePoolPath)
-	if err != nil {
-		errs = append(errs, fmt.Sprintf("Failure finding pool (%s): %s", v.ResourcePoolPath, err.Error()))
-		if v.Session.Datacenter == nil {
-			log.Info("Invalid datacenter. Unable to suggest valid --compute-resource")
-		} else {
-			v.suggestComputeResource()
-		}
-	} else {
-		log.Debugf("Found pool: %s", v.ResourcePoolPath)
-	}
-
-	if len(errs) > 0 {
-		log.Debugf("Error count populating vSphere cache: (%d)", len(errs))
-		return errors.New(strings.Join(errs, "\n"))
-	}
-	log.Debug("vSphere resources populated...")
-	return nil
-}
-
-func (v *Validator) getNetworkPath(net object.NetworkReference) (string, string, error) {
-	switch t := net.(type) {
-	case *object.DistributedVirtualPortgroup:
-		return t.InventoryPath, t.Name(), nil
-	case *object.Network:
-		return t.InventoryPath, t.Name(), nil
-	case *object.DistributedVirtualSwitch:
-		return "", "", errors.Errorf("Distributed Virtual Switch is not acceptable, please change to Distributed Virtual Port Group")
-	default:
-		return "", "", errors.Errorf("Unknown network card type: %s", reflect.TypeOf(t))
-	}
-}
-
-func (v *Validator) setNetworks(vchConfig *metadata.VirtualContainerHostConfigSpec) error {
-	var path, name string
-	vchConfig.Networks = make(map[string]*metadata.NetworkInfo)
-
-	// bridge network
-	network, err := v.Session.Finder.NetworkOrDefault(v.Context, v.BridgeNetworkPath)
-	if err != nil {
-		err = errors.Errorf("Failed to get bridge network: %s", err)
-		return err
-	}
-	path, name, err = v.getNetworkPath(network)
-	if err != nil {
-		err = errors.Errorf("Failed to get bridge network path: %s", err)
-		return err
-	}
-	v.BridgeNetworkName = name
-	vchConfig.BridgeNetwork = name
-	v.BridgeNetworkPath = path
-	vchConfig.Networks["bridge"] = &metadata.NetworkInfo{
-		PortGroup:     network,
-		PortGroupName: name,
-		PortGroupRef:  network.Reference(),
-		InventoryPath: path,
-	}
-
-	// client network
-	network, err = v.Session.Finder.NetworkOrDefault(v.Context, v.ExternalNetworkPath)
-	if err != nil {
-		err = errors.Errorf("Failed to get external network: %s", err)
-		return err
-	}
-	path, name, err = v.getNetworkPath(network)
-	if err != nil {
-		err = errors.Errorf("Failed to get client network path: %s", err)
-		return err
-	}
-	v.ExternalNetworkPath = path
-	vchConfig.Networks["client"] = &metadata.NetworkInfo{
-		PortGroup:     network,
-		PortGroupName: name,
-		PortGroupRef:  network.Reference(),
-		InventoryPath: path,
-	}
-
-	// management network
-	if v.ManagementNetworkName != "" {
-		network, err = v.Session.Finder.Network(v.Context, v.ManagementNetworkPath)
-		if err != nil {
-			err = errors.Errorf("Failed to get management network: %s", err)
-			return err
-		}
-		path, name, err = v.getNetworkPath(network)
-		if err != nil {
-			err = errors.Errorf("Failed to get management network path: %s", err)
-			return err
-		}
-		vchConfig.Networks["management"] = &metadata.NetworkInfo{
-			PortGroup:     network,
-			PortGroupName: name,
-			PortGroupRef:  network.Reference(),
-			InventoryPath: path,
-		}
-	}
-	return nil
+	return &dconfig
 }

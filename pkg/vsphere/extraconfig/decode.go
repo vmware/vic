@@ -481,27 +481,3 @@ func OptionValueSource(src []types.BaseOptionValue) DataSource {
 
 	return MapSource(kv)
 }
-
-// utility function to allow adding of arbitrary prefix into key
-const guestinfoPrefix = "guestinfo."
-
-func addPrefixToKey(prefix, key string) string {
-	if prefix == "" {
-		return key
-	}
-
-	base := strings.TrimPrefix(key, guestinfoPrefix)
-	separator := base[0]
-
-	var modifiedPrefix string
-	if separator == '.' {
-		modifiedPrefix = strings.Replace(prefix, "/", ".", -1)
-	} else {
-		modifiedPrefix = strings.Replace(prefix, ".", "/", -1)
-	}
-
-	// we assume (given usage comment for WithPrefix) that there's no leading or trailing separator
-	// on the prefix. base has a leading separator
-	// guestinfoPrefix is const so adding it to the format string directly
-	return fmt.Sprintf(guestinfoPrefix+"%c%s%s", separator, modifiedPrefix, base)
-}

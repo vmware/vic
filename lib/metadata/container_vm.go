@@ -25,7 +25,7 @@ type Common struct {
 	ID string `vic:"0.1" scope:"read-only" key:"id"`
 
 	// Convenience field to record a human readable name
-	Name string `vic:"0.1" scope:"read-write" key:"name"`
+	Name string `vic:"0.1" scope:"read-only" key:"name"`
 
 	// creation timestamp
 	Created string `vic:"0.1" scope:"read-only" key:"created"`

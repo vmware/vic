@@ -47,7 +47,7 @@ func main() {
 		return
 	}
 
-	sink, err := extraconfig.GuestInfoSink()
+	sink, err := extraconfig.GuestInfoSinkWithPrefix("init")
 	if err != nil {
 		log.Error(err)
 		return

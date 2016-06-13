@@ -34,7 +34,6 @@ import (
 )
 
 const (
-	bridgeNetworkKey         = "guestinfo.vch/networks/bridge"
 	pciSlotNumberBegin int32 = 0xc0
 	pciSlotNumberEnd   int32 = 1 << 10
 	pciSlotNumberInc   int32 = 1 << 5
@@ -516,7 +515,7 @@ var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, e
 			if e.Common.ID != "" {
 				slot, err := strconv.Atoi(e.Common.ID)
 				if err == nil {
-					slots[slot] = true
+					slots[int32(slot)] = true
 				}
 			}
 		}

@@ -359,7 +359,7 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 	if endpoint.Network.Name != "" {
 		hosts, err := os.OpenFile(hostsFile, os.O_APPEND|os.O_WRONLY, 0644)
 		if err != nil {
-			detail := fmt.Sprintf("failed to update %s for endpoint %s: %s", hostsFile, endpoint.Network.Name, err)
+			detail := fmt.Sprintf("failed to update hosts for endpoint %s: %s", endpoint.Network.Name, err)
 			return errors.New(detail)
 		}
 		defer hosts.Close()
@@ -367,7 +367,7 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 		entry := fmt.Sprintf("%s localhost.%s", endpoint.Assigned, endpoint.Network.Name)
 		_, err = hosts.WriteString(fmt.Sprintf("\n%s\n", entry))
 		if err != nil {
-			detail := fmt.Sprintf("failed to add host entry for endpoint %s: %s", endpoint.Network.Name, err)
+			detail := fmt.Sprintf("failed to add nameserver for endpoint %s: %s", endpoint.Network.Name, err)
 			return errors.New(detail)
 		}
 
@@ -379,7 +379,7 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 	if len(endpoint.Network.Nameservers) > 0 {
 		resolv, err := os.OpenFile(resolvFile, os.O_APPEND|os.O_WRONLY, 0644)
 		if err != nil {
-			detail := fmt.Sprintf("failed to update %s for endpoint %s: %s", resolvFile, endpoint.Network.Name, err)
+			detail := fmt.Sprintf("failed to update resolv.confg for endpoint %s: %s", endpoint.Network.Name, err)
 			return errors.New(detail)
 		}
 		defer resolv.Close()

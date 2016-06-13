@@ -122,13 +122,19 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "management-network",
 			Value:       "",
-			Usage:       "The management network (can see target)",
+			Usage:       "The management network (provides route to target hosting vSphere)",
 			Destination: &c.ManagementNetworkName,
+		},
+		cli.StringFlag{
+			Name:        "client-network",
+			Value:       "",
+			Usage:       "The client network (restricts DOCKER_API access to this network)",
+			Destination: &c.ClientNetworkName,
 		},
 		cli.StringFlag{
 			Name:        "bridge-network",
 			Value:       "",
-			Usage:       "The bridge network",
+			Usage:       "The bridge network (private port group for containers)",
 			Destination: &c.BridgeNetworkName,
 		},
 		cli.StringFlag{
@@ -310,24 +316,32 @@ func (c *Create) Run(cli *cli.Context) error {
 		return err
 	}
 
-	validator := validate.NewValidator()
-	vchConfig, err := validator.Validate(c.Data)
+	if keypair != nil {
+		c.KeyPEM = keypair.KeyPEM
+		c.CertPEM = keypair.CertPEM
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
+	defer cancel()
+
+	validator, err := validate.NewValidator(ctx, c)
 	if err != nil {
 		err = errors.Errorf("%s\nExiting...", err)
 		return err
 	}
 
-	if keypair != nil {
-		vchConfig.KeyPEM = keypair.KeyPEM
-		vchConfig.CertPEM = keypair.CertPEM
+	vchConfig, err := validator.Validate(ctx, c)
+	if err != nil {
+		err = errors.Errorf("%s. Exiting...", err)
+		return err
 	}
-	vchConfig.ImageFiles = images
 
-	var cancel context.CancelFunc
-	validator.Context, cancel = context.WithTimeout(validator.Context, c.Timeout)
-	defer cancel()
-	executor := management.NewDispatcher(validator.Context, validator.Session, vchConfig, c.Force)
-	if err = executor.Dispatch(vchConfig); err != nil {
+	vConfig := validator.addDeprecatedFields(ctx, vchConfig, c)
+	vConfig.ImageFiles = images
+
+	executor := management.NewDispatcher(ctx, validator.Session, vchConfig, c.Force)
+	if err = executor.Dispatch(vchConfig, vConfig); err != nil {
+
 		executor.CollectDiagnosticLogs()
 		return err
 	}
