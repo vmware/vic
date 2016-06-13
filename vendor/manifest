@@ -298,6 +298,14 @@
 			"path": "/proto"
 		},
 		{
+			"importpath": "github.com/google/uuid",
+			"repository": "https://github.com/google/uuid",
+			"vcs": "git",
+			"revision": "f3f4b54b2fabcf1f11dcc939025bb0c109b00ed8",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/gorilla/context",
 			"repository": "https://github.com/gorilla/context",
 			"vcs": "",
