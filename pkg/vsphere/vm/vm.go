@@ -209,3 +209,15 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 	}
 	return detail, nil
 }
+
+func (vm *VirtualMachine) Name(ctx context.Context) (string, error) {
+	var err error
+	var mvm mo.VirtualMachine
+
+	if err = vm.Properties(ctx, vm.Reference(), []string{"summary.config"}, &mvm); err != nil {
+		log.Errorf("Unable to get vm summary.config property: %s", err)
+		return "", err
+	}
+
+	return mvm.Summary.Config.Name, nil
+}
