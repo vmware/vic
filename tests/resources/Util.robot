@@ -26,14 +26,18 @@ Install VIC Appliance To Test Server
     ${ret}=  Run Keyword If  "${certs}" == "true"  Fetch From Right  ${line}  ] docker
     ${ret}=  Run Keyword If  "${certs}" == "true"  Remove String  ${ret}  info
     Run Keyword If  "${certs}" == "true"  Set Suite Variable  ${params}  ${ret}
-    Log To Console  Installer completed successfully...
+    Log To Console  Installer completed successfully: ${vch-name}...
 
 Cleanup VIC Appliance On Test Server
     ${output}=  Run  govc vm.destroy ${vch-name}
     ${output}=  Run  govc pool.destroy %{GOVC_RESOURCE_POOL}/${vch-name}
     ${output}=  Run  govc datastore.rm ${vch-name}
-    ${output}=  Run  govc datastore.rm VIC
     ${output}=  Run  rm -f ${vch-name}-*.pem
+
+    ${uuid}=  Run  govc vm.info -json\=true ${vch-name} | jq -r '.VirtualMachines[0].Config.Uuid'
+    ${output}=  Run  govc datastore.rm VIC/${uuid}
+
+    #${time}=  Run  govc vm.info -json\=true docker-appliance | jq -r '.VirtualMachines[0].Runtime.BootTime'
 
 Get State Of Github Issue
     [Arguments]  ${num}
