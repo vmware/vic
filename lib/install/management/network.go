@@ -76,15 +76,22 @@ func (d *Dispatcher) createBridgeNetwork(conf *metadata.VirtualContainerHostConf
 	// assign the moref to the bridge network config on the appliance
 	bnet.ID = net.Reference().String()
 	bnet.Network.ID = net.Reference().String()
+	conf.CreateBridgeNetwork = true
 	return nil
 }
 
-func (d *Dispatcher) removeNetwork(name string) error {
-	if d.session.Client.IsVC() {
-		log.Warnf("Remove network is not supported for vCenter")
+func (d *Dispatcher) removeNetwork(conf *metadata.VirtualContainerHostConfigSpec) error {
+	if d.session.IsVC() {
+		log.Debugf("Remove network is not supported for vCenter")
 		return nil
 	}
-	log.Infof("Removing Portgroup")
+	if !conf.CreateBridgeNetwork {
+		log.Infof("Bridge network was not created during VCH deployment, leaving it there")
+		return nil
+	}
+
+	name := conf.Name
+	log.Infof("Removing Portgroup %s", name)
 	hostNetSystem, err := d.session.Host.ConfigManager().NetworkSystem(d.ctx)
 	if err != nil {
 		return err
@@ -94,7 +101,7 @@ func (d *Dispatcher) removeNetwork(name string) error {
 		return err
 	}
 
-	log.Infof("Removing VirtualSwitch")
+	log.Infof("Removing VirtualSwitch %s", name)
 	err = hostNetSystem.RemoveVirtualSwitch(d.ctx, name)
 	if err != nil {
 		return err

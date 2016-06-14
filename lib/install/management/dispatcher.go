@@ -19,6 +19,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -27,6 +28,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/diagnostic"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -105,6 +107,14 @@ func (d *Dispatcher) initDiagnosticLogs(conf *metadata.VirtualContainerHostConfi
 			&diagnosticLog{"vpxd:vpxd.log", "vpxd.log", 0, nil, true}
 	}
 
+	var err error
+	if d.session.Datastore == nil {
+		if d.session.Datastore, err = d.session.Finder.DatastoreOrDefault(d.ctx, conf.ImageStores[0].Host); err != nil {
+			log.Errorf("Failure finding image store from VCH config (%s): %s", conf.ImageStores[0].Host, err.Error())
+			return
+		}
+		log.Debugf("Found ds: %s", conf.ImageStores[0].Host)
+	}
 	// find the host(s) attached to given storage
 	hosts, err := d.session.Datastore.AttachedClusterHosts(d.ctx, d.session.Cluster)
 	if err != nil {
@@ -272,4 +282,62 @@ func (d *Dispatcher) CollectDiagnosticLogs() {
 			fmt.Fprintln(f, line)
 		}
 	}
+}
+
+func (d *Dispatcher) DeleteVCH(conf *metadata.VirtualContainerHostConfigSpec) error {
+	log.Infof("Removing VMs")
+
+	if err := d.DeleteVCHInstances(conf); err != nil {
+		return err
+	}
+	if err := d.destroyResourcePoolIfEmpty(conf); err != nil {
+		return err
+	}
+	return d.removeNetwork(conf)
+}
+
+func (d *Dispatcher) DeleteVCHInstances(conf *metadata.VirtualContainerHostConfigSpec) error {
+	var errs []string
+
+	var err error
+	var vmm *vm.VirtualMachine
+	var children []*vm.VirtualMachine
+
+	if vmm, err = d.findApplianceByID(conf); err != nil {
+		return err
+	}
+	if vmm == nil {
+		return nil
+	}
+	rpRef := conf.ComputeResources[len(conf.ComputeResources)-1]
+	rp := compute.NewResourcePool(d.ctx, d.session, rpRef)
+	if children, err = rp.GetChildrenVMs(d.ctx, d.session); err != nil {
+		return err
+	}
+
+	for _, child := range children {
+		name, err := child.Name(d.ctx)
+		if err != nil {
+			errs = append(errs, err.Error())
+			continue
+		}
+		if name == conf.Name {
+			continue
+		}
+		if _, err = d.deleteVM(child); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+
+	if len(errs) > 0 {
+		log.Debugf("Error deleting container VMs %s", errs)
+		return errors.New(strings.Join(errs, "\n"))
+	}
+
+	if _, err = d.deleteVM(vmm); err != nil {
+		log.Debugf("Error deleting appliance VM %s", err)
+		return err
+	}
+
+	return nil
 }

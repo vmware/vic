@@ -28,14 +28,16 @@ import (
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/compute"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
-
-	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	"golang.org/x/net/context"
 )
@@ -107,6 +109,8 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 
 	// cached here to allow a modicum of testing while session is still in use.
 	v.isVC = v.Session.IsVC()
+	finder := find.NewFinder(v.Session.Client.Client, false)
+	v.Session.Finder = finder
 
 	v.Session.Populate(ctx)
 
@@ -348,6 +352,62 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 		}
 		conf.AddContainerNetwork(mappedNet)
 	}
+}
+
+func (v *Validator) GetVCH(input *data.Data) (*object.ResourcePool, error) {
+	rp, err := v.GetResourcePool(input)
+	if err != nil {
+		return nil, err
+	}
+	vchPath := fmt.Sprintf("%s/%s", rp.InventoryPath, input.DisplayName)
+	vchPool, err := v.Session.Finder.ResourcePool(v.Context, vchPath)
+	if err != nil {
+		log.Errorf("Failed to get VCH resource pool %s: %s", vchPath, err)
+		return nil, err
+	}
+	return vchPool, nil
+}
+
+func (v *Validator) GetVCHConfig(vch *object.ResourcePool, name string) (*metadata.VirtualContainerHostConfigSpec, error) {
+	var err error
+	var vm *vm.VirtualMachine
+
+	rp := compute.NewResourcePool(v.Context, v.Session, vch.Reference())
+	if vm, err = rp.GetChildVM(v.Context, v.Session, name); err != nil {
+		log.Errorf("Failed to get VCH VM, %s", err)
+		return nil, err
+	}
+	//this is the appliance vm
+	mapConfig, err := vm.FetchExtraConfig(v.Context)
+	if err != nil {
+		err = errors.Errorf("Failed to get VM extra config of %s, %s", name, err)
+		log.Errorf("%s", err)
+		return nil, err
+	}
+	data := extraconfig.MapSource(mapConfig)
+	vchConfig := &metadata.VirtualContainerHostConfigSpec{}
+	result := extraconfig.Decode(data, vchConfig)
+	if result == nil {
+		err = errors.Errorf("Failed to decode VM configuration %s, %s", name, err)
+		log.Errorf("%s", err)
+		return nil, err
+	}
+
+	// if the moref of the target matches where we expect to find it for a VCH, run with it
+	if vchConfig.ExecutorConfig.ID != vm.Reference().String() {
+		err = errors.Errorf(
+			"The VCH configuration VM ID %s is inconsistent with appliance VM ID %s",
+			vchConfig.ExecutorConfig.ID, vm.Reference().String())
+		log.Errorf("%s", err)
+		return nil, err
+	}
+
+	vchConfig.ComputeResources = append(vchConfig.ComputeResources, v.Session.Pool.Reference())
+	vchConfig.ComputeResources = append(vchConfig.ComputeResources, vch.Reference())
+	vchConfig.Name = name
+
+	//	vchConfig.ID
+	return vchConfig, nil
 }
 
 // generateBridgeName returns a name that can be used to create a switch/pg pair on ESX

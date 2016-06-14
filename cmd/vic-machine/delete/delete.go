@@ -19,8 +19,6 @@ import (
 	"os"
 	"time"
 
-	"golang.org/x/net/context"
-
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/urfave/cli"
@@ -28,6 +26,8 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/validate"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/pkg/errors"
+
+	"golang.org/x/net/context"
 )
 
 // Delete has all input parameters for vic-machine delete command
@@ -116,7 +116,7 @@ func (d *Uninstall) Run(cli *cli.Context) error {
 	// SetOutput to io.MultiWriter so that we can log to stdout and a file
 	log.SetOutput(io.MultiWriter(os.Stdout, f))
 
-	log.Infof("### Deleting VCH ####")
+	log.Infof("### Removing VCH ####")
 
 	ctx, cancel := context.WithTimeout(context.Background(), d.Timeout)
 	defer cancel()
@@ -127,10 +127,24 @@ func (d *Uninstall) Run(cli *cli.Context) error {
 		return err
 	}
 
-	rp, err := validator.GetResourcePool(d.Data)
+	vch, err := validator.GetVCH(d.Data)
 	if err != nil {
-		err = errors.Errorf("%s. Exiting...", err)
+		log.Errorf("Failed to get Virtual Container Host %s", d.DisplayName)
 		return err
 	}
-	return errors.Errorf("VCH delete function is not implemented, %s", rp)
+	vchConfig, err := validator.GetVCHConfig(vch, d.DisplayName)
+	if err != nil {
+		log.Errorf("Failed to get Virtual Container Host configuration")
+		return err
+	}
+
+	executor := management.NewDispatcher(validator.Context, validator.Session, vchConfig, false)
+	if err = executor.DeleteVCH(vchConfig); err != nil {
+		executor.CollectDiagnosticLogs()
+		return err
+	}
+
+	log.Infof("Completed successfully")
+
+	return nil
 }
