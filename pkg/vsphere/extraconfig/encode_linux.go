@@ -46,7 +46,7 @@ func GuestInfoSinkWithPrefix(prefix string) (DataSink, error) {
 			return nil
 		}
 
-		key = addPrefixToKey(guestinfoPrefix, prefix, key)
+		key = addPrefixToKey(DefaultGuestInfoPrefix, prefix, key)
 
 		if value == "" {
 			value = "<nil>"

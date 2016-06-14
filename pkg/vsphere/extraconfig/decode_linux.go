@@ -40,7 +40,7 @@ func GuestInfoSourceWithPrefix(prefix string) (DataSource, error) {
 	}
 
 	return func(key string) (string, error) {
-		key = addPrefixToKey(guestinfoPrefix, prefix, key)
+		key = addPrefixToKey(DefaultGuestInfoPrefix, prefix, key)
 
 		value, err := guestinfo.String(key, "")
 		if value == "" {

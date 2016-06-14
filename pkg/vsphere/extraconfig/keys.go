@@ -224,9 +224,6 @@ func calculateKey(scopes []string, prefix string, key string) string {
 	return DefaultGuestInfoPrefix + out[len(DefaultGuestInfoPrefix):]
 }
 
-// the guestinfo prefix is here so it can be used as a header for prefix manipulation
-const guestinfoPrefix = "guestinfo."
-
 // utility function to allow adding of arbitrary prefix into key
 // header is a leading segment that is preserved, prefix is injected after that
 func addPrefixToKey(header, prefix, key string) string {
