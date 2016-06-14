@@ -68,9 +68,6 @@ func TestPathLookup(t *testing.T) {
 	assert.Equal(t, 0, result.Sessions["pathlookup"].ExitStatus, "Expected command to have exited cleanly")
 }
 
-//
-/////////////////////////////////////////////////////////////////////////////////////
-
 func TestRelativePath(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
@@ -109,8 +106,6 @@ func TestRelativePath(t *testing.T) {
 	assert.Equal(t, 0, result.Sessions["relpath"].ExitStatus, "Expected command to have exited cleanly")
 }
 
-//
-/////////////////////////////////////////////////////////////////////////////////////
 func TestAbsPath(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
@@ -141,6 +136,62 @@ func TestAbsPath(t *testing.T) {
 
 	_, src, err := RunTether(t, &cfg)
 	assert.NoError(t, err, "Didn't expected error from RunTether")
+
+	result := ExecutorConfig{}
+	extraconfig.Decode(src, &result)
+
+	assert.Equal(t, "true", result.Sessions["abspath"].Started, "Expected command to have been started successfully")
+	assert.Equal(t, 0, result.Sessions["abspath"].ExitStatus, "Expected command to have exited cleanly")
+
+	// read the output from the session
+	log := Mocked.SessionLogBuffer.Bytes()
+
+	// run the command directly
+	out, err := exec.Command("/bin/date", "--reference=/").Output()
+	if err != nil {
+		fmt.Printf("Failed to run date for comparison data: %s", err)
+		t.Error(err)
+		return
+	}
+
+	if !assert.Equal(t, out, log) {
+		return
+	}
+}
+
+func TestHalt(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
+
+	cfg := metadata.ExecutorConfig{
+		Common: metadata.Common{
+			ID:   "abspath",
+			Name: "tether_test_executor",
+		},
+
+		Sessions: map[string]metadata.SessionConfig{
+			"abspath": metadata.SessionConfig{
+				Common: metadata.Common{
+					ID:   "abspath",
+					Name: "tether_test_session",
+				},
+				Tty: false,
+				Cmd: metadata.Cmd{
+					// test abs path
+					Path: "/bin/date",
+					Args: []string{"date", "--reference=/"},
+					Env:  []string{},
+					Dir:  "/",
+				},
+			},
+		},
+	}
+
+	_, src, err := RunTether(t, &cfg)
+	assert.NoError(t, err, "Didn't expected error from RunTether")
+
+	// block until tether exits
+	<-Mocked.Cleaned
 
 	result := ExecutorConfig{}
 	extraconfig.Decode(src, &result)
