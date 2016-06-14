@@ -62,6 +62,8 @@ type VirtualContainerHostConfigSpec struct {
 	NetworkCertificates map[string]*RawCertificate
 	// The certificate used to validate the appliance to clients
 	HostCertificate RawCertificate `vic:"0.1" scope:"read-only"`
+	// The CAs to validate client connections
+	CertificateAuthorities []byte `vic:"0.1" scope:"read-only"`
 	// Certificates for specific system access, keyed by FQDN
 	HostCertificates map[string]*RawCertificate
 

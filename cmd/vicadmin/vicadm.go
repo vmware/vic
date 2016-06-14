@@ -18,6 +18,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
@@ -43,19 +44,19 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 
-	"crypto/tls"
-
+	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 var (
 	logFileDir  = "/var/log/vic/"
 	logFileList = []string{
-		"docker-engine-server.log",
+		"docker-personality.log",
 		"imagec.log",
-		"port-layer-server.log",
+		"port-layer.log",
 		"vicadmin.log",
-		"watchdog.log",
+		"init.log",
 	}
 
 	config struct {
@@ -68,6 +69,8 @@ var (
 		authType     string
 		tls          bool
 	}
+
+	vchConfig metadata.VirtualContainerHostConfigSpec
 
 	defaultReaders []entryReader
 
@@ -94,6 +97,13 @@ func init() {
 	// This is only applicable for containers hosted under the VCH VM folder
 	// This will not function for vSAN
 	flag.StringVar(&config.vmPath, "vm-path", "", "Docker vm path")
+
+	// load the vch config
+	src, err := extraconfig.GuestInfoSource()
+	if err != nil {
+		log.Errorf("Unable to load configuration from guestinfo")
+	}
+	extraconfig.Decode(src, &vchConfig)
 }
 
 type Authenticator interface {
@@ -522,10 +532,10 @@ func (s *server) listen(useTLS bool) error {
 		return err
 	}
 
-	certificate, err := tls.LoadX509KeyPair(config.hostCertFile, config.hostKeyFile)
+	certificate, err := tls.X509KeyPair(vchConfig.HostCertificate.Cert, vchConfig.HostCertificate.Key)
 	if err != nil {
-		log.Fatalf("Could not load either key file %s or certificate file %s",
-			config.hostKeyFile, config.hostCertFile)
+		log.Errorf("Could not load certificate from config: %s", err)
+		// TODO: add static web page with the vic
 		return err
 	}
 

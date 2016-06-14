@@ -312,9 +312,6 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 				"-cluster=" + settings.ClusterPath,
 				"-pool=" + settings.ResourcePoolPath,
 				"-vm-path=" + vm2.InventoryPath,
-				// FIXME: tls is hardcoded false until vicadmin is migrated to extraconfig
-				// this is to avoid having to put in code to push files into the appliance
-				"-tls=false",
 			},
 		},
 	},
@@ -333,6 +330,9 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 				"-serveraddr=0.0.0.0",
 				"-port=" + d.DockerPort,
 				"-port-layer-port=8080",
+			},
+			Env: []string{
+				"PATH=/sbin",
 			},
 		},
 	},
@@ -411,6 +411,12 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *metad
 // applianceConfiguration updates the configuration passed in with the latest from the appliance VM.
 // there's no guarantee of consistency within the configuration at this time
 func (d *Dispatcher) applianceConfiguration(conf *metadata.VirtualContainerHostConfigSpec) error {
+	extraConfig, err := d.appliance.FetchExtraConfig(d.ctx)
+	if err != nil {
+		return err
+	}
+
+	extraconfig.Decode(extraconfig.MapSource(extraConfig), conf)
 	return nil
 }
 
@@ -433,6 +439,8 @@ func (d *Dispatcher) makeSureApplianceRuns(conf *metadata.VirtualContainerHostCo
 	if err != nil {
 		return fmt.Errorf("unable to retrieve updated configuration from appliance: %s", err)
 	}
+	ip := conf.ExecutorConfig.Networks["client"].Assigned
+	log.Infof("ip address acquired: %s", ip.String())
 	if len(conf.ExecutorConfig.Networks["client"].Assigned) == 0 {
 		return fmt.Errorf("could not retrieve docker API URL from appliance")
 	}
