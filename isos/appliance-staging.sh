@@ -96,6 +96,7 @@ yum_cached -c $cache -u -p $PKGDIR install \
     sudo \
     tdnf \
     vim \
+	photon-release \
     -y --nogpgcheck
 
 # https://www.freedesktop.org/wiki/Software/systemd/InitrdInterface/

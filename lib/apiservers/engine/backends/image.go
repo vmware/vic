@@ -43,11 +43,10 @@ func (r byCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
 type Image struct {
-	ProductName string
 }
 
 func (i *Image) Commit(name string, config *types.ContainerCommitConfig) (imageID string, err error) {
-	return "", fmt.Errorf("%s does not implement image.Commit", i.ProductName)
+	return "", fmt.Errorf("%s does not implement image.Commit", ProductName())
 }
 
 func (i *Image) Exists(containerName string) bool {
@@ -55,11 +54,11 @@ func (i *Image) Exists(containerName string) bool {
 }
 
 func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDelete, error) {
-	return []types.ImageDelete{}, fmt.Errorf("%s does not implement image.Delete", i.ProductName)
+	return []types.ImageDelete{}, fmt.Errorf("%s does not implement image.Delete", ProductName())
 }
 
 func (i *Image) ImageHistory(imageName string) ([]*types.ImageHistory, error) {
-	return nil, fmt.Errorf("%s does not implement image.History", i.ProductName)
+	return nil, fmt.Errorf("%s does not implement image.History", ProductName())
 }
 
 func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Image, error) {
@@ -94,23 +93,23 @@ func (i *Image) LookupImage(name string) (*types.ImageInspect, error) {
 		return nil, err
 	}
 
-	return imageConfigToDockerImageInspect(imageConfig, i.ProductName), nil
+	return imageConfigToDockerImageInspect(imageConfig, ProductName()), nil
 }
 
 func (i *Image) TagImage(newTag reference.Named, imageName string) error {
-	return fmt.Errorf("%s does not implement image.Tag", i.ProductName)
+	return fmt.Errorf("%s does not implement image.Tag", ProductName())
 }
 
 func (i *Image) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
-	return fmt.Errorf("%s does not implement image.LoadImage", i.ProductName)
+	return fmt.Errorf("%s does not implement image.LoadImage", ProductName())
 }
 
 func (i *Image) ImportImage(src string, newRef reference.Named, msg string, inConfig io.ReadCloser, outStream io.Writer, config *container.Config) error {
-	return fmt.Errorf("%s does not implement image.ImportImage", i.ProductName)
+	return fmt.Errorf("%s does not implement image.ImportImage", ProductName())
 }
 
 func (i *Image) ExportImage(names []string, outStream io.Writer) error {
-	return fmt.Errorf("%s does not implement image.ExportImage", i.ProductName)
+	return fmt.Errorf("%s does not implement image.ExportImage", ProductName())
 }
 
 func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
@@ -167,11 +166,11 @@ func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders 
 }
 
 func (i *Image) PushImage(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
-	return fmt.Errorf("%s does not implement image.PushImage", i.ProductName)
+	return fmt.Errorf("%s does not implement image.PushImage", ProductName())
 }
 
 func (i *Image) SearchRegistryForImages(ctx context.Context, term string, authConfig *types.AuthConfig, metaHeaders map[string][]string) (*registry.SearchResults, error) {
-	return nil, fmt.Errorf("%s does not implement image.SearchRegistryForImages", i.ProductName)
+	return nil, fmt.Errorf("%s does not implement image.SearchRegistryForImages", ProductName())
 }
 
 // Utility functions
