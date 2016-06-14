@@ -22,7 +22,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -47,7 +46,7 @@ type BaseOperations struct {
 }
 
 // SetHostname sets both the kernel hostname and /etc/hostname to the specified string
-func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
+func (t *BaseOperations) SetHostname(hostname string) error {
 	defer trace.End(trace.Begin("setting hostname to " + hostname))
 
 	old, err := os.Hostname()
@@ -87,8 +86,7 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	}
 	defer hosts.Close()
 
-	names := strings.Join(aliases, " ")
-	_, err = hosts.WriteString(fmt.Sprintf("\n127.0.0.1 %s %s\n", hostname, names))
+	_, err = hosts.WriteString(fmt.Sprintf("\n127.0.0.1 %s\n", hostname))
 	if err != nil {
 		detail := fmt.Sprintf("failed to add hosts entry for hostname %s: %s", hostname, err)
 		return errors.New(detail)
@@ -308,12 +306,7 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
 
 	// Locate interface
-	slot, err := strconv.Atoi(endpoint.PCISlot)
-	if err != nil {
-		detail := fmt.Sprintf("endpoint ID must be a base10 numeric pci slot identifier: %s", err)
-		return errors.New(detail)
-	}
-	link, err := linkBySlot(int32(slot))
+	link, err := linkBySlot(endpoint.PCISlot)
 	if err != nil {
 		detail := fmt.Sprintf("unable to acquire reference to link %s: %s", endpoint.ID, err)
 		return errors.New(detail)
@@ -322,7 +315,7 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 	// TODO: add dhcp client code
 
 	// rename the link if needed
-	link, err = renameLink(link, int32(slot), endpoint)
+	link, err = renameLink(link, endpoint.PCISlot, endpoint)
 	if err != nil {
 		detail := fmt.Sprintf("unable to reacquire link %s after rename pass: %s", endpoint.ID, err)
 		return errors.New(detail)
