@@ -40,8 +40,8 @@ func init() {
 type State int
 
 const (
-	StateRunning = iota
-	StateStopped = iota
+	StateRunning = iota + 1
+	StateStopped
 
 	propertyCollectorTimeout = 3 * time.Minute
 )

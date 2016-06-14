@@ -51,11 +51,14 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
+// Container struct represents the Container
 type Container struct {
 	ProductName string
 }
 
-const attachRequestTimeout time.Duration = 2 * time.Hour
+const (
+	attachRequestTimeout time.Duration = 2 * time.Hour
+)
 
 // docker's container.execBackend
 
@@ -320,7 +323,19 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 // stop. Returns an error if the container cannot be found, or if
 // there is an underlying error at any stage of the restart.
 func (c *Container) ContainerRestart(name string, seconds int) error {
-	return fmt.Errorf("%s does not implement container.ContainerRestart", c.ProductName)
+	defer trace.End(trace.Begin("ContainerRestart"))
+
+	err := c.containerStop(name, seconds, false)
+	if err != nil {
+		return derr.NewErrorWithStatusCode(fmt.Errorf("Stop failed with: %s", err), http.StatusInternalServerError)
+	}
+
+	err = c.containerStart(name, nil, false)
+	if err != nil {
+		return derr.NewErrorWithStatusCode(fmt.Errorf("Start failed with: %s", err), http.StatusInternalServerError)
+	}
+
+	return nil
 }
 
 // ContainerRm removes the container id from the filesystem. An error
@@ -355,7 +370,10 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 // ContainerStart starts a container.
 func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig) error {
 	defer trace.End(trace.Begin("ContainerStart"))
+	return c.containerStart(name, hostConfig, true)
+}
 
+func (c *Container) containerStart(name string, hostConfig *container.HostConfig, bind bool) error {
 	var err error
 
 	// Get an API client to the portlayer
@@ -392,21 +410,23 @@ func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig
 		}
 	}()
 
-	bindRes, err := client.Scopes.BindContainer(scopes.NewBindContainerParams().WithHandle(h))
-	if err != nil {
-		switch err := err.(type) {
-		case *scopes.BindContainerNotFound:
-			return derr.NewRequestNotFoundError(fmt.Errorf(err.Payload.Message))
+	if bind {
+		bindRes, err := client.Scopes.BindContainer(scopes.NewBindContainerParams().WithHandle(h))
+		if err != nil {
+			switch err := err.(type) {
+			case *scopes.BindContainerNotFound:
+				return derr.NewRequestNotFoundError(fmt.Errorf(err.Payload.Message))
 
-		case *scopes.BindContainerInternalServerError:
-			return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+			case *scopes.BindContainerInternalServerError:
+				return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
 
-		default:
-			return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+			default:
+				return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+			}
 		}
-	}
 
-	h = bindRes.Payload
+		h = bindRes.Payload
+	}
 
 	// change the state of the container
 	// TODO: We need a resolved ID from the name
@@ -443,6 +463,10 @@ func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig
 // problem stopping the container.
 func (c *Container) ContainerStop(name string, seconds int) error {
 	defer trace.End(trace.Begin("ContainerStop"))
+	return c.containerStop(name, seconds, true)
+}
+
+func (c *Container) containerStop(name string, seconds int, unbound bool) error {
 	//retrieve client to portlayer
 	client := PortLayerClient()
 	if client == nil {
@@ -460,21 +484,23 @@ func (c *Container) ContainerStop(name string, seconds int) error {
 
 	handle := getResponse.Payload
 
-	ub, err := client.Scopes.UnbindContainer(scopes.NewUnbindContainerParams().WithHandle(handle))
-	if err != nil {
-		switch err := err.(type) {
-		case *scopes.UnbindContainerNotFound:
-			return derr.NewRequestNotFoundError(fmt.Errorf("container %s not found", name))
+	if unbound {
+		ub, err := client.Scopes.UnbindContainer(scopes.NewUnbindContainerParams().WithHandle(handle))
+		if err != nil {
+			switch err := err.(type) {
+			case *scopes.UnbindContainerNotFound:
+				return derr.NewRequestNotFoundError(fmt.Errorf("container %s not found", name))
 
-		case *scopes.UnbindContainerInternalServerError:
-			return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+			case *scopes.UnbindContainerInternalServerError:
+				return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
 
-		default:
-			return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+			default:
+				return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+			}
 		}
-	}
 
-	handle = ub.Payload
+		handle = ub.Payload
+	}
 
 	// change the state of the container
 	// TODO: We need a resolved ID from the name
