@@ -22,12 +22,14 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/portlayer"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
-	"github.com/vmware/vmw-guestinfo/rpcvmx"
 )
 
 const (
@@ -46,22 +48,6 @@ type Context struct {
 	scopes       map[string]*Scope
 	containers   map[exec.ID]*Container
 	defaultScope *Scope
-
-	BridgeNetworkName string // Portgroup name of the bridge network
-}
-
-var getBridgeNetworkName = func() (string, error) {
-	config := rpcvmx.NewConfig()
-	bnn, err := config.String(fmt.Sprintf("%s/portgroup", bridgeNetworkKey), "")
-	if err != nil {
-		return "", err
-	}
-
-	if bnn == "" {
-		return bnn, fmt.Errorf("bridge network name not set")
-	}
-
-	return bnn, nil
 }
 
 func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
@@ -71,17 +57,11 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 		return nil, fmt.Errorf("bridge mask is not compatiable with bridge pool mask")
 	}
 
-	bnn, err := getBridgeNetworkName()
-	if err != nil {
-		return nil, err
-	}
-
 	ctx := &Context{
 		defaultBridgeMask: bridgeMask,
 		defaultBridgePool: NewAddressSpaceFromNetwork(&bridgePool),
 		scopes:            make(map[string]*Scope),
 		containers:        make(map[exec.ID]*Container),
-		BridgeNetworkName: bnn,
 	}
 
 	s, err := ctx.NewScope("bridge", bridgeScopeType, nil, net.IPv4(0, 0, 0, 0), nil, nil)
@@ -119,7 +99,7 @@ func isUnspecifiedSubnet(n *net.IPNet) bool {
 	return bits == 0 || ones == 0
 }
 
-func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM, networkName string) (*Scope, error) {
+func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM, network object.NetworkReference) (*Scope, error) {
 	if isUnspecifiedSubnet(subnet) {
 		subnet = defaultSubnet
 	}
@@ -178,17 +158,17 @@ func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, 
 	}
 
 	newScope := &Scope{
-		id:          id,
-		name:        name,
-		subnet:      *subnet,
-		gateway:     gateway,
-		ipam:        ipam,
-		containers:  make(map[exec.ID]*Container),
-		scopeType:   scopeType,
-		space:       space,
-		dns:         dns,
-		builtin:     false,
-		NetworkName: networkName,
+		id:         id,
+		name:       name,
+		subnet:     *subnet,
+		gateway:    gateway,
+		ipam:       ipam,
+		containers: make(map[exec.ID]*Container),
+		scopeType:  scopeType,
+		space:      space,
+		dns:        dns,
+		builtin:    false,
+		network:    network,
 	}
 
 	c.scopes[name] = newScope
@@ -197,7 +177,12 @@ func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, 
 }
 
 func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (newScope *Scope, err error) {
-	s, err := c.newScopeCommon(id, name, bridgeScopeType, subnet, gateway, dns, ipam, c.BridgeNetworkName)
+	bn, ok := portlayer.Config.Networks["bridge"]
+	if !ok || bn == nil {
+		return nil, fmt.Errorf("bridge network not set")
+	}
+
+	s, err := c.newScopeCommon(id, name, bridgeScopeType, subnet, gateway, dns, ipam, bn.PortGroup)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +207,7 @@ func (c *Context) newExternalScope(id, name string, subnet *net.IPNet, gateway n
 	}
 
 	// TODO Get the correct networkName
-	return c.newScopeCommon(id, name, externalScopeType, subnet, gateway, dns, ipam, "")
+	return c.newScopeCommon(id, name, externalScopeType, subnet, gateway, dns, ipam, nil)
 }
 
 func isDefaultSubnet(subnet *net.IPNet) bool {
@@ -506,12 +491,16 @@ func findSlotNumber(slots map[int32]bool) int32 {
 }
 
 var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, error) {
-	var err error
 	var devices object.VirtualDeviceList
 	var d types.BaseVirtualDevice
 	var dc types.BaseVirtualDeviceConfigSpec
 
-	dcs, err := h.Spec.FindNICs(s.NetworkName)
+	ctx := context.Background()
+	dcs, err := h.Spec.FindNICs(ctx, s.network)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, ds := range dcs {
 		if ds.GetVirtualDeviceConfigSpec().Operation == types.VirtualDeviceConfigSpecOperationAdd {
 			d = ds.GetVirtualDeviceConfigSpec().Device
@@ -521,10 +510,9 @@ var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, e
 	}
 
 	if d == nil {
-		backing := &types.VirtualEthernetCardNetworkBackingInfo{
-			VirtualDeviceDeviceBackingInfo: types.VirtualDeviceDeviceBackingInfo{
-				DeviceName: s.NetworkName,
-			},
+		backing, err := s.network.EthernetCardBackingInfo(ctx)
+		if err != nil {
+			return nil, err
 		}
 
 		if d, err = devices.CreateEthernetCard("vmxnet3", backing); err != nil {
@@ -694,10 +682,9 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 		h.SetSpec(nil)
 
 		var devices object.VirtualDeviceList
-		backing := &types.VirtualEthernetCardNetworkBackingInfo{
-			VirtualDeviceDeviceBackingInfo: types.VirtualDeviceDeviceBackingInfo{
-				DeviceName: s.NetworkName,
-			},
+		backing, err := s.network.EthernetCardBackingInfo(context.Background())
+		if err != nil {
+			return err
 		}
 
 		d, err := devices.CreateEthernetCard("vmxnet3", backing)
