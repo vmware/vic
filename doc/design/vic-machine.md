@@ -129,30 +129,30 @@ below this point is working notes.
 
 ### Inputs
 
-VCH user (existing or new) **
-resource lists:
- pool **
- imagestore datastore paths **
- contianer datastore paths **
- volume datastore paths (restriction)
- network mappings:
-  one network minimum for VCH comms**
-  other network mappings
-resource allotments:
- cpu
- memory
- network IO
- disk IO
- datastore quotas (per datastore path)
-certificates
- users - for access to VCH
- hosts - for container access to external hosts
- network - for VCH/container access to networks (gating proxies)
-registry lists
- whitelist
- blacklist
-default container resource reservations and limits *
-containerVM naming convention (displayName for vSphere) *
+* VCH user (existing or new) **
+* resource lists:
+ - pool **
+ - imagestore datastore paths **
+ - container datastore paths **
+ - volume datastore paths (restriction)
+ - network mappings:
+  - one network minimum for VCH comms**
+  - other network mappings
+* resource allotments:
+ - cpu
+ - memory
+ - network IO
+ - disk IO
+ - datastore quotas (per datastore path)
+* certificates
+ - users - for access to VCH
+ - hosts - for container access to external hosts
+ - network - for VCH/container access to networks (gating proxies)
+* registry lists
+ - whitelist
+ - blacklist
+* default container resource reservations and limits *
+* containerVM naming convention (displayName for vSphere) *
 
 ### Actions
 
@@ -178,6 +178,55 @@ Some of the elevated privilege operations could be delegated during self-provisi
 5. initialize applianceVM
 
 At this point install transitions to managing - reporting VCH status from initial install is the same as reporting that information for any VCH regardless of age.
+
+
+## Deleting - per vSphere target
+
+### Inputs
+
+1. vSphere SDK endpoint
+2. vSphere administrative credentials
+3. VCH identification
+ - VCH resource pool path in govc format, e.g. /ha-datacenter/vm
+ - VCH name
+ - VCH ID, which is the value returned by vic-machine ls
+
+The VCH name and VCH resource pool path are identical to the value used in vic-machine create command. Which can uniquely identify one VCH instance.
+The VCH ID is the value returned by vic-machine ls, which probably be the VM mob-id, query from VC or ESX.
+
+Either VCH ID or the VCH resource pool path and VCH name should be specified.
+
+### Actions
+
+1. Get VCH VM
+2. Read back VCH configuration from VM guestinfo
+3. Delete following resources based on VCH configuration.
+ - Container VMs managed by the VCH
+   - Contianer datastore paths and resource pool path configured during installation will be used here, to detect if the VM belongs to this VCH. If yes, these VMs will be removed.
+    - Container VMs will be removed if they are in stopped status.
+     - If container VMs are in powered on state, delete will return failure if -force is not specified.
+      - If container VMs are in powered on state, and -force is specified, vic-machine delete will power off and remove them those VMs.
+
+ - volumes managed by the VCH
+   - -force option is required to delete volumes together with VCH uninstallation.
+    - Volume datastore path (sample: ds://datastore1/volume/vch1) configured during installation will be used here, to detect if the volumes are created by this VCH.
+     - If volume directory is empty, vic-machine delete will delete this directory as well, otherwise warning it.
+ - images managed by the VCH
+   - Images are shared by VCHs. Currently no reference or metadata to specify which image is referenced by which VCH, so for TP3, vic-machine delete will not touch images.
+ - vSphere networks created
+   - vic-machine create or VCH port-layer-server will create network, so vic-machine delete should delete any new networks. (Still need to confirm for how to get created networks)
+ - VCH specific metadata from vsphere objects if any
+   - Cause image will not be removed at this time, image metadata will not touched as well. But for container metadata, if any, will be deleted. (Need to finalize where it is)
+ - the resource pool and appliance VM
+
+### Samples
+```
+vic-machine delete 
+--target root:password@192.168.1.1
+--vch-path /ha-datacenter/vm/vch1
+--force
+```
+This command will delete VCH /ha-datacenter/vm/vch1 appliance, all containers VMs, networks and volumes created by this VCH.
 
 ## Managing a VCH
 
