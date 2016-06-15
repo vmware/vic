@@ -183,7 +183,7 @@ func (c *Create) Flags() []cli.Flag {
 }
 
 func (c *Create) processParams() error {
-	if err := c.ProcessTargets(); err != nil {
+	if err := c.HasCredentials(); err != nil {
 		return err
 	}
 

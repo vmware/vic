@@ -59,6 +59,7 @@ func (t *Target) TargetFlags() []cli.Flag {
 	}
 }
 
+// URLWithoutPassword returns the URL stripped of password
 func (t *Target) URLWithoutPassword() *url.URL {
 	if t.URL == nil {
 		return nil
@@ -69,7 +70,8 @@ func (t *Target) URLWithoutPassword() *url.URL {
 	return &withoutCredentials
 }
 
-func (t *Target) ProcessTargets() error {
+// HasCredentials check that the credentials have been supplied by any of the permitted mechanisms
+func (t *Target) HasCredentials() error {
 	if t.URL == nil {
 		return cli.NewExitError("--target argument must be specified", 1)
 	}

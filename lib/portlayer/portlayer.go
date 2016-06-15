@@ -18,14 +18,15 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/portlayer/network"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"golang.org/x/net/context"
 )
 
-var Config metadata.VirtualContainerHostConfigSpec
+var NetworkConfig network.NetworkConfig
 
 type API interface {
 	storage.ImageStorer
@@ -37,11 +38,16 @@ func Init(ctx context.Context, sess *session.Session) error {
 		return err
 	}
 
-	extraconfig.DecodeWithPrefix(source, &Config, "guestinfo.vch")
-	log.Debugf("decoded vch config: %#v", Config)
+	extraconfig.Decode(source, &NetworkConfig)
+	log.Debugf("decoded vch config: %#v", NetworkConfig)
 	f := find.NewFinder(sess.Vim25(), false)
-	for nn, n := range Config.Networks {
-		r, err := f.ObjectReference(ctx, n.PortGroupRef)
+	for nn, n := range NetworkConfig.ContainerNetworks {
+		pgref := new(types.ManagedObjectReference)
+		if !pgref.FromString(n.ID) {
+			log.Errorf("Could not reacquire object reference from id for network %s: %s", nn, n.ID)
+		}
+
+		r, err := f.ObjectReference(ctx, *pgref)
 		if err != nil {
 			log.Warnf("could not get network reference for %s network", nn)
 			continue

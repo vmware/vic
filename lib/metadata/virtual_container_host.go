@@ -21,7 +21,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 )
 
@@ -104,14 +103,6 @@ type VirtualContainerHostConfigSpec struct {
 type RawCertificate struct {
 	Key  []byte
 	Cert []byte
-}
-
-type NetworkInfo struct {
-	InventoryPath string                       `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-	Mac           string                       `vic:"0.1" scope:"read-only" key:"mac"`
-	PortGroup     object.NetworkReference      `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-	PortGroupName string                       `vic:"0.1" scope:"read-only" key:"portgroup"`
-	PortGroupRef  types.ManagedObjectReference `vic:"0.1" scope:"read-only" key:"portgroup_ref"`
 }
 
 // CustomerExperienceImprovementProgram provides configuration for the phone home mechanism

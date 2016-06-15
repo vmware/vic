@@ -61,11 +61,8 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 	v := &Validator{}
 	v.Context = ctx
 	tURL := input.URL
-	if err != nil {
-		log.Errorf("Specified target is not a valid URL: %s", err)
-		return nil, err
-	}
 
+	// default to https scheme
 	if tURL.Scheme == "" {
 		tURL.Scheme = "https"
 	}
@@ -74,11 +71,6 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 	if tURL.Host == "" {
 		tURL.Host = tURL.Path
 		tURL.Path = ""
-	}
-
-	if tURL.User == nil {
-		// there were no credentials specified with the target URI
-		tURL.User = url.UserPassword(input.User, *input.Password)
 	}
 
 	sessionconfig := &session.Config{
