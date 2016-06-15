@@ -26,8 +26,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-var NetworkConfig network.NetworkConfig
-
 type API interface {
 	storage.ImageStorer
 }
@@ -38,10 +36,10 @@ func Init(ctx context.Context, sess *session.Session) error {
 		return err
 	}
 
-	extraconfig.Decode(source, &NetworkConfig)
-	log.Debugf("decoded vch config: %#v", NetworkConfig)
+	extraconfig.Decode(source, &network.Config)
+	log.Debugf("Decoded VCH config: %#v", network.Config)
 	f := find.NewFinder(sess.Vim25(), false)
-	for nn, n := range NetworkConfig.ContainerNetworks {
+	for nn, n := range network.Config.ContainerNetworks {
 		pgref := new(types.ManagedObjectReference)
 		if !pgref.FromString(n.ID) {
 			log.Errorf("Could not reacquire object reference from id for network %s: %s", nn, n.ID)

@@ -36,16 +36,16 @@ func TestURLFlag(t *testing.T) {
 		t.Errorf("Value: %s", u.Value)
 	}
 
-	u.Value.Set("127.0.0.1")
+	u.Value.Set("x:y@z@127.0.0.1")
 
-	if u.Value.String() != "https://:@127.0.0.1/sdk" {
+	if u.Value.String() != "x:y@z@127.0.0.1" {
 		t.Errorf("Value after set: %s", u.Value)
 	}
 
 	if val == nil {
 		t.Errorf("val is not set")
 	}
-	if val.String() != "https://:@127.0.0.1/sdk" {
+	if val.String() != "x:y@z@127.0.0.1" {
 		t.Errorf("val is not set correctly: %s", val.String())
 	}
 }

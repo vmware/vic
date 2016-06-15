@@ -25,8 +25,8 @@ import (
 
 func (d *Dispatcher) createBridgeNetwork(conf *metadata.VirtualContainerHostConfigSpec) error {
 	// if the bridge network is already extant there's nothing to do
-	bnet := conf.ExecutorConfig.Networks["bridge"]
-	if bnet != nil && bnet.Network.ID != "" {
+	bnet := conf.ContainerNetworks[conf.DefaultNetwork]
+	if bnet != nil && bnet.ID != "" {
 		return nil
 	}
 
@@ -43,35 +43,35 @@ func (d *Dispatcher) createBridgeNetwork(conf *metadata.VirtualContainerHostConf
 		return err
 	}
 
-	if err = hostNetSystem.AddVirtualSwitch(d.ctx, bnet.Network.Name, &types.HostVirtualSwitchSpec{
+	if err = hostNetSystem.AddVirtualSwitch(d.ctx, bnet.Name, &types.HostVirtualSwitchSpec{
 		NumPorts: 1024,
 	}); err != nil {
-		err = errors.Errorf("Failed to add virtual switch (%s): %s", bnet.Network.Name, err)
+		err = errors.Errorf("Failed to add virtual switch (%s): %s", bnet.Name, err)
 		return err
 	}
 
 	log.Infof("Creating Portgroup")
 	if err = hostNetSystem.AddPortGroup(d.ctx, types.HostPortGroupSpec{
-		Name:        bnet.Network.Name,
+		Name:        bnet.Name,
 		VlanId:      1, // TODO: expose this for finer grained grouping within the switch
-		VswitchName: bnet.Network.Name,
+		VswitchName: bnet.Name,
 		Policy:      types.HostNetworkPolicy{},
 	}); err != nil {
-		err = errors.Errorf("Failed to add port group (%s): %s", bnet.Network.Name, err)
+		err = errors.Errorf("Failed to add port group (%s): %s", bnet.Name, err)
 		return err
 	}
 
-	net, err := d.session.Finder.Network(d.ctx, bnet.Network.Name)
+	net, err := d.session.Finder.Network(d.ctx, bnet.Name)
 	if err != nil {
 		_, ok := err.(*find.NotFoundError)
 		if !ok {
-			err = errors.Errorf("Failed to query virtual switch (%s): %s", bnet.Network.Name, err)
+			err = errors.Errorf("Failed to query virtual switch (%s): %s", bnet.Name, err)
 			return err
 		}
 	}
 
 	// assign the moref to the bridge network config on the appliance
-	bnet.Network.ID = net.Reference().String()
+	bnet.ID = net.Reference().String()
 	return nil
 }
 

@@ -19,6 +19,8 @@ import (
 	"os"
 	"time"
 
+	"golang.org/x/net/context"
+
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/urfave/cli"
@@ -82,7 +84,7 @@ func (d *Uninstall) Flags() []cli.Flag {
 }
 
 func (d *Uninstall) processParams() error {
-	if err := d.ProcessTargets(); err != nil {
+	if err := d.HasCredentials(); err != nil {
 		return err
 	}
 
@@ -116,7 +118,15 @@ func (d *Uninstall) Run(cli *cli.Context) error {
 
 	log.Infof("### Deleting VCH ####")
 
-	validator := validate.NewValidator()
+	ctx, cancel := context.WithTimeout(context.Background(), d.Timeout)
+	defer cancel()
+
+	validator, err := validate.NewValidator(ctx, d.Data)
+	if err != nil {
+		err = errors.Errorf("%s. Exiting...", err)
+		return err
+	}
+
 	rp, err := validator.GetResourcePool(d.Data)
 	if err != nil {
 		err = errors.Errorf("%s. Exiting...", err)

@@ -140,6 +140,9 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 		return nil, errors.Errorf("SDK URL (%s) could not be parsed: %s", s.Service, err)
 	}
 
+	// update the service URL with the resolved soapURL
+	s.Service = soapURL.String()
+
 	// we can't set a keep alive if we log in directly with client creation
 	user := soapURL.User
 	soapURL.User = nil

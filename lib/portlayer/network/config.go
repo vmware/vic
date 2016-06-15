@@ -18,11 +18,14 @@ import (
 	"net"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/lib/metadata"
 )
 
-type NetworkConfig struct {
+var Config Configuration
+
+type Configuration struct {
 	// The default bridge network supplied for the Virtual Container Host
-	BridgeNetwork string `vic:"0.1" scope:"read-only" key:"bridge_network"`
+	DefaultNetwork string `vic:"0.1" scope:"read-only" key:"default_network"`
 	// Published networks available for containers to join, keyed by consumption name
 	ContainerNetworks map[string]*ContainerNetwork `vic:"0.1" scope:"read-only" key:"container_networks"`
 }
@@ -30,7 +33,7 @@ type NetworkConfig struct {
 type ContainerNetwork struct {
 	// Common.Name - the symbolic name for the network, e.g. web or backend
 	// Common.ID - identifier of the underlay for the network
-	Common
+	metadata.Common
 
 	// The network scope the IP belongs to.
 	// The IP address is the default gateway

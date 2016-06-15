@@ -227,7 +227,7 @@ func (c *Create) loadCertificate() (*Keypair, error) {
 	if c.cert != "" && c.key != "" {
 		log.Infof("Loading certificate/key pair - private key in %s", c.key)
 		keypair = NewKeyPair(false, c.key, c.cert)
-	} else if c.tlsGenerate {
+	} else if c.tlsGenerate && c.DisplayName != "" {
 		c.key = fmt.Sprintf("./%s-key.pem", c.DisplayName)
 		c.cert = fmt.Sprintf("./%s-cert.pem", c.DisplayName)
 		log.Infof("Generating certificate/key pair - private key in %s", c.key)
@@ -324,19 +324,19 @@ func (c *Create) Run(cli *cli.Context) error {
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
 
-	validator, err := validate.NewValidator(ctx, c)
+	validator, err := validate.NewValidator(ctx, c.Data)
 	if err != nil {
 		err = errors.Errorf("%s\nExiting...", err)
 		return err
 	}
 
-	vchConfig, err := validator.Validate(ctx, c)
+	vchConfig, err := validator.Validate(ctx, c.Data)
 	if err != nil {
 		err = errors.Errorf("%s. Exiting...", err)
 		return err
 	}
 
-	vConfig := validator.addDeprecatedFields(ctx, vchConfig, c)
+	vConfig := validator.AddDeprecatedFields(ctx, vchConfig, c.Data)
 	vConfig.ImageFiles = images
 
 	executor := management.NewDispatcher(ctx, validator.Session, vchConfig, c.Force)

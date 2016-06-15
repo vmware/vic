@@ -17,8 +17,6 @@ package flags
 import (
 	"flag"
 	"net/url"
-
-	"github.com/vmware/govmomi/vim25/soap"
 )
 
 type URLFlag struct {
@@ -27,7 +25,7 @@ type URLFlag struct {
 
 func (f *URLFlag) Set(s string) error {
 	var err error
-	url, err := soap.ParseURL(s)
+	url, err := url.Parse(s)
 	*f.u = url
 	return err
 }

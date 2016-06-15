@@ -73,8 +73,8 @@ type VirtualContainerHostConfigSpec struct {
 	VolumeLocations map[string]url.URL `vic:"0.1" scope:"read-only"`
 
 	// Port Layer - network
-	// The default bridge network supplied for the Virtual Container Host
-	BridgeNetwork string `vic:"0.1" scope:"read-only" key:"bridge_network"`
+	// The default network for containers
+	DefaultNetwork string `vic:"0.1" scope:"read-only" key:"default_network"`
 	// Published networks available for containers to join, keyed by consumption name
 	ContainerNetworks map[string]*ContainerNetwork `vic:"0.1" scope:"read-only" key:"container_networks"`
 

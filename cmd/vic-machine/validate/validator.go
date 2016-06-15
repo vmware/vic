@@ -95,17 +95,16 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 
 	sessionconfig.Service = tURL.String()
 
-	v.Session, err = session.NewSession(sessionconfig).Create(v.Context)
-	if err != nil {
-		log.Errorf("Failed to create session: %s", err)
-		return nil, err
-	}
+	v.Session = session.NewSession(sessionconfig)
 	v.Session, err = v.Session.Connect(v.Context)
 	if err != nil {
 		return nil, err
 	}
 
-	v.Session.Populate(ctx)
+	v.Session, err = v.Session.Populate(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	if v.Session.Datacenter == nil {
 		detail := "Target should specify datacenter when there are multiple possibilities, e.g. https://addr/datacenter"
@@ -143,39 +142,45 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*metadata.V
 
 	conf := &metadata.VirtualContainerHostConfigSpec{}
 
-	v.Basics(ctx, input, conf)
+	v.basics(ctx, input, conf)
 
-	v.Target(ctx, input, conf)
-	v.Compute(ctx, input, conf)
-	v.Storage(ctx, input, conf)
-	v.Network(ctx, input, conf)
+	v.target(ctx, input, conf)
+	v.compute(ctx, input, conf)
+	v.storage(ctx, input, conf)
+	v.network(ctx, input, conf)
 
-	v.Certificate(ctx, input, conf)
+	v.certificate(ctx, input, conf)
 
 	// Perform the higher level compatibility and consistency checks
-	v.Compatibility(ctx, conf)
+	v.compatibility(ctx, conf)
 
 	// TODO: determine if this is where we should turn the noted issues into message
 	return conf, v.ListIssues()
 
 }
 
-func (v *Validator) Basics(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) basics(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
 	// TODO: ensure that displayname doesn't violate constraints (length, characters, etc)
 	conf.SetName(input.DisplayName)
 
 	conf.Name = input.DisplayName
 }
 
-func (v *Validator) Compute(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) compute(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
 	// Compute
-	pool, err := v.GetResourcePool(ctx, input.ComputeResourcePath)
+
+	// compute resource looks like <toplevel>/<sub/path>
+	// this should map to /datacenter-name/host/<toplevel>/Resources/<sub/path>
+	// we need to validate that <toplevel> exists and then that the combined path exists.
+
+	// FIXME: for now consume the fully qualified path
+	pool, err := v.resourcePoolHelper(ctx, input.ComputeResourcePath)
 	v.NoteIssue(err)
 	moref := pool.Reference()
 	conf.AddComputeResource(&moref)
 }
 
-func (v *Validator) Storage(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) storage(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
 
 	// Image Store
 	ds, err := v.datastoreHelper(ctx, input.ImageDatastoreName)
@@ -186,7 +191,7 @@ func (v *Validator) Storage(ctx context.Context, input *data.Data, conf *metadat
 
 }
 
-func (v *Validator) Network(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
 	// External net
 	extMoref, err := v.networkHelper(ctx, input.ExternalNetworkName)
 	v.NoteIssue(err)
@@ -238,6 +243,9 @@ func (v *Validator) Network(ctx context.Context, input *data.Data, conf *metadat
 	// Bridge net -
 	//   vCenter: must exist and must be a DPG
 	//   ESX: doesn't need to exist
+	//
+	// for now we're hardcoded to "bridge" for the container host name
+	conf.DefaultNetwork = "bridge"
 	bridgeMoref, err := v.dpgHelper(ctx, input.BridgeNetworkName)
 	if err != nil {
 		if _, ok := err.(*find.NotFoundError); !ok || v.Session.Client.IsVC() {
@@ -245,28 +253,35 @@ func (v *Validator) Network(ctx context.Context, input *data.Data, conf *metadat
 		}
 	}
 
-	gateway, ok := input.MappedNetworksGateway["bridge"]
+	// ensure gateway is populated
+	gateway, ok := input.MappedNetworksGateway[conf.DefaultNetwork]
 	if !ok {
-		// TODO: put the default somewhere less inline
 		ip, mask, _ := net.ParseCIDR("172.16.0.1/24")
 		gateway = &net.IPNet{
 			IP:   ip,
 			Mask: mask.Mask,
 		}
 	}
-	conf.AddNetwork(&metadata.NetworkEndpoint{
+
+	bridgeNet := &metadata.NetworkEndpoint{
 		Common: metadata.Common{
-			Name: "bridge",
+			Name: conf.DefaultNetwork,
+			ID:   bridgeMoref,
 		},
 		Static: gateway,
 		Network: metadata.ContainerNetwork{
 			Common: metadata.Common{
-				Name: "bridge",
+				Name: conf.DefaultNetwork,
 				ID:   bridgeMoref,
 			},
-			Gateway: *gateway,
 		},
-	})
+	}
+	// we  need to have the bridge network identified as an available container
+	// network
+	conf.AddContainerNetwork(&bridgeNet.Network)
+	// we also need to have the appliance attached to the bridge network to allow
+	// port forwarding
+	conf.AddNetwork(bridgeNet)
 
 	// add mapped networks
 	//   these should be a distributed port groups in vCenter
@@ -288,21 +303,20 @@ func (v *Validator) Network(ctx context.Context, input *data.Data, conf *metadat
 	}
 }
 
-func (v *Validator) Target(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
-	targetURL := *input.URL
-	if targetURL.Scheme == "" {
-		targetURL.Scheme = "https"
+func (v *Validator) target(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
+	targetURL, err := url.Parse(v.Session.Service)
+	if err != nil {
+		v.NoteIssue(fmt.Errorf("error processing target after transformation to SOAP endpoint: %s, %s", v.Session.Service, err))
+		return
 	}
-	targetURL.Path = "sdk"
-	targetURL.User = url.UserPassword(input.User, *input.Password)
 
-	conf.Target = targetURL
+	conf.Target = *targetURL
 	conf.Insecure = input.Insecure
 
 	// TODO: more checks needed here if specifying service account for VCH
 }
 
-func (v *Validator) Certificate(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) certificate(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
 	// check the cert can be loaded
 	_, err := tls.X509KeyPair(input.CertPEM, input.KeyPEM)
 	v.NoteIssue(err)
@@ -313,7 +327,7 @@ func (v *Validator) Certificate(ctx context.Context, input *data.Data, conf *met
 	}
 }
 
-func (v *Validator) Compatibility(ctx context.Context, conf *metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) compatibility(ctx context.Context, conf *metadata.VirtualContainerHostConfigSpec) {
 	// TODO: add checks such as datastore is acessible from target cluster
 	_, err := v.Session.Datastore.AttachedClusterHosts(v.Context, v.Session.Cluster)
 	v.NoteIssue(err)
@@ -422,7 +436,7 @@ func (v *Validator) datastoreHelper(ctx context.Context, path string) (*url.URL,
 	return dsURL, nil
 }
 
-func (v *Validator) GetResourcePool(ctx context.Context, path string) (*object.ResourcePool, error) {
+func (v *Validator) resourcePoolHelper(ctx context.Context, path string) (*object.ResourcePool, error) {
 	pools, err := v.Session.Finder.ResourcePoolList(ctx, path)
 	if err != nil {
 		// TODO: error message about no such match and how to get a network list
@@ -434,6 +448,10 @@ func (v *Validator) GetResourcePool(ctx context.Context, path string) (*object.R
 	}
 
 	return pools[0], nil
+}
+
+func (v *Validator) GetResourcePool(input *data.Data) (*object.ResourcePool, error) {
+	return v.resourcePoolHelper(v.Context, input.ComputeResourcePath)
 }
 
 func (v *Validator) ParseComputeResourcePath(rp string) error {
@@ -453,7 +471,7 @@ func (v *Validator) ParseComputeResourcePath(rp string) error {
 	return nil
 }
 
-func (v *Validator) addDeprecatedFields(ctx context.Context, conf *metadata.VirtualContainerHostConfigSpec, input *data.Data) *management.InstallerData {
+func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *metadata.VirtualContainerHostConfigSpec, input *data.Data) *management.InstallerData {
 
 	dconfig := management.InstallerData{}
 

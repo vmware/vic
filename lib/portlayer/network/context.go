@@ -28,7 +28,6 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
-	"github.com/vmware/vic/lib/portlayer"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 )
@@ -177,9 +176,9 @@ func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, 
 }
 
 func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (newScope *Scope, err error) {
-	bn, ok := portlayer.Config.Networks["bridge"]
+	bn, ok := Config.ContainerNetworks[Config.DefaultNetwork]
 	if !ok || bn == nil {
-		return nil, fmt.Errorf("bridge network not set")
+		return nil, fmt.Errorf("default network not set")
 	}
 
 	s, err := c.newScopeCommon(id, name, bridgeScopeType, subnet, gateway, dns, ipam, bn.PortGroup)
@@ -419,7 +418,11 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			s.removeContainer(con)
 		}()
 
-		if _, err = s.addContainer(con, &ne.Static.IP); err != nil {
+		var ip *net.IP
+		if ne.Static != nil {
+			ip = &ne.Static.IP
+		}
+		if _, err = s.addContainer(con, ip); err != nil {
 			return nil, err
 		}
 	}
@@ -427,8 +430,10 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	endpoints := con.Endpoints()
 	for _, e := range endpoints {
 		ne := h.ExecConfig.Networks[e.Scope().Name()]
-		ne.Static.IP = e.IP()
-		ne.Static.Mask = e.Scope().Subnet().Mask
+		ne.Static = &net.IPNet{
+			IP:   e.IP(),
+			Mask: e.Scope().Subnet().Mask,
+		}
 		ne.Network.Gateway = net.IPNet{IP: e.gateway, Mask: e.subnet.Mask}
 	}
 
@@ -458,7 +463,11 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 				return
 			}
 
-			s.addContainer(con, &ne.Static.IP)
+			var ip *net.IP
+			if ne.Static != nil {
+				ip = &ne.Static.IP
+			}
+			s.addContainer(con, ip)
 		}()
 
 		e := con.Endpoint(s)
@@ -467,7 +476,7 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 		}
 
 		if !e.static {
-			ne.Static = &net.IPNet{IP: net.IPv4zero}
+			ne.Static = nil
 		}
 	}
 
@@ -588,9 +597,11 @@ func (c *Context) AddContainer(h *exec.Handle, scope string, ip *net.IP) error {
 				continue
 			}
 
-			if ne.PCISlot > 0 {
-				pciSlot = ne.PCISlot
-				break
+			if ne.ID != "" {
+				pciSlot = atoiOrZero(ne.ID)
+				if pciSlot != 0 {
+					break
+				}
 			}
 		}
 	}
@@ -609,15 +620,20 @@ func (c *Context) AddContainer(h *exec.Handle, scope string, ip *net.IP) error {
 	}
 
 	ne := &metadata.NetworkEndpoint{
-		PCISlot: pciSlot,
+		Common: metadata.Common{
+			ID: strconv.Itoa(int(pciSlot)),
+			// Name: this would cause NIC renaming if uncommented
+		},
 		Network: metadata.ContainerNetwork{
-			Name: s.Name(),
+			Common: metadata.Common{
+				Name: s.Name(),
+			},
 		},
 	}
 
-	ne.Static = &net.IPNet{IP: net.IPv4zero}
+	ne.Static = nil
 	if ip != nil {
-		ne.Static.IP = *ip
+		ne.Static = &net.IPNet{IP: *ip}
 	}
 
 	h.ExecConfig.Networks[s.Name()] = ne
@@ -654,7 +670,7 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 		if ne2 == ne {
 			continue
 		}
-		if ne2.PCISlot == ne.PCISlot {
+		if ne2.ID == ne.ID {
 			removeNIC = false
 			break
 		}
@@ -722,4 +738,9 @@ func (c *Context) DeleteScope(name string) error {
 
 	delete(c.scopes, name)
 	return nil
+}
+
+func atoiOrZero(a string) int32 {
+	i, _ := strconv.Atoi(a)
+	return int32(i)
 }
