@@ -11,7 +11,8 @@ Pull image
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull ${image}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    Should contain  ${output}  Status: Image is up to date for library/
+    Should Contain  ${output}  Digest:
+    Should Contain  ${output}  Status:
 
 *** Test Cases ***
 Pull nginx

@@ -4,6 +4,7 @@ Library  String
 Library  Collections
 Library  requests
 Library  Process
+Library  SSHLibrary  1 minute  prompt=bash-4.1$
 
 *** Variables ***
 ${bin-dir}  /drone/src/github.com/vmware/vic/bin
@@ -51,7 +52,7 @@ Cleanup VIC Appliance On Test Server
 
 Get State Of Github Issue
     [Arguments]  ${num}
-    ${result} =  get  https://api.github.com/repos/vmware/vic/issues/${num}
+    ${result} =  Get  https://api.github.com/repos/vmware/vic/issues/${num}
     Should Be Equal  ${result.status_code}  ${200}
     ${status} =  Get From Dictionary  ${result.json()}  state
     [Return]  ${status}
@@ -82,3 +83,59 @@ Verify Checksums
     \   ${imageSum}=  Split String  ${imageSum.stdout}
     \   Should Be Equal  @{sums}[${idx}]  @{imageSum}[0]
     \   ${idx}=  Evaluate  ${idx}+1
+
+Deploy Nimbus ESXi Server
+    [Arguments]  ${user}  ${password}
+    ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
+    Log To Console  \nDeploying Nimbus ESXi server: ${name}
+    Open Connection  %{NIMBUS_GW}
+    Login  ${user}  ${password}
+
+    ${out}=  Execute Command  nimbus-esxdeploy ${name} 3620759
+    # Make sure the deploy actually worked
+    ${success}=  Get Line  ${out}  -2
+    Should Contain  ${success}  To manage this VM use
+    # Now grab the IP address and return the name and ip for later use
+    ${gotIP}=  Get Line  ${out}  -5
+    @{gotIP}=  Split String  ${gotIP}  ${SPACE}
+    ${ip}=  Remove String  @{gotIP}[5]  ,
+    # Let's set a password so govc doesn't complain
+    Remove Environment Variable  GOVC_PASSWORD
+    Remove Environment Variable  GOVC_USERNAME
+    Set Environment Variable  GOVC_INSECURE  1
+    Set Environment Variable  GOVC_URL  root:@${ip}
+    ${out}=  Run  govc host.account.update -id root -password e2eFunctionalTest
+    Should Be Empty  ${out}
+    Log To Console  Successfully deployed new ESXi server - ${user}-${name}
+    Close connection
+    [Return]  ${user}-${name}  ${ip}
+
+Deploy Nimbus vCenter Server
+    [Arguments]  ${user}  ${password}
+    ${name}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
+    Log To Console  \nDeploying Nimbus vCenter server: ${name}
+    Open Connection  %{NIMBUS_GW}
+    Login  ${user}  ${password}
+
+    ${out}=  Execute Command  nimbus-vcvadeploy --vcvaBuild 3634791 ${name}
+    # Make sure the deploy actually worked
+    ${success}=  Get Line  ${out}  -5
+    Should Contain  ${success}  Overall Status: Succeeded
+    # Now grab the IP address and return the name and ip for later use
+    ${gotIP}=  Get Line  ${out}  -22
+    ${ip}=  Fetch From Right  ${gotIP}  ${SPACE}
+
+    Set Environment Variable  GOVC_INSECURE  1
+    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
+    Set Environment Variable  GOVC_PASSWORD  Admin!23
+    Set Environment Variable  GOVC_URL  ${ip}
+    Log To Console  Successfully deployed new vCenter server - ${user}-${name}
+    Close connection
+    [Return]  ${user}-${name}  ${ip}
+
+Kill Nimbus Server
+    [Arguments]  ${user}  ${password}  ${name}
+    Open Connection  %{NIMBUS_GW}
+    Login  ${user}  ${password}
+    ${out}=  Execute Command  nimbus-ctl kill '${name}'
+    Close connection
