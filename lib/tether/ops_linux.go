@@ -81,7 +81,7 @@ func (t *BaseOperations) SetHostname(hostname string) error {
 	// add entry to hosts for resolution without nameservers
 	hosts, err := os.OpenFile(hostsFile, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		detail := fmt.Sprintf("failed to update hosts with hostname: %s", err)
+		detail := fmt.Sprintf("failed to update %s with hostname: %s", hostsFile, err)
 		return errors.New(detail)
 	}
 	defer hosts.Close()
@@ -372,7 +372,7 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 	if len(endpoint.Network.Nameservers) > 0 {
 		resolv, err := os.OpenFile(resolvFile, os.O_APPEND|os.O_WRONLY, 0644)
 		if err != nil {
-			detail := fmt.Sprintf("failed to update resolv.confg for endpoint %s: %s", endpoint.Network.Name, err)
+			detail := fmt.Sprintf("failed to update %s for endpoint %s: %s", resolvFile, endpoint.Network.Name, err)
 			return errors.New(detail)
 		}
 		defer resolv.Close()
