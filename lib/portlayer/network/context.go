@@ -419,7 +419,7 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			s.removeContainer(con)
 		}()
 
-		if _, err = s.addContainer(con, &ne.IP.IP); err != nil {
+		if _, err = s.addContainer(con, &ne.Static.IP); err != nil {
 			return nil, err
 		}
 	}
@@ -427,8 +427,8 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	endpoints := con.Endpoints()
 	for _, e := range endpoints {
 		ne := h.ExecConfig.Networks[e.Scope().Name()]
-		ne.IP.IP = e.IP()
-		ne.IP.Mask = e.Scope().Subnet().Mask
+		ne.Static.IP = e.IP()
+		ne.Static.Mask = e.Scope().Subnet().Mask
 		ne.Network.Gateway = net.IPNet{IP: e.gateway, Mask: e.subnet.Mask}
 	}
 
@@ -458,7 +458,7 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 				return
 			}
 
-			s.addContainer(con, &ne.IP.IP)
+			s.addContainer(con, &ne.Static.IP)
 		}()
 
 		e := con.Endpoint(s)
@@ -467,7 +467,7 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 		}
 
 		if !e.static {
-			ne.IP = net.IPNet{IP: net.IPv4zero}
+			ne.Static = &net.IPNet{IP: net.IPv4zero}
 		}
 	}
 
@@ -632,9 +632,9 @@ func (c *Context) AddContainer(h *exec.Handle, scope string, ip *net.IP) error {
 		},
 	}
 
-	ne.IP.IP = net.IPv4zero
+	ne.Static = &net.IPNet{IP: net.IPv4zero}
 	if ip != nil {
-		ne.IP.IP = *ip
+		ne.Static.IP = *ip
 	}
 
 	h.ExecConfig.Networks[s.Name()] = ne

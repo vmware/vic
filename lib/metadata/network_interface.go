@@ -21,8 +21,15 @@ import "net"
 // b. identified - the guestOS can determine which interface it corresponds to
 // c. configured - the guestOS can configure the interface correctly
 type NetworkEndpoint struct {
-	// IP addresses to assign - may be empty if DHCP
-	IP net.IPNet `vic:"0.1" scope:"read-only" key:"ip"`
+	// Common.Name - the nic alias requested (only one name and one alias possible in linux)
+	// Common.ID - pci slot of the vnic allowing for interface identifcation in-guest
+	Common
+
+	// IP address to assign - nil if DHCP
+	Static *net.IPNet `vic:"0.1" scope:"read-only" key:"staticip"`
+
+	// Actual IP address assigned
+	Assigned net.IP `vic:"0.1" scope:"read-write" key:"ip"`
 
 	// The PCI slot for the vNIC - this allows for interface idenitifcaton in the guest
 	PCISlot int32 `vic:"0.1" scope:"read-only" key:"pcislot"`
@@ -41,6 +48,8 @@ type ContainerNetwork struct {
 	// The network scope the IP belongs to.
 	// The IP address is the default gateway
 	Gateway net.IPNet `vic:"0.1" scope:"read-only" key:"gateway"`
+	// Should this gateway be the default route for containers on the network
+	Default bool `vic:"0.1" scope:"read-only" key:"default"`
 
 	// The set of nameservers associated with this network - may be empty
 	Nameservers []net.IP `vic:"0.1" scope:"read-only" key:"dns"`

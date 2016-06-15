@@ -84,6 +84,7 @@ func (t *attachServerSSH) Reload(config *tether.ExecutorConfig) error {
 
 // Stop needed for tether.Extensions interface
 func (t *attachServerSSH) Stop() error {
+	defer trace.End(trace.Begin("stop attach server"))
 	// calling server.start not t.start so that test impl gets invoked
 	server.stop()
 	return nil
