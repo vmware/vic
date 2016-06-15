@@ -15,7 +15,6 @@
 GO ?= go
 GOVERSION ?= go1.6.2
 OS := $(shell uname | tr '[:upper:]' '[:lower:]')
-TIME ?= $(shell which time)
 
 ifeq (vagrant, $(filter vagrant,$(USER) $(SUDO_USER)))
 	# assuming we are in a shared directory where host arch is different from the guest
