@@ -2,7 +2,7 @@
 
 ## Overview
 
-This box is an Ubuntu 15.04 VM with the following setup by default:
+This box is an Ubuntu 16.04 VM with the following setup by default:
 
 * Docker daemon with port forwarded to the Fusion/Workstation host at localhost:12375
 
@@ -109,7 +109,7 @@ The devbox can be deployed to ESX, the same provisioning scripts are applied:
 
 ``` shell
 ssh-add ~/.vagrant.d/insecure_private_key
-vmip=$(govc vm.ip $USER-ubuntu1504-docker)
+vmip=$(govc vm.ip $USER-ubuntu-1604)
 ssh vagrant@$vmip
 ```
 
@@ -118,7 +118,7 @@ ssh vagrant@$vmip
 You can share your folder by first exporting via NFS:
 
 ```
-echo "$HOME/vic $(govc vm.ip $USER-ubuntu1504-docker) -alldirs -mapall=$(id -u):$(id -g)" | sudo tee -a /etc/exports
+echo "$HOME/vic $(govc vm.ip $USER-ubuntu-1604) -alldirs -mapall=$(id -u):$(id -g)" | sudo tee -a /etc/exports
 sudo nfsd restart
 ```
 
@@ -128,6 +128,8 @@ Then mount within the ubuntu VM:
 ssh vagrant@$vmip sudo mkdir -p $HOME/vic
 ssh vagrant@$vmip sudo mount $(ipconfig getifaddr en1):$HOME/vic $HOME/vic
 ```
+Note that you may need to use enN depending on the type of connection you have - use ifconfig to verify.
+Note also that nfs-common is not installed in the box by default.
 
 You can also mount your folder within ESX:
 
