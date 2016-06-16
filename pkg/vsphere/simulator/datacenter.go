@@ -47,6 +47,13 @@ func createDatacenterFolders(dc *mo.Datacenter, isVC bool) {
 			ref := e.Reference()
 			f.ref.Type = ref.Type
 			f.ref.Value = ref.Value
+
+			// Add VM Network by default to each Datacenter
+			if f.ref == &dc.NetworkFolder {
+				network := &mo.Network{}
+				network.Name = "VM Network"
+				folder.putChild(network)
+			}
 		} else {
 			folder.ChildType = f.types[:1]
 			folder.Self = *f.ref

@@ -138,7 +138,7 @@ func (m *Model) Create() error {
 					Name:    name,
 					GuestId: string(types.VirtualMachineGuestOsIdentifierOtherGuest),
 					Files: &types.VirtualMachineFileInfo{
-						VmPathName: "[LocalDS_0]",
+						VmPathName: fmt.Sprintf("[LocalDS_0] %s", name),
 					},
 				}
 

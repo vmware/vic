@@ -15,11 +15,15 @@
 package simulator
 
 import (
+	"fmt"
+	"io"
+	"log"
 	"os"
 	"path"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
@@ -30,6 +34,8 @@ import (
 
 type VirtualMachine struct {
 	mo.VirtualMachine
+
+	log *log.Logger
 }
 
 func NewVirtualMachine(spec *types.VirtualMachineConfigSpec) (*VirtualMachine, types.BaseMethodFault) {
@@ -45,6 +51,7 @@ func NewVirtualMachine(spec *types.VirtualMachineConfigSpec) (*VirtualMachine, t
 
 	vm.Config = &types.VirtualMachineConfigInfo{}
 	vm.Summary.Guest = &types.VirtualMachineGuestSummary{}
+	vm.Summary.Storage = &types.VirtualMachineStorageSummary{}
 
 	// Add the default devices
 	devices, _ := object.VirtualDeviceList(esx.VirtualDevice).ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
@@ -59,7 +66,7 @@ func NewVirtualMachine(spec *types.VirtualMachineConfigSpec) (*VirtualMachine, t
 		NumCPUs:           1,
 		NumCoresPerSocket: 1,
 		MemoryMB:          32,
-		Uuid:              "TODO",
+		Uuid:              uuid.New().String(),
 		Version:           "vmx-11",
 		Files: &types.VirtualMachineFileInfo{
 			SnapshotDirectory: dsPath,
@@ -97,10 +104,12 @@ func (vm *VirtualMachine) configure(spec *types.VirtualMachineConfigSpec) types.
 	}{
 		{spec.Name, &vm.Name},
 		{spec.Name, &vm.Config.Name},
+		{spec.Name, &vm.Summary.Config.Name},
 		{spec.GuestId, &vm.Config.GuestId},
 		{spec.GuestId, &vm.Config.GuestFullName},
 		{spec.GuestId, &vm.Summary.Guest.GuestId},
-		{spec.GuestId, &vm.Summary.Guest.GuestFullName},
+		{spec.GuestId, &vm.Summary.Config.GuestId},
+		{spec.GuestId, &vm.Summary.Config.GuestFullName},
 		{spec.Uuid, &vm.Config.Uuid},
 		{spec.Version, &vm.Config.Version},
 		{spec.Files.VmPathName, &vm.Config.Files.VmPathName},
@@ -109,7 +118,7 @@ func (vm *VirtualMachine) configure(spec *types.VirtualMachineConfigSpec) types.
 	}
 
 	for _, f := range apply {
-		if f.src != "" {
+		if *f.dst == "" {
 			*f.dst = f.src
 		}
 	}
@@ -129,39 +138,88 @@ func (vm *VirtualMachine) configure(spec *types.VirtualMachineConfigSpec) types.
 	return nil
 }
 
-func (vm *VirtualMachine) create(spec *types.VirtualMachineConfigSpec) types.BaseMethodFault {
-	p, fault := parseDatastorePath(spec.Files.VmPathName)
-	if fault != nil {
-		return fault
+func (vm *VirtualMachine) useDatastore(name string) *Datastore {
+	host := Map.Get(*vm.Runtime.Host).(*HostSystem)
+
+	ds := Map.FindByName(name, host.Datastore).(*Datastore)
+
+	if Map.FindByName(name, vm.Datastore) == nil {
+		vm.Datastore = append(vm.Datastore, ds.Reference())
 	}
 
-	host := Map.Get(*vm.Runtime.Host).(*HostSystem)
-	ds := Map.FindByName(p.Datastore, host.Datastore).(*Datastore)
+	return ds
+}
 
-	// Assuming local datastore for now.  TODO: should be via datastore browser / file manager
-	dir := ds.Info.GetDatastoreInfo().Url
+func (vm *VirtualMachine) setLog(w io.Writer) {
+	vm.log = log.New(w, "vmx ", log.Flags())
+}
 
-	vmx := path.Join(dir, p.Path)
+func (vm *VirtualMachine) createFile(spec string, name string) (*os.File, types.BaseMethodFault) {
+	p, fault := parseDatastorePath(spec)
+	if fault != nil {
+		return nil, fault
+	}
 
-	_, err := os.Stat(vmx)
+	ds := vm.useDatastore(p.Datastore)
+
+	file := path.Join(ds.Info.GetDatastoreInfo().Url, p.Path)
+
+	if name != "" {
+		if path.Ext(file) != "" {
+			file = path.Dir(file)
+		}
+
+		file = path.Join(file, name)
+	}
+
+	dir := path.Dir(file)
+
+	_ = os.MkdirAll(dir, 0700)
+
+	_, err := os.Stat(file)
 	if err == nil {
-		return &types.FileAlreadyExists{
+		return nil, &types.FileAlreadyExists{
 			FileFault: types.FileFault{
-				File: vmx,
+				File: file,
 			},
 		}
 	}
 
-	_ = os.MkdirAll(path.Dir(vmx), 0700)
-
-	f, err := os.Create(vmx)
+	f, err := os.Create(file)
 	if err != nil {
-		return &types.FileFault{
-			File: vmx,
+		return nil, &types.FileFault{
+			File: file,
 		}
 	}
 
-	_ = f.Close()
+	return f, nil
+}
+
+func (vm *VirtualMachine) create(spec *types.VirtualMachineConfigSpec) types.BaseMethodFault {
+	files := []struct {
+		spec string
+		name string
+		use  func(w io.Writer)
+	}{
+		{vm.Config.Files.VmPathName, "", nil},
+		{vm.Config.Files.VmPathName, fmt.Sprintf("%s.nvram", vm.Name), nil},
+		{vm.Config.Files.LogDirectory, "vmware.log", vm.setLog},
+	}
+
+	for _, file := range files {
+		f, err := vm.createFile(file.spec, file.name)
+		if err != nil {
+			return err
+		}
+
+		if file.use != nil {
+			file.use(f)
+		} else {
+			_ = f.Close()
+		}
+	}
+
+	vm.log.Print("created")
 
 	return nil
 }
@@ -195,6 +253,9 @@ type powerVMTask struct {
 }
 
 func (c *powerVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
+	c.log.Printf("running power task: requesting %s, existing %s",
+		c.state, c.VirtualMachine.Runtime.PowerState)
+
 	if c.VirtualMachine.Runtime.PowerState == c.state {
 		return nil, &types.InvalidPowerState{
 			RequestedState: c.state,
@@ -204,6 +265,14 @@ func (c *powerVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 
 	c.VirtualMachine.Runtime.PowerState = c.state
 	c.VirtualMachine.Summary.Runtime.PowerState = c.state
+
+	bt := &c.VirtualMachine.Summary.Runtime.BootTime
+	if c.state == types.VirtualMachinePowerStatePoweredOn {
+		now := time.Now()
+		*bt = &now
+	} else {
+		*bt = nil
+	}
 
 	return nil, nil
 }
