@@ -16,13 +16,22 @@ package storage
 
 import (
 	"errors"
+	"io"
 	"net/url"
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	"github.com/vmware/vic/lib/portlayer/util"
 )
 
+// Image is the handle to identify an image layer on the backing store.  The
+// URI namespace used to identify the Image in the storage layer has the
+// following path scheme:
+//
+// `/storage/<image store identifier, usually the vch uuid>/<image id>`
+//
 type Image struct {
 	// Identifer for this layer.  Usually a SHA
 	ID string
@@ -37,6 +46,45 @@ type Image struct {
 
 	// Metadata associated with the image.
 	Metadata map[string][]byte
+}
+
+// ImageStorer is an interface to store images in the Image Store
+type ImageStorer interface {
+
+	// CreateImageStore creates a location to store images and creates a root
+	// disk which serves as the parent of all layers.
+	//
+	// storeName - The name of the image store to be created.  This must be
+	// unique.
+	//
+	// Returns the URL of the created store
+	CreateImageStore(ctx context.Context, storeName string) (*url.URL, error)
+
+	// Gets the url to an image store via name
+	GetImageStore(ctx context.Context, storeName string) (*url.URL, error)
+
+	// ListImageStores lists the available image stores
+	ListImageStores(ctx context.Context) ([]*url.URL, error)
+
+	// WriteImage creates a new image layer from the given parent.  Eg
+	// parentImage + newLayer = new Image built from parent
+	//
+	// parent - The parent image to create the new image from.
+	// ID - textual ID for the image to be written
+	// meta - metadata associated with the image
+	// r - the image tar to be written
+	WriteImage(ctx context.Context, parent *Image, ID string, meta map[string][]byte, r io.Reader) (*Image,
+		error)
+
+	// GetImage queries the image store for the specified image.
+	//
+	// store - The image store to query name - The name of the image (optional)
+	// ID - textual ID for the image to be retrieved
+	GetImage(ctx context.Context, store *url.URL, ID string) (*Image, error)
+
+	// ListImages returns a list of Images given a list of image IDs, or all
+	// images in the image store if no param is passed.
+	ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*Image, error)
 }
 
 func Parse(u *url.URL) (*Image, error) {

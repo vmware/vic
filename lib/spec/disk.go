@@ -78,7 +78,11 @@ func (s *VirtualMachineConfigSpec) AddVirtualDisk(device *types.VirtualDisk) *Vi
 	if s.ParentImageID() != "" {
 		backing.Parent = &types.VirtualDiskFlatVer2BackingInfo{
 			VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
-				FileName: s.Datastore.Path(fmt.Sprintf("VIC/%s/%s/%[2]s.vmdk", s.ImageStoreName(), s.ParentImageID())),
+				// XXX This needs to come from a storage helper in the future
+				// and should not be computed here like this.
+				FileName: s.Datastore.Path(fmt.Sprintf("VIC/%s/images/%s/%[2]s.vmdk",
+					s.ImageStoreName(),
+					s.ParentImageID())),
 			},
 		}
 	}
