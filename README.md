@@ -10,7 +10,12 @@ See [VIC Containers Architecture](doc/design/arch/arch.md) for a high level over
 
 ## Project Status
 
-VIC now provides the basic function for most of the core lifecycle operations: pull, create, start, attach, run, stop, rm
+installer is now multi-platform
+early experimental vCenter support
+VIC now provides:
+* basic function for most of the core lifecycle operations: pull, create, start, attach, run, stop, rm
+* installer is now multi-platform
+* early experimental vCenter support
 
 The function is still basic and there are some specific limitations worth pulling out:
 * stop is not polite - it currently powers off the VM directly without providing for filesystem sync
