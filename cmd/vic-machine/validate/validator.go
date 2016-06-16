@@ -58,26 +58,27 @@ func (v *Validator) Validate(input *data.Data) (*metadata.VirtualContainerHostCo
 	vchConfig.ApplianceSize.Memory.Limit = int64(input.MemoryMB)
 	vchConfig.Name = input.DisplayName
 
-	if err := v.ParseComputeResourcePath(input.ComputeResourcePath); err != nil {
-		return nil, err
-	}
-
-	v.ImageStorePath = fmt.Sprintf("/%s/datastore/%s", v.DatacenterName, input.ImageDatastoreName)
+	v.ParseComputeResourcePath(input.ComputeResourcePath) // Ignore error so we can suggest values
 
 	v.TargetPath = input.URL.String()
 	vchConfig.Target = v.TargetPath
 	vchConfig.Insecure = input.Insecure
 
-	v.ExternalNetworkPath = fmt.Sprintf("/%s/network/%s", v.DatacenterName, input.ExternalNetworkName)
-	v.BridgeNetworkPath = fmt.Sprintf("/%s/network/%s", v.DatacenterName, input.BridgeNetworkName)
-	v.BridgeNetworkName = input.BridgeNetworkName
-	if input.ManagementNetworkName != "" {
+	if v.DatacenterName != "" {
+		v.ImageStorePath = fmt.Sprintf("/%s/datastore/%s", v.DatacenterName, input.ImageDatastoreName)
+		v.ExternalNetworkPath = fmt.Sprintf("/%s/network/%s", v.DatacenterName, input.ExternalNetworkName)
+		v.BridgeNetworkPath = fmt.Sprintf("/%s/network/%s", v.DatacenterName, input.BridgeNetworkName)
 		v.ManagementNetworkPath = fmt.Sprintf("/%s/network/%s", v.DatacenterName, input.ManagementNetworkName)
-		v.ManagementNetworkName = input.ManagementNetworkName
+		vchConfig.DatacenterName = v.DatacenterName
 	}
+
+	v.BridgeNetworkName = input.BridgeNetworkName
+	v.ManagementNetworkName = input.ManagementNetworkName
 	vchConfig.ImageStoreName = input.ImageDatastoreName
-	vchConfig.DatacenterName = v.DatacenterName
-	vchConfig.ClusterPath = v.ClusterPath
+
+	if v.ClusterPath != "" {
+		vchConfig.ClusterPath = v.ClusterPath
+	}
 
 	if err := v.validateConfiguration(input, vchConfig); err != nil {
 		return nil, err
@@ -88,14 +89,14 @@ func (v *Validator) Validate(input *data.Data) (*metadata.VirtualContainerHostCo
 func (v *Validator) ParseComputeResourcePath(rp string) error {
 	resources := strings.Split(rp, "/")
 	if len(resources) < 2 || resources[1] == "" {
-		err := errors.Errorf("Could not determine datacenter from specified -compute-resource path, %s", rp)
+		err := errors.Errorf("Could not determine datacenter from specified --compute-resource path: %s", rp)
 		return err
 	}
 	v.DatacenterName = resources[1]
 	v.ClusterPath = strings.Split(rp, "/Resources")[0]
 
 	if v.ClusterPath == "" {
-		err := errors.Errorf("Could not determine cluster from specified -compute-resource path, %s", rp)
+		err := errors.Errorf("Could not determine cluster from specified --compute-resource path: %s", rp)
 		return err
 	}
 	v.ResourcePoolPath = rp
@@ -106,19 +107,19 @@ func (v *Validator) GetResourcePool(input *data.Data) (*object.ResourcePool, err
 	if err := v.ParseComputeResourcePath(input.ComputeResourcePath); err != nil {
 		return nil, err
 	}
-	if err := v.getConnection(input); err != nil {
+	if _, err := v.getConnection(input); err != nil {
 		return nil, err
 	}
 
 	if err := v.getResources(v.Context); err != nil {
-		log.Errorf("Failed to get resources: %s", err)
+		log.Errorf("Failed to get resources:\n%s", err)
 		return nil, err
 	}
 
 	return v.Session.Pool, nil
 }
 
-func (v *Validator) getConnection(input *data.Data) error {
+func (v *Validator) getConnection(input *data.Data) (bool, error) {
 	var err error
 	v.Context = context.TODO()
 	sessionconfig := &session.Config{
@@ -130,28 +131,26 @@ func (v *Validator) getConnection(input *data.Data) error {
 		PoolPath:       v.ResourcePoolPath,
 	}
 
-	v.Session, err = session.NewSession(sessionconfig).Create(v.Context)
-	if err != nil {
-		log.Errorf("Failed to create session: %s", err)
-		return err
-	}
+	v.Session = session.NewSession(sessionconfig)
+
 	if _, err = v.Session.Connect(v.Context); err != nil {
-		return err
+		return false, errors.Errorf("%s\nFailed to connect. Verify --target, --user, and --password", err.Error())
 	}
-	return nil
+
+	return true, nil
 }
 func (v *Validator) validateConfiguration(input *data.Data, vchConfig *metadata.VirtualContainerHostConfigSpec) error {
 	log.Infof("Validating supplied configuration")
 	var err error
-	if err = v.getConnection(input); err != nil {
+
+	connected, err := v.getConnection(input) // Continue to validate if connected
+	if connected == false {
 		return err
 	}
 
 	if err = v.getResources(v.Context); err != nil {
-		log.Errorf("Failed to get resources: %s", err)
 		return err
 	}
-
 	// find the host(s) attached to given storage
 	if _, err = v.Session.Datastore.AttachedClusterHosts(v.Context, v.Session.Cluster); err != nil {
 		log.Errorf("Unable to get the list of hosts attached to given storage: %s", err)
@@ -172,6 +171,47 @@ func (v *Validator) validateConfiguration(input *data.Data, vchConfig *metadata.
 
 	//TODO: Add more configuration validation
 	return nil
+}
+
+func (v *Validator) suggestComputeResource() {
+	log.Info("Suggesting valid values for --compute-resource")
+
+	numPools := v.suggestResourcePools(v.ClusterPath)
+	if numPools == 0 {
+		// ClusterPath not valid, suggest ALL the things!
+		log.Info("Failed to find resource pool in the provided path. Showing all resource pools.")
+		numPools = v.suggestAllResourcePools()
+	}
+	if numPools == 0 {
+		log.Info("No resource pools found")
+	}
+}
+
+func (v *Validator) suggestAllResourcePools() int {
+	return v.suggestResourcePools("*")
+}
+
+func (v *Validator) suggestResourcePools(path string) int {
+	var numPools int
+	clusters, _ := v.Session.Finder.ComputeResourceList(v.Context, path)
+	if clusters != nil {
+		for _, c := range clusters {
+			numPools += v.listResourcePools(c)
+		}
+	}
+	return numPools
+}
+
+func (v *Validator) listResourcePools(c *object.ComputeResource) int {
+	children := fmt.Sprintf("%s/Resources/*", c.InventoryPath)
+	log.Infof("  %s/Resources", c.InventoryPath) // Suggest `/Resources`
+	pools, _ := v.Session.Finder.ResourcePoolList(v.Context, children)
+	if len(pools) > 0 {
+		for _, p := range pools {
+			log.Infof("    %s", p.InventoryPath)
+		}
+	}
+	return len(pools)
 }
 
 func (v *Validator) getResources(ctx context.Context) error {
@@ -218,13 +258,16 @@ func (v *Validator) getResources(ctx context.Context) error {
 		log.Debugf("Found host: %s", v.Session.HostPath)
 	}
 
-	if v.ResourcePoolPath != "" {
-		v.Session.Pool, err = finder.ResourcePoolOrDefault(ctx, v.ResourcePoolPath)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("Failure finding pool (%s): %s", v.ResourcePoolPath, err.Error()))
+	v.Session.Pool, err = finder.ResourcePoolOrDefault(ctx, v.ResourcePoolPath)
+	if err != nil {
+		errs = append(errs, fmt.Sprintf("Failure finding pool (%s): %s", v.ResourcePoolPath, err.Error()))
+		if v.Session.Datacenter == nil {
+			log.Info("Invalid datacenter. Unable to suggest valid --compute-resource")
 		} else {
-			log.Debugf("Found pool: %s", v.ResourcePoolPath)
+			v.suggestComputeResource()
 		}
+	} else {
+		log.Debugf("Found pool: %s", v.ResourcePoolPath)
 	}
 
 	if len(errs) > 0 {

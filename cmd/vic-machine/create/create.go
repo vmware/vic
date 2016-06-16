@@ -313,7 +313,7 @@ func (c *Create) Run(cli *cli.Context) error {
 	validator := validate.NewValidator()
 	vchConfig, err := validator.Validate(c.Data)
 	if err != nil {
-		err = errors.Errorf("%s. Exiting...", err)
+		err = errors.Errorf("%s\nExiting...", err)
 		return err
 	}
 
