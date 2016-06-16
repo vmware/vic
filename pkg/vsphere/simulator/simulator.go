@@ -94,7 +94,10 @@ func (s *Service) call(method *Method) soap.HasFault {
 	handler := Map.Get(method.This)
 
 	if handler == nil {
-		return serverFault(fmt.Sprintf("no such object: %s", method.This))
+		return &serverFaultBody{
+			Reason: Fault(fmt.Sprintf("no such object: %s", method.This),
+				&types.ManagedObjectNotFound{Obj: method.This}),
+		}
 	}
 
 	name := method.Name

@@ -328,6 +328,16 @@ func TestServeHTTPErrors(t *testing.T) {
 		t.Error("expected error")
 	}
 
+	// verify we properly marshal the fault
+	fault := soap.ToSoapFault(err).VimFault()
+	f, ok := fault.(types.ManagedObjectNotFound)
+	if !ok {
+		t.Fatalf("fault=%#v", fault)
+	}
+	if f.Obj != serviceInstance.Reference() {
+		t.Errorf("obj=%#v", f.Obj)
+	}
+
 	// cover the method not supported path
 	res, err := http.Get(ts.URL.String())
 	if err != nil {
