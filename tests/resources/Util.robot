@@ -28,6 +28,11 @@ Install VIC Appliance To Test Server
     ${ret}=  Run Keyword If  "${certs}" == "true"  Remove String  ${ret}  info
     Run Keyword If  "${certs}" == "true"  Set Suite Variable  ${params}  ${ret}
     Log To Console  Installer completed successfully: ${vch-name}...
+    # Required due to #1109
+    Sleep  10 seconds
+    ${status}=  Get State Of Github Issue  1109
+    Run Keyword If  '${status}' == 'closed'  Fail  Util.robot needs to be updated now that Issue #1109 has been resolved
+    
 
 Cleanup VIC Appliance On Test Server
     # Let's attempt to cleanup any container related to the VCH appliance first
