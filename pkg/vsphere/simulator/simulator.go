@@ -264,13 +264,20 @@ func (s *Service) NewServer() *Server {
 
 	mux.HandleFunc(folderPrefix, s.ServeDatastore)
 
-	ts := httptest.NewServer(mux)
+	// Using NewUnstartedServer() instead of NewServer(),
+	// for use in main.go, where Start() blocks, we can still set ServiceHostName
+	ts := httptest.NewUnstartedServer(mux)
 
-	u, _ := url.Parse(ts.URL)
-	u.Path = path
+	u := &url.URL{
+		Scheme: "http",
+		Host:   ts.Listener.Addr().String(),
+		Path:   path,
+	}
 
 	// Redirect clients to this http server, rather than HostSystem.Name
 	Map.Get(*s.client.ServiceContent.SessionManager).(*SessionManager).ServiceHostName = u.Host
+
+	ts.Start()
 
 	return &Server{
 		Server: ts,

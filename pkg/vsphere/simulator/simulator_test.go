@@ -260,6 +260,11 @@ func TestServeHTTP(t *testing.T) {
 				t.Errorf("expected error")
 			}
 		}
+
+		err = client.Logout(ctx)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
