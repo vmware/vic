@@ -16,6 +16,14 @@ package metadata
 
 import "net/url"
 
+type State int
+
+const (
+	STARTED State = iota
+	EXITED
+	KILLED
+)
+
 // Common data between managed entities, across execution environments
 type Common struct {
 	// A reference to the components hosting execution environment, if any
@@ -127,9 +135,9 @@ type SessionConfig struct {
 	// Allocate a tty or not
 	Tty bool `vic:"0.1" scope:"read-only" key:"tty"`
 
-	ExitStatus int `vic:"0.1" scope:"read-write" key:"status"`
+	Status string `vic:"0.1" scope:"read-write" key:"status"`
 
-	Started string `vic:"0.1" scope:"read-write" key:"started"`
+	State State `vic:"0.1" scope:"read-write" key:"state"`
 
 	// Maps the intent to the signal for this specific app
 	// Signals map[int]int
