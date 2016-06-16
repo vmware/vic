@@ -78,19 +78,27 @@ func (s *Scope) Network() object.NetworkReference {
 	return s.network
 }
 
+func (s *Scope) isDynamic() bool {
+	return s.scopeType != bridgeScopeType && s.ipam.spaces == nil
+}
+
 func (s *Scope) reserveEndpointIP(e *Endpoint) error {
+	if s.isDynamic() {
+		return nil
+	}
+
 	// reserve an ip address
 	var err error
 	for _, p := range s.ipam.spaces {
 		if e.static {
 			if err = p.ReserveIP4(e.ip); err == nil {
-				break
+				return nil
 			}
 		} else {
 			var ip net.IP
 			if ip, err = p.ReserveNextIP4(); err == nil {
 				e.ip = ip
-				break
+				return nil
 			}
 		}
 	}
@@ -99,6 +107,10 @@ func (s *Scope) reserveEndpointIP(e *Endpoint) error {
 }
 
 func (s *Scope) releaseEndpointIP(e *Endpoint) error {
+	if s.isDynamic() {
+		return nil
+	}
+
 	for _, p := range s.ipam.spaces {
 		if err := p.ReleaseIP4(e.ip); err == nil {
 			if !e.static {

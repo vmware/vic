@@ -15,10 +15,13 @@
 package create
 
 import (
+	"encoding"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -29,6 +32,7 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/certificate"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 
 	"bytes"
@@ -61,6 +65,11 @@ type Create struct {
 
 	osType  string
 	logfile string
+
+	containerNetworks         cli.StringSlice
+	containerNetworksGateway  cli.StringSlice
+	containerNetworksIPRanges cli.StringSlice
+	containerNetworksDNS      cli.StringSlice
 
 	executor *management.Dispatcher
 }
@@ -133,6 +142,26 @@ func (c *Create) Flags() []cli.Flag {
 			Usage:       "The client network (restricts DOCKER_API access to this network)",
 			Destination: &c.ClientNetworkName,
 		},
+		cli.StringSliceFlag{
+			Name:  "container-network",
+			Value: &c.containerNetworks,
+			Usage: "Networks that containers can use",
+		},
+		cli.StringSliceFlag{
+			Name:  "container-network-gateway",
+			Value: &c.containerNetworksGateway,
+			Usage: "Gateway for the container network's subnet in CONTAINER-NETWORK:SUBNET format, e.g. a_network:172.16.0.0/16",
+		},
+		cli.StringSliceFlag{
+			Name:  "container-network-ip-range",
+			Value: &c.containerNetworksIPRanges,
+			Usage: "IP range for the container network in CONTAINER-NETWORK:IP-RANGE format, e.g. a_network:172.16.0.0/24, a_network:172.16.0.10-20",
+		},
+		cli.StringSliceFlag{
+			Name:  "container-network-dns",
+			Value: &c.containerNetworksDNS,
+			Usage: "DNS servers for the container network in CONTAINER-NETWORK:DNS format, e.g. a_network:8.8.8.8",
+		},
 		cli.StringFlag{
 			Name:        "appliance-iso",
 			Value:       "",
@@ -190,7 +219,6 @@ func (c *Create) Flags() []cli.Flag {
 	flags = append(flags, c.DebugFlags()...)
 	return flags
 }
-
 func (c *Create) processParams() error {
 	if err := c.HasCredentials(); err != nil {
 		return err
@@ -219,10 +247,52 @@ func (c *Create) processParams() error {
 		return cli.NewExitError(fmt.Sprintf("Display name %s exceeds the permitted 31 characters limit. Please use a shorter -name parameter", c.DisplayName), 1)
 	}
 
+	if err := c.processContainerNetworks(); err != nil {
+		return err
+	}
+
 	// FIXME: add parameters for these configurations
 	c.osType = "linux"
 
 	c.Insecure = true
+	return nil
+}
+
+func (c *Create) processContainerNetworks() error {
+	gws, err := parseContainerNetworkGateways([]string(c.containerNetworksGateway))
+	if err != nil {
+		return cli.NewExitError(err.Error(), 1)
+	}
+
+	pools, err := parseContainerNetworkIPRanges([]string(c.containerNetworksIPRanges))
+	if err != nil {
+		return cli.NewExitError(err.Error(), 1)
+	}
+
+	dns, err := parseContainerNetworkDNS([]string(c.containerNetworksDNS))
+	if err != nil {
+		return cli.NewExitError(err.Error(), 1)
+	}
+
+	// parse container networks
+	for _, cn := range c.containerNetworks {
+		vnet, v, err := splitVnetParam(cn)
+		if err != nil {
+			return cli.NewExitError(err.Error(), 1)
+		}
+
+		vicnet := vnet
+		if v != "" {
+			vicnet = v
+		}
+
+		c.MappedNetworks[vicnet] = vnet
+		c.MappedNetworksGateways[vicnet] = gws[vnet]
+		c.MappedNetworksIPRanges[vicnet] = pools[vnet]
+		c.MappedNetworksDNS[vicnet] = dns[vnet]
+
+	}
+
 	return nil
 }
 
@@ -395,4 +465,106 @@ func (c *Create) Run(cli *cli.Context) error {
 
 	log.Infof("Installer completed successfully")
 	return nil
+}
+
+type ipNetUnmarshaler struct {
+	ipnet *net.IPNet
+	ip    net.IP
+}
+
+func (m *ipNetUnmarshaler) UnmarshalText(text []byte) error {
+	s := string(text)
+	ip, ipnet, err := net.ParseCIDR(s)
+	if err != nil {
+		return err
+	}
+
+	m.ipnet = ipnet
+	m.ip = ip
+	return nil
+}
+func parseContainerNetworkGateways(cgs []string) (map[string]net.IPNet, error) {
+	gws := make(map[string]net.IPNet)
+	for _, cg := range cgs {
+		m := &ipNetUnmarshaler{}
+		vnet, err := parseVnetParam(cg, m)
+		if err != nil {
+			return nil, err
+		}
+
+		if _, ok := gws[vnet]; ok {
+			return nil, fmt.Errorf("Duplicate gateway specified for container network %s", vnet)
+		}
+
+		gws[vnet] = net.IPNet{IP: m.ip, Mask: m.ipnet.Mask}
+	}
+
+	return gws, nil
+}
+
+func parseContainerNetworkIPRanges(cps []string) (map[string][]ip.Range, error) {
+	pools := make(map[string][]ip.Range)
+	for _, cp := range cps {
+		ipr := &ip.Range{}
+		vnet, err := parseVnetParam(cp, ipr)
+		if err != nil {
+			return nil, err
+		}
+
+		pools[vnet] = append(pools[vnet], *ipr)
+	}
+
+	return pools, nil
+}
+
+func parseContainerNetworkDNS(cds []string) (map[string][]net.IP, error) {
+	dns := make(map[string][]net.IP)
+	for _, cd := range cds {
+		var ip net.IP
+		vnet, err := parseVnetParam(cd, &ip)
+		if err != nil {
+			return nil, err
+		}
+
+		if ip == nil {
+			return nil, fmt.Errorf("DNS IP not specified for container network %s", vnet)
+		}
+
+		dns[vnet] = append(dns[vnet], ip)
+	}
+
+	return dns, nil
+}
+
+func splitVnetParam(p string) (vnet string, value string, err error) {
+	mapped := strings.Split(p, ":")
+	if len(mapped) == 0 || len(mapped) > 2 {
+		err = fmt.Errorf("Invalid value for parameter %s", p)
+		return
+	}
+
+	vnet = mapped[0]
+	if vnet == "" {
+		err = fmt.Errorf("Container network not specified in parameter %s", p)
+		return
+	}
+
+	if len(mapped) > 1 {
+		value = mapped[1]
+	}
+
+	return
+}
+
+func parseVnetParam(p string, m encoding.TextUnmarshaler) (vnet string, err error) {
+	vnet, v, err := splitVnetParam(p)
+	if err != nil {
+		return "", fmt.Errorf("Error parsing container network parameter %s: %s", p, err)
+	}
+
+	if err = m.UnmarshalText([]byte(v)); err != nil {
+		return "", fmt.Errorf("Error parsing container network parameter %s: %s", p, err)
+	}
+
+	return vnet, nil
 }

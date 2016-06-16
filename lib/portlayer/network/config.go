@@ -19,6 +19,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/pkg/ip"
 )
 
 var Config Configuration
@@ -42,9 +43,8 @@ type ContainerNetwork struct {
 	// The set of nameservers associated with this network - may be empty
 	Nameservers []net.IP `vic:"0.1" scope:"read-only" key:"dns"`
 
-	// The IP range for this network
-	FirstIP net.IP `vic:"0.1" scope:"read-only" key:"first_ip"`
-	LastIP  net.IP `vic:"0.1" scope:"read-only" key:"last_ip"`
+	// The IP ranges for this network
+	Pools []ip.Range `vic:"0.1" scope:"read-only" key:"pools"`
 
 	PortGroup object.NetworkReference
 }
