@@ -162,10 +162,12 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 	}
 
 	// Set options for TLS
-	if cli.enableTLS {
+	if vchConfig.HostCertificate != nil {
+		log.Info("TLS enabled")
 		tlsConfig := tlsconfig.ServerDefault
 
-		if cli.verifyTLS {
+		if len(vchConfig.CertificateAuthorities) > 0 {
+			log.Info("TLS verify enforced")
 			// server requires and verifies client's certificate
 			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
 		}

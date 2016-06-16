@@ -146,7 +146,7 @@ func (d *Dispatcher) addNetworkDevices(conf *metadata.VirtualContainerHostConfig
 
 		endpoint.Common.ID = strconv.Itoa(int(slot))
 		slots[slot] = true
-		log.Infof("Setting %s to slot %d", name, slot)
+		log.Debugf("Setting %s to slot %d", name, slot)
 
 		devices = append(devices, nic)
 
@@ -316,11 +316,15 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 		},
 	},
 	)
-	// TODO: remove this hardcoding once we migrate the components to extraconfig
-	d.VICAdminProto = "http"
 
-	// TODO: remove this hardcoding once we migrate the components to extraconfig
-	d.DockerPort = "2375"
+	if conf.HostCertificate != nil {
+		d.VICAdminProto = "https"
+		d.DockerPort = "2376"
+	} else {
+		d.VICAdminProto = "http"
+		d.DockerPort = "2375"
+	}
+
 	conf.AddComponent("docker-personality", &metadata.SessionConfig{
 		Cmd: metadata.Cmd{
 			Path: "/sbin/docker-engine-server",

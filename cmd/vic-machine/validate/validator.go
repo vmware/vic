@@ -245,16 +245,23 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 	//   ESX: doesn't need to exist
 	//
 	// for now we're hardcoded to "bridge" for the container host name
-	conf.DefaultNetwork = "bridge"
-	bridgeMoref, err := v.dpgHelper(ctx, input.BridgeNetworkName)
+	conf.BridgeNetwork = "bridge"
+	endpointMoref, err := v.dpgHelper(ctx, input.BridgeNetworkName)
+	netMoref := endpointMoref
 	if err != nil {
 		if _, ok := err.(*find.NotFoundError); !ok || v.Session.Client.IsVC() {
+			log.Errorf("%T", err)
 			v.NoteIssue(err)
 		}
+
+		// this allows the dispatcher to create the network with corresponding name
+		// if BridgeNetworkName doesn't already exist then we set the ContainerNetwork
+		// ID to the name, but leaving the NetworkEndpoint moref as ""
+		netMoref = input.BridgeNetworkName
 	}
 
 	// ensure gateway is populated
-	gateway, ok := input.MappedNetworksGateway[conf.DefaultNetwork]
+	gateway, ok := input.MappedNetworksGateway["bridge"]
 	if !ok {
 		ip, mask, _ := net.ParseCIDR("172.16.0.1/24")
 		gateway = &net.IPNet{
@@ -265,14 +272,14 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 
 	bridgeNet := &metadata.NetworkEndpoint{
 		Common: metadata.Common{
-			Name: conf.DefaultNetwork,
-			ID:   bridgeMoref,
+			Name: "bridge",
+			ID:   endpointMoref,
 		},
 		Static: gateway,
 		Network: metadata.ContainerNetwork{
 			Common: metadata.Common{
-				Name: conf.DefaultNetwork,
-				ID:   bridgeMoref,
+				Name: "bridge",
+				ID:   netMoref,
 			},
 		},
 	}
@@ -303,6 +310,11 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 	}
 }
 
+// generateBridgeName returns a name that can be used to create a switch/pg pair on ESX
+func (v *Validator) generateBridgeName(ctx, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) string {
+	return input.DisplayName
+}
+
 func (v *Validator) target(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
 	targetURL, err := url.Parse(v.Session.Service)
 	if err != nil {
@@ -321,7 +333,7 @@ func (v *Validator) certificate(ctx context.Context, input *data.Data, conf *met
 	_, err := tls.X509KeyPair(input.CertPEM, input.KeyPEM)
 	v.NoteIssue(err)
 
-	conf.HostCertificate = metadata.RawCertificate{
+	conf.HostCertificate = &metadata.RawCertificate{
 		Key:  input.KeyPEM,
 		Cert: input.CertPEM,
 	}
@@ -336,8 +348,10 @@ func (v *Validator) compatibility(ctx context.Context, conf *metadata.VirtualCon
 func (v *Validator) networkHelper(ctx context.Context, path string) (string, error) {
 	nets, err := v.Session.Finder.NetworkList(ctx, path)
 	if err != nil {
+		log.Debugf("no such network %s", path)
 		// TODO: error message about no such match and how to get a network list
-		return "", errors.New("no such network " + path)
+		// we return err directly here so we can check the type
+		return "", err
 	}
 	if len(nets) > 1 {
 		// TODO: error about required disabmiguation and list entries in nets
@@ -377,8 +391,10 @@ func (v *Validator) dpgMorefHelper(ctx context.Context, ref string) (string, err
 func (v *Validator) dpgHelper(ctx context.Context, path string) (string, error) {
 	nets, err := v.Session.Finder.NetworkList(ctx, path)
 	if err != nil {
+		log.Debugf("no such network %s", path)
 		// TODO: error message about no such match and how to get a network list
-		return "", errors.New("no such network " + path)
+		// we return err directly here so we can check the type
+		return "", err
 	}
 	if len(nets) > 1 {
 		// TODO: error about required disabmiguation and list entries in nets
@@ -422,8 +438,10 @@ func (v *Validator) datastoreHelper(ctx context.Context, path string) (*url.URL,
 
 	stores, err := v.Session.Finder.DatastoreList(ctx, dsURL.Host)
 	if err != nil {
-		// TODO: error message about no such match and how to get a network list
-		return nil, fmt.Errorf("no such datastore %#v", dsURL)
+		log.Debugf("no such network %#v", dsURL)
+		// TODO: error message about no such match and how to get a datastore list
+		// we return err directly here so we can check the type
+		return nil, err
 	}
 	if len(stores) > 1 {
 		// TODO: error about required disabmiguation and list entries in nets
@@ -439,8 +457,10 @@ func (v *Validator) datastoreHelper(ctx context.Context, path string) (*url.URL,
 func (v *Validator) resourcePoolHelper(ctx context.Context, path string) (*object.ResourcePool, error) {
 	pools, err := v.Session.Finder.ResourcePoolList(ctx, path)
 	if err != nil {
-		// TODO: error message about no such match and how to get a network list
-		return nil, errors.New("no such compute resource " + path)
+		// TODO: error message about no such match and how to get a compute list
+		log.Debugf("no such compute resource %s", path)
+		// we return err directly here so we can check the type
+		return nil, err
 	}
 	if len(pools) > 1 {
 		// TODO: error about required disabmiguation and list entries in nets

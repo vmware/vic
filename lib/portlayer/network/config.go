@@ -25,7 +25,7 @@ var Config Configuration
 
 type Configuration struct {
 	// The default bridge network supplied for the Virtual Container Host
-	DefaultNetwork string `vic:"0.1" scope:"read-only" key:"default_network"`
+	BridgeNetwork string `vic:"0.1" scope:"read-only" key:"bridge_network"`
 	// Published networks available for containers to join, keyed by consumption name
 	ContainerNetworks map[string]*ContainerNetwork `vic:"0.1" scope:"read-only" key:"container_networks"`
 }

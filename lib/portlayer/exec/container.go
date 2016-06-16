@@ -94,6 +94,8 @@ func (c *Container) cacheExecConfig(ec *metadata.ExecutorConfig) {
 }
 
 func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle) error {
+	defer trace.End(trace.Begin("Committing handle"))
+
 	c.Lock()
 	defer c.Unlock()
 

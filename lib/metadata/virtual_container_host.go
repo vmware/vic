@@ -60,7 +60,7 @@ type VirtualContainerHostConfigSpec struct {
 	// Certificates for general outgoing network access, keyed by CIDR (IPNet.String())
 	NetworkCertificates map[string]*RawCertificate
 	// The certificate used to validate the appliance to clients
-	HostCertificate RawCertificate `vic:"0.1" scope:"read-only"`
+	HostCertificate *RawCertificate `vic:"0.1" scope:"read-only"`
 	// The CAs to validate client connections
 	CertificateAuthorities []byte `vic:"0.1" scope:"read-only"`
 	// Certificates for specific system access, keyed by FQDN
@@ -73,8 +73,8 @@ type VirtualContainerHostConfigSpec struct {
 	VolumeLocations map[string]url.URL `vic:"0.1" scope:"read-only"`
 
 	// Port Layer - network
-	// The default network for containers
-	DefaultNetwork string `vic:"0.1" scope:"read-only" key:"default_network"`
+	// The network to use by default to provide access to the world
+	BridgeNetwork string `vic:"0.1" scope:"read-only" key:"bridge_network"`
 	// Published networks available for containers to join, keyed by consumption name
 	ContainerNetworks map[string]*ContainerNetwork `vic:"0.1" scope:"read-only" key:"container_networks"`
 

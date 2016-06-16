@@ -25,7 +25,7 @@ import (
 
 func (d *Dispatcher) createBridgeNetwork(conf *metadata.VirtualContainerHostConfigSpec) error {
 	// if the bridge network is already extant there's nothing to do
-	bnet := conf.ContainerNetworks[conf.DefaultNetwork]
+	bnet := conf.ExecutorConfig.Networks[conf.BridgeNetwork]
 	if bnet != nil && bnet.ID != "" {
 		return nil
 	}
@@ -36,6 +36,9 @@ func (d *Dispatcher) createBridgeNetwork(conf *metadata.VirtualContainerHostConf
 		return errors.New("bridge network must already exist for vCenter environments")
 	}
 
+	// in this case the name to use is held in container network ID
+	name := bnet.Network.ID
+
 	log.Infof("Creating VirtualSwitch")
 	hostNetSystem, err := d.session.Host.ConfigManager().NetworkSystem(d.ctx)
 	if err != nil {
@@ -43,35 +46,36 @@ func (d *Dispatcher) createBridgeNetwork(conf *metadata.VirtualContainerHostConf
 		return err
 	}
 
-	if err = hostNetSystem.AddVirtualSwitch(d.ctx, bnet.Name, &types.HostVirtualSwitchSpec{
+	if err = hostNetSystem.AddVirtualSwitch(d.ctx, name, &types.HostVirtualSwitchSpec{
 		NumPorts: 1024,
 	}); err != nil {
-		err = errors.Errorf("Failed to add virtual switch (%s): %s", bnet.Name, err)
+		err = errors.Errorf("Failed to add virtual switch (%s): %s", name, err)
 		return err
 	}
 
 	log.Infof("Creating Portgroup")
 	if err = hostNetSystem.AddPortGroup(d.ctx, types.HostPortGroupSpec{
-		Name:        bnet.Name,
+		Name:        name,
 		VlanId:      1, // TODO: expose this for finer grained grouping within the switch
-		VswitchName: bnet.Name,
+		VswitchName: name,
 		Policy:      types.HostNetworkPolicy{},
 	}); err != nil {
-		err = errors.Errorf("Failed to add port group (%s): %s", bnet.Name, err)
+		err = errors.Errorf("Failed to add port group (%s): %s", name, err)
 		return err
 	}
 
-	net, err := d.session.Finder.Network(d.ctx, bnet.Name)
+	net, err := d.session.Finder.Network(d.ctx, name)
 	if err != nil {
 		_, ok := err.(*find.NotFoundError)
 		if !ok {
-			err = errors.Errorf("Failed to query virtual switch (%s): %s", bnet.Name, err)
+			err = errors.Errorf("Failed to query virtual switch (%s): %s", name, err)
 			return err
 		}
 	}
 
 	// assign the moref to the bridge network config on the appliance
 	bnet.ID = net.Reference().String()
+	bnet.Network.ID = net.Reference().String()
 	return nil
 }
 
