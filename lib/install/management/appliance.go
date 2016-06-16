@@ -77,7 +77,7 @@ func (d *Dispatcher) removeApplianceIfForced(conf *metadata.VirtualContainerHost
 			return vm.PowerOff(ctx)
 		})
 		if err != nil {
-			log.Warnf("Failed to power off existing appliance for %s, try to remove anyway", err)
+			log.Warnf("Failed to power off existing appliance for %s: err", conf.Name, err)
 		}
 		_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 			return vm.Destroy(ctx)
@@ -90,6 +90,8 @@ func (d *Dispatcher) removeApplianceIfForced(conf *metadata.VirtualContainerHost
 		if _, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 			return m.DeleteDatastoreFile(ctx, d.session.Datastore.Path(conf.Name), d.session.Datacenter)
 		}); err != nil {
+			// FIXME: this should be checking if the error is a types.FileNotFound and continuing if so
+			// unfortunately tasks package isn't making it easy to get to the root cause.
 			err = errors.Errorf("Failed to remove existing VCH data files, %s", err)
 			return err
 		}
@@ -435,7 +437,7 @@ func (d *Dispatcher) makeSureApplianceRuns(conf *metadata.VirtualContainerHostCo
 		return errors.New("cannot validate appliance due to missing VM reference")
 	}
 
-	log.Infof("Waiting for IP information")
+	log.Infof("Waiting for IP information:")
 	d.waitForKey("guestinfo..init.networks|client.ip")
 
 	// now that we
@@ -444,13 +446,23 @@ func (d *Dispatcher) makeSureApplianceRuns(conf *metadata.VirtualContainerHostCo
 		return fmt.Errorf("unable to retrieve updated configuration from appliance: %s", err)
 	}
 	ip := conf.ExecutorConfig.Networks["client"].Assigned
-	log.Infof("ip address acquired: %s", ip.String())
-	if len(conf.ExecutorConfig.Networks["client"].Assigned) == 0 {
+	if len(ip) == 0 {
+		err = d.ctx.Err()
+		if err == context.DeadlineExceeded {
+			// if we timed out, then report status - if cancelled this doesn't need reporting
+			for name, net := range conf.ExecutorConfig.Networks {
+				addr := net.Assigned.String()
+				if addr == "" {
+					addr = "waiting for IP"
+				}
+				log.Infof("  %s IP:", name, addr)
+			}
+		}
+
 		return fmt.Errorf("could not retrieve docker API URL from appliance")
 	}
 
 	log.Info("Waiting for major appliance components to launch")
-
 	d.waitForKey("guestinfo..init.sessions|vicadmin.started")
 	d.waitForKey("guestinfo..init.sessions|docker-personality.started")
 	d.waitForKey("guestinfo..init.sessions|port-layer.started")
@@ -458,6 +470,20 @@ func (d *Dispatcher) makeSureApplianceRuns(conf *metadata.VirtualContainerHostCo
 	err = d.applianceConfiguration(conf)
 	if err != nil {
 		return fmt.Errorf("unable to retrieve updated configuration from appliance: %s", err)
+	}
+
+	err = d.ctx.Err()
+	if err == context.DeadlineExceeded {
+		// if we timed out, then report status - if cancelled this doesn't need reporting
+		for name, session := range conf.ExecutorConfig.Sessions {
+			status := "waiting to launch"
+			if session.Started == "true" {
+				status = "started successfully"
+			} else {
+				status = session.Started
+			}
+			log.Infof("  %s:", name, status)
+		}
 	}
 
 	// TODO: we should call to the general vic-machine inspect implementation here for more detail

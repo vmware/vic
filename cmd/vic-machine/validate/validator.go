@@ -129,7 +129,7 @@ func (v *Validator) ListIssues() error {
 	}
 
 	for _, err := range v.issues {
-		fmt.Println(err)
+		log.Error(err)
 	}
 
 	return errors.New("Validation of configuration failed")
@@ -250,8 +250,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 	netMoref := endpointMoref
 	if err != nil {
 		if _, ok := err.(*find.NotFoundError); !ok || v.Session.Client.IsVC() {
-			log.Errorf("%T", err)
-			v.NoteIssue(err)
+			v.NoteIssue(fmt.Errorf("An existing distributed port group must be specified for bridge network on vCenter: %s", err))
 		}
 
 		// this allows the dispatcher to create the network with corresponding name
@@ -457,8 +456,12 @@ func (v *Validator) datastoreHelper(ctx context.Context, path string) (*url.URL,
 func (v *Validator) resourcePoolHelper(ctx context.Context, path string) (*object.ResourcePool, error) {
 	pools, err := v.Session.Finder.ResourcePoolList(ctx, path)
 	if err != nil {
-		// TODO: error message about no such match and how to get a compute list
-		log.Debugf("no such compute resource %s", path)
+		if _, ok := err.(*find.NotFoundError); ok {
+			log.Debugf("no such compute resource %s", path)
+			v.suggestComputeResource(path)
+		} else {
+			log.Debugf("failed to look up compute resource %s: err", path, err)
+		}
 		// we return err directly here so we can check the type
 		return nil, err
 	}
@@ -474,21 +477,51 @@ func (v *Validator) GetResourcePool(input *data.Data) (*object.ResourcePool, err
 	return v.resourcePoolHelper(v.Context, input.ComputeResourcePath)
 }
 
-func (v *Validator) ParseComputeResourcePath(rp string) error {
-	resources := strings.Split(rp, "/")
-	if len(resources) < 2 || resources[1] == "" {
-		err := errors.Errorf("Could not determine datacenter from specified --compute-resource path: %s", rp)
-		return err
+func (v *Validator) suggestComputeResource(path string) {
+	log.Info("Suggesting valid values for --compute-resource")
+	for numPools := 0; numPools == 0; numPools = v.suggestResourcePools(path) {
+		// back up the path until we find a pool
+		path = filepath.Dir(path)
 	}
-	v.DatacenterName = resources[1]
-	v.ClusterPath = strings.Split(rp, "/Resources")[0]
 
-	if v.ClusterPath == "" {
-		err := errors.Errorf("Could not determine cluster from specified --compute-resource path: %s", rp)
-		return err
+	// Backing all the way up didn't help
+	log.Info("Failed to find resource pool in the provided path. Showing all resource pools.")
+	numPools := v.suggestAllResourcePools()
+	if numPools == 0 {
+		log.Info("No resource pools found")
 	}
-	v.ResourcePoolPath = rp
-	return nil
+}
+
+func (v *Validator) suggestAllResourcePools() int {
+	return v.suggestResourcePools("*")
+
+}
+
+func (v *Validator) suggestResourcePools(path string) int {
+	var numPools int
+
+	clusters, _ := v.Session.Finder.ComputeResourceList(v.Context, path)
+	if clusters != nil {
+		for _, c := range clusters {
+			numPools += v.listResourcePools(c)
+		}
+	}
+
+	return numPools
+}
+
+func (v *Validator) listResourcePools(c *object.ComputeResource) int {
+	children := fmt.Sprintf("%s/Resources/*", c.InventoryPath)
+	log.Infof("  %s/Resources", c.InventoryPath) // Suggest `/Resources`
+
+	pools, _ := v.Session.Finder.ResourcePoolList(v.Context, children)
+	if len(pools) > 0 {
+		for _, p := range pools {
+			log.Infof("    %s", p.InventoryPath)
+		}
+	}
+
+	return len(pools)
 }
 
 func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *metadata.VirtualContainerHostConfigSpec, input *data.Data) *management.InstallerData {

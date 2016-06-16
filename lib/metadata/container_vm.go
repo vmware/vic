@@ -135,9 +135,9 @@ type SessionConfig struct {
 	// Allocate a tty or not
 	Tty bool `vic:"0.1" scope:"read-only" key:"tty"`
 
-	Status string `vic:"0.1" scope:"read-write" key:"status"`
+	ExitStatus int `vic:"0.1" scope:"read-write" key:"status"`
 
-	State State `vic:"0.1" scope:"read-write" key:"state"`
+	Started string `vic:"0.1" scope:"read-write" key:"started"`
 
 	// Maps the intent to the signal for this specific app
 	// Signals map[int]int
