@@ -99,6 +99,7 @@ func (n *Network) GetAllNetworks() []libnetwork.Network {
 	nets := make([]libnetwork.Network, len(ok.Payload))
 	for i, cfg := range ok.Payload {
 		nets[i] = &network{cfg: cfg}
+		i++
 	}
 
 	return nets
@@ -178,27 +179,24 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 		nc.Address = &endpointConfig.IPAMConfig.IPv4Address
 	}
 
-	addConRes, err := client.Scopes.AddContainer(scopes.NewAddContainerParams().WithHandle(h).WithNetworkConfig(nc))
+	addConRes, err := client.Scopes.AddContainer(scopes.NewAddContainerParams().
+		WithScope(nc.NetworkName).
+		WithConfig(&models.ScopesAddContainerConfig{
+			Handle:        h,
+			NetworkConfig: nc,
+		}))
 	if err != nil {
 		switch err := err.(type) {
 		case *scopes.AddContainerNotFound:
 			return derr.NewRequestNotFoundError(fmt.Errorf(err.Payload.Message))
 
-		case *scopes.AddContainerDefault:
+		case *scopes.AddContainerInternalServerError:
 			return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
 
 		default:
 			return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 		}
 	}
-
-	defer func() {
-		if err != nil {
-			if _, err2 := client.Scopes.RemoveContainer(scopes.NewRemoveContainerParams().WithHandle(h).WithScope(nc.NetworkName)); err2 != nil {
-				log.Warnf("failed add container to network rollback: %s", err2)
-			}
-		}
-	}()
 
 	h = addConRes.Payload
 
@@ -226,7 +224,7 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 			case *scopes.BindContainerNotFound:
 				return derr.NewRequestNotFoundError(fmt.Errorf(err.Payload.Message))
 
-			case *scopes.BindContainerDefault:
+			case *scopes.BindContainerInternalServerError:
 				return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
 
 			default:
@@ -271,11 +269,16 @@ func (n *Network) DeleteNetwork(name string) error {
 	client := PortLayerClient()
 
 	if _, err := client.Scopes.DeleteScope(scopes.NewDeleteScopeParams().WithIDName(name)); err != nil {
-		if _, ok := err.(*scopes.DeleteScopeNotFound); ok {
-			return derr.NewRequestNotFoundError(err)
-		}
+		switch err := err.(type) {
+		case *scopes.DeleteScopeNotFound:
+			return derr.NewRequestNotFoundError(fmt.Errorf("network %s not found", name))
 
-		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		case *scopes.DeleteScopeInternalServerError:
+			return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+
+		default:
+			return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		}
 	}
 
 	return nil
@@ -338,7 +341,7 @@ func (n *network) EndpointByID(id string) (libnetwork.Endpoint, error) {
 
 // Return certain operational data belonging to this network
 func (n *network) Info() libnetwork.NetworkInfo {
-	return n.Info()
+	return n
 }
 
 func (n *network) IpamConfig() (string, map[string]string, []*libnetwork.IpamConf, []*libnetwork.IpamConf) {
@@ -407,4 +410,8 @@ func (n *network) IPv6Enabled() bool {
 
 func (n *network) Internal() bool {
 	return false
+}
+
+func (n *network) Labels() map[string]string {
+	return make(map[string]string)
 }

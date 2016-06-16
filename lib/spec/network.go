@@ -17,6 +17,9 @@ package spec
 import (
 	"fmt"
 
+	"golang.org/x/net/context"
+
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -109,16 +112,26 @@ func (s *VirtualMachineConfigSpec) RemoveVirtualE1000(device *types.VirtualE1000
 	return s.RemoveVirtualDevice(device)
 }
 
-func (s *VirtualMachineConfigSpec) FindNICs(networkName string) ([]types.BaseVirtualDeviceConfigSpec, error) {
-	if networkName == "" {
-		return nil, fmt.Errorf("no network name provided")
+func (s *VirtualMachineConfigSpec) FindNICs(ctx context.Context, network object.NetworkReference) ([]types.BaseVirtualDeviceConfigSpec, error) {
+	if network == nil {
+		return nil, fmt.Errorf("no network provided")
+	}
+
+	backing, err := network.EthernetCardBackingInfo(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	var dcs []types.BaseVirtualDeviceConfigSpec
 	for _, d := range s.DeviceChange {
 		dev := d.GetVirtualDeviceConfigSpec().Device
-		if backing, ok := dev.GetVirtualDevice().Backing.(*types.VirtualEthernetCardNetworkBackingInfo); ok && backing.DeviceName == networkName {
-			dcs = append(dcs, d)
+		if _, ok := dev.(types.BaseVirtualEthernetCard); ok {
+			var dl object.VirtualDeviceList
+			dl = append(dl, dev)
+			dl = dl.SelectByBackingInfo(backing)
+			if len(dl) > 0 {
+				dcs = append(dcs, d)
+			}
 		}
 	}
 

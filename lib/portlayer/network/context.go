@@ -22,12 +22,14 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/portlayer"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
-	"github.com/vmware/vmw-guestinfo/rpcvmx"
 )
 
 const (
@@ -46,22 +48,6 @@ type Context struct {
 	scopes       map[string]*Scope
 	containers   map[exec.ID]*Container
 	defaultScope *Scope
-
-	BridgeNetworkName string // Portgroup name of the bridge network
-}
-
-var getBridgeNetworkName = func() (string, error) {
-	config := rpcvmx.NewConfig()
-	bnn, err := config.String(fmt.Sprintf("%s/portgroup", bridgeNetworkKey), "")
-	if err != nil {
-		return "", err
-	}
-
-	if bnn == "" {
-		return bnn, fmt.Errorf("bridge network name not set")
-	}
-
-	return bnn, nil
 }
 
 func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
@@ -71,17 +57,11 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 		return nil, fmt.Errorf("bridge mask is not compatiable with bridge pool mask")
 	}
 
-	bnn, err := getBridgeNetworkName()
-	if err != nil {
-		return nil, err
-	}
-
 	ctx := &Context{
 		defaultBridgeMask: bridgeMask,
 		defaultBridgePool: NewAddressSpaceFromNetwork(&bridgePool),
 		scopes:            make(map[string]*Scope),
 		containers:        make(map[exec.ID]*Container),
-		BridgeNetworkName: bnn,
 	}
 
 	s, err := ctx.NewScope("bridge", bridgeScopeType, nil, net.IPv4(0, 0, 0, 0), nil, nil)
@@ -119,7 +99,7 @@ func isUnspecifiedSubnet(n *net.IPNet) bool {
 	return bits == 0 || ones == 0
 }
 
-func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM, networkName string) (*Scope, error) {
+func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM, network object.NetworkReference) (*Scope, error) {
 	if isUnspecifiedSubnet(subnet) {
 		subnet = defaultSubnet
 	}
@@ -178,17 +158,17 @@ func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, 
 	}
 
 	newScope := &Scope{
-		id:          id,
-		name:        name,
-		subnet:      *subnet,
-		gateway:     gateway,
-		ipam:        ipam,
-		containers:  make(map[exec.ID]*Container),
-		scopeType:   scopeType,
-		space:       space,
-		dns:         dns,
-		builtin:     false,
-		NetworkName: networkName,
+		id:         id,
+		name:       name,
+		subnet:     *subnet,
+		gateway:    gateway,
+		ipam:       ipam,
+		containers: make(map[exec.ID]*Container),
+		scopeType:  scopeType,
+		space:      space,
+		dns:        dns,
+		builtin:    false,
+		network:    network,
 	}
 
 	c.scopes[name] = newScope
@@ -197,7 +177,12 @@ func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, 
 }
 
 func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (newScope *Scope, err error) {
-	s, err := c.newScopeCommon(id, name, bridgeScopeType, subnet, gateway, dns, ipam, c.BridgeNetworkName)
+	bn, ok := portlayer.Config.Networks["bridge"]
+	if !ok || bn == nil {
+		return nil, fmt.Errorf("bridge network not set")
+	}
+
+	s, err := c.newScopeCommon(id, name, bridgeScopeType, subnet, gateway, dns, ipam, bn.PortGroup)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +207,7 @@ func (c *Context) newExternalScope(id, name string, subnet *net.IPNet, gateway n
 	}
 
 	// TODO Get the correct networkName
-	return c.newScopeCommon(id, name, externalScopeType, subnet, gateway, dns, ipam, "")
+	return c.newScopeCommon(id, name, externalScopeType, subnet, gateway, dns, ipam, nil)
 }
 
 func isDefaultSubnet(subnet *net.IPNet) bool {
@@ -358,8 +343,12 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 	}
 }
 
-func (c *Context) findScope(idName *string) ([]*Scope, error) {
+func (c *Context) findScopes(idName *string) ([]*Scope, error) {
 	if idName != nil && *idName != "" {
+		if *idName == "default" {
+			return []*Scope{c.DefaultScope()}, nil
+		}
+
 		// search by name
 		scope, ok := c.scopes[*idName]
 		if ok {
@@ -391,49 +380,60 @@ func (c *Context) Scopes(idName *string) ([]*Scope, error) {
 	c.Lock()
 	defer c.Unlock()
 
-	return c.findScope(idName)
+	return c.findScopes(idName)
 }
 
 func (c *Context) DefaultScope() *Scope {
 	return c.defaultScope
 }
 
-func (c *Context) BindContainer(h *exec.Handle) error {
+func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	c.Lock()
 	defer c.Unlock()
 
-	con, ok := c.containers[h.Container.ID]
-	if !ok {
-		return ResourceNotFoundError{error: fmt.Errorf("container %s not found", h.Container.ID)}
-	}
-
-	scopes := con.Scopes()
-	if len(scopes) == 0 {
-		return nil // container not part of any scopes
-	}
-
+	var con *Container
 	var err error
-	var bound []*Scope
-	defer func() {
-		if err == nil {
-			return
-		}
 
-		for _, s := range bound {
-			s.unbindContainer(con)
-		}
-	}()
-
-	for _, s := range scopes {
-		if err = s.bindContainer(con); err != nil {
-			return err
-		}
-
-		bound = append(bound, s)
+	if len(h.ExecConfig.Networks) == 0 {
+		return nil, fmt.Errorf("nothing to bind")
 	}
 
-	updateMetadata(h, con.Endpoints())
-	return nil
+	con, ok := c.containers[h.Container.ID]
+	if ok {
+		return nil, fmt.Errorf("container %s already bound", h.Container.ID)
+	}
+
+	con = &Container{id: h.Container.ID}
+	for _, ne := range h.ExecConfig.Networks {
+		var s *Scope
+		s, ok := c.scopes[ne.Network.Name]
+		if !ok {
+			return nil, &ResourceNotFoundError{}
+		}
+
+		defer func() {
+			if err == nil {
+				return
+			}
+
+			s.removeContainer(con)
+		}()
+
+		if _, err = s.addContainer(con, &ne.Static.IP); err != nil {
+			return nil, err
+		}
+	}
+
+	endpoints := con.Endpoints()
+	for _, e := range endpoints {
+		ne := h.ExecConfig.Networks[e.Scope().Name()]
+		ne.Static.IP = e.IP()
+		ne.Static.Mask = e.Scope().Subnet().Mask
+		ne.Network.Gateway = net.IPNet{IP: e.gateway, Mask: e.subnet.Mask}
+	}
+
+	c.containers[con.id] = con
+	return endpoints, nil
 }
 
 func (c *Context) UnbindContainer(h *exec.Handle) error {
@@ -445,44 +445,34 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 		return ResourceNotFoundError{error: fmt.Errorf("container %s not found", h.Container.ID)}
 	}
 
-	scopes := con.Scopes()
-	if len(scopes) == 0 {
-		return nil // container not part of any scopes
-	}
-
 	var err error
-	var unbound []*Scope
-	defer func() {
-		if err == nil {
-			return
+	for _, ne := range h.ExecConfig.Networks {
+		var s *Scope
+		s, ok := c.scopes[ne.Network.Name]
+		if !ok {
+			return &ResourceNotFoundError{}
 		}
 
-		for _, s := range unbound {
-			s.bindContainer(con)
-		}
-	}()
+		defer func() {
+			if err == nil {
+				return
+			}
 
-	for _, s := range scopes {
-		if err = s.unbindContainer(con); err != nil {
+			s.addContainer(con, &ne.Static.IP)
+		}()
+
+		e := con.Endpoint(s)
+		if err = s.removeContainer(con); err != nil {
 			return err
 		}
 
-		unbound = append(unbound, s)
+		if !e.static {
+			ne.Static = &net.IPNet{IP: net.IPv4zero}
+		}
 	}
 
-	updateMetadata(h, con.Endpoints())
+	delete(c.containers, h.Container.ID)
 	return nil
-}
-
-func updateMetadata(h *exec.Handle, endpoints []*Endpoint) {
-	h.SetSpec(nil)
-	if h.ExecConfig.Networks == nil {
-		h.ExecConfig.Networks = make(map[string]*metadata.NetworkEndpoint)
-	}
-
-	for _, e := range endpoints {
-		h.ExecConfig.Networks[e.Scope().Name()] = e.metadataEndpoint()
-	}
 }
 
 func findSlotNumber(slots map[int32]bool) int32 {
@@ -501,23 +491,28 @@ func findSlotNumber(slots map[int32]bool) int32 {
 }
 
 var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, error) {
-	var err error
 	var devices object.VirtualDeviceList
 	var d types.BaseVirtualDevice
 	var dc types.BaseVirtualDeviceConfigSpec
 
-	dcs, err := h.Spec.FindNICs(s.NetworkName)
+	ctx := context.Background()
+	dcs, err := h.Spec.FindNICs(ctx, s.network)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, ds := range dcs {
 		if ds.GetVirtualDeviceConfigSpec().Operation == types.VirtualDeviceConfigSpecOperationAdd {
 			d = ds.GetVirtualDeviceConfigSpec().Device
+			dc = ds
+			break
 		}
 	}
 
 	if d == nil {
-		backing := &types.VirtualEthernetCardNetworkBackingInfo{
-			VirtualDeviceDeviceBackingInfo: types.VirtualDeviceDeviceBackingInfo{
-				DeviceName: s.NetworkName,
-			},
+		backing, err := s.network.EthernetCardBackingInfo(ctx)
+		if err != nil {
+			return nil, err
 		}
 
 		if d, err = devices.CreateEthernetCard("vmxnet3", backing); err != nil {
@@ -559,89 +554,17 @@ var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, e
 }
 
 func (c *Context) resolveScope(scope string) (*Scope, error) {
-	var s *Scope
-	switch scope {
-	// docker's default network, usually maps to the default bridge network
-	case "default":
-		s = c.DefaultScope()
-
-	default:
-		scopes, err := c.findScope(&scope)
-		if err != nil || len(scopes) != 1 {
-			return nil, err
-		}
-
-		// should have only one match at this point
-		s = scopes[0]
+	scopes, err := c.findScopes(&scope)
+	if err != nil || len(scopes) != 1 {
+		return nil, err
 	}
 
-	return s, nil
+	return scopes[0], nil
 }
 
 // AddContainer add a container to the specified scope, optionally specifying an ip address
 // for the container in the scope
-func (c *Context) AddContainer(h *exec.Handle, scope string, ip *net.IP) (*Endpoint, error) {
-	c.Lock()
-	defer c.Unlock()
-
-	if h == nil {
-		return nil, fmt.Errorf("handle is required")
-	}
-
-	var err error
-	s, err := c.resolveScope(scope)
-	if err != nil {
-		return nil, err
-	}
-
-	con, ok := c.containers[h.Container.ID]
-	if !ok {
-		con = &Container{id: h.Container.ID}
-	}
-
-	e, err := s.addContainer(con, ip)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err != nil {
-			s.removeContainer(con)
-		}
-	}()
-
-	addNIC := true
-	if s.Type() == bridgeScopeType {
-		for _, ec := range con.endpoints {
-			if s == ec.Scope() {
-				continue
-			}
-
-			if ec.Scope().Type() == bridgeScopeType {
-				e.pciSlot = ec.pciSlot
-				addNIC = false
-				break
-			}
-		}
-	}
-
-	h.SetSpec(nil)
-
-	if addNIC {
-		var d types.BaseVirtualDevice
-		d, err = addEthernetCard(h, s)
-		if err != nil {
-			return nil, err
-		}
-
-		e.pciSlot = spec.VirtualDeviceSlotNumber(d)
-	}
-
-	c.containers[con.ID()] = con
-	updateMetadata(h, []*Endpoint{e})
-	return e, nil
-}
-
-func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
+func (c *Context) AddContainer(h *exec.Handle, scope string, ip *net.IP) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -655,43 +578,102 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 		return err
 	}
 
-	con, ok := c.containers[h.Container.ID]
-	if !ok {
-		return ResourceNotFoundError{error: fmt.Errorf("container %s not found", h.Container.ID)}
+	if h.ExecConfig.Networks != nil {
+		if _, ok := h.ExecConfig.Networks[s.Name()]; ok {
+			return DuplicateResourceError{}
+		}
 	}
 
-	e := con.Endpoint(s)
-	if e == nil {
-		return ResourceNotFoundError{error: fmt.Errorf("endpoint for container %s not found in scope %s", con.ID(), s.Name())}
-	}
-
-	if err = s.removeContainer(con); err != nil {
+	if err := h.SetSpec(nil); err != nil {
 		return err
 	}
 
-	defer func() {
-		if err == nil {
-			return
-		}
-
-		var ip *net.IP
-		if e.static {
-			i := e.IP()
-			ip = &i
-		}
-
-		s.addContainer(con, ip)
-	}()
-
-	// remove NIC if no other scopes in the container need
-	// it
-	removeNIC := true
+	// figure out if we need to add a new NIC
+	// if there is already a NIC connected to a
+	// bridge network and we are adding the container
+	// to a bridge network, we just reuse that
+	// NIC
+	var pciSlot int32
 	if s.Type() == bridgeScopeType {
-		for _, ec := range con.Endpoints() {
-			if ec.Scope().Type() == bridgeScopeType {
-				removeNIC = false
+		for _, ne := range h.ExecConfig.Networks {
+			sc, err := c.resolveScope(ne.Network.Name)
+			if err != nil {
+				return err
+			}
+
+			if sc.Type() != bridgeScopeType {
+				continue
+			}
+
+			if ne.PCISlot > 0 {
+				pciSlot = ne.PCISlot
 				break
 			}
+		}
+	}
+
+	if pciSlot == 0 {
+		d, err := addEthernetCard(h, s)
+		if err != nil {
+			return err
+		}
+
+		pciSlot = spec.VirtualDeviceSlotNumber(d)
+	}
+
+	if h.ExecConfig.Networks == nil {
+		h.ExecConfig.Networks = make(map[string]*metadata.NetworkEndpoint)
+	}
+
+	ne := &metadata.NetworkEndpoint{
+		PCISlot: pciSlot,
+		Network: metadata.ContainerNetwork{
+			Name: s.Name(),
+		},
+	}
+
+	ne.Static = &net.IPNet{IP: net.IPv4zero}
+	if ip != nil {
+		ne.Static.IP = *ip
+	}
+
+	h.ExecConfig.Networks[s.Name()] = ne
+	return nil
+}
+
+func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
+	c.Lock()
+	defer c.Unlock()
+
+	if h == nil {
+		return fmt.Errorf("handle is required")
+	}
+
+	if _, ok := c.containers[h.Container.ID]; ok {
+		return fmt.Errorf("container is bound")
+	}
+
+	var err error
+	s, err := c.resolveScope(scope)
+	if err != nil {
+		return err
+	}
+
+	var ne *metadata.NetworkEndpoint
+	ne, ok := h.ExecConfig.Networks[s.Name()]
+	if !ok {
+		return fmt.Errorf("container %s not part of network %s", h.Container.ID, s.Name())
+	}
+
+	// figure out if any other networks are using the NIC
+	removeNIC := true
+	for _, ne2 := range h.ExecConfig.Networks {
+		if ne2 == ne {
+			continue
+		}
+		if ne2.PCISlot == ne.PCISlot {
+			removeNIC = false
+			break
 		}
 	}
 
@@ -700,10 +682,9 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 		h.SetSpec(nil)
 
 		var devices object.VirtualDeviceList
-		backing := &types.VirtualEthernetCardNetworkBackingInfo{
-			VirtualDeviceDeviceBackingInfo: types.VirtualDeviceDeviceBackingInfo{
-				DeviceName: s.NetworkName,
-			},
+		backing, err := s.network.EthernetCardBackingInfo(context.Background())
+		if err != nil {
+			return err
 		}
 
 		d, err := devices.CreateEthernetCard("vmxnet3", backing)
@@ -719,8 +700,7 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 		h.Spec.DeviceChange = append(h.Spec.DeviceChange, spec...)
 	}
 
-	// remove metadata
-	delete(h.ExecConfig.Networks, scope)
+	delete(h.ExecConfig.Networks, s.Name())
 
 	return nil
 }
@@ -753,11 +733,8 @@ func (c *Context) DeleteScope(name string) error {
 		return fmt.Errorf("cannot remove builtin scope")
 	}
 
-	// check if any of the scope's endpoints are bound
-	for _, e := range s.Endpoints() {
-		if e.IsBound() {
-			return fmt.Errorf("scope has bound endpoints")
-		}
+	if len(s.Endpoints()) != 0 {
+		return fmt.Errorf("scope has bound endpoints")
 	}
 
 	delete(c.scopes, name)

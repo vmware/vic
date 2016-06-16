@@ -14,8 +14,41 @@
 
 package portlayer
 
-import "github.com/vmware/vic/lib/portlayer/storage"
+import (
+	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/govmomi/find"
+	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+	"github.com/vmware/vic/pkg/vsphere/session"
+	"golang.org/x/net/context"
+)
+
+var Config metadata.VirtualContainerHostConfigSpec
 
 type API interface {
 	storage.ImageStorer
+}
+
+func Init(ctx context.Context, sess *session.Session) error {
+	source, err := extraconfig.GuestInfoSource()
+	if err != nil {
+		return err
+	}
+
+	extraconfig.DecodeWithPrefix(source, &Config, "guestinfo.vch")
+	log.Debugf("decoded vch config: %#v", Config)
+	f := find.NewFinder(sess.Vim25(), false)
+	for nn, n := range Config.Networks {
+		r, err := f.ObjectReference(ctx, n.PortGroupRef)
+		if err != nil {
+			log.Warnf("could not get network reference for %s network", nn)
+			continue
+		}
+
+		n.PortGroup = r.(object.NetworkReference)
+	}
+
+	return nil
 }

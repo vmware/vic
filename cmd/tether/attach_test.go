@@ -145,6 +145,11 @@ func mockBackChannel(ctx context.Context) (net.Conn, error) {
 			if err == nil {
 				return conn, nil
 			}
+			if err == io.EOF {
+				// with unix pipes the open will block until both ends are open, therefore
+				// EOF means the other end has been intentionally closed
+				return nil, err
+			}
 		case <-ctx.Done():
 			conn.Close()
 			ticker.Stop()
