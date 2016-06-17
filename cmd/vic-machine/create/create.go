@@ -71,6 +71,10 @@ var (
 func NewCreate() *Create {
 	create := &Create{}
 	create.Data = data.NewData()
+
+	// FIXME: make this a flag
+	create.logfile = "create.log"
+
 	return create
 }
 
@@ -178,7 +182,8 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.NumCPUs,
 		},
 	}
-	flags = append(c.TargetFlags(), flags...)
+	flags = append(flags, c.TargetFlags()...)
+	flags = append(flags, c.DebugFlags()...)
 	return flags
 }
 
@@ -216,7 +221,6 @@ func (c *Create) processParams() error {
 
 	// FIXME: add parameters for these configurations
 	c.osType = "linux"
-	c.logfile = "create.log"
 
 	c.Insecure = true
 	return nil
@@ -286,15 +290,6 @@ func (c *Create) checkImagesFiles() ([]string, error) {
 
 func (c *Create) Run(cli *cli.Context) error {
 	var err error
-	if err = c.processParams(); err != nil {
-		return err
-	}
-
-	var images []string
-	if images, err = c.checkImagesFiles(); err != nil {
-		return err
-	}
-
 	// Open log file
 	f, err := os.OpenFile(c.logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
@@ -307,6 +302,19 @@ func (c *Create) Run(cli *cli.Context) error {
 	log.SetFormatter(&log.TextFormatter{ForceColors: true, FullTimestamp: true})
 	// SetOutput to io.MultiWriter so that we can log to stdout and a file
 	log.SetOutput(io.MultiWriter(os.Stdout, f))
+
+	if c.Debug.Debug {
+		log.SetLevel(log.DebugLevel)
+	}
+
+	if err = c.processParams(); err != nil {
+		return err
+	}
+
+	var images []string
+	if images, err = c.checkImagesFiles(); err != nil {
+		return err
+	}
 
 	log.Infof("### Installing VCH ####")
 
@@ -355,12 +363,19 @@ func (c *Create) Run(cli *cli.Context) error {
 	log.Infof("Log server:")
 	log.Infof("%s://%s:2378", executor.VICAdminProto, executor.HostIP)
 	log.Infof("")
+	tls := ""
 	if c.key != "" {
-		log.Infof("Connect to docker:")
-		log.Infof("docker -H %s:%s --tls --tlscert='%s' --tlskey='%s' info", executor.HostIP, executor.DockerPort, c.cert, c.key)
-	} else {
-		log.Infof("DOCKER_HOST=%s:%s", executor.HostIP, executor.DockerPort)
+		// if we're generating then there's no CA currently
+		if len(vchConfig.CertificateAuthorities) > 0 {
+			tls = fmt.Sprintf("--tls --tlscert='%s' --tlskey='%s'", c.cert, c.key)
+		} else {
+			tls = "--tls"
+		}
 	}
+	log.Infof("DOCKER_HOST=%s:%s", executor.HostIP, executor.DockerPort)
+	log.Infof("")
+	log.Infof("Connect to docker:")
+	log.Infof("docker -H %s:%s %s info", executor.HostIP, executor.DockerPort, tls)
 
 	log.Infof("Installer completed successfully")
 	return nil

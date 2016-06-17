@@ -26,7 +26,6 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
-	"github.com/vmware/vic/lib/portlayer"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 )
@@ -84,9 +83,13 @@ func TestMain(m *testing.M) {
 	n.InventoryPath = "testBridge"
 	testBridgeNetwork = n
 
-	portlayer.Config = metadata.VirtualContainerHostConfigSpec{
-		Networks: map[string]*metadata.NetworkInfo{
-			"bridge": &metadata.NetworkInfo{
+	Config = Configuration{
+		BridgeNetwork: "bridge",
+		ContainerNetworks: map[string]*ContainerNetwork{
+			"bridge": &ContainerNetwork{
+				Common: metadata.Common{
+					Name: "testBridge",
+				},
 				PortGroup: testBridgeNetwork,
 			},
 		},
@@ -496,53 +499,6 @@ func TestContextAddContainer(t *testing.T) {
 	}
 }
 
-func TestFindSlotNumber(t *testing.T) {
-	allSlots := make(map[int32]bool)
-	for s := pciSlotNumberBegin; s != pciSlotNumberEnd; s += pciSlotNumberInc {
-		allSlots[s] = true
-	}
-
-	// missing first slot
-	missingFirstSlot := make(map[int32]bool)
-	for s := pciSlotNumberBegin + pciSlotNumberInc; s != pciSlotNumberEnd; s += pciSlotNumberInc {
-		missingFirstSlot[s] = true
-	}
-
-	// missing last slot
-	missingLastSlot := make(map[int32]bool)
-	for s := pciSlotNumberBegin; s != pciSlotNumberEnd-pciSlotNumberInc; s += pciSlotNumberInc {
-		missingLastSlot[s] = true
-	}
-
-	// missing a slot in the middle
-	var missingSlot int32
-	missingMiddleSlot := make(map[int32]bool)
-	for s := pciSlotNumberBegin; s != pciSlotNumberEnd-pciSlotNumberInc; s += pciSlotNumberInc {
-		if pciSlotNumberBegin+(2*pciSlotNumberInc) == s {
-			missingSlot = s
-			continue
-		}
-		missingMiddleSlot[s] = true
-	}
-
-	var tests = []struct {
-		slots map[int32]bool
-		out   int32
-	}{
-		{make(map[int32]bool), pciSlotNumberBegin},
-		{allSlots, spec.NilSlot},
-		{missingFirstSlot, pciSlotNumberBegin},
-		{missingLastSlot, pciSlotNumberEnd - pciSlotNumberInc},
-		{missingMiddleSlot, missingSlot},
-	}
-
-	for _, te := range tests {
-		if s := findSlotNumber(te.slots); s != te.out {
-			t.Fatalf("findSlotNumber(%v) => %d, want %d", te.slots, s, te.out)
-		}
-	}
-}
-
 func TestContextBindUnbindContainer(t *testing.T) {
 	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
 	if err != nil {
@@ -715,11 +671,11 @@ func TestContextBindUnbindContainer(t *testing.T) {
 				t.Fatalf("%d: container endpoint not present in %v", te.i, te.h.ExecConfig)
 			}
 
-			if !te.static && !ne.Static.IP.Equal(net.IPv4zero) {
+			if !te.static && (ne.Static != nil && !ne.Static.IP.Equal(net.IPv4zero)) {
 				t.Fatalf("%d: endpoint IP should be zero in %v", te.i, ne)
 			}
 
-			if te.static && ne.Static.IP.Equal(net.IPv4zero) {
+			if te.static && (ne.Static == nil || ne.Static.IP.Equal(net.IPv4zero)) {
 				t.Fatalf("%d: endpoint IP should not be zero in %v", te.i, ne)
 			}
 		}
@@ -808,15 +764,15 @@ func TestContextRemoveContainer(t *testing.T) {
 		// network endpoints are still using it
 		if found {
 			for _, ne := range te.h.ExecConfig.Networks {
-				if ne.PCISlot == spec.VirtualDeviceSlotNumber(d) {
+				if atoiOrZero(ne.ID) == spec.VirtualDeviceSlotNumber(d) {
 					t.Fatalf("%d: NIC with pci slot %d is still in use by a network endpoint %#v", i, spec.VirtualDeviceSlotNumber(d), ne)
 				}
 			}
 		} else if ne != nil {
 			// check if remove spec for NIC should have been there
 			for _, ne2 := range te.h.ExecConfig.Networks {
-				if ne.PCISlot == ne2.PCISlot {
-					t.Fatalf("%d: NIC with pci slot %d should have been removed", i, ne.PCISlot)
+				if ne.ID == ne2.ID {
+					t.Fatalf("%d: NIC with pci slot %s should have been removed", i, ne.ID)
 				}
 			}
 		}

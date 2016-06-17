@@ -315,6 +315,9 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 				"-pool=" + settings.ResourcePoolPath,
 				"-vm-path=" + vm2.InventoryPath,
 			},
+			Env: []string{
+				"PATH=/sbin:/bin",
+			},
 		},
 	},
 	)
@@ -437,16 +440,17 @@ func (d *Dispatcher) makeSureApplianceRuns(conf *metadata.VirtualContainerHostCo
 		return errors.New("cannot validate appliance due to missing VM reference")
 	}
 
-	log.Infof("Waiting for IP information:")
+	log.Infof("Waiting for IP information")
 	d.waitForKey("guestinfo..init.networks|client.ip")
 
-	// now that we
+	// we've either timedout/cancelled or we have the IP
 	err := d.applianceConfiguration(conf)
 	if err != nil {
 		return fmt.Errorf("unable to retrieve updated configuration from appliance: %s", err)
 	}
 	ip := conf.ExecutorConfig.Networks["client"].Assigned
 	if len(ip) == 0 {
+		log.Debug("Failed to retrieve IP for client interface. State of all interfaces:")
 		err = d.ctx.Err()
 		if err == context.DeadlineExceeded {
 			// if we timed out, then report status - if cancelled this doesn't need reporting
@@ -463,8 +467,11 @@ func (d *Dispatcher) makeSureApplianceRuns(conf *metadata.VirtualContainerHostCo
 	}
 
 	log.Info("Waiting for major appliance components to launch")
+	log.Debug("waiting for vicadmin to start")
 	d.waitForKey("guestinfo..init.sessions|vicadmin.started")
+	log.Debug("waiting for docker personality to start")
 	d.waitForKey("guestinfo..init.sessions|docker-personality.started")
+	log.Debug("waiting for port layer to start")
 	d.waitForKey("guestinfo..init.sessions|port-layer.started")
 
 	err = d.applianceConfiguration(conf)

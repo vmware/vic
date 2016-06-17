@@ -128,7 +128,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 			// Create the vm
 			res, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-				return parent.CreateVM(ctx, *s, sess.Pool, host)
+				return parent.CreateVM(ctx, *s, Config.ResourcePool, host)
 			})
 			if err != nil {
 				return err

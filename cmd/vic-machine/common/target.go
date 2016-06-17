@@ -86,7 +86,7 @@ func (t *Target) HasCredentials() error {
 		}
 	}
 	if t.User == "" && urlUser == "" {
-		return cli.NewExitError("User to login must be specified in --user or --target URL", 1)
+		return cli.NewExitError("vSphere user must be specified, either with --user or as part of --target", 1)
 	} else if t.User == "" && urlUser != "" {
 		t.User = urlUser
 	}

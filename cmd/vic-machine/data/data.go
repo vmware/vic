@@ -24,6 +24,7 @@ import (
 // Data wrapps all parameters required by value validation
 type Data struct {
 	*common.Target
+	common.Debug
 
 	Insecure bool
 

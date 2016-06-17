@@ -132,7 +132,7 @@ func (v *Validator) ListIssues() error {
 		log.Error(err)
 	}
 
-	return errors.New("Validation of configuration failed")
+	return errors.New("validation of configuration failed")
 }
 
 // Validate runs through various validations, starting with basics such as naming, moving onto vSphere entities
@@ -176,8 +176,16 @@ func (v *Validator) compute(ctx context.Context, input *data.Data, conf *metadat
 	// FIXME: for now consume the fully qualified path
 	pool, err := v.resourcePoolHelper(ctx, input.ComputeResourcePath)
 	v.NoteIssue(err)
-	moref := pool.Reference()
-	conf.AddComputeResource(&moref)
+	if pool != nil {
+		v.ResourcePoolPath = pool.InventoryPath
+	}
+
+	// stash the pool for later use
+	v.Session.Pool = pool
+	v.Session.PoolPath = pool.InventoryPath
+
+	// TODO: for vApp creation assert that the name doesn't exist
+	// TODO: for RP creation assert whatever we decide about the pool - most likely that it's empty
 }
 
 func (v *Validator) storage(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
@@ -317,7 +325,7 @@ func (v *Validator) generateBridgeName(ctx, input *data.Data, conf *metadata.Vir
 func (v *Validator) target(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
 	targetURL, err := url.Parse(v.Session.Service)
 	if err != nil {
-		v.NoteIssue(fmt.Errorf("error processing target after transformation to SOAP endpoint: %s, %s", v.Session.Service, err))
+		v.NoteIssue(fmt.Errorf("Error processing target after transformation to SOAP endpoint: %s, %s", v.Session.Service, err))
 		return
 	}
 
@@ -437,7 +445,7 @@ func (v *Validator) datastoreHelper(ctx context.Context, path string) (*url.URL,
 
 	stores, err := v.Session.Finder.DatastoreList(ctx, dsURL.Host)
 	if err != nil {
-		log.Debugf("no such network %#v", dsURL)
+		log.Debugf("no such datastore %#v", dsURL)
 		// TODO: error message about no such match and how to get a datastore list
 		// we return err directly here so we can check the type
 		return nil, err
@@ -454,39 +462,87 @@ func (v *Validator) datastoreHelper(ctx context.Context, path string) (*url.URL,
 }
 
 func (v *Validator) resourcePoolHelper(ctx context.Context, path string) (*object.ResourcePool, error) {
+	// if compute-resource is unspecified is there a default
+	if path == "" {
+		if v.Session.Pool != nil {
+			log.Debugf("using default resource pool for compute resource: %s", v.Session.Pool.InventoryPath)
+			return v.Session.Pool, nil
+		}
+
+		// if no path specified and no default available the show all
+		v.suggestAllResourcePools()
+		return nil, errors.New("no unambiguous default compute resource available so must be specified")
+	}
+
+	// first try the path directly
 	pools, err := v.Session.Finder.ResourcePoolList(ctx, path)
 	if err != nil {
-		if _, ok := err.(*find.NotFoundError); ok {
-			log.Debugf("no such compute resource %s", path)
-			v.suggestComputeResource(path)
-		} else {
-			log.Debugf("failed to look up compute resource %s: err", path, err)
+		log.Debugf("failed to look up compute resource as absolute path %s: %s", path, err)
+		if _, ok := err.(*find.NotFoundError); !ok {
+			// we return err directly here so we can check the type
+			return nil, err
 		}
+
+		// if it starts with datacenter then we know we're wrong
+		if strings.HasPrefix(path, "/"+v.Session.DatacenterPath) {
+			v.suggestComputeResource(path)
+			return nil, err
+		}
+	}
+
+	// assume it's a cluster specifier - that's the formal case, e.g. /cluster/resource/pool
+	// not /cluster/Resources/resource/pool
+	// everything from now on will use this assumption
+	cpath := v.computePathToInventoryPath(path)
+	log.Debugf("Converted original path %s to %s", path, cpath)
+
+	pools, err = v.Session.Finder.ResourcePoolList(ctx, cpath)
+	if err != nil {
+		log.Debugf("failed to look up compute resource as cluster path %s: %s", cpath, err)
+		if _, ok := err.(*find.NotFoundError); !ok {
+			// we return err directly here so we can check the type
+			return nil, err
+		}
+	}
+
+	if len(pools) == 1 {
+		log.Debugf("selected compute resource %s", pools[0].InventoryPath)
+		return pools[0], nil
+	}
+
+	// both cases we want to suggest options
+	v.suggestComputeResource(cpath)
+
+	if len(pools) == 0 {
+		log.Debugf("no such compute resource %s", cpath)
 		// we return err directly here so we can check the type
 		return nil, err
 	}
-	if len(pools) > 1 {
-		// TODO: error about required disabmiguation and list entries in nets
-		return nil, errors.New("ambiguous compute resource " + path)
-	}
 
-	return pools[0], nil
-}
-
-func (v *Validator) GetResourcePool(input *data.Data) (*object.ResourcePool, error) {
-	return v.resourcePoolHelper(v.Context, input.ComputeResourcePath)
+	// TODO: error about required disabmiguation and list entries in nets
+	return nil, errors.New("ambiguous compute resource " + cpath)
 }
 
 func (v *Validator) suggestComputeResource(path string) {
 	log.Info("Suggesting valid values for --compute-resource")
-	for numPools := 0; numPools == 0; numPools = v.suggestResourcePools(path) {
+	numPools := 0
+	for ; numPools == 0; numPools = v.suggestResourcePools(path) {
 		// back up the path until we find a pool
-		path = filepath.Dir(path)
+		newpath := filepath.Dir(path)
+		if newpath == path {
+			break
+		}
+		path = newpath
+	}
+
+	if numPools != 0 {
+		// we've made a recommendation - return
+		return
 	}
 
 	// Backing all the way up didn't help
 	log.Info("Failed to find resource pool in the provided path. Showing all resource pools.")
-	numPools := v.suggestAllResourcePools()
+	numPools = v.suggestAllResourcePools()
 	if numPools == 0 {
 		log.Info("No resource pools found")
 	}
@@ -500,21 +556,27 @@ func (v *Validator) suggestAllResourcePools() int {
 func (v *Validator) suggestResourcePools(path string) int {
 	var numPools int
 
+	// list pools in path
+	numPools = v.listResourcePools(path)
+	if numPools > 0 {
+		return numPools
+	}
+
+	// no pools in path, but if path is cluster, list pools in cluster
 	clusters, _ := v.Session.Finder.ComputeResourceList(v.Context, path)
 	if clusters != nil {
 		for _, c := range clusters {
-			numPools += v.listResourcePools(c)
+			children := fmt.Sprintf("%s/Resources/*", c.InventoryPath)
+			log.Infof("  %s/Resources", c.InventoryPath) // Suggest `/Resources`
+			numPools += v.listResourcePools(children)
 		}
 	}
 
 	return numPools
 }
 
-func (v *Validator) listResourcePools(c *object.ComputeResource) int {
-	children := fmt.Sprintf("%s/Resources/*", c.InventoryPath)
-	log.Infof("  %s/Resources", c.InventoryPath) // Suggest `/Resources`
-
-	pools, _ := v.Session.Finder.ResourcePoolList(v.Context, children)
+func (v *Validator) listResourcePools(path string) int {
+	pools, _ := v.Session.Finder.ResourcePoolList(v.Context, path+"/*")
 	if len(pools) > 0 {
 		for _, p := range pools {
 			log.Infof("    %s", p.InventoryPath)
@@ -524,6 +586,26 @@ func (v *Validator) listResourcePools(c *object.ComputeResource) int {
 	return len(pools)
 }
 
+func (v *Validator) computePathToInventoryPath(path string) string {
+	// if it's vCenter the first element is the cluster or host, then resource pool path
+	if v.Session.Client.IsVC() {
+		pElem := strings.SplitN(path, "/", 2)
+		parts := []string{pElem[0], "Resources", ""}
+		if len(pElem) > 1 {
+			parts[2] = pElem[1]
+		}
+
+		return strings.Join(parts, "/")
+	}
+
+	// for ESX, it's a pool
+	return fmt.Sprintf("*/Resources/%s", path)
+}
+
+func (v *Validator) GetResourcePool(input *data.Data) (*object.ResourcePool, error) {
+	return v.resourcePoolHelper(v.Context, input.ComputeResourcePath)
+}
+
 func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *metadata.VirtualContainerHostConfigSpec, input *data.Data) *management.InstallerData {
 
 	dconfig := management.InstallerData{}
@@ -531,17 +613,15 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *metadata.Virt
 	dconfig.ApplianceSize.CPU.Limit = int64(input.NumCPUs)
 	dconfig.ApplianceSize.Memory.Limit = int64(input.MemoryMB)
 
+	dconfig.Datacenter = v.Session.Datacenter.Reference()
 	dconfig.DatacenterName = v.Session.Datacenter.Name()
+
+	dconfig.Cluster = v.Session.Cluster.Reference()
 	dconfig.ClusterPath = v.Session.Cluster.InventoryPath
 
-	// first element is the cluster or host, then resource pool path
-	pElem := filepath.SplitList(input.ComputeResourcePath)
-	path := ""
-	if len(pElem) > 1 {
-		pElem = pElem[1:]
-		path = strings.Join(pElem, "/")
-	}
-	dconfig.ResourcePoolPath = fmt.Sprintf("%s/Resources/%s", dconfig.ClusterPath, path)
+	dconfig.ResourcePoolPath = v.ResourcePoolPath
+
+	log.Debugf("Datacenter: %s, Cluster: %s, Resource Pool: %s", dconfig.DatacenterName, dconfig.ClusterPath, dconfig.ResourcePoolPath)
 
 	return &dconfig
 }

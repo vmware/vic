@@ -15,9 +15,11 @@
 package tether
 
 import (
+	"net"
 	"testing"
 
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/lib/metadata"
 )
 
@@ -71,8 +73,6 @@ func TestNoNetwork(t *testing.T) {
 }
 
 func TestSetIpAddress(t *testing.T) {
-	t.Skip("Not yet testing network config")
-
 	testSetup(t)
 	defer testTeardown(t)
 
@@ -81,11 +81,44 @@ func TestSetIpAddress(t *testing.T) {
 			ID:   "ipconfig",
 			Name: "tether_test_executor",
 		},
+		Networks: map[string]*metadata.NetworkEndpoint{
+			"netA": &metadata.NetworkEndpoint{
+				Network: metadata.ContainerNetwork{
+					Common: metadata.Common{
+						Name: "netA",
+					},
+				},
+				Static: &net.IPNet{
+					IP:   localhost,
+					Mask: lmask.Mask,
+				},
+			},
+			"netB": &metadata.NetworkEndpoint{
+				Network: metadata.ContainerNetwork{
+					Common: metadata.Common{
+						Name: "netB",
+					},
+				},
+				Static: &net.IPNet{
+					IP:   gateway,
+					Mask: gmask.Mask,
+				},
+			},
+		},
 	}
 
 	tthr, _ := StartTether(t, &cfg)
 
 	<-Mocked.Started
+
+	// check addresses
+	checkA, ok := Mocked.IPs["netA"]
+	assert.True(t, ok, "Expected entry in IP map for netA")
+	assert.Equal(t, localhost, checkA.IP, "netA has incorrect IP address")
+
+	checkB, ok := Mocked.IPs["netB"]
+	assert.True(t, ok, "Expected entry in IP map for netB")
+	assert.Equal(t, gateway, checkB.IP, "netB has incorrect IP address")
 
 	// prevent indefinite wait in tether - normally session exit would trigger this
 	tthr.Stop()

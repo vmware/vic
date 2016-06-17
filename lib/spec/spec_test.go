@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 	"golang.org/x/net/context"
@@ -143,4 +144,51 @@ func TestCollectSlotNumbers(t *testing.T) {
 	s.DeviceChange[len(s.DeviceChange)-1].GetVirtualDeviceConfigSpec().Device.GetVirtualDevice().SlotInfo = &types.VirtualDevicePciBusSlotInfo{PciSlotNumber: 33}
 	slots = s.CollectSlotNumbers()
 	assert.EqualValues(t, []int32{32, 33}, slots)
+}
+
+func TestFindSlotNumber(t *testing.T) {
+	allSlots := make(map[int32]bool)
+	for s := pciSlotNumberBegin; s != pciSlotNumberEnd; s += pciSlotNumberInc {
+		allSlots[s] = true
+	}
+
+	// missing first slot
+	missingFirstSlot := make(map[int32]bool)
+	for s := pciSlotNumberBegin + pciSlotNumberInc; s != pciSlotNumberEnd; s += pciSlotNumberInc {
+		missingFirstSlot[s] = true
+	}
+
+	// missing last slot
+	missingLastSlot := make(map[int32]bool)
+	for s := pciSlotNumberBegin; s != pciSlotNumberEnd-pciSlotNumberInc; s += pciSlotNumberInc {
+		missingLastSlot[s] = true
+	}
+
+	// missing a slot in the middle
+	var missingSlot int32
+	missingMiddleSlot := make(map[int32]bool)
+	for s := pciSlotNumberBegin; s != pciSlotNumberEnd-pciSlotNumberInc; s += pciSlotNumberInc {
+		if pciSlotNumberBegin+(2*pciSlotNumberInc) == s {
+			missingSlot = s
+			continue
+		}
+		missingMiddleSlot[s] = true
+	}
+
+	var tests = []struct {
+		slots map[int32]bool
+		out   int32
+	}{
+		{make(map[int32]bool), pciSlotNumberBegin},
+		{allSlots, spec.NilSlot},
+		{missingFirstSlot, pciSlotNumberBegin},
+		{missingLastSlot, pciSlotNumberEnd - pciSlotNumberInc},
+		{missingMiddleSlot, missingSlot},
+	}
+
+	for _, te := range tests {
+		if s := findSlotNumber(te.slots); s != te.out {
+			t.Fatalf("findSlotNumber(%v) => %d, want %d", te.slots, s, te.out)
+		}
+	}
 }

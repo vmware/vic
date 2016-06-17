@@ -46,6 +46,7 @@ func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfi
 	}
 
 	log.Infof("Creating a Resource Pool")
+	// TODO: expose the limits and reservation here via options
 	resSpec := types.ResourceConfigSpec{
 		CpuAllocation: &types.ResourceAllocationInfo{
 			Shares: &types.SharesInfo{
@@ -69,6 +70,7 @@ func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfi
 
 	rp, err = d.session.Pool.Create(d.ctx, conf.Name, resSpec)
 	if err != nil {
+		log.Debugf("Failed to create resource pool %s: %s", d.vchPoolPath, err)
 		return nil, err
 	}
 

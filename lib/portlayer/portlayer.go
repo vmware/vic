@@ -15,10 +15,14 @@
 package portlayer
 
 import (
+	"fmt"
+
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/network"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -36,16 +40,35 @@ func Init(ctx context.Context, sess *session.Session) error {
 		return err
 	}
 
-	extraconfig.Decode(source, &network.Config)
-	log.Debugf("Decoded VCH config: %#v", network.Config)
 	f := find.NewFinder(sess.Vim25(), false)
+
+	extraconfig.Decode(source, &exec.Config)
+	log.Debugf("Decoded VCH config for execution: %#v", exec.Config)
+	ccount := len(exec.Config.ComputeResources)
+	if ccount != 1 {
+		detail := fmt.Sprintf("expected singular compute resource element, found %d", ccount)
+		log.Errorf(detail)
+		return err
+	}
+
+	cr := exec.Config.ComputeResources[0]
+	r, err := f.ObjectReference(ctx, cr)
+	if err != nil {
+		detail := fmt.Sprintf("could not get resource pool reference from %s: %s", cr.String(), err)
+		log.Errorf(detail)
+		return err
+	}
+	exec.Config.ResourcePool = r.(*object.ResourcePool)
+
+	extraconfig.Decode(source, &network.Config)
+	log.Debugf("Decoded VCH config for network: %#v", network.Config)
 	for nn, n := range network.Config.ContainerNetworks {
 		pgref := new(types.ManagedObjectReference)
 		if !pgref.FromString(n.ID) {
 			log.Errorf("Could not reacquire object reference from id for network %s: %s", nn, n.ID)
 		}
 
-		r, err := f.ObjectReference(ctx, *pgref)
+		r, err = f.ObjectReference(ctx, *pgref)
 		if err != nil {
 			log.Warnf("could not get network reference for %s network", nn)
 			continue

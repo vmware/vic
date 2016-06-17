@@ -17,14 +17,25 @@ package flags
 import (
 	"flag"
 	"net/url"
+	"regexp"
 )
+
+var schemeMatch = regexp.MustCompile(`^\w+://`)
 
 type URLFlag struct {
 	u **url.URL
 }
 
+// Set will add a protocol (https) if there isn't a :// match. This
+// ensures tha url.Parse can correctly extract user:password from
+// raw URLs such as user:password@hostname
 func (f *URLFlag) Set(s string) error {
 	var err error
+	// Default the scheme to https
+	if !schemeMatch.MatchString(s) {
+		s = "https://" + s
+	}
+
 	url, err := url.Parse(s)
 	*f.u = url
 	return err

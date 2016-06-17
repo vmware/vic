@@ -54,6 +54,7 @@ func main() {
 	}
 	app.Version = fmt.Sprintf("%s.%s", MajorVersion, BuildID)
 	if err := app.Run(os.Args); err != nil {
-		fmt.Fprintf(os.Stderr, "%s failed: %s", app.Name, err)
+		// TODO: log the stack trace of the error if this isn't a cli.NewExitError
+		fmt.Fprintln(os.Stderr, app.Name, "failed: ", err.Error())
 	}
 }

@@ -32,6 +32,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 )
 
@@ -64,6 +65,15 @@ func init() {
 	config.hostCertFile = "fixtures/vicadmin_test_cert.pem"
 	config.hostKeyFile = "fixtures/vicadmin_test_pkey.pem"
 
+	cert, cerr := ioutil.ReadFile(config.hostCertFile)
+	key, kerr := ioutil.ReadFile(config.hostKeyFile)
+	if kerr != nil || cerr != nil {
+		panic("unable to load test certificate")
+	}
+	vchConfig.HostCertificate = &metadata.RawCertificate{
+		Cert: cert,
+		Key:  key,
+	}
 }
 
 type credentials struct {

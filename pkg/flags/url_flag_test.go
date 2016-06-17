@@ -36,16 +36,25 @@ func TestURLFlag(t *testing.T) {
 		t.Errorf("Value: %s", u.Value)
 	}
 
-	u.Value.Set("x:y@z@127.0.0.1")
+	ref := "http://x:y@127.0.0.1"
+	u.Value.Set(ref)
 
-	if u.Value.String() != "x:y@z@127.0.0.1" {
+	if u.Value.String() != ref {
 		t.Errorf("Value after set: %s", u.Value)
 	}
 
 	if val == nil {
 		t.Errorf("val is not set")
 	}
-	if val.String() != "x:y@z@127.0.0.1" {
+	if val.String() != ref {
 		t.Errorf("val is not set correctly: %s", val.String())
+	}
+
+	if val.User == nil {
+		t.Fatalf("Expected user info to be parsed from url")
+	}
+
+	if val.User.Username() != "x" {
+		t.Errorf("user was not extracted correctly")
 	}
 }

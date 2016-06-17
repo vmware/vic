@@ -54,6 +54,7 @@ type Mocker struct {
 
 	// the hostname of the system
 	Hostname string
+	Aliases  []string
 	// the ip configuration for mac indexed interfaces
 	IPs map[string]net.IPNet
 	// filesystem mounts, indexed by disk label
@@ -113,19 +114,23 @@ func (t *Mocker) ProcessEnv(env []string) []string {
 }
 
 // SetHostname sets both the kernel hostname and /etc/hostname to the specified string
-func (t *Mocker) SetHostname(hostname string) error {
+func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 	defer trace.End(trace.Begin("mocking hostname to " + hostname))
 
 	// TODO: we could mock at a much finer granularity, only extracting the syscall
 	// that would exercise the file modification paths, however it's much less generalizable
 	t.Hostname = hostname
+	t.Aliases = aliases
 	return nil
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
 func (t *Mocker) Apply(endpoint *metadata.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("mocking endpoint configuration for " + endpoint.Network.Name))
-	t.IPs[endpoint.Network.Name] = endpoint.IP
+	if t.IPs == nil {
+		t.IPs = make(map[string]net.IPNet)
+	}
+	t.IPs[endpoint.Network.Name] = *endpoint.Static
 
 	return nil
 }

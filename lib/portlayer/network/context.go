@@ -178,7 +178,7 @@ func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, 
 func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (newScope *Scope, err error) {
 	bn, ok := Config.ContainerNetworks[Config.BridgeNetwork]
 	if !ok || bn == nil {
-		return nil, fmt.Errorf("default network not set")
+		return nil, fmt.Errorf("bridge network not set")
 	}
 
 	s, err := c.newScopeCommon(id, name, bridgeScopeType, subnet, gateway, dns, ipam, bn.PortGroup)
