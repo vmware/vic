@@ -109,7 +109,7 @@ func (handler *StorageHandlersImpl) CreateImageStore(params storage.CreateImageS
 func (handler *StorageHandlersImpl) GetImage(params storage.GetImageParams) middleware.Responder {
 	id := params.ID
 
-	url, err := util.StoreNameToURL(params.StoreName)
+	url, err := util.ImageStoreNameToURL(params.StoreName)
 	if err != nil {
 		return storage.NewGetImageDefault(http.StatusInternalServerError).WithPayload(
 			&models.Error{
@@ -134,7 +134,7 @@ func (handler *StorageHandlersImpl) GetImageTar(params storage.GetImageTarParams
 
 // ListImages returns a list of images in a store
 func (handler *StorageHandlersImpl) ListImages(params storage.ListImagesParams) middleware.Responder {
-	u, err := util.StoreNameToURL(params.StoreName)
+	u, err := util.ImageStoreNameToURL(params.StoreName)
 	if err != nil {
 		return storage.NewListImagesDefault(http.StatusInternalServerError).WithPayload(
 			&models.Error{
@@ -162,7 +162,7 @@ func (handler *StorageHandlersImpl) ListImages(params storage.ListImagesParams) 
 
 // WriteImage writes an image to an image store
 func (handler *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) middleware.Responder {
-	u, err := util.StoreNameToURL(params.StoreName)
+	u, err := util.ImageStoreNameToURL(params.StoreName)
 	if err != nil {
 		return storage.NewWriteImageDefault(http.StatusInternalServerError).WithPayload(
 			&models.Error{

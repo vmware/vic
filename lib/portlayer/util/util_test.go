@@ -16,16 +16,16 @@ package util
 
 import (
 	"net/url"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestServiceUrl(t *testing.T) {
 	DefaultHost, _ = url.Parse("http://foo.com/")
-	u := ServiceURL(StoragePath)
+	u := ServiceURL(StorageURLPath)
 
-	if strings.Compare(u.String(), "http://foo.com/storage/") != 0 {
-		t.Fail()
+	if !assert.Equal(t, "http://foo.com/storage", u.String()) {
 		return
 	}
 }

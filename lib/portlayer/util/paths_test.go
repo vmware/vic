@@ -17,37 +17,40 @@ package util
 import (
 	"net/url"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestStoreName(t *testing.T) {
-	u, _ := url.Parse("/storage/imgstore/image")
-	store, err := StoreName(u)
-	if err != nil {
-		t.Errorf("StoreName failed %v", err)
+func TestImageStoreName(t *testing.T) {
+	u, _ := url.Parse("/storage/images/imgstore/image")
+	store, err := ImageStoreName(u)
+	if !assert.NoError(t, err) {
+		return
 	}
+
 	expectedStore := "imgstore"
-	if store != expectedStore {
-		t.Errorf("Got: %s Expected: %s", store, expectedStore)
+	if !assert.Equal(t, expectedStore, store) {
+		return
 	}
 }
 
-func TestStoreNameErrors(t *testing.T) {
+func TestImageStoreNameErrors(t *testing.T) {
 	u, _ := url.Parse("fail")
-	_, err := StoreName(u)
+	_, err := ImageStoreName(u)
 	expectedError := "invalid uri path"
 	if err.Error() != expectedError {
 		t.Errorf("Got: %s Expected: %s", err, expectedError)
 	}
 
 	u, _ = url.Parse("/storage:123")
-	_, err = StoreName(u)
+	_, err = ImageStoreName(u)
 	expectedError = "not a storage path"
 	if err.Error() != expectedError {
 		t.Errorf("Got: %s Expected: %s", err, expectedError)
 	}
 
 	u, _ = url.Parse("/storage")
-	_, err = StoreName(u)
+	_, err = ImageStoreName(u)
 	expectedError = "uri path mismatch"
 	if err.Error() != expectedError {
 		t.Errorf("Got: %s Expected: %s", err, expectedError)
@@ -56,15 +59,15 @@ func TestStoreNameErrors(t *testing.T) {
 
 func TestImageURL(t *testing.T) {
 	DefaultHost, _ = url.Parse("http://foo.com/")
-	storeName := "storage"
-	imageName := "image"
+	storeName := "storeName"
+	imageName := "imageName"
 
 	u, err := ImageURL(storeName, imageName)
 	if err != nil {
 		t.Errorf("ImageURL failed %v", err)
 	}
-	expectedURL := "http://foo.com/storage/image"
-	if u.String() != expectedURL {
-		t.Errorf("Got: %s Expected: %s", u, expectedURL)
+	expectedURL := "http://foo.com/storage/images/storeName/imageName"
+	if !assert.Equal(t, expectedURL, u.String()) {
+		return
 	}
 }

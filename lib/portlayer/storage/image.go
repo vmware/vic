@@ -95,7 +95,7 @@ func Parse(u *url.URL) (*Image, error) {
 
 	segments := strings.Split(filepath.Clean(u.Path), "/")
 
-	if segments[0] != util.StoragePath {
+	if segments[0] != util.StorageURLPath {
 		return nil, errors.New("not a storage path")
 	}
 
@@ -103,7 +103,7 @@ func Parse(u *url.URL) (*Image, error) {
 		return nil, errors.New("uri path mismatch")
 	}
 
-	store, err := util.StoreNameToURL(segments[2])
+	store, err := util.ImageStoreNameToURL(segments[2])
 	if err != nil {
 		return nil, err
 	}

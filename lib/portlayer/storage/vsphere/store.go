@@ -115,7 +115,7 @@ func (v *ImageStore) imageMetadataDirPath(storeName, imageName string) string {
 
 func (v *ImageStore) CreateImageStore(ctx context.Context, storeName string) (*url.URL, error) {
 	// convert the store name to a port layer url.
-	u, err := util.StoreNameToURL(storeName)
+	u, err := util.ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func (v *ImageStore) CreateImageStore(ctx context.Context, storeName string) (*u
 // GetImageStore checks to see if the image store exists on disk and returns an
 // error or the store's URL.
 func (v *ImageStore) GetImageStore(ctx context.Context, storeName string) (*url.URL, error) {
-	u, err := util.StoreNameToURL(storeName)
+	u, err := util.ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +161,7 @@ func (v *ImageStore) ListImageStores(ctx context.Context) ([]*url.URL, error) {
 		if !ok {
 			continue
 		}
-		u, err := util.StoreNameToURL(folder.Path)
+		u, err := util.ImageStoreNameToURL(folder.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -182,7 +182,7 @@ func (v *ImageStore) ListImageStores(ctx context.Context) ([]*url.URL, error) {
 func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID string, meta map[string][]byte,
 	r io.Reader) (*portlayer.Image, error) {
 
-	storeName, err := util.StoreName(parent.Store)
+	storeName, err := util.ImageStoreName(parent.Store)
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +276,7 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 
 func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*portlayer.Image, error) {
 
-	storeName, err := util.StoreName(store)
+	storeName, err := util.ImageStoreName(store)
 	if err != nil {
 		return nil, err
 	}
@@ -326,7 +326,7 @@ func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*
 
 func (v *ImageStore) ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*portlayer.Image, error) {
 
-	storeName, err := util.StoreName(store)
+	storeName, err := util.ImageStoreName(store)
 	if err != nil {
 		return nil, err
 	}
