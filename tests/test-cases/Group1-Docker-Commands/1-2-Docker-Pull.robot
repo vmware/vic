@@ -11,7 +11,8 @@ Pull image
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull ${image}
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    Should contain  ${output}  Status: Image is up to date for library/
+    Should Contain  ${output}  Digest:
+    Should Contain  ${output}  Status:
 
 *** Test Cases ***
 Pull nginx
@@ -71,15 +72,15 @@ Pull non-existent image
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull fakebadimage
     Log  ${output}
     Should Be Equal As Integers  ${rc}  1
-    # Github issue #757
+    ${status}=  Get State Of Github Issue  757
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-2-Docker-Pull.robot needs to be updated now that Issue #757 has been resolved
     #Should contain  ${output}  image library/fakebadimage not found
     
 Pull image from non-existent repo
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull fakebadrepo.com:9999/ubuntu
     Log  ${output}
     Should Be Equal As Integers  ${rc}  1
-    # Github issue #794
-    #Should contain  ${output}  no such host
+    Should Contain  ${output}  no such host
 
 Pull image that already has been pulled
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  alpine

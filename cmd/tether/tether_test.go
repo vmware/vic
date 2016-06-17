@@ -60,8 +60,8 @@ type Mocker struct {
 
 	// the hostname of the system
 	Hostname string
-	// the ip configuration for mac indexed interfaces
-	IPs map[string]net.IPNet
+	// the ip configuration for name index networks
+	IPs map[string]net.IP
 	// filesystem mounts, indexed by disk label
 	Mounts map[string]string
 
@@ -131,7 +131,7 @@ func (t *Mocker) SetHostname(hostname string) error {
 // Apply takes the network endpoint configuration and applies it to the system
 func (t *Mocker) Apply(endpoint *metadata.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("mocking endpoint configuration for " + endpoint.Network.Name))
-	t.IPs[endpoint.Network.Name] = endpoint.IP
+	t.IPs[endpoint.Network.Name] = endpoint.Assigned
 
 	return nil
 }

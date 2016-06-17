@@ -13,7 +13,7 @@ Basic Info
 
 Debug Info
     ${status}=  Get State Of Github Issue  780
-    Run Keyword If  '${status}' == 'closed'  Fail  Test test1.robot needs to be updated now that Issue #780 has been resolved
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-1-Docker-Info.robot needs to be updated now that Issue #780 has been resolved
     #Log To Console  \nRunning docker -D info command...
     #${output}=  Run  docker ${params} -D info
     #Log  ${output}
