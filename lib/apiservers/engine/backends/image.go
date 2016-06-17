@@ -15,16 +15,13 @@
 package vicbackends
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"sort"
 
 	log "github.com/Sirupsen/logrus"
-	derr "github.com/docker/docker/errors"
 
 	"golang.org/x/net/context"
 
@@ -32,10 +29,7 @@ import (
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/registry"
-	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/metadata"
-
-	"github.com/vmware/vic/lib/guest"
 )
 
 // byCreated is a temporary type used to sort a list of images by creation
@@ -68,53 +62,18 @@ func (i *Image) ImageHistory(imageName string) ([]*types.ImageHistory, error) {
 
 func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Image, error) {
 
-	result := []*types.Image{}
+	imageCache := ImageCache()
+	images := imageCache.GetImages()
+	result := make([]*types.Image, 0, len(images))
 
-	host, err := guest.UUID()
-	if host == "" {
-		host, err = os.Hostname()
-	}
-	if err != nil {
-		return result,
-			derr.NewErrorWithStatusCode(fmt.Errorf("image.Images got unexpected error getting hostname"),
-				http.StatusInternalServerError)
-	}
-
-	params := storage.NewListImagesParams().WithStoreName(host)
-
-	client := PortLayerClient()
-	if client == nil {
-		return result,
-			derr.NewErrorWithStatusCode(fmt.Errorf("image.Images failed to create a portlayer client"),
-				http.StatusInternalServerError)
-	}
-
-	layers, err := client.Storage.ListImages(params)
-	if err != nil {
-		log.Warning(err)
-		return result, nil
-	}
-
-	// TODO(jzt): avoid this by having portlayer send back only images (not layers)
-	// find actual image layers
-	for _, layer := range layers.Payload {
-		imageConfig := &metadata.ImageConfig{}
-		if err := json.Unmarshal([]byte(layer.Metadata["metaData"]), imageConfig); err != nil {
-			derr.NewErrorWithStatusCode(fmt.Errorf("image.Images failed to create a portlayer client"),
-				http.StatusInternalServerError)
-		}
-
-		// HACK(jzt): we could add a marker to models.Image indicating whether or not it represents an image or a layer
-		if imageConfig.ImageID != "" {
-			// convert to dockert image format
-			result = append(result, convertV1ImageToDockerImage(imageConfig))
-			log.Debugf("Found image %#v", imageConfig)
-		}
+	for _, image := range images {
+		result = append(result, convertV1ImageToDockerImage(image))
 	}
 
 	// sort on creation time
 	sort.Sort(sort.Reverse(byCreated(result)))
 
+	log.Infof("Returning %d elements to docker client", len(result))
 	return result, nil
 }
 
@@ -184,6 +143,8 @@ func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders 
 		return err
 	}
 
+	client := PortLayerClient()
+	ImageCache().Update(client)
 	return nil
 }
 
