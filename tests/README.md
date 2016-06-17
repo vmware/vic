@@ -18,4 +18,5 @@ environment:
 
 Find the documentation for each of the tests here:
 -
-###[Test Suite Documentation](test-cases/TestGroups.md)
+###[Automated Test Suite Documentation](test-cases/TestGroups.md)
+###[Manual Test Suite Documentation](manual-test-cases/TestGroups.md)
