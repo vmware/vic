@@ -34,9 +34,10 @@ import (
 )
 
 // All paths on the datastore for images are relative to <datastore>/VIC/
-var datastoreParentPath = "VIC"
+var storageParentDir = "VIC"
 
 const (
+	storageImageDir  = "images"
 	defaultDiskLabel = "containerfs"
 	defaultDiskSize  = 8388608
 	metaDataDir      = "imageMetadata"
@@ -68,7 +69,7 @@ func NewImageStore(ctx context.Context, s *session.Session) (*ImageStore, error)
 	// Currently using the datastore associated with the session which is not
 	// ideal.  This should be passed in via the config.  The datastore need not
 	// be the same datastore used for the rest of the system.
-	ds, err := newDatastore(ctx, s, s.Datastore, datastoreParentPath)
+	ds, err := newDatastore(ctx, s, s.Datastore, storageParentDir)
 	if err != nil {
 		return nil, err
 	}
@@ -89,16 +90,16 @@ func NewImageStore(ctx context.Context, s *session.Session) (*ImageStore, error)
 }
 
 // Returns the path to a given image store.  Currently this is the UUID of the VCH.
-// `/VIC/imageStoreName/
+// `/VIC/imageStoreName (currently the vch uuid)/images`
 func (v *ImageStore) imageStorePath(storeName string) string {
-	return storeName
+	return path.Join(storeName, storageImageDir)
 }
 
 // Returns the path to the image relative to the given
 // store.  The dir structure for an image in the datastore is
-// `/VIC/imageStoreName/imageName/imageName.vmkd`
+// `/VIC/imageStoreName (currently the vch uuid)/imageName/imageName.vmkd`
 func (v *ImageStore) imageDirPath(storeName, imageName string) string {
-	return path.Join(storeName, imageName)
+	return path.Join(v.imageStorePath(storeName), imageName)
 }
 
 // Returns the path to the vmdk itself
@@ -134,10 +135,8 @@ func (v *ImageStore) GetImageStore(ctx context.Context, storeName string) (*url.
 		return nil, err
 	}
 
-	// Since we're statting the datastore itself, this need not be in datastore
-	// path format.
-	p := path.Join(datastoreParentPath, storeName)
-	info, err := v.s.Datastore.Stat(ctx, p)
+	p := v.imageStorePath(storeName)
+	info, err := v.ds.Stat(ctx, p)
 	if err != nil {
 		return nil, err
 	}
