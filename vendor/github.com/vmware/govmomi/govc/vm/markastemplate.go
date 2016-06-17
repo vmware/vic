@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package datacenter
+package vm
 
 import (
 	"flag"
@@ -24,42 +24,41 @@ import (
 	"golang.org/x/net/context"
 )
 
-type create struct {
-	*flags.FolderFlag
+type markastemplate struct {
+	*flags.ClientFlag
+	*flags.SearchFlag
 }
 
 func init() {
-	cli.Register("datacenter.create", &create{})
+	cli.Register("vm.markastemplate", &markastemplate{})
 }
 
-func (cmd *create) Register(ctx context.Context, f *flag.FlagSet) {
-	cmd.FolderFlag, ctx = flags.NewFolderFlag(ctx)
-	cmd.FolderFlag.Register(ctx, f)
+func (cmd *markastemplate) Register(ctx context.Context, f *flag.FlagSet) {
+	cmd.ClientFlag, ctx = flags.NewClientFlag(ctx)
+	cmd.ClientFlag.Register(ctx, f)
+
+	cmd.SearchFlag, ctx = flags.NewSearchFlag(ctx, flags.SearchVirtualMachines)
+	cmd.SearchFlag.Register(ctx, f)
 }
 
-func (cmd *create) Usage() string {
-	return "NAME..."
-}
-
-func (cmd *create) Process(ctx context.Context) error {
-	if err := cmd.FolderFlag.Process(ctx); err != nil {
+func (cmd *markastemplate) Process(ctx context.Context) error {
+	if err := cmd.ClientFlag.Process(ctx); err != nil {
+		return err
+	}
+	if err := cmd.SearchFlag.Process(ctx); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (cmd *create) Run(ctx context.Context, f *flag.FlagSet) error {
-	folder, err := cmd.FolderOrRoot()
+func (cmd *markastemplate) Run(ctx context.Context, f *flag.FlagSet) error {
+	vms, err := cmd.VirtualMachines(f.Args())
 	if err != nil {
 		return err
 	}
 
-	if f.NArg() == 0 {
-		return flag.ErrHelp
-	}
-
-	for _, name := range f.Args() {
-		_, err := folder.CreateDatacenter(ctx, name)
+	for _, vm := range vms {
+		err := vm.MarkAsTemplate(context.TODO())
 		if err != nil {
 			return err
 		}
