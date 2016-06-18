@@ -10,7 +10,18 @@ See [VIC Containers Architecture](doc/design/arch/arch.md) for a high level over
 
 ## Project Status
 
-VIC can currently pull images, create and start containers in a very limited fashion - most significantly you cannot attach to a container to see its output or interact with it. Interaction is only via the network - containers will be exposed directly on the VCH external network rather than via port forwarding.
+installer is now multi-platform
+early experimental vCenter support
+VIC now provides:
+* basic function for most of the core lifecycle operations: pull, create, start, attach, run, stop, rm
+* installer is now multi-platform
+* early experimental vCenter support
+
+The function is still basic and there are some specific limitations worth pulling out:
+* stop is not polite - it currently powers off the VM directly without providing for filesystem sync
+* short IDs are not supported in commands
+* port forwarding is not available (however containers are created with a NIC
+* there is a [known issue](https://github.com/vmware/vic/issues/996) with attach when pushing continuous data
 
 We are working hard to add functionality while building out our [foundation](doc/design/arch/arch.md#port-layer-abstractions) so continue to watch the repo for new features. Initial focus is on the production end of the CI pipeline, building backwards towards developer laptop scenarios.
 
