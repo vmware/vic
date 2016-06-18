@@ -15,9 +15,11 @@
 package vicbackends
 
 import (
+	"fmt"
 	"net"
 
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 )
 
@@ -28,6 +30,8 @@ const (
 var (
 	portLayerClient     *client.PortLayer
 	portLayerServerAddr string
+
+	imageCache *cache.ImageCache
 )
 
 func Init(portLayerAddr string) error {
@@ -39,6 +43,13 @@ func Init(portLayerAddr string) error {
 	t := httptransport.New(portLayerAddr, "/", []string{"http"})
 	portLayerClient = client.New(t, nil)
 	portLayerServerAddr = portLayerAddr
+
+	imageCache = cache.NewImageCache()
+	// update the image cache at startup
+	if err := imageCache.Update(portLayerClient); err != nil {
+		return fmt.Errorf("Error refreshing image cache: %s", err)
+	}
+
 	return nil
 }
 
@@ -48,4 +59,8 @@ func PortLayerClient() *client.PortLayer {
 
 func PortLayerServer() string {
 	return portLayerServerAddr
+}
+
+func ImageCache() *cache.ImageCache {
+	return imageCache
 }
