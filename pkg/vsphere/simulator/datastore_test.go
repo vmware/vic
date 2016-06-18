@@ -346,6 +346,16 @@ func TestDatastoreHTTP(t *testing.T) {
 			"[nope]", // InvalidDatastore
 		}
 
+		// test FileType details
+		mkdir("exts", false, false)
+		stat("exts", false)
+		exts := []string{"img", "iso", "log", "nvram", "vmdk", "vmx"}
+		for _, ext := range exts {
+			name := dst + "." + ext
+			upload(name, false, "POST")
+			stat(name, false)
+		}
+
 		for _, p := range invalid {
 			dsPath = func(name string) string {
 				return p

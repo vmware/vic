@@ -17,6 +17,7 @@ package simulator
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
@@ -54,11 +55,15 @@ func (s *SessionManager) Login(login *types.Login) soap.HasFault {
 	return body
 }
 
+func (s *SessionManager) Logout(*types.Logout) soap.HasFault {
+	return &methods.LogoutBody{}
+}
+
 func (s *SessionManager) AcquireGenericServiceTicket(ticket *types.AcquireGenericServiceTicket) soap.HasFault {
 	return &methods.AcquireGenericServiceTicketBody{
 		Res: &types.AcquireGenericServiceTicketResponse{
 			Returnval: types.SessionManagerGenericServiceTicket{
-				Id:       "TODO",
+				Id:       uuid.New().String(),
 				HostName: s.ServiceHostName,
 			},
 		},

@@ -260,6 +260,11 @@ func TestServeHTTP(t *testing.T) {
 				t.Errorf("expected error")
 			}
 		}
+
+		err = client.Logout(ctx)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
 
@@ -326,6 +331,16 @@ func TestServeHTTPErrors(t *testing.T) {
 	_, err = methods.GetCurrentTime(ctx, client)
 	if err == nil {
 		t.Error("expected error")
+	}
+
+	// verify we properly marshal the fault
+	fault := soap.ToSoapFault(err).VimFault()
+	f, ok := fault.(types.ManagedObjectNotFound)
+	if !ok {
+		t.Fatalf("fault=%#v", fault)
+	}
+	if f.Obj != serviceInstance.Reference() {
+		t.Errorf("obj=%#v", f.Obj)
 	}
 
 	// cover the method not supported path
