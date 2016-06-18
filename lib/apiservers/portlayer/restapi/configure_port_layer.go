@@ -26,12 +26,17 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
 	"github.com/vmware/vic/lib/portlayer"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 
 	"golang.org/x/net/context"
 )
 
 // This file is safe to edit. Once it exists it will not be overwritten
+
+func init() {
+	trace.Logger.Level = log.DebugLevel
+}
 
 type handler interface {
 	Configure(api *operations.PortLayerAPI, handlerCtx *handlers.HandlerContext)

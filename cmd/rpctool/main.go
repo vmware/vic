@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vmw-guestinfo/rpcout"
 	"github.com/vmware/vmw-guestinfo/rpcvmx"
 	"github.com/vmware/vmw-guestinfo/vmcheck"
@@ -31,6 +32,8 @@ var (
 )
 
 func init() {
+	trace.Logger.Level = log.DebugLevel
+
 	flag.BoolVar(&set, "set", false, "Sets the guestinfo.KEY with the string VALUE")
 	flag.BoolVar(&get, "get", false, "Returns the config string in the guestinfo.* namespace")
 	flag.BoolVar(&fork, "fork", false, "VMFork")

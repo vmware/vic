@@ -22,10 +22,15 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/lib/tether"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 var tthr tether.Tether
+
+func init() {
+	trace.Logger.Level = log.DebugLevel
+}
 
 func main() {
 	defer func() {

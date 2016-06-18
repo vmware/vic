@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/validate"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 
 	"golang.org/x/net/context"
 )
@@ -305,6 +306,7 @@ func (c *Create) Run(cli *cli.Context) error {
 
 	if c.Debug.Debug {
 		log.SetLevel(log.DebugLevel)
+		trace.Logger.Level = log.DebugLevel
 	}
 
 	if err = c.processParams(); err != nil {

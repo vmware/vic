@@ -80,7 +80,7 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	}
 
 	// add entry to hosts for resolution without nameservers
-	hosts, err := os.OpenFile(hostsFile, os.O_APPEND|os.O_WRONLY, 0644)
+	hosts, err := os.OpenFile(hostsFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		detail := fmt.Sprintf("failed to update hosts with hostname: %s", err)
 		return errors.New(detail)
@@ -357,7 +357,7 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 
 	// Add /etc/hosts entry
 	if endpoint.Network.Name != "" {
-		hosts, err := os.OpenFile(hostsFile, os.O_APPEND|os.O_WRONLY, 0644)
+		hosts, err := os.OpenFile(hostsFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 		if err != nil {
 			detail := fmt.Sprintf("failed to update hosts for endpoint %s: %s", endpoint.Network.Name, err)
 			return errors.New(detail)
@@ -377,7 +377,7 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 	// Add nameservers
 	// This is incredibly trivial for now - should be updated to a less messy approach
 	if len(endpoint.Network.Nameservers) > 0 {
-		resolv, err := os.OpenFile(resolvFile, os.O_APPEND|os.O_WRONLY, 0644)
+		resolv, err := os.OpenFile(resolvFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 		if err != nil {
 			detail := fmt.Sprintf("failed to update %s for endpoint %s: %s", resolvFile, endpoint.Network.Name, err)
 			return errors.New(detail)
@@ -385,7 +385,7 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 		defer resolv.Close()
 
 		for _, server := range endpoint.Network.Nameservers {
-			_, err = resolv.WriteString("nameserver " + server.String())
+			_, err = resolv.WriteString(fmt.Sprintf("\nnameserver %s\n", server.String()))
 			if err != nil {
 				detail := fmt.Sprintf("failed to add nameserver for endpoint %s: %s", endpoint.Network.Name, err)
 				return errors.New(detail)

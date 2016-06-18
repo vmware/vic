@@ -15,7 +15,7 @@
 package management
 
 import (
-	"path"
+	"fmt"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -31,7 +31,7 @@ import (
 )
 
 func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfigSpec, settings *InstallerData) (*object.ResourcePool, error) {
-	d.vchPoolPath = path.Join(settings.ResourcePoolPath, conf.Name)
+	d.vchPoolPath = fmt.Sprintf("%s/%s", settings.ResourcePoolPath, conf.Name)
 
 	rp, err := d.session.Finder.ResourcePool(d.ctx, d.vchPoolPath)
 	if err != nil {

@@ -33,6 +33,7 @@ import (
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/vmware/vic/lib/apiservers/engine/backends"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
@@ -52,6 +53,10 @@ type CliOptions struct {
 const productName = "vSphere Integrated Containers"
 
 var vchConfig metadata.VirtualContainerHostConfigSpec
+
+func init() {
+	trace.Logger.Level = log.DebugLevel
+}
 
 func Usage() {
 	fmt.Fprintf(os.Stderr, "\nvSphere Integrated Container Daemon Usage:\n")

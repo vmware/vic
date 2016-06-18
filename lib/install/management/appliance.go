@@ -66,37 +66,55 @@ func (d *Dispatcher) removeApplianceIfForced(conf *metadata.VirtualContainerHost
 	if err != nil {
 		return err
 	}
+	if vm == nil {
+		return nil
+	}
+
 	log.Debugf("Appliance is found")
-	if vm != nil && d.force {
-		if ok, verr := d.isVCH(vm); !ok {
-			verr = errors.Errorf("VM %s is found, but is not VCH appliance, please choose different name", conf.Name)
-			return verr
-		}
-		log.Infof("Appliance exists, remove it...")
-		_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-			return vm.PowerOff(ctx)
-		})
-		if err != nil {
-			log.Warnf("Failed to power off existing appliance for %s: err", conf.Name, err)
-		}
-		_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-			return vm.Destroy(ctx)
-		})
-		if err != nil {
-			err = errors.Errorf("Failed to destroy existing appliance: %s", err)
-			return err
-		}
-		m := object.NewFileManager(d.session.Client.Client)
-		if _, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-			return m.DeleteDatastoreFile(ctx, d.session.Datastore.Path(conf.Name), d.session.Datacenter)
-		}); err != nil {
-			// FIXME: this should be checking if the error is a types.FileNotFound and continuing if so
-			// unfortunately tasks package isn't making it easy to get to the root cause.
-			err = errors.Errorf("Failed to remove existing VCH data files, %s", err)
-			return err
-		}
-	} else if vm != nil {
+	if vm != nil && !d.force {
 		err = errors.Errorf("VM already exists with display name %s. Name must be unique. Exiting...", conf.Name)
+		return err
+	}
+
+	// remove it if it's a VCH
+	if ok, verr := d.isVCH(vm); !ok {
+		verr = errors.Errorf("VM %s is found, but is not VCH appliance, please choose different name", conf.Name)
+		return verr
+	}
+	log.Infof("Appliance exists, remove it...")
+	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		return vm.PowerOff(ctx)
+	})
+	if err != nil {
+		log.Debugf("Failed to power off existing appliance for %s: err", conf.Name, err)
+	}
+
+	// get the actual folder name before we delete it
+	folder, err := vm.FolderName(d.ctx)
+	if err != nil {
+		log.Warnf("Failed to get actual folder name for VM. Will not attempt to delete additional data files in VM directory: %s", err)
+	}
+
+	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		return vm.Destroy(ctx)
+	})
+	if err != nil {
+		err = errors.Errorf("Failed to destroy existing appliance: %s", err)
+		return err
+	}
+
+	if folder == "" {
+		// we'll have logged a warning about the data files, but we did successfully destroy the VM
+		return nil
+	}
+
+	m := object.NewFileManager(d.session.Client.Client)
+	if _, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		return m.DeleteDatastoreFile(ctx, d.session.Datastore.Path(folder), d.session.Datacenter)
+	}); err != nil {
+		// FIXME: this should be checking if the error is a types.FileNotFound and continuing if so
+		// unfortunately tasks package isn't making it easy to get to the root cause.
+		err = errors.Errorf("Failed to remove existing VCH data files, %s", err)
 		return err
 	}
 
@@ -186,11 +204,13 @@ func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConf
 
 	spec := &spec.VirtualMachineConfigSpec{
 		VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{
-			Name:        conf.Name,
-			GuestId:     "other3xLinux64Guest",
-			Files:       &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
-			NumCPUs:     int32(vConf.ApplianceSize.CPU.Limit),
-			MemoryMB:    vConf.ApplianceSize.Memory.Limit,
+			Name:     conf.Name,
+			GuestId:  "other3xLinux64Guest",
+			Files:    &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
+			NumCPUs:  int32(vConf.ApplianceSize.CPU.Limit),
+			MemoryMB: vConf.ApplianceSize.Memory.Limit,
+			// Encode the config both here and after the VMs created so that it can be identified as a VCH appliance as soon as
+			// creation is complete.
 			ExtraConfig: extraconfig.OptionValueFromMap(cfg),
 		},
 	}

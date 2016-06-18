@@ -45,6 +45,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -80,6 +81,8 @@ var (
 )
 
 func init() {
+	trace.Logger.Level = log.DebugLevel
+
 	flag.StringVar(&config.addr, "l", ":2378", "Listen address")
 	flag.StringVar(&config.dockerHost, "docker-host", "127.0.0.1:2376", "Docker host")
 	flag.StringVar(&config.CertFile, "cert", "", "VMOMI Client certificate file")
