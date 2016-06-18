@@ -98,7 +98,6 @@ func (f *Folder) CreateFolder(c *types.CreateFolder) soap.HasFault {
 
 		folder.Name = c.Name
 		folder.ChildType = f.ChildType
-		folder.ChildEntity = f.ChildEntity
 
 		f.putChild(folder)
 
@@ -186,6 +185,8 @@ func (c *createVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 	} else {
 		vm.Runtime.Host = c.req.Host
 	}
+
+	vm.Summary.Runtime.Host = vm.Runtime.Host
 
 	err = vm.create(&c.req.Config)
 	if err != nil {

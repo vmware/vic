@@ -16,6 +16,7 @@ package simulator
 
 import (
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 
@@ -33,6 +34,63 @@ type searchDatastoreTask struct {
 	*HostDatastoreBrowser
 
 	req *types.SearchDatastore_Task
+	res *types.HostDatastoreBrowserSearchResults
+}
+
+func (s *searchDatastoreTask) addFile(dir string, name string) {
+	details := s.req.SearchSpec.Details
+	file := path.Join(dir, name)
+	st, err := os.Stat(file)
+	if err != nil {
+		log.Printf("stat(%s): %s", file, err)
+		return
+	}
+
+	info := types.FileInfo{
+		Path: name,
+	}
+
+	var finfo types.BaseFileInfo
+
+	if details.FileSize {
+		info.FileSize = st.Size()
+	}
+
+	if details.Modification {
+		mtime := st.ModTime()
+		info.Modification = &mtime
+	}
+
+	if isTrue(details.FileOwner) {
+		// Assume for now this process created all files in the datastore
+		user := os.Getenv("USER")
+
+		info.Owner = user
+	}
+
+	if st.IsDir() {
+		finfo = &types.FolderFileInfo{FileInfo: info}
+	} else if details.FileType {
+		switch path.Ext(name) {
+		case ".img":
+			finfo = &types.FloppyImageFileInfo{FileInfo: info}
+		case ".iso":
+			finfo = &types.IsoImageFileInfo{FileInfo: info}
+		case ".log":
+			finfo = &types.VmLogFileInfo{FileInfo: info}
+		case ".nvram":
+			finfo = &types.VmNvramFileInfo{FileInfo: info}
+		case ".vmdk":
+			// TODO: lookup device to set other fields
+			finfo = &types.VmDiskFileInfo{FileInfo: info}
+		case ".vmx":
+			finfo = &types.VmConfigFileInfo{FileInfo: info}
+		default:
+			finfo = &info
+		}
+	}
+
+	s.res.File = append(s.res.File, finfo)
 }
 
 func (s *searchDatastoreTask) Run(Task *Task) (types.AnyType, types.BaseMethodFault) {
@@ -48,9 +106,9 @@ func (s *searchDatastoreTask) Run(Task *Task) (types.AnyType, types.BaseMethodFa
 
 	ds := ref.(*Datastore)
 
-	dir := ds.Info.GetDatastoreInfo().Url
+	dir := path.Join(ds.Info.GetDatastoreInfo().Url, p.Path)
 
-	files, err := ioutil.ReadDir(path.Join(dir, p.Path))
+	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		ff := types.FileFault{
 			File: p.Path,
@@ -62,7 +120,7 @@ func (s *searchDatastoreTask) Run(Task *Task) (types.AnyType, types.BaseMethodFa
 		return nil, &ff
 	}
 
-	res := &types.HostDatastoreBrowserSearchResults{
+	s.res = &types.HostDatastoreBrowserSearchResults{
 		Datastore:  &ds.Self,
 		FolderPath: s.req.DatastorePath,
 	}
@@ -70,19 +128,16 @@ func (s *searchDatastoreTask) Run(Task *Task) (types.AnyType, types.BaseMethodFa
 	for _, file := range files {
 		for _, m := range s.req.SearchSpec.MatchPattern {
 			if ok, _ := path.Match(m, file.Name()); ok {
-				info := &types.FileInfo{
-					Path: file.Name(),
-				}
-				res.File = append(res.File, info)
+				s.addFile(dir, file.Name())
 			}
 		}
 	}
 
-	return res, nil
+	return s.res, nil
 }
 
 func (b *HostDatastoreBrowser) SearchDatastoreTask(s *types.SearchDatastore_Task) soap.HasFault {
-	task := NewTask(&searchDatastoreTask{b, s})
+	task := NewTask(&searchDatastoreTask{b, s, nil})
 
 	task.Run()
 

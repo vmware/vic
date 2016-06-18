@@ -40,7 +40,9 @@ func (add *addHostTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 	}
 
 	host := NewHostSystem(esx.HostSystem)
-	host.Name = spec.HostName
+	host.Summary.Config.Name = spec.HostName
+	host.Name = host.Summary.Config.Name
+	host.Runtime.ConnectionState = types.HostSystemConnectionStateDisconnected
 
 	cr := add.ClusterComputeResource
 	Map.PutEntity(cr, Map.NewEntity(host))
