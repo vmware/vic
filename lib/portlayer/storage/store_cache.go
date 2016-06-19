@@ -60,7 +60,7 @@ func NewLookupCache(ds ImageStorer) *NameLookupCache {
 // GetImageStore checks to see if a named image store exists and returls the
 // URL to it if so or error.
 func (c *NameLookupCache) GetImageStore(ctx context.Context, storeName string) (*url.URL, error) {
-	store, err := util.StoreNameToURL(storeName)
+	store, err := util.ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (c *NameLookupCache) GetImageStore(ctx context.Context, storeName string) (
 	if !ok {
 		log.Info("Refreshing image cache from datastore.")
 		// Store isn't in the cache.  Look it up in the datastore.
-		storeName, err := util.StoreName(store)
+		storeName, err := util.ImageStoreName(store)
 		if err != nil {
 			return nil, err
 		}
@@ -149,7 +149,7 @@ func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID stri
 	// Check the parent exists (at least in the cache).
 	p, err := c.GetImage(ctx, parent.Store, parent.ID)
 	if err != nil {
-		return nil, fmt.Errorf("parent (%s) doesn't exist in %s", parent.ID, parent.Store.String())
+		return nil, fmt.Errorf("parent (%s) doesn't exist in %s: %s", parent.ID, parent.Store.String(), err)
 	}
 
 	// Check the image doesn't already exist in the cache.  A miss in this will trigger a datastore lookup.
@@ -184,7 +184,7 @@ func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID stri
 
 // GetImage gets the specified image from the given store by retreiving it from the cache.
 func (c *NameLookupCache) GetImage(ctx context.Context, store *url.URL, ID string) (*Image, error) {
-	storeName, err := util.StoreName(store)
+	storeName, err := util.ImageStoreName(store)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +216,7 @@ func (c *NameLookupCache) GetImage(ctx context.Context, store *url.URL, ID strin
 
 // ListImages resturns a list of Images for a list of IDs, or all if no IDs are passed
 func (c *NameLookupCache) ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*Image, error) {
-	storeName, err := util.StoreName(store)
+	storeName, err := util.ImageStoreName(store)
 	if err != nil {
 		return nil, err
 	}

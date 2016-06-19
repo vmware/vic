@@ -17,20 +17,25 @@ package util
 import (
 	"errors"
 	"net/url"
+	"path"
 	"path/filepath"
 	"strings"
 )
 
 const (
-	StoragePath = "storage/"
+	StorageURLPath = "storage"
+	ImageURLPath   = StorageURLPath + "/images"
+	VolumeURLPath  = StorageURLPath + "/volumes"
 )
 
-// StoreNameToURL parses the image URL in the form /storage/<image store>/<image name>
-func StoreNameToURL(storeName string) (*url.URL, error) {
-	return ServiceURL(StoragePath).Parse(storeName)
+// StoreNameToURL parses the image URL in the form /storage/images/<image store>/<image name>
+func ImageStoreNameToURL(storeName string) (*url.URL, error) {
+	a := ServiceURL(ImageURLPath)
+	AppendDir(a, storeName)
+	return a, nil
 }
 
-func StoreName(u *url.URL) (string, error) {
+func ImageStoreName(u *url.URL) (string, error) {
 	// Check the path isn't malformed.
 	if !filepath.IsAbs(u.Path) {
 		return "", errors.New("invalid uri path")
@@ -38,7 +43,7 @@ func StoreName(u *url.URL) (string, error) {
 
 	segments := strings.Split(filepath.Clean(u.Path), "/")[1:]
 
-	if segments[0] != filepath.Clean(StoragePath) {
+	if segments[0] != filepath.Clean(StorageURLPath) {
 		return "", errors.New("not a storage path")
 	}
 
@@ -46,14 +51,18 @@ func StoreName(u *url.URL) (string, error) {
 		return "", errors.New("uri path mismatch")
 	}
 
-	return segments[1], nil
+	return segments[2], nil
 }
 
 func ImageURL(storeName, imageName string) (*url.URL, error) {
-	u, err := StoreNameToURL(storeName)
+	u, err := ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
 	}
+	AppendDir(u, imageName)
+	return u, nil
+}
 
-	return u.Parse(imageName)
+func AppendDir(u *url.URL, dir string) {
+	u.Path = path.Join(u.Path, dir)
 }

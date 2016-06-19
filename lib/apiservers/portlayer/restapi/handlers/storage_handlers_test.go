@@ -41,7 +41,7 @@ var (
 	testStoreURL    = url.URL{
 		Scheme: "http",
 		Host:   testHostName,
-		Path:   "/storage/" + testStoreName,
+		Path:   "/" + util.ImageURLPath + "/" + testStoreName,
 	}
 )
 
@@ -51,7 +51,7 @@ type MockDataStore struct {
 // GetImageStore checks to see if a named image store exists and returls the
 // URL to it if so or error.
 func (c *MockDataStore) GetImageStore(ctx context.Context, storeName string) (*url.URL, error) {
-	u, err := util.StoreNameToURL(storeName)
+	u, err := util.ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (c *MockDataStore) GetImageStore(ctx context.Context, storeName string) (*u
 }
 
 func (c *MockDataStore) CreateImageStore(ctx context.Context, storeName string) (*url.URL, error) {
-	u, err := util.StoreNameToURL(storeName)
+	u, err := util.ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +163,7 @@ func TestGetImage(t *testing.T) {
 	if !assert.Nil(t, err, "Error while creating image store") {
 		return
 	}
-	if !assert.Equal(t, &testStoreURL, url) {
+	if !assert.Equal(t, testStoreURL.String(), url.String()) {
 		return
 	}
 
@@ -195,7 +195,7 @@ func TestGetImage(t *testing.T) {
 	expectedMeta["foo"] = []byte("bar")
 	// add the image to the store
 	image, err := storageLayer.WriteImage(context.TODO(), &parent, testImageID, expectedMeta, testImageSum, nil)
-	if !assert.NotNil(t, image) {
+	if !assert.NoError(t, err) || !assert.NotNil(t, image) {
 		return
 	}
 

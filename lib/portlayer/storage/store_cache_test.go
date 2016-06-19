@@ -46,7 +46,7 @@ func (c *MockDataStore) GetImageStore(ctx context.Context, storeName string) (*u
 }
 
 func (c *MockDataStore) CreateImageStore(ctx context.Context, storeName string) (*url.URL, error) {
-	u, err := util.StoreNameToURL(storeName)
+	u, err := util.ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
 	}
