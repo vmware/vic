@@ -19,7 +19,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"

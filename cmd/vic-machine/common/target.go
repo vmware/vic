@@ -43,7 +43,7 @@ func (t *Target) TargetFlags() []cli.Flag {
 		cli.GenericFlag{
 			Name:  "target, t",
 			Value: flags.NewURLFlag(&t.URL),
-			Usage: "ESXi or vCenter connection URL, sample root:password@VC-FQDN",
+			Usage: "ESXi or vCenter connection URL, specifying a datacenter if multiple exist e.g. root:password@VC-FQDN/datacenter",
 		},
 		cli.StringFlag{
 			Name:        "user, u",

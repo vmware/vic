@@ -97,7 +97,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "compute-resource",
 			Value:       "",
-			Usage:       "Compute resource path, e.g. /ha-datacenter/host/myCluster/Resources/myRP",
+			Usage:       "Compute resource path, e.g. myCluster/Resources/myRP",
 			Destination: &c.ComputeResourcePath,
 		},
 		cli.StringFlag{

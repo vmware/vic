@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -462,60 +463,67 @@ func (d *Dispatcher) makeSureApplianceRuns(conf *metadata.VirtualContainerHostCo
 
 	log.Infof("Waiting for IP information")
 	d.waitForKey("guestinfo..init.networks|client.ip")
+	ctxerr := d.ctx.Err()
 
-	// we've either timedout/cancelled or we have the IP
+	if ctxerr == nil {
+		log.Info("Waiting for major appliance components to launch")
+		log.Debug("waiting for vicadmin to start")
+		d.waitForKey("guestinfo..init.sessions|vicadmin.started")
+		log.Debug("waiting for docker personality to start")
+		d.waitForKey("guestinfo..init.sessions|docker-personality.started")
+		log.Debug("waiting for port layer to start")
+		d.waitForKey("guestinfo..init.sessions|port-layer.started")
+	}
+
+	// at this point either everything has succeeded or we're going into diagnostics, ignore error
+	// as we're only using it for IP in the success case
+	updateErr := d.applianceConfiguration(conf)
+
+	// TODO: we should call to the general vic-machine inspect implementation here for more detail
+	// but instead...
+	if len(conf.ExecutorConfig.Networks["client"].Assigned) > 0 {
+		d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.String()
+		log.Debug("Obtained IP address for client interface: %s", d.HostIP)
+		return nil
+	}
+
+	// it's possible we timed out... get updated info having adjusted context to allow it
+	// keeping it short
+	ctxerr = d.ctx.Err()
+
+	d.ctx, _ = context.WithTimeout(context.Background(), 10*time.Second)
 	err := d.applianceConfiguration(conf)
 	if err != nil {
-		return fmt.Errorf("unable to retrieve updated configuration from appliance: %s", err)
+		return fmt.Errorf("unable to retrieve updated configuration from appliance for diagnostics: %s", err)
 	}
-	ip := conf.ExecutorConfig.Networks["client"].Assigned
-	if len(ip) == 0 {
-		log.Debug("Failed to retrieve IP for client interface. State of all interfaces:")
-		err = d.ctx.Err()
-		if err == context.DeadlineExceeded {
-			// if we timed out, then report status - if cancelled this doesn't need reporting
-			for name, net := range conf.ExecutorConfig.Networks {
-				addr := net.Assigned.String()
-				if addr == "" {
-					addr = "waiting for IP"
-				}
-				log.Infof("  %s IP:", name, addr)
+
+	if ctxerr == context.DeadlineExceeded {
+		log.Info("Failed to retrieve IP for client interface")
+		log.Info("  State of all interfaces:")
+
+		// if we timed out, then report status - if cancelled this doesn't need reporting
+		for name, net := range conf.ExecutorConfig.Networks {
+			addr := net.Assigned.String()
+			if len(net.Assigned) == 0 {
+				addr = "waiting for IP"
 			}
+			log.Infof("    %s IP: %s", name, addr)
 		}
 
-		return fmt.Errorf("could not retrieve docker API URL from appliance")
-	}
-
-	log.Info("Waiting for major appliance components to launch")
-	log.Debug("waiting for vicadmin to start")
-	d.waitForKey("guestinfo..init.sessions|vicadmin.started")
-	log.Debug("waiting for docker personality to start")
-	d.waitForKey("guestinfo..init.sessions|docker-personality.started")
-	log.Debug("waiting for port layer to start")
-	d.waitForKey("guestinfo..init.sessions|port-layer.started")
-
-	err = d.applianceConfiguration(conf)
-	if err != nil {
-		return fmt.Errorf("unable to retrieve updated configuration from appliance: %s", err)
-	}
-
-	err = d.ctx.Err()
-	if err == context.DeadlineExceeded {
 		// if we timed out, then report status - if cancelled this doesn't need reporting
+		log.Info("  State of components:")
 		for name, session := range conf.ExecutorConfig.Sessions {
 			status := "waiting to launch"
 			if session.Started == "true" {
 				status = "started successfully"
-			} else {
+			} else if session.Started != "" {
 				status = session.Started
 			}
-			log.Infof("  %s:", name, status)
+			log.Infof("    %s: %s", name, status)
 		}
+
+		return errors.New("timed out waiting for IP address information from appliance")
 	}
 
-	// TODO: we should call to the general vic-machine inspect implementation here for more detail
-	// but instead...
-	d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.String()
-
-	return nil
+	return fmt.Errorf("could not obtain IP address information from appliance: %s", updateErr)
 }
