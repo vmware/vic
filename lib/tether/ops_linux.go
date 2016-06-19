@@ -46,6 +46,69 @@ const pciDevPath = "/sys/bus/pci/devices"
 type BaseOperations struct {
 }
 
+// NetLink gives us an interface to the netlink calls used so that
+// we can test the calling code.
+type Netlink interface {
+	LinkByName(string) (netlink.Link, error)
+	LinkSetName(netlink.Link, string) error
+	LinkSetDown(netlink.Link) error
+	LinkSetUp(netlink.Link) error
+	LinkSetAlias(netlink.Link, string) error
+	AddrList(netlink.Link, int) ([]netlink.Addr, error)
+	AddrAdd(netlink.Link, *netlink.Addr) error
+	RouteAdd(*netlink.Route) error
+
+	// Not quite netlink, but tightly assocaited
+	LinkBySlot(slot int32) (netlink.Link, error)
+}
+
+func (t *BaseOperations) LinkByName(name string) (netlink.Link, error) {
+	return netlink.LinkByName(name)
+}
+
+func (t *BaseOperations) LinkSetName(link netlink.Link, name string) error {
+	return netlink.LinkSetName(link, name)
+}
+
+func (t *BaseOperations) LinkSetDown(link netlink.Link) error {
+	return netlink.LinkSetDown(link)
+}
+
+func (t *BaseOperations) LinkSetUp(link netlink.Link) error {
+	return netlink.LinkSetUp(link)
+}
+
+func (t *BaseOperations) LinkSetAlias(link netlink.Link, alias string) error {
+	return netlink.LinkSetAlias(link, alias)
+}
+
+func (t *BaseOperations) AddrList(link netlink.Link, family int) ([]netlink.Addr, error) {
+	return netlink.AddrList(link, family)
+}
+
+func (t *BaseOperations) AddrAdd(link netlink.Link, addr *netlink.Addr) error {
+	return netlink.AddrAdd(link, addr)
+}
+
+func (t *BaseOperations) RouteAdd(route *netlink.Route) error {
+	return netlink.RouteAdd(route)
+}
+
+func (t *BaseOperations) LinkBySlot(slot int32) (netlink.Link, error) {
+	pciPath, err := slotToPCIPath(slot)
+	if err != nil {
+		return nil, err
+	}
+
+	name, err := pciToLinkName(pciPath)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debugf("got link name: %#v", name)
+	return t.LinkByName(name)
+}
+
 // SetHostname sets both the kernel hostname and /etc/hostname to the specified string
 func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	defer trace.End(trace.Begin("setting hostname to " + hostname))
@@ -130,22 +193,7 @@ func pciToLinkName(pciPath string) (string, error) {
 	return path.Base(matches[0]), nil
 }
 
-func linkBySlot(slot int32) (netlink.Link, error) {
-	pciPath, err := slotToPCIPath(slot)
-	if err != nil {
-		return nil, err
-	}
-
-	name, err := pciToLinkName(pciPath)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Debugf("got link name: %#v", name)
-	return netlink.LinkByName(name)
-}
-
-func renameLink(link netlink.Link, slot int32, endpoint *metadata.NetworkEndpoint) (netlink.Link, error) {
+func renameLink(t Netlink, link netlink.Link, slot int32, endpoint *metadata.NetworkEndpoint) (netlink.Link, error) {
 	if link.Attrs().Name == endpoint.Name || link.Attrs().Alias == endpoint.Name || endpoint.Name == "" {
 		// if the network is already identified, whether as primary name or alias it doesn't need repeating.
 		// if the name is empty then it should not be aliases or named directly. IPAM data should still be applied.
@@ -155,25 +203,25 @@ func renameLink(link netlink.Link, slot int32, endpoint *metadata.NetworkEndpoin
 	if strings.HasPrefix(link.Attrs().Name, "eno") {
 		log.Infof("Renaming link %s to %s", link.Attrs().Name, endpoint.Name)
 
-		err := netlink.LinkSetDown(link)
+		err := t.LinkSetDown(link)
 		if err != nil {
 			detail := fmt.Sprintf("failed to set link %s down for rename: %s", endpoint.Name, err)
 			return nil, errors.New(detail)
 		}
 
-		err = netlink.LinkSetName(link, endpoint.Name)
+		err = t.LinkSetName(link, endpoint.Name)
 		if err != nil {
 			return nil, err
 		}
 
-		err = netlink.LinkSetUp(link)
+		err = t.LinkSetUp(link)
 		if err != nil {
 			detail := fmt.Sprintf("failed to bring link %s up after rename: %s", endpoint.Name, err)
 			return nil, errors.New(detail)
 		}
 
 		// reacquire link with updated attributes
-		link, err := linkBySlot(slot)
+		link, err := t.LinkBySlot(slot)
 		if err != nil {
 			detail := fmt.Sprintf("unable to reacquire link %s after rename pass: %s", endpoint.ID, err)
 			return nil, errors.New(detail)
@@ -184,13 +232,13 @@ func renameLink(link netlink.Link, slot int32, endpoint *metadata.NetworkEndpoin
 
 	if link.Attrs().Alias == "" {
 		log.Infof("Aliasing link %s to %s", link.Attrs().Name, endpoint.Name)
-		err := netlink.LinkSetAlias(link, endpoint.Name)
+		err := t.LinkSetAlias(link, endpoint.Name)
 		if err != nil {
 			return nil, err
 		}
 
 		// reacquire link with updated attributes
-		link, err := linkBySlot(slot)
+		link, err := t.LinkBySlot(slot)
 		if err != nil {
 			detail := fmt.Sprintf("unable to reacquire link %s after rename pass: %s", endpoint.ID, err)
 			return nil, errors.New(detail)
@@ -205,17 +253,17 @@ func renameLink(link netlink.Link, slot int32, endpoint *metadata.NetworkEndpoin
 
 // assignIP assigns an IP to a NIC, using a label to provide an associated between address and network role.
 // returns true if an address has been updated so that /etc/hosts can be updated.
-func assignIP(link netlink.Link, endpoint *metadata.NetworkEndpoint) (bool, error) {
+func assignIP(t Netlink, link netlink.Link, endpoint *metadata.NetworkEndpoint) (bool, error) {
 
 	// get the current ip addresses on the link
-	active, err := netlink.AddrList(link, netlink.FAMILY_V4)
+	active, err := t.AddrList(link, netlink.FAMILY_V4)
 	if err != nil {
 		detail := fmt.Sprintf("unable to confirm assigned IP address for net %s: %s", endpoint.Network.Name, err)
 		return false, errors.New(detail)
 	}
 
 	// Set IP address if it's specified - this is now named for for the network role rather than the nic
-	if len(endpoint.Static.IP) > 0 {
+	if endpoint.Static != nil && len(endpoint.Static.IP) > 0 {
 		addr, err := netlink.ParseAddr(endpoint.Static.String())
 		if err != nil {
 			detail := fmt.Sprintf("failed to parse address for %s ednpoint: %s", endpoint.Network.Name, err)
@@ -237,7 +285,7 @@ func assignIP(link netlink.Link, endpoint *metadata.NetworkEndpoint) (bool, erro
 
 		// add a label to identify the network
 		addr.Label = fmt.Sprintf("%s:%s", link.Attrs().Name, endpoint.Network.Name)
-		if err = netlink.AddrAdd(link, addr); err != nil {
+		if err = t.AddrAdd(link, addr); err != nil {
 			detail := fmt.Sprintf("failed to add address to %s: %s", endpoint.Network.Name, err)
 			return false, errors.New(detail)
 		}
@@ -256,7 +304,7 @@ func assignIP(link netlink.Link, endpoint *metadata.NetworkEndpoint) (bool, erro
 	// if there's already an address assigned, obtain it otherwise wait for one
 	for {
 		// update the current ip addresses on the link
-		active, err = netlink.AddrList(link, netlink.FAMILY_V4)
+		active, err = t.AddrList(link, netlink.FAMILY_V4)
 		if err != nil {
 			detail := fmt.Sprintf("unable to confirm assigned IP address for net %s: %s", endpoint.Network.Name, err)
 			return false, errors.New(detail)
@@ -304,7 +352,7 @@ func assignIP(link netlink.Link, endpoint *metadata.NetworkEndpoint) (bool, erro
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
-func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
+func apply(t Netlink, endpoint *metadata.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
 
 	// Locate interface
@@ -313,7 +361,7 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 		detail := fmt.Sprintf("endpoint ID must be a base10 numeric pci slot identifier: %s", err)
 		return errors.New(detail)
 	}
-	link, err := linkBySlot(int32(slot))
+	link, err := t.LinkBySlot(int32(slot))
 	if err != nil {
 		detail := fmt.Sprintf("unable to acquire reference to link %s: %s", endpoint.ID, err)
 		return errors.New(detail)
@@ -322,14 +370,14 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 	// TODO: add dhcp client code
 
 	// rename the link if needed
-	link, err = renameLink(link, int32(slot), endpoint)
+	link, err = renameLink(t, link, int32(slot), endpoint)
 	if err != nil {
 		detail := fmt.Sprintf("unable to reacquire link %s after rename pass: %s", endpoint.ID, err)
 		return errors.New(detail)
 	}
 
 	// assign IP address as needed
-	updated, err := assignIP(link, endpoint)
+	updated, err := assignIP(t, link, endpoint)
 	if err != nil {
 		detail := fmt.Sprintf("unable to assign IP for net %s: %s", endpoint.Network.Name, err)
 		return errors.New(detail)
@@ -339,7 +387,7 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 	if endpoint.Network.Default && len(endpoint.Network.Gateway.IP) > 0 {
 		_, defaultNet, _ := net.ParseCIDR("0.0.0.0/0")
 		route := netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet, Gw: endpoint.Network.Gateway.IP}
-		err = netlink.RouteAdd(&route)
+		err = t.RouteAdd(&route)
 		if err != nil {
 			if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
 				detail := fmt.Sprintf("failed to add gateway route for endpoint %s: %s", endpoint.Network.Name, err)
@@ -395,6 +443,11 @@ func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 	}
 
 	return nil
+}
+
+// Apply takes the network endpoint configuration and applies it to the system
+func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
+	return apply(t, endpoint)
 }
 
 // MountLabel performs a mount with the source and target being absolute paths

@@ -49,7 +49,7 @@ type ExecutorConfig struct {
 
 	// Key is the host key used during communicate back with the Interaction endpoint if any
 	// Used if the in-guest tether is responsible for authenticating the connection
-	Key []byte `vic:"0.1" scope:"read-only" key:"key" recurse:"0"`
+	Key []byte `vic:"0.1" scope:"read-only" key:"key"`
 }
 
 // SessionConfig defines the content of a session - this maps to the root of a process tree

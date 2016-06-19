@@ -19,13 +19,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"runtime"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vishvananda/netlink"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 
@@ -55,8 +55,10 @@ type Mocker struct {
 	// the hostname of the system
 	Hostname string
 	Aliases  []string
-	// the ip configuration for mac indexed interfaces
-	IPs map[string]net.IPNet
+	// the maximum slot number returned from this mocker
+	maxSlot int
+	// the interfaces in the system indexed by name
+	Interfaces map[string]netlink.Link
 	// filesystem mounts, indexed by disk label
 	Mounts map[string]string
 
@@ -126,13 +128,7 @@ func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 
 // Apply takes the network endpoint configuration and applies it to the system
 func (t *Mocker) Apply(endpoint *metadata.NetworkEndpoint) error {
-	defer trace.End(trace.Begin("mocking endpoint configuration for " + endpoint.Network.Name))
-	if t.IPs == nil {
-		t.IPs = make(map[string]net.IPNet)
-	}
-	t.IPs[endpoint.Network.Name] = *endpoint.Static
-
-	return nil
+	return apply(t, endpoint)
 }
 
 // MountLabel performs a mount with the source treated as a disk label
@@ -157,6 +153,7 @@ func (t *Mocker) Fork() error {
 // TestMain simply so we have control of debugging level and somewhere to call package wide test setup
 func TestMain(m *testing.M) {
 	log.SetLevel(log.DebugLevel)
+	trace.Logger = log.StandardLogger()
 
 	retCode := m.Run()
 
@@ -221,8 +218,9 @@ func testSetup(t *testing.T) {
 
 	// use the mock ops - fresh one each time as tests might apply different mocked calls
 	Mocked = Mocker{
-		Started: make(chan bool, 0),
-		Cleaned: make(chan bool, 0),
+		Started:    make(chan bool, 0),
+		Cleaned:    make(chan bool, 0),
+		Interfaces: make(map[string]netlink.Link, 0),
 	}
 }
 
