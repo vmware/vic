@@ -63,7 +63,12 @@ func (i *Image) ImageHistory(imageName string) ([]*types.ImageHistory, error) {
 func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Image, error) {
 
 	imageCache := ImageCache()
-	images := imageCache.GetImages()
+
+	images, err := imageCache.GetImages()
+	if err != nil {
+		return nil, fmt.Errorf("Error retrieving image list: %s", err)
+	}
+
 	result := make([]*types.Image, 0, len(images))
 
 	for _, image := range images {
@@ -73,7 +78,6 @@ func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Ima
 	// sort on creation time
 	sort.Sort(sort.Reverse(byCreated(result)))
 
-	log.Infof("Returning %d elements to docker client", len(result))
 	return result, nil
 }
 
