@@ -16,6 +16,7 @@ package cache
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -31,6 +32,15 @@ import (
 	"github.com/vmware/vic/lib/metadata"
 )
 
+var (
+	// ErrCacheNotUpdated is returned when an operation is attempted while the cache has
+	// not yet hydrated.
+	ErrCacheNotUpdated = errors.New("Image cache not updated")
+
+	// CacheNotUpdated indicates whether or not the cache has been successfully hydrated
+	CacheNotUpdated = true
+)
+
 // ImageCache is an in-memory cache of image metadata. It is refreshed at startup
 // by a call to the portlayer. It is updated when new images are pulled or
 // images are deleted.
@@ -41,16 +51,19 @@ type ImageCache struct {
 	cache map[string]*metadata.ImageConfig
 }
 
+// NewImageCache creates and returns a new ImageCache
 func NewImageCache() *ImageCache {
 	return &ImageCache{
 		cache: make(map[string]*metadata.ImageConfig),
 	}
 }
 
-// Update adds new layers to the cache
+// Update adds new images to the cache
 func (c *ImageCache) Update(client *client.PortLayer) error {
 	c.m.Lock()
 	defer c.m.Unlock()
+
+	CacheNotUpdated = true
 
 	log.Debugf("Updating image cache...")
 
@@ -72,8 +85,6 @@ func (c *ImageCache) Update(client *client.PortLayer) error {
 		if _, ok := err.(*storage.CreateImageStoreConflict); ok {
 			log.Debugf("Store already exists")
 		} else {
-			// TODO(jzt): add some retry/backoff logic for this?
-			// Or just let the watchdog handle restarting the docker engine api?
 			log.Debugf("Creating a store failed: %#v", err)
 			return err
 		}
@@ -98,13 +109,18 @@ func (c *ImageCache) Update(client *client.PortLayer) error {
 		}
 	}
 
+	CacheNotUpdated = false
 	return nil
 }
 
 // GetImages returns a slice containing metadata for all cached images
-func (c *ImageCache) GetImages() []*metadata.ImageConfig {
+func (c *ImageCache) GetImages() ([]*metadata.ImageConfig, error) {
 	c.m.RLock()
 	defer c.m.RUnlock()
+
+	if CacheNotUpdated {
+		return nil, ErrCacheNotUpdated
+	}
 
 	result := make([]*metadata.ImageConfig, 0, len(c.cache))
 	for _, image := range c.cache {
@@ -113,5 +129,5 @@ func (c *ImageCache) GetImages() []*metadata.ImageConfig {
 		result = append(result, newImage)
 	}
 
-	return result
+	return result, nil
 }
