@@ -35,11 +35,15 @@ func compareModel(t *testing.T, m *Model) {
 			count.ClusterHost++
 		case "VirtualMachine":
 			count.Machine++
+		case "ResourcePool":
+			count.Pool++
 		}
 	}
 
 	hosts := (m.Host + (m.ClusterHost * m.Cluster)) * m.Datacenter
 	vms := ((m.Host + m.Cluster) * m.Datacenter) * m.Machine
+	// child pools + root pools
+	pools := (m.Pool * m.Cluster * m.Datacenter) + (m.Host+m.Cluster)*m.Datacenter
 
 	tests := []struct {
 		expect int
@@ -51,6 +55,7 @@ func compareModel(t *testing.T, m *Model) {
 		{m.Datastore, count.Datastore, "Datastore"},
 		{hosts, count.ClusterHost, "Host"},
 		{vms, count.Machine, "VirtualMachine"},
+		{pools, count.Pool, "ResourcePool"},
 	}
 
 	for _, test := range tests {
@@ -91,6 +96,7 @@ func TestModelVPX(t *testing.T) {
 		ClusterHost:    3,
 		Datastore:      1,
 		Machine:        3,
+		Pool:           2,
 	}
 
 	defer m.Remove()

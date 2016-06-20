@@ -32,6 +32,7 @@ func main() {
 	flag.IntVar(&model.Host, "standalone-host", model.Host, "Number of standalone hosts")
 	flag.IntVar(&model.Datastore, "ds", model.Datastore, "Number of local datastores")
 	flag.IntVar(&model.Machine, "vm", model.Machine, "Number of virtual machines per resource pool")
+	flag.IntVar(&model.Pool, "pool", model.Pool, "Number of resource pools per compute resource")
 
 	isESX := flag.Bool("esx", false, "Simulate standalone ESX")
 

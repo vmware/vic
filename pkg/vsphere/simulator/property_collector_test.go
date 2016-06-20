@@ -302,3 +302,43 @@ func TestCollectInterfaceType(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestExtractEmbeddedField(t *testing.T) {
+	type YourResourcePool struct {
+		mo.ResourcePool
+	}
+
+	type MyResourcePool struct {
+		YourResourcePool
+	}
+
+	x := new(MyResourcePool)
+
+	Map.Put(x)
+
+	obj, ok := getObject(x.Reference())
+	if !ok {
+		t.Error("expected obj")
+	}
+
+	if obj.Type() != reflect.ValueOf(new(mo.ResourcePool)).Elem().Type() {
+		t.Errorf("unexpected type=%s", obj.Type().Name())
+	}
+
+	// satisfies the mo.Reference interface, but does not embed a type from the "mo" package
+	type NoMo struct {
+		types.ManagedObjectReference
+
+		Self types.ManagedObjectReference
+	}
+
+	n := new(NoMo)
+	n.ManagedObjectReference = types.ManagedObjectReference{Type: "NoMo", Value: "no-mo"}
+	Map.Put(n)
+
+	_, ok = getObject(n.Reference())
+	if ok {
+		t.Error("expected not ok")
+	}
+
+}
