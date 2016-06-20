@@ -7,7 +7,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 *** Test Cases *** 
 Docker Integration Tests
     Log To Console  \nStarting Docker integration tests...
-    Set Environment Variable  GOPATH  /go
+    Set Environment Variable  GOPATH  /go:/go/src/github.com/docker/docker/vendor
     ${out}=  Run Process  DOCKER_HOST\=tcp://${params} go test  shell=True  cwd=/go/src/github.com/docker/docker/integration-cli
     Log  ${out.stdout}
     Log  ${out.stderr}

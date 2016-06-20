@@ -18,13 +18,14 @@ set -x
 
 gsutil version -l
 
+dpk -l > package.list
 pybot --removekeywords TAG:secret tests/test-cases
 rc="$?"
 
 timestamp=$(date +%s)
 outfile="integration_test_logs_$timestamp.tar"
 
-tar cf $outfile log.html
+tar cf $outfile log.html package.list
 if [ -f imagec.log ]; then
   tar --append imagec.log -f $outfile
 fi
