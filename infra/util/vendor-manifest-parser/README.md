@@ -28,4 +28,3 @@ cat ../../manifest | gettags --uid "bcorrie@vmware.com" --pwd "foobedoo" | group
 It would be good practice for us to document cases in which a specific revision must be used, either because of a critical patch or equivalent. See exceptions file co-located with the manifest for examples.
 
 Exceptions are outputted in the report and ensure that no-one attempts to modify a revision to a later tag without considering the exception
-
