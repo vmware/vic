@@ -37,8 +37,8 @@ import (
 )
 
 const (
-	serialOverLANPort  = 2377
-	managementHostName = "management.localhost"
+	serialOverLANPort  = 8080
+	ManagementHostName = "management.localhost"
 )
 
 // ContainerCreateConfig defines the parameters for Create call
@@ -178,20 +178,20 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 	// add create time to config
 	h.ExecConfig.Common.Created = time.Now().UTC().String()
 	// Convert the management hostname to IP
-	ips, err := net.LookupIP(managementHostName)
+	ips, err := net.LookupIP(ManagementHostName)
 	if err != nil {
-		log.Errorf("Unable to look up %s during create of %s: %s", managementHostName, config.Metadata.ID, err)
+		log.Errorf("Unable to look up %s during create of %s: %s", ManagementHostName, config.Metadata.ID, err)
 		return err
 	}
 
 	if len(ips) == 0 {
-		log.Errorf("No IP found for %s during create of %s", managementHostName, config.Metadata.ID)
-		return fmt.Errorf("No IP found on %s", managementHostName)
+		log.Errorf("No IP found for %s during create of %s", ManagementHostName, config.Metadata.ID)
+		return fmt.Errorf("No IP found on %s", ManagementHostName)
 	}
 
 	if len(ips) > 1 {
-		log.Errorf("Multiple IPs found for %s during create of %s: %v", managementHostName, config.Metadata.ID, ips)
-		return fmt.Errorf("Multiple IPs found on %s: %#v", managementHostName, ips)
+		log.Errorf("Multiple IPs found for %s during create of %s: %v", ManagementHostName, config.Metadata.ID, ips)
+		return fmt.Errorf("Multiple IPs found on %s: %#v", ManagementHostName, ips)
 	}
 
 	URI := fmt.Sprintf("tcp://%s:%d", ips[0], serialOverLANPort)

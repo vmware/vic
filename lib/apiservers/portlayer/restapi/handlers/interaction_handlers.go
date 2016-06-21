@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/interaction"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
 	"github.com/vmware/vic/lib/portlayer/attach"
+	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -69,7 +70,7 @@ func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Han
 		log.Fatalf("InteractionHandler ERROR: %s", err)
 	}
 
-	i.attachServer = attach.NewAttachServer("", 0)
+	i.attachServer = attach.NewAttachServer(exec.ManagementHostName, 0)
 
 	if err := i.attachServer.Start(); err != nil {
 		log.Fatalf("Attach server unable to start: %s", err)

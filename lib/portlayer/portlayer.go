@@ -30,6 +30,11 @@ import (
 	"golang.org/x/net/context"
 )
 
+const (
+	// docker official ports are 2375 and 2376
+	SerialOverLANPort = 8080
+)
+
 // XXX TODO(FA) use this in the _handlers the swagger server includes.
 //
 // API defines the interface the REST server used by the portlayer expects the
