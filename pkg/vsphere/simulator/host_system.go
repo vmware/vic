@@ -76,9 +76,9 @@ func CreateDefaultESX(f *Folder) {
 	cr.Host = append(cr.Host, host.Reference())
 	Map.PutEntity(cr, host)
 
-	pool := esx.ResourcePool
+	pool := NewResourcePool()
 	cr.ResourcePool = &pool.Self
-	Map.PutEntity(cr, &pool)
+	Map.PutEntity(cr, pool)
 
 	Map.Get(dc.HostFolder).(*Folder).putChild(cr)
 }
@@ -90,7 +90,7 @@ func CreateStandaloneHost(f *Folder, spec types.HostConnectSpec) (*HostSystem, t
 		return nil, &types.NoHost{}
 	}
 
-	pool := esx.ResourcePool
+	pool := NewResourcePool()
 	host := NewHostSystem(esx.HostSystem)
 
 	host.Summary.Config.Name = spec.HostName
@@ -101,7 +101,7 @@ func CreateStandaloneHost(f *Folder, spec types.HostConnectSpec) (*HostSystem, t
 
 	Map.PutEntity(cr, Map.NewEntity(host))
 
-	Map.PutEntity(cr, Map.NewEntity(&pool))
+	Map.PutEntity(cr, Map.NewEntity(pool))
 
 	cr.Name = host.Name
 	cr.Host = append(cr.Host, host.Reference())

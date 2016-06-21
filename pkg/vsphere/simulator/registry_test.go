@@ -15,6 +15,7 @@
 package simulator
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/vmware/govmomi/vim25/mo"
@@ -46,5 +47,21 @@ func TestRegistry(t *testing.T) {
 
 	if e.Reference() != ref {
 		t.Fail()
+	}
+}
+
+func TestRemoveReference(t *testing.T) {
+	var refs []types.ManagedObjectReference
+
+	for i := 0; i < 5; i++ {
+		refs = append(refs, types.ManagedObjectReference{Type: "any", Value: fmt.Sprintf("%d", i)})
+	}
+
+	n := len(refs)
+
+	nr := RemoveReference(refs[2], refs)
+
+	if len(nr) != n-1 {
+		t.Errorf("%d", len(nr))
 	}
 }

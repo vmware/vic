@@ -81,8 +81,8 @@ func CreateClusterComputeResource(f *Folder, name string, spec types.ClusterConf
 	cluster := &ClusterComputeResource{}
 	cluster.Name = name
 
-	pool := esx.ResourcePool
-	Map.PutEntity(cluster, Map.NewEntity(&pool))
+	pool := NewResourcePool()
+	Map.PutEntity(cluster, Map.NewEntity(pool))
 	cluster.ResourcePool = &pool.Self
 
 	f.putChild(cluster)
