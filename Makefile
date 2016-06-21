@@ -182,10 +182,6 @@ vendor: $(GVT)
 	@echo restoring vendor
 	$(GVT) restore
 
-integration-tests: $(GOVC) components isos vic-machine
-	@echo Running integration tests
-	@GOVC=$(GOVC) ./tests/vendor/github.com/sstephenson/bats/libexec/bats -t tests
-
 TEST_DIRS=github.com/vmware/vic/cmd/tether
 TEST_DIRS+=github.com/vmware/vic/cmd/imagec
 TEST_DIRS+=github.com/vmware/vic/cmd/vicadmin
@@ -207,10 +203,6 @@ else
 	@echo Generating local html coverage report
 	@$(TIME) infra/scripts/coverage.sh --html $(TEST_DIRS)
 endif
-
-docker-integration-tests:
-	@echo Running Docker integration tests
-	@$(TIME) tests/docker-tests/run-tests.sh
 
 $(vch-init): $(call godeps,cmd/vch-init/*.go)
 	@echo building vch-init

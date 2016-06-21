@@ -8,72 +8,7 @@ clone:
   tags: true
 
 build:
-  components:
-    image: golang:1.6.2
-    pull: true
-    environment:
-      BIN: bin
-      SHELL: /bin/bash
-      VIC_ESX_TEST_URL: $$VIC_ESX_TEST_URL
-    commands:
-      - apt-get update
-      - apt-get install -yq time
-      - make components
-      - make vic-machine
-
-  iso-base:
-    image: golang:1.6.2
-    pull: true
-    environment:
-      BIN: bin
-    commands:
-      - apt-get update
-      - apt-get install -yq time
-      - make iso-base
-
-  appliance-staging:
-    image: golang:1.6.2
-    pull: true
-    environment:
-      BIN: bin
-    commands:
-      - apt-get update
-      - apt-get install -yq time
-      - make appliance-staging
-
-  appliance:
-    image: golang:1.6.2
-    pull: true
-    environment:
-      BIN: bin
-      INIT: /lib/systemd/systemd
-    commands:
-      - apt-get update
-      - apt-get install -yq time
-      - make appliance
-
-  bootstrap-staging:
-    image: golang:1.6.2
-    pull: true
-    environment:
-      BIN: bin
-    commands:
-      - apt-get update
-      - apt-get install -yq time
-      - make bootstrap-staging
-
-  bootstrap:
-    image: golang:1.6.2
-    pull: true
-    environment:
-      BIN: bin
-      INIT: /sbin/init
-    commands:
-      - apt-get update
-      - apt-get install -yq time
-      - make bootstrap
-
-  test:
+  vic:
     image: golang:1.6.2
     pull: true
     environment:
@@ -85,8 +20,36 @@ build:
     commands:
       - apt-get update
       - apt-get install -yq time
+      - make all
       - make test
+
+  integration-test:
+    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.0}
+    pull: true
+    environment:
+      BIN: bin
+      GOPATH: /drone
+      SHELL: /bin/bash
+      DOCKER_API_VERSION: "1.21"
+      VIC_ESX_TEST_URL: $$VIC_ESX_TEST_URL
+      LOG_TEMP_DIR: install-logs
+      TEST_URL:  $$TEST_URL
+      TEST_USERNAME:  $$TEST_USERNAME
+      TEST_PASSWORD:  $$TEST_PASSWORD
+      TEST_RESOURCE:  $$TEST_RESOURCE
+      GOVC_URL:  $$TEST_USERNAME:$$TEST_PASSWORD@$$TEST_URL
+      GOVC_INSECURE: true
+      GOVC_USERNAME:  $$TEST_USERNAME
+      GOVC_PASSWORD:  $$TEST_PASSWORD
+      GOVC_RESOURCE_POOL:  $$TEST_RESOURCE
+      GS_PROJECT_ID: $$GS_PROJECT_ID
+      GS_CLIENT_EMAIL: $$GS_CLIENT_EMAIL
+      GS_PRIVATE_KEY: $$GS_PRIVATE_KEY
+    commands:
+      - tests/integration-test.sh
     when:
+      repo: vmware/vic
+      branch: master
       success: true
 
   bundle:
@@ -98,8 +61,6 @@ build:
       GOPATH: /drone
       SHELL: /bin/bash
     commands:
-      - apt-get update
-      - apt-get install -yq time
       - rm -rf $BIN_TEMP_DIR
       - mkdir $BIN_TEMP_DIR
       - cp LICENSE $BIN_TEMP_DIR
@@ -113,13 +74,14 @@ build:
       success: true
 
 notify:
-  slack:
-    channel: vic-bots
-    webhook_url: $$SLACK_URL
-    username: drone
-    when:
-      repo: vmware/vic
-      branch: master
+   slack:
+     channel: vic-dev
+     webhook_url: $$SLACK_URL
+     username: drone
+     when:
+       repo: vmware/vic
+       branch: master
+       success: false
 
 publish:
   coverage:
@@ -150,4 +112,3 @@ cache:
   mount:
     - /drone/bin
     - bin
-

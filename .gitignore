@@ -15,9 +15,6 @@ install-*.tar.gz
 bootstrap/targets/linux/tether/
 imagec/imagec
 
-tests/helpers/bats-assert
-tests/helpers/bats-support
-
 lib/apiservers/docker/cmd
 lib/apiservers/docker/models
 lib/apiservers/docker/restapi/*.go
@@ -31,4 +28,4 @@ lib/apiservers/portlayer/restapi/*.go
 lib/apiservers/portlayer/restapi/operations
 !lib/apiservers/portlayer/restapi/configure_port_layer.go
 
-tests/docker-tests/integration-tests
+tests/.project
