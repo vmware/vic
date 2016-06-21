@@ -74,6 +74,16 @@ build:
     when:
       success: true
 
+notify:
+   slack:
+     channel: vic-dev
+     webhook_url: $$SLACK_URL
+     username: drone
+     when:
+       repo: vmware/vic
+       branch: master
+       success: false
+
 publish:
   coverage:
     server: https://coverage.vmware.run
@@ -97,7 +107,6 @@ publish:
     when:
       repo: vmware/vic
       branch: master
-      event: push
       success: true
 
 cache:
