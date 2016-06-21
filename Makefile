@@ -327,8 +327,3 @@ clean:
 	rm -fr lib/apiservers/docker/cmd
 	rm -fr lib/apiservers/docker/models
 	rm -fr lib/apiservers/docker/restapi/operations
-
-	rm -fr ./tests/helpers/bats-assert/
-	rm -fr ./tests/helpers/bats-support/
-
-	@tests/docker-tests/run-tests.sh clean
