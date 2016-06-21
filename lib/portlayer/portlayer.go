@@ -30,8 +30,13 @@ import (
 	"golang.org/x/net/context"
 )
 
+// XXX TODO(FA) use this in the _handlers the swagger server includes.
+//
+// API defines the interface the REST server used by the portlayer expects the
+// implementation side to export
 type API interface {
 	storage.ImageStorer
+	storage.VolumeStorer
 }
 
 func Init(ctx context.Context, sess *session.Session) error {
