@@ -18,7 +18,7 @@ set -x
 
 gsutil version -l
 
-dpk -l > package.list
+dpkg -l > package.list
 pybot --removekeywords TAG:secret tests/test-cases
 rc="$?"
 
