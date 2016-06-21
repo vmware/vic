@@ -50,7 +50,6 @@ build:
     when:
       repo: vmware/vic
       branch: master
-      event: [push, pull_request]
       success: true
 
   bundle:
