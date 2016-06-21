@@ -651,7 +651,7 @@ func TestMockAttachTetherToPL(t *testing.T) {
 	defer testTeardown(t)
 
 	// Start the PL attach server
-	testServer := attach.NewAttachServer("", 2377)
+	testServer := attach.NewAttachServer("", 8080)
 	assert.NoError(t, testServer.Start())
 	defer testServer.Stop()
 

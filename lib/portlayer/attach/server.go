@@ -22,12 +22,8 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/lib/portlayer"
 	"github.com/vmware/vic/pkg/errors"
-)
-
-const (
-	// docker official ports are 2375 and 2376
-	serialOverLANPort = 2377
 )
 
 // AttachServer waits for TCP client connections on serialOverLANPort, then
@@ -43,7 +39,7 @@ type Server struct {
 
 func NewAttachServer(ip string, port int) *Server {
 	if port == 0 {
-		port = serialOverLANPort
+		port = portlayer.SerialOverLANPort
 	}
 
 	return &Server{ip: ip, port: port}
