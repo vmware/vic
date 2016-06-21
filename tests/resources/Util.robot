@@ -17,7 +17,7 @@ Install VIC Appliance To Test Server
     Log To Console  \nInstalling VCH to test server...
     Set Suite Variable  ${vch-name}  ${name}
     ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=datastore1 --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --generate-cert=${certs} --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE}
-    ${status}  ${message} =  Run Keyword And Ignore Error  Should Contain  ${output}  Installer completed successfully...
+    ${status}  ${message} =  Run Keyword And Ignore Error  Should Contain  ${output}  Installer completed successfully
     Run Keyword If  "${status}" == "FAIL"  Fail  Installing the VIC appliance failed, wrong credentials or network problems?
     ${line}=  Get Line  ${output}  -2
     # Parse output when we are not using TLS
