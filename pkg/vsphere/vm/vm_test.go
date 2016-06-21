@@ -24,7 +24,8 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/guest"
+	vicguest "github.com/vmware/vic/lib/guest"
+	"github.com/vmware/vic/pkg/vsphere/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 
@@ -39,7 +40,7 @@ func CreateVM(ctx context.Context, session *session.Session, host *object.HostSy
 	specconfig := test.SpecConfig(session)
 
 	// Create a linux guest
-	linux, err := guest.NewLinuxGuest(ctx, session, specconfig)
+	linux, err := vicguest.NewLinuxGuest(ctx, session, specconfig)
 	if err != nil {
 		return nil, err
 	}
