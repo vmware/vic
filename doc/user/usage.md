@@ -11,42 +11,45 @@ Installation will be required for capabilities such as [self-provisioning](doc/d
 - ESXi/vCenter - the target virtualization environment.
    - ESXi - Enterprise license
    - vCenter - Enterprise plus license, only very simple configurations have been tested. 
-- DHCP - the VCH currently requires there be DHCP on the external network (-external-network flag if not "VM Network")
-- Bridge network - when installed in a vCenter environment vic-machine does not automatically create a bridge network. An existing vSwitch or Distributed Portgroup should be specified via the -bridge-network flag, and should not be the same as the external network.
+- DHCP - the VCH currently requires there be DHCP on all networks other than the bridge. The external network can be set via -external-network and will default to "VM Network" and the client and management roles will share external network NIC if not explicitly configured.
+- Bridge network - when installed in a vCenter environment vic-machine does not automatically create a bridge network. An existing vSwitch or Distributed Portgroup should be specified via the -bridge-network flag, should not be the same as the external network, and should not have DHCP.
 
 Replace the `<fields>` in the example with values specific to your environment - this will install VCH to the specified resource pool of ESXi or vCenter, and the container VMs will be created under that resource pool.
 
-- -compute-resource is the resource pool where VCH will be deployed to, which should be in govc format. Here is one resource pool path sample: `/ha-datacenter/host/localhost/Resources/test`. For users not familar with govc, please check [govc](https://github.com/vmware/govmomi/blob/master/govc) document.
+- -target is URL of the destination vSphere environment in the form `https://user:password@ip-or-fqdn/datacenter-name`. Any or all of the protocol, user, and password may also be omitted as can the datacenter if targetting ESXi or only one datacenter is configured.
+- -compute-resource is the resource pool where VCH will be deployed to. For vCenter this should start with the cluster, followed by the resource pool path, e.g. `mycluster/a/resource/pool/path` (vCenter), or `/a/resource/pool` (ESXi) .
 - -generate-cert flag is to generate certificates and configure TLS. 
 - -force flag is to remove an existing datastore folder or VM with the same name.
 
 ```
-vic-machine-linux --target target-host --image-store <datastore name> --name <vch-name> --user root --password <password> --compute-resource <resource pool path> --generate-cert
+vic-machine-linux --target target-host[/datacenter] --image-store <datastore name> --name <vch-name> --user root --password <password> --compute-resource <resource pool path> --generate-cert
 ```
 This will, if successful, produce output similar to the following:
 ```
-INFO[2016-04-29T20:17:21-05:00] ### Installing VCH ####                      
-INFO[2016-04-29T20:17:21-05:00] Generating certificate/key pair - private key in ./vch-name-key.pem 
-INFO[2016-04-29T20:17:21-05:00] Validating supplied configuration            
-INFO[2016-04-29T20:17:34-05:00] Creating a Resource Pool                     
-INFO[2016-04-29T20:17:36-05:00] Creating VirtualSwitch                       
-INFO[2016-04-29T20:17:36-05:00] Creating Portgroup                           
-INFO[2016-04-29T20:17:37-05:00] Creating appliance on target                 
-INFO[2016-04-29T20:17:41-05:00] Uploading images for container               
-INFO[2016-04-29T20:17:41-05:00] 	bootstrap.iso 
-INFO[2016-04-29T20:17:41-05:00] 	appliance.iso 
-INFO[2016-04-29T20:19:15-05:00] Waiting for IP information                   
-INFO[2016-04-29T20:19:33-05:00] Initialization of appliance successful       
-INFO[2016-04-29T20:19:33-05:00]                                              
-INFO[2016-04-29T20:19:33-05:00] SSH to appliance (default=root:password)     
-INFO[2016-04-29T20:19:33-05:00] ssh root@x.x.x.x                        
-INFO[2016-04-29T20:19:33-05:00]                                              
-INFO[2016-04-29T20:19:33-05:00] Log server:                                  
-INFO[2016-04-29T20:19:33-05:00] https://x.x.x.x:2378                    
-INFO[2016-04-29T20:19:33-05:00]                                              
-INFO[2016-04-29T20:19:33-05:00] Connect to docker:                           
-INFO[2016-04-29T20:19:33-05:00] docker -H x.x.x.x:2376 --tls --tlscert='./vch-name-cert.pem' --tlskey='./vch-name-key.pem' info 
-INFO[2016-04-29T20:19:33-05:00] Installer completed successfully...          
+INFO[2016-06-19T05:16:09Z] ### Installing VCH ####
+INFO[2016-06-19T05:16:09Z] Generating certificate/key pair - private key in ./vch-name-key.pem
+INFO[2016-06-19T05:16:10Z] Validating supplied configuration
+INFO[2016-06-19T05:16:10Z] Creating appliance on target
+INFO[2016-06-19T05:16:10Z] Network role client is sharing NIC with external
+INFO[2016-06-19T05:16:10Z] Network role management is sharing NIC with external
+INFO[2016-06-19T05:16:11Z] Uploading images for container
+INFO[2016-06-19T05:16:11Z]      bootstrap.iso
+INFO[2016-06-19T05:16:11Z]      appliance.iso
+INFO[2016-06-19T05:16:15Z] Waiting for IP information
+INFO[2016-06-19T05:16:28Z] Waiting for major appliance components to launch
+INFO[2016-06-19T05:16:28Z] Initialization of appliance successful
+INFO[2016-06-19T05:16:28Z]
+INFO[2016-06-19T05:16:28Z] SSH to appliance (default=root:password)
+INFO[2016-06-19T05:16:28Z] ssh root@x.x.x.x
+INFO[2016-06-19T05:16:28Z]
+INFO[2016-06-19T05:16:28Z] Log server:
+INFO[2016-06-19T05:16:28Z] https://x.x.x.x:2378
+INFO[2016-06-19T05:16:28Z]
+INFO[2016-06-19T05:16:28Z] DOCKER_HOST=x.x.x.x:2376
+INFO[2016-06-19T05:16:28Z]
+INFO[2016-06-19T05:16:28Z] Connect to docker:
+INFO[2016-06-19T05:16:28Z] docker -H x.x.x.x:2376 --tls info
+INFO[2016-06-19T05:16:28Z] Installer completed successfully          
 ```
 
 

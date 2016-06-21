@@ -24,7 +24,12 @@ import (
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/pkg/trace"
 )
+
+func init() {
+	trace.Logger.Level = log.DebugLevel
+}
 
 // createFakeDevices creates regular files or pipes in place of the char devices used
 // in a full VM

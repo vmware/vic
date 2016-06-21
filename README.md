@@ -33,7 +33,7 @@ Project Bonneville was research aimed at determining best approaches to enabling
 
 Once built, pick up the correct binary based on your OS, and then the result can be installed with the following command. This is just an example - see the vic-machine-XXX help output for all options, and a slightly more indepth example [here](doc/user/usage.md):
 ```
-bin/vic-machine-linux create --target target-host --image-datastore <datastore name> --name <vch-name> --user root --password <password> --compute-resource <resource pool path in govc format> --generate-cert
+bin/vic-machine-linux create --target target-host[/datacenter] --image-datastore <datastore name> --name <vch-name> --user root --password <password> --compute-resource <cluster/a/resource/pool/path> --generate-cert
 ```
 
 Starting a container currently requires the container metadata be specified on the command line (environment, working directory, and absolute path to the command) as the image metadata parsing is still in progress (#195, #411). Container output is found in a log file on the datastore ([datastore]/containerid/containerid.log).

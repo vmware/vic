@@ -169,6 +169,7 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 	defer trace.End(trace.Begin("Handle.Create"))
 
 	if h.Spec != nil {
+		log.Debugf("spec has already been set on handle %p during create of %s", h, config.Metadata.ID)
 		return fmt.Errorf("spec already set")
 	}
 
@@ -179,14 +180,17 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 	// Convert the management hostname to IP
 	ips, err := net.LookupIP(managementHostName)
 	if err != nil {
+		log.Errorf("Unable to look up %s during create of %s: %s", managementHostName, config.Metadata.ID, err)
 		return err
 	}
 
 	if len(ips) == 0 {
+		log.Errorf("No IP found for %s during create of %s", managementHostName, config.Metadata.ID)
 		return fmt.Errorf("No IP found on %s", managementHostName)
 	}
 
 	if len(ips) > 1 {
+		log.Errorf("Multiple IPs found for %s during create of %s: %v", managementHostName, config.Metadata.ID, ips)
 		return fmt.Errorf("Multiple IPs found on %s: %#v", managementHostName, ips)
 	}
 
@@ -218,6 +222,7 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 	// Create a linux guest
 	linux, err := guest.NewLinuxGuest(ctx, sess, specconfig)
 	if err != nil {
+		log.Errorf("Failed during linux specific spec generation during create of %s: %s", config.Metadata.ID, err)
 		return err
 	}
 

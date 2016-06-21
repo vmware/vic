@@ -19,6 +19,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -27,13 +28,11 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
-	"github.com/vmware/vic/lib/portlayer"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 )
 
 const (
-	bridgeNetworkKey         = "guestinfo.vch/networks/bridge"
 	pciSlotNumberBegin int32 = 0xc0
 	pciSlotNumberEnd   int32 = 1 << 10
 	pciSlotNumberInc   int32 = 1 << 5
@@ -177,7 +176,7 @@ func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, 
 }
 
 func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (newScope *Scope, err error) {
-	bn, ok := portlayer.Config.Networks["bridge"]
+	bn, ok := Config.ContainerNetworks[Config.BridgeNetwork]
 	if !ok || bn == nil {
 		return nil, fmt.Errorf("bridge network not set")
 	}
@@ -419,7 +418,11 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			s.removeContainer(con)
 		}()
 
-		if _, err = s.addContainer(con, &ne.Static.IP); err != nil {
+		var ip *net.IP
+		if ne.Static != nil {
+			ip = &ne.Static.IP
+		}
+		if _, err = s.addContainer(con, ip); err != nil {
 			return nil, err
 		}
 	}
@@ -427,8 +430,10 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	endpoints := con.Endpoints()
 	for _, e := range endpoints {
 		ne := h.ExecConfig.Networks[e.Scope().Name()]
-		ne.Static.IP = e.IP()
-		ne.Static.Mask = e.Scope().Subnet().Mask
+		ne.Static = &net.IPNet{
+			IP:   e.IP(),
+			Mask: e.Scope().Subnet().Mask,
+		}
 		ne.Network.Gateway = net.IPNet{IP: e.gateway, Mask: e.subnet.Mask}
 	}
 
@@ -458,7 +463,11 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 				return
 			}
 
-			s.addContainer(con, &ne.Static.IP)
+			var ip *net.IP
+			if ne.Static != nil {
+				ip = &ne.Static.IP
+			}
+			s.addContainer(con, ip)
 		}()
 
 		e := con.Endpoint(s)
@@ -467,27 +476,12 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 		}
 
 		if !e.static {
-			ne.Static = &net.IPNet{IP: net.IPv4zero}
+			ne.Static = nil
 		}
 	}
 
 	delete(c.containers, h.Container.ID)
 	return nil
-}
-
-func findSlotNumber(slots map[int32]bool) int32 {
-	// see https://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=2047927
-	slot := pciSlotNumberBegin
-	for _, ok := slots[slot]; ok && slot != pciSlotNumberEnd; {
-		slot += pciSlotNumberInc
-		_, ok = slots[slot]
-	}
-
-	if slot == pciSlotNumberEnd {
-		return spec.NilSlot
-	}
-
-	return slot
 }
 
 var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, error) {
@@ -518,26 +512,24 @@ var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, e
 		if d, err = devices.CreateEthernetCard("vmxnet3", backing); err != nil {
 			return nil, err
 		}
+
+		d.GetVirtualDevice().DeviceInfo = &types.Description{
+			Label: s.name,
+		}
 	}
 
 	if spec.VirtualDeviceSlotNumber(d) == spec.NilSlot {
 		slots := make(map[int32]bool)
 		for _, e := range h.ExecConfig.Networks {
-			if e.PCISlot > 0 {
-				slots[e.PCISlot] = true
+			if e.Common.ID != "" {
+				slot, err := strconv.Atoi(e.Common.ID)
+				if err == nil {
+					slots[int32(slot)] = true
+				}
 			}
 		}
 
-		for _, slot := range h.Spec.CollectSlotNumbers() {
-			slots[slot] = true
-		}
-
-		slot := findSlotNumber(slots)
-		if slot == spec.NilSlot {
-			return nil, fmt.Errorf("out of slots")
-		}
-
-		d.GetVirtualDevice().SlotInfo = &types.VirtualDevicePciBusSlotInfo{PciSlotNumber: slot}
+		h.Spec.AssignSlotNumber(d, slots)
 	}
 
 	if dc == nil {
@@ -605,9 +597,11 @@ func (c *Context) AddContainer(h *exec.Handle, scope string, ip *net.IP) error {
 				continue
 			}
 
-			if ne.PCISlot > 0 {
-				pciSlot = ne.PCISlot
-				break
+			if ne.ID != "" {
+				pciSlot = atoiOrZero(ne.ID)
+				if pciSlot != 0 {
+					break
+				}
 			}
 		}
 	}
@@ -626,15 +620,20 @@ func (c *Context) AddContainer(h *exec.Handle, scope string, ip *net.IP) error {
 	}
 
 	ne := &metadata.NetworkEndpoint{
-		PCISlot: pciSlot,
+		Common: metadata.Common{
+			ID: strconv.Itoa(int(pciSlot)),
+			// Name: this would cause NIC renaming if uncommented
+		},
 		Network: metadata.ContainerNetwork{
-			Name: s.Name(),
+			Common: metadata.Common{
+				Name: s.Name(),
+			},
 		},
 	}
 
-	ne.Static = &net.IPNet{IP: net.IPv4zero}
+	ne.Static = nil
 	if ip != nil {
-		ne.Static.IP = *ip
+		ne.Static = &net.IPNet{IP: *ip}
 	}
 
 	h.ExecConfig.Networks[s.Name()] = ne
@@ -671,7 +670,7 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 		if ne2 == ne {
 			continue
 		}
-		if ne2.PCISlot == ne.PCISlot {
+		if ne2.ID == ne.ID {
 			removeNIC = false
 			break
 		}
@@ -739,4 +738,9 @@ func (c *Context) DeleteScope(name string) error {
 
 	delete(c.scopes, name)
 	return nil
+}
+
+func atoiOrZero(a string) int32 {
+	i, _ := strconv.Atoi(a)
+	return int32(i)
 }

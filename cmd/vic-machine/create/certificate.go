@@ -34,8 +34,8 @@ type Keypair struct {
 	keyFile     string
 	certFile    string
 
-	CertPEM string
-	KeyPEM  string
+	CertPEM []byte
+	KeyPEM  []byte
 }
 
 func NewKeyPair(tlsGenerate bool, keyFile, certFile string) *Keypair {
@@ -116,8 +116,8 @@ func (k *Keypair) generate() error {
 		err = errors.Errorf("Failed to write certificate: %s", err)
 		return err
 	}
-	k.KeyPEM = string(key.Bytes())
-	k.CertPEM = string(cert.Bytes())
+	k.KeyPEM = key.Bytes()
+	k.CertPEM = cert.Bytes()
 	return nil
 }
 
@@ -132,13 +132,13 @@ func (k *Keypair) GetCertificate() error {
 		return err
 	}
 
-	k.CertPEM = string(b)
+	k.CertPEM = b
 
 	if b, err = ioutil.ReadFile(k.keyFile); err != nil {
 		err = errors.Errorf("Failed to read key file %s: %s", k.keyFile, err)
 		return err
 	}
 
-	k.KeyPEM = string(b)
+	k.KeyPEM = b
 	return nil
 }

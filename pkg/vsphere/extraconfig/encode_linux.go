@@ -16,6 +16,7 @@ package extraconfig
 
 import (
 	"errors"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -26,6 +27,13 @@ import (
 // GuestInfoSink uses the rpcvmx mechanism to update the guestinfo key/value map as
 // the datasink for encoding target structures
 func GuestInfoSink() (DataSink, error) {
+	return GuestInfoSinkWithPrefix("")
+}
+
+// GuestInfoSinkWithPrefix adds a prefix to all keys accessed. The key must not have leading
+// or trailing separator characters, but may have separators in other positions. The separator
+// (either . or /) will be replaced with the appropriate value for the key in question.
+func GuestInfoSinkWithPrefix(prefix string) (DataSink, error) {
 	guestinfo := rpcvmx.NewConfig()
 
 	if !vmcheck.IsVirtualWorld() {
@@ -33,6 +41,13 @@ func GuestInfoSink() (DataSink, error) {
 	}
 
 	return func(key, value string) error {
+		if strings.Contains(key, "/") {
+			// quietly skip if it's a read-only key
+			return nil
+		}
+
+		key = addPrefixToKey(DefaultGuestInfoPrefix, prefix, key)
+
 		if value == "" {
 			value = "<nil>"
 		}

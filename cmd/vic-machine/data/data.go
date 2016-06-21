@@ -15,6 +15,7 @@
 package data
 
 import (
+	"net"
 	"time"
 
 	"github.com/vmware/vic/cmd/vic-machine/common"
@@ -23,6 +24,12 @@ import (
 // Data wrapps all parameters required by value validation
 type Data struct {
 	*common.Target
+	common.Debug
+
+	Insecure bool
+
+	CertPEM []byte
+	KeyPEM  []byte
 
 	ComputeResourcePath string
 	ImageDatastoreName  string
@@ -32,12 +39,15 @@ type Data struct {
 	ExternalNetworkName    string
 	ManagementNetworkName  string
 	BridgeNetworkName      string
+	ClientNetworkName      string
+
+	MappedNetworks        map[string]string
+	MappedNetworksGateway map[string]*net.IPNet
 
 	NumCPUs  int
 	MemoryMB int
 
-	Insecure bool
-	Timeout  time.Duration
+	Timeout time.Duration
 
 	Force bool
 }

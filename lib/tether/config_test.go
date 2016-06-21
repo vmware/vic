@@ -54,9 +54,11 @@ func TestToExtraConfig(t *testing.T) {
 		},
 		Networks: map[string]*metadata.NetworkEndpoint{
 			"eth0": &metadata.NetworkEndpoint{
-				IP: net.IPNet{IP: localhost, Mask: lmask.Mask},
+				Static: &net.IPNet{IP: localhost, Mask: lmask.Mask},
 				Network: metadata.ContainerNetwork{
-					Name:        "notsure",
+					Common: metadata.Common{
+						Name: "notsure",
+					},
 					Gateway:     net.IPNet{IP: gateway, Mask: gmask.Mask},
 					Nameservers: []net.IP{},
 				},

@@ -20,6 +20,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
@@ -33,7 +34,7 @@ import (
 var pathPrefix string
 
 const (
-	logDir  = "/var/log/vic"
+	logDir  = "var/log/vic"
 	initLog = "init.log"
 )
 
@@ -42,9 +43,6 @@ type operations struct {
 }
 
 func (t *operations) Setup() error {
-	// make the logging directory
-	os.MkdirAll(fmt.Sprintf("%s%c%s", pathPrefix, os.PathSeparator, logDir), 0777)
-
 	// TODO: enabled for initial dev debugging only
 	log.Info("Launching pprof server on port 6060")
 	go func() {
@@ -66,14 +64,22 @@ func (t *operations) HandleSessionExit(config *tether.ExecutorConfig, session *t
 	return false
 }
 
+func (t *operations) SetHostname(name string, aliases ...string) error {
+	// switch the names around so we get the pretty name and not the ID
+	return t.BaseOperations.SetHostname(aliases[0])
+}
+
 func (t *operations) Log() (io.Writer, error) {
 	defer trace.End(trace.Begin("operations.Log"))
 
-	logPath := fmt.Sprintf("%s%c%s%[2]c%s", pathPrefix, os.PathSeparator, logDir, initLog)
+	// make the logging directory
+	os.MkdirAll(fmt.Sprintf("%s%c%s", pathPrefix, os.PathSeparator, logDir), 0777)
+
+	logPath := strings.Join([]string{pathPrefix, logDir, initLog}, string(os.PathSeparator))
 
 	// redirect logging to /var/log/vic/init
 	log.Infof("opening %s for debug log", logPath)
-	out, err := os.OpenFile(logPath, os.O_RDWR|os.O_APPEND|os.O_SYNC|syscall.O_NOCTTY, 0777)
+	out, err := os.OpenFile(logPath, os.O_RDWR|os.O_CREATE|os.O_APPEND|os.O_SYNC|syscall.O_NOCTTY, 0777)
 	if err != nil {
 		detail := fmt.Sprintf("failed to open file port for debug log: %s", err)
 		log.Error(detail)
@@ -87,11 +93,16 @@ func (t *operations) Log() (io.Writer, error) {
 func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, error) {
 	defer trace.End(trace.Begin("configure session log writer"))
 
-	logPath := fmt.Sprintf("%s%c%s%[2]c%s", pathPrefix, os.PathSeparator, logDir, session.Name)
+	name := session.ID
+	if name == "" {
+		name = session.Name
+	}
+
+	logPath := strings.Join([]string{pathPrefix, logDir, name + ".log"}, string(os.PathSeparator))
 
 	// open SttyS2 for session logging
 	log.Infof("opening %s for session logging", logPath)
-	f, err := os.OpenFile(logPath, os.O_RDWR|os.O_APPEND|os.O_SYNC|syscall.O_NOCTTY, 777)
+	f, err := os.OpenFile(logPath, os.O_RDWR|os.O_CREATE|os.O_APPEND|os.O_SYNC|syscall.O_NOCTTY, 777)
 	if err != nil {
 		detail := fmt.Sprintf("failed to open file for session log: %s", err)
 		log.Error(detail)

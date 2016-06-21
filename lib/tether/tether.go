@@ -149,11 +149,12 @@ func (t *tether) Start() error {
 	// initial entry, so seed this
 	t.reload <- true
 	for _ = range t.reload {
+		log.Info("Loading main configuration")
 		// load the config - this modifies the structure values in place
 		extraconfig.Decode(t.src, t.config)
 		logConfig(t.config)
 
-		if err := t.ops.SetHostname(stringid.TruncateID(t.config.ID)); err != nil {
+		if err := t.ops.SetHostname(stringid.TruncateID(t.config.ID), t.config.Name); err != nil {
 			detail := fmt.Sprintf("failed to set hostname: %s", err)
 			log.Error(detail)
 			// we don't attempt to recover from this - it's a fundemental misconfiguration
@@ -161,6 +162,7 @@ func (t *tether) Start() error {
 			return errors.New(detail)
 		}
 
+		// process the networks then publish any dynamic data
 		for _, v := range t.config.Networks {
 			if err := t.ops.Apply(v); err != nil {
 				detail := fmt.Sprintf("failed to apply network endpoint config: %s", err)
@@ -168,6 +170,7 @@ func (t *tether) Start() error {
 				return errors.New(detail)
 			}
 		}
+		extraconfig.Encode(t.sink, t.config)
 
 		// process the sessions and launch if needed
 		for id, session := range t.config.Sessions {
@@ -175,8 +178,8 @@ func (t *tether) Start() error {
 			var proc = session.Cmd.Process
 
 			// check if session is alive and well
-			if proc != nil && proc.Signal(syscall.Signal(0)) != nil {
-				log.Debugf("Process for session %s is already running", session.ID)
+			if proc != nil && proc.Signal(syscall.Signal(0)) == nil {
+				log.Debugf("Process for session %s is already running (pid: %d)", session.ID, proc.Pid)
 				continue
 			}
 

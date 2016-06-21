@@ -74,7 +74,7 @@ func TestProcess(t *testing.T) {
 		if target.URL != nil {
 			t.Logf("Before processing, url: %s", target.URL.String())
 		}
-		e := target.ProcessTargets()
+		e := target.HasCredentials()
 		if test.err != nil {
 			if e == nil {
 				t.Errorf("Empty error")

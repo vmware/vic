@@ -16,6 +16,7 @@ package main
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"flag"
 	"fmt"
 	"os"
@@ -31,6 +32,9 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/vmware/vic/lib/apiservers/engine/backends"
+	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 type CliOptions struct {
@@ -47,6 +51,12 @@ type CliOptions struct {
 }
 
 const productName = "vSphere Integrated Containers"
+
+var vchConfig metadata.VirtualContainerHostConfigSpec
+
+func init() {
+	trace.Logger.Level = log.DebugLevel
+}
 
 func Usage() {
 	fmt.Fprintf(os.Stderr, "\nvSphere Integrated Container Daemon Usage:\n")
@@ -123,7 +133,31 @@ func handleFlags() (*CliOptions, bool) {
 		proto:         "tcp",
 	}
 
+	// load the vch config
+	src, err := extraconfig.GuestInfoSource()
+	if err != nil {
+		log.Errorf("Unable to load configuration from guestinfo")
+	}
+	extraconfig.Decode(src, &vchConfig)
+
 	return cli, true
+}
+
+func loadCAPool() *x509.CertPool {
+	// If we should verify the server, we need to load a trusted ca
+	pool := x509.NewCertPool()
+
+	pem := vchConfig.CertificateAuthorities
+	if pem == nil || len(pem) == 0 {
+		return nil
+	}
+
+	if !pool.AppendCertsFromPEM(vchConfig.CertificateAuthorities) {
+		log.Fatalf("Unable to load CAs in config")
+	}
+
+	log.Debugf("Loaded %d CAs from config", len(pool.Subjects()))
+	return pool
 }
 
 func startServerWithOptions(cli *CliOptions) *apiserver.Server {
@@ -133,24 +167,25 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 	}
 
 	// Set options for TLS
-	if cli.enableTLS {
-		tlsOptions := tlsconfig.Options{
-			CAFile:   cli.cafile,
-			CertFile: cli.certfile,
-			KeyFile:  cli.keyfile,
-		}
+	if vchConfig.HostCertificate != nil {
+		log.Info("TLS enabled")
+		tlsConfig := tlsconfig.ServerDefault
 
-		if cli.verifyTLS {
+		if len(vchConfig.CertificateAuthorities) > 0 {
+			log.Info("TLS verify enforced")
 			// server requires and verifies client's certificate
-			tlsOptions.ClientAuth = tls.RequireAndVerifyClientCert
+			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
 		}
 
-		tlsConfig, err := tlsconfig.Server(tlsOptions)
-
+		cert, err := tls.X509KeyPair(vchConfig.HostCertificate.Cert, vchConfig.HostCertificate.Key)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("Could not load certificate from config: %s", err)
 		}
-		serverConfig.TLSConfig = tlsConfig
+
+		tlsConfig.Certificates = []tls.Certificate{cert}
+		tlsConfig.ClientCAs = loadCAPool()
+
+		serverConfig.TLSConfig = &tlsConfig
 	}
 
 	api := apiserver.New(serverConfig)

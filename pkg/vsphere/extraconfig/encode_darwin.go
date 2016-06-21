@@ -16,8 +16,15 @@ package extraconfig
 
 import "errors"
 
-// GuestInfoSource uses the rpcvmx mechanism to access the guestinfo key/value map as
-// the datasource for decoding into target structures
+// GuestInfoSink uses the rpcvmx mechanism to update the guestinfo key/value map as
+// the datasink for encoding target structures
 func GuestInfoSink() (DataSink, error) {
+	return GuestInfoSinkWithPrefix("")
+}
+
+// GuestInfoSinkWithPrefix adds a prefix to all keys accessed. The key must not have leading
+// or trailing separator characters, but may have separators in other positions. The separator
+// (either . or /) will be replaced with the appropriate value for the key in question.
+func GuestInfoSinkWithPrefix(prefix string) (DataSink, error) {
 	return nil, errors.New("Not implemented on OSX")
 }

@@ -29,7 +29,7 @@ import (
 type BaseOperations struct{}
 
 // SetHostname sets the system hostname
-func (t *BaseOperations) SetHostname(hostname string) error {
+func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	defer trace.End(trace.Begin("setting hostname to " + hostname))
 
 	return errors.New("not implemented on OSX")

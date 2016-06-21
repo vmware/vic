@@ -43,7 +43,7 @@ func (t *Target) TargetFlags() []cli.Flag {
 		cli.GenericFlag{
 			Name:  "target, t",
 			Value: flags.NewURLFlag(&t.URL),
-			Usage: "ESXi or vCenter connection URL, sample root:password@VC-FQDN",
+			Usage: "ESXi or vCenter connection URL, specifying a datacenter if multiple exist e.g. root:password@VC-FQDN/datacenter",
 		},
 		cli.StringFlag{
 			Name:        "user, u",
@@ -59,6 +59,7 @@ func (t *Target) TargetFlags() []cli.Flag {
 	}
 }
 
+// URLWithoutPassword returns the URL stripped of password
 func (t *Target) URLWithoutPassword() *url.URL {
 	if t.URL == nil {
 		return nil
@@ -69,7 +70,8 @@ func (t *Target) URLWithoutPassword() *url.URL {
 	return &withoutCredentials
 }
 
-func (t *Target) ProcessTargets() error {
+// HasCredentials check that the credentials have been supplied by any of the permitted mechanisms
+func (t *Target) HasCredentials() error {
 	if t.URL == nil {
 		return cli.NewExitError("--target argument must be specified", 1)
 	}
@@ -84,7 +86,7 @@ func (t *Target) ProcessTargets() error {
 		}
 	}
 	if t.User == "" && urlUser == "" {
-		return cli.NewExitError("User to login must be specified in --user or --target URL", 1)
+		return cli.NewExitError("vSphere user must be specified, either with --user or as part of --target", 1)
 	} else if t.User == "" && urlUser != "" {
 		t.User = urlUser
 	}
