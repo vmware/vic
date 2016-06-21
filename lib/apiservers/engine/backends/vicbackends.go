@@ -15,16 +15,19 @@
 package vicbackends
 
 import (
-	"fmt"
 	"net"
+	"time"
 
+	log "github.com/Sirupsen/logrus"
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 )
 
 const (
-	Imagec = "imagec"
+	Imagec           = "imagec"
+	Retries          = 5
+	RetryTimeSeconds = 2
 )
 
 var (
@@ -45,10 +48,23 @@ func Init(portLayerAddr string) error {
 	portLayerServerAddr = portLayerAddr
 
 	imageCache = cache.NewImageCache()
-	// update the image cache at startup
-	if err := imageCache.Update(portLayerClient); err != nil {
-		return fmt.Errorf("Error refreshing image cache: %s", err)
-	}
+
+	// attempt to update the image cache at startup
+	log.Info("Refreshing image cache...")
+	go func() {
+		for i := 0; i < Retries; i++ {
+
+			// initial pause to wait for the portlayer to come up
+			time.Sleep(RetryTimeSeconds * time.Second)
+
+			if err := imageCache.Update(portLayerClient); err == nil {
+				log.Info("Image cache updated successfully")
+				return
+			}
+			log.Info("Failed to refresh image cache, retrying...")
+		}
+		log.Warn("Failed to refresh image cache. Is the portlayer server down?")
+	}()
 
 	return nil
 }

@@ -32,7 +32,7 @@ type Operations interface {
 	// Log returns the tether debug log writer
 	Log() (io.Writer, error)
 
-	SetHostname(hostname string) error
+	SetHostname(hostname string, aliases ...string) error
 	Apply(endpoint *metadata.NetworkEndpoint) error
 	MountLabel(label, target string, ctx context.Context) error
 	Fork() error

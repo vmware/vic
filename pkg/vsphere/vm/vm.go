@@ -42,12 +42,13 @@ type VirtualMachine struct {
 
 // NewVirtualMachine returns a NewVirtualMachine object
 func NewVirtualMachine(ctx context.Context, session *session.Session, moref types.ManagedObjectReference) *VirtualMachine {
+	return NewVirtualMachineFromVM(ctx, session, object.NewVirtualMachine(session.Client.Client, moref))
+}
+
+func NewVirtualMachineFromVM(ctx context.Context, session *session.Session, vm *object.VirtualMachine) *VirtualMachine {
 	return &VirtualMachine{
-		VirtualMachine: object.NewVirtualMachine(
-			session.Vim25(),
-			moref,
-		),
-		Session: session,
+		VirtualMachine: vm,
+		Session:        session,
 	}
 }
 

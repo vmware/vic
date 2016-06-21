@@ -15,11 +15,12 @@
 package management
 
 import (
-	"path"
+	"fmt"
 
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/find"
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
@@ -29,9 +30,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfigSpec) (*compute.ResourcePool, error) {
-	d.vchPoolPath = path.Join(d.session.Pool.InventoryPath, conf.Name)
-	conf.ResourcePoolPath = d.vchPoolPath
+func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfigSpec, settings *InstallerData) (*object.ResourcePool, error) {
+	d.vchPoolPath = fmt.Sprintf("%s/%s", settings.ResourcePoolPath, conf.Name)
 
 	rp, err := d.session.Finder.ResourcePool(d.ctx, d.vchPoolPath)
 	if err != nil {
@@ -42,10 +42,11 @@ func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfi
 		}
 	} else {
 		conf.ComputeResources = append(conf.ComputeResources, rp.Reference())
-		return compute.NewResourcePool(d.ctx, d.session, rp.Reference()), nil
+		return rp, nil
 	}
 
 	log.Infof("Creating a Resource Pool")
+	// TODO: expose the limits and reservation here via options
 	resSpec := types.ResourceConfigSpec{
 		CpuAllocation: &types.ResourceAllocationInfo{
 			Shares: &types.SharesInfo{
@@ -67,16 +68,14 @@ func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfi
 		},
 	}
 
-	_, err = d.session.Pool.Create(d.ctx, conf.Name, resSpec)
+	rp, err = d.session.Pool.Create(d.ctx, conf.Name, resSpec)
 	if err != nil {
+		log.Debugf("Failed to create resource pool %s: %s", d.vchPoolPath, err)
 		return nil, err
 	}
-	vrp, err := compute.FindResourcePool(d.ctx, d.session, d.vchPoolPath)
-	if err != nil {
-		return nil, err
-	}
-	conf.ComputeResources = append(conf.ComputeResources, vrp.Reference())
-	return vrp, nil
+
+	conf.ComputeResources = append(conf.ComputeResources, rp.Reference())
+	return rp, nil
 }
 
 func (d *Dispatcher) destroyResourcePool(conf *metadata.VirtualContainerHostConfigSpec) error {

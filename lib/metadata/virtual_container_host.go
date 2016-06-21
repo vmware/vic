@@ -16,11 +16,11 @@ package metadata
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net/mail"
 	"net/url"
 	"time"
 
-	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 )
 
@@ -37,10 +37,10 @@ type VirtualContainerHostConfigSpec struct {
 	// The base config for the appliance. This includes the networks that are to be attached
 	// and disks to be mounted.
 	// Networks are keyed by interface name
-	ExecutorConfig `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	ExecutorConfig `vic:"0.1" scope:"read-only" key:"init"`
 
 	// The sdk URL
-	Target string `vic:"0.1" scope:"read-only" key:"target"`
+	Target url.URL `vic:"0.1" scope:"read-only" key:"target"`
 	// Whether the session connection is secure
 	Insecure bool `vic:"0.1" scope:"read-only" key:"insecure"`
 	// The session timeout
@@ -56,40 +56,37 @@ type VirtualContainerHostConfigSpec struct {
 	InfrastructureAdmin []mail.Address
 
 	// Certificates for user authentication - this needs to be expanded to allow for directory server auth
-	UserCertificates []tls.Certificate
+	UserCertificates []*RawCertificate
 	// Certificates for general outgoing network access, keyed by CIDR (IPNet.String())
-	NetworkCertificates map[string]tls.Certificate
+	NetworkCertificates map[string]*RawCertificate
+	// The certificate used to validate the appliance to clients
+	HostCertificate *RawCertificate `vic:"0.1" scope:"read-only"`
+	// The CAs to validate client connections
+	CertificateAuthorities []byte `vic:"0.1" scope:"read-only"`
 	// Certificates for specific system access, keyed by FQDN
-	HostCertificates map[string]tls.Certificate
+	HostCertificates map[string]*RawCertificate
 
 	// Port Layer - storage
-	// Datastore used for the ImageStore
-	// TODO this will change, probably to url.URL, as needed by the port layer
-	ImageStore string `vic:"0.1" scope:"read-only" key:"image_store"`
+	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
+	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores"`
 	// Permitted datastore URL roots for volumes
-	VolumeLocations []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-	// Permitted datastore URLs for container storage for this virtual container host
-	ContainerStores []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-	// Resource pools under which all containers will be created
-	ComputeResources []types.ManagedObjectReference `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	VolumeLocations map[string]url.URL `vic:"0.1" scope:"read-only"`
 
 	// Port Layer - network
-	// The default bridge network supplied for the Virtual Container Host
+	// The network to use by default to provide access to the world
 	BridgeNetwork string `vic:"0.1" scope:"read-only" key:"bridge_network"`
 	// Published networks available for containers to join, keyed by consumption name
 	ContainerNetworks map[string]*ContainerNetwork `vic:"0.1" scope:"read-only" key:"container_networks"`
 
-	// Virtual Container Host capacity
-	VCHSize Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-	// Appliance capacity
-	ApplianceSize Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-
 	// Port Layer - exec
 	// Default containerVM capacity
 	ContainerVMSize Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-
-	// Allow custom naming convention for containerVMs
-	ContainerNameConvention string
+	// Permitted datastore URLs for container storage for this virtual container host
+	ContainerStores []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	// Resource pools under which all containers will be created
+	ComputeResources []types.ManagedObjectReference `vic:"0.1" scope:"read-only"`
+	// Path of the ISO to use for bootstrapping containers
+	BootstrapImagePath url.URL `vic:"0.1" scope:"read-only" recurse:"depth=1"`
 
 	// Imagec
 	// Whitelist of registries
@@ -97,32 +94,15 @@ type VirtualContainerHostConfigSpec struct {
 	// Blacklist of registries
 	RegistryBlacklist []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
-	KeyPEM  string `vic:"0.1" scope:"read-only" key:"key_pem"`
-	CertPEM string `vic:"0.1" scope:"read-only" key:"cert_pem"`
-
-	//FIXME: remove following attributes after port-layer-server read config from guestinfo
-	DatacenterName         string `vic:"0.1" scope:"read-only" key:"datacenter_name"`
-	ClusterPath            string `vic:"0.1" scope:"read-only" key:"cluster_path"`
-	ImageStoreName         string `vic:"0.1" scope:"read-only" key:"image_store_name"`
-	ResourcePoolPath       string `vic:"0.1" scope:"read-only" key:"resource_pool_path"`
-	ApplianceInventoryPath string `vic:"0.1" scope:"read-only" key:"appliance_path"`
-
-	Datacenter types.ManagedObjectReference `vic:"0.1" scope:"read-only" key:"datacenter"`
-	Cluster    types.ManagedObjectReference `vic:"0.1" scope:"read-only" key:"cluster"`
-
-	// FIXME: remove following attributes after change to launch through tether
-	// Networks represents mapping between nic name and network info object. For example: bridge: vmomi object
-	Networks map[string]*NetworkInfo `vic:"0.1" scope:"read-only" key:"networks2"`
-
-	ImageFiles []string `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	// Allow custom naming convention for containerVMs
+	ContainerNameConvention string
 }
 
-type NetworkInfo struct {
-	InventoryPath string                       `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-	Mac           string                       `vic:"0.1" scope:"read-only" key:"mac"`
-	PortGroup     object.NetworkReference      `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-	PortGroupName string                       `vic:"0.1" scope:"read-only" key:"portgroup"`
-	PortGroupRef  types.ManagedObjectReference `vic:"0.1" scope:"read-only" key:"portgroup_ref"`
+// RawCertificate is present until we add extraconfig support for [][]byte slices that are present
+// in tls.Certificate
+type RawCertificate struct {
+	Key  []byte
+	Cert []byte
 }
 
 // CustomerExperienceImprovementProgram provides configuration for the phone home mechanism
@@ -142,4 +122,105 @@ type Resources struct {
 	Memory  types.ResourceAllocationInfo
 	IO      types.ResourceAllocationInfo
 	Storage types.ResourceAllocationInfo
+}
+
+// SetHostCertificate sets the certificate for authenticting with the appliance itself
+func (t *VirtualContainerHostConfigSpec) SetHostCertificate(key *[]byte) {
+	t.ExecutorConfig.Key = *key
+}
+
+// SetName sets the name of the VCH - this will be used as the hostname for the appliance
+func (t *VirtualContainerHostConfigSpec) SetName(name string) {
+	t.ExecutorConfig.Name = name
+}
+
+// SetMoref sets the moref of the VCH - this allows components to acquire a handle to
+// the appliance VM.
+func (t *VirtualContainerHostConfigSpec) SetMoref(moref *types.ManagedObjectReference) {
+	if moref != nil {
+		t.ExecutorConfig.ID = fmt.Sprintf("%s-%s", moref.Type, moref.Value)
+	}
+}
+
+// AddNetwork adds a network that will be configured on the appliance VM
+func (t *VirtualContainerHostConfigSpec) AddNetwork(net *NetworkEndpoint) {
+	if net != nil {
+		if t.ExecutorConfig.Networks == nil {
+			t.ExecutorConfig.Networks = make(map[string]*NetworkEndpoint)
+		}
+
+		t.ExecutorConfig.Networks[net.Network.Name] = net
+	}
+}
+
+// AddContainerNetwork adds a network that will be configured on the appliance VM
+func (t *VirtualContainerHostConfigSpec) AddContainerNetwork(net *ContainerNetwork) {
+	if net != nil {
+		if t.ContainerNetworks == nil {
+			t.ContainerNetworks = make(map[string]*ContainerNetwork)
+		}
+
+		t.ContainerNetworks[net.Name] = net
+	}
+}
+
+func (t *VirtualContainerHostConfigSpec) AddComponent(name string, component *SessionConfig) {
+	if component != nil {
+		if t.ExecutorConfig.Sessions == nil {
+			t.ExecutorConfig.Sessions = make(map[string]SessionConfig)
+		}
+
+		if component.Name == "" {
+			component.Name = name
+		}
+		if component.ID == "" {
+			component.ID = name
+		}
+		t.ExecutorConfig.Sessions[name] = *component
+	}
+}
+
+func (t *VirtualContainerHostConfigSpec) AddImageStore(url *url.URL) {
+	if url != nil {
+		t.ImageStores = append(t.ImageStores, *url)
+	}
+}
+
+func (t *VirtualContainerHostConfigSpec) AddVolumeLocation(name string, url *url.URL) {
+	if url != nil {
+		t.VolumeLocations[name] = *url
+	}
+}
+
+// AddComputeResource adds a moref to the set of permitted root pools. It takes a ResourcePool rather than
+// an inventory path to encourage validation.
+func (t *VirtualContainerHostConfigSpec) AddComputeResource(pool *types.ManagedObjectReference) {
+	if pool != nil {
+		t.ComputeResources = append(t.ComputeResources, *pool)
+	}
+}
+
+func (t *VirtualContainerHostConfigSpec) SetvSphereTarget(url *url.URL) {
+	if url != nil {
+		t.Target = *url
+	}
+}
+
+func CreateSession(cmd string, args ...string) *SessionConfig {
+	cfg := &SessionConfig{
+		Cmd: Cmd{
+			Path: cmd,
+			Args: []string{
+				cmd,
+			},
+		},
+	}
+
+	cfg.Cmd.Args = append(cfg.Cmd.Args, args...)
+
+	return cfg
+}
+
+func (t *RawCertificate) Certificate() (tls.Certificate, error) {
+	return tls.X509KeyPair(t.Cert, t.Key)
 }

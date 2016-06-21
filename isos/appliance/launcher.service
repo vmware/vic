@@ -1,10 +1,10 @@
 [Unit]
-Description=Watchdog script for VIC components
+Description=Init process for VIC components
 After=network-online.target
 
 [Service]
 Type=idle
-ExecStart=/bin/launcher.sh
+ExecStart=/sbin/vch-debug
 
 [Install]
 WantedBy=multi-user.target

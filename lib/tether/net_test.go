@@ -69,27 +69,3 @@ func TestNoNetwork(t *testing.T) {
 	// wait for tether to exit
 	<-Mocked.Cleaned
 }
-
-func TestSetIpAddress(t *testing.T) {
-	t.Skip("Not yet testing network config")
-
-	testSetup(t)
-	defer testTeardown(t)
-
-	cfg := metadata.ExecutorConfig{
-		Common: metadata.Common{
-			ID:   "ipconfig",
-			Name: "tether_test_executor",
-		},
-	}
-
-	tthr, _ := StartTether(t, &cfg)
-
-	<-Mocked.Started
-
-	// prevent indefinite wait in tether - normally session exit would trigger this
-	tthr.Stop()
-
-	// wait for tether to exit
-	<-Mocked.Cleaned
-}

@@ -22,10 +22,15 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/lib/tether"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 var tthr tether.Tether
+
+func init() {
+	trace.Logger.Level = log.DebugLevel
+}
 
 func main() {
 	defer func() {
@@ -35,22 +40,19 @@ func main() {
 		reboot()
 	}()
 
-	// where to look for the various devices and files related to tether
-	pathPrefix = "/.tether"
-
 	if strings.HasSuffix(os.Args[0], "-debug") {
 		extraconfig.DecodeLogLevel = log.DebugLevel
 		extraconfig.EncodeLogLevel = log.DebugLevel
 		log.SetLevel(log.DebugLevel)
 	}
 
-	src, err := extraconfig.GuestInfoSource()
+	src, err := extraconfig.GuestInfoSourceWithPrefix("init")
 	if err != nil {
 		log.Error(err)
 		return
 	}
 
-	sink, err := extraconfig.GuestInfoSink()
+	sink, err := extraconfig.GuestInfoSinkWithPrefix("init")
 	if err != nil {
 		log.Error(err)
 		return
@@ -65,14 +67,14 @@ func main() {
 		return
 	}
 
-	log.Info("Clean exit from tether")
+	log.Info("Clean exit from init")
 }
 
 // exit cleanly shuts down the system
 func halt() {
 	log.Infof("Powering off the system")
 	if strings.HasSuffix(os.Args[0], "-debug") {
-		log.Info("Squashing power off for debug tether")
+		log.Info("Squashing power off for debug init")
 		return
 	}
 
@@ -83,7 +85,7 @@ func halt() {
 func reboot() {
 	log.Infof("Rebooting the system")
 	if strings.HasSuffix(os.Args[0], "-debug") {
-		log.Info("Squashing reboot for debug tether")
+		log.Info("Squashing reboot for debug init")
 		return
 	}
 

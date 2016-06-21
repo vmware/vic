@@ -12,30 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trace
+package common
 
-import (
-	"runtime"
-	"time"
+import "github.com/urfave/cli"
 
-	log "github.com/Sirupsen/logrus"
-)
-
-var Logger = log.New()
-
-func Begin(msg string) (string, string, time.Time) {
-	pc, _, _, _ := runtime.Caller(1)
-	name := runtime.FuncForPC(pc).Name()
-
-	if msg == "" {
-		Logger.Debugf("[BEGIN] [%s]", name)
-	} else {
-		Logger.Debugf("[BEGIN] [%s] %s", name, msg)
-	}
-	return msg, name, time.Now()
+type Debug struct {
+	Debug bool
 }
 
-func End(msg string, name string, startTime time.Time) {
-	endTime := time.Now()
-	Logger.Debugf("[ END ] [%s] [%s] %s", name, endTime.Sub(startTime), msg)
+func (d *Debug) DebugFlags() []cli.Flag {
+	return []cli.Flag{
+		cli.BoolFlag{
+			Name:        "debug, v",
+			Destination: &d.Debug,
+			Usage:       "Enable debug level logging",
+		},
+	}
 }

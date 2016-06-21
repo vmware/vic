@@ -199,8 +199,6 @@ func (m *Model) Create() error {
 
 			// TODO: create DistributedVirtualPortgroup for npg := 0; npg < m.Portgroup; npg++
 
-			// TODO: create ResourcePool for npool := 0; npool < m.Pool; pool++
-
 			for nhost := 0; nhost < m.ClusterHost; nhost++ {
 				name := m.fmtName(clusterName+"_H", nhost)
 
@@ -216,7 +214,19 @@ func (m *Model) Create() error {
 			if err != nil {
 				return err
 			}
-			addMachine(clusterName+"_RP0", nil, pool, folders)
+
+			prefix := clusterName + "_RP"
+
+			addMachine(prefix+"0", nil, pool, folders)
+
+			for npool := 1; npool <= m.Pool; npool++ {
+				spec := NewResourceConfigSpec()
+
+				_, err = pool.Create(ctx, m.fmtName(prefix, npool), spec)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 

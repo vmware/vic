@@ -160,7 +160,7 @@ func encodeSlice(sink DataSink, src reflect.Value, prefix string, depth recursio
 		// else assume it's primitive - we'll panic/recover and continue it not
 		defer func() {
 			if err := recover(); err != nil {
-				log.Errorf("unable to encode %s (slice): %s", src.Type(), err)
+				log.Errorf("unable to encode %s (slice) for %s: %s", src.Type(), prefix, err)
 			}
 		}()
 

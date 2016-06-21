@@ -31,9 +31,6 @@ type NetworkEndpoint struct {
 	// Actual IP address assigned
 	Assigned net.IP `vic:"0.1" scope:"read-write" key:"ip"`
 
-	// The PCI slot for the vNIC - this allows for interface idenitifcaton in the guest
-	PCISlot int32 `vic:"0.1" scope:"read-only" key:"pcislot"`
-
 	// The network in which this information should be interpreted. This is embedded directly rather than
 	// as a pointer so that we can ensure the data is consistent
 	Network ContainerNetwork `vic:"0.1" scope:"read-only" key:"network"`
@@ -42,8 +39,9 @@ type NetworkEndpoint struct {
 // ContainerNetwork is the data needed on a per container basis both for vSphere to ensure it's attached
 // to the correct network, and in the guest to ensure the interface is correctly configured.
 type ContainerNetwork struct {
-	// The symbolic name of the network
-	Name string `vic:"0.1" scope:"read-only" key:"name"`
+	// Common.Name - the symbolic name for the network, e.g. web or backend
+	// Common.ID - identifier of the underlay for the network
+	Common
 
 	// The network scope the IP belongs to.
 	// The IP address is the default gateway
