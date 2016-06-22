@@ -22,9 +22,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/urfave/cli"
-	"github.com/vmware/vic/cmd/vic-machine/data"
-	"github.com/vmware/vic/cmd/vic-machine/validate"
+	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
+	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
 
 	"golang.org/x/net/context"
@@ -50,7 +50,7 @@ func NewUninstall() *Uninstall {
 func (d *Uninstall) Flags() []cli.Flag {
 	flags := []cli.Flag{
 		cli.StringFlag{
-			Name:        "vch-id",
+			Name:        "id",
 			Value:       "",
 			Usage:       "The ID of the Virtual Container Host - not supported until vic-machine ls is ready",
 			Destination: &d.id,
@@ -58,8 +58,14 @@ func (d *Uninstall) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "compute-resource",
 			Value:       "",
-			Usage:       "Compute resource path, e.g. /ha-datacenter/host/myCluster/Resources/myRP",
+			Usage:       "The compute resource containing the Virtual Container Host; requires the '--name' argument be supplied",
 			Destination: &d.ComputeResourcePath,
+		},
+		cli.StringFlag{
+			Name:        "name",
+			Value:       "",
+			Usage:       "The name of the Virtual Container Host to delete; requires the '--compute-resource' argument be supplied",
+			Destination: &d.DisplayName,
 		},
 		cli.BoolFlag{
 			Name:        "force",
@@ -72,12 +78,6 @@ func (d *Uninstall) Flags() []cli.Flag {
 			Usage:       "Time to wait for appliance initialization",
 			Destination: &d.Timeout,
 		},
-		cli.StringFlag{
-			Name:        "name",
-			Value:       "",
-			Usage:       "The name of the Virtual Container Host",
-			Destination: &d.DisplayName,
-		},
 	}
 	flags = append(d.TargetFlags(), flags...)
 	return flags
@@ -88,8 +88,12 @@ func (d *Uninstall) processParams() error {
 		return err
 	}
 
+	if d.id != "" {
+		log.Warnf("ID of Virtual Container Host is not supported until vic-machine ls is ready. For details, please refer github issue #810")
+	}
+
 	if (d.ComputeResourcePath == "" || d.DisplayName == "") && d.id == "" {
-		return cli.NewExitError("--compute-resource, --name or --vch-id should be specified", 1)
+		return cli.NewExitError("must specify --vch-id, or both --compute-resource and --name", 1)
 	}
 
 	d.logfile = "delete.log"
@@ -126,19 +130,19 @@ func (d *Uninstall) Run(cli *cli.Context) error {
 		err = errors.Errorf("%s. Exiting...", err)
 		return err
 	}
+	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
 
-	vch, err := validator.GetVCH(d.Data)
+	vch, err := executor.NewVCHFromComputePath(d.Data.ComputeResourcePath, d.Data.DisplayName)
 	if err != nil {
 		log.Errorf("Failed to get Virtual Container Host %s", d.DisplayName)
 		return err
 	}
-	vchConfig, err := validator.GetVCHConfig(vch, d.DisplayName)
+	vchConfig, err := executor.GetVCHConfig(vch)
 	if err != nil {
 		log.Errorf("Failed to get Virtual Container Host configuration")
 		return err
 	}
 
-	executor := management.NewDispatcher(validator.Context, validator.Session, vchConfig, false)
 	if err = executor.DeleteVCH(vchConfig); err != nil {
 		executor.CollectDiagnosticLogs()
 		return err

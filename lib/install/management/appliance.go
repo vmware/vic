@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
@@ -214,7 +215,7 @@ func (d *Dispatcher) addParaVirtualSCSIController(devices object.VirtualDeviceLi
 	return devices, nil
 }
 
-func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConfigSpec, vConf *InstallerData) (*types.VirtualMachineConfigSpec, error) {
+func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConfigSpec, vConf *data.InstallerData) (*types.VirtualMachineConfigSpec, error) {
 	var devices object.VirtualDeviceList
 	var err error
 
@@ -325,7 +326,7 @@ func (d *Dispatcher) configIso(conf *metadata.VirtualContainerHostConfigSpec, vm
 	return devices, nil
 }
 
-func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSpec, settings *InstallerData) error {
+func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	log.Infof("Creating appliance on target")
 
 	spec, err := d.createApplianceSpec(conf, settings)

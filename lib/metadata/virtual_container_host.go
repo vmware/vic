@@ -17,7 +17,6 @@ package metadata
 import (
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"net/mail"
 	"net/url"
 	"time"

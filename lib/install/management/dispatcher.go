@@ -19,16 +19,14 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
-	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/diagnostic"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -36,28 +34,6 @@ import (
 
 	"golang.org/x/net/context"
 )
-
-// InstallerData is used to hold the transient installation configuration that shouldn't be serialized
-type InstallerData struct {
-	// Virtual Container Host capacity
-	VCHSize metadata.Resources
-	// Appliance capacity
-	ApplianceSize metadata.Resources
-
-	KeyPEM  string
-	CertPEM string
-
-	//FIXME: remove following attributes after port-layer-server read config from guestinfo
-	DatacenterName         string
-	ClusterPath            string
-	ResourcePoolPath       string
-	ApplianceInventoryPath string
-
-	Datacenter types.ManagedObjectReference
-	Cluster    types.ManagedObjectReference
-
-	ImageFiles []string
-}
 
 type Dispatcher struct {
 	session *session.Session
@@ -157,7 +133,7 @@ func (d *Dispatcher) initDiagnosticLogs(conf *metadata.VirtualContainerHostConfi
 	}
 }
 
-func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec, settings *InstallerData) error {
+func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	var err error
 	if d.vchPool, err = d.createResourcePool(conf, settings); err != nil {
 		detail := fmt.Sprintf("Creating resource pool failed: %s", err)
@@ -282,62 +258,4 @@ func (d *Dispatcher) CollectDiagnosticLogs() {
 			fmt.Fprintln(f, line)
 		}
 	}
-}
-
-func (d *Dispatcher) DeleteVCH(conf *metadata.VirtualContainerHostConfigSpec) error {
-	log.Infof("Removing VMs")
-
-	if err := d.DeleteVCHInstances(conf); err != nil {
-		return err
-	}
-	if err := d.destroyResourcePoolIfEmpty(conf); err != nil {
-		return err
-	}
-	return d.removeNetwork(conf)
-}
-
-func (d *Dispatcher) DeleteVCHInstances(conf *metadata.VirtualContainerHostConfigSpec) error {
-	var errs []string
-
-	var err error
-	var vmm *vm.VirtualMachine
-	var children []*vm.VirtualMachine
-
-	if vmm, err = d.findApplianceByID(conf); err != nil {
-		return err
-	}
-	if vmm == nil {
-		return nil
-	}
-	rpRef := conf.ComputeResources[len(conf.ComputeResources)-1]
-	rp := compute.NewResourcePool(d.ctx, d.session, rpRef)
-	if children, err = rp.GetChildrenVMs(d.ctx, d.session); err != nil {
-		return err
-	}
-
-	for _, child := range children {
-		name, err := child.Name(d.ctx)
-		if err != nil {
-			errs = append(errs, err.Error())
-			continue
-		}
-		if name == conf.Name {
-			continue
-		}
-		if _, err = d.deleteVM(child); err != nil {
-			errs = append(errs, err.Error())
-		}
-	}
-
-	if len(errs) > 0 {
-		log.Debugf("Error deleting container VMs %s", errs)
-		return errors.New(strings.Join(errs, "\n"))
-	}
-
-	if _, err = d.deleteVM(vmm); err != nil {
-		log.Debugf("Error deleting appliance VM %s", err)
-		return err
-	}
-
-	return nil
 }
