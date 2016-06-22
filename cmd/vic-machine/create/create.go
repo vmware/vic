@@ -193,10 +193,6 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	if c.ComputeResourcePath == "" {
-		return cli.NewExitError("--compute-resource Compute resource path must be specified", 1)
-	}
-
 	if c.ImageDatastoreName == "" {
 		return cli.NewExitError("--image-datastore Image datastore name must be specified", 1)
 	}
@@ -369,15 +365,16 @@ func (c *Create) Run(cli *cli.Context) error {
 	if c.key != "" {
 		// if we're generating then there's no CA currently
 		if len(vchConfig.CertificateAuthorities) > 0 {
-			tls = fmt.Sprintf("--tls --tlscert='%s' --tlskey='%s'", c.cert, c.key)
+			tls = fmt.Sprintf(" --tls --tlscert='%s' --tlskey='%s'", c.cert, c.key)
 		} else {
-			tls = "--tls"
+			tls = " --tls"
 		}
 	}
 	log.Infof("DOCKER_HOST=%s:%s", executor.HostIP, executor.DockerPort)
+	log.Infof("DOCKER_OPTS=\"-H %s:%s%s\"", executor.HostIP, executor.DockerPort, tls)
 	log.Infof("")
 	log.Infof("Connect to docker:")
-	log.Infof("docker -H %s:%s %s info", executor.HostIP, executor.DockerPort, tls)
+	log.Infof("docker -H %s:%s %sinfo", executor.HostIP, executor.DockerPort, tls)
 
 	log.Infof("Installer completed successfully")
 	return nil
