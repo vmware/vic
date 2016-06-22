@@ -375,6 +375,12 @@ func (v *Validator) target(ctx context.Context, input *data.Data, conf *metadata
 func (v *Validator) certificate(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
+	if len(input.CertPEM) == 0 && len(input.KeyPEM) == 0 {
+		// if there's no data supplied then we're configuring without TLS
+		log.Debug("Configuring without TLS due to empty key and cert buffers")
+		return
+	}
+
 	// check the cert can be loaded
 	_, err := tls.X509KeyPair(input.CertPEM, input.KeyPEM)
 	v.NoteIssue(err)

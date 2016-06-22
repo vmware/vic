@@ -41,6 +41,7 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 
@@ -82,6 +83,7 @@ var (
 
 func init() {
 	trace.Logger.Level = log.DebugLevel
+	defer trace.End(trace.Begin(""))
 
 	flag.StringVar(&config.addr, "l", ":2378", "Listen address")
 	flag.StringVar(&config.dockerHost, "docker-host", "127.0.0.1:2376", "Docker host")
@@ -115,6 +117,8 @@ type Authenticator interface {
 }
 
 func logFiles() []string {
+	defer trace.End(trace.Begin(""))
+
 	names := []string{}
 	for _, f := range logFileList {
 		names = append(names, fmt.Sprintf("%s/%s", logFileDir, f))
@@ -124,6 +128,8 @@ func logFiles() []string {
 }
 
 func configureReaders() []entryReader {
+	defer trace.End(trace.Begin(""))
+
 	dockerServer := "http://" + config.dockerHost
 
 	readers := []entryReader{
@@ -201,6 +207,8 @@ func newBytesEntry(name string, b []byte) entry {
 type commandReader string
 
 func (path commandReader) open() (entry, error) {
+	defer trace.End(trace.Begin(string(path)))
+
 	args := strings.Split(string(path), " ")
 	cmd := exec.Command(args[0], args[1:]...)
 
@@ -220,6 +228,8 @@ type fileEntry struct {
 }
 
 func (path fileReader) open() (entry, error) {
+	defer trace.End(trace.Begin(string(path)))
+
 	f, err := os.Open(string(path))
 	if err != nil {
 		return nil, err
@@ -250,6 +260,8 @@ func (path fileReader) open() (entry, error) {
 type urlReader string
 
 func httpEntry(name string, res *http.Response) (entry, error) {
+	defer trace.End(trace.Begin(name))
+
 	if res.StatusCode != http.StatusOK {
 		return nil, errors.New(res.Status)
 	}
@@ -273,6 +285,8 @@ func httpEntry(name string, res *http.Response) (entry, error) {
 }
 
 func (path urlReader) open() (entry, error) {
+	defer trace.End(trace.Begin(string(path)))
+
 	res, err := http.Get(string(path))
 	if err != nil {
 		return nil, err
@@ -288,6 +302,8 @@ type datastoreReader struct {
 
 // find datastore logs for the appliance itself and all containers
 func findDatastoreLogs(c *session.Session) ([]entryReader, error) {
+	defer trace.End(trace.Begin(""))
+
 	ds := object.NewDatastore(c.Vim25(), datastore)
 	ds.InventoryPath = datastoreInventoryPath
 
@@ -341,6 +357,8 @@ func findDatastoreLogs(c *session.Session) ([]entryReader, error) {
 }
 
 func (r datastoreReader) open() (entry, error) {
+	defer trace.End(trace.Begin(r.path))
+
 	u, ticket, err := r.ds.ServiceTicket(context.Background(), r.path, "GET")
 	if err != nil {
 		return nil, err
@@ -364,6 +382,8 @@ type dlogReader struct {
 }
 
 func findDiagnosticLogs(c *session.Session) ([]entryReader, error) {
+	defer trace.End(trace.Begin(""))
+
 	// When connected to VC, we collect vpxd.log and hostd.log for all cluster hosts attached to the datastore.
 	// When connected to ESX, we just collect hostd.log.
 	const (
@@ -398,6 +418,8 @@ func findDiagnosticLogs(c *session.Session) ([]entryReader, error) {
 }
 
 func (r dlogReader) open() (entry, error) {
+	defer trace.End(trace.Begin(r.name))
+
 	name := r.name
 	if r.host != nil {
 		name = fmt.Sprintf("%s-%s", path.Base(r.host.InventoryPath), r.name)
@@ -434,6 +456,8 @@ func (r dlogReader) open() (entry, error) {
 }
 
 func client() (*session.Session, error) {
+	defer trace.End(trace.Begin(""))
+
 	ctx := context.Background()
 
 	session := session.NewSession(&config.Config)
@@ -452,6 +476,8 @@ func client() (*session.Session, error) {
 }
 
 func findDatastore() error {
+	defer trace.End(trace.Begin(""))
+
 	session, err := client()
 	if err != nil {
 		return err
@@ -465,6 +491,8 @@ func findDatastore() error {
 }
 
 func tarEntries(readers []entryReader, out io.Writer) error {
+	defer trace.End(trace.Begin(""))
+
 	r, w := io.Pipe()
 	t := tar.NewWriter(w)
 
@@ -523,8 +551,21 @@ type server struct {
 }
 
 func (s *server) listen(useTLS bool) error {
+	defer trace.End(trace.Begin(""))
+
 	var err error
-	if !useTLS {
+
+	// Set options for TLS
+	tlsconfig := tlsconfig.ServerDefault
+	certificate, err := vchConfig.HostCertificate.Certificate()
+	if err != nil {
+		log.Errorf("Could not load certificate from config - running without TLS: %s", err)
+		// TODO: add static web page with the vic
+	} else {
+		tlsconfig.Certificates = []tls.Certificate{*certificate}
+	}
+
+	if !useTLS || err != nil {
 		s.l, err = net.Listen("tcp", s.addr)
 		return err
 	}
@@ -533,17 +574,6 @@ func (s *server) listen(useTLS bool) error {
 	if err != nil {
 		log.Fatal(err)
 		return err
-	}
-
-	certificate, err := tls.X509KeyPair(vchConfig.HostCertificate.Cert, vchConfig.HostCertificate.Key)
-	if err != nil {
-		log.Errorf("Could not load certificate from config: %s", err)
-		// TODO: add static web page with the vic
-		return err
-	}
-
-	tlsconfig := tls.Config{
-		Certificates: []tls.Certificate{certificate},
 	}
 
 	s.l = tls.NewListener(innerListener, &tlsconfig)
@@ -556,6 +586,8 @@ func (s *server) listenPort() int {
 
 // handleFunc does preparatory work and then calls the HandleFunc method owned by the HTTP multiplexer
 func (s *server) handleFunc(link string, handler func(http.ResponseWriter, *http.Request)) {
+	defer trace.End(trace.Begin(""))
+
 	s.links = append(s.links, link)
 
 	if s.auth != nil {
@@ -576,6 +608,8 @@ func (s *server) handleFunc(link string, handler func(http.ResponseWriter, *http
 }
 
 func (s *server) serve() error {
+	defer trace.End(trace.Begin(""))
+
 	s.mux = http.NewServeMux()
 
 	// tar of appliance system logs
@@ -615,6 +649,8 @@ func (s *server) serve() error {
 }
 
 func (s *server) stop() error {
+	defer trace.End(trace.Begin(""))
+
 	if s.l != nil {
 		err := s.l.Close()
 		s.l = nil
@@ -625,6 +661,8 @@ func (s *server) stop() error {
 }
 
 func (s *server) tarContainerLogs(res http.ResponseWriter, req *http.Request) {
+	defer trace.End(trace.Begin(""))
+
 	readers := append(defaultReaders, commandReader("sudo du -sh /var/lib/docker"))
 
 	if config.Service != "" {
@@ -655,10 +693,14 @@ func (s *server) tarContainerLogs(res http.ResponseWriter, req *http.Request) {
 }
 
 func (s *server) tarDefaultLogs(res http.ResponseWriter, req *http.Request) {
+	defer trace.End(trace.Begin(""))
+
 	s.tarLogs(res, req, defaultReaders)
 }
 
 func (s *server) tarLogs(res http.ResponseWriter, req *http.Request, readers []entryReader) {
+	defer trace.End(trace.Begin(""))
+
 	res.Header().Set("Content-Type", "application/x-gzip")
 
 	z := gzip.NewWriter(res)
@@ -685,6 +727,8 @@ func (fw *flushWriter) Write(p []byte) (int, error) {
 }
 
 func (s *server) tailFiles(res http.ResponseWriter, req *http.Request, names []string) {
+	defer trace.End(trace.Begin(""))
+
 	cc := res.(http.CloseNotifier).CloseNotify()
 
 	fw := &flushWriter{
@@ -710,6 +754,8 @@ func (s *server) tailFiles(res http.ResponseWriter, req *http.Request, names []s
 }
 
 func (s *server) index(res http.ResponseWriter, req *http.Request) {
+	defer trace.End(trace.Begin(""))
+
 	fmt.Fprintln(res, "<html><head><title>VIC Admin</title></head><body><pre>")
 	for _, link := range s.links {
 		fmt.Fprintf(res, "<a href=\"%s\">%s</a><br/>\n", link, link)
@@ -718,6 +764,8 @@ func (s *server) index(res http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
+	defer trace.End(trace.Begin(""))
+
 	flag.Parse()
 
 	s := &server{

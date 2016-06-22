@@ -166,30 +166,30 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 		Version: "1.22", //dockerversion.Version,
 	}
 
-	// Set options for TLS
-	if vchConfig.HostCertificate != nil {
-		log.Info("TLS enabled")
-		tlsConfig := tlsconfig.ServerDefault
+	tlsConfig := tlsconfig.ServerDefault
 
+	if !vchConfig.HostCertificate.IsNil() {
+		log.Info("TLS enabled")
+
+		cert, err := vchConfig.HostCertificate.Certificate()
+		if err != nil {
+			// This is only viable because we've verified those certificates
+			log.Fatalf("Could not load certificate from config and refusing to run without TLS with a host certificate specified: %s", err)
+		}
+
+		tlsConfig.Certificates = []tls.Certificate{*cert}
+		serverConfig.TLSConfig = &tlsConfig
+
+		// Set options for TLS
 		if len(vchConfig.CertificateAuthorities) > 0 {
-			log.Info("TLS verify enforced")
+			log.Info("Client verification enabled")
 			// server requires and verifies client's certificate
 			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+			tlsConfig.ClientCAs = loadCAPool()
 		}
-
-		cert, err := tls.X509KeyPair(vchConfig.HostCertificate.Cert, vchConfig.HostCertificate.Key)
-		if err != nil {
-			log.Fatalf("Could not load certificate from config: %s", err)
-		}
-
-		tlsConfig.Certificates = []tls.Certificate{cert}
-		tlsConfig.ClientCAs = loadCAPool()
-
-		serverConfig.TLSConfig = &tlsConfig
 	}
 
 	api := apiserver.New(serverConfig)
-
 	l, err := listeners.Init(cli.proto, cli.fullserver, "", serverConfig.TLSConfig)
 	if err != nil {
 		log.Fatal(err)
