@@ -48,18 +48,12 @@ func (handler *ScopesHandlersImpl) Configure(api *operations.PortLayerAPI, handl
 	api.ScopesBindContainerHandler = scopes.BindContainerHandlerFunc(handler.ScopesBindContainer)
 	api.ScopesUnbindContainerHandler = scopes.UnbindContainerHandlerFunc(handler.ScopesUnbindContainer)
 
-	netCtx, err := network.NewContext(
-		net.IPNet{
-			IP:   net.IPv4(172, 16, 0, 0),
-			Mask: net.CIDRMask(12, 32),
-		},
-		net.CIDRMask(16, 32),
-	)
+	err := network.Init()
 	if err != nil {
 		log.Fatalf("failed to create network context: %s", err)
 	}
 
-	handler.netCtx = netCtx
+	handler.netCtx = network.DefaultContext
 	handler.handlerCtx = handlerCtx
 }
 
