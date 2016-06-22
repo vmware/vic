@@ -16,6 +16,7 @@ package metadata
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net/mail"
 	"net/url"
@@ -221,6 +222,18 @@ func CreateSession(cmd string, args ...string) *SessionConfig {
 	return cfg
 }
 
-func (t *RawCertificate) Certificate() (tls.Certificate, error) {
-	return tls.X509KeyPair(t.Cert, t.Key)
+func (t *RawCertificate) Certificate() (*tls.Certificate, error) {
+	if t.IsNil() {
+		return nil, errors.New("nil certificate")
+	}
+	cert, err := tls.X509KeyPair(t.Cert, t.Key)
+	return &cert, err
+}
+
+func (t *RawCertificate) IsNil() bool {
+	if t == nil {
+		return true
+	}
+
+	return len(t.Cert) == 0 && len(t.Key) == 0
 }
