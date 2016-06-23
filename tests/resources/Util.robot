@@ -20,13 +20,10 @@ Install VIC Appliance To Test Server
     ${status}  ${message} =  Run Keyword And Ignore Error  Should Contain  ${output}  Installer completed successfully
     Run Keyword If  "${status}" == "FAIL"  Fail  Installing the VIC appliance failed, wrong credentials or network problems?
     ${line}=  Get Line  ${output}  -2
-    # Parse output when we are not using TLS
-    ${ret}=  Run Keyword If  "${certs}" == "false"  Fetch From Right  ${line}  ] DOCKER_HOST=
-    Run Keyword If  "${certs}" == "false"  Set Suite Variable  ${params}  ${ret}
-    # Parse output when we are using TLS
-    ${ret}=  Run Keyword If  "${certs}" == "true"  Fetch From Right  ${line}  ] docker
-    ${ret}=  Run Keyword If  "${certs}" == "true"  Remove String  ${ret}  info
-    Run Keyword If  "${certs}" == "true"  Set Suite Variable  ${params}  ${ret}
+    ${ret}=  Fetch From Right  ${line}  ] docker
+    ${ret}=  Remove String  ${ret}  info
+    ${ret}=  Strip String  ${ret}
+    Set Suite Variable  ${params}  ${ret}
     Log To Console  Installer completed successfully: ${vch-name}...
     # Required due to #1109
     Sleep  10 seconds

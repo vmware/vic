@@ -14,7 +14,7 @@ environment:
 ```
 2. Execute drone from the projects root directory:
 
-  `drone exec --trusted -E "secrets.yml" --yaml ".drone-e2e.yml"`
+  `drone exec --trusted -E "secrets.yml" --yaml ".drone.yml"`
 
 Find the documentation for each of the tests here:
 -

@@ -17,7 +17,6 @@ package metadata
 import (
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"net/mail"
 	"net/url"
 	"time"
@@ -75,7 +74,9 @@ type VirtualContainerHostConfigSpec struct {
 
 	// Port Layer - network
 	// The network to use by default to provide access to the world
-	BridgeNetwork string `vic:"0.1" scope:"read-only" key:"bridge_network"`
+	BridgeNetwork       string `vic:"0.1" scope:"read-only" key:"bridge_network"`
+	CreateBridgeNetwork bool   `vic:"0.1" scope:"read-only" key:"create_bridge_network"`
+
 	// Published networks available for containers to join, keyed by consumption name
 	ContainerNetworks map[string]*ContainerNetwork `vic:"0.1" scope:"read-only" key:"container_networks"`
 
@@ -139,7 +140,7 @@ func (t *VirtualContainerHostConfigSpec) SetName(name string) {
 // the appliance VM.
 func (t *VirtualContainerHostConfigSpec) SetMoref(moref *types.ManagedObjectReference) {
 	if moref != nil {
-		t.ExecutorConfig.ID = fmt.Sprintf("%s-%s", moref.Type, moref.Value)
+		t.ExecutorConfig.ID = moref.String()
 	}
 }
 
