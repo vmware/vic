@@ -17,7 +17,6 @@ package management
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -416,7 +415,6 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 	},
 	)
 
-	netname := strings.Split(conf.Networks["client"].Network.ID, "-")[1]
 	conf.AddComponent("port-layer", &metadata.SessionConfig{
 		Cmd: metadata.Cmd{
 			Path: "/sbin/port-layer-server",
@@ -431,7 +429,6 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 				"--cluster=" + settings.ClusterPath,
 				"--pool=" + settings.ResourcePoolPath,
 				"--datastore=" + conf.ImageStores[0].Host,
-				"--network=" + fmt.Sprintf("/%s/network/%s", settings.DatacenterName, netname),
 				"--vch=" + conf.ExecutorConfig.Name,
 			},
 		},

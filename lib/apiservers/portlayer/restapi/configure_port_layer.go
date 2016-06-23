@@ -75,7 +75,6 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 		ClusterPath:    options.PortLayerOptions.ClusterPath,
 		PoolPath:       options.PortLayerOptions.PoolPath,
 		DatastorePath:  options.PortLayerOptions.DatastorePath,
-		NetworkPath:    options.PortLayerOptions.NetworkPath,
 	}
 
 	sess, err := session.NewSession(sessionconfig).Create(ctx)

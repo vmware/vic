@@ -57,7 +57,6 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, hand
 		ClusterPath:    options.PortLayerOptions.ClusterPath,
 		PoolPath:       options.PortLayerOptions.PoolPath,
 		DatastorePath:  options.PortLayerOptions.DatastorePath,
-		NetworkPath:    options.PortLayerOptions.NetworkPath,
 	}
 
 	storageSession, err = session.NewSession(sessionconfig).Create(ctx)

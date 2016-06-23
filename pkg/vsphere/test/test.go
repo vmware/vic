@@ -17,7 +17,6 @@ package test
 import (
 	"fmt"
 	"math/rand"
-	"strings"
 	"testing"
 	"time"
 
@@ -52,6 +51,11 @@ func Session(ctx context.Context, t *testing.T) *session.Session {
 
 // SpecConfig returns a spec.VirtualMachineConfigSpecConfig struct
 func SpecConfig(session *session.Session) *spec.VirtualMachineConfigSpecConfig {
+	backing, err := session.Network.EthernetCardBackingInfo(context.TODO())
+	if err != nil {
+		return nil
+	}
+
 	return &spec.VirtualMachineConfigSpecConfig{
 		NumCPUs:       2,
 		MemoryMB:      2048,
@@ -63,7 +67,7 @@ func SpecConfig(session *session.Session) *spec.VirtualMachineConfigSpecConfig {
 		Name:          "zombie_attack",
 		BootMediaPath: session.Datastore.Path("brainz.iso"),
 		VMPathName:    fmt.Sprintf("[%s]", session.Datastore.Name()),
-		NetworkName:   strings.Split(session.Network.Reference().Value, "-")[1],
+		DebugNetwork:  backing,
 	}
 }
 
