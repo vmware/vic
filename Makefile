@@ -63,6 +63,11 @@ vic-machine-linux := $(BIN)/vic-machine-linux
 vic-machine-windows := $(BIN)/vic-machine-windows.exe
 vic-machine-darwin := $(BIN)/vic-machine-darwin
 vch-init := $(BIN)/vch-init
+# NOT BUILT WITH make all TARGET
+# vic-dns variants to create standalone DNS service.
+vic-dns-linux := $(BIN)/vic-dns-linux
+vic-dns-windows := $(BIN)/vic-dns-windows.exe
+vic-dns-darwin := $(BIN)/vic-dns-darwin
 
 tether-linux := $(BIN)/tether-linux
 tether-windows := $(BIN)/tether-windows.exe
@@ -102,6 +107,9 @@ bootstrap-debug: $(bootstrap-debug)
 bootstrap-staging-debug: $(bootstrap-staging-debug)
 iso-base: $(iso-base)
 vic-machine: $(vic-machine-linux) $(vic-machine-windows) $(vic-machine-darwin)
+# NOT BUILT WITH make all TARGET
+# vic-dns variants to create standalone DNS service.
+vic-dns: $(vic-dns-linux) $(vic-dns-windows) $(vic-dns-darwin)
 
 swagger: $(SWAGGER)
 
@@ -169,7 +177,7 @@ $(go-lint): $(GOLINT)
 gopath:
 	@echo -n $(GOPATH)
 
-$(go-imports): $(GOIMPORTS) $(find . -type f -name '*.go' -not -path "./vendor/*" -not -path "lib/apiservers/portlayer") $(PORTLAYER_DEPS)
+$(go-imports): $(GOIMPORTS) $(find . -type f -name '*.go' -not -path "./vendor/*") $(PORTLAYER_DEPS)
 	@echo checking go imports...
 	@! $(GOIMPORTS) -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
 	@touch $@
@@ -308,6 +316,18 @@ $(vic-machine-windows): $(call godeps,cmd/vic-machine/*.go)
 $(vic-machine-darwin): $(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine darwin...
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "-X github.com/vmware/vic/cmd/vic-machine.BuildID=$(BUILD_NUMBER)" -o ./$@ ./$(dir $<)
+
+$(vic-dns-linux): $(call godeps,cmd/vic-dns/*.go)
+	@echo building vic-dns linux...
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -o ./$@ ./$(dir $<)
+
+$(vic-dns-windows): $(call godeps,cmd/vic-dns/*.go)
+	@echo building vic-dns windows...
+	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) -o ./$@ ./$(dir $<)
+
+$(vic-dns-darwin): $(call godeps,cmd/vic-dns/*.go)
+	@echo building vic-dns darwin...
+	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -o ./$@ ./$(dir $<)
 
 clean:
 	rm -rf $(BIN)

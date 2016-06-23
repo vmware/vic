@@ -470,7 +470,24 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		ne.Network.Gateway = net.IPNet{IP: e.gateway, Mask: e.subnet.Mask}
 	}
 
+	// Adding long id, short id and common name to the map to point same container
+	// Last two is needed by DNS subsystem
 	c.containers[con.id] = con
+
+	tid := con.id.TruncateID()
+	cname := h.Container.ExecConfig.Common.Name
+
+	var key string
+	// network scoped
+	for _, e := range con.Endpoints() {
+		sname := e.Scope().Name()
+
+		key = fmt.Sprintf("%s:%s", sname, tid)
+		c.containers[exec.ParseID(key)] = con
+
+		key = fmt.Sprintf("%s:%s", sname, cname)
+		c.containers[exec.ParseID(key)] = con
+	}
 	return endpoints, nil
 }
 
@@ -513,7 +530,24 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 		}
 	}
 
+	// Removing long id, short id and common name from the map
 	delete(c.containers, h.Container.ID)
+
+	tid := con.id.TruncateID()
+	cname := h.Container.ExecConfig.Common.Name
+
+	var key string
+	// network scoped
+	for _, e := range con.Endpoints() {
+		sname := e.Scope().Name()
+
+		key = fmt.Sprintf("%s:%s", sname, tid)
+		delete(c.containers, exec.ParseID(key))
+
+		key = fmt.Sprintf("%s:%s", sname, cname)
+		delete(c.containers, exec.ParseID(key))
+	}
+
 	return nil
 }
 
