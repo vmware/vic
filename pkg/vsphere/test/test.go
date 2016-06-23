@@ -17,11 +17,12 @@ package test
 import (
 	"fmt"
 	"math/rand"
-	"strings"
 	"testing"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
@@ -52,6 +53,17 @@ func Session(ctx context.Context, t *testing.T) *session.Session {
 
 // SpecConfig returns a spec.VirtualMachineConfigSpecConfig struct
 func SpecConfig(session *session.Session) *spec.VirtualMachineConfigSpecConfig {
+	backing, err := session.Network.EthernetCardBackingInfo(context.TODO())
+	if err != nil {
+		log.Errorf("unable to get backing info for test network: %s", err)
+		return nil
+	}
+
+	uuid, err := guest.UUID()
+	if err != nil {
+		log.Errorf("unable to get UUID for guest - used for VM name: %s", err)
+		return nil
+	}
 	return &spec.VirtualMachineConfigSpecConfig{
 		NumCPUs:       2,
 		MemoryMB:      2048,
@@ -59,11 +71,11 @@ func SpecConfig(session *session.Session) *spec.VirtualMachineConfigSpecConfig {
 
 		ConnectorURI: "tcp://1.2.3.4:9876",
 
-		ID:            "deadbeef",
+		ID:            uuid,
 		Name:          "zombie_attack",
 		BootMediaPath: session.Datastore.Path("brainz.iso"),
 		VMPathName:    fmt.Sprintf("[%s]", session.Datastore.Name()),
-		NetworkName:   strings.Split(session.Network.Reference().Value, "-")[1],
+		DebugNetwork:  backing,
 	}
 }
 

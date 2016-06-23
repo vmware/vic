@@ -59,6 +59,22 @@ func Init(ctx context.Context, sess *session.Session) error {
 		return err
 	}
 	exec.Config.ResourcePool = r.(*object.ResourcePool)
+	//FIXME: temporary injection of debug network for debug nic
+	ne := exec.Config.Networks["client"]
+	if ne == nil {
+		detail := fmt.Sprintf("could not get client network reference for debug nic - this code can be removed once network mapping/dhcp client is present")
+		log.Errorf(detail)
+		return err
+	}
+	nr := new(types.ManagedObjectReference)
+	nr.FromString(ne.Network.ID)
+	r, err = f.ObjectReference(ctx, *nr)
+	if err != nil {
+		detail := fmt.Sprintf("could not get client network reference from %s: %s", nr.String(), err)
+		log.Errorf(detail)
+		return err
+	}
+	exec.Config.DebugNetwork = r.(object.NetworkReference)
 
 	extraconfig.Decode(source, &network.Config)
 	log.Debugf("Decoded VCH config for network: %#v", network.Config)

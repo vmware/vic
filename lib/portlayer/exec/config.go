@@ -46,4 +46,8 @@ type Configuration struct {
 
 	// Allow custom naming convention for containerVMs
 	ContainerNameConvention string
+
+	// FIXME: temporary work around for injecting network path of debug nic
+	Networks     map[string]*metadata.NetworkEndpoint `vic:"0.1" scope:"read-only" key:"init/networks"`
+	DebugNetwork object.NetworkReference
 }
