@@ -181,8 +181,8 @@ func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec, set
 		return err
 	}
 
-	if err = d.removeApplianceIfForced(conf); err != nil {
-		return errors.Errorf("%s", err)
+	if err = d.checkExistence(conf); err != nil {
+		return err
 	}
 
 	if err = d.createAppliance(conf, settings); err != nil {

@@ -98,6 +98,13 @@ func TestVM(t *testing.T) {
 	}
 	assert.Equal(t, "deadbeef", name)
 
+	// Get VM UUID
+	uuid, err := vm.UUID(ctx)
+	if err != nil {
+		t.Errorf("Failed to load VM UUID: %s", err)
+	}
+	t.Logf("Got UUID: %s", uuid)
+
 	// Destroy the vm
 	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return vm.Destroy(ctx)
