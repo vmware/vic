@@ -127,6 +127,7 @@ func (s *Session) Create(ctx context.Context) (*Session, error) {
 	}
 
 	extraconfig.Decode(source, &vchExtraConfig)
+
 	s.ExtensionKey = vchExtraConfig.ExtensionKey
 	s.ExtensionCert = vchExtraConfig.ExtensionCert
 	s.ExtensionName = vchExtraConfig.ExtensionName
@@ -171,11 +172,7 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 		return nil, errors.Errorf("Failed to connect to %s: %s", soapURL.String(), err)
 	}
 
-	if s.HasCertificate() {
-		if !s.Client.IsVC() {
-			return nil, errors.Errorf("Certificate based authentication not yet supported with ESXi")
-		}
-
+	if s.HasCertificate() && s.Client.IsVC() {
 		// load the certificates
 		cert, err2 := tls.X509KeyPair([]byte(s.ExtensionCert), []byte(s.ExtensionKey))
 		if err2 != nil {
@@ -196,7 +193,7 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 	}
 
 	// and now that the keepalive is registered we can log in to trigger it
-	if !s.HasCertificate() {
+	if !s.IsVC() || !s.HasCertificate() {
 		log.Debugf("Trying to log in with username/password in lieu of cert")
 		err = s.Client.Login(ctx, user)
 	} else {

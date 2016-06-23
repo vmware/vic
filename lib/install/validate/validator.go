@@ -361,6 +361,14 @@ func (v *Validator) target(ctx context.Context, input *data.Data, conf *metadata
 	defer trace.End(trace.Begin(""))
 
 	targetURL := input.Target.URLWithoutPassword()
+	if !v.IsVC() {
+		var err error
+		targetURL, err = url.Parse(v.Session.Service)
+		if err != nil {
+			v.NoteIssue(fmt.Errorf("Error processing target after transformation to SOAP endpoint: %s, %s", v.Session.Service, err))
+			return
+		}
+	}
 
 	conf.Target = *targetURL
 	conf.Insecure = input.Insecure

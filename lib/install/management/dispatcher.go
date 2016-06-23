@@ -185,10 +185,11 @@ func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec, set
 		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
 	}
 
-	if err = d.registerExtension(conf, settings.Extension); err != nil {
-		return errors.Errorf("Error registering VCH vSphere extension: %s", err)
+	if d.session.IsVC() {
+		if err = d.registerExtension(conf, settings.Extension); err != nil {
+			return errors.Errorf("Error registering VCH vSphere extension: %s", err)
+		}
 	}
-
 	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return d.appliance.PowerOn(ctx)
 	})
