@@ -1,4 +1,5 @@
 .vagrant/
+.vscode/
 .cover/
 bin/
 binary/

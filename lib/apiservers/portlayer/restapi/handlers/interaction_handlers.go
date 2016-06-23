@@ -62,7 +62,6 @@ func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Han
 		ClusterPath:    options.PortLayerOptions.ClusterPath,
 		PoolPath:       options.PortLayerOptions.PoolPath,
 		DatastorePath:  options.PortLayerOptions.DatastorePath,
-		NetworkPath:    options.PortLayerOptions.NetworkPath,
 	}
 
 	interactionSession, err = session.NewSession(sessionconfig).Create(ctx)
