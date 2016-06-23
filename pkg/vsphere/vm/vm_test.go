@@ -140,10 +140,15 @@ func TestVMAttributes(t *testing.T) {
 	// Wrap the result with our version of VirtualMachine
 	vm := NewVirtualMachine(ctx, session, *moref)
 
+	uuid, err := guest.UUID()
+	if err != nil {
+		t.Fatalf("unable to get UUID for guest - used for VM name: %s", err)
+	}
+
 	if folder, err := vm.FolderName(ctx); err != nil {
 		t.Fatalf("ERROR: %s", err)
 	} else {
-		assert.Equal(t, "deadbeef", folder)
+		assert.Equal(t, uuid, folder)
 	}
 
 	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {

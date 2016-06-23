@@ -17,9 +17,9 @@ package exec
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
@@ -196,6 +196,13 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 
 	URI := fmt.Sprintf("tcp://%s:%d", ips[0], serialOverLANPort)
 
+	//FIXME: remove debug network
+	backing, err := Config.DebugNetwork.EthernetCardBackingInfo(ctx)
+	if err != nil {
+		detail := fmt.Sprintf("unable to generate backing info for debug network - this code can be removed once network mapping/dhcp client are available: %s", err)
+		log.Error(detail)
+		return errors.New(detail)
+	}
 	specconfig := &spec.VirtualMachineConfigSpecConfig{
 		// FIXME: hardcoded values
 		NumCPUs:  2,
@@ -211,7 +218,7 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 		// FIXME: hardcoded value
 		BootMediaPath: sess.Datastore.Path(fmt.Sprintf("%s/bootstrap.iso", config.VCHName)),
 		VMPathName:    fmt.Sprintf("[%s]", sess.Datastore.Name()),
-		NetworkName:   strings.Split(sess.Network.Reference().Value, "-")[1],
+		DebugNetwork:  backing,
 
 		ImageStoreName: config.ImageStoreName,
 
