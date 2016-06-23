@@ -133,7 +133,7 @@ func (d *Dispatcher) initDiagnosticLogs(conf *metadata.VirtualContainerHostConfi
 	}
 }
 
-func (d *Dispatcher) registerExtension(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
+func (d *Dispatcher) registerExtension(conf *metadata.VirtualContainerHostConfigSpec, extension types.Extension) error {
 	log.Infoln("Registering VCH as a vSphere extension")
 
 	// vSphere confusingly calls the 'name' of the extension a 'key'
@@ -144,14 +144,13 @@ func (d *Dispatcher) registerExtension(conf *metadata.VirtualContainerHostConfig
 
 	extensionManager := object.NewExtensionManager(d.session.Vim25())
 
-	if err := extensionManager.Register(d.ctx, settings.Extension); err != nil {
-		log.Errorf("Could not register the vSphere extension")
+	if err := extensionManager.Register(d.ctx, extension); err != nil {
+		log.Errorf("Could not register the vSphere extension due to err: %s", err)
 		return err
 	}
 
-	// TODO: set com.vmware.vic as a const
 	if err := extensionManager.SetCertificate(d.ctx, conf.ExtensionName, conf.ExtensionCert); err != nil {
-		log.Errorf("Could not set the certificate on the vSphere extension")
+		log.Errorf("Could not set the certificate on the vSphere extension due to error: %s", err)
 		return err
 	}
 
@@ -185,7 +184,7 @@ func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec, set
 		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
 	}
 
-	if err = d.registerExtension(conf, settings); err != nil {
+	if err = d.registerExtension(conf, settings.Extension); err != nil {
 		return errors.Errorf("Error registering VCH vSphere extension: %s", err)
 	}
 

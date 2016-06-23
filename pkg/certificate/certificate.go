@@ -46,8 +46,9 @@ func NewKeyPair(tlsGenerate bool, keyFile, certFile string) *Keypair {
 	}
 }
 
-func CreateRawKeyPair() (bytes.Buffer, bytes.Buffer, error) {
-	var cert, key bytes.Buffer
+// CreateRawKeyPair generates a default certificate / key and returns them as bytes buffers
+// If you wish to save them to files as a side effect, use GetCertificate() instead
+func CreateRawKeyPair() (cert bytes.Buffer, key bytes.Buffer, err error) {
 	org := "VMware"
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {

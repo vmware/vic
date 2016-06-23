@@ -302,6 +302,7 @@ func (d *Dispatcher) findAppliance(conf *metadata.VirtualContainerHostConfigSpec
 	return newVM, nil
 }
 
+// retrieves the uuid of the appliance vm to create a unique vsphere extension name
 func (d *Dispatcher) generateExtensionName(conf *metadata.VirtualContainerHostConfigSpec) error {
 	// must be called after appliance VM is created
 	vm, err := d.findAppliance(conf)
@@ -313,12 +314,10 @@ func (d *Dispatcher) generateExtensionName(conf *metadata.VirtualContainerHostCo
 	var o mo.VirtualMachine
 	err = vm.Properties(d.ctx, vm.Reference(), []string{"config.uuid"}, &o)
 	if err != nil {
-		return errors.Errorf("Could get VM UUID from appliance VM")
+		return errors.Errorf("Could not get VM UUID from appliance VM due to error: %s", err)
 	}
 
-	// identifier for extension, which vSphere calls a 'key' but we want to avoid confusion w/ privkey
-	extensionIDKey := "com.vmware.vic." + o.Config.Uuid
-	conf.ExtensionName = extensionIDKey
+	conf.ExtensionName = "com.vmware.vic." + o.Config.Uuid
 	return nil
 }
 
