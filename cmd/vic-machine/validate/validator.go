@@ -603,7 +603,7 @@ func (v *Validator) resourcePoolHelper(ctx context.Context, path string) (*objec
 func (v *Validator) suggestComputeResource(path string) {
 	defer trace.End(trace.Begin(path))
 
-	log.Info("Suggesting valid values for --compute-resource based on %s", path)
+	log.Infof("Suggesting valid values for --compute-resource based on %s", path)
 
 	// allow us to work on inventory paths
 	path = v.computePathToInventoryPath(path)
