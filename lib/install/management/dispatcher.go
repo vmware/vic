@@ -32,6 +32,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
+	"github.com/vmware/govmomi/vim25/types"
 	"golang.org/x/net/context"
 )
 
