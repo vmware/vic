@@ -20,11 +20,15 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/docker/distribution/digest"
 	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/reference"
+
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -48,13 +52,15 @@ type ImageCache struct {
 	m sync.RWMutex
 
 	// cache maps image ID to image metadata
-	cache map[string]*metadata.ImageConfig
+	cacheByID   map[string]*metadata.ImageConfig
+	cacheByName map[string]*metadata.ImageConfig
 }
 
 // NewImageCache creates and returns a new ImageCache
 func NewImageCache() *ImageCache {
 	return &ImageCache{
-		cache: make(map[string]*metadata.ImageConfig),
+		cacheByID:   make(map[string]*metadata.ImageConfig),
+		cacheByName: make(map[string]*metadata.ImageConfig),
 	}
 }
 
@@ -105,7 +111,37 @@ func (c *ImageCache) Update(client *client.PortLayer) error {
 		}
 
 		if imageConfig.ImageID != "" {
-			c.cache[imageConfig.ImageID] = imageConfig
+			var imageID string
+
+			// Don't assume the image id in image has "sha256:<id> as format.  We store it in
+			// this fomat to make it easier to lookup by digest
+			if strings.HasPrefix(imageConfig.ImageID, "sha") {
+				imageID = imageConfig.ImageID
+			} else {
+				imageID = "sha256:" + imageConfig.ImageID
+			}
+
+			c.cacheByID[imageID] = imageConfig
+
+			// Normalize the name stored in imageConfig using Docker's reference code
+			ref, err := reference.WithName(imageConfig.Name)
+			if err != nil {
+				log.Errorf("Tried to create reference from %s: %s", imageConfig.Name, err.Error())
+				continue
+			}
+
+			ref, err = reference.WithTag(ref, imageConfig.Tag)
+			if err != nil {
+				log.Errorf("Tried to create tagged reference from %s and tag %s: %s", imageConfig.Name, imageConfig.Tag, err.Error())
+				continue
+			}
+
+			if tagged, ok := ref.(reference.NamedTagged); ok {
+				taggedName := tagged.Name() + ":" + tagged.Tag()
+				c.cacheByName[taggedName] = imageConfig
+			} else {
+				c.cacheByName[ref.Name()] = imageConfig
+			}
 		}
 	}
 
@@ -122,12 +158,51 @@ func (c *ImageCache) GetImages() ([]*metadata.ImageConfig, error) {
 		return nil, ErrCacheNotUpdated
 	}
 
-	result := make([]*metadata.ImageConfig, 0, len(c.cache))
-	for _, image := range c.cache {
+	result := make([]*metadata.ImageConfig, 0, len(c.cacheByID))
+	for _, image := range c.cacheByID {
 		newImage := new(metadata.ImageConfig)
 		*newImage = *image
 		result = append(result, newImage)
 	}
 
 	return result, nil
+}
+
+func (c *ImageCache) GetImageByDigest(digest digest.Digest) (*metadata.ImageConfig, error) {
+	c.m.RLock()
+	defer c.m.RUnlock()
+
+	if CacheNotUpdated {
+		return nil, ErrCacheNotUpdated
+	}
+
+	config := c.cacheByID[string(digest)]
+	return config, nil
+}
+
+// Looks up image by reference.Named
+func (c *ImageCache) GetImageByNamed(named reference.Named) (*metadata.ImageConfig, error) {
+	c.m.RLock()
+	defer c.m.RUnlock()
+
+	if CacheNotUpdated {
+		return nil, ErrCacheNotUpdated
+	}
+
+	var config *metadata.ImageConfig
+
+	if tagged, ok := named.(reference.NamedTagged); ok {
+		taggedName := tagged.Name() + ":" + tagged.Tag()
+		config = c.cacheByName[taggedName]
+	} else {
+		// First try just the name.
+		config = c.cacheByName[named.Name()]
+		if config == nil {
+			// try with the default docker tag
+			taggedName := named.Name() + ":" + reference.DefaultTag
+			config = c.cacheByName[taggedName]
+		}
+	}
+
+	return config, nil
 }
