@@ -165,3 +165,19 @@ func (r *Registry) FindByName(name string, refs []types.ManagedObjectReference) 
 
 	return nil
 }
+
+// RemoveReference returns a slice with ref removed from refs
+func RemoveReference(ref types.ManagedObjectReference, refs []types.ManagedObjectReference) []types.ManagedObjectReference {
+	var result []types.ManagedObjectReference
+
+	for i, r := range refs {
+		if r == ref {
+			result = append(result, refs[i+1:]...)
+			break
+		}
+
+		result = append(result, r)
+	}
+
+	return result
+}

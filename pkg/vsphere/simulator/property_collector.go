@@ -16,6 +16,7 @@ package simulator
 
 import (
 	"errors"
+	"log"
 	"path"
 	"reflect"
 	"strings"
@@ -39,6 +40,37 @@ func NewPropertyCollector(ref types.ManagedObjectReference) object.Reference {
 
 var errMissingField = errors.New("missing field")
 var errEmptyField = errors.New("empty field")
+
+func getObject(ref types.ManagedObjectReference) (reflect.Value, bool) {
+	obj := Map.Get(ref)
+	if obj == nil {
+		return reflect.Value{}, false
+	}
+
+	rval := reflect.ValueOf(obj).Elem()
+	rtype := rval.Type()
+
+	// PropertyCollector is for Managed Object types only (package mo).
+	// If the registry object is not in the mo package, assume it is a wrapper
+	// type where the first field is an embedded mo type.
+	// We need to dig out the mo type for PropSet.All to work properly and
+	// for the case where the type has a field of the same name, for example:
+	// mo.ResourcePool.ResourcePool
+	for {
+		if path.Base(rtype.PkgPath()) != "mo" {
+			if rtype.Kind() != reflect.Struct || rtype.NumField() == 0 {
+				log.Printf("%#v does not have an embedded mo type", ref)
+				return reflect.Value{}, false
+			}
+			rval = rval.Field(0)
+			rtype = rval.Type()
+		} else {
+			break
+		}
+	}
+
+	return rval, true
+}
 
 func fieldValueInterface(f reflect.StructField, rval reflect.Value) interface{} {
 	if rval.Kind() == reflect.Ptr {
@@ -216,23 +248,12 @@ func (rr *retrieveResult) collect(ref types.ManagedObjectReference) {
 		return
 	}
 
-	obj := Map.Get(ref)
-
 	content := types.ObjectContent{
 		Obj: ref,
 	}
 
-	rval := reflect.ValueOf(obj).Elem()
+	rval, _ := getObject(ref)
 	rtype := rval.Type()
-
-	// PropertyCollector is for Managed Object types only (package mo).
-	// If the registry object is not in the mo package, assume it is a wrapper
-	// type where the first field is an embedded mo type.
-	// Otherwise, PropSet.All will not work as expected.
-	if path.Base(rtype.PkgPath()) != "mo" {
-		rval = rval.Field(0)
-		rtype = rval.Type()
-	}
 
 	var refs []types.ManagedObjectReference
 
@@ -277,8 +298,9 @@ func (pc *PropertyCollector) collect(r *types.RetrievePropertiesEx) (*types.Retr
 	// Select object references
 	for _, spec := range r.SpecSet {
 		for _, o := range spec.ObjectSet {
-			obj := Map.Get(o.Obj)
-			if obj == nil {
+			rval, ok := getObject(o.Obj)
+
+			if !ok {
 				if isFalse(spec.ReportMissingObjectsInResults) {
 					return nil, &types.ManagedObjectNotFound{Obj: o.Obj}
 				}
@@ -295,8 +317,6 @@ func (pc *PropertyCollector) collect(r *types.RetrievePropertiesEx) (*types.Retr
 				if ts.SelectSet != nil {
 					rr.recurse[ts.Path] = true
 				}
-
-				rval := reflect.ValueOf(obj)
 
 				f, _ := fieldValue(rval, ts.Path)
 

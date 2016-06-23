@@ -94,6 +94,8 @@ func (c *Container) cacheExecConfig(ec *metadata.ExecutorConfig) {
 }
 
 func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle) error {
+	defer trace.End(trace.Begin("Committing handle"))
+
 	c.Lock()
 	defer c.Unlock()
 
@@ -126,7 +128,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 			// Create the vm
 			res, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-				return parent.CreateVM(ctx, *s, sess.Pool, host)
+				return parent.CreateVM(ctx, *s, Config.ResourcePool, host)
 			})
 			if err != nil {
 				return err

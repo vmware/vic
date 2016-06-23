@@ -28,7 +28,12 @@ import (
 )
 
 // NilSlot is an invalid PCI slot number
-const NilSlot int32 = 0
+const (
+	NilSlot            int32 = 0
+	pciSlotNumberBegin int32 = 0xc0
+	pciSlotNumberEnd   int32 = 1 << 10
+	pciSlotNumberInc   int32 = 1 << 5
+)
 
 // VirtualMachineConfigSpecConfig holds the config values
 type VirtualMachineConfigSpecConfig struct {
@@ -58,8 +63,8 @@ type VirtualMachineConfigSpecConfig struct {
 	// URI of the network serial port
 	ConnectorURI string
 
-	// Name of the network
-	NetworkName string
+	// Network backing info
+	DebugNetwork types.BaseVirtualDeviceBackingInfo
 
 	// Name of the image store
 	ImageStoreName string
@@ -226,10 +231,10 @@ func (s *VirtualMachineConfigSpec) VMPathName() string {
 }
 
 // NetworkName returns the network name
-func (s *VirtualMachineConfigSpec) NetworkName() string {
+func (s *VirtualMachineConfigSpec) DebugNetwork() types.BaseVirtualDeviceBackingInfo {
 	defer trace.End(trace.Begin(s.config.ID))
 
-	return s.config.NetworkName
+	return s.config.DebugNetwork
 }
 
 // ConnectorURI returns the connector URI
@@ -271,15 +276,51 @@ func VirtualDeviceSlotNumber(d types.BaseVirtualDevice) int32 {
 	return NilSlot
 }
 
+func findSlotNumber(slots map[int32]bool) int32 {
+	// see https://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=2047927
+	slot := pciSlotNumberBegin
+	for _, ok := slots[slot]; ok && slot != pciSlotNumberEnd; {
+		slot += pciSlotNumberInc
+		_, ok = slots[slot]
+	}
+
+	if slot == pciSlotNumberEnd {
+		return NilSlot
+	}
+
+	return slot
+}
+
+// AssignSlotNumber assigns a specific PCI slot number to the specified device. This ensures that
+// the slot is valid and not in use by anything else in the spec
+func (s *VirtualMachineConfigSpec) AssignSlotNumber(dev types.BaseVirtualDevice, known map[int32]bool) int32 {
+	slot := VirtualDeviceSlotNumber(dev)
+	if slot != NilSlot {
+		return slot
+	}
+
+	// build the slots in use from the spec
+	slots := s.CollectSlotNumbers(known)
+	slot = findSlotNumber(slots)
+	if slot != NilSlot {
+		dev.GetVirtualDevice().SlotInfo = &types.VirtualDevicePciBusSlotInfo{PciSlotNumber: slot}
+	}
+
+	return slot
+}
+
 // CollectSlotNumbers returns a collection of all the PCI slot numbers for devices in the spec
-func (s *VirtualMachineConfigSpec) CollectSlotNumbers() []int32 {
+// Can take a nil map as argument
+func (s *VirtualMachineConfigSpec) CollectSlotNumbers(known map[int32]bool) map[int32]bool {
+	if known == nil {
+		known = make(map[int32]bool)
+	}
 	// collect all the already assigned slot numbers
-	var slots []int32
 	for _, c := range s.DeviceChange {
 		if s := VirtualDeviceSlotNumber(c.GetVirtualDeviceConfigSpec().Device); s != NilSlot {
-			slots = append(slots, s)
+			known[s] = true
 		}
 	}
 
-	return slots
+	return known
 }

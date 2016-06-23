@@ -119,7 +119,7 @@ func (t *Mocker) ProcessEnv(env []string) []string {
 }
 
 // SetHostname sets both the kernel hostname and /etc/hostname to the specified string
-func (t *Mocker) SetHostname(hostname string) error {
+func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 	defer trace.End(trace.Begin("mocking hostname to " + hostname))
 
 	// TODO: we could mock at a much finer granularity, only extracting the syscall
@@ -186,7 +186,9 @@ func StartAttachTether(t *testing.T, cfg *metadata.ExecutorConfig) (tether.Tethe
 
 	// create client on the mock pipe
 	conn, err := mockBackChannel(context.Background())
-	if err != nil {
+	if err != nil && (err != io.EOF || server.(*testAttachServer).enabled) {
+		// we accept the case where the error is end-of-file and the attach server is disabled because that's
+		// expected when the tether is shut down.
 		t.Error(err)
 	}
 

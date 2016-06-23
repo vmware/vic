@@ -1,0 +1,16 @@
+# docker build -t vic-test -f Dockerfile.test .
+FROM golang:1.6.2
+
+RUN apt-get update
+RUN apt-get install -y jq time
+RUN curl -sSL https://get.docker.com/ | sh
+
+RUN apt-get install -y gcc python-dev python-setuptools python-pip libffi-dev libssl-dev
+RUN pip install pyasn1 gsutil --upgrade
+RUN pip install robotframework
+RUN pip install robotframework-sshlibrary
+
+RUN go get github.com/docker/docker; echo 0
+
+RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.7.0/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc
+RUN chmod +x /usr/local/bin/govc

@@ -16,25 +16,22 @@ Install VIC Appliance To Test Server
     ${name}=  Evaluate  'VCH-' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nInstalling VCH to test server...
     Set Suite Variable  ${vch-name}  ${name}
-    ${output}=  Run  bin/vic-machine-linux create --name ${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=datastore1 --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --generate-cert=${certs} --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE}
-    ${status}  ${message} =  Run Keyword And Ignore Error  Should Contain  ${output}  Installer completed successfully...
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=datastore1 --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --generate-cert=${certs} --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE}
+    ${status}  ${message} =  Run Keyword And Ignore Error  Should Contain  ${output}  Installer completed successfully
     Run Keyword If  "${status}" == "FAIL"  Fail  Installing the VIC appliance failed, wrong credentials or network problems?
     ${line}=  Get Line  ${output}  -2
-    # Parse output when we are not using TLS
-    ${ret}=  Run Keyword If  "${certs}" == "false"  Fetch From Right  ${line}  ] DOCKER_HOST=
-    Run Keyword If  "${certs}" == "false"  Set Suite Variable  ${params}  ${ret}
-    # Parse output when we are using TLS
-    ${ret}=  Run Keyword If  "${certs}" == "true"  Fetch From Right  ${line}  ] docker
-    ${ret}=  Run Keyword If  "${certs}" == "true"  Remove String  ${ret}  info
-    Run Keyword If  "${certs}" == "true"  Set Suite Variable  ${params}  ${ret}
+    ${ret}=  Fetch From Right  ${line}  ] docker
+    ${ret}=  Remove String  ${ret}  info
+    ${ret}=  Strip String  ${ret}
+    Set Suite Variable  ${params}  ${ret}
     Log To Console  Installer completed successfully: ${vch-name}...
     # Required due to #1109
     Sleep  10 seconds
     ${status}=  Get State Of Github Issue  1109
     Run Keyword If  '${status}' == 'closed'  Fail  Util.robot needs to be updated now that Issue #1109 has been resolved
-    
 
 Cleanup VIC Appliance On Test Server
+    Run Keyword And Ignore Error  Gather Logs From Test Server
     # Let's attempt to cleanup any container related to the VCH appliance first
     ${list}=  Run  govc ls /ha-datacenter/vm
     ${list}=  Split To Lines  ${list}
@@ -54,6 +51,18 @@ Cleanup VIC Appliance On Test Server
     ${output}=  Run  govc datastore.rm ${vch-name}
     ${output}=  Run  rm -f ${vch-name}-*.pem
     ${output}=  Run  govc datastore.rm VIC/${uuid}
+
+Gather Logs From Test Server
+    Variable Should Exist  ${params}
+    ${params}=  Strip String  ${params}
+    ${status}  ${message}=  Run Keyword And Ignore Error  Should Not Contain  ${params}  --tls  
+    # Non-certificate case
+    ${ip}=  Run Keyword If  '${status}'=='PASS'  Split String  ${params}  :
+    Run Keyword If  '${status}'=='PASS'  Run  wget http://@{ip}[0]:2378/container-logs.tar.gz -O ${vch-name}-container-logs.tar.gz
+    # Certificate case
+    ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  ${params}  ${SPACE}
+    ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  @{ip}[1]  :
+    Run Keyword If  '${status}'=='FAIL'  Run  wget --no-check-certificate https://@{ip}[0]:2378/container-logs.tar.gz -O ${vch-name}-container-logs.tar.gz
 
 Get State Of Github Issue
     [Arguments]  ${num}

@@ -24,10 +24,11 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/urfave/cli"
-	"github.com/vmware/vic/cmd/vic-machine/data"
-	"github.com/vmware/vic/cmd/vic-machine/validate"
+	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
+	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 
 	"golang.org/x/net/context"
 )
@@ -71,6 +72,10 @@ var (
 func NewCreate() *Create {
 	create := &Create{}
 	create.Data = data.NewData()
+
+	// FIXME: make this a flag
+	create.logfile = "create.log"
+
 	return create
 }
 
@@ -78,22 +83,16 @@ func NewCreate() *Create {
 func (c *Create) Flags() []cli.Flag {
 	flags := []cli.Flag{
 		cli.StringFlag{
-			Name:        "cert",
-			Value:       "",
-			Usage:       "Virtual Container Host x509 certificate file",
-			Destination: &c.cert,
-		},
-		cli.StringFlag{
-			Name:        "key",
-			Value:       "",
-			Usage:       "Virtual Container Host private key file",
-			Destination: &c.key,
-		},
-		cli.StringFlag{
 			Name:        "compute-resource",
 			Value:       "",
-			Usage:       "Compute resource path, e.g. /ha-datacenter/host/myCluster/Resources/myRP",
+			Usage:       "Compute resource path, e.g. myCluster/Resources/myRP",
 			Destination: &c.ComputeResourcePath,
+		},
+		cli.StringFlag{
+			Name:        "name",
+			Value:       "docker-appliance",
+			Usage:       "The name of the Virtual Container Host",
+			Destination: &c.DisplayName,
 		},
 		cli.StringFlag{
 			Name:        "image-datastore",
@@ -104,14 +103,14 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "container-datastore",
 			Value:       "",
-			Usage:       "Container datastore name - defaults to image datastore",
+			Usage:       "Container datastore name - not supported yet, default to image datastore",
 			Destination: &c.ContainerDatastoreName,
 		},
 		cli.StringFlag{
-			Name:        "name",
-			Value:       "docker-appliance",
-			Usage:       "The name of the Virtual Container Host",
-			Destination: &c.DisplayName,
+			Name:        "bridge-network",
+			Value:       "",
+			Usage:       "The bridge network (private port group for containers)",
+			Destination: &c.BridgeNetworkName,
 		},
 		cli.StringFlag{
 			Name:        "external-network",
@@ -122,14 +121,14 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "management-network",
 			Value:       "",
-			Usage:       "The management network (can see target)",
+			Usage:       "The management network (provides route to target hosting vSphere)",
 			Destination: &c.ManagementNetworkName,
 		},
 		cli.StringFlag{
-			Name:        "bridge-network",
+			Name:        "client-network",
 			Value:       "",
-			Usage:       "The bridge network",
-			Destination: &c.BridgeNetworkName,
+			Usage:       "The client network (restricts DOCKER_API access to this network)",
+			Destination: &c.ClientNetworkName,
 		},
 		cli.StringFlag{
 			Name:        "appliance-iso",
@@ -143,15 +142,27 @@ func (c *Create) Flags() []cli.Flag {
 			Usage:       "The bootstrap iso",
 			Destination: &c.bootstrapISO,
 		},
-		cli.BoolFlag{
-			Name:        "force",
-			Usage:       "Force the install, removing existing if present",
-			Destination: &c.Force,
+		cli.StringFlag{
+			Name:        "key",
+			Value:       "",
+			Usage:       "Virtual Container Host private key file",
+			Destination: &c.key,
+		},
+		cli.StringFlag{
+			Name:        "cert",
+			Value:       "",
+			Usage:       "Virtual Container Host x509 certificate file",
+			Destination: &c.cert,
 		},
 		cli.BoolTFlag{
 			Name:        "generate-cert",
 			Usage:       "Generate certificate for Virtual Container Host",
 			Destination: &c.tlsGenerate,
+		},
+		cli.BoolFlag{
+			Name:        "force",
+			Usage:       "Force the install, removing existing if present",
+			Destination: &c.Force,
 		},
 		cli.DurationFlag{
 			Name:        "timeout",
@@ -173,16 +184,13 @@ func (c *Create) Flags() []cli.Flag {
 		},
 	}
 	flags = append(c.TargetFlags(), flags...)
+	flags = append(flags, c.DebugFlags()...)
 	return flags
 }
 
 func (c *Create) processParams() error {
-	if err := c.ProcessTargets(); err != nil {
+	if err := c.HasCredentials(); err != nil {
 		return err
-	}
-
-	if c.ComputeResourcePath == "" {
-		return cli.NewExitError("--compute-resource Compute resource path must be specified", 1)
 	}
 
 	if c.ImageDatastoreName == "" {
@@ -210,7 +218,6 @@ func (c *Create) processParams() error {
 
 	// FIXME: add parameters for these configurations
 	c.osType = "linux"
-	c.logfile = "create.log"
 
 	c.Insecure = true
 	return nil
@@ -221,7 +228,7 @@ func (c *Create) loadCertificate() (*Keypair, error) {
 	if c.cert != "" && c.key != "" {
 		log.Infof("Loading certificate/key pair - private key in %s", c.key)
 		keypair = NewKeyPair(false, c.key, c.cert)
-	} else if c.tlsGenerate {
+	} else if c.tlsGenerate && c.DisplayName != "" {
 		c.key = fmt.Sprintf("./%s-key.pem", c.DisplayName)
 		c.cert = fmt.Sprintf("./%s-cert.pem", c.DisplayName)
 		log.Infof("Generating certificate/key pair - private key in %s", c.key)
@@ -280,15 +287,6 @@ func (c *Create) checkImagesFiles() ([]string, error) {
 
 func (c *Create) Run(cli *cli.Context) error {
 	var err error
-	if err = c.processParams(); err != nil {
-		return err
-	}
-
-	var images []string
-	if images, err = c.checkImagesFiles(); err != nil {
-		return err
-	}
-
 	// Open log file
 	f, err := os.OpenFile(c.logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
@@ -302,32 +300,54 @@ func (c *Create) Run(cli *cli.Context) error {
 	// SetOutput to io.MultiWriter so that we can log to stdout and a file
 	log.SetOutput(io.MultiWriter(os.Stdout, f))
 
+	if c.Debug.Debug {
+		log.SetLevel(log.DebugLevel)
+		trace.Logger.Level = log.DebugLevel
+	}
+
+	if err = c.processParams(); err != nil {
+		return err
+	}
+
+	var images []string
+	if images, err = c.checkImagesFiles(); err != nil {
+		return err
+	}
+
 	log.Infof("### Installing VCH ####")
 
 	var keypair *Keypair
 	if keypair, err = c.loadCertificate(); err != nil {
-		err = errors.Errorf("Loading certificate failed with %s. Exiting...", err)
-		return err
-	}
-
-	validator := validate.NewValidator()
-	vchConfig, err := validator.Validate(c.Data)
-	if err != nil {
-		err = errors.Errorf("%s\nExiting...", err)
+		log.Error("Creation cannot continue: unable to load certificate")
 		return err
 	}
 
 	if keypair != nil {
-		vchConfig.KeyPEM = keypair.KeyPEM
-		vchConfig.CertPEM = keypair.CertPEM
+		c.KeyPEM = keypair.KeyPEM
+		c.CertPEM = keypair.CertPEM
 	}
-	vchConfig.ImageFiles = images
 
-	var cancel context.CancelFunc
-	validator.Context, cancel = context.WithTimeout(validator.Context, c.Timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
-	executor := management.NewDispatcher(validator.Context, validator.Session, vchConfig, c.Force)
-	if err = executor.Dispatch(vchConfig); err != nil {
+
+	validator, err := validate.NewValidator(ctx, c.Data)
+	if err != nil {
+		log.Error("Creation cannot continue: failed to create validator")
+		return err
+	}
+
+	vchConfig, err := validator.Validate(ctx, c.Data)
+	if err != nil {
+		log.Error("Creation cannot continue: configuration validaton failed")
+		return err
+	}
+
+	vConfig := validator.AddDeprecatedFields(ctx, vchConfig, c.Data)
+	vConfig.ImageFiles = images
+
+	executor := management.NewDispatcher(ctx, validator.Session, vchConfig, c.Force)
+	if err = executor.Dispatch(vchConfig, vConfig); err != nil {
+
 		executor.CollectDiagnosticLogs()
 		return err
 	}
@@ -341,13 +361,21 @@ func (c *Create) Run(cli *cli.Context) error {
 	log.Infof("Log server:")
 	log.Infof("%s://%s:2378", executor.VICAdminProto, executor.HostIP)
 	log.Infof("")
+	tls := ""
 	if c.key != "" {
-		log.Infof("Connect to docker:")
-		log.Infof("docker -H %s:%s --tls --tlscert='%s' --tlskey='%s' info", executor.HostIP, executor.DockerPort, c.cert, c.key)
-	} else {
-		log.Infof("DOCKER_HOST=%s:%s", executor.HostIP, executor.DockerPort)
+		// if we're generating then there's no CA currently
+		if len(vchConfig.CertificateAuthorities) > 0 {
+			tls = fmt.Sprintf(" --tls --tlscert='%s' --tlskey='%s'", c.cert, c.key)
+		} else {
+			tls = " --tls"
+		}
 	}
+	log.Infof("DOCKER_HOST=%s:%s", executor.HostIP, executor.DockerPort)
+	log.Infof("DOCKER_OPTS=\"-H %s:%s%s\"", executor.HostIP, executor.DockerPort, tls)
+	log.Infof("")
+	log.Infof("Connect to docker:")
+	log.Infof("docker -H %s:%s%s info", executor.HostIP, executor.DockerPort, tls)
 
-	log.Infof("Installer completed successfully...")
+	log.Infof("Installer completed successfully")
 	return nil
 }

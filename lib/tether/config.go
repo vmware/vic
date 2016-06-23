@@ -24,6 +24,9 @@ import (
 )
 
 type ExecutorConfig struct {
+	// The name of the system
+	Name string `vic:"0.1" scope:"read-only" key:"common/name"`
+
 	// ID corresponds to that of the primary session
 	ID string `vic:"0.1" scope:"read-only" key:"common/id"`
 

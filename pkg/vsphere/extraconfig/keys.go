@@ -15,6 +15,7 @@
 package extraconfig
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
@@ -221,4 +222,27 @@ func calculateKey(scopes []string, prefix string, key string) string {
 
 	// prefix will have been mangled by strings.Replace
 	return DefaultGuestInfoPrefix + out[len(DefaultGuestInfoPrefix):]
+}
+
+// utility function to allow adding of arbitrary prefix into key
+// header is a leading segment that is preserved, prefix is injected after that
+func addPrefixToKey(header, prefix, key string) string {
+	if prefix == "" {
+		return key
+	}
+
+	base := strings.TrimPrefix(key, header)
+	separator := base[0]
+
+	var modifiedPrefix string
+	if separator == '.' {
+		modifiedPrefix = strings.Replace(prefix, "/", ".", -1)
+	} else {
+		modifiedPrefix = strings.Replace(prefix, ".", "/", -1)
+	}
+
+	// we assume (given usage comment for WithPrefix) that there's no leading or trailing separator
+	// on the prefix. base has a leading separator
+	// guestinfoPrefix is const so adding it to the format string directly
+	return fmt.Sprintf(header+"%c%s%s", separator, modifiedPrefix, base)
 }

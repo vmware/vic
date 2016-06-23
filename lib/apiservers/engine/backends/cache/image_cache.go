@@ -16,19 +16,33 @@ package cache
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/docker/distribution/digest"
 	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/reference"
+
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/metadata"
+)
+
+var (
+	// ErrCacheNotUpdated is returned when an operation is attempted while the cache has
+	// not yet hydrated.
+	ErrCacheNotUpdated = errors.New("Image cache not updated")
+
+	// CacheNotUpdated indicates whether or not the cache has been successfully hydrated
+	CacheNotUpdated = true
 )
 
 // ImageCache is an in-memory cache of image metadata. It is refreshed at startup
@@ -38,19 +52,24 @@ type ImageCache struct {
 	m sync.RWMutex
 
 	// cache maps image ID to image metadata
-	cache map[string]*metadata.ImageConfig
+	cacheByID   map[string]*metadata.ImageConfig
+	cacheByName map[string]*metadata.ImageConfig
 }
 
+// NewImageCache creates and returns a new ImageCache
 func NewImageCache() *ImageCache {
 	return &ImageCache{
-		cache: make(map[string]*metadata.ImageConfig),
+		cacheByID:   make(map[string]*metadata.ImageConfig),
+		cacheByName: make(map[string]*metadata.ImageConfig),
 	}
 }
 
-// Update adds new layers to the cache
+// Update adds new images to the cache
 func (c *ImageCache) Update(client *client.PortLayer) error {
 	c.m.Lock()
 	defer c.m.Unlock()
+
+	CacheNotUpdated = true
 
 	log.Debugf("Updating image cache...")
 
@@ -72,8 +91,6 @@ func (c *ImageCache) Update(client *client.PortLayer) error {
 		if _, ok := err.(*storage.CreateImageStoreConflict); ok {
 			log.Debugf("Store already exists")
 		} else {
-			// TODO(jzt): add some retry/backoff logic for this?
-			// Or just let the watchdog handle restarting the docker engine api?
 			log.Debugf("Creating a store failed: %#v", err)
 			return err
 		}
@@ -94,24 +111,98 @@ func (c *ImageCache) Update(client *client.PortLayer) error {
 		}
 
 		if imageConfig.ImageID != "" {
-			c.cache[imageConfig.ImageID] = imageConfig
+			var imageID string
+
+			// Don't assume the image id in image has "sha256:<id> as format.  We store it in
+			// this fomat to make it easier to lookup by digest
+			if strings.HasPrefix(imageConfig.ImageID, "sha") {
+				imageID = imageConfig.ImageID
+			} else {
+				imageID = "sha256:" + imageConfig.ImageID
+			}
+
+			c.cacheByID[imageID] = imageConfig
+
+			// Normalize the name stored in imageConfig using Docker's reference code
+			ref, err := reference.WithName(imageConfig.Name)
+			if err != nil {
+				log.Errorf("Tried to create reference from %s: %s", imageConfig.Name, err.Error())
+				continue
+			}
+
+			ref, err = reference.WithTag(ref, imageConfig.Tag)
+			if err != nil {
+				log.Errorf("Tried to create tagged reference from %s and tag %s: %s", imageConfig.Name, imageConfig.Tag, err.Error())
+				continue
+			}
+
+			if tagged, ok := ref.(reference.NamedTagged); ok {
+				taggedName := tagged.Name() + ":" + tagged.Tag()
+				c.cacheByName[taggedName] = imageConfig
+			} else {
+				c.cacheByName[ref.Name()] = imageConfig
+			}
 		}
 	}
 
+	CacheNotUpdated = false
 	return nil
 }
 
 // GetImages returns a slice containing metadata for all cached images
-func (c *ImageCache) GetImages() []*metadata.ImageConfig {
+func (c *ImageCache) GetImages() ([]*metadata.ImageConfig, error) {
 	c.m.RLock()
 	defer c.m.RUnlock()
 
-	result := make([]*metadata.ImageConfig, 0, len(c.cache))
-	for _, image := range c.cache {
+	if CacheNotUpdated {
+		return nil, ErrCacheNotUpdated
+	}
+
+	result := make([]*metadata.ImageConfig, 0, len(c.cacheByID))
+	for _, image := range c.cacheByID {
 		newImage := new(metadata.ImageConfig)
 		*newImage = *image
 		result = append(result, newImage)
 	}
 
-	return result
+	return result, nil
+}
+
+func (c *ImageCache) GetImageByDigest(digest digest.Digest) (*metadata.ImageConfig, error) {
+	c.m.RLock()
+	defer c.m.RUnlock()
+
+	if CacheNotUpdated {
+		return nil, ErrCacheNotUpdated
+	}
+
+	config := c.cacheByID[string(digest)]
+	return config, nil
+}
+
+// Looks up image by reference.Named
+func (c *ImageCache) GetImageByNamed(named reference.Named) (*metadata.ImageConfig, error) {
+	c.m.RLock()
+	defer c.m.RUnlock()
+
+	if CacheNotUpdated {
+		return nil, ErrCacheNotUpdated
+	}
+
+	var config *metadata.ImageConfig
+
+	if tagged, ok := named.(reference.NamedTagged); ok {
+		taggedName := tagged.Name() + ":" + tagged.Tag()
+		config = c.cacheByName[taggedName]
+	} else {
+		// First try just the name.
+		config = c.cacheByName[named.Name()]
+		if config == nil {
+			// try with the default docker tag
+			taggedName := named.Name() + ":" + reference.DefaultTag
+			config = c.cacheByName[taggedName]
+		}
+	}
+
+	return config, nil
 }

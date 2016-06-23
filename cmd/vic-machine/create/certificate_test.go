@@ -15,6 +15,7 @@
 package create
 
 import (
+	"bytes"
 	"os"
 	"strings"
 	"testing"
@@ -43,7 +44,7 @@ func TestGenerate(t *testing.T) {
 	if _, err := os.Stat(keyFile); err != nil {
 		t.Errorf("key file is not generated")
 	}
-	if !strings.Contains(pair.KeyPEM, "RSA PRIVATE KEY") {
+	if !strings.Contains(string(pair.KeyPEM), "RSA PRIVATE KEY") {
 		t.Errorf("Key is not correctly generated")
 	}
 }
@@ -60,7 +61,7 @@ func TestGetCertificate(t *testing.T) {
 		t.Errorf("%s", err)
 	}
 
-	if pair.KeyPEM != keyPEM {
+	if !bytes.Equal(pair.KeyPEM, keyPEM) {
 		log.Errorf("Expected pem: %s", keyPEM)
 		log.Errorf("Actual pem: %s", pair.KeyPEM)
 		t.Errorf("key is not correctly read out")

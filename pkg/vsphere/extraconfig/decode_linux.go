@@ -26,6 +26,13 @@ import (
 // GuestInfoSource uses the rpcvmx mechanism to access the guestinfo key/value map as
 // the datasource for decoding into target structures
 func GuestInfoSource() (DataSource, error) {
+	return GuestInfoSourceWithPrefix("")
+}
+
+// GuestInfoSourceWithPrefix adds a prefix to all keys accessed. The key must not have leading
+// or trailing separator characters, but may have separators in other positions. The separator
+// (either . or /) will be replaced with the appropriate value for the key in question.
+func GuestInfoSourceWithPrefix(prefix string) (DataSource, error) {
 	guestinfo := rpcvmx.NewConfig()
 
 	if !vmcheck.IsVirtualWorld() {
@@ -33,6 +40,8 @@ func GuestInfoSource() (DataSource, error) {
 	}
 
 	return func(key string) (string, error) {
+		key = addPrefixToKey(DefaultGuestInfoPrefix, prefix, key)
+
 		value, err := guestinfo.String(key, "")
 		if value == "" {
 			// if we don't assume this then we never return error for missing keys

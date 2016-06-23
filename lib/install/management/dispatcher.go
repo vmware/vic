@@ -24,9 +24,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
-	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/diagnostic"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -48,7 +48,7 @@ type Dispatcher struct {
 	HostIP        string
 	VICAdminProto string
 
-	vchPool   *compute.ResourcePool
+	vchPool   *object.ResourcePool
 	appliance *vm.VirtualMachine
 }
 
@@ -83,6 +83,14 @@ func (d *Dispatcher) initDiagnosticLogs(conf *metadata.VirtualContainerHostConfi
 			&diagnosticLog{"vpxd:vpxd.log", "vpxd.log", 0, nil, true}
 	}
 
+	var err error
+	if d.session.Datastore == nil {
+		if d.session.Datastore, err = d.session.Finder.DatastoreOrDefault(d.ctx, conf.ImageStores[0].Host); err != nil {
+			log.Errorf("Failure finding image store from VCH config (%s): %s", conf.ImageStores[0].Host, err.Error())
+			return
+		}
+		log.Debugf("Found ds: %s", conf.ImageStores[0].Host)
+	}
 	// find the host(s) attached to given storage
 	hosts, err := d.session.Datastore.AttachedClusterHosts(d.ctx, d.session.Cluster)
 	if err != nil {
@@ -125,19 +133,28 @@ func (d *Dispatcher) initDiagnosticLogs(conf *metadata.VirtualContainerHostConfi
 	}
 }
 
-func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	var err error
-	if d.vchPool, err = d.createResourcePool(conf); err != nil && !d.force {
-		return errors.Errorf("Creating resource pool failed with %s. Exiting...", err)
+	if d.vchPool, err = d.createResourcePool(conf, settings); err != nil {
+		detail := fmt.Sprintf("Creating resource pool failed: %s", err)
+		if d.force {
+			return errors.New(detail)
+		}
+
+		log.Error(detail)
+	}
+
+	if err = d.createBridgeNetwork(conf); err != nil {
+		return err
 	}
 
 	if err = d.removeApplianceIfForced(conf); err != nil {
 		return errors.Errorf("%s", err)
 	}
-	if err = d.createAppliance(conf); err != nil {
+	if err = d.createAppliance(conf, settings); err != nil {
 		return errors.Errorf("Creating the appliance failed with %s. Exiting...", err)
 	}
-	if err = d.uploadImages(conf); err != nil {
+	if err = d.uploadImages(settings.ImageFiles); err != nil {
 		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
 	}
 
@@ -148,24 +165,21 @@ func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec) err
 		return errors.Errorf("Failed to power on appliance %s. Exiting...", err)
 	}
 
-	if err = d.setMacToGuestInfo(conf); err != nil {
-		return errors.Errorf("Failed to set Mac address %s. Exiting...", err)
-	}
-	if err = d.makeSureApplianceRuns(); err != nil {
+	if err = d.makeSureApplianceRuns(conf); err != nil {
 		return errors.Errorf("%s. Exiting...", err)
 	}
 	return nil
 }
 
-func (d *Dispatcher) uploadImages(conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) uploadImages(files []string) error {
 	var err error
 	var wg sync.WaitGroup
 
 	// upload the images
 	log.Infof("Uploading images for container")
-	wg.Add(len(conf.ImageFiles))
-	results := make(chan error, len(conf.ImageFiles))
-	for _, image := range conf.ImageFiles {
+	wg.Add(len(files))
+	results := make(chan error, len(files))
+	for _, image := range files {
 		go func(image string) {
 			defer wg.Done()
 

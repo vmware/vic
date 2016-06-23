@@ -182,10 +182,6 @@ vendor: $(GVT)
 	@echo restoring vendor
 	$(GVT) restore
 
-integration-tests: $(GOVC) components isos vic-machine
-	@echo Running integration tests
-	@GOVC=$(GOVC) ./tests/vendor/github.com/sstephenson/bats/libexec/bats -t tests
-
 TEST_DIRS=github.com/vmware/vic/cmd/tether
 TEST_DIRS+=github.com/vmware/vic/cmd/imagec
 TEST_DIRS+=github.com/vmware/vic/cmd/vicadmin
@@ -207,10 +203,6 @@ else
 	@echo Generating local html coverage report
 	@$(TIME) infra/scripts/coverage.sh --html $(TEST_DIRS)
 endif
-
-docker-integration-tests:
-	@echo Running Docker integration tests
-	@$(TIME) tests/docker-tests/run-tests.sh
 
 $(vch-init): $(call godeps,cmd/vch-init/*.go)
 	@echo building vch-init
@@ -267,11 +259,11 @@ $(portlayerapi-client): $(PORTLAYER_DEPS)  $(SWAGGER)
 
 $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API server...
-	@$(SWAGGER) generate server -A PortLayer --template-dir lib/apiservers/templates -t $(realpath $(dir $<)) -f $<
+	@$(SWAGGER) generate server --exclude-main -A PortLayer --template-dir lib/apiservers/templates -t $(realpath $(dir $<)) -f $<
 
-$(portlayerapi): $(call godeps,lib/apiservers/portlayer/cmd/port-layer-server/*.go) $(portlayerapi-server) $(portlayerapi-client)
+$(portlayerapi): $(call godeps,cmd/port-layer-server/*.go) $(portlayerapi-server) $(portlayerapi-client)
 	@echo building Portlayer API server...
-	@$(TIME) $(GO) build $(RACE) -o $@ ./lib/apiservers/portlayer/cmd/port-layer-server
+	@$(TIME) $(GO) build $(RACE) -o $@ ./cmd/port-layer-server
 
 $(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
 	@echo building iso-base docker image
@@ -335,8 +327,3 @@ clean:
 	rm -fr lib/apiservers/docker/cmd
 	rm -fr lib/apiservers/docker/models
 	rm -fr lib/apiservers/docker/restapi/operations
-
-	rm -fr ./tests/helpers/bats-assert/
-	rm -fr ./tests/helpers/bats-support/
-
-	@tests/docker-tests/run-tests.sh clean

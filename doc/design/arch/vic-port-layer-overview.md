@@ -30,7 +30,7 @@ A containerVM by contrast uses completely separate isolated kernels for the cont
 
 As such, in order for the container control plane to provide a shell into a container, to start and stop processes or to provide monitoring statistics, there must be some kind of guest agent in the containerVM. We call this guest agent a _Tether_ process. This is not the same agent as VMware Tools, but a minimal agent designed specifically for VIC.
 
-The Tether API and Tether codebase is where all OS differences will be encapsulated. As such, the Tether API should be considered private to the Port Layer - it exists exclusively for the benefit of the internal control plane operations, not to be invoked direclty by anything that implements the Port Layer.
+The Tether API and Tether codebase is where all OS differences will be encapsulated. As such, the Tether API should be considered private to the Port Layer - it exists exclusively for the benefit of the internal control plane operations, not to be invoked directly by anything that implements the Port Layer.
 
 ##### Interoperability
 

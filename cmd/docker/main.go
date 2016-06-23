@@ -16,6 +16,7 @@ package main
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"flag"
 	"fmt"
 	"os"
@@ -31,6 +32,9 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/vmware/vic/lib/apiservers/engine/backends"
+	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 type CliOptions struct {
@@ -46,7 +50,13 @@ type CliOptions struct {
 	proto         string
 }
 
-const productName = "vSphere Integrated Containers"
+const productName = "vSphere Integrated Containers 0.3"
+
+var vchConfig metadata.VirtualContainerHostConfigSpec
+
+func init() {
+	trace.Logger.Level = log.DebugLevel
+}
 
 func Usage() {
 	fmt.Fprintf(os.Stderr, "\nvSphere Integrated Container Daemon Usage:\n")
@@ -123,7 +133,31 @@ func handleFlags() (*CliOptions, bool) {
 		proto:         "tcp",
 	}
 
+	// load the vch config
+	src, err := extraconfig.GuestInfoSource()
+	if err != nil {
+		log.Errorf("Unable to load configuration from guestinfo")
+	}
+	extraconfig.Decode(src, &vchConfig)
+
 	return cli, true
+}
+
+func loadCAPool() *x509.CertPool {
+	// If we should verify the server, we need to load a trusted ca
+	pool := x509.NewCertPool()
+
+	pem := vchConfig.CertificateAuthorities
+	if pem == nil || len(pem) == 0 {
+		return nil
+	}
+
+	if !pool.AppendCertsFromPEM(vchConfig.CertificateAuthorities) {
+		log.Fatalf("Unable to load CAs in config")
+	}
+
+	log.Debugf("Loaded %d CAs from config", len(pool.Subjects()))
+	return pool
 }
 
 func startServerWithOptions(cli *CliOptions) *apiserver.Server {
@@ -132,29 +166,30 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 		Version: "1.22", //dockerversion.Version,
 	}
 
-	// Set options for TLS
-	if cli.enableTLS {
-		tlsOptions := tlsconfig.Options{
-			CAFile:   cli.cafile,
-			CertFile: cli.certfile,
-			KeyFile:  cli.keyfile,
-		}
+	tlsConfig := tlsconfig.ServerDefault
 
-		if cli.verifyTLS {
-			// server requires and verifies client's certificate
-			tlsOptions.ClientAuth = tls.RequireAndVerifyClientCert
-		}
+	if !vchConfig.HostCertificate.IsNil() {
+		log.Info("TLS enabled")
 
-		tlsConfig, err := tlsconfig.Server(tlsOptions)
-
+		cert, err := vchConfig.HostCertificate.Certificate()
 		if err != nil {
-			log.Fatal(err)
+			// This is only viable because we've verified those certificates
+			log.Fatalf("Could not load certificate from config and refusing to run without TLS with a host certificate specified: %s", err)
 		}
-		serverConfig.TLSConfig = tlsConfig
+
+		tlsConfig.Certificates = []tls.Certificate{*cert}
+		serverConfig.TLSConfig = &tlsConfig
+
+		// Set options for TLS
+		if len(vchConfig.CertificateAuthorities) > 0 {
+			log.Info("Client verification enabled")
+			// server requires and verifies client's certificate
+			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+			tlsConfig.ClientCAs = loadCAPool()
+		}
 	}
 
 	api := apiserver.New(serverConfig)
-
 	l, err := listeners.Init(cli.proto, cli.fullserver, "", serverConfig.TLSConfig)
 	if err != nil {
 		log.Fatal(err)

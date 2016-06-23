@@ -151,7 +151,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	var layer *viccontainer.VicContainer
 	container := viccontainer.GetCache().GetContainerByName(config.Config.Image)
 	if container == nil {
-		layer, err = c.getImageMetadataFromStoragePL(config.Config.Image)
+		layer, err = c.getImageMetadataFromImageC(config.Config.Image)
 
 		if err != nil {
 			return types.ContainerCreateResponse{}, err
@@ -755,7 +755,7 @@ func (c *Container) imageExist(imageID string) (storeName string, err error) {
 	return host, nil
 }
 
-func (c *Container) getImageMetadataFromStoragePL(image string) (*viccontainer.VicContainer, error) {
+func (c *Container) getImageMetadataFromImageC(image string) (*viccontainer.VicContainer, error) {
 	// FIXME: This is a temporary workaround until we have a name resolution story.
 	// Call imagec with -resolv parameter to learn the name of the vmdk and put it into in-memory map
 	cmdArgs := []string{"-reference", image, "-resolv", "-standalone", "-destination", os.TempDir()}
