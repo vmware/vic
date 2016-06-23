@@ -91,6 +91,13 @@ func TestVM(t *testing.T) {
 
 	assert.Equal(t, types.VirtualMachinePowerStatePoweredOff, state)
 
+	// Check VM name
+	name, err := vm.Name(ctx)
+	if err != nil {
+		t.Errorf("Failed to load VM name: %s", err)
+	}
+	assert.Equal(t, "deadbeef", name)
+
 	// Destroy the vm
 	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return vm.Destroy(ctx)

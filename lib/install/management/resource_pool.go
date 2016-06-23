@@ -22,15 +22,17 @@ import (
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	"golang.org/x/net/context"
 )
 
-func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfigSpec, settings *InstallerData) (*object.ResourcePool, error) {
+func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*object.ResourcePool, error) {
 	d.vchPoolPath = fmt.Sprintf("%s/%s", settings.ResourcePoolPath, conf.Name)
 
 	rp, err := d.session.Finder.ResourcePool(d.ctx, d.vchPoolPath)
@@ -45,7 +47,7 @@ func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfi
 		return rp, nil
 	}
 
-	log.Infof("Creating a Resource Pool")
+	log.Infof("Creating Resource Pool %s", conf.Name)
 	// TODO: expose the limits and reservation here via options
 	resSpec := types.ResourceConfigSpec{
 		CpuAllocation: &types.ResourceAllocationInfo{
@@ -78,18 +80,25 @@ func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfi
 	return rp, nil
 }
 
-func (d *Dispatcher) destroyResourcePool(conf *metadata.VirtualContainerHostConfigSpec) error {
-	log.Infof("Destroying the Resource Pool")
+func (d *Dispatcher) destroyResourcePoolIfEmpty(conf *metadata.VirtualContainerHostConfigSpec) error {
+	log.Infof("Removing Resource Pool %s", conf.Name)
 
-	vrp, err := compute.FindResourcePool(d.ctx, d.session, d.vchPoolPath)
-	if err != nil {
+	rpRef := conf.ComputeResources[len(conf.ComputeResources)-1]
+	rp := compute.NewResourcePool(d.ctx, d.session, rpRef)
+
+	var vms []*vm.VirtualMachine
+	var err error
+	if vms, err = rp.GetChildrenVMs(d.ctx, d.session); err != nil {
+		err = errors.Errorf("Unable to get children vm of resource pool %s: %s", rp.Name(), err)
 		return err
 	}
-
-	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return vrp.Destroy(ctx)
-	})
-	if err != nil {
+	if len(vms) != 0 {
+		err = errors.Errorf("Resource pool is not empty: %s", rp.Name())
+		return err
+	}
+	if _, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		return rp.Destroy(ctx)
+	}); err != nil {
 		return err
 	}
 	return nil

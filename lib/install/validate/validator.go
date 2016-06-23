@@ -28,14 +28,12 @@ import (
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/vic/cmd/vic-machine/data"
-	"github.com/vmware/vic/lib/install/management"
+	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
-
-	"github.com/vmware/govmomi/vim25/types"
 
 	"golang.org/x/net/context"
 )
@@ -107,6 +105,8 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 
 	// cached here to allow a modicum of testing while session is still in use.
 	v.isVC = v.Session.IsVC()
+	finder := find.NewFinder(v.Session.Client.Client, false)
+	v.Session.Finder = finder
 
 	v.Session.Populate(ctx)
 
@@ -185,7 +185,7 @@ func (v *Validator) compute(ctx context.Context, input *data.Data, conf *metadat
 	// this should map to /datacenter-name/host/<toplevel>/Resources/<sub/path>
 	// we need to validate that <toplevel> exists and then that the combined path exists.
 
-	pool, err := v.resourcePoolHelper(ctx, input.ComputeResourcePath)
+	pool, err := v.ResourcePoolHelper(ctx, input.ComputeResourcePath)
 	v.NoteIssue(err)
 	if pool == nil {
 		return
@@ -533,7 +533,7 @@ func (v *Validator) datastoreHelper(ctx context.Context, path string) (*url.URL,
 	return dsURL, nil
 }
 
-func (v *Validator) resourcePoolHelper(ctx context.Context, path string) (*object.ResourcePool, error) {
+func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*object.ResourcePool, error) {
 	defer trace.End(trace.Begin(path))
 
 	// if compute-resource is unspecified is there a default
@@ -789,13 +789,13 @@ func (v *Validator) IsVC() bool {
 func (v *Validator) GetResourcePool(input *data.Data) (*object.ResourcePool, error) {
 	defer trace.End(trace.Begin(""))
 
-	return v.resourcePoolHelper(v.Context, input.ComputeResourcePath)
+	return v.ResourcePoolHelper(v.Context, input.ComputeResourcePath)
 }
 
-func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *metadata.VirtualContainerHostConfigSpec, input *data.Data) *management.InstallerData {
+func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *metadata.VirtualContainerHostConfigSpec, input *data.Data) *data.InstallerData {
 	defer trace.End(trace.Begin(""))
 
-	dconfig := management.InstallerData{}
+	dconfig := data.InstallerData{}
 
 	dconfig.ApplianceSize.CPU.Limit = int64(input.NumCPUs)
 	dconfig.ApplianceSize.Memory.Limit = int64(input.MemoryMB)

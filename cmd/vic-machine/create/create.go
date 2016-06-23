@@ -24,9 +24,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/urfave/cli"
-	"github.com/vmware/vic/cmd/vic-machine/data"
-	"github.com/vmware/vic/cmd/vic-machine/validate"
+	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
+	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 
@@ -83,22 +83,16 @@ func NewCreate() *Create {
 func (c *Create) Flags() []cli.Flag {
 	flags := []cli.Flag{
 		cli.StringFlag{
-			Name:        "cert",
-			Value:       "",
-			Usage:       "Virtual Container Host x509 certificate file",
-			Destination: &c.cert,
-		},
-		cli.StringFlag{
-			Name:        "key",
-			Value:       "",
-			Usage:       "Virtual Container Host private key file",
-			Destination: &c.key,
-		},
-		cli.StringFlag{
 			Name:        "compute-resource",
 			Value:       "",
 			Usage:       "Compute resource path, e.g. myCluster/Resources/myRP",
 			Destination: &c.ComputeResourcePath,
+		},
+		cli.StringFlag{
+			Name:        "name",
+			Value:       "docker-appliance",
+			Usage:       "The name of the Virtual Container Host",
+			Destination: &c.DisplayName,
 		},
 		cli.StringFlag{
 			Name:        "image-datastore",
@@ -109,14 +103,14 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "container-datastore",
 			Value:       "",
-			Usage:       "Container datastore name - defaults to image datastore",
+			Usage:       "Container datastore name - not supported yet, default to image datastore",
 			Destination: &c.ContainerDatastoreName,
 		},
 		cli.StringFlag{
-			Name:        "name",
-			Value:       "docker-appliance",
-			Usage:       "The name of the Virtual Container Host",
-			Destination: &c.DisplayName,
+			Name:        "bridge-network",
+			Value:       "",
+			Usage:       "The bridge network (private port group for containers)",
+			Destination: &c.BridgeNetworkName,
 		},
 		cli.StringFlag{
 			Name:        "external-network",
@@ -137,12 +131,6 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.ClientNetworkName,
 		},
 		cli.StringFlag{
-			Name:        "bridge-network",
-			Value:       "",
-			Usage:       "The bridge network (private port group for containers)",
-			Destination: &c.BridgeNetworkName,
-		},
-		cli.StringFlag{
 			Name:        "appliance-iso",
 			Value:       "",
 			Usage:       "The appliance iso",
@@ -154,15 +142,27 @@ func (c *Create) Flags() []cli.Flag {
 			Usage:       "The bootstrap iso",
 			Destination: &c.bootstrapISO,
 		},
-		cli.BoolFlag{
-			Name:        "force",
-			Usage:       "Force the install, removing existing if present",
-			Destination: &c.Force,
+		cli.StringFlag{
+			Name:        "key",
+			Value:       "",
+			Usage:       "Virtual Container Host private key file",
+			Destination: &c.key,
+		},
+		cli.StringFlag{
+			Name:        "cert",
+			Value:       "",
+			Usage:       "Virtual Container Host x509 certificate file",
+			Destination: &c.cert,
 		},
 		cli.BoolTFlag{
 			Name:        "generate-cert",
 			Usage:       "Generate certificate for Virtual Container Host",
 			Destination: &c.tlsGenerate,
+		},
+		cli.BoolFlag{
+			Name:        "force",
+			Usage:       "Force the install, removing existing if present",
+			Destination: &c.Force,
 		},
 		cli.DurationFlag{
 			Name:        "timeout",
@@ -183,7 +183,7 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.NumCPUs,
 		},
 	}
-	flags = append(flags, c.TargetFlags()...)
+	flags = append(c.TargetFlags(), flags...)
 	flags = append(flags, c.DebugFlags()...)
 	return flags
 }

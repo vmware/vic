@@ -24,7 +24,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/vsphere/diagnostic"
@@ -34,28 +34,6 @@ import (
 
 	"golang.org/x/net/context"
 )
-
-// InstallerData is used to hold the transient installation configuration that shouldn't be serialized
-type InstallerData struct {
-	// Virtual Container Host capacity
-	VCHSize metadata.Resources
-	// Appliance capacity
-	ApplianceSize metadata.Resources
-
-	KeyPEM  string
-	CertPEM string
-
-	//FIXME: remove following attributes after port-layer-server read config from guestinfo
-	DatacenterName         string
-	ClusterPath            string
-	ResourcePoolPath       string
-	ApplianceInventoryPath string
-
-	Datacenter types.ManagedObjectReference
-	Cluster    types.ManagedObjectReference
-
-	ImageFiles []string
-}
 
 type Dispatcher struct {
 	session *session.Session
@@ -105,6 +83,14 @@ func (d *Dispatcher) initDiagnosticLogs(conf *metadata.VirtualContainerHostConfi
 			&diagnosticLog{"vpxd:vpxd.log", "vpxd.log", 0, nil, true}
 	}
 
+	var err error
+	if d.session.Datastore == nil {
+		if d.session.Datastore, err = d.session.Finder.DatastoreOrDefault(d.ctx, conf.ImageStores[0].Host); err != nil {
+			log.Errorf("Failure finding image store from VCH config (%s): %s", conf.ImageStores[0].Host, err.Error())
+			return
+		}
+		log.Debugf("Found ds: %s", conf.ImageStores[0].Host)
+	}
 	// find the host(s) attached to given storage
 	hosts, err := d.session.Datastore.AttachedClusterHosts(d.ctx, d.session.Cluster)
 	if err != nil {
@@ -147,7 +133,7 @@ func (d *Dispatcher) initDiagnosticLogs(conf *metadata.VirtualContainerHostConfi
 	}
 }
 
-func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec, settings *InstallerData) error {
+func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	var err error
 	if d.vchPool, err = d.createResourcePool(conf, settings); err != nil {
 		detail := fmt.Sprintf("Creating resource pool failed: %s", err)

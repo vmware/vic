@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
@@ -55,7 +56,7 @@ func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
 	extraconfig.Decode(extraconfig.MapSource(info), &remoteConf)
 
 	// if the moref of the target matches where we expect to find it for a VCH, run with it
-	if remoteConf.ExecutorConfig.ID != vm.Reference().String() {
+	if remoteConf.ExecutorConfig.ID == vm.Reference().String() {
 		return true, nil
 	}
 
@@ -83,13 +84,29 @@ func (d *Dispatcher) removeApplianceIfForced(conf *metadata.VirtualContainerHost
 		return verr
 	}
 	log.Infof("Appliance exists, remove it...")
-	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return vm.PowerOff(ctx)
-	})
-	if err != nil {
-		log.Debugf("Failed to power off existing appliance for %s: err", conf.Name, err)
-	}
 
+	var folder string
+	if folder, err = d.deleteVM(vm); err != nil {
+		return err
+	}
+	return d.deleteDatastoreFiles(conf, folder)
+}
+
+func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine) (string, error) {
+	var err error
+	power, err := vm.PowerState(d.ctx)
+	if err != nil {
+		err = errors.Errorf("Failed to get vm power status %s: %s", vm.Reference(), err)
+		return "", err
+
+	}
+	if power != types.VirtualMachinePowerStatePoweredOff {
+		if _, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+			return vm.PowerOff(ctx)
+		}); err != nil {
+			log.Debugf("Failed to power off existing appliance for %s, try to remove anyway", err)
+		}
+	}
 	// get the actual folder name before we delete it
 	folder, err := vm.FolderName(d.ctx)
 	if err != nil {
@@ -100,25 +117,27 @@ func (d *Dispatcher) removeApplianceIfForced(conf *metadata.VirtualContainerHost
 		return vm.Destroy(ctx)
 	})
 	if err != nil {
-		err = errors.Errorf("Failed to destroy existing appliance: %s", err)
-		return err
+		err = errors.Errorf("Failed to destroy vm %s: %s", vm.Reference(), err)
+		return "", err
 	}
+	return folder, nil
+}
 
+func (d *Dispatcher) deleteDatastoreFiles(conf *metadata.VirtualContainerHostConfigSpec, folder string) error {
 	if folder == "" {
 		// we'll have logged a warning about the data files, but we did successfully destroy the VM
 		return nil
 	}
-
 	m := object.NewFileManager(d.session.Client.Client)
-	if _, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return m.DeleteDatastoreFile(ctx, d.session.Datastore.Path(folder), d.session.Datacenter)
+	path := d.session.Datastore.Path(folder)
+	if _, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		return m.DeleteDatastoreFile(ctx, path, d.session.Datacenter)
 	}); err != nil {
 		// FIXME: this should be checking if the error is a types.FileNotFound and continuing if so
 		// unfortunately tasks package isn't making it easy to get to the root cause.
 		err = errors.Errorf("Failed to remove existing VCH data files, %s", err)
 		return err
 	}
-
 	return nil
 }
 
@@ -196,7 +215,7 @@ func (d *Dispatcher) addParaVirtualSCSIController(devices object.VirtualDeviceLi
 	return devices, nil
 }
 
-func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConfigSpec, vConf *InstallerData) (*types.VirtualMachineConfigSpec, error) {
+func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConfigSpec, vConf *data.InstallerData) (*types.VirtualMachineConfigSpec, error) {
 	var devices object.VirtualDeviceList
 	var err error
 
@@ -235,6 +254,35 @@ func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConf
 
 	spec.DeviceChange = deviceChange
 	return spec.VirtualMachineConfigSpec, nil
+}
+
+func (d *Dispatcher) findApplianceByID(conf *metadata.VirtualContainerHostConfigSpec) (*vm.VirtualMachine, error) {
+	var err error
+	var vmm *vm.VirtualMachine
+
+	moref := new(types.ManagedObjectReference)
+	if ok := moref.FromString(conf.ID); !ok {
+		message := "Failed to get appliance VM mob reference"
+		log.Errorf(message)
+		return nil, errors.New(message)
+	}
+	ref, err := d.session.Finder.ObjectReference(d.ctx, *moref)
+	if err != nil {
+		if _, ok := err.(*find.NotFoundError); !ok {
+			err = errors.Errorf("Failed to query appliance (%s): %s", moref, err)
+			return nil, err
+		}
+		log.Debugf("Appliance is not found")
+		return nil, nil
+
+	}
+	ovm, ok := ref.(*object.VirtualMachine)
+	if !ok {
+		log.Errorf("Failed to find VM %s, %s", moref, err)
+		return nil, err
+	}
+	vmm = vm.NewVirtualMachine(d.ctx, d.session, ovm.Reference())
+	return vmm, nil
 }
 
 func (d *Dispatcher) findAppliance(conf *metadata.VirtualContainerHostConfigSpec) (*vm.VirtualMachine, error) {
@@ -278,7 +326,7 @@ func (d *Dispatcher) configIso(conf *metadata.VirtualContainerHostConfigSpec, vm
 	return devices, nil
 }
 
-func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSpec, settings *InstallerData) error {
+func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	log.Infof("Creating appliance on target")
 
 	spec, err := d.createApplianceSpec(conf, settings)

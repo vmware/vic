@@ -18,7 +18,9 @@ import (
 	"net"
 	"time"
 
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
+	"github.com/vmware/vic/lib/metadata"
 )
 
 // Data wrapps all parameters required by value validation
@@ -50,6 +52,28 @@ type Data struct {
 	Timeout time.Duration
 
 	Force bool
+}
+
+// InstallerData is used to hold the transient installation configuration that shouldn't be serialized
+type InstallerData struct {
+	// Virtual Container Host capacity
+	VCHSize metadata.Resources
+	// Appliance capacity
+	ApplianceSize metadata.Resources
+
+	KeyPEM  string
+	CertPEM string
+
+	//FIXME: remove following attributes after port-layer-server read config from guestinfo
+	DatacenterName         string
+	ClusterPath            string
+	ResourcePoolPath       string
+	ApplianceInventoryPath string
+
+	Datacenter types.ManagedObjectReference
+	Cluster    types.ManagedObjectReference
+
+	ImageFiles []string
 }
 
 func NewData() *Data {
