@@ -374,7 +374,7 @@ func (c *Create) Run(cli *cli.Context) error {
 	log.Infof("DOCKER_OPTS=\"-H %s:%s%s\"", executor.HostIP, executor.DockerPort, tls)
 	log.Infof("")
 	log.Infof("Connect to docker:")
-	log.Infof("docker -H %s:%s %sinfo", executor.HostIP, executor.DockerPort, tls)
+	log.Infof("docker -H %s:%s%s info", executor.HostIP, executor.DockerPort, tls)
 
 	log.Infof("Installer completed successfully")
 	return nil
