@@ -8,6 +8,9 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Docker Integration Tests
     Log To Console  \nStarting Docker integration tests...
     Set Environment Variable  GOPATH  /go:/go/src/github.com/docker/docker/vendor
-    ${out}=  Run Process  DOCKER_HOST\=tcp://${params} go test  shell=True  cwd=/go/src/github.com/docker/docker/integration-cli
+    ${ip}=  Remove String  ${params}  -H
+    ${ip}=  Strip String  ${ip}
+    ${out}=  Run Process  DOCKER_HOST\=tcp://${ip} go test  shell=True  cwd=/go/src/github.com/docker/docker/integration-cli
     Log  ${out.stdout}
     Log  ${out.stderr}
+    Should Contain  ${out.stdout}  DockerSuite.Test
