@@ -68,7 +68,7 @@ func (d *Dispatcher) DeleteVCH(conf *metadata.VirtualContainerHostConfigSpec) er
 		log.Debugf("Error deleting appliance VM %s", err)
 		return err
 	}
-	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, d.IsVSAN(d.session.Datastore), true); err != nil {
+	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {
 		log.Warnf("Appliance VM path %s is not removed, %s", folder, err)
 	}
 	if err = d.destroyResourcePoolIfEmpty(conf); err != nil {

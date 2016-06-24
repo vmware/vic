@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/diagnostic"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -72,13 +73,15 @@ func NewDispatcher(ctx context.Context, s *session.Session,
 		isVC:    isVC,
 		force:   force,
 	}
-	e.initDiagnosticLogs(conf)
+	if conf != nil {
+		e.InitDiagnosticLogs(conf)
+	}
 	return e
 }
 
 // Get the current log header LineEnd of the hostd/vpxd logs.
 // With this we avoid collecting log file data that existed prior to install.
-func (d *Dispatcher) initDiagnosticLogs(conf *metadata.VirtualContainerHostConfigSpec) {
+func (d *Dispatcher) InitDiagnosticLogs(conf *metadata.VirtualContainerHostConfigSpec) {
 	if d.isVC {
 		diagnosticLogs[d.session.ServiceContent.About.InstanceUuid] =
 			&diagnosticLog{"vpxd:vpxd.log", "vpxd.log", 0, nil, true}
@@ -93,6 +96,18 @@ func (d *Dispatcher) initDiagnosticLogs(conf *metadata.VirtualContainerHostConfi
 		log.Debugf("Found ds: %s", conf.ImageStores[0].Host)
 	}
 	// find the host(s) attached to given storage
+	if d.session.Cluster == nil {
+		if len(conf.ComputeResources) > 0 {
+			rp := compute.NewResourcePool(d.ctx, d.session, conf.ComputeResources[0])
+			if d.session.Cluster, err = rp.GetCluster(d.ctx); err != nil {
+				log.Errorf("Unable to get cluster for given resource pool %s: %s", conf.ComputeResources[0], err)
+				return
+			}
+		} else {
+			log.Errorf("Compute resource is empty")
+			return
+		}
+	}
 	hosts, err := d.session.Datastore.AttachedClusterHosts(d.ctx, d.session.Cluster)
 	if err != nil {
 		log.Errorf("Unable to get the list of hosts attached to given storage: %s", err)

@@ -35,19 +35,6 @@ const (
 	volumeRoot = "volumes"
 )
 
-func (d *Dispatcher) IsVSAN(ds *object.Datastore) bool {
-	var isVSAN bool
-	dsType, err := ds.Type(d.ctx)
-	if err != nil {
-		log.Debugf("Failed to get datastore type of %s, treat it as normal datastore", ds.Name())
-	}
-	if dsType == types.HostFileSystemVolumeFileSystemTypeVsan {
-		log.Debugf("Datastore %s is VSAN", ds.Name())
-		isVSAN = true
-	}
-	return isVSAN
-}
-
 func (d *Dispatcher) DeleteDataStores(vchVM *vm.VirtualMachine, conf *metadata.VirtualContainerHostConfigSpec) error {
 	ds, err := d.session.Finder.Datastore(d.ctx, conf.ImageStores[0].Host)
 	if err != nil {
@@ -55,7 +42,6 @@ func (d *Dispatcher) DeleteDataStores(vchVM *vm.VirtualMachine, conf *metadata.V
 		return err
 	}
 	d.session.Datastore = ds
-	isVSAN := d.IsVSAN(ds)
 
 	path, err := d.getVCHRootDir(vchVM)
 	if err != nil {
@@ -66,11 +52,11 @@ func (d *Dispatcher) DeleteDataStores(vchVM *vm.VirtualMachine, conf *metadata.V
 	var emptyImages bool
 	var emptyVolumes bool
 	log.Infof("Removing images")
-	if emptyImages, err = d.deleteImages(ds, path, isVSAN); err != nil {
+	if emptyImages, err = d.deleteImages(ds, path); err != nil {
 		errs = append(errs, err.Error())
 	}
 	log.Infof("Removing volumes")
-	if emptyVolumes, err = d.deleteVolumes(ds, path, isVSAN); err != nil {
+	if emptyVolumes, err = d.deleteVolumes(ds, path); err != nil {
 		errs = append(errs, err.Error())
 	} else if !emptyVolumes {
 		log.Infof("Volumes directory %s is not empty, to delete with --force specified", path)
@@ -79,7 +65,7 @@ func (d *Dispatcher) DeleteDataStores(vchVM *vm.VirtualMachine, conf *metadata.V
 	if emptyImages && emptyVolumes {
 		// if not empty, don't try to delete parent directory here
 		log.Infof("Removing root directory")
-		if err = d.deleteParent(ds, path, isVSAN); err != nil {
+		if err = d.deleteParent(ds, path); err != nil {
 			errs = append(errs, err.Error())
 		}
 	}
@@ -89,24 +75,24 @@ func (d *Dispatcher) DeleteDataStores(vchVM *vm.VirtualMachine, conf *metadata.V
 	return nil
 }
 
-func (d *Dispatcher) deleteParent(ds *object.Datastore, root string, isVSAN bool) error {
-	_, err := d.deleteDatastoreFiles(ds, root, isVSAN, true)
+func (d *Dispatcher) deleteParent(ds *object.Datastore, root string) error {
+	_, err := d.deleteDatastoreFiles(ds, root, true)
 	return err
 }
 
-func (d *Dispatcher) deleteImages(ds *object.Datastore, root string, isVSAN bool) (bool, error) {
+func (d *Dispatcher) deleteImages(ds *object.Datastore, root string) (bool, error) {
 	p := path.Join(root, vsphere.StorageImageDir)
 	// alway forcing delete images
-	return d.deleteDatastoreFiles(ds, p, isVSAN, true)
+	return d.deleteDatastoreFiles(ds, p, true)
 }
 
-func (d *Dispatcher) deleteVolumes(ds *object.Datastore, root string, isVSAN bool) (bool, error) {
+func (d *Dispatcher) deleteVolumes(ds *object.Datastore, root string) (bool, error) {
 	p := path.Join(root, volumeRoot)
 	// if not forced delete, leave volumes there. Cause user data can be persisted in volumes
-	return d.deleteDatastoreFiles(ds, p, isVSAN, d.force)
+	return d.deleteDatastoreFiles(ds, p, d.force)
 }
 
-func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, isVSAN bool, force bool) (bool, error) {
+func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, force bool) (bool, error) {
 	var empty bool
 	dsPath := ds.Path(path)
 
@@ -124,12 +110,7 @@ func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, isV
 		log.Debugf("Folder %s is not empty, leave it there", dsPath)
 		return empty, nil
 	}
-	if isVSAN {
-		err = d.deleteVSANFiles(ds, path, d.force)
-	} else {
-		err = d.deleteVMFSFiles(ds, dsPath, d.force)
-	}
-	if err == nil {
+	if err = d.deleteVMFSFiles(ds, dsPath, d.force); err == nil {
 		empty = true
 	}
 	return empty, err
@@ -144,11 +125,6 @@ func (d *Dispatcher) deleteVMFSFiles(ds *object.Datastore, dsPath string, force 
 		log.Debugf("Failed to delete %s, %s", dsPath, err)
 	}
 	return nil
-}
-
-func (d *Dispatcher) deleteVSANFiles(ds *object.Datastore, path string, force bool) error {
-	nm := object.NewDatastoreNamespaceManager(ds.Client())
-	return nm.DeleteDirectory(d.ctx, d.session.Datacenter, path)
 }
 
 func (d *Dispatcher) lsFolder(ds *object.Datastore, dsPath string) (*types.HostDatastoreBrowserSearchResults, error) {

@@ -107,3 +107,15 @@ func (rp *ResourcePool) GetChildVM(ctx context.Context, s *session.Session, name
 	log.Errorf("%s", err)
 	return nil, err
 }
+
+func (rp *ResourcePool) GetCluster(ctx context.Context) (*object.ComputeResource, error) {
+	var err error
+	var mrp mo.ResourcePool
+
+	if err = rp.Properties(ctx, rp.Reference(), []string{"owner"}, &mrp); err != nil {
+		log.Errorf("Unable to get cluster of resource pool %s: %s", rp.Name(), err)
+		return nil, err
+	}
+
+	return object.NewComputeResource(rp.Client.Client, mrp.Owner), nil
+}

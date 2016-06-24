@@ -142,6 +142,7 @@ func (d *Uninstall) Run(cli *cli.Context) error {
 		log.Errorf("Failed to get Virtual Container Host configuration")
 		return err
 	}
+	executor.InitDiagnosticLogs(vchConfig)
 
 	if validator.IsVC() {
 		log.Infoln("Removing VCH vSphere extension")
