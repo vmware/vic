@@ -134,7 +134,7 @@ func (d *Dispatcher) initDiagnosticLogs(conf *metadata.VirtualContainerHostConfi
 	}
 }
 
-func (d *Dispatcher) registerExtension(conf *metadata.VirtualContainerHostConfigSpec, extension types.Extension) error {
+func (d *Dispatcher) RegisterExtension(conf *metadata.VirtualContainerHostConfigSpec, extension types.Extension) error {
 	log.Infoln("Registering VCH as a vSphere extension")
 
 	// vSphere confusingly calls the 'name' of the extension a 'key'
@@ -155,6 +155,14 @@ func (d *Dispatcher) registerExtension(conf *metadata.VirtualContainerHostConfig
 		return err
 	}
 
+	return nil
+}
+
+func (d *Dispatcher) UnregisterExtension(name string) error {
+	extensionManager := object.NewExtensionManager(d.session.Vim25())
+	if err := extensionManager.Unregister(d.ctx, name); err != nil {
+		return errors.Errorf("Failed to remove extension w/ name %s due to error: %s", name, err)
+	}
 	return nil
 }
 
@@ -186,13 +194,14 @@ func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec, set
 	}
 
 	if d.session.IsVC() {
-		if err = d.registerExtension(conf, settings.Extension); err != nil {
+		if err = d.RegisterExtension(conf, settings.Extension); err != nil {
 			return errors.Errorf("Error registering VCH vSphere extension: %s", err)
 		}
 	}
 	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return d.appliance.PowerOn(ctx)
 	})
+
 	if err != nil {
 		return errors.Errorf("Failed to power on appliance %s. Exiting...", err)
 	}
