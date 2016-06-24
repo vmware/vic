@@ -303,7 +303,7 @@ func (d *Dispatcher) findAppliance(conf *metadata.VirtualContainerHostConfigSpec
 }
 
 // retrieves the uuid of the appliance vm to create a unique vsphere extension name
-func (d *Dispatcher) generateExtensionName(conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) GenerateExtensionName(conf *metadata.VirtualContainerHostConfigSpec) error {
 	// must be called after appliance VM is created
 	vm, err := d.findAppliance(conf)
 
@@ -390,7 +390,10 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 	log.Debugf("vm inventory path: %s", vm2.InventoryPath)
 
 	// create an extension to register the appliance as
-	d.generateExtensionName(conf)
+	if err = d.GenerateExtensionName(conf); err != nil {
+		return errors.Errorf("Could not generate extension name during appliance creation due to error: %s", err)
+	}
+
 	settings.Extension = types.Extension{
 		Description: &types.Description{
 			Label:   "VIC",
