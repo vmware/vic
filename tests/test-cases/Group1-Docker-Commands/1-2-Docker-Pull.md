@@ -12,8 +12,8 @@ This test requires that an vSphere server is running and available.
 
 #Test Steps:
 1. Deploy VIC appliance to vSphere server
-2. Issue a docker pull command to the new VIC appliance for each of the top 10 most popular images in hub.docker.com
-    * nginx, busybox, ubuntu, registry, swarm, redis, mongo, mysql, node, postgres
+2. Issue a docker pull command to the new VIC appliance for each of the top 3 most popular images in hub.docker.com
+    * nginx, busybox, ubuntu
 3. Issue a docker pull command to the new VIC appliance using a tag that isn't the default latest
     * ubuntu:14.04
 4. Issue a docker pull command to the new VIC appliance using a digest

@@ -24,30 +24,9 @@ Pull busybox
 Pull ubuntu
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ubuntu
 
-Pull registry
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  registry
-
-Pull swarm
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  swarm
-    
-Pull redis
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  redis
-    
-Pull mongo
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  mongo
-    
-Pull mysql
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  mysql
-    
-Pull node
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  node
-    
-Pull postgres
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  postgres
-
 Pull non-default tag
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  nginx:alpine
-    
+
 Pull an image based on digest
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  nginx@sha256:7281cf7c854b0dfc7c68a6a4de9a785a973a14f1481bc028e2022bcd6a8d9f64
 
@@ -64,10 +43,10 @@ Pull an image from non-default repo
     #Wait Until Keyword Succeeds  5x  15 seconds  Pull image  localhost:5000/testImage
     Log  Not quite working yet...  WARN
     Log To Console  Not quite working yet...
-    
+
 Pull an image with all tags
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  --all-tags nginx
-    
+
 Pull non-existent image
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull fakebadimage
     Log  ${output}
@@ -75,7 +54,7 @@ Pull non-existent image
     ${status}=  Get State Of Github Issue  757
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-2-Docker-Pull.robot needs to be updated now that Issue #757 has been resolved
     #Should contain  ${output}  image library/fakebadimage not found
-    
+
 Pull image from non-existent repo
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull fakebadrepo.com:9999/ubuntu
     Log  ${output}
