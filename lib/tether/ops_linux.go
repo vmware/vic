@@ -32,6 +32,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vmw-guestinfo/rpcout"
 )
@@ -263,7 +264,7 @@ func assignIP(t Netlink, link netlink.Link, endpoint *metadata.NetworkEndpoint) 
 	}
 
 	// Set IP address if it's specified - this is now named for for the network role rather than the nic
-	if endpoint.Static != nil && len(endpoint.Static.IP) > 0 {
+	if !ip.IsUnspecifiedIP(endpoint.Static.IP) {
 		addr, err := netlink.ParseAddr(endpoint.Static.String())
 		if err != nil {
 			detail := fmt.Sprintf("failed to parse address for %s ednpoint: %s", endpoint.Network.Name, err)
@@ -310,13 +311,14 @@ func assignIP(t Netlink, link netlink.Link, endpoint *metadata.NetworkEndpoint) 
 			return false, errors.New(detail)
 		}
 
-		if len(endpoint.Network.Gateway.IP) > 0 {
+		if !ip.IsUnspecifiedIP(endpoint.Network.Gateway.IP) {
 			// if gateway is supplied filter with it
 			for _, ipaddr := range active {
 				if ipaddr.IP == nil {
 					continue
 				}
 
+				log.Debugf("filtering ip %s with gateway %s", ipaddr.IP, endpoint.Network.Gateway.IP)
 				if endpoint.Network.Gateway.Contains(ipaddr.IP) {
 					// couldn't get bytes.Equal to match even when the string addresses do
 					updated := endpoint.Assigned.String() != ipaddr.IP.String()

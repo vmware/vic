@@ -14,7 +14,11 @@
 
 package metadata
 
-import "net"
+import (
+	"net"
+
+	"github.com/vmware/vic/pkg/ip"
+)
 
 // NetworkEndpoint describes a network presence in the form a vNIC in sufficient detail that it can be:
 // a. created - the vNIC added to a VM
@@ -52,7 +56,6 @@ type ContainerNetwork struct {
 	// The set of nameservers associated with this network - may be empty
 	Nameservers []net.IP `vic:"0.1" scope:"read-only" key:"dns"`
 
-	// The IP range for this network
-	FirstIP net.IP `vic:"0.1" scope:"read-only" key:"first_ip"`
-	LastIP  net.IP `vic:"0.1" scope:"read-only" key:"last_ip"`
+	// The IP ranges for this network
+	Pools []ip.Range `vic:"0.1" scope:"read-only" key:"pools"`
 }

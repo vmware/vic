@@ -21,6 +21,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/pkg/ip"
 )
 
 // Data wrapps all parameters required by value validation
@@ -43,8 +44,10 @@ type Data struct {
 	BridgeNetworkName      string
 	ClientNetworkName      string
 
-	MappedNetworks        map[string]string
-	MappedNetworksGateway map[string]*net.IPNet
+	MappedNetworks         map[string]string
+	MappedNetworksGateways map[string]net.IPNet
+	MappedNetworksIPRanges map[string][]ip.Range
+	MappedNetworksDNS      map[string][]net.IP
 
 	NumCPUs  int
 	MemoryMB int
@@ -80,7 +83,11 @@ type InstallerData struct {
 
 func NewData() *Data {
 	d := &Data{
-		Target: common.NewTarget(),
+		Target:                 common.NewTarget(),
+		MappedNetworks:         make(map[string]string),
+		MappedNetworksGateways: make(map[string]net.IPNet),
+		MappedNetworksIPRanges: make(map[string][]ip.Range),
+		MappedNetworksDNS:      make(map[string][]net.IP),
 	}
 	return d
 }

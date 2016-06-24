@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
+	"github.com/vmware/vic/pkg/ip"
 )
 
 const (
@@ -67,9 +68,28 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	s.builtin = true
 	ctx.defaultScope = s
+
+	// add any external networks
+	for nn, n := range Config.ContainerNetworks {
+		if nn == "bridge" {
+			continue
+		}
+
+		pools := make([]string, len(n.Pools))
+		for i, p := range n.Pools {
+			pools[i] = p.String()
+		}
+
+		s, err := ctx.NewScope(externalScopeType, nn, &net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}, n.Gateway.IP, nil, pools)
+		if err != nil {
+			return nil, err
+		}
+
+		s.builtin = true
+	}
+
 	return ctx, nil
 }
 
@@ -99,51 +119,52 @@ func isUnspecifiedSubnet(n *net.IPNet) bool {
 }
 
 func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM, network object.NetworkReference) (*Scope, error) {
-	if isUnspecifiedSubnet(subnet) {
-		subnet = defaultSubnet
-	}
-
 	var err error
+	var space *AddressSpace
 
 	// allocate the subnet
-	space, defaultPool, err := c.reserveSubnet(subnet)
-	defer func() {
-		if err != nil && space != nil && defaultPool {
-			c.defaultBridgePool.ReleaseIP4Range(space)
-		}
-	}()
+	if !isUnspecifiedSubnet(subnet) {
+		var defaultPool bool
+		space, defaultPool, err = c.reserveSubnet(subnet)
+		defer func() {
+			if err != nil && space != nil && defaultPool {
+				c.defaultBridgePool.ReleaseIP4Range(space)
+			}
+		}()
 
-	if err != nil {
-		return nil, err
-	}
-
-	subnet = space.Network
-
-	// reserve the network and broadcast addresses
-	err = reserveBroadcastAndNetwork(space)
-	defer func() {
-		if err == nil || space.Network == nil {
-			return
+		if err != nil {
+			return nil, err
 		}
 
-		lo := incrementIP4(space.Network.IP)
-		hi := decrementIP4(highestIP4(space.Network))
-		space.ReleaseIP4(lo)
-		space.ReleaseIP4(hi)
-	}()
+		subnet = space.Network
 
-	if err != nil {
-		return nil, err
+		// reserve the network and broadcast addresses
+		err = reserveBroadcastAndNetwork(space)
+		defer func() {
+			if err == nil || space.Network == nil {
+				return
+			}
+
+			lo := incrementIP4(space.Network.IP)
+			hi := decrementIP4(highestIP4(space.Network))
+			space.ReleaseIP4(lo)
+			space.ReleaseIP4(hi)
+		}()
+
+		if err != nil {
+			return nil, err
+		}
+
+		var subSpaces []*AddressSpace
+		subSpaces, err = reservePools(space, ipam)
+		if err != nil {
+			return nil, err
+		}
+
+		ipam.spaces = subSpaces
 	}
 
-	subSpaces, err := reservePools(space, ipam)
-	if err != nil {
-		return nil, err
-	}
-
-	ipam.spaces = subSpaces
-
-	if gateway.IsUnspecified() {
+	if ip.IsUnspecifiedIP(gateway) && len(ipam.spaces) > 0 {
 		gateway, err = ipam.spaces[0].ReserveNextIP4()
 		defer func() {
 			if err != nil && !gateway.IsUnspecified() {
@@ -181,6 +202,10 @@ func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net
 		return nil, fmt.Errorf("bridge network not set")
 	}
 
+	if isUnspecifiedSubnet(subnet) {
+		subnet = defaultSubnet
+	}
+
 	s, err := c.newScopeCommon(id, name, bridgeScopeType, subnet, gateway, dns, ipam, bn.PortGroup)
 	if err != nil {
 		return nil, err
@@ -190,23 +215,27 @@ func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net
 }
 
 func (c *Context) newExternalScope(id, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (*Scope, error) {
-	// have to specify IPAM
-	if ipam == nil || len(ipam.pools) == 0 {
-		return nil, fmt.Errorf("no ipam spec for external network")
+	// ipam cannot be specified without gateway and subnet
+	if ipam != nil && len(ipam.pools) > 0 {
+		if isUnspecifiedSubnet(subnet) || gateway.IsUnspecified() {
+			return nil, fmt.Errorf("ipam cannot be specified without gateway and subnet for external network")
+		}
 	}
 
-	if isUnspecifiedSubnet(subnet) || gateway.IsUnspecified() {
-		return nil, fmt.Errorf("neither subnet nor gateway specified for external network")
+	if !isUnspecifiedSubnet(subnet) {
+		// cannot overlap with the default bridge pool
+		if c.defaultBridgePool.Network.Contains(subnet.IP) ||
+			c.defaultBridgePool.Network.Contains(highestIP4(subnet)) {
+			return nil, fmt.Errorf("external network cannot overlap with default bridge network")
+		}
 	}
 
-	// cannot overlap with the default bridge pool
-	if c.defaultBridgePool.Network.Contains(subnet.IP) ||
-		c.defaultBridgePool.Network.Contains(highestIP4(subnet)) {
-		return nil, fmt.Errorf("external network cannot overlap with default bridge network")
+	n := Config.ContainerNetworks[name]
+	if n == nil {
+		return nil, fmt.Errorf("no network info for external scope %s", name)
 	}
 
-	// TODO Get the correct networkName
-	return c.newScopeCommon(id, name, externalScopeType, subnet, gateway, dns, ipam, nil)
+	return c.newScopeCommon(id, name, externalScopeType, subnet, gateway, dns, ipam, n.PortGroup)
 }
 
 func isDefaultSubnet(subnet *net.IPNet) bool {
@@ -285,7 +314,7 @@ func reservePools(space *AddressSpace, ipam *IPAM) ([]*AddressSpace, error) {
 		}
 
 		// ip range
-		r := ParseIPRange(p)
+		r := ip.ParseRange(p)
 		if r == nil {
 			err = fmt.Errorf("error in pool spec")
 			break
@@ -430,9 +459,13 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	endpoints := con.Endpoints()
 	for _, e := range endpoints {
 		ne := h.ExecConfig.Networks[e.Scope().Name()]
-		ne.Static = &net.IPNet{
-			IP:   e.IP(),
-			Mask: e.Scope().Subnet().Mask,
+		ne.Static = nil
+		ip := e.IP()
+		if ip != nil && !ip.IsUnspecified() {
+			ne.Static = &net.IPNet{
+				IP:   ip,
+				Mask: e.Scope().Subnet().Mask,
+			}
 		}
 		ne.Network.Gateway = net.IPNet{IP: e.gateway, Mask: e.subnet.Mask}
 	}
@@ -631,9 +664,11 @@ func (c *Context) AddContainer(h *exec.Handle, scope string, ip *net.IP) error {
 		},
 	}
 
-	ne.Static = nil
-	if ip != nil {
-		ne.Static = &net.IPNet{IP: *ip}
+	if ip != nil && !ip.IsUnspecified() {
+		ne.Static = &net.IPNet{
+			IP:   *ip,
+			Mask: s.Subnet().Mask,
+		}
 	}
 
 	h.ExecConfig.Networks[s.Name()] = ne

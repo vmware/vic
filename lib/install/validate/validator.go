@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/govc/host/esxcli"
 	"github.com/vmware/govmomi/object"
@@ -35,7 +34,6 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
-
 	"golang.org/x/net/context"
 )
 
@@ -303,12 +301,17 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 	}
 
 	// ensure gateway is populated
-	gateway, ok := input.MappedNetworksGateway["bridge"]
+	// FIXME: The gateway for the bridge network
+	//        should be the gateway address of the
+	//        default bridge network. The bridge
+	//        network pool should be specified
+	//        on the vic-machine command line.
+	gateway, ok := input.MappedNetworksGateways["bridge"]
 	if !ok {
-		ip, mask, _ := net.ParseCIDR("172.16.0.1/24")
-		gateway = &net.IPNet{
+		ip, ipnet, _ := net.ParseCIDR("172.16.0.1/16")
+		gateway = net.IPNet{
 			IP:   ip,
-			Mask: mask.Mask,
+			Mask: ipnet.Mask,
 		}
 	}
 
@@ -317,7 +320,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 			Name: "bridge",
 			ID:   endpointMoref,
 		},
-		Static: gateway,
+		Static: &gateway,
 		Network: metadata.ContainerNetwork{
 			Common: metadata.Common{
 				Name: "bridge",
@@ -335,6 +338,46 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 	// add mapped networks
 	//   these should be a distributed port groups in vCenter
 	for name, net := range input.MappedNetworks {
+		// "bridge" is reserved
+		if name == "bridge" {
+			v.NoteIssue(fmt.Errorf("Cannot use reserved name \"bridge\" for container network"))
+			continue
+		}
+
+		gw := input.MappedNetworksGateways[name]
+		pools := input.MappedNetworksIPRanges[name]
+		dns := input.MappedNetworksDNS[name]
+		if len(pools) != 0 && nilIPNet(gw) {
+			v.NoteIssue(fmt.Errorf("IP range specified without gateway for container network %s", name))
+			continue
+		}
+
+		err = nil
+		// verify ip ranges are within subnet,
+		// and don't overlap with each other
+		for i, r := range pools {
+			if !gw.Contains(r.FirstIP) || !gw.Contains(r.LastIP) {
+				err = fmt.Errorf("IP range %s is not in subnet %s", r, gw)
+				break
+			}
+
+			for _, r2 := range pools[i+1:] {
+				if r2.Overlaps(r) {
+					err = fmt.Errorf("Overlapping ip ranges: %s %s", r2, r)
+					break
+				}
+			}
+
+			if err != nil {
+				break
+			}
+		}
+
+		if err != nil {
+			v.NoteIssue(err)
+			continue
+		}
+
 		moref, err := v.dpgHelper(ctx, net)
 		v.NoteIssue(err)
 		mappedNet := &metadata.ContainerNetwork{
@@ -342,12 +385,11 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 				Name: name,
 				ID:   moref,
 			},
+			Gateway:     gw,
+			Nameservers: dns,
+			Pools:       pools,
 		}
 
-		gateway, ok = input.MappedNetworksGateway[name]
-		if ok {
-			mappedNet.Gateway = *gateway
-		}
 		conf.AddContainerNetwork(mappedNet)
 	}
 }
@@ -906,4 +948,8 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *metadata.Virt
 	log.Debugf("Datacenter: %s, Cluster: %s, Resource Pool: %s", dconfig.DatacenterName, dconfig.ClusterPath, dconfig.ResourcePoolPath)
 
 	return &dconfig
+}
+
+func nilIPNet(n net.IPNet) bool {
+	return n.IP == nil && n.Mask == nil
 }

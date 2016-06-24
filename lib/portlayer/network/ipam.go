@@ -29,43 +29,17 @@ import (
 	"bytes"
 	"fmt"
 	"net"
-	"strings"
-)
 
-// IPRange represents a range of IP addresses
-type IPRange struct {
-	FirstIP, LastIP net.IP
-}
+	"github.com/vmware/vic/pkg/ip"
+)
 
 // An AddressSpace is a collection of
 // IP address ranges
 type AddressSpace struct {
 	Parent          *AddressSpace
 	Network         *net.IPNet
-	Pool            *IPRange
-	availableRanges []*IPRange
-}
-
-func ParseIPRange(s string) *IPRange {
-	comps := strings.Split(s, "-")
-	if len(comps) != 2 {
-		return nil
-	}
-
-	r := &IPRange{
-		FirstIP: net.ParseIP(comps[0]),
-		LastIP:  net.ParseIP(comps[1]),
-	}
-
-	if r.FirstIP == nil || r.LastIP == nil {
-		return nil
-	}
-
-	return r
-}
-
-func (r *IPRange) String() string {
-	return r.FirstIP.String() + "-" + r.LastIP.String()
+	Pool            *ip.Range
+	availableRanges []*ip.Range
 }
 
 // compareIPv4 compares two IPv4 addresses.
@@ -159,7 +133,7 @@ func highestIP4(ipRange *net.IPNet) net.IP {
 func NewAddressSpaceFromNetwork(ipRange *net.IPNet) *AddressSpace {
 	return &AddressSpace{
 		Network: ipRange,
-		availableRanges: []*IPRange{
+		availableRanges: []*ip.Range{
 			{FirstIP: lowestIP4(ipRange), LastIP: highestIP4(ipRange)}}}
 }
 
@@ -170,8 +144,8 @@ func NewAddressSpaceFromRange(firstIP net.IP, lastIP net.IP) *AddressSpace {
 	}
 
 	return &AddressSpace{
-		Pool:            &IPRange{FirstIP: firstIP, LastIP: lastIP},
-		availableRanges: []*IPRange{{FirstIP: firstIP, LastIP: lastIP}}}
+		Pool:            &ip.Range{FirstIP: firstIP, LastIP: lastIP},
+		availableRanges: []*ip.Range{{FirstIP: firstIP, LastIP: lastIP}}}
 }
 
 // ReserveNextIP4Net reserves a new sub address space within the given address
@@ -244,19 +218,15 @@ func (s *AddressSpace) ReserveNextIP4Net(mask net.IPMask) (*AddressSpace, error)
 	return nil, fmt.Errorf("could not find IP range for mask %s", mask)
 }
 
-func NewIPRange(firstIP net.IP, lastIP net.IP) *IPRange {
-	return &IPRange{FirstIP: firstIP.To16(), LastIP: lastIP.To16()}
-}
-
-func splitRange(parentRange *IPRange, firstIP net.IP, lastIP net.IP) (before, reserved, after *IPRange) {
+func splitRange(parentRange *ip.Range, firstIP net.IP, lastIP net.IP) (before, reserved, after *ip.Range) {
 	if !firstIP.Equal(parentRange.FirstIP) {
-		before = NewIPRange(parentRange.FirstIP, decrementIP4(firstIP))
+		before = ip.NewRange(parentRange.FirstIP, decrementIP4(firstIP))
 	}
 	if !lastIP.Equal(parentRange.LastIP) {
-		after = NewIPRange(incrementIP4(lastIP), parentRange.LastIP)
+		after = ip.NewRange(incrementIP4(lastIP), parentRange.LastIP)
 	}
 
-	reserved = NewIPRange(firstIP, lastIP)
+	reserved = ip.NewRange(firstIP, lastIP)
 	return
 }
 
@@ -312,13 +282,13 @@ func (s *AddressSpace) ReserveIP4Range(firstIP net.IP, lastIP net.IP) (*AddressS
 	return nil, fmt.Errorf("could not find IP range")
 }
 
-func insertAddressRanges(r []*IPRange, index int, ranges ...*IPRange) []*IPRange {
+func insertAddressRanges(r []*ip.Range, index int, ranges ...*ip.Range) []*ip.Range {
 	if index == len(r) {
 		return append(r, ranges...)
 	}
 
 	for i := 0; i < len(ranges); i++ {
-		r = append(r, &IPRange{})
+		r = append(r, &ip.Range{})
 	}
 
 	copy(r[index+len(ranges):], r[index:])
