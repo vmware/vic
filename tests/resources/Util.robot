@@ -13,6 +13,18 @@ ${bin-dir}  /drone/src/github.com/vmware/vic/bin
 Install VIC Appliance To Test Server
     [Tags]  secret
     [Arguments]  ${certs}=true
+    # Let's try to pro-actively clean up any datastore that doesn't currently have a VM associated with it
+    ${datastore}=  Run  govc datastore.ls
+    ${datastore}=  Split To Lines  ${datastore}
+    :FOR  ${item}  IN  @{datastore}
+    \   Continue For Loop If  '${item}' == 'VIC'
+    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Match Regexp  ${item}  \\w\\w*-\\w\\w*-\\w\\w*-\\w\\w*-\\w\\w*
+    \   Continue For Loop If  '${status}' == 'PASS'
+    \   ${vms}=  Run  govc ls vm
+    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Not Contain  ${vms}  ${item}
+    \   Run Keyword If  '${status}' == 'PASS'  Run  govc datastore.rm ${item}
+
+    # Now attempt to intall VCH
     ${name}=  Evaluate  'VCH-' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nInstalling VCH to test server...
     Set Suite Variable  ${vch-name}  ${name}
@@ -25,6 +37,7 @@ Install VIC Appliance To Test Server
     ${ret}=  Strip String  ${ret}
     Set Suite Variable  ${params}  ${ret}
     Log To Console  Installer completed successfully: ${vch-name}...
+
     # Required due to #1109
     Sleep  10 seconds
     ${status}=  Get State Of Github Issue  1109
@@ -55,7 +68,7 @@ Cleanup VIC Appliance On Test Server
 Gather Logs From Test Server
     Variable Should Exist  ${params}
     ${params}=  Strip String  ${params}
-    ${status}  ${message}=  Run Keyword And Ignore Error  Should Not Contain  ${params}  --tls  
+    ${status}  ${message}=  Run Keyword And Ignore Error  Should Not Contain  ${params}  --tls
     # Non-certificate case
     ${ip}=  Run Keyword If  '${status}'=='PASS'  Split String  ${params}  :
     Run Keyword If  '${status}'=='PASS'  Run  wget http://@{ip}[0]:2378/container-logs.tar.gz -O ${vch-name}-container-logs.tar.gz
@@ -153,3 +166,15 @@ Kill Nimbus Server
     Login  ${user}  ${password}
     ${out}=  Execute Command  nimbus-ctl kill '${name}'
     Close connection
+    
+*** Test Cases ***
+test
+    ${datastore}=  Run  govc datastore.ls
+    ${datastore}=  Split To Lines  ${datastore}
+    :FOR  ${item}  IN  @{datastore}
+    \   Continue For Loop If  '${item}' == 'VIC'
+    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Match Regexp  ${item}  \\w\\w*-\\w\\w*-\\w\\w*-\\w\\w*-\\w\\w*
+    \   Continue For Loop If  '${status}' == 'PASS'
+    \   ${vms}=  Run  govc ls vm
+    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Not Contain  ${vms}  ${item}
+    \   Run Keyword If  '${status}' == 'PASS'  Run  govc datastore.rm ${item}
