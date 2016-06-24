@@ -15,12 +15,9 @@
 package vicbackends
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"os/exec"
 	"sync"
 	"time"
 
@@ -148,32 +145,36 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 				http.StatusInternalServerError)
 	}
 
-	var layer *viccontainer.VicContainer
-	container := viccontainer.GetCache().GetContainerByName(config.Config.Image)
-	if container == nil {
-		layer, err = c.getImageMetadataFromImageC(config.Config.Image)
+	// get the image from the cache
+	image, err := getImageConfigFromCache(config.Config.Image)
+	if err != nil {
+		// if no image found then error thrown and a pull
+		// will be initiated by the docker client
+		return types.ContainerCreateResponse{}, err
+	}
 
-		if err != nil {
-			return types.ContainerCreateResponse{}, err
-		}
+	// provide basic container config via the image
+	container := &viccontainer.VicContainer{
+		ID:     image.Parent,
+		Config: image.Config,
 	}
 
 	// Overwrite or append the image's config from the CLI with the metadata from the image's
 	// layer metadata where appropriate
 	if len(config.Config.Cmd) == 0 {
-		config.Config.Cmd = layer.Config.Cmd
+		config.Config.Cmd = container.Config.Cmd
 	}
 	if config.Config.WorkingDir == "" {
-		config.Config.WorkingDir = layer.Config.WorkingDir
+		config.Config.WorkingDir = container.Config.WorkingDir
 	}
 	if len(config.Config.Entrypoint) == 0 {
-		config.Config.Entrypoint = layer.Config.Entrypoint
+		config.Config.Entrypoint = container.Config.Entrypoint
 	}
 	// Set TERM to xterm if tty is set
 	if config.Config.Tty {
 		config.Config.Env = append(config.Config.Env, "TERM=xterm")
 	}
-	config.Config.Env = append(config.Config.Env, layer.Config.Env...)
+	config.Config.Env = append(config.Config.Env, container.Config.Env...)
 
 	// Was a name provided - if not create a friendly name
 	if config.Name == "" {
@@ -191,12 +192,12 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 				http.StatusInternalServerError)
 	}
 
-	plCreateParams := c.dockerContainerCreateParamsToPortlayer(config, layer.ID, host)
+	plCreateParams := c.dockerContainerCreateParamsToPortlayer(config, container.ID, host)
 	createResults, err := client.Containers.Create(plCreateParams)
 	// transfer port layer swagger based response to Docker backend data structs and return to the REST front-end
 	if err != nil {
 		if _, ok := err.(*containers.CreateNotFound); ok {
-			return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", layer.ID))
+			return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", container.ID))
 		}
 
 		// If we get here, most likely something went wrong with the port layer API server
@@ -240,25 +241,25 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		// FIXME: Containers.Commit returns more errors than it's swagger spec says.
 		// When no image exist, it also sends back non swagger errors.  We should fix
 		// this once Commit returns correct error codes.
-		return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", layer.ID))
+		return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", container.ID))
 	}
 
 	// Container created ok, overwrite the container params in the container store as
 	// these are the parameters that the containers were actually created with
-	layer.Config.Cmd = config.Config.Cmd
-	layer.Config.WorkingDir = config.Config.WorkingDir
-	layer.Config.Entrypoint = config.Config.Entrypoint
-	layer.Config.Env = config.Config.Env
-	layer.Config.AttachStdin = config.Config.AttachStdin
-	layer.Config.AttachStdout = config.Config.AttachStdout
-	layer.Config.AttachStderr = config.Config.AttachStderr
-	layer.Config.Tty = config.Config.Tty
-	layer.Config.OpenStdin = config.Config.OpenStdin
-	layer.Config.StdinOnce = config.Config.StdinOnce
-	layer.ContainerID = createResults.Payload.ID
+	container.Config.Cmd = config.Config.Cmd
+	container.Config.WorkingDir = config.Config.WorkingDir
+	container.Config.Entrypoint = config.Config.Entrypoint
+	container.Config.Env = config.Config.Env
+	container.Config.AttachStdin = config.Config.AttachStdin
+	container.Config.AttachStdout = config.Config.AttachStdout
+	container.Config.AttachStderr = config.Config.AttachStderr
+	container.Config.Tty = config.Config.Tty
+	container.Config.OpenStdin = config.Config.OpenStdin
+	container.Config.StdinOnce = config.Config.StdinOnce
+	container.ContainerID = createResults.Payload.ID
 
-	log.Debugf("Container create: %#v", layer)
-	viccontainer.GetCache().SaveContainer(createResults.Payload.ID, layer)
+	log.Debugf("Container create: %#v", container)
+	viccontainer.GetCache().SaveContainer(createResults.Payload.ID, container)
 
 	// Success!
 	log.Printf("container.ContainerCreate succeeded.  Returning container handle %s", *createResults.Payload)
@@ -753,38 +754,6 @@ func (c *Container) imageExist(imageID string) (storeName string, err error) {
 	}
 
 	return host, nil
-}
-
-func (c *Container) getImageMetadataFromImageC(image string) (*viccontainer.VicContainer, error) {
-	// FIXME: This is a temporary workaround until we have a name resolution story.
-	// Call imagec with -resolv parameter to learn the name of the vmdk and put it into in-memory map
-	cmdArgs := []string{"-reference", image, "-resolv", "-standalone", "-destination", os.TempDir()}
-
-	out, err := exec.Command(Imagec, cmdArgs...).Output()
-	if err != nil {
-		log.Printf("%s exit code: %s", Imagec, err)
-		return nil,
-			derr.NewErrorWithStatusCode(fmt.Errorf("Container look up failed"),
-				http.StatusInternalServerError)
-	}
-	var v1 struct {
-		ID string `json:"id"`
-		// https://github.com/docker/engine-api/blob/master/types/container/config.go
-		Config container.Config `json:"config"`
-	}
-	if err := json.Unmarshal(out, &v1); err != nil {
-		return nil,
-			derr.NewErrorWithStatusCode(fmt.Errorf("Failed to unmarshall image history: %s", err),
-				http.StatusInternalServerError)
-	}
-	log.Printf("v1 = %+v", v1)
-
-	imageMetadata := &viccontainer.VicContainer{
-		ID:     v1.ID,
-		Config: &v1.Config,
-	}
-
-	return imageMetadata, nil
 }
 
 // attacheStreams takes the the hijacked connections from the calling client and attaches
