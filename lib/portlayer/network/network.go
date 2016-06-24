@@ -14,7 +14,16 @@
 
 package network
 
-import "fmt"
+import (
+	"fmt"
+	"net"
+
+	log "github.com/Sirupsen/logrus"
+)
+
+var (
+	DefaultContext *Context
+)
 
 type DuplicateResourceError struct {
 	resID string
@@ -26,4 +35,21 @@ type ResourceNotFoundError struct {
 
 func (e DuplicateResourceError) Error() string {
 	return fmt.Sprintf("%s already exists", e.resID)
+}
+
+func Init() error {
+	var err error
+
+	bridgeRange := net.IPNet{
+		IP:   net.IPv4(172, 17, 0, 0),
+		Mask: net.CIDRMask(12, 32),
+	}
+	bridgeWidth := net.CIDRMask(16, 32)
+
+	DefaultContext, err = NewContext(bridgeRange, bridgeWidth)
+	if err == nil {
+		log.Infof("Default network context allocated: %s", bridgeRange.String())
+	}
+
+	return err
 }
