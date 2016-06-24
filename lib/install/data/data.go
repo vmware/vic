@@ -74,6 +74,8 @@ type InstallerData struct {
 	Cluster    types.ManagedObjectReference
 
 	ImageFiles []string
+
+	Extension types.Extension
 }
 
 func NewData() *Data {

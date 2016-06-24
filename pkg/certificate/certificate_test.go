@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package create
+package certificate
 
 import (
 	"bytes"
 	"os"
 	"strings"
 	"testing"
+
+	"crypto/tls"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -27,6 +29,41 @@ const (
 	keyFile  = "./key.pem"
 	certFile = "./cert.pem"
 )
+
+func TestCreateRawKeyPair(t *testing.T) {
+	cert, key, err := CreateRawKeyPair()
+	if err != nil {
+		t.Errorf("CreateRawKeyPair failed with error %s", err)
+	}
+
+	certString := cert.String()
+	keyString := key.String()
+
+	log.Infof("cert: %s", certString)
+	log.Infof("key: %s", keyString)
+
+	if !strings.HasPrefix(certString, "-----BEGIN CERTIFICATE-----") {
+		t.Errorf("Certificate lacks proper prefix; must not have been generated properly.")
+	}
+
+	if !strings.HasSuffix(certString, "-----END CERTIFICATE-----\n") {
+		t.Errorf("Certificate lacks proper suffix; must not have been generated properly.")
+	}
+
+	if !strings.HasPrefix(keyString, "-----BEGIN RSA PRIVATE KEY-----") {
+		t.Errorf("Private key lacks proper prefix; must not have been generated properly.")
+	}
+
+	if !strings.HasSuffix(keyString, "-----END RSA PRIVATE KEY-----\n") {
+		t.Errorf("Private key lacks proper suffix; must not have been generated properly.")
+	}
+
+	_, err = tls.X509KeyPair([]byte(certString), []byte(keyString))
+	if err != nil {
+		t.Errorf("Unable to load X509 key pair(%s,%s): %s", certString, keyString, err)
+	}
+
+}
 
 func TestGenerate(t *testing.T) {
 	log.SetLevel(log.InfoLevel)

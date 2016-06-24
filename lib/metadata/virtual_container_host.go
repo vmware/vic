@@ -66,6 +66,11 @@ type VirtualContainerHostConfigSpec struct {
 	// Certificates for specific system access, keyed by FQDN
 	HostCertificates map[string]*RawCertificate
 
+	// Certificate for authentication as vSphere Extension
+	ExtensionCert string `vic:"0.1" scope:"read-only" key:"extension_cert"`
+	ExtensionKey  string `vic:"0.1" scope:"read-only" key:"extension_key"`
+	ExtensionName string `vic:"0.1" scope:"read-only" key:"extension_name"`
+
 	// Port Layer - storage
 	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
 	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores"`
@@ -98,6 +103,10 @@ type VirtualContainerHostConfigSpec struct {
 
 	// Allow custom naming convention for containerVMs
 	ContainerNameConvention string
+
+	// Used for authentication against e.g. the Docker HTTP endpoint
+	UserKeyPEM  string `vic:"0.1" scope:"read-only" key:"key_pem"`
+	UserCertPEM string `vic:"0.1" scope:"read-only" key:"cert_pem"`
 }
 
 // RawCertificate is present until we add extraconfig support for [][]byte slices that are present

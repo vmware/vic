@@ -32,6 +32,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
+	"github.com/vmware/govmomi/vim25/types"
 	"golang.org/x/net/context"
 )
 
@@ -133,6 +134,30 @@ func (d *Dispatcher) initDiagnosticLogs(conf *metadata.VirtualContainerHostConfi
 	}
 }
 
+func (d *Dispatcher) registerExtension(conf *metadata.VirtualContainerHostConfigSpec, extension types.Extension) error {
+	log.Infoln("Registering VCH as a vSphere extension")
+
+	// vSphere confusingly calls the 'name' of the extension a 'key'
+	// This variable is named IdKey as to not confuse it with its private key
+	if conf.ExtensionCert == "" {
+		return errors.Errorf("Extension certificate does not exist")
+	}
+
+	extensionManager := object.NewExtensionManager(d.session.Vim25())
+
+	if err := extensionManager.Register(d.ctx, extension); err != nil {
+		log.Errorf("Could not register the vSphere extension due to err: %s", err)
+		return err
+	}
+
+	if err := extensionManager.SetCertificate(d.ctx, conf.ExtensionName, conf.ExtensionCert); err != nil {
+		log.Errorf("Could not set the certificate on the vSphere extension due to error: %s", err)
+		return err
+	}
+
+	return nil
+}
+
 func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	var err error
 	if d.vchPool, err = d.createResourcePool(conf, settings); err != nil {
@@ -151,13 +176,20 @@ func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec, set
 	if err = d.removeApplianceIfForced(conf); err != nil {
 		return errors.Errorf("%s", err)
 	}
+
 	if err = d.createAppliance(conf, settings); err != nil {
 		return errors.Errorf("Creating the appliance failed with %s. Exiting...", err)
 	}
+
 	if err = d.uploadImages(settings.ImageFiles); err != nil {
 		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
 	}
 
+	if d.session.IsVC() {
+		if err = d.registerExtension(conf, settings.Extension); err != nil {
+			return errors.Errorf("Error registering VCH vSphere extension: %s", err)
+		}
+	}
 	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return d.appliance.PowerOn(ctx)
 	})

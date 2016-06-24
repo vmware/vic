@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package create
+package certificate
 
 import (
 	"bytes"
@@ -46,11 +46,13 @@ func NewKeyPair(tlsGenerate bool, keyFile, certFile string) *Keypair {
 	}
 }
 
-func (k *Keypair) generate() error {
-	org := ""
+// CreateRawKeyPair generates a default certificate / key and returns them as bytes buffers
+// If you wish to save them to files as a side effect, use GetCertificate() instead
+func CreateRawKeyPair() (cert bytes.Buffer, key bytes.Buffer, err error) {
+	org := "VMware"
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return err
+		return cert, key, err
 	}
 
 	notBefore := time.Now()
@@ -60,7 +62,7 @@ func (k *Keypair) generate() error {
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
 		err = errors.Errorf("Failed to generate random number: %s", err)
-		return err
+		return cert, key, err
 	}
 
 	template := x509.Certificate{
@@ -77,21 +79,30 @@ func (k *Keypair) generate() error {
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
 	if err != nil {
 		err = errors.Errorf("Failed to generate x509 certificate: %s", err)
-		return err
+		return cert, key, err
 	}
 
-	var cert bytes.Buffer
 	err = pem.Encode(&cert, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
 	if err != nil {
-		return err
+		err = errors.Errorf("Failed to encode x509 certificate: %s", err)
+		return cert, key, err
 	}
 
-	var key bytes.Buffer
 	err = pem.Encode(&key, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
 	if err != nil {
 		err = errors.Errorf("Failed to encode tls key pairs: %s", err)
+		return cert, key, err
+	}
+
+	return cert, key, nil
+}
+
+func (k *Keypair) generate() error {
+	cert, key, err := CreateRawKeyPair()
+	if err != nil {
 		return err
 	}
+
 	certFile, err := os.Create(k.certFile)
 	if err != nil {
 		err = errors.Errorf("Failed to create key/cert file %s: %s", k.certFile, err)
