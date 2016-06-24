@@ -411,7 +411,7 @@ func (c *Create) Run(cli *cli.Context) error {
 
 	vchConfig, err := validator.Validate(ctx, c.Data)
 	if err != nil {
-		log.Error("Creation cannot continue: configuration validaton failed")
+		log.Error("Creation cannot continue: configuration validation failed")
 		return err
 	}
 
