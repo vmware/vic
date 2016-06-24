@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
+	"path"
 	"sync"
 
 	"golang.org/x/net/context"
@@ -25,7 +26,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-const parentMFile = "parentMap"
+const mapFile = "parentMap"
 
 // Parent relationships This file will go away when First Class Disk
 // support is added to vsphere.  Currently, we can't get a disk spec for a
@@ -48,14 +49,17 @@ type parentM struct {
 	// roots where the map is stored
 	ds *datastore
 
+	parentMFile string
+
 	l sync.Mutex
 }
 
 // Starts here.  Tries to create a new parentM or load an existing one.
-func restoreParentMap(ctx context.Context, ds *datastore) (*parentM, error) {
+func restoreParentMap(ctx context.Context, ds *datastore, storeName string) (*parentM, error) {
 	p := &parentM{
 		ds: ds,
 	}
+	p.parentMFile = path.Join(storeName, mapFile)
 
 	// Download the map file
 	if err := p.download(ctx); err != nil {
@@ -93,7 +97,7 @@ func (p *parentM) Save(ctx context.Context) error {
 	}
 
 	// upload to an ephemeral file
-	tmpURI := parentMFile + ".tmp"
+	tmpURI := p.parentMFile + ".tmp"
 
 	r := bytes.NewReader(buf)
 	if err = p.ds.Upload(ctx, r, tmpURI); err != nil {
@@ -101,8 +105,8 @@ func (p *parentM) Save(ctx context.Context) error {
 		return err
 	}
 
-	log.Infof("Saving parent map (%s)", parentMFile)
-	if err := p.ds.Mv(ctx, tmpURI, parentMFile); err != nil {
+	log.Infof("Saving parent map (%s)", p.parentMFile)
+	if err := p.ds.Mv(ctx, tmpURI, p.parentMFile); err != nil {
 		log.Errorf("Error moving %s: %s", tmpURI, err)
 		return err
 	}
@@ -116,7 +120,7 @@ func (p *parentM) download(ctx context.Context) error {
 
 	p.db = make(map[string]string)
 
-	rc, err := p.ds.Download(ctx, parentMFile)
+	rc, err := p.ds.Download(ctx, p.parentMFile)
 	if err != nil {
 		// We need to check for 404 vs something else here.
 		return nil

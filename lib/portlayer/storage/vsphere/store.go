@@ -74,16 +74,10 @@ func NewImageStore(ctx context.Context, s *session.Session) (*ImageStore, error)
 		return nil, err
 	}
 
-	pm, err := restoreParentMap(ctx, ds)
-	if err != nil {
-		return nil, err
-	}
-
 	vis := &ImageStore{
-		dm:      dm,
-		ds:      ds,
-		s:       s,
-		parents: pm,
+		dm: dm,
+		ds: ds,
+		s:  s,
 	}
 
 	return vis, nil
@@ -124,6 +118,13 @@ func (v *ImageStore) CreateImageStore(ctx context.Context, storeName string) (*u
 		return nil, err
 	}
 
+	if v.parents == nil {
+		pm, err := restoreParentMap(ctx, v.ds, storeName)
+		if err != nil {
+			return nil, err
+		}
+		v.parents = pm
+	}
 	return u, nil
 }
 
@@ -144,6 +145,14 @@ func (v *ImageStore) GetImageStore(ctx context.Context, storeName string) (*url.
 	_, ok := info.(*types.FolderFileInfo)
 	if !ok {
 		return nil, fmt.Errorf("Stat error:  path doesn't exist (%s)", p)
+	}
+
+	if v.parents == nil {
+		pm, err := restoreParentMap(ctx, v.ds, storeName)
+		if err != nil {
+			return nil, err
+		}
+		v.parents = pm
 	}
 
 	return u, nil
