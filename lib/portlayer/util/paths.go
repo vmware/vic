@@ -28,7 +28,7 @@ const (
 	VolumeURLPath  = StorageURLPath + "/volumes"
 )
 
-// StoreNameToURL parses the image URL in the form /storage/images/<image store>/<image name>
+// ImageStoreNameToURL parses the image URL in the form /storage/images/<image store>/<image name>
 func ImageStoreNameToURL(storeName string) (*url.URL, error) {
 	a := ServiceURL(ImageURLPath)
 	AppendDir(a, storeName)
@@ -43,8 +43,13 @@ func ImageStoreName(u *url.URL) (string, error) {
 
 	segments := strings.Split(filepath.Clean(u.Path), "/")[1:]
 
-	if segments[0] != filepath.Clean(StorageURLPath) {
+	if len(segments) < 3 ||
+		segments[0] != filepath.Clean(StorageURLPath) {
 		return "", errors.New("not a storage path")
+	}
+
+	if segments[1] != "images" {
+		return "", errors.New("not an imagestore path")
 	}
 
 	if len(segments) < 2 {
@@ -60,6 +65,46 @@ func ImageURL(storeName, imageName string) (*url.URL, error) {
 		return nil, err
 	}
 	AppendDir(u, imageName)
+	return u, nil
+}
+
+// VolumeStoreNameToURL parses the volume URL in the form /storage/volumes/<volume store>/<volume name>
+func VolumeStoreNameToURL(storeName string) (*url.URL, error) {
+	a := ServiceURL(VolumeURLPath)
+	AppendDir(a, storeName)
+	return a, nil
+}
+
+func VolumeStoreName(u *url.URL) (string, error) {
+	// Check the path isn't malformed.
+	if !filepath.IsAbs(u.Path) {
+		return "", errors.New("invalid uri path")
+	}
+
+	segments := strings.Split(filepath.Clean(u.Path), "/")[1:]
+
+	if len(segments) < 3 ||
+		segments[0] != filepath.Clean(StorageURLPath) {
+		return "", errors.New("not a storage path")
+	}
+
+	if segments[1] != "volumes" {
+		return "", errors.New("not an volumestore path")
+	}
+
+	if len(segments) < 2 {
+		return "", errors.New("uri path mismatch")
+	}
+
+	return segments[2], nil
+}
+
+func VolumeURL(storeName, volumeName string) (*url.URL, error) {
+	u, err := VolumeStoreNameToURL(storeName)
+	if err != nil {
+		return nil, err
+	}
+	AppendDir(u, volumeName)
 	return u, nil
 }
 

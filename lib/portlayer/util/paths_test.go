@@ -51,7 +51,7 @@ func TestImageStoreNameErrors(t *testing.T) {
 
 	u, _ = url.Parse("/storage")
 	_, err = ImageStoreName(u)
-	expectedError = "uri path mismatch"
+	expectedError = "not a storage path"
 	if err.Error() != expectedError {
 		t.Errorf("Got: %s Expected: %s", err, expectedError)
 	}
@@ -67,6 +67,57 @@ func TestImageURL(t *testing.T) {
 		t.Errorf("ImageURL failed %v", err)
 	}
 	expectedURL := "http://foo.com/storage/images/storeName/imageName"
+	if !assert.Equal(t, expectedURL, u.String()) {
+		return
+	}
+}
+
+func TestVolumeStoreName(t *testing.T) {
+	u, _ := url.Parse("/storage/volumes/volstore/volume")
+	store, err := VolumeStoreName(u)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	expectedStore := "volstore"
+	if !assert.Equal(t, expectedStore, store) {
+		return
+	}
+}
+
+func TestVolumeStoreNameErrors(t *testing.T) {
+	u, _ := url.Parse("fail")
+	_, err := VolumeStoreName(u)
+	expectedError := "invalid uri path"
+	if err.Error() != expectedError {
+		t.Errorf("Got: %s Expected: %s", err, expectedError)
+	}
+
+	u, _ = url.Parse("/storage:123")
+	_, err = VolumeStoreName(u)
+	expectedError = "not a storage path"
+	if err.Error() != expectedError {
+		t.Errorf("Got: %s Expected: %s", err, expectedError)
+	}
+
+	u, _ = url.Parse("/storage")
+	_, err = VolumeStoreName(u)
+	expectedError = "not a storage path"
+	if err.Error() != expectedError {
+		t.Errorf("Got: %s Expected: %s", err, expectedError)
+	}
+}
+
+func TestVolumeURL(t *testing.T) {
+	DefaultHost, _ = url.Parse("http://foo.com/")
+	storeName := "storeName"
+	volumeName := "volumeName"
+
+	u, err := VolumeURL(storeName, volumeName)
+	if err != nil {
+		t.Errorf("VolumeURL failed %v", err)
+	}
+	expectedURL := "http://foo.com/storage/volumes/storeName/volumeName"
 	if !assert.Equal(t, expectedURL, u.String()) {
 		return
 	}
