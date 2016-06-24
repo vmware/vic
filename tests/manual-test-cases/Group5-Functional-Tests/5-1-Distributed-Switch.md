@@ -5,7 +5,7 @@ Test 5-1 - Distributed Switch
 To verify the VIC appliance works in a variety of different vCenter networking configurations
 
 #References:
-
+[1 - VMware Distributed Switch Feature](https://www.vmware.com/products/vsphere/features/distributed-switch.html)
 
 #Environment:
 This test requires access to VMWare Nimbus cluster for dynamic ESXi and vCenter creation
