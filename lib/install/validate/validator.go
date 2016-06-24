@@ -27,6 +27,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/find"
+	"github.com/vmware/govmomi/govc/host/esxcli"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/install/data"
@@ -156,6 +157,7 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*metadata.V
 	v.compute(ctx, input, conf)
 	v.storage(ctx, input, conf)
 	v.network(ctx, input, conf)
+	v.firewall(ctx)
 
 	v.certificate(ctx, input, conf)
 
@@ -355,6 +357,95 @@ func (v *Validator) generateBridgeName(ctx, input *data.Data, conf *metadata.Vir
 	defer trace.End(trace.Begin(""))
 
 	return input.DisplayName
+}
+
+func (v *Validator) firewall(ctx context.Context) {
+	defer trace.End(trace.Begin(""))
+
+	var hosts []*object.HostSystem
+	var err error
+
+	rule := types.HostFirewallRule{
+		Port:      8080, // serialOverLANPort
+		PortType:  types.HostFirewallRulePortTypeDst,
+		Protocol:  string(types.HostFirewallRuleProtocolTcp),
+		Direction: types.HostFirewallRuleDirectionOutbound,
+	}
+
+	if hosts, err = v.Session.Datastore.AttachedClusterHosts(ctx, v.Session.Cluster); err != nil {
+		log.Errorf("Unable to get the list of hosts attached to given storage: %s", err)
+		v.NoteIssue(err)
+		return
+	}
+
+	var misconfiguredEnabled []string
+	var misconfiguredDisabled []string
+	var correct []string
+
+	for _, host := range hosts {
+		fs, err := host.ConfigManager().FirewallSystem(ctx)
+		if err != nil {
+			v.NoteIssue(err)
+			break
+		}
+
+		disabled := false
+		esxfw, err := esxcli.GetFirewallInfo(host)
+		if err != nil {
+			v.NoteIssue(err)
+			break
+		}
+		if !esxfw.Enabled {
+			disabled = true
+			log.Infof("Firewall status: DISABLED on %s", host.InventoryPath)
+		} else {
+			log.Infof("Firewall status: ENABLED on %s", host.InventoryPath)
+		}
+
+		info, err := fs.Info(ctx)
+		if err != nil {
+			v.NoteIssue(err)
+			break
+		}
+
+		rs := object.HostFirewallRulesetList(info.Ruleset)
+		_, err = rs.EnabledByRule(rule, true)
+		if err != nil {
+			if !disabled {
+				misconfiguredEnabled = append(misconfiguredEnabled, host.InventoryPath)
+			} else {
+				misconfiguredDisabled = append(misconfiguredDisabled, host.InventoryPath)
+			}
+		} else {
+			correct = append(correct, host.InventoryPath)
+		}
+	}
+
+	if len(correct) > 0 {
+		log.Info("Firewall configuration OK on hosts:")
+		for _, h := range correct {
+			log.Infof("  %s", h)
+		}
+	}
+	if len(misconfiguredEnabled) > 0 {
+		log.Error("Firewall configuration incorrect on hosts:")
+		for _, h := range misconfiguredEnabled {
+			log.Errorf("  %s", h)
+		}
+		// TODO: when we can intelligently place containerVMs on hosts with proper config, install
+		// can proceed if there is at least one host properly configured. For now this prevents install.
+		msg := "Firewall must permit 8080/tcp outbound to use VIC"
+		log.Error(msg)
+		v.NoteIssue(errors.New(msg))
+		return
+	}
+	if len(misconfiguredDisabled) > 0 {
+		log.Warning("Firewall configuration will be incorrect if firewall is reenabled on hosts:")
+		for _, h := range misconfiguredDisabled {
+			log.Warningf("  %s", h)
+		}
+		log.Warning("Firewall must permit 8080/tcp outbound if firewall is reenabled")
+	}
 }
 
 func (v *Validator) target(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {

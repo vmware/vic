@@ -42,10 +42,6 @@ type ContainersHandlersImpl struct {
 	handlerCtx *HandlerContext
 }
 
-const (
-	serialOverLANPort = 2377
-)
-
 // Configure assigns functions to all the exec api handlers
 func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx *HandlerContext) {
 	api.ContainersCreateHandler = containers.CreateHandlerFunc(handler.CreateHandler)
