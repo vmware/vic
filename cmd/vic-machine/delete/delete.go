@@ -146,10 +146,10 @@ func (d *Uninstall) Run(cli *cli.Context) error {
 	if validator.IsVC() {
 		log.Infoln("Removing VCH vSphere extension")
 		if err = executor.GenerateExtensionName(vchConfig); err != nil {
-			return err
+			log.Errorf("Wasn't able to get extension name during VCH deletion. Failed with error: %s", err)
 		}
 		if err = executor.UnregisterExtension(vchConfig.ExtensionName); err != nil {
-			return err
+			log.Errorf("Wasn't able to remove extension %s due to error: %s", vchConfig.ExtensionName, err)
 		}
 	}
 
