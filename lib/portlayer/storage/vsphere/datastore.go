@@ -17,6 +17,7 @@ package vsphere
 import (
 	"io"
 	"path"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
@@ -53,19 +54,37 @@ type datastore struct {
 // ctx is a context,
 // s is an authenticated session
 // ds is the vsphere datastore
-// root is the top level directory to root all data.  If root does not exist,
+// rootdir is the top level directory to root all data.  If root does not exist,
 // it will be created.  If it already exists, NOOP. This cannot be empty.
-func newDatastore(ctx context.Context, s *session.Session, ds *object.Datastore, root string) (*datastore, error) {
+func newDatastore(ctx context.Context, s *session.Session, ds *object.Datastore, rootdir string) (*datastore, error) {
+
 	d := &datastore{
 		ds:       ds,
 		s:        s,
-		rootname: root,
+		rootname: rootdir,
 		fm:       object.NewFileManager(s.Vim25()),
 	}
 
-	if err := d.mkRootDir(ctx, root); err != nil {
-		log.Infof("error creating root directory %s: %s", root, err)
+	if strings.HasPrefix(rootdir, "/") {
+		rootdir = strings.TrimPrefix(rootdir, "/")
+	}
+
+	// Get the root directory element split from the rest of the path (if there is one)
+	root := strings.SplitN(rootdir, "/", 2)
+
+	// Create the first element.  This handles vsan vmfs top level dirs.
+	if err := d.mkRootDir(ctx, root[0]); err != nil {
+		log.Infof("error creating root directory %s: %s", rootdir, err)
 		return nil, err
+	}
+
+	// Create the rest conventionally
+	if len(root) > 1 {
+		r, err := d.Mkdir(ctx, true, root[1])
+		if err != nil {
+			return nil, err
+		}
+		d.rooturl = r
 	}
 
 	log.Infof("Datastore path is %s", d.rooturl)
@@ -84,10 +103,21 @@ func (d *datastore) Summary(ctx context.Context) (*types.DatastoreSummary, error
 
 // Mkdir creates directories.
 func (d *datastore) Mkdir(ctx context.Context, createParentDirectories bool, dirs ...string) (string, error) {
-	// XXX TODO check if exists
 
 	upth := path.Join(dirs...)
+
+	// check if it already exists
+	_, err := d.Ls(ctx, upth)
+	if err != nil && !types.IsFileNotFound(err) {
+		return "", err
+	}
+
 	upth = path.Join(d.rooturl, upth)
+
+	// dir already exists
+	if err == nil {
+		return upth, nil
+	}
 
 	log.Infof("Creating directory %s", upth)
 
@@ -234,32 +264,18 @@ func (d *datastore) mkRootDir(ctx context.Context, rootdir string) error {
 		// set the root url to the UUID of the dir we created
 		d.rootdir = path.Base(uuid)
 		d.rooturl = d.ds.Path(d.rootdir)
-		log.Infof("Created image store parent directory (%s) at %s", rootdir, d.rooturl)
+		log.Infof("Created store parent directory (%s) at %s", rootdir, d.rooturl)
 		return nil
 	}
 
 	// Handle regular local datastore
 	// check if it already exists
-	_, err := d.Ls(ctx, d.ds.Path(rootdir))
-	if err != nil && !types.IsFileNotFound(err) {
-		return err
-	}
 
 	d.rootdir = rootdir
 	d.rooturl = d.ds.Path(rootdir)
 
-	// dir already exists
-	if err == nil {
+	if _, err := d.Mkdir(ctx, true); err != nil {
 		return err
-	}
-
-	// dir does not exist
-	if err != nil && types.IsFileNotFound(err) {
-		log.Infof("Creating image store parent directory %s", d.rooturl)
-		err = d.fm.MakeDirectory(ctx, d.rooturl, d.s.Datacenter, false)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil

@@ -25,6 +25,26 @@ import (
 	"golang.org/x/net/context"
 )
 
+type Disk interface {
+	MountPath() (string, error)
+	DiskPath() string
+}
+
+// VolumeStorer is an interface to create, remove, enumerate, and get Volumes.
+type VolumeStorer interface {
+	// Creates a volume on the given volume store, of the given size, with the given metadata.
+	VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityMB uint64, info map[string][]byte) (*Volume, error)
+
+	// Get an existing volume via it's ID.
+	VolumeGet(ctx context.Context, ID string) (*Volume, error)
+
+	// Destroys a volume
+	VolumeDestroy(ctx context.Context, ID string) error
+
+	// Lists all volumes
+	VolumesList(ctx context.Context) ([]*Volume, error)
+}
+
 // Volume is the handle to identify a volume on the backing store.  The URI
 // namespace used to identify the Volume in the storage layer has the following
 // path scheme:
@@ -43,21 +63,31 @@ type Volume struct {
 
 	// Namespace in the storage layer to look up this volume.
 	SelfLink *url.URL
+
+	// Backing device
+	Device Disk
 }
 
-// VolumeStorer is an interface to create, remove, enumerate, and get Volumes.
-type VolumeStorer interface {
-	// Creates a volume on the given volume store, of the given size, with the given metadata.
-	VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityMB uint64, info map[string][]byte) (*Volume, error)
+// NewVolume creates a Volume
+func NewVolume(store *url.URL, ID string, device Disk) (*Volume, error) {
+	storeName, err := util.VolumeStoreName(store)
+	if err != nil {
+		return nil, err
+	}
 
-	// Get an existing volume via it's ID.
-	VolumeGet(ctx context.Context, ID string) (*Volume, error)
+	selflink, err := util.VolumeURL(storeName, ID)
+	if err != nil {
+		return nil, err
+	}
 
-	// Destroys a volume
-	VolumeDestroy(ctx context.Context, ID string) error
+	vol := &Volume{
+		ID:       ID,
+		Store:    store,
+		SelfLink: selflink,
+		Device:   device,
+	}
 
-	// Lists all volumes
-	VolumesList(ctx context.Context) ([]*Volume, error)
+	return vol, nil
 }
 
 func (v *Volume) Parse(u *url.URL) error {
