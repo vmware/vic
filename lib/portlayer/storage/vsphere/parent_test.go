@@ -21,6 +21,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const testStore = "testStore"
+
 func TestParentEmptyRestore(t *testing.T) {
 	ctx, ds, cleanupfunc := dSsetup(t)
 	if t.Failed() {
@@ -28,7 +30,7 @@ func TestParentEmptyRestore(t *testing.T) {
 	}
 	defer cleanupfunc()
 
-	par, err := restoreParentMap(ctx, ds)
+	par, err := restoreParentMap(ctx, ds, testStore)
 	if !assert.NoError(t, err) && !assert.NotNil(t, par) {
 		return
 	}
@@ -41,7 +43,7 @@ func TestParentEmptySaveRestore(t *testing.T) {
 	}
 	defer cleanupfunc()
 
-	par, err := restoreParentMap(ctx, ds)
+	par, err := restoreParentMap(ctx, ds, testStore)
 	if !assert.NoError(t, err) && !assert.NotNil(t, par) {
 		return
 	}
@@ -51,7 +53,7 @@ func TestParentEmptySaveRestore(t *testing.T) {
 		return
 	}
 
-	p, err := restoreParentMap(ctx, ds)
+	p, err := restoreParentMap(ctx, ds, testStore)
 	if !assert.NoError(t, err) && !assert.NotNil(t, p) {
 		return
 	}
@@ -65,7 +67,7 @@ func TestParentSaveRestore(t *testing.T) {
 	}
 	defer cleanupfunc()
 
-	par, err := restoreParentMap(ctx, ds)
+	par, err := restoreParentMap(ctx, ds, testStore)
 	if !assert.NoError(t, err) && !assert.NotNil(t, par) {
 		return
 	}
@@ -83,7 +85,7 @@ func TestParentSaveRestore(t *testing.T) {
 	}
 
 	// load into a different map
-	p, err := restoreParentMap(ctx, ds)
+	p, err := restoreParentMap(ctx, ds, testStore)
 	if !assert.NoError(t, err) && !assert.NotNil(t, p) {
 		return
 	}
