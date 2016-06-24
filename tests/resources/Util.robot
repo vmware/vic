@@ -166,15 +166,3 @@ Kill Nimbus Server
     Login  ${user}  ${password}
     ${out}=  Execute Command  nimbus-ctl kill '${name}'
     Close connection
-    
-*** Test Cases ***
-test
-    ${datastore}=  Run  govc datastore.ls
-    ${datastore}=  Split To Lines  ${datastore}
-    :FOR  ${item}  IN  @{datastore}
-    \   Continue For Loop If  '${item}' == 'VIC'
-    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Match Regexp  ${item}  \\w\\w*-\\w\\w*-\\w\\w*-\\w\\w*-\\w\\w*
-    \   Continue For Loop If  '${status}' == 'PASS'
-    \   ${vms}=  Run  govc ls vm
-    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Not Contain  ${vms}  ${item}
-    \   Run Keyword If  '${status}' == 'PASS'  Run  govc datastore.rm ${item}
