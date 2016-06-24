@@ -26,7 +26,7 @@ import (
 func init() {
 	// enable verbose logging during tests
 	log.SetLevel(log.DebugLevel)
-	verbose = true
+	Verbose = true
 }
 
 func TestMultiWrite(t *testing.T) {

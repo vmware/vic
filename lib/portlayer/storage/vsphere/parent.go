@@ -24,6 +24,7 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 const mapFile = "parentMap"
@@ -56,6 +57,8 @@ type parentM struct {
 
 // Starts here.  Tries to create a new parentM or load an existing one.
 func restoreParentMap(ctx context.Context, ds *datastore, storeName string) (*parentM, error) {
+	defer trace.End(trace.Begin(storeName))
+
 	p := &parentM{
 		ds: ds,
 	}
@@ -67,11 +70,14 @@ func restoreParentMap(ctx context.Context, ds *datastore, storeName string) (*pa
 		return nil, err
 	}
 
+	log.Debugf("Loaded parent map from store %s", storeName)
 	return p, nil
 }
 
 // Add sets the parent for image i to parent
 func (p *parentM) Add(i string, parent string) {
+	defer trace.End(trace.Begin(parent))
+
 	p.l.Lock()
 	defer p.l.Unlock()
 
@@ -88,6 +94,8 @@ func (p *parentM) Get(i string) string {
 
 // Save persists the parent map to the datastore
 func (p *parentM) Save(ctx context.Context) error {
+	defer trace.End(trace.Begin(""))
+
 	p.l.Lock()
 	defer p.l.Unlock()
 
@@ -115,6 +123,8 @@ func (p *parentM) Save(ctx context.Context) error {
 }
 
 func (p *parentM) download(ctx context.Context) error {
+	defer trace.End(trace.Begin(""))
+
 	p.l.Lock()
 	defer p.l.Unlock()
 

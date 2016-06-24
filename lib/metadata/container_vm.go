@@ -35,6 +35,9 @@ type Common struct {
 	// Convenience field to record a human readable name
 	Name string `vic:"0.1" scope:"read-only" key:"name"`
 
+	// Should debugging be enabled on whatever component this is and at what level
+	DebugLevel int `vic:"0.1" scope:"read-only" key:"debug"`
+
 	// creation timestamp
 	Created string `vic:"0.1" scope:"read-only" key:"created"`
 

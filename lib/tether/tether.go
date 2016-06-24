@@ -154,6 +154,12 @@ func (t *tether) Start() error {
 		extraconfig.Decode(t.src, t.config)
 		logConfig(t.config)
 
+		// get the log level required
+		// this is really basic debug toggle for now
+		if t.config.Debug > 0 {
+			log.SetLevel(log.DebugLevel)
+		}
+
 		if err := t.ops.SetHostname(stringid.TruncateID(t.config.ID), t.config.Name); err != nil {
 			detail := fmt.Sprintf("failed to set hostname: %s", err)
 			log.Error(detail)
@@ -240,10 +246,8 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 
 	// close down the IO
 	session.Reader.Close()
-	// live.outwriter.Close()
-	// live.errwriter.Close()
-
-	// flush session log output
+	session.Outwriter.Close()
+	session.Errwriter.Close()
 
 	// record exit status
 	// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not

@@ -45,8 +45,6 @@ type VirtualContainerHostConfigSpec struct {
 	Insecure bool `vic:"0.1" scope:"read-only" key:"insecure"`
 	// The session timeout
 	Keepalive time.Duration `vic:"0.1" scope:"read-only" key:"keepalive"`
-	// Turn on debug logging
-	Debug bool `vic:"0.1" scope:"read-only" key:"debug"`
 	// Virtual Container Host version
 	Version string `vic:"0.1" scope:"read-only" key:"version"`
 
@@ -143,6 +141,11 @@ func (t *VirtualContainerHostConfigSpec) SetHostCertificate(key *[]byte) {
 // SetName sets the name of the VCH - this will be used as the hostname for the appliance
 func (t *VirtualContainerHostConfigSpec) SetName(name string) {
 	t.ExecutorConfig.Name = name
+}
+
+// SetName sets the name of the VCH - this will be used as the hostname for the appliance
+func (t *VirtualContainerHostConfigSpec) SetDebug(level int) {
+	t.ExecutorConfig.DebugLevel = level
 }
 
 // SetMoref sets the moref of the VCH - this allows components to acquire a handle to

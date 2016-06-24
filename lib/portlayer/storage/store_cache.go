@@ -26,6 +26,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/lib/portlayer/util"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 var Scratch = Image{
@@ -51,6 +52,8 @@ type NameLookupCache struct {
 }
 
 func NewLookupCache(ds ImageStorer) *NameLookupCache {
+	defer trace.End(trace.Begin(""))
+
 	return &NameLookupCache{
 		DataStore:  ds,
 		storeCache: make(map[url.URL]map[string]Image),
@@ -60,6 +63,8 @@ func NewLookupCache(ds ImageStorer) *NameLookupCache {
 // GetImageStore checks to see if a named image store exists and returls the
 // URL to it if so or error.
 func (c *NameLookupCache) GetImageStore(ctx context.Context, storeName string) (*url.URL, error) {
+	defer trace.End(trace.Begin(storeName))
+
 	store, err := util.ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
@@ -81,6 +86,7 @@ func (c *NameLookupCache) GetImageStore(ctx context.Context, storeName string) (
 		// If the store doesn't exist, we'll fall out here.
 		_, err = c.DataStore.GetImageStore(ctx, storeName)
 		if err != nil {
+			log.Debugf("Store %s not found: %s", storeName, err)
 			return nil, err
 		}
 
@@ -89,6 +95,7 @@ func (c *NameLookupCache) GetImageStore(ctx context.Context, storeName string) (
 		// Fall out here if there are no images.  We should at least have a scratch.
 		images, err := c.DataStore.ListImages(ctx, store, nil)
 		if err != nil {
+			log.Errorf("No images listed from store %s - should have contained scratch at a minimum: %s", storeName, err)
 			return nil, err
 		}
 
@@ -108,9 +115,12 @@ func (c *NameLookupCache) GetImageStore(ctx context.Context, storeName string) (
 }
 
 func (c *NameLookupCache) CreateImageStore(ctx context.Context, storeName string) (*url.URL, error) {
+	defer trace.End(trace.Begin(storeName))
+
 	u, err := c.GetImageStore(ctx, storeName)
 	// we expect this not to exist.
 	if err == nil {
+		log.Debugf("Image store %s already exists", storeName)
 		return nil, os.ErrExist
 	}
 
@@ -135,6 +145,8 @@ func (c *NameLookupCache) CreateImageStore(ctx context.Context, storeName string
 
 // ListImageStores returns a list of strings representing all existing image stores
 func (c *NameLookupCache) ListImageStores(ctx context.Context) ([]*url.URL, error) {
+	defer trace.End(trace.Begin(""))
+
 	c.storeCacheLock.Lock()
 	defer c.storeCacheLock.Unlock()
 
@@ -146,6 +158,8 @@ func (c *NameLookupCache) ListImageStores(ctx context.Context) ([]*url.URL, erro
 }
 
 func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*Image, error) {
+	defer trace.End(trace.Begin(ID))
+
 	// Check the parent exists (at least in the cache).
 	p, err := c.GetImage(ctx, parent.Store, parent.ID)
 	if err != nil {
@@ -184,6 +198,8 @@ func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID stri
 
 // GetImage gets the specified image from the given store by retreiving it from the cache.
 func (c *NameLookupCache) GetImage(ctx context.Context, store *url.URL, ID string) (*Image, error) {
+	defer trace.End(trace.Begin(ID))
+
 	storeName, err := util.ImageStoreName(store)
 	if err != nil {
 		return nil, err
@@ -216,6 +232,8 @@ func (c *NameLookupCache) GetImage(ctx context.Context, store *url.URL, ID strin
 
 // ListImages resturns a list of Images for a list of IDs, or all if no IDs are passed
 func (c *NameLookupCache) ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*Image, error) {
+	defer trace.End(trace.Begin(store.String()))
+
 	storeName, err := util.ImageStoreName(store)
 	if err != nil {
 		return nil, err

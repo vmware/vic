@@ -172,6 +172,9 @@ func (v *Validator) basics(ctx context.Context, input *data.Data, conf *metadata
 
 	// TODO: ensure that displayname doesn't violate constraints (length, characters, etc)
 	conf.SetName(input.DisplayName)
+	if input.Debug.Debug {
+		conf.SetDebug(1)
+	}
 
 	conf.Name = input.DisplayName
 }

@@ -30,6 +30,9 @@ type ExecutorConfig struct {
 	// ID corresponds to that of the primary session
 	ID string `vic:"0.1" scope:"read-only" key:"common/id"`
 
+	// Debug level required for the executor as a whole
+	Debug int `vic:"0.1" scope:"read-only" key:"common/debug"`
+
 	// Exclusive access to childPidTable
 	pidMutex sync.Mutex
 

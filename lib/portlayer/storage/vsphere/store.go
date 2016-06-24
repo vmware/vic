@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"golang.org/x/net/context"
@@ -61,6 +62,8 @@ type ImageStore struct {
 }
 
 func NewImageStore(ctx context.Context, s *session.Session) (*ImageStore, error) {
+	defer trace.End(trace.Begin(""))
+
 	dm, err := disk.NewDiskManager(ctx, s)
 	if err != nil {
 		return nil, err
@@ -108,13 +111,17 @@ func (v *ImageStore) imageMetadataDirPath(storeName, imageName string) string {
 }
 
 func (v *ImageStore) CreateImageStore(ctx context.Context, storeName string) (*url.URL, error) {
+	defer trace.End(trace.Begin(storeName))
+
 	// convert the store name to a port layer url.
 	u, err := util.ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err = v.ds.Mkdir(ctx, true, v.imageStorePath(storeName)); err != nil {
+	path := v.imageStorePath(storeName)
+	if _, err = v.ds.Mkdir(ctx, true, path); err != nil {
+		log.Debugf("Unable to create directory %s for store %s: %s", path, storeName, path)
 		return nil, err
 	}
 
@@ -131,6 +138,8 @@ func (v *ImageStore) CreateImageStore(ctx context.Context, storeName string) (*u
 // GetImageStore checks to see if the image store exists on disk and returns an
 // error or the store's URL.
 func (v *ImageStore) GetImageStore(ctx context.Context, storeName string) (*url.URL, error) {
+	defer trace.End(trace.Begin(storeName))
+
 	u, err := util.ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
@@ -159,6 +168,8 @@ func (v *ImageStore) GetImageStore(ctx context.Context, storeName string) (*url.
 }
 
 func (v *ImageStore) ListImageStores(ctx context.Context) ([]*url.URL, error) {
+	defer trace.End(trace.Begin(""))
+
 	res, err := v.ds.Ls(ctx, v.imageStorePath(""))
 	if err != nil {
 		return nil, err
@@ -190,6 +201,7 @@ func (v *ImageStore) ListImageStores(ctx context.Context) ([]*url.URL, error) {
 // Tag - the tag of the image to be written
 func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID string, meta map[string][]byte,
 	r io.Reader) (*portlayer.Image, error) {
+	defer trace.End(trace.Begin(ID))
 
 	storeName, err := util.ImageStoreName(parent.Store)
 	if err != nil {
@@ -284,6 +296,7 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 }
 
 func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*portlayer.Image, error) {
+	defer trace.End(trace.Begin(ID))
 
 	storeName, err := util.ImageStoreName(store)
 	if err != nil {
@@ -298,16 +311,19 @@ func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*
 	p := v.imageDirPath(storeName, ID)
 	info, err := v.ds.Stat(ctx, p)
 	if err != nil {
+		log.Debugf("Stating %s for %s returned error: %s", p, ID, err)
 		return nil, err
 	}
 
 	_, ok := info.(*types.FolderFileInfo)
 	if !ok {
+		log.Debugf("Error statung image %s: %s", ID, err)
 		return nil, fmt.Errorf("Stat error:  image doesn't exist (%s)", p)
 	}
 
 	meta, err := v.getMeta(ctx, storeName, ID)
 	if err != nil {
+		log.Debugf("Unable to retrieve metadata from %s for %s: %s", storeName, ID, err)
 		return nil, err
 	}
 
@@ -316,7 +332,10 @@ func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*
 
 	parentID := v.parents.Get(ID)
 	if parentID != "" {
+		log.Debugf("Identified %s as parent of %s", parentID, ID)
 		parentURL, _ = util.ImageURL(storeName, parentID)
+	} else {
+		log.Debugf("Image %s from %s does not have an entry in the parent map", ID, storeName)
 	}
 
 	newImage := &portlayer.Image{
@@ -330,10 +349,12 @@ func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*
 		Metadata: meta,
 	}
 
+	log.Debugf("Returning image structure from %p for %s", store, ID)
 	return newImage, nil
 }
 
 func (v *ImageStore) ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*portlayer.Image, error) {
+	defer trace.End(trace.Begin(""))
 
 	storeName, err := util.ImageStoreName(store)
 	if err != nil {
@@ -369,8 +390,9 @@ func (v *ImageStore) ListImages(ctx context.Context, store *url.URL, IDs []strin
 // directory under the image's parent directory.  Each blob in the metadata map
 // is written to a file with the corresponding name.  Likewise, when we read it
 // back (on restart) we populate the map accordingly.
-func (v *ImageStore) writeMeta(ctx context.Context, storeName string, ID string,
-	meta map[string][]byte) error {
+func (v *ImageStore) writeMeta(ctx context.Context, storeName string, ID string, meta map[string][]byte) error {
+	defer trace.End(trace.Begin(fmt.Sprintf("%s:%s", storeName, ID)))
+
 	// XXX this should be done via disklib so this meta follows the disk in
 	// case of motion.
 
@@ -395,10 +417,13 @@ func (v *ImageStore) writeMeta(ctx context.Context, storeName string, ID string,
 }
 
 func (v *ImageStore) getMeta(ctx context.Context, storeName string, ID string) (map[string][]byte, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("%s:%s", storeName, ID)))
+
 	metaDataDir := v.imageMetadataDirPath(storeName, ID)
 
 	res, err := v.ds.Ls(ctx, metaDataDir)
 	if err != nil {
+		log.Errorf("Failed to get metadata from %s: %s", metaDataDir, err)
 		return nil, err
 	}
 
@@ -413,17 +438,20 @@ func (v *ImageStore) getMeta(ctx context.Context, storeName string, ID string) (
 		log.Infof("Getting meta for image (%s) %s", ID, p)
 		rc, err := v.ds.Download(ctx, p)
 		if err != nil {
+			log.Errorf("Failed to download metadata %s for %s: %s", p, ID, err)
 			return nil, err
 		}
 		defer rc.Close()
 
 		buf, err := ioutil.ReadAll(rc)
 		if err != nil {
+			log.Errorf("Unable to read local metadata copy %s for %s: %s", rc, ID, err)
 			return nil, err
 		}
 
 		meta[finfo.Path] = buf
 	}
 
+	log.Debugf("Returning metadata for %d images for %s", len(meta), ID)
 	return meta, nil
 }

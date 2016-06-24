@@ -417,6 +417,7 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 			},
 			Env: []string{
 				"PATH=/sbin:/bin",
+				"GOTRACEBACK=all",
 			},
 		},
 	},
@@ -442,6 +443,7 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 			},
 			Env: []string{
 				"PATH=/sbin",
+				"GOTRACEBACK=all",
 			},
 		},
 	},
@@ -462,6 +464,9 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 				"--pool=" + settings.ResourcePoolPath,
 				"--datastore=" + conf.ImageStores[0].Host,
 				"--vch=" + conf.ExecutorConfig.Name,
+			},
+			Env: []string{
+				"GOTRACEBACK=all",
 			},
 		},
 	},

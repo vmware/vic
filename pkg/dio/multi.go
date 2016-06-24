@@ -22,7 +22,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-var verbose = true
+var Verbose = false
 
 // DynamicMultiWriter adds dynamic add/remove to the base multiwriter behaviour
 type DynamicMultiWriter interface {
@@ -43,7 +43,7 @@ func (t *multiWriter) Write(p []byte) (n int, err error) {
 	// if remove is called during this flow
 	wTmp := t.writers
 
-	if verbose {
+	if Verbose {
 		log.Debugf("[%p] writing \"%s\" to %d writers", t, string(p), len(t.writers))
 	}
 	// possibly want to add buffering or parallelize this
@@ -74,7 +74,7 @@ func (t *multiWriter) Add(writer ...io.Writer) {
 	defer t.mutex.Unlock()
 
 	t.writers = append(t.writers, writer...)
-	if verbose {
+	if Verbose {
 		log.Debugf("[%p] added writer - now %d writers", t, len(t.writers))
 	}
 }
@@ -102,7 +102,7 @@ func (t *multiWriter) Remove(writer io.Writer) {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 
-	if verbose {
+	if Verbose {
 		log.Debugf("[%p] removing writer - currently %d writers", t, len(t.writers))
 	}
 	for i, w := range t.writers {
@@ -110,7 +110,7 @@ func (t *multiWriter) Remove(writer io.Writer) {
 			t.writers = append(t.writers[:i], t.writers[i+1:]...)
 			// using range directly means that we're looping up, so indexes are now
 			// invalid
-			if verbose {
+			if Verbose {
 				log.Debugf("[%p] removed writer - now %d writers", t, len(t.writers))
 			}
 			return
@@ -144,12 +144,12 @@ type multiReader struct {
 
 func (t *multiReader) Read(p []byte) (int, error) {
 	n := 0
-	if verbose {
+	if Verbose {
 		defer log.Debugf("[%p] read \"%s\" from %d readers", t, string(p[:n]), len(t.readers))
 	}
 
 	if t.err == io.EOF {
-		if verbose {
+		if Verbose {
 			log.Debugf("[%p] read from closed multi-reader, returning EOF", t)
 		}
 		return 0, io.EOF
@@ -221,7 +221,7 @@ func (t *multiReader) Add(reader ...io.Reader) {
 	t.err = nil
 	t.cond.Broadcast()
 
-	if verbose {
+	if Verbose {
 		log.Debugf("[%p] adding reader - now %d readers", t, len(t.readers))
 	}
 }
@@ -232,7 +232,7 @@ func (t *multiReader) Remove(reader io.Reader) {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 
-	if verbose {
+	if Verbose {
 		log.Debugf("[%p] removing reader - currently %d readers", t, len(t.readers))
 	}
 
@@ -241,7 +241,7 @@ func (t *multiReader) Remove(reader io.Reader) {
 			t.readers = append(t.readers[:i], t.readers[i+1:]...)
 			// using range directly means that we're looping up, so indexes are now
 			// invalid
-			if verbose {
+			if Verbose {
 				log.Debugf("[%p] removed reader - currently %d readers", t, len(t.readers))
 			}
 			return
@@ -259,7 +259,7 @@ func MultiReader(readers ...io.Reader) DynamicMultiReader {
 	t := &multiReader{readers: r}
 	t.cond = sync.NewCond(&t.mutex)
 
-	if verbose {
+	if Verbose {
 		log.Debugf("[%p] created multireader", t)
 	}
 	return t
