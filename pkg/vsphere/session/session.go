@@ -41,12 +41,15 @@ import (
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 // Config contains the configuration used to create a Session.
 type Config struct {
 	// SDK URL or proxy
+	// TODO make sure this doesn't contain credentials
 	Service string
 	// Allow insecure connection to Service
 	Insecure bool
@@ -60,13 +63,17 @@ type Config struct {
 	NetworkPath    string
 	PoolPath       string
 
-	CertFile string
-	KeyFile  string
+	// keypair for the vSphere extension
+	ExtensionCert string
+	ExtensionKey  string
+
+	// confusingly vSphere calls this the extension key
+	ExtensionName string
 }
 
 // HasCertificate checks for presence of a certificate and keyfile
 func (c *Config) HasCertificate() bool {
-	return c.CertFile != "" && c.KeyFile != ""
+	return c.ExtensionCert != "" && c.ExtensionKey != ""
 }
 
 // Session caches vSphere objects obtained by querying the SDK.
@@ -113,7 +120,19 @@ func (s *Session) IsVSAN(ctx context.Context) bool {
 
 // Create accepts a Config and returns a Session with the cached vSphere resources.
 func (s *Session) Create(ctx context.Context) (*Session, error) {
-	_, err := s.Connect(ctx)
+	var vchExtraConfig metadata.VirtualContainerHostConfigSpec
+	source, err := extraconfig.GuestInfoSource()
+	if err != nil {
+		return nil, err
+	}
+
+	extraconfig.Decode(source, &vchExtraConfig)
+
+	s.ExtensionKey = vchExtraConfig.ExtensionKey
+	s.ExtensionCert = vchExtraConfig.ExtensionCert
+	s.ExtensionName = vchExtraConfig.ExtensionName
+
+	_, err = s.Connect(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -153,15 +172,12 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 		return nil, errors.Errorf("Failed to connect to %s: %s", soapURL.String(), err)
 	}
 
-	if s.HasCertificate() {
-		if !s.Client.IsVC() {
-			return nil, errors.Errorf("Certificate based authentication not yet supported with ESXi")
-		}
-
+	if s.HasCertificate() && s.Client.IsVC() {
 		// load the certificates
-		cert, err2 := tls.LoadX509KeyPair(s.CertFile, s.KeyFile)
+		cert, err2 := tls.X509KeyPair([]byte(s.ExtensionCert), []byte(s.ExtensionKey))
 		if err2 != nil {
-			return nil, errors.Errorf("Unable to load X509 key pair(%s,%s): %s", s.CertFile, s.KeyFile, err2)
+			return nil, errors.Errorf("Unable to load X509 key pair(%s,%s): %s",
+				s.ExtensionCert, s.ExtensionKey, err2)
 		}
 
 		// create the new client
@@ -177,10 +193,12 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 	}
 
 	// and now that the keepalive is registered we can log in to trigger it
-	if !s.HasCertificate() {
+	if !s.IsVC() || !s.HasCertificate() {
+		log.Debugf("Trying to log in with username/password in lieu of cert")
 		err = s.Client.Login(ctx, user)
 	} else {
-		err = s.LoginExtensionByCertificate(ctx, user.Username(), "")
+		log.Debugf("Logging into extension %s", s.ExtensionName)
+		err = s.LoginExtensionByCertificate(ctx, s.ExtensionName, "")
 	}
 	if err != nil {
 		return nil, errors.Errorf("Failed to log in to %s: %s", soapURL.String(), err)
