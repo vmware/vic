@@ -21,7 +21,7 @@ gsutil version -l
 dpkg -l > package.list
 
 if [ $1 = "skip-docker" ]; then
-    pybot --removekeywords TAG:secret --exclude TAG:docker tests/test-cases
+    pybot --removekeywords TAG:secret --exclude docker tests/test-cases
 else
     pybot --removekeywords TAG:secret tests/test-cases
 fi
