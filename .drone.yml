@@ -46,7 +46,7 @@ build:
       GS_CLIENT_EMAIL: $$GS_CLIENT_EMAIL
       GS_PRIVATE_KEY: $$GS_PRIVATE_KEY
     commands:
-      - tests/integration-test2.sh
+      - tests/integration-test.sh skip-docker
     when:
       event: "pull_request"
       success: true

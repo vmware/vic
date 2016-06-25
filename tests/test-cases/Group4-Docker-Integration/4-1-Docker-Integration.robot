@@ -6,6 +6,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases *** 
 Docker Integration Tests
+    [Tags]  docker
     Log To Console  \nStarting Docker integration tests...
     Set Environment Variable  GOPATH  /go:/go/src/github.com/docker/docker/vendor
     ${ip}=  Remove String  ${params}  -H
