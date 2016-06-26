@@ -15,14 +15,14 @@
 package main
 
 import (
-	"encoding/hex"
+	"encoding/gob"
 	"fmt"
 	"log"
-	"math/rand"
 	"net"
 	"net/http"
 	"net/rpc"
 
+	"github.com/google/uuid"
 	"github.com/vmware/vic/lib/portlayer/exec2"
 	"github.com/vmware/vic/lib/portlayer/exec2/remote"
 )
@@ -49,6 +49,7 @@ func init() {
 }
 
 func main() {
+	gob.Register(uuid.New())
 	rpcServer := new(PortLayerRPCServer)
 	rpc.Register(rpcServer)
 	rpc.HandleHTTP()
@@ -62,9 +63,7 @@ func main() {
 
 // A sparse handle is simply a random string
 func newSparseHandle() SparseHandle {
-	b := make([]byte, 16)
-	rand.Read(b)
-	return SparseHandle(hex.EncodeToString(b))
+	return SparseHandle(uuid.New())
 }
 
 func createSparseHandle(handle exec2.Handle) SparseHandle {
@@ -97,36 +96,25 @@ func (*PortLayerRPCServer) GetHandle(cid exec2.ID, result *exec2.Handle) error {
 
 func (*PortLayerRPCServer) CopyTo(args remote.CopyToArgs, result *exec2.Handle) error {
 	handle := resolveSparseHandle(args.Handle)
-	newHandle, err := lcTarget.CopyTo(handle,
-		args.TargetDir, args.Filename, args.Data)
+	newHandle, err := lcTarget.CopyTo(handle, args.TargetDir, args.Fname, args.Perms, args.Data)
 	return refreshHandle(result, handle, newHandle, err)
 }
 
 func (*PortLayerRPCServer) SetEntryPoint(args remote.SetEntryPointArgs, result *exec2.Handle) error {
 	handle := resolveSparseHandle(args.Handle)
-	newHandle, err := lcTarget.SetEntryPoint(handle,
-		args.WorkDir, args.ExecPath, args.Args)
-	return refreshHandle(result, handle, newHandle, err)
-}
-
-func (*PortLayerRPCServer) ExecProcess(args remote.ExecProcessArgs, result *exec2.Handle) error {
-	handle := resolveSparseHandle(args.Handle)
-	newHandle, err := lcTarget.ExecProcess(handle,
-		args.ExecPath, args.ExecArgs)
+	newHandle, err := lcTarget.SetEntryPoint(handle, args.WorkDir, args.ExecPath, args.Args)
 	return refreshHandle(result, handle, newHandle, err)
 }
 
 func (*PortLayerRPCServer) SetLimits(args remote.SetLimitsArgs, result *exec2.Handle) error {
 	handle := resolveSparseHandle(args.Handle)
-	newHandle, err := lcTarget.SetLimits(handle,
-		args.MemoryMb, args.CPUMhz)
+	newHandle, err := lcTarget.SetLimits(handle, args.MemoryMb, args.CPUMhz)
 	return refreshHandle(result, handle, newHandle, err)
 }
 
 func (*PortLayerRPCServer) SetRunState(args remote.SetRunStateArgs, result *exec2.Handle) error {
 	handle := resolveSparseHandle(args.Handle)
-	newHandle, err := lcTarget.SetRunState(handle,
-		args.RunState)
+	newHandle, err := lcTarget.SetRunState(handle, args.RunState)
 	return refreshHandle(result, handle, newHandle, err)
 }
 

@@ -15,11 +15,29 @@
 package exec2
 
 import (
+	"net/url"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
+type ID uuid.UUID
+
+func GenerateID() ID {
+	return ID(uuid.New())
+}
+
+func ParseID(idStr string) (ID, error) {
+	result, err := uuid.Parse(idStr)
+	return ID(result), err
+}
+
+func (id ID) String() string {
+	return uuid.UUID(id).String()
+}
+
+// Struct that represents the internal port-layer representation of a container
 // All data in this struct must be data that is either immutable
 // or can be relied upon without having to query either the container guest
 // or the underlying infrastructure. Some of this state will be updated by events
@@ -29,9 +47,9 @@ type container struct {
 	vm       vm.VirtualMachine
 	runState RunState
 
-	config          Config
-	processCfg      ProcessConfig // container main process
-	childProcessCfg []ProcessConfig
+	config       Config
+	mainProcess  ProcessConfig // container main process
+	execdProcess []ProcessConfig
 
 	filesToCopy []FileToCopy // cache if copy while stopped
 }
@@ -41,59 +59,59 @@ type container struct {
 type PendingCommit struct {
 	ConstantConfig
 
-	runState       RunState
-	config         Config
-	processConfig  ProcessConfig
-	childProcesses []ProcessConfig
-	filesToCopy    []FileToCopy
+	runState    RunState
+	config      Config
+	mainProcess ProcessConfig
+	filesToCopy []FileToCopy
 }
 
 // config state that cannot change for the lifetime of the container
 type ConstantConfig struct {
-	CID     ID
-	Created time.Time
-	Limits  ResourceLimits
+	ContainerID ID
+	Created     time.Time
 }
 
 // variable container configuration state
 type Config struct {
-	Name    string
-	WorkDir string
+	Name   string
+	Limits ResourceLimits
 }
 
 // configuration state of a container process
 type ProcessConfig struct {
-	PID      ID
-	ExecPath string
-	ExecArgs string
+	ProcessID ID
+	WorkDir   string
+	ExecPath  string
+	ExecArgs  string
 }
 
-func NewProcessConfig(execPath string, execArgs string) ProcessConfig {
-	return ProcessConfig{PID: GenerateID(), ExecArgs: execArgs, ExecPath: execPath}
+func NewProcessConfig(workDir string, execPath string, execArgs string) ProcessConfig {
+	return ProcessConfig{ProcessID: GenerateID(), WorkDir: workDir, ExecArgs: execArgs, ExecPath: execPath}
 }
 
 type ProcessStatus int
 
 const (
-	Started = iota
+	_ ProcessStatus = iota
+	Started
 	Exited
 )
 
 // runtime status of a container process
 type ProcessRunState struct {
-	PID        ID
+	ProcessID  ID
 	Status     ProcessStatus
 	GuestPid   int
 	ExitCode   int
-	ExitErr    string
+	ExitMsg    string
 	StartedAt  time.Time
 	FinishedAt time.Time
 }
 
 type FileToCopy struct {
-	targetName string
-	targetDir  string
-	data       []byte
+	target url.URL
+	perms  int16
+	data   []byte
 }
 
 type ResourceLimits struct {

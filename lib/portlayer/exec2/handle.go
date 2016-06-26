@@ -25,9 +25,9 @@ type HandleFactory interface {
 type BasicHandleFactory struct {
 }
 
-func (h *BasicHandleFactory) createHandle(cID ID) Handle {
+func (h *BasicHandleFactory) createHandle(cid ID) Handle {
 	newPc := &PendingCommit{}
-	newPc.CID = cID
+	newPc.ContainerID = cid
 	return newPc
 }
 

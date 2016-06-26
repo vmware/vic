@@ -15,21 +15,24 @@
 package remote
 
 import (
+	"encoding/gob"
 	"net/rpc"
 
+	"github.com/google/uuid"
 	"github.com/vmware/vic/lib/portlayer/exec2"
 )
 
+const serverAddress string = "localhost"
+
 type PortLayerRPCClient struct {
+	client *rpc.Client
 }
 
-var serverAddress = "localhost"
-var client *rpc.Client
-
-func (*PortLayerRPCClient) Connect() error {
+func (p *PortLayerRPCClient) Connect() error {
 	// Ignore Init args on the client - that is the server's responsibilty
 	var err error
-	client, err = rpc.DialHTTP("tcp", serverAddress+":1234")
+	gob.Register(uuid.New())
+	p.client, err = rpc.DialHTTP("tcp", serverAddress+":1234")
 	return err
 }
 
@@ -37,30 +40,31 @@ type CreateArgs struct {
 	Name string
 }
 
-func (*PortLayerRPCClient) CreateContainer(name string) (exec2.Handle, error) {
+func (p *PortLayerRPCClient) CreateContainer(name string) (exec2.Handle, error) {
 	args := &CreateArgs{Name: name}
 	var reply exec2.Handle
-	err := client.Call("PortLayerRpcServer.CreateContainer", args, &reply)
+	err := p.client.Call("PortLayerRPCServer.CreateContainer", args, &reply)
 	return reply, err
 }
 
-func (*PortLayerRPCClient) GetHandle(cid exec2.ID) (exec2.Handle, error) {
+func (p *PortLayerRPCClient) GetHandle(cid exec2.ID) (exec2.Handle, error) {
 	var reply exec2.Handle
-	err := client.Call("PortLayerRpcServer.GetHandle", cid, &reply)
+	err := p.client.Call("PortLayerRPCServer.GetHandle", cid, &reply)
 	return reply, err
 }
 
 type CopyToArgs struct {
 	Handle    exec2.Handle
 	TargetDir string
-	Filename  string
+	Fname     string
+	Perms     int16
 	Data      []byte
 }
 
-func (*PortLayerRPCClient) CopyTo(handle exec2.Handle, targetDir string, fname string, data []byte) (exec2.Handle, error) {
-	args := &CopyToArgs{Handle: handle, TargetDir: targetDir, Filename: fname, Data: data}
+func (p *PortLayerRPCClient) CopyTo(handle exec2.Handle, targetDir string, fname string, perms int16, data []byte) (exec2.Handle, error) {
+	args := &CopyToArgs{Handle: handle, TargetDir: targetDir, Fname: fname, Perms: perms, Data: data}
 	var reply exec2.Handle
-	err := client.Call("PortLayerRpcServer.CopyTo", args, &reply)
+	err := p.client.Call("PortLayerRPCServer.CopyTo", args, &reply)
 	return reply, err
 }
 
@@ -71,23 +75,10 @@ type SetEntryPointArgs struct {
 	Args     string
 }
 
-func (*PortLayerRPCClient) SetEntryPoint(handle exec2.Handle, workDir string, execPath string, args string) (exec2.Handle, error) {
+func (p *PortLayerRPCClient) SetEntryPoint(handle exec2.Handle, workDir string, execPath string, args string) (exec2.Handle, error) {
 	epArgs := &SetEntryPointArgs{Handle: handle, WorkDir: workDir, ExecPath: execPath, Args: args}
 	var reply exec2.Handle
-	err := client.Call("PortLayerRpcServer.SetEntryPoint", epArgs, &reply)
-	return reply, err
-}
-
-type ExecProcessArgs struct {
-	Handle   exec2.Handle
-	ExecPath string
-	ExecArgs string
-}
-
-func (*PortLayerRPCClient) ExecProcess(handle exec2.Handle, execPath string, execArgs string) (exec2.Handle, error) {
-	args := &ExecProcessArgs{Handle: handle, ExecPath: execPath, ExecArgs: execArgs}
-	var reply exec2.Handle
-	err := client.Call("PortLayerRpcServer.ExecProcess", args, &reply)
+	err := p.client.Call("PortLayerRPCServer.SetEntryPoint", epArgs, &reply)
 	return reply, err
 }
 
@@ -97,10 +88,10 @@ type SetLimitsArgs struct {
 	CPUMhz   int
 }
 
-func (*PortLayerRPCClient) SetLimits(handle exec2.Handle, memoryMb int, cpuMhz int) (exec2.Handle, error) {
+func (p *PortLayerRPCClient) SetLimits(handle exec2.Handle, memoryMb int, cpuMhz int) (exec2.Handle, error) {
 	args := &SetLimitsArgs{Handle: handle, MemoryMb: memoryMb, CPUMhz: cpuMhz}
 	var reply exec2.Handle
-	err := client.Call("PortLayerRpcServer.SetLimits", args, &reply)
+	err := p.client.Call("PortLayerRPCServer.SetLimits", args, &reply)
 	return reply, err
 }
 
@@ -109,10 +100,10 @@ type SetRunStateArgs struct {
 	RunState exec2.RunState
 }
 
-func (*PortLayerRPCClient) SetRunState(handle exec2.Handle, runState exec2.RunState) (exec2.Handle, error) {
+func (p *PortLayerRPCClient) SetRunState(handle exec2.Handle, runState exec2.RunState) (exec2.Handle, error) {
 	args := &SetRunStateArgs{Handle: handle, RunState: runState}
 	var reply exec2.Handle
-	err := client.Call("PortLayerRpcServer.SetRunState", args, &reply)
+	err := p.client.Call("PortLayerRPCServer.SetRunState", args, &reply)
 	return reply, err
 }
 
@@ -120,15 +111,15 @@ type CommitArgs struct {
 	Handle exec2.Handle
 }
 
-func (*PortLayerRPCClient) Commit(handle exec2.Handle) (exec2.ID, error) {
+func (p *PortLayerRPCClient) Commit(handle exec2.Handle) (exec2.ID, error) {
 	args := &CommitArgs{Handle: handle}
 	var reply exec2.ID
-	err := client.Call("PortLayerRpcServer.Commit", args, &reply)
+	err := p.client.Call("PortLayerRPCServer.Commit", args, &reply)
 	return reply, err
 }
 
-func (*PortLayerRPCClient) DestroyContainer(cid exec2.ID) error {
+func (p *PortLayerRPCClient) DestroyContainer(cid exec2.ID) error {
 	/* Ignore the reply */
 	var reply exec2.ID
-	return client.Call("PortLayerRpcServer.DestroyContainer", cid, &reply)
+	return p.client.Call("PortLayerRPCServer.DestroyContainer", cid, &reply)
 }

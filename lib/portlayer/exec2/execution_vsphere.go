@@ -14,7 +14,10 @@
 
 package exec2
 
-import "fmt"
+import (
+	"fmt"
+	"net/url"
+)
 
 // PortLayerVsphere is a WIP implementation of the execution.go interfaces
 type PortLayerVsphere struct {
@@ -24,7 +27,7 @@ type PortLayerVsphere struct {
 }
 
 func (p *PortLayerVsphere) getContainer(handle Handle) *container {
-	return p.containers[handle.(*PendingCommit).CID]
+	return p.containers[handle.(*PendingCommit).ContainerID]
 }
 
 func (p *PortLayerVsphere) newHandle(cid ID) *PendingCommit {
@@ -51,13 +54,12 @@ func (p *PortLayerVsphere) GetHandle(cid ID) (Handle, error) {
 	if c == nil {
 		return nil, fmt.Errorf("Invalid container ID")
 	}
-	return p.handles.createHandle(c.CID), nil
+	return p.handles.createHandle(c.ContainerID), nil
 }
 
 func (p *PortLayerVsphere) SetEntryPoint(handle Handle, workDir string, execPath string, execArgs string) (Handle, error) {
 	resolvedHandle := handle.(*PendingCommit)
-	resolvedHandle.config.WorkDir = workDir
-	resolvedHandle.processConfig = NewProcessConfig(execPath, execArgs)
+	resolvedHandle.mainProcess = NewProcessConfig(workDir, execPath, execArgs)
 	return p.handles.refreshHandle(handle), nil
 }
 
@@ -73,25 +75,24 @@ func (p *PortLayerVsphere) Commit(handle Handle) (ID, error) {
 		err = p.modifyContainer(c.runState, handle)
 	}
 	// Handle will be garbage collected
-	return c.CID, err
+	return c.ContainerID, err
 }
 
-func (p *PortLayerVsphere) CopyTo(handle Handle, targetDir string, fname string, data []byte) (Handle, error) {
+func (p *PortLayerVsphere) CopyTo(handle Handle, targetDir string, fname string, perms int16, data []byte) (Handle, error) {
+	var result Handle
 	resolvedHandle := handle.(*PendingCommit)
-	fileToCopy := FileToCopy{targetDir: targetDir, targetName: fname, data: data}
-	resolvedHandle.filesToCopy = append(resolvedHandle.filesToCopy, fileToCopy)
-	return p.handles.refreshHandle(handle), nil
-}
-
-func (p *PortLayerVsphere) ExecProcess(handle Handle, execPath string, execArgs string) (Handle, error) {
-	//resolvedHandle := handle.(*PendingCommit)
-	//append(resolvedHandle.childProcesses, NewProcessConfig(execPath, execArgs))
-	return p.handles.refreshHandle(handle), nil
+	u, err := url.Parse("file://" + targetDir + "/" + fname)
+	if err == nil {
+		fileToCopy := FileToCopy{target: *u, perms: perms, data: data}
+		resolvedHandle.filesToCopy = append(resolvedHandle.filesToCopy, fileToCopy)
+		result = p.handles.refreshHandle(handle)
+	}
+	return result, err
 }
 
 func (p *PortLayerVsphere) SetLimits(handle Handle, memoryMb int, cpuMhz int) (Handle, error) {
 	resolvedHandle := handle.(*PendingCommit)
-	resolvedHandle.Limits = ResourceLimits{MemoryMb: memoryMb, CPUMhz: cpuMhz}
+	resolvedHandle.config.Limits = ResourceLimits{MemoryMb: memoryMb, CPUMhz: cpuMhz}
 	return p.handles.refreshHandle(handle), nil
 }
 
@@ -113,8 +114,8 @@ func (p *PortLayerVsphere) DestroyContainer(cid ID) error {
 func (p *PortLayerVsphere) createContainer(handle Handle) (*container, error) {
 	resolvedHandle := handle.(*PendingCommit)
 	c := container{}
-	p.containers[resolvedHandle.CID] = &c
-	c.CID = resolvedHandle.CID
+	p.containers[resolvedHandle.ContainerID] = &c
+	c.ContainerID = resolvedHandle.ContainerID
 	c.runState = resolvedHandle.runState
 	// followed by other transfer of state from pending to container
 	//	fmt.Printf("Creating container for %v\n", pending)
