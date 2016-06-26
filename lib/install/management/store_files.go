@@ -35,13 +35,8 @@ const (
 	volumeRoot = "volumes"
 )
 
-func (d *Dispatcher) DeleteDataStores(vchVM *vm.VirtualMachine, conf *metadata.VirtualContainerHostConfigSpec) error {
-	ds, err := d.session.Finder.Datastore(d.ctx, conf.ImageStores[0].Host)
-	if err != nil {
-		err = errors.Errorf("Failed to find image datastore %s", conf.ImageStores[0].Host)
-		return err
-	}
-	d.session.Datastore = ds
+func (d *Dispatcher) DeleteStores(vchVM *vm.VirtualMachine, conf *metadata.VirtualContainerHostConfigSpec) error {
+	ds := d.session.Datastore
 
 	path, err := d.getVCHRootDir(vchVM)
 	if err != nil {
@@ -64,7 +59,7 @@ func (d *Dispatcher) DeleteDataStores(vchVM *vm.VirtualMachine, conf *metadata.V
 
 	if emptyImages && emptyVolumes {
 		// if not empty, don't try to delete parent directory here
-		log.Infof("Removing root directory")
+		log.Debugf("Removing stores directory")
 		if err = d.deleteParent(ds, path); err != nil {
 			errs = append(errs, err.Error())
 		}

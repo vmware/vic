@@ -81,16 +81,17 @@ func (d *Dispatcher) checkExistence(conf *metadata.VirtualContainerHostConfigSpe
 	return err
 }
 
-func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) (string, error) {
+func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	var err error
 	power, err := vm.PowerState(d.ctx)
-	if err != nil {
-		err = errors.Errorf("Failed to get vm power status %s: %s", vm.Reference(), err)
-		return "", err
-
-	}
-	if power != types.VirtualMachinePowerStatePoweredOff {
+	if err != nil || power != types.VirtualMachinePowerStatePoweredOff {
+		if err != nil {
+			log.Warnf("Failed to get vm power status %s: %s", vm.Reference(), err)
+		}
 		if !force {
+			if err != nil {
+				return err
+			}
 			name, err := vm.Name(d.ctx)
 			if err != nil {
 				log.Errorf("VM name is not found, %s", err)
@@ -100,7 +101,7 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) (string, error)
 			} else {
 				err = errors.Errorf("VM %s is powered on", vm.Reference())
 			}
-			return "", err
+			return err
 		}
 		if _, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 			return vm.PowerOff(ctx)
@@ -119,9 +120,13 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) (string, error)
 	})
 	if err != nil {
 		err = errors.Errorf("Failed to destroy vm %s: %s", vm.Reference(), err)
-		return "", err
+		return err
 	}
-	return folder, nil
+	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {
+		log.Warnf("VM path %s is not removed, %s", folder, err)
+	}
+
+	return nil
 }
 
 func (d *Dispatcher) addNetworkDevices(conf *metadata.VirtualContainerHostConfigSpec, cspec *spec.VirtualMachineConfigSpec, devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {

@@ -15,11 +15,11 @@
 package management
 
 import (
-	"fmt"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
@@ -49,7 +49,7 @@ func (d *Dispatcher) DeleteVCH(conf *metadata.VirtualContainerHostConfigSpec) er
 		return err
 	}
 
-	if err = d.DeleteDataStores(vmm, conf); err != nil {
+	if err = d.DeleteStores(vmm, conf); err != nil {
 		errs = append(errs, err.Error())
 	}
 
@@ -63,13 +63,10 @@ func (d *Dispatcher) DeleteVCH(conf *metadata.VirtualContainerHostConfigSpec) er
 		// stop here, leave vch appliance there for next time delete
 		return errors.New(strings.Join(errs, "\n"))
 	}
-	folder, err := d.deleteVM(vmm, true)
+	err = d.deleteVM(vmm, true)
 	if err != nil {
 		log.Debugf("Error deleting appliance VM %s", err)
 		return err
-	}
-	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {
-		log.Warnf("Appliance VM path %s is not removed, %s", folder, err)
 	}
 	if err = d.destroyResourcePoolIfEmpty(conf); err != nil {
 		log.Warnf("VCH resource pool is not removed, %s", err)
@@ -85,10 +82,27 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *metadata.V
 	var children []*vm.VirtualMachine
 
 	rpRef := conf.ComputeResources[len(conf.ComputeResources)-1]
-	rp := compute.NewResourcePool(d.ctx, d.session, rpRef)
+	ref, err := d.session.Finder.ObjectReference(d.ctx, rpRef)
+	if err != nil {
+		err = errors.Errorf("Failed to get VCH resource pool (%s): %s", rpRef, err)
+		return err
+	}
+	_, ok := ref.(*object.ResourcePool)
+	if !ok {
+		log.Errorf("Failed to find resource pool %s, %s", rpRef, err)
+		return err
+	}
+	rp := compute.NewResourcePool(d.ctx, d.session, ref.Reference())
 	if children, err = rp.GetChildrenVMs(d.ctx, d.session); err != nil {
 		return err
 	}
+
+	ds, err := d.session.Finder.Datastore(d.ctx, conf.ImageStores[0].Host)
+	if err != nil {
+		err = errors.Errorf("Failed to find image datastore %s", conf.ImageStores[0].Host)
+		return err
+	}
+	d.session.Datastore = ds
 
 	for _, child := range children {
 		name, err := child.Name(d.ctx)
@@ -100,7 +114,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *metadata.V
 		if name == conf.Name {
 			continue
 		}
-		if _, err = d.deleteVM(child, d.force); err != nil {
+		if err = d.deleteVM(child, d.force); err != nil {
 			errs = append(errs, err.Error())
 		}
 	}
@@ -131,61 +145,32 @@ func (d *Dispatcher) deleteNetworkDevices(vmm *vm.VirtualMachine, conf *metadata
 		}
 	}
 
-	spec, err := d.deleteNetworkSpec(vmm, conf)
+	devices, err := d.networkDevices(vmm)
 	if err != nil {
-		log.Errorf("Unable to create deleting spec: %s", err)
+		log.Errorf("Unable to get network devices: %s", err)
 		return err
 	}
 
-	if spec == nil {
+	if len(devices) == 0 {
 		log.Infof("No network device attached")
 		return nil
 	}
-	// reconfig
-	info, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return vmm.Reconfigure(ctx, *spec)
-	})
-
-	if err != nil {
-		log.Errorf("Error while removing network devices from appliance VM: %s", err)
-		return err
-	}
-	if info.State != types.TaskInfoStateSuccess {
-		log.Errorf("Removing network devices reported: %s", info.Error.LocalizedMessage)
-		return err
-	}
-	return nil
+	// remove devices
+	return vmm.RemoveDevice(d.ctx, false, devices...)
 }
 
-func (d *Dispatcher) deleteNetworkSpec(vmm *vm.VirtualMachine, conf *metadata.VirtualContainerHostConfigSpec) (*types.VirtualMachineConfigSpec, error) {
+func (d *Dispatcher) networkDevices(vmm *vm.VirtualMachine) ([]types.BaseVirtualDevice, error) {
 	var err error
-
-	spec := &types.VirtualMachineConfigSpec{
-		Name:    conf.Name,
-		GuestId: "other3xLinux64Guest",
-		Files:   &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
-	}
-
 	vmDevices, err := vmm.Device(d.ctx)
 	if err != nil {
 		log.Errorf("Failed to get vm devices for appliance: %s", err)
 		return nil, err
 	}
-	var found bool
+	var devices []types.BaseVirtualDevice
 	for _, device := range vmDevices {
 		if _, ok := device.(types.BaseVirtualEthernetCard); ok {
-			found = true
-			spec.DeviceChange = append(spec.DeviceChange,
-				&types.VirtualDeviceConfigSpec{
-					Operation: types.VirtualDeviceConfigSpecOperationRemove,
-					Device:    device,
-				},
-			)
-
+			devices = append(devices, device)
 		}
 	}
-	if found {
-		return spec, nil
-	}
-	return nil, nil
+	return devices, nil
 }
