@@ -19,7 +19,13 @@ set -x
 gsutil version -l
 
 dpkg -l > package.list
-pybot --removekeywords TAG:secret tests/test-cases
+
+if [ $1 = "skip-docker" ]; then
+    pybot --removekeywords TAG:secret --exclude docker tests/test-cases
+else
+    pybot --removekeywords TAG:secret tests/test-cases
+fi
+
 rc="$?"
 
 timestamp=$(date +%s)
