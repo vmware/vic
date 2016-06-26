@@ -298,12 +298,12 @@ func assignDynamicIP(t Netlink, link netlink.Link, dc dhcp.Client, endpoint *met
 				log.Infof("DHCP response: IP=%s, SubnetMask=%s, Gateway=%s, DNS=%s, Lease Time=%s", ack.YourIP(), ack.SubnetMask(), ack.Gateway(), ack.DNS(), ack.LeaseTime())
 
 				newIP = &net.IPNet{IP: ack.YourIP(), Mask: ack.SubnetMask()}
+
 				defer func() {
 					if err != nil && ack != nil {
 						dc.Release(ack)
 					}
 				}()
-				
 				break
 			} else {
 				// we do not have a dhcp client, just use the first ip
@@ -347,7 +347,6 @@ func updateEndpoint(newIP *net.IPNet, ack *dhcp.Packet, endpoint *metadata.Netwo
 	endpoint.Assigned = newIP.IP
 	if ack != nil {
 		endpoint.Network.Gateway = net.IPNet{IP: ack.Gateway(), Mask: ack.SubnetMask()}
-
 		dns := ack.DNS()
 		if len(dns) > 0 {
 			endpoint.Network.Nameservers = ack.DNS()
