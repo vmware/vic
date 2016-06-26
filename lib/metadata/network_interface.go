@@ -62,3 +62,7 @@ type ContainerNetwork struct {
 	// set of network wide links and aliases for this container on this network
 	Aliases []string `vic:"0.1" scope:"hidden" key:"aliases"`
 }
+
+func (e *NetworkEndpoint) IsDynamic() bool {
+	return len(e.Static.IP) == 0
+}

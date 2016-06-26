@@ -18,6 +18,7 @@ import (
 	"net/http"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/tether"
 )
 
@@ -26,6 +27,11 @@ import (
 var pathPrefix string
 
 func (t *operations) Setup() error {
+
+	if err := t.BaseOperations.Setup(); err != nil {
+		return err
+	}
+
 	// TODO: enabled for initial dev debugging only
 	log.Info("Launching pprof server on port 6060")
 	go func() {
@@ -36,7 +42,15 @@ func (t *operations) Setup() error {
 }
 
 func (t *operations) Cleanup() error {
+	if err := t.BaseOperations.Cleanup(); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func (t *operations) Apply(endpoint *metadata.NetworkEndpoint) error {
+	return t.BaseOperations.Apply(endpoint)
 }
 
 // HandleSessionExit controls the behaviour on session exit - for the tether if the session exiting

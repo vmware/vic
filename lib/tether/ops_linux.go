@@ -31,6 +31,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"github.com/vmware/vic/lib/dhcp"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
@@ -45,6 +46,8 @@ var byLabelDir = "/dev/disk/by-label"
 const pciDevPath = "/sys/bus/pci/devices"
 
 type BaseOperations struct {
+	dhcpClient dhcp.Client
+	dhcpLoops  []chan bool
 }
 
 // NetLink gives us an interface to the netlink calls used so that
@@ -59,7 +62,7 @@ type Netlink interface {
 	AddrAdd(netlink.Link, *netlink.Addr) error
 	RouteAdd(*netlink.Route) error
 
-	// Not quite netlink, but tightly assocaited
+	// Not quite netlink, but tightly associated
 	LinkBySlot(slot int32) (netlink.Link, error)
 }
 
@@ -206,7 +209,7 @@ func renameLink(t Netlink, link netlink.Link, slot int32, endpoint *metadata.Net
 
 		err := t.LinkSetDown(link)
 		if err != nil {
-			detail := fmt.Sprintf("failed to set link %s down for rename: %s", endpoint.Name, err)
+			detail := fmt.Sprintf("failed to set link %s down for rename: %s", link.Attrs().Name, err)
 			return nil, errors.New(detail)
 		}
 
@@ -217,14 +220,14 @@ func renameLink(t Netlink, link netlink.Link, slot int32, endpoint *metadata.Net
 
 		err = t.LinkSetUp(link)
 		if err != nil {
-			detail := fmt.Sprintf("failed to bring link %s up after rename: %s", endpoint.Name, err)
+			detail := fmt.Sprintf("failed to bring link %s up after rename: %s", link.Attrs().Name, err)
 			return nil, errors.New(detail)
 		}
 
 		// reacquire link with updated attributes
 		link, err := t.LinkBySlot(slot)
 		if err != nil {
-			detail := fmt.Sprintf("unable to reacquire link %s after rename pass: %s", endpoint.ID, err)
+			detail := fmt.Sprintf("unable to reacquire link %s after rename pass: %s", link.Attrs().Name, err)
 			return nil, errors.New(detail)
 		}
 
@@ -241,7 +244,7 @@ func renameLink(t Netlink, link netlink.Link, slot int32, endpoint *metadata.Net
 		// reacquire link with updated attributes
 		link, err := t.LinkBySlot(slot)
 		if err != nil {
-			detail := fmt.Sprintf("unable to reacquire link %s after rename pass: %s", endpoint.ID, err)
+			detail := fmt.Sprintf("unable to reacquire link %s after rename pass: %s", link.Attrs().Name, err)
 			return nil, errors.New(detail)
 		}
 
@@ -252,109 +255,202 @@ func renameLink(t Netlink, link netlink.Link, slot int32, endpoint *metadata.Net
 	return link, nil
 }
 
-// assignIP assigns an IP to a NIC, using a label to provide an associated between address and network role.
-// returns true if an address has been updated so that /etc/hosts can be updated.
-func assignIP(t Netlink, link netlink.Link, endpoint *metadata.NetworkEndpoint) (bool, error) {
-
-	// get the current ip addresses on the link
-	active, err := t.AddrList(link, netlink.FAMILY_V4)
-	if err != nil {
-		detail := fmt.Sprintf("unable to confirm assigned IP address for net %s: %s", endpoint.Network.Name, err)
-		return false, errors.New(detail)
+func assignStaticIP(t Netlink, link netlink.Link, endpoint *metadata.NetworkEndpoint) error {
+	if endpoint.IsDynamic() {
+		return nil
 	}
 
-	// Set IP address if it's specified - this is now named for for the network role rather than the nic
-	if !ip.IsUnspecifiedIP(endpoint.Static.IP) {
-		addr, err := netlink.ParseAddr(endpoint.Static.String())
-		if err != nil {
-			detail := fmt.Sprintf("failed to parse address for %s ednpoint: %s", endpoint.Network.Name, err)
-			return false, errors.New(detail)
-		}
-
-		// see if there's a need to set an address
-		for _, ipaddr := range active {
-			log.Debugf("checking existing IPs on link: %s vs %s", ipaddr.IP.String(), addr.IP.String())
-			// couldn't get bytes.Equal to match this - trailing data in the array maybe?
-			if ipaddr.IP.String() == addr.IP.String() {
-				log.Infof("address is already assigned to link, skipping assignment")
-				// ensure the assigned field is set no matter what
-				endpoint.Assigned = addr.IP
-
-				return false, nil
-			}
-		}
-
-		// add a label to identify the network
-		addr.Label = fmt.Sprintf("%s:%s", link.Attrs().Name, endpoint.Network.Name)
-		if err = t.AddrAdd(link, addr); err != nil {
-			detail := fmt.Sprintf("failed to add address to %s: %s", endpoint.Network.Name, err)
-			return false, errors.New(detail)
-		}
-
-		// report it
-		endpoint.Assigned = endpoint.Static.IP
-		log.Infof("Added IP address for %s: %s", endpoint.Network.Name, endpoint.Assigned.String())
-
-		return true, nil
+	if err := linkAddrAdd(endpoint.Static, t, link); err != nil {
+		return err
 	}
 
-	// TODO: split the entire network management out into an extension.
-	// move extensions to Pre/Post so we can ensure setup prior to session launch
-	// this will allow us to release leases on shutdown or disconnect
-
-	// if there's already an address assigned, obtain it otherwise wait for one
-	for {
-		// update the current ip addresses on the link
-		active, err = t.AddrList(link, netlink.FAMILY_V4)
-		if err != nil {
-			detail := fmt.Sprintf("unable to confirm assigned IP address for net %s: %s", endpoint.Network.Name, err)
-			return false, errors.New(detail)
-		}
-
-		if !ip.IsUnspecifiedIP(endpoint.Network.Gateway.IP) {
-			// if gateway is supplied filter with it
-			for _, ipaddr := range active {
-				if ipaddr.IP == nil {
-					continue
-				}
-
-				log.Debugf("filtering ip %s with gateway %s", ipaddr.IP, endpoint.Network.Gateway.IP)
-				if endpoint.Network.Gateway.Contains(ipaddr.IP) {
-					// couldn't get bytes.Equal to match even when the string addresses do
-					updated := endpoint.Assigned.String() != ipaddr.IP.String()
-					if updated {
-						endpoint.Assigned = ipaddr.IP
-					}
-					log.Infof("Using dynamic IP for network %s: %s", endpoint.Network.Name, endpoint.Assigned.String())
-					return updated, nil
-				}
-
-				log.Debugf("rejecting IP %s on link %s due to mismatch with endpoint gateway", ipaddr.IP.String(), endpoint.Network.Name)
-			}
-		} else if len(active) > 0 {
-			// if no gateway is specified then just take the first non-nil address
-			for _, ipaddr := range active {
-				if ipaddr.IP == nil {
-					continue
-				}
-
-				updated := endpoint.Assigned.String() != ipaddr.IP.String()
-				if updated {
-					endpoint.Assigned = ipaddr.IP
-				}
-
-				log.Infof("Using dynamic IP (unvetted) for network %s: %s", endpoint.Network.Name, endpoint.Assigned.String())
-				return updated, nil
-			}
-		}
-
-		// we don't want to busy wait but I don't currently know how to wait for interface updates
-		time.Sleep(100 * time.Millisecond)
-	}
+	return updateEndpoint(endpoint.Static, nil, endpoint)
 }
 
-// Apply takes the network endpoint configuration and applies it to the system
-func apply(t Netlink, endpoint *metadata.NetworkEndpoint) error {
+func assignDynamicIP(t Netlink, link netlink.Link, dc dhcp.Client, endpoint *metadata.NetworkEndpoint) (*dhcp.Packet, error) {
+	var ack *dhcp.Packet
+	var newIP *net.IPNet
+	var err error
+
+	addAddr := true
+	timeout := time.After(30 * time.Second)
+
+	for newIP == nil {
+		select {
+		case <-timeout:
+			return nil, fmt.Errorf("timed out")
+
+		default:
+			if dc != nil {
+				// use dhcp to acquire address
+				ack, err = dc.Request(link.Attrs().Index, link.Attrs().HardwareAddr)
+				if err != nil {
+					log.Errorf("error sending dhcp request: %s", err)
+					return nil, err
+				}
+
+				if ack.YourIP() == nil || ack.SubnetMask() == nil {
+					err = fmt.Errorf("dhcp assigned nil ip or subnet mask")
+					log.Error(err)
+					return nil, err
+				}
+
+				log.Infof("DHCP response: IP=%s, SubnetMask=%s, Gateway=%s, DNS=%s, Lease Time=%s", ack.YourIP(), ack.SubnetMask(), ack.Gateway(), ack.DNS(), ack.LeaseTime())
+
+				newIP = &net.IPNet{IP: ack.YourIP(), Mask: ack.SubnetMask()}
+
+				defer func() {
+					if err != nil && ack != nil {
+						dc.Release(ack)
+					}
+				}()
+			} else {
+				// we do not have a dhcp client, just use the first ip
+				// on the interface
+				var addrs []netlink.Addr
+				addrs, err = t.AddrList(link, netlink.FAMILY_V4)
+				if err != nil {
+					return nil, err
+				}
+
+				if len(addrs) > 0 {
+					newIP = addrs[0].IPNet
+					addAddr = false
+				}
+			}
+
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+
+	if addAddr {
+		if err = linkAddrAdd(newIP, t, link); err != nil {
+			return nil, err
+		}
+	}
+
+	if err = updateEndpoint(newIP, ack, endpoint); err != nil {
+		return nil, err
+	}
+
+	return ack, nil
+}
+
+func updateEndpoint(newIP *net.IPNet, ack *dhcp.Packet, endpoint *metadata.NetworkEndpoint) error {
+	if newIP == nil {
+		return fmt.Errorf("nil ip address")
+	}
+
+	endpoint.Assigned = newIP.IP
+	if ack != nil {
+		// assign gateway if not already set
+		endpoint.Network.Gateway = net.IPNet{IP: ack.Gateway(), Mask: ack.SubnetMask()}
+
+		// assign dns if not already set
+		dns := ack.DNS()
+		if len(dns) > 0 {
+			endpoint.Network.Nameservers = ack.DNS()
+		}
+	}
+
+	return nil
+}
+
+func linkAddrAdd(addr *net.IPNet, t Netlink, link netlink.Link) error {
+	log.Infof("setting ip address %s for link %s", addr, link.Attrs().Name)
+
+	var err error
+	// assign IP to NIC
+	if err = t.AddrAdd(link, &netlink.Addr{IPNet: addr}); err != nil {
+		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
+			log.Errorf("failed to assign dhcp ip %s for link %s", addr, link.Attrs().Name)
+			return err
+		}
+
+		log.Warnf("address %s already set on interface %s", addr, link.Attrs().Name)
+		err = nil
+	}
+
+	return err
+}
+
+func addRoutes(t Netlink, link netlink.Link, endpoint *metadata.NetworkEndpoint) error {
+	// Add routes
+	if !endpoint.Network.Default || ip.IsUnspecifiedIP(endpoint.Network.Gateway.IP) {
+		log.Debugf("not setting route for network: default=%v gateway=%s", endpoint.Network.Default, endpoint.Network.Gateway.IP)
+		return nil
+	}
+
+	_, defaultNet, _ := net.ParseCIDR("0.0.0.0/0")
+	route := netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet, Gw: endpoint.Network.Gateway.IP}
+	if err := t.RouteAdd(&route); err != nil {
+		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
+			detail := fmt.Sprintf("failed to add gateway route for endpoint %s: %s", endpoint.Network.Name, err)
+			return errors.New(detail)
+		}
+	}
+
+	log.Infof("Added route to %s interface: %s", endpoint.Network.Name, defaultNet.String())
+	return nil
+}
+
+func addHosts(endpoint *metadata.NetworkEndpoint) error {
+	// Add /etc/hosts entry
+	if endpoint.Network.Name == "" {
+		return nil
+	}
+
+	hosts, err := os.OpenFile(hostsFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		detail := fmt.Sprintf("failed to update hosts for endpoint %s: %s", endpoint.Network.Name, err)
+		return errors.New(detail)
+	}
+	defer hosts.Close()
+
+	entry := fmt.Sprintf("%s %s.localhost", endpoint.Assigned, endpoint.Network.Name)
+	_, err = hosts.WriteString(fmt.Sprintf("\n%s\n", entry))
+	if err != nil {
+		detail := fmt.Sprintf("failed to add hosts entry for endpoint %s: %s", endpoint.Network.Name, err)
+		return errors.New(detail)
+	}
+
+	log.Infof("Added hosts entry: %s", entry)
+	return nil
+}
+
+func addNameservers(endpoint *metadata.NetworkEndpoint) error {
+	// Add nameservers
+	resolv, err := os.OpenFile(resolvFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		detail := fmt.Sprintf("failed to update %s for endpoint %s: %s", resolvFile, endpoint.Network.Name, err)
+		return errors.New(detail)
+	}
+	defer resolv.Close()
+
+	// This is incredibly trivial for now - should be updated to a less messy approach
+	if len(endpoint.Network.Nameservers) > 0 {
+		for _, server := range endpoint.Network.Nameservers {
+			_, err = resolv.WriteString(fmt.Sprintf("\nnameserver %s\n", server.String()))
+			if err != nil {
+				detail := fmt.Sprintf("failed to add nameserver for endpoint %s: %s", endpoint.Network.Name, err)
+				return errors.New(detail)
+			}
+			log.Infof("Added nameserver: %s", server.String())
+		}
+	} else if !ip.IsUnspecifiedIP(endpoint.Network.Gateway.IP) {
+		_, err = resolv.WriteString(fmt.Sprintf("nameserver %s\noptions ndots:0\n", endpoint.Network.Gateway.IP))
+		if err != nil {
+			detail := fmt.Sprintf("failed to add nameserver for endpoint %s: %s", endpoint.Network.Name, err)
+			return errors.New(detail)
+		}
+		log.Infof("Added nameserver: %s", endpoint.Network.Gateway.IP)
+	}
+
+	return nil
+}
+
+func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
 
 	// Locate interface
@@ -378,84 +474,79 @@ func apply(t Netlink, endpoint *metadata.NetworkEndpoint) error {
 		return errors.New(detail)
 	}
 
-	// assign IP address as needed
-	updated, err := assignIP(t, link, endpoint)
-	if err != nil {
-		detail := fmt.Sprintf("unable to assign IP for net %s: %s", endpoint.Network.Name, err)
-		return errors.New(detail)
-	}
+	var ack *dhcp.Packet
+	defer func() {
+		if err != nil && ack != nil {
+			t.dhcpClient.Release(ack)
+		}
+	}()
 
-	// Add routes
-	if endpoint.Network.Default && len(endpoint.Network.Gateway.IP) > 0 {
-		_, defaultNet, _ := net.ParseCIDR("0.0.0.0/0")
-		route := netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet, Gw: endpoint.Network.Gateway.IP}
-		err = t.RouteAdd(&route)
-		if err != nil {
-			if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
-				detail := fmt.Sprintf("failed to add gateway route for endpoint %s: %s", endpoint.Network.Name, err)
-				return errors.New(detail)
-			}
+	if ip.IsUnspecifiedIP(endpoint.Assigned) {
+		// assign IP address as needed
+		if endpoint.IsDynamic() {
+			ack, err = assignDynamicIP(t, link, t.dhcpClient, endpoint)
+		} else {
+			err = assignStaticIP(t, link, endpoint)
 		}
 
-		log.Infof("Added route to %s interface: %s", endpoint.Network.Name, defaultNet.String())
-	}
-
-	// if there's not been any updates made then we don't want to edit hosts and nameservers
-	if !updated {
-		return nil
-	}
-
-	// Add /etc/hosts entry
-	if endpoint.Network.Name != "" {
-		hosts, err := os.OpenFile(hostsFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 		if err != nil {
-			detail := fmt.Sprintf("failed to update hosts for endpoint %s: %s", endpoint.Network.Name, err)
+			detail := fmt.Sprintf("unable to assign IP for net %s: %s", endpoint.Network.Name, err)
 			return errors.New(detail)
 		}
-		defer hosts.Close()
-
-		entry := fmt.Sprintf("%s %s.localhost", endpoint.Assigned, endpoint.Network.Name)
-		_, err = hosts.WriteString(fmt.Sprintf("\n%s\n", entry))
-		if err != nil {
-			detail := fmt.Sprintf("failed to add hosts entry for endpoint %s: %s", endpoint.Network.Name, err)
-			return errors.New(detail)
-		}
-
-		log.Infof("Added hosts entry: %s", entry)
 	}
 
-	// Add nameservers
-	resolv, err := os.OpenFile(resolvFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		detail := fmt.Sprintf("failed to update %s for endpoint %s: %s", resolvFile, endpoint.Network.Name, err)
-		return errors.New(detail)
+	if err = addRoutes(t, link, endpoint); err != nil {
+		return err
 	}
-	defer resolv.Close()
 
-	// This is incredibly trivial for now - should be updated to a less messy approach
-	if len(endpoint.Network.Nameservers) > 0 {
-		for _, server := range endpoint.Network.Nameservers {
-			_, err = resolv.WriteString(fmt.Sprintf("\nnameserver %s\n", server.String()))
-			if err != nil {
-				detail := fmt.Sprintf("failed to add nameserver for endpoint %s: %s", endpoint.Network.Name, err)
-				return errors.New(detail)
-			}
-			log.Infof("Added nameserver: %s", server.String())
-		}
-	} else {
-		_, err = resolv.WriteString(fmt.Sprintf("nameserver %s\noptions ndots:0\n", endpoint.Network.Gateway.IP))
-		if err != nil {
-			detail := fmt.Sprintf("failed to add nameserver for endpoint %s: %s", endpoint.Network.Name, err)
-			return errors.New(detail)
-		}
-		log.Infof("Added nameserver: %s", endpoint.Network.Gateway.IP)
+	// FIXME: this needs to be more intelligent
+	// about how hosts are added. Currently
+	// it just appends host entries.
+	if err = addHosts(endpoint); err != nil {
+		return err
 	}
+
+	// FIXME: this needs to be more intelligent
+	// about how nameservers are added. Currently
+	// it just appends nameserver entries to
+	// /etc/resolv.conf. There is also a limit
+	// of up to 3 nameservers per /etc/resolv.conf.
+	if err = addNameservers(endpoint); err != nil {
+		return err
+	}
+
+	// add renew/release loop if necessary
+	if ack != nil {
+		stop := make(chan bool)
+
+		go dhcpLoop(stop, t.dhcpClient, ack, endpoint.Network.Name)
+
+		t.dhcpLoops = append(t.dhcpLoops, stop)
+	}
+
 	return nil
 }
 
-// Apply takes the network endpoint configuration and applies it to the system
-func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
-	return apply(t, endpoint)
+func dhcpLoop(stop chan bool, dc dhcp.Client, ack *dhcp.Packet, networkName string) {
+	exp := time.After(ack.LeaseTime() / 2)
+	for {
+		select {
+		case <-stop:
+			// release the ip
+			dc.Release(ack)
+			return
+
+		case <-exp:
+			newack, err := dc.Renew(ack)
+			if err != nil {
+				log.Errorf("failed to renew ip address for network %s", networkName)
+				continue
+			}
+
+			ack = newack
+			exp = time.After(ack.LeaseTime())
+		}
+	}
 }
 
 // MountLabel performs a mount with the source and target being absolute paths
@@ -536,6 +627,28 @@ func (t *BaseOperations) Fork() error {
 	// reload vmxnet3 module
 
 	// ensure memory and cores are brought online if not using udev
+
+	return nil
+}
+
+func (t *BaseOperations) Setup() error {
+	c, err := dhcp.NewClient()
+	if err != nil {
+		return err
+	}
+
+	t.dhcpClient = c
+	return nil
+}
+
+func (t *BaseOperations) Cleanup() error {
+	for _, stop := range t.dhcpLoops {
+		stop <- true
+	}
+
+	if t.dhcpClient != nil {
+		return t.dhcpClient.Close()
+	}
 
 	return nil
 }

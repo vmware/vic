@@ -272,6 +272,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 				Name: "external",
 				ID:   extMoref,
 			},
+			Default: true, // external network is default for appliance
 		},
 	})
 

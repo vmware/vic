@@ -174,8 +174,24 @@ func (t *tether) Start() error {
 			return errors.New(detail)
 		}
 
+		// remove default resolv.conf
+		os.Remove("/etc/resolv.conf")
 		// process the networks then publish any dynamic data
+		dyn := make(map[string]*metadata.NetworkEndpoint)
 		for _, v := range t.config.Networks {
+			if v.IsDynamic() {
+				if d, ok := dyn[v.ID]; ok {
+					// this endpoint is tied to a dhcp
+					// enabled interface that has already
+					// been configured; copy over details
+					v.Assigned = d.Assigned
+					v.Network.Gateway = d.Network.Gateway
+					v.Network.Nameservers = d.Network.Nameservers
+				} else {
+					dyn[v.ID] = v
+				}
+			}
+
 			if err := t.ops.Apply(v); err != nil {
 				detail := fmt.Sprintf("failed to apply network endpoint config: %s", err)
 				log.Error(detail)

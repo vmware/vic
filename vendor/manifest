@@ -138,6 +138,14 @@
 			"path": "/util"
 		},
 		{
+			"importpath": "github.com/d2g/dhcp4",
+			"repository": "https://github.com/d2g/dhcp4",
+			"vcs": "git",
+			"revision": "f0e4d29ff0231dce36e250b2ed9ff08412584bca",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/davecgh/go-spew/spew",
 			"repository": "https://github.com/davecgh/go-spew",
 			"vcs": "",

@@ -58,23 +58,8 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
         # copy the init binary into the new root - ideally I'd run this purely from memory without a presence on the filesystem
         cp /bin/tether ${MOUNTPOINT}/.tether/tether-bin
 
-        # temporary hack for waiting the network
-        while ! ip addr show eth1 | grep " inet "; do sleep 1;done
-
         cat << EOF > ${MOUNTPOINT}/.tether/tether
 #!/bin/sh
-
-if [ -x /sbin/ip -o -x /bin/ip ]; then
-    addr=$(ip addr show eth1  | grep " inet " | cut -d " " -f6)
-    gateway=$(ip route show | grep "^default" | cut -d " " -f3)
-
-    echo "Setting IP addr to " \$addr > /dev/ttyS1
-    echo "Setting route to" \$gateway > /dev/ttyS1
-
-    ip addr add \$addr dev eth1
-    ip link set dev eth1 up
-    ip route add default via \$gateway dev eth1
-fi
 
 /.tether/tether-bin
 EOF
@@ -82,11 +67,6 @@ EOF
     else
         # Just copy tether as container vm doesn't come with sh
         cp /bin/tether ${MOUNTPOINT}/.tether/tether
-    fi
-
-    # We don't want eth0 for --net=none passed
-    if [ -d /sys/module/vmxnet3/ ] && [ $(cat /sys/class/net/eth1/address) == "ff:ff:ff:ff:ff:ff" ]; then
-        modprobe -r vmxnet3
     fi
 
     echo "switching to the new mount"

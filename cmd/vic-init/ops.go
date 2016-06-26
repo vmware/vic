@@ -23,6 +23,7 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
@@ -47,6 +48,10 @@ func (t *operations) Setup() error {
 }
 
 func (t *operations) Cleanup() error {
+	if err := t.BaseOperations.Cleanup(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -72,6 +77,10 @@ func (t *operations) HandleSessionExit(config *tether.ExecutorConfig, session *t
 func (t *operations) SetHostname(name string, aliases ...string) error {
 	// switch the names around so we get the pretty name and not the ID
 	return t.BaseOperations.SetHostname(aliases[0])
+}
+
+func (t *operations) Apply(endpoint *metadata.NetworkEndpoint) error {
+	return t.BaseOperations.Apply(endpoint)
 }
 
 func (t *operations) Log() (io.Writer, error) {

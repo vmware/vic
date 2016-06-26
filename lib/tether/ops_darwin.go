@@ -75,3 +75,11 @@ func (t *BaseOperations) Fork() error {
 func MkNamedPipe(path string, mode os.FileMode) error {
 	return errors.New("not implemented on OSX")
 }
+
+func (t *BaseOperations) Setup() error {
+	return nil
+}
+
+func (t *BaseOperations) Cleanup() error {
+	return nil
+}
