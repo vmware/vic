@@ -23,7 +23,8 @@ import (
 type Container struct {
 	sync.Mutex
 
-	id        exec.ID
+	id exec.ID
+
 	endpoints []*Endpoint
 }
 
