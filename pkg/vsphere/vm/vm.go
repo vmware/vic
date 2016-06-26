@@ -15,6 +15,7 @@
 package vm
 
 import (
+	"net/url"
 	"path"
 	"strings"
 
@@ -55,18 +56,36 @@ func NewVirtualMachineFromVM(ctx context.Context, session *session.Session, vm *
 // FolderName returns the name of the namespace(vsan) or directory(vmfs) that holds the VM
 // this equates to the normal directory that contains the vmx file, stripped of any parent path
 func (vm *VirtualMachine) FolderName(ctx context.Context) (string, error) {
+	u, err := vm.DSPath(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	return path.Base(u.Path), nil
+}
+
+// DSPath returns the full datastore path of the VM as a url. The datastore name is in the host
+// portion, the path is in the Path field, the scheme is set to "ds"
+func (vm *VirtualMachine) DSPath(ctx context.Context) (url.URL, error) {
 	var mvm mo.VirtualMachine
 
 	if err := vm.Properties(ctx, vm.Reference(), []string{"runtime.host", "config"}, &mvm); err != nil {
 		log.Errorf("Unable to get managed config for VM: %s", err)
-		return "", err
+		return url.URL{}, err
 	}
 
-	path := path.Base(path.Dir(mvm.Config.Files.VmPathName))
-	if path[0] == '[' {
-		path = strings.Split(path, "] ")[1]
+	path := path.Dir(mvm.Config.Files.VmPathName)
+	val := url.URL{
+		Scheme: "ds",
 	}
-	return path, nil
+
+	// split the dsPath into the url components
+	if ix := strings.Index(path, "] "); ix != -1 {
+		val.Host = path[strings.Index(path, "[")+1 : ix]
+		val.Path = path[ix+2:]
+	}
+
+	return val, nil
 }
 
 // WaitForMac will wait until VM get mac for all attached nics.
