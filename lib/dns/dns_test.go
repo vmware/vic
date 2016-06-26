@@ -15,21 +15,27 @@
 package dns
 
 import (
+	"net"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/portlayer/exec"
+	"github.com/vmware/vic/lib/portlayer/network"
 
 	mdns "github.com/miekg/dns"
 )
 
 var (
-	types = []uint16{
+	Rtypes = []uint16{
 		mdns.TypeA,
 		mdns.TypeTXT,
 		mdns.TypeAAAA,
 	}
 
-	names = []string{
+	Dnames = []string{
 		"facebook.com.",
 		"google.com.",
 	}
@@ -50,8 +56,8 @@ func TestForwarding(t *testing.T) {
 
 	size := 1024
 	for i := 0; i < size; i++ {
-		for _, Δ := range types {
-			for _, Θ := range names {
+		for _, Δ := range Rtypes {
+			for _, Θ := range Dnames {
 				m := new(mdns.Msg)
 
 				m.SetQuestion(Θ, Δ)
@@ -64,9 +70,83 @@ func TestForwarding(t *testing.T) {
 		}
 	}
 
-	n := len(types) * len(names)
+	n := len(Rtypes) * len(Dnames)
 	if server.cache.Hits() != uint64(n*size-n) && server.cache.Misses() != uint64(size) {
 		t.Fatalf("Cache hits %d misses %d", server.cache.Hits(), server.cache.Misses())
+	}
+
+	server.Stop()
+	server.Wait()
+}
+
+func TestVIC(t *testing.T) {
+	log.SetLevel(log.PanicLevel)
+
+	options.IP = "127.0.0.1"
+	options.Port = 5354
+
+	// BEGIN - Context initialization
+	var bridgeNetwork object.NetworkReference
+
+	n := object.NewNetwork(nil, types.ManagedObjectReference{})
+	n.InventoryPath = "testBridge"
+	bridgeNetwork = n
+
+	network.Config = network.Configuration{
+		BridgeNetwork: "bridge",
+		ContainerNetworks: map[string]*network.ContainerNetwork{
+			"bridge": &network.ContainerNetwork{
+				Common: metadata.Common{
+					Name: "testBridge",
+				},
+				PortGroup: bridgeNetwork,
+			},
+		},
+	}
+
+	// initialize the context
+	err := network.Init()
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	// create the container
+	con := exec.NewContainer("foo")
+	ip := net.IPv4(172, 16, 0, 2)
+
+	// add it
+	err = network.DefaultContext.AddContainer(con, "bridge", &ip)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	// bind it
+	_, err = network.DefaultContext.BindContainer(con)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	server := NewServer(options)
+	if server != nil {
+		server.Start()
+	}
+	// END - Context initialization
+
+	m := new(mdns.Msg)
+	m.SetQuestion("foo.", mdns.TypeA)
+
+	c := new(mdns.Client)
+	r, _, err := c.Exchange(m, server.Addr())
+	if err != nil || len(r.Answer) == 0 {
+		t.Fatalf("Exchange failed: %s", err)
+	}
+
+	m = new(mdns.Msg)
+	m.SetQuestion("foo.bridge.", mdns.TypeA)
+
+	r, _, err = c.Exchange(m, server.Addr())
+	if err != nil || len(r.Answer) == 0 {
+		t.Fatalf("Exchange failed: %s", err)
 	}
 
 	server.Stop()

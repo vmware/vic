@@ -27,11 +27,16 @@ func ParseID(id string) ID {
 	return ID(id)
 }
 
+// Truncate returns the truncated ID
+func (id ID) TruncateID() ID {
+	return ID(stringid.TruncateID(string(id)))
+}
+
 func (id ID) String() string {
 	return string(id)
 }
 
-// GeneratID generates a new container ID
+// GenerateID generates a new container ID
 func GenerateID() ID {
 	return ParseID(stringid.GenerateNonCryptoID())
 }

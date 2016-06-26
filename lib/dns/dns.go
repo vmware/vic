@@ -25,15 +25,19 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/lib/portlayer/exec"
+	"github.com/vmware/vic/lib/portlayer/network"
 	"github.com/vmware/vic/pkg/trace"
 
 	mdns "github.com/miekg/dns"
 )
 
 const (
+	DefaultIP        = "127.0.0.1"
 	DefaultPort      = 53
 	DefaultTTL       = 600 * time.Second
 	DefaultCacheSize = 1024
+	DefaultTimeout   = 4 * time.Second
 )
 
 var (
@@ -53,8 +57,6 @@ type ServerOptions struct {
 	CacheSize int
 
 	Debug bool
-
-	Profiling string
 }
 
 // Server represents udp/tcp server and clients
@@ -110,6 +112,11 @@ func NewServer(options ServerOptions) *Server {
 	// Default cache size
 	if options.CacheSize == 0 {
 		options.CacheSize = DefaultCacheSize
+	}
+
+	// Default timeout
+	if options.Timeout == 0 {
+		options.Timeout = DefaultTimeout
 	}
 
 	server := &Server{
@@ -170,14 +177,16 @@ func respServerFailure(w mdns.ResponseWriter, r *mdns.Msg) error {
 }
 
 func respNotImplemented(w mdns.ResponseWriter, r *mdns.Msg) error {
-	m := &mdns.Msg{}
+	m := &mdns.Msg{
+		MsgHdr: mdns.MsgHdr{
+			Authoritative:      false,
+			RecursionDesired:   false,
+			RecursionAvailable: false,
+			Rcode:              mdns.RcodeNotImplemented,
+		},
+		Compress: true,
+	}
 	m.SetReply(r)
-	m.Compress = true
-
-	m.Authoritative = false
-	m.RecursionDesired = false
-	m.RecursionAvailable = false
-	m.Rcode = mdns.RcodeNotImplemented
 
 	if err := w.WriteMsg(m); err != nil {
 		log.Errorf("Error writing RcodeNotImplemented response, %s", err)
@@ -199,7 +208,7 @@ func resolvconf() []string {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// comment.
+		// skip comments
 		if len(line) > 0 && (line[0] == ';' || line[0] == '#') {
 			continue
 		}
@@ -226,44 +235,49 @@ func resolvconf() []string {
 	return servers
 }
 
-// HandleForwarding forwards a request to the nameservers and returns the response
-func (s *Server) HandleForwarding(w mdns.ResponseWriter, request *mdns.Msg) error {
-	defer trace.End(trace.Begin(request.String()))
+// SeenBefore returns the cached response
+func (s *Server) SeenBefore(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
+	defer trace.End(trace.Begin(r.String()))
 
-	var r *mdns.Msg
+	// Do we have it in the cache
+	if m := s.cache.Get(r); m != nil {
+		log.Debugf("Cache hit for %q", r.String())
+
+		// Overwrite the ID with the request's ID
+		m.Id = r.Id
+		m.Compress = true
+		m.Truncated = false
+
+		if err := w.WriteMsg(m); err != nil {
+			log.Errorf("Error writing response: %q", err)
+			return true, err
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+// HandleForwarding forwards a request to the nameservers and returns the response
+func (s *Server) HandleForwarding(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
+	defer trace.End(trace.Begin(r.String()))
+
+	var m *mdns.Msg
 	var err error
 	var try int
 
 	if len(s.Nameservers) == 0 {
 		log.Errorf("No nameservers defined, can not forward")
-
-		return respServerFailure(w, request)
+		return false, respServerFailure(w, r)
 	}
 
-	// Do we have it in the cache
-	if m := s.cache.Get(request); m != nil {
-		log.Debugf("Cache hit %#v", m)
-
-		// Overwrite the ID with the request's ID
-		m.Id = request.Id
-		m.Compress = true
-		m.Truncated = false
-
-		if err := w.WriteMsg(m); err != nil {
-			log.Errorf("Error writing response, %s", err)
-			return err
-		}
-		return nil
-	}
-
-	// which protocol  are they talking
+	// which protocol are they talking
 	tcp := false
 	if _, ok := w.RemoteAddr().(*net.TCPAddr); ok {
 		tcp = true
 	}
 
 	// Use request ID for "random" nameserver selection.
-	nsid := int(request.Id) % len(s.Nameservers)
+	nsid := int(r.Id) % len(s.Nameservers)
 
 Redo:
 	nameserver := s.Nameservers[nsid]
@@ -272,9 +286,9 @@ Redo:
 	}
 
 	if tcp {
-		r, _, err = s.tcpclient.Exchange(request, nameserver)
+		m, _, err = s.tcpclient.Exchange(r, nameserver)
 	} else {
-		r, _, err = s.udpclient.Exchange(request, nameserver)
+		m, _, err = s.udpclient.Exchange(r, nameserver)
 	}
 	if err != nil {
 		// Seen an error, this can only mean, "server not reached", try again but only if we have not exausted our nameservers.
@@ -284,88 +298,102 @@ Redo:
 			goto Redo
 		}
 
-		log.Errorf("Failure to forward request %q", err)
-		return respServerFailure(w, request)
+		log.Errorf("Failure to forward request: %q", err)
+		return false, respServerFailure(w, r)
 	}
 
 	// We have a response so cache it
-	s.cache.Add(r)
+	s.cache.Add(m)
 
-	r.Compress = true
-	if err := w.WriteMsg(r); err != nil {
-		log.Errorf("Error writing response, %s", err)
-		return err
+	m.Compress = true
+	if err := w.WriteMsg(m); err != nil {
+		log.Errorf("Error writing response: %q", err)
+		return true, err
 	}
-	return nil
+	return true, nil
 }
 
 // HandleVIC returns a response to a container name/id request
-func (s *Server) HandleVIC(question mdns.Question) []mdns.RR {
-	defer trace.End(trace.Begin(question.String()))
-
-	//TODO
-	log.Warnf("NOT IMPLEMENTED")
-
-	return nil
-}
-
-// ServeDNS implements the handler interface
-func (s *Server) ServeDNS(w mdns.ResponseWriter, r *mdns.Msg) {
+func (s *Server) HandleVIC(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
 	defer trace.End(trace.Begin(r.String()))
+
+	question := r.Question[0]
+
+	ctx := network.DefaultContext
+	if ctx == nil {
+		log.Errorf("DefaultContext is not initialized")
+		return false, fmt.Errorf("DefaultContext is not initialized")
+	}
 
 	clientIP, _, err := net.SplitHostPort(w.RemoteAddr().String())
 	if err != nil {
-		log.Infof("Request from %s", clientIP)
+		log.Errorf("SplitHostPort failed: %q", err)
+		return false, err
 	}
 
-	if r == nil || len(r.Question) == 0 {
-		return
+	log.Debugf("RemoteAddr: %s", clientIP)
+	ip := net.ParseIP(clientIP)
+
+	var name string
+	var domain string
+
+	name = strings.TrimSuffix(question.Name, ".")
+	// Do we have a domain?
+	i := strings.IndexRune(name, '.')
+	if i >= 0 {
+		name, domain = name[:i], name[i+1:]
 	}
 
-	// Reject multi-question query
-	if len(r.Question) != 1 {
-		log.Errorf("Rejected multi-question query")
+	// Find the scope of the request
+	scopes, err := ctx.Scopes(nil)
+	// FIXME: We are doing linear search here
+	for i := range scopes {
+		s := scopes[i].Subnet()
+		if s.Contains(ip) {
+			log.Debugf("Found the scope, using %s", scopes[i].Name())
 
-		respServerFailure(w, r)
-		return
+			// convert for or foo.bar to bar:foo
+			if domain == "" || domain == scopes[i].Name() {
+				name = scopes[i].Name() + ":" + name
+				break
+			}
+		}
 	}
-	q := r.Question[0]
 
-	if q.Qclass != mdns.ClassINET {
-		log.Errorf("Rejected non-inet query")
-
-		respNotImplemented(w, r)
-		return
+	c := ctx.Container(exec.ID(name))
+	if c == nil {
+		log.Debugf("Can't find the container: %q", name)
+		return false, fmt.Errorf("Can't find the container: %q", name)
 	}
 
-	// Reject any query
-	if q.Qtype == mdns.TypeANY {
-		log.Errorf("Rejected ANY query")
-
-		respNotImplemented(w, r)
-		return
+	var answer []mdns.RR
+	for _, e := range c.Endpoints() {
+		// FIXME: Add AAAA when we support it
+		rr := &mdns.A{
+			Hdr: mdns.RR_Header{
+				Name:   question.Name,
+				Rrtype: mdns.TypeA,
+				Class:  mdns.ClassINET,
+				Ttl:    uint32(DefaultTTL.Seconds()),
+			},
+			A: e.IP(),
+		}
+		answer = append(answer, rr)
 	}
 
 	// Start crafting reply msg
-	m := &mdns.Msg{}
+	m := &mdns.Msg{
+		MsgHdr: mdns.MsgHdr{
+			Authoritative:      true,
+			RecursionAvailable: true,
+		},
+		Compress: true,
+	}
 	m.SetReply(r)
 
-	m.Authoritative = true
-	m.RecursionAvailable = true
-	m.Compress = true
+	m.Answer = append(m.Answer, answer...)
 
-	// VIC
-	answer := s.HandleVIC(q)
-	if answer != nil {
-		m.Answer = append(m.Answer, answer...)
-	}
-
-	if answer == nil {
-		s.HandleForwarding(w, r)
-		return
-	}
-
-	// which protocol we are talking
+	// Which protocol we are talking
 	tcp := false
 	if _, ok := w.LocalAddr().(*net.TCPAddr); ok {
 		tcp = true
@@ -384,12 +412,12 @@ func (s *Server) ServeDNS(w mdns.ResponseWriter, r *mdns.Msg) {
 		bufsize = 512
 	}
 
-	// with TCP we can send up to 64K
+	// With TCP we can send up to 64K
 	if tcp {
 		bufsize = mdns.MaxMsgSize - 1
 	}
 
-	// trim the answer RRs one by one till the whole message fits within the reply size
+	// Trim the answer RRs one by one till the whole message fits within the reply size
 	if m.Len() > bufsize {
 		if tcp {
 			m.Truncated = true
@@ -402,8 +430,73 @@ func (s *Server) ServeDNS(w mdns.ResponseWriter, r *mdns.Msg) {
 
 	if err := w.WriteMsg(m); err != nil {
 		log.Errorf("Error writing response, %s", err)
+		return true, err
 	}
 	w.Close()
+
+	return true, nil
+}
+
+// ServeDNS implements the handler interface
+func (s *Server) ServeDNS(w mdns.ResponseWriter, r *mdns.Msg) {
+	defer trace.End(trace.Begin(r.String()))
+
+	if r == nil || len(r.Question) == 0 {
+		return
+	}
+
+	// Reject multi-question query
+	if len(r.Question) != 1 {
+		log.Errorf("Rejected multi-question query")
+
+		respServerFailure(w, r)
+		return
+	}
+	q := r.Question[0]
+
+	// Reject non-INET type query
+	if q.Qclass != mdns.ClassINET {
+		log.Errorf("Rejected non-inet query")
+
+		respNotImplemented(w, r)
+		return
+	}
+
+	// Reject ANY type query
+	if q.Qtype == mdns.TypeANY {
+		log.Errorf("Rejected ANY query")
+
+		respNotImplemented(w, r)
+		return
+	}
+
+	// Do we have the response in our cache?
+	ok, err := s.SeenBefore(w, r)
+	if ok {
+		if err != nil {
+			log.Errorf("SeenBefore returned: %q", err)
+		}
+		return
+	}
+
+	// Check VIC first
+	ok, err = s.HandleVIC(w, r)
+	if ok {
+		if err != nil {
+			log.Errorf("HandleVIC returned: %q", err)
+		}
+		return
+	}
+
+	// Then forward
+	ok, err = s.HandleForwarding(w, r)
+	if ok {
+		if err != nil {
+			log.Errorf("HandleForwarding returned: %q", err)
+		}
+		return
+	}
+
 }
 
 // Start starts the DNS server

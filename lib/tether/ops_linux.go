@@ -425,15 +425,15 @@ func apply(t Netlink, endpoint *metadata.NetworkEndpoint) error {
 	}
 
 	// Add nameservers
+	resolv, err := os.OpenFile(resolvFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		detail := fmt.Sprintf("failed to update %s for endpoint %s: %s", resolvFile, endpoint.Network.Name, err)
+		return errors.New(detail)
+	}
+	defer resolv.Close()
+
 	// This is incredibly trivial for now - should be updated to a less messy approach
 	if len(endpoint.Network.Nameservers) > 0 {
-		resolv, err := os.OpenFile(resolvFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-		if err != nil {
-			detail := fmt.Sprintf("failed to update %s for endpoint %s: %s", resolvFile, endpoint.Network.Name, err)
-			return errors.New(detail)
-		}
-		defer resolv.Close()
-
 		for _, server := range endpoint.Network.Nameservers {
 			_, err = resolv.WriteString(fmt.Sprintf("\nnameserver %s\n", server.String()))
 			if err != nil {
@@ -442,8 +442,14 @@ func apply(t Netlink, endpoint *metadata.NetworkEndpoint) error {
 			}
 			log.Infof("Added nameserver: %s", server.String())
 		}
+	} else {
+		_, err = resolv.WriteString(fmt.Sprintf("nameserver %s\noptions ndots:0\n", endpoint.Network.Gateway.IP))
+		if err != nil {
+			detail := fmt.Sprintf("failed to add nameserver for endpoint %s: %s", endpoint.Network.Name, err)
+			return errors.New(detail)
+		}
+		log.Infof("Added nameserver: %s", endpoint.Network.Gateway.IP)
 	}
-
 	return nil
 }
 
