@@ -220,6 +220,8 @@ func (c *Create) Flags() []cli.Flag {
 	return flags
 }
 func (c *Create) processParams() error {
+	defer trace.End(trace.Begin(""))
+
 	if err := c.HasCredentials(); err != nil {
 		return err
 	}
@@ -297,6 +299,8 @@ func (c *Create) processContainerNetworks() error {
 }
 
 func (c *Create) loadCertificate() (*certificate.Keypair, error) {
+	defer trace.End(trace.Begin(""))
+
 	var keypair *certificate.Keypair
 	if c.cert != "" && c.key != "" {
 		log.Infof("Loading certificate/key pair - private key in %s", c.key)
@@ -319,6 +323,8 @@ func (c *Create) loadCertificate() (*certificate.Keypair, error) {
 }
 
 func (c *Create) checkImagesFiles() ([]string, error) {
+	defer trace.End(trace.Begin(""))
+
 	// detect images files
 	osImgs, ok := images[c.osType]
 	if !ok {

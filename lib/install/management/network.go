@@ -21,9 +21,12 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 func (d *Dispatcher) createBridgeNetwork(conf *metadata.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin(""))
+
 	// if the bridge network is already extant there's nothing to do
 	bnet := conf.ExecutorConfig.Networks[conf.BridgeNetwork]
 	if bnet != nil && bnet.ID != "" {
@@ -81,6 +84,8 @@ func (d *Dispatcher) createBridgeNetwork(conf *metadata.VirtualContainerHostConf
 }
 
 func (d *Dispatcher) removeNetwork(conf *metadata.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin(conf.Name))
+
 	if d.session.IsVC() {
 		log.Debugf("Remove network is not supported for vCenter")
 		return nil

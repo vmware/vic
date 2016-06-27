@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 
 	"golang.org/x/net/context"
 )
@@ -80,10 +81,14 @@ func (d *Uninstall) Flags() []cli.Flag {
 		},
 	}
 	flags = append(d.TargetFlags(), flags...)
+	flags = append(flags, d.DebugFlags()...)
+
 	return flags
 }
 
 func (d *Uninstall) processParams() error {
+	defer trace.End(trace.Begin(""))
+
 	if err := d.HasCredentials(); err != nil {
 		return err
 	}
@@ -119,6 +124,10 @@ func (d *Uninstall) Run(cli *cli.Context) error {
 	log.SetFormatter(&log.TextFormatter{ForceColors: true, FullTimestamp: true})
 	// SetOutput to io.MultiWriter so that we can log to stdout and a file
 	log.SetOutput(io.MultiWriter(os.Stdout, f))
+	if d.Debug.Debug {
+		log.SetLevel(log.DebugLevel)
+		trace.Logger.Level = log.DebugLevel
+	}
 
 	log.Infof("### Removing VCH ####")
 

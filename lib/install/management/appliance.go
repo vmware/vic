@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -42,6 +43,8 @@ var (
 )
 
 func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
+	defer trace.End(trace.Begin(""))
+
 	if vm == nil {
 		return false, errors.New("nil parameter")
 	}
@@ -64,6 +67,8 @@ func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
 }
 
 func (d *Dispatcher) checkExistence(conf *metadata.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin(""))
+
 	vm, err := d.findAppliance(conf)
 	if err != nil {
 		return err
@@ -82,6 +87,8 @@ func (d *Dispatcher) checkExistence(conf *metadata.VirtualContainerHostConfigSpe
 }
 
 func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
+	defer trace.End(trace.Begin(""))
+
 	var err error
 	power, err := vm.PowerState(d.ctx)
 	if err != nil || power != types.VirtualMachinePowerStatePoweredOff {
@@ -130,6 +137,8 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 }
 
 func (d *Dispatcher) addNetworkDevices(conf *metadata.VirtualContainerHostConfigSpec, cspec *spec.VirtualMachineConfigSpec, devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
+	defer trace.End(trace.Begin(""))
+
 	// network name:alias, to avoid create multiple devices for same network
 	slots := make(map[int32]bool)
 	nets := make(map[string]*metadata.NetworkEndpoint)
@@ -184,6 +193,8 @@ func (d *Dispatcher) addNetworkDevices(conf *metadata.VirtualContainerHostConfig
 }
 
 func (d *Dispatcher) addIDEController(devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
+	defer trace.End(trace.Begin(""))
+
 	// IDE controller
 	scsi, err := devices.CreateIDEController()
 	if err != nil {
@@ -194,6 +205,8 @@ func (d *Dispatcher) addIDEController(devices object.VirtualDeviceList) (object.
 }
 
 func (d *Dispatcher) addParaVirtualSCSIController(devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
+	defer trace.End(trace.Begin(""))
+
 	// para virtual SCSI controller
 	scsi, err := devices.CreateSCSIController("pvscsi")
 	if err != nil {
@@ -204,6 +217,8 @@ func (d *Dispatcher) addParaVirtualSCSIController(devices object.VirtualDeviceLi
 }
 
 func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConfigSpec, vConf *data.InstallerData) (*types.VirtualMachineConfigSpec, error) {
+	defer trace.End(trace.Begin(""))
+
 	var devices object.VirtualDeviceList
 	var err error
 
@@ -245,6 +260,8 @@ func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConf
 }
 
 func (d *Dispatcher) findApplianceByID(conf *metadata.VirtualContainerHostConfigSpec) (*vm.VirtualMachine, error) {
+	defer trace.End(trace.Begin(""))
+
 	var err error
 	var vmm *vm.VirtualMachine
 
@@ -274,6 +291,8 @@ func (d *Dispatcher) findApplianceByID(conf *metadata.VirtualContainerHostConfig
 }
 
 func (d *Dispatcher) findAppliance(conf *metadata.VirtualContainerHostConfigSpec) (*vm.VirtualMachine, error) {
+	defer trace.End(trace.Begin(""))
+
 	ovm, err := d.session.Finder.VirtualMachine(d.ctx, conf.Name)
 	if err != nil {
 		_, ok := err.(*find.NotFoundError)
@@ -292,6 +311,8 @@ func (d *Dispatcher) findAppliance(conf *metadata.VirtualContainerHostConfigSpec
 
 // retrieves the uuid of the appliance vm to create a unique vsphere extension name
 func (d *Dispatcher) GenerateExtensionName(conf *metadata.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin(conf.ExtensionName))
+
 	// must be called after appliance VM is created
 	vm, err := d.findAppliance(conf)
 
@@ -310,6 +331,8 @@ func (d *Dispatcher) GenerateExtensionName(conf *metadata.VirtualContainerHostCo
 }
 
 func (d *Dispatcher) configIso(conf *metadata.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) (object.VirtualDeviceList, error) {
+	defer trace.End(trace.Begin(""))
+
 	var devices object.VirtualDeviceList
 	var err error
 
@@ -334,6 +357,8 @@ func (d *Dispatcher) configIso(conf *metadata.VirtualContainerHostConfigSpec, vm
 }
 
 func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
+	defer trace.End(trace.Begin(""))
+
 	log.Infof("Creating appliance on target")
 
 	spec, err := d.createApplianceSpec(conf, settings)
@@ -479,6 +504,8 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 }
 
 func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *metadata.VirtualContainerHostConfigSpec) (*types.VirtualMachineConfigSpec, error) {
+	defer trace.End(trace.Begin(""))
+
 	var devices object.VirtualDeviceList
 	var err error
 
@@ -509,6 +536,8 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *metad
 // applianceConfiguration updates the configuration passed in with the latest from the appliance VM.
 // there's no guarantee of consistency within the configuration at this time
 func (d *Dispatcher) applianceConfiguration(conf *metadata.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin(""))
+
 	extraConfig, err := d.appliance.FetchExtraConfig(d.ctx)
 	if err != nil {
 		return err
@@ -520,11 +549,15 @@ func (d *Dispatcher) applianceConfiguration(conf *metadata.VirtualContainerHostC
 
 // waitForKey squashes the return values and simpy blocks until the key is updated or there is an error
 func (d *Dispatcher) waitForKey(key string) {
+	defer trace.End(trace.Begin(key))
+
 	d.appliance.WaitForKeyInExtraConfig(d.ctx, key)
 	return
 }
 
 func (d *Dispatcher) makeSureApplianceRuns(conf *metadata.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin(""))
+
 	if d.appliance == nil {
 		return errors.New("cannot validate appliance due to missing VM reference")
 	}

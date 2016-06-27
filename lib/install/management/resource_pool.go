@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -33,6 +34,8 @@ import (
 )
 
 func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*object.ResourcePool, error) {
+	defer trace.End(trace.Begin(""))
+
 	d.vchPoolPath = fmt.Sprintf("%s/%s", settings.ResourcePoolPath, conf.Name)
 
 	rp, err := d.session.Finder.ResourcePool(d.ctx, d.vchPoolPath)
@@ -81,6 +84,8 @@ func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfi
 }
 
 func (d *Dispatcher) destroyResourcePoolIfEmpty(conf *metadata.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin(""))
+
 	log.Infof("Removing Resource Pool %s", conf.Name)
 
 	rpRef := conf.ComputeResources[len(conf.ComputeResources)-1]

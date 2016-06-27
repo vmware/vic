@@ -23,6 +23,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -31,6 +32,8 @@ import (
 )
 
 func (d *Dispatcher) DeleteVCH(conf *metadata.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin(conf.Name))
+
 	var errs []string
 
 	var err error
@@ -75,6 +78,8 @@ func (d *Dispatcher) DeleteVCH(conf *metadata.VirtualContainerHostConfigSpec) er
 }
 
 func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *metadata.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin(""))
+
 	log.Infof("Removing VMs")
 	var errs []string
 
@@ -128,6 +133,8 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *metadata.V
 }
 
 func (d *Dispatcher) deleteNetworkDevices(vmm *vm.VirtualMachine, conf *metadata.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin(""))
+
 	log.Infof("Removing appliance VM network devices")
 
 	power, err := vmm.PowerState(d.ctx)
@@ -160,6 +167,8 @@ func (d *Dispatcher) deleteNetworkDevices(vmm *vm.VirtualMachine, conf *metadata
 }
 
 func (d *Dispatcher) networkDevices(vmm *vm.VirtualMachine) ([]types.BaseVirtualDevice, error) {
+	defer trace.End(trace.Begin(""))
+
 	var err error
 	vmDevices, err := vmm.Device(d.ctx)
 	if err != nil {
