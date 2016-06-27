@@ -59,13 +59,13 @@ func (d *Uninstall) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "compute-resource, r",
 			Value:       "",
-			Usage:       "The compute resource containing the Virtual Container Host; requires the '--name' argument be supplied",
+			Usage:       "The compute resource containing the Virtual Container Host; default to /",
 			Destination: &d.ComputeResourcePath,
 		},
 		cli.StringFlag{
 			Name:        "name, n",
-			Value:       "",
-			Usage:       "The name of the Virtual Container Host to delete; requires the '--compute-resource' argument be supplied",
+			Value:       "docker-appliance",
+			Usage:       "The name of the Virtual Container Host to delete",
 			Destination: &d.DisplayName,
 		},
 		cli.BoolFlag{
@@ -95,10 +95,7 @@ func (d *Uninstall) processParams() error {
 
 	if d.id != "" {
 		log.Warnf("ID of Virtual Container Host is not supported until vic-machine ls is ready. For details, please refer github issue #810")
-	}
-
-	if (d.ComputeResourcePath == "" || d.DisplayName == "") && d.id == "" {
-		return cli.NewExitError("must specify --vch-id, or both --compute-resource and --name", 1)
+		return cli.NewExitError("must specify --compute-resource and --name", 1)
 	}
 
 	d.logfile = "delete.log"
