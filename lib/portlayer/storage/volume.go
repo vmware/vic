@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"crypto/md5"
 	"errors"
 	"net/url"
 	"path/filepath"
@@ -55,6 +56,9 @@ type Volume struct {
 	// Identifies the volume
 	ID string
 
+	// Label is the computed label of the Volume.  This is set by the runtime.
+	Label string
+
 	// The volumestore the volume lives on. (e.g the datastore + vch + configured vol directory)
 	Store *url.URL
 
@@ -80,8 +84,12 @@ func NewVolume(store *url.URL, ID string, device Disk) (*Volume, error) {
 		return nil, err
 	}
 
+	// Set the label to the md5 of the ID
+	h := md5.New()
+
 	vol := &Volume{
 		ID:       ID,
+		Label:    string(h.Sum([]byte(ID))),
 		Store:    store,
 		SelfLink: selflink,
 		Device:   device,
