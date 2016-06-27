@@ -21,7 +21,6 @@ import (
 	"path"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
@@ -31,7 +30,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-const volumesDir = "volumes"
+var volumesDir = StorageParentDir + "/volumes"
 
 // VolumeStore caches Volume references to volumes in the system.
 type VolumeStore struct {
@@ -62,13 +61,12 @@ func NewVolumeStore(ctx context.Context, s *session.Session) (*VolumeStore, erro
 
 // AddStore adds a volumestore by uri.
 //
-// ds is the Datastore volumes
-// parentDir is the path to parent directory on the datastore.  The path must
-//       exist. The resulting path will be parentDir/VIC/<vch uuid>/volumes.
-// storeName is the name used to refer to the ds + parentDir tupple.
+// ds is the Datastore (+ path) volumes will be created under.
+//       The resulting path will be parentDir/VIC/volumes.
+// storeName is the name used to refer to the datastore + path (ds above).
 //
 // returns the URL used to refer to the volume store
-func (v *VolumeStore) AddStore(ctx context.Context, ds *object.Datastore, parentDir, storeName string) (*url.URL, error) {
+func (v *VolumeStore) AddStore(ctx context.Context, ds *Datastore, storeName string) (*url.URL, error) {
 	u, err := util.VolumeStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
@@ -78,14 +76,11 @@ func (v *VolumeStore) AddStore(ctx context.Context, ds *object.Datastore, parent
 		return nil, fmt.Errorf("volumestore (%s) already added", u.String())
 	}
 
-	// Root our datastore by the directory structured above.
-	p := path.Join(parentDir, storageParentDir, volumesDir)
-	d, err := NewDatastore(ctx, v.sess, ds, p)
-	if err != nil {
-		return nil, fmt.Errorf("volumestore (%s:%s) error: %s", storeName, p, err)
+	if _, err = ds.Mkdir(ctx, true, volumesDir); err != nil {
+		return nil, err
 	}
 
-	v.ds[*u] = d
+	v.ds[*u] = ds
 	return u, nil
 }
 
@@ -100,10 +95,10 @@ func (v *VolumeStore) getDatastore(store *url.URL) (*Datastore, error) {
 }
 
 // Returns the path to the vol relative to the given store.  The dir structure
-// for a vol in the datastore is `<root>/VIC/<vch uuid>/volumes/<vol ID>/<vol ID>.vmkd`.
+// for a vol in the datastore is `<configured datastore path>/volumes/<vol ID>/<vol ID>.vmkd`.
 // Everything up to "volumes" is taken care of by the datastore wrapper.
 func (v *VolumeStore) volDirPath(ID string) string {
-	return ID
+	return path.Join(volumesDir, ID)
 }
 
 // Returns the path to the vmdk itself (in datastore URL format)
@@ -127,7 +122,7 @@ func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.UR
 	}
 
 	// Create the volume directory in the store.
-	_, err = dstore.Mkdir(ctx, false, ID)
+	_, err = dstore.Mkdir(ctx, false, v.volDirPath(ID))
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +174,7 @@ func (v *VolumeStore) VolumesList(ctx context.Context) ([]*storage.Volume, error
 
 		store := volStore
 
-		res, err := vols.Ls(ctx, "")
+		res, err := vols.Ls(ctx, volumesDir)
 		if err != nil {
 			return nil, fmt.Errorf("error listing vols: %s", err)
 		}

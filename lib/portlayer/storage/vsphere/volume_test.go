@@ -40,9 +40,15 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 		return
 	}
 
-	// Add a volume store
-	testStorePath := "/voltest-" + RandomString(6)
-	volumeStore, err := vsVolumeStore.AddStore(ctx, client.Datastore, testStorePath, "testStoreName")
+	// Root our datastore
+	testStorePath := "voltest-" + RandomString(6)
+	ds, err := NewDatastore(ctx, client, client.Datastore, testStorePath)
+	if !assert.NoError(t, err) || !assert.NotNil(t, ds) {
+		return
+	}
+
+	// Add a volume store and give it a name ("testStoreName")
+	volumeStore, err := vsVolumeStore.AddStore(ctx, ds, "testStoreName")
 	if !assert.NoError(t, err) || !assert.NotNil(t, volumeStore) {
 		return
 	}
@@ -101,7 +107,7 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 		return
 	}
 
-	volumeStore, err = secondVStore.AddStore(ctx, client.Datastore, testStorePath, "testStoreName")
+	volumeStore, err = secondVStore.AddStore(ctx, ds, "testStoreName")
 	if !assert.NoError(t, err) || !assert.NotNil(t, volumeStore) {
 		return
 	}

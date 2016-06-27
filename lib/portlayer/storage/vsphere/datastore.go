@@ -42,9 +42,6 @@ type Datastore struct {
 
 	// The datastore url (including root)
 	RootURL string
-
-	// datastore path (not in url form)
-	rootdir string
 }
 
 // NewDatastore returns a Datastore.
@@ -193,16 +190,16 @@ func (d *Datastore) LsDirs(ctx context.Context, p string) (*types.ArrayOfHostDat
 }
 
 func (d *Datastore) Upload(ctx context.Context, r io.Reader, pth string) error {
-	return d.ds.Upload(ctx, r, path.Join(d.rootdir, pth), &soap.DefaultUpload)
+	return d.ds.Upload(ctx, r, path.Join(d.rootDir(), pth), &soap.DefaultUpload)
 }
 
 func (d *Datastore) Download(ctx context.Context, pth string) (io.ReadCloser, error) {
-	rc, _, err := d.ds.Download(ctx, path.Join(d.rootdir, pth), &soap.DefaultDownload)
+	rc, _, err := d.ds.Download(ctx, path.Join(d.rootDir(), pth), &soap.DefaultDownload)
 	return rc, err
 }
 
 func (d *Datastore) Stat(ctx context.Context, pth string) (types.BaseFileInfo, error) {
-	return d.ds.Stat(ctx, path.Join(d.rootdir, pth))
+	return d.ds.Stat(ctx, path.Join(d.rootDir(), pth))
 }
 
 func (d *Datastore) Mv(ctx context.Context, fromPath, toPath string) error {
@@ -258,21 +255,23 @@ func (d *Datastore) mkRootDir(ctx context.Context, rootdir string) error {
 		}
 
 		// set the root url to the UUID of the dir we created
-		d.rootdir = path.Base(uuid)
-		d.RootURL = d.ds.Path(d.rootdir)
+		d.RootURL = d.ds.Path(path.Base(uuid))
 		log.Infof("Created store parent directory (%s) at %s", rootdir, d.RootURL)
-		return nil
-	}
+	} else {
 
-	// Handle regular local datastore
-	// check if it already exists
+		// Handle regular local datastore
+		// check if it already exists
 
-	d.rootdir = rootdir
-	d.RootURL = d.ds.Path(rootdir)
-
-	if _, err := d.Mkdir(ctx, true); err != nil {
-		return err
+		d.RootURL = d.ds.Path(rootdir)
+		if _, err := d.Mkdir(ctx, true); err != nil {
+			return err
+		}
 	}
 
 	return nil
+}
+
+// Return the root of the datastore path (without the [datastore] portion)
+func (d *Datastore) rootDir() string {
+	return strings.SplitN(d.RootURL, " ", 2)[1]
 }
