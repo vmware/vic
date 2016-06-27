@@ -74,7 +74,10 @@ unpack $PACKAGE $PKGDIR
 #   procps-ng # for ps
 #   iputils   # for ping
 #   iproute2  # for ip
+#   iptables  # for iptables
+#   net-tools # for netstat
 #   openssh   # for ssh server
+#   sudo      # for sudo
 #
 # Temporary packages list here
 #   systemd   # for convenience only at this time
@@ -88,6 +91,8 @@ yum_cached -c $cache -u -p $PKGDIR install \
     procps-ng \
     iputils \
     iproute2 \
+    net-tools \
+    sudo \
     tdnf \
     vim \
     -y --nogpgcheck
