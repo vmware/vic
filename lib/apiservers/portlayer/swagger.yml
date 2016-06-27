@@ -193,6 +193,66 @@ paths:
           description: "error"
           schema:
             $ref: "#/definitions/Error"
+  /storage/volumes/:
+    get:
+      description: "Get a list of available volumes"
+      operationId: ListVolumes
+      tags: ["storage"]
+      consumes:
+        - application/json
+        - application/octet-stream
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          type: string
+          in: query
+          type: array
+          items:
+            type: string
+            collectionFormat: csv
+      responses:
+        '200':
+          description: "OK"
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/VolumeResponse"
+        '404':
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+        default:
+          description: "error"
+          schema:
+           $ref: "#/definitions/Error"
+    post:
+      description: "Create a volume"
+      operationId: CreateVolume
+      summary: "Creates a Volume with metadata that is provided from the personality"
+      tags: ["storage"]
+      consumes:
+        - application/json
+        - application/octet-stream
+      produces:
+        - application/json
+      parameters:
+        - name: VolumeRequest
+          required: true
+          in: body
+          schema:
+            $ref: "#/definitions/VolumeRequest"
+      responses:
+        '201':
+          description: "Created"
+          schema:
+            $ref: "#/definitions/VolumeResponse"
+        '500':
+          description: "Error"
+        default:
+          description: "error"
+          schema:
+           $ref: "#/definitions/Error"
   /storage/volumes/{name}:
     get:
       description: "Get a Volume Handle"
@@ -320,6 +380,7 @@ paths:
           schema:
             $ref: "#/definitions/Error"
         '500':
+          description: "Internal server error"
           schema:
             $ref: "#/definitions/Error"
   /scopes/{scope}/containers:
@@ -859,3 +920,50 @@ definitions:
       state:
         type: string
         enum: ["RUNNING", "STOPPED"]
+  VolumeRequest:
+    type: object
+    required:
+      - Name
+      - Store
+      - Capacity
+      - Driver
+    properties:
+      Name:
+        type: string
+      Driver:
+        type: string
+      DriverArgs:
+        type: object
+        additionalProperties:
+          type: string
+      Store:
+        type: string
+      Capacity:
+        type: integer
+        format: int64
+      Metadata:
+        type: object
+        additionalProperties:
+          type: string
+  VolumeResponse:
+    type: object
+    required:
+      - Name
+      - SelfLink
+      - Store
+      - Driver
+    properties:
+      Name:
+        type: string
+      SelfLink:
+        type: string
+      Driver:
+        type: string
+      Store:
+        type: string
+      Metadata:
+        type: object
+        additionalProperties:
+          type: string
+
+      
