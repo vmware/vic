@@ -267,7 +267,7 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 	}
 
 	// Write the metadata to the datastore
-	err = v.writeMeta(ctx, storeName, ID, meta)
+	err = v.WriteMetadata(ctx, storeName, ID, meta)
 	if err != nil {
 		return nil, err
 	}
@@ -369,7 +369,7 @@ func (v *ImageStore) ListImages(ctx context.Context, store *url.URL, IDs []strin
 // directory under the image's parent directory.  Each blob in the metadata map
 // is written to a file with the corresponding name.  Likewise, when we read it
 // back (on restart) we populate the map accordingly.
-func (v *ImageStore) writeMeta(ctx context.Context, storeName string, ID string,
+func (v *ImageStore) WriteMetadata(ctx context.Context, storeName string, ID string,
 	meta map[string][]byte) error {
 	// XXX this should be done via disklib so this meta follows the disk in
 	// case of motion.

@@ -15,110 +15,79 @@
 package vicbackends
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	v1 "github.com/docker/docker/image"
 	"github.com/docker/engine-api/types/container"
+
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/vic/lib/apiservers/portlayer/models"
+
+	"github.com/vmware/vic/lib/metadata"
 )
-
-func TestGetV1ImageMapEmpty(t *testing.T) {
-	images := []*models.Image{
-		&models.Image{
-			ID: "scratch",
-		},
-	}
-	v1Map := getV1MapFromImages(images)
-	assert.Empty(t, v1Map, "v1Map should be empty")
-}
-
-func TestGetV1ImageMap(t *testing.T) {
-	p := "scratch"
-	s := "test_selflink"
-	images := []*models.Image{
-		&models.Image{
-			ID: "deadbeef",
-			Metadata: map[string]string{
-				"v1Compatibility": "{\"id\": \"deadbeef\", \"Size\":1024, \"parent\":\"\"}",
-			},
-			Parent:   &p,
-			SelfLink: &s,
-			Store:    "teststore",
-		},
-	}
-	v1Map := getV1MapFromImages(images)
-	assert.NotEmpty(t, v1Map, "v1Map should not be empty")
-	if !assert.Equal(t, 1, len(v1Map), "len(v1Map) should be 1") {
-		return
-	}
-}
-
-func TestResolveImageSize(t *testing.T) {
-	p := ""
-	pp := "deadbeef"
-	s := "test_selflink"
-	images := []*models.Image{
-		&models.Image{
-			ID:       "scratch",
-			Metadata: map[string]string{},
-			Parent:   nil,
-			SelfLink: &s,
-			Store:    "teststore",
-		},
-		&models.Image{
-			ID: "deadbeef",
-			Metadata: map[string]string{
-				"v1Compatibility": "{\"id\": \"deadbeef\", \"Size\":1024, \"parent\":\"\"}",
-			},
-			Parent:   &p,
-			SelfLink: &s,
-			Store:    "teststore",
-		},
-		&models.Image{
-			ID: "test_id",
-			Metadata: map[string]string{
-				"v1Compatibility": "{\"id\": \"test_id\", \"Size\":1024, \"parent\":\"deadbeef\"}",
-			},
-			Parent:   &pp,
-			SelfLink: &s,
-			Store:    "teststore",
-		},
-	}
-	v1Map := getV1MapFromImages(images)
-	assert.NotEmpty(t, v1Map, "v1Map should not be empty")
-	// minus the scratch image which gets skipped
-	if !assert.Equal(t, len(images)-1, len(v1Map), "len(v1Map) should be 1") {
-		return
-	}
-
-	// "test_id" image size should be the size of its parent ("deadbeef") plus its own size before resolution
-	expected := v1Map["deadbeef"].Size + v1Map["test_id"].Size
-
-	// perform the size resolution
-	resolveImageSizes(v1Map)
-
-	actual := v1Map["test_id"].Size
-	assert.Equal(t, expected, actual, "Error: expected size %d, got %d", expected, actual)
-}
 
 func TestConvertV1ImageToDockerImage(t *testing.T) {
 	now := time.Now()
 
-	v1Image := &v1.V1Image{
-		ID:      "deadbeef",
-		Size:    1024,
-		Created: now,
-		Parent:  "",
-		Config: &container.Config{
-			Labels: map[string]string{},
+	image := &metadata.ImageConfig{
+		V1Image: v1.V1Image{
+			ID:      "deadbeef",
+			Size:    1024,
+			Created: now,
+			Parent:  "",
+			Config: &container.Config{
+				Labels: map[string]string{},
+			},
 		},
+		ImageID: "test_id",
+		Digests: []string{"12345"},
+		Tags:    []string{"test_tag"},
+		Name:    "test_name",
+		DiffIDs: map[string]string{"test_diffid": "test_layerid"},
+		History: []v1.History{},
 	}
-	dockerImage := convertV1ImageToDockerImage(v1Image)
-	assert.Equal(t, v1Image.ID, dockerImage.ID, "Error: expected id %s, got %s", v1Image.ID, dockerImage.ID)
-	assert.Equal(t, v1Image.Size, dockerImage.VirtualSize, "Error: expected size %s, got %s", v1Image.Size, dockerImage.VirtualSize)
-	assert.Equal(t, v1Image.Created.Unix(), dockerImage.Created, "Error: expected created %s, got %s", v1Image.Created, dockerImage.Created)
-	assert.Equal(t, v1Image.Parent, dockerImage.ParentID, "Error: expected parent %s, got %s", v1Image.Parent, dockerImage.ParentID)
-	assert.Equal(t, v1Image.Config.Labels, dockerImage.Labels, "Error: expected labels %s, got %s", v1Image.Config.Labels, dockerImage.Labels)
+	digest := fmt.Sprintf("%s@sha:%s", image.Name, "12345")
+	tag := fmt.Sprintf("%s:%s", image.Name, "test_tag")
+
+	dockerImage := convertV1ImageToDockerImage(image)
+
+	assert.Equal(t, image.ImageID, dockerImage.ID, "Error: expected id %s, got %s", image.ImageID, dockerImage.ID)
+	assert.Equal(t, image.Size, dockerImage.VirtualSize, "Error: expected size %s, got %s", image.Size, dockerImage.VirtualSize)
+	assert.Equal(t, image.Size, dockerImage.Size, "Error: expected size %s, got %s", image.Size, dockerImage.Size)
+	assert.Equal(t, image.Created.Unix(), dockerImage.Created, "Error: expected created %s, got %s", image.Created, dockerImage.Created)
+	assert.Equal(t, image.Parent, dockerImage.ParentID, "Error: expected parent %s, got %s", image.Parent, dockerImage.ParentID)
+	assert.Equal(t, image.Config.Labels, dockerImage.Labels, "Error: expected labels %s, got %s", image.Config.Labels, dockerImage.Labels)
+	assert.Equal(t, digest, dockerImage.RepoDigests[0], "Error: expected digest %s, got %s", digest, dockerImage.RepoDigests[0])
+	assert.Equal(t, tag, dockerImage.RepoTags[0], "Error: expected tag %s, got %s", tag, dockerImage.RepoTags[0])
+}
+
+func TestclientFriendlyTags(t *testing.T) {
+	imageName := "busybox"
+	tags := []string{"1.24.2", "latest"}
+
+	friendlyTags := clientFriendlyTags(imageName, tags)
+	assert.Equal(t, len(friendlyTags), len(tags), "Error: expected %d tags, got %d", len(tags), len(friendlyTags))
+	assert.Equal(t, friendlyTags[0], "busybox:1.24.2", "Error: expected %s, got %s", "busybox:1.24.2", friendlyTags[0])
+	assert.Equal(t, friendlyTags[1], "busybox:latest", "Error: expected %s, got %s", "busybox:latest", friendlyTags[1])
+
+	emptyTags := clientFriendlyTags(imageName, []string{})
+	assert.Equal(t, len(emptyTags), 1, "Error: expected %d tags, got %d", 1, len(emptyTags))
+	assert.Equal(t, emptyTags[0], "<none>:<none>", "Error: expected %s tags, got %s", "<none>:<none>", emptyTags[0])
+
+}
+
+func TestclientFriendlyDigests(t *testing.T) {
+	imageName := "busybox"
+	digests := []string{"12345", "6789"}
+
+	friendlyDigests := clientFriendlyDigests(imageName, digests)
+	assert.Equal(t, len(friendlyDigests), len(digests), "Error: expected %d digests, got %d", len(digests), len(friendlyDigests))
+	assert.Equal(t, friendlyDigests[0], "busybox@sha:12345", "Error: expected %s, got %s", "busybox@sha:12345", friendlyDigests[0])
+	assert.Equal(t, friendlyDigests[1], "busybox@sha:6789", "Error: expected %s, got %s", "busybox@sha:6789", friendlyDigests[1])
+
+	emptyDigests := clientFriendlyDigests(imageName, []string{})
+	assert.Equal(t, len(emptyDigests), 1, "Error: expected %d digests, got %d", 1, len(emptyDigests))
+	assert.Equal(t, emptyDigests[0], "<none>@<none>", "Error: expected %s digests, got %s", "<none>@<none>", emptyDigests[0])
+
 }
