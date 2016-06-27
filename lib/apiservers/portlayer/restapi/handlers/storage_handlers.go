@@ -80,6 +80,7 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, hand
 	api.StorageListImagesHandler = storage.ListImagesHandlerFunc(handler.ListImages)
 	api.StorageWriteImageHandler = storage.WriteImageHandlerFunc(handler.WriteImage)
 	api.StorageRemoveVolumeHandler = storage.RemoveVolumeHandlerFunc(handler.RemoveVolume)
+	api.StorageCreateVolumeHandler = storage.CreateVolumeHandlerFunc(handler.CreateVolume)
 }
 
 // CreateImageStore creates a new image store
@@ -191,6 +192,13 @@ func (handler *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) 
 	}
 	i := convertImage(image)
 	return storage.NewWriteImageCreated().WithPayload(i)
+}
+
+//CreateVolume : Create a Volume
+func (handler *StorageHandlersImpl) CreateVolume(params storage.CreateVolumeParams) middleware.Responder {
+	defer trace.End(trace.Begin("storage_handlers.CreateVolume"))
+	//TODO: add more errorcodes as we identify error scenarios.
+	return storage.NewCreateVolumeCreated() //TODO this is just a stub for now.
 }
 
 //RemoveVolume : Remove a Volume from existence
