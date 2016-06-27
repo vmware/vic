@@ -116,7 +116,7 @@ func (i *Image) ExportImage(names []string, outStream io.Writer) error {
 func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	defer trace.End(trace.Begin("PullImage"))
 
-	log.Printf("PullImage: ref = %+v, metaheaders = %+v\n", ref, metaHeaders)
+	log.Debugf("PullImage: ref = %+v, metaheaders = %+v\n", ref, metaHeaders)
 
 	var cmdArgs []string
 
@@ -140,7 +140,7 @@ func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders 
 	// intruct imagec to use os.TempDir
 	cmdArgs = append(cmdArgs, "-destination", os.TempDir())
 
-	log.Printf("PullImage: cmd = %s %+v\n", Imagec, cmdArgs)
+	log.Debugf("PullImage: cmd = %s %+v\n", Imagec, cmdArgs)
 
 	cmd := exec.Command(Imagec, cmdArgs...)
 	cmd.Stdout = outStream
@@ -150,14 +150,14 @@ func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders 
 	err := cmd.Start()
 
 	if err != nil {
-		log.Printf("Error starting %s - %s\n", Imagec, err)
+		log.Debugf("Error starting %s - %s\n", Imagec, err)
 		return fmt.Errorf("Error starting %s - %s\n", Imagec, err)
 	}
 
 	err = cmd.Wait()
 
 	if err != nil {
-		log.Println("imagec exit code:", err)
+		log.Debugf("imagec exit code: %s", err)
 		return err
 	}
 

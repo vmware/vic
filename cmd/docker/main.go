@@ -104,6 +104,8 @@ func handleFlags() (*CliOptions, bool) {
 	portLayerAddr := flag.String("port-layer-addr", "127.0.0.1", "Port layer server address")
 	portLayerPort := flag.Uint("port-layer-port", 9001, "Port Layer server port")
 
+	debug := flag.Bool("debug", false, "Enable debuglevel logging")
+
 	flag.Parse()
 
 	if *enableTLS && (len(*certfile) == 0 || len(*keyfile) == 0) {
@@ -120,6 +122,9 @@ func handleFlags() (*CliOptions, bool) {
 		}
 	}
 
+	if *debug {
+		log.SetLevel(log.DebugLevel)
+	}
 	cli := &CliOptions{
 		enableTLS:     *enableTLS,
 		verifyTLS:     *verifyTLS,

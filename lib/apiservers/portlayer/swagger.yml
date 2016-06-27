@@ -909,6 +909,10 @@ definitions:
         type: string
       address:
         type: string
+      links:
+        type: array
+        items:
+          type: string
   ContainerGetStateResponse:
     type: object
     required:
@@ -966,4 +970,4 @@ definitions:
         additionalProperties:
           type: string
 
-      
+

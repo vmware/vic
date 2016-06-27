@@ -430,6 +430,7 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 				"-serveraddr=0.0.0.0",
 				"-port=" + d.DockerPort,
 				"-port-layer-port=8080",
+				"-debug",
 			},
 			Env: []string{
 				"PATH=/sbin",

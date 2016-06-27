@@ -16,9 +16,10 @@ package handlers
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"net/http"
+
+	log "github.com/Sirupsen/logrus"
 
 	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
 
@@ -182,6 +183,10 @@ func (handler *ScopesHandlersImpl) ScopesAddContainer(params scopes.AddContainer
 			}
 
 			ip = &i
+		}
+
+		if params.Config.NetworkConfig.Links != nil {
+			log.Debugf("Links: %#v", params.Config.NetworkConfig.Links)
 		}
 
 		return handler.netCtx.AddContainer(h, params.Config.NetworkConfig.NetworkName, ip)

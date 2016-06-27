@@ -138,7 +138,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	var err error
 
 	//TODO: validate the config parameters
-	log.Printf("config.Config = %+v", config.Config)
+	log.Debugf("config.Config = %+v", config.Config)
 
 	// Get an API client to the portlayer
 	client := PortLayerClient()
@@ -182,7 +182,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		config.Name = namesgenerator.GetRandomName(0)
 	}
 
-	log.Printf("ContainerCreate config' = %+v", config)
+	log.Debugf("ContainerCreate config' = %+v", config)
 	// Call the Exec port layer to create the container
 	host, err := guest.UUID()
 	if err != nil {
@@ -261,7 +261,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	viccontainer.GetCache().SaveContainer(createResults.Payload.ID, layer)
 
 	// Success!
-	log.Printf("container.ContainerCreate succeeded.  Returning container handle %s", *createResults.Payload)
+	log.Debugf("container.ContainerCreate succeeded.  Returning container handle %s", *createResults.Payload)
 	return types.ContainerCreateResponse{ID: id}, nil
 }
 
@@ -387,6 +387,7 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 	if hostConfig != nil {
 		// hostConfig exist for backwards compatibility.  TODO: Figure out which parameters we
 		// need to look at in hostConfig
+		log.Debugf("%#v", hostConfig.Links)
 	}
 
 	// get a handle to the container
@@ -400,7 +401,7 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 
 	h := getRes.Payload
 
-	// bind network
+	// error handling just in case bind fails
 	defer func() {
 		if err != nil {
 			// roll back the BindContainer call
@@ -410,6 +411,7 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 		}
 	}()
 
+	// bind network
 	if bind {
 		bindRes, err := client.Scopes.BindContainer(scopes.NewBindContainerParams().WithHandle(h))
 		if err != nil {
@@ -708,7 +710,7 @@ func (c *Container) dockerContainerCreateParamsToPortlayer(cc types.ContainerCre
 	config.Tty = new(bool)
 	*config.Tty = cc.Config.Tty
 
-	log.Printf("dockerContainerCreateParamsToPortlayer = %+v", config)
+	log.Debugf("dockerContainerCreateParamsToPortlayer = %+v", config)
 
 	return containers.NewCreateParams().WithCreateConfig(config)
 }
@@ -728,6 +730,8 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 			}
 		}
 	}
+	// Pass Links to PL
+	nc.Links = cc.HostConfig.Links
 
 	return nc
 }
@@ -762,7 +766,7 @@ func (c *Container) getImageMetadataFromImageC(image string) (*viccontainer.VicC
 
 	out, err := exec.Command(Imagec, cmdArgs...).Output()
 	if err != nil {
-		log.Printf("%s exit code: %s", Imagec, err)
+		log.Debugf("%s exit code: %s", Imagec, err)
 		return nil,
 			derr.NewErrorWithStatusCode(fmt.Errorf("Container look up failed"),
 				http.StatusInternalServerError)
@@ -777,7 +781,7 @@ func (c *Container) getImageMetadataFromImageC(image string) (*viccontainer.VicC
 			derr.NewErrorWithStatusCode(fmt.Errorf("Failed to unmarshall image history: %s", err),
 				http.StatusInternalServerError)
 	}
-	log.Printf("v1 = %+v", v1)
+	log.Debugf("v1 = %+v", v1)
 
 	imageMetadata := &viccontainer.VicContainer{
 		ID:     v1.ID,
@@ -850,7 +854,7 @@ func attachStreams(name string, tty, stdinOnce bool, clStdin io.ReadCloser, clSt
 				// behavior where you connect to stdin on the first time only.
 				// If we really want to add this behavior, we need to add support
 				// in the ssh tether in the portlayer.
-				log.Printf("Attach stream has stdinOnce set.  VIC does not yet support this.")
+				log.Debugf("Attach stream has stdinOnce set.  VIC does not yet support this.")
 			} else {
 				// Shutdown the client's request for stdout, stderr
 				errCancel()
@@ -927,7 +931,7 @@ func attachStreams(name string, tty, stdinOnce bool, clStdin io.ReadCloser, clSt
 
 	// Wait for all stream copy to exit
 	wg.Wait()
-	log.Printf("Attach stream closed")
+	log.Debugf("Attach stream closed")
 	defer close(errors)
 	for err := range errors {
 		if err != nil {
