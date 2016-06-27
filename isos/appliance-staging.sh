@@ -91,6 +91,7 @@ yum_cached -c $cache -u -p $PKGDIR install \
     procps-ng \
     iputils \
     iproute2 \
+    iptables \
     net-tools \
     sudo \
     tdnf \
