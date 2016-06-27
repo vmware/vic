@@ -274,6 +274,11 @@ func (s *Service) NewServer() *Server {
 		Path:   path,
 	}
 
+	// Enable use of SessionManagerGenericServiceTicket.HostName in govmomi, disabled by default.
+	opts := u.Query()
+	opts.Set("GOVMOMI_USE_SERVICE_TICKET_HOSTNAME", "true")
+	u.RawQuery = opts.Encode()
+
 	// Redirect clients to this http server, rather than HostSystem.Name
 	Map.Get(*s.client.ServiceContent.SessionManager).(*SessionManager).ServiceHostName = u.Host
 
