@@ -37,6 +37,7 @@ func main() {
 		if r := recover(); r != nil {
 			log.Errorf("run time panic: %s : %s", r, debug.Stack())
 		}
+
 		reboot()
 	}()
 

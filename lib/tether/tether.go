@@ -88,6 +88,8 @@ func (t *tether) lenChildPid() int {
 }
 
 func (t *tether) setup() error {
+	defer trace.End(trace.Begin("main tether setup"))
+
 	// set up tether logging destination
 	out, err := t.ops.Log()
 	if err != nil {
@@ -120,6 +122,8 @@ func (t *tether) setup() error {
 }
 
 func (t *tether) cleanup() {
+	defer trace.End(trace.Begin("main tether cleanup"))
+
 	// stop child reaping
 	t.stopReaper()
 
@@ -141,7 +145,7 @@ func (t *tether) cleanup() {
 }
 
 func (t *tether) Start() error {
-	defer trace.End(trace.Begin("main tether setup"))
+	defer trace.End(trace.Begin("main tether loop"))
 
 	t.setup()
 	defer t.cleanup()
@@ -216,20 +220,25 @@ func (t *tether) Start() error {
 }
 
 func (t *tether) Stop() error {
+	defer trace.End(trace.Begin(""))
+
 	// TODO: kill all the children
 	if t.reload != nil {
 		close(t.reload)
-		t.reload = nil
 	}
 
 	return nil
 }
 
 func (t *tether) Reload() {
+	log.Infof("Reload triggered")
+
 	t.reload <- true
 }
 
 func (t *tether) Register(name string, extension Extension) {
+	log.Infof("Registering tether extension " + name)
+
 	t.extensions[name] = extension
 }
 
