@@ -19,30 +19,22 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/vsphere/compute"
+	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
+
+	"golang.org/x/net/context"
 )
 
 func (d *Dispatcher) DeleteVCH(conf *metadata.VirtualContainerHostConfigSpec) error {
-	log.Infof("Removing VMs")
-
-	if err := d.DeleteVCHInstances(conf); err != nil {
-		return err
-	}
-	if err := d.destroyResourcePoolIfEmpty(conf); err != nil {
-		return err
-	}
-	return d.removeNetwork(conf)
-}
-
-func (d *Dispatcher) DeleteVCHInstances(conf *metadata.VirtualContainerHostConfigSpec) error {
 	var errs []string
 
 	var err error
 	var vmm *vm.VirtualMachine
-	var children []*vm.VirtualMachine
 
 	if vmm, err = d.findApplianceByID(conf); err != nil {
 		return err
@@ -50,11 +42,67 @@ func (d *Dispatcher) DeleteVCHInstances(conf *metadata.VirtualContainerHostConfi
 	if vmm == nil {
 		return nil
 	}
+
+	if err = d.DeleteVCHInstances(vmm, conf); err != nil {
+		// if container delete failed, do not remove anything else
+		log.Infof("Specify --force to force delete")
+		return err
+	}
+
+	if err = d.DeleteStores(vmm, conf); err != nil {
+		errs = append(errs, err.Error())
+	}
+
+	if err = d.deleteNetworkDevices(vmm, conf); err != nil {
+		errs = append(errs, err.Error())
+	}
+	if err = d.removeNetwork(conf); err != nil {
+		errs = append(errs, err.Error())
+	}
+	if len(errs) > 0 {
+		// stop here, leave vch appliance there for next time delete
+		return errors.New(strings.Join(errs, "\n"))
+	}
+	err = d.deleteVM(vmm, true)
+	if err != nil {
+		log.Debugf("Error deleting appliance VM %s", err)
+		return err
+	}
+	if err = d.destroyResourcePoolIfEmpty(conf); err != nil {
+		log.Warnf("VCH resource pool is not removed, %s", err)
+	}
+	return nil
+}
+
+func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *metadata.VirtualContainerHostConfigSpec) error {
+	log.Infof("Removing VMs")
+	var errs []string
+
+	var err error
+	var children []*vm.VirtualMachine
+
 	rpRef := conf.ComputeResources[len(conf.ComputeResources)-1]
-	rp := compute.NewResourcePool(d.ctx, d.session, rpRef)
+	ref, err := d.session.Finder.ObjectReference(d.ctx, rpRef)
+	if err != nil {
+		err = errors.Errorf("Failed to get VCH resource pool (%s): %s", rpRef, err)
+		return err
+	}
+	_, ok := ref.(*object.ResourcePool)
+	if !ok {
+		log.Errorf("Failed to find resource pool %s, %s", rpRef, err)
+		return err
+	}
+	rp := compute.NewResourcePool(d.ctx, d.session, ref.Reference())
 	if children, err = rp.GetChildrenVMs(d.ctx, d.session); err != nil {
 		return err
 	}
+
+	ds, err := d.session.Finder.Datastore(d.ctx, conf.ImageStores[0].Host)
+	if err != nil {
+		err = errors.Errorf("Failed to find image datastore %s", conf.ImageStores[0].Host)
+		return err
+	}
+	d.session.Datastore = ds
 
 	for _, child := range children {
 		name, err := child.Name(d.ctx)
@@ -66,7 +114,7 @@ func (d *Dispatcher) DeleteVCHInstances(conf *metadata.VirtualContainerHostConfi
 		if name == conf.Name {
 			continue
 		}
-		if _, err = d.deleteVM(child); err != nil {
+		if err = d.deleteVM(child, d.force); err != nil {
 			errs = append(errs, err.Error())
 		}
 	}
@@ -76,10 +124,53 @@ func (d *Dispatcher) DeleteVCHInstances(conf *metadata.VirtualContainerHostConfi
 		return errors.New(strings.Join(errs, "\n"))
 	}
 
-	if _, err = d.deleteVM(vmm); err != nil {
-		log.Debugf("Error deleting appliance VM %s", err)
+	return nil
+}
+
+func (d *Dispatcher) deleteNetworkDevices(vmm *vm.VirtualMachine, conf *metadata.VirtualContainerHostConfigSpec) error {
+	log.Infof("Removing appliance VM network devices")
+
+	power, err := vmm.PowerState(d.ctx)
+	if err != nil {
+		log.Errorf("Failed to get vm power status %s: %s", vmm.Reference(), err)
+		return err
+
+	}
+	if power != types.VirtualMachinePowerStatePoweredOff {
+		if _, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+			return vmm.PowerOff(ctx)
+		}); err != nil {
+			log.Errorf("Failed to power off existing appliance for %s", err)
+			return err
+		}
+	}
+
+	devices, err := d.networkDevices(vmm)
+	if err != nil {
+		log.Errorf("Unable to get network devices: %s", err)
 		return err
 	}
 
-	return nil
+	if len(devices) == 0 {
+		log.Infof("No network device attached")
+		return nil
+	}
+	// remove devices
+	return vmm.RemoveDevice(d.ctx, false, devices...)
+}
+
+func (d *Dispatcher) networkDevices(vmm *vm.VirtualMachine) ([]types.BaseVirtualDevice, error) {
+	var err error
+	vmDevices, err := vmm.Device(d.ctx)
+	if err != nil {
+		log.Errorf("Failed to get vm devices for appliance: %s", err)
+		return nil, err
+	}
+	var devices []types.BaseVirtualDevice
+	for _, device := range vmDevices {
+		if _, ok := device.(types.BaseVirtualEthernetCard); ok {
+			devices = append(devices, device)
+		}
+	}
+	return devices, nil
 }

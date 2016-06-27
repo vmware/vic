@@ -34,10 +34,10 @@ import (
 )
 
 // All paths on the datastore for images are relative to <datastore>/VIC/
-var storageParentDir = "VIC"
+var StorageParentDir = "VIC"
 
 const (
-	storageImageDir  = "images"
+	StorageImageDir  = "images"
 	defaultDiskLabel = "containerfs"
 	defaultDiskSize  = 8388608
 	metaDataDir      = "imageMetadata"
@@ -69,7 +69,7 @@ func NewImageStore(ctx context.Context, s *session.Session) (*ImageStore, error)
 	// Currently using the datastore associated with the session which is not
 	// ideal.  This should be passed in via the config.  The datastore need not
 	// be the same datastore used for the rest of the system.
-	ds, err := newDatastore(ctx, s, s.Datastore, storageParentDir)
+	ds, err := newDatastore(ctx, s, s.Datastore, StorageParentDir)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func NewImageStore(ctx context.Context, s *session.Session) (*ImageStore, error)
 // Returns the path to a given image store.  Currently this is the UUID of the VCH.
 // `/VIC/imageStoreName (currently the vch uuid)/images`
 func (v *ImageStore) imageStorePath(storeName string) string {
-	return path.Join(storeName, storageImageDir)
+	return path.Join(storeName, StorageImageDir)
 }
 
 // Returns the path to the image relative to the given

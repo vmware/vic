@@ -91,11 +91,18 @@ func (d *Dispatcher) removeNetwork(conf *metadata.VirtualContainerHostConfigSpec
 	}
 
 	name := conf.Name
+	if network, err := d.session.Finder.Network(d.ctx, name); err != nil || network == nil {
+		log.Infof("Didn't find network %s", name)
+		log.Debugf("Didn't find network for %s", err)
+		return nil
+	}
+
 	log.Infof("Removing Portgroup %s", name)
 	hostNetSystem, err := d.session.Host.ConfigManager().NetworkSystem(d.ctx)
 	if err != nil {
 		return err
 	}
+
 	err = hostNetSystem.RemovePortGroup(d.ctx, name)
 	if err != nil {
 		return err

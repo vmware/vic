@@ -130,7 +130,7 @@ func (d *Uninstall) Run(cli *cli.Context) error {
 		err = errors.Errorf("%s. Exiting...", err)
 		return err
 	}
-	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
+	executor := management.NewDispatcher(validator.Context, validator.Session, nil, d.Force)
 
 	vch, err := executor.NewVCHFromComputePath(d.Data.ComputeResourcePath, d.Data.DisplayName)
 	if err != nil {
@@ -142,6 +142,7 @@ func (d *Uninstall) Run(cli *cli.Context) error {
 		log.Errorf("Failed to get Virtual Container Host configuration")
 		return err
 	}
+	executor.InitDiagnosticLogs(vchConfig)
 
 	if validator.IsVC() {
 		log.Infoln("Removing VCH vSphere extension")

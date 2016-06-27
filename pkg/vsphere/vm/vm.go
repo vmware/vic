@@ -221,3 +221,15 @@ func (vm *VirtualMachine) Name(ctx context.Context) (string, error) {
 
 	return mvm.Summary.Config.Name, nil
 }
+
+func (vm *VirtualMachine) UUID(ctx context.Context) (string, error) {
+	var err error
+	var mvm mo.VirtualMachine
+
+	if err = vm.Properties(ctx, vm.Reference(), []string{"summary.config"}, &mvm); err != nil {
+		log.Errorf("Unable to get vm summary.config property: %s", err)
+		return "", err
+	}
+
+	return mvm.Summary.Config.Uuid, nil
+}
