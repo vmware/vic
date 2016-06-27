@@ -59,21 +59,21 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
         cp /bin/tether ${MOUNTPOINT}/.tether/tether-bin
 
         # temporary hack for waiting the network
-        while ! ip addr show eno1 | grep " inet "; do sleep 1;done
+        while ! ip addr show eth1 | grep " inet "; do sleep 1;done
 
         cat << EOF > ${MOUNTPOINT}/.tether/tether
 #!/bin/sh
 
 if [ -x /sbin/ip -o -x /bin/ip ]; then
-    addr=$(ip addr show eno1  | grep " inet " | cut -d " " -f6)
+    addr=$(ip addr show eth1  | grep " inet " | cut -d " " -f6)
     gateway=$(ip route show | grep "^default" | cut -d " " -f3)
 
     echo "Setting IP addr to " \$addr > /dev/ttyS1
     echo "Setting route to" \$gateway > /dev/ttyS1
 
-    ip addr add \$addr dev eno1
-    ip link set dev eno1 up
-    ip route add default via \$gateway dev eno1
+    ip addr add \$addr dev eth1
+    ip link set dev eth1 up
+    ip route add default via \$gateway dev eth1
 fi
 
 /.tether/tether-bin
@@ -85,7 +85,7 @@ EOF
     fi
 
     # We don't want eth0 for --net=none passed
-    if [ -d /sys/module/vmxnet3/ ] && [ $(cat /sys/class/net/eno1/address) == "ff:ff:ff:ff:ff:ff" ]; then
+    if [ -d /sys/module/vmxnet3/ ] && [ $(cat /sys/class/net/eth1/address) == "ff:ff:ff:ff:ff:ff" ]; then
         modprobe -r vmxnet3
     fi
 
