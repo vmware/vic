@@ -13,15 +13,6 @@ install-*.tar.gz
 # generally a bad idea to check certificates into repos - whitelist if needed
 **/*.pem
 
-bootstrap/targets/linux/tether/
-imagec/imagec
-
-lib/apiservers/docker/cmd
-lib/apiservers/docker/models
-lib/apiservers/docker/restapi/*.go
-lib/apiservers/docker/restapi/operations
-!lib/apiservers/docker/restapi/configure_docker.go
-
 lib/apiservers/portlayer/client/
 lib/apiservers/portlayer/cmd
 lib/apiservers/portlayer/models

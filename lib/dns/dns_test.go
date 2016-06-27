@@ -114,8 +114,12 @@ func TestVIC(t *testing.T) {
 	con := exec.NewContainer("foo")
 	ip := net.IPv4(172, 16, 0, 2)
 
+	ctxOptions := &network.AddContainerOptions{
+		Scope: "bridge",
+		IP:    &ip,
+	}
 	// add it
-	err = network.DefaultContext.AddContainer(con, "bridge", &ip)
+	err = network.DefaultContext.AddContainer(con, ctxOptions)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}

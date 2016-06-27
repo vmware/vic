@@ -965,6 +965,10 @@ definitions:
         type: string
       address:
         type: string
+      aliases:
+        type: array
+        items:
+          type: string
   ContainerGetStateResponse:
     type: object
     required:

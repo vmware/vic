@@ -23,6 +23,8 @@ import (
 	"strings"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
+
 	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/object"
@@ -48,6 +50,12 @@ type Context struct {
 	scopes       map[string]*Scope
 	containers   map[exec.ID]*Container
 	defaultScope *Scope
+}
+
+type AddContainerOptions struct {
+	Scope   string
+	IP      *net.IP
+	Aliases []string
 }
 
 func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
@@ -457,7 +465,9 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	}
 
 	endpoints := con.Endpoints()
-	for _, e := range endpoints {
+	for i := range endpoints {
+		e := endpoints[i]
+
 		ne := h.ExecConfig.Networks[e.Scope().Name()]
 		ne.Static = nil
 		ip := e.IP()
@@ -470,24 +480,81 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		ne.Network.Gateway = net.IPNet{IP: e.gateway, Mask: e.subnet.Mask}
 	}
 
+	// local map to hold the container mapping
+	containers := make(map[exec.ID]*Container)
+
 	// Adding long id, short id and common name to the map to point same container
 	// Last two is needed by DNS subsystem
-	c.containers[con.id] = con
+	containers[con.id] = con
 
 	tid := con.id.TruncateID()
 	cname := h.Container.ExecConfig.Common.Name
 
 	var key string
-	// network scoped
-	for _, e := range con.Endpoints() {
+	// network scoped entries
+	for i := range endpoints {
+		e := endpoints[i]
+		// scope name
 		sname := e.Scope().Name()
 
+		// SCOPE:SHORT ID
 		key = fmt.Sprintf("%s:%s", sname, tid)
-		c.containers[exec.ParseID(key)] = con
+		log.Debugf("Adding %s to the containers", key)
+		containers[exec.ParseID(key)] = con
 
+		// SCOPE:NAME
 		key = fmt.Sprintf("%s:%s", sname, cname)
-		c.containers[exec.ParseID(key)] = con
+		log.Debugf("Adding %s to the containers", key)
+		containers[exec.ParseID(key)] = con
+
+		ne, ok := h.ExecConfig.Networks[sname]
+		if !ok {
+			err := fmt.Errorf("Failed to find Network %s", sname)
+			log.Errorf(err.Error())
+			return nil, err
+		}
+
+		// Aliases/Links
+		for i := range ne.Network.Aliases {
+			l := strings.Split(ne.Network.Aliases[i], ":")
+			if len(l) != 2 {
+				err := fmt.Errorf("Parsing %s failed", l)
+				log.Errorf(err.Error())
+				return nil, err
+			}
+			who, what := l[0], l[1]
+			// if who is empty string that means it is a alias
+			// which points to the container itself
+			if who == "" {
+				who = cname
+			}
+			// Find the scope:who container
+			key = fmt.Sprintf("%s:%s", sname, who)
+			// search global map
+			con, ok := c.containers[exec.ParseID(key)]
+			if !ok {
+				// search local map
+				con, ok = containers[exec.ParseID(key)]
+				if !ok {
+					err := fmt.Errorf("Failed to find container %s", key)
+					log.Errorf(err.Error())
+					return nil, err
+				}
+			}
+			log.Debugf("Found container %s", key)
+
+			// Set scope:what to scope:who
+			key = fmt.Sprintf("%s:%s", sname, what)
+			log.Debugf("Adding %s to the containers", key)
+			containers[exec.ParseID(key)] = con
+		}
 	}
+
+	// set the real map now that we are err free
+	for k, v := range containers {
+		c.containers[k] = v
+	}
+
 	return endpoints, nil
 }
 
@@ -530,24 +597,63 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 		}
 	}
 
+	// local map to hold the container mapping
+	var containers []exec.ID
+
 	// Removing long id, short id and common name from the map
-	delete(c.containers, h.Container.ID)
+	containers = append(containers, h.Container.ID)
 
 	tid := con.id.TruncateID()
 	cname := h.Container.ExecConfig.Common.Name
 
 	var key string
-	// network scoped
-	for _, e := range con.Endpoints() {
+	// network scoped entries
+	endpoints := con.Endpoints()
+	for i := range endpoints {
+		e := endpoints[i]
+
+		// scope name
 		sname := e.Scope().Name()
 
+		// delete scope:short id
 		key = fmt.Sprintf("%s:%s", sname, tid)
-		delete(c.containers, exec.ParseID(key))
+		log.Debugf("Removing %s from the containers", key)
+		containers = append(containers, exec.ParseID(key))
 
+		// delete scope:name
 		key = fmt.Sprintf("%s:%s", sname, cname)
-		delete(c.containers, exec.ParseID(key))
+		log.Debugf("Removing %s from the containers", key)
+		containers = append(containers, exec.ParseID(key))
+
+		ne, ok := h.ExecConfig.Networks[sname]
+		if !ok {
+			err := fmt.Errorf("Failed to find Network %s", sname)
+			log.Errorf(err.Error())
+			return err
+		}
+
+		// delete aliases
+		for i := range ne.Network.Aliases {
+			l := strings.Split(ne.Network.Aliases[i], ":")
+			if len(l) != 2 {
+				err := fmt.Errorf("Parsing %s failed", l)
+				log.Errorf(err.Error())
+				return err
+			}
+
+			_, what := l[0], l[1]
+
+			// delete scope:what
+			key = fmt.Sprintf("%s:%s", sname, what)
+			log.Debugf("Removing %s from the containers", key)
+			containers = append(containers, exec.ParseID(key))
+		}
 	}
 
+	// delete from real map now that we are err free
+	for i := range containers {
+		delete(c.containers, containers[i])
+	}
 	return nil
 }
 
@@ -623,7 +729,7 @@ func (c *Context) resolveScope(scope string) (*Scope, error) {
 
 // AddContainer add a container to the specified scope, optionally specifying an ip address
 // for the container in the scope
-func (c *Context) AddContainer(h *exec.Handle, scope string, ip *net.IP) error {
+func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -632,7 +738,7 @@ func (c *Context) AddContainer(h *exec.Handle, scope string, ip *net.IP) error {
 	}
 
 	var err error
-	s, err := c.resolveScope(scope)
+	s, err := c.resolveScope(options.Scope)
 	if err != nil {
 		return err
 	}
@@ -695,12 +801,13 @@ func (c *Context) AddContainer(h *exec.Handle, scope string, ip *net.IP) error {
 			Common: metadata.Common{
 				Name: s.Name(),
 			},
+			Aliases: options.Aliases,
 		},
 	}
 
-	if ip != nil && !ip.IsUnspecified() {
+	if options.IP != nil && !options.IP.IsUnspecified() {
 		ne.Static = &net.IPNet{
-			IP:   *ip,
+			IP:   *options.IP,
 			Mask: s.Subnet().Mask,
 		}
 	}
