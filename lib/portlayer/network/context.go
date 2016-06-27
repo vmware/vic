@@ -367,7 +367,7 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 		return c.newExternalScope(generateID(), name, subnet, gateway, dns, &IPAM{pools: pools})
 
 	default:
-		return nil, fmt.Errorf("scope type not supported")
+		return nil, fmt.Errorf("scope type not supported, Issue #1222")
 	}
 }
 

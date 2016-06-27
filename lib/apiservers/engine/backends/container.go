@@ -541,7 +541,7 @@ func (c *Container) ContainerUpdate(name string, hostConfig *container.HostConfi
 // timeout, an error is returned. If you want to wait forever, supply
 // a negative duration for the timeout.
 func (c *Container) ContainerWait(name string, timeout time.Duration) (int, error) {
-	return 0, fmt.Errorf("%s does not implement container.ContainerWait", c.ProductName)
+	return 0, fmt.Errorf("%s does not implement container.ContainerWait, Issue #1119", c.ProductName)
 }
 
 // docker's container.monitorBackend
@@ -605,7 +605,7 @@ func (c *Container) ContainerTop(name string, psArgs string) (*types.ContainerPr
 
 // Containers returns the list of containers to show given the user's filtering.
 func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Container, error) {
-	return nil, fmt.Errorf("%s does not implement container.Containers", c.ProductName)
+	return nil, fmt.Errorf("%s does not implement container.Containers, Issue #1027", c.ProductName)
 }
 
 // docker's container.attachBackend

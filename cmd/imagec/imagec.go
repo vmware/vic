@@ -490,7 +490,7 @@ func WriteImageBlobs(images []*ImageWithMeta) error {
 		// Write the image
 		err = WriteImage(image, in)
 		if err != nil {
-			return fmt.Errorf("Failed to write to image store: %s", err)
+			return fmt.Errorf("Failed to write to image store: Issue #1117  %s", err)
 		}
 		progress.Update(po, image.String(), "Pull complete")
 	}
@@ -666,7 +666,7 @@ func main() {
 		// Ping the server to ensure it's at least running
 		ok, err := PingPortLayer()
 		if err != nil || !ok {
-			log.Fatalf("Failed to ping portlayer: %s", err)
+			log.Fatalf("Failed to ping portlayer: Issue #1109  %s", err)
 		}
 	} else {
 		log.Debugf("Running standalone")
