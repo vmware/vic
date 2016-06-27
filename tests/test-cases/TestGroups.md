@@ -6,5 +6,7 @@ VIC Integration Test Suite
 -
 [Group 2 - Imagec](Group2-Imagec/TestCases.md)
 -
+[Group 3 - Docker Compose](Group3-Docker-Compose/TestCases.md)
+-
 [Group 4 - Docker Integration](Group4-Docker-Integration/TestCases.md)
 -
