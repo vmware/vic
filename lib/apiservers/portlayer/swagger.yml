@@ -522,6 +522,56 @@ paths:
           description: "OK"
           schema:
             $ref: "#/definitions/ContainerCreatedInfo"
+  /containers/info/{id}:
+    get:
+      description: "Gets information about a container by id"
+      operationId: GetContainerInfo
+      tags: ["containers"]
+      consumes:
+        - application/octet-stream
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          required: true
+          in: path
+          type: string
+      responses:
+        '500':
+          description: "server error"
+          schema:
+            $ref: "#/definitions/Error"
+        '404':
+          description: "not found"
+          schema:
+            $ref: "#/definitions/Error"
+        '200':
+          description: "OK"
+          schema:
+            $ref: "#/definitions/ContainerInfo"
+  /containers/list:
+    get:
+      description: "Gets a list of all containers"
+      operationId: GetContainerList
+      tags: ["containers"]
+      consumes:
+        - application/octet-stream
+      produces:
+        - application/json
+      parameters:
+        - name: all
+          required: false
+          in: query
+          type: boolean
+      responses:
+        '500':
+          description: "server error"
+          schema:
+            $ref: "#/definitions/Error"
+        '200':
+          description: "OK"
+          schema:
+            $ref: "#definitions/ContainerListInfo"
   /containers/{id}:
     get:
       description: "Get a container handle"
@@ -966,4 +1016,135 @@ definitions:
         additionalProperties:
           type: string
 
-      
+  # The following definitions are definitions used to get container information
+  ContainerInfo:
+    type: object
+    properties:
+      containerConfig:
+        $ref: "#/definitions/ContainerConfig"
+      HostConfig:
+        $ref: "#/definitions/HostConfig"
+      processConfig:
+        $ref: "#/definitions/ProcessConfig"
+      volumesConfig:
+        $ref: "#/definitions/VolumeConfig"
+      scopeConfig:
+        $ref: "#/definitions/ScopeConfig"
+  ContainerListInfo:
+    type: object
+    properties:
+      containerId:
+        type: string
+      imageId:
+        type: string
+      execPath:
+        type: string
+      execArgs:
+        type: string
+      created:
+        type: string
+        format: datetime
+      state:
+        type: string
+      ports:
+        type: array
+        items:
+          type: string
+      names:
+        type: array
+        items:
+          type: string
+  ContainerConfig:
+    type: object
+    properties:
+      containerId:
+        type: string
+      imageId:
+        type: string
+      created:
+        type: string
+        format: datetime
+      name:
+        type: array
+        items:
+          type: string
+      labels: #this is a map/dictionary
+        type: object
+        additionalProperties:
+          type: string
+      state:
+        type: string
+      restartCount:
+        type: integer
+      hostName:
+        type: string
+      attachStdin:
+        type: boolean
+      attachStdout:
+        type: boolean
+      attachStderr:
+        type: boolean
+      tty:
+        type: boolean
+      consoleSize:
+        type: object
+        properties:
+          width:
+            type: integer
+          height:
+            type: integer
+      openStdin:
+        type: boolean
+      reservation:
+        $ref: "#/definitions/ReservationConfig"
+  ReservationConfig:
+    type: object
+    properties:
+      cpuCount:
+        type: integer
+      memoryLimit:
+        type: integer
+  HostConfig:
+    description: "Information about the virtual container host (VCH)"
+    type: object
+    properties:
+      architecture:
+        type: string
+      ostype:
+        type: string
+      kernelVersion:
+        type: string
+      reservation:
+        $ref: "#/definitions/ReservationConfig"
+  ProcessConfig:
+    type: object
+    properties:
+      pid:
+        type: string
+      execPath:
+        type: string
+      execArgs:
+        type: string
+      workDir:
+        type: string
+      env:
+        type: string
+      status:
+        type: string
+      started:
+        type: string
+        format: datetime
+      finished:
+        type: string
+        format: datetime
+      exitCode:
+        type: integer
+  VolumeConfig:
+    type: object
+    properties:
+      mountLabel:
+        type: string
+      mountPoints:
+        type: array
+        items:
+          type: string

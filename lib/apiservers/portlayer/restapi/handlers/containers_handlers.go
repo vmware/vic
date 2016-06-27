@@ -50,6 +50,9 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 	api.ContainersCommitHandler = containers.CommitHandlerFunc(handler.CommitHandler)
 	api.ContainersGetStateHandler = containers.GetStateHandlerFunc(handler.GetStateHandler)
 	api.ContainersContainerRemoveHandler = containers.ContainerRemoveHandlerFunc(handler.RemoveContainerHandler)
+	api.ContainersGetContainerInfoHandler = containers.GetContainerInfoHandlerFunc(handler.GetContainerInfoHandler)
+	api.ContainersGetContainerListHandler = containers.GetContainerListHandlerFunc(handler.GetContainerListHandler)
+
 	handler.handlerCtx = handlerCtx
 }
 
@@ -217,4 +220,16 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 	}
 
 	return containers.NewContainerRemoveOK()
+}
+
+func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers.GetContainerInfoParams) middleware.Responder {
+	//FIXME:  Fill in with actual code!
+
+	return containers.NewGetContainerInfoNotFound()
+}
+
+func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers.GetContainerListParams) middleware.Responder {
+	//FIXME:  Fill in with actual code!
+
+	return containers.NewGetContainerListInternalServerError().WithPayload(&models.Error{Message: "Not implemented."})
 }
