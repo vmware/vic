@@ -49,7 +49,7 @@ type ImageStore struct {
 	// govmomi session
 	s *session.Session
 
-	ds *datastore
+	ds *Datastore
 
 	// Parent relationships
 	// This will go away when First Class Disk support is added to vsphere.
@@ -69,7 +69,7 @@ func NewImageStore(ctx context.Context, s *session.Session) (*ImageStore, error)
 	// Currently using the datastore associated with the session which is not
 	// ideal.  This should be passed in via the config.  The datastore need not
 	// be the same datastore used for the rest of the system.
-	ds, err := newDatastore(ctx, s, s.Datastore, StorageParentDir)
+	ds, err := NewDatastore(ctx, s, s.Datastore, StorageParentDir)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func (v *ImageStore) imageDirPath(storeName, imageName string) string {
 // Returns the path to the vmdk itself
 func (v *ImageStore) imageDiskPath(storeName, imageName string) string {
 	// XXX this could be hidden in a helper.  We shouldn't use rooturl outside the datastore struct
-	return path.Join(v.ds.rooturl, v.imageDirPath(storeName, imageName), imageName+".vmdk")
+	return path.Join(v.ds.RootURL, v.imageDirPath(storeName, imageName), imageName+".vmdk")
 }
 
 // Returns the path to the metadata directory for an image

@@ -31,7 +31,7 @@ import (
 
 // Datastore gives access to the datastore regardless of type (esx, esx + vc,
 // or esx + vc + vsan).  Also wraps paths to a given root directory
-type datastore struct {
+type Datastore struct {
 	// The Datastore API likes everything in "path/to/thing" format.
 	ds *object.Datastore
 
@@ -40,29 +40,25 @@ type datastore struct {
 	// The FileManager API likes everything in "[dsname] path/to/thing" format.
 	fm *object.FileManager
 
-	// the name of the datastore path (in case of vsan, this is the human readable name)
-	rootname string
-
 	// The datastore url (including root)
-	rooturl string
+	RootURL string
 
 	// datastore path (not in url form)
 	rootdir string
 }
 
-// newDatastore returns a Datastore.
+// NewDatastore returns a Datastore.
 // ctx is a context,
 // s is an authenticated session
 // ds is the vsphere datastore
 // rootdir is the top level directory to root all data.  If root does not exist,
 // it will be created.  If it already exists, NOOP. This cannot be empty.
-func newDatastore(ctx context.Context, s *session.Session, ds *object.Datastore, rootdir string) (*datastore, error) {
+func NewDatastore(ctx context.Context, s *session.Session, ds *object.Datastore, rootdir string) (*Datastore, error) {
 
-	d := &datastore{
-		ds:       ds,
-		s:        s,
-		rootname: rootdir,
-		fm:       object.NewFileManager(s.Vim25()),
+	d := &Datastore{
+		ds: ds,
+		s:  s,
+		fm: object.NewFileManager(s.Vim25()),
 	}
 
 	if strings.HasPrefix(rootdir, "/") {
@@ -84,14 +80,14 @@ func newDatastore(ctx context.Context, s *session.Session, ds *object.Datastore,
 		if err != nil {
 			return nil, err
 		}
-		d.rooturl = r
+		d.RootURL = r
 	}
 
-	log.Infof("Datastore path is %s", d.rooturl)
+	log.Infof("Datastore path is %s", d.RootURL)
 	return d, nil
 }
 
-func (d *datastore) Summary(ctx context.Context) (*types.DatastoreSummary, error) {
+func (d *Datastore) Summary(ctx context.Context) (*types.DatastoreSummary, error) {
 
 	var mds mo.Datastore
 	if err := d.ds.Properties(ctx, d.ds.Reference(), []string{"info", "summary"}, &mds); err != nil {
@@ -102,7 +98,7 @@ func (d *datastore) Summary(ctx context.Context) (*types.DatastoreSummary, error
 }
 
 // Mkdir creates directories.
-func (d *datastore) Mkdir(ctx context.Context, createParentDirectories bool, dirs ...string) (string, error) {
+func (d *Datastore) Mkdir(ctx context.Context, createParentDirectories bool, dirs ...string) (string, error) {
 
 	upth := path.Join(dirs...)
 
@@ -112,7 +108,7 @@ func (d *datastore) Mkdir(ctx context.Context, createParentDirectories bool, dir
 		return "", err
 	}
 
-	upth = path.Join(d.rooturl, upth)
+	upth = path.Join(d.RootURL, upth)
 
 	// dir already exists
 	if err == nil {
@@ -147,7 +143,7 @@ func (d *datastore) Mkdir(ctx context.Context, createParentDirectories bool, dir
 // The only URI that works on VC + VSAN.
 // r, err := ds.Ls(ctx, "[vsanDatastore] /0ea65357-0494-d42d-2ede-000c292dc5b5")
 //
-func (d *datastore) Ls(ctx context.Context, p string) (*types.HostDatastoreBrowserSearchResults, error) {
+func (d *Datastore) Ls(ctx context.Context, p string) (*types.HostDatastoreBrowserSearchResults, error) {
 	spec := types.HostDatastoreBrowserSearchSpec{
 		MatchPattern: []string{"*"},
 	}
@@ -157,7 +153,7 @@ func (d *datastore) Ls(ctx context.Context, p string) (*types.HostDatastoreBrows
 		return nil, err
 	}
 
-	task, err := b.SearchDatastore(ctx, path.Join(d.rooturl, p), &spec)
+	task, err := b.SearchDatastore(ctx, path.Join(d.RootURL, p), &spec)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +168,7 @@ func (d *datastore) Ls(ctx context.Context, p string) (*types.HostDatastoreBrows
 }
 
 // LsDirs returns a list of dirents at the given path (relative to root)
-func (d *datastore) LsDirs(ctx context.Context, p string) (*types.ArrayOfHostDatastoreBrowserSearchResults, error) {
+func (d *Datastore) LsDirs(ctx context.Context, p string) (*types.ArrayOfHostDatastoreBrowserSearchResults, error) {
 	spec := types.HostDatastoreBrowserSearchSpec{
 		MatchPattern: []string{"*"},
 	}
@@ -182,7 +178,7 @@ func (d *datastore) LsDirs(ctx context.Context, p string) (*types.ArrayOfHostDat
 		return nil, err
 	}
 
-	task, err := b.SearchDatastoreSubFolders(ctx, path.Join(d.rooturl, p), &spec)
+	task, err := b.SearchDatastoreSubFolders(ctx, path.Join(d.RootURL, p), &spec)
 	if err != nil {
 		return nil, err
 	}
@@ -196,22 +192,22 @@ func (d *datastore) LsDirs(ctx context.Context, p string) (*types.ArrayOfHostDat
 	return &res, nil
 }
 
-func (d *datastore) Upload(ctx context.Context, r io.Reader, pth string) error {
+func (d *Datastore) Upload(ctx context.Context, r io.Reader, pth string) error {
 	return d.ds.Upload(ctx, r, path.Join(d.rootdir, pth), &soap.DefaultUpload)
 }
 
-func (d *datastore) Download(ctx context.Context, pth string) (io.ReadCloser, error) {
+func (d *Datastore) Download(ctx context.Context, pth string) (io.ReadCloser, error) {
 	rc, _, err := d.ds.Download(ctx, path.Join(d.rootdir, pth), &soap.DefaultDownload)
 	return rc, err
 }
 
-func (d *datastore) Stat(ctx context.Context, pth string) (types.BaseFileInfo, error) {
+func (d *Datastore) Stat(ctx context.Context, pth string) (types.BaseFileInfo, error) {
 	return d.ds.Stat(ctx, path.Join(d.rootdir, pth))
 }
 
-func (d *datastore) Mv(ctx context.Context, fromPath, toPath string) error {
-	from := path.Join(d.rooturl, fromPath)
-	to := path.Join(d.rooturl, toPath)
+func (d *Datastore) Mv(ctx context.Context, fromPath, toPath string) error {
+	from := path.Join(d.RootURL, fromPath)
+	to := path.Join(d.RootURL, toPath)
 	err := tasks.Wait(ctx, func(context.Context) (tasks.Waiter, error) {
 		return d.fm.MoveDatastoreFile(ctx, from, d.s.Datacenter, to, d.s.Datacenter, true)
 	})
@@ -219,7 +215,7 @@ func (d *datastore) Mv(ctx context.Context, fromPath, toPath string) error {
 	return err
 }
 
-func (d *datastore) IsVSAN(ctx context.Context) bool {
+func (d *Datastore) IsVSAN(ctx context.Context) bool {
 	dsType, _ := d.ds.Type(ctx)
 	return dsType == types.HostFileSystemVolumeFileSystemTypeVsan
 }
@@ -230,7 +226,7 @@ func (d *datastore) IsVSAN(ctx context.Context) bool {
 // same for each and this tries to create the directory and stash the relevant
 // result so the URI doesn't need to be recomputed for every datastore
 // operation.
-func (d *datastore) mkRootDir(ctx context.Context, rootdir string) error {
+func (d *Datastore) mkRootDir(ctx context.Context, rootdir string) error {
 
 	// Handle vsan
 	// Vsan will complain if the root dir exists.  Just call it directly and
@@ -263,8 +259,8 @@ func (d *datastore) mkRootDir(ctx context.Context, rootdir string) error {
 
 		// set the root url to the UUID of the dir we created
 		d.rootdir = path.Base(uuid)
-		d.rooturl = d.ds.Path(d.rootdir)
-		log.Infof("Created store parent directory (%s) at %s", rootdir, d.rooturl)
+		d.RootURL = d.ds.Path(d.rootdir)
+		log.Infof("Created store parent directory (%s) at %s", rootdir, d.RootURL)
 		return nil
 	}
 
@@ -272,7 +268,7 @@ func (d *datastore) mkRootDir(ctx context.Context, rootdir string) error {
 	// check if it already exists
 
 	d.rootdir = rootdir
-	d.rooturl = d.ds.Path(rootdir)
+	d.RootURL = d.ds.Path(rootdir)
 
 	if _, err := d.Mkdir(ctx, true); err != nil {
 		return err

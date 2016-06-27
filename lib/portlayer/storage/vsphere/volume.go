@@ -37,7 +37,7 @@ const volumesDir = "volumes"
 type VolumeStore struct {
 
 	// maps datastore uri (volume store) to datastore
-	ds map[url.URL]*datastore
+	ds map[url.URL]*Datastore
 
 	// wraps our vmdks and filesystem primitives.
 	dm *disk.Manager
@@ -54,7 +54,7 @@ func NewVolumeStore(ctx context.Context, s *session.Session) (*VolumeStore, erro
 	v := &VolumeStore{
 		dm:   dm,
 		sess: s,
-		ds:   make(map[url.URL]*datastore),
+		ds:   make(map[url.URL]*Datastore),
 	}
 
 	return v, nil
@@ -80,7 +80,7 @@ func (v *VolumeStore) AddStore(ctx context.Context, ds *object.Datastore, parent
 
 	// Root our datastore by the directory structured above.
 	p := path.Join(parentDir, storageParentDir, volumesDir)
-	d, err := newDatastore(ctx, v.sess, ds, p)
+	d, err := NewDatastore(ctx, v.sess, ds, p)
 	if err != nil {
 		return nil, fmt.Errorf("volumestore (%s:%s) error: %s", storeName, p, err)
 	}
@@ -89,7 +89,7 @@ func (v *VolumeStore) AddStore(ctx context.Context, ds *object.Datastore, parent
 	return u, nil
 }
 
-func (v *VolumeStore) getDatastore(store *url.URL) (*datastore, error) {
+func (v *VolumeStore) getDatastore(store *url.URL) (*Datastore, error) {
 	// find the datastore
 	dstore, ok := v.ds[*store]
 	if !ok {
@@ -115,7 +115,7 @@ func (v *VolumeStore) volDiskDsURL(store *url.URL, ID string) (string, error) {
 	}
 
 	// XXX this could be hidden in a helper.  We shouldn't use rooturl outside the datastore struct
-	return path.Join(dstore.rooturl, v.volDirPath(ID), ID+".vmdk"), nil
+	return path.Join(dstore.RootURL, v.volDirPath(ID), ID+".vmdk"), nil
 }
 
 func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityMB uint64, info map[string][]byte) (*storage.Volume, error) {
