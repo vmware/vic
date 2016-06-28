@@ -222,7 +222,7 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *metadat
 	defer trace.End(trace.Begin(""))
 
 	// Image Store
-	ds, err := v.datastoreHelper(ctx, input.ImageDatastoreName)
+	ds, err := v.DatastoreHelper(ctx, input.ImageDatastoreName)
 	v.NoteIssue(err)
 	conf.AddImageStore(ds)
 
@@ -624,7 +624,7 @@ func (v *Validator) dpgHelper(ctx context.Context, path string) (string, error) 
 	return moref.String(), nil
 }
 
-func (v *Validator) datastoreHelper(ctx context.Context, path string) (*url.URL, error) {
+func (v *Validator) DatastoreHelper(ctx context.Context, path string) (*url.URL, error) {
 	defer trace.End(trace.Begin(path))
 
 	dsURL, err := url.Parse(path)

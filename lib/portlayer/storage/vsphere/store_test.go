@@ -36,7 +36,7 @@ import (
 )
 
 func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, error) {
-	storageParentDir = RandomString(10) + "imageTests"
+	StorageParentDir = RandomString(10) + "imageTests"
 
 	client := Session(context.TODO(), t)
 	if client == nil {
@@ -62,7 +62,7 @@ func TestRestartImageStore(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	defer rm(t, client, client.Datastore.Path(storageParentDir))
+	defer rm(t, client, client.Datastore.Path(StorageParentDir))
 
 	origVsStore := cacheStore.DataStore.(*ImageStore)
 
@@ -86,7 +86,7 @@ func TestCreateAndGetImageStore(t *testing.T) {
 	}
 
 	// Nuke the parent image store directory
-	defer rm(t, client, client.Datastore.Path(storageParentDir))
+	defer rm(t, client, client.Datastore.Path(StorageParentDir))
 
 	storeName := "bogusStoreName"
 	u, err := vsis.CreateImageStore(context.TODO(), storeName)
@@ -119,7 +119,7 @@ func TestListImageStore(t *testing.T) {
 	}
 
 	// Nuke the parent image store directory
-	defer rm(t, client, client.Datastore.Path(storageParentDir))
+	defer rm(t, client, client.Datastore.Path(StorageParentDir))
 
 	count := 3
 	for i := 0; i < count; i++ {
@@ -169,7 +169,7 @@ func TestCreateImageLayers(t *testing.T) {
 			rm(t, client, dir.FolderPath)
 		}
 
-		rm(t, client, client.Datastore.Path(storageParentDir))
+		rm(t, client, client.Datastore.Path(StorageParentDir))
 	}()
 
 	storeURL, err := cacheStore.CreateImageStore(context.TODO(), "testStore")

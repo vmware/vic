@@ -63,7 +63,7 @@ func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
 	return false, nil
 }
 
-func (d *Dispatcher) removeApplianceIfForced(conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) checkExistence(conf *metadata.VirtualContainerHostConfigSpec) error {
 	vm, err := d.findAppliance(conf)
 	if err != nil {
 		return err
@@ -73,34 +73,36 @@ func (d *Dispatcher) removeApplianceIfForced(conf *metadata.VirtualContainerHost
 	}
 
 	log.Debugf("Appliance is found")
-	if vm != nil && !d.force {
-		err = errors.Errorf("VM already exists with display name %s. Name must be unique. Exiting...", conf.Name)
-		return err
-	}
-
-	// remove it if it's a VCH
 	if ok, verr := d.isVCH(vm); !ok {
 		verr = errors.Errorf("VM %s is found, but is not VCH appliance, please choose different name", conf.Name)
 		return verr
 	}
-	log.Infof("Appliance exists, remove it...")
-
-	var folder string
-	if folder, err = d.deleteVM(vm); err != nil {
-		return err
-	}
-	return d.deleteDatastoreFiles(conf, folder)
+	err = errors.Errorf("Appliance %s exists, to install with same name, please delete it first.", conf.Name)
+	return err
 }
 
-func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine) (string, error) {
+func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	var err error
 	power, err := vm.PowerState(d.ctx)
-	if err != nil {
-		err = errors.Errorf("Failed to get vm power status %s: %s", vm.Reference(), err)
-		return "", err
-
-	}
-	if power != types.VirtualMachinePowerStatePoweredOff {
+	if err != nil || power != types.VirtualMachinePowerStatePoweredOff {
+		if err != nil {
+			log.Warnf("Failed to get vm power status %s: %s", vm.Reference(), err)
+		}
+		if !force {
+			if err != nil {
+				return err
+			}
+			name, err := vm.Name(d.ctx)
+			if err != nil {
+				log.Errorf("VM name is not found, %s", err)
+			}
+			if name != "" {
+				err = errors.Errorf("VM %s is powered on", name)
+			} else {
+				err = errors.Errorf("VM %s is powered on", vm.Reference())
+			}
+			return err
+		}
 		if _, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 			return vm.PowerOff(ctx)
 		}); err != nil {
@@ -118,26 +120,12 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine) (string, error) {
 	})
 	if err != nil {
 		err = errors.Errorf("Failed to destroy vm %s: %s", vm.Reference(), err)
-		return "", err
-	}
-	return folder, nil
-}
-
-func (d *Dispatcher) deleteDatastoreFiles(conf *metadata.VirtualContainerHostConfigSpec, folder string) error {
-	if folder == "" {
-		// we'll have logged a warning about the data files, but we did successfully destroy the VM
-		return nil
-	}
-	m := object.NewFileManager(d.session.Client.Client)
-	path := d.session.Datastore.Path(folder)
-	if _, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return m.DeleteDatastoreFile(ctx, path, d.session.Datacenter)
-	}); err != nil {
-		// FIXME: this should be checking if the error is a types.FileNotFound and continuing if so
-		// unfortunately tasks package isn't making it easy to get to the root cause.
-		err = errors.Errorf("Failed to remove existing VCH data files, %s", err)
 		return err
 	}
+	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {
+		log.Warnf("VM path %s is not removed, %s", folder, err)
+	}
+
 	return nil
 }
 

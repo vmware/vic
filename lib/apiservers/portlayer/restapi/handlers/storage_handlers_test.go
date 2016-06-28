@@ -81,6 +81,9 @@ func (c *MockDataStore) WriteImage(ctx context.Context, parent *spl.Image, ID st
 
 	return &i, nil
 }
+func (c *MockDataStore) WriteMetadata(ctx context.Context, storeName string, ID string, meta map[string][]byte) error {
+	return nil
+}
 
 // GetImage gets the specified image from the given store by retreiving it from the cache.
 func (c *MockDataStore) GetImage(ctx context.Context, store *url.URL, ID string) (*spl.Image, error) {

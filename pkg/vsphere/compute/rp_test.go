@@ -58,6 +58,7 @@ func TestMain(t *testing.T) {
 		testGetChildrenVMs(ctx, sess, t)
 		testGetChildVM(ctx, sess, t)
 		testFindResourcePool(ctx, sess, t)
+		testGetCluster(ctx, sess, t)
 	}
 }
 
@@ -142,4 +143,14 @@ func testFindResourcePool(ctx context.Context, sess *session.Session, t *testing
 		_, err := FindResourcePool(ctx, sess, test.name)
 		assert.Equal(t, test.hasErr, err != nil)
 	}
+}
+
+func testGetCluster(ctx context.Context, sess *session.Session, t *testing.T) {
+	rp := NewResourcePool(ctx, sess, sess.Pool.Reference())
+	cluster, err := rp.GetCluster(ctx)
+	if err != nil {
+		t.Logf("Failed to owner cluster: %s", err)
+		t.Errorf("Should get owner")
+	}
+	t.Logf("Cluster: %s", cluster)
 }

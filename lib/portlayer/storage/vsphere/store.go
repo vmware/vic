@@ -34,10 +34,10 @@ import (
 )
 
 // All paths on the datastore for images are relative to <datastore>/VIC/
-var storageParentDir = "VIC"
+var StorageParentDir = "VIC"
 
 const (
-	storageImageDir  = "images"
+	StorageImageDir  = "images"
 	defaultDiskLabel = "containerfs"
 	defaultDiskSize  = 8388608
 	metaDataDir      = "imageMetadata"
@@ -69,7 +69,7 @@ func NewImageStore(ctx context.Context, s *session.Session) (*ImageStore, error)
 	// Currently using the datastore associated with the session which is not
 	// ideal.  This should be passed in via the config.  The datastore need not
 	// be the same datastore used for the rest of the system.
-	ds, err := newDatastore(ctx, s, s.Datastore, storageParentDir)
+	ds, err := newDatastore(ctx, s, s.Datastore, StorageParentDir)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func NewImageStore(ctx context.Context, s *session.Session) (*ImageStore, error)
 // Returns the path to a given image store.  Currently this is the UUID of the VCH.
 // `/VIC/imageStoreName (currently the vch uuid)/images`
 func (v *ImageStore) imageStorePath(storeName string) string {
-	return path.Join(storeName, storageImageDir)
+	return path.Join(storeName, StorageImageDir)
 }
 
 // Returns the path to the image relative to the given
@@ -267,7 +267,7 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 	}
 
 	// Write the metadata to the datastore
-	err = v.writeMeta(ctx, storeName, ID, meta)
+	err = v.WriteMetadata(ctx, storeName, ID, meta)
 	if err != nil {
 		return nil, err
 	}
@@ -369,7 +369,7 @@ func (v *ImageStore) ListImages(ctx context.Context, store *url.URL, IDs []strin
 // directory under the image's parent directory.  Each blob in the metadata map
 // is written to a file with the corresponding name.  Likewise, when we read it
 // back (on restart) we populate the map accordingly.
-func (v *ImageStore) writeMeta(ctx context.Context, storeName string, ID string,
+func (v *ImageStore) WriteMetadata(ctx context.Context, storeName string, ID string,
 	meta map[string][]byte) error {
 	// XXX this should be done via disklib so this meta follows the disk in
 	// case of motion.

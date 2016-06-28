@@ -123,6 +123,10 @@ const (
 
 	// DefaultTokenExpirationDuration specifies the default token expiration
 	DefaultTokenExpirationDuration = 60 * time.Second
+
+	// attribute update actions
+	Add = iota + 1
+	Remove
 )
 
 func init() {
@@ -226,7 +230,7 @@ func DestinationDirectory() string {
 }
 
 // ImagesToDownload creates a slice of ImageWithMeta for the images that needs to be downloaded
-func ImagesToDownload(manifest *Manifest, storeName string) ([]*ImageWithMeta, error) {
+func ImagesToDownload(manifest *Manifest, storeName string) ([]*ImageWithMeta, *ImageWithMeta, error) {
 	images := make([]*ImageWithMeta, len(manifest.FSLayers))
 
 	v1 := docker.V1Image{}
@@ -237,7 +241,7 @@ func ImagesToDownload(manifest *Manifest, storeName string) ([]*ImageWithMeta, e
 
 		// unmarshall V1Compatibility to get the image ID
 		if err := json.Unmarshal([]byte(history.V1Compatibility), &v1); err != nil {
-			return nil, fmt.Errorf("Failed to unmarshall image history: %s", err)
+			return nil, nil, fmt.Errorf("Failed to unmarshall image history: %s", err)
 		}
 
 		// if parent is empty set it to scratch
@@ -257,28 +261,32 @@ func ImagesToDownload(manifest *Manifest, storeName string) ([]*ImageWithMeta, e
 			layer:  layer,
 			diffID: "",
 		}
-		log.Debugf("Manifest image: %#v", images[i])
+		log.Debugf("ImagesToDownload Manifest image: %#v", images[i])
 	}
 
 	// return early if -standalone set
 	if options.standalone {
-		return images, nil
+		return images, nil, nil
 	}
 
 	// Create the image store just in case
 	err := CreateImageStore(storeName)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create image store: %s", err)
+		return nil, nil, fmt.Errorf("Failed to create image store: %s", err)
 	}
 
 	// Get the list of known images from the storage layer
 	existingImages, err := ListImages(storeName, images)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to obtain list of images: %s", err)
+		return nil, nil, fmt.Errorf("Failed to obtain list of images: %s", err)
 	}
+
 	for i := range existingImages {
 		log.Debugf("Existing image: %#v", existingImages[i])
 	}
+
+	// grab the imageLayer for use in later evaluation of metadata update
+	imageLayer := images[0]
 
 	// iterate from parent to children
 	// so that we can delete from the slice
@@ -296,7 +304,117 @@ func ImagesToDownload(manifest *Manifest, storeName string) ([]*ImageWithMeta, e
 		}
 	}
 
-	return images, nil
+	return images, imageLayer, nil
+}
+
+// Will updated metadata based on the current image being requested
+//
+// Currently on tags are updated, but once imagec supports pulling by digest
+// then digest will need to be updated as well
+func updateImageMetadata(imageLayer *ImageWithMeta, manifest *Manifest) error {
+	// if standalone no need to continue
+	if options.standalone {
+		return nil
+	}
+	// updated Image slice
+	var updatedImages []*ImageWithMeta
+
+	// assuming calls to the portlayer are cheap, lets get all existing images
+	existingImages, err := ListImages(imageLayer.Store, nil)
+	if err != nil {
+		return fmt.Errorf("updateImageMetadata failed to obtain list of images: %s", err)
+	}
+
+	// iterate overall the images and remove the tag that was just downloaded
+	for id := range existingImages {
+		// utlizing index to avoid copy
+		existingImage := existingImages[id]
+
+		imageMeta := &metadata.ImageConfig{}
+		// tag / digest info only resides in the metadata so must unmarshall meta to determine
+		if err := json.Unmarshal([]byte(existingImage.Metadata[MetaDataKey]), imageMeta); err != nil {
+			return fmt.Errorf("updateImageMetadata failed to get existing metadata: Layer(%s) %s", id, err)
+		}
+
+		// if this isn't an image we can skip..
+		if imageMeta.ImageID == "" {
+			continue
+		}
+
+		// is this the same repo (busybox, etc)
+		if imageMeta.Name == options.image {
+
+			// default action to remove and update if necessary
+			action := Remove
+			if id == imageLayer.ID {
+				// add to the array if this layer is the requested layer
+				action = Add
+			}
+
+			// TODO: imagec doesn't support pulling by digest - add digest support once
+			// issue 1186 is implemented
+			if newTags, ok := arrayUpdate(manifest.Tag, imageMeta.Tags, action); ok {
+				imageMeta.Tags = newTags
+
+				// We need the parent id this is the layer ID of the parent disk
+				// Parent is returned from the PL as a full URL, so we only need the base
+				layerParent := path.Base(*existingImage.Parent)
+
+				// marshall back to dumb byte array
+				meta, err := json.Marshal(imageMeta)
+				if err != nil {
+					return fmt.Errorf("updateImageMetadata unable to marshal modified metadata: %s", err.Error())
+				}
+				updatedImage := &ImageWithMeta{Image: &models.Image{
+					ID:     id,
+					Parent: &layerParent,
+					Store:  imageLayer.Store,
+				},
+					meta: string(meta),
+					// create a dummy sum as this is required by the portlayer,
+					// but since we are only updating metadata it will be ignored
+					layer: FSLayer{BlobSum: "this-is-required"},
+				}
+				updatedImages = append(updatedImages, updatedImage)
+			}
+
+		}
+	}
+
+	log.Debugf("%d images require metadata updates", len(updatedImages))
+	for id := range updatedImages {
+		// utlizing index to avoid copy
+		update := updatedImages[id]
+		log.Debugf("updating ImageMetadata: layerID(%s)", update.ID)
+		//Send the Metadata to the PL to write to disk
+		err = WriteImage(update, nil)
+		if err != nil {
+			return fmt.Errorf("updateImageMetadata failed to writeMeta to the portLayer: %s", err.Error())
+		}
+
+	}
+	return nil
+}
+
+// Will conditionally update array based on presence of value
+func arrayUpdate(val string, list []string, action int) ([]string, bool) {
+
+	for index, item := range list {
+		if val == item {
+			if action == Remove {
+				// remove item requested
+				list = append(list[:index], list[index+1:]...)
+				return list, true
+			}
+			// item already in array
+			return list, false
+		}
+	}
+	if action == Add {
+		list = append(list, val)
+		return list, true
+	}
+	return list, false
 }
 
 // DownloadImageBlobs downloads the image blobs concurrently
@@ -446,8 +564,10 @@ func CreateImageConfig(images []*ImageWithMeta, manifest *Manifest) error {
 	metaData := metadata.ImageConfig{
 		V1Image: result.V1Image,
 		ImageID: sum,
-		Digest:  manifest.Digest,
-		Tag:     options.tag,
+		// TODO: this will change when issue 1186 is
+		// implemented -- only populate the digests when pulled by digest
+		Digests: []string{manifest.Digest},
+		Tags:    []string{options.tag},
 		Name:    manifest.Name,
 		DiffIDs: diffIDs,
 		History: history,
@@ -586,7 +706,7 @@ func main() {
 	}
 
 	// Create the ImageWithMeta slice to hold Image structs
-	images, err := ImagesToDownload(manifest, host)
+	images, imageLayer, err := ImagesToDownload(manifest, host)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
@@ -612,6 +732,10 @@ func main() {
 
 	// Write blobs to the storage layer
 	if err := WriteImageBlobs(images); err != nil {
+		log.Fatalf(err.Error())
+	}
+
+	if err := updateImageMetadata(imageLayer, manifest); err != nil {
 		log.Fatalf(err.Error())
 	}
 
