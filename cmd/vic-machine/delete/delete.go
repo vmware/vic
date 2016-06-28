@@ -57,19 +57,19 @@ func (d *Uninstall) Flags() []cli.Flag {
 			Destination: &d.id,
 		},
 		cli.StringFlag{
-			Name:        "compute-resource",
+			Name:        "compute-resource, r",
 			Value:       "",
 			Usage:       "The compute resource containing the Virtual Container Host; requires the '--name' argument be supplied",
 			Destination: &d.ComputeResourcePath,
 		},
 		cli.StringFlag{
-			Name:        "name",
+			Name:        "name, n",
 			Value:       "",
 			Usage:       "The name of the Virtual Container Host to delete; requires the '--compute-resource' argument be supplied",
 			Destination: &d.DisplayName,
 		},
 		cli.BoolFlag{
-			Name:        "force",
+			Name:        "force, f",
 			Usage:       "Force the uninstall",
 			Destination: &d.Force,
 		},
