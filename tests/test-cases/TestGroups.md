@@ -10,3 +10,5 @@ VIC Integration Test Suite
 -
 [Group 4 - Docker Integration](Group4-Docker-Integration/TestCases.md)
 -
+[Group 6 - VIC Machine](Group6-VIC-Machine/TestCases.md)
+-
