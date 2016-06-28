@@ -187,23 +187,33 @@ func (t *tether) Start() error {
 				continue
 			}
 
-			// check if session has never been started
-			if proc == nil {
-				log.Infof("Launching process for session %s", session.ID)
+			// check if session has never been started or is configured for restart
+			if proc == nil || session.Restart {
+				if proc == nil {
+					log.Infof("Launching process for session %s", session.ID)
+				} else {
+					session.Diagnostics.ResurrectionCount++
+
+					// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
+					// currently sure how to expose it neatly via a utility function
+					extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo..sessions|%s", session.ID))
+					log.Warnf("Re-launching process for session %s (count: %d)", session.ID, session.Diagnostics.ResurrectionCount)
+				}
+
 				err := t.launch(session)
 				if err != nil {
 					detail := fmt.Sprintf("failed to launch %s for %s: %s", session.Cmd.Path, id, err)
 					log.Error(detail)
 
 					// TODO: check if failure to launch this is fatal to everything in this containerVM
+					// 		for now failure to launch at all is terminal
 					return errors.New(detail)
 				}
-
-				// TODO: decide how to handle restart - probably needs to glue into the child reaping
 			}
 
-			// handle exited session
-			// TODO
+			if proc != nil || !session.Restart {
+				log.Infof("Process for session %s has exited (%d) and is not configured for restart", session.ID, session.ExitStatus)
+			}
 		}
 
 		for name, ext := range t.extensions {
@@ -257,7 +267,7 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 	// record exit status
 	// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
 	// currently sure how to expose it neatly via a utility function
-	extraconfig.EncodeWithPrefix(t.sink, session.ExitStatus, fmt.Sprintf("guestinfo..sessions|%s.status", session.ID))
+	extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo..sessions|%s", session.ID))
 	log.Infof("%s exit code: %d", session.ID, session.ExitStatus)
 
 	if t.ops.HandleSessionExit(t.config, session) {
@@ -272,7 +282,7 @@ func (t *tether) launch(session *SessionConfig) error {
 
 	// encode the result whether success or error
 	defer func() {
-		extraconfig.EncodeWithPrefix(t.sink, session.Started, fmt.Sprintf("guestinfo..sessions|%s.started", session.ID))
+		extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo..sessions|%s", session.ID))
 	}()
 
 	logwriter, err := t.ops.SessionLog(session)

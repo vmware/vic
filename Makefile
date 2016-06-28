@@ -62,7 +62,7 @@ rpctool := $(BIN)/rpctool
 vic-machine-linux := $(BIN)/vic-machine-linux
 vic-machine-windows := $(BIN)/vic-machine-windows.exe
 vic-machine-darwin := $(BIN)/vic-machine-darwin
-vch-init := $(BIN)/vch-init
+vic-init := $(BIN)/vic-init
 # NOT BUILT WITH make all TARGET
 # vic-dns variants to create standalone DNS service.
 vic-dns-linux := $(BIN)/vic-dns-linux
@@ -93,7 +93,7 @@ portlayerapi-server: $(portlayerapi-server)
 imagec: $(imagec)
 vicadmin: $(vicadmin)
 rpctool: $(rpctool)
-vch-init: $(vch-init)
+vic-init: $(vic-init)
 
 tether-linux: $(tether-linux)
 tether-windows: $(tether-windows)
@@ -212,8 +212,8 @@ else
 	@$(TIME) infra/scripts/coverage.sh --html $(TEST_DIRS)
 endif
 
-$(vch-init): $(call godeps,cmd/vch-init/*.go)
-	@echo building vch-init
+$(vic-init): $(call godeps,cmd/vic-init/*.go)
+	@echo building vic-init
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 $(tether-linux): $(call godeps,cmd/tether/*.go)
@@ -283,7 +283,7 @@ $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 	@$(TIME) $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@
 
 # main appliance target - depends on all top level component targets
-$(appliance): isos/appliance.sh isos/appliance/* $(rpctool) $(vicadmin) $(imagec) $(vch-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
+$(appliance): isos/appliance.sh isos/appliance/* $(rpctool) $(vicadmin) $(imagec) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
 	@echo building VCH appliance ISO
 	@$(TIME) $< -p $(appliance-staging) -b $(BIN)
 

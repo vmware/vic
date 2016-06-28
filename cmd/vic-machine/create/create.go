@@ -379,7 +379,7 @@ func (c *Create) Run(cli *cli.Context) error {
 	// SetOutput to io.MultiWriter so that we can log to stdout and a file
 	log.SetOutput(io.MultiWriter(os.Stdout, f))
 
-	if c.Debug.Debug {
+	if c.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}
