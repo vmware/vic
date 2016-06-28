@@ -15,6 +15,10 @@ Install the latest release via https://github.com/vmware/govmomi/releases
 Used here to derive static VCSA networking from its parent ESXi host.
 But, you should already be using and loving jq for other tasks: http://stedolan.github.io/jq/
 
+### ovftool
+
+https://my.vmware.com/web/vmware/details?downloadGroup=OVFTOOL352&productId=353
+
 ## Scripts
 
 ### create-esxi-vm.sh
