@@ -96,9 +96,8 @@ func (v *ImageStore) imageDirPath(storeName, imageName string) string {
 	return path.Join(v.imageStorePath(storeName), imageName)
 }
 
-// Returns the path to the vmdk itself
+// Returns the path to the vmdk itself in datastore url format
 func (v *ImageStore) imageDiskPath(storeName, imageName string) string {
-	// XXX this could be hidden in a helper.  We shouldn't use rooturl outside the datastore struct
 	return path.Join(v.ds.RootURL, v.imageDirPath(storeName, imageName), imageName+".vmdk")
 }
 

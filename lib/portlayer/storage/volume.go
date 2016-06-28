@@ -85,17 +85,24 @@ func NewVolume(store *url.URL, ID string, device Disk) (*Volume, error) {
 	}
 
 	// Set the label to the md5 of the ID
-	h := md5.New()
 
 	vol := &Volume{
 		ID:       ID,
-		Label:    string(h.Sum([]byte(ID))),
+		Label:    label(ID),
 		Store:    store,
 		SelfLink: selflink,
 		Device:   device,
 	}
 
 	return vol, nil
+}
+
+// given an ID, compute the volume's label
+func label(ID string) string {
+	h := md5.New()
+
+	// e2label's manpage says the label size is 16 chars
+	return string(h.Sum([]byte(ID)))[:16]
 }
 
 func (v *Volume) Parse(u *url.URL) error {
