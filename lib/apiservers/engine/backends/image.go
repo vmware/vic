@@ -102,7 +102,7 @@ func (i *Image) TagImage(newTag reference.Named, imageName string) error {
 }
 
 func (i *Image) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
-	return fmt.Errorf("%s does not implement image.LoadImage", i.ProductName)
+	return fmt.Errorf("%s does not implement image.LoadImage, Issue #1028", i.ProductName)
 }
 
 func (i *Image) ImportImage(src string, newRef reference.Named, msg string, inConfig io.ReadCloser, outStream io.Writer, config *container.Config) error {
