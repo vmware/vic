@@ -35,7 +35,6 @@ const dockerMetadataModelKey string = "DockerMetaData"
 
 //Volume : struct which defines the docker personalities view of a Volume
 type Volume struct {
-	ProductName string
 }
 
 type volumeMetadata struct {
@@ -47,12 +46,12 @@ type volumeMetadata struct {
 
 //Volumes : docker personality implementation for VIC
 func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
-	return nil, make([]string, 0), fmt.Errorf("%s does not implement volume.Volumes", v.ProductName)
+	return nil, make([]string, 0), fmt.Errorf("%s does not implement volume.Volumes", ProductName())
 }
 
 //VolumeInspect : docker personality implementation for VIC
 func (v *Volume) VolumeInspect(name string) (*types.Volume, error) {
-	return nil, fmt.Errorf("%s does not implement volume.VolumeInspect", v.ProductName)
+	return nil, fmt.Errorf("%s does not implement volume.VolumeInspect", ProductName())
 }
 
 //VolumeCreate : docker personality implementation for VIC
