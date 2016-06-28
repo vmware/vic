@@ -24,6 +24,19 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
+// PatternToken is a set of tokens that can be placed into string constants
+// for containerVMs that will be replaced with the specific values
+type PatternToken string
+
+const (
+	// VM is the VM name - i.e. [ds] {vm}/{vm}.vmx
+	VM PatternToken = "{vm}"
+	// ID is the container ID for the VM
+	ID = "{id}"
+	// Name is the container name of the VM
+	Name = "{name}"
+)
+
 // Can we just treat the VCH appliance as a containerVM booting off a specific bootstrap image
 // It has many of the same requirements (around networks being attached, version recorded,
 // volumes mounted, et al). Each of the components can easily be captured as a Session given they
