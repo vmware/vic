@@ -31,7 +31,7 @@ type ExecutorConfig struct {
 	ID string `vic:"0.1" scope:"read-only" key:"common/id"`
 
 	// Debug is a numeric level that controls extent of debugging
-	Debug int `vic:"0.1" scope:"read-only" key:"common/debug"`
+	DebugLevel int `vic:"0.1" scope:"read-only" key:"common/diagnostics/debug"`
 
 	// Exclusive access to childPidTable
 	pidMutex sync.Mutex
@@ -63,7 +63,7 @@ type SessionConfig struct {
 	metadata.Common `vic:"0.1" scope:"read-only" key:"common"`
 
 	// Diagnostics holds basic diagnostics data
-	Diagnostics metadata.Diagnostics `vic:"0.1" scope:"read-only" key:"diagnostics"`
+	Diagnostics metadata.Diagnostics `vic:"0.1" scope:"read-write" key:"diagnostics"`
 
 	// The primary process for the session
 	Cmd exec.Cmd `vic:"0.1" scope:"read-only" key:"cmd" recurse:"depth=2,nofollow"`

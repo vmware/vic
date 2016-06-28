@@ -165,7 +165,7 @@ type SessionConfig struct {
 
 	Started string `vic:"0.1" scope:"read-write" key:"started"`
 
-	Restart bool `vic:"0.1" scope:"read-write" key:"restart"`
+	Restart bool `vic:"0.1" scope:"read-only" key:"restart"`
 
 	// Maps the intent to the signal for this specific app
 	// Signals map[int]int

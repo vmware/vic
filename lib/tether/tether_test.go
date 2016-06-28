@@ -36,6 +36,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
+var tthr Tether
 var Mocked Mocker
 
 type Mocker struct {
@@ -168,7 +169,7 @@ func StartTether(t *testing.T, cfg *metadata.ExecutorConfig) (Tether, extraconfi
 	extraconfig.Encode(sink, cfg)
 	log.Debugf("Test configuration: %#v", sink)
 
-	tthr := New(src, sink, &Mocked)
+	tthr = New(src, sink, &Mocked)
 	tthr.Register("mocker", &Mocked)
 
 	// run the tether to service the attach
@@ -189,7 +190,7 @@ func RunTether(t *testing.T, cfg *metadata.ExecutorConfig) (Tether, extraconfig.
 	extraconfig.Encode(sink, cfg)
 	log.Debugf("Test configuration: %#v", sink)
 
-	tthr := New(src, sink, &Mocked)
+	tthr = New(src, sink, &Mocked)
 	tthr.Register("Mocker", &Mocked)
 
 	// run the tether to service the attach

@@ -22,14 +22,11 @@ import (
 	"os"
 	"strings"
 	"syscall"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
 // pathPrefix is present to allow the various files referenced by tether to be placed
@@ -60,38 +57,20 @@ func (t *operations) Cleanup() error {
 
 // HandleSessionExit controls the behaviour on session exit - for the tether if the session exiting
 // is the primary session (i.e. SessionID matches ExecutorID) then we exit everything.
-func (t *operations) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) bool {
+func (t *operations) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) func() {
 	defer trace.End(trace.Begin(""))
-
-	// This is the appliance so relaunch
 
 	// If executor debug is greater than 1 then suppress the relaunch but leave the executor up
 	// for diagnostics
-	if config.Debug > 1 {
-		log.Warnf("Debug is set to %d so squashing relaunch of exited process", config.Debug)
-		return false
+	if config.DebugLevel > 2 {
+		log.Warnf("Debug is set to %d so squashing relaunch of exited process", config.DebugLevel)
+		return nil
 	}
 
-	// Log the death record
-	logs := session.Diagnostics.ExitLogs
-	// trim the log records if need be
-	logCount := len(logs)
-	if logCount > 5 {
-		logs = logs[logCount-5:]
+	// trigger a reload to force relaunch
+	return func() {
+		tthr.Reload()
 	}
-
-	session.Diagnostics.ExitLogs = append(logs, metadata.ExitLog{
-		Time:      time.Now(),
-		ExitStats: session.ExitStatus,
-		// We don't have any message for now
-	})
-
-	// This is inline here for now, but we will ideally find a way to move this into core tether without
-	// racing after calling tthr.Reload()
-	extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo..sessions|%s", session.ID))
-
-	tthr.Reload()
-	return false
 }
 
 func (t *operations) SetHostname(name string, aliases ...string) error {

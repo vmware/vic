@@ -178,7 +178,7 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 	// add create time to config
 	h.ExecConfig.Common.Created = time.Now().UTC().String()
 	// configure with debug
-	h.ExecConfig.DebugLevel = Config.DebugLevel
+	h.ExecConfig.Diagnostics.DebugLevel = Config.DebugLevel
 	// Convert the management hostname to IP
 	ips, err := net.LookupIP(ManagementHostName)
 	if err != nil {

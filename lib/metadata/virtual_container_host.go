@@ -158,7 +158,7 @@ func (t *VirtualContainerHostConfigSpec) SetName(name string) {
 
 // SetDebug configures the debug logging level for the VCH
 func (t *VirtualContainerHostConfigSpec) SetDebug(level int) {
-	t.ExecutorConfig.DebugLevel = level
+	t.ExecutorConfig.Diagnostics.DebugLevel = level
 }
 
 // SetMoref sets the moref of the VCH - this allows components to acquire a handle to

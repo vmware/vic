@@ -37,11 +37,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
-// Copied from lib/tether
-// because there's no easy way to use test code from other packages and a separate
-// package causes cyclic dependencies.
-// Some modifications to deal with the change of package and attach usage
-
 var Mocked Mocker
 
 type Mocker struct {
@@ -51,6 +46,8 @@ type Mocker struct {
 	Started chan bool
 	// allow tests to tell when the tether has finished
 	Cleaned chan bool
+	// Session exit
+	SessionExit chan bool
 
 	// debug output gets logged here
 	LogBuffer bytes.Buffer
@@ -72,23 +69,7 @@ type Mocker struct {
 
 // Start implements the extension method
 func (t *Mocker) Start() error {
-	return nil
-}
-
-// Stop implements the extension method
-func (t *Mocker) Stop() error {
-	return nil
-}
-
-// Reload implements the extension method
-func (t *Mocker) Reload(config *tether.ExecutorConfig) error {
-	// the tether has definitely finished it's startup by the time we hit this
-	close(t.Started)
-	return nil
-}
-
-func (t *Mocker) Setup() error {
-	log.Info("Launching pprof server for test on port 6060")
+	// TODO: enabled for initial dev debugging only
 	go func() {
 		log.Info(http.ListenAndServe("0.0.0.0:6060", nil))
 	}()
@@ -96,8 +77,30 @@ func (t *Mocker) Setup() error {
 	return nil
 }
 
-func (t *Mocker) Cleanup() error {
+// Stop implements the extension method
+func (t *Mocker) Stop() error {
 	close(t.Cleaned)
+	return nil
+}
+
+// Reload implements the extension method
+func (t *Mocker) Reload(config *tether.ExecutorConfig) error {
+	// the tether has definitely finished it's startup by the time we hit this
+	defer func() {
+		// deal with repeated reloads
+		recover()
+	}()
+
+	close(t.Started)
+
+	return nil
+}
+
+func (t *Mocker) Setup() error {
+	return nil
+}
+
+func (t *Mocker) Cleanup() error {
 	return nil
 }
 
@@ -110,14 +113,10 @@ func (t *Mocker) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWrit
 }
 
 func (t *Mocker) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) func() {
-	// check for executor behaviour
-	if session.ID == config.ID {
-		return func() {
-			tthr.Stop()
-		}
+	return func() {
+		t.SessionExit <- true
+		tthr.Reload()
 	}
-
-	return nil
 }
 
 func (t *Mocker) ProcessEnv(env []string) []string {
@@ -164,6 +163,7 @@ func (t *Mocker) Fork() error {
 // TestMain simply so we have control of debugging level and somewhere to call package wide test setup
 func TestMain(m *testing.M) {
 	log.SetLevel(log.DebugLevel)
+	trace.Logger = log.StandardLogger()
 
 	retCode := m.Run()
 
@@ -171,7 +171,7 @@ func TestMain(m *testing.M) {
 	os.Exit(retCode)
 }
 
-func StartAttachTether(t *testing.T, cfg *metadata.ExecutorConfig) (tether.Tether, extraconfig.DataSource, net.Conn) {
+func StartTether(t *testing.T, cfg *metadata.ExecutorConfig) (tether.Tether, extraconfig.DataSource) {
 	store := map[string]string{}
 	sink := extraconfig.MapSink(store)
 	src := extraconfig.MapSource(store)
@@ -180,7 +180,6 @@ func StartAttachTether(t *testing.T, cfg *metadata.ExecutorConfig) (tether.Tethe
 
 	tthr = tether.New(src, sink, &Mocked)
 	tthr.Register("mocker", &Mocked)
-	tthr.Register("Attach", server)
 
 	// run the tether to service the attach
 	go func() {
@@ -190,15 +189,23 @@ func StartAttachTether(t *testing.T, cfg *metadata.ExecutorConfig) (tether.Tethe
 		}
 	}()
 
-	// create client on the mock pipe
-	conn, err := mockBackChannel(context.Background())
-	if err != nil && (err != io.EOF || server.(*testAttachServer).enabled) {
-		// we accept the case where the error is end-of-file and the attach server is disabled because that's
-		// expected when the tether is shut down.
-		t.Error(err)
-	}
+	return tthr, src
+}
 
-	return tthr, src, conn
+func RunTether(t *testing.T, cfg *metadata.ExecutorConfig) (tether.Tether, extraconfig.DataSource, error) {
+	store := map[string]string{}
+	sink := extraconfig.MapSink(store)
+	src := extraconfig.MapSource(store)
+	extraconfig.Encode(sink, cfg)
+	log.Debugf("Test configuration: %#v", sink)
+
+	tthr = tether.New(src, sink, &Mocked)
+	tthr.Register("Mocker", &Mocked)
+
+	// run the tether to service the attach
+	erR := tthr.Start()
+
+	return tthr, src, erR
 }
 
 func OptionValueArrayToString(options []types.BaseOptionValue) string {
@@ -213,32 +220,29 @@ func OptionValueArrayToString(options []types.BaseOptionValue) string {
 	return fmt.Sprintf("%#v", kv)
 }
 
-func tetherTestSetup(t *testing.T) string {
-	pc, _, _, _ := runtime.Caller(2)
+func testSetup(t *testing.T) {
+	pc, _, _, _ := runtime.Caller(1)
 	name := runtime.FuncForPC(pc).Name()
 
 	log.Infof("Started test setup for %s", name)
 
 	// use the mock ops - fresh one each time as tests might apply different mocked calls
 	Mocked = Mocker{
-		Started: make(chan bool, 0),
-		Cleaned: make(chan bool, 0),
+		Started:     make(chan bool, 0),
+		Cleaned:     make(chan bool, 0),
+		SessionExit: make(chan bool, 0),
 	}
-
-	return name
 }
 
-func tetherTestTeardown(t *testing.T) string {
+func testTeardown(t *testing.T) {
 	// cleanup
-	os.RemoveAll(pathPrefix)
+	// os.RemoveAll(pathPrefix)
 	log.SetOutput(os.Stdout)
 
 	<-Mocked.Cleaned
 
-	pc, _, _, _ := runtime.Caller(2)
+	pc, _, _, _ := runtime.Caller(1)
 	name := runtime.FuncForPC(pc).Name()
 
 	log.Infof("Finished test teardown for %s", name)
-
-	return name
 }
