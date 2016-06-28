@@ -28,8 +28,12 @@ func MessageClose(c MessageChannel) bool {
 
 // MessageSend sends a request through a MessageChannel
 func MessageSend(c MessageChannel, request []byte) bool {
-	buffer := (*C.uchar)(unsafe.Pointer(&request[0]))
-	status := C.Message_Send(c, buffer, (C.size_t)(C.int(len(request))))
+	n := len(request)
+	var buffer *C.uchar
+	if n > 0 {
+		buffer = (*C.uchar)(unsafe.Pointer(&request[0]))
+	}
+	status := C.Message_Send(c, buffer, C.size_t(n))
 	return status != 0
 }
 
