@@ -39,14 +39,14 @@ package bdoor
 //
 // int hypervisor_bdoor_check(void) {
 //     uint32_t eax, ebx, ecx, edx;
-//     struct sigaction sa;
+//     struct sigaction sa, save1, save2;
 //     int res = 0;
 //
 //     sa.sa_handler = handler;
 //     sigemptyset(&sa.sa_mask);
 //     sa.sa_flags = SA_RESTART;
-//     sigaction(SIGSEGV, &sa, 0);
-//     sigaction(SIGILL, &sa, 0);
+//     sigaction(SIGSEGV, &sa, &save1);
+//     sigaction(SIGILL, &sa, &save2);
 //
 //     if(sigsetjmp(env, 1)==0) {
 //         VMWARE_BDOOR_RUN(GETVERSION, eax, ebx, ecx, edx);
@@ -55,8 +55,8 @@ package bdoor
 //     }
 //
 //     sa.sa_handler = SIG_DFL;
-//     sigaction(SIGSEGV, &sa, 0);
-//     sigaction(SIGILL, &sa, 0);
+//     sigaction(SIGSEGV, &save1, 0);
+//     sigaction(SIGILL, &save2, 0);
 //     return res;
 // }
 //
