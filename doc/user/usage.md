@@ -10,46 +10,55 @@ Installation will be required for capabilities such as [self-provisioning](doc/d
 
 - ESXi/vCenter - the target virtualization environment.
    - ESXi - Enterprise license
-   - vCenter - Enterprise plus license, only very simple configurations have been tested. 
+   - vCenter - Enterprise plus license, only very simple configurations have been tested.
 - DHCP - the VCH currently requires there be DHCP on all networks other than the bridge. The external network can be set via -external-network and will default to "VM Network" and the client and management roles will share external network NIC if not explicitly configured.
 - Bridge network - when installed in a vCenter environment vic-machine does not automatically create a bridge network. An existing vSwitch or Distributed Portgroup should be specified via the -bridge-network flag, should not be the same as the external network, and should not have DHCP.
 
 Replace the `<fields>` in the example with values specific to your environment - this will install VCH to the specified resource pool of ESXi or vCenter, and the container VMs will be created under that resource pool.
 
-- -target is URL of the destination vSphere environment in the form `https://user:password@ip-or-fqdn/datacenter-name`. Any or all of the protocol, user, and password may also be omitted as can the datacenter if targetting ESXi or only one datacenter is configured.
-- -compute-resource is the resource pool where VCH will be deployed to. For vCenter this should start with the cluster, followed by the resource pool path, e.g. `mycluster/a/resource/pool/path` (vCenter), or `/a/resource/pool` (ESXi) .
-- -generate-cert flag is to generate certificates and configure TLS. 
-- -force flag is to remove an existing datastore folder or VM with the same name.
+- --target is the URL of the destination vSphere environment in the form `https://user:password@ip-or-fqdn/datacenter-name`. Protocol, user, and password are OPTIONAL. Datacenter is OPTIONAL if targetting ESXi or only one datacenter is configured.
+- --compute-resource is the resource pool where VCH will be deployed to. For vCenter this should start with the cluster, followed by the resource pool path, e.g. `mycluster/a/resource/pool/path` (vCenter), or `/a/resource/pool` (ESXi) .
+- --force flag is to remove an existing datastore folder or VM with the same name.
 
 ```
-vic-machine-linux --target target-host[/datacenter] --image-store <datastore name> --name <vch-name> --user root --password <password> --compute-resource <resource pool path> --generate-cert
+vic-machine-linux create --target target-host[/datacenter] --image-store <datastore name> --name <vch-name> --user root --password <password> --compute-resource <resource pool path>
 ```
-This will, if successful, produce output similar to the following:
+This will, if successful, produce output similar to the following when deploying VIC onto an ESXi:
 ```
-INFO[2016-06-19T05:16:09Z] ### Installing VCH ####
-INFO[2016-06-19T05:16:09Z] Generating certificate/key pair - private key in ./vch-name-key.pem
-INFO[2016-06-19T05:16:10Z] Validating supplied configuration
-INFO[2016-06-19T05:16:10Z] Creating appliance on target
-INFO[2016-06-19T05:16:10Z] Network role client is sharing NIC with external
-INFO[2016-06-19T05:16:10Z] Network role management is sharing NIC with external
-INFO[2016-06-19T05:16:11Z] Uploading images for container
-INFO[2016-06-19T05:16:11Z]      bootstrap.iso
-INFO[2016-06-19T05:16:11Z]      appliance.iso
-INFO[2016-06-19T05:16:15Z] Waiting for IP information
-INFO[2016-06-19T05:16:28Z] Waiting for major appliance components to launch
-INFO[2016-06-19T05:16:28Z] Initialization of appliance successful
-INFO[2016-06-19T05:16:28Z]
-INFO[2016-06-19T05:16:28Z] SSH to appliance (default=root:password)
-INFO[2016-06-19T05:16:28Z] ssh root@x.x.x.x
-INFO[2016-06-19T05:16:28Z]
-INFO[2016-06-19T05:16:28Z] Log server:
-INFO[2016-06-19T05:16:28Z] https://x.x.x.x:2378
-INFO[2016-06-19T05:16:28Z]
-INFO[2016-06-19T05:16:28Z] DOCKER_HOST=x.x.x.x:2376
-INFO[2016-06-19T05:16:28Z]
-INFO[2016-06-19T05:16:28Z] Connect to docker:
-INFO[2016-06-19T05:16:28Z] docker -H x.x.x.x:2376 --tls info
-INFO[2016-06-19T05:16:28Z] Installer completed successfully          
+INFO[2016-06-29T14:41:08-07:00] ### Installing VCH ####
+INFO[2016-06-29T14:41:08-07:00] Generating certificate/key pair - private key in ./vic-001-key.pem
+INFO[2016-06-29T14:41:09-07:00] Validating supplied configuration
+INFO[2016-06-29T14:41:09-07:00] Firewall status: DISABLED on /ha-datacenter/host/localhost.localdomain/localhost.localdomain
+INFO[2016-06-29T14:41:09-07:00] Firewall configuration OK on hosts:
+INFO[2016-06-29T14:41:09-07:00]   /ha-datacenter/host/localhost.localdomain/localhost.localdomain
+WARN[2016-06-29T14:41:09-07:00] Evaluation license detected. VIC may not function if evaluation expires or insufficient license is later assigned.
+INFO[2016-06-29T14:41:09-07:00] License check OK
+INFO[2016-06-29T14:41:09-07:00] DRS check SKIPPED - target is standalone host
+INFO[2016-06-29T14:41:09-07:00] Creating Resource Pool vic-001
+INFO[2016-06-29T14:41:09-07:00] Creating VirtualSwitch
+INFO[2016-06-29T14:41:09-07:00] Creating Portgroup
+INFO[2016-06-29T14:41:09-07:00] Creating appliance on target
+INFO[2016-06-29T14:41:09-07:00] Network role external is sharing NIC with management
+INFO[2016-06-29T14:41:09-07:00] Network role client is sharing NIC with management
+INFO[2016-06-29T14:41:09-07:00] Uploading images for container
+INFO[2016-06-29T14:41:09-07:00]   /home/user/go/src/github.com/vmware/vic/bin/appliance.iso
+INFO[2016-06-29T14:41:09-07:00]   /home/user/go/src/github.com/vmware/vic/bin/bootstrap.iso
+INFO[2016-06-29T14:41:15-07:00] Waiting for IP information
+INFO[2016-06-29T14:41:35-07:00] Waiting for major appliance components to launch
+INFO[2016-06-29T14:41:36-07:00] Initialization of appliance successful
+INFO[2016-06-29T14:41:36-07:00]
+INFO[2016-06-29T14:41:36-07:00] SSH to appliance (default=root:password)
+INFO[2016-06-29T14:41:36-07:00] ssh root@192.168.218.129
+INFO[2016-06-29T14:41:36-07:00]
+INFO[2016-06-29T14:41:36-07:00] Log server:
+INFO[2016-06-29T14:41:36-07:00] https://192.168.218.129:2378
+INFO[2016-06-29T14:41:36-07:00]
+INFO[2016-06-29T14:41:36-07:00] DOCKER_HOST=192.168.218.129:2376
+INFO[2016-06-29T14:41:36-07:00] DOCKER_OPTS="-H 192.168.218.129:2376 --tls"
+INFO[2016-06-29T14:41:36-07:00]
+INFO[2016-06-29T14:41:36-07:00] Connect to docker:
+INFO[2016-06-29T14:41:36-07:00] docker -H 192.168.218.129:2376 --tls info
+INFO[2016-06-29T14:41:36-07:00] Installer completed successfully
 ```
 
 
