@@ -109,9 +109,13 @@ func (t *Mocker) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWrit
 	return dio.MultiWriter(&t.SessionLogBuffer, os.Stdout), nil
 }
 
-func (t *Mocker) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) bool {
+func (t *Mocker) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) func() {
 	// check for executor behaviour
-	return session.ID == config.ID
+	return func() {
+		if session.ID == config.ID {
+			tthr.Stop()
+		}
+	}
 }
 
 func (t *Mocker) ProcessEnv(env []string) []string {
@@ -172,7 +176,7 @@ func StartAttachTether(t *testing.T, cfg *metadata.ExecutorConfig) (tether.Tethe
 	extraconfig.Encode(sink, cfg)
 	log.Debugf("Test configuration: %#v", sink)
 
-	tthr := tether.New(src, sink, &Mocked)
+	tthr = tether.New(src, sink, &Mocked)
 	tthr.Register("mocker", &Mocked)
 	tthr.Register("Attach", server)
 

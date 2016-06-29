@@ -52,22 +52,27 @@ type VirtualContainerHostConfigSpec struct {
 	// Networks are keyed by interface name
 	ExecutorConfig `vic:"0.1" scope:"read-only" key:"init"`
 
+	////////////// vSphere connection configuration
 	// The sdk URL
 	Target url.URL `vic:"0.1" scope:"read-only" key:"target"`
+	// Certificate for authentication as vSphere Extension
+	ExtensionCert string `vic:"0.1" scope:"read-only" key:"extension_cert"`
+	ExtensionKey  string `vic:"0.1" scope:"read-only" key:"extension_key"`
+	ExtensionName string `vic:"0.1" scope:"read-only" key:"extension_name"`
 	// Whether the session connection is secure
 	Insecure bool `vic:"0.1" scope:"read-only" key:"insecure"`
 	// The session timeout
 	Keepalive time.Duration `vic:"0.1" scope:"read-only" key:"keepalive"`
-	// Turn on debug logging
-	Debug bool `vic:"0.1" scope:"read-only" key:"debug"`
 	// Virtual Container Host version
 	Version string `vic:"0.1" scope:"read-only" key:"version"`
 
+	////////////// basic contact information
 	// Administrative contact for the Virtual Container Host
 	Admin []mail.Address
 	// Administrative contact for hosting infrastructure
 	InfrastructureAdmin []mail.Address
 
+	////////////// certificate configuration, for both inbound and outbound access
 	// Certificates for user authentication - this needs to be expanded to allow for directory server auth
 	UserCertificates []*RawCertificate
 	// Certificates for general outgoing network access, keyed by CIDR (IPNet.String())
@@ -78,27 +83,24 @@ type VirtualContainerHostConfigSpec struct {
 	CertificateAuthorities []byte `vic:"0.1" scope:"read-only"`
 	// Certificates for specific system access, keyed by FQDN
 	HostCertificates map[string]*RawCertificate
+	// Used for authentication against e.g. the Docker HTTP endpoint
+	UserKeyPEM  string `vic:"0.1" scope:"read-only" key:"key_pem"`
+	UserCertPEM string `vic:"0.1" scope:"read-only" key:"cert_pem"`
 
-	// Certificate for authentication as vSphere Extension
-	ExtensionCert string `vic:"0.1" scope:"read-only" key:"extension_cert"`
-	ExtensionKey  string `vic:"0.1" scope:"read-only" key:"extension_key"`
-	ExtensionName string `vic:"0.1" scope:"read-only" key:"extension_name"`
-
-	// Port Layer - storage
+	////////////// Port Layer - storage
 	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
 	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores"`
 	// Permitted datastore URL roots for volumes
 	VolumeLocations map[string]url.URL `vic:"0.1" scope:"read-only"`
 
-	// Port Layer - network
+	////////////// Port Layer - network
 	// The network to use by default to provide access to the world
 	BridgeNetwork       string `vic:"0.1" scope:"read-only" key:"bridge_network"`
 	CreateBridgeNetwork bool   `vic:"0.1" scope:"read-only" key:"create_bridge_network"`
-
 	// Published networks available for containers to join, keyed by consumption name
 	ContainerNetworks map[string]*ContainerNetwork `vic:"0.1" scope:"read-only" key:"container_networks"`
 
-	// Port Layer - exec
+	////////////// Port Layer - exec
 	// Default containerVM capacity
 	ContainerVMSize Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	// Permitted datastore URLs for container storage for this virtual container host
@@ -108,7 +110,7 @@ type VirtualContainerHostConfigSpec struct {
 	// Path of the ISO to use for bootstrapping containers
 	BootstrapImagePath url.URL `vic:"0.1" scope:"read-only" recurse:"depth=1"`
 
-	// Imagec
+	////////////// Imagec
 	// Whitelist of registries
 	RegistryWhitelist []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	// Blacklist of registries
@@ -116,10 +118,6 @@ type VirtualContainerHostConfigSpec struct {
 
 	// Allow custom naming convention for containerVMs
 	ContainerNameConvention string
-
-	// Used for authentication against e.g. the Docker HTTP endpoint
-	UserKeyPEM  string `vic:"0.1" scope:"read-only" key:"key_pem"`
-	UserCertPEM string `vic:"0.1" scope:"read-only" key:"cert_pem"`
 }
 
 // RawCertificate is present until we add extraconfig support for [][]byte slices that are present
@@ -156,6 +154,11 @@ func (t *VirtualContainerHostConfigSpec) SetHostCertificate(key *[]byte) {
 // SetName sets the name of the VCH - this will be used as the hostname for the appliance
 func (t *VirtualContainerHostConfigSpec) SetName(name string) {
 	t.ExecutorConfig.Name = name
+}
+
+// SetDebug configures the debug logging level for the VCH
+func (t *VirtualContainerHostConfigSpec) SetDebug(level int) {
+	t.ExecutorConfig.Diagnostics.DebugLevel = level
 }
 
 // SetMoref sets the moref of the VCH - this allows components to acquire a handle to

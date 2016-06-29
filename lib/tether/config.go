@@ -30,6 +30,9 @@ type ExecutorConfig struct {
 	// ID corresponds to that of the primary session
 	ID string `vic:"0.1" scope:"read-only" key:"common/id"`
 
+	// Debug is a numeric level that controls extent of debugging
+	DebugLevel int `vic:"0.1" scope:"read-only" key:"common/diagnostics/debug"`
+
 	// Exclusive access to childPidTable
 	pidMutex sync.Mutex
 
@@ -59,6 +62,9 @@ type SessionConfig struct {
 	// The primary session may have the same ID as the executor owning it
 	metadata.Common `vic:"0.1" scope:"read-only" key:"common"`
 
+	// Diagnostics holds basic diagnostics data
+	Diagnostics metadata.Diagnostics `vic:"0.1" scope:"read-write" key:"diagnostics"`
+
 	// The primary process for the session
 	Cmd exec.Cmd `vic:"0.1" scope:"read-only" key:"cmd" recurse:"depth=2,nofollow"`
 
@@ -72,6 +78,9 @@ type SessionConfig struct {
 
 	// Allocate a tty or not
 	Tty bool `vic:"0.1" scope:"read-only" key:"tty"`
+
+	// Restart controls whether a process gets relaunched if it exists
+	Restart bool `vic:"0.1" scope:"read-only" key:"restart"`
 
 	// if there's a pty then we need additional management data
 	Pty       *os.File

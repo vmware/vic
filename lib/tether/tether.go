@@ -19,14 +19,22 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+)
+
+const (
+	// The maximum number of records to keep for restarting processes
+	MaxDeathRecords = 5
 )
 
 type tether struct {
@@ -187,23 +195,34 @@ func (t *tether) Start() error {
 				continue
 			}
 
-			// check if session has never been started
-			if proc == nil {
-				log.Infof("Launching process for session %s", session.ID)
+			// check if session has never been started or is configured for restart
+			if proc == nil || session.Restart {
+				if proc == nil {
+					log.Infof("Launching process for session %s", session.ID)
+				} else {
+					session.Diagnostics.ResurrectionCount++
+
+					// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
+					// currently sure how to expose it neatly via a utility function
+					extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo..sessions|%s", session.ID))
+					log.Warnf("Re-launching process for session %s (count: %d)", session.ID, session.Diagnostics.ResurrectionCount)
+					session.Cmd = *restartableCmd(&session.Cmd)
+				}
+
 				err := t.launch(session)
 				if err != nil {
 					detail := fmt.Sprintf("failed to launch %s for %s: %s", session.Cmd.Path, id, err)
 					log.Error(detail)
 
 					// TODO: check if failure to launch this is fatal to everything in this containerVM
+					// 		for now failure to launch at all is terminal
 					return errors.New(detail)
 				}
 
-				// TODO: decide how to handle restart - probably needs to glue into the child reaping
+				continue
 			}
 
-			// handle exited session
-			// TODO
+			log.Warnf("Process for session %s has exited (%d) and is not configured for restart", session.ID, session.ExitStatus)
 		}
 
 		for name, ext := range t.extensions {
@@ -254,14 +273,30 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 
 	// flush session log output
 
+	// Log a death record trimming records if need be
+	logs := session.Diagnostics.ExitLogs
+	logCount := len(logs)
+	if logCount >= MaxDeathRecords {
+		logs = logs[logCount-MaxDeathRecords+1:]
+	}
+
+	session.Diagnostics.ExitLogs = append(logs, &metadata.ExitLog{
+		Time:       time.Now(),
+		ExitStatus: session.ExitStatus,
+		// We don't have any message for now
+	})
+
+	// this returns an arbitrary closure for invocation after the session status update
+	f := t.ops.HandleSessionExit(t.config, session)
+
+	log.Infof("%s exit code: %d", session.ID, session.ExitStatus)
 	// record exit status
 	// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
 	// currently sure how to expose it neatly via a utility function
-	extraconfig.EncodeWithPrefix(t.sink, session.ExitStatus, fmt.Sprintf("guestinfo..sessions|%s.status", session.ID))
-	log.Infof("%s exit code: %d", session.ID, session.ExitStatus)
+	extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo..sessions|%s", session.ID))
 
-	if t.ops.HandleSessionExit(t.config, session) {
-		t.Stop()
+	if f != nil {
+		f()
 	}
 }
 
@@ -272,7 +307,7 @@ func (t *tether) launch(session *SessionConfig) error {
 
 	// encode the result whether success or error
 	defer func() {
-		extraconfig.EncodeWithPrefix(t.sink, session.Started, fmt.Sprintf("guestinfo..sessions|%s.started", session.ID))
+		extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo..sessions|%s", session.ID))
 	}()
 
 	logwriter, err := t.ops.SessionLog(session)
@@ -352,7 +387,7 @@ func logConfig(config *ExecutorConfig) {
 
 	// TODO: investigate whether it's the govmomi types package cause the binary size
 	// inflation - if so we need an alternative approach here or in extraconfig
-	if log.GetLevel() == log.DebugLevel {
+	if log.GetLevel() == log.DebugLevel && config.DebugLevel > 1 {
 		sink := map[string]string{}
 		extraconfig.Encode(extraconfig.MapSink(sink), config)
 
@@ -394,5 +429,18 @@ func (t *tether) forkHandler() {
 		// trigger a reload of the configuration
 		log.Info("Triggering reload of config after fork")
 		t.reload <- true
+	}
+}
+
+// restartableCmd takes the Cmd struct for a process that has been run and creates a new
+// one that can be lauched again. Stdin/out will need to be set up again.
+func restartableCmd(cmd *exec.Cmd) *exec.Cmd {
+	return &exec.Cmd{
+		Path:        cmd.Path,
+		Args:        cmd.Args,
+		Env:         cmd.Env,
+		Dir:         cmd.Dir,
+		ExtraFiles:  cmd.ExtraFiles,
+		SysProcAttr: cmd.SysProcAttr,
 	}
 }

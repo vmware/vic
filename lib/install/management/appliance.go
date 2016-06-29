@@ -435,6 +435,7 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 				"PATH=/sbin:/bin",
 			},
 		},
+		Restart: true,
 	},
 	)
 
@@ -460,6 +461,7 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 				"PATH=/sbin",
 			},
 		},
+		Restart: true,
 	},
 	)
 
@@ -480,6 +482,7 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 				"--vch=" + conf.ExecutorConfig.Name,
 			},
 		},
+		Restart: true,
 	},
 	)
 

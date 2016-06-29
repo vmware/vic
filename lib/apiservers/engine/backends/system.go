@@ -108,7 +108,7 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		ContainersStopped:  containerStatus.numStopped,
 		Images:             numImages,
 		SystemStatus:       systemStatus,
-		Debug:              VchConfig().Debug,
+		Debug:              VchConfig().Diagnostics.DebugLevel > 0,
 		NGoroutines:        runtime.NumGoroutine(),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
 		ExecutionDriver:    PortLayerName(),
