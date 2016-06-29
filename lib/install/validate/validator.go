@@ -59,6 +59,7 @@ type Validator struct {
 }
 
 func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
+	defer trace.End(trace.Begin(""))
 	var err error
 
 	v := &Validator{}
