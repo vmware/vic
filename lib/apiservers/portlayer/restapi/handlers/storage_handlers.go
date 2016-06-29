@@ -288,7 +288,7 @@ func volumeToCreateResponse(volume *spl.Volume, model *models.VolumeRequest) mod
 	response := models.VolumeResponse{
 		Driver:   model.Driver,
 		Name:     volume.ID,
-		SelfLink: volume.SelfLink.String(), //FIXME: is this right?
+		Label:    volume.Label,
 		Store:    model.Store,
 		Metadata: model.Metadata,
 	}

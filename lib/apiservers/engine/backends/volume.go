@@ -29,9 +29,11 @@ import (
 )
 
 //NOTE: FIXME: These might be moved to a utility package once there are multiple personalities
-const OptsVolumeStoreKey string = "VolumeStore"
-const OptsCapacityKey string = "Capacity"
-const dockerMetadataModelKey string = "DockerMetaData"
+const (
+	OptsVolumeStoreKey     string = "VolumeStore"
+	OptsCapacityKey        string = "Capacity"
+	dockerMetadataModelKey string = "DockerMetaData"
+)
 
 //Volume : struct which defines the docker personalities view of a Volume
 type Volume struct {

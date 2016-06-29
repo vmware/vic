@@ -1001,13 +1001,13 @@ definitions:
     type: object
     required:
       - Name
-      - SelfLink
+      - Label
       - Store
       - Driver
     properties:
       Name:
         type: string
-      SelfLink:
+      Label:
         type: string
       Driver:
         type: string
