@@ -280,7 +280,7 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 		logs = logs[logCount-MaxDeathRecords+1:]
 	}
 
-	session.Diagnostics.ExitLogs = append(logs, metadata.ExitLog{
+	session.Diagnostics.ExitLogs = append(logs, &metadata.ExitLog{
 		Time:       time.Now(),
 		ExitStatus: session.ExitStatus,
 		// We don't have any message for now

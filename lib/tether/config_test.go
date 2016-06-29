@@ -20,6 +20,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
@@ -61,6 +62,7 @@ func TestToExtraConfig(t *testing.T) {
 					},
 					Gateway:     net.IPNet{IP: gateway, Mask: gmask.Mask},
 					Nameservers: []net.IP{},
+					Pools:       []ip.Range{},
 				},
 			},
 		},

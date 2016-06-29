@@ -66,7 +66,7 @@ func (t *operations) HandleSessionExit(config *tether.ExecutorConfig, session *t
 		// for diagnostics
 		if config.DebugLevel > 2 {
 			log.Warnf("Debug is set to %d so squashing relaunch of exited process", config.DebugLevel)
-			return nil
+			return
 		}
 
 		tthr.Reload()

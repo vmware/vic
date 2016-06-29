@@ -81,6 +81,12 @@ func (t *Mocker) Start() error {
 // Stop implements the extension method
 func (t *Mocker) Stop() error {
 	close(t.Cleaned)
+
+	defer func() {
+		// tolerate closing started again
+		recover()
+	}()
+	close(t.Started)
 	return nil
 }
 

@@ -121,7 +121,7 @@ func (d *Uninstall) Run(cli *cli.Context) error {
 	log.SetFormatter(&log.TextFormatter{ForceColors: true, FullTimestamp: true})
 	// SetOutput to io.MultiWriter so that we can log to stdout and a file
 	log.SetOutput(io.MultiWriter(os.Stdout, f))
-	if d.Debug.Debug {
+	if d.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}

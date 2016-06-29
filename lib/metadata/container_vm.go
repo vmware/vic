@@ -32,9 +32,6 @@ type Common struct {
 	// A reference to the components hosting execution environment, if any
 	ExecutionEnvironment string
 
-	// Diagnostics holds basic diagnostics data
-	Diagnostics Diagnostics `vic:"0.1" scope:"read-only" key:"diagnostics"`
-
 	// Unambiguous ID with meaning in the context of its hosting execution environment
 	ID string `vic:"0.1" scope:"read-only" key:"id"`
 
@@ -58,7 +55,7 @@ type Diagnostics struct {
 	ResurrectionCount int `vic:"0.1" scope:"read-write" key:"resurrections"`
 	// ExitLogs is a best effort record of the time of process death and the cause for
 	// restartable entities
-	ExitLogs []ExitLog `vic:"0.1" scope:"read-write" key:"exitlogs"`
+	ExitLogs []*ExitLog `vic:"0.1" scope:"read-write" key:"exitlogs"`
 }
 
 // ExitLog records some basic diagnostics about anomolous exit for restartable entities
@@ -114,6 +111,9 @@ type ContainerVM struct {
 type ExecutorConfig struct {
 	Common `vic:"0.1" scope:"read-only" key:"common"`
 
+	// Diagnostics holds basic diagnostics data
+	Diagnostics Diagnostics `vic:"0.1" scope:"read-only" key:"diagnostics"`
+
 	// Sessions is the set of sessions currently hosted by this executor
 	// These are keyed by session ID
 	Sessions map[string]SessionConfig `vic:"0.1" scope:"read-only" key:"sessions"`
@@ -166,6 +166,9 @@ type SessionConfig struct {
 	Started string `vic:"0.1" scope:"read-write" key:"started"`
 
 	Restart bool `vic:"0.1" scope:"read-only" key:"restart"`
+
+	// Diagnostics holds basic diagnostics data
+	Diagnostics Diagnostics `vic:"0.1" scope:"read-only" key:"diagnostics"`
 
 	// Maps the intent to the signal for this specific app
 	// Signals map[int]int

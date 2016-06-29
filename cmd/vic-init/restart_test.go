@@ -40,9 +40,9 @@ func TestRestart(t *testing.T) {
 		Common: metadata.Common{
 			ID:   "pathlookup",
 			Name: "tether_test_executor",
-			Diagnostics: metadata.Diagnostics{
-				DebugLevel: 2,
-			},
+		},
+		Diagnostics: metadata.Diagnostics{
+			DebugLevel: 2,
 		},
 		Sessions: map[string]metadata.SessionConfig{
 			"pathlookup": metadata.SessionConfig{
