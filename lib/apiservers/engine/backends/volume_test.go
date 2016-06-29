@@ -96,27 +96,27 @@ func TestValidateDriverArgs(t *testing.T) {
 	}
 
 	err := validateDriverArgs(testMap, &testModel)
-	assert.Equal(t, "default", testModel.Store)
-	assert.Equal(t, int64(-1), testModel.Capacity)
-	assert.Nil(t, err)
+	if !assert.Equal(t, "default", testModel.Store) || !assert.Equal(t, int64(-1), testModel.Capacity) || !assert.NoError(t, err) {
+		return
+	}
 
 	testMap[optsVolumeStoreKey] = testStore
 	testMap[optsCapacityKey] = strconv.FormatInt(testCap, 10)
 	err = validateDriverArgs(testMap, &testModel)
-	assert.Equal(t, testStore, testModel.Store)
-	assert.Equal(t, testCap, testModel.Capacity)
-	assert.Nil(t, err)
+	if !assert.Equal(t, testStore, testModel.Store) || !assert.Equal(t, testCap, testModel.Capacity) || !assert.NoError(t, err) {
+		return
+	}
 
 	testMap[optsCapacityKey] = testBadCap
 	err = validateDriverArgs(testMap, &testModel)
-	assert.Equal(t, testStore, testModel.Store)
-	assert.Equal(t, int64(-1), testModel.Capacity)
-	assert.NotNil(t, err)
+	if !assert.Equal(t, testStore, testModel.Store) || !assert.Equal(t, int64(-1), testModel.Capacity) || !assert.NoError(t, err) {
+		return
+	}
 
 	testMap[optsCapacityKey] = strconv.FormatInt(testCap, 10)
 	delete(testMap, optsVolumeStoreKey)
 	err = validateDriverArgs(testMap, &testModel)
-	assert.Equal(t, "default", testModel.Store)
-	assert.Equal(t, int64(12), testModel.Capacity)
-	assert.NotNil(t, err)
+	if !assert.Equal(t, "default", testModel.Store) || !assert.Equal(t, int64(12), testModel.Capacity) || !assert.NoError(t, err) {
+		return
+	}
 }

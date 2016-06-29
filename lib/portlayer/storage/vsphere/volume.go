@@ -141,17 +141,17 @@ func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.UR
 	}
 	defer v.dm.Detach(ctx, vmdisk)
 
-	// Make the filesystem and set its label to the volume ID
-	if err = vmdisk.Mkfs(ID); err != nil {
-		return nil, err
-	}
-
-	// XXX persist the metadata
-
 	vol, err := storage.NewVolume(store, ID, vmdisk)
 	if err != nil {
 		return nil, err
 	}
+
+	// Make the filesystem and set its label
+	if err = vmdisk.Mkfs(vol.Label); err != nil {
+		return nil, err
+	}
+
+	// XXX persist the metadata
 
 	log.Infof("volumestore: %s (%s)", ID, vol.SelfLink)
 	return vol, nil
