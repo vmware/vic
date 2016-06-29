@@ -60,16 +60,17 @@ func (t *operations) Cleanup() error {
 func (t *operations) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) func() {
 	defer trace.End(trace.Begin(""))
 
-	// If executor debug is greater than 1 then suppress the relaunch but leave the executor up
-	// for diagnostics
-	if config.DebugLevel > 2 {
-		log.Warnf("Debug is set to %d so squashing relaunch of exited process", config.DebugLevel)
-		return nil
-	}
-
 	// trigger a reload to force relaunch
 	return func() {
+		// If executor debug is greater than 1 then suppress the relaunch but leave the executor up
+		// for diagnostics
+		if config.DebugLevel > 2 {
+			log.Warnf("Debug is set to %d so squashing relaunch of exited process", config.DebugLevel)
+			return nil
+		}
+
 		tthr.Reload()
+		log.Info("Triggered reload")
 	}
 }
 

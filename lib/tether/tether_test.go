@@ -107,9 +107,13 @@ func (t *Mocker) SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, err
 	return dio.MultiWriter(&t.SessionLogBuffer, os.Stdout), nil
 }
 
-func (t *Mocker) HandleSessionExit(config *ExecutorConfig, session *SessionConfig) bool {
+func (t *Mocker) HandleSessionExit(config *ExecutorConfig, session *SessionConfig) func() {
 	// check for executor behaviour
-	return session.ID == config.ID
+	return func() {
+		if session.ID == config.ID {
+			tthr.Stop()
+		}
+	}
 }
 
 func (t *Mocker) ProcessEnv(env []string) []string {

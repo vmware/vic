@@ -111,13 +111,11 @@ func (t *Mocker) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWrit
 
 func (t *Mocker) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) func() {
 	// check for executor behaviour
-	if session.ID == config.ID {
-		return func() {
+	return func() {
+		if session.ID == config.ID {
 			tthr.Stop()
 		}
 	}
-
-	return nil
 }
 
 func (t *Mocker) ProcessEnv(env []string) []string {

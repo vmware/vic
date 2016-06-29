@@ -286,6 +286,7 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 		// We don't have any message for now
 	})
 
+	// this returns an arbitrary closure for invocation after the session status update
 	f := t.ops.HandleSessionExit(t.config, session)
 
 	log.Infof("%s exit code: %d", session.ID, session.ExitStatus)

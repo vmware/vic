@@ -43,11 +43,9 @@ func (t *operations) Cleanup() error {
 // is the primary session (i.e. SessionID matches ExecutorID) then we exit everything.
 func (t *operations) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) func() {
 	// if the session that's exiting is the primary session, stop the tether
-	if session.ID == config.ID {
-		return func() {
+	return func() {
+		if session.ID == config.ID {
 			tthr.Stop()
 		}
 	}
-
-	return nil
 }
