@@ -50,7 +50,9 @@ type CliOptions struct {
 	proto         string
 }
 
-const productName = "vSphere Integrated Containers 0.3"
+const (
+	productName = "vSphere Integrated Containers"
+)
 
 var vchConfig metadata.VirtualContainerHostConfigSpec
 
@@ -72,7 +74,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := vicbackends.Init(cli.portLayerAddr); err != nil {
+	if err := vicbackends.Init(cli.portLayerAddr, productName, &vchConfig); err != nil {
 		log.Fatalf("failed to initialize backend: %s", err)
 	}
 
@@ -202,11 +204,11 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 }
 
 func setAPIRoutes(api *apiserver.Server) {
-	imageHandler := &vicbackends.Image{ProductName: productName}
-	containerHandler := &vicbackends.Container{ProductName: productName}
-	volumeHandler := &vicbackends.Volume{ProductName: productName}
-	networkHandler := &vicbackends.Network{ProductName: productName}
-	systemHandler := &vicbackends.System{ProductName: productName}
+	imageHandler := &vicbackends.Image{}
+	containerHandler := &vicbackends.Container{}
+	volumeHandler := &vicbackends.Volume{}
+	networkHandler := &vicbackends.Network{}
+	systemHandler := &vicbackends.System{}
 
 	api.InitRouter(false,
 		image.NewRouter(imageHandler),

@@ -145,6 +145,13 @@ func (c *NameLookupCache) ListImageStores(ctx context.Context) ([]*url.URL, erro
 	return stores, nil
 }
 
+// add to store cache
+func (c *NameLookupCache) AddImageToStore(storeURL url.URL, imageID string, image Image) {
+	c.storeCacheLock.Lock()
+	defer c.storeCacheLock.Unlock()
+	c.storeCache[storeURL][imageID] = image
+}
+
 func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*Image, error) {
 	// Check the parent exists (at least in the cache).
 	p, err := c.GetImage(ctx, parent.Store, parent.ID)
@@ -156,6 +163,20 @@ func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID stri
 	i, err := c.GetImage(ctx, p.Store, ID)
 	if err == nil && i != nil {
 		// TODO(FA) check sums to make sure this is the right image
+
+		// if meta supplied write it
+		if meta != nil && len(meta) != 0 {
+			// get the storename from the url
+			storeName, err := util.ImageStoreName(p.Store)
+			if err != nil {
+				return nil, err
+			}
+
+			c.DataStore.WriteMetadata(ctx, storeName, i.ID, meta)
+			i.Metadata = meta
+			c.AddImageToStore(*p.Store, i.ID, *i)
+		}
+
 		return i, nil
 	}
 
@@ -175,9 +196,7 @@ func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID stri
 	}
 
 	// Add the new image to the cache
-	c.storeCacheLock.Lock()
-	defer c.storeCacheLock.Unlock()
-	c.storeCache[*p.Store][i.ID] = *i
+	c.AddImageToStore(*p.Store, i.ID, *i)
 
 	return i, nil
 }

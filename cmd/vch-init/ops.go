@@ -43,10 +43,9 @@ type operations struct {
 }
 
 func (t *operations) Setup() error {
-	// TODO: enabled for initial dev debugging only
 	log.Info("Launching pprof server on port 6060")
 	go func() {
-		log.Info(http.ListenAndServe("0.0.0.0:6060", nil))
+		log.Info(http.ListenAndServe("127.0.0.1:6060", nil))
 	}()
 
 	return nil

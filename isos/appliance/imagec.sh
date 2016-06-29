@@ -16,6 +16,8 @@
 
 # imagec wrapper file - furnish the pretence of rpctool based default args
 
-component=/sbin/imagec
-args="$(rpctool -get vch$component) $@" 
-${component}.bin $args
+debuglevel="$(rpctool -get guestinfo./debug)"
+if [ "$debuglevel" == "true" ]; then
+    debug="-debug"
+fi
+/sbin/imagec.bin $debug -logfile /var/log/vic/imagec.log "$@"

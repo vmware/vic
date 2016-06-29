@@ -43,11 +43,10 @@ func (r byCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
 type Image struct {
-	ProductName string
 }
 
 func (i *Image) Commit(name string, config *types.ContainerCommitConfig) (imageID string, err error) {
-	return "", fmt.Errorf("%s does not implement image.Commit", i.ProductName)
+	return "", fmt.Errorf("%s does not implement image.Commit", ProductName())
 }
 
 func (i *Image) Exists(containerName string) bool {
@@ -55,11 +54,11 @@ func (i *Image) Exists(containerName string) bool {
 }
 
 func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDelete, error) {
-	return []types.ImageDelete{}, fmt.Errorf("%s does not implement image.Delete", i.ProductName)
+	return []types.ImageDelete{}, fmt.Errorf("%s does not implement image.Delete", ProductName())
 }
 
 func (i *Image) ImageHistory(imageName string) ([]*types.ImageHistory, error) {
-	return nil, fmt.Errorf("%s does not implement image.History", i.ProductName)
+	return nil, fmt.Errorf("%s does not implement image.History", ProductName())
 }
 
 func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Image, error) {
@@ -94,23 +93,23 @@ func (i *Image) LookupImage(name string) (*types.ImageInspect, error) {
 		return nil, err
 	}
 
-	return imageConfigToDockerImageInspect(imageConfig, i.ProductName), nil
+	return imageConfigToDockerImageInspect(imageConfig, ProductName()), nil
 }
 
 func (i *Image) TagImage(newTag reference.Named, imageName string) error {
-	return fmt.Errorf("%s does not implement image.Tag", i.ProductName)
+	return fmt.Errorf("%s does not implement image.Tag", ProductName())
 }
 
 func (i *Image) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
-	return fmt.Errorf("%s does not implement image.LoadImage", i.ProductName)
+	return fmt.Errorf("%s does not implement image.LoadImage", ProductName())
 }
 
 func (i *Image) ImportImage(src string, newRef reference.Named, msg string, inConfig io.ReadCloser, outStream io.Writer, config *container.Config) error {
-	return fmt.Errorf("%s does not implement image.ImportImage", i.ProductName)
+	return fmt.Errorf("%s does not implement image.ImportImage", ProductName())
 }
 
 func (i *Image) ExportImage(names []string, outStream io.Writer) error {
-	return fmt.Errorf("%s does not implement image.ExportImage", i.ProductName)
+	return fmt.Errorf("%s does not implement image.ExportImage", ProductName())
 }
 
 func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
@@ -167,11 +166,11 @@ func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders 
 }
 
 func (i *Image) PushImage(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
-	return fmt.Errorf("%s does not implement image.PushImage", i.ProductName)
+	return fmt.Errorf("%s does not implement image.PushImage", ProductName())
 }
 
 func (i *Image) SearchRegistryForImages(ctx context.Context, term string, authConfig *types.AuthConfig, metaHeaders map[string][]string) (*registry.SearchResults, error) {
-	return nil, fmt.Errorf("%s does not implement image.SearchRegistryForImages", i.ProductName)
+	return nil, fmt.Errorf("%s does not implement image.SearchRegistryForImages", ProductName())
 }
 
 // Utility functions
@@ -182,15 +181,11 @@ func convertV1ImageToDockerImage(image *metadata.ImageConfig) *types.Image {
 		labels = image.Config.Labels
 	}
 
-	// TODO(jzt): change ImageConfig to contain a map from image name to all of its tags
-	repoTag := fmt.Sprintf("%s:%s", image.Name, image.Tag)
-	repoDigest := fmt.Sprintf("%s:%s", image.Name, image.Digest)
-
 	return &types.Image{
 		ID:          image.ImageID,
 		ParentID:    image.Parent,
-		RepoTags:    []string{repoTag},
-		RepoDigests: []string{repoDigest},
+		RepoTags:    clientFriendlyTags(image.Name, image.Tags),
+		RepoDigests: clientFriendlyDigests(image.Name, image.Digests),
 		Created:     image.Created.Unix(),
 		Size:        image.Size,
 		VirtualSize: image.Size,
@@ -251,8 +246,8 @@ func imageConfigToDockerImageInspect(imageConfig *metadata.ImageConfig, productN
 	}
 
 	inspectData := &types.ImageInspect{
-		RepoTags:        make([]string, 0),
-		RepoDigests:     make([]string, 0),
+		RepoTags:        clientFriendlyTags(imageConfig.Name, imageConfig.Tags),
+		RepoDigests:     clientFriendlyDigests(imageConfig.Name, imageConfig.Digests),
 		Parent:          imageConfig.Parent,
 		Comment:         imageConfig.Comment,
 		Created:         imageConfig.Created.String(),
@@ -268,10 +263,6 @@ func imageConfigToDockerImageInspect(imageConfig *metadata.ImageConfig, productN
 		RootFS:          rootfs,
 	}
 
-	//FIXME: Image tags storage is not yet fully implemented in the portlayer.
-	//The following code dealing with tags needs to be revisited.
-	taggedName := imageConfig.Name + ":" + imageConfig.Tag
-	inspectData.RepoTags = append(inspectData.RepoTags, taggedName)
 	inspectData.GraphDriver.Name = productName + " " + PortlayerName
 
 	//imageid is currently stored within VIC without "sha256:" so we add it to
@@ -279,4 +270,55 @@ func imageConfigToDockerImageInspect(imageConfig *metadata.ImageConfig, productN
 	inspectData.ID = "sha256:" + imageConfig.ImageID
 
 	return inspectData
+}
+
+/*
+	function will take the array of image tags (1.24,1.24.1,latest, etc)
+	and create a new array of tags that are supported by the docker client
+
+	The format for the client is reponame + : + tag
+	i.e. busybox:latest, busybox:1.24.1
+
+	If the image is untagged then the correct tagging is "<none>:<none>"
+
+	The docker client will then render the image properly as a mutli-tagged
+	image
+*/
+
+func clientFriendlyTags(imageName string, tags []string) []string {
+	clientTags := make([]string, len(tags))
+	if len(tags) > 0 {
+		for index, tag := range tags {
+			clientTags[index] = fmt.Sprintf("%s:%s", imageName, tag)
+		}
+	} else {
+		clientTags = append(clientTags, fmt.Sprintf("%s:%s", "<none>", "<none>"))
+
+	}
+	return clientTags
+}
+
+/*
+	function will take the array of image digests
+	and create a new array of digests that are supported by the docker client
+
+	The format for the client is reponame + @ sha256 + : + digest
+	i.e. busybox@sha256:a59906e33509d14c036c8678d687bd4eec81ed7c4b8ce907b888c607f6a1e0e6
+
+	If the image has no defined digests the proper digest response is "<none>@<none>"
+
+	The docker client will then render the image properly
+*/
+
+func clientFriendlyDigests(imageName string, digests []string) []string {
+	clientDigests := make([]string, len(digests))
+	if len(digests) > 0 {
+		for index, digest := range digests {
+			clientDigests[index] = fmt.Sprintf("%s@sha:%s", imageName, digest)
+		}
+	} else {
+		clientDigests = append(clientDigests, fmt.Sprintf("%s@%s", "<none>", "<none>"))
+
+	}
+	return clientDigests
 }

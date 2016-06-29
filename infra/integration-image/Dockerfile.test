@@ -14,3 +14,7 @@ RUN go get github.com/docker/docker; echo 0
 
 RUN curl -sSL https://github.com/vmware/govmomi/releases/download/v0.7.0/govc_linux_amd64.gz | gzip -d > /usr/local/bin/govc
 RUN chmod +x /usr/local/bin/govc
+
+RUN curl http://downloads.drone.io/drone-cli/drone_linux_amd64.tar.gz | tar zx
+RUN install -t /usr/local/bin drone
+

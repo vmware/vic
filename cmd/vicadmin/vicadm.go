@@ -47,8 +47,10 @@ import (
 
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 var (
@@ -59,6 +61,12 @@ var (
 		"port-layer.log",
 		"vicadmin.log",
 		"init.log",
+	}
+
+	// VMFiles is the set of files to collect per VM associated with the VCH
+	vmFiles = []string{
+		"vmware.log",
+		string(metadata.VM + ".debug"),
 	}
 
 	config struct {
@@ -130,13 +138,23 @@ func logFiles() []string {
 func configureReaders() []entryReader {
 	defer trace.End(trace.Begin(""))
 
-	dockerServer := "http://" + config.dockerHost
+	pprofPaths := []string{
+		// verbose
+		"/debug/pprof/goroutine?debug=2",
+		// concise
+		"/debug/pprof/goroutine?debug=1",
+		"/debug/pprof/block?debug=1",
+		"/debug/pprof/heap?debug=1",
+	}
+
+	pprofSources := []string{
+		// vch-init
+		"http://127.0.0.1:6060",
+		// TODO: add pprof for the other components
+	}
 
 	readers := []entryReader{
 		fileReader("/proc/mounts"),
-		urlReader(dockerServer + "/debug/pprof/goroutine?debug=1"),
-		urlReader(dockerServer + "/debug/pprof/block?debug=1"),
-		urlReader(dockerServer + "/debug/pprof/heap?debug=1"),
 		commandReader("uptime"),
 		commandReader("df"),
 		commandReader("free"),
@@ -150,7 +168,14 @@ func configureReaders() []entryReader {
 		commandReader("ls -l /dev/disk/by-path"),
 		commandReader("ls -l /dev/disk/by-label"),
 		// To check we are not leaking any fds
-		commandReader("sudo ls -l /proc/self/fd"),
+		commandReader("ls -l /proc/self/fd"),
+	}
+
+	// add the pprof collection
+	for _, source := range pprofSources {
+		for _, paths := range pprofPaths {
+			readers = append(readers, urlReader(source+paths))
+		}
 	}
 
 	for _, path := range logFiles() {
@@ -300,56 +325,76 @@ type datastoreReader struct {
 	path string
 }
 
+// listVMPaths returns an array of datastore paths for VMs assocaited with the
+// VCH - this includes containerVMs and the appliance
+func listVMPaths(ctx context.Context, s *session.Session) ([]url.URL, error) {
+	defer trace.End(trace.Begin(""))
+
+	var err error
+	var children []*vm.VirtualMachine
+
+	if len(vchConfig.ComputeResources) == 0 {
+		return nil, errors.New("compute resources is empty")
+	}
+
+	ref := vchConfig.ComputeResources[0]
+	rp := compute.NewResourcePool(ctx, s, ref)
+	if children, err = rp.GetChildrenVMs(ctx, s); err != nil {
+		return nil, err
+	}
+
+	log.Infof("Found %d candidate VMs in resource pool %s for log collection", len(children), ref.String())
+
+	directories := []url.URL{}
+	for _, child := range children {
+		path, err := child.DSPath(ctx)
+		if err != nil {
+			log.Errorf("Unable to get datastore path for child VM %s: %s", child.Reference(), err)
+			// we need to get as many logs as possible
+			continue
+		}
+
+		log.Debugf("Adding VM for log collection: %s", path.String())
+		directories = append(directories, path)
+	}
+
+	log.Infof("Collecting logs from %d VMs", len(directories))
+	return directories, nil
+}
+
 // find datastore logs for the appliance itself and all containers
 func findDatastoreLogs(c *session.Session) ([]entryReader, error) {
 	defer trace.End(trace.Begin(""))
 
-	ds := object.NewDatastore(c.Vim25(), datastore)
-	ds.InventoryPath = datastoreInventoryPath
-
 	var readers []entryReader
 	ctx := context.Background()
-	b, err := ds.Browser(ctx)
+
+	paths, err := listVMPaths(ctx, c)
 	if err != nil {
-		return nil, err
+		detail := fmt.Sprintf("unable to perform datastore log collection due to failure looking up paths: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
 	}
 
-	spec := types.HostDatastoreBrowserSearchSpec{
-		MatchPattern: []string{"vmware.log", "*.debug"},
-	}
-
-	task, err := b.SearchDatastoreSubFolders(ctx, ds.Path(config.vmPath), &spec)
-	if err != nil {
-		return nil, err
-	}
-
-	info, err := task.WaitForResult(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if info == nil {
-		return nil, errors.New("empty search results")
-	}
-
-	if info.Error != nil {
-		return nil, errors.New(info.Error.LocalizedMessage)
-	}
-
-	res, ok := info.Result.(types.ArrayOfHostDatastoreBrowserSearchResults)
-	if !ok {
-		return nil, fmt.Errorf("unexpected search result type: %T", info.Result)
-	}
-
-	for _, r := range res.HostDatastoreBrowserSearchResults {
-		folder := r.FolderPath
-		if ix := strings.Index(folder, "] "); ix != -1 {
-			folder = folder[ix+2:]
+	for _, vmpath := range paths {
+		log.Debugf("Assembling datastore readers for %s", vmpath.String())
+		// obtain datastore object
+		ds, err := c.Finder.Datastore(ctx, vmpath.Host)
+		if err != nil {
+			log.Errorf("Failed to acquire reference to datastore %s: %s", vmpath.Host, err)
+			continue
 		}
 
-		for _, f := range r.File {
-			name := path.Join(folder, f.GetFileInfo().Path)
-			readers = append(readers, &datastoreReader{ds, name})
+		// generate the full paths to collect
+		for _, file := range vmFiles {
+			// replace the VM token in file name with the VM name
+			processed := strings.Replace(file, string(metadata.VM), path.Base(vmpath.Path), -1)
+			readers = append(readers, &datastoreReader{
+				ds:   ds,
+				path: fmt.Sprintf("%s/%s", vmpath.Path, processed),
+			})
+
+			log.Debugf("Added log file for collection: %s", vmpath.String())
 		}
 	}
 
@@ -503,12 +548,14 @@ func tarEntries(readers []entryReader, out io.Writer) error {
 	go func() {
 		_, err := io.Copy(out, r)
 		if err != nil {
-			log.Printf("error copying tar: %s", err)
+			log.Errorf("error copying tar: %s", err)
 		}
 		wg.Done()
 	}()
 
 	for _, r := range readers {
+		log.Infof("Collecting log with reader %#v", r)
+
 		e, err := r.open()
 		if err != nil {
 			log.Warningf("error reading %s: %s\n", r, err)
@@ -516,7 +563,7 @@ func tarEntries(readers []entryReader, out io.Writer) error {
 		}
 
 		header := tar.Header{
-			Name:    url.QueryEscape(e.Name()),
+			Name:    e.Name(),
 			Size:    e.Size(),
 			Mode:    0640,
 			ModTime: time.Now(),
@@ -524,13 +571,19 @@ func tarEntries(readers []entryReader, out io.Writer) error {
 
 		err = t.WriteHeader(&header)
 		if err != nil {
-			return err
+			log.Errorf("Failed to write header for %s: %s", header.Name, err)
+			continue
 		}
 
-		_, err = io.Copy(t, e)
+		log.Infof("%s has size %d", header.Name, header.Size)
+
+		// be explicit about the number of bytes to copy as the log files will likely
+		// be written to during this exercise
+		_, err = io.CopyN(t, e, e.Size())
 		_ = e.Close()
 		if err != nil {
-			return err
+			log.Errorf("Failed to write content for %s: %s", header.Name, err)
+			continue
 		}
 	}
 
@@ -663,7 +716,7 @@ func (s *server) stop() error {
 func (s *server) tarContainerLogs(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 
-	readers := append(defaultReaders, commandReader("sudo du -sh /var/lib/docker"))
+	readers := defaultReaders
 
 	if config.Service != "" {
 		c, err := client()
@@ -707,7 +760,7 @@ func (s *server) tarLogs(res http.ResponseWriter, req *http.Request, readers []e
 
 	err := tarEntries(readers, z)
 	if err != nil {
-		log.Printf("error taring logs: %s", err)
+		log.Errorf("error taring logs: %s", err)
 	}
 
 	_ = z.Close()
@@ -742,7 +795,7 @@ func (s *server) tailFiles(res http.ResponseWriter, req *http.Request, names []s
 	cmd.Stderr = fw
 
 	if err := cmd.Start(); err != nil {
-		log.Printf("error tailing logs: %s", err)
+		log.Errorf("error tailing logs: %s", err)
 		return
 	}
 
@@ -778,7 +831,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Printf("listening on %s", s.addr)
+	log.Infof("listening on %s", s.addr)
 	signals := []syscall.Signal{
 		syscall.SIGTERM,
 		syscall.SIGINT,

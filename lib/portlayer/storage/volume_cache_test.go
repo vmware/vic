@@ -110,6 +110,8 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 	}
 
 	inVols := make(map[string]*Volume)
+	inVolsM := &sync.Mutex{}
+
 	wg := &sync.WaitGroup{}
 	createFn := func(i int) {
 		defer wg.Done()
@@ -122,7 +124,9 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 			return
 		}
 
+		inVolsM.Lock()
 		inVols[id] = vol
+		inVolsM.Unlock()
 	}
 
 	// Create a set of volumes
