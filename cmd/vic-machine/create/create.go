@@ -95,19 +95,19 @@ func NewCreate() *Create {
 func (c *Create) Flags() []cli.Flag {
 	flags := []cli.Flag{
 		cli.StringFlag{
-			Name:        "compute-resource",
+			Name:        "compute-resource, r",
 			Value:       "",
 			Usage:       "Compute resource path, e.g. myCluster/Resources/myRP",
 			Destination: &c.ComputeResourcePath,
 		},
 		cli.StringFlag{
-			Name:        "name",
+			Name:        "name, n",
 			Value:       "docker-appliance",
 			Usage:       "The name of the Virtual Container Host",
 			Destination: &c.DisplayName,
 		},
 		cli.StringFlag{
-			Name:        "image-datastore",
+			Name:        "image-datastore, i",
 			Value:       "",
 			Usage:       "Image datastore name",
 			Destination: &c.ImageDatastoreName,
@@ -119,7 +119,7 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.ContainerDatastoreName,
 		},
 		cli.StringFlag{
-			Name:        "bridge-network",
+			Name:        "bridge-network, b",
 			Value:       "",
 			Usage:       "The bridge network (private port group for containers)",
 			Destination: &c.BridgeNetworkName,
@@ -192,7 +192,7 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.tlsGenerate,
 		},
 		cli.BoolFlag{
-			Name:        "force",
+			Name:        "force, f",
 			Usage:       "Force the install, removing existing if present",
 			Destination: &c.Force,
 		},
@@ -220,6 +220,8 @@ func (c *Create) Flags() []cli.Flag {
 	return flags
 }
 func (c *Create) processParams() error {
+	defer trace.End(trace.Begin(""))
+
 	if err := c.HasCredentials(); err != nil {
 		return err
 	}
@@ -297,6 +299,8 @@ func (c *Create) processContainerNetworks() error {
 }
 
 func (c *Create) loadCertificate() (*certificate.Keypair, error) {
+	defer trace.End(trace.Begin(""))
+
 	var keypair *certificate.Keypair
 	if c.cert != "" && c.key != "" {
 		log.Infof("Loading certificate/key pair - private key in %s", c.key)
@@ -319,6 +323,8 @@ func (c *Create) loadCertificate() (*certificate.Keypair, error) {
 }
 
 func (c *Create) checkImagesFiles() ([]string, error) {
+	defer trace.End(trace.Begin(""))
+
 	// detect images files
 	osImgs, ok := images[c.osType]
 	if !ok {

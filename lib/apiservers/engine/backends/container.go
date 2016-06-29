@@ -50,7 +50,6 @@ import (
 
 // Container struct represents the Container
 type Container struct {
-	ProductName string
 }
 
 const (
@@ -61,32 +60,32 @@ const (
 
 // ContainerExecCreate sets up an exec in a running container.
 func (c *Container) ContainerExecCreate(config *types.ExecConfig) (string, error) {
-	return "", fmt.Errorf("%s does not implement container.ContainerExecCreate", c.ProductName)
+	return "", fmt.Errorf("%s does not implement container.ContainerExecCreate", ProductName())
 }
 
 // ContainerExecInspect returns low-level information about the exec
 // command. An error is returned if the exec cannot be found.
 func (c *Container) ContainerExecInspect(id string) (*backend.ExecInspect, error) {
-	return nil, fmt.Errorf("%s does not implement container.ContainerExecInspect", c.ProductName)
+	return nil, fmt.Errorf("%s does not implement container.ContainerExecInspect", ProductName())
 }
 
 // ContainerExecResize changes the size of the TTY of the process
 // running in the exec with the given name to the given height and
 // width.
 func (c *Container) ContainerExecResize(name string, height, width int) error {
-	return fmt.Errorf("%s does not implement container.ContainerExecResize", c.ProductName)
+	return fmt.Errorf("%s does not implement container.ContainerExecResize", ProductName())
 }
 
 // ContainerExecStart starts a previously set up exec instance. The
 // std streams are set up.
 func (c *Container) ContainerExecStart(name string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error {
-	return fmt.Errorf("%s does not implement container.ContainerExecStart", c.ProductName)
+	return fmt.Errorf("%s does not implement container.ContainerExecStart", ProductName())
 }
 
 // ExecExists looks up the exec instance and returns a bool if it exists or not.
 // It will also return the error produced by `getConfig`
 func (c *Container) ExecExists(name string) (bool, error) {
-	return false, fmt.Errorf("%s does not implement container.ExecExists", c.ProductName)
+	return false, fmt.Errorf("%s does not implement container.ExecExists", ProductName())
 }
 
 // docker's container.copyBackend
@@ -95,19 +94,19 @@ func (c *Container) ExecExists(name string) (bool, error) {
 // specified path in the container identified by the given name. Returns a
 // tar archive of the resource and whether it was a directory or a single file.
 func (c *Container) ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
-	return nil, nil, fmt.Errorf("%s does not implement container.ContainerArchivePath", c.ProductName)
+	return nil, nil, fmt.Errorf("%s does not implement container.ContainerArchivePath", ProductName())
 }
 
 // ContainerCopy performs a deprecated operation of archiving the resource at
 // the specified path in the container identified by the given name.
 func (c *Container) ContainerCopy(name string, res string) (io.ReadCloser, error) {
-	return nil, fmt.Errorf("%s does not implement container.ContainerCopy", c.ProductName)
+	return nil, fmt.Errorf("%s does not implement container.ContainerCopy", ProductName())
 }
 
 // ContainerExport writes the contents of the container to the given
 // writer. An error is returned if the container cannot be found.
 func (c *Container) ContainerExport(name string, out io.Writer) error {
-	return fmt.Errorf("%s does not implement container.ContainerExport", c.ProductName)
+	return fmt.Errorf("%s does not implement container.ContainerExport", ProductName())
 }
 
 // ContainerExtractToDir extracts the given archive to the specified location
@@ -117,13 +116,13 @@ func (c *Container) ContainerExport(name string, out io.Writer) error {
 // be an error if unpacking the given content would cause an existing directory
 // to be replaced with a non-directory and vice versa.
 func (c *Container) ContainerExtractToDir(name, path string, noOverwriteDirNonDir bool, content io.Reader) error {
-	return fmt.Errorf("%s does not implement container.ContainerExtractToDir", c.ProductName)
+	return fmt.Errorf("%s does not implement container.ContainerExtractToDir", ProductName())
 }
 
 // ContainerStatPath stats the filesystem resource at the specified path in the
 // container identified by the given name.
 func (c *Container) ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error) {
-	return nil, fmt.Errorf("%s does not implement container.ContainerStatPath", c.ProductName)
+	return nil, fmt.Errorf("%s does not implement container.ContainerStatPath", ProductName())
 }
 
 // docker's container.stateBackend
@@ -271,19 +270,19 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 // for the container to exit.
 // If a signal is given, then just send it to the container and return.
 func (c *Container) ContainerKill(name string, sig uint64) error {
-	return fmt.Errorf("%s does not implement container.ContainerKill", c.ProductName)
+	return fmt.Errorf("%s does not implement container.ContainerKill", ProductName())
 }
 
 // ContainerPause pauses a container
 func (c *Container) ContainerPause(name string) error {
-	return fmt.Errorf("%s does not implement container.ContainerPause", c.ProductName)
+	return fmt.Errorf("%s does not implement container.ContainerPause", ProductName())
 }
 
 // ContainerRename changes the name of a container, using the oldName
 // to find the container. An error is returned if newName is already
 // reserved.
 func (c *Container) ContainerRename(oldName, newName string) error {
-	return fmt.Errorf("%s does not implement container.ContainerRename", c.ProductName)
+	return fmt.Errorf("%s does not implement container.ContainerRename", ProductName())
 }
 
 // ContainerResize changes the size of the TTY of the process running
@@ -528,12 +527,12 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 
 // ContainerUnpause unpauses a container
 func (c *Container) ContainerUnpause(name string) error {
-	return fmt.Errorf("%s does not implement container.ContainerUnpause", c.ProductName)
+	return fmt.Errorf("%s does not implement container.ContainerUnpause", ProductName())
 }
 
 // ContainerUpdate updates configuration of the container
 func (c *Container) ContainerUpdate(name string, hostConfig *container.HostConfig) ([]string, error) {
-	return make([]string, 0, 0), fmt.Errorf("%s does not implement container.ContainerUpdate", c.ProductName)
+	return make([]string, 0, 0), fmt.Errorf("%s does not implement container.ContainerUpdate", ProductName())
 }
 
 // ContainerWait stops processing until the given container is
@@ -542,14 +541,14 @@ func (c *Container) ContainerUpdate(name string, hostConfig *container.HostConfi
 // timeout, an error is returned. If you want to wait forever, supply
 // a negative duration for the timeout.
 func (c *Container) ContainerWait(name string, timeout time.Duration) (int, error) {
-	return 0, fmt.Errorf("%s does not implement container.ContainerWait", c.ProductName)
+	return 0, fmt.Errorf("%s does not implement container.ContainerWait", ProductName())
 }
 
 // docker's container.monitorBackend
 
 // ContainerChanges returns a list of container fs changes
 func (c *Container) ContainerChanges(name string) ([]archive.Change, error) {
-	return make([]archive.Change, 0, 0), fmt.Errorf("%s does not implement container.ContainerChanges", c.ProductName)
+	return make([]archive.Change, 0, 0), fmt.Errorf("%s does not implement container.ContainerChanges", ProductName())
 }
 
 // ContainerInspect returns low-level information about a
@@ -586,13 +585,13 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 // ContainerLogs hooks up a container's stdout and stderr streams
 // configured with the given struct.
 func (c *Container) ContainerLogs(name string, config *backend.ContainerLogsConfig, started chan struct{}) error {
-	return fmt.Errorf("%s does not implement container.ContainerLogs", c.ProductName)
+	return fmt.Errorf("%s does not implement container.ContainerLogs", ProductName())
 }
 
 // ContainerStats writes information about the container to the stream
 // given in the config object.
 func (c *Container) ContainerStats(name string, config *backend.ContainerStatsConfig) error {
-	return fmt.Errorf("%s does not implement container.ContainerStats", c.ProductName)
+	return fmt.Errorf("%s does not implement container.ContainerStats", ProductName())
 }
 
 // ContainerTop lists the processes running inside of the given
@@ -601,12 +600,12 @@ func (c *Container) ContainerStats(name string, config *backend.ContainerStatsCo
 // is not found, or is not running, or if there are any problems
 // running ps, or parsing the output.
 func (c *Container) ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error) {
-	return nil, fmt.Errorf("%s does not implement container.ContainerTop", c.ProductName)
+	return nil, fmt.Errorf("%s does not implement container.ContainerTop", ProductName())
 }
 
 // Containers returns the list of containers to show given the user's filtering.
 func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Container, error) {
-	return nil, fmt.Errorf("%s does not implement container.Containers", c.ProductName)
+	return nil, fmt.Errorf("%s does not implement container.Containers", ProductName())
 }
 
 // docker's container.attachBackend

@@ -196,6 +196,10 @@ func (d *VirtualDisk) MountPath() (string, error) {
 	return d.mountPath, nil
 }
 
+func (d *VirtualDisk) DiskPath() string {
+	return d.DatastoreURI
+}
+
 func (d *VirtualDisk) isMounted() bool {
 	return d.mountPath != ""
 }

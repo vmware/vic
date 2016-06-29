@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/diagnostic"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -82,6 +83,8 @@ func NewDispatcher(ctx context.Context, s *session.Session,
 // Get the current log header LineEnd of the hostd/vpxd logs.
 // With this we avoid collecting log file data that existed prior to install.
 func (d *Dispatcher) InitDiagnosticLogs(conf *metadata.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin(""))
+
 	if d.isVC {
 		diagnosticLogs[d.session.ServiceContent.About.InstanceUuid] =
 			&diagnosticLog{"vpxd:vpxd.log", "vpxd.log", 0, nil, true}
@@ -150,6 +153,8 @@ func (d *Dispatcher) InitDiagnosticLogs(conf *metadata.VirtualContainerHostConfi
 }
 
 func (d *Dispatcher) RegisterExtension(conf *metadata.VirtualContainerHostConfigSpec, extension types.Extension) error {
+	defer trace.End(trace.Begin(conf.ExtensionName))
+
 	log.Infoln("Registering VCH as a vSphere extension")
 
 	// vSphere confusingly calls the 'name' of the extension a 'key'
@@ -174,6 +179,8 @@ func (d *Dispatcher) RegisterExtension(conf *metadata.VirtualContainerHostConfig
 }
 
 func (d *Dispatcher) UnregisterExtension(name string) error {
+	defer trace.End(trace.Begin(name))
+
 	extensionManager := object.NewExtensionManager(d.session.Vim25())
 	if err := extensionManager.Unregister(d.ctx, name); err != nil {
 		return errors.Errorf("Failed to remove extension w/ name %s due to error: %s", name, err)
@@ -182,10 +189,12 @@ func (d *Dispatcher) UnregisterExtension(name string) error {
 }
 
 func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
+	defer trace.End(trace.Begin(conf.Name))
+
 	var err error
 	if d.vchPool, err = d.createResourcePool(conf, settings); err != nil {
 		detail := fmt.Sprintf("Creating resource pool failed: %s", err)
-		if d.force {
+		if !d.force {
 			return errors.New(detail)
 		}
 
@@ -228,6 +237,8 @@ func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec, set
 }
 
 func (d *Dispatcher) uploadImages(files []string) error {
+	defer trace.End(trace.Begin(""))
+
 	var err error
 	var wg sync.WaitGroup
 
@@ -267,6 +278,8 @@ func (d *Dispatcher) uploadImages(files []string) error {
 }
 
 func (d *Dispatcher) CollectDiagnosticLogs() {
+	defer trace.End(trace.Begin(""))
+
 	m := diagnostic.NewDiagnosticManager(d.session)
 
 	for k, l := range diagnosticLogs {
