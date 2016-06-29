@@ -33,10 +33,6 @@ outfile="integration_test_logs_"$DRONE_BUILD_NUMBER"_$timestamp.tar"
 
 tar cf $outfile log.html package.list *container-logs.tar.gz *.log
 
-if [ -f imagec.log ]; then
-  tar --append imagec.log -f $outfile
-fi
-
 # GC credentials
 set +x
 keyfile="/root/vic-ci-logs.key"
