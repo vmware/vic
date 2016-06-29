@@ -15,6 +15,7 @@
 package management
 
 import (
+	"fmt"
 	"path"
 	"strings"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
@@ -36,6 +38,8 @@ const (
 )
 
 func (d *Dispatcher) DeleteStores(vchVM *vm.VirtualMachine, conf *metadata.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin(""))
+
 	ds := d.session.Datastore
 
 	path, err := d.getVCHRootDir(vchVM)
@@ -71,23 +75,31 @@ func (d *Dispatcher) DeleteStores(vchVM *vm.VirtualMachine, conf *metadata.Virtu
 }
 
 func (d *Dispatcher) deleteParent(ds *object.Datastore, root string) error {
+	defer trace.End(trace.Begin(""))
+
 	_, err := d.deleteDatastoreFiles(ds, root, true)
 	return err
 }
 
 func (d *Dispatcher) deleteImages(ds *object.Datastore, root string) (bool, error) {
+	defer trace.End(trace.Begin(""))
+
 	p := path.Join(root, vsphere.StorageImageDir)
 	// alway forcing delete images
 	return d.deleteDatastoreFiles(ds, p, true)
 }
 
 func (d *Dispatcher) deleteVolumes(ds *object.Datastore, root string) (bool, error) {
+	defer trace.End(trace.Begin(""))
+
 	p := path.Join(root, volumeRoot)
 	// if not forced delete, leave volumes there. Cause user data can be persisted in volumes
 	return d.deleteDatastoreFiles(ds, p, d.force)
 }
 
 func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, force bool) (bool, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("path %s, force %t", path, force)))
+
 	var empty bool
 	dsPath := ds.Path(path)
 
@@ -112,6 +124,8 @@ func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, for
 }
 
 func (d *Dispatcher) deleteVMFSFiles(ds *object.Datastore, dsPath string, force bool) error {
+	defer trace.End(trace.Begin(dsPath))
+
 	m := object.NewFileManager(ds.Client())
 
 	if _, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
@@ -123,6 +137,8 @@ func (d *Dispatcher) deleteVMFSFiles(ds *object.Datastore, dsPath string, force 
 }
 
 func (d *Dispatcher) lsFolder(ds *object.Datastore, dsPath string) (*types.HostDatastoreBrowserSearchResults, error) {
+	defer trace.End(trace.Begin(dsPath))
+
 	spec := types.HostDatastoreBrowserSearchSpec{
 		MatchPattern: []string{"*"},
 	}
@@ -147,6 +163,8 @@ func (d *Dispatcher) lsFolder(ds *object.Datastore, dsPath string) (*types.HostD
 }
 
 func (d *Dispatcher) getVCHRootDir(vchVM *vm.VirtualMachine) (string, error) {
+	defer trace.End(trace.Begin(""))
+
 	parent := vsphere.StorageParentDir
 	uuid, err := vchVM.UUID(d.ctx)
 	if err != nil {
