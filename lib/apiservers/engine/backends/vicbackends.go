@@ -22,26 +22,46 @@ import (
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
+	"github.com/vmware/vic/lib/metadata"
 )
 
 const (
-	Imagec           = "imagec"
-	Retries          = 5
-	RetryTimeSeconds = 2
-	PortlayerName    = "Backend Engine"
+	Imagec             = "imagec"
+	Retries            = 5
+	RetryTimeSeconds   = 2
+	PortlayerName      = "Backend Engine"
+	IndexServerAddress = "registry-1.docker.io"
 )
 
 var (
 	portLayerClient     *client.PortLayer
 	portLayerServerAddr string
+	portLayerName       string
+	productName         string
+	productVersion      string
 
 	imageCache *cache.ImageCache
+	vchConfig  *metadata.VirtualContainerHostConfigSpec
 )
 
-func Init(portLayerAddr string) error {
+func Init(portLayerAddr, product string, config *metadata.VirtualContainerHostConfigSpec) error {
 	_, _, err := net.SplitHostPort(portLayerAddr)
 	if err != nil {
 		return err
+	}
+
+	vchConfig = config
+	productName = product
+
+	if config != nil {
+		productVersion = config.Version
+		if productVersion == "" {
+			portLayerName = product + " Backend Engine"
+		} else {
+			portLayerName = product + " " + productVersion + " Backend Engine"
+		}
+	} else {
+		portLayerName = product + " Backend Engine"
 	}
 
 	t := httptransport.New(portLayerAddr, "/", []string{"http"})
@@ -78,6 +98,22 @@ func PortLayerServer() string {
 	return portLayerServerAddr
 }
 
+func PortLayerName() string {
+	return portLayerName
+}
+
 func ImageCache() *cache.ImageCache {
 	return imageCache
+}
+
+func ProductName() string {
+	return productName
+}
+
+func ProductVersion() string {
+	return productVersion
+}
+
+func VchConfig() *metadata.VirtualContainerHostConfigSpec {
+	return vchConfig
 }

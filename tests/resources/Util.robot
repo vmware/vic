@@ -11,26 +11,18 @@ ${bin-dir}  /drone/src/github.com/vmware/vic/bin
 
 *** Keywords ***
 Install VIC Appliance To Test Server
-    [Tags]  secret
     [Arguments]  ${certs}=true
-    # Let's try to pro-actively clean up any datastore that doesn't currently have a VM associated with it
-    ${datastore}=  Run  govc datastore.ls
-    ${datastore}=  Split To Lines  ${datastore}
-    :FOR  ${item}  IN  @{datastore}
-    \   Continue For Loop If  '${item}' == 'VIC'
-    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Match Regexp  ${item}  \\w\\w*-\\w\\w*-\\w\\w*-\\w\\w*-\\w\\w*
-    \   Continue For Loop If  '${status}' == 'PASS'
-    \   ${vms}=  Run  govc ls vm
-    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Not Contain  ${vms}  ${item}
-    \   Run Keyword If  '${status}' == 'PASS'  Run  govc datastore.rm ${item}
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
     # Now attempt to intall VCH
-    ${name}=  Evaluate  'VCH-' + str(random.randint(1000,9999))  modules=random
-    Log To Console  \nInstalling VCH to test server...
+    ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  DRONE_BUILD_NUMBER
+    Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_BUILD_NUMBER  local
+    
+    ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${vch-name}  ${name}
-    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=datastore1 --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --generate-cert=${certs} --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE}
-    ${status}  ${message} =  Run Keyword And Ignore Error  Should Contain  ${output}  Installer completed successfully
-    Run Keyword If  "${status}" == "FAIL"  Fail  Installing the VIC appliance failed, wrong credentials or network problems?
+    Log To Console  \nInstalling VCH to test server...
+    ${output}=  Run VIC Machine Command  ${certs}
     ${line}=  Get Line  ${output}  -2
     ${ret}=  Fetch From Right  ${line}  ] docker
     ${ret}=  Remove String  ${ret}  info
@@ -43,6 +35,14 @@ Install VIC Appliance To Test Server
     ${status}=  Get State Of Github Issue  1109
     Run Keyword If  '${status}' == 'closed'  Fail  Util.robot needs to be updated now that Issue #1109 has been resolved
 
+Run VIC Machine Command
+    [Tags]  secret
+    [Arguments]  ${certs}
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=datastore1 --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --generate-cert=${certs} --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE}
+    ${status}  ${message} =  Run Keyword And Ignore Error  Should Contain  ${output}  Installer completed successfully
+    Run Keyword If  "${status}" == "FAIL"  Fail  Installing the VIC appliance failed, wrong credentials or network problems?
+    [Return]  ${output}
+    
 Cleanup VIC Appliance On Test Server
     Run Keyword And Ignore Error  Gather Logs From Test Server
     # Let's attempt to cleanup any container related to the VCH appliance first
@@ -65,6 +65,33 @@ Cleanup VIC Appliance On Test Server
     ${output}=  Run  rm -f ${vch-name}-*.pem
     ${output}=  Run  govc datastore.rm VIC/${uuid}
 
+Cleanup Datastore On Test Server
+    ${out}=  Run  govc datastore.ls
+    ${lines}=  Split To Lines  ${out}
+    :FOR  ${item}  IN  @{lines}
+    \   Continue For Loop If  '${item}' == 'VIC'
+    \   ${contents}=  Run  govc datastore.ls ${item}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${contents}  vmx
+    \   Continue For Loop If  ${status}
+    \   ${out}=  Run  govc datatore.rm ${item}
+
+Cleanup Dangling VMs On Test Server
+    ${out}=  Run  govc ls vm
+    ${vms}=  Split To Lines  ${out}
+    :FOR  ${vm}  IN  @{vms}
+    \   ${vm}=  Fetch From Right  ${vm}  /
+    \   ${build}=  Split String  ${vm}  -
+    \   # Skip any VM that is not associated with integration tests
+    \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   # Skip any VM that is still running
+    \   ${state}=  Get State Of Drone Build  @{build}[1]
+    \   Continue For Loop If  '${state}' == 'running'
+    \   ${uuid}=  Run  govc vm.info -json\=true ${vm} | jq -r '.VirtualMachines[0].Config.Uuid'
+    \   ${output}=  Run  govc vm.destroy ${vm}
+    \   ${output}=  Run  govc pool.destroy %{GOVC_RESOURCE_POOL}/${vm}
+    \   ${output}=  Run  govc datastore.rm ${vm}
+    \   ${output}=  Run  govc datastore.rm VIC/${uuid}
+
 Gather Logs From Test Server
     Variable Should Exist  ${params}
     ${params}=  Strip String  ${params}
@@ -79,10 +106,17 @@ Gather Logs From Test Server
 
 Get State Of Github Issue
     [Arguments]  ${num}
-    ${result} =  Get  https://api.github.com/repos/vmware/vic/issues/${num}
+    [Tags]  secret
+    ${result}=  Get  https://api.github.com/repos/vmware/vic/issues/${num}?access_token\=%{GITHUB_AUTOMATION_API_KEY}
     Should Be Equal  ${result.status_code}  ${200}
-    ${status} =  Get From Dictionary  ${result.json()}  state
+    ${status}=  Get From Dictionary  ${result.json()}  state
     [Return]  ${status}
+    
+Get State Of Drone Build
+    [Arguments]  ${num}
+    ${out}=  Run  drone build info vmware/vic ${num}
+    ${lines}=  Split To Lines  ${out}
+    [Return]  @{lines}[2]
     
 Get Image IDs
     [Arguments]  ${dir}

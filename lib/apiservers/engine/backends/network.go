@@ -31,7 +31,6 @@ import (
 )
 
 type Network struct {
-	ProductName string
 }
 
 func (n *Network) NetworkControllerEnabled() bool {
@@ -262,7 +261,7 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 }
 
 func (n *Network) DisconnectContainerFromNetwork(containerName string, network libnetwork.Network, force bool) error {
-	return fmt.Errorf("%s does not implement network.DisconnectContainerFromNetwork", n.ProductName)
+	return fmt.Errorf("%s does not implement network.DisconnectContainerFromNetwork", ProductName())
 }
 
 func (n *Network) DeleteNetwork(name string) error {

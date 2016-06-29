@@ -57,10 +57,21 @@ func (t *operations) Cleanup() error {
 
 // HandleSessionExit controls the behaviour on session exit - for the tether if the session exiting
 // is the primary session (i.e. SessionID matches ExecutorID) then we exit everything.
-func (t *operations) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) bool {
-	// This is the appliance so relaunch
-	tthr.Reload()
-	return false
+func (t *operations) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) func() {
+	defer trace.End(trace.Begin(""))
+
+	// trigger a reload to force relaunch
+	return func() {
+		// If executor debug is greater than 1 then suppress the relaunch but leave the executor up
+		// for diagnostics
+		if config.DebugLevel > 2 {
+			log.Warnf("Debug is set to %d so squashing relaunch of exited process", config.DebugLevel)
+			return
+		}
+
+		tthr.Reload()
+		log.Info("Triggered reload")
+	}
 }
 
 func (t *operations) SetHostname(name string, aliases ...string) error {

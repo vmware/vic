@@ -27,7 +27,7 @@ var Config Configuration
 // Configuration is a slice of the VCH config that is relevent to the exec part of the port layer
 type Configuration struct {
 	// Turn on debug logging
-	Debug bool `vic:"0.1" scope:"read-only" key:"debug"`
+	DebugLevel int `vic:"0.1" scope:"read-only" key:"init/common/debug"`
 
 	// Port Layer - exec
 	// Default containerVM capacity

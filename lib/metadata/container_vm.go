@@ -14,7 +14,10 @@
 
 package metadata
 
-import "net/url"
+import (
+	"net/url"
+	"time"
+)
 
 type State int
 
@@ -40,6 +43,26 @@ type Common struct {
 
 	// Freeform notes related to the entity
 	Notes string `vic:"0.1" scope:"hidden" key:"notes"`
+}
+
+// Diagnostics records some basic control and lifecycle information for diagnostic purposes
+type Diagnostics struct {
+	// Should debugging be enabled on whatever component this is and at what level
+	DebugLevel int `vic:"0.1" scope:"read-only" key:"debug"`
+
+	// RessurectionCount is a log of how many times the entity has been restarted due
+	// to error exit
+	ResurrectionCount int `vic:"0.1" scope:"read-write" key:"resurrections"`
+	// ExitLogs is a best effort record of the time of process death and the cause for
+	// restartable entities
+	ExitLogs []*ExitLog `vic:"0.1" scope:"read-write" key:"exitlogs"`
+}
+
+// ExitLog records some basic diagnostics about anomolous exit for restartable entities
+type ExitLog struct {
+	Time       time.Time
+	ExitStatus int
+	Message    string
 }
 
 // MountSpec details a mount that must be executed within the executor
@@ -87,6 +110,9 @@ type ContainerVM struct {
 // is the owner of the shared filesystem environment. This is the guest visible complement to ContainerVM.
 type ExecutorConfig struct {
 	Common `vic:"0.1" scope:"read-only" key:"common"`
+
+	// Diagnostics holds basic diagnostics data
+	Diagnostics Diagnostics `vic:"0.1" scope:"read-only" key:"diagnostics"`
 
 	// Sessions is the set of sessions currently hosted by this executor
 	// These are keyed by session ID
@@ -138,6 +164,11 @@ type SessionConfig struct {
 	ExitStatus int `vic:"0.1" scope:"read-write" key:"status"`
 
 	Started string `vic:"0.1" scope:"read-write" key:"started"`
+
+	Restart bool `vic:"0.1" scope:"read-only" key:"restart"`
+
+	// Diagnostics holds basic diagnostics data
+	Diagnostics Diagnostics `vic:"0.1" scope:"read-only" key:"diagnostics"`
 
 	// Maps the intent to the signal for this specific app
 	// Signals map[int]int

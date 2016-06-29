@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 
 	"golang.org/x/net/context"
 )
@@ -56,19 +57,19 @@ func (d *Uninstall) Flags() []cli.Flag {
 			Destination: &d.id,
 		},
 		cli.StringFlag{
-			Name:        "compute-resource",
+			Name:        "compute-resource, r",
 			Value:       "",
-			Usage:       "The compute resource containing the Virtual Container Host; requires the '--name' argument be supplied",
+			Usage:       "The compute resource containing the Virtual Container Host; default to /",
 			Destination: &d.ComputeResourcePath,
 		},
 		cli.StringFlag{
-			Name:        "name",
-			Value:       "",
-			Usage:       "The name of the Virtual Container Host to delete; requires the '--compute-resource' argument be supplied",
+			Name:        "name, n",
+			Value:       "docker-appliance",
+			Usage:       "The name of the Virtual Container Host to delete",
 			Destination: &d.DisplayName,
 		},
 		cli.BoolFlag{
-			Name:        "force",
+			Name:        "force, f",
 			Usage:       "Force the uninstall",
 			Destination: &d.Force,
 		},
@@ -80,20 +81,21 @@ func (d *Uninstall) Flags() []cli.Flag {
 		},
 	}
 	flags = append(d.TargetFlags(), flags...)
+	flags = append(flags, d.DebugFlags()...)
+
 	return flags
 }
 
 func (d *Uninstall) processParams() error {
+	defer trace.End(trace.Begin(""))
+
 	if err := d.HasCredentials(); err != nil {
 		return err
 	}
 
 	if d.id != "" {
 		log.Warnf("ID of Virtual Container Host is not supported until vic-machine ls is ready. For details, please refer github issue #810")
-	}
-
-	if (d.ComputeResourcePath == "" || d.DisplayName == "") && d.id == "" {
-		return cli.NewExitError("must specify --vch-id, or both --compute-resource and --name", 1)
+		return cli.NewExitError("must specify --compute-resource and --name", 1)
 	}
 
 	d.logfile = "delete.log"
@@ -119,6 +121,10 @@ func (d *Uninstall) Run(cli *cli.Context) error {
 	log.SetFormatter(&log.TextFormatter{ForceColors: true, FullTimestamp: true})
 	// SetOutput to io.MultiWriter so that we can log to stdout and a file
 	log.SetOutput(io.MultiWriter(os.Stdout, f))
+	if d.Debug.Debug > 0 {
+		log.SetLevel(log.DebugLevel)
+		trace.Logger.Level = log.DebugLevel
+	}
 
 	log.Infof("### Removing VCH ####")
 

@@ -9,7 +9,7 @@ Basic Info
     Log To Console  \nRunning docker info command...
     ${output}=  Run  docker ${params} info
     Log  ${output}
-    Should Contain  ${output}  Name: VIC
+    Should Contain  ${output}  vSphere
 
 Debug Info
     ${status}=  Get State Of Github Issue  780

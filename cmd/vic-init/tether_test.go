@@ -12,40 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tether
+package main
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"runtime"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vishvananda/netlink"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
-var tthr Tether
 var Mocked Mocker
 
 type Mocker struct {
-	Base BaseOperations
+	Base tether.BaseOperations
 
 	// allow tests to tell when the tether has finished setup
 	Started chan bool
 	// allow tests to tell when the tether has finished
 	Cleaned chan bool
+	// Session exit
+	SessionExit chan bool
 
 	// debug output gets logged here
 	LogBuffer bytes.Buffer
@@ -55,11 +57,8 @@ type Mocker struct {
 
 	// the hostname of the system
 	Hostname string
-	Aliases  []string
-	// the maximum slot number returned from this mocker
-	maxSlot int
-	// the interfaces in the system indexed by name
-	Interfaces map[string]netlink.Link
+	// the ip configuration for name index networks
+	IPs map[string]net.IP
 	// filesystem mounts, indexed by disk label
 	Mounts map[string]string
 
@@ -81,19 +80,19 @@ func (t *Mocker) Start() error {
 // Stop implements the extension method
 func (t *Mocker) Stop() error {
 	close(t.Cleaned)
-
-	defer func() {
-		// tolerate closing started again
-		recover()
-	}()
-	close(t.Started)
 	return nil
 }
 
 // Reload implements the extension method
-func (t *Mocker) Reload(config *ExecutorConfig) error {
+func (t *Mocker) Reload(config *tether.ExecutorConfig) error {
 	// the tether has definitely finished it's startup by the time we hit this
+	defer func() {
+		// deal with repeated reloads
+		recover()
+	}()
+
 	close(t.Started)
+
 	return nil
 }
 
@@ -109,16 +108,14 @@ func (t *Mocker) Log() (io.Writer, error) {
 	return &t.LogBuffer, nil
 }
 
-func (t *Mocker) SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, error) {
+func (t *Mocker) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, error) {
 	return dio.MultiWriter(&t.SessionLogBuffer, os.Stdout), nil
 }
 
-func (t *Mocker) HandleSessionExit(config *ExecutorConfig, session *SessionConfig) func() {
-	// check for executor behaviour
+func (t *Mocker) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) func() {
 	return func() {
-		if session.ID == config.ID {
-			tthr.Stop()
-		}
+		t.SessionExit <- true
+		tthr.Reload()
 	}
 }
 
@@ -133,13 +130,15 @@ func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 	// TODO: we could mock at a much finer granularity, only extracting the syscall
 	// that would exercise the file modification paths, however it's much less generalizable
 	t.Hostname = hostname
-	t.Aliases = aliases
 	return nil
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
 func (t *Mocker) Apply(endpoint *metadata.NetworkEndpoint) error {
-	return apply(t, endpoint)
+	defer trace.End(trace.Begin("mocking endpoint configuration for " + endpoint.Network.Name))
+	t.IPs[endpoint.Network.Name] = endpoint.Assigned
+
+	return nil
 }
 
 // MountLabel performs a mount with the source treated as a disk label
@@ -172,14 +171,14 @@ func TestMain(m *testing.M) {
 	os.Exit(retCode)
 }
 
-func StartTether(t *testing.T, cfg *metadata.ExecutorConfig) (Tether, extraconfig.DataSource) {
+func StartTether(t *testing.T, cfg *metadata.ExecutorConfig) (tether.Tether, extraconfig.DataSource) {
 	store := map[string]string{}
 	sink := extraconfig.MapSink(store)
 	src := extraconfig.MapSource(store)
 	extraconfig.Encode(sink, cfg)
 	log.Debugf("Test configuration: %#v", sink)
 
-	tthr = New(src, sink, &Mocked)
+	tthr = tether.New(src, sink, &Mocked)
 	tthr.Register("mocker", &Mocked)
 
 	// run the tether to service the attach
@@ -193,14 +192,14 @@ func StartTether(t *testing.T, cfg *metadata.ExecutorConfig) (Tether, extraconfi
 	return tthr, src
 }
 
-func RunTether(t *testing.T, cfg *metadata.ExecutorConfig) (Tether, extraconfig.DataSource, error) {
+func RunTether(t *testing.T, cfg *metadata.ExecutorConfig) (tether.Tether, extraconfig.DataSource, error) {
 	store := map[string]string{}
 	sink := extraconfig.MapSink(store)
 	src := extraconfig.MapSource(store)
 	extraconfig.Encode(sink, cfg)
 	log.Debugf("Test configuration: %#v", sink)
 
-	tthr = New(src, sink, &Mocked)
+	tthr = tether.New(src, sink, &Mocked)
 	tthr.Register("Mocker", &Mocked)
 
 	// run the tether to service the attach
@@ -229,9 +228,9 @@ func testSetup(t *testing.T) {
 
 	// use the mock ops - fresh one each time as tests might apply different mocked calls
 	Mocked = Mocker{
-		Started:    make(chan bool, 0),
-		Cleaned:    make(chan bool, 0),
-		Interfaces: make(map[string]netlink.Link, 0),
+		Started:     make(chan bool, 0),
+		Cleaned:     make(chan bool, 0),
+		SessionExit: make(chan bool, 0),
 	}
 }
 

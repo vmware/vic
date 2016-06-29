@@ -26,6 +26,8 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
+var tthr tether.Tether
+
 func init() {
 	trace.Logger.Level = log.DebugLevel
 }
@@ -66,7 +68,7 @@ func main() {
 	}
 
 	// create the tether and register the attach extension
-	tthr := tether.New(src, sink, &operations{})
+	tthr = tether.New(src, sink, &operations{})
 	tthr.Register("Attach", sshserver)
 
 	err = tthr.Start()

@@ -17,15 +17,15 @@ package common
 import "github.com/urfave/cli"
 
 type Debug struct {
-	Debug bool
+	Debug int
 }
 
 func (d *Debug) DebugFlags() []cli.Flag {
 	return []cli.Flag{
-		cli.BoolFlag{
+		cli.IntFlag{
 			Name:        "debug, v",
 			Destination: &d.Debug,
-			Usage:       "Enable debug level logging",
+			Usage:       "[0(default),1...n], 0 is disabled, 1 is enabled, >= 1 may alter behaviour",
 		},
 	}
 }

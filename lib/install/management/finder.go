@@ -25,12 +25,15 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 func (d *Dispatcher) NewVCHFromID(id string) (*vm.VirtualMachine, error) {
+	defer trace.End(trace.Begin(id))
+
 	var err error
 	var vmm *vm.VirtualMachine
 
@@ -70,6 +73,8 @@ func (d *Dispatcher) NewVCHFromID(id string) (*vm.VirtualMachine, error) {
 }
 
 func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string) (*vm.VirtualMachine, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("path %s, name %s", computePath, name)))
+
 	var err error
 
 	v := &validate.Validator{
@@ -110,6 +115,8 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string) (*vm
 }
 
 func (d *Dispatcher) GetVCHConfig(vm *vm.VirtualMachine) (*metadata.VirtualContainerHostConfigSpec, error) {
+	defer trace.End(trace.Begin(""))
+
 	//this is the appliance vm
 	mapConfig, err := vm.FetchExtraConfig(d.ctx)
 	if err != nil {

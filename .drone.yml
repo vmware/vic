@@ -33,6 +33,7 @@ build:
       DOCKER_API_VERSION: "1.21"
       VIC_ESX_TEST_URL: $$VIC_ESX_TEST_URL
       LOG_TEMP_DIR: install-logs
+      GITHUB_AUTOMATION_API_KEY:  $$GITHUB_AUTOMATION_API_KEY
       TEST_URL:  $$TEST_URL
       TEST_USERNAME:  $$TEST_USERNAME
       TEST_PASSWORD:  $$TEST_PASSWORD
@@ -52,7 +53,7 @@ build:
       success: true
 
   integration-test-on-merge:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.0}
+    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.1}
     pull: true
     environment:
       BIN: bin
@@ -61,6 +62,9 @@ build:
       DOCKER_API_VERSION: "1.21"
       VIC_ESX_TEST_URL: $$VIC_ESX_TEST_URL
       LOG_TEMP_DIR: install-logs
+      GITHUB_AUTOMATION_API_KEY:  $$GITHUB_AUTOMATION_API_KEY
+      DRONE_SERVER:  $$DRONE_SERVER
+      DRONE_TOKEN:  $$DRONE_TOKEN
       TEST_URL:  $$TEST_URL
       TEST_USERNAME:  $$TEST_USERNAME
       TEST_PASSWORD:  $$TEST_PASSWORD

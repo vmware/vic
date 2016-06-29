@@ -4,7 +4,11 @@ After=network-online.target
 
 [Service]
 Type=idle
-ExecStart=/sbin/vch-debug
+# This is not configured for restart as currently vic-init isn't able to
+# require knowledge about whether sessions are running.
+# Instead there is a top level trigger to restart the VM - reverting to
+# known good VM state
+ExecStart=/sbin/vic-init
 
 [Install]
 WantedBy=multi-user.target

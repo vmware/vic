@@ -17,6 +17,7 @@
 package tether
 
 import (
+	"io/ioutil"
 	"net"
 	"strconv"
 	"testing"
@@ -47,6 +48,24 @@ func TestSetIpAddress(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 
+	hFile, err := ioutil.TempFile("", "vic_set_ip_test_hosts")
+	if err != nil {
+		t.Errorf("Failed to create tmp hosts file: %s", err)
+	}
+	rFile, err := ioutil.TempFile("", "vic_set_ip_test_resolv")
+	if err != nil {
+		t.Errorf("Failed to create tmp resolv file: %s", err)
+	}
+
+	// give us a hosts file we can modify
+	defer func(hosts, resolv string) {
+		hostsFile = hosts
+		resolvFile = resolv
+	}(hostsFile, resolvFile)
+
+	hostsFile = hFile.Name()
+	resolvFile = rFile.Name()
+
 	bridge := AddInterface("eno1")
 	external := AddInterface("eno2")
 
@@ -69,7 +88,7 @@ func TestSetIpAddress(t *testing.T) {
 						Name: "bridge",
 					},
 					Default: true,
-					Gateway: gwIP,
+					Gateway: *gwIP,
 				},
 				Static: &net.IPNet{
 					IP:   localhost,
@@ -111,6 +130,7 @@ func TestSetIpAddress(t *testing.T) {
 
 	<-Mocked.Started
 
+	assert.NotNil(t, Mocked.Interfaces["bridge"], "Expected bridge network if endpoints applied correctly")
 	// check addresses
 	bIface := Mocked.Interfaces["bridge"].(*Interface)
 	assert.NotNil(t, bIface)

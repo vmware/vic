@@ -64,6 +64,8 @@ func backchannel(ctx context.Context, conn *net.Conn) error {
 }
 
 func (t *attachServerSSH) Start() error {
+	defer trace.End(trace.Begin(""))
+
 	var err error
 
 	rand.Reader, err = os.Open(pathPrefix + "/urandom")
@@ -107,7 +109,7 @@ func (t *attachServerSSH) Start() error {
 }
 
 func resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
-	defer trace.End(trace.Begin("resize pty"))
+	defer trace.End(trace.Begin(""))
 
 	ws := &winsize{uint16(winSize.Rows), uint16(winSize.Columns), uint16(winSize.WidthPx), uint16(winSize.HeightPx)}
 	_, _, errno := syscall.Syscall(
@@ -124,7 +126,7 @@ func resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
 
 func signalProcess(process *os.Process, sig ssh.Signal) error {
 	signal := attach.Signals[sig]
-	defer trace.End(trace.Begin(fmt.Sprintf("signal process %d: %d", process.Pid, signal)))
+	defer trace.End(trace.Begin(fmt.Sprintf("signal process %d: %s", process.Pid, sig)))
 
 	s := syscall.Signal(signal)
 	return process.Signal(s)

@@ -15,6 +15,7 @@
 package storage
 
 import (
+	"crypto/md5"
 	"errors"
 	"net/url"
 	"path/filepath"
@@ -25,24 +26,9 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Volume is the handle to identify a volume on the backing store.  The URI
-// namespace used to identify the Volume in the storage layer has the following
-// path scheme:
-//
-// `/storage/volumes/<volume store identifier, usually the vch uuid>/<volume id>`
-//
-type Volume struct {
-	// Identifies the volume
-	ID string
-
-	// The volumestore the volume lives on. (e.g the datastore + vch + configured vol directory)
-	Store *url.URL
-
-	// Metadata the volume is included with.  Is persisted along side the volume vmdk.
-	Info map[string][]byte
-
-	// Namespace in the storage layer to look up this volume.
-	SelfLink *url.URL
+type Disk interface {
+	MountPath() (string, error)
+	DiskPath() string
 }
 
 // VolumeStorer is an interface to create, remove, enumerate, and get Volumes.
@@ -58,6 +44,65 @@ type VolumeStorer interface {
 
 	// Lists all volumes
 	VolumesList(ctx context.Context) ([]*Volume, error)
+}
+
+// Volume is the handle to identify a volume on the backing store.  The URI
+// namespace used to identify the Volume in the storage layer has the following
+// path scheme:
+//
+// `/storage/volumes/<volume store identifier, usually the vch uuid>/<volume id>`
+//
+type Volume struct {
+	// Identifies the volume
+	ID string
+
+	// Label is the computed label of the Volume.  This is set by the runtime.
+	Label string
+
+	// The volumestore the volume lives on. (e.g the datastore + vch + configured vol directory)
+	Store *url.URL
+
+	// Metadata the volume is included with.  Is persisted along side the volume vmdk.
+	Info map[string][]byte
+
+	// Namespace in the storage layer to look up this volume.
+	SelfLink *url.URL
+
+	// Backing device
+	Device Disk
+}
+
+// NewVolume creates a Volume
+func NewVolume(store *url.URL, ID string, device Disk) (*Volume, error) {
+	storeName, err := util.VolumeStoreName(store)
+	if err != nil {
+		return nil, err
+	}
+
+	selflink, err := util.VolumeURL(storeName, ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the label to the md5 of the ID
+
+	vol := &Volume{
+		ID:       ID,
+		Label:    label(ID),
+		Store:    store,
+		SelfLink: selflink,
+		Device:   device,
+	}
+
+	return vol, nil
+}
+
+// given an ID, compute the volume's label
+func label(ID string) string {
+	h := md5.New()
+
+	// e2label's manpage says the label size is 16 chars
+	return string(h.Sum([]byte(ID)))[:16]
 }
 
 func (v *Volume) Parse(u *url.URL) error {

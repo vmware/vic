@@ -73,7 +73,7 @@ func TestRestartImageStore(t *testing.T) {
 	}
 
 	// Check we didn't create a new UUID directory (relevant if vsan)
-	if !assert.NotEqual(t, origVsStore.ds.rooturl, restartedVsStore.ds.rootdir) {
+	if !assert.Equal(t, origVsStore.ds.rootDir(), restartedVsStore.ds.rootDir()) {
 		return
 	}
 }

@@ -16,8 +16,8 @@
 
 # imagec wrapper file - furnish the pretence of rpctool based default args
 
-debuglevel="$(rpctool -get guestinfo./debug)"
-if [ "$debuglevel" == "true" ]; then
+debuglevel="$(rpctool -get guestinfo./init/common/diagnostics/debug)"
+if [ "$debuglevel" != "0" -a "$debuglevel" != "" ]; then
     debug="-debug"
 fi
-/sbin/imagec.bin $debug -logfile /var/log/vic/imagec.log "$@"
+/sbin/imagec.bin $debug -logfile=/var/log/vic/imagec.log "$@"
