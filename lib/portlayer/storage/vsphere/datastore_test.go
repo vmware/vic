@@ -114,20 +114,20 @@ func RandomString(strlen int) string {
 	return string(result)
 }
 
-func dSsetup(t *testing.T) (context.Context, *datastore, func()) {
+func dSsetup(t *testing.T) (context.Context, *Datastore, func()) {
 	ctx := context.Background()
 	sess := Session(ctx, t)
 	log.SetLevel(log.DebugLevel)
 
-	ds, err := newDatastore(ctx, sess, sess.Datastore, RandomString(10)+"dstests")
+	ds, err := NewDatastore(ctx, sess, sess.Datastore, RandomString(10)+"dstests")
 	if !assert.NoError(t, err) {
 		return ctx, nil, nil
 	}
 
 	f := func() {
-		log.Debugf("Removing test root %s", ds.rooturl)
+		log.Debugf("Removing test root %s", ds.RootURL)
 		err := tasks.Wait(ctx, func(context.Context) (tasks.Waiter, error) {
-			return ds.fm.DeleteDatastoreFile(ctx, ds.rooturl, sess.Datacenter)
+			return ds.fm.DeleteDatastoreFile(ctx, ds.RootURL, sess.Datacenter)
 		})
 
 		if err != nil {
