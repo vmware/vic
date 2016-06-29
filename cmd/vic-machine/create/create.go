@@ -70,6 +70,7 @@ type Create struct {
 	containerNetworksGateway  cli.StringSlice
 	containerNetworksIPRanges cli.StringSlice
 	containerNetworksDNS      cli.StringSlice
+	volumeStores              cli.StringSlice
 
 	executor *management.Dispatcher
 }
@@ -202,12 +203,33 @@ func (c *Create) Flags() []cli.Flag {
 			Usage:       "vCPUs for the appliance VM",
 			Destination: &c.NumCPUs,
 		},
+		cli.StringSliceFlag{
+			Name:  "volume-store",
+			Value: &c.volumeStores,
+			Usage: "Specify location and label for volume store; path optional: \"label:datastore:path\" or \"label:datastore\"",
+		},
 	}
 	preFlags := append(c.TargetFlags(), c.ComputeFlags()...)
 	flags = append(preFlags, flags...)
 	flags = append(flags, c.DebugFlags()...)
 	return flags
 }
+
+func (c *Create) processVolumeStores() error {
+	defer trace.End(trace.Begin(""))
+	c.VolumeLocations = make(map[string]string)
+	for _, arg := range c.volumeStores {
+		splitMeta := strings.SplitN(arg, ":", 2)
+		if len(splitMeta) != 2 {
+			return errors.New("Volume store input must be in format label:datastore-path")
+		}
+		c.VolumeLocations[splitMeta[0]] = splitMeta[1]
+	}
+
+	return nil
+
+}
+
 func (c *Create) processParams() error {
 	defer trace.End(trace.Begin(""))
 
@@ -240,6 +262,10 @@ func (c *Create) processParams() error {
 
 	if err := c.processContainerNetworks(); err != nil {
 		return err
+	}
+
+	if err := c.processVolumeStores(); err != nil {
+		return errors.Errorf("Error occurred while processing volume stores: %s", err)
 	}
 
 	// FIXME: add parameters for these configurations

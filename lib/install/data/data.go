@@ -36,13 +36,14 @@ type Data struct {
 	CertPEM []byte
 	KeyPEM  []byte
 
-	ImageDatastoreName string
-
+	ImageDatastoreName     string
+	VolumeLocations        map[string]string
 	ContainerDatastoreName string
-	ExternalNetworkName    string
-	ManagementNetworkName  string
-	BridgeNetworkName      string
-	ClientNetworkName      string
+
+	ExternalNetworkName   string
+	ManagementNetworkName string
+	BridgeNetworkName     string
+	ClientNetworkName     string
 
 	MappedNetworks         map[string]string
 	MappedNetworksGateways map[string]net.IPNet
