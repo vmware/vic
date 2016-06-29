@@ -40,6 +40,76 @@ func NewMockVolumeStore() *MockVolumeStore {
 	return m
 }
 
+type MockVolumeStore struct {
+	// id -> volume
+	db map[string]*Volume
+}
+
+func NewMockVolumeStore() *MockVolumeStore {
+	m := &MockVolumeStore{
+		db: make(map[string]*Volume),
+	}
+
+	return m
+}
+
+// Creates a volume on the given volume store, of the given size, with the given metadata.
+func (m *MockVolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityMB uint64, info map[string][]byte) (*Volume, error) {
+	storeName, err := util.VolumeStoreName(store)
+	if err != nil {
+		return nil, err
+	}
+
+	selfLink, err := util.VolumeURL(storeName, ID)
+	if err != nil {
+		return nil, err
+	}
+
+	vol := &Volume{
+		ID:       ID,
+		Store:    store,
+		SelfLink: selfLink,
+	}
+
+	m.db[ID] = vol
+
+	return vol, nil
+}
+
+// Get an existing volume via it's ID and volume store.
+func (m *MockVolumeStore) VolumeGet(ctx context.Context, ID string) (*Volume, error) {
+	vol, ok := m.db[ID]
+	if !ok {
+		return nil, os.ErrNotExist
+	}
+
+	return vol, nil
+}
+
+// Destroys a volume
+func (m *MockVolumeStore) VolumeDestroy(ctx context.Context, ID string) error {
+	if _, ok := m.db[ID]; !ok {
+		return os.ErrNotExist
+	}
+
+	delete(m.db, ID)
+
+	return nil
+}
+
+// Lists all volumes on the given volume store`
+func (m *MockVolumeStore) VolumesList(ctx context.Context) ([]*Volume, error) {
+	var i int
+	list := make([]*Volume, len(m.db))
+	for _, v := range m.db {
+		t := *v
+		list[i] = &t
+		i++
+	}
+
+	return list, nil
+}
+
 // Creates a volume on the given volume store, of the given size, with the given metadata.
 func (m *MockVolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityMB uint64, info map[string][]byte) (*Volume, error) {
 	storeName, err := util.VolumeStoreName(store)

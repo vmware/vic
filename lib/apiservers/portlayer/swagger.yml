@@ -249,6 +249,8 @@ paths:
             $ref: "#/definitions/VolumeResponse"
         '500':
           description: "Error"
+          $schema:
+            $ref: "#/definitions/Error"
         default:
           description: "error"
           schema:
