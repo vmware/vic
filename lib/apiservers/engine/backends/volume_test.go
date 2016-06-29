@@ -25,9 +25,9 @@ import (
 
 func TestFillDockerVolume(t *testing.T) {
 	testResponse := &models.VolumeResponse{
-		Driver:   "vsphere",
-		Name:     "Test Volume",
-		SelfLink: "Test SelfLink",
+		Driver: "vsphere",
+		Name:   "Test Volume",
+		Label:  "Test Label",
 	}
 	testLabels := make(map[string]string)
 	testLabels["TestMeta"] = "custom info about my volume"
@@ -36,7 +36,7 @@ func TestFillDockerVolume(t *testing.T) {
 
 	assert.Equal(t, "vsphere", dockerVolume.Driver)
 	assert.Equal(t, "Test Volume", dockerVolume.Name)
-	assert.Equal(t, "Test SelfLink", dockerVolume.Mountpoint)
+	assert.Equal(t, "Test Label", dockerVolume.Mountpoint)
 	assert.Equal(t, "custom info about my volume", dockerVolume.Labels["TestMeta"])
 }
 
@@ -46,8 +46,8 @@ func TestTranslatVolumeRequestModel(t *testing.T) {
 
 	testDriverArgs := make(map[string]string)
 	testDriverArgs["testArg"] = "important driver stuff"
-	testDriverArgs[optsVolumeStoreKey] = "testStore"
-	testDriverArgs[optsCapacityKey] = "12"
+	testDriverArgs[OptsVolumeStoreKey] = "testStore"
+	testDriverArgs[OptsCapacityKey] = "12"
 
 	testRequest, err := translateInputsToPortlayerRequestModel("testName", "vsphere", testDriverArgs, testLabels)
 
@@ -100,21 +100,22 @@ func TestValidateDriverArgs(t *testing.T) {
 		return
 	}
 
-	testMap[optsVolumeStoreKey] = testStore
-	testMap[optsCapacityKey] = strconv.FormatInt(testCap, 10)
+	testMap[OptsVolumeStoreKey] = testStore
+	testMap[OptsCapacityKey] = strconv.FormatInt(testCap, 10)
 	err = validateDriverArgs(testMap, &testModel)
 	if !assert.Equal(t, testStore, testModel.Store) || !assert.Equal(t, testCap, testModel.Capacity) || !assert.NoError(t, err) {
 		return
 	}
 
-	testMap[optsCapacityKey] = testBadCap
+	//This is a negative test case. We want an error
+	testMap[OptsCapacityKey] = testBadCap
 	err = validateDriverArgs(testMap, &testModel)
-	if !assert.Equal(t, testStore, testModel.Store) || !assert.Equal(t, int64(-1), testModel.Capacity) || !assert.NoError(t, err) {
+	if !assert.Equal(t, testStore, testModel.Store) || !assert.Equal(t, int64(-1), testModel.Capacity) || !assert.Error(t, err) {
 		return
 	}
 
-	testMap[optsCapacityKey] = strconv.FormatInt(testCap, 10)
-	delete(testMap, optsVolumeStoreKey)
+	testMap[OptsCapacityKey] = strconv.FormatInt(testCap, 10)
+	delete(testMap, OptsVolumeStoreKey)
 	err = validateDriverArgs(testMap, &testModel)
 	if !assert.Equal(t, "default", testModel.Store) || !assert.Equal(t, int64(12), testModel.Capacity) || !assert.NoError(t, err) {
 		return
