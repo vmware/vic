@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/govmomi/govc/host/esxcli"
 	"github.com/vmware/govmomi/license"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/metadata"
@@ -158,6 +159,7 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*metadata.V
 	v.network(ctx, input, conf)
 	v.firewall(ctx)
 	v.license(ctx)
+	v.drs(ctx)
 
 	v.certificate(ctx, input, conf)
 
@@ -614,6 +616,47 @@ func (v *Validator) checkEvalLicense(licenses []types.LicenseManagerLicenseInfo)
 			log.Warning("Evaluation license detected. VIC may not function if evaluation expires or insufficient license is later assigned.")
 		}
 	}
+}
+
+// isStandaloneHost checks if host is ESX or vCenter with single host
+func (v *Validator) isStandaloneHost() bool {
+	cl := v.Session.Cluster.Reference()
+
+	if cl.Type != "ClusterComputeResource" {
+		return true
+	}
+	return false
+}
+
+// drs checks that DRS is enabled
+func (v *Validator) drs(ctx context.Context) {
+	cl := v.Session.Cluster
+	ref := cl.Reference()
+
+	if v.isStandaloneHost() {
+		log.Info("DRS check SKIPPED - target is standalone host")
+		return
+	}
+
+	var ccr mo.ClusterComputeResource
+
+	err := cl.Properties(ctx, ref, []string{"configurationEx"}, &ccr)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to validate DRS config: %s", err)
+		v.NoteIssue(errors.New(msg))
+		return
+	}
+
+	z := ccr.ConfigurationEx.(*types.ClusterConfigInfoEx).DrsConfig
+
+	if !(*z.Enabled) {
+		log.Error("DRS check FAILED")
+		log.Errorf("  DRS must be enabled on cluster %s", v.Session.Pool.InventoryPath)
+		v.NoteIssue(errors.New("DRS must be enabled to use VIC"))
+		return
+	}
+	log.Info("DRS check OK on:")
+	log.Infof("  %s", v.Session.Pool.InventoryPath)
 }
 
 func (v *Validator) target(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
