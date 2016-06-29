@@ -1,0 +1,651 @@
+// Copyright 2016 VMware, Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package imagec
+
+import (
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/url"
+	"os"
+	"path"
+	"runtime/debug"
+	"strings"
+	"sync"
+	"time"
+
+	"golang.org/x/net/context"
+
+	log "github.com/Sirupsen/logrus"
+
+	docker "github.com/docker/docker/image"
+	dockerLayer "github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/reference"
+
+	"github.com/vmware/vic/lib/apiservers/portlayer/models"
+	"github.com/vmware/vic/lib/guest"
+	"github.com/vmware/vic/lib/metadata"
+)
+
+var (
+	options = &Options{}
+	// https://raw.githubusercontent.com/docker/docker/master/distribution/pull_v2.go
+	sf = streamformatter.NewJSONStreamFormatter()
+	po progress.Output
+)
+
+// ImageCOptions wraps the cli arguments
+type Options struct {
+	Reference string
+
+	Registry string
+	Image    string
+	Tag      string
+
+	Destination string
+
+	Host string
+
+	Logfile string
+
+	Username string
+	Password string
+
+	Token *Token
+
+	Timeout time.Duration
+
+	Stdout bool
+	Debug  bool
+
+	Outstream io.Writer
+
+	InsecureSkipVerify bool
+	InsecureAllowHTTP  bool
+
+	Standalone bool
+
+	Profiling string
+	Tracing   bool
+}
+
+// ImageWithMeta wraps the models.Image with some additional metadata
+type ImageWithMeta struct {
+	*models.Image
+
+	diffID string
+	layer  FSLayer
+	meta   string
+	size   int64
+}
+
+func (i *ImageWithMeta) String() string {
+	return stringid.TruncateID(i.layer.BlobSum)
+}
+
+const (
+	// DefaultDockerURL holds the URL of Docker registry
+	DefaultDockerURL = "registry-1.docker.io"
+
+	// DefaultDestination specifies the default directory to use
+	DefaultDestination = "images"
+
+	// DefaultPortLayerHost specifies the default port layer server
+	DefaultPortLayerHost = "localhost:8080"
+
+	// DefaultLogfile specifies the default log file name
+	DefaultLogfile = "imagec.log"
+
+	// DefaultHTTPTimeout specifies the default HTTP timeout
+	DefaultHTTPTimeout = 3600 * time.Second
+
+	// DefaultTokenExpirationDuration specifies the default token expiration
+	DefaultTokenExpirationDuration = 60 * time.Second
+
+	// attribute update actions
+	Add = iota + 1
+	Remove
+)
+
+// ParseReference parses the -reference parameter and populate options struct
+func ParseReference() error {
+	// Validate and parse reference name
+	ref, err := reference.ParseNamed(options.Reference)
+	if err != nil {
+		return err
+	}
+
+	options.Tag = reference.DefaultTag
+	if !reference.IsNameOnly(ref) {
+		if tagged, ok := ref.(reference.NamedTagged); ok {
+			options.Tag = tagged.Tag()
+		}
+	}
+
+	options.Registry = DefaultDockerURL
+	if ref.Hostname() != reference.DefaultHostname {
+		options.Registry = ref.Hostname()
+	}
+
+	options.Image = ref.RemoteName()
+
+	return nil
+}
+
+// DestinationDirectory returns the path of the output directory
+func DestinationDirectory() string {
+	u, _ := url.Parse(options.Registry)
+
+	// Use a hierachy like following so that we can support multiple schemes, registries and versions
+	/*
+		https/
+		├── 192.168.218.5:5000
+		│   └── v2
+		│       └── busybox
+		│           └── latest
+		...
+		│               ├── fef924a0204a00b3ec67318e2ed337b189c99ea19e2bf10ed30a13b87c5e17ab
+		│               │   ├── fef924a0204a00b3ec67318e2ed337b189c99ea19e2bf10ed30a13b87c5e17ab.json
+		│               │   └── fef924a0204a00b3ec67318e2ed337b189c99ea19e2bf10ed30a13b87c5e17ab.tar
+		│               └── manifest.json
+		└── registry-1.docker.io
+		    └── v2
+		        └── library
+		            └── golang
+		                └── latest
+		                    ...
+		                    ├── f61ebe2817bb4e6a7f0a4cf249a5316223f7ecc886feac24b9887a490feaed57
+		                    │   ├── f61ebe2817bb4e6a7f0a4cf249a5316223f7ecc886feac24b9887a490feaed57.json
+		                    │   └── f61ebe2817bb4e6a7f0a4cf249a5316223f7ecc886feac24b9887a490feaed57.tar
+		                    └── manifest.json
+
+	*/
+	return path.Join(
+		options.Destination,
+		u.Scheme,
+		u.Host,
+		u.Path,
+		options.Image,
+		options.Tag,
+	)
+}
+
+// ImagesToDownload creates a slice of ImageWithMeta for the images that needs to be downloaded
+func ImagesToDownload(manifest *Manifest, storeName string) ([]*ImageWithMeta, *ImageWithMeta, error) {
+	images := make([]*ImageWithMeta, len(manifest.FSLayers))
+
+	v1 := docker.V1Image{}
+	// iterate from parent to children
+	for i := len(manifest.History) - 1; i >= 0; i-- {
+		history := manifest.History[i]
+		layer := manifest.FSLayers[i]
+
+		// unmarshall V1Compatibility to get the image ID
+		if err := json.Unmarshal([]byte(history.V1Compatibility), &v1); err != nil {
+			return nil, nil, fmt.Errorf("Failed to unmarshall image history: %s", err)
+		}
+
+		// if parent is empty set it to scratch
+		parent := "scratch"
+		if v1.Parent != "" {
+			parent = v1.Parent
+		}
+
+		// add image to ImageWithMeta list
+		images[i] = &ImageWithMeta{
+			Image: &models.Image{
+				ID:     v1.ID,
+				Parent: &parent,
+				Store:  storeName,
+			},
+			meta:   history.V1Compatibility,
+			layer:  layer,
+			diffID: "",
+		}
+		log.Debugf("ImagesToDownload Manifest image: %#v", images[i])
+	}
+
+	// return early if -standalone set
+	if options.Standalone {
+		return images, nil, nil
+	}
+
+	// Create the image store just in case
+	err := CreateImageStore(storeName)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to create image store: %s", err)
+	}
+
+	// Get the list of known images from the storage layer
+	existingImages, err := ListImages(storeName, images)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to obtain list of images: %s", err)
+	}
+
+	for i := range existingImages {
+		log.Debugf("Existing image: %#v", existingImages[i])
+	}
+
+	// grab the imageLayer for use in later evaluation of metadata update
+	imageLayer := images[0]
+
+	// iterate from parent to children
+	// so that we can delete from the slice
+	// while iterating over it
+	for i := len(images) - 1; i >= 0; i-- {
+		ID := images[i].ID
+		// Check whether storage layer knows this image ID
+		if _, ok := existingImages[ID]; ok {
+			log.Debugf("%s already exists", ID)
+			// update the progress before deleting it from the slice
+			progress.Update(po, images[i].String(), "Already exists")
+
+			// delete existing image from images
+			images = append(images[:i], images[i+1:]...)
+		}
+	}
+
+	return images, imageLayer, nil
+}
+
+// Will updated metadata based on the current image being requested
+//
+// Currently on tags are updated, but once imagec supports pulling by digest
+// then digest will need to be updated as well
+func updateImageMetadata(imageLayer *ImageWithMeta, manifest *Manifest) error {
+	// if standalone no need to continue
+	if options.Standalone {
+		return nil
+	}
+	// updated Image slice
+	var updatedImages []*ImageWithMeta
+
+	// assuming calls to the portlayer are cheap, lets get all existing images
+	existingImages, err := ListImages(imageLayer.Store, nil)
+	if err != nil {
+		return fmt.Errorf("updateImageMetadata failed to obtain list of images: %s", err)
+	}
+
+	// iterate overall the images and remove the tag that was just downloaded
+	for id := range existingImages {
+		// utlizing index to avoid copy
+		existingImage := existingImages[id]
+
+		imageMeta := &metadata.ImageConfig{}
+		// tag / digest info only resides in the metadata so must unmarshall meta to determine
+		if err := json.Unmarshal([]byte(existingImage.Metadata[MetaDataKey]), imageMeta); err != nil {
+			return fmt.Errorf("updateImageMetadata failed to get existing metadata: Layer(%s) %s", id, err)
+		}
+
+		// if this isn't an image we can skip..
+		if imageMeta.ImageID == "" {
+			continue
+		}
+
+		// is this the same repo (busybox, etc)
+		if imageMeta.Name == options.Image {
+
+			// default action to remove and update if necessary
+			action := Remove
+			if id == imageLayer.ID {
+				// add to the array if this layer is the requested layer
+				action = Add
+			}
+
+			// TODO: imagec doesn't support pulling by digest - add digest support once
+			// issue 1186 is implemented
+			if newTags, ok := arrayUpdate(manifest.Tag, imageMeta.Tags, action); ok {
+				imageMeta.Tags = newTags
+
+				// We need the parent id this is the layer ID of the parent disk
+				// Parent is returned from the PL as a full URL, so we only need the base
+				layerParent := path.Base(*existingImage.Parent)
+
+				// marshall back to dumb byte array
+				meta, err := json.Marshal(imageMeta)
+				if err != nil {
+					return fmt.Errorf("updateImageMetadata unable to marshal modified metadata: %s", err.Error())
+				}
+				updatedImage := &ImageWithMeta{Image: &models.Image{
+					ID:     id,
+					Parent: &layerParent,
+					Store:  imageLayer.Store,
+				},
+					meta: string(meta),
+					// create a dummy sum as this is required by the portlayer,
+					// but since we are only updating metadata it will be ignored
+					layer: FSLayer{BlobSum: "this-is-required"},
+				}
+				updatedImages = append(updatedImages, updatedImage)
+			}
+
+		}
+	}
+
+	log.Debugf("%d images require metadata updates", len(updatedImages))
+	for id := range updatedImages {
+		// utlizing index to avoid copy
+		update := updatedImages[id]
+		log.Debugf("updating ImageMetadata: layerID(%s)", update.ID)
+		//Send the Metadata to the PL to write to disk
+		err = WriteImage(update, nil)
+		if err != nil {
+			return fmt.Errorf("updateImageMetadata failed to writeMeta to the portLayer: %s", err.Error())
+		}
+
+	}
+	return nil
+}
+
+// Will conditionally update array based on presence of value
+func arrayUpdate(val string, list []string, action int) ([]string, bool) {
+
+	for index, item := range list {
+		if val == item {
+			if action == Remove {
+				// remove item requested
+				list = append(list[:index], list[index+1:]...)
+				return list, true
+			}
+			// item already in array
+			return list, false
+		}
+	}
+	if action == Add {
+		list = append(list, val)
+		return list, true
+	}
+	return list, false
+}
+
+// DownloadImageBlobs downloads the image blobs concurrently
+func DownloadImageBlobs(images []*ImageWithMeta) error {
+	var wg sync.WaitGroup
+
+	wg.Add(len(images))
+
+	// iterate from parent to children
+	// so that portlayer can extract each layer
+	// on top of previous one
+	results := make(chan error, len(images))
+	for i := len(images) - 1; i >= 0; i-- {
+		go func(image *ImageWithMeta) {
+			defer wg.Done()
+
+			diffID, err := FetchImageBlob(*options, image)
+			if err != nil {
+				results <- fmt.Errorf("%s/%s returned %s", options.Image, image.layer.BlobSum, err)
+			} else {
+				image.diffID = diffID
+				results <- nil
+			}
+		}(images[i])
+	}
+	wg.Wait()
+	close(results)
+
+	// iterate over results chan to see whether we have a failed download
+	for err := range results {
+		if err != nil {
+			return fmt.Errorf("Failed to fetch image blob: %s", err)
+		}
+	}
+
+	return nil
+}
+
+// WriteImageBlobs writes the image blob to the storage layer
+func WriteImageBlobs(images []*ImageWithMeta) error {
+	if options.Standalone {
+		return nil
+	}
+
+	// iterate from parent to children
+	// so that portlayer can extract each layer
+	// on top of previous one
+	destination := DestinationDirectory()
+	for i := len(images) - 1; i >= 0; i-- {
+		image := images[i]
+
+		id := image.Image.ID
+		f, err := os.Open(path.Join(destination, id, id+".tar"))
+		if err != nil {
+			return fmt.Errorf("Failed to open file: %s", err)
+		}
+		defer f.Close()
+
+		fi, err := f.Stat()
+		if err != nil {
+			return fmt.Errorf("Failed to stat file: %s", err)
+		}
+
+		in := progress.NewProgressReader(
+			ioutils.NewCancelReadCloser(context.Background(), f),
+			po,
+			fi.Size(),
+			image.String(),
+			"Extracting",
+		)
+		defer in.Close()
+
+		// Write the image
+		err = WriteImage(image, in)
+		if err != nil {
+			return fmt.Errorf("Failed to write to image store: %s", err)
+		}
+		progress.Update(po, image.String(), "Pull complete")
+	}
+	if err := os.RemoveAll(destination); err != nil {
+		return fmt.Errorf("Failed to remove download directory: %s", err)
+	}
+	return nil
+}
+
+// CreateImageConfig constructs the image metadata from layers that compose the image
+func CreateImageConfig(images []*ImageWithMeta, manifest *Manifest) (*metadata.ImageConfig, error) {
+
+	if len(images) == 0 {
+		return nil, nil
+	}
+
+	imageLayer := images[0] // the layer that represents the actual image
+	image := docker.V1Image{}
+	rootFS := docker.NewRootFS()
+	history := make([]docker.History, 0, len(images))
+	diffIDs := make(map[string]string)
+	var size int64
+
+	// step through layers to get command history and diffID from oldest to newest
+	for i := len(images) - 1; i >= 0; i-- {
+		layer := images[i]
+		if err := json.Unmarshal([]byte(layer.meta), &image); err != nil {
+			return nil, fmt.Errorf("Failed to unmarshall layer history: %s", err)
+		}
+		h := docker.History{
+			Created:   image.Created,
+			Author:    image.Author,
+			CreatedBy: strings.Join(image.ContainerConfig.Cmd, " "),
+			Comment:   image.Comment,
+		}
+		history = append(history, h)
+		rootFS.DiffIDs = append(rootFS.DiffIDs, dockerLayer.DiffID(layer.diffID))
+		diffIDs[layer.diffID] = layer.ID
+		size += layer.size
+	}
+
+	// result is constructed without unused fields
+	result := docker.Image{
+		V1Image: docker.V1Image{
+			Comment:         image.Comment,
+			Created:         image.Created,
+			Container:       image.Container,
+			ContainerConfig: image.ContainerConfig,
+			DockerVersion:   image.DockerVersion,
+			Author:          image.Author,
+			Config:          image.Config,
+			Architecture:    image.Architecture,
+			OS:              image.OS,
+		},
+		RootFS:  rootFS,
+		History: history,
+	}
+
+	bytes, err := result.MarshalJSON()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to marshall image metadata: %s", err)
+	}
+
+	// calculate image ID
+	sum := fmt.Sprintf("%x", sha256.Sum256(bytes))
+	log.Infof("Image ID: sha256:%s", sum)
+
+	// prepare metadata
+	result.V1Image.Parent = image.Parent
+	result.Size = size
+	result.V1Image.ID = imageLayer.ID
+	metaData := &metadata.ImageConfig{
+		V1Image: result.V1Image,
+		ImageID: sum,
+		// TODO: this will change when issue 1186 is
+		// implemented -- only populate the digests when pulled by digest
+		Digests: []string{},
+		Tags:    []string{options.Tag},
+		Name:    manifest.Name,
+		DiffIDs: diffIDs,
+		History: history,
+	}
+
+	blob, err := json.Marshal(*metaData)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to marshal image metadata: %s", err)
+	}
+
+	// store metadata
+	imageLayer.meta = string(blob)
+
+	return metaData, nil
+}
+
+// Pull pulls an image from docker hub
+func Pull(opt *Options) (*metadata.ImageConfig, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, string(sf.FormatError(fmt.Errorf("%s : %s", r, debug.Stack()))))
+		}
+	}()
+
+	options = opt
+	po = sf.NewProgressOutput(options.Outstream, false)
+
+	// Parse the -reference parameter
+	if err := ParseReference(); err != nil {
+		//log.Fatalf(err.Error())
+		return nil, err
+	}
+
+	// Host is either the host's UUID (if run on vsphere) or the hostname of
+	// the system (if run standalone)
+	host, err := guest.UUID()
+	if host != "" {
+		log.Infof("Using UUID (%s) for imagestore name", host)
+	} else if options.Standalone {
+		host, err = os.Hostname()
+		log.Infof("Using host (%s) for imagestore name", host)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed to return the UUID or host name: %s", err)
+	}
+
+	if !options.Standalone {
+		log.Debugf("Running with portlayer")
+
+		// Ping the server to ensure it's at least running
+		ok, err := PingPortLayer()
+		if err != nil || !ok {
+			return nil, fmt.Errorf("Failed to ping portlayer: %s", err)
+		}
+	} else {
+		log.Debugf("Running standalone")
+	}
+
+	// Calculate (and overwrite) the registry URL and make sure that it responds to requests
+	options.Registry, err = LearnRegistryURL(*options)
+	if err != nil {
+		return nil, fmt.Errorf("Error while pulling image: %s", err)
+	}
+
+	// Get the URL of the OAuth endpoint
+	url, err := LearnAuthURL(*options)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to obtain OAuth endpoint: %s", err)
+	}
+
+	// Get the OAuth token - if only we have a URL
+	if url != nil {
+		token, err := FetchToken(url)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to fetch OAuth token: %s", err)
+		}
+		options.Token = token
+	}
+
+	// Get the manifest
+	manifest, err := FetchImageManifest(*options)
+	if err != nil {
+		return nil, fmt.Errorf("Error while pulling image manifest: %s", err)
+	}
+
+	// Create the ImageWithMeta slice to hold Image structs
+	images, imageLayer, err := ImagesToDownload(manifest, host)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+
+	progress.Message(po, options.Tag, "Pulling from "+options.Image)
+
+	// Fetch the blobs from registry
+	if err := DownloadImageBlobs(images); err != nil {
+		return nil, fmt.Errorf(err.Error())
+	}
+
+	imageConfig, err := CreateImageConfig(images, manifest)
+	if err != nil {
+		return nil, fmt.Errorf(err.Error())
+	}
+
+	// Write blobs to the storage layer
+	if err := WriteImageBlobs(images); err != nil {
+		return nil, fmt.Errorf(err.Error())
+	}
+
+	if err := updateImageMetadata(imageLayer, manifest); err != nil {
+		log.Fatalf(err.Error())
+	}
+
+	progress.Message(po, "", "Digest: "+manifest.Digest)
+	if len(images) > 0 {
+		progress.Message(po, "", "Status: Downloaded newer image for "+options.Image+":"+options.Tag)
+	} else {
+		progress.Message(po, "", "Status: Image is up to date for "+options.Image+":"+options.Tag)
+	}
+
+	return imageConfig, nil
+}

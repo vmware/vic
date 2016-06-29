@@ -64,7 +64,6 @@ unpack $PACKAGE $PKGDIR
 #################################################################
 
 # TEMP: imagec wrapper
-cp ${DIR}/appliance/imagec.sh $(rootfs_dir $PKGDIR)/sbin/imagec
 
 # TEMP: tether based init - configured for debug
 cp ${BIN}/vch-init $(rootfs_dir $PKGDIR)/sbin/vch-debug
@@ -75,7 +74,6 @@ cp ${DIR}/appliance/launcher.service $(rootfs_dir $PKGDIR)/etc/systemd/system/
 cp ${DIR}/appliance/iptables $(rootfs_dir $PKGDIR)/etc/systemd/scripts
 ln -s /etc/systemd/system/launcher.service $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/launcher.service
 
-cp ${BIN}/imagec $(rootfs_dir $PKGDIR)/sbin/imagec.bin
 cp ${BIN}/{docker-engine-server,port-layer-server,rpctool,vicadmin} $(rootfs_dir $PKGDIR)/sbin/
 
 # Select systemd for our init process

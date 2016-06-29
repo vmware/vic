@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"sort"
 
 	log "github.com/Sirupsen/logrus"
@@ -30,6 +29,7 @@ import (
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/registry"
+	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -66,10 +66,7 @@ func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Ima
 
 	imageCache := ImageCache()
 
-	images, err := imageCache.GetImages()
-	if err != nil {
-		return nil, fmt.Errorf("Error retrieving image list: %s", err)
-	}
+	images := imageCache.GetImages()
 
 	result := make([]*types.Image, 0, len(images))
 
@@ -117,51 +114,43 @@ func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders 
 
 	log.Printf("PullImage: ref = %+v, metaheaders = %+v\n", ref, metaHeaders)
 
-	var cmdArgs []string
-
-	cmdArgs = append(cmdArgs, "-reference", ref.String())
+	options := &imagec.Options{
+		Destination: os.TempDir(),
+		Reference:   ref.String(),
+		Timeout:     imagec.DefaultHTTPTimeout,
+		Outstream:   outStream,
+	}
 
 	if authConfig != nil {
 		if len(authConfig.Username) > 0 {
-			cmdArgs = append(cmdArgs, "-username", authConfig.Username)
+			options.Username = authConfig.Username
 		}
 		if len(authConfig.Password) > 0 {
-			cmdArgs = append(cmdArgs, "-password", authConfig.Password)
+			options.Password = authConfig.Password
 		}
 	}
 
 	portLayerServer := PortLayerServer()
 
 	if portLayerServer != "" {
-		cmdArgs = append(cmdArgs, "-host", portLayerServer)
+		options.Host = portLayerServer
 	}
 
-	// intruct imagec to use os.TempDir
-	cmdArgs = append(cmdArgs, "-destination", os.TempDir())
+	log.Printf("PullImage: reference: %s, username: %s, password: %s, portlayer: %#v",
+		options.Reference,
+		options.Username,
+		options.Password,
+		options.Host)
 
-	log.Printf("PullImage: cmd = %s %+v\n", Imagec, cmdArgs)
-
-	cmd := exec.Command(Imagec, cmdArgs...)
-	cmd.Stdout = outStream
-	cmd.Stderr = outStream
-
-	// Execute
-	err := cmd.Start()
-
+	imageConfig, err := imagec.Pull(options)
 	if err != nil {
-		log.Printf("Error starting %s - %s\n", Imagec, err)
-		return fmt.Errorf("Error starting %s - %s\n", Imagec, err)
+		return fmt.Errorf("Error pulling image %s - %s\n", options.Reference, err)
 	}
 
-	err = cmd.Wait()
-
-	if err != nil {
-		log.Println("imagec exit code:", err)
-		return err
+	if imageConfig != nil {
+		ImageCache().AddImage(imageConfig)
 	}
 
-	client := PortLayerClient()
-	ImageCache().Update(client)
 	return nil
 }
 
@@ -205,20 +194,12 @@ func getImageConfigFromCache(image string) (*metadata.ImageConfig, error) {
 	imageCache := ImageCache()
 
 	if digest != "" {
-		config, err := imageCache.GetImageByDigest(digest)
-		if err != nil {
-			log.Errorf("Inspect lookup failed for image %s: %s.  Returning no such image.", image, err)
-			return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", image))
-		}
+		config := imageCache.GetImageByDigest(digest)
 		if config != nil {
 			return config, nil
 		}
 	} else {
-		config, err := imageCache.GetImageByNamed(named)
-		if err != nil {
-			log.Errorf("Inspect lookup failed for image %s: %s.  Returning no such image.", image, err)
-			return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", image))
-		}
+		config := imageCache.GetImageByNamed(named)
 		if config != nil {
 			return config, nil
 		}
@@ -314,7 +295,7 @@ func clientFriendlyDigests(imageName string, digests []string) []string {
 	clientDigests := make([]string, len(digests))
 	if len(digests) > 0 {
 		for index, digest := range digests {
-			clientDigests[index] = fmt.Sprintf("%s@sha:%s", imageName, digest)
+			clientDigests[index] = fmt.Sprintf("%s@sha256:%s", imageName, digest)
 		}
 	} else {
 		clientDigests = append(clientDigests, fmt.Sprintf("%s@%s", "<none>", "<none>"))
