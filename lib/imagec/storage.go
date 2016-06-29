@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package imagec
 
 import (
 	"io"
@@ -35,9 +35,9 @@ const (
 
 // PingPortLayer calls the _ping endpoint of the portlayer
 func PingPortLayer() (bool, error) {
-	defer trace.End(trace.Begin(options.host))
+	defer trace.End(trace.Begin(options.Host))
 
-	transport := httptransport.New(options.host, "/", []string{"http"})
+	transport := httptransport.New(options.Host, "/", []string{"http"})
 	client := apiclient.New(transport, nil)
 
 	ok, err := client.Misc.Ping(misc.NewPingParams())
@@ -51,7 +51,7 @@ func PingPortLayer() (bool, error) {
 func CreateImageStore(storename string) error {
 	defer trace.End(trace.Begin(storename))
 
-	transport := httptransport.New(options.host, "/", []string{"http"})
+	transport := httptransport.New(options.Host, "/", []string{"http"})
 	client := apiclient.New(transport, nil)
 
 	log.Debugf("Creating a store")
@@ -79,7 +79,7 @@ func CreateImageStore(storename string) error {
 func ListImages(storename string, images []*ImageWithMeta) (map[string]*models.Image, error) {
 	defer trace.End(trace.Begin(storename))
 
-	transport := httptransport.New(options.host, "/", []string{"http"})
+	transport := httptransport.New(options.Host, "/", []string{"http"})
 	client := apiclient.New(transport, nil)
 
 	ids := make([]string, len(images))
@@ -107,7 +107,7 @@ func ListImages(storename string, images []*ImageWithMeta) (map[string]*models.I
 func WriteImage(image *ImageWithMeta, data io.ReadCloser) error {
 	defer trace.End(trace.Begin(image.ID))
 
-	transport := httptransport.New(options.host, "/", []string{"http"})
+	transport := httptransport.New(options.Host, "/", []string{"http"})
 	client := apiclient.New(transport, nil)
 
 	transport.Consumers["application/json"] = httpkit.JSONConsumer()

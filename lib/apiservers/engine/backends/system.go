@@ -258,10 +258,7 @@ func pingPortlayer(plClient *client.PortLayer) bool {
 func getImageCount(plClient *client.PortLayer) (int, error) {
 	imageCache := ImageCache()
 
-	images, err := imageCache.GetImages()
-	if err != nil {
-		return 0, err
-	}
+	images := imageCache.GetImages()
 
 	return len(images), nil
 }

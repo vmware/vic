@@ -47,7 +47,7 @@ func TestConvertV1ImageToDockerImage(t *testing.T) {
 		DiffIDs: map[string]string{"test_diffid": "test_layerid"},
 		History: []v1.History{},
 	}
-	digest := fmt.Sprintf("%s@sha:%s", image.Name, "12345")
+	digest := fmt.Sprintf("%s@sha256:%s", image.Name, "12345")
 	tag := fmt.Sprintf("%s:%s", image.Name, "test_tag")
 
 	dockerImage := convertV1ImageToDockerImage(image)
