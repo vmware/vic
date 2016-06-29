@@ -116,7 +116,7 @@ func fillDockerVolumeModel(volume *models.VolumeResponse, labels map[string]stri
 		Driver:     volume.Driver,
 		Name:       volume.Name,
 		Labels:     labels,
-		Mountpoint: volume.SelfLink,
+		Mountpoint: volume.Label,
 	}
 	return &dockerVol
 }
