@@ -31,11 +31,7 @@ rc="$?"
 timestamp=$(date +%s)
 outfile="integration_test_logs_"$DRONE_BUILD_NUMBER"_$timestamp.tar"
 
-tar cf $outfile log.html package.list *container-logs.tar.gz
-
-if [ -f imagec.log ]; then
-  tar --append imagec.log -f $outfile
-fi
+tar cf $outfile log.html package.list *container-logs.tar.gz *.log
 
 # GC credentials
 set +x
