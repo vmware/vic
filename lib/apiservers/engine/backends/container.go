@@ -154,7 +154,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 
 	// provide basic container config via the image
 	container := &viccontainer.VicContainer{
-		ID:     image.Parent,
+		ID:     image.ID,
 		Config: image.Config,
 	}
 
