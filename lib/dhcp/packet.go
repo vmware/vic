@@ -89,3 +89,16 @@ func (p *Packet) DNS() []net.IP {
 
 	return dns
 }
+
+func (p *Packet) ServerIP() net.IP {
+	if len(p.packet) == 0 {
+		return nil
+	}
+
+	b := p.options[dhcp4.OptionServerIdentifier]
+	if len(b) < net.IPv4len {
+		return nil
+	}
+
+	return net.IP(b[:net.IPv4len])
+}

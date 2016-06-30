@@ -41,9 +41,6 @@ type Client interface {
 
 	// Release releases an existing DHCP lease.
 	Release(*Packet) error
-
-	// Close shuts down the client.
-	Close() error
 }
 
 type client struct {

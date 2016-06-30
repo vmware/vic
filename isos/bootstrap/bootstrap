@@ -33,14 +33,10 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
         # ln -sf /proc/mounts ${MOUNTPOINT}/etc/mtab
 
         # ensure both the source and destination files exist for bind mounting
-        touch ${MOUNTPOINT}/etc/hostname ${MOUNTPOINT}/.tether-init/hostname
-        touch ${MOUNTPOINT}/.tether-init/resolv.conf ${MOUNTPOINT}/.tether-init/resolv.conf
+        touch ${MOUNTPOINT}/etc/hostname
         touch ${MOUNTPOINT}/etc/hosts
-        echo "127.0.0.1 localhost localhost.localdomain" > ${MOUNTPOINT}/.tether-init/hosts
-
-        mount --bind ${MOUNTPOINT}/.tether-init/hostname ${MOUNTPOINT}/etc/hostname
-        mount --bind ${MOUNTPOINT}/.tether-init/resolv.conf ${MOUNTPOINT}/etc/resolv.conf
-        mount --bind ${MOUNTPOINT}/.tether-init/hosts ${MOUNTPOINT}/etc/hosts
+        touch ${MOUNTPOINT}/etc/resolv.conf
+        echo "127.0.0.1 localhost localhost.localdomain" > ${MOUNTPOINT}/etc/hosts
     fi
 
     # this is so we're not exposing the raw container disk if we wouldn't be otherwise

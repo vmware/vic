@@ -77,6 +77,7 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 		return nil, err
 	}
 	s.builtin = true
+	s.dns = []net.IP{s.gateway}
 	ctx.defaultScope = s
 
 	// add any external networks
@@ -212,6 +213,13 @@ func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net
 
 	if isUnspecifiedSubnet(subnet) {
 		subnet = defaultSubnet
+	}
+
+	if c.defaultScope != nil {
+		// the gateway for bridge scopes is always the gateway for the default bridge
+		gateway = c.defaultScope.Gateway()
+		// ditto for dns
+		dns = c.defaultScope.DNS()
 	}
 
 	s, err := c.newScopeCommon(id, name, bridgeScopeType, subnet, gateway, dns, ipam, bn.PortGroup)
@@ -465,9 +473,9 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	}
 
 	endpoints := con.Endpoints()
+	defaultMarked := false
 	for i := range endpoints {
 		e := endpoints[i]
-
 		ne := h.ExecConfig.Networks[e.Scope().Name()]
 		ne.Static = nil
 		ip := e.IP()
@@ -478,6 +486,20 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			}
 		}
 		ne.Network.Gateway = net.IPNet{IP: e.gateway, Mask: e.subnet.Mask}
+		if !defaultMarked && e.Scope().Type() == bridgeScopeType {
+			defaultMarked = true
+			ne.Network.Default = true
+		}
+	}
+
+	// FIXME: if there was no bridge network to mark as default,
+	// then just pick the first network to mark as default
+	if !defaultMarked {
+		defaultMarked = true
+		for _, ne := range h.ExecConfig.Networks {
+			ne.Network.Default = true
+			break
+		}
 	}
 
 	// local map to hold the container mapping
