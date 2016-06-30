@@ -59,6 +59,8 @@ func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfi
 			},
 			ExpandableReservation: types.NewBool(true),
 			Limit: -1,
+			// FIXME: govmomi omitempty
+			Reservation: 1,
 		},
 		MemoryAllocation: &types.ResourceAllocationInfo{
 			Shares: &types.SharesInfo{
@@ -66,6 +68,8 @@ func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfi
 			},
 			ExpandableReservation: types.NewBool(true),
 			Limit: -1,
+			// FIXME: govmomi omitempty
+			Reservation: 1,
 		},
 	}
 

@@ -561,6 +561,7 @@ func CreateImageConfig(images []*ImageWithMeta, manifest *Manifest) error {
 	// prepare metadata
 	result.V1Image.Parent = image.Parent
 	result.Size = size
+	result.V1Image.ID = imageLayer.ID
 	metaData := metadata.ImageConfig{
 		V1Image: result.V1Image,
 		ImageID: sum,

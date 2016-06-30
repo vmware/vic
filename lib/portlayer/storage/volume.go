@@ -29,6 +29,7 @@ import (
 type Disk interface {
 	MountPath() (string, error)
 	DiskPath() string
+	//FIXME: Add a capacity and populate it.
 }
 
 // VolumeStorer is an interface to create, remove, enumerate, and get Volumes.

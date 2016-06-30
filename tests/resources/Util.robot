@@ -73,7 +73,7 @@ Cleanup Datastore On Test Server
     \   ${contents}=  Run  govc datastore.ls ${item}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${contents}  vmx
     \   Continue For Loop If  ${status}
-    \   ${out}=  Run  govc datatore.rm ${item}
+    \   ${out}=  Run  govc datastore.rm ${item}
 
 Cleanup Dangling VMs On Test Server
     ${out}=  Run  govc ls vm
