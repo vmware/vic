@@ -17,6 +17,7 @@ package storage
 import (
 	"crypto/md5"
 	"errors"
+	"fmt"
 	"net/url"
 	"path/filepath"
 	"strings"
@@ -100,10 +101,10 @@ func NewVolume(store *url.URL, ID string, device Disk) (*Volume, error) {
 
 // given an ID, compute the volume's label
 func label(ID string) string {
-	h := md5.New()
 
 	// e2label's manpage says the label size is 16 chars
-	return string(h.Sum([]byte(ID)))[:16]
+	m := md5.Sum([]byte(ID))
+	return fmt.Sprintf("%x", m)[:16]
 }
 
 func (v *Volume) Parse(u *url.URL) error {

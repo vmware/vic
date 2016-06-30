@@ -16,6 +16,7 @@ package vsphere
 
 import (
 	"math/rand"
+	"net/url"
 	"testing"
 	"time"
 
@@ -46,25 +47,48 @@ func Session(ctx context.Context, t *testing.T) *session.Session {
 	return s
 }
 
-func TestDatastoreSummary(t *testing.T) {
+// test if we can get a Datastore via the rooturl
+func TestDatastoreGetDatastores(t *testing.T) {
 	ctx, ds, cleanupfunc := dSsetup(t)
 	if t.Failed() {
 		return
 	}
 	defer cleanupfunc()
 
-	//fmt.Printf("ds.ds = %#v", ds.ds.Reference().Summary)
-	summary, err := ds.Summary(ctx)
+	firstSummary, err := ds.Summary(ctx)
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	t.Logf("Name:\t%s\n", summary.Name)
+	t.Logf("Name:\t%s\n", firstSummary.Name)
 	t.Logf("  Path:\t%s\n", ds.ds.InventoryPath)
-	t.Logf("  Type:\t%s\n", summary.Type)
-	t.Logf("  URL:\t%s\n", summary.Url)
-	t.Logf("  Capacity:\t%.1f GB\n", float64(summary.Capacity)/(1<<30))
-	t.Logf("  Free:\t%.1f GB\n", float64(summary.FreeSpace)/(1<<30))
+	t.Logf("  Type:\t%s\n", firstSummary.Type)
+	t.Logf("  URL:\t%s\n", firstSummary.Url)
+	t.Logf("  Capacity:\t%.1f GB\n", float64(firstSummary.Capacity)/(1<<30))
+	t.Logf("  Free:\t%.1f GB\n", float64(firstSummary.FreeSpace)/(1<<30))
+
+	inMap := make(map[string]*url.URL)
+
+	p, err := url.Parse(ds.RootURL)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	inMap["foo"] = p
+
+	dstores, err := GetDatastores(context.TODO(), ds.s, inMap)
+	if !assert.NoError(t, err) || !assert.NotNil(t, dstores) {
+		return
+	}
+
+	secondSummary, err := ds.Summary(ctx)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	if !assert.Equal(t, firstSummary, secondSummary) {
+		return
+	}
 }
 
 func TestDatastoreCreateDir(t *testing.T) {
