@@ -136,6 +136,7 @@ func (v *Validator) ListIssues() error {
 		return nil
 	}
 
+	log.Error("--------------------")
 	for _, err := range v.issues {
 		log.Error(err)
 	}
@@ -406,6 +407,31 @@ func (v *Validator) generateBridgeName(ctx, input *data.Data, conf *metadata.Vir
 	return input.DisplayName
 }
 
+func (v *Validator) checkSessionSet() []string {
+	var errs []string
+
+	if v.Session.Datastore == nil {
+		errs = append(errs, "datastore not set")
+	}
+	if v.Session.Cluster == nil {
+		errs = append(errs, "cluster not set")
+	}
+
+	return errs
+}
+
+func (v *Validator) sessionValid(errMsg string) bool {
+	if c := v.checkSessionSet(); len(c) > 0 {
+		log.Error(errMsg)
+		for _, e := range c {
+			log.Errorf("  %s", e)
+		}
+		v.NoteIssue(errors.New(errMsg))
+		return false
+	}
+	return true
+}
+
 func (v *Validator) firewall(ctx context.Context) {
 	defer trace.End(trace.Begin(""))
 
@@ -417,6 +443,11 @@ func (v *Validator) firewall(ctx context.Context) {
 		PortType:  types.HostFirewallRulePortTypeDst,
 		Protocol:  string(types.HostFirewallRuleProtocolTcp),
 		Direction: types.HostFirewallRuleDirectionOutbound,
+	}
+
+	errMsg := "Firewall check SKIPPED"
+	if !v.sessionValid(errMsg) {
+		return
 	}
 
 	if hosts, err = v.Session.Datastore.AttachedClusterHosts(ctx, v.Session.Cluster); err != nil {
@@ -497,6 +528,11 @@ func (v *Validator) firewall(ctx context.Context) {
 
 func (v *Validator) license(ctx context.Context) {
 	var err error
+
+	errMsg := "License check SKIPPED"
+	if !v.sessionValid(errMsg) {
+		return
+	}
 
 	if v.IsVC() {
 		if err = v.checkAssignedLicenses(ctx); err != nil {
@@ -630,6 +666,11 @@ func (v *Validator) isStandaloneHost() bool {
 
 // drs checks that DRS is enabled
 func (v *Validator) drs(ctx context.Context) {
+	errMsg := "DRS check SKIPPED"
+	if !v.sessionValid(errMsg) {
+		return
+	}
+
 	cl := v.Session.Cluster
 	ref := cl.Reference()
 
@@ -701,16 +742,8 @@ func (v *Validator) compatibility(ctx context.Context, conf *metadata.VirtualCon
 	defer trace.End(trace.Begin(""))
 
 	// TODO: add checks such as datastore is acessible from target cluster
-	if v.Session.Datastore == nil {
-		v.NoteIssue(errors.New("cannot perfom compatibility checks until datastore is correct"))
-	}
-
-	if v.Session.Cluster == nil {
-		// cluster is derived from compute resource
-		v.NoteIssue(errors.New("cannot perfom compatibility checks until compute resource is correct"))
-	}
-
-	if v.Session.Datastore == nil || v.Session.Cluster == nil {
+	errMsg := "Compatibility check SKIPPED"
+	if !v.sessionValid(errMsg) {
 		return
 	}
 
@@ -851,7 +884,7 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 
 		// if no path specified and no default available the show all
 		v.suggestComputeResource("*")
-		return nil, errors.New("no unambiguous default compute resource available so must be specified")
+		return nil, errors.New("No unambiguous default compute resource available: --compute-resource must be specified")
 	}
 
 	ipath := v.computePathToInventoryPath(path)
