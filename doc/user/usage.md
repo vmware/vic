@@ -80,4 +80,29 @@ INFO[2016-06-27T00:09:27Z] Completed successfully
 ```
 
 
+## Inspecting a Virtual Container Host
+
+Specify the same resource pool and VCH name used to create a VCH, vic-machine inspect can show the VCH information.
+
+```
+vic-machine-linux inspect --target target-host[/datacenter] --user root --password <password> --compute-resource <resource pool path> --name <vch-name>
+INFO[2016-06-29T16:03:17-05:00] ### Inspecting VCH ####
+INFO[2016-06-29T16:03:20-05:00]
+INFO[2016-06-29T16:03:20-05:00] VCH: <resource pool path>/<vch-name>
+INFO[2016-06-29T16:03:21-05:00]
+INFO[2016-06-29T16:03:21-05:00] SSH to appliance (default=root:password)
+INFO[2016-06-29T16:03:21-05:00] ssh root@x.x.x.x
+INFO[2016-06-29T16:03:21-05:00]
+INFO[2016-06-29T16:03:21-05:00] Log server:
+INFO[2016-06-29T16:03:21-05:00] https://x.x.x.x:2378
+INFO[2016-06-29T16:03:21-05:00]
+INFO[2016-06-29T16:03:21-05:00] DOCKER_HOST=x.x.x.x:2376
+INFO[2016-06-29T16:03:21-05:00] DOCKER_OPTS="-H x.x.x.x:2376"
+INFO[2016-06-29T16:03:21-05:00]
+INFO[2016-06-29T16:03:21-05:00] Connect to docker:
+INFO[2016-06-29T16:03:21-05:00] docker -H x.x.x.x:2376 info
+INFO[2016-06-29T16:03:21-05:00] Completed successfully
+```
+
+
 [Issues relating to Virtual Container Host deployment](https://github.com/vmware/vic/labels/component%2Fvic-machine)

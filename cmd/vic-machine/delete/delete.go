@@ -35,7 +35,6 @@ import (
 type Uninstall struct {
 	*data.Data
 
-	id      string
 	logfile string
 
 	executor *management.Dispatcher
@@ -50,24 +49,6 @@ func NewUninstall() *Uninstall {
 // Flags return all cli flags for delete
 func (d *Uninstall) Flags() []cli.Flag {
 	flags := []cli.Flag{
-		cli.StringFlag{
-			Name:        "id",
-			Value:       "",
-			Usage:       "The ID of the Virtual Container Host - not supported until vic-machine ls is ready",
-			Destination: &d.id,
-		},
-		cli.StringFlag{
-			Name:        "compute-resource, r",
-			Value:       "",
-			Usage:       "The compute resource containing the Virtual Container Host; default to /",
-			Destination: &d.ComputeResourcePath,
-		},
-		cli.StringFlag{
-			Name:        "name, n",
-			Value:       "docker-appliance",
-			Usage:       "The name of the Virtual Container Host to delete",
-			Destination: &d.DisplayName,
-		},
 		cli.BoolFlag{
 			Name:        "force, f",
 			Usage:       "Force the uninstall",
@@ -80,7 +61,9 @@ func (d *Uninstall) Flags() []cli.Flag {
 			Destination: &d.Timeout,
 		},
 	}
-	flags = append(d.TargetFlags(), flags...)
+	preFlags := append(d.TargetFlags(), d.IDFlags()...)
+	preFlags = append(preFlags, d.ComputeFlags()...)
+	flags = append(preFlags, flags...)
 	flags = append(flags, d.DebugFlags()...)
 
 	return flags
@@ -93,9 +76,8 @@ func (d *Uninstall) processParams() error {
 		return err
 	}
 
-	if d.id != "" {
-		log.Warnf("ID of Virtual Container Host is not supported until vic-machine ls is ready. For details, please refer github issue #810")
-		return cli.NewExitError("must specify --compute-resource and --name", 1)
+	if err := d.ProcessID(); err != nil {
+		return err
 	}
 
 	d.logfile = "delete.log"
@@ -138,7 +120,7 @@ func (d *Uninstall) Run(cli *cli.Context) error {
 	}
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, d.Force)
 
-	vch, err := executor.NewVCHFromComputePath(d.Data.ComputeResourcePath, d.Data.DisplayName)
+	vch, _, err := executor.NewVCHFromComputePath(d.Data.ComputeResourcePath, d.Data.DisplayName)
 	if err != nil {
 		log.Errorf("Failed to get Virtual Container Host %s", d.DisplayName)
 		return err
