@@ -86,7 +86,7 @@ func NewDatastore(ctx context.Context, s *session.Session, ds *object.Datastore,
 }
 
 // GetDatastores returns a map of datastores given a map of names and urls
-func GetDatastores(ctx context.Context, s *session.Session, dsURLs map[string]*url.URL) (map[string]*Datastore, error) {
+func GetDatastores(ctx context.Context, s *session.Session, dsURLs map[string]url.URL) (map[string]*Datastore, error) {
 	stores := make(map[string]*Datastore)
 
 	fm := object.NewFileManager(s.Vim25())
