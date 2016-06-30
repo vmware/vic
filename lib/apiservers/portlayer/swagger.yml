@@ -1026,10 +1026,14 @@ definitions:
         $ref: "#/definitions/HostConfig"
       processConfig:
         $ref: "#/definitions/ProcessConfig"
-      volumesConfig:
-        $ref: "#/definitions/VolumeConfig"
+      volumeConfig:
+        type: array
+        items:
+          $ref: "#/definitions/VolumeConfig"
       scopeConfig:
-        $ref: "#/definitions/ScopeConfig"
+        type: array
+        items:
+          $ref: "#/definitions/ScopeConfig"
   ContainerListInfo:
     type: object
     properties:
@@ -1076,6 +1080,7 @@ definitions:
         type: string
       restartCount:
         type: integer
+        format: int32
       hostName:
         type: string
       attachStdin:
@@ -1095,6 +1100,8 @@ definitions:
             type: integer
       openStdin:
         type: boolean
+      logPath:
+        type: string
       reservation:
         $ref: "#/definitions/ReservationConfig"
   ReservationConfig:
@@ -1120,12 +1127,13 @@ definitions:
     type: object
     properties:
       pid:
-        type: string
+        type: integer
+        format: int32
       execPath:
         type: string
       execArgs:
         type: string
-      workDir:
+      workingDir:
         type: string
       env:
         type: string
@@ -1139,12 +1147,18 @@ definitions:
         format: datetime
       exitCode:
         type: integer
+        format: int32
+      errorMsg:
+        type: string
   VolumeConfig:
     type: object
     properties:
-      mountLabel:
-        type: string
-      mountPoints:
+      label:
         type: array
         items:
           type: string
+      mountPoint:
+        type: string
+      readWrite:
+        type: boolean
+
