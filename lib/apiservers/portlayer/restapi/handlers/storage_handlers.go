@@ -21,26 +21,29 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-swagger/go-swagger/httpkit/middleware"
 	"github.com/go-swagger/go-swagger/swag"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
+
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 
 	spl "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/lib/portlayer/util"
-	"github.com/vmware/vic/pkg/trace"
+
+	"golang.org/x/net/context"
 )
 
 // StorageHandlersImpl is the receiver for all of the storage handler methods
 type StorageHandlersImpl struct{}
 
 var (
-	storageSession = &session.Session{}
-	storageLayer   = &spl.NameLookupCache{}
+	storageSession     = &session.Session{}
+	storageImageLayer  = &spl.NameLookupCache{}
+	storageVolumeLayer = &spl.VolumeLookupCache{}
 )
 
 // Configure assigns functions to all the storage api handlers
@@ -72,7 +75,16 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, hand
 	// The imagestore is implemented via a cache which is backed via an
 	// implementation that writes to disks.  The cache is used to avoid
 	// expensive metadata lookups.
-	storageLayer = spl.NewLookupCache(ds)
+	storageImageLayer = spl.NewLookupCache(ds)
+	//FIXME: this may need another viewing after ian/faiyaz's changes
+	vsVolumeStore, err := vsphere.NewVolumeStore(context.TODO(), storageSession)
+	if err != nil {
+		log.Panicf("Cannot instantiate the volume store: %s", err)
+	}
+	storageVolumeLayer, err = spl.NewVolumeLookupCache(context.TODO(), vsVolumeStore)
+	if err != nil {
+		log.Panicf("Cannot instantiate the Volume Lookup cache: %s", err)
+	}
 
 	api.StorageCreateImageStoreHandler = storage.CreateImageStoreHandlerFunc(handler.CreateImageStore)
 	api.StorageGetImageHandler = storage.GetImageHandlerFunc(handler.GetImage)
@@ -85,7 +97,7 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, hand
 
 // CreateImageStore creates a new image store
 func (handler *StorageHandlersImpl) CreateImageStore(params storage.CreateImageStoreParams) middleware.Responder {
-	url, err := storageLayer.CreateImageStore(context.TODO(), params.Body.Name)
+	url, err := storageImageLayer.CreateImageStore(context.TODO(), params.Body.Name)
 	if err != nil {
 		if os.IsExist(err) {
 			return storage.NewCreateImageStoreConflict().WithPayload(
@@ -118,7 +130,7 @@ func (handler *StorageHandlersImpl) GetImage(params storage.GetImageParams) midd
 			})
 	}
 
-	image, err := storageLayer.GetImage(context.TODO(), url, id)
+	image, err := storageImageLayer.GetImage(context.TODO(), url, id)
 	if err != nil {
 		e := &models.Error{Code: swag.Int64(http.StatusNotFound), Message: err.Error()}
 		return storage.NewGetImageNotFound().WithPayload(e)
@@ -143,7 +155,7 @@ func (handler *StorageHandlersImpl) ListImages(params storage.ListImagesParams) 
 			})
 	}
 
-	images, err := storageLayer.ListImages(context.TODO(), u, params.Ids)
+	images, err := storageImageLayer.ListImages(context.TODO(), u, params.Ids)
 	if err != nil {
 		return storage.NewListImagesNotFound().WithPayload(
 			&models.Error{
@@ -182,7 +194,7 @@ func (handler *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) 
 		meta = map[string][]byte{*params.Metadatakey: []byte(*params.Metadataval)}
 	}
 
-	image, err := storageLayer.WriteImage(context.TODO(), parent, params.ImageID, meta, params.Sum, params.ImageFile)
+	image, err := storageImageLayer.WriteImage(context.TODO(), parent, params.ImageID, meta, params.Sum, params.ImageFile)
 	if err != nil {
 		return storage.NewWriteImageDefault(http.StatusInternalServerError).WithPayload(
 			&models.Error{
@@ -197,8 +209,40 @@ func (handler *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) 
 //CreateVolume : Create a Volume
 func (handler *StorageHandlersImpl) CreateVolume(params storage.CreateVolumeParams) middleware.Responder {
 	defer trace.End(trace.Begin("storage_handlers.CreateVolume"))
-	//TODO: add more errorcodes as we identify error scenarios.
-	return storage.NewCreateVolumeCreated() //TODO this is just a stub for now.
+
+	//TODO: FIXME: add more errorcodes as we identify error scenarios.
+	storeURL, err := util.VolumeStoreNameToURL(params.VolumeRequest.Store)
+	if err != nil {
+		log.Errorf("storagehandler: VolumeStoreName error: %s", err)
+		return storage.NewCreateVolumeDefault(http.StatusInternalServerError).WithPayload(&models.Error{
+			Code:    swag.Int64(http.StatusInternalServerError),
+			Message: err.Error(),
+		})
+	}
+
+	byteMap := make(map[string][]byte)
+	for key, value := range params.VolumeRequest.Metadata {
+		byteMap[key] = []byte(value)
+	}
+
+	capacity := uint64(0)
+	if params.VolumeRequest.Capacity < 0 {
+		capacity = uint64(1) //FIXME: this should look for a default cap and set or fail here.
+	} else {
+		capacity = uint64(params.VolumeRequest.Capacity)
+	}
+
+	volume, err := storageVolumeLayer.VolumeCreate(context.TODO(), params.VolumeRequest.Name, storeURL, capacity*1024, byteMap)
+	if err != nil {
+		log.Errorf("storagehandler: VolumeCreate error: %s", err)
+		return storage.NewCreateVolumeDefault(http.StatusInternalServerError).WithPayload(&models.Error{
+			Code:    swag.Int64(http.StatusInternalServerError),
+			Message: err.Error(),
+		})
+	}
+
+	response := volumeToCreateResponse(volume, params.VolumeRequest)
+	return storage.NewCreateVolumeCreated().WithPayload(&response)
 }
 
 //RemoveVolume : Remove a Volume from existence
@@ -236,4 +280,17 @@ func convertImage(image *spl.Image) *models.Image {
 		Metadata: meta,
 		Store:    image.Store.String(),
 	}
+}
+
+//utility functions
+
+func volumeToCreateResponse(volume *spl.Volume, model *models.VolumeRequest) models.VolumeResponse {
+	response := models.VolumeResponse{
+		Driver:   model.Driver,
+		Name:     volume.ID,
+		Label:    volume.Label,
+		Store:    model.Store,
+		Metadata: model.Metadata,
+	}
+	return response
 }

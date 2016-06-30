@@ -249,6 +249,8 @@ paths:
             $ref: "#/definitions/VolumeResponse"
         '500':
           description: "Error"
+          $schema:
+            $ref: "#/definitions/Error"
         default:
           description: "error"
           schema:
@@ -999,13 +1001,13 @@ definitions:
     type: object
     required:
       - Name
-      - SelfLink
+      - Label
       - Store
       - Driver
     properties:
       Name:
         type: string
-      SelfLink:
+      Label:
         type: string
       Driver:
         type: string

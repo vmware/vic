@@ -28,10 +28,12 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-//NOTE: These might be moved to a utility package once there are multiple personalities
-const optsVolumeStoreKey string = "VolumeStore"
-const optsCapacityKey string = "Capacity"
-const dockerMetadataModelKey string = "DockerMetaData"
+//NOTE: FIXME: These might be moved to a utility package once there are multiple personalities
+const (
+	OptsVolumeStoreKey     string = "VolumeStore"
+	OptsCapacityKey        string = "Capacity"
+	dockerMetadataModelKey string = "DockerMetaData"
+)
 
 //Volume : struct which defines the docker personalities view of a Volume
 type Volume struct {
@@ -114,21 +116,21 @@ func fillDockerVolumeModel(volume *models.VolumeResponse, labels map[string]stri
 		Driver:     volume.Driver,
 		Name:       volume.Name,
 		Labels:     labels,
-		Mountpoint: volume.SelfLink,
+		Mountpoint: volume.Label,
 	}
 	return &dockerVol
 }
 
 func validateDriverArgs(args map[string]string, model *models.VolumeRequest) error {
 	//volumestore name validation
-	storeName, ok := args[optsVolumeStoreKey]
+	storeName, ok := args[OptsVolumeStoreKey]
 	if !ok {
 		storeName = "default"
 	}
 	model.Store = storeName
 
 	//capacity validation
-	capstr, ok := args[optsCapacityKey]
+	capstr, ok := args[OptsCapacityKey]
 	if !ok {
 		model.Capacity = -1
 		return nil
