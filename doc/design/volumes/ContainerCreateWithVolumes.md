@@ -34,3 +34,32 @@ docker create -v "name:/mnt/pnt:<some basic opts>"
 __NOTE:__ : in MountPoint for the volume metadata(docker perspective) we need to include something that says "Mountpoint is a block device" or something along those lines.
 
 
+### Join call for attaching a volume to a vm
+
+This call, which will be implemented in the volume portion of the storage layer within the portlayer srever, will involve a config spec change. The three things needed for this call are the handle to the container, a filled volume struct, and the driver options for the device addition(such as rw/ro). We will add a value to the extraconfig->executorConfig which will append a new Mountspec for the device to be mounted. The Op type will be an "Add"
+
+
+```
+[]DeviceChange{
+    op:Add,
+    state(?):exists,
+    VirtualDevice{
+    file:<vmdkPath->(should come from volume struct)>
+    }
+}
+
+[]Extraconfig.append{
+    executorConfig:
+        label:<generated on creation, should be md5 sum>
+        MountPoint:<where to mount the vmdk in the container>
+}
+
+```
+
+The function signature should look as such
+
+```
+func (v *VolumeStore) Join(container_handle *Handle, volume *Volume, diskOpts map[string]string)
+```
+
+this will be added to the VolumeStore interface that is in Faiyaz's PR # 1196 - Volumes on vSphere

@@ -46,6 +46,8 @@ type VolumeStorer interface {
 
 	// Lists all volumes
 	VolumesList(ctx context.Context) ([]*Volume, error)
+
+	//Modifies the config spec of a container to attach a volume
 }
 
 // Volume is the handle to identify a volume on the backing store.  The URI

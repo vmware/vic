@@ -18,6 +18,8 @@ import (
 	"net/http"
 	"os"
 
+	// "github.com/google/uuid"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-swagger/go-swagger/httpkit/middleware"
 	"github.com/go-swagger/go-swagger/swag"
@@ -30,6 +32,7 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 
+	epl "github.com/vmware/vic/lib/portlayer/exec"
 	spl "github.com/vmware/vic/lib/portlayer/storage"
 	vsphereSpl "github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/lib/portlayer/util"
@@ -297,6 +300,31 @@ func convertImage(image *spl.Image) *models.Image {
 		Metadata: meta,
 		Store:    image.Store.String(),
 	}
+}
+
+func (handler *StorageHandlersImpl) VolumeJoin(params *storage.VolumeJoinParams) middleware.Responder {
+	actualHandle := epl.GetHandle(params.JoinArgs.Handle)
+
+	//Note: Name should already be populated by now.
+	//FIXME: Report Proper Errorcodes for the found errors. e.g. ResourceNotFound
+	volume, err := storageVolumeLayer.VolumeGet(context.TODO(), params.Name)
+	if err != nil {
+		log.Errorf("Volumes: StorageHandler : %#v", err)
+		return storage.NewVolumeJoinInternalServerError().WithPayload(&models.Error{
+			Code:    swag.Int64(http.StatusInternalServerError),
+			Message: err.Error(),
+		})
+	}
+
+	actualHandle, err = vsphere.VolumeJoin(context.TODO(), actualHandle, volume, params.JoinArgs.Flags)
+	if err != nil {
+		log.Errorf("Volumes: StorageHandler : %#v", err)
+		return storage.NewVolumeJoinInternalServerError().WithPayload(&models.Error{
+			Code:    swag.Int64(http.StatusInternalServerError),
+			Message: err.Error(),
+		})
+	}
+	return storage.NewVolumeJoinOK().WithPayload(actualHandle.String())
 }
 
 //utility functions

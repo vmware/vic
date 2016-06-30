@@ -305,6 +305,38 @@ paths:
           description: "Server Error"
           schema:
             $ref: "#/definitions/Error"
+    post:
+      description: "Attach a volume to a container"
+      operationId: VolumeJoin
+      tags: ["storage"]
+      consumes:
+        - application/json
+        - application/octet-stream
+      produces:
+        - application/json
+      parameters:
+        - name: name
+          required: true
+          type: string
+          in: path
+        - name: JoinArgs
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/VolumeJoinConfig"
+      responses:
+        '200':
+          description: "OK"
+          schema:
+            type: string
+        '500':
+          description: "ServerError"
+          schema:
+            $ref: "#/definitions/Error"
+        default:
+          description: "error"
+          schema:
+            $ref: "#/definitions/Error"
   /scopes:
     post:
       summary: "Create a new scope"
@@ -1025,6 +1057,19 @@ definitions:
         type: object
         additionalProperties:
           type: string
+  VolumeJoinConfig:
+    type: object
+    required:
+      - Handle
+      - Flags
+    properties:
+      Handle:
+        type: string
+      Flags:
+        type: object
+        additionalProperties:
+          type: string
+
 
   # The following definitions are definitions used to get container information
   ContainerInfo:
