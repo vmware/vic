@@ -46,7 +46,7 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *metadata.VirtualCo
 
 	d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.String()
 	log.Debug("IP address for client interface: %s", d.HostIP)
-	if conf.HostCertificate != nil {
+	if !conf.HostCertificate.IsNil() {
 		d.VICAdminProto = "https"
 		d.DockerPort = "2376"
 	} else {
@@ -67,7 +67,7 @@ func (d *Dispatcher) ShowVCH(conf *metadata.VirtualContainerHostConfigSpec, key 
 	log.Infof("")
 	tls := ""
 
-	if conf.HostCertificate != nil {
+	if !conf.HostCertificate.IsNil() {
 		// if we're generating then there's no CA currently
 		if len(conf.CertificateAuthorities) > 0 && key != "" {
 			tls = fmt.Sprintf(" --tls --tlscert='%s' --tlskey='%s'", cert, key)
