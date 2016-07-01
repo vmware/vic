@@ -173,3 +173,19 @@ func (d *Dispatcher) getVCHRootDir(vchVM *vm.VirtualMachine) (string, error) {
 	}
 	return path.Join(parent, uuid), nil
 }
+
+func (d *Dispatcher) createVolumeStores(conf *metadata.VirtualContainerHostConfigSpec) error {
+	for _, url := range conf.VolumeLocations {
+		ds, err := d.session.Finder.Datastore(d.ctx, url.Host)
+		if err != nil {
+			return errors.Errorf("Could not retrieve datastore with host %s due to error %s", url.Host, err)
+		}
+		nds, err := vsphere.NewDatastore(d.ctx, d.session, ds, url.Path)
+		if err != nil {
+			return errors.Errorf("Could not create volume store due to error: %s", err)
+		}
+		// FIXME: (GitHub Issue #1301) this is not valid URL syntax and should be translated appropriately when time allows
+		url.Path = nds.RootURL
+	}
+	return nil
+}

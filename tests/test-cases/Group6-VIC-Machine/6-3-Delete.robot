@@ -2,9 +2,10 @@
 Documentation  Test 6-3 - Verify delete clean up all resources
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server  false
+Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
-Test
+Initial load
     # Create container VM first
     Log To Console  \nRunning docker pull busybox...
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
@@ -17,10 +18,13 @@ Test
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container-id}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
-
+    Set Suite Variable  ${containerID}  ${container-id}
+    
+Delete VCH and verify
     # Get VCH uuid and container VM uuid, to check if resources are removed correctly
+    Run Keyword And Ignore Error  Gather Logs From Test Server
     ${uuid}=  Run  govc vm.info -json\=true ${vch-name} | jq -r '.VirtualMachines[0].Config.Uuid'
-    Run  govc vm.power -on=true ${container-id}
+    Run  govc vm.power -on=true ${containerID}
     ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name ${vch-name}
     Should Contain  ${ret}  is powered on
 
@@ -29,7 +33,7 @@ Test
     Should Contain  ${ret}  Completed successfully
 
     # Check VM is removed
-    ${ret}=  Run  govc vm.info -json=true ${container-id}
+    ${ret}=  Run  govc vm.info -json=true ${containerID}
     Should Contain  ${ret}  {"VirtualMachines":null}
     ${ret}=  Run  govc vm.info -json=true ${vch-name}
     Should Contain  ${ret}  {"VirtualMachines":null}
@@ -39,7 +43,7 @@ Test
     Should Contain  ${ret}   was not found
     ${ret}=  Run  govc datastore.ls ${vch-name}
     Should Contain  ${ret}   was not found
-    ${ret}=  Run  govc datastore.ls VIC/${container-id}
+    ${ret}=  Run  govc datastore.ls VIC/${containerID}
     Should Contain  ${ret}   was not found
 
     # Check resource pool is removed

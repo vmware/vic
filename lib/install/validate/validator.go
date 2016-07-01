@@ -59,6 +59,7 @@ type Validator struct {
 }
 
 func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
+	defer trace.End(trace.Begin(""))
 	var err error
 
 	v := &Validator{}
@@ -228,12 +229,32 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *metadat
 	defer trace.End(trace.Begin(""))
 
 	// Image Store
-	ds, err := v.DatastoreHelper(ctx, input.ImageDatastoreName)
+	log.Infof("%s", input.ImageDatastoreName)
+	imageDSpath, ds, err := v.DatastoreHelper(ctx, input.ImageDatastoreName)
 	v.NoteIssue(err)
-	conf.AddImageStore(ds)
+	if ds == nil {
+		log.Errorf("Datastore for images is nil")
+		return
+	}
+	v.SetDatastore(ds, imageDSpath)
+	conf.AddImageStore(imageDSpath)
+
+	if conf.VolumeLocations == nil {
+		conf.VolumeLocations = make(map[string]*url.URL)
+	}
 
 	// TODO: add volume locations
+	for label, volDSpath := range input.VolumeLocations {
 
+		dsURL, _, err := v.DatastoreHelper(ctx, volDSpath)
+		v.NoteIssue(err)
+		if err != nil {
+			log.Errorf("Validator could not look up volume datastore due to error: %s", err)
+			return
+		}
+		conf.VolumeLocations[label] = dsURL
+
+	}
 }
 
 func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
@@ -826,28 +847,31 @@ func (v *Validator) dpgHelper(ctx context.Context, path string) (string, error) 
 	return moref.String(), nil
 }
 
-func (v *Validator) DatastoreHelper(ctx context.Context, path string) (*url.URL, error) {
+func (v *Validator) DatastoreHelper(ctx context.Context, path string) (*url.URL, *object.Datastore, error) {
 	defer trace.End(trace.Begin(path))
 
 	dsURL, err := url.Parse(path)
 	if err != nil {
-		// try treating it as a plain path
-		pathElements := strings.Split(path, "/")
-		if pathElements[0] == "" {
-			// TODO: error about requiring datastore path and how to get a datastore list
-			return nil, errors.New("requires datastore name")
-		}
-
-		dsURL.Scheme = "ds://"
-		dsURL.Host = pathElements[0]
-		dsURL.Path = strings.Join(pathElements[1:], "/")
+		return nil, nil, errors.Errorf("parsing error occured while parsing datastore path: %s", err)
 	}
+
+	if dsURL.Scheme != "" && dsURL.Scheme != "ds://" {
+		return nil, nil, errors.New("bad scheme provided for datastore")
+	}
+
+	dsURL.Scheme = "ds://"
 
 	// if a datastore name (e.g. "datastore1") is specifed with no decoration then this
 	// is interpreted as the Path
 	if dsURL.Host == "" && dsURL.Path != "" {
-		dsURL.Host = dsURL.Path
-		dsURL.Path = ""
+		pathElements := strings.SplitN(path, "/", 2)
+		dsURL.Host = pathElements[0]
+		if len(pathElements) > 1 {
+			dsURL.Path = pathElements[1]
+		}
+	}
+	if dsURL.Host == "" {
+		return nil, nil, errors.New("datastore hostname came back empty")
 	}
 
 	stores, err := v.Session.Finder.DatastoreList(ctx, dsURL.Host)
@@ -855,21 +879,23 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string) (*url.URL,
 		log.Debugf("no such datastore %#v", dsURL)
 		// TODO: error message about no such match and how to get a datastore list
 		// we return err directly here so we can check the type
-		return nil, err
+		return nil, nil, err
 	}
 	if len(stores) > 1 {
 		// TODO: error about required disabmiguation and list entries in nets
-		return nil, errors.New("ambiguous datastore " + dsURL.Host)
+		return nil, nil, errors.New("ambiguous datastore " + dsURL.Host)
 	}
 
 	// temporary until session is extracted
-	v.Session.Datastore = stores[0]
-	v.Session.DatastorePath = dsURL.Host
-
 	// FIXME: commented out until components can consume moid
 	// dsURL.Host = stores[0].Reference().Value
 
-	return dsURL, nil
+	return dsURL, stores[0], nil
+}
+
+func (v *Validator) SetDatastore(ds *object.Datastore, path *url.URL) {
+	v.Session.Datastore = ds
+	v.Session.DatastorePath = path.Host
 }
 
 func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*object.ResourcePool, error) {

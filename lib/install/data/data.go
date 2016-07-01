@@ -28,21 +28,22 @@ import (
 type Data struct {
 	*common.Target
 	common.Debug
+	common.Compute
+	common.VCHID
 
 	Insecure bool
 
 	CertPEM []byte
 	KeyPEM  []byte
 
-	ComputeResourcePath string
-	ImageDatastoreName  string
-	DisplayName         string
-
+	ImageDatastoreName     string
+	VolumeLocations        map[string]string
 	ContainerDatastoreName string
-	ExternalNetworkName    string
-	ManagementNetworkName  string
-	BridgeNetworkName      string
-	ClientNetworkName      string
+
+	ExternalNetworkName   string
+	ManagementNetworkName string
+	BridgeNetworkName     string
+	ClientNetworkName     string
 
 	MappedNetworks         map[string]string
 	MappedNetworksGateways map[string]net.IPNet

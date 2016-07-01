@@ -91,7 +91,7 @@ type VirtualContainerHostConfigSpec struct {
 	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
 	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores"`
 	// Permitted datastore URL roots for volumes
-	VolumeLocations map[string]url.URL `vic:"0.1" scope:"read-only"`
+	VolumeLocations map[string]*url.URL `vic:"0.1" scope:"read-only"`
 
 	////////////// Port Layer - network
 	// The network to use by default to provide access to the world
@@ -213,9 +213,14 @@ func (t *VirtualContainerHostConfigSpec) AddImageStore(url *url.URL) {
 	}
 }
 
-func (t *VirtualContainerHostConfigSpec) AddVolumeLocation(name string, url *url.URL) {
-	if url != nil {
-		t.VolumeLocations[name] = *url
+func (t *VirtualContainerHostConfigSpec) AddVolumeLocation(name string, u *url.URL) {
+
+	if u != nil {
+		if t.VolumeLocations == nil {
+			t.VolumeLocations = make(map[string]*url.URL)
+		}
+
+		t.VolumeLocations[name] = u
 	}
 }
 
