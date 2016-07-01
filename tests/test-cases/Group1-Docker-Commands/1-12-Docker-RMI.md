@@ -16,18 +16,22 @@ This test requires that a vSphere server is running and available
 3. Issue docker rmi busybox to the VIC appliance
 4. Issue docker pull busybox to the VIC appliance
 5. Issue docker create busybox /bin/top to the VIC appliance
-6. Issue docker rmi busybox to the VIC appliance
-7. Issue docker rmi -f busybox to the VIC appliance
-8. Issue docker rmi fakeImage to the VIC appliance
+6. Issue docker rm <containerID> to the VIC appliance
+7. Issue docker rmi busybox to the VIC appliance
+8. Issue docker pull busybox to the VIC appliance
+9. Issue docker create busybox /bin/top to the VIC appliance
+10. Issue docker rmi busybox to the VIC appliance
+11. Issue docker rmi -f busybox to the VIC appliance
+12. Issue docker rmi fakeImage to the VIC appliance
 
 #Expected Outcome:
-* Step 3 should result in success and the image should be removed from inventory
-* Step 6 should result in failure and the error message below:  
+* Step 3 and 7 should result in success and the image should be removed from inventory
+* Step 10 should result in failure and the error message below:  
 ```
 Failed to remove image (busybox): Error response from daemon: conflict: unable to remove repository reference "busybox" (must force) - container 6a26c7deb9b7 is using its referenced image 47bcc53f74dc
 ```
-* Step 7 should result in success and the image should be removed from inventory
-* Step 8 should result in an error with the following message:  
+* Step 11 should result in success and the image should be removed from inventory
+* Step 12 should result in an error with the following message:  
 ```
 Failed to remove image (fakeImage): Error response from daemon: No such image: fakeImage:latest
 ```
