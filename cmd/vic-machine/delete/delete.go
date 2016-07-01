@@ -120,7 +120,7 @@ func (d *Uninstall) Run(cli *cli.Context) error {
 	}
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, d.Force)
 
-	vch, _, err := executor.NewVCHFromComputePath(d.Data.ComputeResourcePath, d.Data.DisplayName)
+	vch, _, err := executor.NewVCHFromComputePath(d.Data.ComputeResourcePath, d.Data.DisplayName, validator)
 	if err != nil {
 		log.Errorf("Failed to get Virtual Container Host %s", d.DisplayName)
 		return err
