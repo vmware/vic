@@ -5,6 +5,7 @@ Library  Collections
 Library  requests
 Library  Process
 Library  SSHLibrary  1 minute  prompt=bash-4.1$
+Library  DateTime
 
 *** Variables ***
 ${bin-dir}  /drone/src/github.com/vmware/vic/bin

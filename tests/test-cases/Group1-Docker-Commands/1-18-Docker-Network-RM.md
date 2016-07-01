@@ -20,10 +20,12 @@ This test requires that a vSphere server is running and available
 7. Issue docker rm test-network to the VIC appliance
 8. Issue docker network create test-network
 9. Issue docker create busybox /bin/top
-10. Issue docker start <containerID>
-11. Issue docker network rm test-network
-12. Issue docker kill <containerID>
-13. Issue docker network rm test-network
+10. Issue docker network connect test-network <containerID>
+11. Issue docker start <containerID>
+12. Issue docker network rm test-network
+13. Issue docker stop <containerID>
+14. Issue docker rm <containerID>
+15. Issue docker network rm test-network
 
 #Expected Outcome:
 * Steps 5 and 6 should completely successfully and all three network should be removed
@@ -31,11 +33,11 @@ This test requires that a vSphere server is running and available
 ```
 Error response from daemon: network test-network not found
 ```
-* Step 11 should result in an error with the following message:
+* Step 12 should result in an error with the following message:
 ```
 Error response from daemon: network test-network has active endpoints
 ```
-* Step 13 should result in success and the network should be removed
+* Step 15 should result in success and the network should be removed
 
 #Possible Problems:
 None

@@ -13,12 +13,12 @@ This test requires that a vSphere server is running and available
 #Test Steps:
 1. Deploy VIC appliance to vSphere server
 2. Issue docker create -it busybox /bin/top to the VIC appliance
-3. Issue docker start busybox <containerID> to the VIC appliance
+3. Issue docker start <containerID> to the VIC appliance
 4. Issue docker attach <containerID> to the VIC appliance
 5. Issue ctrl-p then ctrl-q to the container
 6. Issue docker create -it busybox /bin/top to the VIC appliance
 7. Issue docker attach <containerID>
-8. Issue docker start busybox <containerID> to the VIC appliance
+8. Issue docker start <containerID> to the VIC appliance
 9. Issue docker attach --detach-keys="a" <containerID> to the VIC appliance
 10. Issue 'a' to the container
 11. Attempt to reattach to the the same container a second time 

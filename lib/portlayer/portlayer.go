@@ -103,5 +103,8 @@ func Init(ctx context.Context, sess *session.Session) error {
 		n.PortGroup = r.(object.NetworkReference)
 	}
 
+	// Grab the storage layer config blobs from extra config
+	extraconfig.Decode(source, &storage.Config)
+	log.Debugf("Decoded VCH config for storage: %#v", storage.Config)
 	return nil
 }
