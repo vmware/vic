@@ -82,6 +82,8 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string) (*vm
 		Context: d.ctx,
 	}
 
+	v.DatacenterPath = d.session.Datacenter.InventoryPath
+	v.IsVC = v.Session.IsVC()
 	parent, err := v.ResourcePoolHelper(d.ctx, computePath)
 	if err != nil {
 		return nil, "", err

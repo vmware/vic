@@ -54,7 +54,7 @@ type Validator struct {
 	Session *session.Session
 	Context context.Context
 
-	isVC   bool
+	IsVC   bool
 	issues []error
 }
 
@@ -106,7 +106,7 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 	}
 
 	// cached here to allow a modicum of testing while session is still in use.
-	v.isVC = v.Session.IsVC()
+	v.IsVC = v.Session.IsVC()
 	finder := find.NewFinder(v.Session.Client.Client, false)
 	v.Session.Finder = finder
 
@@ -316,7 +316,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 	endpointMoref, err := v.dpgHelper(ctx, input.BridgeNetworkName)
 	netMoref := endpointMoref
 	if err != nil {
-		if _, ok := err.(*find.NotFoundError); !ok || v.IsVC() {
+		if _, ok := err.(*find.NotFoundError); !ok || v.IsVC {
 			v.NoteIssue(fmt.Errorf("An existing distributed port group must be specified for bridge network on vCenter: %s", err))
 		}
 
@@ -519,7 +519,7 @@ func (v *Validator) firewall(ctx context.Context) {
 func (v *Validator) license(ctx context.Context) {
 	var err error
 
-	if v.IsVC() {
+	if v.IsVC {
 		if err = v.checkAssignedLicenses(ctx); err != nil {
 			v.NoteIssue(err)
 			return
@@ -684,7 +684,7 @@ func (v *Validator) target(ctx context.Context, input *data.Data, conf *metadata
 	defer trace.End(trace.Begin(""))
 
 	targetURL := input.Target.URLWithoutPassword()
-	if !v.IsVC() {
+	if !v.IsVC {
 		var err error
 		targetURL, err = url.Parse(v.Session.Service)
 		if err != nil {
@@ -776,7 +776,7 @@ func (v *Validator) dpgMorefHelper(ctx context.Context, ref string) (string, err
 
 	// ensure that the type of the network is a Distributed Port Group if the target is a vCenter
 	// if it's not then any network suffices
-	if v.IsVC() {
+	if v.IsVC {
 		_, dpg := net.(*object.DistributedVirtualPortgroup)
 		if !dpg {
 			return "", fmt.Errorf("%s is not a Distributed Port Group", ref)
@@ -803,7 +803,7 @@ func (v *Validator) dpgHelper(ctx context.Context, path string) (string, error) 
 
 	// ensure that the type of the network is a Distributed Port Group if the target is a vCenter
 	// if it's not then any network suffices
-	if v.IsVC() {
+	if v.IsVC {
 		_, dpg := nets[0].(*object.DistributedVirtualPortgroup)
 		if !dpg {
 			return "", fmt.Errorf("%s is not a Distributed Port Group", path)
@@ -1050,7 +1050,7 @@ func (v *Validator) computePathToInventoryPath(path string) string {
 	path = strings.TrimPrefix(path, "/")
 
 	// if it's vCenter the first element is the cluster or host, then resource pool path
-	if v.IsVC() {
+	if v.IsVC {
 		pElem := strings.SplitN(path, "/", 2)
 		if pElem[0] != "" {
 			parts[2] = pElem[0]
@@ -1112,10 +1112,6 @@ func (v *Validator) inventoryPathToCluster(path string) string {
 
 	// /dc/host/cluster/Resources/path/to/pool
 	return strings.Join(pElems[:4], "/")
-}
-
-func (v *Validator) IsVC() bool {
-	return v.isVC
 }
 
 func (v *Validator) GetResourcePool(input *data.Data) (*object.ResourcePool, error) {
