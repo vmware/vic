@@ -76,7 +76,7 @@ ln -s /etc/systemd/system/launcher.service $(rootfs_dir $PKGDIR)/etc/systemd/sys
 cp ${BIN}/imagec $(rootfs_dir $PKGDIR)/sbin/imagec.bin
 cp ${BIN}/{docker-engine-server,port-layer-server,rpctool,vicadmin} $(rootfs_dir $PKGDIR)/sbin/
 
-# make sure we do not use dhcp
+# do not use the systemd dhcp client
 rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
 cp ${DIR}/base/no-dhcp.network $(rootfs_dir $PKGDIR)/etc/systemd/network/
 

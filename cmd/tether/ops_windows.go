@@ -24,7 +24,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	winserial "github.com/tarm/serial"
-	"github.com/vmware/vic/lib/dhcp"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
@@ -33,8 +32,7 @@ import (
 type operations struct {
 	tether.BaseOperations
 
-	logging    bool
-	dhcpClient dhcp.Client
+	logging bool
 }
 
 var backchannelMode = os.ModePerm

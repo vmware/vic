@@ -45,7 +45,7 @@ const pciDevPath = "/sys/bus/pci/devices"
 
 type BaseOperations struct {
 	dhcpClient   dhcp.Client
-	dhcpLoops    []chan bool
+	dhcpLoops    map[string]chan bool
 	hosts        etcconf.Hosts
 	resolvConf   etcconf.ResolvConf
 	dynEndpoints map[string][]*NetworkEndpoint
@@ -428,14 +428,12 @@ func (t *BaseOperations) Apply(endpoint *NetworkEndpoint) error {
 
 	var newIP *net.IPNet
 
-	if endpoint.IsDynamic() {
+	if endpoint.IsDynamic() && endpoint.DHCP == nil {
 		if e, ok := t.dynEndpoints[endpoint.ID]; ok {
 			// endpoint shares NIC, copy over DHCP
 			endpoint.DHCP = e[0].DHCP
 		}
 	}
-
-	isRenew := endpoint.DHCP != nil
 
 	log.Debugf("%+v", endpoint)
 	if endpoint.IsDynamic() {
@@ -505,10 +503,12 @@ func (t *BaseOperations) Apply(endpoint *NetworkEndpoint) error {
 	}
 
 	// add renew/release loop if necessary
-	if !isRenew && ack != nil {
-		stop := make(chan bool)
-		go t.dhcpLoop(stop, endpoint, ack)
-		t.dhcpLoops = append(t.dhcpLoops, stop)
+	if ack != nil {
+		if _, ok := t.dhcpLoops[endpoint.ID]; !ok {
+			stop := make(chan bool)
+			go t.dhcpLoop(stop, endpoint, ack)
+			t.dhcpLoops[endpoint.ID] = stop
+		}
 	}
 
 	return nil
@@ -528,12 +528,12 @@ func (t *BaseOperations) dhcpLoop(stop chan bool, e *NetworkEndpoint, ack *dhcp.
 			log.Infof("renewing IP address for network %s", e.Name)
 			newack, err := t.dhcpClient.Renew(ack)
 			if err != nil {
-				log.Errorf("failed to renew ip address for network %s", e.Name)
+				log.Errorf("failed to renew ip address for network %s: %s", e.Name, err)
 				continue
 			}
 
-			log.Infof("successfully renewed ip address: %s", newack.YourIP())
 			ack = newack
+			log.Infof("successfully renewed ip address: IP=%s, SubnetMask=%s, Gateway=%s, DNS=%s, Lease Time=%s", ack.YourIP(), ack.SubnetMask(), ack.Gateway(), ack.DNS(), ack.LeaseTime())
 
 			e.DHCP = &DHCPInfo{
 				Assigned:    net.IPNet{IP: ack.YourIP(), Mask: ack.SubnetMask()},
@@ -544,6 +544,10 @@ func (t *BaseOperations) dhcpLoop(stop chan bool, e *NetworkEndpoint, ack *dhcp.
 			t.Apply(e)
 			// update any endpoints that share this NIC
 			for _, d := range t.dynEndpoints[e.ID] {
+				if e == d {
+					continue
+				}
+
 				d.DHCP = e.DHCP
 				t.Apply(d)
 			}
@@ -660,7 +664,7 @@ func (t *BaseOperations) Setup(sink ConfigSink) error {
 	}
 
 	t.dynEndpoints = make(map[string][]*NetworkEndpoint)
-
+	t.dhcpLoops = make(map[string]chan bool)
 	t.dhcpClient = c
 	t.hosts = h
 	t.resolvConf = rc

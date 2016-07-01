@@ -41,11 +41,7 @@ func (t *operations) Setup(sink tether.ConfigSink) error {
 }
 
 func (t *operations) Cleanup() error {
-	if err := t.BaseOperations.Cleanup(); err != nil {
-		return err
-	}
-
-	return nil
+	return t.BaseOperations.Cleanup()
 }
 
 func (t *operations) Apply(endpoint *tether.NetworkEndpoint) error {

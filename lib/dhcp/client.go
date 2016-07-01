@@ -46,8 +46,7 @@ type Client interface {
 type client struct {
 	sync.Mutex
 
-	timeout    time.Duration
-	dhcpClient *dhcp4client.Client
+	timeout time.Duration
 }
 
 // The default timeout for the client
@@ -55,14 +54,7 @@ const defaultTimeout = 10 * time.Second
 
 // NewClient creates a new DHCP client. Note the returned object is not thread-safe.
 func NewClient() (Client, error) {
-	// create the UDP connection; this is used
-	// for renew and release requests.
-	c, err := dhcp4client.New()
-	if err != nil {
-		return nil, err
-	}
-
-	return &client{timeout: defaultTimeout, dhcpClient: c}, nil
+	return &client{timeout: defaultTimeout}, nil
 }
 
 func (c *client) SetTimeout(t time.Duration) error {
@@ -117,21 +109,37 @@ func (c *client) Request(linkIndex int, hw net.HardwareAddr) (*Packet, error) {
 	}, nil
 }
 
+func (c *client) newClient(ack *Packet) (*dhcp4client.Client, error) {
+	conn, err := dhcp4client.NewInetSock(dhcp4client.SetRemoteAddr(net.UDPAddr{IP: ack.ServerIP(), Port: 67}))
+	if err != nil {
+		return nil, err
+	}
+
+	cl, err := dhcp4client.New(dhcp4client.Connection(conn), dhcp4client.Timeout(c.timeout))
+	if err != nil {
+		return nil, err
+	}
+
+	return cl, nil
+}
+
 func (c *client) Renew(ack *Packet) (*Packet, error) {
 	c.Lock()
 	defer c.Unlock()
 
 	log.Debugf("renewing IP %s", ack.YourIP())
 
-	if err := c.dhcpClient.SetOption(dhcp4client.Timeout(c.timeout)); err != nil {
+	cl, err := c.newClient(ack)
+	if err != nil {
 		return nil, err
 	}
+	defer cl.Close()
 
 	success := false
 	var p dhcp4.Packet
-	err := withRetry(func() error {
+	err = withRetry(func() error {
 		var err error
-		success, p, err = c.dhcpClient.Renew(dhcp4.Packet(ack.packet))
+		success, p, err = cl.Renew(dhcp4.Packet(ack.packet))
 		return err
 	})
 
@@ -154,18 +162,14 @@ func (c *client) Release(ack *Packet) error {
 	defer c.Unlock()
 
 	log.Debugf("releasing IP %s", ack.YourIP())
-	if err := c.dhcpClient.SetOption(dhcp4client.Timeout(c.timeout)); err != nil {
+
+	cl, err := c.newClient(ack)
+	if err != nil {
 		return err
 	}
+	defer cl.Close()
 
 	return withRetry(func() error {
-		return c.dhcpClient.Release(dhcp4.Packet(ack.packet))
+		return cl.Release(dhcp4.Packet(ack.packet))
 	})
-}
-
-func (c *client) Close() error {
-	c.Lock()
-	defer c.Unlock()
-
-	return c.dhcpClient.Close()
 }

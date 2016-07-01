@@ -19,7 +19,6 @@ import (
 	"io"
 	_ "net/http/pprof"
 
-	"github.com/vmware/vic/lib/dhcp"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 )
@@ -27,8 +26,7 @@ import (
 type operations struct {
 	tether.BaseOperations
 
-	logging    bool
-	dhcpClient dhcp.Client
+	logging bool
 }
 
 func (t *operations) Log() (io.Writer, error) {
