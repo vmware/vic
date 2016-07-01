@@ -206,7 +206,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringSliceFlag{
 			Name:  "volume-store",
 			Value: &c.volumeStores,
-			Usage: "Specify location and label for volume store; path optional: \"label:datastore:path\" or \"label:datastore\"",
+			Usage: "Specify location and label for volume store; path optional: \"label:datastore/path\" or \"label:datastore\"",
 		},
 	}
 	preFlags := append(c.TargetFlags(), c.ComputeFlags()...)
