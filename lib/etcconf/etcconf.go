@@ -30,8 +30,8 @@ type EntryConsumer interface {
 }
 
 type EntryWalker interface {
-	Next() bool
-	Entry() string
+	HasNext() bool
+	Next() string
 }
 
 type Conf interface {
@@ -69,8 +69,8 @@ func save(filePath string, walker EntryWalker) error {
 	defer os.Remove(f.Name())
 
 	w := bufio.NewWriter(f)
-	for walker.Next() {
-		l := fmt.Sprintf("%s\n", walker.Entry())
+	for walker.HasNext() {
+		l := fmt.Sprintf("%s\n", walker.Next())
 		log.Debugf("writing \"%s\" to %s", l, filePath)
 		var n int
 		for n < len(l) {

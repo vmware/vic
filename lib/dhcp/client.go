@@ -89,7 +89,7 @@ func (c *client) Request(linkIndex int, hw net.HardwareAddr) (*Packet, error) {
 		return nil, err
 	}
 
-	rawc, err := dhcp4client.New(dhcp4client.Connection(raw), dhcp4client.Timeout(c.timeout))
+	rawc, err := dhcp4client.New(dhcp4client.Connection(raw), dhcp4client.Timeout(c.timeout), dhcp4client.HardwareAddr(hw))
 	if err != nil {
 		return nil, err
 	}

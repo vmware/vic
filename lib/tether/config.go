@@ -15,6 +15,7 @@
 package tether
 
 import (
+	"net"
 	"os"
 	"os/exec"
 	"sync"
@@ -48,7 +49,7 @@ type ExecutorConfig struct {
 
 	// This describes an executors presence on a network, and contains sufficient
 	// information to configure the interface in the guest.
-	Networks map[string]*metadata.NetworkEndpoint `vic:"0.1" scope:"read-only" key:"networks"`
+	Networks map[string]*NetworkEndpoint `vic:"0.1" scope:"read-only" key:"networks"`
 
 	// Key is the host key used during communicate back with the Interaction endpoint if any
 	// Used if the in-guest tether is responsible for authenticating the connection
@@ -87,4 +88,33 @@ type SessionConfig struct {
 	Outwriter dio.DynamicMultiWriter
 	Errwriter dio.DynamicMultiWriter
 	Reader    dio.DynamicMultiReader
+}
+
+type NetworkEndpoint struct {
+	// Common.Name - the nic alias requested (only one name and one alias possible in linux)
+	// Common.ID - pci slot of the vnic allowing for interface identifcation in-guest
+	metadata.Common
+
+	// IP address to assign - nil if DHCP
+	Static *net.IPNet `vic:"0.1" scope:"read-only" key:"staticip"`
+
+	// Actual IP address assigned
+	Assigned net.IPNet `vic:"0.1" scope:"read-write" key:"ip"`
+
+	// The network in which this information should be interpreted. This is embedded directly rather than
+	// as a pointer so that we can ensure the data is consistent
+	Network metadata.ContainerNetwork `vic:"0.1" scope:"read-only" key:"network"`
+
+	// DHCP runtime info
+	DHCP *DHCPInfo `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+}
+
+func (e *NetworkEndpoint) IsDynamic() bool {
+	return len(e.Static.IP) == 0
+}
+
+type DHCPInfo struct {
+	Assigned    net.IPNet
+	Nameservers []net.IP
+	Gateway     net.IPNet
 }

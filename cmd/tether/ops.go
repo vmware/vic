@@ -18,7 +18,6 @@ import (
 	"net/http"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/tether"
 )
 
@@ -26,9 +25,9 @@ import (
 // in specific directories, primarily for testing.
 var pathPrefix string
 
-func (t *operations) Setup() error {
+func (t *operations) Setup(sink tether.ConfigSink) error {
 
-	if err := t.BaseOperations.Setup(); err != nil {
+	if err := t.BaseOperations.Setup(sink); err != nil {
 		return err
 	}
 
@@ -49,7 +48,7 @@ func (t *operations) Cleanup() error {
 	return nil
 }
 
-func (t *operations) Apply(endpoint *metadata.NetworkEndpoint) error {
+func (t *operations) Apply(endpoint *tether.NetworkEndpoint) error {
 	return t.BaseOperations.Apply(endpoint)
 }
 

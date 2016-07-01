@@ -57,17 +57,14 @@ type hostsWalker struct {
 	i       int
 }
 
-func (w *hostsWalker) Next() bool {
-	if w.i < len(w.entries) {
-		w.i++
-		return true
-	}
-
-	return false
+func (w *hostsWalker) HasNext() bool {
+	return w.i < len(w.entries)
 }
 
-func (w *hostsWalker) Entry() string {
-	return w.entries[w.i-1].String()
+func (w *hostsWalker) Next() string {
+	s := w.entries[w.i].String()
+	w.i++
+	return s
 }
 
 func (h *hosts) ConsumeEntry(t string) error {

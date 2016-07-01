@@ -22,11 +22,14 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 
 	log "github.com/Sirupsen/logrus"
 
 	"golang.org/x/net/context"
 
+	log "github.com/Sirupsen/logrus"
+	"github.com/vishvananda/netlink"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
@@ -215,19 +218,38 @@ func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net
 		subnet = defaultSubnet
 	}
 
-	if c.defaultScope != nil {
-		// the gateway for bridge scopes is always the gateway for the default bridge
-		gateway = c.defaultScope.Gateway()
-		// ditto for dns
-		dns = c.defaultScope.DNS()
-	}
-
 	s, err := c.newScopeCommon(id, name, bridgeScopeType, subnet, gateway, dns, ipam, bn.PortGroup)
 	if err != nil {
 		return nil, err
 	}
 
+	// add the gateway address to the bridge interface
+	link, err := getBridgeLink()
+	if err != nil {
+		log.Warnf("failed to add gateway address %s to bridge interface: %s", s.Gateway(), err)
+		err = nil
+	}
+
+	if link != nil {
+		if err = netlink.AddrAdd(link, &netlink.Addr{IPNet: &net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}}); err != nil {
+			if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
+				log.Warnf("failed to add gateway address %s to bridge interface: %s", s.Gateway(), err)
+			}
+		}
+	}
+
 	return s, nil
+}
+
+func getBridgeLink() (netlink.Link, error) {
+	// add the gateway address to the bridge interface
+	link, err := netlink.LinkByName(Config.BridgeNetwork)
+	if err != nil {
+		// lookup by alias
+		return netlink.LinkByAlias(Config.BridgeNetwork)
+	}
+
+	return link, nil
 }
 
 func (c *Context) newExternalScope(id, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (*Scope, error) {
@@ -932,6 +954,24 @@ func (c *Context) DeleteScope(name string) error {
 
 	if len(s.Endpoints()) != 0 {
 		return fmt.Errorf("scope has bound endpoints")
+	}
+
+	// remove gateway ip from bridge interface
+	link, err := getBridgeLink()
+	if err != nil {
+		log.Warnf("could not locate bridge interface: %s", err)
+		err = nil
+	}
+
+	if link != nil {
+		addr := &netlink.Addr{IPNet: &net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}}
+		if err = netlink.AddrDel(link, addr); err != nil {
+			if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EADDRNOTAVAIL {
+				log.Warnf("could not remove gateway address %s for scope %s on link %s: %s", addr, s.Name(), link.Attrs().Name, err)
+			}
+
+			err = nil
+		}
 	}
 
 	delete(c.scopes, name)

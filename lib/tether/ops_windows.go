@@ -21,7 +21,6 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -37,7 +36,7 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
-func (t *BaseOperations) Apply(endpoint *metadata.NetworkEndpoint) error {
+func (t *BaseOperations) Apply(endpoint *NetworkEndpoint) error {
 	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
 
 	return errors.New("not implemented on windows")
@@ -65,7 +64,7 @@ func MkNamedPipe(path string, mode os.FileMode) error {
 	return errors.New("not implemented on windows")
 }
 
-func (t *BaseOperations) Setup() error {
+func (t *BaseOperations) Setup(_ ConfigSink) error {
 	return nil
 }
 

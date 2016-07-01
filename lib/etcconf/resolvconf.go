@@ -48,17 +48,14 @@ type resolvConfWalker struct {
 	i           int
 }
 
-func (w *resolvConfWalker) Next() bool {
-	if w.i < len(w.nameservers) {
-		w.i++
-		return true
-	}
-
-	return false
+func (w *resolvConfWalker) HasNext() bool {
+	return w.i < len(w.nameservers)
 }
 
-func (w *resolvConfWalker) Entry() string {
-	return fmt.Sprintf("nameserver %s", w.nameservers[w.i-1].String())
+func (w *resolvConfWalker) Next() string {
+	s := fmt.Sprintf("nameserver %s", w.nameservers[w.i].String())
+	w.i++
+	return s
 }
 
 func NewResolvConf(path string) ResolvConf {

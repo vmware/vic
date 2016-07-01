@@ -98,7 +98,7 @@ func (t *Mocker) Reload(config *ExecutorConfig) error {
 	return nil
 }
 
-func (t *Mocker) Setup() error {
+func (t *Mocker) Setup(_ ConfigSink) error {
 	return nil
 }
 
@@ -139,7 +139,7 @@ func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
-func (t *Mocker) Apply(dc dhcp.Client, endpoint *metadata.NetworkEndpoint) error {
+func (t *Mocker) Apply(dc dhcp.Client, endpoint *NetworkEndpoint) error {
 	return apply(t, dc, endpoint)
 }
 
