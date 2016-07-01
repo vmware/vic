@@ -113,7 +113,7 @@ func (v *VolumeStore) volDiskDsURL(store *url.URL, ID string) (string, error) {
 	return path.Join(dstore.RootURL, v.volDirPath(ID), ID+".vmdk"), nil
 }
 
-func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityMB uint64, info map[string][]byte) (*storage.Volume, error) {
+func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*storage.Volume, error) {
 
 	// find the datastore
 	dstore, err := v.getDatastore(store)
@@ -135,7 +135,7 @@ func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.UR
 	}
 
 	// Create the disk
-	vmdisk, err := v.dm.CreateAndAttach(ctx, volDiskDsURL, "", int64(capacityMB), os.O_RDWR)
+	vmdisk, err := v.dm.CreateAndAttach(ctx, volDiskDsURL, "", int64(capacityKB), os.O_RDWR)
 	if err != nil {
 		return nil, err
 	}

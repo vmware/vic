@@ -62,4 +62,4 @@ The function signature should look as such
 func (v *VolumeStore) Join(container_handle *Handle, volume *Volume, diskOpts map[string]string)
 ```
 
-this will be added to the VolumeStore interface that is in Faiyaz's PR # 1196 - Volumes on vSphere
+this will be added to a new file called vm.go as part of the vsphere package under the storage layer code in the Portlayer.

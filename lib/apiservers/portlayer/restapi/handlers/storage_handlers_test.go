@@ -62,7 +62,7 @@ func NewMockVolumeStore() *MockVolumeStore {
 }
 
 // Creates a volume on the given volume store, of the given size, with the given metadata.
-func (m *MockVolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityMB uint64, info map[string][]byte) (*spl.Volume, error) {
+func (m *MockVolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*spl.Volume, error) {
 	storeName, err := util.VolumeStoreName(store)
 	if err != nil {
 		return nil, err

@@ -18,8 +18,6 @@ import (
 	"net/http"
 	"os"
 
-	// "github.com/google/uuid"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/go-swagger/go-swagger/httpkit/middleware"
 	"github.com/go-swagger/go-swagger/swag"
@@ -113,6 +111,7 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, hand
 	api.StorageWriteImageHandler = storage.WriteImageHandlerFunc(handler.WriteImage)
 	api.StorageRemoveVolumeHandler = storage.RemoveVolumeHandlerFunc(handler.RemoveVolume)
 	api.StorageCreateVolumeHandler = storage.CreateVolumeHandlerFunc(handler.CreateVolume)
+	api.StorageVolumeJoinHandler = storage.VolumeJoinHandlerFunc(handler.VolumeJoin)
 }
 
 // CreateImageStore creates a new image store
@@ -247,7 +246,7 @@ func (handler *StorageHandlersImpl) CreateVolume(params storage.CreateVolumePara
 
 	capacity := uint64(0)
 	if params.VolumeRequest.Capacity < 0 {
-		capacity = uint64(1) //FIXME: this should look for a default cap and set or fail here.
+		capacity = uint64(1024) //FIXME: this should look for a default cap and set or fail here.
 	} else {
 		capacity = uint64(params.VolumeRequest.Capacity)
 	}
@@ -302,7 +301,7 @@ func convertImage(image *spl.Image) *models.Image {
 	}
 }
 
-func (handler *StorageHandlersImpl) VolumeJoin(params *storage.VolumeJoinParams) middleware.Responder {
+func (handler *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middleware.Responder {
 	actualHandle := epl.GetHandle(params.JoinArgs.Handle)
 
 	//Note: Name should already be populated by now.
