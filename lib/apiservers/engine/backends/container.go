@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -54,6 +55,7 @@ type Container struct {
 
 const (
 	attachRequestTimeout time.Duration = 2 * time.Hour
+	swaggerSubstringEOF                = "EOF"
 )
 
 // docker's container.execBackend
@@ -849,10 +851,24 @@ func attachStreams(name string, tty, stdinOnce bool, clStdin io.ReadCloser, clSt
 					errors <- derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
 					return
 				}
+				if _, ok := err.(*interaction.ContainerGetStdoutInternalServerError); ok {
+					errors <- derr.NewErrorWithStatusCode(fmt.Errorf("Server error from the interaction port layer"),
+						http.StatusInternalServerError)
+					return
+				}
 
-				// If we get here, most likely something went wrong with the port layer API server
-				errors <- derr.NewErrorWithStatusCode(fmt.Errorf("Unknown error from the interaction port layer: %s", err),
-					http.StatusInternalServerError)
+				// If we get here, most likely something went wrong with the port layer API server.
+				// These errors originate within the go-swagger client itself.
+				// Go-swagger returns untyped errors to us if the error is not one that we define
+				// in the swagger spec.  Even EOF.  Therefore, we must scan the error string (if there
+				// is an error string in the untyped error) for the term EOF.
+				unknownErrMsg := fmt.Errorf("Unknown error from the interaction port layer: %s", err)
+				if strings.Contains(unknownErrMsg.Error(), swaggerSubstringEOF) {
+					log.Info("Detected EOF from swagger, detaching all streams...")
+					inCancel()
+					errCancel()
+				}
+				errors <- derr.NewErrorWithStatusCode(unknownErrMsg, http.StatusInternalServerError)
 				return
 			}
 
@@ -882,10 +898,24 @@ func attachStreams(name string, tty, stdinOnce bool, clStdin io.ReadCloser, clSt
 					errors <- derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
 					return
 				}
+				if _, ok := err.(*interaction.ContainerGetStderrInternalServerError); ok {
+					errors <- derr.NewErrorWithStatusCode(fmt.Errorf("Server error from the interaction port layer"),
+						http.StatusInternalServerError)
+					return
+				}
 
 				// If we get here, most likely something went wrong with the port layer API server
-				errors <- derr.NewErrorWithStatusCode(fmt.Errorf("Unknown error from the interaction port layer: %s", err),
-					http.StatusInternalServerError)
+				// These errors originate within the go-swagger client itself.
+				// Go-swagger returns untyped errors to us if the error is not one that we define
+				// in the swagger spec.  Even EOF.  Therefore, we must scan the error string (if there
+				// is an error string in the untyped error) for the term EOF.
+				unknownErrMsg := fmt.Errorf("Unknown error from the interaction port layer: %s", err)
+				if strings.Contains(unknownErrMsg.Error(), swaggerSubstringEOF) {
+					log.Info("Detected EOF from swagger, detaching all streams...")
+					inCancel()
+					outCancel()
+				}
+				errors <- derr.NewErrorWithStatusCode(unknownErrMsg, http.StatusInternalServerError)
 				return
 			}
 
