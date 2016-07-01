@@ -114,7 +114,7 @@ func (i *Inspect) Run(cli *cli.Context) error {
 	}
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, i.Force)
 
-	vch, path, err := executor.NewVCHFromComputePath(i.Data.ComputeResourcePath, i.Data.DisplayName)
+	vch, path, err := executor.NewVCHFromComputePath(i.Data.ComputeResourcePath, i.Data.DisplayName, validator)
 	if err != nil {
 		log.Errorf("Failed to get Virtual Container Host %s", i.DisplayName)
 		return err

@@ -72,15 +72,10 @@ func (d *Dispatcher) NewVCHFromID(id string) (*vm.VirtualMachine, error) {
 	return vmm, nil
 }
 
-func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string) (*vm.VirtualMachine, string, error) {
+func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *validate.Validator) (*vm.VirtualMachine, string, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("path %s, name %s", computePath, name)))
 
 	var err error
-
-	v := &validate.Validator{
-		Session: d.session,
-		Context: d.ctx,
-	}
 
 	parent, err := v.ResourcePoolHelper(d.ctx, computePath)
 	if err != nil {
