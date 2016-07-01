@@ -435,6 +435,12 @@ type DataSource func(string) (string, error)
 // Decode populates a destination with data from the supplied data source
 func Decode(src DataSource, dest interface{}) interface{} {
 	defer log.SetLevel(log.GetLevel())
+
+	if src == nil {
+		log.Warnf("Decode source is nil - unable to continue")
+		return dest
+	}
+
 	log.SetLevel(DecodeLogLevel)
 
 	value := decode(src, reflect.ValueOf(dest), DefaultPrefix, Unbounded)
@@ -446,6 +452,12 @@ func Decode(src DataSource, dest interface{}) interface{} {
 // the specified prefix - this allows for decode into substructres.
 func DecodeWithPrefix(src DataSource, dest interface{}, prefix string) interface{} {
 	defer log.SetLevel(log.GetLevel())
+
+	if src == nil {
+		log.Warnf("Decode source is nil - unable to continue")
+		return dest
+	}
+
 	log.SetLevel(DecodeLogLevel)
 
 	value := decode(src, reflect.ValueOf(dest), prefix, Unbounded)

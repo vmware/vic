@@ -115,7 +115,9 @@ func init() {
 	src, err := extraconfig.GuestInfoSource()
 	if err != nil {
 		log.Errorf("Unable to load configuration from guestinfo")
+		return
 	}
+
 	extraconfig.Decode(src, &vchConfig)
 }
 
