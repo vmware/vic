@@ -28,6 +28,7 @@ import (
 	"github.com/docker/distribution/digest"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/reference"
+	"github.com/docker/engine-api/types/container"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
@@ -163,9 +164,7 @@ func (c *ImageCache) GetImages() ([]*metadata.ImageConfig, error) {
 
 	result := make([]*metadata.ImageConfig, 0, len(c.cacheByID))
 	for _, image := range c.cacheByID {
-		newImage := new(metadata.ImageConfig)
-		*newImage = *image
-		result = append(result, newImage)
+		result = append(result, copyImageConfig(image))
 	}
 
 	return result, nil
@@ -180,7 +179,7 @@ func (c *ImageCache) GetImageByDigest(digest digest.Digest) (*metadata.ImageConf
 	}
 
 	config := c.cacheByID[string(digest)]
-	return config, nil
+	return copyImageConfig(config), nil
 }
 
 // Looks up image by reference.Named
@@ -207,5 +206,25 @@ func (c *ImageCache) GetImageByNamed(named reference.Named) (*metadata.ImageConf
 		}
 	}
 
-	return config, nil
+	return copyImageConfig(config), nil
+}
+
+// copyImageConfig performs and returns deep copy of an ImageConfig struct
+func copyImageConfig(image *metadata.ImageConfig) *metadata.ImageConfig {
+
+	if image == nil {
+		return nil
+	}
+
+	newImage := new(metadata.ImageConfig)
+
+	// copy everything
+	*newImage = *image
+
+	// replace the pointer to metadata.ImageConfig.Config and copy the contents
+	newConfig := new(container.Config)
+	*newConfig = *image.Config
+	newImage.Config = newConfig
+
+	return newImage
 }
