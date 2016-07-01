@@ -573,7 +573,9 @@ paths:
         '200':
           description: "OK"
           schema:
-            $ref: "#definitions/ContainerListInfo"
+            type: array
+            items:
+              $ref: "#definitions/ContainerListInfo"
   /containers/{id}:
     get:
       description: "Get a container handle"
@@ -915,6 +917,8 @@ definitions:
         $ref: "#/definitions/ImageStore"
       image:
         type: string
+      repoName:
+        type: string
       path:
         type: string
       args:
@@ -1041,25 +1045,34 @@ definitions:
     properties:
       containerId:
         type: string
-      imageId:
+      layerId:
+        type: string
+      repoName:
         type: string
       execPath:
         type: string
       execArgs:
-        type: string
+        type: array
+        items:
+          type: string
       created:
-        type: string
-        format: datetime
+        type: integer
+        format: int64
       state:
+        type: string
+      status:
         type: string
       ports:
         type: array
         items:
           type: string
       names:
-        type: array
-        items:
-          type: string
+          type: array
+          items:
+            type: string
+      storageSize:
+        type: integer
+        format: int64
   ContainerConfig:
     type: object
     properties:

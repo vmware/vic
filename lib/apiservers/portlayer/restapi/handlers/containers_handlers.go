@@ -70,7 +70,6 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	log.Debugf("Args: %#v", params.CreateConfig.Args)
 	log.Debugf("Env: %#v", params.CreateConfig.Env)
 	log.Debugf("WorkingDir: %#v", params.CreateConfig.WorkingDir)
-
 	id := exec.GenerateID().String()
 
 	// Init key for tether
@@ -106,7 +105,9 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 				},
 			},
 		},
-		Key: pem.EncodeToMemory(&privateKeyBlock),
+		Key:      pem.EncodeToMemory(&privateKeyBlock),
+		LayerID:  *params.CreateConfig.Image,
+		RepoName: *params.CreateConfig.RepoName,
 	}
 	log.Infof("CreateHandler Metadata: %#v", m)
 
@@ -229,7 +230,27 @@ func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers
 }
 
 func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers.GetContainerListParams) middleware.Responder {
-	//FIXME:  Fill in with actual code!
+	defer trace.End(trace.Begin("Containers.GetContainerListHandler"))
 
-	return containers.NewGetContainerListInternalServerError().WithPayload(&models.Error{Message: "Not implemented."})
+	containerVMs, err := exec.List(context.Background(), handler.handlerCtx.Session, params.All)
+	if err != nil {
+		return containers.NewGetContainerListInternalServerError()
+	}
+
+	vmList := make([]models.ContainerListInfo, 0, len(containerVMs))
+	for i := range containerVMs {
+		// convert to return model
+		container := containerVMs[i]
+		info := models.ContainerListInfo{}
+		info.ContainerID = &container.ExecConfig.ID
+		info.LayerID = &container.ExecConfig.LayerID
+		info.Created = &container.ExecConfig.Created
+		info.Status = &container.Status
+		info.Names = []string{container.ExecConfig.Name}
+		info.ExecArgs = container.ExecConfig.Sessions[*info.ContainerID].Cmd.Args
+		info.StorageSize = &container.VMUnsharedDisk
+		info.RepoName = &container.ExecConfig.RepoName
+		vmList = append(vmList, info)
+	}
+	return containers.NewGetContainerListOK().WithPayload(vmList)
 }

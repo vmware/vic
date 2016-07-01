@@ -607,7 +607,35 @@ func (c *Container) ContainerTop(name string, psArgs string) (*types.ContainerPr
 
 // Containers returns the list of containers to show given the user's filtering.
 func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Container, error) {
-	return nil, fmt.Errorf("%s does not implement container.Containers", ProductName())
+
+	// Get an API client to the portlayer
+	portLayerClient := PortLayerClient()
+	if portLayerClient == nil {
+		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("container.Containers failed to create a portlayer client"),
+			http.StatusInternalServerError)
+	}
+
+	containme, err := portLayerClient.Containers.GetContainerList(containers.NewGetContainerListParams().WithAll(&config.All))
+	if err != nil {
+		return nil, fmt.Errorf("Error invoking GetContainerList: %s", err.Error())
+	}
+	// TODO: move to conversion function
+	containers := make([]*types.Container, 0, len(containme.Payload))
+	for _, t := range containme.Payload {
+		cmd := strings.Join(t.ExecArgs, " ")
+		c := &types.Container{
+			ID:      *t.ContainerID,
+			Image:   *t.RepoName,
+			Created: *t.Created,
+			Status:  *t.Status,
+			Names:   t.Names,
+			Command: cmd,
+			SizeRw:  *t.StorageSize,
+		}
+		containers = append(containers, c)
+	}
+
+	return containers, nil
 }
 
 // docker's container.attachBackend
@@ -667,6 +695,10 @@ func (c *Container) dockerContainerCreateParamsToPortlayer(cc types.ContainerCre
 	// Image
 	config.Image = new(string)
 	*config.Image = layerID
+
+	// Repo Requested
+	config.RepoName = new(string)
+	*config.RepoName = cc.Config.Image
 
 	var path string
 	var args []string
