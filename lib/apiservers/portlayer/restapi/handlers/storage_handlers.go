@@ -31,7 +31,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 
 	spl "github.com/vmware/vic/lib/portlayer/storage"
-	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
+	vsphereSpl "github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/lib/portlayer/util"
 
 	"golang.org/x/net/context"
@@ -67,7 +67,7 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, hand
 		log.Fatalf("StorageHandler ERROR: %s", err)
 	}
 
-	ds, err := vsphere.NewImageStore(ctx, storageSession)
+	ds, err := vsphereSpl.NewImageStore(ctx, storageSession)
 	if err != nil {
 		log.Panicf("Cannot instantiate storage layer: %s", err)
 	}
@@ -77,10 +77,27 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, hand
 	// expensive metadata lookups.
 	storageImageLayer = spl.NewLookupCache(ds)
 	//FIXME: this may need another viewing after ian/faiyaz's changes
-	vsVolumeStore, err := vsphere.NewVolumeStore(context.TODO(), storageSession)
+	vsVolumeStore, err := vsphereSpl.NewVolumeStore(context.TODO(), storageSession)
 	if err != nil {
 		log.Panicf("Cannot instantiate the volume store: %s", err)
 	}
+
+	// Get the datastores for volumes.
+	// Each volume store name maps to a datastore + path, which can be referred to by the name.
+	dstores, err := vsphereSpl.GetDatastores(context.TODO(), storageSession, spl.Config.VolumeLocations)
+	if err != nil {
+		log.Panicf("Cannot find datastores: %s", err)
+	}
+
+	// Add datastores to the vsphere volume store impl
+	for volStoreName, volDatastore := range dstores {
+		log.Infof("Adding volume store %s (%s)", volStoreName, volDatastore.RootURL)
+		_, err := vsVolumeStore.AddStore(context.TODO(), volDatastore, volStoreName)
+		if err != nil {
+			log.Errorf("volume addition error %s", err)
+		}
+	}
+
 	storageVolumeLayer, err = spl.NewVolumeLookupCache(context.TODO(), vsVolumeStore)
 	if err != nil {
 		log.Panicf("Cannot instantiate the Volume Lookup cache: %s", err)
