@@ -39,7 +39,7 @@ type Common struct {
 	Name string `vic:"0.1" scope:"read-only" key:"name"`
 
 	// creation timestamp
-	Created string `vic:"0.1" scope:"read-only" key:"created"`
+	Created int64 `vic:"0.1" scope:"read-only" key:"created"`
 
 	// Freeform notes related to the entity
 	Notes string `vic:"0.1" scope:"hidden" key:"notes"`
@@ -128,6 +128,13 @@ type ExecutorConfig struct {
 	// Key is the host key used during communicate back with the Interaction endpoint if any
 	// Used if the in-guest tether is responsible for authenticating the connection
 	Key []byte `vic:"0.1" scope:"read-only" key:"key"`
+
+	// Layer id that is backing this container VM
+	LayerID string `vic:"0.1" scope:"read-only" key:"layerid"`
+
+	// Repository requested by user
+	// TODO: a bit docker specific
+	RepoName string `vic:"0.1" scope:"read-only" key:"repo"`
 }
 
 // Cmd is here because the encoding packages seem to have issues with the full exec.Cmd struct

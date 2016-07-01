@@ -21,9 +21,12 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -53,6 +56,10 @@ type Container struct {
 
 	ExecConfig *metadata.ExecutorConfig
 	State      State
+	// friendly description of state
+	Status string
+
+	VMUnsharedDisk int64
 
 	vm *vm.VirtualMachine
 }
@@ -125,7 +132,6 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 				return err
 			}
 			host := hosts[rand.Intn(len(hosts))]
-
 			// Create the vm
 			res, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 				return parent.CreateVM(ctx, *s, Config.ResourcePool, host)
@@ -243,4 +249,79 @@ func (c *Container) Remove(ctx context.Context) error {
 	containersLock.Unlock()
 
 	return nil
+}
+
+// return a list of container attributes
+func List(ctx context.Context, sess *session.Session, all *bool) ([]Container, error) {
+
+	// for now we'll go to the infrastructure
+	// future iteration will utilize cache & event stream
+	moVMs, err := infraContainers(ctx, sess)
+	if err != nil {
+		return nil, err
+	}
+	// convert to container
+	containers := convertInfraContainers(moVMs, all)
+	return containers, nil
+}
+
+// get the containerVMs from infrastructure
+func infraContainers(ctx context.Context, sess *session.Session) ([]mo.VirtualMachine, error) {
+	var rp mo.ResourcePool
+	var vms []mo.VirtualMachine
+
+	// popluate the vm property of the vch resource pool
+	if err := Config.ResourcePool.Properties(ctx, Config.ResourcePool.Reference(), []string{"vm"}, &rp); err != nil {
+		log.Errorf("List failed to get %s resource pool child vms: %s", Config.ResourcePool.Name(), err)
+		return nil, err
+	}
+
+	// We now have morefs for the pools VMs, so
+	//define attributes do we need from the VMs
+	attrib := []string{"config", "runtime.powerState", "summary"}
+
+	// populate the vm properties
+	sess.Retrieve(ctx, rp.Vm, attrib, &vms)
+
+	return vms, nil
+}
+
+// convert the infra containers to a container object
+func convertInfraContainers(vms []mo.VirtualMachine, all *bool) []Container {
+	var containerVMs []Container
+
+	for i := range vms {
+		// poweredOn or all states
+		if !*all && vms[i].Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff {
+			// don't want it
+			log.Debugf("Skipping poweredOff VM %s", vms[i].Config.Name)
+			continue
+		}
+
+		container := &Container{ExecConfig: &metadata.ExecutorConfig{}}
+		source := extraconfig.OptionValueSource(vms[i].Config.ExtraConfig)
+		extraconfig.Decode(source, container.ExecConfig)
+
+		// check extraConfig to see if we have a containerVM -- assumes
+		// that ID will always be populated for each containerVM
+		if container.ExecConfig == nil || container.ExecConfig.ID == "" {
+			log.Debugf("Skipping non-container vm %s", vms[i].Config.Name)
+			continue
+		}
+
+		// set state & friendly status
+		if vms[i].Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
+			container.State = StateRunning
+			container.Status = "Running"
+		} else {
+			container.State = StateStopped
+			container.Status = "Stopped"
+		}
+		container.VMUnsharedDisk = vms[i].Summary.Storage.Unshared
+
+		containerVMs = append(containerVMs, *container)
+
+	}
+
+	return containerVMs
 }
