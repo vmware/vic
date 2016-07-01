@@ -16,6 +16,7 @@ package vsphere
 
 import (
 	"io"
+	"net/url"
 	"path"
 	"strings"
 
@@ -82,6 +83,31 @@ func NewDatastore(ctx context.Context, s *session.Session, ds *object.Datastore,
 
 	log.Infof("Datastore path is %s", d.RootURL)
 	return d, nil
+}
+
+// GetDatastores returns a map of datastores given a map of names and urls
+func GetDatastores(ctx context.Context, s *session.Session, dsURLs map[string]*url.URL) (map[string]*Datastore, error) {
+	stores := make(map[string]*Datastore)
+
+	fm := object.NewFileManager(s.Vim25())
+	for name, dsURL := range dsURLs {
+
+		vsDs, err := s.Finder.DatastoreOrDefault(ctx, s.DatastorePath)
+		if err != nil {
+			return nil, err
+		}
+
+		d := &Datastore{
+			ds:      vsDs,
+			s:       s,
+			fm:      fm,
+			RootURL: dsURL.Path,
+		}
+
+		stores[name] = d
+	}
+
+	return stores, nil
 }
 
 func (d *Datastore) Summary(ctx context.Context) (*types.DatastoreSummary, error) {

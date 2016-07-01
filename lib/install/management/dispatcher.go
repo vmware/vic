@@ -18,20 +18,16 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"path/filepath"
-	"sync"
 
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/diagnostic"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	"github.com/vmware/govmomi/vim25/types"
@@ -67,6 +63,7 @@ var diagnosticLogs = make(map[string]*diagnosticLog)
 
 func NewDispatcher(ctx context.Context, s *session.Session,
 	conf *metadata.VirtualContainerHostConfigSpec, force bool) *Dispatcher {
+	defer trace.End(trace.Begin(""))
 	isVC := s.IsVC()
 	e := &Dispatcher{
 		session: s,
@@ -184,95 +181,6 @@ func (d *Dispatcher) UnregisterExtension(name string) error {
 	extensionManager := object.NewExtensionManager(d.session.Vim25())
 	if err := extensionManager.Unregister(d.ctx, name); err != nil {
 		return errors.Errorf("Failed to remove extension w/ name %s due to error: %s", name, err)
-	}
-	return nil
-}
-
-func (d *Dispatcher) Dispatch(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
-	defer trace.End(trace.Begin(conf.Name))
-
-	var err error
-	if d.vchPool, err = d.createResourcePool(conf, settings); err != nil {
-		detail := fmt.Sprintf("Creating resource pool failed: %s", err)
-		if !d.force {
-			return errors.New(detail)
-		}
-
-		log.Error(detail)
-	}
-
-	if err = d.createBridgeNetwork(conf); err != nil {
-		return err
-	}
-
-	if err = d.checkExistence(conf); err != nil {
-		return err
-	}
-
-	if err = d.createAppliance(conf, settings); err != nil {
-		return errors.Errorf("Creating the appliance failed with %s. Exiting...", err)
-	}
-
-	if err = d.uploadImages(settings.ImageFiles); err != nil {
-		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
-	}
-
-	if d.session.IsVC() {
-		if err = d.RegisterExtension(conf, settings.Extension); err != nil {
-			return errors.Errorf("Error registering VCH vSphere extension: %s", err)
-		}
-	}
-	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return d.appliance.PowerOn(ctx)
-	})
-
-	if err != nil {
-		return errors.Errorf("Failed to power on appliance %s. Exiting...", err)
-	}
-
-	if err = d.makeSureApplianceRuns(conf); err != nil {
-		return errors.Errorf("%s. Exiting...", err)
-	}
-	return nil
-}
-
-func (d *Dispatcher) uploadImages(files []string) error {
-	defer trace.End(trace.Begin(""))
-
-	var err error
-	var wg sync.WaitGroup
-
-	// upload the images
-	log.Infof("Uploading images for container")
-	wg.Add(len(files))
-	results := make(chan error, len(files))
-	for _, image := range files {
-		go func(image string) {
-			defer wg.Done()
-
-			log.Infof("\t%s", image)
-			base := filepath.Base(image)
-			err = d.session.Datastore.UploadFile(d.ctx, image, d.vmPathName+"/"+base, nil)
-			if err != nil {
-				log.Errorf("\t\tUpload failed for %s, %s", image, err)
-				if d.force {
-					log.Warnf("\t\tSkipping %s...", image)
-					results <- nil
-				} else {
-					results <- err
-				}
-				return
-			}
-			results <- nil
-		}(image)
-	}
-	wg.Wait()
-	close(results)
-
-	for err := range results {
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }

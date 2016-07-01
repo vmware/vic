@@ -70,6 +70,7 @@ type Create struct {
 	containerNetworksGateway  cli.StringSlice
 	containerNetworksIPRanges cli.StringSlice
 	containerNetworksDNS      cli.StringSlice
+	volumeStores              cli.StringSlice
 
 	executor *management.Dispatcher
 }
@@ -94,18 +95,6 @@ func NewCreate() *Create {
 // Flags return all cli flags for create
 func (c *Create) Flags() []cli.Flag {
 	flags := []cli.Flag{
-		cli.StringFlag{
-			Name:        "compute-resource, r",
-			Value:       "",
-			Usage:       "Compute resource path, e.g. myCluster/Resources/myRP",
-			Destination: &c.ComputeResourcePath,
-		},
-		cli.StringFlag{
-			Name:        "name, n",
-			Value:       "docker-appliance",
-			Usage:       "The name of the Virtual Container Host",
-			Destination: &c.DisplayName,
-		},
 		cli.StringFlag{
 			Name:        "image-datastore, i",
 			Value:       "",
@@ -214,11 +203,33 @@ func (c *Create) Flags() []cli.Flag {
 			Usage:       "vCPUs for the appliance VM",
 			Destination: &c.NumCPUs,
 		},
+		cli.StringSliceFlag{
+			Name:  "volume-store",
+			Value: &c.volumeStores,
+			Usage: "Specify location and label for volume store; path optional: \"label:datastore:path\" or \"label:datastore\"",
+		},
 	}
-	flags = append(c.TargetFlags(), flags...)
+	preFlags := append(c.TargetFlags(), c.ComputeFlags()...)
+	flags = append(preFlags, flags...)
 	flags = append(flags, c.DebugFlags()...)
 	return flags
 }
+
+func (c *Create) processVolumeStores() error {
+	defer trace.End(trace.Begin(""))
+	c.VolumeLocations = make(map[string]string)
+	for _, arg := range c.volumeStores {
+		splitMeta := strings.SplitN(arg, ":", 2)
+		if len(splitMeta) != 2 {
+			return errors.New("Volume store input must be in format label:datastore-path")
+		}
+		c.VolumeLocations[splitMeta[0]] = splitMeta[1]
+	}
+
+	return nil
+
+}
+
 func (c *Create) processParams() error {
 	defer trace.End(trace.Begin(""))
 
@@ -251,6 +262,10 @@ func (c *Create) processParams() error {
 
 	if err := c.processContainerNetworks(); err != nil {
 		return err
+	}
+
+	if err := c.processVolumeStores(); err != nil {
+		return errors.Errorf("Error occurred while processing volume stores: %s", err)
 	}
 
 	// FIXME: add parameters for these configurations
@@ -439,7 +454,7 @@ func (c *Create) Run(cli *cli.Context) error {
 	}
 
 	executor := management.NewDispatcher(ctx, validator.Session, vchConfig, c.Force)
-	if err = executor.Dispatch(vchConfig, vConfig); err != nil {
+	if err = executor.CreateVCH(vchConfig, vConfig); err != nil {
 
 		executor.CollectDiagnosticLogs()
 		return err
@@ -447,28 +462,7 @@ func (c *Create) Run(cli *cli.Context) error {
 
 	log.Infof("Initialization of appliance successful")
 
-	log.Infof("")
-	log.Infof("SSH to appliance (default=root:password)")
-	log.Infof("ssh root@%s", executor.HostIP)
-	log.Infof("")
-	log.Infof("Log server:")
-	log.Infof("%s://%s:2378", executor.VICAdminProto, executor.HostIP)
-	log.Infof("")
-	tls := ""
-	if c.key != "" {
-		// if we're generating then there's no CA currently
-		if len(vchConfig.CertificateAuthorities) > 0 {
-			tls = fmt.Sprintf(" --tls --tlscert='%s' --tlskey='%s'", c.cert, c.key)
-		} else {
-			tls = " --tls"
-		}
-	}
-	log.Infof("DOCKER_HOST=%s:%s", executor.HostIP, executor.DockerPort)
-	log.Infof("DOCKER_OPTS=\"-H %s:%s%s\"", executor.HostIP, executor.DockerPort, tls)
-	log.Infof("")
-	log.Infof("Connect to docker:")
-	log.Infof("docker -H %s:%s%s info", executor.HostIP, executor.DockerPort, tls)
-
+	executor.ShowVCH(vchConfig, c.key, c.cert)
 	log.Infof("Installer completed successfully")
 	return nil
 }
