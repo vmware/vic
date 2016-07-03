@@ -176,7 +176,7 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 	// update the handle with Metadata
 	h.ExecConfig = config.Metadata
 	// add create time to config
-	h.ExecConfig.Common.Created = time.Now().UTC().String()
+	h.ExecConfig.Common.Created = time.Now().UTC().Unix()
 	// configure with debug
 	h.ExecConfig.Diagnostics.DebugLevel = Config.DebugLevel
 	// Convert the management hostname to IP
