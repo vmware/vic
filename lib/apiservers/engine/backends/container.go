@@ -273,9 +273,8 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	}
 
 	//Volume Attachment Section
-	for i, v := range config.HostConfig.Binds {
+	for _, v := range config.HostConfig.Binds {
 		fields, shouldExist, err := processVolumeParam(v)
-		var volumeResponse models.VolumeResponse
 		if err != nil {
 			return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusBadRequest)
 		}
@@ -288,10 +287,10 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 				Capacity: -1,
 				Driver:   "vsphere",
 				Store:    "default",
-				Name: fields.VolumeID,
-				metadata: metadata,
-		}
-			res,err := client.Storage.CreateVolume(storage.NewCreateVolumeParams().WithVolumeRequest(volumeRequest))
+				Name:     fields.VolumeID,
+				Metadata: metadata,
+			}
+			_, err := client.Storage.CreateVolume(storage.NewCreateVolumeParams().WithVolumeRequest(&volumeRequest))
 			if err != nil {
 				return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusInternalServerError)
 			}
@@ -301,13 +300,16 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		flags["Mode"] = fields.VolumeFlags
 		joinParams := storage.VolumeJoinParams{
 			Name: fields.VolumeID,
-			JoinArgs: models.VolumeJoinConfig{
-				Flags: flags,
+			JoinArgs: &models.VolumeJoinConfig{
+				Flags:  flags,
 				Handle: h,
 			},
 		}
-		client.Storage.VolumeJoin(joinParams)
-
+		_, err = client.Storage.VolumeJoin(&joinParams)
+		if err != nil {
+			return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusInternalServerError)
+		}
+	}
 	// commit the create op
 	_, err = client.Containers.Commit(containers.NewCommitParams().WithHandle(h))
 	if err != nil {
@@ -1483,7 +1485,7 @@ func processVolumeParam(volString string) (volumeFields, bool, error) {
 	case 1:
 		VolumeID, err := uuid.NewUUID()
 		if err != nil {
-			return volumeFields{}, nil, false
+			return volumeFields{}, false, nil
 		}
 		fields.VolumeID = VolumeID.String()
 		fields.VolumeDest = volumeStrings[0]
@@ -1499,7 +1501,7 @@ func processVolumeParam(volString string) (volumeFields, bool, error) {
 		fields.VolumeFlags = volumeStrings[2]
 	default:
 		//NOTE: the docker cli should cover this case. This is here for posterity.
-		return volumeFields{}, fmt.Errorf("Volume bind input is invalid : -v %s", volString), false
+		return volumeFields{}, false, fmt.Errorf("Volume bind input is invalid : -v %s", volString)
 	}
-	return fields, nil, created
+	return fields, created, nil
 }
