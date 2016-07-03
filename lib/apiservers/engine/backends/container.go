@@ -250,9 +250,9 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		addContRes, err := client.Scopes.AddContainer(scopes.NewAddContainerParams().
 			WithScope(netConf.NetworkName).
 			WithConfig(&models.ScopesAddContainerConfig{
-				Handle:        h,
-				NetworkConfig: netConf,
-			}))
+			Handle:        h,
+			NetworkConfig: netConf,
+		}))
 
 		if err != nil {
 			log.Errorf("ContainerCreate: Scopes error: %s", err.Error())
@@ -274,22 +274,39 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 
 	//Volume Attachment Section
 	for i, v := range config.HostConfig.Binds {
-		fields, err, shouldExist := processVolumeParam(v)
+		fields, shouldExist, err := processVolumeParam(v)
 		var volumeResponse models.VolumeResponse
 		if err != nil {
-			return nil, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusBadRequest)
+			return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusBadRequest)
 		}
+		//NOTE: This should be the guard for the case of an anonymous volume.
 		if !shouldExist {
-			//FIXME: in the future a default Capacity will be expected from ExtraConfig<vic-machine>
-			volumeRquest := models.VolumeRequest{
-				Capacity: 1024,
+			//NOTE: we should not expect any driver args if the drive is anonymous.
+			metadata := make(map[string]string)
+			metadata["flags"] = fields.VolumeFlags
+			volumeRequest := models.VolumeRequest{
+				Capacity: -1,
 				Driver:   "vsphere",
 				Store:    "default",
-			}
-			client.Storage.CreateVolume(storage.NewCreateVolumeParams().WithVolumeRequest(volumeRequest * models.VolumeRequest))
+				Name: fields.VolumeID,
+				metadata: metadata,
 		}
-
-	}
+			res,err := client.Storage.CreateVolume(storage.NewCreateVolumeParams().WithVolumeRequest(volumeRequest))
+			if err != nil {
+				return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusInternalServerError)
+			}
+		}
+		flags := make(map[string]string)
+		//NOTE: for now we are passing the flags directly through. This is NOT SAFE and only a stop gap.
+		flags["Mode"] = fields.VolumeFlags
+		joinParams := storage.VolumeJoinParams{
+			Name: fields.VolumeID,
+			JoinArgs: models.VolumeJoinConfig{
+				Flags: flags,
+				Handle: h,
+			},
+		}
+		client.Storage.VolumeJoin(joinParams)
 
 	// commit the create op
 	_, err = client.Containers.Commit(containers.NewCommitParams().WithHandle(h))
@@ -1458,7 +1475,7 @@ func clientFriendlyContainerName(name string) string {
 	return fmt.Sprintf("/%s", name)
 }
 
-func processVolumeParam(volString string) (volumeFields, error, bool) {
+func processVolumeParam(volString string) (volumeFields, bool, error) {
 	volumeStrings := strings.Split(volString, ":")
 	fields := volumeFields{}
 	created := true

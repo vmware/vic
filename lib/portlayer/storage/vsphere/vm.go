@@ -39,6 +39,7 @@ func VolumeJoin(ctx context.Context, handle *exec.Handle, volume *storage.Volume
 		Source: url.URL{
 			Scheme: "label",
 			Host:   volume.Label,
+			Mode:   DiskOpts["Mode"],
 		},
 		Path: mountPath,
 	}
