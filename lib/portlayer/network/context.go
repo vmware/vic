@@ -221,32 +221,13 @@ func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net
 	}
 
 	// add the gateway address to the bridge interface
-	link, err := getBridgeLink()
-	if err != nil {
-		log.Warnf("failed to add gateway address %s to bridge interface: %s", s.Gateway(), err)
-		err = nil
-	}
-
-	if link != nil {
-		if err = link.AddrAdd(net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}); err != nil {
-			if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
-				log.Warnf("failed to add gateway address %s to bridge interface: %s", s.Gateway(), err)
-			}
+	if err = Config.BridgeLink.AddrAdd(net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}); err != nil {
+		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
+			log.Warnf("failed to add gateway address %s to bridge interface: %s", s.Gateway(), err)
 		}
 	}
 
 	return s, nil
-}
-
-func getBridgeLink() (Link, error) {
-	// add the gateway address to the bridge interface
-	link, err := LinkByName(Config.BridgeNetwork)
-	if err != nil {
-		// lookup by alias
-		return LinkByAlias(Config.BridgeNetwork)
-	}
-
-	return link, nil
 }
 
 func (c *Context) newExternalScope(id, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (*Scope, error) {
@@ -954,21 +935,13 @@ func (c *Context) DeleteScope(name string) error {
 	}
 
 	// remove gateway ip from bridge interface
-	link, err := getBridgeLink()
-	if err != nil {
-		log.Warnf("could not locate bridge interface: %s", err)
-		err = nil
-	}
-
-	if link != nil {
-		addr := net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}
-		if err = link.AddrDel(addr); err != nil {
-			if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EADDRNOTAVAIL {
-				log.Warnf("could not remove gateway address %s for scope %s on link %s: %s", addr, s.Name(), link.Attrs().Name, err)
-			}
-
-			err = nil
+	addr := net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}
+	if err = Config.BridgeLink.AddrDel(addr); err != nil {
+		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EADDRNOTAVAIL {
+			log.Warnf("could not remove gateway address %s for scope %s on link %s: %s", addr, s.Name(), Config.BridgeLink.Attrs().Name, err)
 		}
+
+		err = nil
 	}
 
 	delete(c.scopes, name)
