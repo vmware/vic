@@ -93,7 +93,7 @@ func StartPprof(name string, component PprofPort) error {
 
 	go func() {
 		log.Info(http.ListenAndServe(url.String(), nil))
-	}
+	}()
 
 	return nil
 }
