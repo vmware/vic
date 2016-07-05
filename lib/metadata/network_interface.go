@@ -58,4 +58,7 @@ type ContainerNetwork struct {
 
 	// The IP ranges for this network
 	Pools []ip.Range `vic:"0.1" scope:"read-only" key:"pools"`
+
+	// set of network wide links and aliases for this container on this network
+	Aliases []string `vic:"0.1" scope:"hidden" key:"aliases"`
 }

@@ -61,7 +61,6 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 	}
 
 	for _, te := range tests1 {
-		t.Logf("testing id = %v, ip = %v", te.c, te.ip)
 		var e *Endpoint
 		e, err = s.addContainer(te.c, te.ip)
 		if te.err != nil {
@@ -138,8 +137,11 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 		}
 	}
 
+	options := &AddContainerOptions{
+		Scope: ctx.defaultScope.Name(),
+	}
 	bound := exec.NewContainer("bound")
-	ctx.AddContainer(bound, ctx.defaultScope.Name(), nil)
+	ctx.AddContainer(bound, options)
 	ctx.BindContainer(bound)
 
 	// test RemoveContainer
