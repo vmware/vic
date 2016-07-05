@@ -412,7 +412,7 @@ func (c *Create) Run(cli *cli.Context) error {
 
 	var keypair *certificate.Keypair
 	if keypair, err = c.loadCertificate(); err != nil {
-		log.Error("Creation cannot continue: unable to load certificate")
+		log.Error("Create cannot continue: unable to load certificate")
 		return err
 	}
 
@@ -426,13 +426,13 @@ func (c *Create) Run(cli *cli.Context) error {
 
 	validator, err := validate.NewValidator(ctx, c.Data)
 	if err != nil {
-		log.Error("Creation cannot continue: failed to create validator")
+		log.Error("Create cannot continue: failed to create validator")
 		return err
 	}
 
 	vchConfig, err := validator.Validate(ctx, c.Data)
 	if err != nil {
-		log.Error("Creation cannot continue: configuration validation failed")
+		log.Error("Create cannot continue: configuration validation failed")
 		return err
 	}
 

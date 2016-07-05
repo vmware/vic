@@ -19,8 +19,6 @@ import (
 	"os"
 	"path/filepath"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/urfave/cli"
 	"github.com/vmware/vic/cmd/vic-machine/create"
 	uninstall "github.com/vmware/vic/cmd/vic-machine/delete"
@@ -65,6 +63,7 @@ func main() {
 	}
 	app.Version = fmt.Sprintf("%s.%s", MajorVersion, BuildID)
 	if err := app.Run(os.Args); err != nil {
-		log.Errorf("%s failed: %s", app.Name, errors.ErrorStack(err))
+		fmt.Println("--------------------")
+		fmt.Printf("%s failed: %s\n", app.Name, errors.ErrorStack(err))
 	}
 }

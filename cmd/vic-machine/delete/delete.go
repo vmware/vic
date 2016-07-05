@@ -115,36 +115,39 @@ func (d *Uninstall) Run(cli *cli.Context) error {
 
 	validator, err := validate.NewValidator(ctx, d.Data)
 	if err != nil {
-		err = errors.Errorf("%s. Exiting...", err)
-		return err
+		log.Errorf("Delete cannot continue - failed to create validator: %s", err)
+		return errors.New("delete failed")
 	}
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, d.Force)
 
 	vch, _, err := executor.NewVCHFromComputePath(d.Data.ComputeResourcePath, d.Data.DisplayName, validator)
 	if err != nil {
 		log.Errorf("Failed to get Virtual Container Host %s", d.DisplayName)
-		return err
+		log.Error(err)
+		return errors.New("delete failed")
 	}
 	vchConfig, err := executor.GetVCHConfig(vch)
 	if err != nil {
-		log.Errorf("Failed to get Virtual Container Host configuration")
-		return err
+		log.Error("Failed to get Virtual Container Host configuration")
+		log.Error(err)
+		return errors.New("delete failed")
 	}
 	executor.InitDiagnosticLogs(vchConfig)
 
 	if validator.IsVC() {
 		log.Infoln("Removing VCH vSphere extension")
 		if err = executor.GenerateExtensionName(vchConfig); err != nil {
-			log.Warnf("Wasn't able to get extension name during VCH deletion. Failed with error: %s", err)
+			log.Warnf("Failed to get extension name during VCH deletion: %s", err)
 		}
 		if err = executor.UnregisterExtension(vchConfig.ExtensionName); err != nil {
-			log.Warnf("Wasn't able to remove extension %s due to error: %s", vchConfig.ExtensionName, err)
+			log.Warnf("Failed to remove extension %s: %s", vchConfig.ExtensionName, err)
 		}
 	}
 
 	if err = executor.DeleteVCH(vchConfig); err != nil {
 		executor.CollectDiagnosticLogs()
-		return err
+		log.Errorf("%s", err)
+		return errors.New("delete failed")
 	}
 
 	log.Infof("Completed successfully")
