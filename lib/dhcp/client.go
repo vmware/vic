@@ -29,7 +29,7 @@ import (
 // Client represents a DHCP client
 type Client interface {
 	// SetTimeout sets the timeout for a subsequent DHCP request
-	SetTimeout(t time.Duration) error
+	SetTimeout(t time.Duration)
 
 	// Request sends a full DHCP request, resulting in a DHCP lease.
 	// On a successful lease, returns a DHCP acknowledgment packet
@@ -57,9 +57,8 @@ func NewClient() (Client, error) {
 	return &client{timeout: defaultTimeout}, nil
 }
 
-func (c *client) SetTimeout(t time.Duration) error {
+func (c *client) SetTimeout(t time.Duration) {
 	c.timeout = t
-	return nil
 }
 
 func withRetry(op func() error) error {

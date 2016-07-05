@@ -90,6 +90,7 @@ func (p *Packet) DNS() []net.IP {
 	return dns
 }
 
+// ServerIP returns the DHCP server's IP address
 func (p *Packet) ServerIP() net.IP {
 	if len(p.packet) == 0 {
 		return nil
