@@ -333,7 +333,8 @@ func infraContainers(ctx context.Context, sess *session.Session) ([]mo.VirtualMa
 
 	// popluate the vm property of the vch resource pool
 	if err := Config.ResourcePool.Properties(ctx, Config.ResourcePool.Reference(), []string{"vm"}, &rp); err != nil {
-		log.Errorf("List failed to get %s resource pool child vms: %s", Config.ResourcePool.Name(), err)
+		name := Config.ResourcePool.Name()
+		log.Errorf("List failed to get %s resource pool child vms: %s", name, err)
 		return nil, err
 	}
 	vms, err := populateVMAttributes(ctx, sess, rp.Vm)

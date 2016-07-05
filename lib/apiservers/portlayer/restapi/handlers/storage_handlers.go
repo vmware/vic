@@ -315,7 +315,7 @@ func (handler *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) 
 		})
 	}
 
-	actualHandle, err = vsphere.VolumeJoin(context.TODO(), actualHandle, volume, params.JoinArgs.Flags)
+	actualHandle, err = vsphereSpl.VolumeJoin(context.TODO(), actualHandle, volume, params.JoinArgs.Flags)
 	if err != nil {
 		log.Errorf("Volumes: StorageHandler : %#v", err)
 		return storage.NewVolumeJoinInternalServerError().WithPayload(&models.Error{
