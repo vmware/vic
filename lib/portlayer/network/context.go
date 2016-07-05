@@ -24,8 +24,6 @@ import (
 	"sync"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
-
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"

@@ -22,6 +22,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
@@ -38,13 +39,13 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *metadata.VirtualCo
 		log.Errorf("%s", err)
 		return err
 	}
-	if len(conf.ExecutorConfig.Networks["client"].Assigned) == 0 {
+	if ip.IsUnspecifiedIP(conf.ExecutorConfig.Networks["client"].Assigned.IP) {
 		err = errors.Errorf("No client IP address assigned")
 		log.Errorf("%s", err)
 		return err
 	}
 
-	d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.String()
+	d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.IP.String()
 	log.Debug("IP address for client interface: %s", d.HostIP)
 	if !conf.HostCertificate.IsNil() {
 		d.VICAdminProto = "https"
