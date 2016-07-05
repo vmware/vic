@@ -466,7 +466,11 @@ func TestContextAddContainer(t *testing.T) {
 			addEthernetCard = te.aec
 		}
 
-		err := ctx.AddContainer(te.h, te.scope, te.ip)
+		options := &AddContainerOptions{
+			Scope: te.scope,
+			IP:    te.ip,
+		}
+		err := ctx.AddContainer(te.h, options)
 		if te.err != nil {
 			// expect an error
 			if err == nil {
@@ -552,29 +556,67 @@ func TestContextBindUnbindContainer(t *testing.T) {
 
 	foo := exec.NewContainer("foo")
 	added := exec.NewContainer("added")
-	staticIP := exec.NewContainer("staticIp")
+	staticIP := exec.NewContainer("staticIP")
 	ipErr := exec.NewContainer("ipErr")
+	alias := exec.NewContainer("alias")
+	aliasErr := exec.NewContainer("aliasErr")
 
+	options := &AddContainerOptions{
+		Scope: ctx.DefaultScope().Name(),
+	}
 	// add a container to the default scope
-	if err = ctx.AddContainer(added, ctx.DefaultScope().Name(), nil); err != nil {
+	if err = ctx.AddContainer(added, options); err != nil {
 		t.Fatalf("ctx.AddContainer(%s, %s, nil) => %s", added, ctx.DefaultScope().Name(), err)
 	}
 
 	// add a container with a static IP
 	ip := net.IPv4(172, 16, 0, 10)
-	if err = ctx.AddContainer(staticIP, ctx.DefaultScope().Name(), &ip); err != nil {
+	options = &AddContainerOptions{
+		Scope: ctx.DefaultScope().Name(),
+		IP:    &ip,
+	}
+	if err = ctx.AddContainer(staticIP, options); err != nil {
 		t.Fatalf("ctx.AddContainer(%s, %s, nil) => %s", staticIP, ctx.DefaultScope().Name(), err)
 	}
 
-	if err = ctx.AddContainer(added, scope.Name(), nil); err != nil {
+	options = &AddContainerOptions{
+		Scope: scope.Name(),
+	}
+	if err = ctx.AddContainer(added, options); err != nil {
 		t.Fatalf("ctx.AddContainer(%s, %s, nil) => %s", added, scope.Name(), err)
 	}
 
 	// add a container with an ip that is already taken,
 	// causing Scope.BindContainer call to fail
 	gw := ctx.DefaultScope().Gateway()
-	ctx.AddContainer(ipErr, scope.Name(), nil)
-	ctx.AddContainer(ipErr, ctx.DefaultScope().Name(), &gw)
+	options = &AddContainerOptions{
+		Scope: scope.Name(),
+	}
+	ctx.AddContainer(ipErr, options)
+
+	options = &AddContainerOptions{
+		Scope: ctx.DefaultScope().Name(),
+		IP:    &gw,
+	}
+	ctx.AddContainer(ipErr, options)
+
+	// add a container with correct aliases
+	options = &AddContainerOptions{
+		Scope:   ctx.DefaultScope().Name(),
+		Aliases: []string{"added:foo", ":bar"},
+	}
+	if err = ctx.AddContainer(alias, options); err != nil {
+		t.Fatalf("ctx.AddContainer(%s, %s, nil) => %s", alias, ctx.DefaultScope().Name(), err)
+	}
+
+	// add a container with incorrect aliases
+	options = &AddContainerOptions{
+		Scope:   ctx.DefaultScope().Name(),
+		Aliases: []string{"cloud:foo", "bar"},
+	}
+	if err = ctx.AddContainer(aliasErr, options); err != nil {
+		t.Fatalf("ctx.AddContainer(%s, %s, nil) => %s", aliasErr, ctx.DefaultScope().Name(), err)
+	}
 
 	var tests = []struct {
 		i      int
@@ -591,6 +633,8 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		// successful container bind
 		{2, added, []string{ctx.DefaultScope().Name(), scope.Name()}, []net.IP{net.IPv4(172, 16, 0, 2), net.IPv4(172, 17, 0, 2)}, false, nil},
 		{3, staticIP, []string{ctx.DefaultScope().Name()}, []net.IP{net.IPv4(172, 16, 0, 10)}, true, nil},
+		{4, alias, []string{ctx.DefaultScope().Name()}, []net.IP{net.IPv4(172, 16, 0, 3)}, false, nil},
+		{5, aliasErr, []string{ctx.DefaultScope().Name()}, []net.IP{}, false, fmt.Errorf("")},
 	}
 
 	for _, te := range tests {
@@ -676,6 +720,8 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		// successful container unbind
 		{2, added, []string{ctx.DefaultScope().Name(), scope.Name()}, nil, false, nil},
 		{3, staticIP, []string{ctx.DefaultScope().Name()}, nil, true, nil},
+		{4, alias, []string{ctx.DefaultScope().Name()}, nil, false, nil},
+		{5, aliasErr, []string{ctx.DefaultScope().Name()}, nil, false, fmt.Errorf("")},
 	}
 
 	// test UnbindContainer
@@ -736,13 +782,18 @@ func TestContextRemoveContainer(t *testing.T) {
 		t.Fatalf("ctx.NewScope() => (nil, %s), want (scope, nil)", err)
 	}
 
-	ctx.AddContainer(hFoo, scope.Name(), nil)
+	options := &AddContainerOptions{
+		Scope: scope.Name(),
+	}
+	ctx.AddContainer(hFoo, options)
 	ctx.BindContainer(hFoo)
 
 	// container that is added to multiple bridge scopes
 	hBar := exec.NewContainer("bar")
-	ctx.AddContainer(hBar, "default", nil)
-	ctx.AddContainer(hBar, scope.Name(), nil)
+	options.Scope = "default"
+	ctx.AddContainer(hBar, options)
+	options.Scope = scope.Name()
+	ctx.AddContainer(hBar, options)
 
 	var tests = []struct {
 		h     *exec.Handle
@@ -835,7 +886,10 @@ func TestDeleteScope(t *testing.T) {
 		t.Fatalf("ctx.NewScope(%s, \"foo\", nil, nil, nil, nil) => (nil, %#v), want (foo, nil)", bridgeScopeType, err)
 	}
 	h := exec.NewContainer("container")
-	ctx.AddContainer(h, foo.Name(), nil)
+	options := &AddContainerOptions{
+		Scope: foo.Name(),
+	}
+	ctx.AddContainer(h, options)
 
 	// bar is a scope with bound endpoints
 	bar, err := ctx.NewScope(bridgeScopeType, "bar", nil, nil, nil, nil)
@@ -844,7 +898,8 @@ func TestDeleteScope(t *testing.T) {
 	}
 
 	h = exec.NewContainer("container2")
-	ctx.AddContainer(h, bar.Name(), nil)
+	options.Scope = bar.Name()
+	ctx.AddContainer(h, options)
 	ctx.BindContainer(h)
 
 	var tests = []struct {

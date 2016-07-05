@@ -106,6 +106,8 @@ func handleFlags() (*CliOptions, bool) {
 	portLayerAddr := flag.String("port-layer-addr", "127.0.0.1", "Port layer server address")
 	portLayerPort := flag.Uint("port-layer-port", 9001, "Port Layer server port")
 
+	debug := flag.Bool("debug", false, "Enable debuglevel logging")
+
 	flag.Parse()
 
 	if *enableTLS && (len(*certfile) == 0 || len(*keyfile) == 0) {
@@ -120,6 +122,10 @@ func handleFlags() (*CliOptions, bool) {
 			fmt.Fprintf(os.Stderr, "tlsverfiy requested, but tls-ca-certificate, tls-certificate, tls-key were all not specified\n")
 			return nil, false
 		}
+	}
+
+	if *debug || vchConfig.Diagnostics.DebugLevel > 0 {
+		log.SetLevel(log.DebugLevel)
 	}
 
 	cli := &CliOptions{
