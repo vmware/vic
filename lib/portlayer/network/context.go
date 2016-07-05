@@ -29,7 +29,6 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vishvananda/netlink"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
@@ -231,7 +230,7 @@ func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net
 	}
 
 	if link != nil {
-		if err = netlink.AddrAdd(link, &netlink.Addr{IPNet: &net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}}); err != nil {
+		if err = link.AddrAdd(net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}); err != nil {
 			if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
 				log.Warnf("failed to add gateway address %s to bridge interface: %s", s.Gateway(), err)
 			}
@@ -241,12 +240,12 @@ func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net
 	return s, nil
 }
 
-func getBridgeLink() (netlink.Link, error) {
+func getBridgeLink() (Link, error) {
 	// add the gateway address to the bridge interface
-	link, err := netlink.LinkByName(Config.BridgeNetwork)
+	link, err := LinkByName(Config.BridgeNetwork)
 	if err != nil {
 		// lookup by alias
-		return netlink.LinkByAlias(Config.BridgeNetwork)
+		return LinkByAlias(Config.BridgeNetwork)
 	}
 
 	return link, nil
@@ -964,8 +963,8 @@ func (c *Context) DeleteScope(name string) error {
 	}
 
 	if link != nil {
-		addr := &netlink.Addr{IPNet: &net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}}
-		if err = netlink.AddrDel(link, addr); err != nil {
+		addr := net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}
+		if err = link.AddrDel(addr); err != nil {
 			if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EADDRNOTAVAIL {
 				log.Warnf("could not remove gateway address %s for scope %s on link %s: %s", addr, s.Name(), link.Attrs().Name, err)
 			}
