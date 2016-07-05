@@ -80,7 +80,7 @@ func GetPprofEndpoint(component PprofPort) *url.URL {
 func StartPprof(name string, component PprofPort) error {
 	url := GetPprofEndpoint(component)
 	if url == nil {
-		err := errors.New("Unable to get pprof endpoint")
+		err := errors.New(fmt.Sprintf("Unable to get pprof endpoint for %s.", name))
 		log.Error(err.Error())
 		return err
 	}
