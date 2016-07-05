@@ -156,6 +156,22 @@ func (n *Network) CreateNetwork(name, driver string, ipam apinet.IPAM, options m
 	return &network{cfg: created.Payload}, nil
 }
 
+func EP2Alias(endpointConfig *apinet.EndpointSettings) []string {
+	var aliases []string
+
+	log.Debugf("EndpointsConfig: %#v", endpointConfig)
+	log.Debugf("Aliases: %s", endpointConfig.Aliases)
+	log.Debugf("Links: %s", endpointConfig.Links)
+
+	// Links are already in CONTAINERNAME:ALIAS format
+	aliases = endpointConfig.Links
+	// Converts aliases to ":ALIAS" format
+	for i := range endpointConfig.Aliases {
+		aliases = append(aliases, fmt.Sprintf(":%s", endpointConfig.Aliases[i]))
+	}
+	return aliases
+}
+
 func (n *Network) ConnectContainerToNetwork(containerName, networkName string, endpointConfig *apinet.EndpointSettings) error {
 	client := PortLayerClient()
 	getRes, err := client.Containers.Get(containers.NewGetParams().WithID(containerName))
@@ -177,6 +193,9 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 	if endpointConfig != nil && endpointConfig.IPAMConfig != nil && endpointConfig.IPAMConfig.IPv4Address != "" {
 		nc.Address = &endpointConfig.IPAMConfig.IPv4Address
 	}
+
+	// Pass Links and Aliases to PL
+	nc.Aliases = EP2Alias(endpointConfig)
 
 	addConRes, err := client.Scopes.AddContainer(scopes.NewAddContainerParams().
 		WithScope(nc.NetworkName).

@@ -341,9 +341,5 @@ clean:
 	rm -rf ./lib/apiservers/portlayer/models/
 	rm -rf ./lib/apiservers/portlayer/restapi/operations/
 
-	rm -f lib/apiservers/docker/restapi/doc.go
-	rm -f lib/apiservers/docker/restapi/embedded_spec.go
-	rm -f lib/apiservers/docker/restapi/server.go
-	rm -fr lib/apiservers/docker/cmd
-	rm -fr lib/apiservers/docker/models
-	rm -fr lib/apiservers/docker/restapi/operations
+	rm -f *.log
+	rm -f *.pem
