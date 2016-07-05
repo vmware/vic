@@ -33,7 +33,6 @@ const basePort = 6060
 
 const (
 	VCHInitPort PprofPort = iota
-	ImagecPort
 	VicadminPort
 	DockerPort
 	PortlayerPort
@@ -87,10 +86,7 @@ func StartPprof(name string, component PprofPort) error {
 		return err
 	}
 
-	if component != ImagecPort {
-		log.Info(fmt.Sprintf("Launching %s server on %s", name, url.String()))
-	}
-
+	log.Info(fmt.Sprintf("Launching %s server on %s", name, url.String()))
 	go func() {
 		log.Info(http.ListenAndServe(url.String(), nil))
 	}()

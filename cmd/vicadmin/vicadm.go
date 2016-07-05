@@ -158,7 +158,6 @@ func configureReaders() map[string]entryReader {
 
 	pprofSources := map[string]string{
 		"docker":    pprof.GetPprofEndpoint(pprof.DockerPort).String(),
-		"imagec":    pprof.GetPprofEndpoint(pprof.ImagecPort).String(),
 		"portlayer": pprof.GetPprofEndpoint(pprof.PortlayerPort).String(),
 		"vicadm":    pprof.GetPprofEndpoint(pprof.VicadminPort).String(),
 		"vic-init":  pprof.GetPprofEndpoint(pprof.VCHInitPort).String(),
