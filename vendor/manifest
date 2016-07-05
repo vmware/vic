@@ -402,6 +402,14 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/mreiferson/go-httpclient",
+			"repository": "https://github.com/mreiferson/go-httpclient",
+			"vcs": "git",
+			"revision": "31f0106b4474f14bc441575c19d3a5fa21aa1f6c",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/naoina/denco",
 			"repository": "https://github.com/naoina/denco",
 			"vcs": "",

@@ -17,6 +17,7 @@ package vicbackends
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/go-swagger/go-swagger/httpkit"
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
+	"github.com/mreiferson/go-httpclient"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/backend"
@@ -55,7 +57,9 @@ type Container struct {
 }
 
 const (
-	attachRequestTimeout time.Duration = 2 * time.Hour
+	attachConnectTimeout time.Duration = 15 * time.Second //timeout for the connection
+	attachAttemptTimeout time.Duration = 30 * time.Second //timeout before we ditch an attach attempt
+	attachRequestTimeout time.Duration = 2 * time.Hour    //timeout to hold onto the attach connection
 	swaggerSubstringEOF                = "EOF"
 )
 
@@ -838,6 +842,22 @@ func (c *Container) imageExist(imageID string) (storeName string, err error) {
 	return host, nil
 }
 
+func createNewAttachClientWithTimeouts(connectTimeout, responseTimeout, responseHeaderTimeout time.Duration) (*client.PortLayer, *httpclient.Transport) {
+	runtime := httptransport.New(PortLayerServer(), "/", []string{"http"})
+	transport := &httpclient.Transport{
+		ConnectTimeout:        connectTimeout,
+		ResponseHeaderTimeout: responseHeaderTimeout,
+		RequestTimeout:        responseTimeout,
+	}
+	runtime.Transport = transport
+
+	plClient := client.New(runtime, nil)
+	runtime.Consumers["application/octet-stream"] = httpkit.ByteStreamConsumer()
+	runtime.Producers["application/octet-stream"] = httpkit.ByteStreamProducer()
+
+	return plClient, transport
+}
+
 // attacheStreams takes the the hijacked connections from the calling client and attaches
 // them to the 3 streams from the portlayer's rest server.
 // name is the container id
@@ -863,17 +883,27 @@ func attachStreams(name string, tty, stdinOnce bool, clStdin io.ReadCloser, clSt
 		defer clStdin.Close()
 		defer stdinReader.Close()
 
-		transport := httptransport.New(PortLayerServer(), "/", []string{"http"})
-		plClient := client.New(transport, nil)
-		transport.Consumers["application/octet-stream"] = httpkit.ByteStreamConsumer()
-		transport.Producers["application/octet-stream"] = httpkit.ByteStreamProducer()
+		// For stdin, we only have a timeout for connection.  There can be a long duration before
+		// the first entry so there is no timeout for attempt.
+		plClient, transport := createNewAttachClientWithTimeouts(attachConnectTimeout, 0, 0)
+		defer transport.Close()
 
 		// Swagger wants an io.reader so give it the reader pipe.  Also, the swagger call
 		// to set the stdin is synchronous so we need to run in a goroutine
 		go func() {
 			setStdinParams := interaction.NewContainerSetStdinParamsWithContext(inContext).WithID(name)
 			setStdinParams = setStdinParams.WithRawStream(stdinReader)
-			plClient.Interaction.ContainerSetStdin(setStdinParams)
+			_, err := plClient.Interaction.ContainerSetStdin(setStdinParams)
+
+			if err != nil {
+				if netErr, ok := err.(net.Error); ok {
+					if netErr.Timeout() {
+						log.Errorf("Net timeout for container stdin")
+					} else {
+						log.Errorf("Net error for container stdin: %s", netErr.Error())
+					}
+				}
+			}
 		}()
 
 		// Copy the stdin from the CLI and write to a pipe.  We need to do this so we can
@@ -912,10 +942,13 @@ func attachStreams(name string, tty, stdinOnce bool, clStdin io.ReadCloser, clSt
 
 	if clStdout != nil {
 		wg.Add(1)
-		transport := httptransport.New(PortLayerServer(), "/", []string{"http"})
-		plClient := client.New(transport, nil)
-		transport.Consumers["application/octet-stream"] = httpkit.ByteStreamConsumer()
-		transport.Producers["application/octet-stream"] = httpkit.ByteStreamProducer()
+
+		// Use a portlayer client that has timeouts for connection and attempt.  We use this so we
+		// can timeout if data doesn't arrive from the stdout stream within a duration.  We only do
+		// this for stdout.  Stdin and stderr does not need an attempt timeout since input and error
+		// can have a longer delay.
+		plClient, transport := createNewAttachClientWithTimeouts(attachConnectTimeout, 0, attachAttemptTimeout)
+		defer transport.Close()
 
 		// Swagger -> pipewriter.  Synchronous, blocking call
 		go func() {
@@ -933,7 +966,7 @@ func attachStreams(name string, tty, stdinOnce bool, clStdin io.ReadCloser, clSt
 					return
 				}
 				if _, ok := err.(*interaction.ContainerGetStdoutInternalServerError); ok {
-					errors <- derr.NewErrorWithStatusCode(fmt.Errorf("Server error from the interaction port layer"),
+					errors <- derr.NewErrorWithStatusCode(fmt.Errorf("Server error from the interaction port layer: %s", err),
 						http.StatusInternalServerError)
 					return
 				}
@@ -959,10 +992,10 @@ func attachStreams(name string, tty, stdinOnce bool, clStdin io.ReadCloser, clSt
 
 	if clStderr != nil {
 		wg.Add(1)
-		transport := httptransport.New(PortLayerServer(), "/", []string{"http"})
-		plClient := client.New(transport, nil)
-		transport.Consumers["application/octet-stream"] = httpkit.ByteStreamConsumer()
-		transport.Producers["application/octet-stream"] = httpkit.ByteStreamProducer()
+		// For stderr, we only have a timeout for connection.  There can be a long duration before
+		// the first error so there is no timeout for attempt.
+		plClient, transport := createNewAttachClientWithTimeouts(attachConnectTimeout, 0, 0)
+		defer transport.Close()
 
 		// Swagger -> pipewriter.  Synchronous, blocking call
 		go func() {
@@ -980,7 +1013,7 @@ func attachStreams(name string, tty, stdinOnce bool, clStdin io.ReadCloser, clSt
 					return
 				}
 				if _, ok := err.(*interaction.ContainerGetStderrInternalServerError); ok {
-					errors <- derr.NewErrorWithStatusCode(fmt.Errorf("Server error from the interaction port layer"),
+					errors <- derr.NewErrorWithStatusCode(fmt.Errorf("Server error from the interaction port layer: %s", err),
 						http.StatusInternalServerError)
 					return
 				}
@@ -1003,6 +1036,12 @@ func attachStreams(name string, tty, stdinOnce bool, clStdin io.ReadCloser, clSt
 			errors <- nil
 		}()
 	}
+
+	//	go func() {
+	//		select {
+	//			case <- attachContext.Done()
+	//		}
+	//	}()
 
 	// Wait for all stream copy to exit
 	wg.Wait()
