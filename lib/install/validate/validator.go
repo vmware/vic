@@ -229,7 +229,6 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *metadat
 	defer trace.End(trace.Begin(""))
 
 	// Image Store
-	log.Infof("%s", input.ImageDatastoreName)
 	imageDSpath, ds, err := v.DatastoreHelper(ctx, input.ImageDatastoreName)
 	v.NoteIssue(err)
 	if ds == nil {

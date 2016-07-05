@@ -21,6 +21,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"time"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
@@ -32,7 +34,6 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"golang.org/x/net/context"
-	"time"
 )
 
 type Dispatcher struct {
