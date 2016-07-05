@@ -655,6 +655,28 @@ func (t *BaseOperations) Setup(sink ConfigSink) error {
 		return err
 	}
 
+	// make sure localhost entries are present
+	entries := []struct {
+		hostname string
+		addr     net.IP
+	}{
+		{"localhost", net.ParseIP("127.0.0.1")},
+		{"ip6-localhost", net.ParseIP("::1")},
+		{"ip6-loopback", net.ParseIP("::1")},
+		{"ip6-localnet", net.ParseIP("fe00::0")},
+		{"ip6-mcastprefix", net.ParseIP("ff00::0")},
+		{"ip6-allnodes", net.ParseIP("ff02::1")},
+		{"ip6-allrouters", net.ParseIP("ff02::2")},
+	}
+
+	for _, e := range entries {
+		h.SetHost(e.hostname, e.addr)
+	}
+
+	if err = h.Save(); err != nil {
+		return err
+	}
+
 	// start with empty resolv.conf
 	os.Remove("/etc/resolv.conf")
 
