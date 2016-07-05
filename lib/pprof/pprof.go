@@ -61,8 +61,7 @@ func GetPprofEndpoint(component PprofPort) *url.URL {
 	port := component + basePort
 
 	ip := "127.0.0.1"
-	self, ok := vchConfig.ExecutorConfig.Sessions["vicadmin"]
-	if vchConfig.ExecutorConfig.Diagnostics.DebugLevel > 1 || (ok && self.Diagnostics.DebugLevel > 1) {
+	if vchConfig.ExecutorConfig.Diagnostics.DebugLevel > 1 {
 		ips, err := net.LookupIP("client.localhost")
 		if err != nil || len(ips) == 0 {
 			log.Warnf("Unable to resolve 'client.localhost': ", err)
