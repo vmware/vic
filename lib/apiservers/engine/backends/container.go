@@ -219,6 +219,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(fmt.Errorf("No command specified"))
 	}
 
+	log.Printf("ContainerCreate config' = %+v", config)
 	// Call the Exec port layer to create the container
 	host, err := guest.UUID()
 	if err != nil {
@@ -250,9 +251,9 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		addContRes, err := client.Scopes.AddContainer(scopes.NewAddContainerParams().
 			WithScope(netConf.NetworkName).
 			WithConfig(&models.ScopesAddContainerConfig{
-			Handle:        h,
-			NetworkConfig: netConf,
-		}))
+				Handle:        h,
+				NetworkConfig: netConf,
+			}))
 
 		if err != nil {
 			log.Errorf("ContainerCreate: Scopes error: %s", err.Error())
