@@ -44,6 +44,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/pkg/i18n"
 
 	"github.com/pkg/profile"
@@ -164,6 +165,7 @@ func init() {
 	flag.BoolVar(&options.tracing, "tracing", false, i18n.T("Enable runtime tracing"))
 
 	flag.Parse()
+	pprof.StartPprof("imagec", pprof.ImagecPort)
 }
 
 // ParseReference parses the -reference parameter and populate options struct
