@@ -66,6 +66,17 @@ func (d *Dispatcher) DeleteVCH(conf *metadata.VirtualContainerHostConfigSpec) er
 		// stop here, leave vch appliance there for next time delete
 		return errors.New(strings.Join(errs, "\n"))
 	}
+
+	if d.isVC {
+		log.Infoln("Removing VCH vSphere extension")
+		if err = d.GenerateExtensionName(conf); err != nil {
+			log.Warnf("Failed to get extension name during VCH deletion: %s", err)
+		}
+		if err = d.UnregisterExtension(conf.ExtensionName); err != nil {
+			log.Warnf("Failed to remove extension %s: %s", conf.ExtensionName, err)
+		}
+	}
+
 	err = d.deleteVM(vmm, true)
 	if err != nil {
 		log.Debugf("Error deleting appliance VM %s", err)
