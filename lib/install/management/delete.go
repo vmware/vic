@@ -15,10 +15,11 @@
 package management
 
 import (
+	"bytes"
+	"fmt"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
@@ -85,6 +86,12 @@ func (d *Dispatcher) DeleteVCH(conf *metadata.VirtualContainerHostConfigSpec) er
 	if err = d.destroyResourcePoolIfEmpty(conf); err != nil {
 		log.Warnf("VCH resource pool is not removed, %s", err)
 	}
+
+	log.Infoln("Removing volume stores...")
+	if err = d.deleteVolumeStoreIfForced(conf); err != nil {
+		log.Warnf("Error while deleting volume store: %s", err)
+		return err
+	}
 	return nil
 }
 
@@ -140,6 +147,46 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *metadata.V
 		return errors.New(strings.Join(errs, "\n"))
 	}
 
+	return nil
+}
+
+func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHostConfigSpec) error {
+	if d.force {
+
+		for label, url := range conf.VolumeLocations {
+
+			// separate the host from the path in the provided path URL
+			pathAry := strings.SplitN(url.Path, " ", 2)
+			if len(pathAry) != 2 {
+				return errors.New("Didn't receive an expected volume store path format")
+			}
+
+			// convert the URL path to vSphere style pathing, and omit everything from the path except the root of the volume store
+			vSpherePath := fmt.Sprintf("%s %s", pathAry[0], strings.Split(pathAry[1], "/")[0])
+
+			// connect to vSphere and do the actual deletion
+			m := object.NewFileManager(d.session.Vim25())
+			log.Infof("Deleting volume store %s at path %s", label, vSpherePath)
+			task, err := m.DeleteDatastoreFile(d.ctx, vSpherePath, d.session.Datacenter)
+			if err != nil {
+				return errors.Errorf("Failed to start delete of %s due to error: %s", vSpherePath, err)
+			}
+
+			if err = task.Wait(d.ctx); err != nil {
+				return errors.Errorf("Failed to finish delete of %s due to error: %s", vSpherePath, err)
+			}
+
+		}
+
+	} else {
+		volumeStores := new(bytes.Buffer)
+		for label, url := range conf.VolumeLocations {
+			if _, err := volumeStores.WriteString(fmt.Sprintf("\t%s: %s\n", label, url.Path)); err != nil {
+				return err
+			}
+		}
+		log.Warnf("Since --force was not specified, the following volume stores will not be removed. Use the vSphere UI to delete content you do not wish to keep.\n%s", volumeStores.String())
+	}
 	return nil
 }
 
