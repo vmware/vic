@@ -272,7 +272,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 
 		h = addContRes.Payload
 	}
-
+	msg, name, time := trace.Begin("Container.ContainerCreate - VolumeSection")
 	//Volume Attachment Section
 	for _, v := range config.HostConfig.Binds {
 		fields, shouldExist, err := processVolumeParam(v)
@@ -312,6 +312,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 			return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusInternalServerError)
 		}
 	}
+	trace.End(msg, name, time)
 	// commit the create op
 	_, err = client.Containers.Commit(containers.NewCommitParams().WithHandle(h))
 	if err != nil {
