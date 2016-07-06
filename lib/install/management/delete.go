@@ -194,3 +194,13 @@ func (d *Dispatcher) networkDevices(vmm *vm.VirtualMachine) ([]types.BaseVirtual
 	}
 	return devices, nil
 }
+
+func (d *Dispatcher) UnregisterExtension(name string) error {
+	defer trace.End(trace.Begin(name))
+
+	extensionManager := object.NewExtensionManager(d.session.Vim25())
+	if err := extensionManager.Unregister(d.ctx, name); err != nil {
+		return errors.Errorf("Failed to remove extension w/ name %s due to error: %s", name, err)
+	}
+	return nil
+}
