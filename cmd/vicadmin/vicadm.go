@@ -380,7 +380,8 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]url.URL, error) {
 func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 	defer trace.End(trace.Begin(""))
 
-	var readers map[string]entryReader
+	// Create an empty reader as opposed to a nil reader...
+	readers := map[string]entryReader{}
 	ctx := context.Background()
 
 	paths, err := listVMPaths(ctx, c)
@@ -451,7 +452,7 @@ func findDiagnosticLogs(c *session.Session) (map[string]entryReader, error) {
 		hostdKey = "hostd"
 	)
 
-	var logs map[string]entryReader
+	logs := map[string]entryReader{}
 	var err error
 
 	if c.IsVC() {
