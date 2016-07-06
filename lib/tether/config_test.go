@@ -63,6 +63,7 @@ func TestToExtraConfig(t *testing.T) {
 					Gateway:     net.IPNet{IP: gateway, Mask: gmask.Mask},
 					Nameservers: []net.IP{},
 					Pools:       []ip.Range{},
+					Aliases:     []string{},
 				},
 			},
 		},

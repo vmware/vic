@@ -30,23 +30,23 @@ import (
 
 // Utility method to add an interface to Mocked
 // This assigns the interface name and returns the "slot" as a string
-func AddInterface(name string) string {
-	Mocked.maxSlot++
+func AddInterface(name string, mocker *Mocker) string {
+	mocker.maxSlot++
 
-	Mocked.Interfaces[name] = &Interface{
+	mocker.Interfaces[name] = &Interface{
 		LinkAttrs: netlink.LinkAttrs{
 			Name:  name,
-			Index: Mocked.maxSlot,
+			Index: mocker.maxSlot,
 		},
 		Up: true,
 	}
 
-	return strconv.Itoa(Mocked.maxSlot)
+	return strconv.Itoa(mocker.maxSlot)
 }
 
 func TestSetIpAddress(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	mocker := testSetup(t)
+	defer testTeardown(t, mocker)
 
 	hFile, err := ioutil.TempFile("", "vic_set_ip_test_hosts")
 	if err != nil {
@@ -66,8 +66,8 @@ func TestSetIpAddress(t *testing.T) {
 	hostsFile = hFile.Name()
 	resolvFile = rFile.Name()
 
-	bridge := AddInterface("eth1")
-	external := AddInterface("eth2")
+	bridge := AddInterface("eth1", mocker)
+	external := AddInterface("eth2", mocker)
 
 	secondIP, _ := netlink.ParseIPNet("172.16.0.10/24")
 	gwIP, _ := netlink.ParseIPNet("172.16.0.1/24")
@@ -126,8 +126,9 @@ func TestSetIpAddress(t *testing.T) {
 		},
 	}
 
-	tthr, _ := StartTether(t, &cfg)
+	tthr, _ := StartTether(t, &cfg, mocker)
 
+<<<<<<< 8d21b7a23c02fa361ef2ca6bfa9b92975c8e1c94
 	defer func() {
 		// prevent indefinite wait in tether - normally session exit would trigger this
 		tthr.Stop()
@@ -137,16 +138,36 @@ func TestSetIpAddress(t *testing.T) {
 	}()
 
 	<-Mocked.Started
+=======
+	<-mocker.Started
+>>>>>>> Update tether test setup and fix flushing
 
-	assert.NotNil(t, Mocked.Interfaces["bridge"], "Expected bridge network if endpoints applied correctly")
+	assert.NotNil(t, mocker.Interfaces["bridge"], "Expected bridge network if endpoints applied correctly")
 	// check addresses
+<<<<<<< 8d21b7a23c02fa361ef2ca6bfa9b92975c8e1c94
 	bIface, _ := Mocked.Interfaces["bridge"].(*Interface)
+=======
+	bIface := mocker.Interfaces["bridge"].(*Interface)
+>>>>>>> Update tether test setup and fix flushing
 	assert.NotNil(t, bIface)
 
 	assert.Equal(t, 2, len(bIface.Addrs), "Expected two addresses on bridge interface")
 
+<<<<<<< 8d21b7a23c02fa361ef2ca6bfa9b92975c8e1c94
 	eIface, _ := Mocked.Interfaces["external"].(*Interface)
 	assert.NotNil(t, eIface)
 
 	assert.Equal(t, 1, len(eIface.Addrs), "Expected one address on external interface")
+=======
+	eIface := mocker.Interfaces["external"].(*Interface)
+	assert.NotNil(t, eIface)
+
+	assert.Equal(t, 1, len(eIface.Addrs), "Expected one address on external interface")
+
+	// prevent indefinite wait in tether - normally session exit would trigger this
+	tthr.Stop()
+
+	// wait for tether to exit
+	<-mocker.Cleaned
+>>>>>>> Update tether test setup and fix flushing
 }

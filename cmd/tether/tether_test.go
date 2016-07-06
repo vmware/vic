@@ -105,7 +105,7 @@ func (t *Mocker) Log() (io.Writer, error) {
 }
 
 func (t *Mocker) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, error) {
-	return dio.MultiWriter(&t.SessionLogBuffer, os.Stdout), nil
+	return dio.MultiWriter(&t.SessionLogBuffer), nil
 }
 
 func (t *Mocker) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) func() {
@@ -169,9 +169,9 @@ func TestMain(m *testing.M) {
 }
 
 func StartAttachTether(t *testing.T, cfg *executor.ExecutorConfig) (tether.Tether, extraconfig.DataSource, net.Conn) {
-	store := map[string]string{}
-	sink := extraconfig.MapSink(store)
-	src := extraconfig.MapSource(store)
+	store := extraconfig.New()
+	sink := store.Put
+	src := store.Get
 	extraconfig.Encode(sink, cfg)
 	log.Debugf("Test configuration: %#v", sink)
 

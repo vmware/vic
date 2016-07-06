@@ -292,10 +292,8 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 
 	// close down the IO
 	session.Reader.Close()
-	// live.outwriter.Close()
-	// live.errwriter.Close()
-
-	// flush session log output
+	session.Outwriter.Close()
+	session.Errwriter.Close()
 
 	// Log a death record trimming records if need be
 	logs := session.Diagnostics.ExitLogs
