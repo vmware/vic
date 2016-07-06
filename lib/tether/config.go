@@ -83,6 +83,10 @@ type SessionConfig struct {
 	// Restart controls whether a process gets relaunched if it exists
 	Restart bool `vic:"0.1" scope:"read-only" key:"restart"`
 
+	// User and group for setuid programs
+	User  string `vic:"0.1" scope:"read-only" key:"user"`
+	Group string `vic:"0.1" scope:"read-only" key:"group"`
+
 	// if there's a pty then we need additional management data
 	Pty       *os.File
 	Outwriter dio.DynamicMultiWriter

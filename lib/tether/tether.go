@@ -342,6 +342,12 @@ func (t *tether) launch(session *SessionConfig) error {
 	session.Errwriter = logwriter
 	session.Reader = dio.MultiReader()
 
+	// Special case here because UID/GID lookup need to be done
+	// on the appliance...
+	if len(session.User) > 0 {
+		session.Cmd.SysProcAttr = getUserSysProcAttr(session.User)
+	}
+
 	session.Cmd.Env = t.ops.ProcessEnv(session.Cmd.Env)
 	session.Cmd.Stdout = session.Outwriter
 	session.Cmd.Stderr = session.Errwriter

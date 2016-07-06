@@ -1,0 +1,17 @@
+.main-nav header, .main-nav .header {background-color: #004A70;}
+.header .btn {position: absolute; right:18px; top:6px;}
+.header .btn .fa-github {font-size:20px}
+
+section {width: 100%; padding-left: 24px; padding-right: 24px; max-width: 1056px; margin: 0 auto; padding-top: 24px;}
+.community-top-section {padding-top: 0;}
+
+.right {float:right; margin-right:18px;}
+li .right {margin-right:120px}
+
+.card ul {margin:0 18px;}
+.card li {list-style-type:none; margin:12px 0;} 
+.status-card .right {color:#62A420;}
+.right.warning {color:#EB8D00;}
+.error-message {color:#c92100; font-size:12px; line-height:12px; display:block; margin-bottom:8px;}
+
+form {padding-top:0;}
