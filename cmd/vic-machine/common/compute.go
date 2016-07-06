@@ -31,7 +31,7 @@ func (c *Compute) ComputeFlags() []cli.Flag {
 		},
 		cli.StringFlag{
 			Name:        "name, n",
-			Value:       "docker-appliance",
+			Value:       "virtual-container-host",
 			Usage:       "The name of the Virtual Container Host",
 			Destination: &c.DisplayName,
 		},

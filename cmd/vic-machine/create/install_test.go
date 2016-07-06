@@ -95,7 +95,7 @@ func TestGenKey(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
 	os.Args = []string{"cmd", "create"}
 	flag.Parse()
-	create.tlsGenerate = true
+	create.noTLS = false
 	if _, err := create.loadCertificate(); err != nil {
 		t.Errorf("Error returned: %s", err)
 	}
