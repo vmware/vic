@@ -678,12 +678,9 @@ func (t *BaseOperations) Setup(sink ConfigSink) error {
 	}
 
 	// start with empty resolv.conf
-	os.Remove("/etc/resolv.conf")
+	os.Remove(etcconf.ResolvConfPath)
 
 	rc := etcconf.NewResolvConf("")
-	if err = rc.Load(); err != nil {
-		return err
-	}
 
 	t.dynEndpoints = make(map[string][]*NetworkEndpoint)
 	t.dhcpLoops = make(map[string]chan bool)

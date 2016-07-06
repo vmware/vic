@@ -42,7 +42,11 @@ type operations struct {
 	tether.BaseOperations
 }
 
-func (t *operations) Setup() error {
+func (t *operations) Setup(sink tether.ConfigSink) error {
+	if err := t.BaseOperations.Setup(sink); err != nil {
+		return err
+	}
+
 	return pprof.StartPprof("vch-init", pprof.VCHInitPort)
 }
 

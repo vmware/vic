@@ -23,7 +23,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-const resolvConfPath = "/etc/resolv.conf"
+const ResolvConfPath = "/etc/resolv.conf"
 
 type ResolvConf interface {
 	Conf
@@ -60,7 +60,7 @@ func (w *resolvConfWalker) Next() string {
 
 func NewResolvConf(path string) ResolvConf {
 	if path == "" {
-		path = resolvConfPath
+		path = ResolvConfPath
 	}
 
 	return &resolvConf{path: path}
