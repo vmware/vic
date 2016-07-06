@@ -16,21 +16,20 @@ This topic provides examples of the options of the `vic-machine` `create` comman
 <a name="esxi"></a>
 ## Deploy a Virtual Container Host Directly on an ESXi Host with no Resource Pools##
 
-You can install vSphere Integrated Containers directly on an ESXi host that is not managed by a vCenter Server instance. This example provides the miniumum options required to install vSphere Integrated Containers. The installer prompts you for the password for the ESXi host and deploys a virtual container host appliance with the default name `docker-appliance`. When an ESXi host has no resource pools, you must provide the address of  the root resource pool in the `compute-resource` option in the `govc` format, exactly as shown in the example. You specify the datastore in which to store the virtual container host files and container image files in the mandatory `image-store` option.
+You can install vSphere Integrated Containers directly on an ESXi host that is not managed by a vCenter Server instance. This example provides the miniumum options required to install vSphere Integrated Containers. The installer prompts you for the password for the ESXi host and deploys a virtual container host appliance with the default name `docker-appliance`. You specify the datastore in which to store the virtual container host files and container image files in the mandatory `image-store` option.
  
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target <i>esxi_host_IPv4_address_or_FQDN</i>
 --user root
---compute-resource /ha-datacenter/host/localhost.eng.vmware.com/Resources/
 --image-datastore <i>datastore_name</i>
 </pre>
 
 <a name="cluster"></a>
 ## Deploy a Virtual Container Host in a vCenter Server Cluster ##
 
-If vCenter Server manages clusters, you use the `compute-resource` option to specify the address of the cluster to which to deploy the virtual container host. You provide the cluster address in the `govc` format.
+If vCenter Server manages more than one cluster, you use the `compute-resource` option to specify the address of the cluster to which to deploy the virtual container host. 
 
-In clusters that have more than one host, you must use the `bridge-network` option to specify an existing network for container VMs to use to communicate with each other and with the virtual container host.  
+You must use the `bridge-network` option to specify an existing distributed port group for container VMs to use to communicate with each other and with the virtual container host.  
 
 In addition to the mandatory options for deployment to a cluster, this example sets the vCenter Single Sign-On user and password and gives the virtual container host a custom name, `vch1`.
 
@@ -38,9 +37,9 @@ In addition to the mandatory options for deployment to a cluster, this example s
 --target <i>vcenter_server_IPv4_address_or_FQDN</i>
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
---compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
+--compute-resource <i>cluster_name</i>
 --image-datastore <i>datastore_name</i>
---bridge-network <i>network_name</i>
+--bridge-network <i>distributed_port_group_name</i>
 --name vch1
 </pre>
 
@@ -53,7 +52,7 @@ If your vSphere environment includes multiple networks, you can direct different
 - You direct traffic between ESXi hosts, vCenter Server, and the virtual container host to a specific network by specifying the `management-network` option. If you do not specify the `management-network` option, the virtual container host uses the bridge network for management traffic.
 - You direct the traffic between container VMs and between container VMs and the virtual container host to a specific network by specifying the `bridge-network` option. This option is mandatory in environments with more than one ESXi host. 
 
-To specify networking options, you must provide the name of a network or private port group that exists on the ESXi host before you deploy a virtual container host. For information about creating a private port group, see [Create a Private Port Group for Virtual Container Hosts](create_a_private_port_group_for_vch.md). 
+To specify networking options, you must provide the name of a distributed port group that exists in your vCenter Server environment before you deploy a virtual container host. For information about how to create a distributed virtual switch and port group, see *Network Requirements* in [Environment Prerequisites for vSphere Integrated Containers Installation](vic_installation_prereqs.md#networkreqs).
 
 In addition to the mandatory options for deployment to a cluster, this example sets the vCenter Single Sign-On user and password, specifies different networks for the different types of traffic, and gives the virtual container host a custom name, `vch1`.
 
@@ -61,7 +60,7 @@ In addition to the mandatory options for deployment to a cluster, this example s
 --target <i>vcenter_server_IPv4_address_or_FQDN</i>
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
---compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
+--compute-resource <i>cluster_name</i>
 --image-datastore <i>datastore_name</i>
 --bridge-network <i>network_1_name</i>
 --management-network <i>network_2_name</i>
@@ -80,7 +79,7 @@ In addition to the mandatory options for deployment to a cluster, this example s
 --target <i>vcenter_server_IPv4_address_or_FQDN</i>
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
---compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
+--compute-resource <i>cluster_name</i>
 --image-datastore <i>datastore_1_name</i>
 --container-datastore <i>datastore_2_name</i>
 --bridge-network <i>network_1_name</i>
@@ -90,7 +89,7 @@ In addition to the mandatory options for deployment to a cluster, this example s
 <a name="standalone"></a> 
 ## Deploy a Virtual Container Host on a Standalone Host in vCenter Server ##
 
-If vCenter Server manages standalone ESXi hosts that are not part of a cluster, you use the `compute-resource` option to specify the address of the ESXi host to which to deploy the virtual container host.  You provide the host address in the `govc` format. If the vCenter Server manages more than one standalone ESXi host, you must specify the `bridge-network` option.
+If vCenter Server manages multiple standalone ESXi hosts that are not part of a cluster, you use the `compute-resource` option to specify the address of the ESXi host to which to deploy the virtual container host.   If the vCenter Server manages more than one standalone ESXi host, you must specify the `bridge-network` option.
 
 In addition to the mandatory options, this example specifies the vCenter Single Sign-On user and password, and gives the virtual container host a custom name, `vch1`.
 
@@ -98,7 +97,7 @@ In addition to the mandatory options, this example specifies the vCenter Single 
 --target <i>vcenter_server_IPv4_address_or_FQDN</i> 
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
---compute-resource /<i>datacenter_name</i>/host/<i>host_IPv4_address_or_FQDN</i>/
+--compute-resource <i>host_IPv4_address_or_FQDN</i>
 --image-datastore <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --name vch1
@@ -107,22 +106,21 @@ In addition to the mandatory options, this example specifies the vCenter Single 
 <a name="rp_host"></a>
 ## Deploy a Virtual Container Host in a Resource Pool on an ESXi Host ##
 
-To deploy a virtual container host in a resource pool on an ESXi host that is not managed by vCenter Server, you specify the resource pool address in the `compute-resource` option. You provide the resource pool address in the `govc` format.
+To deploy a virtual container host in a resource pool on an ESXi host that is not managed by vCenter Server, you specify the resource pool address in the `compute-resource` option. 
 
 This example uses the minimum required options.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target <i>esxi_host_IPv4_address_or_FQDN</i>
 --user root
---compute-resource 
-/ha-datacenter/host/localhost.eng.vmware.com/Resources/<i>resource_pool_name</i>/
+--compute-resource <i>resource_pool_name</i>
 --image-datastore <i>datastore_name</i>
 </pre>
 
 <a name="rp_cluster"></a>
 ## Deploy a Virtual Container Host in a Resource Pool in a vCenter Server Cluster ##
 
-To deploy a virtual container host in a resource pool in a vCenter Server Cluster, you specify the resource pool address in the `compute-resource` option. You provide the resource pool address in the `govc` format.
+To deploy a virtual container host in a resource pool in a vCenter Server Cluster, you specify the resource pool address in the `compute-resource` option.
 
 In addition to the mandatory options, this example sets the vCenter Single Sign-On user and password, and gives the virtual container host a custom name, `vch1`.
 
@@ -130,7 +128,7 @@ In addition to the mandatory options, this example sets the vCenter Single Sign-
 --target <i>vcenter_server_IPv4_address_or_FQDN</i>
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
---compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/Resources/<i>resource_pool_name</i>/
+--compute-resource <i>cluster_name</i>/Resources/<i>resource_pool_name</i>
 --image-datastore <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --name vch1
@@ -147,7 +145,7 @@ In addition to the mandatory options for deployment to a cluster, this example s
 --target <i>vcenter_server_IPv4_address_or_FQDN</i>
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
---compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
+--compute-resource <i>cluster_name</i>
 --image-datastore <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --cert <i>path_to_certificate_file</i>
@@ -166,7 +164,7 @@ In addition to the mandatory options for deployment to a cluster, this example s
 --target <i>vcenter_server_IPv4_address_or_FQDN</i>
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
---compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
+--compute-resource <i>cluster_name</i>
 --image-datastore <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --name vch1
@@ -184,7 +182,7 @@ In addition to the mandatory options for deployment to a cluster, this example s
 --target <i>vcenter_server_IPv4_address_or_FQDN</i>
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
---compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
+--compute-resource <i>cluster_name</i>
 --image-datastore <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --name vch1
