@@ -606,10 +606,12 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 	// FIXME: Just set a bunch of dummy info needed to get docker attach working.
 	// Once we have event stream working (part of docker ps work), we need to go
 	// back and replace this.
+	running, _ := IsContainerRunning(vc.ContainerID)
+
 	base := &types.ContainerJSONBase{
-		State: &types.ContainerState{Status: "running",
-			Running: true,
-			Paused:  false,
+		State: &types.ContainerState{
+			Running: running,
+			Paused:  false, //We do not yet support paused/resumed
 		},
 	}
 
@@ -689,10 +691,6 @@ func (c *Container) ContainerAttach(prefixOrName string, ca *backend.ContainerAt
 	vc := cache.ContainerCache().GetContainer(prefixOrName)
 
 	if vc == nil {
-		//FIXME: If we didn't find in the cache, we should goto the port layer and
-		//see if it exists there.  API server might have been bounced.  For now,
-		//just return error
-
 		return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", prefixOrName))
 	}
 
@@ -856,6 +854,30 @@ func createNewAttachClientWithTimeouts(connectTimeout, responseTimeout, response
 	runtime.Producers["application/octet-stream"] = httpkit.ByteStreamProducer()
 
 	return plClient, transport
+}
+
+func IsContainerRunning(containerID string) (bool, error) {
+	// Get an API client to the portlayer
+	plClient := PortLayerClient()
+	if plClient == nil {
+		return false, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get Port layer client"),
+			http.StatusInternalServerError)
+	}
+
+	resp, err := plClient.Containers.GetContainerInfo(containers.NewGetContainerInfoParams().WithID(containerID))
+	if err != nil {
+		return false, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get container info: %s", err), http.StatusInternalServerError)
+	}
+
+	ci := resp.Payload
+
+	if ci != nil && ci.ContainerConfig != nil {
+		if ci.ContainerConfig.State != nil && strings.ToLower(*ci.ContainerConfig.State) == "running" {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // attacheStreams takes the the hijacked connections from the calling client and attaches
