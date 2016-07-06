@@ -98,10 +98,18 @@ func (i *Inspect) Run(cli *cli.Context) error {
 	log.SetFormatter(&log.TextFormatter{ForceColors: true, FullTimestamp: true})
 	// SetOutput to io.MultiWriter so that we can log to stdout and a file
 	log.SetOutput(io.MultiWriter(os.Stdout, f))
+
 	if i.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}
+
+	if len(cli.Args()) > 0 {
+		log.Error("Inspect cannot continue: invalid CLI arguments")
+		log.Errorf("Unknown argument: %s", cli.Args()[0])
+		return errors.New("invalid CLI arguments")
+	}
+
 	log.Infof("### Inspecting VCH ####")
 
 	ctx, cancel := context.WithTimeout(context.Background(), i.Timeout)
