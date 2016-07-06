@@ -15,6 +15,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 
@@ -305,8 +306,16 @@ func (handler *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) 
 	actualHandle := epl.GetHandle(params.JoinArgs.Handle)
 
 	//Note: Name should already be populated by now.
-	//FIXME: Report Proper Errorcodes for the found errors. e.g. ResourceNotFound
-	volume, err := storageVolumeLayer.VolumeGet(context.TODO(), params.Name)
+
+	volumeList, err := storageVolumeLayer.VolumesList(context.Background())
+	if err != nil {
+		log.Errorf("Volumes: StorageHandler : %#v", err)
+		return storage.NewVolumeJoinInternalServerError().WithPayload(&models.Error{
+			Code:    swag.Int64(http.StatusInternalServerError),
+			Message: err.Error(),
+		})
+	}
+	volume, err := findVolume(volumeList, params.Name)
 	if err != nil {
 		log.Errorf("Volumes: StorageHandler : %#v", err)
 		return storage.NewVolumeJoinInternalServerError().WithPayload(&models.Error{
@@ -315,7 +324,7 @@ func (handler *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) 
 		})
 	}
 
-	actualHandle, err = vsphereSpl.VolumeJoin(context.TODO(), actualHandle, volume, params.JoinArgs.Flags)
+	actualHandle, err = vsphereSpl.VolumeJoin(context.Background(), actualHandle, volume, params.JoinArgs.Flags)
 	if err != nil {
 		log.Errorf("Volumes: StorageHandler : %#v", err)
 		return storage.NewVolumeJoinInternalServerError().WithPayload(&models.Error{
@@ -323,6 +332,7 @@ func (handler *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) 
 			Message: err.Error(),
 		})
 	}
+
 	return storage.NewVolumeJoinOK().WithPayload(actualHandle.String())
 }
 
@@ -337,4 +347,13 @@ func volumeToCreateResponse(volume *spl.Volume, model *models.VolumeRequest) mod
 		Metadata: model.Metadata,
 	}
 	return response
+}
+
+func findVolume(volumeList []*spl.Volume, ID string) (*spl.Volume, error) {
+	for _, v := range volumeList {
+		if v.ID == ID {
+			return v, nil
+		}
+	}
+	return &spl.Volume{}, fmt.Errorf("The volume with ID '%s' does not exist", ID)
 }

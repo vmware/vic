@@ -282,6 +282,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		//NOTE: This should be the guard for the case of an anonymous volume.
 		if !shouldExist {
 			//NOTE: we should not expect any driver args if the drive is anonymous.
+			log.Infof("anonymous volume being created - Container Create - volume mount section")
 			metadata := make(map[string]string)
 			metadata["flags"] = fields.VolumeFlags
 			volumeRequest := models.VolumeRequest{
