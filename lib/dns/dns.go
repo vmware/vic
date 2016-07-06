@@ -46,8 +46,9 @@ var (
 
 // ServerOptions represents the server options
 type ServerOptions struct {
-	IP   string
-	Port int
+	IP        string
+	Port      int
+	Interface string
 
 	Nameservers flagMultipleVar
 
@@ -519,6 +520,18 @@ func (s *Server) ServeDNS(w mdns.ResponseWriter, r *mdns.Msg) {
 
 // Start starts the DNS server
 func (s *Server) Start() {
+	// Call BindToDevice if IP is empty and Interface is set
+	if s.IP == "" && s.Interface != "" {
+		uf, err := s.udpconn.File()
+		if err != nil {
+			log.Errorf("Getting the fd failed with: %s", err)
+		}
+		// BindToDevice binds the socket associated with fd to device.
+		if err := BindToDevice(int(uf.Fd()), s.Interface); err != nil {
+			log.Errorf("Calling BindToDevice failed with: %s", err)
+		}
+	}
+
 	udpserver := &mdns.Server{
 		Handler:    s,
 		PacketConn: s.udpconn,
@@ -533,6 +546,18 @@ func (s *Server) Start() {
 		log.Debugf("UDP server exited")
 	}()
 	log.Infof("Ready for queries on udp://%s", s.Addr())
+
+	// Call BindToDevice if IP is empty and Interface is set
+	if s.IP == "" && s.Interface != "" {
+		tf, err := s.tcplisten.File()
+		if err != nil {
+			log.Errorf("Getting the fd failed with: %s", err)
+		}
+		// BindToDevice binds the socket associated with fd to device.
+		if err := BindToDevice(int(tf.Fd()), s.Interface); err != nil {
+			log.Errorf("Calling BindToDevice failed with: %s", err)
+		}
+	}
 
 	tcpserver := &mdns.Server{Handler: s, Listener: s.tcplisten}
 	s.tcpserver = tcpserver

@@ -63,6 +63,8 @@ func main() {
 	server.ConfigureAPI()
 
 	// BEGIN
+	// Set the Interface name to instruct listeners to bind on this interface
+	options.Interface = "bridge"
 	// Start the DNS Server
 	dnsserver := dns.NewServer(options)
 	if dnsserver != nil {
