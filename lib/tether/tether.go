@@ -115,7 +115,7 @@ func (t *tether) setup() error {
 
 	t.childReaper()
 
-	t.ops.Setup()
+	t.ops.Setup(t)
 
 	for name, ext := range t.extensions {
 		log.Infof("Starting extension %s", name)
@@ -443,4 +443,10 @@ func restartableCmd(cmd *exec.Cmd) *exec.Cmd {
 		ExtraFiles:  cmd.ExtraFiles,
 		SysProcAttr: cmd.SysProcAttr,
 	}
+}
+
+// ConfigSink interface
+func (t *tether) WriteKey(key string, value interface{}) error {
+	extraconfig.EncodeWithPrefix(t.sink, value, key)
+	return nil
 }

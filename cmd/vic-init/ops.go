@@ -42,12 +42,16 @@ type operations struct {
 	tether.BaseOperations
 }
 
-func (t *operations) Setup() error {
+func (t *operations) Setup(sink tether.ConfigSink) error {
+	if err := t.BaseOperations.Setup(sink); err != nil {
+		return err
+	}
+
 	return pprof.StartPprof("vch-init", pprof.VCHInitPort)
 }
 
 func (t *operations) Cleanup() error {
-	return nil
+	return t.BaseOperations.Cleanup()
 }
 
 // HandleSessionExit controls the behaviour on session exit - for the tether if the session exiting
@@ -72,6 +76,10 @@ func (t *operations) HandleSessionExit(config *tether.ExecutorConfig, session *t
 func (t *operations) SetHostname(name string, aliases ...string) error {
 	// switch the names around so we get the pretty name and not the ID
 	return t.BaseOperations.SetHostname(aliases[0])
+}
+
+func (t *operations) Apply(endpoint *tether.NetworkEndpoint) error {
+	return t.BaseOperations.Apply(endpoint)
 }
 
 func (t *operations) Log() (io.Writer, error) {

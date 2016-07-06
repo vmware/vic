@@ -46,10 +46,27 @@ func Init() error {
 	}
 	bridgeWidth := net.CIDRMask(16, 32)
 
+	// make sure a NIC attached to the bridge network exists
+	Config.BridgeLink, err = getBridgeLink()
+	if err != nil {
+		return err
+	}
+
 	DefaultContext, err = NewContext(bridgeRange, bridgeWidth)
 	if err == nil {
 		log.Infof("Default network context allocated: %s", bridgeRange.String())
 	}
 
 	return err
+}
+
+func getBridgeLink() (Link, error) {
+	// add the gateway address to the bridge interface
+	link, err := LinkByName(Config.BridgeNetwork)
+	if err != nil {
+		// lookup by alias
+		return LinkByAlias(Config.BridgeNetwork)
+	}
+
+	return link, nil
 }

@@ -17,7 +17,6 @@ package tether
 import (
 	"io"
 
-	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/dio"
 	"golang.org/x/net/context"
 )
@@ -27,13 +26,13 @@ import (
 // * dependency injection (primarily for testing)
 // * behavioural control (e.g. what behaviour is required when a session exits)
 type Operations interface {
-	Setup() error
+	Setup(ConfigSink) error
 	Cleanup() error
 	// Log returns the tether debug log writer
 	Log() (io.Writer, error)
 
 	SetHostname(hostname string, aliases ...string) error
-	Apply(endpoint *metadata.NetworkEndpoint) error
+	Apply(endpoint *NetworkEndpoint) error
 	MountLabel(label, target string, ctx context.Context) error
 	Fork() error
 
@@ -57,4 +56,8 @@ type Extension interface {
 	Start() error
 	Reload(config *ExecutorConfig) error
 	Stop() error
+}
+
+type ConfigSink interface {
+	WriteKey(key string, value interface{}) error
 }
