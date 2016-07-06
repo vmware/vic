@@ -56,6 +56,9 @@ type Validator struct {
 
 	isVC   bool
 	issues []error
+
+	DisableFirewallCheck bool
+	DisableDRSCheck      bool
 }
 
 func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
@@ -439,6 +442,9 @@ func (v *Validator) sessionValid(errMsg string) bool {
 }
 
 func (v *Validator) firewall(ctx context.Context) {
+	if v.DisableFirewallCheck {
+		return
+	}
 	defer trace.End(trace.Begin(""))
 
 	var hosts []*object.HostSystem
@@ -672,6 +678,11 @@ func (v *Validator) isStandaloneHost() bool {
 
 // drs checks that DRS is enabled
 func (v *Validator) drs(ctx context.Context) {
+	if v.DisableDRSCheck {
+		return
+	}
+	defer trace.End(trace.Begin(""))
+
 	errMsg := "DRS check SKIPPED"
 	if !v.sessionValid(errMsg) {
 		return

@@ -368,7 +368,7 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 		return err
 	}
 
-	// create test VM
+	// create appliance VM
 	info, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return d.session.Folders(ctx).VmFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
 	})
@@ -488,6 +488,10 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 	)
 
 	spec, err = d.reconfigureApplianceSpec(vm2, conf)
+	if err != nil {
+		log.Errorf("Error while getting appliance reconfig spec: %s", err)
+		return err
+	}
 
 	// reconfig
 	info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
