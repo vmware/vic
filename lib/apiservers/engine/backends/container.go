@@ -647,12 +647,18 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 	containers := make([]*types.Container, 0, len(containme.Payload))
 	for _, t := range containme.Payload {
 		cmd := strings.Join(t.ExecArgs, " ")
+		// the docker client expects the friendly name to be prefixed
+		// with a forward slash -- create a new slice and add here
+		names := make([]string, 0, len(t.Names))
+		for i := range t.Names {
+			names = append(names, clientFriendlyContainerName(t.Names[i]))
+		}
 		c := &types.Container{
 			ID:      *t.ContainerID,
 			Image:   *t.RepoName,
 			Created: *t.Created,
 			Status:  *t.Status,
-			Names:   t.Names,
+			Names:   names,
 			Command: cmd,
 			SizeRw:  *t.StorageSize,
 		}
@@ -1051,4 +1057,10 @@ func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64
 		}
 	}
 	return written, err
+}
+
+// helper function to format the container name
+// to the docker client approved format
+func clientFriendlyContainerName(name string) string {
+	return fmt.Sprintf("/%s", name)
 }
