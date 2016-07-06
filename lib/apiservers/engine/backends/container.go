@@ -191,8 +191,13 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		// provide validation / retry CDG June 9th 2016
 		config.Name = namesgenerator.GetRandomName(0)
 	}
-
 	log.Debugf("ContainerCreate config' = %+v", config)
+
+	// https://github.com/vmware/vic/issues/1378
+	if len(config.Config.Entrypoint) == 0 && len(config.Config.Cmd) == 0 {
+		return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(fmt.Errorf("No command specified"))
+	}
+
 	// Call the Exec port layer to create the container
 	host, err := guest.UUID()
 	if err != nil {
