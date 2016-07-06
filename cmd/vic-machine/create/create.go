@@ -408,6 +408,12 @@ func (c *Create) Run(cli *cli.Context) error {
 		return err
 	}
 
+	if len(cli.Args()) > 0 {
+		log.Error("Create cannot continue: invalid CLI arguments")
+		log.Error("argument value was provided for an option that does not accept a value")
+		return errors.New("invalid CLI arguments")
+	}
+
 	log.Infof("### Installing VCH ####")
 
 	var keypair *certificate.Keypair
