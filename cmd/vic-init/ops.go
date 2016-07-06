@@ -18,12 +18,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"strings"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
@@ -43,12 +43,7 @@ type operations struct {
 }
 
 func (t *operations) Setup() error {
-	log.Info("Launching pprof server on port 6060")
-	go func() {
-		log.Info(http.ListenAndServe("127.0.0.1:6060", nil))
-	}()
-
-	return nil
+	return pprof.StartPprof("vch-init", pprof.VCHInitPort)
 }
 
 func (t *operations) Cleanup() error {

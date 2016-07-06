@@ -33,6 +33,7 @@ import (
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/vmware/vic/lib/apiservers/engine/backends"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
@@ -58,6 +59,7 @@ var vchConfig metadata.VirtualContainerHostConfigSpec
 
 func init() {
 	trace.Logger.Level = log.DebugLevel
+	pprof.StartPprof("docker personality", pprof.DockerPort)
 }
 
 func Usage() {
