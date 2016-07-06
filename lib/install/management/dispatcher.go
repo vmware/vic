@@ -21,18 +21,14 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"time"
-
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/metadata"
-	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/diagnostic"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
-	"github.com/vmware/govmomi/vim25/types"
 	"golang.org/x/net/context"
 )
 
