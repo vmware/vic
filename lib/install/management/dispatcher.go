@@ -21,6 +21,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"time"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
@@ -162,6 +164,7 @@ func (d *Dispatcher) RegisterExtension(conf *metadata.VirtualContainerHostConfig
 
 	extensionManager := object.NewExtensionManager(d.session.Vim25())
 
+	extension.LastHeartbeatTime = time.Now().UTC()
 	if err := extensionManager.Register(d.ctx, extension); err != nil {
 		log.Errorf("Could not register the vSphere extension due to err: %s", err)
 		return err
