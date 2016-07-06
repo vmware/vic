@@ -39,7 +39,6 @@ func Session(ctx context.Context, t *testing.T) *session.Session {
 		DatacenterPath: "",
 		DatastorePath:  "/ha-datacenter/datastore/*",
 		HostPath:       "/ha-datacenter/host/*/*",
-		NetworkPath:    "/ha-datacenter/network/VM Network",
 		PoolPath:       "/ha-datacenter/host/*/Resources",
 	}
 
@@ -53,12 +52,6 @@ func Session(ctx context.Context, t *testing.T) *session.Session {
 
 // SpecConfig returns a spec.VirtualMachineConfigSpecConfig struct
 func SpecConfig(session *session.Session) *spec.VirtualMachineConfigSpecConfig {
-	backing, err := session.Network.EthernetCardBackingInfo(context.TODO())
-	if err != nil {
-		log.Errorf("unable to get backing info for test network: %s", err)
-		return nil
-	}
-
 	uuid, err := guest.UUID()
 	if err != nil {
 		log.Errorf("unable to get UUID for guest - used for VM name: %s", err)
@@ -75,7 +68,6 @@ func SpecConfig(session *session.Session) *spec.VirtualMachineConfigSpecConfig {
 		Name:          "zombie_attack",
 		BootMediaPath: session.Datastore.Path("brainz.iso"),
 		VMPathName:    fmt.Sprintf("[%s]", session.Datastore.Name()),
-		DebugNetwork:  backing,
 	}
 }
 

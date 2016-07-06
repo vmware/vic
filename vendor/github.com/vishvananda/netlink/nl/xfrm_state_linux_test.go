@@ -127,14 +127,18 @@ func deserializeXfrmAlgoSafe(b []byte) *XfrmAlgo {
 }
 
 func TestXfrmAlgoDeserializeSerialize(t *testing.T) {
+	native := NativeEndian()
 	// use a 32 byte key len
 	var orig = make([]byte, SizeofXfrmAlgo+32)
 	rand.Read(orig)
 	// set the key len to 256 bits
-	orig[64] = 0
-	orig[65] = 1
-	orig[66] = 0
-	orig[67] = 0
+	var KeyLen uint32 = 0x00000100
+	// Little Endian    Big Endian
+	// orig[64] = 0     orig[64] = 0
+	// orig[65] = 1     orig[65] = 0
+	// orig[66] = 0     orig[66] = 1
+	// orig[67] = 0     orig[67] = 0
+	native.PutUint32(orig[64:68], KeyLen)
 	safemsg := deserializeXfrmAlgoSafe(orig)
 	msg := DeserializeXfrmAlgo(orig)
 	testDeserializeSerialize(t, orig, safemsg, msg)
@@ -164,14 +168,18 @@ func deserializeXfrmAlgoAuthSafe(b []byte) *XfrmAlgoAuth {
 }
 
 func TestXfrmAlgoAuthDeserializeSerialize(t *testing.T) {
+	native := NativeEndian()
 	// use a 32 byte key len
 	var orig = make([]byte, SizeofXfrmAlgoAuth+32)
 	rand.Read(orig)
 	// set the key len to 256 bits
-	orig[64] = 0
-	orig[65] = 1
-	orig[66] = 0
-	orig[67] = 0
+	var KeyLen uint32 = 0x00000100
+	// Little Endian    Big Endian
+	// orig[64] = 0     orig[64] = 0
+	// orig[65] = 1     orig[65] = 0
+	// orig[66] = 0     orig[66] = 1
+	// orig[67] = 0     orig[67] = 0
+	native.PutUint32(orig[64:68], KeyLen)
 	safemsg := deserializeXfrmAlgoAuthSafe(orig)
 	msg := DeserializeXfrmAlgoAuth(orig)
 	testDeserializeSerialize(t, orig, safemsg, msg)
@@ -203,5 +211,67 @@ func TestXfrmEncapTmplDeserializeSerialize(t *testing.T) {
 	rand.Read(orig)
 	safemsg := deserializeXfrmEncapTmplSafe(orig)
 	msg := DeserializeXfrmEncapTmpl(orig)
+	testDeserializeSerialize(t, orig, safemsg, msg)
+}
+
+func (msg *XfrmMark) write(b []byte) {
+	native := NativeEndian()
+	native.PutUint32(b[0:4], msg.Value)
+	native.PutUint32(b[4:8], msg.Mask)
+}
+
+func (msg *XfrmMark) serializeSafe() []byte {
+	b := make([]byte, SizeofXfrmMark)
+	msg.write(b)
+	return b
+}
+
+func deserializeXfrmMarkSafe(b []byte) *XfrmMark {
+	var msg = XfrmMark{}
+	binary.Read(bytes.NewReader(b[0:SizeofXfrmMark]), NativeEndian(), &msg)
+	return &msg
+}
+
+func TestXfrmMarkDeserializeSerialize(t *testing.T) {
+	var orig = make([]byte, SizeofXfrmMark)
+	rand.Read(orig)
+	safemsg := deserializeXfrmMarkSafe(orig)
+	msg := DeserializeXfrmMark(orig)
+	testDeserializeSerialize(t, orig, safemsg, msg)
+}
+
+func (msg *XfrmAlgoAEAD) write(b []byte) {
+	native := NativeEndian()
+	copy(b[0:64], msg.AlgName[:])
+	native.PutUint32(b[64:68], msg.AlgKeyLen)
+	native.PutUint32(b[68:72], msg.AlgICVLen)
+	copy(b[72:msg.Len()], msg.AlgKey[:])
+}
+
+func (msg *XfrmAlgoAEAD) serializeSafe() []byte {
+	b := make([]byte, msg.Len())
+	msg.write(b)
+	return b
+}
+
+func deserializeXfrmAlgoAEADSafe(b []byte) *XfrmAlgoAEAD {
+	var msg = XfrmAlgoAEAD{}
+	copy(msg.AlgName[:], b[0:64])
+	binary.Read(bytes.NewReader(b[64:68]), NativeEndian(), &msg.AlgKeyLen)
+	binary.Read(bytes.NewReader(b[68:72]), NativeEndian(), &msg.AlgICVLen)
+	msg.AlgKey = b[72:msg.Len()]
+	return &msg
+}
+
+func TestXfrmXfrmAlgoAeadDeserializeSerialize(t *testing.T) {
+	native := NativeEndian()
+	// use a 32 byte key len
+	var orig = make([]byte, SizeofXfrmAlgoAEAD+36)
+	rand.Read(orig)
+	// set the key len to (256 + 32) bits
+	var KeyLen uint32 = 0x00000120
+	native.PutUint32(orig[64:68], KeyLen)
+	safemsg := deserializeXfrmAlgoAEADSafe(orig)
+	msg := DeserializeXfrmAlgoAEAD(orig)
 	testDeserializeSerialize(t, orig, safemsg, msg)
 }

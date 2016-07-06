@@ -138,6 +138,14 @@
 			"path": "/util"
 		},
 		{
+			"importpath": "github.com/d2g/dhcp4",
+			"repository": "https://github.com/d2g/dhcp4",
+			"vcs": "git",
+			"revision": "f0e4d29ff0231dce36e250b2ed9ff08412584bca",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/davecgh/go-spew/spew",
 			"repository": "https://github.com/davecgh/go-spew",
 			"vcs": "",
@@ -628,8 +636,8 @@
 		{
 			"importpath": "github.com/vishvananda/netlink",
 			"repository": "https://github.com/vishvananda/netlink",
-			"vcs": "",
-			"revision": "5a5eb317d73bc513ae0cfea7d9ac3c39f145e1db",
+			"vcs": "git",
+			"revision": "e73bad418fd727ed3a02830b1af1ad0283a1de6c",
 			"branch": "master"
 		},
 		{

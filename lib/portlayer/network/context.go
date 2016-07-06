@@ -22,11 +22,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-
-	log "github.com/Sirupsen/logrus"
+	"syscall"
 
 	"golang.org/x/net/context"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
@@ -77,6 +77,7 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 		return nil, err
 	}
 	s.builtin = true
+	s.dns = []net.IP{s.gateway}
 	ctx.defaultScope = s
 
 	// add any external networks
@@ -217,6 +218,13 @@ func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net
 	s, err := c.newScopeCommon(id, name, bridgeScopeType, subnet, gateway, dns, ipam, bn.PortGroup)
 	if err != nil {
 		return nil, err
+	}
+
+	// add the gateway address to the bridge interface
+	if err = Config.BridgeLink.AddrAdd(net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}); err != nil {
+		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
+			log.Warnf("failed to add gateway address %s to bridge interface: %s", s.Gateway(), err)
+		}
 	}
 
 	return s, nil
@@ -465,9 +473,9 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	}
 
 	endpoints := con.Endpoints()
+	defaultMarked := false
 	for i := range endpoints {
 		e := endpoints[i]
-
 		ne := h.ExecConfig.Networks[e.Scope().Name()]
 		ne.Static = nil
 		ip := e.IP()
@@ -478,6 +486,20 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			}
 		}
 		ne.Network.Gateway = net.IPNet{IP: e.gateway, Mask: e.subnet.Mask}
+		if !defaultMarked && e.Scope().Type() == bridgeScopeType {
+			defaultMarked = true
+			ne.Network.Default = true
+		}
+	}
+
+	// FIXME: if there was no bridge network to mark as default,
+	// then just pick the first network to mark as default
+	if !defaultMarked {
+		defaultMarked = true
+		for _, ne := range h.ExecConfig.Networks {
+			ne.Network.Default = true
+			break
+		}
 	}
 
 	// local map to hold the container mapping
@@ -910,6 +932,16 @@ func (c *Context) DeleteScope(name string) error {
 
 	if len(s.Endpoints()) != 0 {
 		return fmt.Errorf("scope has bound endpoints")
+	}
+
+	// remove gateway ip from bridge interface
+	addr := net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}
+	if err = Config.BridgeLink.AddrDel(addr); err != nil {
+		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EADDRNOTAVAIL {
+			log.Warnf("could not remove gateway address %s for scope %s on link %s: %s", addr, s.Name(), Config.BridgeLink.Attrs().Name, err)
+		}
+
+		err = nil
 	}
 
 	delete(c.scopes, name)

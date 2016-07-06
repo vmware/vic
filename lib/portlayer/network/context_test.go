@@ -74,6 +74,20 @@ var validScopeTests = []struct {
 		nil},
 }
 
+type mockLink struct{}
+
+func (l *mockLink) AddrAdd(_ net.IPNet) error {
+	return nil
+}
+
+func (l *mockLink) AddrDel(_ net.IPNet) error {
+	return nil
+}
+
+func (l *mockLink) Attrs() *LinkAttrs {
+	return &LinkAttrs{Name: "foo"}
+}
+
 func TestMain(m *testing.M) {
 	n := object.NewNetwork(nil, types.ManagedObjectReference{})
 	n.InventoryPath = "testBridge"
@@ -84,6 +98,7 @@ func TestMain(m *testing.M) {
 	testExternalNetwork := n
 
 	Config = Configuration{
+		BridgeLink:    &mockLink{},
 		BridgeNetwork: "bridge",
 		ContainerNetworks: map[string]*ContainerNetwork{
 			"bridge": &ContainerNetwork{

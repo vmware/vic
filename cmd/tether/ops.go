@@ -25,7 +25,12 @@ import (
 // in specific directories, primarily for testing.
 var pathPrefix string
 
-func (t *operations) Setup() error {
+func (t *operations) Setup(sink tether.ConfigSink) error {
+
+	if err := t.BaseOperations.Setup(sink); err != nil {
+		return err
+	}
+
 	// TODO: enabled for initial dev debugging only
 	log.Info("Launching pprof server on port 6060")
 	go func() {
@@ -36,7 +41,11 @@ func (t *operations) Setup() error {
 }
 
 func (t *operations) Cleanup() error {
-	return nil
+	return t.BaseOperations.Cleanup()
+}
+
+func (t *operations) Apply(endpoint *tether.NetworkEndpoint) error {
+	return t.BaseOperations.Apply(endpoint)
 }
 
 // HandleSessionExit controls the behaviour on session exit - for the tether if the session exiting

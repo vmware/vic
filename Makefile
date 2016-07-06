@@ -307,15 +307,15 @@ $(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base)
 
 $(vic-machine-linux): $(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine linux...
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "-X github.com/vmware/vic/cmd/vic-machine.BuildID=$(BUILD_NUMBER)" -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
 
 $(vic-machine-windows): $(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine windows...
-	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) -ldflags "-X github.com/vmware/vic/cmd/vic-machine.BuildID=$(BUILD_NUMBER)" -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
 
 $(vic-machine-darwin): $(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine darwin...
-	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "-X github.com/vmware/vic/cmd/vic-machine.BuildID=$(BUILD_NUMBER)" -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
 
 $(vic-dns-linux): $(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns linux...

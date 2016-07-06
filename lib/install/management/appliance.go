@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -566,7 +567,7 @@ func (d *Dispatcher) makeSureApplianceRuns(conf *metadata.VirtualContainerHostCo
 	}
 
 	log.Infof("Waiting for IP information")
-	d.waitForKey("guestinfo..init.networks|client.ip")
+	d.waitForKey("guestinfo..init.networks|client.ip.IP")
 	ctxerr := d.ctx.Err()
 
 	if ctxerr == nil {
@@ -585,8 +586,8 @@ func (d *Dispatcher) makeSureApplianceRuns(conf *metadata.VirtualContainerHostCo
 
 	// TODO: we should call to the general vic-machine inspect implementation here for more detail
 	// but instead...
-	if len(conf.ExecutorConfig.Networks["client"].Assigned) > 0 {
-		d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.String()
+	if !ip.IsUnspecifiedIP(conf.ExecutorConfig.Networks["client"].Assigned.IP) {
+		d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.IP.String()
 		log.Debug("Obtained IP address for client interface: %s", d.HostIP)
 		return nil
 	}
@@ -608,7 +609,7 @@ func (d *Dispatcher) makeSureApplianceRuns(conf *metadata.VirtualContainerHostCo
 		// if we timed out, then report status - if cancelled this doesn't need reporting
 		for name, net := range conf.ExecutorConfig.Networks {
 			addr := net.Assigned.String()
-			if len(net.Assigned) == 0 {
+			if ip.IsUnspecifiedIP(net.Assigned.IP) {
 				addr = "waiting for IP"
 			}
 			log.Infof("    %s IP: %s", name, addr)

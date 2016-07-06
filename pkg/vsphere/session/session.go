@@ -60,7 +60,6 @@ type Config struct {
 	DatacenterPath string
 	DatastorePath  string
 	HostPath       string
-	NetworkPath    string
 	PoolPath       string
 
 	// keypair for the vSphere extension
@@ -86,7 +85,6 @@ type Session struct {
 	Datacenter *object.Datacenter
 	Datastore  *object.Datastore
 	Host       *object.HostSystem
-	Network    object.NetworkReference
 	Pool       *object.ResourcePool
 
 	Finder *find.Finder
@@ -252,15 +250,6 @@ func (s *Session) Populate(ctx context.Context) (*Session, error) {
 		}
 	} else {
 		log.Debugf("Cached host: %s", s.HostPath)
-	}
-
-	if s.NetworkPath != "" {
-		s.Network, err = finder.NetworkOrDefault(ctx, s.NetworkPath)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("Failure finding net (%s): %s", s.NetworkPath, err.Error()))
-		}
-	} else {
-		log.Debugf("Cached net: %s", s.NetworkPath)
 	}
 
 	s.Pool, err = finder.ResourcePoolOrDefault(ctx, s.PoolPath)
