@@ -336,6 +336,7 @@ func (s *Server) HandleVIC(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
 
 	var name string
 	var domain string
+	var scopename string
 
 	name = strings.TrimSuffix(question.Name, ".")
 	// Do we have a domain?
@@ -344,30 +345,47 @@ func (s *Server) HandleVIC(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
 		name, domain = name[:i], name[i+1:]
 	}
 
-	// Find the scope of the request
-	scopes, err := ctx.Scopes(nil)
-	// FIXME: We are doing linear search here
-	for i := range scopes {
-		s := scopes[i].Subnet()
-		if s.Contains(ip) {
-			log.Debugf("Found the scope, using %s", scopes[i].Name())
-
-			// convert for or foo.bar to bar:foo
-			if domain == "" || domain == scopes[i].Name() {
-				name = scopes[i].Name() + ":" + name
-				break
-			}
-		}
-	}
-
+	// first look for the network alias
 	c := ctx.Container(exec.ID(name))
 	if c == nil {
-		log.Debugf("Can't find the container: %q", name)
-		return false, fmt.Errorf("Can't find the container: %q", name)
+		// find the scope of the request
+		scopes, _ := ctx.Scopes(nil)
+		// FIXME: We are doing linear search here
+		for i := range scopes {
+			s := scopes[i].Subnet()
+			if s.Contains(ip) {
+				scopename = scopes[i].Name()
+				log.Debugf("Found the scope, using %s", scopename)
+
+				// convert for or foo.bar to bar:foo
+				if domain == "" || domain == scopename {
+					name = scopename + ":" + name
+					break
+				}
+			}
+		}
+
+		c = ctx.Container(exec.ID(name))
+		if c == nil {
+			log.Debugf("Can't find the container: %q", name)
+			return false, fmt.Errorf("Can't find the container: %q", name)
+		}
 	}
 
 	var answer []mdns.RR
 	for _, e := range c.Endpoints() {
+		log.Debugf("Working on %s", e.Scope().Name())
+
+		if scopename != "" && e.Scope().Name() != scopename {
+			log.Debugf("Skipping non-matching scope %s", e.Scope().Name())
+			continue
+		}
+
+		if e.IP().IsUnspecified() {
+			log.Debugf("Skipping unspecified IP for %s", e.Scope().Name())
+			continue
+		}
+
 		// FIXME: Add AAAA when we support it
 		rr := &mdns.A{
 			Hdr: mdns.RR_Header{

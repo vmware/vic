@@ -71,10 +71,6 @@ func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.V
 	cdrom := spec.NewVirtualCdrom(ide)
 	s.AddVirtualCdrom(cdrom)
 
-	// NIC
-	vmxnet3 := spec.NewVirtualVmxnet3()
-	s.AddVirtualVmxnet3(vmxnet3)
-
 	// Tether serial port - backed by network
 	serial := spec.NewVirtualSerialPort()
 	s.AddVirtualConnectedSerialPort(serial)

@@ -17,6 +17,8 @@ build:
       SHELL: /bin/bash
       DOCKER_API_VERSION: "1.21"
       VIC_ESX_TEST_URL: $$VIC_ESX_TEST_URL
+      BUILD_NUMBER: $$BUILD_NUMBER
+      COMMIT: $$COMMIT
     commands:
       - apt-get update
       - apt-get install -yq time

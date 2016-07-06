@@ -29,6 +29,8 @@ type Configuration struct {
 	BridgeNetwork string `vic:"0.1" scope:"read-only" key:"bridge_network"`
 	// Published networks available for containers to join, keyed by consumption name
 	ContainerNetworks map[string]*ContainerNetwork `vic:"0.1" scope:"read-only" key:"container_networks"`
+	// The bridge link
+	BridgeLink Link
 }
 
 type ContainerNetwork struct {

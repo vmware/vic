@@ -136,7 +136,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	var err error
 
 	//TODO: validate the config parameters
-	log.Printf("config.Config = %+v", config.Config)
+	log.Debugf("config.Config = %+v", config.Config)
 
 	// Get an API client to the portlayer
 	client := PortLayerClient()
@@ -184,7 +184,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		config.Name = namesgenerator.GetRandomName(0)
 	}
 
-	log.Printf("ContainerCreate config' = %+v", config)
+	log.Debugf("ContainerCreate config' = %+v", config)
 	// Call the Exec port layer to create the container
 	host, err := guest.UUID()
 	if err != nil {
@@ -263,7 +263,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	viccontainer.GetCache().SaveContainer(createResults.Payload.ID, container)
 
 	// Success!
-	log.Printf("container.ContainerCreate succeeded.  Returning container handle %s", *createResults.Payload)
+	log.Debugf("container.ContainerCreate succeeded.  Returning container handle %s", *createResults.Payload)
 	return types.ContainerCreateResponse{ID: id}, nil
 }
 
@@ -402,7 +402,7 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 
 	h := getRes.Payload
 
-	// bind network
+	// error handling just in case bind fails
 	defer func() {
 		if err != nil {
 			// roll back the BindContainer call
@@ -412,6 +412,7 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 		}
 	}()
 
+	// bind network
 	if bind {
 		bindRes, err := client.Scopes.BindContainer(scopes.NewBindContainerParams().WithHandle(h))
 		if err != nil {
@@ -742,7 +743,7 @@ func (c *Container) dockerContainerCreateParamsToPortlayer(cc types.ContainerCre
 	config.Tty = new(bool)
 	*config.Tty = cc.Config.Tty
 
-	log.Printf("dockerContainerCreateParamsToPortlayer = %+v", config)
+	log.Debugf("dockerContainerCreateParamsToPortlayer = %+v", config)
 
 	return containers.NewCreateParams().WithCreateConfig(config)
 }
@@ -756,13 +757,24 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 		NetworkName: cc.HostConfig.NetworkMode.NetworkName(),
 	}
 	if cc.NetworkingConfig != nil {
-		if es, ok := cc.NetworkingConfig.EndpointsConfig[nc.NetworkName]; ok {
+		log.Debugf("EndpointsConfig: %#v", cc.NetworkingConfig)
+
+		es, ok := cc.NetworkingConfig.EndpointsConfig[nc.NetworkName]
+		if ok {
 			if es.IPAMConfig != nil {
 				nc.Address = &es.IPAMConfig.IPv4Address
 			}
+
+			// Docker copies Links to NetworkConfig only if it is a UserDefined network, handle that
+			// https://github.com/docker/docker/blame/master/runconfig/opts/parse.go#L598
+			if !cc.HostConfig.NetworkMode.IsUserDefined() && len(cc.HostConfig.Links) > 0 {
+				es.Links = make([]string, len(cc.HostConfig.Links))
+				copy(es.Links, cc.HostConfig.Links)
+			}
+			// Pass Links and Aliases to PL
+			nc.Aliases = EP2Alias(es)
 		}
 	}
-
 	return nc
 }
 
@@ -852,7 +864,7 @@ func attachStreams(name string, tty, stdinOnce bool, clStdin io.ReadCloser, clSt
 				// behavior where you connect to stdin on the first time only.
 				// If we really want to add this behavior, we need to add support
 				// in the ssh tether in the portlayer.
-				log.Printf("Attach stream has stdinOnce set.  VIC does not yet support this.")
+				log.Errorf("Attach stream has stdinOnce set.  VIC does not yet support this.")
 			} else {
 				// Shutdown the client's request for stdout, stderr
 				errCancel()
@@ -957,7 +969,7 @@ func attachStreams(name string, tty, stdinOnce bool, clStdin io.ReadCloser, clSt
 
 	// Wait for all stream copy to exit
 	wg.Wait()
-	log.Printf("Attach stream closed")
+	log.Debugf("Attach stream closed")
 	defer close(errors)
 	for err := range errors {
 		if err != nil {

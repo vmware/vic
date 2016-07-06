@@ -12,7 +12,7 @@ func TestAddr(t *testing.T) {
 		t.Skipf("Fails in travis with: addr_test.go:68: Address flags not set properly, got=0, expected=128")
 	}
 	// TODO: IFA_F_PERMANENT does not seem to be set by default on older kernels?
-	var address = &net.IPNet{net.IPv4(127, 0, 0, 2), net.CIDRMask(24, 32)}
+	var address = &net.IPNet{IP: net.IPv4(127, 0, 0, 2), Mask: net.CIDRMask(24, 32)}
 	var addrTests = []struct {
 		addr     *Addr
 		expected *Addr
@@ -75,6 +75,25 @@ func TestAddr(t *testing.T) {
 
 		if addrs[0].Scope != tt.expected.Scope {
 			t.Fatalf("Address scope not set properly, got=%d, expected=%d", addrs[0].Scope, tt.expected.Scope)
+		}
+
+		// Pass FAMILY_V4, we should get the same results as FAMILY_ALL
+		addrs, err = AddrList(link, FAMILY_V4)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(addrs) != 1 {
+			t.Fatal("Address not added properly")
+		}
+
+		// Pass a wrong family number, we should get nil list
+		addrs, err = AddrList(link, 0x8)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(addrs) != 0 {
+			t.Fatal("Address not expected")
 		}
 
 		if err = AddrDel(link, tt.addr); err != nil {

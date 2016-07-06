@@ -27,8 +27,9 @@ import (
 )
 
 var (
-	MajorVersion string
-	BuildID      string
+	Version  string
+	BuildID  string
+	CommitID string
 )
 
 func main() {
@@ -60,10 +61,24 @@ func main() {
 			Action: inspect.Run,
 			Flags:  inspect.Flags(),
 		},
+		{
+			Name:   "version",
+			Usage:  "Show VIC version information",
+			Action: showVersion,
+		},
 	}
-	app.Version = fmt.Sprintf("%s.%s", MajorVersion, BuildID)
+	if Version != "" {
+		app.Version = fmt.Sprintf("%s-%s-%s", Version, BuildID, CommitID)
+	} else {
+		app.Version = fmt.Sprintf("%s-%s", BuildID, CommitID)
+	}
 	if err := app.Run(os.Args); err != nil {
 		fmt.Println("--------------------")
 		fmt.Printf("%s failed: %s\n", app.Name, errors.ErrorStack(err))
 	}
+}
+
+func showVersion(cli *cli.Context) error {
+	fmt.Fprintf(cli.App.Writer, "%v version %v\n", cli.App.Name, cli.App.Version)
+	return nil
 }

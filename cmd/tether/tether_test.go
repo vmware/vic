@@ -87,7 +87,7 @@ func (t *Mocker) Reload(config *tether.ExecutorConfig) error {
 	return nil
 }
 
-func (t *Mocker) Setup() error {
+func (t *Mocker) Setup(_ tether.ConfigSink) error {
 	log.Info("Launching pprof server for test on port 6060")
 	go func() {
 		log.Info(http.ListenAndServe("0.0.0.0:6060", nil))
@@ -133,9 +133,9 @@ func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
-func (t *Mocker) Apply(endpoint *metadata.NetworkEndpoint) error {
+func (t *Mocker) Apply(endpoint *tether.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("mocking endpoint configuration for " + endpoint.Network.Name))
-	t.IPs[endpoint.Network.Name] = endpoint.Assigned
+	t.IPs[endpoint.Network.Name] = endpoint.Assigned.IP
 
 	return nil
 }
