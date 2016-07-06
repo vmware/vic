@@ -109,15 +109,16 @@ func (i *Inspect) Run(cli *cli.Context) error {
 
 	validator, err := validate.NewValidator(ctx, i.Data)
 	if err != nil {
-		err = errors.Errorf("%s. Exiting...", err)
-		return err
+		log.Errorf("Inspect cannot continue - failed to create validator: %s", err)
+		return errors.New("inspect failed")
 	}
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, i.Force)
 
 	vch, path, err := executor.NewVCHFromComputePath(i.Data.ComputeResourcePath, i.Data.DisplayName, validator)
 	if err != nil {
 		log.Errorf("Failed to get Virtual Container Host %s", i.DisplayName)
-		return err
+		log.Error(err)
+		return errors.New("inspect failed")
 	}
 
 	log.Infof("")
@@ -125,14 +126,16 @@ func (i *Inspect) Run(cli *cli.Context) error {
 
 	vchConfig, err := executor.GetVCHConfig(vch)
 	if err != nil {
-		log.Errorf("Failed to get Virtual Container Host configuration")
-		return err
+		log.Error("Failed to get Virtual Container Host configuration")
+		log.Error(err)
+		return errors.New("inspect failed")
 	}
 	executor.InitDiagnosticLogs(vchConfig)
 
 	if err = executor.InspectVCH(vch, vchConfig); err != nil {
 		executor.CollectDiagnosticLogs()
-		return err
+		log.Errorf("%s", err)
+		return errors.New("inspect failed")
 	}
 
 	log.Infof("Completed successfully")
