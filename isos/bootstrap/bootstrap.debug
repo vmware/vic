@@ -32,15 +32,9 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
         mkdir -p ${MOUNTPOINT}/dev ${MOUNTPOINT}/proc ${MOUNTPOINT}/sys ${MOUNTPOINT}/etc
         # ln -sf /proc/mounts ${MOUNTPOINT}/etc/mtab
 
-        # ensure both the source and destination files exist for bind mounting
-        touch ${MOUNTPOINT}/etc/hostname ${MOUNTPOINT}/.tether-init/hostname
-        touch ${MOUNTPOINT}/.tether-init/resolv.conf ${MOUNTPOINT}/.tether-init/resolv.conf
+        touch ${MOUNTPOINT}/etc/hostname
         touch ${MOUNTPOINT}/etc/hosts
-        echo "127.0.0.1 localhost localhost.localdomain" > ${MOUNTPOINT}/.tether-init/hosts
-
-        mount --bind ${MOUNTPOINT}/.tether-init/hostname ${MOUNTPOINT}/etc/hostname
-        mount --bind ${MOUNTPOINT}/.tether-init/resolv.conf ${MOUNTPOINT}/etc/resolv.conf
-        mount --bind ${MOUNTPOINT}/.tether-init/hosts ${MOUNTPOINT}/etc/hosts
+        touch ${MOUNTPOINT}/etc/resolv.conf
     fi
 
     # this is so we're not exposing the raw container disk if we wouldn't be otherwise
@@ -54,41 +48,16 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # switch to the new root
     echo "prepping for switch to container filesystem"
 
-    # copy the init binary into the new root - ideally I'd run this purely from memory without a presence on the filesystem
     cp /bin/tether ${MOUNTPOINT}/.tether/tether-debug
 
-    /sbin/rpctool -get "vic.configblob" > ${MOUNTPOINT}/.tether/tether.config
-
-    # temporary hack for waiting the network
-    while ! ip addr show eno1 | grep " inet "; do sleep 1;done
-
-    cat << EOF > ${MOUNTPOINT}/.tether/tether
-#!/bin/sh
-
-
-if [ -x /sbin/ip -o -x /bin/ip ]; then
-    addr=$(ip addr show eno1  | grep " inet " | cut -d " " -f6)
-    gateway=$(ip route show | grep "^default" | cut -d " " -f3)
-
-    echo "Setting IP addr to " \$addr > /dev/ttyS1
-    echo "Setting route to" \$gateway > /dev/ttyS1
-
-    ip addr add \$addr dev eno1
-    ip link set dev eno1 up
-    ip route add default via \$gateway dev eno1
-fi
-
-${MOUNTPOINT}/.tether/tether-debug $(cat ${MOUNTPOINT}/.tether/tether.config)
-EOF
-    chmod +x ${MOUNTPOINT}/.tether/tether
-
-    # We don't want eth0 for --net=none passed
-    if [ -d /sys/module/vmxnet3/ ] && [ $(cat /sys/class/net/eno1/address) == "ff:ff:ff:ff:ff:ff" ]; then
-        modprobe -r vmxnet3
-    fi
-
     echo "switching to the new mount"
-    ${MOUNTPOINT}/.tether/tether 2>&1
+    if [ "$SHELL" != "true" ]; then
+        systemctl switch-root ${MOUNTPOINT} /.tether/tether-debug 2>&1
+    else
+        systemctl switch-root ${MOUNTPOINT} /bin/sh 2>&1
+        # fail back to shell in bootstrap image without switch_root
+        /bin/ash
+    fi
 else
     # TODO: what do we do here? we really need to somehow report an error
     # fail hard

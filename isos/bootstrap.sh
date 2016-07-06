@@ -87,5 +87,8 @@ cp ${BIN}/rpctool $(rootfs_dir $PKGDIR)/sbin/
 cp ${DIR}/bootstrap/tether.service $(rootfs_dir $PKGDIR)/etc/systemd/system/
 ln -s /etc/systemd/system/tether.service $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/tether.service
 
+# do not use the systemd dhcp client
+rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
+cp ${DIR}/base/no-dhcp.network $(rootfs_dir $PKGDIR)/etc/systemd/network/
 
 generate_iso $PKGDIR $BIN/$ISONAME /lib/systemd/systemd

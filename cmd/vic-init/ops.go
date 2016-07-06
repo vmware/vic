@@ -18,12 +18,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"strings"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
@@ -42,17 +42,16 @@ type operations struct {
 	tether.BaseOperations
 }
 
-func (t *operations) Setup() error {
-	log.Info("Launching pprof server on port 6060")
-	go func() {
-		log.Info(http.ListenAndServe("127.0.0.1:6060", nil))
-	}()
+func (t *operations) Setup(sink tether.ConfigSink) error {
+	if err := t.BaseOperations.Setup(sink); err != nil {
+		return err
+	}
 
-	return nil
+	return pprof.StartPprof("vch-init", pprof.VCHInitPort)
 }
 
 func (t *operations) Cleanup() error {
-	return nil
+	return t.BaseOperations.Cleanup()
 }
 
 // HandleSessionExit controls the behaviour on session exit - for the tether if the session exiting
@@ -77,6 +76,10 @@ func (t *operations) HandleSessionExit(config *tether.ExecutorConfig, session *t
 func (t *operations) SetHostname(name string, aliases ...string) error {
 	// switch the names around so we get the pretty name and not the ID
 	return t.BaseOperations.SetHostname(aliases[0])
+}
+
+func (t *operations) Apply(endpoint *tether.NetworkEndpoint) error {
+	return t.BaseOperations.Apply(endpoint)
 }
 
 func (t *operations) Log() (io.Writer, error) {

@@ -72,7 +72,7 @@ func testLinkAddDel(t *testing.T, link Link) {
 	} else {
 		// recent kernels set the parent index for veths in the response
 		if rBase.ParentIndex == 0 && base.ParentIndex != 0 {
-			t.Fatal("Created link doesn't have parent %d but it should", base.ParentIndex)
+			t.Fatalf("Created link doesn't have parent %d but it should", base.ParentIndex)
 		} else if rBase.ParentIndex != 0 && base.ParentIndex == 0 {
 			t.Fatalf("Created link has parent %d but it shouldn't", rBase.ParentIndex)
 		} else if rBase.ParentIndex != 0 && base.ParentIndex != 0 {
@@ -104,6 +104,16 @@ func testLinkAddDel(t *testing.T, link Link) {
 		other, ok := result.(*Macvlan)
 		if !ok {
 			t.Fatal("Result of create is not a macvlan")
+		}
+		if macv.Mode != other.Mode {
+			t.Fatalf("Got unexpected mode: %d, expected: %d", other.Mode, macv.Mode)
+		}
+	}
+
+	if macv, ok := link.(*Macvtap); ok {
+		other, ok := result.(*Macvtap)
+		if !ok {
+			t.Fatal("Result of create is not a macvtap")
 		}
 		if macv.Mode != other.Mode {
 			t.Fatalf("Got unexpected mode: %d, expected: %d", other.Mode, macv.Mode)
@@ -247,6 +257,16 @@ func TestLinkAddDelMacvlan(t *testing.T) {
 		Mode:      MACVLAN_MODE_PRIVATE,
 	})
 
+	testLinkAddDel(t, &Macvlan{
+		LinkAttrs: LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
+		Mode:      MACVLAN_MODE_BRIDGE,
+	})
+
+	testLinkAddDel(t, &Macvlan{
+		LinkAttrs: LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
+		Mode:      MACVLAN_MODE_VEPA,
+	})
+
 	if err := LinkDel(parent); err != nil {
 		t.Fatal(err)
 	}
@@ -265,6 +285,20 @@ func TestLinkAddDelMacvtap(t *testing.T) {
 		Macvlan: Macvlan{
 			LinkAttrs: LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
 			Mode:      MACVLAN_MODE_PRIVATE,
+		},
+	})
+
+	testLinkAddDel(t, &Macvtap{
+		Macvlan: Macvlan{
+			LinkAttrs: LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
+			Mode:      MACVLAN_MODE_BRIDGE,
+		},
+	})
+
+	testLinkAddDel(t, &Macvtap{
+		Macvlan: Macvlan{
+			LinkAttrs: LinkAttrs{Name: "bar", ParentIndex: parent.Attrs().Index},
+			Mode:      MACVLAN_MODE_VEPA,
 		},
 	})
 
@@ -562,6 +596,39 @@ func TestLinkAddDelVxlan(t *testing.T) {
 	}
 }
 
+func TestLinkAddDelVxlanGbp(t *testing.T) {
+	if os.Getenv("TRAVIS_BUILD_DIR") != "" {
+		t.Skipf("Kernel in travis is too old for this test")
+	}
+
+	tearDown := setUpNetlinkTest(t)
+	defer tearDown()
+
+	parent := &Dummy{
+		LinkAttrs{Name: "foo"},
+	}
+	if err := LinkAdd(parent); err != nil {
+		t.Fatal(err)
+	}
+
+	vxlan := Vxlan{
+		LinkAttrs: LinkAttrs{
+			Name: "bar",
+		},
+		VxlanId:      10,
+		VtepDevIndex: parent.Index,
+		Learning:     true,
+		L2miss:       true,
+		L3miss:       true,
+		GBP:          true,
+	}
+
+	testLinkAddDel(t, &vxlan)
+	if err := LinkDel(parent); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestLinkAddDelIPVlanL2(t *testing.T) {
 	if os.Getenv("TRAVIS_BUILD_DIR") != "" {
 		t.Skipf("Kernel in travis is too old for this test")
@@ -777,5 +844,101 @@ func TestLinkSubscribe(t *testing.T) {
 
 	if !expectLinkUpdate(ch, "foo", false) {
 		t.Fatal("Del update not received as expected")
+	}
+}
+
+func TestLinkSubscribeAt(t *testing.T) {
+	// Create an handle on a custom netns
+	newNs, err := netns.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer newNs.Close()
+
+	nh, err := NewHandleAt(newNs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nh.Delete()
+
+	// Subscribe for Link events on the custom netns
+	ch := make(chan LinkUpdate)
+	done := make(chan struct{})
+	defer close(done)
+	if err := LinkSubscribeAt(newNs, ch, done); err != nil {
+		t.Fatal(err)
+	}
+
+	link := &Veth{LinkAttrs{Name: "test", TxQLen: testTxQLen, MTU: 1400}, "bar"}
+	if err := nh.LinkAdd(link); err != nil {
+		t.Fatal(err)
+	}
+
+	if !expectLinkUpdate(ch, "test", false) {
+		t.Fatal("Add update not received as expected")
+	}
+
+	if err := nh.LinkSetUp(link); err != nil {
+		t.Fatal(err)
+	}
+
+	if !expectLinkUpdate(ch, "test", true) {
+		t.Fatal("Link Up update not received as expected")
+	}
+
+	if err := nh.LinkDel(link); err != nil {
+		t.Fatal(err)
+	}
+
+	if !expectLinkUpdate(ch, "test", false) {
+		t.Fatal("Del update not received as expected")
+	}
+}
+
+func TestLinkStats(t *testing.T) {
+	defer setUpNetlinkTest(t)()
+
+	// Create a veth pair and verify the cross-stats once both
+	// ends are brought up and some ICMPv6 packets are exchanged
+	v0 := "v0"
+	v1 := "v1"
+
+	vethLink := &Veth{LinkAttrs: LinkAttrs{Name: v0}, PeerName: v1}
+	if err := LinkAdd(vethLink); err != nil {
+		t.Fatal(err)
+	}
+
+	veth0, err := LinkByName(v0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(veth0); err != nil {
+		t.Fatal(err)
+	}
+
+	veth1, err := LinkByName(v1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LinkSetUp(veth1); err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(2 * time.Second)
+
+	// verify statistics
+	veth0, err = LinkByName(v0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	veth1, err = LinkByName(v1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v0Stats := veth0.Attrs().Statistics
+	v1Stats := veth1.Attrs().Statistics
+	if v0Stats.RxPackets != v1Stats.TxPackets || v0Stats.TxPackets != v1Stats.RxPackets ||
+		v0Stats.RxBytes != v1Stats.TxBytes || v0Stats.TxBytes != v1Stats.RxBytes {
+		t.Fatalf("veth ends counters differ:\n%v\n%v", v0Stats, v1Stats)
 	}
 }
