@@ -53,7 +53,7 @@
         data-chapter-title="Examples of Deploying a Virtual Container Host"
         data-filepath="vch_installer_examples.md"
         data-basepath="."
-        data-revision="Thu Jun 09 2016 13:50:16 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Thu Jul 07 2016 20:43:51 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -109,27 +109,6 @@
                         Environment Prerequisites for vSphere Integrated Containers Installation
                     </a>
             
-            
-            <ul class="articles">
-                
-    
-        <li class="chapter " data-level="2.1" data-path="create_a_private_port_group_for_vch.html">
-            
-                
-                    <a href="./create_a_private_port_group_for_vch.html">
-                
-                        <i class="fa fa-check"></i>
-                        
-                            <b>2.1.</b>
-                        
-                        Create a Private Port Group for Virtual Container Hosts
-                    </a>
-            
-            
-        </li>
-    
-
-            </ul>
             
         </li>
     
@@ -278,26 +257,25 @@
 </ul>
 <p><a name="esxi"></a></p>
 <h2 id="deploy-a-virtual-container-host-directly-on-an-esxi-host-with-no-resource-pools">Deploy a Virtual Container Host Directly on an ESXi Host with no Resource Pools</h2>
-<p>You can install vSphere Integrated Containers directly on an ESXi host that is not managed by a vCenter Server instance. This example provides the miniumum options required to install vSphere Integrated Containers. The installer prompts you for the password for the ESXi host and deploys a virtual container host appliance with the default name <code>docker-appliance</code>. When an ESXi host has no resource pools, you must provide the address of  the root resource pool in the <code>compute-resource</code> option in the <code>govc</code> format, exactly as shown in the example. You specify the datastore in which to store the virtual container host files and container image files in the mandatory <code>image-store</code> option.</p>
+<p>You can install vSphere Integrated Containers directly on an ESXi host that is not managed by a vCenter Server instance. This example provides the miniumum options required to install vSphere Integrated Containers. The installer prompts you for the password for the ESXi host and deploys a virtual container host appliance with the default name <code>virtual-container-host</code>. You specify the datastore in which to store the virtual container host files and container image files in the mandatory <code>image-store</code> option.</p>
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target <i>esxi_host_IPv4_address_or_FQDN</i>
 --user root
---compute-resource /ha-datacenter/host/localhost.eng.vmware.com/Resources/
 --image-datastore <i>datastore_name</i>
 </pre>
 
 <p><a name="cluster"></a></p>
 <h2 id="deploy-a-virtual-container-host-in-a-vcenter-server-cluster">Deploy a Virtual Container Host in a vCenter Server Cluster</h2>
-<p>If vCenter Server manages clusters, you use the <code>compute-resource</code> option to specify the address of the cluster to which to deploy the virtual container host. You provide the cluster address in the <code>govc</code> format.</p>
-<p>In clusters that have more than one host, you must use the <code>bridge-network</code> option to specify an existing network for container VMs to use to communicate with each other and with the virtual container host.  </p>
+<p>If vCenter Server manages more than one cluster, you use the <code>compute-resource</code> option to specify the address of the cluster to which to deploy the virtual container host. </p>
+<p>You must use the <code>bridge-network</code> option to specify an existing distributed port group for container VMs to use to communicate with each other and with the virtual container host.  </p>
 <p>In addition to the mandatory options for deployment to a cluster, this example sets the vCenter Single Sign-On user and password and gives the virtual container host a custom name, <code>vch1</code>.</p>
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target <i>vcenter_server_IPv4_address_or_FQDN</i>
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
---compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
+--compute-resource <i>cluster_name</i>
 --image-datastore <i>datastore_name</i>
---bridge-network <i>network_name</i>
+--bridge-network <i>distributed_port_group_name</i>
 --name vch1
 </pre>
 
@@ -309,13 +287,13 @@
 <li>You direct traffic between ESXi hosts, vCenter Server, and the virtual container host to a specific network by specifying the <code>management-network</code> option. If you do not specify the <code>management-network</code> option, the virtual container host uses the bridge network for management traffic.</li>
 <li>You direct the traffic between container VMs and between container VMs and the virtual container host to a specific network by specifying the <code>bridge-network</code> option. This option is mandatory in environments with more than one ESXi host. </li>
 </ul>
-<p>To specify networking options, you must provide the name of a network or private port group that exists on the ESXi host before you deploy a virtual container host. For information about creating a private port group, see <a href="create_a_private_port_group_for_vch.html">Create a Private Port Group for Virtual Container Hosts</a>. </p>
+<p>To specify networking options, you must provide the name of a distributed port group that exists in your vCenter Server environment before you deploy a virtual container host. For information about how to create a distributed virtual switch and port group, see <em>Network Requirements</em> in <a href="vic_installation_prereqs.html#networkreqs">Environment Prerequisites for vSphere Integrated Containers Installation</a>.</p>
 <p>In addition to the mandatory options for deployment to a cluster, this example sets the vCenter Single Sign-On user and password, specifies different networks for the different types of traffic, and gives the virtual container host a custom name, <code>vch1</code>.</p>
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target <i>vcenter_server_IPv4_address_or_FQDN</i>
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
---compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
+--compute-resource <i>cluster_name</i>
 --image-datastore <i>datastore_name</i>
 --bridge-network <i>network_1_name</i>
 --management-network <i>network_2_name</i>
@@ -331,7 +309,7 @@
 --target <i>vcenter_server_IPv4_address_or_FQDN</i>
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
---compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
+--compute-resource <i>cluster_name</i>
 --image-datastore <i>datastore_1_name</i>
 --container-datastore <i>datastore_2_name</i>
 --bridge-network <i>network_1_name</i>
@@ -340,13 +318,13 @@
 
 <p><a name="standalone"></a> </p>
 <h2 id="deploy-a-virtual-container-host-on-a-standalone-host-in-vcenter-server">Deploy a Virtual Container Host on a Standalone Host in vCenter Server</h2>
-<p>If vCenter Server manages standalone ESXi hosts that are not part of a cluster, you use the <code>compute-resource</code> option to specify the address of the ESXi host to which to deploy the virtual container host.  You provide the host address in the <code>govc</code> format. If the vCenter Server manages more than one standalone ESXi host, you must specify the <code>bridge-network</code> option.</p>
+<p>If vCenter Server manages multiple standalone ESXi hosts that are not part of a cluster, you use the <code>compute-resource</code> option to specify the address of the ESXi host to which to deploy the virtual container host.   If the vCenter Server manages more than one standalone ESXi host, you must specify the <code>bridge-network</code> option.</p>
 <p>In addition to the mandatory options, this example specifies the vCenter Single Sign-On user and password, and gives the virtual container host a custom name, <code>vch1</code>.</p>
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target <i>vcenter_server_IPv4_address_or_FQDN</i> 
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
---compute-resource /<i>datacenter_name</i>/host/<i>host_IPv4_address_or_FQDN</i>/
+--compute-resource <i>host_IPv4_address_or_FQDN</i>
 --image-datastore <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --name vch1
@@ -354,25 +332,24 @@
 
 <p><a name="rp_host"></a></p>
 <h2 id="deploy-a-virtual-container-host-in-a-resource-pool-on-an-esxi-host">Deploy a Virtual Container Host in a Resource Pool on an ESXi Host</h2>
-<p>To deploy a virtual container host in a resource pool on an ESXi host that is not managed by vCenter Server, you specify the resource pool address in the <code>compute-resource</code> option. You provide the resource pool address in the <code>govc</code> format.</p>
+<p>To deploy a virtual container host in a resource pool on an ESXi host that is not managed by vCenter Server, you specify the resource pool address in the <code>compute-resource</code> option. </p>
 <p>This example uses the minimum required options.</p>
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target <i>esxi_host_IPv4_address_or_FQDN</i>
 --user root
---compute-resource 
-/ha-datacenter/host/localhost.eng.vmware.com/Resources/<i>resource_pool_name</i>/
+--compute-resource <i>resource_pool_name</i>
 --image-datastore <i>datastore_name</i>
 </pre>
 
 <p><a name="rp_cluster"></a></p>
 <h2 id="deploy-a-virtual-container-host-in-a-resource-pool-in-a-vcenter-server-cluster">Deploy a Virtual Container Host in a Resource Pool in a vCenter Server Cluster</h2>
-<p>To deploy a virtual container host in a resource pool in a vCenter Server Cluster, you specify the resource pool address in the <code>compute-resource</code> option. You provide the resource pool address in the <code>govc</code> format.</p>
+<p>To deploy a virtual container host in a resource pool in a vCenter Server Cluster, you specify the resource pool address in the <code>compute-resource</code> option.</p>
 <p>In addition to the mandatory options, this example sets the vCenter Single Sign-On user and password, and gives the virtual container host a custom name, <code>vch1</code>.</p>
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target <i>vcenter_server_IPv4_address_or_FQDN</i>
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
---compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/Resources/<i>resource_pool_name</i>/
+--compute-resource <i>cluster_name</i>/Resources/<i>resource_pool_name</i>
 --image-datastore <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --name vch1
@@ -386,7 +363,7 @@
 --target <i>vcenter_server_IPv4_address_or_FQDN</i>
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
---compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
+--compute-resource <i>cluster_name</i>
 --image-datastore <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --cert <i>path_to_certificate_file</i>
@@ -396,17 +373,17 @@
 
 <p><a name="no_tls"></a></p>
 <h2 id="deploy-a-virtual-container-host-with-no-tls-authentication">Deploy a Virtual Container Host with no TLS Authentication</h2>
-<p>If your development environment does not require authentication of the connections between Docker clients and virtual container hosts, use the <code>generate-cert=false</code> option to deactivate TLS in the virtual container host. If you do not specify <code>generate-cert=false</code> when you deploy a virtual container host, vic-machine automatically generates a certificate and key file that you must provide to the Docker client when you connect it to this virtual container host.</p>
+<p>If your development environment does not require authentication of the connections between Docker clients and virtual container hosts, use the <code>no-tls</code> option to deactivate TLS in the virtual container host. If you do not specify <code>no-tls</code> when you deploy a virtual container host, vic-machine automatically generates a certificate and key file that you must provide to the Docker client when you connect it to this virtual container host.</p>
 <p>In addition to the mandatory options for deployment to a cluster, this example sets the vCenter Single Sign-On user and password, and gives the virtual container host a custom name, <code>vch1</code>.</p>
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target <i>vcenter_server_IPv4_address_or_FQDN</i>
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
---compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
+--compute-resource <i>cluster_name</i>
 --image-datastore <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --name vch1
---generate-cert=false
+--no-tls
 </pre>
 
 <p><a name="customized"></a></p>
@@ -417,7 +394,7 @@
 --target <i>vcenter_server_IPv4_address_or_FQDN</i>
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
---compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
+--compute-resource <i>cluster_name</i>
 --image-datastore <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --name vch1
