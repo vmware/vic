@@ -38,6 +38,7 @@ import (
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/strslice"
 
+	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
@@ -146,8 +147,15 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 				http.StatusInternalServerError)
 	}
 
+	// bail early if container name already exists
+	if exists := cache.ContainerCache().GetContainer(config.Name); exists != nil {
+		return types.ContainerCreateResponse{},
+			derr.NewErrorWithStatusCode(fmt.Errorf("Conflict. The name \"%s\" is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", config.Name, exists.ContainerID),
+				http.StatusConflict)
+	}
+
 	// get the image from the cache
-	image, err := getImageConfigFromCache(config.Config.Image)
+	image, err := cache.ImageCache().GetImage(config.Config.Image)
 	if err != nil {
 		// if no image found then error thrown and a pull
 		// will be initiated by the docker client
@@ -229,7 +237,6 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 			// roll back the AddContainer call
 			if _, err2 := client.Scopes.RemoveContainer(scopes.NewRemoveContainerParams().WithHandle(h).WithScope(netConf.NetworkName)); err2 != nil {
 				log.Warnf("could not roll back container add: %s", err2)
-
 			}
 		}()
 
@@ -258,9 +265,10 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	container.Config.OpenStdin = config.Config.OpenStdin
 	container.Config.StdinOnce = config.Config.StdinOnce
 	container.ContainerID = createResults.Payload.ID
+	container.Name = config.Name
 
 	log.Debugf("Container create: %#v", container)
-	viccontainer.GetCache().SaveContainer(createResults.Payload.ID, container)
+	cache.ContainerCache().SaveContainer(container)
 
 	// Success!
 	log.Debugf("container.ContainerCreate succeeded.  Returning container handle %s", *createResults.Payload)
@@ -391,11 +399,21 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 		// need to look at in hostConfig
 	}
 
+	var id = name
+	cachedContainer := cache.ContainerCache().GetContainer(name)
+	if cachedContainer != nil {
+		id = cachedContainer.ContainerID
+	} else {
+		return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", id))
+	}
+
+	log.Debugf("Found cached container: %#v", cachedContainer)
+
 	// get a handle to the container
-	getRes, err := client.Containers.Get(containers.NewGetParams().WithID(name))
+	getRes, err := client.Containers.Get(containers.NewGetParams().WithID(id))
 	if err != nil {
 		if _, ok := err.(*containers.GetNotFound); ok {
-			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
+			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", id))
 		}
 		return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer"), http.StatusInternalServerError)
 	}
@@ -563,7 +581,7 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 	defer trace.End(trace.Begin("ContainerInspect"))
 
 	// Look up the container info in the metadata cache
-	vc := viccontainer.GetCache().GetContainerByName(name)
+	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
 		return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
 	}
@@ -645,7 +663,7 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 func (c *Container) ContainerAttach(prefixOrName string, ca *backend.ContainerAttachConfig) error {
 	defer trace.End(trace.Begin("ContainerAttach"))
 
-	vc := viccontainer.GetCache().GetContainerByName(prefixOrName)
+	vc := cache.ContainerCache().GetContainer(prefixOrName)
 
 	if vc == nil {
 		//FIXME: If we didn't find in the cache, we should goto the port layer and
