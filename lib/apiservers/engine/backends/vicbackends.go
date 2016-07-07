@@ -44,6 +44,10 @@ var (
 	vchConfig  *metadata.VirtualContainerHostConfigSpec
 )
 
+func init() {
+	imageCache = cache.NewImageCache()
+}
+
 func Init(portLayerAddr, product string, config *metadata.VirtualContainerHostConfigSpec) error {
 	_, _, err := net.SplitHostPort(portLayerAddr)
 	if err != nil {
@@ -67,8 +71,6 @@ func Init(portLayerAddr, product string, config *metadata.VirtualContainerHostCo
 	t := httptransport.New(portLayerAddr, "/", []string{"http"})
 	portLayerClient = client.New(t, nil)
 	portLayerServerAddr = portLayerAddr
-
-	imageCache = cache.NewImageCache()
 
 	// attempt to update the image cache at startup
 	log.Info("Refreshing image cache...")
