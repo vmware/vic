@@ -1082,12 +1082,14 @@ definitions:
     properties:
       containerId:
         type: string
-      imageId:
+      layerId:
+        type: string
+      repoName:
         type: string
       created:
-        type: string
-        format: datetime
-      name:
+        type: integer
+        format: int64
+      names:
         type: array
         items:
           type: string
@@ -1147,15 +1149,18 @@ definitions:
     properties:
       pid:
         type: integer
-        format: int32
       execPath:
         type: string
       execArgs:
-        type: string
+        type: array
+        items:
+          type: string
       workingDir:
         type: string
       env:
-        type: string
+        type: array
+        items:
+          type: string
       status:
         type: string
       started:
@@ -1166,7 +1171,6 @@ definitions:
         format: datetime
       exitCode:
         type: integer
-        format: int32
       errorMsg:
         type: string
   VolumeConfig:

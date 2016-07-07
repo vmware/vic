@@ -21,6 +21,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
@@ -250,6 +251,51 @@ func (c *Container) Remove(ctx context.Context) error {
 	return nil
 }
 
+// Grab the info for the requested container
+// TODO:  Possibly change so that handler requests a handle to the
+// container and if it's not present then search and return a handle
+func ContainerInfo(ctx context.Context, sess *session.Session, containerID ID) (*Container, error) {
+	var cvm *Container
+	// first  lets see if we have it in the cache
+	container := containers[containerID]
+	// if we missed search for it...
+	if container == nil {
+		// search
+		vm, err := childVM(ctx, sess, containerID.String())
+		if err != nil || vm == nil {
+			log.Debugf("ContainerInfo failed to find childVM: %s", err.Error())
+			return cvm, fmt.Errorf("Container Not Found: %s", containerID)
+		}
+		container = &Container{ID: containerID, vm: vm}
+	}
+
+	// get properties for specific containerVMs
+	// we must do this since we don't know that we have a valid state
+	// This will be refactored when event streaming hits
+	vms, err := populateVMAttributes(ctx, sess, []types.ManagedObjectReference{container.vm.Reference()})
+	if err != nil {
+		return cvm, err
+	}
+	// convert the VMs to container objects -- include
+	// powered off vms
+	all := true
+	cc := convertInfraContainers(vms, &all)
+
+	switch len(cc) {
+	case 0:
+		// we found a vm, but it doesn't appear to be a container VM
+		return cvm, fmt.Errorf("%s does not appear to be a container", containerID)
+	case 1:
+		// we have a winner
+		cvm = &cc[0]
+	default:
+		// we manged to find multiple vms
+		return cvm, fmt.Errorf("multiple containers named %s found", containerID)
+	}
+
+	return cvm, nil
+}
+
 // return a list of container attributes
 func List(ctx context.Context, sess *session.Session, all *bool) ([]Container, error) {
 
@@ -264,25 +310,46 @@ func List(ctx context.Context, sess *session.Session, all *bool) ([]Container, e
 	return containers, nil
 }
 
-// get the containerVMs from infrastructure
+// get the containerVMs from infrastructure for this resource pool
 func infraContainers(ctx context.Context, sess *session.Session) ([]mo.VirtualMachine, error) {
 	var rp mo.ResourcePool
-	var vms []mo.VirtualMachine
 
 	// popluate the vm property of the vch resource pool
 	if err := Config.ResourcePool.Properties(ctx, Config.ResourcePool.Reference(), []string{"vm"}, &rp); err != nil {
 		log.Errorf("List failed to get %s resource pool child vms: %s", Config.ResourcePool.Name(), err)
 		return nil, err
 	}
+	vms, err := populateVMAttributes(ctx, sess, rp.Vm)
+	if err != nil {
+		return nil, err
+	}
+	return vms, nil
+}
 
-	// We now have morefs for the pools VMs, so
-	//define attributes do we need from the VMs
+// find the childVM for this resource pool by name
+func childVM(ctx context.Context, sess *session.Session, name string) (*vm.VirtualMachine, error) {
+	searchIndex := object.NewSearchIndex(sess.Client.Client)
+	child, err := searchIndex.FindChild(ctx, Config.ResourcePool.Reference(), name)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to find container(%s): %s", name, err.Error())
+	}
+	if child == nil {
+		return nil, fmt.Errorf("Unable to find container %s", name)
+	}
+	// instantiate the vm object
+	return vm.NewVirtualMachine(ctx, sess, child.Reference()), nil
+}
+
+// populate the vm attributes for the specified morefs
+func populateVMAttributes(ctx context.Context, sess *session.Session, refs []types.ManagedObjectReference) ([]mo.VirtualMachine, error) {
+	var vms []mo.VirtualMachine
+
+	// current attributes we care about
 	attrib := []string{"config", "runtime.powerState", "summary"}
 
 	// populate the vm properties
-	sess.Retrieve(ctx, rp.Vm, attrib, &vms)
-
-	return vms, nil
+	err := sess.Retrieve(ctx, refs, attrib, &vms)
+	return vms, err
 }
 
 // convert the infra containers to a container object
