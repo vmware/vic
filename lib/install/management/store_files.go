@@ -30,6 +30,8 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
+	"bytes"
+
 	"golang.org/x/net/context"
 )
 
@@ -188,4 +190,28 @@ func (d *Dispatcher) createVolumeStores(conf *metadata.VirtualContainerHostConfi
 		url.Path = nds.RootURL
 	}
 	return nil
+}
+
+func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHostConfigSpec) {
+	if d.force {
+		for label, url := range conf.VolumeLocations {
+			// separate the host (datastore name) from the path in the provided path URL
+			pathComponents := strings.SplitN(url.Path, " ", 2)
+			if len(pathComponents) != 2 {
+				log.Warnf("Didn't receive an expected volume store path format: %s", url.Path)
+			}
+
+			log.Infof("Deleting volume store %s on Datastore %s at path %s", label, pathComponents[0], pathComponents[1])
+			if _, err := d.deleteDatastoreFiles(d.session.Datastore, pathComponents[1], d.force); err != nil {
+				log.Errorf("Failed to delete volume store %s on Datastore %s at path %s", label, pathComponents[0], pathComponents[1])
+			}
+		}
+
+	} else { // user didn't specify --force so we're just going to print out some useful info for them
+		volumeStores := new(bytes.Buffer)
+		for label, url := range conf.VolumeLocations {
+			volumeStores.WriteString(fmt.Sprintf("\t%s: %s\n", label, url.Path))
+		}
+		log.Warnf("Since --force was not specified, the following volume stores will not be removed. Use the vSphere UI to delete content you do not wish to keep.\n%s", volumeStores.String())
+	}
 }
