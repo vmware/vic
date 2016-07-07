@@ -106,7 +106,8 @@ func (d *Dispatcher) uploadImages(files []string) error {
 			if err != nil {
 				log.Errorf("\t\tUpload failed for %s, %s", image, err)
 				if d.force {
-					log.Warnf("\t\tSkipping %s...", image)
+					log.Warnf("\t\tContinuing despite failures (due to --force option)")
+					log.Warnf("\t\tNote: The VCH will not function without %s...", image)
 					results <- nil
 				} else {
 					results <- err
