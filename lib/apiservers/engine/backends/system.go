@@ -27,6 +27,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/misc"
 	"github.com/vmware/vic/pkg/trace"
@@ -85,7 +86,7 @@ func (s *System) SystemInfo() (*types.Info, error) {
 	}
 
 	// Retrieve number of images from storage port layer
-	numImages, err := getImageCount(plClient)
+	numImages := getImageCount(plClient)
 	if err != nil {
 		log.Infof("System.SytemInfo unable to get image count: %s.", err.Error())
 	}
@@ -255,15 +256,10 @@ func pingPortlayer(plClient *client.PortLayer) bool {
 	return false
 }
 
-func getImageCount(plClient *client.PortLayer) (int, error) {
-	imageCache := ImageCache()
+func getImageCount(plClient *client.PortLayer) int {
 
-	images, err := imageCache.GetImages()
-	if err != nil {
-		return 0, err
-	}
-
-	return len(images), nil
+	images := cache.ImageCache().GetImages()
+	return len(images)
 }
 
 func getContainerStatus(plClient *client.PortLayer) (ContainerStatus, error) {

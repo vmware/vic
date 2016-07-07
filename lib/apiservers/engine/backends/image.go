@@ -25,11 +25,11 @@ import (
 
 	"golang.org/x/net/context"
 
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/registry"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -64,12 +64,7 @@ func (i *Image) ImageHistory(imageName string) ([]*types.ImageHistory, error) {
 func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Image, error) {
 	defer trace.End(trace.Begin("Images"))
 
-	imageCache := ImageCache()
-
-	images, err := imageCache.GetImages()
-	if err != nil {
-		return nil, fmt.Errorf("Error retrieving image list: %s", err)
-	}
+	images := cache.ImageCache().GetImages()
 
 	result := make([]*types.Image, 0, len(images))
 
@@ -88,7 +83,7 @@ func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Ima
 func (i *Image) LookupImage(name string) (*types.ImageInspect, error) {
 	defer trace.End(trace.Begin("LookupImage (docker inspect)"))
 
-	imageConfig, err := getImageConfigFromCache(name)
+	imageConfig, err := cache.ImageCache().GetImage(name)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +156,7 @@ func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders 
 	}
 
 	client := PortLayerClient()
-	ImageCache().Update(client)
+	cache.ImageCache().Update(client)
 	return nil
 }
 
@@ -191,40 +186,6 @@ func convertV1ImageToDockerImage(image *metadata.ImageConfig) *types.Image {
 		VirtualSize: image.Size,
 		Labels:      labels,
 	}
-}
-
-// Retrieve the image metadata from the image cache.
-func getImageConfigFromCache(image string) (*metadata.ImageConfig, error) {
-	// Use docker reference code to validate the id's format
-	digest, named, err := reference.ParseIDOrReference(image)
-	if err != nil {
-		return nil, err
-	}
-
-	// Try to get the image config from our image cache
-	imageCache := ImageCache()
-
-	if digest != "" {
-		config, err := imageCache.GetImageByDigest(digest)
-		if err != nil {
-			log.Errorf("Inspect lookup failed for image %s: %s.  Returning no such image.", image, err)
-			return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", image))
-		}
-		if config != nil {
-			return config, nil
-		}
-	} else {
-		config, err := imageCache.GetImageByNamed(named)
-		if err != nil {
-			log.Errorf("Inspect lookup failed for image %s: %s.  Returning no such image.", image, err)
-			return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", image))
-		}
-		if config != nil {
-			return config, nil
-		}
-	}
-
-	return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", image))
 }
 
 // Converts the data structure retrieved from the portlayer.  This src datastructure

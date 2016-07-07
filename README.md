@@ -33,10 +33,10 @@ Project Bonneville was research aimed at determining best approaches to enabling
 
 Once built, pick up the correct binary based on your OS, and then the result can be installed with the following command. This is just an example - see the vic-machine-XXX create --help output for all options, and a slightly more indepth example [here](doc/user/usage.md):
 ```
-bin/vic-machine-linux create --target target-host[/datacenter] --image-datastore <datastore name> --name <vch-name> --user root --password <password> --compute-resource <cluster/a/resource/pool/path> --generate-cert
+bin/vic-machine-linux create --target target-host[/datacenter] --image-datastore <datastore name> --name <vch-name> --user root --password <password> --compute-resource <cluster/a/resource/pool/path>
 ```
 
-Starting a container currently requires the container metadata be specified on the command line (environment, working directory, and absolute path to the command) as the image metadata parsing is still in progress (#195, #411). Container output is found in a log file on the datastore ([datastore]/containerid/containerid.log).
+Container output is found in a log file on the datastore ([datastore]/containerid/containerid.log).
 
 ## Deleting
 The installed Virtual Container Host can be deleted through vic-machine-XXX delete, - see the  vic-machine-XXX delete --help for usage information, and a example [here] (doc/user/usage.md)
@@ -146,50 +146,6 @@ To build locally with Drone:
 Ensure that you have Docker 1.6 or higher installed.
 Install the [Drone command line tools][dronecli].
 From the root directory of the `vic` repository run `drone exec -trusted -cache -e VIC_ESX_TEST_URL=""`
-
-
-## Starting docker-engine-server
-
-Generate a certificate pair
-
-```
-go run `go env GOROOT`/src/crypto/tls/generate_cert.go --host localhost
-```
-
-Start docker-engine-server
-
-```
-bin/docker-engine-server -serveraddr IP --port=2376 -port-layer-addr IP -port-layer-port 8080 -TLS -tls-certificate=cert.pem -tls-key=key.pem
-```
-
-
-## Starting port-layer-server
-
-```
-sudo bin/port-layer-server --host=IP --port=8080 --insecure --sdk="https://USERNAME:PASSWORD@IP/sdk --datacenter=DATACENTER --cluster=CLUSTER --datastore=DATASTORE --network=NETWORK --vch=VCH_NAME"
-```
-
-
-## Using VIC with docker client
-
-Download docker client
-```
-https://get.docker.com/builds/Linux/x86_64/docker-1.10.3
-https://get.docker.com/builds/Darwin/x86_64/docker-1.10.3
-https://get.docker.com/builds/Windows/x86_64/docker-1.10.3.exe
-```
-
-Create an image
-```
-$ DOCKER_HOST=tcp://IP:2376 docker create busybox
-Unable to find image 'busybox:latest' locally
-latest: Pulling from library/busybox
-
-bc744c4ab376: Pull complete
-56ed16bd6310: Pull complete
-Status: Downloaded newer image for library/busybox:latest
-3d543a18b8ee3657e34f68df5d30d43c1cae6cc9e9c3c66161280c7ee2854407
-```
 
 ## Test Case Documentation
 

@@ -1,0 +1,198 @@
+// Copyright 2016 VMware, Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package management
+
+import (
+	"fmt"
+	"net/url"
+	"testing"
+
+	log "github.com/Sirupsen/logrus"
+
+	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/simulator"
+	"github.com/vmware/vic/pkg/vsphere/tasks"
+	"github.com/vmware/vic/pkg/vsphere/vm"
+
+	"golang.org/x/net/context"
+)
+
+func TestDelete(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+	trace.Logger.Level = log.DebugLevel
+	ctx := context.Background()
+
+	for i, model := range []*simulator.Model{simulator.ESX(), simulator.VPX()} {
+		t.Logf("%d", i)
+		defer model.Remove()
+		err := model.Create()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		s := model.Service.NewServer()
+		defer s.Close()
+
+		s.URL.User = url.UserPassword("user", "pass")
+		s.URL.Path = ""
+		t.Logf("server URL: %s", s.URL)
+
+		var input *data.Data
+		if i == 0 {
+			input = getESXData(s.URL)
+		} else {
+			input = getVPXData(s.URL)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		installSettings := &data.InstallerData{}
+		installSettings.ApplianceSize.CPU.Limit = 1
+		installSettings.ApplianceSize.Memory.Limit = 1024
+		installSettings.ResourcePoolPath = fmt.Sprintf("%s/%s", input.ComputeResourcePath, input.DisplayName)
+
+		validator, err := validate.NewValidator(ctx, input)
+		if err != nil {
+			t.Errorf("Failed to validator, %s", err)
+		}
+
+		validator.DisableFirewallCheck = true
+		validator.DisableDRSCheck = true
+
+		conf, err := validator.Validate(ctx, input)
+		if err != nil {
+			log.Errorf("Failed to validate conf, %s", err)
+			validator.ListIssues()
+		}
+
+		createAppliance(ctx, validator.Session, conf, installSettings, false, t)
+		// FIXME: cannot check if it's VCH or not
+		//		testNewVCHFromCompute(input.ComputeResourcePath, input.DisplayName, validator, t)
+		testDeleteVCH(validator, conf, t)
+	}
+}
+
+func createAppliance(ctx context.Context, sess *session.Session, conf *metadata.VirtualContainerHostConfigSpec, vConf *data.InstallerData, hasErr bool, t *testing.T) {
+	var err error
+
+	d := &Dispatcher{
+		session: sess,
+		ctx:     ctx,
+		isVC:    sess.IsVC(),
+		force:   false,
+	}
+	delete(conf.Networks, "bridge") // FIXME: cannot create bridge network in simulator
+	if d.vchPool, err = d.createResourcePool(conf, vConf); err != nil {
+		t.Errorf("Unable to create resource pool: %s", err)
+	}
+
+	spec, err := d.createApplianceSpec(conf, vConf)
+	if err != nil {
+		t.Errorf("Unable to create appliance spec: %s", err)
+		return
+	}
+
+	// create appliance VM
+	info, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		return d.session.Folders(ctx).VmFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
+	})
+	// get VM reference and save it
+	moref := info.Result.(types.ManagedObjectReference)
+	conf.SetMoref(&moref)
+	obj, err := d.session.Finder.ObjectReference(d.ctx, moref)
+	if err != nil {
+		t.Errorf("Failed to reacquire reference to appliance VM after creation: %s", err)
+		return
+	}
+	gvm, ok := obj.(*object.VirtualMachine)
+	if !ok {
+		t.Errorf("Required reference after appliance creation was not for a VM: %T", obj)
+		return
+	}
+
+	vm2 := vm.NewVirtualMachineFromVM(d.ctx, d.session, gvm)
+	uuid, err := vm2.UUID(d.ctx)
+	if err != nil {
+		t.Errorf("Failed to get VM UUID: %s", err)
+		return
+	}
+	t.Logf("uuid: %s", uuid)
+
+	// leverage create volume method to create image datastore
+	conf.VolumeLocations["images-store"], _ = url.Parse(fmt.Sprintf("ds://LocalDS_0/VIC/%s/images", uuid))
+
+	if err := d.createVolumeStores(conf); err != nil {
+		t.Errorf("Unable to create volume stores: %s", err)
+		return
+	}
+}
+
+// FIXME: cannot fetch extra config in simulator
+func testNewVCHFromCompute(computePath string, name string, v *validate.Validator, t *testing.T) {
+	d := &Dispatcher{
+		session: v.Session,
+		ctx:     v.Context,
+		isVC:    v.Session.IsVC(),
+		force:   false,
+	}
+	vch, path, err := d.NewVCHFromComputePath(computePath, name, v)
+	if err != nil {
+		t.Errorf("Failed to get VCH, %s", err)
+		return
+	}
+	t.Logf("Got VCH %s, path %s", vch, path)
+}
+
+func testDeleteVCH(v *validate.Validator, conf *metadata.VirtualContainerHostConfigSpec, t *testing.T) {
+	d := &Dispatcher{
+		session: v.Session,
+		ctx:     v.Context,
+		isVC:    v.Session.IsVC(),
+		force:   false,
+	}
+	// failed to get vm FolderName, that will eventually cause panic in simulator to delete empty datastore file
+	if err := d.DeleteVCH(conf); err != nil {
+		t.Errorf("Failed to get VCH, %s", err)
+		return
+	}
+	t.Logf("Successfully deleted VCH")
+	// check images directory is removed
+	_, err := d.lsFolder(v.Session.Datastore, "VIC")
+	if err != nil {
+		// FIXME: simulator didn't return FileNotFound error here
+		//		if !types.IsFileNotFound(err) {
+		//			t.Errorf("Failed to browse folder %s, %s", "VIC", errors.ErrorStack(err))
+		//			return
+		//		}
+		t.Logf("Images Folder is not found")
+	}
+
+	// check appliance vm is deleted
+	vm, err := d.findApplianceByID(conf)
+	if vm != nil {
+		t.Errorf("Should not found vm %s", vm.Reference())
+	}
+	// FIXME: simulator didn't return NotFoundError
+	//	if err != nil {
+	//		t.Errorf("Unexpected error to get appliance VM, %s", err)
+	//	}
+	// delete VM does not clean up resource pool after VM is removed, so resource pool could not be removed
+}
