@@ -3,7 +3,6 @@
 * [Introduction](README.md)
 * [Installing vSphere Integrated Containers](installing_vic.md)
 * [Environment Prerequisites for vSphere Integrated Containers Installation](vic_installation_prereqs.md)
-   * [Create a Private Port Group for Virtual Container Hosts](create_a_private_port_group_for_vch.md)
 * [Contents of the vSphere Integrated Containers Binaries](contents_of_vic_binaries.md)
 * [Deploy a Virtual Container Host](install_vic_cli.md)
    * [Virtual Container Host Deployment Options](vch_installer_options.md)

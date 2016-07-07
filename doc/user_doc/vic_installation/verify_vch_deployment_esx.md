@@ -11,7 +11,7 @@ After you have deployed a virtual container host to a standalone ESXi host, you 
 
 **Procedure**    
 
-1. In the vSphere Web Client, go to **Inventory** and select the host on which you deployed the virtual container host.
+1. In the vSphere Client, go to **Inventory** and select the host on which you deployed the virtual container host.
  
     You should see a resource pool with the name that you set for the virtual container host. The resource pool contains the virtual container host appliance VM.   
 
