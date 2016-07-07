@@ -63,22 +63,36 @@ unpack $PACKAGE $PKGDIR
 # Below: the image authoring
 #################################################################
 
-# TEMP: imagec wrapper
-cp ${DIR}/appliance/imagec.sh $(rootfs_dir $PKGDIR)/sbin/imagec
-# tether based init
-cp ${BIN}/vic-init $(rootfs_dir $PKGDIR)/sbin/vic-init
+## systemd configuration
+# create systemd vic target
+cp ${DIR}/appliance/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/
+cp ${DIR}/appliance/vic-init.service $(rootfs_dir $PKGDIR)/etc/systemd/system/
+cp ${DIR}/appliance/nat.service $(rootfs_dir $PKGDIR)/etc/systemd/system/
+cp ${DIR}/appliance/nat-setup $(rootfs_dir $PKGDIR)/etc/systemd/scripts
 
-# kick off vch-init at boot time
-cp ${DIR}/appliance/launcher.service $(rootfs_dir $PKGDIR)/etc/systemd/system/
-cp ${DIR}/appliance/iptables $(rootfs_dir $PKGDIR)/etc/systemd/scripts
-ln -s /etc/systemd/system/launcher.service $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/launcher.service
+mkdir -p $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants
+ln -s /etc/systemd/system/vic-init.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/vic-init.service
+ln -s /etc/systemd/system/nat.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/nat.service
 
-cp ${BIN}/imagec $(rootfs_dir $PKGDIR)/sbin/imagec.bin
-cp ${BIN}/{docker-engine-server,port-layer-server,rpctool,vicadmin} $(rootfs_dir $PKGDIR)/sbin/
+# change the default systemd target to launch VIC
+# ln -sf /etc/systemd/system/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/default.target
+# update the multi-user target to launch VIC - this launches sshd as well
+ln -s /etc/systemd/system/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/vic.target
 
 # do not use the systemd dhcp client
 rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
 cp ${DIR}/base/no-dhcp.network $(rootfs_dir $PKGDIR)/etc/systemd/network/
 
+
+## main VIC components
+# TEMP: imagec wrapper
+cp ${DIR}/appliance/imagec.sh $(rootfs_dir $PKGDIR)/sbin/imagec
+# tether based init
+cp ${BIN}/vic-init $(rootfs_dir $PKGDIR)/sbin/vic-init
+
+cp ${BIN}/imagec $(rootfs_dir $PKGDIR)/sbin/imagec.bin
+cp ${BIN}/{docker-engine-server,port-layer-server,rpctool,vicadmin} $(rootfs_dir $PKGDIR)/sbin/
+
+## Generate the ISO
 # Select systemd for our init process
 generate_iso $PKGDIR $BIN/appliance.iso /lib/systemd/systemd
