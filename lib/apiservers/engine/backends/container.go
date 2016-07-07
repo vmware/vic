@@ -150,6 +150,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	var err error
 
 	//TODO: validate the config parameters
+	log.Printf("Image fetch section - Container Create")
 	log.Printf("config.Config = %+v", config.Config)
 	// Get an API client to the portlayer
 	client := PortLayerClient()
@@ -245,6 +246,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	id := createResults.Payload.ID
 	h := createResults.Payload.Handle
 
+	log.Infof("Network Configuration Section - Container Create")
 	// configure networking
 	netConf := toModelsNetworkConfig(config)
 	if netConf != nil {
@@ -273,9 +275,12 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		h = addContRes.Payload
 	}
 	msg, name, time := trace.Begin("Container.ContainerCreate - VolumeSection")
+	var joinList []volumeFields
 	//Volume Attachment Section
-	for _, v := range config.HostConfig.Binds {
+	log.Infof("Raw Volume arguments : binds:  %#v : volumes : %#v", config.HostConfig.Binds, config.Config.Volumes)
+	for v := range config.Config.Volumes {
 		fields, shouldExist, err := processVolumeParam(v)
+		log.Infof("Processed Volume arguments : %#v %t", fields, shouldExist)
 		if err != nil {
 			return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusBadRequest)
 		}
@@ -297,20 +302,23 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 				return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusInternalServerError)
 			}
 		}
+		joinList = append(joinList, fields)
+	}
+
+	for _, fields := range joinList {
 		flags := make(map[string]string)
 		//NOTE: for now we are passing the flags directly through. This is NOT SAFE and only a stop gap.
 		flags["Mode"] = fields.VolumeFlags
-		joinParams := storage.VolumeJoinParams{
-			Name: fields.VolumeID,
-			JoinArgs: &models.VolumeJoinConfig{
-				Flags:  flags,
-				Handle: h,
-			},
-		}
-		_, err = client.Storage.VolumeJoin(&joinParams)
+		joinParams := storage.NewVolumeJoinParams().WithJoinArgs(&models.VolumeJoinConfig{
+			Flags:  flags,
+			Handle: h,
+		}).WithName(fields.VolumeID)
+
+		res, err := client.Storage.VolumeJoin(joinParams)
 		if err != nil {
 			return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusInternalServerError)
 		}
+		h = res.Payload
 	}
 	trace.End(msg, name, time)
 	// commit the create op

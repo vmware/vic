@@ -30,17 +30,18 @@ import (
 func VolumeJoin(ctx context.Context, handle *exec.Handle, volume *storage.Volume, diskOpts map[string]string) (*exec.Handle, error) {
 	defer trace.End(trace.Begin("vsphere.VolumeJoin"))
 
-	//TODO: populate the mode field of the MountSpec from the diskOpts(rw/ro)
-	mountPath, err := volume.Device.MountPath()
-	if err != nil {
-		return nil, err
+	if _, ok := handle.ExecConfig.Mounts[volume.ID]; ok {
+		return nil, fmt.Errorf("Volume with ID %s is already in container %s's mountspec'", volume.ID, handle.Container.ID)
 	}
+
+	//TODO: populate the mode field of the MountSpec from the diskOpts(rw/ro)
+	diskPath := volume.Device.DiskPath()
 	newMountSpec := metadata.MountSpec{
 		Source: url.URL{
 			Scheme: "label",
 			Host:   volume.Label,
 		},
-		Path: mountPath,
+		Path: diskPath,
 		Mode: diskOpts["Mode"],
 	}
 
@@ -49,7 +50,7 @@ func VolumeJoin(ctx context.Context, handle *exec.Handle, volume *storage.Volume
 		CapacityInKB: 0,
 		VirtualDevice: types.VirtualDevice{
 			Key:           -1,
-			ControllerKey: 100, //FIXME: This is hardcoded for now and should be located from the config spec in the future.y
+			ControllerKey: 100, //FIXME: This is hardcoded for now and should be located from the config spec in the future.
 			UnitNumber:    &unitNumber,
 			Backing: &types.VirtualDiskFlatVer2BackingInfo{
 				DiskMode: string(types.VirtualDiskModeIndependent_persistent),
@@ -67,9 +68,8 @@ func VolumeJoin(ctx context.Context, handle *exec.Handle, volume *storage.Volume
 	}
 
 	handle.Spec.DeviceChange = append(handle.Spec.DeviceChange, config)
-
-	if _, ok := handle.ExecConfig.Mounts[volume.ID]; !ok {
-		return nil, fmt.Errorf("Volume with ID %s is already in container %s's mountspec'", volume.ID, handle.Container.ID)
+	if handle.ExecConfig.Mounts == nil {
+		handle.ExecConfig.Mounts = make(map[string]metadata.MountSpec)
 	}
 	handle.ExecConfig.Mounts[volume.ID] = newMountSpec
 
