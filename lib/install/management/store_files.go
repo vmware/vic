@@ -109,7 +109,7 @@ func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, for
 			err = errors.Errorf("Failed to browse folder %s, %s", dsPath, err)
 			return empty, err
 		}
-		log.Debugf("Folder %s is not found")
+		log.Debugf("Folder %s is not found", dsPath)
 		empty = true
 		return empty, nil
 	}
