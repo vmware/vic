@@ -7,6 +7,8 @@ The `vic-machine` utility can deploy a virtual container host in one of the foll
 * vCenter Server with one or more standalone ESXi hosts
 * A standalone ESXi host
 
+When you deploy a virtual container host, `vic-machine` registers the virtual container host as a vSphere extension. Authentication between the virtual container host and vSphere is handled via a vSphere service account that `vic-machine` creates for the virtual container host.
+
 The virtual container host allows you to use an ESXi host or vCenter Server instance as the Docker endpoint for a Docker client. The containers that you pull or create in your Docker client are stored and managed in the vSphere environment.
 
 **NOTE** The `vic-machine` utility does not add an extension in the vSphere Web Client. 
@@ -67,18 +69,17 @@ ssh root@<i>vch_address</i>
 Log server:
 https://<i>vch_address</i>:2378
 DOCKER_HOST=<i>vch_address</i>:2376
-DOCKER_OPTS=<i>vch_address</i>:2376 --tls
 Connect to docker:
 docker -H <i>vch_address</i>:2376 --tls info
 Installer completed successfully</pre>
 
 3. (Optional) Copy the generated certificate and key files to the Docker client system.
 
-  If you did not explicitly disable TLS certificate generation by using the `generate-cert=false` option, and if your Docker client is not on the same system as the one that you used to run `vic-machine`, you must copy the <code><i>vch_name</i>-cert.pem</code> and <code><i>vch_name</i>-key.pem</code> files to the Docker client system.
+  If you did not explicitly disable TLS certificate generation by using the `no-tls` option, and if your Docker client is not on the same system as the one that you used to run `vic-machine`, you must copy the <code><i>vch_name</i>-cert.pem</code> and <code><i>vch_name</i>-key.pem</code> files to the Docker client system.
 
 **What to Do Next**
 
-If you did not explicitly disable TLS certificate generation by using the `generate-cert=false` option, and if your Docker client is not on the same system as the one that you used to run `vic-machine`, copy the <code><i>vch_name</i>-cert.pem</code> and <code><i>vch_name</i>-key.pem</code> files to the Docker client system. 
+If you did not explicitly disable TLS certificate generation by using the `no-tls` option, and if your Docker client is not on the same system as the one that you used to run `vic-machine`, copy the <code><i>vch_name</i>-cert.pem</code> and <code><i>vch_name</i>-key.pem</code> files to the Docker client system. 
 
 To test your virtual container host, see [Verify the Deployment of a Virtual Container Host to vCenter Server](verify_vch_deployment.md) or [Verify the Deployment of a Virtual Container Host to an ESXi Host](verify_vch_deployment_esx.md).
     

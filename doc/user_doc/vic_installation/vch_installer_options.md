@@ -181,11 +181,11 @@ The datastore in which to create named volumes when using the `docker volume cre
 
 You can configure a virtual container host to use an automatically generated certificate, no certificate, or a Certificate Authority (CA) certificate to authenticate connections with Docker clients.
 
-### `generate-cert` ###
+### `no-tls` ###
 
-If you do not set the `generate-cert` option, `vic-machine` by default generates a TLS certificate and key for the virtual container host to  use to authenticate with a Docker client. Set the `generate-cert` option to `false` if you do not require certificate-based authentication between the virtual container host and the Docker client. If you use the `cert` and `key` options to upload a custom CA certificate, `vic-machine` does not auto-generate a certificate, without requiring you to set `generate-cert` to `false`.
+If you do not set the `no-tls` option, `vic-machine` by default generates a TLS certificate and key for the virtual container host to  use to authenticate with a Docker client. Set the `no-tls` option if you do not require certificate-based authentication between the virtual container host and the Docker client. If you use the `cert` and `key` options to upload a custom CA certificate, `vic-machine` does not auto-generate a certificate, without requiring you to set `no-tls` to `false`.
 
-<pre>--generate-cert=false</pre>
+<pre>--no-tls</pre>
 
 ### `cert` ###
 
@@ -205,7 +205,6 @@ Use this option in combination with the `cert` option, that provides the path to
 
 <pre>--cert <i>path_to_vcenter_server_certificate</i> --key <i>path_to_vcenter_server_key</i></pre>
 
-
 <a name="deployment"></a>
 ## Deployment Options ##
 
@@ -215,7 +214,8 @@ The `vic-machine` utility provides options to customize the deployment of virtua
 
 Short name: `-n`
 
-A name for the virtual container host appliance. If not specified, `vic-machine` sets the name of the virtual container host to `docker-appliance`. If a virtual container host of the same name exists on the ESXi host or in the vCenter Server inventory, or if a folder of the same name exists in the target datastore, the deployment of the virtual container host fails. Use the `force` option to replace an existing virtual container host with a new one with the same name.
+A name for the virtual container host appliance. If not specified, `vic-machine` sets the name of the virtual container host to `virtual-container-host`. If a virtual container host of the same name exists on the ESXi host or in the vCenter Server inventory, or if a folder of the same name exists in the target datastore, the deployment of the virtual container host fails. Use the `force` option to replace an existing virtual container host with a new one with the same name.
+
 <pre>--name <i>vch_appliance_name</i></pre>
 
 ### `password` ###
