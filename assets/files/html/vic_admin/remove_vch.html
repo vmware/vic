@@ -38,7 +38,7 @@
     
     
     
-    <link rel="prev" href="./networks.html" />
+    <link rel="prev" href="./inspect_vch.html" />
     
 
         
@@ -47,11 +47,11 @@
         
         
     <div class="book"
-        data-level="4"
+        data-level="6"
         data-chapter-title="Remove a Virtual Container Host"
         data-filepath="remove_vch.md"
         data-basepath="."
-        data-revision="Thu Jun 09 2016 15:26:47 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Thu Jul 07 2016 20:44:08 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -125,14 +125,44 @@
             
         </li>
     
-        <li class="chapter active" data-level="4" data-path="remove_vch.html">
+        <li class="chapter " data-level="4" data-path="vic_machine_version.html">
+            
+                
+                    <a href="./vic_machine_version.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.</b>
+                        
+                        Obtain vic-machine Version Information
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="5" data-path="inspect_vch.html">
+            
+                
+                    <a href="./inspect_vch.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.</b>
+                        
+                        Obtain Information About a Virtual Container Host
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter active" data-level="6" data-path="remove_vch.html">
             
                 
                     <a href="./remove_vch.html">
                 
                         <i class="fa fa-check"></i>
                         
-                            <b>4.</b>
+                            <b>6.</b>
                         
                         Remove a Virtual Container Host
                     </a>
@@ -174,30 +204,24 @@
                     <section class="normal" id="section-">
                     
                         <h1 id="remove-a-virtual-container-host">Remove a Virtual Container Host</h1>
-<p>In the current builds of vSphere Integrated Containers, you remove virtual container hosts manually.</p>
-<p>Removing a virtual container host involves several operations in the vSphere Web Client.</p>
+<p>You remove virtual container hosts by using the <code>vic-machine delete</code> command.</p>
 <p><strong>Prerequisites</strong></p>
-<ul>
-<li>You have a virtual container host that you no longer require.</li>
-<li>Connect a vSphere Web Client to the vCenter Server instance on which you deployed the virtual container host.</li>
-</ul>
+<p>You have deployed a virtual container host that you no longer require.</p>
 <p><strong>Procedure</strong></p>
 <ol>
-<li>In the vSphere Web Client, go to <strong>Hosts and Clusters</strong> and select the cluster or host on which you deployed the virtual container host.</li>
-<li>Select the resource pool for the virtual container host and click <strong>Related Objects</strong> &gt; <strong>Top Level Objects</strong>.</li>
-<li>Select the VM for the virtual container host and any container VMs, right-click, and select <strong>Power</strong> &gt; <strong>Power Off</strong>.</li>
-<li>Select the VM for the virtual container host and the container VMs, right-click, and select <strong>Delete from Disk</strong>.</li>
-<li>Right-click the resource pool for the virtual container host and select <strong>Delete</strong>.</li>
-<li><p>Go to <strong>Storage</strong>, select the datastore that you designated as the image datastore, and delete the folder for the virtual container host.</p>
-<p>If other virtual container hosts on this vCenter Server instance use this datastore, do not delete the <code>VIC</code> folder. The <code>VIC</code> folder contains container images that are shared between all virtual container hosts.</p>
+<li>On the system on which you run <code>vic-machine</code>, navigate to the directory that contains the <code>vic-machine</code> utility.</li>
+<li><p>Run the <code>vic-machine delete</code> command. </p>
+<p>The following example includes the options required to remove a named instance of a virtual container host from a vCenter Server environment.</p>
+<pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> delete
+--target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
+--name <i>vch_name</i></pre>
 </li>
-<li><p>Select the datastore that you designated as the container datastore, and delete the folders for the container VMs that this virtual container host manages.</p>
-<p>In the current builds, container VM files are stored in the image datastore. </p>
-</li>
-<li>(Optional) Go to <strong>Hosts and Clusters</strong>, select the host on which you configured a private port group for the virtual container host, and select <strong>Manage</strong> &gt; <strong>Networking</strong> &gt; <strong>Virtual switches</strong>.</li>
-<li><p>(Optional) Select the private port group and click the delete button.</p>
-<p>Do not delete the port group if other virtual container hosts on this vCenter Server instance use it.</p>
-</li>
+<li><p>If the delete operation fails with a message about container VMs that are powered on, run <code>vic-machine delete</code> again with the <code>--force</code> option.</p>
+<p><strong>CAUTION</strong> Running <code>vic-machine delete</code> with the <code>--force</code> option removes all running container VMs that the virtual container host manages.</p>
+<pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> delete
+--target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
+--name <i>cluster_name</i>
+--force</pre></li>
 </ol>
 
                     
@@ -209,7 +233,7 @@
         </div>
 
         
-        <a href="./networks.html" class="navigation navigation-prev navigation-unique" aria-label="Previous page: vSphere Integrated Containers Network Overview"><i class="fa fa-angle-left"></i></a>
+        <a href="./inspect_vch.html" class="navigation navigation-prev navigation-unique" aria-label="Previous page: Obtain Information About a Virtual Container Host"><i class="fa fa-angle-left"></i></a>
         
         
     </div>

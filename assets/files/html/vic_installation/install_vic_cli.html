@@ -53,7 +53,7 @@
         data-chapter-title="Deploy a Virtual Container Host"
         data-filepath="install_vic_cli.md"
         data-basepath="."
-        data-revision="Thu Jun 09 2016 13:50:16 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Thu Jul 07 2016 20:43:51 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -109,27 +109,6 @@
                         Environment Prerequisites for vSphere Integrated Containers Installation
                     </a>
             
-            
-            <ul class="articles">
-                
-    
-        <li class="chapter " data-level="2.1" data-path="create_a_private_port_group_for_vch.html">
-            
-                
-                    <a href="./create_a_private_port_group_for_vch.html">
-                
-                        <i class="fa fa-check"></i>
-                        
-                            <b>2.1.</b>
-                        
-                        Create a Private Port Group for Virtual Container Hosts
-                    </a>
-            
-            
-        </li>
-    
-
-            </ul>
             
         </li>
     
@@ -270,12 +249,13 @@
 <li>vCenter Server with one or more standalone ESXi hosts</li>
 <li>A standalone ESXi host</li>
 </ul>
+<p>When you deploy a virtual container host, <code>vic-machine</code> registers the virtual container host as a vSphere extension. Authentication between the virtual container host and vSphere is handled via a vSphere service account that <code>vic-machine</code> creates for the virtual container host.</p>
 <p>The virtual container host allows you to use an ESXi host or vCenter Server instance as the Docker endpoint for a Docker client. The containers that you pull or create in your Docker client are stored and managed in the vSphere environment.</p>
 <p><strong>NOTE</strong> The <code>vic-machine</code> utility does not add an extension in the vSphere Web Client. </p>
 <p><strong>Prerequisites</strong></p>
 <ul>
 <li>Verify that your vSphere infrastructure meets the requirements in <a href="vic_installation_prereqs.html">Environment Prerequisites for vSphere Integrated Containers Installation</a>.</li>
-<li>If you are deploying a virtual container host in a vSphere environment with more than one ESXi host, create a private port group for container VMs to use to communicate with each other. For information about how to create a private port group, see <a href="create_a_private_port_group_for_vch.html">Create a Private Port Group for Virtual Container Hosts</a>.</li>
+<li>In a vCenter Server environment, before you deploy a virtual container host, you must create a distributed virtual switch and a distributed port group. You must add the target ESXi host or hosts to the distributed virtual switch. For information about how to create a distributed virtual switch and port group, see <em>Network Requirements</em> in <a href="vic_installation_prereqs.html#networkreqs">Environment Prerequisites for vSphere Integrated Containers Installation</a>.</li>
 <li>Obtain either a verified build, the latest daily build, or the source code of vSphere Integrated Containers: <ul>
 <li>Download the most recent verified build of vSphere Integrated Containers from <a href="https://github.com/vmware/vic/releases" target="_blank">https://github.com/vmware/vic/releases</a> and unpack it. This version has been tested and approved, but it does not reflect the most up-to-date version of the code.</li>
 <li>Download the latest daily build of vSphere Integrated Containers from <a href="https://bintray.com/vmware/vic-repo/build/view#files" target="_blank">https://bintray.com/vmware/vic-repo/build/view#files</a> and unpack it. This version reflects the version of the code as it was at the last daily build. It has not been tested or approved.</li>
@@ -302,7 +282,6 @@
 --target <i>vcenter_server_address</i>
 --image-datastore <i>datastore_name</i> 
 --user <i>username</i>
---compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
 --bridge-network <i>network_name</i></pre>  
 
 <p>Deploy a virtual container host from a Linux OS system:</p>
@@ -310,7 +289,6 @@
 --target <i>vcenter_server_address</i>
 --image-datastore <i>datastore_name</i> 
 --user <i>username</i>
---compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
 --bridge-network <i>network_name</i></pre> 
 
 <p>Deploy a virtual container host from a Windows system:</p>
@@ -318,7 +296,6 @@
 --target <i>vcenter_server_address</i>
 --image-datastore <i>datastore_name</i> 
 --user <i>username</i>
---compute-resource /<i>datacenter_name</i>/host/<i>cluster_name</i>/
 --bridge-network <i>network_name</i></pre> 
 
 <p>At the end of a successful installation, <code>vic-machine</code> displays a success message:</p>
@@ -327,16 +304,17 @@ SSH to appliance (default=root:password)
 ssh root@<i>vch_address</i>
 Log server:
 https://<i>vch_address</i>:2378
-Connect to docker:docker -H <i>vch_address</i>:2376 
---tls --tlscert=&apos;./<i>vch_name</i>-cert.pem&apos; 
---tlskey=&apos;./<i>vch_name</i>.pem&apos; info</pre>
+DOCKER_HOST=<i>vch_address</i>:2376
+Connect to docker:
+docker -H <i>vch_address</i>:2376 --tls info
+Installer completed successfully</pre>
 </li>
 <li><p>(Optional) Copy the generated certificate and key files to the Docker client system.</p>
-<p>If you did not explicitly disable TLS certificate generation by using the <code>generate-cert=false</code> option, and if your Docker client is not on the same system as the one that you used to run <code>vic-machine</code>, you must copy the <code>vch_name-cert.pem</code> and <code>vch_name-key.pem</code> files to the Docker client system.</p>
+<p>If you did not explicitly disable TLS certificate generation by using the <code>no-tls</code> option, and if your Docker client is not on the same system as the one that you used to run <code>vic-machine</code>, you must copy the <code>vch_name-cert.pem</code> and <code>vch_name-key.pem</code> files to the Docker client system.</p>
 </li>
 </ol>
 <p><strong>What to Do Next</strong></p>
-<p>If you did not explicitly disable TLS certificate generation by using the <code>generate-cert=false</code> option, and if your Docker client is not on the same system as the one that you used to run <code>vic-machine</code>, copy the <code>vch_name-cert.pem</code> and <code>vch_name-key.pem</code> files to the Docker client system. </p>
+<p>If you did not explicitly disable TLS certificate generation by using the <code>no-tls</code> option, and if your Docker client is not on the same system as the one that you used to run <code>vic-machine</code>, copy the <code>vch_name-cert.pem</code> and <code>vch_name-key.pem</code> files to the Docker client system. </p>
 <p>To test your virtual container host, see <a href="verify_vch_deployment.html">Verify the Deployment of a Virtual Container Host to vCenter Server</a> or <a href="verify_vch_deployment_esx.html">Verify the Deployment of a Virtual Container Host to an ESXi Host</a>.</p>
 
                     

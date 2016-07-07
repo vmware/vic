@@ -37,7 +37,7 @@
         
     
     
-    <link rel="next" href="./create_a_private_port_group_for_vch.html" />
+    <link rel="next" href="./contents_of_vic_binaries.html" />
     
     
     <link rel="prev" href="./installing_vic.html" />
@@ -53,7 +53,7 @@
         data-chapter-title="Environment Prerequisites for vSphere Integrated Containers Installation"
         data-filepath="vic_installation_prereqs.md"
         data-basepath="."
-        data-revision="Thu Jun 09 2016 13:50:16 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Thu Jul 07 2016 20:43:51 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -109,27 +109,6 @@
                         Environment Prerequisites for vSphere Integrated Containers Installation
                     </a>
             
-            
-            <ul class="articles">
-                
-    
-        <li class="chapter " data-level="2.1" data-path="create_a_private_port_group_for_vch.html">
-            
-                
-                    <a href="./create_a_private_port_group_for_vch.html">
-                
-                        <i class="fa fa-check"></i>
-                        
-                            <b>2.1.</b>
-                        
-                        Create a Private Port Group for Virtual Container Hosts
-                    </a>
-            
-            
-        </li>
-    
-
-            </ul>
             
         </li>
     
@@ -309,12 +288,12 @@
 </thead>
 <tbody>
 <tr>
-<td>Standalone ESXi host or vCenter Server managing standalone ESXi hosts</td>
+<td>ESXi host</td>
 <td>Network Serial Port</td>
 <td>vSphere Enterprise</td>
 </tr>
 <tr>
-<td>vCenter Server managing a cluster</td>
+<td>vCenter Server</td>
 <td>Distributed Virtual Switch</td>
 <td>vSphere Enterprise Plus</td>
 </tr>
@@ -323,14 +302,20 @@
 <p>All of the ESXi hosts in a cluster require an appropriate license. Installation fails if your environment includes one or more ESXi hosts that have inadequate licenses.</p>
 <h2 id="role-and-permissions-requirements">Role and Permissions Requirements</h2>
 <p>You must use an account with the vSphere Administrator role when you install vSphere Integrated Containers.</p>
+<p><a name="networkreqs"></a></p>
 <h2 id="network-requirements">Network Requirements</h2>
 <ul>
 <li>Use a trusted network for the deployment and use of vSphere Integrated Containers.</li>
-<li>Use a trused network for connections between Docker clients and the virtual container hosts.</li>
+<li>Use a trusted network for connections between Docker clients and the virtual container hosts.</li>
 <li>Each virtual container host requires the following network configuration:<ul>
 <li>One IP address, that can be either static or set by using DHCP.</li>
 <li>One VLAN, if you use VLAN for network isolation.</li>
 <li>One IP address for each container that you run with the <code>docker run --net=host</code> option.</li>
+</ul>
+</li>
+<li>In a vCenter Server environment, before you deploy a virtual container host, you must create a distributed virtual switch and a distributed port group. You must add the target ESXi host or hosts to the distributed virtual switch. <ul>
+<li>For information about how to create a distributed port group, see <a href="https://pubs.vmware.com/vsphere-60/topic/com.vmware.vsphere.networking.doc/GUID-D21B3241-0AC9-437C-80B1-0C8043CC1D7D.html" target="_blank">Create a vSphere Distributed Switch</a> in the vSphere 6.0 documentation.</li>
+<li>For information about how to add hosts to a distributed virtual switch, see <a href="https://pubs.vmware.com/vsphere-60/topic/com.vmware.vsphere.networking.doc/GUID-E90C1B0D-82CB-4A3D-BE1B-0FDCD6575725.html" target="_blank">Add Hosts to a vSphere Distributed Switch</a> in the vSphere 6.0 documentation.</li>
 </ul>
 </li>
 </ul>
@@ -347,7 +332,7 @@
         <a href="./installing_vic.html" class="navigation navigation-prev " aria-label="Previous page: Installing vSphere Integrated Containers"><i class="fa fa-angle-left"></i></a>
         
         
-        <a href="./create_a_private_port_group_for_vch.html" class="navigation navigation-next " aria-label="Next page: Create a Private Port Group for Virtual Container Hosts"><i class="fa fa-angle-right"></i></a>
+        <a href="./contents_of_vic_binaries.html" class="navigation navigation-next " aria-label="Next page: Contents of the vSphere Integrated Containers Binaries"><i class="fa fa-angle-right"></i></a>
         
     </div>
 </div>

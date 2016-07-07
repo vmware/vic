@@ -51,7 +51,7 @@
         data-chapter-title="Supported Docker Commands"
         data-filepath="container_operations.md"
         data-basepath="."
-        data-revision="Thu Jun 09 2016 13:51:57 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Thu Jul 07 2016 20:44:26 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -135,23 +135,28 @@
 <tr>
 <th><strong>Container</strong></th>
 <th><strong>Docker Reference</strong></th>
-<th><strong>Supported in TP3</strong></th>
+<th><strong>Supported in 0.4</strong></th>
 </tr>
 </thead>
 <tbody>
 <tr>
+<td>Docker run</td>
+<td>Composite command of create, start, inspect, attach, rm</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Docker create</td>
+<td><a href="https://docs.docker.com/engine/reference/commandline/create/" target="_blank">Create a container</a></td>
+<td>Yes</td>
+</tr>
+<tr>
 <td>Docker inspect</td>
-<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#inspect-a-container" target="_blank">Inspect a container</a></td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#inspect-a-container" target="_blank">Inspect a container</a> <br><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#inspect-an-image" target="_blank">Inspect an image</a></td>
 <td>Yes</td>
 </tr>
 <tr>
 <td>Docker start</td>
 <td><a href="https://docs.docker.com/engine/reference/commandline/start/" target="_blank">Start a container</a></td>
-<td>Yes</td>
-</tr>
-<tr>
-<td>Docker stop</td>
-<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#stop-a-container" target="_blank">Stop a container</a><br> <a href="https://docs.docker.com/engine/reference/commandline/stop/" target="_blank">Stop</a></td>
 <td>Yes</td>
 </tr>
 <tr>
@@ -162,7 +167,27 @@
 <tr>
 <td>Docker rm</td>
 <td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#remove-a-container" target="_blank">Remove a container</a></td>
+<td>Yes, only the <code>name</code> parameter is supported. <code>force</code> and <code>v</code> are a future implementation</td>
+</tr>
+<tr>
+<td>Docker info</td>
+<td><a href="https://docs.docker.com/engine/reference/commandline/info/" target="_blank">Docker system information</a></td>
+<td>Yes, docker-specific data, basic capacity information</td>
+</tr>
+<tr>
+<td>Docker version</td>
+<td><a href="https://docs.docker.com/engine/reference/commandline/version/" target="_blank">Docker version information</a></td>
+<td>Yes. vSphere Integrated Containers version provided</td>
+</tr>
+<tr>
+<td>Docker container resize</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.23/#resize-a-container-tty" target="_blank">Resize a container</a></td>
 <td>Yes</td>
+</tr>
+<tr>
+<td>Docker stop</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#stop-a-container" target="_blank">Stop a container</a><br> <a href="https://docs.docker.com/engine/reference/commandline/stop/" target="_blank">Stop</a></td>
+<td>Yes. Powers down the VM</td>
 </tr>
 <tr>
 <td>Docker images</td>
@@ -187,6 +212,11 @@
 <tr>
 <td>Docker kill</td>
 <td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#kill-a-container" target="_blank">Kill a container</a><br> <a href="https://docs.docker.com/engine/reference/commandline/kill/" target="_blank">Kill</a></td>
+<td>No, onsite Beta. Use Docker stop</td>
+</tr>
+<tr>
+<td>Docker Container list</td>
+<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#list-containers" target="_blank">List Containers</a></td>
 <td>TBD</td>
 </tr>
 </tbody>
@@ -196,14 +226,14 @@
 <tr>
 <th><strong>Network</strong></th>
 <th><strong>Docker Reference</strong></th>
-<th><strong>Supported in TP3</strong></th>
+<th><strong>Supported in 0.4</strong></th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Network create</td>
 <td><a href="https://docs.docker.com/engine/reference/commandline/network_create/" target="_blank">Create a network</a></td>
-<td>Yes. See the use case to connect to an external network <link to="" networks.md="">. Bridge is also supported.</td>
+<td>Yes. See the use case to connect to an external network in vSphere Integrated Container for vSphere Administrators. Bridge is also supported.</td>
 </tr>
 <tr>
 <td>Network ls</td>
@@ -232,7 +262,7 @@
 <tr>
 <th><strong>Volume</strong></th>
 <th><strong>Docker Reference</strong></th>
-<th><strong>Supported by TP3</strong></th>
+<th><strong>Supported by 0.4</strong></th>
 </tr>
 </thead>
 <tbody>
@@ -266,11 +296,6 @@
 <td>Link</td>
 <td><a href="https://docs.docker.com/v1.8/userguide/dockerlinks/" target="_blank">Link</a></td>
 <td>TBD</td>
-</tr>
-<tr>
-<td>List</td>
-<td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#list-containers" target="_blank">List Containers</a></td>
-<td>No</td>
 </tr>
 <tr>
 <td>Docker export</td>
