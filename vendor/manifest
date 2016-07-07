@@ -588,6 +588,14 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/tchap/go-patricia",
+			"repository": "https://github.com/tchap/go-patricia",
+			"vcs": "git",
+			"revision": "d87fea6fbcb44d59ff7dacbbcc347c66fca67724",
+			"branch": "HEAD",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/tylerb/graceful",
 			"repository": "https://github.com/tylerb/graceful",
 			"vcs": "",
