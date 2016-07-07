@@ -17,7 +17,6 @@ package exec
 import (
 	"errors"
 	"fmt"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -119,16 +118,9 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		}
 		parent := folders.VmFolder
 
-		// FIXME: Replace this simple logic with DRS placement
-		// Pick a random host
-		hosts, err := sess.Datastore.AttachedClusterHosts(ctx, sess.Cluster)
-		if err != nil {
-			return err
-		}
-		host := hosts[rand.Intn(len(hosts))]
 		// Create the vm
 		res, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-			return parent.CreateVM(ctx, *h.Spec.Spec(), Config.ResourcePool, host)
+			return parent.CreateVM(ctx, *h.Spec.Spec(), Config.ResourcePool, nil)
 		})
 		if err != nil {
 			return err
