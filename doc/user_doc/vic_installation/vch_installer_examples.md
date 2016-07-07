@@ -16,8 +16,8 @@ This topic provides examples of the options of the `vic-machine` `create` comman
 <a name="esxi"></a>
 ## Deploy a Virtual Container Host Directly on an ESXi Host with no Resource Pools##
 
-You can install vSphere Integrated Containers directly on an ESXi host that is not managed by a vCenter Server instance. This example provides the miniumum options required to install vSphere Integrated Containers. The installer prompts you for the password for the ESXi host and deploys a virtual container host appliance with the default name `docker-appliance`. You specify the datastore in which to store the virtual container host files and container image files in the mandatory `image-store` option.
- 
+You can install vSphere Integrated Containers directly on an ESXi host that is not managed by a vCenter Server instance. This example provides the miniumum options required to install vSphere Integrated Containers. The installer prompts you for the password for the ESXi host and deploys a virtual container host appliance with the default name `virtual-container-host`. You specify the datastore in which to store the virtual container host files and container image files in the mandatory `image-store` option.
+
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target <i>esxi_host_IPv4_address_or_FQDN</i>
 --user root
@@ -156,7 +156,7 @@ In addition to the mandatory options for deployment to a cluster, this example s
 <a name="no_tls"></a>
 ## Deploy a Virtual Container Host with no TLS Authentication ##
 
-If your development environment does not require authentication of the connections between Docker clients and virtual container hosts, use the `generate-cert=false` option to deactivate TLS in the virtual container host. If you do not specify `generate-cert=false` when you deploy a virtual container host, vic-machine automatically generates a certificate and key file that you must provide to the Docker client when you connect it to this virtual container host.
+If your development environment does not require authentication of the connections between Docker clients and virtual container hosts, use the `no-tls` option to deactivate TLS in the virtual container host. If you do not specify `no-tls` when you deploy a virtual container host, vic-machine automatically generates a certificate and key file that you must provide to the Docker client when you connect it to this virtual container host.
 
 In addition to the mandatory options for deployment to a cluster, this example sets the vCenter Single Sign-On user and password, and gives the virtual container host a custom name, `vch1`.
 
@@ -168,7 +168,7 @@ In addition to the mandatory options for deployment to a cluster, this example s
 --image-datastore <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --name vch1
---generate-cert=false
+--no-tls
 </pre>
 
 <a name="customized"></a>
