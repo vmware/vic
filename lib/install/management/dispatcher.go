@@ -21,18 +21,14 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"time"
-
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/metadata"
-	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/diagnostic"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
-	"github.com/vmware/govmomi/vim25/types"
 	"golang.org/x/net/context"
 )
 
@@ -149,43 +145,6 @@ func (d *Dispatcher) InitDiagnosticLogs(conf *metadata.VirtualContainerHostConfi
 
 		l.start = h.LineEnd
 	}
-}
-
-func (d *Dispatcher) RegisterExtension(conf *metadata.VirtualContainerHostConfigSpec, extension types.Extension) error {
-	defer trace.End(trace.Begin(conf.ExtensionName))
-
-	log.Infoln("Registering VCH as a vSphere extension")
-
-	// vSphere confusingly calls the 'name' of the extension a 'key'
-	// This variable is named IdKey as to not confuse it with its private key
-	if conf.ExtensionCert == "" {
-		return errors.Errorf("Extension certificate does not exist")
-	}
-
-	extensionManager := object.NewExtensionManager(d.session.Vim25())
-
-	extension.LastHeartbeatTime = time.Now().UTC()
-	if err := extensionManager.Register(d.ctx, extension); err != nil {
-		log.Errorf("Could not register the vSphere extension due to err: %s", err)
-		return err
-	}
-
-	if err := extensionManager.SetCertificate(d.ctx, conf.ExtensionName, conf.ExtensionCert); err != nil {
-		log.Errorf("Could not set the certificate on the vSphere extension due to error: %s", err)
-		return err
-	}
-
-	return nil
-}
-
-func (d *Dispatcher) UnregisterExtension(name string) error {
-	defer trace.End(trace.Begin(name))
-
-	extensionManager := object.NewExtensionManager(d.session.Vim25())
-	if err := extensionManager.Unregister(d.ctx, name); err != nil {
-		return errors.Errorf("Failed to remove extension w/ name %s due to error: %s", name, err)
-	}
-	return nil
 }
 
 func (d *Dispatcher) CollectDiagnosticLogs() {
