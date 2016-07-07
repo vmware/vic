@@ -6,7 +6,6 @@ After you download and unpack a vSphere Integrated Containers binary bundle from
 | --- | --- |
 |```appliance.iso``` | The ISO from which a virtual container host appliance boots.|
 |```bootstrap.iso``` | A Photon OS kernel from which container VMs boot.|
-|```vic_machine``` | The command line installation and management utility for virtual container hosts.| 
 |```vic_machine-darwin``` | The Mac OS command line installation and management utility for virtual container hosts.| 
 |```vic_machine-linux``` | The Linux command line installation and management utility for virtual container hosts.| 
 |```vic_machine-windows``` | The Windows command line installation and management utility for virtual container hosts.| 
