@@ -525,10 +525,11 @@ func (s *Server) Start() {
 		uf, err := s.udpconn.File()
 		if err != nil {
 			log.Errorf("Getting the fd failed with: %s", err)
-		}
-		// BindToDevice binds the socket associated with fd to device.
-		if err := BindToDevice(int(uf.Fd()), s.Interface); err != nil {
-			log.Errorf("Calling BindToDevice failed with: %s", err)
+		} else {
+			// BindToDevice binds the socket associated with fd to device.
+			if err := BindToDevice(int(uf.Fd()), s.Interface); err != nil {
+				log.Errorf("Calling BindToDevice failed with: %s", err)
+			}
 		}
 	}
 
@@ -552,10 +553,11 @@ func (s *Server) Start() {
 		tf, err := s.tcplisten.File()
 		if err != nil {
 			log.Errorf("Getting the fd failed with: %s", err)
-		}
-		// BindToDevice binds the socket associated with fd to device.
-		if err := BindToDevice(int(tf.Fd()), s.Interface); err != nil {
-			log.Errorf("Calling BindToDevice failed with: %s", err)
+		} else {
+			// BindToDevice binds the socket associated with fd to device.
+			if err := BindToDevice(int(tf.Fd()), s.Interface); err != nil {
+				log.Errorf("Calling BindToDevice failed with: %s", err)
+			}
 		}
 	}
 
