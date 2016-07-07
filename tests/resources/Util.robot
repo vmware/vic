@@ -19,7 +19,7 @@ Install VIC Appliance To Test Server
     # Now attempt to intall VCH
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  DRONE_BUILD_NUMBER
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_BUILD_NUMBER  local
-    
+
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${vch-name}  ${name}
     Log To Console  \nInstalling VCH to test server...
@@ -39,11 +39,11 @@ Install VIC Appliance To Test Server
 Run VIC Machine Command
     [Tags]  secret
     [Arguments]  ${certs}
-    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=datastore1 --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --generate-cert=${certs} --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE}
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --generate-cert=${certs} --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
     ${status}  ${message} =  Run Keyword And Ignore Error  Should Contain  ${output}  Installer completed successfully
     Run Keyword If  "${status}" == "FAIL"  Fail  Installing the VIC appliance failed, wrong credentials or network problems?
     [Return]  ${output}
-    
+
 Cleanup VIC Appliance On Test Server
     Run Keyword And Ignore Error  Gather Logs From Test Server
     # Let's attempt to cleanup any container related to the VCH appliance first
@@ -112,19 +112,19 @@ Get State Of Github Issue
     Should Be Equal  ${result.status_code}  ${200}
     ${status}=  Get From Dictionary  ${result.json()}  state
     [Return]  ${status}
-    
+
 Get State Of Drone Build
     [Arguments]  ${num}
     ${out}=  Run  drone build info vmware/vic ${num}
     ${lines}=  Split To Lines  ${out}
     [Return]  @{lines}[2]
-    
+
 Get Image IDs
     [Arguments]  ${dir}
     ${result}=  Run Process  cat manifest.json | jq -r ".history[].v1Compatibility|fromjson.id"  shell=True  cwd=${dir}
     ${ids}=  Split To Lines  ${result.stdout}
     [Return]  ${ids}
-    
+
 Get Checksums
     [Arguments]  ${dir}
     ${result}=  Run Process  cat manifest.json | jq -r ".fsLayers[].blobSum"  shell=True  cwd=${dir}
@@ -134,7 +134,7 @@ Get Checksums
     \   ${sha}  ${sum}=  Split String From Right  ${str}  :
     \   Append To List  ${checkSums}  ${sum}
     [Return]  ${checkSums}
-    
+
 Verify Checksums
     [Arguments]  ${dir}
     ${ids}=  Get Image IDs  ${dir}
