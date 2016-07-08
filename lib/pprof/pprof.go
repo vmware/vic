@@ -70,7 +70,7 @@ func GetPprofEndpoint(component PprofPort) *url.URL {
 		}
 	}
 
-	endpoint, err := url.Parse(fmt.Sprintf("%s:%d", ip, port))
+	endpoint, err := url.Parse(fmt.Sprintf("http://%s:%d", ip, port))
 	if err != nil {
 		return nil
 	}
@@ -84,10 +84,11 @@ func StartPprof(name string, component PprofPort) error {
 		log.Error(err.Error())
 		return err
 	}
+	location := url.String()[7:] // Strip off leading "http://"
 
-	log.Info(fmt.Sprintf("Launching %s server on %s", name, url.String()))
+	log.Info(fmt.Sprintf("Launching %s server on %s", name, location))
 	go func() {
-		log.Info(http.ListenAndServe(url.String(), nil))
+		log.Info(http.ListenAndServe(location, nil))
 	}()
 
 	return nil
