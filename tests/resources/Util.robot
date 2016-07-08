@@ -26,6 +26,7 @@ Install VIC Appliance To Test Server
     
     ${host}=  Run  govc ls host
     Set Environment Variable  TEST_RESOURCE  ${host}/Resources
+    Set Environment Variable  GOVC_RESOURCE_POOL  ${host}/Resources
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
