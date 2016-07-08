@@ -7,6 +7,9 @@
 modprobe nf_conntrack
 modprobe xt_LOG
 
+# Enable IP forwarding
+echo 1 > /proc/sys/net/ipv4/ip_forward
+
 # Enable broadcast echo Protection
 echo 1 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
 
@@ -40,32 +43,30 @@ echo 2 > /proc/sys/net/ipv4/ip_dynaddr
 # too many routers are still ignorant
 echo 0 > /proc/sys/net/ipv4/tcp_ecn
 
-# Set a known state
-iptables -P INPUT   ACCEPT
-iptables -P FORWARD ACCEPT
-iptables -P OUTPUT  ACCEPT
+# wait for the bridge interface to exist - 100ms wait
+until ip link show dev bridge;do sleep 0.1;done
 
-# These lines are here in case rules are already in place and the
-# script is ever rerun on the fly. We want to remove all rules and
-# pre-existing user defined chains before we implement new rules.
-iptables -F
-iptables -X
-iptables -Z
+# blow away any existing rules with iptables-restore
+iptables-restore <<RULES
+*nat
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+:VIC - [0:0]
+-A PREROUTING -m addrtype --dst-type LOCAL -j VIC
+-A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j VIC
+-A POSTROUTING ! -o bridge -j MASQUERADE
+COMMIT
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:VIC - [0:0]
+-A FORWARD -o bridge -j VIC
+-A FORWARD -o bridge -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -i bridge -o external -j ACCEPT
+COMMIT
+RULES
 
-iptables -t nat -F
-
-# Allow local-only connections
-iptables -A INPUT  -i lo -j ACCEPT
-
-# Free output on any interface to any ip for any service
-# (equal to -P ACCEPT)
-iptables -A OUTPUT -j ACCEPT
-
-# Permit answers on already established connections
-# and permit new connections related to established ones
-# (e.g. port mode ftp)
-iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-
-#Enable ssh connections
-iptables -A INPUT -p tcp --dport 22 -j ACCEPT
 # End /etc/systemd/scripts/iptables
