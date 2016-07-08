@@ -29,8 +29,7 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 
-	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
@@ -169,7 +168,7 @@ func TestMain(m *testing.M) {
 	os.Exit(retCode)
 }
 
-func StartAttachTether(t *testing.T, cfg *metadata.ExecutorConfig) (tether.Tether, extraconfig.DataSource, net.Conn) {
+func StartAttachTether(t *testing.T, cfg *executor.ExecutorConfig) (tether.Tether, extraconfig.DataSource, net.Conn) {
 	store := map[string]string{}
 	sink := extraconfig.MapSink(store)
 	src := extraconfig.MapSource(store)
@@ -197,18 +196,6 @@ func StartAttachTether(t *testing.T, cfg *metadata.ExecutorConfig) (tether.Tethe
 	}
 
 	return tthr, src, conn
-}
-
-func OptionValueArrayToString(options []types.BaseOptionValue) string {
-	// create the key/value store from the extraconfig slice for lookups
-	kv := make(map[string]string)
-	for i := range options {
-		k := options[i].GetOptionValue().Key
-		v := options[i].GetOptionValue().Value.(string)
-		kv[k] = v
-	}
-
-	return fmt.Sprintf("%#v", kv)
 }
 
 func tetherTestSetup(t *testing.T) string {

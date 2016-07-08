@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	_ "net/http/pprof"
 	"os"
 	"syscall"
 

@@ -26,7 +26,7 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/lib/portlayer/attach"
+	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/pkg/serial"
 )
 
@@ -79,7 +79,7 @@ func (t *attachServerSSH) Start() error {
 	return nil
 }
 
-func resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
+func resizePty(pty uintptr, winSize *msgs.WindowChangeMsg) error {
 	return errors.New("not supported on windows")
 }
 

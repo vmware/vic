@@ -22,7 +22,7 @@ import (
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config"
 )
 
 const (
@@ -44,10 +44,10 @@ var (
 	productName         string
 	productVersion      string
 
-	vchConfig *metadata.VirtualContainerHostConfigSpec
+	vchConfig *config.VirtualContainerHostConfigSpec
 )
 
-func Init(portLayerAddr, product string, config *metadata.VirtualContainerHostConfigSpec) error {
+func Init(portLayerAddr, product string, config *config.VirtualContainerHostConfigSpec) error {
 	_, _, err := net.SplitHostPort(portLayerAddr)
 	if err != nil {
 		return err
@@ -111,6 +111,6 @@ func ProductVersion() string {
 	return productVersion
 }
 
-func VchConfig() *metadata.VirtualContainerHostConfigSpec {
+func VchConfig() *config.VirtualContainerHostConfigSpec {
 	return vchConfig
 }
