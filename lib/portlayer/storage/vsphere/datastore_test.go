@@ -127,6 +127,36 @@ func TestDatastoreMkdirAndLs(t *testing.T) {
 	}
 }
 
+func TestDatastoreToURLParsing(t *testing.T) {
+	expected := "ds://datastore1/path/to/thing"
+
+	input := []string{
+		"[datastore1] /path/to/thing",
+		"[datastore1] path/to/thing",
+		"[datastore1] ///path////to/thing",
+	}
+
+	for _, in := range input {
+		u, err := DatastoreToURL(in)
+		if !assert.NoError(t, err) || !assert.NotNil(t, u) {
+			return
+		}
+
+		if !assert.Equal(t, expected, u.String()) {
+			return
+		}
+
+		out, err := URLtoDatastore(u)
+		if !assert.NoError(t, err) || !assert.True(t, len(out) > 0) {
+			return
+		}
+
+		if !assert.Equal(t, input[0], out) {
+			return
+		}
+	}
+}
+
 // From https://siongui.github.io/2015/04/13/go-generate-random-string/
 func RandomString(strlen int) string {
 	rand.Seed(time.Now().UTC().UnixNano())

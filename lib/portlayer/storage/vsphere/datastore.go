@@ -15,9 +15,11 @@
 package vsphere
 
 import (
+	"fmt"
 	"io"
 	"net/url"
 	"path"
+	"regexp"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -300,4 +302,37 @@ func (d *Datastore) mkRootDir(ctx context.Context, rootdir string) error {
 // Return the root of the datastore path (without the [datastore] portion)
 func (d *Datastore) rootDir() string {
 	return strings.SplitN(d.RootURL, " ", 2)[1]
+}
+
+// Parse the datastore format ([datastore1] /path/to/thing) to groups.
+var datastoreFormat = regexp.MustCompile(`\[([\w\d]*)\]\ (.*)?`)
+
+// Converts `[datastore] /path` to URL
+func DatastoreToURL(ds string) (*url.URL, error) {
+	matches := datastoreFormat.FindAllStringSubmatch(ds, -1)
+
+	if len(matches) != 1 || len(matches[0]) != 3 {
+		return nil, fmt.Errorf("invalid datastore format: %s", ds)
+	}
+
+	datastoreName := matches[0][1]
+	datastorePath := matches[0][2]
+
+	p := path.Join(datastoreName, datastorePath)
+	u, err := url.Parse("ds://" + p)
+	if err != nil {
+		return nil, err
+	}
+
+	return u, nil
+}
+
+// Converts URL for datastores to datastore format ([datastore1] /path/to/thing)
+func URLtoDatastore(u *url.URL) (string, error) {
+	scheme := "ds"
+	if u.Scheme != scheme {
+		return "", fmt.Errorf("url (%s) is not a datastore", u.String())
+	}
+
+	return fmt.Sprintf("[%s] %s", u.Host, u.Path), nil
 }
