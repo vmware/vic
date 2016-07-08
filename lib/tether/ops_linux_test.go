@@ -19,11 +19,13 @@ package tether
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"path"
 	"syscall"
 	"testing"
 
 	"github.com/vishvananda/netlink"
+	"github.com/vmware/vic/lib/etcconf"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -178,4 +180,31 @@ func TestSlotToPciPath(t *testing.T) {
 			t.Fatalf("slotToPCIPath(%d) => (%#v, %#v), want (%s, nil)", te.slot, p, err, te.p)
 		}
 	}
+}
+
+func (t *Mocker) Setup(sink ConfigSink) error {
+	f, err := ioutil.TempFile("", "vic_hosts")
+	if err != nil {
+		return err
+	}
+
+	h := etcconf.NewHosts(f.Name())
+	if err = h.Load(); err != nil {
+		return err
+	}
+
+	f, err = ioutil.TempFile("", "vic_resolv")
+	if err != nil {
+		return err
+	}
+
+	rc := etcconf.NewResolvConf(f.Name())
+
+	t.Base.dynEndpoints = make(map[string][]*NetworkEndpoint)
+	t.Base.dhcpLoops = make(map[string]chan bool)
+	t.Base.hosts = h
+	t.Base.resolvConf = rc
+	t.Base.configSink = sink
+
+	return nil
 }
