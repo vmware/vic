@@ -30,6 +30,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/dhcp"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
@@ -97,7 +98,7 @@ func (t *Mocker) Reload(config *ExecutorConfig) error {
 	return nil
 }
 
-func (t *Mocker) Setup() error {
+func (t *Mocker) Setup(_ ConfigSink) error {
 	return nil
 }
 
@@ -138,8 +139,8 @@ func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
-func (t *Mocker) Apply(endpoint *metadata.NetworkEndpoint) error {
-	return apply(t, endpoint)
+func (t *Mocker) Apply(dc dhcp.Client, endpoint *NetworkEndpoint) error {
+	return apply(t, dc, endpoint)
 }
 
 // MountLabel performs a mount with the source treated as a disk label

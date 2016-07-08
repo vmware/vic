@@ -15,17 +15,18 @@
 
 red="\033[1;31m"
 color_end="\033[0m"
+GLOBIGNORE='vendor'
 
 # will check staged items for whitespace
 if [[ $# -gt 0 && $1 =~ [[:upper:]pre] ]]; then
-    if [[ `git diff --cached --check` ]]; then
+    if [[ $(git diff --cached --check) ]]; then
         echo -e ${red}whitespace check failed${color_end}
         git diff --cached --check
         exit 1
     fi
 else
     # check staged and changed
-    if [[ `git diff --cached --check` || `git diff --check` ]]; then
+    if [[ $(git diff --cached --check) || $(git diff --check) ]]; then
         echo -e ${red}whitespace check failed${color_end}
         git diff --cached --check
         git diff --check

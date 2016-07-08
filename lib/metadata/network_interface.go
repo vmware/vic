@@ -33,7 +33,7 @@ type NetworkEndpoint struct {
 	Static *net.IPNet `vic:"0.1" scope:"read-only" key:"staticip"`
 
 	// Actual IP address assigned
-	Assigned net.IP `vic:"0.1" scope:"read-write" key:"ip"`
+	Assigned net.IPNet `vic:"0.1" scope:"read-write" key:"ip"`
 
 	// The network in which this information should be interpreted. This is embedded directly rather than
 	// as a pointer so that we can ensure the data is consistent
@@ -58,4 +58,7 @@ type ContainerNetwork struct {
 
 	// The IP ranges for this network
 	Pools []ip.Range `vic:"0.1" scope:"read-only" key:"pools"`
+
+	// set of network wide links and aliases for this container on this network
+	Aliases []string `vic:"0.1" scope:"hidden" key:"aliases"`
 }

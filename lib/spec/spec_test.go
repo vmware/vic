@@ -16,14 +16,12 @@ package spec
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 	"golang.org/x/net/context"
@@ -40,7 +38,6 @@ func TestVirtualMachineConfigSpec(t *testing.T) {
 		DatacenterPath: "",
 		DatastorePath:  "/ha-datacenter/datastore/*",
 		HostPath:       "/ha-datacenter/host/*/*",
-		NetworkPath:    "/ha-datacenter/network/VM Network",
 		PoolPath:       "/ha-datacenter/host/*/Resources",
 	}
 
@@ -66,7 +63,6 @@ func TestVirtualMachineConfigSpec(t *testing.T) {
 
 		BootMediaPath: s.Datastore.Path("brainz.iso"),
 		VMPathName:    fmt.Sprintf("[%s]", s.Datastore.Name()),
-		NetworkName:   strings.Split(s.Network.Reference().Value, "-")[0],
 	}
 	// FIXME: find a better way to pass those
 	var scsibus int32
@@ -180,7 +176,7 @@ func TestFindSlotNumber(t *testing.T) {
 		out   int32
 	}{
 		{make(map[int32]bool), pciSlotNumberBegin},
-		{allSlots, spec.NilSlot},
+		{allSlots, NilSlot},
 		{missingFirstSlot, pciSlotNumberBegin},
 		{missingLastSlot, pciSlotNumberEnd - pciSlotNumberInc},
 		{missingMiddleSlot, missingSlot},

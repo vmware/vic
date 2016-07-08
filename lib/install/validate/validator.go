@@ -56,6 +56,9 @@ type Validator struct {
 
 	isVC   bool
 	issues []error
+
+	DisableFirewallCheck bool
+	DisableDRSCheck      bool
 }
 
 func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
@@ -229,7 +232,6 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *metadat
 	defer trace.End(trace.Begin(""))
 
 	// Image Store
-	log.Infof("%s", input.ImageDatastoreName)
 	imageDSpath, ds, err := v.DatastoreHelper(ctx, input.ImageDatastoreName)
 	v.NoteIssue(err)
 	if ds == nil {
@@ -272,6 +274,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 				Name: "external",
 				ID:   extMoref,
 			},
+			Default: true, // external network is default for appliance
 		},
 	})
 
@@ -327,27 +330,12 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 		netMoref = input.BridgeNetworkName
 	}
 
-	// ensure gateway is populated
-	// FIXME: The gateway for the bridge network
-	//        should be the gateway address of the
-	//        default bridge network. The bridge
-	//        network pool should be specified
-	//        on the vic-machine command line.
-	gateway, ok := input.MappedNetworksGateways["bridge"]
-	if !ok {
-		ip, ipnet, _ := net.ParseCIDR("172.16.0.1/16")
-		gateway = net.IPNet{
-			IP:   ip,
-			Mask: ipnet.Mask,
-		}
-	}
-
 	bridgeNet := &metadata.NetworkEndpoint{
 		Common: metadata.Common{
 			Name: "bridge",
 			ID:   endpointMoref,
 		},
-		Static: &gateway,
+		Static: &net.IPNet{IP: net.IPv4zero}, // static but managed externally
 		Network: metadata.ContainerNetwork{
 			Common: metadata.Common{
 				Name: "bridge",
@@ -454,6 +442,9 @@ func (v *Validator) sessionValid(errMsg string) bool {
 }
 
 func (v *Validator) firewall(ctx context.Context) {
+	if v.DisableFirewallCheck {
+		return
+	}
 	defer trace.End(trace.Begin(""))
 
 	var hosts []*object.HostSystem
@@ -687,6 +678,11 @@ func (v *Validator) isStandaloneHost() bool {
 
 // drs checks that DRS is enabled
 func (v *Validator) drs(ctx context.Context) {
+	if v.DisableDRSCheck {
+		return
+	}
+	defer trace.End(trace.Begin(""))
+
 	errMsg := "DRS check SKIPPED"
 	if !v.sessionValid(errMsg) {
 		return

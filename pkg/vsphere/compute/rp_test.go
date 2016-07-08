@@ -70,7 +70,6 @@ func getESXSession(ctx context.Context, service string) (*session.Session, error
 		DatacenterPath: "/ha-datacenter",
 		ClusterPath:    "*",
 		DatastorePath:  "/ha-datacenter/datastore/LocalDS_0",
-		NetworkPath:    "/ha-datacenter/network/VM Network",
 		PoolPath:       "/ha-datacenter/host/localhost.localdomain/Resources",
 	}
 

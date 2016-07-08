@@ -27,10 +27,14 @@ import (
 
 const (
 	Imagec             = "imagec"
-	Retries            = 5
-	RetryTimeSeconds   = 2
 	PortlayerName      = "Backend Engine"
 	IndexServerAddress = "registry-1.docker.io"
+
+	// Retries defines how many times to attempt refreshing the image cache at startup
+	Retries = 5
+
+	// RetryTimeSeconds defines how many seconds to wait between retries
+	RetryTimeSeconds = 2
 )
 
 var (
@@ -40,8 +44,7 @@ var (
 	productName         string
 	productVersion      string
 
-	imageCache *cache.ImageCache
-	vchConfig  *metadata.VirtualContainerHostConfigSpec
+	vchConfig *metadata.VirtualContainerHostConfigSpec
 )
 
 func Init(portLayerAddr, product string, config *metadata.VirtualContainerHostConfigSpec) error {
@@ -68,8 +71,6 @@ func Init(portLayerAddr, product string, config *metadata.VirtualContainerHostCo
 	portLayerClient = client.New(t, nil)
 	portLayerServerAddr = portLayerAddr
 
-	imageCache = cache.NewImageCache()
-
 	// attempt to update the image cache at startup
 	log.Info("Refreshing image cache...")
 	go func() {
@@ -78,7 +79,7 @@ func Init(portLayerAddr, product string, config *metadata.VirtualContainerHostCo
 			// initial pause to wait for the portlayer to come up
 			time.Sleep(RetryTimeSeconds * time.Second)
 
-			if err := imageCache.Update(portLayerClient); err == nil {
+			if err := cache.ImageCache().Update(portLayerClient); err == nil {
 				log.Info("Image cache updated successfully")
 				return
 			}
@@ -100,10 +101,6 @@ func PortLayerServer() string {
 
 func PortLayerName() string {
 	return portLayerName
-}
-
-func ImageCache() *cache.ImageCache {
-	return imageCache
 }
 
 func ProductName() string {

@@ -25,6 +25,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
+	"github.com/vmware/vic/lib/pprof"
 
 	"github.com/vmware/vic/lib/dns"
 )
@@ -33,6 +34,9 @@ var (
 	options = dns.ServerOptions{}
 )
 
+func init() {
+	pprof.StartPprof("portlayer server", pprof.PortlayerPort)
+}
 func main() {
 	swaggerSpec, err := spec.New(restapi.SwaggerJSON, "")
 	if err != nil {
@@ -59,6 +63,8 @@ func main() {
 	server.ConfigureAPI()
 
 	// BEGIN
+	// Set the Interface name to instruct listeners to bind on this interface
+	options.Interface = "bridge"
 	// Start the DNS Server
 	dnsserver := dns.NewServer(options)
 	if dnsserver != nil {

@@ -46,8 +46,9 @@ var (
 
 // ServerOptions represents the server options
 type ServerOptions struct {
-	IP   string
-	Port int
+	IP        string
+	Port      int
+	Interface string
 
 	Nameservers flagMultipleVar
 
@@ -336,6 +337,7 @@ func (s *Server) HandleVIC(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
 
 	var name string
 	var domain string
+	var scopename string
 
 	name = strings.TrimSuffix(question.Name, ".")
 	// Do we have a domain?
@@ -344,30 +346,47 @@ func (s *Server) HandleVIC(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
 		name, domain = name[:i], name[i+1:]
 	}
 
-	// Find the scope of the request
-	scopes, err := ctx.Scopes(nil)
-	// FIXME: We are doing linear search here
-	for i := range scopes {
-		s := scopes[i].Subnet()
-		if s.Contains(ip) {
-			log.Debugf("Found the scope, using %s", scopes[i].Name())
-
-			// convert for or foo.bar to bar:foo
-			if domain == "" || domain == scopes[i].Name() {
-				name = scopes[i].Name() + ":" + name
-				break
-			}
-		}
-	}
-
+	// first look for the network alias
 	c := ctx.Container(exec.ID(name))
 	if c == nil {
-		log.Debugf("Can't find the container: %q", name)
-		return false, fmt.Errorf("Can't find the container: %q", name)
+		// find the scope of the request
+		scopes, _ := ctx.Scopes(nil)
+		// FIXME: We are doing linear search here
+		for i := range scopes {
+			s := scopes[i].Subnet()
+			if s.Contains(ip) {
+				scopename = scopes[i].Name()
+				log.Debugf("Found the scope, using %s", scopename)
+
+				// convert for or foo.bar to bar:foo
+				if domain == "" || domain == scopename {
+					name = scopename + ":" + name
+					break
+				}
+			}
+		}
+
+		c = ctx.Container(exec.ID(name))
+		if c == nil {
+			log.Debugf("Can't find the container: %q", name)
+			return false, fmt.Errorf("Can't find the container: %q", name)
+		}
 	}
 
 	var answer []mdns.RR
 	for _, e := range c.Endpoints() {
+		log.Debugf("Working on %s", e.Scope().Name())
+
+		if scopename != "" && e.Scope().Name() != scopename {
+			log.Debugf("Skipping non-matching scope %s", e.Scope().Name())
+			continue
+		}
+
+		if e.IP().IsUnspecified() {
+			log.Debugf("Skipping unspecified IP for %s", e.Scope().Name())
+			continue
+		}
+
 		// FIXME: Add AAAA when we support it
 		rr := &mdns.A{
 			Hdr: mdns.RR_Header{
@@ -501,6 +520,19 @@ func (s *Server) ServeDNS(w mdns.ResponseWriter, r *mdns.Msg) {
 
 // Start starts the DNS server
 func (s *Server) Start() {
+	// Call BindToDevice if IP is empty and Interface is set
+	if s.IP == "" && s.Interface != "" {
+		uf, err := s.udpconn.File()
+		if err != nil {
+			log.Errorf("Getting the fd failed with: %s", err)
+		} else {
+			// BindToDevice binds the socket associated with fd to device.
+			if err := BindToDevice(int(uf.Fd()), s.Interface); err != nil {
+				log.Errorf("Calling BindToDevice failed with: %s", err)
+			}
+		}
+	}
+
 	udpserver := &mdns.Server{
 		Handler:    s,
 		PacketConn: s.udpconn,
@@ -515,6 +547,19 @@ func (s *Server) Start() {
 		log.Debugf("UDP server exited")
 	}()
 	log.Infof("Ready for queries on udp://%s", s.Addr())
+
+	// Call BindToDevice if IP is empty and Interface is set
+	if s.IP == "" && s.Interface != "" {
+		tf, err := s.tcplisten.File()
+		if err != nil {
+			log.Errorf("Getting the fd failed with: %s", err)
+		} else {
+			// BindToDevice binds the socket associated with fd to device.
+			if err := BindToDevice(int(tf.Fd()), s.Interface); err != nil {
+				log.Errorf("Calling BindToDevice failed with: %s", err)
+			}
+		}
+	}
 
 	tcpserver := &mdns.Server{Handler: s, Listener: s.tcplisten}
 	s.tcpserver = tcpserver

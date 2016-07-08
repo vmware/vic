@@ -2,7 +2,7 @@
 
 *vSphere Integrated Containers for vSphere Administrators* provides information about how to install and configure VMware vSphere Integrated Containers.
 
-**Product version 0.3.0**
+**Product version 0.4.0**
 
 **NOTE**  This book is a work in progress.
 

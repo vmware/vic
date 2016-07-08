@@ -61,7 +61,7 @@ type Create struct {
 	cert string
 	key  string
 
-	tlsGenerate bool
+	noTLS bool
 
 	osType  string
 	logfile string
@@ -175,10 +175,10 @@ func (c *Create) Flags() []cli.Flag {
 			Usage:       "Virtual Container Host x509 certificate file",
 			Destination: &c.cert,
 		},
-		cli.BoolTFlag{
-			Name:        "generate-cert",
-			Usage:       "Generate certificate for Virtual Container Host",
-			Destination: &c.tlsGenerate,
+		cli.BoolFlag{
+			Name:        "no-tls",
+			Usage:       "Disable TLS support",
+			Destination: &c.noTLS,
 		},
 		cli.BoolFlag{
 			Name:        "force, f",
@@ -320,14 +320,14 @@ func (c *Create) loadCertificate() (*certificate.Keypair, error) {
 	if c.cert != "" && c.key != "" {
 		log.Infof("Loading certificate/key pair - private key in %s", c.key)
 		keypair = certificate.NewKeyPair(false, c.key, c.cert)
-	} else if c.tlsGenerate && c.DisplayName != "" {
+	} else if !c.noTLS && c.DisplayName != "" {
 		c.key = fmt.Sprintf("./%s-key.pem", c.DisplayName)
 		c.cert = fmt.Sprintf("./%s-cert.pem", c.DisplayName)
 		log.Infof("Generating certificate/key pair - private key in %s", c.key)
 		keypair = certificate.NewKeyPair(true, c.key, c.cert)
 	}
 	if keypair == nil {
-		log.Warnf("Configuring without TLS - to enable use -generate-cert or -key/-cert parameters")
+		log.Warnf("Configuring without TLS - to enable drop --no-tls or use --key/--cert parameters")
 		return nil, nil
 	}
 	if err := keypair.GetCertificate(); err != nil {
@@ -412,7 +412,7 @@ func (c *Create) Run(cli *cli.Context) error {
 
 	var keypair *certificate.Keypair
 	if keypair, err = c.loadCertificate(); err != nil {
-		log.Error("Creation cannot continue: unable to load certificate")
+		log.Error("Create cannot continue: unable to load certificate")
 		return err
 	}
 
@@ -426,13 +426,13 @@ func (c *Create) Run(cli *cli.Context) error {
 
 	validator, err := validate.NewValidator(ctx, c.Data)
 	if err != nil {
-		log.Error("Creation cannot continue: failed to create validator")
+		log.Error("Create cannot continue: failed to create validator")
 		return err
 	}
 
 	vchConfig, err := validator.Validate(ctx, c.Data)
 	if err != nil {
-		log.Error("Creation cannot continue: configuration validation failed")
+		log.Error("Create cannot continue: configuration validation failed")
 		return err
 	}
 

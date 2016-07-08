@@ -46,6 +46,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -53,8 +54,12 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
+const (
+	timeout = time.Duration(2 * time.Second)
+)
+
 var (
-	logFileDir  = "/var/log/vic/"
+	logFileDir  = "/var/log/vic"
 	logFileList = []string{
 		"docker-personality.log",
 		"imagec.log",
@@ -77,12 +82,13 @@ var (
 		hostCertFile string
 		hostKeyFile  string
 		authType     string
+		timeout      time.Time
 		tls          bool
 	}
 
 	vchConfig metadata.VirtualContainerHostConfigSpec
 
-	defaultReaders []entryReader
+	defaultReaders map[string]entryReader
 
 	datastore types.ManagedObjectReference
 
@@ -119,6 +125,7 @@ func init() {
 	}
 
 	extraconfig.Decode(src, &vchConfig)
+	pprof.StartPprof("vicadmin", pprof.VicadminPort)
 }
 
 type Authenticator interface {
@@ -137,51 +144,54 @@ func logFiles() []string {
 	return names
 }
 
-func configureReaders() []entryReader {
+func configureReaders() map[string]entryReader {
 	defer trace.End(trace.Begin(""))
 
-	pprofPaths := []string{
+	pprofPaths := map[string]string{
 		// verbose
-		"/debug/pprof/goroutine?debug=2",
+		"verbose": "/debug/pprof/goroutine?debug=2",
 		// concise
-		"/debug/pprof/goroutine?debug=1",
-		"/debug/pprof/block?debug=1",
-		"/debug/pprof/heap?debug=1",
+		"concise": "/debug/pprof/goroutine?debug=1",
+		"block":   "/debug/pprof/block?debug=1",
+		"heap":    "/debug/pprof/heap?debug=1",
 	}
 
-	pprofSources := []string{
-		// vch-init
-		"http://127.0.0.1:6060",
-		// TODO: add pprof for the other components
+	pprofSources := map[string]string{
+		"docker":    pprof.GetPprofEndpoint(pprof.DockerPort).String(),
+		"portlayer": pprof.GetPprofEndpoint(pprof.PortlayerPort).String(),
+		"vicadm":    pprof.GetPprofEndpoint(pprof.VicadminPort).String(),
+		"vic-init":  pprof.GetPprofEndpoint(pprof.VCHInitPort).String(),
 	}
 
-	readers := []entryReader{
-		fileReader("/proc/mounts"),
-		commandReader("uptime"),
-		commandReader("df"),
-		commandReader("free"),
-		commandReader("netstat -ant"),
-		commandReader("sudo iptables --list"),
-		commandReader("ip link"),
-		commandReader("ip addr"),
-		commandReader("ip route"),
-		commandReader("lsmod"),
+	readers := map[string]entryReader{
+		"proc-mounts": fileReader("/proc/mounts"),
+		"uptime":      commandReader("uptime"),
+		"df":          commandReader("df"),
+		"free":        commandReader("free"),
+		"netstat":     commandReader("netstat -ant"),
+		"iptables":    commandReader("sudo iptables --list"),
+		"ip-link":     commandReader("ip link"),
+		"ip-addr":     commandReader("ip addr"),
+		"ip-route":    commandReader("ip route"),
+		"lsmod":       commandReader("lsmod"),
 		// TODO: ls without shelling out
-		commandReader("ls -l /dev/disk/by-path"),
-		commandReader("ls -l /dev/disk/by-label"),
+		"disk-by-path":  commandReader("ls -l /dev/disk/by-path"),
+		"disk-by-label": commandReader("ls -l /dev/disk/by-label"),
 		// To check we are not leaking any fds
-		commandReader("ls -l /proc/self/fd"),
+		"proc-self-fd": commandReader("ls -l /proc/self/fd"),
 	}
 
 	// add the pprof collection
-	for _, source := range pprofSources {
-		for _, paths := range pprofPaths {
-			readers = append(readers, urlReader(source+paths))
+	for sname, source := range pprofSources {
+		for pname, paths := range pprofPaths {
+			rname := fmt.Sprintf("%s/%s", sname, pname)
+			readers[rname] = urlReader(source + paths)
 		}
 	}
 
 	for _, path := range logFiles() {
-		readers = append(readers, fileReader(path))
+		// Strip off leading '/'
+		readers[path[1:]] = fileReader(path)
 	}
 
 	if config.vmPath == "" {
@@ -313,8 +323,10 @@ func httpEntry(name string, res *http.Response) (entry, error) {
 
 func (path urlReader) open() (entry, error) {
 	defer trace.End(trace.Begin(string(path)))
-
-	res, err := http.Get(string(path))
+	client := http.Client{
+		Timeout: timeout,
+	}
+	res, err := client.Get(string(path))
 	if err != nil {
 		return nil, err
 	}
@@ -365,10 +377,11 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]url.URL, error) {
 }
 
 // find datastore logs for the appliance itself and all containers
-func findDatastoreLogs(c *session.Session) ([]entryReader, error) {
+func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 	defer trace.End(trace.Begin(""))
 
-	var readers []entryReader
+	// Create an empty reader as opposed to a nil reader...
+	readers := map[string]entryReader{}
 	ctx := context.Background()
 
 	paths, err := listVMPaths(ctx, c)
@@ -391,10 +404,11 @@ func findDatastoreLogs(c *session.Session) ([]entryReader, error) {
 		for _, file := range vmFiles {
 			// replace the VM token in file name with the VM name
 			processed := strings.Replace(file, string(metadata.VM), path.Base(vmpath.Path), -1)
-			readers = append(readers, &datastoreReader{
+			rpath := fmt.Sprintf("%s/%s", vmpath.Path, processed)
+			readers[rpath] = datastoreReader{
 				ds:   ds,
-				path: fmt.Sprintf("%s/%s", vmpath.Path, processed),
-			})
+				path: rpath,
+			}
 
 			log.Debugf("Added log file for collection: %s", vmpath.String())
 		}
@@ -428,7 +442,7 @@ type dlogReader struct {
 	host *object.HostSystem
 }
 
-func findDiagnosticLogs(c *session.Session) ([]entryReader, error) {
+func findDiagnosticLogs(c *session.Session) (map[string]entryReader, error) {
 	defer trace.End(trace.Begin(""))
 
 	// When connected to VC, we collect vpxd.log and hostd.log for all cluster hosts attached to the datastore.
@@ -438,11 +452,11 @@ func findDiagnosticLogs(c *session.Session) ([]entryReader, error) {
 		hostdKey = "hostd"
 	)
 
-	var logs []entryReader
+	logs := map[string]entryReader{}
 	var err error
 
 	if c.IsVC() {
-		logs = append(logs, dlogReader{c, vpxdKey, nil})
+		logs[vpxdKey] = dlogReader{c, vpxdKey, nil}
 
 		var hosts []*object.HostSystem
 		if c.Cluster == nil && c.Host != nil {
@@ -455,10 +469,11 @@ func findDiagnosticLogs(c *session.Session) ([]entryReader, error) {
 		}
 
 		for _, host := range hosts {
-			logs = append(logs, dlogReader{c, hostdKey, host})
+			lname := fmt.Sprintf("%s/%s", hostdKey, host)
+			logs[lname] = dlogReader{c, hostdKey, host}
 		}
 	} else {
-		logs = append(logs, dlogReader{c, hostdKey, nil})
+		logs[hostdKey] = dlogReader{c, hostdKey, nil}
 	}
 
 	return logs, nil
@@ -537,7 +552,7 @@ func findDatastore() error {
 	return nil
 }
 
-func tarEntries(readers []entryReader, out io.Writer) error {
+func tarEntries(readers map[string]entryReader, out io.Writer) error {
 	defer trace.End(trace.Begin(""))
 
 	r, w := io.Pipe()
@@ -555,17 +570,17 @@ func tarEntries(readers []entryReader, out io.Writer) error {
 		wg.Done()
 	}()
 
-	for _, r := range readers {
-		log.Infof("Collecting log with reader %#v", r)
+	for name, r := range readers {
+		log.Infof("Collecting log with reader %s(%#v)", name, r)
 
 		e, err := r.open()
 		if err != nil {
-			log.Warningf("error reading %s: %s\n", r, err)
+			log.Warningf("error reading %s(%s): %s\n", name, r, err)
 			continue
 		}
 
 		header := tar.Header{
-			Name:    e.Name(),
+			Name:    name,
 			Size:    e.Size(),
 			Mode:    0640,
 			ModTime: time.Now(),
@@ -732,14 +747,18 @@ func (s *server) tarContainerLogs(res http.ResponseWriter, req *http.Request) {
 			if err != nil {
 				log.Warningf("error searching datastore: %s", err)
 			} else {
-				readers = append(readers, logs...)
+				for key, rdr := range logs {
+					readers[key] = rdr
+				}
 			}
 
 			logs, err = findDiagnosticLogs(c)
 			if err != nil {
 				log.Warningf("error collecting diagnostic logs: %s", err)
 			} else {
-				readers = append(readers, logs...)
+				for key, rdr := range logs {
+					readers[key] = rdr
+				}
 			}
 		}
 	}
@@ -753,7 +772,7 @@ func (s *server) tarDefaultLogs(res http.ResponseWriter, req *http.Request) {
 	s.tarLogs(res, req, defaultReaders)
 }
 
-func (s *server) tarLogs(res http.ResponseWriter, req *http.Request, readers []entryReader) {
+func (s *server) tarLogs(res http.ResponseWriter, req *http.Request, readers map[string]entryReader) {
 	defer trace.End(trace.Begin(""))
 
 	res.Header().Set("Content-Type", "application/x-gzip")
