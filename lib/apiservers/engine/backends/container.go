@@ -185,6 +185,14 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	}
 	config.Config.Env = append(config.Config.Env, container.Config.Env...)
 
+	// TODO(jzt): users other than root are not currently supported
+	// We should check for USER in config.Config.Env once we support Dockerfiles.
+	if config.Config.User != "" && config.Config.User != "root" {
+		return types.ContainerCreateResponse{},
+			derr.NewErrorWithStatusCode(fmt.Errorf("Failed to create container - users other than root are not currently supported"),
+				http.StatusInternalServerError)
+	}
+
 	// Was a name provided - if not create a friendly name
 	if config.Name == "" {
 		//TODO: Assume we could have a name collison here : need to
