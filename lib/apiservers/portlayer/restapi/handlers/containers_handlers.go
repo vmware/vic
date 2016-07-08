@@ -224,9 +224,15 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 }
 
 func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers.GetContainerInfoParams) middleware.Responder {
-	//FIXME:  Fill in with actual code!
-
-	return containers.NewGetContainerInfoNotFound()
+	// get the container id for interogation
+	containerID := exec.ParseID(params.ID)
+	cc, err := exec.ContainerInfo(context.Background(), handler.handlerCtx.Session, containerID)
+	if err != nil {
+		log.Debugf("GetContainerInfoHandler Error: %s", err.Error())
+		return containers.NewGetContainerInfoNotFound().WithPayload(&models.Error{Message: err.Error()})
+	}
+	info := convertContainerToContainerInfo(cc)
+	return containers.NewGetContainerInfoOK().WithPayload(info)
 }
 
 func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers.GetContainerListParams) middleware.Responder {
@@ -253,4 +259,34 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 		vmList = append(vmList, info)
 	}
 	return containers.NewGetContainerListOK().WithPayload(vmList)
+}
+
+// utility function to convert from a Container type to the API Model ContainerInfo (which should prob be called ContainerDetail)
+func convertContainerToContainerInfo(container *exec.Container) *models.ContainerInfo {
+	// convert the container type to the required model
+	info := &models.ContainerInfo{ContainerConfig: &models.ContainerConfig{}, ProcessConfig: &models.ProcessConfig{}}
+	ccid := container.ID.String()
+	info.ContainerConfig.ContainerID = &ccid
+	// TODO: need to determine an appropriate state model
+	// for now leveraging the status used in ps
+	info.ContainerConfig.State = &container.Status
+	info.ContainerConfig.LayerID = &container.ExecConfig.LayerID
+	info.ContainerConfig.RepoName = &container.ExecConfig.RepoName
+	info.ContainerConfig.Created = &container.ExecConfig.Created
+	info.ContainerConfig.Names = []string{container.ExecConfig.Name}
+
+	restart := int32(container.ExecConfig.Diagnostics.ResurrectionCount)
+	info.ContainerConfig.RestartCount = &restart
+
+	tty := container.ExecConfig.Sessions[ccid].Tty
+	info.ContainerConfig.Tty = &tty
+
+	path := container.ExecConfig.Sessions[ccid].Cmd.Path
+	dir := container.ExecConfig.Sessions[ccid].Cmd.Dir
+	info.ProcessConfig.ExecPath = &path
+	info.ProcessConfig.WorkingDir = &dir
+	info.ProcessConfig.ExecArgs = container.ExecConfig.Sessions[ccid].Cmd.Args
+	info.ProcessConfig.Env = container.ExecConfig.Sessions[ccid].Cmd.Env
+
+	return info
 }
