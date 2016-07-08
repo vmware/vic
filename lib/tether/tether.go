@@ -347,7 +347,6 @@ func (t *tether) launch(session *SessionConfig) error {
 		t.config.pidMutex.Lock()
 		defer t.config.pidMutex.Unlock()
 
-		log.Infof("Launching command %#v", session.Cmd.Args)
 		if !session.Tty {
 			err = session.Cmd.Start()
 		} else {

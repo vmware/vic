@@ -17,7 +17,6 @@ package exec
 import (
 	"errors"
 	"fmt"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -106,67 +105,67 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 	c.Lock()
 	defer c.Unlock()
 
-	if h.Spec != nil {
-		s := h.Spec.Spec()
-		if c.vm != nil {
-			// reconfigure
-			_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-				return c.vm.Reconfigure(ctx, *s)
-			})
-
-			if err != nil {
-				return err
-			}
-		} else {
-			// Find the Virtual Machine folder that we use
-			folders, err := sess.Datacenter.Folders(ctx)
-			if err != nil {
-				return err
-			}
-			parent := folders.VmFolder
-
-			// FIXME: Replace this simple logic with DRS placement
-			// Pick a random host
-			hosts, err := sess.Datastore.AttachedClusterHosts(ctx, sess.Cluster)
-			if err != nil {
-				return err
-			}
-			host := hosts[rand.Intn(len(hosts))]
-			// Create the vm
-			res, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-				return parent.CreateVM(ctx, *s, Config.ResourcePool, host)
-			})
-			if err != nil {
-				return err
-			}
-
-			c.vm = vm.NewVirtualMachine(ctx, sess, res.Result.(types.ManagedObjectReference))
+	if c.vm == nil {
+		// the only permissible operation is to create a VM
+		if h.Spec == nil {
+			return fmt.Errorf("only create operations can be committed without an existing VM")
 		}
+
+		// Find the Virtual Machine folder that we use
+		folders, err := sess.Datacenter.Folders(ctx)
+		if err != nil {
+			return err
+		}
+		parent := folders.VmFolder
+
+		// Create the vm
+		res, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+			return parent.CreateVM(ctx, *h.Spec.Spec(), Config.ResourcePool, nil)
+		})
+		if err != nil {
+			return err
+		}
+
+		c.vm = vm.NewVirtualMachine(ctx, sess, res.Result.(types.ManagedObjectReference))
+
+		// clear the spec as we've acted on it
+		h.Spec = nil
 	}
 
-	c.ExecConfig = &h.ExecConfig
-
-	if h.State != nil {
-		if c.vm == nil {
-			return fmt.Errorf("no VM to do state change")
-		}
-
-		switch *h.State {
-		case StateRunning:
-			// start the container
-			if err := h.Container.start(ctx); err != nil {
-				return err
-			}
-
-		case StateStopped:
-			// stop the container
-			if err := h.Container.stop(ctx); err != nil {
-				return err
-			}
+	// if we're stopping the VM, do so before the reconfigure to preserve the extraconfig
+	if h.State != nil && *h.State == StateStopped {
+		// stop the container
+		if err := h.Container.stop(ctx); err != nil {
+			return err
 		}
 
 		c.State = *h.State
 	}
+
+	if h.Spec != nil {
+		// FIXME: add check that the VM is powered off - it should be, but this will destroy the
+		// extraconfig if it's not.
+
+		s := h.Spec.Spec()
+		_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+			return c.vm.Reconfigure(ctx, *s)
+		})
+
+		if err != nil {
+			return err
+		}
+	}
+
+	if h.State != nil && *h.State == StateRunning {
+		// start the container
+		if err := h.Container.start(ctx); err != nil {
+			return err
+		}
+
+		c.State = *h.State
+	}
+
+	c.ExecConfig = &h.ExecConfig
 
 	return nil
 }
