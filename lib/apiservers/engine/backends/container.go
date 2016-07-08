@@ -274,36 +274,21 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 
 		h = addContRes.Payload
 	}
-	msg, name, time := trace.Begin("Container.ContainerCreate - VolumeSection")
-	var joinList []volumeFields
 	//Volume Attachment Section
+	msg, name, time := trace.Begin("Container.ContainerCreate - VolumeSection")
 	log.Infof("Raw Volume arguments : binds:  %#v : volumes : %#v", config.HostConfig.Binds, config.Config.Volumes)
-	for v := range config.Config.Volumes {
-		fields, shouldExist, err := processVolumeParam(v)
-		log.Infof("Processed Volume arguments : %#v %t", fields, shouldExist)
-		if err != nil {
-			return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusBadRequest)
-		}
-		//NOTE: This should be the guard for the case of an anonymous volume.
-		if !shouldExist {
-			//NOTE: we should not expect any driver args if the drive is anonymous.
-			log.Infof("anonymous volume being created - Container Create - volume mount section")
-			metadata := make(map[string]string)
-			metadata["flags"] = fields.VolumeFlags
-			volumeRequest := models.VolumeRequest{
-				Capacity: -1,
-				Driver:   "vsphere",
-				Store:    "default",
-				Name:     fields.VolumeID,
-				Metadata: metadata,
-			}
-			_, err := client.Storage.CreateVolume(storage.NewCreateVolumeParams().WithVolumeRequest(&volumeRequest))
-			if err != nil {
-				return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusInternalServerError)
-			}
-		}
-		joinList = append(joinList, fields)
+	var joinList []volumeFields
+
+	joinList, err = processAnonymousVolumes(&h, config.Config.Volumes, client)
+	if err != nil {
+		return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusBadRequest)
 	}
+
+	volumeSubset, err := processSpecifiedVolumes(config.HostConfig.Binds)
+	if err != nil {
+		return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusBadRequest)
+	}
+	joinList = append(joinList, volumeSubset...)
 
 	for _, fields := range joinList {
 		flags := make(map[string]string)
@@ -1488,20 +1473,18 @@ func clientFriendlyContainerName(name string) string {
 	return fmt.Sprintf("/%s", name)
 }
 
-func processVolumeParam(volString string) (volumeFields, bool, error) {
+func processVolumeParam(volString string) (volumeFields, error) {
 	volumeStrings := strings.Split(volString, ":")
 	fields := volumeFields{}
-	created := true
 	switch len(volumeStrings) {
 	case 1:
 		VolumeID, err := uuid.NewUUID()
 		if err != nil {
-			return volumeFields{}, false, nil
+			return volumeFields{}, nil
 		}
 		fields.VolumeID = VolumeID.String()
 		fields.VolumeDest = volumeStrings[0]
 		fields.VolumeFlags = "rw"
-		created = false
 	case 2:
 		fields.VolumeID = volumeStrings[0]
 		fields.VolumeDest = volumeStrings[1]
@@ -1512,7 +1495,49 @@ func processVolumeParam(volString string) (volumeFields, bool, error) {
 		fields.VolumeFlags = volumeStrings[2]
 	default:
 		//NOTE: the docker cli should cover this case. This is here for posterity.
-		return volumeFields{}, false, fmt.Errorf("Volume bind input is invalid : -v %s", volString)
+		return volumeFields{}, fmt.Errorf("Volume bind input is invalid : -v %s", volString)
 	}
-	return fields, created, nil
+	return fields, nil
+}
+
+func processAnonymousVolumes(h *string, volumes map[string]struct{}, client *client.PortLayer) ([]volumeFields, error) {
+	var volumeFields []volumeFields
+
+	for v := range volumes {
+		fields, err := processVolumeParam(v)
+		log.Infof("Processed Volume arguments : %#v", fields)
+		if err != nil {
+			return volumeFields, err
+		}
+		//NOTE: This should be the guard for the case of an anonymous volume.
+		//NOTE: we should not expect any driver args if the drive is anonymous.
+		log.Infof("anonymous volume being created - Container Create - volume mount section")
+		metadata := make(map[string]string)
+		metadata["flags"] = fields.VolumeFlags
+		volumeRequest := models.VolumeRequest{
+			Capacity: -1,
+			Driver:   "vsphere",
+			Store:    "default",
+			Name:     fields.VolumeID,
+			Metadata: metadata,
+		}
+		_, err = client.Storage.CreateVolume(storage.NewCreateVolumeParams().WithVolumeRequest(&volumeRequest))
+		if err != nil {
+			return volumeFields, err
+		}
+		volumeFields = append(volumeFields, fields)
+	}
+	return volumeFields, nil
+}
+
+func processSpecifiedVolumes(volumes []string) ([]volumeFields, error) {
+	var volumeFields []volumeFields
+	for _, v := range volumes {
+		fields, err := processVolumeParam(v)
+		if err != nil {
+			return volumeFields, err
+		}
+		volumeFields = append(volumeFields, fields)
+	}
+	return volumeFields, nil
 }
