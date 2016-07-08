@@ -12,14 +12,24 @@ ${bin-dir}  /drone/src/github.com/vmware/vic/bin
 
 *** Keywords ***
 Install VIC Appliance To Test Server
-    [Arguments]  ${certs}=false
+    [Arguments]  ${certs}=${false}
+    # Finish setting up environment variables
+    ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  DRONE_BUILD_NUMBER
+    Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_BUILD_NUMBER  0
+    
+    @{URLs}=  Split String  %{TEST_URL_ARRAY}
+    ${len}=  Get Length  ${URLs}
+    ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
+    
+    Set Environment Variable  TEST_URL  @{URLs}[${IDX}]
+    Set Environment Variable  GOVC_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
+    
+    ${host}=  Run  govc ls host
+    Set Environment Variable  TEST_RESOURCE  ${host}/Resources
+    # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-
-    # Now attempt to intall VCH
-    ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  DRONE_BUILD_NUMBER
-    Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_BUILD_NUMBER  local
-
+    # Install the VCH now
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${vch-name}  ${name}
     Log To Console  \nInstalling VCH to test server...
@@ -39,9 +49,12 @@ Install VIC Appliance To Test Server
 Run VIC Machine Command
     [Tags]  secret
     [Arguments]  ${certs}
-    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --no-tls=${certs} --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
-    ${status}  ${message} =  Run Keyword And Ignore Error  Should Contain  ${output}  Installer completed successfully
-    Run Keyword If  "${status}" == "FAIL"  Fail  Installing the VIC appliance failed, wrong credentials or network problems?
+    ${output}=  Run Keyword If  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --generate-cert --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    Run Keyword If  ${certs}  Run Keyword And Ignore Error  Should Contain  ${output}  Installer completed successfully
+    Return From Keyword If  ${certs}  ${output}
+    
+    ${output}=  Run Keyword Unless  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    Run Keyword Unless  ${certs}  Run Keyword And Ignore Error  Should Contain  ${output}  Installer completed successfully
     [Return]  ${output}
 
 Cleanup VIC Appliance On Test Server
