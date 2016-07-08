@@ -77,7 +77,6 @@ func (d *Dispatcher) ShowVCH(conf *metadata.VirtualContainerHostConfigSpec, key 
 		}
 	}
 	log.Infof("DOCKER_HOST=%s:%s", d.HostIP, d.DockerPort)
-	log.Infof("DOCKER_OPTS=\"-H %s:%s%s\"", d.HostIP, d.DockerPort, tls)
 	log.Infof("")
 	log.Infof("Connect to docker:")
 	log.Infof("docker -H %s:%s%s info", d.HostIP, d.DockerPort, tls)
