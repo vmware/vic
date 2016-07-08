@@ -49,12 +49,19 @@ until ip link show dev bridge;do sleep 0.1;done
 # blow away any existing rules with iptables-restore
 iptables-restore <<RULES
 *nat
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
 :VIC - [0:0]
 -A PREROUTING -m addrtype --dst-type LOCAL -j VIC
 -A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j VIC
 -A POSTROUTING ! -o bridge -j MASQUERADE
 COMMIT
 *filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
 :VIC - [0:0]
 -A FORWARD -o bridge -j VIC
 -A FORWARD -o bridge -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
