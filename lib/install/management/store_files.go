@@ -200,9 +200,26 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHo
 			if len(pathComponents) != 2 {
 				log.Warnf("Didn't receive an expected volume store path format: %s", url.Path)
 			}
-
 			log.Infof("Deleting volume store %s on Datastore %s at path %s", label, pathComponents[0], pathComponents[1])
-			if _, err := d.deleteDatastoreFiles(d.session.Datastore, pathComponents[1], d.force); err != nil {
+
+			// pathComponents[0] holds the datastore in format [foo] where foo is the name of the datastore. We need to pass just foo to DatastoreList
+			datastores, err := d.session.Finder.DatastoreList(d.ctx, pathComponents[0][1:len(pathComponents[0])-1])
+
+			if err != nil {
+				log.Errorf("Error finding datastore %s: %s", pathComponents[0], err)
+				continue
+			}
+			if len(datastores) != 1 {
+				foundDatastores := new(bytes.Buffer)
+				for _, d := range datastores {
+					foundDatastores.WriteString(fmt.Sprintf("\n%s\n", d))
+				}
+				log.Errorf("Ambiguous datastore name (%s) provided. Results were: %s", pathComponents[0], foundDatastores)
+				continue
+			}
+
+			datastore := datastores[0] // datastores are formatted as [foo] but we just want foo
+			if _, err := d.deleteDatastoreFiles(datastore, pathComponents[1], d.force); err != nil {
 				log.Errorf("Failed to delete volume store %s on Datastore %s at path %s", label, pathComponents[0], pathComponents[1])
 			}
 		}
