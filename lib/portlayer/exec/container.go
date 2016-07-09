@@ -52,8 +52,6 @@ const (
 type Container struct {
 	sync.Mutex
 
-	ID ID
-
 	ExecConfig *metadata.ExecutorConfig
 	State      State
 	// friendly description of state
@@ -66,10 +64,10 @@ type Container struct {
 
 func NewContainer(id ID) *Handle {
 	con := &Container{
-		ID:         id,
 		ExecConfig: &metadata.ExecutorConfig{},
 		State:      StateStopped,
 	}
+	con.ExecConfig.ID = id.String()
 
 	containersLock.Lock()
 	containers[id] = con
@@ -188,7 +186,7 @@ func (c *Container) start(ctx context.Context) error {
 	}
 
 	// guestinfo key that we want to wait for
-	key := fmt.Sprintf("guestinfo..sessions|%s.started", c.ID)
+	key := fmt.Sprintf("guestinfo..sessions|%s.started", c.ExecConfig.ID)
 	var detail string
 
 	// Wait some before giving up...
@@ -245,7 +243,7 @@ func (c *Container) Remove(ctx context.Context) error {
 
 	//removes container from map
 	containersLock.Lock()
-	delete(containers, c.ID)
+	delete(containers, ParseID(c.ExecConfig.ID))
 	containersLock.Unlock()
 
 	return nil
@@ -266,7 +264,7 @@ func ContainerInfo(ctx context.Context, sess *session.Session, containerID ID) (
 			log.Debugf("ContainerInfo failed to find childVM: %s", err.Error())
 			return cvm, fmt.Errorf("Container Not Found: %s", containerID)
 		}
-		container = &Container{ID: containerID, vm: vm}
+		container = &Container{vm: vm}
 	}
 
 	// get properties for specific containerVMs
