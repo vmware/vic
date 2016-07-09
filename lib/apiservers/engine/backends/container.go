@@ -35,6 +35,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
@@ -49,6 +50,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/guest"
+	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -317,6 +319,12 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 func (c *Container) ContainerResize(name string, height, width int) error {
 	defer trace.End(trace.Begin("ContainerResize"))
 
+	// Look up the container name in the metadata cache to get long ID
+	if vc := cache.ContainerCache().GetContainer(name); vc != nil {
+		log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
+		name = vc.ContainerID
+	}
+
 	// Get an API client to the portlayer
 	client := PortLayerClient()
 	if client == nil {
@@ -372,6 +380,12 @@ func (c *Container) ContainerRestart(name string, seconds int) error {
 func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) error {
 	defer trace.End(trace.Begin("ContainerRm"))
 
+	// Look up the container name in the metadata cache to get long ID
+	if vc := cache.ContainerCache().GetContainer(name); vc != nil {
+		log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
+		name = vc.ContainerID
+	}
+
 	// Get the portlayer Client API
 	client := PortLayerClient()
 	if client == nil {
@@ -403,6 +417,12 @@ func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig
 func (c *Container) containerStart(name string, hostConfig *container.HostConfig, bind bool) error {
 	var err error
 
+	// Look up the container name in the metadata cache to get long ID
+	if vc := cache.ContainerCache().GetContainer(name); vc != nil {
+		log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
+		name = vc.ContainerID
+	}
+
 	// Get an API client to the portlayer
 	client := PortLayerClient()
 	if client == nil {
@@ -416,21 +436,11 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 		// need to look at in hostConfig
 	}
 
-	var id = name
-	cachedContainer := cache.ContainerCache().GetContainer(name)
-	if cachedContainer != nil {
-		id = cachedContainer.ContainerID
-	} else {
-		return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", id))
-	}
-
-	log.Debugf("Found cached container: %#v", cachedContainer)
-
 	// get a handle to the container
-	getRes, err := client.Containers.Get(containers.NewGetParams().WithID(id))
+	getRes, err := client.Containers.Get(containers.NewGetParams().WithID(name))
 	if err != nil {
 		if _, ok := err.(*containers.GetNotFound); ok {
-			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", id))
+			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
 		}
 		return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer"), http.StatusInternalServerError)
 	}
@@ -505,6 +515,12 @@ func (c *Container) ContainerStop(name string, seconds int) error {
 }
 
 func (c *Container) containerStop(name string, seconds int, unbound bool) error {
+	// Look up the container name in the metadata cache to get long ID
+	if vc := cache.ContainerCache().GetContainer(name); vc != nil {
+		log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
+		name = vc.ContainerID
+	}
+
 	//retrieve client to portlayer
 	client := PortLayerClient()
 	if client == nil {
@@ -593,33 +609,41 @@ func (c *Container) ContainerChanges(name string) ([]archive.Change, error) {
 // container. Returns an error if the container cannot be found, or if
 // there is an error getting the data.
 func (c *Container) ContainerInspect(name string, size bool, version version.Version) (interface{}, error) {
-	//Ignore version.  We're supporting post-1.20 version.
-
+	// Ignore version.  We're supporting post-1.20 version.
 	defer trace.End(trace.Begin("ContainerInspect"))
 
-	// Look up the container info in the metadata cache
-	vc := cache.ContainerCache().GetContainer(name)
-	if vc == nil {
-		return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
+	// Look up the container name in the metadata cache to get long ID
+	if vc := cache.ContainerCache().GetContainer(name); vc != nil {
+		log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
+		name = vc.ContainerID
 	}
 
-	// FIXME: Just set a bunch of dummy info needed to get docker attach working.
-	// Once we have event stream working (part of docker ps work), we need to go
-	// back and replace this.
-	running, _ := IsContainerRunning(vc.ContainerID)
-
-	base := &types.ContainerJSONBase{
-		State: &types.ContainerState{
-			Running: running,
-			Paused:  false, //We do not yet support paused/resumed
-		},
+	client := PortLayerClient()
+	if client == nil {
+		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get portlayer client"), http.StatusInternalServerError)
 	}
 
-	conJSON := &types.ContainerJSON{ContainerJSONBase: base, Config: vc.Config}
+	results, err := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParams().WithID(name))
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.GetContainerInfoNotFound:
+			return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
+		case *containers.GetContainerInfoInternalServerError:
+			return nil, derr.NewErrorWithStatusCode(fmt.Errorf("Error from portlayer: %#v", err.Payload), http.StatusInternalServerError)
+		default:
+			return nil, derr.NewErrorWithStatusCode(fmt.Errorf("Unknown error from the container portlayer"), http.StatusInternalServerError)
+		}
+	}
 
-	log.Debugf("ContainerInspect json config = %+v\n", conJSON.Config)
+	inspectJSON, err := containerInfoToDockerContainerInspect(name, results.Payload)
+	if err != nil {
+		log.Errorf("containerInfoToDockerContainerInspect failed with %s", err)
+		return nil, err
+	}
 
-	return conJSON, nil
+	log.Debugf("ContainerInspect json config = %+v\n", inspectJSON.Config)
+
+	return inspectJSON, nil
 }
 
 // ContainerLogs hooks up a container's stdout and stderr streams
@@ -685,13 +709,13 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 // docker's container.attachBackend
 
 // ContainerAttach attaches to logs according to the config passed in. See ContainerAttachConfig.
-func (c *Container) ContainerAttach(prefixOrName string, ca *backend.ContainerAttachConfig) error {
+func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConfig) error {
 	defer trace.End(trace.Begin("ContainerAttach"))
 
-	vc := cache.ContainerCache().GetContainer(prefixOrName)
-
+	// Look up the container name in the metadata cache to get long ID
+	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
-		return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", prefixOrName))
+		return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
 	}
 
 	clStdin, clStdout, clStderr, err := ca.GetStreams()
@@ -856,28 +880,328 @@ func createNewAttachClientWithTimeouts(connectTimeout, responseTimeout, response
 	return plClient, transport
 }
 
-func IsContainerRunning(containerID string) (bool, error) {
-	// Get an API client to the portlayer
-	plClient := PortLayerClient()
-	if plClient == nil {
-		return false, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get Port layer client"),
-			http.StatusInternalServerError)
+// containerInfoToDockerContainerInspect() takes a ContainerInfo swagger-based struct
+// returned from VIC's port layer and creates an engine-api based container inspect struct.
+// There maybe other asset gathering if ContainerInfo does not have all the information
+func containerInfoToDockerContainerInspect(id string, info *models.ContainerInfo) (*types.ContainerJSON, error) {
+	if info == nil || info.ContainerConfig == nil {
+		return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", id))
 	}
 
-	resp, err := plClient.Containers.GetContainerInfo(containers.NewGetContainerInfoParams().WithID(containerID))
-	if err != nil {
-		return false, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get container info: %s", err), http.StatusInternalServerError)
+	// Set default container state attributes
+	containerState := &types.ContainerState{
+		Restarting: false,
+		OOMKilled:  false,
 	}
 
-	ci := resp.Payload
-
-	if ci != nil && ci.ContainerConfig != nil {
-		if ci.ContainerConfig.State != nil && strings.ToLower(*ci.ContainerConfig.State) == "running" {
-			return true, nil
+	if info.ProcessConfig != nil {
+		if info.ProcessConfig.Pid != nil {
+			containerState.Pid = int(*info.ProcessConfig.Pid)
+		}
+		if info.ProcessConfig.ExitCode != nil {
+			containerState.ExitCode = int(*info.ProcessConfig.ExitCode)
+		}
+		if info.ProcessConfig.ErrorMsg != nil {
+			containerState.Error = *info.ProcessConfig.ErrorMsg
+		}
+		if info.ProcessConfig.Started != nil {
+			swaggerTime := time.Time(*info.ProcessConfig.Started)
+			containerState.StartedAt = swaggerTime.Format(time.RFC3339Nano)
+		}
+		if info.ProcessConfig.Finished != nil {
+			swaggerTime := time.Time(*info.ProcessConfig.Finished)
+			containerState.FinishedAt = swaggerTime.Format(time.RFC3339Nano)
 		}
 	}
 
-	return false, nil
+	inpsectJSON := &types.ContainerJSON{
+		ContainerJSONBase: &types.ContainerJSONBase{
+			State:           containerState,
+			ResolvConfPath:  "",
+			HostnamePath:    "",
+			HostsPath:       "",
+			Driver:          PortLayerName(),
+			MountLabel:      "",
+			ProcessLabel:    "",
+			AppArmorProfile: "",
+			ExecIDs:         nil,
+			HostConfig:      hostConfigFromContainerInfo(id, info),
+			GraphDriver:     types.GraphDriverData{Name: PortLayerName()},
+			SizeRw:          nil,
+			SizeRootFs:      nil,
+		},
+		Mounts:          mountsFromContainerInfo(id, info),
+		Config:          containerConfigFromContainerInfo(id, info),
+		NetworkSettings: networkFromContainerInfo(id, info),
+	}
+
+	if info.ProcessConfig != nil {
+		if info.ProcessConfig.ExecPath != nil {
+			inpsectJSON.Path = *info.ProcessConfig.ExecPath
+		}
+		if info.ProcessConfig.ExecArgs != nil {
+			inpsectJSON.Args = info.ProcessConfig.ExecArgs
+		}
+	}
+
+	if info.ContainerConfig != nil {
+		if info.ContainerConfig.State != nil {
+			containerState.Status = strings.ToLower(*info.ContainerConfig.State)
+
+			containerState.Running = false
+			containerState.Paused = false //We do not yet support paused/resumed
+			containerState.Dead = false
+			if containerState.Status == "running" {
+				containerState.Running = true
+				containerState.Dead = false //This is only true during docker rm
+			}
+		}
+		if info.ContainerConfig.LayerID != nil {
+			inpsectJSON.Image = *info.ContainerConfig.LayerID
+		}
+		if info.ContainerConfig.LogPath != nil {
+			inpsectJSON.LogPath = *info.ContainerConfig.LogPath
+		}
+		if info.ContainerConfig.RestartCount != nil {
+			inpsectJSON.RestartCount = int(*info.ContainerConfig.RestartCount)
+		}
+		if info.ContainerConfig.ContainerID != nil {
+			inpsectJSON.ID = *info.ContainerConfig.ContainerID
+		}
+		if info.ContainerConfig.Created != nil {
+			inpsectJSON.Created = time.Unix(*info.ContainerConfig.Created, 0).String()
+		}
+		if len(info.ContainerConfig.Names) > 0 {
+			inpsectJSON.Name = info.ContainerConfig.Names[0]
+		}
+	}
+
+	return inpsectJSON, nil
+}
+
+// hostConfigFromContainerInfo() extracts docker compatible hostconfig data from the
+// Swagger-based ContainerInfo object.
+func hostConfigFromContainerInfo(id string, info *models.ContainerInfo) *container.HostConfig {
+	if info == nil {
+		return nil
+	}
+
+	// Resources don't really map well to VIC so we leave mose of them empty. If we look
+	// at the struct in engine-api/types/container/host_config.go, Microsoft added
+	// additional attributes to the struct that are applicable to Windows containers.
+	// If understanding VIC's host resources are desireable, we should go down this
+	// same route.
+	//
+	// The values we fill out below is an abridged list of the original struct.
+	resourceConfig := container.Resources{
+	// Applicable to all platforms
+	//			CPUShares int64 `json:"CpuShares"` // CPU shares (relative weight vs. other containers)
+	//			Memory    int64 // Memory limit (in bytes)
+
+	//			// Applicable to UNIX platforms
+	//			DiskQuota            int64           // Disk limit (in bytes)
+	}
+
+	hostConfig := &container.HostConfig{
+		Binds:           nil,
+		ContainerIDFile: "",
+		LogConfig: container.LogConfig{
+			Type:   "",
+			Config: nil,
+		},
+		PortBindings: nil, // Port mapping between the exposed port (container) and the host
+		RestartPolicy: container.RestartPolicy{
+			Name:              "",
+			MaximumRetryCount: 0,
+		}, // Restart policy to be used for the container
+		AutoRemove:   false,           // Automatically remove container when it exits
+		VolumeDriver: PortLayerName(), // Name of the volume driver used to mount volumes
+		VolumesFrom:  nil,             // List of volumes to take from other container
+
+		// Applicable to UNIX platforms
+		CapAdd:          nil,   // List of kernel capabilities to add to the container
+		CapDrop:         nil,   // List of kernel capabilities to remove from the container
+		DNSOptions:      nil,   // List of DNSOption to look for
+		DNSSearch:       nil,   // List of DNSSearch to look for
+		ExtraHosts:      nil,   // List of extra hosts
+		GroupAdd:        nil,   // List of additional groups that the container process will run as
+		IpcMode:         "",    // IPC namespace to use for the container
+		Cgroup:          "",    // Cgroup to use for the container
+		Links:           nil,   // List of links (in the name:alias form)
+		OomScoreAdj:     0,     // Container preference for OOM-killing
+		PidMode:         "",    // PID namespace to use for the container
+		Privileged:      false, // Is the container in privileged mode
+		PublishAllPorts: false, // Should docker publish all exposed port for the container
+		ReadonlyRootfs:  false, // Is the container root filesystem in read-only
+		SecurityOpt:     nil,   // List of string values to customize labels for MLS systems, such as SELinux.
+		StorageOpt:      nil,   // Storage driver options per container.
+		Tmpfs:           nil,   // List of tmpfs (mounts) used for the container
+		UTSMode:         "",    // UTS namespace to use for the container
+		UsernsMode:      "",    // The user namespace to use for the container
+		ShmSize:         0,     // Total shm memory usage
+		Sysctls:         nil,   // List of Namespaced sysctls used for the container
+
+		// Applicable to Windows
+		Isolation: "", // Isolation technology of the container (eg default, hyperv)
+
+		// Contains container's resources (cgroups, ulimits)
+		Resources: resourceConfig,
+	}
+
+	if len(info.ScopeConfig) > 0 {
+		if info.ScopeConfig[0].DNS != nil {
+			hostConfig.DNS = info.ScopeConfig[0].DNS
+		}
+
+		hostConfig.NetworkMode = container.NetworkMode(info.ScopeConfig[0].ScopeType)
+	}
+
+	return hostConfig
+}
+
+// mountsFromContainerInfo()
+func mountsFromContainerInfo(id string, info *models.ContainerInfo) []types.MountPoint {
+	if info == nil {
+		return nil
+	}
+
+	var mounts []types.MountPoint
+
+	for _, vConfig := range info.VolumeConfig {
+		// Fill with defaults
+		mountConfig := types.MountPoint{
+			Destination: "",
+			Driver:      PortLayerName(),
+			Mode:        "",
+			Propagation: "",
+		}
+
+		// Fill with info from portlayer
+		if vConfig.MountPoint != nil {
+			mountConfig.Name = *vConfig.MountPoint
+		}
+		if vConfig.MountPoint != nil {
+			mountConfig.Source = *vConfig.MountPoint
+		}
+		if vConfig.ReadWrite != nil {
+			mountConfig.RW = *vConfig.ReadWrite
+		}
+
+		mounts = append(mounts, mountConfig)
+	}
+
+	return mounts
+}
+
+// containerConfigFromContainerInfo() returns a container.Config that has attributes
+// overridden at create or start time.  This is important.  This function is called
+// to help build the Container Inspect struct.  That struct contains the original
+// container config that is part of the image metadata AND the overriden container
+// config.  The user can override these via the remote API or the docker CLI.
+func containerConfigFromContainerInfo(id string, info *models.ContainerInfo) *container.Config {
+	if info == nil || info.ContainerConfig == nil || info.ProcessConfig == nil {
+		return nil
+	}
+
+	container := &container.Config{
+		Domainname: "",    // Domainname
+		User:       "",    // User that will run the command(s) inside the container
+		StdinOnce:  false, // If true, close stdin after the 1 attached client disconnects.
+	}
+
+	if info.ContainerConfig.ContainerID != nil {
+		container.Hostname = stringid.TruncateID(*info.ContainerConfig.ContainerID) // Hostname
+	}
+	if info.ContainerConfig.AttachStdin != nil {
+		container.AttachStdin = *info.ContainerConfig.AttachStdin // Attach the standard input, makes possible user interaction
+	}
+	if info.ContainerConfig.AttachStdout != nil {
+		container.AttachStdout = *info.ContainerConfig.AttachStdout // Attach the standard output
+	}
+	if info.ContainerConfig.AttachStderr != nil {
+		container.AttachStderr = *info.ContainerConfig.AttachStderr // Attach the standard error
+	}
+	if info.ContainerConfig.Tty != nil {
+		container.Tty = *info.ContainerConfig.Tty // Attach standard streams to a tty, including stdin if it is not closed.
+	}
+	// They are not coming from PL so set them to true unconditionally
+	container.OpenStdin = true // Open stdin
+	container.StdinOnce = true
+
+	if info.ContainerConfig.LayerID != nil {
+		container.Image = *info.ContainerConfig.LayerID // Name of the image as it was passed by the operator (eg. could be symbolic)
+	}
+	if info.ContainerConfig.Labels != nil {
+		container.Labels = info.ContainerConfig.Labels // List of labels set to this container
+	}
+
+	// Fill in information about the process
+	if info.ProcessConfig.ExecArgs != nil {
+		container.Env = info.ProcessConfig.ExecArgs // List of environment variable to set in the container
+	}
+	if info.ProcessConfig.ExecPath != nil {
+		container.Cmd = append(container.Cmd, *info.ProcessConfig.ExecPath) // Command to run when starting the container
+	}
+	if info.ProcessConfig.WorkingDir != nil {
+		container.WorkingDir = *info.ProcessConfig.WorkingDir // Current directory (PWD) in the command will be launched
+	}
+	//		container.Entrypoint      strslice.StrSlice     				// Entrypoint to run when starting the container
+
+	// Fill in information about the container network
+	if info.ScopeConfig == nil {
+		container.NetworkDisabled = true
+	} else {
+		container.NetworkDisabled = false
+		container.MacAddress = ""
+		container.ExposedPorts = nil  //FIXME:  Add once port mapping is implemented
+		container.PublishService = "" // Name of the network service exposed by the container
+	}
+
+	// Get the original container config from the image's metadata in our image cache.
+	var imageConfig *metadata.ImageConfig
+
+	if info.ContainerConfig.LayerID != nil {
+		imageConfig, _ = cache.ImageCache().GetImage(*info.ContainerConfig.LayerID)
+	}
+
+	// Fill in the values with defaults from the original image's container config
+	// structure
+	if imageConfig != nil {
+		container.StopSignal = imageConfig.ContainerConfig.StopSignal // Signal to stop a container
+
+		container.OnBuild = imageConfig.ContainerConfig.OnBuild // ONBUILD metadata that were defined on the image Dockerfile
+
+		// Fill in information about the container's volumes
+		// FIXME:  Why does types.ContainerJSON have Mounts and also ContainerConfig,
+		// which also has Volumes?  Assuming this is a copy from image's container
+		// config till we figure this out.
+		container.Volumes = imageConfig.ContainerConfig.Volumes
+	}
+
+	return container
+}
+
+func networkFromContainerInfo(id string, info *models.ContainerInfo) *types.NetworkSettings {
+	if info == nil || info.ScopeConfig == nil {
+		return nil
+	}
+
+	networks := &types.NetworkSettings{
+		NetworkSettingsBase: types.NetworkSettingsBase{
+			Bridge:                 "",
+			SandboxID:              "",
+			HairpinMode:            false,
+			LinkLocalIPv6Address:   "",
+			LinkLocalIPv6PrefixLen: 0,
+			Ports:                  nil, //FIXME:  Fill in once port mapping is implemented.
+			SandboxKey:             "",
+			SecondaryIPAddresses:   nil,
+			SecondaryIPv6Addresses: nil,
+		},
+		Networks: nil,
+	}
+
+	return networks
 }
 
 // attacheStreams takes the the hijacked connections from the calling client and attaches
