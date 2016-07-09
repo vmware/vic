@@ -62,8 +62,8 @@ func (t *tether) childReaper() {
 						break
 					}
 					if err == nil {
-						if !status.Exited() {
-							log.Debugf("Received notifcation about non-exit status change for %d:", pid)
+						if !status.Exited() && !status.Signaled() {
+							log.Debugf("Received notifcation about non-exit status change for %d: %d", pid, status)
 							// no reaping or exit handling required
 							continue
 						}
@@ -72,6 +72,7 @@ func (t *tether) childReaper() {
 
 						session, ok := t.removeChildPid(pid)
 						if ok {
+							// will be -1 if terminated due to signal
 							session.ExitStatus = status.ExitStatus()
 							t.handleSessionExit(session)
 						} else {
