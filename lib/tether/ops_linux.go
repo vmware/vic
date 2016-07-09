@@ -32,6 +32,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vmware/vic/lib/dhcp"
+	"github.com/vmware/vic/lib/dhcp/client"
 	"github.com/vmware/vic/lib/etcconf"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
@@ -44,7 +45,7 @@ var byLabelDir = "/dev/disk/by-label"
 const pciDevPath = "/sys/bus/pci/devices"
 
 type BaseOperations struct {
-	dhcpClient   dhcp.Client
+	dhcpClient   client.Client
 	dhcpLoops    map[string]chan bool
 	hosts        etcconf.Hosts
 	resolvConf   etcconf.ResolvConf
@@ -261,12 +262,17 @@ func renameLink(t Netlink, link netlink.Link, slot int32, endpoint *NetworkEndpo
 	return link, nil
 }
 
-func getDynamicIP(t Netlink, link netlink.Link, dc dhcp.Client) (*dhcp.Packet, error) {
+func getDynamicIP(t Netlink, link netlink.Link, dc client.Client) (*dhcp.Packet, error) {
 	var ack *dhcp.Packet
 	var err error
 
 	// use dhcp to acquire address
-	ack, err = dc.Request(link.Attrs().Index, link.Attrs().HardwareAddr)
+	id, err := client.NewID(link.Attrs().Index, link.Attrs().HardwareAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	ack, err = dc.Request(id)
 	if err != nil {
 		log.Errorf("error sending dhcp request: %s", err)
 		return nil, err
@@ -506,15 +512,20 @@ func (t *BaseOperations) Apply(endpoint *NetworkEndpoint) error {
 	if ack != nil {
 		if _, ok := t.dhcpLoops[endpoint.ID]; !ok {
 			stop := make(chan bool)
-			go t.dhcpLoop(stop, endpoint, ack)
-			t.dhcpLoops[endpoint.ID] = stop
+			id, err := client.NewID(link.Attrs().Index, link.Attrs().HardwareAddr)
+			if err != nil {
+				log.Errorf("could not make DHCP client id for link %s: %s", link.Attrs().Name, err)
+			} else {
+				go t.dhcpLoop(stop, endpoint, ack, id)
+				t.dhcpLoops[endpoint.ID] = stop
+			}
 		}
 	}
 
 	return nil
 }
 
-func (t *BaseOperations) dhcpLoop(stop chan bool, e *NetworkEndpoint, ack *dhcp.Packet) {
+func (t *BaseOperations) dhcpLoop(stop chan bool, e *NetworkEndpoint, ack *dhcp.Packet, id client.ID) {
 	exp := time.After(ack.LeaseTime() / 2)
 	for {
 		select {
@@ -526,7 +537,7 @@ func (t *BaseOperations) dhcpLoop(stop chan bool, e *NetworkEndpoint, ack *dhcp.
 
 		case <-exp:
 			log.Infof("renewing IP address for network %s", e.Name)
-			newack, err := t.dhcpClient.Renew(ack)
+			newack, err := t.dhcpClient.Renew(id, ack)
 			if err != nil {
 				log.Errorf("failed to renew ip address for network %s: %s", e.Name, err)
 				continue
@@ -645,7 +656,7 @@ func (t *BaseOperations) Fork() error {
 }
 
 func (t *BaseOperations) Setup(sink ConfigSink) error {
-	c, err := dhcp.NewClient()
+	c, err := client.NewClient()
 	if err != nil {
 		return err
 	}
