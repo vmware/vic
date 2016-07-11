@@ -124,6 +124,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 
 	err = h.Create(ctx, session, c)
 	if err != nil {
+		log.Errorf("ContainerCreate error: %s", err.Error())
 		return containers.NewCreateNotFound().WithPayload(&models.Error{Message: err.Error()})
 	}
 
@@ -199,6 +200,7 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 	}
 
 	if err := h.Commit(context.Background(), handler.handlerCtx.Session); err != nil {
+		log.Errorf("CommitHandler error (%s): %s", h.String(), err)
 		return containers.NewCommitDefault(http.StatusServiceUnavailable).WithPayload(&models.Error{Message: err.Error()})
 	}
 

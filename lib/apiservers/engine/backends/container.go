@@ -155,9 +155,9 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 
 	// bail early if container name already exists
 	if exists := cache.ContainerCache().GetContainer(config.Name); exists != nil {
-		return types.ContainerCreateResponse{},
-			derr.NewErrorWithStatusCode(fmt.Errorf("Conflict. The name \"%s\" is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", config.Name, exists.ContainerID),
-				http.StatusConflict)
+		err := fmt.Errorf("Conflict. The name \"%s\" is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", config.Name, exists.ContainerID)
+		log.Errorf("%s", err.Error())
+		return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(err, http.StatusConflict)
 	}
 
 	// get the image from the cache
@@ -165,6 +165,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	if err != nil {
 		// if no image found then error thrown and a pull
 		// will be initiated by the docker client
+		log.Errorf("ContainerCreate: image not found %s", config.Config.Image)
 		return types.ContainerCreateResponse{}, err
 	}
 
@@ -225,7 +226,9 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	// transfer port layer swagger based response to Docker backend data structs and return to the REST front-end
 	if err != nil {
 		if _, ok := err.(*containers.CreateNotFound); ok {
-			return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", container.ID))
+			err = fmt.Errorf("No such image: %s", container.ID)
+			log.Errorf(err.Error())
+			return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(err)
 		}
 
 		// If we get here, most likely something went wrong with the port layer API server
@@ -246,6 +249,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 			}))
 
 		if err != nil {
+			log.Errorf("ContainerCreate: Scopes error: %s", err.Error())
 			return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 		}
 
@@ -265,10 +269,12 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	// commit the create op
 	_, err = client.Containers.Commit(containers.NewCommitParams().WithHandle(h))
 	if err != nil {
+		err = fmt.Errorf("No such image: %s", container.ID)
+		log.Errorf("%s", err.Error())
 		// FIXME: Containers.Commit returns more errors than it's swagger spec says.
 		// When no image exist, it also sends back non swagger errors.  We should fix
 		// this once Commit returns correct error codes.
-		return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", container.ID))
+		return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(err)
 	}
 
 	// Container created ok, overwrite the container params in the container store as
