@@ -154,6 +154,14 @@
 			"path": "/spew"
 		},
 		{
+			"importpath": "github.com/dchest/siphash",
+			"repository": "https://github.com/dchest/siphash",
+			"vcs": "git",
+			"revision": "6d8617816bb5d8268011ffbfb8720f17ce9af63c",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/deckarep/golang-set",
 			"repository": "https://github.com/deckarep/golang-set",
 			"vcs": "",
