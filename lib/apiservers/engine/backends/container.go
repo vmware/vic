@@ -317,6 +317,11 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 func (c *Container) ContainerResize(name string, height, width int) error {
 	defer trace.End(trace.Begin("ContainerResize"))
 
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc == nil {
+		return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
+	}
+
 	// Get an API client to the portlayer
 	client := PortLayerClient()
 	if client == nil {
@@ -327,7 +332,7 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 	// Call the port layer to resize
 	plHeight := int32(height)
 	plWidth := int32(width)
-	plResizeParam := interaction.NewContainerResizeParams().WithID(name).WithHeight(plHeight).WithWidth(plWidth)
+	plResizeParam := interaction.NewContainerResizeParams().WithID(vc.ContainerID).WithHeight(plHeight).WithWidth(plWidth)
 
 	_, err := client.Interaction.ContainerResize(plResizeParam)
 	if err != nil {
