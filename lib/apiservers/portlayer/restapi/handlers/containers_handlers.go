@@ -265,8 +265,11 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 func convertContainerToContainerInfo(container *exec.Container) *models.ContainerInfo {
 	// convert the container type to the required model
 	info := &models.ContainerInfo{ContainerConfig: &models.ContainerConfig{}, ProcessConfig: &models.ProcessConfig{}}
-	ccid := container.ID.String()
+
+	ccid := container.ExecConfig.ID
 	info.ContainerConfig.ContainerID = &ccid
+	log.Debugf("ID %s", ccid)
+
 	// TODO: need to determine an appropriate state model
 	// for now leveraging the status used in ps
 	info.ContainerConfig.State = &container.Status

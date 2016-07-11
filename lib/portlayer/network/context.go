@@ -442,12 +442,12 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		return nil, fmt.Errorf("nothing to bind")
 	}
 
-	con, ok := c.containers[h.Container.ID]
+	con, ok := c.containers[exec.ParseID(h.Container.ExecConfig.ID)]
 	if ok {
-		return nil, fmt.Errorf("container %s already bound", h.Container.ID)
+		return nil, fmt.Errorf("container %s already bound", h.Container.ExecConfig.ID)
 	}
 
-	con = &Container{id: h.Container.ID}
+	con = &Container{id: exec.ParseID(h.Container.ExecConfig.ID)}
 	for _, ne := range h.ExecConfig.Networks {
 		var s *Scope
 		s, ok := c.scopes[ne.Network.Name]
@@ -584,9 +584,9 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 	c.Lock()
 	defer c.Unlock()
 
-	con, ok := c.containers[h.Container.ID]
+	con, ok := c.containers[exec.ParseID(h.Container.ExecConfig.ID)]
 	if !ok {
-		return ResourceNotFoundError{error: fmt.Errorf("container %s not found", h.Container.ID)}
+		return ResourceNotFoundError{error: fmt.Errorf("container %s not found", h.Container.ExecConfig.ID)}
 	}
 
 	var err error
@@ -623,7 +623,7 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 	var containers []exec.ID
 
 	// Removing long id, short id and common name from the map
-	containers = append(containers, h.Container.ID)
+	containers = append(containers, exec.ParseID(h.Container.ExecConfig.ID))
 
 	tid := con.id.TruncateID()
 	cname := h.Container.ExecConfig.Common.Name
@@ -846,7 +846,7 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 		return fmt.Errorf("handle is required")
 	}
 
-	if _, ok := c.containers[h.Container.ID]; ok {
+	if _, ok := c.containers[exec.ParseID(h.Container.ExecConfig.ID)]; ok {
 		return fmt.Errorf("container is bound")
 	}
 
@@ -859,7 +859,7 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 	var ne *metadata.NetworkEndpoint
 	ne, ok := h.ExecConfig.Networks[s.Name()]
 	if !ok {
-		return fmt.Errorf("container %s not part of network %s", h.Container.ID, s.Name())
+		return fmt.Errorf("container %s not part of network %s", h.Container.ExecConfig.ID, s.Name())
 	}
 
 	// figure out if any other networks are using the NIC
