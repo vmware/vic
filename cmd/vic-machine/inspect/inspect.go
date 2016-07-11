@@ -15,8 +15,6 @@
 package inspect
 
 import (
-	"time"
-
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/urfave/cli"
@@ -46,18 +44,9 @@ func NewInspect() *Inspect {
 
 // Flags return all cli flags for delete
 func (i *Inspect) Flags() []cli.Flag {
-	flags := []cli.Flag{
-		cli.DurationFlag{
-			Name:        "timeout",
-			Value:       3 * time.Minute,
-			Usage:       "Time to wait for appliance initialization",
-			Destination: &i.Timeout,
-		},
-	}
 	preFlags := append(i.TargetFlags(), i.IDFlags()...)
 	preFlags = append(preFlags, i.ComputeFlags()...)
-	flags = append(preFlags, flags...)
-	flags = append(flags, i.DebugFlags()...)
+	flags := append(preFlags, i.DebugFlags()...)
 
 	return flags
 }

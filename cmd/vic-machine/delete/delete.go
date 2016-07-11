@@ -55,7 +55,7 @@ func (d *Uninstall) Flags() []cli.Flag {
 		cli.DurationFlag{
 			Name:        "timeout",
 			Value:       3 * time.Minute,
-			Usage:       "Time to wait for appliance initialization",
+			Usage:       "Time to wait to delete vsphere resources",
 			Destination: &d.Timeout,
 		},
 	}
