@@ -224,6 +224,8 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 }
 
 func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers.GetContainerInfoParams) middleware.Responder {
+	defer trace.End(trace.Begin("Containers.GetContainerInfoHandler"))
+
 	// get the container id for interogation
 	containerID := exec.ParseID(params.ID)
 	cc, err := exec.ContainerInfo(context.Background(), handler.handlerCtx.Session, containerID)
