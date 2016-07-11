@@ -100,16 +100,18 @@ func (c *Connector) Get(ctx context.Context, id string, timeout time.Duration) (
 			}
 
 			// block until cond is updated
+			log.Infof("attach connector:  Connection not found yet for %s", id)
 			c.cond.Wait()
 		}
+		log.Debugf("attach connector:  Giving up on connection for %s", id)
 	}()
 
 	select {
 	case client := <-result:
-		log.Debugf("Found connection for %s: %p", id, client)
+		log.Debugf("attach connector: Found connection for %s: %p", id, client)
 		return client.spty, nil
 	case <-ctx.Done():
-		err := fmt.Errorf("id:%s: %s", id, ctx.Err())
+		err := fmt.Errorf("attach connector: Connection not found error for id:%s: %s", id, ctx.Err())
 		log.Error(err)
 		// wake up the result gofunc before returning
 		c.cond.Broadcast()
@@ -140,7 +142,7 @@ func (c *Connector) processIncoming(conn net.Conn) {
 
 	for {
 		if conn == nil {
-			log.Infof("connection closed")
+			log.Infof("attach connector: connection closed")
 			return
 		}
 
@@ -154,7 +156,7 @@ func (c *Connector) processIncoming(conn net.Conn) {
 		// waiting, the handshake may never succeed.
 		ctx, cancel := context.WithTimeout(context.TODO(), 50*time.Millisecond)
 		if err = serial.HandshakeClient(ctx, conn); err == nil {
-			log.Debugf("New connection")
+			log.Debugf("attach connector: New connection")
 			cancel()
 			break
 		} else if err == io.EOF {
@@ -227,7 +229,7 @@ func (c *Connector) serve() {
 	defer c.wg.Done()
 	for {
 		if c.listener == nil {
-			log.Debugf("listener closed")
+			log.Debugf("attach connector: listener closed")
 			break
 		}
 
@@ -235,7 +237,7 @@ func (c *Connector) serve() {
 
 		select {
 		case <-c.listenerQuit:
-			log.Debugf("serve exitting")
+			log.Debugf("attach connector: serve exitting")
 			return
 		default:
 		}
@@ -245,7 +247,7 @@ func (c *Connector) serve() {
 			continue
 		}
 
-		log.Info("Received incoming connection")
+		log.Info("attach connector: Received incoming connection")
 		go c.processIncoming(conn)
 	}
 }

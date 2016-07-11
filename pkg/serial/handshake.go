@@ -46,8 +46,6 @@ func PurgeIncoming(conn net.Conn) {
 		log.Debugf("%+v\n", buf[0:n])
 	}
 
-	log.Debug("Incoming channel is purged of content")
-
 	// disable the read timeout
 	conn.SetReadDeadline(time.Time{})
 }
