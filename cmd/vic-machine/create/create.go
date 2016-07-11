@@ -17,7 +17,6 @@ package create
 import (
 	"encoding"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -381,18 +380,6 @@ func (c *Create) checkImagesFiles() ([]string, error) {
 
 func (c *Create) Run(cli *cli.Context) error {
 	var err error
-	// Open log file
-	f, err := os.OpenFile(c.logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		err = errors.Errorf("Error opening logfile %s: %v", c.logfile, err)
-		return err
-	}
-	defer f.Close()
-
-	// Initiliaze logger with default TextFormatter
-	log.SetFormatter(&log.TextFormatter{ForceColors: true, FullTimestamp: true})
-	// SetOutput to io.MultiWriter so that we can log to stdout and a file
-	log.SetOutput(io.MultiWriter(os.Stdout, f))
 
 	if c.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)
