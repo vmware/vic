@@ -277,6 +277,10 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 			Default: true, // external network is default for appliance
 		},
 	})
+	// Bridge network should be different with all other networks
+	if input.BridgeNetworkName == input.ExternalNetworkName {
+		v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - external also uses %s", input.BridgeNetworkName))
+	}
 
 	// Client net
 	if input.ClientNetworkName == "" {
@@ -295,6 +299,9 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 			},
 		},
 	})
+	if input.BridgeNetworkName == input.ClientNetworkName {
+		v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - client also uses %s", input.BridgeNetworkName))
+	}
 
 	// Management net
 	if input.ManagementNetworkName == "" {
@@ -310,6 +317,9 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 			},
 		},
 	})
+	if input.BridgeNetworkName == input.ManagementNetworkName {
+		v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - management also uses %s", input.BridgeNetworkName))
+	}
 
 	// Bridge net -
 	//   vCenter: must exist and must be a DPG
@@ -403,6 +413,9 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 			Gateway:     gw,
 			Nameservers: dns,
 			Pools:       pools,
+		}
+		if input.BridgeNetworkName == net {
+			v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - %s also mapped as container network %s", input.BridgeNetworkName, name))
 		}
 
 		conf.AddContainerNetwork(mappedNet)
