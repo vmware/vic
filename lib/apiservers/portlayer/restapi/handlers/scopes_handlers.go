@@ -176,10 +176,10 @@ func (handler *ScopesHandlersImpl) ScopesAddContainer(params scopes.AddContainer
 
 	err := func() error {
 		var ip *net.IP
-		if params.Config.NetworkConfig.Address != nil {
+		if params.Config.NetworkConfig.Address != nil && *params.Config.NetworkConfig.Address != "" {
 			i := net.ParseIP(*params.Config.NetworkConfig.Address)
 			if i == nil {
-				return fmt.Errorf("invalid ip address")
+				return fmt.Errorf("invalid ip address %q", *params.Config.NetworkConfig.Address)
 			}
 
 			ip = &i
