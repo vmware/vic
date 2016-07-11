@@ -94,7 +94,6 @@ func (c *Connector) Get(ctx context.Context, id string, timeout time.Duration) (
 
 			conn, ok = c.connections[id]
 			if ok {
-				log.Debugf("Found connection for %s: %p", id, conn)
 				result <- conn
 				return
 			}
