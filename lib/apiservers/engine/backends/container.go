@@ -40,6 +40,8 @@ import (
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/strslice"
 
+	"github.com/google/uuid"
+
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
@@ -55,6 +57,12 @@ import (
 
 // Container struct represents the Container
 type Container struct {
+}
+
+type volumeFields struct {
+	ID    string
+	Dest  string
+	Flags string
 }
 
 const (
@@ -142,8 +150,8 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	var err error
 
 	//TODO: validate the config parameters
+	log.Debugf("Image fetch section - Container Create")
 	log.Debugf("config.Config = %+v", config.Config)
-
 	// Get an API client to the portlayer
 	client := PortLayerClient()
 	if client == nil {
@@ -237,6 +245,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	id := createResults.Payload.ID
 	h := createResults.Payload.Handle
 
+	log.Debugf("Network Configuration Section - Container Create")
 	// configure networking
 	netConf := toModelsNetworkConfig(config)
 	if netConf != nil {
@@ -264,7 +273,38 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 
 		h = addContRes.Payload
 	}
+	//Volume Attachment Section
+	log.Debugf("Container.ContainerCreate - VolumeSection")
+	log.Debugf("Raw Volume arguments : binds:  %#v : volumes : %#v", config.HostConfig.Binds, config.Config.Volumes)
+	var joinList []volumeFields
 
+	joinList, err = processAnonymousVolumes(&h, config.Config.Volumes, client)
+	if err != nil {
+		return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusBadRequest)
+	}
+
+	volumeSubset, err := processSpecifiedVolumes(config.HostConfig.Binds)
+	if err != nil {
+		return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusBadRequest)
+	}
+	joinList = append(joinList, volumeSubset...)
+
+	for _, fields := range joinList {
+		flags := make(map[string]string)
+		//NOTE: for now we are passing the flags directly through. This is NOT SAFE and only a stop gap.
+		flags["Mode"] = fields.Flags
+		joinParams := storage.NewVolumeJoinParams().WithJoinArgs(&models.VolumeJoinConfig{
+			Flags:     flags,
+			Handle:    h,
+			MountPath: fields.Dest,
+		}).WithName(fields.ID)
+
+		res, err := client.Storage.VolumeJoin(joinParams)
+		if err != nil {
+			return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusInternalServerError)
+		}
+		h = res.Payload
+	}
 	// commit the create op
 	_, err = client.Containers.Commit(containers.NewCommitParams().WithHandle(h))
 	if err != nil {
@@ -1430,4 +1470,77 @@ func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64
 // to the docker client approved format
 func clientFriendlyContainerName(name string) string {
 	return fmt.Sprintf("/%s", name)
+}
+
+//This function is used to turn any call from docker create -v <stuff> into a volumeFields object.
+//the -v has 3 forms. 1: -v <anonymouse mount path>, -v <Volume Name>:<Destination Mount Path>, and -v <Volume Name>:<Destination Mount Path>:<mount flags>
+func processVolumeParam(volString string) (volumeFields, error) {
+	volumeStrings := strings.Split(volString, ":")
+	fields := volumeFields{}
+
+	//This switch determines which type of -v was invoked.
+	switch len(volumeStrings) {
+	case 1:
+		VolumeID, err := uuid.NewUUID()
+		if err != nil {
+			return volumeFields{}, nil
+		}
+		fields.ID = VolumeID.String()
+		fields.Dest = volumeStrings[0]
+		fields.Flags = "rw"
+	case 2:
+		fields.ID = volumeStrings[0]
+		fields.Dest = volumeStrings[1]
+		fields.Flags = "rw"
+	case 3:
+		fields.ID = volumeStrings[0]
+		fields.Dest = volumeStrings[1]
+		fields.Flags = volumeStrings[2]
+	default:
+		//NOTE: the docker cli should cover this case. This is here for posterity.
+		return volumeFields{}, fmt.Errorf("Volume bind input is invalid : -v %s", volString)
+	}
+	return fields, nil
+}
+
+func processAnonymousVolumes(h *string, volumes map[string]struct{}, client *client.PortLayer) ([]volumeFields, error) {
+	var volumeFields []volumeFields
+
+	for v := range volumes {
+		fields, err := processVolumeParam(v)
+		log.Infof("Processed Volume arguments : %#v", fields)
+		if err != nil {
+			return nil, err
+		}
+		//NOTE: This should be the guard for the case of an anonymous volume.
+		//NOTE: we should not expect any driver args if the drive is anonymous.
+		log.Infof("anonymous volume being created - Container Create - volume mount section ID: %s ", fields.ID)
+		metadata := make(map[string]string)
+		metadata["flags"] = fields.Flags
+		volumeRequest := models.VolumeRequest{
+			Capacity: -1,
+			Driver:   "vsphere",
+			Store:    "default",
+			Name:     fields.ID,
+			Metadata: metadata,
+		}
+		_, err = client.Storage.CreateVolume(storage.NewCreateVolumeParams().WithVolumeRequest(&volumeRequest))
+		if err != nil {
+			return nil, err
+		}
+		volumeFields = append(volumeFields, fields)
+	}
+	return volumeFields, nil
+}
+
+func processSpecifiedVolumes(volumes []string) ([]volumeFields, error) {
+	var volumeFields []volumeFields
+	for _, v := range volumes {
+		fields, err := processVolumeParam(v)
+		if err != nil {
+			return volumeFields, err
+		}
+		volumeFields = append(volumeFields, fields)
+	}
+	return volumeFields, nil
 }

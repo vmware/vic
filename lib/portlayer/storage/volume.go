@@ -36,7 +36,7 @@ type Disk interface {
 // VolumeStorer is an interface to create, remove, enumerate, and get Volumes.
 type VolumeStorer interface {
 	// Creates a volume on the given volume store, of the given size, with the given metadata.
-	VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityMB uint64, info map[string][]byte) (*Volume, error)
+	VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*Volume, error)
 
 	// Get an existing volume via it's ID.
 	VolumeGet(ctx context.Context, ID string) (*Volume, error)
@@ -46,6 +46,8 @@ type VolumeStorer interface {
 
 	// Lists all volumes
 	VolumesList(ctx context.Context) ([]*Volume, error)
+
+	//Modifies the config spec of a container to attach a volume
 }
 
 // Volume is the handle to identify a volume on the backing store.  The URI
