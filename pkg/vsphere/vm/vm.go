@@ -252,3 +252,20 @@ func (vm *VirtualMachine) UUID(ctx context.Context) (string, error) {
 
 	return mvm.Summary.Config.Uuid, nil
 }
+
+// DeleteExceptDisks destroys the VM after detaching all virtual disks
+func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*object.Task, error) {
+	devices, err := vm.Device(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	disks := devices.SelectByType(&types.VirtualDisk{})
+
+	err = vm.RemoveDevice(ctx, true, disks...)
+	if err != nil {
+		return nil, err
+	}
+
+	return vm.Destroy(ctx)
+}

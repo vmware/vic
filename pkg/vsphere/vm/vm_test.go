@@ -15,6 +15,7 @@
 package vm
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -60,6 +61,61 @@ func CreateVM(ctx context.Context, session *session.Session, host *object.HostSy
 	moref := info.Result.(types.ManagedObjectReference)
 	// Return the moRef
 	return &moref, nil
+}
+
+func TestDeleteExceptDisk(t *testing.T) {
+	s := os.Getenv("DRONE")
+	if s != "" {
+		t.Skip("Skipping: test must be run in a VM")
+	}
+
+	ctx := context.Background()
+
+	session := test.Session(ctx, t)
+	defer session.Logout(ctx)
+
+	host := test.PickRandomHost(ctx, session, t)
+
+	moref, err := CreateVM(ctx, session, host)
+	if err != nil {
+		t.Fatalf("ERROR: %s", err)
+	}
+	// Wrap the result with our version of VirtualMachine
+	vm := NewVirtualMachine(ctx, session, *moref)
+
+	folder, err := vm.FolderName(ctx)
+	if err != nil {
+		t.Fatalf("ERROR: %s", err)
+	}
+
+	// generate the disk name
+	diskName := fmt.Sprintf("%s/%s.vmdk", folder, folder)
+
+	// Delete the VM but not it's disk
+	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		return vm.DeleteExceptDisks(ctx)
+	})
+	if err != nil {
+		t.Fatalf("ERROR: %s", err)
+	}
+
+	// check that the disk still exists
+	session.Datastore.Stat(ctx, diskName)
+	if err != nil {
+		t.Fatalf("Disk does not exist")
+	}
+
+	// clean up
+	dm := object.NewVirtualDiskManager(session.Client.Client)
+
+	task, err := dm.DeleteVirtualDisk(context.TODO(), diskName, nil)
+	if err != nil {
+		t.Fatalf("Unable to locate orphan vmdk: %s", err)
+	}
+
+	if err = task.Wait(context.TODO()); err != nil {
+		t.Fatalf("Unable to remove orphan vmdk: %s", err)
+	}
 }
 
 func TestVM(t *testing.T) {
