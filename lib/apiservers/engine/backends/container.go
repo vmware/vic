@@ -1326,7 +1326,7 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 		// behavior.  However, we're not sure why Docker even has this
 		// behavior where you connect to stdin on the first time only.
 		// If we really want to add this behavior, we need to add support
-		// in the ssh tether in the portlayer.
+		// in the tether in the portlayer.
 		log.Errorf("Attach stream has stdinOnce set.  VIC does not yet support this.")
 	}
 	return err
