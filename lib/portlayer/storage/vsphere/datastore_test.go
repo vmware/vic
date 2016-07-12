@@ -128,21 +128,32 @@ func TestDatastoreMkdirAndLs(t *testing.T) {
 }
 
 func TestDatastoreToURLParsing(t *testing.T) {
-	expected := "ds://datastore1/path/to/thing"
+	expectedURL := "ds://datastore1/path/to/thing"
 
-	input := []string{
-		"[datastore1] /path/to/thing",
-		"[datastore1] path/to/thing",
-		"[datastore1] ///path////to/thing",
+	input := [][]string{
+		{"[datastore1] /path/to/thing", expectedURL},
+		{"[datastore1] path/to/thing", expectedURL},
+		{"[datastore1] ///path////to/thing", expectedURL},
+		{"[Datastore (1)] /path/to/thing", "ds://Datastore%20(1)/path/to/thing"},
+		{"[datastore1] path", "ds://datastore1/path"},
 	}
 
-	for _, in := range input {
-		u, err := DatastoreToURL(in)
+	dsoutputs := []string{
+		"[datastore1] /path/to/thing",
+		"[datastore1] path/to/thing",
+		"[datastore1] /path/to/thing",
+		"[Datastore (1)] /path/to/thing",
+		"[datastore1] path",
+	}
+
+	for i, in := range input {
+		u, err := DatastoreToURL(in[0])
+
 		if !assert.NoError(t, err) || !assert.NotNil(t, u) {
 			return
 		}
 
-		if !assert.Equal(t, expected, u.String()) {
+		if !assert.Equal(t, in[1], u.String()) {
 			return
 		}
 
@@ -151,7 +162,7 @@ func TestDatastoreToURLParsing(t *testing.T) {
 			return
 		}
 
-		if !assert.Equal(t, input[0], out) {
+		if !assert.Equal(t, dsoutputs[i], out) {
 			return
 		}
 	}

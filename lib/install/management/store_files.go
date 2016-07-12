@@ -193,42 +193,44 @@ func (d *Dispatcher) createVolumeStores(conf *metadata.VirtualContainerHostConfi
 }
 
 func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHostConfigSpec) {
-	if d.force {
-		for label, url := range conf.VolumeLocations {
-			// separate the host (datastore name) from the path in the provided path URL
-			pathComponents := strings.SplitN(url.Path, " ", 2)
-			if len(pathComponents) != 2 {
-				log.Warnf("Didn't receive an expected volume store path format: %s", url.Path)
-			}
-			log.Infof("Deleting volume store %s on Datastore %s at path %s", label, pathComponents[0], pathComponents[1])
-
-			// pathComponents[0] holds the datastore in format [foo] where foo is the name of the datastore. We need to pass just foo to DatastoreList
-			datastores, err := d.session.Finder.DatastoreList(d.ctx, pathComponents[0][1:len(pathComponents[0])-1])
-
-			if err != nil {
-				log.Errorf("Error finding datastore %s: %s", pathComponents[0], err)
-				continue
-			}
-			if len(datastores) != 1 {
-				foundDatastores := new(bytes.Buffer)
-				for _, d := range datastores {
-					foundDatastores.WriteString(fmt.Sprintf("\n%s\n", d))
-				}
-				log.Errorf("Ambiguous datastore name (%s) provided. Results were: %s", pathComponents[0], foundDatastores)
-				continue
-			}
-
-			datastore := datastores[0] // datastores are formatted as [foo] but we just want foo
-			if _, err := d.deleteDatastoreFiles(datastore, pathComponents[1], d.force); err != nil {
-				log.Errorf("Failed to delete volume store %s on Datastore %s at path %s", label, pathComponents[0], pathComponents[1])
-			}
-		}
-
-	} else { // user didn't specify --force so we're just going to print out some useful info for them
+	if !d.force {
 		volumeStores := new(bytes.Buffer)
 		for label, url := range conf.VolumeLocations {
 			volumeStores.WriteString(fmt.Sprintf("\t%s: %s\n", label, url.Path))
 		}
 		log.Warnf("Since --force was not specified, the following volume stores will not be removed. Use the vSphere UI to delete content you do not wish to keep.\n%s", volumeStores.String())
+		return
 	}
+
+	for label, url := range conf.VolumeLocations {
+		// FIXME: url is being encoded by the portlayer incorrectly, so we have to convert url.Path to the right url.URL object
+		log.Debugf("Provided datastore URL %s", url.Path)
+		dsURL, err := vsphere.DatastoreToURL(url.Path)
+		log.Debugf("Parsed volume store path %s", dsURL.Path)
+		if err != nil {
+			log.Warnf("Didn't receive an expected volume store path format: %s", url.Path)
+		}
+		log.Infof("Deleting volume store %s on Datastore %s at path %s", label, dsURL.Host, dsURL.Path)
+
+		datastores, err := d.session.Finder.DatastoreList(d.ctx, dsURL.Host)
+
+		if err != nil {
+			log.Errorf("Error finding datastore %s: %s", dsURL.Host, err)
+			continue
+		}
+		if len(datastores) != 1 {
+			foundDatastores := new(bytes.Buffer)
+			for _, d := range datastores {
+				foundDatastores.WriteString(fmt.Sprintf("\n%s\n", d))
+			}
+			log.Errorf("Ambiguous datastore name (%s) provided. Results were: %s", dsURL.Host, foundDatastores)
+			continue
+		}
+
+		datastore := datastores[0]
+		if _, err := d.deleteDatastoreFiles(datastore, dsURL.Path, d.force); err != nil {
+			log.Errorf("Failed to delete volume store %s on Datastore %s at path %s", label, dsURL.Host, dsURL.Path)
+		}
+	}
+
 }

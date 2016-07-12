@@ -305,24 +305,15 @@ func (d *Datastore) rootDir() string {
 }
 
 // Parse the datastore format ([datastore1] /path/to/thing) to groups.
-var datastoreFormat = regexp.MustCompile(`\[([\w\d]*)\]\ (.*)?`)
+var datastoreFormat = regexp.MustCompile(`^\[([\w\d\(\)\s]+)\]`)
+var pathFormat = regexp.MustCompile(`\s[\/\w]+$`)
 
 // Converts `[datastore] /path` to URL
 func DatastoreToURL(ds string) (*url.URL, error) {
-	matches := datastoreFormat.FindAllStringSubmatch(ds, -1)
-
-	if len(matches) != 1 || len(matches[0]) != 3 {
-		return nil, fmt.Errorf("invalid datastore format: %s", ds)
-	}
-
-	datastoreName := matches[0][1]
-	datastorePath := matches[0][2]
-
-	p := path.Join(datastoreName, datastorePath)
-	u, err := url.Parse("ds://" + p)
-	if err != nil {
-		return nil, err
-	}
+	u := new(url.URL)
+	u.Host = strings.TrimSuffix(strings.TrimPrefix(datastoreFormat.FindString(ds), "["), "]")
+	u.Path = path.Clean(strings.TrimSpace(pathFormat.FindString(ds)))
+	u.Scheme = "ds"
 
 	return u, nil
 }
@@ -333,6 +324,5 @@ func URLtoDatastore(u *url.URL) (string, error) {
 	if u.Scheme != scheme {
 		return "", fmt.Errorf("url (%s) is not a datastore", u.String())
 	}
-
 	return fmt.Sprintf("[%s] %s", u.Host, u.Path), nil
 }
