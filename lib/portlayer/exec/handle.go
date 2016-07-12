@@ -160,6 +160,10 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session) error {
 	return nil
 }
 
+func (h *Handle) Close() {
+	removeHandle(h.key)
+}
+
 func (h *Handle) SetState(s State) {
 	h.State = new(State)
 	*h.State = s
@@ -236,4 +240,16 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 
 	h.SetSpec(linux.Spec())
 	return nil
+}
+
+func (h *Handle) Update(ctx context.Context, sess *session.Session) (*metadata.ExecutorConfig, error) {
+	defer trace.End(trace.Begin("Handle.Create"))
+
+	ec, err := h.Container.Update(ctx, sess)
+	if err != nil {
+		return nil, err
+	}
+
+	h.ExecConfig = *ec
+	return ec, nil
 }

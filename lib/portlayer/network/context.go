@@ -442,12 +442,15 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		return nil, fmt.Errorf("nothing to bind")
 	}
 
-	con, ok := c.containers[exec.ParseID(h.Container.ExecConfig.ID)]
+	con, ok := c.containers[exec.ParseID(h.ExecConfig.ID)]
 	if ok {
-		return nil, fmt.Errorf("container %s already bound", h.Container.ExecConfig.ID)
+		return nil, fmt.Errorf("container %s already bound", h.ExecConfig.ID)
 	}
 
-	con = &Container{id: exec.ParseID(h.Container.ExecConfig.ID)}
+	con = &Container{
+		id:   exec.ParseID(h.ExecConfig.ID),
+		name: h.ExecConfig.Name,
+	}
 	for _, ne := range h.ExecConfig.Networks {
 		var s *Scope
 		s, ok := c.scopes[ne.Network.Name]
@@ -512,7 +515,7 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	containers[con.id] = con
 
 	tid := con.id.TruncateID()
-	cname := h.Container.ExecConfig.Common.Name
+	cname := h.ExecConfig.Common.Name
 
 	var key string
 	// network scoped entries
@@ -586,9 +589,9 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 	c.Lock()
 	defer c.Unlock()
 
-	con, ok := c.containers[exec.ParseID(h.Container.ExecConfig.ID)]
+	con, ok := c.containers[exec.ParseID(h.ExecConfig.ID)]
 	if !ok {
-		return ResourceNotFoundError{error: fmt.Errorf("container %s not found", h.Container.ExecConfig.ID)}
+		return ResourceNotFoundError{error: fmt.Errorf("container %s not found", h.ExecConfig.ID)}
 	}
 
 	var err error
@@ -625,10 +628,10 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 	var containers []exec.ID
 
 	// Removing long id, short id and common name from the map
-	containers = append(containers, exec.ParseID(h.Container.ExecConfig.ID))
+	containers = append(containers, exec.ParseID(h.ExecConfig.ID))
 
 	tid := con.id.TruncateID()
-	cname := h.Container.ExecConfig.Common.Name
+	cname := h.ExecConfig.Common.Name
 
 	var key string
 	// network scoped entries
@@ -860,7 +863,7 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 		return fmt.Errorf("handle is required")
 	}
 
-	if _, ok := c.containers[exec.ParseID(h.Container.ExecConfig.ID)]; ok {
+	if _, ok := c.containers[exec.ParseID(h.ExecConfig.ID)]; ok {
 		return fmt.Errorf("container is bound")
 	}
 
@@ -873,7 +876,7 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 	var ne *metadata.NetworkEndpoint
 	ne, ok := h.ExecConfig.Networks[s.Name()]
 	if !ok {
-		return fmt.Errorf("container %s not part of network %s", h.Container.ExecConfig.ID, s.Name())
+		return fmt.Errorf("container %s not part of network %s", h.ExecConfig.ID, s.Name())
 	}
 
 	// figure out if any other networks are using the NIC
@@ -959,6 +962,42 @@ func (c *Context) DeleteScope(name string) error {
 	}
 
 	delete(c.scopes, name)
+	return nil
+}
+
+func (c *Context) UpdateContainer(h *exec.Handle) error {
+	c.Lock()
+	defer c.Unlock()
+
+	con := c.containers[exec.ParseID(h.ExecConfig.ID)]
+	if con == nil {
+		return ResourceNotFoundError{}
+	}
+
+	for _, s := range con.Scopes() {
+		if !s.isDynamic() {
+			continue
+		}
+
+		ne := h.ExecConfig.Networks[s.Name()]
+		if ne == nil {
+			return fmt.Errorf("container config does not have info for network scope %s", s.Name())
+		}
+
+		e := con.Endpoint(s)
+		e.ip = ne.Assigned.IP
+		gw, snet, err := net.ParseCIDR(ne.Network.Gateway.String())
+		if err != nil {
+			return err
+		}
+
+		e.gateway = gw
+		e.subnet = *snet
+
+		s.gateway = gw
+		s.subnet = *snet
+	}
+
 	return nil
 }
 

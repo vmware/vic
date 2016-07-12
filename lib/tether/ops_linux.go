@@ -50,7 +50,7 @@ type BaseOperations struct {
 	hosts        etcconf.Hosts
 	resolvConf   etcconf.ResolvConf
 	dynEndpoints map[string][]*NetworkEndpoint
-	configSink   ConfigSink
+	config       Config
 }
 
 // NetLink gives us an interface to the netlink calls used so that
@@ -553,6 +553,9 @@ func (t *BaseOperations) dhcpLoop(stop chan bool, e *NetworkEndpoint, ack *dhcp.
 			}
 
 			t.Apply(e)
+			if err = t.config.UpdateNetworkEndpoint(e); err != nil {
+				log.Error(err)
+			}
 			// update any endpoints that share this NIC
 			for _, d := range t.dynEndpoints[e.ID] {
 				if e == d {
@@ -561,12 +564,12 @@ func (t *BaseOperations) dhcpLoop(stop chan bool, e *NetworkEndpoint, ack *dhcp.
 
 				d.DHCP = e.DHCP
 				t.Apply(d)
+				if err = t.config.UpdateNetworkEndpoint(d); err != nil {
+					log.Error(err)
+				}
 			}
 
-			// write new ip address to config
-			if err = t.configSink.WriteKey("guestinfo..init.networks|client.ip", e.Assigned); err != nil {
-				log.Error(err)
-			}
+			t.config.Flush()
 
 			exp = time.After(ack.LeaseTime() / 2)
 		}
@@ -658,7 +661,7 @@ func (t *BaseOperations) Fork() error {
 	return nil
 }
 
-func (t *BaseOperations) Setup(sink ConfigSink) error {
+func (t *BaseOperations) Setup(config Config) error {
 	c, err := client.NewClient()
 	if err != nil {
 		return err
@@ -701,7 +704,7 @@ func (t *BaseOperations) Setup(sink ConfigSink) error {
 	t.dhcpClient = c
 	t.hosts = h
 	t.resolvConf = rc
-	t.configSink = sink
+	t.config = config
 	return nil
 }
 

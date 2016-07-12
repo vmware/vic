@@ -19,6 +19,8 @@ import (
 	"net"
 	"net/http"
 
+	"golang.org/x/net/context"
+
 	log "github.com/Sirupsen/logrus"
 
 	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
@@ -29,6 +31,7 @@ import (
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/network"
 
+	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -85,15 +88,38 @@ func parseScopeConfig(cfg *models.ScopeConfig) (subnet *net.IPNet, gateway net.I
 	return
 }
 
-func listScopes(ctx *network.Context, idName string) ([]*models.ScopeConfig, error) {
-	_scopes, err := ctx.Scopes(&idName)
+func (handler *ScopesHandlersImpl) listScopes(idName string) ([]*models.ScopeConfig, error) {
+	_scopes, err := handler.netCtx.Scopes(&idName)
 	if err != nil {
 		return nil, err
 	}
 
 	cfgs := make([]*models.ScopeConfig, len(_scopes))
+	updated := make(map[exec.ID]*exec.Handle)
 	for i, s := range _scopes {
+		for _, e := range s.Endpoints() {
+			// update the container config, if necessary
+			var h *exec.Handle
+			c := e.Container().ID()
+			if h = updated[c]; h == nil {
+				h = exec.GetContainer(c)
+				if _, err := h.Update(context.Background(), handler.handlerCtx.Session); err != nil {
+					return nil, err
+				}
+
+				updated[c] = h
+			}
+
+			if err = handler.netCtx.UpdateContainer(h); err != nil {
+				return nil, err
+			}
+		}
+
 		cfgs[i] = toScopeConfig(s)
+	}
+
+	for _, h := range updated {
+		h.Close()
 	}
 
 	return cfgs, nil
@@ -147,7 +173,7 @@ func (handler *ScopesHandlersImpl) ScopesDelete(params scopes.DeleteScopeParams)
 func (handler *ScopesHandlersImpl) ScopesListAll() middleware.Responder {
 	defer trace.End(trace.Begin("ScopesListAll"))
 
-	cfgs, err := listScopes(handler.netCtx, "")
+	cfgs, err := handler.listScopes("")
 	if err != nil {
 		return scopes.NewListDefault(http.StatusServiceUnavailable).WithPayload(errorPayload(err))
 	}
@@ -158,7 +184,7 @@ func (handler *ScopesHandlersImpl) ScopesListAll() middleware.Responder {
 func (handler *ScopesHandlersImpl) ScopesList(params scopes.ListParams) middleware.Responder {
 	defer trace.End(trace.Begin("ScopesList"))
 
-	cfgs, err := listScopes(handler.netCtx, params.IDName)
+	cfgs, err := handler.listScopes(params.IDName)
 	if _, ok := err.(network.ResourceNotFoundError); ok {
 		return scopes.NewListNotFound().WithPayload(errorPayload(err))
 	}
@@ -259,12 +285,18 @@ func (handler *ScopesHandlersImpl) ScopesUnbindContainer(params scopes.UnbindCon
 
 func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
 	id := scope.ID()
-	subnet := scope.Subnet().String()
+
+	subnet := ""
+	if !ip.IsUnspecifiedIP(scope.Subnet().IP) {
+		subnet = scope.Subnet().String()
+	}
+
 	gateway := ""
 	if !scope.Gateway().IsUnspecified() {
 		gateway = scope.Gateway().String()
 	}
-	return &models.ScopeConfig{
+
+	sc := &models.ScopeConfig{
 		ID:        &id,
 		Name:      scope.Name(),
 		ScopeType: scope.Type(),
@@ -272,4 +304,29 @@ func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
 		Subnet:    &subnet,
 		Gateway:   &gateway,
 	}
+
+	if len(sc.IPAM) == 0 && len(subnet) != 0 {
+		// use subnet as pool
+		sc.IPAM = []string{subnet}
+	}
+
+	eps := scope.Endpoints()
+	sc.Endpoints = make([]*models.EndpointConfig, len(eps))
+	for i, e := range eps {
+		sc.Endpoints[i] = &models.EndpointConfig{
+			Gateway:   e.Gateway().String(),
+			ID:        e.ID(),
+			Name:      e.Container().Name(),
+			Network:   e.Scope().Name(),
+			Container: e.Container().ID().String(),
+		}
+
+		ip := e.IP()
+		if ip != nil {
+			addr := net.IPNet{IP: ip, Mask: e.Subnet().Mask}
+			sc.Endpoints[i].Address = addr.String()
+		}
+	}
+
+	return sc
 }

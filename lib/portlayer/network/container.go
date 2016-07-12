@@ -23,7 +23,8 @@ import (
 type Container struct {
 	sync.Mutex
 
-	id exec.ID
+	id   exec.ID
+	name string
 
 	endpoints []*Endpoint
 }
@@ -39,6 +40,10 @@ func (c *Container) Endpoints() []*Endpoint {
 
 func (c *Container) ID() exec.ID {
 	return c.id
+}
+
+func (c *Container) Name() string {
+	return c.name
 }
 
 func (c *Container) endpoint(s *Scope) *Endpoint {

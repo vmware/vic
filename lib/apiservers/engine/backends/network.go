@@ -49,7 +49,6 @@ func (n *Network) FindNetwork(idName string) (libnetwork.Network, error) {
 			return nil, derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
 
 		default:
-
 			return nil, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 		}
 	}
@@ -68,7 +67,6 @@ func (n *Network) GetNetworkByName(idName string) (libnetwork.Network, error) {
 			return nil, derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
 
 		default:
-
 			return nil, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 		}
 	}
@@ -350,24 +348,43 @@ func (n *network) Delete() error {
 
 // Endpoints returns the list of Endpoint(s) in this network.
 func (n *network) Endpoints() []libnetwork.Endpoint {
-	return nil
+	eps := make([]libnetwork.Endpoint, len(n.cfg.Endpoints))
+	for i, e := range n.cfg.Endpoints {
+		eps[i] = &endpoint{ep: e}
+	}
 
+	return eps
 }
 
 // WalkEndpoints uses the provided function to walk the Endpoints
 func (n *network) WalkEndpoints(walker libnetwork.EndpointWalker) {
-	return
+	for _, e := range n.cfg.Endpoints {
+		if walker(&endpoint{ep: e}) {
+			return
+		}
+	}
 }
 
 // EndpointByName returns the Endpoint which has the passed name. If not found, the error ErrNoSuchEndpoint is returned.
 func (n *network) EndpointByName(name string) (libnetwork.Endpoint, error) {
-	return nil, fmt.Errorf("not implemented")
+	for _, e := range n.cfg.Endpoints {
+		if e.Name == name {
+			return &endpoint{ep: e}, nil
+		}
+	}
 
+	return nil, fmt.Errorf("not found")
 }
 
 // EndpointByID returns the Endpoint which has the passed id. If not found, the error ErrNoSuchEndpoint is returned.
 func (n *network) EndpointByID(id string) (libnetwork.Endpoint, error) {
-	return nil, fmt.Errorf("not implemented")
+	for _, e := range n.cfg.Endpoints {
+		if e.ID == id {
+			return &endpoint{ep: e}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("not found")
 }
 
 // Return certain operational data belonging to this network
