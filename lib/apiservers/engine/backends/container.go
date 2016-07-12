@@ -245,7 +245,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	id := createResults.Payload.ID
 	h := createResults.Payload.Handle
 
-	log.Infof("Network Configuration Section - Container Create")
+	log.Debugf("Network Configuration Section - Container Create")
 	// configure networking
 	netConf := toModelsNetworkConfig(config)
 	if netConf != nil {
@@ -274,7 +274,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		h = addContRes.Payload
 	}
 	//Volume Attachment Section
-	msg, name, time := trace.Begin("Container.ContainerCreate - VolumeSection")
+	log.Debugf("Container.ContainerCreate - VolumeSection")
 	log.Debugf("Raw Volume arguments : binds:  %#v : volumes : %#v", config.HostConfig.Binds, config.Config.Volumes)
 	var joinList []volumeFields
 
@@ -305,7 +305,6 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		}
 		h = res.Payload
 	}
-	trace.End(msg, name, time)
 	// commit the create op
 	_, err = client.Containers.Commit(containers.NewCommitParams().WithHandle(h))
 	if err != nil {
