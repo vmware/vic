@@ -91,6 +91,7 @@ func (i *InteractionHandlersImpl) ContainerResizeHandler(params interaction.Cont
 
 	err = connContainer.Resize(cWidth, cHeight, 0, 0)
 	if err != nil {
+		log.Errorf("InteractionHandler (%s) error: %s", params.ID, err.Error())
 		return interaction.NewContainerResizeInternalServerError()
 	}
 

@@ -164,7 +164,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	if err != nil {
 		// if no image found then error thrown and a pull
 		// will be initiated by the docker client
-		log.Errorf("ContainerCreate: image not found %s", config.Config.Image)
+		log.Errorf("ContainerCreate: image %s error: %s", config.Config.Image, err.Error())
 		return types.ContainerCreateResponse{}, err
 	}
 
