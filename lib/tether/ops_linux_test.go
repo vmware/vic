@@ -182,7 +182,7 @@ func TestSlotToPciPath(t *testing.T) {
 	}
 }
 
-func (t *Mocker) Setup(sink ConfigSink) error {
+func (t *Mocker) Setup(sink Config) error {
 	f, err := ioutil.TempFile("", "vic_hosts")
 	if err != nil {
 		return err
