@@ -295,8 +295,9 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		//NOTE: for now we are passing the flags directly through. This is NOT SAFE and only a stop gap.
 		flags["Mode"] = fields.VolumeFlags
 		joinParams := storage.NewVolumeJoinParams().WithJoinArgs(&models.VolumeJoinConfig{
-			Flags:  flags,
-			Handle: h,
+			Flags:     flags,
+			Handle:    h,
+			MountPath: fields.VolumeDest,
 		}).WithName(fields.VolumeID)
 
 		res, err := client.Storage.VolumeJoin(joinParams)

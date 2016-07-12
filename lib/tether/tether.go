@@ -24,6 +24,8 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/net/context"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/vmware/vic/lib/metadata"
@@ -183,6 +185,18 @@ func (t *tether) Start() error {
 			}
 		}
 		extraconfig.Encode(t.sink, t.config)
+
+		//process the filesystem mounts - this is performed after networks to allow for network mounts
+		for k, v := range t.config.Mounts {
+			if v.Source.Scheme != "label" {
+				detail := fmt.Sprintf("unsupported volume mount type for %s: %s", k, v.Source.Scheme)
+				log.Error(detail)
+				return errors.New(detail)
+			}
+
+			// this could block indefinitely while waiting for a volume to present
+			t.ops.MountLabel(v.Source.Path, v.Path, context.Background())
+		}
 
 		// process the sessions and launch if needed
 		for id, session := range t.config.Sessions {

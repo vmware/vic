@@ -27,21 +27,19 @@ import (
 	"golang.org/x/net/context"
 )
 
-func VolumeJoin(ctx context.Context, handle *exec.Handle, volume *storage.Volume, diskOpts map[string]string) (*exec.Handle, error) {
+func VolumeJoin(ctx context.Context, handle *exec.Handle, volume *storage.Volume, mountPath string, diskOpts map[string]string) (*exec.Handle, error) {
 	defer trace.End(trace.Begin("vsphere.VolumeJoin"))
 
 	if _, ok := handle.ExecConfig.Mounts[volume.ID]; ok {
 		return nil, fmt.Errorf("Volume with ID %s is already in container %s's mountspec'", volume.ID, handle.Container.ID)
 	}
 
-	//TODO: populate the mode field of the MountSpec from the diskOpts(rw/ro)
-	diskPath := volume.Device.DiskPath()
 	newMountSpec := metadata.MountSpec{
 		Source: url.URL{
 			Scheme: "label",
 			Host:   volume.Label,
 		},
-		Path: diskPath,
+		Path: mountPath,
 		Mode: diskOpts["Mode"],
 	}
 

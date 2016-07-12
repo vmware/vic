@@ -1061,9 +1061,12 @@ definitions:
     type: object
     required:
       - Handle
+      - MountPath
       - Flags
     properties:
       Handle:
+        type: string
+      MountPath:
         type: string
       Flags:
         type: object
