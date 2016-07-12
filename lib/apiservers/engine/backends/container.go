@@ -17,7 +17,6 @@ package vicbackends
 import (
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -155,9 +154,9 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 
 	// bail early if container name already exists
 	if exists := cache.ContainerCache().GetContainer(config.Name); exists != nil {
-		return types.ContainerCreateResponse{},
-			derr.NewErrorWithStatusCode(fmt.Errorf("Conflict. The name \"%s\" is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", config.Name, exists.ContainerID),
-				http.StatusConflict)
+		err := fmt.Errorf("Conflict. The name \"%s\" is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", config.Name, exists.ContainerID)
+		log.Errorf("%s", err.Error())
+		return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(err, http.StatusConflict)
 	}
 
 	// get the image from the cache
@@ -165,6 +164,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	if err != nil {
 		// if no image found then error thrown and a pull
 		// will be initiated by the docker client
+		log.Errorf("ContainerCreate: image %s error: %s", config.Config.Image, err.Error())
 		return types.ContainerCreateResponse{}, err
 	}
 
@@ -225,7 +225,9 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	// transfer port layer swagger based response to Docker backend data structs and return to the REST front-end
 	if err != nil {
 		if _, ok := err.(*containers.CreateNotFound); ok {
-			return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", container.ID))
+			err = fmt.Errorf("No such image: %s", container.ID)
+			log.Errorf(err.Error())
+			return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(err)
 		}
 
 		// If we get here, most likely something went wrong with the port layer API server
@@ -246,6 +248,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 			}))
 
 		if err != nil {
+			log.Errorf("ContainerCreate: Scopes error: %s", err.Error())
 			return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 		}
 
@@ -265,10 +268,12 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	// commit the create op
 	_, err = client.Containers.Commit(containers.NewCommitParams().WithHandle(h))
 	if err != nil {
+		err = fmt.Errorf("No such image: %s", container.ID)
+		log.Errorf("%s", err.Error())
 		// FIXME: Containers.Commit returns more errors than it's swagger spec says.
 		// When no image exist, it also sends back non swagger errors.  We should fix
 		// this once Commit returns correct error codes.
-		return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", container.ID))
+		return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(err)
 	}
 
 	// Container created ok, overwrite the container params in the container store as
@@ -727,16 +732,6 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 		return derr.NewErrorWithStatusCode(fmt.Errorf("Unable to get stdio streams for calling client"), http.StatusInternalServerError)
 	}
 
-	if !ca.UseStdin {
-		clStdin = nil
-	}
-	if !ca.UseStdout {
-		clStdout = nil
-	}
-	if !ca.UseStderr {
-		clStderr = nil
-	}
-
 	if !vc.Config.Tty && ca.MuxStreams {
 		// replace the stdout/stderr with Docker's multiplex stream
 		if ca.UseStdout {
@@ -747,7 +742,7 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 		}
 	}
 
-	err = attachStreams(vc.ContainerID, vc.Config.Tty, vc.Config.StdinOnce, clStdin, clStdout, clStderr, ca.DetachKeys)
+	err = attachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
 
 	return err
 }
@@ -1209,198 +1204,174 @@ func networkFromContainerInfo(id string, info *models.ContainerInfo) *types.Netw
 
 // attacheStreams takes the the hijacked connections from the calling client and attaches
 // them to the 3 streams from the portlayer's rest server.
-// name is the container id
-// tty indicates whether we should use Docker's copyescapable for stdin
-// stdinOnce indicates whether to close the stdin at the container when we finish (we don't handle this but still need to check)
 // clStdin, clStdout, clStderr are the hijacked connection
-// keys are the keys that are used for detaching streams without closing them
-func attachStreams(name string, tty, stdinOnce bool, clStdin io.ReadCloser, clStdout, clStderr io.Writer, keys []byte) error {
-	var wg sync.WaitGroup
+func attachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error {
+	defer clStdin.Close()
 
+	// Cancel will close the child connections.
+	ctx, cancel := context.WithCancel(ctx)
+
+	var wg sync.WaitGroup
 	errors := make(chan error, 3)
+
 	//FIXME: Swagger will timeout on us.  We need to either have an infinite timeout or the timeout should
 	// start after some inactivity?
-	inContext, inCancel := context.WithTimeout(context.Background(), attachRequestTimeout)
-	outContext, outCancel := context.WithTimeout(context.Background(), attachRequestTimeout)
-	errContext, errCancel := context.WithTimeout(context.Background(), attachRequestTimeout)
 
-	if clStdin != nil {
+	// For stdin, we only have a timeout for connection.  There can be a long duration before
+	// the first entry so there is no timeout for attempt.
+	plClient, transport := createNewAttachClientWithTimeouts(attachConnectTimeout, 0, 0)
+	defer transport.Close()
+
+	if ca.UseStdin {
 		wg.Add(1)
-		// Pipe for stdin so we can interject and watch the input streams for detach keys.
-		stdinReader, stdinWriter := io.Pipe()
-
-		defer clStdin.Close()
-		defer stdinReader.Close()
-
-		// For stdin, we only have a timeout for connection.  There can be a long duration before
-		// the first entry so there is no timeout for attempt.
-		plClient, transport := createNewAttachClientWithTimeouts(attachConnectTimeout, 0, 0)
-		defer transport.Close()
-
-		// Swagger wants an io.reader so give it the reader pipe.  Also, the swagger call
-		// to set the stdin is synchronous so we need to run in a goroutine
 		go func() {
-			setStdinParams := interaction.NewContainerSetStdinParamsWithContext(inContext).WithID(name)
-			setStdinParams = setStdinParams.WithRawStream(stdinReader)
-			_, err := plClient.Interaction.ContainerSetStdin(setStdinParams)
-
-			if err != nil {
-				if netErr, ok := err.(net.Error); ok {
-					if netErr.Timeout() {
-						log.Errorf("Net timeout for container stdin")
-					} else {
-						log.Errorf("Net error for container stdin: %s", netErr.Error())
-					}
-				}
-			}
-		}()
-
-		// Copy the stdin from the CLI and write to a pipe.  We need to do this so we can
-		// watch the stdin stream for the detach keys.
-		go func() {
-			var err error
 			defer wg.Done()
-
-			if tty {
-				_, err = copyEscapable(stdinWriter, clStdin, keys)
-			} else {
-				_, err = io.Copy(stdinWriter, clStdin)
-			}
-
+			err := copyStdIn(ctx, plClient, vc, clStdin, ca.DetachKeys)
 			if err != nil {
-				log.Errorf(err.Error())
+				log.Errorf("container attach: stdin (%s): %s", vc.ContainerID, err.Error())
+			} else {
+				log.Infof("container attach: stdin (%s) done: %s", vc.ContainerID)
 			}
+
+			cancel()
 			errors <- err
+		}()
+	}
 
-			if stdinOnce && !tty {
-				// Close the stdin connection.  Mimicing Docker's behavior.
-				// FIXME: If we close this stdin connection.  The portlayer does
-				// not really close stdin.  This is diff from current Docker
-				// behavior.  However, we're not sure why Docker even has this
-				// behavior where you connect to stdin on the first time only.
-				// If we really want to add this behavior, we need to add support
-				// in the ssh tether in the portlayer.
-				log.Errorf("Attach stream has stdinOnce set.  VIC does not yet support this.")
+	if ca.UseStdout {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := copyStdOut(ctx, plClient, vc, clStdout)
+			if err != nil {
+				log.Errorf("container attach: stdout (%s): %s", vc.ContainerID, err.Error())
 			} else {
-				// Shutdown the client's request for stdout, stderr
-				errCancel()
-				outCancel()
+				log.Infof("container attach: stdout (%s) done: %s", vc.ContainerID)
 			}
+
+			cancel()
+			errors <- err
 		}()
 	}
 
-	if clStdout != nil {
+	if ca.UseStderr {
 		wg.Add(1)
-
-		// Use a portlayer client that has timeouts for connection and attempt.  We use this so we
-		// can timeout if data doesn't arrive from the stdout stream within a duration.  We only do
-		// this for stdout.  Stdin and stderr does not need an attempt timeout since input and error
-		// can have a longer delay.
-		plClient, transport := createNewAttachClientWithTimeouts(attachConnectTimeout, 0, attachAttemptTimeout)
-		defer transport.Close()
-
-		// Swagger -> pipewriter.  Synchronous, blocking call
 		go func() {
 			defer wg.Done()
-			getStdoutParams := interaction.NewContainerGetStdoutParamsWithContext(outContext).WithID(name)
-			_, err := plClient.Interaction.ContainerGetStdout(getStdoutParams, clStdout)
-			if clStdin != nil {
-				// Close the client stdin connection (e.g. CLI)
-				clStdin.Close()
-				inCancel()
-			}
+			err := copyStdErr(ctx, plClient, vc, clStderr)
 			if err != nil {
-				if _, ok := err.(*interaction.ContainerGetStdoutNotFound); ok {
-					errors <- derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
-					return
-				}
-				if _, ok := err.(*interaction.ContainerGetStdoutInternalServerError); ok {
-					errors <- derr.NewErrorWithStatusCode(fmt.Errorf("Server error from the interaction port layer: %s", err),
-						http.StatusInternalServerError)
-					return
-				}
-
-				// If we get here, most likely something went wrong with the port layer API server.
-				// These errors originate within the go-swagger client itself.
-				// Go-swagger returns untyped errors to us if the error is not one that we define
-				// in the swagger spec.  Even EOF.  Therefore, we must scan the error string (if there
-				// is an error string in the untyped error) for the term EOF.
-				unknownErrMsg := fmt.Errorf("Unknown error from the interaction port layer: %s", err)
-				if strings.Contains(unknownErrMsg.Error(), swaggerSubstringEOF) {
-					log.Info("Detected EOF from swagger, detaching all streams...")
-					inCancel()
-					errCancel()
-				}
-				errors <- derr.NewErrorWithStatusCode(unknownErrMsg, http.StatusInternalServerError)
-				return
+				log.Errorf("container attach: stderr (%s): %s", vc.ContainerID, err.Error())
+			} else {
+				log.Infof("container attach: stderr (%s) done: %s", vc.ContainerID)
 			}
 
-			errors <- nil
+			cancel()
+			errors <- err
 		}()
 	}
-
-	if clStderr != nil {
-		wg.Add(1)
-		// For stderr, we only have a timeout for connection.  There can be a long duration before
-		// the first error so there is no timeout for attempt.
-		plClient, transport := createNewAttachClientWithTimeouts(attachConnectTimeout, 0, 0)
-		defer transport.Close()
-
-		// Swagger -> pipewriter.  Synchronous, blocking call
-		go func() {
-			defer wg.Done()
-			getStderrParams := interaction.NewContainerGetStderrParamsWithContext(errContext).WithID(name)
-			_, err := plClient.Interaction.ContainerGetStderr(getStderrParams, clStderr)
-			if clStdin != nil {
-				// Close the client stdin connection (e.g. CLI)
-				clStdin.Close()
-				inCancel()
-			}
-			if err != nil {
-				if _, ok := err.(*interaction.ContainerGetStderrNotFound); ok {
-					errors <- derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
-					return
-				}
-				if _, ok := err.(*interaction.ContainerGetStderrInternalServerError); ok {
-					errors <- derr.NewErrorWithStatusCode(fmt.Errorf("Server error from the interaction port layer: %s", err),
-						http.StatusInternalServerError)
-					return
-				}
-
-				// If we get here, most likely something went wrong with the port layer API server
-				// These errors originate within the go-swagger client itself.
-				// Go-swagger returns untyped errors to us if the error is not one that we define
-				// in the swagger spec.  Even EOF.  Therefore, we must scan the error string (if there
-				// is an error string in the untyped error) for the term EOF.
-				unknownErrMsg := fmt.Errorf("Unknown error from the interaction port layer: %s", err)
-				if strings.Contains(unknownErrMsg.Error(), swaggerSubstringEOF) {
-					log.Info("Detected EOF from swagger, detaching all streams...")
-					inCancel()
-					outCancel()
-				}
-				errors <- derr.NewErrorWithStatusCode(unknownErrMsg, http.StatusInternalServerError)
-				return
-			}
-
-			errors <- nil
-		}()
-	}
-
-	//	go func() {
-	//		select {
-	//			case <- attachContext.Done()
-	//		}
-	//	}()
 
 	// Wait for all stream copy to exit
 	wg.Wait()
-	log.Debugf("Attach stream closed")
-	defer close(errors)
+
+	log.Infof("container attach:  cleaned up connections to %s.", vc.ContainerID)
 	for err := range errors {
 		if err != nil {
+			// If we get here, most likely something went wrong with the port layer API server
+			// These errors originate within the go-swagger client itself.
+			// Go-swagger returns untyped errors to us if the error is not one that we define
+			// in the swagger spec.  Even EOF.  Therefore, we must scan the error string (if there
+			// is an error string in the untyped error) for the term EOF.
+
+			log.Errorf("container attach error: %s", err.Error())
+
 			return err
 		}
 	}
+
+	return nil
+}
+
+func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, clStdin io.ReadCloser, keys []byte) error {
+	// Pipe for stdin so we can interject and watch the input streams for detach keys.
+	stdinReader, stdinWriter := io.Pipe()
+
+	defer stdinWriter.Close()
+
+	go func() {
+		defer stdinReader.Close()
+		// Copy the stdin from the CLI and write to a pipe.  We need to do this so we can
+		// watch the stdin stream for the detach keys.
+		var err error
+		if vc.Config.Tty {
+			_, err = copyEscapable(stdinWriter, clStdin, keys)
+		} else {
+			_, err = io.Copy(stdinWriter, clStdin)
+		}
+
+		if err != nil {
+			log.Errorf("container attach: stdin err: %s", err.Error())
+		}
+	}()
+
+	// Swagger wants an io.reader so give it the reader pipe.  Also, the swagger call
+	// to set the stdin is synchronous so we need to run in a goroutine
+	setStdinParams := interaction.NewContainerSetStdinParamsWithContext(ctx).WithID(vc.ContainerID)
+	setStdinParams = setStdinParams.WithRawStream(stdinReader)
+	_, err := pl.Interaction.ContainerSetStdin(setStdinParams)
+
+	if vc.Config.StdinOnce && !vc.Config.Tty {
+		// Close the stdin connection.  Mimicing Docker's behavior.
+		// FIXME: If we close this stdin connection.  The portlayer does
+		// not really close stdin.  This is diff from current Docker
+		// behavior.  However, we're not sure why Docker even has this
+		// behavior where you connect to stdin on the first time only.
+		// If we really want to add this behavior, we need to add support
+		// in the tether in the portlayer.
+		log.Errorf("Attach stream has stdinOnce set.  VIC does not yet support this.")
+	}
+	return err
+}
+
+func copyStdOut(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, clStdout io.Writer) error {
+	name := vc.ContainerID
+	getStdoutParams := interaction.NewContainerGetStdoutParamsWithContext(ctx).WithID(name)
+	_, err := pl.Interaction.ContainerGetStdout(getStdoutParams, clStdout)
+	if err != nil {
+		if _, ok := err.(*interaction.ContainerGetStdoutNotFound); ok {
+			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
+		}
+
+		if _, ok := err.(*interaction.ContainerGetStdoutInternalServerError); ok {
+			return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from the interaction port layer"),
+				http.StatusInternalServerError)
+		}
+
+		unknownErrMsg := fmt.Errorf("Unknown error from the interaction port layer: %s", err)
+		return derr.NewErrorWithStatusCode(unknownErrMsg, http.StatusInternalServerError)
+	}
+
+	return nil
+}
+
+func copyStdErr(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, clStderr io.Writer) error {
+	name := vc.ContainerID
+	getStderrParams := interaction.NewContainerGetStderrParamsWithContext(ctx).WithID(name)
+	_, err := pl.Interaction.ContainerGetStderr(getStderrParams, clStderr)
+
+	if err != nil {
+		if _, ok := err.(*interaction.ContainerGetStderrNotFound); ok {
+			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
+		}
+
+		if _, ok := err.(*interaction.ContainerGetStderrInternalServerError); ok {
+			return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from the interaction port layer"),
+				http.StatusInternalServerError)
+		}
+
+		unknownErrMsg := fmt.Errorf("Unknown error from the interaction port layer: %s", err)
+		return derr.NewErrorWithStatusCode(unknownErrMsg, http.StatusInternalServerError)
+	}
+
 	return nil
 }
 
