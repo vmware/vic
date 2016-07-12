@@ -287,7 +287,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	container.Name = config.Name
 
 	log.Debugf("Container create: %#v", container)
-	cache.ContainerCache().SaveContainer(container)
+	cache.ContainerCache().AddContainer(container)
 
 	// Success!
 	log.Debugf("container.ContainerCreate succeeded.  Returning container handle %s", *createResults.Payload)
@@ -405,6 +405,9 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		}
 		return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer"), http.StatusInternalServerError)
 	}
+	// delete container from the cache
+	cache.ContainerCache().DeleteContainer(name)
+
 	return nil
 }
 
