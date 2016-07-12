@@ -486,13 +486,15 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			}
 		}
 		ne.Network.Gateway = net.IPNet{IP: e.gateway, Mask: e.subnet.Mask}
-		if !defaultMarked && e.Scope().Type() == bridgeScopeType {
+
+		// mark the external network as default
+		if !defaultMarked && e.Scope().Type() == externalScopeType {
 			defaultMarked = true
 			ne.Network.Default = true
 		}
 	}
 
-	// FIXME: if there was no bridge network to mark as default,
+	// FIXME: if there was no external network to mark as default,
 	// then just pick the first network to mark as default
 	if !defaultMarked {
 		defaultMarked = true
@@ -767,7 +769,19 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 
 	if h.ExecConfig.Networks != nil {
 		if _, ok := h.ExecConfig.Networks[s.Name()]; ok {
+			// already part of this scope
 			return DuplicateResourceError{}
+		}
+
+		// check if container is already part of an "external" scope;
+		// only one "external" scope per container is allowed
+		if s.Type() == externalScopeType {
+			for name := range h.ExecConfig.Networks {
+				sc, _ := c.resolveScope(name)
+				if sc.Type() == externalScopeType {
+					return fmt.Errorf("container can only be added to at most one mapped network")
+				}
+			}
 		}
 	}
 
