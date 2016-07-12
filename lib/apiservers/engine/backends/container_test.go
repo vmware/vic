@@ -22,7 +22,7 @@ import (
 
 func TestProcessVolumeParams(t *testing.T) {
 	rawTestVolumes := []string{"/blah", "testVolume:/mount", "testVolume:/mount/path:r"}
-	processedTestVolumes := make([]volumeFields, 0)
+	var processedTestVolumes []volumeFields
 
 	for _, testString := range rawTestVolumes {
 		processedFields, err := processVolumeParam(testString)
@@ -46,7 +46,7 @@ func TestProcessVolumeParams(t *testing.T) {
 
 func TestProcessSpecifiedVolumes(t *testing.T) {
 	rawTestVolumes := []string{"masterVolume:/blah", "testVolume:/mount:r", "specVol:/mount/path:r"}
-	processedTestVolumes := make([]volumeFields, 0)
+	var processedTestVolumes []volumeFields
 
 	processedFields, err := processSpecifiedVolumes(rawTestVolumes)
 	assert.Nil(t, err)
@@ -65,5 +65,4 @@ func TestProcessSpecifiedVolumes(t *testing.T) {
 	assert.Equal(t, "testVolume", processedTestVolumes[2].VolumeID)
 	assert.Equal(t, "/mount/path", processedTestVolumes[2].VolumeDest)
 	assert.Equal(t, "r", processedTestVolumes[2].VolumeFlags)
-
 }

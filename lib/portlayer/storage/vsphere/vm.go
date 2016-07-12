@@ -31,7 +31,7 @@ func VolumeJoin(ctx context.Context, handle *exec.Handle, volume *storage.Volume
 	defer trace.End(trace.Begin("vsphere.VolumeJoin"))
 
 	if _, ok := handle.ExecConfig.Mounts[volume.ID]; ok {
-		return nil, fmt.Errorf("Volume with ID %s is already in container %s's mountspec'", volume.ID, handle.Container.ID)
+		return nil, fmt.Errorf("Volume with ID %s is already in container %s's mountspec'", volume.ID, handle.Container.ExecConfig.ID)
 	}
 
 	newMountSpec := metadata.MountSpec{
