@@ -60,9 +60,9 @@ type Container struct {
 }
 
 type volumeFields struct {
-	VolumeID    string
-	VolumeDest  string
-	VolumeFlags string
+	ID    string
+	Dest  string
+	Flags string
 }
 
 const (
@@ -150,8 +150,8 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	var err error
 
 	//TODO: validate the config parameters
-	log.Printf("Image fetch section - Container Create")
-	log.Printf("config.Config = %+v", config.Config)
+	log.Debugf("Image fetch section - Container Create")
+	log.Debugf("config.Config = %+v", config.Config)
 	// Get an API client to the portlayer
 	client := PortLayerClient()
 	if client == nil {
@@ -220,7 +220,6 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(fmt.Errorf("No command specified"))
 	}
 
-	log.Printf("ContainerCreate config' = %+v", config)
 	// Call the Exec port layer to create the container
 	host, err := guest.UUID()
 	if err != nil {
@@ -276,7 +275,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	}
 	//Volume Attachment Section
 	msg, name, time := trace.Begin("Container.ContainerCreate - VolumeSection")
-	log.Infof("Raw Volume arguments : binds:  %#v : volumes : %#v", config.HostConfig.Binds, config.Config.Volumes)
+	log.Debugf("Raw Volume arguments : binds:  %#v : volumes : %#v", config.HostConfig.Binds, config.Config.Volumes)
 	var joinList []volumeFields
 
 	joinList, err = processAnonymousVolumes(&h, config.Config.Volumes, client)
@@ -293,12 +292,12 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	for _, fields := range joinList {
 		flags := make(map[string]string)
 		//NOTE: for now we are passing the flags directly through. This is NOT SAFE and only a stop gap.
-		flags["Mode"] = fields.VolumeFlags
+		flags["Mode"] = fields.Flags
 		joinParams := storage.NewVolumeJoinParams().WithJoinArgs(&models.VolumeJoinConfig{
 			Flags:     flags,
 			Handle:    h,
-			MountPath: fields.VolumeDest,
-		}).WithName(fields.VolumeID)
+			MountPath: fields.Dest,
+		}).WithName(fields.ID)
 
 		res, err := client.Storage.VolumeJoin(joinParams)
 		if err != nil {
@@ -1474,26 +1473,30 @@ func clientFriendlyContainerName(name string) string {
 	return fmt.Sprintf("/%s", name)
 }
 
+//This function is used to turn any call from docker create -v <stuff> into a volumeFields object.
+//the -v has 3 forms. 1: -v <anonymouse mount path>, -v <Volume Name>:<Destination Mount Path>, and -v <Volume Name>:<Destination Mount Path>:<mount flags>
 func processVolumeParam(volString string) (volumeFields, error) {
 	volumeStrings := strings.Split(volString, ":")
 	fields := volumeFields{}
+
+	//This switch determines which type of -v was invoked.
 	switch len(volumeStrings) {
 	case 1:
 		VolumeID, err := uuid.NewUUID()
 		if err != nil {
 			return volumeFields{}, nil
 		}
-		fields.VolumeID = VolumeID.String()
-		fields.VolumeDest = volumeStrings[0]
-		fields.VolumeFlags = "rw"
+		fields.ID = VolumeID.String()
+		fields.Dest = volumeStrings[0]
+		fields.Flags = "rw"
 	case 2:
-		fields.VolumeID = volumeStrings[0]
-		fields.VolumeDest = volumeStrings[1]
-		fields.VolumeFlags = "rw"
+		fields.ID = volumeStrings[0]
+		fields.Dest = volumeStrings[1]
+		fields.Flags = "rw"
 	case 3:
-		fields.VolumeID = volumeStrings[0]
-		fields.VolumeDest = volumeStrings[1]
-		fields.VolumeFlags = volumeStrings[2]
+		fields.ID = volumeStrings[0]
+		fields.Dest = volumeStrings[1]
+		fields.Flags = volumeStrings[2]
 	default:
 		//NOTE: the docker cli should cover this case. This is here for posterity.
 		return volumeFields{}, fmt.Errorf("Volume bind input is invalid : -v %s", volString)
@@ -1508,23 +1511,23 @@ func processAnonymousVolumes(h *string, volumes map[string]struct{}, client *cli
 		fields, err := processVolumeParam(v)
 		log.Infof("Processed Volume arguments : %#v", fields)
 		if err != nil {
-			return volumeFields, err
+			return nil, err
 		}
 		//NOTE: This should be the guard for the case of an anonymous volume.
 		//NOTE: we should not expect any driver args if the drive is anonymous.
-		log.Infof("anonymous volume being created - Container Create - volume mount section")
+		log.Infof("anonymous volume being created - Container Create - volume mount section ID: %s ", fields.ID)
 		metadata := make(map[string]string)
-		metadata["flags"] = fields.VolumeFlags
+		metadata["flags"] = fields.Flags
 		volumeRequest := models.VolumeRequest{
 			Capacity: -1,
 			Driver:   "vsphere",
 			Store:    "default",
-			Name:     fields.VolumeID,
+			Name:     fields.ID,
 			Metadata: metadata,
 		}
 		_, err = client.Storage.CreateVolume(storage.NewCreateVolumeParams().WithVolumeRequest(&volumeRequest))
 		if err != nil {
-			return volumeFields, err
+			return nil, err
 		}
 		volumeFields = append(volumeFields, fields)
 	}

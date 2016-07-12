@@ -31,17 +31,17 @@ func TestProcessVolumeParams(t *testing.T) {
 	}
 	assert.Equal(t, 3, len(processedTestVolumes))
 
-	assert.NotEmpty(t, processedTestVolumes[0].VolumeID)
-	assert.Equal(t, "/blah", processedTestVolumes[0].VolumeDest)
-	assert.Equal(t, "rw", processedTestVolumes[0].VolumeFlags)
+	assert.NotEmpty(t, processedTestVolumes[0].ID)
+	assert.Equal(t, "/blah", processedTestVolumes[0].Dest)
+	assert.Equal(t, "rw", processedTestVolumes[0].Flags)
 
-	assert.Equal(t, "testVolume", processedTestVolumes[1].VolumeID)
-	assert.Equal(t, "/mount", processedTestVolumes[1].VolumeDest)
-	assert.Equal(t, "rw", processedTestVolumes[1].VolumeFlags)
+	assert.Equal(t, "testVolume", processedTestVolumes[1].ID)
+	assert.Equal(t, "/mount", processedTestVolumes[1].Dest)
+	assert.Equal(t, "rw", processedTestVolumes[1].Flags)
 
-	assert.Equal(t, "testVolume", processedTestVolumes[2].VolumeID)
-	assert.Equal(t, "/mount/path", processedTestVolumes[2].VolumeDest)
-	assert.Equal(t, "r", processedTestVolumes[2].VolumeFlags)
+	assert.Equal(t, "testVolume", processedTestVolumes[2].ID)
+	assert.Equal(t, "/mount/path", processedTestVolumes[2].Dest)
+	assert.Equal(t, "r", processedTestVolumes[2].Flags)
 }
 
 func TestProcessSpecifiedVolumes(t *testing.T) {
@@ -54,15 +54,15 @@ func TestProcessSpecifiedVolumes(t *testing.T) {
 
 	assert.Len(t, processedFields, 3)
 
-	assert.Equal(t, "masterVolume", processedTestVolumes[0].VolumeID)
-	assert.Equal(t, "/blah", processedTestVolumes[0].VolumeDest)
-	assert.Equal(t, "rw", processedTestVolumes[0].VolumeFlags)
+	assert.Equal(t, "masterVolume", processedTestVolumes[0].ID)
+	assert.Equal(t, "/blah", processedTestVolumes[0].Dest)
+	assert.Equal(t, "rw", processedTestVolumes[0].Flags)
 
-	assert.Equal(t, "testVolume", processedTestVolumes[1].VolumeID)
-	assert.Equal(t, "/mount", processedTestVolumes[1].VolumeDest)
-	assert.Equal(t, "r", processedTestVolumes[1].VolumeFlags)
+	assert.Equal(t, "testVolume", processedTestVolumes[1].ID)
+	assert.Equal(t, "/mount", processedTestVolumes[1].Dest)
+	assert.Equal(t, "r", processedTestVolumes[1].Flags)
 
-	assert.Equal(t, "testVolume", processedTestVolumes[2].VolumeID)
-	assert.Equal(t, "/mount/path", processedTestVolumes[2].VolumeDest)
-	assert.Equal(t, "r", processedTestVolumes[2].VolumeFlags)
+	assert.Equal(t, "testVolume", processedTestVolumes[2].ID)
+	assert.Equal(t, "/mount/path", processedTestVolumes[2].Dest)
+	assert.Equal(t, "r", processedTestVolumes[2].Flags)
 }
