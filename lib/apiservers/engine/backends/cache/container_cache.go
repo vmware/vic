@@ -48,44 +48,54 @@ func ContainerCache() *CCache {
 	return containerCache
 }
 
-func (cc *CCache) GetContainer(nameOrID string) *container.VicContainer {
-	cc.m.RLock()
-	defer cc.m.RUnlock()
-
+func (cc *CCache) getContainer(nameOrID string) *container.VicContainer {
 	// get the full ID if we only have a prefix
 	if cid, err := cc.idIndex.Get(nameOrID); err == nil {
 		nameOrID = cid
 	}
 
-	if container := cc.getContainerByID(nameOrID); container != nil {
+	if container, exist := cc.containersByID[nameOrID]; exist {
 		return container
 	}
 
-	return cc.getContainerByName(nameOrID)
-}
-
-func (cc *CCache) getContainerByID(id string) *container.VicContainer {
-	if container, exist := cc.containersByID[id]; exist {
+	if container, exist := cc.containersByName[nameOrID]; exist {
 		return container
 	}
 	return nil
 }
 
-func (cc *CCache) getContainerByName(name string) *container.VicContainer {
-	if container, exist := cc.containersByName[name]; exist {
-		return container
-	}
-	return nil
+func (cc *CCache) GetContainer(nameOrID string) *container.VicContainer {
+	cc.m.RLock()
+	defer cc.m.RUnlock()
+
+	return cc.getContainer(nameOrID)
 }
 
-func (cc *CCache) SaveContainer(container *container.VicContainer) {
+func (cc *CCache) AddContainer(container *container.VicContainer) {
 	cc.m.Lock()
 	defer cc.m.Unlock()
 
 	// TODO(jzt): this probably shouldn't assume a valid container ID
 	if err := cc.idIndex.Add(container.ContainerID); err != nil {
-		log.Warnf("Error inserting ID into index: %s", err)
+		log.Warnf("Error adding ID into index: %s", err)
 	}
 	cc.containersByID[container.ContainerID] = container
 	cc.containersByName[container.Name] = container
+}
+
+func (cc *CCache) DeleteContainer(nameOrID string) {
+	cc.m.Lock()
+	defer cc.m.Unlock()
+
+	container := cc.getContainer(nameOrID)
+	if container == nil {
+		return
+	}
+
+	delete(cc.containersByID, container.ContainerID)
+	delete(cc.containersByName, container.Name)
+
+	if err := cc.idIndex.Delete(container.ContainerID); err != nil {
+		log.Warnf("Error deleting ID from index: %s", err)
+	}
 }
