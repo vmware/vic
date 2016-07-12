@@ -10,8 +10,6 @@ See [VIC Containers Architecture](doc/design/arch/arch.md) for a high level over
 
 ## Project Status
 
-installer is now multi-platform
-early experimental vCenter support
 VIC now provides:
 * basic function for most of the core lifecycle operations: pull, create, start, attach, run, stop, rm
 * installer is now multi-platform
@@ -31,19 +29,32 @@ Project Bonneville was research aimed at determining best approaches to enabling
 
 ## Installing
 
-Once built, pick up the correct binary based on your OS, and then the result can be installed with the following command. This is just an example - see the vic-machine-XXX create --help output for all options, and a slightly more indepth example [here](doc/user/usage.md):
+Once built, pick up the correct binary based on your OS, and then the result can be installed with the following command.
+
 ```
-bin/vic-machine-linux create --target target-host[/datacenter] --image-datastore <datastore name> --name <vch-name> --user root --password <password> --compute-resource <cluster/a/resource/pool/path>
+bin/vic-machine-linux create --target target-host[/datacenter] --image-datastore <datastore name> --name <vch-name> --user <username> --password <password> --compute-resource <cluster/a/resource/pool/path>
 ```
+
+See `vic-machine-XXX create --help` for usage information.
+
+A more indepth example can be found [here](doc/user/usage.md)
 
 Container output is found in a log file on the datastore ([datastore]/containerid/containerid.log).
 
+
 ## Deleting
-The installed Virtual Container Host can be deleted through vic-machine-XXX delete, - see the  vic-machine-XXX delete --help for usage information, and a example [here] (doc/user/usage.md)
+
+The installed Virtual Container Host can be deleted through vic-machine-XXX delete.
+
+See `vic-machine-XXX delete --help` for usage information.
+
+A more indepth example can be found [here](doc/user/usage.md)
+
 
 ## Contributing
 
 See [CONTRIBUTING](CONTRIBUTING.md) for details on submitting changes and the contribution workflow.
+
 
 ## Building
 
@@ -82,7 +93,7 @@ $ make components
 ```
 This will install required tools and build the component binaries `tether-windows`, `tether-linux`, `rpctool` and server binaries `docker-engine-server`, `port-layer-server`.  The binaries will be created in the `$BIN` directory, ./bin by default.
 
-To run tests after a successfull build, issue the following:
+To run tests after a successful build, issue the following:
 ```
 $ make test
 ```
@@ -103,7 +114,7 @@ The component binaries above are packaged into ISO files, appliance.iso and boot
 iso-base, appliance-staging, bootstrap-staging, appliance, and bootstrap. Generation of the ISOs involves authoring a new root filesystem, meaning running a package manager (currently yum) and packing/unpacking archives. To install packages and preserve file permissions while unpacking these steps should be run as root, whether directly or in a container. To generate the ISOs:
 
 ```
-# make isos
+$ make isos
 ```
 
 The appliance and bootstrap ISOs are bootable CD images used to start the VMs that make up VIC. To build the image using [docker](https://www.docker.com/), ensure `GOPATH` is set and `docker` is installed, then issue the following.
@@ -133,11 +144,11 @@ make iso-base appliance-staging appliance bootstrap-staging bootstrap
 The iso image will be created in `$BIN`
 
 
+## Building with CI
+
 [dronevic]:https://ci.vmware.run/vmware/vic
 [dronesrc]:https://github.com/drone/drone
 [dronecli]:http://readme.drone.io/devs/cli/
-
-## Building with CI
 
 PRs to this repository will trigger builds on our [Drone CI][dronevic].
 
@@ -147,9 +158,11 @@ Ensure that you have Docker 1.6 or higher installed.
 Install the [Drone command line tools][dronecli].
 From the root directory of the `vic` repository run `drone exec -trusted -cache -e VIC_ESX_TEST_URL=""`
 
-## Test Case Documentation
 
-See: [VIC Integration Test Suite](tests/README.md)
+## Integration Tests
+
+[VIC Integration Test Suite](tests/README.md) includes instructions to run locally.
+
 
 ## License
 
