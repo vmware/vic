@@ -217,7 +217,7 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 		return containers.NewContainerRemoveNotFound()
 	}
 
-	err := h.Container.Remove(context.Background())
+	err := h.Container.Remove(context.Background(), handler.handlerCtx.Session)
 	if err != nil {
 		return containers.NewContainerRemoveInternalServerError()
 	}
