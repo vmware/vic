@@ -54,7 +54,6 @@ func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Han
 	api.InteractionContainerGetStdoutHandler = interaction.ContainerGetStdoutHandlerFunc(i.ContainerGetStdoutHandler)
 	api.InteractionContainerGetStderrHandler = interaction.ContainerGetStderrHandlerFunc(i.ContainerGetStderrHandler)
 
-	ctx := context.Background()
 	sessionconfig := &session.Config{
 		Service:        options.PortLayerOptions.SDK,
 		Insecure:       options.PortLayerOptions.Insecure,
@@ -65,6 +64,7 @@ func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Han
 		DatastorePath:  options.PortLayerOptions.DatastorePath,
 	}
 
+	ctx := context.Background()
 	interactionSession, err = session.NewSession(sessionconfig).Create(ctx)
 	if err != nil {
 		log.Fatalf("InteractionHandler ERROR: %s", err)
@@ -78,7 +78,7 @@ func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Han
 }
 
 func (i *InteractionHandlersImpl) ContainerResizeHandler(params interaction.ContainerResizeParams) middleware.Responder {
-	// Get the ssh session to the container
+	// Get the session to the container
 	connContainer, err := i.attachServer.Get(context.Background(), params.ID, interactionTimeout)
 	if err != nil {
 		retErr := &models.Error{Message: fmt.Sprintf("No such container: %s", params.ID)}
@@ -91,8 +91,8 @@ func (i *InteractionHandlersImpl) ContainerResizeHandler(params interaction.Cont
 
 	err = connContainer.Resize(cWidth, cHeight, 0, 0)
 	if err != nil {
-		retErr := &models.Error{Message: "SSH Session failed to resize the container's TTY"}
-		return interaction.NewContainerResizeInternalServerError().WithPayload(retErr)
+		log.Errorf("InteractionHandler (%s) error: %s", params.ID, err.Error())
+		return interaction.NewContainerResizeInternalServerError()
 	}
 
 	return interaction.NewContainerResizeOK()
@@ -100,16 +100,19 @@ func (i *InteractionHandlersImpl) ContainerResizeHandler(params interaction.Cont
 
 func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.ContainerSetStdinParams) middleware.Responder {
 	log.Printf("Attempting to get ssh session for container %s stdin", params.ID)
-	sshConn, err := i.attachServer.Get(context.Background(), params.ID, interactionTimeout)
+	contConn, err := i.attachServer.Get(context.Background(), params.ID, interactionTimeout)
 	if err != nil {
-		e := &models.Error{Message: fmt.Sprintf("No stdin found for %s", params.ID)}
-		return interaction.NewContainerSetStdinNotFound().WithPayload(e)
+		err = fmt.Errorf("No stdin found (id:%s): %s", params.ID, err.Error())
+		log.Errorf("%s", err.Error())
+
+		return interaction.NewContainerSetStdinNotFound()
 	}
 
 	detachableIn := NewFlushingReader(params.RawStream)
-	_, err = io.Copy(sshConn.Stdin(), detachableIn)
+	_, err = io.Copy(contConn.Stdin(), detachableIn)
 	if err != nil {
-		log.Printf("Error copying stdin for container %s", params.ID)
+		err = fmt.Errorf("Error copying stdin (id:%s): %s", params.ID, err.Error())
+		log.Errorf("%s", err.Error())
 	}
 
 	log.Printf("Done copying stdin")
@@ -119,25 +122,31 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 
 func (i *InteractionHandlersImpl) ContainerGetStdoutHandler(params interaction.ContainerGetStdoutParams) middleware.Responder {
 	log.Printf("Attempting to get ssh session for container %s stdout", params.ID)
-	sshConn, err := i.attachServer.Get(context.Background(), params.ID, interactionTimeout)
+	contConn, err := i.attachServer.Get(context.Background(), params.ID, interactionTimeout)
 	if err != nil {
-		e := &models.Error{Message: fmt.Sprintf("No stdout found for %s", params.ID)}
-		return interaction.NewContainerGetStdoutNotFound().WithPayload(e)
+
+		err = fmt.Errorf("No stdout found for %s: %s", params.ID, err.Error())
+		log.Errorf("%s", err.Error())
+
+		return interaction.NewContainerGetStdoutNotFound()
 	}
 
-	detachableOut := NewFlushingReader(sshConn.Stdout())
+	detachableOut := NewFlushingReader(contConn.Stdout())
 	return NewContainerOutputHandler("stdout").WithPayload(detachableOut, params.ID)
 }
 
 func (i *InteractionHandlersImpl) ContainerGetStderrHandler(params interaction.ContainerGetStderrParams) middleware.Responder {
 	log.Printf("Attempting to get ssh session for container %s stderr", params.ID)
-	sshConn, err := i.attachServer.Get(context.Background(), params.ID, interactionTimeout)
+	contConn, err := i.attachServer.Get(context.Background(), params.ID, interactionTimeout)
 	if err != nil {
-		e := &models.Error{Message: fmt.Sprintf("No stderr found for %s", params.ID)}
-		return interaction.NewContainerGetStderrNotFound().WithPayload(e)
+
+		err = fmt.Errorf("No stderr found for %s: %s", params.ID, err.Error())
+		log.Errorf("%s", err.Error())
+
+		return interaction.NewContainerGetStderrNotFound()
 	}
 
-	detachableErr := NewFlushingReader(sshConn.Stderr())
+	detachableErr := NewFlushingReader(contConn.Stderr())
 	return NewContainerOutputHandler("stderr").WithPayload(detachableErr, params.ID)
 }
 
