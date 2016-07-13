@@ -45,7 +45,7 @@ func NewVolumeLookupCache(ctx context.Context, vs VolumeStorer) (*VolumeLookupCa
 	return v, v.rebuildCache(ctx)
 }
 
-func (v *VolumeLookupCache) VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityMB uint64, info map[string][]byte) (*Volume, error) {
+func (v *VolumeLookupCache) VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*Volume, error) {
 	v.vlcLock.Lock()
 	defer v.vlcLock.Unlock()
 
@@ -55,7 +55,7 @@ func (v *VolumeLookupCache) VolumeCreate(ctx context.Context, ID string, store *
 		return nil, os.ErrExist
 	}
 
-	vol, err := v.volumeStore.VolumeCreate(ctx, ID, store, capacityMB, info)
+	vol, err := v.volumeStore.VolumeCreate(ctx, ID, store, capacityKB, info)
 	if err != nil {
 		return nil, err
 	}

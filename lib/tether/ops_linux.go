@@ -581,6 +581,9 @@ func (t *BaseOperations) MountLabel(source, target string, ctx context.Context) 
 		return fmt.Errorf("unable to create mount point %s: %s", target, err)
 	}
 
+	// convert the source to a filesystem path
+	source = "/dev/disk/by-label/" + source
+
 	// do..while ! timedout
 	var timeout bool
 	for timeout = false; !timeout; {

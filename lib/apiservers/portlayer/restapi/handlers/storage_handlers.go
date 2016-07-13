@@ -15,6 +15,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 
@@ -30,6 +31,7 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 
+	epl "github.com/vmware/vic/lib/portlayer/exec"
 	spl "github.com/vmware/vic/lib/portlayer/storage"
 	vsphereSpl "github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/lib/portlayer/util"
@@ -110,6 +112,7 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, hand
 	api.StorageWriteImageHandler = storage.WriteImageHandlerFunc(handler.WriteImage)
 	api.StorageRemoveVolumeHandler = storage.RemoveVolumeHandlerFunc(handler.RemoveVolume)
 	api.StorageCreateVolumeHandler = storage.CreateVolumeHandlerFunc(handler.CreateVolume)
+	api.StorageVolumeJoinHandler = storage.VolumeJoinHandlerFunc(handler.VolumeJoin)
 }
 
 // CreateImageStore creates a new image store
@@ -244,7 +247,7 @@ func (handler *StorageHandlersImpl) CreateVolume(params storage.CreateVolumePara
 
 	capacity := uint64(0)
 	if params.VolumeRequest.Capacity < 0 {
-		capacity = uint64(1) //FIXME: this should look for a default cap and set or fail here.
+		capacity = uint64(1024) //FIXME: this should look for a default cap and set or fail here.
 	} else {
 		capacity = uint64(params.VolumeRequest.Capacity)
 	}
@@ -299,6 +302,32 @@ func convertImage(image *spl.Image) *models.Image {
 	}
 }
 
+func (handler *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middleware.Responder {
+	defer trace.End(trace.Begin("storage_handlers.RemoveVolume"))
+	actualHandle := epl.GetHandle(params.JoinArgs.Handle)
+
+	//Note: Name should already be populated by now.
+	volume, err := storageVolumeLayer.VolumeGet(context.Background(), params.Name)
+	if err != nil {
+		log.Errorf("Volumes: StorageHandler : %#v", err)
+		return storage.NewVolumeJoinInternalServerError().WithPayload(&models.Error{
+			Code:    swag.Int64(http.StatusInternalServerError),
+			Message: err.Error(),
+		})
+	}
+	log.Infof("found volume %s for volume join", volume.ID)
+	actualHandle, err = vsphereSpl.VolumeJoin(context.Background(), actualHandle, volume, params.JoinArgs.MountPath, params.JoinArgs.Flags)
+	if err != nil {
+		log.Errorf("Volumes: StorageHandler : %#v", err)
+		return storage.NewVolumeJoinInternalServerError().WithPayload(&models.Error{
+			Code:    swag.Int64(http.StatusInternalServerError),
+			Message: err.Error(),
+		})
+	}
+	log.Infof("volume %s has been joined to a container", volume.ID)
+	return storage.NewVolumeJoinOK().WithPayload(actualHandle.String())
+}
+
 //utility functions
 
 func volumeToCreateResponse(volume *spl.Volume, model *models.VolumeRequest) models.VolumeResponse {
@@ -310,4 +339,13 @@ func volumeToCreateResponse(volume *spl.Volume, model *models.VolumeRequest) mod
 		Metadata: model.Metadata,
 	}
 	return response
+}
+
+func findVolume(volumeList []*spl.Volume, ID string) (*spl.Volume, error) {
+	for _, v := range volumeList {
+		if v.ID == ID {
+			return v, nil
+		}
+	}
+	return &spl.Volume{}, fmt.Errorf("The volume with ID '%s' does not exist", ID)
 }

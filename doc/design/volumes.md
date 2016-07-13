@@ -39,7 +39,7 @@ type Volume struct {
 // VolumeStorer is an interface to create, remove, enumerate, and get Volumes.
 type VolumeStorer interface {
 	// Creates a volume on the given volume store, of the given size, with the given metadata.
-	VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityMB uint64, info map[string][]byte) (*Volume, error)
+	VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*Volume, error)
 
 	// Get an existing volume via it's ID.
 	VolumeGet(ctx context.Context, ID string) (*Volume, error)

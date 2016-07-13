@@ -25,6 +25,7 @@ import (
 	derr "github.com/docker/docker/errors"
 	apinet "github.com/docker/engine-api/types/network"
 	"github.com/docker/libnetwork"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -173,6 +174,11 @@ func EP2Alias(endpointConfig *apinet.EndpointSettings) []string {
 }
 
 func (n *Network) ConnectContainerToNetwork(containerName, networkName string, endpointConfig *apinet.EndpointSettings) error {
+	vc := cache.ContainerCache().GetContainer(containerName)
+	if vc != nil {
+		containerName = vc.ContainerID
+	}
+
 	client := PortLayerClient()
 	getRes, err := client.Containers.Get(containers.NewGetParams().WithID(containerName))
 	if err != nil {
@@ -280,6 +286,10 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 }
 
 func (n *Network) DisconnectContainerFromNetwork(containerName string, network libnetwork.Network, force bool) error {
+	vc := cache.ContainerCache().GetContainer(containerName)
+	if vc != nil {
+		containerName = vc.ContainerID
+	}
 	return fmt.Errorf("%s does not implement network.DisconnectContainerFromNetwork", ProductName())
 }
 
