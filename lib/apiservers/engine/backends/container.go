@@ -26,6 +26,7 @@ import (
 
 	"github.com/go-swagger/go-swagger/httpkit"
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
+	strfmt "github.com/go-swagger/go-swagger/strfmt"
 	"github.com/mreiferson/go-httpclient"
 
 	log "github.com/Sirupsen/logrus"
@@ -66,10 +67,12 @@ type volumeFields struct {
 }
 
 const (
-	attachConnectTimeout time.Duration = 15 * time.Second //timeout for the connection
-	attachAttemptTimeout time.Duration = 30 * time.Second //timeout before we ditch an attach attempt
-	attachRequestTimeout time.Duration = 2 * time.Hour    //timeout to hold onto the attach connection
-	swaggerSubstringEOF                = "EOF"
+	attachConnectTimeout   time.Duration = 15 * time.Second //timeout for the connection
+	attachAttemptTimeout   time.Duration = 40 * time.Second //timeout before we ditch an attach attempt
+	attachPLAttemptDiff    time.Duration = 10 * time.Second
+	attachPLAttemptTimeout time.Duration = attachAttemptTimeout - attachPLAttemptDiff //timeout for the portlayer before ditching an attempt
+	attachRequestTimeout   time.Duration = 2 * time.Hour                              //timeout to hold onto the attach connection
+	swaggerSubstringEOF                  = "EOF"
 )
 
 // docker's container.execBackend
@@ -177,10 +180,9 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	}
 
 	// provide basic container config via the image
-	container := &viccontainer.VicContainer{
-		ID:     image.ID,
-		Config: image.Config,
-	}
+	container := viccontainer.NewVicContainer()
+	container.ID = image.ID
+	container.Config = image.Config
 
 	// Overwrite or append the image's config from the CLI with the metadata from the image's
 	// layer metadata where appropriate
@@ -1254,11 +1256,8 @@ func attachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin i
 	var wg sync.WaitGroup
 	errors := make(chan error, 3)
 
-	//FIXME: Swagger will timeout on us.  We need to either have an infinite timeout or the timeout should
-	// start after some inactivity?
-
 	// For stdin, we only have a timeout for connection.  There can be a long duration before
-	// the first entry so there is no timeout for attempt.
+	// the first entry so there is no timeout for response.
 	plClient, transport := createNewAttachClientWithTimeouts(attachConnectTimeout, 0, 0)
 	defer transport.Close()
 
@@ -1282,7 +1281,7 @@ func attachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin i
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := copyStdOut(ctx, plClient, vc, clStdout)
+			err := copyStdOut(ctx, plClient, attachAttemptTimeout, vc, clStdout)
 			if err != nil {
 				log.Errorf("container attach: stdout (%s): %s", vc.ContainerID, err.Error())
 			} else {
@@ -1372,10 +1371,19 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 	return err
 }
 
-func copyStdOut(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, clStdout io.Writer) error {
+func copyStdOut(ctx context.Context, pl *client.PortLayer, attemptTimeout time.Duration, vc *viccontainer.VicContainer, clStdout io.Writer) error {
 	name := vc.ContainerID
-	getStdoutParams := interaction.NewContainerGetStdoutParamsWithContext(ctx).WithID(name)
+	//Calculate how much time to let portlayer attempt
+	plAttemptTimeout := attemptTimeout - attachPLAttemptDiff //assumes personality deadline longer than portlayer's deadline
+	plAttemptDeadline := time.Now().Add(plAttemptTimeout)
+	swaggerDeadline := strfmt.DateTime(plAttemptDeadline)
+	log.Debugf("* stdout portlayer deadline: %s", plAttemptDeadline.Format(time.UnixDate))
+	log.Debugf("* stdout personality deadline: %s", time.Now().Add(attemptTimeout).Format(time.UnixDate))
+
+	log.Debugf("* stdout attach start %s", time.Now().Format(time.UnixDate))
+	getStdoutParams := interaction.NewContainerGetStdoutParamsWithContext(ctx).WithID(name).WithDeadline(&swaggerDeadline)
 	_, err := pl.Interaction.ContainerGetStdout(getStdoutParams, clStdout)
+	log.Debugf("* stdout attach end %s", time.Now().Format(time.UnixDate))
 	if err != nil {
 		if _, ok := err.(*interaction.ContainerGetStdoutNotFound); ok {
 			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))

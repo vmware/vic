@@ -798,6 +798,10 @@ paths:
           in: path
           type: string
           required: true
+        - name: deadline
+          in: query
+          type: string
+          format: datetime
         - name: raw_stream
           in: body
           schema:
@@ -829,6 +833,10 @@ paths:
           in: path
           type: string
           required: true
+        - name: deadline
+          in: query
+          type: string
+          format: datetime
       responses:
         '500':
           description: "Failed to get stdout"
@@ -857,6 +865,10 @@ paths:
           in: path
           type: string
           required: true
+        - name: deadline
+          in: query
+          type: string
+          format: datetime
       responses:
         '500':
           description: "Failed to get stderr"
