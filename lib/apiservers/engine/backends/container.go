@@ -305,11 +305,15 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		if err != nil {
 			switch err := err.(type) {
 			case *storage.VolumeJoinInternalServerError:
-				return nil, derr.NewErrorWithStatusCode(err.Payload.Message, http.StatusInternalServerError)
+				return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+
 			case *storage.VolumeJoinDefault:
-				return nil, derr.NewErrorWithStatusCode(err.Payload.Message, http.StatusInternalServerError)
+				return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+			default:
+				return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 			}
 		}
+
 		h = res.Payload
 	}
 	// commit the create op
@@ -548,6 +552,9 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 
 		case *containers.StateChangeDefault:
 			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err.Payload.Message))
+
+		default:
+			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err))
 		}
 	}
 
@@ -563,6 +570,8 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 
 		case *containers.CommitDefault:
 			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err.Payload.Message))
+		default:
+			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err))
 		}
 	}
 
@@ -603,6 +612,9 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 
 		case *containers.GetDefault:
 			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err.Payload.Message))
+
+		default:
+			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err))
 		}
 	}
 
@@ -638,6 +650,9 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 
 		case *containers.StateChangeDefault:
 			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s ", err.Payload.Message))
+
+		default:
+			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s ", err))
 		}
 	}
 
@@ -653,6 +668,10 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 
 		case *containers.CommitDefault:
 			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s ", err.Payload.Message))
+
+		default:
+
+			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s ", err))
 		}
 
 	}
