@@ -88,10 +88,10 @@ func (c *Connector) Get(ctx context.Context, id string, timeout time.Duration) (
 		ok := false
 		var conn *Connection
 
-		for !ok && ctx.Err() == nil {
-			c.mutex.RLock()
-			defer c.mutex.RUnlock()
+		c.mutex.RLock()
+		defer c.mutex.RUnlock()
 
+		for !ok && ctx.Err() == nil {
 			conn, ok = c.connections[id]
 			if ok {
 				result <- conn
