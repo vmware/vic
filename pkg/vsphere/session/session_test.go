@@ -15,6 +15,7 @@
 package session
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -41,7 +42,9 @@ func TestSessionDefaults(t *testing.T) {
 			t.SkipNow()
 		}
 	}
-	defer session.Logout(ctx)
+	if session != nil {
+		defer session.Logout(ctx)
+	}
 
 	t.Logf("%+v", session)
 }
@@ -61,19 +64,30 @@ func TestSession(t *testing.T) {
 
 	session, err := NewSession(config).Create(ctx)
 	if err != nil {
-		t.Logf("%+v", err.Error())
+		eStr := err.Error()
+		t.Logf("%+v", eStr)
+		// FIXME: session.Create incorporates Populate which loses the type of any original error from vmomi
+		// In the case where the test is run on a cluster with multiple hosts, find.MultipleFoundError
+		// gets rolled up into a generic error in Populate. As such, the best we can do is just grep for the string, which is lame
+		// The test shouldn't fail if it's run on a cluster with multiple hosts. However, it won't test for anything either.
+		if strings.Contains(eStr, "resolves to multiple hosts") {
+			t.SkipNow()
+		}
 		if _, ok := err.(*find.MultipleFoundError); !ok {
-			t.Errorf(err.Error())
+			t.Errorf(eStr)
 		} else {
 			t.SkipNow()
 		}
 	}
-	defer session.Logout(ctx)
 
-	t.Logf("Session: %+v", session)
+	if session != nil {
+		defer session.Logout(ctx)
 
-	t.Logf("IsVC: %t", session.IsVC())
-	t.Logf("IsVSAN: %t", session.IsVSAN(ctx))
+		t.Logf("Session: %+v", session)
+
+		t.Logf("IsVC: %t", session.IsVC())
+		t.Logf("IsVSAN: %t", session.IsVSAN(ctx))
+	}
 }
 
 func TestFolder(t *testing.T) {
@@ -91,17 +105,25 @@ func TestFolder(t *testing.T) {
 
 	session, err := NewSession(config).Create(ctx)
 	if err != nil {
-		t.Logf("%+v", err.Error())
+		eStr := err.Error()
+		t.Logf("%+v", eStr)
+		// FIXME: See comments above
+		if strings.Contains(eStr, "resolves to multiple hosts") {
+			t.SkipNow()
+		}
 		if _, ok := err.(*find.MultipleFoundError); !ok {
-			t.Errorf(err.Error())
+			t.Errorf(eStr)
 		} else {
 			t.SkipNow()
 		}
 	}
-	defer session.Logout(ctx)
 
-	folders := session.Folders(ctx)
-	if folders == nil || folders.VmFolder == nil {
-		t.Errorf("Get empty folder")
+	if session != nil {
+		defer session.Logout(ctx)
+
+		folders := session.Folders(ctx)
+		if folders == nil || folders.VmFolder == nil {
+			t.Errorf("Get empty folder")
+		}
 	}
 }

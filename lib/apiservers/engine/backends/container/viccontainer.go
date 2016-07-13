@@ -15,14 +15,11 @@
 package container
 
 import (
-	"github.com/docker/docker/runconfig"
 	containertypes "github.com/docker/engine-api/types/container"
 )
 
 // VicContainer is VIC's abridged version of Docker's container object.
 type VicContainer struct {
-	*runconfig.StreamConfig
-
 	Name        string
 	ID          string
 	ContainerID string
@@ -31,7 +28,6 @@ type VicContainer struct {
 
 func NewVicContainer() *VicContainer {
 	return &VicContainer{
-		StreamConfig: runconfig.NewStreamConfig(),
-		Config:       &containertypes.Config{},
+		Config: &containertypes.Config{},
 	}
 }
