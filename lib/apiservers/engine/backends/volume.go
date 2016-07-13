@@ -102,9 +102,9 @@ func (v *Volume) VolumeRm(name string) error {
 			return derr.NewRequestNotFoundError(fmt.Errorf("Get %s: no such volume", name))
 		}
 		if _, ok := err.(*storage.RemoveVolumeConflict); ok {
-			return derr.NewRequestConflictError(fmt.Errorf("Volume is in use"))
+			return derr.NewRequestConflictError(fmt.Errorf("Volume '%s' is in use", name))
 		}
-		return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", err), http.StatusInternalServerError)
+		return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", err.Error()), http.StatusInternalServerError)
 	}
 	return nil
 }
@@ -138,7 +138,7 @@ func validateDriverArgs(args map[string]string, model *models.VolumeRequest) err
 	capacity, convErr := strconv.ParseInt(capstr, 10, 64)
 	if convErr != nil {
 		model.Capacity = -1
-		return fmt.Errorf("Capacity must be an integer value. The unit is GB.: %s", convErr)
+		return fmt.Errorf("Capacity must be an integer value. The unit is MB: %s", convErr)
 	}
 	model.Capacity = int64(capacity)
 	return nil
