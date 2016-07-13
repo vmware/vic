@@ -62,7 +62,7 @@ Building the project is done with a combination of make and containers, with gol
 
 To build as closely as possible to the formal build:
 ```
-drone exec -trusted -cache
+drone exec -trusted -cache -e VIC_ESX_TEST_URL=""
 ```
 
 To build without modifying the local system:

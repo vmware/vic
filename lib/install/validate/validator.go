@@ -1004,6 +1004,7 @@ func (v *Validator) suggestComputeResource(path string) {
 
 	if matches != nil {
 		// we've collected recommendations - displayname
+		log.Info("Suggested values for --compute-resource:")
 		for _, p := range matches {
 			log.Infof("  %s", v.inventoryPathToComputePath(p))
 		}
@@ -1056,7 +1057,7 @@ func (v *Validator) listResourcePools(path string) []string {
 
 	pools, err := v.Session.Finder.ResourcePoolList(v.Context, path+"/*")
 	if err != nil {
-		log.Errorf("Unable to list pools for %s: %s", path, err)
+		log.Debugf("Unable to list pools for %s: %s", path, err)
 		return nil
 	}
 
