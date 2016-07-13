@@ -24,8 +24,9 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-func (t *tether) childReaper() {
+func (t *tether) childReaper() error {
 	// TODO: windows child process notifications
+	return errors.New("Child reaping unimplemented on windows")
 }
 
 func (t *tether) stopReaper() {
