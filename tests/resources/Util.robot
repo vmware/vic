@@ -60,25 +60,8 @@ Run VIC Machine Command
 
 Cleanup VIC Appliance On Test Server
     Run Keyword And Ignore Error  Gather Logs From Test Server
-    # Let's attempt to cleanup any container related to the VCH appliance first
-    ${list}=  Run  govc ls /ha-datacenter/vm
-    ${list}=  Split To Lines  ${list}
-    :FOR  ${vm}  IN  @{list}
-    \   Continue For Loop If  '${vm}'=='/ha-datacenter/vm/${vch-name}'
-    \   ${raw}=  Run  govc vm.info -json=true ${vm}
-    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${raw}  ${vch-name}
-    \   ${name}=  Run Keyword If  '${status}'=='PASS'  Run  govc vm.info -json\=true ${vm} | jq -r '.VirtualMachines[0].Name'
-    \   ${uuid}=  Run Keyword If  '${status}'=='PASS'  Run  govc vm.info -json\=true ${vm} | jq -r '.VirtualMachines[0].Config.Uuid'
-    \   Run Keyword If  '${status}'=='PASS'  Run  govc vm.destroy ${name}
-    \   Run Keyword If  '${status}'=='PASS'  Run  govc datastore.rm ${uuid}
-
-    # Then we can try to cleanup the VCH itself
-    ${uuid}=  Run  govc vm.info -json\=true ${vch-name} | jq -r '.VirtualMachines[0].Config.Uuid'
-    ${output}=  Run  govc vm.destroy ${vch-name}
-    ${output}=  Run  govc pool.destroy %{GOVC_RESOURCE_POOL}/${vch-name}
-    ${output}=  Run  govc datastore.rm ${vch-name}
-    ${output}=  Run  rm -f ${vch-name}-*.pem
-    ${output}=  Run  govc datastore.rm VIC/${uuid}
+    # Try to cleanup the VCH itself
+    ${output}=  Run  bin/vic-machine-linx delete --target=%{TEST_URL} --compute-resource=%{TEST_RESOURCE} --name=${vch-name} --force
 
 Cleanup Datastore On Test Server
     ${out}=  Run  govc datastore.ls
