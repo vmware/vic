@@ -226,10 +226,10 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHo
 			log.Errorf("Error finding datastore %s: %s", dsURL.Host, err)
 			continue
 		}
-		if len(datastores) != 1 {
+		if len(datastores) > 1 {
 			foundDatastores := new(bytes.Buffer)
 			for _, d := range datastores {
-				foundDatastores.WriteString(fmt.Sprintf("\n%s\n", d))
+				foundDatastores.WriteString(fmt.Sprintf("\n%s\n", d.InventoryPath))
 			}
 			log.Errorf("Ambiguous datastore name (%s) provided. Results were: %s", dsURL.Host, foundDatastores)
 			continue
