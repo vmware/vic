@@ -55,6 +55,8 @@ func (d *Dispatcher) DeleteVCH(conf *metadata.VirtualContainerHostConfigSpec) er
 		errs = append(errs, err.Error())
 	}
 
+	d.deleteVolumeStoreIfForced(conf) // logs errors but doesn't ever bail out if it has an issue
+
 	if err = d.deleteNetworkDevices(vmm, conf); err != nil {
 		errs = append(errs, err.Error())
 	}
@@ -84,10 +86,6 @@ func (d *Dispatcher) DeleteVCH(conf *metadata.VirtualContainerHostConfigSpec) er
 	if err = d.destroyResourcePoolIfEmpty(conf); err != nil {
 		log.Warnf("VCH resource pool is not removed, %s", err)
 	}
-
-	log.Infoln("Removing volume stores...")
-	d.deleteVolumeStoreIfForced(conf) // logs errors but doesn't ever bail out if it has an issue
-
 	return nil
 }
 

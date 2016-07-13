@@ -194,6 +194,10 @@ func (d *Dispatcher) createVolumeStores(conf *metadata.VirtualContainerHostConfi
 
 func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHostConfigSpec) {
 	if !d.force {
+		if len(conf.VolumeLocations) == 0 {
+			return
+		}
+
 		volumeStores := new(bytes.Buffer)
 		for label, url := range conf.VolumeLocations {
 			volumeStores.WriteString(fmt.Sprintf("\t%s: %s\n", label, url.Path))
@@ -203,12 +207,16 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHo
 	}
 
 	for label, url := range conf.VolumeLocations {
+		log.Infoln("Removing volume stores...")
 		// FIXME: url is being encoded by the portlayer incorrectly, so we have to convert url.Path to the right url.URL object
-		log.Debugf("Provided datastore URL %s", url.Path)
+
 		dsURL, err := vsphere.DatastoreToURL(url.Path)
-		log.Debugf("Parsed volume store path %s", dsURL.Path)
+
+		log.Debugf("Provided datastore URL: %s\nParsed volume store path: %s", url.Path, dsURL.Path)
+
 		if err != nil {
 			log.Warnf("Didn't receive an expected volume store path format: %s", url.Path)
+			continue
 		}
 		log.Infof("Deleting volume store %s on Datastore %s at path %s", label, dsURL.Host, dsURL.Path)
 
