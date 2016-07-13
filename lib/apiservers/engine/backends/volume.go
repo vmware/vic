@@ -98,13 +98,21 @@ func (v *Volume) VolumeRm(name string) error {
 	//FIXME: check whether this is a name or a UUID. UUID expected for now.
 	_, err := client.Storage.RemoveVolume(storage.NewRemoveVolumeParams().WithName(name))
 	if err != nil {
-		if _, ok := err.(*storage.RemoveVolumeNotFound); ok {
+
+		switch err := err.(type) {
+
+		case *storage.RemoveVolumeNotFound:
 			return derr.NewRequestNotFoundError(fmt.Errorf("Get %s: no such volume", name))
-		}
-		if _, ok := err.(*storage.RemoveVolumeConflict); ok {
+
+		case *storage.RemoveVolumeConflict:
 			return derr.NewRequestConflictError(fmt.Errorf("Volume '%s' is in use", name))
+
+		case *storage.RemoveVolumeInternalServerError:
+			return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", err.Payload.Message), http.StatusInternalServerError)
+
+		default:
+			return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", err), http.StatusInternalServerError)
 		}
-		return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", err.Error()), http.StatusInternalServerError)
 	}
 	return nil
 }
