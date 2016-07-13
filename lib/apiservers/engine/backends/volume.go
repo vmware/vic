@@ -79,7 +79,18 @@ func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]s
 
 	res, err := client.Storage.CreateVolume(storage.NewCreateVolumeParams().WithVolumeRequest(&model))
 	if err != nil {
-		return result, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusInternalServerError)
+		switch err := err.(type) {
+
+		case *storage.CreateVolumeInternalServerError:
+			//FIXME: right now this does not return an error model...
+			return result, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err.Error()), http.StatusInternalServerError)
+
+		case *storage.CreateVolumeDefault:
+			return result, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err.Payload.Message), http.StatusInternalServerError)
+
+		default:
+			return result, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusInternalServerError)
+		}
 	}
 
 	result = fillDockerVolumeModel(res.Payload, labels)

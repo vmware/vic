@@ -779,7 +779,14 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 
 	containme, err := portLayerClient.Containers.GetContainerList(containers.NewGetContainerListParams().WithAll(&config.All))
 	if err != nil {
-		return nil, fmt.Errorf("Error invoking GetContainerList: %s", err.Error())
+		switch err := err.(type) {
+
+		case *containers.GetContainerListInternalServerError:
+			return nil, fmt.Errorf("Error invoking GetContainerList: %s", err.Payload.Message)
+
+		default:
+			return nil, fmt.Errorf("Error invoking GetContainerList: %s", err.Error())
+		}
 	}
 	// TODO: move to conversion function
 	containers := make([]*types.Container, 0, len(containme.Payload))
