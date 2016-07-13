@@ -23,7 +23,7 @@ import (
 	"github.com/vmware/vic/pkg/ip"
 )
 
-func TestParseConatainerNetworkGateways(t *testing.T) {
+func TestParseContainerNetworkGateways(t *testing.T) {
 	var tests = []struct {
 		cgs []string
 		gws map[string]net.IPNet
