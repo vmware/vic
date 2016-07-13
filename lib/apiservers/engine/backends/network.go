@@ -196,12 +196,15 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 
 	h := getRes.Payload
 	nc := &models.NetworkConfig{NetworkName: networkName}
-	if endpointConfig != nil && endpointConfig.IPAMConfig != nil && endpointConfig.IPAMConfig.IPv4Address != "" {
-		nc.Address = &endpointConfig.IPAMConfig.IPv4Address
-	}
+	if endpointConfig != nil {
+		if endpointConfig.IPAMConfig != nil && endpointConfig.IPAMConfig.IPv4Address != "" {
+			nc.Address = &endpointConfig.IPAMConfig.IPv4Address
 
-	// Pass Links and Aliases to PL
-	nc.Aliases = EP2Alias(endpointConfig)
+		}
+
+		// Pass Links and Aliases to PL
+		nc.Aliases = EP2Alias(endpointConfig)
+	}
 
 	addConRes, err := client.Scopes.AddContainer(scopes.NewAddContainerParams().
 		WithScope(nc.NetworkName).
