@@ -59,6 +59,14 @@ Run VIC Machine Command
     [Return]  ${output}
 
 Cleanup VIC Appliance On Test Server
+    [Tags]  secret
+    Run Keyword And Ignore Error  Gather Logs From Test Server
+    ${output}=  Run  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    Run Keyword And Ignore Error  Should Contain  ${output}  Installer completed successfully
+    ${output}=  Run  rm -f ${vch-name}-*.pem
+    [Return]  ${output}
+
+Cleanup VIC Appliance On Test Server Old
     Run Keyword And Ignore Error  Gather Logs From Test Server
     # Let's attempt to cleanup any container related to the VCH appliance first
     ${list}=  Run  govc ls /ha-datacenter/vm
@@ -82,30 +90,30 @@ Cleanup VIC Appliance On Test Server
 
 Cleanup Datastore On Test Server
     ${out}=  Run  govc datastore.ls
-    ${lines}=  Split To Lines  ${out}
-    :FOR  ${item}  IN  @{lines}
-    \   Continue For Loop If  '${item}' == 'VIC'
-    \   ${contents}=  Run  govc datastore.ls ${item}
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${contents}  vmx
-    \   Continue For Loop If  ${status}
-    \   ${out}=  Run  govc datastore.rm ${item}
+    #${lines}=  Split To Lines  ${out}
+    #:FOR  ${item}  IN  @{lines}
+    #\   Continue For Loop If  '${item}' == 'VIC'
+    #\   ${contents}=  Run  govc datastore.ls ${item}
+    #\   ${status}=  Run Keyword And Return Status  Should Contain  ${contents}  vmx
+    #\   Continue For Loop If  ${status}
+    #\   ${out}=  Run  govc datastore.rm ${item}
 
 Cleanup Dangling VMs On Test Server
     ${out}=  Run  govc ls vm
-    ${vms}=  Split To Lines  ${out}
-    :FOR  ${vm}  IN  @{vms}
-    \   ${vm}=  Fetch From Right  ${vm}  /
-    \   ${build}=  Split String  ${vm}  -
-    \   # Skip any VM that is not associated with integration tests
-    \   Continue For Loop If  '@{build}[0]' != 'VCH'
-    \   # Skip any VM that is still running
-    \   ${state}=  Get State Of Drone Build  @{build}[1]
-    \   Continue For Loop If  '${state}' == 'running'
-    \   ${uuid}=  Run  govc vm.info -json\=true ${vm} | jq -r '.VirtualMachines[0].Config.Uuid'
-    \   ${output}=  Run  govc vm.destroy ${vm}
-    \   ${output}=  Run  govc pool.destroy %{GOVC_RESOURCE_POOL}/${vm}
-    \   ${output}=  Run  govc datastore.rm ${vm}
-    \   ${output}=  Run  govc datastore.rm VIC/${uuid}
+    #${vms}=  Split To Lines  ${out}
+    #:FOR  ${vm}  IN  @{vms}
+    #\   ${vm}=  Fetch From Right  ${vm}  /
+    #\   ${build}=  Split String  ${vm}  -
+    #\   # Skip any VM that is not associated with integration tests
+    #\   Continue For Loop If  '@{build}[0]' != 'VCH'
+    #\   # Skip any VM that is still running
+    #\   ${state}=  Get State Of Drone Build  @{build}[1]
+    #\   Continue For Loop If  '${state}' == 'running'
+    #\   ${uuid}=  Run  govc vm.info -json\=true ${vm} | jq -r '.VirtualMachines[0].Config.Uuid'
+    #\   ${output}=  Run  govc vm.destroy ${vm}
+    #\   ${output}=  Run  govc pool.destroy %{GOVC_RESOURCE_POOL}/${vm}
+    #\   ${output}=  Run  govc datastore.rm ${vm}
+    #\   ${output}=  Run  govc datastore.rm VIC/${uuid}
 
 Gather Logs From Test Server
     Variable Should Exist  ${params}
