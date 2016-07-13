@@ -48,8 +48,8 @@ func main() {
 	if strings.HasSuffix(os.Args[0], "-debug") {
 		extraconfig.DecodeLogLevel = log.DebugLevel
 		extraconfig.EncodeLogLevel = log.DebugLevel
-		log.SetLevel(log.DebugLevel)
 	}
+	log.SetLevel(log.DebugLevel)
 
 	// TODO: hard code executor initialization status reporting via guestinfo here
 	err := createDevices()
