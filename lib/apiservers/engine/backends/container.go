@@ -1258,7 +1258,7 @@ func attachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin i
 
 	// For stdin, we only have a timeout for connection.  There can be a long duration before
 	// the first entry so there is no timeout for response.
-	plClient, transport := createNewAttachClientWithTimeouts(attachConnectTimeout, 0, 0)
+	plClient, transport := createNewAttachClientWithTimeouts(attachConnectTimeout, 0, attachAttemptTimeout)
 	defer transport.Close()
 
 	if ca.UseStdin {
