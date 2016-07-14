@@ -56,13 +56,6 @@ func (d *Dispatcher) DeleteStores(vchVM *vm.VirtualMachine, conf *metadata.Virtu
 	if emptyImages, err = d.deleteImages(ds, path); err != nil {
 		errs = append(errs, err.Error())
 	}
-	log.Infof("Removing volumes")
-	if emptyVolumes, err = d.deleteVolumes(ds, path); err != nil {
-		errs = append(errs, err.Error())
-	} else if !emptyVolumes {
-		log.Infof("Volumes directory %s is not empty, to delete with --force specified", path)
-	}
-
 	if emptyImages && emptyVolumes {
 		// if not empty, don't try to delete parent directory here
 		log.Debugf("Removing stores directory")
@@ -89,14 +82,6 @@ func (d *Dispatcher) deleteImages(ds *object.Datastore, root string) (bool, erro
 	p := path.Join(root, vsphere.StorageImageDir)
 	// alway forcing delete images
 	return d.deleteDatastoreFiles(ds, p, true)
-}
-
-func (d *Dispatcher) deleteVolumes(ds *object.Datastore, root string) (bool, error) {
-	defer trace.End(trace.Begin(""))
-
-	p := path.Join(root, volumeRoot)
-	// if not forced delete, leave volumes there. Cause user data can be persisted in volumes
-	return d.deleteDatastoreFiles(ds, p, d.force)
 }
 
 func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, force bool) (bool, error) {
