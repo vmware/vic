@@ -138,11 +138,7 @@ func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 
 // Apply takes the network endpoint configuration and applies it to the system
 func (t *Mocker) Apply(endpoint *NetworkEndpoint) error {
-<<<<<<< 9a1808efd55231cfec058129aaa3c7f888d52a0d
 	return apply(t, &t.Base, endpoint)
-=======
-	return t.Base.Apply(endpoint)
->>>>>>> [skip-ci] towards functional tether test
 }
 
 // MountLabel performs a mount with the source treated as a disk label
