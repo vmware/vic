@@ -110,7 +110,7 @@ Volumes are implemented as VMDKs and mounted as block devices on a containerVM. 
 
 The location in which volumes are created can be specified at creation time via the `--volume-store` argument. This can be supplied multiple times to configure multiple datastores or paths:
 ```
-vic-machine-linux create --volume-store=default:datastore1/some/path --volume-store=fast:ssdDatastore/other/path ...
+vic-machine-linux create --volume-store=datastore1/some/path:default --volume-store=ssdDatastore/other/path:fast ...
 ```
 
 The volume store to use is specified via driver optons when creating volumes (capacity is in MB):
