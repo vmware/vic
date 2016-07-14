@@ -39,6 +39,10 @@ type searchDatastoreTask struct {
 
 func (s *searchDatastoreTask) addFile(dir string, name string) {
 	details := s.req.SearchSpec.Details
+	if details == nil {
+		details = new(types.FileQueryFlags)
+	}
+
 	file := path.Join(dir, name)
 	st, err := os.Stat(file)
 	if err != nil {
