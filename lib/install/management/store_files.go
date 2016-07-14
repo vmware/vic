@@ -30,6 +30,8 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
+	"bytes"
+
 	"golang.org/x/net/context"
 )
 
@@ -42,7 +44,7 @@ func (d *Dispatcher) DeleteStores(vchVM *vm.VirtualMachine, conf *metadata.Virtu
 
 	ds := d.session.Datastore
 
-	path, err := d.getVCHRootDir(vchVM)
+	p, err := d.getVCHRootDir(vchVM) // p would be path but there's an imported package called path
 	if err != nil {
 		return err
 	}
@@ -51,20 +53,15 @@ func (d *Dispatcher) DeleteStores(vchVM *vm.VirtualMachine, conf *metadata.Virtu
 	var emptyImages bool
 	var emptyVolumes bool
 	log.Infof("Removing images")
-	if emptyImages, err = d.deleteImages(ds, path); err != nil {
+	if emptyImages, err = d.deleteImages(ds, p); err != nil {
 		errs = append(errs, err.Error())
 	}
-	log.Infof("Removing volumes")
-	if emptyVolumes, err = d.deleteVolumes(ds, path); err != nil {
-		errs = append(errs, err.Error())
-	} else if !emptyVolumes {
-		log.Infof("Volumes directory %s is not empty, to delete with --force specified", path)
-	}
+	emptyVolumes, err = d.deleteDatastoreFiles(ds, path.Join(p, volumeRoot), d.force)
 
 	if emptyImages && emptyVolumes {
 		// if not empty, don't try to delete parent directory here
 		log.Debugf("Removing stores directory")
-		if err = d.deleteParent(ds, path); err != nil {
+		if err = d.deleteParent(ds, p); err != nil {
 			errs = append(errs, err.Error())
 		}
 	}
@@ -87,14 +84,6 @@ func (d *Dispatcher) deleteImages(ds *object.Datastore, root string) (bool, erro
 	p := path.Join(root, vsphere.StorageImageDir)
 	// alway forcing delete images
 	return d.deleteDatastoreFiles(ds, p, true)
-}
-
-func (d *Dispatcher) deleteVolumes(ds *object.Datastore, root string) (bool, error) {
-	defer trace.End(trace.Begin(""))
-
-	p := path.Join(root, volumeRoot)
-	// if not forced delete, leave volumes there. Cause user data can be persisted in volumes
-	return d.deleteDatastoreFiles(ds, p, d.force)
 }
 
 func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, force bool) (bool, error) {
@@ -188,4 +177,61 @@ func (d *Dispatcher) createVolumeStores(conf *metadata.VirtualContainerHostConfi
 		url.Path = nds.RootURL
 	}
 	return nil
+}
+
+// returns # of removed stores
+func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHostConfigSpec) (removed int) {
+	removed = 0
+
+	if !d.force {
+		if len(conf.VolumeLocations) == 0 {
+			return 0
+		}
+
+		volumeStores := new(bytes.Buffer)
+		for label, url := range conf.VolumeLocations {
+			volumeStores.WriteString(fmt.Sprintf("\t%s: %s\n", label, url.Path))
+		}
+		log.Warnf("Since --force was not specified, the following volume stores will not be removed. Use the vSphere UI to delete content you do not wish to keep.\n%s", volumeStores.String())
+		return 0
+	}
+
+	for label, url := range conf.VolumeLocations {
+		log.Infoln("Removing volume stores...")
+		// FIXME: url is being encoded by the portlayer incorrectly, so we have to convert url.Path to the right url.URL object
+
+		dsURL, err := vsphere.DatastoreToURL(url.Path)
+
+		log.Debugf("Provided datastore URL: %s\nParsed volume store path: %s", url.Path, dsURL.Path)
+
+		if err != nil {
+			log.Warnf("Didn't receive an expected volume store path format: %s", url.Path)
+			continue
+		}
+		log.Infof("Deleting volume store %s on Datastore %s at path %s", label, dsURL.Host, dsURL.Path)
+
+		datastores, err := d.session.Finder.DatastoreList(d.ctx, dsURL.Host)
+
+		if err != nil {
+			log.Errorf("Error finding datastore %s: %s", dsURL.Host, err)
+			continue
+		}
+		if len(datastores) > 1 {
+			foundDatastores := new(bytes.Buffer)
+			for _, d := range datastores {
+				foundDatastores.WriteString(fmt.Sprintf("\n%s\n", d.InventoryPath))
+			}
+			log.Errorf("Ambiguous datastore name (%s) provided. Results were: %s", dsURL.Host, foundDatastores)
+			continue
+		}
+
+		datastore := datastores[0]
+		if _, err := d.deleteDatastoreFiles(datastore, dsURL.Path, d.force); err != nil {
+			log.Errorf("Failed to delete volume store %s on Datastore %s at path %s", label, dsURL.Host, dsURL.Path)
+		} else {
+			removed++
+		}
+	}
+	return removed
+
 }
