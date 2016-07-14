@@ -200,7 +200,6 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHo
 	log.Infoln("Removing volume stores...")
 	for label, url := range conf.VolumeLocations {
 		// FIXME: url is being encoded by the portlayer incorrectly, so we have to convert url.Path to the right url.URL object
-
 		dsURL, err := vsphere.DatastoreToURL(url.Path)
 
 		if err != nil {

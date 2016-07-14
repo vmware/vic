@@ -108,3 +108,17 @@ func (d *Dispatcher) destroyResourcePoolIfEmpty(conf *metadata.VirtualContainerH
 	}
 	return nil
 }
+
+func (d *Dispatcher) findResourcePool(path string) (*object.ResourcePool, error) {
+	defer trace.End(trace.Begin(path))
+	rp, err := d.session.Finder.ResourcePool(d.ctx, path)
+	if err != nil {
+		_, ok := err.(*find.NotFoundError)
+		if !ok {
+			err = errors.Errorf("Failed to query resource pool (%s): %s", path, err)
+			return nil, err
+		}
+		return nil, nil
+	}
+	return rp, nil
+}

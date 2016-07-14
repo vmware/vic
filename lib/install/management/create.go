@@ -38,20 +38,38 @@ func (d *Dispatcher) CreateVCH(conf *metadata.VirtualContainerHostConfigSpec, se
 	defer trace.End(trace.Begin(conf.Name))
 
 	var err error
-	if d.vchPool, err = d.createResourcePool(conf, settings); err != nil {
-		detail := fmt.Sprintf("Creating resource pool failed: %s", err)
-		if !d.force {
-			return errors.New(detail)
-		}
 
-		log.Error(detail)
-	}
-
-	if err = d.createBridgeNetwork(conf); err != nil {
+	if err = d.checkExistence(conf, settings); err != nil {
 		return err
 	}
 
-	if err = d.checkExistence(conf); err != nil {
+	if d.isVC {
+		if d.vchVapp, err = d.createVApp(conf, settings); err != nil {
+			detail := fmt.Sprintf("Creating virtual app failed: %s", err)
+			if !d.force {
+				return errors.New(detail)
+			}
+
+			log.Error(detail)
+			log.Errorf("Deploying vch under parent pool %s, cause --force is provided", settings.ResourcePoolPath)
+			d.vchPool = d.session.Pool
+			conf.ComputeResources = append(conf.ComputeResources, d.vchPool.Reference())
+		}
+	} else {
+		if d.vchPool, err = d.createResourcePool(conf, settings); err != nil {
+			detail := fmt.Sprintf("Creating resource pool failed: %s", err)
+			if !d.force {
+				return errors.New(detail)
+			}
+
+			log.Error(detail)
+			log.Errorf("Deploying vch under parent pool %s, , cause --force is provided", settings.ResourcePoolPath)
+			d.vchPool = d.session.Pool
+			conf.ComputeResources = append(conf.ComputeResources, d.vchPool.Reference())
+		}
+	}
+
+	if err = d.createBridgeNetwork(conf); err != nil {
 		return err
 	}
 

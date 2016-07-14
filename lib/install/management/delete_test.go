@@ -100,6 +100,12 @@ func createAppliance(ctx context.Context, sess *session.Session, conf *metadata.
 		force:   false,
 	}
 	delete(conf.Networks, "bridge") // FIXME: cannot create bridge network in simulator
+	if d.isVC {
+		if d.vchVapp, err = d.createVApp(conf, vConf); err != nil {
+			// FIXME: Got error: ServerFaultCode: ResourcePool:resourcepool-14 does not implement: CreateVApp. Simulator need to implement CreateVApp
+			//			t.Errorf("Unable to create virtual app: %s", err)
+		}
+	}
 	if d.vchPool, err = d.createResourcePool(conf, vConf); err != nil {
 		t.Errorf("Unable to create resource pool: %s", err)
 	}

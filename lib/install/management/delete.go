@@ -70,7 +70,7 @@ func (d *Dispatcher) DeleteVCH(conf *metadata.VirtualContainerHostConfigSpec) er
 
 	if d.isVC {
 		log.Infoln("Removing VCH vSphere extension")
-		if err = d.GenerateExtensionName(conf); err != nil {
+		if err = d.GenerateExtensionName(conf, vmm); err != nil {
 			log.Warnf("Failed to get extension name during VCH deletion: %s", err)
 		}
 		if err = d.UnregisterExtension(conf.ExtensionName); err != nil {
@@ -104,11 +104,14 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *metadata.V
 		err = errors.Errorf("Failed to get VCH resource pool (%s): %s", rpRef, err)
 		return err
 	}
-	_, ok := ref.(*object.ResourcePool)
-	if !ok {
-		log.Errorf("Failed to find resource pool %s, %s", rpRef, err)
-		return err
+	switch ref.(type) {
+	case *object.VirtualApp:
+	case *object.ResourcePool:
+		break
+	default:
+		log.Errorf("Failed to find virtual app or resource pool %s, %s", rpRef, err)
 	}
+
 	rp := compute.NewResourcePool(d.ctx, d.session, ref.Reference())
 	if children, err = rp.GetChildrenVMs(d.ctx, d.session); err != nil {
 		return err

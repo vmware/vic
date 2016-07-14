@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -67,14 +68,42 @@ func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
 	return false, nil
 }
 
-func (d *Dispatcher) checkExistence(conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) checkExistence(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(""))
 
-	vm, err := d.findAppliance(conf)
+	var err error
+	d.vchPoolPath = fmt.Sprintf("%s/%s", settings.ResourcePoolPath, conf.Name)
+	var orp *object.ResourcePool
+	var vapp *object.VirtualApp
+	if d.isVC {
+		vapp, err = d.findVirtualApp(d.vchPoolPath)
+		if err != nil {
+			return err
+		}
+		if vapp != nil {
+			orp = vapp.ResourcePool
+		}
+	}
+	if orp == nil {
+		if orp, err = d.findResourcePool(d.vchPoolPath); err != nil {
+			return err
+		}
+	}
+	if orp == nil {
+		return nil
+	}
+
+	rp := compute.NewResourcePool(d.ctx, d.session, orp.Reference())
+	vm, err := rp.GetChildVM(d.ctx, d.session, conf.Name)
 	if err != nil {
 		return err
 	}
 	if vm == nil {
+		if vapp != nil {
+			err = errors.Errorf("virtual app %s is found, but is not VCH, please choose different name", d.vchPoolPath)
+			log.Errorf("%s", err)
+			return err
+		}
 		return nil
 	}
 
@@ -291,38 +320,12 @@ func (d *Dispatcher) findApplianceByID(conf *metadata.VirtualContainerHostConfig
 	return vmm, nil
 }
 
-func (d *Dispatcher) findAppliance(conf *metadata.VirtualContainerHostConfigSpec) (*vm.VirtualMachine, error) {
-	defer trace.End(trace.Begin(""))
-
-	ovm, err := d.session.Finder.VirtualMachine(d.ctx, conf.Name)
-	if err != nil {
-		_, ok := err.(*find.NotFoundError)
-		if !ok {
-			err = errors.Errorf("Failed to query appliance (%s): %s", conf.Name, err)
-			return nil, err
-		}
-		log.Debugf("Appliance is not found")
-		return nil, nil
-	}
-	newVM := vm.NewVirtualMachine(d.ctx, d.session, ovm.Reference())
-	// workaround here. We lost the value set in ovm cause we wrap the object to another type
-	newVM.InventoryPath = ovm.InventoryPath
-	return newVM, nil
-}
-
 // retrieves the uuid of the appliance vm to create a unique vsphere extension name
-func (d *Dispatcher) GenerateExtensionName(conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) GenerateExtensionName(conf *metadata.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) error {
 	defer trace.End(trace.Begin(conf.ExtensionName))
 
-	// must be called after appliance VM is created
-	vm, err := d.findAppliance(conf)
-
-	if err != nil {
-		return errors.Errorf("Could not find appliance at extension creation time; failed with error: %s", err)
-	}
-
 	var o mo.VirtualMachine
-	err = vm.Properties(d.ctx, vm.Reference(), []string{"config.uuid"}, &o)
+	err := vm.Properties(d.ctx, vm.Reference(), []string{"config.uuid"}, &o)
 	if err != nil {
 		return errors.Errorf("Could not get VM UUID from appliance VM due to error: %s", err)
 	}
@@ -368,10 +371,18 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 		return err
 	}
 
+	var info *types.TaskInfo
 	// create appliance VM
-	info, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return d.session.Folders(ctx).VmFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
-	})
+	if d.isVC && d.vchVapp != nil {
+		info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+			return d.vchVapp.CreateChildVM_Task(ctx, *spec, d.session.Host)
+		})
+	} else {
+		// if vapp is not created, fall back to create VM under default resource pool
+		info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+			return d.session.Folders(ctx).VmFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
+		})
+	}
 
 	if err != nil {
 		log.Errorf("Unable to create appliance VM: %s", err)
@@ -404,7 +415,7 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 	log.Debugf("vm inventory path: %s", vm2.InventoryPath)
 
 	// create an extension to register the appliance as
-	if err = d.GenerateExtensionName(conf); err != nil {
+	if err = d.GenerateExtensionName(conf, vm2); err != nil {
 		return errors.Errorf("Could not generate extension name during appliance creation due to error: %s", err)
 	}
 

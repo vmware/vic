@@ -40,6 +40,8 @@ type Configuration struct {
 	ComputeResources []types.ManagedObjectReference `vic:"0.1" scope:"read-only"`
 	// Resource pool is the working version of the compute resource config
 	ResourcePool *object.ResourcePool
+	// Parent resource will be a VirtualApp on VC
+	VirtualApp *object.VirtualApp
 
 	// Path of the ISO to use for bootstrapping containers
 	BootstrapImagePath string `vic:"0.1" scope:"read-only" key:"bootstrap_image_path"`

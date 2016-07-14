@@ -46,6 +46,7 @@ type Dispatcher struct {
 	VICAdminProto string
 
 	vchPool   *object.ResourcePool
+	vchVapp   *object.VirtualApp
 	appliance *vm.VirtualMachine
 }
 
