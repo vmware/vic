@@ -119,7 +119,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 		// Create the vm
 		res, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-			return parent.CreateVM(ctx, *h.Spec.Spec(), Config.ResourcePool, nil)
+			return parent.CreateVM(ctx, *h.Spec.Spec(), VCHConfig.ResourcePool, nil)
 		})
 		if err != nil {
 			return err
@@ -332,8 +332,8 @@ func infraContainers(ctx context.Context, sess *session.Session) ([]mo.VirtualMa
 	var rp mo.ResourcePool
 
 	// popluate the vm property of the vch resource pool
-	if err := Config.ResourcePool.Properties(ctx, Config.ResourcePool.Reference(), []string{"vm"}, &rp); err != nil {
-		name := Config.ResourcePool.Name()
+	if err := VCHConfig.ResourcePool.Properties(ctx, VCHConfig.ResourcePool.Reference(), []string{"vm"}, &rp); err != nil {
+		name := VCHConfig.ResourcePool.Name()
 		log.Errorf("List failed to get %s resource pool child vms: %s", name, err)
 		return nil, err
 	}
@@ -347,7 +347,7 @@ func infraContainers(ctx context.Context, sess *session.Session) ([]mo.VirtualMa
 // find the childVM for this resource pool by name
 func childVM(ctx context.Context, sess *session.Session, name string) (*vm.VirtualMachine, error) {
 	searchIndex := object.NewSearchIndex(sess.Client.Client)
-	child, err := searchIndex.FindChild(ctx, Config.ResourcePool.Reference(), name)
+	child, err := searchIndex.FindChild(ctx, VCHConfig.ResourcePool.Reference(), name)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to find container(%s): %s", name, err.Error())
 	}

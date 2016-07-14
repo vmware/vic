@@ -52,25 +52,25 @@ func Init(ctx context.Context, sess *session.Session) error {
 
 	f := find.NewFinder(sess.Vim25(), false)
 
-	extraconfig.Decode(source, &exec.Config)
-	log.Debugf("Decoded VCH config for execution: %#v", exec.Config)
-	ccount := len(exec.Config.ComputeResources)
+	extraconfig.Decode(source, &exec.VCHConfig)
+	log.Debugf("Decoded VCH config for execution: %#v", exec.VCHConfig)
+	ccount := len(exec.VCHConfig.ComputeResources)
 	if ccount != 1 {
 		detail := fmt.Sprintf("expected singular compute resource element, found %d", ccount)
 		log.Errorf(detail)
 		return err
 	}
 
-	cr := exec.Config.ComputeResources[0]
+	cr := exec.VCHConfig.ComputeResources[0]
 	r, err := f.ObjectReference(ctx, cr)
 	if err != nil {
 		detail := fmt.Sprintf("could not get resource pool reference from %s: %s", cr.String(), err)
 		log.Errorf(detail)
 		return err
 	}
-	exec.Config.ResourcePool = r.(*object.ResourcePool)
+	exec.VCHConfig.ResourcePool = r.(*object.ResourcePool)
 	//FIXME: temporary injection of debug network for debug nic
-	ne := exec.Config.Networks["client"]
+	ne := exec.VCHConfig.Networks["client"]
 	if ne == nil {
 		detail := fmt.Sprintf("could not get client network reference for debug nic - this code can be removed once network mapping/dhcp client is present")
 		log.Errorf(detail)
@@ -84,7 +84,7 @@ func Init(ctx context.Context, sess *session.Session) error {
 		log.Errorf(detail)
 		return err
 	}
-	exec.Config.DebugNetwork = r.(object.NetworkReference)
+	exec.VCHConfig.DebugNetwork = r.(object.NetworkReference)
 
 	extraconfig.Decode(source, &network.Config)
 	log.Debugf("Decoded VCH config for network: %#v", network.Config)
