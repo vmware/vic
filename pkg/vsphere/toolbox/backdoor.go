@@ -65,7 +65,7 @@ func NewBackdoorChannelOut() Channel {
 	}
 }
 
-// NewBackdoorChannelOut creates a Channel for use with the TCLO protocol
+// NewBackdoorChannelIn creates a Channel for use with the TCLO protocol
 func NewBackdoorChannelIn() Channel {
 	return &backdoorChannel{
 		protocol: tcloProtocol,

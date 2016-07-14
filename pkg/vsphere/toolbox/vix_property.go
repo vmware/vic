@@ -119,29 +119,20 @@ func NewBlobProperty(ID int32, val []byte) *VixProperty {
 func (p *VixProperty) MarshalBinary() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	err := binary.Write(buf, binary.LittleEndian, &p.header)
-	if err != nil {
-		return nil, err
-	}
+	_ = binary.Write(buf, binary.LittleEndian, &p.header)
 
 	switch p.header.Kind {
 	case vixPropertyTypeBool:
-		err = binary.Write(buf, binary.LittleEndian, p.data.Bool)
+		_ = binary.Write(buf, binary.LittleEndian, p.data.Bool)
 	case vixPropertyTypeInt32:
-		err = binary.Write(buf, binary.LittleEndian, p.data.Int32)
+		_ = binary.Write(buf, binary.LittleEndian, p.data.Int32)
 	case vixPropertyTypeInt64:
-		err = binary.Write(buf, binary.LittleEndian, p.data.Int64)
+		_ = binary.Write(buf, binary.LittleEndian, p.data.Int64)
 	case vixPropertyTypeString:
-		_, err = buf.WriteString(p.data.String)
-		if err == nil {
-			err = buf.WriteByte(0)
-		}
+		_, _ = buf.WriteString(p.data.String)
+		_ = buf.WriteByte(0)
 	case vixPropertyTypeBlob:
-		_, err = buf.Write(p.data.Blob)
-	}
-
-	if err != nil {
-		return nil, err
+		_, _ = buf.Write(p.data.Blob)
 	}
 
 	return buf.Bytes(), nil
@@ -164,14 +155,12 @@ func (p *VixProperty) UnmarshalBinary(data []byte) error {
 	case vixPropertyTypeInt64:
 		return binary.Read(buf, binary.LittleEndian, &p.data.Int64)
 	case vixPropertyTypeString:
-		s := make([]byte, p.header.Length-1)
+		s := make([]byte, p.header.Length)
 		if _, err := buf.Read(s); err != nil {
 			return err
 		}
-		if _, err := buf.ReadByte(); err != nil { // discard \0
-			return err
-		}
-		p.data.String = string(s)
+
+		p.data.String = string(bytes.TrimRight(s, "\x00"))
 	case vixPropertyTypeBlob:
 		p.data.Blob = make([]byte, p.header.Length)
 		if _, err := buf.Read(p.data.Blob); err != nil {
@@ -212,13 +201,8 @@ func (l *VixPropertyList) MarshalBinary() ([]byte, error) {
 	var buf bytes.Buffer
 
 	for _, p := range *l {
-		b, err := p.MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
-		if _, err = buf.Write(b); err != nil {
-			return nil, err
-		}
+		b, _ := p.MarshalBinary()
+		_, _ = buf.Write(b)
 	}
 
 	return buf.Bytes(), nil

@@ -16,6 +16,7 @@ package toolbox
 
 import (
 	"encoding/base64"
+	"encoding/binary"
 	"math"
 	"reflect"
 	"testing"
@@ -71,5 +72,34 @@ func TestMarshalVixProperties(t *testing.T) {
 
 	if !reflect.DeepEqual(in, out) {
 		t.Error("marshal mismatch")
+	}
+
+}
+
+// hit unmarshal error paths
+func TestUnmarshalVixPropertiesErrors(t *testing.T) {
+	props := VixPropertyList{
+		NewBoolProperty(1, true),
+		NewStringProperty(1, "foo"),
+		NewBlobProperty(2, []byte("deadbeef")),
+	}
+
+	props[0].header.Kind = 0xff
+
+	for _, prop := range props {
+		buf, _ := prop.MarshalBinary()
+
+		for i, l := range []int{1, binary.Size(prop.header)} {
+			err := prop.UnmarshalBinary(buf[:l])
+			if err == nil {
+				t.Errorf("test %d (len=%d) expected error", i, l)
+			}
+		}
+	}
+
+	buf, _ := props.MarshalBinary()
+	err := props.UnmarshalBinary(buf)
+	if err == nil {
+		t.Error("expected error")
 	}
 }
