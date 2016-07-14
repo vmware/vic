@@ -52,8 +52,6 @@ const (
 type Container struct {
 	sync.Mutex
 
-	ID ID
-
 	ExecConfig *metadata.ExecutorConfig
 	State      State
 	// friendly description of state
@@ -66,10 +64,10 @@ type Container struct {
 
 func NewContainer(id ID) *Handle {
 	con := &Container{
-		ID:         id,
 		ExecConfig: &metadata.ExecutorConfig{},
 		State:      StateStopped,
 	}
+	con.ExecConfig.ID = id.String()
 
 	containersLock.Lock()
 	containers[id] = con
@@ -188,7 +186,7 @@ func (c *Container) start(ctx context.Context) error {
 	}
 
 	// guestinfo key that we want to wait for
-	key := fmt.Sprintf("guestinfo..sessions|%s.started", c.ID)
+	key := fmt.Sprintf("guestinfo..sessions|%s.started", c.ExecConfig.ID)
 	var detail string
 
 	// Wait some before giving up...
@@ -227,7 +225,7 @@ func (c *Container) stop(ctx context.Context) error {
 	return nil
 }
 
-func (c *Container) Remove(ctx context.Context) error {
+func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -235,17 +233,36 @@ func (c *Container) Remove(ctx context.Context) error {
 		return fmt.Errorf("VM has already been removed")
 	}
 
-	//removes the vm from vsphere
-	_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return c.vm.Destroy(ctx)
+	// get the folder the VM is in
+	url, err := c.vm.DSPath(ctx)
+	if err != nil {
+		log.Errorf("Failed to get datastore path for %s: %s", c.ExecConfig.ID, err)
+		return err
+	}
+	// FIXME: was expecting to find a utility function to convert to/from datastore/url given
+	// how widely it's used but couldn't - will ask around.
+	dsPath := fmt.Sprintf("[%s] %s", url.Host, url.Path)
+
+	//removes the vm from vsphere, but detaches the disks first
+	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		return c.vm.DeleteExceptDisks(ctx)
 	})
 	if err != nil {
 		return err
 	}
 
+	// remove from datastore
+	fm := object.NewFileManager(c.vm.Client.Client)
+
+	if _, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		return fm.DeleteDatastoreFile(ctx, dsPath, sess.Datacenter)
+	}); err != nil {
+		log.Debugf("Failed to delete %s, %s", dsPath, err)
+	}
+
 	//removes container from map
 	containersLock.Lock()
-	delete(containers, c.ID)
+	delete(containers, ParseID(c.ExecConfig.ID))
 	containersLock.Unlock()
 
 	return nil
@@ -266,7 +283,7 @@ func ContainerInfo(ctx context.Context, sess *session.Session, containerID ID) (
 			log.Debugf("ContainerInfo failed to find childVM: %s", err.Error())
 			return cvm, fmt.Errorf("Container Not Found: %s", containerID)
 		}
-		container = &Container{ID: containerID, vm: vm}
+		container = &Container{vm: vm}
 	}
 
 	// get properties for specific containerVMs
@@ -316,7 +333,8 @@ func infraContainers(ctx context.Context, sess *session.Session) ([]mo.VirtualMa
 
 	// popluate the vm property of the vch resource pool
 	if err := Config.ResourcePool.Properties(ctx, Config.ResourcePool.Reference(), []string{"vm"}, &rp); err != nil {
-		log.Errorf("List failed to get %s resource pool child vms: %s", Config.ResourcePool.Name(), err)
+		name := Config.ResourcePool.Name()
+		log.Errorf("List failed to get %s resource pool child vms: %s", name, err)
 		return nil, err
 	}
 	vms, err := populateVMAttributes(ctx, sess, rp.Vm)

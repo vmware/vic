@@ -124,6 +124,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 
 	err = h.Create(ctx, session, c)
 	if err != nil {
+		log.Errorf("ContainerCreate error: %s", err.Error())
 		return containers.NewCreateNotFound().WithPayload(&models.Error{Message: err.Error()})
 	}
 
@@ -199,6 +200,7 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 	}
 
 	if err := h.Commit(context.Background(), handler.handlerCtx.Session); err != nil {
+		log.Errorf("CommitHandler error (%s): %s", h.String(), err)
 		return containers.NewCommitDefault(http.StatusServiceUnavailable).WithPayload(&models.Error{Message: err.Error()})
 	}
 
@@ -215,7 +217,7 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 		return containers.NewContainerRemoveNotFound()
 	}
 
-	err := h.Container.Remove(context.Background())
+	err := h.Container.Remove(context.Background(), handler.handlerCtx.Session)
 	if err != nil {
 		return containers.NewContainerRemoveInternalServerError()
 	}
@@ -224,6 +226,8 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 }
 
 func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers.GetContainerInfoParams) middleware.Responder {
+	defer trace.End(trace.Begin("Containers.GetContainerInfoHandler"))
+
 	// get the container id for interogation
 	containerID := exec.ParseID(params.ID)
 	cc, err := exec.ContainerInfo(context.Background(), handler.handlerCtx.Session, containerID)
@@ -265,8 +269,11 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 func convertContainerToContainerInfo(container *exec.Container) *models.ContainerInfo {
 	// convert the container type to the required model
 	info := &models.ContainerInfo{ContainerConfig: &models.ContainerConfig{}, ProcessConfig: &models.ProcessConfig{}}
-	ccid := container.ID.String()
+
+	ccid := container.ExecConfig.ID
 	info.ContainerConfig.ContainerID = &ccid
+	log.Debugf("ID %s", ccid)
+
 	// TODO: need to determine an appropriate state model
 	// for now leveraging the status used in ps
 	info.ContainerConfig.State = &container.Status
@@ -280,6 +287,11 @@ func convertContainerToContainerInfo(container *exec.Container) *models.Containe
 
 	tty := container.ExecConfig.Sessions[ccid].Tty
 	info.ContainerConfig.Tty = &tty
+
+	attach := container.ExecConfig.Sessions[ccid].Attach
+	info.ContainerConfig.AttachStdin = &attach
+	info.ContainerConfig.AttachStdout = &attach
+	info.ContainerConfig.AttachStderr = &attach
 
 	path := container.ExecConfig.Sessions[ccid].Cmd.Path
 	dir := container.ExecConfig.Sessions[ccid].Cmd.Dir

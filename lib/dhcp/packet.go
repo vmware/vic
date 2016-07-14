@@ -24,30 +24,34 @@ import (
 	"github.com/d2g/dhcp4"
 )
 
-const DefaultLeaseTime = 1 * time.Hour
+type Options dhcp4.Options
 
 // Packet is a representation of a DHCP packet
 type Packet struct {
-	packet  []byte
-	options dhcp4.Options
+	Packet  []byte
+	Options Options
+}
+
+func NewPacket(p []byte) *Packet {
+	return &Packet{Packet: p, Options: Options(dhcp4.Packet(p).ParseOptions())}
 }
 
 // YourIP returns the YIP field in the packet (this is IP assigned by server to the client)
 func (p *Packet) YourIP() net.IP {
-	if len(p.packet) == 0 {
+	if len(p.Packet) == 0 {
 		return nil
 	}
 
-	return dhcp4.Packet(p.packet).YIAddr()
+	return dhcp4.Packet(p.Packet).YIAddr()
 }
 
 // Gateway return the GIP field in the packet (server assigned gateway)
 func (p *Packet) Gateway() net.IP {
-	if len(p.packet) == 0 {
+	if len(p.Packet) == 0 {
 		return nil
 	}
 
-	b := p.options[dhcp4.OptionRouter]
+	b := p.Options[dhcp4.OptionRouter]
 	if len(b) >= 4 {
 		return net.IP(b[:4])
 	}
@@ -57,14 +61,14 @@ func (p *Packet) Gateway() net.IP {
 
 // SubnetMask returns the subnet mask option in the packet
 func (p *Packet) SubnetMask() net.IPMask {
-	return p.options[dhcp4.OptionSubnetMask]
+	return p.Options[dhcp4.OptionSubnetMask]
 }
 
 // LeaseTime returns the lease time (in seconds) in the packet
 func (p *Packet) LeaseTime() time.Duration {
-	b := p.options[dhcp4.OptionIPAddressLeaseTime]
+	b := p.Options[dhcp4.OptionIPAddressLeaseTime]
 	if b == nil {
-		return DefaultLeaseTime
+		return 0
 	}
 
 	var t uint32
@@ -77,7 +81,7 @@ func (p *Packet) LeaseTime() time.Duration {
 
 // DNS returns the name server entries in the dhcp packet
 func (p *Packet) DNS() []net.IP {
-	b := p.options[dhcp4.OptionDomainNameServer]
+	b := p.Options[dhcp4.OptionDomainNameServer]
 	if b == nil {
 		return nil
 	}
@@ -92,11 +96,11 @@ func (p *Packet) DNS() []net.IP {
 
 // ServerIP returns the DHCP server's IP address
 func (p *Packet) ServerIP() net.IP {
-	if len(p.packet) == 0 {
+	if len(p.Packet) == 0 {
 		return nil
 	}
 
-	b := p.options[dhcp4.OptionServerIdentifier]
+	b := p.Options[dhcp4.OptionServerIdentifier]
 	if len(b) < net.IPv4len {
 		return nil
 	}

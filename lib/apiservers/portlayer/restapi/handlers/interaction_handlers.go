@@ -44,7 +44,7 @@ var (
 	interactionSession = &session.Session{}
 )
 
-const interactionTimeout time.Duration = 600 * time.Second
+const interactionTimeout time.Duration = 30 * time.Second
 
 func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *HandlerContext) {
 	var err error
@@ -54,7 +54,6 @@ func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Han
 	api.InteractionContainerGetStdoutHandler = interaction.ContainerGetStdoutHandlerFunc(i.ContainerGetStdoutHandler)
 	api.InteractionContainerGetStderrHandler = interaction.ContainerGetStderrHandlerFunc(i.ContainerGetStderrHandler)
 
-	ctx := context.Background()
 	sessionconfig := &session.Config{
 		Service:        options.PortLayerOptions.SDK,
 		Insecure:       options.PortLayerOptions.Insecure,
@@ -65,6 +64,7 @@ func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Han
 		DatastorePath:  options.PortLayerOptions.DatastorePath,
 	}
 
+	ctx := context.Background()
 	interactionSession, err = session.NewSession(sessionconfig).Create(ctx)
 	if err != nil {
 		log.Fatalf("InteractionHandler ERROR: %s", err)
@@ -78,7 +78,7 @@ func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Han
 }
 
 func (i *InteractionHandlersImpl) ContainerResizeHandler(params interaction.ContainerResizeParams) middleware.Responder {
-	// Get the ssh session to the container
+	// Get the session to the container
 	connContainer, err := i.attachServer.Get(context.Background(), params.ID, interactionTimeout)
 	if err != nil {
 		retErr := &models.Error{Message: fmt.Sprintf("No such container: %s", params.ID)}
@@ -91,25 +91,45 @@ func (i *InteractionHandlersImpl) ContainerResizeHandler(params interaction.Cont
 
 	err = connContainer.Resize(cWidth, cHeight, 0, 0)
 	if err != nil {
-		retErr := &models.Error{Message: "SSH Session failed to resize the container's TTY"}
-		return interaction.NewContainerResizeInternalServerError().WithPayload(retErr)
+		log.Errorf("InteractionHandler (%s) error: %s", params.ID, err.Error())
+		return interaction.NewContainerResizeInternalServerError()
 	}
 
 	return interaction.NewContainerResizeOK()
 }
 
 func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.ContainerSetStdinParams) middleware.Responder {
-	log.Printf("Attempting to get ssh session for container %s stdin", params.ID)
-	sshConn, err := i.attachServer.Get(context.Background(), params.ID, interactionTimeout)
+	var ctxDeadline time.Time
+	var timeout time.Duration
+
+	// Calculate the timeout for the attach if the caller specified a deadline.  This deadline
+
+	if params.Deadline != nil {
+		ctxDeadline = time.Time(*params.Deadline)
+		timeout = ctxDeadline.Sub(time.Now())
+		log.Printf("Attempting to get ssh session for container %s stdin with deadline %s", params.ID, ctxDeadline.Format(time.UnixDate))
+		if timeout < 0 {
+			e := &models.Error{Message: fmt.Sprintf("Deadline for stdin already passed for container %s", params.ID)}
+			return interaction.NewContainerGetStdoutInternalServerError().WithPayload(e)
+		}
+	} else {
+		log.Printf("Attempting to get ssh session for container %s stdin", params.ID)
+		timeout = interactionTimeout
+	}
+
+	contConn, err := i.attachServer.Get(context.Background(), params.ID, timeout)
 	if err != nil {
-		e := &models.Error{Message: fmt.Sprintf("No stdin found for %s", params.ID)}
-		return interaction.NewContainerSetStdinNotFound().WithPayload(e)
+		err = fmt.Errorf("No stdin found (id:%s): %s", params.ID, err.Error())
+		log.Errorf("%s", err.Error())
+
+		return interaction.NewContainerSetStdinNotFound()
 	}
 
 	detachableIn := NewFlushingReader(params.RawStream)
-	_, err = io.Copy(sshConn.Stdin(), detachableIn)
+	_, err = io.Copy(contConn.Stdin(), detachableIn)
 	if err != nil {
-		log.Printf("Error copying stdin for container %s", params.ID)
+		err = fmt.Errorf("Error copying stdin (id:%s): %s", params.ID, err.Error())
+		log.Errorf("%s", err.Error())
 	}
 
 	log.Printf("Done copying stdin")
@@ -118,26 +138,66 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 }
 
 func (i *InteractionHandlersImpl) ContainerGetStdoutHandler(params interaction.ContainerGetStdoutParams) middleware.Responder {
-	log.Printf("Attempting to get ssh session for container %s stdout", params.ID)
-	sshConn, err := i.attachServer.Get(context.Background(), params.ID, interactionTimeout)
-	if err != nil {
-		e := &models.Error{Message: fmt.Sprintf("No stdout found for %s", params.ID)}
-		return interaction.NewContainerGetStdoutNotFound().WithPayload(e)
+	var ctxDeadline time.Time
+	var timeout time.Duration
+
+	// Calculate the timeout for the attach if the caller specified a deadline
+	if params.Deadline != nil {
+		ctxDeadline = time.Time(*params.Deadline)
+		timeout = ctxDeadline.Sub(time.Now())
+		log.Printf("Attempting to get ssh session for container %s stdout with deadline %s", params.ID, ctxDeadline.Format(time.UnixDate))
+		if timeout < 0 {
+			e := &models.Error{Message: fmt.Sprintf("Deadline for stdin already passed for container %s", params.ID)}
+			return interaction.NewContainerGetStdoutInternalServerError().WithPayload(e)
+		}
+	} else {
+		log.Printf("Attempting to get ssh session for container %s stdout", params.ID)
+		timeout = interactionTimeout
 	}
 
-	detachableOut := NewFlushingReader(sshConn.Stdout())
+	contConn, err := i.attachServer.Get(context.Background(), params.ID, timeout)
+	if err != nil {
+
+		err = fmt.Errorf("No stdout found for %s: %s", params.ID, err.Error())
+		log.Errorf("%s", err.Error())
+
+		return interaction.NewContainerGetStdoutNotFound()
+	}
+
+	detachableOut := NewFlushingReader(contConn.Stdout())
+
 	return NewContainerOutputHandler("stdout").WithPayload(detachableOut, params.ID)
 }
 
 func (i *InteractionHandlersImpl) ContainerGetStderrHandler(params interaction.ContainerGetStderrParams) middleware.Responder {
-	log.Printf("Attempting to get ssh session for container %s stderr", params.ID)
-	sshConn, err := i.attachServer.Get(context.Background(), params.ID, interactionTimeout)
-	if err != nil {
-		e := &models.Error{Message: fmt.Sprintf("No stderr found for %s", params.ID)}
-		return interaction.NewContainerGetStderrNotFound().WithPayload(e)
+	var ctxDeadline time.Time
+	var timeout time.Duration
+
+	// Calculate the timeout for the attach if the caller specified a deadline
+	if params.Deadline != nil {
+		ctxDeadline = time.Time(*params.Deadline)
+		timeout = ctxDeadline.Sub(time.Now())
+		log.Printf("Attempting to get ssh session for container %s stderr with deadline %s", params.ID, ctxDeadline.Format(time.UnixDate))
+		if timeout < 0 {
+			e := &models.Error{Message: fmt.Sprintf("Deadline for stdin already passed for container %s", params.ID)}
+			return interaction.NewContainerGetStdoutInternalServerError().WithPayload(e)
+		}
+	} else {
+		log.Printf("Attempting to get ssh session for container %s stderr", params.ID)
+		timeout = interactionTimeout
 	}
 
-	detachableErr := NewFlushingReader(sshConn.Stderr())
+	contConn, err := i.attachServer.Get(context.Background(), params.ID, timeout)
+	if err != nil {
+
+		err = fmt.Errorf("No stderr found for %s: %s", params.ID, err.Error())
+		log.Errorf("%s", err.Error())
+
+		return interaction.NewContainerGetStderrNotFound()
+	}
+
+	detachableErr := NewFlushingReader(contConn.Stderr())
+
 	return NewContainerOutputHandler("stderr").WithPayload(detachableErr, params.ID)
 }
 
@@ -224,9 +284,8 @@ func (c *ContainerOutputHandler) WithPayload(payload *FlushingReader, id string)
 // WriteResponse to the client
 func (c *ContainerOutputHandler) WriteResponse(rw http.ResponseWriter, producer httpkit.Producer) {
 	rw.WriteHeader(http.StatusOK)
-	rw.Header().Set("Content-Type", "application/octet-streaming")
-	rw.Header().Set("Transfer-Encoding", "chunked")
 	if f, ok := rw.(http.Flusher); ok {
+		f.Flush()
 		c.outputStream.AddFlusher(f)
 	}
 	_, err := io.Copy(rw, c.outputStream)

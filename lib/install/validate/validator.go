@@ -277,6 +277,10 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 			Default: true, // external network is default for appliance
 		},
 	})
+	// Bridge network should be different with all other networks
+	if input.BridgeNetworkName == input.ExternalNetworkName {
+		v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - external also uses %s", input.BridgeNetworkName))
+	}
 
 	// Client net
 	if input.ClientNetworkName == "" {
@@ -295,6 +299,9 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 			},
 		},
 	})
+	if input.BridgeNetworkName == input.ClientNetworkName {
+		v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - client also uses %s", input.BridgeNetworkName))
+	}
 
 	// Management net
 	if input.ManagementNetworkName == "" {
@@ -310,6 +317,9 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 			},
 		},
 	})
+	if input.BridgeNetworkName == input.ManagementNetworkName {
+		v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - management also uses %s", input.BridgeNetworkName))
+	}
 
 	// Bridge net -
 	//   vCenter: must exist and must be a DPG
@@ -403,6 +413,9 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 			Gateway:     gw,
 			Nameservers: dns,
 			Pools:       pools,
+		}
+		if input.BridgeNetworkName == net {
+			v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - %s also mapped as container network %s", input.BridgeNetworkName, name))
 		}
 
 		conf.AddContainerNetwork(mappedNet)
@@ -851,11 +864,12 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string) (*url.URL,
 		return nil, nil, errors.Errorf("parsing error occured while parsing datastore path: %s", err)
 	}
 
-	if dsURL.Scheme != "" && dsURL.Scheme != "ds://" {
-		return nil, nil, errors.New("bad scheme provided for datastore")
+	// url scheme does not contain ://, so remove it to make url work
+	if dsURL.Scheme != "" && dsURL.Scheme != "ds" {
+		return nil, nil, errors.Errorf("bad scheme %s provided for datastore", dsURL.Scheme)
 	}
 
-	dsURL.Scheme = "ds://"
+	dsURL.Scheme = "ds"
 
 	// if a datastore name (e.g. "datastore1") is specifed with no decoration then this
 	// is interpreted as the Path
@@ -864,6 +878,8 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string) (*url.URL,
 		dsURL.Host = pathElements[0]
 		if len(pathElements) > 1 {
 			dsURL.Path = pathElements[1]
+		} else {
+			dsURL.Path = ""
 		}
 	}
 	if dsURL.Host == "" {
@@ -991,6 +1007,7 @@ func (v *Validator) suggestComputeResource(path string) {
 
 	if matches != nil {
 		// we've collected recommendations - displayname
+		log.Info("Suggested values for --compute-resource:")
 		for _, p := range matches {
 			log.Infof("  %s", v.inventoryPathToComputePath(p))
 		}
@@ -1043,7 +1060,7 @@ func (v *Validator) listResourcePools(path string) []string {
 
 	pools, err := v.Session.Finder.ResourcePoolList(v.Context, path+"/*")
 	if err != nil {
-		log.Errorf("Unable to list pools for %s: %s", path, err)
+		log.Debugf("Unable to list pools for %s: %s", path, err)
 		return nil
 	}
 

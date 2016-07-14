@@ -126,10 +126,6 @@ func handleFlags() (*CliOptions, bool) {
 		}
 	}
 
-	if *debug || vchConfig.Diagnostics.DebugLevel > 0 {
-		log.SetLevel(log.DebugLevel)
-	}
-
 	cli := &CliOptions{
 		enableTLS:     *enableTLS,
 		verifyTLS:     *verifyTLS,
@@ -149,6 +145,10 @@ func handleFlags() (*CliOptions, bool) {
 		log.Errorf("Unable to load configuration from guestinfo")
 	}
 	extraconfig.Decode(src, &vchConfig)
+
+	if *debug || vchConfig.Diagnostics.DebugLevel > 0 {
+		log.SetLevel(log.DebugLevel)
+	}
 
 	return cli, true
 }

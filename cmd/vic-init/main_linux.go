@@ -44,8 +44,8 @@ func main() {
 	if strings.HasSuffix(os.Args[0], "-debug") {
 		extraconfig.DecodeLogLevel = log.DebugLevel
 		extraconfig.EncodeLogLevel = log.DebugLevel
-		log.SetLevel(log.DebugLevel)
 	}
+	log.SetLevel(log.DebugLevel)
 
 	src, err := extraconfig.GuestInfoSourceWithPrefix("init")
 	if err != nil {

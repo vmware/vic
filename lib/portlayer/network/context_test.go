@@ -517,7 +517,7 @@ func TestContextAddContainer(t *testing.T) {
 		// verify the container was not added to the scope
 		s, _ := ctx.resolveScope(te.scope)
 		if s != nil && te.h != nil {
-			c := s.Container(te.h.Container.ID)
+			c := s.Container(exec.ParseID(te.h.Container.ExecConfig.ID))
 			if c != nil {
 				t.Fatalf("case %d: ctx.AddContainer(%v, %s, %s) added container", i, te.h, te.scope, te.ip)
 			}
@@ -660,7 +660,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 				t.Fatalf("%d: ctx.BindContainer(%s) => (%#v, %#v), want (%#v, %#v)", te.i, te.h, eps, err, nil, te.err)
 			}
 
-			con := ctx.Container(te.h.Container.ID)
+			con := ctx.Container(exec.ParseID(te.h.Container.ExecConfig.ID))
 			if con != nil {
 				t.Fatalf("%d: ctx.BindContainer(%s) added container %#v", te.i, te.h, con)
 			}
@@ -669,9 +669,9 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		}
 
 		// check if the correct endpoints were added
-		con := ctx.Container(te.h.Container.ID)
+		con := ctx.Container(exec.ParseID(te.h.Container.ExecConfig.ID))
 		if con == nil {
-			t.Fatalf("%d: ctx.Container(%s) => nil, want %s", te.i, te.h.Container.ID, te.h.Container.ID)
+			t.Fatalf("%d: ctx.Container(%s) => nil, want %s", te.i, te.h.Container.ExecConfig.ID, te.h.Container.ExecConfig.ID)
 		}
 
 		if len(con.Scopes()) != len(te.scopes) {
@@ -751,7 +751,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		}
 
 		// container should not be there
-		con := ctx.Container(te.h.Container.ID)
+		con := ctx.Container(exec.ParseID(te.h.Container.ExecConfig.ID))
 		if con != nil {
 			t.Fatalf("%d: ctx.Container(%s) => %#v, want nil", te.i, te.h, con)
 		}
@@ -762,8 +762,8 @@ func TestContextBindUnbindContainer(t *testing.T) {
 			if err != nil || len(scopes) != 1 {
 				t.Fatalf("%d: ctx.Scopes(%s) => (%#v, %#v)", te.i, s, scopes, err)
 			}
-			if scopes[0].Container(te.h.Container.ID) != nil {
-				t.Fatalf("%d: container %s is still part of scope %s", te.i, te.h.Container.ID, s)
+			if scopes[0].Container(exec.ParseID(te.h.Container.ExecConfig.ID)) != nil {
+				t.Fatalf("%d: container %s is still part of scope %s", te.i, te.h.Container.ExecConfig.ID, s)
 			}
 
 			// check if endpoint is still there, but without the ip
@@ -844,7 +844,7 @@ func TestContextRemoveContainer(t *testing.T) {
 			t.Fatalf(err.Error())
 		}
 
-		if s.Container(te.h.Container.ID) != nil {
+		if s.Container(exec.ParseID(te.h.Container.ExecConfig.ID)) != nil {
 			t.Fatalf("container %s is part of scope %s", te.h, s.Name())
 		}
 
