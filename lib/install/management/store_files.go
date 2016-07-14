@@ -44,7 +44,7 @@ func (d *Dispatcher) DeleteStores(vchVM *vm.VirtualMachine, conf *metadata.Virtu
 
 	ds := d.session.Datastore
 
-	path, err := d.getVCHRootDir(vchVM)
+	p, err := d.getVCHRootDir(vchVM) // p would be path but there's an imported package called path
 	if err != nil {
 		return err
 	}
@@ -53,13 +53,15 @@ func (d *Dispatcher) DeleteStores(vchVM *vm.VirtualMachine, conf *metadata.Virtu
 	var emptyImages bool
 	var emptyVolumes bool
 	log.Infof("Removing images")
-	if emptyImages, err = d.deleteImages(ds, path); err != nil {
+	if emptyImages, err = d.deleteImages(ds, p); err != nil {
 		errs = append(errs, err.Error())
 	}
+	emptyVolumes, err = d.deleteDatastoreFiles(ds, path.Join(p, volumeRoot), d.force)
+
 	if emptyImages && emptyVolumes {
 		// if not empty, don't try to delete parent directory here
 		log.Debugf("Removing stores directory")
-		if err = d.deleteParent(ds, path); err != nil {
+		if err = d.deleteParent(ds, p); err != nil {
 			errs = append(errs, err.Error())
 		}
 	}
