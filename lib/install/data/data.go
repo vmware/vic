@@ -89,6 +89,7 @@ func NewData() *Data {
 		MappedNetworksGateways: make(map[string]net.IPNet),
 		MappedNetworksIPRanges: make(map[string][]ip.Range),
 		MappedNetworksDNS:      make(map[string][]net.IP),
+		Timeout:                3 * time.Minute,
 	}
 	return d
 }

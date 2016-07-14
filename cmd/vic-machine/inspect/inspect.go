@@ -15,10 +15,6 @@
 package inspect
 
 import (
-	"io"
-	"os"
-	"time"
-
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/urfave/cli"
@@ -48,18 +44,9 @@ func NewInspect() *Inspect {
 
 // Flags return all cli flags for delete
 func (i *Inspect) Flags() []cli.Flag {
-	flags := []cli.Flag{
-		cli.DurationFlag{
-			Name:        "timeout",
-			Value:       3 * time.Minute,
-			Usage:       "Time to wait for appliance initialization",
-			Destination: &i.Timeout,
-		},
-	}
 	preFlags := append(i.TargetFlags(), i.IDFlags()...)
 	preFlags = append(preFlags, i.ComputeFlags()...)
-	flags = append(preFlags, flags...)
-	flags = append(flags, i.DebugFlags()...)
+	flags := append(preFlags, i.DebugFlags()...)
 
 	return flags
 }
@@ -85,19 +72,6 @@ func (i *Inspect) Run(cli *cli.Context) error {
 	if err = i.processParams(); err != nil {
 		return err
 	}
-
-	// Open log file
-	f, err := os.OpenFile(i.logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		err = errors.Errorf("Error opening logfile %s: %v", i.logfile, err)
-		return err
-	}
-	defer f.Close()
-
-	// Initiliaze logger with default TextFormatter
-	log.SetFormatter(&log.TextFormatter{ForceColors: true, FullTimestamp: true})
-	// SetOutput to io.MultiWriter so that we can log to stdout and a file
-	log.SetOutput(io.MultiWriter(os.Stdout, f))
 
 	if i.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)

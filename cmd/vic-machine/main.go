@@ -16,8 +16,11 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/urfave/cli"
 	"github.com/vmware/vic/cmd/vic-machine/create"
@@ -30,6 +33,10 @@ var (
 	Version  string
 	BuildID  string
 	CommitID string
+)
+
+const (
+	LogFile = "vic-machine.log"
 )
 
 func main() {
@@ -72,9 +79,25 @@ func main() {
 	} else {
 		app.Version = fmt.Sprintf("%s-%s", BuildID, CommitID)
 	}
+
+	logs := []io.Writer{app.Writer}
+	// Open log file
+	f, err := os.OpenFile(LogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error opening logfile %s: %v\n", LogFile, err)
+	} else {
+		defer f.Close()
+		logs = append(logs, f)
+	}
+
+	// Initiliaze logger with default TextFormatter
+	log.SetFormatter(&log.TextFormatter{ForceColors: true, FullTimestamp: true})
+	// SetOutput to io.MultiWriter so that we can log to stdout and a file
+	log.SetOutput(io.MultiWriter(logs...))
+
 	if err := app.Run(os.Args); err != nil {
-		fmt.Println("--------------------")
-		fmt.Printf("%s failed: %s\n", app.Name, errors.ErrorStack(err))
+		log.Errorf("--------------------")
+		log.Errorf("%s failed: %s\n", app.Name, errors.ErrorStack(err))
 	}
 }
 
