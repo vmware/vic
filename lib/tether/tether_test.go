@@ -104,6 +104,10 @@ func (t *Mocker) Cleanup() error {
 	return nil
 }
 
+func (t *Mocker) Setup(c Config) error {
+	return t.Base.Setup(c)
+}
+
 func (t *Mocker) Log() (io.Writer, error) {
 	return &t.LogBuffer, nil
 }
