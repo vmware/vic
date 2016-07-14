@@ -16,14 +16,21 @@ package toolbox
 
 import (
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"io"
 	"os"
 )
 
 var (
-	Trace = true // TODO: make optional
+	Trace = false
+
+	traceLog io.Writer = os.Stderr
 )
+
+func init() {
+	flag.BoolVar(&Trace, "toolbox.trace", Trace, "Enable toolbox trace")
+}
 
 type TraceChannel struct {
 	Channel
@@ -37,7 +44,7 @@ func NewTraceChannel(c Channel) Channel {
 
 	return &TraceChannel{
 		Channel: c,
-		log:     os.Stderr,
+		log:     traceLog,
 	}
 }
 

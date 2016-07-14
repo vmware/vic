@@ -14,35 +14,38 @@
 
 package toolbox
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
-var _ Channel = new(backdoorChannel)
+func TestPowerCommandHandler(t *testing.T) {
+	shutdown = "/bin/echo"
 
-func TestBackdoorChannel(t *testing.T) {
-	in := NewBackdoorChannelIn()
-	out := NewBackdoorChannelOut()
+	in := new(mockChannelIn)
+	out := new(mockChannelOut)
 
-	funcs := []func() error{
-		in.Start,
-		out.Start,
-		in.Stop,
-		out.Stop,
+	service := NewService(in, out)
+	power := RegisterPowerCommandHandler(service)
+
+	// cover nil Handler and out.Receive paths
+	_, _ = power.Halt.Dispatch(nil)
+
+	out.reply = append(out.reply, rpciOK, rpciOK)
+
+	power.Halt.Handler = Halt
+	power.Reboot.Handler = Reboot
+	power.Suspend.Handler = func() error {
+		return errors.New("an error")
 	}
 
-	for _, f := range funcs {
-		err := f()
-
-		if err != nil {
-			if err == ErrNotVirtualWorld {
-				t.SkipNow()
-			}
-			t.Fatal(err)
-		}
+	commands := []PowerCommand{
+		power.Halt,
+		power.Reboot,
+		power.Suspend,
 	}
 
-	// expect an error if we don't specify the protocol
-	err := new(backdoorChannel).Start()
-	if err == nil {
-		t.Error("expected error")
+	for _, cmd := range commands {
+		_, _ = cmd.Dispatch(nil)
 	}
 }

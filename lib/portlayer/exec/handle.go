@@ -178,7 +178,7 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 	// add create time to config
 	h.ExecConfig.Common.Created = time.Now().UTC().Unix()
 	// configure with debug
-	h.ExecConfig.Diagnostics.DebugLevel = Config.DebugLevel
+	h.ExecConfig.Diagnostics.DebugLevel = VCHConfig.DebugLevel
 	// Convert the management hostname to IP
 	ips, err := net.LookupIP(ManagementHostName)
 	if err != nil {
@@ -199,7 +199,7 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 	URI := fmt.Sprintf("tcp://%s:%d", ips[0], serialOverLANPort)
 
 	//FIXME: remove debug network
-	backing, err := Config.DebugNetwork.EthernetCardBackingInfo(ctx)
+	backing, err := VCHConfig.DebugNetwork.EthernetCardBackingInfo(ctx)
 	if err != nil {
 		detail := fmt.Sprintf("unable to generate backing info for debug network - this code can be removed once network mapping/dhcp client are available: %s", err)
 		log.Error(detail)
@@ -216,7 +216,6 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 		Name: config.Metadata.Name,
 
 		ParentImageID: config.ParentImageID,
-
 		// FIXME: hardcoded value
 		BootMediaPath: sess.Datastore.Path(fmt.Sprintf("%s/bootstrap.iso", config.VCHName)),
 		VMPathName:    fmt.Sprintf("[%s]", sess.Datastore.Name()),
