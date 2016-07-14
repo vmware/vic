@@ -41,6 +41,8 @@ import (
 
 var hostnameFile = "/etc/hostname"
 var byLabelDir = "/dev/disk/by-label"
+var hostsFile = "/etc/hosts"
+var resolvFile = "/etc/resolv.conf"
 
 const pciDevPath = "/sys/bus/pci/devices"
 
@@ -404,13 +406,17 @@ func (t *BaseOperations) updateNameservers(endpoint *NetworkEndpoint) error {
 func (t *BaseOperations) Apply(endpoint *NetworkEndpoint) error {
 	defer trace.End(trace.Begin("applying endpoint configuration for " + endpoint.Network.Name))
 
+	return apply(t, t, endpoint)
+}
+
+func apply(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
 	// Locate interface
 	slot, err := strconv.Atoi(endpoint.ID)
 	if err != nil {
 		detail := fmt.Sprintf("endpoint ID must be a base10 numeric pci slot identifier: %s", err)
 		return errors.New(detail)
 	}
-	link, err := t.LinkBySlot(int32(slot))
+	link, err := nl.LinkBySlot(int32(slot))
 	if err != nil {
 		detail := fmt.Sprintf("unable to acquire reference to link %s: %s", endpoint.ID, err)
 		return errors.New(detail)
@@ -419,7 +425,7 @@ func (t *BaseOperations) Apply(endpoint *NetworkEndpoint) error {
 	// TODO: add dhcp client code
 
 	// rename the link if needed
-	link, err = renameLink(t, link, int32(slot), endpoint)
+	link, err = renameLink(nl, link, int32(slot), endpoint)
 	if err != nil {
 		detail := fmt.Sprintf("unable to reacquire link %s after rename pass: %s", endpoint.ID, err)
 		return errors.New(detail)
@@ -444,7 +450,7 @@ func (t *BaseOperations) Apply(endpoint *NetworkEndpoint) error {
 	log.Debugf("%+v", endpoint)
 	if endpoint.IsDynamic() {
 		if endpoint.DHCP == nil {
-			ack, err = getDynamicIP(t, link, t.dhcpClient)
+			ack, err = getDynamicIP(nl, link, t.dhcpClient)
 			if err != nil {
 				return err
 			}
@@ -473,13 +479,13 @@ func (t *BaseOperations) Apply(endpoint *NetworkEndpoint) error {
 		old = &endpoint.Assigned
 	}
 
-	if err = linkAddrUpdate(old, newIP, t, link); err != nil {
+	if err = linkAddrUpdate(old, newIP, nl, link); err != nil {
 		return err
 	}
 
 	updateEndpoint(newIP, endpoint)
 
-	if err = updateDefaultRoute(t, link, endpoint); err != nil {
+	if err = updateDefaultRoute(nl, link, endpoint); err != nil {
 		return err
 	}
 
@@ -667,7 +673,7 @@ func (t *BaseOperations) Setup(config Config) error {
 		return err
 	}
 
-	h := etcconf.NewHosts("")
+	h := etcconf.NewHosts(hostsFile)
 	if err = h.Load(); err != nil {
 		return err
 	}
@@ -695,9 +701,9 @@ func (t *BaseOperations) Setup(config Config) error {
 	}
 
 	// start with empty resolv.conf
-	os.Remove(etcconf.ResolvConfPath)
+	os.Remove(resolvFile)
 
-	rc := etcconf.NewResolvConf("")
+	rc := etcconf.NewResolvConf(resolvFile)
 
 	t.dynEndpoints = make(map[string][]*NetworkEndpoint)
 	t.dhcpLoops = make(map[string]chan bool)

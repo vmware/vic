@@ -97,8 +97,8 @@ func (t *Mocker) Reload(config *ExecutorConfig) error {
 	return nil
 }
 
-func (t *Mocker) Setup(_ Config) error {
-	return nil
+func (t *Mocker) Setup(c Config) error {
+	return t.Base.Setup(c)
 }
 
 func (t *Mocker) Cleanup() error {
@@ -139,7 +139,7 @@ func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 
 // Apply takes the network endpoint configuration and applies it to the system
 func (t *Mocker) Apply(endpoint *NetworkEndpoint) error {
-	return t.Base.Apply(endpoint)
+	return apply(t, &t.Base, endpoint)
 }
 
 // MountLabel performs a mount with the source treated as a disk label

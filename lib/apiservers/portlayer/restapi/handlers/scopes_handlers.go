@@ -321,7 +321,14 @@ func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
 	eps := scope.Endpoints()
 	sc.Endpoints = make([]*models.EndpointConfig, len(eps))
 	for i, e := range eps {
+		addr := ""
+		ip := e.IP()
+		if ip != nil {
+			a := net.IPNet{IP: ip, Mask: e.Subnet().Mask}
+			addr = a.String()
+		}
 		sc.Endpoints[i] = &models.EndpointConfig{
+			Address:   addr,
 			Gateway:   e.Gateway().String(),
 			ID:        e.ID(),
 			Name:      e.Container().Name(),
@@ -329,11 +336,6 @@ func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
 			Container: e.Container().ID().String(),
 		}
 
-		ip := e.IP()
-		if ip != nil {
-			addr := net.IPNet{IP: ip, Mask: e.Subnet().Mask}
-			sc.Endpoints[i].Address = addr.String()
-		}
 	}
 
 	return sc
