@@ -14,4 +14,4 @@ This test requires that a vSphere server is running and available
 1. Delete VCH without compute-resource and name specified
 
 #Expected Outcome:
-* Command should fail for resource pool /Resources/docker-appliance is not found
+* Command should fail for resource pool /Resources/virtual-container-host is not found

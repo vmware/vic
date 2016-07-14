@@ -24,16 +24,36 @@ import (
 	"time"
 )
 
+const (
+	// TOOLS_VERSION_UNMANAGED as defined in open-vm-tools/lib/include/vm_tools_version.h
+	toolsVersionUnmanaged = 0x7fffffff
+
+	// RPCIN_MAX_DELAY as defined in rpcChannelInt.h:
+	maxDelay = 10
+)
+
+var (
+	capabilities = []string{
+		// Without tools.set.version, the UI reports Tools are "running", but "not installed"
+		fmt.Sprintf("tools.set.version %d", toolsVersionUnmanaged),
+
+		// Required to invoke guest power operations (shutdown, reboot)
+		"tools.capability.statechange",
+	}
+
+	netInterfaceAddrs = net.InterfaceAddrs
+)
+
 // Service receives and dispatches incoming RPC requests from the vmx
 type Service struct {
 	name     string
 	in       Channel
-	out      Channel
+	out      *ChannelOut
 	handlers map[string]Handler
 	stop     chan struct{}
 	wg       *sync.WaitGroup
+	delay    time.Duration
 
-	Interval  time.Duration
 	PrimaryIP func() string
 }
 
@@ -42,12 +62,11 @@ func NewService(rpcIn Channel, rpcOut Channel) *Service {
 	s := &Service{
 		name:     "toolbox", // Same name used by vmtoolsd
 		in:       NewTraceChannel(rpcIn),
-		out:      NewTraceChannel(rpcOut),
+		out:      &ChannelOut{NewTraceChannel(rpcOut)},
 		handlers: make(map[string]Handler),
 		wg:       new(sync.WaitGroup),
 		stop:     make(chan struct{}, 1),
 
-		Interval:  time.Second,
 		PrimaryIP: DefaultIP,
 	}
 
@@ -57,6 +76,22 @@ func NewService(rpcIn Channel, rpcOut Channel) *Service {
 	s.RegisterHandler("Capabilities_Register", s.CapabilitiesRegister)
 
 	return s
+}
+
+// backoff exponentially increases the RPC poll delay up to maxDelay
+func (s *Service) backoff() {
+	if s.delay < maxDelay {
+		if s.delay > 0 {
+			d := s.delay * 2
+			if d > s.delay && d < maxDelay {
+				s.delay = d
+			} else {
+				s.delay = maxDelay
+			}
+		} else {
+			s.delay = 1
+		}
+	}
 }
 
 // Start initializes the RPC channels and starts a goroutine to listen for incoming RPC requests
@@ -71,26 +106,33 @@ func (s *Service) Start() error {
 		return err
 	}
 
-	ticker := time.NewTicker(s.Interval)
-
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
 
+		// Same polling interval and backoff logic as vmtoolsd.
+		// Required in our case at startup at least, otherwise it is possible
+		// we miss the 1 Capabilities_Register call for example.
+
+		// Note we Send(response) even when nil, to let the VMX know we are here
+		var response []byte
+
 		for {
 			select {
-			case <-ticker.C:
-				_ = s.in.Send(nil) // POKE
+			case <-time.After(time.Millisecond * 10 * s.delay):
+				_ = s.in.Send(response)
+				response = nil
 
 				request, _ := s.in.Receive()
 
 				if len(request) > 0 {
-					response := s.Dispatch(request)
+					response = s.Dispatch(request)
 
-					_ = s.in.Send(response)
+					s.delay = 0
+				} else {
+					s.backoff()
 				}
 			case <-s.stop:
-				ticker.Stop()
 				return
 			}
 		}
@@ -131,7 +173,7 @@ func (s *Service) Dispatch(request []byte) []byte {
 	handler, ok := s.handlers[string(name)]
 
 	if !ok {
-		log.Printf("unknown command: '%s'\n", name)
+		log.Printf("unknown command: %q\n", name)
 		return []byte("Unknown Command")
 	}
 
@@ -168,7 +210,7 @@ func (s *Service) SetOption(args []byte) ([]byte, error) {
 	val := string(opts[1])
 
 	if Trace {
-		fmt.Fprintf(os.Stderr, "set option '%s'='%s'\n", key, val)
+		fmt.Fprintf(os.Stderr, "set option %q=%q\n", key, val)
 	}
 
 	switch key {
@@ -176,7 +218,10 @@ func (s *Service) SetOption(args []byte) ([]byte, error) {
 		if val == "1" {
 			ip := s.PrimaryIP()
 			msg := fmt.Sprintf("info-set guestinfo.ip %s", ip)
-			return nil, s.out.Send([]byte(msg))
+			_, err := s.out.Request([]byte(msg))
+			if err != nil {
+				return nil, err
+			}
 		}
 	default:
 		// TODO: handle other options...
@@ -188,7 +233,7 @@ func (s *Service) SetOption(args []byte) ([]byte, error) {
 // DefaultIP is used by default when responding to a Set_Option broadcastIP request
 // It can be overridden with the Service.PrimaryIP field
 func DefaultIP() string {
-	addrs, err := net.InterfaceAddrs()
+	addrs, err := netInterfaceAddrs()
 	if err == nil {
 		for _, addr := range addrs {
 			if ip, ok := addr.(*net.IPNet); ok && !ip.IP.IsLoopback() {
@@ -203,6 +248,12 @@ func DefaultIP() string {
 }
 
 func (s *Service) CapabilitiesRegister([]byte) ([]byte, error) {
-	// TODO: this is here just to make Fusion happy.  ESX doesn't seem to mind if we don't support this RPC
+	for _, cap := range capabilities {
+		_, err := s.out.Request([]byte(cap))
+		if err != nil {
+			log.Printf("send %q: %s", cap, err)
+		}
+	}
+
 	return nil, nil
 }

@@ -864,11 +864,12 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string) (*url.URL,
 		return nil, nil, errors.Errorf("parsing error occured while parsing datastore path: %s", err)
 	}
 
-	if dsURL.Scheme != "" && dsURL.Scheme != "ds://" {
-		return nil, nil, errors.New("bad scheme provided for datastore")
+	// url scheme does not contain ://, so remove it to make url work
+	if dsURL.Scheme != "" && dsURL.Scheme != "ds" {
+		return nil, nil, errors.Errorf("bad scheme %s provided for datastore", dsURL.Scheme)
 	}
 
-	dsURL.Scheme = "ds://"
+	dsURL.Scheme = "ds"
 
 	// if a datastore name (e.g. "datastore1") is specifed with no decoration then this
 	// is interpreted as the Path
@@ -877,6 +878,8 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string) (*url.URL,
 		dsURL.Host = pathElements[0]
 		if len(pathElements) > 1 {
 			dsURL.Path = pathElements[1]
+		} else {
+			dsURL.Path = ""
 		}
 	}
 	if dsURL.Host == "" {

@@ -30,6 +30,17 @@ const (
 
 	vixCommandGetToolsState = 62
 	vixCommandStartProgram  = 185
+
+	// VIX_USER_CREDENTIAL_NAME_PASSWORD
+	vixUserCredentialNamePassword = 1
+
+	// VIX_E_* constants from vix.h
+	vixOK                         = 0
+	vixFail                       = 1
+	vixAuthenticationFail         = 35
+	vixUnrecognizedCommandInGuest = 3025
+	vixInvalidMessageHeader       = 10000
+	vixInvalidMessageBody         = 10001
 )
 
 type VixMsgHeader struct {
@@ -79,11 +90,23 @@ type VixMsgStartProgramRequest struct {
 type VixCommandHandler func(string, VixCommandRequestHeader, []byte) ([]byte, error)
 
 type VixRelayedCommandHandler struct {
-	Out Channel
+	Out *ChannelOut
+
+	Authenticate func(VixCommandRequestHeader, []byte) error
 
 	ProcessStartCommand func(*VixMsgStartProgramRequest) (int, error)
 
 	handlers map[uint32]VixCommandHandler
+}
+
+type VixUserCredentialNamePassword struct {
+	header struct {
+		NameLength     uint32
+		PasswordLength uint32
+	}
+
+	Name     string
+	Password string
 }
 
 func RegisterVixRelayedCommandHandler(service *Service) *VixRelayedCommandHandler {
@@ -101,6 +124,20 @@ func RegisterVixRelayedCommandHandler(service *Service) *VixRelayedCommandHandle
 	handler.ProcessStartCommand = handler.ExecCommandStart
 
 	return handler
+}
+
+func vixCommandResult(rc int, err error, response []byte) []byte {
+	// All Foundry tools commands return results that start with a foundry error
+	// and a guest-OS-specific error (e.g. errno)
+	errno := 0
+
+	if err != nil {
+		// TODO: inspect err for system error, setting errno
+
+		response = []byte(err.Error())
+	}
+
+	return append([]byte(fmt.Sprintf("%d %d ", rc, errno)), response...)
 }
 
 func (c *VixRelayedCommandHandler) Dispatch(data []byte) ([]byte, error) {
@@ -122,7 +159,7 @@ func (c *VixRelayedCommandHandler) Dispatch(data []byte) ([]byte, error) {
 	}
 
 	if Trace {
-		fmt.Fprintf(os.Stderr, "vix dispatch '%s'...\n%s\n", name, hex.Dump(data))
+		fmt.Fprintf(os.Stderr, "vix dispatch %q...\n%s\n", name, hex.Dump(data))
 	}
 
 	var header VixCommandRequestHeader
@@ -133,30 +170,32 @@ func (c *VixRelayedCommandHandler) Dispatch(data []byte) ([]byte, error) {
 	}
 
 	if header.Magic != vixCommandMagicWord {
-		return nil, errors.New("VIX_E_INVALID_MESSAGE_HEADER")
+		return vixCommandResult(vixInvalidMessageHeader, nil, nil), nil
 	}
 
 	handler, ok := c.handlers[header.OpCode]
 	if !ok {
-		return nil, errors.New("VIX_E_UNRECOGNIZED_COMMAND_IN_GUEST")
+		return vixCommandResult(vixUnrecognizedCommandInGuest, nil, nil), nil
 	}
 
-	creds := buf.Bytes()[header.BodyLength:]
-	// TODO: ignoring credentials for now
-	_ = c.authenticate(header, creds)
+	if header.OpCode != vixCommandGetToolsState {
+		// Every command expect GetToolsState requires authentication
+		creds := buf.Bytes()[header.BodyLength:]
 
-	// All Foundry tools commands return results that start with a foundry error
-	// and a guest-OS-specific error (e.g. errno)
-	var rc, errno int
+		err = c.authenticate(header, creds[:header.CredentialLength])
+		if err != nil {
+			return vixCommandResult(vixAuthenticationFail, err, nil), nil
+		}
+	}
+
+	rc := vixOK
 
 	response, err := handler(name, header, buf.Bytes())
 	if err != nil {
-		// TODO: support the other 10 million VIX_E_* errors
-		rc = 1 // VIX_E_FAIL
-		// TODO: inspect err for system error, setting errno
+		rc = vixFail
 	}
 
-	return append([]byte(fmt.Sprintf("%d %d ", rc, errno)), response...), nil
+	return vixCommandResult(rc, err, response), nil
 }
 
 func (c *VixRelayedCommandHandler) RegisterHandler(op uint32, handler VixCommandHandler) {
@@ -179,11 +218,7 @@ func (c *VixRelayedCommandHandler) GetToolsState(_ string, _ VixCommandRequestHe
 		NewBoolProperty(VixPropertyGuestStartProgramEnabled, true),
 	}
 
-	src, err := props.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
+	src, _ := props.MarshalBinary()
 	enc := base64.StdEncoding
 	buf := make([]byte, enc.EncodedLen(len(src)))
 	enc.Encode(buf, src)
@@ -219,10 +254,7 @@ func (r *VixMsgStartProgramRequest) MarshalBinary() ([]byte, error) {
 
 	buf := new(bytes.Buffer)
 
-	err := binary.Write(buf, binary.LittleEndian, &r.header)
-	if err != nil {
-		return nil, err
-	}
+	_ = binary.Write(buf, binary.LittleEndian, &r.header)
 
 	for _, val := range fields {
 		_, _ = buf.Write([]byte(val))
@@ -259,13 +291,8 @@ func (r *VixMsgStartProgramRequest) UnmarshalBinary(data []byte) error {
 			continue
 		}
 
-		x := buf.Next(int(field.len) - 1)
-		*field.val = string(x)
-
-		_, err = buf.ReadByte() // discard NULL terminator
-		if err != nil {
-			return err
-		}
+		x := buf.Next(int(field.len))
+		*field.val = string(bytes.TrimRight(x, "\x00"))
 	}
 
 	for i := 0; i < int(r.header.NumEnvVars); i++ {
@@ -305,38 +332,62 @@ func (c *VixRelayedCommandHandler) ExecCommandStart(r *VixMsgStartProgramRequest
 }
 
 func (c *VixRelayedCommandHandler) authenticate(r VixCommandRequestHeader, data []byte) error {
-	buf := bytes.NewBuffer(data)
+	if c.Authenticate != nil {
+		return c.Authenticate(r, data)
+	}
 
-	// TODO: ignoring credentials for now, but this is how-to decode...
-	if r.UserCredentialType == 1 { // VIX_USER_CREDENTIAL_NAME_PASSWORD
-		pw := struct {
-			NameLength     uint32
-			PasswordLength uint32
-		}{}
+	switch r.UserCredentialType {
+	case vixUserCredentialNamePassword:
+		var c VixUserCredentialNamePassword
 
-		err := binary.Read(buf, binary.LittleEndian, &pw)
-		if err != nil {
+		if err := c.UnmarshalBinary(data); err != nil {
 			return err
-		}
-
-		length := int(r.CredentialLength - uint32(int32Size*2) - 1)
-
-		str, err := base64.StdEncoding.DecodeString(string(buf.Next(length)))
-		if err != nil {
-			return err
-		}
-
-		creds := struct {
-			Name, Password string
-		}{
-			string(str[0:pw.NameLength]),
-			string(str[pw.NameLength+1 : len(str)-1]),
 		}
 
 		if Trace {
-			fmt.Fprintf(os.Stderr, "ignoring credentials: '%s:%s'\n", creds.Name, creds.Password)
+			fmt.Fprintf(traceLog, "ignoring credentials: %q:%q\n", c.Name, c.Password)
 		}
+
+		return nil
+	default:
+		return fmt.Errorf("unsupported UserCredentialType=%d", r.UserCredentialType)
+	}
+}
+
+func (c *VixUserCredentialNamePassword) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewBuffer(bytes.TrimRight(data, "\x00"))
+
+	err := binary.Read(buf, binary.LittleEndian, &c.header)
+	if err != nil {
+		return err
 	}
 
+	str, err := base64.StdEncoding.DecodeString(string(buf.Bytes()))
+	if err != nil {
+		return err
+	}
+
+	c.Name = string(str[0:c.header.NameLength])
+	c.Password = string(str[c.header.NameLength+1 : len(str)-1])
+
 	return nil
+}
+
+func (c *VixUserCredentialNamePassword) MarshalBinary() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	c.header.NameLength = uint32(len(c.Name))
+	c.header.PasswordLength = uint32(len(c.Password))
+
+	_ = binary.Write(buf, binary.LittleEndian, &c.header)
+
+	src := append([]byte(c.Name+"\x00"), []byte(c.Password+"\x00")...)
+
+	enc := base64.StdEncoding
+	pwd := make([]byte, enc.EncodedLen(len(src)))
+	enc.Encode(pwd, src)
+	_, _ = buf.Write(pwd)
+	_ = buf.WriteByte(0)
+
+	return buf.Bytes(), nil
 }

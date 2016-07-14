@@ -292,6 +292,7 @@ func TestDatastoreHTTP(t *testing.T) {
 		// PUT file = ok
 		upload(dst, false, "PUT")
 		stat(dst, false)
+		ls("", false)
 
 		// GET file exists = ok
 		download(dst, false)

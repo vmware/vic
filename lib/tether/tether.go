@@ -115,7 +115,10 @@ func (t *tether) setup() error {
 		pids: make(map[int]*SessionConfig),
 	}
 
-	t.childReaper()
+	if err := t.childReaper(); err != nil {
+		log.Errorf("Failed to start reaper %s", err)
+		return err
+	}
 
 	t.ops.Setup(t)
 

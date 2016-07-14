@@ -19,10 +19,10 @@ Simple creates
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-Create with volume
-    ${status}=  Get State Of Github Issue  806
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-4-Docker-Create.robot needs to be updated now that Issue #806 has been resolved
-    Log  Issue \#806 is blocking implementation  WARN
+#Create with volume
+#    ${status}=  Get State Of Github Issue  806
+#    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-4-Docker-Create.robot needs to be updated now that Issue #806 has been resolved
+#    Log  Issue \#806 is blocking implementation  WARN
 #    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -v /var/log:/var/log busybox ls /var/log
 #    Should Be Equal As Integers  ${rc}  0
 #    Should Not Contain  ${output}  Error

@@ -15,8 +15,6 @@
 package delete
 
 import (
-	"io"
-	"os"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -57,7 +55,7 @@ func (d *Uninstall) Flags() []cli.Flag {
 		cli.DurationFlag{
 			Name:        "timeout",
 			Value:       3 * time.Minute,
-			Usage:       "Time to wait for appliance initialization",
+			Usage:       "Time to wait to delete vsphere resources",
 			Destination: &d.Timeout,
 		},
 	}
@@ -90,19 +88,6 @@ func (d *Uninstall) Run(cli *cli.Context) error {
 	if err = d.processParams(); err != nil {
 		return err
 	}
-
-	// Open log file
-	f, err := os.OpenFile(d.logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		err = errors.Errorf("Error opening logfile %s: %v", d.logfile, err)
-		return err
-	}
-	defer f.Close()
-
-	// Initiliaze logger with default TextFormatter
-	log.SetFormatter(&log.TextFormatter{ForceColors: true, FullTimestamp: true})
-	// SetOutput to io.MultiWriter so that we can log to stdout and a file
-	log.SetOutput(io.MultiWriter(os.Stdout, f))
 
 	if d.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)

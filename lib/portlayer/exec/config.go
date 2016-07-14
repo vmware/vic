@@ -22,7 +22,7 @@ import (
 	"github.com/vmware/vic/lib/metadata"
 )
 
-var Config Configuration
+var VCHConfig Configuration
 
 // Configuration is a slice of the VCH config that is relevent to the exec part of the port layer
 type Configuration struct {

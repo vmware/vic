@@ -29,6 +29,11 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
+const (
+	//https://github.com/golang/go/blob/master/src/syscall/zerrors_linux_arm64.go#L919
+	SetChildSubreaper = 0x24
+)
+
 // Mkdev will hopefully get rolled into go.sys at some point
 func Mkdev(majorNumber int, minorNumber int) int {
 	return (majorNumber << 8) | (minorNumber & 0xff) | ((minorNumber & 0xfff00) << 12)
@@ -37,11 +42,26 @@ func Mkdev(majorNumber int, minorNumber int) int {
 // childReaper is used to handle events from child processes, including child exit.
 // If running as pid=1 then this means it handles zombie process reaping for orphaned children
 // as well as direct child processes.
-func (t *tether) childReaper() {
+func (t *tether) childReaper() error {
 	signal.Notify(t.incoming, syscall.SIGCHLD)
 
-	// TODO: Call prctl with PR_SET_CHILD_SUBREAPER so that we reap regardless of pid 1 or not
-	// we already get our direct children, but not lower in the hierarchy
+	/*
+	   PR_SET_CHILD_SUBREAPER (since Linux 3.4)
+	          If arg2 is nonzero, set the "child subreaper" attribute of the
+	          calling process; if arg2 is zero, unset the attribute.  When a
+	          process is marked as a child subreaper, all of the children
+	          that it creates, and their descendants, will be marked as
+	          having a subreaper.  In effect, a subreaper fulfills the role
+	          of init(1) for its descendant processes.  Upon termination of
+	          a process that is orphaned (i.e., its immediate parent has
+	          already terminated) and marked as having a subreaper, the
+	          nearest still living ancestor subreaper will receive a SIGCHLD
+	          signal and be able to wait(2) on the process to discover its
+	          termination status.
+	*/
+	if _, _, err := syscall.RawSyscall(syscall.SYS_PRCTL, SetChildSubreaper, uintptr(1), 0); err != 0 {
+		return err
+	}
 
 	log.Info("Started reaping child processes")
 
@@ -87,6 +107,8 @@ func (t *tether) childReaper() {
 			}()
 		}
 	}()
+
+	return nil
 }
 
 func (t *tether) stopReaper() {
