@@ -72,7 +72,7 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 		containers:        make(map[exec.ID]*Container),
 	}
 
-	s, err := ctx.NewScope("bridge", bridgeScopeType, nil, net.IPv4(0, 0, 0, 0), nil, nil)
+	s, err := ctx.NewScope("bridge", BridgeScopeType, nil, net.IPv4(0, 0, 0, 0), nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 			pools[i] = p.String()
 		}
 
-		s, err := ctx.NewScope(externalScopeType, nn, &net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}, n.Gateway.IP, nil, pools)
+		s, err := ctx.NewScope(ExternalScopeType, nn, &net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}, n.Gateway.IP, nil, pools)
 		if err != nil {
 			return nil, err
 		}
@@ -215,7 +215,7 @@ func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net
 		subnet = defaultSubnet
 	}
 
-	s, err := c.newScopeCommon(id, name, bridgeScopeType, subnet, gateway, dns, ipam, bn.PortGroup)
+	s, err := c.newScopeCommon(id, name, BridgeScopeType, subnet, gateway, dns, ipam, bn.PortGroup)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +251,7 @@ func (c *Context) newExternalScope(id, name string, subnet *net.IPNet, gateway n
 		return nil, fmt.Errorf("no network info for external scope %s", name)
 	}
 
-	return c.newScopeCommon(id, name, externalScopeType, subnet, gateway, dns, ipam, n.PortGroup)
+	return c.newScopeCommon(id, name, ExternalScopeType, subnet, gateway, dns, ipam, n.PortGroup)
 }
 
 func isDefaultSubnet(subnet *net.IPNet) bool {
@@ -376,10 +376,10 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 	}
 
 	switch scopeType {
-	case bridgeScopeType:
+	case BridgeScopeType:
 		return c.newBridgeScope(generateID(), name, subnet, gateway, dns, &IPAM{pools: pools})
 
-	case externalScopeType:
+	case ExternalScopeType:
 		return c.newExternalScope(generateID(), name, subnet, gateway, dns, &IPAM{pools: pools})
 
 	default:
@@ -491,7 +491,7 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		ne.Network.Gateway = net.IPNet{IP: e.gateway, Mask: e.subnet.Mask}
 
 		// mark the external network as default
-		if !defaultMarked && e.Scope().Type() == externalScopeType {
+		if !defaultMarked && e.Scope().Type() == ExternalScopeType {
 			defaultMarked = true
 			ne.Network.Default = true
 		}
@@ -778,10 +778,10 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 
 		// check if container is already part of an "external" scope;
 		// only one "external" scope per container is allowed
-		if s.Type() == externalScopeType {
+		if s.Type() == ExternalScopeType {
 			for name := range h.ExecConfig.Networks {
 				sc, _ := c.resolveScope(name)
-				if sc.Type() == externalScopeType {
+				if sc.Type() == ExternalScopeType {
 					return fmt.Errorf("container can only be added to at most one mapped network")
 				}
 			}
@@ -798,14 +798,14 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 	// to a bridge network, we just reuse that
 	// NIC
 	var pciSlot int32
-	if s.Type() == bridgeScopeType {
+	if s.Type() == BridgeScopeType {
 		for _, ne := range h.ExecConfig.Networks {
 			sc, err := c.resolveScope(ne.Network.Name)
 			if err != nil {
 				return err
 			}
 
-			if sc.Type() != bridgeScopeType {
+			if sc.Type() != BridgeScopeType {
 				continue
 			}
 
