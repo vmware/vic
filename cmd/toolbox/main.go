@@ -15,15 +15,20 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/vmware/vic/pkg/vsphere/toolbox"
 )
 
 // This example can be run on a VM hosted by ESX, Fusion or Workstation
 func main() {
+	flag.Parse()
+
 	in := toolbox.NewBackdoorChannelIn()
 	out := toolbox.NewBackdoorChannelOut()
 
@@ -38,12 +43,26 @@ func main() {
 		return -1, nil
 	}
 
+	power := toolbox.RegisterPowerCommandHandler(service)
+
+	if os.Getuid() == 0 {
+		power.Halt.Handler = toolbox.Halt
+		power.Reboot.Handler = toolbox.Reboot
+	}
+
 	err := service.Start()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	defer service.Stop()
+	// handle the signals and gracefully shutdown the service
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		log.Printf("signal %s received", <-sig)
+		service.Stop()
+	}()
 
 	service.Wait()
 }
