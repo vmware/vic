@@ -80,6 +80,7 @@ func TestMain(t *testing.T) {
 		//		testCreateNetwork(ctx, validator.Session, conf, t)
 
 		testCreateVolumeStores(ctx, validator.Session, conf, false, t)
+		testDeleteVolumeStores(ctx, validator.Session, conf, 1, t)
 		errConf := &metadata.VirtualContainerHostConfigSpec{}
 		*errConf = *conf
 		errConf.VolumeLocations = make(map[string]*url.URL)
@@ -196,6 +197,20 @@ func testCreateVolumeStores(ctx context.Context, sess *session.Session, conf *me
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
 	}
+}
+
+func testDeleteVolumeStores(ctx context.Context, sess *session.Session, conf *metadata.VirtualContainerHostConfigSpec, numVols int, t *testing.T) {
+	d := &Dispatcher{
+		session: sess,
+		ctx:     ctx,
+		isVC:    sess.IsVC(),
+		force:   true,
+	}
+
+	if removed := d.deleteVolumeStoreIfForced(conf); removed != numVols {
+		t.Errorf("Did not successfully remove all specified volumes")
+	}
+
 }
 
 // FIXME: Failed to find IDE controller in simulator, so create appliance failed

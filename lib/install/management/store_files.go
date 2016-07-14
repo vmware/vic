@@ -177,10 +177,13 @@ func (d *Dispatcher) createVolumeStores(conf *metadata.VirtualContainerHostConfi
 	return nil
 }
 
-func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHostConfigSpec) {
+// returns # of removed stores
+func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHostConfigSpec) (removed int) {
+	removed = 0
+
 	if !d.force {
 		if len(conf.VolumeLocations) == 0 {
-			return
+			return 0
 		}
 
 		volumeStores := new(bytes.Buffer)
@@ -188,7 +191,7 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHo
 			volumeStores.WriteString(fmt.Sprintf("\t%s: %s\n", label, url.Path))
 		}
 		log.Warnf("Since --force was not specified, the following volume stores will not be removed. Use the vSphere UI to delete content you do not wish to keep.\n%s", volumeStores.String())
-		return
+		return 0
 	}
 
 	for label, url := range conf.VolumeLocations {
@@ -223,7 +226,10 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHo
 		datastore := datastores[0]
 		if _, err := d.deleteDatastoreFiles(datastore, dsURL.Path, d.force); err != nil {
 			log.Errorf("Failed to delete volume store %s on Datastore %s at path %s", label, dsURL.Host, dsURL.Path)
+		} else {
+			removed++
 		}
 	}
+	return removed
 
 }
