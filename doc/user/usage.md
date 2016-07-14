@@ -104,4 +104,40 @@ INFO[2016-06-29T16:03:21-05:00] Completed successfully
 ```
 
 
+## Configuring Volumes in a Virtual Container Host
+
+Volumes are implemented as VMDKs and mounted as block devices on a containerVM. This means that they cannot be used concurrently by multiple running, containers. Attempting to start a container that has a volume attached that is in use by a running container will result in an error.
+
+The location in which volumes are created can be specified at creation time via the `--volume-store` argument. This can be supplied multiple times to configure multiple datastores or paths:
+```
+vic-machine-linux create --volume-store=default:datastore1/some/path --volume-store=fast:ssdDatastore/other/path ...
+```
+
+The volume store to use is specified via driver optons when creating volumes (capacity is in MB):
+```
+docker volume create --name=reports --opts VolumeStore=fast --opt Capacity=1024
+```
+
+Providing a volume store named `default` allows the driver options to be omitted in the example above and enables anoymous volumes, e.g.:
+```
+docker run -v /var/lib/data -it busybox 
+```
+  
+
+## Exposing vSphere networks within a Virtual Container Host
+
+vSphere networks can be directly mapped into the VCH for use by containers. This allows a container to expose services to the wider world without using port-forwarding (which is not yet implemented):
+
+```
+vic-machine-linux create --container-network=vpshere-network:descriptive-name
+```
+
+A container can then be attached directly to this network and a bridge network via:
+```
+docker create --net=descriptive-name haproxy
+docker network connect bridge <container-id>
+```
+
+Currently the container does **not** have a firewall configured [#692](https://github.com/vmware/vic/issues/692) in this circumstance.
+
 [Issues relating to Virtual Container Host deployment](https://github.com/vmware/vic/labels/component%2Fvic-machine)
