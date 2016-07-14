@@ -15,6 +15,7 @@
 package vsphere
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -22,7 +23,6 @@ import (
 	"regexp"
 	"strings"
 
-	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
