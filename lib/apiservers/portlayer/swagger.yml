@@ -204,13 +204,6 @@ paths:
       produces:
         - application/json
       parameters:
-        - name: id
-          type: string
-          in: query
-          type: array
-          items:
-            type: string
-            collectionFormat: csv
       responses:
         '200':
           description: "OK"
@@ -218,7 +211,7 @@ paths:
             type: array
             items:
               $ref: "#/definitions/VolumeResponse"
-        '404':
+        '500':
           description: "Not found"
           schema:
             $ref: "#/definitions/Error"
@@ -1086,6 +1079,7 @@ definitions:
       Name:
         type: string
       Label:
+        description: "this is the label used to mount the block device"
         type: string
       Driver:
         type: string
