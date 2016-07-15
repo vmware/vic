@@ -32,7 +32,7 @@ import (
 const (
 	OptsVolumeStoreKey     string = "VolumeStore"
 	OptsCapacityKey        string = "Capacity"
-	dockerMetadataModelKey string = "DockerMetaData"
+	dockerMetadataModelKey string = "dockerMetaData"
 )
 
 //Volume : struct which defines the docker personalities view of a Volume
@@ -48,7 +48,13 @@ type volumeMetadata struct {
 
 //Volumes : docker personality implementation for VIC
 func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
-	return nil, make([]string, 0), fmt.Errorf("%s does not implement volume.Volumes", ProductName())
+	defer trace.End(trace.Begin("Volume.Volumes"))
+
+	client := PortLayerClient()
+	if client == nil {
+		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get a portlayer client"), http.StatusInternalServerError)
+	}
+
 }
 
 //VolumeInspect : docker personality implementation for VIC
@@ -111,7 +117,6 @@ func (v *Volume) VolumeRm(name string) error {
 	if err != nil {
 
 		switch err := err.(type) {
-
 		case *storage.RemoveVolumeNotFound:
 			return derr.NewRequestNotFoundError(fmt.Errorf("Get %s: no such volume", name))
 
@@ -120,7 +125,6 @@ func (v *Volume) VolumeRm(name string) error {
 
 		case *storage.RemoveVolumeInternalServerError:
 			return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", err.Payload.Message), http.StatusInternalServerError)
-
 		default:
 			return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", err), http.StatusInternalServerError)
 		}
@@ -171,7 +175,7 @@ func translateInputsToPortlayerRequestModel(name, driverName string, opts, label
 	}
 	metadata := createVolumeMetadata(&model, labels)
 	model.Metadata = make(map[string]string)
-	model.Metadata["dockerMetaData"] = metadata
+	model.Metadata[dockerMetadataModelKey] = metadata
 	if err := validateDriverArgs(opts, &model); err != nil {
 		return model, err
 	}
@@ -187,4 +191,10 @@ func createVolumeMetadata(model *models.VolumeRequest, labels map[string]string)
 	}
 	result, _ := json.Marshal(metadata)
 	return string(result)
+}
+
+func extractDockerMetadata(metadataMap map[string]string) volumeMetadata {
+	var result volumeMetadata
+	json.Unmarshal([]byte(metadataMap[dockerMetadataModelKey]), result)
+	return result
 }
