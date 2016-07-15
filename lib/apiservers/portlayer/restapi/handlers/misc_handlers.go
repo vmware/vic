@@ -16,6 +16,7 @@ package handlers
 
 import (
 	"github.com/go-swagger/go-swagger/httpkit/middleware"
+	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/misc"
 )
@@ -25,9 +26,17 @@ type MiscHandlersImpl struct{}
 // Configure assigns functions to all the miscellaneous api handlers
 func (handler *MiscHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx *HandlerContext) {
 	api.MiscPingHandler = misc.PingHandlerFunc(handler.Ping)
+	api.MiscGetVchInfoHandler = misc.GetVchInfoHandlerFunc(handler.GetVchInfo)
 }
 
 // Ping sends an OK response to let the client know the server is up
 func (handler *MiscHandlersImpl) Ping() middleware.Responder {
 	return misc.NewPingOK().WithPayload("OK")
+}
+
+func (handler *MiscHandlersImpl) GetVchInfo() middleware.Responder {
+	err := &models.Error{
+		Message: "Not yet implemented",
+	}
+	return misc.NewGetVchInfoNotFound().WithPayload(err)
 }

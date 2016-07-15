@@ -37,6 +37,28 @@ paths:
           description: "OK"
           schema:
             type: string
+  /vch/info:
+    get:
+      description: "Gets vital information about the vch"
+      tags: ["misc"]
+      operationId: GetVchInfo
+      contains:
+        - application/json
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: "retrieval success"
+          schema:
+            $ref: "#/definitions/VchInfo"
+        '404':
+          description: "info not found"
+          schema:
+            $ref: "#/definitions/Error"
+        '500':
+          description: "ServerError"
+          schema:
+            $ref: "#/definitions/Error"
   /storage:
     post:
       description: "Creates a location to store images"
@@ -901,6 +923,15 @@ definitions:
         format: int64
       message:
         type: string
+  VchInfo:
+    type: object
+    properties:
+      cpuMhz:
+        type: integer
+        format: int64
+      memory:
+        type: integer
+        format: int64
   StoreUrl:
     type: object
     required:
@@ -1278,3 +1309,4 @@ definitions:
         type: string
       readWrite:
         type: boolean
+

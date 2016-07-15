@@ -14,10 +14,20 @@
 
 package vicbackends
 
+//****
+// system.go
+//
+// Rules for code to be in here:
+// 1. No remote or swagger calls.  Move those code to system_portlayer.go
+// 2. Always return docker engine-api compatible errors.
+//		- Do NOT return fmt.Errorf()
+//		- Do NOT return errors.New()
+//		- DO USE the aliased docker error package 'derr'
+//		- It is OK to return errors returned from functions in system_portlayer.go
+
 import (
 	"bufio"
 	"fmt"
-	"net/http"
 	"os"
 	"regexp"
 	"runtime"
@@ -29,12 +39,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
-	"github.com/vmware/vic/lib/apiservers/portlayer/client"
-	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
-	"github.com/vmware/vic/lib/apiservers/portlayer/client/misc"
 	"github.com/vmware/vic/pkg/trace"
 
-	derr "github.com/docker/docker/errors"
+	//	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/platform"
 	"github.com/docker/docker/pkg/system"
@@ -44,13 +51,6 @@ import (
 )
 
 type System struct {
-}
-
-type ContainerStatus struct {
-	count      int
-	numRunning int
-	numStopped int
-	numPaused  int
 }
 
 const (
@@ -78,24 +78,22 @@ func (s *System) SystemInfo() (*types.Info, error) {
 	}
 
 	// Check if portlayer server is up
-	plClient := PortLayerClient()
-
 	systemStatus := make([][2]string, 1)
 	systemStatus[0][0] = PortLayerName()
-	if pingPortlayer(plClient) {
+	if VicPingPortlayer() {
 		systemStatus[0][1] = "RUNNING"
 	} else {
 		systemStatus[0][1] = "STOPPED"
 	}
 
 	// Retrieve number of images from storage port layer
-	numImages := getImageCount(plClient)
+	numImages := getImageCount()
 	if err != nil {
 		log.Infof("System.SytemInfo unable to get image count: %s.", err.Error())
 	}
 
 	// Retieve container status from port layer
-	containerStatus, err := getContainerStatus(plClient)
+	containerStatus, err := VicGetContainerCount()
 	if err != nil {
 		log.Infof("System.SytemInfo unable to get global status on containers: ", err.Error())
 	}
@@ -244,46 +242,7 @@ func getOperatingSystem() string {
 	return "Linux"
 }
 
-func pingPortlayer(plClient *client.PortLayer) bool {
-	if plClient != nil {
-		pingParams := misc.NewPingParams()
-		_, err := plClient.Misc.Ping(pingParams)
-		if err != nil {
-			log.Info("Ping to portlayer failed")
-			return false
-		}
-		return true
-	}
-
-	log.Errorf("Portlayer client is invalid")
-	return false
-}
-
-func getImageCount(plClient *client.PortLayer) int {
-
+func getImageCount() int {
 	images := cache.ImageCache().GetImages()
 	return len(images)
-}
-
-// Use the Portlayer's support for docker ps to get the container count
-func getContainerStatus(plClient *client.PortLayer) (ContainerStatus, error) {
-	var status ContainerStatus
-
-	all := new(bool)
-	*all = true
-	containList, err := plClient.Containers.GetContainerList(containers.NewGetContainerListParams().WithAll(all))
-	if err != nil {
-		return status, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get container list: %s", err), http.StatusInternalServerError)
-	}
-
-	for _, t := range containList.Payload {
-		if *t.Status == "Running" {
-			status.numRunning++
-		} else if *t.Status == "Stopped" {
-			status.numStopped++
-		}
-		status.count++
-	}
-
-	return status, nil
 }
