@@ -96,7 +96,7 @@ func (t *Mocker) Reload(config *tether.ExecutorConfig) error {
 	return nil
 }
 
-func (t *Mocker) Setup(tether.ConfigSink) error {
+func (t *Mocker) Setup(tether.Config) error {
 	return nil
 }
 

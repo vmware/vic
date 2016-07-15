@@ -96,10 +96,6 @@ func (t *Mocker) Reload(config *ExecutorConfig) error {
 	return nil
 }
 
-func (t *Mocker) Setup(c Config) error {
-	return t.Base.Setup(c)
-}
-
 func (t *Mocker) Cleanup() error {
 	return nil
 }
