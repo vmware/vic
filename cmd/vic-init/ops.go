@@ -42,7 +42,7 @@ type operations struct {
 	tether.BaseOperations
 }
 
-func (t *operations) Setup(sink tether.ConfigSink) error {
+func (t *operations) Setup(sink tether.Config) error {
 	if err := t.BaseOperations.Setup(sink); err != nil {
 		return err
 	}

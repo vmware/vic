@@ -66,8 +66,8 @@ func TestSetIpAddress(t *testing.T) {
 	hostsFile = hFile.Name()
 	resolvFile = rFile.Name()
 
-	bridge := AddInterface("eno1")
-	external := AddInterface("eno2")
+	bridge := AddInterface("eth1")
+	external := AddInterface("eth2")
 
 	secondIP, _ := netlink.ParseIPNet("172.16.0.10/24")
 	gwIP, _ := netlink.ParseIPNet("172.16.0.1/24")
@@ -128,23 +128,25 @@ func TestSetIpAddress(t *testing.T) {
 
 	tthr, _ := StartTether(t, &cfg)
 
+	defer func() {
+		// prevent indefinite wait in tether - normally session exit would trigger this
+		tthr.Stop()
+
+		// wait for tether to exit
+		<-Mocked.Cleaned
+	}()
+
 	<-Mocked.Started
 
 	assert.NotNil(t, Mocked.Interfaces["bridge"], "Expected bridge network if endpoints applied correctly")
 	// check addresses
-	bIface := Mocked.Interfaces["bridge"].(*Interface)
+	bIface, _ := Mocked.Interfaces["bridge"].(*Interface)
 	assert.NotNil(t, bIface)
 
 	assert.Equal(t, 2, len(bIface.Addrs), "Expected two addresses on bridge interface")
 
-	eIface := Mocked.Interfaces["external"].(*Interface)
+	eIface, _ := Mocked.Interfaces["external"].(*Interface)
 	assert.NotNil(t, eIface)
 
 	assert.Equal(t, 1, len(eIface.Addrs), "Expected one address on external interface")
-
-	// prevent indefinite wait in tether - normally session exit would trigger this
-	tthr.Stop()
-
-	// wait for tether to exit
-	<-Mocked.Cleaned
 }

@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"syscall"
 	"testing"
 
 	"github.com/vishvananda/netlink"
@@ -103,10 +104,7 @@ func (t *Mocker) AddrAdd(link netlink.Link, addr *netlink.Addr) error {
 
 	for _, adr := range iface.Addrs {
 		if addr.IP.String() == adr.IP.String() {
-			return fmt.Errorf("IP already assigned to %#v", adr)
-		}
-		if addr.Label == adr.Label {
-			return fmt.Errorf("Label already assigned to %#v", adr)
+			return syscall.EEXIST
 		}
 	}
 
@@ -114,7 +112,27 @@ func (t *Mocker) AddrAdd(link netlink.Link, addr *netlink.Addr) error {
 	return nil
 }
 
+func (t *Mocker) AddrDel(link netlink.Link, addr *netlink.Addr) error {
+	iface := link.(*Interface)
+
+	for i, adr := range iface.Addrs {
+		if addr.IP.String() == adr.IP.String() {
+			iface.Addrs = append(iface.Addrs[:i], iface.Addrs[i+1:]...)
+			return nil
+		}
+	}
+
+	return syscall.EADDRNOTAVAIL
+}
+
 func (t *Mocker) RouteAdd(route *netlink.Route) error {
+	defer trace.End(trace.Begin("no implemented"))
+
+	// currently ignored
+	return nil
+}
+
+func (t *Mocker) RouteDel(route *netlink.Route) error {
 	defer trace.End(trace.Begin("no implemented"))
 
 	// currently ignored

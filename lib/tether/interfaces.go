@@ -26,7 +26,7 @@ import (
 // * dependency injection (primarily for testing)
 // * behavioural control (e.g. what behaviour is required when a session exits)
 type Operations interface {
-	Setup(ConfigSink) error
+	Setup(Config) error
 	Cleanup() error
 	// Log returns the tether debug log writer
 	Log() (io.Writer, error)
@@ -58,6 +58,7 @@ type Extension interface {
 	Stop() error
 }
 
-type ConfigSink interface {
-	WriteKey(key string, value interface{}) error
+type Config interface {
+	UpdateNetworkEndpoint(e *NetworkEndpoint) error
+	Flush() error
 }
