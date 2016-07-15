@@ -2,7 +2,7 @@
 
 *Developing Container Applications with vSphere Integrated Containers* provides information about how to use vSphere Integrated Containers as the endpoint for Docker container application development.
 
-**Product version 0.4.0**
+**Product version: ONSITE BETA**
 
 **NOTE**  This book is a work in progress.
 

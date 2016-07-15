@@ -7,7 +7,7 @@ The command line utility for vSphere Integrated Containers, `vic-machine`, provi
 - [Compute Resource Options](#compute)
 - [Datastore Options](#datastore)
 - [Security Options](#security)
-- [Deployment Options](#deployment)
+- [Appliance Deployment Options](#deployment)
 
 <a name="mandatory"></a>
 ## Mandatory Options ##
@@ -59,7 +59,9 @@ You can designate the same datastore as the image store for multiple virtual con
 
 Short name: `-b`
 
-The network that container VMs use to communicate with each other. You can assign the same network to multiple virtual container hosts. 
+The network that container VMs use to communicate with each other. You can assign the same bridge network to multiple virtual container hosts.
+
+**IMPORTANT** The bridge network is used exclusively by vSphere Integrated Containers. You cannot use the network that you specify in the `bridge-network` option as the target for any of the other `vic-machine create` networking options.
 
 The `bridge-network` option is **optional** when you are deploying a virtual container host to an ESXi host with no vCenter Server. In this case, if you do not specify `bridge-network`, `vic-machine` creates a  virtual switch and a port group that each have the same name as the virtual container host. You can optionally specify this option to assign an existing port group for use as the bridge network for container VMs. You can also optionally specify this option to create a new virtual switch and port group that have a different name to the virtual container host.
 
@@ -91,7 +93,7 @@ If not specified, containers use the default VM Network for external traffic.
 
 The network that the virtual container host uses to communicate with vCenter Server and ESXi hosts. Container VMs use this network to communicate with the virtual container host. 
 
-If not specified, the virtual container host uses the bridge network for management traffic.
+If not specified, the virtual container host uses the external network for management traffic.
 
 <pre>--management-network <i>network_name</i></pre>
 
@@ -99,62 +101,86 @@ If not specified, the virtual container host uses the bridge network for managem
 
 The network that the virtual container host uses to generate the Docker API. The Docker API only uses this network.
 
-If not specified, the virtual container host uses the bridge network.
+If not specified, the virtual container host uses the external network for client traffic.
 
 <pre>--client-network <i>network_name</i></pre>
 
 ### `container-network` ###
 
-The network that containers use for external communication. If you specify this option, you must also specify the `container-network-gateway`, `container-network-ip-range`, and `container-network-dns` options.
+A network for container VMs to use for external communication when you  run `docker run` or `docker create` with the `--net` option. 
 
-If not specified, containers use the external network of the virtual container host.
+To specify a container network, you provide the name of a distributed port group for the container VMs to use, and a descriptive name for the container network that is used by Docker. 
 
-<pre>--container-network <i>network_name</i></pre>
+- The distributed port group must exist before you run `vic-machine create`. 
+- You cannot use the same distributed port group that you use for the bridge network. 
+- You can create the distributed port group on the same distributed virtual switch as the distributed port group that you use for the bridge network.
+- The descriptive name appears under `Networks` when you run `docker info` on the deployed virtual container host.
+- Container developers use the descriptive name in the `--net` option when they run `docker run` or `docker create`.
+
+If you do not specify the `container-network` option, or if you run `docker run` or `docker create` without specifying `--net`, container VMs use the bridge network. 
+
+If the network that you specify does not support DHCP, you must also specify the `container-network-gateway` option. 
+
+<pre>--container-network <i>distributed_port_group_name</i>:<i>container_network_name</i></pre>
 
 ### `container-network-gateway` ###
 
-The gateway for the subnet of the container network. Specify the gateway in the format <code><i>container_network</i>:<i>subnet</i></code>. If you specify this option, you must also specify the `container-network`, `container-network-ip-range`, and `container-network-dns` options.
+The gateway for the subnet of the container network. This option is required if the network that you specify in the `container-network` option does not support DHCP. Specify the gateway in the format <code><i>container_network</i>:<i>subnet</i></code>. If you specify this option, it is recommended that you also specify the  `container-network-dns` option.
 
-If not specified, containers use the external network of the virtual container host.
+ When you specify the container network gateway, you use the distributed port group that you specify in the `container-network `option.
 
-<pre>--container-network-gateway <i>network_name</i>:172.16.0.0/16</pre>
-
-### `container-network-ip-range` ###
-
-The range of IP addresses that container VMs can use. If you specify this option, you must also specify the `container-network`, `container-network-gateway`, and `container-network-dns` options.
-
-If not specified, containers use the external network of the virtual container host.
-
-<pre>--container-network-ip-range <i>network_name</i>:172.16.0.0/24, <i>network_name</i>:172.16.0.10-20</pre>
+<pre>--container-network-gateway <i>distributed_port_group_name</i>:<i>gateway_ip_address</i>/<i>subnet_mask</i></pre>
 
 ### `container-network-dns` ###
 
-The address of the DNS server for the container network. If you specify this option, you must also specify the `container-network`, `container-network-gateway`, and `container-network-ip-range` options.
+The address of the DNS server for the container network. This option is recommended if the network that you specify in the `container-network` option does not support DHCP. 
 
-If not specified, containers use the external network of the virtual container host.
+When you specify the container network DNS server, you use the distributed port group that you specify in the `container-network` option.
 
-<pre>--container-network-dns <i>network_name</i>:8.8.8.8</pre>
+<pre>--container-network-dns <i>distributed_port_group_name</i>:8.8.8.8</pre>
+
+### `container-network-ip-range` ###
+
+The range of IP addresses that container VMs can use if the network that you specify in the `container-network` option does not support DHCP. If you do not specify this option, the IP range for container VMs is the entire subnet that you specify in `container-network-gateway`.
+
+When you specify the container network IP range, you use the distributed port group that you specify in the `container-network `option.
+
+<pre>--container-network-ip-range <i>distributed_port_group_name</i>:192.168.100.2-192.168.100.254</pre>
+
+You can also specify the IP range as a CIDR.
+
+<pre>--container-network-ip-range <i>distributed_port_group_name</i>:192.168.100.0/24</pre>
 
 <a name="compute"></a>
 ## Compute Resource Options ##
 
-If vCenter Server on which you are deploying a virtual container host only includes a single instance of a standalone host, cluster, or resource pool, `vic-machine create` automatically detects and uses those resources. If you are deploying to an ESXi host that has no resource pools, `vic-machine create` automatically uses the default resource pool. If your vCenter Server includes multiple instances of standalone hosts, clusters, or resource pools, or if your ESXi host includes multiple resource pools, you must specify the resource to use in the `compute-resource` option.
+If the vCenter Server instance on which you are deploying a virtual container host only includes a single instance of a standalone host or  cluster, `vic-machine create` automatically detects and uses those resources. If you are deploying to an ESXi host that has no resource pools, `vic-machine create` automatically uses the default resource pool. In these cases, you do not need to specify a compute resource when you run `vic-machine create`.
 
 ### `compute-resource` ###
 
 Short name: `-r`
 
-The relative path to the host, cluster, or resource pool in which to deploy the virtual container host. 
+The relative path to the host, cluster, or resource pool in which to deploy the virtual container host. You specify the `compute-resource` option in the following circumstances:
+
+- A vCenter Server instance includes multiple instances of standalone hosts or clusters, or a mixture of standalone hosts and clusters.
+- An ESXi host includes multiple resource pools. 
+- You want to deploy the virtual container host to a specific resource pool in your environment. 
+
+If you do not specify the `compute-resource` option and multiple possible resources exist, `vic-machine create` fails and suggests valid targets for `compute-resource` in the failure message. 
 
 * To deploy to a specific resource pool on an ESXi host, specify the name of the resource pool: <pre>--compute-resource  <i>resource_pool_name</i></pre>
 * To deploy to a vCenter Server instance that has more than one standalone host but no clusters, specify the IPv4 address or fully qualified domain name (FQDN) of the target host:<pre>--compute-resource <i>host_address</i></pre>
 * To deploy to a vCenter Server with more than one cluster, specify the name of the target cluster: <pre>--compute-resource <i>cluster_name</i></pre>
-* To deploy to a specific resource pool on a standalone host that is managed by vCenter Server, specify the IPv4 address or FQDN of the target host and name of the resource pool:<pre>--compute-resource <i>host_name</i>/Resources/<i>resource_pool_name</i></pre>
-* To deploy to a specific resource pool in a cluster, specify the names of the target cluster and the resource pool:<pre>--compute-resource <i>cluster_name</i>/Resources/<i>resource_pool_name</i></pre>
+* To deploy to a specific resource pool on a standalone host that is managed by vCenter Server, specify the IPv4 address or FQDN of the target host and name of the resource pool:<pre>--compute-resource <i>host_name</i>/<i>resource_pool_name</i></pre>
+* To deploy to a specific resource pool in a cluster, specify the names of the target cluster and the resource pool:<pre>--compute-resource <i>cluster_name</i>/<i>resource_pool_name</i></pre>
 
 <a name="datastore"></a>
 ## Datastore Options ##
-The `vic-machine` utility allows you to specify the datastores in which to store container VM files and container image files. 
+The `vic-machine` utility allows you to specify the datastores in which to store container VM files, container image files, and the files for the virtual container host appliance. 
+
+- vSphere Integrated Containers fully supports VMware Virtual SAN datastores. 
+- vSphere Integrated Containers supports all alphanumeric characters, hyphens, and underscores in datastore paths. 
+- vSphere Integrated Containers supports all alphanumeric characters, spaces, and parentheses in datastore names. vSphere Integrated Containers does not support hyphens and underscores in datastore names.
 
 ### `image-datastore` ###
 
@@ -174,7 +200,7 @@ If you do not specify the `container-store` option, vSphere Integrated Container
 
 The datastore in which to create named volumes when using the `docker volume create` command.
 
-<pre>--volume-store <i>volume_store_name</i>:<i>datastore_name</i>/<i>volume_name</i></pre>
+<pre>--volume-store <i>datastore_name</i>/<i>path</i>:<i>volume_store_name</i></pre>
 
 <a name="security"></a>
 ## Security Options ##
@@ -206,7 +232,7 @@ Use this option in combination with the `cert` option, that provides the path to
 <pre>--cert <i>path_to_vcenter_server_certificate</i> --key <i>path_to_vcenter_server_key</i></pre>
 
 <a name="deployment"></a>
-## Deployment Options ##
+## Appliance Deployment Options ##
 
 The `vic-machine` utility provides options to customize the deployment of virtual container hosts.
 
@@ -232,7 +258,7 @@ The password for the user account on the vCenter Server on which you  are deploy
 
 Short name: `-f`
 
-Forces `vic-machine` to ignore warnings and non-fatal errors and continue with the deployment of a virtual container host. Errors such as an incorrect compute resource still cause the installation to fail. 
+Forces `vic-machine create` to ignore warnings and non-fatal errors and continue with the deployment of a virtual container host. Errors such as an incorrect compute resource still cause the installation to fail. 
 
 <pre>--force</pre>
 
@@ -262,6 +288,48 @@ The number of virtual CPUs for the virtual container host appliance VM. The defa
 The amount of memory for the virtual container host appliance VM. The default is 2048MB. Set this option to increase the amount of memory in the virtual container host VM, for example if the virtual container host will handle large volumes of containers, or containers that consume a lot of memory.
 
 <pre>--appliance-memory <i>amount_of_memory</i></pre>
+
+### `use-rp` ###
+
+Deploy the virtual container host to a resource pool rather than to a vApp. If you specify this option, `vic-machine create` creates a resource pool with the same name as the virtual container host.
+
+<pre>--use-rp</pre>
+
+### `pool-memory-reservation` ###
+
+Reserve a quantity of memory for use by the vApp or resource pool that contains the virtual container host. Specify the memory reservation value in MB. If not specified, `vic-machine create` sets the reservation to 0 (unlimited).
+
+<pre>--pool-memory-reservation 1024</pre>
+
+### `pool-memory-limit` ###
+
+Limit the amount of memory that the vApp or resource pool that contains the virtual container host can use. Specify the memory limit value in MB. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
+
+<pre>--pool-memory-limit 1024</pre>
+
+### `pool-memory-shares` ###
+
+Set memory shares on the vApp or resource pool that contains the virtual container host. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `nil` (unlimited).
+
+<pre>--pool-memory-shares low</pre>
+
+### `pool-cpu-reservation` ###
+
+Reserve a quantity of CPU capacity for use by the vApp or resource pool that contains the virtual container host.  Specify the CPU reservation value in MHz. If not specified, `vic-machine create` sets the reservation to 0 (unlimited).
+
+<pre>--pool-cpu-reservation 1024</pre>
+
+### `pool-cpu-limit` ###
+
+Limit the amount of CPU capacity that the vApp or resource pool that contains the virtual container host can use. Specify the CPU limit value in MHz. If not specified, `vic-machine create` sets the reservation to 0 (unlimited).
+
+<pre>--pool-cpu-limit 1024</pre>
+
+### `pool-cpu-shares` ###
+
+Set CPU shares on the vApp or resource pool that contains the virtual container host. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `nil` (unlimited).
+
+<pre>--pool-cpu-shares low</pre>
 
 ### `debug` ###
 Short name: `-v`
