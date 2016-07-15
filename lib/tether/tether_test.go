@@ -220,7 +220,7 @@ func OptionValueArrayToString(options []types.BaseOptionValue) string {
 	return fmt.Sprintf("%#v", kv)
 }
 
-func testSetup(t *testing.T) *Mocker {
+func testSetup(t *testing.T) (string, *Mocker) {
 	pc, _, _, _ := runtime.Caller(1)
 	name := runtime.FuncForPC(pc).Name()
 
@@ -233,7 +233,7 @@ func testSetup(t *testing.T) *Mocker {
 		Interfaces: make(map[string]netlink.Link, 0),
 	}
 
-	return &mocker
+	return name, &mocker
 }
 
 func testTeardown(t *testing.T, mocker *Mocker) {

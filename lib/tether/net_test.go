@@ -22,7 +22,7 @@ import (
 )
 
 func TestSetHostname(t *testing.T) {
-	mocker := testSetup(t)
+	_, mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
@@ -49,7 +49,7 @@ func TestSetHostname(t *testing.T) {
 }
 
 func TestNoNetwork(t *testing.T) {
-	mocker := testSetup(t)
+	_, mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{

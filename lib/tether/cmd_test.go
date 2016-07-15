@@ -30,7 +30,7 @@ import (
 //
 
 func TestPathLookup(t *testing.T) {
-	mocker := testSetup(t)
+	_, mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
@@ -68,7 +68,7 @@ func TestPathLookup(t *testing.T) {
 }
 
 func TestRelativePath(t *testing.T) {
-	mocker := testSetup(t)
+	_, mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
@@ -106,7 +106,7 @@ func TestRelativePath(t *testing.T) {
 }
 
 func TestAbsPath(t *testing.T) {
-	mocker := testSetup(t)
+	_, mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
@@ -159,7 +159,7 @@ func TestAbsPath(t *testing.T) {
 }
 
 func TestHalt(t *testing.T) {
-	mocker := testSetup(t)
+	_, mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
@@ -230,7 +230,7 @@ func TestAbsPathRepeat(t *testing.T) {
 //
 
 func TestMissingBinary(t *testing.T) {
-	mocker := testSetup(t)
+	_, mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
@@ -277,7 +277,7 @@ func TestMissingBinary(t *testing.T) {
 //
 
 func TestMissingRelativeBinary(t *testing.T) {
-	mocker := testSetup(t)
+	_, mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{

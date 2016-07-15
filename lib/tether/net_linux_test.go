@@ -45,7 +45,7 @@ func AddInterface(name string, mocker *Mocker) string {
 }
 
 func TestSetIpAddress(t *testing.T) {
-	mocker := testSetup(t)
+	_, mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
 	hFile, err := ioutil.TempFile("", "vic_set_ip_test_hosts")
