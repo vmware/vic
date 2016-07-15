@@ -73,9 +73,14 @@ func main() {
 		return
 	}
 
-	// create the tether and register the attach extension
+	// create the tether
 	tthr = tether.New(src, sink, &operations{})
+
+	// register the attach extension
 	tthr.Register("Attach", sshserver)
+
+	// register the toolbox extension
+	tthr.Register("Toolbox", tether.NewToolbox())
 
 	err = tthr.Start()
 	if err != nil {
