@@ -608,7 +608,7 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 		switch err := err.(type) {
 
 		case *containers.GetNotFound:
-			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err.Payload.Message))
+			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
 
 		case *containers.GetDefault:
 			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err.Payload.Message))
