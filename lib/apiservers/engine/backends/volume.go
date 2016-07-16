@@ -52,7 +52,7 @@ func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
 
 	client := PortLayerClient()
 	if client == nil {
-		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get a portlayer client"), http.StatusInternalServerError)
+		return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get a portlayer client"), http.StatusInternalServerError)
 	}
 
 }
