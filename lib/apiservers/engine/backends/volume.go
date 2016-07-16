@@ -49,12 +49,33 @@ type volumeMetadata struct {
 //Volumes : docker personality implementation for VIC
 func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
 	defer trace.End(trace.Begin("Volume.Volumes"))
+	var volumes []*types.Volume
 
 	client := PortLayerClient()
 	if client == nil {
 		return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get a portlayer client"), http.StatusInternalServerError)
 	}
 
+	res, err := client.Storage.ListVolumes(storage.NewListVolumesParams().WithFilterString(&filter))
+	if err != nil {
+		switch err := err.(type) {
+		case *storage.ListVolumesInternalServerError:
+			return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("error from portlayer server: %s", err.Payload.Message), http.StatusInternalServerError)
+		case *storage.ListVolumesDefault:
+			return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("error from portlayer server: %s", err.Payload.Message), http.StatusInternalServerError)
+		default:
+			return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("error from portlayer server: %s", err.Error()), http.StatusInternalServerError)
+
+		}
+	}
+
+	volumeResponses := res.Payload
+
+	for _, v := range volumeResponses {
+		volume := extractDockerVolumeFromResponse(v)
+		volumes = append(volumes, &volume)
+	}
+	return volumes, nil, nil
 }
 
 //VolumeInspect : docker personality implementation for VIC
@@ -191,6 +212,18 @@ func createVolumeMetadata(model *models.VolumeRequest, labels map[string]string)
 	}
 	result, _ := json.Marshal(metadata)
 	return string(result)
+}
+
+func extractDockerVolumeFromResponse(response *models.VolumeResponse) types.Volume {
+	metdata := extractDockerMetadata(response.Metadata)
+
+	volume := types.Volume{
+		Name:       response.Name,
+		Driver:     response.Driver,
+		Mountpoint: "", //TODO: discuss what this should actually be populated with.
+		Labels:     metdata.Labels,
+	}
+	return volume
 }
 
 func extractDockerMetadata(metadataMap map[string]string) volumeMetadata {
