@@ -1191,6 +1191,7 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *metadata.Virt
 	dconfig.ClusterPath = v.Session.Cluster.InventoryPath
 
 	dconfig.ResourcePoolPath = v.ResourcePoolPath
+	dconfig.UseRP = input.UseRP
 
 	log.Debugf("Datacenter: %s, Cluster: %s, Resource Pool: %s", dconfig.DatacenterName, dconfig.ClusterPath, dconfig.ResourcePoolPath)
 

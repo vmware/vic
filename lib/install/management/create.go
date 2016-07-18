@@ -43,7 +43,7 @@ func (d *Dispatcher) CreateVCH(conf *metadata.VirtualContainerHostConfigSpec, se
 		return err
 	}
 
-	if d.isVC {
+	if d.isVC && !settings.UseRP {
 		if d.vchVapp, err = d.createVApp(conf, settings); err != nil {
 			detail := fmt.Sprintf("Creating virtual app failed: %s", err)
 			if !d.force {
