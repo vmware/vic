@@ -203,12 +203,13 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHo
 
 		dsURL, err := vsphere.DatastoreToURL(url.Path)
 
-		log.Debugf("Provided datastore URL: %s\nParsed volume store path: %s", url.Path, dsURL.Path)
-
 		if err != nil {
 			log.Warnf("Didn't receive an expected volume store path format: %s", url.Path)
 			continue
 		}
+
+		log.Debugf("Provided datastore URL: %s\nParsed volume store path: %s", url.Path, dsURL.Path)
+
 		log.Infof("Deleting volume store %s on Datastore %s at path %s", label, dsURL.Host, dsURL.Path)
 
 		datastores, err := d.session.Finder.DatastoreList(d.ctx, dsURL.Host)
