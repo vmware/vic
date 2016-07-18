@@ -12,7 +12,7 @@ ${bin-dir}  /drone/src/github.com/vmware/vic/bin
 
 *** Keywords ***
 Install VIC Appliance To Test Server
-    [Arguments]  ${certs}=${false}
+    [Arguments]  ${certs}=${false}  ${vol}=default
     # Finish setting up environment variables
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  DRONE_BUILD_NUMBER
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_BUILD_NUMBER  0
@@ -34,7 +34,7 @@ Install VIC Appliance To Test Server
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${vch-name}  ${name}
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run VIC Machine Command  ${certs}
+    ${output}=  Run VIC Machine Command  ${certs}  ${vol}
     ${line}=  Get Line  ${output}  -2
     ${ret}=  Fetch From Right  ${line}  ] docker
     ${ret}=  Remove String  ${ret}  info
@@ -49,12 +49,12 @@ Install VIC Appliance To Test Server
 
 Run VIC Machine Command
     [Tags]  secret
-    [Arguments]  ${certs}
-    ${output}=  Run Keyword If  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --generate-cert --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    [Arguments]  ${certs}  ${vol}
+    ${output}=  Run Keyword If  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --generate-cert --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=datastore1/test:${vol}
     Run Keyword If  ${certs}  Run Keyword And Ignore Error  Should Contain  ${output}  Installer completed successfully
     Return From Keyword If  ${certs}  ${output}
     
-    ${output}=  Run Keyword Unless  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    ${output}=  Run Keyword Unless  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=datastore1/test:${vol}
     Run Keyword Unless  ${certs}  Run Keyword And Ignore Error  Should Contain  ${output}  Installer completed successfully
     [Return]  ${output}
 
