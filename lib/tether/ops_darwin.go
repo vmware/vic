@@ -75,7 +75,7 @@ func MkNamedPipe(path string, mode os.FileMode) error {
 	return errors.New("not implemented on OSX")
 }
 
-func (t *BaseOperations) Setup(_ ConfigSink) error {
+func (t *BaseOperations) Setup(_ Config) error {
 	return nil
 }
 

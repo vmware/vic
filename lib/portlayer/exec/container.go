@@ -268,6 +268,24 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	return nil
 }
 
+func (c *Container) Update(ctx context.Context, sess *session.Session) (*metadata.ExecutorConfig, error) {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.vm == nil {
+		return nil, fmt.Errorf("container does not have a vm")
+	}
+
+	var vm []mo.VirtualMachine
+
+	if err := sess.Retrieve(ctx, []types.ManagedObjectReference{c.vm.Reference()}, []string{"config"}, &vm); err != nil {
+		return nil, err
+	}
+
+	extraconfig.Decode(extraconfig.OptionValueSource(vm[0].Config.ExtraConfig), c.ExecConfig)
+	return c.ExecConfig, nil
+}
+
 // Grab the info for the requested container
 // TODO:  Possibly change so that handler requests a handle to the
 // container and if it's not present then search and return a handle

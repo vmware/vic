@@ -146,8 +146,8 @@ func TestMapExternalNetworks(t *testing.T) {
 	if s.Subnet().String() != sn.String() {
 		t.Fatalf("got %s, want %s", s.Subnet(), sn)
 	}
-	if s.Type() != externalScopeType {
-		t.Fatalf("got %s, want %s", s.Type(), externalScopeType)
+	if s.Type() != ExternalScopeType {
+		t.Fatalf("got %s, want %s", s.Type(), ExternalScopeType)
 	}
 	for i, sp := range s.IPAM().spaces {
 		if sp.Pool.String() != n.Pools[i].String() {
@@ -270,7 +270,7 @@ func TestContext(t *testing.T) {
 			continue
 		}
 
-		if s.Type() == bridgeScopeType && s.Network() != testBridgeNetwork {
+		if s.Type() == BridgeScopeType && s.Network() != testBridgeNetwork {
 			t.Fatalf("s.NetworkName => %v, want %s", s.Network(), testBridgeNetwork)
 			continue
 		}
@@ -434,7 +434,7 @@ func TestContextAddContainer(t *testing.T) {
 		return nil, fmt.Errorf("error")
 	}
 
-	otherScope, err := ctx.NewScope(bridgeScopeType, "other", nil, net.IPv4(0, 0, 0, 0), nil, nil)
+	otherScope, err := ctx.NewScope(BridgeScopeType, "other", nil, net.IPv4(0, 0, 0, 0), nil, nil)
 	if err != nil {
 		t.Fatalf("failed to add scope")
 	}
@@ -564,9 +564,9 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
 
-	scope, err := ctx.NewScope(bridgeScopeType, "scope", nil, nil, nil, nil)
+	scope, err := ctx.NewScope(BridgeScopeType, "scope", nil, nil, nil, nil)
 	if err != nil {
-		t.Fatalf("ctx.NewScope(%s, %s, nil, nil, nil) => (nil, %s)", bridgeScopeType, "scope", err)
+		t.Fatalf("ctx.NewScope(%s, %s, nil, nil, nil) => (nil, %s)", BridgeScopeType, "scope", err)
 	}
 
 	foo := exec.NewContainer("foo")
@@ -792,7 +792,7 @@ func TestContextRemoveContainer(t *testing.T) {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
 
-	scope, err := ctx.NewScope(bridgeScopeType, "scope", nil, nil, nil, nil)
+	scope, err := ctx.NewScope(BridgeScopeType, "scope", nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("ctx.NewScope() => (nil, %s), want (scope, nil)", err)
 	}
@@ -896,9 +896,9 @@ func TestDeleteScope(t *testing.T) {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
 
-	foo, err := ctx.NewScope(bridgeScopeType, "foo", nil, nil, nil, nil)
+	foo, err := ctx.NewScope(BridgeScopeType, "foo", nil, nil, nil, nil)
 	if err != nil {
-		t.Fatalf("ctx.NewScope(%s, \"foo\", nil, nil, nil, nil) => (nil, %#v), want (foo, nil)", bridgeScopeType, err)
+		t.Fatalf("ctx.NewScope(%s, \"foo\", nil, nil, nil, nil) => (nil, %#v), want (foo, nil)", BridgeScopeType, err)
 	}
 	h := exec.NewContainer("container")
 	options := &AddContainerOptions{
@@ -907,9 +907,9 @@ func TestDeleteScope(t *testing.T) {
 	ctx.AddContainer(h, options)
 
 	// bar is a scope with bound endpoints
-	bar, err := ctx.NewScope(bridgeScopeType, "bar", nil, nil, nil, nil)
+	bar, err := ctx.NewScope(BridgeScopeType, "bar", nil, nil, nil, nil)
 	if err != nil {
-		t.Fatalf("ctx.NewScope(%s, \"bar\", nil, nil, nil, nil) => (nil, %#v), want (bar, nil)", bridgeScopeType, err)
+		t.Fatalf("ctx.NewScope(%s, \"bar\", nil, nil, nil, nil) => (nil, %#v), want (bar, nil)", BridgeScopeType, err)
 	}
 
 	h = exec.NewContainer("container2")

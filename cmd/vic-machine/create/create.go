@@ -205,7 +205,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringSliceFlag{
 			Name:  "volume-store",
 			Value: &c.volumeStores,
-			Usage: "Specify location and label for volume store; path optional: \"label:datastore/path\" or \"label:datastore\"",
+			Usage: "Specify location and label for volume store; path optional: \"datastore/path:label\" or \"datastore:label\"",
 		},
 	}
 	preFlags := append(c.TargetFlags(), c.ComputeFlags()...)
@@ -222,7 +222,7 @@ func (c *Create) processVolumeStores() error {
 		if len(splitMeta) != 2 {
 			return errors.New("Volume store input must be in format label:datastore-path")
 		}
-		c.VolumeLocations[splitMeta[0]] = splitMeta[1]
+		c.VolumeLocations[splitMeta[1]] = splitMeta[0]
 	}
 
 	return nil

@@ -461,8 +461,25 @@ func restartableCmd(cmd *exec.Cmd) *exec.Cmd {
 	}
 }
 
-// ConfigSink interface
-func (t *tether) WriteKey(key string, value interface{}) error {
-	extraconfig.EncodeWithPrefix(t.sink, value, key)
+// Config interface
+func (t *tether) UpdateNetworkEndpoint(e *NetworkEndpoint) error {
+	defer trace.End(trace.Begin("tether.UpdateNetworkEndpoint"))
+
+	if e == nil {
+		return fmt.Errorf("endpoint must be specified")
+	}
+
+	if _, ok := t.config.Networks[e.Network.Name]; !ok {
+		return fmt.Errorf("network endpoint not found in config")
+	}
+
+	t.config.Networks[e.Network.Name] = e
+	return nil
+}
+
+func (t *tether) Flush() error {
+	defer trace.End(trace.Begin("tether.Flush"))
+
+	extraconfig.Encode(t.sink, t.config)
 	return nil
 }

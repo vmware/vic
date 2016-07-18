@@ -17,6 +17,7 @@ package vicbackends
 import (
 	"bufio"
 	"fmt"
+	"net/http"
 	"os"
 	"regexp"
 	"runtime"
@@ -29,9 +30,11 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/misc"
 	"github.com/vmware/vic/pkg/trace"
 
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/platform"
 	"github.com/docker/docker/pkg/system"
@@ -262,6 +265,25 @@ func getImageCount(plClient *client.PortLayer) int {
 	return len(images)
 }
 
+// Use the Portlayer's support for docker ps to get the container count
 func getContainerStatus(plClient *client.PortLayer) (ContainerStatus, error) {
-	return ContainerStatus{0, 0, 0, 0}, nil
+	var status ContainerStatus
+
+	all := new(bool)
+	*all = true
+	containList, err := plClient.Containers.GetContainerList(containers.NewGetContainerListParams().WithAll(all))
+	if err != nil {
+		return status, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get container list: %s", err), http.StatusInternalServerError)
+	}
+
+	for _, t := range containList.Payload {
+		if *t.Status == "Running" {
+			status.numRunning++
+		} else if *t.Status == "Stopped" {
+			status.numStopped++
+		}
+		status.count++
+	}
+
+	return status, nil
 }

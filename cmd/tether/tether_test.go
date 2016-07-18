@@ -87,7 +87,7 @@ func (t *Mocker) Reload(config *tether.ExecutorConfig) error {
 	return nil
 }
 
-func (t *Mocker) Setup(_ tether.ConfigSink) error {
+func (t *Mocker) Setup(_ tether.Config) error {
 	log.Info("Launching pprof server for test on port 6060")
 	go func() {
 		log.Info(http.ListenAndServe("0.0.0.0:6060", nil))

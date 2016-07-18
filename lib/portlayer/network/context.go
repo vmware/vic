@@ -72,7 +72,7 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 		containers:        make(map[exec.ID]*Container),
 	}
 
-	s, err := ctx.NewScope("bridge", bridgeScopeType, nil, net.IPv4(0, 0, 0, 0), nil, nil)
+	s, err := ctx.NewScope("bridge", BridgeScopeType, nil, net.IPv4(0, 0, 0, 0), nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 			pools[i] = p.String()
 		}
 
-		s, err := ctx.NewScope(externalScopeType, nn, &net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}, n.Gateway.IP, nil, pools)
+		s, err := ctx.NewScope(ExternalScopeType, nn, &net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}, n.Gateway.IP, nil, pools)
 		if err != nil {
 			return nil, err
 		}
@@ -215,7 +215,7 @@ func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net
 		subnet = defaultSubnet
 	}
 
-	s, err := c.newScopeCommon(id, name, bridgeScopeType, subnet, gateway, dns, ipam, bn.PortGroup)
+	s, err := c.newScopeCommon(id, name, BridgeScopeType, subnet, gateway, dns, ipam, bn.PortGroup)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +251,7 @@ func (c *Context) newExternalScope(id, name string, subnet *net.IPNet, gateway n
 		return nil, fmt.Errorf("no network info for external scope %s", name)
 	}
 
-	return c.newScopeCommon(id, name, externalScopeType, subnet, gateway, dns, ipam, n.PortGroup)
+	return c.newScopeCommon(id, name, ExternalScopeType, subnet, gateway, dns, ipam, n.PortGroup)
 }
 
 func isDefaultSubnet(subnet *net.IPNet) bool {
@@ -376,10 +376,10 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 	}
 
 	switch scopeType {
-	case bridgeScopeType:
+	case BridgeScopeType:
 		return c.newBridgeScope(generateID(), name, subnet, gateway, dns, &IPAM{pools: pools})
 
-	case externalScopeType:
+	case ExternalScopeType:
 		return c.newExternalScope(generateID(), name, subnet, gateway, dns, &IPAM{pools: pools})
 
 	default:
@@ -442,12 +442,15 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		return nil, fmt.Errorf("nothing to bind")
 	}
 
-	con, ok := c.containers[exec.ParseID(h.Container.ExecConfig.ID)]
+	con, ok := c.containers[exec.ParseID(h.ExecConfig.ID)]
 	if ok {
-		return nil, fmt.Errorf("container %s already bound", h.Container.ExecConfig.ID)
+		return nil, fmt.Errorf("container %s already bound", h.ExecConfig.ID)
 	}
 
-	con = &Container{id: exec.ParseID(h.Container.ExecConfig.ID)}
+	con = &Container{
+		id:   exec.ParseID(h.ExecConfig.ID),
+		name: h.ExecConfig.Name,
+	}
 	for _, ne := range h.ExecConfig.Networks {
 		var s *Scope
 		s, ok := c.scopes[ne.Network.Name]
@@ -488,7 +491,7 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		ne.Network.Gateway = net.IPNet{IP: e.gateway, Mask: e.subnet.Mask}
 
 		// mark the external network as default
-		if !defaultMarked && e.Scope().Type() == externalScopeType {
+		if !defaultMarked && e.Scope().Type() == ExternalScopeType {
 			defaultMarked = true
 			ne.Network.Default = true
 		}
@@ -512,7 +515,7 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	containers[con.id] = con
 
 	tid := con.id.TruncateID()
-	cname := h.Container.ExecConfig.Common.Name
+	cname := h.ExecConfig.Common.Name
 
 	var key string
 	// network scoped entries
@@ -586,9 +589,9 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 	c.Lock()
 	defer c.Unlock()
 
-	con, ok := c.containers[exec.ParseID(h.Container.ExecConfig.ID)]
+	con, ok := c.containers[exec.ParseID(h.ExecConfig.ID)]
 	if !ok {
-		return ResourceNotFoundError{error: fmt.Errorf("container %s not found", h.Container.ExecConfig.ID)}
+		return ResourceNotFoundError{error: fmt.Errorf("container %s not found", h.ExecConfig.ID)}
 	}
 
 	var err error
@@ -625,10 +628,10 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 	var containers []exec.ID
 
 	// Removing long id, short id and common name from the map
-	containers = append(containers, exec.ParseID(h.Container.ExecConfig.ID))
+	containers = append(containers, exec.ParseID(h.ExecConfig.ID))
 
 	tid := con.id.TruncateID()
-	cname := h.Container.ExecConfig.Common.Name
+	cname := h.ExecConfig.Common.Name
 
 	var key string
 	// network scoped entries
@@ -775,10 +778,10 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 
 		// check if container is already part of an "external" scope;
 		// only one "external" scope per container is allowed
-		if s.Type() == externalScopeType {
+		if s.Type() == ExternalScopeType {
 			for name := range h.ExecConfig.Networks {
 				sc, _ := c.resolveScope(name)
-				if sc.Type() == externalScopeType {
+				if sc.Type() == ExternalScopeType {
 					return fmt.Errorf("container can only be added to at most one mapped network")
 				}
 			}
@@ -795,14 +798,14 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 	// to a bridge network, we just reuse that
 	// NIC
 	var pciSlot int32
-	if s.Type() == bridgeScopeType {
+	if s.Type() == BridgeScopeType {
 		for _, ne := range h.ExecConfig.Networks {
 			sc, err := c.resolveScope(ne.Network.Name)
 			if err != nil {
 				return err
 			}
 
-			if sc.Type() != bridgeScopeType {
+			if sc.Type() != BridgeScopeType {
 				continue
 			}
 
@@ -860,7 +863,7 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 		return fmt.Errorf("handle is required")
 	}
 
-	if _, ok := c.containers[exec.ParseID(h.Container.ExecConfig.ID)]; ok {
+	if _, ok := c.containers[exec.ParseID(h.ExecConfig.ID)]; ok {
 		return fmt.Errorf("container is bound")
 	}
 
@@ -873,7 +876,7 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 	var ne *metadata.NetworkEndpoint
 	ne, ok := h.ExecConfig.Networks[s.Name()]
 	if !ok {
-		return fmt.Errorf("container %s not part of network %s", h.Container.ExecConfig.ID, s.Name())
+		return fmt.Errorf("container %s not part of network %s", h.ExecConfig.ID, s.Name())
 	}
 
 	// figure out if any other networks are using the NIC
@@ -959,6 +962,42 @@ func (c *Context) DeleteScope(name string) error {
 	}
 
 	delete(c.scopes, name)
+	return nil
+}
+
+func (c *Context) UpdateContainer(h *exec.Handle) error {
+	c.Lock()
+	defer c.Unlock()
+
+	con := c.containers[exec.ParseID(h.ExecConfig.ID)]
+	if con == nil {
+		return ResourceNotFoundError{}
+	}
+
+	for _, s := range con.Scopes() {
+		if !s.isDynamic() {
+			continue
+		}
+
+		ne := h.ExecConfig.Networks[s.Name()]
+		if ne == nil {
+			return fmt.Errorf("container config does not have info for network scope %s", s.Name())
+		}
+
+		e := con.Endpoint(s)
+		e.ip = ne.Assigned.IP
+		gw, snet, err := net.ParseCIDR(ne.Network.Gateway.String())
+		if err != nil {
+			return err
+		}
+
+		e.gateway = gw
+		e.subnet = *snet
+
+		s.gateway = gw
+		s.subnet = *snet
+	}
+
 	return nil
 }
 

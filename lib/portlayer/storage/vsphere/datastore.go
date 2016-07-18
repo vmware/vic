@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"golang.org/x/net/context"
@@ -311,6 +312,7 @@ var pathFormat = regexp.MustCompile(`\s([\/\w]+$)`)
 
 // Converts `[datastore] /path` to URL
 func DatastoreToURL(ds string) (*url.URL, error) {
+	defer trace.End(trace.Begin(ds))
 	u := new(url.URL)
 	var matches []string
 	if matches = datastoreFormat.FindStringSubmatch(ds); len(matches) != 2 {
@@ -329,6 +331,7 @@ func DatastoreToURL(ds string) (*url.URL, error) {
 
 // Converts URL for datastores to datastore format ([datastore1] /path/to/thing)
 func URLtoDatastore(u *url.URL) (string, error) {
+	defer trace.End(trace.Begin(u.String()))
 	scheme := "ds"
 	if u.Scheme != scheme {
 		return "", fmt.Errorf("url (%s) is not a datastore", u.String())
