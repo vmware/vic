@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"strconv"
 
+	log "github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/errors"
 
 	"github.com/docker/engine-api/types"
@@ -65,16 +66,17 @@ func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
 			return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("error from portlayer server: %s", err.Payload.Message), http.StatusInternalServerError)
 		default:
 			return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("error from portlayer server: %s", err.Error()), http.StatusInternalServerError)
-
 		}
 	}
 
 	volumeResponses := res.Payload
 
+	log.Infof("volumes being returend : %+v", volumeResponses)
 	for _, v := range volumeResponses {
 		volume := extractDockerVolumeFromResponse(v)
 		volumes = append(volumes, &volume)
 	}
+	log.Infof("volumes being returend : %+v", volumes)
 	return volumes, nil, nil
 }
 

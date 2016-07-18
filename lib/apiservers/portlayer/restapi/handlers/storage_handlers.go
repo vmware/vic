@@ -275,7 +275,7 @@ func (handler *StorageHandlersImpl) RemoveVolume(storage.RemoveVolumeParams) mid
 //VolumesList : Lists available volumes for use
 func (handler *StorageHandlersImpl) VolumesList(params storage.ListVolumesParams) middleware.Responder {
 	defer trace.End(trace.Begin("storage_handlers.VolumeList"))
-	var result []models.VolumeResponse
+	var result []*models.VolumeResponse
 
 	portlayerVolumes, err := storageVolumeLayer.VolumesList(context.TODO())
 	if err != nil {
@@ -285,6 +285,8 @@ func (handler *StorageHandlersImpl) VolumesList(params storage.ListVolumesParams
 			Message: err.Error(),
 		})
 	}
+
+	log.Debugf("volumes fetched from list call : %#v", portlayerVolumes)
 
 	for _, v := range portlayerVolumes {
 		model, err := fillVolumeModel(v)
@@ -296,10 +298,11 @@ func (handler *StorageHandlersImpl) VolumesList(params storage.ListVolumesParams
 			})
 		}
 
-		result = append(result, model)
+		result = append(result, &model)
 	}
 
-	return storage.NewListVolumesOK()
+	log.Debugf("volumes returned from list call : %#v", result)
+	return storage.NewListVolumesOK().WithPayload(result)
 }
 
 //VolumeJoin : modifies the config spec of a container to mount the specified container
