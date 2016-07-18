@@ -6,16 +6,18 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Simple docker volume create
-    Log  Not really implemented  WARN
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --opt VolumeStore=datastore1 --opt Capacity=1
-    #Should Be Equal As Integers  ${rc}  1
+    Log  Not supported yet  WARN
+    # Auto-named volumes not supported yet
+    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --opt VolumeStore=default --opt Capacity=1
+    #Should Be Equal As Integers  ${rc}  0
 
 Docker volume create named volume
-    Log  Not really implemented  WARN
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test --opt VolumeStore=datastore1 --opt Capacity=1
-    #Should Be Equal As Integers  ${rc}  1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test --opt VolumeStore=default --opt Capacity=1
+    Should Be Equal As Integers  ${rc}  0
 
 Docker volume create remote volume
-    Log  Not really implemented  WARN
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create -d remote --name=test --opt VolumeStore=datastore1 --opt Capacity=1
-    #Should Be Equal As Integers  ${rc}  1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create -d remote --name=test2 --opt VolumeStore=default --opt Capacity=1
+    Should Be Equal As Integers  ${rc}  0
+    
+    
+# test when default volume store doesn't exist
