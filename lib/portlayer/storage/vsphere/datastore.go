@@ -15,9 +15,12 @@
 package vsphere
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"net/url"
 	"path"
+	"regexp"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -25,6 +28,7 @@ import (
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"golang.org/x/net/context"
@@ -300,4 +304,37 @@ func (d *Datastore) mkRootDir(ctx context.Context, rootdir string) error {
 // Return the root of the datastore path (without the [datastore] portion)
 func (d *Datastore) rootDir() string {
 	return strings.SplitN(d.RootURL, " ", 2)[1]
+}
+
+// Parse the datastore format ([datastore1] /path/to/thing) to groups.
+var datastoreFormat = regexp.MustCompile(`^\[([\w\d\(\)\s]+)\]`)
+var pathFormat = regexp.MustCompile(`\s([\/\w]+$)`)
+
+// Converts `[datastore] /path` to URL
+func DatastoreToURL(ds string) (*url.URL, error) {
+	defer trace.End(trace.Begin(ds))
+	u := new(url.URL)
+	var matches []string
+	if matches = datastoreFormat.FindStringSubmatch(ds); len(matches) != 2 {
+		return nil, errors.New("Ambiguous datastore format encountered.")
+	}
+	u.Host = matches[1]
+	if matches = pathFormat.FindStringSubmatch(ds); len(matches) != 2 {
+		return nil, errors.New("Ambiguous datastore path format encountered.")
+	}
+
+	u.Path = path.Clean(matches[1])
+	u.Scheme = "ds"
+
+	return u, nil
+}
+
+// Converts URL for datastores to datastore format ([datastore1] /path/to/thing)
+func URLtoDatastore(u *url.URL) (string, error) {
+	defer trace.End(trace.Begin(u.String()))
+	scheme := "ds"
+	if u.Scheme != scheme {
+		return "", fmt.Errorf("url (%s) is not a datastore", u.String())
+	}
+	return fmt.Sprintf("[%s] %s", u.Host, u.Path), nil
 }

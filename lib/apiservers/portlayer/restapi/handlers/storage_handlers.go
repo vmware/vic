@@ -234,7 +234,8 @@ func (handler *StorageHandlersImpl) CreateVolume(params storage.CreateVolumePara
 	storeURL, err := util.VolumeStoreNameToURL(params.VolumeRequest.Store)
 	if err != nil {
 		log.Errorf("storagehandler: VolumeStoreName error: %s", err)
-		return storage.NewCreateVolumeDefault(http.StatusInternalServerError).WithPayload(&models.Error{
+
+		return storage.NewCreateVolumeInternalServerError().WithPayload(&models.Error{
 			Code:    swag.Int64(http.StatusInternalServerError),
 			Message: err.Error(),
 		})
@@ -255,7 +256,7 @@ func (handler *StorageHandlersImpl) CreateVolume(params storage.CreateVolumePara
 	volume, err := storageVolumeLayer.VolumeCreate(context.TODO(), params.VolumeRequest.Name, storeURL, capacity*1024, byteMap)
 	if err != nil {
 		log.Errorf("storagehandler: VolumeCreate error: %s", err)
-		return storage.NewCreateVolumeDefault(http.StatusInternalServerError).WithPayload(&models.Error{
+		return storage.NewCreateVolumeInternalServerError().WithPayload(&models.Error{
 			Code:    swag.Int64(http.StatusInternalServerError),
 			Message: err.Error(),
 		})

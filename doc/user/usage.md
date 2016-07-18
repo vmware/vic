@@ -1,8 +1,6 @@
 ## Installing Virtual Integrated Containers
 
-The intent is that vSphere Integrated Containers (VIC) should not _require_ an installation step - deploying a [Virtual Container Host](doc/design/arch/vic-container-abstraction.md#virtual-container-host) (VCH) directly without any prior steps should always be possible. At the current time this is the only approach available.
-
-Installation will be required for capabilities such as [self-provisioning](doc/design/validating-proxy.md) and management network isolation via [vmomi proxy](doc/design/vmomi-authenticating-agent.md).
+The intent is that vSphere Integrated Containers (VIC) should not _require_ an installation step - deploying a [Virtual Container Host](../design/arch/vic-container-abstraction.md#virtual-container-host) (VCH) directly without any prior steps should always be possible. At the current time this is the only approach available.
 
 ## Deploying a Virtual Container Host
 
@@ -110,7 +108,7 @@ Volumes are implemented as VMDKs and mounted as block devices on a containerVM. 
 
 The location in which volumes are created can be specified at creation time via the `--volume-store` argument. This can be supplied multiple times to configure multiple datastores or paths:
 ```
-vic-machine-linux create --volume-store=default:datastore1/some/path --volume-store=fast:ssdDatastore/other/path ...
+vic-machine-linux create --volume-store=datastore1/some/path:default --volume-store=ssdDatastore/other/path:fast ...
 ```
 
 The volume store to use is specified via driver optons when creating volumes (capacity is in MB):

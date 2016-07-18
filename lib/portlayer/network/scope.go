@@ -28,8 +28,10 @@ var (
 )
 
 const (
-	bridgeScopeType   = "bridge"
-	externalScopeType = "external"
+	// BridgeScopeType denotes a scope that is of type bridge
+	BridgeScopeType = "bridge"
+	// ExternalScopeType denotes a scope that is of type external
+	ExternalScopeType = "external"
 )
 
 type Scope struct {
@@ -79,7 +81,7 @@ func (s *Scope) Network() object.NetworkReference {
 }
 
 func (s *Scope) isDynamic() bool {
-	return s.scopeType != bridgeScopeType && s.ipam.spaces == nil
+	return s.scopeType != BridgeScopeType && s.ipam.spaces == nil
 }
 
 func (s *Scope) reserveEndpointIP(e *Endpoint) error {

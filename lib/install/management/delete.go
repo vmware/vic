@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/metadata"
@@ -55,6 +54,8 @@ func (d *Dispatcher) DeleteVCH(conf *metadata.VirtualContainerHostConfigSpec) er
 	if err = d.DeleteStores(vmm, conf); err != nil {
 		errs = append(errs, err.Error())
 	}
+
+	d.deleteVolumeStoreIfForced(conf) // logs errors but doesn't ever bail out if it has an issue
 
 	if err = d.deleteNetworkDevices(vmm, conf); err != nil {
 		errs = append(errs, err.Error())
