@@ -26,6 +26,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
@@ -36,7 +37,7 @@ import (
 )
 
 func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, error) {
-	StorageParentDir = RandomString(10) + "imageTests"
+	StorageParentDir = uuid.New().String()[0:16] + "imageTests"
 
 	client := Session(context.TODO(), t)
 	if client == nil {
@@ -73,7 +74,7 @@ func TestRestartImageStore(t *testing.T) {
 	}
 
 	// Check we didn't create a new UUID directory (relevant if vsan)
-	if !assert.Equal(t, origVsStore.ds.rootDir(), restartedVsStore.ds.rootDir()) {
+	if !assert.Equal(t, origVsStore.ds.RootURL, restartedVsStore.ds.RootURL) {
 		return
 	}
 }

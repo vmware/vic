@@ -17,10 +17,12 @@ package disk
 import (
 	"io/ioutil"
 	"os"
+	"path"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
 	"golang.org/x/net/context"
@@ -36,7 +38,7 @@ func TestCreateFS(t *testing.T) {
 		return
 	}
 
-	imagestore := client.Datastore.Path("imagestore")
+	imagestore := client.Datastore.Path(uuid.New().String()[0:16] + "-diskTest")
 
 	fm := object.NewFileManager(client.Vim25())
 
@@ -68,7 +70,7 @@ func TestCreateFS(t *testing.T) {
 	}
 
 	diskSize := int64(1 << 10)
-	d, err := vdm.CreateAndAttach(context.TODO(), client.Datastore.Path("imagestore/scratch.vmdk"), "", diskSize, os.O_RDWR)
+	d, err := vdm.CreateAndAttach(context.TODO(), path.Join(imagestore, "scratch.vmdk"), "", diskSize, os.O_RDWR)
 	if !assert.NoError(t, err) {
 		return
 	}

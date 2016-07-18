@@ -17,14 +17,23 @@ package vsphere
 import (
 	"fmt"
 	"testing"
+	"time"
 
+	log "github.com/Sirupsen/logrus"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
+	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/tasks"
+	"github.com/vmware/vic/pkg/vsphere/test/env"
+	"golang.org/x/net/context"
 )
 
 const testStore = "testStore"
 
 func TestParentEmptyRestore(t *testing.T) {
-	ctx, ds, cleanupfunc := dSsetup(t)
+	ctx, ds, cleanupfunc := datastore.DSsetup(t)
 	if t.Failed() {
 		return
 	}
@@ -37,7 +46,7 @@ func TestParentEmptyRestore(t *testing.T) {
 }
 
 func TestParentEmptySaveRestore(t *testing.T) {
-	ctx, ds, cleanupfunc := dSsetup(t)
+	ctx, ds, cleanupfunc := datastore.DSsetup(t)
 	if t.Failed() {
 		return
 	}
@@ -61,7 +70,7 @@ func TestParentEmptySaveRestore(t *testing.T) {
 
 // Write some child -> parent mappings and see if we can read them.
 func TestParentSaveRestore(t *testing.T) {
-	ctx, ds, cleanupfunc := dSsetup(t)
+	ctx, ds, cleanupfunc := datastore.DSsetup(t)
 	if t.Failed() {
 		return
 	}
@@ -100,4 +109,50 @@ func TestParentSaveRestore(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
+}
+
+func Session(ctx context.Context, t *testing.T) *session.Session {
+	config := &session.Config{
+		Service: env.URL(t),
+
+		/// XXX Why does this insist on having this field populated?
+		DatastorePath: env.DS(t),
+
+		Insecure:  true,
+		Keepalive: time.Duration(5) * time.Minute,
+	}
+
+	s, err := session.NewSession(config).Create(ctx)
+	if err != nil {
+		t.SkipNow()
+	}
+
+	return s
+}
+
+func DSsetup(t *testing.T) (context.Context, *datastore.DSWrapper, func()) {
+	ctx := context.Background()
+	sess := Session(ctx, t)
+	log.SetLevel(log.DebugLevel)
+
+	ds, err := datastore.NewDSWrapper(ctx, sess, sess.Datastore, uuid.New().String()[0:16]+"-parentTest")
+	if !assert.NoError(t, err) {
+		return ctx, nil, nil
+	}
+
+	f := func() {
+		log.Debugf("Removing test root %s", ds.RootURL)
+
+		fm := object.NewFileManager(sess.Vim25())
+		err := tasks.Wait(ctx, func(context.Context) (tasks.Waiter, error) {
+			return fm.DeleteDatastoreFile(ctx, ds.RootURL, sess.Datacenter)
+		})
+
+		if err != nil {
+			log.Errorf(err.Error())
+			return
+		}
+	}
+
+	return ctx, ds, f
 }
