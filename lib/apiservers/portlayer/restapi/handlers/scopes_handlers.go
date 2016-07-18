@@ -293,7 +293,6 @@ func (handler *ScopesHandlersImpl) ScopesUnbindContainer(params scopes.UnbindCon
 
 func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
 	id := scope.ID()
-
 	subnet := ""
 	if !ip.IsUnspecifiedIP(scope.Subnet().IP) {
 		subnet = scope.Subnet().String()

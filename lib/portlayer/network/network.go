@@ -41,7 +41,7 @@ func Init() error {
 	var err error
 
 	bridgeRange := net.IPNet{
-		IP:   net.IPv4(172, 17, 0, 0),
+		IP:   net.IPv4(172, 16, 0, 0),
 		Mask: net.CIDRMask(12, 32),
 	}
 	bridgeWidth := net.CIDRMask(16, 32)
