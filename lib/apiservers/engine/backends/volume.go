@@ -79,7 +79,18 @@ func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]s
 
 	res, err := client.Storage.CreateVolume(storage.NewCreateVolumeParams().WithVolumeRequest(&model))
 	if err != nil {
-		return result, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusInternalServerError)
+		switch err := err.(type) {
+
+		case *storage.CreateVolumeInternalServerError:
+			//FIXME: right now this does not return an error model...
+			return result, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err.Error()), http.StatusInternalServerError)
+
+		case *storage.CreateVolumeDefault:
+			return result, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err.Payload.Message), http.StatusInternalServerError)
+
+		default:
+			return result, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusInternalServerError)
+		}
 	}
 
 	result = fillDockerVolumeModel(res.Payload, labels)
@@ -98,13 +109,21 @@ func (v *Volume) VolumeRm(name string) error {
 	//FIXME: check whether this is a name or a UUID. UUID expected for now.
 	_, err := client.Storage.RemoveVolume(storage.NewRemoveVolumeParams().WithName(name))
 	if err != nil {
-		if _, ok := err.(*storage.RemoveVolumeNotFound); ok {
+
+		switch err := err.(type) {
+
+		case *storage.RemoveVolumeNotFound:
 			return derr.NewRequestNotFoundError(fmt.Errorf("Get %s: no such volume", name))
+
+		case *storage.RemoveVolumeConflict:
+			return derr.NewRequestConflictError(fmt.Errorf("Volume '%s' is in use", name))
+
+		case *storage.RemoveVolumeInternalServerError:
+			return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", err.Payload.Message), http.StatusInternalServerError)
+
+		default:
+			return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", err), http.StatusInternalServerError)
 		}
-		if _, ok := err.(*storage.RemoveVolumeConflict); ok {
-			return derr.NewRequestConflictError(fmt.Errorf("Volume is in use"))
-		}
-		return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", err), http.StatusInternalServerError)
 	}
 	return nil
 }
@@ -138,7 +157,7 @@ func validateDriverArgs(args map[string]string, model *models.VolumeRequest) err
 	capacity, convErr := strconv.ParseInt(capstr, 10, 64)
 	if convErr != nil {
 		model.Capacity = -1
-		return fmt.Errorf("Capacity must be an integer value. The unit is GB.: %s", convErr)
+		return fmt.Errorf("Capacity must be an integer value. The unit is MB: %s", convErr)
 	}
 	model.Capacity = int64(capacity)
 	return nil
