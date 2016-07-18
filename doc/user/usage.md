@@ -2,8 +2,6 @@
 
 The intent is that vSphere Integrated Containers (VIC) should not _require_ an installation step - deploying a [Virtual Container Host](../design/arch/vic-container-abstraction.md#virtual-container-host) (VCH) directly without any prior steps should always be possible. At the current time this is the only approach available.
 
-Installation will be required for capabilities such as [self-provisioning](doc/design/validating-proxy.md) and management network isolation via [vmomi proxy](doc/design/vmomi-authenticating-agent.md).
-
 ## Deploying a Virtual Container Host
 
 ### Requirements
