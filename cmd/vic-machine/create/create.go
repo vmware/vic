@@ -54,9 +54,6 @@ const (
 type Create struct {
 	*data.Data
 
-	applianceISO string
-	bootstrapISO string
-
 	cert string
 	key  string
 
@@ -154,13 +151,13 @@ func (c *Create) Flags() []cli.Flag {
 			Name:        "appliance-iso",
 			Value:       "",
 			Usage:       "The appliance iso",
-			Destination: &c.applianceISO,
+			Destination: &c.ApplianceISO,
 		},
 		cli.StringFlag{
 			Name:        "bootstrap-iso",
 			Value:       "",
 			Usage:       "The bootstrap iso",
-			Destination: &c.bootstrapISO,
+			Destination: &c.BootstrapISO,
 		},
 		cli.StringFlag{
 			Name:        "key",
@@ -347,16 +344,15 @@ func (c *Create) checkImagesFiles() ([]string, error) {
 
 	var imgs []string
 	var result []string
-	if c.applianceISO != "" {
-		imgs = append(imgs, c.applianceISO)
-	} else {
-		imgs = append(imgs, images[ApplianceImageKey]...)
+	if c.ApplianceISO == "" {
+		c.ApplianceISO = images[ApplianceImageKey][0]
 	}
-	if c.bootstrapISO != "" {
-		imgs = append(imgs, c.bootstrapISO)
-	} else {
-		imgs = append(imgs, osImgs...)
+	imgs = append(imgs, c.ApplianceISO)
+
+	if c.BootstrapISO == "" {
+		c.BootstrapISO = osImgs[0]
 	}
+	imgs = append(imgs, c.BootstrapISO)
 
 	for _, img := range imgs {
 		_, err := os.Stat(img)

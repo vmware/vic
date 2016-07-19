@@ -108,7 +108,7 @@ type VirtualContainerHostConfigSpec struct {
 	// Resource pools under which all containers will be created
 	ComputeResources []types.ManagedObjectReference `vic:"0.1" scope:"read-only"`
 	// Path of the ISO to use for bootstrapping containers
-	BootstrapImagePath url.URL `vic:"0.1" scope:"read-only" recurse:"depth=1"`
+	BootstrapImagePath string `vic:"0.1" scope:"read-only" key:"bootstrap_image_path"`
 
 	////////////// Imagec
 	// Whitelist of registries
