@@ -20,9 +20,9 @@ gsutil version -l
 
 dpkg -l > package.list
 
-if [ $DRONE_BRANCH = "master" && $DRONE_REPO = "vmware/vic" && $DRONE_EVENT = "pull_request" ]; then
+if [ $DRONE_BRANCH = "master" ] && [ $DRONE_REPO = "vmware/vic" ] && [ $DRONE_EVENT = "pull_request" ]; then
    pybot --removekeywords TAG:secret --exclude docker tests/test-cases
-elif [ $DRONE_BRANCH = "master" && $DRONE_REPO = "vmware/vic" ]; then
+elif [ $DRONE_BRANCH = "master" ] && [ $DRONE_REPO = "vmware/vic" ]; then
     pybot --removekeywords TAG:secret tests/test-cases
 else
     pybot --removekeywords TAG:secret --include regression tests/test-cases
