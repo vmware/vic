@@ -220,8 +220,7 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 		Name: config.Metadata.Name,
 
 		ParentImageID: config.ParentImageID,
-		// FIXME: hardcoded value
-		BootMediaPath: sess.Datastore.Path(fmt.Sprintf("%s/bootstrap.iso", config.VCHName)),
+		BootMediaPath: VCHConfig.BootstrapImagePath,
 		VMPathName:    fmt.Sprintf("[%s]", sess.Datastore.Name()),
 		DebugNetwork:  backing,
 

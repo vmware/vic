@@ -39,7 +39,7 @@ func TestImageNotFound(t *testing.T) {
 
 	os.Args = []string{"cmd", "create", fmt.Sprintf("-appliance-iso=%s", tmpfile.Name())}
 	flag.Parse()
-	create.applianceISO = tmpfile.Name()
+	create.ApplianceISO = tmpfile.Name()
 	create.osType = "linux"
 	if _, err = create.checkImagesFiles(); err == nil {
 		t.Errorf("Error is expected for boot iso file is not found.")
@@ -63,8 +63,8 @@ func TestImageChecks(t *testing.T) {
 
 	os.Args = []string{"cmd", "create", fmt.Sprintf("-bootstrap-iso=%s", tmpfile.Name())}
 	flag.Parse()
-	create.applianceISO = ""
-	create.bootstrapISO = tmpfile.Name()
+	create.ApplianceISO = ""
+	create.BootstrapISO = tmpfile.Name()
 	create.osType = "linux"
 	var imageFiles []string
 	if imageFiles, err = create.checkImagesFiles(); err != nil {

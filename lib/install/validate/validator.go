@@ -184,6 +184,12 @@ func (v *Validator) basics(ctx context.Context, input *data.Data, conf *metadata
 	conf.SetDebug(input.Debug.Debug)
 
 	conf.Name = input.DisplayName
+
+	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s",
+		input.ImageDatastoreName,
+		input.DisplayName,
+		path.Base(input.BootstrapISO),
+	)
 }
 
 func (v *Validator) compute(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {

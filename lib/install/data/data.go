@@ -36,6 +36,9 @@ type Data struct {
 	CertPEM []byte
 	KeyPEM  []byte
 
+	ApplianceISO string
+	BootstrapISO string
+
 	ImageDatastoreName     string
 	VolumeLocations        map[string]string
 	ContainerDatastoreName string

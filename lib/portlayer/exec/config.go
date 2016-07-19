@@ -42,7 +42,7 @@ type Configuration struct {
 	ResourcePool *object.ResourcePool
 
 	// Path of the ISO to use for bootstrapping containers
-	BootstrapImagePath url.URL `vic:"0.1" scope:"read-only" recurse:"depth=1"`
+	BootstrapImagePath string `vic:"0.1" scope:"read-only" key:"bootstrap_image_path"`
 
 	// Allow custom naming convention for containerVMs
 	ContainerNameConvention string
