@@ -23,9 +23,9 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
@@ -64,7 +64,7 @@ func TestCreateAndDetach(t *testing.T) {
 		return
 	}
 
-	imagestore := client.Datastore.Path(uuid.New().String()[0:16] + "-diskManagerTest")
+	imagestore := client.Datastore.Path(datastore.TestName("diskManagerTest"))
 
 	fm := object.NewFileManager(client.Vim25())
 

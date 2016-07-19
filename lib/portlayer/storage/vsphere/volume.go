@@ -37,7 +37,7 @@ var volumesDir = StorageParentDir + "/volumes"
 type VolumeStore struct {
 
 	// maps datastore uri (volume store) to datastore
-	ds map[url.URL]*datastore.DSWrapper
+	ds map[url.URL]*datastore.Helper
 
 	// wraps our vmdks and filesystem primitives.
 	dm *disk.Manager
@@ -54,7 +54,7 @@ func NewVolumeStore(ctx context.Context, s *session.Session) (*VolumeStore, erro
 	v := &VolumeStore{
 		dm:   dm,
 		sess: s,
-		ds:   make(map[url.URL]*datastore.DSWrapper),
+		ds:   make(map[url.URL]*datastore.Helper),
 	}
 
 	return v, nil
@@ -67,7 +67,7 @@ func NewVolumeStore(ctx context.Context, s *session.Session) (*VolumeStore, erro
 // storeName is the name used to refer to the datastore + path (ds above).
 //
 // returns the URL used to refer to the volume store
-func (v *VolumeStore) AddStore(ctx context.Context, ds *datastore.DSWrapper, storeName string) (*url.URL, error) {
+func (v *VolumeStore) AddStore(ctx context.Context, ds *datastore.Helper, storeName string) (*url.URL, error) {
 	u, err := util.VolumeStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func (v *VolumeStore) AddStore(ctx context.Context, ds *datastore.DSWrapper, sto
 	return u, nil
 }
 
-func (v *VolumeStore) getDatastore(store *url.URL) (*datastore.DSWrapper, error) {
+func (v *VolumeStore) getDatastore(store *url.URL) (*datastore.Helper, error) {
 	// find the datastore
 	dstore, ok := v.ds[*store]
 	if !ok {

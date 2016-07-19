@@ -169,7 +169,7 @@ func (d *Dispatcher) createVolumeStores(conf *metadata.VirtualContainerHostConfi
 		if err != nil {
 			return errors.Errorf("Could not retrieve datastore with host %q due to error %s", url.Host, err)
 		}
-		nds, err := datastore.NewDSWrapper(d.ctx, d.session, ds, url.Path)
+		nds, err := datastore.NewHelper(d.ctx, d.session, ds, url.Path)
 		if err != nil {
 			return errors.Errorf("Could not create volume store due to error: %s", err)
 		}

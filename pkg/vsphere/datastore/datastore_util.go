@@ -48,11 +48,11 @@ func Session(ctx context.Context, t *testing.T) *session.Session {
 	return s
 }
 
-func DSsetup(t *testing.T) (context.Context, *DSWrapper, func()) {
+func DSsetup(t *testing.T) (context.Context, *Helper, func()) {
 	ctx := context.Background()
 	sess := Session(ctx, t)
 
-	ds, err := NewDSWrapper(ctx, sess, sess.Datastore, uuid.New().String()[0:16]+"dstests")
+	ds, err := NewHelper(ctx, sess, sess.Datastore, uuid.New().String()[0:16]+"dstests")
 	if !assert.NoError(t, err) {
 		return ctx, nil, nil
 	}

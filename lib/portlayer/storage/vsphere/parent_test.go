@@ -20,7 +20,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
@@ -130,12 +129,12 @@ func Session(ctx context.Context, t *testing.T) *session.Session {
 	return s
 }
 
-func DSsetup(t *testing.T) (context.Context, *datastore.DSWrapper, func()) {
+func DSsetup(t *testing.T) (context.Context, *datastore.Helper, func()) {
 	ctx := context.Background()
 	sess := Session(ctx, t)
 	log.SetLevel(log.DebugLevel)
 
-	ds, err := datastore.NewDSWrapper(ctx, sess, sess.Datastore, uuid.New().String()[0:16]+"-parentTest")
+	ds, err := datastore.NewHelper(ctx, sess, sess.Datastore, datastore.TestName("-parentTest"))
 	if !assert.NoError(t, err) {
 		return ctx, nil, nil
 	}

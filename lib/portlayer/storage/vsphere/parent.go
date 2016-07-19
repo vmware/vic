@@ -48,7 +48,7 @@ type parentM struct {
 	db map[string]string
 
 	// roots where the map is stored
-	ds *datastore.DSWrapper
+	ds *datastore.Helper
 
 	parentMFile string
 
@@ -56,7 +56,7 @@ type parentM struct {
 }
 
 // Starts here.  Tries to create a new parentM or load an existing one.
-func restoreParentMap(ctx context.Context, ds *datastore.DSWrapper, storeName string) (*parentM, error) {
+func restoreParentMap(ctx context.Context, ds *datastore.Helper, storeName string) (*parentM, error) {
 	p := &parentM{
 		ds: ds,
 	}

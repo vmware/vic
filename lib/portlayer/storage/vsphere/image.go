@@ -50,7 +50,7 @@ type ImageStore struct {
 	// govmomi session
 	s *session.Session
 
-	ds *datastore.DSWrapper
+	ds *datastore.Helper
 
 	// Parent relationships
 	// This will go away when First Class Disk support is added to vsphere.
@@ -70,7 +70,7 @@ func NewImageStore(ctx context.Context, s *session.Session) (*ImageStore, error)
 	// Currently using the datastore associated with the session which is not
 	// ideal.  This should be passed in via the config.  The datastore need not
 	// be the same datastore used for the rest of the system.
-	ds, err := datastore.NewDSWrapper(ctx, s, s.Datastore, StorageParentDir)
+	ds, err := datastore.NewHelper(ctx, s, s.Datastore, StorageParentDir)
 	if err != nil {
 		return nil, err
 	}

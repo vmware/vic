@@ -19,7 +19,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
@@ -43,8 +42,8 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 	}
 
 	// Root our datastore
-	testStorePath := uuid.New().String()[0:16] + "-voltest"
-	ds, err := datastore.NewDSWrapper(ctx, client, client.Datastore, testStorePath)
+	testStorePath := datastore.TestName("voltest")
+	ds, err := datastore.NewHelper(ctx, client, client.Datastore, testStorePath)
 	if !assert.NoError(t, err) || !assert.NotNil(t, ds) {
 		return
 	}

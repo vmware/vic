@@ -22,9 +22,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"golang.org/x/net/context"
 )
 
@@ -38,7 +38,7 @@ func TestCreateFS(t *testing.T) {
 		return
 	}
 
-	imagestore := client.Datastore.Path(uuid.New().String()[0:16] + "-diskTest")
+	imagestore := client.Datastore.Path(datastore.TestName("diskTest"))
 
 	fm := object.NewFileManager(client.Vim25())
 
