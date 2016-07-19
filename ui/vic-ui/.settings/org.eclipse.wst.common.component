@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project-modules id="moduleCoreId" project-version="1.5.0">
+   <wb-module deploy-name="vic-ui">
+      <wb-resource deploy-path="/" source-path="/war/src/main/webapp"/>
+      <wb-resource deploy-path="/" source-path="/war/target/vic-ui-war"/>
+
+      <property name="context-root" value="whatever"/>
+      <property name="java-output-path"/>
+   </wb-module>
+</project-modules>
