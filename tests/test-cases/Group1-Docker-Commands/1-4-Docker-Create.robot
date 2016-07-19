@@ -19,19 +19,19 @@ Simple creates
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-#Create with volume
-#    ${status}=  Get State Of Github Issue  806
-#    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-4-Docker-Create.robot needs to be updated now that Issue #806 has been resolved
-#    Log  Issue \#806 is blocking implementation  WARN
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -v /var/log:/var/log busybox ls /var/log
-#    Should Be Equal As Integers  ${rc}  0
-#    Should Not Contain  ${output}  Error
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${output}
-#    Should Be Equal As Integers  ${rc}  0
-#    Should Not Contain  ${output}  Error
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs ${output}
-#    Should Be Equal As Integers  ${rc}  0
-#    Should Not Contain  ${output}  Error
+Create with volume
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -v /var/log busybox ls /var/log
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${status}=  Get State Of Github Issue  366
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-4-Docker-Create.robot needs to be updated now that Issue #366 has been resolved
+    Log  Issue \#366 is blocking implementation  WARN
+    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs ${output}
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
 
 Create simple top example
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create busybox /bin/top
@@ -52,9 +52,6 @@ Create fakeImage repository
     Should Contain  ${output}  Error parsing reference: "fakeImage" is not a valid repository/tag
 
 Create and start named container
-#    ${status}=  Get State Of Github Issue  1234
-#    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-4-Docker-Create.robot needs to be updated now that Issue #1234 has been resolved
-#    Log  Issue \#1234 is blocking implementation  WARN
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create --name busy1 busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
@@ -62,19 +59,17 @@ Create and start named container
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-#DISABLE TEST FOR NOW UNTIL CRASH IS INVESTIGATED
-
-#Create linked containers that can ping
-#    ${status}=  Get State Of Github Issue  430
-#    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-4-Docker-Create.robot needs to be updated now that Issue #430 has been resolved
-#    Log  Issue \#430 is blocking implementation  WARN
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create --link busy1:busy1 --name busy2 busybox ping -c2 busy1
-#    Should Be Equal As Integers  ${rc}  0
-#    Should Not Contain  ${output}  Error
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start busy2
-#    Should Be Equal As Integers  ${rc}  0
-#    Should Not Contain  ${output}  Error
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs busy2
-#    Should Be Equal As Integers  ${rc}  0
-#    Should Not Contain  ${output}  Error
-#    Should Contain  ${output}  2 packets transmitted, 2 received
+Create linked containers that can ping
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create --link busy1:busy1 --name busy2 busybox ping -c2 busy1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start busy2
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${status}=  Get State Of Github Issue  366
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-4-Docker-Create.robot needs to be updated now that Issue #366 has been resolved
+    Log  Issue \#366 is blocking implementation  WARN
+    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs busy2
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  Error
+    #Should Contain  ${output}  2 packets transmitted, 2 received
