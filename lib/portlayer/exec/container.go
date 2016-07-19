@@ -33,11 +33,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-var containers map[ID]*Container
-var containersLock sync.Mutex
-
 func init() {
-	containers = make(map[ID]*Container)
+	NewContainerCache()
 }
 
 type State int
@@ -54,6 +51,7 @@ type Container struct {
 
 	ExecConfig *metadata.ExecutorConfig
 	State      State
+
 	// friendly description of state
 	Status string
 
@@ -69,28 +67,27 @@ func NewContainer(id ID) *Handle {
 	}
 	con.ExecConfig.ID = id.String()
 
-	containersLock.Lock()
-	containers[id] = con
-	containersLock.Unlock()
+	// add to cache
+	containers.Put(con)
 
 	return con.newHandle()
 }
 
 func GetContainer(id ID) *Handle {
-	containersLock.Lock()
-	defer containersLock.Unlock()
-
-	if con, ok := containers[id]; ok {
-		return con.newHandle()
+	// get from the cache
+	container := containers.Container(id.String())
+	if container != nil {
+		return container.newHandle()
 	}
-
 	return nil
+
 }
 
 func (c *Container) newHandle() *Handle {
 	return newHandle(c)
 }
 
+// TODO: Is this used anywhere?
 func (c *Container) cacheExecConfig(ec *metadata.ExecutorConfig) {
 	c.Lock()
 	defer c.Unlock()
@@ -177,6 +174,8 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 	c.ExecConfig = &h.ExecConfig
 
+	// add or overwrite the container in the cache
+	containers.Put(c)
 	return nil
 }
 
@@ -237,6 +236,7 @@ func (c *Container) stop(ctx context.Context) error {
 }
 
 func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
+	defer trace.End(trace.Begin("Container.Remove"))
 	c.Lock()
 	defer c.Unlock()
 
@@ -271,15 +271,13 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 		log.Debugf("Failed to delete %s, %s", dsPath, err)
 	}
 
-	//removes container from map
-	containersLock.Lock()
-	delete(containers, ParseID(c.ExecConfig.ID))
-	containersLock.Unlock()
-
+	//remove container from cache
+	containers.Remove(c.ExecConfig.ID)
 	return nil
 }
 
 func (c *Container) Update(ctx context.Context, sess *session.Session) (*metadata.ExecutorConfig, error) {
+	defer trace.End(trace.Begin("Container.Update"))
 	c.Lock()
 	defer c.Unlock()
 
@@ -302,7 +300,7 @@ func (c *Container) Update(ctx context.Context, sess *session.Session) (*metadat
 // container and if it's not present then search and return a handle
 func ContainerInfo(ctx context.Context, sess *session.Session, containerID ID) (*Container, error) {
 	// first  lets see if we have it in the cache
-	container := containers[containerID]
+	container := containers.Container(containerID.String())
 	// if we missed search for it...
 	if container == nil {
 		// search
