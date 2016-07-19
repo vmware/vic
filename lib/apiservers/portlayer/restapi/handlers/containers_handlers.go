@@ -294,11 +294,16 @@ func convertContainerToContainerInfo(container *exec.Container) *models.Containe
 	info.ContainerConfig.AttachStderr = &attach
 
 	path := container.ExecConfig.Sessions[ccid].Cmd.Path
-	dir := container.ExecConfig.Sessions[ccid].Cmd.Dir
 	info.ProcessConfig.ExecPath = &path
+
+	dir := container.ExecConfig.Sessions[ccid].Cmd.Dir
 	info.ProcessConfig.WorkingDir = &dir
+
 	info.ProcessConfig.ExecArgs = container.ExecConfig.Sessions[ccid].Cmd.Args
 	info.ProcessConfig.Env = container.ExecConfig.Sessions[ccid].Cmd.Env
+
+	exitcode := int64(container.ExecConfig.Sessions[ccid].ExitStatus)
+	info.ProcessConfig.ExitCode = &exitcode
 
 	return info
 }
