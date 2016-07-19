@@ -647,6 +647,14 @@ paths:
           required: true
           in: path
           type: string
+        - name: force
+          in: query
+          type: bool
+          default: false
+        - name: v
+          in: query
+          type: bool
+          default: false
       responses:
         '200':
           description: "OK"
