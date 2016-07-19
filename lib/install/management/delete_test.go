@@ -17,6 +17,7 @@ package management
 import (
 	"fmt"
 	"net/url"
+	"path"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
@@ -67,11 +68,11 @@ func TestDelete(t *testing.T) {
 		installSettings := &data.InstallerData{}
 		installSettings.ApplianceSize.CPU.Limit = 1
 		installSettings.ApplianceSize.Memory.Limit = 1024
-		installSettings.ResourcePoolPath = fmt.Sprintf("%s/%s", input.ComputeResourcePath, input.DisplayName)
+		installSettings.ResourcePoolPath = path.Join(input.ComputeResourcePath, input.DisplayName)
 
 		validator, err := validate.NewValidator(ctx, input)
 		if err != nil {
-			t.Errorf("Failed to validator, %s", err)
+			t.Errorf("Failed to validator: %s", err)
 		}
 
 		validator.DisableFirewallCheck = true
@@ -79,7 +80,7 @@ func TestDelete(t *testing.T) {
 
 		conf, err := validator.Validate(ctx, input)
 		if err != nil {
-			log.Errorf("Failed to validate conf, %s", err)
+			log.Errorf("Failed to validate conf: %s", err)
 			validator.ListIssues()
 		}
 
@@ -161,7 +162,7 @@ func testNewVCHFromCompute(computePath string, name string, v *validate.Validato
 	}
 	vch, path, err := d.NewVCHFromComputePath(computePath, name, v)
 	if err != nil {
-		t.Errorf("Failed to get VCH, %s", err)
+		t.Errorf("Failed to get VCH: %s", err)
 		return
 	}
 	t.Logf("Got VCH %s, path %s", vch, path)
@@ -176,7 +177,7 @@ func testDeleteVCH(v *validate.Validator, conf *metadata.VirtualContainerHostCon
 	}
 	// failed to get vm FolderName, that will eventually cause panic in simulator to delete empty datastore file
 	if err := d.DeleteVCH(conf); err != nil {
-		t.Errorf("Failed to get VCH, %s", err)
+		t.Errorf("Failed to get VCH: %s", err)
 		return
 	}
 	t.Logf("Successfully deleted VCH")
@@ -185,7 +186,7 @@ func testDeleteVCH(v *validate.Validator, conf *metadata.VirtualContainerHostCon
 	if err != nil {
 		// FIXME: simulator didn't return FileNotFound error here
 		//		if !types.IsFileNotFound(err) {
-		//			t.Errorf("Failed to browse folder %s, %s", "VIC", errors.ErrorStack(err))
+		//			t.Errorf("Failed to browse folder %s: %s", "VIC", errors.ErrorStack(err))
 		//			return
 		//		}
 		t.Logf("Images Folder is not found")
@@ -198,7 +199,7 @@ func testDeleteVCH(v *validate.Validator, conf *metadata.VirtualContainerHostCon
 	}
 	// FIXME: simulator didn't return NotFoundError
 	//	if err != nil {
-	//		t.Errorf("Unexpected error to get appliance VM, %s", err)
+	//		t.Errorf("Unexpected error to get appliance VM: %s", err)
 	//	}
 	// delete VM does not clean up resource pool after VM is removed, so resource pool could not be removed
 }

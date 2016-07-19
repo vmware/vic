@@ -51,7 +51,7 @@ func (d *Dispatcher) CreateVCH(conf *metadata.VirtualContainerHostConfigSpec, se
 			}
 
 			log.Error(detail)
-			log.Errorf("Deploying vch under parent pool %s, cause --force is provided", settings.ResourcePoolPath)
+			log.Errorf("Deploying vch under parent pool %q, (--force=true)", settings.ResourcePoolPath)
 			d.vchPool = d.session.Pool
 			conf.ComputeResources = append(conf.ComputeResources, d.vchPool.Reference())
 		}
@@ -63,7 +63,7 @@ func (d *Dispatcher) CreateVCH(conf *metadata.VirtualContainerHostConfigSpec, se
 			}
 
 			log.Error(detail)
-			log.Errorf("Deploying vch under parent pool %s, , cause --force is provided", settings.ResourcePoolPath)
+			log.Errorf("Deploying vch under parent pool %q, (--force=true)", settings.ResourcePoolPath)
 			d.vchPool = d.session.Pool
 			conf.ComputeResources = append(conf.ComputeResources, d.vchPool.Reference())
 		}
@@ -118,14 +118,14 @@ func (d *Dispatcher) uploadImages(files []string) error {
 		go func(image string) {
 			defer wg.Done()
 
-			log.Infof("\t%s", image)
+			log.Infof("\t%q", image)
 			base := filepath.Base(image)
 			err = d.session.Datastore.UploadFile(d.ctx, image, d.vmPathName+"/"+base, nil)
 			if err != nil {
-				log.Errorf("\t\tUpload failed for %s, %s", image, err)
+				log.Errorf("\t\tUpload failed for %q: %s", image, err)
 				if d.force {
 					log.Warnf("\t\tContinuing despite failures (due to --force option)")
-					log.Warnf("\t\tNote: The VCH will not function without %s...", image)
+					log.Warnf("\t\tNote: The VCH will not function without %q...", image)
 					results <- nil
 				} else {
 					results <- err

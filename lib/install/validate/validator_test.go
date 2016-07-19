@@ -100,7 +100,7 @@ func TestMain(t *testing.T) {
 
 		validator, err := NewValidator(ctx, input)
 		if err != nil {
-			t.Errorf("Failed to new validator, %s", err)
+			t.Errorf("Failed to new validator: %s", err)
 		}
 
 		validator.DisableFirewallCheck = true
@@ -151,7 +151,7 @@ func getVPXData(url *url.URL) *data.Data {
 func createPool(ctx context.Context, sess *session.Session, poolPath string, name string, t *testing.T) error {
 	rp, err := sess.Finder.ResourcePool(ctx, poolPath)
 	if err != nil {
-		t.Logf("Failed to get parent pool, %s", err)
+		t.Logf("Failed to get parent pool: %s", err)
 		return err
 	}
 	t.Logf("Creating Resource Pool %s", name)

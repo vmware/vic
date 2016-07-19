@@ -65,7 +65,7 @@ func Init(ctx context.Context, sess *session.Session) error {
 	cr := exec.VCHConfig.ComputeResources[0]
 	r, err := f.ObjectReference(ctx, cr)
 	if err != nil {
-		detail := fmt.Sprintf("could not get resource pool or vitual app reference from %s: %s", cr.String(), err)
+		detail := fmt.Sprintf("could not get resource pool or virtual app reference from %q: %s", cr.String(), err)
 		log.Errorf(detail)
 		return err
 	}
@@ -76,7 +76,7 @@ func Init(ctx context.Context, sess *session.Session) error {
 	case *object.ResourcePool:
 		exec.VCHConfig.ResourcePool = o
 	default:
-		detail := fmt.Sprintf("could not get resource pool or virtual app from reference %s: object type is wrong", cr.String())
+		detail := fmt.Sprintf("could not get resource pool or virtual app from reference %q: object type is wrong", cr.String())
 		log.Errorf(detail)
 		return errors.New(detail)
 	}

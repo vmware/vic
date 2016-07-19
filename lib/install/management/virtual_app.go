@@ -30,7 +30,7 @@ func (d *Dispatcher) createVApp(conf *metadata.VirtualContainerHostConfigSpec, s
 	defer trace.End(trace.Begin(""))
 	var err error
 
-	log.Infof("Creating virtual app %s", conf.Name)
+	log.Infof("Creating virtual app %q", conf.Name)
 
 	resSpec := types.ResourceConfigSpec{
 		CpuAllocation: &types.ResourceAllocationInfo{
@@ -74,7 +74,7 @@ func (d *Dispatcher) createVApp(conf *metadata.VirtualContainerHostConfigSpec, s
 
 	app, err := d.session.Pool.CreateVApp(d.ctx, conf.Name, resSpec, configSpec, d.session.Folders(d.ctx).VmFolder)
 	if err != nil {
-		log.Debugf("Failed to create virtual app %s: %s", conf.Name, err)
+		log.Debugf("Failed to create virtual app %q: %s", conf.Name, err)
 		return nil, err
 	}
 	conf.ComputeResources = append(conf.ComputeResources, app.Reference())
@@ -87,7 +87,7 @@ func (d *Dispatcher) findVirtualApp(path string) (*object.VirtualApp, error) {
 	if err != nil {
 		_, ok := err.(*find.NotFoundError)
 		if !ok {
-			err = errors.Errorf("Failed to query virtual app (%s): %s", path, err)
+			err = errors.Errorf("Failed to query virtual app %q: %s", path, err)
 			return nil, err
 		}
 		return nil, nil
