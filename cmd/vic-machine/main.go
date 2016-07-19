@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/create"
 	uninstall "github.com/vmware/vic/cmd/vic-machine/delete"
 	"github.com/vmware/vic/cmd/vic-machine/inspect"
+	"github.com/vmware/vic/cmd/vic-machine/ui"
 	"github.com/vmware/vic/pkg/errors"
 )
 
@@ -49,6 +50,7 @@ func main() {
 	create := create.NewCreate()
 	uninstall := uninstall.NewUninstall()
 	inspect := inspect.NewInspect()
+	ui := ui.NewUI()
 	app.Commands = []cli.Command{
 		{
 			Name:   "create",
@@ -67,6 +69,24 @@ func main() {
 			Usage:  "Inspect VCH",
 			Action: inspect.Run,
 			Flags:  inspect.Flags(),
+		},
+		{
+			Name:  "ui",
+			Usage: "Install/remove UI plugin",
+			Subcommands: []cli.Command{
+				{
+					Name:   "install",
+					Usage:  "Install UI plugin",
+					Action: ui.Install,
+					Flags:  ui.Flags(),
+				},
+				{
+					Name:   "remove",
+					Usage:  "Remove UI plugin",
+					Action: ui.Remove,
+					Flags:  ui.Flags(),
+				},
+			},
 		},
 		{
 			Name:   "version",
@@ -98,6 +118,7 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		log.Errorf("--------------------")
 		log.Errorf("%s failed: %s\n", app.Name, errors.ErrorStack(err))
+		os.Exit(1)
 	}
 }
 
