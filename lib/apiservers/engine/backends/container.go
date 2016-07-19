@@ -986,10 +986,7 @@ func containerInfoToDockerContainerInspect(id string, info *models.ContainerInfo
 	}
 
 	// Set default container state attributes
-	containerState := &types.ContainerState{
-		Restarting: false,
-		OOMKilled:  false,
-	}
+	containerState := &types.ContainerState{}
 
 	if info.ProcessConfig != nil {
 		if info.ProcessConfig.Pid != nil {
@@ -1005,6 +1002,7 @@ func containerInfoToDockerContainerInspect(id string, info *models.ContainerInfo
 			swaggerTime := time.Time(*info.ProcessConfig.Started)
 			containerState.StartedAt = swaggerTime.Format(time.RFC3339Nano)
 		}
+
 		if info.ProcessConfig.Finished != nil {
 			swaggerTime := time.Time(*info.ProcessConfig.Finished)
 			containerState.FinishedAt = swaggerTime.Format(time.RFC3339Nano)
@@ -1045,12 +1043,12 @@ func containerInfoToDockerContainerInspect(id string, info *models.ContainerInfo
 		if info.ContainerConfig.State != nil {
 			containerState.Status = strings.ToLower(*info.ContainerConfig.State)
 
-			containerState.Running = false
-			containerState.Paused = false //We do not yet support paused/resumed
-			containerState.Dead = false
+			// https://github.com/docker/docker/blob/master/container/state.go#L77
+			if containerState.Status == "stopped" {
+				containerState.Status = "exited"
+			}
 			if containerState.Status == "running" {
 				containerState.Running = true
-				containerState.Dead = false //This is only true during docker rm
 			}
 		}
 		if info.ContainerConfig.LayerID != nil {

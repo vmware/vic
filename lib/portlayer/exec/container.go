@@ -290,7 +290,6 @@ func (c *Container) Update(ctx context.Context, sess *session.Session) (*metadat
 // TODO:  Possibly change so that handler requests a handle to the
 // container and if it's not present then search and return a handle
 func ContainerInfo(ctx context.Context, sess *session.Session, containerID ID) (*Container, error) {
-	var cvm *Container
 	// first  lets see if we have it in the cache
 	container := containers[containerID]
 	// if we missed search for it...
@@ -299,7 +298,7 @@ func ContainerInfo(ctx context.Context, sess *session.Session, containerID ID) (
 		vm, err := childVM(ctx, sess, containerID.String())
 		if err != nil || vm == nil {
 			log.Debugf("ContainerInfo failed to find childVM: %s", err.Error())
-			return cvm, fmt.Errorf("Container Not Found: %s", containerID)
+			return nil, fmt.Errorf("Container Not Found: %s", containerID)
 		}
 		container = &Container{vm: vm}
 	}
@@ -309,7 +308,7 @@ func ContainerInfo(ctx context.Context, sess *session.Session, containerID ID) (
 	// This will be refactored when event streaming hits
 	vms, err := populateVMAttributes(ctx, sess, []types.ManagedObjectReference{container.vm.Reference()})
 	if err != nil {
-		return cvm, err
+		return nil, err
 	}
 	// convert the VMs to container objects -- include
 	// powered off vms
@@ -319,16 +318,14 @@ func ContainerInfo(ctx context.Context, sess *session.Session, containerID ID) (
 	switch len(cc) {
 	case 0:
 		// we found a vm, but it doesn't appear to be a container VM
-		return cvm, fmt.Errorf("%s does not appear to be a container", containerID)
+		return nil, fmt.Errorf("%s does not appear to be a container", containerID)
 	case 1:
 		// we have a winner
-		cvm = &cc[0]
+		return &cc[0], nil
 	default:
 		// we manged to find multiple vms
-		return cvm, fmt.Errorf("multiple containers named %s found", containerID)
+		return nil, fmt.Errorf("multiple containers named %s found", containerID)
 	}
-
-	return cvm, nil
 }
 
 // return a list of container attributes
