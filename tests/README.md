@@ -60,7 +60,11 @@ To run the integration tests locally:
 
 3. Execute drone from the projects root directory:
 
-  `drone exec --trusted -E "test_secrets.yml" --yaml ".drone.local.yml"`
+To run only the regression tests:  
+`drone exec --trusted -E "test_secrets.yml" --yaml ".drone.local.yml" --payload '{"build": {"branch":"regression", "event":"push"}, "repo": {"full_name":"regression"}}'`
+
+To run the full suite:  
+`drone exec --trusted -E "test_secrets.yml" --yaml ".drone.local.yml" --payload '{"build": {"branch":"master", "event":"push"}, "repo": {"full_name":"vmware/vic"}}'`
 
 
 ## Find the documentation for each of the tests here:
