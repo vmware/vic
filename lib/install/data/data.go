@@ -53,6 +53,14 @@ type Data struct {
 	MappedNetworksIPRanges map[string][]ip.Range
 	MappedNetworksDNS      map[string][]net.IP
 
+	VCHCPULimitsMHz       int
+	VCHCPUReservationsMHz int
+	VCHCPUShares          int
+
+	VCHMemoryLimitsMB       int
+	VCHMemoryReservationsMB int
+	VCHMemoryShares         int
+
 	NumCPUs  int
 	MemoryMB int
 

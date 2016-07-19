@@ -68,6 +68,9 @@ type Create struct {
 	containerNetworksDNS      cli.StringSlice
 	volumeStores              cli.StringSlice
 
+	memoryReservLimits string
+	cpuReservLimits    string
+
 	executor *management.Dispatcher
 }
 
@@ -151,6 +154,30 @@ func (c *Create) Flags() []cli.Flag {
 			Name:  "container-network-dns",
 			Value: &c.containerNetworksDNS,
 			Usage: "DNS servers for the container network in CONTAINER-NETWORK:DNS format, e.g. a_network:8.8.8.8",
+		},
+		cli.StringFlag{
+			Name:        "memory-limits",
+			Value:       "",
+			Usage:       "Memory reservations and limits for VCH in reservations:limits format, e.g. 800MB:8GB, 800MB:, :8GB",
+			Destination: &c.memoryReservLimits,
+		},
+		cli.IntFlag{
+			Name:        "memory-shares",
+			Value:       0,
+			Usage:       "Memory shares for VCH, e.g. 163840",
+			Destination: &c.VCHMemoryShares,
+		},
+		cli.StringFlag{
+			Name:        "cpu-limits",
+			Value:       "",
+			Usage:       "vCPUs reservations and limits for VCH in reservations:limits format, e.g. 800MHz:20GHz, 800MHz:, :20GHz",
+			Destination: &c.cpuReservLimits,
+		},
+		cli.IntFlag{
+			Name:        "cpu-shares",
+			Value:       0,
+			Usage:       "vCPUs shares for VCH, e.g. 4000",
+			Destination: &c.VCHCPUShares,
 		},
 		cli.StringFlag{
 			Name:        "appliance-iso",
@@ -269,6 +296,9 @@ func (c *Create) processParams() error {
 		return errors.Errorf("Error occurred while processing volume stores: %s", err)
 	}
 
+	if err := c.processReservations(); err != nil {
+		return err
+	}
 	// FIXME: add parameters for these configurations
 	c.osType = "linux"
 
@@ -386,7 +416,6 @@ func (c *Create) Run(cli *cli.Context) error {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}
-
 	if err = c.processParams(); err != nil {
 		return err
 	}
