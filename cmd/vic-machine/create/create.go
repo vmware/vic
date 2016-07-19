@@ -103,6 +103,11 @@ func (c *Create) Flags() []cli.Flag {
 			Usage:       "Container datastore name - not supported yet, default to image datastore",
 			Destination: &c.ContainerDatastoreName,
 		},
+		cli.StringSliceFlag{
+			Name:  "volume-store",
+			Value: &c.volumeStores,
+			Usage: "Specify location and label for volume store; path optional: \"datastore/path:label\" or \"datastore:label\"",
+		},
 		cli.StringFlag{
 			Name:        "bridge-network, b",
 			Value:       "",
@@ -199,10 +204,10 @@ func (c *Create) Flags() []cli.Flag {
 			Usage:       "vCPUs for the appliance VM",
 			Destination: &c.NumCPUs,
 		},
-		cli.StringSliceFlag{
-			Name:  "volume-store",
-			Value: &c.volumeStores,
-			Usage: "Specify location and label for volume store; path optional: \"datastore/path:label\" or \"datastore:label\"",
+		cli.BoolFlag{
+			Name:        "use-rp",
+			Usage:       "Use resource pool for vch parent in VC",
+			Destination: &c.UseRP,
 		},
 	}
 	preFlags := append(c.TargetFlags(), c.ComputeFlags()...)

@@ -38,20 +38,38 @@ func (d *Dispatcher) CreateVCH(conf *metadata.VirtualContainerHostConfigSpec, se
 	defer trace.End(trace.Begin(conf.Name))
 
 	var err error
-	if d.vchPool, err = d.createResourcePool(conf, settings); err != nil {
-		detail := fmt.Sprintf("Creating resource pool failed: %s", err)
-		if !d.force {
-			return errors.New(detail)
-		}
 
-		log.Error(detail)
-	}
-
-	if err = d.createBridgeNetwork(conf); err != nil {
+	if err = d.checkExistence(conf, settings); err != nil {
 		return err
 	}
 
-	if err = d.checkExistence(conf); err != nil {
+	if d.isVC && !settings.UseRP {
+		if d.vchVapp, err = d.createVApp(conf, settings); err != nil {
+			detail := fmt.Sprintf("Creating virtual app failed: %s", err)
+			if !d.force {
+				return errors.New(detail)
+			}
+
+			log.Error(detail)
+			log.Errorf("Deploying vch under parent pool %q, (--force=true)", settings.ResourcePoolPath)
+			d.vchPool = d.session.Pool
+			conf.ComputeResources = append(conf.ComputeResources, d.vchPool.Reference())
+		}
+	} else {
+		if d.vchPool, err = d.createResourcePool(conf, settings); err != nil {
+			detail := fmt.Sprintf("Creating resource pool failed: %s", err)
+			if !d.force {
+				return errors.New(detail)
+			}
+
+			log.Error(detail)
+			log.Errorf("Deploying vch under parent pool %q, (--force=true)", settings.ResourcePoolPath)
+			d.vchPool = d.session.Pool
+			conf.ComputeResources = append(conf.ComputeResources, d.vchPool.Reference())
+		}
+	}
+
+	if err = d.createBridgeNetwork(conf); err != nil {
 		return err
 	}
 
@@ -100,14 +118,14 @@ func (d *Dispatcher) uploadImages(files []string) error {
 		go func(image string) {
 			defer wg.Done()
 
-			log.Infof("\t%s", image)
+			log.Infof("\t%q", image)
 			base := filepath.Base(image)
 			err = d.session.Datastore.UploadFile(d.ctx, image, d.vmPathName+"/"+base, nil)
 			if err != nil {
-				log.Errorf("\t\tUpload failed for %s, %s", image, err)
+				log.Errorf("\t\tUpload failed for %q: %s", image, err)
 				if d.force {
 					log.Warnf("\t\tContinuing despite failures (due to --force option)")
-					log.Warnf("\t\tNote: The VCH will not function without %s...", image)
+					log.Warnf("\t\tNote: The VCH will not function without %q...", image)
 					results <- nil
 				} else {
 					results <- err

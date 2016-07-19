@@ -52,7 +52,7 @@ func (d *Dispatcher) createBridgeNetwork(conf *metadata.VirtualContainerHostConf
 	if err = hostNetSystem.AddVirtualSwitch(d.ctx, name, &types.HostVirtualSwitchSpec{
 		NumPorts: 1024,
 	}); err != nil {
-		err = errors.Errorf("Failed to add virtual switch (%s): %s", name, err)
+		err = errors.Errorf("Failed to add virtual switch (%q): %s", name, err)
 		return err
 	}
 
@@ -63,7 +63,7 @@ func (d *Dispatcher) createBridgeNetwork(conf *metadata.VirtualContainerHostConf
 		VswitchName: name,
 		Policy:      types.HostNetworkPolicy{},
 	}); err != nil {
-		err = errors.Errorf("Failed to add port group (%s): %s", name, err)
+		err = errors.Errorf("Failed to add port group (%q): %s", name, err)
 		return err
 	}
 
@@ -71,7 +71,7 @@ func (d *Dispatcher) createBridgeNetwork(conf *metadata.VirtualContainerHostConf
 	if err != nil {
 		_, ok := err.(*find.NotFoundError)
 		if !ok {
-			err = errors.Errorf("Failed to query virtual switch (%s): %s", name, err)
+			err = errors.Errorf("Failed to query virtual switch (%q): %s", name, err)
 			return err
 		}
 	}
@@ -97,12 +97,12 @@ func (d *Dispatcher) removeNetwork(conf *metadata.VirtualContainerHostConfigSpec
 
 	name := conf.Name
 	if network, err := d.session.Finder.Network(d.ctx, name); err != nil || network == nil {
-		log.Infof("Didn't find network %s", name)
+		log.Infof("Didn't find network %q", name)
 		log.Debugf("Didn't find network for %s", err)
 		return nil
 	}
 
-	log.Infof("Removing Portgroup %s", name)
+	log.Infof("Removing Portgroup %q", name)
 	hostNetSystem, err := d.session.Host.ConfigManager().NetworkSystem(d.ctx)
 	if err != nil {
 		return err
@@ -113,7 +113,7 @@ func (d *Dispatcher) removeNetwork(conf *metadata.VirtualContainerHostConfigSpec
 		return err
 	}
 
-	log.Infof("Removing VirtualSwitch %s", name)
+	log.Infof("Removing VirtualSwitch %q", name)
 	err = hostNetSystem.RemoveVirtualSwitch(d.ctx, name)
 	if err != nil {
 		return err

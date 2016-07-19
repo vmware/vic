@@ -16,6 +16,7 @@ package management
 
 import (
 	"fmt"
+	"path"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -46,7 +47,7 @@ func (d *Dispatcher) NewVCHFromID(id string) (*vm.VirtualMachine, error) {
 	ref, err := d.session.Finder.ObjectReference(d.ctx, *moref)
 	if err != nil {
 		if _, ok := err.(*find.NotFoundError); !ok {
-			err = errors.Errorf("Failed to query appliance (%s): %s", moref, err)
+			err = errors.Errorf("Failed to query appliance (%q): %s", moref, err)
 			return nil, err
 		}
 		log.Debugf("Appliance is not found")
@@ -54,26 +55,26 @@ func (d *Dispatcher) NewVCHFromID(id string) (*vm.VirtualMachine, error) {
 	}
 	ovm, ok := ref.(*object.VirtualMachine)
 	if !ok {
-		log.Errorf("Failed to find VM %s, %s", moref, err)
+		log.Errorf("Failed to find VM %q: %s", moref, err)
 		return nil, err
 	}
 	vmm = vm.NewVirtualMachine(d.ctx, d.session, ovm.Reference())
 
 	// check if it's VCH
 	if ok, err = d.isVCH(vmm); err != nil {
-		log.Errorf("%s", err)
+		log.Error(err)
 		return nil, err
 	}
 	if !ok {
 		err = errors.Errorf("Not a VCH")
-		log.Errorf("%s", err)
+		log.Error(err)
 		return nil, err
 	}
 	return vmm, nil
 }
 
 func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *validate.Validator) (*vm.VirtualMachine, string, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("path %s, name %s", computePath, name)))
+	defer trace.End(trace.Begin(fmt.Sprintf("path %q, name %q", computePath, name)))
 
 	var err error
 
@@ -81,32 +82,50 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *v
 	if err != nil {
 		return nil, "", err
 	}
-	vchPath := fmt.Sprintf("%s/%s", parent.InventoryPath, name)
-	vchPool, err := v.ResourcePoolHelper(d.ctx, vchPath)
-	if err != nil {
-		log.Errorf("Failed to get VCH resource pool %s: %s", vchPath, err)
-		return nil, vchPath, err
+	d.vchPoolPath = path.Join(parent.InventoryPath, name)
+	var vchPool *object.ResourcePool
+	if d.isVC {
+		vapp, err := d.findVirtualApp(d.vchPoolPath)
+		if err != nil {
+			log.Errorf("Failed to get VCH virtual app %q: %s", d.vchPoolPath, err)
+			return nil, d.vchPoolPath, err
+		}
+		if vapp != nil {
+			vchPool = vapp.ResourcePool
+		}
+	}
+	if vchPool == nil {
+		vchPool, err = d.session.Finder.ResourcePool(d.ctx, d.vchPoolPath)
+		if err != nil {
+			log.Errorf("Failed to get VCH resource pool %q: %s", d.vchPoolPath, err)
+			return nil, d.vchPoolPath, err
+		}
 	}
 
 	rp := compute.NewResourcePool(d.ctx, d.session, vchPool.Reference())
 	var vmm *vm.VirtualMachine
 	if vmm, err = rp.GetChildVM(d.ctx, d.session, name); err != nil {
-		log.Errorf("Failed to get VCH VM, %s", err)
-		return nil, vchPath, err
+		log.Errorf("Failed to get VCH VM: %s", err)
+		return nil, d.vchPoolPath, err
+	}
+	if vmm == nil {
+		err = errors.Errorf("Didn't find VM %q in resource pool %q", name, rp.Name())
+		log.Error(err)
+		return nil, d.vchPoolPath, err
 	}
 
 	// check if it's VCH
 	var ok bool
 	if ok, err = d.isVCH(vmm); err != nil {
-		log.Errorf("%s", err)
-		return nil, vchPath, err
+		log.Error(err)
+		return nil, d.vchPoolPath, err
 	}
 	if !ok {
 		err = errors.Errorf("Not a VCH")
-		log.Errorf("%s", err)
-		return nil, vchPath, err
+		log.Error(err)
+		return nil, d.vchPoolPath, err
 	}
-	return vmm, vchPath, nil
+	return vmm, d.vchPoolPath, nil
 }
 
 func (d *Dispatcher) GetVCHConfig(vm *vm.VirtualMachine) (*metadata.VirtualContainerHostConfigSpec, error) {
@@ -115,16 +134,16 @@ func (d *Dispatcher) GetVCHConfig(vm *vm.VirtualMachine) (*metadata.VirtualConta
 	//this is the appliance vm
 	mapConfig, err := vm.FetchExtraConfig(d.ctx)
 	if err != nil {
-		err = errors.Errorf("Failed to get VM extra config of %s, %s", vm.Reference(), err)
-		log.Errorf("%s", err)
+		err = errors.Errorf("Failed to get VM extra config of %q: %s", vm.Reference(), err)
+		log.Error(err)
 		return nil, err
 	}
 	data := extraconfig.MapSource(mapConfig)
 	vchConfig := &metadata.VirtualContainerHostConfigSpec{}
 	result := extraconfig.Decode(data, vchConfig)
 	if result == nil {
-		err = errors.Errorf("Failed to decode VM configuration %s, %s", vm.Reference(), err)
-		log.Errorf("%s", err)
+		err = errors.Errorf("Failed to decode VM configuration %q: %s", vm.Reference(), err)
+		log.Error(err)
 		return nil, err
 	}
 

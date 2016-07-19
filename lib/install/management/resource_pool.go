@@ -15,7 +15,7 @@
 package management
 
 import (
-	"fmt"
+	"path"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -36,13 +36,13 @@ import (
 func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*object.ResourcePool, error) {
 	defer trace.End(trace.Begin(""))
 
-	d.vchPoolPath = fmt.Sprintf("%s/%s", settings.ResourcePoolPath, conf.Name)
+	d.vchPoolPath = path.Join(settings.ResourcePoolPath, conf.Name)
 
 	rp, err := d.session.Finder.ResourcePool(d.ctx, d.vchPoolPath)
 	if err != nil {
 		_, ok := err.(*find.NotFoundError)
 		if !ok {
-			err = errors.Errorf("Failed to query compute resource (%s): %s", d.vchPoolPath, err)
+			err = errors.Errorf("Failed to query compute resource (%q): %q", d.vchPoolPath, err)
 			return nil, err
 		}
 	} else {
@@ -50,7 +50,7 @@ func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfi
 		return rp, nil
 	}
 
-	log.Infof("Creating Resource Pool %s", conf.Name)
+	log.Infof("Creating Resource Pool %q", conf.Name)
 	// TODO: expose the limits and reservation here via options
 	resSpec := types.ResourceConfigSpec{
 		CpuAllocation: &types.ResourceAllocationInfo{
@@ -75,7 +75,7 @@ func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfi
 
 	rp, err = d.session.Pool.Create(d.ctx, conf.Name, resSpec)
 	if err != nil {
-		log.Debugf("Failed to create resource pool %s: %s", d.vchPoolPath, err)
+		log.Debugf("Failed to create resource pool %q: %s", d.vchPoolPath, err)
 		return nil, err
 	}
 
@@ -86,7 +86,7 @@ func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfi
 func (d *Dispatcher) destroyResourcePoolIfEmpty(conf *metadata.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 
-	log.Infof("Removing Resource Pool %s", conf.Name)
+	log.Infof("Removing Resource Pool %q", conf.Name)
 
 	rpRef := conf.ComputeResources[len(conf.ComputeResources)-1]
 	rp := compute.NewResourcePool(d.ctx, d.session, rpRef)
@@ -94,11 +94,11 @@ func (d *Dispatcher) destroyResourcePoolIfEmpty(conf *metadata.VirtualContainerH
 	var vms []*vm.VirtualMachine
 	var err error
 	if vms, err = rp.GetChildrenVMs(d.ctx, d.session); err != nil {
-		err = errors.Errorf("Unable to get children vm of resource pool %s: %s", rp.Name(), err)
+		err = errors.Errorf("Unable to get children vm of resource pool %q: %s", rp.Name(), err)
 		return err
 	}
 	if len(vms) != 0 {
-		err = errors.Errorf("Resource pool is not empty: %s", rp.Name())
+		err = errors.Errorf("Resource pool is not empty: %q", rp.Name())
 		return err
 	}
 	if _, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
@@ -107,4 +107,18 @@ func (d *Dispatcher) destroyResourcePoolIfEmpty(conf *metadata.VirtualContainerH
 		return err
 	}
 	return nil
+}
+
+func (d *Dispatcher) findResourcePool(path string) (*object.ResourcePool, error) {
+	defer trace.End(trace.Begin(path))
+	rp, err := d.session.Finder.ResourcePool(d.ctx, path)
+	if err != nil {
+		_, ok := err.(*find.NotFoundError)
+		if !ok {
+			err = errors.Errorf("Failed to query resource pool %q: %s", path, err)
+			return nil, err
+		}
+		return nil, nil
+	}
+	return rp, nil
 }

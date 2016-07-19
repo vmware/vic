@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/network"
 	"github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"golang.org/x/net/context"
@@ -64,11 +65,22 @@ func Init(ctx context.Context, sess *session.Session) error {
 	cr := exec.VCHConfig.ComputeResources[0]
 	r, err := f.ObjectReference(ctx, cr)
 	if err != nil {
-		detail := fmt.Sprintf("could not get resource pool reference from %s: %s", cr.String(), err)
+		detail := fmt.Sprintf("could not get resource pool or virtual app reference from %q: %s", cr.String(), err)
 		log.Errorf(detail)
 		return err
 	}
-	exec.VCHConfig.ResourcePool = r.(*object.ResourcePool)
+	switch o := r.(type) {
+	case *object.VirtualApp:
+		exec.VCHConfig.VirtualApp = o
+		exec.VCHConfig.ResourcePool = o.ResourcePool
+	case *object.ResourcePool:
+		exec.VCHConfig.ResourcePool = o
+	default:
+		detail := fmt.Sprintf("could not get resource pool or virtual app from reference %q: object type is wrong", cr.String())
+		log.Errorf(detail)
+		return errors.New(detail)
+	}
+
 	//FIXME: temporary injection of debug network for debug nic
 	ne := exec.VCHConfig.Networks["client"]
 	if ne == nil {

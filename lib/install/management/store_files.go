@@ -15,6 +15,7 @@
 package management
 
 import (
+	"bytes"
 	"fmt"
 	"path"
 	"strings"
@@ -29,8 +30,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-
-	"bytes"
 
 	"golang.org/x/net/context"
 )
@@ -87,7 +86,7 @@ func (d *Dispatcher) deleteImages(ds *object.Datastore, root string) (bool, erro
 }
 
 func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, force bool) (bool, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("path %s, force %t", path, force)))
+	defer trace.End(trace.Begin(fmt.Sprintf("path %q, force %t", path, force)))
 
 	var empty bool
 	dsPath := ds.Path(path)
@@ -95,15 +94,15 @@ func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, for
 	res, err := d.lsFolder(ds, dsPath)
 	if err != nil {
 		if !types.IsFileNotFound(err) {
-			err = errors.Errorf("Failed to browse folder %s, %s", dsPath, err)
+			err = errors.Errorf("Failed to browse folder %q: %s", dsPath, err)
 			return empty, err
 		}
-		log.Debugf("Folder %s is not found", dsPath)
+		log.Debugf("Folder %q is not found", dsPath)
 		empty = true
 		return empty, nil
 	}
 	if len(res.File) > 0 && !force {
-		log.Debugf("Folder %s is not empty, leave it there", dsPath)
+		log.Debugf("Folder %q is not empty, leave it there", dsPath)
 		return empty, nil
 	}
 	if err = d.deleteVMFSFiles(ds, dsPath, d.force); err == nil {
@@ -120,7 +119,7 @@ func (d *Dispatcher) deleteVMFSFiles(ds *object.Datastore, dsPath string, force 
 	if _, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return m.DeleteDatastoreFile(ctx, dsPath, d.session.Datacenter)
 	}); err != nil {
-		log.Debugf("Failed to delete %s, %s", dsPath, err)
+		log.Debugf("Failed to delete %q: %s", dsPath, err)
 	}
 	return nil
 }
@@ -157,7 +156,7 @@ func (d *Dispatcher) getVCHRootDir(vchVM *vm.VirtualMachine) (string, error) {
 	parent := vsphere.StorageParentDir
 	uuid, err := vchVM.UUID(d.ctx)
 	if err != nil {
-		err = errors.Errorf("Failed to get VCH UUID, %s", err)
+		err = errors.Errorf("Failed to get VCH UUID: %s", err)
 		return "", err
 	}
 	return path.Join(parent, uuid), nil
@@ -167,7 +166,7 @@ func (d *Dispatcher) createVolumeStores(conf *metadata.VirtualContainerHostConfi
 	for _, url := range conf.VolumeLocations {
 		ds, err := d.session.Finder.Datastore(d.ctx, url.Host)
 		if err != nil {
-			return errors.Errorf("Could not retrieve datastore with host %s due to error %s", url.Host, err)
+			return errors.Errorf("Could not retrieve datastore with host %q due to error %s", url.Host, err)
 		}
 		nds, err := vsphere.NewDatastore(d.ctx, d.session, ds, url.Path)
 		if err != nil {
@@ -193,29 +192,28 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHo
 		for label, url := range conf.VolumeLocations {
 			volumeStores.WriteString(fmt.Sprintf("\t%s: %s\n", label, url.Path))
 		}
-		log.Warnf("Since --force was not specified, the following volume stores will not be removed. Use the vSphere UI to delete content you do not wish to keep.\n%s", volumeStores.String())
+		log.Warnf("Since --force was not specified, the following volume stores will not be removed. Use the vSphere UI to delete content you do not wish to keep.\n%q", volumeStores.String())
 		return 0
 	}
 
 	log.Infoln("Removing volume stores...")
 	for label, url := range conf.VolumeLocations {
 		// FIXME: url is being encoded by the portlayer incorrectly, so we have to convert url.Path to the right url.URL object
-
 		dsURL, err := vsphere.DatastoreToURL(url.Path)
 
 		if err != nil {
-			log.Warnf("Didn't receive an expected volume store path format: %s", url.Path)
+			log.Warnf("Didn't receive an expected volume store path format: %q", url.Path)
 			continue
 		}
 
-		log.Debugf("Provided datastore URL: %s\nParsed volume store path: %s", url.Path, dsURL.Path)
+		log.Debugf("Provided datastore URL: %q\nParsed volume store path: %q", url.Path, dsURL.Path)
 
-		log.Infof("Deleting volume store %s on Datastore %s at path %s", label, dsURL.Host, dsURL.Path)
+		log.Infof("Deleting volume store %q on Datastore %q at path %q", label, dsURL.Host, dsURL.Path)
 
 		datastores, err := d.session.Finder.DatastoreList(d.ctx, dsURL.Host)
 
 		if err != nil {
-			log.Errorf("Error finding datastore %s: %s", dsURL.Host, err)
+			log.Errorf("Error finding datastore %q: %s", dsURL.Host, err)
 			continue
 		}
 		if len(datastores) > 1 {
@@ -223,13 +221,13 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHo
 			for _, d := range datastores {
 				foundDatastores.WriteString(fmt.Sprintf("\n%s\n", d.InventoryPath))
 			}
-			log.Errorf("Ambiguous datastore name (%s) provided. Results were: %s", dsURL.Host, foundDatastores)
+			log.Errorf("Ambiguous datastore name (%q) provided. Results were: %q", dsURL.Host, foundDatastores)
 			continue
 		}
 
 		datastore := datastores[0]
 		if _, err := d.deleteDatastoreFiles(datastore, dsURL.Path, d.force); err != nil {
-			log.Errorf("Failed to delete volume store %s on Datastore %s at path %s", label, dsURL.Host, dsURL.Path)
+			log.Errorf("Failed to delete volume store %q on Datastore %q at path %q", label, dsURL.Host, dsURL.Path)
 		} else {
 			removed++
 		}

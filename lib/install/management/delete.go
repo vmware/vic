@@ -70,11 +70,11 @@ func (d *Dispatcher) DeleteVCH(conf *metadata.VirtualContainerHostConfigSpec) er
 
 	if d.isVC {
 		log.Infoln("Removing VCH vSphere extension")
-		if err = d.GenerateExtensionName(conf); err != nil {
+		if err = d.GenerateExtensionName(conf, vmm); err != nil {
 			log.Warnf("Failed to get extension name during VCH deletion: %s", err)
 		}
 		if err = d.UnregisterExtension(conf.ExtensionName); err != nil {
-			log.Warnf("Failed to remove extension %s: %s", conf.ExtensionName, err)
+			log.Warnf("Failed to remove extension %q: %s", conf.ExtensionName, err)
 		}
 	}
 
@@ -84,7 +84,7 @@ func (d *Dispatcher) DeleteVCH(conf *metadata.VirtualContainerHostConfigSpec) er
 		return err
 	}
 	if err = d.destroyResourcePoolIfEmpty(conf); err != nil {
-		log.Warnf("VCH resource pool is not removed, %s", err)
+		log.Warnf("VCH resource pool is not removed: %s", err)
 	}
 	return nil
 }
@@ -101,14 +101,18 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *metadata.V
 	rpRef := conf.ComputeResources[len(conf.ComputeResources)-1]
 	ref, err := d.session.Finder.ObjectReference(d.ctx, rpRef)
 	if err != nil {
-		err = errors.Errorf("Failed to get VCH resource pool (%s): %s", rpRef, err)
+		err = errors.Errorf("Failed to get VCH resource pool %q: %s", rpRef, err)
 		return err
 	}
-	_, ok := ref.(*object.ResourcePool)
-	if !ok {
-		log.Errorf("Failed to find resource pool %s, %s", rpRef, err)
+	switch ref.(type) {
+	case *object.VirtualApp:
+	case *object.ResourcePool:
+		//		ok
+	default:
+		log.Errorf("Failed to find virtual app or resource pool %q: %s", rpRef, err)
 		return err
 	}
+
 	rp := compute.NewResourcePool(d.ctx, d.session, ref.Reference())
 	if children, err = rp.GetChildrenVMs(d.ctx, d.session); err != nil {
 		return err
@@ -116,7 +120,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *metadata.V
 
 	ds, err := d.session.Finder.Datastore(d.ctx, conf.ImageStores[0].Host)
 	if err != nil {
-		err = errors.Errorf("Failed to find image datastore %s", conf.ImageStores[0].Host)
+		err = errors.Errorf("Failed to find image datastore %q", conf.ImageStores[0].Host)
 		return err
 	}
 	d.session.Datastore = ds
@@ -151,7 +155,7 @@ func (d *Dispatcher) deleteNetworkDevices(vmm *vm.VirtualMachine, conf *metadata
 
 	power, err := vmm.PowerState(d.ctx)
 	if err != nil {
-		log.Errorf("Failed to get vm power status %s: %s", vmm.Reference(), err)
+		log.Errorf("Failed to get vm power status %q: %s", vmm.Reference(), err)
 		return err
 
 	}
@@ -201,7 +205,7 @@ func (d *Dispatcher) UnregisterExtension(name string) error {
 
 	extensionManager := object.NewExtensionManager(d.session.Vim25())
 	if err := extensionManager.Unregister(d.ctx, name); err != nil {
-		return errors.Errorf("Failed to remove extension w/ name %s due to error: %s", name, err)
+		return errors.Errorf("Failed to remove extension w/ name %q due to error: %s", name, err)
 	}
 	return nil
 }

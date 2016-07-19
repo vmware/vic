@@ -16,6 +16,7 @@ package management
 
 import (
 	"fmt"
+	"path"
 	"strconv"
 	"time"
 
@@ -31,6 +32,7 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -52,7 +54,7 @@ func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
 
 	info, err := vm.FetchExtraConfig(d.ctx)
 	if err != nil {
-		err = errors.Errorf("Failed to fetch guest info of appliance vm, %s", err)
+		err = errors.Errorf("Failed to fetch guest info of appliance vm: %s", err)
 		return false, err
 	}
 
@@ -67,23 +69,51 @@ func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
 	return false, nil
 }
 
-func (d *Dispatcher) checkExistence(conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) checkExistence(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(""))
 
-	vm, err := d.findAppliance(conf)
+	var err error
+	d.vchPoolPath = path.Join(settings.ResourcePoolPath, conf.Name)
+	var orp *object.ResourcePool
+	var vapp *object.VirtualApp
+	if d.isVC {
+		vapp, err = d.findVirtualApp(d.vchPoolPath)
+		if err != nil {
+			return err
+		}
+		if vapp != nil {
+			orp = vapp.ResourcePool
+		}
+	}
+	if orp == nil {
+		if orp, err = d.findResourcePool(d.vchPoolPath); err != nil {
+			return err
+		}
+	}
+	if orp == nil {
+		return nil
+	}
+
+	rp := compute.NewResourcePool(d.ctx, d.session, orp.Reference())
+	vm, err := rp.GetChildVM(d.ctx, d.session, conf.Name)
 	if err != nil {
 		return err
 	}
 	if vm == nil {
+		if vapp != nil {
+			err = errors.Errorf("virtual app %q is found, but is not VCH, please choose different name", d.vchPoolPath)
+			log.Error(err)
+			return err
+		}
 		return nil
 	}
 
 	log.Debugf("Appliance is found")
 	if ok, verr := d.isVCH(vm); !ok {
-		verr = errors.Errorf("VM %s is found, but is not VCH appliance, please choose different name", conf.Name)
+		verr = errors.Errorf("VM %q is found, but is not VCH appliance, please choose different name", conf.Name)
 		return verr
 	}
-	err = errors.Errorf("Appliance %s exists, to install with same name, please delete it first.", conf.Name)
+	err = errors.Errorf("Appliance %q exists, to install with same name, please delete it first.", conf.Name)
 	return err
 }
 
@@ -94,7 +124,7 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	power, err := vm.PowerState(d.ctx)
 	if err != nil || power != types.VirtualMachinePowerStatePoweredOff {
 		if err != nil {
-			log.Warnf("Failed to get vm power status %s: %s", vm.Reference(), err)
+			log.Warnf("Failed to get vm power status %q: %s", vm.Reference(), err)
 		}
 		if !force {
 			if err != nil {
@@ -102,12 +132,12 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 			}
 			name, err := vm.Name(d.ctx)
 			if err != nil {
-				log.Errorf("VM name is not found, %s", err)
+				log.Errorf("VM name is not found: %s", err)
 			}
 			if name != "" {
-				err = errors.Errorf("VM %s is powered on", name)
+				err = errors.Errorf("VM %q is powered on", name)
 			} else {
-				err = errors.Errorf("VM %s is powered on", vm.Reference())
+				err = errors.Errorf("VM %q is powered on", vm.Reference())
 			}
 			return err
 		}
@@ -127,11 +157,11 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		return vm.Destroy(ctx)
 	})
 	if err != nil {
-		err = errors.Errorf("Failed to destroy vm %s: %s", vm.Reference(), err)
+		err = errors.Errorf("Failed to destroy vm %q: %s", vm.Reference(), err)
 		return err
 	}
 	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {
-		log.Warnf("VM path %s is not removed, %s", folder, err)
+		log.Warnf("VM path %q is not removed: %s", folder, err)
 	}
 
 	return nil
@@ -148,26 +178,26 @@ func (d *Dispatcher) addNetworkDevices(conf *metadata.VirtualContainerHostConfig
 		if pnic, ok := nets[endpoint.Network.Common.ID]; ok {
 			// there's already a NIC on this network
 			endpoint.Common.ID = pnic.Common.ID
-			log.Infof("Network role %s is sharing NIC with %s", name, pnic.Network.Common.Name)
+			log.Infof("Network role %q is sharing NIC with %q", name, pnic.Network.Common.Name)
 			continue
 		}
 
 		moref := new(types.ManagedObjectReference)
 		if ok := moref.FromString(endpoint.Network.ID); !ok {
-			return nil, fmt.Errorf("serialized managed object reference in unexpected format: %s", endpoint.Network.ID)
+			return nil, fmt.Errorf("serialized managed object reference in unexpected format: %q", endpoint.Network.ID)
 		}
 		obj, err := d.session.Finder.ObjectReference(d.ctx, *moref)
 		if err != nil {
-			return nil, fmt.Errorf("unable to reacquire reference for network %s from serialized form: %s", endpoint.Network.Name, endpoint.Network.ID)
+			return nil, fmt.Errorf("unable to reacquire reference for network %q from serialized form: %q", endpoint.Network.Name, endpoint.Network.ID)
 		}
 		network, ok := obj.(object.NetworkReference)
 		if !ok {
-			return nil, fmt.Errorf("reacquired reference for network %s, from serialized form %s, was not a network: %T", endpoint.Network.Name, endpoint.Network.ID, obj)
+			return nil, fmt.Errorf("reacquired reference for network %q, from serialized form %q, was not a network: %T", endpoint.Network.Name, endpoint.Network.ID, obj)
 		}
 
 		backing, err := network.EthernetCardBackingInfo(d.ctx)
 		if err != nil {
-			err = errors.Errorf("Failed to get network backing info for %s: %s", network, err)
+			err = errors.Errorf("Failed to get network backing info for %q: %s", network, err)
 			return nil, err
 		}
 
@@ -179,12 +209,12 @@ func (d *Dispatcher) addNetworkDevices(conf *metadata.VirtualContainerHostConfig
 
 		slot := cspec.AssignSlotNumber(nic, slots)
 		if slot == spec.NilSlot {
-			err = errors.Errorf("Failed to assign stable PCI slot for %s network card", name)
+			err = errors.Errorf("Failed to assign stable PCI slot for %q network card", name)
 		}
 
 		endpoint.Common.ID = strconv.Itoa(int(slot))
 		slots[slot] = true
-		log.Debugf("Setting %s to slot %d", name, slot)
+		log.Debugf("Setting %q to slot %d", name, slot)
 
 		devices = append(devices, nic)
 
@@ -275,7 +305,7 @@ func (d *Dispatcher) findApplianceByID(conf *metadata.VirtualContainerHostConfig
 	ref, err := d.session.Finder.ObjectReference(d.ctx, *moref)
 	if err != nil {
 		if _, ok := err.(*find.NotFoundError); !ok {
-			err = errors.Errorf("Failed to query appliance (%s): %s", moref, err)
+			err = errors.Errorf("Failed to query appliance (%q): %s", moref, err)
 			return nil, err
 		}
 		log.Debugf("Appliance is not found")
@@ -284,45 +314,19 @@ func (d *Dispatcher) findApplianceByID(conf *metadata.VirtualContainerHostConfig
 	}
 	ovm, ok := ref.(*object.VirtualMachine)
 	if !ok {
-		log.Errorf("Failed to find VM %s, %s", moref, err)
+		log.Errorf("Failed to find VM %q: %s", moref, err)
 		return nil, err
 	}
 	vmm = vm.NewVirtualMachine(d.ctx, d.session, ovm.Reference())
 	return vmm, nil
 }
 
-func (d *Dispatcher) findAppliance(conf *metadata.VirtualContainerHostConfigSpec) (*vm.VirtualMachine, error) {
-	defer trace.End(trace.Begin(""))
-
-	ovm, err := d.session.Finder.VirtualMachine(d.ctx, conf.Name)
-	if err != nil {
-		_, ok := err.(*find.NotFoundError)
-		if !ok {
-			err = errors.Errorf("Failed to query appliance (%s): %s", conf.Name, err)
-			return nil, err
-		}
-		log.Debugf("Appliance is not found")
-		return nil, nil
-	}
-	newVM := vm.NewVirtualMachine(d.ctx, d.session, ovm.Reference())
-	// workaround here. We lost the value set in ovm cause we wrap the object to another type
-	newVM.InventoryPath = ovm.InventoryPath
-	return newVM, nil
-}
-
 // retrieves the uuid of the appliance vm to create a unique vsphere extension name
-func (d *Dispatcher) GenerateExtensionName(conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) GenerateExtensionName(conf *metadata.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) error {
 	defer trace.End(trace.Begin(conf.ExtensionName))
 
-	// must be called after appliance VM is created
-	vm, err := d.findAppliance(conf)
-
-	if err != nil {
-		return errors.Errorf("Could not find appliance at extension creation time; failed with error: %s", err)
-	}
-
 	var o mo.VirtualMachine
-	err = vm.Properties(d.ctx, vm.Reference(), []string{"config.uuid"}, &o)
+	err := vm.Properties(d.ctx, vm.Reference(), []string{"config.uuid"}, &o)
 	if err != nil {
 		return errors.Errorf("Could not get VM UUID from appliance VM due to error: %s", err)
 	}
@@ -368,10 +372,18 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 		return err
 	}
 
+	var info *types.TaskInfo
 	// create appliance VM
-	info, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return d.session.Folders(ctx).VmFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
-	})
+	if d.isVC && d.vchVapp != nil {
+		info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+			return d.vchVapp.CreateChildVM_Task(ctx, *spec, d.session.Host)
+		})
+	} else {
+		// if vapp is not created, fall back to create VM under default resource pool
+		info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+			return d.session.Folders(ctx).VmFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
+		})
+	}
 
 	if err != nil {
 		log.Errorf("Unable to create appliance VM: %s", err)
@@ -400,11 +412,11 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 		log.Errorf("Failed to get canonical name for appliance: %s", err)
 		return err
 	}
-	log.Debugf("vm folder name: %s", d.vmPathName)
-	log.Debugf("vm inventory path: %s", vm2.InventoryPath)
+	log.Debugf("vm folder name: %q", d.vmPathName)
+	log.Debugf("vm inventory path: %q", vm2.InventoryPath)
 
 	// create an extension to register the appliance as
-	if err = d.GenerateExtensionName(conf); err != nil {
+	if err = d.GenerateExtensionName(conf, vm2); err != nil {
 		return errors.Errorf("Could not generate extension name during appliance creation due to error: %s", err)
 	}
 
@@ -592,7 +604,7 @@ func (d *Dispatcher) makeSureApplianceRuns(conf *metadata.VirtualContainerHostCo
 	// but instead...
 	if !ip.IsUnspecifiedIP(conf.ExecutorConfig.Networks["client"].Assigned.IP) {
 		d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.IP.String()
-		log.Debug("Obtained IP address for client interface: %s", d.HostIP)
+		log.Debug("Obtained IP address for client interface: %q", d.HostIP)
 		return nil
 	}
 
@@ -616,7 +628,7 @@ func (d *Dispatcher) makeSureApplianceRuns(conf *metadata.VirtualContainerHostCo
 			if ip.IsUnspecifiedIP(net.Assigned.IP) {
 				addr = "waiting for IP"
 			}
-			log.Infof("    %s IP: %s", name, addr)
+			log.Infof("    %q IP: %q", name, addr)
 		}
 
 		// if we timed out, then report status - if cancelled this doesn't need reporting
@@ -628,7 +640,7 @@ func (d *Dispatcher) makeSureApplianceRuns(conf *metadata.VirtualContainerHostCo
 			} else if session.Started != "" {
 				status = session.Started
 			}
-			log.Infof("    %s: %s", name, status)
+			log.Infof("    %q: %q", name, status)
 		}
 
 		return errors.New("timed out waiting for IP address information from appliance")

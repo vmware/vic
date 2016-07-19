@@ -103,9 +103,7 @@ func (rp *ResourcePool) GetChildVM(ctx context.Context, s *session.Session, name
 			return vmm, nil
 		}
 	}
-	err = errors.Errorf("Didn't find VM %s in resource pool %s", name, rp.Name())
-	log.Errorf("%s", err)
-	return nil, err
+	return nil, nil
 }
 
 func (rp *ResourcePool) GetCluster(ctx context.Context) (*object.ComputeResource, error) {

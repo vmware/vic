@@ -217,13 +217,13 @@ func (v *Validator) compute(ctx context.Context, input *data.Data, conf *metadat
 
 	clusters, err := v.Session.Finder.ComputeResourceList(v.Context, v.Session.ClusterPath)
 	if err != nil {
-		log.Errorf("Unable to acquire reference to cluster %s: %s", path.Base(v.Session.ClusterPath), err)
+		log.Errorf("Unable to acquire reference to cluster %q: %s", path.Base(v.Session.ClusterPath), err)
 		v.NoteIssue(err)
 		return
 	}
 
 	if len(clusters) != 1 {
-		err := fmt.Errorf("Unable to acquire unambiguous reference to cluster %s", path.Base(v.Session.ClusterPath))
+		err := fmt.Errorf("Unable to acquire unambiguous reference to cluster %q", path.Base(v.Session.ClusterPath))
 		log.Error(err)
 		v.NoteIssue(err)
 	}
@@ -285,7 +285,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 	})
 	// Bridge network should be different with all other networks
 	if input.BridgeNetworkName == input.ExternalNetworkName {
-		v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - external also uses %s", input.BridgeNetworkName))
+		v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - external also uses %q", input.BridgeNetworkName))
 	}
 
 	// Client net
@@ -306,7 +306,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 		},
 	})
 	if input.BridgeNetworkName == input.ClientNetworkName {
-		v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - client also uses %s", input.BridgeNetworkName))
+		v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - client also uses %q", input.BridgeNetworkName))
 	}
 
 	// Management net
@@ -324,7 +324,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 		},
 	})
 	if input.BridgeNetworkName == input.ManagementNetworkName {
-		v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - management also uses %s", input.BridgeNetworkName))
+		v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - management also uses %q", input.BridgeNetworkName))
 	}
 
 	// Bridge net -
@@ -379,7 +379,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 		pools := input.MappedNetworksIPRanges[name]
 		dns := input.MappedNetworksDNS[name]
 		if len(pools) != 0 && nilIPNet(gw) {
-			v.NoteIssue(fmt.Errorf("IP range specified without gateway for container network %s", name))
+			v.NoteIssue(fmt.Errorf("IP range specified without gateway for container network %q", name))
 			continue
 		}
 
@@ -388,13 +388,13 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 		// and don't overlap with each other
 		for i, r := range pools {
 			if !gw.Contains(r.FirstIP) || !gw.Contains(r.LastIP) {
-				err = fmt.Errorf("IP range %s is not in subnet %s", r, gw)
+				err = fmt.Errorf("IP range %q is not in subnet %q", r, gw)
 				break
 			}
 
 			for _, r2 := range pools[i+1:] {
 				if r2.Overlaps(r) {
-					err = fmt.Errorf("Overlapping ip ranges: %s %s", r2, r)
+					err = fmt.Errorf("Overlapping ip ranges: %q %q", r2, r)
 					break
 				}
 			}
@@ -421,7 +421,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 			Pools:       pools,
 		}
 		if input.BridgeNetworkName == net {
-			v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - %s also mapped as container network %s", input.BridgeNetworkName, name))
+			v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - %q also mapped as container network %q", input.BridgeNetworkName, name))
 		}
 
 		conf.AddContainerNetwork(mappedNet)
@@ -506,9 +506,9 @@ func (v *Validator) firewall(ctx context.Context) {
 		}
 		if !esxfw.Enabled {
 			disabled = true
-			log.Infof("Firewall status: DISABLED on %s", host.InventoryPath)
+			log.Infof("Firewall status: DISABLED on %q", host.InventoryPath)
 		} else {
-			log.Infof("Firewall status: ENABLED on %s", host.InventoryPath)
+			log.Infof("Firewall status: ENABLED on %q", host.InventoryPath)
 		}
 
 		info, err := fs.Info(ctx)
@@ -533,13 +533,13 @@ func (v *Validator) firewall(ctx context.Context) {
 	if len(correct) > 0 {
 		log.Info("Firewall configuration OK on hosts:")
 		for _, h := range correct {
-			log.Infof("  %s", h)
+			log.Infof("  %q", h)
 		}
 	}
 	if len(misconfiguredEnabled) > 0 {
 		log.Error("Firewall configuration incorrect on hosts:")
 		for _, h := range misconfiguredEnabled {
-			log.Errorf("  %s", h)
+			log.Errorf("  %q", h)
 		}
 		// TODO: when we can intelligently place containerVMs on hosts with proper config, install
 		// can proceed if there is at least one host properly configured. For now this prevents install.
@@ -551,7 +551,7 @@ func (v *Validator) firewall(ctx context.Context) {
 	if len(misconfiguredDisabled) > 0 {
 		log.Warning("Firewall configuration will be incorrect if firewall is reenabled on hosts:")
 		for _, h := range misconfiguredDisabled {
-			log.Warningf("  %s", h)
+			log.Warningf("  %q", h)
 		}
 		log.Warning("Firewall must permit 8080/tcp outbound if firewall is reenabled")
 	}
@@ -618,7 +618,7 @@ func (v *Validator) checkAssignedLicenses(ctx context.Context) error {
 		for _, feature := range features {
 			if !v.assignedLicenseHasFeature(la, feature) {
 				valid = false
-				msg := fmt.Sprintf("%s - license missing feature '%s'", host.InventoryPath, feature)
+				msg := fmt.Sprintf("%q - license missing feature %q", host.InventoryPath, feature)
 				invalidLic = append(invalidLic, msg)
 			}
 		}
@@ -631,13 +631,13 @@ func (v *Validator) checkAssignedLicenses(ctx context.Context) error {
 	if len(validLic) > 0 {
 		log.Infof("License check OK on hosts:")
 		for _, h := range validLic {
-			log.Infof("  %s", h)
+			log.Infof("  %q", h)
 		}
 	}
 	if len(invalidLic) > 0 {
 		log.Errorf("License check FAILED on hosts:")
 		for _, h := range invalidLic {
-			log.Errorf("  %s", h)
+			log.Errorf("  %q", h)
 		}
 		msg := "License does not meet minimum requirements to use VIC"
 		return errors.New(msg)
@@ -660,7 +660,7 @@ func (v *Validator) checkLicense(ctx context.Context) error {
 
 	for _, feature := range features {
 		if len(licenses.WithFeature(feature)) == 0 {
-			msg := fmt.Sprintf("Host license missing feature '%s'", feature)
+			msg := fmt.Sprintf("Host license missing feature %q", feature)
 			invalidLic = append(invalidLic, msg)
 		}
 	}
@@ -668,7 +668,7 @@ func (v *Validator) checkLicense(ctx context.Context) error {
 	if len(invalidLic) > 0 {
 		log.Errorf("License check FAILED:")
 		for _, h := range invalidLic {
-			log.Errorf("  %s", h)
+			log.Errorf("  %q", h)
 		}
 		msg := "License does not meet minimum requirements to use VIC"
 		return errors.New(msg)
@@ -728,12 +728,12 @@ func (v *Validator) drs(ctx context.Context) {
 
 	if !(*z.Enabled) {
 		log.Error("DRS check FAILED")
-		log.Errorf("  DRS must be enabled on cluster %s", v.Session.Pool.InventoryPath)
+		log.Errorf("  DRS must be enabled on cluster %q", v.Session.Pool.InventoryPath)
 		v.NoteIssue(errors.New("DRS must be enabled to use VIC"))
 		return
 	}
 	log.Info("DRS check OK on:")
-	log.Infof("  %s", v.Session.Pool.InventoryPath)
+	log.Infof("  %q", v.Session.Pool.InventoryPath)
 }
 
 func (v *Validator) target(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
@@ -744,7 +744,7 @@ func (v *Validator) target(ctx context.Context, input *data.Data, conf *metadata
 		var err error
 		targetURL, err = url.Parse(v.Session.Service)
 		if err != nil {
-			v.NoteIssue(fmt.Errorf("Error processing target after transformation to SOAP endpoint: %s, %s", v.Session.Service, err))
+			v.NoteIssue(fmt.Errorf("Error processing target after transformation to SOAP endpoint: %q: %s", v.Session.Service, err))
 			return
 		}
 	}
@@ -792,7 +792,7 @@ func (v *Validator) networkHelper(ctx context.Context, path string) (string, err
 
 	nets, err := v.Session.Finder.NetworkList(ctx, path)
 	if err != nil {
-		log.Debugf("no such network %s", path)
+		log.Debugf("no such network %q", path)
 		// TODO: error message about no such match and how to get a network list
 		// we return err directly here so we can check the type
 		return "", err
@@ -827,7 +827,7 @@ func (v *Validator) dpgMorefHelper(ctx context.Context, ref string) (string, err
 	if v.IsVC() {
 		_, dpg := net.(*object.DistributedVirtualPortgroup)
 		if !dpg {
-			return "", fmt.Errorf("%s is not a Distributed Port Group", ref)
+			return "", fmt.Errorf("%q is not a Distributed Port Group", ref)
 		}
 	}
 
@@ -839,7 +839,7 @@ func (v *Validator) dpgHelper(ctx context.Context, path string) (string, error) 
 
 	nets, err := v.Session.Finder.NetworkList(ctx, path)
 	if err != nil {
-		log.Debugf("no such network %s", path)
+		log.Debugf("no such network %q", path)
 		// TODO: error message about no such match and how to get a network list
 		// we return err directly here so we can check the type
 		return "", err
@@ -854,7 +854,7 @@ func (v *Validator) dpgHelper(ctx context.Context, path string) (string, error) 
 	if v.IsVC() {
 		_, dpg := nets[0].(*object.DistributedVirtualPortgroup)
 		if !dpg {
-			return "", fmt.Errorf("%s is not a Distributed Port Group", path)
+			return "", fmt.Errorf("%q is not a Distributed Port Group", path)
 		}
 	}
 
@@ -872,7 +872,7 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string) (*url.URL,
 
 	// url scheme does not contain ://, so remove it to make url work
 	if dsURL.Scheme != "" && dsURL.Scheme != "ds" {
-		return nil, nil, errors.Errorf("bad scheme %s provided for datastore", dsURL.Scheme)
+		return nil, nil, errors.Errorf("bad scheme %q provided for datastore", dsURL.Scheme)
 	}
 
 	dsURL.Scheme = "ds"
@@ -922,7 +922,7 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 	// if compute-resource is unspecified is there a default
 	if path == "" || path == "/" {
 		if v.Session.Pool != nil {
-			log.Debugf("Using default resource pool for compute resource: %s", v.Session.Pool.InventoryPath)
+			log.Debugf("Using default resource pool for compute resource: %q", v.Session.Pool.InventoryPath)
 			return v.Session.Pool, nil
 		}
 
@@ -932,12 +932,12 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 	}
 
 	ipath := v.computePathToInventoryPath(path)
-	log.Debugf("Converted original path %s to %s", path, ipath)
+	log.Debugf("Converted original path %q to %q", path, ipath)
 
 	// first try the path directly without any processing
 	pools, err := v.Session.Finder.ResourcePoolList(ctx, path)
 	if err != nil {
-		log.Debugf("Failed to look up compute resource as absolute path %s: %s", path, err)
+		log.Debugf("Failed to look up compute resource as absolute path %q: %s", path, err)
 		if _, ok := err.(*find.NotFoundError); !ok {
 			// we return err directly here so we can check the type
 			return nil, err
@@ -957,7 +957,7 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 
 		pools, err = v.Session.Finder.ResourcePoolList(ctx, ipath)
 		if err != nil {
-			log.Debugf("failed to look up compute resource as cluster path %s: %s", ipath, err)
+			log.Debugf("failed to look up compute resource as cluster path %q: %s", ipath, err)
 			if _, ok := err.(*find.NotFoundError); !ok {
 				// we return err directly here so we can check the type
 				return nil, err
@@ -966,7 +966,7 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 	}
 
 	if len(pools) == 1 {
-		log.Debugf("Selected compute resource %s", pools[0].InventoryPath)
+		log.Debugf("Selected compute resource %q", pools[0].InventoryPath)
 		return pools[0], nil
 	}
 
@@ -974,7 +974,7 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 	v.suggestComputeResource(ipath)
 
 	if len(pools) == 0 {
-		log.Debugf("no such compute resource %s", path)
+		log.Debugf("no such compute resource %q", path)
 		// we return err directly here so we can check the type
 		return nil, err
 	}
@@ -986,7 +986,7 @@ func (v *Validator) ResourcePoolHelper(ctx context.Context, path string) (*objec
 func (v *Validator) suggestComputeResource(path string) {
 	defer trace.End(trace.Begin(path))
 
-	log.Infof("Suggesting valid values for --compute-resource based on %s", path)
+	log.Infof("Suggesting valid values for --compute-resource based on %q", path)
 
 	// allow us to work on inventory paths
 	path = v.computePathToInventoryPath(path)
@@ -1015,7 +1015,7 @@ func (v *Validator) suggestComputeResource(path string) {
 		// we've collected recommendations - displayname
 		log.Info("Suggested values for --compute-resource:")
 		for _, p := range matches {
-			log.Infof("  %s", v.inventoryPathToComputePath(p))
+			log.Infof("  %q", v.inventoryPathToComputePath(p))
 		}
 		return
 	}
@@ -1037,7 +1037,7 @@ func (v *Validator) findValidPool(path string) []string {
 	clusters, err := v.Session.Finder.ComputeResourceList(v.Context, path)
 	if len(clusters) == 0 {
 		// not a cluster
-		log.Debugf("Path %s does not identify a cluster (or clusters) or the list could not be obtained: %s", path, err)
+		log.Debugf("Path %q does not identify a cluster (or clusters) or the list could not be obtained: %s", path, err)
 		return nil
 	}
 
@@ -1051,7 +1051,7 @@ func (v *Validator) findValidPool(path string) []string {
 		return matches
 	}
 
-	log.Debugf("Suggesting pools for cluster %s", clusters[0].Name())
+	log.Debugf("Suggesting pools for cluster %q", clusters[0].Name())
 	matches = v.listResourcePools(fmt.Sprintf("%s/Resources/*", clusters[0].InventoryPath))
 	if matches == nil {
 		// no child pools so recommend cluster directly
@@ -1066,7 +1066,7 @@ func (v *Validator) listResourcePools(path string) []string {
 
 	pools, err := v.Session.Finder.ResourcePoolList(v.Context, path+"/*")
 	if err != nil {
-		log.Debugf("Unable to list pools for %s: %s", path, err)
+		log.Debugf("Unable to list pools for %q: %s", path, err)
 		return nil
 	}
 
@@ -1087,7 +1087,7 @@ func (v *Validator) computePathToInventoryPath(path string) string {
 
 	// if it opens with the datacenter prefix the assume it's an absolute
 	if strings.HasPrefix(path, v.DatacenterPath) {
-		log.Debugf("Path is treated as absolute given datacenter prefix %s", v.DatacenterPath)
+		log.Debugf("Path is treated as absolute given datacenter prefix %q", v.DatacenterPath)
 		return path
 	}
 
@@ -1123,7 +1123,7 @@ func (v *Validator) inventoryPathToComputePath(path string) string {
 
 	// sanity check datacenter
 	if !strings.HasPrefix(path, v.DatacenterPath) {
-		log.Debugf("Expected path to be within target datacenter %s: %s", v.DatacenterPath, path)
+		log.Debugf("Expected path to be within target datacenter %q: %q", v.DatacenterPath, path)
 		v.NoteIssue(errors.New("inventory path was not in datacenter scope"))
 		return ""
 	}
@@ -1191,8 +1191,9 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *metadata.Virt
 	dconfig.ClusterPath = v.Session.Cluster.InventoryPath
 
 	dconfig.ResourcePoolPath = v.ResourcePoolPath
+	dconfig.UseRP = input.UseRP
 
-	log.Debugf("Datacenter: %s, Cluster: %s, Resource Pool: %s", dconfig.DatacenterName, dconfig.ClusterPath, dconfig.ResourcePoolPath)
+	log.Debugf("Datacenter: %q, Cluster: %q, Resource Pool: %q", dconfig.DatacenterName, dconfig.ClusterPath, dconfig.ResourcePoolPath)
 
 	return &dconfig
 }

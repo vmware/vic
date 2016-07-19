@@ -110,17 +110,28 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 			return fmt.Errorf("only create operations can be committed without an existing VM")
 		}
 
-		// Find the Virtual Machine folder that we use
-		folders, err := sess.Datacenter.Folders(ctx)
-		if err != nil {
-			return err
-		}
-		parent := folders.VmFolder
+		var res *types.TaskInfo
+		var err error
 
-		// Create the vm
-		res, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-			return parent.CreateVM(ctx, *h.Spec.Spec(), VCHConfig.ResourcePool, nil)
-		})
+		if sess.IsVC() && VCHConfig.VirtualApp != nil {
+			// Create the vm
+			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+				return VCHConfig.VirtualApp.CreateChildVM_Task(ctx, *h.Spec.Spec(), nil)
+			})
+		} else {
+			// Find the Virtual Machine folder that we use
+			folders, err := sess.Datacenter.Folders(ctx)
+			if err != nil {
+				return err
+			}
+			parent := folders.VmFolder
+
+			// Create the vm
+			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+				return parent.CreateVM(ctx, *h.Spec.Spec(), VCHConfig.ResourcePool, nil)
+			})
+		}
+
 		if err != nil {
 			return err
 		}
