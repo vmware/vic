@@ -1,0 +1,20 @@
+REM Enter the IP of the server running vCenter for Windows
+SET target_vcenter_ip=
+
+REM Change the following line to the full URL of the path where the zip files are located
+REM For example, if vic-ui.zip is available at https://192.168.1.5/vic-ui-plugins/vic-ui.zip, type in: https://192.168.1.5/vic-ui-plugins/
+REM Note: each uploaded zip file will be accessed only once when the user logs into vSphere Web Client for the first time after successful installation
+SET vic_ui_host_url=NOURL
+
+REM If line 10 starts with "https", enter the SHA-1 thumbprint of the web server hosting the zip files
+SET vic_ui_host_thumbprint=
+
+REM Enter 1 if your server has the SFTP service enabled or 0 if not
+SET sftp_supported=1
+
+REM Enter SFTP username and password
+SET sftp_username=
+SET sftp_password=
+
+REM Location of C:\ProgramData\VMware\vCenterServer\cfg\vsphere-client\vc-packages\vsphere-serenity relative to the root of SFTP connection
+SET target_vc_packages_path=/vsphere-client/vc-packages/vsphere-client-serenity/

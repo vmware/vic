@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<faceted-project>
-  <runtime name="Virgo Runtime"/>
-  <secondary-runtime name="Virgo Runtime "/>
-  <fixed facet="jst.web"/>
-  <installed facet="jst.web" version="2.4"/>
-  <installed facet="org.eclipse.virgo.server.bundle" version="1.0"/>
-</faceted-project>
