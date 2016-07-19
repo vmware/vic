@@ -216,7 +216,7 @@ func setAPIRoutes(api *apiserver.Server) {
 	containerHandler := &vicbackends.Container{}
 	volumeHandler := &vicbackends.Volume{}
 	networkHandler := &vicbackends.Network{}
-	systemHandler := &vicbackends.System{}
+	systemHandler := vicbackends.NewSystemBackend()
 
 	api.InitRouter(false,
 		image.NewRouter(imageHandler),

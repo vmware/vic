@@ -41,7 +41,7 @@ paths:
     get:
       description: "Gets vital information about the vch"
       tags: ["misc"]
-      operationId: GetVchInfo
+      operationId: GetVCHInfo
       contains:
         - application/json
       produces:
@@ -50,15 +50,7 @@ paths:
         '200':
           description: "retrieval success"
           schema:
-            $ref: "#/definitions/VchInfo"
-        '404':
-          description: "info not found"
-          schema:
-            $ref: "#/definitions/Error"
-        '500':
-          description: "ServerError"
-          schema:
-            $ref: "#/definitions/Error"
+            $ref: "#/definitions/VCHInfo"
   /storage:
     post:
       description: "Creates a location to store images"
@@ -923,7 +915,7 @@ definitions:
         format: int64
       message:
         type: string
-  VchInfo:
+  VCHInfo:
     type: object
     properties:
       cpuMhz:
@@ -932,6 +924,12 @@ definitions:
       memory:
         type: integer
         format: int64
+      hostProductName:
+        type: string
+      hostOS:
+        type: string
+      hostOSVersion:
+        type: string
   StoreUrl:
     type: object
     required:

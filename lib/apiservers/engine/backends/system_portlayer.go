@@ -44,15 +44,16 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-type ContainerStatus struct {
-	count      int
-	numRunning int
-	numStopped int
-	numPaused  int
+type VicSystemProxy interface {
+	PingPortlayer() bool
+	ContainerCount() (int, int, int, error)
+	VCHInfo() (*models.VCHInfo, error)
 }
 
-func VicPingPortlayer() bool {
-	defer trace.End(trace.Begin("VicPingPortlayer"))
+type SystemProxy struct{}
+
+func (s *SystemProxy) PingPortlayer() bool {
+	defer trace.End(trace.Begin("PingPortlayer"))
 
 	plClient := PortLayerClient()
 	if plClient == nil {
@@ -74,58 +75,51 @@ func VicPingPortlayer() bool {
 }
 
 // Use the Portlayer's support for docker ps to get the container count
-func VicGetContainerCount() (ContainerStatus, error) {
-	defer trace.End(trace.Begin("VicGetContainerCount"))
+//   return order: running, paused, stopped counts
+func (s *SystemProxy) ContainerCount() (int, int, int, error) {
+	defer trace.End(trace.Begin("ContainerCount"))
 
-	var status ContainerStatus
+	var running, paused, stopped int
 
 	plClient := PortLayerClient()
 	if plClient == nil {
-		return status, derr.NewErrorWithStatusCode(fmt.Errorf("VicGetContainerCount failed to create a portlayer client"),
+		return 0, 0, 0, derr.NewErrorWithStatusCode(fmt.Errorf("ContainerCount failed to create a portlayer client"),
 			http.StatusInternalServerError)
 	}
 
-	all := new(bool)
-	*all = true
-	containList, err := plClient.Containers.GetContainerList(containers.NewGetContainerListParams().WithAll(all))
+	all := true
+	containList, err := plClient.Containers.GetContainerList(containers.NewGetContainerListParams().WithAll(&all))
 	if err != nil {
-		return status, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get container list: %s", err), http.StatusInternalServerError)
+		return 0, 0, 0, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get container list: %s", err), http.StatusInternalServerError)
 	}
 
 	for _, t := range containList.Payload {
 		if *t.Status == "Running" {
-			status.numRunning++
+			running++
 		} else if *t.Status == "Stopped" {
-			status.numStopped++
+			stopped++
 		}
-		status.count++
 	}
 
-	return status, nil
+	return running, paused, stopped, nil
 }
 
-func VicGetVchInfo() (*models.VchInfo, error) {
-	defer trace.End(trace.Begin("VicGetVchInfo"))
+func (s *SystemProxy) VCHInfo() (*models.VCHInfo, error) {
+	defer trace.End(trace.Begin("VCHInfo"))
 
 	plClient := PortLayerClient()
 	if plClient == nil {
-		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("VicGetVchInfo failed to create a portlayer client"),
+		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("VCHInfo failed to create a portlayer client"),
 			http.StatusInternalServerError)
 	}
 
-	params := misc.NewGetVchInfoParams()
-	resp, err := plClient.Misc.GetVchInfo(params)
+	params := misc.NewGetVCHInfoParams()
+	resp, err := plClient.Misc.GetVCHInfo(params)
 	if err != nil {
-		switch err := err.(type) {
-		case *misc.GetVchInfoNotFound:
-			return nil, derr.NewRequestNotFoundError(fmt.Errorf("Unable to get vch info from port layer"))
-		case *misc.GetVchInfoInternalServerError:
-			return nil, derr.NewErrorWithStatusCode(fmt.Errorf("Port layer return server error while retrieving Vch info: %s", err),
-				http.StatusInternalServerError)
-		default:
-			return nil, derr.NewErrorWithStatusCode(fmt.Errorf("Unknown error from port layer: %s", err),
-				http.StatusInternalServerError)
-		}
+		//There are no custom error for this operation.  If we get back an error, it's
+		//unknown.
+		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("Unknown error from port layer: %s", err),
+			http.StatusInternalServerError)
 	}
 
 	return resp.Payload, nil

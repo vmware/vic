@@ -52,4 +52,12 @@ type Configuration struct {
 	// FIXME: temporary work around for injecting network path of debug nic
 	Networks     map[string]*metadata.NetworkEndpoint `vic:"0.1" scope:"read-only" key:"init/networks"`
 	DebugNetwork object.NetworkReference
+
+	// Information about the VCH resource pool and about the real host that we want
+	// tol retrieve just once.
+	VCHMhz          int64
+	VCHMemoryLimit  int64
+	HostOS          string
+	HostOSVersion   string
+	HostProductName string //'VMware vCenter Server' or 'VMare ESXi'
 }
