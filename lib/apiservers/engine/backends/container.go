@@ -449,9 +449,13 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 			http.StatusInternalServerError)
 	}
 
-	//TODO: verify params that are passed in(like -f) and then pass them along.
+	// TODO: Pass this RemoveVolume flag to somewhere
+	_ = &config.RemoveVolume
 
-	//FIXME: currently the portlayer yaml does not support more params than the simple name param
+	// Use the force and stop the container first
+	if config.ForceRemove {
+		c.containerStop(name, 0, true)
+	}
 
 	//call the remove directly on the name. No need for using a handle.
 	_, err := client.Containers.ContainerRemove(containers.NewContainerRemoveParams().WithID(name))
