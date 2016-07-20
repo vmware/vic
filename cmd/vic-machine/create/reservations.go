@@ -16,6 +16,7 @@ package create
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -24,6 +25,11 @@ import (
 	"github.com/urfave/cli"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+)
+
+var (
+	MemoryPattern = "(?i)^([0-9]+(g|m)b)?:([0-9]+(g|m)b)?"
+	CPUPattern    = "(?i)^([0-9]+(g|m)hz)?:([0-9]+(g|m)hz)?"
 )
 
 func (c *Create) processReservations() error {
@@ -43,19 +49,27 @@ func (c *Create) handleCPUReservation(m string) error {
 	if m == "" {
 		return nil
 	}
+	var match bool
+	var err error
+	if match, err = regexp.MatchString(CPUPattern, m); err != nil {
+		err = errors.Errorf("Failed to compile pattern %q: %s", MemoryPattern, err)
+		log.Error(err)
+		return cli.NewExitError(err.Error(), 1)
+	}
+
+	if !match {
+		err = errors.Errorf("--cpu-limits %q must be reservations:limits format, e.g. 800MHz:20GHz, 800MHz:, :20GHz", m)
+		return cli.NewExitError(err.Error(), 1)
+	}
 
 	var errs []string
 
 	elements := strings.Split(m, ":")
-	if len(elements) != 2 {
-		return cli.NewExitError("--cpu-limits value must be reservations:limits format, e.g. e.g. 800MHz:20GHz, 800MHz:, :20GHz", 1)
-	}
 	if elements[0] == "" && elements[1] == "" {
 		return cli.NewExitError(fmt.Sprintf("nothing is set with --cpu-limits %q", m), 1)
 	}
 	log.Debugf("cpu reservation: %q, limit: %q", elements[0], elements[1])
 
-	var err error
 	if c.Data.VCHCPUReservationsMHz, err = c.handleCPUSize(elements[0]); err != nil {
 		errs = append(errs, err.Error())
 	}
@@ -73,18 +87,14 @@ func (c *Create) handleCPUSize(m string) (int, error) {
 	if m == "" {
 		return 0, nil
 	}
-	if len(m) < 4 {
-		return 0, errors.New("CPU size should end with MHz or GHz")
-	}
 
 	suffix := m[len(m)-3 : len(m)]
 	sn := m[:len(m)-3]
 
-	var errs []string
 	cpu, err := strconv.Atoi(sn)
 	if err != nil {
 		err = errors.Errorf("CPU size %q is not int number, %s", sn, err)
-		errs = append(errs, err.Error())
+		return 0, err
 	}
 	var times int
 	switch suffix = strings.ToLower(suffix); suffix {
@@ -93,12 +103,6 @@ func (c *Create) handleCPUSize(m string) (int, error) {
 	case "ghz":
 		times = 1000
 	default:
-		err = errors.Errorf("Invalid size unit %q, only MHz or GHz is accepted", suffix)
-		errs = append(errs, err.Error())
-	}
-
-	if len(errs) > 0 {
-		return 0, errors.New(strings.Join(errs, "\n"))
 	}
 	return cpu * times, nil
 }
@@ -109,18 +113,24 @@ func (c *Create) handleMemeoryReservation(m string) error {
 		return nil
 	}
 
+	var match bool
+	var err error
+	if match, err = regexp.MatchString(MemoryPattern, m); err != nil {
+		return err
+	}
+	if !match {
+		err = errors.Errorf("--memory-limits %q must be reservations:limits format, e.g. 800MHz:20GHz, 800MHz:, :20GHz", m)
+		return cli.NewExitError(err.Error(), 1)
+	}
+
 	var errs []string
 
 	elements := strings.Split(m, ":")
-	if len(elements) != 2 {
-		return cli.NewExitError("--memory-limits value must be reservations:limits format, e.g. 800MB:8GB, 800MB:, :8GB", 1)
-	}
 	if elements[0] == "" && elements[1] == "" {
 		return cli.NewExitError(fmt.Sprintf("nothing is set with --memory-limits %q", m), 1)
 	}
 	log.Debugf("memory reservation: %q, limit: %q", elements[0], elements[1])
 
-	var err error
 	if c.Data.VCHMemoryReservationsMB, err = c.handleMemeorySize(elements[0]); err != nil {
 		errs = append(errs, err.Error())
 	}
@@ -138,18 +148,14 @@ func (c *Create) handleMemeorySize(m string) (int, error) {
 	if m == "" {
 		return 0, nil
 	}
-	if len(m) < 3 {
-		return 0, errors.New("Memory size should end with MB or GB")
-	}
 
 	suffix := m[len(m)-2 : len(m)]
 	sn := m[:len(m)-2]
 
-	var errs []string
 	memory, err := strconv.Atoi(sn)
 	if err != nil {
 		err = errors.Errorf("Memeory size %q is not int number, %s", sn, err)
-		errs = append(errs, err.Error())
+		return 0, err
 	}
 	var times int
 	switch suffix = strings.ToLower(suffix); suffix {
@@ -158,12 +164,6 @@ func (c *Create) handleMemeorySize(m string) (int, error) {
 	case "gb":
 		times = 1024
 	default:
-		err = errors.Errorf("Invalid size unit %q, only MB or GB is accepted", suffix)
-		errs = append(errs, err.Error())
-	}
-
-	if len(errs) > 0 {
-		return 0, errors.New(strings.Join(errs, "\n"))
 	}
 	return memory * times, nil
 }
