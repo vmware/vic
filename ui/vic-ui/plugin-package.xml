@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<pluginPackage id="com.vmware.vicui.Vicui" version="0.0.1" name="VicUI"
+      description="VicUI" vendor="VMware">
+   <dependencies>
+      <!-- Minimum vSphere Client version compatible with this plugin -->
+      <pluginPackage id="com.vmware.vsphere.client" version="6.0.0" />
+   </dependencies>
+
+   <bundlesOrder>
+   	  <!-- List the jar bundles from the /plugins directory in loading order:
+         3rd party libraries first then your java service bundles. UI war bundles
+         are not needed here, they will be loaded automatically after the jars.
+         Bundle Ids must match the Bundle-SymbolicName in each plugin's MANIFEST.MF
+      -->
+      <bundle id="com.vmware.wsvim25" />
+      <bundle id="com.vmware.vicui.VicUIService" />
+   </bundlesOrder>
+</pluginPackage>
