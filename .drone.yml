@@ -70,6 +70,7 @@ build:
       - cp LICENSE $BIN_TEMP_DIR
       - cp doc/bundle/README $BIN_TEMP_DIR
       - cp $BIN/vic-machine* $BIN_TEMP_DIR
+      - cp $BIN/vic-ui* $BIN_TEMP_DIR
       - cp $BIN/appliance.iso $BIN_TEMP_DIR
       - cp $BIN/bootstrap.iso $BIN_TEMP_DIR
       - tar czvf $BIN/vic_$$BUILD_NUMBER.tar.gz -C $BIN vic

@@ -23,9 +23,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/urfave/cli"
-	"github.com/vmware/vic/cmd/vic-machine/create"
-	uninstall "github.com/vmware/vic/cmd/vic-machine/delete"
-	"github.com/vmware/vic/cmd/vic-machine/inspect"
+	"github.com/vmware/vic/cmd/vic-ui/ui"
 	"github.com/vmware/vic/pkg/errors"
 )
 
@@ -36,37 +34,29 @@ var (
 )
 
 const (
-	LogFile = "vic-machine.log"
+	LogFile = "vic-ui.log"
 )
 
 func main() {
 	app := cli.NewApp()
 
 	app.Name = filepath.Base(os.Args[0])
-	app.Usage = "Create and manage Virtual Container Hosts"
+	app.Usage = "Install/remove VIC UI plugin"
 	app.EnableBashCompletion = true
 
-	create := create.NewCreate()
-	uninstall := uninstall.NewUninstall()
-	inspect := inspect.NewInspect()
+	ui := ui.NewUI()
 	app.Commands = []cli.Command{
 		{
-			Name:   "create",
-			Usage:  "Deploy VCH",
-			Action: create.Run,
-			Flags:  create.Flags(),
+			Name:   "install",
+			Usage:  "Install UI plugin",
+			Action: ui.Install,
+			Flags:  ui.Flags(),
 		},
 		{
-			Name:   "delete",
-			Usage:  "Delete VCH and associated resources",
-			Action: uninstall.Run,
-			Flags:  uninstall.Flags(),
-		},
-		{
-			Name:   "inspect",
-			Usage:  "Inspect VCH",
-			Action: inspect.Run,
-			Flags:  inspect.Flags(),
+			Name:   "remove",
+			Usage:  "Remove UI plugin",
+			Action: ui.Remove,
+			Flags:  ui.Flags(),
 		},
 		{
 			Name:   "version",
