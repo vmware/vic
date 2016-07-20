@@ -74,7 +74,6 @@ func TestCreateFS(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	defer vdm.Detach(context.TODO(), d)
 
 	// make the filesysetem
 	if err = d.Mkfs("foo"); !assert.NoError(t, err) {
@@ -106,6 +105,11 @@ func TestCreateFS(t *testing.T) {
 
 	//  clean up
 	err = d.Unmount()
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	err = vdm.Detach(context.TODO(), d)
 	if !assert.NoError(t, err) {
 		return
 	}
