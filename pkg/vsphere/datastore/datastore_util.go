@@ -19,7 +19,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -52,7 +51,7 @@ func DSsetup(t *testing.T) (context.Context, *Helper, func()) {
 	ctx := context.Background()
 	sess := Session(ctx, t)
 
-	ds, err := NewHelper(ctx, sess, sess.Datastore, uuid.New().String()[0:16]+"dstests")
+	ds, err := NewHelper(ctx, sess, sess.Datastore, TestName("dstests"))
 	if !assert.NoError(t, err) {
 		return ctx, nil, nil
 	}

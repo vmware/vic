@@ -28,7 +28,7 @@ import (
 )
 
 func TestVolumeCreateListAndRestart(t *testing.T) {
-	client := Session(context.TODO(), t)
+	client := datastore.Session(context.TODO(), t)
 	if client == nil {
 		return
 	}

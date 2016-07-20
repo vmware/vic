@@ -39,7 +39,7 @@ import (
 func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, error) {
 	StorageParentDir = datastore.TestName("imageTests")
 
-	client := Session(context.TODO(), t)
+	client := datastore.Session(context.TODO(), t)
 	if client == nil {
 		return nil, nil, fmt.Errorf("skip")
 	}
