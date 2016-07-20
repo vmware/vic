@@ -70,8 +70,8 @@ var validScopeTests = []struct {
 		&params{"bridge", "bar5", &net.IPNet{IP: net.ParseIP("10.12.0.0"), Mask: net.CIDRMask(16, 32)}, net.ParseIP("10.12.1.0"), []net.IP{net.ParseIP("10.10.1.1")}, nil},
 		nil},
 	// not from default pool, dns, gateway, and ipam specified
-	{params{"bridge", "bar51", &net.IPNet{IP: net.ParseIP("10.33.0.0"), Mask: net.CIDRMask(16, 32)}, net.IPv4(10, 33, 0, 0), []net.IP{net.ParseIP("10.10.1.1")}, []string{"10.33.0.0/16"}},
-		&params{"bridge", "bar51", &net.IPNet{IP: net.ParseIP("10.33.0.0"), Mask: net.CIDRMask(16, 32)}, net.ParseIP("10.33.0.0"), []net.IP{net.ParseIP("10.10.1.1")}, nil},
+	{params{"bridge", "bar51", &net.IPNet{IP: net.ParseIP("10.33.0.0"), Mask: net.CIDRMask(16, 32)}, net.IPv4(10, 33, 0, 1), []net.IP{net.ParseIP("10.10.1.1")}, []string{"10.33.0.0/16"}},
+		&params{"bridge", "bar51", &net.IPNet{IP: net.ParseIP("10.33.0.0"), Mask: net.CIDRMask(16, 32)}, net.ParseIP("10.33.0.1"), []net.IP{net.ParseIP("10.10.1.1")}, nil},
 		nil},
 	// from default pool, subnet specified
 	{params{"bridge", "bar6", &net.IPNet{IP: net.IPv4(172, 19, 0, 0), Mask: net.CIDRMask(16, 32)}, nil, nil, nil},
@@ -165,7 +165,7 @@ func TestMapExternalNetworks(t *testing.T) {
 		pools := s.IPAM().Pools()
 		if !ip.IsUnspecifiedIP(nn.Gateway.IP) {
 			subnet := &net.IPNet{IP: nn.Gateway.IP.Mask(nn.Gateway.Mask), Mask: nn.Gateway.Mask}
-			if isUnspecifiedSubnet(s.Subnet()) || !s.Subnet().IP.Equal(subnet.IP) || !bytes.Equal(s.Subnet().Mask, subnet.Mask) {
+			if ip.IsUnspecifiedSubnet(s.Subnet()) || !s.Subnet().IP.Equal(subnet.IP) || !bytes.Equal(s.Subnet().Mask, subnet.Mask) {
 				t.Fatalf("external network %s was loaded with wrong subnet, got: %s, want: %s", n, s.Subnet(), subnet)
 			}
 
@@ -211,7 +211,7 @@ func TestMapExternalNetworks(t *testing.T) {
 	}
 }
 
-func TestContext(t *testing.T) {
+func TestContextNewScope(t *testing.T) {
 	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
@@ -234,6 +234,10 @@ func TestContext(t *testing.T) {
 		{params{"bridge", "bar10", &net.IPNet{IP: net.IPv4(10, 14, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(0, 0, 0, 0), nil, []string{"10.14.1.0/24", "10.15.1.0/24"}}, nil, fmt.Errorf("")},
 		// gateway not on subnet
 		{params{"bridge", "bar101", &net.IPNet{IP: net.IPv4(10, 141, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(10, 14, 0, 1), nil, nil}, nil, fmt.Errorf("")},
+		// gateway is allzeros address
+		{params{"bridge", "bar102", &net.IPNet{IP: net.IPv4(10, 142, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(10, 142, 0, 0), nil, nil}, nil, fmt.Errorf("")},
+		// gateway is allones address
+		{params{"bridge", "bar103", &net.IPNet{IP: net.IPv4(10, 143, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(10, 143, 255, 255), nil, nil}, nil, fmt.Errorf("")},
 		// this should succeed now
 		{params{"bridge", "bar11", &net.IPNet{IP: net.IPv4(10, 14, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(0, 0, 0, 0), nil, []string{"10.14.1.0/24"}},
 			&params{"bridge", "bar11", &net.IPNet{IP: net.IPv4(10, 14, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(10, 14, 1, 0), nil, nil},
@@ -263,7 +267,13 @@ func TestContext(t *testing.T) {
 		if te.out == nil {
 			// error case
 			if s != nil || err == nil {
-				t.Fatalf("NewScope() => (s, nil), want (nil, err)")
+				t.Fatalf("NewScope(%s, %s, %s, %s, %+v, %+v) => (s, nil), want (nil, err)",
+					te.in.scopeType,
+					te.in.name,
+					te.in.subnet,
+					te.in.gateway,
+					te.in.dns,
+					te.in.ipam)
 			}
 
 			// if there is an error specified, check if we got that error
