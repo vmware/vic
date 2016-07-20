@@ -272,7 +272,6 @@ func convertContainerToContainerInfo(container *exec.Container) *models.Containe
 
 	ccid := container.ExecConfig.ID
 	info.ContainerConfig.ContainerID = &ccid
-	log.Debugf("ID %s", ccid)
 
 	// TODO: need to determine an appropriate state model
 	// for now leveraging the status used in ps
