@@ -73,7 +73,8 @@ func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
 
 	log.Infof("volumes being returend : %+v", volumeResponses)
 	for _, v := range volumeResponses {
-		volume := extractDockerVolumeFromResponse(v)
+		volumeMetadata := extractDockerMetadata(v.Metadata)
+		volume := fillDockerVolumeModel(v, volumeMetadata.Labels)
 		volumes = append(volumes, &volume)
 	}
 	log.Infof("volumes being returend : %+v", volumes)
@@ -214,18 +215,6 @@ func createVolumeMetadata(model *models.VolumeRequest, labels map[string]string)
 	}
 	result, _ := json.Marshal(metadata)
 	return string(result)
-}
-
-func extractDockerVolumeFromResponse(response *models.VolumeResponse) types.Volume {
-	metdata := extractDockerMetadata(response.Metadata)
-
-	volume := types.Volume{
-		Name:       response.Name,
-		Driver:     response.Driver,
-		Mountpoint: "", //TODO: discuss what this should actually be populated with.
-		Labels:     metdata.Labels,
-	}
-	return volume
 }
 
 func extractDockerMetadata(metadataMap map[string]string) volumeMetadata {
