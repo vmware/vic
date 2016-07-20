@@ -117,7 +117,8 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 			})
 		} else {
 			// Find the Virtual Machine folder that we use
-			folders, err := sess.Datacenter.Folders(ctx)
+			var folders *object.DatacenterFolders
+			folders, err = sess.Datacenter.Folders(ctx)
 			if err != nil {
 				return err
 			}
