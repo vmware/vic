@@ -1,13 +1,16 @@
 # vSphere Integrated Containers Network Overview
 
-vSphere Container Host connects to four network types:
+vSphere Container Host connects to four network types.
+ ![vSphere Container Host Management Network](vch-net.png)
 
 - vSphere Management Network: to communicate with vCenter and ESXi hosts. This network also serves as a tether within the containers to communicate with the vSphere Container Host.
-- Docket Management Endpoint Network: to connect to Docker clients and isolate the Docker endpoints from the more public external network.
+ ![vSphere Management Network](vch-management-net.png)
+- Docker Management Endpoint Network: to connect to Docker clients and isolate the Docker endpoints from the more public external network.
+ ![Docker Management Endpoint Network](vch-docker-net.png)
 - External Network: to connect to the internet. Containers can use this external network to publish network services. After defining the external network, you can deploy containers directly on the external interface.
-- Container Network: to allow containers to communicate with each other.
-
-![vSphere Integrated Containers Networks](network_diagram.png)
+ ![External Network](vch-external-net.png)
+- Container Bridge Network: to allow containers to communicate with each other.
+ ![Container Bridge Network](vch-bridge-net.png)
 
 ## The Port Layer
 
