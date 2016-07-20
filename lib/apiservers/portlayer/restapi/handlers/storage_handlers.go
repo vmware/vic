@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
 
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/session"
 
 	epl "github.com/vmware/vic/lib/portlayer/exec"
@@ -86,7 +87,7 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, hand
 
 	// Get the datastores for volumes.
 	// Each volume store name maps to a datastore + path, which can be referred to by the name.
-	dstores, err := vsphereSpl.GetDatastores(context.TODO(), storageSession, spl.Config.VolumeLocations)
+	dstores, err := datastore.GetDatastores(context.TODO(), storageSession, spl.Config.VolumeLocations)
 	if err != nil {
 		log.Panicf("Cannot find datastores: %s", err)
 	}

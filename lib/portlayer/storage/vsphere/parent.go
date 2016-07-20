@@ -24,6 +24,7 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 )
 
 const mapFile = "parentMap"
@@ -47,7 +48,7 @@ type parentM struct {
 	db map[string]string
 
 	// roots where the map is stored
-	ds *Datastore
+	ds *datastore.Helper
 
 	parentMFile string
 
@@ -55,7 +56,7 @@ type parentM struct {
 }
 
 // Starts here.  Tries to create a new parentM or load an existing one.
-func restoreParentMap(ctx context.Context, ds *Datastore, storeName string) (*parentM, error) {
+func restoreParentMap(ctx context.Context, ds *datastore.Helper, storeName string) (*parentM, error) {
 	p := &parentM{
 		ds: ds,
 	}

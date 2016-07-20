@@ -22,12 +22,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"golang.org/x/net/context"
 )
 
 func TestVolumeCreateListAndRestart(t *testing.T) {
-	client := Session(context.TODO(), t)
+	client := datastore.Session(context.TODO(), t)
 	if client == nil {
 		return
 	}
@@ -41,8 +42,8 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 	}
 
 	// Root our datastore
-	testStorePath := "voltest-" + RandomString(6)
-	ds, err := NewDatastore(ctx, client, client.Datastore, testStorePath)
+	testStorePath := datastore.TestName("voltest")
+	ds, err := datastore.NewHelper(ctx, client, client.Datastore, testStorePath)
 	if !assert.NoError(t, err) || !assert.NotNil(t, ds) {
 		return
 	}

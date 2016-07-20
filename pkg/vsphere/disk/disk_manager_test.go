@@ -17,6 +17,7 @@ package disk
 import (
 	"fmt"
 	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -24,6 +25,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
@@ -62,7 +64,7 @@ func TestCreateAndDetach(t *testing.T) {
 		return
 	}
 
-	imagestore := client.Datastore.Path("imagestore")
+	imagestore := client.Datastore.Path(datastore.TestName("diskManagerTest"))
 
 	fm := object.NewFileManager(client.Vim25())
 
@@ -80,7 +82,7 @@ func TestCreateAndDetach(t *testing.T) {
 	}
 
 	diskSize := int64(1 << 10)
-	parent, err := vdm.Create(context.TODO(), client.Datastore.Path("imagestore/scratch.vmdk"), diskSize)
+	parent, err := vdm.Create(context.TODO(), path.Join(imagestore, "scratch.vmdk"), diskSize)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -93,7 +95,7 @@ func TestCreateAndDetach(t *testing.T) {
 	// Create children which inherit from eachother
 	for i := 0; i < numChildren; i++ {
 
-		p := client.Datastore.Path(fmt.Sprintf("imagestore/child%d.vmdk", i))
+		p := path.Join(imagestore, fmt.Sprintf("child%d.vmdk", i))
 		child, cerr := vdm.CreateAndAttach(context.TODO(), p, parent.DatastoreURI, 0, os.O_RDWR)
 		if !assert.NoError(t, cerr) {
 			return

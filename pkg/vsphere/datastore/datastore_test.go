@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vsphere
+package datastore
 
 import (
 	"math/rand"
@@ -20,36 +20,13 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/pkg/vsphere/tasks"
-	"github.com/vmware/vic/pkg/vsphere/test/env"
 	"golang.org/x/net/context"
 )
 
-func Session(ctx context.Context, t *testing.T) *session.Session {
-	config := &session.Config{
-		Service: env.URL(t),
-
-		/// XXX Why does this insist on having this field populated?
-		DatastorePath: env.DS(t),
-
-		Insecure:  true,
-		Keepalive: time.Duration(5) * time.Minute,
-	}
-
-	s, err := session.NewSession(config).Create(ctx)
-	if err != nil {
-		t.SkipNow()
-	}
-
-	return s
-}
-
 // test if we can get a Datastore via the rooturl
 func TestDatastoreGetDatastores(t *testing.T) {
-	ctx, ds, cleanupfunc := dSsetup(t)
+	ctx, ds, cleanupfunc := DSsetup(t)
 	if t.Failed() {
 		return
 	}
@@ -92,7 +69,7 @@ func TestDatastoreGetDatastores(t *testing.T) {
 }
 
 func TestDatastoreCreateDir(t *testing.T) {
-	ctx, ds, cleanupfunc := dSsetup(t)
+	ctx, ds, cleanupfunc := DSsetup(t)
 	if t.Failed() {
 		return
 	}
@@ -105,7 +82,7 @@ func TestDatastoreCreateDir(t *testing.T) {
 }
 
 func TestDatastoreMkdirAndLs(t *testing.T) {
-	ctx, ds, cleanupfunc := dSsetup(t)
+	ctx, ds, cleanupfunc := DSsetup(t)
 	if t.Failed() {
 		return
 	}
@@ -151,7 +128,7 @@ func TestDatastoreToURLParsing(t *testing.T) {
 	}
 
 	for i, in := range input {
-		u, err := DatastoreToURL(in[0])
+		u, err := ToURL(in[0])
 
 		if !assert.NoError(t, err) || !assert.NotNil(t, u) {
 			return
@@ -181,29 +158,4 @@ func RandomString(strlen int) string {
 		result[i] = chars[rand.Intn(len(chars))]
 	}
 	return string(result)
-}
-
-func dSsetup(t *testing.T) (context.Context, *Datastore, func()) {
-	ctx := context.Background()
-	sess := Session(ctx, t)
-	log.SetLevel(log.DebugLevel)
-
-	ds, err := NewDatastore(ctx, sess, sess.Datastore, RandomString(10)+"dstests")
-	if !assert.NoError(t, err) {
-		return ctx, nil, nil
-	}
-
-	f := func() {
-		log.Debugf("Removing test root %s", ds.RootURL)
-		err := tasks.Wait(ctx, func(context.Context) (tasks.Waiter, error) {
-			return ds.fm.DeleteDatastoreFile(ctx, ds.RootURL, sess.Datacenter)
-		})
-
-		if err != nil {
-			log.Errorf(err.Error())
-			return
-		}
-	}
-
-	return ctx, ds, f
 }
