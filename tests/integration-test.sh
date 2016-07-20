@@ -51,6 +51,9 @@ set -x
 
 if [ -f "$outfile" ]; then
   gsutil cp $outfile gs://vic-ci-logs
+  loglink="https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/$outfile?authuser=1"
+  echo "Download test logs:"
+  echo $loglink
 else
   echo "No log output file to upload"
 fi
