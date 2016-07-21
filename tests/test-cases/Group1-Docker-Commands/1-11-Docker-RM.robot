@@ -26,7 +26,7 @@ Remove a stopped container
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container}
     Should Be Equal As Integers  ${rc}  0
-    Sleep  5 seconds
+    Wait Until Container Stops  ${container}
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  govc ls vm

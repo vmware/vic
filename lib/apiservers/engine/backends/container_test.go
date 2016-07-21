@@ -62,7 +62,7 @@ func TestProcessSpecifiedVolumes(t *testing.T) {
 	assert.Equal(t, "/mount", processedTestVolumes[1].Dest)
 	assert.Equal(t, "r", processedTestVolumes[1].Flags)
 
-	assert.Equal(t, "testVolume", processedTestVolumes[2].ID)
+	assert.Equal(t, "specVol", processedTestVolumes[2].ID)
 	assert.Equal(t, "/mount/path", processedTestVolumes[2].Dest)
 	assert.Equal(t, "r", processedTestVolumes[2].Flags)
 }
