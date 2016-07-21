@@ -27,7 +27,7 @@ git remote add $USER git@github.com:$USER/vic.git
 git fetch $USER
 ```
 
-See the [README](README.md) for build instructions.
+See the [README](README.md#building) for build instructions.
 
 ## Contribution flow
 
@@ -241,4 +241,7 @@ The layout in the repo is as follows - this is a recent reorganisation so there 
 * tests - integration and system test code that doesn't use go test
 * vendor - standard Go vendor model
 
+## Troubleshooting
+
+* If you're building the project in a VM, ensure that it has at least 4GB memory to avoid issues while running the build.
 
