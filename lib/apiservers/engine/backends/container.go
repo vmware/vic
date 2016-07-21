@@ -214,22 +214,8 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	container.ID = image.ID
 	container.Config = image.Config
 
-	// Overwrite or append the image's config from the CLI with the metadata from the image's
-	// layer metadata where appropriate
-	if len(config.Config.Cmd) == 0 {
-		config.Config.Cmd = container.Config.Cmd
-	}
-	if config.Config.WorkingDir == "" {
-		config.Config.WorkingDir = container.Config.WorkingDir
-	}
-	if len(config.Config.Entrypoint) == 0 {
-		config.Config.Entrypoint = container.Config.Entrypoint
-	}
-	// Set TERM to xterm if tty is set
-	if config.Config.Tty {
-		config.Config.Env = append(config.Config.Env, "TERM=xterm")
-	}
-	config.Config.Env = append(config.Config.Env, container.Config.Env...)
+	// set default configuration values and those supplied by image where needed
+	container.SetConfigOptions(config.Config)
 
 	// TODO(jzt): users other than root are not currently supported
 	// We should check for USER in config.Config.Env once we support Dockerfiles.
