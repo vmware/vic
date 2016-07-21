@@ -23,7 +23,7 @@ Install VIC Appliance To Test Server
     
     Set Environment Variable  TEST_URL  @{URLs}[${IDX}]
     Set Environment Variable  GOVC_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
-    
+
     ${host}=  Run  govc ls host
     Set Environment Variable  TEST_RESOURCE  ${host}/Resources
     Set Environment Variable  GOVC_RESOURCE_POOL  ${host}/Resources
@@ -40,6 +40,11 @@ Install VIC Appliance To Test Server
     ${ret}=  Remove String  ${ret}  info
     ${ret}=  Strip String  ${ret}
     Set Suite Variable  ${params}  ${ret}
+    ${ret}=  Fetch From Right  ${ret}  -H
+    ${ret}=  Fetch From Left  ${ret}  --tls
+    @{ret}=  Split String  ${ret}  :
+    ${ret}=  Strip String  @{ret}[0]
+    Set Suite Variable  ${vch-ip}  ${ret}
     Log To Console  Installer completed successfully: ${vch-name}...
 
     # Required due to #1109
