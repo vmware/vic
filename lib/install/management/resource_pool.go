@@ -67,32 +67,28 @@ func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfi
 		},
 	}
 	cpu := resSpec.CpuAllocation.GetResourceAllocationInfo()
+	cpu.Limit = -1
 	if settings.VCHSize.CPU.Limit != 0 {
 		cpu.Limit = settings.VCHSize.CPU.Limit
-	} else {
-		cpu.Limit = -1
 	}
+	// FIXME: govmomi omitempty
+	cpu.Reservation = 1
 	if settings.VCHSize.CPU.Reservation != 0 {
 		cpu.Reservation = settings.VCHSize.CPU.Reservation
-	} else {
-		// FIXME: govmomi omitempty
-		cpu.Reservation = 1
 	}
 	if settings.VCHSize.CPU.Shares != nil {
 		cpu.Shares = settings.VCHSize.CPU.Shares
 	}
 
 	memory := resSpec.MemoryAllocation.GetResourceAllocationInfo()
+	memory.Limit = -1
 	if settings.VCHSize.Memory.Limit != 0 {
 		memory.Limit = settings.VCHSize.Memory.Limit
-	} else {
-		memory.Limit = -1
 	}
+	// FIXME: govmomi omitempty
+	memory.Reservation = 1
 	if settings.VCHSize.Memory.Reservation != 0 {
 		memory.Reservation = settings.VCHSize.Memory.Reservation
-	} else {
-		// FIXME: govmomi omitempty
-		memory.Reservation = 1
 	}
 	if settings.VCHSize.Memory.Shares != nil {
 		memory.Shares = settings.VCHSize.Memory.Shares

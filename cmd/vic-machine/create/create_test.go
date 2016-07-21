@@ -20,7 +20,6 @@ import (
 	"net"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/pkg/ip"
 )
 
@@ -211,52 +210,4 @@ func TestParseContainerNetworkDNS(t *testing.T) {
 			}
 		}
 	}
-}
-
-func TestParseReservations(t *testing.T) {
-	var tests = []struct {
-		cpu          string
-		memory       string
-		hasErr       bool
-		cpuReserv    int
-		cpuLimit     int
-		memoryReserv int
-		memoryLimit  int
-	}{
-		{"800MHz:20GHz", "600MB:30GB", false, 800, 20000, 600, 30720},
-		{"800MHz:", "600MB:", false, 800, 0, 600, 0},
-		{":20GHz", ":30GB", false, 0, 20000, 0, 30720},
-		{"800Mhz:20ghZ", "600mb:30Gb", false, 800, 20000, 600, 30720},
-		{"800MHz", "600MB", true, 0, 0, 0, 0},
-		{"800MH:", "600M:", true, 0, 0, 0, 0},
-		{"8x0MHz:", "60xMB:", true, 0, 0, 0, 0},
-		{"8x0MHz:8x0MHz", "60xMB:60xMB", true, 0, 0, 0, 0},
-		{"0z:200MHz", "6B:60MB", true, 0, 0, 0, 0},
-		{"0:z", "6:60", true, 0, 0, 0, 0},
-		{":", ":", true, 0, 0, 0, 0},
-	}
-	var err error
-	for _, test := range tests {
-		t.Logf("%+v", test)
-		create := NewCreate()
-		create.memoryReservLimits = test.memory
-		create.cpuReservLimits = test.cpu
-		err = create.processReservations()
-		if err != nil && test.hasErr {
-			t.Logf("Got expected error: %s", err)
-			continue
-		}
-		if err != nil && !test.hasErr {
-			t.Errorf("Got unexpected error: %s", err)
-			continue
-		}
-		if err == nil && test.hasErr {
-			t.Errorf("Should get error to parse %+v", test)
-		}
-		assert.Equal(t, test.cpuReserv, create.Data.VCHCPUReservationsMHz, "Expected cpu reservation")
-		assert.Equal(t, test.cpuLimit, create.Data.VCHCPULimitsMHz, "Expected cpu limitation")
-		assert.Equal(t, test.memoryLimit, create.Data.VCHMemoryLimitsMB, "Expected memory limitation")
-		assert.Equal(t, test.memoryReserv, create.Data.VCHMemoryReservationsMB, "Expected memory reservation")
-	}
-
 }

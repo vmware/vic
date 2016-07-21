@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/certificate"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/flags"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 
@@ -155,29 +156,39 @@ func (c *Create) Flags() []cli.Flag {
 			Value: &c.containerNetworksDNS,
 			Usage: "DNS servers for the container network in CONTAINER-NETWORK:DNS format, e.g. a_network:8.8.8.8",
 		},
-		cli.StringFlag{
-			Name:        "memory-limits",
-			Value:       "",
-			Usage:       "Memory reservations and limits for VCH in reservations:limits format, e.g. 800MB:8GB, 800MB:, :8GB",
-			Destination: &c.memoryReservLimits,
+		cli.IntFlag{
+			Name:        "pool-memory-reservation",
+			Value:       0,
+			Usage:       "VCH Memory reservation in MB",
+			Destination: &c.VCHMemoryReservationsMB,
 		},
 		cli.IntFlag{
-			Name:        "memory-shares",
+			Name:        "pool-memory-limit",
 			Value:       0,
-			Usage:       "Memory shares for VCH, e.g. 163840",
-			Destination: &c.VCHMemoryShares,
+			Usage:       "VCH Memory limit in MB",
+			Destination: &c.VCHMemoryLimitsMB,
 		},
-		cli.StringFlag{
-			Name:        "cpu-limits",
-			Value:       "",
-			Usage:       "vCPUs reservations and limits for VCH in reservations:limits format, e.g. 800MHz:20GHz, 800MHz:, :20GHz",
-			Destination: &c.cpuReservLimits,
+		cli.GenericFlag{
+			Name:  "pool-memory-shares",
+			Value: flags.NewSharesFlag(&c.VCHMemoryShares),
+			Usage: "VCH Memory shares in level or share number, e.g. high, normal, low, or 163840",
 		},
 		cli.IntFlag{
-			Name:        "cpu-shares",
+			Name:        "pool-cpu-reservation",
 			Value:       0,
-			Usage:       "vCPUs shares for VCH, e.g. 4000",
-			Destination: &c.VCHCPUShares,
+			Usage:       "VCH vCPUs reservation in MHz",
+			Destination: &c.VCHCPUReservationsMHz,
+		},
+		cli.IntFlag{
+			Name:        "pool-cpu-limit",
+			Value:       0,
+			Usage:       "VCH vCPUs limit in MHz",
+			Destination: &c.VCHCPULimitsMHz,
+		},
+		cli.GenericFlag{
+			Name:  "pool-cpu-shares",
+			Value: flags.NewSharesFlag(&c.VCHCPUShares),
+			Usage: "VCH vCPUs shares, in level or share number, e.g. high, normal, low, or 4000",
 		},
 		cli.StringFlag{
 			Name:        "appliance-iso",
@@ -296,9 +307,9 @@ func (c *Create) processParams() error {
 		return errors.Errorf("Error occurred while processing volume stores: %s", err)
 	}
 
-	if err := c.processReservations(); err != nil {
-		return err
-	}
+	//	if err := c.processReservations(); err != nil {
+	//		return err
+	//	}
 	// FIXME: add parameters for these configurations
 	c.osType = "linux"
 

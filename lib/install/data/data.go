@@ -55,11 +55,11 @@ type Data struct {
 
 	VCHCPULimitsMHz       int
 	VCHCPUReservationsMHz int
-	VCHCPUShares          int
+	VCHCPUShares          *types.SharesInfo
 
 	VCHMemoryLimitsMB       int
 	VCHMemoryReservationsMB int
-	VCHMemoryShares         int
+	VCHMemoryShares         *types.SharesInfo
 
 	NumCPUs  int
 	MemoryMB int
