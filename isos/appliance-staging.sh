@@ -87,6 +87,7 @@ yum_cached -c $cache -u -p $PKGDIR install \
     haveged \
     systemd \
     openssh \
+    iptables \
     e2fsprogs \
     procps-ng \
     iputils \
