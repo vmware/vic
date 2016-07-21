@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"golang.org/x/net/context"
@@ -49,7 +50,7 @@ type ImageStore struct {
 	// govmomi session
 	s *session.Session
 
-	ds *Datastore
+	ds *datastore.Helper
 
 	// Parent relationships
 	// This will go away when First Class Disk support is added to vsphere.
@@ -69,7 +70,7 @@ func NewImageStore(ctx context.Context, s *session.Session) (*ImageStore, error)
 	// Currently using the datastore associated with the session which is not
 	// ideal.  This should be passed in via the config.  The datastore need not
 	// be the same datastore used for the rest of the system.
-	ds, err := NewDatastore(ctx, s, s.Datastore, StorageParentDir)
+	ds, err := datastore.NewHelper(ctx, s, s.Datastore, StorageParentDir)
 	if err != nil {
 		return nil, err
 	}

@@ -1,0 +1,4 @@
+.DS_Store
+target/
+*.zip
+installer/vsphere-client-serenity/

@@ -30,15 +30,16 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"golang.org/x/net/context"
 )
 
 func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, error) {
-	StorageParentDir = RandomString(10) + "imageTests"
+	StorageParentDir = datastore.TestName("imageTests")
 
-	client := Session(context.TODO(), t)
+	client := datastore.Session(context.TODO(), t)
 	if client == nil {
 		return nil, nil, fmt.Errorf("skip")
 	}
@@ -73,7 +74,7 @@ func TestRestartImageStore(t *testing.T) {
 	}
 
 	// Check we didn't create a new UUID directory (relevant if vsan)
-	if !assert.Equal(t, origVsStore.ds.rootDir(), restartedVsStore.ds.rootDir()) {
+	if !assert.Equal(t, origVsStore.ds.RootURL, restartedVsStore.ds.RootURL) {
 		return
 	}
 }

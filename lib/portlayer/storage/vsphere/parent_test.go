@@ -19,12 +19,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 )
 
 const testStore = "testStore"
 
 func TestParentEmptyRestore(t *testing.T) {
-	ctx, ds, cleanupfunc := dSsetup(t)
+	ctx, ds, cleanupfunc := datastore.DSsetup(t)
 	if t.Failed() {
 		return
 	}
@@ -37,7 +38,7 @@ func TestParentEmptyRestore(t *testing.T) {
 }
 
 func TestParentEmptySaveRestore(t *testing.T) {
-	ctx, ds, cleanupfunc := dSsetup(t)
+	ctx, ds, cleanupfunc := datastore.DSsetup(t)
 	if t.Failed() {
 		return
 	}
@@ -61,7 +62,7 @@ func TestParentEmptySaveRestore(t *testing.T) {
 
 // Write some child -> parent mappings and see if we can read them.
 func TestParentSaveRestore(t *testing.T) {
-	ctx, ds, cleanupfunc := dSsetup(t)
+	ctx, ds, cleanupfunc := datastore.DSsetup(t)
 	if t.Failed() {
 		return
 	}

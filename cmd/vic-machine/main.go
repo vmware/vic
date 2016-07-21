@@ -98,6 +98,7 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		log.Errorf("--------------------")
 		log.Errorf("%s failed: %s\n", app.Name, errors.ErrorStack(err))
+		os.Exit(1)
 	}
 }
 

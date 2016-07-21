@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
@@ -168,7 +169,7 @@ func (d *Dispatcher) createVolumeStores(conf *metadata.VirtualContainerHostConfi
 		if err != nil {
 			return errors.Errorf("Could not retrieve datastore with host %q due to error %s", url.Host, err)
 		}
-		nds, err := vsphere.NewDatastore(d.ctx, d.session, ds, url.Path)
+		nds, err := datastore.NewHelper(d.ctx, d.session, ds, url.Path)
 		if err != nil {
 			return errors.Errorf("Could not create volume store due to error: %s", err)
 		}
@@ -199,8 +200,7 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHo
 	log.Infoln("Removing volume stores...")
 	for label, url := range conf.VolumeLocations {
 		// FIXME: url is being encoded by the portlayer incorrectly, so we have to convert url.Path to the right url.URL object
-		dsURL, err := vsphere.DatastoreToURL(url.Path)
-
+		dsURL, err := datastore.ToURL(url.Path)
 		if err != nil {
 			log.Warnf("Didn't receive an expected volume store path format: %q", url.Path)
 			continue
