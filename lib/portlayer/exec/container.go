@@ -66,10 +66,6 @@ func NewContainer(id ID) *Handle {
 		State:      StateStopped,
 	}
 	con.ExecConfig.ID = id.String()
-
-	// add to cache
-	containers.Put(con)
-
 	return con.newHandle()
 }
 
