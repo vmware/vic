@@ -19,6 +19,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -76,6 +77,14 @@ var portMapper portmap.PortMapper
 func init() {
 	portMapper = portmap.NewPortMapper()
 }
+
+//TODO: gotta be a better way...
+// type and funcs to provide sorting by created date
+type containerByCreated []*types.Container
+
+func (r containerByCreated) Len() int           { return len(r) }
+func (r containerByCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r containerByCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
 // Container struct represents the Container
 type Container struct {
@@ -993,7 +1002,8 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 		}
 		containers = append(containers, c)
 	}
-
+	// sort on creation time
+	sort.Sort(sort.Reverse(containerByCreated(containers)))
 	return containers, nil
 }
 
