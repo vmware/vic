@@ -226,7 +226,7 @@ Run Regression Tests
     Should Contain  ${output}  /bin/top
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop ${container}
     Should Be Equal As Integers  ${rc}  0
-    Sleep  10  # Need the merge from Ben
+    Wait Until Container Stops  ${container}
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Stopped
