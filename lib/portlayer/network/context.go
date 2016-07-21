@@ -91,7 +91,7 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 			pools[i] = p.String()
 		}
 
-		s, err := ctx.NewScope(ExternalScopeType, nn, &net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}, n.Gateway.IP, nil, pools)
+		s, err := ctx.NewScope(ExternalScopeType, nn, &net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}, n.Gateway.IP, n.Nameservers, pools)
 		if err != nil {
 			return nil, err
 		}
@@ -102,88 +102,117 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 	return ctx, nil
 }
 
-func reserveBroadcastAndNetwork(space *AddressSpace) error {
-	if space.Network == nil {
-		return nil
+func reserveGateway(gateway net.IP, subnet *net.IPNet, ipam *IPAM) (net.IP, error) {
+	if ip.IsUnspecifiedSubnet(subnet) {
+		return nil, fmt.Errorf("cannot reserve gateway for nil subnet")
 	}
 
-	if err := space.ReserveIP4(space.Network.IP); err != nil {
-		return err
+	if !ip.IsUnspecifiedIP(gateway) {
+		// verify gateway is routable address
+		if !ip.IsRoutableIP(gateway, subnet) {
+			return nil, fmt.Errorf("gateway address %s is not routable on network %s", gateway, subnet)
+		}
+
+		// optionally reserve it in one of the pools
+		for _, p := range ipam.spaces {
+			if err := p.ReserveIP4(gateway); err == nil {
+				break
+			}
+		}
+
+		return gateway, nil
 	}
 
-	if err := space.ReserveIP4(highestIP4(space.Network)); err != nil {
-		return err
+	// gateway is not specified, pick one from the available pools
+	if len(ipam.spaces) > 0 {
+		var err error
+		if gateway, err = ipam.spaces[0].ReserveNextIP4(); err != nil {
+			return nil, err
+		}
+
+		if !ip.IsRoutableIP(gateway, subnet) {
+			return nil, fmt.Errorf("gateway address %s is not routable on network %s", gateway, subnet)
+		}
+
+		return gateway, nil
 	}
 
-	return nil
-}
-
-func isUnspecifiedSubnet(n *net.IPNet) bool {
-	if n == nil {
-		return true
-	}
-
-	ones, bits := n.Mask.Size()
-	return bits == 0 || ones == 0
+	return nil, fmt.Errorf("could not reserve gateway address for network %s", subnet)
 }
 
 func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM, network object.NetworkReference) (*Scope, error) {
+
 	var err error
 	var space *AddressSpace
+	var defaultPool bool
+	var allzeros, allones net.IP
 
-	// allocate the subnet
-	if !isUnspecifiedSubnet(subnet) {
-		var defaultPool bool
-		space, defaultPool, err = c.reserveSubnet(subnet)
-		defer func() {
-			if err != nil && space != nil && defaultPool {
-				c.defaultBridgePool.ReleaseIP4Range(space)
+	// cleanup
+	defer func() {
+		if err == nil || space == nil || !defaultPool {
+			return
+		}
+
+		for _, p := range ipam.spaces {
+			// release DNS IPs
+			for _, d := range dns {
+				p.ReleaseIP4(d)
 			}
-		}()
 
+			// release gateway
+			if !ip.IsUnspecifiedIP(gateway) {
+				p.ReleaseIP4(gateway)
+			}
+
+			// release all-ones and all-zeros addresses
+			if !ip.IsUnspecifiedIP(allzeros) {
+				p.ReleaseIP4(allzeros)
+			}
+			if !ip.IsUnspecifiedIP(allones) {
+				p.ReleaseIP4(allones)
+			}
+		}
+
+		c.defaultBridgePool.ReleaseIP4Range(space)
+	}()
+
+	// subnet may not be specified, e.g. for "external" networks
+	if !ip.IsUnspecifiedSubnet(subnet) {
+		// allocate the subnet
+		space, defaultPool, err = c.reserveSubnet(subnet)
 		if err != nil {
 			return nil, err
 		}
 
 		subnet = space.Network
 
-		// reserve the network and broadcast addresses
-		err = reserveBroadcastAndNetwork(space)
-		defer func() {
-			if err == nil || space.Network == nil {
-				return
+		ipam.spaces, err = reservePools(space, ipam)
+		if err != nil {
+			return nil, err
+		}
+
+		// reserve all-ones and all-zeros addresses, which are not routable and so
+		// should not be handed out
+		allones = ip.AllOnesAddr(subnet)
+		allzeros = ip.AllZerosAddr(subnet)
+		for _, p := range ipam.spaces {
+			p.ReserveIP4(allones)
+			p.ReserveIP4(allzeros)
+
+			// reserve DNS IPs
+			for _, d := range dns {
+				if d.Equal(gateway) {
+					continue // gateway will be reserved later
+				}
+
+				p.ReserveIP4(d)
 			}
+		}
 
-			lo := incrementIP4(space.Network.IP)
-			hi := decrementIP4(highestIP4(space.Network))
-			space.ReleaseIP4(lo)
-			space.ReleaseIP4(hi)
-		}()
-
-		if err != nil {
+		if gateway, err = reserveGateway(gateway, subnet, ipam); err != nil {
 			return nil, err
 		}
 
-		var subSpaces []*AddressSpace
-		subSpaces, err = reservePools(space, ipam)
-		if err != nil {
-			return nil, err
-		}
-
-		ipam.spaces = subSpaces
-	}
-
-	if ip.IsUnspecifiedIP(gateway) && len(ipam.spaces) > 0 {
-		gateway, err = ipam.spaces[0].ReserveNextIP4()
-		defer func() {
-			if err != nil && !gateway.IsUnspecified() {
-				ipam.spaces[0].ReleaseIP4(gateway)
-			}
-		}()
-
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	newScope := &Scope{
@@ -211,8 +240,13 @@ func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net
 		return nil, fmt.Errorf("bridge network not set")
 	}
 
-	if isUnspecifiedSubnet(subnet) {
-		subnet = defaultSubnet
+	if ip.IsUnspecifiedSubnet(subnet) {
+		// get the next available subnet from the default bridge pool
+		var err error
+		subnet, err = c.defaultBridgePool.NextIP4Net(c.defaultBridgeMask)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	s, err := c.newScopeCommon(id, name, BridgeScopeType, subnet, gateway, dns, ipam, bn.PortGroup)
@@ -233,12 +267,12 @@ func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net
 func (c *Context) newExternalScope(id, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (*Scope, error) {
 	// ipam cannot be specified without gateway and subnet
 	if ipam != nil && len(ipam.pools) > 0 {
-		if isUnspecifiedSubnet(subnet) || gateway.IsUnspecified() {
+		if ip.IsUnspecifiedSubnet(subnet) || gateway.IsUnspecified() {
 			return nil, fmt.Errorf("ipam cannot be specified without gateway and subnet for external network")
 		}
 	}
 
-	if !isUnspecifiedSubnet(subnet) {
+	if !ip.IsUnspecifiedSubnet(subnet) {
 		// cannot overlap with the default bridge pool
 		if c.defaultBridgePool.Network.Contains(subnet.IP) ||
 			c.defaultBridgePool.Network.Contains(highestIP4(subnet)) {
@@ -254,32 +288,20 @@ func (c *Context) newExternalScope(id, name string, subnet *net.IPNet, gateway n
 	return c.newScopeCommon(id, name, ExternalScopeType, subnet, gateway, dns, ipam, n.PortGroup)
 }
 
-func isDefaultSubnet(subnet *net.IPNet) bool {
-	return subnet.IP == nil || subnet.IP.Equal(net.ParseIP("0.0.0.0"))
-}
-
-func (c *Context) reserveSubnet(subnet *net.IPNet) (space *AddressSpace, defaultPool bool, err error) {
-	defaultPool = true
-	if isDefaultSubnet(subnet) {
-		space, err = c.defaultBridgePool.ReserveNextIP4Net(subnet.Mask)
-		return
-	}
-
-	err = c.checkNetOverlap(subnet)
+func (c *Context) reserveSubnet(subnet *net.IPNet) (*AddressSpace, bool, error) {
+	err := c.checkNetOverlap(subnet)
 	if err != nil {
-		return
+		return nil, false, err
 	}
 
 	// reserve from the default pool first
-	space, err = c.defaultBridgePool.ReserveIP4Net(subnet)
+	space, err := c.defaultBridgePool.ReserveIP4Net(subnet)
 	if err == nil {
-		return
+		return space, true, nil
 	}
-	err = nil
 
-	defaultPool = false
 	space = NewAddressSpaceFromNetwork(subnet)
-	return
+	return space, false, nil
 }
 
 func (c *Context) checkNetOverlap(subnet *net.IPNet) error {
@@ -287,7 +309,7 @@ func (c *Context) checkNetOverlap(subnet *net.IPNet) error {
 	highestIP := highestIP4(subnet)
 	for _, scope := range c.scopes {
 		if scope.subnet.Contains(subnet.IP) || scope.subnet.Contains(highestIP) {
-			return fmt.Errorf("could not allocate subnet for scope")
+			return fmt.Errorf("subnet %s overlaps with scope %s subnet %s", subnet, scope.Name(), scope.Subnet())
 		}
 	}
 
