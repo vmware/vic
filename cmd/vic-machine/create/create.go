@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/certificate"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/flags"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 
@@ -67,6 +68,9 @@ type Create struct {
 	containerNetworksIPRanges cli.StringSlice
 	containerNetworksDNS      cli.StringSlice
 	volumeStores              cli.StringSlice
+
+	memoryReservLimits string
+	cpuReservLimits    string
 
 	executor *management.Dispatcher
 }
@@ -151,6 +155,40 @@ func (c *Create) Flags() []cli.Flag {
 			Name:  "container-network-dns",
 			Value: &c.containerNetworksDNS,
 			Usage: "DNS servers for the container network in CONTAINER-NETWORK:DNS format, e.g. a_network:8.8.8.8",
+		},
+		cli.IntFlag{
+			Name:        "pool-memory-reservation",
+			Value:       0,
+			Usage:       "VCH Memory reservation in MB",
+			Destination: &c.VCHMemoryReservationsMB,
+		},
+		cli.IntFlag{
+			Name:        "pool-memory-limit",
+			Value:       0,
+			Usage:       "VCH Memory limit in MB",
+			Destination: &c.VCHMemoryLimitsMB,
+		},
+		cli.GenericFlag{
+			Name:  "pool-memory-shares",
+			Value: flags.NewSharesFlag(&c.VCHMemoryShares),
+			Usage: "VCH Memory shares in level or share number, e.g. high, normal, low, or 163840",
+		},
+		cli.IntFlag{
+			Name:        "pool-cpu-reservation",
+			Value:       0,
+			Usage:       "VCH vCPUs reservation in MHz",
+			Destination: &c.VCHCPUReservationsMHz,
+		},
+		cli.IntFlag{
+			Name:        "pool-cpu-limit",
+			Value:       0,
+			Usage:       "VCH vCPUs limit in MHz",
+			Destination: &c.VCHCPULimitsMHz,
+		},
+		cli.GenericFlag{
+			Name:  "pool-cpu-shares",
+			Value: flags.NewSharesFlag(&c.VCHCPUShares),
+			Usage: "VCH vCPUs shares, in level or share number, e.g. high, normal, low, or 4000",
 		},
 		cli.StringFlag{
 			Name:        "appliance-iso",
@@ -269,6 +307,9 @@ func (c *Create) processParams() error {
 		return errors.Errorf("Error occurred while processing volume stores: %s", err)
 	}
 
+	//	if err := c.processReservations(); err != nil {
+	//		return err
+	//	}
 	// FIXME: add parameters for these configurations
 	c.osType = "linux"
 
@@ -386,7 +427,6 @@ func (c *Create) Run(cli *cli.Context) error {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}
-
 	if err = c.processParams(); err != nil {
 		return err
 	}

@@ -1201,5 +1201,13 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *metadata.Virt
 
 	log.Debugf("Datacenter: %q, Cluster: %q, Resource Pool: %q", dconfig.DatacenterName, dconfig.ClusterPath, dconfig.ResourcePoolPath)
 
+	dconfig.VCHSize.CPU.Reservation = int64(input.VCHCPUReservationsMHz)
+	dconfig.VCHSize.CPU.Limit = int64(input.VCHCPULimitsMHz)
+	dconfig.VCHSize.CPU.Shares = input.VCHCPUShares
+
+	dconfig.VCHSize.Memory.Reservation = int64(input.VCHMemoryReservationsMB)
+	dconfig.VCHSize.Memory.Limit = int64(input.VCHMemoryLimitsMB)
+	dconfig.VCHSize.Memory.Shares = input.VCHMemoryShares
+
 	return &dconfig
 }
