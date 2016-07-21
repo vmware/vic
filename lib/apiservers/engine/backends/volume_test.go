@@ -121,3 +121,34 @@ func TestValidateDriverArgs(t *testing.T) {
 		return
 	}
 }
+
+func TestExtractDockerMetadata(t *testing.T) {
+	driver := "vsphere"
+	volumeName := "testVolume"
+	store := "storeName"
+	testCap = 512
+
+	testOptMap := make(map[string]string)
+	testOptMap[OptsVolumeStoreKey] = store
+	testOptMap[OptsCapacityKey] = strconv.FormatInt(testCap, 10)
+
+	testLabelMap := make(map[string]string)
+	trestLabelMap["someLabel"] = "this is a label"
+
+	metaDataBefore := volumeMetadata{
+		Driver:     driver,
+		Name:       volumeName,
+		DriverOpts: testOptMap,
+		Labels:     testLabelMap,
+	}
+
+	metadataMap := make(map[string]string)
+	metadataMap[dockerMetadataModelKey] = json.Marshal(metadataBefore)
+	metadataAfter := extractDockerMetadata(metadataMap)
+
+	assert.Equal(t, metaDataBefore.DriverOpts[OptsCapacityKey], metadataAfter.DriverOpts[OptsCapacityKey])
+	assert.Equal(t, metaDataBefore.DriverOpts[OptsVolumeStoreKey], metadataAfter.DriverOpts[OptsVolumeStoreKey])
+	assert.Equal(t, metaDataBefore.Labels["someLabel"], metadataAfter.Labels["someLabel"])
+	assert.Equal(t, metaDataBefore.Name, metadataAfter.Name)
+	assert.Equal(t, metaDataBefore.Driver, metadataAfter.Driver)
+}
