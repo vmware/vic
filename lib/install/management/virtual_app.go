@@ -38,19 +38,40 @@ func (d *Dispatcher) createVApp(conf *metadata.VirtualContainerHostConfigSpec, s
 				Level: types.SharesLevelNormal,
 			},
 			ExpandableReservation: types.NewBool(true),
-			Limit: -1,
-			// FIXME: govmomi omitempty
-			Reservation: 1,
 		},
 		MemoryAllocation: &types.ResourceAllocationInfo{
 			Shares: &types.SharesInfo{
 				Level: types.SharesLevelNormal,
 			},
 			ExpandableReservation: types.NewBool(true),
-			Limit: -1,
-			// FIXME: govmomi omitempty
-			Reservation: 1,
 		},
+	}
+	cpu := resSpec.CpuAllocation.GetResourceAllocationInfo()
+	cpu.Limit = -1
+	if settings.VCHSize.CPU.Limit != 0 {
+		cpu.Limit = settings.VCHSize.CPU.Limit
+	}
+	// FIXME: govmomi omitempty
+	cpu.Reservation = 1
+	if settings.VCHSize.CPU.Reservation != 0 {
+		cpu.Reservation = settings.VCHSize.CPU.Reservation
+	}
+	if settings.VCHSize.CPU.Shares != nil {
+		cpu.Shares = settings.VCHSize.CPU.Shares
+	}
+
+	memory := resSpec.MemoryAllocation.GetResourceAllocationInfo()
+	memory.Limit = -1
+	if settings.VCHSize.Memory.Limit != 0 {
+		memory.Limit = settings.VCHSize.Memory.Limit
+	}
+	// FIXME: govmomi omitempty
+	memory.Reservation = 1
+	if settings.VCHSize.Memory.Reservation != 0 {
+		memory.Reservation = settings.VCHSize.Memory.Reservation
+	}
+	if settings.VCHSize.Memory.Shares != nil {
+		memory.Shares = settings.VCHSize.Memory.Shares
 	}
 
 	prodSpec := types.VAppProductSpec{

@@ -148,11 +148,9 @@ func NewAddressSpaceFromRange(firstIP net.IP, lastIP net.IP) *AddressSpace {
 		availableRanges: []*ip.Range{{FirstIP: firstIP, LastIP: lastIP}}}
 }
 
-// ReserveNextIP4Net reserves a new sub address space within the given address
-// space, given a bitmask specifying the "width" of the requested space.
-func (s *AddressSpace) ReserveNextIP4Net(mask net.IPMask) (*AddressSpace, error) {
+func (s *AddressSpace) NextIP4Net(mask net.IPMask) (*net.IPNet, error) {
 	ones, _ := mask.Size()
-	for i, r := range s.availableRanges {
+	for _, r := range s.availableRanges {
 		network := r.FirstIP.Mask(mask).To16()
 		var firstIP net.IP
 		// check if the start of the current range
@@ -206,16 +204,23 @@ func (s *AddressSpace) ReserveNextIP4Net(mask net.IPMask) (*AddressSpace, error)
 			// the highest address given the first IP and the mask
 			lastIP := highestIP4(&net.IPNet{IP: firstIP, Mask: mask})
 			if compareIP4(lastIP, r.LastIP) <= 0 {
-				s.reserveSubRange(firstIP, lastIP, i)
-				subSpace := NewAddressSpaceFromRange(firstIP, lastIP)
-				subSpace.Network = &net.IPNet{IP: firstIP, Mask: mask}
-				subSpace.Parent = s
-				return subSpace, nil
+				return &net.IPNet{IP: firstIP, Mask: mask}, nil
 			}
 		}
 	}
 
 	return nil, fmt.Errorf("could not find IP range for mask %s", mask)
+}
+
+// ReserveNextIP4Net reserves a new sub address space within the given address
+// space, given a bitmask specifying the "width" of the requested space.
+func (s *AddressSpace) ReserveNextIP4Net(mask net.IPMask) (*AddressSpace, error) {
+	n, err := s.NextIP4Net(mask)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.ReserveIP4Net(n)
 }
 
 func splitRange(parentRange *ip.Range, firstIP net.IP, lastIP net.IP) (before, reserved, after *ip.Range) {

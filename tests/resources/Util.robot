@@ -202,6 +202,15 @@ Kill Nimbus Server
     ${out}=  Execute Command  nimbus-ctl kill '${name}'
     Close connection
 
+Wait Until Container Stops
+    [Arguments]  ${container}
+    :FOR  ${idx}  IN RANGE  0  10
+    \   ${out}=  Run  docker ${params} ps --filter status=running --no-trunc
+    \   ${status}=  Run Keyword And Return Status  Should Not Contain  ${out}  ${container}
+    \   Return From Keyword If  ${status}
+    \   Sleep  1
+    Fail  Container did not stop within 10 seconds
+
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0

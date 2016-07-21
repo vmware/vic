@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"strconv"
 
+	log "github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/errors"
 
 	"github.com/docker/engine-api/types"
@@ -46,9 +47,38 @@ type volumeMetadata struct {
 	Labels     map[string]string
 }
 
-//Volumes : docker personality implementation for VIC
+//Volumes docker personality implementation for VIC
 func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
-	return nil, make([]string, 0), fmt.Errorf("%s does not implement volume.Volumes", ProductName())
+	defer trace.End(trace.Begin("Volume.Volumes"))
+	var volumes []*types.Volume
+
+	client := PortLayerClient()
+	if client == nil {
+		return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get a portlayer client"), http.StatusInternalServerError)
+	}
+
+	res, err := client.Storage.ListVolumes(storage.NewListVolumesParams().WithFilterString(&filter))
+	if err != nil {
+		switch err := err.(type) {
+		case *storage.ListVolumesInternalServerError:
+			return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("error from portlayer server: %s", err.Payload.Message), http.StatusInternalServerError)
+		case *storage.ListVolumesDefault:
+			return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("error from portlayer server: %s", err.Payload.Message), http.StatusInternalServerError)
+		default:
+			return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("error from portlayer server: %s", err.Error()), http.StatusInternalServerError)
+		}
+	}
+
+	volumeResponses := res.Payload
+
+	log.Infof("volumes being returend : %+v", volumeResponses)
+	for i := range volumeResponses {
+		volumeMetadata := extractDockerMetadata(volumeResponses[i].Metadata)
+		volume := fillDockerVolumeModel(volumeResponses[i], volumeMetadata.Labels)
+		volumes = append(volumes, volume)
+	}
+	log.Infof("volumes being returend : %+v", volumes)
+	return volumes, nil, nil
 }
 
 //VolumeInspect : docker personality implementation for VIC
@@ -111,7 +141,6 @@ func (v *Volume) VolumeRm(name string) error {
 	if err != nil {
 
 		switch err := err.(type) {
-
 		case *storage.RemoveVolumeNotFound:
 			return derr.NewRequestNotFoundError(fmt.Errorf("Get %s: no such volume", name))
 
@@ -120,7 +149,6 @@ func (v *Volume) VolumeRm(name string) error {
 
 		case *storage.RemoveVolumeInternalServerError:
 			return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", err.Payload.Message), http.StatusInternalServerError)
-
 		default:
 			return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", err), http.StatusInternalServerError)
 		}
@@ -171,7 +199,7 @@ func translateInputsToPortlayerRequestModel(name, driverName string, opts, label
 	}
 	metadata := createVolumeMetadata(&model, labels)
 	model.Metadata = make(map[string]string)
-	model.Metadata["dockerMetaData"] = metadata
+	model.Metadata[dockerMetadataModelKey] = metadata
 	if err := validateDriverArgs(opts, &model); err != nil {
 		return model, err
 	}
@@ -187,4 +215,10 @@ func createVolumeMetadata(model *models.VolumeRequest, labels map[string]string)
 	}
 	result, _ := json.Marshal(metadata)
 	return string(result)
+}
+
+func extractDockerMetadata(metadataMap map[string]string) volumeMetadata {
+	var result volumeMetadata
+	json.Unmarshal([]byte(metadataMap[dockerMetadataModelKey]), result)
+	return result
 }

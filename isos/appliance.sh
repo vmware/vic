@@ -93,6 +93,8 @@ cp ${BIN}/vic-init $(rootfs_dir $PKGDIR)/sbin/vic-init
 cp ${BIN}/imagec $(rootfs_dir $PKGDIR)/sbin/imagec.bin
 cp ${BIN}/{docker-engine-server,port-layer-server,rpctool,vicadmin} $(rootfs_dir $PKGDIR)/sbin/
 
+echo "net.ipv4.ip_forward = 1" > $(rootfs_dir $PKGDIR)/usr/lib/sysctl.d/50-vic.conf
+
 ## Generate the ISO
 # Select systemd for our init process
 generate_iso $PKGDIR $BIN/appliance.iso /lib/systemd/systemd

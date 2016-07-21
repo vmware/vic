@@ -23,10 +23,6 @@ import (
 	"github.com/vmware/vic/lib/portlayer/exec"
 )
 
-var (
-	defaultSubnet *net.IPNet
-)
-
 const (
 	// BridgeScopeType denotes a scope that is of type bridge
 	BridgeScopeType = "bridge"
@@ -54,10 +50,6 @@ type Scope struct {
 type IPAM struct {
 	pools  []string
 	spaces []*AddressSpace
-}
-
-func init() {
-	_, defaultSubnet, _ = net.ParseCIDR("0.0.0.0/16")
 }
 
 func (s *Scope) Name() string {

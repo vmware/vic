@@ -35,9 +35,15 @@ func TestSessionDefaults(t *testing.T) {
 
 	session, err := NewSession(config).Create(ctx)
 	if err != nil {
-		t.Logf("%+v", err.Error())
+		eStr := err.Error()
+		t.Logf("%+v", eStr)
+		// FIXME: See comments below
+		if strings.Contains(eStr, "resolves to multiple hosts") {
+			t.SkipNow()
+		}
+		t.Logf("%+v", eStr)
 		if _, ok := err.(*find.DefaultMultipleFoundError); !ok {
-			t.Errorf(err.Error())
+			t.Errorf(eStr)
 		} else {
 			t.SkipNow()
 		}

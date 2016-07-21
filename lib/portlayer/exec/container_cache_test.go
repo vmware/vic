@@ -18,20 +18,33 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vmware/vic/lib/metadata"
 )
 
 func TestContainerCache(t *testing.T) {
 	NewContainerCache()
 	containerID := "1234"
 	id := ParseID(containerID)
+
 	// create a new container
 	NewContainer(id)
-	// should only have 1 in cache
-	assert.Equal(t, len(containers.cache), 1)
-	container := containers.Container(containerID)
+	// shouldn't have a container as it's not commited
+	assert.Equal(t, len(containers.cache), 0)
+
+	// create a new container
+	container := &Container{ExecConfig: &metadata.ExecutorConfig{}}
+	container.ExecConfig.ID = containerID
+	// put it in the cache
+	containers.Put(container)
+	// Get it
+	cachedContainer := containers.Container(containerID)
+	// did we find it?
+	assert.NotNil(t, cachedContainer)
 	// do we have this one in the cache?
-	assert.Equal(t, container.ExecConfig.ID, containerID)
+	assert.Equal(t, cachedContainer.ExecConfig.ID, containerID)
 	// remove the container
 	containers.Remove(containerID)
 	assert.Equal(t, len(containers.cache), 0)
+	// remove non-existent container
+	containers.Remove("blahblah")
 }

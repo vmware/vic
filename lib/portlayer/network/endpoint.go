@@ -14,7 +14,10 @@
 
 package network
 
-import "net"
+import (
+	"fmt"
+	"net"
+)
 
 type Endpoint struct {
 	id        string
@@ -24,6 +27,7 @@ type Endpoint struct {
 	gateway   net.IP
 	subnet    net.IPNet
 	static    bool
+	ports     map[Port]interface{} // exposed ports
 }
 
 func newEndpoint(container *Container, scope *Scope, ip *net.IP, subnet net.IPNet, gateway net.IP, pciSlot *int32) *Endpoint {
@@ -35,6 +39,7 @@ func newEndpoint(container *Container, scope *Scope, ip *net.IP, subnet net.IPNe
 		subnet:    subnet,
 		ip:        net.IPv4(0, 0, 0, 0),
 		static:    false,
+		ports:     make(map[Port]interface{}),
 	}
 
 	if ip != nil {
@@ -59,6 +64,15 @@ func removeEndpointHelper(ep *Endpoint, eps []*Endpoint) []*Endpoint {
 	return eps
 }
 
+func (e *Endpoint) addPort(p Port) error {
+	if _, ok := e.ports[p]; ok {
+		return fmt.Errorf("port %s already exposed", p)
+	}
+
+	e.ports[p] = nil
+	return nil
+}
+
 func (e *Endpoint) IP() net.IP {
 	return e.ip
 }
@@ -81,4 +95,15 @@ func (e *Endpoint) ID() string {
 
 func (e *Endpoint) Gateway() net.IP {
 	return e.gateway
+}
+
+func (e *Endpoint) Ports() []Port {
+	ports := make([]Port, len(e.ports))
+	i := 0
+	for p := range e.ports {
+		ports[i] = p
+		i++
+	}
+
+	return ports
 }
