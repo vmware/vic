@@ -33,7 +33,7 @@ import (
 const (
 	OptsVolumeStoreKey     string = "VolumeStore"
 	OptsCapacityKey        string = "Capacity"
-	dockerMetadataModelKey string = "dockerMetaData"
+	dockerMetadataModelKey string = "DockerMetaData"
 )
 
 //Volume : struct which defines the docker personalities view of a Volume
@@ -47,7 +47,7 @@ type volumeMetadata struct {
 	Labels     map[string]string
 }
 
-//Volumes : docker personality implementation for VIC
+//Volumes docker personality implementation for VIC
 func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
 	defer trace.End(trace.Begin("Volume.Volumes"))
 	var volumes []*types.Volume
@@ -72,9 +72,9 @@ func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
 	volumeResponses := res.Payload
 
 	log.Infof("volumes being returend : %+v", volumeResponses)
-	for _, v := range volumeResponses {
-		volumeMetadata := extractDockerMetadata(v.Metadata)
-		volume := fillDockerVolumeModel(v, volumeMetadata.Labels)
+	for i := range volumeResponses {
+		volumeMetadata := extractDockerMetadata(volumeResponses[i].Metadata)
+		volume := fillDockerVolumeModel(volumeResponses[i], volumeMetadata.Labels)
 		volumes = append(volumes, volume)
 	}
 	log.Infof("volumes being returend : %+v", volumes)

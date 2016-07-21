@@ -275,7 +275,7 @@ func (handler *StorageHandlersImpl) RemoveVolume(storage.RemoveVolumeParams) mid
 
 //VolumesList : Lists available volumes for use
 func (handler *StorageHandlersImpl) VolumesList(params storage.ListVolumesParams) middleware.Responder {
-	defer trace.End(trace.Begin("storage_handlers.VolumeList"))
+	defer trace.End(trace.Begin(""))
 	var result []*models.VolumeResponse
 
 	portlayerVolumes, err := storageVolumeLayer.VolumesList(context.TODO())
@@ -289,8 +289,8 @@ func (handler *StorageHandlersImpl) VolumesList(params storage.ListVolumesParams
 
 	log.Debugf("volumes fetched from list call : %#v", portlayerVolumes)
 
-	for _, v := range portlayerVolumes {
-		model, err := fillVolumeModel(v)
+	for i := range portlayerVolumes {
+		model, err := fillVolumeModel(portlayerVolumes[i])
 		if err != nil {
 			log.Error(err)
 			return storage.NewListVolumesInternalServerError().WithPayload(&models.Error{
