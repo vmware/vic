@@ -384,7 +384,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 			continue
 		}
 
-		if !ip.IsRoutableIP(gw.IP, &gw) {
+		if !ip.IsUnspecifiedSubnet(&gw) && !ip.IsRoutableIP(gw.IP, &gw) {
 			v.NoteIssue(fmt.Errorf("Gateway %s is not a routable address", gw.IP))
 			continue
 		}
