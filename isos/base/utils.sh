@@ -168,7 +168,7 @@ END {
 
 # Helper to ensure, if possible, that the specified packages are installed
 # ...: space separted list of packages
-ensure_apt_packges() {
+ensure_apt_packages() {
     local install
 
     # ensure we've got the utils we need
@@ -208,7 +208,7 @@ generate_iso() {
         return 1
     }
 
-    ensure_apt_packges cpio xorriso || {
+    ensure_apt_packages cpio xorriso || {
         echo "cpio and xorriso packages must be installed for ISO authoring: $?" 1>&2
         return 1
     }
@@ -305,7 +305,7 @@ yum_cached() {
         rm -fr ${INSTALLROOT}/var/cache/yum/*
     else
         # do this before we bother unpacking the cache
-        ensure_apt_packges yum || {
+        ensure_apt_packages yum || {
             echo "cpio and xorriso packages must be installed for ISO authoring: $?" 1>&2
             return 2
         }

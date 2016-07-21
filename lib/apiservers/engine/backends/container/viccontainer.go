@@ -24,6 +24,7 @@ type VicContainer struct {
 	ID          string
 	ContainerID string
 	Config      *containertypes.Config
+	HostConfig  *containertypes.HostConfig
 }
 
 func NewVicContainer() *VicContainer {

@@ -265,7 +265,8 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 				log.Warnf("failed bind container rollback: %s", err2)
 			}
 		}()
-		h = bindRes.Payload
+
+		h = bindRes.Payload.Handle
 	}
 
 	// commit handle
@@ -350,7 +351,7 @@ func (n *network) Delete() error {
 func (n *network) Endpoints() []libnetwork.Endpoint {
 	eps := make([]libnetwork.Endpoint, len(n.cfg.Endpoints))
 	for i, e := range n.cfg.Endpoints {
-		eps[i] = &endpoint{ep: e}
+		eps[i] = &endpoint{ep: e, sc: n.cfg}
 	}
 
 	return eps
@@ -359,7 +360,7 @@ func (n *network) Endpoints() []libnetwork.Endpoint {
 // WalkEndpoints uses the provided function to walk the Endpoints
 func (n *network) WalkEndpoints(walker libnetwork.EndpointWalker) {
 	for _, e := range n.cfg.Endpoints {
-		if walker(&endpoint{ep: e}) {
+		if walker(&endpoint{ep: e, sc: n.cfg}) {
 			return
 		}
 	}
@@ -369,7 +370,7 @@ func (n *network) WalkEndpoints(walker libnetwork.EndpointWalker) {
 func (n *network) EndpointByName(name string) (libnetwork.Endpoint, error) {
 	for _, e := range n.cfg.Endpoints {
 		if e.Name == name {
-			return &endpoint{ep: e}, nil
+			return &endpoint{ep: e, sc: n.cfg}, nil
 		}
 	}
 
@@ -380,7 +381,7 @@ func (n *network) EndpointByName(name string) (libnetwork.Endpoint, error) {
 func (n *network) EndpointByID(id string) (libnetwork.Endpoint, error) {
 	for _, e := range n.cfg.Endpoints {
 		if e.ID == id {
-			return &endpoint{ep: e}, nil
+			return &endpoint{ep: e, sc: n.cfg}, nil
 		}
 	}
 

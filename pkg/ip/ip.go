@@ -111,3 +111,32 @@ func (i *Range) UnmarshalText(text []byte) error {
 func IsUnspecifiedIP(ip net.IP) bool {
 	return len(ip) == 0 || ip.IsUnspecified()
 }
+
+func IsUnspecifiedSubnet(n *net.IPNet) bool {
+	if n == nil || IsUnspecifiedIP(n.IP) {
+		return true
+	}
+
+	ones, bits := n.Mask.Size()
+	return bits == 0 || ones == 0
+}
+
+// AllZerosAddr returns the all-zeros address for a subnet
+func AllZerosAddr(subnet *net.IPNet) net.IP {
+	return subnet.IP.Mask(subnet.Mask)
+}
+
+// AllOnesAddr returns the all-ones address for a subnet
+func AllOnesAddr(subnet *net.IPNet) net.IP {
+	ones := net.IPv4(0, 0, 0, 0)
+	ip := subnet.IP.To16()
+	for i := range ip[12:] {
+		ones[12+i] = ip[12+i] | ^subnet.Mask[i]
+	}
+
+	return ones
+}
+
+func IsRoutableIP(ip net.IP, subnet *net.IPNet) bool {
+	return subnet.Contains(ip) && !ip.Equal(AllZerosAddr(subnet)) && !ip.Equal(AllOnesAddr(subnet))
+}

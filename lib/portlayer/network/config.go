@@ -40,10 +40,10 @@ type ContainerNetwork struct {
 
 	// The network scope the IP belongs to.
 	// The IP address is the default gateway
-	Gateway net.IPNet `vic:"0.1" scope:"read-only" key:"gateway"`
+	Gateway net.IPNet `vic:"0.1" scope:"read-write" key:"gateway"`
 
 	// The set of nameservers associated with this network - may be empty
-	Nameservers []net.IP `vic:"0.1" scope:"read-only" key:"dns"`
+	Nameservers []net.IP `vic:"0.1" scope:"read-write" key:"dns"`
 
 	// The IP ranges for this network
 	Pools []ip.Range `vic:"0.1" scope:"read-only" key:"pools"`

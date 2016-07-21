@@ -34,6 +34,7 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"golang.org/x/net/context"
@@ -378,8 +379,13 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 		gw := input.MappedNetworksGateways[name]
 		pools := input.MappedNetworksIPRanges[name]
 		dns := input.MappedNetworksDNS[name]
-		if len(pools) != 0 && nilIPNet(gw) {
+		if len(pools) != 0 && ip.IsUnspecifiedSubnet(&gw) {
 			v.NoteIssue(fmt.Errorf("IP range specified without gateway for container network %q", name))
+			continue
+		}
+
+		if !ip.IsRoutableIP(gw.IP, &gw) {
+			v.NoteIssue(fmt.Errorf("Gateway %s is not a routable address", gw.IP))
 			continue
 		}
 
@@ -1196,8 +1202,4 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *metadata.Virt
 	log.Debugf("Datacenter: %q, Cluster: %q, Resource Pool: %q", dconfig.DatacenterName, dconfig.ClusterPath, dconfig.ResourcePoolPath)
 
 	return &dconfig
-}
-
-func nilIPNet(n net.IPNet) bool {
-	return n.IP == nil && n.Mask == nil
 }

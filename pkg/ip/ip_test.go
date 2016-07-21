@@ -94,3 +94,37 @@ func TestRangeOverlap(t *testing.T) {
 		}
 	}
 }
+
+func TestAllZerosAddr(t *testing.T) {
+	var tests = []struct {
+		subnet *net.IPNet
+		addr   net.IP
+	}{
+		{&net.IPNet{IP: net.ParseIP("192.168.0.0"), Mask: net.CIDRMask(16, 32)}, net.ParseIP("192.168.0.0")},
+		{&net.IPNet{IP: net.ParseIP("192.168.100.0"), Mask: net.CIDRMask(24, 32)}, net.ParseIP("192.168.100.0")},
+	}
+
+	for _, te := range tests {
+		addr := AllZerosAddr(te.subnet)
+		if !te.addr.Equal(addr) {
+			t.Fatalf("AllZerosAddr(%s) => got %s, want %s", te.subnet, addr, te.addr)
+		}
+	}
+}
+
+func TestAllOnesAddr(t *testing.T) {
+	var tests = []struct {
+		subnet *net.IPNet
+		addr   net.IP
+	}{
+		{&net.IPNet{IP: net.ParseIP("192.168.0.0"), Mask: net.CIDRMask(16, 32)}, net.ParseIP("192.168.255.255")},
+		{&net.IPNet{IP: net.ParseIP("192.168.100.0"), Mask: net.CIDRMask(24, 32)}, net.ParseIP("192.168.100.255")},
+	}
+
+	for _, te := range tests {
+		addr := AllOnesAddr(te.subnet)
+		if !te.addr.Equal(addr) {
+			t.Fatalf("AllOnesAddr(%s) => got %s, want %s", te.subnet, addr, te.addr)
+		}
+	}
+}

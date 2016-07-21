@@ -15,6 +15,7 @@
 package network
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"os"
@@ -68,6 +69,10 @@ var validScopeTests = []struct {
 	{params{"bridge", "bar5", &net.IPNet{IP: net.ParseIP("10.12.0.0"), Mask: net.CIDRMask(16, 32)}, net.IPv4(0, 0, 0, 0), []net.IP{net.ParseIP("10.10.1.1")}, []string{"10.12.1.0/24", "10.12.2.0-10.12.2.15"}},
 		&params{"bridge", "bar5", &net.IPNet{IP: net.ParseIP("10.12.0.0"), Mask: net.CIDRMask(16, 32)}, net.ParseIP("10.12.1.0"), []net.IP{net.ParseIP("10.10.1.1")}, nil},
 		nil},
+	// not from default pool, dns, gateway, and ipam specified
+	{params{"bridge", "bar51", &net.IPNet{IP: net.ParseIP("10.33.0.0"), Mask: net.CIDRMask(16, 32)}, net.IPv4(10, 33, 0, 1), []net.IP{net.ParseIP("10.10.1.1")}, []string{"10.33.0.0/16"}},
+		&params{"bridge", "bar51", &net.IPNet{IP: net.ParseIP("10.33.0.0"), Mask: net.CIDRMask(16, 32)}, net.ParseIP("10.33.0.1"), []net.IP{net.ParseIP("10.10.1.1")}, nil},
+		nil},
 	// from default pool, subnet specified
 	{params{"bridge", "bar6", &net.IPNet{IP: net.IPv4(172, 19, 0, 0), Mask: net.CIDRMask(16, 32)}, nil, nil, nil},
 		&params{"bridge", "bar6", &net.IPNet{IP: net.IPv4(172, 19, 0, 0), Mask: net.CIDRMask(16, 32)}, net.ParseIP("172.19.0.1"), nil, nil},
@@ -113,6 +118,28 @@ func TestMain(m *testing.M) {
 				Pools:       []ip.Range{*ip.ParseRange("10.13.1.0-255"), *ip.ParseRange("10.13.2.0-10.13.2.15")},
 				PortGroup:   testExternalNetwork,
 			},
+			"bar71": &ContainerNetwork{
+				Common: metadata.Common{
+					Name: "external",
+				},
+				Gateway:     net.IPNet{IP: net.ParseIP("10.131.0.1"), Mask: net.CIDRMask(16, 32)},
+				Nameservers: []net.IP{net.ParseIP("10.131.0.1"), net.ParseIP("10.131.0.2")},
+				Pools:       []ip.Range{*ip.ParseRange("10.131.1.0/16")},
+				PortGroup:   testExternalNetwork,
+			},
+			"bar72": &ContainerNetwork{
+				Common: metadata.Common{
+					Name: "external",
+				},
+				PortGroup: testExternalNetwork,
+			},
+			"bar73": &ContainerNetwork{
+				Common: metadata.Common{
+					Name: "external",
+				},
+				Gateway:   net.IPNet{IP: net.ParseIP("10.133.0.1"), Mask: net.CIDRMask(16, 32)},
+				PortGroup: testExternalNetwork,
+			},
 		},
 	}
 
@@ -127,36 +154,64 @@ func TestMapExternalNetworks(t *testing.T) {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
 
-	// check if external network was loaded
-	bar7 := "bar7"
-	scopes, err := ctx.Scopes(&bar7)
-	if err != nil || scopes == nil || len(scopes) != 1 {
-		t.Fatalf("external network was not loaded")
-	}
+	// check if external networks were loaded
+	for n, nn := range Config.ContainerNetworks {
+		scopes, err := ctx.Scopes(&n)
+		if err != nil || len(scopes) != 1 {
+			t.Fatalf("external network %s was not loaded", n)
+		}
 
-	s := scopes[0]
-	n := Config.ContainerNetworks["bar7"]
-	if s.Name() != "bar7" {
-		t.Fatalf("got %s, want %s", s.Name(), "bar7")
-	}
-	if !s.Gateway().Equal(n.Gateway.IP) {
-		t.Fatalf("got %s, want %s", s.Gateway(), n.Gateway.IP)
-	}
-	sn := net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}
-	if s.Subnet().String() != sn.String() {
-		t.Fatalf("got %s, want %s", s.Subnet(), sn)
-	}
-	if s.Type() != ExternalScopeType {
-		t.Fatalf("got %s, want %s", s.Type(), ExternalScopeType)
-	}
-	for i, sp := range s.IPAM().spaces {
-		if sp.Pool.String() != n.Pools[i].String() {
-			t.Fatalf("got %s, want %s", sp.Pool.String(), n.Pools[i].String())
+		s := scopes[0]
+		pools := s.IPAM().Pools()
+		if !ip.IsUnspecifiedIP(nn.Gateway.IP) {
+			subnet := &net.IPNet{IP: nn.Gateway.IP.Mask(nn.Gateway.Mask), Mask: nn.Gateway.Mask}
+			if ip.IsUnspecifiedSubnet(s.Subnet()) || !s.Subnet().IP.Equal(subnet.IP) || !bytes.Equal(s.Subnet().Mask, subnet.Mask) {
+				t.Fatalf("external network %s was loaded with wrong subnet, got: %s, want: %s", n, s.Subnet(), subnet)
+			}
+
+			if ip.IsUnspecifiedIP(s.Gateway()) || !s.Gateway().Equal(nn.Gateway.IP) {
+				t.Fatalf("external network %s was loaded with wrong gateway, got: %s, want: %s", n, s.Gateway(), nn.Gateway.IP)
+			}
+
+			if len(nn.Pools) == 0 {
+				// only one pool corresponding to the subnet
+				if len(pools) != 1 || pools[0] != subnet.String() {
+					t.Fatalf("external network %s was loaded with wrong pool, got: %+v, want %+v", n, pools, []*net.IPNet{subnet})
+				}
+			}
+		}
+
+		for _, d := range nn.Nameservers {
+			found := false
+			for _, d2 := range s.DNS() {
+				if d2.Equal(d) {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				t.Fatalf("external network %s was loaded with wrong nameservers, got: %+v, want: %+v", n, s.DNS(), nn.Nameservers)
+			}
+		}
+
+		for _, p := range nn.Pools {
+			found := false
+			for _, p2 := range pools {
+				if p2 == p.String() {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				t.Fatalf("external network %s was loaded with wrong pools, got: %+v, want: %+v", n, s.IPAM().Pools(), nn.Pools)
+			}
 		}
 	}
 }
 
-func TestContext(t *testing.T) {
+func TestContextNewScope(t *testing.T) {
 	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
@@ -168,31 +223,35 @@ func TestContext(t *testing.T) {
 		err error
 	}{
 		// empty name
-		{params{"bridge", "", nil, net.IPv4(0, 0, 0, 0), nil, nil}, nil, nil},
+		{params{"bridge", "", nil, net.IPv4(0, 0, 0, 0), nil, nil}, nil, fmt.Errorf("")},
 		// unsupported network type
-		{params{"foo", "bar8", nil, net.IPv4(0, 0, 0, 0), nil, nil}, nil, nil},
+		{params{"foo", "bar8", nil, net.IPv4(0, 0, 0, 0), nil, nil}, nil, fmt.Errorf("")},
 		// duplicate name
 		{params{"bridge", "bar6", nil, net.IPv4(0, 0, 0, 0), nil, nil}, nil, DuplicateResourceError{}},
 		// ip range already allocated
-		{params{"bridge", "bar9", &net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(0, 0, 0, 0), nil, nil}, nil, nil},
+		{params{"bridge", "bar9", &net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(0, 0, 0, 0), nil, nil}, nil, fmt.Errorf("")},
 		// ipam out of range of network
-		{params{"bridge", "bar10", &net.IPNet{IP: net.IPv4(10, 14, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(0, 0, 0, 0), nil, []string{"10.14.1.0/24", "10.15.1.0/24"}}, nil, nil},
+		{params{"bridge", "bar10", &net.IPNet{IP: net.IPv4(10, 14, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(0, 0, 0, 0), nil, []string{"10.14.1.0/24", "10.15.1.0/24"}}, nil, fmt.Errorf("")},
+		// gateway not on subnet
+		{params{"bridge", "bar101", &net.IPNet{IP: net.IPv4(10, 141, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(10, 14, 0, 1), nil, nil}, nil, fmt.Errorf("")},
+		// gateway is allzeros address
+		{params{"bridge", "bar102", &net.IPNet{IP: net.IPv4(10, 142, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(10, 142, 0, 0), nil, nil}, nil, fmt.Errorf("")},
+		// gateway is allones address
+		{params{"bridge", "bar103", &net.IPNet{IP: net.IPv4(10, 143, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(10, 143, 255, 255), nil, nil}, nil, fmt.Errorf("")},
 		// this should succeed now
 		{params{"bridge", "bar11", &net.IPNet{IP: net.IPv4(10, 14, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(0, 0, 0, 0), nil, []string{"10.14.1.0/24"}},
 			&params{"bridge", "bar11", &net.IPNet{IP: net.IPv4(10, 14, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(10, 14, 1, 0), nil, nil},
 			nil},
 		// bad ipam
-		{params{"bridge", "bar12", &net.IPNet{IP: net.IPv4(10, 14, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(0, 0, 0, 0), nil, []string{"10.14.1.0/24", "10.15.1"}}, nil, nil},
+		{params{"bridge", "bar12", &net.IPNet{IP: net.IPv4(10, 14, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(0, 0, 0, 0), nil, []string{"10.14.1.0/24", "10.15.1"}}, nil, fmt.Errorf("")},
 		// bad ipam, default bridge pool
-		{params{"bridge", "bar12", &net.IPNet{IP: net.IPv4(172, 21, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(0, 0, 0, 0), nil, []string{"172.21.1.0/24", "10.15.1"}}, nil, nil},
-		// external networks must have subnet specified
-		{params{"external", "bar13", nil, net.IPv4(0, 0, 0, 0), nil, []string{"10.15.0.0/24"}}, nil, nil},
-		// external networks must have gateway specified
-		{params{"external", "bar14", &net.IPNet{IP: net.IPv4(10, 14, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(0, 0, 0, 0), nil, []string{"10.15.0.0/24"}}, nil, nil},
-		// external networks must have ipam specified
-		{params{"external", "bar15", &net.IPNet{IP: net.IPv4(10, 14, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(10, 14, 0, 1), nil, nil}, nil, nil},
+		{params{"bridge", "bar12", &net.IPNet{IP: net.IPv4(172, 21, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(0, 0, 0, 0), nil, []string{"172.21.1.0/24", "10.15.1"}}, nil, fmt.Errorf("")},
+		// external networks must have subnet specified, if pool is specified
+		{params{"external", "bar13", nil, net.IPv4(0, 0, 0, 0), nil, []string{"10.15.0.0/24"}}, nil, fmt.Errorf("")},
+		// external networks must have gateway specified, if pool is specified
+		{params{"external", "bar14", &net.IPNet{IP: net.IPv4(10, 14, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(0, 0, 0, 0), nil, []string{"10.15.0.0/24"}}, nil, fmt.Errorf("")},
 		// external networks cannot overlap bridge pool
-		{params{"external", "bar16", &net.IPNet{IP: net.IPv4(172, 20, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(10, 14, 0, 1), nil, []string{"172.20.0.0/16"}}, nil, nil},
+		{params{"external", "bar16", &net.IPNet{IP: net.IPv4(172, 20, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(10, 14, 0, 1), nil, []string{"172.20.0.0/16"}}, nil, fmt.Errorf("")},
 	}
 
 	tests = append(validScopeTests, tests...)
@@ -208,7 +267,13 @@ func TestContext(t *testing.T) {
 		if te.out == nil {
 			// error case
 			if s != nil || err == nil {
-				t.Fatalf("NewScope() => (s, nil), want (nil, err)")
+				t.Fatalf("NewScope(%s, %s, %s, %s, %+v, %+v) => (s, nil), want (nil, err)",
+					te.in.scopeType,
+					te.in.name,
+					te.in.subnet,
+					te.in.gateway,
+					te.in.dns,
+					te.in.ipam)
 			}
 
 			// if there is an error specified, check if we got that error
@@ -368,10 +433,10 @@ func TestScopes(t *testing.T) {
 			}
 		}
 
-		// +2 for the default bridge scope, and one external network
+		// +5 for the default bridge scope, and 4 external networks
 		if te.in == nil {
-			if len(l) != len(te.out)+2 {
-				t.Fatalf("len(scopes) => %d != %d", len(l), len(te.out)+1)
+			if len(l) != len(te.out)+5 {
+				t.Fatalf("len(scopes) => %d != %d", len(l), len(te.out)+5)
 				continue
 			}
 		} else {
