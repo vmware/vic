@@ -14,14 +14,20 @@
 
 package vicbackends
 
+//****
+// system.go
+//
+// Rules for code to be in here:
+// 1. No remote or swagger calls.  Move those code to system_portlayer.go
+// 2. Always return docker engine-api compatible errors.
+//		- Do NOT return fmt.Errorf()
+//		- Do NOT return errors.New()
+//		- DO USE the aliased docker error package 'derr'
+//		- It is OK to return errors returned from functions in system_portlayer.go
+
 import (
-	"bufio"
 	"fmt"
-	"net/http"
-	"os"
-	"regexp"
 	"runtime"
-	"strings"
 	"time"
 
 	"golang.org/x/net/context"
@@ -29,75 +35,40 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
-	"github.com/vmware/vic/lib/apiservers/portlayer/client"
-	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
-	"github.com/vmware/vic/lib/apiservers/portlayer/client/misc"
 	"github.com/vmware/vic/pkg/trace"
 
-	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/platform"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/events"
 	"github.com/docker/engine-api/types/filters"
+	"github.com/docker/go-units"
 )
 
 type System struct {
-}
-
-type ContainerStatus struct {
-	count      int
-	numRunning int
-	numStopped int
-	numPaused  int
+	systemProxy VicSystemProxy
 }
 
 const (
-	etcReleaseFile    = "/etc/os-release"
-	usrlibReleaseFile = "/usr/lib/os-release"
-	unknown           = "<unknown"
+	systemStatusMhz    = " VCH mhz limit"
+	systemStatusMemory = " VCH memory limit"
+	systemOS           = " VMware OS"
+	systemOSVersion    = " VMware OS version"
+	systemProductName  = " VMware Product"
 )
+
+func NewSystemBackend() *System {
+	return &System{
+		systemProxy: &SystemProxy{},
+	}
+}
 
 func (s *System) SystemInfo() (*types.Info, error) {
 	defer trace.End(trace.Begin("SystemInfo"))
 
-	// Use docker pkgs to get some system data
-	kernelVersion := unknown
-	if kv, err := kernel.GetKernelVersion(); err != nil {
-		log.Warnf("Could not get kernel version: %v", err)
-	} else {
-		kernelVersion = kv.String()
-	}
-
-	operatingSystem := getOperatingSystem()
-
-	meminfo, err := system.ReadMemInfo()
-	if err != nil {
-		log.Errorf("Could not read system memory info: %v", err)
-	}
-
-	// Check if portlayer server is up
-	plClient := PortLayerClient()
-
-	systemStatus := make([][2]string, 1)
-	systemStatus[0][0] = PortLayerName()
-	if pingPortlayer(plClient) {
-		systemStatus[0][1] = "RUNNING"
-	} else {
-		systemStatus[0][1] = "STOPPED"
-	}
-
-	// Retrieve number of images from storage port layer
-	numImages := getImageCount(plClient)
-	if err != nil {
-		log.Infof("System.SytemInfo unable to get image count: %s.", err.Error())
-	}
-
 	// Retieve container status from port layer
-	containerStatus, err := getContainerStatus(plClient)
+	running, paused, stopped, err := s.systemProxy.ContainerCount()
 	if err != nil {
-		log.Infof("System.SytemInfo unable to get global status on containers: ", err.Error())
+		log.Infof("System.SytemInfo unable to get global status on containers: %s", err.Error())
 	}
 
 	// Build up the struct that the Remote API and CLI wants
@@ -106,12 +77,11 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		IndexServerAddress: IndexServerAddress,
 		ServerVersion:      ProductVersion(),
 		ID:                 ProductName(),
-		Containers:         containerStatus.count,
-		ContainersRunning:  containerStatus.numRunning,
-		ContainersPaused:   containerStatus.numPaused,
-		ContainersStopped:  containerStatus.numStopped,
-		Images:             numImages,
-		SystemStatus:       systemStatus,
+		Containers:         running + paused + stopped,
+		ContainersRunning:  running,
+		ContainersPaused:   paused,
+		ContainersStopped:  stopped,
+		Images:             getImageCount(),
 		Debug:              VchConfig().Diagnostics.DebugLevel > 0,
 		NGoroutines:        runtime.NumGoroutine(),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
@@ -128,28 +98,26 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		// These are system related.  Some refer to cgroup info.  Others are
 		// retrieved from the port layer and are information about the resource
 		// pool.
-		// FIXME: update this once we get the resource pool info
-		Name:            VchConfig().Name,
-		KernelVersion:   kernelVersion,         //stubbed
-		OperatingSystem: operatingSystem,       //stubbed
-		OSType:          platform.OSType,       //stubbed
-		Architecture:    platform.Architecture, //stubbed
-		NCPU:            runtime.NumCPU(),      //stubbed
-		MemTotal:        meminfo.MemTotal,      //stubbed
-		CPUCfsPeriod:    false,
-		CPUCfsQuota:     false,
-		CPUShares:       false,
-		CPUSet:          false,
-		OomKillDisable:  true,
-		//	MemoryLimit        bool
-		//	SwapLimit          bool
-		KernelMemory: false,
-		//	IPv4Forwarding     bool
-		//	BridgeNfIptables   bool
-		//	BridgeNfIP6tables  bool `json:"BridgeNfIp6tables"`
-		HTTPProxy:  "",
-		HTTPSProxy: "",
-		NoProxy:    "",
+		Name:          VchConfig().Name,
+		KernelVersion: "",
+		Architecture:  platform.Architecture, //stubbed
+
+		// NOTE: These values have no meaning for VIC.  We default them to true to
+		// prevent the CLI from displaying warning messages.
+		CPUCfsPeriod:      true,
+		CPUCfsQuota:       true,
+		CPUShares:         true,
+		CPUSet:            true,
+		OomKillDisable:    true,
+		MemoryLimit:       true,
+		SwapLimit:         true,
+		KernelMemory:      true,
+		IPv4Forwarding:    true,
+		BridgeNfIptables:  true,
+		BridgeNfIP6tables: true,
+		HTTPProxy:         "",
+		HTTPSProxy:        "",
+		NoProxy:           "",
 	}
 
 	// Add in network info from the VCH via guestinfo
@@ -160,6 +128,50 @@ func (s *System) SystemInfo() (*types.Info, error) {
 	// Add in volume info from the VCH via guestinfo
 	for _, location := range VchConfig().VolumeLocations {
 		info.Plugins.Volume = append(info.Plugins.Volume, location.String())
+	}
+
+	// Check if portlayer server is up
+	info.SystemStatus = make([][2]string, 0)
+	if s.systemProxy.PingPortlayer() {
+		status := [2]string{PortLayerName(), "RUNNING"}
+		info.SystemStatus = append(info.SystemStatus, status)
+	} else {
+		status := [2]string{PortLayerName(), "STOPPED"}
+		info.SystemStatus = append(info.SystemStatus, status)
+	}
+
+	// Add in vch information
+	vchInfo, err := s.systemProxy.VCHInfo()
+	if err != nil || vchInfo == nil {
+		log.Infof("System.SystemInfo unable to get vch info from port layer: %s", err.Error())
+	} else {
+		if vchInfo.CPUMhz != nil {
+			info.NCPU = int(*vchInfo.CPUMhz)
+
+			customInfo := [2]string{systemStatusMhz, fmt.Sprintf("%d Mhz", info.NCPU)}
+			info.SystemStatus = append(info.SystemStatus, customInfo)
+		}
+		if vchInfo.Memory != nil {
+			info.MemTotal = *vchInfo.Memory << 20 //Multiply by 1024*1024 to get Mebibytes
+
+			customInfo := [2]string{systemStatusMemory, units.BytesSize(float64(info.MemTotal))}
+			info.SystemStatus = append(info.SystemStatus, customInfo)
+		}
+		if vchInfo.HostProductName != nil {
+			customInfo := [2]string{systemProductName, *vchInfo.HostProductName}
+			info.SystemStatus = append(info.SystemStatus, customInfo)
+		}
+		if vchInfo.HostOS != nil {
+			info.OperatingSystem = *vchInfo.HostOS
+			info.OSType = *vchInfo.HostOS //Value for OS and OS Type the same from vmomi
+
+			customInfo := [2]string{systemOS, *vchInfo.HostOS}
+			info.SystemStatus = append(info.SystemStatus, customInfo)
+		}
+		if vchInfo.HostOSVersion != nil {
+			customInfo := [2]string{systemOSVersion, *vchInfo.HostOSVersion}
+			info.SystemStatus = append(info.SystemStatus, customInfo)
+		}
 	}
 
 	return info, nil
@@ -212,78 +224,7 @@ func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.A
 
 // Utility functions
 
-// Returns the name of the OS on the appliance vm.  Very likely Photon OS.  This
-// function takes the place of Docker's function that relies on other packages.
-// Since VIC will likely run on either Photon OS or devbox (ubuntu), we can
-// make some assumptions that avoid having to pull in other packages.
-func getOperatingSystem() string {
-	releaseFile, err := os.Open(etcReleaseFile)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return "<unknown>"
-		}
-		releaseFile, err = os.Open(usrlibReleaseFile)
-		if err != nil {
-			return "<unknown>"
-		}
-	}
-
-	var prettyName string
-	re := regexp.MustCompile("\"")
-	scanner := bufio.NewScanner(releaseFile)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "PRETTY_NAME=") {
-			parts := strings.Split(line, "=")
-			prettyName = re.ReplaceAllString(parts[1], "")
-
-			return prettyName
-		}
-	}
-
-	return "Linux"
-}
-
-func pingPortlayer(plClient *client.PortLayer) bool {
-	if plClient != nil {
-		pingParams := misc.NewPingParams()
-		_, err := plClient.Misc.Ping(pingParams)
-		if err != nil {
-			log.Info("Ping to portlayer failed")
-			return false
-		}
-		return true
-	}
-
-	log.Errorf("Portlayer client is invalid")
-	return false
-}
-
-func getImageCount(plClient *client.PortLayer) int {
-
+func getImageCount() int {
 	images := cache.ImageCache().GetImages()
 	return len(images)
-}
-
-// Use the Portlayer's support for docker ps to get the container count
-func getContainerStatus(plClient *client.PortLayer) (ContainerStatus, error) {
-	var status ContainerStatus
-
-	all := new(bool)
-	*all = true
-	containList, err := plClient.Containers.GetContainerList(containers.NewGetContainerListParams().WithAll(all))
-	if err != nil {
-		return status, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get container list: %s", err), http.StatusInternalServerError)
-	}
-
-	for _, t := range containList.Payload {
-		if *t.Status == "Running" {
-			status.numRunning++
-		} else if *t.Status == "Stopped" {
-			status.numStopped++
-		}
-		status.count++
-	}
-
-	return status, nil
 }

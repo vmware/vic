@@ -118,5 +118,15 @@ func Init(ctx context.Context, sess *session.Session) error {
 	// Grab the storage layer config blobs from extra config
 	extraconfig.Decode(source, &storage.Config)
 	log.Debugf("Decoded VCH config for storage: %#v", storage.Config)
+
+	// Grab the AboutInfo about our host environment
+	about := sess.Vim25().ServiceContent.About
+	exec.VCHConfig.VCHMhz = exec.NCPU(ctx)
+	exec.VCHConfig.VCHMemoryLimit = exec.MemTotal(ctx)
+	exec.VCHConfig.HostOS = about.OsType
+	exec.VCHConfig.HostOSVersion = about.Version
+	exec.VCHConfig.HostProductName = about.Name
+	log.Debugf("Host - OS (%s), version (%s), name (%s)", about.OsType, about.Version, about.Name)
+	log.Debugf("VCH limits - %d Mhz, %d MB", exec.VCHConfig.VCHMhz, exec.VCHConfig.VCHMemoryLimit)
 	return nil
 }
