@@ -75,7 +75,7 @@ func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
 	for _, v := range volumeResponses {
 		volumeMetadata := extractDockerMetadata(v.Metadata)
 		volume := fillDockerVolumeModel(v, volumeMetadata.Labels)
-		volumes = append(volumes, &volume)
+		volumes = append(volumes, volume)
 	}
 	log.Infof("volumes being returend : %+v", volumes)
 	return volumes, nil, nil
