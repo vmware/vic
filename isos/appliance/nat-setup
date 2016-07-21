@@ -70,6 +70,7 @@ COMMIT
 -A INPUT -p icmp -m icmp --icmp-type 8 -j ACCEPT
 -A INPUT -p udp -m udp --dport 68 -j ACCEPT
 -A INPUT -p tcp -m tcp --dport 2378 -j ACCEPT
+-A INPUT -p tcp -m tcp --dport 2375 -j ACCEPT
 -A INPUT -p tcp -m tcp --dport 2376 -j ACCEPT
 -A INPUT -i bridge -p udp -m udp --dport 53 -j ACCEPT
 -A INPUT -i bridge -p tcp -m tcp --dport 53 -j ACCEPT
