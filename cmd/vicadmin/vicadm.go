@@ -164,16 +164,17 @@ func configureReaders() map[string]entryReader {
 	}
 
 	readers := map[string]entryReader{
-		"proc-mounts": fileReader("/proc/mounts"),
-		"uptime":      commandReader("uptime"),
-		"df":          commandReader("df"),
-		"free":        commandReader("free"),
-		"netstat":     commandReader("netstat -ant"),
-		"iptables":    commandReader("sudo iptables --list"),
-		"ip-link":     commandReader("ip link"),
-		"ip-addr":     commandReader("ip addr"),
-		"ip-route":    commandReader("ip route"),
-		"lsmod":       commandReader("lsmod"),
+		"proc-mounts":  fileReader("/proc/mounts"),
+		"uptime":       commandReader("uptime"),
+		"df":           commandReader("df"),
+		"free":         commandReader("free"),
+		"netstat":      commandReader("netstat -ant"),
+		"iptables":     commandReader("sudo iptables -L -v"),
+		"iptables-nat": commandReader("sudo iptables -L -v -t nat"),
+		"ip-link":      commandReader("ip link"),
+		"ip-addr":      commandReader("ip addr"),
+		"ip-route":     commandReader("ip route"),
+		"lsmod":        commandReader("lsmod"),
 		// TODO: ls without shelling out
 		"disk-by-path":  commandReader("ls -l /dev/disk/by-path"),
 		"disk-by-label": commandReader("ls -l /dev/disk/by-label"),
