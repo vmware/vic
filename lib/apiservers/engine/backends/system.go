@@ -125,9 +125,9 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		info.Plugins.Network = append(info.Plugins.Network, network.Name)
 	}
 
-	// Add in volume info from the VCH via guestinfo
-	for _, location := range VchConfig().VolumeLocations {
-		info.Plugins.Volume = append(info.Plugins.Volume, location.String())
+	// Add in volume label from the VCH via guestinfo
+	for label := range VchConfig().VolumeLocations {
+		info.Plugins.Volume = append(info.Plugins.Volume, label)
 	}
 
 	// Check if portlayer server is up
