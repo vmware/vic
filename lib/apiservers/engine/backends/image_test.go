@@ -62,7 +62,7 @@ func TestConvertV1ImageToDockerImage(t *testing.T) {
 	assert.Equal(t, tag, dockerImage.RepoTags[0], "Error: expected tag %s, got %s", tag, dockerImage.RepoTags[0])
 }
 
-func TestclientFriendlyTags(t *testing.T) {
+func TestClientFriendlyTags(t *testing.T) {
 	imageName := "busybox"
 	tags := []string{"1.24.2", "latest"}
 
@@ -77,7 +77,7 @@ func TestclientFriendlyTags(t *testing.T) {
 
 }
 
-func TestclientFriendlyDigests(t *testing.T) {
+func TestClientFriendlyDigests(t *testing.T) {
 	imageName := "busybox"
 	digests := []string{"12345", "6789"}
 

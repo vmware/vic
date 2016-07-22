@@ -253,7 +253,7 @@ func TestLogTail(t *testing.T) {
 
 	for _, path := range paths {
 		u.Path = path
-		log.Printf("GET %s:\n", u)
+		log.Printf("GET %s:\n", u.String())
 		res, err := insecureClient.Get(u.String())
 		if err != nil {
 			t.Fatal(err)
