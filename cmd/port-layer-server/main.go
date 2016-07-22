@@ -37,6 +37,7 @@ var (
 func init() {
 	pprof.StartPprof("portlayer server", pprof.PortlayerPort)
 }
+
 func main() {
 	swaggerSpec, err := spec.New(restapi.SwaggerJSON, "")
 	if err != nil {
@@ -77,7 +78,10 @@ func main() {
 
 	go func() {
 		<-sig
+
 		dnsserver.Stop()
+
+		server.Stop()
 	}()
 
 	go func() {
