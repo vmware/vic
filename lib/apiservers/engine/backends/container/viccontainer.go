@@ -15,8 +15,14 @@
 package container
 
 import (
+	"fmt"
+	"strings"
+
 	containertypes "github.com/docker/engine-api/types/container"
 )
+
+// DefaultEnvPath defines the default PATH environment variable to use in a container
+const DefaultEnvPath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 // VicContainer is VIC's abridged version of Docker's container object.
 type VicContainer struct {
@@ -27,8 +33,77 @@ type VicContainer struct {
 	HostConfig  *containertypes.HostConfig
 }
 
+// NewVicContainer returns a reference to a new VicContainer
 func NewVicContainer() *VicContainer {
 	return &VicContainer{
 		Config: &containertypes.Config{},
 	}
+}
+
+// SetConfigOptions is a place to add necessary container configuration
+// values that were not explicitly supplied by the user
+func (c *VicContainer) SetConfigOptions(config *containertypes.Config) {
+	// Overwrite or append the image's config from the CLI with the metadata from the image's
+	// layer metadata where appropriate
+	if len(config.Cmd) == 0 {
+		config.Cmd = c.Config.Cmd
+	}
+	if config.WorkingDir == "" {
+		config.WorkingDir = c.Config.WorkingDir
+	}
+	if len(config.Entrypoint) == 0 {
+		config.Entrypoint = c.Config.Entrypoint
+	}
+
+	// set up environment
+	setEnv(config, c.Config)
+}
+
+func setEnv(config, imageConfig *containertypes.Config) {
+	// Set TERM to xterm if tty is set
+	if config.Tty {
+		config.Env = append(config.Env, "TERM=xterm")
+	}
+
+	// Set PATH in ENV if needed
+	setPath(config, imageConfig)
+
+	// add remaining environment variables from the image config to the container
+	// config, taking care not to overwrite anything
+	containerEnv := make(map[string]string, len(config.Env))
+	for _, env := range config.Env {
+		kv := strings.Split(env, "=")
+		containerEnv[kv[0]] = kv[1]
+	}
+
+	for _, imageEnv := range imageConfig.Env {
+		key := strings.Split(imageEnv, "=")[0]
+		// is environment variable already set in container config?
+		if _, ok := containerEnv[key]; !ok {
+			// no? let's copy it from the image config
+			config.Env = append(config.Env, imageEnv)
+		}
+	}
+}
+
+func setPath(config, imageConfig *containertypes.Config) {
+	// check if user supplied PATH environment variable at creation time
+	for _, v := range config.Env {
+		if strings.HasPrefix(v, "PATH=") {
+			// a PATH is set, bail
+			return
+		}
+	}
+
+	// check to see if the image this container is created from supplies a PATH
+	for _, v := range imageConfig.Env {
+		if strings.HasPrefix(v, "PATH=") {
+			// a PATH was found, add it to the config
+			config.Env = append(config.Env, v)
+			return
+		}
+	}
+
+	// no PATH set, use the default
+	config.Env = append(config.Env, fmt.Sprintf("PATH=%s", DefaultEnvPath))
 }

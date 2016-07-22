@@ -43,6 +43,14 @@ flag:
 ./create-esxi-vm.sh -s -d 56 $GOVC_URL my-esxi-vm
 ```
 
+The script can also be used directly against Workstation.  Without a username in the url, govc will use local ticket
+authentication.  No password is used in this case, but the script will still use this value to set the password for
+`root` in the ESX vm.  You may also want to decrease the default disk `-d` and memory `-m` sizes.  Example:
+
+```
+GOVC_NETWORK=NAT ./create-esxi-vm.sh -d 16 -m 4 -s :password-for-esx60@localhost esxbox
+```
+
 ### create-vcsa-vm.sh
 
 This script creates a VM with VCSA (Virtual Center Server Appliance)

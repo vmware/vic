@@ -17,19 +17,22 @@
 
 set -o pipefail
 
-echo "Checking govc version...$(govc version -require 0.7.1 2>&1)"
-
 usage() {
-    echo "Usage: $0 [-d DISK_GB] [-m MEM_GB] [-i ESX_ISO] [-s] ESX_URL VM_NAME" 1>&2
-    exit 1
+    cat <<'EOF'
+Usage: $0 [-d DISK_GB] [-m MEM_GB] [-i ESX_ISO] [-s] ESX_URL VM_NAME
+
+GOVC_* environment variables also apply, see https://github.com/vmware/govmomi/tree/master/govc#usage
+If GOVC_USERNAME is set, it is used to create an account on the ESX vm.  Default is to use the existing root account.
+If GOVC_PASSWORD is set, the account password will be set to this value.  Default is to use the given ESX_URL password.
+EOF
 }
 
 disk=48
 mem=16
-iso=VMware-VMvisor-6.0.0-3634798.x86_64.iso
-vib=http://download3.vmware.com/software/vmw-tools/esxui/esxui-signed-3843236.vib
+iso=VMware-VMvisor-6.0.0-3620759.x86_64.iso # 6.0u2
+vib=http://download3.vmware.com/software/vmw-tools/esxui/esxui-signed-3976049.vib
 
-while getopts c:d:i:m:s flag
+while getopts c:d:hi:m:s flag
 do
     case $flag in
         c)
@@ -37,6 +40,10 @@ do
             ;;
         d)
             disk=$OPTARG
+            ;;
+        h)
+            usage
+            exit
             ;;
         i)
             iso=$OPTARG
@@ -48,7 +55,8 @@ do
             standalone=true
             ;;
         *)
-            usage
+            usage 1>&2
+            exit 1
             ;;
     esac
 done
@@ -59,8 +67,27 @@ if [ $# -ne 2 ] ; then
     usage
 fi
 
+if [[ "$iso" == *"-Installer-"* ]] ; then
+    echo "Invalid iso name (need stateless, not installer): $iso" 1>&2
+    exit 1
+fi
+
+echo -n "Checking govc version..."
+govc version -require 0.8.0
+
+username=$GOVC_USERNAME
+password=$GOVC_PASSWORD
+unset GOVC_USERNAME GOVC_PASSWORD
+
+if [ -z "$password" ] ; then
+    # extract password from $GOVC_URL
+    password=$(govc env | grep GOVC_PASSWORD= | cut -d= -f 2-)
+fi
+
 export GOVC_INSECURE=1
 export GOVC_URL=$1
+export GOVC_DATASTORE=${GOVC_DATASTORE:-$(basename "$(govc ls datastore)")}
+network=${GOVC_NETWORK:-"VM Network"}
 shift
 
 name=$1
@@ -72,18 +99,23 @@ if ! govc datastore.ls "$boot" > /dev/null 2>&1 ; then
 fi
 
 echo "Creating vm ${name}..."
-govc vm.create -on=false -net "VM Network" -m $((mem*1024)) -c 2 -g "vmkernel6Guest" -net.adapter=e1000e "$name"
+govc vm.create -on=false -net "$network" -m $((mem*1024)) -c 2 -g "vmkernel6Guest" -net.adapter=e1000e "$name"
 
 echo "Adding a second nic for ${name}..."
-govc vm.network.add -net "VM Network" -net.adapter=e1000e -vm "$name"
+govc vm.network.add -net "$network" -net.adapter=e1000e -vm "$name"
 
 echo "Enabling nested hv for ${name}..."
 govc vm.change -vm "$name" -nested-hv-enabled
 
+echo "Enabling Mac Learning dvFilter for ${name}..."
+seq 0 1 | xargs -I% govc vm.change -vm "$name" \
+                -e ethernet%.filter4.name=dvfilter-maclearn \
+                -e ethernet%.filter4.onFailure=failOpen
+
 echo "Adding cdrom device to ${name}..."
 id=$(govc device.cdrom.add -vm "$name")
 
-echo "Inserting $boot in $name cdrom device..."
+echo "Inserting $boot into $name cdrom device..."
 govc device.cdrom.insert -vm "$name" -device "$id" "$boot"
 
 echo "Powering on $name VM..."
@@ -93,9 +125,6 @@ echo "Waiting for $name ESXi IP..."
 vm_ip=$(govc vm.ip "$name")
 
 ! govc events -n 100 "vm/$name" | egrep 'warning|error'
-
-# extract password from $GOVC_URL
-password=$(govc env | grep GOVC_PASSWORD= | cut -d= -f 2-)
 
 esx_url="root:@${vm_ip}"
 echo "Waiting for $name hostd (via GOVC_URL=$esx_url)..."
@@ -144,8 +173,21 @@ for id in TSM TSM-SSH ; do
     govc host.service start $id
 done
 
-echo "Propagating \$GOVC_URL password to $name host root account..."
-govc host.account.update -id root -password "$password"
+if [ -z "$username" ] ; then
+    username=root
+    action="update"
+else
+    action="create"
+fi
+
+echo "ESX host account $action for user $username..."
+govc host.account.$action -id $username -password "$password"
+
+echo "Granting Admin permissions for user $username..."
+govc permissions.set -principal $username -role Admin
+
+echo "Enabling guest ARP inspection to get vm IPs without vmtools..."
+govc host.esxcli system settings advanced set -o /Net/GuestIPHack -i 1
 
 if [ -n "$vib" ] ; then
     echo -n "Installing host client ($(basename "$vib"))..."
