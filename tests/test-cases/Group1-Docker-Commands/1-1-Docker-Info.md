@@ -14,9 +14,11 @@ This test requires that a vSphere server is running and available
 1. Deploy VIC appliance to the vSphere server
 2. Issue a docker info command to the new VIC appliance
 3. Issue a docker -D info command to the new VIC appliance
+4. Issue docker info command, docker create busybox, docker info, docker start <containerID>, docker info
 
 #Expected Outcome:
-VIC appliance should respond with a properly formatted info response, no errors should be seen. Step 3 should result in additional debug information being returned as well.
+* VIC appliance should respond with a properly formatted info response, no errors should be seen. Step 3 should result in additional debug information being returned as well.
+* Verify in step 4 that the correct number of containers is reported
 
 #Possible Problems:
 None

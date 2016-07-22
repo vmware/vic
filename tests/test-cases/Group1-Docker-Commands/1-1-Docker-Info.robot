@@ -18,3 +18,27 @@ Debug Info
     #${output}=  Run  docker ${params} -D info
     #Log  ${output}
     #Should Contain  ${output}  Debug mode
+
+Correct container count
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} info
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Should Contain  ${output}  Containers: 0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${cid}=  Run And Return Rc And Output  docker ${params} create busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${cid}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} info
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Should Contain  ${output}  Containers: 1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${cid}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} info
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Should Contain  ${output}  Containers: 1
+    Should Contain  ${output}  Running: 1

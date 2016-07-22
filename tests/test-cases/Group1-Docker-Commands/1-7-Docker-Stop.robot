@@ -53,3 +53,16 @@ Stop a non-existent container
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop fakeContainer
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: No such container: fakeContainer
+
+Attempt to stop a container that has been started out of band
+    ${status}=  Get State Of Github Issue  1398
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-7-Docker-Stop.robot needs to be updated now that Issue #1398 has been resolved
+    Log  Issue \#1398 is blocking implementation  WARN
+    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    #Should Be Equal As Integers  ${rc}  0
+    #${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create busybox /bin/top
+    #Should Be Equal As Integers  ${rc}  0
+    #${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -on=true ${container}
+    #Should Be Equal As Integers  ${rc}  0
+    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop ${container}
+    #Should Be Equal As Integers  ${rc}  0
