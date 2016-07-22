@@ -16,7 +16,9 @@ package management
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/url"
+	"os"
 	"path"
 	"testing"
 
@@ -88,6 +90,8 @@ func TestDelete(t *testing.T) {
 		// FIXME: cannot check if it's VCH or not
 		//		testNewVCHFromCompute(input.ComputeResourcePath, input.DisplayName, validator, t)
 		testDeleteVCH(validator, conf, t)
+		// FIXME: ServerFaultCode: HostDatastoreBrowser:hostdatastorebrowser-34 does not implement: SearchDatastoreSubFolders_Task
+		//		testDeleteDatastoreFiles(validator, t)
 	}
 }
 
@@ -202,4 +206,73 @@ func testDeleteVCH(v *validate.Validator, conf *metadata.VirtualContainerHostCon
 	//		t.Errorf("Unexpected error to get appliance VM: %s", err)
 	//	}
 	// delete VM does not clean up resource pool after VM is removed, so resource pool could not be removed
+}
+
+func testDeleteDatastoreFiles(v *validate.Validator, t *testing.T) {
+	d := &Dispatcher{
+		session: v.Session,
+		ctx:     v.Context,
+		isVC:    v.Session.IsVC(),
+		force:   false,
+	}
+
+	ds := v.Session.Datastore
+	m := object.NewFileManager(ds.Client())
+	err := m.MakeDirectory(v.Context, ds.Path("/Test/folder/data"), v.Session.Datacenter, true)
+	if err != nil {
+		t.Errorf("Failed to create datastore dir: %s", err)
+		return
+	}
+	err = m.MakeDirectory(v.Context, ds.Path("/Test/folder/metadata"), v.Session.Datacenter, true)
+	if err != nil {
+		t.Errorf("Failed to create datastore dir: %s", err)
+		return
+	}
+	err = m.MakeDirectory(v.Context, ds.Path("/Test/folder/file)"), v.Session.Datacenter, true)
+	if err != nil {
+		t.Errorf("Failed to create datastore dir: %s", err)
+		return
+	}
+
+	isVSAN := d.isVSAN(ds)
+	t.Logf("datastore is vsan: %t", isVSAN)
+
+	//FIXME: upload file returns 301 Moved Permanently
+	//	if err = createDatastoreFiles(d, ds, t); err != nil {
+	//		t.Errorf("Failed to upload file: %s", err)
+	//		return
+	//	}
+
+	if err = d.deleteFilesIteratively(m, ds, ds.Path("Test")); err != nil {
+		t.Errorf("Failed to delete recursively: %s", err)
+	}
+
+	//	if err = createDatastoreFiles(d, ds, t); err != nil {
+	//		t.Errorf("Failed to upload file: %s", err)
+	//		return
+	//	}
+
+	if _, err = d.deleteDatastoreFiles(ds, "Test", true); err != nil {
+		t.Errorf("Failed to delete recursively: %s", err)
+	}
+}
+
+func createDatastoreFiles(d *Dispatcher, ds *object.Datastore, t *testing.T) error {
+	tmpfile, err := ioutil.TempFile("", "tempDatastoreFile.vmdk")
+	if err != nil {
+		t.Errorf("Failed to create file: %s", err)
+		return err
+	}
+
+	defer os.Remove(tmpfile.Name()) // clean up
+
+	if err = ds.UploadFile(d.ctx, tmpfile.Name(), "/Test/folder/data/temp.vmdk", nil); err != nil {
+		t.Errorf("Failed to upload file %q: %s", "/Test/folder/data/temp.vmdk", err)
+		return err
+	}
+	if err = ds.UploadFile(d.ctx, tmpfile.Name(), "/Test/folder/tempMetadata", nil); err != nil {
+		t.Errorf("Failed to upload file %q: %s", "/Test/folder/data/temp.vmdk", err)
+		return err
+	}
+	return nil
 }
