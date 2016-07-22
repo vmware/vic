@@ -42,6 +42,7 @@ type State int
 const (
 	StateRunning = iota + 1
 	StateStopped
+	StateCreated
 
 	propertyCollectorTimeout = 3 * time.Minute
 )
@@ -111,6 +112,8 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 				return VCHConfig.VirtualApp.CreateChildVM_Task(ctx, *h.Spec.Spec(), nil)
 			})
+			// set the status to created
+			c.State = StateCreated
 		} else {
 			// Find the Virtual Machine folder that we use
 			var folders *object.DatacenterFolders
@@ -124,6 +127,9 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 				return parent.CreateVM(ctx, *h.Spec.Spec(), VCHConfig.ResourcePool, nil)
 			})
+
+			// set the status to created
+			c.State = StateCreated
 		}
 
 		if err != nil {
@@ -419,8 +425,17 @@ func convertInfraContainers(vms []mo.VirtualMachine, all *bool) []*Container {
 			container.State = StateRunning
 			container.Status = "Running"
 		} else {
-			container.State = StateStopped
-			container.Status = "Stopped"
+			// look in the container cache and check status
+			// if it's created we'll take that as it's been created, but
+			// not started
+			cached := containers.Container(container.ExecConfig.ID)
+			if cached != nil && cached.State == StateCreated {
+				container.State = StateCreated
+				container.Status = "Created"
+			} else {
+				container.State = StateStopped
+				container.Status = "Stopped"
+			}
 		}
 		container.VMUnsharedDisk = vms[i].Summary.Storage.Unshared
 
