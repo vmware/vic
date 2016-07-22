@@ -65,17 +65,32 @@ import (
 )
 
 const bridgeIfaceName = "bridge"
-const clientIfaceName = "client"
 
-var defaultScope struct {
-	sync.Mutex
-	scope string
-}
+var (
+	clientIfaceName = "client"
 
-var portMapper portmap.PortMapper
+	defaultScope struct {
+		sync.Mutex
+		scope string
+	}
+
+	portMapper portmap.PortMapper
+)
 
 func init() {
 	portMapper = portmap.NewPortMapper()
+
+	l, err := netlink.LinkByName(clientIfaceName)
+	if l == nil {
+		l, err = netlink.LinkByAlias(clientIfaceName)
+		if err != nil {
+			log.Errorf("interface %s not found", clientIfaceName)
+			return
+		}
+	}
+
+	// don't use interface alias for iptables rules
+	clientIfaceName = l.Attrs().Name
 }
 
 //TODO: gotta be a better way...
@@ -181,6 +196,22 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	defer trace.End(trace.Begin("ContainerCreate"))
 
 	var err error
+
+	// validate port bindings
+	if config.HostConfig != nil {
+		for _, pbs := range config.HostConfig.PortBindings {
+			for _, pb := range pbs {
+				if pb.HostIP != "" {
+					return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("host IP is not supported for port bindings"), http.StatusInternalServerError)
+				}
+
+				start, end, _ := nat.ParsePortRangeToInt(pb.HostPort)
+				if start != end {
+					return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("host port ranges are not supported for port bindings"), http.StatusInternalServerError)
+				}
+			}
+		}
+	}
 
 	//TODO: validate the config parameters
 	log.Debugf("Image fetch section - Container Create")
@@ -615,38 +646,9 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 	return nil
 }
 
-func getIfaceIPAddr(iface string) (net.IP, error) {
-	l, err := netlink.LinkByName(iface)
-	if l == nil {
-		l, err = netlink.LinkByAlias(iface)
-		if err != nil {
-			return nil, fmt.Errorf("interface %s not found", iface)
-		}
-	}
-
-	addrs, err := netlink.AddrList(l, netlink.FAMILY_V4)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(addrs) > 1 {
-		return nil, fmt.Errorf("multiple addresses found for interface %s", iface)
-	}
-	if len(addrs) == 0 {
-		return nil, fmt.Errorf("no addresses found for interface %s", iface)
-	}
-
-	return addrs[0].IP, nil
-}
-
 func (c *Container) mapPorts(op portmap.Operation, hostconfig *container.HostConfig, endpoint *models.EndpointConfig) error {
 	if len(hostconfig.PortBindings) == 0 || endpoint == nil {
 		return nil
-	}
-
-	clientIP, err := getIfaceIPAddr(clientIfaceName)
-	if err != nil {
-		return err
 	}
 
 	var containerIP net.IP
@@ -658,7 +660,7 @@ func (c *Container) mapPorts(op portmap.Operation, hostconfig *container.HostCon
 	for _, p := range endpoint.Ports {
 		proto, port := nat.SplitProtoPort(p)
 		var nport nat.Port
-		nport, err = nat.NewPort(proto, port)
+		nport, err := nat.NewPort(proto, port)
 		if err != nil {
 			return err
 		}
@@ -668,15 +670,6 @@ func (c *Container) mapPorts(op portmap.Operation, hostconfig *container.HostCon
 			continue
 		}
 
-		sp, ep, err := nport.Range()
-		if err != nil {
-			return err
-		}
-
-		if sp != ep {
-			return fmt.Errorf("port ranges not supported")
-		}
-
 		for _, pb := range pbs {
 			var hostPort int
 			hostPort, err = strconv.Atoi(pb.HostPort)
@@ -684,7 +677,7 @@ func (c *Container) mapPorts(op portmap.Operation, hostconfig *container.HostCon
 				return err
 			}
 
-			if err = portMapper.MapPort(op, clientIP, hostPort, nport.Proto(), containerIP.String(), sp, clientIfaceName, bridgeIfaceName); err != nil {
+			if err = portMapper.MapPort(op, nil, hostPort, nport.Proto(), containerIP.String(), nport.Int(), clientIfaceName, bridgeIfaceName); err != nil {
 				return err
 			}
 		}
@@ -766,7 +759,7 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 	//retrieve client to portlayer
 	client := PortLayerClient()
 	if client == nil {
-		return derr.NewErrorWithStatusCode(fmt.Errorf("container.ContainerCreate failed to create a portlayer client"),
+		return derr.NewErrorWithStatusCode(fmt.Errorf("container.containerStop failed to create a portlayer client"),
 			http.StatusInternalServerError)
 	}
 

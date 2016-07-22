@@ -78,6 +78,20 @@ func (p *portMapper) MapPort(op Operation, ip net.IP, port int, proto string, de
 	p.Lock()
 	defer p.Unlock()
 
+	var action iptables.Action
+	switch op {
+	case Map:
+		// check if port is available
+		if !p.isPortAvailable(proto, ip, port) {
+			return fmt.Errorf("port %d is not available", port)
+		}
+		action = iptables.Append
+	case Unmap:
+		action = iptables.Delete
+	default:
+		return fmt.Errorf("invalid port mapping operation %d", op)
+	}
+
 	if port <= 0 {
 		return fmt.Errorf("source port must be specified")
 	}
@@ -89,21 +103,6 @@ func (p *portMapper) MapPort(op Operation, ip net.IP, port int, proto string, de
 
 	if destIP == "" {
 		return fmt.Errorf("destination IP is not specified")
-	}
-
-	var action iptables.Action
-	switch op {
-	case Map:
-		if !p.isPortAvailable(proto, ip, port) {
-			return fmt.Errorf("port %d not available", port)
-		}
-		action = iptables.Append
-
-	case Unmap:
-		action = iptables.Delete
-
-	default:
-		return fmt.Errorf("invalid port mapping operation %d", op)
 	}
 
 	return p.forward(action, ip, port, proto, destIP, destPort, srcIface, destIface)
