@@ -15,6 +15,9 @@
 package vsphere
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -60,7 +63,7 @@ type ImageStore struct {
 	parents *parentM
 }
 
-func NewImageStore(ctx context.Context, s *session.Session) (*ImageStore, error) {
+func NewImageStore(ctx context.Context, s *session.Session, u *url.URL) (*ImageStore, error) {
 	dm, err := disk.NewDiskManager(ctx, s)
 	if err != nil {
 		return nil, err
@@ -69,7 +72,16 @@ func NewImageStore(ctx context.Context, s *session.Session) (*ImageStore, error)
 	// Currently using the datastore associated with the session which is not
 	// ideal.  This should be passed in via the config.  The datastore need not
 	// be the same datastore used for the rest of the system.
-	ds, err := datastore.NewHelper(ctx, s, s.Datastore, StorageParentDir)
+	datastores, err := s.Finder.DatastoreList(ctx, u.Host)
+	if err != nil {
+		// TODO: real error beyond whatever DatastoreList returns
+		return nil, err
+	}
+	if len(datastores) != 1 {
+		return nil, errors.New("Datastore not found or ambiguous name provided.")
+	}
+
+	ds, err := datastore.NewHelper(ctx, s, datastores[0], path.Join(u.Path, StorageParentDir))
 	if err != nil {
 		return nil, err
 	}
