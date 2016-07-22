@@ -54,14 +54,16 @@ popd >/dev/null
 
 iso=coreos_production_iso_image.iso
 
-if ! govc datastore.ls $iso 1>/dev/null 2>&1 ; then
+govc datastore.mkdir -p images
+
+if ! govc datastore.ls images | grep -q $iso ; then
     echo "Downloading ${iso}..."
     if [ ! -e $iso ] ; then
         wget http://beta.release.core-os.net/amd64-usr/current/$iso
     fi
 
     echo "Uploading ${iso}..."
-    govc datastore.upload $iso $iso
+    govc datastore.upload $iso images/$iso
 fi
 
 if [ ! -e config.iso ] ; then
@@ -94,7 +96,9 @@ destroy() {
     govc datastore.rm -f "$vm"
 }
 
-if ! govc datastore.ls "$vm/${vm}.vmx" 1>/dev/null 2>&1 ; then
+govc datastore.mkdir -p "$vm"
+
+if ! govc datastore.ls "$vm" | grep -q "${vm}.vmx" ; then
     echo "Creating VM ${vm}..."
     govc vm.create -g otherGuest64 -m 1024 -on=false "$vm"
 
@@ -103,7 +107,7 @@ if ! govc datastore.ls "$vm/${vm}.vmx" 1>/dev/null 2>&1 ; then
     fi
 
     device=$(govc device.cdrom.add -vm "$vm")
-    govc device.cdrom.insert -vm "$vm" -device "$device" $iso
+    govc device.cdrom.insert -vm "$vm" -device "$device" images/$iso
 
     govc datastore.upload config.iso "$vm/config.iso" >/dev/null
     device=$(govc device.cdrom.add -vm "$vm")
