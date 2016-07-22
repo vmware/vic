@@ -327,7 +327,7 @@ func ContainerInfo(ctx context.Context, sess *session.Session, containerID ID) (
 		return nil, fmt.Errorf("%s does not appear to be a container", containerID)
 	case 1:
 		// we have a winner
-		return &cc[0], nil
+		return cc[0], nil
 	default:
 		// we manged to find multiple vms
 		return nil, fmt.Errorf("multiple containers named %s found", containerID)
@@ -335,7 +335,7 @@ func ContainerInfo(ctx context.Context, sess *session.Session, containerID ID) (
 }
 
 // return a list of container attributes
-func List(ctx context.Context, sess *session.Session, all *bool) ([]Container, error) {
+func List(ctx context.Context, sess *session.Session, all *bool) ([]*Container, error) {
 
 	// for now we'll go to the infrastructure
 	// future iteration will utilize cache & event stream
@@ -392,8 +392,8 @@ func populateVMAttributes(ctx context.Context, sess *session.Session, refs []typ
 }
 
 // convert the infra containers to a container object
-func convertInfraContainers(vms []mo.VirtualMachine, all *bool) []Container {
-	var containerVMs []Container
+func convertInfraContainers(vms []mo.VirtualMachine, all *bool) []*Container {
+	var containerVMs []*Container
 
 	for i := range vms {
 		// poweredOn or all states
@@ -424,7 +424,7 @@ func convertInfraContainers(vms []mo.VirtualMachine, all *bool) []Container {
 		}
 		container.VMUnsharedDisk = vms[i].Summary.Storage.Unshared
 
-		containerVMs = append(containerVMs, *container)
+		containerVMs = append(containerVMs, container)
 
 	}
 
