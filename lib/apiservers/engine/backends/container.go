@@ -787,6 +787,14 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 
 	handle := getResponse.Payload
 
+	// we have a container on the PL side lets check the state before proceeding
+	// ignore the error  since others will be checking below..this is an attempt to short circuit the op
+	// TODO: can be replaced with simple cache check once power events are propigated to persona
+	infoResponse, _ := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParams().WithID(name))
+	if *infoResponse.Payload.ContainerConfig.State == "Stopped" {
+		return nil
+	}
+
 	if unbound {
 		// get the endpoints for the container
 		conEpsRes, err := client.Scopes.GetContainerEndpoints(scopes.NewGetContainerEndpointsParams().WithHandleOrID(handle))

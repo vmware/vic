@@ -6,16 +6,13 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Stop an already stopped container
-    ${status}=  Get State Of Github Issue  1319
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-7-Docker-Stop.robot needs to be updated now that Issue #1319 has been resolved
-    Log  Issue \#1319 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
-    #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create busybox sleep 30
-    #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop ${container}
-    #Should Be Equal As Integers  ${rc}  0
-    
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create busybox sleep 30
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop ${container}
+    Should Be Equal As Integers  ${rc}  0
+
 Basic docker container stop
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
