@@ -73,7 +73,10 @@ func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
 
 	log.Infof("volumes being returend : %+v", volumeResponses)
 	for i := range volumeResponses {
-		volumeMetadata := extractDockerMetadata(volumeResponses[i].Metadata)
+		volumeMetadata, err := extractDockerMetadata(volumeResponses[i].Metadata)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error unmarshalling docker metadata: %s", err)
+		}
 		volume := fillDockerVolumeModel(volumeResponses[i], volumeMetadata.Labels)
 		volumes = append(volumes, volume)
 	}
@@ -107,7 +110,7 @@ func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]s
 
 	//TODO: setup name randomization if name == nil
 
-	res, err := client.Storage.CreateVolume(storage.NewCreateVolumeParams().WithVolumeRequest(&model))
+	res, err := client.Storage.CreateVolume(storage.NewCreateVolumeParams().WithVolumeRequest(model))
 	if err != nil {
 		switch err := err.(type) {
 
@@ -191,34 +194,40 @@ func validateDriverArgs(args map[string]string, model *models.VolumeRequest) err
 	return nil
 }
 
-func translateInputsToPortlayerRequestModel(name, driverName string, opts, labels map[string]string) (models.VolumeRequest, error) {
-	model := models.VolumeRequest{
+func translateInputsToPortlayerRequestModel(name, driverName string, opts, labels map[string]string) (*models.VolumeRequest, error) {
+	model := &models.VolumeRequest{
 		Driver:     driverName,
 		DriverArgs: opts,
 		Name:       name,
 	}
-	metadata := createVolumeMetadata(&model, labels)
+
+	metadata, err := createVolumeMetadata(model, labels)
+	if err != nil {
+		return nil, err
+	}
+
 	model.Metadata = make(map[string]string)
 	model.Metadata[dockerMetadataModelKey] = metadata
-	if err := validateDriverArgs(opts, &model); err != nil {
-		return model, err
+	if err := validateDriverArgs(opts, model); err != nil {
+		return nil, err
 	}
 	return model, nil
 }
 
-func createVolumeMetadata(model *models.VolumeRequest, labels map[string]string) string {
+func createVolumeMetadata(model *models.VolumeRequest, labels map[string]string) (string, error) {
 	metadata := volumeMetadata{
 		Driver:     model.Driver,
 		DriverOpts: model.DriverArgs,
 		Name:       model.Name,
 		Labels:     labels,
 	}
-	result, _ := json.Marshal(metadata)
-	return string(result)
+	result, err := json.Marshal(metadata)
+	return string(result), err
 }
 
-func extractDockerMetadata(metadataMap map[string]string) volumeMetadata {
-	var result volumeMetadata
-	json.Unmarshal([]byte(metadataMap[dockerMetadataModelKey]), result)
-	return result
+// Unmarshal the docker metadata using the docker metadata key.  The docker metadatakey
+func extractDockerMetadata(metadataMap map[string]string) (*volumeMetadata, error) {
+	result := &volumeMetadata{}
+	err := json.Unmarshal([]byte(metadataMap[dockerMetadataModelKey]), result)
+	return result, err
 }
