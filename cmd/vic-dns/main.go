@@ -34,6 +34,7 @@ var (
 func init() {
 	flag.StringVar(&options.IP, "ip", dns.DefaultIP, "IP to use")
 	flag.IntVar(&options.Port, "port", dns.DefaultPort, "Port to bind")
+	flag.StringVar(&options.Interface, "interface", "", "Interface to bind")
 
 	flag.Var(&options.Nameservers, "nameservers", "Nameservers to use")
 
