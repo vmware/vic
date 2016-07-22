@@ -33,7 +33,7 @@ Docker run with -it
     #Log  ${result2.stdout}
     #Log  ${result2.stderr}
     
-Simple docker run with app that doesn't return
+Simple docker run with app that doesn't exit
     Log To Console  Not sure how to implement this just yet...
     #${result}=  Run Process  docker ${params} run busybox /bin/top  shell=True  timeout=5s  on_timeout=terminate
     #Log  ${result.stdout}
