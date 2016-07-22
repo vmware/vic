@@ -25,6 +25,13 @@ Start with attach and interactive
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start -ai ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
+Start from image that has no PATH
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull vmware/photon
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it vmware/photon
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
 Start non-existent container
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start fakeContainer
     Should Be Equal As Integers  ${rc}  1

@@ -214,22 +214,8 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	container.ID = image.ID
 	container.Config = image.Config
 
-	// Overwrite or append the image's config from the CLI with the metadata from the image's
-	// layer metadata where appropriate
-	if len(config.Config.Cmd) == 0 {
-		config.Config.Cmd = container.Config.Cmd
-	}
-	if config.Config.WorkingDir == "" {
-		config.Config.WorkingDir = container.Config.WorkingDir
-	}
-	if len(config.Config.Entrypoint) == 0 {
-		config.Config.Entrypoint = container.Config.Entrypoint
-	}
-	// Set TERM to xterm if tty is set
-	if config.Config.Tty {
-		config.Config.Env = append(config.Config.Env, "TERM=xterm")
-	}
-	config.Config.Env = append(config.Config.Env, container.Config.Env...)
+	// set default configuration values and those supplied by image where needed
+	container.SetConfigOptions(config.Config)
 
 	// TODO(jzt): users other than root are not currently supported
 	// We should check for USER in config.Config.Env once we support Dockerfiles.
@@ -1238,7 +1224,8 @@ func containerInfoToDockerContainerInspect(id string, info *models.ContainerInfo
 			inpsectJSON.Path = *info.ProcessConfig.ExecPath
 		}
 		if info.ProcessConfig.ExecArgs != nil {
-			inpsectJSON.Args = info.ProcessConfig.ExecArgs
+			// args[0] is the command and should not appear in the args list here
+			inpsectJSON.Args = info.ProcessConfig.ExecArgs[1:]
 		}
 	}
 
@@ -1284,7 +1271,7 @@ func hostConfigFromContainerInfo(id string, info *models.ContainerInfo) *contain
 		return nil
 	}
 
-	// Resources don't really map well to VIC so we leave mose of them empty. If we look
+	// Resources don't really map well to VIC so we leave most of them empty. If we look
 	// at the struct in engine-api/types/container/host_config.go, Microsoft added
 	// additional attributes to the struct that are applicable to Windows containers.
 	// If understanding VIC's host resources are desireable, we should go down this
@@ -1434,16 +1421,18 @@ func containerConfigFromContainerInfo(id string, info *models.ContainerInfo) *co
 	}
 
 	// Fill in information about the process
-	if info.ProcessConfig.ExecArgs != nil {
-		container.Env = info.ProcessConfig.ExecArgs // List of environment variable to set in the container
+	if info.ProcessConfig.Env != nil {
+		container.Env = info.ProcessConfig.Env // List of environment variable to set in the container
 	}
 	if info.ProcessConfig.ExecPath != nil {
 		container.Cmd = append(container.Cmd, *info.ProcessConfig.ExecPath) // Command to run when starting the container
 	}
+	if info.ProcessConfig.ExecArgs != nil {
+		container.Cmd = append(container.Cmd, info.ProcessConfig.ExecArgs[1:]...)
+	}
 	if info.ProcessConfig.WorkingDir != nil {
 		container.WorkingDir = *info.ProcessConfig.WorkingDir // Current directory (PWD) in the command will be launched
 	}
-	//		container.Entrypoint      strslice.StrSlice     				// Entrypoint to run when starting the container
 
 	// Fill in information about the container network
 	if info.ScopeConfig == nil {
