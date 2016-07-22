@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -44,7 +45,11 @@ func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, error) {
 		return nil, nil, fmt.Errorf("skip")
 	}
 
-	vsImageStore, err := NewImageStore(context.TODO(), client)
+	storeURL := &url.URL{
+		Path: StorageParentDir,
+		Host: client.DatastorePath}
+
+	vsImageStore, err := NewImageStore(context.TODO(), client, storeURL)
 	if err != nil {
 		if err.Error() == "can't find the hosting vm" {
 			t.Skip("Skipping: test must be run in a VM")
@@ -67,8 +72,11 @@ func TestRestartImageStore(t *testing.T) {
 
 	origVsStore := cacheStore.DataStore.(*ImageStore)
 
+	imageStoreURL := &url.URL{
+		Path: client.Datastore.Path(StorageParentDir),
+		Host: client.DatastorePath}
 	// now start it again
-	restartedVsStore, err := NewImageStore(context.TODO(), client)
+	restartedVsStore, err := NewImageStore(context.TODO(), client, imageStoreURL)
 	if !assert.NoError(t, err) || !assert.NotNil(t, restartedVsStore) {
 		return
 	}
