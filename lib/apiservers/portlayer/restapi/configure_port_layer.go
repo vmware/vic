@@ -105,7 +105,9 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 		handler.Configure(api, handlerCtx)
 	}
 
-	api.ServerShutdown = func() {}
+	api.ServerShutdown = func() {
+		log.Debugf("Shutting down port-layer-server")
+	}
 	return setupGlobalMiddleware(api.Serve(setupMiddlewares))
 }
 
