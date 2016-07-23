@@ -23,8 +23,8 @@ govc license.assign "$VCSA_LICENSE" >/dev/null
 govc ls -t HostSystem /dc1/host/cluster1 | xargs -I% -n1 govc license.assign -host % "$ESX_LICENSE" >/dev/null
 
 echo "Assigned licenses..."
-govc license.assigned.list
+govc license.assigned.ls
 
 echo ""
 echo "License usage..."
-govc license.list
+govc license.ls
