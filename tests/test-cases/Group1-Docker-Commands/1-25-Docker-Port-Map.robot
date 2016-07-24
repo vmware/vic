@@ -12,15 +12,16 @@ Create container with port mappings
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start webserver
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  curl ${vch-ip}:10000 --connect-timeout 20
+    Sleep  20  Wait for nginx to start
+    ${rc}  ${output}=  Run And Return Rc And Output  curl ${vch-ip}:10000 --connect-timeout 10
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  curl ${vch-ip}:10001 --connect-timeout 20
+    ${rc}  ${output}=  Run And Return Rc And Output  curl ${vch-ip}:10001 --connect-timeout 10
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop webserver
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  curl ${vch-ip}:10000
+    ${rc}  ${output}=  Run And Return Rc And Output  curl ${vch-ip}:10000 --connect-timeout 5
     Should Not Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  curl ${vch-ip}:10001
+    ${rc}  ${output}=  Run And Return Rc And Output  curl ${vch-ip}:10001 --connect-timeout 5
     Should Not Be Equal As Integers  ${rc}  0
     
 Create container with conflicting port mapping
