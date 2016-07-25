@@ -14,13 +14,6 @@
 # limitations under the License.
 #
 
-if [[ ! -f "register-plugin.jar" ]] ; then
-	echo "Error! Java package register-plugin.jar is missing!"
-	echo "Make sure to run this script on the same directory as the package"
-	echo ""
-	exit 1
-fi
-
 if [[ ! -f "configs" ]] ; then
     echo "Error! Configs file is missing. Please try downloading the VIC UI installer again"
     echo ""
@@ -37,6 +30,7 @@ if [[ $VCENTER_IP == "" ]] ; then
     exit 1
 fi
 
+read -p "Enter your vCenter Administrator Username: " VCENTER_ADMIN_USERNAME
 echo -n "Enter your vCenter Administrator Password: "
 read -s VCENTER_ADMIN_PASSWORD
 echo ""
@@ -45,13 +39,14 @@ OS=$(uname)
 PLUGIN_BUNDLES=''
 VCENTER_ADMIN_USERNAME="administrator@vsphere.local"
 VCENTER_SDK_URL="https://${VCENTER_IP}/sdk/"
-COMMONFLAGS="--url $VCENTER_SDK_URL --username $VCENTER_ADMIN_USERNAME --password $VCENTER_ADMIN_PASSWORD"
+COMMONFLAGS="--target $VCENTER_SDK_URL --user $VCENTER_ADMIN_USERNAME --password $VCENTER_ADMIN_PASSWORD"
 WEBCLIENT_PLUGINS_FOLDER="/etc/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
+PLUGIN_FOLDERS=''
 
 if [[ $(echo $OS | grep -i "darwin") ]] ; then
-    PLUGIN_MANAGER_BIN="../../vic-machine-darwin"
+    PLUGIN_MANAGER_BIN="../../vic-ui-darwin"
 else
-    PLUGIN_MANAGER_BIN="../../vic-machine-linux"
+    PLUGIN_MANAGER_BIN="../../vic-ui-linux"
 fi
 
 parse_and_unregister_plugins () {
@@ -67,15 +62,26 @@ parse_and_unregister_plugins () {
             echo "-------------------------------------------------------------"
             echo "Unregistering vCenter Server Extension..."
             echo "-------------------------------------------------------------"
-            # $PLUGIN_MANAGER_BIN $COMMONFLAGS $plugin_flags --unregister 
-            java -jar register-plugin.jar $COMMONFLAGS $plugin_flags --unregister
-            echo "-------------------------------------------------------------"
-            echo "Deleting plugin contents..."
-            echo "Please enter the root password for your machine running VCSA"
-            echo "-------------------------------------------------------------"
-            ssh -t root@$VCENTER_IP "cd $WEBCLIENT_PLUGINS_FOLDER; rm -rf $key-*"
+            $PLUGIN_MANAGER_BIN remove $COMMONFLAGS $plugin_flags
+
+            if [[ $? > 0 ]] ; then
+                echo "Error! Could not unregister plugin with vCenter Server. Please see the message above."
+                exit 1
+            fi
+
+            if [[ $PLUGIN_FOLDERS -eq "" ]] ; then
+                PLUGIN_FOLDERS="$key-*"
+            else
+                PLUGIN_FOLDERS="$PLUGIN_FOLDERS $key-*"
+            fi
         fi
     done
+
+    echo "-------------------------------------------------------------"
+    echo "Deleting plugin contents..."
+    echo "Please enter the root password for your machine running VCSA"
+    echo "-------------------------------------------------------------"
+    ssh -t root@$VCENTER_IP "cd $WEBCLIENT_PLUGINS_FOLDER; rm -rf $PLUGIN_FOLDERS" 
 }
 
 rename_package_folder () {

@@ -14,13 +14,6 @@
 # limitations under the License.
 #
 
-if [[ ! -f "register-plugin.jar" ]] ; then
-	echo "Error! Java package register-plugin.jar is missing!"
-	echo "Make sure to run this script on the same directory as the package"
-	echo ""
-	exit 1
-fi
-
 if [[ ! -f "configs" ]] ; then
     echo "Error! Configs file is missing. Please try downloading the VIC UI installer again"
     echo ""
@@ -37,6 +30,7 @@ if [[ $VCENTER_IP == "" ]] ; then
     exit 1
 fi
 
+read -p "Enter your vCenter Administrator Username: " VCENTER_ADMIN_USERNAME
 echo -n "Enter your vCenter Administrator Password: "
 read -s VCENTER_ADMIN_PASSWORD
 echo ""
@@ -45,13 +39,24 @@ OS=$(uname)
 PLUGIN_BUNDLES=''
 VCENTER_ADMIN_USERNAME="administrator@vsphere.local"
 VCENTER_SDK_URL="https://${VCENTER_IP}/sdk/"
-COMMONFLAGS="--url $VCENTER_SDK_URL --username $VCENTER_ADMIN_USERNAME --password $VCENTER_ADMIN_PASSWORD"
+COMMONFLAGS="--target $VCENTER_SDK_URL --user $VCENTER_ADMIN_USERNAME --password $VCENTER_ADMIN_PASSWORD"
 WEBCLIENT_PLUGINS_FOLDER="/etc/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
+OLD_PLUGIN_FOLDERS=''
+FORCE_INSTALL=''
+
+case $1 in
+    "-f")
+        COMMONFLAGS="$COMMONFLAGS --force"
+        ;;
+    "--force")
+        COMMONFLAGS="$COMMONFLAGS --force"
+        ;;
+esac
 
 if [[ $(echo $OS | grep -i "darwin") ]] ; then
-    PLUGIN_REGISTER_BIN="../../vic-machine-darwin"
+    PLUGIN_MANAGER_BIN="../../vic-ui-darwin"
 else
-    PLUGIN_REGISTER_BIN="../../vic-machine-linux"
+    PLUGIN_MANAGER_BIN="../../vic-ui-linux"
 fi
 
 if [[ $VIC_UI_HOST_URL != 'NOURL' ]] ; then
@@ -95,23 +100,22 @@ parse_and_register_plugins () {
                 local plugin_url="$plugin_url$key-$version.zip"
             fi
             
-            local plugin_flags="--key $key --name $name --version $version --summary $summary --company $company --pluginurl $plugin_url"
+            local plugin_flags="--key $key --name $name --version $version --summary $summary --company $company --url $plugin_url"
             echo "----------------------------------------"
             echo "Registering vCenter Server Extension..."
             echo "----------------------------------------"
 
-            # todo
-            # This will eventually change so that go command will be used so the command is going to be like:
-            # vic-machine register-ui --key $id --name "$name" --summary "$description" --version "$version" --company "VMware" --pluginurl "DUMMY" --showInSolutionManager
+            $PLUGIN_MANAGER_BIN install $COMMONFLAGS $plugin_flags
+            if [[ $OLD_PLUGIN_FOLDERS -eq "" ]] ; then
+                OLD_PLUGIN_FOLDERS="$key-*"
+            else
+                OLD_PLUGIN_FOLDERS="$OLD_PLUGIN_FOLDERS $key-*"
+            fi
 
-            # echo "plugin register go bin: $PLUGIN_REGISTER_BIN"
-            # $PLUGIN_REGISTER_BIN $COMMONFLAGS $plugin_flags -- showInsolutionManager
-            java -jar register-plugin.jar $COMMONFLAGS $plugin_flags --showInSolutionManager
-
-            # todo
-            # once vic-machine register-ui (or something like that) is ready, it has to return 0 for success and any value higher than 0 upon error so that
-            # installer can exit with a proper error message
-            # one possible situation is when the already registered plugin is being registered again
+            if [[ $? > 0 ]] ; then
+                echo "Error! Could not register plugin with vCenter Server. Please see the message above"
+                exit 1
+            fi
         fi
     done
 }
@@ -148,7 +152,7 @@ update_ownership () {
     echo "Please enter the root password for your machine running VCSA"
     echo "--------------------------------------------------------------"
     local PLUGIN_BUNDLES_WITHOUT_PREFIX=$(echo $PLUGIN_BUNDLES | sed 's/\.\.\/vsphere\-client\-serenity\///g')
-    ssh -t root@$VCENTER_IP "mkdir -p $WEBCLIENT_PLUGINS_FOLDER; cp -rf /tmp/$PLUGIN_BUNDLES_WITHOUT_PREFIX $WEBCLIENT_PLUGINS_FOLDER; cd $WEBCLIENT_PLUGINS_FOLDER; chown -R vsphere-client:users /etc/vmware/vsphere-client/vc-packages"
+    ssh -t root@$VCENTER_IP "mkdir -p $WEBCLIENT_PLUGINS_FOLDER; cd $WEBCLIENT_PLUGINS_FOLDER; rm -rf $OLD_PLUGIN_FOLDERS; cp -rf /tmp/$PLUGIN_BUNDLES_WITHOUT_PREFIX $WEBCLIENT_PLUGINS_FOLDER; chown -R vsphere-client:users /etc/vmware/vsphere-client/vc-packages"
     if [[ $? > 0 ]] ; then
         echo "Error! Failed to update the ownership of folders. Please manually set them to vsphere-client:users"
         exit 1
