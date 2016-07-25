@@ -20,4 +20,4 @@ debuglevel="$(rpctool -get guestinfo./init/common/diagnostics/debug)"
 if [ "$debuglevel" != "0" -a "$debuglevel" != "" ]; then
     debug="-debug"
 fi
-/sbin/imagec.bin $debug -logfile=/var/log/vic/imagec.log --insecure-allow-http=true "$@"
+/sbin/imagec.bin $debug -logfile=/var/log/vic/imagec.log --insecure-allow-http --insecure-skip-verify "$@"
