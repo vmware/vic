@@ -213,7 +213,7 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 
 func setAPIRoutes(api *apiserver.Server) {
 	imageHandler := &vicbackends.Image{}
-	containerHandler := &vicbackends.Container{}
+	containerHandler := vicbackends.NewContainerBackend()
 	volumeHandler := &vicbackends.Volume{}
 	networkHandler := &vicbackends.Network{}
 	systemHandler := vicbackends.NewSystemBackend()
