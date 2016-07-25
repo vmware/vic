@@ -48,6 +48,7 @@ import (
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -114,6 +115,8 @@ func init() {
 	// This will not function for vSAN
 	flag.StringVar(&config.vmPath, "vm-path", "", "Docker vm path")
 
+	flag.Parse()
+
 	// load the vch config
 	src, err := extraconfig.GuestInfoSource()
 	if err != nil {
@@ -122,7 +125,6 @@ func init() {
 	}
 
 	extraconfig.Decode(src, &vchConfig)
-	pprof.StartPprof("vicadmin", pprof.VicadminPort)
 }
 
 type Authenticator interface {
@@ -836,9 +838,13 @@ func (s *server) index(res http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	defer trace.End(trace.Begin(""))
+	if version.Show() {
+		fmt.Fprintf(os.Stdout, "%s\n", version.String())
+		return
+	}
 
-	flag.Parse()
+	defer trace.End(trace.Begin(""))
+	pprof.StartPprof("vicadmin", pprof.VicadminPort)
 
 	config.Service = vchConfig.Target.String()
 	config.ExtensionCert = vchConfig.ExtensionCert

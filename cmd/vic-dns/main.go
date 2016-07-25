@@ -25,6 +25,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/dns"
+	"github.com/vmware/vic/pkg/version"
 )
 
 var (
@@ -54,6 +55,12 @@ func main() {
 			fmt.Fprintf(os.Stderr, fmt.Sprintf("%s : %s", r, debug.Stack()))
 		}
 	}()
+
+	if version.Show() {
+		fmt.Fprintf(os.Stdout, "%s\n", version.String())
+		return
+	}
+
 	// Initiliaze logger with default TextFormatter
 	log.SetFormatter(&log.TextFormatter{DisableColors: false, FullTimestamp: true})
 

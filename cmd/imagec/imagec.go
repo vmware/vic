@@ -45,6 +45,7 @@ import (
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/i18n"
+	"github.com/vmware/vic/pkg/version"
 
 	"github.com/pkg/profile"
 )
@@ -591,6 +592,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, string(sf.FormatError(fmt.Errorf("%s : %s", r, debug.Stack()))))
 		}
 	}()
+
+	if version.Show() {
+		fmt.Fprintf(os.Stdout, "%s\n", version.String())
+		return
+	}
 
 	// Enable profiling if mode is set
 	switch options.profiling {

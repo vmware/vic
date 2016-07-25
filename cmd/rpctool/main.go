@@ -17,9 +17,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vmw-guestinfo/rpcout"
 	"github.com/vmware/vmw-guestinfo/rpcvmx"
 	"github.com/vmware/vmw-guestinfo/vmcheck"
@@ -42,6 +44,11 @@ func init() {
 }
 
 func main() {
+	if version.Show() {
+		fmt.Fprintf(os.Stdout, "%s\n", version.String())
+		return
+	}
+
 	if !vmcheck.IsVirtualWorld() {
 		log.Fatalf("ERROR: not in a virtual world.")
 	}
