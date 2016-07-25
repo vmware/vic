@@ -17,6 +17,7 @@ package etcconf
 import (
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"sync"
 
@@ -114,6 +115,11 @@ func (r *resolvConf) Save() error {
 	walker := &resolvConfWalker{nameservers: r.nameservers}
 	log.Debugf("%+v", walker)
 	if err := save(r.path, walker); err != nil {
+		return err
+	}
+
+	// make sure the file is readable
+	if err := os.Chmod(r.path, 0644); err != nil {
 		return err
 	}
 
