@@ -7,7 +7,7 @@ The `vic-machine` utility can deploy a virtual container host in one of the foll
 * vCenter Server with one or more standalone ESXi hosts
 * A standalone ESXi host
 
-When you deploy a virtual container host, `vic-machine` registers the virtual container host as a vSphere extension. Authentication between the virtual container host and vSphere is handled via a vSphere service account that `vic-machine` creates for the virtual container host.
+When you deploy a virtual container host, `vic-machine` registers the virtual container host as a vSphere extension. Authentication between the virtual container host and vSphere is handled via key pair authentication against the vSphere extension.
 
 The virtual container host allows you to use an ESXi host or vCenter Server instance as the Docker endpoint for a Docker client. The containers that you pull or create in your Docker client are stored and managed in the vSphere environment.
 

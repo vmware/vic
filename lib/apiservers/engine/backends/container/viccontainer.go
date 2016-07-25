@@ -60,22 +60,24 @@ func (c *VicContainer) SetConfigOptions(config *containertypes.Config) {
 }
 
 func setEnv(config, imageConfig *containertypes.Config) {
-	// Set TERM to xterm if tty is set
-	if config.Tty {
-		config.Env = append(config.Env, "TERM=xterm")
-	}
-
 	// Set PATH in ENV if needed
 	setPath(config, imageConfig)
 
-	// add remaining environment variables from the image config to the container
-	// config, taking care not to overwrite anything
 	containerEnv := make(map[string]string, len(config.Env))
 	for _, env := range config.Env {
 		kv := strings.Split(env, "=")
 		containerEnv[kv[0]] = kv[1]
 	}
 
+	// Set TERM to xterm if tty is set, unless user supplied a different TERM
+	if config.Tty {
+		if _, ok := containerEnv["TERM"]; !ok {
+			config.Env = append(config.Env, "TERM=xterm")
+		}
+	}
+
+	// add remaining environment variables from the image config to the container
+	// config, taking care not to overwrite anything
 	for _, imageEnv := range imageConfig.Env {
 		key := strings.Split(imageEnv, "=")[0]
 		// is environment variable already set in container config?

@@ -4,7 +4,7 @@ You can obtain information about a virtual container host by using the `vic-mach
 
 **Prerequisites**
 
-You have deployed a virtual container host.
+You have a virtual container host.
 
 **Procedure**
 
@@ -19,10 +19,7 @@ You have deployed a virtual container host.
 
   The `vic-machine inspect` command displays the connection information about the virtual container host:
 
-  <pre>VCH: <i>path_to_vch</i>/<i>vch_name</i>
-SSH to appliance (default=root:password)
-ssh root@<i>vch_address</i>
-Log server:
+  <pre>Log server:
 https://<i>vch_address</i>:2378
 DOCKER_HOST=<i>vch_address</i>:2376
 Connect to docker:

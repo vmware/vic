@@ -1,5 +1,5 @@
 # docker build -t vic-test -f Dockerfile.test .
-FROM golang:1.6.2
+FROM golang:1.6.3
 
 RUN apt-get update
 RUN apt-get install -y jq time

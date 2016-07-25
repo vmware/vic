@@ -2,7 +2,7 @@
 
 *vSphere Integrated Containers Installation* provides information about how to install and configure VMware vSphere Integrated Containers.
 
-**Product version 0.4.0**
+**Product version: ONSITE BETA**
 
 **NOTE**  This book is a work in progress.
 

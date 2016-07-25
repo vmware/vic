@@ -128,7 +128,7 @@ In addition to the mandatory options, this example sets the vCenter Single Sign-
 --target <i>vcenter_server_IPv4_address_or_FQDN</i>
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
---compute-resource <i>cluster_name</i>/Resources/<i>resource_pool_name</i>
+--compute-resource <i>cluster_name</i>/<i>resource_pool_name</i>
 --image-datastore <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --name vch1
