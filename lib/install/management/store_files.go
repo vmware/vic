@@ -106,16 +106,56 @@ func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, for
 		log.Debugf("Folder %q is not empty, leave it there", dsPath)
 		return empty, nil
 	}
-	if err = d.deleteVMFSFiles(ds, dsPath, d.force); err == nil {
-		empty = true
-	}
-	return empty, err
-}
-
-func (d *Dispatcher) deleteVMFSFiles(ds *object.Datastore, dsPath string, force bool) error {
-	defer trace.End(trace.Begin(dsPath))
 
 	m := object.NewFileManager(ds.Client())
+	if d.isVSAN(ds) {
+		if err = d.deleteFilesIteratively(m, ds, dsPath); err != nil {
+			return empty, err
+		}
+		return true, nil
+	}
+
+	if err = d.deleteVMFSFiles(m, ds, dsPath); err != nil {
+		return empty, err
+	}
+	return true, nil
+}
+
+func (d *Dispatcher) isVSAN(ds *object.Datastore) bool {
+	dsType, _ := ds.Type(d.ctx)
+
+	return dsType == types.HostFileSystemVolumeFileSystemTypeVsan
+}
+
+func (d *Dispatcher) deleteFilesIteratively(m *object.FileManager, ds *object.Datastore, dsPath string) error {
+	defer trace.End(trace.Begin(dsPath))
+
+	res, err := d.lsSubFolder(ds, dsPath)
+	if err != nil {
+		if !types.IsFileNotFound(err) {
+			err = errors.Errorf("Failed to browse sub folders %q: %s", dsPath, err)
+			return err
+		}
+		log.Debugf("Folder %q is not found", dsPath)
+		return nil
+	}
+
+	for _, dir := range res.HostDatastoreBrowserSearchResults {
+		for _, f := range dir.File {
+			dsf, ok := f.(*types.FileInfo)
+			if !ok {
+				continue
+			}
+			if err = d.deleteVMFSFiles(m, ds, path.Join(dir.FolderPath, dsf.Path)); err != nil {
+				return err
+			}
+		}
+	}
+	return d.deleteVMFSFiles(m, ds, dsPath)
+}
+
+func (d *Dispatcher) deleteVMFSFiles(m *object.FileManager, ds *object.Datastore, dsPath string) error {
+	defer trace.End(trace.Begin(dsPath))
 
 	if _, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return m.DeleteDatastoreFile(ctx, dsPath, d.session.Datacenter)
@@ -123,6 +163,32 @@ func (d *Dispatcher) deleteVMFSFiles(ds *object.Datastore, dsPath string, force 
 		log.Debugf("Failed to delete %q: %s", dsPath, err)
 	}
 	return nil
+}
+
+func (d *Dispatcher) lsSubFolder(ds *object.Datastore, dsPath string) (*types.ArrayOfHostDatastoreBrowserSearchResults, error) {
+	defer trace.End(trace.Begin(dsPath))
+
+	spec := types.HostDatastoreBrowserSearchSpec{
+		MatchPattern: []string{"*"},
+	}
+
+	b, err := ds.Browser(d.ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	task, err := b.SearchDatastoreSubFolders(d.ctx, dsPath, &spec)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := task.WaitForResult(d.ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	res := info.Result.(types.ArrayOfHostDatastoreBrowserSearchResults)
+	return &res, nil
 }
 
 func (d *Dispatcher) lsFolder(ds *object.Datastore, dsPath string) (*types.HostDatastoreBrowserSearchResults, error) {

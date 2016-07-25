@@ -16,13 +16,12 @@ VIC now provides:
 * experimental vCenter support
 * early volume support [--volume-store](doc/user/usage.md#configuring-volumes-in-a-virtual-container-host)
 * direct mapping of vSphere networks [--container-network](doc/user/usage.md#exposing-vsphere-networks-within-a-virtual-container-host)
+* port forwarding on bridge network
 
 
 The function is still basic and there are some specific limitations worth pulling out:
 * stop is not polite - it currently powers off the VM directly without providing for filesystem sync
-* port forwarding is not available
 * `run` does not block the process from starting until attach is complete so may result in missed output and attempt to attach to stopped container
-* no `volume ls` support or mechanism to list volume store locations
 
 We are working hard to add functionality while building out our [foundation](doc/design/arch/arch.md#port-layer-abstractions) so continue to watch the repo for new features. Initial focus is on the production end of the CI pipeline, building backwards towards developer laptop scenarios.
 
