@@ -22,7 +22,7 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # WARNING WARNING WARNING WARNING WARNING
     # if the tmpfs is not large enough odd hangs can occur and the ESX event log will
     # report the guest disabling the CPU
-    mount -t tmpfs -o size=128m tmpfs ${MOUNTPOINT}/.tether/
+    mount -t tmpfs -o size=64m tmpfs ${MOUNTPOINT}/.tether/
 
     # if we don't have a populated init layer, pull from guestinfo
     if [ ! -f ${MOUNTPOINT}/.tether-init/docker-id ]; then
@@ -30,11 +30,6 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
         # create the assumed structure
         # TODO: this cannot be in guest and still not show up in diffs
         mkdir -p ${MOUNTPOINT}/dev ${MOUNTPOINT}/proc ${MOUNTPOINT}/sys ${MOUNTPOINT}/etc
-        # ln -sf /proc/mounts ${MOUNTPOINT}/etc/mtab
-
-        touch ${MOUNTPOINT}/etc/hostname
-        touch ${MOUNTPOINT}/etc/hosts
-        touch ${MOUNTPOINT}/etc/resolv.conf
     fi
 
     # this is so we're not exposing the raw container disk if we wouldn't be otherwise
@@ -43,7 +38,7 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # enable full system functionality in the container
     echo "Publishing modules within container"
     mkdir -p ${MOUNTPOINT}/lib/modules
-    mount --bind /lib/modules ${MOUNTPOINT}/lib/modules
+    cp -pr /lib/modules/* ${MOUNTPOINT}/lib/modules/
 
     # switch to the new root
     echo "prepping for switch to container filesystem"
