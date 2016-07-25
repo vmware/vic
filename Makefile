@@ -52,7 +52,7 @@ define godeps
 	$(wildcard $1) $(shell $(BASE_DIR)/infra/scripts/go-deps.sh $(dir $1) $(MAKEFLAGS))
 endef
 
-define flags
+define ldflags
 	$(shell $(BASE_DIR)/infra/scripts/version-linker-flags.sh)
 endef
 
@@ -244,18 +244,18 @@ $(tether-darwin): $(call godeps,cmd/tether/*.go)
 $(rpctool): $(call godeps,cmd/rpctool/*.go)
 ifeq ($(OS),linux)
 	@echo building rpctool
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(flags) -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 else
 	@echo skipping rpctool, cannot cross compile cgo
 endif
 
 $(vicadmin): $(call godeps,cmd/vicadmin/*.go)
 	@echo building vicadmin
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(flags) -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
 $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@echo building imagec...
-	@$(TIME) $(GO) build $(RACE)  $(flags) -o ./$@ ./$(dir $<)
+	@$(TIME) $(GO) build $(RACE)  $(ldflags) -o ./$@ ./$(dir $<)
 
 $(docker-engine-api): $(call godeps,cmd/docker/*.go) $(portlayerapi-client)
 ifeq ($(OS),linux)
@@ -342,15 +342,15 @@ $(vic-ui-darwin): $(call godeps,cmd/vic-ui/*.go)
 
 $(vic-dns-linux): $(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns linux...
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(flags) -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
 $(vic-dns-windows): $(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns windows...
-	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) $(flags) -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
 $(vic-dns-darwin): $(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns darwin...
-	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) $(flags) -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
 clean:
 	rm -rf $(BIN)
