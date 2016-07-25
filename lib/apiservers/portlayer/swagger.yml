@@ -226,7 +226,7 @@ paths:
           description: "Not found"
           schema:
             $ref: "#/definitions/Error"
-        default:
+        '500':
           description: "error"
           schema:
            $ref: "#/definitions/Error"

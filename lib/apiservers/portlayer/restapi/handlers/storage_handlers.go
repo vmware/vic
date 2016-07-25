@@ -233,7 +233,7 @@ func (handler *StorageHandlersImpl) VolumeStoresList() middleware.Responder {
 
 	stores, err := storageVolumeLayer.VolumeStoresList(context.TODO())
 	if err != nil {
-		return storage.NewVolumeStoresListDefault(http.StatusInternalServerError).WithPayload(
+		return storage.NewVolumeStoresListInternalServerError().WithPayload(
 			&models.Error{
 				Code:    swag.Int64(http.StatusInternalServerError),
 				Message: err.Error(),
@@ -247,6 +247,7 @@ func (handler *StorageHandlersImpl) VolumeStoresList() middleware.Responder {
 	for name, ds := range stores {
 		resp.Stores[name] = ds.String()
 	}
+
 	return storage.NewVolumeStoresListOK().WithPayload(resp)
 }
 
