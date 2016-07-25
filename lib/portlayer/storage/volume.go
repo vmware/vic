@@ -75,7 +75,7 @@ type Volume struct {
 }
 
 // NewVolume creates a Volume
-func NewVolume(store *url.URL, ID string, device Disk) (*Volume, error) {
+func NewVolume(store *url.URL, ID string, info map[string][]byte, device Disk) (*Volume, error) {
 	storeName, err := util.VolumeStoreName(store)
 	if err != nil {
 		return nil, err
@@ -94,6 +94,7 @@ func NewVolume(store *url.URL, ID string, device Disk) (*Volume, error) {
 		Store:    store,
 		SelfLink: selflink,
 		Device:   device,
+		Info:     info,
 	}
 
 	return vol, nil
