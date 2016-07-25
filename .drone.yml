@@ -9,7 +9,7 @@ clone:
 
 build:
   vic:
-    image: golang:1.6.2
+    image: golang:1.6.3
     pull: true
     environment:
       BIN: bin
@@ -57,7 +57,7 @@ build:
       success: true
 
   bundle:
-    image: golang:1.6.2
+    image: golang:1.6.3
     pull: true
     environment:
       BIN: bin
