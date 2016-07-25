@@ -12,10 +12,14 @@ ${bin-dir}  /drone/src/github.com/vmware/vic/bin
 
 *** Keywords ***
 Install VIC Appliance To Test Server
-    [Arguments]  ${certs}=${false}  ${vol}=default
+    [Arguments]  ${certs}=${false}  ${vol}=default  ${bridge}=network  ${external}='VM Network'
     # Finish setting up environment variables
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  DRONE_BUILD_NUMBER
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_BUILD_NUMBER  0
+    ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  BRIDGE_NETWORK
+    Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${bridge}  %{BRIDGE_NETWORK}
+    ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  EXTERNAL_NETWORK
+    Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${external}  %{EXTERNAL_NETWORK}
     
     @{URLs}=  Split String  %{TEST_URL_ARRAY}
     ${len}=  Get Length  ${URLs}
@@ -34,14 +38,18 @@ Install VIC Appliance To Test Server
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${vch-name}  ${name}
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run VIC Machine Command  ${certs}  ${vol}
-    ${line}=  Get Line  ${output}  -2
-    ${ret}=  Fetch From Right  ${line}  ] docker
-    ${ret}=  Remove String  ${ret}  info
+    ${output}=  Run VIC Machine Command  ${certs}  ${vol}  ${bridge}  ${external}
+    @{output}=  Split To Lines  ${output}
+    :FOR  ${item}  IN  @{output}
+    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  DOCKER_HOST=
+    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
+    
+    ${ret}=  Fetch From Right  ${line}  DOCKER_HOST=
     ${ret}=  Strip String  ${ret}
-    Set Suite Variable  ${params}  ${ret}
-    ${ret}=  Fetch From Right  ${ret}  -H
-    ${ret}=  Fetch From Left  ${ret}  --tls
+    
+    Run Keyword If  ${certs}  Set Suite Variable  ${params}  -H ${ret} --tls
+    Run Keyword Unless  ${certs}  Set Suite Variable  ${params}  -H ${ret}
+    
     @{ret}=  Split String  ${ret}  :
     ${ret}=  Strip String  @{ret}[0]
     Set Suite Variable  ${vch-ip}  ${ret}
@@ -54,13 +62,13 @@ Install VIC Appliance To Test Server
 
 Run VIC Machine Command
     [Tags]  secret
-    [Arguments]  ${certs}  ${vol}
-    ${output}=  Run Keyword If  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --generate-cert --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol}
-    Run Keyword If  ${certs}  Run Keyword And Ignore Error  Should Contain  ${output}  Installer completed successfully
+    [Arguments]  ${certs}  ${vol}  ${bridge}  ${external}
+    ${output}=  Run Keyword If  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --force=true --bridge-network=${bridge} --external-network=${external} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol}
+    Run Keyword If  ${certs}  Should Contain  ${output}  Installer completed successfully
     Return From Keyword If  ${certs}  ${output}
     
-    ${output}=  Run Keyword Unless  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --force=true --bridge-network=network --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol}
-    Run Keyword Unless  ${certs}  Run Keyword And Ignore Error  Should Contain  ${output}  Installer completed successfully
+    ${output}=  Run Keyword Unless  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --no-tls --force=true --bridge-network=${bridge} --external-network=${external} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol}
+    Run Keyword Unless  ${certs}  Should Contain  ${output}  Installer completed successfully
     [Return]  ${output}
 
 Cleanup VIC Appliance On Test Server
@@ -158,14 +166,17 @@ Deploy Nimbus ESXi Server
     Open Connection  %{NIMBUS_GW}
     Login  ${user}  ${password}
 
-    ${out}=  Execute Command  nimbus-esxdeploy ${name} 3620759
+    ${out}=  Execute Command  nimbus-esxdeploy ${name} --nics 2 3620759
     # Make sure the deploy actually worked
-    ${success}=  Get Line  ${out}  -2
-    Should Contain  ${success}  To manage this VM use
+    Should Contain  ${out}  To manage this VM use
     # Now grab the IP address and return the name and ip for later use
-    ${gotIP}=  Get Line  ${out}  -5
-    @{gotIP}=  Split String  ${gotIP}  ${SPACE}
+    @{out}=  Split To Lines  ${out}
+    :FOR  ${item}  IN  @{out}
+    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  IP is
+    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
+    @{gotIP}=  Split String  ${line}  ${SPACE}
     ${ip}=  Remove String  @{gotIP}[5]  ,
+    
     # Let's set a password so govc doesn't complain
     Remove Environment Variable  GOVC_PASSWORD
     Remove Environment Variable  GOVC_USERNAME
@@ -186,11 +197,13 @@ Deploy Nimbus vCenter Server
 
     ${out}=  Execute Command  nimbus-vcvadeploy --vcvaBuild 3634791 ${name}
     # Make sure the deploy actually worked
-    ${success}=  Get Line  ${out}  -5
-    Should Contain  ${success}  Overall Status: Succeeded
+    Should Contain  ${out}  Overall Status: Succeeded
     # Now grab the IP address and return the name and ip for later use
-    ${gotIP}=  Get Line  ${out}  -22
-    ${ip}=  Fetch From Right  ${gotIP}  ${SPACE}
+    @{out}=  Split To Lines  ${out}
+    :FOR  ${item}  IN  @{out}
+    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  Cloudvm is running on IP
+    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
+    ${ip}=  Fetch From Right  ${line}  ${SPACE}
 
     Set Environment Variable  GOVC_INSECURE  1
     Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local

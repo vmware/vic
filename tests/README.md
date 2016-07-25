@@ -17,6 +17,13 @@ To run the integration tests locally:
     VIC_ESX_TEST_DATASTORE: <datastore path, e.g. /ha-datacenter/datastore/datastore1>
     VIC_ESX_TEST_URL: <user:password@IP address of your test server>
   ```
+  
+If you are using a vSAN environment or non-default ESX install, then you can also specify the two networks to use with the following command (make sure to add them to the yaml file in Step 2 below as well):
+
+  ```
+    BRIDGE_NETWORK: bridge  
+    EXTERNAL_NETWORK: external
+  ```
 
 2. Create a `.drone.local.yml` file that includes:
 
