@@ -61,3 +61,7 @@ Docker run linked containers
     Log  Issue \#384 is blocking implementation  WARN
     #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --link busy3:busy3 busybox ping -c2 busy3 
     #Should Be Equal As Integers  ${rc}  0
+
+Docker run df command
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -it busybox /bin/df
+    Should Be Equal As Integers  ${rc}  0
