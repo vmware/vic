@@ -43,7 +43,6 @@ import (
 type StorageHandlersImpl struct{}
 
 var (
-	storageSession     = &session.Session{}
 	storageImageLayer  = &spl.NameLookupCache{}
 	storageVolumeLayer = &spl.VolumeLookupCache{}
 )
@@ -64,7 +63,7 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, hand
 		DatastorePath:  options.PortLayerOptions.DatastorePath,
 	}
 
-	storageSession, err = session.NewSession(sessionconfig).Create(ctx)
+	storageSession, err := session.NewSession(sessionconfig).Create(ctx)
 	if err != nil {
 		log.Fatalf("StorageHandler ERROR: %s", err)
 	}
@@ -78,7 +77,6 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, hand
 	// implementation that writes to disks.  The cache is used to avoid
 	// expensive metadata lookups.
 	storageImageLayer = spl.NewLookupCache(ds)
-	//FIXME: this may need another viewing after ian/faiyaz's changes
 	vsVolumeStore, err := vsphereSpl.NewVolumeStore(context.TODO(), storageSession)
 	if err != nil {
 		log.Panicf("Cannot instantiate the volume store: %s", err)
@@ -110,8 +108,10 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, hand
 	api.StorageGetImageTarHandler = storage.GetImageTarHandlerFunc(handler.GetImageTar)
 	api.StorageListImagesHandler = storage.ListImagesHandlerFunc(handler.ListImages)
 	api.StorageWriteImageHandler = storage.WriteImageHandlerFunc(handler.WriteImage)
-	api.StorageRemoveVolumeHandler = storage.RemoveVolumeHandlerFunc(handler.RemoveVolume)
+
+	api.StorageVolumeStoresListHandler = storage.VolumeStoresListHandlerFunc(handler.VolumeStoresList)
 	api.StorageCreateVolumeHandler = storage.CreateVolumeHandlerFunc(handler.CreateVolume)
+	api.StorageRemoveVolumeHandler = storage.RemoveVolumeHandlerFunc(handler.RemoveVolume)
 	api.StorageVolumeJoinHandler = storage.VolumeJoinHandlerFunc(handler.VolumeJoin)
 	api.StorageListVolumesHandler = storage.ListVolumesHandlerFunc(handler.VolumesList)
 }
@@ -225,6 +225,30 @@ func (handler *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) 
 	}
 	i := convertImage(image)
 	return storage.NewWriteImageCreated().WithPayload(i)
+}
+
+// VolumeStoresList lists the configured volume stores and their datastore path URIs.
+func (handler *StorageHandlersImpl) VolumeStoresList() middleware.Responder {
+	defer trace.End(trace.Begin("storage_handlers.VolumeStoresList"))
+
+	stores, err := storageVolumeLayer.VolumeStoresList(context.TODO())
+	if err != nil {
+		return storage.NewVolumeStoresListInternalServerError().WithPayload(
+			&models.Error{
+				Code:    swag.Int64(http.StatusInternalServerError),
+				Message: err.Error(),
+			})
+	}
+
+	resp := &models.VolumeStoresListResponse{
+		Stores: make(map[string]string),
+	}
+
+	for name, ds := range stores {
+		resp.Stores[name] = ds.String()
+	}
+
+	return storage.NewVolumeStoresListOK().WithPayload(resp)
 }
 
 //CreateVolume : Create a Volume
