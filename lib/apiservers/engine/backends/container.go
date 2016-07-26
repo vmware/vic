@@ -41,6 +41,7 @@ import (
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
+	dnetwork "github.com/docker/engine-api/types/network"
 	"github.com/docker/engine-api/types/strslice"
 	"github.com/docker/go-connections/nat"
 
@@ -893,10 +894,13 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 	defer trace.End(trace.Begin("ContainerInspect"))
 
 	// Look up the container name in the metadata cache to get long ID
-	if vc := cache.ContainerCache().GetContainer(name); vc != nil {
-		log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
-		name = vc.ContainerID
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc == nil {
+		return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
 	}
+
+	log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
+	name = vc.ContainerID
 
 	client := PortLayerClient()
 	if client == nil {
@@ -915,13 +919,18 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 		}
 	}
 
-	inspectJSON, err := containerInfoToDockerContainerInspect(name, results.Payload)
+	inspectJSON, err := containerInfoToDockerContainerInspect(vc, results.Payload)
 	if err != nil {
 		log.Errorf("containerInfoToDockerContainerInspect failed with %s", err)
 		return nil, err
 	}
 
 	log.Debugf("ContainerInspect json config = %+v\n", inspectJSON.Config)
+	if inspectJSON.NetworkSettings != nil {
+		log.Debugf("Docker inspect - network settings = %#v", inspectJSON.NetworkSettings)
+	} else {
+		log.Debugf("Docker inspect - network settings = null")
+	}
 
 	return inspectJSON, nil
 }
@@ -1170,9 +1179,9 @@ func createNewAttachClientWithTimeouts(connectTimeout, responseTimeout, response
 // containerInfoToDockerContainerInspect() takes a ContainerInfo swagger-based struct
 // returned from VIC's port layer and creates an engine-api based container inspect struct.
 // There maybe other asset gathering if ContainerInfo does not have all the information
-func containerInfoToDockerContainerInspect(id string, info *models.ContainerInfo) (*types.ContainerJSON, error) {
-	if info == nil || info.ContainerConfig == nil {
-		return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", id))
+func containerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *models.ContainerInfo) (*types.ContainerJSON, error) {
+	if vc == nil || info == nil || info.ContainerConfig == nil {
+		return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", vc.ContainerID))
 	}
 
 	// Set default container state attributes
@@ -1199,7 +1208,7 @@ func containerInfoToDockerContainerInspect(id string, info *models.ContainerInfo
 		}
 	}
 
-	inpsectJSON := &types.ContainerJSON{
+	inspectJSON := &types.ContainerJSON{
 		ContainerJSONBase: &types.ContainerJSONBase{
 			State:           containerState,
 			ResolvConfPath:  "",
@@ -1210,23 +1219,29 @@ func containerInfoToDockerContainerInspect(id string, info *models.ContainerInfo
 			ProcessLabel:    "",
 			AppArmorProfile: "",
 			ExecIDs:         nil,
-			HostConfig:      hostConfigFromContainerInfo(id, info),
+			HostConfig:      hostConfigFromContainerInfo(vc, info),
 			GraphDriver:     types.GraphDriverData{Name: PortLayerName()},
 			SizeRw:          nil,
 			SizeRootFs:      nil,
 		},
-		Mounts:          mountsFromContainerInfo(id, info),
-		Config:          containerConfigFromContainerInfo(id, info),
-		NetworkSettings: networkFromContainerInfo(id, info),
+		Mounts:          mountsFromContainerInfo(vc, info),
+		Config:          containerConfigFromContainerInfo(vc, info),
+		NetworkSettings: networkFromContainerInfo(vc, info),
+	}
+
+	if inspectJSON.NetworkSettings != nil {
+		log.Debugf("Docker inspect - network settings = %#v", inspectJSON.NetworkSettings)
+	} else {
+		log.Debug("Docker inspect - network settings = nil")
 	}
 
 	if info.ProcessConfig != nil {
 		if info.ProcessConfig.ExecPath != nil {
-			inpsectJSON.Path = *info.ProcessConfig.ExecPath
+			inspectJSON.Path = *info.ProcessConfig.ExecPath
 		}
 		if info.ProcessConfig.ExecArgs != nil {
 			// args[0] is the command and should not appear in the args list here
-			inpsectJSON.Args = info.ProcessConfig.ExecArgs[1:]
+			inspectJSON.Args = info.ProcessConfig.ExecArgs[1:]
 		}
 	}
 
@@ -1243,34 +1258,38 @@ func containerInfoToDockerContainerInspect(id string, info *models.ContainerInfo
 			}
 		}
 		if info.ContainerConfig.LayerID != nil {
-			inpsectJSON.Image = *info.ContainerConfig.LayerID
+			inspectJSON.Image = *info.ContainerConfig.LayerID
 		}
 		if info.ContainerConfig.LogPath != nil {
-			inpsectJSON.LogPath = *info.ContainerConfig.LogPath
+			inspectJSON.LogPath = *info.ContainerConfig.LogPath
 		}
 		if info.ContainerConfig.RestartCount != nil {
-			inpsectJSON.RestartCount = int(*info.ContainerConfig.RestartCount)
+			inspectJSON.RestartCount = int(*info.ContainerConfig.RestartCount)
 		}
 		if info.ContainerConfig.ContainerID != nil {
-			inpsectJSON.ID = *info.ContainerConfig.ContainerID
+			inspectJSON.ID = *info.ContainerConfig.ContainerID
 		}
 		if info.ContainerConfig.Created != nil {
-			inpsectJSON.Created = time.Unix(*info.ContainerConfig.Created, 0).String()
+			inspectJSON.Created = time.Unix(*info.ContainerConfig.Created, 0).String()
 		}
 		if len(info.ContainerConfig.Names) > 0 {
-			inpsectJSON.Name = info.ContainerConfig.Names[0]
+			inspectJSON.Name = info.ContainerConfig.Names[0]
 		}
 	}
 
-	return inpsectJSON, nil
+	return inspectJSON, nil
 }
 
-// hostConfigFromContainerInfo() extracts docker compatible hostconfig data from the
-// Swagger-based ContainerInfo object.
-func hostConfigFromContainerInfo(id string, info *models.ContainerInfo) *container.HostConfig {
-	if info == nil {
+// hostConfigFromContainerInfo() gets the hostconfig that is passed to the backend during
+// docker create and updates any needed info
+func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.ContainerInfo) *container.HostConfig {
+	if vc == nil || vc.HostConfig == nil || info == nil {
 		return nil
 	}
+
+	// Create a copy of the created container's hostconfig.  This is passed in during
+	// container create
+	hostConfig := *vc.HostConfig
 
 	// Resources don't really map well to VIC so we leave most of them empty. If we look
 	// at the struct in engine-api/types/container/host_config.go, Microsoft added
@@ -1288,51 +1307,8 @@ func hostConfigFromContainerInfo(id string, info *models.ContainerInfo) *contain
 	//			DiskQuota            int64           // Disk limit (in bytes)
 	}
 
-	hostConfig := &container.HostConfig{
-		Binds:           nil,
-		ContainerIDFile: "",
-		LogConfig: container.LogConfig{
-			Type:   "",
-			Config: nil,
-		},
-		PortBindings: nil, // Port mapping between the exposed port (container) and the host
-		RestartPolicy: container.RestartPolicy{
-			Name:              "",
-			MaximumRetryCount: 0,
-		}, // Restart policy to be used for the container
-		AutoRemove:   false,           // Automatically remove container when it exits
-		VolumeDriver: PortLayerName(), // Name of the volume driver used to mount volumes
-		VolumesFrom:  nil,             // List of volumes to take from other container
-
-		// Applicable to UNIX platforms
-		CapAdd:          nil,   // List of kernel capabilities to add to the container
-		CapDrop:         nil,   // List of kernel capabilities to remove from the container
-		DNSOptions:      nil,   // List of DNSOption to look for
-		DNSSearch:       nil,   // List of DNSSearch to look for
-		ExtraHosts:      nil,   // List of extra hosts
-		GroupAdd:        nil,   // List of additional groups that the container process will run as
-		IpcMode:         "",    // IPC namespace to use for the container
-		Cgroup:          "",    // Cgroup to use for the container
-		Links:           nil,   // List of links (in the name:alias form)
-		OomScoreAdj:     0,     // Container preference for OOM-killing
-		PidMode:         "",    // PID namespace to use for the container
-		Privileged:      false, // Is the container in privileged mode
-		PublishAllPorts: false, // Should docker publish all exposed port for the container
-		ReadonlyRootfs:  false, // Is the container root filesystem in read-only
-		SecurityOpt:     nil,   // List of string values to customize labels for MLS systems, such as SELinux.
-		StorageOpt:      nil,   // Storage driver options per container.
-		Tmpfs:           nil,   // List of tmpfs (mounts) used for the container
-		UTSMode:         "",    // UTS namespace to use for the container
-		UsernsMode:      "",    // The user namespace to use for the container
-		ShmSize:         0,     // Total shm memory usage
-		Sysctls:         nil,   // List of Namespaced sysctls used for the container
-
-		// Applicable to Windows
-		Isolation: "", // Isolation technology of the container (eg default, hyperv)
-
-		// Contains container's resources (cgroups, ulimits)
-		Resources: resourceConfig,
-	}
+	hostConfig.VolumeDriver = PortLayerName()
+	hostConfig.Resources = resourceConfig
 
 	if len(info.ScopeConfig) > 0 {
 		if info.ScopeConfig[0].DNS != nil {
@@ -1342,12 +1318,12 @@ func hostConfigFromContainerInfo(id string, info *models.ContainerInfo) *contain
 		hostConfig.NetworkMode = container.NetworkMode(info.ScopeConfig[0].ScopeType)
 	}
 
-	return hostConfig
+	return &hostConfig
 }
 
 // mountsFromContainerInfo()
-func mountsFromContainerInfo(id string, info *models.ContainerInfo) []types.MountPoint {
-	if info == nil {
+func mountsFromContainerInfo(vc *viccontainer.VicContainer, info *models.ContainerInfo) []types.MountPoint {
+	if vc == nil || info == nil {
 		return nil
 	}
 
@@ -1384,16 +1360,13 @@ func mountsFromContainerInfo(id string, info *models.ContainerInfo) []types.Moun
 // to help build the Container Inspect struct.  That struct contains the original
 // container config that is part of the image metadata AND the overriden container
 // config.  The user can override these via the remote API or the docker CLI.
-func containerConfigFromContainerInfo(id string, info *models.ContainerInfo) *container.Config {
-	if info == nil || info.ContainerConfig == nil || info.ProcessConfig == nil {
+func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.ContainerInfo) *container.Config {
+	if vc == nil || vc.Config == nil || info == nil || info.ContainerConfig == nil || info.ProcessConfig == nil {
 		return nil
 	}
 
-	container := &container.Config{
-		Domainname: "",    // Domainname
-		User:       "",    // User that will run the command(s) inside the container
-		StdinOnce:  false, // If true, close stdin after the 1 attached client disconnects.
-	}
+	// Copy the working copy of our container's config
+	container := *vc.Config
 
 	if info.ContainerConfig.ContainerID != nil {
 		container.Hostname = stringid.TruncateID(*info.ContainerConfig.ContainerID) // Hostname
@@ -1441,7 +1414,7 @@ func containerConfigFromContainerInfo(id string, info *models.ContainerInfo) *co
 	} else {
 		container.NetworkDisabled = false
 		container.MacAddress = ""
-		container.ExposedPorts = nil  //FIXME:  Add once port mapping is implemented
+		container.ExposedPorts = vc.Config.ExposedPorts
 		container.PublishService = "" // Name of the network service exposed by the container
 	}
 
@@ -1466,14 +1439,10 @@ func containerConfigFromContainerInfo(id string, info *models.ContainerInfo) *co
 		container.Volumes = imageConfig.ContainerConfig.Volumes
 	}
 
-	return container
+	return &container
 }
 
-func networkFromContainerInfo(id string, info *models.ContainerInfo) *types.NetworkSettings {
-	if info == nil || info.ScopeConfig == nil {
-		return nil
-	}
-
+func networkFromContainerInfo(vc *viccontainer.VicContainer, info *models.ContainerInfo) *types.NetworkSettings {
 	networks := &types.NetworkSettings{
 		NetworkSettingsBase: types.NetworkSettingsBase{
 			Bridge:                 "",
@@ -1481,15 +1450,67 @@ func networkFromContainerInfo(id string, info *models.ContainerInfo) *types.Netw
 			HairpinMode:            false,
 			LinkLocalIPv6Address:   "",
 			LinkLocalIPv6PrefixLen: 0,
-			Ports:                  nil, //FIXME:  Fill in once port mapping is implemented.
+			Ports:                  portMapFromVicContainer(vc),
 			SandboxKey:             "",
 			SecondaryIPAddresses:   nil,
 			SecondaryIPv6Addresses: nil,
 		},
-		Networks: nil,
+		Networks: make(map[string]*dnetwork.EndpointSettings),
 	}
 
 	return networks
+}
+
+// portMapFromVicContainer() constructs a docker portmap from both the container's
+// hostconfig and config (both stored in VicContainer).  They are added and modified
+// during docker create.  This function creates a new map that is adhere's to docker's
+// structure for types.NetworkSettings.Ports.
+func portMapFromVicContainer(vc *viccontainer.VicContainer) nat.PortMap {
+	var portMap nat.PortMap
+
+	if vc == nil {
+		return portMap
+	}
+
+	portMap = make(nat.PortMap)
+
+	// Iterate over the hostconfig that was set in docker create.  Get non-nil
+	// bindings and fix up ip addr and add to networks
+	if vc.HostConfig != nil && vc.HostConfig.PortBindings != nil {
+		//		networks.Ports = vc.HostConfig.PortBindings
+		for port, portbindings := range vc.HostConfig.PortBindings {
+
+			var newbindings []nat.PortBinding
+
+			for _, binding := range portbindings {
+				nb := binding
+
+				// Check host IP.  VIC only support 0.0.0.0
+				if nb.HostIP == "" {
+					nb.HostIP = "0.0.0.0"
+				}
+
+				newbindings = append(newbindings, nb)
+			}
+
+			portMap[port] = newbindings
+		}
+	}
+
+	// Iterate over the container's original image config.  This is the set of
+	// exposed ports.  For ports that were not in hostConfig, we assign value of
+	// nil.  This appears to be the behavior of regular docker.
+	if vc.Config != nil {
+		for port := range vc.Config.ExposedPorts {
+			if _, ok := portMap[port]; ok {
+				continue
+			}
+
+			portMap[port] = nil
+		}
+	}
+
+	return portMap
 }
 
 // attacheStreams takes the the hijacked connections from the calling client and attaches
