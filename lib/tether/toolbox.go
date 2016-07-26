@@ -34,10 +34,6 @@ func NewToolbox() *Toolbox {
 
 	service := toolbox.NewService(in, out)
 
-	toolbox.RegisterVixRelayedCommandHandler(service)
-
-	toolbox.RegisterPowerCommandHandler(service)
-
 	return &Toolbox{Service: service}
 }
 

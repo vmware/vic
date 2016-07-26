@@ -109,7 +109,7 @@ type VixUserCredentialNamePassword struct {
 	Password string
 }
 
-func RegisterVixRelayedCommandHandler(service *Service) *VixRelayedCommandHandler {
+func registerVixRelayedCommandHandler(service *Service) *VixRelayedCommandHandler {
 	handler := &VixRelayedCommandHandler{
 		Out:      service.out,
 		handlers: make(map[uint32]VixCommandHandler),
