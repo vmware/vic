@@ -22,8 +22,8 @@ build:
     commands:
       - apt-get update
       - apt-get install -yq time
-      - make all
-      - make test
+      - make -j3 all
+      - make -j3 test
 
   integration-test-on-pr:
     image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.1}
@@ -112,8 +112,3 @@ publish:
       repo: vmware/vic
       branch: master
       success: true
-
-cache:
-  mount:
-    - /drone/bin
-    - bin

@@ -755,6 +755,13 @@ func (v *Validator) target(ctx context.Context, input *data.Data, conf *metadata
 		}
 	}
 
+	// bridge network params
+	var err error
+	_, conf.BridgeIPRange, err = net.ParseCIDR(input.BridgeIPRange)
+	if err != nil {
+		v.NoteIssue(fmt.Errorf("Error parsing bridge network ip range: %s. Range must be in CIDR format, e.g., 172.16.0.0/12", err))
+	}
+
 	conf.Target = *targetURL
 	conf.Insecure = input.Insecure
 

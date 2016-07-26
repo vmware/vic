@@ -90,9 +90,9 @@ Docker ps all containers with only IDs
     Length Should Be  ${output}  3
     
 Docker ps with filter
-    ${status}=  Get State Of Github Issue  1546
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-10-Docker-PS.robot needs to be updated now that Issue #1546 has been resolved
-    Log  Issue \#1546 is blocking implementation  WARN
+    ${status}=  Get State Of Github Issue  1676
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-10-Docker-PS.robot needs to be updated now that Issue #1676 has been resolved
+    Log  Issue \#1676 is blocking implementation  WARN
     #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -f status=created
     #Should Be Equal As Integers  ${rc}  0
     #Should Contain  ${output}  ls

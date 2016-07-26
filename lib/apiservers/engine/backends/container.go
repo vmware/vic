@@ -785,7 +785,7 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 	// ignore the error  since others will be checking below..this is an attempt to short circuit the op
 	// TODO: can be replaced with simple cache check once power events are propigated to persona
 	infoResponse, _ := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParams().WithID(name))
-	if *infoResponse.Payload.ContainerConfig.State == "Stopped" {
+	if *infoResponse.Payload.ContainerConfig.State == "Stopped" || *infoResponse.Payload.ContainerConfig.State == "Created" {
 		return nil
 	}
 
