@@ -15,7 +15,9 @@
 package vsphere
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
@@ -102,6 +104,11 @@ func (v *VolumeStore) volDirPath(ID string) string {
 	return path.Join(volumesDir, ID)
 }
 
+// Returns the path to the metadata directory for a volume
+func (v *VolumeStore) volMetadataDirPath(ID string) string {
+	return path.Join(v.volDirPath(ID), metaDataDir)
+}
+
 // Returns the path to the vmdk itself (in datastore URL format)
 func (v *VolumeStore) volDiskDsURL(store *url.URL, ID string) (string, error) {
 	// find the datastore
@@ -142,7 +149,7 @@ func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.UR
 	}
 	defer v.dm.Detach(ctx, vmdisk)
 
-	vol, err := storage.NewVolume(store, ID, vmdisk)
+	vol, err := storage.NewVolume(store, ID, info, vmdisk)
 	if err != nil {
 		return nil, err
 	}
@@ -152,10 +159,76 @@ func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.UR
 		return nil, err
 	}
 
-	// XXX persist the metadata
+	// Persist the metadata
+	if err = v.writeMetadata(ctx, ID, dstore, info); err != nil {
+		return nil, err
+	}
 
 	log.Infof("volumestore: %s (%s)", ID, vol.SelfLink)
 	return vol, nil
+}
+
+// Write the opaque metadata blobs (by name) for an image.  We create a
+// directory under the image's parent directory.  Each blob in the metadata map
+// is written to a file with the corresponding name.  Likewise, when we read it
+// back (on restart) we populate the map accordingly.
+func (v *VolumeStore) writeMetadata(ctx context.Context, ID string, ds *datastore.Helper,
+	meta map[string][]byte) error {
+	// XXX this should be done via disklib so this meta follows the disk in
+	// case of motion.
+
+	metaDataDir := v.volMetadataDirPath(ID)
+
+	if meta != nil && len(meta) != 0 {
+		for name, value := range meta {
+			r := bytes.NewReader(value)
+			pth := path.Join(metaDataDir, name)
+			log.Infof("Writing metadata %s", pth)
+			if err := ds.Upload(ctx, r, pth); err != nil {
+				return err
+			}
+		}
+	} else {
+		if _, err := ds.Mkdir(ctx, false, metaDataDir); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (v *VolumeStore) getMetadata(ctx context.Context, ID string, ds *datastore.Helper) (map[string][]byte, error) {
+	metaDataDir := v.volMetadataDirPath(ID)
+
+	res, err := ds.Ls(ctx, metaDataDir)
+	if err != nil {
+		return nil, err
+	}
+
+	meta := make(map[string][]byte)
+	for _, f := range res.File {
+		finfo, ok := f.(*types.FileInfo)
+		if !ok {
+			continue
+		}
+
+		p := path.Join(metaDataDir, finfo.Path)
+		log.Infof("Getting meta for volume (%s) %s", ID, p)
+		rc, err := ds.Download(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+		defer rc.Close()
+
+		buf, err := ioutil.ReadAll(rc)
+		if err != nil {
+			return nil, err
+		}
+
+		meta[finfo.Path] = buf
+	}
+
+	return meta, nil
 }
 
 func (v *VolumeStore) VolumeDestroy(ctx context.Context, ID string) error {
@@ -199,7 +272,12 @@ func (v *VolumeStore) VolumesList(ctx context.Context) ([]*storage.Volume, error
 				return nil, err
 			}
 
-			vol, err := storage.NewVolume(&store, ID, dev)
+			meta, err := v.getMetadata(ctx, ID, vols)
+			if err != nil {
+				return nil, err
+			}
+
+			vol, err := storage.NewVolume(&store, ID, meta, dev)
 			if err != nil {
 				return nil, err
 			}

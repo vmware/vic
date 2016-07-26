@@ -148,7 +148,8 @@ func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.Stat
 
 	case "STOPPED":
 		state = exec.StateStopped
-
+	case "CREATED":
+		state = exec.StateCreated
 	default:
 		return containers.NewStateChangeDefault(http.StatusServiceUnavailable).WithPayload(&models.Error{Message: "unknown state"})
 	}
@@ -172,6 +173,9 @@ func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStat
 
 	case exec.StateStopped:
 		state = "STOPPED"
+
+	case exec.StateCreated:
+		state = "CREATED"
 
 	default:
 		return containers.NewGetStateDefault(http.StatusServiceUnavailable)
