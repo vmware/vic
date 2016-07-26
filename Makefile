@@ -214,7 +214,7 @@ sincemark:
 	@echo seconds passed since we start
 	@stat -c %Y /started | echo `expr $$(date +%s) - $$(cat)`
 
-test:
+test: portlayerapi
 	@echo Running unit tests
 	# test everything but vendor
 ifdef DRONE
