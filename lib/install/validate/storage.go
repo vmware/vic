@@ -32,7 +32,13 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 	defer trace.End(trace.Begin(""))
 
 	// Image Store
-	imageDSpath, ds, err := v.DatastoreHelper(ctx, input.ImageDatastoreName, "", "--image-datastore")
+	imageDSpath, ds, err := v.DatastoreHelper(ctx, input.ImageDatastorePath, "", "--image-datastore")
+
+	// provide a default path if only a DS name is provided
+	if imageDSpath.Path == "" {
+		imageDSpath.Path = path.Join(input.DisplayName, "images")
+	}
+
 	v.NoteIssue(err)
 	if ds != nil {
 		v.SetDatastore(ds, imageDSpath)
@@ -40,6 +46,12 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 	}
 
 	// Volume Store(s)
+	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s",
+		imageDSpath.Host,
+		input.DisplayName,
+		path.Base(input.BootstrapISO),
+	)
+
 	if conf.VolumeLocations == nil {
 		conf.VolumeLocations = make(map[string]*url.URL)
 	}

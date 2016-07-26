@@ -54,15 +54,37 @@ func (d *Dispatcher) DeleteStores(vchVM *vm.VirtualMachine, conf *config.Virtual
 	var emptyImages bool
 	var emptyVolumes bool
 	log.Infof("Removing images")
-	if emptyImages, err = d.deleteImages(ds, p); err != nil {
-		errs = append(errs, err.Error())
+	for _, imageDir := range conf.ImageStores {
+		imageDSes, err := d.session.Finder.DatastoreList(d.ctx, imageDir.Host)
+		if err != nil {
+			errs = append(errs, err.Error())
+			continue
+		}
+
+		if len(imageDSes) != 1 {
+			errs = append(errs, fmt.Sprintf("Invalid or ambiguous datastore name %s provided while attempting to remove image stores", imageDir.Host))
+			continue
+		}
+
+		if emptyImages, err = d.deleteParent(imageDSes[0], imageDir.Path); err != nil {
+			errs = append(errs, err.Error())
+		}
+
+		if !emptyImages {
+			log.Infof("Not deleting [%s] %s as it still contains files after removing images", imageDir.Host, imageDir.Path)
+			continue
+		}
+
+		if _, err = d.deleteParent(imageDSes[0], imageDir.Path); err != nil {
+			errs = append(errs, err.Error())
+		}
 	}
 	emptyVolumes, err = d.deleteDatastoreFiles(ds, path.Join(p, volumeRoot), d.force)
 
-	if emptyImages && emptyVolumes {
+	if emptyVolumes {
 		// if not empty, don't try to delete parent directory here
 		log.Debugf("Removing stores directory")
-		if err = d.deleteParent(ds, p); err != nil {
+		if _, err = d.deleteParent(ds, p); err != nil {
 			errs = append(errs, err.Error())
 		}
 	}
@@ -72,19 +94,11 @@ func (d *Dispatcher) DeleteStores(vchVM *vm.VirtualMachine, conf *config.Virtual
 	return nil
 }
 
-func (d *Dispatcher) deleteParent(ds *object.Datastore, root string) error {
+func (d *Dispatcher) deleteParent(ds *object.Datastore, root string) (bool, error) {
 	defer trace.End(trace.Begin(""))
 
-	_, err := d.deleteDatastoreFiles(ds, root, true)
-	return err
-}
-
-func (d *Dispatcher) deleteImages(ds *object.Datastore, root string) (bool, error) {
-	defer trace.End(trace.Begin(""))
-
-	p := path.Join(root, vsphere.StorageImageDir)
 	// alway forcing delete images
-	return d.deleteDatastoreFiles(ds, p, true)
+	return d.deleteDatastoreFiles(ds, root, true)
 }
 
 func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, force bool) (bool, error) {

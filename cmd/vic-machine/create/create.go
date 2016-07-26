@@ -117,8 +117,8 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "image-datastore, i",
 			Value:       "",
-			Usage:       "REQUIRED. Image datastore name",
-			Destination: &c.ImageDatastoreName,
+			Usage:       "Image datastore path",
+			Destination: &c.ImageDatastorePath,
 		},
 		cli.StringFlag{
 			Name:        "container-datastore, cs",
@@ -309,8 +309,8 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	if c.ImageDatastoreName == "" {
-		return cli.NewExitError("--image-datastore Image datastore name must be specified", 1)
+	if c.ImageDatastorePath == "" {
+		return cli.NewExitError("--image-datastore Image datastore path must be specified", 1)
 	}
 
 	if c.cert != "" && c.key == "" {
