@@ -166,7 +166,7 @@ Deploy Nimbus ESXi Server
     Open Connection  %{NIMBUS_GW}
     Login  ${user}  ${password}
 
-    ${out}=  Execute Command  nimbus-esxdeploy ${name} --nics 2 3620759
+    ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=40000000 --nics 2 3620759
     # Make sure the deploy actually worked
     Should Contain  ${out}  To manage this VM use
     # Now grab the IP address and return the name and ip for later use
