@@ -78,7 +78,7 @@ func TestToExtraConfig(t *testing.T) {
 	extraconfig.Decode(extraconfig.MapSource(encoded), &decoded)
 
 	// the source and destination structs are different - we're doing a sparse comparison
-	expectedNet := executor.Networks["eth0"]
+	expectedNet := exec.Networks["eth0"]
 	actualNet := *decoded.Networks["eth0"]
 
 	assert.Equal(t, expectedNet.Common, actualNet.Common)
@@ -86,7 +86,7 @@ func TestToExtraConfig(t *testing.T) {
 	assert.Equal(t, expectedNet.Assigned, actualNet.Assigned)
 	assert.Equal(t, expectedNet.Network, actualNet.Network)
 
-	expectedSession := executor.Sessions["deadbeef"]
+	expectedSession := exec.Sessions["deadbeef"]
 	actualSession := *decoded.Sessions["deadbeef"]
 
 	assert.Equal(t, expectedSession.Cmd.Path, actualSession.Cmd.Path)

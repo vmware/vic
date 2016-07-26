@@ -198,7 +198,7 @@ func StartAttachTether(t *testing.T, cfg *executor.ExecutorConfig, mocker *Mocke
 	return tthr, src, conn
 }
 
-func tetherTestSetup(t *testing.T) string {
+func tetherTestSetup(t *testing.T) (string, *Mocker) {
 	pc, _, _, _ := runtime.Caller(2)
 	name := runtime.FuncForPC(pc).Name()
 

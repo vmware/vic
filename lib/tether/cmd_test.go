@@ -16,6 +16,7 @@ package tether
 
 import (
 	"fmt"
+	"os/exec"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -146,7 +147,7 @@ func TestAbsPath(t *testing.T) {
 	log := mocker.SessionLogBuffer.Bytes()
 
 	// run the command directly
-	out, err := executor.Command("/bin/date", "--reference=/").Output()
+	out, err := exec.Command("/bin/date", "--reference=/").Output()
 	if err != nil {
 		fmt.Printf("Failed to run date for comparison data: %s", err)
 		t.Error(err)
@@ -202,7 +203,7 @@ func TestHalt(t *testing.T) {
 	log := mocker.SessionLogBuffer.Bytes()
 
 	// run the command directly
-	out, err := executor.Command("/bin/date", "--reference=/").Output()
+	out, err := exec.Command("/bin/date", "--reference=/").Output()
 	if err != nil {
 		fmt.Printf("Failed to run date for comparison data: %s", err)
 		t.Error(err)

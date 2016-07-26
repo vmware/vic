@@ -26,9 +26,9 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	vicguest "github.com/vmware/vic/lib/guest"
-	"github.com/vmware/vic/pkg/vsphere/guest"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/sys"
 
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/test"
@@ -41,7 +41,7 @@ func CreateVM(ctx context.Context, session *session.Session, host *object.HostSy
 	specconfig := test.SpecConfig(session, name)
 
 	// Create a linux guest
-	linux, err := vicguest.NewLinuxGuest(ctx, session, specconfig)
+	linux, err := guest.NewLinuxGuest(ctx, session, specconfig)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func TestDeleteExceptDisk(t *testing.T) {
 
 	host := test.PickRandomHost(ctx, session, t)
 
-	uuid, err := guest.UUID()
+	uuid, err := sys.UUID()
 	if err != nil {
 		t.Fatalf("unable to get UUID for guest - used for VM name: %s", err)
 	}
@@ -141,7 +141,7 @@ func TestVM(t *testing.T) {
 
 	host := test.PickRandomHost(ctx, session, t)
 
-	uuid, err := guest.UUID()
+	uuid, err := sys.UUID()
 	if err != nil {
 		t.Fatalf("unable to get UUID for guest - used for VM name: %s", err)
 		return
@@ -197,7 +197,7 @@ func TestVMFailureWithTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Microsecond)
 	defer cancel()
 
-	uuid, err := guest.UUID()
+	uuid, err := sys.UUID()
 	if err != nil {
 		t.Fatalf("unable to get UUID for guest - used for VM name: %s", err)
 		return
@@ -219,7 +219,7 @@ func TestVMAttributes(t *testing.T) {
 
 	host := test.PickRandomHost(ctx, session, t)
 
-	uuid, err := guest.UUID()
+	uuid, err := sys.UUID()
 	if err != nil {
 		t.Fatalf("unable to get UUID for guest - used for VM name: %s", err)
 		return
