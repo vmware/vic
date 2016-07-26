@@ -359,6 +359,7 @@ func updateDefaultRoute(t Netlink, link netlink.Link, endpoint *NetworkEndpoint)
 		}
 	}
 
+	log.Infof("Setting default gateway to %s", endpoint.Network.Gateway.IP)
 	route := &netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet, Gw: endpoint.Network.Gateway.IP}
 	if err := t.RouteAdd(route); err != nil {
 		detail := fmt.Sprintf("failed to add gateway route for endpoint %s: %s", endpoint.Network.Name, err)
