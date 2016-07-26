@@ -8,7 +8,7 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Stop an already stopped container
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create busybox sleep 30
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create busybox ls
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop ${container}
     Should Be Equal As Integers  ${rc}  0
