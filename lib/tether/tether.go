@@ -198,7 +198,7 @@ func (t *tether) Start() error {
 			}
 
 			// this could block indefinitely while waiting for a volume to present
-			t.ops.MountLabel(v.Source.Path, v.Path, context.Background())
+			t.ops.MountLabel(context.Background(), v.Source.Path, v.Path)
 		}
 
 		// process the sessions and launch if needed
