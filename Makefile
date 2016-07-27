@@ -53,7 +53,7 @@ define godeps
 endef
 
 define ldflags
-	$(shell $(BASE_DIR)/infra/scripts/version-linker-flags.sh)
+	$(shell BUILD_NUMBER=${BUILD_NUMBER} $(BASE_DIR)/infra/scripts/version-linker-flags.sh)
 endef
 
 # target aliases - environment variable definition

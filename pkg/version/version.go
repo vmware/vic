@@ -22,10 +22,11 @@ import (
 
 // These fields are set by the compiler using the linker flags upon build via Makefile.
 var (
-	Version   string
-	GitCommit string
-	BuildDate string
-	State     string
+	Version     string
+	GitCommit   string
+	BuildDate   string
+	BuildNumber string
+	State       string
 
 	v bool
 )
@@ -45,5 +46,8 @@ func String() string {
 		State = "clean"
 	}
 
-	return fmt.Sprintf("%s git:%s-%s build:%s runtime:%s", Version, GitCommit, State, BuildDate, runtime.Version())
+	if BuildNumber == "" {
+		BuildNumber = "N/A"
+	}
+	return fmt.Sprintf("%s git:%s-%s build:%s id:%s runtime:%s", Version, GitCommit, State, BuildDate, BuildNumber, runtime.Version())
 }
