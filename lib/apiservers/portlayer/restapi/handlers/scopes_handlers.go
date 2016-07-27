@@ -298,7 +298,13 @@ func (handler *ScopesHandlersImpl) ScopesBindContainer(params scopes.BindContain
 	var endpoints []*network.Endpoint
 	var err error
 	if endpoints, err = handler.netCtx.BindContainer(h); err != nil {
-		return scopes.NewBindContainerInternalServerError().WithPayload(errorPayload(err))
+		switch err := err.(type) {
+		case network.ResourceNotFoundError:
+			return scopes.NewBindContainerNotFound().WithPayload(errorPayload(err))
+
+		default:
+			return scopes.NewBindContainerInternalServerError().WithPayload(errorPayload(err))
+		}
 	}
 
 	res := &models.BindContainerResponse{
@@ -320,11 +326,27 @@ func (handler *ScopesHandlersImpl) ScopesUnbindContainer(params scopes.UnbindCon
 		return scopes.NewUnbindContainerNotFound()
 	}
 
-	if err := handler.netCtx.UnbindContainer(h); err != nil {
-		return scopes.NewUnbindContainerInternalServerError().WithPayload(errorPayload(err))
+	var endpoints []*network.Endpoint
+	var err error
+	if endpoints, err = handler.netCtx.UnbindContainer(h); err != nil {
+		switch err := err.(type) {
+		case network.ResourceNotFoundError:
+			return scopes.NewUnbindContainerNotFound().WithPayload(errorPayload(err))
+
+		default:
+			return scopes.NewUnbindContainerInternalServerError().WithPayload(errorPayload(err))
+		}
 	}
 
-	return scopes.NewUnbindContainerOK().WithPayload(h.String())
+	res := &models.UnbindContainerResponse{
+		Handle:    h.String(),
+		Endpoints: make([]*models.EndpointConfig, len(endpoints)),
+	}
+	for i, e := range endpoints {
+		res.Endpoints[i] = toEndpointConfig(e)
+	}
+
+	return scopes.NewUnbindContainerOK().WithPayload(res)
 }
 
 func toScopeConfig(scope *network.Scope) *models.ScopeConfig {

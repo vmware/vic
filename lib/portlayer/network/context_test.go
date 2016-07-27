@@ -806,7 +806,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 
 	// test UnbindContainer
 	for _, te := range tests {
-		err = ctx.UnbindContainer(te.h)
+		eps, err := ctx.UnbindContainer(te.h)
 		if te.err != nil {
 			if err == nil {
 				t.Fatalf("%d: ctx.UnbindContainer(%s) => nil, want err", te.i, te.h)
@@ -822,7 +822,18 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		}
 
 		for _, s := range te.scopes {
-			// container should not be part of scopes
+			found := false
+			for _, e := range eps {
+				if e.Scope().Name() == s {
+					found = true
+				}
+			}
+
+			if !found {
+				t.Fatalf("%d: ctx.UnbindContainer(%s) did not return endpoint for scope %s. Endpoints: %+v", te.i, te.h, s, eps)
+			}
+
+			// container should not be part of scope
 			scopes, err := ctx.Scopes(&s)
 			if err != nil || len(scopes) != 1 {
 				t.Fatalf("%d: ctx.Scopes(%s) => (%#v, %#v)", te.i, s, scopes, err)
