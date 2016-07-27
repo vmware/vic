@@ -130,6 +130,8 @@ components: check apiservers $(imagec) $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
 tethers: $(tether-linux) $(tether-windows) $(tether-darwin)
 
+most: $(portlayerapi) $(docker-engine-api) $(imagec) $(vicadmin) $(rpctool) $(tether-linux) $(appliance) $(bootstrap) $(vic-machine-linux)
+
 # utility targets
 goversion:
 	@echo checking go version...
