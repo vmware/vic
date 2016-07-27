@@ -26,6 +26,7 @@ package vicbackends
 //		- It is OK to return errors returned from functions in system_portlayer.go
 
 import (
+	"bytes"
 	"fmt"
 	"runtime"
 	"time"
@@ -54,6 +55,7 @@ const (
 	systemOS           = " VMware OS"
 	systemOSVersion    = " VMware OS version"
 	systemProductName  = " VMware Product"
+	volumeStores       = "VolumeStores"
 )
 
 func NewSystemBackend() *System {
@@ -170,6 +172,14 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		}
 		if vchInfo.HostOSVersion != nil {
 			customInfo := [2]string{systemOSVersion, *vchInfo.HostOSVersion}
+			info.SystemStatus = append(info.SystemStatus, customInfo)
+		}
+		if vchConfig.VolumeLocations != nil {
+			var locationsBuffer bytes.Buffer
+			for label := range vchConfig.VolumeLocations {
+				locationsBuffer.WriteString(fmt.Sprintf("[%s] ", label))
+			}
+			customInfo := [2]string{volumeStores, locationsBuffer.String()}
 			info.SystemStatus = append(info.SystemStatus, customInfo)
 		}
 	}
