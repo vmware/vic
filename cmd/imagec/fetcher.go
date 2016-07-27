@@ -151,6 +151,19 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string
 		return "", fmt.Errorf("Not found: %d, URL: %s", u.StatusCode, url)
 	}
 
+	if u.IsStatusUnauthorized() {
+		hdr := res.Header.Get("www-authenticate")
+
+		// check if image is non-existent (#757)
+		if strings.Contains(hdr, "error=\"insufficient_scope\"") {
+			return "", fmt.Errorf("image not found")
+		} else if strings.Contains(hdr, "error=\"invalid_token\"") {
+			return "", fmt.Errorf("not authorized")
+		} else {
+			return "", fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
+		}
+	}
+
 	// FIXME: handle StatusTemporaryRedirect and StatusFound
 	if !u.IsStatusOK() {
 		return "", fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
