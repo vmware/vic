@@ -123,7 +123,7 @@ func getESXData(url *url.URL) *data.Data {
 	result.URL = url
 	result.DisplayName = "test001"
 	result.ComputeResourcePath = "/ha-datacenter/host/localhost.localdomain/Resources"
-	result.ImageDatastoreName = "LocalDS_0"
+	result.ImageDatastorePath = "LocalDS_0"
 	result.BridgeNetworkName = "bridge"
 	result.BridgeIPRange = "172.16.0.0/12"
 	result.ManagementNetworkName = "VM Network"
@@ -140,7 +140,7 @@ func getVPXData(url *url.URL) *data.Data {
 	result.URL = url
 	result.DisplayName = "test001"
 	result.ComputeResourcePath = "/DC0/host/DC0_C0/Resources"
-	result.ImageDatastoreName = "LocalDS_0"
+	result.ImageDatastorePath = "LocalDS_0"
 	result.ExternalNetworkName = "VM Network"
 	result.BridgeNetworkName = "bridge"
 	result.BridgeIPRange = "172.16.0.0/12"
@@ -250,19 +250,70 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 		expectImage   string
 		expectVolumes map[string]string
 	}{
-		{"LocalDS_0", map[string]string{"volume1": "LocalDS_0/volumes/volume1", "volume2": "ds://LocalDS_0/volumes/volume2"}, false, "ds://LocalDS_0", map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1", "volume2": "ds://LocalDS_0/volumes/volume2"}},
-		{"ds://LocalDS_0/images", map[string]string{"volume1": "LocalDS_0/volumes/volume1", "volume2": "ds://LocalDS_0/volumes/volume2"}, false, "ds://LocalDS_0", map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1", "volume2": "ds://LocalDS_0/volumes/volume2"}},
-		{"LocalDS_0/images", map[string]string{"volume1": "LocalDS_0/volumes/volume1", "volume2": "ds://LocalDS_0/volumes/volume2"}, false, "ds://LocalDS_0", map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1", "volume2": "ds://LocalDS_0/volumes/volume2"}},
-		{"ds://LocalDS_0/images/xyz", map[string]string{"volume1": "LocalDS_0/volumes/volume1", "volume2": "ds://LocalDS_0/volumes/volume2"}, false, "ds://LocalDS_0", map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1", "volume2": "ds://LocalDS_0/volumes/volume2"}},
-		{"LocalDS_0", map[string]string{"volume1": "LocalDS_1/volumes/volume1", "volume2": "ds://LocalDS_1/volumes/volume2"}, true, "", nil},
-		{"ds://LocalDS_0", map[string]string{"volume1": "LocalDS_1/volumes/volume1", "volume2": "ds://LocalDS_1/volumes/volume2"}, true, "", nil},
-		{"", map[string]string{"volume1": "", "volume2": "ds://"}, true, "", nil},
-		{"ds://", map[string]string{"volume1": "", "volume2": "ds://"}, true, "", nil},
+		{"LocalDS_0",
+			map[string]string{"volume1": "LocalDS_0/volumes/volume1",
+				"volume2": "ds://LocalDS_0/volumes/volume2"},
+			false,
+			"ds://LocalDS_0",
+			map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1",
+				"volume2": "ds://LocalDS_0/volumes/volume2"}},
+
+		{"ds://LocalDS_0/images",
+			map[string]string{"volume1": "LocalDS_0/volumes/volume1",
+				"volume2": "ds://LocalDS_0/volumes/volume2"},
+			false,
+			"ds://LocalDS_0/images",
+			map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1",
+				"volume2": "ds://LocalDS_0/volumes/volume2"}},
+
+		{"LocalDS_0/images",
+			map[string]string{"volume1": "LocalDS_0/volumes/volume1",
+				"volume2": "ds://LocalDS_0/volumes/volume2"},
+			false,
+			"ds://LocalDS_0/images",
+			map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1",
+				"volume2": "ds://LocalDS_0/volumes/volume2"}},
+
+		{"ds://LocalDS_0/images/xyz",
+			map[string]string{"volume1": "LocalDS_0/volumes/volume1",
+				"volume2": "ds://LocalDS_0/volumes/volume2"},
+			false,
+			"ds://LocalDS_0/images/xyz",
+			map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1",
+				"volume2": "ds://LocalDS_0/volumes/volume2"}},
+
+		{"LocalDS_0",
+			map[string]string{"volume1": "LocalDS_1/volumes/volume1",
+				"volume2": "ds://LocalDS_1/volumes/volume2"},
+			true,
+			"",
+			nil},
+
+		{"ds://LocalDS_0",
+			map[string]string{"volume1": "LocalDS_1/volumes/volume1",
+				"volume2": "ds://LocalDS_1/volumes/volume2"},
+			true,
+			"LocalDS_0",
+			nil},
+
+		{"",
+			map[string]string{"volume1": "",
+				"volume2": "ds://"},
+			true,
+			"",
+			nil},
+
+		{"ds://",
+			map[string]string{"volume1": "",
+				"volume2": "ds://"},
+			true,
+			"",
+			nil},
 	}
 
 	for _, test := range tests {
 		t.Logf("%+v", test)
-		input.ImageDatastoreName = test.image
+		input.ImageDatastorePath = test.image
 		input.VolumeLocations = test.volumes
 		v.storage(v.Context, input, conf)
 		v.ListIssues()

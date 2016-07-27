@@ -69,9 +69,6 @@ func NewImageStore(ctx context.Context, s *session.Session, u *url.URL) (*ImageS
 		return nil, err
 	}
 
-	// Currently using the datastore associated with the session which is not
-	// ideal.  This should be passed in via the config.  The datastore need not
-	// be the same datastore used for the rest of the system.
 	datastores, err := s.Finder.DatastoreList(ctx, u.Host)
 	if err != nil {
 		// TODO: real error beyond whatever DatastoreList returns
