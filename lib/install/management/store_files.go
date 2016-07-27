@@ -51,33 +51,10 @@ func (d *Dispatcher) DeleteStores(vchVM *vm.VirtualMachine, conf *config.Virtual
 	}
 
 	var errs []string
-	var emptyImages bool
 	var emptyVolumes bool
 	log.Infof("Removing images")
-	for _, imageDir := range conf.ImageStores {
-		imageDSes, err := d.session.Finder.DatastoreList(d.ctx, imageDir.Host)
-		if err != nil {
-			errs = append(errs, err.Error())
-			continue
-		}
-
-		if len(imageDSes) != 1 {
-			errs = append(errs, fmt.Sprintf("Invalid or ambiguous datastore name %s provided while attempting to remove image stores", imageDir.Host))
-			continue
-		}
-
-		if emptyImages, err = d.deleteParent(imageDSes[0], imageDir.Path); err != nil {
-			errs = append(errs, err.Error())
-		}
-
-		if !emptyImages {
-			log.Infof("Not deleting [%s] %s as it still contains files after removing images", imageDir.Host, imageDir.Path)
-			continue
-		}
-
-		if _, err = d.deleteParent(imageDSes[0], imageDir.Path); err != nil {
-			errs = append(errs, err.Error())
-		}
+	if err = d.deleteImages(conf); err != nil {
+		return err
 	}
 	emptyVolumes, err = d.deleteDatastoreFiles(ds, path.Join(p, volumeRoot), d.force)
 
@@ -91,6 +68,39 @@ func (d *Dispatcher) DeleteStores(vchVM *vm.VirtualMachine, conf *config.Virtual
 	if len(errs) > 0 {
 		return errors.New(strings.Join(errs, "\n"))
 	}
+	return nil
+}
+
+func (d *Dispatcher) deleteImages(conf *metadata.VirtualContainerHostConfigSpec) error {
+	var emptyImages bool
+	var errs []string
+
+	for _, imageDir := range conf.ImageStores {
+		imageDSes, err := d.session.Finder.DatastoreList(d.ctx, imageDir.Host)
+		if err != nil {
+			errs = append(errs, err.Error())
+			continue
+		}
+
+		if len(imageDSes) != 1 {
+			errs = append(errs, fmt.Sprintf("Invalid or ambiguous datastore name %s provided while attempting to remove image stores", imageDir.Host))
+			continue
+		}
+
+		if emptyImages, err = d.deleteDatastoreFiles(imageDSes[0], imageDir.Path, true); err != nil {
+			errs = append(errs, err.Error())
+		}
+
+		if !emptyImages {
+			log.Infof("Not deleting [%s] %s as it still contains files after removing images", imageDir.Host, imageDir.Path)
+			continue
+		}
+	}
+
+	if len(errs) > 0 {
+		return errors.New(strings.Join(errs, "\n"))
+	}
+
 	return nil
 }
 
