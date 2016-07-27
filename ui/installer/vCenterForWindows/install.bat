@@ -36,7 +36,6 @@ FOR /f "usebackq delims=" %%p in (`%psCommand%`) do set vcenter_password=%%p
 
 SET plugin_manager_bin=%parent%..\..\vic-ui-windows.exe
 SET utils_path=%parent%utils\
-SET vcenter_username=administrator@vsphere.local
 SET vcenter_reg_common_flags=--target https://%target_vcenter_ip%/sdk/ --user %vcenter_username% --password %vcenter_password%
 
 IF [%1] == [--force] (

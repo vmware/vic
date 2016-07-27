@@ -37,7 +37,6 @@ echo ""
 
 OS=$(uname)
 PLUGIN_BUNDLES=''
-VCENTER_ADMIN_USERNAME="administrator@vsphere.local"
 VCENTER_SDK_URL="https://${VCENTER_IP}/sdk/"
 COMMONFLAGS="--target $VCENTER_SDK_URL --user $VCENTER_ADMIN_USERNAME --password $VCENTER_ADMIN_PASSWORD"
 WEBCLIENT_PLUGINS_FOLDER="/etc/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
@@ -96,11 +95,11 @@ rename_package_folder () {
 # Also, rename the folders such that they follow the convention of $PLUGIN_KEY-$PLUGIN_VERSION
 parse_and_unregister_plugins
 
-echo "--------------------------------------------------------------"
 if [[ $? > 0 ]] ; then
+    echo "--------------------------------------------------------------"
     echo "There was a problem in the VIC UI unregistration process"
     exit 1
 else
+    echo "--------------------------------------------------------------"
     echo "VIC UI unregistration was successful"
-    exit 0
 fi
