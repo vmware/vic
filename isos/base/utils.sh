@@ -173,25 +173,21 @@ ensure_apt_packages() {
 
     # ensure we've got the utils we need
     for pkg in "$@"; do
-        # squash the error return from which from killing us with set -e
-        exe="$(which $pkg)" || true
-        if [ -z "$exe" -o ! -x "$exe" ]; then
-            install="$install $pkg"
-        fi
+        dpkg -s $pkg || install="$install $pkg"
     done
 
     if [ -n "$install" ]; then
-            if [ "$(id -u)" != "0" ]; then
+        if [ "$(id -u)" != "0" ]; then
             echo "Need to install packages - rerun as root" 1>&2
-            echo "packages: $@" 1>&2
+            echo "packages: $install" 1>&2
             return 1
         fi
 
         # try without update first
         echo "Installing necessary packages: $install"
-        apt-get -y install "$@" >/dev/null 2>&1 || {
-            apt-get update && apt-get -y install "$@" || {
-                echo "Failed to install cpio and xorriso packages: $?" 1>&2
+        apt-get -y install $install >/dev/null 2>&1 || {
+            (apt-get update && apt-get -y install $install) || {
+                echo "Failed to install $install packages: $?" 1>&2
                 return 1
             }
         }
