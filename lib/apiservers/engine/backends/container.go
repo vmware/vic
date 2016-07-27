@@ -623,11 +623,18 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 	h = stateChangeRes.Payload
 
 	if bind {
-		if err = c.mapPorts(portmap.Map, hostConfig, c.findPortBoundNetworkEndpoint(hostConfig, endpoints)); err != nil {
+		e := c.findPortBoundNetworkEndpoint(hostConfig, endpoints)
+		if err = c.mapPorts(portmap.Map, hostConfig, e); err != nil {
 			err = fmt.Errorf("error mapping ports: %s", err)
 			log.Error(err)
 			return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 		}
+
+		defer func() {
+			if err != nil {
+				c.mapPorts(portmap.Unmap, hostConfig, e)
+			}
+		}()
 	}
 
 	// commit the handle; this will reconfigure and start the vm
