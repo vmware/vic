@@ -46,6 +46,9 @@ type VolumeStorer interface {
 
 	// Lists all volumes
 	VolumesList(ctx context.Context) ([]*Volume, error)
+
+	// List the configured volume stores
+	VolumeStoresList(ctx context.Context) (map[string]url.URL, error)
 }
 
 // Volume is the handle to identify a volume on the backing store.  The URI

@@ -16,6 +16,7 @@ package vsphere
 
 import (
 	"fmt"
+	"path/filepath"
 	"sync"
 	"testing"
 
@@ -51,6 +52,18 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 	// Add a volume store and give it a name ("testStoreName")
 	volumeStore, err := vsVolumeStore.AddStore(ctx, ds, "testStoreName")
 	if !assert.NoError(t, err) || !assert.NotNil(t, volumeStore) {
+		return
+	}
+
+	// test we can list it
+	m, err := vsVolumeStore.VolumeStoresList(ctx)
+	if !assert.NoError(t, err) || !assert.NotNil(t, m) {
+		return
+	}
+
+	// test the returned url matches
+	s, ok := m["testStoreName"]
+	if !assert.True(t, ok) || !assert.Equal(t, testStorePath, filepath.Base(s.String())) {
 		return
 	}
 

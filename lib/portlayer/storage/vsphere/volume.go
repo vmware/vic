@@ -87,6 +87,28 @@ func (v *VolumeStore) AddStore(ctx context.Context, ds *datastore.Helper, storeN
 	return u, nil
 }
 
+func (v *VolumeStore) VolumeStoresList(ctx context.Context) (map[string]url.URL, error) {
+	m := make(map[string]url.URL)
+	for u, ds := range v.ds {
+
+		// Get the ds:// URL given the datastore url ("[datastore] /path")
+		dsurl, err := datastore.ToURL(ds.RootURL)
+		if err != nil {
+			return nil, err
+		}
+
+		// from the storage url, get the store name
+		storeName, err := util.VolumeStoreName(&u)
+		if err != nil {
+			return nil, err
+		}
+
+		m[storeName] = *dsurl
+	}
+
+	return m, nil
+}
+
 func (v *VolumeStore) getDatastore(store *url.URL) (*datastore.Helper, error) {
 	// find the datastore
 	dstore, ok := v.ds[*store]
