@@ -11,8 +11,8 @@ Library  DateTime
 ${bin-dir}  /drone/src/github.com/vmware/vic/bin
 
 *** Keywords ***
-Install VIC Appliance To Test Server
-    [Arguments]  ${certs}=${false}  ${vol}=default  ${bridge}=network  ${external}='VM Network'
+Set Test Environment Variables
+    [Arguments]  ${certs}  ${vol}  ${bridge}  ${external}
     # Finish setting up environment variables
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  DRONE_BUILD_NUMBER
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_BUILD_NUMBER  0
@@ -20,39 +20,52 @@ Install VIC Appliance To Test Server
     Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${bridge}  %{BRIDGE_NETWORK}
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  EXTERNAL_NETWORK
     Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${external}  %{EXTERNAL_NETWORK}
-    
+
     @{URLs}=  Split String  %{TEST_URL_ARRAY}
     ${len}=  Get Length  ${URLs}
     ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
-    
+
     Set Environment Variable  TEST_URL  @{URLs}[${IDX}]
     Set Environment Variable  GOVC_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
 
     ${host}=  Run  govc ls host
     Set Environment Variable  TEST_RESOURCE  ${host}/Resources
     Set Environment Variable  GOVC_RESOURCE_POOL  ${host}/Resources
-    # Attempt to cleanup old/canceled tests
-    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-    # Install the VCH now
+
+Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${vch-name}  ${name}
-    Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run VIC Machine Command  ${certs}  ${vol}  ${bridge}  ${external}
+
+Get Docker Params
+    # Get VCH docker params e.g. "-H 192.168.218.181:2376 --tls"
+    [Arguments]  ${output}  ${certs}
     @{output}=  Split To Lines  ${output}
     :FOR  ${item}  IN  @{output}
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  DOCKER_HOST=
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
-    
+
     ${ret}=  Fetch From Right  ${line}  DOCKER_HOST=
     ${ret}=  Strip String  ${ret}
-    
+
     Run Keyword If  ${certs}  Set Suite Variable  ${params}  -H ${ret} --tls
     Run Keyword Unless  ${certs}  Set Suite Variable  ${params}  -H ${ret}
-    
+
     @{ret}=  Split String  ${ret}  :
     ${ret}=  Strip String  @{ret}[0]
     Set Suite Variable  ${vch-ip}  ${ret}
+
+Install VIC Appliance To Test Server
+    [Arguments]  ${certs}=${false}  ${vol}=default
+    Set Test Environment Variables  ${certs}  ${vol}  network  'VM Network'
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Set Test VCH Name
+
+    # Install the VCH now
+    Log To Console  \nInstalling VCH to test server...
+    ${output}=  Run VIC Machine Command  ${certs}  ${vol}  network  'VM Network'
+    Get Docker Params  ${output}  ${certs}
     Log To Console  Installer completed successfully: ${vch-name}...
 
     # Required due to #1109
@@ -66,7 +79,7 @@ Run VIC Machine Command
     ${output}=  Run Keyword If  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --force=true --bridge-network=${bridge} --external-network=${external} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol}
     Run Keyword If  ${certs}  Should Contain  ${output}  Installer completed successfully
     Return From Keyword If  ${certs}  ${output}
-    
+
     ${output}=  Run Keyword Unless  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --no-tls --force=true --bridge-network=${bridge} --external-network=${external} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol}
     Run Keyword Unless  ${certs}  Should Contain  ${output}  Installer completed successfully
     [Return]  ${output}
@@ -254,7 +267,7 @@ Run Regression Tests
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  /bin/top
     #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rmi busybox
-    #Should Be Equal As Integers  ${rc}  0    
+    #Should Be Equal As Integers  ${rc}  0
     #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
     #Should Be Equal As Integers  ${rc}  0
     #Should Not Contain  ${output}  busybox
