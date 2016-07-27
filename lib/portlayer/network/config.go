@@ -31,6 +31,10 @@ type Configuration struct {
 	ContainerNetworks map[string]*ContainerNetwork `vic:"0.1" scope:"read-only" key:"container_networks"`
 	// The bridge link
 	BridgeLink Link
+	// The IP range for the bridge networks
+	BridgeIPRange *net.IPNet `vic:"0.1" scope:"read-only" key:"bridge-ip-range"`
+	// The width of each new bridge network
+	BridgeNetworkWidth *net.IPMask `vic:"0.1" scope:"read-only" key:"bridge-net-width"`
 }
 
 type ContainerNetwork struct {

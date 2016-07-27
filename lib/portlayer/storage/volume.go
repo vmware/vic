@@ -46,6 +46,9 @@ type VolumeStorer interface {
 
 	// Lists all volumes
 	VolumesList(ctx context.Context) ([]*Volume, error)
+
+	// List the configured volume stores
+	VolumeStoresList(ctx context.Context) (map[string]url.URL, error)
 }
 
 // Volume is the handle to identify a volume on the backing store.  The URI
@@ -75,7 +78,7 @@ type Volume struct {
 }
 
 // NewVolume creates a Volume
-func NewVolume(store *url.URL, ID string, device Disk) (*Volume, error) {
+func NewVolume(store *url.URL, ID string, info map[string][]byte, device Disk) (*Volume, error) {
 	storeName, err := util.VolumeStoreName(store)
 	if err != nil {
 		return nil, err
@@ -94,6 +97,7 @@ func NewVolume(store *url.URL, ID string, device Disk) (*Volume, error) {
 		Store:    store,
 		SelfLink: selflink,
 		Device:   device,
+		Info:     info,
 	}
 
 	return vol, nil

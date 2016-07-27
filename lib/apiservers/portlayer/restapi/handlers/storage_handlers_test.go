@@ -105,6 +105,10 @@ func (m *MockVolumeStore) VolumeDestroy(ctx context.Context, ID string) error {
 	return nil
 }
 
+func (m *MockVolumeStore) VolumeStoresList(ctx context.Context) (map[string]url.URL, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
 // Lists all volumes on the given volume store`
 func (m *MockVolumeStore) VolumesList(ctx context.Context) ([]*spl.Volume, error) {
 	var i int

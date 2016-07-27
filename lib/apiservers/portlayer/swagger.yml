@@ -207,6 +207,29 @@ paths:
           description: "error"
           schema:
             $ref: "#/definitions/Error"
+  /storage/volumestores/:
+    get:
+      description: "Get a list of available volume store locations"
+      operationId: VolumeStoresList
+      tags: ["storage"]
+      consumes:
+        - application/json
+        - application/octet-stream
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: "OK"
+          schema:
+            $ref: "#/definitions/VolumeStoresListResponse"
+        '404':
+          description: "Not found"
+          schema:
+            $ref: "#/definitions/Error"
+        '500':
+          description: "error"
+          schema:
+           $ref: "#/definitions/Error"
   /storage/volumes/:
     get:
       description: "Get a list of available volumes"
@@ -1183,6 +1206,15 @@ definitions:
         additionalProperties:
           type: string
 
+  VolumeStoresListResponse:
+    type: object
+    required:
+      - Stores
+    properties:
+      Stores:
+        type: object
+        additionalProperties:
+          type: string
 
   # The following definitions are definitions used to get container information
   ContainerInfo:

@@ -438,7 +438,6 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 				"-docker-host=unix:///var/run/docker.sock",
 				// FIXME: hack during config migration
 				"-insecure",
-				"-sdk=" + conf.Target.String(),
 				"-ds=" + conf.ImageStores[0].Host,
 				"-cluster=" + settings.ClusterPath,
 				"-pool=" + settings.ResourcePoolPath,

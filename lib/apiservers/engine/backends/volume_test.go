@@ -32,7 +32,7 @@ func TestFillDockerVolume(t *testing.T) {
 	testLabels := make(map[string]string)
 	testLabels["TestMeta"] = "custom info about my volume"
 
-	dockerVolume := fillDockerVolumeModel(testResponse, testLabels)
+	dockerVolume := NewVolumeModel(testResponse, testLabels)
 
 	assert.Equal(t, "vsphere", dockerVolume.Driver)
 	assert.Equal(t, "Test Volume", dockerVolume.Name)
@@ -50,6 +50,9 @@ func TestTranslatVolumeRequestModel(t *testing.T) {
 	testDriverArgs[OptsCapacityKey] = "12"
 
 	testRequest, err := translateInputsToPortlayerRequestModel("testName", "vsphere", testDriverArgs, testLabels)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	assert.Equal(t, "testName", testRequest.Name)
 	assert.Equal(t, "important driver stuff", testRequest.DriverArgs["testArg"])
@@ -57,8 +60,13 @@ func TestTranslatVolumeRequestModel(t *testing.T) {
 	assert.Equal(t, "vsphere", testRequest.Driver)
 	assert.Equal(t, int64(12), testRequest.Capacity)
 	assert.Equal(t, "important driver stuff", testRequest.DriverArgs["testArg"])
-	testMetaDataString := createVolumeMetadata(&testRequest, testLabels)
-	assert.Equal(t, testMetaDataString, testRequest.Metadata["dockerMetaData"])
+
+	testMetaDatabuf, err := createVolumeMetadata(testRequest, testLabels)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	assert.Equal(t, testMetaDatabuf, testRequest.Metadata[dockerMetadataModelKey])
 	assert.Nil(t, err)
 }
 
@@ -73,7 +81,10 @@ func TestCreateVolumeMetada(t *testing.T) {
 	testLabels := make(map[string]string)
 	testLabels["TestMeta"] = "custom info about my volume"
 
-	testMetadataString := createVolumeMetadata(&testModel, testLabels)
+	testMetadataString, err := createVolumeMetadata(&testModel, testLabels)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	volumeMetadata := volumeMetadata{}
 	json.Unmarshal([]byte(testMetadataString), &volumeMetadata)
@@ -126,14 +137,14 @@ func TestExtractDockerMetadata(t *testing.T) {
 	driver := "vsphere"
 	volumeName := "testVolume"
 	store := "storeName"
-	testCap = 512
+	testCap := "512"
 
 	testOptMap := make(map[string]string)
 	testOptMap[OptsVolumeStoreKey] = store
-	testOptMap[OptsCapacityKey] = strconv.FormatInt(testCap, 10)
+	testOptMap[OptsCapacityKey] = testCap
 
 	testLabelMap := make(map[string]string)
-	trestLabelMap["someLabel"] = "this is a label"
+	testLabelMap["someLabel"] = "this is a label"
 
 	metaDataBefore := volumeMetadata{
 		Driver:     driver,
@@ -142,9 +153,17 @@ func TestExtractDockerMetadata(t *testing.T) {
 		Labels:     testLabelMap,
 	}
 
+	buf, err := json.Marshal(metaDataBefore)
+	if !assert.NoError(t, err) {
+		return
+	}
+
 	metadataMap := make(map[string]string)
-	metadataMap[dockerMetadataModelKey] = json.Marshal(metadataBefore)
-	metadataAfter := extractDockerMetadata(metadataMap)
+	metadataMap[dockerMetadataModelKey] = string(buf)
+	metadataAfter, err := extractDockerMetadata(metadataMap)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	assert.Equal(t, metaDataBefore.DriverOpts[OptsCapacityKey], metadataAfter.DriverOpts[OptsCapacityKey])
 	assert.Equal(t, metaDataBefore.DriverOpts[OptsVolumeStoreKey], metadataAfter.DriverOpts[OptsVolumeStoreKey])

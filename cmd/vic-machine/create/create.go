@@ -191,6 +191,12 @@ func (c *Create) Flags() []cli.Flag {
 			Usage: "VCH vCPUs shares, in level or share number, e.g. high, normal, low, or 4000",
 		},
 		cli.StringFlag{
+			Name:        "bridge-network-range",
+			Value:       "172.16.0.0/12",
+			Usage:       "The ip range from which bridge networks are allocated",
+			Destination: &c.BridgeIPRange,
+		},
+		cli.StringFlag{
 			Name:        "appliance-iso",
 			Value:       "",
 			Usage:       "The appliance iso",
