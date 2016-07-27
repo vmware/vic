@@ -280,7 +280,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	return nil
 }
 
-func (c *Container) Update(ctx context.Context, sess *session.Session) (*metadata.ExecutorConfig, error) {
+func (c *Container) Update(ctx context.Context, sess *session.Session) (*executor.ExecutorConfig, error) {
 	defer trace.End(trace.Begin("Container.Update"))
 	c.Lock()
 	defer c.Unlock()
@@ -295,7 +295,7 @@ func (c *Container) Update(ctx context.Context, sess *session.Session) (*metadat
 		return nil, err
 	}
 
-	extraconfig.Decode(extraconfig.OptionValueSource(vm[0].Config.ExtraConfig), c.ExecConfig)
+	extraconfig.Decode(vmomi.OptionValueSource(vm[0].Config.ExtraConfig), c.ExecConfig)
 	return c.ExecConfig, nil
 }
 

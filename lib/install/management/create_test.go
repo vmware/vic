@@ -199,7 +199,7 @@ func testCreateVolumeStores(ctx context.Context, sess *session.Session, conf *co
 	}
 }
 
-func testDeleteVolumeStores(ctx context.Context, sess *session.Session, conf *metadata.VirtualContainerHostConfigSpec, numVols int, t *testing.T) {
+func testDeleteVolumeStores(ctx context.Context, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, numVols int, t *testing.T) {
 	d := &Dispatcher{
 		session: sess,
 		ctx:     ctx,

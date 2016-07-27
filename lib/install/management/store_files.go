@@ -263,7 +263,7 @@ func (d *Dispatcher) createVolumeStores(conf *config.VirtualContainerHostConfigS
 }
 
 // returns # of removed stores
-func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHostConfigSpec) (removed int) {
+func (d *Dispatcher) deleteVolumeStoreIfForced(conf *config.VirtualContainerHostConfigSpec) (removed int) {
 	defer trace.End(trace.Begin(""))
 	removed = 0
 

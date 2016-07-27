@@ -119,7 +119,7 @@ func TestMain(m *testing.M) {
 				PortGroup:   testExternalNetwork,
 			},
 			"bar71": &ContainerNetwork{
-				Common: metadata.Common{
+				Common: executor.Common{
 					Name: "external",
 				},
 				Gateway:     net.IPNet{IP: net.ParseIP("10.131.0.1"), Mask: net.CIDRMask(16, 32)},
@@ -128,13 +128,13 @@ func TestMain(m *testing.M) {
 				PortGroup:   testExternalNetwork,
 			},
 			"bar72": &ContainerNetwork{
-				Common: metadata.Common{
+				Common: executor.Common{
 					Name: "external",
 				},
 				PortGroup: testExternalNetwork,
 			},
 			"bar73": &ContainerNetwork{
-				Common: metadata.Common{
+				Common: executor.Common{
 					Name: "external",
 				},
 				Gateway:   net.IPNet{IP: net.ParseIP("10.133.0.1"), Mask: net.CIDRMask(16, 32)},

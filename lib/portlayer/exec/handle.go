@@ -242,7 +242,7 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 	return nil
 }
 
-func (h *Handle) Update(ctx context.Context, sess *session.Session) (*metadata.ExecutorConfig, error) {
+func (h *Handle) Update(ctx context.Context, sess *session.Session) (*executor.ExecutorConfig, error) {
 	defer trace.End(trace.Begin("Handle.Create"))
 
 	ec, err := h.Container.Update(ctx, sess)

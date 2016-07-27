@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package extraconfig is in a separate package to avoid the transitive inclusion of govmomi
+// Package vmomi is in a separate package to avoid the transitive inclusion of govmomi
 // as a fundamental dependency of the main extraconfig
 package vmomi
 
