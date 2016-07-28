@@ -22,7 +22,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/diagnostic"
@@ -61,7 +61,7 @@ type diagnosticLog struct {
 var diagnosticLogs = make(map[string]*diagnosticLog)
 
 func NewDispatcher(ctx context.Context, s *session.Session,
-	conf *metadata.VirtualContainerHostConfigSpec, force bool) *Dispatcher {
+	conf *config.VirtualContainerHostConfigSpec, force bool) *Dispatcher {
 	defer trace.End(trace.Begin(""))
 	isVC := s.IsVC()
 	e := &Dispatcher{
@@ -78,7 +78,7 @@ func NewDispatcher(ctx context.Context, s *session.Session,
 
 // Get the current log header LineEnd of the hostd/vpxd logs.
 // With this we avoid collecting log file data that existed prior to install.
-func (d *Dispatcher) InitDiagnosticLogs(conf *metadata.VirtualContainerHostConfigSpec) {
+func (d *Dispatcher) InitDiagnosticLogs(conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
 	if d.isVC {

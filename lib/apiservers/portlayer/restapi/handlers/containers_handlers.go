@@ -32,7 +32,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -83,21 +83,21 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		Bytes:   x509.MarshalPKCS1PrivateKey(privateKey),
 	}
 
-	m := metadata.ExecutorConfig{
-		Common: metadata.Common{
+	m := executor.ExecutorConfig{
+		Common: executor.Common{
 			ID:   id,
 			Name: *params.CreateConfig.Name,
 		},
-		Sessions: map[string]metadata.SessionConfig{
-			id: metadata.SessionConfig{
-				Common: metadata.Common{
+		Sessions: map[string]executor.SessionConfig{
+			id: executor.SessionConfig{
+				Common: executor.Common{
 					ID:   id,
 					Name: *params.CreateConfig.Name,
 				},
 				Tty: *params.CreateConfig.Tty,
 				// FIXME: default to true for now until we can have a more sophisticated approach
 				Attach: true,
-				Cmd: metadata.Cmd{
+				Cmd: executor.Cmd{
 					Env:  params.CreateConfig.Env,
 					Dir:  *params.CreateConfig.WorkingDir,
 					Path: *params.CreateConfig.Path,

@@ -21,9 +21,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/validate"
-	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/simulator"
 
@@ -81,7 +81,7 @@ func TestMain(t *testing.T) {
 
 		testCreateVolumeStores(ctx, validator.Session, conf, false, t)
 		testDeleteVolumeStores(ctx, validator.Session, conf, 1, t)
-		errConf := &metadata.VirtualContainerHostConfigSpec{}
+		errConf := &config.VirtualContainerHostConfigSpec{}
 		*errConf = *conf
 		errConf.VolumeLocations = make(map[string]*url.URL)
 		errConf.VolumeLocations["volume-store"], _ = url.Parse("ds://store_not_exist/volumes/test")
@@ -155,7 +155,7 @@ func getVPXSession(ctx context.Context, service string) (*session.Session, error
 	return s, nil
 }
 
-func testCreateNetwork(ctx context.Context, sess *session.Session, conf *metadata.VirtualContainerHostConfigSpec, t *testing.T) {
+func testCreateNetwork(ctx context.Context, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
 	d := &Dispatcher{
 		session: sess,
 		ctx:     ctx,
@@ -177,7 +177,7 @@ func testCreateNetwork(ctx context.Context, sess *session.Session, conf *metadat
 	}
 }
 
-func testCreateVolumeStores(ctx context.Context, sess *session.Session, conf *metadata.VirtualContainerHostConfigSpec, hasErr bool, t *testing.T) {
+func testCreateVolumeStores(ctx context.Context, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, hasErr bool, t *testing.T) {
 	d := &Dispatcher{
 		session: sess,
 		ctx:     ctx,
@@ -199,7 +199,7 @@ func testCreateVolumeStores(ctx context.Context, sess *session.Session, conf *me
 	}
 }
 
-func testDeleteVolumeStores(ctx context.Context, sess *session.Session, conf *metadata.VirtualContainerHostConfigSpec, numVols int, t *testing.T) {
+func testDeleteVolumeStores(ctx context.Context, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, numVols int, t *testing.T) {
 	d := &Dispatcher{
 		session: sess,
 		ctx:     ctx,
@@ -214,7 +214,7 @@ func testDeleteVolumeStores(ctx context.Context, sess *session.Session, conf *me
 }
 
 // FIXME: Failed to find IDE controller in simulator, so create appliance failed
-func testCreateAppliance(ctx context.Context, sess *session.Session, conf *metadata.VirtualContainerHostConfigSpec, vConf *data.InstallerData, hasErr bool, t *testing.T) {
+func testCreateAppliance(ctx context.Context, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, vConf *data.InstallerData, hasErr bool, t *testing.T) {
 	d := &Dispatcher{
 		session: sess,
 		ctx:     ctx,

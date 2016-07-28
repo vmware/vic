@@ -20,6 +20,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/vmware/vic/cmd/tether/msgs"
 )
 
 const (
@@ -49,12 +51,12 @@ type attachSSH struct {
 }
 
 func SSHls(client *ssh.Client) ([]string, error) {
-	ok, reply, err := client.SendRequest(ContainersReq, true, nil)
+	ok, reply, err := client.SendRequest(msgs.ContainersReq, true, nil)
 	if !ok || err != nil {
 		return nil, fmt.Errorf("failed to get container IDs from remote: %s", err)
 	}
 
-	ids := ContainersMsg{}
+	ids := msgs.ContainersMsg{}
 
 	if err = ids.Unmarshal(reply); err != nil {
 		log.Debugf("raw IDs response: %+v", reply)
@@ -89,8 +91,8 @@ func SSHAttach(client *ssh.Client, id string) (SessionInteraction, error) {
 }
 
 func (t *attachSSH) Signal(signal ssh.Signal) error {
-	msg := SignalMsg{signal}
-	ok, err := t.channel.SendRequest(SignalReq, true, msg.Marshal())
+	msg := msgs.SignalMsg{signal}
+	ok, err := t.channel.SendRequest(msgs.SignalReq, true, msg.Marshal())
 	if err == nil && !ok {
 		return fmt.Errorf("unknown error")
 	}
@@ -120,8 +122,8 @@ func (t *attachSSH) Close() error {
 
 // Resize resizes the terminal.
 func (t *attachSSH) Resize(cols, rows, widthpx, heightpx uint32) error {
-	msg := WindowChangeMsg{cols, rows, widthpx, heightpx}
-	ok, err := t.channel.SendRequest(WindowChangeReq, true, msg.Marshal())
+	msg := msgs.WindowChangeMsg{cols, rows, widthpx, heightpx}
+	ok, err := t.channel.SendRequest(msgs.WindowChangeReq, true, msg.Marshal())
 	if err == nil && !ok {
 		return fmt.Errorf("unknown error")
 	}

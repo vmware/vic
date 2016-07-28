@@ -26,6 +26,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/pkg/serial"
 )
 
@@ -130,8 +131,8 @@ func TestAttachSshSession(t *testing.T) {
 		wg.Add(1)
 		defer wg.Done()
 		for req := range reqs {
-			if req.Type == ContainersReq {
-				msg := ContainersMsg{IDs: []string{expectedID}}
+			if req.Type == msgs.ContainersReq {
+				msg := msgs.ContainersMsg{IDs: []string{expectedID}}
 				req.Reply(true, msg.Marshal())
 				break
 			}

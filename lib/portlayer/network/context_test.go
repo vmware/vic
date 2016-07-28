@@ -26,7 +26,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/ip"
@@ -110,7 +110,7 @@ func TestMain(m *testing.M) {
 				PortGroup: testBridgeNetwork,
 			},
 			"bar7": &ContainerNetwork{
-				Common: metadata.Common{
+				Common: executor.Common{
 					Name: "external",
 				},
 				Gateway:     net.IPNet{IP: net.ParseIP("10.13.0.1"), Mask: net.CIDRMask(16, 32)},
@@ -119,7 +119,7 @@ func TestMain(m *testing.M) {
 				PortGroup:   testExternalNetwork,
 			},
 			"bar71": &ContainerNetwork{
-				Common: metadata.Common{
+				Common: executor.Common{
 					Name: "external",
 				},
 				Gateway:     net.IPNet{IP: net.ParseIP("10.131.0.1"), Mask: net.CIDRMask(16, 32)},
@@ -128,13 +128,13 @@ func TestMain(m *testing.M) {
 				PortGroup:   testExternalNetwork,
 			},
 			"bar72": &ContainerNetwork{
-				Common: metadata.Common{
+				Common: executor.Common{
 					Name: "external",
 				},
 				PortGroup: testExternalNetwork,
 			},
 			"bar73": &ContainerNetwork{
-				Common: metadata.Common{
+				Common: executor.Common{
 					Name: "external",
 				},
 				Gateway:   net.IPNet{IP: net.ParseIP("10.133.0.1"), Mask: net.CIDRMask(16, 32)},
@@ -889,7 +889,7 @@ func TestContextRemoveContainer(t *testing.T) {
 	}
 
 	for i, te := range tests {
-		var ne *metadata.NetworkEndpoint
+		var ne *executor.NetworkEndpoint
 		if te.h != nil && te.h.ExecConfig.Networks != nil {
 			ne = te.h.ExecConfig.Networks[te.scope]
 		}

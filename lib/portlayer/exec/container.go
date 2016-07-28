@@ -24,9 +24,10 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -50,7 +51,7 @@ const (
 type Container struct {
 	sync.Mutex
 
-	ExecConfig *metadata.ExecutorConfig
+	ExecConfig *executor.ExecutorConfig
 	State      State
 
 	// friendly description of state
@@ -63,7 +64,7 @@ type Container struct {
 
 func NewContainer(id ID) *Handle {
 	con := &Container{
-		ExecConfig: &metadata.ExecutorConfig{},
+		ExecConfig: &executor.ExecutorConfig{},
 		State:      StateStopped,
 	}
 	con.ExecConfig.ID = id.String()
@@ -85,7 +86,7 @@ func (c *Container) newHandle() *Handle {
 }
 
 // TODO: Is this used anywhere?
-func (c *Container) cacheExecConfig(ec *metadata.ExecutorConfig) {
+func (c *Container) cacheExecConfig(ec *executor.ExecutorConfig) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -279,7 +280,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	return nil
 }
 
-func (c *Container) Update(ctx context.Context, sess *session.Session) (*metadata.ExecutorConfig, error) {
+func (c *Container) Update(ctx context.Context, sess *session.Session) (*executor.ExecutorConfig, error) {
 	defer trace.End(trace.Begin("Container.Update"))
 	c.Lock()
 	defer c.Unlock()
@@ -294,7 +295,7 @@ func (c *Container) Update(ctx context.Context, sess *session.Session) (*metadat
 		return nil, err
 	}
 
-	extraconfig.Decode(extraconfig.OptionValueSource(vm[0].Config.ExtraConfig), c.ExecConfig)
+	extraconfig.Decode(vmomi.OptionValueSource(vm[0].Config.ExtraConfig), c.ExecConfig)
 	return c.ExecConfig, nil
 }
 
@@ -409,8 +410,8 @@ func convertInfraContainers(vms []mo.VirtualMachine, all *bool) []*Container {
 			continue
 		}
 
-		container := &Container{ExecConfig: &metadata.ExecutorConfig{}}
-		source := extraconfig.OptionValueSource(vms[i].Config.ExtraConfig)
+		container := &Container{ExecConfig: &executor.ExecutorConfig{}}
+		source := vmomi.OptionValueSource(vms[i].Config.ExtraConfig)
 		extraconfig.Decode(source, container.ExecConfig)
 
 		// check extraConfig to see if we have a containerVM -- assumes

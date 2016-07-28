@@ -24,8 +24,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-
-	"github.com/vmware/govmomi/vim25/types"
 )
 
 var (
@@ -272,24 +270,4 @@ func MapSink(sink map[string]string) DataSink {
 		sink[key] = value
 		return nil
 	}
-}
-
-// OptionValueFromMap is a convenience method to convert a map into a BaseOptionValue array
-func OptionValueFromMap(data map[string]string) []types.BaseOptionValue {
-	if len(data) == 0 {
-		return nil
-	}
-
-	array := make([]types.BaseOptionValue, len(data))
-
-	i := 0
-	for k, v := range data {
-		if v == "" {
-			v = "<nil>"
-		}
-		array[i] = &types.OptionValue{Key: k, Value: v}
-		i++
-	}
-
-	return array
 }

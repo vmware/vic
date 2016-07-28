@@ -24,7 +24,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/govmomi/vim25/types"
 )
 
 var (
@@ -475,21 +474,4 @@ func MapSource(src map[string]string) DataSource {
 		}
 		return val, nil
 	}
-}
-
-// OptionValueSource is a convenience method to generate a MapSource source from
-// and array of OptionValue's
-func OptionValueSource(src []types.BaseOptionValue) DataSource {
-	// create the key/value store from the extraconfig slice for lookups
-	kv := make(map[string]string)
-	for i := range src {
-		k := src[i].GetOptionValue().Key
-		v := src[i].GetOptionValue().Value.(string)
-		if v == "<nil>" {
-			v = ""
-		}
-		kv[k] = v
-	}
-
-	return MapSource(kv)
 }

@@ -21,7 +21,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/network"
 
@@ -96,7 +96,7 @@ func TestVIC(t *testing.T) {
 		BridgeNetwork: "bridge",
 		ContainerNetworks: map[string]*network.ContainerNetwork{
 			"bridge": &network.ContainerNetwork{
-				Common: metadata.Common{
+				Common: executor.Common{
 					Name: "testBridge",
 				},
 				PortGroup: bridgeNetwork,

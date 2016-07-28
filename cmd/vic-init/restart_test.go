@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
@@ -36,22 +36,22 @@ func TestRestart(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 
-	cfg := metadata.ExecutorConfig{
-		Common: metadata.Common{
+	cfg := executor.ExecutorConfig{
+		Common: executor.Common{
 			ID:   "pathlookup",
 			Name: "tether_test_executor",
 		},
-		Diagnostics: metadata.Diagnostics{
+		Diagnostics: executor.Diagnostics{
 			DebugLevel: 2,
 		},
-		Sessions: map[string]metadata.SessionConfig{
-			"pathlookup": metadata.SessionConfig{
-				Common: metadata.Common{
+		Sessions: map[string]executor.SessionConfig{
+			"pathlookup": executor.SessionConfig{
+				Common: executor.Common{
 					ID:   "pathlookup",
 					Name: "tether_test_session",
 				},
 				Tty: false,
-				Cmd: metadata.Cmd{
+				Cmd: executor.Cmd{
 					// test relative path
 					Path: "date",
 					Args: []string{"date", "--reference=/"},
