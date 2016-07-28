@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+SHELL=/bin/bash
+
 GO ?= go
 GOVERSION ?= go1.6.3
 OS := $(shell uname | tr '[:upper:]' '[:lower:]')
@@ -48,6 +50,10 @@ endif
 # utility function to dynamically generate go dependencies
 define godeps
 	$(wildcard $1) $(shell $(BASE_DIR)/infra/scripts/go-deps.sh $(dir $1) $(MAKEFLAGS))
+endef
+
+define ldflags
+	$(shell BUILD_NUMBER=${BUILD_NUMBER} $(BASE_DIR)/infra/scripts/version-linker-flags.sh)
 endef
 
 # target aliases - environment variable definition
@@ -220,37 +226,36 @@ endif
 
 $(vic-init): $(call godeps,cmd/vic-init/*.go)
 	@echo building vic-init
-	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 $(tether-linux): $(call godeps,cmd/tether/*.go)
 	@echo building tether-linux
-	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 $(tether-windows): $(call godeps,cmd/tether/*.go)
 	@echo building tether-windows
-	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 # CGO is disabled for darwin otherwise build fails with "gcc: error: unrecognized command line option '-mmacosx-version-min=10.6'"
 $(tether-darwin): $(call godeps,cmd/tether/*.go)
 	@echo building tether-darwin
-	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 $(rpctool): $(call godeps,cmd/rpctool/*.go)
 ifeq ($(OS),linux)
 	@echo building rpctool
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 else
 	@echo skipping rpctool, cannot cross compile cgo
 endif
 
 $(vicadmin): $(call godeps,cmd/vicadmin/*.go)
 	@echo building vicadmin
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -o ./$@ --ldflags '-extldflags "-static"' ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
 $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@echo building imagec...
-	@$(TIME) $(GO) build $(RACE) -o ./$@ ./$(dir $<)
-
+	@$(TIME) $(GO) build $(RACE)  $(ldflags) -o ./$@ ./$(dir $<)
 
 $(docker-engine-api): $(call godeps,cmd/docker/*.go) $(portlayerapi-client)
 ifeq ($(OS),linux)
@@ -337,15 +342,15 @@ $(vic-ui-darwin): $(call godeps,cmd/vic-ui/*.go)
 
 $(vic-dns-linux): $(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns linux...
-	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
 $(vic-dns-windows): $(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns windows...
-	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
 $(vic-dns-darwin): $(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns darwin...
-	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -o ./$@ ./$(dir $<)
+	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
 clean:
 	rm -rf $(BIN)
