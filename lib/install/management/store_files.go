@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"fmt"
 	"path"
+	"sort"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -130,7 +131,9 @@ func (d *Dispatcher) isVSAN(ds *object.Datastore) bool {
 func (d *Dispatcher) deleteFilesIteratively(m *object.FileManager, ds *object.Datastore, dsPath string) error {
 	defer trace.End(trace.Begin(dsPath))
 
-	res, err := d.lsSubFolder(ds, dsPath)
+	// Get sorted result to make sure children files listed ahead of folder. Then we can empty folder before delete it
+	// This function specifically designed for vSan, as vSan sometimes will throw error to delete folder is the folder is not empty
+	res, err := d.getSortedChildren(ds, dsPath)
 	if err != nil {
 		if !types.IsFileNotFound(err) {
 			err = errors.Errorf("Failed to browse sub folders %q: %s", dsPath, err)
@@ -140,15 +143,9 @@ func (d *Dispatcher) deleteFilesIteratively(m *object.FileManager, ds *object.Da
 		return nil
 	}
 
-	for _, dir := range res.HostDatastoreBrowserSearchResults {
-		for _, f := range dir.File {
-			dsf, ok := f.(*types.FileInfo)
-			if !ok {
-				continue
-			}
-			if err = d.deleteVMFSFiles(m, ds, path.Join(dir.FolderPath, dsf.Path)); err != nil {
-				return err
-			}
+	for _, path := range res {
+		if err = d.deleteVMFSFiles(m, ds, path); err != nil {
+			return err
 		}
 	}
 	return d.deleteVMFSFiles(m, ds, dsPath)
@@ -163,6 +160,26 @@ func (d *Dispatcher) deleteVMFSFiles(m *object.FileManager, ds *object.Datastore
 		log.Debugf("Failed to delete %q: %s", dsPath, err)
 	}
 	return nil
+}
+
+// getSortedChildren returns all children under datastore path in reversed order.
+func (d *Dispatcher) getSortedChildren(ds *object.Datastore, dsPath string) ([]string, error) {
+	res, err := d.lsSubFolder(ds, dsPath)
+	if err != nil {
+		return nil, err
+	}
+	var result []string
+	for _, dir := range res.HostDatastoreBrowserSearchResults {
+		for _, f := range dir.File {
+			dsf, ok := f.(*types.FileInfo)
+			if !ok {
+				continue
+			}
+			result = append(result, path.Join(dir.FolderPath, dsf.Path))
+		}
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(result)))
+	return result, nil
 }
 
 func (d *Dispatcher) lsSubFolder(ds *object.Datastore, dsPath string) (*types.ArrayOfHostDatastoreBrowserSearchResults, error) {
