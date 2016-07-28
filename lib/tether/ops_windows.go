@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"syscall"
 
 	"golang.org/x/net/context"
 
@@ -69,5 +70,10 @@ func (t *BaseOperations) Setup(_ Config) error {
 }
 
 func (t *BaseOperations) Cleanup() error {
+	return nil
+}
+
+// Uid/Gid is not supported in Windows
+func getUserSysProcAttr(uname string) *syscall.SysProcAttr {
 	return nil
 }

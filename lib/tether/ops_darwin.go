@@ -18,8 +18,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/user"
+	"strconv"
 	"strings"
+	"syscall"
 
+	log "github.com/Sirupsen/logrus"
 	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/pkg/trace"
@@ -81,4 +85,26 @@ func (t *BaseOperations) Setup(_ Config) error {
 
 func (t *BaseOperations) Cleanup() error {
 	return nil
+}
+
+// Need to put this here because Windows does not
+// support SysProcAttr.Credential
+func getUserSysProcAttr(uname string) *syscall.SysProcAttr {
+	uinfo, err := user.Lookup(uname)
+	if err != nil {
+		detail := fmt.Sprintf("Unable to find user %s: %s", uname, err)
+		log.Error(detail)
+		return nil
+	} else {
+		u, _ := strconv.Atoi(uinfo.Uid)
+		g, _ := strconv.Atoi(uinfo.Gid)
+		// Unfortunately lookup GID by name is currently unsupported in Go.
+		return &syscall.SysProcAttr{
+			Credential: &syscall.Credential{
+				Uid: uint32(u),
+				Gid: uint32(g),
+			},
+			Setsid: true,
+		}
+	}
 }

@@ -51,9 +51,7 @@ Pull non-existent image
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull fakebadimage
     Log  ${output}
     Should Be Equal As Integers  ${rc}  1
-    ${status}=  Get State Of Github Issue  757
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-2-Docker-Pull.robot needs to be updated now that Issue #757 has been resolved
-    #Should contain  ${output}  image library/fakebadimage not found
+    Should contain  ${output}  image library/fakebadimage not found
 
 Pull image from non-existent repo
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull fakebadrepo.com:9999/ubuntu

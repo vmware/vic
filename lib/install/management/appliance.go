@@ -431,6 +431,8 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 	}
 
 	conf.AddComponent("vicadmin", &metadata.SessionConfig{
+		User:  "vicadmin",
+		Group: "vicadmin",
 		Cmd: metadata.Cmd{
 			Path: "/sbin/vicadmin",
 			Args: []string{
@@ -446,6 +448,7 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 			Env: []string{
 				"PATH=/sbin:/bin",
 			},
+			Dir: "/home/vicadmin",
 		},
 		Restart: true,
 	},
