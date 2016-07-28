@@ -71,7 +71,7 @@ func (d *Dispatcher) DeleteStores(vchVM *vm.VirtualMachine, conf *config.Virtual
 	return nil
 }
 
-func (d *Dispatcher) deleteImages(conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) error {
 	var emptyImages bool
 	var errs []string
 

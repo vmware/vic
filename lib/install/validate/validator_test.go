@@ -111,6 +111,7 @@ func TestMain(t *testing.T) {
 		}
 
 		conf := testCompute(validator, input, t)
+		testDatastoreHelper(validator, t)
 		testTargets(validator, input, conf, t)
 		testStorage(validator, input, conf, t)
 		//		testNetwork() need dvs support
@@ -242,6 +243,21 @@ func testTargets(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 	}
 }
 
+func testDatastoreHelper(v *Validator, t *testing.T) {
+	tests := []struct {
+		path     string
+		expected string
+	}{{"ds://LocalDS_0/path",
+		"ds://LocalDS_0/path"}}
+	for _, test := range tests {
+		output, _, err := v.DatastoreHelper(v.Context, test.path)
+
+		if err != nil {
+			log.Errorln(err)
+		}
+		assert.Equal(t, test.expected, output.String())
+	}
+}
 func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
 	tests := []struct {
 		image         string
@@ -254,11 +270,11 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 			map[string]string{"volume1": "LocalDS_0/volumes/volume1",
 				"volume2": "ds://LocalDS_0/volumes/volume2"},
 			false,
-			"ds://LocalDS_0",
+			"ds://LocalDS_0/test001/images",
 			map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1",
 				"volume2": "ds://LocalDS_0/volumes/volume2"}},
 
-		{"ds://LocalDS_0/images",
+		{"LocalDS_0/images",
 			map[string]string{"volume1": "LocalDS_0/volumes/volume1",
 				"volume2": "ds://LocalDS_0/volumes/volume2"},
 			false,
@@ -266,7 +282,7 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 			map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1",
 				"volume2": "ds://LocalDS_0/volumes/volume2"}},
 
-		{"LocalDS_0/images",
+		{"ds://LocalDS_0/images",
 			map[string]string{"volume1": "LocalDS_0/volumes/volume1",
 				"volume2": "ds://LocalDS_0/volumes/volume2"},
 			false,
@@ -282,18 +298,18 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 			map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1",
 				"volume2": "ds://LocalDS_0/volumes/volume2"}},
 
-		{"LocalDS_0",
-			map[string]string{"volume1": "LocalDS_1/volumes/volume1",
-				"volume2": "ds://LocalDS_1/volumes/volume2"},
-			true,
-			"",
-			nil},
-
 		{"ds://LocalDS_0",
 			map[string]string{"volume1": "LocalDS_1/volumes/volume1",
 				"volume2": "ds://LocalDS_1/volumes/volume2"},
 			true,
-			"LocalDS_0",
+			"ds://LocalDS_0/test001/images",
+			nil},
+
+		{"LocalDS_0",
+			map[string]string{"volume1": "LocalDS_1/volumes/volume1",
+				"volume2": "ds://LocalDS_1/volumes/volume2"},
+			true,
+			"ds://LocalDS_0/test001/images",
 			nil},
 
 		{"",
@@ -320,6 +336,7 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 		if !test.hasErr {
 			assert.Equal(t, 0, len(v.issues))
 			assert.Equal(t, test.expectImage, conf.ImageStores[0].String())
+			conf.ImageStores = conf.ImageStores[1:]
 			for key, volume := range conf.VolumeLocations {
 				assert.Equal(t, test.expectVolumes[key], volume.String())
 			}
