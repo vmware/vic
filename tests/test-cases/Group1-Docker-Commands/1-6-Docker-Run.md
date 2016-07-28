@@ -38,7 +38,7 @@ docker: Error response from daemon: Container command not found or does not exis
 docker: Error parsing reference: "fakeImage" is not a valid repository/tag.
 ```
 * Step 10 should result in success and the output should indicate that the ping succeeded across containers just using the linked name
-* Step 11 should result in success with exit code 0
+* Step 11 should result in success with exit code 0 and show the output of the df command
 
 #Possible Problems:
 None

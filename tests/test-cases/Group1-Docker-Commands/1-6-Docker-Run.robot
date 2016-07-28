@@ -63,6 +63,7 @@ Docker run linked containers
     #Should Be Equal As Integers  ${rc}  0
 
 Docker run df command
+    ${status}=  Get State Of Github Issue  384
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-6-Docker-Run.robot needs to be updated now that Issue #384 has been resolved
     Log  Issue \#384 is blocking implementation  WARN
     #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -it busybox /bin/df
