@@ -523,7 +523,7 @@ func TestContextAddContainer(t *testing.T) {
 		// add a container
 		{nil, h, nil, "default", nil, nil},
 		// container already added
-		{nil, h, nil, "default", nil, DuplicateResourceError{}},
+		{nil, h, nil, "default", nil, nil},
 		{nil, hBar, specWithEthCard, "default", nil, nil},
 		{nil, hBar, nil, otherScope.Name(), nil, nil},
 	}
