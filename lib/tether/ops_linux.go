@@ -31,6 +31,7 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/vishvananda/netlink"
 	"github.com/vmware/vic/lib/dhcp"
 	"github.com/vmware/vic/lib/dhcp/client"
@@ -40,12 +41,17 @@ import (
 	"github.com/vmware/vmw-guestinfo/rpcout"
 )
 
-var hostnameFile = "/etc/hostname"
-var byLabelDir = "/dev/disk/by-label"
-var hostsFile = "/etc/hosts"
-var resolvFile = "/etc/resolv.conf"
+var (
+	hostnameFile = "/etc/hostname"
+	byLabelDir   = "/dev/disk/by-label"
+	hostsFile    = "/etc/hosts"
+	resolvFile   = "/etc/resolv.conf"
+)
 
-const pciDevPath = "/sys/bus/pci/devices"
+const (
+	pciDevPath    = "/sys/bus/pci/devices"
+	runMountPoint = "/run"
+)
 
 type BaseOperations struct {
 	dhcpClient   client.Client
@@ -718,6 +724,18 @@ func (t *BaseOperations) Setup(config Config) error {
 	if err = os.Symlink("/proc/mounts", "/etc/mtab"); err != nil {
 		return err
 	}
+
+	mounted, err := mount.Mounted(runMountPoint)
+	if err != nil {
+		return err
+	}
+	if mounted {
+		// unmount /run - https://github.com/vmware/vic/issues/1643
+		if err := syscall.Unmount(runMountPoint, syscall.MNT_DETACH); err != nil {
+			return fmt.Errorf("unmount %s failed with %q", runMountPoint, err)
+		}
+	}
+
 	return nil
 }
 
