@@ -267,6 +267,56 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 	}
 }
 
+// inDVP checks if the host is in the distributed virtual portgroup (dvpHosts)
+func (v *Validator) inDVP(host types.ManagedObjectReference, dvpHosts []types.ManagedObjectReference) bool {
+	for _, h := range dvpHosts {
+		if host == h {
+			return true
+		}
+	}
+	return false
+}
+
+// checkVDSMembership verifes all hosts in the vCenter are connected to the vDS
+func (v *Validator) checkVDSMembership(ctx context.Context, network types.ManagedObjectReference, netName string) error {
+	var dvp mo.DistributedVirtualPortgroup
+	var nonMembers []string
+
+	if !v.IsVC() {
+		return nil
+	}
+
+	clusterHosts, err := v.Session.Cluster.Hosts(ctx)
+	if err != nil {
+		return err
+	}
+
+	r := object.NewDistributedVirtualPortgroup(v.Session.Client.Client, network)
+	if err := r.Properties(ctx, r.Reference(), []string{"name", "host"}, &dvp); err != nil {
+		return err
+	}
+
+	for _, h := range clusterHosts {
+		if !v.inDVP(h.Reference(), dvp.Host) {
+			nonMembers = append(nonMembers, h.InventoryPath)
+		}
+	}
+
+	if len(nonMembers) > 0 {
+		log.Errorf("vDS configuration incorrect on %q. All cluster hosts must be in the vDS.", netName)
+		log.Errorf("  %q is missing hosts:", netName)
+		for _, hs := range nonMembers {
+			log.Errorf("    %q", hs)
+		}
+
+		errMsg := fmt.Sprintf("All cluster hosts must be in the vDS. %q is missing hosts: %s", netName, nonMembers)
+		v.NoteIssue(errors.New(errMsg))
+	} else {
+		log.Infof("vDS configuration OK on %q", netName)
+	}
+	return nil
+}
+
 func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
@@ -336,7 +386,14 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 	// for now we're hardcoded to "bridge" for the container host name
 	conf.BridgeNetwork = "bridge"
 	endpointMoref, err := v.dpgHelper(ctx, input.BridgeNetworkName)
-	netMoref := endpointMoref
+	var netMoid string
+	bridgeID := endpointMoref.String()
+	if endpointMoref.Type == "" && endpointMoref.Value == "" {
+		netMoid = ""
+		bridgeID = ""
+	} else {
+		netMoid = endpointMoref.String()
+	}
 	if err != nil {
 		if _, ok := err.(*find.NotFoundError); !ok || v.IsVC() {
 			v.NoteIssue(fmt.Errorf("An existing distributed port group must be specified for bridge network on vCenter: %s", err))
@@ -345,19 +402,19 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 		// this allows the dispatcher to create the network with corresponding name
 		// if BridgeNetworkName doesn't already exist then we set the ContainerNetwork
 		// ID to the name, but leaving the NetworkEndpoint moref as ""
-		netMoref = input.BridgeNetworkName
+		netMoid = input.BridgeNetworkName
 	}
 
 	bridgeNet := &executor.NetworkEndpoint{
 		Common: executor.Common{
 			Name: "bridge",
-			ID:   endpointMoref,
+			ID:   bridgeID,
 		},
 		Static: &net.IPNet{IP: net.IPv4zero}, // static but managed externally
 		Network: executor.ContainerNetwork{
 			Common: executor.Common{
 				Name: "bridge",
-				ID:   netMoref,
+				ID:   netMoid,
 			},
 		},
 	}
@@ -367,6 +424,11 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 	// we also need to have the appliance attached to the bridge network to allow
 	// port forwarding
 	conf.AddNetwork(bridgeNet)
+
+	err = v.checkVDSMembership(ctx, endpointMoref, input.BridgeNetworkName)
+	if err != nil {
+		v.NoteIssue(fmt.Errorf("Unable to check hosts in vDS for %q: %s", input.BridgeNetworkName, err))
+	}
 
 	// add mapped networks
 	//   these should be a distributed port groups in vCenter
@@ -421,7 +483,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 		mappedNet := &executor.ContainerNetwork{
 			Common: executor.Common{
 				Name: name,
-				ID:   moref,
+				ID:   moref.String(),
 			},
 			Gateway:     gw,
 			Nameservers: dns,
@@ -429,6 +491,11 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 		}
 		if input.BridgeNetworkName == net {
 			v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - %q also mapped as container network %q", input.BridgeNetworkName, name))
+		}
+
+		err = v.checkVDSMembership(ctx, moref, net)
+		if err != nil {
+			v.NoteIssue(fmt.Errorf("Unable to check hosts in vDS for %q: %s", net, err))
 		}
 
 		conf.AddContainerNetwork(mappedNet)
@@ -553,7 +620,6 @@ func (v *Validator) firewall(ctx context.Context) {
 		msg := "Firewall must permit 8080/tcp outbound to use VIC"
 		log.Error(msg)
 		v.NoteIssue(errors.New(msg))
-		return
 	}
 	if len(misconfiguredDisabled) > 0 {
 		log.Warning("Firewall configuration will be incorrect if firewall is reenabled on hosts:")
@@ -754,7 +820,6 @@ func (v *Validator) target(ctx context.Context, input *data.Data, conf *config.V
 			v.NoteIssue(fmt.Errorf("Error processing target after transformation to SOAP endpoint: %q: %s", v.Session.Service, err))
 			return
 		}
-		conf.UserPassword = targetURL.User.String()
 	}
 
 	// bridge network params
@@ -802,22 +867,29 @@ func (v *Validator) compatibility(ctx context.Context, conf *config.VirtualConta
 	v.NoteIssue(err)
 }
 
-func (v *Validator) networkHelper(ctx context.Context, path string) (string, error) {
-	defer trace.End(trace.Begin(path))
-
+func (v *Validator) getNetwork(ctx context.Context, path string) (object.NetworkReference, error) {
 	nets, err := v.Session.Finder.NetworkList(ctx, path)
 	if err != nil {
 		log.Debugf("no such network %q", path)
 		// TODO: error message about no such match and how to get a network list
 		// we return err directly here so we can check the type
-		return "", err
+		return nil, err
 	}
 	if len(nets) > 1 {
 		// TODO: error about required disabmiguation and list entries in nets
-		return "", errors.New("ambiguous network " + path)
+		return nil, errors.New("ambiguous network " + path)
 	}
+	return nets[0], nil
+}
 
-	moref := nets[0].Reference()
+func (v *Validator) networkHelper(ctx context.Context, path string) (string, error) {
+	defer trace.End(trace.Begin(path))
+
+	net, err := v.getNetwork(ctx, path)
+	if err != nil {
+		return "", err
+	}
+	moref := net.Reference()
 	return moref.String(), nil
 }
 
@@ -849,32 +921,24 @@ func (v *Validator) dpgMorefHelper(ctx context.Context, ref string) (string, err
 	return ref, nil
 }
 
-func (v *Validator) dpgHelper(ctx context.Context, path string) (string, error) {
+func (v *Validator) dpgHelper(ctx context.Context, path string) (types.ManagedObjectReference, error) {
 	defer trace.End(trace.Begin(path))
 
-	nets, err := v.Session.Finder.NetworkList(ctx, path)
+	net, err := v.getNetwork(ctx, path)
 	if err != nil {
-		log.Debugf("no such network %q", path)
-		// TODO: error message about no such match and how to get a network list
-		// we return err directly here so we can check the type
-		return "", err
-	}
-	if len(nets) > 1 {
-		// TODO: error about required disabmiguation and list entries in nets
-		return "", errors.New("ambiguous network " + path)
+		return types.ManagedObjectReference{}, err
 	}
 
 	// ensure that the type of the network is a Distributed Port Group if the target is a vCenter
 	// if it's not then any network suffices
 	if v.IsVC() {
-		_, dpg := nets[0].(*object.DistributedVirtualPortgroup)
+		_, dpg := net.(*object.DistributedVirtualPortgroup)
 		if !dpg {
-			return "", fmt.Errorf("%q is not a Distributed Port Group", path)
+			return types.ManagedObjectReference{}, fmt.Errorf("%q is not a Distributed Port Group", path)
 		}
 	}
 
-	moref := nets[0].Reference()
-	return moref.String(), nil
+	return net.Reference(), nil
 }
 
 func (v *Validator) DatastoreHelper(ctx context.Context, path string) (*url.URL, *object.Datastore, error) {
@@ -915,7 +979,7 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string) (*url.URL,
 		return nil, nil, err
 	}
 	if len(stores) > 1 {
-		// TODO: error about required disabmiguation and list entries in nets
+		// TODO: error about required disabmiguation and list entries in stores
 		return nil, nil, errors.New("ambiguous datastore " + dsURL.Host)
 	}
 
