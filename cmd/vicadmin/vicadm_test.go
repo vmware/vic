@@ -248,7 +248,6 @@ func TestLogTail(t *testing.T) {
 
 	paths := []string{
 		"/logs/tail/" + name,
-		"/logs/" + name,
 	}
 
 	i := 0
