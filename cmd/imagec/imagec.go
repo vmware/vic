@@ -694,16 +694,20 @@ func main() {
 		options.token = token
 	}
 
-	// Get the manifest
-	manifest, err := FetchImageManifest(options)
-	if err != nil {
-		log.Fatalf("Error while pulling image manifest: %s", err)
-	}
-
 	// HACK: Required to learn the name of the vmdk from given reference
 	// Used by docker personality until metadata support lands
 	if !options.resolv {
 		progress.Message(po, options.tag, "Pulling from "+options.image)
+	}
+
+	// Get the manifest
+	manifest, err := FetchImageManifest(options)
+	if err != nil {
+		if strings.Contains(err.Error(), "image not found") {
+			log.Fatalf("Error: image %s not found", options.image)
+		} else {
+			log.Fatalf("Error while pulling image manifest: %s", err)
+		}
 	}
 
 	// Create the ImageWithMeta slice to hold Image structs
