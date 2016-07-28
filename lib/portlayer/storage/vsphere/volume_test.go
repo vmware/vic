@@ -90,7 +90,16 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 			ID := fmt.Sprintf("testvolume-%d", idx)
-			outVol, err := cache.VolumeCreate(ctx, ID, volumeStore, 10240, nil)
+
+			// add some metadata if i is even
+			var info map[string][]byte
+
+			if idx%2 == 0 {
+				info = make(map[string][]byte)
+				info[ID] = []byte(ID)
+			}
+
+			outVol, err := cache.VolumeCreate(ctx, ID, volumeStore, 10240, info)
 			if !assert.NoError(t, err) || !assert.NotNil(t, outVol) {
 				return
 			}
