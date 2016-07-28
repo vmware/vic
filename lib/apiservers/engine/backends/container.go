@@ -623,11 +623,18 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 	h = stateChangeRes.Payload
 
 	if bind {
-		if err = c.mapPorts(portmap.Map, hostConfig, c.findPortBoundNetworkEndpoint(hostConfig, endpoints)); err != nil {
+		e := c.findPortBoundNetworkEndpoint(hostConfig, endpoints)
+		if err = c.mapPorts(portmap.Map, hostConfig, e); err != nil {
 			err = fmt.Errorf("error mapping ports: %s", err)
 			log.Error(err)
 			return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 		}
+
+		defer func() {
+			if err != nil {
+				c.mapPorts(portmap.Unmap, hostConfig, e)
+			}
+		}()
 	}
 
 	// commit the handle; this will reconfigure and start the vm
@@ -785,7 +792,7 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 	// ignore the error  since others will be checking below..this is an attempt to short circuit the op
 	// TODO: can be replaced with simple cache check once power events are propigated to persona
 	infoResponse, _ := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParams().WithID(name))
-	if *infoResponse.Payload.ContainerConfig.State == "Stopped" {
+	if *infoResponse.Payload.ContainerConfig.State == "Stopped" || *infoResponse.Payload.ContainerConfig.State == "Created" {
 		return nil
 	}
 

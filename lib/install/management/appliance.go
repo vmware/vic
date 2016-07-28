@@ -431,6 +431,8 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 	}
 
 	conf.AddComponent("vicadmin", &metadata.SessionConfig{
+		User:  "vicadmin",
+		Group: "vicadmin",
 		Cmd: metadata.Cmd{
 			Path: "/sbin/vicadmin",
 			Args: []string{
@@ -438,7 +440,6 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 				"-docker-host=unix:///var/run/docker.sock",
 				// FIXME: hack during config migration
 				"-insecure",
-				"-sdk=" + conf.Target.String(),
 				"-ds=" + conf.ImageStores[0].Host,
 				"-cluster=" + settings.ClusterPath,
 				"-pool=" + settings.ResourcePoolPath,
@@ -447,6 +448,7 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 			Env: []string{
 				"PATH=/sbin:/bin",
 			},
+			Dir: "/home/vicadmin",
 		},
 		Restart: true,
 	},

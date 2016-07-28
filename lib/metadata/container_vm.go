@@ -185,4 +185,9 @@ type SessionConfig struct {
 	// ulimits
 	// user
 	// rootfs - within the container context
+
+	// User and group for setuid programs.
+	// Need to go here since UID/GID resolution must be done on appliance
+	User  string `vic:"0.1" scope:"read-only" key:"User"`
+	Group string `vic:"0.1" scope:"read-only" key:"Group"`
 }

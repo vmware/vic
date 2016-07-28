@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"syscall"
 
 	"golang.org/x/net/context"
 
@@ -44,7 +45,7 @@ func (t *BaseOperations) Apply(endpoint *NetworkEndpoint) error {
 
 // MountLabel performs a mount with the source treated as a disk label
 // This assumes that /dev/disk/by-label is being populated, probably by udev
-func (t *BaseOperations) MountLabel(label, target string, ctx context.Context) error {
+func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", label, target)))
 
 	return errors.New("not implemented on windows")
@@ -69,5 +70,10 @@ func (t *BaseOperations) Setup(_ Config) error {
 }
 
 func (t *BaseOperations) Cleanup() error {
+	return nil
+}
+
+// Uid/Gid is not supported in Windows
+func getUserSysProcAttr(uname string) *syscall.SysProcAttr {
 	return nil
 }

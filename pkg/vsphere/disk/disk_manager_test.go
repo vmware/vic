@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strings"
 	"testing"
 	"time"
 
@@ -115,9 +114,10 @@ func TestCreateAndDetach(t *testing.T) {
 		if i == numChildren-1 {
 			// last chunk, write to the end.
 			_, cerr = f.WriteAt([]byte(testString[start:]), int64(start))
-			if !assert.NoError(t, cerr) {
+			if !assert.NoError(t, cerr) || !assert.NoError(t, f.Sync()) {
 				return
 			}
+
 			// Try to read the whole string
 			b := make([]byte, len(testString))
 			f.Seek(0, 0)
@@ -127,13 +127,13 @@ func TestCreateAndDetach(t *testing.T) {
 			}
 
 			//check against the test string
-			if !assert.True(t, strings.Compare(testString, string(b)) == 0) {
+			if !assert.Equal(t, testString, string(b)) {
 				return
 			}
 
 		} else {
 			_, cerr = f.WriteAt([]byte(testString[start:end]), int64(start))
-			if !assert.NoError(t, cerr) {
+			if !assert.NoError(t, cerr) || !assert.NoError(t, f.Sync()) {
 				return
 			}
 		}

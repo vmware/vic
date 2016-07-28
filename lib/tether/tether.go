@@ -198,7 +198,7 @@ func (t *tether) Start() error {
 			}
 
 			// this could block indefinitely while waiting for a volume to present
-			t.ops.MountLabel(v.Source.Path, v.Path, context.Background())
+			t.ops.MountLabel(context.Background(), v.Source.Path, v.Path)
 		}
 
 		// process the sessions and launch if needed
@@ -341,6 +341,12 @@ func (t *tether) launch(session *SessionConfig) error {
 	session.Outwriter = logwriter
 	session.Errwriter = logwriter
 	session.Reader = dio.MultiReader()
+
+	// Special case here because UID/GID lookup need to be done
+	// on the appliance...
+	if len(session.User) > 0 {
+		session.Cmd.SysProcAttr = getUserSysProcAttr(session.User)
+	}
 
 	session.Cmd.Env = t.ops.ProcessEnv(session.Cmd.Env)
 	session.Cmd.Stdout = session.Outwriter

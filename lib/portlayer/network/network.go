@@ -40,11 +40,13 @@ func (e DuplicateResourceError) Error() string {
 func Init() error {
 	var err error
 
-	bridgeRange := net.IPNet{
-		IP:   net.IPv4(172, 16, 0, 0),
-		Mask: net.CIDRMask(12, 32),
+	bridgeRange := Config.BridgeIPRange
+	if bridgeRange == nil || len(bridgeRange.IP) == 0 || bridgeRange.IP.IsUnspecified() {
+		_, bridgeRange, err = net.ParseCIDR("172.16.0.0/12")
+		if err != nil {
+			return err
+		}
 	}
-	bridgeWidth := net.CIDRMask(16, 32)
 
 	// make sure a NIC attached to the bridge network exists
 	Config.BridgeLink, err = getBridgeLink()
@@ -52,7 +54,13 @@ func Init() error {
 		return err
 	}
 
-	DefaultContext, err = NewContext(bridgeRange, bridgeWidth)
+	bridgeWidth := Config.BridgeNetworkWidth
+	if bridgeWidth == nil || len(*bridgeWidth) == 0 {
+		w := net.CIDRMask(16, 32)
+		bridgeWidth = &w
+	}
+
+	DefaultContext, err = NewContext(*bridgeRange, *bridgeWidth)
 	if err == nil {
 		log.Infof("Default network context allocated: %s", bridgeRange.String())
 	}
