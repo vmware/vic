@@ -22,8 +22,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
-	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/simulator"
@@ -184,7 +184,7 @@ func createPool(ctx context.Context, sess *session.Session, poolPath string, nam
 	return nil
 }
 
-func testCompute(v *Validator, input *data.Data, t *testing.T) *metadata.VirtualContainerHostConfigSpec {
+func testCompute(v *Validator, input *data.Data, t *testing.T) *config.VirtualContainerHostConfigSpec {
 	tests := []struct {
 		path   string
 		vc     bool
@@ -206,7 +206,7 @@ func testCompute(v *Validator, input *data.Data, t *testing.T) *metadata.Virtual
 		{"test", false, true},
 		{"/ha-datacenter/host/localhost.localdomain/Resources/validator", false, false},
 	}
-	conf := &metadata.VirtualContainerHostConfigSpec{}
+	conf := &config.VirtualContainerHostConfigSpec{}
 
 	for _, test := range tests {
 		if v.isVC && !test.vc {
@@ -229,7 +229,7 @@ func testCompute(v *Validator, input *data.Data, t *testing.T) *metadata.Virtual
 	return conf
 }
 
-func testTargets(v *Validator, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec, t *testing.T) {
+func testTargets(v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
 	v.target(v.Context, input, conf)
 	pass, set := conf.Target.User.Password()
 	t.Logf("target: %+v", conf.Target)
@@ -242,7 +242,7 @@ func testTargets(v *Validator, input *data.Data, conf *metadata.VirtualContainer
 	}
 }
 
-func testStorage(v *Validator, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec, t *testing.T) {
+func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
 	tests := []struct {
 		image         string
 		volumes       map[string]string

@@ -32,7 +32,7 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/vmware/vic/lib/apiservers/engine/backends"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -55,7 +55,7 @@ const (
 	productName = "vSphere Integrated Containers"
 )
 
-var vchConfig metadata.VirtualContainerHostConfigSpec
+var vchConfig config.VirtualContainerHostConfigSpec
 
 func init() {
 	trace.Logger.Level = log.DebugLevel

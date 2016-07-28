@@ -102,9 +102,6 @@ fi
 #   libtirpc  # due to a previous package reliance on rpc
 #
 yum_cached -c $cache -u -p $PKGDIR install \
-    iproute2 \
-    libtirpc \
-    grep \
     haveged \
     systemd \
     -y --nogpgcheck

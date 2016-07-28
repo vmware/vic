@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	_ "net/http/pprof"
 	"os"
 	"syscall"
 	"time"
@@ -30,7 +29,7 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/lib/portlayer/attach"
+	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -108,7 +107,7 @@ func (t *attachServerSSH) Start() error {
 	return nil
 }
 
-func resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
+func resizePty(pty uintptr, winSize *msgs.WindowChangeMsg) error {
 	defer trace.End(trace.Begin(""))
 
 	ws := &winsize{uint16(winSize.Rows), uint16(winSize.Columns), uint16(winSize.WidthPx), uint16(winSize.HeightPx)}
@@ -125,7 +124,7 @@ func resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
 }
 
 func signalProcess(process *os.Process, sig ssh.Signal) error {
-	signal := attach.Signals[sig]
+	signal := msgs.Signals[sig]
 	defer trace.End(trace.Begin(fmt.Sprintf("signal process %d: %s", process.Pid, sig)))
 
 	s := syscall.Signal(signal)

@@ -30,7 +30,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -172,7 +172,7 @@ func TestMain(m *testing.M) {
 	os.Exit(retCode)
 }
 
-func StartTether(t *testing.T, cfg *metadata.ExecutorConfig) (Tether, extraconfig.DataSource) {
+func StartTether(t *testing.T, cfg *executor.ExecutorConfig) (Tether, extraconfig.DataSource) {
 	store := map[string]string{}
 	sink := extraconfig.MapSink(store)
 	src := extraconfig.MapSource(store)
@@ -193,7 +193,7 @@ func StartTether(t *testing.T, cfg *metadata.ExecutorConfig) (Tether, extraconfi
 	return tthr, src
 }
 
-func RunTether(t *testing.T, cfg *metadata.ExecutorConfig) (Tether, extraconfig.DataSource, error) {
+func RunTether(t *testing.T, cfg *executor.ExecutorConfig) (Tether, extraconfig.DataSource, error) {
 	store := map[string]string{}
 	sink := extraconfig.MapSink(store)
 	src := extraconfig.MapSource(store)

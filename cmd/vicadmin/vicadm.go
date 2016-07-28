@@ -37,7 +37,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 
-	"github.com/vmware/vic/lib/metadata"
+	vchconfig "github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
@@ -64,7 +64,7 @@ var (
 	// VMFiles is the set of files to collect per VM associated with the VCH
 	vmFiles = []string{
 		"vmware.log",
-		string(metadata.VM + ".debug"),
+		string(vchconfig.VM + ".debug"),
 	}
 
 	config struct {
@@ -79,9 +79,9 @@ var (
 		tls          bool
 	}
 
-	resources metadata.Resources
+	resources vchconfig.Resources
 
-	vchConfig metadata.VirtualContainerHostConfigSpec
+	vchConfig vchconfig.VirtualContainerHostConfigSpec
 
 	defaultReaders map[string]entryReader
 
@@ -334,7 +334,7 @@ func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 		// generate the full paths to collect
 		for _, file := range vmFiles {
 			// replace the VM token in file name with the VM name
-			processed := strings.Replace(file, string(metadata.VM), path.Base(vmpath.Path), -1)
+			processed := strings.Replace(file, string(vchconfig.VM), path.Base(vmpath.Path), -1)
 			rpath := fmt.Sprintf("%s/%s", vmpath.Path, processed)
 			readers[rpath] = datastoreReader{
 				ds:   ds,

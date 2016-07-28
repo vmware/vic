@@ -26,9 +26,9 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/validate"
-	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/simulator"
@@ -95,7 +95,7 @@ func TestDelete(t *testing.T) {
 	}
 }
 
-func createAppliance(ctx context.Context, sess *session.Session, conf *metadata.VirtualContainerHostConfigSpec, vConf *data.InstallerData, hasErr bool, t *testing.T) {
+func createAppliance(ctx context.Context, sess *session.Session, conf *config.VirtualContainerHostConfigSpec, vConf *data.InstallerData, hasErr bool, t *testing.T) {
 	var err error
 
 	d := &Dispatcher{
@@ -172,7 +172,7 @@ func testNewVCHFromCompute(computePath string, name string, v *validate.Validato
 	t.Logf("Got VCH %s, path %s", vch, path)
 }
 
-func testDeleteVCH(v *validate.Validator, conf *metadata.VirtualContainerHostConfigSpec, t *testing.T) {
+func testDeleteVCH(v *validate.Validator, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
 	d := &Dispatcher{
 		session: v.Session,
 		ctx:     v.Context,

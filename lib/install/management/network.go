@@ -19,12 +19,12 @@ import (
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 )
 
-func (d *Dispatcher) createBridgeNetwork(conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) createBridgeNetwork(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 
 	// if the bridge network is already extant there's nothing to do
@@ -83,7 +83,7 @@ func (d *Dispatcher) createBridgeNetwork(conf *metadata.VirtualContainerHostConf
 	return nil
 }
 
-func (d *Dispatcher) removeNetwork(conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) removeNetwork(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(conf.Name))
 
 	if d.session.IsVC() {

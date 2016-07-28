@@ -26,14 +26,16 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
-	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
@@ -58,7 +60,7 @@ func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
 		return false, err
 	}
 
-	var remoteConf metadata.VirtualContainerHostConfigSpec
+	var remoteConf config.VirtualContainerHostConfigSpec
 	extraconfig.Decode(extraconfig.MapSource(info), &remoteConf)
 
 	// if the moref of the target matches where we expect to find it for a VCH, run with it
@@ -69,7 +71,7 @@ func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
 	return false, nil
 }
 
-func (d *Dispatcher) checkExistence(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
+func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(""))
 
 	var err error
@@ -167,12 +169,12 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	return nil
 }
 
-func (d *Dispatcher) addNetworkDevices(conf *metadata.VirtualContainerHostConfigSpec, cspec *spec.VirtualMachineConfigSpec, devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
+func (d *Dispatcher) addNetworkDevices(conf *config.VirtualContainerHostConfigSpec, cspec *spec.VirtualMachineConfigSpec, devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
 	defer trace.End(trace.Begin(""))
 
 	// network name:alias, to avoid create multiple devices for same network
 	slots := make(map[int32]bool)
-	nets := make(map[string]*metadata.NetworkEndpoint)
+	nets := make(map[string]*executor.NetworkEndpoint)
 
 	for name, endpoint := range conf.ExecutorConfig.Networks {
 		if pnic, ok := nets[endpoint.Network.Common.ID]; ok {
@@ -247,7 +249,7 @@ func (d *Dispatcher) addParaVirtualSCSIController(devices object.VirtualDeviceLi
 	return devices, nil
 }
 
-func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConfigSpec, vConf *data.InstallerData) (*types.VirtualMachineConfigSpec, error) {
+func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfigSpec, vConf *data.InstallerData) (*types.VirtualMachineConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
 
 	var devices object.VirtualDeviceList
@@ -265,7 +267,7 @@ func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConf
 			MemoryMB: vConf.ApplianceSize.Memory.Limit,
 			// Encode the config both here and after the VMs created so that it can be identified as a VCH appliance as soon as
 			// creation is complete.
-			ExtraConfig: extraconfig.OptionValueFromMap(cfg),
+			ExtraConfig: vmomi.OptionValueFromMap(cfg),
 		},
 	}
 
@@ -290,7 +292,7 @@ func (d *Dispatcher) createApplianceSpec(conf *metadata.VirtualContainerHostConf
 	return spec.VirtualMachineConfigSpec, nil
 }
 
-func (d *Dispatcher) findApplianceByID(conf *metadata.VirtualContainerHostConfigSpec) (*vm.VirtualMachine, error) {
+func (d *Dispatcher) findApplianceByID(conf *config.VirtualContainerHostConfigSpec) (*vm.VirtualMachine, error) {
 	defer trace.End(trace.Begin(""))
 
 	var err error
@@ -322,7 +324,7 @@ func (d *Dispatcher) findApplianceByID(conf *metadata.VirtualContainerHostConfig
 }
 
 // retrieves the uuid of the appliance vm to create a unique vsphere extension name
-func (d *Dispatcher) GenerateExtensionName(conf *metadata.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) error {
+func (d *Dispatcher) GenerateExtensionName(conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) error {
 	defer trace.End(trace.Begin(conf.ExtensionName))
 
 	var o mo.VirtualMachine
@@ -335,7 +337,7 @@ func (d *Dispatcher) GenerateExtensionName(conf *metadata.VirtualContainerHostCo
 	return nil
 }
 
-func (d *Dispatcher) configIso(conf *metadata.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) (object.VirtualDeviceList, error) {
+func (d *Dispatcher) configIso(conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) (object.VirtualDeviceList, error) {
 	defer trace.End(trace.Begin(""))
 
 	var devices object.VirtualDeviceList
@@ -361,7 +363,7 @@ func (d *Dispatcher) configIso(conf *metadata.VirtualContainerHostConfigSpec, vm
 	return devices, nil
 }
 
-func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
+func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(""))
 
 	log.Infof("Creating appliance on target")
@@ -430,10 +432,10 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 		Key:     conf.ExtensionName,
 	}
 
-	conf.AddComponent("vicadmin", &metadata.SessionConfig{
+	conf.AddComponent("vicadmin", &executor.SessionConfig{
 		User:  "vicadmin",
 		Group: "vicadmin",
-		Cmd: metadata.Cmd{
+		Cmd: executor.Cmd{
 			Path: "/sbin/vicadmin",
 			Args: []string{
 				"/sbin/vicadmin",
@@ -462,8 +464,8 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 		d.DockerPort = "2375"
 	}
 
-	conf.AddComponent("docker-personality", &metadata.SessionConfig{
-		Cmd: metadata.Cmd{
+	conf.AddComponent("docker-personality", &executor.SessionConfig{
+		Cmd: executor.Cmd{
 			Path: "/sbin/docker-engine-server",
 			Args: []string{
 				"/sbin/docker-engine-server",
@@ -480,8 +482,8 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 	},
 	)
 
-	conf.AddComponent("port-layer", &metadata.SessionConfig{
-		Cmd: metadata.Cmd{
+	conf.AddComponent("port-layer", &executor.SessionConfig{
+		Cmd: executor.Cmd{
 			Path: "/sbin/port-layer-server",
 			Args: []string{
 				"/sbin/port-layer-server",
@@ -525,7 +527,7 @@ func (d *Dispatcher) createAppliance(conf *metadata.VirtualContainerHostConfigSp
 	return nil
 }
 
-func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *metadata.VirtualContainerHostConfigSpec) (*types.VirtualMachineConfigSpec, error) {
+func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) (*types.VirtualMachineConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
 
 	var devices object.VirtualDeviceList
@@ -551,13 +553,13 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *metad
 
 	cfg := make(map[string]string)
 	extraconfig.Encode(extraconfig.MapSink(cfg), conf)
-	spec.ExtraConfig = append(spec.ExtraConfig, extraconfig.OptionValueFromMap(cfg)...)
+	spec.ExtraConfig = append(spec.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 	return spec, nil
 }
 
 // applianceConfiguration updates the configuration passed in with the latest from the appliance VM.
 // there's no guarantee of consistency within the configuration at this time
-func (d *Dispatcher) applianceConfiguration(conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) applianceConfiguration(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 
 	extraConfig, err := d.appliance.FetchExtraConfig(d.ctx)
@@ -577,7 +579,7 @@ func (d *Dispatcher) waitForKey(key string) {
 	return
 }
 
-func (d *Dispatcher) makeSureApplianceRuns(conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) makeSureApplianceRuns(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 
 	if d.appliance == nil {

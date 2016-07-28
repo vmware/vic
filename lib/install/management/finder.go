@@ -23,8 +23,8 @@ import (
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/validate"
-	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
@@ -128,7 +128,7 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *v
 	return vmm, d.vchPoolPath, nil
 }
 
-func (d *Dispatcher) GetVCHConfig(vm *vm.VirtualMachine) (*metadata.VirtualContainerHostConfigSpec, error) {
+func (d *Dispatcher) GetVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContainerHostConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
 
 	//this is the appliance vm
@@ -139,7 +139,7 @@ func (d *Dispatcher) GetVCHConfig(vm *vm.VirtualMachine) (*metadata.VirtualConta
 		return nil, err
 	}
 	data := extraconfig.MapSource(mapConfig)
-	vchConfig := &metadata.VirtualContainerHostConfigSpec{}
+	vchConfig := &config.VirtualContainerHostConfigSpec{}
 	result := extraconfig.Decode(data, vchConfig)
 	if result == nil {
 		err = errors.Errorf("Failed to decode VM configuration %q: %s", vm.Reference(), err)
