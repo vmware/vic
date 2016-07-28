@@ -797,37 +797,41 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 	}
 
 	if unbound {
+		// assume that we have a network configured
+		networkFound := true
 		// get the endpoints for the container
 		conEpsRes, err := client.Scopes.GetContainerEndpoints(scopes.NewGetContainerEndpointsParams().WithHandleOrID(handle))
 		if err != nil {
 			switch err := err.(type) {
 			case *scopes.GetContainerEndpointsNotFound:
-				return derr.NewRequestNotFoundError(fmt.Errorf("container %s not found", name))
+				networkFound = false
 
 			case *scopes.GetContainerEndpointsInternalServerError:
 				return derr.NewErrorWithStatusCode(fmt.Errorf("%s", err.Payload.Message), http.StatusInternalServerError)
 			}
 		}
+		if networkFound {
+			ub, err := client.Scopes.UnbindContainer(scopes.NewUnbindContainerParams().WithHandle(handle))
+			if err != nil {
+				switch err := err.(type) {
+				case *scopes.UnbindContainerNotFound:
+					// if we found on previous call, but now it's missing...we've got issues...go ahead and throw and error
+					return derr.NewRequestNotFoundError(fmt.Errorf("container %s not found", name))
 
-		ub, err := client.Scopes.UnbindContainer(scopes.NewUnbindContainerParams().WithHandle(handle))
-		if err != nil {
-			switch err := err.(type) {
-			case *scopes.UnbindContainerNotFound:
-				return derr.NewRequestNotFoundError(fmt.Errorf("container %s not found", name))
+				case *scopes.UnbindContainerInternalServerError:
+					return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
 
-			case *scopes.UnbindContainerInternalServerError:
-				return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
-
-			default:
-				return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+				default:
+					return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+				}
 			}
-		}
 
-		handle = ub.Payload
+			handle = ub.Payload
 
-		// unmap ports
-		if err = c.mapPorts(portmap.Unmap, vc.HostConfig, c.findPortBoundNetworkEndpoint(vc.HostConfig, conEpsRes.Payload)); err != nil {
-			return err
+			// unmap ports
+			if err = c.mapPorts(portmap.Unmap, vc.HostConfig, c.findPortBoundNetworkEndpoint(vc.HostConfig, conEpsRes.Payload)); err != nil {
+				return err
+			}
 		}
 	}
 
