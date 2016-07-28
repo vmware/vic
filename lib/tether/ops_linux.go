@@ -713,6 +713,11 @@ func (t *BaseOperations) Setup(config Config) error {
 	t.hosts = h
 	t.resolvConf = rc
 	t.config = config
+
+	// support the df command (#1642)
+	if err = os.Symlink("/proc/mounts", "/etc/mtab"); err != nil {
+		return err
+	}
 	return nil
 }
 
