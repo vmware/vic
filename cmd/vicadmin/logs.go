@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"path"
 	"sync"
 	"time"
@@ -35,6 +36,7 @@ import (
 
 const (
 	uint32max = (1 << 32) - 1
+	tailLines = 8
 )
 
 type dlogReader struct {
@@ -295,6 +297,60 @@ func zipEntries(readers map[string]entryReader, out *zip.Writer) error {
 			continue
 		}
 		log.Infof("Wrote %d bytes to %s", sz, header.Name)
+	}
+	return nil
+}
+
+func tailFile(wr io.Writer, file string, done *chan bool) error {
+	nlines := tailLines
+	f, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+
+	pos, err := f.Seek(0, 2)
+	if err != nil {
+		return err
+	}
+	b := make([]byte, 1)
+	for pos > 0 && nlines >= 0 {
+		pos--
+		_, err := f.ReadAt(b, pos)
+		if err != nil && err != io.EOF {
+			return err
+		}
+		if b[0] == '\n' {
+			nlines--
+		}
+	}
+
+	pos++
+	if _, err = f.Seek(pos, 0); err != nil {
+		return err
+	}
+
+	b = make([]byte, 1024)
+	// We KNOW there's a data race here.
+	// But it doesn't break anything, so we just trap it.
+	defer func() {
+		_ = recover()
+	}()
+	var n int
+	for true {
+		for err != io.EOF {
+			n, err = f.Read(b)
+			if err != nil && err != io.EOF {
+				return err
+			}
+			fmt.Fprint(wr, string(b[:n]))
+		}
+		select {
+		case _ = <-*done:
+			return nil
+		default:
+		}
+		time.Sleep(50 * time.Millisecond)
+		err = nil
 	}
 	return nil
 }
