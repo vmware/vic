@@ -144,7 +144,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	return containers.NewCreateOK().WithPayload(&models.ContainerCreatedInfo{ID: id, Handle: h.String()})
 }
 
-// ContainerStartHandler starts the container
+// StateChangeHandler changes the state of a container
 func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.StateChangeParams) middleware.Responder {
 	defer trace.End(trace.Begin("Containers.StateChangeHandler"))
 
@@ -226,7 +226,7 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.ContainerRemoveParams) middleware.Responder {
 	defer trace.End(trace.Begin("Containers.RemoveContainerHandler"))
 
-	//get the indicated container for removal
+	// get the indicated container for removal
 	cID := exec.ParseID(params.ID)
 	h := exec.GetContainer(cID)
 	if h == nil {
@@ -236,6 +236,8 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 	err := h.Container.Remove(context.Background(), handler.handlerCtx.Session)
 	if err != nil {
 		switch err := err.(type) {
+		case exec.NotFoundError:
+			return containers.NewContainerRemoveNotFound()
 		case exec.RemovePowerError:
 			return containers.NewContainerRemoveConflict().WithPayload(&models.Error{Message: err.Error()})
 		default:

@@ -24,6 +24,7 @@ import (
 	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/errors"
@@ -274,6 +275,16 @@ func (c *Container) Signal(ctx context.Context, num int64) error {
 	return c.startGuestProgram(ctx, "kill", fmt.Sprintf("%d", num))
 }
 
+// NotFoundError is returned when a types.ManagedObjectNotFound is returned from a vmomi call
+type NotFoundError struct {
+	err error
+}
+
+func (r NotFoundError) Error() string {
+	return "VM has either been deleted or has not been fully created"
+}
+
+// RemovePowerError is returned when attempting to remove a containerVM that is powered on
 type RemovePowerError struct {
 	err error
 }
@@ -288,12 +299,22 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	defer c.Unlock()
 
 	if c.vm == nil {
-		return fmt.Errorf("VM has already been removed")
+		return NotFoundError{}
 	}
 
 	// get the folder the VM is in
 	url, err := c.vm.DSPath(ctx)
 	if err != nil {
+
+		// handle the out-of-band removal case
+		if soap.IsSoapFault(err) {
+			fault := soap.ToSoapFault(err).VimFault()
+			if _, ok := fault.(types.ManagedObjectNotFound); ok {
+				containers.Remove(c.ExecConfig.ID)
+				return NotFoundError{}
+			}
+		}
+
 		log.Errorf("Failed to get datastore path for %s: %s", c.ExecConfig.ID, err)
 		return err
 	}
@@ -384,6 +405,7 @@ func ContainerInfo(ctx context.Context, sess *session.Session, containerID ID) (
 	switch len(cc) {
 	case 0:
 		// we found a vm, but it doesn't appear to be a container VM
+		containers.Remove(containerID.String())
 		return nil, fmt.Errorf("%s does not appear to be a container", containerID)
 	case 1:
 		// we have a winner
