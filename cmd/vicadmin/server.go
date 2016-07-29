@@ -23,7 +23,7 @@ import (
 	"html/template"
 	"net"
 	"net/http"
-	"os/exec"
+	// "os/exec"
 	"path/filepath"
 
 	"golang.org/x/net/context"
@@ -248,21 +248,25 @@ func (s *server) tailFiles(res http.ResponseWriter, req *http.Request, names []s
 		w: res,
 	}
 
-	// TODO: tail in Go, rather than shelling out
+	/* // TODO: tail in Go, rather than shelling out
 	cmd := exec.Command("tail", append([]string{"-F"}, names...)...)
 	cmd.Stdout = fw
 	cmd.Stderr = fw
+	*/
 
-	if err := cmd.Start(); err != nil {
+	done := make(chan bool)
+	go tailFile(fw, names[0], &done)
+
+	/* if err := cmd.Start(); err != nil {
 		log.Errorf("error tailing logs: %s", err)
 		return
 	}
-
-	defer cmd.Process.Kill()
-
-	go cmd.Wait()
+	*/
+	// defer cmd.Process.Kill()
+	// go cmd.Wait()
 
 	<-cc
+	done <- true
 }
 
 func (s *server) index(res http.ResponseWriter, req *http.Request) {
