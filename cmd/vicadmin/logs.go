@@ -36,6 +36,7 @@ import (
 
 const (
 	uint32max = (1 << 32) - 1
+	tailLines = 8
 )
 
 type dlogReader struct {
@@ -301,7 +302,7 @@ func zipEntries(readers map[string]entryReader, out *zip.Writer) error {
 }
 
 func tailFile(wr io.Writer, file string, done *chan bool) error {
-	nlines := 8
+	nlines := tailLines
 	f, err := os.Open(file)
 	if err != nil {
 		return err
