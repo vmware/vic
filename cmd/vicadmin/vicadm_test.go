@@ -248,7 +248,6 @@ func TestLogTail(t *testing.T) {
 
 	paths := []string{
 		"/logs/tail/" + name,
-		"/logs/" + name,
 	}
 
 	i := 0
@@ -265,6 +264,7 @@ func TestLogTail(t *testing.T) {
 		u.Path = path
 		log.Printf("GET %s:\n", u.String())
 		res, err := insecureClient.Get(u.String())
+		defer res.Body.Close()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -279,7 +279,6 @@ func TestLogTail(t *testing.T) {
 		size := int64(256)
 		n, _ := io.CopyN(out, res.Body, size)
 		out.Write([]byte("...\n"))
-		res.Body.Close()
 
 		assert.Equal(t, size, n)
 	}
