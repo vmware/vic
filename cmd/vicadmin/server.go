@@ -16,14 +16,11 @@ package main
 
 import (
 	"archive/zip"
-	// "archive/tar"
 	"compress/gzip"
 	"crypto/tls"
-	// "fmt"
 	"html/template"
 	"net"
 	"net/http"
-	// "os/exec"
 	"path/filepath"
 
 	"golang.org/x/net/context"
