@@ -19,7 +19,10 @@
 		}
 		
 		[Bindable]
-		public var isContainer:Boolean = false;
+			public var isContainer:Boolean = false;
+
+		[Bindable]
+			public var hasPortmappingInfo:Boolean = false;
 		]]>
 	</fx:Script>
 	<ns:PropertyGridRow label="Name" visible="{isContainer}" includeInLayout="{isContainer}">
@@ -27,5 +30,8 @@
 	</ns:PropertyGridRow>
 	<ns:PropertyGridRow label="Image" visible="{isContainer}" includeInLayout="{isContainer}">
 		<mx:Label id="imageName" text="{getString('placeholderText')}"/>
+	</ns:PropertyGridRow>
+	<ns:PropertyGridRow label="Port Mapping" visible="{hasPortmappingInfo}" includeInLayout="{hasPortmappingInfo}">
+		<mx:Label id="portmappingInfo" text="{getString('placeholderText')}"/>
 	</ns:PropertyGridRow>
 </ns:PropertyGrid>
