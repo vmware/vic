@@ -425,16 +425,24 @@ func infraContainers(ctx context.Context, sess *session.Session) ([]mo.VirtualMa
 
 // find the childVM for this resource pool by name
 func childVM(ctx context.Context, sess *session.Session, name string) (*vm.VirtualMachine, error) {
-	searchIndex := object.NewSearchIndex(sess.Client.Client)
-	child, err := searchIndex.FindChild(ctx, VCHConfig.ResourcePool.Reference(), name)
+	// VM name is changed to contains container pretty name, so we cannot search it back by name only
+	// Here will search all children VM of parent resource pool, and prefill with vm properties.
+	// The performance issue can be solved by preload container cache after VCH is rebooted
+	vms, err := infraContainers(ctx, sess)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to find container(%s): %s", name, err.Error())
+		return nil, err
 	}
-	if child == nil {
-		return nil, fmt.Errorf("Unable to find container %s", name)
+	for i := range vms {
+		config := &executor.ExecutorConfig{}
+		source := vmomi.OptionValueSource(vms[i].Config.ExtraConfig)
+		extraconfig.Decode(source, config)
+
+		if config != nil && config.ID != "" && config.ID == name {
+			log.Debugf("Found container vm %s", vms[i].Config.Name)
+			return vm.NewVirtualMachine(ctx, sess, vms[i].Reference()), nil
+		}
 	}
-	// instantiate the vm object
-	return vm.NewVirtualMachine(ctx, sess, child.Reference()), nil
+	return nil, fmt.Errorf("Unable to find container %s", name)
 }
 
 // populate the vm attributes for the specified morefs
