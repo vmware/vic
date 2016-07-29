@@ -46,7 +46,7 @@ Remove a running container
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Error response from daemon: Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f
+    Should Contain  ${output}  Error response from daemon: You cannot remove a running container. Stop the container before attempting removal or use -f
     
 Force remove a running container
     ${status}=  Get State Of Github Issue  1312
