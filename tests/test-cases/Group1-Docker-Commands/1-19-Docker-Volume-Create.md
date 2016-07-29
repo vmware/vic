@@ -49,4 +49,4 @@ Error response from daemon: create test???: "test???" includes invalid character
 ```
 
 #Possible Problems:
-None
+* VIC requires you to specify storage on creation of the VCH that volumes can be created from, so when installing the VCH make sure to specify this parameter: --volume-store=
