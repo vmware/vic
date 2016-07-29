@@ -20,13 +20,13 @@ import (
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
-	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 )
 
-func (d *Dispatcher) createVApp(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*object.VirtualApp, error) {
+func (d *Dispatcher) createVApp(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*object.VirtualApp, error) {
 	defer trace.End(trace.Begin(""))
 	var err error
 

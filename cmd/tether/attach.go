@@ -22,7 +22,7 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/lib/portlayer/attach"
+	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/trace"
 	"golang.org/x/crypto/ssh"
@@ -286,14 +286,14 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 		log.Infof("received global request type %v", req.Type)
 
 		switch req.Type {
-		case attach.ContainersReq:
+		case msgs.ContainersReq:
 			keys := make([]string, len(t.config.Sessions))
 			i := 0
 			for k := range t.config.Sessions {
 				keys[i] = k
 				i++
 			}
-			msg := attach.ContainersMsg{IDs: keys}
+			msg := msgs.ContainersMsg{IDs: keys}
 			payload = msg.Marshal()
 
 		default:
@@ -326,8 +326,8 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 		ok := true
 
 		switch req.Type {
-		case attach.WindowChangeReq:
-			msg := attach.WindowChangeMsg{}
+		case msgs.WindowChangeReq:
+			msg := msgs.WindowChangeMsg{}
 			if pty == nil {
 				ok = false
 				log.Errorf("illegal window-change request for non-tty")
@@ -338,8 +338,8 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 				ok = false
 				log.Errorf(err.Error())
 			}
-		case attach.SignalReq:
-			msg := attach.SignalMsg{}
+		case msgs.SignalReq:
+			msg := msgs.SignalMsg{}
 			if err = msg.Unmarshal(req.Payload); err != nil {
 				ok = false
 				log.Errorf(err.Error())

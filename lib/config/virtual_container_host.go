@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metadata
+package config
 
 import (
 	"crypto/tls"
@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config/executor"
 )
 
 // PatternToken is a set of tokens that can be placed into string constants
@@ -51,7 +52,7 @@ type VirtualContainerHostConfigSpec struct {
 	// The base config for the appliance. This includes the networks that are to be attached
 	// and disks to be mounted.
 	// Networks are keyed by interface name
-	ExecutorConfig `vic:"0.1" scope:"read-only" key:"init"`
+	executor.ExecutorConfig `vic:"0.1" scope:"read-only" key:"init"`
 
 	////////////// vSphere connection configuration
 	// The sdk URL
@@ -99,7 +100,7 @@ type VirtualContainerHostConfigSpec struct {
 	BridgeNetwork       string `vic:"0.1" scope:"read-only" key:"bridge_network"`
 	CreateBridgeNetwork bool   `vic:"0.1" scope:"read-only" key:"create_bridge_network"`
 	// Published networks available for containers to join, keyed by consumption name
-	ContainerNetworks map[string]*ContainerNetwork `vic:"0.1" scope:"read-only" key:"container_networks"`
+	ContainerNetworks map[string]*executor.ContainerNetwork `vic:"0.1" scope:"read-only" key:"container_networks"`
 	// The IP range for the bridge networks
 	BridgeIPRange *net.IPNet `vic:"0.1" scope:"read-only" key:"bridge-ip-range"`
 
@@ -173,10 +174,10 @@ func (t *VirtualContainerHostConfigSpec) SetMoref(moref *types.ManagedObjectRefe
 }
 
 // AddNetwork adds a network that will be configured on the appliance VM
-func (t *VirtualContainerHostConfigSpec) AddNetwork(net *NetworkEndpoint) {
+func (t *VirtualContainerHostConfigSpec) AddNetwork(net *executor.NetworkEndpoint) {
 	if net != nil {
 		if t.ExecutorConfig.Networks == nil {
-			t.ExecutorConfig.Networks = make(map[string]*NetworkEndpoint)
+			t.ExecutorConfig.Networks = make(map[string]*executor.NetworkEndpoint)
 		}
 
 		t.ExecutorConfig.Networks[net.Network.Name] = net
@@ -184,20 +185,20 @@ func (t *VirtualContainerHostConfigSpec) AddNetwork(net *NetworkEndpoint) {
 }
 
 // AddContainerNetwork adds a network that will be configured on the appliance VM
-func (t *VirtualContainerHostConfigSpec) AddContainerNetwork(net *ContainerNetwork) {
+func (t *VirtualContainerHostConfigSpec) AddContainerNetwork(net *executor.ContainerNetwork) {
 	if net != nil {
 		if t.ContainerNetworks == nil {
-			t.ContainerNetworks = make(map[string]*ContainerNetwork)
+			t.ContainerNetworks = make(map[string]*executor.ContainerNetwork)
 		}
 
 		t.ContainerNetworks[net.Name] = net
 	}
 }
 
-func (t *VirtualContainerHostConfigSpec) AddComponent(name string, component *SessionConfig) {
+func (t *VirtualContainerHostConfigSpec) AddComponent(name string, component *executor.SessionConfig) {
 	if component != nil {
 		if t.ExecutorConfig.Sessions == nil {
-			t.ExecutorConfig.Sessions = make(map[string]SessionConfig)
+			t.ExecutorConfig.Sessions = make(map[string]executor.SessionConfig)
 		}
 
 		if component.Name == "" {
@@ -241,9 +242,9 @@ func (t *VirtualContainerHostConfigSpec) SetvSphereTarget(url *url.URL) {
 	}
 }
 
-func CreateSession(cmd string, args ...string) *SessionConfig {
-	cfg := &SessionConfig{
-		Cmd: Cmd{
+func CreateSession(cmd string, args ...string) *executor.SessionConfig {
+	cfg := &executor.SessionConfig{
+		Cmd: executor.Cmd{
 			Path: cmd,
 			Args: []string{
 				cmd,

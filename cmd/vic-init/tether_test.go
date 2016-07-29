@@ -30,7 +30,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
@@ -134,7 +134,7 @@ func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
-func (t *Mocker) Apply(endpoint *metadata.NetworkEndpoint) error {
+func (t *Mocker) Apply(endpoint *executor.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("mocking endpoint configuration for " + endpoint.Network.Name))
 	t.IPs[endpoint.Network.Name] = endpoint.Assigned
 
@@ -171,7 +171,7 @@ func TestMain(m *testing.M) {
 	os.Exit(retCode)
 }
 
-func StartTether(t *testing.T, cfg *metadata.ExecutorConfig) (tether.Tether, extraconfig.DataSource) {
+func StartTether(t *testing.T, cfg *executor.ExecutorConfig) (tether.Tether, extraconfig.DataSource) {
 	store := map[string]string{}
 	sink := extraconfig.MapSink(store)
 	src := extraconfig.MapSource(store)
@@ -192,7 +192,7 @@ func StartTether(t *testing.T, cfg *metadata.ExecutorConfig) (tether.Tether, ext
 	return tthr, src
 }
 
-func RunTether(t *testing.T, cfg *metadata.ExecutorConfig) (tether.Tether, extraconfig.DataSource, error) {
+func RunTether(t *testing.T, cfg *executor.ExecutorConfig) (tether.Tether, extraconfig.DataSource, error) {
 	store := map[string]string{}
 	sink := extraconfig.MapSink(store)
 	src := extraconfig.MapSource(store)

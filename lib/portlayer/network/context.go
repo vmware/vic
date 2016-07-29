@@ -29,7 +29,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/ip"
@@ -863,16 +863,16 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 	}
 
 	if h.ExecConfig.Networks == nil {
-		h.ExecConfig.Networks = make(map[string]*metadata.NetworkEndpoint)
+		h.ExecConfig.Networks = make(map[string]*executor.NetworkEndpoint)
 	}
 
-	ne := &metadata.NetworkEndpoint{
-		Common: metadata.Common{
+	ne := &executor.NetworkEndpoint{
+		Common: executor.Common{
 			ID: strconv.Itoa(int(pciSlot)),
 			// Name: this would cause NIC renaming if uncommented
 		},
-		Network: metadata.ContainerNetwork{
-			Common: metadata.Common{
+		Network: executor.ContainerNetwork{
+			Common: executor.Common{
 				Name: s.Name(),
 			},
 			Aliases: options.Aliases,
@@ -909,7 +909,7 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 		return err
 	}
 
-	var ne *metadata.NetworkEndpoint
+	var ne *executor.NetworkEndpoint
 	ne, ok := h.ExecConfig.Networks[s.Name()]
 	if !ok {
 		return fmt.Errorf("container %s not part of network %s", h.ExecConfig.ID, s.Name())

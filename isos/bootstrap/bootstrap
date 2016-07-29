@@ -1,39 +1,22 @@
 #!/bin/bash
 
+set -x
+
 MOUNTPOINT="/mnt/containerfs"
 
 mkdir -p /mnt/containerfs
 
-# see if we should bail to the bootstrap or pivot into the container
-# do this before the fork so we don't have a backdoor call in the hot path
-# NOTE: this is moved after the fork during debugging so we can chose on a per VM basis
-SHELL=`/sbin/rpctool -get bootstrap-shell 2>/dev/null`
-
 echo "Waiting for rootfs"
 while [ ! -e /dev/disk/by-label/containerfs ]; do :;done
 if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
-    # make the required directory structure, but presume that something in the daemon
-    # has done the *right* thing for /.tether* and created them where it won't show in a diff
-    # we do this to ensure that subsequent commands don't fail if the daemon hasn't prepped
-    # the structure
-    mkdir -p ${MOUNTPOINT}/.tether ${MOUNTPOINT}/.tether-init
-
+    # ensure mountpoint exists
+    mkdir -p ${MOUNTPOINT}/.tether
+ 
     # ensure that no matter what we have access to required devices
     # WARNING WARNING WARNING WARNING WARNING
     # if the tmpfs is not large enough odd hangs can occur and the ESX event log will
     # report the guest disabling the CPU
     mount -t tmpfs -o size=64m tmpfs ${MOUNTPOINT}/.tether/
-
-    # if we don't have a populated init layer, pull from guestinfo
-    if [ ! -f ${MOUNTPOINT}/.tether-init/docker-id ]; then
-        mount -t tmpfs -o size=1m tmpfs ${MOUNTPOINT}/.tether-init/
-        # create the assumed structure
-        # TODO: this cannot be in guest and still not show up in diffs
-        mkdir -p ${MOUNTPOINT}/dev ${MOUNTPOINT}/proc ${MOUNTPOINT}/sys ${MOUNTPOINT}/etc
-    fi
-
-    # this is so we're not exposing the raw container disk if we wouldn't be otherwise
-    #	rm -f /mnt/.tether/volumes/containerfs
 
     # enable full system functionality in the container
     echo "Publishing modules within container"
@@ -46,13 +29,7 @@ if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     cp /bin/tether ${MOUNTPOINT}/.tether/tether
 
     echo "switching to the new mount"
-    if [ "$SHELL" != "true" ]; then
-        systemctl switch-root ${MOUNTPOINT} /.tether/tether 2>&1
-    else
-        systemctl switch-root ${MOUNTPOINT} /bin/sh 2>&1
-        # fail back to shell in bootstrap image without switch_root
-        /bin/ash
-    fi
+    systemctl switch-root ${MOUNTPOINT} /.tether/tether 2>&1
 else
     # TODO: what do we do here? we really need to somehow report an error
     # fail hard

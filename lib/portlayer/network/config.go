@@ -18,7 +18,7 @@ import (
 	"net"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/ip"
 )
 
@@ -40,7 +40,7 @@ type Configuration struct {
 type ContainerNetwork struct {
 	// Common.Name - the symbolic name for the network, e.g. web or backend
 	// Common.ID - identifier of the underlay for the network
-	metadata.Common
+	executor.Common
 
 	// The network scope the IP belongs to.
 	// The IP address is the default gateway

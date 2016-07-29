@@ -22,8 +22,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
-	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -34,7 +34,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (d *Dispatcher) CreateVCH(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
+func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
 	defer trace.End(trace.Begin(conf.Name))
 
 	var err error
@@ -146,7 +146,7 @@ func (d *Dispatcher) uploadImages(files []string) error {
 	return nil
 }
 
-func (d *Dispatcher) RegisterExtension(conf *metadata.VirtualContainerHostConfigSpec, extension types.Extension) error {
+func (d *Dispatcher) RegisterExtension(conf *config.VirtualContainerHostConfigSpec, extension types.Extension) error {
 	defer trace.End(trace.Begin(conf.ExtensionName))
 
 	log.Infoln("Registering VCH as a vSphere extension")

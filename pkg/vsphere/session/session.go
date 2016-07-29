@@ -41,7 +41,7 @@ import (
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
@@ -118,7 +118,7 @@ func (s *Session) IsVSAN(ctx context.Context) bool {
 
 // Create accepts a Config and returns a Session with the cached vSphere resources.
 func (s *Session) Create(ctx context.Context) (*Session, error) {
-	var vchExtraConfig metadata.VirtualContainerHostConfigSpec
+	var vchExtraConfig config.VirtualContainerHostConfigSpec
 	source, err := extraconfig.GuestInfoSource()
 	if err != nil {
 		return nil, err

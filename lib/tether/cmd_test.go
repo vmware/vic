@@ -16,11 +16,10 @@ package tether
 
 import (
 	"fmt"
-	"os/exec"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
@@ -34,20 +33,20 @@ func TestPathLookup(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 
-	cfg := metadata.ExecutorConfig{
-		Common: metadata.Common{
+	cfg := executor.ExecutorConfig{
+		Common: executor.Common{
 			ID:   "pathlookup",
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]metadata.SessionConfig{
-			"pathlookup": metadata.SessionConfig{
-				Common: metadata.Common{
+		Sessions: map[string]executor.SessionConfig{
+			"pathlookup": executor.SessionConfig{
+				Common: executor.Common{
 					ID:   "pathlookup",
 					Name: "tether_test_session",
 				},
 				Tty: false,
-				Cmd: metadata.Cmd{
+				Cmd: executor.Cmd{
 					// test relative path
 					Path: "date",
 					Args: []string{"date", "--reference=/"},
@@ -72,20 +71,20 @@ func TestRelativePath(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 
-	cfg := metadata.ExecutorConfig{
-		Common: metadata.Common{
+	cfg := executor.ExecutorConfig{
+		Common: executor.Common{
 			ID:   "relpath",
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]metadata.SessionConfig{
-			"relpath": metadata.SessionConfig{
-				Common: metadata.Common{
+		Sessions: map[string]executor.SessionConfig{
+			"relpath": executor.SessionConfig{
+				Common: executor.Common{
 					ID:   "relpath",
 					Name: "tether_test_session",
 				},
 				Tty: false,
-				Cmd: metadata.Cmd{
+				Cmd: executor.Cmd{
 					// test relative path
 					Path: "./date",
 					Args: []string{"./date", "--reference=/"},
@@ -110,20 +109,20 @@ func TestAbsPath(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 
-	cfg := metadata.ExecutorConfig{
-		Common: metadata.Common{
+	cfg := executor.ExecutorConfig{
+		Common: executor.Common{
 			ID:   "abspath",
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]metadata.SessionConfig{
-			"abspath": metadata.SessionConfig{
-				Common: metadata.Common{
+		Sessions: map[string]executor.SessionConfig{
+			"abspath": executor.SessionConfig{
+				Common: executor.Common{
 					ID:   "abspath",
 					Name: "tether_test_session",
 				},
 				Tty: false,
-				Cmd: metadata.Cmd{
+				Cmd: executor.Cmd{
 					// test abs path
 					Path: "/bin/date",
 					Args: []string{"date", "--reference=/"},
@@ -147,7 +146,7 @@ func TestAbsPath(t *testing.T) {
 	log := Mocked.SessionLogBuffer.Bytes()
 
 	// run the command directly
-	out, err := exec.Command("/bin/date", "--reference=/").Output()
+	out, err := executor.Command("/bin/date", "--reference=/").Output()
 	if err != nil {
 		fmt.Printf("Failed to run date for comparison data: %s", err)
 		t.Error(err)
@@ -163,20 +162,20 @@ func TestHalt(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 
-	cfg := metadata.ExecutorConfig{
-		Common: metadata.Common{
+	cfg := executor.ExecutorConfig{
+		Common: executor.Common{
 			ID:   "abspath",
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]metadata.SessionConfig{
-			"abspath": metadata.SessionConfig{
-				Common: metadata.Common{
+		Sessions: map[string]executor.SessionConfig{
+			"abspath": executor.SessionConfig{
+				Common: executor.Common{
 					ID:   "abspath",
 					Name: "tether_test_session",
 				},
 				Tty: false,
-				Cmd: metadata.Cmd{
+				Cmd: executor.Cmd{
 					// test abs path
 					Path: "/bin/date",
 					Args: []string{"date", "--reference=/"},
@@ -203,7 +202,7 @@ func TestHalt(t *testing.T) {
 	log := Mocked.SessionLogBuffer.Bytes()
 
 	// run the command directly
-	out, err := exec.Command("/bin/date", "--reference=/").Output()
+	out, err := executor.Command("/bin/date", "--reference=/").Output()
 	if err != nil {
 		fmt.Printf("Failed to run date for comparison data: %s", err)
 		t.Error(err)
@@ -234,20 +233,20 @@ func TestMissingBinary(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 
-	cfg := metadata.ExecutorConfig{
-		Common: metadata.Common{
+	cfg := executor.ExecutorConfig{
+		Common: executor.Common{
 			ID:   "missing",
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]metadata.SessionConfig{
-			"missing": metadata.SessionConfig{
-				Common: metadata.Common{
+		Sessions: map[string]executor.SessionConfig{
+			"missing": executor.SessionConfig{
+				Common: executor.Common{
 					ID:   "missing",
 					Name: "tether_test_session",
 				},
 				Tty: false,
-				Cmd: metadata.Cmd{
+				Cmd: executor.Cmd{
 					// test relative path
 					Path: "/not/there",
 					Args: []string{"/not/there"},
@@ -281,20 +280,20 @@ func TestMissingRelativeBinary(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 
-	cfg := metadata.ExecutorConfig{
-		Common: metadata.Common{
+	cfg := executor.ExecutorConfig{
+		Common: executor.Common{
 			ID:   "missing",
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]metadata.SessionConfig{
-			"missing": metadata.SessionConfig{
-				Common: metadata.Common{
+		Sessions: map[string]executor.SessionConfig{
+			"missing": executor.SessionConfig{
+				Common: executor.Common{
 					ID:   "missing",
 					Name: "tether_test_session",
 				},
 				Tty: false,
-				Cmd: metadata.Cmd{
+				Cmd: executor.Cmd{
 					// test relative path
 					Path: "notthere",
 					Args: []string{"notthere"},
