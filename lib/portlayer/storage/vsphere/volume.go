@@ -227,6 +227,11 @@ func (v *VolumeStore) getMetadata(ctx context.Context, ID string, ds *datastore.
 		return nil, err
 	}
 
+	if len(res.File) == 0 {
+		log.Infof("No meta found for volume %s", ID)
+		return nil, nil
+	}
+
 	meta := make(map[string][]byte)
 	for _, f := range res.File {
 		finfo, ok := f.(*types.FileInfo)

@@ -20,7 +20,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
@@ -30,7 +30,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (d *Dispatcher) DeleteVCH(conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(conf.Name))
 
 	var errs []string
@@ -89,7 +89,7 @@ func (d *Dispatcher) DeleteVCH(conf *metadata.VirtualContainerHostConfigSpec) er
 	return nil
 }
 
-func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 
 	log.Infof("Removing VMs")
@@ -148,7 +148,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *metadata.V
 	return nil
 }
 
-func (d *Dispatcher) deleteNetworkDevices(vmm *vm.VirtualMachine, conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) deleteNetworkDevices(vmm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 
 	log.Infof("Removing appliance VM network devices")

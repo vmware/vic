@@ -27,8 +27,7 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/stringid"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -37,6 +36,9 @@ import (
 const (
 	// The maximum number of records to keep for restarting processes
 	MaxDeathRecords = 5
+
+	// the length of a truncated ID for use as hostname
+	shortLen = 12
 )
 
 type tether struct {
@@ -171,7 +173,12 @@ func (t *tether) Start() error {
 		extraconfig.Decode(t.src, t.config)
 		logConfig(t.config)
 
-		if err := t.ops.SetHostname(stringid.TruncateID(t.config.ID), t.config.Name); err != nil {
+		short := t.config.ID
+		if len(short) > shortLen {
+			short = short[:shortLen]
+		}
+
+		if err := t.ops.SetHostname(short, t.config.Name); err != nil {
 			detail := fmt.Sprintf("failed to set hostname: %s", err)
 			log.Error(detail)
 			// we don't attempt to recover from this - it's a fundemental misconfiguration
@@ -297,7 +304,7 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 		logs = logs[logCount-MaxDeathRecords+1:]
 	}
 
-	session.Diagnostics.ExitLogs = append(logs, &metadata.ExitLog{
+	session.Diagnostics.ExitLogs = append(logs, &executor.ExitLog{
 		Time:       time.Now(),
 		ExitStatus: session.ExitStatus,
 		// We don't have any message for now

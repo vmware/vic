@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 )
 
 func TestContainerCache(t *testing.T) {
@@ -32,7 +32,7 @@ func TestContainerCache(t *testing.T) {
 	assert.Equal(t, len(containers.cache), 0)
 
 	// create a new container
-	container := &Container{ExecConfig: &metadata.ExecutorConfig{}}
+	container := &Container{ExecConfig: &executor.ExecutorConfig{}}
 	container.ExecConfig.ID = containerID
 	// put it in the cache
 	containers.Put(container)

@@ -73,12 +73,14 @@ package com.vmware.vicui.views {
 		   _logger.info("Container summary data retrieved.");
 		   
 		   if (_view != null) {
-		   	   
+
 			   //set default placeholder data
 			   _view.isContainer = new Boolean(false);
+			   _view.hasPortmappingInfo = new Boolean(false);
 			   _view.containerName.text = new String("-");
 			   _view.imageName.text = new String("-");
-			   
+			   _view.portmappingInfo.text = new String("-");
+
 			   if (result != null) {
 				   
 				   var config:Array = new Array();
@@ -109,10 +111,15 @@ package com.vmware.vicui.views {
 							    _view.imageName.text = keyVal;
 							   	continue;
 							}
+
+							//get container port mapping information
+							if (keyName == AppConstants.VM_CONTAINER_PORTMAPPING) {
+								_view.hasPortmappingInfo = true;
+								_view.portmappingInfo.text = keyVal.replace(/\|/g, ", ");
+								continue;
+							}
 					   }
 				   }
-			  } else {
-				 _view.isContainer = false;
 			  }
 		   }
 	   }
@@ -121,8 +128,10 @@ package com.vmware.vicui.views {
 	   	   if (_view != null) {
 		      // clear the UI data
 			   _view.isContainer = false;
+			   _view.hasPortmappingInfo = false;
 			   _view.containerName.text = new String("-");
 			   _view.imageName.text = new String("-");
+			   _view.portmappingInfo.text = new String("-");
 		   }
 	   }
 	}

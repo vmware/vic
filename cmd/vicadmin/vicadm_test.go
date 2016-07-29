@@ -32,7 +32,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/vic/lib/metadata"
+
+	vchconfig "github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 )
 
@@ -70,7 +71,7 @@ func init() {
 	if kerr != nil || cerr != nil {
 		panic("unable to load test certificate")
 	}
-	vchConfig.HostCertificate = &metadata.RawCertificate{
+	vchConfig.HostCertificate = &vchconfig.RawCertificate{
 		Cert: cert,
 		Key:  key,
 	}

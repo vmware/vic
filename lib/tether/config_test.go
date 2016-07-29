@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
@@ -30,22 +30,22 @@ var (
 )
 
 func TestToExtraConfig(t *testing.T) {
-	exec := metadata.ExecutorConfig{
-		Common: metadata.Common{
+	exec := executor.ExecutorConfig{
+		Common: executor.Common{
 			ID:   "deadbeef",
 			Name: "configtest",
 		},
-		Sessions: map[string]metadata.SessionConfig{
-			"deadbeef": metadata.SessionConfig{
-				Cmd: metadata.Cmd{
+		Sessions: map[string]executor.SessionConfig{
+			"deadbeef": executor.SessionConfig{
+				Cmd: executor.Cmd{
 					Path: "/bin/bash",
 					Args: []string{"/bin/bash", "-c", "echo hello"},
 					Dir:  "/",
 					Env:  []string{"HOME=/", "PATH=/bin"},
 				},
 			},
-			"beefed": metadata.SessionConfig{
-				Cmd: metadata.Cmd{
+			"beefed": executor.SessionConfig{
+				Cmd: executor.Cmd{
 					Path: "/bin/bash",
 					Args: []string{"/bin/bash", "-c", "echo goodbye"},
 					Dir:  "/",
@@ -53,11 +53,11 @@ func TestToExtraConfig(t *testing.T) {
 				},
 			},
 		},
-		Networks: map[string]*metadata.NetworkEndpoint{
-			"eth0": &metadata.NetworkEndpoint{
+		Networks: map[string]*executor.NetworkEndpoint{
+			"eth0": &executor.NetworkEndpoint{
 				Static: &net.IPNet{IP: localhost, Mask: lmask.Mask},
-				Network: metadata.ContainerNetwork{
-					Common: metadata.Common{
+				Network: executor.ContainerNetwork{
+					Common: executor.Common{
 						Name: "notsure",
 					},
 					Gateway:     net.IPNet{IP: gateway, Mask: gmask.Mask},
@@ -68,7 +68,7 @@ func TestToExtraConfig(t *testing.T) {
 		},
 	}
 
-	// encode metadata package's ExecutorConfig
+	// encode exec package's ExecutorConfig
 	encoded := map[string]string{}
 	extraconfig.Encode(extraconfig.MapSink(encoded), exec)
 
@@ -77,10 +77,10 @@ func TestToExtraConfig(t *testing.T) {
 	extraconfig.Decode(extraconfig.MapSource(encoded), &decoded)
 
 	// the networks should be identical
-	assert.Equal(t, exec.Networks["eth0"], decoded.Networks["eth0"])
+	assert.Equal(t, executor.Networks["eth0"], decoded.Networks["eth0"])
 
 	// the source and destination structs are different - we're doing a sparse comparison
-	expected := exec.Sessions["deadbeef"]
+	expected := executor.Sessions["deadbeef"]
 	actual := *decoded.Sessions["deadbeef"]
 
 	assert.Equal(t, expected.Cmd.Path, actual.Cmd.Path)

@@ -20,7 +20,7 @@ import (
 	"os/exec"
 	"sync"
 
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/dio"
 )
 
@@ -45,7 +45,7 @@ type ExecutorConfig struct {
 	Sessions map[string]*SessionConfig `vic:"0.1" scope:"read-only" key:"sessions"`
 
 	// Maps the mount name to the detail mount specification
-	Mounts map[string]metadata.MountSpec `vic:"0.1" scope:"read-only" key:"mounts"`
+	Mounts map[string]executor.MountSpec `vic:"0.1" scope:"read-only" key:"mounts"`
 
 	// This describes an executors presence on a network, and contains sufficient
 	// information to configure the interface in the guest.
@@ -61,10 +61,10 @@ type ExecutorConfig struct {
 // This is close to but not perfectly aligned with the new docker/docker/daemon/execdriver/driver:CommonProcessConfig
 type SessionConfig struct {
 	// The primary session may have the same ID as the executor owning it
-	metadata.Common `vic:"0.1" scope:"read-only" key:"common"`
+	executor.Common `vic:"0.1" scope:"read-only" key:"common"`
 
 	// Diagnostics holds basic diagnostics data
-	Diagnostics metadata.Diagnostics `vic:"0.1" scope:"read-write" key:"diagnostics"`
+	Diagnostics executor.Diagnostics `vic:"0.1" scope:"read-write" key:"diagnostics"`
 
 	// The primary process for the session
 	Cmd exec.Cmd `vic:"0.1" scope:"read-only" key:"cmd" recurse:"depth=2,nofollow"`
@@ -97,7 +97,7 @@ type SessionConfig struct {
 type NetworkEndpoint struct {
 	// Common.Name - the nic alias requested (only one name and one alias possible in linux)
 	// Common.ID - pci slot of the vnic allowing for interface identifcation in-guest
-	metadata.Common
+	executor.Common
 
 	// IP address to assign - nil if DHCP
 	Static *net.IPNet `vic:"0.1" scope:"read-only" key:"staticip"`
@@ -107,7 +107,7 @@ type NetworkEndpoint struct {
 
 	// The network in which this information should be interpreted. This is embedded directly rather than
 	// as a pointer so that we can ensure the data is consistent
-	Network metadata.ContainerNetwork `vic:"0.1" scope:"read-only" key:"network"`
+	Network executor.ContainerNetwork `vic:"0.1" scope:"read-only" key:"network"`
 
 	// DHCP runtime info
 	DHCP *DHCPInfo `vic:"0.1" scope:"read-only" recurse:"depth=0"`

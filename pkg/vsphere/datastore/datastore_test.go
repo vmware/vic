@@ -115,6 +115,7 @@ func TestDatastoreToURLParsing(t *testing.T) {
 		{"[datastore1] path", "ds://datastore1/path"},
 		{"[datastore1] pa-th", "ds://datastore1/pa-th"},
 		{"[datastore1] pa_th", "ds://datastore1/pa_th"},
+		{"[data_store1] pa_th", "ds://data_store1/pa_th"},
 	}
 
 	dsoutputs := []string{
@@ -125,6 +126,7 @@ func TestDatastoreToURLParsing(t *testing.T) {
 		"[datastore1] path",
 		"[datastore1] pa-th",
 		"[datastore1] pa_th",
+		"[data_store1] pa_th",
 	}
 
 	for i, in := range input {

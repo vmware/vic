@@ -20,14 +20,14 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(conf.Name))
 
 	state, err := vch.PowerState(d.ctx)
@@ -58,7 +58,7 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *metadata.VirtualCo
 	return nil
 }
 
-func (d *Dispatcher) ShowVCH(conf *metadata.VirtualContainerHostConfigSpec, key string, cert string) {
+func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key string, cert string) {
 	// #1218: Temporarily disable SSH access for TP3
 	//	log.Infof("")
 	//	log.Infof("SSH to appliance (default=root:password)")

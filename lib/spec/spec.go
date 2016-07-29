@@ -21,9 +21,10 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -70,7 +71,7 @@ type VirtualMachineConfigSpecConfig struct {
 	ImageStoreName string
 
 	// Temporary
-	Metadata metadata.ExecutorConfig
+	Metadata executor.ExecutorConfig
 }
 
 // VirtualMachineConfigSpec type
@@ -136,7 +137,7 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 	// encode the config as optionvalues
 	cfg := map[string]string{}
 	extraconfig.Encode(extraconfig.MapSink(cfg), config.Metadata)
-	metaCfg := extraconfig.OptionValueFromMap(cfg)
+	metaCfg := vmomi.OptionValueFromMap(cfg)
 
 	// merge it with the sec
 	s.ExtraConfig = append(s.ExtraConfig, metaCfg...)
