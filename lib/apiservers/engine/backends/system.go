@@ -26,6 +26,7 @@ package vicbackends
 //		- It is OK to return errors returned from functions in system_portlayer.go
 
 import (
+	"bytes"
 	"fmt"
 	"runtime"
 	"time"
@@ -35,6 +36,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/pkg/trace"
 
 	"github.com/docker/docker/pkg/platform"
@@ -54,6 +57,7 @@ const (
 	systemOS           = " VMware OS"
 	systemOSVersion    = " VMware OS version"
 	systemProductName  = " VMware Product"
+	volumeStoresID     = "VolumeStores"
 )
 
 func NewSystemBackend() *System {
@@ -64,6 +68,7 @@ func NewSystemBackend() *System {
 
 func (s *System) SystemInfo() (*types.Info, error) {
 	defer trace.End(trace.Begin("SystemInfo"))
+	client := PortLayerClient()
 
 	// Retieve container status from port layer
 	running, paused, stopped, err := s.systemProxy.ContainerCount()
@@ -125,13 +130,17 @@ func (s *System) SystemInfo() (*types.Info, error) {
 		info.Plugins.Network = append(info.Plugins.Network, network.Name)
 	}
 
+	info.SystemStatus = make([][2]string, 0)
+
 	// Add in volume label from the VCH via guestinfo
-	for label := range VchConfig().VolumeLocations {
-		info.Plugins.Volume = append(info.Plugins.Volume, label)
+	volumeStoreString, err := FetchVolumeStores(client)
+	if err != nil {
+		log.Infof("Unable to get the volume store list from the portlayer : %s", err.Error())
+	} else {
+		customInfo := [2]string{volumeStoresID, volumeStoreString}
+		info.SystemStatus = append(info.SystemStatus, customInfo)
 	}
 
-	// Check if portlayer server is up
-	info.SystemStatus = make([][2]string, 0)
 	if s.systemProxy.PingPortlayer() {
 		status := [2]string{PortLayerName(), "RUNNING"}
 		info.SystemStatus = append(info.SystemStatus, status)
@@ -227,4 +236,20 @@ func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.A
 func getImageCount() int {
 	images := cache.ImageCache().GetImages()
 	return len(images)
+}
+
+func FetchVolumeStores(client *client.PortLayer) (string, error) {
+	var volumesBuffer bytes.Buffer
+
+	res, err := client.Storage.VolumeStoresList(storage.NewVolumeStoresListParams())
+	if err != nil {
+		return "", err
+	}
+	VolumeStoreMap := res.Payload.Stores
+
+	for label := range VolumeStoreMap {
+		volumesBuffer.WriteString(fmt.Sprintf("%s ", label))
+	}
+
+	return volumesBuffer.String(), nil
 }
