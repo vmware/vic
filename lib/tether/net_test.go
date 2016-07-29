@@ -18,15 +18,15 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 )
 
 func TestSetHostname(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 
-	cfg := metadata.ExecutorConfig{
-		Common: metadata.Common{
+	cfg := executor.ExecutorConfig{
+		Common: executor.Common{
 			ID:   "sethostname",
 			Name: "tether_test_executor",
 		},
@@ -52,8 +52,8 @@ func TestNoNetwork(t *testing.T) {
 	testSetup(t)
 	defer testTeardown(t)
 
-	cfg := metadata.ExecutorConfig{
-		Common: metadata.Common{
+	cfg := executor.ExecutorConfig{
+		Common: executor.Common{
 			ID:   "ipconfig",
 			Name: "tether_test_executor",
 		},

@@ -28,11 +28,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/golang/groupcache/lru"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/guest"
-	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -43,7 +44,7 @@ const (
 
 // ContainerCreateConfig defines the parameters for Create call
 type ContainerCreateConfig struct {
-	Metadata metadata.ExecutorConfig
+	Metadata executor.ExecutorConfig
 
 	ParentImageID  string
 	ImageStoreName string
@@ -62,7 +63,7 @@ func init() {
 
 type Handle struct {
 	Spec       *spec.VirtualMachineConfigSpec
-	ExecConfig metadata.ExecutorConfig
+	ExecConfig executor.ExecutorConfig
 	Container  *Container
 	State      *State
 
@@ -149,7 +150,7 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session) error {
 	cfg := make(map[string]string)
 	extraconfig.Encode(extraconfig.MapSink(cfg), h.ExecConfig)
 	s := h.Spec.Spec()
-	s.ExtraConfig = append(s.ExtraConfig, extraconfig.OptionValueFromMap(cfg)...)
+	s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 
 	if err := h.Container.Commit(ctx, sess, h); err != nil {
 		return err
@@ -241,7 +242,7 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 	return nil
 }
 
-func (h *Handle) Update(ctx context.Context, sess *session.Session) (*metadata.ExecutorConfig, error) {
+func (h *Handle) Update(ctx context.Context, sess *session.Session) (*executor.ExecutorConfig, error) {
 	defer trace.End(trace.Begin("Handle.Create"))
 
 	ec, err := h.Container.Update(ctx, sess)

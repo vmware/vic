@@ -20,7 +20,6 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -42,9 +41,5 @@ func signalProcess(process *os.Process, sig ssh.Signal) error {
 }
 
 func establishPty(session *SessionConfig) error {
-	return errors.New("unimplemented on windows")
-}
-
-func resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
 	return errors.New("unimplemented on windows")
 }

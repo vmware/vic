@@ -307,7 +307,7 @@ func (d *Helper) rootDir() string {
 }
 
 // Parse the datastore format ([datastore1] /path/to/thing) to groups.
-var datastoreFormat = regexp.MustCompile(`^\[([\w\d\(\)\s]+)\]`)
+var datastoreFormat = regexp.MustCompile(`^\[([\w\d\(\)-_\s]+)\]`)
 var pathFormat = regexp.MustCompile(`\s([\/\w-_]+$)`)
 
 // Converts `[datastore] /path` to ds:// URL

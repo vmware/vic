@@ -20,7 +20,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	// "github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/metadata"
+
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/trace"
 	// "github.com/vmware/vic/pkg/vsphere/session"
 	"golang.org/x/net/context"
@@ -32,7 +33,7 @@ type Validator struct {
 	FirewallErrors []string
 }
 
-func NewValidator(ctx context.Context, vch metadata.VirtualContainerHostConfigSpec) *Validator {
+func NewValidator(ctx context.Context, vch config.VirtualContainerHostConfigSpec) *Validator {
 	defer trace.End(trace.Begin(""))
 	log.Infof("Creating new validator")
 	v := new(Validator)
@@ -46,7 +47,7 @@ func NewValidator(ctx context.Context, vch metadata.VirtualContainerHostConfigSp
 	return v
 }
 
-func (v *Validator) checkFirewall(ctx context.Context, vch metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) checkFirewall(ctx context.Context, vch config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 	log.Infof("Checking firewall rules")
 	//rule := types.HostFirewallRule{

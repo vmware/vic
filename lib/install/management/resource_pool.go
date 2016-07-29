@@ -22,8 +22,8 @@ import (
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
-	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
@@ -33,7 +33,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*object.ResourcePool, error) {
+func (d *Dispatcher) createResourcePool(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*object.ResourcePool, error) {
 	defer trace.End(trace.Begin(""))
 
 	d.vchPoolPath = path.Join(settings.ResourcePoolPath, conf.Name)
@@ -104,7 +104,7 @@ func (d *Dispatcher) createResourcePool(conf *metadata.VirtualContainerHostConfi
 	return rp, nil
 }
 
-func (d *Dispatcher) destroyResourcePoolIfEmpty(conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) destroyResourcePoolIfEmpty(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 
 	log.Infof("Removing Resource Pool %q", conf.Name)

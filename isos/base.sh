@@ -68,7 +68,7 @@ cp $DIR/base/*.repo $(rootfs_dir $PKGDIR)/etc/yum.repos.d/
 cp $DIR/base/yum.conf $(rootfs_dir $PKGDIR)/etc/yum/
 
 # install the core packages
-yum_cached -c $cache -u -p $PKGDIR install filesystem coreutils bash linux-esx --nogpgcheck -y
+yum_cached -c $cache -u -p $PKGDIR install filesystem coreutils linux-esx --nogpgcheck -y
 # strip the cache from the resulting image
 yum_cached -c $cache -p $PKGDIR clean all
 

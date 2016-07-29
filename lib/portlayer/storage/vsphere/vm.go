@@ -19,7 +19,7 @@ import (
 	"net/url"
 
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/trace"
@@ -34,7 +34,7 @@ func VolumeJoin(ctx context.Context, handle *exec.Handle, volume *storage.Volume
 		return nil, fmt.Errorf("Volume with ID %s is already in container %s's mountspec'", volume.ID, handle.Container.ExecConfig.ID)
 	}
 
-	newMountSpec := metadata.MountSpec{
+	newMountSpec := executor.MountSpec{
 		Source: url.URL{
 			Scheme: "label",
 			Path:   volume.Label,
@@ -67,7 +67,7 @@ func VolumeJoin(ctx context.Context, handle *exec.Handle, volume *storage.Volume
 
 	handle.Spec.DeviceChange = append(handle.Spec.DeviceChange, config)
 	if handle.ExecConfig.Mounts == nil {
-		handle.ExecConfig.Mounts = make(map[string]metadata.MountSpec)
+		handle.ExecConfig.Mounts = make(map[string]executor.MountSpec)
 	}
 	handle.ExecConfig.Mounts[volume.ID] = newMountSpec
 

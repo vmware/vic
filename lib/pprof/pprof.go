@@ -23,7 +23,7 @@ import (
 	"net/url"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
@@ -40,7 +40,7 @@ const (
 )
 
 var (
-	vchConfig metadata.VirtualContainerHostConfigSpec
+	vchConfig config.VirtualContainerHostConfigSpec
 )
 
 func init() {

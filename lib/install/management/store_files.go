@@ -25,7 +25,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
@@ -40,7 +40,7 @@ const (
 	volumeRoot = "volumes"
 )
 
-func (d *Dispatcher) DeleteStores(vchVM *vm.VirtualMachine, conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) DeleteStores(vchVM *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 
 	ds := d.session.Datastore
@@ -246,7 +246,7 @@ func (d *Dispatcher) getVCHRootDir(vchVM *vm.VirtualMachine) (string, error) {
 	return path.Join(parent, uuid), nil
 }
 
-func (d *Dispatcher) createVolumeStores(conf *metadata.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) createVolumeStores(conf *config.VirtualContainerHostConfigSpec) error {
 	for _, url := range conf.VolumeLocations {
 		ds, err := d.session.Finder.Datastore(d.ctx, url.Host)
 		if err != nil {
@@ -263,7 +263,7 @@ func (d *Dispatcher) createVolumeStores(conf *metadata.VirtualContainerHostConfi
 }
 
 // returns # of removed stores
-func (d *Dispatcher) deleteVolumeStoreIfForced(conf *metadata.VirtualContainerHostConfigSpec) (removed int) {
+func (d *Dispatcher) deleteVolumeStoreIfForced(conf *config.VirtualContainerHostConfigSpec) (removed int) {
 	defer trace.End(trace.Begin(""))
 	removed = 0
 

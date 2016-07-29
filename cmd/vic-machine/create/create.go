@@ -51,6 +51,23 @@ const (
 	LinuxImageName     = "bootstrap.iso"
 )
 
+var EntireOptionHelpTemplate = `NAME:
+   {{.HelpName}} - {{.Usage}}
+
+USAGE:
+   {{.HelpName}}{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{if .Category}}
+
+CATEGORY:
+   {{.Category}}{{end}}{{if .Description}}
+
+DESCRIPTION:
+   {{.Description}}{{end}}{{if .VisibleFlags}}
+
+OPTIONS:
+   {{range .Flags}}{{.}}
+   {{end}}{{end}}
+`
+
 // Create has all input parameters for vic-machine create command
 type Create struct {
 	*data.Data
@@ -58,7 +75,8 @@ type Create struct {
 	cert string
 	key  string
 
-	noTLS bool
+	noTLS           bool
+	advancedOptions bool
 
 	osType  string
 	logfile string
@@ -98,17 +116,17 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "image-datastore, i",
 			Value:       "",
-			Usage:       "Image datastore name",
+			Usage:       "REQUIRED. Image datastore name",
 			Destination: &c.ImageDatastoreName,
 		},
 		cli.StringFlag{
-			Name:        "container-datastore",
+			Name:        "container-datastore, cs",
 			Value:       "",
 			Usage:       "Container datastore name - not supported yet, default to image datastore",
 			Destination: &c.ContainerDatastoreName,
 		},
 		cli.StringSliceFlag{
-			Name:  "volume-store",
+			Name:  "volume-store, vs",
 			Value: &c.volumeStores,
 			Usage: "Specify location and label for volume store; path optional: \"datastore/path:label\" or \"datastore:label\"",
 		},
@@ -119,91 +137,91 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.BridgeNetworkName,
 		},
 		cli.StringFlag{
-			Name:        "external-network",
+			Name:        "external-network, en",
 			Value:       "",
 			Usage:       "The external network (can see hub.docker.com)",
 			Destination: &c.ExternalNetworkName,
 		},
 		cli.StringFlag{
-			Name:        "management-network",
+			Name:        "management-network, mn",
 			Value:       "",
 			Usage:       "The management network (provides route to target hosting vSphere)",
 			Destination: &c.ManagementNetworkName,
 		},
 		cli.StringFlag{
-			Name:        "client-network",
+			Name:        "client-network, cln",
 			Value:       "",
 			Usage:       "The client network (restricts DOCKER_API access to this network)",
 			Destination: &c.ClientNetworkName,
 		},
 		cli.StringSliceFlag{
-			Name:  "container-network",
+			Name:  "container-network, cn",
 			Value: &c.containerNetworks,
 			Usage: "Networks that containers can use",
 		},
 		cli.StringSliceFlag{
-			Name:  "container-network-gateway",
+			Name:  "container-network-gateway, cng",
 			Value: &c.containerNetworksGateway,
 			Usage: "Gateway for the container network's subnet in CONTAINER-NETWORK:SUBNET format, e.g. a_network:172.16.0.0/16",
 		},
 		cli.StringSliceFlag{
-			Name:  "container-network-ip-range",
+			Name:  "container-network-ip-range, cnr",
 			Value: &c.containerNetworksIPRanges,
 			Usage: "IP range for the container network in CONTAINER-NETWORK:IP-RANGE format, e.g. a_network:172.16.0.0/24, a_network:172.16.0.10-20",
 		},
 		cli.StringSliceFlag{
-			Name:  "container-network-dns",
+			Name:  "container-network-dns, cnd",
 			Value: &c.containerNetworksDNS,
 			Usage: "DNS servers for the container network in CONTAINER-NETWORK:DNS format, e.g. a_network:8.8.8.8",
 		},
 		cli.IntFlag{
-			Name:        "pool-memory-reservation",
+			Name:        "pool-memory-reservation, pmr",
 			Value:       0,
 			Usage:       "VCH Memory reservation in MB",
 			Destination: &c.VCHMemoryReservationsMB,
 		},
 		cli.IntFlag{
-			Name:        "pool-memory-limit",
+			Name:        "pool-memory-limit, pml",
 			Value:       0,
 			Usage:       "VCH Memory limit in MB",
 			Destination: &c.VCHMemoryLimitsMB,
 		},
 		cli.GenericFlag{
-			Name:  "pool-memory-shares",
+			Name:  "pool-memory-shares, pms",
 			Value: flags.NewSharesFlag(&c.VCHMemoryShares),
 			Usage: "VCH Memory shares in level or share number, e.g. high, normal, low, or 163840",
 		},
 		cli.IntFlag{
-			Name:        "pool-cpu-reservation",
+			Name:        "pool-cpu-reservation, pcr",
 			Value:       0,
 			Usage:       "VCH vCPUs reservation in MHz",
 			Destination: &c.VCHCPUReservationsMHz,
 		},
 		cli.IntFlag{
-			Name:        "pool-cpu-limit",
+			Name:        "pool-cpu-limit, pcl",
 			Value:       0,
 			Usage:       "VCH vCPUs limit in MHz",
 			Destination: &c.VCHCPULimitsMHz,
 		},
 		cli.GenericFlag{
-			Name:  "pool-cpu-shares",
+			Name:  "pool-cpu-shares, pcs",
 			Value: flags.NewSharesFlag(&c.VCHCPUShares),
 			Usage: "VCH vCPUs shares, in level or share number, e.g. high, normal, low, or 4000",
 		},
 		cli.StringFlag{
-			Name:        "bridge-network-range",
+			Name:        "bridge-network-range, bnr",
 			Value:       "172.16.0.0/12",
 			Usage:       "The ip range from which bridge networks are allocated",
 			Destination: &c.BridgeIPRange,
 		},
 		cli.StringFlag{
-			Name:        "appliance-iso",
+			Name:        "appliance-iso, ai",
 			Value:       "",
 			Usage:       "The appliance iso",
 			Destination: &c.ApplianceISO,
 		},
 		cli.StringFlag{
-			Name:        "bootstrap-iso",
+			Name:        "bootstrap-iso, bi",
 			Value:       "",
 			Usage:       "The bootstrap iso",
 			Destination: &c.BootstrapISO,
@@ -221,7 +239,7 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.cert,
 		},
 		cli.BoolFlag{
-			Name:        "no-tls",
+			Name:        "no-tls, k",
 			Usage:       "Disable TLS support",
 			Destination: &c.noTLS,
 		},
@@ -236,22 +254,30 @@ func (c *Create) Flags() []cli.Flag {
 			Usage:       "Time to wait for appliance initialization",
 			Destination: &c.Timeout,
 		},
+		cli.BoolFlag{
+			Name:        "advanced-options, x",
+			Usage:       "Show all options",
+			Destination: &c.advancedOptions,
+		},
 		cli.IntFlag{
 			Name:        "appliance-memory",
 			Value:       2048,
 			Usage:       "Memory for the appliance VM, in MB",
+			Hidden:      true,
 			Destination: &c.MemoryMB,
 		},
 		cli.IntFlag{
 			Name:        "appliance-cpu",
 			Value:       1,
 			Usage:       "vCPUs for the appliance VM",
+			Hidden:      true,
 			Destination: &c.NumCPUs,
 		},
 		cli.BoolFlag{
 			Name:        "use-rp",
 			Usage:       "Use resource pool for vch parent in VC",
 			Destination: &c.UseRP,
+			Hidden:      true,
 		},
 	}
 	preFlags := append(c.TargetFlags(), c.ComputeFlags()...)
@@ -426,8 +452,13 @@ func (c *Create) checkImagesFiles() ([]string, error) {
 	return result, nil
 }
 
-func (c *Create) Run(cli *cli.Context) error {
+func (c *Create) Run(cliContext *cli.Context) error {
 	var err error
+
+	if c.advancedOptions {
+		cli.HelpPrinter(cliContext.App.Writer, EntireOptionHelpTemplate, cliContext.Command)
+		return nil
+	}
 
 	if c.Debug.Debug > 0 {
 		log.SetLevel(log.DebugLevel)
@@ -442,9 +473,9 @@ func (c *Create) Run(cli *cli.Context) error {
 		return err
 	}
 
-	if len(cli.Args()) > 0 {
+	if len(cliContext.Args()) > 0 {
 		log.Error("Create cannot continue: invalid CLI arguments")
-		log.Errorf("Unknown argument: %s", cli.Args()[0])
+		log.Errorf("Unknown argument: %s", cliContext.Args()[0])
 		return errors.New("invalid CLI arguments")
 	}
 

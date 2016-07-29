@@ -20,7 +20,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/cmd/vic-machine/common"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/ip"
 )
 
@@ -75,9 +75,9 @@ type Data struct {
 // InstallerData is used to hold the transient installation configuration that shouldn't be serialized
 type InstallerData struct {
 	// Virtual Container Host capacity
-	VCHSize metadata.Resources
+	VCHSize config.Resources
 	// Appliance capacity
-	ApplianceSize metadata.Resources
+	ApplianceSize config.Resources
 
 	KeyPEM  string
 	CertPEM string
