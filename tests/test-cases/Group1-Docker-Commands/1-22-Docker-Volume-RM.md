@@ -34,4 +34,4 @@ Error response from daemon: get test3: no such volume
 * Step 9 should result in success and the volume should no longer be listed
 
 #Possible Problems:
-None
+* VIC requires you to specify storage on creation of the VCH that volumes can be created from, so when installing the VCH make sure to specify this parameter: --volume-store=
