@@ -189,7 +189,6 @@ func TestCreateImageLayers(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	parent.Metadata = make(map[string][]byte)
 
 	// Keep a list of all files we're extracting via layers so we can verify
 	// they exist in the leaf layer.  Ext adds lost+found, so add it here.
@@ -221,7 +220,7 @@ func TestCreateImageLayers(t *testing.T) {
 		meta[dirName+"_scorpions"] = []byte("Here I am, rock you like a hurricane")
 
 		// Tar the files
-		buf, terr := tarFiles(files, meta)
+		buf, terr := tarFiles(files)
 		if !assert.NoError(t, terr) {
 			return
 		}
@@ -309,7 +308,7 @@ type tarFile struct {
 	Body string
 }
 
-func tarFiles(files []tarFile, meta map[string][]byte) (*bytes.Buffer, error) {
+func tarFiles(files []tarFile) (*bytes.Buffer, error) {
 	// Create a buffer to write our archive to.
 	buf := new(bytes.Buffer)
 
