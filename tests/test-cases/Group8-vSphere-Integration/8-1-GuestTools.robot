@@ -18,3 +18,12 @@ Verify container VM guest IP is reported
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${id}  Error
     Run  govc vm.ip ${id}
+
+Stop container VM using guest shutdown
+    ${rc}=  Run And Return Rc  docker ${params} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${id}=  Run And Return Rc And Output  docker ${params} run -d busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    Run  govc vm.ip ${id}
+    ${rc}=  Run And Return Rc  govc vm.power -s ${id}
+    Should Be Equal As Integers  ${rc}  0

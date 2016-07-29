@@ -1174,6 +1174,8 @@ definitions:
       tty:
         type: boolean
         default: false
+      stopSignal:
+        type: string
   ContainerCreatedInfo:
     type: object
     required:

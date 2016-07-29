@@ -226,17 +226,18 @@ func (c *Container) stop(ctx context.Context) error {
 		return fmt.Errorf("vm not set")
 	}
 
-	//TODO: make the shutdown much cleaner, right now we just pull the plug on the vm.(may need corresponding work in tether.)
-
-	// Power off
-	_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return c.vm.PowerOff(ctx)
-	})
+	err := c.vm.ShutdownGuest(ctx)
 	if err != nil {
+		log.Warnf("ShutdownGuest %s failed: %s", c.ExecConfig.ID, err)
+		// Fallback to PowerOff in the event that tools may not be running
+		_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+			return c.vm.PowerOff(ctx)
+		})
 		return err
 	}
 
-	return nil
+	// ShutdownGuest does not wait for PowerOff state, so we need to do that ourselves
+	return c.vm.WaitForPowerState(ctx, types.VirtualMachinePowerStatePoweredOff)
 }
 
 type RemovePowerError struct {
