@@ -21,7 +21,7 @@ import (
 
 	"github.com/dchest/siphash"
 	"github.com/google/uuid"
-	"github.com/vmware/vic/lib/guest"
+	"github.com/vmware/vic/pkg/guest"
 )
 
 // Duid is a vendor based DUID per https://tools.ietf.org/html/rfc3315#section-9.3

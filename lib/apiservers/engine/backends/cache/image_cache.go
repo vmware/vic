@@ -33,8 +33,8 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
-	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/pkg/guest"
 )
 
 // ICache is an in-memory cache of image metadata. It is refreshed at startup

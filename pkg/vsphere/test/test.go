@@ -23,8 +23,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/spec"
+	"github.com/vmware/vic/pkg/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 

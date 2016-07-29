@@ -42,8 +42,8 @@ import (
 	"github.com/docker/docker/reference"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
-	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/pkg/guest"
 	"github.com/vmware/vic/pkg/i18n"
 	"github.com/vmware/vic/pkg/version"
 
