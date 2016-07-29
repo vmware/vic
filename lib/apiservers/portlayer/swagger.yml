@@ -726,6 +726,8 @@ paths:
           description: "bad parameter"
         '404':
           description: "no such container"
+        '409':
+          description: "conflict"
         '500':
           description: "server error"
         default:

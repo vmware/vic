@@ -20,6 +20,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"strings"
 
 	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
 	"golang.org/x/net/context"
@@ -225,6 +226,9 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 
 	err := h.Container.Remove(context.Background(), handler.handlerCtx.Session)
 	if err != nil {
+		if strings.Contains(err.Error(), "The attempted operation cannot be performed in the current state (Powered on)") {
+			return containers.NewContainerRemoveConflict()
+		}
 		return containers.NewContainerRemoveInternalServerError()
 	}
 

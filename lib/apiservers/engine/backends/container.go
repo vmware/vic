@@ -415,6 +415,9 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		if errModel, ok := err.(*containers.ContainerRemoveDefault); ok {
 			return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer : %s", errModel.Payload.Message), http.StatusInternalServerError)
 		}
+		if _, ok := err.(*containers.ContainerRemoveConflict); ok {
+			return derr.NewErrorWithStatusCode(fmt.Errorf("Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f"), http.StatusConflict)
+		}
 		return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer : %s", err), http.StatusInternalServerError)
 	}
 	// delete container from the cache
