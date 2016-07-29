@@ -432,8 +432,6 @@ func main() {
 		} else {
 			vchConfig.Target.User = url.User(upw[0])
 		}
-		log.Infof("vSphere UserInfo = %s", vchConfig.UserPassword)
-		log.Infof("vSphere target = %s", vchConfig.Target.String())
 	}
 	config.Service = vchConfig.Target.String()
 	config.ExtensionCert = vchConfig.ExtensionCert

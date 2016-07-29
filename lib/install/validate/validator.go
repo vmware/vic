@@ -755,7 +755,6 @@ func (v *Validator) target(ctx context.Context, input *data.Data, conf *config.V
 			return
 		}
 		conf.UserPassword = targetURL.User.String()
-		log.Info("Saving User/Password as conf.UserPassword")
 	}
 
 	// bridge network params
