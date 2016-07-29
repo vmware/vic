@@ -36,7 +36,7 @@ Docker ps only running containers
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  /bin/top
     ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  2
+    Length Should Be  ${output}  3
     
 Docker ps all containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
