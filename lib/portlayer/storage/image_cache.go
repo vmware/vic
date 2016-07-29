@@ -164,19 +164,6 @@ func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID stri
 	if err == nil && i != nil {
 		// TODO(FA) check sums to make sure this is the right image
 
-		// if meta supplied write it
-		if meta != nil && len(meta) != 0 {
-			// get the storename from the url
-			storeName, err := util.ImageStoreName(p.Store)
-			if err != nil {
-				return nil, err
-			}
-
-			c.DataStore.WriteMetadata(ctx, storeName, i.ID, meta)
-			i.Metadata = meta
-			c.AddImageToStore(*p.Store, i.ID, *i)
-		}
-
 		return i, nil
 	}
 

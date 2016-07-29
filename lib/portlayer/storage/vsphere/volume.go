@@ -15,9 +15,7 @@
 package vsphere
 
 import (
-	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
@@ -182,80 +180,13 @@ func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.UR
 	}
 
 	// Persist the metadata
-	if err = v.writeMetadata(ctx, ID, dstore, info); err != nil {
+	metaDataDir := v.volMetadataDirPath(ID)
+	if err = writeMetadata(ctx, dstore, metaDataDir, info); err != nil {
 		return nil, err
 	}
 
 	log.Infof("volumestore: %s (%s)", ID, vol.SelfLink)
 	return vol, nil
-}
-
-// Write the opaque metadata blobs (by name) for an image.  We create a
-// directory under the image's parent directory.  Each blob in the metadata map
-// is written to a file with the corresponding name.  Likewise, when we read it
-// back (on restart) we populate the map accordingly.
-func (v *VolumeStore) writeMetadata(ctx context.Context, ID string, ds *datastore.Helper,
-	meta map[string][]byte) error {
-	// XXX this should be done via disklib so this meta follows the disk in
-	// case of motion.
-
-	metaDataDir := v.volMetadataDirPath(ID)
-
-	if meta != nil && len(meta) != 0 {
-		for name, value := range meta {
-			r := bytes.NewReader(value)
-			pth := path.Join(metaDataDir, name)
-			log.Infof("Writing metadata %s", pth)
-			if err := ds.Upload(ctx, r, pth); err != nil {
-				return err
-			}
-		}
-	} else {
-		if _, err := ds.Mkdir(ctx, false, metaDataDir); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (v *VolumeStore) getMetadata(ctx context.Context, ID string, ds *datastore.Helper) (map[string][]byte, error) {
-	metaDataDir := v.volMetadataDirPath(ID)
-
-	res, err := ds.Ls(ctx, metaDataDir)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(res.File) == 0 {
-		log.Infof("No meta found for volume %s", ID)
-		return nil, nil
-	}
-
-	meta := make(map[string][]byte)
-	for _, f := range res.File {
-		finfo, ok := f.(*types.FileInfo)
-		if !ok {
-			continue
-		}
-
-		p := path.Join(metaDataDir, finfo.Path)
-		log.Infof("Getting meta for volume (%s) %s", ID, p)
-		rc, err := ds.Download(ctx, p)
-		if err != nil {
-			return nil, err
-		}
-		defer rc.Close()
-
-		buf, err := ioutil.ReadAll(rc)
-		if err != nil {
-			return nil, err
-		}
-
-		meta[finfo.Path] = buf
-	}
-
-	return meta, nil
 }
 
 func (v *VolumeStore) VolumeDestroy(ctx context.Context, ID string) error {
@@ -299,7 +230,8 @@ func (v *VolumeStore) VolumesList(ctx context.Context) ([]*storage.Volume, error
 				return nil, err
 			}
 
-			meta, err := v.getMetadata(ctx, ID, vols)
+			metaDataDir := v.volMetadataDirPath(ID)
+			meta, err := getMetadata(ctx, vols, metaDataDir)
 			if err != nil {
 				return nil, err
 			}

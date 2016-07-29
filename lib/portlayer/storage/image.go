@@ -76,13 +76,6 @@ type ImageStorer interface {
 	WriteImage(ctx context.Context, parent *Image, ID string, meta map[string][]byte, r io.Reader) (*Image,
 		error)
 
-	// WriteMetadata will write the provided metadata to the image store
-	//
-	// storeName - The image store to query name - The name of the image (optional)
-	// ID - textual ID for the image
-	// meta - metadata associated with the image
-	WriteMetadata(ctx context.Context, storeName string, ID string, meta map[string][]byte) error
-
 	// GetImage queries the image store for the specified image.
 	//
 	// store - The image store to query name - The name of the image (optional)

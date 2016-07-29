@@ -15,7 +15,6 @@
 package vsphere
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -202,8 +201,8 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 	}
 
 	// Create the image directory in the store.
-	imageDirDsURI := v.imageDirPath(storeName, ID)
-	_, err = v.ds.Mkdir(ctx, false, imageDirDsURI)
+	imageDir := v.imageDirPath(storeName, ID)
+	_, err = v.ds.Mkdir(ctx, false, imageDir)
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +266,8 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 	}
 
 	// Write the metadata to the datastore
-	err = v.WriteMetadata(ctx, storeName, ID, meta)
+	metaDataDir := v.imageMetadataDirPath(storeName, ID)
+	err = writeMetadata(ctx, v.ds, metaDataDir, meta)
 	if err != nil {
 		return nil, err
 	}
@@ -306,7 +306,9 @@ func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*
 		return nil, fmt.Errorf("Stat error:  image doesn't exist (%s)", p)
 	}
 
-	meta, err := v.getMeta(ctx, storeName, ID)
+	// get the metadata
+	metaDataDir := v.imageMetadataDirPath(storeName, ID)
+	meta, err := getMetadata(ctx, v.ds, metaDataDir)
 	if err != nil {
 		return nil, err
 	}
@@ -363,67 +365,4 @@ func (v *ImageStore) ListImages(ctx context.Context, store *url.URL, IDs []strin
 	}
 
 	return images, nil
-}
-
-// Write the opaque metadata blobs (by name) for an image.  We create a
-// directory under the image's parent directory.  Each blob in the metadata map
-// is written to a file with the corresponding name.  Likewise, when we read it
-// back (on restart) we populate the map accordingly.
-func (v *ImageStore) WriteMetadata(ctx context.Context, storeName string, ID string,
-	meta map[string][]byte) error {
-	// XXX this should be done via disklib so this meta follows the disk in
-	// case of motion.
-
-	metaDataDir := v.imageMetadataDirPath(storeName, ID)
-
-	if meta != nil && len(meta) != 0 {
-		for name, value := range meta {
-			r := bytes.NewReader(value)
-			pth := path.Join(metaDataDir, name)
-			log.Infof("Writing metadata %s", pth)
-			if err := v.ds.Upload(ctx, r, pth); err != nil {
-				return err
-			}
-		}
-	} else {
-		if _, err := v.ds.Mkdir(ctx, false, metaDataDir); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (v *ImageStore) getMeta(ctx context.Context, storeName string, ID string) (map[string][]byte, error) {
-	metaDataDir := v.imageMetadataDirPath(storeName, ID)
-
-	res, err := v.ds.Ls(ctx, metaDataDir)
-	if err != nil {
-		return nil, err
-	}
-
-	meta := make(map[string][]byte)
-	for _, f := range res.File {
-		finfo, ok := f.(*types.FileInfo)
-		if !ok {
-			continue
-		}
-
-		p := path.Join(metaDataDir, finfo.Path)
-		log.Infof("Getting meta for image (%s) %s", ID, p)
-		rc, err := v.ds.Download(ctx, p)
-		if err != nil {
-			return nil, err
-		}
-		defer rc.Close()
-
-		buf, err := ioutil.ReadAll(rc)
-		if err != nil {
-			return nil, err
-		}
-
-		meta[finfo.Path] = buf
-	}
-
-	return meta, nil
 }
