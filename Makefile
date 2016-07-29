@@ -226,7 +226,7 @@ endif
 
 $(vic-init): $(call godeps,cmd/vic-init/*.go)
 	@echo building vic-init
-	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
+	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo -o ./$@ ./$(dir $<)
 
 $(tether-linux): $(call godeps,cmd/tether/*.go)
 	@echo building tether-linux
@@ -294,7 +294,7 @@ $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 	@$(TIME) $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@
 
 # main appliance target - depends on all top level component targets
-$(appliance): isos/appliance.sh isos/appliance/* $(rpctool) $(vicadmin) $(imagec) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
+$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/* $(rpctool) $(vicadmin) $(imagec) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
 	@echo building VCH appliance ISO
 	@$(TIME) $< -p $(appliance-staging) -b $(BIN)
 

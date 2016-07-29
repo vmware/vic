@@ -31,8 +31,9 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
-	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
@@ -151,11 +152,11 @@ func (v *Validator) ListIssues() error {
 
 // Validate runs through various validations, starting with basics such as naming, moving onto vSphere entities
 // and then the compatibility between those entities. It assembles a set of issues that are found for reporting.
-func (v *Validator) Validate(ctx context.Context, input *data.Data) (*metadata.VirtualContainerHostConfigSpec, error) {
+func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
 	log.Infof("Validating supplied configuration")
 
-	conf := &metadata.VirtualContainerHostConfigSpec{}
+	conf := &config.VirtualContainerHostConfigSpec{}
 
 	v.basics(ctx, input, conf)
 
@@ -177,7 +178,7 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*metadata.V
 
 }
 
-func (v *Validator) basics(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) basics(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
 	// TODO: ensure that displayname doesn't violate constraints (length, characters, etc)
@@ -193,7 +194,7 @@ func (v *Validator) basics(ctx context.Context, input *data.Data, conf *metadata
 	)
 }
 
-func (v *Validator) compute(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) compute(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
 	// Compute
@@ -235,7 +236,7 @@ func (v *Validator) compute(ctx context.Context, input *data.Data, conf *metadat
 	// TODO: for RP creation assert whatever we decide about the pool - most likely that it's empty
 }
 
-func (v *Validator) storage(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
 	// Image Store
@@ -266,18 +267,18 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *metadat
 	}
 }
 
-func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
 	// External net
 	extMoref, err := v.networkHelper(ctx, input.ExternalNetworkName)
 	v.NoteIssue(err)
-	conf.AddNetwork(&metadata.NetworkEndpoint{
-		Common: metadata.Common{
+	conf.AddNetwork(&executor.NetworkEndpoint{
+		Common: executor.Common{
 			Name: "external",
 		},
-		Network: metadata.ContainerNetwork{
-			Common: metadata.Common{
+		Network: executor.ContainerNetwork{
+			Common: executor.Common{
 				Name: "external",
 				ID:   extMoref,
 			},
@@ -295,12 +296,12 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 	}
 	clientMoref, err := v.networkHelper(ctx, input.ClientNetworkName)
 	v.NoteIssue(err)
-	conf.AddNetwork(&metadata.NetworkEndpoint{
-		Common: metadata.Common{
+	conf.AddNetwork(&executor.NetworkEndpoint{
+		Common: executor.Common{
 			Name: "client",
 		},
-		Network: metadata.ContainerNetwork{
-			Common: metadata.Common{
+		Network: executor.ContainerNetwork{
+			Common: executor.Common{
 				Name: "client",
 				ID:   clientMoref,
 			},
@@ -316,9 +317,9 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 	}
 	managementMoref, err := v.networkHelper(ctx, input.ManagementNetworkName)
 	v.NoteIssue(err)
-	conf.AddNetwork(&metadata.NetworkEndpoint{
-		Network: metadata.ContainerNetwork{
-			Common: metadata.Common{
+	conf.AddNetwork(&executor.NetworkEndpoint{
+		Network: executor.ContainerNetwork{
+			Common: executor.Common{
 				Name: "management",
 				ID:   managementMoref,
 			},
@@ -347,14 +348,14 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 		netMoref = input.BridgeNetworkName
 	}
 
-	bridgeNet := &metadata.NetworkEndpoint{
-		Common: metadata.Common{
+	bridgeNet := &executor.NetworkEndpoint{
+		Common: executor.Common{
 			Name: "bridge",
 			ID:   endpointMoref,
 		},
 		Static: &net.IPNet{IP: net.IPv4zero}, // static but managed externally
-		Network: metadata.ContainerNetwork{
-			Common: metadata.Common{
+		Network: executor.ContainerNetwork{
+			Common: executor.Common{
 				Name: "bridge",
 				ID:   netMoref,
 			},
@@ -417,8 +418,8 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 
 		moref, err := v.dpgHelper(ctx, net)
 		v.NoteIssue(err)
-		mappedNet := &metadata.ContainerNetwork{
-			Common: metadata.Common{
+		mappedNet := &executor.ContainerNetwork{
+			Common: executor.Common{
 				Name: name,
 				ID:   moref,
 			},
@@ -435,7 +436,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *metadat
 }
 
 // generateBridgeName returns a name that can be used to create a switch/pg pair on ESX
-func (v *Validator) generateBridgeName(ctx, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) string {
+func (v *Validator) generateBridgeName(ctx, input *data.Data, conf *config.VirtualContainerHostConfigSpec) string {
 	defer trace.End(trace.Begin(""))
 
 	return input.DisplayName
@@ -742,7 +743,7 @@ func (v *Validator) drs(ctx context.Context) {
 	log.Infof("  %q", v.Session.Pool.InventoryPath)
 }
 
-func (v *Validator) target(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) target(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
 	targetURL := input.Target.URLWithoutPassword()
@@ -768,7 +769,7 @@ func (v *Validator) target(ctx context.Context, input *data.Data, conf *metadata
 	// TODO: more checks needed here if specifying service account for VCH
 }
 
-func (v *Validator) certificate(ctx context.Context, input *data.Data, conf *metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) certificate(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
 	if len(input.CertPEM) == 0 && len(input.KeyPEM) == 0 {
@@ -781,13 +782,13 @@ func (v *Validator) certificate(ctx context.Context, input *data.Data, conf *met
 	_, err := tls.X509KeyPair(input.CertPEM, input.KeyPEM)
 	v.NoteIssue(err)
 
-	conf.HostCertificate = &metadata.RawCertificate{
+	conf.HostCertificate = &config.RawCertificate{
 		Key:  input.KeyPEM,
 		Cert: input.CertPEM,
 	}
 }
 
-func (v *Validator) compatibility(ctx context.Context, conf *metadata.VirtualContainerHostConfigSpec) {
+func (v *Validator) compatibility(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
 	// TODO: add checks such as datastore is acessible from target cluster
@@ -1189,7 +1190,7 @@ func (v *Validator) GetResourcePool(input *data.Data) (*object.ResourcePool, err
 	return v.ResourcePoolHelper(v.Context, input.ComputeResourcePath)
 }
 
-func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *metadata.VirtualContainerHostConfigSpec, input *data.Data) *data.InstallerData {
+func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.VirtualContainerHostConfigSpec, input *data.Data) *data.InstallerData {
 	defer trace.End(trace.Begin(""))
 
 	dconfig := data.InstallerData{}

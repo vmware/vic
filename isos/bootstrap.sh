@@ -74,6 +74,7 @@ unpack $package $PKGDIR
 if [ -v debug ]; then
     export ISONAME="bootstrap-debug.iso"
     cp ${DIR}/bootstrap/bootstrap.debug $(rootfs_dir $PKGDIR)/bin/bootstrap
+    cp ${BIN}/rpctool $(rootfs_dir $PKGDIR)/sbin/
 else
     export ISONAME="bootstrap.iso"
     cp ${DIR}/bootstrap/bootstrap $(rootfs_dir $PKGDIR)/bin/bootstrap
@@ -81,7 +82,6 @@ fi
 
 # copy in our components
 cp ${BIN}/tether-linux $(rootfs_dir $PKGDIR)/bin/tether
-cp ${BIN}/rpctool $(rootfs_dir $PKGDIR)/sbin/
 
 # kick off our components at boot time
 cp ${DIR}/bootstrap/tether.service $(rootfs_dir $PKGDIR)/etc/systemd/system/

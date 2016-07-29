@@ -119,5 +119,14 @@ rm $(rootfs_dir $PKGDIR)/usr/lib/systemd/system/sshd@.service
 # Allow root login via ssh
 sed -i -e "s/\#*PermitRootLogin\s.*/PermitRootLogin yes/" $(rootfs_dir $PKGDIR)/etc/ssh/sshd_config
 
+#
+# Set up vicadmin user
+#
+
+chroot $(rootfs_dir $PKGDIR) groupadd -g 1000 vicadmin
+chroot $(rootfs_dir $PKGDIR) useradd -u 1000 -g 1000 -m -d /home/vicadmin -s /bin/false vicadmin
+cp -R ${DIR}/vicadmin/* $(rootfs_dir $PKGDIR)/home/vicadmin
+chown -R 1000:1000 $(rootfs_dir $PKGDIR)/home/vicadmin
+
 # package up the result
 pack $PKGDIR $OUT

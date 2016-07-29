@@ -115,7 +115,7 @@ func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMulti
 
 	// open SttyS2 for session logging
 	log.Infof("opening %s for session logging", logPath)
-	f, err := os.OpenFile(logPath, os.O_RDWR|os.O_CREATE|os.O_APPEND|os.O_SYNC|syscall.O_NOCTTY, 777)
+	f, err := os.OpenFile(logPath, os.O_RDWR|os.O_CREATE|os.O_APPEND|os.O_SYNC|syscall.O_NOCTTY, 0777)
 	if err != nil {
 		detail := fmt.Sprintf("failed to open file for session log: %s", err)
 		log.Error(detail)

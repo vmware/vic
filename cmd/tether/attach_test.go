@@ -35,7 +35,7 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/serial"
@@ -228,21 +228,21 @@ func TestAttach(t *testing.T) {
 
 	testServer, _ := server.(*testAttachServer)
 
-	cfg := metadata.ExecutorConfig{
-		Common: metadata.Common{
+	cfg := executor.ExecutorConfig{
+		Common: executor.Common{
 			ID:   "attach",
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]metadata.SessionConfig{
-			"attach": metadata.SessionConfig{
-				Common: metadata.Common{
+		Sessions: map[string]executor.SessionConfig{
+			"attach": executor.SessionConfig{
+				Common: executor.Common{
 					ID:   "attach",
 					Name: "tether_test_session",
 				},
 				Tty:    false,
 				Attach: true,
-				Cmd: metadata.Cmd{
+				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
 					// grep, matching everything, reading from stdin
 					Args: []string{"/usr/bin/tee", pathPrefix + "/tee.out"},
@@ -325,21 +325,21 @@ func TestAttachTTY(t *testing.T) {
 
 	testServer, _ := server.(*testAttachServer)
 
-	cfg := metadata.ExecutorConfig{
-		Common: metadata.Common{
+	cfg := executor.ExecutorConfig{
+		Common: executor.Common{
 			ID:   "attach",
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]metadata.SessionConfig{
-			"attach": metadata.SessionConfig{
-				Common: metadata.Common{
+		Sessions: map[string]executor.SessionConfig{
+			"attach": executor.SessionConfig{
+				Common: executor.Common{
 					ID:   "attach",
 					Name: "tether_test_session",
 				},
 				Tty:    true,
 				Attach: true,
-				Cmd: metadata.Cmd{
+				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
 					// grep, matching everything, reading from stdin
 					Args: []string{"/usr/bin/tee", pathPrefix + "/tee.out"},
@@ -425,21 +425,21 @@ func TestAttachTwo(t *testing.T) {
 
 	testServer, _ := server.(*testAttachServer)
 
-	cfg := metadata.ExecutorConfig{
-		Common: metadata.Common{
+	cfg := executor.ExecutorConfig{
+		Common: executor.Common{
 			ID:   "tee1",
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]metadata.SessionConfig{
-			"tee1": metadata.SessionConfig{
-				Common: metadata.Common{
+		Sessions: map[string]executor.SessionConfig{
+			"tee1": executor.SessionConfig{
+				Common: executor.Common{
 					ID:   "tee1",
 					Name: "tether_test_session",
 				},
 				Tty:    false,
 				Attach: true,
-				Cmd: metadata.Cmd{
+				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
 					// grep, matching everything, reading from stdin
 					Args: []string{"/usr/bin/tee", pathPrefix + "/tee.out"},
@@ -447,14 +447,14 @@ func TestAttachTwo(t *testing.T) {
 					Dir:  "/",
 				},
 			},
-			"tee2": metadata.SessionConfig{
-				Common: metadata.Common{
+			"tee2": executor.SessionConfig{
+				Common: executor.Common{
 					ID:   "tee2",
 					Name: "tether_test_session2",
 				},
 				Tty:    false,
 				Attach: true,
-				Cmd: metadata.Cmd{
+				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
 					// grep, matching everything, reading from stdin
 					Args: []string{"/usr/bin/tee", pathPrefix + "/tee2.out"},
@@ -578,21 +578,21 @@ func TestAttachInvalid(t *testing.T) {
 
 	testServer, _ := server.(*testAttachServer)
 
-	cfg := metadata.ExecutorConfig{
-		Common: metadata.Common{
+	cfg := executor.ExecutorConfig{
+		Common: executor.Common{
 			ID:   "attachinvalid",
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]metadata.SessionConfig{
-			"valid": metadata.SessionConfig{
-				Common: metadata.Common{
+		Sessions: map[string]executor.SessionConfig{
+			"valid": executor.SessionConfig{
+				Common: executor.Common{
 					ID:   "valid",
 					Name: "tether_test_session",
 				},
 				Tty:    true,
 				Attach: true,
-				Cmd: metadata.Cmd{
+				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
 					// grep, matching everything, reading from stdin
 					Args: []string{"/usr/bin/tee", pathPrefix + "/tee.out"},
@@ -655,21 +655,21 @@ func TestMockAttachTetherToPL(t *testing.T) {
 	assert.NoError(t, testServer.Start())
 	defer testServer.Stop()
 
-	cfg := metadata.ExecutorConfig{
-		Common: metadata.Common{
+	cfg := executor.ExecutorConfig{
+		Common: executor.Common{
 			ID:   "attach",
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]metadata.SessionConfig{
-			"attach": metadata.SessionConfig{
-				Common: metadata.Common{
+		Sessions: map[string]executor.SessionConfig{
+			"attach": executor.SessionConfig{
+				Common: executor.Common{
 					ID:   "attach",
 					Name: "tether_test_session",
 				},
 				Tty:    true,
 				Attach: true,
-				Cmd: metadata.Cmd{
+				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
 					// grep, matching everything, reading from stdin
 					Args: []string{"/usr/bin/tee", pathPrefix + "/tee.out"},

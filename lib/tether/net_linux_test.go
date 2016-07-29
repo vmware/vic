@@ -25,7 +25,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config/executor"
 )
 
 // Utility method to add an interface to Mocked
@@ -71,20 +71,20 @@ func TestSetIpAddress(t *testing.T) {
 
 	secondIP, _ := netlink.ParseIPNet("172.16.0.10/24")
 	gwIP, _ := netlink.ParseIPNet("172.16.0.1/24")
-	cfg := metadata.ExecutorConfig{
-		Common: metadata.Common{
+	cfg := executor.ExecutorConfig{
+		Common: executor.Common{
 			ID:   "ipconfig",
 			Name: "tether_test_executor",
 		},
-		Networks: map[string]*metadata.NetworkEndpoint{
-			"bridge": &metadata.NetworkEndpoint{
-				Common: metadata.Common{
+		Networks: map[string]*executor.NetworkEndpoint{
+			"bridge": &executor.NetworkEndpoint{
+				Common: executor.Common{
 					ID: bridge,
 					// interface rename
 					Name: "bridge",
 				},
-				Network: metadata.ContainerNetwork{
-					Common: metadata.Common{
+				Network: executor.ContainerNetwork{
+					Common: executor.Common{
 						Name: "bridge",
 					},
 					Default: true,
@@ -95,26 +95,26 @@ func TestSetIpAddress(t *testing.T) {
 					Mask: lmask.Mask,
 				},
 			},
-			"cnet": &metadata.NetworkEndpoint{
-				Common: metadata.Common{
+			"cnet": &executor.NetworkEndpoint{
+				Common: executor.Common{
 					ID: bridge,
 					// no interface rename
 				},
-				Network: metadata.ContainerNetwork{
-					Common: metadata.Common{
+				Network: executor.ContainerNetwork{
+					Common: executor.Common{
 						Name: "cnet",
 					},
 				},
 				Static: secondIP,
 			},
-			"external": &metadata.NetworkEndpoint{
-				Common: metadata.Common{
+			"external": &executor.NetworkEndpoint{
+				Common: executor.Common{
 					ID: external,
 					// interface rename
 					Name: "external",
 				},
-				Network: metadata.ContainerNetwork{
-					Common: metadata.Common{
+				Network: executor.ContainerNetwork{
+					Common: executor.Common{
 						Name: "external",
 					},
 				},

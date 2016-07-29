@@ -2,7 +2,7 @@
 Documentation  Test 6-3 - Verify delete clean up all resources
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
-Suite Teardown  Cleanup VIC Appliance On Test Server
+Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Initial load

@@ -21,6 +21,7 @@ This test requires that a vSphere server is running and available
 8. Issue docker run fakeImage /bin/bash to the VIC appliance
 9. Issue docker run -d --name busy3 busybox /bin/top to the VIC appliance
 10. Issue docker run --link busy3:busy3 busybox ping -c2 busy3 to the VIC appliance
+11. Issue docker run -it busybox /bin/df to the VIC appliance
 
 #Expected Outcome:
 * Step 2 and 3 should result in success and print the dmesg of the container
@@ -37,6 +38,7 @@ docker: Error response from daemon: Container command not found or does not exis
 docker: Error parsing reference: "fakeImage" is not a valid repository/tag.
 ```
 * Step 10 should result in success and the output should indicate that the ping succeeded across containers just using the linked name
+* Step 11 should result in success with exit code 0 and show the output of the df command
 
 #Possible Problems:
 None

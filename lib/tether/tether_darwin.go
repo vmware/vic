@@ -21,7 +21,6 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -68,20 +67,6 @@ func lookPath(file string, env []string, dir string) (string, error) {
 
 func establishPty(session *SessionConfig) error {
 	defer trace.End(trace.Begin("initializing pty handling for session " + session.ID))
-
-	return errors.New("unimplemented on OSX")
-}
-
-// The syscall struct
-type winsize struct {
-	wsRow    uint16
-	wsCol    uint16
-	wsXpixel uint16
-	wsYpixel uint16
-}
-
-func resizePty(pty uintptr, winSize *attach.WindowChangeMsg) error {
-	defer trace.End(trace.Begin("resize pty"))
 
 	return errors.New("unimplemented on OSX")
 }

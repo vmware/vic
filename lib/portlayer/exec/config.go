@@ -19,7 +19,8 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/config/executor"
 )
 
 var VCHConfig Configuration
@@ -31,7 +32,7 @@ type Configuration struct {
 
 	// Port Layer - exec
 	// Default containerVM capacity
-	ContainerVMSize metadata.Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	ContainerVMSize config.Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
 	// Permitted datastore URLs for container storage for this virtual container host
 	ContainerStores []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
@@ -50,7 +51,7 @@ type Configuration struct {
 	ContainerNameConvention string
 
 	// FIXME: temporary work around for injecting network path of debug nic
-	Networks     map[string]*metadata.NetworkEndpoint `vic:"0.1" scope:"read-only" key:"init/networks"`
+	Networks     map[string]*executor.NetworkEndpoint `vic:"0.1" scope:"read-only" key:"init/networks"`
 	DebugNetwork object.NetworkReference
 
 	// Information about the VCH resource pool and about the real host that we want
