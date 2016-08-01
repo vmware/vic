@@ -242,14 +242,21 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 	return nil
 }
 
-func (h *Handle) Update(ctx context.Context, sess *session.Session) (*executor.ExecutorConfig, error) {
+func (h *Handle) swap(other *Handle) {
+	committed := h.committed
+	*h = *other
+	h.committed = committed
+}
+
+func (h *Handle) Update(ctx context.Context, sess *session.Session) error {
 	defer trace.End(trace.Begin("Handle.Create"))
 
-	ec, err := h.Container.Update(ctx, sess)
+	newh, err := h.Container.Update(ctx, sess)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	defer newh.Close()
 
-	h.ExecConfig = *ec
-	return ec, nil
+	h.swap(newh)
+	return nil
 }

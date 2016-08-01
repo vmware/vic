@@ -99,29 +99,22 @@ func (handler *ScopesHandlersImpl) listScopes(idName string) ([]*models.ScopeCon
 	updated := make(map[exec.ID]*exec.Handle)
 	for i, s := range _scopes {
 		for _, e := range s.Endpoints() {
-			// update the container config, if necessary
-			// do not need do this for non-bridge scopes, since
-			// IPAM is done by the port layer. For other
-			// scopes types, like external, the network
-			// may be using DHCP, in which case we need to
-			// get the current IP address, and other network
-			// info from the container VM.
-			if s.Type() != network.BridgeScopeType {
-				var h *exec.Handle
-				c := e.Container().ID()
-				if h = updated[c]; h == nil {
-					h = exec.GetContainer(c)
-					if _, err := h.Update(context.Background(), handler.handlerCtx.Session); err != nil {
-						return nil, err
-					}
-
-					updated[c] = h
-				}
-
-				if err = handler.netCtx.UpdateContainer(h); err != nil {
+			// update the container config
+			var h *exec.Handle
+			c := e.Container().ID()
+			if h = updated[c]; h == nil {
+				h = exec.GetContainer(c)
+				if err := h.Update(context.Background(), handler.handlerCtx.Session); err != nil {
 					return nil, err
 				}
+
+				updated[c] = h
 			}
+
+			if err = handler.netCtx.UpdateContainer(h); err != nil {
+				return nil, err
+			}
+
 		}
 
 		cfgs[i] = toScopeConfig(s)
