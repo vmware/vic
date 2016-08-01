@@ -622,21 +622,32 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	return endpoints, nil
 }
 
-func (c *Context) UnbindContainer(h *exec.Handle) error {
+func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	c.Lock()
 	defer c.Unlock()
 
 	con, ok := c.containers[exec.ParseID(h.ExecConfig.ID)]
 	if !ok {
-		return ResourceNotFoundError{error: fmt.Errorf("container %s not found", h.ExecConfig.ID)}
+		return nil, ResourceNotFoundError{error: fmt.Errorf("container %s not found", h.ExecConfig.ID)}
 	}
 
+	// local map to hold the container mapping
+	var containers []exec.ID
+
+	// Removing long id, short id and common name from the map
+	containers = append(containers, exec.ParseID(h.ExecConfig.ID))
+
+	tid := con.id.TruncateID()
+	cname := h.ExecConfig.Common.Name
+
+	var key string
+	var endpoints []*Endpoint
 	var err error
 	for _, ne := range h.ExecConfig.Networks {
 		var s *Scope
 		s, ok := c.scopes[ne.Network.Name]
 		if !ok {
-			return &ResourceNotFoundError{}
+			return nil, &ResourceNotFoundError{}
 		}
 
 		defer func() {
@@ -651,30 +662,16 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 			s.addContainer(con, ip)
 		}()
 
-		e := con.Endpoint(s)
+		// save the endpoint info
+		e := con.Endpoint(s).copy()
+
 		if err = s.removeContainer(con); err != nil {
-			return err
+			return nil, err
 		}
 
 		if !e.static {
 			ne.Static = nil
 		}
-	}
-
-	// local map to hold the container mapping
-	var containers []exec.ID
-
-	// Removing long id, short id and common name from the map
-	containers = append(containers, exec.ParseID(h.ExecConfig.ID))
-
-	tid := con.id.TruncateID()
-	cname := h.ExecConfig.Common.Name
-
-	var key string
-	// network scoped entries
-	endpoints := con.Endpoints()
-	for i := range endpoints {
-		e := endpoints[i]
 
 		// scope name
 		sname := e.Scope().Name()
@@ -689,20 +686,13 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 		log.Debugf("Removing %s from the containers", key)
 		containers = append(containers, exec.ParseID(key))
 
-		ne, ok := h.ExecConfig.Networks[sname]
-		if !ok {
-			err := fmt.Errorf("Failed to find Network %s", sname)
-			log.Errorf(err.Error())
-			return err
-		}
-
 		// delete aliases
 		for i := range ne.Network.Aliases {
 			l := strings.Split(ne.Network.Aliases[i], ":")
 			if len(l) != 2 {
 				err := fmt.Errorf("Parsing %s failed", l)
 				log.Errorf(err.Error())
-				return err
+				return nil, err
 			}
 
 			_, what := l[0], l[1]
@@ -712,13 +702,16 @@ func (c *Context) UnbindContainer(h *exec.Handle) error {
 			log.Debugf("Removing %s from the containers", key)
 			containers = append(containers, exec.ParseID(key))
 		}
+
+		endpoints = append(endpoints, e)
 	}
 
 	// delete from real map now that we are err free
 	for i := range containers {
 		delete(c.containers, containers[i])
 	}
-	return nil
+
+	return endpoints, nil
 }
 
 var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, error) {

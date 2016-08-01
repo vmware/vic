@@ -581,7 +581,7 @@ paths:
         '200':
           description: "OK"
           schema:
-            type: string
+            $ref: "#/definitions/UnbindContainerResponse"
         '404':
           description: "Not found"
           schema:
@@ -1396,6 +1396,18 @@ definitions:
       readWrite:
         type: boolean
   BindContainerResponse:
+    type: object
+    required:
+      - handle
+      - endpoints
+    properties:
+      handle:
+        type: string
+      endpoints:
+        type: array
+        items:
+          $ref: "#/definitions/EndpointConfig"
+  UnbindContainerResponse:
     type: object
     required:
       - handle
