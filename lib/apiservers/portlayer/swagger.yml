@@ -728,6 +728,8 @@ paths:
           description: "no such container"
         '409':
           description: "conflict"
+          schema:
+            $ref: "#/definitions/Error"
         '500':
           description: "server error"
         default:
