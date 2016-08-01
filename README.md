@@ -165,9 +165,6 @@ From the root directory of the `vic` repository run `drone exec -trusted -cache 
 
    *Solution:* Edit the `/etc/default/docker` file, add the option `--storage-driver=overlay` to the `DOCKER_OPTS` settings, and restart Docker.
 
-
-
-
 ## Integration Tests
 
 [VIC Integration Test Suite](tests/README.md) includes instructions to run locally.
