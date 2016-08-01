@@ -161,7 +161,7 @@ func TestExpiration(t *testing.T) {
 func TestConcurrency(t *testing.T) {
 	var wg sync.WaitGroup
 
-	samplesize := 2 ^ 14
+	samplesize := 2 ^ 10
 	o := CacheOptions{
 		capacity: samplesize,
 		ttl:      10 * time.Minute,
