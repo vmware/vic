@@ -810,7 +810,7 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 	if h.ExecConfig.Networks != nil {
 		if _, ok := h.ExecConfig.Networks[s.Name()]; ok {
 			// already part of this scope
-			return DuplicateResourceError{}
+			return nil
 		}
 
 		// check if container is already part of an "external" scope;
