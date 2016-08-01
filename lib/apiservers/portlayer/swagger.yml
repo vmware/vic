@@ -819,6 +819,27 @@ paths:
           description: "Error"
           schema:
             $ref: "#/definitions/Error"
+  /containers/{id}/signal:
+    post:
+      description: "Sends a signal to a container by id"
+      summary: "Signal a running container"
+      operationId: ContainerSignal
+      tags: ["containers"]
+      consumes:
+        - application/octet-stream
+      parameters:
+        - name: id
+          in: path
+          type: string
+          required: true
+        - name: signal
+          in: query
+          type: integer
+          format: int64
+          required: true
+      responses:
+        '200':
+          description: "OK"
   /interaction/{id}/resize:
     post:
       description: "Resize the container's tty session"

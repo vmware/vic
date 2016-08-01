@@ -16,14 +16,11 @@ package main
 
 import (
 	"archive/zip"
-	// "archive/tar"
 	"compress/gzip"
 	"crypto/tls"
-	// "fmt"
 	"html/template"
 	"net"
 	"net/http"
-	"os/exec"
 	"path/filepath"
 
 	"golang.org/x/net/context"
@@ -248,32 +245,17 @@ func (s *server) tailFiles(res http.ResponseWriter, req *http.Request, names []s
 		w: res,
 	}
 
-	// TODO: tail in Go, rather than shelling out
-	cmd := exec.Command("tail", append([]string{"-F"}, names...)...)
-	cmd.Stdout = fw
-	cmd.Stderr = fw
-
-	if err := cmd.Start(); err != nil {
-		log.Errorf("error tailing logs: %s", err)
-		return
-	}
-
-	defer cmd.Process.Kill()
-
-	go cmd.Wait()
+	done := make(chan bool)
+	go tailFile(fw, names[0], &done)
 
 	<-cc
+	done <- true
 }
 
 func (s *server) index(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 	ctx := context.Background()
 	v := vicadmin.NewValidator(ctx, vchConfig)
-
-	// version := vchConfig.Version
-	// vchName := vchConfig.ContainerNameConvention
-	//cr := vchConfig.ComputeResources[0]
-	//cpu := resources.CPU
 
 	tmpl, err := template.ParseFiles("dashboard.html")
 	err = tmpl.ExecuteTemplate(res, "dashboard.html", v)

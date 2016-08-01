@@ -404,7 +404,24 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 // for the container to exit.
 // If a signal is given, then just send it to the container and return.
 func (c *Container) ContainerKill(name string, sig uint64) error {
-	return fmt.Errorf("%s does not implement container.ContainerKill", ProductName())
+	defer trace.End(trace.Begin("ContainerKill"))
+
+	// Look up the container name in the metadata cache to get long ID
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc == nil {
+		return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
+	}
+	name = vc.ContainerID
+
+	if err := ContainerSignal(name, sig); err != nil {
+		return err
+	}
+
+	if sig == 0 {
+		// Use ContainerWait infrastructure to wait for container to exit
+	}
+
+	return nil
 }
 
 // ContainerPause pauses a container
@@ -1827,4 +1844,20 @@ func processSpecifiedVolumes(volumes []string) ([]volumeFields, error) {
 		volumeFields = append(volumeFields, fields)
 	}
 	return volumeFields, nil
+}
+
+func ContainerSignal(containerID string, sig uint64) error {
+	// Get an API client to the portlayer
+	client := PortLayerClient()
+	if client == nil {
+		return derr.NewErrorWithStatusCode(fmt.Errorf("container.ContainerResize failed to create a portlayer client"),
+			http.StatusInternalServerError)
+	}
+
+	params := containers.NewContainerSignalParams().WithID(containerID).WithSignal(int64(sig))
+	if _, err := client.Containers.ContainerSignal(params); err != nil {
+		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+	}
+
+	return nil
 }

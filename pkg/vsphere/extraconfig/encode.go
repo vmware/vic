@@ -17,6 +17,7 @@ package extraconfig
 import (
 	"encoding/base64"
 	"fmt"
+	"net"
 	"reflect"
 	"sort"
 	"strconv"
@@ -135,6 +136,15 @@ func encodeStruct(sink DataSink, src reflect.Value, prefix string, depth recursi
 	}
 }
 
+func isEncodableSliceElemType(t reflect.Type) bool {
+	switch t {
+	case reflect.TypeOf((net.IP)(nil)):
+		return true
+	}
+
+	return false
+}
+
 func encodeSlice(sink DataSink, src reflect.Value, prefix string, depth recursion) {
 	log.Debugf("Encoding object: %#v", src)
 
@@ -154,7 +164,13 @@ func encodeSlice(sink DataSink, src reflect.Value, prefix string, depth recursio
 		encode(sink, reflect.ValueOf(str), prefix, depth)
 		return
 
-	} else if kind != reflect.Struct {
+	} else if kind == reflect.Struct || isEncodableSliceElemType(src.Type().Elem()) {
+		for i := 0; i < length; i++ {
+			// convert key to name|index format
+			key := fmt.Sprintf("%s|%d", prefix, i)
+			encode(sink, src.Index(i), key, depth)
+		}
+	} else {
 		// else assume it's primitive - we'll panic/recover and continue it not
 		defer func() {
 			if err := recover(); err != nil {
@@ -172,12 +188,6 @@ func encodeSlice(sink DataSink, src reflect.Value, prefix string, depth recursio
 		err := sink(key, strings.Join(values, "|"))
 		if err != nil {
 			log.Errorf("Failed to encode slice data for key %s: %s", key, err)
-		}
-	} else {
-		for i := 0; i < length; i++ {
-			// convert key to name|index format
-			key := fmt.Sprintf("%s|%d", prefix, i)
-			encode(sink, src.Index(i), key, depth)
 		}
 	}
 

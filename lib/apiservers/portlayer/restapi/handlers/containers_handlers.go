@@ -52,6 +52,7 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 	api.ContainersContainerRemoveHandler = containers.ContainerRemoveHandlerFunc(handler.RemoveContainerHandler)
 	api.ContainersGetContainerInfoHandler = containers.GetContainerInfoHandlerFunc(handler.GetContainerInfoHandler)
 	api.ContainersGetContainerListHandler = containers.GetContainerListHandlerFunc(handler.GetContainerListHandler)
+	api.ContainersContainerSignalHandler = containers.ContainerSignalHandlerFunc(handler.ContainerSignalHandler)
 
 	handler.handlerCtx = handlerCtx
 }
@@ -267,6 +268,12 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 		vmList = append(vmList, info)
 	}
 	return containers.NewGetContainerListOK().WithPayload(vmList)
+}
+
+func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.ContainerSignalParams) middleware.Responder {
+	defer trace.End(trace.Begin("Containers.ContainerSignal"))
+
+	return containers.NewContainerSignalOK()
 }
 
 // utility function to convert from a Container type to the API Model ContainerInfo (which should prob be called ContainerDetail)

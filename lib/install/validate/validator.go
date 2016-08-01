@@ -754,6 +754,7 @@ func (v *Validator) target(ctx context.Context, input *data.Data, conf *config.V
 			v.NoteIssue(fmt.Errorf("Error processing target after transformation to SOAP endpoint: %q: %s", v.Session.Service, err))
 			return
 		}
+		conf.UserPassword = targetURL.User.String()
 	}
 
 	// bridge network params
