@@ -16,6 +16,7 @@ package extraconfig
 
 import (
 	"encoding/base64"
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -495,4 +496,43 @@ func TestInsideOutside(t *testing.T) {
 
 	assert.Equal(t, outside, decoded, "Encoded and decoded does not match")
 
+}
+
+func TestIPSlice(t *testing.T) {
+	type Slice struct {
+		Slice []net.IP `vic:"0.1" scope:"read-only" key:"slice"`
+	}
+
+	ips := []net.IP{
+		net.ParseIP("10.10.10.10"),
+		net.ParseIP("10.10.10.1"),
+	}
+
+	encodedIPs := make([]string, len(ips))
+	for i := range ips {
+		Encode(func(key, value string) error {
+			encodedIPs[i] = value
+			return nil
+		}, ips[i])
+	}
+
+	s := Slice{
+		Slice: ips,
+	}
+
+	encoded := make(map[string]string)
+	Encode(MapSink(encoded), s)
+
+	expected := map[string]string{
+		visibleRO("slice"): fmt.Sprintf("%d", len(ips)-1),
+	}
+	for i := range encodedIPs {
+		expected[visibleRO(fmt.Sprintf("slice|%d", i))] = encodedIPs[i]
+	}
+
+	assert.Equal(t, expected, encoded, "Encoded and expected do not match")
+
+	var decoded Slice
+	Decode(MapSource(encoded), &decoded)
+	assert.Equal(t, s, decoded, "Encoded and decoded do not match")
 }
