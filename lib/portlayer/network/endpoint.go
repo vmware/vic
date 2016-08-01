@@ -107,3 +107,14 @@ func (e *Endpoint) Ports() []Port {
 
 	return ports
 }
+
+func (e *Endpoint) copy() *Endpoint {
+	other := &Endpoint{}
+	*other = *e
+	other.ports = make(map[Port]interface{})
+	for p := range e.ports {
+		other.ports[p] = nil
+	}
+
+	return other
+}

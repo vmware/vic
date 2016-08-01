@@ -814,36 +814,25 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 	}
 
 	if unbound {
-		// get the endpoints for the container
-		conEpsRes, err := client.Scopes.GetContainerEndpoints(scopes.NewGetContainerEndpointsParams().WithHandleOrID(handle))
-		if err != nil {
-			switch err := err.(type) {
-			case *scopes.GetContainerEndpointsNotFound:
-				return derr.NewRequestNotFoundError(fmt.Errorf("container %s not found", name))
-
-			case *scopes.GetContainerEndpointsInternalServerError:
-				return derr.NewErrorWithStatusCode(fmt.Errorf("%s", err.Payload.Message), http.StatusInternalServerError)
-			}
-		}
-
+		var endpoints []*models.EndpointConfig
 		ub, err := client.Scopes.UnbindContainer(scopes.NewUnbindContainerParams().WithHandle(handle))
 		if err != nil {
 			switch err := err.(type) {
 			case *scopes.UnbindContainerNotFound:
-				return derr.NewRequestNotFoundError(fmt.Errorf("container %s not found", name))
-
+				// ignore error
+				log.Warnf("Container %s not found by network unbind", name)
 			case *scopes.UnbindContainerInternalServerError:
 				return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
-
 			default:
 				return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 			}
+		} else {
+			handle = ub.Payload.Handle
+			endpoints = ub.Payload.Endpoints
 		}
 
-		handle = ub.Payload
-
 		// unmap ports
-		if err = c.mapPorts(portmap.Unmap, vc.HostConfig, c.findPortBoundNetworkEndpoint(vc.HostConfig, conEpsRes.Payload)); err != nil {
+		if err = c.mapPorts(portmap.Unmap, vc.HostConfig, c.findPortBoundNetworkEndpoint(vc.HostConfig, endpoints)); err != nil {
 			return err
 		}
 	}
