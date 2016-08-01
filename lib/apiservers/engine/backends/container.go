@@ -20,6 +20,7 @@ import (
 	"net"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -41,28 +42,23 @@ import (
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
+	containertypes "github.com/docker/engine-api/types/container"
 	dnetwork "github.com/docker/engine-api/types/network"
-	"github.com/docker/engine-api/types/strslice"
 	"github.com/docker/go-connections/nat"
 
-	"strconv"
-
-	"github.com/google/uuid"
+	"github.com/vishvananda/netlink"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
-
-	"github.com/vishvananda/netlink"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/portlayer"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/portmap"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/interaction"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
-	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
 const bridgeIfaceName = "bridge"
@@ -104,12 +100,7 @@ func (r containerByCreated) Less(i, j int) bool { return r[i].Created < r[j].Cre
 
 // Container struct represents the Container
 type Container struct {
-}
-
-type volumeFields struct {
-	ID    string
-	Dest  string
-	Flags string
+	containerProxy portlayer.VicContainerProxy
 }
 
 const (
@@ -119,7 +110,14 @@ const (
 	attachPLAttemptTimeout time.Duration = attachAttemptTimeout - attachPLAttemptDiff //timeout for the portlayer before ditching an attempt
 	attachRequestTimeout   time.Duration = 2 * time.Hour                              //timeout to hold onto the attach connection
 	swaggerSubstringEOF                  = "EOF"
+	DefaultEnvPath                       = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 )
+
+func NewContainerBackend() *Container {
+	return &Container{
+		containerProxy: portlayer.NewContainerProxy(PortLayerClient()),
+	}
+}
 
 // docker's container.execBackend
 
@@ -198,33 +196,6 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 
 	var err error
 
-	// validate port bindings
-	if config.HostConfig != nil {
-		for _, pbs := range config.HostConfig.PortBindings {
-			for _, pb := range pbs {
-				if pb.HostIP != "" {
-					return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("host IP is not supported for port bindings"), http.StatusInternalServerError)
-				}
-
-				start, end, _ := nat.ParsePortRangeToInt(pb.HostPort)
-				if start != end {
-					return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("host port ranges are not supported for port bindings"), http.StatusInternalServerError)
-				}
-			}
-		}
-	}
-
-	//TODO: validate the config parameters
-	log.Debugf("Image fetch section - Container Create")
-	log.Debugf("config.Config = %+v", config.Config)
-	// Get an API client to the portlayer
-	client := PortLayerClient()
-	if client == nil {
-		return types.ContainerCreateResponse{},
-			derr.NewErrorWithStatusCode(fmt.Errorf("container.ContainerCreate failed to create a portlayer client"),
-				http.StatusInternalServerError)
-	}
-
 	// bail early if container name already exists
 	if exists := cache.ContainerCache().GetContainer(config.Name); exists != nil {
 		err := fmt.Errorf("Conflict. The name \"%s\" is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", config.Name, exists.ContainerID)
@@ -238,165 +209,77 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 		// if no image found then error thrown and a pull
 		// will be initiated by the docker client
 		log.Errorf("ContainerCreate: image %s error: %s", config.Config.Image, err.Error())
-		return types.ContainerCreateResponse{}, err
-	}
-
-	// provide basic container config via the image
-	container := viccontainer.NewVicContainer()
-	container.ID = image.ID
-	container.Config = image.Config
-
-	// set default configuration values and those supplied by image where needed
-	container.SetConfigOptions(config.Config)
-
-	// TODO(jzt): users other than root are not currently supported
-	// We should check for USER in config.Config.Env once we support Dockerfiles.
-	if config.Config.User != "" && config.Config.User != "root" {
-		return types.ContainerCreateResponse{},
-			derr.NewErrorWithStatusCode(fmt.Errorf("Failed to create container - users other than root are not currently supported"),
-				http.StatusInternalServerError)
-	}
-
-	// Was a name provided - if not create a friendly name
-	if config.Name == "" {
-		//TODO: Assume we could have a name collison here : need to
-		// provide validation / retry CDG June 9th 2016
-		config.Name = namesgenerator.GetRandomName(0)
-	}
-	log.Debugf("ContainerCreate config' = %+v", config)
-
-	// https://github.com/vmware/vic/issues/1378
-	if len(config.Config.Entrypoint) == 0 && len(config.Config.Cmd) == 0 {
-		return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(fmt.Errorf("No command specified"))
-	}
-
-	// Call the Exec port layer to create the container
-	host, err := sys.UUID()
-	if err != nil {
-		return types.ContainerCreateResponse{},
-			derr.NewErrorWithStatusCode(fmt.Errorf("container.ContainerCreate got unexpected error getting VCH UUID"),
-				http.StatusInternalServerError)
-	}
-
-	plCreateParams := c.dockerContainerCreateParamsToPortlayer(config, container.ID, host)
-	createResults, err := client.Containers.Create(plCreateParams)
-	// transfer port layer swagger based response to Docker backend data structs and return to the REST front-end
-	if err != nil {
-		if _, ok := err.(*containers.CreateNotFound); ok {
-			err = fmt.Errorf("No such image: %s", container.ID)
-			log.Errorf(err.Error())
-			return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(err)
-		}
-
-		// If we get here, most likely something went wrong with the port layer API server
-		return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
-	}
-
-	id := createResults.Payload.ID
-	h := createResults.Payload.Handle
-
-	log.Debugf("Network Configuration Section - Container Create")
-	// configure networking
-	netConf := toModelsNetworkConfig(config)
-	if netConf != nil {
-		addContRes, err := client.Scopes.AddContainer(scopes.NewAddContainerParams().
-			WithScope(netConf.NetworkName).
-			WithConfig(&models.ScopesAddContainerConfig{
-				Handle:        h,
-				NetworkConfig: netConf,
-			}))
-
-		if err != nil {
-			log.Errorf("ContainerCreate: Scopes error: %s", err.Error())
-			return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
-		}
-
-		defer func() {
-			if err == nil {
-				return
-			}
-			// roll back the AddContainer call
-			if _, err2 := client.Scopes.RemoveContainer(scopes.NewRemoveContainerParams().WithHandle(h).WithScope(netConf.NetworkName)); err2 != nil {
-				log.Warnf("could not roll back container add: %s", err2)
-			}
-		}()
-
-		h = addContRes.Payload
-	}
-	//Volume Attachment Section
-	log.Debugf("Container.ContainerCreate - VolumeSection")
-	log.Debugf("Raw Volume arguments : binds:  %#v : volumes : %#v", config.HostConfig.Binds, config.Config.Volumes)
-	var joinList []volumeFields
-
-	joinList, err = processAnonymousVolumes(&h, config.Config.Volumes, client)
-	if err != nil {
-		return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err), http.StatusBadRequest)
-	}
-
-	volumeSubset, err := processSpecifiedVolumes(config.HostConfig.Binds)
-	if err != nil {
-		return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err), http.StatusBadRequest)
-	}
-	joinList = append(joinList, volumeSubset...)
-
-	for _, fields := range joinList {
-		flags := make(map[string]string)
-		//NOTE: for now we are passing the flags directly through. This is NOT SAFE and only a stop gap.
-		flags["Mode"] = fields.Flags
-		joinParams := storage.NewVolumeJoinParams().WithJoinArgs(&models.VolumeJoinConfig{
-			Flags:     flags,
-			Handle:    h,
-			MountPath: fields.Dest,
-		}).WithName(fields.ID)
-
-		res, err := client.Storage.VolumeJoin(joinParams)
-		if err != nil {
-			switch err := err.(type) {
-			case *storage.VolumeJoinInternalServerError:
-				return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
-
-			case *storage.VolumeJoinDefault:
-				return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
-			default:
-				return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
-			}
-		}
-
-		h = res.Payload
-	}
-	// commit the create op
-	_, err = client.Containers.Commit(containers.NewCommitParams().WithHandle(h))
-	if err != nil {
-		err = fmt.Errorf("No such image: %s", container.ID)
-		log.Errorf("%s", err.Error())
-		// FIXME: Containers.Commit returns more errors than it's swagger spec says.
-		// When no image exist, it also sends back non swagger errors.  We should fix
-		// this once Commit returns correct error codes.
 		return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(err)
 	}
 
-	// Container created ok, overwrite the container params in the container store as
-	// these are the parameters that the containers were actually created with
-	container.Config.Cmd = config.Config.Cmd
-	container.Config.WorkingDir = config.Config.WorkingDir
-	container.Config.Entrypoint = config.Config.Entrypoint
-	container.Config.Env = config.Config.Env
-	container.Config.AttachStdin = config.Config.AttachStdin
-	container.Config.AttachStdout = config.Config.AttachStdout
-	container.Config.AttachStderr = config.Config.AttachStderr
-	container.Config.Tty = config.Config.Tty
-	container.Config.OpenStdin = config.Config.OpenStdin
-	container.Config.StdinOnce = config.Config.StdinOnce
-	container.HostConfig = config.HostConfig
-	container.ContainerID = createResults.Payload.ID
-	container.Name = config.Name
+	setCreateConfigOptions(config.Config, image.Config)
 
-	log.Debugf("Container create: %#v", container)
+	log.Debugf("config.Config = %+v", config.Config)
+	if err = validateCreateConfig(&config); err != nil {
+		return types.ContainerCreateResponse{}, err
+	}
+
+	// Create a container representation in the personality server.  This representation
+	// will be stored in the cache if create succeeds in the port layer.
+	container, err := createInternalVicContainer(image, &config)
+	if err != nil {
+		return types.ContainerCreateResponse{}, err
+	}
+
+	// Create an actualized container in the VIC port layer
+	id, err := c.containerCreate(container, config)
+	if err != nil {
+		return types.ContainerCreateResponse{}, err
+	}
+
+	// Container created ok, save the container id and save the config override from the API
+	// caller and save this container internal represenation in our personality server's cache
+	copyConfigOverrides(container, config)
+	container.ContainerID = id
 	cache.ContainerCache().AddContainer(container)
 
-	// Success!
-	log.Debugf("container.ContainerCreate succeeded.  Returning container handle %s", *createResults.Payload)
+	log.Debugf("Container create: %#v", container)
+
 	return types.ContainerCreateResponse{ID: id}, nil
+}
+
+// createContainer() makes calls to the container proxy to actually create the backing
+// VIC container.  All remoting code is in the proxy.
+//
+// returns:
+//	(container id, error)
+func (c *Container) containerCreate(vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, error) {
+	defer trace.End(trace.Begin("Container.containerCreate"))
+
+	if vc == nil {
+		return "",
+			derr.NewErrorWithStatusCode(fmt.Errorf("Failed to create container"),
+				http.StatusInternalServerError)
+	}
+
+	imageID := vc.ImageID
+
+	id, h, err := c.containerProxy.CreateContainerHandle(imageID, config)
+	if err != nil {
+		return "", err
+	}
+
+	h, err = c.containerProxy.AddContainerToScope(h, config)
+	if err != nil {
+		return id, err
+	}
+
+	h, err = c.containerProxy.AddVolumesToContainer(h, config)
+	if err != nil {
+		return id, err
+	}
+
+	err = c.containerProxy.CommitContainerHandle(h, imageID)
+	if err != nil {
+		return id, err
+	}
+
+	return id, nil
 }
 
 // ContainerKill sends signal to the container
@@ -1049,145 +932,9 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 	return err
 }
 
-//----------
-// Utility Functions
-//----------
-
-func (c *Container) dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, layerID string, imageStore string) *containers.CreateParams {
-	config := &models.ContainerCreateConfig{}
-
-	// Image
-	config.Image = new(string)
-	*config.Image = layerID
-
-	// Repo Requested
-	config.RepoName = new(string)
-	*config.RepoName = cc.Config.Image
-
-	var path string
-	var args []string
-
-	// Expand cmd into entrypoint and args
-	cmd := strslice.StrSlice(cc.Config.Cmd)
-	if len(cc.Config.Entrypoint) != 0 {
-		path, args = cc.Config.Entrypoint[0], append(cc.Config.Entrypoint[1:], cmd...)
-	} else {
-		path, args = cmd[0], cmd[1:]
-	}
-
-	//copy friendly name
-	config.Name = new(string)
-	*config.Name = cc.Name
-
-	// copy the path
-	config.Path = new(string)
-	*config.Path = path
-
-	// copy the args
-	config.Args = make([]string, len(args))
-	copy(config.Args, args)
-
-	// copy the env array
-	config.Env = make([]string, len(cc.Config.Env))
-	copy(config.Env, cc.Config.Env)
-
-	// image store
-	config.ImageStore = &models.ImageStore{Name: imageStore}
-
-	// network
-	config.NetworkDisabled = new(bool)
-	*config.NetworkDisabled = cc.Config.NetworkDisabled
-
-	// working dir
-	config.WorkingDir = new(string)
-	*config.WorkingDir = cc.Config.WorkingDir
-
-	// tty
-	config.Tty = new(bool)
-	*config.Tty = cc.Config.Tty
-
-	log.Debugf("dockerContainerCreateParamsToPortlayer = %+v", config)
-
-	return containers.NewCreateParams().WithCreateConfig(config)
-}
-
-func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig {
-	if cc.Config.NetworkDisabled {
-		return nil
-	}
-
-	nc := &models.NetworkConfig{
-		NetworkName: cc.HostConfig.NetworkMode.NetworkName(),
-	}
-	if cc.NetworkingConfig != nil {
-		log.Debugf("EndpointsConfig: %#v", cc.NetworkingConfig)
-
-		es, ok := cc.NetworkingConfig.EndpointsConfig[nc.NetworkName]
-		if ok {
-			if es.IPAMConfig != nil {
-				nc.Address = &es.IPAMConfig.IPv4Address
-			}
-
-			// Docker copies Links to NetworkConfig only if it is a UserDefined network, handle that
-			// https://github.com/docker/docker/blame/master/runconfig/opts/parse.go#L598
-			if !cc.HostConfig.NetworkMode.IsUserDefined() && len(cc.HostConfig.Links) > 0 {
-				es.Links = make([]string, len(cc.HostConfig.Links))
-				copy(es.Links, cc.HostConfig.Links)
-			}
-			// Pass Links and Aliases to PL
-			nc.Aliases = EP2Alias(es)
-
-		}
-	}
-
-	nc.Ports = make([]string, len(cc.HostConfig.PortBindings))
-	i := 0
-	for p := range cc.HostConfig.PortBindings {
-		nc.Ports[i] = string(p)
-		i++
-	}
-
-	return nc
-}
-
-func (c *Container) imageExist(imageID string) (storeName string, err error) {
-	// Call the storage port layer to determine if the image currently exist
-	host, err := sys.UUID()
-	if err != nil {
-		return "", derr.NewBadRequestError(fmt.Errorf("container.ContainerCreate got unexpected error getting VCH UUID"))
-	}
-
-	getParams := storage.NewGetImageParams().WithID(imageID).WithStoreName(host)
-	if _, err := PortLayerClient().Storage.GetImage(getParams); err != nil {
-		// If the image does not exist
-		if _, ok := err.(*storage.GetImageNotFound); ok {
-			// return error and "No such image" which the client looks for to determine if the image didn't exist
-			return "", derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", imageID))
-		}
-
-		// If we get here, most likely something went wrong with the port layer API server
-		return "", derr.NewErrorWithStatusCode(fmt.Errorf("Unknown error from the storage portlayer"),
-			http.StatusInternalServerError)
-	}
-
-	return host, nil
-}
-
-func createNewAttachClientWithTimeouts(connectTimeout, responseTimeout, responseHeaderTimeout time.Duration) (*client.PortLayer, *httpclient.Transport) {
-	runtime := httptransport.New(PortLayerServer(), "/", []string{"http"})
-	transport := &httpclient.Transport{
-		ConnectTimeout:        connectTimeout,
-		ResponseHeaderTimeout: responseHeaderTimeout,
-		RequestTimeout:        responseTimeout,
-	}
-	runtime.Transport = transport
-
-	plClient := client.New(runtime, nil)
-	runtime.Consumers["application/octet-stream"] = httpkit.ByteStreamConsumer()
-	runtime.Producers["application/octet-stream"] = httpkit.ByteStreamProducer()
-
-	return plClient, transport
-}
+//-------------------------------------
+// ContainerInspect() Utility Functions
+//-------------------------------------
 
 // containerInfoToDockerContainerInspect() takes a ContainerInfo swagger-based struct
 // returned from VIC's port layer and creates an engine-api based container inspect struct.
@@ -1526,6 +1273,10 @@ func portMapFromVicContainer(vc *viccontainer.VicContainer) nat.PortMap {
 	return portMap
 }
 
+//------------------------------------
+// ContainerAttach() Utility Functions
+//------------------------------------
+
 // attacheStreams takes the the hijacked connections from the calling client and attaches
 // them to the 3 streams from the portlayer's rest server.
 // clStdin, clStdout, clStderr are the hijacked connection
@@ -1610,6 +1361,22 @@ func attachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin i
 	}
 
 	return nil
+}
+
+func createNewAttachClientWithTimeouts(connectTimeout, responseTimeout, responseHeaderTimeout time.Duration) (*client.PortLayer, *httpclient.Transport) {
+	runtime := httptransport.New(PortLayerServer(), "/", []string{"http"})
+	transport := &httpclient.Transport{
+		ConnectTimeout:        connectTimeout,
+		ResponseHeaderTimeout: responseHeaderTimeout,
+		RequestTimeout:        responseTimeout,
+	}
+	runtime.Transport = transport
+
+	plClient := client.New(runtime, nil)
+	runtime.Consumers["application/octet-stream"] = httpkit.ByteStreamConsumer()
+	runtime.Producers["application/octet-stream"] = httpkit.ByteStreamProducer()
+
+	return plClient, transport
 }
 
 func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, clStdin io.ReadCloser, keys []byte) error {
@@ -1762,77 +1529,156 @@ func clientFriendlyContainerName(name string) string {
 	return fmt.Sprintf("/%s", name)
 }
 
-//This function is used to turn any call from docker create -v <stuff> into a volumeFields object.
-//the -v has 3 forms. 1: -v <anonymouse mount path>, -v <Volume Name>:<Destination Mount Path>, and -v <Volume Name>:<Destination Mount Path>:<mount flags>
-func processVolumeParam(volString string) (volumeFields, error) {
-	volumeStrings := strings.Split(volString, ":")
-	fields := volumeFields{}
+//------------------------------------
+// ContainerCreate() Utility Functions
+//------------------------------------
 
-	//This switch determines which type of -v was invoked.
-	switch len(volumeStrings) {
-	case 1:
-		VolumeID, err := uuid.NewUUID()
-		if err != nil {
-			return volumeFields{}, nil
-		}
-		fields.ID = VolumeID.String()
-		fields.Dest = volumeStrings[0]
-		fields.Flags = "rw"
-	case 2:
-		fields.ID = volumeStrings[0]
-		fields.Dest = volumeStrings[1]
-		fields.Flags = "rw"
-	case 3:
-		fields.ID = volumeStrings[0]
-		fields.Dest = volumeStrings[1]
-		fields.Flags = volumeStrings[2]
-	default:
-		//NOTE: the docker cli should cover this case. This is here for posterity.
-		return volumeFields{}, fmt.Errorf("Volume bind input is invalid : -v %s", volString)
-	}
-	return fields, nil
+// createInternalVicContainer() creates an container representation (for docker personality)
+// This is called by ContainerCreate()
+func createInternalVicContainer(image *metadata.ImageConfig, config *types.ContainerCreateConfig) (*viccontainer.VicContainer, error) {
+	// provide basic container config via the image
+	container := viccontainer.NewVicContainer()
+	container.ImageID = image.ID
+	container.Config = image.Config //Set defaults.  Overrides will get copied below.
+
+	return container, nil
 }
 
-func processAnonymousVolumes(h *string, volumes map[string]struct{}, client *client.PortLayer) ([]volumeFields, error) {
-	var volumeFields []volumeFields
-
-	for v := range volumes {
-		fields, err := processVolumeParam(v)
-		log.Infof("Processed Volume arguments : %#v", fields)
-		if err != nil {
-			return nil, err
-		}
-		//NOTE: This should be the guard for the case of an anonymous volume.
-		//NOTE: we should not expect any driver args if the drive is anonymous.
-		log.Infof("anonymous volume being created - Container Create - volume mount section ID: %s ", fields.ID)
-		metadata := make(map[string]string)
-		metadata["flags"] = fields.Flags
-		volumeRequest := models.VolumeRequest{
-			Capacity: -1,
-			Driver:   "vsphere",
-			Store:    "default",
-			Name:     fields.ID,
-			Metadata: metadata,
-		}
-		_, err = client.Storage.CreateVolume(storage.NewCreateVolumeParams().WithVolumeRequest(&volumeRequest))
-		if err != nil {
-			return nil, err
-		}
-		volumeFields = append(volumeFields, fields)
+// SetConfigOptions is a place to add necessary container configuration
+// values that were not explicitly supplied by the user
+func setCreateConfigOptions(config, imageConfig *containertypes.Config) {
+	// Overwrite or append the image's config from the CLI with the metadata from the image's
+	// layer metadata where appropriate
+	if len(config.Cmd) == 0 {
+		config.Cmd = imageConfig.Cmd
 	}
-	return volumeFields, nil
+	if config.WorkingDir == "" {
+		config.WorkingDir = imageConfig.WorkingDir
+	}
+	if len(config.Entrypoint) == 0 {
+		config.Entrypoint = imageConfig.Entrypoint
+	}
+
+	// set up environment
+	setEnvFromImageConfig(config, imageConfig)
 }
 
-func processSpecifiedVolumes(volumes []string) ([]volumeFields, error) {
-	var volumeFields []volumeFields
-	for _, v := range volumes {
-		fields, err := processVolumeParam(v)
-		if err != nil {
-			return volumeFields, err
+func setEnvFromImageConfig(config, imageConfig *containertypes.Config) {
+	// Set PATH in ENV if needed
+	setPathFromImageConfig(config, imageConfig)
+
+	containerEnv := make(map[string]string, len(config.Env))
+	for _, env := range config.Env {
+		kv := strings.SplitN(env, "=", 2)
+		var val string
+		if len(kv) == 2 {
+			val = kv[1]
 		}
-		volumeFields = append(volumeFields, fields)
+		containerEnv[kv[0]] = val
 	}
-	return volumeFields, nil
+
+	// Set TERM to xterm if tty is set, unless user supplied a different TERM
+	if config.Tty {
+		if _, ok := containerEnv["TERM"]; !ok {
+			config.Env = append(config.Env, "TERM=xterm")
+		}
+	}
+
+	// add remaining environment variables from the image config to the container
+	// config, taking care not to overwrite anything
+	for _, imageEnv := range imageConfig.Env {
+		key := strings.SplitN(imageEnv, "=", 2)[0]
+		// is environment variable already set in container config?
+		if _, ok := containerEnv[key]; !ok {
+			// no? let's copy it from the image config
+			config.Env = append(config.Env, imageEnv)
+		}
+	}
+}
+
+func setPathFromImageConfig(config, imageConfig *containertypes.Config) {
+	// check if user supplied PATH environment variable at creation time
+	for _, v := range config.Env {
+		if strings.HasPrefix(v, "PATH=") {
+			// a PATH is set, bail
+			return
+		}
+	}
+
+	// check to see if the image this container is created from supplies a PATH
+	for _, v := range imageConfig.Env {
+		if strings.HasPrefix(v, "PATH=") {
+			// a PATH was found, add it to the config
+			config.Env = append(config.Env, v)
+			return
+		}
+	}
+
+	// no PATH set, use the default
+	config.Env = append(config.Env, fmt.Sprintf("PATH=%s", DefaultEnvPath))
+}
+
+// validateCreateConfig() checks the parameters for ContainerCreate().
+// It may "fix up" the config param passed into ConntainerCreate() if needed.
+func validateCreateConfig(config *types.ContainerCreateConfig) error {
+	defer trace.End(trace.Begin("Container.validateCreateConfig"))
+
+	if config.HostConfig == nil || config.Config == nil || config.NetworkingConfig == nil {
+		return derr.NewErrorWithStatusCode(fmt.Errorf("Container.validateCreateConfig: invalid config"), http.StatusBadRequest)
+	}
+
+	// validate port bindings
+	if config.HostConfig != nil {
+		for _, pbs := range config.HostConfig.PortBindings {
+			for _, pb := range pbs {
+				if pb.HostIP != "" {
+					return derr.NewErrorWithStatusCode(fmt.Errorf("host IP is not supported for port bindings"), http.StatusInternalServerError)
+				}
+
+				start, end, _ := nat.ParsePortRangeToInt(pb.HostPort)
+				if start != end {
+					return derr.NewErrorWithStatusCode(fmt.Errorf("host port ranges are not supported for port bindings"), http.StatusInternalServerError)
+				}
+			}
+		}
+	}
+
+	// TODO(jzt): users other than root are not currently supported
+	// We should check for USER in config.Config.Env once we support Dockerfiles.
+	if config.Config.User != "" && config.Config.User != "root" {
+		return derr.NewErrorWithStatusCode(fmt.Errorf("Failed to create container - users other than root are not currently supported"),
+			http.StatusInternalServerError)
+	}
+
+	// https://github.com/vmware/vic/issues/1378
+	if len(config.Config.Cmd) == 0 {
+		return derr.NewRequestNotFoundError(fmt.Errorf("No command specified"))
+	}
+
+	// Was a name provided - if not create a friendly name
+	if config.Name == "" {
+		//TODO: Assume we could have a name collison here : need to
+		// provide validation / retry CDG June 9th 2016
+		config.Name = namesgenerator.GetRandomName(0)
+	}
+
+	return nil
+}
+
+func copyConfigOverrides(vc *viccontainer.VicContainer, config types.ContainerCreateConfig) {
+	// Copy the create overrides to our new container
+	vc.Name = config.Name
+	vc.Config.Cmd = config.Config.Cmd
+	vc.Config.WorkingDir = config.Config.WorkingDir
+	vc.Config.Entrypoint = config.Config.Entrypoint
+	vc.Config.Env = config.Config.Env
+	vc.Config.AttachStdin = config.Config.AttachStdin
+	vc.Config.AttachStdout = config.Config.AttachStdout
+	vc.Config.AttachStderr = config.Config.AttachStderr
+	vc.Config.Tty = config.Config.Tty
+	vc.Config.OpenStdin = config.Config.OpenStdin
+	vc.Config.StdinOnce = config.Config.StdinOnce
+	vc.HostConfig = config.HostConfig
 }
 
 func ContainerSignal(containerID string, sig uint64) error {

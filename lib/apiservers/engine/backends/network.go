@@ -26,6 +26,7 @@ import (
 	apinet "github.com/docker/engine-api/types/network"
 	"github.com/docker/libnetwork"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
+	vicendpoint "github.com/vmware/vic/lib/apiservers/engine/backends/endpoint"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -155,22 +156,6 @@ func (n *Network) CreateNetwork(name, driver string, ipam apinet.IPAM, options m
 	return &network{cfg: created.Payload}, nil
 }
 
-func EP2Alias(endpointConfig *apinet.EndpointSettings) []string {
-	var aliases []string
-
-	log.Debugf("EndpointsConfig: %#v", endpointConfig)
-	log.Debugf("Aliases: %s", endpointConfig.Aliases)
-	log.Debugf("Links: %s", endpointConfig.Links)
-
-	// Links are already in CONTAINERNAME:ALIAS format
-	aliases = endpointConfig.Links
-	// Converts aliases to ":ALIAS" format
-	for i := range endpointConfig.Aliases {
-		aliases = append(aliases, fmt.Sprintf(":%s", endpointConfig.Aliases[i]))
-	}
-	return aliases
-}
-
 func (n *Network) ConnectContainerToNetwork(containerName, networkName string, endpointConfig *apinet.EndpointSettings) error {
 	vc := cache.ContainerCache().GetContainer(containerName)
 	if vc != nil {
@@ -201,7 +186,7 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 		}
 
 		// Pass Links and Aliases to PL
-		nc.Aliases = EP2Alias(endpointConfig)
+		nc.Aliases = vicendpoint.Alias(endpointConfig)
 	}
 
 	addConRes, err := client.Scopes.AddContainer(scopes.NewAddContainerParams().
