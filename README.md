@@ -162,6 +162,7 @@ From the root directory of the `vic` repository run `drone exec -trusted -cache 
 1. Builds may fail when building either the appliance.iso or bootstrap.iso with the error: `cap_set_file failed - Operation not supported`
 
    *Cause:* Some Ubuntu and Debian based systems ship with a defective `aufs` driver, which Docker uses as its default backing store.  This driver does not support extended file capabilities such as `cap_set_file`
+
    *Solution:* Edit the `/etc/default/docker` file, add the option `--storage-driver=overlay` to the `DOCKER_OPTS` settings, and restart docker.
 
 
