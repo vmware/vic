@@ -33,8 +33,8 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
-	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/metadata"
+	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
 // ICache is an in-memory cache of image metadata. It is refreshed at startup
@@ -69,7 +69,7 @@ func (ic *ICache) Update(client *client.PortLayer) error {
 
 	log.Debugf("Updating image cache...")
 
-	host, err := guest.UUID()
+	host, err := sys.UUID()
 	if host == "" {
 		host, err = os.Hostname()
 	}

@@ -60,9 +60,9 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
-	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
 const bridgeIfaceName = "bridge"
@@ -271,7 +271,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	}
 
 	// Call the Exec port layer to create the container
-	host, err := guest.UUID()
+	host, err := sys.UUID()
 	if err != nil {
 		return types.ContainerCreateResponse{},
 			derr.NewErrorWithStatusCode(fmt.Errorf("container.ContainerCreate got unexpected error getting VCH UUID"),
@@ -1152,7 +1152,7 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 
 func (c *Container) imageExist(imageID string) (storeName string, err error) {
 	// Call the storage port layer to determine if the image currently exist
-	host, err := guest.UUID()
+	host, err := sys.UUID()
 	if err != nil {
 		return "", derr.NewBadRequestError(fmt.Errorf("container.ContainerCreate got unexpected error getting VCH UUID"))
 	}

@@ -21,7 +21,7 @@ import (
 
 	"github.com/dchest/siphash"
 	"github.com/google/uuid"
-	"github.com/vmware/vic/lib/guest"
+	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
 // Duid is a vendor based DUID per https://tools.ietf.org/html/rfc3315#section-9.3
@@ -113,7 +113,7 @@ func makeIaid(ifindex int, hw net.HardwareAddr) Iaid {
 }
 
 func getMachineID() ([]byte, error) {
-	id, err := guest.UUID()
+	id, err := sys.UUID()
 	if err != nil {
 		return nil, err
 	}
