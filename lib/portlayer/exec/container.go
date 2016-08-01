@@ -273,7 +273,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 
 	// don't remove the containerVM if it is powered on
 	if state == types.VirtualMachinePowerStatePoweredOn {
-		return RemovePowerError{fmt.Errorf("You cannot remove a running container. Stop the container before attempting removal or use -f")}
+		return RemovePowerError{fmt.Errorf("Container is powered on")}
 	}
 
 	//removes the vm from vsphere, but detaches the disks first
