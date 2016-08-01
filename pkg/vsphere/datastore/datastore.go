@@ -235,11 +235,19 @@ func (d *Helper) Stat(ctx context.Context, pth string) (types.BaseFileInfo, erro
 func (d *Helper) Mv(ctx context.Context, fromPath, toPath string) error {
 	from := path.Join(d.RootURL, fromPath)
 	to := path.Join(d.RootURL, toPath)
+	log.Infof("Moving %s to %s", from, to)
 	err := tasks.Wait(ctx, func(context.Context) (tasks.Waiter, error) {
 		return d.fm.MoveDatastoreFile(ctx, from, d.s.Datacenter, to, d.s.Datacenter, true)
 	})
 
 	return err
+}
+
+func (d *Helper) Rm(ctx context.Context, pth string) error {
+	f := path.Join(d.RootURL, pth)
+	return tasks.Wait(context.TODO(), func(ctx context.Context) (tasks.Waiter, error) {
+		return d.fm.DeleteDatastoreFile(ctx, f, d.s.Datacenter)
+	})
 }
 
 func (d *Helper) IsVSAN(ctx context.Context) bool {

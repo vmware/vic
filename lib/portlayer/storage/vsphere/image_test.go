@@ -26,6 +26,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
@@ -37,6 +38,7 @@ import (
 )
 
 func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, error) {
+	logrus.SetLevel(logrus.DebugLevel)
 	StorageParentDir = datastore.TestName("imageTests")
 
 	client := datastore.Session(context.TODO(), t)
@@ -298,6 +300,87 @@ func TestCreateImageLayers(t *testing.T) {
 	sort.Strings(expectedFilesOnDisk)
 
 	if !assert.Equal(t, expectedFilesOnDisk, filesFoundOnDisk) {
+		return
+	}
+}
+
+func TestBrokenPull(t *testing.T) {
+
+	cacheStore, client, err := setup(t)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	vsStore := cacheStore.DataStore.(*ImageStore)
+
+	defer func() {
+		res, err := vsStore.ds.LsDirs(context.TODO(), "")
+		if err != nil {
+			t.Logf("error: %s", err)
+			return
+		}
+
+		for _, dir := range res.HostDatastoreBrowserSearchResults {
+			for _, f := range dir.File {
+				file, ok := f.(*types.FileInfo)
+				if !ok {
+					continue
+				}
+
+				rm(t, client, path.Join(dir.FolderPath, file.Path))
+			}
+			rm(t, client, dir.FolderPath)
+		}
+
+		rm(t, client, client.Datastore.Path(StorageParentDir))
+	}()
+
+	storeURL, err := cacheStore.CreateImageStore(context.TODO(), "testStore")
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// base this image off scratch
+	parent, err := cacheStore.GetImage(context.TODO(), storeURL, portlayer.Scratch.ID)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	imageID := "dir0"
+
+	// Add some files to the archive.
+	var files = []tarFile{
+		{imageID, tar.TypeDir, ""},
+		{imageID + "/readme.txt", tar.TypeReg, "This archive contains some text files."},
+		{imageID + "/gopher.txt", tar.TypeReg, "Gopher names:\nGeorge\nGeoffrey\nGonzo"},
+		{imageID + "/todo.txt", tar.TypeReg, "Get animal handling license."},
+	}
+	// meta for the image
+	meta := make(map[string][]byte)
+	meta[imageID+"_meta"] = []byte("Some Meta")
+	meta[imageID+"_moreMeta"] = []byte("Some More Meta")
+	meta[imageID+"_scorpions"] = []byte("Here I am, rock you like a hurricane")
+
+	// Tar the files
+	buf, terr := tarFiles(files)
+	if !assert.NoError(t, terr) {
+		return
+	}
+
+	// Calculate the checksum
+	h := sha256.New()
+	h.Write(buf.Bytes())
+	actualsum := fmt.Sprintf("sha256:%x", h.Sum(nil))
+
+	// Write the image via the cache (which writes to the vsphere impl).  We're passing a bogus sum so the image should fail to save.
+	writtenImage, err := cacheStore.WriteImage(context.TODO(), parent, imageID, meta, "bogusSum", new(bytes.Buffer))
+	if !assert.Error(t, err) || !assert.Nil(t, writtenImage) {
+		return
+	}
+
+	// Now try again with the right sum and there shouldn't be an error.
+	writtenImage, err = cacheStore.WriteImage(context.TODO(), parent, imageID, meta, actualsum, buf)
+	if !assert.NoError(t, err) || !assert.NotNil(t, writtenImage) {
 		return
 	}
 }
