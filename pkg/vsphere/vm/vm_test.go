@@ -24,9 +24,9 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	vguest "github.com/vmware/vic/lib/guest"
-	"github.com/vmware/vic/pkg/guest"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/sys"
 
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/test"
@@ -39,7 +39,7 @@ func CreateVM(ctx context.Context, session *session.Session, host *object.HostSy
 	specconfig := test.SpecConfig(session)
 
 	// Create a linux guest
-	linux, err := vguest.NewLinuxGuest(ctx, session, specconfig)
+	linux, err := guest.NewLinuxGuest(ctx, session, specconfig)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +204,7 @@ func TestVMAttributes(t *testing.T) {
 	// Wrap the result with our version of VirtualMachine
 	vm := NewVirtualMachine(ctx, session, *moref)
 
-	uuid, err := guest.UUID()
+	uuid, err := sys.UUID()
 	if err != nil {
 		t.Fatalf("unable to get UUID for guest - used for VM name: %s", err)
 	}

@@ -20,8 +20,8 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/spec"
-	"github.com/vmware/vic/pkg/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/sys"
 	"golang.org/x/net/context"
 )
 
@@ -105,7 +105,7 @@ func (l *LinuxGuestType) Controller() *types.BaseVirtualController {
 
 // GetSelf gets VirtualMachine reference for the VM this process is running on
 func GetSelf(ctx context.Context, s *session.Session) (*object.VirtualMachine, error) {
-	u, err := guest.UUID()
+	u, err := sys.UUID()
 	if err != nil {
 		return nil, err
 	}

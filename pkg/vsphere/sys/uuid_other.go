@@ -14,7 +14,7 @@
 
 // +build !linux
 
-package guest
+package sys
 
 import "fmt"
 
