@@ -292,7 +292,7 @@ func (c *Create) processVolumeStores() error {
 	for _, arg := range c.volumeStores {
 		splitMeta := strings.SplitN(arg, ":", 2)
 		if len(splitMeta) != 2 {
-			return errors.New("Volume store input must be in format label:datastore-path")
+			return errors.New("Volume store input must be in format datastore-path:label")
 		}
 		c.VolumeLocations[splitMeta[1]] = splitMeta[0]
 	}
