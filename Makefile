@@ -212,6 +212,13 @@ TEST_DIRS+=github.com/vmware/vic/lib/install
 TEST_DIRS+=github.com/vmware/vic/lib/portlayer
 TEST_DIRS+=github.com/vmware/vic/pkg
 
+# since drone cannot tell us how log it took
+mark:
+	@echo touching /started to mark beginning of the time
+	@touch /started
+sincemark:
+	@echo seconds passed since we start
+	@stat -c %Y /started | echo `expr $(date +%s) - $(cat)`
 
 test:
 	@echo Running unit tests
