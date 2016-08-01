@@ -522,6 +522,8 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			}
 		}
 		ne.Network.Gateway = net.IPNet{IP: e.gateway, Mask: e.subnet.Mask}
+		ne.Network.Nameservers = make([]net.IP, len(s.dns))
+		copy(ne.Network.Nameservers, s.dns)
 
 		// mark the external network as default
 		if !defaultMarked && e.Scope().Type() == ExternalScopeType {
