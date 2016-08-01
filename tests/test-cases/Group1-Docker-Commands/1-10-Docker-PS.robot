@@ -21,7 +21,7 @@ Empty docker ps command
 Docker ps only running containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container2}=  Run And Return Rc And Output  docker ${params} create busybox dmesg
+    ${rc}  ${container2}=  Run And Return Rc And Output  docker ${params} create busybox ls
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container2}
     Should Be Equal As Integers  ${rc}  0
@@ -29,7 +29,7 @@ Docker ps only running containers
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container1}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container3}=  Run And Return Rc And Output  docker ${params} create busybox ls
+    ${rc}  ${container3}=  Run And Return Rc And Output  docker ${params} create busybox dmesg
     Should Be Equal As Integers  ${rc}  0
     Sleep  5 seconds
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps

@@ -60,7 +60,7 @@ See [CONTRIBUTING](CONTRIBUTING.md) for details on submitting changes and the co
 
 ## Building
 
-Building the project is done with a combination of make and containers, with golang:1.6 being the common container base. This is done so that it's possible to build directly, without a functional docker, if using a Debian based system with the Go 1.6 toolchain and Drone.io installed.
+Building the project is done with a combination of make and containers, with golang:1.6.3 being the common container base. This is done so that it's possible to build directly, without a functional docker, if using a Debian based system with the Go 1.6.3 toolchain and Drone.io installed.
 
 To build as closely as possible to the formal build:
 ```
@@ -158,6 +158,12 @@ Ensure that you have Docker 1.6 or higher installed.
 Install the [Drone command line tools][dronecli].
 From the root directory of the `vic` repository run `drone exec -trusted -cache -e VIC_ESX_TEST_URL=""`
 
+## Common Build Problems
+1. Builds may fail when building either the appliance.iso or bootstrap.iso with the error: `cap_set_file failed - Operation not supported`
+
+   *Cause:* Some Ubuntu and Debian based systems ship with a defective `aufs` driver, which Docker uses as its default backing store.  This driver does not support extended file capabilities such as `cap_set_file`
+
+   *Solution:* Edit the `/etc/default/docker` file, add the option `--storage-driver=overlay` to the `DOCKER_OPTS` settings, and restart Docker.
 
 ## Integration Tests
 

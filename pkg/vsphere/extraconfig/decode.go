@@ -272,7 +272,7 @@ func decodeSlice(src DataSource, dest reflect.Value, prefix string, depth recurs
 	}
 
 	// determine the key given the array type
-	if kind == reflect.Struct {
+	if kind == reflect.Struct || isEncodableSliceElemType(dest.Type().Elem()) {
 		for i := 0; i < length; i++ {
 			// convert key to name|index format
 			key := fmt.Sprintf("%s|%d", prefix, i)
