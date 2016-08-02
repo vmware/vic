@@ -84,6 +84,7 @@ type URLFetcher struct {
 
 // NewURLFetcher creates a new URLFetcher
 func NewURLFetcher(options FetcherOptions) Fetcher {
+	/* #nosec */
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: options.InsecureSkipVerify,
