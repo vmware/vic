@@ -48,8 +48,8 @@ type testAttachServer struct {
 }
 
 func (t *testAttachServer) start() error {
+	t.testing = true
 	err := t.attachServerSSH.start()
-
 	if err == nil {
 		t.updated <- true
 		t.enabled = true

@@ -19,32 +19,19 @@ import (
 	"net"
 	_ "net/http/pprof"
 	"os"
-	"time"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
-	"github.com/vmware/vic/pkg/serial"
 )
 
-func backchannel(ctx context.Context, conn *net.Conn) error {
+func rawConnectionFromSerial() (*net.Conn, error) {
+	return nil, errors.New("not supported on OSX")
+}
 
-	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
-	ticker := time.NewTicker(50 * time.Millisecond)
-	for {
-		select {
-		case <-ticker.C:
-			err := serial.HandshakeServer(ctx, *conn)
-			if err == nil {
-				return nil
-			}
-		case <-ctx.Done():
-			(*conn).Close()
-			ticker.Stop()
-			return ctx.Err()
-		}
-	}
+func backchannel(ctx context.Context, conn *net.Conn) error {
+	return errors.New("not supported on OSX")
 }
 
 func (t *attachServerSSH) Start() error {

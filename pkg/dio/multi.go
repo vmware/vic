@@ -202,6 +202,11 @@ func (t *multiReader) Read(p []byte) (int, error) {
 		}
 	}
 
+	// return 0, nil if there are no readers
+	if len(t.readers) == 0 {
+		return 0, nil
+	}
+
 	// we'd have returned anything other than EOF/nil inline
 	t.err = eof
 	return n, eof
