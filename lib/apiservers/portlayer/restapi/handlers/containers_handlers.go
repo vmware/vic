@@ -107,9 +107,10 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 				},
 			},
 		},
-		Key:      pem.EncodeToMemory(&privateKeyBlock),
-		LayerID:  *params.CreateConfig.Image,
-		RepoName: *params.CreateConfig.RepoName,
+		Key:        pem.EncodeToMemory(&privateKeyBlock),
+		LayerID:    *params.CreateConfig.Image,
+		RepoName:   *params.CreateConfig.RepoName,
+		StopSignal: *params.CreateConfig.StopSignal,
 	}
 	log.Infof("CreateHandler Metadata: %#v", m)
 

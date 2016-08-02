@@ -135,6 +135,9 @@ type ExecutorConfig struct {
 	// Repository requested by user
 	// TODO: a bit docker specific
 	RepoName string `vic:"0.1" scope:"read-only" key:"repo"`
+
+	// StopSignal is the signal name or number used to stop a container
+	StopSignal string `vic:"0.1" scope:"read-only" key:"stopSignal"`
 }
 
 // Cmd is here because the encoding packages seem to have issues with the full exec.Cmd struct

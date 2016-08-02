@@ -34,18 +34,15 @@ func main() {
 
 	service := toolbox.NewService(in, out)
 
-	vix := toolbox.RegisterVixRelayedCommandHandler(service)
-
 	// Trigger a command start, for example:
 	// govc guest.start -vm vm-name kill SIGHUP
-	vix.ProcessStartCommand = func(r *toolbox.VixMsgStartProgramRequest) (int, error) {
+	service.VixCommand.ProcessStartCommand = func(r *toolbox.VixMsgStartProgramRequest) (int, error) {
 		fmt.Fprintf(os.Stderr, "guest-command: %s %s\n", r.ProgramPath, r.Arguments)
 		return -1, nil
 	}
 
-	power := toolbox.RegisterPowerCommandHandler(service)
-
 	if os.Getuid() == 0 {
+		power := service.PowerCommand
 		power.Halt.Handler = toolbox.Halt
 		power.Reboot.Handler = toolbox.Reboot
 	}

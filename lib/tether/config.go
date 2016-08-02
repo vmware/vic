@@ -54,6 +54,9 @@ type ExecutorConfig struct {
 	// Key is the host key used during communicate back with the Interaction endpoint if any
 	// Used if the in-guest tether is responsible for authenticating the connection
 	Key []byte `vic:"0.1" scope:"read-only" key:"key"`
+
+	// StopSignal is the signal name or number used to stop a container
+	StopSignal string `vic:"0.1" scope:"read-only" key:"stopSignal"`
 }
 
 // SessionConfig defines the content of a session - this maps to the root of a process tree
@@ -92,6 +95,9 @@ type SessionConfig struct {
 	Outwriter dio.DynamicMultiWriter
 	Errwriter dio.DynamicMultiWriter
 	Reader    dio.DynamicMultiReader
+
+	// This channel is closed on session exit
+	exit chan struct{}
 }
 
 type NetworkEndpoint struct {

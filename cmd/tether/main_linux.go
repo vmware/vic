@@ -80,7 +80,7 @@ func main() {
 	tthr.Register("Attach", sshserver)
 
 	// register the toolbox extension
-	tthr.Register("Toolbox", tether.NewToolbox())
+	tthr.Register("Toolbox", tether.NewToolbox().InContainer())
 
 	err = tthr.Start()
 	if err != nil {

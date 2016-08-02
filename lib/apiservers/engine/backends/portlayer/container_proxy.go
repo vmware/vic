@@ -305,6 +305,10 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, laye
 	config.Tty = new(bool)
 	*config.Tty = cc.Config.Tty
 
+	// container stop signal
+	config.StopSignal = new(string)
+	*config.StopSignal = cc.Config.StopSignal
+
 	log.Debugf("dockerContainerCreateParamsToPortlayer = %+v", config)
 
 	return containers.NewCreateParams().WithCreateConfig(config)
