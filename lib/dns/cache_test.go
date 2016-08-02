@@ -174,37 +174,34 @@ func TestConcurrency(t *testing.T) {
 	}
 
 	writer := func() {
-		wg.Add(1)
-		defer wg.Done()
-
 		for _, msg := range msgs {
 			c.Add(msg)
 		}
+		wg.Done()
 	}
 
 	reader := func() {
-		wg.Add(1)
-		defer wg.Done()
-
 		for _, msg := range msgs {
 			c.Get(msg)
 		}
+		wg.Done()
 	}
 
 	remover := func() {
-		wg.Add(1)
-		defer wg.Done()
-
 		for _, msg := range msgs {
 			c.Remove(msg)
 		}
+		wg.Done()
 	}
 
-	// 3 writer + 2 removed and > 5 readers until c.Count reaches 0
+	// 3 writer + 2 remover and > 5 readers until c.Count reaches 0
+	wg.Add(3)
+
 	go writer()
 	go writer()
 	go writer()
 
+	wg.Add(5)
 	for {
 		for i := 0; i < 5; i++ {
 			go reader()
@@ -214,6 +211,9 @@ func TestConcurrency(t *testing.T) {
 			break
 		}
 	}
+
+	// 2 remover
+	wg.Add(2)
 
 	go remover()
 	go remover()
