@@ -433,6 +433,7 @@ func main() {
 			vchConfig.Target.User = url.User(upw[0])
 		}
 	}
+
 	config.Service = vchConfig.Target.String()
 	config.ExtensionCert = vchConfig.ExtensionCert
 	config.ExtensionKey = vchConfig.ExtensionKey

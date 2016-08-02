@@ -50,8 +50,8 @@ type Validator struct {
 	Session *session.Session
 	Context context.Context
 
-	isVC           bool
-	issues         []error
+	isVC   bool
+	issues []error
 
 	DisableFirewallCheck bool
 	DisableDRSCheck      bool
@@ -143,14 +143,12 @@ func (v *Validator) NoteIssue(err error) {
 func (v *Validator) ListIssues() error {
 	defer trace.End(trace.Begin(""))
 
-	iss := append(v.issues, v.firewallIssues...)
-
-	if len(iss) == 0 {
+	if len(v.issues) == 0 {
 		return nil
 	}
 
 	log.Error("--------------------")
-	for _, err := range iss {
+	for _, err := range v.issues {
 		log.Error(err)
 	}
 
@@ -171,7 +169,7 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 	v.compute(ctx, input, conf)
 	v.storage(ctx, input, conf)
 	v.network(ctx, input, conf)
-	v.issues = append(v.issues, v.CheckFirewall(ctx))
+	v.issues = append(v.issues, v.CheckFirewall(ctx)...)
 	v.license(ctx)
 	v.drs(ctx)
 
@@ -237,6 +235,10 @@ func (v *Validator) target(ctx context.Context, input *data.Data, conf *config.V
 			v.NoteIssue(fmt.Errorf("Error processing target after transformation to SOAP endpoint: %q: %s", v.Session.Service, err))
 			return
 		}
+
+		// ESXi requires user/password to be encoded in the Target URL
+		// However, this gets lost when the URL is Marshaled
+		conf.UserPassword = targetURL.User.String()
 	}
 
 	// bridge network params
@@ -400,12 +402,4 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.Virtua
 	dconfig.VCHSize.Memory.Shares = input.VCHMemoryShares
 
 	return &dconfig
-}
-
-func (v *Validator) GetIssues() []error {
-	return append(v.issues, v.firewallIssues...)
-}
-
-func (v *Validator) GetFirewallIssues() []error {
-	return v.firewallIssues
 }
