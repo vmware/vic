@@ -239,6 +239,14 @@ func (c *Container) stop(ctx context.Context) error {
 	return nil
 }
 
+type RemovePowerError struct {
+	err error
+}
+
+func (r RemovePowerError) Error() string {
+	return r.err.Error()
+}
+
 func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	defer trace.End(trace.Begin("Container.Remove"))
 	c.Lock()
@@ -257,6 +265,16 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	// FIXME: was expecting to find a utility function to convert to/from datastore/url given
 	// how widely it's used but couldn't - will ask around.
 	dsPath := fmt.Sprintf("[%s] %s", url.Host, url.Path)
+
+	state, err := c.vm.PowerState(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to get vm power status %q: %s", c.vm.Reference(), err)
+	}
+
+	// don't remove the containerVM if it is powered on
+	if state == types.VirtualMachinePowerStatePoweredOn {
+		return RemovePowerError{fmt.Errorf("Container is powered on")}
+	}
 
 	//removes the vm from vsphere, but detaches the disks first
 	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {

@@ -409,17 +409,19 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 	//call the remove directly on the name. No need for using a handle.
 	_, err := client.Containers.ContainerRemove(containers.NewContainerRemoveParams().WithID(name))
 	if err != nil {
-		if _, ok := err.(*containers.ContainerRemoveNotFound); ok {
+		switch err := err.(type) {
+		case *containers.ContainerRemoveNotFound:
 			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
+		case *containers.ContainerRemoveDefault:
+			return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer : %s", err.Payload.Message), http.StatusInternalServerError)
+		case *containers.ContainerRemoveConflict:
+			return derr.NewErrorWithStatusCode(fmt.Errorf("You cannot remove a running container. Stop the container before attempting removal or use -f"), http.StatusConflict)
+		default:
+			return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer : %s", err), http.StatusInternalServerError)
 		}
-		if errModel, ok := err.(*containers.ContainerRemoveDefault); ok {
-			return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer : %s", errModel.Payload.Message), http.StatusInternalServerError)
-		}
-		return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer : %s", err), http.StatusInternalServerError)
 	}
 	// delete container from the cache
 	cache.ContainerCache().DeleteContainer(name)
-
 	return nil
 }
 

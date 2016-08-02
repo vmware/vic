@@ -225,7 +225,12 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 
 	err := h.Container.Remove(context.Background(), handler.handlerCtx.Session)
 	if err != nil {
-		return containers.NewContainerRemoveInternalServerError()
+		switch err := err.(type) {
+		case exec.RemovePowerError:
+			return containers.NewContainerRemoveConflict().WithPayload(&models.Error{Message: err.Error()})
+		default:
+			return containers.NewContainerRemoveInternalServerError()
+		}
 	}
 
 	return containers.NewContainerRemoveOK()
