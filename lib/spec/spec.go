@@ -109,13 +109,13 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 		MemoryMB:            config.MemoryMB,
 		MemoryHotAddEnabled: &config.VMForkEnabled,
 
-		// needed to cause the disk uuid to propogate into linux for presentation via /dev/disk/by-id/
 		ExtraConfig: []types.BaseOptionValue{
 			// lets us see the UUID for the containerfs disk (hidden from daemon)
 			&types.OptionValue{Key: "disk.EnableUUID", Value: "true"},
 			// needed to avoid the questions that occur when attaching multiple disks with the same uuid (bugzilla 1362918)
 			&types.OptionValue{Key: "answer.msg.disk.duplicateUUID", Value: "Yes"},
-			&types.OptionValue{Key: "answer.msg.serial.file.open", Value: "Replace"},
+			// needed to avoid the question that occur when opening a file backed serial port
+			&types.OptionValue{Key: "answer.msg.serial.file.open", Value: "Append"},
 
 			&types.OptionValue{Key: "sched.mem.lpage.maxSharedPages", Value: "256"},
 			// seems to be needed to avoid children hanging shortly after fork
@@ -125,6 +125,7 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 			&types.OptionValue{Key: "serial0.hardwareFlowControl", Value: "TRUE"},
 
 			// https://enatai-jira.eng.vmware.com/browse/BON-257
+			// Hotadd memory above 3 GB not working
 			&types.OptionValue{Key: "memory.noHotAddOver4GB", Value: "FALSE"},
 			&types.OptionValue{Key: "memory.maxGrow", Value: "512"},
 
