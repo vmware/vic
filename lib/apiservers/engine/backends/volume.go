@@ -18,7 +18,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/errors"
@@ -211,13 +213,37 @@ func validateDriverArgs(args map[string]string, model *models.VolumeRequest) err
 		return nil
 	}
 
-	capacity, convErr := strconv.ParseInt(capstr, 10, 64)
-	if convErr != nil {
-		model.Capacity = -1
-		return fmt.Errorf("Capacity must be an integer value. The unit is MB: %s", convErr)
+	capacity, err := validateCapacityArg(capstr)
+	if err != nil {
+		return derr.NewBadRequestError(err)
 	}
 	model.Capacity = int64(capacity)
+
 	return nil
+}
+
+func validateCapacityArg(capacityInput string) (int64, error) {
+	validationPattern, _ := regexp.Compile("^[0-9]+[mMgGtT][bB]$")
+	numberPattern, _ := regexp.Compile("[0-9]+")
+	unitPattern, _ := regexp.Compile("[mMgGtT][bB]")
+
+	if !validationPattern.MatchString(capacityInput) {
+		return -1, fmt.Errorf("invalid value for capacity argument supplied. format is <int64><unit>. where units are MB, GB, TB and the value is positive. e.g. --opt Capacity=1024GB")
+	}
+
+	numberString := numberPattern.FindString(capacityInput)
+	unit := strings.ToUpper(unitPattern.FindString(capacityInput))
+	number, _ := strconv.ParseInt(numberString, 10, 64)
+
+	switch unit {
+	case "MB": //Capacity is already correct
+	case "GB":
+		number = number * 1024
+	case "TB":
+		number = number * 1024 * 1024
+	}
+
+	return number, nil
 }
 
 func translateInputsToPortlayerRequestModel(name, driverName string, opts, labels map[string]string) (*models.VolumeRequest, error) {

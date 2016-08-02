@@ -16,7 +16,6 @@ package vicbackends
 
 import (
 	"encoding/json"
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -47,7 +46,7 @@ func TestTranslatVolumeRequestModel(t *testing.T) {
 	testDriverArgs := make(map[string]string)
 	testDriverArgs["testArg"] = "important driver stuff"
 	testDriverArgs[OptsVolumeStoreKey] = "testStore"
-	testDriverArgs[OptsCapacityKey] = "12"
+	testDriverArgs[OptsCapacityKey] = "12MB"
 
 	testRequest, err := translateInputsToPortlayerRequestModel("testName", "vsphere", testDriverArgs, testLabels)
 	if !assert.NoError(t, err) {
@@ -98,7 +97,7 @@ func TestCreateVolumeMetada(t *testing.T) {
 func TestValidateDriverArgs(t *testing.T) {
 	testMap := make(map[string]string)
 	testStore := "Mystore"
-	testCap := int64(12)
+	testCap := "12MB"
 	testBadCap := "This is not valid!"
 	testModel := models.VolumeRequest{
 		Driver:     "vsphere",
@@ -112,23 +111,68 @@ func TestValidateDriverArgs(t *testing.T) {
 	}
 
 	testMap[OptsVolumeStoreKey] = testStore
-	testMap[OptsCapacityKey] = strconv.FormatInt(testCap, 10)
+	testMap[OptsCapacityKey] = testCap
 	err = validateDriverArgs(testMap, &testModel)
-	if !assert.Equal(t, testStore, testModel.Store) || !assert.Equal(t, testCap, testModel.Capacity) || !assert.NoError(t, err) {
+	if !assert.Equal(t, testStore, testModel.Store) || !assert.Equal(t, int64(12), testModel.Capacity) || !assert.NoError(t, err) {
 		return
 	}
 
 	//This is a negative test case. We want an error
 	testMap[OptsCapacityKey] = testBadCap
 	err = validateDriverArgs(testMap, &testModel)
-	if !assert.Equal(t, testStore, testModel.Store) || !assert.Equal(t, int64(-1), testModel.Capacity) || !assert.Error(t, err) {
+	if !assert.Equal(t, testStore, testModel.Store) || !assert.Equal(t, int64(12), testModel.Capacity) || !assert.Error(t, err) {
 		return
 	}
 
-	testMap[OptsCapacityKey] = strconv.FormatInt(testCap, 10)
+	testMap[OptsCapacityKey] = testCap
 	delete(testMap, OptsVolumeStoreKey)
 	err = validateDriverArgs(testMap, &testModel)
 	if !assert.Equal(t, "default", testModel.Store) || !assert.Equal(t, int64(12), testModel.Capacity) || !assert.NoError(t, err) {
+		return
+	}
+}
+
+func TestValidateCapacityArg(t *testing.T) {
+	testBadString1 := "HelloWorld"
+	testBadString2 := "123HelloWorld"
+	testBadString3 := "-123TB"
+	testGoodString1 := "1024MB"
+	testGoodString2 := "512gB"
+	testGoodString3 := "2tb"
+
+	testNumber, err := validateCapacityArg(testBadString1)
+	if !assert.Equal(t, int64(-1), testNumber) ||
+		!assert.NotNil(t, err) {
+		return
+	}
+
+	testNumber, err = validateCapacityArg(testBadString2)
+	if !assert.Equal(t, int64(-1), testNumber) ||
+		!assert.NotNil(t, err) {
+		return
+	}
+
+	testNumber, err = validateCapacityArg(testBadString3)
+	if !assert.Equal(t, int64(-1), testNumber) ||
+		!assert.NotNil(t, err) {
+		return
+	}
+
+	testNumber, err = validateCapacityArg(testGoodString1)
+	if !assert.Equal(t, int64(1024), testNumber) ||
+		!assert.Nil(t, err) {
+		return
+	}
+
+	testNumber, err = validateCapacityArg(testGoodString2)
+	if !assert.Equal(t, int64(524288), testNumber) ||
+		!assert.Nil(t, err) {
+		return
+	}
+
+	testNumber, err = validateCapacityArg(testGoodString3)
+	if !assert.Equal(t, int64(2097152), testNumber) ||
+		!assert.Nil(t, err) {
 		return
 	}
 }
