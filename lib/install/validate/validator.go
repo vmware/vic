@@ -34,6 +34,8 @@ import (
 )
 
 type Validator struct {
+	config.VirtualContainerHostConfigSpec
+
 	TargetPath            string
 	DatacenterPath        string
 	ClusterPath           string
@@ -48,11 +50,23 @@ type Validator struct {
 	Session *session.Session
 	Context context.Context
 
-	isVC   bool
-	issues []error
+	isVC           bool
+	firewallIssues []error
+	issues         []error
 
 	DisableFirewallCheck bool
 	DisableDRSCheck      bool
+}
+
+func CreateFromVCHConfig(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) (*Validator, error) {
+	defer trace.End(trace.Begin(""))
+
+	v := &Validator{}
+	v.VirtualContainerHostConfigSpec = *vch
+	v.Session = sess
+	v.Context = ctx
+
+	return v, nil
 }
 
 func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
@@ -127,15 +141,23 @@ func (v *Validator) NoteIssue(err error) {
 	}
 }
 
+func (v *Validator) NoteFirewallIssue(err error) {
+	if err != nil {
+		v.firewallIssues = append(v.firewallIssues, err)
+	}
+}
+
 func (v *Validator) ListIssues() error {
 	defer trace.End(trace.Begin(""))
 
-	if len(v.issues) == 0 {
+	iss := append(v.issues, v.firewallIssues...)
+
+	if len(iss) == 0 {
 		return nil
 	}
 
 	log.Error("--------------------")
-	for _, err := range v.issues {
+	for _, err := range iss {
 		log.Error(err)
 	}
 
@@ -148,7 +170,7 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 	defer trace.End(trace.Begin(""))
 	log.Infof("Validating supplied configuration")
 
-	conf := &config.VirtualContainerHostConfigSpec{}
+	conf := &v.VirtualContainerHostConfigSpec
 
 	v.basics(ctx, input, conf)
 
@@ -168,6 +190,11 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 	// TODO: determine if this is where we should turn the noted issues into message
 	return conf, v.ListIssues()
 
+}
+
+func (v *Validator) ReValidate(ctx context.Context) {
+	v.firewall(ctx)
+	v.license(ctx)
 }
 
 func (v *Validator) basics(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
@@ -385,4 +412,12 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.Virtua
 	dconfig.VCHSize.Memory.Shares = input.VCHMemoryShares
 
 	return &dconfig
+}
+
+func (v *Validator) GetIssues() []error {
+	return append(v.issues, v.firewallIssues...)
+}
+
+func (v *Validator) GetFirewallIssues() []error {
+	return v.firewallIssues
 }
