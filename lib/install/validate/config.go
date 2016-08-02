@@ -28,9 +28,10 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (v *Validator) firewall(ctx context.Context) {
+func (v *Validator) CheckFirewall(ctx context.Context) []error {
+	issues := []error{}
 	if v.DisableFirewallCheck {
-		return
+		return issues
 	}
 	defer trace.End(trace.Begin(""))
 
@@ -46,13 +47,12 @@ func (v *Validator) firewall(ctx context.Context) {
 
 	errMsg := "Firewall check SKIPPED"
 	if !v.sessionValid(errMsg) {
-		return
+		return issues
 	}
 
 	if hosts, err = v.Session.Datastore.AttachedClusterHosts(ctx, v.Session.Cluster); err != nil {
 		log.Errorf("Unable to get the list of hosts attached to given storage: %s", err)
-		v.NoteIssue(err)
-		return
+		return append(issues, err)
 	}
 
 	var misconfiguredEnabled []string
@@ -62,14 +62,14 @@ func (v *Validator) firewall(ctx context.Context) {
 	for _, host := range hosts {
 		fs, err := host.ConfigManager().FirewallSystem(ctx)
 		if err != nil {
-			v.NoteIssue(err)
+			issues = append(issues, err)
 			break
 		}
 
 		disabled := false
 		esxfw, err := esxcli.GetFirewallInfo(host)
 		if err != nil {
-			v.NoteIssue(err)
+			issues = append(issues, err)
 			break
 		}
 		if !esxfw.Enabled {
@@ -81,7 +81,7 @@ func (v *Validator) firewall(ctx context.Context) {
 
 		info, err := fs.Info(ctx)
 		if err != nil {
-			v.NoteIssue(err)
+			issues = append(issues, err)
 			break
 		}
 
@@ -113,7 +113,7 @@ func (v *Validator) firewall(ctx context.Context) {
 		// can proceed if there is at least one host properly configured. For now this prevents install.
 		msg := "Firewall must permit 8080/tcp outbound to use VIC"
 		log.Error(msg)
-		v.NoteIssue(errors.New(msg))
+		issues = append(issues, errors.New(msg))
 	}
 	if len(misconfiguredDisabled) > 0 {
 		log.Warning("Firewall configuration will be incorrect if firewall is reenabled on hosts:")
@@ -122,6 +122,7 @@ func (v *Validator) firewall(ctx context.Context) {
 		}
 		log.Warning("Firewall must permit 8080/tcp outbound if firewall is reenabled")
 	}
+	return issues
 }
 
 func (v *Validator) license(ctx context.Context) {

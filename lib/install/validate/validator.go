@@ -51,7 +51,6 @@ type Validator struct {
 	Context context.Context
 
 	isVC           bool
-	firewallIssues []error
 	issues         []error
 
 	DisableFirewallCheck bool
@@ -141,12 +140,6 @@ func (v *Validator) NoteIssue(err error) {
 	}
 }
 
-func (v *Validator) NoteFirewallIssue(err error) {
-	if err != nil {
-		v.firewallIssues = append(v.firewallIssues, err)
-	}
-}
-
 func (v *Validator) ListIssues() error {
 	defer trace.End(trace.Begin(""))
 
@@ -178,7 +171,7 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 	v.compute(ctx, input, conf)
 	v.storage(ctx, input, conf)
 	v.network(ctx, input, conf)
-	v.firewall(ctx)
+	v.issues = append(v.issues, v.CheckFirewall(ctx))
 	v.license(ctx)
 	v.drs(ctx)
 
@@ -190,11 +183,6 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 	// TODO: determine if this is where we should turn the noted issues into message
 	return conf, v.ListIssues()
 
-}
-
-func (v *Validator) ReValidate(ctx context.Context) {
-	v.firewall(ctx)
-	v.license(ctx)
 }
 
 func (v *Validator) basics(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
