@@ -91,7 +91,7 @@ func TestVixRelayedCommandHandler(t *testing.T) {
 
 	service := NewService(in, out)
 
-	vix := RegisterVixRelayedCommandHandler(service)
+	vix := service.VixCommand
 
 	msg := []byte("\"reqname\"\x00")
 

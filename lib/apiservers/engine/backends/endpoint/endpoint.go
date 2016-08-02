@@ -12,24 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package container
+package endpoint
 
 import (
-	containertypes "github.com/docker/engine-api/types/container"
+	"fmt"
+
+	log "github.com/Sirupsen/logrus"
+	apinet "github.com/docker/engine-api/types/network"
 )
 
-// VicContainer is VIC's abridged version of Docker's container object.
-type VicContainer struct {
-	Name        string
-	ImageID     string
-	ContainerID string
-	Config      *containertypes.Config //Working copy of config (with overrides from container create)
-	HostConfig  *containertypes.HostConfig
-}
+func Alias(endpointConfig *apinet.EndpointSettings) []string {
+	var aliases []string
 
-// NewVicContainer returns a reference to a new VicContainer
-func NewVicContainer() *VicContainer {
-	return &VicContainer{
-		Config: &containertypes.Config{},
+	log.Debugf("EndpointsConfig: %#v", endpointConfig)
+	log.Debugf("Aliases: %s", endpointConfig.Aliases)
+	log.Debugf("Links: %s", endpointConfig.Links)
+
+	// Links are already in CONTAINERNAME:ALIAS format
+	aliases = endpointConfig.Links
+	// Converts aliases to ":ALIAS" format
+	for i := range endpointConfig.Aliases {
+		aliases = append(aliases, fmt.Sprintf(":%s", endpointConfig.Aliases[i]))
 	}
+	return aliases
 }

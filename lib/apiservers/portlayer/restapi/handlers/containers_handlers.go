@@ -52,6 +52,8 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 	api.ContainersContainerRemoveHandler = containers.ContainerRemoveHandlerFunc(handler.RemoveContainerHandler)
 	api.ContainersGetContainerInfoHandler = containers.GetContainerInfoHandlerFunc(handler.GetContainerInfoHandler)
 	api.ContainersGetContainerListHandler = containers.GetContainerListHandlerFunc(handler.GetContainerListHandler)
+	api.ContainersContainerSignalHandler = containers.ContainerSignalHandlerFunc(handler.ContainerSignalHandler)
+	api.ContainersGetContainerLogsHandler = containers.GetContainerLogsHandlerFunc(handler.GetContainerLogsHandler)
 
 	handler.handlerCtx = handlerCtx
 }
@@ -105,9 +107,10 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 				},
 			},
 		},
-		Key:      pem.EncodeToMemory(&privateKeyBlock),
-		LayerID:  *params.CreateConfig.Image,
-		RepoName: *params.CreateConfig.RepoName,
+		Key:        pem.EncodeToMemory(&privateKeyBlock),
+		LayerID:    *params.CreateConfig.Image,
+		RepoName:   *params.CreateConfig.RepoName,
+		StopSignal: *params.CreateConfig.StopSignal,
 	}
 	log.Infof("CreateHandler Metadata: %#v", m)
 
@@ -223,7 +226,12 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 
 	err := h.Container.Remove(context.Background(), handler.handlerCtx.Session)
 	if err != nil {
-		return containers.NewContainerRemoveInternalServerError()
+		switch err := err.(type) {
+		case exec.RemovePowerError:
+			return containers.NewContainerRemoveConflict().WithPayload(&models.Error{Message: err.Error()})
+		default:
+			return containers.NewContainerRemoveInternalServerError()
+		}
 	}
 
 	return containers.NewContainerRemoveOK()
@@ -267,6 +275,20 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 		vmList = append(vmList, info)
 	}
 	return containers.NewGetContainerListOK().WithPayload(vmList)
+}
+
+func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.ContainerSignalParams) middleware.Responder {
+	defer trace.End(trace.Begin("Containers.ContainerSignal"))
+
+	return containers.NewContainerSignalOK()
+}
+
+func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers.GetContainerLogsParams) middleware.Responder {
+	defer trace.End(trace.Begin("Containers.GetContainerLogsHandler"))
+
+	err := &models.Error{Message: "GetContainerLogs: Not yet implemented"}
+
+	return containers.NewGetContainerLogsInternalServerError().WithPayload(err)
 }
 
 // utility function to convert from a Container type to the API Model ContainerInfo (which should prob be called ContainerDetail)

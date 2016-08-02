@@ -40,16 +40,13 @@ Remove a stopped container
     #Should Not Contain  ${output}  ${container}
 
 Remove a running container
-    ${status}=  Get State Of Github Issue  1311
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-11-Docker-RM.robot needs to be updated now that Issue #1311 has been resolved
-    Log  Issue \#1311 is blocking implementation  WARN
-    #${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create busybox /bin/top
-    #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container}
-    #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
-    #Should Be Equal As Integers  ${rc}  1
-    #Should Contain  ${output}  Error response from daemon: Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  Error response from daemon: You cannot remove a running container. Stop the container before attempting removal or use -f
     
 Force remove a running container
     ${status}=  Get State Of Github Issue  1312

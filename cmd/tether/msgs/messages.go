@@ -14,7 +14,13 @@
 
 package msgs
 
-import "golang.org/x/crypto/ssh"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+
+	"golang.org/x/crypto/ssh"
+)
 
 // All of the messages passed over the ssh channel/global mux are (or will be)
 // defined here.
@@ -91,6 +97,28 @@ func (s *SignalMsg) Unmarshal(payload []byte) error {
 
 func (s *SignalMsg) Signum() int {
 	return Signals[s.Signal]
+}
+
+func (s *SignalMsg) FromString(name string) error {
+	num, err := strconv.Atoi(name)
+	if err == nil {
+		for sig, val := range Signals {
+			if num == val {
+				s.Signal = sig
+				return nil
+			}
+		}
+	}
+
+	name = strings.TrimPrefix(strings.ToUpper(name), "SIG")
+
+	s.Signal = ssh.Signal(name)
+	_, ok := Signals[s.Signal]
+	if !ok {
+		return fmt.Errorf("unsupported signal name: %q", name)
+	}
+
+	return nil
 }
 
 // ContainersMsg

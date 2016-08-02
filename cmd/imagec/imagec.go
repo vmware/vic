@@ -42,10 +42,10 @@ import (
 	"github.com/docker/docker/reference"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
-	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/i18n"
 	"github.com/vmware/vic/pkg/version"
+	"github.com/vmware/vic/pkg/vsphere/sys"
 
 	"github.com/pkg/profile"
 )
@@ -655,7 +655,7 @@ func main() {
 
 	// Host is either the host's UUID (if run on vsphere) or the hostname of
 	// the system (if run standalone)
-	host, err := guest.UUID()
+	host, err := sys.UUID()
 	if host != "" {
 		log.Infof("Using UUID (%s) for imagestore name", host)
 	} else if options.standalone {

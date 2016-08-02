@@ -26,7 +26,7 @@ func TestPowerCommandHandler(t *testing.T) {
 	out := new(mockChannelOut)
 
 	service := NewService(in, out)
-	power := RegisterPowerCommandHandler(service)
+	power := service.PowerCommand
 
 	// cover nil Handler and out.Receive paths
 	_, _ = power.Halt.Dispatch(nil)

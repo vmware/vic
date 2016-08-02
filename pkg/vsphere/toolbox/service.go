@@ -54,6 +54,9 @@ type Service struct {
 	wg       *sync.WaitGroup
 	delay    time.Duration
 
+	VixCommand   *VixRelayedCommandHandler
+	PowerCommand *PowerCommandHandler
+
 	PrimaryIP func() string
 }
 
@@ -74,6 +77,9 @@ func NewService(rpcIn Channel, rpcOut Channel) *Service {
 	s.RegisterHandler("ping", s.Ping)
 	s.RegisterHandler("Set_Option", s.SetOption)
 	s.RegisterHandler("Capabilities_Register", s.CapabilitiesRegister)
+
+	s.VixCommand = registerVixRelayedCommandHandler(s)
+	s.PowerCommand = registerPowerCommandHandler(s)
 
 	return s
 }

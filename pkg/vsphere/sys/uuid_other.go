@@ -12,24 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package container
+// +build !linux
 
-import (
-	containertypes "github.com/docker/engine-api/types/container"
-)
+package sys
 
-// VicContainer is VIC's abridged version of Docker's container object.
-type VicContainer struct {
-	Name        string
-	ImageID     string
-	ContainerID string
-	Config      *containertypes.Config //Working copy of config (with overrides from container create)
-	HostConfig  *containertypes.HostConfig
-}
+import "fmt"
 
-// NewVicContainer returns a reference to a new VicContainer
-func NewVicContainer() *VicContainer {
-	return &VicContainer{
-		Config: &containertypes.Config{},
-	}
+// UUID gets the BIOS UUID via the sys interface.  This UUID is known by vphsere
+func UUID() (string, error) {
+	return "", fmt.Errorf("not implemented")
 }

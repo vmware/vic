@@ -42,6 +42,20 @@ func TestSignal(t *testing.T) {
 	out.Unmarshal(tmp)
 
 	assert.Equal(t, s, out)
+
+	for _, name := range []string{"SIGQUIT", "QUIT", "quit", "3"} {
+		err := out.FromString(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for _, name := range []string{"SIGNOPE", "nope", "0", "-1"} {
+		err := out.FromString(name)
+		if err == nil {
+			t.Errorf("expected error parsing %q", name)
+		}
+	}
 }
 
 func TestContainers(t *testing.T) {

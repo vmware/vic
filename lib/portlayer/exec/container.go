@@ -226,17 +226,26 @@ func (c *Container) stop(ctx context.Context) error {
 		return fmt.Errorf("vm not set")
 	}
 
-	//TODO: make the shutdown much cleaner, right now we just pull the plug on the vm.(may need corresponding work in tether.)
-
-	// Power off
-	_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return c.vm.PowerOff(ctx)
-	})
+	err := c.vm.ShutdownGuest(ctx)
 	if err != nil {
+		log.Warnf("ShutdownGuest %s failed: %s", c.ExecConfig.ID, err)
+		// Fallback to PowerOff in the event that tools may not be running
+		_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+			return c.vm.PowerOff(ctx)
+		})
 		return err
 	}
 
-	return nil
+	// ShutdownGuest does not wait for PowerOff state, so we need to do that ourselves
+	return c.vm.WaitForPowerState(ctx, types.VirtualMachinePowerStatePoweredOff)
+}
+
+type RemovePowerError struct {
+	err error
+}
+
+func (r RemovePowerError) Error() string {
+	return r.err.Error()
 }
 
 func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
@@ -257,6 +266,16 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	// FIXME: was expecting to find a utility function to convert to/from datastore/url given
 	// how widely it's used but couldn't - will ask around.
 	dsPath := fmt.Sprintf("[%s] %s", url.Host, url.Path)
+
+	state, err := c.vm.PowerState(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to get vm power status %q: %s", c.vm.Reference(), err)
+	}
+
+	// don't remove the containerVM if it is powered on
+	if state == types.VirtualMachinePowerStatePoweredOn {
+		return RemovePowerError{fmt.Errorf("Container is powered on")}
+	}
 
 	//removes the vm from vsphere, but detaches the disks first
 	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {

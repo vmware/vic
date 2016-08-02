@@ -50,7 +50,7 @@ type PowerCommandHandler struct {
 	Suspend PowerCommand
 }
 
-func RegisterPowerCommandHandler(service *Service) *PowerCommandHandler {
+func registerPowerCommandHandler(service *Service) *PowerCommandHandler {
 	handler := new(PowerCommandHandler)
 
 	handlers := map[string]struct {

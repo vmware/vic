@@ -16,13 +16,12 @@ package guest
 
 import (
 	"fmt"
-	"io/ioutil"
-	"strings"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/sys"
 	"golang.org/x/net/context"
 )
 
@@ -32,9 +31,6 @@ const (
 	scsiBusNumber = 0
 	scsiKey       = 100
 	ideKey        = 200
-
-	UUIDPath   = "/sys/class/dmi/id/product_serial"
-	UUIDPrefix = "VMware-"
 )
 
 // LinuxGuestType type
@@ -107,32 +103,9 @@ func (l *LinuxGuestType) Controller() *types.BaseVirtualController {
 	return &l.controller
 }
 
-// UUID gets the BIOS UUID via the sys interface.  This UUID is known by vphsere
-func UUID() (string, error) {
-	id, err := ioutil.ReadFile(UUIDPath)
-	if err != nil {
-		return "", fmt.Errorf("error retrieving vm uuid: %s", err)
-	}
-
-	uuidstr := string(id[:])
-
-	// check the uuid starts with "VMware-"
-	if !strings.HasPrefix(uuidstr, UUIDPrefix) {
-		return "", fmt.Errorf("cannot find this VM's UUID")
-	}
-
-	// Strip the prefix, white spaces, and the trailing '\n'
-	uuidstr = strings.Replace(uuidstr[len(UUIDPrefix):(len(uuidstr)-1)], " ", "", -1)
-
-	// need to add dashes, e.g. "564d395e-d807-e18a-cb25-b79f65eb2b9f"
-	uuidstr = fmt.Sprintf("%s-%s-%s-%s", uuidstr[0:8], uuidstr[8:12], uuidstr[12:21], uuidstr[21:])
-
-	return uuidstr, nil
-}
-
 // GetSelf gets VirtualMachine reference for the VM this process is running on
 func GetSelf(ctx context.Context, s *session.Session) (*object.VirtualMachine, error) {
-	u, err := UUID()
+	u, err := sys.UUID()
 	if err != nil {
 		return nil, err
 	}

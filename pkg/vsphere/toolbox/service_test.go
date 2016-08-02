@@ -288,11 +288,9 @@ func TestServiceRunESX(t *testing.T) {
 		}
 	}
 
-	vix := RegisterVixRelayedCommandHandler(service)
-
 	if *testPID != 0 {
 		wg.Add(1)
-		vix.ProcessStartCommand = func(r *VixMsgStartProgramRequest) (int, error) {
+		service.VixCommand.ProcessStartCommand = func(r *VixMsgStartProgramRequest) (int, error) {
 			defer wg.Done()
 
 			if r.ProgramPath != "/bin/date" {
