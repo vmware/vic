@@ -86,8 +86,12 @@ Run VIC Machine Command
     [Return]  ${output}
 
 Cleanup VIC Appliance On Test Server
-    [Tags]  secret
     Gather Logs From Test Server
+    ${output}=  Run VIC Machine Delete Command
+    [Return]  ${output}
+    
+Run VIC Machine Delete Command
+    [Tags]  secret
     ${output}=  Run  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
     Run Keyword And Ignore Error  Should Contain  ${output}  Completed successfully
     ${output}=  Run  rm -f ${vch-name}-*.pem
