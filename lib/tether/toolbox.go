@@ -17,6 +17,7 @@
 package tether
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"syscall"
@@ -70,6 +71,10 @@ func (t *Toolbox) Reload(config *ExecutorConfig) error {
 func (t *Toolbox) InContainer() *Toolbox {
 	t.PowerCommand.Halt.Handler = t.halt
 
+	vix := t.Service.VixCommand
+	vix.Authenticate = t.containerAuthenticate
+	vix.ProcessStartCommand = t.containerStartCommand
+
 	return t
 }
 
@@ -95,6 +100,28 @@ func (t *Toolbox) kill(name string) error {
 	}
 
 	return nil
+}
+
+func (t *Toolbox) containerAuthenticate(_ toolbox.VixCommandRequestHeader, data []byte) error {
+	var c toolbox.VixUserCredentialNamePassword
+	if err := c.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	// no authentication yet, just using container ID as a sanity check for now
+	if c.Name != t.config.ID {
+		return errors.New("failed to verify container ID")
+	}
+
+	return nil
+}
+
+func (t *Toolbox) containerStartCommand(r *toolbox.VixMsgStartProgramRequest) (int, error) {
+	switch r.ProgramPath {
+	case "kill":
+		return -1, t.kill(r.Arguments)
+	default:
+		return -1, fmt.Errorf("unknown command %q", r.ProgramPath)
+	}
 }
 
 func (t *Toolbox) halt() error {

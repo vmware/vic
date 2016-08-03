@@ -842,6 +842,14 @@ paths:
           format: int64
           required: true
       responses:
+        '500':
+          description: "Failed to signal container"
+          schema:
+            $ref: "#/definitions/Error"
+        '404':
+          description: "Container not found"
+          schema:
+            $ref: "#/definitions/Error"
         '200':
           description: "OK"
   /containers/{id}/logs:
