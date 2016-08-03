@@ -32,12 +32,10 @@ import (
 )
 
 type server struct {
-	auth      Authenticator
-	l         net.Listener
-	addr      string
-	mux       *http.ServeMux
-	links     []string
-	linkNames []string
+	auth Authenticator
+	l    net.Listener
+	addr string
+	mux  *http.ServeMux
 }
 
 type format int
@@ -84,9 +82,6 @@ func (s *server) listenPort() int {
 // handleFunc does preparatory work and then calls the HandleFunc method owned by the HTTP multiplexer
 func (s *server) handleFunc(link string, handler func(http.ResponseWriter, *http.Request)) {
 	defer trace.End(trace.Begin(""))
-
-	s.links = append(s.links, link)
-	s.linkNames = append(s.linkNames, "Full VCH Bundle", "Virtual Container Host & Container", "Docker Peronality", "live log", "Docker Image Resolution", "live log", "Low-level VCH Series", "live log", "VCH Boot", "live log", "VCH Admin Server", "live log")
 
 	if s.auth != nil {
 		authHandler := func(w http.ResponseWriter, r *http.Request) {

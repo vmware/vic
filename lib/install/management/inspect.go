@@ -64,7 +64,7 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 	//	log.Infof("SSH to appliance (default=root:password)")
 	//	log.Infof("ssh root@%s", d.HostIP)
 	log.Infof("")
-	log.Infof("Log server:")
+	log.Infof("vic-admin portal:")
 	log.Infof("%s://%s:2378", d.VICAdminProto, d.HostIP)
 	log.Infof("")
 	tls := ""

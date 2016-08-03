@@ -35,6 +35,8 @@ type Validator struct {
 	Version        string
 	FirewallStatus template.HTML
 	FirewallIssues template.HTML
+	HostIP         string
+	DockerPort     string
 }
 
 const (
@@ -49,9 +51,20 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	v.Version = vch.Version
 	log.Info(fmt.Sprintf("Setting version to %s", v.Version))
 
+	//VCH Name
 	v.Hostname, _ = os.Hostname()
 	v.Hostname = strings.Title(v.Hostname)
 	log.Info(fmt.Sprintf("Setting hostname to %s", v.Hostname))
+
+
+	//Retrieve Host IP Information and Set socker Endpoint
+	v.HostIP = vch.ExecutorConfig.Networks["client"].Assigned.IP.String()
+
+	if !vch.HostCertificate.IsNil() {
+		v.DockerPort = "2376"
+	} else {
+		v.DockerPort = "2375"
+	}
 
 	v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
 	v2.CheckFirewall(ctx)
