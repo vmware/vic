@@ -115,6 +115,7 @@ func (s *server) serve() error {
 
 	s.mux.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("css/"))))
 	s.mux.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir("images/"))))
+	s.mux.Handle("/fonts/", http.StripPrefix("/fonts/", http.FileServer(http.Dir("fonts/"))))
 
 	for _, path := range logFiles() {
 		name := filepath.Base(path)
@@ -241,10 +242,14 @@ func (s *server) tailFiles(res http.ResponseWriter, req *http.Request, names []s
 	}
 
 	done := make(chan bool)
-	go tailFile(fw, names[0], &done)
+	for _, file := range names {
+		go tailFile(fw, file, &done)
+	}
 
 	<-cc
-	done <- true
+	for _, _ = range names {
+		done <- true
+	}
 }
 
 func (s *server) index(res http.ResponseWriter, req *http.Request) {

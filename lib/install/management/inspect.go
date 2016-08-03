@@ -19,6 +19,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/docker/docker/opts"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/errors"
@@ -49,10 +50,10 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 	log.Debug("IP address for client interface: %s", d.HostIP)
 	if !conf.HostCertificate.IsNil() {
 		d.VICAdminProto = "https"
-		d.DockerPort = "2376"
+		d.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
 	} else {
 		d.VICAdminProto = "http"
-		d.DockerPort = "2375"
+		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
 	}
 	d.ShowVCH(conf, "", "")
 	return nil
