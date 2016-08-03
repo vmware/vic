@@ -95,9 +95,6 @@ type SessionConfig struct {
 	Outwriter dio.DynamicMultiWriter
 	Errwriter dio.DynamicMultiWriter
 	Reader    dio.DynamicMultiReader
-
-	// This channel is closed on session exit
-	exit chan struct{}
 }
 
 type NetworkEndpoint struct {
