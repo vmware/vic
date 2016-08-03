@@ -52,7 +52,7 @@ func (v *Validator) CheckFirewall(ctx context.Context) []error {
 
 	if hosts, err = v.Session.Datastore.AttachedClusterHosts(ctx, v.Session.Cluster); err != nil {
 		log.Errorf("Unable to get the list of hosts attached to given storage: %s", err)
-		return append(issues, err)
+		return append(fwissues, err)
 	}
 
 	var misconfiguredEnabled []string
@@ -62,14 +62,14 @@ func (v *Validator) CheckFirewall(ctx context.Context) []error {
 	for _, host := range hosts {
 		fs, err := host.ConfigManager().FirewallSystem(ctx)
 		if err != nil {
-			issues = append(issues, err)
+			fwissues = append(fwissues, err)
 			break
 		}
 
 		disabled := false
 		esxfw, err := esxcli.GetFirewallInfo(host)
 		if err != nil {
-			issues = append(issues, err)
+			fwissues = append(fwissues, err)
 			break
 		}
 		if !esxfw.Enabled {
@@ -81,7 +81,7 @@ func (v *Validator) CheckFirewall(ctx context.Context) []error {
 
 		info, err := fs.Info(ctx)
 		if err != nil {
-			issues = append(issues, err)
+			fwissues = append(fwissues, err)
 			break
 		}
 
