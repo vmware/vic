@@ -110,8 +110,7 @@ func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]s
 	}
 
 	if model.Name == "" {
-		volumeUUID, _ := uuid.NewUUID()
-		model.Name = volumeUUID.String()
+		model.Name = uuid.New().String()
 	}
 
 	res, err := client.Storage.CreateVolume(storage.NewCreateVolumeParams().WithVolumeRequest(model))
