@@ -215,7 +215,7 @@ func validateDriverArgs(args map[string]string, model *models.VolumeRequest) err
 
 	capacity, err := validateCapacityArg(capstr)
 	if err != nil {
-		return derr.NewBadRequestError(err)
+		return err
 	}
 	model.Capacity = int64(capacity)
 
