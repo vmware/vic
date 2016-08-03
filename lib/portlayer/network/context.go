@@ -982,17 +982,20 @@ func (c *Context) DeleteScope(name string) error {
 		return fmt.Errorf("scope has bound endpoints")
 	}
 
-	// remove gateway ip from bridge interface
-	addr := net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}
-	if err = Config.BridgeLink.AddrDel(addr); err != nil {
-		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EADDRNOTAVAIL {
-			log.Warnf("could not remove gateway address %s for scope %s on link %s: %s", addr, s.Name(), Config.BridgeLink.Attrs().Name, err)
-		}
+	if s.Type() == BridgeScopeType {
 
-		err = nil
+		// remove gateway ip from bridge interface
+		addr := net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}
+		if err := Config.BridgeLink.AddrDel(addr); err != nil {
+			if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EADDRNOTAVAIL {
+				log.Warnf("could not remove gateway address %s for scope %s on link %s: %s", addr, s.Name(), Config.BridgeLink.Attrs().Name, err)
+			}
+
+			err = nil
+		}
 	}
 
-	delete(c.scopes, name)
+	delete(c.scopes, s.Name())
 	return nil
 }
 

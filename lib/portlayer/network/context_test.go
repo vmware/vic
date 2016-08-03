@@ -993,6 +993,16 @@ func TestDeleteScope(t *testing.T) {
 	ctx.AddContainer(h, options)
 	ctx.BindContainer(h)
 
+	baz, err := ctx.NewScope(BridgeScopeType, "bazScope", nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("ctx.NewScope(%s, \"bazScope\", nil, nil, nil, nil) => (nil, %#v), want (baz, nil)", BridgeScopeType, err)
+	}
+
+	qux, err := ctx.NewScope(BridgeScopeType, "quxScope", nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("ctx.NewScope(%s, \"quxScope\", nil, nil, nil, nil) => (nil, %#v), want (qux, nil)", BridgeScopeType, err)
+	}
+
 	var tests = []struct {
 		name string
 		err  error
@@ -1000,7 +1010,12 @@ func TestDeleteScope(t *testing.T) {
 		{"", ResourceNotFoundError{}},
 		{ctx.DefaultScope().Name(), fmt.Errorf("cannot delete builtin scopes")},
 		{bar.Name(), fmt.Errorf("cannot delete scope with bound endpoints")},
+		// full name
 		{foo.Name(), nil},
+		// full id
+		{baz.ID(), nil},
+		// partial id
+		{qux.ID()[:6], nil},
 	}
 
 	for _, te := range tests {
