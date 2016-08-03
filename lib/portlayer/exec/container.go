@@ -489,7 +489,9 @@ func convertInfraContainers(vms []mo.VirtualMachine, all *bool) []*Container {
 				container.Status = "Stopped"
 			}
 		}
-		container.VMUnsharedDisk = vms[i].Summary.Storage.Unshared
+		if vms[i].Summary.Storage != nil {
+			container.VMUnsharedDisk = vms[i].Summary.Storage.Unshared
+		}
 
 		containerVMs = append(containerVMs, container)
 
