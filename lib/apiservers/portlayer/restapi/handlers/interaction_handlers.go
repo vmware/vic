@@ -44,7 +44,9 @@ var (
 	interactionSession = &session.Session{}
 )
 
-const interactionTimeout time.Duration = 30 * time.Second
+const (
+	interactionTimeout time.Duration = 60 * time.Second
+)
 
 func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *HandlerContext) {
 	var err error
