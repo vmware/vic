@@ -96,7 +96,7 @@ func (t *Mocker) Reload(config *tether.ExecutorConfig) error {
 	return nil
 }
 
-func (t *Mocker) Setup() error {
+func (t *Mocker) Setup(tether.Config) error {
 	return nil
 }
 
@@ -109,7 +109,7 @@ func (t *Mocker) Log() (io.Writer, error) {
 }
 
 func (t *Mocker) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, error) {
-	return dio.MultiWriter(&t.SessionLogBuffer, os.Stdout), nil
+	return dio.MultiWriter(&t.SessionLogBuffer), nil
 }
 
 func (t *Mocker) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) func() {
@@ -134,9 +134,9 @@ func (t *Mocker) SetHostname(hostname string, aliases ...string) error {
 }
 
 // Apply takes the network endpoint configuration and applies it to the system
-func (t *Mocker) Apply(endpoint *executor.NetworkEndpoint) error {
+func (t *Mocker) Apply(endpoint *tether.NetworkEndpoint) error {
 	defer trace.End(trace.Begin("mocking endpoint configuration for " + endpoint.Network.Name))
-	t.IPs[endpoint.Network.Name] = endpoint.Assigned
+	t.IPs[endpoint.Network.Name] = endpoint.Assigned.IP
 
 	return nil
 }
@@ -172,9 +172,9 @@ func TestMain(m *testing.M) {
 }
 
 func StartTether(t *testing.T, cfg *executor.ExecutorConfig) (tether.Tether, extraconfig.DataSource) {
-	store := map[string]string{}
-	sink := extraconfig.MapSink(store)
-	src := extraconfig.MapSource(store)
+	store := extraconfig.New()
+	sink := store.Put
+	src := store.Get
 	extraconfig.Encode(sink, cfg)
 	log.Debugf("Test configuration: %#v", sink)
 
@@ -193,9 +193,9 @@ func StartTether(t *testing.T, cfg *executor.ExecutorConfig) (tether.Tether, ext
 }
 
 func RunTether(t *testing.T, cfg *executor.ExecutorConfig) (tether.Tether, extraconfig.DataSource, error) {
-	store := map[string]string{}
-	sink := extraconfig.MapSink(store)
-	src := extraconfig.MapSource(store)
+	store := extraconfig.New()
+	sink := store.Put
+	src := store.Get
 	extraconfig.Encode(sink, cfg)
 	log.Debugf("Test configuration: %#v", sink)
 

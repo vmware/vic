@@ -63,6 +63,7 @@ func TestToExtraConfig(t *testing.T) {
 					Gateway:     net.IPNet{IP: gateway, Mask: gmask.Mask},
 					Nameservers: []net.IP{},
 					Pools:       []ip.Range{},
+					Aliases:     []string{},
 				},
 			},
 		},
@@ -76,15 +77,20 @@ func TestToExtraConfig(t *testing.T) {
 	var decoded ExecutorConfig
 	extraconfig.Decode(extraconfig.MapSource(encoded), &decoded)
 
-	// the networks should be identical
-	assert.Equal(t, executor.Networks["eth0"], decoded.Networks["eth0"])
-
 	// the source and destination structs are different - we're doing a sparse comparison
-	expected := executor.Sessions["deadbeef"]
-	actual := *decoded.Sessions["deadbeef"]
+	expectedNet := exec.Networks["eth0"]
+	actualNet := *decoded.Networks["eth0"]
 
-	assert.Equal(t, expected.Cmd.Path, actual.Cmd.Path)
-	assert.Equal(t, expected.Cmd.Args, actual.Cmd.Args)
-	assert.Equal(t, expected.Cmd.Dir, actual.Cmd.Dir)
-	assert.Equal(t, expected.Cmd.Env, actual.Cmd.Env)
+	assert.Equal(t, expectedNet.Common, actualNet.Common)
+	assert.Equal(t, expectedNet.Static, actualNet.Static)
+	assert.Equal(t, expectedNet.Assigned, actualNet.Assigned)
+	assert.Equal(t, expectedNet.Network, actualNet.Network)
+
+	expectedSession := exec.Sessions["deadbeef"]
+	actualSession := *decoded.Sessions["deadbeef"]
+
+	assert.Equal(t, expectedSession.Cmd.Path, actualSession.Cmd.Path)
+	assert.Equal(t, expectedSession.Cmd.Args, actualSession.Cmd.Args)
+	assert.Equal(t, expectedSession.Cmd.Dir, actualSession.Cmd.Dir)
+	assert.Equal(t, expectedSession.Cmd.Env, actualSession.Cmd.Env)
 }

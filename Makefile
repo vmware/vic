@@ -207,14 +207,8 @@ vendor: $(GVT)
 	@echo restoring vendor
 	$(GVT) restore
 
-TEST_DIRS=github.com/vmware/vic/cmd/tether
-TEST_DIRS+=github.com/vmware/vic/cmd/imagec
-TEST_DIRS+=github.com/vmware/vic/cmd/vicadmin
-TEST_DIRS+=github.com/vmware/vic/cmd/rpctool
-TEST_DIRS+=github.com/vmware/vic/cmd/vic-machine
-TEST_DIRS+=github.com/vmware/vic/lib/apiservers
-TEST_DIRS+=github.com/vmware/vic/lib/install
-TEST_DIRS+=github.com/vmware/vic/lib/portlayer
+TEST_DIRS=github.com/vmware/vic/cmd
+TEST_DIRS+=github.com/vmware/vic/lib/
 TEST_DIRS+=github.com/vmware/vic/pkg
 
 # since drone cannot tell us how log it took
@@ -225,7 +219,7 @@ sincemark:
 	@echo seconds passed since we start
 	@stat -c %Y /started | echo `expr $$(date +%s) - $$(cat)`
 
-test:
+test: portlayerapi
 	@echo Running unit tests
 	# test everything but vendor
 ifdef DRONE

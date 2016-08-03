@@ -36,8 +36,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
-var tthr Tether
-var Mocked Mocker
+var Tthr Tether
 
 type Mocker struct {
 	Base BaseOperations
@@ -97,12 +96,12 @@ func (t *Mocker) Reload(config *ExecutorConfig) error {
 	return nil
 }
 
-func (t *Mocker) Setup(c Config) error {
-	return t.Base.Setup(c)
-}
-
 func (t *Mocker) Cleanup() error {
 	return nil
+}
+
+func (t *Mocker) Setup(c Config) error {
+	return t.Base.Setup(c)
 }
 
 func (t *Mocker) Log() (io.Writer, error) {
@@ -110,14 +109,14 @@ func (t *Mocker) Log() (io.Writer, error) {
 }
 
 func (t *Mocker) SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, error) {
-	return dio.MultiWriter(&t.SessionLogBuffer, os.Stdout), nil
+	return dio.MultiWriter(&t.SessionLogBuffer), nil
 }
 
 func (t *Mocker) HandleSessionExit(config *ExecutorConfig, session *SessionConfig) func() {
 	// check for executor behaviour
 	return func() {
 		if session.ID == config.ID {
-			tthr.Stop()
+			Tthr.Stop()
 		}
 	}
 }
@@ -172,41 +171,41 @@ func TestMain(m *testing.M) {
 	os.Exit(retCode)
 }
 
-func StartTether(t *testing.T, cfg *executor.ExecutorConfig) (Tether, extraconfig.DataSource) {
-	store := map[string]string{}
-	sink := extraconfig.MapSink(store)
-	src := extraconfig.MapSource(store)
+func StartTether(t *testing.T, cfg *executor.ExecutorConfig, mocker *Mocker) (Tether, extraconfig.DataSource) {
+	store := extraconfig.New()
+	sink := store.Put
+	src := store.Get
 	extraconfig.Encode(sink, cfg)
 	log.Debugf("Test configuration: %#v", sink)
 
-	tthr = New(src, sink, &Mocked)
-	tthr.Register("mocker", &Mocked)
+	Tthr = New(src, sink, mocker)
+	Tthr.Register("mocker", mocker)
 
 	// run the tether to service the attach
 	go func() {
-		erR := tthr.Start()
+		erR := Tthr.Start()
 		if erR != nil {
 			t.Error(erR)
 		}
 	}()
 
-	return tthr, src
+	return Tthr, src
 }
 
-func RunTether(t *testing.T, cfg *executor.ExecutorConfig) (Tether, extraconfig.DataSource, error) {
-	store := map[string]string{}
-	sink := extraconfig.MapSink(store)
-	src := extraconfig.MapSource(store)
+func RunTether(t *testing.T, cfg *executor.ExecutorConfig, mocker *Mocker) (Tether, extraconfig.DataSource, error) {
+	store := extraconfig.New()
+	sink := store.Put
+	src := store.Get
 	extraconfig.Encode(sink, cfg)
 	log.Debugf("Test configuration: %#v", sink)
 
-	tthr = New(src, sink, &Mocked)
-	tthr.Register("Mocker", &Mocked)
+	Tthr = New(src, sink, mocker)
+	Tthr.Register("Mocker", mocker)
 
 	// run the tether to service the attach
-	erR := tthr.Start()
+	erR := Tthr.Start()
 
-	return tthr, src, erR
+	return Tthr, src, erR
 }
 
 func OptionValueArrayToString(options []types.BaseOptionValue) string {
@@ -221,26 +220,28 @@ func OptionValueArrayToString(options []types.BaseOptionValue) string {
 	return fmt.Sprintf("%#v", kv)
 }
 
-func testSetup(t *testing.T) {
+func testSetup(t *testing.T) (string, *Mocker) {
 	pc, _, _, _ := runtime.Caller(1)
 	name := runtime.FuncForPC(pc).Name()
 
 	log.Infof("Started test setup for %s", name)
 
 	// use the mock ops - fresh one each time as tests might apply different mocked calls
-	Mocked = Mocker{
+	mocker := Mocker{
 		Started:    make(chan bool, 0),
 		Cleaned:    make(chan bool, 0),
 		Interfaces: make(map[string]netlink.Link, 0),
 	}
+
+	return name, &mocker
 }
 
-func testTeardown(t *testing.T) {
+func testTeardown(t *testing.T, mocker *Mocker) {
 	// cleanup
 	// os.RemoveAll(pathPrefix)
 	log.SetOutput(os.Stdout)
 
-	<-Mocked.Cleaned
+	<-mocker.Cleaned
 
 	pc, _, _, _ := runtime.Caller(1)
 	name := runtime.FuncForPC(pc).Name()

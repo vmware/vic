@@ -22,8 +22,8 @@ import (
 )
 
 func TestSetHostname(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
 		Common: executor.Common{
@@ -32,25 +32,25 @@ func TestSetHostname(t *testing.T) {
 		},
 	}
 
-	tthr, _ := StartTether(t, &cfg)
+	tthr, _ := StartTether(t, &cfg, mocker)
 
-	<-Mocked.Started
+	<-mocker.Started
 
 	// prevent indefinite wait in tether - normally session exit would trigger this
 	tthr.Stop()
 
 	// wait for tether to exit
-	<-Mocked.Cleaned
+	<-mocker.Cleaned
 
 	expected := stringid.TruncateID(cfg.ID)
-	if Mocked.Hostname != expected {
-		t.Errorf("expected: %s, actual: %s", expected, Mocked.Hostname)
+	if mocker.Hostname != expected {
+		t.Errorf("expected: %s, actual: %s", expected, mocker.Hostname)
 	}
 }
 
 func TestNoNetwork(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
 		Common: executor.Common{
@@ -59,13 +59,13 @@ func TestNoNetwork(t *testing.T) {
 		},
 	}
 
-	tthr, _ := StartTether(t, &cfg)
+	tthr, _ := StartTether(t, &cfg, mocker)
 
-	<-Mocked.Started
+	<-mocker.Started
 
 	// prevent indefinite wait in tether - normally session exit would trigger this
 	tthr.Stop()
 
 	// wait for tether to exit
-	<-Mocked.Cleaned
+	<-mocker.Cleaned
 }

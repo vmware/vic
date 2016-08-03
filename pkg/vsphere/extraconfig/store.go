@@ -12,26 +12,46 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package guest
+package extraconfig
 
 import (
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-
-	"github.com/vmware/vic/pkg/vsphere/test"
-	"golang.org/x/net/context"
+	"os"
+	"sync"
 )
 
-func TestNewLinuxGuest(t *testing.T) {
+// Store provides combined DataSource and DataSink.
+type Store interface {
+	Get(string) (string, error)
+	Put(string, string) error
+}
 
-	ctx := context.Background()
+type MapStore struct {
+	mutex sync.Mutex
 
-	session := test.Session(ctx, t)
-	defer session.Logout(ctx)
+	store map[string]string
+}
 
-	specconfig := test.SpecConfig(session, "NewLinuxGuestTest")
+func New() *MapStore {
+	return &MapStore{
+		store: make(map[string]string),
+	}
+}
 
-	root, _ := NewLinuxGuest(ctx, session, specconfig)
-	assert.Equal(t, "other3xLinux64Guest", root.GuestID())
+func (t *MapStore) Get(key string) (string, error) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	val, ok := t.store[key]
+	if !ok {
+		return "", os.ErrNotExist
+	}
+	return val, nil
+}
+
+func (t *MapStore) Put(key, value string) error {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	t.store[key] = value
+	return nil
 }

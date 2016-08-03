@@ -71,10 +71,10 @@ func createFakeDevices() error {
 	return nil
 }
 
-func testSetup(t *testing.T) {
+func testSetup(t *testing.T) (string, *Mocker) {
 	var err error
 
-	name := tetherTestSetup(t)
+	name, mocker := tetherTestSetup(t)
 
 	pathPrefix, err = ioutil.TempDir("", path.Base(name))
 	if err != nil {
@@ -101,8 +101,10 @@ func testSetup(t *testing.T) {
 		updated: make(chan bool, 10),
 	}
 	server = testServer
+
+	return name, mocker
 }
 
-func testTeardown(t *testing.T) {
-	tetherTestTeardown(t)
+func testTeardown(t *testing.T, mocker *Mocker) {
+	tetherTestTeardown(t, mocker)
 }

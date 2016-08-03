@@ -12,26 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build !linux
+
 package guest
 
 import (
-	"testing"
+	"fmt"
+	"runtime"
 
-	"github.com/stretchr/testify/assert"
-
-	"github.com/vmware/vic/pkg/vsphere/test"
+	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/pkg/vsphere/session"
 	"golang.org/x/net/context"
 )
 
-func TestNewLinuxGuest(t *testing.T) {
+// UUID gets the BIOS UUID via the sys interface.  This UUID is known by vphsere
+func UUID() (string, error) {
+	return "", fmt.Errorf("unimplemented on %s", runtime.GOOS)
+}
 
-	ctx := context.Background()
-
-	session := test.Session(ctx, t)
-	defer session.Logout(ctx)
-
-	specconfig := test.SpecConfig(session, "NewLinuxGuestTest")
-
-	root, _ := NewLinuxGuest(ctx, session, specconfig)
-	assert.Equal(t, "other3xLinux64Guest", root.GuestID())
+// GetSelf gets VirtualMachine reference for the VM this process is running on
+func GetSelf(ctx context.Context, s *session.Session) (*object.VirtualMachine, error) {
+	return nil, fmt.Errorf("unimplemented on %s", runtime.GOOS)
 }

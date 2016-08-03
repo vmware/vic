@@ -30,23 +30,23 @@ import (
 
 // Utility method to add an interface to Mocked
 // This assigns the interface name and returns the "slot" as a string
-func AddInterface(name string) string {
-	Mocked.maxSlot++
+func AddInterface(name string, mocker *Mocker) string {
+	mocker.maxSlot++
 
-	Mocked.Interfaces[name] = &Interface{
+	mocker.Interfaces[name] = &Interface{
 		LinkAttrs: netlink.LinkAttrs{
 			Name:  name,
-			Index: Mocked.maxSlot,
+			Index: mocker.maxSlot,
 		},
 		Up: true,
 	}
 
-	return strconv.Itoa(Mocked.maxSlot)
+	return strconv.Itoa(mocker.maxSlot)
 }
 
 func TestSetIpAddress(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
 
 	hFile, err := ioutil.TempFile("", "vic_set_ip_test_hosts")
 	if err != nil {
@@ -66,8 +66,8 @@ func TestSetIpAddress(t *testing.T) {
 	hostsFile = hFile.Name()
 	resolvFile = rFile.Name()
 
-	bridge := AddInterface("eth1")
-	external := AddInterface("eth2")
+	bridge := AddInterface("eth1", mocker)
+	external := AddInterface("eth2", mocker)
 
 	secondIP, _ := netlink.ParseIPNet("172.16.0.10/24")
 	gwIP, _ := netlink.ParseIPNet("172.16.0.1/24")
@@ -126,26 +126,26 @@ func TestSetIpAddress(t *testing.T) {
 		},
 	}
 
-	tthr, _ := StartTether(t, &cfg)
+	tthr, _ := StartTether(t, &cfg, mocker)
 
 	defer func() {
 		// prevent indefinite wait in tether - normally session exit would trigger this
 		tthr.Stop()
 
 		// wait for tether to exit
-		<-Mocked.Cleaned
+		<-mocker.Cleaned
 	}()
 
-	<-Mocked.Started
+	<-mocker.Started
 
-	assert.NotNil(t, Mocked.Interfaces["bridge"], "Expected bridge network if endpoints applied correctly")
+	assert.NotNil(t, mocker.Interfaces["bridge"], "Expected bridge network if endpoints applied correctly")
 	// check addresses
-	bIface, _ := Mocked.Interfaces["bridge"].(*Interface)
+	bIface, _ := mocker.Interfaces["bridge"].(*Interface)
 	assert.NotNil(t, bIface)
 
 	assert.Equal(t, 2, len(bIface.Addrs), "Expected two addresses on bridge interface")
 
-	eIface, _ := Mocked.Interfaces["external"].(*Interface)
+	eIface, _ := mocker.Interfaces["external"].(*Interface)
 	assert.NotNil(t, eIface)
 
 	assert.Equal(t, 1, len(eIface.Addrs), "Expected one address on external interface")

@@ -16,6 +16,8 @@ package vm
 
 import (
 	"fmt"
+	"math"
+	"math/rand"
 	"os"
 	"testing"
 	"time"
@@ -34,9 +36,9 @@ import (
 	"golang.org/x/net/context"
 )
 
-func CreateVM(ctx context.Context, session *session.Session, host *object.HostSystem) (*types.ManagedObjectReference, error) {
+func CreateVM(ctx context.Context, session *session.Session, host *object.HostSystem, name string) (*types.ManagedObjectReference, error) {
 	// Create the spec config
-	specconfig := test.SpecConfig(session)
+	specconfig := test.SpecConfig(session, name)
 
 	// Create a linux guest
 	linux, err := guest.NewLinuxGuest(ctx, session, specconfig)
@@ -77,7 +79,13 @@ func TestDeleteExceptDisk(t *testing.T) {
 
 	host := test.PickRandomHost(ctx, session, t)
 
-	moref, err := CreateVM(ctx, session, host)
+	uuid, err := sys.UUID()
+	if err != nil {
+		t.Fatalf("unable to get UUID for guest - used for VM name: %s", err)
+	}
+	name := fmt.Sprintf("%s-%d", uuid, rand.Intn(math.MaxInt32))
+
+	moref, err := CreateVM(ctx, session, host, name)
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
 	}
@@ -133,7 +141,14 @@ func TestVM(t *testing.T) {
 
 	host := test.PickRandomHost(ctx, session, t)
 
-	moref, err := CreateVM(ctx, session, host)
+	uuid, err := sys.UUID()
+	if err != nil {
+		t.Fatalf("unable to get UUID for guest - used for VM name: %s", err)
+		return
+	}
+	name := fmt.Sprintf("%s-%d", uuid, rand.Intn(math.MaxInt32))
+
+	moref, err := CreateVM(ctx, session, host, name)
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
 	}
@@ -149,18 +164,18 @@ func TestVM(t *testing.T) {
 	assert.Equal(t, types.VirtualMachinePowerStatePoweredOff, state)
 
 	// Check VM name
-	name, err := vm.Name(ctx)
+	rname, err := vm.Name(ctx)
 	if err != nil {
 		t.Errorf("Failed to load VM name: %s", err)
 	}
-	assert.Equal(t, "deadbeef", name)
+	assert.Equal(t, name, rname)
 
 	// Get VM UUID
-	uuid, err := vm.UUID(ctx)
+	ruuid, err := vm.UUID(ctx)
 	if err != nil {
 		t.Errorf("Failed to load VM UUID: %s", err)
 	}
-	t.Logf("Got UUID: %s", uuid)
+	t.Logf("Got UUID: %s", ruuid)
 
 	// Destroy the vm
 	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
@@ -182,7 +197,14 @@ func TestVMFailureWithTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Microsecond)
 	defer cancel()
 
-	_, err := CreateVM(ctx, session, host)
+	uuid, err := sys.UUID()
+	if err != nil {
+		t.Fatalf("unable to get UUID for guest - used for VM name: %s", err)
+		return
+	}
+	name := fmt.Sprintf("%s-%d", uuid, rand.Intn(math.MaxInt32))
+
+	_, err = CreateVM(ctx, session, host, name)
 	if err != nil && err != context.DeadlineExceeded {
 		t.Fatalf("ERROR: %s", err)
 	}
@@ -197,22 +219,24 @@ func TestVMAttributes(t *testing.T) {
 
 	host := test.PickRandomHost(ctx, session, t)
 
-	moref, err := CreateVM(ctx, session, host)
+	uuid, err := sys.UUID()
+	if err != nil {
+		t.Fatalf("unable to get UUID for guest - used for VM name: %s", err)
+		return
+	}
+	name := fmt.Sprintf("%s-%d", uuid, rand.Intn(math.MaxInt32))
+
+	moref, err := CreateVM(ctx, session, host, name)
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
 	}
 	// Wrap the result with our version of VirtualMachine
 	vm := NewVirtualMachine(ctx, session, *moref)
 
-	uuid, err := sys.UUID()
-	if err != nil {
-		t.Fatalf("unable to get UUID for guest - used for VM name: %s", err)
-	}
-
 	if folder, err := vm.FolderName(ctx); err != nil {
 		t.Fatalf("ERROR: %s", err)
 	} else {
-		assert.Equal(t, uuid, folder)
+		assert.Equal(t, name, folder)
 	}
 
 	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
