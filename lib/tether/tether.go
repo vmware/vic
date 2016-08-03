@@ -320,9 +320,6 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 	if f != nil {
 		f()
 	}
-
-	// notify guest shutdown waiter this process has gone away
-	close(session.exit)
 }
 
 // launch will launch the command defined in the session.
@@ -349,8 +346,6 @@ func (t *tether) launch(session *SessionConfig) error {
 	session.Outwriter = logwriter
 	session.Errwriter = logwriter
 	session.Reader = dio.MultiReader()
-
-	session.exit = make(chan struct{})
 
 	// Special case here because UID/GID lookup need to be done
 	// on the appliance...

@@ -35,6 +35,7 @@ type Toolbox struct {
 	*toolbox.Service
 
 	config *ExecutorConfig
+	stop   chan struct{}
 }
 
 // NewToolbox returns a tether.Extension that wraps the vsphere/toolbox service
@@ -51,12 +52,16 @@ func NewToolbox() *Toolbox {
 func (t *Toolbox) Start() error {
 	t.Service.PrimaryIP = t.defaultIP
 
+	t.stop = make(chan struct{})
+
 	return t.Service.Start()
 }
 
 // Stop implementation of the tether.Extension interface
 func (t *Toolbox) Stop() error {
 	t.Service.Stop()
+
+	close(t.stop)
 
 	return nil
 }
@@ -132,8 +137,10 @@ func (t *Toolbox) halt() error {
 		return err
 	}
 
+	// Killing the executor session in the container VM will stop the tether and its extensions.
+	// If that doesn't happen within the timeout, send a SIGKILL.
 	select {
-	case <-session.exit:
+	case <-t.stop:
 		log.Infof("%s has stopped", session.ID)
 		return nil
 	case <-time.After(time.Second * 10): // TODO: honor -t flag from docker stop
