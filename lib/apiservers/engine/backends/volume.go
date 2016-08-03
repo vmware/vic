@@ -18,9 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"regexp"
-	"strconv"
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/errors"
