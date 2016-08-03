@@ -31,6 +31,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/HewlettPackard/gas",
+			"repository": "https://github.com/HewlettPackard/gas",
+			"vcs": "git",
+			"revision": "12d370b11b9e6a94368ebd229b020bb55b51fe69",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/PuerkitoBio/purell",
 			"repository": "https://github.com/PuerkitoBio/purell",
 			"vcs": "",
