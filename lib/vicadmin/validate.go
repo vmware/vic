@@ -54,7 +54,8 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	log.Info(fmt.Sprintf("Setting hostname to %s", v.Hostname))
 
 	v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
-	firewallIssues := v2.CheckFirewall(ctx)
+	v2.CheckFirewall(ctx)
+	firewallIssues := v2.GetIssues()
 
 	if len(firewallIssues) == 0 {
 		v.FirewallStatus = GoodStatus

@@ -34,8 +34,6 @@ import (
 )
 
 type Validator struct {
-	config.VirtualContainerHostConfigSpec
-
 	TargetPath            string
 	DatacenterPath        string
 	ClusterPath           string
@@ -61,7 +59,6 @@ func CreateFromVCHConfig(ctx context.Context, vch *config.VirtualContainerHostCo
 	defer trace.End(trace.Begin(""))
 
 	v := &Validator{}
-	v.VirtualContainerHostConfigSpec = *vch
 	v.Session = sess
 	v.Context = ctx
 
@@ -155,13 +152,21 @@ func (v *Validator) ListIssues() error {
 	return errors.New("validation of configuration failed")
 }
 
+func (v *Validator) GetIssues() []error {
+	return v.issues
+}
+
+func (v *Validator) ClearIssues() {
+	v.issues = []error{}
+}
+
 // Validate runs through various validations, starting with basics such as naming, moving onto vSphere entities
 // and then the compatibility between those entities. It assembles a set of issues that are found for reporting.
 func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
 	log.Infof("Validating supplied configuration")
 
-	conf := &v.VirtualContainerHostConfigSpec
+	conf := &config.VirtualContainerHostConfigSpec{}
 
 	v.basics(ctx, input, conf)
 
@@ -169,9 +174,9 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 	v.compute(ctx, input, conf)
 	v.storage(ctx, input, conf)
 	v.network(ctx, input, conf)
-	v.issues = append(v.issues, v.CheckFirewall(ctx)...)
-	v.license(ctx)
-	v.drs(ctx)
+	v.CheckFirewall(ctx)
+	v.CheckLicense(ctx)
+	v.CheckDrs(ctx)
 
 	v.certificate(ctx, input, conf)
 

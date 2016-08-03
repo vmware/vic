@@ -28,10 +28,9 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (v *Validator) CheckFirewall(ctx context.Context) []error {
-	fwissues := []error{}
+func (v *Validator) CheckFirewall(ctx context.Context) {
 	if v.DisableFirewallCheck {
-		return fwissues
+		return
 	}
 	defer trace.End(trace.Begin(""))
 
@@ -47,12 +46,13 @@ func (v *Validator) CheckFirewall(ctx context.Context) []error {
 
 	errMsg := "Firewall check SKIPPED"
 	if !v.sessionValid(errMsg) {
-		return fwissues
+		return
 	}
 
 	if hosts, err = v.Session.Datastore.AttachedClusterHosts(ctx, v.Session.Cluster); err != nil {
 		log.Errorf("Unable to get the list of hosts attached to given storage: %s", err)
-		return append(fwissues, err)
+		v.NoteIssue(err)
+		return
 	}
 
 	var misconfiguredEnabled []string
@@ -62,14 +62,14 @@ func (v *Validator) CheckFirewall(ctx context.Context) []error {
 	for _, host := range hosts {
 		fs, err := host.ConfigManager().FirewallSystem(ctx)
 		if err != nil {
-			fwissues = append(fwissues, err)
+			v.NoteIssue(err)
 			break
 		}
 
 		disabled := false
 		esxfw, err := esxcli.GetFirewallInfo(host)
 		if err != nil {
-			fwissues = append(fwissues, err)
+			v.NoteIssue(err)
 			break
 		}
 		if !esxfw.Enabled {
@@ -81,7 +81,7 @@ func (v *Validator) CheckFirewall(ctx context.Context) []error {
 
 		info, err := fs.Info(ctx)
 		if err != nil {
-			fwissues = append(fwissues, err)
+			v.NoteIssue(err)
 			break
 		}
 
@@ -113,7 +113,7 @@ func (v *Validator) CheckFirewall(ctx context.Context) []error {
 		// can proceed if there is at least one host properly configured. For now this prevents install.
 		msg := "Firewall must permit 8080/tcp outbound to use VIC"
 		log.Error(msg)
-		fwissues = append(fwissues, errors.New(msg))
+		v.NoteIssue(errors.New(msg))
 	}
 	if len(misconfiguredDisabled) > 0 {
 		log.Warning("Firewall configuration will be incorrect if firewall is reenabled on hosts:")
@@ -122,10 +122,10 @@ func (v *Validator) CheckFirewall(ctx context.Context) []error {
 		}
 		log.Warning("Firewall must permit 8080/tcp outbound if firewall is reenabled")
 	}
-	return fwissues
+	return
 }
 
-func (v *Validator) license(ctx context.Context) {
+func (v *Validator) CheckLicense(ctx context.Context) {
 	var err error
 
 	errMsg := "License check SKIPPED"
@@ -264,7 +264,7 @@ func (v *Validator) isStandaloneHost() bool {
 }
 
 // drs checks that DRS is enabled
-func (v *Validator) drs(ctx context.Context) {
+func (v *Validator) CheckDrs(ctx context.Context) {
 	if v.DisableDRSCheck {
 		return
 	}
