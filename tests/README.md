@@ -17,11 +17,11 @@ To run the integration tests locally:
     VIC_ESX_TEST_DATASTORE: <datastore path, e.g. /ha-datacenter/datastore/datastore1>
     VIC_ESX_TEST_URL: <user:password@IP address of your test server>
   ```
-  
+
 If you are using a vSAN environment or non-default ESX install, then you can also specify the two networks to use with the following command (make sure to add them to the yaml file in Step 2 below as well):
 
   ```
-    BRIDGE_NETWORK: bridge  
+    BRIDGE_NETWORK: bridge
     EXTERNAL_NETWORK: external
   ```
 
@@ -67,12 +67,13 @@ If you are using a vSAN environment or non-default ESX install, then you can als
 
 3. Execute drone from the projects root directory:
 
-To run only the regression tests:  
+To run only the regression tests:
 `drone exec --trusted -E "test_secrets.yml" --yaml ".drone.local.yml" --payload '{"build": {"branch":"regression", "event":"push"}, "repo": {"full_name":"regression"}}'`
 
-To run the full suite:  
+To run the full suite:
 `drone exec --trusted -E "test_secrets.yml" --yaml ".drone.local.yml" --payload '{"build": {"branch":"master", "event":"push"}, "repo": {"full_name":"vmware/vic"}}'`
 
+4. Forget about all that and use ./local-integration-test.sh
 
 ## Find the documentation for each of the tests here:
 
