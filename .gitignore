@@ -11,10 +11,10 @@ secrets-e2e.yml
 vic-ci-logs.key
 install-*.tar.gz
 *.log
-log.html
-output.xml
+*.html
+*.xml
+*.gas
 package.list
-report.html
 
 
 # generally a bad idea to check certificates into repos - whitelist if needed

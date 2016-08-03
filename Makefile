@@ -34,9 +34,10 @@ GOIMPORTS ?= $(GOPATH)/bin/goimports$(BIN_ARCH)
 GOLINT ?= $(GOPATH)/bin/golint$(BIN_ARCH)
 GVT ?= $(GOPATH)/bin/gvt$(BIN_ARCH)
 GOVC ?= $(GOPATH)/bin/govc$(BIN_ARCH)
+GAS ?= $(GOPATH)/bin/gas$(BIN_ARCH)
 
 .PHONY: all tools clean test check \
-	goversion goimports gopath govet \
+	goversion goimports gopath govet gas \
 	isos tethers apiservers copyright
 
 .DEFAULT_GOAL := all
@@ -90,9 +91,6 @@ bootstrap-staging-debug := $(BIN)/bootstrap-staging-debug.tgz
 bootstrap-debug := $(BIN)/bootstrap-debug.iso
 iso-base := $(BIN)/iso-base.tgz
 
-go-lint := $(BIN)/.golint
-go-imports := $(BIN)/.goimports
-
 # target aliases - target mapping
 docker-engine-api: $(docker-engine-api)
 portlayerapi: $(portlayerapi)
@@ -122,15 +120,14 @@ vic-ui: $(vic-ui-linux) $(vic-ui-windows) $(vic-ui-darwin)
 vic-dns: $(vic-dns-linux) $(vic-dns-windows) $(vic-dns-darwin)
 
 swagger: $(SWAGGER)
-
-golint: $(go-lint)
-goimports: $(go-imports)
-
+golint: $(GOLINT)
+goimports: $(GOIMPORTS)
+gas: $(GAS)
 
 # convenience targets
 all: components tethers isos vic-machine vic-ui
-tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) goversion
-check: goversion goimports govet golint copyright whitespace
+tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) goversion
+check: goversion goimports govet golint copyright whitespace gas
 apiservers: $(portlayerapi) $(docker-engine-api)
 components: check apiservers $(imagec) $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
@@ -162,6 +159,10 @@ $(SWAGGER): vendor/manifest
 $(GOVC): vendor/manifest
 	@echo building $(GOVC)...
 	@$(GO) build $(RACE) -o $(GOVC) ./vendor/github.com/vmware/govmomi/govc
+
+$(GAS): vendor/manifest
+	@echo building $(GAS)...
+	@$(GO) build $(RACE) -o $(GAS) ./vendor/github.com/HewlettPackard/gas
 
 copyright:
 	@echo "checking copyright in header..."
@@ -197,6 +198,10 @@ $(go-imports): $(GOIMPORTS) $(find . -type f -name '*.go' -not -path "./vendor/*
 govet:
 	@echo checking go vet...
 	@$(GO) tool vet -all $$(find . -mindepth 1 -maxdepth 1 -type d -not -name vendor)
+
+gas:
+	@echo checking security problems
+	@for i in cmd lib pkg; do pushd $$i > /dev/null; $(GAS) -exclude=*_test.go -exclude=*/*_test.go -exclude=*/*/*_test.go ./... > ../$$i.gas; popd > /dev/null; done
 
 vendor: $(GVT)
 	@echo restoring vendor
@@ -278,10 +283,9 @@ PORTLAYER_DEPS ?= lib/apiservers/portlayer/swagger.yml \
 				  lib/apiservers/portlayer/restapi/options/*.go \
 				  lib/apiservers/portlayer/restapi/handlers/*.go
 
-$(portlayerapi-client): $(PORTLAYER_DEPS)  $(SWAGGER)
+$(portlayerapi-client): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API client...
 	@$(SWAGGER) generate client -A PortLayer --template-dir lib/apiservers/templates  -t $(realpath $(dir $<)) -f $<
-
 
 $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API server...
@@ -322,7 +326,6 @@ $(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base)
 	@echo staging debug for bootstrap
 	@$(TIME) $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@ -d true
 
-
 $(vic-machine-linux): $(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine linux...
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
@@ -360,16 +363,17 @@ $(vic-dns-darwin): $(call godeps,cmd/vic-dns/*.go)
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
 clean:
-	rm -rf $(BIN)
+	@rm -rf $(BIN)
 
 	@echo removing swagger generated files...
-	rm -f ./lib/apiservers/portlayer/restapi/doc.go
-	rm -f ./lib/apiservers/portlayer/restapi/embedded_spec.go
-	rm -f ./lib/apiservers/portlayer/restapi/server.go
-	rm -rf ./lib/apiservers/portlayer/client/
-	rm -rf ./lib/apiservers/portlayer/cmd/
-	rm -rf ./lib/apiservers/portlayer/models/
-	rm -rf ./lib/apiservers/portlayer/restapi/operations/
+	@rm -f ./lib/apiservers/portlayer/restapi/doc.go
+	@rm -f ./lib/apiservers/portlayer/restapi/embedded_spec.go
+	@rm -f ./lib/apiservers/portlayer/restapi/server.go
+	@rm -rf ./lib/apiservers/portlayer/client/
+	@rm -rf ./lib/apiservers/portlayer/cmd/
+	@rm -rf ./lib/apiservers/portlayer/models/
+	@rm -rf ./lib/apiservers/portlayer/restapi/operations/
 
-	rm -f *.log
-	rm -f *.pem
+	@rm -f *.log
+	@rm -f *.pem
+	@rm -f *.gas
