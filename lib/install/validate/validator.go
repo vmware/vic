@@ -55,6 +55,16 @@ type Validator struct {
 	DisableDRSCheck      bool
 }
 
+func CreateFromVCHConfig(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) (*Validator, error) {
+	defer trace.End(trace.Begin(""))
+
+	v := &Validator{}
+	v.Session = sess
+	v.Context = ctx
+
+	return v, nil
+}
+
 func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 	defer trace.End(trace.Begin(""))
 	var err error
@@ -142,6 +152,14 @@ func (v *Validator) ListIssues() error {
 	return errors.New("validation of configuration failed")
 }
 
+func (v *Validator) GetIssues() []error {
+	return v.issues
+}
+
+func (v *Validator) ClearIssues() {
+	v.issues = []error{}
+}
+
 // Validate runs through various validations, starting with basics such as naming, moving onto vSphere entities
 // and then the compatibility between those entities. It assembles a set of issues that are found for reporting.
 func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
@@ -156,9 +174,9 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 	v.compute(ctx, input, conf)
 	v.storage(ctx, input, conf)
 	v.network(ctx, input, conf)
-	v.firewall(ctx)
-	v.license(ctx)
-	v.drs(ctx)
+	v.CheckFirewall(ctx)
+	v.CheckLicense(ctx)
+	v.CheckDrs(ctx)
 
 	v.certificate(ctx, input, conf)
 
@@ -222,6 +240,10 @@ func (v *Validator) target(ctx context.Context, input *data.Data, conf *config.V
 			v.NoteIssue(fmt.Errorf("Error processing target after transformation to SOAP endpoint: %q: %s", v.Session.Service, err))
 			return
 		}
+
+		// ESXi requires user/password to be encoded in the Target URL
+		// However, this gets lost when the URL is Marshaled
+		conf.UserPassword = targetURL.User.String()
 	}
 
 	// bridge network params

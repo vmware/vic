@@ -42,16 +42,15 @@
                     Containers
                   </li>
                   <li>
-                    <span class="right warning">
-                      <i class="fa fa-exclamation-triangle"></i>
+                    <span class="right">
+                      <i class="fa fa-check"></i>
                     </span>
                     Network Connectivity
                   </li>
                   <li>
-                    <span class="right">
-                      <i class="fa fa-check"></i>
-                    </span>
+                    {{.FirewallStatus}}
                     Firewall
+                    {{.FirewallIssues}}
                   </li>
                   <li>
                     <span class="right">

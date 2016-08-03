@@ -28,7 +28,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (v *Validator) firewall(ctx context.Context) {
+func (v *Validator) CheckFirewall(ctx context.Context) {
 	if v.DisableFirewallCheck {
 		return
 	}
@@ -122,9 +122,10 @@ func (v *Validator) firewall(ctx context.Context) {
 		}
 		log.Warning("Firewall must permit 8080/tcp outbound if firewall is reenabled")
 	}
+	return
 }
 
-func (v *Validator) license(ctx context.Context) {
+func (v *Validator) CheckLicense(ctx context.Context) {
 	var err error
 
 	errMsg := "License check SKIPPED"
@@ -263,7 +264,7 @@ func (v *Validator) isStandaloneHost() bool {
 }
 
 // drs checks that DRS is enabled
-func (v *Validator) drs(ctx context.Context) {
+func (v *Validator) CheckDrs(ctx context.Context) {
 	if v.DisableDRSCheck {
 		return
 	}

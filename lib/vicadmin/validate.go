@@ -16,44 +16,58 @@ package vicadmin
 
 import (
 	"fmt"
+	"html/template"
 	"os"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	// "github.com/vmware/govmomi/vim25/types"
 
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/trace"
-	// "github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/session"
 	"golang.org/x/net/context"
 )
 
 type Validator struct {
 	Hostname       string
 	Version        string
-	FirewallErrors []string
+	FirewallStatus template.HTML
+	FirewallIssues template.HTML
 }
 
-func NewValidator(ctx context.Context, vch config.VirtualContainerHostConfigSpec) *Validator {
+const (
+	GoodStatus = template.HTML(`<span class="right"><i class="fa fa-check"></i></span>`)
+	BadStatus  = template.HTML(`<span class="right warning"><i class="fa fa-exclamation-triangle"></i></span>`)
+)
+
+func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) *Validator {
 	defer trace.End(trace.Begin(""))
 	log.Infof("Creating new validator")
-	v := new(Validator)
-	v.checkFirewall(ctx, vch)
-	v.FirewallErrors = nil
+	v := &Validator{}
 	v.Version = vch.Version
 	log.Info(fmt.Sprintf("Setting version to %s", v.Version))
 
 	v.Hostname, _ = os.Hostname()
+	v.Hostname = strings.Title(v.Hostname)
+	log.Info(fmt.Sprintf("Setting hostname to %s", v.Hostname))
+
+	v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
+	v2.CheckFirewall(ctx)
+	firewallIssues := v2.GetIssues()
+
+	if len(firewallIssues) == 0 {
+		v.FirewallStatus = GoodStatus
+		v.FirewallIssues = template.HTML("")
+	} else {
+		v.FirewallStatus = BadStatus
+		for _, err := range firewallIssues {
+			v.FirewallIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.FirewallIssues, err))
+		}
+	}
+	log.Info(fmt.Sprintf("FirewallStatus set to: %s", v.FirewallStatus))
+	log.Info(fmt.Sprintf("FirewallIssues set to: %s", v.FirewallIssues))
 
 	return v
-}
-
-func (v *Validator) checkFirewall(ctx context.Context, vch config.VirtualContainerHostConfigSpec) {
-	defer trace.End(trace.Begin(""))
-	log.Infof("Checking firewall rules")
-	//rule := types.HostFirewallRule{
-	//Port:      8080, // serialOverLANPort
-	//PortType:  types.HostFirewallRulePortTypeDst,
-	//Protocol:  string(types.HostFirewallRuleProtocolTcp),
-	//Direction: types.HostFirewallRuleDirectionOutbound,
-	//}
 }
