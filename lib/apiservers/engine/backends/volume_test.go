@@ -132,51 +132,6 @@ func TestValidateDriverArgs(t *testing.T) {
 	}
 }
 
-func TestValidateCapacityArg(t *testing.T) {
-	testBadString1 := "HelloWorld"
-	testBadString2 := "123HelloWorld"
-	testBadString3 := "-123TB"
-	testGoodString1 := "1024MB"
-	testGoodString2 := "512gB"
-	testGoodString3 := "2tb"
-
-	testNumber, err := validateCapacityArg(testBadString1)
-	if !assert.Equal(t, int64(-1), testNumber) ||
-		!assert.NotNil(t, err) {
-		return
-	}
-
-	testNumber, err = validateCapacityArg(testBadString2)
-	if !assert.Equal(t, int64(-1), testNumber) ||
-		!assert.NotNil(t, err) {
-		return
-	}
-
-	testNumber, err = validateCapacityArg(testBadString3)
-	if !assert.Equal(t, int64(-1), testNumber) ||
-		!assert.NotNil(t, err) {
-		return
-	}
-
-	testNumber, err = validateCapacityArg(testGoodString1)
-	if !assert.Equal(t, int64(1024), testNumber) ||
-		!assert.Nil(t, err) {
-		return
-	}
-
-	testNumber, err = validateCapacityArg(testGoodString2)
-	if !assert.Equal(t, int64(524288), testNumber) ||
-		!assert.Nil(t, err) {
-		return
-	}
-
-	testNumber, err = validateCapacityArg(testGoodString3)
-	if !assert.Equal(t, int64(2097152), testNumber) ||
-		!assert.Nil(t, err) {
-		return
-	}
-}
-
 func TestExtractDockerMetadata(t *testing.T) {
 	driver := "vsphere"
 	volumeName := "testVolume"

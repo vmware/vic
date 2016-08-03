@@ -26,6 +26,7 @@ import (
 	derr "github.com/docker/docker/errors"
 
 	"github.com/docker/engine-api/types"
+	"github.com/docker/go-units"
 	"github.com/google/uuid"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -213,37 +214,13 @@ func validateDriverArgs(args map[string]string, model *models.VolumeRequest) err
 		return nil
 	}
 
-	capacity, err := validateCapacityArg(capstr)
+	capacity, err := units.FromHumanSize(capstr)
 	if err != nil {
 		return err
 	}
 	model.Capacity = int64(capacity)
 
 	return nil
-}
-
-func validateCapacityArg(capacityInput string) (int64, error) {
-	validationPattern, _ := regexp.Compile("^[0-9]+[mMgGtT][bB]$")
-	numberPattern, _ := regexp.Compile("[0-9]+")
-	unitPattern, _ := regexp.Compile("[mMgGtT][bB]")
-
-	if !validationPattern.MatchString(capacityInput) {
-		return -1, fmt.Errorf("invalid value for capacity argument supplied. format is <int64><unit>. where units are MB, GB, TB and the value is positive. e.g. --opt Capacity=1024GB")
-	}
-
-	numberString := numberPattern.FindString(capacityInput)
-	unit := strings.ToUpper(unitPattern.FindString(capacityInput))
-	number, _ := strconv.ParseInt(numberString, 10, 64)
-
-	switch unit {
-	case "MB": //Capacity is already correct
-	case "GB":
-		number = number * 1024
-	case "TB":
-		number = number * 1024 * 1024
-	}
-
-	return number, nil
 }
 
 func translateInputsToPortlayerRequestModel(name, driverName string, opts, labels map[string]string) (*models.VolumeRequest, error) {
