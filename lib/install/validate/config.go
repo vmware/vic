@@ -29,9 +29,9 @@ import (
 )
 
 func (v *Validator) CheckFirewall(ctx context.Context) []error {
-	issues := []error{}
+	fwissues := []error{}
 	if v.DisableFirewallCheck {
-		return issues
+		return fwissues
 	}
 	defer trace.End(trace.Begin(""))
 
@@ -47,7 +47,7 @@ func (v *Validator) CheckFirewall(ctx context.Context) []error {
 
 	errMsg := "Firewall check SKIPPED"
 	if !v.sessionValid(errMsg) {
-		return issues
+		return fwissues
 	}
 
 	if hosts, err = v.Session.Datastore.AttachedClusterHosts(ctx, v.Session.Cluster); err != nil {
@@ -113,7 +113,7 @@ func (v *Validator) CheckFirewall(ctx context.Context) []error {
 		// can proceed if there is at least one host properly configured. For now this prevents install.
 		msg := "Firewall must permit 8080/tcp outbound to use VIC"
 		log.Error(msg)
-		issues = append(issues, errors.New(msg))
+		fwissues = append(fwissues, errors.New(msg))
 	}
 	if len(misconfiguredDisabled) > 0 {
 		log.Warning("Firewall configuration will be incorrect if firewall is reenabled on hosts:")
@@ -122,7 +122,7 @@ func (v *Validator) CheckFirewall(ctx context.Context) []error {
 		}
 		log.Warning("Firewall must permit 8080/tcp outbound if firewall is reenabled")
 	}
-	return issues
+	return fwissues
 }
 
 func (v *Validator) license(ctx context.Context) {
