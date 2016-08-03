@@ -295,18 +295,14 @@ func (handler *StorageHandlersImpl) CreateVolume(params storage.CreateVolumePara
 func (handler *StorageHandlersImpl) RemoveVolume(params storage.RemoveVolumeParams) middleware.Responder {
 	defer trace.End(trace.Begin("storage_handlers.RemoveVolume"))
 
-	_, err := storageVolumeLayer.VolumeGet(context.TODO(), params.Name)
+	err := storageVolumeLayer.VolumeDestroy(context.TODO(), params.Name)
 	if err != nil {
-		return storage.NewRemoveVolumeNotFound().WithPayload(&models.Error{
-			Message: err.Error(),
-		})
-	}
-
-	err = storageVolumeLayer.VolumeDestroy(context.TODO(), params.Name)
-	if err != nil {
-		return storage.NewRemoveVolumeInternalServerError().WithPayload(&models.Error{
-			Message: err.Error(),
-		})
+		switch err := err.(type) {
+		default:
+			return storage.NewRemoveVolumeInternalServerError().WithPayload(&models.Error{
+				Message: err.Error(),
+			})
+		}
 	}
 	return storage.NewRemoveVolumeOK()
 }
