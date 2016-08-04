@@ -4,6 +4,13 @@ Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
+*** Keywords ***
+Assert VM Power State
+    [Arguments]  ${name}  ${state}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -json ${name}-* | jq -r .VirtualMachines[].Runtime.PowerState
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal  ${output}  ${state}
+
 *** Test Cases ***
 Empty docker ps command
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps
@@ -31,13 +38,13 @@ Docker ps only running containers
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${container3}=  Run And Return Rc And Output  docker ${params} create busybox dmesg
     Should Be Equal As Integers  ${rc}  0
-    Wait Until VM Powers Off  *-${container2} 
+    Wait Until VM Powers Off  *-${container2}
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  /bin/top
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  2
-    
+
 Docker ps all containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
@@ -46,7 +53,49 @@ Docker ps all containers
     Should Contain  ${output}  ls
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  4
-    
+
+Docker ps powerOn container OOB
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name jojo busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  1
+    # powerOn container VM out-of-band
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -on "jojo*"
+    # a complete powerOn can take some time with reconfigures, so let's ensure state before we proceed
+    Wait Until Keyword Succeeds  20x  500 milliseconds  Assert VM Power State  jojo  poweredOn
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  2
+
+Docker ps powerOff container OOB
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  2
+    # PowerOff VM out-of-band
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -off "jojo*"
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  1
+
+Docker ps Remove container OOB
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  4
+    # Remove container VM out-of-band
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy "jojo*"
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Split To Lines  ${output}
+    Length Should Be  ${output}  3
+
 Docker ps last container
     ${status}=  Get State Of Github Issue  1545
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-10-Docker-PS.robot needs to be updated now that Issue #1545 has been resolved
@@ -56,7 +105,7 @@ Docker ps last container
     #Should Contain  ${output}  ls
     #${output}=  Split To Lines  ${output}
     #Length Should Be  ${output}  2
-    
+
 Docker ps two containers
     ${status}=  Get State Of Github Issue  1545
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-10-Docker-PS.robot needs to be updated now that Issue #1545 has been resolved
@@ -67,7 +116,7 @@ Docker ps two containers
     #Should Contain  ${output}  ls
     #${output}=  Split To Lines  ${output}
     #Length Should Be  ${output}  3
-    
+
 Docker ps last container with size
     ${status}=  Get State Of Github Issue  1545
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-10-Docker-PS.robot needs to be updated now that Issue #1545 has been resolved
@@ -78,17 +127,17 @@ Docker ps last container with size
     #Should Contain  ${output}  ls
     #${output}=  Split To Lines  ${output}
     #Length Should Be  ${output}  2
-    
+
 Docker ps all containers with only IDs
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq
     Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  CONTAINER ID    
+    Should Not Contain  ${output}  CONTAINER ID
     Should Not Contain  ${output}  /bin/top
     Should Not Contain  ${output}  dmesg
     Should Not Contain  ${output}  ls
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  3
-    
+
 Docker ps with filter
     ${status}=  Get State Of Github Issue  1676
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-10-Docker-PS.robot needs to be updated now that Issue #1676 has been resolved
