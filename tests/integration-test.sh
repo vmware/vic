@@ -20,6 +20,7 @@ gsutil version -l
 
 dpkg -l > package.list
 
+trap pybot tests/resources/ForceCleanup.robot SIGINT SIGTERM
 if [ $DRONE_BRANCH = "master" ] && [ $DRONE_REPO = "vmware/vic" ]; then
     pybot --removekeywords TAG:secret tests/test-cases
 else

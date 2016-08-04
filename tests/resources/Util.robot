@@ -36,6 +36,7 @@ Set Test Environment Variables
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${vch-name}  ${name}
+    Set Environment Variable  TEST_VCH_NAME  ${vch-name}
 
 Get Docker Params
     # Get VCH docker params e.g. "-H 192.168.218.181:2376 --tls"
