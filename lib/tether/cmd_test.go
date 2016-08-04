@@ -16,6 +16,7 @@ package tether
 
 import (
 	"fmt"
+	"os/exec"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,8 +31,8 @@ import (
 //
 
 func TestPathLookup(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
 		Common: executor.Common{
@@ -57,7 +58,7 @@ func TestPathLookup(t *testing.T) {
 		},
 	}
 
-	_, src, err := RunTether(t, &cfg)
+	_, src, err := RunTether(t, &cfg, mocker)
 	assert.NoError(t, err, "Didn't expected error from runTether")
 
 	result := ExecutorConfig{}
@@ -68,8 +69,8 @@ func TestPathLookup(t *testing.T) {
 }
 
 func TestRelativePath(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
 		Common: executor.Common{
@@ -95,7 +96,7 @@ func TestRelativePath(t *testing.T) {
 		},
 	}
 
-	_, src, err := RunTether(t, &cfg)
+	_, src, err := RunTether(t, &cfg, mocker)
 	assert.NoError(t, err, "Didn't expected error from RunTether")
 
 	result := ExecutorConfig{}
@@ -106,8 +107,8 @@ func TestRelativePath(t *testing.T) {
 }
 
 func TestAbsPath(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
 		Common: executor.Common{
@@ -133,7 +134,7 @@ func TestAbsPath(t *testing.T) {
 		},
 	}
 
-	_, src, err := RunTether(t, &cfg)
+	_, src, err := RunTether(t, &cfg, mocker)
 	assert.NoError(t, err, "Didn't expected error from RunTether")
 
 	result := ExecutorConfig{}
@@ -143,10 +144,10 @@ func TestAbsPath(t *testing.T) {
 	assert.Equal(t, 0, result.Sessions["abspath"].ExitStatus, "Expected command to have exited cleanly")
 
 	// read the output from the session
-	log := Mocked.SessionLogBuffer.Bytes()
+	log := mocker.SessionLogBuffer.Bytes()
 
 	// run the command directly
-	out, err := executor.Command("/bin/date", "--reference=/").Output()
+	out, err := exec.Command("/bin/date", "--reference=/").Output()
 	if err != nil {
 		fmt.Printf("Failed to run date for comparison data: %s", err)
 		t.Error(err)
@@ -159,8 +160,8 @@ func TestAbsPath(t *testing.T) {
 }
 
 func TestHalt(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
 		Common: executor.Common{
@@ -186,11 +187,11 @@ func TestHalt(t *testing.T) {
 		},
 	}
 
-	_, src, err := RunTether(t, &cfg)
+	_, src, err := RunTether(t, &cfg, mocker)
 	assert.NoError(t, err, "Didn't expected error from RunTether")
 
 	// block until tether exits
-	<-Mocked.Cleaned
+	<-mocker.Cleaned
 
 	result := ExecutorConfig{}
 	extraconfig.Decode(src, &result)
@@ -199,10 +200,10 @@ func TestHalt(t *testing.T) {
 	assert.Equal(t, 0, result.Sessions["abspath"].ExitStatus, "Expected command to have exited cleanly")
 
 	// read the output from the session
-	log := Mocked.SessionLogBuffer.Bytes()
+	log := mocker.SessionLogBuffer.Bytes()
 
 	// run the command directly
-	out, err := executor.Command("/bin/date", "--reference=/").Output()
+	out, err := exec.Command("/bin/date", "--reference=/").Output()
 	if err != nil {
 		fmt.Printf("Failed to run date for comparison data: %s", err)
 		t.Error(err)
@@ -230,8 +231,8 @@ func TestAbsPathRepeat(t *testing.T) {
 //
 
 func TestMissingBinary(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
 		Common: executor.Common{
@@ -257,7 +258,7 @@ func TestMissingBinary(t *testing.T) {
 		},
 	}
 
-	_, src, err := RunTether(t, &cfg)
+	_, src, err := RunTether(t, &cfg, mocker)
 	assert.Error(t, err, "Expected error from RunTether")
 
 	// refresh the cfg with current data
@@ -277,8 +278,8 @@ func TestMissingBinary(t *testing.T) {
 //
 
 func TestMissingRelativeBinary(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
 
 	cfg := executor.ExecutorConfig{
 		Common: executor.Common{
@@ -304,7 +305,7 @@ func TestMissingRelativeBinary(t *testing.T) {
 		},
 	}
 
-	_, src, err := RunTether(t, &cfg)
+	_, src, err := RunTether(t, &cfg, mocker)
 	assert.Error(t, err, "Expected error from RunTether")
 
 	// refresh the cfg with current data

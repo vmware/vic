@@ -93,9 +93,9 @@ func TestVIC(t *testing.T) {
 	bridgeNetwork = n
 
 	network.Config = network.Configuration{
-		BridgeNetwork: "bridge",
+		BridgeNetwork: "lo",
 		ContainerNetworks: map[string]*network.ContainerNetwork{
-			"bridge": &network.ContainerNetwork{
+			"lo": &network.ContainerNetwork{
 				Common: executor.Common{
 					Name: "testBridge",
 				},

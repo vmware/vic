@@ -21,6 +21,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
@@ -240,6 +241,37 @@ func (c *Container) stop(ctx context.Context) error {
 	return c.vm.WaitForPowerState(ctx, types.VirtualMachinePowerStatePoweredOff)
 }
 
+func (c *Container) startGuestProgram(ctx context.Context, name string, args string) error {
+	o := guest.NewOperationsManager(c.vm.Client.Client, c.vm.Reference())
+	m, err := o.ProcessManager(ctx)
+	if err != nil {
+		return err
+	}
+
+	spec := types.GuestProgramSpec{
+		ProgramPath: name,
+		Arguments:   args,
+	}
+
+	auth := types.NamePasswordAuthentication{
+		Username: c.ExecConfig.ID,
+	}
+
+	_, err = m.StartProgram(ctx, &auth, &spec)
+
+	return err
+}
+
+func (c *Container) Signal(ctx context.Context, num int64) error {
+	defer trace.End(trace.Begin("Container.Signal"))
+
+	if c.vm == nil {
+		return fmt.Errorf("vm not set")
+	}
+
+	return c.startGuestProgram(ctx, "kill", fmt.Sprintf("%d", num))
+}
+
 type RemovePowerError struct {
 	err error
 }
@@ -457,7 +489,9 @@ func convertInfraContainers(vms []mo.VirtualMachine, all *bool) []*Container {
 				container.Status = "Stopped"
 			}
 		}
-		container.VMUnsharedDisk = vms[i].Summary.Storage.Unshared
+		if vms[i].Summary.Storage != nil {
+			container.VMUnsharedDisk = vms[i].Summary.Storage.Unshared
+		}
 
 		containerVMs = append(containerVMs, container)
 

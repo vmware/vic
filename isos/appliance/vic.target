@@ -1,5 +1,5 @@
 [Unit]
 Description=vSphere Integrated Containers
-Requires=network-online.target
-After=network-online.target
+Requires=basic.target
+After=basic.target
 AllowIsolate=yes

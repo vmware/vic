@@ -17,6 +17,7 @@
 package tether
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"syscall"
@@ -34,6 +35,7 @@ type Toolbox struct {
 	*toolbox.Service
 
 	config *ExecutorConfig
+	stop   chan struct{}
 }
 
 // NewToolbox returns a tether.Extension that wraps the vsphere/toolbox service
@@ -50,12 +52,16 @@ func NewToolbox() *Toolbox {
 func (t *Toolbox) Start() error {
 	t.Service.PrimaryIP = t.defaultIP
 
+	t.stop = make(chan struct{})
+
 	return t.Service.Start()
 }
 
 // Stop implementation of the tether.Extension interface
 func (t *Toolbox) Stop() error {
 	t.Service.Stop()
+
+	close(t.stop)
 
 	return nil
 }
@@ -69,6 +75,10 @@ func (t *Toolbox) Reload(config *ExecutorConfig) error {
 // InContainer configures the toolbox to run within a container VM
 func (t *Toolbox) InContainer() *Toolbox {
 	t.PowerCommand.Halt.Handler = t.halt
+
+	vix := t.Service.VixCommand
+	vix.Authenticate = t.containerAuthenticate
+	vix.ProcessStartCommand = t.containerStartCommand
 
 	return t
 }
@@ -97,6 +107,28 @@ func (t *Toolbox) kill(name string) error {
 	return nil
 }
 
+func (t *Toolbox) containerAuthenticate(_ toolbox.VixCommandRequestHeader, data []byte) error {
+	var c toolbox.VixUserCredentialNamePassword
+	if err := c.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	// no authentication yet, just using container ID as a sanity check for now
+	if c.Name != t.config.ID {
+		return errors.New("failed to verify container ID")
+	}
+
+	return nil
+}
+
+func (t *Toolbox) containerStartCommand(r *toolbox.VixMsgStartProgramRequest) (int, error) {
+	switch r.ProgramPath {
+	case "kill":
+		return -1, t.kill(r.Arguments)
+	default:
+		return -1, fmt.Errorf("unknown command %q", r.ProgramPath)
+	}
+}
+
 func (t *Toolbox) halt() error {
 	session := t.config.Sessions[t.config.ID]
 	log.Infof("stopping %s", session.ID)
@@ -105,8 +137,10 @@ func (t *Toolbox) halt() error {
 		return err
 	}
 
+	// Killing the executor session in the container VM will stop the tether and its extensions.
+	// If that doesn't happen within the timeout, send a SIGKILL.
 	select {
-	case <-session.exit:
+	case <-t.stop:
 		log.Infof("%s has stopped", session.ID)
 		return nil
 	case <-time.After(time.Second * 10): // TODO: honor -t flag from docker stop

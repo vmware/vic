@@ -223,8 +223,8 @@ func genKey() []byte {
 // sent and adds colour which is useful for tty testing
 //
 func TestAttach(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
 
 	testServer, _ := server.(*testAttachServer)
 
@@ -254,7 +254,7 @@ func TestAttach(t *testing.T) {
 		Key: genKey(),
 	}
 
-	_, _, conn := StartAttachTether(t, &cfg)
+	_, _, conn := StartAttachTether(t, &cfg, mocker)
 
 	// wait for updates to occur
 	<-testServer.updated
@@ -320,8 +320,8 @@ func TestAttach(t *testing.T) {
 func TestAttachTTY(t *testing.T) {
 	t.Skip("TTY test skipped - not sure how to test this correctly")
 
-	testSetup(t)
-	defer testTeardown(t)
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
 
 	testServer, _ := server.(*testAttachServer)
 
@@ -351,7 +351,7 @@ func TestAttachTTY(t *testing.T) {
 		Key: genKey(),
 	}
 
-	_, _, conn := StartAttachTether(t, &cfg)
+	_, _, conn := StartAttachTether(t, &cfg, mocker)
 
 	// wait for updates to occur
 	<-testServer.updated
@@ -420,8 +420,8 @@ func TestAttachTTY(t *testing.T) {
 //
 func TestAttachTwo(t *testing.T) {
 
-	testSetup(t)
-	defer testTeardown(t)
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
 
 	testServer, _ := server.(*testAttachServer)
 
@@ -466,10 +466,10 @@ func TestAttachTwo(t *testing.T) {
 		Key: genKey(),
 	}
 
-	_, _, conn := StartAttachTether(t, &cfg)
+	_, _, conn := StartAttachTether(t, &cfg, mocker)
 
 	// wait for updates to occur
-	<-Mocked.Started
+	<-mocker.Started
 	<-testServer.updated
 
 	if !testServer.enabled {
@@ -554,7 +554,7 @@ func TestAttachTwo(t *testing.T) {
 	sessionA.Stdin().Close()
 	sessionB.Stdin().Close()
 
-	<-Mocked.Cleaned
+	<-mocker.Cleaned
 
 	if !assert.Equal(t, bufA.Bytes(), testBytesA) {
 		return
@@ -573,8 +573,8 @@ func TestAttachTwo(t *testing.T) {
 // tries to attach to an invalid session id
 //
 func TestAttachInvalid(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
 
 	testServer, _ := server.(*testAttachServer)
 
@@ -604,7 +604,7 @@ func TestAttachInvalid(t *testing.T) {
 		Key: genKey(),
 	}
 
-	tthr, _, conn := StartAttachTether(t, &cfg)
+	tthr, _, conn := StartAttachTether(t, &cfg, mocker)
 
 	// wait for updates to occur
 	<-testServer.updated

@@ -292,9 +292,19 @@ func (handler *StorageHandlersImpl) CreateVolume(params storage.CreateVolumePara
 }
 
 //RemoveVolume : Remove a Volume from existence
-func (handler *StorageHandlersImpl) RemoveVolume(storage.RemoveVolumeParams) middleware.Responder {
+func (handler *StorageHandlersImpl) RemoveVolume(params storage.RemoveVolumeParams) middleware.Responder {
 	defer trace.End(trace.Begin("storage_handlers.RemoveVolume"))
-	return storage.NewRemoveVolumeOK() //TODO: this is just a stub for now.
+
+	err := storageVolumeLayer.VolumeDestroy(context.TODO(), params.Name)
+	if err != nil {
+		switch err := err.(type) {
+		default:
+			return storage.NewRemoveVolumeInternalServerError().WithPayload(&models.Error{
+				Message: err.Error(),
+			})
+		}
+	}
+	return storage.NewRemoveVolumeOK()
 }
 
 //VolumesList : Lists available volumes for use

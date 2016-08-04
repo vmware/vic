@@ -122,24 +122,25 @@ func TestCollectSlotNumbers(t *testing.T) {
 		VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{},
 	}
 
-	slots := s.CollectSlotNumbers()
+	slots := s.CollectSlotNumbers(nil)
 	assert.Empty(t, slots)
 
 	s.AddVirtualVmxnet3(NewVirtualVmxnet3())
 	s.DeviceChange[0].GetVirtualDeviceConfigSpec().Device.GetVirtualDevice().SlotInfo = &types.VirtualDevicePciBusSlotInfo{PciSlotNumber: 32}
-	slots = s.CollectSlotNumbers()
-	assert.EqualValues(t, []int32{32}, slots)
+	slots = s.CollectSlotNumbers(nil)
+	assert.EqualValues(t, map[int32]bool{32: true}, slots)
 
 	// add a device without a slot number
 	s.AddVirtualVmxnet3(NewVirtualVmxnet3())
-	slots = s.CollectSlotNumbers()
-	assert.EqualValues(t, []int32{32}, slots)
+	slots = s.CollectSlotNumbers(nil)
+	assert.EqualValues(t, map[int32]bool{32: true}, slots)
 
 	// add another device with slot number
 	s.AddVirtualVmxnet3(NewVirtualVmxnet3())
 	s.DeviceChange[len(s.DeviceChange)-1].GetVirtualDeviceConfigSpec().Device.GetVirtualDevice().SlotInfo = &types.VirtualDevicePciBusSlotInfo{PciSlotNumber: 33}
-	slots = s.CollectSlotNumbers()
-	assert.EqualValues(t, []int32{32, 33}, slots)
+	slots = s.CollectSlotNumbers(slots)
+	assert.EqualValues(t, map[int32]bool{32: true, 33: true}, slots)
+
 }
 
 func TestFindSlotNumber(t *testing.T) {

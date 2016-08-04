@@ -26,6 +26,7 @@ Set Test Environment Variables
     ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
 
     Set Environment Variable  TEST_URL  @{URLs}[${IDX}]
+    Log To Console  %{TEST_URL}
     Set Environment Variable  GOVC_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
 
     ${host}=  Run  govc ls host
@@ -58,8 +59,8 @@ Install VIC Appliance To Test Server
     [Arguments]  ${certs}=${false}  ${vol}=default
     Set Test Environment Variables  ${certs}  ${vol}  network  'VM Network'
     # Attempt to cleanup old/canceled tests
-    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    #Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    #Run Keyword And Ignore Error  Cleanup Datastore On Test Server
     Set Test VCH Name
 
     # Install the VCH now
@@ -86,8 +87,12 @@ Run VIC Machine Command
     [Return]  ${output}
 
 Cleanup VIC Appliance On Test Server
+    Gather Logs From Test Server
+    ${output}=  Run VIC Machine Delete Command
+    [Return]  ${output}
+    
+Run VIC Machine Delete Command
     [Tags]  secret
-    Run Keyword And Ignore Error  Gather Logs From Test Server
     ${output}=  Run  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
     Run Keyword And Ignore Error  Should Contain  ${output}  Completed successfully
     ${output}=  Run  rm -f ${vch-name}-*.pem

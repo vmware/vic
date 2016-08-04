@@ -280,6 +280,16 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.ContainerSignalParams) middleware.Responder {
 	defer trace.End(trace.Begin("Containers.ContainerSignal"))
 
+	h := exec.GetContainer(exec.ParseID(params.ID))
+	if h == nil {
+		return containers.NewContainerSignalNotFound().WithPayload(&models.Error{Message: fmt.Sprintf("container %s not found", params.ID)})
+	}
+
+	err := h.Container.Signal(context.Background(), params.Signal)
+	if err != nil {
+		return containers.NewContainerSignalInternalServerError().WithPayload(&models.Error{Message: err.Error()})
+	}
+
 	return containers.NewContainerSignalOK()
 }
 

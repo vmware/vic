@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -276,7 +277,14 @@ func EncodeWithPrefix(sink DataSink, src interface{}, prefix string) {
 
 // MapSink takes a map and populates it with key/value pairs from the encode
 func MapSink(sink map[string]string) DataSink {
+	// this is a very basic mechanism of allowing serialized updates to a sink
+	// a more involved approach is necessary if wanting to do concurrent read/write
+	mutex := sync.Mutex{}
+
 	return func(key, value string) error {
+		mutex.Lock()
+		defer mutex.Unlock()
+
 		sink[key] = value
 		return nil
 	}

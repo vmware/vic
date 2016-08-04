@@ -255,7 +255,8 @@ func (s *server) tailFiles(res http.ResponseWriter, req *http.Request, names []s
 func (s *server) index(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 	ctx := context.Background()
-	v := vicadmin.NewValidator(ctx, vchConfig)
+	sess, err := client()
+	v := vicadmin.NewValidator(ctx, &vchConfig, sess)
 
 	tmpl, err := template.ParseFiles("dashboard.html")
 	err = tmpl.ExecuteTemplate(res, "dashboard.html", v)

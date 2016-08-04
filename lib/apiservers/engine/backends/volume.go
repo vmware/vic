@@ -18,12 +18,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	log "github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/errors"
 
 	"github.com/docker/engine-api/types"
+	"github.com/docker/go-units"
+	"github.com/google/uuid"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/pkg/trace"
@@ -34,6 +35,7 @@ const (
 	OptsVolumeStoreKey     string = "VolumeStore"
 	OptsCapacityKey        string = "Capacity"
 	dockerMetadataModelKey string = "DockerMetaData"
+	bytesToMegabyte               = int64(1000000)
 )
 
 func NewVolumeModel(volume *models.VolumeResponse, labels map[string]string) *types.Volume {
@@ -96,8 +98,6 @@ func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]s
 	defer trace.End(trace.Begin("Volume.VolumeCreate"))
 	result := &types.Volume{}
 
-	// TODO: design a way to have better error returns.
-
 	client := PortLayerClient()
 	if client == nil {
 		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get a portlayer client"), http.StatusInternalServerError)
@@ -110,7 +110,9 @@ func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]s
 		return result, derr.NewErrorWithStatusCode(fmt.Errorf("Bad Driver Arg: %s", varErr), http.StatusBadRequest)
 	}
 
-	// TODO: setup name randomization if name == nil
+	if model.Name == "" {
+		model.Name = uuid.New().String()
+	}
 
 	res, err := client.Storage.CreateVolume(storage.NewCreateVolumeParams().WithVolumeRequest(model))
 	if err != nil {
@@ -118,13 +120,13 @@ func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]s
 
 		case *storage.CreateVolumeInternalServerError:
 			// FIXME: right now this does not return an error model...
-			return result, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err.Error()), http.StatusInternalServerError)
+			return result, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err.Error()), http.StatusInternalServerError)
 
 		case *storage.CreateVolumeDefault:
-			return result, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err.Payload.Message), http.StatusInternalServerError)
+			return result, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err.Payload.Message), http.StatusInternalServerError)
 
 		default:
-			return result, derr.NewErrorWithStatusCode(fmt.Errorf("Server error from Portlayer: %s", err), http.StatusInternalServerError)
+			return result, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err), http.StatusInternalServerError)
 		}
 	}
 
@@ -210,12 +212,12 @@ func validateDriverArgs(args map[string]string, model *models.VolumeRequest) err
 		return nil
 	}
 
-	capacity, convErr := strconv.ParseInt(capstr, 10, 64)
-	if convErr != nil {
-		model.Capacity = -1
-		return fmt.Errorf("Capacity must be an integer value. The unit is MB: %s", convErr)
+	capacity, err := units.FromHumanSize(capstr)
+	if err != nil {
+		return err
 	}
-	model.Capacity = int64(capacity)
+	model.Capacity = int64(capacity) / bytesToMegabyte
+
 	return nil
 }
 

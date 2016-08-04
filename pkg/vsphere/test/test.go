@@ -21,11 +21,9 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/pkg/vsphere/sys"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 
 	"golang.org/x/net/context"
@@ -57,12 +55,7 @@ func Session(ctx context.Context, t *testing.T) *session.Session {
 }
 
 // SpecConfig returns a spec.VirtualMachineConfigSpecConfig struct
-func SpecConfig(session *session.Session) *spec.VirtualMachineConfigSpecConfig {
-	uuid, err := sys.UUID()
-	if err != nil {
-		log.Errorf("unable to get UUID for guest - used for VM name: %s", err)
-		return nil
-	}
+func SpecConfig(session *session.Session, name string) *spec.VirtualMachineConfigSpecConfig {
 	return &spec.VirtualMachineConfigSpecConfig{
 		NumCPUs:       2,
 		MemoryMB:      2048,
@@ -70,7 +63,7 @@ func SpecConfig(session *session.Session) *spec.VirtualMachineConfigSpecConfig {
 
 		ConnectorURI: "tcp://1.2.3.4:9876",
 
-		ID:            uuid,
+		ID:            name,
 		Name:          "zombie_attack",
 		BootMediaPath: session.Datastore.Path("brainz.iso"),
 		VMPathName:    fmt.Sprintf("[%s]", session.Datastore.Name()),

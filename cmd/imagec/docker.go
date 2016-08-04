@@ -295,7 +295,7 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) (string, error)
 
 	// Ensure the parent directory exists
 	destination := path.Join(DestinationDirectory(), id)
-	err = os.MkdirAll(destination, 0755)
+	err = os.MkdirAll(destination, 0755) /* #nosec */
 	if err != nil {
 		return diffID, err
 	}
@@ -378,7 +378,7 @@ func FetchImageManifest(options ImageCOptions) (*Manifest, error) {
 
 	// Ensure the parent directory exists
 	destination := DestinationDirectory()
-	err = os.MkdirAll(destination, 0755)
+	err = os.MkdirAll(destination, 0755) /* #nosec */
 	if err != nil {
 		return nil, err
 	}

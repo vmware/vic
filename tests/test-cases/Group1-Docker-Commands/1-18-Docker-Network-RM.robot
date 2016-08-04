@@ -24,10 +24,7 @@ Multiple network remove
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network ls
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  test-network2
-    ${status}=  Get State Of Github Issue  1318
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-18-Docker-Network-RM.robot needs to be updated now that Issue #1318 has been resolved
-    Log  Issue \#1318 is blocking implementation  WARN
-    #Should Not Contain  ${output}  test-network3
+    Should Not Contain  ${output}  test-network3
 
 Remove already removed network
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network rm test-network

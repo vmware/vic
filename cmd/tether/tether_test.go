@@ -105,7 +105,7 @@ func (t *Mocker) Log() (io.Writer, error) {
 }
 
 func (t *Mocker) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, error) {
-	return dio.MultiWriter(&t.SessionLogBuffer, os.Stdout), nil
+	return dio.MultiWriter(&t.SessionLogBuffer), nil
 }
 
 func (t *Mocker) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) func() {
@@ -168,15 +168,15 @@ func TestMain(m *testing.M) {
 	os.Exit(retCode)
 }
 
-func StartAttachTether(t *testing.T, cfg *executor.ExecutorConfig) (tether.Tether, extraconfig.DataSource, net.Conn) {
-	store := map[string]string{}
-	sink := extraconfig.MapSink(store)
-	src := extraconfig.MapSource(store)
+func StartAttachTether(t *testing.T, cfg *executor.ExecutorConfig, mocker *Mocker) (tether.Tether, extraconfig.DataSource, net.Conn) {
+	store := extraconfig.New()
+	sink := store.Put
+	src := store.Get
 	extraconfig.Encode(sink, cfg)
 	log.Debugf("Test configuration: %#v", sink)
 
-	tthr = tether.New(src, sink, &Mocked)
-	tthr.Register("mocker", &Mocked)
+	tthr = tether.New(src, sink, mocker)
+	tthr.Register("mocker", mocker)
 	tthr.Register("Attach", server)
 
 	// run the tether to service the attach
@@ -198,27 +198,27 @@ func StartAttachTether(t *testing.T, cfg *executor.ExecutorConfig) (tether.Tethe
 	return tthr, src, conn
 }
 
-func tetherTestSetup(t *testing.T) string {
+func tetherTestSetup(t *testing.T) (string, *Mocker) {
 	pc, _, _, _ := runtime.Caller(2)
 	name := runtime.FuncForPC(pc).Name()
 
 	log.Infof("Started test setup for %s", name)
 
 	// use the mock ops - fresh one each time as tests might apply different mocked calls
-	Mocked = Mocker{
+	mocker := Mocker{
 		Started: make(chan bool, 0),
 		Cleaned: make(chan bool, 0),
 	}
 
-	return name
+	return name, &mocker
 }
 
-func tetherTestTeardown(t *testing.T) string {
+func tetherTestTeardown(t *testing.T, mocker *Mocker) string {
 	// cleanup
 	os.RemoveAll(pathPrefix)
 	log.SetOutput(os.Stdout)
 
-	<-Mocked.Cleaned
+	<-mocker.Cleaned
 
 	pc, _, _, _ := runtime.Caller(2)
 	name := runtime.FuncForPC(pc).Name()
