@@ -1,6 +1,6 @@
 [Unit]
 Description=NAT setup for bridge network
-After=vic-init.service
+After=iptables.service
 
 [Service]
 Type=oneshot
