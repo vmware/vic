@@ -449,7 +449,7 @@ func childVM(ctx context.Context, sess *session.Session, name string) (*vm.Virtu
 	}
 
 	searchIndex := object.NewSearchIndex(sess.Client.Client)
-	child, err := searchIndex.FindByUuid(ctx, sess.Datacenter, uuid, true, types.NewBool(true))
+	child, err := searchIndex.FindByUuid(ctx, sess.Datacenter, uuid, true, nil)
 
 	if err != nil {
 		return nil, fmt.Errorf("Unable to find container(%s): %s", name, err.Error())

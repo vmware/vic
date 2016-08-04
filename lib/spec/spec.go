@@ -41,8 +41,8 @@ const (
 // VirtualMachineConfigSpecConfig holds the config values
 type VirtualMachineConfigSpecConfig struct {
 	// ID of the VM
-	ID           string
-	InstanceUUID string
+	ID       string
+	BiosUUID string
 
 	// ParentImageID of the VM
 	ParentImageID string
@@ -111,8 +111,8 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 	}
 	fullName := fmt.Sprintf("%s-%s", prettyName, config.ID)
 	s := &types.VirtualMachineConfigSpec{
-		Name:         fullName,
-		InstanceUuid: config.InstanceUUID,
+		Name: fullName,
+		Uuid: config.BiosUUID,
 		Files: &types.VirtualMachineFileInfo{
 			VmPathName: VMPathName,
 		},

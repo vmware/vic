@@ -223,9 +223,9 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 
 		ConnectorURI: URI,
 
-		ID:           config.Metadata.ID,
-		Name:         config.Metadata.Name,
-		InstanceUUID: uuid,
+		ID:       config.Metadata.ID,
+		Name:     config.Metadata.Name,
+		BiosUUID: uuid,
 
 		ParentImageID: config.ParentImageID,
 		BootMediaPath: VCHConfig.BootstrapImagePath,
