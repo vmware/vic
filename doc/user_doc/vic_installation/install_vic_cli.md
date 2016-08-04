@@ -64,9 +64,7 @@ The virtual container host allows you to use an ESXi host or vCenter Server inst
    At the end of a successful installation, `vic-machine` displays a success message:
    
    <pre>Initialization of appliance successful
-SSH to appliance (default=root:password)
-ssh root@<i>vch_address</i>
-Log server:
+vic-admin portal:
 https://<i>vch_address</i>:2378
 DOCKER_HOST=<i>vch_address</i>:2376
 Connect to docker:
