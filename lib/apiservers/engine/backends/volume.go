@@ -18,12 +18,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	log "github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/errors"
 
 	"github.com/docker/engine-api/types"
+	"github.com/docker/go-units"
 	"github.com/google/uuid"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -35,6 +35,7 @@ const (
 	OptsVolumeStoreKey     string = "VolumeStore"
 	OptsCapacityKey        string = "Capacity"
 	dockerMetadataModelKey string = "DockerMetaData"
+	bytesToMegabyte               = int64(1000000)
 )
 
 func NewVolumeModel(volume *models.VolumeResponse, labels map[string]string) *types.Volume {
@@ -211,12 +212,12 @@ func validateDriverArgs(args map[string]string, model *models.VolumeRequest) err
 		return nil
 	}
 
-	capacity, convErr := strconv.ParseInt(capstr, 10, 64)
-	if convErr != nil {
-		model.Capacity = -1
-		return fmt.Errorf("Capacity must be an integer value. The unit is MB: %s", convErr)
+	capacity, err := units.FromHumanSize(capstr)
+	if err != nil {
+		return err
 	}
-	model.Capacity = int64(capacity)
+	model.Capacity = int64(capacity) / bytesToMegabyte
+
 	return nil
 }
 
