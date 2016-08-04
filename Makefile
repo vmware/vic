@@ -266,7 +266,7 @@ $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 $(docker-engine-api): $(call godeps,cmd/docker/*.go) $(portlayerapi-client)
 ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
-	@$(TIME) $(GO) build $(RACE) -o $@ ./cmd/docker
+	@$(TIME) $(GO) build $(RACE) $(ldflags) -o $@ ./cmd/docker
 else
 	@echo skipping docker-engine-api server, cannot build on non-linux
 endif
