@@ -431,11 +431,11 @@ func instanceUUID(id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	NameSpaceDNS, err := uuid.Parse(u)
+	namespace, err := uuid.Parse(u)
 	if err != nil {
-		return "", errors.Errorf("uable to parse VCH uuid: %s", err)
+		return "", errors.Errorf("unable to parse VCH uuid: %s", err)
 	}
-	return uuid.NewSHA1(NameSpaceDNS, []byte(id)).String(), nil
+	return uuid.NewSHA1(namespace, []byte(id)).String(), nil
 }
 
 // find the childVM for this resource pool by name

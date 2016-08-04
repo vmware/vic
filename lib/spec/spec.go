@@ -35,7 +35,7 @@ const (
 	pciSlotNumberEnd   int32 = 1 << 10
 	pciSlotNumberInc   int32 = 1 << 5
 
-	MaxVMNameLength = 80
+	maxVMNameLength = 80
 )
 
 // VirtualMachineConfigSpecConfig holds the config values
@@ -104,7 +104,7 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 
 	// set VM name to prettyname-ID, to make it readable a little bit
 	// if prettyname-ID is longer than max vm name length, truncate pretty name, instead of UUID, to make it unique
-	nameMaxLen := MaxVMNameLength - len(config.ID)
+	nameMaxLen := maxVMNameLength - len(config.ID)
 	prettyName := config.Name
 	if len(prettyName) > nameMaxLen-1 {
 		prettyName = prettyName[:nameMaxLen-1]
