@@ -703,7 +703,7 @@ func main() {
 	// HACK: Required to learn the name of the vmdk from given reference
 	// Used by docker personality until metadata support lands
 	if !options.resolv {
-		progress.Message(po, options.tag, "Pulling from "+options.image)
+		progress.Message(po, "", "Pulling from "+options.image)
 	}
 
 	// Get the manifest
