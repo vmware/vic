@@ -165,6 +165,5 @@ func (v *Validator) suggestDatastore(path string, label string, flag string) {
 		for _, d := range matches {
 			log.Infof("  %q", d)
 		}
-		return
 	}
 }
