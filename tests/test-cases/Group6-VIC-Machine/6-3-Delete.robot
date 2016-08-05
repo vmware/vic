@@ -13,7 +13,7 @@ Initial load
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${name}=  Generate Random String  15
-    ${rc}  ${container-id}=  Run And Return Rc And Output  docker ${params} create --name ${name} busybox
+    ${rc}  ${container-id}=  Run And Return Rc And Output  docker ${params} create --name ${name} busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${container-id}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container-id}
@@ -25,7 +25,6 @@ Delete VCH and verify
     # Get VCH uuid and container VM uuid, to check if resources are removed correctly
     Run Keyword And Ignore Error  Gather Logs From Test Server
     ${uuid}=  Run  govc vm.info -json\=true ${vch-name} | jq -r '.VirtualMachines[0].Config.Uuid'
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -on=true ${containerName}-*
     ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name ${vch-name}
     Should Contain  ${ret}  is powered on
 
