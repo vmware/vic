@@ -15,7 +15,6 @@
 package storage
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"io"
 	"net/url"
@@ -123,7 +122,7 @@ func (c *NameLookupCache) CreateImageStore(ctx context.Context, storeName string
 	defer c.storeCacheLock.Unlock()
 
 	// Create the root image
-	scratch, err := c.DataStore.WriteImage(ctx, &Image{Store: u}, Scratch.ID, nil, nil)
+	scratch, err := c.DataStore.WriteImage(ctx, &Image{Store: u}, Scratch.ID, nil, "", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -168,18 +167,9 @@ func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID stri
 	}
 
 	// Definitely not in cache or image store, create image.
-	h := sha256.New()
-	t := io.TeeReader(r, h)
-
-	i, err = c.DataStore.WriteImage(ctx, p, ID, meta, t)
+	i, err = c.DataStore.WriteImage(ctx, p, ID, meta, sum, r)
 	if err != nil {
 		return nil, err
-	}
-
-	actualSum := fmt.Sprintf("sha256:%x", h.Sum(nil))
-	if actualSum != sum {
-		// TODO(jzt): cleanup?
-		return nil, fmt.Errorf("Failed to validate image checksum. Expected %s, got %s", sum, actualSum)
 	}
 
 	// Add the new image to the cache

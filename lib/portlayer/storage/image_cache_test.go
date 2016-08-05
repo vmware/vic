@@ -59,7 +59,7 @@ func (c *MockDataStore) ListImageStores(ctx context.Context) ([]*url.URL, error)
 	return nil, nil
 }
 
-func (c *MockDataStore) WriteImage(ctx context.Context, parent *Image, ID string, meta map[string][]byte, r io.Reader) (*Image, error) {
+func (c *MockDataStore) WriteImage(ctx context.Context, parent *Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*Image, error) {
 	i := &Image{
 		ID:       ID,
 		Store:    parent.Store,
@@ -177,7 +177,7 @@ func TestOutsideCacheWriteImage(t *testing.T) {
 		id := fmt.Sprintf("ID-%d", i)
 
 		// Write to the datastore creating images
-		img, werr := s.DataStore.WriteImage(context.TODO(), &parent, id, nil, nil)
+		img, werr := s.DataStore.WriteImage(context.TODO(), &parent, id, nil, "", nil)
 		if !assert.NoError(t, werr) {
 			return
 		}
