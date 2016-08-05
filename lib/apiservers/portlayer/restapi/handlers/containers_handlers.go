@@ -241,20 +241,23 @@ func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers
 	defer trace.End(trace.Begin("Containers.GetContainerInfoHandler"))
 
 	// get the container id for interogation
-	containerID := exec.ParseID(params.ID)
-	cc, err := exec.ContainerInfo(context.Background(), handler.handlerCtx.Session, containerID)
+	h, err := exec.GetInfraContainer(context.Background(), handler.handlerCtx.Session, exec.ParseID(params.ID))
 	if err != nil {
 		log.Debugf("GetContainerInfoHandler Error: %s", err.Error())
 		return containers.NewGetContainerInfoNotFound().WithPayload(&models.Error{Message: err.Error()})
 	}
-	info := convertContainerToContainerInfo(cc)
+	info := convertContainerToContainerInfo(h)
 	return containers.NewGetContainerInfoOK().WithPayload(info)
 }
 
 func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers.GetContainerListParams) middleware.Responder {
 	defer trace.End(trace.Begin("Containers.GetContainerListHandler"))
 
-	containerVMs, err := exec.List(context.Background(), handler.handlerCtx.Session, params.All)
+	var all bool
+	if params.All != nil {
+		all = *params.All
+	}
+	containerVMs, err := exec.List(context.Background(), handler.handlerCtx.Session, all)
 	if err != nil {
 		return containers.NewGetContainerListInternalServerError()
 	}
@@ -267,7 +270,8 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 		info.ContainerID = &container.ExecConfig.ID
 		info.LayerID = &container.ExecConfig.LayerID
 		info.Created = &container.ExecConfig.Created
-		info.Status = &container.Status
+		info.Status = new(string)
+		*info.Status = container.State.String()
 		info.Names = []string{container.ExecConfig.Name}
 		info.ExecArgs = container.ExecConfig.Sessions[*info.ContainerID].Cmd.Args
 		info.StorageSize = &container.VMUnsharedDisk
@@ -302,42 +306,43 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 }
 
 // utility function to convert from a Container type to the API Model ContainerInfo (which should prob be called ContainerDetail)
-func convertContainerToContainerInfo(container *exec.Container) *models.ContainerInfo {
+func convertContainerToContainerInfo(h *exec.Handle) *models.ContainerInfo {
 	// convert the container type to the required model
 	info := &models.ContainerInfo{ContainerConfig: &models.ContainerConfig{}, ProcessConfig: &models.ProcessConfig{}}
 
-	ccid := container.ExecConfig.ID
+	ccid := h.ExecConfig.ID
 	info.ContainerConfig.ContainerID = &ccid
 
 	// TODO: need to determine an appropriate state model
 	// for now leveraging the status used in ps
-	info.ContainerConfig.State = &container.Status
-	info.ContainerConfig.LayerID = &container.ExecConfig.LayerID
-	info.ContainerConfig.RepoName = &container.ExecConfig.RepoName
-	info.ContainerConfig.Created = &container.ExecConfig.Created
-	info.ContainerConfig.Names = []string{container.ExecConfig.Name}
+	info.ContainerConfig.State = new(string)
+	*info.ContainerConfig.State = h.State.String()
+	info.ContainerConfig.LayerID = &h.ExecConfig.LayerID
+	info.ContainerConfig.RepoName = &h.ExecConfig.RepoName
+	info.ContainerConfig.Created = &h.ExecConfig.Created
+	info.ContainerConfig.Names = []string{h.ExecConfig.Name}
 
-	restart := int32(container.ExecConfig.Diagnostics.ResurrectionCount)
+	restart := int32(h.ExecConfig.Diagnostics.ResurrectionCount)
 	info.ContainerConfig.RestartCount = &restart
 
-	tty := container.ExecConfig.Sessions[ccid].Tty
+	tty := h.ExecConfig.Sessions[ccid].Tty
 	info.ContainerConfig.Tty = &tty
 
-	attach := container.ExecConfig.Sessions[ccid].Attach
+	attach := h.ExecConfig.Sessions[ccid].Attach
 	info.ContainerConfig.AttachStdin = &attach
 	info.ContainerConfig.AttachStdout = &attach
 	info.ContainerConfig.AttachStderr = &attach
 
-	path := container.ExecConfig.Sessions[ccid].Cmd.Path
+	path := h.ExecConfig.Sessions[ccid].Cmd.Path
 	info.ProcessConfig.ExecPath = &path
 
-	dir := container.ExecConfig.Sessions[ccid].Cmd.Dir
+	dir := h.ExecConfig.Sessions[ccid].Cmd.Dir
 	info.ProcessConfig.WorkingDir = &dir
 
-	info.ProcessConfig.ExecArgs = container.ExecConfig.Sessions[ccid].Cmd.Args
-	info.ProcessConfig.Env = container.ExecConfig.Sessions[ccid].Cmd.Env
+	info.ProcessConfig.ExecArgs = h.ExecConfig.Sessions[ccid].Cmd.Args
+	info.ProcessConfig.Env = h.ExecConfig.Sessions[ccid].Cmd.Env
 
-	exitcode := int64(container.ExecConfig.Sessions[ccid].ExitStatus)
+	exitcode := int64(h.ExecConfig.Sessions[ccid].ExitStatus)
 	info.ProcessConfig.ExitCode = &exitcode
 
 	return info

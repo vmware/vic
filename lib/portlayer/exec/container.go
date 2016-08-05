@@ -44,21 +44,31 @@ func init() {
 type State int
 
 const (
-	StateRunning = iota + 1
+	StateRunning State = iota
 	StateStopped
 	StateCreated
-
-	propertyCollectorTimeout = 3 * time.Minute
 )
+
+const propertyCollectorTimeout = 3 * time.Minute
+
+func (s State) String() string {
+	switch s {
+	case StateRunning:
+		return "Running"
+	case StateStopped:
+		return "Stopped"
+	case StateCreated:
+		return "Created"
+	}
+
+	return ""
+}
 
 type Container struct {
 	sync.Mutex
 
 	ExecConfig *executor.ExecutorConfig
 	State      State
-
-	// friendly description of state
-	Status string
 
 	VMUnsharedDisk int64
 
@@ -76,28 +86,39 @@ func NewContainer(id ID) *Handle {
 
 func GetContainer(id ID) *Handle {
 	// get from the cache
-	container := containers.Container(id.String())
-	if container != nil {
-		return container.newHandle()
+	c := containers.Container(id.String())
+	if c != nil {
+		return c.newHandle()
 	}
-	return nil
 
+	return nil
+}
+
+func GetInfraContainer(ctx context.Context, sess *session.Session, id ID) (*Handle, error) {
+	c := containers.Container(id.String())
+	if c == nil {
+		c = &Container{}
+	}
+
+	h, err := c.Update(ctx, sess)
+	if err != nil {
+		return nil, err
+	}
+
+	containers.Put(c)
+	return h, nil
 }
 
 func (c *Container) newHandle() *Handle {
 	return newHandle(c)
 }
 
-// TODO: Is this used anywhere?
-func (c *Container) cacheExecConfig(ec *executor.ExecutorConfig) {
-	c.Lock()
-	defer c.Unlock()
-
-	c.ExecConfig = ec
-}
-
 func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle) error {
 	defer trace.End(trace.Begin("Committing handle"))
+
+	if h.Container != c {
+		return fmt.Errorf("wrong handle for container")
+	}
 
 	c.Lock()
 	defer c.Unlock()
@@ -149,7 +170,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 	// if we're stopping the VM, do so before the reconfigure to preserve the extraconfig
 	if h.State != nil && *h.State == StateStopped {
 		// stop the container
-		if err := h.Container.stop(ctx); err != nil {
+		if err := c.stop(ctx); err != nil {
 			return err
 		}
 
@@ -333,69 +354,65 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	return nil
 }
 
-func (c *Container) Update(ctx context.Context, sess *session.Session) (*executor.ExecutorConfig, error) {
+func (c *Container) Update(ctx context.Context, sess *session.Session) (*Handle, error) {
 	defer trace.End(trace.Begin("Container.Update"))
 	c.Lock()
 	defer c.Unlock()
 
 	if c.vm == nil {
-		return nil, fmt.Errorf("container does not have a vm")
+		vm, err := childVM(ctx, sess, c.ExecConfig.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		c.vm = vm
 	}
 
-	var vm []mo.VirtualMachine
-
-	if err := sess.Retrieve(ctx, []types.ManagedObjectReference{c.vm.Reference()}, []string{"config"}, &vm); err != nil {
+	if err := c.info(ctx, sess); err != nil {
 		return nil, err
 	}
 
-	extraconfig.Decode(vmomi.OptionValueSource(vm[0].Config.ExtraConfig), c.ExecConfig)
-	return c.ExecConfig, nil
+	h := c.newHandle()
+	h.State = new(State)
+	*h.State = c.State
+	return h, nil
 }
 
-// Grab the info for the requested container
-// TODO:  Possibly change so that handler requests a handle to the
-// container and if it's not present then search and return a handle
-func ContainerInfo(ctx context.Context, sess *session.Session, containerID ID) (*Container, error) {
-	// first  lets see if we have it in the cache
-	container := containers.Container(containerID.String())
-	// if we missed search for it...
-	if container == nil {
-		// search
-		vm, err := childVM(ctx, sess, containerID.String())
-		if err != nil || vm == nil {
-			log.Debugf("ContainerInfo failed to find childVM: %s", err.Error())
-			return nil, fmt.Errorf("Container Not Found: %s", containerID)
-		}
-		container = &Container{vm: vm}
-	}
+func (c *Container) swap(other *Container) {
+	c.ExecConfig, other.ExecConfig = other.ExecConfig, c.ExecConfig
+	c.State, other.State = other.State, c.State
+	c.VMUnsharedDisk, other.VMUnsharedDisk = other.VMUnsharedDisk, c.VMUnsharedDisk
+	c.vm, other.vm = other.vm, c.vm
+}
 
+func (c *Container) info(ctx context.Context, sess *session.Session) error {
 	// get properties for specific containerVMs
 	// we must do this since we don't know that we have a valid state
 	// This will be refactored when event streaming hits
-	vms, err := populateVMAttributes(ctx, sess, []types.ManagedObjectReference{container.vm.Reference()})
+	vms, err := populateVMAttributes(ctx, sess, []types.ManagedObjectReference{c.vm.Reference()})
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// convert the VMs to container objects -- include
 	// powered off vms
-	all := true
-	cc := convertInfraContainers(vms, &all)
+	cc := convertInfraContainers(vms, true)
 
 	switch len(cc) {
 	case 0:
 		// we found a vm, but it doesn't appear to be a container VM
-		return nil, fmt.Errorf("%s does not appear to be a container", containerID)
+		return fmt.Errorf("not a container")
 	case 1:
 		// we have a winner
-		return cc[0], nil
-	default:
-		// we manged to find multiple vms
-		return nil, fmt.Errorf("multiple containers named %s found", containerID)
+		cc[0].vm = c.vm
+		c.swap(cc[0])
+		return nil
 	}
+
+	return fmt.Errorf("could not get info for container")
 }
 
-// return a list of container attributes
-func List(ctx context.Context, sess *session.Session, all *bool) ([]*Container, error) {
+// List returns a list of container attributes
+func List(ctx context.Context, sess *session.Session, all bool) ([]*Container, error) {
 
 	// for now we'll go to the infrastructure
 	// future iteration will utilize cache & event stream
@@ -475,12 +492,12 @@ func populateVMAttributes(ctx context.Context, sess *session.Session, refs []typ
 }
 
 // convert the infra containers to a container object
-func convertInfraContainers(vms []mo.VirtualMachine, all *bool) []*Container {
+func convertInfraContainers(vms []mo.VirtualMachine, all bool) []*Container {
 	var containerVMs []*Container
 
 	for i := range vms {
 		// poweredOn or all states
-		if !*all && vms[i].Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff {
+		if !all && vms[i].Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff {
 			// don't want it
 			log.Debugf("Skipping poweredOff VM %s", vms[i].Config.Name)
 			continue
@@ -500,7 +517,6 @@ func convertInfraContainers(vms []mo.VirtualMachine, all *bool) []*Container {
 		// set state & friendly status
 		if vms[i].Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
 			container.State = StateRunning
-			container.Status = "Running"
 		} else {
 			// look in the container cache and check status
 			// if it's created we'll take that as it's been created, but
@@ -508,10 +524,8 @@ func convertInfraContainers(vms []mo.VirtualMachine, all *bool) []*Container {
 			cached := containers.Container(container.ExecConfig.ID)
 			if cached != nil && cached.State == StateCreated {
 				container.State = StateCreated
-				container.Status = "Created"
 			} else {
 				container.State = StateStopped
-				container.Status = "Stopped"
 			}
 		}
 		if vms[i].Summary.Storage != nil {

@@ -626,6 +626,10 @@ func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	c.Lock()
 	defer c.Unlock()
 
+	return c.unbindContainer(h)
+}
+
+func (c *Context) unbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	con, ok := c.containers[exec.ParseID(h.ExecConfig.ID)]
 	if !ok {
 		return nil, ResourceNotFoundError{error: fmt.Errorf("container %s not found", h.ExecConfig.ID)}
@@ -1006,6 +1010,11 @@ func (c *Context) UpdateContainer(h *exec.Handle) error {
 	con := c.containers[exec.ParseID(h.ExecConfig.ID)]
 	if con == nil {
 		return ResourceNotFoundError{}
+	}
+
+	if h.State != nil && *h.State != exec.StateRunning {
+		_, err := c.unbindContainer(h)
+		return err
 	}
 
 	for _, s := range con.Scopes() {
