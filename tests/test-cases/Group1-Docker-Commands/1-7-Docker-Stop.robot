@@ -82,9 +82,10 @@ Stop a non-existent container
 Attempt to stop a container that has been started out of band
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create busybox /bin/top
+    ${name}=  Generate Random String  15
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name ${name} busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -on=true ${container}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -on=true ${name}-*
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop ${container}
     Should Be Equal As Integers  ${rc}  0
