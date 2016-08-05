@@ -33,8 +33,6 @@ import (
 type Uninstall struct {
 	*data.Data
 
-	logfile string
-
 	executor *management.Dispatcher
 }
 
@@ -78,7 +76,6 @@ func (d *Uninstall) processParams() error {
 		return err
 	}
 
-	d.logfile = "delete.log"
 	d.Insecure = true
 	return nil
 }

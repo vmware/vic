@@ -31,8 +31,6 @@ import (
 type Inspect struct {
 	*data.Data
 
-	logfile string
-
 	executor *management.Dispatcher
 }
 
@@ -62,7 +60,6 @@ func (i *Inspect) processParams() error {
 		return err
 	}
 
-	i.logfile = "inspect.log"
 	i.Insecure = true
 	return nil
 }

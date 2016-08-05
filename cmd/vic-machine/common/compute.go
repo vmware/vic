@@ -22,18 +22,24 @@ type Compute struct {
 }
 
 func (c *Compute) ComputeFlags() []cli.Flag {
+	flags := c.ComputeFlagsNoName()
+	nameFlag := cli.StringFlag{
+		Name:        "name, n",
+		Value:       "virtual-container-host",
+		Usage:       "The name of the Virtual Container Host",
+		Destination: &c.DisplayName,
+	}
+	flags = append(flags, nameFlag)
+	return flags
+}
+
+func (c *Compute) ComputeFlagsNoName() []cli.Flag {
 	return []cli.Flag{
 		cli.StringFlag{
 			Name:        "compute-resource, r",
 			Value:       "",
 			Usage:       "Compute resource path, e.g. myCluster/Resources/myRP. Default to <default cluster>/Resources",
 			Destination: &c.ComputeResourcePath,
-		},
-		cli.StringFlag{
-			Name:        "name, n",
-			Value:       "virtual-container-host",
-			Usage:       "The name of the Virtual Container Host",
-			Destination: &c.DisplayName,
 		},
 	}
 }
