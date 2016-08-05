@@ -15,6 +15,7 @@
 package list
 
 import (
+	"path"
 	"text/tabwriter"
 	"text/template"
 
@@ -78,12 +79,10 @@ func (l *List) prettyPrint(cli *cli.Context, ctx context.Context, vchs []*vm.Vir
 		{"ID", "PATH", "NAME"},
 	}
 	for _, vch := range vchs {
-		name, err := vch.Name(ctx)
-		if err != nil {
-			log.Errorf("Failed to get name of vch %q: %s", vch.Reference().String(), err)
-		}
+		parentPath := path.Dir(path.Dir(vch.InventoryPath))
+		name := path.Base(vch.InventoryPath)
 		data = append(data,
-			items{vch.Reference().String(), vch.InventoryPath, name})
+			items{vch.Reference().String(), parentPath, name})
 	}
 	t := template.New("vic-machine ls")
 	t, _ = t.Parse(templ)

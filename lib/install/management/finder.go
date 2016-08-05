@@ -73,14 +73,14 @@ func (d *Dispatcher) NewVCHFromID(id string) (*vm.VirtualMachine, error) {
 	return vmm, nil
 }
 
-func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *validate.Validator) (*vm.VirtualMachine, string, error) {
+func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *validate.Validator) (*vm.VirtualMachine, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("path %q, name %q", computePath, name)))
 
 	var err error
 
 	parent, err := v.ResourcePoolHelper(d.ctx, computePath)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	d.vchPoolPath = path.Join(parent.InventoryPath, name)
 	var vchPool *object.ResourcePool
@@ -88,7 +88,7 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *v
 		vapp, err := d.findVirtualApp(d.vchPoolPath)
 		if err != nil {
 			log.Errorf("Failed to get VCH virtual app %q: %s", d.vchPoolPath, err)
-			return nil, d.vchPoolPath, err
+			return nil, err
 		}
 		if vapp != nil {
 			vchPool = vapp.ResourcePool
@@ -98,7 +98,7 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *v
 		vchPool, err = d.session.Finder.ResourcePool(d.ctx, d.vchPoolPath)
 		if err != nil {
 			log.Errorf("Failed to get VCH resource pool %q: %s", d.vchPoolPath, err)
-			return nil, d.vchPoolPath, err
+			return nil, err
 		}
 	}
 
@@ -106,26 +106,27 @@ func (d *Dispatcher) NewVCHFromComputePath(computePath string, name string, v *v
 	var vmm *vm.VirtualMachine
 	if vmm, err = rp.GetChildVM(d.ctx, d.session, name); err != nil {
 		log.Errorf("Failed to get VCH VM: %s", err)
-		return nil, d.vchPoolPath, err
+		return nil, err
 	}
 	if vmm == nil {
 		err = errors.Errorf("Didn't find VM %q in resource pool %q", name, rp.Name())
 		log.Error(err)
-		return nil, d.vchPoolPath, err
+		return nil, err
 	}
+	vmm.InventoryPath = path.Join(d.vchPoolPath, name)
 
 	// check if it's VCH
 	var ok bool
 	if ok, err = d.isVCH(vmm); err != nil {
 		log.Error(err)
-		return nil, d.vchPoolPath, err
+		return nil, err
 	}
 	if !ok {
 		err = errors.Errorf("Not a VCH")
 		log.Error(err)
-		return nil, d.vchPoolPath, err
+		return nil, err
 	}
-	return vmm, d.vchPoolPath, nil
+	return vmm, nil
 }
 
 func (d *Dispatcher) GetVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContainerHostConfigSpec, error) {

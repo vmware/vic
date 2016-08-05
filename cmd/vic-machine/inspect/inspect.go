@@ -23,6 +23,7 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	"golang.org/x/net/context"
 )
@@ -93,7 +94,12 @@ func (i *Inspect) Run(cli *cli.Context) error {
 	}
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, i.Force)
 
-	vch, path, err := executor.NewVCHFromComputePath(i.Data.ComputeResourcePath, i.Data.DisplayName, validator)
+	var vch *vm.VirtualMachine
+	if i.Data.ID != "" {
+		vch, err = executor.NewVCHFromID(i.Data.ID)
+	} else {
+		vch, err = executor.NewVCHFromComputePath(i.Data.ComputeResourcePath, i.Data.DisplayName, validator)
+	}
 	if err != nil {
 		log.Errorf("Failed to get Virtual Container Host %s", i.DisplayName)
 		log.Error(err)
@@ -101,7 +107,7 @@ func (i *Inspect) Run(cli *cli.Context) error {
 	}
 
 	log.Infof("")
-	log.Infof("VCH: %s", path)
+	log.Infof("VCH ID: %s", vch.Reference().String())
 
 	vchConfig, err := executor.GetVCHConfig(vch)
 	if err != nil {

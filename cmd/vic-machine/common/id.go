@@ -16,8 +16,6 @@ package common
 
 import (
 	"github.com/urfave/cli"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 type VCHID struct {
@@ -30,16 +28,12 @@ func (i *VCHID) IDFlags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "id",
 			Value:       "",
-			Usage:       "The ID of the Virtual Container Host - not supported until vic-machine ls is ready",
+			Usage:       "The ID of the Virtual Container Host",
 			Destination: &i.ID,
 		},
 	}
 }
 
 func (i *VCHID) ProcessID() error {
-	if i.ID != "" {
-		log.Warnf("ID of Virtual Container Host is not supported until vic-machine ls is ready. For details, please refer github issue #810")
-		return cli.NewExitError("Can specify --compute-resource and --name", 1)
-	}
 	return nil
 }
