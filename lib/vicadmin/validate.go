@@ -23,6 +23,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	// "github.com/vmware/govmomi/vim25/types"
 
+	"github.com/docker/docker/opts"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/trace"
@@ -35,6 +36,8 @@ type Validator struct {
 	Version        string
 	FirewallStatus template.HTML
 	FirewallIssues template.HTML
+	HostIP         string
+	DockerPort     string
 }
 
 const (
@@ -49,9 +52,11 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	v.Version = vch.Version
 	log.Info(fmt.Sprintf("Setting version to %s", v.Version))
 
+	//VCH Name
 	v.Hostname, _ = os.Hostname()
 	v.Hostname = strings.Title(v.Hostname)
 	log.Info(fmt.Sprintf("Setting hostname to %s", v.Hostname))
+
 
 	v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
 	v2.CheckFirewall(ctx)
@@ -68,6 +73,15 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	}
 	log.Info(fmt.Sprintf("FirewallStatus set to: %s", v.FirewallStatus))
 	log.Info(fmt.Sprintf("FirewallIssues set to: %s", v.FirewallIssues))
+
+	//Retrieve Host IP Information and Set Docker Endpoint
+	v.HostIP = vch.ExecutorConfig.Networks["client"].Assigned.IP.String()
+
+	if vch.HostCertificate.IsNil() {
+		v.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
+	} else {
+		v.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
+	}
 
 	return v
 }

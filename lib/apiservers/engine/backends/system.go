@@ -39,6 +39,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 
 	"github.com/docker/docker/pkg/platform"
 	"github.com/docker/engine-api/types"
@@ -186,19 +187,30 @@ func (s *System) SystemInfo() (*types.Info, error) {
 	return info, nil
 }
 
+// layout for build time as per constants defined in https://golang.org/src/time/format.go
+const buildTimeLayout = "2006/01/02@15:04:05"
+
 func (s *System) SystemVersion() types.Version {
 	APIVersion := "1.22"
 	Arch := runtime.GOARCH
-	// FIXME: fill with real build time
-	BuildTime := "-"
+
+	BuildTime := version.BuildDate
+	if t, err := time.Parse(buildTimeLayout, BuildTime); err == nil {
+		// match time format from docker version's output
+		BuildTime = t.Format(time.ANSIC)
+	}
+
 	Experimental := true
-	// FIXME: fill with real commit id
-	GitCommit := "-"
+	GitCommit := version.GitCommit
 	GoVersion := runtime.Version()
 	// FIXME: fill with real kernel version
 	KernelVersion := "-"
 	Os := runtime.GOOS
-	Version := "0.0.1"
+	Version := version.Version
+	if Version != "" && Version[0] == 'v' {
+		// match version format from docker version's output
+		Version = Version[1:]
+	}
 
 	// go runtime panics without this so keep this here
 	// until we find a repro case and report it to upstream

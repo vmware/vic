@@ -266,7 +266,7 @@ $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 $(docker-engine-api): $(call godeps,cmd/docker/*.go) $(portlayerapi-client)
 ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
-	@$(TIME) $(GO) build $(RACE) -o $@ ./cmd/docker
+	@$(TIME) $(GO) build $(RACE) $(ldflags) -o $@ ./cmd/docker
 else
 	@echo skipping docker-engine-api server, cannot build on non-linux
 endif
@@ -299,7 +299,7 @@ $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 	@$(TIME) $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@
 
 # main appliance target - depends on all top level component targets
-$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/* $(rpctool) $(vicadmin) $(imagec) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
+$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(rpctool) $(vicadmin) $(imagec) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
 	@echo building VCH appliance ISO
 	@$(TIME) $< -p $(appliance-staging) -b $(BIN)
 

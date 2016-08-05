@@ -91,6 +91,14 @@ cp ${DIR}/base/no-dhcp.network $(rootfs_dir $PKGDIR)/etc/systemd/network/
 # do not use the default iptables rules - nat-setup supplants this
 rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
 
+#
+# Set up vicadmin user
+#
+
+chroot $(rootfs_dir $PKGDIR) groupadd -g 1000 vicadmin
+chroot $(rootfs_dir $PKGDIR) useradd -u 1000 -g 1000 -m -d /home/vicadmin -s /bin/false vicadmin
+cp -R ${DIR}/vicadmin/* $(rootfs_dir $PKGDIR)/home/vicadmin
+chown -R 1000:1000 $(rootfs_dir $PKGDIR)/home/vicadmin
 
 ## main VIC components
 # TEMP: imagec wrapper

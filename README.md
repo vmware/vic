@@ -69,7 +69,7 @@ drone exec -trusted -cache -e VIC_ESX_TEST_URL=""
 
 To build without modifying the local system:
 ```
-docker run -v $(pwd):/go/src/github.com/vmware/vic -w /go/src/github.com/vmware/vic golang:1.6 make all
+docker run -v $(pwd):/go/src/github.com/vmware/vic -w /go/src/github.com/vmware/vic golang:1.6.3 make all
 ```
 
 To build directly:
@@ -120,7 +120,7 @@ $ make isos
 The appliance and bootstrap ISOs are bootable CD images used to start the VMs that make up VIC. To build the image using [docker](https://www.docker.com/), ensure `GOPATH` is set and `docker` is installed, then issue the following.
 
 ```
-docker run -v $(pwd):/go/src/github.com/vmware/vic -w /go/src/github.com/vmware/vic golang:1.6 make isos
+docker run -v $(pwd):/go/src/github.com/vmware/vic -w /go/src/github.com/vmware/vic golang:1.6.3 make isos
 ```
 
 Alternatively, the iso image can be built locally.  Again, ensure `GOPATH` is set, but also ensure the following packages are installed. This will attempt to install the following packages if not present using apt-get:

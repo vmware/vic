@@ -28,15 +28,19 @@ IF [%target_vcenter_ip%] == [] (
     GOTO:EOF
 )
 
+SET /p vcenter_username="Enter your vCenter Administrator Username: "
 SET "psCommand=powershell -Command "$pword = read-host 'Enter your vCenter Administrator Password' -AsSecureString ; ^
     $BSTR=[System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($pword); ^
         [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)""
 FOR /f "usebackq delims=" %%p in (`%psCommand%`) do set vcenter_password=%%p
 
-SET plugin_manager_bin=%parent%..\..\vic-machine-windows.exe something
+SET plugin_manager_bin=%parent%..\..\vic-ui-windows.exe
 SET utils_path=%parent%utils\
-SET vcenter_username=administrator@vsphere.local
-SET vcenter_reg_common_flags=--url https://%target_vcenter_ip%/sdk/ --username %vcenter_username% --password %vcenter_password% --showInSolutionManager
+SET vcenter_reg_common_flags=--target https://%target_vcenter_ip%/sdk/ --user %vcenter_username% --password %vcenter_password%
+
+IF [%1] == [--force] (
+   SET vcenter_reg_common_flags=%vcenter_reg_common_flags% --force 
+)
 
 IF /I %vic_ui_host_url% NEQ NOURL (
     IF /I %vic_ui_host_url:~0,5%==https (
@@ -67,25 +71,24 @@ IF EXIST _scratch_flags.txt (
 cd ..\vsphere-client-serenity
 FOR /D %%i IN (*) DO (
     IF /I %vic_ui_host_url%==NOURL (
-        "%utils_path%xml.exe" sel -t -o "--key " -v "/pluginPackage/@id" -o " --name \"" -v "/pluginPackage/@name" -o "\" --version " -v "/pluginPackage/@version" -o " --summary \"" -v "/pluginPackage/@description" -o "\" --company \"" -v "/pluginPackage/@vendor" -o "\" --pluginurl NOURL" -n %%i\plugin-package.xml >> ..\vCenterForWindows\_scratch_flags.txt
+        "%utils_path%xml.exe" sel -t -o "--key " -v "/pluginPackage/@id" -o " --name \"" -v "/pluginPackage/@name" -o "\" --version " -v "/pluginPackage/@version" -o " --summary \"" -v "/pluginPackage/@description" -o "\" --company \"" -v "/pluginPackage/@vendor" -o "\" --url NOURL" -n %%i\plugin-package.xml >> ..\vCenterForWindows\_scratch_flags.txt
     ) ELSE (
-        "%utils_path%xml.exe" sel -t -o "--key " -v "/pluginPackage/@id" -o " --name \"" -v "/pluginPackage/@name" -o "\" --version " -v "/pluginPackage/@version" -o " --summary \"" -v "/pluginPackage/@description" -o "\" --company \"" -v "/pluginPackage/@vendor" -o "\" --pluginurl %vic_ui_host_url%" -v "/pluginPackage/@id" -o "-" -v "/pluginPackage/@version" -o ".zip" -n %%i\plugin-package.xml >> ..\vCenterForWindows\_scratch_flags.txt
+        "%utils_path%xml.exe" sel -t -o "--key " -v "/pluginPackage/@id" -o " --name \"" -v "/pluginPackage/@name" -o "\" --version " -v "/pluginPackage/@version" -o " --summary \"" -v "/pluginPackage/@description" -o "\" --company \"" -v "/pluginPackage/@vendor" -o "\" --url %vic_ui_host_url%" -v "/pluginPackage/@id" -o "-" -v "/pluginPackage/@version" -o ".zip" -n %%i\plugin-package.xml >> ..\vCenterForWindows\_scratch_flags.txt
     )
 )
 
 ECHO Registering VIC UI Plugins...
 FOR /F "tokens=*" %%A IN (..\vCenterForWindows\_scratch_flags.txt) DO (
     IF NOT %%A=="" (
-        REM %plugin_manager_bin% %vcenter_reg_common_flags% %%A
-        java -jar "%parent%register-plugin.jar" %vcenter_reg_common_flags% %%A
+        %plugin_manager_bin% install %vcenter_reg_common_flags% %%A
+        IF %ERRORLEVEL% NEQ 0 (
+            ECHO Error! Could not register plugin with vCenter Server. Please see the message above 
+            GOTO:EOF
+        )
     )
 )
 
 cd ..\vCenterForWindows
 DEL _scratch_flags.txt
-
-IF %ERRORLEVEL%==9009 (
-    ECHO Error: java.exe was not found. Did you install Java?
-)
 
 ECHO VIC UI was successfully installed. Make sure to log out of vSphere Web Client if you are logged in, and log back in.

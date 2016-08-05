@@ -32,12 +32,10 @@ import (
 )
 
 type server struct {
-	auth      Authenticator
-	l         net.Listener
-	addr      string
-	mux       *http.ServeMux
-	links     []string
-	linkNames []string
+	auth Authenticator
+	l    net.Listener
+	addr string
+	mux  *http.ServeMux
 }
 
 type format int
@@ -85,9 +83,6 @@ func (s *server) listenPort() int {
 func (s *server) handleFunc(link string, handler func(http.ResponseWriter, *http.Request)) {
 	defer trace.End(trace.Begin(""))
 
-	s.links = append(s.links, link)
-	s.linkNames = append(s.linkNames, "Full VCH Bundle", "Virtual Container Host & Container", "Docker Peronality", "live log", "Docker Image Resolution", "live log", "Low-level VCH Series", "live log", "VCH Boot", "live log", "VCH Admin Server", "live log")
-
 	if s.auth != nil {
 		authHandler := func(w http.ResponseWriter, r *http.Request) {
 			user, password, ok := r.BasicAuth()
@@ -120,6 +115,7 @@ func (s *server) serve() error {
 
 	s.mux.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("css/"))))
 	s.mux.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir("images/"))))
+	s.mux.Handle("/fonts/", http.StripPrefix("/fonts/", http.FileServer(http.Dir("fonts/"))))
 
 	for _, path := range logFiles() {
 		name := filepath.Base(path)
@@ -246,10 +242,14 @@ func (s *server) tailFiles(res http.ResponseWriter, req *http.Request, names []s
 	}
 
 	done := make(chan bool)
-	go tailFile(fw, names[0], &done)
+	for _, file := range names {
+		go tailFile(fw, file, &done)
+	}
 
 	<-cc
-	done <- true
+	for _, _ = range names {
+		done <- true
+	}
 }
 
 func (s *server) index(res http.ResponseWriter, req *http.Request) {

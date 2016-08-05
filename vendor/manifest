@@ -390,6 +390,13 @@
 			"path": "/serf"
 		},
 		{
+			"importpath": "github.com/hpcloud/tail",
+			"repository": "https://github.com/hpcloud/tail",
+			"vcs": "",
+			"revision": "a30252cb686a21eb2d0b98132633053ec2f7f1e5",
+			"branch": "master"
+		},
+		{
 			"importpath": "github.com/jessevdk/go-flags",
 			"repository": "https://github.com/jessevdk/go-flags",
 			"vcs": "",
@@ -861,6 +868,13 @@
 			"vcs": "",
 			"revision": "31e6fd4bd5a98d8ee7673d24bc54ec73c31810dd",
 			"branch": "master"
+		},
+		{
+			"importpath": "gopkg.in/tomb.v1",
+			"repository": "https://gopkg.in/tomb.v1",
+			"vcs": "",
+			"revision": "dd632973f1e7218eb1089048e0798ec9ae7dceb8",
+			"branch": "v1"
 		},
 		{
 			"importpath": "gopkg.in/yaml.v2",
