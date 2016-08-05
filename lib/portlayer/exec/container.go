@@ -15,21 +15,23 @@
 package exec
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/google/uuid"
 	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/sys"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 	"golang.org/x/net/context"
@@ -423,16 +425,39 @@ func infraContainers(ctx context.Context, sess *session.Session) ([]mo.VirtualMa
 	return vms, nil
 }
 
+func instanceUUID(id string) (string, error) {
+	// generate VM instance uuid, which will be used to query back VM
+	u, err := sys.UUID()
+	if err != nil {
+		return "", err
+	}
+	namespace, err := uuid.Parse(u)
+	if err != nil {
+		return "", errors.Errorf("unable to parse VCH uuid: %s", err)
+	}
+	return uuid.NewSHA1(namespace, []byte(id)).String(), nil
+}
+
 // find the childVM for this resource pool by name
 func childVM(ctx context.Context, sess *session.Session, name string) (*vm.VirtualMachine, error) {
+	// Search container back through instance UUID
+	uuid, err := instanceUUID(name)
+	if err != nil {
+		detail := fmt.Sprintf("unable to get instance UUID: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
 	searchIndex := object.NewSearchIndex(sess.Client.Client)
-	child, err := searchIndex.FindChild(ctx, VCHConfig.ResourcePool.Reference(), name)
+	child, err := searchIndex.FindByUuid(ctx, sess.Datacenter, uuid, true, nil)
+
 	if err != nil {
 		return nil, fmt.Errorf("Unable to find container(%s): %s", name, err.Error())
 	}
 	if child == nil {
 		return nil, fmt.Errorf("Unable to find container %s", name)
 	}
+
 	// instantiate the vm object
 	return vm.NewVirtualMachine(ctx, sess, child.Reference()), nil
 }

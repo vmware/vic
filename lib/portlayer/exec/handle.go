@@ -210,6 +210,12 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 		log.Error(detail)
 		return errors.New(detail)
 	}
+	uuid, err := instanceUUID(config.Metadata.ID)
+	if err != nil {
+		detail := fmt.Sprintf("unable to get instance UUID: %s", err)
+		log.Error(detail)
+		return errors.New(detail)
+	}
 	specconfig := &spec.VirtualMachineConfigSpecConfig{
 		// FIXME: hardcoded values
 		NumCPUs:  2,
@@ -217,8 +223,9 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 
 		ConnectorURI: URI,
 
-		ID:   config.Metadata.ID,
-		Name: config.Metadata.Name,
+		ID:       config.Metadata.ID,
+		Name:     config.Metadata.Name,
+		BiosUUID: uuid,
 
 		ParentImageID: config.ParentImageID,
 		BootMediaPath: VCHConfig.BootstrapImagePath,
