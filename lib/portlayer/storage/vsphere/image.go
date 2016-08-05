@@ -15,6 +15,7 @@
 package vsphere
 
 import (
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -195,7 +196,7 @@ func (v *ImageStore) ListImageStores(ctx context.Context) ([]*url.URL, error) {
 // ID - textual ID for the image to be written
 // meta - metadata associated with the image
 // Tag - the tag of the image to be written
-func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID string, meta map[string][]byte,
+func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID string, meta map[string][]byte, sum string,
 	r io.Reader) (*portlayer.Image, error) {
 
 	storeName, err := util.ImageStoreName(parent.Store)
@@ -208,29 +209,12 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 		return nil, err
 	}
 
-	// Create the image directory in the store.
-	imageDir := v.imageDirPath(storeName, ID)
-	_, err = v.ds.Mkdir(ctx, false, imageDir)
-	if err != nil {
-		return nil, err
-	}
-
-	imageDiskDsURI := v.imageDiskPath(storeName, ID)
-	log.Infof("Creating image %s (%s)", ID, imageDiskDsURI)
-
 	// If this is scratch, then it's the root of the image store.  All images
 	// will be descended from this created and prepared fs.
 	if ID == portlayer.Scratch.ID {
-		// Create the disk
-		vmdisk, cerr := v.dm.CreateAndAttach(ctx, imageDiskDsURI, "", defaultDiskSize, os.O_RDWR)
-		if cerr != nil {
-			return nil, cerr
-		}
-		defer v.dm.Detach(ctx, vmdisk)
-
-		// Make the filesystem and set its label to defaultDiskLabel
-		if cerr = vmdisk.Mkfs(defaultDiskLabel); cerr != nil {
-			return nil, cerr
+		// Create the scratch layer
+		if err := v.scratch(ctx, storeName); err != nil {
+			return nil, err
 		}
 	} else {
 
@@ -238,46 +222,17 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 			return nil, fmt.Errorf("parent ID is empty")
 		}
 
-		// datastore path to the parent
-		parentDiskDsURI := v.imageDiskPath(storeName, parent.ID)
-
-		// Create the disk
-		vmdisk, cerr := v.dm.CreateAndAttach(ctx, imageDiskDsURI, parentDiskDsURI, 0, os.O_RDWR)
-		if cerr != nil {
-			return nil, cerr
-		}
-		defer v.dm.Detach(ctx, vmdisk)
-
-		dir, cerr := ioutil.TempDir("", "mnt-"+ID)
-		if cerr != nil {
-			return nil, cerr
-		}
-		defer os.RemoveAll(dir)
-
-		if merr := vmdisk.Mount(dir, nil); merr != nil {
-			return nil, merr
-		}
-		defer vmdisk.Unmount()
-
-		// Untar the archive
-		cerr = archive.Untar(r, dir, &archive.TarOptions{})
-		if cerr != nil {
-			return nil, cerr
-		}
-
 		// persist the relationship
 		v.parents.Add(ID, parent.ID)
 
-		if cerr = v.parents.Save(ctx); cerr != nil {
-			return nil, cerr
+		if err := v.parents.Save(ctx); err != nil {
+			return nil, err
 		}
-	}
 
-	// Write the metadata to the datastore
-	metaDataDir := v.imageMetadataDirPath(storeName, ID)
-	err = writeMetadata(ctx, v.ds, metaDataDir, meta)
-	if err != nil {
-		return nil, err
+		if err := v.writeImage(ctx, storeName, parent.ID, ID, meta, sum, r); err != nil {
+			return nil, err
+		}
+
 	}
 
 	newImage := &portlayer.Image{
@@ -289,6 +244,126 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 	}
 
 	return newImage, nil
+}
+
+// Create the image directory, create a temp vmdk in this directory,
+// attach/mount the disk, unpack the tar, check the checksum.  If the data
+// doesn't match the expected checksum, abort by nuking the image directory.
+// If everything matches, move the tmp vmdk to ID.vmdk.  The unwind path is a
+// bit convoluted here;  we need to clean up on the way out in the error case
+func (v *ImageStore) writeImage(ctx context.Context, storeName, parentID, ID string, meta map[string][]byte,
+	sum string, r io.Reader) error {
+
+	// Create a temp image directory in the store.
+	imageDir := v.imageDirPath(storeName, ID)
+	_, err := v.ds.Mkdir(ctx, true, imageDir)
+	if err != nil {
+		return err
+	}
+
+	// Write the metadata to the datastore
+	metaDataDir := v.imageMetadataDirPath(storeName, ID)
+	err = writeMetadata(ctx, v.ds, metaDataDir, meta)
+	if err != nil {
+		return err
+	}
+
+	// datastore path to the parent
+	parentDiskDsURI := v.imageDiskPath(storeName, parentID)
+
+	// datastore path to the disk we're creating
+	diskDsURI := v.imageDiskPath(storeName, ID)
+	log.Infof("Creating image %s (%s)", ID, diskDsURI)
+
+	// Create the disk
+	vmdisk, err := v.dm.CreateAndAttach(ctx, diskDsURI, parentDiskDsURI, 0, os.O_RDWR)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		var cleanup bool
+		if vmdisk.Mounted() {
+			cleanup = true
+			log.Debugf("Unmounting abandonned disk")
+			vmdisk.Unmount()
+		}
+		if vmdisk.Attached() {
+			cleanup = true
+			log.Debugf("Detaching abandonned disk")
+			v.dm.Detach(ctx, vmdisk)
+		}
+
+		if cleanup {
+			v.ds.Rm(ctx, imageDir)
+		}
+	}()
+
+	// tmp dir to mount the disk
+	dir, err := ioutil.TempDir("", "mnt-"+ID)
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(dir)
+
+	if err := vmdisk.Mount(dir, nil); err != nil {
+		return err
+	}
+
+	h := sha256.New()
+	t := io.TeeReader(r, h)
+
+	// Untar the archive
+	if err = archive.Untar(t, dir, &archive.TarOptions{}); err != nil {
+		return err
+	}
+
+	actualSum := fmt.Sprintf("sha256:%x", h.Sum(nil))
+	if actualSum != sum {
+		return fmt.Errorf("Failed to validate image checksum. Expected %s, got %s", sum, actualSum)
+	}
+
+	if err = vmdisk.Unmount(); err != nil {
+		return err
+	}
+
+	if err = v.dm.Detach(ctx, vmdisk); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (v *ImageStore) scratch(ctx context.Context, storeName string) error {
+
+	// Create the image directory in the store.
+	imageDir := v.imageDirPath(storeName, portlayer.Scratch.ID)
+	if _, err := v.ds.Mkdir(ctx, false, imageDir); err != nil {
+		return err
+	}
+
+	// Write the metadata to the datastore
+	metaDataDir := v.imageMetadataDirPath(storeName, portlayer.Scratch.ID)
+	if err := writeMetadata(ctx, v.ds, metaDataDir, nil); err != nil {
+		return err
+	}
+
+	imageDiskDsURI := v.imageDiskPath(storeName, portlayer.Scratch.ID)
+	log.Infof("Creating image %s (%s)", portlayer.Scratch.ID, imageDiskDsURI)
+
+	// Create the disk
+	vmdisk, err := v.dm.CreateAndAttach(ctx, imageDiskDsURI, "", defaultDiskSize, os.O_RDWR)
+	if err != nil {
+		return err
+	}
+	defer v.dm.Detach(ctx, vmdisk)
+
+	// Make the filesystem and set its label to defaultDiskLabel
+	if err := vmdisk.Mkfs(defaultDiskLabel); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*portlayer.Image, error) {
