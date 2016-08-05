@@ -22,6 +22,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/docker/docker/opts"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
@@ -458,10 +459,10 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 
 	if conf.HostCertificate != nil {
 		d.VICAdminProto = "https"
-		d.DockerPort = "2376"
+		d.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
 	} else {
 		d.VICAdminProto = "http"
-		d.DockerPort = "2375"
+		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
 	}
 
 	conf.AddComponent("docker-personality", &executor.SessionConfig{

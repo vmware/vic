@@ -27,6 +27,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/hpcloud/tail"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/pkg/trace"
@@ -35,8 +36,9 @@ import (
 )
 
 const (
-	uint32max = (1 << 32) - 1
+	nBytes    = 1024
 	tailLines = 8
+	uint32max = (1 << 32) - 1
 )
 
 type dlogReader struct {
@@ -302,55 +304,100 @@ func zipEntries(readers map[string]entryReader, out *zip.Writer) error {
 }
 
 func tailFile(wr io.Writer, file string, done *chan bool) error {
-	nlines := tailLines
+	defer trace.End(trace.Begin(file))
+
+	// By default, seek to EOF (if file doesn't exist)
+	spos :=   tail.SeekInfo{
+		Offset: 0,
+		Whence: 2,
+	}
+
+	// If the file exists, we want to go back tailLines lines
+	// and pass that new offset into the TailFile() constructor
+	// Per @fdawg4l, use bytes.LastIndex() and a 1k buffer to reduce
+	// seeks/reads
 	f, err := os.Open(file)
+	if err == nil {
+		spos = tail.SeekInfo{
+			Offset: findSeekPos(f),
+			Whence: 0,
+		}
+	}
+
+	tcfg := tail.Config{
+		Location:  &spos,
+		ReOpen:    true,
+		MustExist: false,
+		Follow:    true,
+	}
+
+	t, err := tail.TailFile(file, tcfg)
 	if err != nil {
 		return err
 	}
 
-	pos, err := f.Seek(0, 2)
-	if err != nil {
-		return err
-	}
-	b := make([]byte, 1)
-	for pos > 0 && nlines >= 0 {
-		pos--
-		_, err := f.ReadAt(b, pos)
-		if err != nil && err != io.EOF {
-			return err
-		}
-		if b[0] == '\n' {
-			nlines--
-		}
-	}
-
-	pos++
-	if _, err = f.Seek(pos, 0); err != nil {
-		return err
-	}
-
-	b = make([]byte, 1024)
 	// We KNOW there's a data race here.
 	// But it doesn't break anything, so we just trap it.
 	defer func() {
+		t.Stop()
 		_ = recover()
 	}()
-	var n int
 	for true {
-		for err != io.EOF {
-			n, err = f.Read(b)
-			if err != nil && err != io.EOF {
-				return err
-			}
-			fmt.Fprint(wr, string(b[:n]))
-		}
 		select {
+		case l := <-t.Lines:
+			if l.Err != nil {
+				return l.Err
+			}
+			fmt.Fprint(wr, l.Text, "\n")
 		case _ = <-*done:
 			return nil
-		default:
 		}
-		time.Sleep(50 * time.Millisecond)
-		err = nil
 	}
 	return nil
+}
+
+// Find the offset we want to start tailing from.
+// This should either be beginning-of-file or tailLines
+// newlines from the EOF.
+func findSeekPos(f *os.File) int64 {
+	defer trace.End(trace.Begin(""))
+	nlines := tailLines
+	pos, err := f.Seek(0, 2)
+	// If for some reason we can't seek, we will just start tailing from
+	// beginning-of-file
+	if err != nil {
+		return int64(0)
+	}
+
+	// Last newline we've seen (from EOF).  Initialize to EOF
+	lastnl := pos
+	// Buffer so we can seek nBytes (default: 1k) at a time
+	buf := make([]byte, nBytes)
+	for lastnl > 0 && nlines > 0 {
+		// Go back nBytes from the last newline we've seen (or beginning-of-file),
+		// and read the next nBytes
+		readPos := lastnl - int64(len(buf))
+		if pos < 0 {
+			readPos = 0
+		}
+		bufend, err := f.ReadAt(buf, readPos)
+
+		// It's OK to get io.EOF here.  Anything else is bad.
+		if err != nil && err != io.EOF {
+			log.Errorf("Error reading from logfile: %s", err)
+			return 0
+		}
+
+		// Start from the end of the buffer and start looking for newlines
+		off := bufend
+		for nlines > 0 && off >= 0 {
+			off = bytes.LastIndex(buf[:bufend], []byte("\n"))
+			if off >= 0 {
+				nlines--
+				bufend = off
+			}
+		}
+		lastnl = readPos + int64(bufend)
+	}
+	return lastnl
 }
