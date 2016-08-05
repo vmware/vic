@@ -279,7 +279,7 @@ func TestServiceRunESX(t *testing.T) {
 	ping := sync.NewCond(new(sync.Mutex))
 
 	service.RegisterHandler("ping", func(b []byte) ([]byte, error) {
-		go ping.Broadcast()
+		ping.Broadcast()
 		return service.Ping(b)
 	})
 
