@@ -1,11 +1,10 @@
 [Unit]
 Description=Tether
-After=network-online.target
-Wants=network-online.target
+After=basic.target
 
 [Service]
 Type=idle
 ExecStart=/bin/bootstrap >/dev/ttyS1 2>&1
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=vic.target

@@ -213,7 +213,16 @@ func pciToLinkName(pciPath string) (string, error) {
 	return path.Base(matches[0]), nil
 }
 
-func renameLink(t Netlink, link netlink.Link, slot int32, endpoint *NetworkEndpoint) (netlink.Link, error) {
+func renameLink(t Netlink, link netlink.Link, slot int32, endpoint *NetworkEndpoint) (rlink netlink.Link, err error) {
+	rlink = link
+	defer func() {
+		// we still need to ensure that the link is up irrespective of path
+		err = t.LinkSetUp(link)
+		if err != nil {
+			err = fmt.Errorf("failed to bring link %s up: %s", link.Attrs().Name, err)
+		}
+	}()
+
 	if link.Attrs().Name == endpoint.Name || link.Attrs().Alias == endpoint.Name || endpoint.Name == "" {
 		// if the network is already identified, whether as primary name or alias it doesn't need repeating.
 		// if the name is empty then it should not be aliases or named directly. IPAM data should still be applied.
@@ -232,12 +241,6 @@ func renameLink(t Netlink, link netlink.Link, slot int32, endpoint *NetworkEndpo
 		err = t.LinkSetName(link, endpoint.Name)
 		if err != nil {
 			return nil, err
-		}
-
-		err = t.LinkSetUp(link)
-		if err != nil {
-			detail := fmt.Sprintf("failed to bring link %s up after rename: %s", link.Attrs().Name, err)
-			return nil, errors.New(detail)
 		}
 
 		// reacquire link with updated attributes
@@ -429,8 +432,6 @@ func apply(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
 		detail := fmt.Sprintf("unable to acquire reference to link %s: %s", endpoint.ID, err)
 		return errors.New(detail)
 	}
-
-	// TODO: add dhcp client code
 
 	// rename the link if needed
 	link, err = renameLink(nl, link, int32(slot), endpoint)
