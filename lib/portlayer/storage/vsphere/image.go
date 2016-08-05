@@ -121,6 +121,12 @@ func (v *ImageStore) CreateImageStore(ctx context.Context, storeName string) (*u
 	}
 
 	if v.parents == nil {
+		// This is startup.  Look for image directories without VMDK files and
+		// nuke them.
+		if err := v.cleanup(ctx, u); err != nil {
+			return nil, err
+		}
+
 		pm, err := restoreParentMap(ctx, v.ds, storeName)
 		if err != nil {
 			return nil, err
@@ -216,23 +222,17 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 			return nil, fmt.Errorf("parent ID is empty")
 		}
 
-		if err := v.writeImage(ctx, storeName, parent.ID, ID, sum, r); err != nil {
-			return nil, err
-		}
-
 		// persist the relationship
 		v.parents.Add(ID, parent.ID)
 
 		if err := v.parents.Save(ctx); err != nil {
 			return nil, err
 		}
-	}
 
-	// Write the metadata to the datastore
-	metaDataDir := v.imageMetadataDirPath(storeName, ID)
-	err = writeMetadata(ctx, v.ds, metaDataDir, meta)
-	if err != nil {
-		return nil, err
+		if err := v.writeImage(ctx, storeName, parent.ID, ID, meta, sum, r); err != nil {
+			return nil, err
+		}
+
 	}
 
 	newImage := &portlayer.Image{
@@ -246,18 +246,24 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 	return newImage, nil
 }
 
-// Create a temporary directory, create a vmdk in this directory, attach/mount
-// the disk, unpack the tar, check the checksum.  If the data doesn't match the
-// expected checksum, abort by nuking the tempdir.  If everything matches, move
-// the tmpdir to the expected location (with the vmdk inside it).  The unwind
-// path is a bit convoluted here;  we need to clean up on the way out in the
-// error case (using the tmpdir).
-func (v *ImageStore) writeImage(ctx context.Context, storeName, parentID, ID,
+// Create the image directory, create a temp vmdk in this directory,
+// attach/mount the disk, unpack the tar, check the checksum.  If the data
+// doesn't match the expected checksum, abort by nuking the image directory.
+// If everything matches, move the tmp vmdk to ID.vmdk.  The unwind path is a
+// bit convoluted here;  we need to clean up on the way out in the error case
+func (v *ImageStore) writeImage(ctx context.Context, storeName, parentID, ID string, meta map[string][]byte,
 	sum string, r io.Reader) error {
 
 	// Create a temp image directory in the store.
-	tmpImageDir := v.imageDirPath(storeName, ID+"inprogress")
-	_, err := v.ds.Mkdir(ctx, true, tmpImageDir)
+	imageDir := v.imageDirPath(storeName, ID)
+	_, err := v.ds.Mkdir(ctx, true, imageDir)
+	if err != nil {
+		return err
+	}
+
+	// Write the metadata to the datastore
+	metaDataDir := v.imageMetadataDirPath(storeName, ID)
+	err = writeMetadata(ctx, v.ds, metaDataDir, meta)
 	if err != nil {
 		return err
 	}
@@ -266,26 +272,31 @@ func (v *ImageStore) writeImage(ctx context.Context, storeName, parentID, ID,
 	parentDiskDsURI := v.imageDiskPath(storeName, parentID)
 
 	// datastore path to the disk we're creating
-	imageDiskDsURI := path.Join(v.ds.RootURL, tmpImageDir, ID+".vmdk")
-	log.Infof("Creating image %s (%s)", ID, imageDiskDsURI)
+	inProgDiskDsURI := path.Join(v.ds.RootURL, imageDir, "inprogress.vmdk")
+	log.Infof("Creating image %s (%s)", ID, inProgDiskDsURI)
 
 	// Create the disk
-	vmdisk, err := v.dm.CreateAndAttach(ctx, imageDiskDsURI, parentDiskDsURI, 0, os.O_RDWR)
+	vmdisk, err := v.dm.CreateAndAttach(ctx, inProgDiskDsURI, parentDiskDsURI, 0, os.O_RDWR)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
+		var cleanup bool
 		if vmdisk.Mounted() {
+			cleanup = true
 			log.Debugf("Unmounting abandonned disk")
 			vmdisk.Unmount()
 		}
 		if vmdisk.Attached() {
+			cleanup = true
 			log.Debugf("Detaching abandonned disk")
 			v.dm.Detach(ctx, vmdisk)
 		}
 
-		v.ds.Rm(ctx, tmpImageDir)
+		if cleanup {
+			v.ds.Rm(ctx, imageDir)
+		}
 	}()
 
 	// tmp dir to mount the disk
@@ -320,19 +331,12 @@ func (v *ImageStore) writeImage(ctx context.Context, storeName, parentID, ID,
 		return err
 	}
 
-	// If we've gotten here, prepare the final location for the image
-	imageDir := v.imageDirPath(storeName, ID)
-	_, err = v.ds.Mkdir(ctx, true, imageDir)
-	if err != nil {
-		return err
-	}
-
-	// Move the disk to it's proper directory
+	// Move the disk to it's proper name.
 	vdm := object.NewVirtualDiskManager(v.s.Vim25())
 	return tasks.Wait(ctx, func(context.Context) (tasks.Waiter, error) {
 		dest := v.imageDiskPath(storeName, ID)
-		log.Infof("Moving disk %s to %s", imageDiskDsURI, dest)
-		t, err := vdm.MoveVirtualDisk(ctx, imageDiskDsURI, v.s.Datacenter, dest, v.s.Datacenter, true)
+		log.Infof("Moving disk %s to %s", inProgDiskDsURI, dest)
+		t, err := vdm.MoveVirtualDisk(ctx, inProgDiskDsURI, v.s.Datacenter, dest, v.s.Datacenter, true)
 		log.Infof("move task = %s", t)
 		return t, err
 	})
@@ -343,6 +347,12 @@ func (v *ImageStore) scratch(ctx context.Context, storeName string) error {
 	// Create the image directory in the store.
 	imageDir := v.imageDirPath(storeName, portlayer.Scratch.ID)
 	if _, err := v.ds.Mkdir(ctx, false, imageDir); err != nil {
+		return err
+	}
+
+	// Write the metadata to the datastore
+	metaDataDir := v.imageMetadataDirPath(storeName, portlayer.Scratch.ID)
+	if err := writeMetadata(ctx, v.ds, metaDataDir, nil); err != nil {
 		return err
 	}
 
@@ -446,4 +456,42 @@ func (v *ImageStore) ListImages(ctx context.Context, store *url.URL, IDs []strin
 	}
 
 	return images, nil
+}
+
+// Find any image directories without an <image ID>.vmdk and remove them.
+func (v *ImageStore) cleanup(ctx context.Context, store *url.URL) error {
+	log.Infof("Checking for inconsistent images on %s", store.String())
+
+	storeName, err := util.ImageStoreName(store)
+	if err != nil {
+		return err
+	}
+
+	res, err := v.ds.Ls(ctx, v.imageStorePath(storeName))
+	if err != nil {
+		return err
+	}
+
+	for _, f := range res.File {
+		file, ok := f.(*types.FileInfo)
+		if !ok {
+			continue
+		}
+
+		ID := file.Path
+
+		imageDir := v.imageDirPath(storeName, ID)
+
+		// check for the vmdk
+		_, err := v.ds.Stat(ctx, path.Join(imageDir, ID+".vmdk"))
+		if err != nil {
+
+			log.Infof("Removing inconsistent image (%s) %s", ID, imageDir)
+
+			// Eat the error so we can continue cleaning up.  The tasks package will log the error if there is one.
+			_ = v.ds.Rm(ctx, imageDir)
+		}
+	}
+
+	return nil
 }

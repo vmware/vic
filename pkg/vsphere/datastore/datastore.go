@@ -196,7 +196,7 @@ func (d *Helper) Ls(ctx context.Context, p string) (*types.HostDatastoreBrowserS
 
 // LsDirs returns a list of dirents at the given path (relative to root)
 func (d *Helper) LsDirs(ctx context.Context, p string) (*types.ArrayOfHostDatastoreBrowserSearchResults, error) {
-	spec := types.HostDatastoreBrowserSearchSpec{
+	spec := &types.HostDatastoreBrowserSearchSpec{
 		MatchPattern: []string{"*"},
 	}
 
@@ -205,7 +205,7 @@ func (d *Helper) LsDirs(ctx context.Context, p string) (*types.ArrayOfHostDatast
 		return nil, err
 	}
 
-	task, err := b.SearchDatastoreSubFolders(ctx, path.Join(d.RootURL, p), &spec)
+	task, err := b.SearchDatastoreSubFolders(ctx, path.Join(d.RootURL, p), spec)
 	if err != nil {
 		return nil, err
 	}
@@ -245,6 +245,7 @@ func (d *Helper) Mv(ctx context.Context, fromPath, toPath string) error {
 
 func (d *Helper) Rm(ctx context.Context, pth string) error {
 	f := path.Join(d.RootURL, pth)
+	log.Infof("Removing %s", pth)
 	return tasks.Wait(context.TODO(), func(ctx context.Context) (tasks.Waiter, error) {
 		return d.fm.DeleteDatastoreFile(ctx, f, d.s.Datacenter)
 	})

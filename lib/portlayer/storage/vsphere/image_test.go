@@ -149,31 +149,7 @@ func TestCreateImageLayers(t *testing.T) {
 	}
 
 	vsStore := cacheStore.DataStore.(*ImageStore)
-
-	// Nuke the files and then the parent dir.  Unfortunately, because this is
-	// vsan, we need to delete the files in the directories first (maybe
-	// because they're linked vmkds) before we can delete the parent directory.
-	defer func() {
-		res, err := vsStore.ds.LsDirs(context.TODO(), "")
-		if err != nil {
-			t.Logf("error: %s", err)
-			return
-		}
-
-		for _, dir := range res.HostDatastoreBrowserSearchResults {
-			for _, f := range dir.File {
-				file, ok := f.(*types.FileInfo)
-				if !ok {
-					continue
-				}
-
-				rm(t, client, path.Join(dir.FolderPath, file.Path))
-			}
-			rm(t, client, dir.FolderPath)
-		}
-
-		rm(t, client, client.Datastore.Path(StorageParentDir))
-	}()
+	defer cleanup(t, client, vsStore)
 
 	storeURL, err := cacheStore.CreateImageStore(context.TODO(), "testStore")
 	if !assert.NoError(t, err) {
@@ -313,27 +289,7 @@ func TestBrokenPull(t *testing.T) {
 
 	vsStore := cacheStore.DataStore.(*ImageStore)
 
-	defer func() {
-		res, err := vsStore.ds.LsDirs(context.TODO(), "")
-		if err != nil {
-			t.Logf("error: %s", err)
-			return
-		}
-
-		for _, dir := range res.HostDatastoreBrowserSearchResults {
-			for _, f := range dir.File {
-				file, ok := f.(*types.FileInfo)
-				if !ok {
-					continue
-				}
-
-				rm(t, client, path.Join(dir.FolderPath, file.Path))
-			}
-			rm(t, client, dir.FolderPath)
-		}
-
-		rm(t, client, client.Datastore.Path(StorageParentDir))
-	}()
+	defer cleanup(t, client, vsStore)
 
 	storeURL, err := cacheStore.CreateImageStore(context.TODO(), "testStore")
 	if !assert.NoError(t, err) {
@@ -355,6 +311,7 @@ func TestBrokenPull(t *testing.T) {
 		{imageID + "/gopher.txt", tar.TypeReg, "Gopher names:\nGeorge\nGeoffrey\nGonzo"},
 		{imageID + "/todo.txt", tar.TypeReg, "Get animal handling license."},
 	}
+
 	// meta for the image
 	meta := make(map[string][]byte)
 	meta[imageID+"_meta"] = []byte("Some Meta")
@@ -381,6 +338,66 @@ func TestBrokenPull(t *testing.T) {
 	// Now try again with the right sum and there shouldn't be an error.
 	writtenImage, err = cacheStore.WriteImage(context.TODO(), parent, imageID, meta, actualsum, buf)
 	if !assert.NoError(t, err) || !assert.NotNil(t, writtenImage) {
+		return
+	}
+}
+
+func TestInProgressCleanup(t *testing.T) {
+
+	cacheStore, client, err := setup(t)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	vsStore := cacheStore.DataStore.(*ImageStore)
+
+	defer cleanup(t, client, vsStore)
+
+	storeURL, err := cacheStore.CreateImageStore(context.TODO(), "testStore")
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// base this image off scratch
+	parent, err := cacheStore.GetImage(context.TODO(), storeURL, portlayer.Scratch.ID)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// create a test image
+	imageID := "testImage"
+
+	// meta for the image
+	meta := make(map[string][]byte)
+	meta[imageID+"_meta"] = []byte("Some Meta")
+
+	// Tar the files
+	buf, err := tarFiles([]tarFile{})
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// Calculate the checksum
+	h := sha256.New()
+	h.Write(buf.Bytes())
+	sum := fmt.Sprintf("sha256:%x", h.Sum(nil))
+
+	writtenImage, err := cacheStore.WriteImage(context.TODO(), parent, imageID, meta, sum, buf)
+	if !assert.NoError(t, err) || !assert.NotNil(t, writtenImage) {
+		return
+	}
+
+	// nuke the vmdk
+	rm(t, client, vsStore.imageDiskPath("testStore", imageID))
+
+	// call cleanup
+	if err = vsStore.cleanup(context.TODO(), storeURL); !assert.NoError(t, err) {
+		return
+	}
+
+	// Make sure list is now empty.
+	listedImages, err := vsStore.ListImages(context.TODO(), parent.Store, nil)
+	if !assert.NoError(t, err) || !assert.Equal(t, len(listedImages), 1) || !assert.Equal(t, listedImages[0].ID, portlayer.Scratch.ID) {
 		return
 	}
 }
@@ -450,10 +467,36 @@ func mountLayerRO(v *ImageStore, parent *portlayer.Image) (*disk.VirtualDisk, er
 }
 
 func rm(t *testing.T, client *session.Session, name string) {
+	t.Logf("deleting %s", name)
 	fm := object.NewFileManager(client.Vim25())
 	task, err := fm.DeleteDatastoreFile(context.TODO(), name, client.Datacenter)
 	if !assert.NoError(t, err) {
 		return
 	}
 	_, _ = task.WaitForResult(context.TODO(), nil)
+}
+
+// Nuke the files and then the parent dir.  Unfortunately, because this is
+// vsan, we need to delete the files in the directories first (maybe
+// because they're linked vmkds) before we can delete the parent directory.
+func cleanup(t *testing.T, client *session.Session, vsStore *ImageStore) {
+	res, err := vsStore.ds.LsDirs(context.TODO(), "")
+	if err != nil {
+		t.Logf("error: %s", err)
+		return
+	}
+
+	for _, dir := range res.HostDatastoreBrowserSearchResults {
+		for _, f := range dir.File {
+			file, ok := f.(*types.FileInfo)
+			if !ok {
+				continue
+			}
+
+			rm(t, client, path.Join(dir.FolderPath, file.Path))
+		}
+		rm(t, client, dir.FolderPath)
+	}
+
+	rm(t, client, client.Datastore.Path(StorageParentDir))
 }
