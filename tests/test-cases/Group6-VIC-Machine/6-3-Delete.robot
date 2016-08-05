@@ -12,19 +12,19 @@ Initial load
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${container-id}=  Run And Return Rc And Output  docker ${params} create busybox
+    ${name}=  Generate Random String  15
+    ${rc}  ${container-id}=  Run And Return Rc And Output  docker ${params} create --name ${name} busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${container-id}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container-id}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
-    Set Suite Variable  ${containerID}  ${container-id}
+    Set Suite Variable  ${containerName}  ${name}
     
 Delete VCH and verify
     # Get VCH uuid and container VM uuid, to check if resources are removed correctly
     Run Keyword And Ignore Error  Gather Logs From Test Server
     ${uuid}=  Run  govc vm.info -json\=true ${vch-name} | jq -r '.VirtualMachines[0].Config.Uuid'
-    Run  govc vm.power -on=true ${containerID}
     ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name ${vch-name}
     Should Contain  ${ret}  is powered on
 
@@ -33,7 +33,7 @@ Delete VCH and verify
     Should Contain  ${ret}  Completed successfully
 
     # Check VM is removed
-    ${ret}=  Run  govc vm.info -json=true ${containerID}
+    ${ret}=  Run  govc vm.info -json=true ${containerName}-*
     Should Contain  ${ret}  {"VirtualMachines":null}
     ${ret}=  Run  govc vm.info -json=true ${vch-name}
     Should Contain  ${ret}  {"VirtualMachines":null}
@@ -43,7 +43,7 @@ Delete VCH and verify
     Should Contain  ${ret}   was not found
     ${ret}=  Run  govc datastore.ls ${vch-name}
     Should Contain  ${ret}   was not found
-    ${ret}=  Run  govc datastore.ls VIC/${containerID}
+    ${ret}=  Run  govc datastore.ls VIC/${containerName}-*
     Should Contain  ${ret}   was not found
 
     # Check resource pool is removed
