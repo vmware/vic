@@ -24,6 +24,8 @@ import (
 	"net"
 	"sync"
 	"testing"
+
+	"github.com/vmware/govmomi/vim25/types"
 )
 
 func TestDefaultIP(t *testing.T) {
@@ -257,6 +259,7 @@ func TestServiceErrors(t *testing.T) {
 var (
 	testESX = flag.Bool("toolbox.testesx", false, "Test toolbox service against ESX (vmtoolsd must not be running)")
 	testPID = flag.Int("toolbox.testpid", 0, "PID to return from toolbox start command")
+	testOn  = flag.String("toolbox.powerState", "", "Power state of VM prior to starting the test")
 )
 
 func TestServiceRunESX(t *testing.T) {
@@ -273,10 +276,17 @@ func TestServiceRunESX(t *testing.T) {
 
 	service := NewService(in, out)
 
+	ping := sync.NewCond(new(sync.Mutex))
+
+	service.RegisterHandler("ping", func(b []byte) ([]byte, error) {
+		ping.Broadcast()
+		return service.Ping(b)
+	})
+
 	// assert that reset, ping, Set_Option and Capabilities_Register are called at least once
-	for name, handler := range service.handlers {
+	for _, name := range []string{"reset", "ping", "Set_Option", "Capabilities_Register"} {
 		n := name
-		h := handler
+		h := service.handlers[name]
 		wg.Add(1)
 
 		service.handlers[name] = func(b []byte) ([]byte, error) {
@@ -286,6 +296,17 @@ func TestServiceRunESX(t *testing.T) {
 
 			return h(b)
 		}
+	}
+
+	if *testOn == string(types.VirtualMachinePowerStatePoweredOff) {
+		wg.Add(1)
+		service.PowerCommand.PowerOn.Handler = func() error {
+			defer wg.Done()
+			log.Print("power on event")
+			return nil
+		}
+	} else {
+		log.Print("skipping power on test")
 	}
 
 	if *testPID != 0 {
@@ -301,19 +322,23 @@ func TestServiceRunESX(t *testing.T) {
 		}
 	}
 
-	wg.Add(1)
 	service.PrimaryIP = func() string {
-		defer wg.Done()
 		log.Print("broadcasting IP")
 		return DefaultIP()
 	}
 
+	log.Print("starting toolbox service")
 	err := service.Start()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	wg.Wait()
+
+	// wait for 1 last ping to make sure the final response has reached the client before stopping
+	ping.L.Lock()
+	ping.Wait()
+	ping.L.Unlock()
 
 	service.Stop()
 	service.Wait()

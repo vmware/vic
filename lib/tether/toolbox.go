@@ -53,8 +53,30 @@ func (t *Toolbox) Start() error {
 	t.Service.PrimaryIP = t.defaultIP
 
 	t.stop = make(chan struct{})
+	on := make(chan struct{})
 
-	return t.Service.Start()
+	t.Service.PowerCommand.PowerOn.Handler = func() error {
+		log.Info("toolbox: service is ready (power on event received)")
+		close(on)
+		return nil
+	}
+
+	err := t.Service.Start()
+	if err != nil {
+		return err
+	}
+
+	// Wait for the vmx to send the OS_PowerOn message,
+	// at which point it will be ready to service vix command requests.
+	log.Info("toolbox: waiting for initialization")
+
+	select {
+	case <-on:
+	case <-time.After(time.Second):
+		log.Warn("toolbox: timeout waiting for power on event")
+	}
+
+	return nil
 }
 
 // Stop implementation of the tether.Extension interface
