@@ -21,5 +21,5 @@ The current builds of vSphere Integrated Containers only run on a Linux OS syste
 14. Install Docker in the DevBox VM.<pre>apt install docker.io</pre>
 15. Clone the vSphere Integrated Containers repository from GitHub into the DevBox VM.<pre>git clone https://github.com/vmware/vic.git</pre>
 16. Go to the `/vic` folder.<pre>cd vic</pre>
-17. Run the `make` command to build the vSphere Integrated Containers binaries. <pre>docker run -v $(pwd):/go/src/github.com/vmware/vic -w /go/src/github.com/vmware/vic golang:1.6 make all</pre> This command uses containers and golang to build vSphere Integrated Containers. Copy the command as is into the Vagrant terminal. The build takes approximately 10 minutes.
+17. Run the `make` command to build the vSphere Integrated Containers binaries. <pre>docker run -v $(pwd):/go/src/github.com/vmware/vic -w /go/src/github.com/vmware/vic golang:1.6.3 make all</pre> This command uses containers and golang to build vSphere Integrated Containers. Copy the command as is into the Vagrant terminal. The build takes approximately 10 minutes.
 18. Add the `vic-machine` executable to the path of the DevBox VM.<pre>PATH=$PATH:/home/vagrant/vic/bin</pre>

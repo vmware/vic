@@ -34,12 +34,15 @@ const (
 	pciSlotNumberBegin int32 = 0xc0
 	pciSlotNumberEnd   int32 = 1 << 10
 	pciSlotNumberInc   int32 = 1 << 5
+
+	maxVMNameLength = 80
 )
 
 // VirtualMachineConfigSpecConfig holds the config values
 type VirtualMachineConfigSpecConfig struct {
 	// ID of the VM
-	ID string
+	ID       string
+	BiosUUID string
 
 	// ParentImageID of the VM
 	ParentImageID string
@@ -99,8 +102,17 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 	log.Debugf("Adding metadata to the configspec: %+v", config.Metadata)
 	// TEMPORARY
 
+	// set VM name to prettyname-ID, to make it readable a little bit
+	// if prettyname-ID is longer than max vm name length, truncate pretty name, instead of UUID, to make it unique
+	nameMaxLen := maxVMNameLength - len(config.ID)
+	prettyName := config.Name
+	if len(prettyName) > nameMaxLen-1 {
+		prettyName = prettyName[:nameMaxLen-1]
+	}
+	fullName := fmt.Sprintf("%s-%s", prettyName, config.ID)
 	s := &types.VirtualMachineConfigSpec{
-		Name: config.ID,
+		Name: fullName,
+		Uuid: config.BiosUUID,
 		Files: &types.VirtualMachineFileInfo{
 			VmPathName: VMPathName,
 		},

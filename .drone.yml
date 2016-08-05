@@ -71,6 +71,7 @@ build:
       ENV_VSPHERE_SDK_HOME: "/tmp/sdk/vc_sdk_min"
       ENV_FLEX_SDK_HOME: "/tmp/sdk/flex_sdk_min"
     commands:
+      - make mark
       - apt-get update
       - apt-get install -yq ant openjdk-7-jdk
       - wget $BINTRAY_DOWNLOAD_PATH$SDK_PACKAGE_ARCHIVE -O /tmp/$SDK_PACKAGE_ARCHIVE
@@ -78,6 +79,7 @@ build:
       - tar --warning=no-unknown-keyword -xzf /tmp/$SDK_PACKAGE_ARCHIVE -C /tmp/
       - ant -f ui/vic-ui/build-deployable.xml -Denv.VSPHERE_SDK_HOME=$ENV_VSPHERE_SDK_HOME -Denv.FLEX_HOME=$ENV_FLEX_SDK_HOME
       - tar --warning=no-unknown-keyword -xzf /tmp/$UI_INSTALLER_WIN_UTILS_ARCHIVE -C $UI_INSTALLER_WIN_PATH
+      - make sincemark
     when:
       success: true
 
@@ -104,6 +106,8 @@ build:
       - shasum -a 256 $BIN/vic_$$BUILD_NUMBER.tar.gz
       - make sincemark
     when:
+      repo: vmware/vic
+      branch: master
       success: true
 
 notify:
