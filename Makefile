@@ -272,7 +272,7 @@ else
 endif
 
 # Common portlayer dependencies between client and server
-PORTLAYER_DEPS ?= lib/apiservers/portlayer/swagger.yml \
+PORTLAYER_DEPS ?= lib/apiservers/portlayer/swagger.json \
 				  lib/apiservers/portlayer/restapi/configure_port_layer.go \
 				  lib/apiservers/portlayer/restapi/options/*.go \
 				  lib/apiservers/portlayer/restapi/handlers/*.go
