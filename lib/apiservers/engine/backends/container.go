@@ -45,6 +45,7 @@ import (
 	containertypes "github.com/docker/engine-api/types/container"
 	timetypes "github.com/docker/engine-api/types/time"
 	"github.com/docker/go-connections/nat"
+	"github.com/docker/libnetwork/portallocator"
 
 	"github.com/vishvananda/netlink"
 
@@ -556,6 +557,12 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 	return nil
 }
 
+// requestHostPort finds a free port on the host
+func requestHostPort(proto string) (int, error) {
+	pa := portallocator.Get()
+	return pa.RequestPortInRange(nil, proto, 0, 0)
+}
+
 func (c *Container) mapPorts(op portmap.Operation, hostconfig *container.HostConfig, endpoint *models.EndpointConfig) error {
 	if len(hostconfig.PortBindings) == 0 || endpoint == nil {
 		return nil
@@ -582,9 +589,22 @@ func (c *Container) mapPorts(op portmap.Operation, hostconfig *container.HostCon
 
 		for _, pb := range pbs {
 			var hostPort int
-			hostPort, err = strconv.Atoi(pb.HostPort)
-			if err != nil {
-				return err
+			if pb.HostPort == "" {
+				// use a random port since no host port is specified
+				hostPort, err = requestHostPort(proto)
+				if err != nil {
+					log.Errorf("could not find available port on host")
+					return err
+				}
+				// update the hostconfig
+				hostpb := nat.PortBinding{HostIP: "", HostPort: strconv.Itoa(hostPort)}
+				hostconfig.PortBindings[nport] = []nat.PortBinding{hostpb}
+
+			} else {
+				hostPort, err = strconv.Atoi(pb.HostPort)
+				if err != nil {
+					return err
+				}
 			}
 
 			if err = portMapper.MapPort(op, nil, hostPort, nport.Proto(), containerIP.String(), nport.Int(), clientIfaceName, bridgeIfaceName); err != nil {
