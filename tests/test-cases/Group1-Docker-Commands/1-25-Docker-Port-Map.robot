@@ -47,3 +47,13 @@ Create container with host ip
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p 10.10.10.10:8088:80 --name webserver5 nginx
     Should Not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  host IP is not supported for port bindings
+
+Create container without specifying host port
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p 6379 --name test-redis redis:alpine
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start test-redis
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop test-redis
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
