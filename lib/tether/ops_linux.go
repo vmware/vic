@@ -472,10 +472,6 @@ func apply(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
 		}
 		newIP = &endpoint.DHCP.Assigned
 	} else {
-		if endpoint.Static == nil {
-			return fmt.Errorf("static ip for network %s is not specified", endpoint.Network.Name)
-		}
-
 		newIP = endpoint.Static
 		if newIP.IP.IsUnspecified() {
 			// managed externally

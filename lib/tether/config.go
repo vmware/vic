@@ -117,7 +117,7 @@ type NetworkEndpoint struct {
 }
 
 func (e *NetworkEndpoint) IsDynamic() bool {
-	return len(e.Static.IP) == 0
+	return e.Static == nil || len(e.Static.IP) == 0
 }
 
 type DHCPInfo struct {

@@ -16,6 +16,7 @@ package extraconfig
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net"
 	"reflect"
@@ -31,6 +32,7 @@ import (
 var (
 	// EncodeLogLevel value
 	EncodeLogLevel = log.InfoLevel
+	ErrKeyNotFound = errors.New("key not found")
 )
 
 type encoder func(sink DataSink, src reflect.Value, prefix string, depth recursion)
