@@ -17,6 +17,7 @@ package vicadmin
 import (
 	"fmt"
 	"html/template"
+	"net"
 	"os"
 	"strings"
 
@@ -38,6 +39,8 @@ type Validator struct {
 	FirewallIssues template.HTML
 	LicenseStatus  template.HTML
 	LicenseIssues  template.HTML
+	NetworkStatus  template.HTML
+	NetworkIssues  template.HTML
 	HostIP         string
 	DockerPort     string
 }
@@ -89,6 +92,17 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		for _, err := range licenseIssues {
 			v.LicenseIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.LicenseIssues, err))
 		}
+	}
+
+	//Network Connection Check
+	_, err := net.Dial("tcp", "google.com:80")
+	if err != nil {
+		v.NetworkStatus = BadStatus
+		v.NetworkIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.NetworkIssues, err))
+	} else {
+		v.NetworkStatus = GoodStatus
+		v.NetworkIssues = template.HTML("")
+
 	}
 
 	//Retrieve Host IP Information and Set Docker Endpoint
