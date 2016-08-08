@@ -70,6 +70,9 @@ Forces `vic-machine delete` to ignore warnings and continue with the deletion of
 <pre>--force</pre>
 
 ### `timeout` ###
+
+Short name: none
+
 The timeout period for deleting the virtual container host. Specify a value in the format `XmYs` if the default timeout of 3m0s is insufficient.
 
 <pre>--timeout 5m0s</pre> 

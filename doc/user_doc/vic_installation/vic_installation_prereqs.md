@@ -1,18 +1,18 @@
-# Environment Prerequisites for vSphere Integrated Containers Installation
+# Environment Prerequisites for vSphere Integrated Containers Installation #
 
 Before you install vSphere Integrated Containers, you must ensure that your infrastructure meets certain requirements.
 
-## Supported Platforms for `vic-machine`
+## Supported Platforms for `vic-machine` ##
 
-The current builds of the vSphere Integrated Containers installation and management utility, `vic-machine`, have been tested and verified on the following Linux OS, Windows, and Mac OS systems.
+The vSphere Integrated Containers installation and management utility, `vic-machine`, has been tested and verified on the following Linux OS, Windows, and Mac OS systems.
 
 |**Platform**|**Supported Versions**|
 |---|---|
 |Windows|7, 10|
-|Mac OS X |10.11 (TBC)|
+|Mac OS X |10.11 (El Capitan)|
 |Linux|Ubuntu 15.04, others TBD|
 
-## Supported vSphere Configurations
+## Supported vSphere Configurations ##
 
 You can install vSphere Integrated Containers in the following vSphere setups:
 
@@ -20,11 +20,20 @@ You can install vSphere Integrated Containers in the following vSphere setups:
 * vCenter Server 6.0, managing one or more standalone ESXi 6.0 hosts.
 * vCenter Server 6.0, managing a cluster of ESXi 6.0 hosts, with DRS enabled.
 
-In all cases, your ESXi hosts must have at least 8GB of memory.
-
 Deploying vSphere Integrated Containers to a vCenter Server instance that is running in Enhanced Linked Mode is fully supported.  
 
-## License Requirements
+## ESXi Host Requirements ##
+
+To be valid targets for virtual container hosts and container VMs, standalone ESXi hosts and all ESXi hosts in vCenter Server clusters must meet the following criteria:
+
+- All ESXi hosts must be attached to shared storage for use as container datastores, image datastores, and volume stores.
+- The firewall on all ESXi hosts must be configured to allow connections on the back channel.
+- All ESXi hosts must be attached to the distributed virtual switch for the bridge network in vCenter Server. For more information about distributed virtual switches, see [Network Requirements](#networkreqs) below.
+- All ESXi hosts must be attached to any mapped vSphere networks.
+
+During deployment of virtual container hosts, the `vic-machine` utilty checks that the target ESXi hosts meet the requirements, and issues warnings if they do not.
+
+## License Requirements ##
 The type of license that vSphere Integrated Containers requires depends on the way in which you deploy the software.
 
 | **Type of Installation** | **vSphere Feature Used** | **Required License** |
