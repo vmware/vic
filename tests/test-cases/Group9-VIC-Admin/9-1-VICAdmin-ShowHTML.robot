@@ -3,6 +3,7 @@ Documentation  Test 9-1 - VICAdmin DisplayHTML
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
+Default Tags  regression
 
 *** Test Cases ***
 Display HTML
