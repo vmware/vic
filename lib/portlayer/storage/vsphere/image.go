@@ -15,7 +15,6 @@
 package vsphere
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"errors"
 	"fmt"

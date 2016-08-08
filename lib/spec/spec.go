@@ -272,6 +272,13 @@ func (s *VirtualMachineConfigSpec) ImageStoreName() string {
 	return s.config.ImageStoreName
 }
 
+// ImageStorePath returns the image store url
+func (s *VirtualMachineConfigSpec) ImageStorePath() *url.URL {
+	defer trace.End(trace.Begin(s.config.ID))
+
+	return s.config.ImageStorePath
+}
+
 func (s *VirtualMachineConfigSpec) generateNextKey() int32 {
 
 	s.key -= 10
