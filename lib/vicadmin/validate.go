@@ -36,6 +36,8 @@ type Validator struct {
 	Version        string
 	FirewallStatus template.HTML
 	FirewallIssues template.HTML
+	LicenseStatus  template.HTML
+	LicenseIssues  template.HTML
 	HostIP         string
 	DockerPort     string
 }
@@ -57,6 +59,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	v.Hostname = strings.Title(v.Hostname)
 	log.Info(fmt.Sprintf("Setting hostname to %s", v.Hostname))
 
+	//Firewall Status Check
 	v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
 	v2.CheckFirewall(ctx)
 	firewallIssues := v2.GetIssues()
@@ -72,6 +75,21 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	}
 	log.Info(fmt.Sprintf("FirewallStatus set to: %s", v.FirewallStatus))
 	log.Info(fmt.Sprintf("FirewallIssues set to: %s", v.FirewallIssues))
+
+	//License Check
+	v3, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
+	v3.CheckLicense(ctx)
+	licenseIssues := v3.GetIssues()
+
+	if len(licenseIssues) == 0 {
+		v.LicenseStatus = GoodStatus
+		v.LicenseIssues = template.HTML("")
+	} else {
+		v.LicenseStatus = BadStatus
+		for _, err := range licenseIssues {
+			v.LicenseIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.LicenseIssues, err))
+		}
+	}
 
 	//Retrieve Host IP Information and Set Docker Endpoint
 	v.HostIP = vch.ExecutorConfig.Networks["client"].Assigned.IP.String()
