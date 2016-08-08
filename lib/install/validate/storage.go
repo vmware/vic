@@ -17,6 +17,7 @@ package validate
 import (
 	"fmt"
 	"net/url"
+	"path"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"

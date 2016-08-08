@@ -126,6 +126,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 			var folders *object.DatacenterFolders
 			folders, err = sess.Datacenter.Folders(ctx)
 			if err != nil {
+				log.Errorf("Could not get folders")
 				return err
 			}
 			parent := folders.VmFolder
@@ -140,6 +141,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		}
 
 		if err != nil {
+			log.Errorf("Something failed. Spec was %s", *h.Spec.Spec())
 			return err
 		}
 

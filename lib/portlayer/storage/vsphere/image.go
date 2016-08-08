@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -294,6 +295,7 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 
 func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*portlayer.Image, error) {
 
+	defer trace.End(trace.Begin(store.String()))
 	storeName, err := util.ImageStoreName(store)
 	if err != nil {
 		return nil, err
@@ -341,6 +343,7 @@ func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*
 		Metadata: meta,
 	}
 
+	log.Debugf("Returning image from location %s with parent url %s", newImage.SelfLink, newImage.Parent)
 	return newImage, nil
 }
 

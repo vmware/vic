@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"net/url"
 )
 
 // NilSlot is an invalid PCI slot number
@@ -72,6 +73,9 @@ type VirtualMachineConfigSpecConfig struct {
 
 	// Name of the image store
 	ImageStoreName string
+
+	// url path to image store
+	ImageStorePath *url.URL
 
 	// Temporary
 	Metadata executor.ExecutorConfig
@@ -155,11 +159,14 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 	// merge it with the sec
 	s.ExtraConfig = append(s.ExtraConfig, metaCfg...)
 
-	return &VirtualMachineConfigSpec{
+	vmcs := &VirtualMachineConfigSpec{
 		Session:                  session,
 		VirtualMachineConfigSpec: s,
 		config: config,
-	}, nil
+	}
+
+	log.Debugf("Virtual machine config spec created: %+v", vmcs)
+	return vmcs, nil
 }
 
 // AddVirtualDevice appends an Add operation to the DeviceChange list
