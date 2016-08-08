@@ -267,6 +267,7 @@ Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Stopped
+    Sleep  30
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
