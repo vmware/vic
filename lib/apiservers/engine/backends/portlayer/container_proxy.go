@@ -636,7 +636,7 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 			inspectJSON.ID = *info.ContainerConfig.ContainerID
 		}
 		if info.ContainerConfig.Created != nil {
-			inspectJSON.Created = time.Unix(*info.ContainerConfig.Created, 0).String()
+			inspectJSON.Created = time.Unix(*info.ContainerConfig.Created, 0).Format(time.RFC3339Nano)
 		}
 		if len(info.ContainerConfig.Names) > 0 {
 			inspectJSON.Name = info.ContainerConfig.Names[0]
