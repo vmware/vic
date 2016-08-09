@@ -8,9 +8,9 @@ Short name: `-t`
 
 The IPv4 address, fully qualified domain name (FQDN), or URL of the ESXi host or vCenter Server instance on which you deployed the virtual container host. This option is mandatory.
 
-- If the target ESXi host is not managed by vCenter Server, provide the address  the host.<pre>--target <i>esxi_host_address</i></pre>
-- If the target ESXi host is managed by vCenter Server, or if you deployed it to a cluster, provide the address of vCenter Server.<pre>--target <i>vcenter_server_address</i></pre>
-- You can optionally include the user name and password of the ESXi host or vCenter Server in the target URL. Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>--target <i>esxi_or_vcenter_server_username</i>:<i>password</i>@<i>esxi_or_vcenter_server_address</i></pre>
+- If the target ESXi host is not managed by vCenter Server, provide the address of the host.<pre>--target <i>esxi_host_address</i></pre>
+- If the target ESXi host is managed by vCenter Server, or if you deployed the virtual container host to a cluster, provide the address of vCenter Server.<pre>--target <i>vcenter_server_address</i></pre>
+- You can optionally include the user name and password of the ESXi host or vCenter Server in the target URL. Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>--target <i>username</i>:<i>password</i>@<i>esxi_or_vcenter_server_address</i></pre>
 - If you deployed the virtual container host on a vCenter Server instance that includes more than one datacenter, include the datacenter name in the target URL. If you include an invalid datacenter name, `vic-machine delete` fails and suggests the available datacenters that you can specify.<pre>--target <i>vcenter_server_address</i>/<i>datacenter_name</i></pre>
 - If you do not specify the `passwd` option or include the password in the target URL, `vic-machine inspect` prompts you to enter the password.
 
@@ -54,9 +54,17 @@ If you do not specify the `compute-resource` option and multiple possible resour
 
 Short name: `-n`
 
-The name of the virtual container host appliance to delete. This option is mandatory if the virtual container host to delete has a name other than the default name, `virtual-container-host`. Specify `--name` with exactly the same value that you used when you ran `vic-machine create`.
+The name of the virtual container host appliance to delete. This option is mandatory if the virtual container host to delete has a name other than the default name, `virtual-container-host`, or if you do not use the `id` option. Specify `--name` with exactly the same value that you used when you ran `vic-machine create`.
 
 <pre>--name <i>vch_appliance_name</i></pre>
+
+### `id` ###
+
+Short name: None
+
+The ID of the virtual container host to delete, for example `vm-100`.  You obtain the ID of a virtual container host by running `vic-machine ls`. If you specify the `id` option, you do not need to specify the `name` or `compute-resource` options.
+
+<pre>--id <i>vch_id</i></pre>
 
 ### `force` ###
 

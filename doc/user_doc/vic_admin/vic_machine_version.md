@@ -15,4 +15,6 @@ You have downloaded and unpacked the vSphere Integrated Containers binaries.
 
    <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> version</pre>
 
-  The `vic-machine` utility display the build number of the instance of `vic-machine` that you are using. 
+**Result**
+
+The `vic-machine` utility displays the build number of the instance of `vic-machine` that you are using. 
