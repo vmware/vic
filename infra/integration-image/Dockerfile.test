@@ -18,3 +18,6 @@ RUN chmod +x /usr/local/bin/govc
 RUN curl http://downloads.drone.io/drone-cli/drone_linux_amd64.tar.gz | tar zx
 RUN install -t /usr/local/bin drone
 
+Run apt-get install sshpass
+
+Run apt-get install -yq ant openjdk-7-jdk

@@ -42,10 +42,9 @@
                     Containers
                   </li>
                   <li>
-                    <span class="right">
-                      <i class="fa fa-check"></i>
-                    </span>
+					{{.NetworkStatus}}
                     Network Connectivity
+                    {{.NetworkIssues}}
                   </li>
                   <li>
                     {{.FirewallStatus}}
@@ -59,10 +58,9 @@
                     Virtual Container Host (VCH)
                   </li>
                   <li>
-                    <span class="right">
-                      <i class="fa fa-check"></i>
-                    </span>
+                    {{.LicenseStatus}}
                     License
+                    {{.LicenseIssues}}
                   </li>
                 </ul>
               </div>
@@ -95,7 +93,7 @@
                         <a href="/logs/tail/imagec.log">Live Log</a>
                       </li>
                   <li><a href="/logs/port-layer.log">
-                      VCH Services (Low-Level)
+                      Port-Layer Service
                       </a>
                       <span class="right">
                         <a href="/logs/tail/port-layer.log">Live Log</a>

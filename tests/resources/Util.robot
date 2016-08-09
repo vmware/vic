@@ -87,8 +87,12 @@ Run VIC Machine Command
     [Return]  ${output}
 
 Cleanup VIC Appliance On Test Server
+    Log To Console  Gathering logs from the test server...
     Gather Logs From Test Server
+    Log To Console  Deleting the VCH appliance...
     ${output}=  Run VIC Machine Delete Command
+    Log To Console  Gathering logs from the host ESX server...
+    Run Keyword And Ignore Error  Gather Logs From ESX Server
     [Return]  ${output}
     
 Run VIC Machine Delete Command
@@ -136,6 +140,10 @@ Gather Logs From Test Server
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  ${params}  ${SPACE}
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  @{ip}[1]  :
     Run Keyword If  '${status}'=='FAIL'  Run  wget --no-check-certificate https://@{ip}[0]:2378/container-logs.tar.gz -O ${vch-name}-container-logs.tar.gz
+
+Gather Logs From ESX Server
+    Environment Variable Should Be Set  TEST_URL
+    ${out}=  Run  govc logs.download
 
 Get State Of Github Issue
     [Arguments]  ${num}

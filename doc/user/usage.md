@@ -102,6 +102,26 @@ INFO[2016-06-29T16:03:21-05:00] Completed successfully
 ```
 
 
+## List Virtual Container Hosts
+
+vic-machine ls can list all VCHs in your VC/ESXi, or list all VCHs under the provided resource pool by compute-resource parameter.
+```
+vic-machine-linux ls --target target-host --user root --password <password>
+INFO[2016-08-08T16:21:57-05:00] ### Listing VCHs ####
+
+ID                           PATH                                                   NAME
+VirtualMachine:vm-189        /dc1/host/cluster1/Resources/test1/test1-2        test1-2-1
+VirtualMachine:vm-189        /dc2/host/cluster2/Resources/test2/test2-2        test2-2-1
+
+
+vic-machine-linux ls --target target-host/dc1 --user root --password <password> --compute-resource cluster1/test1
+INFO[2016-08-08T16:25:50-02:00] ### Listing VCHs ####
+
+ID                           PATH                                                   NAME
+VirtualMachine:vm-189        /dc1/host/cluster1/Resources/test1/test1-2        test1-2-1
+```
+
+
 ## Configuring Volumes in a Virtual Container Host
 
 Volumes are implemented as VMDKs and mounted as block devices on a containerVM. This means that they cannot be used concurrently by multiple running, containers. Attempting to start a container that has a volume attached that is in use by a running container will result in an error.
