@@ -111,7 +111,6 @@ func TestMain(t *testing.T) {
 		}
 
 		conf := testCompute(validator, input, t)
-		testDatastoreHelper(validator, t)
 		testTargets(validator, input, conf, t)
 		testStorage(validator, input, conf, t)
 		//		testNetwork() need dvs support
@@ -243,21 +242,6 @@ func testTargets(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 	}
 }
 
-func testDatastoreHelper(v *Validator, t *testing.T) {
-	tests := []struct {
-		path     string
-		expected string
-	}{{"ds://LocalDS_0/path",
-		"ds://LocalDS_0/path"}}
-	for _, test := range tests {
-		output, _, err := v.DatastoreHelper(v.Context, test.path)
-
-		if err != nil {
-			log.Errorln(err)
-		}
-		assert.Equal(t, test.expected, output.String())
-	}
-}
 func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
 	tests := []struct {
 		image         string

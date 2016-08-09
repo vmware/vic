@@ -35,6 +35,11 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 	// Image Store
 	imageDSpath, ds, err := v.DatastoreHelper(ctx, input.ImageDatastorePath, "", "--image-datastore")
 
+	if imageDSpath == nil {
+		v.NoteIssue(err)
+		return
+	}
+
 	// provide a default path if only a DS name is provided
 	if imageDSpath.Path == "" {
 		imageDSpath.Path = path.Join(input.DisplayName, "images")
