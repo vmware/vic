@@ -293,7 +293,7 @@ func (c *Create) processVolumeStores() error {
 	for _, arg := range c.volumeStores {
 		splitMeta := strings.SplitN(arg, ":", 2)
 		if len(splitMeta) != 2 {
-			return errors.New("Volume store input must be in format datastore-name/path:label")
+			return errors.New("Volume store input must be in format datastore/path:label")
 		}
 		c.VolumeLocations[splitMeta[1]] = splitMeta[0]
 	}
@@ -310,7 +310,7 @@ func (c *Create) processParams() error {
 	}
 
 	if c.ImageDatastorePath == "" {
-		return cli.NewExitError("--image-store Image datastore path must be specified", 1)
+		return cli.NewExitError("--image-store Image datastore path must be specified; use format datastore/path", 1)
 	}
 
 	if c.cert != "" && c.key == "" {

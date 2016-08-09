@@ -71,11 +71,11 @@ func NewImageStore(ctx context.Context, s *session.Session, u *url.URL) (*ImageS
 
 	datastores, err := s.Finder.DatastoreList(ctx, u.Host)
 	if err != nil {
-		// TODO: real error beyond whatever DatastoreList returns
-		return nil, err
+		return nil, errors.New(fmt.Sprintf("Host returned error when trying to locate provided datastore %s: %s", u.String(), err.Error()))
 	}
+
 	if len(datastores) != 1 {
-		return nil, errors.New("Datastore not found or ambiguous name provided.")
+		return nil, errors.New(fmt.Sprintf("Found %d datastores with provided datastore path %s. Installation will not continue, as provided datastore path must identify exactly one datastore.", len(datastores), u.String()))
 	}
 
 	ds, err := datastore.NewHelper(ctx, s, datastores[0], path.Join(u.Path, StorageParentDir))

@@ -54,7 +54,7 @@ func (d *Dispatcher) DeleteStores(vchVM *vm.VirtualMachine, conf *config.Virtual
 	var emptyVolumes bool
 	log.Infof("Removing images")
 	if err = d.deleteImages(conf); err != nil {
-		return err
+		errs = append(errs, err.Error())
 	}
 	emptyVolumes, err = d.deleteDatastoreFiles(ds, path.Join(p, volumeRoot), d.force)
 
@@ -83,7 +83,10 @@ func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) e
 		}
 
 		if len(imageDSes) != 1 {
-			errs = append(errs, fmt.Sprintf("Invalid or ambiguous datastore name %s provided while attempting to remove image stores", imageDir.Host))
+			errs = append(errs, fmt.Sprintf("Found %d datastores with provided datastore path %s. Provided datastore path must identify exactly one datastore.",
+				len(imageDSes),
+				imageDir.String()))
+
 			continue
 		}
 
