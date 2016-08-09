@@ -267,6 +267,8 @@ Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Stopped
+    ${status}=  Get State Of Github Issue  1870
+    Run Keyword If  '${status}' == 'closed'  Fail  Remove the big sleep from Util.robot now that Issue #1870 has been resolved
     Sleep  30
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
     Should Be Equal As Integers  ${rc}  0
