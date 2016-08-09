@@ -382,7 +382,7 @@ func client() (*session.Session, error) {
 	_, err = session.Populate(ctx)
 	if err != nil {
 		// no a critical error for vicadmin
-		log.Warnf(err)
+		log.Warnf("Unable to populate session: %s", err)
 	}
 
 	return session, nil
