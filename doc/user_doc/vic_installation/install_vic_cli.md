@@ -41,7 +41,7 @@ The virtual container host allows you to use an ESXi host or vCenter Server inst
 
    <pre>$ vic-machine-darwin create
 --target <i>vcenter_server_address</i>
---image-datastore <i>datastore_name</i> 
+--image-store <i>datastore_name</i> 
 --user <i>username</i>
 --bridge-network <i>network_name</i></pre>  
 
@@ -49,7 +49,7 @@ The virtual container host allows you to use an ESXi host or vCenter Server inst
 
    <pre>$ vic-machine-linux create
 --target <i>vcenter_server_address</i>
---image-datastore <i>datastore_name</i> 
+--image-store <i>datastore_name</i> 
 --user <i>username</i>
 --bridge-network <i>network_name</i></pre> 
 
@@ -57,7 +57,7 @@ The virtual container host allows you to use an ESXi host or vCenter Server inst
 
    <pre>$ vic-machine-windows create
 --target <i>vcenter_server_address</i>
---image-datastore <i>datastore_name</i> 
+--image-store <i>datastore_name</i> 
 --user <i>username</i>
 --bridge-network <i>network_name</i></pre> 
 

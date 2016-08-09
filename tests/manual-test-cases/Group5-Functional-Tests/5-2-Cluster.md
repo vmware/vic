@@ -19,7 +19,7 @@ This test requires access to VMWare Nimbus cluster for dynamic ESXi and vCenter 
 4. Add 2 ESXi hosts to the cluster:  
 ```govc cluster.add -hostname=<ESXi IP> -username=<USER> -cluster=cluster1 -password=<PW> -noverify=true```
 5. Deploy VCH Appliance to the new vCenter cluster:    
-```bin/vic-machine-linux create --target=<VC IP> --user=Administrator@vsphere.local --image-datastore=datastore1 --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --generate-cert=false --password=Admin\!23 --force=true --bridge-network=bridge --compute-resource=/ha-datacenter/host/cluster1/<ESXi IP 1>/Resources --external-network=vm-network --name=VCH-test```
+```bin/vic-machine-linux create --target=<VC IP> --user=Administrator@vsphere.local --image-store=datastore1 --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --generate-cert=false --password=Admin\!23 --force=true --bridge-network=bridge --compute-resource=/ha-datacenter/host/cluster1/<ESXi IP 1>/Resources --external-network=vm-network --name=VCH-test```
 6. Run a variety of docker commands on the VCH appliance
 
 #Expected Outcome:

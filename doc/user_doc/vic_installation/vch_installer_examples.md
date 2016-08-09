@@ -21,7 +21,7 @@ You can install vSphere Integrated Containers directly on an ESXi host that is n
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target <i>esxi_host_IPv4_address_or_FQDN</i>
 --user root
---image-datastore <i>datastore_name</i>
+--image-store <i>datastore_name</i>
 </pre>
 
 <a name="cluster"></a>
@@ -38,7 +38,7 @@ In addition to the mandatory options for deployment to a cluster, this example s
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
 --compute-resource <i>cluster_name</i>
---image-datastore <i>datastore_name</i>
+--image-store <i>datastore_name</i>
 --bridge-network <i>distributed_port_group_name</i>
 --name vch1
 </pre>
@@ -61,7 +61,7 @@ In addition to the mandatory options for deployment to a cluster, this example s
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
 --compute-resource <i>cluster_name</i>
---image-datastore <i>datastore_name</i>
+--image-store <i>datastore_name</i>
 --bridge-network <i>network_1_name</i>
 --management-network <i>network_2_name</i>
 --external-network <i>network_3_name</i>
@@ -80,7 +80,7 @@ In addition to the mandatory options for deployment to a cluster, this example s
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
 --compute-resource <i>cluster_name</i>
---image-datastore <i>datastore_1_name</i>
+--image-store <i>datastore_1_name</i>
 --container-datastore <i>datastore_2_name</i>
 --bridge-network <i>network_1_name</i>
 --name vch1
@@ -98,7 +98,7 @@ In addition to the mandatory options, this example specifies the vCenter Single 
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
 --compute-resource <i>host_IPv4_address_or_FQDN</i>
---image-datastore <i>datastore_name</i>
+--image-store <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --name vch1
 </pre>
@@ -114,7 +114,7 @@ This example uses the minimum required options.
 --target <i>esxi_host_IPv4_address_or_FQDN</i>
 --user root
 --compute-resource <i>resource_pool_name</i>
---image-datastore <i>datastore_name</i>
+--image-store <i>datastore_name</i>
 </pre>
 
 <a name="rp_cluster"></a>
@@ -129,7 +129,7 @@ In addition to the mandatory options, this example sets the vCenter Single Sign-
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
 --compute-resource <i>cluster_name</i>/<i>resource_pool_name</i>
---image-datastore <i>datastore_name</i>
+--image-store <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --name vch1
 </pre>
@@ -146,7 +146,7 @@ In addition to the mandatory options for deployment to a cluster, this example s
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
 --compute-resource <i>cluster_name</i>
---image-datastore <i>datastore_name</i>
+--image-store <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --cert <i>path_to_certificate_file</i>
 --key <i>path_to_certificate_file</i>
@@ -165,7 +165,7 @@ In addition to the mandatory options for deployment to a cluster, this example s
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
 --compute-resource <i>cluster_name</i>
---image-datastore <i>datastore_name</i>
+--image-store <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --name vch1
 --no-tls
@@ -183,7 +183,7 @@ In addition to the mandatory options for deployment to a cluster, this example s
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
 --compute-resource <i>cluster_name</i>
---image-datastore <i>datastore_name</i>
+--image-store <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --name vch1
 --appliance-cpu <i>number_of_CPUs</i>

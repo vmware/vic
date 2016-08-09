@@ -53,7 +53,7 @@ This test requires that a vSphere server is running and available
 2. Issue the following command:
 ```
 vic-machine create --name=<VCH_NAME> --target=<TEST_URL> \
-    --user=<TEST_USERNAME> --image-datastore=<TEST_DATASTORE> --password=<TEST_PASSWORD> \
+    --user=<TEST_USERNAME> --image-store=<TEST_DATASTORE> --password=<TEST_PASSWORD> \
     --bridge-network=<NETWORK> --compute-resource=<TEST_RESOURCE>
 ```
 3. Run regression tests
@@ -68,7 +68,7 @@ vic-machine create --name=<VCH_NAME> --target=<TEST_URL> \
 2. Issue the following command:
 ```
 vic-machine create --name=<VCH_NAME> --target=<TEST_URL> \
-    --user=<TEST_USERNAME> --image-datastore=<TEST_DATASTORE> --password=<TEST_PASSWORD> \
+    --user=<TEST_USERNAME> --image-store=<TEST_DATASTORE> --password=<TEST_PASSWORD> \
     --bridge-network=<NETWORK> --compute-resource=<TEST_RESOURCE>
 ```
 
