@@ -1,4 +1,4 @@
-b# Virtual Container Host Deployment Options
+# Virtual Container Host Deployment Options
 
 The command line utility for vSphere Integrated Containers, `vic-machine`, provides a `create` command that has options to allow you to customize the deployment of a virtual container host to correspond to your vSphere environment.
 
