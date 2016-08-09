@@ -94,19 +94,20 @@ const (
 	attachPLAttemptTimeout time.Duration = attachAttemptTimeout - attachPLAttemptDiff //timeout for the portlayer before ditching an attempt
 	attachRequestTimeout   time.Duration = 2 * time.Hour                              //timeout to hold onto the attach connection
 	swaggerSubstringEOF                  = "EOF"
-	forceLogType                         = "json-file"	//Use in inspect to allow docker logs to work
+	forceLogType                         = "json-file" //Use in inspect to allow docker logs to work
 )
 
+// NewContainerProxy creates a new ContainerProxy
 func NewContainerProxy(plClient *client.PortLayer, portlayerAddr string, portlayerName string) *ContainerProxy {
 	return &ContainerProxy{client: plClient, portlayerAddr: portlayerAddr, portlayerName: portlayerName}
 }
 
-// containerCreateHandle() creates a new VIC container by calling the portlayer
+// CreateContainerHandle creates a new VIC container by calling the portlayer
 //
 // returns:
 // 	(containerID, containerHandle, error)
 func (c *ContainerProxy) CreateContainerHandle(imageID string, config types.ContainerCreateConfig) (string, string, error) {
-	defer trace.End(trace.Begin("ContainerProxy.containerCreateHandle"))
+	defer trace.End(trace.Begin(imageID))
 
 	if c.client == nil {
 		return "", "",
@@ -147,13 +148,13 @@ func (c *ContainerProxy) CreateContainerHandle(imageID string, config types.Cont
 	return id, h, nil
 }
 
-// AddContainerToScope() adds a container, referenced by handle, to a scope.
+// AddContainerToScope adds a container, referenced by handle, to a scope.
 // If an error is return, the returned handle should not be used.
 //
 // returns:
 //	modified handle
 func (c *ContainerProxy) AddContainerToScope(handle string, config types.ContainerCreateConfig) (string, error) {
-	defer trace.End(trace.Begin("ContainerProxy.AddContainerToScope"))
+	defer trace.End(trace.Begin(handle))
 
 	if c.client == nil {
 		return "",
@@ -193,13 +194,13 @@ func (c *ContainerProxy) AddContainerToScope(handle string, config types.Contain
 	return handle, nil
 }
 
-// AddVolumesToContainer() adds volumes to a container, referenced by handle.
+// AddVolumesToContainer adds volumes to a container, referenced by handle.
 // If an error is return, the returned handle should not be used.
 //
 // returns:
 //	modified handle
 func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.ContainerCreateConfig) (string, error) {
-	defer trace.End(trace.Begin("ContainerProxy.AddVolumesToContainer"))
+	defer trace.End(trace.Begin(handle))
 
 	if c.client == nil {
 		return "",
@@ -255,7 +256,7 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 // CommitContainerHandle() commits any changes to container handle.
 //
 func (c *ContainerProxy) CommitContainerHandle(handle, imageID string) error {
-	defer trace.End(trace.Begin("ContainerProxy.CommitContainerHandle"))
+	defer trace.End(trace.Begin(handle))
 
 	if c.client == nil {
 		return derr.NewErrorWithStatusCode(fmt.Errorf("ContainerProxy.CommitContainerHandle failed to create a portlayer client"),
@@ -275,7 +276,7 @@ func (c *ContainerProxy) CommitContainerHandle(handle, imageID string) error {
 	return nil
 }
 
-// StreamContainerlogs() reads the log stream from the portlayer rest server and writes
+// StreamContainerLogs reads the log stream from the portlayer rest server and writes
 // it directly to the io.Writer that is passed in.
 func (c *ContainerProxy) StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error {
 	defer trace.End(trace.Begin(""))
@@ -315,6 +316,7 @@ func (c *ContainerProxy) StreamContainerLogs(name string, out io.Writer, started
 	return nil
 }
 
+// ContainerRunning returns true if the given container is running
 func (c *ContainerProxy) ContainerRunning(vc *viccontainer.VicContainer) (bool, error) {
 	defer trace.End(trace.Begin(""))
 
@@ -542,7 +544,7 @@ func processSpecifiedVolumes(volumes []string) ([]volumeFields, error) {
 // Inspect Utility Functions
 //-------------------------------------
 
-// ContainerInfoToDockerContainerInspect() takes a ContainerInfo swagger-based struct
+// ContainerInfoToDockerContainerInspect takes a ContainerInfo swagger-based struct
 // returned from VIC's port layer and creates an engine-api based container inspect struct.
 // There maybe other asset gathering if ContainerInfo does not have all the information
 func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *models.ContainerInfo, portlayerName string) (*types.ContainerJSON, error) {

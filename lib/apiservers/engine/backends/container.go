@@ -105,15 +105,17 @@ type Container struct {
 }
 
 const (
-	attachConnectTimeout   time.Duration = 15 * time.Second //timeout for the connection
-	attachAttemptTimeout   time.Duration = 40 * time.Second //timeout before we ditch an attach attempt
-	attachPLAttemptDiff    time.Duration = 10 * time.Second
-	attachPLAttemptTimeout time.Duration = attachAttemptTimeout - attachPLAttemptDiff //timeout for the portlayer before ditching an attempt
-	attachRequestTimeout   time.Duration = 2 * time.Hour                              //timeout to hold onto the attach connection
-	swaggerSubstringEOF                  = "EOF"
-	DefaultEnvPath                       = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+	commitTimeout          = 1 * time.Minute
+	attachConnectTimeout   = 15 * time.Second //timeout for the connection
+	attachAttemptTimeout   = 40 * time.Second //timeout before we ditch an attach attempt
+	attachPLAttemptDiff    = 10 * time.Second
+	attachPLAttemptTimeout = attachAttemptTimeout - attachPLAttemptDiff //timeout for the portlayer before ditching an attempt
+	attachRequestTimeout   = 2 * time.Hour                              //timeout to hold onto the attach connection
+	swaggerSubstringEOF    = "EOF"
+	DefaultEnvPath         = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 )
 
+// NewContainerBackend returns a new Container
 func NewContainerBackend() *Container {
 	return &Container{
 		containerProxy: portlayer.NewContainerProxy(PortLayerClient(), PortLayerServer(), PortLayerName()),
@@ -288,7 +290,7 @@ func (c *Container) containerCreate(vc *viccontainer.VicContainer, config types.
 // for the container to exit.
 // If a signal is given, then just send it to the container and return.
 func (c *Container) ContainerKill(name string, sig uint64) error {
-	defer trace.End(trace.Begin("ContainerKill"))
+	defer trace.End(trace.Begin(name))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -323,7 +325,7 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 // ContainerResize changes the size of the TTY of the process running
 // in the container with the given name to the given height and width.
 func (c *Container) ContainerResize(name string, height, width int) error {
-	defer trace.End(trace.Begin("ContainerResize"))
+	defer trace.End(trace.Begin(name))
 
 	// Look up the container name in the metadata cache to get long ID
 	if vc := cache.ContainerCache().GetContainer(name); vc != nil {
@@ -364,7 +366,7 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 // stop. Returns an error if the container cannot be found, or if
 // there is an underlying error at any stage of the restart.
 func (c *Container) ContainerRestart(name string, seconds int) error {
-	defer trace.End(trace.Begin("ContainerRestart"))
+	defer trace.End(trace.Begin(name))
 
 	err := c.containerStop(name, seconds, false)
 	if err != nil {
@@ -384,7 +386,7 @@ func (c *Container) ContainerRestart(name string, seconds int) error {
 // fails. If the remove succeeds, the container name is released, and
 // network links are removed.
 func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) error {
-	defer trace.End(trace.Begin("ContainerRm"))
+	defer trace.End(trace.Begin(name))
 
 	// Look up the container name in the metadata cache to get long ID
 	if vc := cache.ContainerCache().GetContainer(name); vc != nil {
@@ -428,7 +430,7 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 
 // ContainerStart starts a container.
 func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig) error {
-	defer trace.End(trace.Begin("ContainerStart"))
+	defer trace.End(trace.Begin(name))
 	return c.containerStart(name, hostConfig, true)
 }
 
@@ -541,7 +543,7 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 	}
 
 	// commit the handle; this will reconfigure and start the vm
-	_, err = client.Containers.Commit(containers.NewCommitParams().WithHandle(h))
+	_, err = client.Containers.Commit(containers.NewCommitParamsWithTimeout(commitTimeout).WithHandle(h))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.CommitNotFound:
@@ -673,7 +675,7 @@ func (c *Container) findPortBoundNetworkEndpoint(hostconfig *container.HostConfi
 // container is not found, is already stopped, or if there is a
 // problem stopping the container.
 func (c *Container) ContainerStop(name string, seconds int) error {
-	defer trace.End(trace.Begin("ContainerStop"))
+	defer trace.End(trace.Begin(name))
 	return c.containerStop(name, seconds, true)
 }
 
@@ -808,7 +810,7 @@ func (c *Container) ContainerChanges(name string) ([]archive.Change, error) {
 // there is an error getting the data.
 func (c *Container) ContainerInspect(name string, size bool, version version.Version) (interface{}, error) {
 	// Ignore version.  We're supporting post-1.20 version.
-	defer trace.End(trace.Begin("ContainerInspect"))
+	defer trace.End(trace.Begin(name))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -957,7 +959,7 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 
 // ContainerAttach attaches to logs according to the config passed in. See ContainerAttachConfig.
 func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConfig) error {
-	defer trace.End(trace.Begin("ContainerAttach"))
+	defer trace.End(trace.Begin(name))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -966,7 +968,6 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 	}
 
 	clStdin, clStdout, clStderr, err := ca.GetStreams()
-
 	if err != nil {
 		return derr.NewErrorWithStatusCode(fmt.Errorf("Unable to get stdio streams for calling client"), http.StatusInternalServerError)
 	}
