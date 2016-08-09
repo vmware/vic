@@ -14,20 +14,28 @@
 
 package serial
 
+import "github.com/vmware/vic/pkg/trace"
+
 type RawAddr struct {
 	Net  string
 	Addr string
 }
 
 func (addr RawAddr) Network() string {
+	defer trace.End(trace.Begin(""))
+
 	return addr.Net
 }
 
 func (addr RawAddr) String() string {
+	defer trace.End(trace.Begin(""))
+
 	return addr.Network() + "://" + addr.Addr
 }
 
 func NewRawAddr(net string, addr string) *RawAddr {
+	defer trace.End(trace.Begin(""))
+
 	return &RawAddr{
 		Net:  net,
 		Addr: addr,

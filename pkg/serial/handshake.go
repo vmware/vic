@@ -27,6 +27,7 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 const (
@@ -162,6 +163,8 @@ func readMultiple(conn net.Conn, b []byte) (int, error) {
 }
 
 func HandshakeServer(ctx context.Context, conn net.Conn) error {
+	defer trace.End(trace.Begin(""))
+
 	syn := make([]byte, 3)
 	synack := make([]byte, 3)
 	buf := make([]byte, 2)

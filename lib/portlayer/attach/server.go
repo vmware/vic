@@ -24,6 +24,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/lib/portlayer"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // AttachServer waits for TCP client connections on serialOverLANPort, then
@@ -38,6 +39,8 @@ type Server struct {
 }
 
 func NewAttachServer(ip string, port int) *Server {
+	defer trace.End(trace.Begin(""))
+
 	if port == 0 {
 		port = portlayer.SerialOverLANPort
 	}
@@ -47,6 +50,8 @@ func NewAttachServer(ip string, port int) *Server {
 
 // Start starts the TCP listener.
 func (n *Server) Start() error {
+	defer trace.End(trace.Begin(""))
+
 	log.Infof("Attach server listening on %s:%d", n.ip, n.port)
 
 	addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", n.ip, n.port))
@@ -65,12 +70,16 @@ func (n *Server) Start() error {
 }
 
 func (n *Server) Stop() error {
+	defer trace.End(trace.Begin(""))
+
 	err := n.l.Close()
 	n.connServer.Stop()
 	return err
 }
 
 func (n *Server) Addr() string {
+	defer trace.End(trace.Begin(""))
+
 	return n.l.Addr().String()
 }
 
@@ -78,5 +87,7 @@ func (n *Server) Addr() string {
 // cannot be found, this call will wait for the given timeout.
 // id is ID of the container.
 func (n *Server) Get(ctx context.Context, id string, timeout time.Duration) (SessionInteraction, error) {
+	defer trace.End(trace.Begin(id))
+
 	return n.connServer.Get(ctx, id, timeout)
 }

@@ -32,6 +32,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
 	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/lib/portlayer/exec"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
@@ -99,6 +100,8 @@ func (i *InteractionHandlersImpl) ContainerResizeHandler(params interaction.Cont
 }
 
 func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.ContainerSetStdinParams) middleware.Responder {
+	defer trace.End(trace.Begin(params.ID))
+
 	var ctxDeadline time.Time
 	var timeout time.Duration
 
@@ -138,6 +141,8 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 }
 
 func (i *InteractionHandlersImpl) ContainerGetStdoutHandler(params interaction.ContainerGetStdoutParams) middleware.Responder {
+	defer trace.End(trace.Begin(params.ID))
+
 	var ctxDeadline time.Time
 	var timeout time.Duration
 
@@ -170,6 +175,8 @@ func (i *InteractionHandlersImpl) ContainerGetStdoutHandler(params interaction.C
 }
 
 func (i *InteractionHandlersImpl) ContainerGetStderrHandler(params interaction.ContainerGetStderrParams) middleware.Responder {
+	defer trace.End(trace.Begin(params.ID))
+
 	var ctxDeadline time.Time
 	var timeout time.Duration
 
