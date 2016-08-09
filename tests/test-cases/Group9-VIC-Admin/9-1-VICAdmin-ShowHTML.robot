@@ -32,7 +32,7 @@ Get Container Logs
 	${rc}  ${output}=  Run And Return Rc and Output  docker ${params} start ${container}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-	${rc}=  Run And Return Rc  curl -k https://${vch-ip}:2378/container-logs.tar.gz | tar tvzf - 
+	${rc}  ${output}=  Run And Return Rc and Output  curl -k https://${vch-ip}:2378/container-logs.tar.gz | tar tvzf - 
     Should Be Equal As Integers  ${rc}  0
 	Log  ${output}
 	Should Contain  ${output}  ${container}/vmware.log

@@ -80,9 +80,9 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	log.Info(fmt.Sprintf("FirewallIssues set to: %s", v.FirewallIssues))
 
 	//License Check
-	v3, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
-	v3.CheckLicense(ctx)
-	licenseIssues := v3.GetIssues()
+	v2.ClearIssues()
+	v2.CheckLicense(ctx)
+	licenseIssues := v2.GetIssues()
 
 	if len(licenseIssues) == 0 {
 		v.LicenseStatus = GoodStatus
@@ -95,10 +95,26 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	}
 
 	//Network Connection Check
-	_, err := net.Dial("tcp", "google.com:80")
-	if err != nil {
+	hosts := []string{
+		"google.com:80",
+		"docker.io:443",
+	}
+	nwErrors := []error{}
+
+	for _, host := range hosts {
+		conn, err := net.Dial("tcp", host)
+		if err != nil {
+			nwErrors = append(nwErrors, err)
+		} else {
+			conn.Close()
+		}
+	}
+
+	if len(nwErrors) > 0 {
 		v.NetworkStatus = BadStatus
-		v.NetworkIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.NetworkIssues, err))
+		for _, err := range nwErrors {
+			v.NetworkIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.NetworkIssues, err))
+		}
 	} else {
 		v.NetworkStatus = GoodStatus
 		v.NetworkIssues = template.HTML("")
