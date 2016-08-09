@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -196,12 +195,6 @@ func (v *Validator) basics(ctx context.Context, input *data.Data, conf *config.V
 	conf.SetDebug(input.Debug.Debug)
 
 	conf.Name = input.DisplayName
-
-	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s",
-		input.ImageDatastoreName,
-		input.DisplayName,
-		path.Base(input.BootstrapISO),
-	)
 }
 
 func (v *Validator) checkSessionSet() []string {

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -514,6 +515,8 @@ func (c *Create) Run(cliContext *cli.Context) error {
 
 	vConfig := validator.AddDeprecatedFields(ctx, vchConfig, c.Data)
 	vConfig.ImageFiles = images
+	vConfig.ApplianceISO = path.Base(c.ApplianceISO)
+	vConfig.BootstrapISO = path.Base(c.BootstrapISO)
 
 	{ // create certificates for VCH extension
 		var certbuffer, keybuffer bytes.Buffer

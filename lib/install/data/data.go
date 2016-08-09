@@ -93,6 +93,9 @@ type InstallerData struct {
 
 	ImageFiles []string
 
+	ApplianceISO string
+	BootstrapISO string
+
 	Extension types.Extension
 	UseRP     bool
 }
