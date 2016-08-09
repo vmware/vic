@@ -36,3 +36,8 @@ Get Container Logs
     Should Be Equal As Integers  ${rc}  0
 	Log  ${output}
 	Should Contain  ${output}  ${container}/vmware.log
+
+Get VICAdmin Log
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -k https://${vch-ip}:2378/logs/vicadmin.log
+	Log  ${output}
+	Should contain  ${output}  Launching vicadmin server
