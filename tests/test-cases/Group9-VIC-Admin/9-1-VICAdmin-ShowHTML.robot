@@ -7,7 +7,7 @@ Default Tags  regression
 
 *** Test Cases ***
 Display HTML
-    ${rc}  ${output}=  Run And Return Rc And Output  curl -k https://${vch-ip}:2378
+    ${rc}  ${output}=  Run And Return Rc And Output  curl -k https://${vch-ip}:2378/
     Should contain  ${output}  <title>VCH Admin</title>
 
 Get Portlayer Log

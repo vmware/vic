@@ -375,13 +375,14 @@ func client() (*session.Session, error) {
 	session := session.NewSession(&config.Config)
 	_, err := session.Connect(ctx)
 	if err != nil {
+		log.Warnf("Unable to connect: %s", err)
 		return nil, err
 	}
 
 	_, err = session.Populate(ctx)
 	if err != nil {
 		// no a critical error for vicadmin
-		log.Warn(err)
+		log.Warnf(err)
 	}
 
 	return session, nil
