@@ -15,20 +15,25 @@
 package vicbackends
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/go-swagger/go-swagger/client"
 
+	"github.com/docker/docker/api/types/backend"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	dnetwork "github.com/docker/engine-api/types/network"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
+	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	plscopes "github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	plmodels "github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/metadata"
@@ -66,6 +71,11 @@ type CommitHandleMockData struct {
 	retErr error
 }
 
+type LogMockData struct {
+	continaerID string
+	running     bool
+}
+
 type MockContainerProxy struct {
 	mockRespIndices      []int
 	mockCreateHandleData []CreateHandleMockData
@@ -74,7 +84,13 @@ type MockContainerProxy struct {
 	mockCommitData       []CommitHandleMockData
 }
 
-const SUCCESS = 0
+const (
+	SUCCESS              = 0
+	dummyContainerID     = "abc123"
+	dummyContainerID_tty = "tty123"
+)
+
+var dummyContainers []string = []string{dummyContainerID, dummyContainerID_tty}
 
 func NewMockContainerProxy() *MockContainerProxy {
 	return &MockContainerProxy{
@@ -191,6 +207,35 @@ func (m *MockContainerProxy) CommitContainerHandle(handle, imageID string) error
 	return m.mockCommitData[respIdx].retErr
 }
 
+func (m *MockContainerProxy) StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error {
+	var lineCount int64 = 10
+
+	for i := int64(0); i < lineCount; i++ {
+		if !followLogs && i > tailLines {
+			break
+		}
+		if followLogs && i > tailLines {
+			time.Sleep(500 * time.Millisecond)
+		}
+
+		fmt.Fprintf(out, "line %d\n", i)
+	}
+
+	return nil
+}
+
+func (m *MockContainerProxy) ContainerRunning(vc *viccontainer.VicContainer) (bool, error) {
+	// Assume container is running if container in cache.  If we need other conditions
+	// in the future, we can add it, but for now, just assume running.
+	container := cache.ContainerCache().GetContainer(vc.ContainerID)
+
+	if container == nil {
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func AddMockImageToCache() {
 	mockImage := &metadata.ImageConfig{
 		ImageID: "e732471cb81a564575aad46b9510161c5945deaf18e9be3db344333d72f0b4b2",
@@ -219,6 +264,29 @@ func AddMockImageToCache() {
 	cache.ImageCache().AddImage(mockImage)
 }
 
+func AddMockContainerToCache() {
+	AddMockImageToCache()
+
+	image, err := cache.ImageCache().GetImage("e732471cb81a564575aad46b9510161c5945deaf18e9be3db344333d72f0b4b2")
+	if err == nil {
+		vc := viccontainer.NewVicContainer()
+		vc.ImageID = image.ID
+		vc.Config = image.Config //Set defaults.  Overrides will get copied below.
+		vc.Config.Tty = false
+		vc.ContainerID = dummyContainerID
+
+		cache.ContainerCache().AddContainer(vc)
+
+		vc = viccontainer.NewVicContainer()
+		vc.ImageID = image.ID
+		vc.Config = image.Config
+		vc.Config.Tty = true
+		vc.ContainerID = dummyContainerID_tty
+
+		cache.ContainerCache().AddContainer(vc)
+	}
+}
+
 //***********
 // Tests
 //***********
@@ -245,9 +313,6 @@ func TestContainerCreateEmptyImageCache(t *testing.T) {
 
 	assert.Contains(t, err.Error(), "No such image", "Error (%s) should have 'No such image' for an empty image cache", err.Error())
 }
-
-//func TestContainerCreateEmptyImageCache(t *testing.T) {
-//}
 
 // TestCreateHandle() cycles through all possible input/outputs for creating a handle
 // and calls vicbackends.ContainerCreate().  The idea is that if creating handle fails
@@ -366,4 +431,99 @@ func TestCommitHandle(t *testing.T) {
 		assert.Contains(t, err.Error(), mockCommitHandleData[i].createErrSubstr)
 	}
 
+}
+
+// TestContainerLogs() tests the docker logs api when user asks for entire log
+func TestContainerLogs(t *testing.T) {
+	t.Skip("FIXME: Doug, remove this line when container logs integration is done.")
+	mockContainerProxy := NewMockContainerProxy()
+
+	// Create our personality Container backend
+	cb := &Container{
+		containerProxy: mockContainerProxy,
+	}
+
+	// Prepopulate our image and container cache with dummy data
+	AddMockContainerToCache()
+
+	// Create a buffer io.writer
+	var writer bytes.Buffer
+
+	successDuration := 1 * time.Second
+
+	// Create our mock table
+	mockData := []struct {
+		Config          backend.ContainerLogsConfig
+		ExpectedSuccess bool
+		ExpectedFollow  bool
+	}{
+		{
+			Config: backend.ContainerLogsConfig{
+				ContainerLogsOptions: types.ContainerLogsOptions{
+					ShowStdout: true,
+					ShowStderr: true,
+					Tail:       "all",
+				},
+				OutStream: &writer,
+			},
+			ExpectedSuccess: true,
+			ExpectedFollow:  false,
+		},
+		{
+			Config: backend.ContainerLogsConfig{
+				ContainerLogsOptions: types.ContainerLogsOptions{
+					ShowStdout: false,
+					ShowStderr: false,
+				},
+				OutStream: &writer,
+			},
+			ExpectedSuccess: false,
+			ExpectedFollow:  false,
+		},
+		{
+			Config: backend.ContainerLogsConfig{
+				ContainerLogsOptions: types.ContainerLogsOptions{
+					ShowStdout: true,
+					ShowStderr: true,
+					Follow:     true,
+				},
+				OutStream: &writer,
+			},
+			ExpectedSuccess: true,
+			ExpectedFollow:  true,
+		},
+	}
+
+	for _, containerID := range dummyContainers {
+		for _, data := range mockData {
+			started := make(chan struct{})
+
+			start := time.Now()
+			err := cb.ContainerLogs(containerID, &data.Config, started)
+			end := time.Now()
+
+			select {
+			case <-started:
+			default:
+				close(started)
+			}
+
+			if data.ExpectedSuccess {
+				assert.Nil(t, err, "Expected success, but got error, config: %#v", data.Config)
+
+			} else {
+				assert.NotEqual(t, err, nil, "Expected error but received nil, config: %#v", data.Config)
+			}
+
+			immediate := start.Add(successDuration)
+
+			didFollow := immediate.Before(end) //determines if logs continued to stream
+
+			if data.ExpectedFollow {
+				assert.True(t, didFollow, "Expected logs to follow but didn't (%s, %s), config: %#v", start.String(), end.String(), data.Config)
+			} else {
+				assert.False(t, didFollow, "Expected logs to NOT follow but it did, config: %#v", data.Config)
+			}
+		}
+	}
 }
