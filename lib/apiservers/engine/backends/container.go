@@ -587,9 +587,9 @@ func (c *Container) mapPorts(op portmap.Operation, hostconfig *container.HostCon
 			continue
 		}
 
-		for _, pb := range pbs {
+		for i := range pbs {
 			var hostPort int
-			if pb.HostPort == "" {
+			if pbs[i].HostPort == "" {
 				// use a random port since no host port is specified
 				hostPort, err = requestHostPort(proto)
 				if err != nil {
@@ -597,11 +597,10 @@ func (c *Container) mapPorts(op portmap.Operation, hostconfig *container.HostCon
 					return err
 				}
 				// update the hostconfig
-				hostpb := nat.PortBinding{HostIP: "", HostPort: strconv.Itoa(hostPort)}
-				hostconfig.PortBindings[nport] = []nat.PortBinding{hostpb}
+				pbs[i].HostPort = strconv.Itoa(hostPort)
 
 			} else {
-				hostPort, err = strconv.Atoi(pb.HostPort)
+				hostPort, err = strconv.Atoi(pbs[i].HostPort)
 				if err != nil {
 					return err
 				}
