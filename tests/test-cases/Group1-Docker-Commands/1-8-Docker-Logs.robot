@@ -75,10 +75,10 @@ Docker logs with timestamps and since certain time
 	Run  Sleep 6, wait for container to finish
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --since=1s ${containerID}
 	Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support timestampped logs
+    Should Contain  ${output}  vSphere Integrated Containers does not implement container.ContainerLogs
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --timestamps ${containerID}
 	Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  does not yet support timestampped logs
+    Should Contain  ${output}  vSphere Integrated Containers does not implement container.ContainerLogs
     
 Docker logs non-existent container
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs fakeContainer
