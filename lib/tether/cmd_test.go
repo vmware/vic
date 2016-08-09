@@ -216,7 +216,7 @@ func TestHalt(t *testing.T) {
 }
 
 func TestAbsPathRepeat(t *testing.T) {
-	for i := 0; i < 10000 && !t.Failed(); i++ {
+	for i := 0; i < 2000 && !t.Failed(); i++ {
 		TestAbsPath(t)
 	}
 }
