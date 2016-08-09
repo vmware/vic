@@ -38,6 +38,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/net/context"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/google/uuid"
 	"github.com/mreiferson/go-httpclient"
@@ -95,6 +97,10 @@ const (
 	attachRequestTimeout   time.Duration = 2 * time.Hour                              //timeout to hold onto the attach connection
 	swaggerSubstringEOF                  = "EOF"
 	forceLogType                         = "json-file" //Use in inspect to allow docker logs to work
+)
+
+var (
+	ctx = context.TODO()
 )
 
 // NewContainerProxy creates a new ContainerProxy
@@ -166,7 +172,7 @@ func (c *ContainerProxy) AddContainerToScope(handle string, config types.Contain
 	// configure networking
 	netConf := toModelsNetworkConfig(config)
 	if netConf != nil {
-		addContRes, err := c.client.Scopes.AddContainer(scopes.NewAddContainerParams().
+		addContRes, err := c.client.Scopes.AddContainer(scopes.NewAddContainerParamsWithContext(ctx).
 			WithScope(netConf.NetworkName).
 			WithConfig(&models.ScopesAddContainerConfig{
 				Handle:        handle,
@@ -183,7 +189,7 @@ func (c *ContainerProxy) AddContainerToScope(handle string, config types.Contain
 				return
 			}
 			// roll back the AddContainer call
-			if _, err2 := c.client.Scopes.RemoveContainer(scopes.NewRemoveContainerParams().WithHandle(handle).WithScope(netConf.NetworkName)); err2 != nil {
+			if _, err2 := c.client.Scopes.RemoveContainer(scopes.NewRemoveContainerParamsWithContext(ctx).WithHandle(handle).WithScope(netConf.NetworkName)); err2 != nil {
 				log.Warnf("could not roll back container add: %s", err2)
 			}
 		}()
@@ -229,7 +235,7 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 		flags := make(map[string]string)
 		//NOTE: for now we are passing the flags directly through. This is NOT SAFE and only a stop gap.
 		flags["Mode"] = fields.Flags
-		joinParams := storage.NewVolumeJoinParams().WithJoinArgs(&models.VolumeJoinConfig{
+		joinParams := storage.NewVolumeJoinParamsWithContext(ctx).WithJoinArgs(&models.VolumeJoinConfig{
 			Flags:     flags,
 			Handle:    handle,
 			MountPath: fields.Dest,
@@ -263,7 +269,7 @@ func (c *ContainerProxy) CommitContainerHandle(handle, imageID string) error {
 			http.StatusInternalServerError)
 	}
 
-	_, err := c.client.Containers.Commit(containers.NewCommitParams().WithHandle(handle))
+	_, err := c.client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
 	if err != nil {
 		err = fmt.Errorf("No such image: %s", imageID)
 		log.Errorf("%s", err.Error())
@@ -285,7 +291,7 @@ func (c *ContainerProxy) StreamContainerLogs(name string, out io.Writer, started
 	defer transport.Close()
 	close(started)
 
-	params := containers.NewGetContainerLogsParams().
+	params := containers.NewGetContainerLogsParamsWithContext(ctx).
 		WithID(name).
 		WithFollow(&followLogs).
 		WithTimestamp(&showTimestamps).
@@ -325,7 +331,7 @@ func (c *ContainerProxy) ContainerRunning(vc *viccontainer.VicContainer) (bool, 
 			http.StatusInternalServerError)
 	}
 
-	results, err := c.client.Containers.GetContainerInfo(containers.NewGetContainerInfoParams().WithID(vc.ContainerID))
+	results, err := c.client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(vc.ContainerID))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerInfoNotFound:
@@ -425,7 +431,7 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, laye
 
 	log.Debugf("dockerContainerCreateParamsToPortlayer = %+v", config)
 
-	return containers.NewCreateParams().WithCreateConfig(config)
+	return containers.NewCreateParamsWithContext(ctx).WithCreateConfig(config)
 }
 
 func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig {
@@ -519,7 +525,7 @@ func processAnonymousVolumes(h *string, volumes map[string]struct{}, client *cli
 			Name:     fields.ID,
 			Metadata: metadata,
 		}
-		_, err = client.Storage.CreateVolume(storage.NewCreateVolumeParams().WithVolumeRequest(&volumeRequest))
+		_, err = client.Storage.CreateVolume(storage.NewCreateVolumeParamsWithContext(ctx).WithVolumeRequest(&volumeRequest))
 		if err != nil {
 			return nil, err
 		}
