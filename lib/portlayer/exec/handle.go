@@ -140,7 +140,7 @@ func (h *Handle) String() string {
 	return h.key
 }
 
-func (h *Handle) Commit(ctx context.Context, sess *session.Session) error {
+func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *int32) error {
 	if h.committed {
 		return nil // already committed
 	}
@@ -152,7 +152,7 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session) error {
 	s := h.Spec.Spec()
 	s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 
-	if err := h.Container.Commit(ctx, sess, h); err != nil {
+	if err := h.Container.Commit(ctx, sess, h, waitTime); err != nil {
 		return err
 	}
 

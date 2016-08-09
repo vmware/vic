@@ -789,8 +789,9 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 	}
 
 	handle = stateChangeResponse.Payload
+	wait := int32(seconds)
 
-	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
+	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle).WithWaitTime(&wait))
 	if err != nil {
 		// delete from cache since all cases are 404's
 		cache.ContainerCache().DeleteContainer(name)

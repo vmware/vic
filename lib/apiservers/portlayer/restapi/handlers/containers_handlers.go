@@ -215,7 +215,7 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 		return containers.NewCommitNotFound().WithPayload(&models.Error{Message: "container not found"})
 	}
 
-	if err := h.Commit(context.Background(), handler.handlerCtx.Session); err != nil {
+	if err := h.Commit(context.Background(), handler.handlerCtx.Session, params.WaitTime); err != nil {
 		log.Errorf("CommitHandler error (%s): %s", h.String(), err)
 		return containers.NewCommitDefault(http.StatusServiceUnavailable).WithPayload(&models.Error{Message: err.Error()})
 	}
