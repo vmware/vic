@@ -25,12 +25,16 @@ This test requires that a vSphere server is running and available
 12. Issue docker start webserver3
 13. Issue docker create -it -p 8081-8088:80 --name webserver5 nginx
 14. Issue docker create -it -p 10.10.10.10:8088:80 --name webserver5 nginx
+15. Issue docker create -it -p 6379 --name test-redis redis:alpine
+16. Issue docker start test-redis
+17. Issue docker stop test-redis
 
 #Expected Outcome:
 * Steps 2-6 should all return without error
 * Steps 7-8 should both return error
 * Steps 9-11 should all return without error
 * Steps 12-14 should return error
+* Steps 15-17 should return without error
 
 #Possible Problems:
 None
