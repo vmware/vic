@@ -338,7 +338,7 @@ func (d *Dispatcher) GenerateExtensionName(conf *config.VirtualContainerHostConf
 	return nil
 }
 
-func (d *Dispatcher) configIso(conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) (object.VirtualDeviceList, error) {
+func (d *Dispatcher) configIso(conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine, settings *data.InstallerData) (object.VirtualDeviceList, error) {
 	defer trace.End(trace.Begin(""))
 
 	var devices object.VirtualDeviceList
@@ -359,7 +359,7 @@ func (d *Dispatcher) configIso(conf *config.VirtualContainerHostConfigSpec, vm *
 		log.Errorf("Failed to create Cdrom device for appliance: %s", err)
 		return nil, err
 	}
-	cdrom = devices.InsertIso(cdrom, fmt.Sprintf("[%s] %s/appliance.iso", conf.ImageStores[0].Host, d.vmPathName))
+	cdrom = devices.InsertIso(cdrom, fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.ApplianceISO))
 	devices = append(devices, cdrom)
 	return devices, nil
 }
@@ -504,7 +504,9 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	},
 	)
 
-	spec, err = d.reconfigureApplianceSpec(vm2, conf)
+	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)
+
+	spec, err = d.reconfigureApplianceSpec(vm2, conf, settings)
 	if err != nil {
 		log.Errorf("Error while getting appliance reconfig spec: %s", err)
 		return err
@@ -528,7 +530,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	return nil
 }
 
-func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) (*types.VirtualMachineConfigSpec, error) {
+func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*types.VirtualMachineConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
 
 	var devices object.VirtualDeviceList
@@ -540,7 +542,7 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *confi
 		Files:   &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
 	}
 
-	if devices, err = d.configIso(conf, vm); err != nil {
+	if devices, err = d.configIso(conf, vm, settings); err != nil {
 		return nil, err
 	}
 
