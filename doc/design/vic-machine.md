@@ -352,11 +352,12 @@ Either VCH ID or the VCH resource pool path and VCH name should be specified.
 ### Samples
 ```
 vic-machine delete 
---target root:password@192.168.1.1
---vch-path /ha-datacenter/vm/vch1
+--target root:password@192.168.1.1/dc1
+--vch-path cluster/pool
+--name vch1
 --force
 ```
-This command will delete VCH /ha-datacenter/vm/vch1 appliance, all containers VMs, networks and volumes created by this VCH.
+This command will delete VCH /dc1/host/cluster/pool/vch1 appliance, all containers VMs, networks and volumes created by this VCH.
 
 ## Managing a VCH
 
