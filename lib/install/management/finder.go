@@ -32,17 +32,19 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
+const (
+	vchIDType = "VirtualMachine"
+)
+
 func (d *Dispatcher) NewVCHFromID(id string) (*vm.VirtualMachine, error) {
 	defer trace.End(trace.Begin(id))
 
 	var err error
 	var vmm *vm.VirtualMachine
 
-	moref := new(types.ManagedObjectReference)
-	if ok := moref.FromString(id); !ok {
-		message := "Failed to get appliance VM mob reference"
-		log.Errorf(message)
-		return nil, errors.New(message)
+	moref := &types.ManagedObjectReference{
+		Type:  vchIDType,
+		Value: id,
 	}
 	ref, err := d.session.Finder.ObjectReference(d.ctx, *moref)
 	if err != nil {

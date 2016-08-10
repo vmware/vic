@@ -28,7 +28,7 @@ func (i *VCHID) IDFlags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "id",
 			Value:       "",
-			Usage:       "The ID of the Virtual Container Host",
+			Usage:       "The ID of the Virtual Container Host, e.g. vm-220",
 			Destination: &i.ID,
 		},
 	}

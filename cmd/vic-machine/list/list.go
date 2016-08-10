@@ -38,6 +38,7 @@ type items struct {
 	Name string
 }
 
+// templ is parsed by text/template package
 const templ = `{{range .}}
 {{.ID}}	{{.Path}}	{{.Name}}{{end}}
 `
@@ -82,7 +83,7 @@ func (l *List) prettyPrint(cli *cli.Context, ctx context.Context, vchs []*vm.Vir
 		parentPath := path.Dir(path.Dir(vch.InventoryPath))
 		name := path.Base(vch.InventoryPath)
 		data = append(data,
-			items{vch.Reference().String(), parentPath, name})
+			items{vch.Reference().Value, parentPath, name})
 	}
 	t := template.New("vic-machine ls")
 	t, _ = t.Parse(templ)
@@ -105,7 +106,6 @@ func (l *List) Run(cli *cli.Context) error {
 	}
 
 	if len(cli.Args()) > 0 {
-		log.Error("List cannot continue: invalid CLI arguments")
 		log.Errorf("Unknown argument: %s", cli.Args()[0])
 		return errors.New("invalid CLI arguments")
 	}
