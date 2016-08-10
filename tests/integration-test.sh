@@ -29,7 +29,7 @@ fi
 rc="$?"
 
 timestamp=$(date +%s)
-outfile="integration_test_logs_"$DRONE_BUILD_NUMBER"_$timestamp.tar"
+outfile="integration_logs_"$DRONE_BUILD_NUMBER"_"$DRONE_COMMIT"_$timestamp.tar"
 
 tar cf $outfile log.html package.list *container-logs.zip *.log
 
