@@ -428,12 +428,12 @@ func main() {
 	// to extract the userid/password from UserPassword
 	if vchConfig.UserPassword != "" {
 		log.Infof("Extracting user/password: %s", vchConfig.UserPassword)
-		upw := strings.Split(vchConfig.UserPassword, ":")
-		if len(upw) == 2 {
-			vchConfig.Target.User = url.UserPassword(upw[0], upw[1])
-		} else {
-			vchConfig.Target.User = url.User(upw[0])
-		}
+		newurl, _ := url.Parse(fmt.Sprintf("%s://%s@%s/%s",
+								vchConfig.Target.Scheme,
+								vchConfig.UserPassword,
+								vchConfig.Target.Host,
+								vchConfig.Target.Path))
+		vchConfig.Target = *newurl
 		log.Infof("New SDK target: %s", vchConfig.Target.String())
 	}
 
