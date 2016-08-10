@@ -40,7 +40,7 @@ func (n *Network) NetworkControllerEnabled() bool {
 }
 
 func (n *Network) FindNetwork(idName string) (libnetwork.Network, error) {
-	ok, err := PortLayerClient().Scopes.List(scopes.NewListParams().WithIDName(idName))
+	ok, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName(idName))
 	if err != nil {
 		switch err := err.(type) {
 		case *scopes.ListNotFound:
@@ -58,7 +58,7 @@ func (n *Network) FindNetwork(idName string) (libnetwork.Network, error) {
 }
 
 func (n *Network) GetNetworkByName(idName string) (libnetwork.Network, error) {
-	ok, err := PortLayerClient().Scopes.List(scopes.NewListParams().WithIDName(idName))
+	ok, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName(idName))
 	if err != nil {
 		switch err := err.(type) {
 		case *scopes.ListNotFound:
@@ -76,7 +76,7 @@ func (n *Network) GetNetworkByName(idName string) (libnetwork.Network, error) {
 }
 
 func (n *Network) GetNetworksByID(partialID string) []libnetwork.Network {
-	ok, err := PortLayerClient().Scopes.List(scopes.NewListParams().WithIDName(partialID))
+	ok, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName(partialID))
 	if err != nil {
 		return nil
 	}
@@ -90,7 +90,7 @@ func (n *Network) GetNetworksByID(partialID string) []libnetwork.Network {
 }
 
 func (n *Network) GetAllNetworks() []libnetwork.Network {
-	ok, err := PortLayerClient().Scopes.ListAll(scopes.NewListAllParams())
+	ok, err := PortLayerClient().Scopes.ListAll(scopes.NewListAllParamsWithContext(ctx))
 	if err != nil {
 		return nil
 	}
@@ -139,7 +139,7 @@ func (n *Network) CreateNetwork(name, driver string, ipam apinet.IPAM, options m
 		IPAM:      pools,
 	}
 
-	created, err := PortLayerClient().Scopes.CreateScope(scopes.NewCreateScopeParams().WithConfig(cfg))
+	created, err := PortLayerClient().Scopes.CreateScope(scopes.NewCreateScopeParamsWithContext(ctx).WithConfig(cfg))
 	if err != nil {
 		switch err := err.(type) {
 		case *scopes.CreateScopeConflict:
@@ -163,7 +163,7 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 	}
 
 	client := PortLayerClient()
-	getRes, err := client.Containers.Get(containers.NewGetParams().WithID(containerName))
+	getRes, err := client.Containers.Get(containers.NewGetParamsWithContext(ctx).WithID(containerName))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetNotFound:
@@ -189,7 +189,7 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 		nc.Aliases = vicendpoint.Alias(endpointConfig)
 	}
 
-	addConRes, err := client.Scopes.AddContainer(scopes.NewAddContainerParams().
+	addConRes, err := client.Scopes.AddContainer(scopes.NewAddContainerParamsWithContext(ctx).
 		WithScope(nc.NetworkName).
 		WithConfig(&models.ScopesAddContainerConfig{
 			Handle:        h,
@@ -212,7 +212,7 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 
 	// only bind if the container is running
 	// get the state of the container
-	getStateRes, err := client.Containers.GetState(containers.NewGetStateParams().WithHandle(h))
+	getStateRes, err := client.Containers.GetState(containers.NewGetStateParamsWithContext(ctx).WithHandle(h))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetStateNotFound:
@@ -228,7 +228,7 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 
 	h = getStateRes.Payload.Handle
 	if getStateRes.Payload.State == "RUNNING" {
-		bindRes, err := client.Scopes.BindContainer(scopes.NewBindContainerParams().WithHandle(h))
+		bindRes, err := client.Scopes.BindContainer(scopes.NewBindContainerParamsWithContext(ctx).WithHandle(h))
 		if err != nil {
 			switch err := err.(type) {
 			case *scopes.BindContainerNotFound:
@@ -246,7 +246,7 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 			if err == nil {
 				return
 			}
-			if _, err2 := client.Scopes.UnbindContainer(scopes.NewUnbindContainerParams().WithHandle(h)); err2 != nil {
+			if _, err2 := client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(h)); err2 != nil {
 				log.Warnf("failed bind container rollback: %s", err2)
 			}
 		}()
@@ -255,7 +255,7 @@ func (n *Network) ConnectContainerToNetwork(containerName, networkName string, e
 	}
 
 	// commit handle
-	_, err = client.Containers.Commit(containers.NewCommitParams().WithHandle(h))
+	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(h))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.CommitNotFound:
@@ -283,7 +283,7 @@ func (n *Network) DisconnectContainerFromNetwork(containerName string, network l
 func (n *Network) DeleteNetwork(name string) error {
 	client := PortLayerClient()
 
-	if _, err := client.Scopes.DeleteScope(scopes.NewDeleteScopeParams().WithIDName(name)); err != nil {
+	if _, err := client.Scopes.DeleteScope(scopes.NewDeleteScopeParamsWithContext(ctx).WithIDName(name)); err != nil {
 		switch err := err.(type) {
 		case *scopes.DeleteScopeNotFound:
 			return derr.NewRequestNotFoundError(fmt.Errorf("network %s not found", name))

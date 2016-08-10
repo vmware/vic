@@ -61,7 +61,7 @@ func (s *SystemProxy) PingPortlayer() bool {
 	}
 
 	if plClient != nil {
-		pingParams := misc.NewPingParams()
+		pingParams := misc.NewPingParamsWithContext(ctx)
 		_, err := plClient.Misc.Ping(pingParams)
 		if err != nil {
 			log.Info("Ping to portlayer failed")
@@ -88,7 +88,7 @@ func (s *SystemProxy) ContainerCount() (int, int, int, error) {
 	}
 
 	all := true
-	containList, err := plClient.Containers.GetContainerList(containers.NewGetContainerListParams().WithAll(&all))
+	containList, err := plClient.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(ctx).WithAll(&all))
 	if err != nil {
 		return 0, 0, 0, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get container list: %s", err), http.StatusInternalServerError)
 	}
@@ -113,7 +113,7 @@ func (s *SystemProxy) VCHInfo() (*models.VCHInfo, error) {
 			http.StatusInternalServerError)
 	}
 
-	params := misc.NewGetVCHInfoParams()
+	params := misc.NewGetVCHInfoParamsWithContext(ctx)
 	resp, err := plClient.Misc.GetVCHInfo(params)
 	if err != nil {
 		//There are no custom error for this operation.  If we get back an error, it's

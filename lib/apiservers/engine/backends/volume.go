@@ -61,7 +61,7 @@ func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
 		return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get a portlayer client"), http.StatusInternalServerError)
 	}
 
-	res, err := client.Storage.ListVolumes(storage.NewListVolumesParams().WithFilterString(&filter))
+	res, err := client.Storage.ListVolumes(storage.NewListVolumesParamsWithContext(ctx).WithFilterString(&filter))
 	if err != nil {
 		switch err := err.(type) {
 		case *storage.ListVolumesInternalServerError:
@@ -114,7 +114,7 @@ func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]s
 		model.Name = uuid.New().String()
 	}
 
-	res, err := client.Storage.CreateVolume(storage.NewCreateVolumeParams().WithVolumeRequest(model))
+	res, err := client.Storage.CreateVolume(storage.NewCreateVolumeParamsWithContext(ctx).WithVolumeRequest(model))
 	if err != nil {
 		switch err := err.(type) {
 
@@ -144,7 +144,7 @@ func (v *Volume) VolumeRm(name string) error {
 	}
 
 	// FIXME: check whether this is a name or a UUID. UUID expected for now.
-	_, err := client.Storage.RemoveVolume(storage.NewRemoveVolumeParams().WithName(name))
+	_, err := client.Storage.RemoveVolume(storage.NewRemoveVolumeParamsWithContext(ctx).WithName(name))
 	if err != nil {
 
 		switch err := err.(type) {

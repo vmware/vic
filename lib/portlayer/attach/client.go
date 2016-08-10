@@ -22,6 +22,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 const (
@@ -51,6 +52,8 @@ type attachSSH struct {
 }
 
 func SSHls(client *ssh.Client) ([]string, error) {
+	defer trace.End(trace.Begin(""))
+
 	ok, reply, err := client.SendRequest(msgs.ContainersReq, true, nil)
 	if !ok || err != nil {
 		return nil, fmt.Errorf("failed to get container IDs from remote: %s", err)
@@ -69,6 +72,8 @@ func SSHls(client *ssh.Client) ([]string, error) {
 // SSHAttach returns a stream connection to the requested session
 // The ssh client is assumed to be connected to the Executor hosting the session
 func SSHAttach(client *ssh.Client, id string) (SessionInteraction, error) {
+	defer trace.End(trace.Begin(""))
+
 	sessionSSH := &attachSSH{
 		client: client,
 	}
@@ -91,6 +96,8 @@ func SSHAttach(client *ssh.Client, id string) (SessionInteraction, error) {
 }
 
 func (t *attachSSH) Signal(signal ssh.Signal) error {
+	defer trace.End(trace.Begin(""))
+
 	msg := msgs.SignalMsg{signal}
 	ok, err := t.channel.SendRequest(msgs.SignalReq, true, msg.Marshal())
 	if err == nil && !ok {
@@ -105,23 +112,33 @@ func (t *attachSSH) Signal(signal ssh.Signal) error {
 }
 
 func (t *attachSSH) Stdout() io.Reader {
+	defer trace.End(trace.Begin(""))
+
 	return t.channel
 }
 
 func (t *attachSSH) Stderr() io.Reader {
+	defer trace.End(trace.Begin(""))
+
 	return t.channel.Stderr()
 }
 
 func (t *attachSSH) Stdin() io.WriteCloser {
+	defer trace.End(trace.Begin(""))
+
 	return t.channel
 }
 
 func (t *attachSSH) Close() error {
+	defer trace.End(trace.Begin(""))
+
 	return t.channel.Close()
 }
 
 // Resize resizes the terminal.
 func (t *attachSSH) Resize(cols, rows, widthpx, heightpx uint32) error {
+	defer trace.End(trace.Begin(""))
+
 	msg := msgs.WindowChangeMsg{cols, rows, widthpx, heightpx}
 	ok, err := t.channel.SendRequest(msgs.WindowChangeReq, true, msg.Marshal())
 	if err == nil && !ok {

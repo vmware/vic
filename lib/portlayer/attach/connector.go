@@ -24,6 +24,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/serial"
+	"github.com/vmware/vic/pkg/trace"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
@@ -52,6 +53,8 @@ type Connector struct {
 
 // On connect from a client (over TCP), attempt to SSH (over the same sock) to the client.
 func NewConnector(listener net.Listener) *Connector {
+	defer trace.End(trace.Begin(""))
+
 	connector := &Connector{
 		connections:  make(map[string]*Connection),
 		listener:     listener,
@@ -69,6 +72,7 @@ func NewConnector(listener net.Listener) *Connector {
 // the method will wait for the specified timeout, returning when the connection is created
 // or the timeout expires, whichever occurs first
 func (c *Connector) Get(ctx context.Context, id string, timeout time.Duration) (SessionInteraction, error) {
+	defer trace.End(trace.Begin(id))
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -119,6 +123,8 @@ func (c *Connector) Get(ctx context.Context, id string, timeout time.Duration) (
 }
 
 func (c *Connector) Remove(id string) {
+	defer trace.End(trace.Begin(id))
+
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -252,11 +258,15 @@ func (c *Connector) serve() {
 }
 
 func (c *Connector) Stop() {
+	defer trace.End(trace.Begin(""))
+
 	close(c.listenerQuit)
 	c.wg.Wait()
 }
 
 func (c *Connector) URL() string {
+	defer trace.End(trace.Begin(""))
+
 	addr := c.listener.Addr()
 	return fmt.Sprintf("%s://%s", addr.Network(), addr.String())
 }
