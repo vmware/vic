@@ -27,6 +27,9 @@ Remove a stopped container
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container}
     Should Be Equal As Integers  ${rc}  0
     Wait Until Container Stops  ${container}
+    ${status}=  Get State Of Github Issue  1870
+    Run Keyword If  '${status}' == 'closed'  Fail  Remove the wait until vm stops from 1-11-Docker-RM.robot now that Issue #1870 has been resolved
+    Wait Until VM Stops  *${container}
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  govc ls vm

@@ -254,6 +254,15 @@ Wait Until Container Stops
     \   Sleep  1
     Fail  Container did not stop within 10 seconds
 
+Wait Until VM Stops
+    [Arguments]  ${vm}
+    :FOR  ${idx}  IN RANGE  0  20
+    \   ${out}=  Run  govc vm.info ${vm}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  poweredOff
+    \   Return From Keyword If  ${status}
+    \   Sleep  1
+    Fail  VM did not stop within 20 seconds
+
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
@@ -273,6 +282,9 @@ Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Stopped
+    ${status}=  Get State Of Github Issue  1870
+    Run Keyword If  '${status}' == 'closed'  Fail  Remove the wait until vm stops from Util.robot now that Issue #1870 has been resolved
+    Wait Until VM Stops  *${container}
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
