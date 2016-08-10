@@ -37,7 +37,7 @@ Signal a container with default kill signal
     ${rc}=  Run And Return Rc  docker ${params} kill ${id}
     Should Be Equal As Integers  ${rc}  0
     # Wait for container VM to stop/powerOff
-    Wait Until Keyword Succeeds  5x  200 milliseconds  Inspect State Running  ${id}  false
+    Wait Until Keyword Succeeds  20x  500 milliseconds  Inspect State Running  ${id}  false
     # Cannot send signal to a powered off container VM
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} kill ${id}
     Should Be Equal As Integers  ${rc}  1
@@ -58,7 +58,7 @@ Signal a container with SIGHUP
     Inspect State Running  ${id}  true
     ${rc}=  Run And Return Rc  docker ${params} kill -s TERM ${id}
     Should Be Equal As Integers  ${rc}  0
-    Wait Until Keyword Succeeds  5x  200 milliseconds  Inspect State Running  ${id}  false
+    Wait Until Keyword Succeeds  20x  500 milliseconds  Inspect State Running  ${id}  false
 
 Signal a non-existent container
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} kill fakeContainer
