@@ -21,6 +21,9 @@ Assert Stop Signal
 Assert Kill Signal
     # Assert SIGKILL was sent or not by checking the tether debug log file
     [Arguments]  ${id}  ${expect}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -json -vm.path "[%{TEST_DATASTORE}] ${id}/${id}.vmx" | jq -r .VirtualMachines[].Runtime.PowerState
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal  ${output}  poweredOff
     ${rc}=  Run And Return Rc  govc datastore.download ${id}/${id}.debug ${TEMPDIR}/${id}.debug
     Should Be Equal As Integers  ${rc}  0
     ${output}=  OperatingSystem.Get File  ${TEMPDIR}/${id}.debug
@@ -66,6 +69,7 @@ Stop a container with SIGKILL using specific stop signal
     ${rc}=  Run And Return Rc  docker ${params} stop ${container}
     Should Be Equal As Integers  ${rc}  0
     Assert Stop Signal  ${container}  USR1
+    Assert Kill Signal  ${container}  True
 
 Stop a container with SIGKILL using specific grace period
     ${rc}=  Run And Return Rc  docker ${params} pull busybox
@@ -93,3 +97,4 @@ Attempt to stop a container that has been started out of band
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop ${container}
     Should Be Equal As Integers  ${rc}  0
+    Assert Kill Signal  ${container}  False
