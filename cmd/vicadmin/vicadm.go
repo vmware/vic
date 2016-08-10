@@ -427,12 +427,14 @@ func main() {
 	// If we're in an ESXi environment, then we need
 	// to extract the userid/password from UserPassword
 	if vchConfig.UserPassword != "" {
+		log.Infof("Extracting user/password: %s", vchConfig.UserPassword)
 		upw := strings.Split(vchConfig.UserPassword, ":")
 		if len(upw) == 2 {
 			vchConfig.Target.User = url.UserPassword(upw[0], upw[1])
 		} else {
 			vchConfig.Target.User = url.User(upw[0])
 		}
+		log.Infof("New SDK target: %s", vchConfig.Target.String())
 	}
 
 	config.Service = vchConfig.Target.String()
