@@ -427,14 +427,12 @@ func main() {
 	// If we're in an ESXi environment, then we need
 	// to extract the userid/password from UserPassword
 	if vchConfig.UserPassword != "" {
-		log.Infof("Extracting user/password: %s", vchConfig.UserPassword)
-		newurl, _ := url.Parse(fmt.Sprintf("%s://%s@%s/%s",
+		newurl, _ := url.Parse(fmt.Sprintf("%s://%s@%s%s",
 								vchConfig.Target.Scheme,
 								vchConfig.UserPassword,
 								vchConfig.Target.Host,
 								vchConfig.Target.Path))
 		vchConfig.Target = *newurl
-		log.Infof("New SDK target: %s", vchConfig.Target.String())
 	}
 
 	config.Service = vchConfig.Target.String()
