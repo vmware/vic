@@ -17,6 +17,8 @@ package main
 import (
 	"io"
 
+	"golang.org/x/net/context"
+
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/go-swagger/go-swagger/httpkit"
@@ -33,6 +35,10 @@ const (
 	MetaDataKey = "metaData"
 )
 
+var (
+	ctx = context.TODO()
+)
+
 // PingPortLayer calls the _ping endpoint of the portlayer
 func PingPortLayer() (bool, error) {
 	defer trace.End(trace.Begin(options.host))
@@ -40,7 +46,7 @@ func PingPortLayer() (bool, error) {
 	transport := httptransport.New(options.host, "/", []string{"http"})
 	client := apiclient.New(transport, nil)
 
-	ok, err := client.Misc.Ping(misc.NewPingParams())
+	ok, err := client.Misc.Ping(misc.NewPingParamsWithContext(ctx))
 	if err != nil {
 		return false, err
 	}
@@ -59,7 +65,7 @@ func CreateImageStore(storename string) error {
 	body := &models.ImageStore{Name: storename}
 
 	_, err := client.Storage.CreateImageStore(
-		storage.NewCreateImageStoreParams().WithBody(body),
+		storage.NewCreateImageStoreParamsWithContext(ctx).WithBody(body),
 	)
 	if _, ok := err.(*storage.CreateImageStoreConflict); ok {
 		log.Debugf("Store already exists")
@@ -89,7 +95,7 @@ func ListImages(storename string, images []*ImageWithMeta) (map[string]*models.I
 	}
 
 	imageList, err := client.Storage.ListImages(
-		storage.NewListImagesParams().WithStoreName(storename).WithIds(ids),
+		storage.NewListImagesParamsWithContext(ctx).WithStoreName(storename).WithIds(ids),
 	)
 	if err != nil {
 		return nil, err
@@ -122,7 +128,7 @@ func WriteImage(image *ImageWithMeta, data io.ReadCloser) error {
 	*blob = image.meta
 
 	r, err := client.Storage.WriteImage(
-		storage.NewWriteImageParams().
+		storage.NewWriteImageParamsWithContext(ctx).
 			WithImageID(image.ID).
 			WithParentID(*image.Parent).
 			WithStoreName(image.Store).

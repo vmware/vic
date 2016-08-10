@@ -22,6 +22,8 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/net/context"
+
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/docker/distribution/digest"
@@ -49,7 +51,10 @@ type ICache struct {
 	cacheByName map[string]*metadata.ImageConfig
 }
 
-var imageCache *ICache
+var (
+	imageCache *ICache
+	ctx        = context.TODO()
+)
 
 func init() {
 	imageCache = &ICache{
@@ -66,7 +71,6 @@ func ImageCache() *ICache {
 
 // Update runs only once at startup to hydrate the image cache
 func (ic *ICache) Update(client *client.PortLayer) error {
-
 	log.Debugf("Updating image cache...")
 
 	host, err := sys.UUID()
@@ -80,7 +84,7 @@ func (ic *ICache) Update(client *client.PortLayer) error {
 	// attempt to create the image store if it doesn't exist
 	store := &models.ImageStore{Name: host}
 	_, err = client.Storage.CreateImageStore(
-		storage.NewCreateImageStoreParams().WithBody(store),
+		storage.NewCreateImageStoreParamsWithContext(ctx).WithBody(store),
 	)
 
 	if err != nil {
@@ -92,7 +96,7 @@ func (ic *ICache) Update(client *client.PortLayer) error {
 		}
 	}
 
-	params := storage.NewListImagesParams().WithStoreName(host)
+	params := storage.NewListImagesParamsWithContext(ctx).WithStoreName(host)
 
 	layers, err := client.Storage.ListImages(params)
 	if err != nil {

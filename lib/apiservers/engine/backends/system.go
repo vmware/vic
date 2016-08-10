@@ -253,7 +253,7 @@ func getImageCount() int {
 func FetchVolumeStores(client *client.PortLayer) (string, error) {
 	var volumesBuffer bytes.Buffer
 
-	res, err := client.Storage.VolumeStoresList(storage.NewVolumeStoresListParams())
+	res, err := client.Storage.VolumeStoresList(storage.NewVolumeStoresListParamsWithContext(ctx))
 	if err != nil {
 		return "", err
 	}

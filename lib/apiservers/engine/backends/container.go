@@ -73,6 +73,8 @@ var (
 	}
 
 	portMapper portmap.PortMapper
+
+	ctx = context.TODO()
 )
 
 func init() {
@@ -343,7 +345,7 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 	// Call the port layer to resize
 	plHeight := int32(height)
 	plWidth := int32(width)
-	plResizeParam := interaction.NewContainerResizeParams().WithID(name).WithHeight(plHeight).WithWidth(plWidth)
+	plResizeParam := interaction.NewContainerResizeParamsWithContext(ctx).WithID(name).WithHeight(plHeight).WithWidth(plWidth)
 
 	_, err := client.Interaction.ContainerResize(plResizeParam)
 	if err != nil {
@@ -410,7 +412,7 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 	}
 
 	//call the remove directly on the name. No need for using a handle.
-	_, err := client.Containers.ContainerRemove(containers.NewContainerRemoveParams().WithID(name))
+	_, err := client.Containers.ContainerRemove(containers.NewContainerRemoveParamsWithContext(ctx).WithID(name))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.ContainerRemoveNotFound:
@@ -465,7 +467,7 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 
 	// get a handle to the container
 	var getRes *containers.GetOK
-	getRes, err = client.Containers.Get(containers.NewGetParams().WithID(name))
+	getRes, err = client.Containers.Get(containers.NewGetParamsWithContext(ctx).WithID(name))
 	if err != nil {
 		if _, ok := err.(*containers.GetNotFound); ok {
 			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
@@ -482,7 +484,7 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 	// bind network
 	if bind {
 		var bindRes *scopes.BindContainerOK
-		bindRes, err = client.Scopes.BindContainer(scopes.NewBindContainerParams().WithHandle(h))
+		bindRes, err = client.Scopes.BindContainer(scopes.NewBindContainerParamsWithContext(ctx).WithHandle(h))
 		if err != nil {
 			switch err := err.(type) {
 			case *scopes.BindContainerNotFound:
@@ -502,7 +504,7 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 		// unbind in case we fail later
 		defer func() {
 			if err != nil {
-				client.Scopes.UnbindContainer(scopes.NewUnbindContainerParams().WithHandle(h))
+				client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(h))
 			}
 		}()
 
@@ -511,7 +513,7 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 	// change the state of the container
 	// TODO: We need a resolved ID from the name
 	var stateChangeRes *containers.StateChangeOK
-	stateChangeRes, err = client.Containers.StateChange(containers.NewStateChangeParams().WithHandle(h).WithState("RUNNING"))
+	stateChangeRes, err = client.Containers.StateChange(containers.NewStateChangeParamsWithContext(ctx).WithHandle(h).WithState("RUNNING"))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.StateChangeNotFound:
@@ -626,7 +628,7 @@ func (c *Container) defaultScope() string {
 	}
 
 	client := PortLayerClient()
-	listRes, err := client.Scopes.List(scopes.NewListParams().WithIDName("default"))
+	listRes, err := client.Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName("default"))
 	if err != nil {
 		log.Error(err)
 		return ""
@@ -647,7 +649,7 @@ func (c *Container) findPortBoundNetworkEndpoint(hostconfig *container.HostConfi
 	}
 
 	// check if the port binding network is a bridge type
-	listRes, err := PortLayerClient().Scopes.List(scopes.NewListParams().WithIDName(hostconfig.NetworkMode.NetworkName()))
+	listRes, err := PortLayerClient().Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName(hostconfig.NetworkMode.NetworkName()))
 	if err != nil {
 		log.Error(err)
 		return nil
@@ -694,7 +696,7 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 			http.StatusInternalServerError)
 	}
 
-	getResponse, err := client.Containers.Get(containers.NewGetParams().WithID(name))
+	getResponse, err := client.Containers.Get(containers.NewGetParamsWithContext(ctx).WithID(name))
 	if err != nil {
 		switch err := err.(type) {
 
@@ -714,14 +716,14 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 	// we have a container on the PL side lets check the state before proceeding
 	// ignore the error  since others will be checking below..this is an attempt to short circuit the op
 	// TODO: can be replaced with simple cache check once power events are propigated to persona
-	infoResponse, _ := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParams().WithID(name))
+	infoResponse, _ := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(name))
 	if *infoResponse.Payload.ContainerConfig.State == "Stopped" || *infoResponse.Payload.ContainerConfig.State == "Created" {
 		return nil
 	}
 
 	if unbound {
 		var endpoints []*models.EndpointConfig
-		ub, err := client.Scopes.UnbindContainer(scopes.NewUnbindContainerParams().WithHandle(handle))
+		ub, err := client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle))
 		if err != nil {
 			switch err := err.(type) {
 			case *scopes.UnbindContainerNotFound:
@@ -745,7 +747,7 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 
 	// change the state of the container
 	// TODO: We need a resolved ID from the name
-	stateChangeResponse, err := client.Containers.StateChange(containers.NewStateChangeParams().WithHandle(handle).WithState("STOPPED"))
+	stateChangeResponse, err := client.Containers.StateChange(containers.NewStateChangeParamsWithContext(ctx).WithHandle(handle).WithState("STOPPED"))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.StateChangeNotFound:
@@ -761,7 +763,7 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 
 	handle = stateChangeResponse.Payload
 
-	_, err = client.Containers.Commit(containers.NewCommitParams().WithHandle(handle))
+	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.CommitNotFound:
@@ -826,7 +828,7 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get portlayer client"), http.StatusInternalServerError)
 	}
 
-	results, err := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParams().WithID(name))
+	results, err := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(name))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerInfoNotFound:
@@ -918,7 +920,7 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 			http.StatusInternalServerError)
 	}
 
-	containme, err := portLayerClient.Containers.GetContainerList(containers.NewGetContainerListParams().WithAll(&config.All))
+	containme, err := portLayerClient.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(ctx).WithAll(&config.All))
 	if err != nil {
 		switch err := err.(type) {
 
@@ -1404,7 +1406,7 @@ func ContainerSignal(containerID string, sig uint64) error {
 			http.StatusInternalServerError)
 	}
 
-	params := containers.NewContainerSignalParams().WithID(containerID).WithSignal(int64(sig))
+	params := containers.NewContainerSignalParamsWithContext(ctx).WithID(containerID).WithSignal(int64(sig))
 	if _, err := client.Containers.ContainerSignal(params); err != nil {
 		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
 	}
