@@ -83,6 +83,8 @@ func (t *Toolbox) Start() error {
 func (t *Toolbox) Stop() error {
 	t.Service.Stop()
 
+	t.Service.Wait()
+
 	close(t.stop)
 
 	return nil
@@ -165,7 +167,7 @@ func (t *Toolbox) halt() error {
 	case <-t.stop:
 		log.Infof("%s has stopped", session.ID)
 		return nil
-	case <-time.After(time.Second * 10): // TODO: honor -t flag from docker stop
+	case <-time.After(time.Second * 10):
 	}
 
 	log.Warnf("killing %s", session.ID)
