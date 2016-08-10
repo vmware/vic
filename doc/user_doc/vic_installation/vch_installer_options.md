@@ -46,13 +46,12 @@ You can also specify the username in the URL that you pass to `vic-machine creat
 
 Short name: `-i`
 
-The datastore in which to store container image files. When you deploy a virtual container host, `vic-machine` creates a folder named `VIC` on the target datastore,  in which to store all of the container images that you pull into a virtual container host. The `vic-machine` utility also places the VM files for the virtual container host in the datastore that you designate as the image store, in a folder that has the same name as the virtual container host.
+The datastore in which to store container image files. When you deploy a virtual container host, `vic-machine` creates a folder named `VIC` on the target datastore,  in which to store all of the container images that you pull into a virtual container host. The `vic-machine` utility also places the VM files for the virtual container host in the datastore that you designate as the image store, in a folder that has the same name as the virtual container host. If you specify an image store in the format `datastore/some/path`, `/some/path` will be used as your image store instead of the folder with the same name as the virtual container host.
 
 You can designate the same datastore as the image store for multiple virtual container hosts. In this case, only one `VIC` folder is created in the datastore and the container image files are made available to all of the virtual container hosts that use that image store. 
 
 **NOTES**: 
 - vSphere Integrated Containers supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names.
-- In the current builds the `image-store` option does not support datastore folders. If you specify a datastore folder in the `image-store` option, `vic-machine` does not return an error, but creates all of the necessary folders at the root level of the datastore.
 - In the current builds the `container-datastore` option is not enabled. As a consequence, container VM files are also stored in the datastore that you designate as the image store.
 
 <pre>--image-store <i>datastore_name</i></pre> 
