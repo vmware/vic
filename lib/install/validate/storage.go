@@ -51,13 +51,6 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 		conf.AddImageStore(imageDSpath)
 	}
 
-	// Volume Store(s)
-	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s",
-		imageDSpath.Host,
-		input.DisplayName,
-		path.Base(input.BootstrapISO),
-	)
-
 	if conf.VolumeLocations == nil {
 		conf.VolumeLocations = make(map[string]*url.URL)
 	}
