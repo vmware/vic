@@ -91,8 +91,6 @@ Cleanup VIC Appliance On Test Server
     Gather Logs From Test Server
     Log To Console  Deleting the VCH appliance...
     ${output}=  Run VIC Machine Delete Command
-    Log To Console  Gathering logs from the host ESX server...
-    Run Keyword And Ignore Error  Gather Logs From ESX Server
     [Return]  ${output}
     
 Run VIC Machine Delete Command
@@ -135,11 +133,11 @@ Gather Logs From Test Server
     ${status}  ${message}=  Run Keyword And Ignore Error  Should Not Contain  ${params}  --tls
     # Non-certificate case
     ${ip}=  Run Keyword If  '${status}'=='PASS'  Split String  ${params}  :
-    Run Keyword If  '${status}'=='PASS'  Run  wget http://@{ip}[0]:2378/container-logs.tar.gz -O ${vch-name}-container-logs.tar.gz
+    Run Keyword If  '${status}'=='PASS'  Run  wget http://@{ip}[0]:2378/container-logs.zip -O ${vch-name}-container-logs.zip
     # Certificate case
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  ${params}  ${SPACE}
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  @{ip}[1]  :
-    Run Keyword If  '${status}'=='FAIL'  Run  wget --no-check-certificate https://@{ip}[0]:2378/container-logs.tar.gz -O ${vch-name}-container-logs.tar.gz
+    Run Keyword If  '${status}'=='FAIL'  Run  wget --no-check-certificate https://@{ip}[0]:2378/container-logs.zip -O ${vch-name}-container-logs.zip
 
 Gather Logs From ESX Server
     Environment Variable Should Be Set  TEST_URL
