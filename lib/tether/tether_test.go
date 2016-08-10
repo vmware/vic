@@ -24,6 +24,8 @@ import (
 	"runtime"
 	"testing"
 
+	_ "net/http/pprof"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/crypto/ssh"

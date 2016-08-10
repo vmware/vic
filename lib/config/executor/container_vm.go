@@ -55,7 +55,7 @@ type Diagnostics struct {
 	ResurrectionCount int `vic:"0.1" scope:"read-write" key:"resurrections"`
 	// ExitLogs is a best effort record of the time of process death and the cause for
 	// restartable entities
-	ExitLogs []*ExitLog `vic:"0.1" scope:"read-write" key:"exitlogs"`
+	ExitLogs []ExitLog `vic:"0.1" scope:"read-write" key:"exitlogs"`
 }
 
 // ExitLog records some basic diagnostics about anomolous exit for restartable entities
