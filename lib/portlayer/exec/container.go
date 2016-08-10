@@ -24,6 +24,7 @@ import (
 	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/errors"
@@ -34,6 +35,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/sys"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
+	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 )
 
@@ -96,7 +98,7 @@ func (c *Container) cacheExecConfig(ec *executor.ExecutorConfig) {
 	c.ExecConfig = ec
 }
 
-func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle) error {
+func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int32) error {
 	defer trace.End(trace.Begin("Committing handle"))
 
 	c.Lock()
@@ -149,7 +151,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 	// if we're stopping the VM, do so before the reconfigure to preserve the extraconfig
 	if h.State != nil && *h.State == StateStopped {
 		// stop the container
-		if err := h.Container.stop(ctx); err != nil {
+		if err := h.Container.stop(ctx, waitTime); err != nil {
 			return err
 		}
 
@@ -222,25 +224,73 @@ func (c *Container) start(ctx context.Context) error {
 	return nil
 }
 
-func (c *Container) stop(ctx context.Context) error {
+func (c *Container) waitForPowerState(ctx context.Context, max time.Duration, state types.VirtualMachinePowerState) (bool, error) {
+	timeout, cancel := context.WithTimeout(ctx, max)
+	defer cancel()
+
+	err := c.vm.WaitForPowerState(timeout, state)
+	if err != nil {
+		return timeout.Err() == err, err
+	}
+
+	return false, nil
+}
+
+func (c *Container) shutdown(ctx context.Context, waitTime *int32) error {
+	wait := 10 * time.Second // default
+	if waitTime != nil && *waitTime > 0 {
+		wait = time.Duration(*waitTime) * time.Second
+	}
+
+	stop := []string{c.ExecConfig.StopSignal, string(ssh.SIGKILL)}
+	if stop[0] == "" {
+		stop[0] = string(ssh.SIGTERM)
+	}
+
+	for _, sig := range stop {
+		msg := fmt.Sprintf("sending kill -%s %s", sig, c.ExecConfig.ID)
+		log.Info(msg)
+
+		err := c.startGuestProgram(ctx, "kill", sig)
+		if err != nil {
+			return fmt.Errorf("%s: %s", msg, err)
+		}
+
+		log.Infof("waiting %s for %s to power off", wait, c.ExecConfig.ID)
+		timeout, err := c.waitForPowerState(ctx, wait, types.VirtualMachinePowerStatePoweredOff)
+		if err == nil {
+			return nil // VM has powered off
+		}
+
+		if !timeout {
+			return err // error other than timeout
+		}
+
+		log.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c.ExecConfig.ID, sig)
+	}
+
+	return fmt.Errorf("failed to shutdown %s via kill signals %s", c.ExecConfig.ID, stop)
+}
+
+func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 	defer trace.End(trace.Begin("Container.stop"))
 
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
 	}
 
-	err := c.vm.ShutdownGuest(ctx)
-	if err != nil {
-		log.Warnf("ShutdownGuest %s failed: %s", c.ExecConfig.ID, err)
-		// Fallback to PowerOff in the event that tools may not be running
-		_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-			return c.vm.PowerOff(ctx)
-		})
-		return err
+	err := c.shutdown(ctx, waitTime)
+	if err == nil {
+		return nil
 	}
 
-	// ShutdownGuest does not wait for PowerOff state, so we need to do that ourselves
-	return c.vm.WaitForPowerState(ctx, types.VirtualMachinePowerStatePoweredOff)
+	log.Warnf("stopping %s via hard power off due to: %s", c.ExecConfig.ID, err)
+
+	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		return c.vm.PowerOff(ctx)
+	})
+
+	return err
 }
 
 func (c *Container) startGuestProgram(ctx context.Context, name string, args string) error {
@@ -274,6 +324,16 @@ func (c *Container) Signal(ctx context.Context, num int64) error {
 	return c.startGuestProgram(ctx, "kill", fmt.Sprintf("%d", num))
 }
 
+// NotFoundError is returned when a types.ManagedObjectNotFound is returned from a vmomi call
+type NotFoundError struct {
+	err error
+}
+
+func (r NotFoundError) Error() string {
+	return "VM has either been deleted or has not been fully created"
+}
+
+// RemovePowerError is returned when attempting to remove a containerVM that is powered on
 type RemovePowerError struct {
 	err error
 }
@@ -288,12 +348,22 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	defer c.Unlock()
 
 	if c.vm == nil {
-		return fmt.Errorf("VM has already been removed")
+		return NotFoundError{}
 	}
 
 	// get the folder the VM is in
 	url, err := c.vm.DSPath(ctx)
 	if err != nil {
+
+		// handle the out-of-band removal case
+		if soap.IsSoapFault(err) {
+			fault := soap.ToSoapFault(err).VimFault()
+			if _, ok := fault.(types.ManagedObjectNotFound); ok {
+				containers.Remove(c.ExecConfig.ID)
+				return NotFoundError{}
+			}
+		}
+
 		log.Errorf("Failed to get datastore path for %s: %s", c.ExecConfig.ID, err)
 		return err
 	}
@@ -384,6 +454,7 @@ func ContainerInfo(ctx context.Context, sess *session.Session, containerID ID) (
 	switch len(cc) {
 	case 0:
 		// we found a vm, but it doesn't appear to be a container VM
+		containers.Remove(containerID.String())
 		return nil, fmt.Errorf("%s does not appear to be a container", containerID)
 	case 1:
 		// we have a winner

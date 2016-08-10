@@ -290,8 +290,11 @@ func (t *tether) Register(name string, extension Extension) {
 func (t *tether) handleSessionExit(session *SessionConfig) {
 	defer trace.End(trace.Begin("handling exit of session " + session.ID))
 
-	// close down the IO
+	// stdio must be closed before calling wait or Wait hangs indefinitely
 	session.Reader.Close()
+	session.Cmd.Wait()
+
+	// close down the outputs
 	session.Outwriter.Close()
 	session.Errwriter.Close()
 
@@ -302,7 +305,7 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 		logs = logs[logCount-MaxDeathRecords+1:]
 	}
 
-	session.Diagnostics.ExitLogs = append(logs, &executor.ExitLog{
+	session.Diagnostics.ExitLogs = append(logs, executor.ExitLog{
 		Time:       time.Now(),
 		ExitStatus: session.ExitStatus,
 		// We don't have any message for now

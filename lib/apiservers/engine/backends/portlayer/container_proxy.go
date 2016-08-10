@@ -138,9 +138,9 @@ func (c *ContainerProxy) CreateContainerHandle(imageID string, config types.Cont
 	createResults, err := c.client.Containers.Create(plCreateParams)
 	if err != nil {
 		if _, ok := err.(*containers.CreateNotFound); ok {
-			err = fmt.Errorf("No such image: %s", imageID)
-			log.Errorf(err.Error())
-			return "", "", derr.NewRequestNotFoundError(err)
+			cerr := fmt.Errorf("No such image: %s", imageID)
+			log.Errorf("%s (%s)", cerr, err)
+			return "", "", derr.NewRequestNotFoundError(cerr)
 		}
 
 		// If we get here, most likely something went wrong with the port layer API server
@@ -271,12 +271,12 @@ func (c *ContainerProxy) CommitContainerHandle(handle, imageID string) error {
 
 	_, err := c.client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
 	if err != nil {
-		err = fmt.Errorf("No such image: %s", imageID)
-		log.Errorf("%s", err.Error())
+		cerr := fmt.Errorf("No such image: %s", imageID)
+		log.Errorf("%s (%s)", cerr, err)
 		// FIXME: Containers.Commit returns more errors than it's swagger spec says.
 		// When no image exist, it also sends back non swagger errors.  We should fix
 		// this once Commit returns correct error codes.
-		return derr.NewRequestNotFoundError(err)
+		return derr.NewRequestNotFoundError(cerr)
 	}
 
 	return nil

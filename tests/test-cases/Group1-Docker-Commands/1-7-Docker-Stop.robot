@@ -18,6 +18,18 @@ Assert Stop Signal
     ${output}=  OperatingSystem.Get File  ${TEMPDIR}/${id}.log
     Should Contain  ${output}  StopSignal${sig}
 
+Assert Kill Signal
+    # Assert SIGKILL was sent or not by checking the tether debug log file
+    [Arguments]  ${id}  ${expect}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -json -vm.path "[%{TEST_DATASTORE}] ${id}/${id}.vmx" | jq -r .VirtualMachines[].Runtime.PowerState
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal  ${output}  poweredOff
+    ${rc}=  Run And Return Rc  govc datastore.download ${id}/${id}.debug ${TEMPDIR}/${id}.debug
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  OperatingSystem.Get File  ${TEMPDIR}/${id}.debug
+    Run Keyword If  ${expect}  Should Contain  ${output}  sending signal KILL
+    Run Keyword Unless  ${expect}  Should Not Contain  ${output}  sending signal KILL
+
 *** Test Cases ***
 Stop an already stopped container
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
@@ -36,15 +48,17 @@ Basic docker container stop
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop ${container}
     Should Be Equal As Integers  ${rc}  0
+    Assert Kill Signal  ${container}  False
 
 Stop a container with SIGKILL using default grace period
     ${rc}=  Run And Return Rc  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
-    ${trap}=  Trap Signal Command  TERM
+    ${trap}=  Trap Signal Command  HUP
     ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} run -d ${trap}
     Should Be Equal As Integers  ${rc}  0
     ${rc}=  Run And Return Rc  docker ${params} stop ${container}
     Should Be Equal As Integers  ${rc}  0
+    Assert Kill Signal  ${container}  False
 
 Stop a container with SIGKILL using specific stop signal
     ${rc}=  Run And Return Rc  docker ${params} pull busybox
@@ -55,24 +69,18 @@ Stop a container with SIGKILL using specific stop signal
     ${rc}=  Run And Return Rc  docker ${params} stop ${container}
     Should Be Equal As Integers  ${rc}  0
     Assert Stop Signal  ${container}  USR1
+    Assert Kill Signal  ${container}  True
 
 Stop a container with SIGKILL using specific grace period
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    ${rc}=  Run And Return Rc  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create busybox sleep 30
+    ${trap}=  Trap Signal Command  HUP
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} run -d --stop-signal HUP ${trap}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container}
+    ${rc}=  Run And Return Rc  docker ${params} stop -t 2 ${container}
     Should Be Equal As Integers  ${rc}  0
-    ${before}=  Get Current Date
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop -t 2 ${container}
-    ${after}=  Get Current Date
-    Should Be Equal As Integers  ${rc}  0
-    ${result}=  Subtract Date From Date  ${after}  ${before}
-
-    ${status}=  Get State Of Github Issue  1321
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-7-Docker-Stop.robot needs to be updated now that Issue #1321 has been resolved
-    Log  Issue \#1321 is blocking implementation  WARN
-    #Should Be True  ${1} < ${result} < ${3}
+    Assert Stop Signal  ${container}  HUP
+    Assert Kill Signal  ${container}  True
 
 Stop a non-existent container
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop fakeContainer
@@ -89,3 +97,4 @@ Attempt to stop a container that has been started out of band
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop ${container}
     Should Be Equal As Integers  ${rc}  0
+    Assert Kill Signal  ${container}  False

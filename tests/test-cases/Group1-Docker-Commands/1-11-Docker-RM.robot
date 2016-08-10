@@ -63,3 +63,14 @@ Remove a fake container
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm fakeContainer
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: No such container: fakeContainer
+
+Remove a container deleted out of band
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name test busybox
+    Should Be Equal As Integers  ${rc}  0
+    # Remove container VM out-of-band
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy "test*"
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm test
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  Error response from daemon: No such container: test
+    
