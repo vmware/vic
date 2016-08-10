@@ -317,6 +317,9 @@ func (v *Validator) checkVDSMembership(ctx context.Context, network types.Manage
 		return nil
 	}
 
+	if v.Session.Cluster == nil {
+		return errors.New("cluster not set")
+	}
 	clusterHosts, err := v.Session.Cluster.Hosts(ctx)
 	if err != nil {
 		return err
