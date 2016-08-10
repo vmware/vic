@@ -12,3 +12,5 @@ VIC Integration Test Suite
 -
 [Group 6 - VIC Machine](Group6-VIC-Machine/TestCases.md)
 -
+[Group 9 - VIC Admin](Group9-VIC-Admin/TestCases.md)
+-

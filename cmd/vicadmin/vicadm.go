@@ -375,13 +375,14 @@ func client() (*session.Session, error) {
 	session := session.NewSession(&config.Config)
 	_, err := session.Connect(ctx)
 	if err != nil {
+		log.Warnf("Unable to connect: %s", err)
 		return nil, err
 	}
 
 	_, err = session.Populate(ctx)
 	if err != nil {
 		// no a critical error for vicadmin
-		log.Warn(err)
+		log.Warnf("Unable to populate session: %s", err)
 	}
 
 	return session, nil
@@ -426,12 +427,14 @@ func main() {
 	// If we're in an ESXi environment, then we need
 	// to extract the userid/password from UserPassword
 	if vchConfig.UserPassword != "" {
-		upw := strings.Split(vchConfig.UserPassword, ":")
-		if len(upw) == 2 {
-			vchConfig.Target.User = url.UserPassword(upw[0], upw[1])
-		} else {
-			vchConfig.Target.User = url.User(upw[0])
-		}
+		log.Infof("Extracting user/password: %s", vchConfig.UserPassword)
+		newurl, _ := url.Parse(fmt.Sprintf("%s://%s@%s/%s",
+								vchConfig.Target.Scheme,
+								vchConfig.UserPassword,
+								vchConfig.Target.Host,
+								vchConfig.Target.Path))
+		vchConfig.Target = *newurl
+		log.Infof("New SDK target: %s", vchConfig.Target.String())
 	}
 
 	config.Service = vchConfig.Target.String()

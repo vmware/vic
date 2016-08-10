@@ -90,9 +90,10 @@ Cleanup VIC Appliance On Test Server
     Log To Console  Gathering logs from the test server...
     Gather Logs From Test Server
     Log To Console  Deleting the VCH appliance...
-    ${output}=  Run VIC Machine Delete Command
     Log To Console  Gathering logs from the host ESX server...
     Run Keyword And Ignore Error  Gather Logs From ESX Server
+	# TODO: Move this back up before merging to master
+    ${output}=  Run VIC Machine Delete Command
     [Return]  ${output}
     
 Run VIC Machine Delete Command
