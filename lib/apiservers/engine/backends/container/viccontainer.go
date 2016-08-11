@@ -15,6 +15,8 @@
 package container
 
 import (
+	"time"
+
 	containertypes "github.com/docker/engine-api/types/container"
 )
 
@@ -25,6 +27,10 @@ type VicContainer struct {
 	ContainerID string
 	Config      *containertypes.Config //Working copy of config (with overrides from container create)
 	HostConfig  *containertypes.HostConfig
+
+	// non-persistent last start and finish time
+	StartedAt  time.Time
+	FinishedAt time.Time
 }
 
 // NewVicContainer returns a reference to a new VicContainer

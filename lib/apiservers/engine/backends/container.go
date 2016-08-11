@@ -577,6 +577,9 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 		}
 	}
 
+	// set StartedAt time
+	vc.StartedAt = time.Now().UTC()
+
 	return nil
 }
 
@@ -807,6 +810,9 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 		}
 
 	}
+
+	// set FinishedAt time
+	vc.FinishedAt = time.Now().UTC()
 
 	return nil
 }
