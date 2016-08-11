@@ -85,7 +85,7 @@ func (d *VirtualDisk) unlock() {
 }
 
 func (d *VirtualDisk) setAttached(devicePath string) error {
-	if d.Attached() {
+	if d.isAttached() {
 		return fmt.Errorf("%s is already attached (%s)", d.DatastoreURI, devicePath)
 	}
 
@@ -98,11 +98,11 @@ func (d *VirtualDisk) setAttached(devicePath string) error {
 }
 
 func (d *VirtualDisk) canBeDetached() error {
-	if !d.Attached() {
+	if !d.isAttached() {
 		return fmt.Errorf("%s is already detached", d.DatastoreURI)
 	}
 
-	if d.Mounted() {
+	if d.isMounted() {
 		return fmt.Errorf("%s is mounted (%s)", d.DatastoreURI, d.mountPath)
 	}
 
@@ -110,11 +110,11 @@ func (d *VirtualDisk) canBeDetached() error {
 }
 
 func (d *VirtualDisk) setDetached() error {
-	if !d.Attached() {
+	if !d.isAttached() {
 		return fmt.Errorf("%s is already dettached", d.DatastoreURI)
 	}
 
-	if d.Mounted() {
+	if d.isMounted() {
 		return fmt.Errorf("%s is still mounted (%s)", d.DatastoreURI, d.mountPath)
 	}
 
@@ -126,11 +126,11 @@ func (d *VirtualDisk) Mkfs(labelName string) error {
 	d.lock()
 	defer d.unlock()
 
-	if !d.Attached() {
+	if !d.isAttached() {
 		return fmt.Errorf("%s isn't attached", d.DatastoreURI)
 	}
 
-	if d.Mounted() {
+	if d.isMounted() {
 		return fmt.Errorf("%s is mounted mounted", d.DatastoreURI)
 	}
 
@@ -141,14 +141,14 @@ func (d *VirtualDisk) SetLabel(labelName string) error {
 	d.lock()
 	defer d.unlock()
 
-	if !d.Attached() {
+	if !d.isAttached() {
 		return fmt.Errorf("%s isn't attached", d.DatastoreURI)
 	}
 
 	return d.fs.SetLabel(d.DevicePath, labelName)
 }
 
-func (d *VirtualDisk) Attached() bool {
+func (d *VirtualDisk) isAttached() bool {
 	return d.DevicePath != ""
 }
 
@@ -156,11 +156,11 @@ func (d *VirtualDisk) Mount(mountPath string, options []string) error {
 	d.lock()
 	defer d.unlock()
 
-	if !d.Attached() {
+	if !d.isAttached() {
 		return fmt.Errorf("%s isn't attached", d.DatastoreURI)
 	}
 
-	if d.Mounted() {
+	if d.isMounted() {
 		return fmt.Errorf("%s already mounted", d.DatastoreURI)
 	}
 
@@ -176,7 +176,7 @@ func (d *VirtualDisk) Unmount() error {
 	d.lock()
 	defer d.unlock()
 
-	if !d.Mounted() {
+	if !d.isMounted() {
 		return fmt.Errorf("%s already unmounted", d.DatastoreURI)
 	}
 
@@ -189,7 +189,7 @@ func (d *VirtualDisk) Unmount() error {
 }
 
 func (d *VirtualDisk) MountPath() (string, error) {
-	if !d.Mounted() {
+	if !d.isMounted() {
 		return "", fmt.Errorf("%s isn't mounted", d.DatastoreURI)
 	}
 
@@ -200,16 +200,16 @@ func (d *VirtualDisk) DiskPath() string {
 	return d.DatastoreURI
 }
 
-func (d *VirtualDisk) Mounted() bool {
+func (d *VirtualDisk) isMounted() bool {
 	return d.mountPath != ""
 }
 
 func (d *VirtualDisk) canBeUnmounted() error {
-	if !d.Attached() {
+	if !d.isAttached() {
 		return fmt.Errorf("%s is detached", d.DatastoreURI)
 	}
 
-	if !d.Mounted() {
+	if !d.isMounted() {
 		return fmt.Errorf("%s is unmounted", d.DatastoreURI)
 	}
 
@@ -217,7 +217,7 @@ func (d *VirtualDisk) canBeUnmounted() error {
 }
 
 func (d *VirtualDisk) setUmounted() error {
-	if !d.Mounted() {
+	if !d.isMounted() {
 		return fmt.Errorf("%s already unmounted", d.DatastoreURI)
 	}
 
