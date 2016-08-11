@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"golang.org/x/net/context"
 )
 
@@ -113,6 +114,11 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string, label stri
 	// temporary until session is extracted
 	// FIXME: commented out until components can consume moid
 	// dsURL.Host = stores[0].Reference().Value
+
+	// make sure the vsphere ds format fits the right format
+	if _, err := datastore.ToURL(fmt.Sprintf("[%s] %s", dsURL.Host, dsURL.Path)); err != nil {
+		return nil, nil, err
+	}
 
 	return dsURL, stores[0], nil
 }

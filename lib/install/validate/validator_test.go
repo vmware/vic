@@ -21,6 +21,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
@@ -75,6 +76,7 @@ func TestMain(t *testing.T) {
 
 	for i, model := range []*simulator.Model{simulator.ESX(), simulator.VPX()} {
 		t.Logf("%d", i)
+		model.Datastore = 3
 		defer model.Remove()
 		err := model.Create()
 		if err != nil {
@@ -102,6 +104,11 @@ func TestMain(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to new validator: %s", err)
 		}
+		ds, _ := validator.Session.Finder.Datastore(validator.Context, "LocalDS_1")
+		simulator.Map.Get(ds.Reference()).(mo.Entity).Entity().Name = "Local DS_0"
+
+		ds, _ = validator.Session.Finder.Datastore(validator.Context, "LocalDS_2")
+		simulator.Map.Get(ds.Reference()).(mo.Entity).Entity().Name = `😗`
 
 		validator.DisableFirewallCheck = true
 		validator.DisableDRSCheck = true
@@ -282,7 +289,21 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 			map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1",
 				"volume2": "ds://LocalDS_0/volumes/volume2"}},
 
+		{"ds://😗",
+			map[string]string{"volume1": "😗/volumes/volume1",
+				"volume2": "ds://😗/volumes/volume2"},
+			true,
+			"ds://😗/test001/images",
+			nil},
+
 		{"ds://LocalDS_0",
+			map[string]string{"volume1": "LocalDS_1/volumes/volume1",
+				"volume2": "ds://LocalDS_1/volumes/volume2"},
+			true,
+			"ds://LocalDS_0/test001/images",
+			nil},
+
+		{"LocalDS_0",
 			map[string]string{"volume1": "LocalDS_1/volumes/volume1",
 				"volume2": "ds://LocalDS_1/volumes/volume2"},
 			true,
