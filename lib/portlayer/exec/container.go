@@ -23,6 +23,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
@@ -289,6 +290,18 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return c.vm.PowerOff(ctx)
 	})
+
+	if err != nil {
+		// It is possible the VM has finally shutdown in between, ignore the error in that case
+		if terr, ok := err.(task.Error); ok {
+			if serr, ok := terr.Fault().(*types.InvalidPowerState); ok {
+				if serr.ExistingState == types.VirtualMachinePowerStatePoweredOff {
+					log.Warnf("power off %s task skipped (state was already %s)", c.ExecConfig.ID, serr.ExistingState)
+					return nil
+				}
+			}
+		}
+	}
 
 	return err
 }
