@@ -230,11 +230,6 @@ func (m *Manager) Detach(ctx context.Context, d *VirtualDisk) error {
 	d.lock()
 	defer d.unlock()
 
-	if !d.Attached() {
-		log.Infof("Disk %s is already detached", d.DevicePath)
-		return nil
-	}
-
 	if err := d.canBeDetached(); err != nil {
 		return errors.Trace(err)
 	}
