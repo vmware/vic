@@ -208,8 +208,10 @@ vendor: $(GVT)
 	$(GVT) restore
 
 TEST_DIRS=github.com/vmware/vic/cmd
-TEST_DIRS+=github.com/vmware/vic/lib/
+TEST_DIRS+=github.com/vmware/vic/lib
 TEST_DIRS+=github.com/vmware/vic/pkg
+
+TEST_JOBS := $(addprefix test-job-,$(TEST_DIRS))
 
 # since drone cannot tell us how log it took
 mark:
@@ -219,15 +221,17 @@ sincemark:
 	@echo seconds passed since we start
 	@stat -c %Y /started | echo `expr $$(date +%s) - $$(cat)`
 
-test: portlayerapi
+test: portlayerapi $(TEST_JOBS)
+
+$(TEST_JOBS): test-job-%:
 	@echo Running unit tests
 	# test everything but vendor
 ifdef DRONE
 	@echo Generating coverage data
-	@$(TIME) infra/scripts/coverage.sh $(TEST_DIRS)
+	@$(TIME) infra/scripts/coverage.sh $*
 else
 	@echo Generating local html coverage report
-	@$(TIME) infra/scripts/coverage.sh --html $(TEST_DIRS)
+	@$(TIME) infra/scripts/coverage.sh --html $*
 endif
 
 $(vic-init): $(call godeps,cmd/vic-init/*.go)
