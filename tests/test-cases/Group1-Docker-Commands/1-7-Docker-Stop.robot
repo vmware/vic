@@ -72,15 +72,18 @@ Stop a container with SIGKILL using specific stop signal
     Assert Kill Signal  ${container}  True
 
 Stop a container with SIGKILL using specific grace period
-    ${rc}=  Run And Return Rc  docker ${params} pull busybox
-    Should Be Equal As Integers  ${rc}  0
-    ${trap}=  Trap Signal Command  HUP
-    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} run -d --stop-signal HUP ${trap}
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}=  Run And Return Rc  docker ${params} stop -t 2 ${container}
-    Should Be Equal As Integers  ${rc}  0
-    Assert Stop Signal  ${container}  HUP
-    Assert Kill Signal  ${container}  True
+    ${status}=  Get State Of Github Issue  1924
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-7-Docker-Stop.robot needs to be updated now that Issue #1924 has been resolved
+    Log  Issue \#1924 is blocking implementation  WARN
+    #${rc}=  Run And Return Rc  docker ${params} pull busybox
+    #Should Be Equal As Integers  ${rc}  0
+    #${trap}=  Trap Signal Command  HUP
+    #${rc}  ${container}=  Run And Return Rc And Output  docker ${params} run -d --stop-signal HUP ${trap}
+    #Should Be Equal As Integers  ${rc}  0
+    #${rc}=  Run And Return Rc  docker ${params} stop -t 2 ${container}
+    #Should Be Equal As Integers  ${rc}  0
+    #Assert Stop Signal  ${container}  HUP
+    #Assert Kill Signal  ${container}  True
 
 Stop a non-existent container
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop fakeContainer
