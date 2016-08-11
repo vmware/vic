@@ -33,7 +33,3 @@ func (i *VCHID) IDFlags() []cli.Flag {
 		},
 	}
 }
-
-func (i *VCHID) ProcessID() error {
-	return nil
-}

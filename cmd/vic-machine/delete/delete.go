@@ -73,10 +73,6 @@ func (d *Uninstall) processParams() error {
 		return err
 	}
 
-	if err := d.ProcessID(); err != nil {
-		return err
-	}
-
 	d.Insecure = true
 	return nil
 }

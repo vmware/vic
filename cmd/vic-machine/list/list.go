@@ -43,7 +43,7 @@ const templ = `{{range .}}
 {{.ID}}	{{.Path}}	{{.Name}}{{end}}
 `
 
-// Delete has all input parameters for vic-machine delete command
+// List has all input parameters for vic-machine ls command
 type List struct {
 	*data.Data
 
@@ -56,7 +56,7 @@ func NewList() *List {
 	return d
 }
 
-// Flags return all cli flags for delete
+// Flags return all cli flags for ls
 func (l *List) Flags() []cli.Flag {
 	flags := append(l.TargetFlags(), l.ComputeFlagsNoName()...)
 	flags = append(flags, l.DebugFlags()...)
