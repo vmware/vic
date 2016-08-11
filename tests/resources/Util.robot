@@ -78,6 +78,8 @@ Install VIC Appliance To Test Server
 Run VIC Machine Command
     [Tags]  secret
     [Arguments]  ${certs}  ${vol}  ${bridge}  ${external}
+	${proto}=  Set Variable If  ${certs}  "https"  "http"
+	Set Suite Variable  ${proto}
     ${output}=  Run Keyword If  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --force=true --bridge-network=${bridge} --external-network=${external} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol}
     Run Keyword If  ${certs}  Should Contain  ${output}  Installer completed successfully
     Return From Keyword If  ${certs}  ${output}
@@ -133,11 +135,11 @@ Gather Logs From Test Server
     ${status}  ${message}=  Run Keyword And Ignore Error  Should Not Contain  ${params}  --tls
     # Non-certificate case
     ${ip}=  Run Keyword If  '${status}'=='PASS'  Split String  ${params}  :
-    Run Keyword If  '${status}'=='PASS'  Run  wget http://@{ip}[0]:2378/container-logs.zip -O ${vch-name}-container-logs.zip
+    Run Keyword If  '${status}'=='PASS'  Run  wget ${proto}://@{ip}[0]:2378/container-logs.zip -O ${vch-name}-container-logs.zip
     # Certificate case
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  ${params}  ${SPACE}
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  @{ip}[1]  :
-    Run Keyword If  '${status}'=='FAIL'  Run  wget --no-check-certificate https://@{ip}[0]:2378/container-logs.zip -O ${vch-name}-container-logs.zip
+    Run Keyword If  '${status}'=='FAIL'  Run  wget --no-check-certificate ${proto}://@{ip}[0]:2378/container-logs.zip -O ${vch-name}-container-logs.zip
 
 Gather Logs From ESX Server
     Environment Variable Should Be Set  TEST_URL
@@ -273,6 +275,11 @@ Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Stopped
+    # Ensure container logs are correctly being gathered for debugging purposes
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -k ${proto}://${vch-ip}:2378/container-logs.tar.gz | tar tvzf -
+    Should Be Equal As Integers  ${rc}  0
+    Log  ${output}
+    Should Contain  ${output}  ${container}/vmware.log
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
