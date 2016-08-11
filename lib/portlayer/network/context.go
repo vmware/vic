@@ -979,7 +979,7 @@ func (c *Context) DeleteScope(name string) error {
 	}
 
 	if len(s.Endpoints()) != 0 {
-		return fmt.Errorf("scope has bound endpoints")
+		return fmt.Errorf("%s has active endpoints", s.Name())
 	}
 
 	if s.Type() == BridgeScopeType {
