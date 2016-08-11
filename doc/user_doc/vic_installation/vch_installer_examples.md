@@ -86,6 +86,19 @@ In addition to the mandatory options for deployment to a cluster, this example s
 --name vch1
 </pre>
 
+It is also possible to specify a specific folder in which to store your images, instead of just a datastore. This can be done by providing a path following the `image-store` option:
+
+<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+--target <i>vcenter_server_IPv4_address_or_FQDN</i>
+--user Administrator@vsphere.local
+--password <i>vcenter_sso_password</i>
+--compute-resource <i>cluster_name</i>
+--image-store <i>datastore_1_name/path/to/some/specific/location</i>
+--container-datastore <i>datastore_2_name</i>
+--bridge-network <i>network_1_name</i>
+--name vch1
+</pre>
+
 <a name="standalone"></a> 
 ## Deploy a Virtual Container Host on a Standalone Host in vCenter Server ##
 

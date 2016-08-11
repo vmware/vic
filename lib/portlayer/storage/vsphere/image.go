@@ -15,7 +15,6 @@
 package vsphere
 
 import (
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -75,7 +74,7 @@ func NewImageStore(ctx context.Context, s *session.Session, u *url.URL) (*ImageS
 	}
 
 	if len(datastores) != 1 {
-		return nil, errors.New(fmt.Sprintf("Found %d datastores with provided datastore path %s. Installation will not continue, as provided datastore path must identify exactly one datastore.", len(datastores), u.String()))
+		return nil, errors.New(fmt.Sprintf("Found %d datastores with provided datastore path %s. Cannot create image store.", len(datastores), u.String()))
 	}
 
 	ds, err := datastore.NewHelper(ctx, s, datastores[0], path.Join(u.Path, StorageParentDir))
