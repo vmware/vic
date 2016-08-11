@@ -20,10 +20,11 @@ This test requires that a vSphere server is running and available
 7. Issue a docker stop <containerID>
 8. Issue a docker ps, verify that the container is stopped
 9. Issue a docker rm <containerID>
-10. Issue a docker ps, verify that the container is removed
-11. Issue a docker rmi busybox
-12. Issue a docker images, verify that busybox image is gone
-13. Remove the VIC appliance with vic-machine delete command, verify that the appliance was removed
+10. Pull container log bundle from VICadmin and ensure that the container's vmware.log is present
+11. Issue a docker ps, verify that the container is removed
+12. Issue a docker rmi busybox
+13. Issue a docker images, verify that busybox image is gone
+14. Remove the VIC appliance with vic-machine delete command, verify that the appliance was removed
 
 #Expected Outcome:
 VIC appliance should respond without error to each of the commands

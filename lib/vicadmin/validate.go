@@ -17,6 +17,7 @@ package vicadmin
 import (
 	"fmt"
 	"html/template"
+	"net"
 	"os"
 	"strings"
 
@@ -36,6 +37,10 @@ type Validator struct {
 	Version        string
 	FirewallStatus template.HTML
 	FirewallIssues template.HTML
+	LicenseStatus  template.HTML
+	LicenseIssues  template.HTML
+	NetworkStatus  template.HTML
+	NetworkIssues  template.HTML
 	HostIP         string
 	DockerPort     string
 }
@@ -57,7 +62,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	v.Hostname = strings.Title(v.Hostname)
 	log.Info(fmt.Sprintf("Setting hostname to %s", v.Hostname))
 
-
+	//Firewall Status Check
 	v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
 	v2.CheckFirewall(ctx)
 	firewallIssues := v2.GetIssues()
@@ -73,6 +78,48 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	}
 	log.Info(fmt.Sprintf("FirewallStatus set to: %s", v.FirewallStatus))
 	log.Info(fmt.Sprintf("FirewallIssues set to: %s", v.FirewallIssues))
+
+	//License Check
+	v2.ClearIssues()
+	v2.CheckLicense(ctx)
+	licenseIssues := v2.GetIssues()
+
+	if len(licenseIssues) == 0 {
+		v.LicenseStatus = GoodStatus
+		v.LicenseIssues = template.HTML("")
+	} else {
+		v.LicenseStatus = BadStatus
+		for _, err := range licenseIssues {
+			v.LicenseIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.LicenseIssues, err))
+		}
+	}
+
+	//Network Connection Check
+	hosts := []string{
+		"google.com:80",
+		"docker.io:443",
+	}
+	nwErrors := []error{}
+
+	for _, host := range hosts {
+		conn, err := net.Dial("tcp", host)
+		if err != nil {
+			nwErrors = append(nwErrors, err)
+		} else {
+			conn.Close()
+		}
+	}
+
+	if len(nwErrors) > 0 {
+		v.NetworkStatus = BadStatus
+		for _, err := range nwErrors {
+			v.NetworkIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.NetworkIssues, err))
+		}
+	} else {
+		v.NetworkStatus = GoodStatus
+		v.NetworkIssues = template.HTML("")
+
+	}
 
 	//Retrieve Host IP Information and Set Docker Endpoint
 	v.HostIP = vch.ExecutorConfig.Networks["client"].Assigned.IP.String()
