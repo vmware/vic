@@ -21,8 +21,6 @@
 #     --html        Create HTML report and open it in browser
 #
 
-set -e -x
-
 workdir=`git rev-parse --show-toplevel`/.cover
 profile="$workdir/cover.out"
 dir=$(dirname $0)
@@ -44,8 +42,8 @@ generate_pkg_cover_data() {
 
     for pkg in "$@"; do
         f="$workdir/$(echo $pkg | tr / -).cover"
-        go test -v -i -covermode="$mode" -coverprofile="$f" "$pkg"
-        go test -v -covermode="$mode" -coverprofile="$f" "$pkg"
+        go test -i -covermode="$mode" -coverprofile="$f" "$pkg"
+        go test -covermode="$mode" -coverprofile="$f" "$pkg"
     done
 
     echo "mode: $mode" >"$profile"

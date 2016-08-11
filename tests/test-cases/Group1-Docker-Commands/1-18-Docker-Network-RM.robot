@@ -42,19 +42,16 @@ Remove network with running container
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container}
     Should Be Equal As Integers  ${rc}  0
-    ${status}=  Get State Of Github Issue  1569
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-18-Docker-Network-RM.robot needs to be updated now that Issue #1569 has been resolved
-    Log  Issue \#1569 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network rm test-network
-    #Should Be Equal As Integers  ${rc}  1
-    #Should Contain  ${output}  Error response from daemon: network test-network has active endpoints
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network rm test-network
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  Error response from daemon: scope has bound endpoints
     
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop ${container}
-    #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
-    #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network rm test-network
-    #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network ls
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Not Contain  ${output}  test-network
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop ${container}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network rm test-network
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network ls
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  test-network
