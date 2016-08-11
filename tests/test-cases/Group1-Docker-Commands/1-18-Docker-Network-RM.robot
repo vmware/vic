@@ -44,7 +44,7 @@ Remove network with running container
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network rm test-network
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Error response from daemon: scope has bound endpoints
+    Should Contain  ${output}  Error response from daemon: test-network has active endpoints
     
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop ${container}
     Should Be Equal As Integers  ${rc}  0
