@@ -47,6 +47,9 @@ func main() {
 	trace.Logger = log.StandardLogger()
 	log.SetLevel(log.DebugLevel)
 
+	// Initiliaze logger with default TextFormatter
+	log.SetFormatter(&log.TextFormatter{DisableColors: true, FullTimestamp: true})
+
 	// get the windows service logic running so that we can play well in that mode
 	runService("VMware Tether", false)
 
