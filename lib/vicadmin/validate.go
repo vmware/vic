@@ -46,8 +46,8 @@ type Validator struct {
 }
 
 const (
-	GoodStatus = template.HTML(`<span class="right"><i class="fa fa-check"></i></span>`)
-	BadStatus  = template.HTML(`<span class="right warning"><i class="fa fa-exclamation-triangle"></i></span>`)
+	GoodStatus = template.HTML(`<span class="right"><i class="icon-ok"></i></span>`)
+	BadStatus  = template.HTML(`<span class="right warning"><i class="icon-attention"></i></span>`)
 )
 
 func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) *Validator {
