@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"testing"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -216,9 +217,14 @@ func TestHalt(t *testing.T) {
 }
 
 func TestAbsPathRepeat(t *testing.T) {
+	log.SetLevel(log.WarnLevel)
+
 	for i := 0; i < 2000 && !t.Failed(); i++ {
 		TestAbsPath(t)
 	}
+
+	defer log.SetLevel(log.DebugLevel)
+
 }
 
 //
