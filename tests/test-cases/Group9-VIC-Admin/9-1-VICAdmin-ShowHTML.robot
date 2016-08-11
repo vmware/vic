@@ -1,5 +1,5 @@
 *** Settings ***
-Documentation  Test 9-1 - VICAdmin DisplayHTML
+Documentation  Test 9-1 - VICAdmin ShowHTML
 Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server  ${true}
 Suite Teardown  Cleanup VIC Appliance On Test Server
