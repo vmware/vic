@@ -127,8 +127,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	h := exec.NewContainer(exec.ParseID(id))
 	// Create the executor.ExecutorCreateConfig
 	c := &exec.ContainerCreateConfig{
-		Metadata: m,
-
+		Metadata:       m,
 		ParentImageID:  *params.CreateConfig.Image,
 		ImageStoreName: params.CreateConfig.ImageStore.Name,
 		VCHName:        options.PortLayerOptions.VCHName,

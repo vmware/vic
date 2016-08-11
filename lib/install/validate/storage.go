@@ -17,6 +17,7 @@ package validate
 import (
 	"fmt"
 	"net/url"
+	"path"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -25,6 +26,7 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"golang.org/x/net/context"
 )
 
@@ -32,14 +34,24 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 	defer trace.End(trace.Begin(""))
 
 	// Image Store
-	imageDSpath, ds, err := v.DatastoreHelper(ctx, input.ImageDatastoreName, "", "--image-datastore")
+	imageDSpath, ds, err := v.DatastoreHelper(ctx, input.ImageDatastorePath, "", "--image-store")
+
+	if imageDSpath == nil {
+		v.NoteIssue(err)
+		return
+	}
+
+	// provide a default path if only a DS name is provided
+	if imageDSpath.Path == "" {
+		imageDSpath.Path = path.Join(input.DisplayName, "images")
+	}
+
 	v.NoteIssue(err)
 	if ds != nil {
 		v.SetDatastore(ds, imageDSpath)
 		conf.AddImageStore(imageDSpath)
 	}
 
-	// Volume Store(s)
 	if conf.VolumeLocations == nil {
 		conf.VolumeLocations = make(map[string]*url.URL)
 	}
@@ -102,6 +114,11 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string, label stri
 	// temporary until session is extracted
 	// FIXME: commented out until components can consume moid
 	// dsURL.Host = stores[0].Reference().Value
+
+	// make sure the vsphere ds format fits the right format
+	if _, err := datastore.ToURL(fmt.Sprintf("[%s] %s", dsURL.Host, dsURL.Path)); err != nil {
+		return nil, nil, err
+	}
 
 	return dsURL, stores[0], nil
 }

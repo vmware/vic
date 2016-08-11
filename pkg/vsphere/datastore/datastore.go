@@ -15,7 +15,6 @@
 package datastore
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -307,19 +306,19 @@ func (d *Helper) rootDir() string {
 }
 
 // Parse the datastore format ([datastore1] /path/to/thing) to groups.
-var datastoreFormat = regexp.MustCompile(`^\[([\w\d\(\)-_\s]+)\]`)
-var pathFormat = regexp.MustCompile(`\s([\/\w-_]+$)`)
+var datastoreFormat = regexp.MustCompile(`^\[([\w\d\(\)-_\.\s]+)\]`)
+var pathFormat = regexp.MustCompile(`\s([\/\w-_\.]*$)`)
 
 // Converts `[datastore] /path` to ds:// URL
 func ToURL(ds string) (*url.URL, error) {
 	u := new(url.URL)
 	var matches []string
 	if matches = datastoreFormat.FindStringSubmatch(ds); len(matches) != 2 {
-		return nil, errors.New("Ambiguous datastore format encountered.")
+		return nil, fmt.Errorf("Ambiguous datastore hostname format encountered from input: %s.", ds)
 	}
 	u.Host = matches[1]
 	if matches = pathFormat.FindStringSubmatch(ds); len(matches) != 2 {
-		return nil, errors.New("Ambiguous datastore path format encountered.")
+		return nil, fmt.Errorf("Ambiguous datastore path format encountered from input: %s.", ds)
 	}
 
 	u.Path = path.Clean(matches[1])

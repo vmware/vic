@@ -51,7 +51,7 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec) erro
 		return err
 	}
 
-	if err = d.DeleteStores(vmm, conf); err != nil {
+	if err = d.deleteImages(conf); err != nil {
 		errs = append(errs, err.Error())
 	}
 

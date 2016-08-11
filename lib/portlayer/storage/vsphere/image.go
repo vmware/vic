@@ -15,6 +15,7 @@
 package vsphere
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -27,6 +28,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -60,16 +62,22 @@ type ImageStore struct {
 	parents *parentM
 }
 
-func NewImageStore(ctx context.Context, s *session.Session) (*ImageStore, error) {
+func NewImageStore(ctx context.Context, s *session.Session, u *url.URL) (*ImageStore, error) {
 	dm, err := disk.NewDiskManager(ctx, s)
 	if err != nil {
 		return nil, err
 	}
 
-	// Currently using the datastore associated with the session which is not
-	// ideal.  This should be passed in via the config.  The datastore need not
-	// be the same datastore used for the rest of the system.
-	ds, err := datastore.NewHelper(ctx, s, s.Datastore, StorageParentDir)
+	datastores, err := s.Finder.DatastoreList(ctx, u.Host)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("Host returned error when trying to locate provided datastore %s: %s", u.String(), err.Error()))
+	}
+
+	if len(datastores) != 1 {
+		return nil, errors.New(fmt.Sprintf("Found %d datastores with provided datastore path %s. Cannot create image store.", len(datastores), u.String()))
+	}
+
+	ds, err := datastore.NewHelper(ctx, s, datastores[0], path.Join(u.Path, StorageParentDir))
 	if err != nil {
 		return nil, err
 	}
@@ -285,6 +293,7 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 
 func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*portlayer.Image, error) {
 
+	defer trace.End(trace.Begin(store.String()))
 	storeName, err := util.ImageStoreName(store)
 	if err != nil {
 		return nil, err
@@ -332,6 +341,7 @@ func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*
 		Metadata: meta,
 	}
 
+	log.Debugf("Returning image from location %s with parent url %s", newImage.SelfLink, newImage.Parent)
 	return newImage, nil
 }
 

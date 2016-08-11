@@ -60,7 +60,7 @@ func CreateImageStore(storename string) error {
 	transport := httptransport.New(options.host, "/", []string{"http"})
 	client := apiclient.New(transport, nil)
 
-	log.Debugf("Creating a store")
+	log.Debugf("Creating a store from input %s", storename)
 
 	body := &models.ImageStore{Name: storename}
 

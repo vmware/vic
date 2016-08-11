@@ -233,6 +233,7 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 		DebugNetwork:  backing,
 
 		ImageStoreName: config.ImageStoreName,
+		ImageStorePath: &VCHConfig.ImageStores[0],
 
 		Metadata: config.Metadata,
 	}

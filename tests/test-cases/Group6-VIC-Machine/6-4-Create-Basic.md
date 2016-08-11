@@ -49,7 +49,7 @@ This test requires that a vSphere server is running and available
 1. Issue the following command:
 ```
 vic-machine create --name=<VCH_NAME> --target=<TEST_URL> \
-    --user=<TEST_USERNAME> --image-datastore=<TEST_DATASTORE> --password=<TEST_PASSWORD> \
+    --user=<TEST_USERNAME> --image-store=<TEST_DATASTORE> --password=<TEST_PASSWORD> \
     --bridge-network=<NETWORK> --compute-resource=<TEST_RESOURCE>
 ```
 2. Run regression tests
@@ -65,7 +65,7 @@ vic-machine create --name=<VCH_NAME> --target=<TEST_URL> \
 2. Issue the following command:
 ```
 vic-machine-linux create --name=<VCH_NAME> --target="<TEST_USERNAME>:<TEST_PASSWORD>@<TEST_URL>" \
-    --image-datastore=<TEST_DATASTORE>
+    --image-store=<TEST_DATASTORE>
 ```
 3. Run regression tests
 
@@ -78,7 +78,7 @@ vic-machine-linux create --name=<VCH_NAME> --target="<TEST_USERNAME>:<TEST_PASSW
 ## Create VCH - full params
 1. Issue the following command:
 ```
-vic-machine-linux create --name=<VCH_NAME> --target=<TEST_URL> --user=<TEST_USERNAME> --image-datastore=<TEST_DATASTORE> --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=<TEST_PASSWORD> --force=true --bridge-network=network --compute-resource=<TEST_RESOURCE> --timeout <TEST_TIMEOUT> --volume-store=<TEST_DATASTORE>/test:default
+vic-machine-linux create --name=<VCH_NAME> --target=<TEST_URL> --user=<TEST_USERNAME> --image-store=<TEST_DATASTORE> --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=<TEST_PASSWORD> --force=true --bridge-network=network --compute-resource=<TEST_RESOURCE> --timeout <TEST_TIMEOUT> --volume-store=<TEST_DATASTORE>/test:default
 ```
 2. Run regression tests
 
