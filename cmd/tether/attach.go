@@ -145,9 +145,11 @@ func (t *attachServerSSH) stop() {
 	}
 
 	t.enabled = false
-	if t.conn != nil {
-		(*t.conn).Close()
-		t.conn = nil
+	conn := t.conn
+	t.conn = nil
+
+	if conn != nil {
+		(*conn).Close()
 	}
 }
 
@@ -163,8 +165,17 @@ func (t *attachServerSSH) run() error {
 
 	// keep waiting for the connection to establish
 	for t.enabled && sConn == nil {
+		conn := t.conn
+		if conn == nil {
+			// Stop has probably been called as t.conn is set in Start and should
+			// never be nil otherwise
+			err := fmt.Errorf("connection provided for backchannel is nil")
+			log.Debug(err.Error())
+			return err
+		}
+
 		// wait for backchannel to establish
-		err = backchannel(context.Background(), t.conn)
+		err = backchannel(context.Background(), conn)
 		if err != nil {
 			detail := fmt.Sprintf("failed to establish backchannel: %s", err)
 			log.Error(detail)
@@ -172,7 +183,7 @@ func (t *attachServerSSH) run() error {
 		}
 
 		// create the SSH server
-		sConn, chans, reqs, err = ssh.NewServerConn(*t.conn, t.sshConfig)
+		sConn, chans, reqs, err = ssh.NewServerConn(*conn, t.sshConfig)
 		if err != nil {
 			detail := fmt.Sprintf("failed to establish ssh handshake: %s", err)
 			log.Error(detail)

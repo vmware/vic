@@ -22,17 +22,24 @@ This test requires that a vSphere server is running and available
 9. Issue docker rm <containerID> to the VIC appliance
 10. Issue docker rm -f <containerID> to the VIC appliance
 11. Issue docker rm fakeContainer to the VIC appliance
+12. Issue docker create --name test busybox to the VIC appliance
+13. Remove the containerVM out-of-band using govc
+14. Issue docker rm test to the VIC appliance
 
 #Expected Outcome:
-* Steps 2-8 should complete without error
+* Steps 2-8,12 should complete without error
 * Step 3,6,10 should result in the container being removed from the VIC appliance
 * Step 9 should result in the following error:  
 ```
-Failed to remove container (<containerID>): Error response from daemon: Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f
+Error response from daemon: Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f
 ```
 * Step 11 should result in the following error:  
 ```
-Failed to remove container (fakeContainer): Error response from daemon: No such container: fakeContainer
+Error response from daemon: No such container: fakeContainer
+```
+* Step 14 should result in the following error:  
+```
+Error response from daemon: No such container: test
 ```
 
 #Possible Problems:

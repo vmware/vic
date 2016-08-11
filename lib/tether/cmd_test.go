@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"testing"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -216,11 +217,14 @@ func TestHalt(t *testing.T) {
 }
 
 func TestAbsPathRepeat(t *testing.T) {
-	t.Skip("Occasional issues with output not being flushed to log - #577")
+	log.SetLevel(log.WarnLevel)
 
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 2000 && !t.Failed(); i++ {
 		TestAbsPath(t)
 	}
+
+	defer log.SetLevel(log.DebugLevel)
+
 }
 
 //
