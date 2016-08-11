@@ -20,7 +20,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io"
 
 	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
 	"golang.org/x/net/context"
@@ -38,14 +37,9 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-type LogReader interface {
-	Reader(ctx context.Context, containerID string, follow, showTimestamps bool, tailLines, logsSince int64) (io.ReadCloser, error)
-}
-
 // ContainersHandlersImpl is the receiver for all of the exec handler methods
 type ContainersHandlersImpl struct {
 	handlerCtx *HandlerContext
-	logServer  LogReader
 }
 
 // Configure assigns functions to all the exec api handlers
@@ -60,9 +54,6 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 	api.ContainersGetContainerListHandler = containers.GetContainerListHandlerFunc(handler.GetContainerListHandler)
 	api.ContainersContainerSignalHandler = containers.ContainerSignalHandlerFunc(handler.ContainerSignalHandler)
 	api.ContainersGetContainerLogsHandler = containers.GetContainerLogsHandlerFunc(handler.GetContainerLogsHandler)
-
-	//FIXME: Doug, add your portlayer log server here
-	handler.logServer = nil
 
 	handler.handlerCtx = handlerCtx
 }
@@ -304,21 +295,18 @@ func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.
 }
 
 func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers.GetContainerLogsParams) middleware.Responder {
-	defer trace.End(trace.Begin("Containers.GetContainerLogsHandler"))
+	defer trace.End(trace.Begin(params.ID))
 
-	if handler.logServer == nil {
-		errPayload := &models.Error{Message: "Log server not implemented"}
-
-		log.Errorf("Containers.GetContainerLogsHandler error: %s", errPayload.Message)
-		return containers.NewGetContainerLogsInternalServerError().WithPayload(errPayload)
+	h := exec.GetContainer(exec.ParseID(params.ID))
+	if h == nil {
+		return containers.NewGetContainerLogsNotFound().WithPayload(&models.Error{
+			Message: fmt.Sprintf("container %s not found", params.ID),
+		})
 	}
 
-	reader, err := handler.logServer.Reader(context.Background(), params.ID, *params.Follow, *params.Timestamp, *params.Taillines, *params.Since)
+	reader, err := h.Container.LogReader(context.Background())
 	if err != nil {
-		err = fmt.Errorf("No stdout found for %s: %s", params.ID, err.Error())
-		log.Errorf("%s", err.Error())
-
-		return containers.NewGetContainerLogsNotFound()
+		return containers.NewGetContainerLogsInternalServerError().WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	detachableOut := NewFlushingReader(reader)
