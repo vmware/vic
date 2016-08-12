@@ -24,6 +24,8 @@ build:
       - apt-get update
       - apt-get install -yq time
       - make -j3 all
+      - make sincemark
+      - make mark
       - make -j3 test
       - make sincemark
 
@@ -72,8 +74,8 @@ build:
       ENV_FLEX_SDK_HOME: "/tmp/sdk/flex_sdk_min"
     commands:
       - make mark
-      - wget $BINTRAY_DOWNLOAD_PATH$SDK_PACKAGE_ARCHIVE -O /tmp/$SDK_PACKAGE_ARCHIVE
-      - wget $BINTRAY_DOWNLOAD_PATH$UI_INSTALLER_WIN_UTILS_ARCHIVE -O /tmp/$UI_INSTALLER_WIN_UTILS_ARCHIVE
+      - wget -nv $BINTRAY_DOWNLOAD_PATH$SDK_PACKAGE_ARCHIVE -O /tmp/$SDK_PACKAGE_ARCHIVE
+      - wget -nv $BINTRAY_DOWNLOAD_PATH$UI_INSTALLER_WIN_UTILS_ARCHIVE -O /tmp/$UI_INSTALLER_WIN_UTILS_ARCHIVE
       - tar --warning=no-unknown-keyword -xzf /tmp/$SDK_PACKAGE_ARCHIVE -C /tmp/
       - ant -f ui/vic-ui/build-deployable.xml -Denv.VSPHERE_SDK_HOME=$ENV_VSPHERE_SDK_HOME -Denv.FLEX_HOME=$ENV_FLEX_SDK_HOME
       - tar --warning=no-unknown-keyword -xzf /tmp/$UI_INSTALLER_WIN_UTILS_ARCHIVE -C $UI_INSTALLER_WIN_PATH
