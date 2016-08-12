@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/create"
 	uninstall "github.com/vmware/vic/cmd/vic-machine/delete"
 	"github.com/vmware/vic/cmd/vic-machine/inspect"
+	"github.com/vmware/vic/cmd/vic-machine/list"
 	"github.com/vmware/vic/pkg/errors"
 )
 
@@ -49,6 +50,7 @@ func main() {
 	create := create.NewCreate()
 	uninstall := uninstall.NewUninstall()
 	inspect := inspect.NewInspect()
+	list := list.NewList()
 	app.Commands = []cli.Command{
 		{
 			Name:   "create",
@@ -61,6 +63,12 @@ func main() {
 			Usage:  "Delete VCH and associated resources",
 			Action: uninstall.Run,
 			Flags:  uninstall.Flags(),
+		},
+		{
+			Name:   "ls",
+			Usage:  "List VCHs",
+			Action: list.Run,
+			Flags:  list.Flags(),
 		},
 		{
 			Name:   "inspect",

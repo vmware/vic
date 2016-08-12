@@ -84,26 +84,16 @@ func (rp *ResourcePool) GetChildrenVMs(ctx context.Context, s *session.Session) 
 }
 
 func (rp *ResourcePool) GetChildVM(ctx context.Context, s *session.Session, name string) (*vm.VirtualMachine, error) {
-	var err error
-	var vms []*vm.VirtualMachine
-
-	if vms, err = rp.GetChildrenVMs(ctx, s); err != nil {
-		log.Errorf("Unable to get children vm of resource pool %s: %s", rp.Name(), err)
-		return nil, err
+	searchIndex := object.NewSearchIndex(s.Client.Client)
+	child, err := searchIndex.FindChild(ctx, rp.Reference(), name)
+	if err != nil {
+		return nil, errors.Errorf("Unable to find VM(%s): %s", name, err.Error())
 	}
-
-	var vmName string
-	for _, vmm := range vms {
-		if vmName, err = vmm.Name(ctx); err != nil {
-			err = errors.Errorf("Failed to get VM name of %s, %s", vmm.Reference(), err)
-			log.Errorf("%s", err)
-			return nil, err
-		}
-		if vmName == name {
-			return vmm, nil
-		}
+	if child == nil {
+		return nil, nil
 	}
-	return nil, nil
+	// instantiate the vm object
+	return vm.NewVirtualMachine(ctx, s, child.Reference()), nil
 }
 
 func (rp *ResourcePool) GetCluster(ctx context.Context) (*object.ComputeResource, error) {

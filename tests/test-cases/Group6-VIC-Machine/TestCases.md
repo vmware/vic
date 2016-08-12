@@ -22,3 +22,5 @@ Group 6 - VIC Machine
 -
 [Test 6-10 - vic-machine version](6-10-Version.md)
 -
+[Test 6-11 - vic-machine ls](6-10-List.md)
+-

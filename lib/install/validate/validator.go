@@ -65,6 +65,15 @@ func CreateFromVCHConfig(ctx context.Context, vch *config.VirtualContainerHostCo
 }
 
 func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
+	v, err := CreateNoDCCheck(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+
+	return v, v.datacenter()
+}
+
+func CreateNoDCCheck(ctx context.Context, input *data.Data) (*Validator, error) {
 	defer trace.End(trace.Begin(""))
 	var err error
 
@@ -118,16 +127,18 @@ func NewValidator(ctx context.Context, input *data.Data) (*Validator, error) {
 
 	v.Session.Populate(ctx)
 
+	return v, nil
+}
+
+func (v *Validator) datacenter() error {
 	if v.Session.Datacenter == nil {
 		detail := "Target should specify datacenter when there are multiple possibilities, e.g. https://addr/datacenter"
 		log.Error(detail)
 		// TODO: list available datacenters
-		return nil, errors.New(detail)
+		return errors.New(detail)
 	}
-
 	v.DatacenterPath = v.Session.Datacenter.InventoryPath
-
-	return v, nil
+	return nil
 }
 
 func (v *Validator) NoteIssue(err error) {

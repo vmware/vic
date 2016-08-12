@@ -475,7 +475,6 @@ func (c *Create) Run(cliContext *cli.Context) error {
 	}
 
 	if len(cliContext.Args()) > 0 {
-		log.Error("Create cannot continue: invalid CLI arguments")
 		log.Errorf("Unknown argument: %s", cliContext.Args()[0])
 		return errors.New("invalid CLI arguments")
 	}

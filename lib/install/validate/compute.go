@@ -244,3 +244,16 @@ func (v *Validator) GetResourcePool(input *data.Data) (*object.ResourcePool, err
 
 	return v.ResourcePoolHelper(v.Context, input.ComputeResourcePath)
 }
+
+func (v *Validator) ValidateCompute(ctx context.Context, input *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
+	defer trace.End(trace.Begin(""))
+	conf := &config.VirtualContainerHostConfigSpec{}
+
+	if input.ComputeResourcePath == "" {
+		return conf, nil
+	}
+	log.Infof("Validating compute resource")
+
+	v.compute(ctx, input, conf)
+	return conf, v.ListIssues()
+}
