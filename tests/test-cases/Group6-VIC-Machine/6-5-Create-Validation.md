@@ -13,17 +13,53 @@ This test requires that a vSphere server is running and available
 
 Test Cases: - suggest resources
 ======
+
+## Resource pools
 1. Create with wrong compute-resource: not exist resource pool, not existed vc cluster, not existed datacenter.
 2. Create with wrong compute-resource format
-3. Create with nonexistent bridge network
-4. Create with nonexistent external network
 
 ### Expected Outcome:
 * Verify resource suggestion successfully show available values
 * Deployment fails
 
+## Networks
+1. Create with nonexistent bridge network
+2. Create with nonexistent external network
 
-# Test Cases: - validate license
+### Expected Outcome:
+* Verify resource suggestion successfully show available values
+* Deployment fails
+
+## Multiple datacenters
+1. Prepare vCenter environment with multiple datacenters
+2. Create with --target not specifying a datacenter
+
+### Expected Outcome:
+* Output contains message indicating datacenter must be specified
+* Output suggests available datacenter values
+* Deployment fails
+
+## Invalid datacenter
+1. Prepare vCenter environment with multiple datacenters
+2. Create with --target specifying a datacenter that does not exist
+
+### Expected Outcome:
+* Output contains message indicating datacenter must be specified
+* Output suggests available datacenter values
+* Deployment fails
+
+## Invalid target path
+1. Prepare vCenter environment
+2. Create with --target specifying a datacenter and resource pool
+
+### Expected Outcome:
+* Output contains message indicating that onlydatacenter must be specified in --target
+* Output suggests available datacenter values
+* Deployment fails
+
+
+Test Cases: - validate license
+======
 1. Prepare env with different license level
 2. Verify license validation works for different license
 
