@@ -27,21 +27,24 @@ Inspect State Running
 
 *** Test Cases ***
 Signal a container with default kill signal
-    ${rc}=  Run And Return Rc  docker ${params} pull busybox
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${id}=  Run And Return Rc And Output  docker ${params} create busybox sleep 300
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}=  Run And Return Rc  docker ${params} start ${id}
-    Should Be Equal As Integers  ${rc}  0
-    Inspect State Running  ${id}  true
-    ${rc}=  Run And Return Rc  docker ${params} kill ${id}
-    Should Be Equal As Integers  ${rc}  0
+    ${status}=  Get State Of Github Issue  1946
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-14-Docker-Kill.robot needs to be updated now that Issue #1946 has been resolved
+    Log  Issue \#1946 is blocking implementation  WARN
+    #${rc}=  Run And Return Rc  docker ${params} pull busybox
+    #Should Be Equal As Integers  ${rc}  0
+    #${rc}  ${id}=  Run And Return Rc And Output  docker ${params} create busybox sleep 300
+    #Should Be Equal As Integers  ${rc}  0
+    #${rc}=  Run And Return Rc  docker ${params} start ${id}
+    #Should Be Equal As Integers  ${rc}  0
+    #Inspect State Running  ${id}  true
+    #${rc}=  Run And Return Rc  docker ${params} kill ${id}
+    #Should Be Equal As Integers  ${rc}  0
     # Wait for container VM to stop/powerOff
-    Wait Until Keyword Succeeds  20x  500 milliseconds  Inspect State Running  ${id}  false
+    #Wait Until Keyword Succeeds  20x  500 milliseconds  Inspect State Running  ${id}  false
     # Cannot send signal to a powered off container VM
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} kill ${id}
-    Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Cannot kill container ${id}
+    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} kill ${id}
+    #Should Be Equal As Integers  ${rc}  1
+    #Should Contain  ${output}  Cannot kill container ${id}
 
 Signal a container with SIGHUP
     ${rc}=  Run And Return Rc  docker ${params} pull busybox
