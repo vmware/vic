@@ -49,6 +49,9 @@ func main() {
 	trace.Logger = log.StandardLogger()
 	log.SetLevel(log.DebugLevel)
 
+	// Initiliaze logger with default TextFormatter
+	log.SetFormatter(&log.TextFormatter{DisableColors: true, FullTimestamp: true})
+
 	// TODO: hard code executor initialization status reporting via guestinfo here
 	err := createDevices()
 	if err != nil {
