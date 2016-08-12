@@ -75,7 +75,7 @@ Install VIC Appliance To Test Server
 
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run VIC Machine Command  ${certs}  ${vol}  network  'VM Network'
+    ${output}=  Run VIC Machine Command  ${certs}  ${vol}  ${bridge}  ${external}
     Log  ${output}
     Get Docker Params  ${output}  ${certs}
     Log To Console  Installer completed successfully: ${vch-name}...
