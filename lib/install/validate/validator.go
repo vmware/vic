@@ -99,7 +99,7 @@ func CreateNoDCCheck(ctx context.Context, input *data.Data) (*Validator, error) 
 	// only allow the datacenter to be specified in the taget url, if any
 	pElems := filepath.SplitList(tURL.Path)
 	if len(pElems) > 1 {
-		detail := "Target should specify only the datacenter in the path component (e.g. https://addr/datacenter) - resource pools or folders are separate arguments"
+		detail := "--target should only specify datacenter in the path (e.g. https://addr/datacenter) - specify cluster, resource pool, or folder with --compute-resource"
 		log.Error(detail)
 		return nil, errors.New(detail)
 	}
@@ -132,13 +132,43 @@ func CreateNoDCCheck(ctx context.Context, input *data.Data) (*Validator, error) 
 
 func (v *Validator) datacenter() error {
 	if v.Session.Datacenter == nil {
-		detail := "Target should specify datacenter when there are multiple possibilities, e.g. https://addr/datacenter"
+		detail := "Datacenter must be specified in --target (e.g. https://addr/datacenter)"
 		log.Error(detail)
-		// TODO: list available datacenters
+		v.suggestDatacenter()
 		return errors.New(detail)
 	}
 	v.DatacenterPath = v.Session.Datacenter.InventoryPath
 	return nil
+}
+
+func (v *Validator) suggestDatacenter() {
+	defer trace.End(trace.Begin(""))
+
+	log.Info("Suggesting valid values for datacenter in --target")
+
+	dcs, err := v.Session.Finder.DatacenterList(v.Context, "*")
+	if err != nil {
+		log.Errorf("Unable to list datacenters: %s", err)
+		return
+	}
+
+	if len(dcs) == 0 {
+		log.Info("No datacenters found")
+		return
+	}
+
+	matches := make([]string, len(dcs))
+	for i, d := range dcs {
+		matches[i] = d.Name()
+	}
+
+	if matches != nil {
+		log.Info("Suggested datacenters:")
+		for _, d := range matches {
+			log.Infof("  %q", d)
+		}
+		return
+	}
 }
 
 func (v *Validator) NoteIssue(err error) {
