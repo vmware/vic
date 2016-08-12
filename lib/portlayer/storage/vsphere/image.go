@@ -44,6 +44,7 @@ const (
 	defaultDiskLabel = "containerfs"
 	defaultDiskSize  = 8388608
 	metaDataDir      = "imageMetadata"
+	manifest         = "manifest"
 )
 
 type ImageStore struct {
@@ -156,6 +157,12 @@ func (v *ImageStore) GetImageStore(ctx context.Context, storeName string) (*url.
 	}
 
 	if v.parents == nil {
+		// This is startup.  Look for image directories without manifest files and
+		// nuke them.
+		if err := v.cleanup(ctx, u); err != nil {
+			return nil, err
+		}
+
 		pm, err := restoreParentMap(ctx, v.ds, storeName)
 		if err != nil {
 			return nil, err
@@ -331,6 +338,13 @@ func (v *ImageStore) writeImage(ctx context.Context, storeName, parentID, ID str
 		return err
 	}
 
+	// Write our own bookkeeping manifest file to the image's directory.  We
+	// treat the manifest file like a done file.  Its existence means this vmdk
+	// is consistent.
+	if err = v.writeManifest(ctx, storeName, ID, nil); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -356,10 +370,22 @@ func (v *ImageStore) scratch(ctx context.Context, storeName string) error {
 	if err != nil {
 		return err
 	}
-	defer v.dm.Detach(ctx, vmdisk)
+	defer func() {
+		if vmdisk.Attached() {
+			v.dm.Detach(ctx, vmdisk)
+		}
+	}()
 
 	// Make the filesystem and set its label to defaultDiskLabel
-	if err := vmdisk.Mkfs(defaultDiskLabel); err != nil {
+	if err = vmdisk.Mkfs(defaultDiskLabel); err != nil {
+		return err
+	}
+
+	if err = v.dm.Detach(ctx, vmdisk); err != nil {
+		return err
+	}
+
+	if err = v.writeManifest(ctx, storeName, portlayer.Scratch.ID, nil); err != nil {
 		return err
 	}
 
@@ -450,4 +476,56 @@ func (v *ImageStore) ListImages(ctx context.Context, store *url.URL, IDs []strin
 	}
 
 	return images, nil
+}
+
+// Find any image directories without the manifest file and remove them.
+func (v *ImageStore) cleanup(ctx context.Context, store *url.URL) error {
+	log.Infof("Checking for inconsistent images on %s", store.String())
+
+	storeName, err := util.ImageStoreName(store)
+	if err != nil {
+		return err
+	}
+
+	res, err := v.ds.Ls(ctx, v.imageStorePath(storeName))
+	if err != nil {
+		return err
+	}
+
+	for _, f := range res.File {
+		file, ok := f.(*types.FileInfo)
+		if !ok {
+			continue
+		}
+
+		ID := file.Path
+
+		if ID == portlayer.Scratch.ID {
+			continue
+		}
+
+		imageDir := v.imageDirPath(storeName, ID)
+
+		// check for the manifest file.
+		_, err = v.ds.Stat(ctx, path.Join(imageDir, manifest))
+		if err != nil {
+
+			log.Infof("Removing inconsistent image (%s) %s", ID, imageDir)
+
+			// Eat the error so we can continue cleaning up.  The tasks package will log the error if there is one.
+			_ = v.ds.Rm(ctx, imageDir)
+		}
+	}
+
+	return nil
+}
+
+// Manifest file for the image.
+func (v *ImageStore) writeManifest(ctx context.Context, storeName, ID string, r io.Reader) error {
+	pth := path.Join(v.imageDirPath(storeName, ID), manifest)
+	if err := v.ds.Upload(ctx, r, pth); err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -367,7 +367,6 @@ func TestBrokenPull(t *testing.T) {
 }
 
 func TestInProgressCleanup(t *testing.T) {
-	t.Skipf("not ready for testing")
 
 	cacheStore, client, err := setup(t)
 	if !assert.NoError(t, err) {
@@ -412,15 +411,13 @@ func TestInProgressCleanup(t *testing.T) {
 		return
 	}
 
-	// nuke the vmdk
-	rm(t, client, vsStore.imageDiskPath("testStore", imageID))
-	//
-	//
-	//	// call cleanup
-	//	if err = vsStore.cleanup(context.TODO(), storeURL); !assert.NoError(t, err) {
-	//		return
-	//	}
-	//
+	// nuke the done file.
+	rm(t, client, path.Join(vsStore.ds.RootURL, vsStore.imageDirPath("testStore", imageID), manifest))
+
+	// call cleanup
+	if err = vsStore.cleanup(context.TODO(), storeURL); !assert.NoError(t, err) {
+		return
+	}
 
 	// Make sure list is now empty.
 	listedImages, err := vsStore.ListImages(context.TODO(), parent.Store, nil)
