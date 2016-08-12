@@ -17,6 +17,8 @@ package validate
 import (
 	"fmt"
 	"net"
+	"path"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/find"
@@ -32,86 +34,104 @@ import (
 	"golang.org/x/net/context"
 )
 
+func (v *Validator) addNetworkHelper(ctx context.Context, conf *config.VirtualContainerHostConfigSpec, netName, epName, contNetName string, def bool) error {
+	defer trace.End(trace.Begin(""))
+
+	moid, err := v.networkHelper(ctx, netName)
+	if err != nil {
+		return err
+	}
+
+	if epName != "" {
+		conf.AddNetwork(&executor.NetworkEndpoint{
+			Common: executor.Common{
+				Name: epName,
+			},
+			Network: executor.ContainerNetwork{
+				Common: executor.Common{
+					Name: contNetName,
+					ID:   moid,
+				},
+				Default: def,
+			},
+		})
+	} else {
+		conf.AddNetwork(&executor.NetworkEndpoint{
+			Network: executor.ContainerNetwork{
+				Common: executor.Common{
+					Name: contNetName,
+					ID:   moid,
+				},
+			},
+		})
+	}
+	return nil
+}
+
+func (v *Validator) checkNetworkConflict(bridgeNetName, otherNetName, otherNetType string) {
+	if bridgeNetName == otherNetName {
+		v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - %s also uses %q", otherNetType, bridgeNetName))
+	}
+}
+
 func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
 	// External net
-	extMoref, err := v.networkHelper(ctx, input.ExternalNetworkName)
-	v.NoteIssue(err)
-	conf.AddNetwork(&executor.NetworkEndpoint{
-		Common: executor.Common{
-			Name: "external",
-		},
-		Network: executor.ContainerNetwork{
-			Common: executor.Common{
-				Name: "external",
-				ID:   extMoref,
-			},
-			Default: true, // external network is default for appliance
-		},
-	})
-	// Bridge network should be different with all other networks
-	if input.BridgeNetworkName == input.ExternalNetworkName {
-		v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - external also uses %q", input.BridgeNetworkName))
+	// external network is default for appliance
+	err := v.addNetworkHelper(ctx, conf, input.ExternalNetworkName, "external", "external", true)
+	if err != nil {
+		v.NoteIssue(fmt.Errorf("Error checking network for --external-network: %s", err))
+		v.suggestNetwork("--external-network", true)
 	}
+	// Bridge network should be different than all other networks
+	v.checkNetworkConflict(input.BridgeNetworkName, input.ExternalNetworkName, "external")
 
 	// Client net
 	if input.ClientNetworkName == "" {
 		input.ClientNetworkName = input.ExternalNetworkName
 	}
-	clientMoref, err := v.networkHelper(ctx, input.ClientNetworkName)
-	v.NoteIssue(err)
-	conf.AddNetwork(&executor.NetworkEndpoint{
-		Common: executor.Common{
-			Name: "client",
-		},
-		Network: executor.ContainerNetwork{
-			Common: executor.Common{
-				Name: "client",
-				ID:   clientMoref,
-			},
-		},
-	})
-	if input.BridgeNetworkName == input.ClientNetworkName {
-		v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - client also uses %q", input.BridgeNetworkName))
+	err = v.addNetworkHelper(ctx, conf, input.ClientNetworkName, "client", "client", false)
+	if err != nil {
+		v.NoteIssue(fmt.Errorf("Error checking network for --client-network: %s", err))
+		v.suggestNetwork("--client-network", true)
 	}
+	v.checkNetworkConflict(input.BridgeNetworkName, input.ClientNetworkName, "client")
 
 	// Management net
 	if input.ManagementNetworkName == "" {
 		input.ManagementNetworkName = input.ClientNetworkName
 	}
-	managementMoref, err := v.networkHelper(ctx, input.ManagementNetworkName)
-	v.NoteIssue(err)
-	conf.AddNetwork(&executor.NetworkEndpoint{
-		Network: executor.ContainerNetwork{
-			Common: executor.Common{
-				Name: "management",
-				ID:   managementMoref,
-			},
-		},
-	})
-	if input.BridgeNetworkName == input.ManagementNetworkName {
-		v.NoteIssue(errors.Errorf("the bridge network must not be shared with another network role - management also uses %q", input.BridgeNetworkName))
+	err = v.addNetworkHelper(ctx, conf, input.ManagementNetworkName, "", "management", false)
+	if err != nil {
+		v.NoteIssue(fmt.Errorf("Error checking network for --management-network: %s", err))
+		v.suggestNetwork("--management-network", true)
 	}
+	v.checkNetworkConflict(input.BridgeNetworkName, input.ManagementNetworkName, "management")
 
 	// Bridge net -
 	//   vCenter: must exist and must be a DPG
-	//   ESX: doesn't need to exist
+	//   ESX: doesn't need to exist - we will create with default value
 	//
 	// for now we're hardcoded to "bridge" for the container host name
 	conf.BridgeNetwork = "bridge"
 	endpointMoref, err := v.dpgHelper(ctx, input.BridgeNetworkName)
-	var netMoid string
-	bridgeID := endpointMoref.String()
-	if endpointMoref.Type == "" && endpointMoref.Value == "" {
-		netMoid = ""
+
+	var bridgeID, netMoid string
+	if err != nil {
 		bridgeID = ""
+		netMoid = ""
 	} else {
+		bridgeID = endpointMoref.String()
 		netMoid = endpointMoref.String()
 	}
+
+	checkBridgeVDS := true
 	if err != nil {
 		if _, ok := err.(*find.NotFoundError); !ok || v.IsVC() {
 			v.NoteIssue(fmt.Errorf("An existing distributed port group must be specified for bridge network on vCenter: %s", err))
+			v.suggestNetwork("--bridge-network", false)
+			checkBridgeVDS = false // prevent duplicate error output
 		}
 
 		// this allows the dispatcher to create the network with corresponding name
@@ -133,21 +153,22 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 			},
 		},
 	}
-	// we  need to have the bridge network identified as an available container
-	// network
+	// we need to have the bridge network identified as an available container network
 	conf.AddContainerNetwork(&bridgeNet.Network)
 	// we also need to have the appliance attached to the bridge network to allow
 	// port forwarding
 	conf.AddNetwork(bridgeNet)
 
 	err = v.checkVDSMembership(ctx, endpointMoref, input.BridgeNetworkName)
-	if err != nil {
+	if err != nil && checkBridgeVDS {
 		v.NoteIssue(fmt.Errorf("Unable to check hosts in vDS for %q: %s", input.BridgeNetworkName, err))
 	}
 
-	// add mapped networks
+	// add mapped networks (from --container-network)
 	//   these should be a distributed port groups in vCenter
+	suggestedMapped := false // only suggest mapped nets once
 	for name, net := range input.MappedNetworks {
+		checkMappedVDS := true
 		// "bridge" is reserved
 		if name == "bridge" {
 			v.NoteIssue(fmt.Errorf("Cannot use reserved name \"bridge\" for container network"))
@@ -194,7 +215,14 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 		}
 
 		moref, err := v.dpgHelper(ctx, net)
-		v.NoteIssue(err)
+		if err != nil {
+			v.NoteIssue(fmt.Errorf("Error adding container network %q: %s", name, err))
+			checkMappedVDS = false
+			if !suggestedMapped {
+				v.suggestNetwork("--container-network", true)
+				suggestedMapped = true
+			}
+		}
 		mappedNet := &executor.ContainerNetwork{
 			Common: executor.Common{
 				Name: name,
@@ -209,7 +237,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 		}
 
 		err = v.checkVDSMembership(ctx, moref, net)
-		if err != nil {
+		if err != nil && checkMappedVDS {
 			v.NoteIssue(fmt.Errorf("Unable to check hosts in vDS for %q: %s", net, err))
 		}
 
@@ -225,6 +253,8 @@ func (v *Validator) generateBridgeName(ctx, input *data.Data, conf *config.Virtu
 }
 
 func (v *Validator) getNetwork(ctx context.Context, path string) (object.NetworkReference, error) {
+	defer trace.End(trace.Begin(path))
+
 	nets, err := v.Session.Finder.NetworkList(ctx, path)
 	if err != nil {
 		log.Debugf("no such network %q", path)
@@ -300,6 +330,8 @@ func (v *Validator) dpgHelper(ctx context.Context, path string) (types.ManagedOb
 
 // inDVP checks if the host is in the distributed virtual portgroup (dvpHosts)
 func (v *Validator) inDVP(host types.ManagedObjectReference, dvpHosts []types.ManagedObjectReference) bool {
+	defer trace.End(trace.Begin(""))
+
 	for _, h := range dvpHosts {
 		if host == h {
 			return true
@@ -310,6 +342,8 @@ func (v *Validator) inDVP(host types.ManagedObjectReference, dvpHosts []types.Ma
 
 // checkVDSMembership verifes all hosts in the vCenter are connected to the vDS
 func (v *Validator) checkVDSMembership(ctx context.Context, network types.ManagedObjectReference, netName string) error {
+	defer trace.End(trace.Begin(network.Value))
+
 	var dvp mo.DistributedVirtualPortgroup
 	var nonMembers []string
 
@@ -320,6 +354,7 @@ func (v *Validator) checkVDSMembership(ctx context.Context, network types.Manage
 	if v.Session.Cluster == nil {
 		return errors.New("Invalid cluster. Check --compute-resource")
 	}
+
 	clusterHosts, err := v.Session.Cluster.Hosts(ctx)
 	if err != nil {
 		return err
@@ -349,4 +384,80 @@ func (v *Validator) checkVDSMembership(ctx context.Context, network types.Manage
 		log.Infof("vDS configuration OK on %q", netName)
 	}
 	return nil
+}
+
+// suggestNetwork suggests all networks
+// incStdNets includes standard Networks in addition to DPGs
+func (v *Validator) suggestNetwork(flag string, incStdNets bool) {
+	defer trace.End(trace.Begin(flag))
+
+	log.Infof("Suggesting valid networks for %s", flag)
+
+	var validNets []string
+
+	nets, err := v.Session.Finder.NetworkList(v.Context, "*")
+	if err != nil {
+		log.Errorf("Unable to list networks: %s", err)
+		return
+	}
+
+	if len(nets) == 0 {
+		log.Info("No networks found")
+		return
+	}
+
+	for _, net := range nets {
+		switch o := net.(type) {
+		case *object.DistributedVirtualPortgroup:
+			if v.isNetworkNameValid(o.InventoryPath, flag) {
+				// Filter out DVS uplink
+				if !v.isDVSUplink(net.Reference()) {
+					validNets = append(validNets, path.Base(o.InventoryPath))
+				}
+			}
+		case *object.Network:
+			if incStdNets && v.isNetworkNameValid(o.InventoryPath, flag) {
+				validNets = append(validNets, path.Base(o.InventoryPath))
+			}
+		}
+	}
+
+	if len(validNets) == 0 {
+		log.Info("No valid networks found")
+		return
+	}
+
+	log.Infof("Suggested values for %s:", flag)
+	for _, n := range validNets {
+		log.Infof("  %q", n)
+	}
+}
+
+// isDVSUplink determines if the DVP is an uplink
+func (v *Validator) isDVSUplink(ref types.ManagedObjectReference) bool {
+	defer trace.End(trace.Begin(ref.Value))
+
+	var dvp mo.DistributedVirtualPortgroup
+
+	r := object.NewDistributedVirtualPortgroup(v.Session.Client.Client, ref)
+	if err := r.Properties(v.Context, r.Reference(), []string{"tag"}, &dvp); err != nil {
+		log.Errorf("Unable to check tags on %q: %s", ref, err)
+		return false
+	}
+	for _, t := range dvp.Tag {
+		if strings.Contains(t.Key, "UPLINKPG") {
+			return true
+		}
+	}
+	return false
+}
+
+// isNetworkNameValid determines if the network name in inventoryPath is
+// not a reserved name
+func (v *Validator) isNetworkNameValid(inventoryPath, flag string) bool {
+	n := path.Base(inventoryPath)
+	if flag != "--bridge-network" && n == "bridge" {
+		return false
+	}
+	return true
 }
