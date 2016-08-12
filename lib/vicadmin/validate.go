@@ -29,20 +29,24 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/govmomi/property"
+	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/types"
 	"golang.org/x/net/context"
 )
 
 type Validator struct {
-	Hostname       string
-	Version        string
-	FirewallStatus template.HTML
-	FirewallIssues template.HTML
-	LicenseStatus  template.HTML
-	LicenseIssues  template.HTML
-	NetworkStatus  template.HTML
-	NetworkIssues  template.HTML
-	HostIP         string
-	DockerPort     string
+	Hostname         string
+	Version          string
+	FirewallStatus   template.HTML
+	FirewallIssues   template.HTML
+	LicenseStatus    template.HTML
+	LicenseIssues    template.HTML
+	NetworkStatus    template.HTML
+	NetworkIssues    template.HTML
+	StorageRemaining template.HTML
+	HostIP           string
+	DockerPort       string
 }
 
 const (
@@ -130,5 +134,23 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		v.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
 	}
 
+	v.QueryDatastore(ctx, vch, sess)
 	return v
+}
+
+func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) {
+	var ds []mo.Datastore
+	refs := []types.ManagedObjectReference{sess.Datastore.Reference()}
+	pc := property.DefaultCollector(sess.Client.Client)
+	err := pc.Retrieve(ctx, refs, nil, &ds)
+	if err != nil {
+		log.Errorf("Error while accessing datastore: %s", err)
+		return
+	}
+	log.Infof("Datastore Status: %s", ds[0].OverallStatus)
+	log.Infof("Datastore Free Space: %.1fGB", float64(ds[0].Summary.FreeSpace)/(1<<30))
+	log.Infof("Datastore Capacity: %.1fGB", float64(ds[0].Summary.Capacity)/(1<<30))
+
+	v.StorageRemaining = template.HTML(fmt.Sprintf("%.1f GB",
+		float64(ds[0].Summary.FreeSpace)/(1<<30)))
 }
