@@ -16,6 +16,7 @@ package exec
 
 import (
 	"fmt"
+	"io"
 	"sync"
 	"time"
 
@@ -337,6 +338,32 @@ func (c *Container) Signal(ctx context.Context, num int64) error {
 	}
 
 	return c.startGuestProgram(ctx, "kill", fmt.Sprintf("%d", num))
+}
+
+func (c *Container) LogReader(ctx context.Context) (io.ReadCloser, error) {
+	defer trace.End(trace.Begin("Container.LogReader"))
+
+	if c.vm == nil {
+		return nil, fmt.Errorf("vm not set")
+	}
+
+	p := soap.DefaultDownload
+
+	url, err := c.vm.DSPath(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	name := fmt.Sprintf("%s/%s.log", url.Path, c.ExecConfig.ID)
+
+	log.Infof("pulling %s", name)
+
+	r, _, err := c.vm.Datastore.Download(ctx, name, &p)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
 }
 
 // NotFoundError is returned when a types.ManagedObjectNotFound is returned from a vmomi call

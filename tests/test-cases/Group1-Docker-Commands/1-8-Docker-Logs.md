@@ -29,7 +29,8 @@ This test requires that a vSphere server is running and available
 16. Issue docker logs --tail=1 --follow <containerID> to the VIC appliance
 17. Issue docker logs --since=1s <containerID> to the VIC appliance
 18. Issue docker logs --timestamps <containerID> to the VIC appliance
-19. Issue docker logs fakeContainer
+19. Issue docker logs
+20. Issue docker logs fakeContainer
 
 #Expected Outcome:
 * Steps 2-16 should all complete without error
@@ -45,7 +46,8 @@ line 5
 ```
 Error: vSphere Integrated Containers does not yet support timestampped logs.
 ```
-* Step 19 should result in an error with the following message:
+* Step 19 should output all lines
+* Step 20 should result in an error with the following message:
 ```
 Error: No such container: fakeContainer
 ```

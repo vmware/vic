@@ -4,6 +4,15 @@ Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
+*** Keywords ***
+Grep Logs And Count Lines
+    [Arguments]  ${id}  ${match}  ${total}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs ${id}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ${match}
+    ${linecount}=  Get Line Count  ${output}
+    Should Be Equal As Integers  ${linecount}  ${total}
+
 *** Test Cases ***
 Docker logs with tail
     ${status}=  Get State Of Github Issue  366
@@ -75,11 +84,18 @@ Docker logs with timestamps and since certain time
 	Run  Sleep 6, wait for container to finish
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --since=1s ${containerID}
 	Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  vSphere Integrated Containers does not implement container.ContainerLogs
+    Should Contain  ${output}  vSphere Integrated Containers does not yet support '--since'
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --timestamps ${containerID}
 	Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  vSphere Integrated Containers does not implement container.ContainerLogs
-    
+    Should Contain  ${output}  vSphere Integrated Containers does not yet support '--timestamps'
+
+Docker logs with no flags
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${id}=  Run And Return Rc And Output  docker ${params} run -d busybox sh -c "seq 1 128 | xargs -n1 echo"
+    Should Be Equal As Integers  ${rc}  0
+    Wait Until Keyword Succeeds  20x  200 milliseconds  Grep Logs And Count Lines  ${id}  42  128
+
 Docker logs non-existent container
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs fakeContainer
     Should Be Equal As Integers  ${rc}  1
