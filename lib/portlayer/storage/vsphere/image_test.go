@@ -74,9 +74,16 @@ func TestRestartImageStore(t *testing.T) {
 
 	origVsStore := cacheStore.DataStore.(*ImageStore)
 
+	storeName := "bogusStoreName"
+	origStore, err := cacheStore.CreateImageStore(context.TODO(), storeName)
+	if !assert.NoError(t, err) || !assert.NotNil(t, origStore) {
+		return
+	}
+
 	imageStoreURL := &url.URL{
-		Path: client.Datastore.Path(StorageParentDir),
+		Path: StorageParentDir,
 		Host: client.DatastorePath}
+
 	// now start it again
 	restartedVsStore, err := NewImageStore(context.TODO(), client, imageStoreURL)
 	if !assert.NoError(t, err) || !assert.NotNil(t, restartedVsStore) {
@@ -85,6 +92,15 @@ func TestRestartImageStore(t *testing.T) {
 
 	// Check we didn't create a new UUID directory (relevant if vsan)
 	if !assert.Equal(t, origVsStore.ds.RootURL, restartedVsStore.ds.RootURL) {
+		return
+	}
+
+	restartedStore, err := restartedVsStore.GetImageStore(context.TODO(), storeName)
+	if !assert.NoError(t, err) || !assert.NotNil(t, restartedStore) {
+		return
+	}
+
+	if !assert.Equal(t, origStore.String(), restartedStore.String()) {
 		return
 	}
 }
