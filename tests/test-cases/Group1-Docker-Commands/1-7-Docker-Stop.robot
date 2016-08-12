@@ -8,14 +8,20 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Trap Signal Command
     # Container command runs an infinite loop, trapping and logging the given signal name
     [Arguments]  ${sig}
-    [Return]  busybox sh -c "trap 'echo StopSignal${sig}' ${sig}; while true; do sleep 1; done"
+    [Return]  busybox sh -c "trap 'echo StopSignal${sig}' ${sig}; echo READY; while true; do sleep 1; done"
+
+Assert Ready
+    # Assert the docker stop signal trap has been set
+    [Arguments]  ${id}
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs ${id}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  READY
 
 Assert Stop Signal
     # Assert the docker stop signal was trapped by checking the container output log file
     [Arguments]  ${id}  ${sig}
-    ${rc}=  Run And Return Rc  govc datastore.download ${id}/${id}.log ${TEMPDIR}/${id}.log
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs ${id}
     Should Be Equal As Integers  ${rc}  0
-    ${output}=  OperatingSystem.Get File  ${TEMPDIR}/${id}.log
     Should Contain  ${output}  StopSignal${sig}
 
 Assert Kill Signal
@@ -56,6 +62,7 @@ Stop a container with SIGKILL using default grace period
     ${trap}=  Trap Signal Command  HUP
     ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} run -d ${trap}
     Should Be Equal As Integers  ${rc}  0
+    Wait Until Keyword Succeeds  20x  200 milliseconds  Assert Ready  ${container}
     ${rc}=  Run And Return Rc  docker ${params} stop ${container}
     Should Be Equal As Integers  ${rc}  0
     Assert Kill Signal  ${container}  False
@@ -66,6 +73,7 @@ Stop a container with SIGKILL using specific stop signal
     ${trap}=  Trap Signal Command  USR1
     ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} run -d --stop-signal USR1 ${trap}
     Should Be Equal As Integers  ${rc}  0
+    Wait Until Keyword Succeeds  20x  200 milliseconds  Assert Ready  ${container}
     ${rc}=  Run And Return Rc  docker ${params} stop ${container}
     Should Be Equal As Integers  ${rc}  0
     Assert Stop Signal  ${container}  USR1
