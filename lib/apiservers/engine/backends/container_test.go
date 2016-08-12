@@ -210,6 +210,8 @@ func (m *MockContainerProxy) CommitContainerHandle(handle, imageID string) error
 func (m *MockContainerProxy) StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error {
 	var lineCount int64 = 10
 
+	close(started)
+
 	for i := int64(0); i < lineCount; i++ {
 		if !followLogs && i > tailLines {
 			break
@@ -435,7 +437,6 @@ func TestCommitHandle(t *testing.T) {
 
 // TestContainerLogs() tests the docker logs api when user asks for entire log
 func TestContainerLogs(t *testing.T) {
-	t.Skip("FIXME: Doug, remove this line when container logs integration is done.")
 	mockContainerProxy := NewMockContainerProxy()
 
 	// Create our personality Container backend
