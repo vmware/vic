@@ -19,6 +19,7 @@ package toolbox
 import (
 	"errors"
 
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vmw-guestinfo/message"
 	"github.com/vmware/vmw-guestinfo/vmcheck"
 )
@@ -39,6 +40,8 @@ type backdoorChannel struct {
 }
 
 func (b *backdoorChannel) Start() error {
+	defer trace.End(trace.Begin(""))
+
 	if !vmcheck.IsVirtualWorld() {
 		return ErrNotVirtualWorld
 	}
@@ -54,12 +57,16 @@ func (b *backdoorChannel) Start() error {
 }
 
 func (b *backdoorChannel) Stop() error {
+	defer trace.End(trace.Begin(""))
+
 	err := b.Channel.Close()
 	return err
 }
 
 // NewBackdoorChannelOut creates a Channel for use with the RPCI protocol
 func NewBackdoorChannelOut() Channel {
+	defer trace.End(trace.Begin(""))
+
 	return &backdoorChannel{
 		protocol: rpciProtocol,
 	}
@@ -67,6 +74,8 @@ func NewBackdoorChannelOut() Channel {
 
 // NewBackdoorChannelIn creates a Channel for use with the TCLO protocol
 func NewBackdoorChannelIn() Channel {
+	defer trace.End(trace.Begin(""))
+
 	return &backdoorChannel{
 		protocol: tcloProtocol,
 	}

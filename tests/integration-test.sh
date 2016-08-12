@@ -20,11 +20,12 @@ gsutil version -l
 
 dpkg -l > package.list
 
-if [ $DRONE_BRANCH = "master" ] && [ $DRONE_REPO = "vmware/vic" ]; then
-    pybot --removekeywords TAG:secret tests/test-cases
-else
-    pybot --removekeywords TAG:secret --include regression tests/test-cases
-fi
+pybot --removekeywords TAG:secret tests/test-cases/Group1-Docker-Commands/1-14-Docker-Kill.robot
+#if [ $DRONE_BRANCH = "master" ] && [ $DRONE_REPO = "vmware/vic" ]; then
+#    pybot --removekeywords TAG:secret tests/test-cases
+#else
+#    pybot --removekeywords TAG:secret --include regression tests/test-cases
+#fi
 
 rc="$?"
 

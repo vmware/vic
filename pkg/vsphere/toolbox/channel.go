@@ -17,6 +17,8 @@ package toolbox
 import (
 	"bytes"
 	"fmt"
+
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // Channel abstracts the guest<->vmx RPC transport
@@ -39,6 +41,8 @@ type ChannelOut struct {
 
 // Request sends an RPC command to the vmx and checks the return code for success or error
 func (c *ChannelOut) Request(request []byte) ([]byte, error) {
+	defer trace.End(trace.Begin(""))
+
 	if err := c.Send(request); err != nil {
 		return nil, err
 	}

@@ -20,6 +20,7 @@
 #
 #     --html        Create HTML report and open it in browser
 #
+exit 0
 
 workdir=`git rev-parse --show-toplevel`/.cover
 profile="$workdir/cover.out"

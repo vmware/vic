@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+
+	"github.com/vmware/vic/pkg/trace"
 )
 
 const (
@@ -141,6 +143,8 @@ func vixCommandResult(rc int, err error, response []byte) []byte {
 }
 
 func (c *VixRelayedCommandHandler) Dispatch(data []byte) ([]byte, error) {
+	defer trace.End(trace.Begin(""))
+
 	// See ToolsDaemonTcloGetQuotedString
 	if data[0] == '"' {
 		data = data[1:]
@@ -199,10 +203,14 @@ func (c *VixRelayedCommandHandler) Dispatch(data []byte) ([]byte, error) {
 }
 
 func (c *VixRelayedCommandHandler) RegisterHandler(op uint32, handler VixCommandHandler) {
+	defer trace.End(trace.Begin(""))
+
 	c.handlers[op] = handler
 }
 
 func (c *VixRelayedCommandHandler) GetToolsState(_ string, _ VixCommandRequestHeader, _ []byte) ([]byte, error) {
+	defer trace.End(trace.Begin(""))
+
 	hostname, _ := os.Hostname()
 	osname := fmt.Sprintf("%s-%s", runtime.GOOS, runtime.GOARCH)
 
@@ -309,6 +317,8 @@ func (r *VixMsgStartProgramRequest) UnmarshalBinary(data []byte) error {
 }
 
 func (c *VixRelayedCommandHandler) StartCommand(_ string, header VixCommandRequestHeader, data []byte) ([]byte, error) {
+	defer trace.End(trace.Begin(""))
+
 	r := &VixMsgStartProgramRequest{
 		VixCommandRequestHeader: header,
 	}
@@ -327,6 +337,8 @@ func (c *VixRelayedCommandHandler) StartCommand(_ string, header VixCommandReque
 }
 
 func (c *VixRelayedCommandHandler) ExecCommandStart(r *VixMsgStartProgramRequest) (int, error) {
+	defer trace.End(trace.Begin(""))
+
 	// TODO: we could map to exec.Command(...).Start here
 	return -1, errors.New("not implemented")
 }
