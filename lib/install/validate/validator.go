@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"path/filepath"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -96,14 +95,6 @@ func CreateNoDCCheck(ctx context.Context, input *data.Data) (*Validator, error) 
 		Insecure: input.Insecure,
 	}
 
-	// only allow the datacenter to be specified in the taget url, if any
-	pElems := filepath.SplitList(tURL.Path)
-	if len(pElems) > 1 {
-		detail := "--target should only specify datacenter in the path (e.g. https://addr/datacenter) - specify cluster, resource pool, or folder with --compute-resource"
-		log.Error(detail)
-		return nil, errors.New(detail)
-	}
-
 	// if a datacenter was specified, set it
 	v.DatacenterPath = tURL.Path
 	if v.DatacenterPath != "" {
@@ -127,6 +118,15 @@ func CreateNoDCCheck(ctx context.Context, input *data.Data) (*Validator, error) 
 
 	v.Session.Populate(ctx)
 
+	// only allow the datacenter to be specified in the taget url, if any
+	pElems := strings.Split(v.DatacenterPath, "/")
+	if len(pElems) > 2 {
+		detail := "--target should only specify datacenter in the path (e.g. https://addr/datacenter) - specify cluster, resource pool, or folder with --compute-resource"
+		log.Error(detail)
+		v.suggestDatacenter()
+		return nil, errors.New(detail)
+	}
+
 	return v, nil
 }
 
@@ -141,6 +141,7 @@ func (v *Validator) datacenter() error {
 	return nil
 }
 
+// suggestDatacenter suggests all datacenters on the target
 func (v *Validator) suggestDatacenter() {
 	defer trace.End(trace.Begin(""))
 
