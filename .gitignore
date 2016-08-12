@@ -15,7 +15,8 @@ install-*.tar.gz
 *.xml
 *.gas
 package.list
-
+*container-logs.zip
+integration_logs*
 
 # generally a bad idea to check certificates into repos - whitelist if needed
 **/*.pem
