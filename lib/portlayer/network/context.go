@@ -15,8 +15,6 @@
 package network
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"net"
 	"strconv"
@@ -33,6 +31,7 @@ import (
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/ip"
+	"github.com/vmware/vic/pkg/uid"
 )
 
 const (
@@ -43,6 +42,8 @@ const (
 	DefaultScopeName = "bridge"
 )
 
+// Context denotes a networking context that represents a set of scopes, endpoints,
+// and containers. Each context has its own separate IPAM.
 type Context struct {
 	sync.Mutex
 
@@ -50,7 +51,7 @@ type Context struct {
 	defaultBridgeMask net.IPMask
 
 	scopes       map[string]*Scope
-	containers   map[exec.ID]*Container
+	containers   map[uid.UID]*Container
 	defaultScope *Scope
 }
 
@@ -72,7 +73,7 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 		defaultBridgeMask: bridgeMask,
 		defaultBridgePool: NewAddressSpaceFromNetwork(&bridgePool),
 		scopes:            make(map[string]*Scope),
-		containers:        make(map[exec.ID]*Container),
+		containers:        make(map[uid.UID]*Container),
 	}
 
 	s, err := ctx.NewScope(DefaultScopeName, BridgeScopeType, nil, net.IPv4(0, 0, 0, 0), nil, nil)
@@ -143,7 +144,7 @@ func reserveGateway(gateway net.IP, subnet *net.IPNet, ipam *IPAM) (net.IP, erro
 	return nil, fmt.Errorf("could not reserve gateway address for network %s", subnet)
 }
 
-func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM, network object.NetworkReference) (*Scope, error) {
+func (c *Context) newScopeCommon(id uid.UID, name, scopeType string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM, network object.NetworkReference) (*Scope, error) {
 
 	var err error
 	var space *AddressSpace
@@ -224,7 +225,7 @@ func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, 
 		subnet:     *subnet,
 		gateway:    gateway,
 		ipam:       ipam,
-		containers: make(map[exec.ID]*Container),
+		containers: make(map[uid.UID]*Container),
 		scopeType:  scopeType,
 		space:      space,
 		dns:        dns,
@@ -237,7 +238,7 @@ func (c *Context) newScopeCommon(id, name, scopeType string, subnet *net.IPNet, 
 	return newScope, nil
 }
 
-func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (newScope *Scope, err error) {
+func (c *Context) newBridgeScope(id uid.UID, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (newScope *Scope, err error) {
 	bn, ok := Config.ContainerNetworks[Config.BridgeNetwork]
 	if !ok || bn == nil {
 		return nil, fmt.Errorf("bridge network not set")
@@ -267,7 +268,7 @@ func (c *Context) newBridgeScope(id, name string, subnet *net.IPNet, gateway net
 	return s, nil
 }
 
-func (c *Context) newExternalScope(id, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (*Scope, error) {
+func (c *Context) newExternalScope(id uid.UID, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (*Scope, error) {
 	// ipam cannot be specified without gateway and subnet
 	if ipam != nil && len(ipam.pools) > 0 {
 		if ip.IsUnspecifiedSubnet(subnet) || gateway.IsUnspecified() {
@@ -377,12 +378,6 @@ func reservePools(space *AddressSpace, ipam *IPAM) ([]*AddressSpace, error) {
 	return subSpaces, nil
 }
 
-func generateID() string {
-	b := make([]byte, 16)
-	rand.Read(b)
-	return hex.EncodeToString(b)
-}
-
 func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string) (*Scope, error) {
 	// sanity checks
 	if name == "" {
@@ -402,10 +397,10 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 
 	switch scopeType {
 	case BridgeScopeType:
-		return c.newBridgeScope(generateID(), name, subnet, gateway, dns, &IPAM{pools: pools})
+		return c.newBridgeScope(uid.New(), name, subnet, gateway, dns, &IPAM{pools: pools})
 
 	case ExternalScopeType:
-		return c.newExternalScope(generateID(), name, subnet, gateway, dns, &IPAM{pools: pools})
+		return c.newExternalScope(uid.New(), name, subnet, gateway, dns, &IPAM{pools: pools})
 
 	default:
 		return nil, fmt.Errorf("scope type not supported")
@@ -426,7 +421,7 @@ func (c *Context) findScopes(idName *string) ([]*Scope, error) {
 
 		// search by id or partial id
 		for _, s := range c.scopes {
-			if strings.HasPrefix(s.id, *idName) {
+			if strings.HasPrefix(s.id.String(), *idName) {
 				return []*Scope{s}, nil
 			}
 		}
@@ -467,13 +462,13 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		return nil, fmt.Errorf("nothing to bind")
 	}
 
-	con, ok := c.containers[exec.ParseID(h.ExecConfig.ID)]
+	con, ok := c.containers[uid.Parse(h.ExecConfig.ID)]
 	if ok {
 		return nil, fmt.Errorf("container %s already bound", h.ExecConfig.ID)
 	}
 
 	con = &Container{
-		id:   exec.ParseID(h.ExecConfig.ID),
+		id:   uid.Parse(h.ExecConfig.ID),
 		name: h.ExecConfig.Name,
 	}
 	defaultMarked := false
@@ -545,13 +540,13 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	}
 
 	// local map to hold the container mapping
-	containers := make(map[exec.ID]*Container)
+	containers := make(map[uid.UID]*Container)
 
 	// Adding long id, short id and common name to the map to point same container
 	// Last two is needed by DNS subsystem
 	containers[con.id] = con
 
-	tid := con.id.TruncateID()
+	tid := con.id.Truncate()
 	cname := h.ExecConfig.Common.Name
 
 	var key string
@@ -564,12 +559,12 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		// SCOPE:SHORT ID
 		key = fmt.Sprintf("%s:%s", sname, tid)
 		log.Debugf("Adding %s to the containers", key)
-		containers[exec.ParseID(key)] = con
+		containers[uid.Parse(key)] = con
 
 		// SCOPE:NAME
 		key = fmt.Sprintf("%s:%s", sname, cname)
 		log.Debugf("Adding %s to the containers", key)
-		containers[exec.ParseID(key)] = con
+		containers[uid.Parse(key)] = con
 
 		ne, ok := h.ExecConfig.Networks[sname]
 		if !ok {
@@ -595,10 +590,10 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			// Find the scope:who container
 			key = fmt.Sprintf("%s:%s", sname, who)
 			// search global map
-			con, ok := c.containers[exec.ParseID(key)]
+			con, ok := c.containers[uid.Parse(key)]
 			if !ok {
 				// search local map
-				con, ok = containers[exec.ParseID(key)]
+				con, ok = containers[uid.Parse(key)]
 				if !ok {
 					err := fmt.Errorf("Failed to find container %s", key)
 					log.Errorf(err.Error())
@@ -610,7 +605,7 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			// Set scope:what to scope:who
 			key = fmt.Sprintf("%s:%s", sname, what)
 			log.Debugf("Adding %s to the containers", key)
-			containers[exec.ParseID(key)] = con
+			containers[uid.Parse(key)] = con
 		}
 	}
 
@@ -626,18 +621,18 @@ func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	c.Lock()
 	defer c.Unlock()
 
-	con, ok := c.containers[exec.ParseID(h.ExecConfig.ID)]
+	con, ok := c.containers[uid.Parse(h.ExecConfig.ID)]
 	if !ok {
 		return nil, ResourceNotFoundError{error: fmt.Errorf("container %s not found", h.ExecConfig.ID)}
 	}
 
 	// local map to hold the container mapping
-	var containers []exec.ID
+	var containers []uid.UID
 
 	// Removing long id, short id and common name from the map
-	containers = append(containers, exec.ParseID(h.ExecConfig.ID))
+	containers = append(containers, uid.Parse(h.ExecConfig.ID))
 
-	tid := con.id.TruncateID()
+	tid := con.id.Truncate()
 	cname := h.ExecConfig.Common.Name
 
 	var key string
@@ -679,12 +674,12 @@ func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		// delete scope:short id
 		key = fmt.Sprintf("%s:%s", sname, tid)
 		log.Debugf("Removing %s from the containers", key)
-		containers = append(containers, exec.ParseID(key))
+		containers = append(containers, uid.Parse(key))
 
 		// delete scope:name
 		key = fmt.Sprintf("%s:%s", sname, cname)
 		log.Debugf("Removing %s from the containers", key)
-		containers = append(containers, exec.ParseID(key))
+		containers = append(containers, uid.Parse(key))
 
 		// delete aliases
 		for i := range ne.Network.Aliases {
@@ -700,7 +695,7 @@ func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			// delete scope:what
 			key = fmt.Sprintf("%s:%s", sname, what)
 			log.Debugf("Removing %s from the containers", key)
-			containers = append(containers, exec.ParseID(key))
+			containers = append(containers, uid.Parse(key))
 		}
 
 		endpoints = append(endpoints, e)
@@ -894,7 +889,7 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 		return fmt.Errorf("handle is required")
 	}
 
-	if _, ok := c.containers[exec.ParseID(h.ExecConfig.ID)]; ok {
+	if _, ok := c.containers[uid.Parse(h.ExecConfig.ID)]; ok {
 		return fmt.Errorf("container is bound")
 	}
 
@@ -950,7 +945,7 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 	return nil
 }
 
-func (c *Context) Container(id exec.ID) *Container {
+func (c *Context) Container(id uid.UID) *Container {
 	c.Lock()
 	defer c.Unlock()
 
@@ -1003,7 +998,7 @@ func (c *Context) UpdateContainer(h *exec.Handle) error {
 	c.Lock()
 	defer c.Unlock()
 
-	con := c.containers[exec.ParseID(h.ExecConfig.ID)]
+	con := c.containers[uid.Parse(h.ExecConfig.ID)]
 	if con == nil {
 		return ResourceNotFoundError{}
 	}
