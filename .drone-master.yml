@@ -1,0 +1,134 @@
+# After any change to this file you MUST regenerate and checkin
+# a .drone.sec even if no secrets were changed. The secrets file is tied
+# to a specific .drone.yml so artifacts will not be uploaded to Bintray
+# in following builds without an updated .drone.sec
+---
+clone:
+  path: github.com/vmware/vic
+  tags: true
+
+build:
+  vic:
+    image: golang:1.6.3
+    pull: true
+    environment:
+      BIN: bin
+      GOPATH: /drone
+      SHELL: /bin/bash
+      DOCKER_API_VERSION: "1.21"
+      VIC_ESX_TEST_URL: $$VIC_ESX_TEST_URL
+      BUILD_NUMBER: $$BUILD_NUMBER
+      COMMIT: $$COMMIT
+    commands:
+      - make mark
+      - apt-get update
+      - apt-get install -yq time
+      - make -j9 all
+      - make -j9 test
+      - make sincemark
+
+  integration-test-on-pr:
+    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.4}
+    pull: true
+    environment:
+      BIN: bin
+      GOPATH: /drone
+      SHELL: /bin/bash
+      DOCKER_API_VERSION: "1.21"
+      VIC_ESX_TEST_URL: $$VIC_ESX_TEST_URL
+      LOG_TEMP_DIR: install-logs
+      GITHUB_AUTOMATION_API_KEY:  $$GITHUB_AUTOMATION_API_KEY
+      DRONE_SERVER:  $$DRONE_SERVER
+      DRONE_TOKEN:  $$DRONE_TOKEN
+      TEST_URL_ARRAY:  $$TEST_URL_ARRAY
+      TEST_USERNAME:  $$TEST_USERNAME
+      TEST_PASSWORD:  $$TEST_PASSWORD
+      TEST_DATASTORE: $$TEST_DATASTORE
+      TEST_TIMEOUT: $$TEST_TIMEOUT
+      GOVC_INSECURE: true
+      GOVC_USERNAME:  $$TEST_USERNAME
+      GOVC_PASSWORD:  $$TEST_PASSWORD
+      GOVC_RESOURCE_POOL:  $$TEST_RESOURCE
+      GOVC_DATASTORE: $$TEST_DATASTORE
+      GS_PROJECT_ID: $$GS_PROJECT_ID
+      GS_CLIENT_EMAIL: $$GS_CLIENT_EMAIL
+      GS_PRIVATE_KEY: $$GS_PRIVATE_KEY
+    commands:
+      - make mark
+      - tests/integration-test.sh
+      - make sincemark
+    when:
+      success: true
+
+  vicui:
+    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.4}
+    pull: true
+    environment:
+      BINTRAY_DOWNLOAD_PATH: "https://bintray.com/vmware/vic-repo/download_file?file_path="
+      SDK_PACKAGE_ARCHIVE: "ui-sdk.tar.gz"
+      UI_INSTALLER_WIN_UTILS_ARCHIVE: "vic_installation_utils_win.tgz"
+      UI_INSTALLER_WIN_PATH: "ui/installer/vCenterForWindows"
+      ENV_VSPHERE_SDK_HOME: "/tmp/sdk/vc_sdk_min"
+      ENV_FLEX_SDK_HOME: "/tmp/sdk/flex_sdk_min"
+    commands:
+      - make mark
+      - wget $BINTRAY_DOWNLOAD_PATH$SDK_PACKAGE_ARCHIVE -O /tmp/$SDK_PACKAGE_ARCHIVE
+      - wget $BINTRAY_DOWNLOAD_PATH$UI_INSTALLER_WIN_UTILS_ARCHIVE -O /tmp/$UI_INSTALLER_WIN_UTILS_ARCHIVE
+      - tar --warning=no-unknown-keyword -xzf /tmp/$SDK_PACKAGE_ARCHIVE -C /tmp/
+      - ant -f ui/vic-ui/build-deployable.xml -Denv.VSPHERE_SDK_HOME=$ENV_VSPHERE_SDK_HOME -Denv.FLEX_HOME=$ENV_FLEX_SDK_HOME
+      - tar --warning=no-unknown-keyword -xzf /tmp/$UI_INSTALLER_WIN_UTILS_ARCHIVE -C $UI_INSTALLER_WIN_PATH
+      - make sincemark
+    when:
+      success: true
+
+  bundle:
+    image: golang:1.6.3
+    pull: true
+    environment:
+      BIN: bin
+      BIN_TEMP_DIR: bin/vic
+      GOPATH: /drone
+      SHELL: /bin/bash
+    commands:
+      - make mark
+      - rm -rf $BIN_TEMP_DIR
+      - mkdir -p $BIN_TEMP_DIR/ui
+      - cp -rf ui/installer/* $BIN_TEMP_DIR/ui
+      - cp LICENSE $BIN_TEMP_DIR
+      - cp doc/bundle/README $BIN_TEMP_DIR
+      - cp $BIN/vic-machine* $BIN_TEMP_DIR
+      - cp $BIN/vic-ui* $BIN_TEMP_DIR
+      - cp $BIN/appliance.iso $BIN_TEMP_DIR
+      - cp $BIN/bootstrap.iso $BIN_TEMP_DIR
+      - tar czvf $BIN/vic_$$BUILD_NUMBER.tar.gz -C $BIN vic
+      - shasum -a 256 $BIN/vic_$$BUILD_NUMBER.tar.gz
+      - make sincemark
+    when:
+      repo: vmware/vic
+      branch: master
+      success: true
+
+publish:
+  coverage:
+    server: https://coverage.vmware.run
+    token: $$GITHUB_AUTOMATION_API_KEY
+    when:
+      repo: vmware/vic
+      branch: master
+      success: true
+  bintray:
+    username: $$BINTRAY_USERNAME
+    api_key: $$BINTRAY_API_KEY
+    artifacts:
+      - file: bin/vic_$$BUILD_NUMBER.tar.gz
+        owner: vmware
+        type: executable
+        repository: vic-repo
+        package: build
+        version: $$BUILD_NUMBER
+        target: vic_$$BUILD_NUMBER.tar.gz
+        publish: true
+    when:
+      repo: vmware/vic
+      branch: master
+      success: true

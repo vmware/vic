@@ -23,8 +23,8 @@ build:
       - make mark
       - apt-get update
       - apt-get install -yq time
-      - make -j3 all
-      - make -j3 test
+      - make -j9 all
+      - make -j9 test
       - make sincemark
 
   integration-test-on-pr:
@@ -81,64 +81,4 @@ build:
     when:
       success: true
 
-  bundle:
-    image: golang:1.6.3
-    pull: true
-    environment:
-      BIN: bin
-      BIN_TEMP_DIR: bin/vic
-      GOPATH: /drone
-      SHELL: /bin/bash
-    commands:
-      - make mark
-      - rm -rf $BIN_TEMP_DIR
-      - mkdir -p $BIN_TEMP_DIR/ui
-      - cp -rf ui/installer/* $BIN_TEMP_DIR/ui
-      - cp LICENSE $BIN_TEMP_DIR
-      - cp doc/bundle/README $BIN_TEMP_DIR
-      - cp $BIN/vic-machine* $BIN_TEMP_DIR
-      - cp $BIN/vic-ui* $BIN_TEMP_DIR
-      - cp $BIN/appliance.iso $BIN_TEMP_DIR
-      - cp $BIN/bootstrap.iso $BIN_TEMP_DIR
-      - tar czvf $BIN/vic_$$BUILD_NUMBER.tar.gz -C $BIN vic
-      - shasum -a 256 $BIN/vic_$$BUILD_NUMBER.tar.gz
-      - make sincemark
-    when:
-      repo: vmware/vic
-      branch: master
-      success: true
 
-notify:
-   slack:
-     channel: vic-dev
-     webhook_url: $$SLACK_URL
-     username: drone
-     when:
-       repo: vmware/vic
-       branch: master
-       success: false
-
-publish:
-  coverage:
-    server: https://coverage.vmware.run
-    token: $$GITHUB_AUTOMATION_API_KEY
-    when:
-      repo: vmware/vic
-      branch: master
-      success: true
-  bintray:
-    username: $$BINTRAY_USERNAME
-    api_key: $$BINTRAY_API_KEY
-    artifacts:
-      - file: bin/vic_$$BUILD_NUMBER.tar.gz
-        owner: vmware
-        type: executable
-        repository: vic-repo
-        package: build
-        version: $$BUILD_NUMBER
-        target: vic_$$BUILD_NUMBER.tar.gz
-        publish: true
-    when:
-      repo: vmware/vic
-      branch: master
-      success: true

@@ -20,7 +20,7 @@ gsutil version -l
 
 dpkg -l > package.list
 
-if [ $DRONE_BRANCH = "master" ] && [ $DRONE_REPO = "vmware/vic" ]; then
+if [ $DRONE_BRANCH = "integration/*" ] && [ $DRONE_REPO = "vmware/vic" ]; then
     pybot --removekeywords TAG:secret tests/test-cases
 else
     pybot --removekeywords TAG:secret --include regression tests/test-cases
@@ -58,6 +58,13 @@ fi
 
 if [ -f "$keyfile" ]; then
   rm -f $keyfile
+fi
+
+if [ $rc = 0 ]; then
+    git clone -b staging https://github.com/vmwware/vic
+    cd vic
+    git checkout -b integration/$DRONE_BUILD $DRONE_COMMIT
+    git push origin integration/$DRONE_BUILD
 fi
 
 exit $rc
