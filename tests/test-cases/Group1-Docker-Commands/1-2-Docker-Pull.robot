@@ -13,6 +13,7 @@ Pull image
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Digest:
     Should Contain  ${output}  Status:
+    Should Not Contain  ${output}  No such image:
 
 *** Test Cases ***
 Pull nginx
