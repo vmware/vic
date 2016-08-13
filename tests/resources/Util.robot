@@ -30,8 +30,9 @@ Set Test Environment Variables
     Set Environment Variable  GOVC_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
 
     ${host}=  Run  govc ls host
-    Set Environment Variable  TEST_RESOURCE  ${host}/Resources
-    Set Environment Variable  GOVC_RESOURCE_POOL  ${host}/Resources
+    ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_RESOURCE
+    Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_RESOURCE  ${host}/Resources
+    Set Environment Variable  GOVC_RESOURCE_POOL  %{TEST_RESOURCE}
 
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
