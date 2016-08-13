@@ -18,10 +18,10 @@ Set Test Environment Variables
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_BUILD_NUMBER  0
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  BRIDGE_NETWORK
     Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${bridge}  %{BRIDGE_NETWORK}
-    Run Keyword If  '${status}' == 'FAIL'  Set Suite Variable  ${bridge}  %{bridge}
+    Run Keyword If  '${status}' == 'FAIL'  Set Suite Variable  ${bridge}  ${bridge}
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  EXTERNAL_NETWORK
     Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${external}  %{EXTERNAL_NETWORK}
-    Run Keyword If  '${status}' == 'FAIL'  Set Suite Variable  ${external}  %{external}
+    Run Keyword If  '${status}' == 'FAIL'  Set Suite Variable  ${external}  ${external}
 
     @{URLs}=  Split String  %{TEST_URL_ARRAY}
     ${len}=  Get Length  ${URLs}
