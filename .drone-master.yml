@@ -25,9 +25,9 @@ build:
       - apt-get install -yq time
       - make -j3 all
       - make sincemark
-      - make mark
-      - make -j3 test
-      - make sincemark
+    when:
+      repo: vmware/vic
+      branch: master
 
   integration-test-on-pr:
     image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.4}
@@ -57,9 +57,11 @@ build:
       GS_PRIVATE_KEY: $$GS_PRIVATE_KEY
     commands:
       - make mark
-      - tests/integration-test2.sh
+      - tests/integration-test.sh
       - make sincemark
     when:
+      repo: vmware/vic
+      branch: master
       success: true
 
   vicui:
@@ -81,6 +83,8 @@ build:
       - tar --warning=no-unknown-keyword -xzf /tmp/$UI_INSTALLER_WIN_UTILS_ARCHIVE -C $UI_INSTALLER_WIN_PATH
       - make sincemark
     when:
+      repo: vmware/vic
+      branch: master
       success: true
 
   bundle:
