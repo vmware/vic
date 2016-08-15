@@ -2,6 +2,9 @@
 
  vSphere Integrated Containers supports these container operations.
 
+## General Container Operations ##
+
+
 | **Container** | **Docker Reference** | **Supported** |
 | --- | --- | --- |
 |Docker start|[Start a container](https://docs.docker.com/engine/reference/commandline/start/)|Yes|
@@ -22,7 +25,11 @@
 |Docker kill|[Kill a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#kill-a-container)<br> [Kill](https://docs.docker.com/engine/reference/commandline/kill/)|No. Use Docker stop|
 |Docker Container list|[List Containers](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#list-containers)|TBD|
 
-| **Network** | **Docker Reference** | **Supported in Onsite Beta** |
+## Network Operations ##
+
+For more information about network operations, see [Network Port Use Cases](network_use_cases.md).
+
+| **Network** | **Docker Reference** | **Supported** |
 | --- | --- | --- |
 |Network create|[Create a network](https://docs.docker.com/engine/reference/commandline/network_create/)|Yes. See the use case to connect to an external network in vSphere Integrated Container for vSphere Administrators. Bridge is also supported.|
 |Network ls|[List networks/](https://docs.docker.com/engine/reference/commandline/network_ls/)|Yes|
@@ -30,15 +37,21 @@
 |Network connect|[Connect to a network](https://docs.docker.com/engine/reference/commandline/network_connect/)|Yes|
 |Network rm|[Remove a network](https://docs.docker.com/engine/reference/commandline/network_rm/)|Yes|
 
-| **Volume** | **Docker Reference** | **Supported in Onsite Beta** |
-| --- | --- | --- |
-|Docker volume create|[Create a volume](https://docs.docker.com/engine/reference/commandline/volume_create/)|Onsite beta. If pointing at VIC, the driver option is ignored even if you specified it. You must include <code>--opt VolumeStore=<name of volumestore> --Capacity=<size  in MB></code> as these are direct vSphere arguments. VIC does not assign random names during a volume create, but only for anonymous volumes.|
-|Docker volume ls|[List volumes](https://docs.docker.com/engine/reference/commandline/volume_ls/) |Onsite beta |
-|Docker volume rm|[Remove a volume](https://docs.docker.com/engine/reference/commandline/volume_rm/) |Onsite beta|
+## Volume Operations ##
 
-| **Commands** | **Docker Reference** | **Supported version** |
+For more information about volume operations, see [Using Volumes with vSphere Integrated Containers](using_volumes_with_vic.md).
+
+| **Volume** | **Docker Reference** | **Supported** |
 | --- | --- | --- |
-|Link|[Link](https://docs.docker.com/v1.8/userguide/dockerlinks/)|TBD|
+|Docker volume create|[Create a volume](https://docs.docker.com/engine/reference/commandline/volume_create/)| The driver option is ignored even if you specify it. You must include <code>--opt VolumeStore=<name of volumestore> --Capacity=<size  in MB></code> as these are direct vSphere arguments. VIC does not assign random names during a volume create, but only for anonymous volumes.|
+|Docker volume ls|[List volumes](https://docs.docker.com/engine/reference/commandline/volume_ls/) | Yes |
+|Docker volume rm|[Remove a volume](https://docs.docker.com/engine/reference/commandline/volume_rm/) | No |
+
+## Other Operations ##
+
+| **Commands** | **Docker Reference** | **Supported** |
+| --- | --- | --- |
+|Link|[Link](https://docs.docker.com/v1.8/userguide/dockerlinks/)|Future release|
 |Docker export|[Export a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#export-a-container)|Future release|
 |Docker save|[Save images](https://docs.docker.com/engine/reference/commandline/save/)|Future release|
 |Docker stats|[Get container stats based on resource usage](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#get-container-stats-based-on-resource-usage)<br> [Stats](https://docs.docker.com/engine/reference/commandline/stats/)|Future release|
