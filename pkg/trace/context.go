@@ -19,8 +19,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Sirupsen/logrus"
-
 	"golang.org/x/net/context"
 )
 
@@ -40,7 +38,7 @@ func Start(ctx context.Context, msg string) context.Context {
 	n := atomic.AddUint64(&opCount, 1)
 
 	// start the trace
-	h := Begin(msg)
+	h := newTrace(msg)
 
 	t := Operation{
 		tr:    *h,
@@ -48,7 +46,10 @@ func Start(ctx context.Context, msg string) context.Context {
 	}
 
 	// stash the value
-	return context.WithValue(ctx, OpTraceKey, t)
+	ctx = context.WithValue(ctx, OpTraceKey, t)
+
+	Debugf(ctx, "[BEGIN] [%s]", h.frameName)
+	return ctx
 }
 
 func FromContext(ctx context.Context) *Operation {
@@ -66,28 +67,27 @@ func FromContext(ctx context.Context) *Operation {
 func Done(ctx context.Context) error {
 	t := FromContext(ctx)
 	if err := ctx.Err(); err != nil {
-		Errorf(ctx, "%s %s: error: %s", t.frameName, t.msg, err.Error())
+		Errorf(ctx, "[ END ] %s %s: error: %s", t.frameName, t.msg, err.Error())
 		return err
 	}
 
-	End(&t.tr)
+	Debugf(ctx, "[ END ] %s", t.msg)
 	return nil
 }
 
-func Infof(ctx context.Context, format string, args ...interface{}) {
+func header(ctx context.Context) string {
 	t := FromContext(ctx)
+	return fmt.Sprintf("op=%d (delta:%s)", t.opNum, time.Now().Sub(t.startTime))
+}
 
-	logrus.Infof("op=%d (delta:%s): %s", t.opNum, time.Now().Sub(t.startTime), fmt.Sprintf(format, args...))
+func Infof(ctx context.Context, format string, args ...interface{}) {
+	Logger.Infof("%s: %s", header(ctx), fmt.Sprintf(format, args...))
 }
 
 func Debugf(ctx context.Context, format string, args ...interface{}) {
-	t := FromContext(ctx)
-
-	logrus.Debugf("op=%d (delta:%s): %s", t.opNum, time.Now().Sub(t.startTime), fmt.Sprintf(format, args...))
+	Logger.Debugf("%s: %s", header(ctx), fmt.Sprintf(format, args...))
 }
 
 func Errorf(ctx context.Context, format string, args ...interface{}) {
-	t := FromContext(ctx)
-
-	logrus.Errorf("op=%d (delta:%s): %s", t.opNum, time.Now().Sub(t.startTime), fmt.Sprintf(format, args...))
+	Logger.Errorf("%s: %s", header(ctx), fmt.Sprintf(format, args...))
 }

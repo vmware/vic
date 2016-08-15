@@ -29,20 +29,28 @@ type tr struct {
 	startTime time.Time
 }
 
-// Begin starts the trace.  Msg is the msg to log.
-func Begin(msg string) *tr {
+func newTrace(msg string) *tr {
 	pc, _, _, _ := runtime.Caller(1)
 	name := runtime.FuncForPC(pc).Name()
 
+	return &tr{
+		msg:       msg,
+		frameName: name,
+		startTime: time.Now(),
+	}
+}
+
+// Begin starts the trace.  Msg is the msg to log.
+func Begin(msg string) *tr {
+	t := newTrace(msg)
+
 	if msg == "" {
-		Logger.Debugf("[BEGIN] [%s]", name)
+		Logger.Debugf("[BEGIN] [%s]", t.frameName)
 	} else {
-		Logger.Debugf("[BEGIN] [%s] %s", name, msg)
+		Logger.Debugf("[BEGIN] [%s] %s", t.frameName, t.msg)
 	}
 
-	return &tr{msg: msg,
-		frameName: name,
-		startTime: time.Now()}
+	return t
 }
 
 // End ends the trace.
