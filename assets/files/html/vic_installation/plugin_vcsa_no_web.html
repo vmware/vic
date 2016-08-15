@@ -1,0 +1,407 @@
+<!DOCTYPE HTML>
+<html lang="en" >
+    
+    <head>
+        
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <title>Install the vSphere Integrated Containers Plug-In on a vCenter Server Appliance Without Access to a Web Server | VMware vSphere Integrated Containers Installation, version 0.5</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 2.6.7">
+        
+        
+        <meta name="HandheldFriendly" content="true"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black">
+        <link rel="apple-touch-icon-precomposed" sizes="152x152" href="gitbook/images/apple-touch-icon-precomposed-152.png">
+        <link rel="shortcut icon" href="gitbook/images/favicon.ico" type="image/x-icon">
+        
+    <link rel="stylesheet" href="gitbook/style.css">
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-highlight/website.css">
+        
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-search/search.css">
+        
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-fontsettings/website.css">
+        
+    
+    
+
+        
+    
+    
+    
+    <link rel="prev" href="./plugin_vcsa_web.html" />
+    
+
+        
+    </head>
+    <body>
+        
+        
+    <div class="book"
+        data-level="5.5"
+        data-chapter-title="Install the vSphere Integrated Containers Plug-In on a vCenter Server Appliance Without Access to a Web Server"
+        data-filepath="plugin_vcsa_no_web.md"
+        data-basepath="."
+        data-revision="Mon Aug 15 2016 19:03:21 GMT+0200 (W. Europe Daylight Time)"
+        data-innerlanguage="">
+    
+
+<div class="book-summary">
+    <nav role="navigation">
+        <ul class="summary">
+            
+            
+            
+            
+
+            
+
+            
+    
+        <li class="chapter " data-level="0" data-path="index.html">
+            
+                
+                    <a href="./index.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                        Introduction
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="1" data-path="installing_vic.html">
+            
+                
+                    <a href="./installing_vic.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>1.</b>
+                        
+                        Installing vSphere Integrated Containers
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="2" data-path="vic_installation_prereqs.html">
+            
+                
+                    <a href="./vic_installation_prereqs.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.</b>
+                        
+                        Environment Prerequisites for vSphere Integrated Containers Installation
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="3" data-path="contents_of_vic_binaries.html">
+            
+                
+                    <a href="./contents_of_vic_binaries.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>3.</b>
+                        
+                        Contents of the vSphere Integrated Containers Binaries
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="4" data-path="install_vic_cli.html">
+            
+                
+                    <a href="./install_vic_cli.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.</b>
+                        
+                        Deploy a Virtual Container Host
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="4.1" data-path="vch_installer_options.html">
+            
+                
+                    <a href="./vch_installer_options.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.1.</b>
+                        
+                        Virtual Container Host Deployment Options
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="4.2" data-path="vch_installer_examples.html">
+            
+                
+                    <a href="./vch_installer_examples.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.2.</b>
+                        
+                        Examples of Deploying a Virtual Container Host
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="4.3" data-path="verify_vch_deployment.html">
+            
+                
+                    <a href="./verify_vch_deployment.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.3.</b>
+                        
+                        Verify the Deployment of a Virtual Container Host to vCenter Server
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="4.4" data-path="verify_vch_deployment_esx.html">
+            
+                
+                    <a href="./verify_vch_deployment_esx.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.4.</b>
+                        
+                        Verify the Deployment of a Virtual Container Host to an ESXi Host
+                    </a>
+            
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="5" data-path="install_vic_plugin.html">
+            
+                
+                    <a href="./install_vic_plugin.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.</b>
+                        
+                        Installing the vSphere Web Client Plug-in for vSphere Integrated Containers
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="5.1" data-path="plugin_vc_web.html">
+            
+                
+                    <a href="./plugin_vc_web.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.1.</b>
+                        
+                        Install the vSphere Integrated Containers Plug-In on vCenter Server For Windows by Using a Web Server
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="5.2" data-path="plugin_vc_sftp.html">
+            
+                
+                    <a href="./plugin_vc_sftp.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.2.</b>
+                        
+                        Install the vSphere Integrated Containers Plug-In on vCenter Server For Windows, by Using SFTP
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="5.3" data-path="plugin_vc_no_sftp_or_web.html">
+            
+                
+                    <a href="./plugin_vc_no_sftp_or_web.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.3.</b>
+                        
+                        Install the vSphere Integrated Containers Plug-In on vCenter Server For Windows, without SFTP or a Web Server
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="5.4" data-path="plugin_vcsa_web.html">
+            
+                
+                    <a href="./plugin_vcsa_web.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.4.</b>
+                        
+                        Install the vSphere Integrated Containers Plug-In on a vCenter Server Appliance by Using a Web Server
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter active" data-level="5.5" data-path="plugin_vcsa_no_web.html">
+            
+                
+                    <a href="./plugin_vcsa_no_web.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.5.</b>
+                        
+                        Install the vSphere Integrated Containers Plug-In on a vCenter Server Appliance Without Access to a Web Server
+                    </a>
+            
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+
+
+            
+            <li class="divider"></li>
+            <li>
+                <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+                    Published with GitBook
+                </a>
+            </li>
+            
+        </ul>
+    </nav>
+</div>
+
+    <div class="book-body">
+        <div class="body-inner">
+            <div class="book-header" role="navigation">
+    <!-- Actions Left -->
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href="./" >VMware vSphere Integrated Containers Installation, version 0.5</a>
+    </h1>
+</div>
+
+            <div class="page-wrapper" tabindex="-1" role="main">
+                <div class="page-inner">
+                
+                
+                    <section class="normal" id="section-">
+                    
+                        <h1 id="install-the-vsphere-integrated-containers-plugin-on-a-vcenter-server-appliance-without-access-to-a-web-server">Install the vSphere Integrated Containers Plug-In on a vCenter Server Appliance Without Access to a Web Server</h1>
+<p>If you are running the vCenter Server Appliance and you do not have access to a Web server, you can manually install the vSphere Web Client plug-in for vSphere Integrated Containers.</p>
+<p><strong>Prerequisites</strong></p>
+<ul>
+<li>You deployed at least one virtual container host to a vCenter Server instance.</li>
+<li>Download the latest build of the vSphere Integrated Containers plug-in bundle from <a href="https://bintray.com/vmware/vic-repo/build-deps/installer-onsite-beta#files" target="_blank">https://bintray.com/vmware/vic-repo/build-deps/installer-onsite-beta#files</a>.</li>
+</ul>
+<p><strong>Procedure</strong></p>
+<ol>
+<li>Unpack the <code>vic-ui-installer.zip</code> bundle on any system.</li>
+<li><p>(Optional) Connect to the vCenter Server Appliance via SSH and copy the contents of the <code>vic-ui-installer.zip</code> bundle to a temporary location on the vCenter Server Appliance. </p>
+<p>Perform this step if you unpacked the <code>vic-ui-installer.zip</code> bundle on a Windows system. If you unpacked <code>vic-ui-installer.zip</code> on a Mac OS or Linux system, you do not need to copy the files to the vCenter Server Appliance.</p>
+</li>
+<li>Open the <code>unpack_dir\installer\VCSA\configs</code> file in a text editor.</li>
+<li>Enter the IPv4 address or FQDN of the vCenter Server instance on which to install the plug-in. <pre>VCENTER_IP=&quot;<i>vcenter_server_address</i>&quot;</pre></li>
+<li>Save and close the <code>configs</code> file.</li>
+<li>Navigate to <code>unpack_dir/installer/VCSA</code>.</li>
+<li>Run the installer.<pre>./install.sh</pre>Make sure that <code>install.sh</code> is executable by running <code>chmod</code> before you run it.</li>
+<li>Enter the password for the vCenter Server administrator account.</li>
+<li><p>Enter the root password for the vCenter Server Appliance twice.</p>
+<p>The installer requires the root password of the vCenter Server Appliance twice: once to copy the files to the appliance over SSH, and once to set the correct ownership on the files and folders.</p>
+</li>
+<li>When installation finishes, if you are logged into the vSphere Web Client, log out then log back in again.</li>
+</ol>
+
+                    
+                    </section>
+                
+                
+                </div>
+            </div>
+        </div>
+
+        
+        <a href="./plugin_vcsa_web.html" class="navigation navigation-prev navigation-unique" aria-label="Previous page: Install the vSphere Integrated Containers Plug-In on a vCenter Server Appliance by Using a Web Server"><i class="fa fa-angle-left"></i></a>
+        
+        
+    </div>
+</div>
+
+        
+<script src="gitbook/app.js"></script>
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-search/lunr.min.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-search/search.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-sharing/buttons.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-fontsettings/buttons.js"></script>
+    
+
+<script>
+require(["gitbook"], function(gitbook) {
+    var config = {"highlight":{},"search":{"maxIndexSize":1000000},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2}};
+    gitbook.start(config);
+});
+</script>
+
+        
+    </body>
+    
+</html>

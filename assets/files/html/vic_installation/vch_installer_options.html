@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Virtual Container Host Deployment Options | VMWare vSphere Integrated Containers Installation</title>
+        <title>Virtual Container Host Deployment Options | VMware vSphere Integrated Containers Installation, version 0.5</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -53,7 +53,7 @@
         data-chapter-title="Virtual Container Host Deployment Options"
         data-filepath="vch_installer_options.md"
         data-basepath="."
-        data-revision="Thu Jul 07 2016 20:43:51 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Mon Aug 15 2016 19:03:21 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -173,19 +173,14 @@
             
         </li>
     
-
-            </ul>
-            
-        </li>
-    
-        <li class="chapter " data-level="5" data-path="verify_vch_deployment.html">
+        <li class="chapter " data-level="4.3" data-path="verify_vch_deployment.html">
             
                 
                     <a href="./verify_vch_deployment.html">
                 
                         <i class="fa fa-check"></i>
                         
-                            <b>5.</b>
+                            <b>4.3.</b>
                         
                         Verify the Deployment of a Virtual Container Host to vCenter Server
                     </a>
@@ -193,18 +188,119 @@
             
         </li>
     
-        <li class="chapter " data-level="6" data-path="verify_vch_deployment_esx.html">
+        <li class="chapter " data-level="4.4" data-path="verify_vch_deployment_esx.html">
             
                 
                     <a href="./verify_vch_deployment_esx.html">
                 
                         <i class="fa fa-check"></i>
                         
-                            <b>6.</b>
+                            <b>4.4.</b>
                         
                         Verify the Deployment of a Virtual Container Host to an ESXi Host
                     </a>
             
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="5" data-path="install_vic_plugin.html">
+            
+                
+                    <a href="./install_vic_plugin.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.</b>
+                        
+                        Installing the vSphere Web Client Plug-in for vSphere Integrated Containers
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="5.1" data-path="plugin_vc_web.html">
+            
+                
+                    <a href="./plugin_vc_web.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.1.</b>
+                        
+                        Install the vSphere Integrated Containers Plug-In on vCenter Server For Windows by Using a Web Server
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="5.2" data-path="plugin_vc_sftp.html">
+            
+                
+                    <a href="./plugin_vc_sftp.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.2.</b>
+                        
+                        Install the vSphere Integrated Containers Plug-In on vCenter Server For Windows, by Using SFTP
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="5.3" data-path="plugin_vc_no_sftp_or_web.html">
+            
+                
+                    <a href="./plugin_vc_no_sftp_or_web.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.3.</b>
+                        
+                        Install the vSphere Integrated Containers Plug-In on vCenter Server For Windows, without SFTP or a Web Server
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="5.4" data-path="plugin_vcsa_web.html">
+            
+                
+                    <a href="./plugin_vcsa_web.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.4.</b>
+                        
+                        Install the vSphere Integrated Containers Plug-In on a vCenter Server Appliance by Using a Web Server
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="5.5" data-path="plugin_vcsa_no_web.html">
+            
+                
+                    <a href="./plugin_vcsa_no_web.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.5.</b>
+                        
+                        Install the vSphere Integrated Containers Plug-In on a vCenter Server Appliance Without Access to a Web Server
+                    </a>
+            
+            
+        </li>
+    
+
+            </ul>
             
         </li>
     
@@ -231,7 +327,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href="./" >VMWare vSphere Integrated Containers Installation</a>
+        <a href="./" >VMware vSphere Integrated Containers Installation, version 0.5</a>
     </h1>
 </div>
 
@@ -249,7 +345,7 @@
 <li><a href="#compute">Compute Resource Options</a></li>
 <li><a href="#datastore">Datastore Options</a></li>
 <li><a href="#security">Security Options</a></li>
-<li><a href="#deployment">Deployment Options</a></li>
+<li><a href="#deployment">Appliance Deployment Options</a></li>
 </ul>
 <p><a name="mandatory"></a></p>
 <h2 id="mandatory-options">Mandatory Options</h2>
@@ -263,7 +359,7 @@
 <li>If the target ESXi host is managed by vCenter Server, or if you are deploying to a cluster, provide the address of vCenter Server.<pre>--target <i>vcenter_server_address</i></pre></li>
 <li>If you are deploying a virtual container host directly on an ESXi host, you must specify the <code>user</code> option, or include the user name and password in the target URL. Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>--target <i>esxi_host_username</i>:<i>password</i>@<i>esxi_host_address</i></pre></li>
 <li>If you are deploying a virtual container host on a vCenter Server instance, you must specify the <code>user</code> option, or include the user name and password in the target URL. Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>--target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i></pre></li>
-<li>If you are deploying a virtual container host on a vCenter Server instance that includes more than one datacenter, include the datacenter name in the target URL.<pre>--target <i>vcenter_server_address</i>/<i>datacenter_name</i></pre></li>
+<li>If you are deploying a virtual container host on a vCenter Server instance that includes more than one datacenter, include the datacenter name in the target URL. If you include an invalid datacenter name, <code>vic-machine create</code> fails and suggests the available datacenters that you can specify. <pre>--target <i>vcenter_server_address</i>/<i>datacenter_name</i></pre></li>
 <li>If you do not specify the <code>passwd</code> option or include the password in the target URL, <code>vic-machine create</code> prompts you to enter the password.</li>
 </ul>
 <h3 id="user"><code>user</code></h3>
@@ -274,21 +370,30 @@
 
 <p>You can also specify the username in the URL that you pass to <code>vic-machine create</code> in the <code>target</code> option.</p>
 <p><a name="image"></a></p>
-<h3 id="imagedatastore"><code>image-datastore</code></h3>
+<h3 id="imagestore"><code>image-store</code></h3>
 <p>Short name: <code>-i</code></p>
-<p>The datastore in which to store container image files. When you deploy a virtual container host, <code>vic-machine</code> creates a folder named <code>VIC</code> on the target datastore,  in which to store all of the container images that you pull into a virtual container host. The <code>vic-machine</code> utility also places the VM files for the virtual container host in the datastore that you designate as the image store, in a folder that has the same name as the virtual container host.</p>
+<p>The datastore in which to store container image files. When you deploy a virtual container host, <code>vic-machine</code> creates a folder named <code>VIC</code> on the target datastore,  in which to store all of the container images that you pull into a virtual container host. The <code>vic-machine</code> utility also places the VM files for the virtual container host in the datastore that you designate as the image store, in a folder that has the same name as the virtual container host. </p>
+<p>You can specify a datastore folder to use as the image store in the format <code>datastore/path</code>. In this case, the virtual container host uses <code>path</code> as the image store instead of using the folder with the same name as the virtual container host. If the folder that you specify does not already exist, <code>vic-machine create</code> creates it.</p>
 <p>You can designate the same datastore as the image store for multiple virtual container hosts. In this case, only one <code>VIC</code> folder is created in the datastore and the container image files are made available to all of the virtual container hosts that use that image store. </p>
-<p><strong>NOTE</strong>: In the current builds the <code>container-store</code> option is not enabled. As a consequence, container VM files are also stored in the datastore that you designate as the image store.</p>
+<p> If you specify an invalid datastore name, <code>vic-machine create</code> fails and suggests valid datastores.</p>
+<p><strong>NOTES</strong>: </p>
+<ul>
+<li>vSphere Integrated Containers supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names.</li>
+<li>In the current builds the <code>container-datastore</code> option is not enabled. As a consequence, container VM files are also stored in the datastore that you designate as the image store.</li>
+</ul>
 <pre>--image-store <i>datastore_name</i></pre> 
+
+<pre>--image-store <i>datastore_name</i>/<i>path</i></pre> 
 
 <p><a name="bridge"></a></p>
 <h3 id="bridgenetwork"><code>bridge-network</code></h3>
 <p>Short name: <code>-b</code></p>
-<p>The network that container VMs use to communicate with each other. You can assign the same network to multiple virtual container hosts. </p>
+<p>The network that container VMs use to communicate with each other. You can assign the same bridge network to multiple virtual container hosts.</p>
+<p><strong>IMPORTANT</strong> The bridge network is used exclusively by vSphere Integrated Containers. You cannot use the network that you specify in the <code>bridge-network</code> option as the target for any of the other <code>vic-machine create</code> networking options.</p>
 <p>The <code>bridge-network</code> option is <strong>optional</strong> when you are deploying a virtual container host to an ESXi host with no vCenter Server. In this case, if you do not specify <code>bridge-network</code>, <code>vic-machine</code> creates a  virtual switch and a port group that each have the same name as the virtual container host. You can optionally specify this option to assign an existing port group for use as the bridge network for container VMs. You can also optionally specify this option to create a new virtual switch and port group that have a different name to the virtual container host.</p>
 <p>The <code>bridge-network</code> option is <strong>mandatory</strong> if you are deploying a virtual container host to vCenter Server.</p>
 <p>In a vCenter Server environment, before you run <code>vic-machine create</code>, you must create a distributed virtual switch and a distributed port group. You must add the target ESXi host or hosts to the distributed virtual switch. For information about how to create a distributed virtual switch and port group, see <em>Network Requirements</em> in <a href="vic_installation_prereqs.html#networkreqs">Environment Prerequisites for vSphere Integrated Containers Installation</a>.</p>
-<p>You pass the name of the distributed port group to the <code>bridge-network</code> option. </p>
+<p>You pass the name of the distributed port group to the <code>bridge-network</code> option. If you specify an invalid network name, <code>vic-machine create</code> fails and suggests valid networks.</p>
 <pre>--bridge-network <i>distributed_port_group_name</i></pre>
 
 <p><a name="networking"></a></p>
@@ -296,47 +401,78 @@
 <p>The <code>vic-machine create</code> utility allows you to specify different networks for the different types of traffic between containers, the virtual container host, the external internet, and your vSphere environment.</p>
 <h3 id="bridgenetwork"><code>bridge-network</code></h3>
 <p>See <a href="#bridge">bridge-network</a> in the section on mandatory options.</p>
+<h3 id="bridgenetworkrange"><code>bridge-network-range</code></h3>
+<p>Short name: <code>--bnr</code></p>
+<p>The range of IP addresses that additional bridge networks can use when container application developers use <code>docker network create</code> to create new bridge networks. If you do not specify the <code>bridge-network-range</code> option, the IP range for bridge networks is 172.16.0.0/12.</p>
+<p>When you specify the bridge network IP range, you specify the IP range as a CIDR.</p>
+<pre>--bridge-network-range 192.168.100.0/24</pre>
+
 <h3 id="externalnetwork"><code>external-network</code></h3>
+<p>Short name: <code>--en</code></p>
 <p>The network for containers to use to connect to the Internet. Containers use the external network to pull container images, for example from <a href="https://hub.docker.com/" target="_blank">https://hub.docker.com/</a>, and to publish network services. If you define the external network, you can deploy containers directly on the external interface. </p>
-<p>If not specified, containers use the default VM Network for external traffic.</p>
+<p>If not specified, containers use the default VM Network for external traffic. If you specify an invalid network name, <code>vic-machine create</code> fails and suggests valid networks.</p>
 <pre>--external-network <i>network_name</i></pre>
 
 <h3 id="managementnetwork"><code>management-network</code></h3>
+<p>Short name: <code>--mn</code></p>
 <p>The network that the virtual container host uses to communicate with vCenter Server and ESXi hosts. Container VMs use this network to communicate with the virtual container host. </p>
-<p>If not specified, the virtual container host uses the bridge network for management traffic.</p>
+<p>If not specified, the virtual container host uses the external network for management traffic. If you specify an invalid network name, <code>vic-machine create</code> fails and suggests valid networks.</p>
 <pre>--management-network <i>network_name</i></pre>
 
 <h3 id="clientnetwork"><code>client-network</code></h3>
+<p>Short name: <code>--cln</code></p>
 <p>The network that the virtual container host uses to generate the Docker API. The Docker API only uses this network.</p>
-<p>If not specified, the virtual container host uses the bridge network.</p>
+<p>If not specified, the virtual container host uses the external network for client traffic. If you specify an invalid network name, <code>vic-machine create</code> fails and suggests valid networks.</p>
 <pre>--client-network <i>network_name</i></pre>
 
 <h3 id="containernetwork"><code>container-network</code></h3>
-<p>The network that containers use for external communication. If you specify this option, you must also specify the <code>container-network-gateway</code>, <code>container-network-ip-range</code>, and <code>container-network-dns</code> options.</p>
-<p>If not specified, containers use the external network of the virtual container host.</p>
-<pre>--container-network <i>network_name</i></pre>
+<p>Short name: <code>--cn</code></p>
+<p>A network for container VMs to use for external communication when you  run <code>docker run</code> or <code>docker create</code> with the <code>--net</code> option. </p>
+<p>To specify a container network, you provide the name of a distributed port group for the container VMs to use, and a descriptive name for the container network that is used by Docker. If you specify an invalid network name, <code>vic-machine create</code> fails and suggests valid networks.</p>
+<ul>
+<li>The distributed port group must exist before you run <code>vic-machine create</code>. </li>
+<li>You cannot use the same distributed port group that you use for the bridge network. </li>
+<li>You can create the distributed port group on the same distributed virtual switch as the distributed port group that you use for the bridge network.</li>
+<li>The descriptive name appears under <code>Networks</code> when you run <code>docker info</code> on the deployed virtual container host.</li>
+<li>Container developers use the descriptive name in the <code>--net</code> option when they run <code>docker run</code> or <code>docker create</code>.</li>
+</ul>
+<p>If you do not specify the <code>container-network</code> option, or if you run <code>docker run</code> or <code>docker create</code> without specifying <code>--net</code>, container VMs use the bridge network. </p>
+<p>If the network that you specify does not support DHCP, you must also specify the <code>container-network-gateway</code> option. </p>
+<pre>--container-network <i>distributed_port_group_name</i>:<i>container_network_name</i></pre>
 
 <h3 id="containernetworkgateway"><code>container-network-gateway</code></h3>
-<p>The gateway for the subnet of the container network. Specify the gateway in the format <code>container_network:subnet</code>. If you specify this option, you must also specify the <code>container-network</code>, <code>container-network-ip-range</code>, and <code>container-network-dns</code> options.</p>
-<p>If not specified, containers use the external network of the virtual container host.</p>
-<pre>--container-network-gateway <i>network_name</i>:172.16.0.0/16</pre>
-
-<h3 id="containernetworkiprange"><code>container-network-ip-range</code></h3>
-<p>The range of IP addresses that container VMs can use. If you specify this option, you must also specify the <code>container-network</code>, <code>container-network-gateway</code>, and <code>container-network-dns</code> options.</p>
-<p>If not specified, containers use the external network of the virtual container host.</p>
-<pre>--container-network-ip-range <i>network_name</i>:172.16.0.0/24, <i>network_name</i>:172.16.0.10-20</pre>
+<p>Short name: <code>--cng</code></p>
+<p>The gateway for the subnet of the container network. This option is required if the network that you specify in the <code>container-network</code> option does not support DHCP. Specify the gateway in the format <code>container_network:subnet</code>. If you specify this option, it is recommended that you also specify the  <code>container-network-dns</code> option.</p>
+<p> When you specify the container network gateway, you use the distributed port group that you specify in the <code>container-network</code>option.</p>
+<pre>--container-network-gateway <i>distributed_port_group_name</i>:<i>gateway_ip_address</i>/<i>subnet_mask</i></pre>
 
 <h3 id="containernetworkdns"><code>container-network-dns</code></h3>
-<p>The address of the DNS server for the container network. If you specify this option, you must also specify the <code>container-network</code>, <code>container-network-gateway</code>, and <code>container-network-ip-range</code> options.</p>
-<p>If not specified, containers use the external network of the virtual container host.</p>
-<pre>--container-network-dns <i>network_name</i>:8.8.8.8</pre>
+<p>Short name: <code>--cnd</code></p>
+<p>The address of the DNS server for the container network. This option is recommended if the network that you specify in the <code>container-network</code> option does not support DHCP. </p>
+<p>When you specify the container network DNS server, you use the distributed port group that you specify in the <code>container-network</code> option.</p>
+<pre>--container-network-dns <i>distributed_port_group_name</i>:8.8.8.8</pre>
+
+<h3 id="containernetworkiprange"><code>container-network-ip-range</code></h3>
+<p>Short name: <code>--cnr</code></p>
+<p>The range of IP addresses that container VMs can use if the network that you specify in the <code>container-network</code> option does not support DHCP. If you do not specify this option, the IP range for container VMs is the entire subnet that you specify in <code>container-network-gateway</code>.</p>
+<p>When you specify the container network IP range, you use the distributed port group that you specify in the <code>container-network</code>option.</p>
+<pre>--container-network-ip-range <i>distributed_port_group_name</i>:192.168.100.2-192.168.100.254</pre>
+
+<p>You can also specify the IP range as a CIDR.</p>
+<pre>--container-network-ip-range <i>distributed_port_group_name</i>:192.168.100.0/24</pre>
 
 <p><a name="compute"></a></p>
 <h2 id="compute-resource-options">Compute Resource Options</h2>
-<p>If vCenter Server on which you are deploying a virtual container host only includes a single instance of a standalone host, cluster, or resource pool, <code>vic-machine create</code> automatically detects and uses those resources. If you are deploying to an ESXi host that has no resource pools, <code>vic-machine create</code> automatically uses the default resource pool. If your vCenter Server includes multiple instances of standalone hosts, clusters, or resource pools, or if your ESXi host includes multiple resource pools, you must specify the resource to use in the <code>compute-resource</code> option.</p>
+<p>If the vCenter Server instance on which you are deploying a virtual container host only includes a single instance of a standalone host or  cluster, <code>vic-machine create</code> automatically detects and uses those resources. If you are deploying to an ESXi host that has no resource pools, <code>vic-machine create</code> automatically uses the default resource pool. In these cases, you do not need to specify a compute resource when you run <code>vic-machine create</code>.</p>
 <h3 id="computeresource"><code>compute-resource</code></h3>
 <p>Short name: <code>-r</code></p>
-<p>The relative path to the host, cluster, or resource pool in which to deploy the virtual container host. </p>
+<p>The relative path to the host, cluster, or resource pool in which to deploy the virtual container host. You specify the <code>compute-resource</code> option in the following circumstances:</p>
+<ul>
+<li>A vCenter Server instance includes multiple instances of standalone hosts or clusters, or a mixture of standalone hosts and clusters.</li>
+<li>An ESXi host includes multiple resource pools. </li>
+<li>You want to deploy the virtual container host to a specific resource pool in your environment. </li>
+</ul>
+<p>If you do not specify the <code>compute-resource</code> option and multiple possible resources exist, <code>vic-machine create</code> fails and suggests valid targets for <code>compute-resource</code> in the failure message. </p>
 <ul>
 <li>To deploy to a specific resource pool on an ESXi host, specify the name of the resource pool: <pre>--compute-resource  <i>resource_pool_name</i></pre></li>
 <li>To deploy to a vCenter Server instance that has more than one standalone host but no clusters, specify the IPv4 address or fully qualified domain name (FQDN) of the target host:<pre>--compute-resource <i>host_address</i></pre></li>
@@ -346,27 +482,53 @@
 </ul>
 <p><a name="datastore"></a></p>
 <h2 id="datastore-options">Datastore Options</h2>
-<p>The <code>vic-machine</code> utility allows you to specify the datastores in which to store container VM files and container image files. </p>
-<h3 id="imagedatastore"><code>image-datastore</code></h3>
-<p>See <a href="#image">image-datastore</a> in the section on mandatory options.</p>
+<p>The <code>vic-machine</code> utility allows you to specify the datastores in which to store container VM files, container image files, and the files for the virtual container host appliance. </p>
+<ul>
+<li>vSphere Integrated Containers fully supports VMware Virtual SAN datastores. </li>
+<li>vSphere Integrated Containers supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names.</li>
+</ul>
+<h3 id="imagestore"><code>image-store</code></h3>
+<p>See <a href="#image">image-store</a> in the section on mandatory options.</p>
 <h3 id="containerdatastore"><code>container-datastore</code></h3>
+<p>Short name: <code>--cs</code></p>
 <p>The datastore in which to store container VM files. When you run a container, container VM files are stored in folders at the top level of the designated datastore. If multiple virtual container hosts use the same container store, all of the container VM files appear at the top level of the container store. You cannot currently designate a specific datastore folder for the VM files of the containers that run in a particular virtual container host.</p>
-<p>If you do not specify the <code>container-store</code> option, vSphere Integrated Containers stores container VM files in the same datastore that you specify in the mandatory <code>image-store</code> option.</p>
-<p><strong>NOTE</strong>: In the current builds the <code>container-store</code> option is not enabled. Container VM files are stored in the datastore that you designate as the image store.</p>
+<p>If you do not specify the <code>container-datastore</code> option, vSphere Integrated Containers stores container VM files in the same datastore that you specify in the mandatory <code>image-store</code> option.</p>
+<p>If you specify an invalid datastore name, <code>vic-machine create</code> fails and suggests valid datastores.</p>
+<p><strong>NOTE</strong>: In the current builds the <code>container-datastore</code> option is not enabled. Container VM files are stored in the datastore that you designate as the image store.</p>
 <pre>--container-datastore <i>datastore_name</i></pre> 
 
+<p><a name="volume-store"></a></p>
 <h3 id="volumestore"><code>volume-store</code></h3>
-<p>The datastore in which to create named volumes when using the <code>docker volume create</code> command.</p>
-<pre>--volume-store <i>volume_store_name</i>:<i>datastore_name</i>/<i>volume_name</i></pre>
+<p>Short name: <code>--vs</code></p>
+<p>The datastore in which to create volumes when using the <code>docker volume create</code> command. When you specify the <code>volume-store</code> option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If you specify an invalid datastore name, <code>vic-machine create</code> fails and suggests valid datastores.</p>
+<p>The label that you specify is the volume store name that Docker uses. For example, the volume store label appears in the information for a virtual container host when container application developers run <code>docker info</code>. Container application developers also specify the volume store label in the <code>docker volume create --opt VolumeStore=volume_store_label</code> option when they create a  volume.</p>
+<ul>
+<li><p>If you only require one volume store, you can set the volume store label to <code>default</code>. If you set the volume store label to <code>default</code>, container application developers do not need to specify the <code>--opt VolumeStore=volume_store_label</code> option when they run <code>docker volume create</code>. </p>
+<p><strong>NOTE</strong>: If container application developers intend to create anonymous volumes by using <code>docker create -v</code>, you must create a volume store with a label of <code>default</code>.</p>
+<pre>--volume-store <i>datastore_name</i>:default</pre></li>
+<li><p>If you specify the target datastore and the volume store label, <code>vic-machine create</code> creates a folder named <code>volumes</code> under the <code>VIC</code> folder on the target datastore. Any volumes that container application developers create will appear in the <code>volumes</code> folder.</p>
+<pre>--volume-store <i>datastore_name</i>:<i>volume_store_label</i></pre></li>
+<li><p>If you specify the target datastore, a datastore path, and the volume store label, <code>vic-machine create</code> creates a folder named <code>VIC/volumes</code> in the location that you specify in the datastore path. If the folders that you specify in the path do not already exist on the datastore, <code>vic-machine create</code> creates the appropriate folder structure. Any volumes that container application developers create will appear in the <code>path/VIC/volumes</code> folder.</p>
+<pre>--volume-store <i>datastore_name</i>/<i>path</i>:<i>volume_store_label</i></pre></li>
+<li><p>You can specify the <code>volume-store</code> option multiple times, to create multiple volume stores on the virtual container host.</p>
+<pre>--volume-store <i>datastore_name</i>/path:<i>volume_store_label_1</i>
+--volume-store <i>datastore_name</i>/<i>path</i>:<i>volume_store_label_2</i>
+[...]
+--volume-store <i>datastore_name</i>/<i>path</i>:<i>volume_store_label_n</i>
+</pre>
 
+</li>
+</ul>
 <p><a name="security"></a></p>
 <h2 id="security-options">Security Options</h2>
 <p>You can configure a virtual container host to use an automatically generated certificate, no certificate, or a Certificate Authority (CA) certificate to authenticate connections with Docker clients.</p>
 <h3 id="notls"><code>no-tls</code></h3>
+<p>Short name: <code>-k</code></p>
 <p>If you do not set the <code>no-tls</code> option, <code>vic-machine</code> by default generates a TLS certificate and key for the virtual container host to  use to authenticate with a Docker client. Set the <code>no-tls</code> option if you do not require certificate-based authentication between the virtual container host and the Docker client. If you use the <code>cert</code> and <code>key</code> options to upload a custom CA certificate, <code>vic-machine</code> does not auto-generate a certificate, without requiring you to set <code>no-tls</code> to <code>false</code>.</p>
 <pre>--no-tls</pre>
 
 <h3 id="cert"><code>cert</code></h3>
+<p>Short name: none</p>
 <p>The path to an X.509 certificate for the Docker API to use to authenticate the virtual container host with a Docker client.</p>
 <ul>
 <li>This option is mandatory if your Docker environment uses TLS certificates that are signed by a CA. For information about how to set up a Docker client to use CA certificates, see <a href="https://docs.docker.com/engine/security/https/" target="_blank">https://docs.docker.com/engine/security/https/</a>.</li>
@@ -376,12 +538,13 @@
 <pre>--cert <i>path_to_vcenter_server_certificate</i> --key <i>path_to_vcenter_server_key</i></pre> 
 
 <h3 id="key"><code>key</code></h3>
+<p>Short name: none</p>
 <p>The path to the private key file for use with a custom CA certificate. This option is mandatory if your Docker environment uses certificates that are signed by a CA. For information about how to set up a Docker client to use CA certificates, see <a href="https://docs.docker.com/engine/security/https/" target="_blank">https://docs.docker.com/engine/security/https/</a>.</p>
 <p>Use this option in combination with the <code>cert</code> option, that provides the path to an X.509 certificate file. </p>
 <pre>--cert <i>path_to_vcenter_server_certificate</i> --key <i>path_to_vcenter_server_key</i></pre>
 
 <p><a name="deployment"></a></p>
-<h2 id="deployment-options">Deployment Options</h2>
+<h2 id="appliance-deployment-options">Appliance Deployment Options</h2>
 <p>The <code>vic-machine</code> utility provides options to customize the deployment of virtual container hosts.</p>
 <h3 id="name"><code>name</code></h3>
 <p>Short name: <code>-n</code></p>
@@ -396,33 +559,74 @@
 
 <h3 id="force"><code>force</code></h3>
 <p>Short name: <code>-f</code></p>
-<p>Forces <code>vic-machine</code> to ignore warnings and non-fatal errors and continue with the deployment of a virtual container host. Errors such as an incorrect compute resource still cause the installation to fail. </p>
+<p>Forces <code>vic-machine create</code> to ignore warnings and non-fatal errors and continue with the deployment of a virtual container host. Errors such as an incorrect compute resource still cause the installation to fail. </p>
 <pre>--force</pre>
 
 <h3 id="timeout"><code>timeout</code></h3>
+<p>Short name: none</p>
 <p>The timeout period for uploading the vSphere Integrated Containers  appliance and container images to the ESXi host, and for powering on the appliance. Specify a value in the format <code>XmYs</code> if the default timeout of 3m0s is insufficient.</p>
 <pre>--timeout 5m0s</pre> 
 
 <h3 id="applianceiso"><code>appliance-iso</code></h3>
+<p>Short name: <code>--ai</code></p>
 <p>The ISO image from which the virtual container host appliance boots. Omit this option to boot the appliance from the default ISO that is included with <code>vic-machine</code>. Set this option to boot the appliance from a different ISO file, for example to reinstall an existing virtual container host or to update it to a newer version.</p>
 <pre>--appliance-iso <i>path_to_ISO_file</i></pre>
 
 <h3 id="bootstrapiso"><code>bootstrap-iso</code></h3>
+<p>Short name: <code>--bi</code></p>
 <p>The ISO image from which container VMs boot. Omit this option to boot container VMs from the default Photon OS ISO that is included with <code>vic-machine</code>. Set this option to a different ISO file to boot container VMs with an operating system other than Photon OS.</p>
 <pre>--bootstrap-iso <i>path_to_ISO_file</i></pre>
 
 <h3 id="appliancecpu"><code>appliance-cpu</code></h3>
-<p>The number of virtual CPUs for the virtual container host appliance VM. The default is 1. Set this option to increase the number of CPUs in the virtual container host VM, for example if the virtual container host will handle large volumes of containers, or containers that require a lot of processing power.</p>
+<p>Short name: none</p>
+<p>The number of virtual CPUs for the virtual container host VM. The default is 1. Set this option to increase the number of CPUs in the virtual container host VM, for example if the virtual container host will handle large volumes of containers, or containers that require a lot of processing power.</p>
 <pre>--appliance-cpu <i>number_of_CPUs</i></pre>
 
 <h3 id="appliancememory"><code>appliance-memory</code></h3>
-<p>The amount of memory for the virtual container host appliance VM. The default is 2048MB. Set this option to increase the amount of memory in the virtual container host VM, for example if the virtual container host will handle large volumes of containers, or containers that consume a lot of memory.</p>
+<p>Short name: none</p>
+<p>The amount of memory for the virtual container host VM. The default is 2048MB. Set this option to increase the amount of memory in the virtual container host VM, for example if the virtual container host will handle large volumes of containers, or containers that consume a lot of memory.</p>
 <pre>--appliance-memory <i>amount_of_memory</i></pre>
+
+<h3 id="userp"><code>use-rp</code></h3>
+<p>Short name: none</p>
+<p>Deploy the virtual container host to a resource pool rather than to a vApp. If you specify this option, <code>vic-machine create</code> creates a resource pool with the same name as the virtual container host.</p>
+<pre>--use-rp</pre>
+
+<h3 id="poolmemoryreservation"><code>pool-memory-reservation</code></h3>
+<p>Short name: <code>--pmr</code></p>
+<p>Reserve a quantity of memory for use by the vApp or resource pool that contains the virtual container host and container VMs. Specify the memory reservation value in MB. If not specified, <code>vic-machine create</code> sets the reservation to 1.</p>
+<pre>--pool-memory-reservation 1024</pre>
+
+<h3 id="poolmemorylimit"><code>pool-memory-limit</code></h3>
+<p>Short name: <code>--pml</code></p>
+<p>Limit the amount of memory that is available for use by the vApp or resource pool that contains the virtual container host and container VMs. Specify the memory limit value in MB. If not specified, <code>vic-machine create</code> sets the limit to 0 (unlimited).</p>
+<pre>--pool-memory-limit 1024</pre>
+
+<h3 id="poolmemoryshares"><code>pool-memory-shares</code></h3>
+<p>Short name: <code>--pms</code></p>
+<p>Set memory shares on the vApp or resource pool that contains the virtual container host and container VMs. Specify the share value as a level or a number, for example <code>high</code>, <code>normal</code>, <code>low</code>, or <code>163840</code>. If not specified, <code>vic-machine create</code> sets the share to <code>normal</code>.</p>
+<pre>--pool-memory-shares low</pre>
+
+<h3 id="poolcpureservation"><code>pool-cpu-reservation</code></h3>
+<p>Short name: <code>--pcr</code></p>
+<p>Reserve a quantity of CPU capacity for use by the vApp or resource pool that contains the virtual container host and container VMs.  Specify the CPU reservation value in MHz. If not specified, <code>vic-machine create</code> sets the reservation to 1.</p>
+<pre>--pool-cpu-reservation 1024</pre>
+
+<h3 id="poolcpulimit"><code>pool-cpu-limit</code></h3>
+<p>Short name: <code>--pcl</code></p>
+<p>Limit the amount of CPU capacity that is available for use by the vApp or resource pool that contains the virtual container host and container VMs. Specify the CPU limit value in MHz. If not specified, <code>vic-machine create</code> sets the reservation to 0 (unlimited).</p>
+<pre>--pool-cpu-limit 1024</pre>
+
+<h3 id="poolcpushares"><code>pool-cpu-shares</code></h3>
+<p>Short name: <code>--pcs</code></p>
+<p>Set CPU shares on the vApp or resource pool that contains the virtual container host and container VMs. Specify the share value as a level or a number, for example <code>high</code>, <code>normal</code>, <code>low</code>, or <code>163840</code>. If not specified, <code>vic-machine create</code> sets the share to <code>normal</code>.</p>
+<pre>--pool-cpu-shares low</pre>
 
 <h3 id="debug"><code>debug</code></h3>
 <p>Short name: <code>-v</code></p>
 <p>Provide verbose logging output, for troubleshooting purposes when running <code>vic-machine create</code>. If not specified, the <code>debug</code> value is set to 0 and verbose logging is disabled. Provide a value of 1 or greater to increase the verbosity of the logging. Note that setting debug to a value greater than 1 can affect the behavior of <code>vic-machine create</code>.</p>
 <pre>--debug 1</pre>
+
                     
                     </section>
                 

@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Examples of Deploying a Virtual Container Host | VMWare vSphere Integrated Containers Installation</title>
+        <title>Examples of Deploying a Virtual Container Host | VMware vSphere Integrated Containers Installation, version 0.5</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -53,7 +53,7 @@
         data-chapter-title="Examples of Deploying a Virtual Container Host"
         data-filepath="vch_installer_examples.md"
         data-basepath="."
-        data-revision="Thu Jul 07 2016 20:43:51 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Mon Aug 15 2016 19:03:21 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -173,19 +173,14 @@
             
         </li>
     
-
-            </ul>
-            
-        </li>
-    
-        <li class="chapter " data-level="5" data-path="verify_vch_deployment.html">
+        <li class="chapter " data-level="4.3" data-path="verify_vch_deployment.html">
             
                 
                     <a href="./verify_vch_deployment.html">
                 
                         <i class="fa fa-check"></i>
                         
-                            <b>5.</b>
+                            <b>4.3.</b>
                         
                         Verify the Deployment of a Virtual Container Host to vCenter Server
                     </a>
@@ -193,18 +188,119 @@
             
         </li>
     
-        <li class="chapter " data-level="6" data-path="verify_vch_deployment_esx.html">
+        <li class="chapter " data-level="4.4" data-path="verify_vch_deployment_esx.html">
             
                 
                     <a href="./verify_vch_deployment_esx.html">
                 
                         <i class="fa fa-check"></i>
                         
-                            <b>6.</b>
+                            <b>4.4.</b>
                         
                         Verify the Deployment of a Virtual Container Host to an ESXi Host
                     </a>
             
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="5" data-path="install_vic_plugin.html">
+            
+                
+                    <a href="./install_vic_plugin.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.</b>
+                        
+                        Installing the vSphere Web Client Plug-in for vSphere Integrated Containers
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="5.1" data-path="plugin_vc_web.html">
+            
+                
+                    <a href="./plugin_vc_web.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.1.</b>
+                        
+                        Install the vSphere Integrated Containers Plug-In on vCenter Server For Windows by Using a Web Server
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="5.2" data-path="plugin_vc_sftp.html">
+            
+                
+                    <a href="./plugin_vc_sftp.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.2.</b>
+                        
+                        Install the vSphere Integrated Containers Plug-In on vCenter Server For Windows, by Using SFTP
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="5.3" data-path="plugin_vc_no_sftp_or_web.html">
+            
+                
+                    <a href="./plugin_vc_no_sftp_or_web.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.3.</b>
+                        
+                        Install the vSphere Integrated Containers Plug-In on vCenter Server For Windows, without SFTP or a Web Server
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="5.4" data-path="plugin_vcsa_web.html">
+            
+                
+                    <a href="./plugin_vcsa_web.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.4.</b>
+                        
+                        Install the vSphere Integrated Containers Plug-In on a vCenter Server Appliance by Using a Web Server
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="5.5" data-path="plugin_vcsa_no_web.html">
+            
+                
+                    <a href="./plugin_vcsa_no_web.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.5.</b>
+                        
+                        Install the vSphere Integrated Containers Plug-In on a vCenter Server Appliance Without Access to a Web Server
+                    </a>
+            
+            
+        </li>
+    
+
+            </ul>
             
         </li>
     
@@ -231,7 +327,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href="./" >VMWare vSphere Integrated Containers Installation</a>
+        <a href="./" >VMware vSphere Integrated Containers Installation, version 0.5</a>
     </h1>
 </div>
 
@@ -261,7 +357,7 @@
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target <i>esxi_host_IPv4_address_or_FQDN</i>
 --user root
---image-datastore <i>datastore_name</i>
+--image-store <i>datastore_name</i>
 </pre>
 
 <p><a name="cluster"></a></p>
@@ -274,7 +370,7 @@
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
 --compute-resource <i>cluster_name</i>
---image-datastore <i>datastore_name</i>
+--image-store <i>datastore_name</i>
 --bridge-network <i>distributed_port_group_name</i>
 --name vch1
 </pre>
@@ -294,7 +390,7 @@
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
 --compute-resource <i>cluster_name</i>
---image-datastore <i>datastore_name</i>
+--image-store <i>datastore_name</i>
 --bridge-network <i>network_1_name</i>
 --management-network <i>network_2_name</i>
 --external-network <i>network_3_name</i>
@@ -310,7 +406,19 @@
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
 --compute-resource <i>cluster_name</i>
---image-datastore <i>datastore_1_name</i>
+--image-store <i>datastore_1_name</i>
+--container-datastore <i>datastore_2_name</i>
+--bridge-network <i>network_1_name</i>
+--name vch1
+</pre>
+
+<p>It is also possible to specify a specific folder in which to store your images, instead of just a datastore. This can be done by providing a path following the <code>image-store</code> option:</p>
+<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+--target <i>vcenter_server_IPv4_address_or_FQDN</i>
+--user Administrator@vsphere.local
+--password <i>vcenter_sso_password</i>
+--compute-resource <i>cluster_name</i>
+--image-store <i>datastore_1_name/path/to/some/specific/location</i>
 --container-datastore <i>datastore_2_name</i>
 --bridge-network <i>network_1_name</i>
 --name vch1
@@ -325,7 +433,7 @@
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
 --compute-resource <i>host_IPv4_address_or_FQDN</i>
---image-datastore <i>datastore_name</i>
+--image-store <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --name vch1
 </pre>
@@ -338,7 +446,7 @@
 --target <i>esxi_host_IPv4_address_or_FQDN</i>
 --user root
 --compute-resource <i>resource_pool_name</i>
---image-datastore <i>datastore_name</i>
+--image-store <i>datastore_name</i>
 </pre>
 
 <p><a name="rp_cluster"></a></p>
@@ -350,7 +458,7 @@
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
 --compute-resource <i>cluster_name</i>/<i>resource_pool_name</i>
---image-datastore <i>datastore_name</i>
+--image-store <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --name vch1
 </pre>
@@ -364,7 +472,7 @@
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
 --compute-resource <i>cluster_name</i>
---image-datastore <i>datastore_name</i>
+--image-store <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --cert <i>path_to_certificate_file</i>
 --key <i>path_to_certificate_file</i>
@@ -380,7 +488,7 @@
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
 --compute-resource <i>cluster_name</i>
---image-datastore <i>datastore_name</i>
+--image-store <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --name vch1
 --no-tls
@@ -395,12 +503,13 @@
 --user Administrator@vsphere.local
 --password <i>vcenter_sso_password</i>
 --compute-resource <i>cluster_name</i>
---image-datastore <i>datastore_name</i>
+--image-store <i>datastore_name</i>
 --bridge-network <i>network_name</i>
 --name vch1
 --appliance-cpu <i>number_of_CPUs</i>
 --appliance-memory <i>amount_of_memory</i>
 </pre>
+
                     
                     </section>
                 
