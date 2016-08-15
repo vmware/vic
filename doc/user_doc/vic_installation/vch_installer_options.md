@@ -46,7 +46,9 @@ You can also specify the username in the URL that you pass to `vic-machine creat
 
 Short name: `-i`
 
-The datastore in which to store container image files. When you deploy a virtual container host, `vic-machine` creates a folder named `VIC` on the target datastore,  in which to store all of the container images that you pull into a virtual container host. The `vic-machine` utility also places the VM files for the virtual container host in the datastore that you designate as the image store, in a folder that has the same name as the virtual container host. If you specify an image store in the format `datastore/some/path`, `/some/path` will be used as your image store instead of the folder with the same name as the virtual container host.
+The datastore in which to store container image files. When you deploy a virtual container host, `vic-machine` creates a folder named `VIC` on the target datastore,  in which to store all of the container images that you pull into a virtual container host. The `vic-machine` utility also places the VM files for the virtual container host in the datastore that you designate as the image store, in a folder that has the same name as the virtual container host. 
+
+You can specify a datastore folder to use as the image store in the format <code>datastore/<i>path</i></code>. In this case, the virtual container host uses <code><i>path</i></code> as the image store instead of using the folder with the same name as the virtual container host. If the folder that you specify does not already exist, `vic-machine create` creates it.
 
 You can designate the same datastore as the image store for multiple virtual container hosts. In this case, only one `VIC` folder is created in the datastore and the container image files are made available to all of the virtual container hosts that use that image store. 
 
@@ -55,6 +57,8 @@ You can designate the same datastore as the image store for multiple virtual con
 - In the current builds the `container-datastore` option is not enabled. As a consequence, container VM files are also stored in the datastore that you designate as the image store.
 
 <pre>--image-store <i>datastore_name</i></pre> 
+
+<pre>--image-store <i>datastore_name</i>/<i>path</i></pre> 
 
 <a name="bridge"></a>
 ### `bridge-network` ###
