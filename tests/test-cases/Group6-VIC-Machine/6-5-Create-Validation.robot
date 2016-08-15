@@ -31,6 +31,7 @@ Suggest resources - Invalid target path
     Should Contain  ${output}  vic-machine-linux failed
 
 Default image datastore
+    # This test case is dependent on the ESX environment having only one datastore
     Log To Console  \nRunning vic-machine create - default image datastore
     Set Test Environment Variables  ${true}  default  network  'VM Network'
     # Attempt to cleanup old/canceled tests
