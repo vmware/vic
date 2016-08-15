@@ -102,7 +102,7 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string, label stri
 		}
 
 		dsURL.Host = store.Name()
-		log.Infof("Using default datastore: %s", dsURL.Host)a
+		log.Infof("Using default datastore: %s", dsURL.Host)
 	}
 
 	stores, err := v.Session.Finder.DatastoreList(ctx, dsURL.Host)
