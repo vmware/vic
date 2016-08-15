@@ -309,10 +309,6 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	if c.ImageDatastorePath == "" {
-		return cli.NewExitError("--image-store Image datastore path must be specified; use format datastore/path", 1)
-	}
-
 	if c.cert != "" && c.key == "" {
 		return cli.NewExitError("key cert should be specified at the same time", 1)
 	}

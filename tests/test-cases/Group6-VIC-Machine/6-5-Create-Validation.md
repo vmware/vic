@@ -140,3 +140,13 @@ vic-machine create --name=<VCH_NAME> --target=<TEST_URL> \
 ### Expected Outcome:
 * Output contains message indicating invalid network configuration
 * Deployment fails
+
+
+Test Cases: - storage
+======
+## Default image datastore
+1. Prepare env with one datastore
+2. Issue `vic-machine create` without specifying `--image-store`
+
+### Expected Outcome:
+* Deployment succeeds
