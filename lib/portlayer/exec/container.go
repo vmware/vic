@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -69,7 +70,7 @@ type Container struct {
 	vm *vm.VirtualMachine
 }
 
-func NewContainer(id ID) *Handle {
+func NewContainer(id uid.UID) *Handle {
 	con := &Container{
 		ExecConfig: &executor.ExecutorConfig{},
 		State:      StateStopped,
@@ -78,7 +79,7 @@ func NewContainer(id ID) *Handle {
 	return con.newHandle()
 }
 
-func GetContainer(id ID) *Handle {
+func GetContainer(id uid.UID) *Handle {
 	// get from the cache
 	container := containers.Container(id.String())
 	if container != nil {
@@ -142,7 +143,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		}
 
 		if err != nil {
-			log.Errorf("Something failed. Spec was %s", *h.Spec.Spec())
+			log.Errorf("Something failed. Spec was %+v", *h.Spec.Spec())
 			return err
 		}
 
@@ -467,7 +468,7 @@ func (c *Container) Update(ctx context.Context, sess *session.Session) (*executo
 // Grab the info for the requested container
 // TODO:  Possibly change so that handler requests a handle to the
 // container and if it's not present then search and return a handle
-func ContainerInfo(ctx context.Context, sess *session.Session, containerID ID) (*Container, error) {
+func ContainerInfo(ctx context.Context, sess *session.Session, containerID uid.UID) (*Container, error) {
 	// first  lets see if we have it in the cache
 	container := containers.Container(containerID.String())
 	// if we missed search for it...

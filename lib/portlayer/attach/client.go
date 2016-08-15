@@ -98,7 +98,7 @@ func SSHAttach(client *ssh.Client, id string) (SessionInteraction, error) {
 func (t *attachSSH) Signal(signal ssh.Signal) error {
 	defer trace.End(trace.Begin(""))
 
-	msg := msgs.SignalMsg{signal}
+	msg := msgs.SignalMsg{Signal: signal}
 	ok, err := t.channel.SendRequest(msgs.SignalReq, true, msg.Marshal())
 	if err == nil && !ok {
 		return fmt.Errorf("unknown error")
@@ -139,7 +139,12 @@ func (t *attachSSH) Close() error {
 func (t *attachSSH) Resize(cols, rows, widthpx, heightpx uint32) error {
 	defer trace.End(trace.Begin(""))
 
-	msg := msgs.WindowChangeMsg{cols, rows, widthpx, heightpx}
+	msg := msgs.WindowChangeMsg{
+		Columns:  cols,
+		Rows:     rows,
+		WidthPx:  widthpx,
+		HeightPx: heightpx,
+	}
 	ok, err := t.channel.SendRequest(msgs.WindowChangeReq, true, msg.Marshal())
 	if err == nil && !ok {
 		return fmt.Errorf("unknown error")

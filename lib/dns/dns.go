@@ -25,9 +25,9 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/network"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/uid"
 
 	mdns "github.com/miekg/dns"
 )
@@ -347,7 +347,7 @@ func (s *Server) HandleVIC(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
 	}
 
 	// first look for the network alias
-	c := ctx.Container(exec.ID(name))
+	c := ctx.Container(uid.UID(name))
 	if c == nil {
 		// find the scope of the request
 		scopes, _ := ctx.Scopes(nil)
@@ -366,7 +366,7 @@ func (s *Server) HandleVIC(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
 			}
 		}
 
-		c = ctx.Container(exec.ID(name))
+		c = ctx.Container(uid.UID(name))
 		if c == nil {
 			log.Debugf("Can't find the container: %q", name)
 			return false, fmt.Errorf("Can't find the container: %q", name)

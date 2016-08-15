@@ -33,6 +33,7 @@ import (
 
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/uid"
 )
 
 // ScopesHandlersImpl is the receiver for all of the storage handler methods
@@ -96,7 +97,7 @@ func (handler *ScopesHandlersImpl) listScopes(idName string) ([]*models.ScopeCon
 	}
 
 	cfgs := make([]*models.ScopeConfig, len(_scopes))
-	updated := make(map[exec.ID]*exec.Handle)
+	updated := make(map[uid.UID]*exec.Handle)
 	for i, s := range _scopes {
 		for _, e := range s.Endpoints() {
 			// update the container config, if necessary
@@ -204,14 +205,14 @@ func (handler *ScopesHandlersImpl) ScopesList(params scopes.ListParams) middlewa
 func (handler *ScopesHandlersImpl) ScopesGetContainerEndpoints(params scopes.GetContainerEndpointsParams) middleware.Responder {
 	defer trace.End(trace.Begin("ScopesGetContainerEndpoint"))
 
-	id := exec.ParseID(params.HandleOrID)
+	cid := uid.Parse(params.HandleOrID)
 	// lookup by handle
-	h := exec.GetHandle(id.String())
+	h := exec.GetHandle(cid.String())
 	if h != nil {
-		id = exec.ParseID(h.ExecConfig.ID)
+		cid = uid.Parse(h.ExecConfig.ID)
 	}
 
-	c := handler.netCtx.Container(id)
+	c := handler.netCtx.Container(cid)
 	if c == nil {
 		return scopes.NewGetContainerEndpointsNotFound().WithPayload(errorPayload(fmt.Errorf("container not found")))
 	}
@@ -350,7 +351,6 @@ func (handler *ScopesHandlersImpl) ScopesUnbindContainer(params scopes.UnbindCon
 }
 
 func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
-	id := scope.ID()
 	subnet := ""
 	if !ip.IsUnspecifiedIP(scope.Subnet().IP) {
 		subnet = scope.Subnet().String()
@@ -361,6 +361,7 @@ func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
 		gateway = scope.Gateway().String()
 	}
 
+	id := scope.ID().String()
 	sc := &models.ScopeConfig{
 		ID:        &id,
 		Name:      scope.Name(),
@@ -399,7 +400,7 @@ func toEndpointConfig(e *network.Endpoint) *models.EndpointConfig {
 	return &models.EndpointConfig{
 		Address:   addr,
 		Container: e.Container().ID().String(),
-		ID:        e.ID(),
+		ID:        e.ID().String(),
 		Name:      e.Container().Name(),
 		Scope:     e.Scope().Name(),
 		Ports:     ecports,
