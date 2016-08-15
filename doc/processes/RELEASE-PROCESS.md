@@ -8,8 +8,7 @@ features that do not are then reworked until they will fit. Any features under
 active development that do not make the monthly release will be pushed into the
 next months version.
 
-See [../CONTRIBUTING.md](../CONTRIBUTING.md) for details on how issues are 
-prioritized and tracked.
+See [CONTRIBUTING.md](../../CONTRIBUTING.md#reporting-bugs-and-creating-issues) for details on how issues are prioritized and tracked.
 
 ## Release Versioning
 
