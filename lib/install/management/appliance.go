@@ -15,7 +15,11 @@
 package management
 
 import (
+	"crypto/tls"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"path"
 	"strconv"
 	"time"
@@ -23,6 +27,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/docker/docker/opts"
+	dockertypes "github.com/docker/engine-api/types"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
@@ -581,6 +586,58 @@ func (d *Dispatcher) waitForKey(key string) {
 	return
 }
 
+// isPortLayerRunning decodes the `docker info` response to check if the portlayer is running
+func isPortLayerRunning(res *http.Response) bool {
+	defer res.Body.Close()
+	resBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return false
+	}
+
+	var sysInfo dockertypes.Info
+	if err = json.Unmarshal(resBody, &sysInfo); err != nil {
+		return false
+	}
+
+	for _, status := range sysInfo.SystemStatus {
+		if status[0] == sysInfo.Driver {
+			return status[1] == "RUNNING"
+		}
+	}
+
+	return false
+}
+
+// waitForApplianceInit checks if the appliance is live by issuing `docker info` to it
+func waitForApplianceInit(hostIP, port string) bool {
+	dockerInfoURL := "https://" + hostIP + ":" + port + "/info"
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+
+	var (
+		res     *http.Response
+		err     error
+		success bool
+	)
+
+	maxRetries := 10
+	for i := 0; i < maxRetries; i++ {
+		res, err = client.Get(dockerInfoURL)
+		if err == nil && res.StatusCode == http.StatusOK {
+			if isPortLayerRunning(res) {
+				success = true
+				break
+			}
+		}
+
+		time.Sleep(time.Second)
+	}
+
+	return success
+}
+
 func (d *Dispatcher) makeSureApplianceRuns(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 
@@ -611,6 +668,12 @@ func (d *Dispatcher) makeSureApplianceRuns(conf *config.VirtualContainerHostConf
 	if !ip.IsUnspecifiedIP(conf.ExecutorConfig.Networks["client"].Assigned.IP) {
 		d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.IP.String()
 		log.Debug("Obtained IP address for client interface: %q", d.HostIP)
+
+		// wait till the appliance is fully initialized
+		initSuccess := waitForApplianceInit(d.HostIP, d.DockerPort)
+		if !initSuccess {
+			log.Warnf("Appliance services may be unreachable")
+		}
 		return nil
 	}
 
