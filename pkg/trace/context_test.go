@@ -15,38 +15,38 @@
 package trace
 
 import (
-	"runtime"
+	"sync"
+	"testing"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+
+	"golang.org/x/net/context"
 )
 
-var Logger = log.New()
+func TestContext(t *testing.T) {
+	Logger.Level = logrus.DebugLevel
 
-type tr struct {
-	msg       string
-	frameName string
-	startTime time.Time
-}
-
-// Begin starts the trace.  Msg is the msg to log.
-func Begin(msg string) *tr {
-	pc, _, _, _ := runtime.Caller(1)
-	name := runtime.FuncForPC(pc).Name()
-
-	if msg == "" {
-		Logger.Debugf("[BEGIN] [%s]", name)
-	} else {
-		Logger.Debugf("[BEGIN] [%s] %s", name, msg)
+	cnt := 100
+	wg := &sync.WaitGroup{}
+	wg.Add(cnt)
+	for i := 0; i < cnt; i++ {
+		go func() {
+			ctx := Start(context.TODO(), "testmsg")
+			Infof(ctx, "foo %d", i)
+			Done(ctx)
+			wg.Done()
+		}()
 	}
-
-	return &tr{msg: msg,
-		frameName: name,
-		startTime: time.Now()}
+	wg.Wait()
 }
 
-// End ends the trace.
-func End(t *tr) {
-	endTime := time.Now()
-	Logger.Debugf("[ END ] [%s] [%s] %s", t.frameName, endTime.Sub(t.startTime), t.msg)
+func TestDeadlineLogging(t *testing.T) {
+	ctx, _ := context.WithTimeout(context.Background(), time.Nanosecond)
+	ctx = Start(ctx, "testmsg")
+	err := Done(ctx)
+	if !assert.Error(t, err) {
+		return
+	}
 }
