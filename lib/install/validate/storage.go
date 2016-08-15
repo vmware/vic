@@ -22,6 +22,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
@@ -48,6 +49,7 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 
 	v.NoteIssue(err)
 	if ds != nil {
+		v.checkDatastore(ds)
 		v.SetDatastore(ds, imageDSpath)
 		conf.AddImageStore(imageDSpath)
 	}
@@ -134,6 +136,29 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string, label stri
 func (v *Validator) SetDatastore(ds *object.Datastore, path *url.URL) {
 	v.Session.Datastore = ds
 	v.Session.DatastorePath = path.Host
+}
+
+func (v *Validator) checkDatastore(ds *object.Datastore) {
+	defer trace.End(trace.Begin(ds.String()))
+	log.Infof("check %s", ds.Reference())
+
+	var d mo.Datastore
+
+	if err := ds.Properties(v.Context, ds.Reference(), []string{"host"}, &d); err != nil {
+		detail := fmt.Sprintf("Unable to check hosts for datastore %q: %s", ds, err)
+		log.Errorf(detail)
+		v.NoteIssue(errors.New(detail))
+		return
+	}
+
+	for _, h := range d.Host {
+		log.Debugf("%q", h)
+	}
+
+	if len(d.Host) == 1 {
+		log.Warnf("Only one (1) host connected to %q: %q", ds.Name(), d.Host[0].Key)
+	}
+
 }
 
 // suggestDatastore suggests all datastores present on target in datastore:label format if applicable
