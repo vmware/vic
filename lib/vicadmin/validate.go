@@ -151,6 +151,5 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 	log.Infof("Datastore Free Space: %.1fGB", float64(ds[0].Summary.FreeSpace)/(1<<30))
 	log.Infof("Datastore Capacity: %.1fGB", float64(ds[0].Summary.Capacity)/(1<<30))
 
-	v.StorageRemaining = template.HTML(fmt.Sprintf("%.1f GB",
-		float64(ds[0].Summary.FreeSpace)/(1<<30)))
+	v.StorageRemaining = template.HTML(fmt.Sprintf("%.1f GB", float64(ds[0].Summary.FreeSpace)/(1<<30)))
 }
