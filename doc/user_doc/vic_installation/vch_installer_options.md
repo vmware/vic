@@ -26,7 +26,7 @@ To facilitate IP address changes in your infrastructure, provide an FQDN wheneve
 - If the target ESXi host is managed by vCenter Server, or if you are deploying to a cluster, provide the address of vCenter Server.<pre>--target <i>vcenter_server_address</i></pre>
 - If you are deploying a virtual container host directly on an ESXi host, you must specify the `user` option, or include the user name and password in the target URL. Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>--target <i>esxi_host_username</i>:<i>password</i>@<i>esxi_host_address</i></pre>
 - If you are deploying a virtual container host on a vCenter Server instance, you must specify the `user` option, or include the user name and password in the target URL. Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>--target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i></pre>
-- If you are deploying a virtual container host on a vCenter Server instance that includes more than one datacenter, include the datacenter name in the target URL.<pre>--target <i>vcenter_server_address</i>/<i>datacenter_name</i></pre>
+- If you are deploying a virtual container host on a vCenter Server instance that includes more than one datacenter, include the datacenter name in the target URL. If you include an invalid datacenter name, `vic-machine create` fails and suggests the available datacenters that you can specify. <pre>--target <i>vcenter_server_address</i>/<i>datacenter_name</i></pre>
 - If you do not specify the `passwd` option or include the password in the target URL, `vic-machine create` prompts you to enter the password.
 
 ### `user` ###
@@ -46,15 +46,21 @@ You can also specify the username in the URL that you pass to `vic-machine creat
 
 Short name: `-i`
 
-The datastore in which to store container image files. When you deploy a virtual container host, `vic-machine` creates a folder named `VIC` on the target datastore,  in which to store all of the container images that you pull into a virtual container host. The `vic-machine` utility also places the VM files for the virtual container host in the datastore that you designate as the image store, in a folder that has the same name as the virtual container host. If you specify an image store in the format `datastore/some/path`, `/some/path` will be used as your image store instead of the folder with the same name as the virtual container host.
+The datastore in which to store container image files. When you deploy a virtual container host, `vic-machine` creates a folder named `VIC` on the target datastore,  in which to store all of the container images that you pull into a virtual container host. The `vic-machine` utility also places the VM files for the virtual container host in the datastore that you designate as the image store, in a folder that has the same name as the virtual container host. 
+
+You can specify a datastore folder to use as the image store in the format <code>datastore/<i>path</i></code>. In this case, the virtual container host uses <code><i>path</i></code> as the image store instead of using the folder with the same name as the virtual container host. If the folder that you specify does not already exist, `vic-machine create` creates it.
 
 You can designate the same datastore as the image store for multiple virtual container hosts. In this case, only one `VIC` folder is created in the datastore and the container image files are made available to all of the virtual container hosts that use that image store. 
+
+ If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores.
 
 **NOTES**: 
 - vSphere Integrated Containers supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names.
 - In the current builds the `container-datastore` option is not enabled. As a consequence, container VM files are also stored in the datastore that you designate as the image store.
 
 <pre>--image-store <i>datastore_name</i></pre> 
+
+<pre>--image-store <i>datastore_name</i>/<i>path</i></pre> 
 
 <a name="bridge"></a>
 ### `bridge-network` ###
@@ -71,7 +77,7 @@ The `bridge-network` option is **mandatory** if you are deploying a virtual cont
 
 In a vCenter Server environment, before you run `vic-machine create`, you must create a distributed virtual switch and a distributed port group. You must add the target ESXi host or hosts to the distributed virtual switch. For information about how to create a distributed virtual switch and port group, see *Network Requirements* in [Environment Prerequisites for vSphere Integrated Containers Installation](vic_installation_prereqs.md#networkreqs).
 
-You pass the name of the distributed port group to the `bridge-network` option. 
+You pass the name of the distributed port group to the `bridge-network` option. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
 <pre>--bridge-network <i>distributed_port_group_name</i></pre>
 
@@ -99,7 +105,7 @@ Short name: `--en`
 
 The network for containers to use to connect to the Internet. Containers use the external network to pull container images, for example from https://hub.docker.com/, and to publish network services. If you define the external network, you can deploy containers directly on the external interface. 
 
-If not specified, containers use the default VM Network for external traffic.
+If not specified, containers use the default VM Network for external traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
 <pre>--external-network <i>network_name</i></pre>
 
@@ -109,7 +115,7 @@ Short name: `--mn`
 
 The network that the virtual container host uses to communicate with vCenter Server and ESXi hosts. Container VMs use this network to communicate with the virtual container host. 
 
-If not specified, the virtual container host uses the external network for management traffic.
+If not specified, the virtual container host uses the external network for management traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
 <pre>--management-network <i>network_name</i></pre>
 
@@ -119,7 +125,7 @@ Short name: `--cln`
 
 The network that the virtual container host uses to generate the Docker API. The Docker API only uses this network.
 
-If not specified, the virtual container host uses the external network for client traffic.
+If not specified, the virtual container host uses the external network for client traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
 <pre>--client-network <i>network_name</i></pre>
 
@@ -129,7 +135,7 @@ Short name: `--cn`
 
 A network for container VMs to use for external communication when you  run `docker run` or `docker create` with the `--net` option. 
 
-To specify a container network, you provide the name of a distributed port group for the container VMs to use, and a descriptive name for the container network that is used by Docker. 
+To specify a container network, you provide the name of a distributed port group for the container VMs to use, and a descriptive name for the container network that is used by Docker. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
 - The distributed port group must exist before you run `vic-machine create`. 
 - You cannot use the same distributed port group that you use for the bridge network. 
@@ -219,6 +225,8 @@ The datastore in which to store container VM files. When you run a container, co
 
 If you do not specify the `container-datastore` option, vSphere Integrated Containers stores container VM files in the same datastore that you specify in the mandatory `image-store` option.
 
+If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores.
+
 **NOTE**: In the current builds the `container-datastore` option is not enabled. Container VM files are stored in the datastore that you designate as the image store.
 
 <pre>--container-datastore <i>datastore_name</i></pre> 
@@ -228,7 +236,7 @@ If you do not specify the `container-datastore` option, vSphere Integrated Conta
 
 Short name: `--vs`
 
-The datastore in which to create volumes when using the `docker volume create` command. When you specify the `volume-store` option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. 
+The datastore in which to create volumes when using the `docker volume create` command. When you specify the `volume-store` option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores.
 
 The label that you specify is the volume store name that Docker uses. For example, the volume store label appears in the information for a virtual container host when container application developers run `docker info`. Container application developers also specify the volume store label in the <code>docker volume create --opt VolumeStore=<i>volume_store_label</i></code> option when they create a  volume.
 
