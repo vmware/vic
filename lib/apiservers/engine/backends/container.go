@@ -893,10 +893,6 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 // ContainerLogs hooks up a container's stdout and stderr streams
 // configured with the given struct.
 func (c *Container) ContainerLogs(name string, config *backend.ContainerLogsConfig, started chan struct{}) error {
-	//FIXME:  Doug, remove following 3 lines once integration is added
-	if true {
-		return fmt.Errorf("%s does not implement container.ContainerLogs", ProductName())
-	}
 	defer trace.End(trace.Begin(""))
 
 	// Look up the container name in the metadata cache to get long ID
@@ -915,7 +911,7 @@ func (c *Container) ContainerLogs(name string, config *backend.ContainerLogsConf
 	// necessary headers that the CLI expects.  This is Docker's scheme.
 	wf := ioutils.NewWriteFlusher(config.OutStream)
 	defer wf.Close()
-	close(started)
+
 	wf.Flush()
 
 	var outStream io.Writer = wf
@@ -1462,11 +1458,18 @@ func (c *Container) validateContainerLogsConfig(vc *viccontainer.VicContainer, c
 		return 0, 0, fmt.Errorf("You must choose at least one stream")
 	}
 
-	// Validate tail lines and since params for future purposes, but VIC
-	// does not yet support them.
-	tailLines, err := strconv.ParseInt(config.Tail, 10, 64)
-	if err != nil {
-		tailLines = -1
+	unsupported := func(opt string) (int64, int64, error) {
+		return 0, 0, fmt.Errorf("%s does not yet support '--%s'", ProductName(), opt)
+	}
+
+	tailLines := int64(-1)
+	if config.Tail != "" && config.Tail != "all" {
+		n, err := strconv.ParseInt(config.Tail, 10, 64)
+		if err != nil {
+			return 0, 0, fmt.Errorf("error parsing tail option: %s", err)
+		}
+		tailLines = n
+		return unsupported("tail")
 	}
 
 	var since time.Time
@@ -1478,8 +1481,12 @@ func (c *Container) validateContainerLogsConfig(vc *viccontainer.VicContainer, c
 		since = time.Unix(s, n)
 	}
 
-	if config.Timestamps || config.Since != "" {
-		return 0, 0, fmt.Errorf("%s does not yet support timestampped logs.", ProductName())
+	if config.Timestamps {
+		return unsupported("timestamps")
+	}
+
+	if config.Since != "" {
+		return unsupported("since")
 	}
 
 	return tailLines, since.Unix(), nil

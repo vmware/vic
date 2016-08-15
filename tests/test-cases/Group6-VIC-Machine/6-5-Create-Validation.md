@@ -1,64 +1,122 @@
 Test 6-4 - Verify vic-machine create validation function
 =======
 
-#Purpose:
+# Purpose:
 Verify vic-machine create validation functions, this does not include validation for network, datastore, and compute resources
 
-#References:
+# References:
 * vic-machine-linux create -h
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
 
-#Test Cases: - suggest resources
-#Test Steps
+Test Cases: - suggest resources
+======
+
+## Resource pools
 1. Create with wrong compute-resource: not exist resource pool, not existed vc cluster, not existed datacenter.
 2. Create with wrong compute-resource format
 
-#Expected Outcome:
+### Expected Outcome:
 * Verify resource suggestion successfully show available values
+* Deployment fails
+
+## Networks
+1. Create with nonexistent bridge network
+2. Create with nonexistent external network
+
+### Expected Outcome:
+* Verify resource suggestion successfully show available values
+* Deployment fails
+
+## Multiple datacenters
+1. Prepare vCenter environment with multiple datacenters
+2. Create with --target not specifying a datacenter
+
+### Expected Outcome:
+* Output contains message indicating datacenter must be specified
+* Output suggests available datacenter values
+* Deployment fails
+
+## Invalid datacenter
+1. Prepare vCenter environment with multiple datacenters
+2. Create with --target specifying a datacenter that does not exist
+
+### Expected Outcome:
+* Output contains message indicating datacenter must be specified
+* Output suggests available datacenter values
+* Deployment fails
+
+## Invalid target path
+1. Prepare vCenter environment
+2. Create with --target specifying a datacenter and resource pool
+
+### Expected Outcome:
+* Output contains message indicating that onlydatacenter must be specified in --target
+* Output suggests available datacenter values
+* Deployment fails
 
 
-#Test Cases: - validate license
-#Test steps
+Test Cases: - validate license
+======
 1. Prepare env with different license level
 2. Verify license validation works for different license
-3. If license verification passed, verify VCH deployment succeed.
+
+### Expected Outcome:
+* If license verification passed, deployment succeeds
 
 
-#Test Cases: - firewall
-#Test steps
-1. Prepare env with firewall disabled
-2. Verify deployment failed for firewall is not enabled with user-friendly error message
+Test Cases: - firewall
+======
+
+## Firewall disabled
+1. Create with env with firewall disabled
+
+### Expected Outcome:
+* Warn firewall is not enabled with user-friendly message
+* Deployment succeeds
+
+## Firewall enabled
+1. Create with env with firewall enabled, but tether port allowed
+
+### Expected Outcome:
+* Show firewall check passed
+* Deployment succeeds
+
+## Firewall misconfigured
+1. Create env with firewall configured to block tether port
+
+### Expected Outcome:
+* Show error message that firewall is misconfigured
+* Deployment fails
 
 
-#Test Cases: - drs
-#Test steps
+Test Cases: - drs
+======
 1. Prepare env with drs disabled
 2. Verify deployment failed for drs disabled with user-friendly error message
 
 
-#Test Cases: - resource accessibility
-#Test steps
+Test Cases: - resource accessibility
+======
 1. Prepare env with datastore not connected to hosts
 2. Verify deployment failed for host/datastore connectability with user-friendly error message
 
 
-#Test Cases: - networking
-
-# Test Steps
+Test Cases: - networking
+======
 ## vDS contains all hosts in cluster
 1. Prepare vCenter environment with a vDS that is connected to all hosts in the cluster
 2. Issue the following command:
 ```
 vic-machine create --name=<VCH_NAME> --target=<TEST_URL> \
-    --user=<TEST_USERNAME> --image-datastore=<TEST_DATASTORE> --password=<TEST_PASSWORD> \
+    --user=<TEST_USERNAME> --image-store=<TEST_DATASTORE> --password=<TEST_PASSWORD> \
     --bridge-network=<NETWORK> --compute-resource=<TEST_RESOURCE>
 ```
 3. Run regression tests
 
-#Expected Outcome:
+### Expected Outcome:
 * Output contains message indicating vDS configuration OK
 * Deployment succeeds
 * Regression tests pass
@@ -68,10 +126,17 @@ vic-machine create --name=<VCH_NAME> --target=<TEST_URL> \
 2. Issue the following command:
 ```
 vic-machine create --name=<VCH_NAME> --target=<TEST_URL> \
-    --user=<TEST_USERNAME> --image-datastore=<TEST_DATASTORE> --password=<TEST_PASSWORD> \
+    --user=<TEST_USERNAME> --image-store=<TEST_DATASTORE> --password=<TEST_PASSWORD> \
     --bridge-network=<NETWORK> --compute-resource=<TEST_RESOURCE>
 ```
 
-#Expected Outcome:
+### Expected Outcome:
 * Output contains message indicating vDS configuration is incorrect with user-friendly error message
+* Deployment fails
+
+## Bridge network same as external network
+1. Create with bridge network the same as external network
+
+### Expected Outcome:
+* Output contains message indicating invalid network configuration
 * Deployment fails

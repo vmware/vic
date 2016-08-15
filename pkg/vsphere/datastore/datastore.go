@@ -15,7 +15,6 @@
 package datastore
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -196,7 +195,7 @@ func (d *Helper) Ls(ctx context.Context, p string) (*types.HostDatastoreBrowserS
 
 // LsDirs returns a list of dirents at the given path (relative to root)
 func (d *Helper) LsDirs(ctx context.Context, p string) (*types.ArrayOfHostDatastoreBrowserSearchResults, error) {
-	spec := &types.HostDatastoreBrowserSearchSpec{
+	spec := types.HostDatastoreBrowserSearchSpec{
 		MatchPattern: []string{"*"},
 	}
 
@@ -205,7 +204,7 @@ func (d *Helper) LsDirs(ctx context.Context, p string) (*types.ArrayOfHostDatast
 		return nil, err
 	}
 
-	task, err := b.SearchDatastoreSubFolders(ctx, path.Join(d.RootURL, p), spec)
+	task, err := b.SearchDatastoreSubFolders(ctx, path.Join(d.RootURL, p), &spec)
 	if err != nil {
 		return nil, err
 	}
@@ -235,20 +234,11 @@ func (d *Helper) Stat(ctx context.Context, pth string) (types.BaseFileInfo, erro
 func (d *Helper) Mv(ctx context.Context, fromPath, toPath string) error {
 	from := path.Join(d.RootURL, fromPath)
 	to := path.Join(d.RootURL, toPath)
-	log.Infof("Moving %s to %s", from, to)
 	err := tasks.Wait(ctx, func(context.Context) (tasks.Waiter, error) {
 		return d.fm.MoveDatastoreFile(ctx, from, d.s.Datacenter, to, d.s.Datacenter, true)
 	})
 
 	return err
-}
-
-func (d *Helper) Rm(ctx context.Context, pth string) error {
-	f := path.Join(d.RootURL, pth)
-	log.Infof("Removing %s", pth)
-	return tasks.Wait(context.TODO(), func(ctx context.Context) (tasks.Waiter, error) {
-		return d.fm.DeleteDatastoreFile(ctx, f, d.s.Datacenter)
-	})
 }
 
 func (d *Helper) IsVSAN(ctx context.Context) bool {
@@ -316,19 +306,19 @@ func (d *Helper) rootDir() string {
 }
 
 // Parse the datastore format ([datastore1] /path/to/thing) to groups.
-var datastoreFormat = regexp.MustCompile(`^\[([\w\d\(\)-_\s]+)\]`)
-var pathFormat = regexp.MustCompile(`\s([\/\w-_]+$)`)
+var datastoreFormat = regexp.MustCompile(`^\[([\w\d\(\)-_\.\s]+)\]`)
+var pathFormat = regexp.MustCompile(`\s([\/\w-_\.]*$)`)
 
 // Converts `[datastore] /path` to ds:// URL
 func ToURL(ds string) (*url.URL, error) {
 	u := new(url.URL)
 	var matches []string
 	if matches = datastoreFormat.FindStringSubmatch(ds); len(matches) != 2 {
-		return nil, errors.New("Ambiguous datastore format encountered.")
+		return nil, fmt.Errorf("Ambiguous datastore hostname format encountered from input: %s.", ds)
 	}
 	u.Host = matches[1]
 	if matches = pathFormat.FindStringSubmatch(ds); len(matches) != 2 {
-		return nil, errors.New("Ambiguous datastore path format encountered.")
+		return nil, fmt.Errorf("Ambiguous datastore path format encountered from input: %s.", ds)
 	}
 
 	u.Path = path.Clean(matches[1])

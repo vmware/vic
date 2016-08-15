@@ -49,11 +49,10 @@ var (
 )
 
 func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
-	defer trace.End(trace.Begin(""))
-
 	if vm == nil {
 		return false, errors.New("nil parameter")
 	}
+	defer trace.End(trace.Begin(vm.InventoryPath))
 
 	info, err := vm.FetchExtraConfig(d.ctx)
 	if err != nil {

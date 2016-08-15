@@ -164,12 +164,12 @@ func testNewVCHFromCompute(computePath string, name string, v *validate.Validato
 		isVC:    v.Session.IsVC(),
 		force:   false,
 	}
-	vch, path, err := d.NewVCHFromComputePath(computePath, name, v)
+	vch, err := d.NewVCHFromComputePath(computePath, name, v)
 	if err != nil {
 		t.Errorf("Failed to get VCH: %s", err)
 		return
 	}
-	t.Logf("Got VCH %s, path %s", vch, path)
+	t.Logf("Got VCH %s, path %s", vch, path.Dir(vch.InventoryPath))
 }
 
 func testDeleteVCH(v *validate.Validator, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {

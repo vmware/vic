@@ -61,4 +61,7 @@ type Configuration struct {
 	HostOS          string
 	HostOSVersion   string
 	HostProductName string //'VMware vCenter Server' or 'VMare ESXi'
+
+	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
+	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores"`
 }

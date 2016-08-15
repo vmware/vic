@@ -55,6 +55,16 @@ Get Docker Params
     ${ret}=  Strip String  @{ret}[0]
     Set Suite Variable  ${vch-ip}  ${ret}
 
+    ${proto}=  Set Variable If  ${certs}  "https"  "http"
+    Set Suite Variable  ${proto}
+
+    :FOR  ${item}  IN  @{output}
+    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  http
+    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
+
+    ${rest}  ${vic-admin}=  Split String From Right  ${line}
+    Set Suite Variable  ${vic-admin}
+
 Install VIC Appliance To Test Server
     [Arguments]  ${certs}=${false}  ${vol}=default
     Set Test Environment Variables  ${certs}  ${vol}  network  'VM Network'
@@ -78,11 +88,11 @@ Install VIC Appliance To Test Server
 Run VIC Machine Command
     [Tags]  secret
     [Arguments]  ${certs}  ${vol}  ${bridge}  ${external}
-    ${output}=  Run Keyword If  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --force=true --bridge-network=${bridge} --external-network=${external} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol}
+    ${output}=  Run Keyword If  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --force=true --bridge-network=${bridge} --external-network=${external} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol}
     Run Keyword If  ${certs}  Should Contain  ${output}  Installer completed successfully
     Return From Keyword If  ${certs}  ${output}
 
-    ${output}=  Run Keyword Unless  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --no-tls --force=true --bridge-network=${bridge} --external-network=${external} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol}
+    ${output}=  Run Keyword Unless  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --no-tls --force=true --bridge-network=${bridge} --external-network=${external} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol}
     Run Keyword Unless  ${certs}  Should Contain  ${output}  Installer completed successfully
     [Return]  ${output}
 
@@ -133,11 +143,11 @@ Gather Logs From Test Server
     ${status}  ${message}=  Run Keyword And Ignore Error  Should Not Contain  ${params}  --tls
     # Non-certificate case
     ${ip}=  Run Keyword If  '${status}'=='PASS'  Split String  ${params}  :
-    Run Keyword If  '${status}'=='PASS'  Run  wget http://@{ip}[0]:2378/container-logs.zip -O ${vch-name}-container-logs.zip
+    Run Keyword If  '${status}'=='PASS'  Run  wget ${vic-admin}/container-logs.zip -O ${vch-name}-container-logs.zip
     # Certificate case
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  ${params}  ${SPACE}
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  @{ip}[1]  :
-    Run Keyword If  '${status}'=='FAIL'  Run  wget --no-check-certificate https://@{ip}[0]:2378/container-logs.zip -O ${vch-name}-container-logs.zip
+    Run Keyword If  '${status}'=='FAIL'  Run  wget --no-check-certificate ${vic-admin}/container-logs.zip -O ${vch-name}-container-logs.zip
 
 Gather Logs From ESX Server
     Environment Variable Should Be Set  TEST_URL
@@ -146,7 +156,10 @@ Gather Logs From ESX Server
 Get State Of Github Issue
     [Arguments]  ${num}
     [Tags]  secret
-    ${result}=  Get  https://api.github.com/repos/vmware/vic/issues/${num}?access_token\=%{GITHUB_AUTOMATION_API_KEY}
+    :FOR  ${idx}  IN RANGE  0  5
+    \   ${status}  ${result}=  Run Keyword And Ignore Error  Get  https://api.github.com/repos/vmware/vic/issues/${num}?access_token\=%{GITHUB_AUTOMATION_API_KEY}
+    \   Exit For Loop If  '${status}'
+    \   Sleep  1
     Should Be Equal  ${result.status_code}  ${200}
     ${status}=  Get From Dictionary  ${result.json()}  state
     [Return]  ${status}
@@ -273,6 +286,11 @@ Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Stopped
+    # Ensure container logs are correctly being gathered for debugging purposes
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz | tar tvzf -
+    Should Be Equal As Integers  ${rc}  0
+    Log  ${output}
+    Should Contain  ${output}  ${container}/vmware.log
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a

@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	"golang.org/x/net/context"
 )
@@ -32,8 +33,6 @@ import (
 // Delete has all input parameters for vic-machine delete command
 type Uninstall struct {
 	*data.Data
-
-	logfile string
 
 	executor *management.Dispatcher
 }
@@ -74,11 +73,6 @@ func (d *Uninstall) processParams() error {
 		return err
 	}
 
-	if err := d.ProcessID(); err != nil {
-		return err
-	}
-
-	d.logfile = "delete.log"
 	d.Insecure = true
 	return nil
 }
@@ -95,7 +89,6 @@ func (d *Uninstall) Run(cli *cli.Context) error {
 	}
 
 	if len(cli.Args()) > 0 {
-		log.Error("Delete cannot continue: invalid CLI arguments")
 		log.Errorf("Unknown argument: %s", cli.Args()[0])
 		return errors.New("invalid CLI arguments")
 	}
@@ -112,12 +105,21 @@ func (d *Uninstall) Run(cli *cli.Context) error {
 	}
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, d.Force)
 
-	vch, _, err := executor.NewVCHFromComputePath(d.Data.ComputeResourcePath, d.Data.DisplayName, validator)
+	var vch *vm.VirtualMachine
+	if d.Data.ID != "" {
+		vch, err = executor.NewVCHFromID(d.Data.ID)
+	} else {
+		vch, err = executor.NewVCHFromComputePath(d.Data.ComputeResourcePath, d.Data.DisplayName, validator)
+	}
 	if err != nil {
 		log.Errorf("Failed to get Virtual Container Host %s", d.DisplayName)
 		log.Error(err)
 		return errors.New("delete failed")
 	}
+
+	log.Infof("")
+	log.Infof("VCH ID: %s", vch.Reference().String())
+
 	vchConfig, err := executor.GetVCHConfig(vch)
 	if err != nil {
 		log.Error("Failed to get Virtual Container Host configuration")

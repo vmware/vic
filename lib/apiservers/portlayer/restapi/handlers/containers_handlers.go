@@ -20,7 +20,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io"
 
 	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
 	"golang.org/x/net/context"
@@ -36,16 +35,12 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/uid"
 )
-
-type LogReader interface {
-	Reader(ctx context.Context, containerID string, follow, showTimestamps bool, tailLines, logsSince int64) (io.ReadCloser, error)
-}
 
 // ContainersHandlersImpl is the receiver for all of the exec handler methods
 type ContainersHandlersImpl struct {
 	handlerCtx *HandlerContext
-	logServer  LogReader
 }
 
 // Configure assigns functions to all the exec api handlers
@@ -60,9 +55,6 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 	api.ContainersGetContainerListHandler = containers.GetContainerListHandlerFunc(handler.GetContainerListHandler)
 	api.ContainersContainerSignalHandler = containers.ContainerSignalHandlerFunc(handler.ContainerSignalHandler)
 	api.ContainersGetContainerLogsHandler = containers.GetContainerLogsHandlerFunc(handler.GetContainerLogsHandler)
-
-	//FIXME: Doug, add your portlayer log server here
-	handler.logServer = nil
 
 	handler.handlerCtx = handlerCtx
 }
@@ -81,7 +73,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	log.Debugf("Args: %#v", params.CreateConfig.Args)
 	log.Debugf("Env: %#v", params.CreateConfig.Env)
 	log.Debugf("WorkingDir: %#v", params.CreateConfig.WorkingDir)
-	id := exec.GenerateID().String()
+	id := uid.New().String()
 
 	// Init key for tether
 	privateKey, err := rsa.GenerateKey(rand.Reader, 512)
@@ -124,11 +116,10 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	log.Infof("CreateHandler Metadata: %#v", m)
 
 	// Create new portlayer executor and call Create on it
-	h := exec.NewContainer(exec.ParseID(id))
+	h := exec.NewContainer(uid.Parse(id))
 	// Create the executor.ExecutorCreateConfig
 	c := &exec.ContainerCreateConfig{
-		Metadata: m,
-
+		Metadata:       m,
 		ParentImageID:  *params.CreateConfig.Image,
 		ImageStoreName: params.CreateConfig.ImageStore.Name,
 		VCHName:        options.PortLayerOptions.VCHName,
@@ -199,7 +190,7 @@ func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStat
 func (handler *ContainersHandlersImpl) GetHandler(params containers.GetParams) middleware.Responder {
 	defer trace.End(trace.Begin("Containers.GetHandler"))
 
-	h := exec.GetContainer(exec.ParseID(params.ID))
+	h := exec.GetContainer(uid.Parse(params.ID))
 	if h == nil {
 		return containers.NewGetNotFound().WithPayload(&models.Error{Message: fmt.Sprintf("container %s not found", params.ID)})
 	}
@@ -227,7 +218,7 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 	defer trace.End(trace.Begin("Containers.RemoveContainerHandler"))
 
 	// get the indicated container for removal
-	cID := exec.ParseID(params.ID)
+	cID := uid.Parse(params.ID)
 	h := exec.GetContainer(cID)
 	if h == nil {
 		return containers.NewContainerRemoveNotFound()
@@ -252,7 +243,7 @@ func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers
 	defer trace.End(trace.Begin("Containers.GetContainerInfoHandler"))
 
 	// get the container id for interogation
-	containerID := exec.ParseID(params.ID)
+	containerID := uid.Parse(params.ID)
 	cc, err := exec.ContainerInfo(context.Background(), handler.handlerCtx.Session, containerID)
 	if err != nil {
 		log.Debugf("GetContainerInfoHandler Error: %s", err.Error())
@@ -291,7 +282,7 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.ContainerSignalParams) middleware.Responder {
 	defer trace.End(trace.Begin("Containers.ContainerSignal"))
 
-	h := exec.GetContainer(exec.ParseID(params.ID))
+	h := exec.GetContainer(uid.Parse(params.ID))
 	if h == nil {
 		return containers.NewContainerSignalNotFound().WithPayload(&models.Error{Message: fmt.Sprintf("container %s not found", params.ID)})
 	}
@@ -305,21 +296,18 @@ func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.
 }
 
 func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers.GetContainerLogsParams) middleware.Responder {
-	defer trace.End(trace.Begin("Containers.GetContainerLogsHandler"))
+	defer trace.End(trace.Begin(params.ID))
 
-	if handler.logServer == nil {
-		errPayload := &models.Error{Message: "Log server not implemented"}
-
-		log.Errorf("Containers.GetContainerLogsHandler error: %s", errPayload.Message)
-		return containers.NewGetContainerLogsInternalServerError().WithPayload(errPayload)
+	h := exec.GetContainer(uid.Parse(params.ID))
+	if h == nil {
+		return containers.NewGetContainerLogsNotFound().WithPayload(&models.Error{
+			Message: fmt.Sprintf("container %s not found", params.ID),
+		})
 	}
 
-	reader, err := handler.logServer.Reader(context.Background(), params.ID, *params.Follow, *params.Timestamp, *params.Taillines, *params.Since)
+	reader, err := h.Container.LogReader(context.Background())
 	if err != nil {
-		err = fmt.Errorf("No stdout found for %s: %s", params.ID, err.Error())
-		log.Errorf("%s", err.Error())
-
-		return containers.NewGetContainerLogsNotFound()
+		return containers.NewGetContainerLogsInternalServerError().WithPayload(&models.Error{Message: err.Error()})
 	}
 
 	detachableOut := NewFlushingReader(reader)

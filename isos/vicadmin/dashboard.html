@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <!-- Styles -->
     <link rel="stylesheet" href="css/clarity-ui.min.css">
-    <link rel="stylesheet" href="css/font-awesome.min.css">
+    <link rel="stylesheet" href="css/fontello.css">
     <link rel="stylesheet" href="css/style.css">
   </head>
   <body id="body" class="page-community layout-community">
@@ -21,7 +21,7 @@
           <span class="title">vSphere Integrated Containers</span>
         </div>
         <a role="button" class="btn btn-primary" href="http://www.github.com/vmware/vic">
-          <i class="fa fa-github"></i>
+          <i class="icon-github-circled"></i>
           View on Github
         </a>
       </header>
@@ -37,15 +37,14 @@
                 <ul class="status-card">
                   <li>
                     <span class="right">
-                      <i class="fa fa-check"></i>
+                      <i class="icon-ok"></i>
                     </span>
                     Containers
                   </li>
                   <li>
-                    <span class="right">
-                      <i class="fa fa-check"></i>
-                    </span>
+					{{.NetworkStatus}}
                     Network Connectivity
+                    {{.NetworkIssues}}
                   </li>
                   <li>
                     {{.FirewallStatus}}
@@ -54,15 +53,14 @@
                   </li>
                   <li>
                     <span class="right">
-                      <i class="fa fa-check"></i>
+                      <i class="icon-ok"></i>
                     </span>
                     Virtual Container Host (VCH)
                   </li>
                   <li>
-                    <span class="right">
-                      <i class="fa fa-check"></i>
-                    </span>
+                    {{.LicenseStatus}}
                     License
+                    {{.LicenseIssues}}
                   </li>
                 </ul>
               </div>
@@ -95,7 +93,7 @@
                         <a href="/logs/tail/imagec.log">Live Log</a>
                       </li>
                   <li><a href="/logs/port-layer.log">
-                      VCH Services (Low-Level)
+                      Port-Layer Service
                       </a>
                       <span class="right">
                         <a href="/logs/tail/port-layer.log">Live Log</a>
