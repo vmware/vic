@@ -17,13 +17,13 @@ package network
 import (
 	"sync"
 
-	"github.com/vmware/vic/lib/portlayer/exec"
+	"github.com/vmware/vic/pkg/uid"
 )
 
 type Container struct {
 	sync.Mutex
 
-	id   exec.ID
+	id   uid.UID
 	name string
 
 	endpoints []*Endpoint
@@ -38,7 +38,7 @@ func (c *Container) Endpoints() []*Endpoint {
 	return ret
 }
 
-func (c *Container) ID() exec.ID {
+func (c *Container) ID() uid.UID {
 	return c.id
 }
 
