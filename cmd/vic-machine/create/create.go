@@ -99,6 +99,8 @@ type Create struct {
 	BridgeIPRange string
 
 	executor *management.Dispatcher
+
+	scratchSize string
 }
 
 var (
@@ -245,6 +247,12 @@ func (c *Create) Flags() []cli.Flag {
 			Value:       "",
 			Usage:       "Virtual Container Host x509 certificate file",
 			Destination: &c.cert,
+		},
+		cli.StringFlag{
+			Name:        "base-image-size",
+			Value:       "",
+			Usage:       "Specify the size of a base image e.g. 8G/8000M/8000000K",
+			Destination: &c.scratchSize,
 		},
 		cli.BoolFlag{
 			Name:        "no-tls, k",
@@ -584,6 +592,7 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		}
 	}()
 
+	c.Data.ScratchSize = c.scratchSize
 	validator, err := validate.NewValidator(ctx, c.Data)
 	if err != nil {
 		log.Error("Create cannot continue: failed to create validator")

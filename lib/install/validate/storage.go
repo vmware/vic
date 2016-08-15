@@ -17,6 +17,9 @@ package validate
 import (
 	"fmt"
 	"net/url"
+	"path"
+	"regexp"
+	"strconv"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -173,4 +176,35 @@ func (v *Validator) suggestDatastore(path string, label string, flag string) {
 			log.Infof("  %q", d)
 		}
 	}
+}
+
+func parseScratchSize(input string) int {
+
+	sizeFormat := regexp.MustCompile(`(\d+)([TMGK])`)
+	var matches []string
+	if matches = sizeFormat.FindStringSubmatch(input); len(matches) != 3 {
+		log.Errorln("Incorrect size format provided for default image size. Should be an integer followed by a unit, such as 10T, 10G, 10M, or 10K")
+		return -1
+	}
+
+	unit := matches[2]
+	var multiplier int
+	switch unit {
+	case "M":
+		multiplier = 1024
+	case "G":
+		multiplier = 1024 * 1024
+	case "T":
+		multiplier = 1024 * 1024 * 1024
+	default:
+		multiplier = 1
+	}
+
+	size, err := strconv.Atoi(matches[1])
+	if err != nil {
+		log.Errorf("Could not convert %s to an integer while parsing default image size parameter", matches[1])
+		return -1
+	}
+
+	return size * multiplier
 }
