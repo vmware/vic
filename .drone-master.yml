@@ -27,7 +27,7 @@ build:
       - make sincemark
     when:
       repo: vmware/vic
-      branch: master
+      branch: integration/*
 
   integration-test-on-pr:
     image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.4}
@@ -61,7 +61,7 @@ build:
       - make sincemark
     when:
       repo: vmware/vic
-      branch: master
+      branch: integration/*
       success: true
 
   vicui:
@@ -84,7 +84,7 @@ build:
       - make sincemark
     when:
       repo: vmware/vic
-      branch: master
+      branch: integration/*
       success: true
 
   bundle:
@@ -111,7 +111,7 @@ build:
       - make sincemark
     when:
       repo: vmware/vic
-      branch: master
+      branch: integration/*
       success: true
 
 publish:
@@ -136,5 +136,5 @@ publish:
         publish: true
     when:
       repo: vmware/vic
-      branch: master
+      branch: integration/*
       success: true
