@@ -92,9 +92,17 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string, label stri
 			dsURL.Path = ""
 		}
 	}
+
 	if dsURL.Host == "" {
-		v.suggestDatastore("*", label, flag)
-		return nil, nil, errors.New("datastore hostname empty")
+		// see if we can find a default datastore
+		store, err := v.Session.Finder.DatastoreOrDefault(ctx, "*")
+		if err != nil {
+			v.suggestDatastore("*", label, flag)
+			return nil, nil, errors.New("datastore empty")
+		}
+
+		dsURL.Host = store.Name()
+		log.Infof("Using default datastore: %s", dsURL.Host)
 	}
 
 	stores, err := v.Session.Finder.DatastoreList(ctx, dsURL.Host)
