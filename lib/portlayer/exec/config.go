@@ -70,5 +70,5 @@ type Configuration struct {
 	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores"`
 
 	// Size of scratch layer in KB
-	ScratchSize int `vic:"0.1" scope:"read-only" key:"scratch_size"`
+	ScratchSize int64 `vic:"0.1" scope:"read-only" key:"scratch_size"`
 }

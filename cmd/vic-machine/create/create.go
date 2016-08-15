@@ -252,8 +252,8 @@ func (c *Create) Flags() []cli.Flag {
 		},
 		cli.StringFlag{
 			Name:        "base-image-size",
-			Value:       "",
-			Usage:       "Specify the size of a base image e.g. 8G/8000M/8000000K",
+			Value:       "8GB",
+			Usage:       "Specify the size of the base image from which all other images are created e.g. 8GB/8000MB",
 			Destination: &c.scratchSize,
 		},
 		cli.BoolFlag{
@@ -645,7 +645,6 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		}
 	}()
 
-	c.Data.ScratchSize = c.scratchSize
 	validator, err := validate.NewValidator(ctx, c.Data)
 	if err != nil {
 		log.Error("Create cannot continue: failed to create validator")
