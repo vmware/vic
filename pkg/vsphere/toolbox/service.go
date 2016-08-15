@@ -22,6 +22,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/vmware/vic/pkg/trace"
 )
 
 const (
@@ -62,6 +64,8 @@ type Service struct {
 
 // NewService initializes a Service instance
 func NewService(rpcIn Channel, rpcOut Channel) *Service {
+	defer trace.End(trace.Begin(""))
+
 	s := &Service{
 		name:     "toolbox", // Same name used by vmtoolsd
 		in:       NewTraceChannel(rpcIn),
@@ -102,6 +106,8 @@ func (s *Service) backoff() {
 
 // Start initializes the RPC channels and starts a goroutine to listen for incoming RPC requests
 func (s *Service) Start() error {
+	defer trace.End(trace.Begin(""))
+
 	err := s.in.Start()
 	if err != nil {
 		return err
@@ -149,6 +155,8 @@ func (s *Service) Start() error {
 
 // Stop cancels the RPC listener routine created via Start
 func (s *Service) Stop() {
+	defer trace.End(trace.Begin(""))
+
 	close(s.stop)
 
 	_ = s.in.Stop()
@@ -157,6 +165,8 @@ func (s *Service) Stop() {
 
 // Wait blocks until Start returns, allowing any current RPC in progress to complete.
 func (s *Service) Wait() {
+	defer trace.End(trace.Begin(""))
+
 	s.wg.Wait()
 }
 
@@ -165,11 +175,15 @@ type Handler func([]byte) ([]byte, error)
 
 // RegisterHandler for the given RPC name
 func (s *Service) RegisterHandler(name string, handler Handler) {
+	defer trace.End(trace.Begin(""))
+
 	s.handlers[name] = handler
 }
 
 // Dispatch an incoming RPC request to a Handler
 func (s *Service) Dispatch(request []byte) []byte {
+	defer trace.End(trace.Begin(""))
+
 	msg := bytes.SplitN(request, []byte{' '}, 2)
 	name := msg[0]
 
@@ -201,16 +215,22 @@ func (s *Service) Dispatch(request []byte) []byte {
 
 // Reset is the default Handler for reset requests
 func (s *Service) Reset([]byte) ([]byte, error) {
+	defer trace.End(trace.Begin(""))
+
 	return []byte("ATR " + s.name), nil
 }
 
 // Ping is the default Handler for ping requests
 func (s *Service) Ping([]byte) ([]byte, error) {
+	defer trace.End(trace.Begin(""))
+
 	return nil, nil
 }
 
 // SetOption is the default Handler for Set_Option requests
 func (s *Service) SetOption(args []byte) ([]byte, error) {
+	defer trace.End(trace.Begin(""))
+
 	opts := bytes.SplitN(args, []byte{' '}, 2)
 	key := string(opts[0])
 	val := string(opts[1])
@@ -239,6 +259,8 @@ func (s *Service) SetOption(args []byte) ([]byte, error) {
 // DefaultIP is used by default when responding to a Set_Option broadcastIP request
 // It can be overridden with the Service.PrimaryIP field
 func DefaultIP() string {
+	defer trace.End(trace.Begin(""))
+
 	addrs, err := netInterfaceAddrs()
 	if err == nil {
 		for _, addr := range addrs {
@@ -253,7 +275,10 @@ func DefaultIP() string {
 	return ""
 }
 
+// CapabilitiesRegister is used to register capabilities
 func (s *Service) CapabilitiesRegister([]byte) ([]byte, error) {
+	defer trace.End(trace.Begin(""))
+
 	for _, cap := range capabilities {
 		_, err := s.out.Request([]byte(cap))
 		if err != nil {

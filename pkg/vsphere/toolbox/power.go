@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // GuestOsState enum as defined in open-vm-tools/lib/include/vmware/guestrpc/powerops.h
@@ -78,6 +80,8 @@ func registerPowerCommandHandler(service *Service) *PowerCommandHandler {
 }
 
 func (c *PowerCommand) Dispatch([]byte) ([]byte, error) {
+	defer trace.End(trace.Begin(""))
+
 	rc := rpciOK
 
 	log.Printf("dispatching power op %q", c.name)
@@ -104,11 +108,15 @@ func (c *PowerCommand) Dispatch([]byte) ([]byte, error) {
 }
 
 func Halt() error {
+	defer trace.End(trace.Begin(""))
+
 	log.Printf("Halting system...")
 	return exec.Command(shutdown, "-h", "now").Run()
 }
 
 func Reboot() error {
+	defer trace.End(trace.Begin(""))
+
 	log.Printf("Rebooting system...")
 	return exec.Command(shutdown, "-r", "now").Run()
 }
