@@ -1,0 +1,401 @@
+<!DOCTYPE HTML>
+<html lang="en" >
+    
+    <head>
+        
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <title>Virtual Container Host Inspect Options | VMware vSphere Integrated Containers for vSphere Administrators, version 0.5</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 2.6.7">
+        
+        
+        <meta name="HandheldFriendly" content="true"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black">
+        <link rel="apple-touch-icon-precomposed" sizes="152x152" href="gitbook/images/apple-touch-icon-precomposed-152.png">
+        <link rel="shortcut icon" href="gitbook/images/favicon.ico" type="image/x-icon">
+        
+    <link rel="stylesheet" href="gitbook/style.css">
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-highlight/website.css">
+        
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-search/search.css">
+        
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-fontsettings/website.css">
+        
+    
+    
+
+        
+    
+    
+    <link rel="next" href="./list_vch.html" />
+    
+    
+    <link rel="prev" href="./inspect_vch.html" />
+    
+
+        
+    </head>
+    <body>
+        
+        
+    <div class="book"
+        data-level="4.2.1"
+        data-chapter-title="Virtual Container Host Inspect Options"
+        data-filepath="inspect_vch_options.md"
+        data-basepath="."
+        data-revision="Mon Aug 15 2016 19:03:37 GMT+0200 (W. Europe Daylight Time)"
+        data-innerlanguage="">
+    
+
+<div class="book-summary">
+    <nav role="navigation">
+        <ul class="summary">
+            
+            
+            
+            
+
+            
+
+            
+    
+        <li class="chapter " data-level="0" data-path="index.html">
+            
+                
+                    <a href="./index.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                        Introduction
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="1" data-path="vicarch.html">
+            
+                
+                    <a href="./vicarch.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>1.</b>
+                        
+                        vSphere Integrated Containers Architecture
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="2" data-path="interop.html">
+            
+                
+                    <a href="./interop.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.</b>
+                        
+                        vSphere Integrated Containers Interoperability with Other VMware Software
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="3" data-path="networks.html">
+            
+                
+                    <a href="./networks.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>3.</b>
+                        
+                        vSphere Integrated Containers Network Overview
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="4" data-path="vch_admin.html">
+            
+                
+                    <a href="./vch_admin.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.</b>
+                        
+                        Virtual Container Host Administration
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="4.1" data-path="vic_machine_version.html">
+            
+                
+                    <a href="./vic_machine_version.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.1.</b>
+                        
+                        Obtain vic-machine Version Information
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="4.2" data-path="inspect_vch.html">
+            
+                
+                    <a href="./inspect_vch.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.2.</b>
+                        
+                        Obtain Information About a Virtual Container Host
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter active" data-level="4.2.1" data-path="inspect_vch_options.html">
+            
+                
+                    <a href="./inspect_vch_options.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.2.1.</b>
+                        
+                        Virtual Container Host Inspect Options
+                    </a>
+            
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="4.3" data-path="list_vch.html">
+            
+                
+                    <a href="./list_vch.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.3.</b>
+                        
+                        List Virtual Container Hosts
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="4.3.1" data-path="list_vch_options.html">
+            
+                
+                    <a href="./list_vch_options.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.3.1.</b>
+                        
+                        Virtual Container Host List Options
+                    </a>
+            
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="4.4" data-path="remove_vch.html">
+            
+                
+                    <a href="./remove_vch.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.4.</b>
+                        
+                        Remove a Virtual Container Host
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="4.4.1" data-path="delete_vch_options.html">
+            
+                
+                    <a href="./delete_vch_options.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.4.1.</b>
+                        
+                        Virtual Container Host Delete Options
+                    </a>
+            
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+
+
+            
+            <li class="divider"></li>
+            <li>
+                <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+                    Published with GitBook
+                </a>
+            </li>
+            
+        </ul>
+    </nav>
+</div>
+
+    <div class="book-body">
+        <div class="body-inner">
+            <div class="book-header" role="navigation">
+    <!-- Actions Left -->
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href="./" >VMware vSphere Integrated Containers for vSphere Administrators, version 0.5</a>
+    </h1>
+</div>
+
+            <div class="page-wrapper" tabindex="-1" role="main">
+                <div class="page-inner">
+                
+                
+                    <section class="normal" id="section-">
+                    
+                        <h1 id="virtual-container-host-inspect-options">Virtual Container Host Inspect Options</h1>
+<p>The command line utility for vSphere Integrated Containers, <code>vic-machine</code>, provides an <code>inspect</code> command that allows you to see information about virtual container hosts. The options that <code>vic-machine inspect</code> requires depend on the location in your vSphere environment in which you deployed the virtual container host.</p>
+<h3 id="target"><code>target</code></h3>
+<p>Short name: <code>-t</code></p>
+<p>The IPv4 address, fully qualified domain name (FQDN), or URL of the ESXi host or vCenter Server instance on which you deployed the virtual container host. This option is mandatory.</p>
+<ul>
+<li>If the target ESXi host is not managed by vCenter Server, provide the address of the host.<pre>--target <i>esxi_host_address</i></pre></li>
+<li>If the target ESXi host is managed by vCenter Server, or if you deployed it to a cluster, provide the address of vCenter Server.<pre>--target <i>vcenter_server_address</i></pre></li>
+<li>You can optionally include the user name and password of the ESXi host or vCenter Server in the target URL. Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>--target <i>esxi_or_vcenter_server_username</i>:<i>password</i>@<i>esxi_or_vcenter_server_address</i></pre></li>
+<li>If you deployed the virtual container host on a vCenter Server instance that includes more than one datacenter, include the datacenter name in the target URL. If you include an invalid datacenter name, <code>vic-machine inspect</code> fails and suggests the available datacenters that you can specify.<pre>--target <i>vcenter_server_address</i>/<i>datacenter_name</i></pre></li>
+<li>If you do not specify the <code>passwd</code> option or include the password in the target URL, <code>vic-machine inspect</code> prompts you to enter the password.</li>
+</ul>
+<h3 id="user"><code>user</code></h3>
+<p>Short name: <code>-u</code></p>
+<p>The username for the ESXi host or vCenter Server instance on which you deployed the virtual container host. This option is mandatory if you do not specify the username in the <code>target</code> option.</p>
+<pre>--user <i>esxi_or_vcenter_server_username</i></pre>
+
+<h3 id="password"><code>password</code></h3>
+<p>Short name: <code>-p</code></p>
+<p>The password for the user account on the vCenter Server on which you  deployed the virtual container host, or the password for the ESXi host if you deployed directly to an ESXi host. If not specified, <code>vic-machine inspect</code> prompts you to enter the password.</p>
+<p><strong>NOTE</strong>: If your password contains special characters, you must wrap the password in single quotation marks (&apos;) on Mac OS and Linux and in double quotation (&quot;) marks on Windows.</p>
+<pre>--password &apos;<i>esxi_host_or_vcenter_server_p@ssword</i>&apos;</pre>
+
+<h3 id="computeresource"><code>compute-resource</code></h3>
+<p>Short name: <code>-r</code></p>
+<p>The relative path to the host, cluster, or resource pool in which you deployed the virtual container host. Specify <code>--compute-resource</code> with exactly the same value that you used when you ran <code>vic-machine create</code>. You specify the <code>compute-resource</code> option in the following circumstances:</p>
+<ul>
+<li>vCenter Server includes multiple instances of standalone hosts or clusters, or a mixture of standalone hosts and clusters.</li>
+<li>The ESXi host includes multiple resource pools. </li>
+<li>You deployed the virtual container host in a specific resource pool in your environment. </li>
+</ul>
+<p>If you do not specify the <code>compute-resource</code> option and multiple possible resources exist, <code>vic-machine inspect</code> fails and suggests valid targets for <code>compute-resource</code> in the failure message. </p>
+<ul>
+<li>If the virtual container host is in a specific resource pool on an ESXi host, specify the name of the resource pool: <pre>--compute-resource  <i>resource_pool_name</i></pre></li>
+<li>If the virtual container host is on a vCenter Server instance that has more than one standalone host but no clusters, specify the IPv4 address or fully qualified domain name (FQDN) of the target host:<pre>--compute-resource <i>host_address</i></pre></li>
+<li>If the virtual container host is on a vCenter Server with more than one cluster, specify the name of the target cluster: <pre>--compute-resource <i>cluster_name</i></pre></li>
+<li>If the virtual container host is in a specific resource pool on a standalone host that is managed by vCenter Server, specify the IPv4 address or FQDN of the target host and name of the resource pool:<pre>--compute-resource <i>host_name</i>/<i>resource_pool_name</i></pre></li>
+<li>If the virtual container host is in a specific resource pool in a cluster, specify the names of the target cluster and the resource pool:<pre>--compute-resource <i>cluster_name</i>/<i>resource_pool_name</i></pre></li>
+</ul>
+<h3 id="name"><code>name</code></h3>
+<p>Short name: <code>-n</code></p>
+<p>The name of the virtual container host appliance to inspect. This option is mandatory if the virtual container host to inspect has a name other than the default name, <code>virtual-container-host</code>. Specify <code>--name</code> with exactly the same value that you used when you ran <code>vic-machine create</code>.</p>
+<pre>--name <i>vch_appliance_name</i></pre>
+
+<h3 id="debug"><code>debug</code></h3>
+<p>Short name: <code>-v</code></p>
+<p>Provide verbose logging output, for troubleshooting purposes when running <code>vic-machine inspect</code>. If not specified, the <code>debug</code> value is set to 0 and verbose logging is disabled. Provide a value of 1 or greater to increase the verbosity of the logging.</p>
+<pre>--debug 1</pre>
+                    
+                    </section>
+                
+                
+                </div>
+            </div>
+        </div>
+
+        
+        <a href="./inspect_vch.html" class="navigation navigation-prev " aria-label="Previous page: Obtain Information About a Virtual Container Host"><i class="fa fa-angle-left"></i></a>
+        
+        
+        <a href="./list_vch.html" class="navigation navigation-next " aria-label="Next page: List Virtual Container Hosts"><i class="fa fa-angle-right"></i></a>
+        
+    </div>
+</div>
+
+        
+<script src="gitbook/app.js"></script>
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-search/lunr.min.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-search/search.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-sharing/buttons.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-fontsettings/buttons.js"></script>
+    
+
+<script>
+require(["gitbook"], function(gitbook) {
+    var config = {"highlight":{},"search":{"maxIndexSize":1000000},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2}};
+    gitbook.start(config);
+});
+</script>
+
+        
+    </body>
+    
+</html>

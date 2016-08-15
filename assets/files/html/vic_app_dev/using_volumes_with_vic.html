@@ -1,0 +1,303 @@
+<!DOCTYPE HTML>
+<html lang="en" >
+    
+    <head>
+        
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <title>Using Volumes with vSphere Integrated Containers | Developing Container Applications with VMware vSphere Integrated Containers, version 0.5</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 2.6.7">
+        
+        
+        <meta name="HandheldFriendly" content="true"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black">
+        <link rel="apple-touch-icon-precomposed" sizes="152x152" href="gitbook/images/apple-touch-icon-precomposed-152.png">
+        <link rel="shortcut icon" href="gitbook/images/favicon.ico" type="image/x-icon">
+        
+    <link rel="stylesheet" href="gitbook/style.css">
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-highlight/website.css">
+        
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-search/search.css">
+        
+    
+        
+        <link rel="stylesheet" href="gitbook/plugins/gitbook-plugin-fontsettings/website.css">
+        
+    
+    
+
+        
+    
+    
+    <link rel="next" href="./network_use_cases.html" />
+    
+    
+    <link rel="prev" href="./container_limitations.html" />
+    
+
+        
+    </head>
+    <body>
+        
+        
+    <div class="book"
+        data-level="3"
+        data-chapter-title="Using Volumes with vSphere Integrated Containers"
+        data-filepath="using_volumes_with_vic.md"
+        data-basepath="."
+        data-revision="Mon Aug 15 2016 19:03:53 GMT+0200 (W. Europe Daylight Time)"
+        data-innerlanguage="">
+    
+
+<div class="book-summary">
+    <nav role="navigation">
+        <ul class="summary">
+            
+            
+            
+            
+
+            
+
+            
+    
+        <li class="chapter " data-level="0" data-path="index.html">
+            
+                
+                    <a href="./index.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                        Introduction
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="1" data-path="container_operations.html">
+            
+                
+                    <a href="./container_operations.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>1.</b>
+                        
+                        Supported Docker Commands
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="2" data-path="container_limitations.html">
+            
+                
+                    <a href="./container_limitations.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>2.</b>
+                        
+                        Use and Limitations of Containers in vSphere Integrated Containers
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter active" data-level="3" data-path="using_volumes_with_vic.html">
+            
+                
+                    <a href="./using_volumes_with_vic.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>3.</b>
+                        
+                        Using Volumes with vSphere Integrated Containers
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="4" data-path="network_use_cases.html">
+            
+                
+                    <a href="./network_use_cases.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.</b>
+                        
+                        Network Port Use Cases
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="5" data-path="ts_docker_version_error.html">
+            
+                
+                    <a href="./ts_docker_version_error.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.</b>
+                        
+                        Docker Commands Fail with a Docker API Version Error
+                    </a>
+            
+            
+        </li>
+    
+
+
+            
+            <li class="divider"></li>
+            <li>
+                <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+                    Published with GitBook
+                </a>
+            </li>
+            
+        </ul>
+    </nav>
+</div>
+
+    <div class="book-body">
+        <div class="body-inner">
+            <div class="book-header" role="navigation">
+    <!-- Actions Left -->
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers, version 0.5</a>
+    </h1>
+</div>
+
+            <div class="page-wrapper" tabindex="-1" role="main">
+                <div class="page-inner">
+                
+                
+                    <section class="normal" id="section-">
+                    
+                        <h1 id="using-volumes-with-vsphere-integrated-containers">Using Volumes with vSphere Integrated Containers</h1>
+<p>vSphere Integrated Containers supports the use of container volumes. When you create or the vSphere Administrator creates a virtual container host, you or the Administrator specify the datastore to use to store container volumes in the <code>vic-machine create --volume-store</code> option. For information about how to use the <code>vic-machine create --volume-store</code> option, see the section on <code>volume-store</code> in <a href="../vic_installation/vch_installer_options.html#volume-store">Virtual Container Host Deployment Options</a> in <em>vSphere Integrated Containers Installation and Configuration</em>.   </p>
+<h2 id="obtain-the-list-of-available-volume-stores">Obtain the List of Available Volume Stores</h2>
+<p>To obtain the list of volume stores that are available on a virtual container host, run <code>docker info</code>.</p>
+<pre>docker -H <i>virtual_container_host_address</i>:2376 --tls info</pre>
+
+<p>The list of available volume stores for this virtual container host appears in the <code>docker info</code> output under <code>VolumeStores</code>.</p>
+<pre>[...]
+Storage Driver: vSphere Integrated Containers Backend Engine
+VolumeStores: <i>volume_store_1</i> <i>volume_store_2</i> ... <i>volume_store_n</i>
+vSphere Integrated Containers Backend Engine: RUNNING
+[...]</pre>
+
+<h2 id="create-a-volume-in-a-volume-store">Create a Volume in a Volume Store</h2>
+<p>When you use the <code>docker volume create</code> command to create a volume, you can optionally provide a name for the volume by specifying the <code>--name</code> option. If you do not specify <code>--name</code>, <code>docker volume create</code> assigns a random UUID to the volume.</p>
+<ul>
+<li><p>If the volume store label is anything other than <code>default</code>, you must specify the <code>--opt VolumeStore</code> option and pass the name of an existing volume store to it. If you do not specify <code>--opt VolumeStore</code>, <code>docker volume create</code> searches for a volume store named <code>default</code>, and returns an error if no such volume store exists. </p>
+<pre>docker -H <i>virtual_container_host_address</i>:2376 --tls volume create 
+--opt VolumeStore=<i>volume_store_label</i> 
+--name <i>volume_name</i></pre>
+</li>
+<li><p>If you or the vSphere Administrator set the volume store label to <code>default</code> when running <code>vic-machine create</code>, you do not need to specify <code>--opt VolumeStore</code>.</p>
+<pre>docker -H <i>virtual_container_host_address</i>:2376 --tls volume create 
+--name <i>volume_name</i></pre>
+</li>
+<li><p>If you intend to create anonymous volumes by using <code>docker create -v</code>, a volume store named <code>default</code> must exist. In this case, you include the path to the destination at which you want to mount an anonymous volume in the <code>docker create -v</code> command. Docker creates the volume in the <code>default</code> volume store, if it exists.</p>
+<pre>docker -H <i>virtual_container_host_address</i>:2376 --tls create 
+-v <i>destination_path_for_anonymous_volume</i> busybox</pre>
+
+<p><strong>NOTE</strong>: If you use <code>docker create -v</code>, vSphere Integrated Containers only supports the <code>-r</code> and <code>-rw</code> options.</p>
+</li>
+<li><p>You can optionally set the capacity of a volume by specifying the <code>--opt Capacity</code> option when you run <code>docker volume create</code>. If you do not specify the <code>--opt Capacity</code> option, the volume is created with the default capacity of 1024MB. </p>
+<p>If you do not specify a unit for the capacity, the volume is created with a capacity in megabytes.</p>
+<pre>docker -H <i>virtual_container_host_address</i>:2376 --tls volume create 
+--opt VolumeStore=<i>volume_store_label</i> 
+--opt Capacity=2048
+--name <i>volume_name</i></pre></li>
+<li><p>To create a volume with a capacity in gigabytes or terabytes, include <code>GB</code>, or <code>TB</code> in the value that you pass to <code>--opt Capacity</code>. The unit is case insensitive.</p>
+<pre>docker -H <i>virtual_container_host_address</i>:2376 --tls volume create 
+--opt VolumeStore=<i>volume_store_label</i> 
+--opt Capacity=10GB
+--name <i>volume_name</i></pre>
+
+
+</li>
+</ul>
+<p><strong>NOTE</strong>: When using a vSphere Integrated Containers virtual container host as your Docker endpoint, the storage driver is always the vSphere Integrated Containers Backend Engine. If you specify the <code>docker volume create --driver</code> option, it is ignored.  </p>
+<h2 id="obtain-the-list-of-available-volumes">Obtain the List of Available Volumes</h2>
+<p>To obtain a list of volumes that are available on a virtual container host, run <code>docker volume ls</code>.</p>
+<pre>docker -H <i>virtual_container_host_address</i>:2376 --tls volume ls
+
+DRIVER         VOLUME NAME
+vsphere        <i>volume_1</i>
+vsphere        <i>volume_2</i>
+[...]          [...]
+vsphere        <i>volume_n</i></pre>
+
+<h2 id="delete-a-named-volume-from-a-volume-store">Delete a Named Volume from a Volume Store</h2>
+<p>To delete a volume, run <code>docker volume rm</code> and specify the name of the volume to delete.</p>
+<pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
+volume rm <i>volume_name</i></pre>
+
+<p><strong>NOTE</strong>: In the current builds, <code>docker volume rm</code> is not yet supported.</p>
+
+                    
+                    </section>
+                
+                
+                </div>
+            </div>
+        </div>
+
+        
+        <a href="./container_limitations.html" class="navigation navigation-prev " aria-label="Previous page: Use and Limitations of Containers in vSphere Integrated Containers"><i class="fa fa-angle-left"></i></a>
+        
+        
+        <a href="./network_use_cases.html" class="navigation navigation-next " aria-label="Next page: Network Port Use Cases"><i class="fa fa-angle-right"></i></a>
+        
+    </div>
+</div>
+
+        
+<script src="gitbook/app.js"></script>
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-search/lunr.min.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-search/search.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-sharing/buttons.js"></script>
+    
+
+    
+    <script src="gitbook/plugins/gitbook-plugin-fontsettings/buttons.js"></script>
+    
+
+<script>
+require(["gitbook"], function(gitbook) {
+    var config = {"highlight":{},"search":{"maxIndexSize":1000000},"sharing":{"facebook":true,"twitter":true,"google":false,"weibo":false,"instapaper":false,"vk":false,"all":["facebook","google","twitter","weibo","instapaper"]},"fontsettings":{"theme":"white","family":"sans","size":2}};
+    gitbook.start(config);
+});
+</script>
+
+        
+    </body>
+    
+</html>
