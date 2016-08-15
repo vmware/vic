@@ -57,7 +57,7 @@ build:
       GS_PRIVATE_KEY: $$GS_PRIVATE_KEY
     commands:
       - make mark
-      - tests/integration-test.sh
+      - tests/integration-test2.sh
       - make sincemark
     when:
       success: true
