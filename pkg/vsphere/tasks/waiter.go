@@ -17,6 +17,8 @@
 package tasks
 
 import (
+	"time"
+
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
@@ -81,4 +83,23 @@ func WaitForResult(ctx context.Context, f func(context.Context) (ResultWaiter, e
 		return nil, cerr
 	}
 	return info, nil
+}
+
+func WaitAndRetryForResult(ctx context.Context, f func(context.Context) (ResultWaiter, error), sleepTime int64) (*types.TaskInfo, error) {
+	taskInfo, err := WaitForResult(ctx, f)
+
+	if taskInfo.Error != nil {
+		for taskInfo.Error.(*types.TaskInProgressFault) {
+			taskInfo, err = WaitForResult(ctx, f)
+			if err == nil && taskInfo.Error == nil {
+				break
+			}
+			time.Sleep(sleepTime * time.Millisecond)
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return taskInfo, nil
 }
