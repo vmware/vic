@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	units "github.com/docker/go-units"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/config"
@@ -30,6 +31,8 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"golang.org/x/net/context"
 )
+
+const bytesToKilobytes = int64(1000)
 
 type Validator struct {
 	TargetPath            string
@@ -246,16 +249,11 @@ func (v *Validator) basics(ctx context.Context, input *data.Data, conf *config.V
 	conf.SetDebug(input.Debug.Debug)
 	conf.Name = input.DisplayName
 
-	// Set default size of scratch disk
-	if input.ScratchSize == "" {
-		log.Warnln("Using default scratch size of 8GB")
-		input.ScratchSize = "8G"
-	}
-	scratchSize := parseScratchSize(input.ScratchSize)
-	if scratchSize < 0 { // TODO set minimum size of scratch disk
+	scratchSize, err := units.FromHumanSize(input.ScratchSize)
+	if err != nil { // TODO set minimum size of scratch disk
 		v.NoteIssue(errors.Errorf("Invalid default image size %s provided", input.ScratchSize))
 	} else {
-		conf.ScratchSize = scratchSize
+		conf.ScratchSize = scratchSize / bytesToKilobytes
 		log.Warnf("Setting scratch image size to %d KB in VCHConfig", conf.ScratchSize)
 	}
 
