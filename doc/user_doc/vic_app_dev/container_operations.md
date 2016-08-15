@@ -1,6 +1,6 @@
 # Supported Docker Commands
 
- vSphere Integrated Containers supports these container operations.
+ vSphere Integrated Containers supports these container operations from Docker 1.11. The supported version of the Docker API is 1.23. If you are using a more recent version of the Docker client, see [Docker Commands Fail with a Docker API Version Error](ts_docker_version_error.md).
 
 ## General Container Operations ##
 
