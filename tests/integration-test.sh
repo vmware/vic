@@ -61,11 +61,13 @@ if [ -f "$keyfile" ]; then
 fi
 
 if [ $rc = 0 ]; then
+    curl -s https://api.github.com/repos/vmware/vic/pulls/$DRONE_PULL_REQUEST | jq -r .merge_commit_sha
     git clone -b staging https://github.com/vmwware/vic
     cd vic
     git checkout -b integration/$DRONE_BUILD $DRONE_COMMIT
     git push origin integration/$DRONE_BUILD
     curl --user "mhagen-vmware:$GITHUB_AUTOMATION_API_KEY" -X POST --data '{"title":"Integration automation created","head":"integration/'$DRONE_BUILD'","base":"master"}'    https://api.github.com/repos/vmware/vic/pulls
+
 fi
 
 exit $rc
