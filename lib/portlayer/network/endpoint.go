@@ -21,6 +21,13 @@ import (
 	"github.com/vmware/vic/pkg/uid"
 )
 
+type alias struct {
+	name string
+	ep   *Endpoint
+}
+
+var badAlias = alias{}
+
 type Endpoint struct {
 	container *Container
 	scope     *Scope
@@ -29,6 +36,11 @@ type Endpoint struct {
 	subnet    net.IPNet
 	static    bool
 	ports     map[Port]interface{} // exposed ports
+	aliases   map[string][]alias
+}
+
+func (a alias) scopedName() string {
+	return fmt.Sprintf("%s:%s:%s", a.ep.Scope().Name(), a.ep.Container().Name(), a.name)
 }
 
 func newEndpoint(container *Container, scope *Scope, ip *net.IP, subnet net.IPNet, gateway net.IP, pciSlot *int32) *Endpoint {
@@ -40,6 +52,7 @@ func newEndpoint(container *Container, scope *Scope, ip *net.IP, subnet net.IPNe
 		ip:        net.IPv4(0, 0, 0, 0),
 		static:    false,
 		ports:     make(map[Port]interface{}),
+		aliases:   make(map[string][]alias),
 	}
 
 	if ip != nil {
@@ -110,6 +123,48 @@ func (e *Endpoint) Ports() []Port {
 	}
 
 	return ports
+}
+
+func (e *Endpoint) addAlias(con, a string) (alias, bool) {
+	if a == "" {
+		return badAlias, false
+	}
+
+	if con == "" {
+		con = e.container.Name()
+	}
+
+	aliases := e.aliases[con]
+	for _, as := range aliases {
+		if as.name == a {
+			// already present
+			return as, true
+		}
+	}
+
+	na := alias{name: a, ep: e}
+	e.aliases[con] = append(aliases, na)
+	return na, false
+}
+
+func (e *Endpoint) getAliases(con string) []alias {
+	if con == "" {
+		con = e.container.Name()
+	}
+
+	return e.aliases[con]
+}
+
+func (e *Endpoint) resolveAlias(s string) string {
+	for con, as := range e.aliases {
+		for _, a := range as {
+			if a.name == s {
+				return con
+			}
+		}
+	}
+
+	return ""
 }
 
 func (e *Endpoint) copy() *Endpoint {

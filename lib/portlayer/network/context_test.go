@@ -483,7 +483,7 @@ func TestContextAddContainer(t *testing.T) {
 		return
 	}
 
-	h := exec.NewContainer("foo")
+	h := newContainer("foo")
 
 	var devices object.VirtualDeviceList
 	backing, _ := ctx.DefaultScope().Network().EthernetCardBackingInfo(context.TODO())
@@ -517,7 +517,7 @@ func TestContextAddContainer(t *testing.T) {
 		t.Fatalf("failed to add scope")
 	}
 
-	hBar := exec.NewContainer(uid.New())
+	hBar := newContainer("bar")
 
 	var tests = []struct {
 		aec   func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, error)
@@ -636,6 +636,12 @@ func TestContextAddContainer(t *testing.T) {
 	}
 }
 
+func newContainer(name string) *exec.Handle {
+	h := exec.NewContainer(uid.New())
+	h.ExecConfig.Common.Name = name
+	return h
+}
+
 func TestContextBindUnbindContainer(t *testing.T) {
 	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
 	if err != nil {
@@ -647,12 +653,10 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		t.Fatalf("ctx.NewScope(%s, %s, nil, nil, nil) => (nil, %s)", constants.BridgeScopeType, "scope", err)
 	}
 
-	foo := exec.NewContainer(uid.New())
-	added := exec.NewContainer(uid.New())
-	staticIP := exec.NewContainer(uid.New())
-	ipErr := exec.NewContainer(uid.New())
-	alias := exec.NewContainer(uid.New())
-	aliasErr := exec.NewContainer(uid.New())
+	foo := newContainer("foo")
+	added := newContainer("added")
+	staticIP := newContainer("staticIP")
+	ipErr := newContainer("ipErr")
 
 	options := &AddContainerOptions{
 		Scope: ctx.DefaultScope().Name(),
@@ -693,24 +697,6 @@ func TestContextBindUnbindContainer(t *testing.T) {
 	}
 	ctx.AddContainer(ipErr, options)
 
-	// add a container with correct aliases
-	options = &AddContainerOptions{
-		Scope:   ctx.DefaultScope().Name(),
-		Aliases: []string{"added:foo", ":bar"},
-	}
-	if err = ctx.AddContainer(alias, options); err != nil {
-		t.Fatalf("ctx.AddContainer(%s, %s, nil) => %s", alias, ctx.DefaultScope().Name(), err)
-	}
-
-	// add a container with incorrect aliases
-	options = &AddContainerOptions{
-		Scope:   ctx.DefaultScope().Name(),
-		Aliases: []string{"cloud:foo", "bar"},
-	}
-	if err = ctx.AddContainer(aliasErr, options); err != nil {
-		t.Fatalf("ctx.AddContainer(%s, %s, nil) => %s", aliasErr, ctx.DefaultScope().Name(), err)
-	}
-
 	var tests = []struct {
 		i      int
 		h      *exec.Handle
@@ -719,15 +705,13 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		static bool
 		err    error
 	}{
-		// container not added to scope
-		{0, foo, []string{}, []net.IP{}, false, fmt.Errorf("")},
+		// not scopes to bind to
+		{0, foo, []string{}, []net.IP{}, false, nil},
 		// container has bad ip address
 		{1, ipErr, []string{}, nil, false, fmt.Errorf("")},
 		// successful container bind
 		{2, added, []string{ctx.DefaultScope().Name(), scope.Name()}, []net.IP{net.IPv4(172, 16, 0, 2), net.IPv4(172, 17, 0, 2)}, false, nil},
 		{3, staticIP, []string{ctx.DefaultScope().Name()}, []net.IP{net.IPv4(172, 16, 0, 10)}, true, nil},
-		{4, alias, []string{ctx.DefaultScope().Name()}, []net.IP{net.IPv4(172, 16, 0, 3)}, false, nil},
-		{5, aliasErr, []string{ctx.DefaultScope().Name()}, []net.IP{}, false, fmt.Errorf("")},
 	}
 
 	for _, te := range tests {
@@ -738,7 +722,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 				t.Fatalf("%d: ctx.BindContainer(%s) => (%#v, %#v), want (%#v, %#v)", te.i, te.h, eps, err, nil, te.err)
 			}
 
-			con := ctx.Container(uid.Parse(te.h.Container.ExecConfig.ID))
+			con := ctx.Container(te.h.Container.ExecConfig.ID)
 			if con != nil {
 				t.Fatalf("%d: ctx.BindContainer(%s) added container %#v", te.i, te.h, con)
 			}
@@ -746,8 +730,12 @@ func TestContextBindUnbindContainer(t *testing.T) {
 			continue
 		}
 
+		if len(te.h.ExecConfig.Networks) == 0 {
+			continue
+		}
+
 		// check if the correct endpoints were added
-		con := ctx.Container(uid.Parse(te.h.Container.ExecConfig.ID))
+		con := ctx.Container(te.h.Container.ExecConfig.ID)
 		if con == nil {
 			t.Fatalf("%d: ctx.Container(%s) => nil, want %s", te.i, te.h.Container.ExecConfig.ID, te.h.Container.ExecConfig.ID)
 		}
@@ -788,6 +776,12 @@ func TestContextBindUnbindContainer(t *testing.T) {
 				if ne.Network.Gateway.Mask.String() != e.Scope().Subnet().Mask.String() {
 					t.Fatalf("%d: ctx.BindContainer(%s) => metadata endpoint gateway mask %s, want %s", te.i, te.h, ne.Network.Gateway.Mask.String(), e.Scope().Subnet().Mask.String())
 				}
+				for _, n := range e.Aliases() {
+					con := ctx.Container(n)
+					if con == nil {
+						t.Fatalf("%d: ctx.Container(%s) => nil, want %s", te.i, te.h.Container.ExecConfig.ID, te.h.Container.ExecConfig.ID)
+					}
+				}
 
 				break
 			}
@@ -806,15 +800,11 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		static bool
 		err    error
 	}{
-		// container not found
-		{0, foo, []string{}, nil, false, fmt.Errorf("")},
-		// container has bad ip address
-		{1, ipErr, []string{ctx.DefaultScope().Name(), scope.Name()}, nil, false, fmt.Errorf("")},
+		// container not bound
+		{0, foo, []string{}, nil, false, nil},
 		// successful container unbind
-		{2, added, []string{ctx.DefaultScope().Name(), scope.Name()}, nil, false, nil},
-		{3, staticIP, []string{ctx.DefaultScope().Name()}, nil, true, nil},
-		{4, alias, []string{ctx.DefaultScope().Name()}, nil, false, nil},
-		{5, aliasErr, []string{ctx.DefaultScope().Name()}, nil, false, fmt.Errorf("")},
+		{1, added, []string{ctx.DefaultScope().Name(), scope.Name()}, nil, false, nil},
+		{2, staticIP, []string{ctx.DefaultScope().Name()}, nil, true, nil},
 	}
 
 	// test UnbindContainer
@@ -829,7 +819,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		}
 
 		// container should not be there
-		con := ctx.Container(uid.Parse(te.h.Container.ExecConfig.ID))
+		con := ctx.Container(te.h.Container.ExecConfig.ID)
 		if con != nil {
 			t.Fatalf("%d: ctx.Container(%s) => %#v, want nil", te.i, te.h, con)
 		}
@@ -874,7 +864,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 
 func TestContextRemoveContainer(t *testing.T) {
 
-	hFoo := exec.NewContainer(uid.New())
+	hFoo := newContainer("foo")
 
 	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
 	if err != nil {
@@ -893,7 +883,7 @@ func TestContextRemoveContainer(t *testing.T) {
 	ctx.BindContainer(hFoo)
 
 	// container that is added to multiple bridge scopes
-	hBar := exec.NewContainer(uid.New())
+	hBar := newContainer("bar")
 	options.Scope = "default"
 	ctx.AddContainer(hBar, options)
 	options.Scope = scope.Name()
@@ -904,10 +894,10 @@ func TestContextRemoveContainer(t *testing.T) {
 		scope string
 		err   error
 	}{
-		{nil, "", fmt.Errorf("")},                                 // nil handle
-		{hBar, "bar", fmt.Errorf("")},                             // scope not found
-		{hFoo, scope.Name(), fmt.Errorf("")},                      // bound container
-		{exec.NewContainer(uid.New()), "default", fmt.Errorf("")}, // container not part of scope
+		{nil, "", fmt.Errorf("")},                        // nil handle
+		{hBar, "bar", fmt.Errorf("")},                    // scope not found
+		{hFoo, scope.Name(), fmt.Errorf("")},             // bound container
+		{newContainer("baz"), "default", fmt.Errorf("")}, // container not part of scope
 		{hBar, "default", nil},
 		{hBar, scope.Name(), nil},
 	}
@@ -989,7 +979,7 @@ func TestDeleteScope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ctx.NewScope(%s, \"foo\", nil, nil, nil, nil) => (nil, %#v), want (foo, nil)", constants.BridgeScopeType, err)
 	}
-	h := exec.NewContainer("container")
+	h := newContainer("container")
 	options := &AddContainerOptions{
 		Scope: foo.Name(),
 	}
@@ -1001,7 +991,7 @@ func TestDeleteScope(t *testing.T) {
 		t.Fatalf("ctx.NewScope(%s, \"bar\", nil, nil, nil, nil) => (nil, %#v), want (bar, nil)", constants.BridgeScopeType, err)
 	}
 
-	h = exec.NewContainer("container2")
+	h = newContainer("container2")
 	options.Scope = bar.Name()
 	ctx.AddContainer(h, options)
 	ctx.BindContainer(h)
