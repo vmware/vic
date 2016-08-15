@@ -102,7 +102,7 @@ Cleanup VIC Appliance On Test Server
     Log To Console  Deleting the VCH appliance...
     ${output}=  Run VIC Machine Delete Command
     [Return]  ${output}
-    
+
 Run VIC Machine Delete Command
     [Tags]  secret
     ${output}=  Run  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
@@ -214,7 +214,7 @@ Deploy Nimbus ESXi Server
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
     @{gotIP}=  Split String  ${line}  ${SPACE}
     ${ip}=  Remove String  @{gotIP}[5]  ,
-    
+
     # Let's set a password so govc doesn't complain
     Remove Environment Variable  GOVC_PASSWORD
     Remove Environment Variable  GOVC_USERNAME
@@ -287,7 +287,7 @@ Run Regression Tests
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Stopped
     # Ensure container logs are correctly being gathered for debugging purposes
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -k ${vic-admin}/container-logs.tar.gz | tar tvzf -
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz | tar tvzf -
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
     Should Contain  ${output}  ${container}/vmware.log
