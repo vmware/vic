@@ -247,6 +247,20 @@ func (v *Validator) basics(ctx context.Context, input *data.Data, conf *config.V
 	conf.SetDebug(input.Debug.Debug)
 	conf.Name = input.DisplayName
 	conf.Version = version.GetBuild()
+
+	// Set default size of scratch disk
+	if input.ScratchSize == "" {
+		log.Warnln("Using default scratch size of 8GB")
+		input.ScratchSize = "8G"
+	}
+	scratchSize := parseScratchSize(input.ScratchSize)
+	if scratchSize < 0 { // TODO set minimum size of scratch disk
+		v.NoteIssue(errors.Errorf("Invalid default image size %s provided", input.ScratchSize))
+	} else {
+		conf.ScratchSize = scratchSize
+		log.Warnf("Setting scratch image size to %d KB in VCHConfig", conf.ScratchSize)
+	}
+
 }
 
 func (v *Validator) checkSessionSet() []string {
