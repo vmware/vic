@@ -5,7 +5,7 @@ Resource  ../../resources/Util.robot
 *** Test Cases ***
 Suggest resources - Invalid datacenter
     Log To Console  \nRunning vic-machine create
-    Set Test Environment Variables  ${true}  default  network  'VM Network'
+    Set Test Environment Variables  ${true}  default
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
@@ -19,7 +19,7 @@ Suggest resources - Invalid datacenter
 
 Suggest resources - Invalid target path
     Log To Console  \nRunning vic-machine create
-    Set Test Environment Variables  ${true}  default  network  'VM Network'
+    Set Test Environment Variables  ${true}  default
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
@@ -33,7 +33,7 @@ Suggest resources - Invalid target path
 Default image datastore
     # This test case is dependent on the ESX environment having only one datastore
     Log To Console  \nRunning vic-machine create - default image datastore
-    Set Test Environment Variables  ${true}  default  network  'VM Network'
+    Set Test Environment Variables  ${true}  default
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
