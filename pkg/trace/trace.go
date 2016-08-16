@@ -15,6 +15,7 @@
 package trace
 
 import (
+	"fmt"
 	"runtime"
 	"time"
 
@@ -30,8 +31,14 @@ type tr struct {
 }
 
 func newTrace(msg string) *tr {
-	pc, _, _, _ := runtime.Caller(1)
+	pc, _, line, ok := runtime.Caller(2)
+	if !ok {
+		return nil
+	}
+
 	name := runtime.FuncForPC(pc).Name()
+
+	name = fmt.Sprintf("(%s:%d)", name, line)
 
 	return &tr{
 		msg:       msg,

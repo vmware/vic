@@ -43,6 +43,8 @@ func TestContext(t *testing.T) {
 }
 
 func TestDeadlineLogging(t *testing.T) {
+	Logger.Level = logrus.InfoLevel
+
 	ctx, _ := context.WithTimeout(context.Background(), time.Nanosecond)
 	ctx = Start(ctx, "testmsg")
 	err := Done(ctx)

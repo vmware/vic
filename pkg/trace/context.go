@@ -19,6 +19,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Sirupsen/logrus"
+
 	"golang.org/x/net/context"
 )
 
@@ -77,7 +79,12 @@ func Done(ctx context.Context) error {
 
 func header(ctx context.Context) string {
 	t := FromContext(ctx)
-	return fmt.Sprintf("op=%d (delta:%s)", t.opNum, time.Now().Sub(t.startTime))
+
+	if Logger.Level >= logrus.DebugLevel {
+		return fmt.Sprintf("op=%d (delta:%s)", t.opNum, time.Now().Sub(t.startTime))
+	} else {
+		return fmt.Sprintf("op=%d", t.opNum)
+	}
 }
 
 func Infof(ctx context.Context, format string, args ...interface{}) {
