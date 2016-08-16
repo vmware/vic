@@ -101,8 +101,6 @@ type Create struct {
 	BridgeIPRange string
 
 	executor *management.Dispatcher
-
-	scratchSize string
 }
 
 var (
@@ -254,7 +252,7 @@ func (c *Create) Flags() []cli.Flag {
 			Name:        "base-image-size",
 			Value:       "8GB",
 			Usage:       "Specify the size of the base image from which all other images are created e.g. 8GB/8000MB",
-			Destination: &c.scratchSize,
+			Destination: &c.ScratchSize,
 		},
 		cli.BoolFlag{
 			Name:        "no-tls, k",
