@@ -33,14 +33,16 @@ func TestContextDeadline(t *testing.T) {
 	wg.Add(cnt)
 	for i := 0; i < cnt; i++ {
 		go func() {
+			defer wg.Done()
 			ctx := NewOperation(context.TODO(), "testmsg")
 
 			// unpack an Operation via the context using it's Values fields
 			c := FromContext(ctx)
 
-			assert.NotNil(t, c)
+			if !assert.NotNil(t, c) {
+				return
+			}
 			c.Infof("foo %d", i)
-			wg.Done()
 		}()
 	}
 	wg.Wait()

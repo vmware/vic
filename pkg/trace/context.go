@@ -24,37 +24,40 @@ import (
 )
 
 const OpTraceKey = "traceKey"
-const OpNumKey = "numKey"
 
 // monotonic counter which inrements on Start()
 var opCount uint64
 
 type Operation struct {
 	context.Context
+	operation
+}
 
+type operation struct {
 	t     tr
 	opNum uint64
 }
 
 // Add tracing info to the context.
 func NewOperation(ctx context.Context, msg string) context.Context {
-	// inc the counter
-	n := atomic.AddUint64(&opCount, 1)
+	op := operation{
 
-	// start the trace
-	h := newTrace(msg)
+		// inc the counter
+		opNum: atomic.AddUint64(&opCount, 1),
+
+		// start the trace
+		t: *newTrace(msg),
+	}
 
 	// We need to be able to identify this operation across API (and process)
 	// boundaries.  So add the trace as a value to the embedded context.  We
 	// stash the values individually in the context because we can't assign
 	// the operation itself as a value to the embedded context (it's circular)
-	ctx = context.WithValue(ctx, OpTraceKey, *h)
-	ctx = context.WithValue(ctx, OpNumKey, n)
+	ctx = context.WithValue(ctx, OpTraceKey, op)
 
 	o := Operation{
-		Context: ctx,
-		t:       *h,
-		opNum:   n,
+		Context:   ctx,
+		operation: op,
 	}
 
 	o.Debugf(o.t.beginHdr())
@@ -103,18 +106,10 @@ func FromContext(ctx context.Context) *Operation {
 		Context: ctx,
 	}
 
-	traceContext := ctx.Value(OpTraceKey)
-	switch traceContext.(type) {
-	case tr:
-		o.t = traceContext.(tr)
-	default:
-		return nil
-	}
-
-	opNum := ctx.Value(OpNumKey)
-	switch opNum.(type) {
-	case uint64:
-		o.opNum = opNum.(uint64)
+	op := ctx.Value(OpTraceKey)
+	switch op.(type) {
+	case operation:
+		o.operation = op.(operation)
 	default:
 		return nil
 	}
