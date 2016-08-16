@@ -48,7 +48,7 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 
 	v.NoteIssue(err)
 	if ds != nil {
-		v.checkDatastore(ds)
+		v.checkDatastore(ds, "image store")
 		v.SetDatastore(ds, imageDSpath)
 		conf.AddImageStore(imageDSpath)
 	}
@@ -59,7 +59,8 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 
 	// TODO: add volume locations
 	for label, volDSpath := range input.VolumeLocations {
-		dsURL, _, err := v.DatastoreHelper(ctx, volDSpath, label, "--volume-store")
+		dsURL, ds, err := v.DatastoreHelper(ctx, volDSpath, label, "--volume-store")
+		v.checkDatastore(ds, "volume store")
 		v.NoteIssue(err)
 		if dsURL != nil {
 			conf.VolumeLocations[label] = dsURL
@@ -139,7 +140,7 @@ func (v *Validator) SetDatastore(ds *object.Datastore, path *url.URL) {
 
 // checkDatastore checks that more than 1 host is connected to the datastore in vC
 // and prevents install if using unsafe configuration
-func (v *Validator) checkDatastore(ds *object.Datastore) {
+func (v *Validator) checkDatastore(ds *object.Datastore, flag string) {
 	defer trace.End(trace.Begin(ds.String()))
 
 	if !v.IsVC() {
@@ -148,6 +149,8 @@ func (v *Validator) checkDatastore(ds *object.Datastore) {
 
 	var hosts []*object.HostSystem
 	var err error
+
+	log.Infof("Checking datastore/host configuration for %s", flag)
 
 	if hosts, err = ds.AttachedClusterHosts(v.Context, v.Session.Cluster); err != nil {
 		log.Errorf("Unable to get the list of hosts attached to given storage: %s", err)
@@ -169,7 +172,7 @@ func (v *Validator) checkDatastore(ds *object.Datastore) {
 		v.NoteIssue(errors.New(msg))
 		return
 	}
-	log.Infof("Datastore/host configuration OK on %q", ds.Name())
+	log.Infof("Datastore/host configuration OK for %s on %q", flag, ds.Name())
 }
 
 // suggestDatastore suggests all datastores present on target in datastore:label format if applicable
