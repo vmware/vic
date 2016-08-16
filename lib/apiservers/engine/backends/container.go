@@ -1397,7 +1397,7 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	}
 
 	// https://github.com/vmware/vic/issues/1378
-	if len(config.Config.Cmd) == 0 {
+	if len(config.Config.Entrypoint) == 0 && len(config.Config.Cmd) == 0 {
 		return derr.NewRequestNotFoundError(fmt.Errorf("No command specified"))
 	}
 
