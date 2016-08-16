@@ -18,8 +18,10 @@ Set Test Environment Variables
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_BUILD_NUMBER  0
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  BRIDGE_NETWORK
     Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${bridge}  %{BRIDGE_NETWORK}
+    Run Keyword If  '${status}' == 'FAIL'  Set Suite Variable  ${bridge}  ${bridge}
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  EXTERNAL_NETWORK
     Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${external}  %{EXTERNAL_NETWORK}
+    Run Keyword If  '${status}' == 'FAIL'  Set Suite Variable  ${external}  ${external}
 
     @{URLs}=  Split String  %{TEST_URL_ARRAY}
     ${len}=  Get Length  ${URLs}
@@ -30,8 +32,10 @@ Set Test Environment Variables
     Set Environment Variable  GOVC_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
 
     ${host}=  Run  govc ls host
-    Set Environment Variable  TEST_RESOURCE  ${host}/Resources
-    Set Environment Variable  GOVC_RESOURCE_POOL  ${host}/Resources
+    ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_RESOURCE
+    Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_RESOURCE  ${host}/Resources
+    Set Environment Variable  GOVC_RESOURCE_POOL  %{TEST_RESOURCE}
+    Set Environment Variable  GOVC_DATASTORE  %{TEST_DATASTORE}
 
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
@@ -75,7 +79,7 @@ Install VIC Appliance To Test Server
 
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run VIC Machine Command  ${certs}  ${vol}  network  'VM Network'
+    ${output}=  Run VIC Machine Command  ${certs}  ${vol}  ${bridge}  ${external}
     Log  ${output}
     Get Docker Params  ${output}  ${certs}
     Log To Console  Installer completed successfully: ${vch-name}...
