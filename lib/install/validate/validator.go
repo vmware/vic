@@ -252,7 +252,7 @@ func (v *Validator) basics(ctx context.Context, input *data.Data, conf *config.V
 		v.NoteIssue(errors.Errorf("Invalid default image size %s provided; error from parser: %s", input.ScratchSize, err.Error()))
 	} else {
 		conf.ScratchSize = scratchSize / units.KB
-		log.Warnf("Setting scratch image size to %d KB in VCHConfig", conf.ScratchSize)
+		log.Debugf("Setting scratch image size to %d KB in VCHConfig", conf.ScratchSize)
 	}
 
 }
