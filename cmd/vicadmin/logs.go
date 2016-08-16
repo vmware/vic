@@ -106,6 +106,7 @@ func configureReaders() map[string]entryReader {
 		"concise": "/debug/pprof/goroutine?debug=1",
 		"block":   "/debug/pprof/block?debug=1",
 		"heap":    "/debug/pprof/heap?debug=1",
+		"profile": "/debug/pprof/profile",
 	}
 
 	pprofSources := map[string]string{
