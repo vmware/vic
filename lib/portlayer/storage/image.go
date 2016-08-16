@@ -72,9 +72,9 @@ type ImageStorer interface {
 	// parent - The parent image to create the new image from.
 	// ID - textual ID for the image to be written
 	// meta - metadata associated with the image
+	// sum - expected sha266 sum of the image content.
 	// r - the image tar to be written
-	WriteImage(ctx context.Context, parent *Image, ID string, meta map[string][]byte, r io.Reader) (*Image,
-		error)
+	WriteImage(ctx context.Context, parent *Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*Image, error)
 
 	// GetImage queries the image store for the specified image.
 	//
