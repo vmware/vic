@@ -8,8 +8,7 @@ features that do not are then reworked until they will fit. Any features under
 active development that do not make the monthly release will be pushed into the
 next months version.
 
-See [../CONTRIBUTING.md](../CONTRIBUTING.md) for details on how issues are 
-prioritized and tracked.
+See [CONTRIBUTING.md](../../CONTRIBUTING.md#reporting-bugs-and-creating-issues) for details on how issues are prioritized and tracked.
 
 ## Release Versioning
 
@@ -44,6 +43,17 @@ VIC is released in both source and binary form. The source is tagged using githu
 tagging methods. This is manual for now.
 
 The binary releases are posted at https://bintray.com/vmware/vic/Download/view
+
+### Update README.md and documentation
+
+The main repo README contains a project status relating to the latest tagged release
+along with guidance on how to build, deploy, et al. The latter should be updated by
+any commits changing those workflows, but the status and what's new needs to be addressed
+as part of the release process.
+
+* create a PR, "Release x.y", with the corresponding doc updates once tagging is imminent
+* merge that PR as the last thing that occurs prior to tagging
+* tag the release as described in the next section
 
 ### Tag The Release
 

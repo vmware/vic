@@ -88,20 +88,18 @@ func TestParseContainerNetworkIPRanges(t *testing.T) {
 		{[]string{"foo:10.10.10.10-10.10.10.9"}, nil, fmt.Errorf("")},
 		{
 			[]string{"foo:10.10.10.10-24"},
-			map[string][]ip.Range{"foo": []ip.Range{{net.ParseIP("10.10.10.10"), net.ParseIP("10.10.10.24")}}},
-			nil,
-		},
+			map[string][]ip.Range{"foo": []ip.Range{{Start: net.ParseIP("10.10.10.10"), End: net.ParseIP("10.10.10.24")}}}, nil},
 		{
 			[]string{"foo:10.10.10.10-10.10.10.24"},
-			map[string][]ip.Range{"foo": []ip.Range{{net.ParseIP("10.10.10.10"), net.ParseIP("10.10.10.24")}}},
+			map[string][]ip.Range{"foo": []ip.Range{{Start: net.ParseIP("10.10.10.10"), End: net.ParseIP("10.10.10.24")}}},
 			nil,
 		},
 		{
 			[]string{"foo:10.10.10.10-10.10.10.24", "foo:10.10.10.100-10.10.10.105"},
 			map[string][]ip.Range{
 				"foo": []ip.Range{
-					{net.ParseIP("10.10.10.10"), net.ParseIP("10.10.10.24")},
-					{net.ParseIP("10.10.10.100"), net.ParseIP("10.10.10.105")},
+					{Start: net.ParseIP("10.10.10.10"), End: net.ParseIP("10.10.10.24")},
+					{Start: net.ParseIP("10.10.10.100"), End: net.ParseIP("10.10.10.105")},
 				},
 			},
 			nil,
@@ -109,8 +107,8 @@ func TestParseContainerNetworkIPRanges(t *testing.T) {
 		{
 			[]string{"foo:10.10.10.10-10.10.10.24", "bar:10.10.9.1-10.10.9.10"},
 			map[string][]ip.Range{
-				"foo": []ip.Range{{net.ParseIP("10.10.10.10"), net.ParseIP("10.10.10.24")}},
-				"bar": []ip.Range{{net.ParseIP("10.10.9.1"), net.ParseIP("10.10.9.10")}},
+				"foo": []ip.Range{{Start: net.ParseIP("10.10.10.10"), End: net.ParseIP("10.10.10.24")}},
+				"bar": []ip.Range{{Start: net.ParseIP("10.10.9.1"), End: net.ParseIP("10.10.9.10")}},
 			},
 			nil,
 		},

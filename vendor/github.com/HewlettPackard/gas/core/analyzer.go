@@ -15,13 +15,11 @@
 package core
 
 import (
-	"encoding/json"
 	"go/ast"
 	"go/importer"
 	"go/parser"
 	"go/token"
 	"go/types"
-	"io/ioutil"
 	"log"
 	"os"
 	"reflect"
@@ -33,6 +31,8 @@ type Context struct {
 	Comments ast.CommentMap
 	Info     *types.Info
 	Pkg      *types.Package
+	Root     *ast.File
+	Config   map[string]interface{}
 }
 
 type Rule interface {
@@ -55,31 +55,21 @@ type Analyzer struct {
 	logger      *log.Logger
 	Issues      []Issue `json:"issues"`
 	Stats       Metrics `json:"metrics"`
-	Config      map[string]interface{}
 }
 
-func NewAnalyzer(ignoreNosec bool, conf *string, logger *log.Logger) Analyzer {
+func NewAnalyzer(conf map[string]interface{}, logger *log.Logger) Analyzer {
 	if logger == nil {
 		logger = log.New(os.Stdout, "[gas]", 0)
 	}
 	a := Analyzer{
-		ignoreNosec: ignoreNosec,
+		ignoreNosec: conf["ignoreNosec"].(bool),
 		ruleset:     make(RuleSet),
 		Issues:      make([]Issue, 0),
-		context:     Context{token.NewFileSet(), nil, nil, nil},
+		context:     Context{token.NewFileSet(), nil, nil, nil, nil, nil},
 		logger:      logger,
-		Config:      nil,
 	}
 
-	if conf != nil && *conf != "" { // if we have a config
-		if data, err := ioutil.ReadFile(*conf); err == nil {
-			if err := json.Unmarshal(data, &(a.Config)); err != nil {
-				logger.Fatal("Could not parse JSON config: ", *conf, ": ", err)
-			}
-		} else {
-			logger.Fatal("Could not read config file: ", *conf)
-		}
-	}
+	// TODO(tkelsey): use the inc/exc lists
 
 	return a
 }
@@ -89,12 +79,16 @@ func (gas *Analyzer) process(filename string, source interface{}) error {
 	root, err := parser.ParseFile(gas.context.FileSet, filename, source, mode)
 	if err == nil {
 		gas.context.Comments = ast.NewCommentMap(gas.context.FileSet, root, root.Comments)
+		gas.context.Root = root
 
 		// here we get type info
 		gas.context.Info = &types.Info{
-			Types: make(map[ast.Expr]types.TypeAndValue),
-			Defs:  make(map[*ast.Ident]types.Object),
-			Uses:  make(map[*ast.Ident]types.Object),
+			Types:      make(map[ast.Expr]types.TypeAndValue),
+			Defs:       make(map[*ast.Ident]types.Object),
+			Uses:       make(map[*ast.Ident]types.Object),
+			Selections: make(map[*ast.SelectorExpr]*types.Selection),
+			Scopes:     make(map[ast.Node]*types.Scope),
+			Implicits:  make(map[ast.Node]types.Object),
 		}
 
 		conf := types.Config{Importer: importer.Default()}

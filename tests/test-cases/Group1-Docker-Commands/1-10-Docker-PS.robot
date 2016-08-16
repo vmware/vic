@@ -31,7 +31,7 @@ Docker ps only running containers
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${container3}=  Run And Return Rc And Output  docker ${params} create busybox dmesg
     Should Be Equal As Integers  ${rc}  0
-    Sleep  5 seconds
+    Wait Until VM Powers Off  *-${container2} 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  /bin/top
