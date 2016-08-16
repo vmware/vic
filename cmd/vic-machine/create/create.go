@@ -253,6 +253,7 @@ func (c *Create) Flags() []cli.Flag {
 			Value:       "8GB",
 			Usage:       "Specify the size of the base image from which all other images are created e.g. 8GB/8000MB",
 			Destination: &c.ScratchSize,
+			Hidden:      true,
 		},
 		cli.BoolFlag{
 			Name:        "no-tls, k",
