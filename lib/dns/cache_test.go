@@ -159,20 +159,19 @@ func TestExpiration(t *testing.T) {
 
 // For best result run with -race
 func TestConcurrency(t *testing.T) {
-	t.Skipf("Caglar can't write tests...")
-
 	var wg sync.WaitGroup
 
-	samplesize := 2 ^ 10
+	samplesize := 1 << 10
 	o := CacheOptions{
 		capacity: samplesize,
 		ttl:      10 * time.Minute,
 	}
 	c := NewCache(o)
 
-	var msgs []*mdns.Msg
+	// create a map so that we can iterate on it randomly
+	msgs := make(map[int]*mdns.Msg)
 	for i := 0; i < samplesize; i++ {
-		msgs = append(msgs, NewMsg())
+		msgs[i] = NewMsg()
 	}
 
 	writer := func() {
@@ -196,12 +195,13 @@ func TestConcurrency(t *testing.T) {
 		wg.Done()
 	}
 
-	// 3 writer + 2 remover and 5 readers until c.Count reaches 0
+	// 3 writer
 	for i := 0; i < 3; i++ {
 		wg.Add(1)
 		go writer()
 	}
 
+	// 5 reader
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
 		go reader()
@@ -214,9 +214,4 @@ func TestConcurrency(t *testing.T) {
 	}
 
 	wg.Wait()
-
-	// We need to have an empty cache now
-	if c.Count() != 0 {
-		t.Fatalf("Failed to remove eveything")
-	}
 }
