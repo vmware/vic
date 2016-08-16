@@ -22,6 +22,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/exec"
+	"github.com/vmware/vic/pkg/uid"
 )
 
 func makeIP(a, b, c, d byte) *net.IP {
@@ -44,6 +45,9 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 
 	s := ctx.defaultScope
 
+	idFoo := uid.New()
+	idBar := uid.New()
+
 	var tests1 = []struct {
 		c   *Container
 		ip  *net.IP
@@ -53,11 +57,11 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 		// no container
 		{nil, nil, nil, fmt.Errorf("")},
 		// add a new container to scope
-		{&Container{id: "foo"}, nil, &Endpoint{ip: net.IPv4(172, 16, 0, 2), subnet: s.subnet, gateway: s.gateway}, nil},
+		{&Container{id: idFoo}, nil, &Endpoint{ip: net.IPv4(172, 16, 0, 2), subnet: s.subnet, gateway: s.gateway}, nil},
 		// container already part of scope
-		{&Container{id: "foo"}, nil, nil, DuplicateResourceError{}},
+		{&Container{id: idFoo}, nil, nil, DuplicateResourceError{}},
 		// container with ip
-		{&Container{id: "bar"}, makeIP(172, 16, 0, 3), &Endpoint{ip: net.IPv4(172, 16, 0, 3), subnet: s.subnet, gateway: s.gateway, static: true}, nil},
+		{&Container{id: idBar}, makeIP(172, 16, 0, 3), &Endpoint{ip: net.IPv4(172, 16, 0, 3), subnet: s.subnet, gateway: s.gateway, static: true}, nil},
 	}
 
 	for _, te := range tests1 {
@@ -152,7 +156,7 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 		// container not found
 		{&Container{id: "c1"}, ResourceNotFoundError{}},
 		// remove a container
-		{s.Container(exec.ParseID("foo")), nil},
+		{s.Container(idFoo), nil},
 	}
 
 	for _, te := range tests2 {
