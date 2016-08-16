@@ -11,17 +11,17 @@ See [VIC Containers Architecture](doc/design/arch/arch.md) for a high level over
 ## Project Status
 
 VIC now provides:
-* basic function for most of the core lifecycle operations: pull, create, start, attach, run, stop, rm
-* short IDs and names are supported in most places
-* experimental vCenter support
-* early volume support [--volume-store](doc/user/usage.md#configuring-volumes-in-a-virtual-container-host)
-* direct mapping of vSphere networks [--container-network](doc/user/usage.md#exposing-vsphere-networks-within-a-virtual-container-host)
-* port forwarding on bridge network
+* basic function for most of the core lifecycle operations: pull, create, start, attach, run, stop, rm, logs.
+* early vCenter support, leveraging DRS for initial placement.
+* volume support [--volume-store](doc/user/usage.md#configuring-volumes-in-a-virtual-container-host) - SIOC is not integrated but can be set as normal.
+* direct mapping of vSphere networks [--container-network](doc/user/usage.md#exposing-vsphere-networks-within-a-virtual-container-host) - NIOC is not integrated but can be set as normal.
+* dual-mode management - IP addresses are reported as normal via vSphere UI, guest shutdown via the UI will trigger delivery of container STOPSIGNAL, restart will relaunch container process.
+* logs command - note that follow (`-f`) is not yet implemented
 
 
-The function is still basic and there are some specific limitations worth pulling out:
-* stop is not polite - it currently powers off the VM directly without providing for filesystem sync
+The function is still basic and there two limitations worth pulling out as they're on a common paths:
 * `run` does not block the process from starting until attach is complete so may result in missed output and attempt to attach to stopped container
+* `wait` is not yet implemented
 
 We are working hard to add functionality while building out our [foundation](doc/design/arch/arch.md#port-layer-abstractions) so continue to watch the repo for new features. Initial focus is on the production end of the CI pipeline, building backwards towards developer laptop scenarios.
 

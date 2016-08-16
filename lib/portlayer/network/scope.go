@@ -20,7 +20,7 @@ import (
 	"sync"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/vic/lib/portlayer/exec"
+	"github.com/vmware/vic/pkg/uid"
 )
 
 const (
@@ -33,14 +33,14 @@ const (
 type Scope struct {
 	sync.Mutex
 
-	id         string
+	id         uid.UID
 	name       string
 	scopeType  string
 	subnet     net.IPNet
 	gateway    net.IP
 	dns        []net.IP
 	ipam       *IPAM
-	containers map[exec.ID]*Container
+	containers map[uid.UID]*Container
 	endpoints  []*Endpoint
 	space      *AddressSpace
 	builtin    bool
@@ -56,7 +56,7 @@ func (s *Scope) Name() string {
 	return s.name
 }
 
-func (s *Scope) ID() string {
+func (s *Scope) ID() uid.UID {
 	return s.id
 }
 
@@ -179,7 +179,7 @@ func (s *Scope) Containers() []*Container {
 	return containers
 }
 
-func (s *Scope) Container(id exec.ID) *Container {
+func (s *Scope) Container(id uid.UID) *Container {
 	s.Lock()
 	defer s.Unlock()
 

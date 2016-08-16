@@ -145,7 +145,7 @@ func (c *MockDataStore) ListImageStores(ctx context.Context) ([]*url.URL, error)
 	return nil, nil
 }
 
-func (c *MockDataStore) WriteImage(ctx context.Context, parent *spl.Image, ID string, meta map[string][]byte, r io.Reader) (*spl.Image, error) {
+func (c *MockDataStore) WriteImage(ctx context.Context, parent *spl.Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*spl.Image, error) {
 	i := spl.Image{
 		ID:       ID,
 		Store:    parent.Store,
