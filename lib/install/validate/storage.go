@@ -22,7 +22,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
@@ -138,27 +137,35 @@ func (v *Validator) SetDatastore(ds *object.Datastore, path *url.URL) {
 	v.Session.DatastorePath = path.Host
 }
 
+// checkDatastore checks that more than 1 host is connected to the datastore in vC
+// and prevents install if using unsafe configuration
 func (v *Validator) checkDatastore(ds *object.Datastore) {
 	defer trace.End(trace.Begin(ds.String()))
-	log.Infof("check %s", ds.Reference())
 
-	var d mo.Datastore
+	var hosts []*object.HostSystem
+	var err error
 
-	if err := ds.Properties(v.Context, ds.Reference(), []string{"host"}, &d); err != nil {
-		detail := fmt.Sprintf("Unable to check hosts for datastore %q: %s", ds, err)
-		log.Errorf(detail)
-		v.NoteIssue(errors.New(detail))
+	if hosts, err = ds.AttachedClusterHosts(v.Context, v.Session.Cluster); err != nil {
+		log.Errorf("Unable to get the list of hosts attached to given storage: %s", err)
+		v.NoteIssue(err)
 		return
 	}
 
-	for _, h := range d.Host {
-		log.Debugf("%q", h)
-	}
+	if len(hosts) == 1 {
+		log.Warnf("Only one (1) host is connected to %q: %q", ds.Name(), hosts[0].Name())
+		log.Warn("This configuration impacts the ability to use high availability and to do maintenance.")
 
-	if len(d.Host) == 1 {
-		log.Warnf("Only one (1) host connected to %q: %q", ds.Name(), d.Host[0].Key)
-	}
+		if v.Force {
+			log.Warn("Unsupported datastore/host configuration. Allowing due to --force")
+			return
+		}
 
+		msg := "Unsupported datastore/host configuration. Override recommendation with --force"
+		log.Error(msg)
+		v.NoteIssue(errors.New(msg))
+		return
+	}
+	log.Infof("Datastore/host configuration OK on %q", ds.Name())
 }
 
 // suggestDatastore suggests all datastores present on target in datastore:label format if applicable

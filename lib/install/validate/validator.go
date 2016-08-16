@@ -51,6 +51,8 @@ type Validator struct {
 
 	DisableFirewallCheck bool
 	DisableDRSCheck      bool
+
+	Force bool
 }
 
 func CreateFromVCHConfig(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) (*Validator, error) {
@@ -78,6 +80,7 @@ func CreateNoDCCheck(ctx context.Context, input *data.Data) (*Validator, error) 
 
 	v := &Validator{}
 	v.Context = ctx
+	v.Force = input.Force
 	tURL := input.URL
 
 	// default to https scheme
