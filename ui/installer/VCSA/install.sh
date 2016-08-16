@@ -35,6 +35,14 @@ echo -n "Enter your vCenter Administrator Password: "
 read -s VCENTER_ADMIN_PASSWORD
 echo ""
 
+read -p "Are you running vCenter 5.5? (y/n): " IS_VCENTER_5_5
+if [[ $(echo $IS_VCENTER_5_5 | grep -i "y") ]] ; then
+    IS_VCENTER_5_5=1
+    WEBCLIENT_PLUGINS_FOLDER="/var/lib/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
+else
+    WEBCLIENT_PLUGINS_FOLDER="/etc/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
+fi
+
 echo "----------------------------------------"
 echo "Checking if VCSA has Bash shell enabled..."
 echo "Please enter the root password"
@@ -50,7 +58,6 @@ OS=$(uname)
 PLUGIN_BUNDLES=''
 VCENTER_SDK_URL="https://${VCENTER_IP}/sdk/"
 COMMONFLAGS="--target $VCENTER_SDK_URL --user $VCENTER_ADMIN_USERNAME --password $VCENTER_ADMIN_PASSWORD"
-WEBCLIENT_PLUGINS_FOLDER="/etc/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
 OLD_PLUGIN_FOLDERS=''
 FORCE_INSTALL=''
 
@@ -201,7 +208,12 @@ update_ownership () {
     echo "Please enter the root password"
     echo "--------------------------------------------------------------"
     local PLUGIN_BUNDLES_WITHOUT_PREFIX=$(echo $PLUGIN_BUNDLES | sed 's/\.\.\/vsphere\-client\-serenity\///g')
-    ssh -t root@$VCENTER_IP "mkdir -p $WEBCLIENT_PLUGINS_FOLDER; cd $WEBCLIENT_PLUGINS_FOLDER; rm -rf $OLD_PLUGIN_FOLDERS; cp -rf /tmp/$PLUGIN_BUNDLES_WITHOUT_PREFIX $WEBCLIENT_PLUGINS_FOLDER; chown -R vsphere-client:users /etc/vmware/vsphere-client/vc-packages"
+    local SSH_COMMANDS_STR="mkdir -p $WEBCLIENT_PLUGINS_FOLDER; cd $WEBCLIENT_PLUGINS_FOLDER; rm -rf $OLD_PLUGIN_FOLDERS; cp -rf /tmp/$PLUGIN_BUNDLES_WITHOUT_PREFIX $WEBCLIENT_PLUGINS_FOLDER"
+    if [[ ! $IS_VCENTER_5_5 -eq 1 ]] ; then
+        SSH_COMMANDS_STR="$SSH_COMMANDS_STR; chown -R vsphere-client:users /etc/vmware/vsphere-client/vc-packages"
+    fi
+
+    ssh -t root@$VCENTER_IP $SSH_COMMANDS_STR
     if [[ $? > 0 ]] ; then
         echo "Error! Failed to update the ownership of folders. Please manually set them to vsphere-client:users"
         exit 1

@@ -26,10 +26,11 @@
                      <propertyName>isContainer</propertyName>
                      <comparator>EQUALS</comparator>
                      <comparableValue>
-                        <string>true</string>
+                        <Boolean>true</Boolean>
                      </comparableValue>
                   </com.vmware.data.query.PropertyConstraint>
                </nestedConstraints>
+	       <conjoiner>AND</conjoiner>
             </com.vmware.data.query.CompositeConstraint>
          </propertyConditions>
       </metadata>
@@ -50,10 +51,11 @@
                      <propertyName>isVCH</propertyName>
                      <comparator>EQUALS</comparator>
                      <comparableValue>
-                        <string>true</string>
+                        <Boolean>true</Boolean>
                      </comparableValue>
                   </com.vmware.data.query.PropertyConstraint>
                </nestedConstraints>
+               <conjoiner>AND</conjoiner>
             </com.vmware.data.query.CompositeConstraint>
          </propertyConditions>
       </metadata>
