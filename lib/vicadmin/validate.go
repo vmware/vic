@@ -51,8 +51,8 @@ type Validator struct {
 }
 
 const (
-	GoodStatus = template.HTML(`<span class="right"><i class="icon-ok"></i></span>`)
-	BadStatus  = template.HTML(`<span class="right warning"><i class="icon-attention"></i></span>`)
+	GoodStatus = template.HTML(`<i class="icon-ok"></i>`)
+	BadStatus  = template.HTML(`<i class="icon-attention></i>`)
 )
 
 func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) *Validator {
@@ -147,32 +147,25 @@ func (d dsList) Less(i, j int) bool { return d[i].Name < d[j].Name }
 
 func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) {
 	var dataStores dsList
-	dsNames := []string{}
+	dsNames := make(map[string]bool)
 
 	for _, url := range vch.ImageStores {
-		dsNames = append(dsNames, url.Host)
+		dsNames[url.Host] = true
 	}
 
 	for _, url := range vch.VolumeLocations {
-		dsNames = append(dsNames, url.Host)
+		dsNames[url.Host] = true
 	}
 
 	for _, url := range vch.ContainerStores {
-		dsNames = append(dsNames, url.Host)
+		dsNames[url.Host] = true
 	}
 
-	sort.Strings(dsNames)
-	lastDs := ""
-
 	refs := []types.ManagedObjectReference{}
-	for _, dsName := range dsNames {
-		if lastDs == dsName {
-			continue
-		}
-		lastDs = dsName
+	for dsName, _ := range dsNames {
 		ds, err := sess.Finder.DatastoreOrDefault(ctx, dsName)
 		if err != nil {
-			log.Errorf("Unable to collect information for datastore %s: %s", ds.Name(), err)
+			log.Errorf("Unable to collect information for datastore %s: %s", dsName, err)
 		} else {
 			refs = append(refs, ds.Reference())
 		}
@@ -190,6 +183,11 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 		log.Infof("Datastore %s Status: %s", ds.Name, ds.OverallStatus)
 		log.Infof("Datastore %s Free Space: %.1fGB", ds.Name, float64(ds.Summary.FreeSpace)/(1<<30))
 		log.Infof("Datastore %s Capacity: %.1fGB", ds.Name, float64(ds.Summary.Capacity)/(1<<30))
+
+		v.StorageRemaining = template.HTML(fmt.Sprintf(`%s
+			<div class="row card-text">
+			  <div class="sixty">%s:</div>
+			  <div class="fourty">%.1f GB remaining</div>
+			</div>`, v.StorageRemaining, ds.Name, float64(ds.Summary.FreeSpace)/(1<<30)))
 	}
-	v.StorageRemaining = template.HTML(fmt.Sprintf("%.1f GB", float64(dataStores[0].Summary.FreeSpace)/(1<<30)))
 }
