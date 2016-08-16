@@ -191,7 +191,9 @@ func (s *Scope) Container(id uid.UID) *Container {
 }
 
 func (s *Scope) Endpoints() []*Endpoint {
-	return s.endpoints
+	eps := make([]*Endpoint, len(s.endpoints))
+	copy(eps, s.endpoints)
+	return eps
 }
 
 func (s *Scope) Subnet() *net.IPNet {

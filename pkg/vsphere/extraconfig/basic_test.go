@@ -131,6 +131,12 @@ func TestBasicMap(t *testing.T) {
 		IntMap map[string]int `vic:"0.1" scope:"read-only" key:"intmap"`
 	}
 
+	// key is not present
+	var decoded Type
+	Decode(MapSource(nil), &decoded)
+	assert.NotNil(t, decoded.IntMap)
+	assert.Empty(t, decoded.IntMap)
+
 	IntMap := Type{
 		map[string]int{
 			"1st": 12345,
@@ -149,7 +155,7 @@ func TestBasicMap(t *testing.T) {
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
 	// Decode to new variable
-	var decoded Type
+	decoded = Type{}
 	Decode(MapSource(encoded), &decoded)
 
 	assert.Equal(t, IntMap, decoded, "Encoded and decoded does not match")
@@ -279,7 +285,6 @@ func TestNet(t *testing.T) {
 }
 
 func TestNilNetPointer(t *testing.T) {
-	t.Skip("Skipping zero value deep structure trees referenced by pointers is not yet implemented")
 	type Type struct {
 		Net *net.IPNet `vic:"0.1" scope:"read-only" key:"net"`
 	}

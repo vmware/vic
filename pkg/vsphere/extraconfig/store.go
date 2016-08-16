@@ -15,7 +15,6 @@
 package extraconfig
 
 import (
-	"os"
 	"sync"
 )
 
@@ -43,7 +42,7 @@ func (t *MapStore) Get(key string) (string, error) {
 
 	val, ok := t.store[key]
 	if !ok {
-		return "", os.ErrNotExist
+		return "", ErrKeyNotFound
 	}
 	return val, nil
 }
