@@ -54,22 +54,31 @@ gsutil version -l
 dpkg -l > package.list
 
 if [ $DRONE_BRANCH = "integration/*" ]; then
-    $rc = pybot --removekeywords TAG:secret tests/test-cases
-    upload_logs
-else
-    $rc = pybot --removekeywords TAG:secret --include regression tests/test-cases
+    rc= pybot --removekeywords TAG:secret tests/test-cases
     upload_logs
     if [ $rc = 0 ]; then
-        git clone https://github.com/vmwware/vic integration
-        cd integration
-        git checkout -b integration/$DRONE_BUILD
-        $patch = curl -s https://api.github.com/repos/vmware/vic/pulls/$DRONE_PULL_REQUEST | jq -r .patch_url
-        wget $patch
-        git apply $DRONE_PULL_REQUEST.patch
-        git add .
-        git commit -m"Automated integration test branch"
-        git push origin integration/$DRONE_BUILD
-        curl --user "vmware-vic:$GITHUB_AUTOMATION_API_KEY" -X POST --data '{"title":"Integration automation created","head":"integration/'$DRONE_BUILD'","base":"master"}'    https://api.github.com/repos/vmware/vic/pulls
+        body= curl -s https://api.github.com/repos/vmware/vic/pulls/$DRONE_PULL_REQUEST | jq -r .body
+        curl --user "vmware-vic:$GITHUB_AUTOMATION_API_KEY" -X POST --data '{"commit_title":"'.$body.'"}' https://api.github.com/repos/vmware/vic/pulls/$DRONE_PULL_REQUEST/merge
+    fi
+else
+    rc= pybot --removekeywords TAG:secret --include regression tests/test-cases
+    upload_logs
+    if [ $rc = 0 ]; then
+        comments_url= curl -s https://api.github.com/repos/vmware/vic/pulls/$DRONE_PULL_REQUEST | jq -r ._links.comments.href
+        lgtms= curl -s $comments_url | jq -r .[].body | grep -i lgtm | wc -l
+        if [ $lgtms >= 2 ]; then
+            git clone https://github.com/vmwware/vic integration
+            cd integration
+            git checkout -b integration/$DRONE_BUILD
+            title= curl -s https://api.github.com/repos/vmware/vic/pulls/$DRONE_PULL_REQUEST | jq -r .title
+            patch_url= curl -s https://api.github.com/repos/vmware/vic/pulls/$DRONE_PULL_REQUEST | jq -r .patch_url
+            wget $patch_url
+            git apply $DRONE_PULL_REQUEST.patch
+            git add .
+            git commit -m"Automated integration test branch"
+            git push origin integration/$DRONE_BUILD
+            curl --user "vmware-vic:$GITHUB_AUTOMATION_API_KEY" -X POST --data '{"title":"Integration automation created", "body":"'.$title.'","head":"integration/'$DRONE_BUILD'","base":"master"}' https://api.github.com/repos/vmware/vic/pulls
+        fi
     fi
 fi
 
