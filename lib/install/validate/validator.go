@@ -32,8 +32,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-const bytesToKilobytes = int64(1000)
-
 type Validator struct {
 	TargetPath            string
 	DatacenterPath        string
@@ -251,9 +249,9 @@ func (v *Validator) basics(ctx context.Context, input *data.Data, conf *config.V
 
 	scratchSize, err := units.FromHumanSize(input.ScratchSize)
 	if err != nil { // TODO set minimum size of scratch disk
-		v.NoteIssue(errors.Errorf("Invalid default image size %s provided", input.ScratchSize))
+		v.NoteIssue(errors.Errorf("Invalid default image size %s provided; error from parser: %s", input.ScratchSize, err.Error()))
 	} else {
-		conf.ScratchSize = scratchSize / bytesToKilobytes
+		conf.ScratchSize = scratchSize / units.KB
 		log.Warnf("Setting scratch image size to %d KB in VCHConfig", conf.ScratchSize)
 	}
 
