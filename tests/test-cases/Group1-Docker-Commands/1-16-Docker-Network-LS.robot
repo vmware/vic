@@ -30,9 +30,7 @@ Docker network ls --no-trunc
     @{lines}=  Split To Lines  ${output}
     @{line}=  Split String  @{lines}[1]
     ${status}=  Get State Of Github Issue  1225
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-16-Docker-Network-LS.robot needs to be updated now that Issue #1225 has been resolved
-    Log  Issue \#1225 is blocking implementation  WARN
-    #Length Should Be  @{line}[0]  64
+    Length Should Be  @{line}[0]  64
     
 Docker network ls -f fake network
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network ls -f name=fakeName

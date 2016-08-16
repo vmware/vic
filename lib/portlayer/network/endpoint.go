@@ -17,10 +17,12 @@ package network
 import (
 	"fmt"
 	"net"
+
+	"github.com/vmware/vic/pkg/uid"
 )
 
 type Endpoint struct {
-	id        string
+	id        uid.UID
 	container *Container
 	scope     *Scope
 	ip        net.IP
@@ -32,7 +34,7 @@ type Endpoint struct {
 
 func newEndpoint(container *Container, scope *Scope, ip *net.IP, subnet net.IPNet, gateway net.IP, pciSlot *int32) *Endpoint {
 	e := &Endpoint{
-		id:        generateID(),
+		id:        uid.New(),
 		container: container,
 		scope:     scope,
 		gateway:   gateway,
@@ -89,7 +91,7 @@ func (e *Endpoint) Container() *Container {
 	return e.container
 }
 
-func (e *Endpoint) ID() string {
+func (e *Endpoint) ID() uid.UID {
 	return e.id
 }
 

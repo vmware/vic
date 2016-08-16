@@ -208,8 +208,10 @@ vendor: $(GVT)
 	$(GVT) restore
 
 TEST_DIRS=github.com/vmware/vic/cmd
-TEST_DIRS+=github.com/vmware/vic/lib/
+TEST_DIRS+=github.com/vmware/vic/lib
 TEST_DIRS+=github.com/vmware/vic/pkg
+
+TEST_JOBS := $(addprefix test-job-,$(TEST_DIRS))
 
 # since drone cannot tell us how log it took
 mark:
@@ -219,15 +221,17 @@ sincemark:
 	@echo seconds passed since we start
 	@stat -c %Y /started | echo `expr $$(date +%s) - $$(cat)`
 
-test: portlayerapi
+test: portlayerapi $(TEST_JOBS)
+
+$(TEST_JOBS): test-job-%:
 	@echo Running unit tests
 	# test everything but vendor
 ifdef DRONE
 	@echo Generating coverage data
-	@$(TIME) infra/scripts/coverage.sh $(TEST_DIRS)
+	@$(TIME) infra/scripts/coverage.sh $*
 else
 	@echo Generating local html coverage report
-	@$(TIME) infra/scripts/coverage.sh --html $(TEST_DIRS)
+	@$(TIME) infra/scripts/coverage.sh --html $*
 endif
 
 $(vic-init): $(call godeps,cmd/vic-init/*.go)
@@ -266,13 +270,13 @@ $(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 $(docker-engine-api): $(call godeps,cmd/docker/*.go) $(portlayerapi-client)
 ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
-	@$(TIME) $(GO) build $(RACE) -o $@ ./cmd/docker
+	@$(TIME) $(GO) build $(RACE) $(ldflags) -o $@ ./cmd/docker
 else
 	@echo skipping docker-engine-api server, cannot build on non-linux
 endif
 
 # Common portlayer dependencies between client and server
-PORTLAYER_DEPS ?= lib/apiservers/portlayer/swagger.yml \
+PORTLAYER_DEPS ?= lib/apiservers/portlayer/swagger.json \
 				  lib/apiservers/portlayer/restapi/configure_port_layer.go \
 				  lib/apiservers/portlayer/restapi/options/*.go \
 				  lib/apiservers/portlayer/restapi/handlers/*.go
@@ -299,7 +303,7 @@ $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 	@$(TIME) $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@
 
 # main appliance target - depends on all top level component targets
-$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/* $(rpctool) $(vicadmin) $(imagec) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
+$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(rpctool) $(vicadmin) $(imagec) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
 	@echo building VCH appliance ISO
 	@$(TIME) $< -p $(appliance-staging) -b $(BIN)
 

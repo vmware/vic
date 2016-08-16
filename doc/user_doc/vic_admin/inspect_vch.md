@@ -19,7 +19,7 @@ You have a virtual container host.
 
   The `vic-machine inspect` command displays the connection information about the virtual container host:
 
-  <pre>Log server:
+  <pre>vic-admin portal:
 https://<i>vch_address</i>:2378
 DOCKER_HOST=<i>vch_address</i>:2376
 Connect to docker:

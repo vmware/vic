@@ -14,14 +14,6 @@
 # limitations under the License.
 #
 
-if [[ ! -f "register-plugin.jar" ]] ; then
-	echo "Error! Java package register-plugin.jar is missing!"
-	echo "Make sure to run this script on the same directory as the package"
-	echo ""
-	exit 1
-fi
-
-./uninstall.sh
-./install.sh
+./install.sh --force
 
 exit 0

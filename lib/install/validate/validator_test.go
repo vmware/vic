@@ -21,6 +21,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
@@ -75,6 +76,7 @@ func TestMain(t *testing.T) {
 
 	for i, model := range []*simulator.Model{simulator.ESX(), simulator.VPX()} {
 		t.Logf("%d", i)
+		model.Datastore = 3
 		defer model.Remove()
 		err := model.Create()
 		if err != nil {
@@ -102,6 +104,11 @@ func TestMain(t *testing.T) {
 		if err != nil {
 			t.Errorf("Failed to new validator: %s", err)
 		}
+		ds, _ := validator.Session.Finder.Datastore(validator.Context, "LocalDS_1")
+		simulator.Map.Get(ds.Reference()).(mo.Entity).Entity().Name = "Local DS_0"
+
+		ds, _ = validator.Session.Finder.Datastore(validator.Context, "LocalDS_2")
+		simulator.Map.Get(ds.Reference()).(mo.Entity).Entity().Name = `😗`
 
 		validator.DisableFirewallCheck = true
 		validator.DisableDRSCheck = true
@@ -123,7 +130,7 @@ func getESXData(url *url.URL) *data.Data {
 	result.URL = url
 	result.DisplayName = "test001"
 	result.ComputeResourcePath = "/ha-datacenter/host/localhost.localdomain/Resources"
-	result.ImageDatastoreName = "LocalDS_0"
+	result.ImageDatastorePath = "LocalDS_0"
 	result.BridgeNetworkName = "bridge"
 	result.BridgeIPRange = "172.16.0.0/12"
 	result.ManagementNetworkName = "VM Network"
@@ -140,7 +147,7 @@ func getVPXData(url *url.URL) *data.Data {
 	result.URL = url
 	result.DisplayName = "test001"
 	result.ComputeResourcePath = "/DC0/host/DC0_C0/Resources"
-	result.ImageDatastoreName = "LocalDS_0"
+	result.ImageDatastorePath = "LocalDS_0"
 	result.ExternalNetworkName = "VM Network"
 	result.BridgeNetworkName = "bridge"
 	result.BridgeIPRange = "172.16.0.0/12"
@@ -250,25 +257,91 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 		expectImage   string
 		expectVolumes map[string]string
 	}{
-		{"LocalDS_0", map[string]string{"volume1": "LocalDS_0/volumes/volume1", "volume2": "ds://LocalDS_0/volumes/volume2"}, false, "ds://LocalDS_0", map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1", "volume2": "ds://LocalDS_0/volumes/volume2"}},
-		{"ds://LocalDS_0/images", map[string]string{"volume1": "LocalDS_0/volumes/volume1", "volume2": "ds://LocalDS_0/volumes/volume2"}, false, "ds://LocalDS_0", map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1", "volume2": "ds://LocalDS_0/volumes/volume2"}},
-		{"LocalDS_0/images", map[string]string{"volume1": "LocalDS_0/volumes/volume1", "volume2": "ds://LocalDS_0/volumes/volume2"}, false, "ds://LocalDS_0", map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1", "volume2": "ds://LocalDS_0/volumes/volume2"}},
-		{"ds://LocalDS_0/images/xyz", map[string]string{"volume1": "LocalDS_0/volumes/volume1", "volume2": "ds://LocalDS_0/volumes/volume2"}, false, "ds://LocalDS_0", map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1", "volume2": "ds://LocalDS_0/volumes/volume2"}},
-		{"LocalDS_0", map[string]string{"volume1": "LocalDS_1/volumes/volume1", "volume2": "ds://LocalDS_1/volumes/volume2"}, true, "", nil},
-		{"ds://LocalDS_0", map[string]string{"volume1": "LocalDS_1/volumes/volume1", "volume2": "ds://LocalDS_1/volumes/volume2"}, true, "", nil},
-		{"", map[string]string{"volume1": "", "volume2": "ds://"}, true, "", nil},
-		{"ds://", map[string]string{"volume1": "", "volume2": "ds://"}, true, "", nil},
+		{"LocalDS_0",
+			map[string]string{"volume1": "LocalDS_0/volumes/volume1",
+				"volume2": "ds://LocalDS_0/volumes/volume2"},
+			false,
+			"ds://LocalDS_0/test001/images",
+			map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1",
+				"volume2": "ds://LocalDS_0/volumes/volume2"}},
+
+		{"LocalDS_0/images",
+			map[string]string{"volume1": "LocalDS_0/volumes/volume1",
+				"volume2": "ds://LocalDS_0/volumes/volume2"},
+			false,
+			"ds://LocalDS_0/images",
+			map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1",
+				"volume2": "ds://LocalDS_0/volumes/volume2"}},
+
+		{"ds://LocalDS_0/images",
+			map[string]string{"volume1": "LocalDS_0/volumes/volume1",
+				"volume2": "ds://LocalDS_0/volumes/volume2"},
+			false,
+			"ds://LocalDS_0/images",
+			map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1",
+				"volume2": "ds://LocalDS_0/volumes/volume2"}},
+
+		{"ds://LocalDS_0/images/xyz",
+			map[string]string{"volume1": "LocalDS_0/volumes/volume1",
+				"volume2": "ds://LocalDS_0/volumes/volume2"},
+			false,
+			"ds://LocalDS_0/images/xyz",
+			map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1",
+				"volume2": "ds://LocalDS_0/volumes/volume2"}},
+
+		{"ds://😗",
+			map[string]string{"volume1": "😗/volumes/volume1",
+				"volume2": "ds://😗/volumes/volume2"},
+			true,
+			"ds://😗/test001/images",
+			nil},
+
+		{"ds://LocalDS_0",
+			map[string]string{"volume1": "LocalDS_1/volumes/volume1",
+				"volume2": "ds://LocalDS_1/volumes/volume2"},
+			true,
+			"ds://LocalDS_0/test001/images",
+			nil},
+
+		{"LocalDS_0",
+			map[string]string{"volume1": "LocalDS_1/volumes/volume1",
+				"volume2": "ds://LocalDS_1/volumes/volume2"},
+			true,
+			"ds://LocalDS_0/test001/images",
+			nil},
+
+		{"LocalDS_0",
+			map[string]string{"volume1": "LocalDS_1/volumes/volume1",
+				"volume2": "ds://LocalDS_1/volumes/volume2"},
+			true,
+			"ds://LocalDS_0/test001/images",
+			nil},
+
+		{"",
+			map[string]string{"volume1": "",
+				"volume2": "ds://"},
+			true,
+			"",
+			nil},
+
+		{"ds://",
+			map[string]string{"volume1": "",
+				"volume2": "ds://"},
+			true,
+			"",
+			nil},
 	}
 
 	for _, test := range tests {
 		t.Logf("%+v", test)
-		input.ImageDatastoreName = test.image
+		input.ImageDatastorePath = test.image
 		input.VolumeLocations = test.volumes
 		v.storage(v.Context, input, conf)
 		v.ListIssues()
 		if !test.hasErr {
 			assert.Equal(t, 0, len(v.issues))
 			assert.Equal(t, test.expectImage, conf.ImageStores[0].String())
+			conf.ImageStores = conf.ImageStores[1:]
 			for key, volume := range conf.VolumeLocations {
 				assert.Equal(t, test.expectVolumes[key], volume.String())
 			}

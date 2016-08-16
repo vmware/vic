@@ -26,12 +26,10 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
-	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
-	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	"golang.org/x/net/context"
 )
@@ -40,51 +38,47 @@ const (
 	volumeRoot = "volumes"
 )
 
-func (d *Dispatcher) DeleteStores(vchVM *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) error {
-	defer trace.End(trace.Begin(""))
-
-	ds := d.session.Datastore
-
-	p, err := d.getVCHRootDir(vchVM) // p would be path but there's an imported package called path
-	if err != nil {
-		return err
-	}
-
-	var errs []string
+func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) error {
 	var emptyImages bool
-	var emptyVolumes bool
-	log.Infof("Removing images")
-	if emptyImages, err = d.deleteImages(ds, p); err != nil {
-		errs = append(errs, err.Error())
-	}
-	emptyVolumes, err = d.deleteDatastoreFiles(ds, path.Join(p, volumeRoot), d.force)
+	var errs []string
 
-	if emptyImages && emptyVolumes {
-		// if not empty, don't try to delete parent directory here
-		log.Debugf("Removing stores directory")
-		if err = d.deleteParent(ds, p); err != nil {
+	for _, imageDir := range conf.ImageStores {
+		imageDSes, err := d.session.Finder.DatastoreList(d.ctx, imageDir.Host)
+		if err != nil {
+			errs = append(errs, err.Error())
+			continue
+		}
+
+		if len(imageDSes) != 1 {
+			errs = append(errs, fmt.Sprintf("Found %d datastores with provided datastore path %s. Provided datastore path must identify exactly one datastore.",
+				len(imageDSes),
+				imageDir.String()))
+
+			continue
+		}
+
+		if emptyImages, err = d.deleteDatastoreFiles(imageDSes[0], imageDir.Path, true); err != nil {
 			errs = append(errs, err.Error())
 		}
+
+		if !emptyImages {
+			log.Infof("Not deleting [%s] %s as it still contains files after removing images", imageDir.Host, imageDir.Path)
+			continue
+		}
 	}
+
 	if len(errs) > 0 {
 		return errors.New(strings.Join(errs, "\n"))
 	}
+
 	return nil
 }
 
-func (d *Dispatcher) deleteParent(ds *object.Datastore, root string) error {
+func (d *Dispatcher) deleteParent(ds *object.Datastore, root string) (bool, error) {
 	defer trace.End(trace.Begin(""))
 
-	_, err := d.deleteDatastoreFiles(ds, root, true)
-	return err
-}
-
-func (d *Dispatcher) deleteImages(ds *object.Datastore, root string) (bool, error) {
-	defer trace.End(trace.Begin(""))
-
-	p := path.Join(root, vsphere.StorageImageDir)
 	// alway forcing delete images
-	return d.deleteDatastoreFiles(ds, p, true)
+	return d.deleteDatastoreFiles(ds, root, true)
 }
 
 func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, force bool) (bool, error) {
@@ -234,18 +228,6 @@ func (d *Dispatcher) lsFolder(ds *object.Datastore, dsPath string) (*types.HostD
 	return &res, nil
 }
 
-func (d *Dispatcher) getVCHRootDir(vchVM *vm.VirtualMachine) (string, error) {
-	defer trace.End(trace.Begin(""))
-
-	parent := vsphere.StorageParentDir
-	uuid, err := vchVM.UUID(d.ctx)
-	if err != nil {
-		err = errors.Errorf("Failed to get VCH UUID: %s", err)
-		return "", err
-	}
-	return path.Join(parent, uuid), nil
-}
-
 func (d *Dispatcher) createVolumeStores(conf *config.VirtualContainerHostConfigSpec) error {
 	for _, url := range conf.VolumeLocations {
 		ds, err := d.session.Finder.Datastore(d.ctx, url.Host)
@@ -276,7 +258,7 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *config.VirtualContainerHost
 		for label, url := range conf.VolumeLocations {
 			volumeStores.WriteString(fmt.Sprintf("\t%s: %s\n", label, url.Path))
 		}
-		log.Warnf("Since --force was not specified, the following volume stores will not be removed. Use the vSphere UI to delete content you do not wish to keep.\n%q", volumeStores.String())
+		log.Warnf("Since --force was not specified, the following volume stores will not be removed. Use the vSphere UI to delete content you do not wish to keep.\n%s", volumeStores.String())
 		return 0
 	}
 

@@ -16,7 +16,7 @@
 # add key for docker repo
 apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
 # add docker apt sources
-echo "deb https://apt.dockerproject.org/repo ubuntu-xenial main" >> /etc/apt/sources.list.d/docker.list
+echo "deb https://apt.dockerproject.org/repo ubuntu-xenial main" > /etc/apt/sources.list.d/docker.list
 
 apt-get update && apt-get -y dist-upgrade
 
@@ -45,6 +45,7 @@ fi
 
 # Install docker
 apt-get -y install linux-image-extra-$(uname -r)
-apt-get -y install docker-engine
-service docker start
+apt-get -y --allow-downgrades install docker-engine=1.11.2-0~xenial
+apt-mark hold docker-engine
 usermod -aG docker vagrant
+systemctl start docker

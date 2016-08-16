@@ -17,6 +17,7 @@ package dio
 
 import (
 	"io"
+	"os"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -86,7 +87,8 @@ func (t *multiWriter) Close() error {
 	defer t.mutex.Unlock()
 
 	for _, w := range t.writers {
-		if c, ok := w.(io.Closer); ok {
+		// squash closing of stdout/err if bound
+		if c, ok := w.(io.Closer); ok && c != os.Stdout && c != os.Stderr {
 			c.Close()
 		}
 	}

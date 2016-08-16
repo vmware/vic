@@ -9,7 +9,7 @@ IT teams can assure service-level agreements for container workloads with VMware
 
 You can apply vSphere High Availability and Fault Tolerance to both the container VMs and the virtual container host, so that containers and the virtual container host can power on or off independently of each other. 
 
-You can also restart or upgrade the virtual container host without needing to take the containers offline during the process.
+You can also restart or upgrade the virtual container host without needing to take the containers offline during the process. You do not require a native agent on the ESXi host. The appliance VM does not need to be running for vMotion to occur. Clusters with non-container VMs can also vMotion with fully automated DRS.
 
 #### VMware Virtual SAN
 The virtual container host maintains filesystem layers inherent in container images by mapping to discrete VMDK files, all of which are housed in vSphere datastores on VSAN, NFS, or local disks.

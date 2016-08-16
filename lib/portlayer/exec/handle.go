@@ -140,7 +140,7 @@ func (h *Handle) String() string {
 	return h.key
 }
 
-func (h *Handle) Commit(ctx context.Context, sess *session.Session) error {
+func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *int32) error {
 	if h.committed {
 		return nil // already committed
 	}
@@ -152,7 +152,7 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session) error {
 	s := h.Spec.Spec()
 	s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 
-	if err := h.Container.Commit(ctx, sess, h); err != nil {
+	if err := h.Container.Commit(ctx, sess, h, waitTime); err != nil {
 		return err
 	}
 
@@ -210,6 +210,12 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 		log.Error(detail)
 		return errors.New(detail)
 	}
+	uuid, err := instanceUUID(config.Metadata.ID)
+	if err != nil {
+		detail := fmt.Sprintf("unable to get instance UUID: %s", err)
+		log.Error(detail)
+		return errors.New(detail)
+	}
 	specconfig := &spec.VirtualMachineConfigSpecConfig{
 		// FIXME: hardcoded values
 		NumCPUs:  2,
@@ -217,8 +223,9 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 
 		ConnectorURI: URI,
 
-		ID:   config.Metadata.ID,
-		Name: config.Metadata.Name,
+		ID:       config.Metadata.ID,
+		Name:     config.Metadata.Name,
+		BiosUUID: uuid,
 
 		ParentImageID: config.ParentImageID,
 		BootMediaPath: VCHConfig.BootstrapImagePath,
@@ -226,6 +233,7 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 		DebugNetwork:  backing,
 
 		ImageStoreName: config.ImageStoreName,
+		ImageStorePath: &VCHConfig.ImageStores[0],
 
 		Metadata: config.Metadata,
 	}

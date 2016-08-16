@@ -21,7 +21,6 @@ set -o pipefail
 
 vm="toolbox-test-$(uuidgen)"
 destroy=true
-verbose=false
 
 while getopts n:stv flag
 do
@@ -35,9 +34,6 @@ do
             ;;
         t)
             test=true
-            ;;
-        v)
-            verbose=true
             ;;
         *)
             echo "unknown option" 1>&2
@@ -112,7 +108,11 @@ if ! govc datastore.ls "$vm" | grep -q "${vm}.vmx" ; then
     govc datastore.upload config.iso "$vm/config.iso" >/dev/null
     device=$(govc device.cdrom.add -vm "$vm")
     govc device.cdrom.insert -vm "$vm" -device "$device" "$vm/config.iso"
+fi
 
+state=$(govc vm.info -json "$vm" | jq -r .VirtualMachines[].Runtime.PowerState)
+
+if [ "$state" != "poweredOn" ] ; then
     govc vm.power -on "$vm"
 fi
 
@@ -124,9 +124,9 @@ opts=(-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o LogLevel=er
 scp "${opts[@]}" "$GOPATH"/bin/toolbox{,.test} "core@${ip}:"
 
 if [ -n "$test" ] ; then
-    pid=$RANDOM
     echo "Running toolbox tests..."
-    ssh "${opts[@]}" "core@${ip}" ./toolbox.test -test.v=$verbose -test.run TestServiceRunESX -toolbox.testesx -toolbox.testpid=$pid &
+    ssh "${opts[@]}" "core@${ip}" ./toolbox.test -test.v -test.run TestServiceRunESX -toolbox.testesx \
+        -toolbox.testpid="$$" -toolbox.powerState="$state" &
 
     echo "Waiting for VM ip from toolbox..."
     ip=$(govc vm.ip "$vm")
@@ -135,8 +135,8 @@ if [ -n "$test" ] ; then
     echo "Testing guest operations via govc..."
     out=$(govc guest.start -vm "$vm" -l user:pass /bin/date)
 
-    if [ "$out" != "$pid" ] ; then
-        echo "'$out' != '$pid'" 1>&2
+    if [ "$out" != "$$" ] ; then
+        echo "'$out' != '$$'" 1>&2
     fi
 
     echo "Waiting for tests to complete..."
@@ -145,5 +145,5 @@ fi
 
 if [ -n "$start" ] ; then
     echo "Starting toolbox..."
-    ssh "${opts[@]}" "core@${ip}" ./toolbox -toolbox.trace=$verbose
+    ssh "${opts[@]}" "core@${ip}" ./toolbox -toolbox.trace
 fi

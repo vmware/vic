@@ -71,18 +71,34 @@ cp ${DIR}/appliance/nat.service $(rootfs_dir $PKGDIR)/etc/systemd/system/
 cp ${DIR}/appliance/nat-setup $(rootfs_dir $PKGDIR)/etc/systemd/scripts
 
 mkdir -p $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants
-ln -s /etc/systemd/system/vic-init.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/vic-init.service
-ln -s /etc/systemd/system/nat.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/nat.service
+ln -s /etc/systemd/system/vic-init.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
+ln -s /etc/systemd/system/nat.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
+ln -s /etc/systemd/system/multi-user.target $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
+
+# disable networkd given we manage the link state directly
+rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/systemd-networkd.service
+rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/sockets.target.wants/systemd-networkd.socket
 
 # change the default systemd target to launch VIC
-# ln -sf /etc/systemd/system/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/default.target
+ln -sf /etc/systemd/system/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/default.target
 # update the multi-user target to launch VIC - this launches sshd as well
-ln -s /etc/systemd/system/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/vic.target
+#ln -s /etc/systemd/system/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/vic.target
 
 # do not use the systemd dhcp client
 rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
 cp ${DIR}/base/no-dhcp.network $(rootfs_dir $PKGDIR)/etc/systemd/network/
 
+# do not use the default iptables rules - nat-setup supplants this
+rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
+
+#
+# Set up vicadmin user
+#
+
+chroot $(rootfs_dir $PKGDIR) groupadd -g 1000 vicadmin
+chroot $(rootfs_dir $PKGDIR) useradd -u 1000 -g 1000 -m -d /home/vicadmin -s /bin/false vicadmin
+cp -R ${DIR}/vicadmin/* $(rootfs_dir $PKGDIR)/home/vicadmin
+chown -R 1000:1000 $(rootfs_dir $PKGDIR)/home/vicadmin
 
 ## main VIC components
 # TEMP: imagec wrapper

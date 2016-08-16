@@ -35,6 +35,7 @@ import (
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/uid"
 )
 
 // ContainersHandlersImpl is the receiver for all of the exec handler methods
@@ -72,7 +73,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	log.Debugf("Args: %#v", params.CreateConfig.Args)
 	log.Debugf("Env: %#v", params.CreateConfig.Env)
 	log.Debugf("WorkingDir: %#v", params.CreateConfig.WorkingDir)
-	id := exec.GenerateID().String()
+	id := uid.New().String()
 
 	// Init key for tether
 	privateKey, err := rsa.GenerateKey(rand.Reader, 512)
@@ -115,11 +116,10 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	log.Infof("CreateHandler Metadata: %#v", m)
 
 	// Create new portlayer executor and call Create on it
-	h := exec.NewContainer(exec.ParseID(id))
+	h := exec.NewContainer(uid.Parse(id))
 	// Create the executor.ExecutorCreateConfig
 	c := &exec.ContainerCreateConfig{
-		Metadata: m,
-
+		Metadata:       m,
 		ParentImageID:  *params.CreateConfig.Image,
 		ImageStoreName: params.CreateConfig.ImageStore.Name,
 		VCHName:        options.PortLayerOptions.VCHName,
@@ -135,7 +135,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 	return containers.NewCreateOK().WithPayload(&models.ContainerCreatedInfo{ID: id, Handle: h.String()})
 }
 
-// ContainerStartHandler starts the container
+// StateChangeHandler changes the state of a container
 func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.StateChangeParams) middleware.Responder {
 	defer trace.End(trace.Begin("Containers.StateChangeHandler"))
 
@@ -190,7 +190,7 @@ func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStat
 func (handler *ContainersHandlersImpl) GetHandler(params containers.GetParams) middleware.Responder {
 	defer trace.End(trace.Begin("Containers.GetHandler"))
 
-	h := exec.GetContainer(exec.ParseID(params.ID))
+	h := exec.GetContainer(uid.Parse(params.ID))
 	if h == nil {
 		return containers.NewGetNotFound().WithPayload(&models.Error{Message: fmt.Sprintf("container %s not found", params.ID)})
 	}
@@ -206,7 +206,7 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 		return containers.NewCommitNotFound().WithPayload(&models.Error{Message: "container not found"})
 	}
 
-	if err := h.Commit(context.Background(), handler.handlerCtx.Session); err != nil {
+	if err := h.Commit(context.Background(), handler.handlerCtx.Session, params.WaitTime); err != nil {
 		log.Errorf("CommitHandler error (%s): %s", h.String(), err)
 		return containers.NewCommitDefault(http.StatusServiceUnavailable).WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -217,8 +217,8 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.ContainerRemoveParams) middleware.Responder {
 	defer trace.End(trace.Begin("Containers.RemoveContainerHandler"))
 
-	//get the indicated container for removal
-	cID := exec.ParseID(params.ID)
+	// get the indicated container for removal
+	cID := uid.Parse(params.ID)
 	h := exec.GetContainer(cID)
 	if h == nil {
 		return containers.NewContainerRemoveNotFound()
@@ -227,6 +227,8 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 	err := h.Container.Remove(context.Background(), handler.handlerCtx.Session)
 	if err != nil {
 		switch err := err.(type) {
+		case exec.NotFoundError:
+			return containers.NewContainerRemoveNotFound()
 		case exec.RemovePowerError:
 			return containers.NewContainerRemoveConflict().WithPayload(&models.Error{Message: err.Error()})
 		default:
@@ -241,7 +243,7 @@ func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers
 	defer trace.End(trace.Begin("Containers.GetContainerInfoHandler"))
 
 	// get the container id for interogation
-	containerID := exec.ParseID(params.ID)
+	containerID := uid.Parse(params.ID)
 	cc, err := exec.ContainerInfo(context.Background(), handler.handlerCtx.Session, containerID)
 	if err != nil {
 		log.Debugf("GetContainerInfoHandler Error: %s", err.Error())
@@ -280,7 +282,7 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.ContainerSignalParams) middleware.Responder {
 	defer trace.End(trace.Begin("Containers.ContainerSignal"))
 
-	h := exec.GetContainer(exec.ParseID(params.ID))
+	h := exec.GetContainer(uid.Parse(params.ID))
 	if h == nil {
 		return containers.NewContainerSignalNotFound().WithPayload(&models.Error{Message: fmt.Sprintf("container %s not found", params.ID)})
 	}
@@ -294,11 +296,23 @@ func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.
 }
 
 func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers.GetContainerLogsParams) middleware.Responder {
-	defer trace.End(trace.Begin("Containers.GetContainerLogsHandler"))
+	defer trace.End(trace.Begin(params.ID))
 
-	err := &models.Error{Message: "GetContainerLogs: Not yet implemented"}
+	h := exec.GetContainer(uid.Parse(params.ID))
+	if h == nil {
+		return containers.NewGetContainerLogsNotFound().WithPayload(&models.Error{
+			Message: fmt.Sprintf("container %s not found", params.ID),
+		})
+	}
 
-	return containers.NewGetContainerLogsInternalServerError().WithPayload(err)
+	reader, err := h.Container.LogReader(context.Background())
+	if err != nil {
+		return containers.NewGetContainerLogsInternalServerError().WithPayload(&models.Error{Message: err.Error()})
+	}
+
+	detachableOut := NewFlushingReader(reader)
+
+	return NewContainerOutputHandler("logs").WithPayload(detachableOut, params.ID)
 }
 
 // utility function to convert from a Container type to the API Model ContainerInfo (which should prob be called ContainerDetail)

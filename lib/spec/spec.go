@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"net/url"
 )
 
 // NilSlot is an invalid PCI slot number
@@ -34,12 +35,15 @@ const (
 	pciSlotNumberBegin int32 = 0xc0
 	pciSlotNumberEnd   int32 = 1 << 10
 	pciSlotNumberInc   int32 = 1 << 5
+
+	maxVMNameLength = 80
 )
 
 // VirtualMachineConfigSpecConfig holds the config values
 type VirtualMachineConfigSpecConfig struct {
 	// ID of the VM
-	ID string
+	ID       string
+	BiosUUID string
 
 	// ParentImageID of the VM
 	ParentImageID string
@@ -70,6 +74,9 @@ type VirtualMachineConfigSpecConfig struct {
 	// Name of the image store
 	ImageStoreName string
 
+	// url path to image store
+	ImageStorePath *url.URL
+
 	// Temporary
 	Metadata executor.ExecutorConfig
 }
@@ -99,8 +106,17 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 	log.Debugf("Adding metadata to the configspec: %+v", config.Metadata)
 	// TEMPORARY
 
+	// set VM name to prettyname-ID, to make it readable a little bit
+	// if prettyname-ID is longer than max vm name length, truncate pretty name, instead of UUID, to make it unique
+	nameMaxLen := maxVMNameLength - len(config.ID)
+	prettyName := config.Name
+	if len(prettyName) > nameMaxLen-1 {
+		prettyName = prettyName[:nameMaxLen-1]
+	}
+	fullName := fmt.Sprintf("%s-%s", prettyName, config.ID)
 	s := &types.VirtualMachineConfigSpec{
-		Name: config.ID,
+		Name: fullName,
+		Uuid: config.BiosUUID,
 		Files: &types.VirtualMachineFileInfo{
 			VmPathName: VMPathName,
 		},
@@ -143,11 +159,14 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 	// merge it with the sec
 	s.ExtraConfig = append(s.ExtraConfig, metaCfg...)
 
-	return &VirtualMachineConfigSpec{
+	vmcs := &VirtualMachineConfigSpec{
 		Session:                  session,
 		VirtualMachineConfigSpec: s,
 		config: config,
-	}, nil
+	}
+
+	log.Debugf("Virtual machine config spec created: %+v", vmcs)
+	return vmcs, nil
 }
 
 // AddVirtualDevice appends an Add operation to the DeviceChange list
@@ -251,6 +270,13 @@ func (s *VirtualMachineConfigSpec) ImageStoreName() string {
 	defer trace.End(trace.Begin(s.config.ID))
 
 	return s.config.ImageStoreName
+}
+
+// ImageStorePath returns the image store url
+func (s *VirtualMachineConfigSpec) ImageStorePath() *url.URL {
+	defer trace.End(trace.Begin(s.config.ID))
+
+	return s.config.ImageStorePath
 }
 
 func (s *VirtualMachineConfigSpec) generateNextKey() int32 {

@@ -18,19 +18,24 @@ Set Test Environment Variables
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_BUILD_NUMBER  0
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  BRIDGE_NETWORK
     Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${bridge}  %{BRIDGE_NETWORK}
+    Run Keyword If  '${status}' == 'FAIL'  Set Suite Variable  ${bridge}  ${bridge}
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  EXTERNAL_NETWORK
     Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${external}  %{EXTERNAL_NETWORK}
+    Run Keyword If  '${status}' == 'FAIL'  Set Suite Variable  ${external}  ${external}
 
     @{URLs}=  Split String  %{TEST_URL_ARRAY}
     ${len}=  Get Length  ${URLs}
     ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
 
     Set Environment Variable  TEST_URL  @{URLs}[${IDX}]
+    Log To Console  %{TEST_URL}
     Set Environment Variable  GOVC_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
 
     ${host}=  Run  govc ls host
-    Set Environment Variable  TEST_RESOURCE  ${host}/Resources
-    Set Environment Variable  GOVC_RESOURCE_POOL  ${host}/Resources
+    ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_RESOURCE
+    Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_RESOURCE  ${host}/Resources
+    Set Environment Variable  GOVC_RESOURCE_POOL  %{TEST_RESOURCE}
+    Set Environment Variable  GOVC_DATASTORE  %{TEST_DATASTORE}
 
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
@@ -54,17 +59,27 @@ Get Docker Params
     ${ret}=  Strip String  @{ret}[0]
     Set Suite Variable  ${vch-ip}  ${ret}
 
+    ${proto}=  Set Variable If  ${certs}  "https"  "http"
+    Set Suite Variable  ${proto}
+
+    :FOR  ${item}  IN  @{output}
+    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  http
+    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
+
+    ${rest}  ${vic-admin}=  Split String From Right  ${line}
+    Set Suite Variable  ${vic-admin}
+
 Install VIC Appliance To Test Server
     [Arguments]  ${certs}=${false}  ${vol}=default
     Set Test Environment Variables  ${certs}  ${vol}  network  'VM Network'
     # Attempt to cleanup old/canceled tests
-    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    #Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    #Run Keyword And Ignore Error  Cleanup Datastore On Test Server
     Set Test VCH Name
 
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run VIC Machine Command  ${certs}  ${vol}  network  'VM Network'
+    ${output}=  Run VIC Machine Command  ${certs}  ${vol}  ${bridge}  ${external}
     Log  ${output}
     Get Docker Params  ${output}  ${certs}
     Log To Console  Installer completed successfully: ${vch-name}...
@@ -77,17 +92,23 @@ Install VIC Appliance To Test Server
 Run VIC Machine Command
     [Tags]  secret
     [Arguments]  ${certs}  ${vol}  ${bridge}  ${external}
-    ${output}=  Run Keyword If  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --force=true --bridge-network=${bridge} --external-network=${external} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol}
+    ${output}=  Run Keyword If  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --force=true --bridge-network=${bridge} --external-network=${external} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol}
     Run Keyword If  ${certs}  Should Contain  ${output}  Installer completed successfully
     Return From Keyword If  ${certs}  ${output}
 
-    ${output}=  Run Keyword Unless  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-datastore=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --no-tls --force=true --bridge-network=${bridge} --external-network=${external} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol}
+    ${output}=  Run Keyword Unless  ${certs}  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --no-tls --force=true --bridge-network=${bridge} --external-network=${external} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol}
     Run Keyword Unless  ${certs}  Should Contain  ${output}  Installer completed successfully
     [Return]  ${output}
 
 Cleanup VIC Appliance On Test Server
+    Log To Console  Gathering logs from the test server...
+    Gather Logs From Test Server
+    Log To Console  Deleting the VCH appliance...
+    ${output}=  Run VIC Machine Delete Command
+    [Return]  ${output}
+
+Run VIC Machine Delete Command
     [Tags]  secret
-    Run Keyword And Ignore Error  Gather Logs From Test Server
     ${output}=  Run  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
     Run Keyword And Ignore Error  Should Contain  ${output}  Completed successfully
     ${output}=  Run  rm -f ${vch-name}-*.pem
@@ -126,16 +147,23 @@ Gather Logs From Test Server
     ${status}  ${message}=  Run Keyword And Ignore Error  Should Not Contain  ${params}  --tls
     # Non-certificate case
     ${ip}=  Run Keyword If  '${status}'=='PASS'  Split String  ${params}  :
-    Run Keyword If  '${status}'=='PASS'  Run  wget http://@{ip}[0]:2378/container-logs.tar.gz -O ${vch-name}-container-logs.tar.gz
+    Run Keyword If  '${status}'=='PASS'  Run  wget ${vic-admin}/container-logs.zip -O ${vch-name}-container-logs.zip
     # Certificate case
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  ${params}  ${SPACE}
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  @{ip}[1]  :
-    Run Keyword If  '${status}'=='FAIL'  Run  wget --no-check-certificate https://@{ip}[0]:2378/container-logs.tar.gz -O ${vch-name}-container-logs.tar.gz
+    Run Keyword If  '${status}'=='FAIL'  Run  wget --no-check-certificate ${vic-admin}/container-logs.zip -O ${vch-name}-container-logs.zip
+
+Gather Logs From ESX Server
+    Environment Variable Should Be Set  TEST_URL
+    ${out}=  Run  govc logs.download
 
 Get State Of Github Issue
     [Arguments]  ${num}
     [Tags]  secret
-    ${result}=  Get  https://api.github.com/repos/vmware/vic/issues/${num}?access_token\=%{GITHUB_AUTOMATION_API_KEY}
+    :FOR  ${idx}  IN RANGE  0  5
+    \   ${status}  ${result}=  Run Keyword And Ignore Error  Get  https://api.github.com/repos/vmware/vic/issues/${num}?access_token\=%{GITHUB_AUTOMATION_API_KEY}
+    \   Exit For Loop If  '${status}'
+    \   Sleep  1
     Should Be Equal  ${result.status_code}  ${200}
     ${status}=  Get From Dictionary  ${result.json()}  state
     [Return]  ${status}
@@ -190,7 +218,7 @@ Deploy Nimbus ESXi Server
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
     @{gotIP}=  Split String  ${line}  ${SPACE}
     ${ip}=  Remove String  @{gotIP}[5]  ,
-    
+
     # Let's set a password so govc doesn't complain
     Remove Environment Variable  GOVC_PASSWORD
     Remove Environment Variable  GOVC_USERNAME
@@ -242,6 +270,15 @@ Wait Until Container Stops
     \   Return From Keyword If  ${status}
     \   Sleep  1
     Fail  Container did not stop within 10 seconds
+    
+Wait Until VM Powers Off
+    [Arguments]  ${vm}
+    :FOR  ${idx}  IN RANGE  0  10
+    \   ${out}=  Run  govc vm.info ${vm}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  poweredOff
+    \   Return From Keyword If  ${status}
+    \   Sleep  1
+    Fail  VM did not power off within 10 seconds
 
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
@@ -262,6 +299,11 @@ Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Stopped
+    # Ensure container logs are correctly being gathered for debugging purposes
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz | tar tvzf -
+    Should Be Equal As Integers  ${rc}  0
+    Log  ${output}
+    Should Contain  ${output}  ${container}/vmware.log
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a

@@ -28,10 +28,6 @@ import (
 
 var tthr tether.Tether
 
-func init() {
-	trace.Logger.Level = log.DebugLevel
-}
-
 func main() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -46,8 +42,13 @@ func main() {
 	if strings.HasSuffix(os.Args[0], "-debug") {
 		extraconfig.DecodeLogLevel = log.DebugLevel
 		extraconfig.EncodeLogLevel = log.DebugLevel
-		log.SetLevel(log.DebugLevel)
 	}
+	// use the same logger for trace and other logging
+	trace.Logger = log.StandardLogger()
+	log.SetLevel(log.DebugLevel)
+
+	// Initiliaze logger with default TextFormatter
+	log.SetFormatter(&log.TextFormatter{DisableColors: true, FullTimestamp: true})
 
 	// get the windows service logic running so that we can play well in that mode
 	runService("VMware Tether", false)

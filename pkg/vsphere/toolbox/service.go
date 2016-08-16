@@ -68,7 +68,7 @@ func NewService(rpcIn Channel, rpcOut Channel) *Service {
 		out:      &ChannelOut{NewTraceChannel(rpcOut)},
 		handlers: make(map[string]Handler),
 		wg:       new(sync.WaitGroup),
-		stop:     make(chan struct{}, 1),
+		stop:     make(chan struct{}),
 
 		PrimaryIP: DefaultIP,
 	}
@@ -149,13 +149,13 @@ func (s *Service) Start() error {
 
 // Stop cancels the RPC listener routine created via Start
 func (s *Service) Stop() {
-	s.stop <- struct{}{}
+	close(s.stop)
 
 	_ = s.in.Stop()
 	_ = s.out.Stop()
 }
 
-// Wait blocks until Start returns
+// Wait blocks until Start returns, allowing any current RPC in progress to complete.
 func (s *Service) Wait() {
 	s.wg.Wait()
 }

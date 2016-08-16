@@ -39,7 +39,7 @@ type Data struct {
 	ApplianceISO string
 	BootstrapISO string
 
-	ImageDatastoreName     string
+	ImageDatastorePath     string
 	VolumeLocations        map[string]string
 	ContainerDatastoreName string
 
@@ -92,6 +92,9 @@ type InstallerData struct {
 	Cluster    types.ManagedObjectReference
 
 	ImageFiles []string
+
+	ApplianceISO string
+	BootstrapISO string
 
 	Extension types.Extension
 	UseRP     bool

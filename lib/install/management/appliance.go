@@ -22,6 +22,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/docker/docker/opts"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
@@ -48,11 +49,10 @@ var (
 )
 
 func (d *Dispatcher) isVCH(vm *vm.VirtualMachine) (bool, error) {
-	defer trace.End(trace.Begin(""))
-
 	if vm == nil {
 		return false, errors.New("nil parameter")
 	}
+	defer trace.End(trace.Begin(vm.InventoryPath))
 
 	info, err := vm.FetchExtraConfig(d.ctx)
 	if err != nil {
@@ -337,7 +337,7 @@ func (d *Dispatcher) GenerateExtensionName(conf *config.VirtualContainerHostConf
 	return nil
 }
 
-func (d *Dispatcher) configIso(conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) (object.VirtualDeviceList, error) {
+func (d *Dispatcher) configIso(conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine, settings *data.InstallerData) (object.VirtualDeviceList, error) {
 	defer trace.End(trace.Begin(""))
 
 	var devices object.VirtualDeviceList
@@ -358,7 +358,7 @@ func (d *Dispatcher) configIso(conf *config.VirtualContainerHostConfigSpec, vm *
 		log.Errorf("Failed to create Cdrom device for appliance: %s", err)
 		return nil, err
 	}
-	cdrom = devices.InsertIso(cdrom, fmt.Sprintf("[%s] %s/appliance.iso", conf.ImageStores[0].Host, d.vmPathName))
+	cdrom = devices.InsertIso(cdrom, fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.ApplianceISO))
 	devices = append(devices, cdrom)
 	return devices, nil
 }
@@ -458,10 +458,10 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 
 	if conf.HostCertificate != nil {
 		d.VICAdminProto = "https"
-		d.DockerPort = "2376"
+		d.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
 	} else {
 		d.VICAdminProto = "http"
-		d.DockerPort = "2375"
+		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
 	}
 
 	conf.AddComponent("docker-personality", &executor.SessionConfig{
@@ -503,7 +503,9 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	},
 	)
 
-	spec, err = d.reconfigureApplianceSpec(vm2, conf)
+	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)
+
+	spec, err = d.reconfigureApplianceSpec(vm2, conf, settings)
 	if err != nil {
 		log.Errorf("Error while getting appliance reconfig spec: %s", err)
 		return err
@@ -527,7 +529,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	return nil
 }
 
-func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) (*types.VirtualMachineConfigSpec, error) {
+func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*types.VirtualMachineConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
 
 	var devices object.VirtualDeviceList
@@ -539,7 +541,7 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *confi
 		Files:   &types.VirtualMachineFileInfo{VmPathName: fmt.Sprintf("[%s]", conf.ImageStores[0].Host)},
 	}
 
-	if devices, err = d.configIso(conf, vm); err != nil {
+	if devices, err = d.configIso(conf, vm, settings); err != nil {
 		return nil, err
 	}
 

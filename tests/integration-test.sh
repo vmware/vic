@@ -20,6 +20,10 @@ gsutil version -l
 
 dpkg -l > package.list
 
+echo $DRONE_BUILD_URL
+echo $DRONE_BUILD_DIR
+echo $DRONE_PULL_REQUEST
+
 if [ $DRONE_BRANCH = "master" ] && [ $DRONE_REPO = "vmware/vic" ]; then
     pybot --removekeywords TAG:secret tests/test-cases
 else
@@ -29,9 +33,9 @@ fi
 rc="$?"
 
 timestamp=$(date +%s)
-outfile="integration_test_logs_"$DRONE_BUILD_NUMBER"_$timestamp.tar"
+outfile="integration_logs_"$DRONE_BUILD_NUMBER"_"$DRONE_COMMIT"_$timestamp.tar"
 
-tar cf $outfile log.html package.list *container-logs.tar.gz *.log
+tar cf $outfile log.html package.list *container-logs.zip *.log
 
 # GC credentials
 set +x

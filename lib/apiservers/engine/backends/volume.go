@@ -18,12 +18,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	log "github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/errors"
 
 	"github.com/docker/engine-api/types"
+	"github.com/docker/go-units"
 	"github.com/google/uuid"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -35,6 +35,7 @@ const (
 	OptsVolumeStoreKey     string = "VolumeStore"
 	OptsCapacityKey        string = "Capacity"
 	dockerMetadataModelKey string = "DockerMetaData"
+	bytesToMegabyte               = int64(1000000)
 )
 
 func NewVolumeModel(volume *models.VolumeResponse, labels map[string]string) *types.Volume {
@@ -60,7 +61,7 @@ func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
 		return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get a portlayer client"), http.StatusInternalServerError)
 	}
 
-	res, err := client.Storage.ListVolumes(storage.NewListVolumesParams().WithFilterString(&filter))
+	res, err := client.Storage.ListVolumes(storage.NewListVolumesParamsWithContext(ctx).WithFilterString(&filter))
 	if err != nil {
 		switch err := err.(type) {
 		case *storage.ListVolumesInternalServerError:
@@ -113,7 +114,7 @@ func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]s
 		model.Name = uuid.New().String()
 	}
 
-	res, err := client.Storage.CreateVolume(storage.NewCreateVolumeParams().WithVolumeRequest(model))
+	res, err := client.Storage.CreateVolume(storage.NewCreateVolumeParamsWithContext(ctx).WithVolumeRequest(model))
 	if err != nil {
 		switch err := err.(type) {
 
@@ -143,7 +144,7 @@ func (v *Volume) VolumeRm(name string) error {
 	}
 
 	// FIXME: check whether this is a name or a UUID. UUID expected for now.
-	_, err := client.Storage.RemoveVolume(storage.NewRemoveVolumeParams().WithName(name))
+	_, err := client.Storage.RemoveVolume(storage.NewRemoveVolumeParamsWithContext(ctx).WithName(name))
 	if err != nil {
 
 		switch err := err.(type) {
@@ -211,12 +212,12 @@ func validateDriverArgs(args map[string]string, model *models.VolumeRequest) err
 		return nil
 	}
 
-	capacity, convErr := strconv.ParseInt(capstr, 10, 64)
-	if convErr != nil {
-		model.Capacity = -1
-		return fmt.Errorf("Capacity must be an integer value. The unit is MB: %s", convErr)
+	capacity, err := units.FromHumanSize(capstr)
+	if err != nil {
+		return err
 	}
-	model.Capacity = int64(capacity)
+	model.Capacity = int64(capacity) / bytesToMegabyte
+
 	return nil
 }
 

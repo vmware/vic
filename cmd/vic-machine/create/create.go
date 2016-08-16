@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -114,10 +115,10 @@ func NewCreate() *Create {
 func (c *Create) Flags() []cli.Flag {
 	flags := []cli.Flag{
 		cli.StringFlag{
-			Name:        "image-datastore, i",
+			Name:        "image-store, i",
 			Value:       "",
-			Usage:       "REQUIRED. Image datastore name",
-			Destination: &c.ImageDatastoreName,
+			Usage:       "Image datastore path in format \"datastore/path\"",
+			Destination: &c.ImageDatastorePath,
 		},
 		cli.StringFlag{
 			Name:        "container-datastore, cs",
@@ -292,7 +293,7 @@ func (c *Create) processVolumeStores() error {
 	for _, arg := range c.volumeStores {
 		splitMeta := strings.SplitN(arg, ":", 2)
 		if len(splitMeta) != 2 {
-			return errors.New("Volume store input must be in format datastore-path:label")
+			return errors.New("Volume store input must be in format datastore/path:label")
 		}
 		c.VolumeLocations[splitMeta[1]] = splitMeta[0]
 	}
@@ -306,10 +307,6 @@ func (c *Create) processParams() error {
 
 	if err := c.HasCredentials(); err != nil {
 		return err
-	}
-
-	if c.ImageDatastoreName == "" {
-		return cli.NewExitError("--image-datastore Image datastore name must be specified", 1)
 	}
 
 	if c.cert != "" && c.key == "" {
@@ -474,7 +471,6 @@ func (c *Create) Run(cliContext *cli.Context) error {
 	}
 
 	if len(cliContext.Args()) > 0 {
-		log.Error("Create cannot continue: invalid CLI arguments")
 		log.Errorf("Unknown argument: %s", cliContext.Args()[0])
 		return errors.New("invalid CLI arguments")
 	}
@@ -514,6 +510,8 @@ func (c *Create) Run(cliContext *cli.Context) error {
 
 	vConfig := validator.AddDeprecatedFields(ctx, vchConfig, c.Data)
 	vConfig.ImageFiles = images
+	vConfig.ApplianceISO = path.Base(c.ApplianceISO)
+	vConfig.BootstrapISO = path.Base(c.BootstrapISO)
 
 	{ // create certificates for VCH extension
 		var certbuffer, keybuffer bytes.Buffer

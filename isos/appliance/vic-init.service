@@ -1,6 +1,6 @@
 [Unit]
 Description=Init process for VIC components
-After=network-online.target
+After=basic.target
 
 [Service]
 Type=idle
@@ -12,4 +12,5 @@ ExecStart=/sbin/vic-init
 
 [Install]
 WantedBy=vic.target
-Wants=network-online.target
+Wants=basic.target
+Wants=multi-user.target

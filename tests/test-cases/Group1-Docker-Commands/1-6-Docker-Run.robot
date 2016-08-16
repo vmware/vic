@@ -69,3 +69,8 @@ Docker run df command
     #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -it busybox /bin/df
     #Should Be Equal As Integers  ${rc}  0
     #Should Contain  ${output}  Filesystem           1K-blocks      Used Available Use% Mounted on
+
+Docker run -d unspecified host port
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -d -p 6379 redis:alpine
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error

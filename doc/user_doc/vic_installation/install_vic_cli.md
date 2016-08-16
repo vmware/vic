@@ -41,7 +41,7 @@ The virtual container host allows you to use an ESXi host or vCenter Server inst
 
    <pre>$ vic-machine-darwin create
 --target <i>vcenter_server_address</i>
---image-datastore <i>datastore_name</i> 
+--image-store <i>datastore_name</i> 
 --user <i>username</i>
 --bridge-network <i>network_name</i></pre>  
 
@@ -49,7 +49,7 @@ The virtual container host allows you to use an ESXi host or vCenter Server inst
 
    <pre>$ vic-machine-linux create
 --target <i>vcenter_server_address</i>
---image-datastore <i>datastore_name</i> 
+--image-store <i>datastore_name</i> 
 --user <i>username</i>
 --bridge-network <i>network_name</i></pre> 
 
@@ -57,16 +57,14 @@ The virtual container host allows you to use an ESXi host or vCenter Server inst
 
    <pre>$ vic-machine-windows create
 --target <i>vcenter_server_address</i>
---image-datastore <i>datastore_name</i> 
+--image-store <i>datastore_name</i> 
 --user <i>username</i>
 --bridge-network <i>network_name</i></pre> 
 
    At the end of a successful installation, `vic-machine` displays a success message:
    
    <pre>Initialization of appliance successful
-SSH to appliance (default=root:password)
-ssh root@<i>vch_address</i>
-Log server:
+vic-admin portal:
 https://<i>vch_address</i>:2378
 DOCKER_HOST=<i>vch_address</i>:2376
 Connect to docker:

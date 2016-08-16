@@ -84,8 +84,15 @@ fi
 cp ${BIN}/tether-linux $(rootfs_dir $PKGDIR)/bin/tether
 
 # kick off our components at boot time
+mkdir -p $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants
 cp ${DIR}/bootstrap/tether.service $(rootfs_dir $PKGDIR)/etc/systemd/system/
-ln -s /etc/systemd/system/tether.service $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/tether.service
+cp ${DIR}/appliance/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/
+ln -s /etc/systemd/system/tether.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
+ln -sf /etc/systemd/system/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/default.target
+
+# disable networkd given we manage the link state directly
+rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/systemd-networkd.service
+rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/sockets.target.wants/systemd-networkd.socket
 
 # do not use the systemd dhcp client
 rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
