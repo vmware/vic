@@ -35,11 +35,18 @@ echo -n "Enter your vCenter Administrator Password: "
 read -s VCENTER_ADMIN_PASSWORD
 echo ""
 
+read -p "Are you running vCenter 5.5? (y/n): " IS_VCENTER_5_5
+if [[ $(echo $IS_VCENTER_5_5 | grep -i "y") ]] ; then
+    IS_VCENTER_5_5=1
+    WEBCLIENT_PLUGINS_FOLDER="/var/lib/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
+else
+    WEBCLIENT_PLUGINS_FOLDER="/etc/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
+fi
+
 OS=$(uname)
 PLUGIN_BUNDLES=''
 VCENTER_SDK_URL="https://${VCENTER_IP}/sdk/"
 COMMONFLAGS="--target $VCENTER_SDK_URL --user $VCENTER_ADMIN_USERNAME --password $VCENTER_ADMIN_PASSWORD"
-WEBCLIENT_PLUGINS_FOLDER="/etc/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
 PLUGIN_FOLDERS=''
 
 if [[ $(echo $OS | grep -i "darwin") ]] ; then
@@ -80,7 +87,7 @@ parse_and_unregister_plugins () {
     echo "Deleting plugin contents..."
     echo "Please enter the root password for your machine running VCSA"
     echo "-------------------------------------------------------------"
-    ssh -t root@$VCENTER_IP "cd $WEBCLIENT_PLUGINS_FOLDER; rm -rf $PLUGIN_FOLDERS" 
+    ssh -t root@$VCENTER_IP "cd $WEBCLIENT_PLUGINS_FOLDER; rm -rf $PLUGIN_FOLDERS"
 }
 
 rename_package_folder () {
