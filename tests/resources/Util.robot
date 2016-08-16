@@ -266,6 +266,15 @@ Wait Until Container Stops
     \   Return From Keyword If  ${status}
     \   Sleep  1
     Fail  Container did not stop within 10 seconds
+    
+Wait Until VM Powers Off
+    [Arguments]  ${vm}
+    :FOR  ${idx}  IN RANGE  0  10
+    \   ${out}=  Run  govc vm.info ${vm}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  poweredOff
+    \   Return From Keyword If  ${status}
+    \   Sleep  1
+    Fail  VM did not power off within 10 seconds
 
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
