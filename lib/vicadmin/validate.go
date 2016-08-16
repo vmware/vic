@@ -19,6 +19,7 @@ import (
 	"html/template"
 	"net"
 	"os"
+	"sort"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -138,18 +139,57 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	return v
 }
 
+type dsList []mo.Datastore
+
+func (d dsList) Len() int { return len(d) }
+func (d dsList) Swap(i, j int) { d[i], d[j] = d[j], d[i] }
+func (d dsList) Less(i, j int) bool { return d[i].Name < d[j].Name }
+
 func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) {
-	var ds []mo.Datastore
-	refs := []types.ManagedObjectReference{sess.Datastore.Reference()}
+	var dataStores dsList
+	dsNames := []string{}
+
+	for _, url := range vch.ImageStores {
+		dsNames = append(dsNames, url.Host)
+	}
+
+	for _, url := range vch.VolumeLocations {
+		dsNames = append(dsNames, url.Host)
+	}
+
+	for _, url := range vch.ContainerStores {
+		dsNames = append(dsNames, url.Host)
+	}
+
+	sort.Strings(dsNames)
+	lastDs := ""
+
+	refs := []types.ManagedObjectReference{}
+	for _, dsName := range dsNames {
+		if lastDs == dsName {
+			continue
+		}
+		lastDs = dsName
+		ds, err := sess.Finder.DatastoreOrDefault(ctx, dsName)
+		if err != nil {
+			log.Errorf("Unable to collect information for datastore %s: %s", ds.Name(), err)
+		} else {
+			refs = append(refs, ds.Reference())
+		}
+	}
+
 	pc := property.DefaultCollector(sess.Client.Client)
-	err := pc.Retrieve(ctx, refs, nil, &ds)
+	err := pc.Retrieve(ctx, refs, nil, &dataStores)
+
+	sort.Sort(dataStores)
 	if err != nil {
 		log.Errorf("Error while accessing datastore: %s", err)
 		return
 	}
-	log.Infof("Datastore Status: %s", ds[0].OverallStatus)
-	log.Infof("Datastore Free Space: %.1fGB", float64(ds[0].Summary.FreeSpace)/(1<<30))
-	log.Infof("Datastore Capacity: %.1fGB", float64(ds[0].Summary.Capacity)/(1<<30))
-
-	v.StorageRemaining = template.HTML(fmt.Sprintf("%.1f GB", float64(ds[0].Summary.FreeSpace)/(1<<30)))
+	for _, ds := range dataStores {
+		log.Infof("Datastore %s Status: %s", ds.Name, ds.OverallStatus)
+		log.Infof("Datastore %s Free Space: %.1fGB", ds.Name, float64(ds.Summary.FreeSpace)/(1<<30))
+		log.Infof("Datastore %s Capacity: %.1fGB", ds.Name, float64(ds.Summary.Capacity)/(1<<30))
+	}
+	v.StorageRemaining = template.HTML(fmt.Sprintf("%.1f GB", float64(dataStores[0].Summary.FreeSpace)/(1<<30)))
 }
