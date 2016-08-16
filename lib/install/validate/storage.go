@@ -142,6 +142,10 @@ func (v *Validator) SetDatastore(ds *object.Datastore, path *url.URL) {
 func (v *Validator) checkDatastore(ds *object.Datastore) {
 	defer trace.End(trace.Begin(ds.String()))
 
+	if !v.IsVC() {
+		return
+	}
+
 	var hosts []*object.HostSystem
 	var err error
 
