@@ -591,11 +591,13 @@ func isPortLayerRunning(res *http.Response) bool {
 	defer res.Body.Close()
 	resBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
+		log.Debugf("error while reading res body: %s", err.Error())
 		return false
 	}
 
 	var sysInfo dockertypes.Info
 	if err = json.Unmarshal(resBody, &sysInfo); err != nil {
+		log.Debugf("error while unmarshalling res body: %s", err.Error())
 		return false
 	}
 
@@ -604,24 +606,34 @@ func isPortLayerRunning(res *http.Response) bool {
 			return status[1] == "RUNNING"
 		}
 	}
-
 	return false
 }
 
 // waitForApplianceInit checks if the appliance is live by issuing `docker info` to it
-func waitForApplianceInit(hostIP, port string) bool {
-	dockerInfoURL := "https://" + hostIP + ":" + port + "/info"
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-
+func waitForApplianceInit(conf *config.VirtualContainerHostConfigSpec, hostIP, port string) bool {
 	var (
+		proto   string
+		client  *http.Client
 		res     *http.Response
 		err     error
 		success bool
 	)
 
+	if conf.HostCertificate.IsNil() {
+		// TLS disabled
+		proto = "http"
+		client = &http.Client{}
+	} else {
+		// TLS enabled
+		proto = "https"
+		// TODO: configure this when support is added for user-signed certs
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client = &http.Client{Transport: tr}
+	}
+
+	dockerInfoURL := fmt.Sprintf("%s://%s:%s/info", proto, hostIP, port)
 	maxRetries := 10
 	for i := 0; i < maxRetries; i++ {
 		res, err = client.Get(dockerInfoURL)
@@ -631,7 +643,6 @@ func waitForApplianceInit(hostIP, port string) bool {
 				break
 			}
 		}
-
 		time.Sleep(time.Second)
 	}
 
@@ -668,13 +679,8 @@ func (d *Dispatcher) makeSureApplianceRuns(conf *config.VirtualContainerHostConf
 	if !ip.IsUnspecifiedIP(conf.ExecutorConfig.Networks["client"].Assigned.IP) {
 		d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.IP.String()
 		log.Debug("Obtained IP address for client interface: %q", d.HostIP)
-
-		// wait till the appliance is fully initialized
-		initSuccess := waitForApplianceInit(d.HostIP, d.DockerPort)
-		if !initSuccess {
-			log.Warnf("Appliance services may be unreachable")
-		}
-		return nil
+	} else {
+		return fmt.Errorf("could not obtain IP address information from appliance: %s", updateErr)
 	}
 
 	// it's possible we timed out... get updated info having adjusted context to allow it
@@ -715,5 +721,11 @@ func (d *Dispatcher) makeSureApplianceRuns(conf *config.VirtualContainerHostConf
 		return errors.New("timed out waiting for IP address information from appliance")
 	}
 
-	return fmt.Errorf("could not obtain IP address information from appliance: %s", updateErr)
+	// wait till the appliance is fully initialized
+	initSuccess := waitForApplianceInit(conf, d.HostIP, d.DockerPort)
+	if !initSuccess {
+		return errors.New("timed out waiting for appliance to initialize")
+	}
+
+	return nil
 }
