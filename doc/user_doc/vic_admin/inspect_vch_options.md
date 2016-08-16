@@ -42,7 +42,9 @@ The relative path to the host, cluster, or resource pool in which you deployed t
 - The ESXi host includes multiple resource pools. 
 - You deployed the virtual container host in a specific resource pool in your environment. 
 
-If you do not specify the `compute-resource` option and multiple possible resources exist, `vic-machine inspect` fails and suggests valid targets for `compute-resource` in the failure message. 
+If you specify the `id` option, you do not need to specify the `compute-resource` option.
+
+If you do not specify the `compute-resource` or `id` options and multiple possible resources exist, `vic-machine inspect` fails and suggests valid targets for `compute-resource` in the failure message. 
 
 * If the virtual container host is in a specific resource pool on an ESXi host, specify the name of the resource pool: <pre>--compute-resource  <i>resource_pool_name</i></pre>
 * If the virtual container host is on a vCenter Server instance that has more than one standalone host but no clusters, specify the IPv4 address or fully qualified domain name (FQDN) of the target host:<pre>--compute-resource <i>host_address</i></pre>
@@ -54,7 +56,7 @@ If you do not specify the `compute-resource` option and multiple possible resour
 
 Short name: `-n`
 
-The name of the virtual container host to inspect. This option is mandatory if the virtual container host to inspect has a name other than the default name, `virtual-container-host`, or if you do not use the `id` option. Specify `--name` with exactly the same value that you used when you ran `vic-machine create`.
+The name of the virtual container host to inspect. This option is mandatory if the virtual container host to inspect has a name other than the default name, `virtual-container-host`, and you do not use the `id` option. Specify `--name` with exactly the same value that you used when you ran `vic-machine create`.
 
 <pre>--name <i>vch_name</i></pre>
 

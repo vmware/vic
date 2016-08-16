@@ -1,6 +1,6 @@
 # List Virtual Container Hosts and Obtain Their IDs #
 
-You can obtain a list of the virtual container hosts that are running in vCenter Serveror on an ESXi host by using the `vic-machine ls` command. 
+You can obtain a list of the virtual container hosts that are running in vCenter Server or on an ESXi host by using the `vic-machine ls` command. 
 
 The `vic-machine ls` command lists virtual container hosts with their IDs. You can use virtual container host IDs when you run the `vic-machine inspect` and `vic-machine delete` commands. Using virtual container host IDs reduces the number of options that you need to specify when you use `vic-machine inspect` and `vic-machine delete`.
 
