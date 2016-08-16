@@ -24,10 +24,25 @@ import (
 
 var Logger = log.New()
 
+// trace object used to grab run-time state
 type tr struct {
-	msg       string
-	frameName string
+	msg      string
+	funcName string
+	lineNo int
+
 	startTime time.Time
+}
+
+func (t *tr) delta() time.Duration {
+	return time.Now().Sub(t.startTime)
+}
+
+func (t *tr) beginHdr() string {
+	return fmt.Sprintf("[BEGIN] [%s:%d]", t.funcName, t.lineNo)
+}
+
+func (t *tr) endHdr() string {
+	return fmt.Sprintf("[ END ] [%s:%d]", t.funcName, t.lineNo)
 }
 
 func newTrace(msg string) *tr {
@@ -38,11 +53,10 @@ func newTrace(msg string) *tr {
 
 	name := runtime.FuncForPC(pc).Name()
 
-	name = fmt.Sprintf("(%s:%d)", name, line)
-
 	return &tr{
 		msg:       msg,
-		frameName: name,
+		funcName:  name,
+		lineNo: line,
 		startTime: time.Now(),
 	}
 }
@@ -52,9 +66,9 @@ func Begin(msg string) *tr {
 	t := newTrace(msg)
 
 	if msg == "" {
-		Logger.Debugf("[BEGIN] [%s]", t.frameName)
+		Logger.Debugf(t.beginHdr())
 	} else {
-		Logger.Debugf("[BEGIN] [%s] %s", t.frameName, t.msg)
+		Logger.Debugf("%s %s", t.beginHdr(), t.msg)
 	}
 
 	return t
@@ -62,6 +76,5 @@ func Begin(msg string) *tr {
 
 // End ends the trace.
 func End(t *tr) {
-	endTime := time.Now()
-	Logger.Debugf("[ END ] [%s] [%s] %s", t.frameName, endTime.Sub(t.startTime), t.msg)
+	Logger.Debugf("%s [%s] %s", t.endHdr(), t.delta(), t.msg)
 }

@@ -25,7 +25,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestContext(t *testing.T) {
+func TestContextDeadline(t *testing.T) {
 	Logger.Level = logrus.DebugLevel
 
 	cnt := 100
@@ -33,9 +33,13 @@ func TestContext(t *testing.T) {
 	wg.Add(cnt)
 	for i := 0; i < cnt; i++ {
 		go func() {
-			ctx := Start(context.TODO(), "testmsg")
-			Infof(ctx, "foo %d", i)
-			Done(ctx)
+			ctx := NewOperation(context.TODO(), "testmsg")
+
+			// unpack an Operation via the context using it's Values fields
+			c := FromContext(ctx)
+
+			assert.NotNil(t, c)
+			c.Infof("foo %d", i)
 			wg.Done()
 		}()
 	}
@@ -46,8 +50,8 @@ func TestDeadlineLogging(t *testing.T) {
 	Logger.Level = logrus.InfoLevel
 
 	ctx, _ := context.WithTimeout(context.Background(), time.Nanosecond)
-	ctx = Start(ctx, "testmsg")
-	err := Done(ctx)
+	ctx = NewOperation(ctx, "testmsg")
+	err := ctx.Err()
 	if !assert.Error(t, err) {
 		return
 	}

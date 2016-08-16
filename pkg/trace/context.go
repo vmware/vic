@@ -17,7 +17,6 @@ package trace
 import (
 	"fmt"
 	"sync/atomic"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 
@@ -25,76 +24,100 @@ import (
 )
 
 const OpTraceKey = "traceKey"
+const OpNumKey = "numKey"
 
 // monotonic counter which inrements on Start()
 var opCount uint64
 
 type Operation struct {
-	tr
+	context.Context
+
+	t     tr
 	opNum uint64
 }
 
 // Add tracing info to the context.
-func Start(ctx context.Context, msg string) context.Context {
+func NewOperation(ctx context.Context, msg string) context.Context {
 	// inc the counter
 	n := atomic.AddUint64(&opCount, 1)
 
 	// start the trace
 	h := newTrace(msg)
 
-	t := Operation{
-		tr:    *h,
-		opNum: n,
+	// We need to be able to identify this operation across API (and process)
+	// boundaries.  So add the trace as a value to the embedded context.  We
+	// stash the values individually in the context because we can't assign
+	// the operation itself as a value to the embedded context (it's circular)
+	ctx = context.WithValue(ctx, OpTraceKey, *h)
+	ctx = context.WithValue(ctx, OpNumKey, n)
+
+	o := Operation{
+		Context: ctx,
+		t:       *h,
+		opNum:   n,
 	}
 
-	// stash the value
-	ctx = context.WithValue(ctx, OpTraceKey, t)
-
-	Debugf(ctx, "[BEGIN] [%s]", h.frameName)
-	return ctx
+	o.Debugf(o.t.beginHdr())
+	return o
 }
 
-func FromContext(ctx context.Context) *Operation {
-	traceContext := ctx.Value(OpTraceKey)
-
-	switch traceContext.(type) {
-	case Operation:
-		t := traceContext.(Operation)
-		return &t
+// Creates a header string to be printed.
+func (o *Operation) header() string {
+	if Logger.Level >= logrus.DebugLevel {
+		return fmt.Sprintf("op=%d (delta:%s)", o.opNum, o.t.delta())
+	} else {
+		return fmt.Sprintf("op=%d", o.opNum)
 	}
-
-	return nil
 }
 
-func Done(ctx context.Context) error {
-	t := FromContext(ctx)
-	if err := ctx.Err(); err != nil {
-		Errorf(ctx, "[ END ] %s %s: error: %s", t.frameName, t.msg, err.Error())
+// Err returns a non-nil error value after Done is closed.  Err returns
+// Canceled if the context was canceled or DeadlineExceeded if the
+// context's deadline passed.  No other values for Err are defined.
+// After Done is closed, successive calls to Err return the same value.
+func (o Operation) Err() error {
+
+	if err := o.Context.Err(); err != nil {
+		o.Errorf("%s: %s error: %s", o.t.endHdr(), o.t.msg, err.Error())
 		return err
 	}
 
-	Debugf(ctx, "[ END ] %s", t.msg)
 	return nil
 }
 
-func header(ctx context.Context) string {
-	t := FromContext(ctx)
+func (o Operation) Infof(format string, args ...interface{}) {
+	Logger.Infof("%s: %s", o.header(), fmt.Sprintf(format, args...))
+}
 
-	if Logger.Level >= logrus.DebugLevel {
-		return fmt.Sprintf("op=%d (delta:%s)", t.opNum, time.Now().Sub(t.startTime))
-	} else {
-		return fmt.Sprintf("op=%d", t.opNum)
+func (o Operation) Debugf(format string, args ...interface{}) {
+	Logger.Debugf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+}
+
+func (o Operation) Errorf(format string, args ...interface{}) {
+	Logger.Errorf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+}
+
+// FromContext unpacks the values in the ctx to create an Operation
+func FromContext(ctx context.Context) *Operation {
+
+	o := &Operation{
+		Context: ctx,
 	}
-}
 
-func Infof(ctx context.Context, format string, args ...interface{}) {
-	Logger.Infof("%s: %s", header(ctx), fmt.Sprintf(format, args...))
-}
+	traceContext := ctx.Value(OpTraceKey)
+	switch traceContext.(type) {
+	case tr:
+		o.t = traceContext.(tr)
+	default:
+		return nil
+	}
 
-func Debugf(ctx context.Context, format string, args ...interface{}) {
-	Logger.Debugf("%s: %s", header(ctx), fmt.Sprintf(format, args...))
-}
+	opNum := ctx.Value(OpNumKey)
+	switch opNum.(type) {
+	case uint64:
+		o.opNum = opNum.(uint64)
+	default:
+		return nil
+	}
 
-func Errorf(ctx context.Context, format string, args ...interface{}) {
-	Logger.Errorf("%s: %s", header(ctx), fmt.Sprintf(format, args...))
+	return o
 }
