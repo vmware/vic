@@ -8,12 +8,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <meta content="yes" name="apple-mobile-web-app-capable">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
     <!-- Styles -->
     <link rel="stylesheet" href="css/clarity-ui.min.css">
     <link rel="stylesheet" href="css/fontello.css">
     <link rel="stylesheet" href="css/style.css">
+
   </head>
+
   <body id="body" class="page-community layout-community">
+
     <div class="main-nav">
       <header class="header">
         <div class="branding">
@@ -21,96 +25,81 @@
           <span class="title">vSphere Integrated Containers</span>
         </div>
         <a role="button" class="btn btn-primary" href="http://www.github.com/vmware/vic">
-          <i class="icon-github-circled"></i>
+          <i class="fa fa-github"></i>
           View on Github
         </a>
       </header>
     </div>
+
     <div class="main-container">
       <main class="content-area">
         <section class="community-top-section">
           <h1 id="community">{{.Hostname}} Admin</h1>
+        </section>
+
+        <section>
           <div class="row">
             <div class="col-md-6">
+
               <div class="card card-block">
                 <h3 class="card-title">Status</h3>
-                <ul class="status-card">
-                  <li>
-                    <span class="right">
-                      <i class="icon-ok"></i>
-                    </span>
-                    Containers
-                  </li>
-                  <li>
-					{{.NetworkStatus}}
-                    Network Connectivity
-                    {{.NetworkIssues}}
-                  </li>
-                  <li>
-                    {{.FirewallStatus}}
-                    Firewall
-                    {{.FirewallIssues}}
-                  </li>
-                  <li>
-                    <span class="right">
-                      <i class="icon-ok"></i>
-                    </span>
-                    Virtual Container Host (VCH)
-                  </li>
-                  <li>
-                    {{.LicenseStatus}}
-                    License
-                    {{.LicenseIssues}}
-                  </li>
-                </ul>
+                <div class="row">
+                  <div class="sixty">Containers</div>
+                  <div class="fourty"><i class="icon-ok"></i></div>
+                </div>
+                <div class="row">
+                  <div class="sixty">Network Connectivity{{.NetworkIssues}}</div>
+                  <div class="fourty">{{.NetworkStatus}}</div>
+                </div>
+                <div class="row">
+                  <div class="sixty">Firewall{{.FirewallIssues}}</div>
+                  <div class="fourty">{{.FirewallStatus}}</div>
+                </div>
+                <div class="row">
+                  <div class="sixty">Virtual Container Host (VCH)</div>
+                  <div class="fourty"><i class="icon-ok"></i></div>
+                </div>
+                <div class="row">
+                  <div class="sixty">License{{.LicenseIssues}}</div>
+                  <div class="fourty">{{.LicenseStatus}}</div>
+                </div>
               </div>
+
               <div class="card card-block">
                 <h3 class="card-title">Virtual Container Host Info</h3>
                 <p class="card-text">Docker Endpoint: {{.HostIP}}:{{.DockerPort}}</p>
-                <p class="card-text">Storage: 420GB Remaining</p>
+                {{.StorageRemaining}}
               </div>
             </div>
             <div class="col-md-6">
               <div class="card card-block">
                 <h3 class="card-title">Logs</h3>
-                <ul>
-                  <li><a href="/logs.zip">
-                      VCH Log Bundle
-                      </a></li>
-                  <li><a href="/container-logs.zip">
-                      VCH & Container Log Bundle
-                      </a></li>
-                  <li><a href="/logs/docker-personality.log">
-                      Docker Personality
-                      </a>
-                      <span class="right">
-                        <a href="/logs/tail/docker-personality.log">Live Log</a>
-                      </li>
-                  <li><a href="/logs/imagec.log">
-                      Docker Image Resolution
-                      </a>
-                      <span class="right">
-                        <a href="/logs/tail/imagec.log">Live Log</a>
-                      </li>
-                  <li><a href="/logs/port-layer.log">
-                      Port-Layer Service
-                      </a>
-                      <span class="right">
-                        <a href="/logs/tail/port-layer.log">Live Log</a>
-                      </li>
-                  <li><a href="/logs/init.log">
-                      VCH Initialization & Startup
-                      </a>
-                      <span class="right">
-                        <a href="/logs/tail/init.log">Live Log</a>
-                      </li>
-                  <li><a href="/logs/vicadmin.log">
-                      VIC Admin Server
-                      </a>
-                      <span class="right">
-                        <a href="/logs/tail/vicadmin.log">Live Log</a>
-                      </li>
-                </ul>
+                <div class="row">
+                  <div class="sixty"><a href="/logs.zip">VCH Bundle</a></div>
+                </div>
+                <div class="row">
+                  <div class="sixty"><a href="/container-logs.zip">VCH & Container Bundle</a></div>
+                </div>
+                <div class="row">
+                  <div class="sixty"><a href="/logs/docker-personality.log">Docker Personality</a></div>
+                  <div class="fourty"><a href="/logs/tail/docker-personality.log">Live Log</a></div>
+                </div>
+                <div class="row">
+                  <div class="sixty"><a href="/logs/imagec.log">Docker Image Resolution</a></div>
+                  <div class="fourty"><a href="/logs/tail/imagec.log">Live Log</a></div>
+                </div>
+                <div class="row">
+                  <div class="sixty"><a href="/logs/port-layer.log">Port Layer Service</a></div>
+                  <div class="fourty"><a href="/logs/tail/port-layer.log">Live Log</a></div>
+                </div>
+                <div class="row">
+                  <div class="sixty"><a href="/logs/init.log">VCH Initializaation & Startup</a></div>
+                  <div class="fourty"><a href="/logs/tail/init.log">Live Log</a></div>
+                </div>
+                <div class="row">
+                  <div class="sixty"><a href="/logs/vicadmin.log">VIC Admin Server</a></div>
+                  <div class="fourty"><a href="/logs/tail/vicadmin.log">Live Log</a></div>
+                </div>
               </div>
             </div>
           </div>
