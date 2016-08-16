@@ -176,7 +176,28 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 		Version: "1.22", //dockerversion.Version,
 	}
 
-	tlsConfig := tlsconfig.ServerDefault
+	// FIXME: assignment copies lock value to tlsConfig: crypto/tls.Config contains sync.Once contains sync.Mutex
+	tlsConfig := func(c *tls.Config) *tls.Config {
+		return &tls.Config{
+			Certificates:             c.Certificates,
+			NameToCertificate:        c.NameToCertificate,
+			GetCertificate:           c.GetCertificate,
+			RootCAs:                  c.RootCAs,
+			NextProtos:               c.NextProtos,
+			ServerName:               c.ServerName,
+			ClientAuth:               c.ClientAuth,
+			ClientCAs:                c.ClientCAs,
+			InsecureSkipVerify:       c.InsecureSkipVerify,
+			CipherSuites:             c.CipherSuites,
+			PreferServerCipherSuites: c.PreferServerCipherSuites,
+			SessionTicketsDisabled:   c.SessionTicketsDisabled,
+			SessionTicketKey:         c.SessionTicketKey,
+			ClientSessionCache:       c.ClientSessionCache,
+			MinVersion:               c.MinVersion,
+			MaxVersion:               c.MaxVersion,
+			CurvePreferences:         c.CurvePreferences,
+		}
+	}(&tlsconfig.ServerDefault)
 
 	if !vchConfig.HostCertificate.IsNil() {
 		log.Info("TLS enabled")
@@ -188,7 +209,7 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 		}
 
 		tlsConfig.Certificates = []tls.Certificate{*cert}
-		serverConfig.TLSConfig = &tlsConfig
+		serverConfig.TLSConfig = tlsConfig
 
 		// Set options for TLS
 		if len(vchConfig.CertificateAuthorities) > 0 {

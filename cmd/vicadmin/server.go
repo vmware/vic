@@ -50,8 +50,29 @@ func (s *server) listen(useTLS bool) error {
 
 	var err error
 
-	// Set options for TLS
-	tlsconfig := tlsconfig.ServerDefault
+	// FIXME: assignment copies lock value to tlsConfig: crypto/tls.Config contains sync.Once contains sync.Mutex
+	tlsconfig := func(c *tls.Config) *tls.Config {
+		return &tls.Config{
+			Certificates:             c.Certificates,
+			NameToCertificate:        c.NameToCertificate,
+			GetCertificate:           c.GetCertificate,
+			RootCAs:                  c.RootCAs,
+			NextProtos:               c.NextProtos,
+			ServerName:               c.ServerName,
+			ClientAuth:               c.ClientAuth,
+			ClientCAs:                c.ClientCAs,
+			InsecureSkipVerify:       c.InsecureSkipVerify,
+			CipherSuites:             c.CipherSuites,
+			PreferServerCipherSuites: c.PreferServerCipherSuites,
+			SessionTicketsDisabled:   c.SessionTicketsDisabled,
+			SessionTicketKey:         c.SessionTicketKey,
+			ClientSessionCache:       c.ClientSessionCache,
+			MinVersion:               c.MinVersion,
+			MaxVersion:               c.MaxVersion,
+			CurvePreferences:         c.CurvePreferences,
+		}
+	}(&tlsconfig.ServerDefault)
+
 	certificate, err := vchConfig.HostCertificate.Certificate()
 	if err != nil {
 		log.Errorf("Could not load certificate from config - running without TLS: %s", err)
@@ -71,7 +92,7 @@ func (s *server) listen(useTLS bool) error {
 		return err
 	}
 
-	s.l = tls.NewListener(innerListener, &tlsconfig)
+	s.l = tls.NewListener(innerListener, tlsconfig)
 	return nil
 }
 

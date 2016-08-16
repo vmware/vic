@@ -34,7 +34,7 @@
 			"importpath": "github.com/HewlettPackard/gas",
 			"repository": "https://github.com/HewlettPackard/gas",
 			"vcs": "git",
-			"revision": "12d370b11b9e6a94368ebd229b020bb55b51fe69",
+			"revision": "37205e9afa56150a634a1d0d19347446e9b27f17",
 			"branch": "master",
 			"notests": true
 		},
@@ -729,7 +729,7 @@
 			"importpath": "golang.org/x/net/context",
 			"repository": "https://go.googlesource.com/net",
 			"vcs": "git",
-			"revision": "154d9f9ea81208afed560f4cf27b4860c8ed1904",
+			"revision": "07b51741c1d6423d4a6abab1c49940ec09cb1aaf",
 			"branch": "master",
 			"path": "/context"
 		},
