@@ -384,6 +384,7 @@ func (v *ImageStore) scratch(ctx context.Context, storeName string) error {
 			v.dm.Detach(ctx, vmdisk)
 		}
 	}()
+	log.Debugf("Scratch disk created with size %d", portlayer.Config.ScratchSize)
 
 	// Make the filesystem and set its label to defaultDiskLabel
 	if err = vmdisk.Mkfs(defaultDiskLabel); err != nil {
