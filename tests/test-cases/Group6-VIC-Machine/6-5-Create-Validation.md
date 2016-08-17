@@ -150,3 +150,19 @@ Test Cases: - storage
 
 ### Expected Outcome:
 * Deployment succeeds
+
+## Datastore/host configuration
+1. Prepare vCenter environment with one connected host
+2. Issue `vic-machine create` to the target vCenter
+
+### Expected Outcome:
+* Output contains message indicating configuration is unsupported
+* Deployment fails
+
+## Datastore/host configuration force
+1. Prepare vCenter environment with one connected host
+2. Issue `vic-machine create` to the target vCenter with the `--force` option
+
+### Expected Outcome:
+* Output contains message indicating configuration is unsupported
+* Deployment succeeds

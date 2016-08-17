@@ -48,6 +48,7 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 
 	v.NoteIssue(err)
 	if ds != nil {
+		v.checkDatastore(ds, "image store")
 		v.SetDatastore(ds, imageDSpath)
 		conf.AddImageStore(imageDSpath)
 	}
@@ -58,7 +59,8 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 
 	// TODO: add volume locations
 	for label, volDSpath := range input.VolumeLocations {
-		dsURL, _, err := v.DatastoreHelper(ctx, volDSpath, label, "--volume-store")
+		dsURL, ds, err := v.DatastoreHelper(ctx, volDSpath, label, "--volume-store")
+		v.checkDatastore(ds, "volume store")
 		v.NoteIssue(err)
 		if dsURL != nil {
 			conf.VolumeLocations[label] = dsURL
@@ -134,6 +136,43 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string, label stri
 func (v *Validator) SetDatastore(ds *object.Datastore, path *url.URL) {
 	v.Session.Datastore = ds
 	v.Session.DatastorePath = path.Host
+}
+
+// checkDatastore checks that more than 1 host is connected to the datastore in vC
+// and prevents install if using unsafe configuration
+func (v *Validator) checkDatastore(ds *object.Datastore, flag string) {
+	defer trace.End(trace.Begin(ds.String()))
+
+	if !v.IsVC() {
+		return
+	}
+
+	var hosts []*object.HostSystem
+	var err error
+
+	log.Infof("Checking datastore/host configuration for %s", flag)
+
+	if hosts, err = ds.AttachedClusterHosts(v.Context, v.Session.Cluster); err != nil {
+		log.Errorf("Unable to get the list of hosts attached to given storage: %s", err)
+		v.NoteIssue(err)
+		return
+	}
+
+	if len(hosts) == 1 {
+		log.Warnf("Only one (1) host is connected to %q: %q", ds.Name(), hosts[0].Name())
+		log.Warn("This configuration impacts the ability to use high availability and to do maintenance.")
+
+		if v.Force {
+			log.Warn("Unsupported datastore/host configuration. Allowing due to --force")
+			return
+		}
+
+		msg := "Unsupported datastore/host configuration. Override recommendation with --force"
+		log.Error(msg)
+		v.NoteIssue(errors.New(msg))
+		return
+	}
+	log.Infof("Datastore/host configuration OK for %s on %q", flag, ds.Name())
 }
 
 // suggestDatastore suggests all datastores present on target in datastore:label format if applicable
