@@ -20,4 +20,7 @@ If you are running the vCenter Server Appliance, you can use a Web server to hos
 7. Open a command prompt and navigate to <code><i>vic_unpack_dir</i>/vic/ui/VCSA</code>.
 8. Run the installer.<pre>./install.sh</pre>Make sure that `install.sh` is executable by running `chmod` before you run it.
 9. Enter the user name and password for the vCenter Server administrator account.
+10. Answer the question about the version of vCenter Server that you are using.
+  - Answer `y` if you are using vCenter Server 5.5.
+  - Answer `n` if you are using vCenter Server 6.0.
 10. When installation finishes, if you are logged into the vSphere Web Client, log out then log back in again.

@@ -15,7 +15,13 @@ You deployed at least one virtual container host to a vCenter Server Appliance i
 7. Open a command prompt and navigate to <code><i>vic_unpack_dir</i>/vic/ui/VCSA</code>.
 8. Run the installer.<pre>./install.sh</pre>Make sure that `install.sh` is executable by running `chmod` before you run it.
 9. Enter the user name and password for the vCenter Server administrator account.
-10. Enter the root password for the vCenter Server Appliance twice.
+10. Answer the question about the version of vCenter Server that you are using.
+  - Answer `y` if you are using vCenter Server 5.5.
+  - Answer `n` if you are using vCenter Server 6.0.
+10. Enter the root password for the vCenter Server Appliance.
 
-  The installer requires the root password of the vCenter Server Appliance twice: once to copy the files to the appliance over SSH, and once to set the correct ownership on the files and folders.
+  The installer requires the root password of the vCenter Server Appliance three times: 
+   - Once to check whether the Bash shell is enabled on the vCenter Server Appliance. If the Bash shell is not enabled, the installation fails and the installer provides remedial instructions.
+   - Once to copy the files to the appliance over SSH.
+   - Once to set the correct ownership on the files and folders.
 10. When installation finishes, if you are logged into the vSphere Web Client, log out then log back in again.
