@@ -22,6 +22,18 @@ Create VCH - defaults
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
+Create VCH - defaults with --no-tls
+    Log To Console  \nRunning vic-machine create - defaults with --no-tls
+    Set Test Environment Variables  ${true}  default  network  'VM Network'
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Set Test VCH Name
+
+    Install VIC Appliance To Test Server
+    Run Regression Tests
+    Cleanup VIC Appliance On Test Server
+
 Create VCH - target URL
     Log To Console  \nRunning vic-machine create - target URL
     Set Test Environment Variables  ${true}  default
