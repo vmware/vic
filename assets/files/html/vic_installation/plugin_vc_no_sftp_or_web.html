@@ -53,7 +53,7 @@
         data-chapter-title="Install the vSphere Integrated Containers Plug-In on vCenter Server For Windows, without SFTP or a Web Server"
         data-filepath="plugin_vc_no_sftp_or_web.md"
         data-basepath="."
-        data-revision="Wed Aug 17 2016 17:05:21 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Wed Aug 17 2016 20:35:49 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -374,35 +374,32 @@
                     <section class="normal" id="section-">
                     
                         <h1 id="install-the-vsphere-integrated-containers-plugin-on-vcenter-server-for-windows-without-sftp-or-a-web-server">Install the vSphere Integrated Containers Plug-In on vCenter Server For Windows, without SFTP or a Web Server</h1>
-<p>You can install the vSphere Web Client plug-in for vSphere Integrated Containers on a vCenter Server instance that has neither access to an SFTP service nor to a Web Server.</p>
+<p>You can install the vSphere Web Client plug-in for vSphere Integrated Containers on a vCenter Server instance for Windows that has neither access to an SFTP service nor to a Web Server.</p>
 <p><strong>Prerequisites</strong></p>
-<ul>
-<li>You deployed at least one virtual container host to a vCenter Server instance.</li>
-<li>Download the latest build of the vSphere Integrated Containers plug-in bundle from <a href="https://bintray.com/vmware/vic-repo/build-deps/installer-onsite-beta#files" target="_blank">https://bintray.com/vmware/vic-repo/build-deps/installer-onsite-beta#files</a>.</li>
-</ul>
+<p>You deployed at least one virtual container host to a vCenter Server instance that runs on Windows.</p>
 <p><strong>Procedure</strong></p>
 <ol>
-<li>Unpack the <code>vic-ui-installer.zip</code> bundle on the Windows machine on which vCenter Server is running.</li>
-<li><p>Copy the <code>com.vmware.vicui.Vicui-0.0.1</code> folder into the folder that contains the vSphere Web Client packages.</p>
+<li>On the system on which you run <code>vic-machine</code>, navigate to the folder that contains the <code>vic-machine</code> utility and open the <code>ui</code> folder.</li>
+<li><p>Copy the <code>com.vmware.vicui.Vicui-0.0.1</code> folder into the folder on the vCenter Server system that contains the vSphere Web Client packages.</p>
 <ul>
-<li>Source folder: <pre><i>unpack_dir</i>\installer\vsphere-client-serenity</pre></li>
-<li><p>Destination folder: <pre><i>instl_dir</i>\vCenterServer\cfg\vsphere-client\vc-packages\vsphere-client-serenity</pre></p>
+<li>Source location on <code>vic-machine</code> system: <pre><i>vic_unpack_dir</i>\vic\ui\vsphere-client-serenity</pre></li>
+<li><p>Destination location on vCenter Server Windows system: <pre><i>instl_dir</i>\vCenterServer\cfg\vsphere-client\vc-packages\vsphere-client-serenity</pre></p>
 <p><code>instl_dir</code> is the location in which vCenter Server is installed. If the <code>vc-packages\vsphere-client-serenity</code> folders do not exist under the <code>vsphere-client</code> folder, create them manually.</p>
 </li>
 </ul>
 </li>
-<li>Open the <code>unpack_dir\installer\vCenterForWindows\configs</code> file in a text editor.</li>
+<li>On the <code>vic-machine</code> system, open the <code>vic_unpack_dir\vic\ui\vCenterForWindows\configs</code> file in a text editor.</li>
 <li>Enter the IPv4 address or FQDN of the vCenter Server instance on which to install the plug-in.<pre>SET target_vcenter_ip=<i>vcenter_server_address</i></pre></li>
 <li>Deactivate SFTP by changing the value of <code>sftp_supported</code> to 0.<pre>SET sftp_supported=0</pre></li>
 <li>Save and close the <code>configs</code> file.</li>
-<li>Open a command prompt and navigate to <code>unpack_dir\installer\vCenterForWindows</code>.</li>
+<li>Open a command prompt and navigate to <code>vic_unpack_dir\vic\ui\vCenterForWindows</code>.</li>
 <li>Run the installer.<pre>install.bat</pre>
 Make sure that you use the correct account to run <code>install.bat</code>. <ul>
 <li>If vCenter Server uses the local system account, run <code>install.bat</code> with the local system account.</li>
 <li>If vCenter Server uses a different user account, run <code>install.bat</code> with that account.</li>
 </ul>
 </li>
-<li>Enter the password for the vCenter Server administrator account.</li>
+<li>Enter the user name and password for the vCenter Server administrator account.</li>
 <li>When installation finishes, if you are logged into the vSphere Web Client, log out then log back in again.</li>
 </ol>
 

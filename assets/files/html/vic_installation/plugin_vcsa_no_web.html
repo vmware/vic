@@ -53,7 +53,7 @@
         data-chapter-title="Install the vSphere Integrated Containers Plug-In on a vCenter Server Appliance Without Access to a Web Server"
         data-filepath="plugin_vcsa_no_web.md"
         data-basepath="."
-        data-revision="Wed Aug 17 2016 17:05:21 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Wed Aug 17 2016 20:35:49 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -376,24 +376,28 @@
                         <h1 id="install-the-vsphere-integrated-containers-plugin-on-a-vcenter-server-appliance-without-access-to-a-web-server">Install the vSphere Integrated Containers Plug-In on a vCenter Server Appliance Without Access to a Web Server</h1>
 <p>If you are running the vCenter Server Appliance and you do not have access to a Web server, you can manually install the vSphere Web Client plug-in for vSphere Integrated Containers.</p>
 <p><strong>Prerequisites</strong></p>
-<ul>
-<li>You deployed at least one virtual container host to a vCenter Server instance.</li>
-<li>Download the latest build of the vSphere Integrated Containers plug-in bundle from <a href="https://bintray.com/vmware/vic-repo/build-deps/installer-onsite-beta#files" target="_blank">https://bintray.com/vmware/vic-repo/build-deps/installer-onsite-beta#files</a>.</li>
-</ul>
+<p>You deployed at least one virtual container host to a vCenter Server Appliance instance.</p>
 <p><strong>Procedure</strong></p>
 <ol>
-<li>Unpack the <code>vic-ui-installer.zip</code> bundle on any system.</li>
-<li><p>(Optional) Connect to the vCenter Server Appliance via SSH and copy the contents of the <code>vic-ui-installer.zip</code> bundle to a temporary location on the vCenter Server Appliance. </p>
-<p>Perform this step if you unpacked the <code>vic-ui-installer.zip</code> bundle on a Windows system. If you unpacked <code>vic-ui-installer.zip</code> on a Mac OS or Linux system, you do not need to copy the files to the vCenter Server Appliance.</p>
-</li>
-<li>Open the <code>unpack_dir\installer\VCSA\configs</code> file in a text editor.</li>
+<li>On the system on which you run <code>vic-machine</code>, navigate to the folder that contains the <code>vic-machine</code> utility and open the <code>ui</code> folder.</li>
+<li>Open the  <code>vic_unpack_dir/vic/ui/VCSA/configs</code> file in a text editor.</li>
 <li>Enter the IPv4 address or FQDN of the vCenter Server instance on which to install the plug-in. <pre>VCENTER_IP=&quot;<i>vcenter_server_address</i>&quot;</pre></li>
 <li>Save and close the <code>configs</code> file.</li>
-<li>Navigate to <code>unpack_dir/installer/VCSA</code>.</li>
+<li>Open a command prompt and navigate to <code>vic_unpack_dir/vic/ui/VCSA</code>.</li>
 <li>Run the installer.<pre>./install.sh</pre>Make sure that <code>install.sh</code> is executable by running <code>chmod</code> before you run it.</li>
-<li>Enter the password for the vCenter Server administrator account.</li>
-<li><p>Enter the root password for the vCenter Server Appliance twice.</p>
-<p>The installer requires the root password of the vCenter Server Appliance twice: once to copy the files to the appliance over SSH, and once to set the correct ownership on the files and folders.</p>
+<li>Enter the user name and password for the vCenter Server administrator account.</li>
+<li>Answer the question about the version of vCenter Server that you are using.<ul>
+<li>Answer <code>y</code> if you are using vCenter Server 5.5.</li>
+<li>Answer <code>n</code> if you are using vCenter Server 6.0.</li>
+</ul>
+</li>
+<li><p>Enter the root password for the vCenter Server Appliance.</p>
+<p>The installer requires the root password of the vCenter Server Appliance three times: </p>
+<ul>
+<li>Once to check whether the Bash shell is enabled on the vCenter Server Appliance. If the Bash shell is not enabled, the installation fails and the installer provides remedial instructions.</li>
+<li>Once to copy the files to the appliance over SSH.</li>
+<li>Once to set the correct ownership on the files and folders.</li>
+</ul>
 </li>
 <li>When installation finishes, if you are logged into the vSphere Web Client, log out then log back in again.</li>
 </ol>

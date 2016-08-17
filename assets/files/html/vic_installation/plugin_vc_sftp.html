@@ -53,7 +53,7 @@
         data-chapter-title="Install the vSphere Integrated Containers Plug-In on vCenter Server For Windows, by Using SFTP"
         data-filepath="plugin_vc_sftp.md"
         data-basepath="."
-        data-revision="Wed Aug 17 2016 17:05:21 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Wed Aug 17 2016 20:35:49 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -377,31 +377,31 @@
 <p>If your vCenter Server instance runs on a Windows system that has access to an SFTP service, you can use SFTP to install the vSphere Web Client plug-in for vSphere Integrated Containers.</p>
 <p><strong>Prerequisites</strong></p>
 <ul>
-<li>You deployed at least one virtual container host to a vCenter Server instance.</li>
-<li>Download the latest build of the vSphere Integrated Containers plug-in bundle from <a href="https://bintray.com/vmware/vic-repo/build-deps/installer-onsite-beta#files" target="_blank">https://bintray.com/vmware/vic-repo/build-deps/installer-onsite-beta#files</a>.</li>
+<li>You deployed at least one virtual container host to a vCenter Server instance that runs on Windows.</li>
 <li>Your vCenter Server instance is running on a Windows system that has an SFTP service.</li>
 </ul>
 <p><strong>Procedure</strong></p>
 <ol>
-<li>Unpack the <code>vic-ui-installer.zip</code> bundle on a Windows system that has access to an SFTP service.</li>
-<li>Open the <code>unpack_dir\installer\vCenterForWindow\configs</code> file in a text editor.</li>
-<li>Enter the IPv4 address or FQDN of the vCenter Server instance on which to install the plug-in.<pre>target_vcenter_ip=<i>vcenter_server_address</i></pre></li>
-<li>Make sure that <code>sftp_supported</code> is set to 1.<pre>sftp_supported=1</pre></li>
-<li>Provide the SFTP user name and password.<pre>sftp_username=<i>username</i>sftp_password=<i>password</i></pre> </li>
+<li>On the system on which you run <code>vic-machine</code>, navigate to the folder that contains the <code>vic-machine</code> utility and open the <code>ui</code> folder.</li>
+<li>Open the <code>vic_unpack_dir\vic\ui\vCenterForWindows\configs</code> file in a text editor.</li>
+<li>Enter the IPv4 address or FQDN of the vCenter Server instance on which to install the plug-in.<pre>SET target_vcenter_ip=<i>vcenter_server_address</i></pre></li>
+<li>Make sure that <code>sftp_supported</code> is set to 1.<pre>SET sftp_supported=1</pre></li>
+<li>Provide the SFTP user name and password.<pre>SET sftp_username=<i>username</i>
+SET sftp_password=<i>password</i></pre> </li>
 <li><p>Provide the location of the <code>vsphere-client-serenity</code> folder on the vCenter Server Windows system relative to the root folder of the SFTP connection.</p>
 <p>For example, if the root folder of the SFTP connection is <code>vcenter_server_install_dir\vCenterServer\cfg</code>, set the relative path as follows:  </p>
 <pre>target_vc_packages_path=/vsphere-client/vc-packages/vsphere-client-serenity/</pre>
 </li>
 <li><p>Save and close the <code>configs</code> file.</p>
 </li>
-<li>Open a command prompt and navigate to <code>unpack_dir\installer\vCenterForWindows</code>.</li>
+<li>Open a command prompt and navigate to <code>vic_unpack_dir\vic\ui\vCenterForWindows</code>.</li>
 <li>Run the installer.<pre>install.bat</pre>
 Make sure that you use the correct account to run <code>install.bat</code>. <ul>
 <li>If vCenter Server uses the local system account, run <code>install.bat</code> with the local system account.</li>
 <li>If vCenter Server uses a different user account, run <code>install.bat</code> with that account.</li>
 </ul>
 </li>
-<li>Enter the password for the vCenter Server administrator account.</li>
+<li>Enter the user name and password for the vCenter Server administrator account.</li>
 <li>When installation finishes, if you are logged into the vSphere Web Client, log out then log back in again.</li>
 </ol>
 

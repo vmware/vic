@@ -53,7 +53,7 @@
         data-chapter-title="Install the vSphere Integrated Containers Plug-In on a vCenter Server Appliance by Using a Web Server"
         data-filepath="plugin_vcsa_web.md"
         data-basepath="."
-        data-revision="Wed Aug 17 2016 17:05:21 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Wed Aug 17 2016 20:35:49 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -378,24 +378,25 @@
 <p><strong>Prerequisites</strong></p>
 <ul>
 <li>You deployed at least one virtual container host to a vCenter Server Appliance instance.</li>
-<li>Download the latest build of the vSphere Integrated Containers plug-in bundle from <a href="https://bintray.com/vmware/vic-repo/build-deps/installer-onsite-beta#files" target="_blank">https://bintray.com/vmware/vic-repo/build-deps/installer-onsite-beta#files</a>.</li>
 <li>You are running a Web server that the vCenter Server Appliance can access.</li>
 </ul>
 <p><strong>Procedure</strong></p>
 <ol>
-<li>Unpack the <code>vic-ui-installer.zip</code> bundle on any system.</li>
-<li>Upload the plug-in bundle to your Web server.<pre><i>unpack_dir</i>\installer\vsphere-client-serenity\com.vmware.vicui.Vicui-0.0.1.zip</pre></li>
-<li><p>(Optional) Connect to the vCenter Server Appliance via SSH and copy the contents of the <code>vic-ui-installer.zip</code> bundle to a temporary location on the vCenter Server Appliance. </p>
-<p>Perform this step if you unpacked the <code>vic-ui-installer.zip</code> bundle on a Windows system. If you unpacked <code>vic-ui-installer.zip</code> on a Mac OS or Linux system, you do not need to copy the files to the vCenter Server Appliance.</p>
-</li>
-<li>Open the <code>unpack_dir\installer\VCSA\configs</code> file in a text editor.</li>
+<li>On the system on which you run <code>vic-machine</code>, navigate to the folder that contains the <code>vic-machine</code> utility and open the <code>ui</code> folder.</li>
+<li>Upload the plug-in bundle to your Web server.<pre><i>vic_unpack_dir</i>/vic/ui/vsphere-client-serenity/com.vmware.vicui.Vicui-0.0.1.zip</pre></li>
+<li>Open the  <code>vic_unpack_dir/vic/ui/VCSA/configs</code> file in a text editor.</li>
 <li>Enter the IPv4 address or FQDN of the vCenter Server instance on which to install the plug-in.<pre>VCENTER_IP=&quot;<i>vcenter_server_address</i>&quot;</pre></li>
 <li>Enter the URL of the ZIP file on your Web server.<pre>VIC_UI_HOST_URL=&quot;<i>vic_web_server_location</i>&quot;</pre></li>
 <li>(Optional) If you used an HTTPS address in <code>vic_ui_host_url</code>, provide the SHA-1 thumbprint of the Web server.<pre>VIC_UI_HOST_THUMBPRINT=&quot;<i>thumbprint</i>&quot;</pre> </li>
 <li>Save and close the <code>configs</code> file.</li>
-<li>Navigate to <code>unpack_dir/installer/VCSA</code>.</li>
+<li>Open a command prompt and navigate to <code>vic_unpack_dir/vic/ui/VCSA</code>.</li>
 <li>Run the installer.<pre>./install.sh</pre>Make sure that <code>install.sh</code> is executable by running <code>chmod</code> before you run it.</li>
-<li>Enter the password for the vCenter Server administrator account.</li>
+<li>Enter the user name and password for the vCenter Server administrator account.</li>
+<li>Answer the question about the version of vCenter Server that you are using.<ul>
+<li>Answer <code>y</code> if you are using vCenter Server 5.5.</li>
+<li>Answer <code>n</code> if you are using vCenter Server 6.0.</li>
+</ul>
+</li>
 <li>When installation finishes, if you are logged into the vSphere Web Client, log out then log back in again.</li>
 </ol>
 
