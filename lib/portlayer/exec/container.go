@@ -492,7 +492,7 @@ func ContainerInfo(ctx context.Context, sess *session.Session, containerID uid.U
 	// convert the VMs to container objects -- include
 	// powered off vms
 	all := true
-	cc := convertInfraContainers(vms, &all)
+	cc := convertInfraContainers(vms, all)
 
 	switch len(cc) {
 	case 0:
@@ -517,8 +517,14 @@ func List(ctx context.Context, sess *session.Session, all *bool) ([]*Container, 
 	if err != nil {
 		return nil, err
 	}
+
 	// convert to container
-	containers := convertInfraContainers(moVMs, all)
+	var t bool
+	if all != nil {
+		t = *all
+	}
+
+	containers := convertInfraContainers(moVMs, t)
 	return containers, nil
 }
 
@@ -589,12 +595,12 @@ func populateVMAttributes(ctx context.Context, sess *session.Session, refs []typ
 }
 
 // convert the infra containers to a container object
-func convertInfraContainers(vms []mo.VirtualMachine, all *bool) []*Container {
+func convertInfraContainers(vms []mo.VirtualMachine, all bool) []*Container {
 	var containerVMs []*Container
 
 	for i := range vms {
 		// poweredOn or all states
-		if !*all && vms[i].Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff {
+		if !all && vms[i].Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff {
 			// don't want it
 			log.Debugf("Skipping poweredOff VM %s", vms[i].Config.Name)
 			continue
