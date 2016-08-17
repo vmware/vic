@@ -37,10 +37,13 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
+const (
+	maxDownloadAttempts = 5
+)
+
 // Fetcher interface
 type Fetcher interface {
-	Fetch(url *url.URL) (string, error)
-	FetchWithProgress(url *url.URL, ID string) (string, error)
+	Fetch(url *url.URL, id ...string) (string, error)
 
 	Head(url *url.URL) (http.Header, error)
 
@@ -98,26 +101,68 @@ func NewURLFetcher(options FetcherOptions) Fetcher {
 	}
 }
 
-// Fetch fetches a web page from url and stores in a temporary file.
-func (u *URLFetcher) Fetch(url *url.URL) (string, error) {
+// Fetch fetches from a url and stores its content in a temporary file.
+func (u *URLFetcher) Fetch(url *url.URL, ids ...string) (string, error) {
 	defer trace.End(trace.Begin(url.String()))
 
+	// extract ID from ids. Existence of an ID enables progress reporting
+	ID := ""
+	if len(ids) > 0 {
+		ID = ids[0]
+	}
+
+	// ctx
 	ctx, cancel := context.WithTimeout(context.Background(), u.options.Timeout)
 	defer cancel()
 
-	return u.fetch(ctx, url, "")
+	var name string
+	var err error
+
+	for attempts := 1; attempts <= maxDownloadAttempts; attempts++ {
+		name, err = u.fetch(ctx, url, ID)
+		if err == nil {
+			return name, nil
+		}
+
+		// If an error was returned because the context was cancelled, we shouldn't retry.
+		select {
+		case <-ctx.Done():
+			return "", fmt.Errorf("download cancelled during download")
+		default:
+		}
+
+		// retry downloading again
+		log.Debugf("Download failed, retrying: %v", err)
+
+		delay := attempts * 5
+		ticker := time.NewTicker(time.Second)
+
+	selectLoop:
+		for {
+			// Do not report progress back if ID is empty
+			if ID != "" {
+				progress.Updatef(po, ID, "Retrying in %d second%s", delay, (map[bool]string{true: "s"})[delay != 1])
+			}
+
+			select {
+			case <-ticker.C:
+				delay--
+				if delay == 0 {
+					ticker.Stop()
+					break selectLoop
+				}
+			case <-ctx.Done():
+				ticker.Stop()
+				return "", fmt.Errorf("download cancelled during retry delay")
+			}
+		}
+	}
+	// give up if we reached maxDownloadAttempts
+	log.Debugf("Download failed: %v", err)
+	return "", err
 }
 
-// FetchWithProgress fetches a web page from url and stores in a temporary file while showing a progress bar.
-func (u *URLFetcher) FetchWithProgress(url *url.URL, ID string) (string, error) {
-	defer trace.End(trace.Begin(url.String()))
-
-	ctx, cancel := context.WithTimeout(context.Background(), u.options.Timeout)
-	defer cancel()
-
-	return u.fetch(ctx, url, ID)
-}
-
+// fetch fetches the given URL using ctxhttp. It also streams back the progress bar only when ID is not an empty string.
 func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string, error) {
 	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
@@ -208,10 +253,10 @@ func (u *URLFetcher) Head(url *url.URL) (http.Header, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), u.options.Timeout)
 	defer cancel()
 
-	return u.head(ctx, url, "")
+	return u.head(ctx, url)
 }
 
-func (u *URLFetcher) head(ctx context.Context, url *url.URL, ID string) (http.Header, error) {
+func (u *URLFetcher) head(ctx context.Context, url *url.URL) (http.Header, error) {
 	res, err := ctxhttp.Head(ctx, u.client, url.String())
 	if err != nil {
 		return nil, err
@@ -226,18 +271,22 @@ func (u *URLFetcher) head(ctx context.Context, url *url.URL, ID string) (http.He
 	return nil, fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
 }
 
+// AuthURL returns the Oauth endpoint URL
 func (u *URLFetcher) AuthURL() *url.URL {
 	return u.OAuthEndpoint
 }
 
+// IsStatusUnauthorized returns true if status code is StatusUnauthorized
 func (u *URLFetcher) IsStatusUnauthorized() bool {
 	return u.StatusCode == http.StatusUnauthorized
 }
 
+// IsStatusOK returns true if status code is StatusOK
 func (u *URLFetcher) IsStatusOK() bool {
 	return u.StatusCode == http.StatusOK
 }
 
+// IsStatusNotFound returns true if status code is StatusNotFound
 func (u *URLFetcher) IsStatusNotFound() bool {
 	return u.StatusCode == http.StatusNotFound
 }
