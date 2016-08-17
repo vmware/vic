@@ -40,7 +40,7 @@
     <link rel="next" href="./inspect_vch_options.html" />
     
     
-    <link rel="prev" href="./vic_machine_version.html" />
+    <link rel="prev" href="./list_vch_options.html" />
     
 
         
@@ -49,11 +49,11 @@
         
         
     <div class="book"
-        data-level="4.2"
+        data-level="4.3"
         data-chapter-title="Obtain Information About a Virtual Container Host"
         data-filepath="inspect_vch.md"
         data-basepath="."
-        data-revision="Mon Aug 15 2016 19:03:37 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Wed Aug 17 2016 17:05:38 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -158,32 +158,32 @@
             
         </li>
     
-        <li class="chapter active" data-level="4.2" data-path="inspect_vch.html">
+        <li class="chapter " data-level="4.2" data-path="list_vch.html">
             
                 
-                    <a href="./inspect_vch.html">
+                    <a href="./list_vch.html">
                 
                         <i class="fa fa-check"></i>
                         
                             <b>4.2.</b>
                         
-                        Obtain Information About a Virtual Container Host
+                        List Virtual Container Hosts and Obtain Their IDs
                     </a>
             
             
             <ul class="articles">
                 
     
-        <li class="chapter " data-level="4.2.1" data-path="inspect_vch_options.html">
+        <li class="chapter " data-level="4.2.1" data-path="list_vch_options.html">
             
                 
-                    <a href="./inspect_vch_options.html">
+                    <a href="./list_vch_options.html">
                 
                         <i class="fa fa-check"></i>
                         
                             <b>4.2.1.</b>
                         
-                        Virtual Container Host Inspect Options
+                        Virtual Container Host List Options
                     </a>
             
             
@@ -194,32 +194,32 @@
             
         </li>
     
-        <li class="chapter " data-level="4.3" data-path="list_vch.html">
+        <li class="chapter active" data-level="4.3" data-path="inspect_vch.html">
             
                 
-                    <a href="./list_vch.html">
+                    <a href="./inspect_vch.html">
                 
                         <i class="fa fa-check"></i>
                         
                             <b>4.3.</b>
                         
-                        List Virtual Container Hosts
+                        Obtain Information About a Virtual Container Host
                     </a>
             
             
             <ul class="articles">
                 
     
-        <li class="chapter " data-level="4.3.1" data-path="list_vch_options.html">
+        <li class="chapter " data-level="4.3.1" data-path="inspect_vch_options.html">
             
                 
-                    <a href="./list_vch_options.html">
+                    <a href="./inspect_vch_options.html">
                 
                         <i class="fa fa-check"></i>
                         
                             <b>4.3.1.</b>
                         
-                        Virtual Container Host List Options
+                        Virtual Container Host Inspect Options
                     </a>
             
             
@@ -307,25 +307,26 @@
                         <h1 id="obtain-information-about-a-virtual-container-host">Obtain Information About a Virtual Container Host</h1>
 <p>You can obtain information about a virtual container host by using the <code>vic-machine inspect</code> command.</p>
 <p><strong>Prerequisites</strong></p>
-<p>You have a virtual container host.</p>
+<p>You have deployed a virtual container host.</p>
 <p><strong>Procedure</strong></p>
 <ol>
 <li>On the system on which you run <code>vic-machine</code>, navigate to the directory that contains the <code>vic-machine</code> utility.</li>
 <li><p>Run the <code>vic-machine inspect</code> command. </p>
-<p>The following example includes the options required to obtain information about a named instance of a virtual container host from a vCenter Server environment.</p>
+<p>The following example includes the options required to obtain information about a named instance of a virtual container host from a simple  vCenter Server environment.</p>
 <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> inspect
 --target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
 --name <i>vch_name</i></pre>
 
+</li>
+</ol>
+<p><strong>Result</strong></p>
 <p>The <code>vic-machine inspect</code> command displays the connection information about the virtual container host:</p>
 <pre>vic-admin portal:
 https://<i>vch_address</i>:2378
 DOCKER_HOST=<i>vch_address</i>:2376
 Connect to docker:
 docker -H <i>vch_address</i>:2376 --tls info
-Completed successfully</pre></li>
-</ol>
-
+Completed successfully</pre>
                     
                     </section>
                 
@@ -335,7 +336,7 @@ Completed successfully</pre></li>
         </div>
 
         
-        <a href="./vic_machine_version.html" class="navigation navigation-prev " aria-label="Previous page: Obtain vic-machine Version Information"><i class="fa fa-angle-left"></i></a>
+        <a href="./list_vch_options.html" class="navigation navigation-prev " aria-label="Previous page: Virtual Container Host List Options"><i class="fa fa-angle-left"></i></a>
         
         
         <a href="./inspect_vch_options.html" class="navigation navigation-next " aria-label="Next page: Virtual Container Host Inspect Options"><i class="fa fa-angle-right"></i></a>
