@@ -13,3 +13,4 @@
     * [Virtual Container Host Inspect Options](inspect_vch_options.md)
   * [Remove a Virtual Container Host](remove_vch.md)
     * [Virtual Container Host Delete Options](delete_vch_options.md)
+* [Find Virtual Container Host Information in the vSphere Web Client](vch_portlet_ui.md)
