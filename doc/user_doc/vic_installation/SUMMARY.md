@@ -15,3 +15,5 @@
   * [Install the vSphere Integrated Containers Plug-In on vCenter Server For Windows, without SFTP or a Web Server](plugin_vc_no_sftp_or_web.md)
   * [Install the vSphere Integrated Containers Plug-In on a vCenter Server Appliance by Using a Web Server](plugin_vcsa_web.md)
   * [Install the vSphere Integrated Containers Plug-In on a vCenter Server Appliance Without Access to a Web Server](plugin_vcsa_no_web.md)
+* [Troubleshooting vSphere Integrated Containers Installation](troubleshoot_vic_install.md)
+  * [Installation Fails with Resource Pool Creation Error](ts_resource_pool_error.md)

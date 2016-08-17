@@ -7,6 +7,8 @@
 * [vSphere Integrated Containers Network Overview](networks.md)
 * [Virtual Container Host Administration](vch_admin.md)
   * [Obtain vic-machine Version Information](vic_machine_version.md)
+  * [List Virtual Container Hosts and Obtain Their IDs](list_vch.md)
+    * [Virtual Container Host List Options](list_vch_options.md)
   * [Obtain Information About a Virtual Container Host](inspect_vch.md)
     * [Virtual Container Host Inspect Options](inspect_vch_options.md)
   * [Remove a Virtual Container Host](remove_vch.md)
