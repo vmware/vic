@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>List Virtual Container Hosts | VMware vSphere Integrated Containers for vSphere Administrators, version 0.5</title>
+        <title>List Virtual Container Hosts and Obtain Their IDs | VMware vSphere Integrated Containers for vSphere Administrators, version 0.5</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -40,7 +40,7 @@
     <link rel="next" href="./list_vch_options.html" />
     
     
-    <link rel="prev" href="./inspect_vch_options.html" />
+    <link rel="prev" href="./vic_machine_version.html" />
     
 
         
@@ -49,11 +49,11 @@
         
         
     <div class="book"
-        data-level="4.3"
-        data-chapter-title="List Virtual Container Hosts"
+        data-level="4.2"
+        data-chapter-title="List Virtual Container Hosts and Obtain Their IDs"
         data-filepath="list_vch.md"
         data-basepath="."
-        data-revision="Mon Aug 15 2016 19:03:37 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Wed Aug 17 2016 16:23:17 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -158,32 +158,32 @@
             
         </li>
     
-        <li class="chapter " data-level="4.2" data-path="inspect_vch.html">
+        <li class="chapter active" data-level="4.2" data-path="list_vch.html">
             
                 
-                    <a href="./inspect_vch.html">
+                    <a href="./list_vch.html">
                 
                         <i class="fa fa-check"></i>
                         
                             <b>4.2.</b>
                         
-                        Obtain Information About a Virtual Container Host
+                        List Virtual Container Hosts and Obtain Their IDs
                     </a>
             
             
             <ul class="articles">
                 
     
-        <li class="chapter " data-level="4.2.1" data-path="inspect_vch_options.html">
+        <li class="chapter " data-level="4.2.1" data-path="list_vch_options.html">
             
                 
-                    <a href="./inspect_vch_options.html">
+                    <a href="./list_vch_options.html">
                 
                         <i class="fa fa-check"></i>
                         
                             <b>4.2.1.</b>
                         
-                        Virtual Container Host Inspect Options
+                        Virtual Container Host List Options
                     </a>
             
             
@@ -194,32 +194,32 @@
             
         </li>
     
-        <li class="chapter active" data-level="4.3" data-path="list_vch.html">
+        <li class="chapter " data-level="4.3" data-path="inspect_vch.html">
             
                 
-                    <a href="./list_vch.html">
+                    <a href="./inspect_vch.html">
                 
                         <i class="fa fa-check"></i>
                         
                             <b>4.3.</b>
                         
-                        List Virtual Container Hosts
+                        Obtain Information About a Virtual Container Host
                     </a>
             
             
             <ul class="articles">
                 
     
-        <li class="chapter " data-level="4.3.1" data-path="list_vch_options.html">
+        <li class="chapter " data-level="4.3.1" data-path="inspect_vch_options.html">
             
                 
-                    <a href="./list_vch_options.html">
+                    <a href="./inspect_vch_options.html">
                 
                         <i class="fa fa-check"></i>
                         
                             <b>4.3.1.</b>
                         
-                        Virtual Container Host List Options
+                        Virtual Container Host Inspect Options
                     </a>
             
             
@@ -304,34 +304,59 @@
                 
                     <section class="normal" id="section-">
                     
-                        <h1 id="list-virtual-container-hosts">List Virtual Container Hosts</h1>
-<p>You can obtain a list of the virtual container hosts that are running in vCenter Server by using the <code>vic-machine ls</code> command.</p>
+                        <h1 id="list-virtual-container-hosts-and-obtain-their-ids">List Virtual Container Hosts and Obtain Their IDs</h1>
+<p>You can obtain a list of the virtual container hosts that are running in vCenter Server or on an ESXi host by using the <code>vic-machine ls</code> command. </p>
+<p>The <code>vic-machine ls</code> command lists virtual container hosts with their IDs. You can use virtual container host IDs when you run the <code>vic-machine inspect</code> and <code>vic-machine delete</code> commands. Using virtual container host IDs reduces the number of options that you need to specify when you use <code>vic-machine inspect</code> and <code>vic-machine delete</code>.</p>
 <p><strong>Prerequisites</strong></p>
 <p>You have deployed at least one virtual container host.</p>
 <p><strong>Procedure</strong></p>
 <ol>
 <li>On the system on which you run <code>vic-machine</code>, navigate to the directory that contains the <code>vic-machine</code> utility.</li>
 <li><p>Run the <code>vic-machine ls</code> command. </p>
-<p>To obtain a list of virtual container hosts, you must provide the address of the target ESXi host or vCenter Server instance. You must specify the username and optionally the password, either in the <code>target</code> option or separately in the <code>user</code> and <code>password</code> options. </p>
+<p>To obtain a list of all virtual container hosts that are running on an ESXi host or vCenter Server instance, you must provide the address of the target ESXi host or vCenter Server. You must specify the username and optionally the password, either in the <code>target</code> option or separately in the <code>user</code> and <code>password</code> options. </p>
 <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> ls
---target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
-</pre>
+--target <i>esxi_host <i>esxi_host_address</i>
+--user root
+--password <i>esxi_host_passwor</i>
+</i></pre>
 
 <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> ls
---target <i>esxi_host username</i>:<i>password</i>@<i>esxi_host_address</i>
+--target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
 </pre>
 
 
 </li>
 </ol>
-<p>  The <code>vic-machine ls</code> command lists the virtual container hosts that are running on the ESXi host or vCenter Server instance that you specified.</p>
-<p>  Virtual container hosts running on a vCenter Server instance:</p>
-  <pre>ID           PATH                                           NAME
+<p><strong>Result</strong></p>
+<p>The <code>vic-machine ls</code> command lists the virtual container hosts that are running on the ESXi host or vCenter Server instance that you specified.</p>
+<ul>
+<li><p>Virtual container hosts running on an ESXi host:</p>
+<pre>ID      PATH                                         NAME
+1       /ha-datacenter/host/<i>host_name</i>/Resources      <i>vch_1</i>
+2       /ha-datacenter/host/<i>host_name</i>/Resources      <i>vch_2</i>
+[...]   [...]                                        [...]
+<i>n</i>       /ha-datacenter/host/<i>host_name</i>/Resources      <i>vch_n</i></pre>
+</li>
+<li><p>Virtual container hosts running on a standalone host that is managed by vCenter Server:</p>
+<pre>ID           PATH                                           NAME
 vm-<i>id_1</i>      /<i>datacenter</i>/host/<i>host_address</i>/Resources        <i>vch_1</i>
-vm-<i>id_2</i>      /<i>datacenter</i>/host/<i>host_address</i>/Resources       <i> vch_2</i>
+vm-<i>id_2</i>      /<i>datacenter</i>/host/<i>host_address</i>/Resources        <i>vch_2</i>
 [...]        [...]                                          [...]
 vm-<i>id_n</i>      /<i>datacenter</i>/host/<i>host_address</i>/Resources       <i> vch_n</i>
 </pre>
+</li>
+<li><p>Virtual container hosts running in a vCenter Server cluster:</p>
+<pre>ID           PATH                                           NAME
+vm-<i>id_1</i>      /<i>datacenter</i>/host/<i>cluster_name</i>/Resources        <i>vch_1</i>
+vm-<i>id_2</i>      /<i>datacenter</i>/host/<i>cluster_name</i>/Resources        <i>vch_2</i>
+[...]        [...]                                          [...]
+vm-<i>id_n</i>      /<i>datacenter</i>/host/<i>cluster_name</i>/Resources       <i> vch_n</i>
+</pre>
+
+</li>
+</ul>
+<p>If virtual container hosts are deployed in resource pools on hosts or clusters, the resource pool names appear after <code>Resources</code> in the <code>PATH</code>.</p>
+
                     
                     </section>
                 
@@ -341,7 +366,7 @@ vm-<i>id_n</i>      /<i>datacenter</i>/host/<i>host_address</i>/Resources       
         </div>
 
         
-        <a href="./inspect_vch_options.html" class="navigation navigation-prev " aria-label="Previous page: Virtual Container Host Inspect Options"><i class="fa fa-angle-left"></i></a>
+        <a href="./vic_machine_version.html" class="navigation navigation-prev " aria-label="Previous page: Obtain vic-machine Version Information"><i class="fa fa-angle-left"></i></a>
         
         
         <a href="./list_vch_options.html" class="navigation navigation-next " aria-label="Next page: Virtual Container Host List Options"><i class="fa fa-angle-right"></i></a>

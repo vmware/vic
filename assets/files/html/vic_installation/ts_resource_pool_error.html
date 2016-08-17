@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Verify the Deployment of a Virtual Container Host to vCenter Server | VMware vSphere Integrated Containers Installation, version 0.5</title>
+        <title>Installation Fails with Resource Pool Creation Error | VMware vSphere Integrated Containers Installation, version 0.5</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -37,10 +37,8 @@
         
     
     
-    <link rel="next" href="./verify_vch_deployment_esx.html" />
     
-    
-    <link rel="prev" href="./vch_installer_examples.html" />
+    <link rel="prev" href="./troubleshoot_vic_install.html" />
     
 
         
@@ -49,9 +47,9 @@
         
         
     <div class="book"
-        data-level="4.3"
-        data-chapter-title="Verify the Deployment of a Virtual Container Host to vCenter Server"
-        data-filepath="verify_vch_deployment.md"
+        data-level="6.1"
+        data-chapter-title="Installation Fails with Resource Pool Creation Error"
+        data-filepath="ts_resource_pool_error.md"
         data-basepath="."
         data-revision="Wed Aug 17 2016 16:22:17 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
@@ -173,7 +171,7 @@
             
         </li>
     
-        <li class="chapter active" data-level="4.3" data-path="verify_vch_deployment.html">
+        <li class="chapter " data-level="4.3" data-path="verify_vch_deployment.html">
             
                 
                     <a href="./verify_vch_deployment.html">
@@ -320,7 +318,7 @@
             <ul class="articles">
                 
     
-        <li class="chapter " data-level="6.1" data-path="ts_resource_pool_error.html">
+        <li class="chapter active" data-level="6.1" data-path="ts_resource_pool_error.html">
             
                 
                     <a href="./ts_resource_pool_error.html">
@@ -373,61 +371,24 @@
                 
                     <section class="normal" id="section-">
                     
-                        <h1 id="verify-the-deployment-of-a-virtual-container-host-to-vcenter-server">Verify the Deployment of a Virtual Container Host to vCenter Server</h1>
-<p>After you have deployed a virtual container host to vCenter Server, you can verify the deployment by connecting a Docker client to the virtual container host and running Docker operations. You can check the results in the vSphere Web Client.</p>
-<p><strong>Prerequisites</strong></p>
+                        <h1 id="installation-fails-with-resource-pool-creation-error">Installation Fails with Resource Pool Creation Error</h1>
+<p>When you use the command line installer to install vSphere Integrated Containers directly on an ESXi host, the installation fails with a resource pool creation error.</p>
+<h2 id="problem">Problem</h2>
+<p>Command line installation on an ESXi host fails during the validation of the configuration that you provided: </p>
+<pre>
+Creating resource pool failed with ServerFaultCode: 
+Access to resource settings on the host is restricted to the server 
+that is managing it: <i>vcenter_server_address</i>. 
+Exiting ...
+</pre>
+
+<h2 id="cause">Cause</h2>
+<p>You set the <code>target</code> option to the address of an ESXi host that is managed by a vCenter Server instance.</p>
+<h2 id="solution">Solution</h2>
 <ul>
-<li>You used <code>vic-machine</code> <code>create</code> to deploy a virtual container host to vCenter Server. For information about running <code>vic-machine</code>, see <a href="install_vic_cli.html">Deploy a Virtual Container Host</a>.</li>
-<li>You have installed a Docker client.</li>
-<li>If you did not explicitly disable certificate generation when you deployed the virtual container host, copy the <code>vch_name-cert.pem</code> and <code>vch_name-key.pem</code> files to the system on which you you are running the Docker client. </li>
-<li>Connect a vSphere Web Client to the vCenter Server instance on which you deployed the virtual container host.</li>
+<li>Set the <code>target</code> option to the address of the vCenter Server instance that manages the ESXi host. </li>
+<li>Disassociate the ESXi host from the vCenter Server instance and run the installer again. </li>
 </ul>
-<p><strong>Procedure</strong>    </p>
-<ol>
-<li><p>In the vSphere Web Client, go to <strong>Hosts and Clusters</strong> and select the cluster or host on which you deployed the virtual container host.</p>
-<p> You should see a resource pool with the name that you set for the virtual container host. The resource pool contains the virtual container host appliance VM.   </p>
-</li>
-<li><p>In your Docker client, run the <code>docker info</code> command to confirm that you can connect to the virtual container host. </p>
-<ul>
-<li>Without TLS authentication:<pre>$ docker -H <i>vch_address</i>:2375 info</pre></li>
-<li>With TLS authentication:<pre>$ docker -H <i>vch_address</i>:2376 
---tls 
---tlscert=&apos;<i>path_to_cert_file</i>/<i>vch_name</i>-cert.pem&apos; 
---tlskey=&apos;<i>path_to_key_file</i>/<i>vch_name</i>-key.pem&apos; 
-info</pre></li>
-</ul>
-<p>You should see confirmation that the Storage Driver is <code>Portlayer Storage</code> and the <code>Name</code> is <code>VIC</code>.</p>
-</li>
-<li><p>Pull a Docker container image into the virtual container host, for example, the <code>BusyBox</code> container.</p>
-<ul>
-<li>Without TLS authentication:<pre>$ docker -H <i>vch_address</i>:2375 pull busybox:latest</pre></li>
-<li>With TLS authentication:<pre>$ docker -H <i>vch_address</i>:2376 
---tls 
---tlscert=&apos;<i>path_to_cert_file</i>/<i>vch_name</i>-cert.pem&apos; 
---tlskey=&apos;<i>path_to_key_file</i>/<i>vch_name</i>-key.pem&apos; 
-pull busybox:latest</pre></li>
-</ul>
-</li>
-<li><p>In the vSphere Web Client, go to <strong>Storage</strong>, select the datastore that you designated as the image store, click <strong>Manage</strong> &gt; <strong>Files</strong>, and navigate to the <strong>VIC</strong> &gt; <strong>Photon</strong> folder. </p>
-<p> You should see a folder for every container image that you have pulled into the virtual container host. The folders contain the container image files.</p>
-</li>
-<li><p>In your Docker client, run the Docker container that you pulled into the virtual container host.</p>
-<ul>
-<li>Without TLS authentication:<pre>$ docker -H <i>vch_address</i>:2375 run busybox</pre></li>
-<li>With TLS authentication:<pre>$ docker -H <i>vch_address</i>:2376 
---tls 
---tlscert=&apos;<i>path_to_cert_file</i>/<i>vch_name</i>-cert.pem&apos; 
---tlskey=&apos;<i>path_to_key_file</i>/<i>vch_name</i>-key.pem&apos; 
-run busybox</pre> </li>
-</ul>
-</li>
-<li><p>In the vSphere Web Client, go to <strong>Hosts and Clusters</strong> and select the resource pool that contains the virtual container host.</p>
-<p> You should see a VM for every container that you run.</p>
-</li>
-<li><p>In the vSphere Web Client, go to <strong>Storage</strong> and select the datastore that you designated as the container store.  </p>
-<p> At the top-level of the datastore, you should see a folder for every container that you run. The folders contain the container VM files.</p>
-</li>
-</ol>
 
                     
                     </section>
@@ -438,10 +399,8 @@ run busybox</pre> </li>
         </div>
 
         
-        <a href="./vch_installer_examples.html" class="navigation navigation-prev " aria-label="Previous page: Examples of Deploying a Virtual Container Host"><i class="fa fa-angle-left"></i></a>
+        <a href="./troubleshoot_vic_install.html" class="navigation navigation-prev navigation-unique" aria-label="Previous page: Troubleshooting vSphere Integrated Containers Installation"><i class="fa fa-angle-left"></i></a>
         
-        
-        <a href="./verify_vch_deployment_esx.html" class="navigation navigation-next " aria-label="Next page: Verify the Deployment of a Virtual Container Host to an ESXi Host"><i class="fa fa-angle-right"></i></a>
         
     </div>
 </div>
