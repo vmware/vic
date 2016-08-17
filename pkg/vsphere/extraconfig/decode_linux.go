@@ -44,9 +44,7 @@ func GuestInfoSourceWithPrefix(prefix string) (DataSource, error) {
 
 		value, err := guestinfo.String(key, "")
 		if value == "" {
-			// if we don't assume this then we never return error for missing keys
-			// which is problematic for decoding
-			err = errors.New("no value for key")
+			err = ErrKeyNotFound
 		} else if value == "<nil>" {
 			value = ""
 		}

@@ -52,7 +52,7 @@ type Validator struct {
 
 const (
 	GoodStatus = template.HTML(`<i class="icon-ok"></i>`)
-	BadStatus  = template.HTML(`<i class="icon-attention></i>`)
+	BadStatus  = template.HTML(`<i class="icon-attention"></i>`)
 )
 
 func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) *Validator {
