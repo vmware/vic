@@ -307,6 +307,21 @@ Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  /bin/top
+
+    # Check for regression for #1265
+    ${rc}  ${container1}=  Run And Return Rc And Output  docker ${params} create -it busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${container2}=  Run And Return Rc And Output  docker ${params} create -it busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${shortname}=  Get Substring  ${container2}  1  12
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
+    ${lines}=  Get Lines Containing String  ${output}  ${shortname}
+    Should Not Contain  ${lines}  /bin/top
+    ${rc}=  Run And Return Rc  docker ${params} rm ${container1}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}=  Run And Return Rc  docker ${params} rm ${container2}
+    Should Be Equal As Integers  ${rc}  0
+	
     #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rmi busybox
     #Should Be Equal As Integers  ${rc}  0
     #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
