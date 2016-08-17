@@ -40,7 +40,7 @@
     <link rel="next" href="./delete_vch_options.html" />
     
     
-    <link rel="prev" href="./list_vch_options.html" />
+    <link rel="prev" href="./inspect_vch_options.html" />
     
 
         
@@ -53,7 +53,7 @@
         data-chapter-title="Remove a Virtual Container Host"
         data-filepath="remove_vch.md"
         data-basepath="."
-        data-revision="Mon Aug 15 2016 19:03:37 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Wed Aug 17 2016 17:05:38 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -158,32 +158,32 @@
             
         </li>
     
-        <li class="chapter " data-level="4.2" data-path="inspect_vch.html">
+        <li class="chapter " data-level="4.2" data-path="list_vch.html">
             
                 
-                    <a href="./inspect_vch.html">
+                    <a href="./list_vch.html">
                 
                         <i class="fa fa-check"></i>
                         
                             <b>4.2.</b>
                         
-                        Obtain Information About a Virtual Container Host
+                        List Virtual Container Hosts and Obtain Their IDs
                     </a>
             
             
             <ul class="articles">
                 
     
-        <li class="chapter " data-level="4.2.1" data-path="inspect_vch_options.html">
+        <li class="chapter " data-level="4.2.1" data-path="list_vch_options.html">
             
                 
-                    <a href="./inspect_vch_options.html">
+                    <a href="./list_vch_options.html">
                 
                         <i class="fa fa-check"></i>
                         
                             <b>4.2.1.</b>
                         
-                        Virtual Container Host Inspect Options
+                        Virtual Container Host List Options
                     </a>
             
             
@@ -194,32 +194,32 @@
             
         </li>
     
-        <li class="chapter " data-level="4.3" data-path="list_vch.html">
+        <li class="chapter " data-level="4.3" data-path="inspect_vch.html">
             
                 
-                    <a href="./list_vch.html">
+                    <a href="./inspect_vch.html">
                 
                         <i class="fa fa-check"></i>
                         
                             <b>4.3.</b>
                         
-                        List Virtual Container Hosts
+                        Obtain Information About a Virtual Container Host
                     </a>
             
             
             <ul class="articles">
                 
     
-        <li class="chapter " data-level="4.3.1" data-path="list_vch_options.html">
+        <li class="chapter " data-level="4.3.1" data-path="inspect_vch_options.html">
             
                 
-                    <a href="./list_vch_options.html">
+                    <a href="./inspect_vch_options.html">
                 
                         <i class="fa fa-check"></i>
                         
                             <b>4.3.1.</b>
                         
-                        Virtual Container Host List Options
+                        Virtual Container Host Inspect Options
                     </a>
             
             
@@ -312,13 +312,13 @@
 <ol>
 <li>On the system on which you run <code>vic-machine</code>, navigate to the directory that contains the <code>vic-machine</code> utility.</li>
 <li><p>Run the <code>vic-machine delete</code> command. </p>
-<p>The following example includes the options required to remove a named instance of a virtual container host from a vCenter Server environment.</p>
+<p>The following example includes the options required to remove a named instance of a virtual container host from a simple vCenter Server environment.</p>
 <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> delete
 --target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
 --name <i>vch_name</i></pre>
 </li>
 <li><p>If the delete operation fails with a message about container VMs that are powered on, run <code>vic-machine delete</code> again with the <code>--force</code> option.</p>
-<p><strong>CAUTION</strong> Running <code>vic-machine delete</code> with the <code>--force</code> option removes all running container VMs that the virtual container host manages.</p>
+<p><strong>CAUTION</strong> Running <code>vic-machine delete</code> with the <code>--force</code> option removes all running container VMs that the virtual container host manages, as well as any associated volumes and volume stores.</p>
 <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> delete
 --target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
 --name <i>cluster_name</i>
@@ -334,7 +334,7 @@
         </div>
 
         
-        <a href="./list_vch_options.html" class="navigation navigation-prev " aria-label="Previous page: Virtual Container Host List Options"><i class="fa fa-angle-left"></i></a>
+        <a href="./inspect_vch_options.html" class="navigation navigation-prev " aria-label="Previous page: Virtual Container Host Inspect Options"><i class="fa fa-angle-left"></i></a>
         
         
         <a href="./delete_vch_options.html" class="navigation navigation-next " aria-label="Next page: Virtual Container Host Delete Options"><i class="fa fa-angle-right"></i></a>
