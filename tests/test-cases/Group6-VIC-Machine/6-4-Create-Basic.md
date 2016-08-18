@@ -58,6 +58,7 @@ vic-machine create --name=<VCH_NAME> --target=<TEST_URL> \
 * Deployment succeed
 * Regression test pass
 
+#Test Steps
 ## Create VCH - defaults with --no-tls
 1. Issue the following command:
 ```

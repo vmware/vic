@@ -24,7 +24,7 @@ Create VCH - defaults
 
 Create VCH - defaults with --no-tls
     Log To Console  \nRunning vic-machine create - defaults with --no-tls
-    Set Test Environment Variables  ${true}  default  network  'VM Network'
+    Set Test Environment Variables  ${true}  default
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
