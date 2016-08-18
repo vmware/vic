@@ -98,9 +98,15 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 		return errors.Errorf("Failed to power on appliance %s. Exiting...", err)
 	}
 
-	if err = d.makeSureApplianceRuns(conf); err != nil {
+	if err = d.ensureApplianceInitializes(conf); err != nil {
 		return errors.Errorf("%s. Exiting...", err)
 	}
+
+	// wait till the appliance components are fully initialized
+	if err = d.ensureComponentsInitialize(conf); err != nil {
+		return errors.Errorf("%s. Exiting...", err)
+	}
+
 	return nil
 }
 
