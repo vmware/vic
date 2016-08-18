@@ -46,8 +46,5 @@ Default image datastore
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: ${vch-name}...
-    Sleep  10 seconds
-    ${status}=  Get State Of Github Issue  1109
-    Run Keyword If  '${status}' == 'closed'  Fail  6-5-Create-Validation.robot needs to be updated now that Issue #1109 has been resolved
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
