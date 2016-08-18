@@ -23,6 +23,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"golang.org/x/net/context"
@@ -38,7 +39,7 @@ func (v *Validator) CheckFirewall(ctx context.Context) {
 	var err error
 
 	rule := types.HostFirewallRule{
-		Port:      8080, // serialOverLANPort
+		Port:      constants.SerialOverLANPort, // serialOverLANPort
 		PortType:  types.HostFirewallRulePortTypeDst,
 		Protocol:  string(types.HostFirewallRuleProtocolTcp),
 		Direction: types.HostFirewallRuleDirectionOutbound,
@@ -111,16 +112,16 @@ func (v *Validator) CheckFirewall(ctx context.Context) {
 		}
 		// TODO: when we can intelligently place containerVMs on hosts with proper config, install
 		// can proceed if there is at least one host properly configured. For now this prevents install.
-		msg := "Firewall must permit 8080/tcp outbound to use VIC"
-		log.Error(msg)
-		v.NoteIssue(errors.New(msg))
+		err = fmt.Errorf("Firewall must permit %d/tcp outbound to use VIC", rule.Port)
+		log.Error(err)
+		v.NoteIssue(err)
 	}
 	if len(misconfiguredDisabled) > 0 {
 		log.Warning("Firewall configuration will be incorrect if firewall is reenabled on hosts:")
 		for _, h := range misconfiguredDisabled {
 			log.Warningf("  %q", h)
 		}
-		log.Warning("Firewall must permit 8080/tcp outbound if firewall is reenabled")
+		log.Warnf("Firewall must permit %d/tcp outbound if firewall is reenabled", rule.Port)
 	}
 	return
 }
