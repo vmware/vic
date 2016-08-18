@@ -493,9 +493,17 @@ func (c *Create) getImageVersion(cliContext *cli.Context, img string) (string, e
 
 	versions := strings.Fields(string(publisherBytes[:size]))
 	version := versions[len(versions)-1]
+	sv := c.getNoCommitHashVersion(version)
+	if sv == "" {
+		log.Debugf("Version is not set in %q", img)
+		version = ""
+	}
 
-	if !strings.EqualFold(cliContext.App.Version, version) {
-		message := fmt.Sprintf("iso file %q has inconsistent version with installer %q != %q.", img, version, cliContext.App.Version)
+	installerSV := c.getNoCommitHashVersion(cliContext.App.Version)
+
+	// here compare version without last commit hash, to make developer life easier
+	if !strings.EqualFold(installerSV, sv) {
+		message := fmt.Sprintf("iso file %q has inconsistent version with installer %q != %q.", img, strings.ToLower(version), cliContext.App.Version)
 		if !c.Force {
 			return "", errors.Errorf("%s. Specify --force to force create. ", message)
 		}
@@ -504,7 +512,16 @@ func (c *Create) getImageVersion(cliContext *cli.Context, img string) (string, e
 	return version, nil
 }
 
+func (c *Create) getNoCommitHashVersion(version string) string {
+	i := strings.LastIndex(version, "-")
+	if i == -1 {
+		return ""
+	}
+	return version[:i]
+}
+
 func (c *Create) Run(cliContext *cli.Context) (err error) {
+
 	if c.advancedOptions {
 		cli.HelpPrinter(cliContext.App.Writer, EntireOptionHelpTemplate, cliContext.Command)
 		return nil

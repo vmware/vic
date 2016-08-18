@@ -83,7 +83,7 @@ func TestImageChecks(t *testing.T) {
 	create.ApplianceISO = ""
 	create.BootstrapISO = tmpfile.Name()
 	create.osType = "linux"
-	var imageFiles []string
+	var imageFiles map[string]string
 	if _, err = create.checkImagesFiles(nil); err == nil {
 		t.Errorf("Error is expected")
 	}
