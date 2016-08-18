@@ -19,12 +19,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/pkg/uid"
 )
 
 func TestContainerCache(t *testing.T) {
 	NewContainerCache()
 	containerID := "1234"
-	id := ParseID(containerID)
+	id := uid.Parse(containerID)
 
 	// create a new container
 	NewContainer(id)
