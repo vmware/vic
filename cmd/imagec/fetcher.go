@@ -117,8 +117,8 @@ func (u *URLFetcher) Fetch(url *url.URL, ids ...string) (string, error) {
 
 	var name string
 	var err error
-
-	for attempts := 1; attempts <= maxDownloadAttempts; attempts++ {
+	var retries int
+	for {
 		name, err = u.fetch(ctx, url, ID)
 		if err == nil {
 			return name, nil
@@ -131,10 +131,17 @@ func (u *URLFetcher) Fetch(url *url.URL, ids ...string) (string, error) {
 		default:
 		}
 
+		retries++
+		// give up if we reached maxDownloadAttempts or got a DNR
+		if _, isDNR := err.(DoNotRetry); isDNR || retries == maxDownloadAttempts {
+			log.Debugf("Download failed: %v", err)
+			return "", err
+		}
+
 		// retry downloading again
 		log.Debugf("Download failed, retrying: %v", err)
 
-		delay := attempts * 5
+		delay := retries * 5
 		ticker := time.NewTicker(time.Second)
 
 	selectLoop:
@@ -157,9 +164,6 @@ func (u *URLFetcher) Fetch(url *url.URL, ids ...string) (string, error) {
 			}
 		}
 	}
-	// give up if we reached maxDownloadAttempts
-	log.Debugf("Download failed: %v", err)
-	return "", err
 }
 
 // fetch fetches the given URL using ctxhttp. It also streams back the progress bar only when ID is not an empty string.
@@ -202,7 +206,7 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string
 
 		// check if image is non-existent (#757)
 		if strings.Contains(hdr, "error=\"insufficient_scope\"") {
-			return "", fmt.Errorf("image not found")
+			return "", DoNotRetry{Err: fmt.Errorf("image not found")}
 		} else if strings.Contains(hdr, "error=\"invalid_token\"") {
 			return "", fmt.Errorf("not authorized")
 		} else {
