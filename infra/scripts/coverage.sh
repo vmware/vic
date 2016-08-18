@@ -43,7 +43,7 @@ generate_pkg_cover_data() {
     for pkg in "$@"; do
         f="$workdir/$(echo $pkg | tr / -).cover"
         go test -i -covermode="$mode" -coverprofile="$f" "$pkg"
-        go test -covermode="$mode" -coverprofile="$f" "$pkg"
+        go test -covermode="$mode" -coverprofile="$f" "$pkg" || exit
     done
 
     echo "mode: $mode" >"$profile"
