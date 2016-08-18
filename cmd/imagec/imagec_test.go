@@ -247,11 +247,18 @@ func TestFetchImageBlob(t *testing.T) {
 		t.Error(err.Error())
 	}
 
+	attempt := 3
 	s := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/x-gzip")
-			// return our tar archive
-			w.Write(buf.Bytes())
+			attempt--
+			if attempt == 0 {
+				w.Header().Set("Content-Type", "application/x-gzip")
+				// return our tar archive
+				w.Write(buf.Bytes())
+			} else {
+				// return an error to force caller to retry
+				w.WriteHeader(http.StatusInternalServerError)
+			}
 		}))
 	defer s.Close()
 
