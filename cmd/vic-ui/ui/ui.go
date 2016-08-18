@@ -16,6 +16,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -39,6 +40,7 @@ type Plugin struct {
 	HideInSolutionManager bool
 	Key                   string
 	Name                  string
+	ServerThumbprint      string
 	Summary               string
 	Type                  string
 	URL                   string
@@ -80,6 +82,12 @@ func (p *Plugin) Flags() []cli.Flag {
 			Name:        "no-show",
 			Usage:       "Hide plugin in UI",
 			Destination: &p.HideInSolutionManager,
+		},
+		cli.StringFlag{
+			Name:        "server-thumbprint",
+			Value:       "",
+			Usage:       "Plugin server thumbprint (required for HTTPS plugin URL)",
+			Destination: &p.ServerThumbprint,
 		},
 		cli.StringFlag{
 			Name:        "summary",
@@ -137,6 +145,10 @@ func (p *Plugin) processInstallParams() error {
 		return cli.NewExitError("--version must be specified", 1)
 	}
 
+	if strings.HasPrefix(strings.ToLower(p.URL), "https://") && p.ServerThumbprint == "" {
+		return cli.NewExitError("--server-thumbprint must be specified when using HTTPS plugin URL", 1)
+	}
+
 	p.Insecure = true
 	return nil
 }
@@ -176,9 +188,10 @@ func (p *Plugin) Install(cli *cli.Context) error {
 	log.Infof("### Installing UI Plugin ####")
 
 	pInfo := &plugin.Info{
-		Company: p.Company,
-		Key:     p.Key,
-		Name:    p.Name,
+		Company:               p.Company,
+		Key:                   p.Key,
+		Name:                  p.Name,
+		ServerThumbprint:      p.ServerThumbprint,
 		ShowInSolutionManager: !p.HideInSolutionManager,
 		Summary:               p.Summary,
 		Type:                  "vsphere-client-serenity",
