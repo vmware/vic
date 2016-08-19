@@ -98,15 +98,14 @@ Docker volume create 10 volumes rapidly
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-19-Docker-Volume-Create.robot needs to be updated now that Issue #2013 has been resolved
     Log  Issue \#2013 is blocking implementation  WARN
     #${pids}=  Create List
-    #${results}=  Create List
-    
+
     # Create 10 volumes rapidly
     #:FOR  ${idx}  IN RANGE  0  10
     #\   ${pid}=  Start Process  docker ${params} volume create --name\=multiple${idx} --opt Capacity\=2MB  shell=True
     #\   Append To List  ${pids}  ${pid}
-    
+
     # Wait for them to finish and check their RC
     #:FOR  ${pid}  IN  @{pids}
     #\   ${res}=  Wait For Process  ${pid}
-    #\   Should Be Equal As Integers  ${res.rc}  0
     #\   Log  ${res.stdout} ${res.stderr}
+    #\   Should Be Equal As Integers  ${res.rc}  0
