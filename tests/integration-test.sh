@@ -24,11 +24,11 @@ echo $DRONE_BUILD_URL
 echo $DRONE_BUILD_DIR
 echo $DRONE_PULL_REQUEST
 
-if [ $DRONE_BRANCH = "master" ] && [ $DRONE_REPO = "vmware/vic" ]; then
-    pybot --removekeywords TAG:secret tests/test-cases
-else
-    pybot --removekeywords TAG:secret --include regression tests/test-cases
-fi
+#if [ $DRONE_BRANCH = "master" ] && [ $DRONE_REPO = "vmware/vic" ]; then
+pybot --removekeywords TAG:secret tests/test-cases
+#else
+#    pybot --removekeywords TAG:secret --include regression tests/test-cases
+#fi
 
 rc="$?"
 
