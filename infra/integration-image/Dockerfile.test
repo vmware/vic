@@ -1,4 +1,7 @@
-# docker build -t vic-test -f Dockerfile.test .
+#docker login
+#docker build -t vic-test -f Dockerfile.test .
+#docker tag vic-test vmware-docker-ci-repo.bintray.io/integration/vic-test:1.x
+#docker push vmware-docker-ci-repo.bintray.io/integration/vic-test
 FROM golang:1.7
 
 RUN apt-get update
@@ -21,3 +24,5 @@ RUN install -t /usr/local/bin drone
 Run apt-get install sshpass
 
 Run apt-get install -yq ant openjdk-7-jdk
+
+Run apt-get install unzip
