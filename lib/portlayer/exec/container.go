@@ -209,6 +209,12 @@ func (c *Container) start(ctx context.Context) error {
 		return err
 	}
 
+	_, err = c.waitForPowerState(ctx, 10*time.Second, types.VirtualMachinePowerStatePoweredOn)
+	if err != nil {
+		log.Warnf("error while waiting for container VM %s to transition to powered on state: %s", c.ExecConfig.Name, err)
+		err = nil
+	}
+
 	// guestinfo key that we want to wait for
 	key := fmt.Sprintf("guestinfo..sessions|%s.started", c.ExecConfig.ID)
 	var detail string
@@ -397,7 +403,6 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	// get the folder the VM is in
 	url, err := c.vm.DSPath(ctx)
 	if err != nil {
-
 		// handle the out-of-band removal case
 		if soap.IsSoapFault(err) {
 			fault := soap.ToSoapFault(err).VimFault()
