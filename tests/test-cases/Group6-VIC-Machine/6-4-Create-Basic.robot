@@ -19,9 +19,18 @@ Create VCH - defaults
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: ${vch-name}...
 
-    Sleep  10 seconds
-    ${status}=  Get State Of Github Issue  1109
-    Run Keyword If  '${status}' == 'closed'  Fail  6-4-Create-Basic.robot needs to be updated now that Issue #1109 has been resolved
+    Run Regression Tests
+    Cleanup VIC Appliance On Test Server
+
+Create VCH - defaults with --no-tls
+    Log To Console  \nRunning vic-machine create - defaults with --no-tls
+    Set Test Environment Variables  ${true}  default
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Set Test VCH Name
+
+    Install VIC Appliance To Test Server
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
@@ -39,9 +48,6 @@ Create VCH - target URL
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: ${vch-name}...
 
-    Sleep  10 seconds
-    ${status}=  Get State Of Github Issue  1109
-    Run Keyword If  '${status}' == 'closed'  Fail  6-4-Create-Basic.robot needs to be updated now that Issue #1109 has been resolved
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
@@ -59,9 +65,6 @@ Create VCH - full params
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: ${vch-name}...
 
-    Sleep  10 seconds
-    ${status}=  Get State Of Github Issue  1109
-    Run Keyword If  '${status}' == 'closed'  Fail  6-4-Create-Basic.robot needs to be updated now that Issue #1109 has been resolved
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
@@ -79,12 +82,9 @@ Create VCH - custom image store directory
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: ${vch-name}...
-    Sleep  10 seconds
     ${output}=  Run  GOVC_DATASTORE=%{TEST_DATASTORE} govc datastore.ls
     Should Contain  ${output}  vic-machine-test-images
 
-    ${status}=  Get State Of Github Issue  1109
-    Run Keyword If  '${status}' == 'closed'  Fail  6-4-Create-Basic.robot needs to be updated now that Issue #1109 has been resolved
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
     ${output}=  Run  GOVC_DATASTORE=%{TEST_DATASTORE} govc datastore.ls

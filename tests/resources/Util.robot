@@ -82,11 +82,6 @@ Install VIC Appliance To Test Server
     Get Docker Params  ${output}  ${certs}
     Log To Console  Installer completed successfully: ${vch-name}...
 
-    # Required due to #1109
-    Sleep  10 seconds
-    ${status}=  Get State Of Github Issue  1109
-    Run Keyword If  '${status}' == 'closed'  Fail  Util.robot needs to be updated now that Issue #1109 has been resolved
-
 Run VIC Machine Command
     [Tags]  secret
     [Arguments]  ${certs}  ${vol}

@@ -212,7 +212,7 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) (string, error)
 		Token:              options.token,
 		InsecureSkipVerify: options.insecureSkipVerify,
 	})
-	imageFileName, err := fetcher.FetchWithProgress(url, image.String())
+	imageFileName, err := fetcher.Fetch(url, image.String())
 	if err != nil {
 		return diffID, err
 	}
