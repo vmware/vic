@@ -27,10 +27,12 @@ Assert Stop Signal
 Assert Kill Signal
     # Assert SIGKILL was sent or not by checking the tether debug log file
     [Arguments]  ${id}  ${expect}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -json -vm.path "[%{TEST_DATASTORE}] ${id}/${id}.vmx" | jq -r .VirtualMachines[].Runtime.PowerState
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -json *-${id} | jq -r .VirtualMachines[].Runtime.PowerState
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${output}  poweredOff
-    ${rc}=  Run And Return Rc  govc datastore.download ${id}/${id}.debug ${TEMPDIR}/${id}.debug
+	${rc}  ${dir}=  Run And Return Rc And Output  govc datastore.ls *-${id}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}=  Run And Return Rc  govc datastore.download ${dir}/${id}.debug ${TEMPDIR}/${id}.debug
     Should Be Equal As Integers  ${rc}  0
     ${output}=  OperatingSystem.Get File  ${TEMPDIR}/${id}.debug
     Run Keyword If  ${expect}  Should Contain  ${output}  sending signal KILL

@@ -13,7 +13,9 @@ Trap Signal Command
 Assert Kill Signal
     # Assert the docker kill signal was trapped by checking the container output log file
     [Arguments]  ${id}  ${sig}
-    ${rc}=  Run And Return Rc  govc datastore.download ${id}/${id}.log ${TEMPDIR}/${id}.log
+	${rc}  ${dir}=  Run And Return Rc And Output  govc datastore.ls *-${id}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}=  Run And Return Rc  govc datastore.download ${dir}/${id}.log ${TEMPDIR}/${id}.log
     Should Be Equal As Integers  ${rc}  0
     ${output}=  OperatingSystem.Get File  ${TEMPDIR}/${id}.log
     Remove File  ${TEMPDIR}/${id}.log

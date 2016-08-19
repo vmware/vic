@@ -52,7 +52,7 @@ func (s *VirtualMachineConfigSpec) addVirtualSerialPort(device *types.VirtualSer
 	} else {
 		device.GetVirtualDevice().Backing = &types.VirtualSerialPortFileBackingInfo{
 			VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
-				FileName: fmt.Sprintf("%s/%s/%[2]s.%s", s.VMPathName(), s.ID(), suffix),
+				FileName: fmt.Sprintf("%s/%s/%s.%s", s.VMPathName(), s.config.VMFullName, s.ID(), suffix),
 			},
 		}
 	}

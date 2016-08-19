@@ -16,6 +16,7 @@ package spec
 
 import (
 	"fmt"
+	"net/url"
 
 	"golang.org/x/net/context"
 
@@ -26,7 +27,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"net/url"
 )
 
 // NilSlot is an invalid PCI slot number
@@ -42,8 +42,9 @@ const (
 // VirtualMachineConfigSpecConfig holds the config values
 type VirtualMachineConfigSpecConfig struct {
 	// ID of the VM
-	ID       string
-	BiosUUID string
+	ID         string
+	BiosUUID   string
+	VMFullName string
 
 	// ParentImageID of the VM
 	ParentImageID string
@@ -97,12 +98,6 @@ type VirtualMachineConfigSpec struct {
 func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, config *VirtualMachineConfigSpecConfig) (*VirtualMachineConfigSpec, error) {
 	defer trace.End(trace.Begin(config.ID))
 
-	VMPathName := config.VMPathName
-	if !session.IsVSAN(ctx) {
-		// VMFS requires the full path to vmx or everything but the datastore is ignored
-		VMPathName = fmt.Sprintf("%s/%s/%[2]s.vmx", config.VMPathName, config.ID)
-	}
-
 	log.Debugf("Adding metadata to the configspec: %+v", config.Metadata)
 	// TEMPORARY
 
@@ -114,6 +109,14 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 		prettyName = prettyName[:nameMaxLen-1]
 	}
 	fullName := fmt.Sprintf("%s-%s", prettyName, config.ID)
+	config.VMFullName = fullName
+
+	VMPathName := config.VMPathName
+	if !session.IsVSAN(ctx) {
+		// VMFS requires the full path to vmx or everything but the datastore is ignored
+		VMPathName = fmt.Sprintf("%s/%s/%s.vmx", config.VMPathName, config.VMFullName, config.ID)
+	}
+
 	s := &types.VirtualMachineConfigSpec{
 		Name: fullName,
 		Uuid: config.BiosUUID,
