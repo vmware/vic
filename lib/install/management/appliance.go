@@ -15,7 +15,11 @@
 package management
 
 import (
+	"crypto/tls"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"path"
 	"strconv"
 	"time"
@@ -23,6 +27,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/docker/docker/opts"
+	dockertypes "github.com/docker/engine-api/types"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
@@ -581,7 +586,70 @@ func (d *Dispatcher) waitForKey(key string) {
 	return
 }
 
-func (d *Dispatcher) makeSureApplianceRuns(conf *config.VirtualContainerHostConfigSpec) error {
+// isPortLayerRunning decodes the `docker info` response to check if the portlayer is running
+func isPortLayerRunning(res *http.Response) bool {
+	defer res.Body.Close()
+	resBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Debugf("error while reading res body: %s", err.Error())
+		return false
+	}
+
+	var sysInfo dockertypes.Info
+	if err = json.Unmarshal(resBody, &sysInfo); err != nil {
+		log.Debugf("error while unmarshalling res body: %s", err.Error())
+		return false
+	}
+
+	for _, status := range sysInfo.SystemStatus {
+		if status[0] == sysInfo.Driver {
+			return status[1] == "RUNNING"
+		}
+	}
+	return false
+}
+
+// ensureComponentsInitialize checks if the appliance components are initialized by issuing
+// `docker info` to the appliance
+func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHostConfigSpec) error {
+	var (
+		proto  string
+		client *http.Client
+		res    *http.Response
+		err    error
+	)
+
+	if conf.HostCertificate.IsNil() {
+		// TLS disabled
+		proto = "http"
+		client = &http.Client{}
+	} else {
+		// TLS enabled
+		proto = "https"
+		// TODO: configure this when support is added for user-signed certs
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client = &http.Client{Transport: tr}
+	}
+
+	dockerInfoURL := fmt.Sprintf("%s://%s:%s/info", proto, d.HostIP, d.DockerPort)
+	maxRetries := 10
+	for i := 0; i < maxRetries; i++ {
+		res, err = client.Get(dockerInfoURL)
+		if err == nil && res.StatusCode == http.StatusOK {
+			if isPortLayerRunning(res) {
+				return nil
+			}
+		}
+		time.Sleep(time.Second)
+	}
+
+	return errors.New("timed out waiting for appliance components to initialize")
+}
+
+// ensureApplianceInitializes checks if the appliance component processes are launched correctly
+func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHostConfigSpec) error {
 	defer trace.End(trace.Begin(""))
 
 	if d.appliance == nil {

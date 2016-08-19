@@ -58,6 +58,22 @@ vic-machine create --name=<VCH_NAME> --target=<TEST_URL> \
 * Deployment succeed
 * Regression test pass
 
+#Test Steps
+## Create VCH - defaults with --no-tls
+1. Issue the following command:
+```
+vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} \
+    --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso \
+    --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --no-tls --force=true \
+    --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} \
+    --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} \
+    --volume-store=%{TEST_DATASTORE}/test:${vol}
+```
+2. Run regression tests
+
+#Expected Outcome:
+* Deployment succeeds
+* Regression tests pass
 
 #Test Steps
 ## Create VCH - target URL

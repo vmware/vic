@@ -35,7 +35,7 @@ func (b *optionalString) Get() interface{} {
 }
 
 func (b *optionalString) String() string {
-	if *b.val == nil {
+	if b.val == nil || *b.val == nil {
 		return "<nil>"
 	}
 	return **b.val

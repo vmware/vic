@@ -18,13 +18,19 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 )
 
-const ResolvConfPath = "/etc/resolv.conf"
+const (
+	ResolvConfPath       = "/etc/resolv.conf"
+	DefaultAttempts uint = 5
+	DefaultTimeout       = 15 * time.Second
+)
 
 type ResolvConf interface {
 	Conf
@@ -32,6 +38,10 @@ type ResolvConf interface {
 	AddNameservers(...net.IP)
 	RemoveNameservers(...net.IP)
 	Nameservers() []net.IP
+	Attempts() uint
+	Timeout() time.Duration
+	SetAttempts(uint)
+	SetTimeout(time.Duration)
 }
 
 type resolvConf struct {
@@ -42,19 +52,21 @@ type resolvConf struct {
 	dirty       bool
 	path        string
 	nameservers []net.IP
+	timeout     time.Duration
+	attempts    uint
 }
 
 type resolvConfWalker struct {
-	nameservers []net.IP
-	i           int
+	lines []string
+	i     int
 }
 
 func (w *resolvConfWalker) HasNext() bool {
-	return w.i < len(w.nameservers)
+	return w.i < len(w.lines)
 }
 
 func (w *resolvConfWalker) Next() string {
-	s := fmt.Sprintf("nameserver %s", w.nameservers[w.i].String())
+	s := w.lines[w.i]
 	w.i++
 	return s
 }
@@ -64,7 +76,11 @@ func NewResolvConf(path string) ResolvConf {
 		path = ResolvConfPath
 	}
 
-	return &resolvConf{path: path}
+	return &resolvConf{
+		path:     path,
+		timeout:  DefaultTimeout,
+		attempts: DefaultAttempts,
+	}
 }
 
 func (r *resolvConf) ConsumeEntry(t string) error {
@@ -72,12 +88,13 @@ func (r *resolvConf) ConsumeEntry(t string) error {
 	defer r.Unlock()
 
 	fs := strings.Fields(t)
-	if len(fs) != 2 {
+	if len(fs) < 2 {
 		log.Warnf("skipping invalid line \"%s\"", t)
 		return nil
 	}
 
-	if fs[0] == "nameserver" {
+	switch fs[0] {
+	case "nameserver":
 		ip := net.ParseIP(fs[1])
 		if ip == nil {
 			log.Warnf("skipping invalid line \"%s\": invalid ip address", t)
@@ -85,6 +102,37 @@ func (r *resolvConf) ConsumeEntry(t string) error {
 		}
 
 		r.addNameservers(ip)
+	case "options":
+		parts := strings.Split(fs[1], ":")
+		if len(parts) > 2 {
+			log.Warnf("skipping invalid line \"%s\"", t)
+			return nil
+		}
+
+		var v uint
+		switch parts[0] {
+		case "timeout":
+			fallthrough
+		case "attempts":
+			if len(parts) < 2 {
+				log.Warnf("skipping invalid line \"%s\"", t)
+				return nil
+			}
+
+			o, err := strconv.ParseUint(parts[1], 10, strconv.IntSize)
+			if err != nil {
+				log.Warnf("skipping invalid line \"%s\": %s", t, err)
+				return nil
+			}
+			v = uint(o)
+		}
+
+		switch parts[0] {
+		case "timeout":
+			r.timeout = time.Duration(v) * time.Second
+		case "attempts":
+			r.attempts = v
+		}
 	}
 
 	return nil
@@ -112,7 +160,7 @@ func (r *resolvConf) Save() error {
 		return nil
 	}
 
-	walker := &resolvConfWalker{nameservers: r.nameservers}
+	walker := &resolvConfWalker{lines: r.lines()}
 	log.Debugf("%+v", walker)
 	if err := save(r.path, walker); err != nil {
 		return err
@@ -179,4 +227,38 @@ func (r *resolvConf) Nameservers() []net.IP {
 	defer r.Unlock()
 
 	return r.nameservers
+}
+
+func (r *resolvConf) Timeout() time.Duration {
+	return r.timeout
+}
+
+func (r *resolvConf) Attempts() uint {
+	return r.attempts
+}
+
+func (r *resolvConf) SetTimeout(t time.Duration) {
+	r.timeout = t
+	r.dirty = true
+}
+
+func (r *resolvConf) SetAttempts(attempts uint) {
+	if attempts > 0 {
+		r.attempts = attempts
+		r.dirty = true
+	}
+}
+
+func (r *resolvConf) lines() []string {
+	var l []string
+	for _, n := range r.nameservers {
+		l = append(l, fmt.Sprintf("nameserver %s", n))
+	}
+
+	l = append(l, []string{
+		fmt.Sprintf("options timeout:%d", r.timeout/time.Second),
+		fmt.Sprintf("options attempts:%d", r.attempts),
+	}...)
+
+	return l
 }
