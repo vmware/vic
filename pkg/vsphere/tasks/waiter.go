@@ -17,6 +17,7 @@
 package tasks
 
 import (
+	"math/rand"
 	"time"
 
 	"golang.org/x/net/context"
@@ -35,6 +36,8 @@ type Waiter interface {
 type ResultWaiter interface {
 	WaitForResult(ctx context.Context, s progress.Sinker) (*types.TaskInfo, error)
 }
+
+var backOffTable []int64
 
 // Wait wraps govmomi operations and wait the operation to complete
 // Sample usage:
@@ -85,18 +88,25 @@ func WaitForResult(ctx context.Context, f func(context.Context) (ResultWaiter, e
 	return info, nil
 }
 
-func WaitAndRetryForResult(ctx context.Context, f func(context.Context) (ResultWaiter, error), sleepTime int64) (*types.TaskInfo, error) {
-	taskInfo, err := WaitForResult(ctx, f)
+func WaitAndRetryForResult(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (*types.TaskInfo, error) {
+	rand.NewSource(time.Now().UnixNano()) //creates a more unique random
+	var err error
+	var taskInfo *types.TaskInfo
 
-	if taskInfo.Error != nil {
-		for taskInfo.Error.(*types.TaskInProgressFault) {
-			taskInfo, err = WaitForResult(ctx, f)
-			if err == nil && taskInfo.Error == nil {
-				break
-			}
-			time.Sleep(sleepTime * time.Millisecond)
+	for attempt := 1; ; attempt++ {
+		taskInfo, err = WaitForResult(ctx, f)
+		if err == nil && taskInfo.Error == nil {
+			break
 		}
+
+		if _, ok := taskInfo.Error.Fault.(types.TaskInProgressFault); attempt == 8 || !ok {
+			break
+		}
+		sleepValue := time.Duration((rand.Int63n(750) + int64(250)))
+		time.Sleep(sleepValue * time.Millisecond)
+		log.Debugf("Retrying Task due to TaskInProgressFault: %s", taskInfo.Task.Reference())
 	}
+
 	if err != nil {
 		return nil, err
 	}
