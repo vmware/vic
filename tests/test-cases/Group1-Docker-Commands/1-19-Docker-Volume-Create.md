@@ -23,6 +23,7 @@ This test requires that a vSphere server is running and available
 10. Issue docker volume create --name=test7 --opt Capacity=2147483647
 11. Issue docker volume create --name=test8 --opt Capacity=9999999999
 12. Issue docker volume create --name=test???
+13. Issue docker volume create --name=multipleX --opt Capacity=2MB ten times rapidly
 
 #Expected Outcome:
 * Steps 2 and 3 should complete successfully and return the name of the volume created, you should then be able to see the volume has been created
@@ -47,6 +48,7 @@ Error looking up volume store fakeStore: datastore not found
 ```
 Error response from daemon: create test???: "test???" includes invalid characters for a local volume name, only "\[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed
 ```
+* Step 13 should not result in any of the volume create operations failing
 
 #Possible Problems:
 * VIC requires you to specify storage on creation of the VCH that volumes can be created from, so when installing the VCH make sure to specify this parameter: --volume-store=
