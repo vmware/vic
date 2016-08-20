@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"sort"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -211,7 +212,7 @@ func imageConfigToDockerImageInspect(imageConfig *metadata.ImageConfig, productN
 		RepoDigests:     clientFriendlyDigests(imageConfig.Name, imageConfig.Digests),
 		Parent:          imageConfig.Parent,
 		Comment:         imageConfig.Comment,
-		Created:         imageConfig.Created.String(),
+		Created:         imageConfig.Created.Format(time.RFC3339Nano),
 		Container:       imageConfig.Container,
 		ContainerConfig: &imageConfig.ContainerConfig,
 		DockerVersion:   imageConfig.DockerVersion,
