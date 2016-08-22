@@ -642,6 +642,7 @@ func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHos
 	req = req.WithContext(d.ctx)
 
 	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 	for {
 		res, err = client.Do(req)
 		if err == nil && res.StatusCode == http.StatusOK {
@@ -653,7 +654,6 @@ func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHos
 		select {
 		case <-ticker.C:
 		case <-d.ctx.Done():
-			ticker.Stop()
 			return d.ctx.Err()
 		}
 		log.Debug("Components not initialized yet, retrying docker info request")
