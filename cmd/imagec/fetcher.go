@@ -194,7 +194,7 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string
 		if err != nil {
 			return "", err
 		}
-		return "", fmt.Errorf("Authentication required")
+		return "", DoNotRetry{Err: fmt.Errorf("Authentication required")}
 	}
 
 	if u.IsStatusNotFound() {
@@ -236,14 +236,16 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string
 	// Create a temporary file and stream the res.Body into it
 	out, err := ioutil.TempFile(os.TempDir(), ID)
 	if err != nil {
-		return "", err
+		return "", DoNotRetry{Err: err}
 	}
 	defer out.Close()
 
 	// Stream into it
 	_, err = io.Copy(out, in)
 	if err != nil {
-		return "", err
+		// cleanup
+		defer os.Remove(out.Name())
+		return "", DoNotRetry{Err: err}
 	}
 
 	// Return the temporary file name
