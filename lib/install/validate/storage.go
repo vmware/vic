@@ -17,7 +17,6 @@ package validate
 import (
 	"fmt"
 	"net/url"
-	"path"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -43,7 +42,7 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 
 	// provide a default path if only a DS name is provided
 	if imageDSpath.Path == "" {
-		imageDSpath.Path = path.Join(input.DisplayName, "images")
+		imageDSpath.Path = input.DisplayName
 	}
 
 	v.NoteIssue(err)
