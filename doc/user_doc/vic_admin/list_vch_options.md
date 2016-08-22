@@ -13,7 +13,7 @@ The IPv4 address, fully qualified domain name (FQDN), or URL of the ESXi host or
 - You can optionally include the user name and password of the ESXi host or vCenter Server in the target URL. Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>--target <i>username</i>:<i>password</i>@<i>esxi_or_vcenter_server_address</i></pre>
 - If you deployed the virtual container hosts on a vCenter Server instance that includes more than one datacenter, you can include the datacenter name in the target URL. If you include a datacenter name, `vic-machine ls` lists all of the virtual container hosts that are running in that datacenter. If you do not include a datacenter name, `vic-machine ls` lists all of the virtual container hosts that are running on that vCenter Server instance, for all datacenters.<pre>--target <i>vcenter_server_address</i></pre>
 - <pre>--target <i>vcenter_server_address</i>/<i>datacenter_name</i></pre>
-- If you do not specify the `passwd` option or include the password in the target URL, `vic-machine ls` prompts you to enter the password.
+- If you do not specify the `password` option or include the password in the target URL, `vic-machine ls` prompts you to enter the password.
 
 ### `user` ###
 
