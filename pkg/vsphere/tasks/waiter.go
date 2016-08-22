@@ -29,6 +29,10 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 )
 
+const (
+	maxBackoffFactor = int64(8)
+)
+
 type Waiter interface {
 	Wait(ctx context.Context) error
 }
@@ -36,8 +40,6 @@ type Waiter interface {
 type ResultWaiter interface {
 	WaitForResult(ctx context.Context, s progress.Sinker) (*types.TaskInfo, error)
 }
-
-var backOffTable []int64
 
 // Wait wraps govmomi operations and wait the operation to complete
 // Sample usage:
@@ -88,22 +90,40 @@ func WaitForResult(ctx context.Context, f func(context.Context) (ResultWaiter, e
 	return info, nil
 }
 
-func WaitAndRetryForResult(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (*types.TaskInfo, error) {
+func Retry(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (*types.TaskInfo, error) {
 	rand.NewSource(time.Now().UnixNano()) //creates a more unique random
 	var err error
 	var taskInfo *types.TaskInfo
+	backoffFactor := int64(1)
 
-	for attempt := 1; ; attempt++ {
+	//setting up timer
+	timer := time.NewTimer(time.Duration(100) * time.Millisecond)
+	if !timer.Stop() {
+		<-timer.C
+	}
+
+	for {
 		taskInfo, err = WaitForResult(ctx, f)
 		if err == nil && taskInfo.Error == nil {
 			break
 		}
 
-		if _, ok := taskInfo.Error.Fault.(types.TaskInProgressFault); attempt == 8 || !ok {
+		if _, ok := taskInfo.Error.Fault.(types.TaskInProgressFault); !ok {
 			break
 		}
-		sleepValue := time.Duration((rand.Int63n(750) + int64(250)))
-		time.Sleep(sleepValue * time.Millisecond)
+		sleepValue := backoffFactor * (rand.Int63n(100) + int64(50))
+		timer.Reset(time.Duration(sleepValue) * time.Millisecond)
+		select {
+		case <-timer.C:
+			if backoffFactor*2 > maxBackoffFactor {
+				backoffFactor = maxBackoffFactor
+			} else {
+				backoffFactor *= 2
+			}
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		}
 		log.Debugf("Retrying Task due to TaskInProgressFault: %s", taskInfo.Task.Reference())
 	}
 
