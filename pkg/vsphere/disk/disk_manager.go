@@ -223,10 +223,18 @@ func (m *Manager) Create(ctx context.Context, newDiskURI string,
 //	return nil
 // }
 
-func (m *Manager) Attach(ctx context.Context, spec *types.VirtualDisk) error {
-	machineSpec := configureDeviceSpec(ctx, *m.vm, types.VirtualDeviceConfigSpecOperationAdd, types.VirtualDeviceConfigSpecFileOperationCreate, spec)
+func (m *Manager) Attach(ctx context.Context, disk *types.VirtualDisk) error {
+
+	deviceList := object.VirtualDeviceList{}
+	deviceList = append(deviceList, disk)
 
 	_, err := tasks.Retry(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		changeSpec, err := deviceList.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
+		if err != nil {
+			return nil, err
+		}
+		machineSpec := types.VirtualMachineConfigSpec{}
+		machineSpec.DeviceChange = append(machineSpec.DeviceChange, changeSpec...)
 		return m.vm.Reconfigure(ctx, machineSpec)
 	})
 
@@ -295,38 +303,4 @@ func (m *Manager) devicePathByURI(ctx context.Context, datastoreURI string) (str
 	}
 
 	return fmt.Sprintf(m.byPathFormat, *disk.UnitNumber), nil
-}
-
-//Utility Functions
-
-// configureDeviceSpec is a function that provides the spec for our new volume. We do this because we need to be able to retry on the actual reconfigure task. Whic is hidden in govmomi calls unless we call the reconfigure operation  ourselves.
-func configureDeviceSpec(ctx context.Context, v object.VirtualMachine, op types.VirtualDeviceConfigSpecOperation, fop types.VirtualDeviceConfigSpecFileOperation, devices ...types.BaseVirtualDevice) types.VirtualMachineConfigSpec {
-	spec := types.VirtualMachineConfigSpec{}
-
-	for _, device := range devices {
-		config := &types.VirtualDeviceConfigSpec{
-			Device:    device,
-			Operation: op,
-		}
-
-		if disk, ok := device.(*types.VirtualDisk); ok {
-			config.FileOperation = fop
-
-			// Special case to attach an existing disk
-			if op == types.VirtualDeviceConfigSpecOperationAdd && disk.CapacityInKB == 0 {
-				childDisk := false
-				if b, ok := disk.Backing.(*types.VirtualDiskFlatVer2BackingInfo); ok {
-					childDisk = b.Parent != nil
-				}
-
-				if !childDisk {
-					config.FileOperation = "" // existing disk
-				}
-			}
-		}
-
-		spec.DeviceChange = append(spec.DeviceChange, config)
-	}
-
-	return spec
 }
