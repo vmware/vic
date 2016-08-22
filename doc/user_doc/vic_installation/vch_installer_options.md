@@ -24,10 +24,17 @@ To facilitate IP address changes in your infrastructure, provide an FQDN wheneve
 
 - If the target ESXi host is not managed by vCenter Server, provide the address  the host.<pre>--target <i>esxi_host_address</i></pre>
 - If the target ESXi host is managed by vCenter Server, or if you are deploying to a cluster, provide the address of vCenter Server.<pre>--target <i>vcenter_server_address</i></pre>
-- If you are deploying a virtual container host directly on an ESXi host, you must specify the `user` option, or include the user name and password in the target URL. Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>--target <i>esxi_host_username</i>:<i>password</i>@<i>esxi_host_address</i></pre>
-- If you are deploying a virtual container host on a vCenter Server instance, you must specify the `user` option, or include the user name and password in the target URL. Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>--target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i></pre>
-- If you are deploying a virtual container host on a vCenter Server instance that includes more than one datacenter, include the datacenter name in the target URL. If you include an invalid datacenter name, `vic-machine create` fails and suggests the available datacenters that you can specify. <pre>--target <i>vcenter_server_address</i>/<i>datacenter_name</i></pre>
-- If you do not specify the `password` option or include the password in the target URL, `vic-machine create` prompts you to enter the password.
+- You can include the user name and password in the target URL. <pre>--target <i>vcenter_or_esxi_username</i>:<i>password</i>@<i>vcenter_or_esxi_address</i></pre>
+
+  Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>'<i>vcenter_or_esxi_usern@me</i>':'<i>p@ssword</i>'@<i>vcenter_or_esxi_address</i></pre>
+  
+  If you do not include the user name in the target URL, you must specify the `user` option. If you do not specify the `password` option or include the password in the target URL, `vic-machine create` prompts you to enter the password.
+- If you are deploying a virtual container host on a vCenter Server instance that includes more than one datacenter, include the datacenter name in the target URL. If you include an invalid datacenter name, `vic-machine create` fails and suggests the available datacenters that you can specify. 
+
+  <pre>--target <i>vcenter_server_address</i>/<i>datacenter_name</i></pre>
+
+  Wrap the datacenter name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+  <pre>--target <i>vcenter_server_address</i>/'<i>datacenter name</i>'</pre>
 
 ### `user` ###
 
@@ -39,6 +46,11 @@ If you are deploying vSphere Integrated Containers on vCenter Server, specify a 
 
 <pre>--user <i>esxi_or_vcenter_server_username</i></pre>
 
+Wrap the user name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes special characters.
+
+<pre>--user '<i>esxi_or_vcenter_server_usern@me</i>'</pre>
+
+
 You can also specify the username in the URL that you pass to `vic-machine create` in the `target` option.
 
 <a name="image"></a>
@@ -48,19 +60,23 @@ Short name: `-i`
 
 The datastore in which to store container image files. When you deploy a virtual container host, `vic-machine` creates a folder named `VIC` on the target datastore,  in which to store all of the container images that you pull into a virtual container host. The `vic-machine` utility also places the VM files for the virtual container host in the datastore that you designate as the image store, in a folder that has the same name as the virtual container host. 
 
-You can specify a datastore folder to use as the image store in the format <code>datastore/<i>path</i></code>. In this case, the virtual container host uses <code><i>path</i></code> as the image store instead of using the folder with the same name as the virtual container host. If the folder that you specify does not already exist, `vic-machine create` creates it.
+You can designate the same datastore as the image store for multiple virtual container hosts. In this case, only one `VIC` folder is created in the datastore and the container image files are made available to all of the virtual container hosts that use that image store.
 
-You can designate the same datastore as the image store for multiple virtual container hosts. In this case, only one `VIC` folder is created in the datastore and the container image files are made available to all of the virtual container hosts that use that image store. 
-
- If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores.
-
-**NOTES**: 
-- vSphere Integrated Containers supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names.
-- In the current builds the `container-datastore` option is not enabled. As a consequence, container VM files are also stored in the datastore that you designate as the image store.
+vSphere Integrated Containers supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters. 
 
 <pre>--image-store <i>datastore_name</i></pre> 
 
+You can specify a datastore folder to use as the image store in the format <code>datastore/<i>path</i></code>. In this case, the virtual container host uses <code><i>path</i></code> as the image store instead of using the folder with the same name as the virtual container host. If the folder that you specify does not already exist, `vic-machine create` creates it. 
+
 <pre>--image-store <i>datastore_name</i>/<i>path</i></pre> 
+
+Wrap the datastore name or path in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces.
+
+<pre>--image-store '<i>datastore name</i>'/'<i>datastore path</i>'</pre> 
+
+If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores.
+
+**NOTE**: In the current builds the `container-datastore` option is not enabled. As a consequence, container VM files are also stored in the datastore that you designate as the image store.
 
 <a name="bridge"></a>
 ### `bridge-network` ###
@@ -80,6 +96,10 @@ In a vCenter Server environment, before you run `vic-machine create`, you must c
 You pass the name of the distributed port group to the `bridge-network` option. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
 <pre>--bridge-network <i>distributed_port_group_name</i></pre>
+
+Wrap the distributed port group name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+
+<pre>--bridge-network '<i>distributed port group name</i>'</pre>
 
 <a name="networking"></a>
 ## Networking Options ##
@@ -109,6 +129,10 @@ If not specified, containers use the default VM Network for external traffic. If
 
 <pre>--external-network <i>network_name</i></pre>
 
+Wrap the network name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+
+<pre>--external-network '<i>network name</i>'</pre>
+
 ### `management-network` ###
 
 Short name: `--mn`
@@ -119,6 +143,10 @@ If not specified, the virtual container host uses the external network for manag
 
 <pre>--management-network <i>network_name</i></pre>
 
+Wrap the network name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+
+<pre>--management-network '<i>network name</i>'</pre>
+
 ### `client-network` ###
 
 Short name: `--cln`
@@ -128,6 +156,10 @@ The network that the virtual container host uses to generate the Docker API. The
 If not specified, the virtual container host uses the external network for client traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
 <pre>--client-network <i>network_name</i></pre>
+
+Wrap the network name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+
+<pre>--client-network '<i>network name</i>'</pre>
 
 ### `container-network` ###
 
@@ -149,15 +181,23 @@ If the network that you specify does not support DHCP, you must also specify the
 
 <pre>--container-network <i>distributed_port_group_name</i>:<i>container_network_name</i></pre>
 
+Wrap the distributed port group name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces. The descriptive name cannot include spaces.
+
+<pre>--container-network '<i>distributed port group name</i>':<i>container_network_name</i></pre>
+
 ### `container-network-gateway` ###
 
 Short name: `--cng`
 
 The gateway for the subnet of the container network. This option is required if the network that you specify in the `container-network` option does not support DHCP. Specify the gateway in the format <code><i>container_network</i>:<i>subnet</i></code>. If you specify this option, it is recommended that you also specify the  `container-network-dns` option.
 
- When you specify the container network gateway, you use the distributed port group that you specify in the `container-network `option.
+When you specify the container network gateway, you use the distributed port group that you specify in the `container-network `option.
 
 <pre>--container-network-gateway <i>distributed_port_group_name</i>:<i>gateway_ip_address</i>/<i>subnet_mask</i></pre>
+
+Wrap the distributed port group name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+
+<pre>--container-network-gateway '<i>distributed port group name</i>':<i>gateway_ip_address</i>/<i>subnet_mask</i></pre>
 
 ### `container-network-dns` ###
 
@@ -168,6 +208,10 @@ The address of the DNS server for the container network. This option is recommen
 When you specify the container network DNS server, you use the distributed port group that you specify in the `container-network` option.
 
 <pre>--container-network-dns <i>distributed_port_group_name</i>:8.8.8.8</pre>
+
+Wrap the distributed port group name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+
+<pre>--container-network-dns '<i>distributed port group name</i>':8.8.8.8</pre>
 
 ### `container-network-ip-range` ###
 
@@ -182,6 +226,10 @@ When you specify the container network IP range, you use the distributed port gr
 You can also specify the IP range as a CIDR.
 
 <pre>--container-network-ip-range <i>distributed_port_group_name</i>:192.168.100.0/24</pre>
+
+Wrap the distributed port group name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+
+<pre>--container-network-ip-range '<i>distributed port group name</i>':192.168.100.0/24</pre>
 
 <a name="compute"></a>
 ## Compute Resource Options ##
@@ -205,13 +253,14 @@ If you do not specify the `compute-resource` option and multiple possible resour
 * To deploy to a vCenter Server with more than one cluster, specify the name of the target cluster: <pre>--compute-resource <i>cluster_name</i></pre>
 * To deploy to a specific resource pool on a standalone host that is managed by vCenter Server, specify the IPv4 address or FQDN of the target host and name of the resource pool:<pre>--compute-resource <i>host_name</i>/<i>resource_pool_name</i></pre>
 * To deploy to a specific resource pool in a cluster, specify the names of the target cluster and the resource pool:<pre>--compute-resource <i>cluster_name</i>/<i>resource_pool_name</i></pre>
+* Wrap the resource names in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces:<pre>--compute-resource '<i>cluster name</i>'/'<i>resource pool name</i>'</pre>
 
 <a name="datastore"></a>
 ## Datastore Options ##
 The `vic-machine` utility allows you to specify the datastores in which to store container VM files, container image files, and the files for the virtual container host appliance. 
 
 - vSphere Integrated Containers fully supports VMware Virtual SAN datastores. 
-- vSphere Integrated Containers supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names.
+- vSphere Integrated Containers supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters.
 
 ### `image-store` ###
 
@@ -227,9 +276,13 @@ If you do not specify the `container-datastore` option, vSphere Integrated Conta
 
 If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores.
 
-**NOTE**: In the current builds the `container-datastore` option is not enabled. Container VM files are stored in the datastore that you designate as the image store.
+<pre>--container-datastore <i>datastore_name</i></pre>
 
-<pre>--container-datastore <i>datastore_name</i></pre> 
+Wrap the datastore name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+
+<pre>--container-datastore '<i>datastore name</i>'</pre>
+
+**NOTE**: In the current builds the `container-datastore` option is not enabled. Container VM files are stored in the datastore that you designate as the image store. 
 
 <a name="volume-store"></a>
 ### `volume-store` ###
@@ -250,7 +303,10 @@ The label that you specify is the volume store name that Docker uses. For exampl
   <pre>--volume-store <i>datastore_name</i>:<i>volume_store_label</i></pre>
 - If you specify the target datastore, a datastore path, and the volume store label, `vic-machine create` creates a folder named `VIC/volumes` in the location that you specify in the datastore path. If the folders that you specify in the path do not already exist on the datastore, `vic-machine create` creates the appropriate folder structure. Any volumes that container application developers create will appear in the <code><i>path</i>/VIC/volumes</code> folder.
 
-  <pre>--volume-store <i>datastore_name</i>/<i>path</i>:<i>volume_store_label</i></pre>
+  <pre>--volume-store <i>datastore_name</i>/<i>datastore_path</i>:<i>volume_store_label</i></pre>
+- Wrap the datastore name and path in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces. The volume store label cannot include spaces.
+
+  <pre>--volume-store '<i>datastore name</i>'/'<i>datastore path</i>':<i>volume_store_label</i></pre>
 - You can specify the `volume-store` option multiple times, to create multiple volume stores on the virtual container host.
 
   <pre>--volume-store <i>datastore_name</i>/path:<i>volume_store_label_1</i>
@@ -281,9 +337,15 @@ The path to an X.509 certificate for the Docker API to use to authenticate the v
 - This option is mandatory if your Docker environment uses TLS certificates that are signed by a CA. For information about how to set up a Docker client to use CA certificates, see https://docs.docker.com/engine/security/https/.
 - Use this option in combination with the `key` option, that provides the path to the private key file for the CA certificate.
 
-If you use the `cert` and `key` options, `vic-machine` does not automatically generate certificates. Omit this option if your Docker environment does not use certificates that are signed by a CA. 
+If you use the `cert` and `key` options, `vic-machine` does not automatically generate certificates. Omit this option if your Docker environment does not use certificates that are signed by a CA. Include the names of the certificate and key files in the paths.
 
-<pre>--cert <i>path_to_vcenter_server_certificate</i> --key <i>path_to_vcenter_server_key</i></pre> 
+<pre>--cert <i>path_to_certificate_file</i>/<i>certificate_file_name</i>.pem 
+--key <i>path_to_key_file</i>/<i>key_file_name</i>.pem</pre> 
+
+Wrap the folder names in the paths in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces.
+
+<pre>--cert '<i>path to certificate file</i>'/<i>certificate_file_name</i>.pem 
+--key '<i>path to key file</i>'/<i>key_file_name</i>.pem</pre> 
 
 ### `key` ###
 
@@ -291,9 +353,15 @@ Short name: none
 
 The path to the private key file for use with a custom CA certificate. This option is mandatory if your Docker environment uses certificates that are signed by a CA. For information about how to set up a Docker client to use CA certificates, see https://docs.docker.com/engine/security/https/.
 
-Use this option in combination with the `cert` option, that provides the path to an X.509 certificate file. 
+Use this option in combination with the `cert` option, that provides the path to an X.509 certificate file. Include the names of the certificate and key files in the paths. 
 
-<pre>--cert <i>path_to_vcenter_server_certificate</i> --key <i>path_to_vcenter_server_key</i></pre>
+<pre>--cert <i>path_to_certificate_file</i>/<i>certificate_file_name</i>.pem 
+--key <i>path_to_key_file</i>/<i>key_file_name</i>.pem</pre> 
+
+Wrap the folder names in the paths in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces.
+
+<pre>--cert '<i>path to certificate file</i>'/<i>certificate_file_name</i>.pem 
+--key '<i>path to key file</i>'/<i>key_file_name</i>.pem</pre>
 
 <a name="deployment"></a>
 ## Appliance Deployment Options ##
@@ -308,13 +376,19 @@ A name for the virtual container host appliance. If not specified, `vic-machine`
 
 <pre>--name <i>vch_appliance_name</i></pre>
 
+Wrap the appliance name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+
+<pre>--name '<i>vch appliance name</i>'</pre>
+
 ### `password` ###
 
 Short name: `-p`
 
 The password for the user account on the vCenter Server on which you  are deploying the virtual container host, or the password for the ESXi host if you are deploying directly to an ESXi host. If not specified, `vic-machine` prompts you to enter the password during deployment.
 
-**NOTE**: If your password contains special characters, you must wrap the password in single quotation marks (') on Mac OS and Linux and in double quotation (") marks on Windows.
+<pre>--password <i>esxi_host_or_vcenter_server_password</i></pre>
+
+Wrap the password in single quotation marks (') on Mac OS and Linux and in double quotation (") marks on Windows if it includes special characters.
 
 <pre>--password '<i>esxi_host_or_vcenter_server_p@ssword</i>'</pre>
 
@@ -338,17 +412,25 @@ The timeout period for uploading the vSphere Integrated Containers  appliance an
 
 Short name: `--ai`
 
-The ISO image from which the virtual container host appliance boots. Omit this option to boot the appliance from the default ISO that is included with `vic-machine`. Set this option to boot the appliance from a different ISO file, for example to reinstall an existing virtual container host or to update it to a newer version.
+The ISO image from which the virtual container host appliance boots. Omit this option to boot the appliance from the default ISO that is included with `vic-machine`. Set this option to boot the appliance from a different ISO file, for example to reinstall an existing virtual container host or to update it to a newer version. Include the name of the ISO file in the path.
 
-<pre>--appliance-iso <i>path_to_ISO_file</i></pre>
+<pre>--appliance-iso <i>path_to_ISO_file</i>/<i>ISO_file_name</i>.iso</pre>
+
+Wrap the folder names in the path in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces.
+
+<pre>--appliance-iso '<i>path to ISO file</i>'/<i>ISO_file_name</i>.iso</pre>
 
 ### `bootstrap-iso` ###
 
 Short name: `--bi`
 
-The ISO image from which container VMs boot. Omit this option to boot container VMs from the default Photon OS ISO that is included with `vic-machine`. Set this option to a different ISO file to boot container VMs with an operating system other than Photon OS.
+The ISO image from which container VMs boot. Omit this option to boot container VMs from the default Photon OS ISO that is included with `vic-machine`. Set this option to a different ISO file to boot container VMs with an operating system other than Photon OS. Include the name of the ISO file in the path.
 
-<pre>--bootstrap-iso <i>path_to_ISO_file</i></pre>
+<pre>--bootstrap-iso <i>path_to_ISO_file</i>/<i>ISO_file_name</i>.iso</pre>
+
+Wrap the folder names in the path in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces.
+
+<pre>--bootstrap-iso '<i>path to ISO file</i>'/<i>ISO_file_name</i>.iso</pre>
 
 ### `appliance-cpu ` ###
 
