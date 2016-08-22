@@ -226,7 +226,7 @@ func (m *Manager) Create(ctx context.Context, newDiskURI string,
 func (m *Manager) Attach(ctx context.Context, spec *types.VirtualDisk) error {
 	machineSpec := configureDeviceSpec(ctx, *m.vm, types.VirtualDeviceConfigSpecOperationAdd, types.VirtualDeviceConfigSpecFileOperationCreate, spec)
 
-	_, err := tasks.WaitAndRetryForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	_, err := tasks.Retry(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return m.vm.Reconfigure(ctx, machineSpec)
 	})
 
@@ -269,7 +269,7 @@ func (m *Manager) Detach(ctx context.Context, d *VirtualDisk) error {
 
 	spec.DeviceChange = config
 
-	_, err = tasks.WaitAndRetryForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	_, err = tasks.Retry(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return m.vm.Reconfigure(ctx, spec)
 	})
 	if err != nil {
