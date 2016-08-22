@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"os"
 	"path"
 	"regexp"
 	"strings"
@@ -79,7 +80,10 @@ func NewHelper(ctx context.Context, s *session.Session, ds *object.Datastore, ro
 	if len(root) > 1 {
 		r, err := d.Mkdir(ctx, true, root[1])
 		if err != nil {
-			return nil, err
+			if !os.IsExist(err) {
+				return nil, err
+			}
+			log.Debugf("%s already exists", d.RootURL)
 		}
 		d.RootURL = r
 	}
@@ -127,23 +131,23 @@ func (d *Helper) Summary(ctx context.Context) (*types.DatastoreSummary, error) {
 func (d *Helper) Mkdir(ctx context.Context, createParentDirectories bool, dirs ...string) (string, error) {
 
 	upth := path.Join(dirs...)
-
-	// check if it already exists
-	_, err := d.Ls(ctx, upth)
-	if err != nil && !types.IsFileNotFound(err) {
-		return "", err
-	}
-
 	upth = path.Join(d.RootURL, upth)
-
-	// dir already exists
-	if err == nil {
-		return upth, nil
-	}
 
 	log.Infof("Creating directory %s", upth)
 
 	if err := d.fm.MakeDirectory(ctx, upth, d.s.Datacenter, createParentDirectories); err != nil {
+
+		log.Debugf("Creating %s error: %s", upth, err)
+
+		if err != nil {
+			if soap.IsSoapFault(err) {
+				soapFault := soap.ToSoapFault(err)
+				if _, ok := soapFault.VimFault().(types.FileAlreadyExists); ok {
+					return "", os.ErrExist
+				}
+			}
+		}
+
 		return "", err
 	}
 
@@ -302,6 +306,10 @@ func (d *Helper) mkRootDir(ctx context.Context, rootdir string) error {
 
 		d.RootURL = d.ds.Path(rootdir)
 		if _, err := d.Mkdir(ctx, true); err != nil {
+			if os.IsExist(err) {
+				log.Debugf("%s already exists", d.RootURL)
+				return nil
+			}
 			return err
 		}
 	}
