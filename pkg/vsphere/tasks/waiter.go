@@ -121,7 +121,9 @@ func Retry(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (
 				backoffFactor *= 2
 			}
 		case <-ctx.Done():
-			timer.Stop()
+			if !timer.Stop() {
+				<-timer.C
+			}
 			return nil, ctx.Err()
 		}
 		log.Debugf("Retrying Task due to TaskInProgressFault: %s", taskInfo.Task.Reference())
