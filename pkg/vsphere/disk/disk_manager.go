@@ -228,13 +228,15 @@ func (m *Manager) Attach(ctx context.Context, disk *types.VirtualDisk) error {
 	deviceList := object.VirtualDeviceList{}
 	deviceList = append(deviceList, disk)
 
-	_, err := tasks.Retry(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		changeSpec, err := deviceList.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
-		if err != nil {
-			return nil, err
-		}
-		machineSpec := types.VirtualMachineConfigSpec{}
-		machineSpec.DeviceChange = append(machineSpec.DeviceChange, changeSpec...)
+	changeSpec, err := deviceList.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
+	if err != nil {
+		return err
+	}
+
+	machineSpec := types.VirtualMachineConfigSpec{}
+	machineSpec.DeviceChange = append(machineSpec.DeviceChange, changeSpec...)
+
+	_, err = tasks.Retry(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return m.vm.Reconfigure(ctx, machineSpec)
 	})
 
