@@ -617,6 +617,7 @@ func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHos
 		client *http.Client
 		res    *http.Response
 		err    error
+		req    *http.Request
 	)
 
 	if conf.HostCertificate.IsNil() {
@@ -634,18 +635,31 @@ func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHos
 	}
 
 	dockerInfoURL := fmt.Sprintf("%s://%s:%s/info", proto, d.HostIP, d.DockerPort)
-	maxRetries := 10
-	for i := 0; i < maxRetries; i++ {
-		res, err = client.Get(dockerInfoURL)
+	req, err = http.NewRequest("GET", dockerInfoURL, nil)
+	if err != nil {
+		return errors.New("invalid HTTP request for docker info")
+	}
+	req = req.WithContext(d.ctx)
+
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		res, err = client.Do(req)
 		if err == nil && res.StatusCode == http.StatusOK {
 			if isPortLayerRunning(res) {
-				return nil
+				break
 			}
 		}
-		time.Sleep(time.Second)
+
+		select {
+		case <-ticker.C:
+		case <-d.ctx.Done():
+			return d.ctx.Err()
+		}
+		log.Debug("Components not initialized yet, retrying docker info request")
 	}
 
-	return errors.New("timed out waiting for appliance components to initialize")
+	return nil
 }
 
 // ensureApplianceInitializes checks if the appliance component processes are launched correctly
