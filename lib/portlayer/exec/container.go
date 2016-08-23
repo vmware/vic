@@ -42,19 +42,16 @@ import (
 	"golang.org/x/net/context"
 )
 
+func init() {
+	NewContainerCache()
+}
+
 type State int
 
 const (
-	StateStarting = iota + 1
-	StateRunning
-	StateStopping
+	StateRunning = iota + 1
 	StateStopped
-	StateSuspending
-	StateSuspended
 	StateCreated
-	StateRemoving
-	StateRemoved
-	StateUnknown
 
 	propertyCollectorTimeout = 3 * time.Minute
 )
@@ -64,6 +61,9 @@ type Container struct {
 
 	ExecConfig *executor.ExecutorConfig
 	State      State
+
+	// friendly description of state
+	Status string
 
 	VMUnsharedDisk int64
 
@@ -89,27 +89,16 @@ func GetContainer(id uid.UID) *Handle {
 
 }
 
-func (s State) String() string {
-	switch s {
-	case StateCreated:
-		return "Created"
-	case StateStarting:
-		return "Starting"
-	case StateRunning:
-		return "Running"
-	case StateRemoving:
-		return "Removing"
-	case StateStopping:
-		return "Stopping"
-	case StateStopped:
-		return "Stopped"
-
-	}
-	return ""
-}
-
 func (c *Container) newHandle() *Handle {
 	return newHandle(c)
+}
+
+// TODO: Is this used anywhere?
+func (c *Container) cacheExecConfig(ec *executor.ExecutorConfig) {
+	c.Lock()
+	defer c.Unlock()
+
+	c.ExecConfig = ec
 }
 
 func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int32) error {
@@ -132,7 +121,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 				return VCHConfig.VirtualApp.CreateChildVM_Task(ctx, *h.Spec.Spec(), nil)
 			})
-
+			// set the status to created
 			c.State = StateCreated
 		} else {
 			// Find the Virtual Machine folder that we use
@@ -149,6 +138,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 				return parent.CreateVM(ctx, *h.Spec.Spec(), VCHConfig.ResourcePool, nil)
 			})
 
+			// set the status to created
 			c.State = StateCreated
 		}
 
@@ -210,17 +200,12 @@ func (c *Container) start(ctx context.Context) error {
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
 	}
-	// get existing state and set to starting
-	// if there's a failure we'll revert to existing
-	existingState := c.State
-	c.State = StateStarting
 
 	// Power on
 	_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return c.vm.PowerOn(ctx)
 	})
 	if err != nil {
-		c.State = existingState
 		return err
 	}
 
@@ -234,12 +219,10 @@ func (c *Container) start(ctx context.Context) error {
 
 	detail, err = c.vm.WaitForKeyInExtraConfig(ctx, key)
 	if err != nil {
-		c.State = existingState
 		return fmt.Errorf("unable to wait for process launch status: %s", err.Error())
 	}
 
 	if detail != "true" {
-		c.State = existingState
 		return errors.New(detail)
 	}
 
@@ -300,10 +283,6 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
 	}
-	// get existing state and set to stopping
-	// if there's a failure we'll revert to existing
-	existingState := c.State
-	c.State = StateStopping
 
 	err := c.shutdown(ctx, waitTime)
 	if err == nil {
@@ -326,8 +305,8 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 				}
 			}
 		}
-		c.State = existingState
 	}
+
 	return err
 }
 
@@ -415,16 +394,6 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 		return NotFoundError{}
 	}
 
-	// check state first
-	if c.State == StateRunning {
-		return RemovePowerError{fmt.Errorf("Container is powered on")}
-	}
-
-	// get existing state and set to removing
-	// if there's a failure we'll revert to existing
-	existingState := c.State
-	c.State = StateRemoving
-
 	// get the folder the VM is in
 	url, err := c.vm.DSPath(ctx)
 	if err != nil {
@@ -439,19 +408,27 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 		}
 
 		log.Errorf("Failed to get datastore path for %s: %s", c.ExecConfig.ID, err)
-		c.State = existingState
 		return err
 	}
 	// FIXME: was expecting to find a utility function to convert to/from datastore/url given
 	// how widely it's used but couldn't - will ask around.
 	dsPath := fmt.Sprintf("[%s] %s", url.Host, url.Path)
 
+	state, err := c.vm.PowerState(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to get vm power status %q: %s", c.vm.Reference(), err)
+	}
+
+	// don't remove the containerVM if it is powered on
+	if state == types.VirtualMachinePowerStatePoweredOn {
+		return RemovePowerError{fmt.Errorf("Container is powered on")}
+	}
+
 	//removes the vm from vsphere, but detaches the disks first
 	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return c.vm.DeleteExceptDisks(ctx)
 	})
 	if err != nil {
-		c.State = existingState
 		return err
 	}
 
@@ -461,7 +438,6 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	if _, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return fm.DeleteDatastoreFile(ctx, dsPath, sess.Datacenter)
 	}); err != nil {
-		c.State = existingState
 		log.Debugf("Failed to delete %s, %s", dsPath, err)
 	}
 
@@ -489,13 +465,61 @@ func (c *Container) Update(ctx context.Context, sess *session.Session) (*executo
 	return c.ExecConfig, nil
 }
 
-// return specific container to caller
-func ContainerInfo(containerID string) *Container {
-	return containers.Container(containerID)
+// Grab the info for the requested container
+// TODO:  Possibly change so that handler requests a handle to the
+// container and if it's not present then search and return a handle
+func ContainerInfo(ctx context.Context, sess *session.Session, containerID uid.UID) (*Container, error) {
+	// first  lets see if we have it in the cache
+	container := containers.Container(containerID.String())
+	// if we missed search for it...
+	if container == nil {
+		// search
+		vm, err := childVM(ctx, sess, containerID.String())
+		if err != nil || vm == nil {
+			log.Debugf("ContainerInfo failed to find childVM: %s", err.Error())
+			return nil, fmt.Errorf("Container Not Found: %s", containerID)
+		}
+		container = &Container{vm: vm}
+	}
+
+	// get properties for specific containerVMs
+	// we must do this since we don't know that we have a valid state
+	// This will be refactored when event streaming hits
+	vms, err := populateVMAttributes(ctx, sess, []types.ManagedObjectReference{container.vm.Reference()})
+	if err != nil {
+		return nil, err
+	}
+	// convert the VMs to container objects -- include
+	// powered off vms
+	all := true
+	cc := convertInfraContainers(vms, &all)
+
+	switch len(cc) {
+	case 0:
+		// we found a vm, but it doesn't appear to be a container VM
+		containers.Remove(containerID.String())
+		return nil, fmt.Errorf("%s does not appear to be a container", containerID)
+	case 1:
+		// we have a winner
+		return cc[0], nil
+	default:
+		// we manged to find multiple vms
+		return nil, fmt.Errorf("multiple containers named %s found", containerID)
+	}
 }
 
-func Containers(all bool) []*Container {
-	return containers.Containers(all)
+// return a list of container attributes
+func List(ctx context.Context, sess *session.Session, all *bool) ([]*Container, error) {
+
+	// for now we'll go to the infrastructure
+	// future iteration will utilize cache & event stream
+	moVMs, err := infraContainers(ctx, sess)
+	if err != nil {
+		return nil, err
+	}
+	// convert to container
+	containers := convertInfraContainers(moVMs, all)
+	return containers, nil
 }
 
 // get the containerVMs from infrastructure for this resource pool
@@ -587,18 +611,21 @@ func convertInfraContainers(vms []mo.VirtualMachine, all *bool) []*Container {
 			continue
 		}
 
-		// set state
+		// set state & friendly status
 		if vms[i].Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
 			container.State = StateRunning
+			container.Status = "Running"
 		} else {
-			// look in the container cache and check state
+			// look in the container cache and check status
 			// if it's created we'll take that as it's been created, but
 			// not started
 			cached := containers.Container(container.ExecConfig.ID)
 			if cached != nil && cached.State == StateCreated {
 				container.State = StateCreated
+				container.Status = "Created"
 			} else {
 				container.State = StateStopped
+				container.Status = "Stopped"
 			}
 		}
 		if vms[i].Summary.Storage != nil {

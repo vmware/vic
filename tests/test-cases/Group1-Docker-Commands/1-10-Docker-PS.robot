@@ -47,47 +47,6 @@ Docker ps all containers
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  4
     
-Docker ps powerOn container OOB
-    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name jojo busybox /bin/top
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
-    Should Be Equal As Integers  ${rc}  0
-    ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  1
-    # Remove container VM out-of-band
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -on "jojo*"
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
-    Should Be Equal As Integers  ${rc}  0
-    ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  2
-
-Docker ps powerOff container OOB
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
-    Should Be Equal As Integers  ${rc}  0
-    ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  2
-    # Remove container VM out-of-band
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -off "jojo*"
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
-    Should Be Equal As Integers  ${rc}  0
-    ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  1
-
-Docker ps Remove container OOB
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq
-    Should Be Equal As Integers  ${rc}  0
-    ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  4
-    # Remove container VM out-of-band
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy "jojo*"
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq
-    Should Be Equal As Integers  ${rc}  0
-    ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  3
-
 Docker ps last container
     ${status}=  Get State Of Github Issue  1545
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-10-Docker-PS.robot needs to be updated now that Issue #1545 has been resolved

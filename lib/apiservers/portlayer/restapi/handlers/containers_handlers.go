@@ -242,23 +242,26 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers.GetContainerInfoParams) middleware.Responder {
 	defer trace.End(trace.Begin("Containers.GetContainerInfoHandler"))
 
-	container := exec.ContainerInfo(params.ID)
-	if container == nil {
-		info := fmt.Sprintf("GetContainerInfoHandler ContainerCache miss for container(%s)", params.ID)
-		log.Error(info)
-		return containers.NewGetContainerInfoNotFound().WithPayload(&models.Error{Message: info})
+	// get the container id for interogation
+	containerID := uid.Parse(params.ID)
+	cc, err := exec.ContainerInfo(context.Background(), handler.handlerCtx.Session, containerID)
+	if err != nil {
+		log.Debugf("GetContainerInfoHandler Error: %s", err.Error())
+		return containers.NewGetContainerInfoNotFound().WithPayload(&models.Error{Message: err.Error()})
 	}
-
-	containerInfo := convertContainerToContainerInfo(container)
-	return containers.NewGetContainerInfoOK().WithPayload(containerInfo)
+	info := convertContainerToContainerInfo(cc)
+	return containers.NewGetContainerInfoOK().WithPayload(info)
 }
 
 func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers.GetContainerListParams) middleware.Responder {
 	defer trace.End(trace.Begin("Containers.GetContainerListHandler"))
 
-	containerVMs := exec.Containers(*params.All)
-	vmList := make([]models.ContainerListInfo, 0, len(containerVMs))
+	containerVMs, err := exec.List(context.Background(), handler.handlerCtx.Session, params.All)
+	if err != nil {
+		return containers.NewGetContainerListInternalServerError()
+	}
 
+	vmList := make([]models.ContainerListInfo, 0, len(containerVMs))
 	for i := range containerVMs {
 		// convert to return model
 		container := containerVMs[i]
@@ -266,8 +269,7 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 		info.ContainerID = &container.ExecConfig.ID
 		info.LayerID = &container.ExecConfig.LayerID
 		info.Created = &container.ExecConfig.Created
-		state := container.State.String()
-		info.Status = &state
+		info.Status = &container.Status
 		info.Names = []string{container.ExecConfig.Name}
 		info.ExecArgs = container.ExecConfig.Sessions[*info.ContainerID].Cmd.Args
 		info.StorageSize = &container.VMUnsharedDisk
@@ -321,8 +323,9 @@ func convertContainerToContainerInfo(container *exec.Container) *models.Containe
 	ccid := container.ExecConfig.ID
 	info.ContainerConfig.ContainerID = &ccid
 
-	s := container.State.String()
-	info.ContainerConfig.State = &s
+	// TODO: need to determine an appropriate state model
+	// for now leveraging the status used in ps
+	info.ContainerConfig.State = &container.Status
 	info.ContainerConfig.LayerID = &container.ExecConfig.LayerID
 	info.ContainerConfig.RepoName = &container.ExecConfig.RepoName
 	info.ContainerConfig.Created = &container.ExecConfig.Created
