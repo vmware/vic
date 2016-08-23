@@ -18,6 +18,7 @@ import (
 	"encoding"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -92,6 +93,7 @@ type Create struct {
 	containerNetworksIPRanges cli.StringSlice
 	containerNetworksDNS      cli.StringSlice
 	volumeStores              cli.StringSlice
+	insecureRegistries        cli.StringSlice
 
 	memoryReservLimits string
 	cpuReservLimits    string
@@ -287,6 +289,11 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.UseRP,
 			Hidden:      true,
 		},
+		cli.StringSliceFlag{
+			Name:  "docker-insecure-registry, dir",
+			Value: &c.insecureRegistries,
+			Usage: "Specify a list of insecure registry server URLs for the docker personality server",
+		},
 	}
 	preFlags := append(c.TargetFlags(), c.ComputeFlags()...)
 	flags = append(preFlags, flags...)
@@ -347,6 +354,10 @@ func (c *Create) processParams() error {
 		return errors.Errorf("Error occurred while processing volume stores: %s", err)
 	}
 
+	if err := c.processInsecureRegistries(); err != nil {
+		return err
+	}
+
 	//	if err := c.processReservations(); err != nil {
 	//		return err
 	//	}
@@ -401,6 +412,18 @@ func (c *Create) processContainerNetworks() error {
 		c.MappedNetworksIPRanges[vicnet] = pools[vnet]
 		c.MappedNetworksDNS[vicnet] = dns[vnet]
 
+	}
+
+	return nil
+}
+
+func (c *Create) processInsecureRegistries() error {
+	for _, registry := range c.insecureRegistries {
+		url, err := url.Parse(registry)
+		if err != nil {
+			return cli.NewExitError(fmt.Sprintf("%s is an invalid format for registry url", registry), 1)
+		}
+		c.InsecureRegistries = append(c.InsecureRegistries, *url)
 	}
 
 	return nil
@@ -605,6 +628,9 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 	vConfig.ImageFiles = images
 	vConfig.ApplianceISO = path.Base(c.ApplianceISO)
 	vConfig.BootstrapISO = path.Base(c.BootstrapISO)
+
+	vchConfig.InsecureRegistries = c.Data.InsecureRegistries
+
 	{ // create certificates for VCH extension
 		var certbuffer, keybuffer bytes.Buffer
 		if certbuffer, keybuffer, err = certificate.CreateRawKeyPair(); err != nil {

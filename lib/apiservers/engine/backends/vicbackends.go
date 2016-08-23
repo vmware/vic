@@ -17,9 +17,11 @@ package vicbackends
 import (
 	"context"
 	"net"
+	"net/url"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/registry"
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
@@ -47,9 +49,12 @@ var (
 	productVersion      string
 
 	vchConfig *config.VirtualContainerHostConfigSpec
+
+	insecureRegistries []string
+	RegistryService    *registry.Service
 )
 
-func Init(portLayerAddr, product string, config *config.VirtualContainerHostConfigSpec) error {
+func Init(portLayerAddr, product string, config *config.VirtualContainerHostConfigSpec, insecureRegs []url.URL) error {
 	_, _, err := net.SplitHostPort(portLayerAddr)
 	if err != nil {
 		return err
@@ -91,6 +96,16 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 		}
 		log.Info("Image cache updated successfully")
 	}()
+
+	serviceOptions := registry.ServiceOptions{}
+	for _, registry := range insecureRegs {
+		insecureRegistries = append(insecureRegistries, registry.Path)
+	}
+	if len(insecureRegistries) > 0 {
+		serviceOptions.InsecureRegistries = insecureRegistries
+	}
+	log.Debugf("New registry service with options %#v", serviceOptions)
+	RegistryService = registry.NewService(serviceOptions)
 
 	return nil
 }
@@ -157,4 +172,13 @@ func createImageStore() error {
 	}
 	log.Infof("Image store created successfully")
 	return nil
+}
+
+func InsecureRegistries() []string {
+	registries := make([]string, len(insecureRegistries))
+	for _, reg := range insecureRegistries {
+		registries = append(registries, reg)
+	}
+
+	return registries
 }
