@@ -61,7 +61,7 @@ type Data struct {
 	VCHMemoryReservationsMB int
 	VCHMemoryShares         *types.SharesInfo
 
-	BridgeIPRange string
+	BridgeIPRange *net.IPNet
 
 	NumCPUs  int
 	MemoryMB int

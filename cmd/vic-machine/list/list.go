@@ -141,6 +141,11 @@ func (l *List) Run(cli *cli.Context) (err error) {
 		return errors.New("list failed")
 	}
 
+	_, err = validator.ValidateTarget(ctx, l.Data)
+	if err != nil {
+		log.Errorf("List cannot continue - target validation failed: %s", err)
+		return err
+	}
 	_, err = validator.ValidateCompute(ctx, l.Data)
 	if err != nil {
 		log.Errorf("List cannot continue - compute resource validation failed: %s", err)
