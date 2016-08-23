@@ -363,42 +363,43 @@ func tailFile(wr io.Writer, file string, done *chan bool) error {
 func findSeekPos(f *os.File) int64 {
 	defer trace.End(trace.Begin(""))
 	nlines := tailLines
-	pos, err := f.Seek(0, 2)
-	// If for some reason we can't seek, we will just start tailing from
-	// beginning-of-file
+	readPos, err := f.Seek(0, 2)
+	// If for some reason we can't seek, we will just start tailing from beginning-of-file
 	if err != nil {
 		return int64(0)
 	}
 
-	// Last newline we've seen (from EOF).  Initialize to EOF
-	lastnl := pos
 	// Buffer so we can seek nBytes (default: 1k) at a time
 	buf := make([]byte, nBytes)
-	for lastnl > 0 && nlines > 0 {
-		// Go back nBytes from the last newline we've seen (or beginning-of-file),
+
+	for readPos > 0 {
+		// Go back nBytes from the last readPos we've seen (stopping at beginning-of-file)
 		// and read the next nBytes
-		readPos := lastnl - int64(len(buf))
-		if pos < 0 {
+		readPos -= int64(len(buf))
+		if readPos < 0 {
+			// We don't want to overlap our read with previous reads...
+			buf = buf[:(int(readPos)+nBytes)]
 			readPos = 0
 		}
 		bufend, err := f.ReadAt(buf, readPos)
 
 		// It's OK to get io.EOF here.  Anything else is bad.
 		if err != nil && err != io.EOF {
-			log.Errorf("Error reading from logfile: %s", err)
+			log.Errorf("Error reading from file %s: %s", f.Name(), err)
 			return 0
 		}
 
 		// Start from the end of the buffer and start looking for newlines
-		off := bufend
-		for nlines > 0 && off >= 0 {
-			off = bytes.LastIndex(buf[:bufend], []byte("\n"))
-			if off >= 0 {
-				nlines--
-				bufend = off
+		for bufend > 0 {
+			bufend = bytes.LastIndexByte(buf[:bufend], '\n')
+			if bufend < 0 {
+				break
+			}
+			nlines--
+			if nlines < 0 {
+				return readPos + int64(bufend) + 1
 			}
 		}
-		lastnl = readPos + int64(bufend)
 	}
-	return lastnl
+	return 0
 }
