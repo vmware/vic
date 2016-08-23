@@ -28,12 +28,7 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/inspect"
 	"github.com/vmware/vic/cmd/vic-machine/list"
 	"github.com/vmware/vic/pkg/errors"
-)
-
-var (
-	Version  string
-	BuildID  string
-	CommitID string
+	"github.com/vmware/vic/pkg/version"
 )
 
 const (
@@ -82,11 +77,8 @@ func main() {
 			Action: showVersion,
 		},
 	}
-	if Version != "" {
-		app.Version = fmt.Sprintf("%s-%s-%s", Version, BuildID, CommitID)
-	} else {
-		app.Version = fmt.Sprintf("%s-%s", BuildID, CommitID)
-	}
+
+	app.Version = fmt.Sprintf("%s-%s-%s", version.Version, version.BuildNumber, version.GitCommit)
 
 	logs := []io.Writer{app.Writer}
 	// Open log file

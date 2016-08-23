@@ -1,5 +1,5 @@
-# Installation Fails with Resource Pool Creation Error #
-When you use the command line installer to install vSphere Integrated Containers directly on an ESXi host, the installation fails with a resource pool creation error.
+# VCH Deployment Fails with Resource Pool Creation Error #
+When you use the command line installer to deploy a virtual container host directly on an ESXi host, the installation fails with a resource pool creation error.
 
 ## Problem ##
 Command line installation on an ESXi host fails during the validation of the configuration that you provided: 
