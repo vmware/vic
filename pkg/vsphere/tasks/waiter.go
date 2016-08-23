@@ -104,7 +104,12 @@ func Retry(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (
 
 	for {
 		taskInfo, err = WaitForResult(ctx, f)
-		if err == nil && taskInfo.Error == nil {
+
+		if err != nil {
+			return nil, err
+		}
+
+		if taskInfo.Error == nil {
 			break
 		}
 
