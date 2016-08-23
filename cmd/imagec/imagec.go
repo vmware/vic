@@ -496,7 +496,7 @@ func WriteImageBlobs(images []*ImageWithMeta) error {
 }
 
 // CreateImageConfig constructs the image metadata from layers that compose the image
-func CreateImageConfig(images []*ImageWithMeta, manifest *Manifest) error {
+func CreateImageConfig(images []*ImageWithMeta, manifest *Manifest, registryURL string) error {
 
 	if len(images) == 0 {
 		return nil
@@ -562,11 +562,12 @@ func CreateImageConfig(images []*ImageWithMeta, manifest *Manifest) error {
 		ImageID: sum,
 		// TODO: this will change when issue 1186 is
 		// implemented -- only populate the digests when pulled by digest
-		Digests: []string{manifest.Digest},
-		Tags:    []string{options.tag},
-		Name:    manifest.Name,
-		DiffIDs: diffIDs,
-		History: history,
+		Digests:  []string{manifest.Digest},
+		Tags:     []string{options.tag},
+		Name:     manifest.Name,
+		DiffIDs:  diffIDs,
+		History:  history,
+		Registry: registryURL,
 	}
 
 	blob, err := json.Marshal(metaData)
@@ -673,6 +674,13 @@ func main() {
 		log.Debugf("Running standalone")
 	}
 
+	// track whether the image is from a custom registry or not
+	registryURL := fmt.Sprintf("%s/", options.registry)
+	defaultRegistry := true
+	if options.registry != DefaultDockerURL {
+		defaultRegistry = false
+	}
+
 	// Calculate (and overwrite) the registry URL and make sure that it responds to requests
 	options.registry, err = LearnRegistryURL(options)
 	if err != nil {
@@ -697,7 +705,12 @@ func main() {
 	// HACK: Required to learn the name of the vmdk from given reference
 	// Used by docker personality until metadata support lands
 	if !options.resolv {
-		progress.Message(po, "", "Pulling from "+options.image)
+		if defaultRegistry {
+			progress.Message(po, "", "Pulling from "+options.image)
+		} else {
+			// prepend the custom registry URL
+			progress.Message(po, "", "Pulling from "+registryURL+options.image)
+		}
 	}
 
 	// Get the manifest
@@ -731,7 +744,7 @@ func main() {
 		log.Fatalf(err.Error())
 	}
 
-	if err := CreateImageConfig(images, manifest); err != nil {
+	if err := CreateImageConfig(images, manifest, registryURL); err != nil {
 		log.Fatalf(err.Error())
 	}
 
