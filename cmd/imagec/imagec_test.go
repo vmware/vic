@@ -53,6 +53,41 @@ const (
 
 	//DigestSHA256EmptyData is the canonical sha256 digest of empty data
 	DigestSHA256EmptyData = "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+	DefaultManifest = `
+{
+	"schemaVersion": 1,
+	"name": "library/photon",
+	"tag": "latest",
+	"architecture": "amd64",
+	"fsLayers": [
+			{
+				"blobSum": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+			}
+	],
+	"history": [
+			{
+				"v1Compatibility": "{\"architecture\":\"amd64\",\"config\":{\"Hostname\":\"156e10b83429\",\"Domainname\":\"\",\"User\":\"\",\"AttachStdin\":false,\"AttachStdout\":false,\"AttachStderr\":false,\"Tty\":false,\"OpenStdin\":false,\"StdinOnce\":false,\"Env\":null,\"Cmd\":[\"sh\"],\"Image\":\"56ed16bd6310cca65920c653a9bb22de6b235990dcaa1742ff839867aed730e5\",\"Volumes\":null,\"WorkingDir\":\"\",\"Entrypoint\":null,\"OnBuild\":null,\"Labels\":{}},\"container\":\"5f8098ec29947b5bea80483cd3275008911ce87438fed628e34ec0c522665510\",\"container_config\":{\"Hostname\":\"156e10b83429\",\"Domainname\":\"\",\"User\":\"\",\"AttachStdin\":false,\"AttachStdout\":false,\"AttachStderr\":false,\"Tty\":false,\"OpenStdin\":false,\"StdinOnce\":false,\"Env\":null,\"Cmd\":[\"/bin/sh\",\"-c\",\"#(nop) CMD [\\\"sh\\\"]\"],\"Image\":\"56ed16bd6310cca65920c653a9bb22de6b235990dcaa1742ff839867aed730e5\",\"Volumes\":null,\"WorkingDir\":\"\",\"Entrypoint\":null,\"OnBuild\":null,\"Labels\":{}},\"created\":\"2016-03-18T18:22:48.810791943Z\",\"docker_version\":\"1.9.1\",\"id\":\"437595becdebaaaf3a4fc3db02c59a980f955dee825c153308c670610bb694e1\",\"os\":\"linux\",\"parent\":\"920777304d1d5e337bc59877253e946f224df5aae64c72538672eb74637b3c9e\"}"
+			}
+	],
+	"signatures": [
+			{
+				"header": {
+						"jwk": {
+							"crv": "P-256",
+							"kid": "LUQI:WBTB:JRDU:TTD2:FUVY:EMCB:64HP:MZF6:SGFS:XAB6:JPUK:6PK4",
+							"kty": "EC",
+							"x": "zjkAuFGpCuWOBl-iMMzZqgl_1cid-04S04-k-A1qEeU",
+							"y": "9HWcOMfVFUMXJGeNajIAlPicL4UOsCJSpqRcIxpUl0Q"
+						},
+						"alg": "ES256"
+				},
+				"signature": "dTXnnt3IkTScpZhyyqRlmZFcQV1QzD7lWDqnjlD4Cj-KsMuGd1pl5QpFL2Cadw-8KeTBlSleSecxjHU4t3yhCQ",
+				"protected": "eyJmb3JtYXRMZW5ndGgiOjE5MjIsImZvcm1hdFRhaWwiOiJDbjAiLCJ0aW1lIjoiMjAxNi0wNi0wOVQxNzoyMzo1NFoifQ"
+			}
+	]
+}
+	`
 )
 
 func TestParseReference(t *testing.T) {
@@ -162,41 +197,7 @@ func TestFetchImageManifest(t *testing.T) {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 
-			manifest := `
-{
-	"schemaVersion": 1,
-	"name": "library/photon",
-	"tag": "latest",
-	"architecture": "amd64",
-	"fsLayers": [
-			{
-				"blobSum": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-			}
-	],
-	"history": [
-			{
-				"v1Compatibility": "{\"architecture\":\"amd64\",\"config\":{\"Hostname\":\"156e10b83429\",\"Domainname\":\"\",\"User\":\"\",\"AttachStdin\":false,\"AttachStdout\":false,\"AttachStderr\":false,\"Tty\":false,\"OpenStdin\":false,\"StdinOnce\":false,\"Env\":null,\"Cmd\":[\"sh\"],\"Image\":\"56ed16bd6310cca65920c653a9bb22de6b235990dcaa1742ff839867aed730e5\",\"Volumes\":null,\"WorkingDir\":\"\",\"Entrypoint\":null,\"OnBuild\":null,\"Labels\":{}},\"container\":\"5f8098ec29947b5bea80483cd3275008911ce87438fed628e34ec0c522665510\",\"container_config\":{\"Hostname\":\"156e10b83429\",\"Domainname\":\"\",\"User\":\"\",\"AttachStdin\":false,\"AttachStdout\":false,\"AttachStderr\":false,\"Tty\":false,\"OpenStdin\":false,\"StdinOnce\":false,\"Env\":null,\"Cmd\":[\"/bin/sh\",\"-c\",\"#(nop) CMD [\\\"sh\\\"]\"],\"Image\":\"56ed16bd6310cca65920c653a9bb22de6b235990dcaa1742ff839867aed730e5\",\"Volumes\":null,\"WorkingDir\":\"\",\"Entrypoint\":null,\"OnBuild\":null,\"Labels\":{}},\"created\":\"2016-03-18T18:22:48.810791943Z\",\"docker_version\":\"1.9.1\",\"id\":\"437595becdebaaaf3a4fc3db02c59a980f955dee825c153308c670610bb694e1\",\"os\":\"linux\",\"parent\":\"920777304d1d5e337bc59877253e946f224df5aae64c72538672eb74637b3c9e\"}"
-			}
-	],
-	"signatures": [
-			{
-				"header": {
-						"jwk": {
-							"crv": "P-256",
-							"kid": "LUQI:WBTB:JRDU:TTD2:FUVY:EMCB:64HP:MZF6:SGFS:XAB6:JPUK:6PK4",
-							"kty": "EC",
-							"x": "zjkAuFGpCuWOBl-iMMzZqgl_1cid-04S04-k-A1qEeU",
-							"y": "9HWcOMfVFUMXJGeNajIAlPicL4UOsCJSpqRcIxpUl0Q"
-						},
-						"alg": "ES256"
-				},
-				"signature": "dTXnnt3IkTScpZhyyqRlmZFcQV1QzD7lWDqnjlD4Cj-KsMuGd1pl5QpFL2Cadw-8KeTBlSleSecxjHU4t3yhCQ",
-				"protected": "eyJmb3JtYXRMZW5ndGgiOjE5MjIsImZvcm1hdFRhaWwiOiJDbjAiLCJ0aW1lIjoiMjAxNi0wNi0wOVQxNzoyMzo1NFoifQ"
-			}
-	]
-}
-`
-			w.Write([]byte(manifest))
+			w.Write([]byte(DefaultManifest))
 
 		}))
 	defer s.Close()
@@ -450,4 +451,97 @@ func TestArrayUpdate(t *testing.T) {
 		t.Error("arrayUpdate failed while removing non-existent value")
 	}
 
+}
+
+func TestFetchScenarios(t *testing.T) {
+	wwwAuthenticate := false
+	insufficientScope := false
+	invalidToken := false
+
+	s := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			auth := r.Header.Get("Authorization")
+			if auth == "" {
+				if wwwAuthenticate {
+					w.Header().Set("www-authenticate", "Bearer realm=\"https://auth.docker.io/token\",service=\"registry.docker.io\",scope=\"repository:library/busybox:pull\"")
+				}
+				w.WriteHeader(http.StatusUnauthorized)
+			} else {
+				if !insufficientScope && !invalidToken {
+					w.Header().Set("Content-Type", "application/json")
+					w.Write([]byte(DefaultManifest))
+				} else if insufficientScope {
+					w.Header().Set("www-authenticate", "error=\"insufficient_scope\"")
+					w.WriteHeader(http.StatusUnauthorized)
+				} else if invalidToken {
+					w.Header().Set("www-authenticate", "error=\"invalid_token\"")
+					w.WriteHeader(http.StatusUnauthorized)
+				} else {
+					w.WriteHeader(http.StatusUnauthorized)
+				}
+			}
+		}))
+	defer s.Close()
+
+	options.registry = s.URL
+	options.image = Image
+	options.tag = Tag
+
+	// create a temporary directory
+	dir, err := ioutil.TempDir("", "imagec")
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+	defer os.RemoveAll(dir)
+
+	options.destination = dir
+
+	options.token = nil
+	// try without token, response will miss www-authenticate so we will retry (and fail eventually)
+	_, err = FetchImageManifest(options)
+	if err == nil {
+		t.Errorf("Condition didn't fail (testing failure)")
+	}
+
+	// set the www-authenticate
+	wwwAuthenticate = true
+	// try without token, response will carry a valid www-authenticate so we won't retry
+	_, err = FetchImageManifest(options)
+	if err != nil {
+		// we should get a DNR error
+		if _, isDNR := err.(DoNotRetry); !isDNR {
+			t.Errorf(err.Error())
+		}
+	}
+	wwwAuthenticate = false
+
+	// set a valid token
+	options.token = &Token{Token: OAuthToken}
+
+	// enable invalid token test
+	invalidToken = true
+	// valid token but faulty hub, we should retry but eventually fail
+	_, err = FetchImageManifest(options)
+	if err == nil {
+		t.Errorf("Condition didn't fail (testing failure)")
+	}
+	invalidToken = false
+
+	// enable insufficient_scope test
+	insufficientScope = true
+	// valid token but image is missing we shouldn't retry
+	_, err = FetchImageManifest(options)
+	if err != nil {
+		// we should get a DNR error
+		if _, isDNR := err.(DoNotRetry); !isDNR {
+			t.Errorf(err.Error())
+		}
+	}
+	insufficientScope = false
+
+	// valid token, existing image, correct header. We should succeed
+	_, err = FetchImageManifest(options)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
 }
