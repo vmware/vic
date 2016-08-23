@@ -21,7 +21,6 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
-	"github.com/vmware/vic/lib/portlayer/event"
 )
 
 var VCHConfig Configuration
@@ -54,9 +53,6 @@ type Configuration struct {
 	// FIXME: temporary work around for injecting network path of debug nic
 	Networks     map[string]*executor.NetworkEndpoint `vic:"0.1" scope:"read-only" key:"init/networks"`
 	DebugNetwork object.NetworkReference
-
-	// For now throw the Event Manager here
-	EventManager event.EventManager
 
 	// Information about the VCH resource pool and about the real host that we want
 	// tol retrieve just once.
