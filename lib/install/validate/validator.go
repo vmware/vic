@@ -23,6 +23,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	units "github.com/docker/go-units"
 	"github.com/vmware/govmomi/find"
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
@@ -48,8 +49,9 @@ type Validator struct {
 	Session *session.Session
 	Context context.Context
 
-	isVC   bool
-	issues []error
+	isVC         bool
+	issues       []error
+	computeHosts []*object.HostSystem
 
 	DisableFirewallCheck bool
 	DisableDRSCheck      bool
