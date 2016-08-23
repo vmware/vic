@@ -39,12 +39,9 @@ Create simple top example
     Should Not Contain  ${output}  Error
 
 Create fakeimage image
-    ${status}=  Get State Of Github Issue  1036
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-4-Docker-Create.robot needs to be updated now that Issue #1036 has been resolved
-    Log  Issue \#1036 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create fakeimage
-    #Should Be Equal As Integers  ${rc}  1
-    #Should Contain  ${output}  Error: image library/fakeimage not found
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create fakeimage
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  Error: image library/fakeimage not found
 
 Create fakeImage repository
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create fakeImage

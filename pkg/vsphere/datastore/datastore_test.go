@@ -17,6 +17,7 @@ package datastore
 import (
 	"math/rand"
 	"net/url"
+	"os"
 	"testing"
 	"time"
 
@@ -77,6 +78,17 @@ func TestDatastoreCreateDir(t *testing.T) {
 
 	_, err := ds.Ls(ctx, "")
 	if !assert.NoError(t, err) {
+		return
+	}
+
+	// assert create dir of a dir that exists is os.ErrExists
+	_, err = ds.Mkdir(ctx, true, "foo")
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	_, err = ds.Mkdir(ctx, true, "foo")
+	if !assert.Error(t, err) || !assert.True(t, os.IsExist(err)) {
 		return
 	}
 }
