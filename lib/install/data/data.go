@@ -91,7 +91,7 @@ type InstallerData struct {
 	Datacenter types.ManagedObjectReference
 	Cluster    types.ManagedObjectReference
 
-	ImageFiles []string
+	ImageFiles map[string]string
 
 	ApplianceISO string
 	BootstrapISO string

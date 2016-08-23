@@ -17,13 +17,13 @@
 # utility functions for staged authoring of ISOs
 [ -n "$DEBUG" ] && set -x
 BASE_DIR=$(dirname $(readlink -f "$BASH_SOURCE"))
+VERSION=`git describe --abbrev=0 --tags`-${BUILD_NUMBER}-`git rev-parse --short HEAD`
 
 # initialize a directory with the assumptions we make for authoring
 # 1: target directory
 initialize_bundle() {
     mkdir -p $1
-
-    cp $BASE_DIR/xorriso-options.cfg $1
+    sed -e "s/\${VERSION}/${VERSION}/" $BASE_DIR/xorriso-options.cfg > $1/xorriso-options.cfg
 
     mkdir -p $1/rootfs/var/lib/rpm $1/bootfs/boot
 

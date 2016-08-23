@@ -18,6 +18,7 @@ import (
 	"path"
 	"text/tabwriter"
 	"text/template"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -58,7 +59,16 @@ func NewList() *List {
 
 // Flags return all cli flags for ls
 func (l *List) Flags() []cli.Flag {
-	flags := append(l.TargetFlags(), l.ComputeFlagsNoName()...)
+	flags := []cli.Flag{
+		cli.DurationFlag{
+			Name:        "timeout",
+			Value:       3 * time.Minute,
+			Usage:       "Time to wait for list",
+			Destination: &l.Timeout,
+		},
+	}
+	preFlags := append(l.TargetFlags(), l.ComputeFlagsNoName()...)
+	flags = append(preFlags, flags...)
 	flags = append(flags, l.DebugFlags()...)
 
 	return flags
@@ -94,8 +104,7 @@ func (l *List) prettyPrint(cli *cli.Context, ctx context.Context, vchs []*vm.Vir
 	w.Flush()
 }
 
-func (l *List) Run(cli *cli.Context) error {
-	var err error
+func (l *List) Run(cli *cli.Context) (err error) {
 	if err = l.processParams(); err != nil {
 		return err
 	}
@@ -114,6 +123,12 @@ func (l *List) Run(cli *cli.Context) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), l.Timeout)
 	defer cancel()
+	defer func() {
+		if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
+			//context deadline exceeded, replace returned error message
+			err = errors.Errorf("List timed out: use --timeout to add more time")
+		}
+	}()
 
 	var validator *validate.Validator
 	if l.Data.ComputeResourcePath == "" {

@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -33,6 +34,7 @@ type Info struct {
 	Company               string
 	Key                   string
 	Name                  string
+	ServerThumbprint      string
 	ShowInSolutionManager bool
 	Summary               string
 	Type                  string
@@ -150,7 +152,18 @@ func (p *Pluginator) Register() error {
 
 	e.ResourceList = append(e.ResourceList, eri)
 
-	// TODO HTTP server info
+	// HTTPS requires extension server info
+	if strings.HasPrefix(strings.ToLower(p.info.URL), "https://") {
+		esi := types.ExtensionServerInfo{
+			Url:              p.info.URL,
+			Description:      &desc,
+			Company:          p.info.Company,
+			Type:             "HTTPS",
+			AdminEmail:       []string{"noreply@vmware.com"},
+			ServerThumbprint: p.info.ServerThumbprint,
+		}
+		e.Server = append(e.Server, esi)
+	}
 
 	e.ShownInSolutionManager = &p.info.ShowInSolutionManager
 
