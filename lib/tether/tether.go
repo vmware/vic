@@ -18,9 +18,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/signal"
+	"path"
 	"syscall"
 	"time"
 
@@ -131,6 +133,15 @@ func (t *tether) setup() error {
 			log.Errorf("Failed to start extension %s: %s", name, err)
 			return err
 		}
+	}
+
+	// Create PID file for tether
+	tname := path.Base(os.Args[0])
+	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(PIDFileDir, tname)),
+		[]byte(fmt.Sprintf("%d", os.Getpid())),
+		0644)
+	if err != nil {
+		log.Errorf("Unable to open PID file for %s : %s", os.Args[0], err)
 	}
 
 	return nil
@@ -305,6 +316,10 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 		logs = logs[logCount-MaxDeathRecords+1:]
 	}
 
+	// Remove associated PID file
+	cmdname := path.Base(session.Cmd.Path)
+	_ = os.Remove(fmt.Sprintf("%s.pid", path.Join(PIDFileDir, cmdname)))
+
 	session.Diagnostics.ExitLogs = append(logs, executor.ExitLog{
 		Time:       time.Now(),
 		ExitStatus: session.ExitStatus,
@@ -406,6 +421,14 @@ func (t *tether) launch(session *SessionConfig) error {
 
 	// Set the Started key to "true" - this indicates a successful launch
 	session.Started = "true"
+	// Write the PID to the associated PID file
+	cmdname := path.Base(session.Cmd.Path)
+	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(PIDFileDir, cmdname)),
+		[]byte(fmt.Sprintf("%d", session.Cmd.Process.Pid)),
+		0644)
+	if err != nil {
+		log.Errorf("Unable to write PID file for %s: %s", cmdname, err)
+	}
 	log.Debugf("Launched command with pid %d", session.Cmd.Process.Pid)
 
 	return nil
