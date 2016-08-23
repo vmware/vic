@@ -91,7 +91,7 @@ func WaitForResult(ctx context.Context, f func(context.Context) (ResultWaiter, e
 }
 
 func Retry(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (*types.TaskInfo, error) {
-	rand.NewSource(time.Now().UnixNano()) //creates a more unique random
+	r := rand.New(rand.NewSource(time.Now().UnixNano())) //creates a more unique random
 	var err error
 	var taskInfo *types.TaskInfo
 	backoffFactor := int64(1)
@@ -104,7 +104,6 @@ func Retry(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (
 
 	for {
 		taskInfo, err = WaitForResult(ctx, f)
-
 		if err != nil {
 			return nil, err
 		}
@@ -114,9 +113,9 @@ func Retry(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (
 		}
 
 		if _, ok := taskInfo.Error.Fault.(types.TaskInProgressFault); !ok {
-			break
+			return taskInfo, errors.New(taskInfo.Error.LocalizedMessage)
 		}
-		sleepValue := backoffFactor * (rand.Int63n(100) + int64(50))
+		sleepValue := backoffFactor * (r.Int63n(100) + int64(50))
 		timer.Reset(time.Duration(sleepValue) * time.Millisecond)
 		select {
 		case <-timer.C:

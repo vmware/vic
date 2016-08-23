@@ -224,7 +224,6 @@ func (m *Manager) Create(ctx context.Context, newDiskURI string,
 // }
 
 func (m *Manager) Attach(ctx context.Context, disk *types.VirtualDisk) error {
-
 	deviceList := object.VirtualDeviceList{}
 	deviceList = append(deviceList, disk)
 
