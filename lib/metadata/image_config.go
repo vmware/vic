@@ -18,6 +18,11 @@ import (
 	docker "github.com/docker/docker/image"
 )
 
+const (
+	// MetaDataKey specifies the key that maps to metadata blobs in the portlayer
+	MetaDataKey = "metaData"
+)
+
 // ImageConfig contains configuration data describing images and their layers
 type ImageConfig struct {
 	docker.V1Image

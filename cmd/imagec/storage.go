@@ -28,11 +28,8 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/misc"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
+	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
-)
-
-const (
-	MetaDataKey = "metaData"
 )
 
 var (
@@ -51,34 +48,6 @@ func PingPortLayer() (bool, error) {
 		return false, err
 	}
 	return ok.Payload == "OK", nil
-}
-
-// CreateImageStore creates an image store
-func CreateImageStore(storename string) error {
-	defer trace.End(trace.Begin(storename))
-
-	transport := httptransport.New(options.host, "/", []string{"http"})
-	client := apiclient.New(transport, nil)
-
-	log.Debugf("Creating a store from input %s", storename)
-
-	body := &models.ImageStore{Name: storename}
-
-	_, err := client.Storage.CreateImageStore(
-		storage.NewCreateImageStoreParamsWithContext(ctx).WithBody(body),
-	)
-	if _, ok := err.(*storage.CreateImageStoreConflict); ok {
-		log.Debugf("Store already exists")
-		return nil
-	}
-	if err != nil {
-		log.Debugf("Creating a store failed: %s", err)
-
-		return err
-	}
-	log.Debugf("Created a store %#v", body)
-
-	return nil
 }
 
 // ListImages lists the images from given image store
@@ -124,7 +93,7 @@ func WriteImage(image *ImageWithMeta, data io.ReadCloser) error {
 	key := new(string)
 	blob := new(string)
 
-	*key = MetaDataKey
+	*key = metadata.MetaDataKey
 	*blob = image.meta
 
 	r, err := client.Storage.WriteImage(
