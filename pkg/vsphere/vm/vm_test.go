@@ -224,20 +224,25 @@ func TestVMAttributes(t *testing.T) {
 		t.Fatalf("unable to get UUID for guest - used for VM name: %s", err)
 		return
 	}
-	name := fmt.Sprintf("%s-%d", uuid, rand.Intn(math.MaxInt32))
+	ID := fmt.Sprintf("%s-%d", uuid, rand.Intn(math.MaxInt32))
 
-	moref, err := CreateVM(ctx, session, host, name)
+	moref, err := CreateVM(ctx, session, host, ID)
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
 	}
 	// Wrap the result with our version of VirtualMachine
 	vm := NewVirtualMachine(ctx, session, *moref)
 
-	if folder, err := vm.FolderName(ctx); err != nil {
+	folder, err := vm.FolderName(ctx)
+	if err != nil {
 		t.Fatalf("ERROR: %s", err)
-	} else {
-		assert.Equal(t, name, folder)
 	}
+
+	name, err := vm.Name(ctx)
+	if err != nil {
+		t.Fatalf("ERROR: %s", err)
+	}
+	assert.Equal(t, name, folder)
 
 	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return vm.PowerOn(ctx)
