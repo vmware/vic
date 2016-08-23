@@ -46,7 +46,7 @@ func (f *URLFlag) Get() interface{} {
 }
 
 func (f *URLFlag) String() string {
-	if *f.u == nil {
+	if f.u == nil || *f.u == nil {
 		return "<nil>"
 	}
 	return (*f.u).String()

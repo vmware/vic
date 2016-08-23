@@ -48,7 +48,7 @@ func (s *ShareFlag) Set(val string) error {
 }
 
 func (s *ShareFlag) String() string {
-	if *s.shares == nil {
+	if s.shares == nil || *s.shares == nil {
 		return "<nil>"
 	}
 	switch (*s.shares).Level {

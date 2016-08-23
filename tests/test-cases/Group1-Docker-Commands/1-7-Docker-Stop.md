@@ -20,6 +20,7 @@ This test requires that a vSphere server is running and available
 7. Issue docker stop -t 2 <containerID> to the VIC appliance
 8. Issue docker stop fakeContainer to the VIC appliance
 9. Create a new container, start the container using govc/UI, attempt to stop the container using docker stop
+10. Start a new container, stop it, then attempt to restart it again
 
 #Expected Outcome:
 * Steps 2-8 should each complete without error, and the response should be the containerID
@@ -30,6 +31,7 @@ This test requires that a vSphere server is running and available
 Failed to stop container (fakeContainer): Error response from daemon: No such container: fakeContainer
 ```
 * Step 9 should result in the container stopping successfully
+* Step 10 should result in the container starting without error the second time
 
 #Possible Problems:
 None

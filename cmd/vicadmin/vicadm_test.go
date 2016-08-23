@@ -18,6 +18,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -281,5 +282,74 @@ func TestLogTail(t *testing.T) {
 		out.Write([]byte("...\n"))
 
 		assert.Equal(t, size, n)
+	}
+}
+
+type seekTest struct {
+	input string
+	output int
+}
+
+
+func testSeek(t *testing.T, st seekTest, td string) {
+	f, err := ioutil.TempFile(td, "FindSeekPos")
+	defer f.Close()
+	if err != nil {
+		log.Printf("Unable to create temporary file: %s", err)
+		t.Fatal(err)
+	}
+	n, err := f.WriteString(st.input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != len(st.input) {
+		t.Fatal(errors.New(fmt.Sprintf("Incorrect byte count on write: %d/%d", n, len(st.input))))
+	}
+
+	if ret := findSeekPos(f); ret != int64(st.output) {
+		t.Fatal(errors.New(fmt.Sprintf("Incorrect seek position: %d/%d", ret, st.output)))
+	}
+	log.Printf("Successfully seeked to position %d", st.output)
+	os.Remove(f.Name())
+}
+func TestFindSeekPos(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.SkipNow()
+	}
+
+    seekTests := []seekTest{
+	    { "abcd\nabcd\n", 0 },
+		{ "abcd\nabcd\nabcd\nabcd\nabcd\nabcd\nabcd\nabcd\nabcd\nabcd\n", 10 },
+    }
+
+	str := "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"
+	str = fmt.Sprintf("%s%s", str, str)
+	str2 := fmt.Sprintf("%s\n%s\n%s\n", str, str, str)
+	str2 = fmt.Sprintf("%s%s", str2, str2)
+	// Verify we don't have overlapping reads at beginning of file
+	// 6 lines, 1206 characters. Should come back with seek position 0
+	seekTests = append(seekTests, seekTest{str2, 0})
+
+	for seg := 0; seg < 3; seg++ {
+		str = str + str
+	}
+	str2 = str + "\n"
+	fmt.Printf("str length is %d\n", len(str))
+	// str is 1,601 chars long now
+	for line := 0; line < 2; line++ {
+		str2 = str2 + str2
+	}
+
+	// str2 is 4 lines long.  Should seek to beginning of file
+	seekTests = append(seekTests, seekTest{str2, 0})
+
+	// str2 is now 12 lines long.  Should seek to position 6,404
+	str2 = fmt.Sprintf("%s%s%s", str2, str2, str2)
+	seekTests = append(seekTests, seekTest{str2, 6404})
+
+	td := os.TempDir()
+	for i, st := range seekTests {
+		log.Printf("Test case #%d: ", i)
+		testSeek(t, st, td)
 	}
 }

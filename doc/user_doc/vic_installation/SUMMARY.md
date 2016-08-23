@@ -16,4 +16,5 @@
   * [Install the vSphere Integrated Containers Plug-In on a vCenter Server Appliance by Using a Web Server](plugin_vcsa_web.md)
   * [Install the vSphere Integrated Containers Plug-In on a vCenter Server Appliance Without Access to a Web Server](plugin_vcsa_no_web.md)
 * [Troubleshooting vSphere Integrated Containers Installation](troubleshoot_vic_install.md)
-  * [Installation Fails with Resource Pool Creation Error](ts_resource_pool_error.md)
+  * [VCH Deployment Fails with Resource Pool Creation Error](ts_resource_pool_error.md)
+  * [VCH Deployment Fails with Unknown or Non-Specified Argument Error or Incorrect User Name Error](ts_cli_argument_error.md)
