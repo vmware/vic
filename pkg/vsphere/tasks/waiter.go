@@ -96,12 +96,6 @@ func Retry(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (
 	var taskInfo *types.TaskInfo
 	backoffFactor := int64(1)
 
-	//setting up timer
-	timer := time.NewTimer(time.Duration(100) * time.Millisecond)
-	if !timer.Stop() {
-		<-timer.C
-	}
-
 	for {
 		taskInfo, err = WaitForResult(ctx, f)
 		if err != nil {
@@ -109,7 +103,7 @@ func Retry(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (
 		}
 
 		if taskInfo.Error == nil {
-			break
+			return taskInfo, nil
 		}
 
 		if _, ok := taskInfo.Error.Fault.(types.TaskInProgressFault); !ok {
@@ -130,10 +124,4 @@ func Retry(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (
 		}
 		log.Infof("Retrying Task due to TaskInProgressFault: %s", taskInfo.Task.Reference())
 	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return taskInfo, nil
 }
