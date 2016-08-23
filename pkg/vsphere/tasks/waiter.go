@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	maxBackoffFactor = int64(8)
+	maxBackoffFactor = int64(16)
 )
 
 type Waiter interface {
@@ -120,6 +120,7 @@ func Retry(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (
 				backoffFactor *= 2
 			}
 		case <-ctx.Done():
+			log.Errorf("Context Deadline Exceeded while trying to Retry task : %#v", taskInfo)
 			return nil, ctx.Err()
 		}
 		log.Infof("Retrying Task due to TaskInProgressFault: %s", taskInfo.Task.Reference())
