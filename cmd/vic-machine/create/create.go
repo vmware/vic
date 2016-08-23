@@ -50,6 +50,11 @@ const (
 	LinuxImageKey      = "linux"
 	ApplianceImageName = "appliance.iso"
 	LinuxImageName     = "bootstrap.iso"
+
+	// An ISO 9660 sector is normally 2 KiB long. Although the specification allows for alternative sector sizes, you will rarely find anything other than 2 KiB.
+	ISO9660SectorSize = 2048
+	ISOVolumeSector   = 0x10
+	PublisherOffset   = 318
 )
 
 var EntireOptionHelpTemplate = `NAME:
@@ -408,7 +413,7 @@ func (c *Create) loadCertificate() (*certificate.Keypair, error) {
 	return keypair, nil
 }
 
-func (c *Create) checkImagesFiles() ([]string, error) {
+func (c *Create) checkImagesFiles(cliContext *cli.Context) (map[string]string, error) {
 	defer trace.End(trace.Begin(""))
 
 	// detect images files
@@ -417,20 +422,20 @@ func (c *Create) checkImagesFiles() ([]string, error) {
 		return nil, fmt.Errorf("Specified OS \"%s\" is not known to this installer", c.osType)
 	}
 
-	var imgs []string
-	var result []string
+	imgs := make(map[string]string)
+	result := make(map[string]string)
 	if c.ApplianceISO == "" {
 		c.ApplianceISO = images[ApplianceImageKey][0]
 	}
-	imgs = append(imgs, c.ApplianceISO)
+	imgs[ApplianceImageName] = c.ApplianceISO
 
 	if c.BootstrapISO == "" {
 		c.BootstrapISO = osImgs[0]
 	}
-	imgs = append(imgs, c.BootstrapISO)
+	imgs[LinuxImageName] = c.BootstrapISO
 
-	for _, img := range imgs {
-		_, err := os.Stat(img)
+	for name, img := range imgs {
+		_, err := os.Open(img)
 		if os.IsNotExist(err) {
 			var dir string
 			dir, err = filepath.Abs(filepath.Dir(os.Args[0]))
@@ -444,12 +449,79 @@ func (c *Create) checkImagesFiles() ([]string, error) {
 			log.Warnf("\t\tUnable to locate %s in the current or installer directory.", img)
 			return nil, err
 		}
-		result = append(result, img)
+
+		version, err := c.getImageVersion(cliContext, img)
+		if err != nil {
+			log.Error(err)
+			return nil, err
+		}
+		versionedName := fmt.Sprintf("%s-%s", version, name)
+		result[versionedName] = img
+		if name == ApplianceImageName {
+			c.ApplianceISO = versionedName
+		} else {
+			c.BootstrapISO = versionedName
+		}
 	}
+
 	return result, nil
 }
 
+// checkImageVersion will read iso file version from Primary Volume Descriptor, field "Publisher Identifier"
+func (c *Create) getImageVersion(cliContext *cli.Context, img string) (string, error) {
+	f, err := os.Open(img)
+	if err != nil {
+		return "", errors.Errorf("failed to open iso file %q: %s", img, err)
+	}
+	defer f.Close()
+
+	// System area goes from sectors 0x00 to 0x0F. Volume descriptors can be
+	// found starting at sector 0x10
+
+	_, err = f.Seek(int64(ISOVolumeSector*ISO9660SectorSize)+PublisherOffset, 0)
+	if err != nil {
+		return "", errors.Errorf("failed to locate iso version section in file %q: %s", img, err)
+	}
+	publisherBytes := make([]byte, 128)
+	size, err := f.Read(publisherBytes)
+	if err != nil {
+		return "", errors.Errorf("failed to read iso version in file %q: %s", img, err)
+	}
+	if size == 0 {
+		return "", errors.Errorf("version is not set in iso file %q", img)
+	}
+
+	versions := strings.Fields(string(publisherBytes[:size]))
+	version := versions[len(versions)-1]
+	sv := c.getNoCommitHashVersion(version)
+	if sv == "" {
+		log.Debugf("Version is not set in %q", img)
+		version = ""
+	}
+
+	installerSV := c.getNoCommitHashVersion(cliContext.App.Version)
+
+	// here compare version without last commit hash, to make developer life easier
+	if !strings.EqualFold(installerSV, sv) {
+		message := fmt.Sprintf("iso file %q has inconsistent version with installer %q != %q.", img, strings.ToLower(version), cliContext.App.Version)
+		if !c.Force {
+			return "", errors.Errorf("%s. Specify --force to force create. ", message)
+		}
+		log.Warn(message)
+	}
+	return version, nil
+}
+
+func (c *Create) getNoCommitHashVersion(version string) string {
+	i := strings.LastIndex(version, "-")
+	if i == -1 {
+		return ""
+	}
+	return version[:i]
+}
+
 func (c *Create) Run(cliContext *cli.Context) (err error) {
+
 	if c.advancedOptions {
 		cli.HelpPrinter(cliContext.App.Writer, EntireOptionHelpTemplate, cliContext.Command)
 		return nil
@@ -463,8 +535,8 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		return err
 	}
 
-	var images []string
-	if images, err = c.checkImagesFiles(); err != nil {
+	var images map[string]string
+	if images, err = c.checkImagesFiles(cliContext); err != nil {
 		return err
 	}
 
@@ -516,7 +588,6 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 	vConfig.ImageFiles = images
 	vConfig.ApplianceISO = path.Base(c.ApplianceISO)
 	vConfig.BootstrapISO = path.Base(c.BootstrapISO)
-
 	{ // create certificates for VCH extension
 		var certbuffer, keybuffer bytes.Buffer
 		if certbuffer, keybuffer, err = certificate.CreateRawKeyPair(); err != nil {

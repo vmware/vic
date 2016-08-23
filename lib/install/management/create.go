@@ -16,7 +16,7 @@ package management
 
 import (
 	"fmt"
-	"path/filepath"
+	"path"
 	"sync"
 	"time"
 
@@ -110,7 +110,7 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 	return nil
 }
 
-func (d *Dispatcher) uploadImages(files []string) error {
+func (d *Dispatcher) uploadImages(files map[string]string) error {
 	defer trace.End(trace.Begin(""))
 
 	var err error
@@ -120,13 +120,12 @@ func (d *Dispatcher) uploadImages(files []string) error {
 	log.Infof("Uploading images for container")
 	wg.Add(len(files))
 	results := make(chan error, len(files))
-	for _, image := range files {
-		go func(image string) {
+	for key, image := range files {
+		go func(key string, image string) {
 			defer wg.Done()
 
 			log.Infof("\t%q", image)
-			base := filepath.Base(image)
-			err = d.session.Datastore.UploadFile(d.ctx, image, d.vmPathName+"/"+base, nil)
+			err = d.session.Datastore.UploadFile(d.ctx, image, path.Join(d.vmPathName, key), nil)
 			if err != nil {
 				log.Errorf("\t\tUpload failed for %q: %s", image, err)
 				if d.force {
@@ -139,7 +138,7 @@ func (d *Dispatcher) uploadImages(files []string) error {
 				return
 			}
 			results <- nil
-		}(image)
+		}(key, image)
 	}
 	wg.Wait()
 	close(results)
