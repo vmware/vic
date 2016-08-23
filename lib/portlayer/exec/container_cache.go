@@ -15,7 +15,14 @@
 package exec
 
 import (
+	"regexp"
 	"sync"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/lib/portlayer/event"
+	"github.com/vmware/vic/pkg/vsphere/session"
+
+	"golang.org/x/net/context"
 )
 
 /*
@@ -27,30 +34,53 @@ import (
 type containerCache struct {
 	m sync.RWMutex
 
-	// cache maps containerVM to container ID && infrastructure ID
+	// cache by container id
 	cache map[string]*Container
 }
 
 var containers *containerCache
 
 func NewContainerCache() {
+	// cache by the container ID and the vsphere
+	// managed object reference
 	containers = &containerCache{
 		cache: make(map[string]*Container),
 	}
+	// register with the event manager
+	if VCHConfig.EventManager != nil {
+		VCHConfig.EventManager.Register("ContainerCache", callback)
+	}
 }
 
-// returns a reference to a specific container
-//
-// idOrRef will either be a container ID or an infra
-// reference to the containerVM.  In the case of vSphere
-// the infra reference is a MoRef
-//
 func (conCache *containerCache) Container(idOrRef string) *Container {
 	conCache.m.RLock()
 	defer conCache.m.RUnlock()
-	// find by id
+	// find by id or moref
 	container := conCache.cache[idOrRef]
 	return container
+}
+
+func (conCache *containerCache) Containers(allStates bool) []*Container {
+	conCache.m.RLock()
+	defer conCache.m.RUnlock()
+	// cache contains 2 items for each container
+	capacity := len(conCache.cache) / 2
+	containers := make([]*Container, 0, capacity)
+
+	for id := range conCache.cache {
+		// is the key a proper ID?
+		if isContainerID(id) {
+			container := conCache.cache[id]
+			if allStates {
+				containers = append(containers, container)
+			} else if container.State == StateRunning {
+				// only include running...
+				containers = append(containers, container)
+
+			}
+		}
+	}
+	return containers
 }
 
 // puts a container in the cache and will overwrite an existing container
@@ -65,12 +95,12 @@ func (conCache *containerCache) Put(container *Container) {
 		conCache.cache[container.vm.Reference().String()] = container
 	}
 }
+
 func (conCache *containerCache) Remove(idOrRef string) {
 	conCache.m.Lock()
 	defer conCache.m.Unlock()
 	// find by id
 	container := conCache.cache[idOrRef]
-	// container := cache.Container(idOrRef)
 	if container != nil {
 		delete(conCache.cache, container.ExecConfig.ID)
 		if container.vm != nil {
@@ -78,4 +108,107 @@ func (conCache *containerCache) Remove(idOrRef string) {
 		}
 	}
 
+}
+
+func isContainerID(id string) bool {
+	// ID should only be lower case chars & numbers
+	match, _ := regexp.Match("^[a-z0-9]*$", []byte(id))
+	return match
+}
+
+// callback for the event stream
+func callback(ie event.Event, session *session.Session) {
+	// grab the container from the cache
+	container := containers.Container(ie.Reference())
+	if container != nil {
+
+		newState := eventedState(ie.String(), container.State)
+		// do we have a state change
+		if newState != container.State {
+			switch newState {
+			case StateStopping:
+				// set state only in cache -- allow tether / tools to update vmx
+				log.Debugf("Container(%s) Shutdown via OOB activity", container.ExecConfig.ID)
+				container.State = StateStopped
+			case StateRunning:
+				// set state only in cache -- allow tether / tools to update vmx
+				log.Debugf("Container(%s) started via OOB activity", container.ExecConfig.ID)
+				container.State = newState
+			case StateStopped:
+				log.Debugf("Container(%s) stopped via OOB activity", container.ExecConfig.ID)
+				container.State = newState
+				// a powered off event will by pass guest shutdown, so we need to update
+				// the exit status
+				containerUpdate(session, container, "", -1)
+			case StateSuspended:
+				//set state only in cache
+				log.Debugf("Container(%s) suspened via OOB activity", container.ExecConfig.ID)
+				container.State = newState
+			case StateRemoved:
+				log.Debugf("Container(%s) removed via OOB activity", container.ExecConfig.ID)
+				// remove from cache
+				containers.Remove(container.ExecConfig.ID)
+
+			}
+		}
+	}
+
+	return
+}
+
+func containerUpdate(session *session.Session, container *Container, start string, exitStatus int) {
+
+	ctx, _ := context.WithTimeout(context.TODO(), propertyCollectorTimeout)
+
+	// this was an OOB update, so we're going to update the last know state which is in the cache
+	// and persist that to the VMX -- that should avoid information being lost due to PowerOff, etc
+	id := container.ExecConfig.ID
+	// update the exec config
+	container.Lock()
+	cc := container.ExecConfig.Sessions[id]
+	cc.Started = start
+	cc.ExitStatus = exitStatus
+	container.ExecConfig.Sessions[id] = cc
+	container.Unlock()
+
+	// get a handle and commit
+	h := container.newHandle()
+	wait := int32(30)
+	h.Commit(ctx, session, &wait)
+
+}
+
+// eventedState will determine the target container
+// state based on the current container state and the event
+func eventedState(e string, current State) State {
+	switch e {
+	case event.ContainerShutdown:
+		// no need to worry about existing state
+		return StateStopping
+	case event.ContainerPoweredOn:
+		// are we in the process of starting
+		if current != StateStarting {
+			// TODO: this sets the state correctly, but doesn't
+			// actually wait for the container process to start - we could see issues w/ps
+			//
+			// if we start a propery collector w/o a timeout might hit issue seen where
+			// OOB activity results in a loop at startup w/o container process ever starting
+			return StateRunning
+		}
+	case event.ContainerPoweredOff:
+		// are we in the process of stopping
+		if current != StateStopping {
+			return StateStopped
+		}
+	case event.ContainerSuspended:
+		// are we in the process of suspending
+		if current != StateSuspending {
+			return StateSuspended
+		}
+	case event.ContainerRemoved:
+		if current != StateRemoving {
+			return StateRemoved
+		}
+	}
+	return current
 }
