@@ -121,9 +121,9 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.ImageDatastorePath,
 		},
 		cli.StringFlag{
-			Name:        "container-datastore, cs",
+			Name:        "container-store, cs",
 			Value:       "",
-			Usage:       "Container datastore name - not supported yet, default to image datastore",
+			Usage:       "Container datastore path - not supported yet, default to image datastore",
 			Destination: &c.ContainerDatastoreName,
 		},
 		cli.StringSliceFlag{
@@ -134,7 +134,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "bridge-network, b",
 			Value:       "",
-			Usage:       "The bridge network (private port group for containers)",
+			Usage:       "The bridge network (private port group for containers). Default to Virtual Container Host name",
 			Destination: &c.BridgeNetworkName,
 		},
 		cli.StringFlag{
