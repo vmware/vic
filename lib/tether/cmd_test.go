@@ -147,6 +147,9 @@ func TestAbsPath(t *testing.T) {
 	// read the output from the session
 	log := mocker.SessionLogBuffer.Bytes()
 
+	// block until tether exits
+	<-mocker.Cleaned
+
 	// run the command directly
 	out, err := exec.Command("/bin/date", "--reference=/").Output()
 	if err != nil {
