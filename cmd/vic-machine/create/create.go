@@ -252,7 +252,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.DurationFlag{
 			Name:        "timeout",
 			Value:       3 * time.Minute,
-			Usage:       "Time to wait for appliance initialization",
+			Usage:       "Time to wait for create",
 			Destination: &c.Timeout,
 		},
 		cli.BoolFlag{
@@ -449,9 +449,7 @@ func (c *Create) checkImagesFiles() ([]string, error) {
 	return result, nil
 }
 
-func (c *Create) Run(cliContext *cli.Context) error {
-	var err error
-
+func (c *Create) Run(cliContext *cli.Context) (err error) {
 	if c.advancedOptions {
 		cli.HelpPrinter(cliContext.App.Writer, EntireOptionHelpTemplate, cliContext.Command)
 		return nil
@@ -490,6 +488,12 @@ func (c *Create) Run(cliContext *cli.Context) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
+	defer func() {
+		if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
+			//context deadline exceeded, replace returned error message
+			err = errors.Errorf("Create timed out: use --timeout to add more time")
+		}
+	}()
 
 	validator, err := validate.NewValidator(ctx, c.Data)
 	if err != nil {
