@@ -113,24 +113,22 @@ func Retry(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (
 		}
 
 		if _, ok := taskInfo.Error.Fault.(types.TaskInProgressFault); !ok {
+			log.Debugf("Task failed during a retry operation : %#v", taskInfo.Task)
+			log.Debugf("Failed TaskInfo Object : %#v", taskInfo)
 			return taskInfo, errors.New(taskInfo.Error.LocalizedMessage)
 		}
-		sleepValue := backoffFactor * (r.Int63n(100) + int64(50))
-		timer.Reset(time.Duration(sleepValue) * time.Millisecond)
+		sleepValue := time.Duration(backoffFactor * (r.Int63n(100) + int64(50)))
 		select {
-		case <-timer.C:
+		case <-time.After(sleepValue * time.Millisecond):
 			if backoffFactor*2 > maxBackoffFactor {
 				backoffFactor = maxBackoffFactor
 			} else {
 				backoffFactor *= 2
 			}
 		case <-ctx.Done():
-			if !timer.Stop() {
-				<-timer.C
-			}
 			return nil, ctx.Err()
 		}
-		log.Debugf("Retrying Task due to TaskInProgressFault: %s", taskInfo.Task.Reference())
+		log.Infof("Retrying Task due to TaskInProgressFault: %s", taskInfo.Task.Reference())
 	}
 
 	if err != nil {
