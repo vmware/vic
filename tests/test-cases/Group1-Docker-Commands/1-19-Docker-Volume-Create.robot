@@ -92,3 +92,20 @@ Docker volume create with possibly invalid name
     #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test???
     #Should Be Equal As Integers  ${rc}  1
     #Should Be Equal As Strings  ${output}  Error response from daemon: create test???: "test???" includes invalid characters for a local volume name, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed
+    
+Docker volume create 10 volumes rapidly
+    ${status}=  Get State Of Github Issue  2013
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-19-Docker-Volume-Create.robot needs to be updated now that Issue #2013 has been resolved
+    Log  Issue \#2013 is blocking implementation  WARN
+    #${pids}=  Create List
+
+    # Create 10 volumes rapidly
+    #:FOR  ${idx}  IN RANGE  0  10
+    #\   ${pid}=  Start Process  docker ${params} volume create --name\=multiple${idx} --opt Capacity\=2MB  shell=True
+    #\   Append To List  ${pids}  ${pid}
+
+    # Wait for them to finish and check their RC
+    #:FOR  ${pid}  IN  @{pids}
+    #\   ${res}=  Wait For Process  ${pid}
+    #\   Log  ${res.stdout} ${res.stderr}
+    #\   Should Be Equal As Integers  ${res.rc}  0
