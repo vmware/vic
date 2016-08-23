@@ -27,7 +27,7 @@ To facilitate IP address changes in your infrastructure, provide an FQDN wheneve
 - If you are deploying a virtual container host directly on an ESXi host, you must specify the `user` option, or include the user name and password in the target URL. Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>--target <i>esxi_host_username</i>:<i>password</i>@<i>esxi_host_address</i></pre>
 - If you are deploying a virtual container host on a vCenter Server instance, you must specify the `user` option, or include the user name and password in the target URL. Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>--target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i></pre>
 - If you are deploying a virtual container host on a vCenter Server instance that includes more than one datacenter, include the datacenter name in the target URL. If you include an invalid datacenter name, `vic-machine create` fails and suggests the available datacenters that you can specify. <pre>--target <i>vcenter_server_address</i>/<i>datacenter_name</i></pre>
-- If you do not specify the `passwd` option or include the password in the target URL, `vic-machine create` prompts you to enter the password.
+- If you do not specify the `password` option or include the password in the target URL, `vic-machine create` prompts you to enter the password.
 
 ### `user` ###
 
