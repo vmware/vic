@@ -6,23 +6,29 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Simple volume ls
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test
-    Should Be Equal As Integers  ${rc}  0
-    Should Be Equal As Strings  ${output}  test
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume ls
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  vsphere
-    Should Contain  ${output}  test
-    Should Contain  ${output}  DRIVER
-    Should Contain  ${output}  VOLUME NAME
+    ${status}=  Get State Of Github Issue  1896
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-21-Docker-Volume-LS.robot needs to be updated now that Issue #1896 has been resolved
+    Log  Issue \#1896 is blocking implementation  WARN
+    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Be Equal As Strings  ${output}  test
+    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume ls
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Contain  ${output}  vsphere
+    #Should Contain  ${output}  test
+    #Should Contain  ${output}  DRIVER
+    #Should Contain  ${output}  VOLUME NAME
     
 Volume ls quiet
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume ls -q
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  vsphere
-    Should Contain  ${output}  test
-    Should Not Contain  ${output}  DRIVER
-    Should Not Contain  ${output}  VOLUME NAME
+    ${status}=  Get State Of Github Issue  1896
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-21-Docker-Volume-LS.robot needs to be updated now that Issue #1896 has been resolved
+    Log  Issue \#1896 is blocking implementation  WARN
+    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume ls -q
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Not Contain  ${output}  vsphere
+    #Should Contain  ${output}  test
+    #Should Not Contain  ${output}  DRIVER
+    #Should Not Contain  ${output}  VOLUME NAME
     
 Volume ls dangling volumes
     ${status}=  Get State Of Github Issue  1718
