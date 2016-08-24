@@ -253,7 +253,6 @@ func (v *Validator) ValidateCompute(ctx context.Context, input *data.Data) (*con
 		return conf, nil
 	}
 	log.Infof("Validating compute resource")
-
 	v.compute(ctx, input, conf)
 	return conf, v.ListIssues()
 }

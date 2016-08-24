@@ -17,12 +17,12 @@ package validate
 import (
 	"crypto/tls"
 	"fmt"
-	"net"
 	"net/url"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/find"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
@@ -229,6 +229,15 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 
 }
 
+func (v *Validator) ValidateTarget(ctx context.Context, input *data.Data) (*config.VirtualContainerHostConfigSpec, error) {
+	defer trace.End(trace.Begin(""))
+	conf := &config.VirtualContainerHostConfigSpec{}
+
+	log.Infof("Validating target")
+	v.target(ctx, input, conf)
+	return conf, v.ListIssues()
+}
+
 func (v *Validator) basics(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
@@ -280,17 +289,38 @@ func (v *Validator) target(ctx context.Context, input *data.Data, conf *config.V
 		conf.UserPassword = targetURL.User.String()
 	}
 
-	// bridge network params
-	var err error
-	_, conf.BridgeIPRange, err = net.ParseCIDR(input.BridgeIPRange)
-	if err != nil {
-		v.NoteIssue(fmt.Errorf("Error parsing bridge network ip range: %s. Range must be in CIDR format, e.g., 172.16.0.0/12", err))
-	}
+	// check if host is managed by VC
+	v.managedbyVC(ctx)
 
 	conf.Target = *targetURL
 	conf.Insecure = input.Insecure
 
 	// TODO: more checks needed here if specifying service account for VCH
+}
+
+func (v *Validator) managedbyVC(ctx context.Context) {
+	defer trace.End(trace.Begin(""))
+
+	if v.IsVC() {
+		return
+	}
+	host, err := v.Session.Finder.DefaultHostSystem(ctx)
+	if err != nil {
+		v.NoteIssue(fmt.Errorf("Failed to get host system: %s", err))
+		return
+	}
+
+	var mh mo.HostSystem
+
+	if err = host.Properties(ctx, host.Reference(), []string{"summary.managementServerIp"}, &mh); err != nil {
+		v.NoteIssue(fmt.Errorf("Failed to get host properties: %s", err))
+		return
+	}
+
+	if ip := mh.Summary.ManagementServerIp; ip != "" {
+		v.NoteIssue(fmt.Errorf("Target is managed by vCenter server %q, please change --target to vCenter server address or select a standalone ESXi", ip))
+	}
+	return
 }
 
 func (v *Validator) certificate(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
