@@ -46,6 +46,10 @@ All of the ESXi hosts in a cluster require an appropriate license. Installation 
 ## Role and Permissions Requirements
 You must use an account with the vSphere Administrator role when you install vSphere Integrated Containers.
 
+<a name="datastorereqs"></a>
+## Datastore Requirements
+All of the hosts in a vCenter Server cluster must have access to a shared datastore, in which to store container images. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability.
+
 <a name="networkreqs"></a>
 ## Network Requirements
 * Use a trusted network for the deployment and use of vSphere Integrated Containers.
@@ -54,6 +58,7 @@ You must use an account with the vSphere Administrator role when you install vSp
  * One IP address, that can be either static or set by using DHCP.
  * One VLAN, if you use VLAN for network isolation.
  * One IP address for each container that you run with the `docker run --net=host` option.
-* In a vCenter Server environment, before you deploy a virtual container host, you must create a distributed virtual switch and a distributed port group. You must add the target ESXi host or hosts to the distributed virtual switch. 
+* Virtual container hosts require a network with DHCP for use as the external network. You can share this network between multiple virtual container hosts.
+* In a vCenter Server environment, before you deploy a virtual container host, you must create a distributed virtual switch with a distributed port group for each virtual container host. Container VMs that the virtual container host provisions connect to the port groups. You must add the target ESXi host or hosts to the distributed virtual switch. You can create multiple port groups on the same distributed virtual switch, but each virtual container host requires its own port group. 
  - For information about how to create a distributed port group, see [Create a vSphere Distributed Switch](https://pubs.vmware.com/vsphere-60/topic/com.vmware.vsphere.networking.doc/GUID-D21B3241-0AC9-437C-80B1-0C8043CC1D7D.html) in the vSphere 6.0 documentation.
  - For information about how to add hosts to a distributed virtual switch, see [Add Hosts to a vSphere Distributed Switch](https://pubs.vmware.com/vsphere-60/topic/com.vmware.vsphere.networking.doc/GUID-E90C1B0D-82CB-4A3D-BE1B-0FDCD6575725.html) in the vSphere 6.0 documentation.
