@@ -114,7 +114,7 @@ const (
 	DefaultDestination = "images"
 
 	// DefaultPortLayerHost specifies the default port layer server
-	DefaultPortLayerHost = "localhost:8080"
+	DefaultPortLayerHost = "localhost:2377"
 
 	// DefaultLogfile specifies the default log file name
 	DefaultLogfile = "imagec.log"

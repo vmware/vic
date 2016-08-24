@@ -69,12 +69,12 @@ COMMIT
 -A INPUT -p tcp -m tcp --dport 22 -j ACCEPT
 -A INPUT -p icmp -m icmp --icmp-type 8 -j ACCEPT
 -A INPUT -p udp -m udp --dport 68 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 2378 -j ACCEPT
 -A INPUT -p tcp -m tcp --dport 2375 -j ACCEPT
 -A INPUT -p tcp -m tcp --dport 2376 -j ACCEPT
+-A INPUT -p tcp -m tcp --dport 2377 -j ACCEPT
+-A INPUT -p tcp -m tcp --dport 2378 -j ACCEPT
 -A INPUT -i bridge -p udp -m udp --dport 53 -j ACCEPT
 -A INPUT -i bridge -p tcp -m tcp --dport 53 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 8080 -j ACCEPT
 -A INPUT -p udp -j REJECT --reject-with icmp-port-unreachable
 -A INPUT -p tcp -j REJECT --reject-with tcp-reset
 -A INPUT -j REJECT --reject-with icmp-proto-unreachable

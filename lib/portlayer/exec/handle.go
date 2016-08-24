@@ -30,16 +30,12 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/guest"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/session"
-)
-
-const (
-	serialOverLANPort  = 8080
-	ManagementHostName = "management.localhost"
 )
 
 // ContainerCreateConfig defines the parameters for Create call
@@ -185,23 +181,23 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 	// configure with debug
 	h.ExecConfig.Diagnostics.DebugLevel = VCHConfig.DebugLevel
 	// Convert the management hostname to IP
-	ips, err := net.LookupIP(ManagementHostName)
+	ips, err := net.LookupIP(constants.ManagementHostName)
 	if err != nil {
-		log.Errorf("Unable to look up %s during create of %s: %s", ManagementHostName, config.Metadata.ID, err)
+		log.Errorf("Unable to look up %s during create of %s: %s", constants.ManagementHostName, config.Metadata.ID, err)
 		return err
 	}
 
 	if len(ips) == 0 {
-		log.Errorf("No IP found for %s during create of %s", ManagementHostName, config.Metadata.ID)
-		return fmt.Errorf("No IP found on %s", ManagementHostName)
+		log.Errorf("No IP found for %s during create of %s", constants.ManagementHostName, config.Metadata.ID)
+		return fmt.Errorf("No IP found on %s", constants.ManagementHostName)
 	}
 
 	if len(ips) > 1 {
-		log.Errorf("Multiple IPs found for %s during create of %s: %v", ManagementHostName, config.Metadata.ID, ips)
-		return fmt.Errorf("Multiple IPs found on %s: %#v", ManagementHostName, ips)
+		log.Errorf("Multiple IPs found for %s during create of %s: %v", constants.ManagementHostName, config.Metadata.ID, ips)
+		return fmt.Errorf("Multiple IPs found on %s: %#v", constants.ManagementHostName, ips)
 	}
 
-	URI := fmt.Sprintf("tcp://%s:%d", ips[0], serialOverLANPort)
+	URI := fmt.Sprintf("tcp://%s:%d", ips[0], constants.SerialOverLANPort)
 
 	//FIXME: remove debug network
 	backing, err := VCHConfig.DebugNetwork.EthernetCardBackingInfo(ctx)
