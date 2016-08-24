@@ -35,6 +35,7 @@ const (
 	OptsVolumeStoreKey     string = "VolumeStore"
 	OptsCapacityKey        string = "Capacity"
 	dockerMetadataModelKey string = "DockerMetaData"
+	bytesToMegabyte               = int64(1000000)
 )
 
 func NewVolumeModel(volume *models.VolumeResponse, labels map[string]string) *types.Volume {
@@ -215,7 +216,8 @@ func validateDriverArgs(args map[string]string, model *models.VolumeRequest) err
 	if err != nil {
 		return err
 	}
-	model.Capacity = int64(capacity) / int64(units.MB)
+	model.Capacity = int64(capacity) / bytesToMegabyte
+
 	return nil
 }
 
