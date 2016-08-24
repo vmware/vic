@@ -92,8 +92,8 @@ func (m *Manager) CreateAndAttach(ctx context.Context, newDiskURI,
 
 	log.Infof("Create/attach vmdk %s from parent %s", newDiskURI, parentURI)
 
-	err = m.Attach(ctx, spec)
-	if err != nil {
+	if err := m.vm.AddDevice(ctx, spec); err != nil {
+		log.Errorf("vmdk storage driver failed to attach disk: %s", errors.ErrorStack(err))
 		return nil, errors.Trace(err)
 	}
 
@@ -223,29 +223,6 @@ func (m *Manager) Create(ctx context.Context, newDiskURI string,
 //	return nil
 // }
 
-func (m *Manager) Attach(ctx context.Context, disk *types.VirtualDisk) error {
-	deviceList := object.VirtualDeviceList{}
-	deviceList = append(deviceList, disk)
-
-	changeSpec, err := deviceList.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
-	if err != nil {
-		return err
-	}
-
-	machineSpec := types.VirtualMachineConfigSpec{}
-	machineSpec.DeviceChange = append(machineSpec.DeviceChange, changeSpec...)
-
-	_, err = tasks.Retry(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
-		return m.vm.Reconfigure(ctx, machineSpec)
-	})
-
-	if err != nil {
-		log.Errorf("vmdk storage driver failed to attach disk: %s", errors.ErrorStack(err))
-		return errors.Trace(err)
-	}
-	return nil
-}
-
 func (m *Manager) Detach(ctx context.Context, d *VirtualDisk) error {
 	defer trace.End(trace.Begin(d.DevicePath))
 	log.Infof("Detaching disk %s", d.DevicePath)
@@ -278,7 +255,7 @@ func (m *Manager) Detach(ctx context.Context, d *VirtualDisk) error {
 
 	spec.DeviceChange = config
 
-	_, err = tasks.Retry(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	err = tasks.Wait(ctx, func(ctx context.Context) (tasks.Waiter, error) {
 		return m.vm.Reconfigure(ctx, spec)
 	})
 	if err != nil {
