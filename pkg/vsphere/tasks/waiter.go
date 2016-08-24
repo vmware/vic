@@ -17,6 +17,9 @@
 package tasks
 
 import (
+	"math/rand"
+	"time"
+
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
@@ -24,6 +27,10 @@ import (
 	"github.com/vmware/govmomi/vim25/progress"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/errors"
+)
+
+const (
+	maxBackoffFactor = int64(16)
 )
 
 type Waiter interface {
@@ -81,4 +88,41 @@ func WaitForResult(ctx context.Context, f func(context.Context) (ResultWaiter, e
 		return nil, cerr
 	}
 	return info, nil
+}
+
+func Retry(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (*types.TaskInfo, error) {
+	r := rand.New(rand.NewSource(time.Now().UnixNano())) //creates a more unique random
+	var err error
+	var taskInfo *types.TaskInfo
+	backoffFactor := int64(1)
+
+	for {
+		taskInfo, err = WaitForResult(ctx, f)
+		if err != nil {
+			return nil, err
+		}
+
+		if taskInfo.Error == nil {
+			return taskInfo, nil
+		}
+
+		if _, ok := taskInfo.Error.Fault.(types.TaskInProgressFault); !ok {
+			log.Debugf("Task failed during a retry operation : %#v", taskInfo.Task)
+			log.Debugf("Failed TaskInfo Object : %#v", taskInfo)
+			return taskInfo, errors.New(taskInfo.Error.LocalizedMessage)
+		}
+		sleepValue := time.Duration(backoffFactor * (r.Int63n(100) + int64(50)))
+		select {
+		case <-time.After(sleepValue * time.Millisecond):
+			if backoffFactor*2 > maxBackoffFactor {
+				backoffFactor = maxBackoffFactor
+			} else {
+				backoffFactor *= 2
+			}
+		case <-ctx.Done():
+			log.Errorf("Context Deadline Exceeded while trying to Retry task : %#v", taskInfo)
+			return nil, ctx.Err()
+		}
+		log.Infof("Retrying Task due to TaskInProgressFault: %s", taskInfo.Task.Reference())
+	}
 }
