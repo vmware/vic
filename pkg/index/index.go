@@ -103,6 +103,19 @@ func (i *Index) Get(nodeId string) (Node, error) {
 	return n.Copy(), nil
 }
 
+func (i *Index) List() ([]Node, error) {
+	i.l.Lock()
+	defer i.l.Unlock()
+
+	nodes := make([]Node, 0, len(i.lookupTable))
+
+	for _, v := range i.lookupTable {
+		nodes = append(nodes, v.Copy())
+	}
+
+	return nodes, nil
+}
+
 // Delete deletes a leaf node
 func (i *Index) Delete(nodeId string) (Node, error) {
 	i.l.Lock()

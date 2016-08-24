@@ -132,6 +132,12 @@ func TestDelete(t *testing.T) {
 	expectedNodes := createTree(t, i, branches)
 	expectedNodes[0] = root
 
+	// list what we added
+	before, err := i.List()
+	if !assert.NoError(t, err) || !assert.True(t, len(before) > 0) {
+		return
+	}
+
 	// is a leaf, should delete without issue
 	n, err := i.Delete("9000")
 	if !assert.NoError(t, err) || !assert.NotNil(t, n) {
@@ -153,6 +159,12 @@ func TestDelete(t *testing.T) {
 	// isn't in the index
 	n, err = i.Delete("foo")
 	if !assert.Error(t, err) || !assert.Nil(t, n) {
+		return
+	}
+
+	// list once more and make sure we nuked the image
+	after, err := i.List()
+	if !assert.NoError(t, err) || !assert.Equal(t, len(before), len(after)+1) {
 		return
 	}
 }
