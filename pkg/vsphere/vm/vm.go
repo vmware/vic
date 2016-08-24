@@ -23,6 +23,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/property"
+	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"golang.org/x/net/context"
@@ -268,4 +269,18 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*object.Task, 
 	}
 
 	return vm.Destroy(ctx)
+}
+
+// Unregister unregisters the VM
+func (vm *VirtualMachine) Unregister(ctx context.Context) error {
+	req := types.UnregisterVM{
+		This: vm.Reference(),
+	}
+
+	_, err := methods.UnregisterVM(ctx, vm.Client.RoundTripper, &req)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
