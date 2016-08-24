@@ -77,7 +77,7 @@ func (v *VolumeStore) AddStore(ctx context.Context, ds *datastore.Helper, storeN
 		return nil, fmt.Errorf("volumestore (%s) already added", u.String())
 	}
 
-	if _, err = ds.Mkdir(ctx, true, volumesDir); err != nil {
+	if _, err = ds.Mkdir(ctx, true, volumesDir); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
