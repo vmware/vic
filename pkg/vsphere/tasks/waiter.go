@@ -24,6 +24,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/progress"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/errors"
@@ -33,6 +35,7 @@ const (
 	maxBackoffFactor = int64(16)
 )
 
+//FIXME: remove these types and refactor to use object.Task from govmomi
 type Waiter interface {
 	Wait(ctx context.Context) error
 }
@@ -47,20 +50,11 @@ type ResultWaiter interface {
 //       return vm.Reconfigure(ctx, config)
 //    })
 func Wait(ctx context.Context, f func(context.Context) (Waiter, error)) error {
-	task, err := f(ctx)
-	if err != nil {
-		cerr := errors.Errorf("Failed to invoke operation: %s", errors.ErrorStack(err))
-		log.Errorf(cerr.Error())
-		return cerr
-	}
-
-	err = task.Wait(ctx)
-	if err != nil {
-		cerr := errors.Errorf("Operation failed: %s", errors.ErrorStack(err))
-		log.Errorf(cerr.Error())
-		return cerr
-	}
-	return nil
+	_, err := WaitForResult(ctx, func(context.Context) (ResultWaiter, error) {
+		waiter, err := f(ctx)
+		return waiter.(ResultWaiter), err
+	})
+	return err
 }
 
 // WaitForResult wraps govmomi operations and wait the operation to complete.
@@ -70,59 +64,45 @@ func Wait(ctx context.Context, f func(context.Context) (Waiter, error)) error {
 //       return vm.Reconfigure(ctx, config)
 //    })
 func WaitForResult(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (*types.TaskInfo, error) {
-	task, err := f(ctx)
-	if err != nil {
-		cerr := errors.Errorf("Failed to invoke operation: %s", errors.ErrorStack(err))
-		log.Errorf(cerr.Error())
-		return nil, cerr
-	}
-
-	info, err := task.WaitForResult(ctx, nil)
-	if err != nil {
-		cerr := errors.Errorf("Operation failed: %s", errors.ErrorStack(err))
-		if info != nil && info.Error != nil {
-			cerr = errors.Errorf("%s - (%s)", cerr, info.Error)
-		}
-
-		log.Errorf(cerr.Error())
-		return info, cerr
-	}
-	return info, nil
-}
-
-func Retry(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (*types.TaskInfo, error) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano())) //creates a more unique random
 	var err error
 	var taskInfo *types.TaskInfo
 	backoffFactor := int64(1)
 
+	t, err := f(ctx)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
 	for {
-		taskInfo, err = WaitForResult(ctx, f)
-		if err != nil && taskInfo == nil {
-			return nil, err
-		}
+		taskInfo, err := t.WaitForResult(ctx, nil)
 
 		if err == nil {
 			return taskInfo, nil
 		}
 
-		if _, ok := taskInfo.Error.Fault.(types.TaskInProgressFault); !ok {
-			log.Debugf("Task failed during a retry operation : %#v", taskInfo.Task)
-			log.Debugf("Failed TaskInfo Object : %#v", taskInfo)
-			return taskInfo, errors.New(taskInfo.Error.LocalizedMessage)
-		}
-		sleepValue := time.Duration(backoffFactor * (r.Int63n(100) + int64(50)))
-		select {
-		case <-time.After(sleepValue * time.Millisecond):
-			if backoffFactor*2 > maxBackoffFactor {
-				backoffFactor = maxBackoffFactor
-			} else {
-				backoffFactor *= 2
+		if terr, ok := err.(*task.Error); ok {
+			if _, ok := terr.Fault().(*types.TaskInProgress); ok {
+				sleepValue := time.Duration(backoffFactor * (r.Int63n(100) + int64(50)))
+				select {
+				case <-time.After(sleepValue * time.Millisecond):
+					if backoffFactor*2 > maxBackoffFactor {
+						backoffFactor = maxBackoffFactor
+					} else {
+						backoffFactor *= 2
+					}
+				case <-ctx.Done():
+					log.Errorf("Context Deadline Exceeded while trying to Retry task : %#v", taskInfo)
+					return nil, ctx.Err()
+				}
+				log.Infof("Retrying Task due to TaskInProgressFault: %s", taskInfo.Task.Reference())
+				continue
 			}
-		case <-ctx.Done():
-			log.Errorf("Context Deadline Exceeded while trying to Retry task : %#v", taskInfo)
-			return nil, ctx.Err()
 		}
-		log.Infof("Retrying Task due to TaskInProgressFault: %s", taskInfo.Task.Reference())
+		break
 	}
+	log.Error(err)
+	return taskInfo, err
+
 }
