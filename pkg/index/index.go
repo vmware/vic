@@ -131,33 +131,24 @@ func (i *Index) Delete(nodeId string) (Node, error) {
 	}
 
 	// remove the reference to the node from its parent
+	parent := n.parent
 	var deleted bool
-	err := i.bfsworker(i.root, func(needle *node) (iterflag, error) {
-		for idx, child := range needle.children {
-			if child.String() == nodeId {
-				// remove the child
-				needle.children = append(needle.children[:idx], needle.children[idx+1:]...)
-				log.Debugf("Removing %s from parent (%s children : %#q)", nodeId, needle.String(), needle.children)
-				deleted = true
-				return STOP, nil
-			}
+	for idx, child := range parent.children {
+		if child.String() == nodeId {
+			parent.children = append(parent.children[:idx], parent.children[idx+1:]...)
+			deleted = true
 		}
-
-		// continue iterating
-		return NOOP, nil
-	})
-
-	if err != nil {
-		return nil, err
 	}
 
 	if !deleted {
-		err = fmt.Errorf("%s not found in tree", nodeId)
+		err := fmt.Errorf("%s not found in tree", nodeId)
 		log.Errorf("%s", err)
 		return nil, err
 	}
 
+	// remove from the lookup table
 	delete(i.lookupTable, nodeId)
+	n.parent = nil
 
 	return n.Node, nil
 }
