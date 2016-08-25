@@ -234,8 +234,6 @@ func imageConfigToDockerImageInspect(imageConfig *metadata.ImageConfig, productN
 	return inspectData
 }
 
-const DefaultDockerRegistry = "registry-1.docker.io/"
-
 /*
 	function will take the array of image tags (1.24,1.24.1,latest, etc)
 	and create a new array of tags that are supported by the docker client
@@ -253,7 +251,7 @@ func clientFriendlyTags(registryURL string, imageName string, tags []string) []s
 	clientTags := make([]string, len(tags))
 	if len(tags) > 0 {
 		for index, tag := range tags {
-			if registryURL == DefaultDockerRegistry {
+			if registryURL == cache.DefaultDockerRegistry {
 				clientTags[index] = fmt.Sprintf("%s:%s", imageName, tag)
 			} else {
 				// prepend the registry URL for a custom registry image
