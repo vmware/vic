@@ -369,32 +369,31 @@ func (v *Validator) compatibility(ctx context.Context, conf *config.VirtualConta
 	_, err := v.Session.Datastore.AttachedClusterHosts(v.Context, v.Session.Cluster)
 	v.NoteIssue(err)
 
-	type Stringable interface {
-		String()
-	}
-	getDatastores := func(s []Stringable) []*object.Datastore {
-		datastores := new([]*object.Datastore)
-		for _, i := range s {
-			_, ds, err := v.DatastoreHelper(i.String())
-			if err != nil {
-				v.NoteIssue(err)
-				continue
-			}
-			datastores = append(datastores, ds)
+	// closure to look up a datastore based on a URL from the config & check to see if it's writeable
+	checkDS := func(u *url.URL) {
+		datastores, err := v.Session.Finder.DatastoreList(ctx, fmt.Sprintf("[%s] %s", u.Host, u.Path))
+		if err != nil {
+			v.NoteIssue(err)
 		}
-		return datastores
+		if len(datastores) != 1 {
+			// this is basically an assert, at this point DatastoreList should absolutely only return one result
+			v.NoteIssue(errors.Errorf("Looking up datastore %s returned %d results.", u.String(), len(datastores)))
+		}
+		if !v.isTargetDatastoreWriteable(ctx, datastores[0]) {
+			v.NoteIssue(error.Errorf("Datastore %s is not writeable by the compute resource provided by --compute-resource", u.String()))
+		}
 	}
 
-	for _, ds := range getDatastores(conf.ImageStores) {
-		v.isTargetDatastoreWriteable(ctx, ds)
+	// call above closure on each of the collections of datastores that we have in the config
+	for _, u := range conf.ImageStores {
+		checkDS(u)
+	}
+	for _, u := range conf.ContainerStores {
+		checkDS(u)
 	}
 
-	for _, ds := range getDatastores(conf.VolumeLocations) {
-		v.isTargetDatastoreWriteable(ctx, ds)
-	}
-
-	for _, ds := range getDatastores(conf.ContainerStores) {
-		v.isTargetDatastoreWriteable(ctx, ds)
+	for _, u := range conf.VolumeLocations {
+		checkDS(u)
 	}
 }
 
@@ -516,6 +515,19 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.Virtua
 	return &dconfig
 }
 
+// helper to grab HostSystem references out of the Session cluster
+func (v *Validator) getHostsInCluster(ctx context.Context) ([]*object.HostSystem, error) {
+	computeHosts, err := v.Session.Cluster.Hosts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// computeHosts shouldn't be zero anymore; if it still is, there's a problem
+	if len(computeHosts) == 0 {
+		return nil, errors.New("Couldn't get list of hosts connected to target cluster")
+	}
+	return computeHosts, nil
+}
+
 // checks if a given datastore ds is writeable by compute resource specified on cmd line --compute-resource
 func (v *Validator) isTargetDatastoreWriteable(ctx context.Context, ds *object.Datastore) bool {
 	defer trace.End(trace.Begin(ds.String()))
@@ -523,15 +535,9 @@ func (v *Validator) isTargetDatastoreWriteable(ctx context.Context, ds *object.D
 	// get compute hosts if we haven't run this method on this object before
 	if len(v.computeHosts) == 0 {
 		var err error
-		v.computeHosts, err = v.Session.Cluster.Hosts(ctx)
+		v.computeHosts, err = v.getHostsInCluster(ctx)
 		if err != nil {
 			v.NoteIssue(err)
-			return false
-		}
-		// v.computeHosts shouldn't be zero anymore; if it still is, there's a problem
-		if len(v.computeHosts) == 0 {
-			v.NoteIssue(errors.New("Couldn't get list of hosts connected to target cluster"))
-			return false
 		}
 	}
 
@@ -553,7 +559,7 @@ func (v *Validator) isTargetDatastoreWriteable(ctx context.Context, ds *object.D
 		}
 
 		if len(attachedHosts) == 0 {
-			// shouldn't be possible to wind up here, but we should get an error message if we do ¯\_(ツ)_/¯
+			// shouldn't be possible to wind up here, but we should get an error message if we do
 			v.NoteIssue(errors.Errorf("No attached hosts found for datastore %s", ds.String()))
 			return false
 		}

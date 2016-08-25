@@ -58,14 +58,10 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 
 	// TODO: add volume locations
 	for label, volDSpath := range input.VolumeLocations {
-		dsURL, vds, err := v.DatastoreHelper(ctx, volDSpath, label, "--volume-store")
+		dsURL, _, err := v.DatastoreHelper(ctx, volDSpath, label, "--volume-store")
 		v.NoteIssue(err)
 		if dsURL != nil {
 			conf.VolumeLocations[label] = dsURL
-		}
-
-		if !v.targetDatastoreIsWriteable(ctx, vds) {
-			return
 		}
 	}
 }
