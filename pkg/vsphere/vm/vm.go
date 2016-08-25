@@ -75,6 +75,9 @@ func (vm *VirtualMachine) DSPath(ctx context.Context) (url.URL, error) {
 		return url.URL{}, err
 	}
 
+	if mvm.Config == nil {
+		return url.URL{}, errors.New("failed to get datastore path - config not found")
+	}
 	path := path.Dir(mvm.Config.Files.VmPathName)
 	val := url.URL{
 		Scheme: "ds",
