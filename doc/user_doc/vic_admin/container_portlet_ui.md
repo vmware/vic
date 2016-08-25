@@ -4,7 +4,7 @@ After you have installed the vSphere Web Client plug-in for vSphere Integrated C
 
 **Prerequisites**
 
-- You deployed a virtual container host and pulled and ran at least one container. For information about how to pull and run a container, see 
+- You deployed a virtual container host and pulled and ran at least one container.
 - You installed the vSphere Web Client plug-in for vSphere Integrated Containers.
 
 **Procedure**
