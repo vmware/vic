@@ -24,6 +24,10 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
+const (
+	PIDFileDir = "/var/run"
+)
+
 // Mkdev will hopefully get rolled into go.sys at some point
 func Mkdev(majorNumber int, minorNumber int) int {
 	return (majorNumber << 8) | (minorNumber & 0xff) | ((minorNumber & 0xfff00) << 12)
