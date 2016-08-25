@@ -18,5 +18,5 @@ After you have installed the vSphere Web Client plug-in for vSphere Integrated C
 
 Information about the container appears in the Container portlet in the **Summary** tab:
 
--  The name of the running container
--  The image from which the container was deployed
+-  The name of the running container. If the container developer used <code>docker run -name <i>container_name</i></code> to run the container, <code><i>container_name</i></code> appears in the portlet.
+-  The image from which the container was deployed.

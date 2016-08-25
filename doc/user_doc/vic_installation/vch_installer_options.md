@@ -280,6 +280,8 @@ The datastore in which to store container VM files. When you run a container, co
 
 If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `container-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability.
 
+You can designate the same datastore as the container store for multiple virtual container hosts.
+
 If you do not specify the `container-store` option, vSphere Integrated Containers stores container VM files in the same datastore that you specify in the mandatory `image-store` option.
 
 If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores.
@@ -300,6 +302,8 @@ Short name: `--vs`
 The datastore in which to create volumes when using the `docker volume create` command. When you specify the `volume-store` option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores. 
 
 If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `volume-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability.
+
+You can designate the same datastore as the volume store for multiple virtual container hosts.
 
 The label that you specify is the volume store name that Docker uses. For example, the volume store label appears in the information for a virtual container host when container application developers run `docker info`. Container application developers also specify the volume store label in the <code>docker volume create --opt VolumeStore=<i>volume_store_label</i></code> option when they create a  volume.
 
