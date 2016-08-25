@@ -17,6 +17,7 @@
 package tasks
 
 import (
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -72,20 +73,26 @@ func Wait(ctx context.Context, f func(context.Context) (Waiter, error)) error {
 func WaitForResult(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (*types.TaskInfo, error) {
 	task, err := f(ctx)
 	if err != nil {
-		cerr := errors.Errorf("Failed to invoke operation: %s", errors.ErrorStack(err))
-		log.Errorf(cerr.Error())
-		return nil, cerr
+		terr := &TaskError{
+			msg:       fmt.Sprintf("Failed to invoke operation: %s", errors.ErrorStack(err)),
+			taskError: nil,
+		}
+		log.Errorf(terr.Error())
+		return nil, terr
 	}
 
 	info, err := task.WaitForResult(ctx, nil)
 	if err != nil {
-		cerr := errors.Errorf("Operation failed: %s", errors.ErrorStack(err))
-		if info != nil && info.Error != nil {
-			cerr = errors.Errorf("%s - (%s)", cerr, info.Error)
+		terr := &TaskError{
+			msg:       fmt.Sprintf("Operation failed: %s", errors.ErrorStack(err)),
+			taskError: info.Error,
 		}
 
-		log.Errorf(cerr.Error())
-		return nil, cerr
+		if info != nil && info.Error != nil {
+		}
+
+		log.Errorf(terr.Error())
+		return nil, terr
 	}
 	return info, nil
 }
@@ -98,31 +105,48 @@ func Retry(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (
 
 	for {
 		taskInfo, err = WaitForResult(ctx, f)
-		if err != nil {
-			return nil, err
-		}
 
-		if taskInfo.Error == nil {
+		//if err is not nil then info is due to the nature of WaitForResult
+		if err != nil {
+			err := err.(*TaskError)
+			if err.taskError == nil {
+				log.Debugf("Task failed during a retry operation : %#v", taskInfo.Task)
+				log.Debugf("Failed TaskInfo Object : %#v", taskInfo)
+				return nil, err
+			}
+
+			if err.taskError.Fault != nil {
+
+				if _, ok := err.taskError.Fault.(types.TaskInProgressFault); !ok {
+					sleepValue := time.Duration(backoffFactor * (r.Int63n(100) + int64(50)))
+					select {
+					case <-time.After(sleepValue * time.Millisecond):
+						if backoffFactor*2 > maxBackoffFactor {
+							backoffFactor = maxBackoffFactor
+						} else {
+							backoffFactor *= 2
+						}
+					case <-ctx.Done():
+						log.Errorf("Context Deadline Exceeded while trying to Retry task : %#v", taskInfo)
+						return nil, ctx.Err()
+					}
+					log.Infof("Retrying Task due to TaskInProgressFault: %s", taskInfo.Task.Reference())
+				}
+			} else {
+				return nil, err
+			}
+		} else {
 			return taskInfo, nil
 		}
-
-		if _, ok := taskInfo.Error.Fault.(types.TaskInProgressFault); !ok {
-			log.Debugf("Task failed during a retry operation : %#v", taskInfo.Task)
-			log.Debugf("Failed TaskInfo Object : %#v", taskInfo)
-			return taskInfo, errors.New(taskInfo.Error.LocalizedMessage)
-		}
-		sleepValue := time.Duration(backoffFactor * (r.Int63n(100) + int64(50)))
-		select {
-		case <-time.After(sleepValue * time.Millisecond):
-			if backoffFactor*2 > maxBackoffFactor {
-				backoffFactor = maxBackoffFactor
-			} else {
-				backoffFactor *= 2
-			}
-		case <-ctx.Done():
-			log.Errorf("Context Deadline Exceeded while trying to Retry task : %#v", taskInfo)
-			return nil, ctx.Err()
-		}
-		log.Infof("Retrying Task due to TaskInProgressFault: %s", taskInfo.Task.Reference())
 	}
+}
+
+//Task Error object
+type TaskError struct {
+	msg       string
+	taskError *types.LocalizedMethodFault
+}
+
+func (e *TaskError) Error() string {
+	return e.msg
 }
