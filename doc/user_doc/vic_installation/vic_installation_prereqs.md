@@ -4,21 +4,22 @@ Before you install vSphere Integrated Containers, you must ensure that your infr
 
 ## Supported Platforms for `vic-machine` ##
 
-The vSphere Integrated Containers installation and management utility, `vic-machine`, has been tested and verified on the following Linux OS, Windows, and Mac OS systems.
+The vSphere Integrated Containers installation and management utility, `vic-machine`, has been tested and verified on the following Linux OS, Windows, Mac OS, and Photon OS systems. It is possible to use `vic-machine` on other platforms, but results are not guaranteed.
 
 |**Platform**|**Supported Versions**|
 |---|---|
 |Windows|7, 10|
 |Mac OS X |10.11 (El Capitan)|
-|Linux|Ubuntu 15.04, others TBD|
+|Linux|Ubuntu 15.04|
+|Photon OS|1.0|
 
 ## Supported vSphere Configurations ##
 
 You can install vSphere Integrated Containers in the following vSphere setups:
 
-* Standalone ESXi 6.0 host that is not managed by a vCenter Server instance.
-* vCenter Server 6.0, managing one or more standalone ESXi 6.0 hosts.
-* vCenter Server 6.0, managing a cluster of ESXi 6.0 hosts, with DRS enabled.
+* Standalone ESXi 5.5 or 6.0 host that is not managed by a vCenter Server instance.
+* vCenter Server 5.5 or 6.0, managing one or more standalone ESXi 5.5 or 6.0 hosts.
+* vCenter Server 5.5 or 6.0, managing a cluster of ESXi 5.5 or 6.0 hosts, with DRS enabled.
 
 Deploying vSphere Integrated Containers to a vCenter Server instance that is running in Enhanced Linked Mode is fully supported.  
 
