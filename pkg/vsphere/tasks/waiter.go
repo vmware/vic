@@ -117,7 +117,7 @@ func Retry(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (
 
 			if err.taskError.Fault != nil {
 
-				if _, ok := err.taskError.Fault.(types.TaskInProgressFault); !ok {
+				if _, ok := err.taskError.Fault.(types.TaskInProgressFault); ok {
 					sleepValue := time.Duration(backoffFactor * (r.Int63n(100) + int64(50)))
 					select {
 					case <-time.After(sleepValue * time.Millisecond):
