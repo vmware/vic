@@ -270,12 +270,6 @@ func ImagesToDownload(manifest *Manifest, storeName string) ([]*ImageWithMeta, *
 		return images, nil, nil
 	}
 
-	// Create the image store just in case
-	err := CreateImageStore(storeName)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to create image store: %s", err)
-	}
-
 	// Get the list of known images from the storage layer
 	existingImages, err := ListImages(storeName, images)
 	if err != nil {
@@ -333,7 +327,7 @@ func updateImageMetadata(imageLayer *ImageWithMeta, manifest *Manifest) error {
 
 		imageMeta := &metadata.ImageConfig{}
 		// tag / digest info only resides in the metadata so must unmarshall meta to determine
-		if err := json.Unmarshal([]byte(existingImage.Metadata[MetaDataKey]), imageMeta); err != nil {
+		if err := json.Unmarshal([]byte(existingImage.Metadata[metadata.MetaDataKey]), imageMeta); err != nil {
 			return fmt.Errorf("updateImageMetadata failed to get existing metadata: Layer(%s) %s", id, err)
 		}
 

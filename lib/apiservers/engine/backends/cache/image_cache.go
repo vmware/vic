@@ -34,7 +34,6 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
-	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
@@ -71,7 +70,7 @@ func ImageCache() *ICache {
 
 // Update runs only once at startup to hydrate the image cache
 func (ic *ICache) Update(client *client.PortLayer) error {
-	log.Debugf("Updating image cache...")
+	log.Debugf("Updating image cache")
 
 	host, err := sys.UUID()
 	if host == "" {
@@ -79,21 +78,6 @@ func (ic *ICache) Update(client *client.PortLayer) error {
 	}
 	if err != nil {
 		return fmt.Errorf("Unexpected error getting hostname: %s", err)
-	}
-
-	// attempt to create the image store if it doesn't exist
-	store := &models.ImageStore{Name: host}
-	_, err = client.Storage.CreateImageStore(
-		storage.NewCreateImageStoreParamsWithContext(ctx).WithBody(store),
-	)
-
-	if err != nil {
-		if _, ok := err.(*storage.CreateImageStoreConflict); ok {
-			log.Debugf("Store already exists")
-		} else {
-			log.Debugf("Creating a store failed: %#v", err)
-			return err
-		}
 	}
 
 	params := storage.NewListImagesParamsWithContext(ctx).WithStoreName(host)
@@ -105,7 +89,7 @@ func (ic *ICache) Update(client *client.PortLayer) error {
 
 	for _, layer := range layers.Payload {
 		imageConfig := &metadata.ImageConfig{}
-		if err := json.Unmarshal([]byte(layer.Metadata["metaData"]), imageConfig); err != nil {
+		if err := json.Unmarshal([]byte(layer.Metadata[metadata.MetaDataKey]), imageConfig); err != nil {
 			derr.NewErrorWithStatusCode(fmt.Errorf("Failed to unmarshal image config: %s", err),
 				http.StatusInternalServerError)
 		}
