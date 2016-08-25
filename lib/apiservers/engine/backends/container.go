@@ -62,7 +62,9 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-const bridgeIfaceName = "bridge"
+const (
+	bridgeIfaceName = "bridge"
+)
 
 var (
 	clientIfaceName = "client"
@@ -116,6 +118,34 @@ const (
 	swaggerSubstringEOF    = "EOF"
 	DefaultEnvPath         = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 )
+
+func NotFoundError(msg string) error {
+	return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", msg))
+}
+
+func InternalServerError(msg string) error {
+	return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", msg), http.StatusInternalServerError)
+}
+
+func BadRequestError(msg string) error {
+	return derr.NewErrorWithStatusCode(fmt.Errorf("Bad request error from portlayer: %s", msg), http.StatusBadRequest)
+}
+
+func (c *Container) Handle(name, paramName string) (string, error) {
+	resp, err := c.containerProxy.Client().Containers.Get(containers.NewGetParamsWithContext(ctx).WithID(name))
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.GetNotFound:
+			cache.ContainerCache().DeleteContainer(name)
+			return "", NotFoundError(paramName)
+		case *containers.GetDefault:
+			return "", InternalServerError(err.Payload.Message)
+		default:
+			return "", InternalServerError(err.Error())
+		}
+	}
+	return resp.Payload, nil
+}
 
 // NewContainerBackend returns a new Container
 func NewContainerBackend() *Container {
@@ -197,7 +227,7 @@ func (c *Container) ContainerStatPath(name string, path string) (stat *types.Con
 
 // ContainerCreate creates a container.
 func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.ContainerCreateResponse, error) {
-	defer trace.End(trace.Begin("ContainerCreate"))
+	defer trace.End(trace.Begin(""))
 
 	var err error
 
@@ -257,9 +287,7 @@ func (c *Container) containerCreate(vc *viccontainer.VicContainer, config types.
 	defer trace.End(trace.Begin("Container.containerCreate"))
 
 	if vc == nil {
-		return "",
-			derr.NewErrorWithStatusCode(fmt.Errorf("Failed to create container"),
-				http.StatusInternalServerError)
+		return "", InternalServerError("Failed to create container")
 	}
 
 	imageID := vc.ImageID
@@ -297,7 +325,7 @@ func (c *Container) ContainerKill(name string, sig uint64) error {
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
-		return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
+		return NotFoundError(name)
 	}
 	name = vc.ContainerID
 
@@ -333,17 +361,15 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 	paramName := name
 
 	// Look up the container name in the metadata cache to get long ID
-	if vc := cache.ContainerCache().GetContainer(name); vc != nil {
-		log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
-		name = vc.ContainerID
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc == nil {
+		return NotFoundError(name)
+
 	}
+	name = vc.ContainerID
 
 	// Get an API client to the portlayer
-	client := PortLayerClient()
-	if client == nil {
-		return derr.NewErrorWithStatusCode(fmt.Errorf("container.ContainerResize failed to create a portlayer client"),
-			http.StatusInternalServerError)
-	}
+	client := c.containerProxy.Client()
 
 	// Call the port layer to resize
 	plHeight := int32(height)
@@ -353,14 +379,12 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 	_, err := client.Interaction.ContainerResize(plResizeParam)
 	if err != nil {
 		if _, isa := err.(*interaction.ContainerResizeNotFound); isa {
-
 			cache.ContainerCache().DeleteContainer(name)
-			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", paramName))
+			return NotFoundError(paramName)
 		}
 
 		// If we get here, most likely something went wrong with the port layer API server
-		return derr.NewErrorWithStatusCode(fmt.Errorf("Unknown error from the interaction port layer: %s", err),
-			http.StatusInternalServerError)
+		return InternalServerError(err.Error())
 	}
 
 	return nil
@@ -377,12 +401,12 @@ func (c *Container) ContainerRestart(name string, seconds int) error {
 
 	err := c.containerStop(name, seconds, false)
 	if err != nil {
-		return derr.NewErrorWithStatusCode(fmt.Errorf("Stop failed with: %s", err), http.StatusInternalServerError)
+		return InternalServerError(fmt.Sprintf("Stop failed with: %s", err))
 	}
 
 	err = c.containerStart(name, nil, false)
 	if err != nil {
-		return derr.NewErrorWithStatusCode(fmt.Errorf("Start failed with: %s", err), http.StatusInternalServerError)
+		return InternalServerError(fmt.Sprintf("Start failed with: %s", err))
 	}
 
 	return nil
@@ -397,19 +421,15 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 
 	// save the name provided to us so we can refer to it if we have to return an error
 	paramName := name
-
 	// Look up the container name in the metadata cache to get long ID
-	if vc := cache.ContainerCache().GetContainer(name); vc != nil {
-		log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
-		name = vc.ContainerID
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc == nil {
+		return NotFoundError(paramName)
 	}
+	name = vc.ContainerID
 
 	// Get the portlayer Client API
-	client := PortLayerClient()
-	if client == nil {
-		return derr.NewErrorWithStatusCode(fmt.Errorf("container.ContainerRm failed to create a portlayer client"),
-			http.StatusInternalServerError)
-	}
+	client := c.containerProxy.Client()
 
 	// TODO: Pass this RemoveVolume flag to somewhere
 	_ = &config.RemoveVolume
@@ -425,13 +445,13 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		switch err := err.(type) {
 		case *containers.ContainerRemoveNotFound:
 			cache.ContainerCache().DeleteContainer(name)
-			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", paramName))
+			return NotFoundError(paramName)
 		case *containers.ContainerRemoveDefault:
-			return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer : %s", err.Payload.Message), http.StatusInternalServerError)
+			return InternalServerError(err.Payload.Message)
 		case *containers.ContainerRemoveConflict:
 			return derr.NewErrorWithStatusCode(fmt.Errorf("You cannot remove a running container. Stop the container before attempting removal or use -f"), http.StatusConflict)
 		default:
-			return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer : %s", err), http.StatusInternalServerError)
+			return InternalServerError(err.Error())
 		}
 	}
 	// delete container from the cache
@@ -453,17 +473,13 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
-	if vc != nil {
-		log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
-		name = vc.ContainerID
+	if vc == nil {
+		return NotFoundError(paramName)
 	}
+	name = vc.ContainerID
 
 	// Get an API client to the portlayer
-	client := PortLayerClient()
-	if client == nil {
-		return derr.NewErrorWithStatusCode(fmt.Errorf("container.ContainerCreate failed to create a portlayer client"),
-			http.StatusInternalServerError)
-	}
+	client := c.containerProxy.Client()
 
 	// handle legacy hostConfig
 	if hostConfig != nil {
@@ -478,50 +494,35 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 	}
 
 	// get a handle to the container
-	var getRes *containers.GetOK
-	getRes, err = client.Containers.Get(containers.NewGetParamsWithContext(ctx).WithID(name))
+	handle, err := c.Handle(name, paramName)
 	if err != nil {
-		switch err := err.(type) {
-		case *containers.GetNotFound:
-			cache.ContainerCache().DeleteContainer(name)
-			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", paramName))
-		case *containers.GetDefault:
-			return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer : %s", err.Payload.Message),
-				http.StatusInternalServerError)
-		default:
-			return derr.NewErrorWithStatusCode(fmt.Errorf("server error from portlayer : %s", err),
-				http.StatusInternalServerError)
-		}
+		return err
 	}
-
-	h := getRes.Payload
 
 	var endpoints []*models.EndpointConfig
 	// bind network
 	if bind {
 		var bindRes *scopes.BindContainerOK
-		bindRes, err = client.Scopes.BindContainer(scopes.NewBindContainerParamsWithContext(ctx).WithHandle(h))
+		bindRes, err = client.Scopes.BindContainer(scopes.NewBindContainerParamsWithContext(ctx).WithHandle(handle))
 		if err != nil {
 			switch err := err.(type) {
 			case *scopes.BindContainerNotFound:
 				cache.ContainerCache().DeleteContainer(name)
-				return derr.NewRequestNotFoundError(fmt.Errorf(err.Payload.Message))
-
+				return NotFoundError(paramName)
 			case *scopes.BindContainerInternalServerError:
-				return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
-
+				return InternalServerError(err.Payload.Message)
 			default:
-				return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+				return InternalServerError(err.Error())
 			}
 		}
 
-		h = bindRes.Payload.Handle
+		handle = bindRes.Payload.Handle
 		endpoints = bindRes.Payload.Endpoints
 
 		// unbind in case we fail later
 		defer func() {
 			if err != nil {
-				client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(h))
+				client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle))
 			}
 		}()
 
@@ -530,29 +531,27 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 	// change the state of the container
 	// TODO: We need a resolved ID from the name
 	var stateChangeRes *containers.StateChangeOK
-	stateChangeRes, err = client.Containers.StateChange(containers.NewStateChangeParamsWithContext(ctx).WithHandle(h).WithState("RUNNING"))
+	stateChangeRes, err = client.Containers.StateChange(containers.NewStateChangeParamsWithContext(ctx).WithHandle(handle).WithState("RUNNING"))
 	if err != nil {
 		cache.ContainerCache().DeleteContainer(name)
 		switch err := err.(type) {
 		case *containers.StateChangeNotFound:
-			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err.Payload.Message))
-
+			return NotFoundError(paramName)
 		case *containers.StateChangeDefault:
-			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err.Payload.Message))
-
+			return InternalServerError(err.Payload.Message)
 		default:
-			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err))
+			return InternalServerError(err.Error())
 		}
 	}
 
-	h = stateChangeRes.Payload
+	handle = stateChangeRes.Payload
 
 	if bind {
 		e := c.findPortBoundNetworkEndpoint(hostConfig, endpoints)
 		if err = c.mapPorts(portmap.Map, hostConfig, e); err != nil {
 			err = fmt.Errorf("error mapping ports: %s", err)
 			log.Error(err)
-			return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+			return InternalServerError(err.Error())
 		}
 
 		defer func() {
@@ -563,17 +562,16 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 	}
 
 	// commit the handle; this will reconfigure and start the vm
-	_, err = client.Containers.Commit(containers.NewCommitParamsWithTimeout(commitTimeout).WithHandle(h))
+	_, err = client.Containers.Commit(containers.NewCommitParamsWithTimeout(commitTimeout).WithHandle(handle))
 	if err != nil {
 		cache.ContainerCache().DeleteContainer(name)
 		switch err := err.(type) {
 		case *containers.CommitNotFound:
-			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err.Payload.Message))
-
+			return NotFoundError(paramName)
 		case *containers.CommitDefault:
-			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err.Payload.Message))
+			return InternalServerError(err.Payload.Message)
 		default:
-			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err))
+			return InternalServerError(err.Error())
 		}
 	}
 
@@ -646,7 +644,7 @@ func (c *Container) defaultScope() string {
 		return defaultScope.scope
 	}
 
-	client := PortLayerClient()
+	client := c.containerProxy.Client()
 	listRes, err := client.Scopes.List(scopes.NewListParamsWithContext(ctx).WithIDName("default"))
 	if err != nil {
 		log.Error(err)
@@ -707,35 +705,17 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
-	if vc != nil {
-		log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
-		name = vc.ContainerID
+	if vc == nil {
+		return NotFoundError(name)
 	}
+	name = vc.ContainerID
 
 	//retrieve client to portlayer
-	client := PortLayerClient()
-	if client == nil {
-		return derr.NewErrorWithStatusCode(fmt.Errorf("container.containerStop failed to create a portlayer client"),
-			http.StatusInternalServerError)
-	}
-
-	getResponse, err := client.Containers.Get(containers.NewGetParamsWithContext(ctx).WithID(name))
+	client := c.containerProxy.Client()
+	handle, err := c.Handle(name, paramName)
 	if err != nil {
-		switch err := err.(type) {
-
-		case *containers.GetNotFound:
-			cache.ContainerCache().DeleteContainer(name)
-			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", paramName))
-
-		case *containers.GetDefault:
-			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err.Payload.Message))
-
-		default:
-			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s", err))
-		}
+		return err
 	}
-
-	handle := getResponse.Payload
 
 	// we have a container on the PL side lets check the state before proceeding
 	// ignore the error  since others will be checking below..this is an attempt to short circuit the op
@@ -743,7 +723,7 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 	infoResponse, _ := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(name))
 	if err != nil {
 		cache.ContainerCache().DeleteContainer(name)
-		return derr.NewRequestNotFoundError(fmt.Errorf("container %s not found", paramName))
+		return NotFoundError(paramName)
 	}
 	if *infoResponse.Payload.ContainerConfig.State == "Stopped" || *infoResponse.Payload.ContainerConfig.State == "Created" {
 		return nil
@@ -758,9 +738,9 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 				// ignore error
 				log.Warnf("Container %s not found by network unbind", name)
 			case *scopes.UnbindContainerInternalServerError:
-				return derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+				return InternalServerError(err.Payload.Message)
 			default:
-				return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+				return InternalServerError(err.Error())
 			}
 		} else {
 			handle = ub.Payload.Handle
@@ -780,11 +760,11 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 		cache.ContainerCache().DeleteContainer(name)
 		switch err := err.(type) {
 		case *containers.StateChangeNotFound:
-			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s ", err.Payload.Message))
+			return NotFoundError(paramName)
 		case *containers.StateChangeDefault:
-			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s ", err.Payload.Message))
+			return InternalServerError(err.Payload.Message)
 		default:
-			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s ", err))
+			return InternalServerError(err.Error())
 		}
 	}
 
@@ -797,15 +777,12 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 		cache.ContainerCache().DeleteContainer(name)
 		switch err := err.(type) {
 		case *containers.CommitNotFound:
-			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s ", err.Payload.Message))
-
+			return NotFoundError(paramName)
 		case *containers.CommitDefault:
-			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s ", err.Payload.Message))
-
+			return InternalServerError(err.Payload.Message)
 		default:
-			return derr.NewRequestNotFoundError(fmt.Errorf("server error from portlayer : %s ", err))
+			return InternalServerError(err.Error())
 		}
-
 	}
 
 	return nil
@@ -850,27 +827,23 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
-		return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
+		return nil, NotFoundError(paramName)
 	}
-
-	log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
 	name = vc.ContainerID
+	log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
 
-	client := PortLayerClient()
-	if client == nil {
-		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get portlayer client"), http.StatusInternalServerError)
-	}
+	client := c.containerProxy.Client()
 
 	results, err := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(name))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerInfoNotFound:
 			cache.ContainerCache().DeleteContainer(name)
-			return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", paramName))
+			return nil, NotFoundError(paramName)
 		case *containers.GetContainerInfoInternalServerError:
-			return nil, derr.NewErrorWithStatusCode(fmt.Errorf("Error from portlayer: %#v", err.Payload), http.StatusInternalServerError)
+			return nil, InternalServerError(err.Payload.Message)
 		default:
-			return nil, derr.NewErrorWithStatusCode(fmt.Errorf("Unknown error from the container portlayer"), http.StatusInternalServerError)
+			return nil, InternalServerError(err.Error())
 		}
 	}
 
@@ -898,7 +871,7 @@ func (c *Container) ContainerLogs(name string, config *backend.ContainerLogsConf
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
-		return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
+		return NotFoundError(name)
 	}
 	name = vc.ContainerID
 
@@ -944,13 +917,9 @@ func (c *Container) ContainerTop(name string, psArgs string) (*types.ContainerPr
 func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Container, error) {
 
 	// Get an API client to the portlayer
-	portLayerClient := PortLayerClient()
-	if portLayerClient == nil {
-		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("container.Containers failed to create a portlayer client"),
-			http.StatusInternalServerError)
-	}
+	client := c.containerProxy.Client()
 
-	containme, err := portLayerClient.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(ctx).WithAll(&config.All))
+	containme, err := client.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(ctx).WithAll(&config.All))
 	if err != nil {
 		switch err := err.(type) {
 
@@ -993,15 +962,20 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConfig) error {
 	defer trace.End(trace.Begin(name))
 
+	// save the name provided to us so we can refer to it if we have to return an error
+	paramName := name
+
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
-		return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
+		return NotFoundError(paramName)
+
 	}
+	name = vc.ContainerID
 
 	clStdin, clStdout, clStderr, err := ca.GetStreams()
 	if err != nil {
-		return derr.NewErrorWithStatusCode(fmt.Errorf("Unable to get stdio streams for calling client"), http.StatusInternalServerError)
+		return InternalServerError("Unable to get stdio streams for calling client")
 	}
 
 	if !vc.Config.Tty && ca.MuxStreams {
@@ -1181,16 +1155,12 @@ func copyStdOut(ctx context.Context, pl *client.PortLayer, attemptTimeout time.D
 	log.Debugf("* stdout attach end %s", time.Now().Format(time.UnixDate))
 	if err != nil {
 		if _, ok := err.(*interaction.ContainerGetStdoutNotFound); ok {
-			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
+			return NotFoundError(name)
 		}
-
 		if _, ok := err.(*interaction.ContainerGetStdoutInternalServerError); ok {
-			return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from the interaction port layer"),
-				http.StatusInternalServerError)
+			return InternalServerError(err.Error())
 		}
-
-		unknownErrMsg := fmt.Errorf("Unknown error from the interaction port layer: %s", err)
-		return derr.NewErrorWithStatusCode(unknownErrMsg, http.StatusInternalServerError)
+		return InternalServerError(err.Error())
 	}
 
 	return nil
@@ -1203,16 +1173,13 @@ func copyStdErr(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicC
 
 	if err != nil {
 		if _, ok := err.(*interaction.ContainerGetStderrNotFound); ok {
-			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
+			return NotFoundError(name)
 		}
 
 		if _, ok := err.(*interaction.ContainerGetStderrInternalServerError); ok {
-			return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from the interaction port layer"),
-				http.StatusInternalServerError)
+			return NotFoundError(name)
 		}
-
-		unknownErrMsg := fmt.Errorf("Unknown error from the interaction port layer: %s", err)
-		return derr.NewErrorWithStatusCode(unknownErrMsg, http.StatusInternalServerError)
+		return InternalServerError(err.Error())
 	}
 
 	return nil
@@ -1370,7 +1337,7 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	defer trace.End(trace.Begin("Container.validateCreateConfig"))
 
 	if config.HostConfig == nil || config.Config == nil || config.NetworkingConfig == nil {
-		return derr.NewErrorWithStatusCode(fmt.Errorf("Container.validateCreateConfig: invalid config"), http.StatusBadRequest)
+		return BadRequestError("invalid config")
 	}
 
 	// validate port bindings
@@ -1378,12 +1345,12 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 		for _, pbs := range config.HostConfig.PortBindings {
 			for _, pb := range pbs {
 				if pb.HostIP != "" {
-					return derr.NewErrorWithStatusCode(fmt.Errorf("host IP is not supported for port bindings"), http.StatusInternalServerError)
+					return InternalServerError("host IP is not supported for port bindings")
 				}
 
 				start, end, _ := nat.ParsePortRangeToInt(pb.HostPort)
 				if start != end {
-					return derr.NewErrorWithStatusCode(fmt.Errorf("host port ranges are not supported for port bindings"), http.StatusInternalServerError)
+					return InternalServerError("host port ranges are not supported for port bindings")
 				}
 			}
 		}
@@ -1392,8 +1359,7 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	// TODO(jzt): users other than root are not currently supported
 	// We should check for USER in config.Config.Env once we support Dockerfiles.
 	if config.Config.User != "" && config.Config.User != "root" {
-		return derr.NewErrorWithStatusCode(fmt.Errorf("Failed to create container - users other than root are not currently supported"),
-			http.StatusInternalServerError)
+		return InternalServerError("Failed to create container - users other than root are not currently supported")
 	}
 
 	// https://github.com/vmware/vic/issues/1378
@@ -1432,13 +1398,12 @@ func ContainerSignal(containerID string, sig uint64) error {
 	// Get an API client to the portlayer
 	client := PortLayerClient()
 	if client == nil {
-		return derr.NewErrorWithStatusCode(fmt.Errorf("container.ContainerResize failed to create a portlayer client"),
-			http.StatusInternalServerError)
+		return InternalServerError("ContainerSignal failed to create a portlayer client")
 	}
 
 	params := containers.NewContainerSignalParamsWithContext(ctx).WithID(containerID).WithSignal(int64(sig))
 	if _, err := client.Containers.ContainerSignal(params); err != nil {
-		return derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		return InternalServerError(err.Error())
 	}
 
 	return nil
