@@ -12,37 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package guest
+package event
 
-import (
-	"os/user"
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/vmware/vmw-guestinfo/vmcheck"
+const (
+	ContainerCreated      = "Created"
+	ContainerShutdown     = "Shutdown"
+	ContainerPoweredOn    = "PoweredOn"
+	ContainerPoweredOff   = "PoweredOff"
+	ContainerSuspended    = "Suspended"
+	ContainerResumed      = "Resumed"
+	ContainerRemoved      = "Removed"
+	ContainerReconfigured = "Reconfigured"
 )
 
-func TestUUID(t *testing.T) {
-	if !vmcheck.IsVirtualWorld() {
-		t.Skip("can get uuid if not running on a vm")
-	}
-	// need to be root and on esx to run this test
-	u, err := user.Current()
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if u.Uid != "0" {
-		t.SkipNow()
-		return
-	}
-
-	s, err := UUID()
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if !assert.NotNil(t, s) {
-		return
-	}
+type Event interface {
+	// id of event
+	EventID() int
+	// event (PowerOn, PowerOff, etc)
+	String() string
+	// reference evented object
+	Reference() string
+	// event message
+	Message() string
 }

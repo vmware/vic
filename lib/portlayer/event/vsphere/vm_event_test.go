@@ -12,37 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package guest
+package vsphere
 
 import (
-	"os/user"
 	"testing"
 
+	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/portlayer/event"
+
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/vmw-guestinfo/vmcheck"
 )
 
-func TestUUID(t *testing.T) {
-	if !vmcheck.IsVirtualWorld() {
-		t.Skip("can get uuid if not running on a vm")
-	}
-	// need to be root and on esx to run this test
-	u, err := user.Current()
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if u.Uid != "0" {
-		t.SkipNow()
-		return
-	}
-
-	s, err := UUID()
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if !assert.NotNil(t, s) {
-		return
-	}
+func TestNewEvent(t *testing.T) {
+	vm := newVMMO()
+	k := 1
+	msg := "jojo the idiot circus boy"
+	vmwEve := &types.VmPoweredOnEvent{VmEvent: types.VmEvent{Event: types.Event{FullFormattedMessage: msg, Key: int32(k), Vm: &types.VmEventArgument{Vm: *vm}}}}
+	vme := NewVMEvent(vmwEve)
+	assert.NotNil(t, vme)
+	assert.Equal(t, event.ContainerPoweredOn, vme.String())
+	assert.Equal(t, vm.String(), vme.Reference())
+	assert.Equal(t, k, vme.EventID())
+	assert.Equal(t, msg, vme.Message())
 }

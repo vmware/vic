@@ -96,6 +96,8 @@ type Create struct {
 	memoryReservLimits string
 	cpuReservLimits    string
 
+	BridgeIPRange string
+
 	executor *management.Dispatcher
 }
 
@@ -141,6 +143,12 @@ func (c *Create) Flags() []cli.Flag {
 			Value:       "",
 			Usage:       "The bridge network (private port group for containers). Default to Virtual Container Host name",
 			Destination: &c.BridgeNetworkName,
+		},
+		cli.StringFlag{
+			Name:        "bridge-network-range, bnr",
+			Value:       "172.16.0.0/12",
+			Usage:       "The ip range from which bridge networks are allocated",
+			Destination: &c.BridgeIPRange,
 		},
 		cli.StringFlag{
 			Name:        "external-network, en",
@@ -213,12 +221,6 @@ func (c *Create) Flags() []cli.Flag {
 			Name:  "pool-cpu-shares, pcs",
 			Value: flags.NewSharesFlag(&c.VCHCPUShares),
 			Usage: "VCH vCPUs shares, in level or share number, e.g. high, normal, low, or 4000",
-		},
-		cli.StringFlag{
-			Name:        "bridge-network-range, bnr",
-			Value:       "172.16.0.0/12",
-			Usage:       "The ip range from which bridge networks are allocated",
-			Destination: &c.BridgeIPRange,
 		},
 		cli.StringFlag{
 			Name:        "appliance-iso, ai",
@@ -337,6 +339,10 @@ func (c *Create) processParams() error {
 		return err
 	}
 
+	if err := c.processBridgeNetwork(); err != nil {
+		return err
+	}
+
 	if err := c.processVolumeStores(); err != nil {
 		return errors.Errorf("Error occurred while processing volume stores: %s", err)
 	}
@@ -348,6 +354,17 @@ func (c *Create) processParams() error {
 	c.osType = "linux"
 
 	c.Insecure = true
+	return nil
+}
+
+func (c *Create) processBridgeNetwork() error {
+	// bridge network params
+	var err error
+
+	_, c.Data.BridgeIPRange, err = net.ParseCIDR(c.BridgeIPRange)
+	if err != nil {
+		return cli.NewExitError(fmt.Sprintf("Error parsing bridge network ip range: %s. Range must be in CIDR format, e.g., 172.16.0.0/12", err), 1)
+	}
 	return nil
 }
 

@@ -70,6 +70,8 @@ Get Docker Params
 Install VIC Appliance To Test Server
     [Arguments]  ${certs}=${false}  ${vol}=default
     Set Test Environment Variables  ${certs}  ${vol}
+    # disable firewall
+    Run  govc host.esxcli network firewall set -e false
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
