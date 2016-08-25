@@ -376,20 +376,20 @@ func (v *Validator) compatibility(ctx context.Context, conf *config.VirtualConta
 			v.NoteIssue(err)
 		}
 		if len(datastores) != 1 {
-			// this is basically an assert, at this point DatastoreList should absolutely only return one result
+			// this is basically an assert; at this point DatastoreList should absolutely only return one result
 			v.NoteIssue(errors.Errorf("Looking up datastore %s returned %d results.", u.String(), len(datastores)))
 		}
 		if !v.isTargetDatastoreWriteable(ctx, datastores[0]) {
-			v.NoteIssue(error.Errorf("Datastore %s is not writeable by the compute resource provided by --compute-resource", u.String()))
+			v.NoteIssue(errors.Errorf("Datastore %s is not writeable by the compute resource provided by --compute-resource", u.String()))
 		}
 	}
 
 	// call above closure on each of the collections of datastores that we have in the config
 	for _, u := range conf.ImageStores {
-		checkDS(u)
+		checkDS(&u)
 	}
 	for _, u := range conf.ContainerStores {
-		checkDS(u)
+		checkDS(&u)
 	}
 
 	for _, u := range conf.VolumeLocations {
