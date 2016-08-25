@@ -35,7 +35,7 @@ If you are using a vSAN environment or non-default ESX install, then you can als
 
   build:
     integration-test:
-      image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.4}
+      image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.5}
       pull: true
       environment:
         BIN: bin
