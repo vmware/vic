@@ -10,7 +10,7 @@ The vSphere Integrated Containers installation and management utility, `vic-mach
 |---|---|
 |Windows|7, 10|
 |Mac OS X |10.11 (El Capitan)|
-|Linux|Ubuntu 15.04|
+|Linux|Ubuntu 16.04 LTS|
 |Photon OS|1.0|
 
 ## Supported vSphere Configurations ##
