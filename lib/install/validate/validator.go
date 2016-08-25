@@ -365,8 +365,37 @@ func (v *Validator) compatibility(ctx context.Context, conf *config.VirtualConta
 		return
 	}
 
+	// check session's datastore(s) exist
 	_, err := v.Session.Datastore.AttachedClusterHosts(v.Context, v.Session.Cluster)
 	v.NoteIssue(err)
+
+	type Stringable interface {
+		String()
+	}
+	getDatastores := func(s []Stringable) []*object.Datastore {
+		datastores := new([]*object.Datastore)
+		for _, i := range s {
+			_, ds, err := v.DatastoreHelper(i.String())
+			if err != nil {
+				v.NoteIssue(err)
+				continue
+			}
+			datastores = append(datastores, ds)
+		}
+		return datastores
+	}
+
+	for _, ds := range getDatastores(conf.ImageStores) {
+		v.isTargetDatastoreWriteable(ctx, ds)
+	}
+
+	for _, ds := range getDatastores(conf.VolumeLocations) {
+		v.isTargetDatastoreWriteable(ctx, ds)
+	}
+
+	for _, ds := range getDatastores(conf.ContainerStores) {
+		v.isTargetDatastoreWriteable(ctx, ds)
+	}
 }
 
 func (v *Validator) computePathToInventoryPath(path string) string {
@@ -485,4 +514,62 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.Virtua
 	dconfig.VCHSize.Memory.Shares = input.VCHMemoryShares
 
 	return &dconfig
+}
+
+// checks if a given datastore ds is writeable by compute resource specified on cmd line --compute-resource
+func (v *Validator) isTargetDatastoreWriteable(ctx context.Context, ds *object.Datastore) bool {
+	defer trace.End(trace.Begin(ds.String()))
+
+	// get compute hosts if we haven't run this method on this object before
+	if len(v.computeHosts) == 0 {
+		var err error
+		v.computeHosts, err = v.Session.Cluster.Hosts(ctx)
+		if err != nil {
+			v.NoteIssue(err)
+			return false
+		}
+		// v.computeHosts shouldn't be zero anymore; if it still is, there's a problem
+		if len(v.computeHosts) == 0 {
+			v.NoteIssue(errors.New("Couldn't get list of hosts connected to target cluster"))
+			return false
+		}
+	}
+
+	// now get hosts connected to ds
+	attachedHosts, err := ds.AttachedClusterHosts(ctx, v.Session.Cluster)
+	if err != nil {
+		v.NoteIssue(err)
+		return false
+	}
+
+	if len(attachedHosts) == 0 {
+		// this could mean that we're not operating on a cluster..
+		log.Debugf("AttachedClusterHosts returned nothing; searching for unclustered hosts connected to datastore %s", ds.String())
+		attachedHosts, err := ds.AttachedHosts(ctx)
+
+		if err != nil {
+			v.NoteIssue(err)
+			return false
+		}
+
+		if len(attachedHosts) == 0 {
+			// shouldn't be possible to wind up here, but we should get an error message if we do ¯\_(ツ)_/¯
+			v.NoteIssue(errors.Errorf("No attached hosts found for datastore %s", ds.String()))
+			return false
+		}
+	}
+
+	// find a common host in the two lists
+	for _, c := range v.computeHosts {
+		for _, a := range attachedHosts {
+			if c.Reference() == a.Reference() {
+				return true
+			}
+		}
+	}
+
+	// no common host found -- erroneous user input
+	v.NoteIssue(errors.Errorf("Datastore %s is not writeable from the compute resource specified under --compute-resource", ds.String()))
+	return false
+
 }
