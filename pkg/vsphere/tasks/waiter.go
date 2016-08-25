@@ -24,11 +24,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/progress"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/pkg/errors"
 )
 
 const (
