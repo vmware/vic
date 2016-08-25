@@ -60,7 +60,7 @@ Short name: `-i`
 
 The datastore in which to store container image files. When you deploy a virtual container host, `vic-machine` creates a folder named `VIC` on the target datastore,  in which to store all of the container images that you pull into a virtual container host. The `vic-machine` utility also places the VM files for the virtual container host in the datastore that you designate as the image store, in a folder that has the same name as the virtual container host. 
 
-If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `image-store` option must be shared by all of the ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability.
+If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `image-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability.
 
 You can designate the same datastore as the image store for multiple virtual container hosts. In this case, only one `VIC` folder is created in the datastore and the container image files are made available to all of the virtual container hosts that use that image store.
 
@@ -78,24 +78,26 @@ Wrap the datastore name or path in single quotes (Linux or Mac OS) or double quo
 
 If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores.
 
-**NOTE**: In the current builds the `container-datastore` option is not enabled. As a consequence, container VM files are also stored in the datastore that you designate as the image store.
+**NOTE**: In the current builds the `container-store` option is not enabled. As a consequence, container VM files are also stored in the datastore that you designate as the image store.
 
 <a name="bridge"></a>
 ### `bridge-network` ###
 
 Short name: `-b`
 
-The network that container VMs use to communicate with each other. You can assign the same bridge network to multiple virtual container hosts.
-
-**IMPORTANT** The bridge network is used exclusively by vSphere Integrated Containers. You cannot use the network that you specify in the `bridge-network` option as the target for any of the other `vic-machine create` networking options.
-
-The `bridge-network` option is **optional** when you are deploying a virtual container host to an ESXi host with no vCenter Server. In this case, if you do not specify `bridge-network`, `vic-machine` creates a  virtual switch and a port group that each have the same name as the virtual container host. You can optionally specify this option to assign an existing port group for use as the bridge network for container VMs. You can also optionally specify this option to create a new virtual switch and port group that have a different name to the virtual container host.
+A distributed port group that container VMs use to communicate with each other. 
 
 The `bridge-network` option is **mandatory** if you are deploying a virtual container host to vCenter Server.
 
 In a vCenter Server environment, before you run `vic-machine create`, you must create a distributed virtual switch and a distributed port group. You must add the target ESXi host or hosts to the distributed virtual switch. For information about how to create a distributed virtual switch and port group, see *Network Requirements* in [Environment Prerequisites for vSphere Integrated Containers Installation](vic_installation_prereqs.md#networkreqs).
 
-You pass the name of the distributed port group to the `bridge-network` option. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+You pass the name of the distributed port group to the `bridge-network` option. Each virtual container host requires its own distributed port group. Do not share a distributed port group between multiple virtual container hosts. 
+
+If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+
+The `bridge-network` option is **optional** when you are deploying a virtual container host to an ESXi host with no vCenter Server. In this case, if you do not specify `bridge-network`, `vic-machine` creates a  virtual switch and a port group that each have the same name as the virtual container host. You can optionally specify this option to assign an existing port group for use as the bridge network for container VMs. You can also optionally specify this option to create a new virtual switch and port group that have a different name to the virtual container host.
+
+**IMPORTANT** The bridge network is used exclusively by a virtual container host. You cannot use the distributed port group that you specify in the `bridge-network` option as the target for any of the other `vic-machine create` networking options.
 
 <pre>--bridge-network <i>distributed_port_group_name</i></pre>
 
@@ -268,30 +270,34 @@ The `vic-machine` utility allows you to specify the datastores in which to store
 
 See [image-store](#image) in the section on mandatory options.
 
-### `container-datastore` ###
+### `container-store` ###
 
 Short name: `--cs`
 
 The datastore in which to store container VM files. When you run a container, container VM files are stored in folders at the top level of the designated datastore. If multiple virtual container hosts use the same container store, all of the container VM files appear at the top level of the container store. You cannot currently designate a specific datastore folder for the VM files of the containers that run in a particular virtual container host.
 
-If you do not specify the `container-datastore` option, vSphere Integrated Containers stores container VM files in the same datastore that you specify in the mandatory `image-store` option.
+If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `container-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability.
+
+If you do not specify the `container-store` option, vSphere Integrated Containers stores container VM files in the same datastore that you specify in the mandatory `image-store` option.
 
 If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores.
 
-<pre>--container-datastore <i>datastore_name</i></pre>
+<pre>--container-store <i>datastore_name</i></pre>
 
 Wrap the datastore name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
 
-<pre>--container-datastore '<i>datastore name</i>'</pre>
+<pre>--container-store '<i>datastore name</i>'</pre>
 
-**NOTE**: In the current builds the `container-datastore` option is not enabled. Container VM files are stored in the datastore that you designate as the image store. 
+**NOTE**: In the current builds the `container-store` option is not enabled. Container VM files are stored in the datastore that you designate as the image store. 
 
 <a name="volume-store"></a>
 ### `volume-store` ###
 
 Short name: `--vs`
 
-The datastore in which to create volumes when using the `docker volume create` command. When you specify the `volume-store` option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores.
+The datastore in which to create volumes when using the `docker volume create` command. When you specify the `volume-store` option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores. 
+
+If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `volume-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability.
 
 The label that you specify is the volume store name that Docker uses. For example, the volume store label appears in the information for a virtual container host when container application developers run `docker info`. Container application developers also specify the volume store label in the <code>docker volume create --opt VolumeStore=<i>volume_store_label</i></code> option when they create a  volume.
 

@@ -27,7 +27,7 @@ Deploying vSphere Integrated Containers to a vCenter Server instance that is run
 
 To be valid targets for virtual container hosts and container VMs, standalone ESXi hosts and all ESXi hosts in vCenter Server clusters must meet the following criteria:
 
-- All ESXi hosts must be attached to shared storage for use as container datastores, image datastores, and volume stores. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability. The use of VMware Virtual SAN datastores is fully supported.
+- In vCenter Server clusters, at least two ESXi hosts must be attached to shared storage for use as container stores, image stores, and volume stores. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability. The use of VMware Virtual SAN datastores is fully supported.
 - The firewall on all ESXi hosts must be configured to allow connections on the back channel and to allow outbound connections on port 2377. For instruction about how to open port 2377 on ESXi hosts, see [VCH Deployment Fails with Firewall Validation Error](ts_firewall_error.md).
 - All ESXi hosts must be attached to the distributed virtual switch for the bridge network in vCenter Server. For more information about distributed virtual switches, see [Network Requirements](#networkreqs) below.
 - All ESXi hosts must be attached to any mapped vSphere networks.
