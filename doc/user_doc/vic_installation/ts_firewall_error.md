@@ -1,25 +1,26 @@
 # VCH Deployment Fails with Firewall Validation Error #
-When you use `vic-machine create` to deploy a virtual container host, deployment fails because a firewall port 2377 is not open.
+When you use `vic-machine create` to deploy a virtual container host, deployment fails because firewall port 2377 is not open on the target ESXi host or hosts.
 
 ## Problem ##
-Deployment fails with an error during the validation phase: 
+Deployment fails with a firewall error during the validation phase: 
 
 <pre>Firewall must permit 2377/tcp outbound to use VIC.</pre>
 
 ## Cause ##
-ESXi hosts communicate with the virtual container hosts via port 2377. For deployment of a virtual container host to succeed, port 2377 must be open for outgoing connections on all all ESXi hosts before you run vic-machine create. Opening port 2377 for outgoing connections on ESXi hosts opens port 2377 for inbound connections on the virtual container hosts.
+ESXi hosts communicate with the virtual container hosts via port 2377. For deployment of a virtual container host to succeed, port 2377 must be open for outgoing connections on all all ESXi hosts before you run `vic-machine create`. Opening port 2377 for outgoing connections on ESXi hosts opens port 2377 for inbound connections on the virtual container hosts.
 
 ## Solution ##
 
-In test environments, you can disable the firewalls on the ESXi hosts instead of opening port 2377. To disable the firewall, log into the ESXi hosts as ```root```, and run the following command: 
-   
-   ```$ esxcli network firewall set --enabled false``` 
+Set a firewall ruleset on the ESXi host or hosts. In test environments, you can disable the firewall on the hosts.
+
+### Set a Firewall Ruleset Manually 
 
 In production environments, if you are deploying to a standalone ESXi host, set a firewall ruleset on that ESXi host. If you are deploying to a cluster, set the firewall ruleset on all of the ESXi hosts in the cluster.
 
-**IMPORTANT**: Firewall rules that you set manually are not persistent. If you reboot the ESXi hosts, any firewall rules that you set are lost. You must recreate firewall rules each time you reboot a host.
+**IMPORTANT**: Firewall rulesets that you set manually are not persistent. If you reboot the ESXi hosts, any firewall rules that you set are lost. You must recreate firewall rules each time you reboot a host.
 
-To set a firewall rule manually, log into each ESXi host via SSH and following the instructions in [VMware KB 2008226]( http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=2008226) to add the following rule after the last rule in the file ```/etc/vmware/firewall/service.xml```.
+1. Use SSH to log in to each ESXi host as `root` user. 
+2. Follow the instructions in [VMware KB 2008226]( http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=2008226) to add the following rule after the last rule in the file ```/etc/vmware/firewall/service.xml```.
 <pre>
 &lt;service id='<i>id_number</i>'&gt;
   &lt;id&gt;vicoutgoing&lt;/id&gt;
@@ -34,4 +35,13 @@ To set a firewall rule manually, log into each ESXi host via SSH and following t
 </pre>
 
   
-In this example, *id_number* is the number of the preceding ruleset in ```service.xml```, incremented by 1.
+  In this example, *id_number* is the number of the preceding ruleset in ```service.xml```, incremented by 1.
+
+### Disable the Firewall
+
+In test environments, you can disable the firewalls on the ESXi hosts instead of opening port 2377. 
+ 
+1. Use SSH to log in to each ESXi host as `root` user. 
+2. Run the following command: 
+
+  ```$ esxcli network firewall set --enabled false``` 
