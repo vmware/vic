@@ -91,7 +91,9 @@ The `bridge-network` option is **mandatory** if you are deploying a virtual cont
 
 In a vCenter Server environment, before you run `vic-machine create`, you must create a distributed virtual switch and a distributed port group. You must add the target ESXi host or hosts to the distributed virtual switch. For information about how to create a distributed virtual switch and port group, see *Network Requirements* in [Environment Prerequisites for vSphere Integrated Containers Installation](vic_installation_prereqs.md#networkreqs).
 
-You pass the name of the distributed port group to the `bridge-network` option. Each virtual container host requires its own distributed port group. Do not share a distributed port group between multiple virtual container hosts. 
+You pass the name of the distributed port group to the `bridge-network` option. Each virtual container host requires its own distributed port group. 
+
+**IMPORTANT** Do not assign the same distributed port group to multiple virtual container hosts. Sharing a distributed port group between virtual container hosts might result in multiple container VMs being assigned the same IP address.
 
 If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
