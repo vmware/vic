@@ -75,6 +75,8 @@ type VicContainerProxy interface {
 	CommitContainerHandle(handle, imageID string) error
 	StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
 	ContainerRunning(vc *viccontainer.VicContainer) (bool, error)
+
+	Client() *client.PortLayer
 }
 
 type ContainerProxy struct {
@@ -106,6 +108,10 @@ var (
 // NewContainerProxy creates a new ContainerProxy
 func NewContainerProxy(plClient *client.PortLayer, portlayerAddr string, portlayerName string) *ContainerProxy {
 	return &ContainerProxy{client: plClient, portlayerAddr: portlayerAddr, portlayerName: portlayerName}
+}
+
+func (c *ContainerProxy) Client() *client.PortLayer {
+	return c.client
 }
 
 // CreateContainerHandle creates a new VIC container by calling the portlayer
