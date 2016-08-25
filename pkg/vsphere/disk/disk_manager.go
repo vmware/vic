@@ -235,7 +235,7 @@ func (m *Manager) Attach(ctx context.Context, disk *types.VirtualDisk) error {
 	machineSpec := types.VirtualMachineConfigSpec{}
 	machineSpec.DeviceChange = append(machineSpec.DeviceChange, changeSpec...)
 
-	_, err = tasks.Retry(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return m.vm.Reconfigure(ctx, machineSpec)
 	})
 
@@ -278,9 +278,10 @@ func (m *Manager) Detach(ctx context.Context, d *VirtualDisk) error {
 
 	spec.DeviceChange = config
 
-	_, err = tasks.Retry(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return m.vm.Reconfigure(ctx, spec)
 	})
+
 	if err != nil {
 		log.Warnf("detach for %s failed with %s", d.DevicePath, errors.ErrorStack(err))
 		return errors.Trace(err)
