@@ -81,7 +81,7 @@ In addition to the mandatory options for deployment to a cluster, this example s
 --password <i>vcenter_sso_password</i>
 --compute-resource <i>cluster_name</i>
 --image-store <i>datastore_1_name</i>
---container-datastore <i>datastore_2_name</i>
+--container-store <i>datastore_2_name</i>
 --bridge-network <i>network_1_name</i>
 --name vch1
 </pre>
@@ -94,7 +94,7 @@ It is also possible to specify a specific folder in which to store your images, 
 --password <i>vcenter_sso_password</i>
 --compute-resource <i>cluster_name</i>
 --image-store <i>datastore_1_name/path/to/some/specific/location</i>
---container-datastore <i>datastore_2_name</i>
+--container-store <i>datastore_2_name</i>
 --bridge-network <i>network_1_name</i>
 --name vch1
 </pre>
