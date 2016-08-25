@@ -17,6 +17,7 @@
 package tasks
 
 import (
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -91,10 +92,11 @@ func WaitForResult(ctx context.Context, f func(context.Context) (ResultWaiter, e
 						backoffFactor *= 2
 					}
 				case <-ctx.Done():
-					log.Errorf("Context Deadline Exceeded while trying to Retry task : %#v", taskInfo)
-					return nil, ctx.Err()
+					err = fmt.Errorf("%s while retrying task %#v", ctx.Err(), taskInfo)
+					log.Error(err)
+					return nil, err
 				}
-				log.Infof("Retrying Task due to TaskInProgressFault: %s", taskInfo.Task.Reference())
+				log.Warnf("Retrying Task due to TaskInProgressFault: %s", taskInfo.Task.Reference())
 				continue
 			}
 		}
