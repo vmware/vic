@@ -52,14 +52,16 @@ Wrap the user name in single quotes (Linux or Mac OS) or double quotes (Windows)
 <pre>--user '<i>esxi_or_vcenter_server_usern@me</i>'</pre>
 
 
-You can also specify the username in the URL that you pass to `vic-machine create` in the `target` option.
+You can also specify the username in the URL that you pass to `vic-machine create` in the `target` option, in which case the `user` option is not required.
 
 <a name="image"></a>
 ### `image-store` ###
 
 Short name: `-i`
 
-The datastore in which to store container image files. When you deploy a virtual container host, `vic-machine` creates a folder named `VIC` on the target datastore,  in which to store all of the container images that you pull into a virtual container host. The `vic-machine` utility also places the VM files for the virtual container host in the datastore that you designate as the image store, in a folder that has the same name as the virtual container host. 
+The datastore in which to store container image files. The `image-store` option is **mandatory** if there is more than one datastore in your vSphere environment. If there is only one datastore in your vSphere environment, the `image-store` option is not required. 
+
+When you deploy a virtual container host, `vic-machine` creates a folder named `VIC` on the target datastore,  in which to store all of the container images that you pull into a virtual container host. The `vic-machine` utility also places the VM files for the virtual container host in the datastore that you designate as the image store, in a folder that has the same name as the virtual container host. 
 
 If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `image-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability.
 
