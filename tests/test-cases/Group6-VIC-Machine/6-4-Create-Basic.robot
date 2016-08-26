@@ -24,6 +24,8 @@ Create VCH - custom base disk
     Log To Console  ${output}
     ${output}=  Run  grep rootfs ${vch-name}-logs/df | awk '{print $2}'
     Should Be Equal As Numbers  ${output}  964320
+    ${status}=  Get State Of Github Issue  1109
+    Run Keyword If  '${status}' == 'closed'  Fail  6-4-Create-Basic.robot needs to be updated now that Issue #1109 has been resolved
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
