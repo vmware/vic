@@ -16,6 +16,7 @@ package data
 
 import (
 	"net"
+	"net/url"
 	"time"
 
 	"github.com/vmware/govmomi/vim25/types"
@@ -62,6 +63,8 @@ type Data struct {
 	VCHMemoryShares         *types.SharesInfo
 
 	BridgeIPRange *net.IPNet
+
+	InsecureRegistries []url.URL
 
 	NumCPUs  int
 	MemoryMB int
