@@ -90,6 +90,10 @@ func TestRestart(t *testing.T) {
 	// read the output from the session
 	log := Mocked.SessionLogBuffer.Bytes()
 
+	// the tether has to be stopped before comparison on the reaper may swaller exec.Wait
+	tthr.Stop()
+	<-Mocked.Cleaned
+
 	// run the command directly
 	out, err := exec.Command("/bin/date", "--reference=/").Output()
 	if err != nil {

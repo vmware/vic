@@ -19,9 +19,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vmware/vmw-guestinfo/vmcheck"
 )
 
 func TestUUID(t *testing.T) {
+	if !vmcheck.IsVirtualWorld() {
+		t.Skip("can get uuid if not running on a vm")
+	}
 	// need to be root and on esx to run this test
 	u, err := user.Current()
 	if !assert.NoError(t, err) {

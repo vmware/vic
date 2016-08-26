@@ -15,6 +15,7 @@
 package validate
 
 import (
+	"net"
 	"net/url"
 	"testing"
 
@@ -132,7 +133,7 @@ func getESXData(url *url.URL) *data.Data {
 	result.ComputeResourcePath = "/ha-datacenter/host/localhost.localdomain/Resources"
 	result.ImageDatastorePath = "LocalDS_0"
 	result.BridgeNetworkName = "bridge"
-	result.BridgeIPRange = "172.16.0.0/12"
+	_, result.BridgeIPRange, _ = net.ParseCIDR("172.16.0.0/12")
 	result.ManagementNetworkName = "VM Network"
 	result.ExternalNetworkName = "VM Network"
 	result.VolumeLocations = make(map[string]string)
@@ -150,7 +151,7 @@ func getVPXData(url *url.URL) *data.Data {
 	result.ImageDatastorePath = "LocalDS_0"
 	result.ExternalNetworkName = "VM Network"
 	result.BridgeNetworkName = "bridge"
-	result.BridgeIPRange = "172.16.0.0/12"
+	_, result.BridgeIPRange, _ = net.ParseCIDR("172.16.0.0/12")
 	result.VolumeLocations = make(map[string]string)
 	result.VolumeLocations["volume-store"] = "LocalDS_0/volumes/test"
 
@@ -261,7 +262,7 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 			map[string]string{"volume1": "LocalDS_0/volumes/volume1",
 				"volume2": "ds://LocalDS_0/volumes/volume2"},
 			false,
-			"ds://LocalDS_0/test001/images",
+			"ds://LocalDS_0/test001",
 			map[string]string{"volume1": "ds://LocalDS_0/volumes/volume1",
 				"volume2": "ds://LocalDS_0/volumes/volume2"}},
 
@@ -293,28 +294,28 @@ func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHo
 			map[string]string{"volume1": "😗/volumes/volume1",
 				"volume2": "ds://😗/volumes/volume2"},
 			true,
-			"ds://😗/test001/images",
+			"ds://😗/test001",
 			nil},
 
 		{"ds://LocalDS_0",
 			map[string]string{"volume1": "LocalDS_1/volumes/volume1",
 				"volume2": "ds://LocalDS_1/volumes/volume2"},
 			true,
-			"ds://LocalDS_0/test001/images",
+			"ds://LocalDS_0/test001",
 			nil},
 
 		{"LocalDS_0",
 			map[string]string{"volume1": "LocalDS_1/volumes/volume1",
 				"volume2": "ds://LocalDS_1/volumes/volume2"},
 			true,
-			"ds://LocalDS_0/test001/images",
+			"ds://LocalDS_0/test001",
 			nil},
 
 		{"LocalDS_0",
 			map[string]string{"volume1": "LocalDS_1/volumes/volume1",
 				"volume2": "ds://LocalDS_1/volumes/volume2"},
 			true,
-			"ds://LocalDS_0/test001/images",
+			"ds://LocalDS_0/test001",
 			nil},
 
 		{"",

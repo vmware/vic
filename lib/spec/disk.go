@@ -68,7 +68,7 @@ func (s *VirtualMachineConfigSpec) AddVirtualDisk(device *types.VirtualDisk) *Vi
 		ThinProvisioned: types.NewBool(true),
 
 		VirtualDeviceFileBackingInfo: types.VirtualDeviceFileBackingInfo{
-			FileName:  s.Datastore.Path(fmt.Sprintf("%s/%[1]s.vmdk", s.ID())),
+			FileName:  s.Datastore.Path(fmt.Sprintf("%s/%s.vmdk", s.config.VMFullName, s.ID())),
 			Datastore: &moref,
 		},
 	}

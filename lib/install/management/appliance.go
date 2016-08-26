@@ -35,6 +35,7 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
@@ -47,6 +48,8 @@ import (
 
 	"golang.org/x/net/context"
 )
+
+const portLayerPort = constants.SerialOverLANPort
 
 var (
 	lastSeenProgressMessage string
@@ -477,7 +480,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 				//FIXME: hack during config migration
 				"-serveraddr=0.0.0.0",
 				"-port=" + d.DockerPort,
-				"-port-layer-port=8080",
+				fmt.Sprintf("-port-layer-port=%d", portLayerPort),
 			},
 			Env: []string{
 				"PATH=/sbin",
@@ -494,7 +497,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 				"/sbin/port-layer-server",
 				//FIXME: hack during config migration
 				"--host=localhost",
-				"--port=8080",
+				fmt.Sprintf("--port=%d", portLayerPort),
 				"--insecure",
 				"--sdk=" + conf.Target.String(),
 				"--datacenter=" + settings.DatacenterName,
@@ -617,6 +620,7 @@ func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHos
 		client *http.Client
 		res    *http.Response
 		err    error
+		req    *http.Request
 	)
 
 	if conf.HostCertificate.IsNil() {
@@ -634,18 +638,31 @@ func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHos
 	}
 
 	dockerInfoURL := fmt.Sprintf("%s://%s:%s/info", proto, d.HostIP, d.DockerPort)
-	maxRetries := 10
-	for i := 0; i < maxRetries; i++ {
-		res, err = client.Get(dockerInfoURL)
+	req, err = http.NewRequest("GET", dockerInfoURL, nil)
+	if err != nil {
+		return errors.New("invalid HTTP request for docker info")
+	}
+	req = req.WithContext(d.ctx)
+
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		res, err = client.Do(req)
 		if err == nil && res.StatusCode == http.StatusOK {
 			if isPortLayerRunning(res) {
-				return nil
+				break
 			}
 		}
-		time.Sleep(time.Second)
+
+		select {
+		case <-ticker.C:
+		case <-d.ctx.Done():
+			return d.ctx.Err()
+		}
+		log.Debug("Components not initialized yet, retrying docker info request")
 	}
 
-	return errors.New("timed out waiting for appliance components to initialize")
+	return nil
 }
 
 // ensureApplianceInitializes checks if the appliance component processes are launched correctly
@@ -686,7 +703,9 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	// keeping it short
 	ctxerr = d.ctx.Err()
 
-	d.ctx, _ = context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	d.ctx = ctx
 	err := d.applianceConfiguration(conf)
 	if err != nil {
 		return fmt.Errorf("unable to retrieve updated configuration from appliance for diagnostics: %s", err)

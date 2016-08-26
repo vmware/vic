@@ -158,6 +158,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 	// we also need to have the appliance attached to the bridge network to allow
 	// port forwarding
 	conf.AddNetwork(bridgeNet)
+	conf.BridgeIPRange = input.BridgeIPRange
 
 	err = v.checkVDSMembership(ctx, endpointMoref, input.BridgeNetworkName)
 	if err != nil && checkBridgeVDS {

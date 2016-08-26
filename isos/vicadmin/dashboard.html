@@ -44,8 +44,8 @@
               <div class="card card-block">
                 <h3 class="card-title">Status</h3>
                 <div class="row">
-                  <div class="sixty">Containers</div>
-                  <div class="fourty"><i class="icon-ok"></i></div>
+                  <div class="sixty">Virtual Container Host (VCH){{.VCHIssues}}</div>
+                  <div class="fourty">{{.VCHStatus}}</i></div>
                 </div>
                 <div class="row">
                   <div class="sixty">Network Connectivity{{.NetworkIssues}}</div>
@@ -54,10 +54,6 @@
                 <div class="row">
                   <div class="sixty">Firewall{{.FirewallIssues}}</div>
                   <div class="fourty">{{.FirewallStatus}}</div>
-                </div>
-                <div class="row">
-                  <div class="sixty">Virtual Container Host (VCH)</div>
-                  <div class="fourty"><i class="icon-ok"></i></div>
                 </div>
                 <div class="row">
                   <div class="sixty">License{{.LicenseIssues}}</div>

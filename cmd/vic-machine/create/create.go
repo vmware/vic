@@ -50,6 +50,11 @@ const (
 	LinuxImageKey      = "linux"
 	ApplianceImageName = "appliance.iso"
 	LinuxImageName     = "bootstrap.iso"
+
+	// An ISO 9660 sector is normally 2 KiB long. Although the specification allows for alternative sector sizes, you will rarely find anything other than 2 KiB.
+	ISO9660SectorSize = 2048
+	ISOVolumeSector   = 0x10
+	PublisherOffset   = 318
 )
 
 var EntireOptionHelpTemplate = `NAME:
@@ -91,6 +96,8 @@ type Create struct {
 	memoryReservLimits string
 	cpuReservLimits    string
 
+	BridgeIPRange string
+
 	executor *management.Dispatcher
 }
 
@@ -121,9 +128,9 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.ImageDatastorePath,
 		},
 		cli.StringFlag{
-			Name:        "container-datastore, cs",
+			Name:        "container-store, cs",
 			Value:       "",
-			Usage:       "Container datastore name - not supported yet, default to image datastore",
+			Usage:       "Container datastore path - not supported yet, default to image datastore",
 			Destination: &c.ContainerDatastoreName,
 		},
 		cli.StringSliceFlag{
@@ -134,8 +141,14 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "bridge-network, b",
 			Value:       "",
-			Usage:       "The bridge network (private port group for containers)",
+			Usage:       "The bridge network (private port group for containers). Default to Virtual Container Host name",
 			Destination: &c.BridgeNetworkName,
+		},
+		cli.StringFlag{
+			Name:        "bridge-network-range, bnr",
+			Value:       "172.16.0.0/12",
+			Usage:       "The ip range from which bridge networks are allocated",
+			Destination: &c.BridgeIPRange,
 		},
 		cli.StringFlag{
 			Name:        "external-network, en",
@@ -210,12 +223,6 @@ func (c *Create) Flags() []cli.Flag {
 			Usage: "VCH vCPUs shares, in level or share number, e.g. high, normal, low, or 4000",
 		},
 		cli.StringFlag{
-			Name:        "bridge-network-range, bnr",
-			Value:       "172.16.0.0/12",
-			Usage:       "The ip range from which bridge networks are allocated",
-			Destination: &c.BridgeIPRange,
-		},
-		cli.StringFlag{
 			Name:        "appliance-iso, ai",
 			Value:       "",
 			Usage:       "The appliance iso",
@@ -252,7 +259,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.DurationFlag{
 			Name:        "timeout",
 			Value:       3 * time.Minute,
-			Usage:       "Time to wait for appliance initialization",
+			Usage:       "Time to wait for create",
 			Destination: &c.Timeout,
 		},
 		cli.BoolFlag{
@@ -332,6 +339,10 @@ func (c *Create) processParams() error {
 		return err
 	}
 
+	if err := c.processBridgeNetwork(); err != nil {
+		return err
+	}
+
 	if err := c.processVolumeStores(); err != nil {
 		return errors.Errorf("Error occurred while processing volume stores: %s", err)
 	}
@@ -343,6 +354,17 @@ func (c *Create) processParams() error {
 	c.osType = "linux"
 
 	c.Insecure = true
+	return nil
+}
+
+func (c *Create) processBridgeNetwork() error {
+	// bridge network params
+	var err error
+
+	_, c.Data.BridgeIPRange, err = net.ParseCIDR(c.BridgeIPRange)
+	if err != nil {
+		return cli.NewExitError(fmt.Sprintf("Error parsing bridge network ip range: %s. Range must be in CIDR format, e.g., 172.16.0.0/12", err), 1)
+	}
 	return nil
 }
 
@@ -408,7 +430,7 @@ func (c *Create) loadCertificate() (*certificate.Keypair, error) {
 	return keypair, nil
 }
 
-func (c *Create) checkImagesFiles() ([]string, error) {
+func (c *Create) checkImagesFiles(cliContext *cli.Context) (map[string]string, error) {
 	defer trace.End(trace.Begin(""))
 
 	// detect images files
@@ -417,20 +439,20 @@ func (c *Create) checkImagesFiles() ([]string, error) {
 		return nil, fmt.Errorf("Specified OS \"%s\" is not known to this installer", c.osType)
 	}
 
-	var imgs []string
-	var result []string
+	imgs := make(map[string]string)
+	result := make(map[string]string)
 	if c.ApplianceISO == "" {
 		c.ApplianceISO = images[ApplianceImageKey][0]
 	}
-	imgs = append(imgs, c.ApplianceISO)
+	imgs[ApplianceImageName] = c.ApplianceISO
 
 	if c.BootstrapISO == "" {
 		c.BootstrapISO = osImgs[0]
 	}
-	imgs = append(imgs, c.BootstrapISO)
+	imgs[LinuxImageName] = c.BootstrapISO
 
-	for _, img := range imgs {
-		_, err := os.Stat(img)
+	for name, img := range imgs {
+		_, err := os.Open(img)
 		if os.IsNotExist(err) {
 			var dir string
 			dir, err = filepath.Abs(filepath.Dir(os.Args[0]))
@@ -444,13 +466,78 @@ func (c *Create) checkImagesFiles() ([]string, error) {
 			log.Warnf("\t\tUnable to locate %s in the current or installer directory.", img)
 			return nil, err
 		}
-		result = append(result, img)
+
+		version, err := c.getImageVersion(cliContext, img)
+		if err != nil {
+			log.Error(err)
+			return nil, err
+		}
+		versionedName := fmt.Sprintf("%s-%s", version, name)
+		result[versionedName] = img
+		if name == ApplianceImageName {
+			c.ApplianceISO = versionedName
+		} else {
+			c.BootstrapISO = versionedName
+		}
 	}
+
 	return result, nil
 }
 
-func (c *Create) Run(cliContext *cli.Context) error {
-	var err error
+// checkImageVersion will read iso file version from Primary Volume Descriptor, field "Publisher Identifier"
+func (c *Create) getImageVersion(cliContext *cli.Context, img string) (string, error) {
+	f, err := os.Open(img)
+	if err != nil {
+		return "", errors.Errorf("failed to open iso file %q: %s", img, err)
+	}
+	defer f.Close()
+
+	// System area goes from sectors 0x00 to 0x0F. Volume descriptors can be
+	// found starting at sector 0x10
+
+	_, err = f.Seek(int64(ISOVolumeSector*ISO9660SectorSize)+PublisherOffset, 0)
+	if err != nil {
+		return "", errors.Errorf("failed to locate iso version section in file %q: %s", img, err)
+	}
+	publisherBytes := make([]byte, 128)
+	size, err := f.Read(publisherBytes)
+	if err != nil {
+		return "", errors.Errorf("failed to read iso version in file %q: %s", img, err)
+	}
+	if size == 0 {
+		return "", errors.Errorf("version is not set in iso file %q", img)
+	}
+
+	versions := strings.Fields(string(publisherBytes[:size]))
+	version := versions[len(versions)-1]
+	sv := c.getNoCommitHashVersion(version)
+	if sv == "" {
+		log.Debugf("Version is not set in %q", img)
+		version = ""
+	}
+
+	installerSV := c.getNoCommitHashVersion(cliContext.App.Version)
+
+	// here compare version without last commit hash, to make developer life easier
+	if !strings.EqualFold(installerSV, sv) {
+		message := fmt.Sprintf("iso file %q has inconsistent version with installer %q != %q.", img, strings.ToLower(version), cliContext.App.Version)
+		if !c.Force {
+			return "", errors.Errorf("%s. Specify --force to force create. ", message)
+		}
+		log.Warn(message)
+	}
+	return version, nil
+}
+
+func (c *Create) getNoCommitHashVersion(version string) string {
+	i := strings.LastIndex(version, "-")
+	if i == -1 {
+		return ""
+	}
+	return version[:i]
+}
+
+func (c *Create) Run(cliContext *cli.Context) (err error) {
 
 	if c.advancedOptions {
 		cli.HelpPrinter(cliContext.App.Writer, EntireOptionHelpTemplate, cliContext.Command)
@@ -465,8 +552,8 @@ func (c *Create) Run(cliContext *cli.Context) error {
 		return err
 	}
 
-	var images []string
-	if images, err = c.checkImagesFiles(); err != nil {
+	var images map[string]string
+	if images, err = c.checkImagesFiles(cliContext); err != nil {
 		return err
 	}
 
@@ -490,6 +577,12 @@ func (c *Create) Run(cliContext *cli.Context) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
+	defer func() {
+		if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
+			//context deadline exceeded, replace returned error message
+			err = errors.Errorf("Create timed out: use --timeout to add more time")
+		}
+	}()
 
 	validator, err := validate.NewValidator(ctx, c.Data)
 	if err != nil {
@@ -512,7 +605,6 @@ func (c *Create) Run(cliContext *cli.Context) error {
 	vConfig.ImageFiles = images
 	vConfig.ApplianceISO = path.Base(c.ApplianceISO)
 	vConfig.BootstrapISO = path.Base(c.BootstrapISO)
-
 	{ // create certificates for VCH extension
 		var certbuffer, keybuffer bytes.Buffer
 		if certbuffer, keybuffer, err = certificate.CreateRawKeyPair(); err != nil {

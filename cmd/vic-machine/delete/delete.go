@@ -54,7 +54,7 @@ func (d *Uninstall) Flags() []cli.Flag {
 		cli.DurationFlag{
 			Name:        "timeout",
 			Value:       3 * time.Minute,
-			Usage:       "Time to wait to delete vsphere resources",
+			Usage:       "Time to wait for delete",
 			Destination: &d.Timeout,
 		},
 	}
@@ -77,8 +77,7 @@ func (d *Uninstall) processParams() error {
 	return nil
 }
 
-func (d *Uninstall) Run(cli *cli.Context) error {
-	var err error
+func (d *Uninstall) Run(cli *cli.Context) (err error) {
 	if err = d.processParams(); err != nil {
 		return err
 	}
@@ -97,6 +96,12 @@ func (d *Uninstall) Run(cli *cli.Context) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), d.Timeout)
 	defer cancel()
+	defer func() {
+		if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
+			//context deadline exceeded, replace returned error message
+			err = errors.Errorf("Delete timed out: use --timeout to add more time")
+		}
+	}()
 
 	validator, err := validate.NewValidator(ctx, d.Data)
 	if err != nil {

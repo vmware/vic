@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 # Copyright 2016 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -43,7 +43,7 @@ generate_pkg_cover_data() {
     for pkg in "$@"; do
         f="$workdir/$(echo $pkg | tr / -).cover"
         go test -i -covermode="$mode" -coverprofile="$f" "$pkg"
-        go test -covermode="$mode" -coverprofile="$f" "$pkg" || exit
+        go test -covermode="$mode" -coverprofile="$f" "$pkg"
     done
 
     echo "mode: $mode" >"$profile"

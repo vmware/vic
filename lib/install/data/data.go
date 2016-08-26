@@ -61,7 +61,7 @@ type Data struct {
 	VCHMemoryReservationsMB int
 	VCHMemoryShares         *types.SharesInfo
 
-	BridgeIPRange string
+	BridgeIPRange *net.IPNet
 
 	NumCPUs  int
 	MemoryMB int
@@ -91,7 +91,7 @@ type InstallerData struct {
 	Datacenter types.ManagedObjectReference
 	Cluster    types.ManagedObjectReference
 
-	ImageFiles []string
+	ImageFiles map[string]string
 
 	ApplianceISO string
 	BootstrapISO string

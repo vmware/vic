@@ -70,9 +70,12 @@ Get Docker Params
 Install VIC Appliance To Test Server
     [Arguments]  ${certs}=${false}  ${vol}=default
     Set Test Environment Variables  ${certs}  ${vol}
+    # disable firewall
+    Run  govc host.esxcli network firewall set -e false
     # Attempt to cleanup old/canceled tests
-    #Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    #Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
     Set Test VCH Name
 
     # Install the VCH now
@@ -133,6 +136,19 @@ Cleanup Dangling VMs On Test Server
     \   ${output}=  Run  govc pool.destroy %{GOVC_RESOURCE_POOL}/${vm}
     \   ${output}=  Run  govc datastore.rm ${vm}
     \   ${output}=  Run  govc datastore.rm VIC/${uuid}
+    
+Cleanup Dangling Networks On Test Server
+    ${out}=  Run  govc ls network
+    ${nets}=  Split To Lines  ${out}
+    :FOR  ${net}  IN  @{nets}
+    \   ${net}=  Fetch From Right  ${net}  /
+    \   ${build}=  Split String  ${net}  -
+    \   # Skip any Network that is not associated with integration tests
+    \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   # Skip any Network that is still running
+    \   ${state}=  Get State Of Drone Build  @{build}[1]
+    \   Continue For Loop If  '${state}' == 'running'
+    \   ${uuid}=  Run  govc host.portgroup.remove ${net}
 
 Gather Logs From Test Server
     Variable Should Exist  ${params}
