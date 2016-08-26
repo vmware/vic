@@ -50,3 +50,5 @@ Group 1 - Docker Commands
 -
 [Test 1-24 - Docker Link](1-24-Docker-Link.md)
 -
+[Test 1-27 - Docker Login](1-27-Docker-Login.md)
+-

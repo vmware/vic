@@ -41,6 +41,7 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/platform"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/events"
@@ -240,7 +241,8 @@ func (s *System) UnsubscribeFromEvents(chan interface{}) {
 }
 
 func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.AuthConfig) (string, string, error) {
-	return "", "", fmt.Errorf("%s does not implement System.AuthenticateToRegistry", ProductName())
+	defer trace.End(trace.Begin(""))
+	return RegistryService.Auth(authConfig, dockerversion.DockerUserAgent(ctx))
 }
 
 // Utility functions

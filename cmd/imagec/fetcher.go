@@ -47,6 +47,8 @@ type Fetcher interface {
 
 	Head(url *url.URL) (http.Header, error)
 
+	ExtractOAuthUrl(hdr string, repository *url.URL) (*url.URL, error)
+
 	IsStatusUnauthorized() bool
 	IsStatusOK() bool
 	IsStatusNotFound() bool
@@ -59,7 +61,9 @@ type Token struct {
 	// An opaque Bearer token that clients should supply to subsequent requests in the Authorization header.
 	Token string `json:"token"`
 	// (Optional) The duration in seconds since the token was issued that it will remain valid. When omitted, this defaults to 60 seconds.
-	Expires time.Time `json:"expires_in"`
+	Expires   time.Time
+	ExpiresIn int       `json:"expires_in"`
+	IssueAt   time.Time `json:"issued_at"`
 }
 
 // FetcherOptions struct
@@ -190,7 +194,7 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string
 		if hdr == "" {
 			return "", fmt.Errorf("www-authenticate header is missing")
 		}
-		u.OAuthEndpoint, err = u.extractQueryParams(hdr, url)
+		u.OAuthEndpoint, err = u.ExtractOAuthUrl(hdr, url)
 		if err != nil {
 			return "", err
 		}
@@ -311,7 +315,7 @@ func (u *URLFetcher) setAuthToken(req *http.Request) {
 	}
 }
 
-func (u *URLFetcher) extractQueryParams(hdr string, repository *url.URL) (*url.URL, error) {
+func (u *URLFetcher) ExtractOAuthUrl(hdr string, repository *url.URL) (*url.URL, error) {
 	tokens := strings.Split(hdr, " ")
 	if len(tokens) != 2 || strings.ToLower(tokens[0]) != "bearer" {
 		return nil, fmt.Errorf("www-authenticate header is corrupted")
