@@ -135,6 +135,14 @@ func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders 
 	// intruct imagec to use os.TempDir
 	cmdArgs = append(cmdArgs, "-destination", os.TempDir())
 
+	insecureRegistries := InsecureRegistries()
+	for _, registry := range insecureRegistries {
+		if registry == ref.Hostname() {
+			cmdArgs = append(cmdArgs, "-insecure-allow-http")
+			break
+		}
+	}
+
 	log.Debugf("PullImage: cmd = %s %+v\n", Imagec, cmdArgs)
 
 	cmd := exec.Command(Imagec, cmdArgs...)

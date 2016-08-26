@@ -76,7 +76,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := vicbackends.Init(cli.portLayerAddr, productName, &vchConfig); err != nil {
+	if err := vicbackends.Init(cli.portLayerAddr, productName, &vchConfig, vchConfig.InsecureRegistries); err != nil {
 		log.Fatalf("failed to initialize backend: %s", err)
 	}
 
@@ -126,6 +126,17 @@ func handleFlags() (*CliOptions, bool) {
 		}
 	}
 
+	// load the vch config
+	src, err := extraconfig.GuestInfoSource()
+	if err != nil {
+		log.Fatalf("Unable to load configuration from guestinfo: %s", err)
+	}
+	extraconfig.Decode(src, &vchConfig)
+
+	if *debug || vchConfig.Diagnostics.DebugLevel > 0 {
+		log.SetLevel(log.DebugLevel)
+	}
+
 	cli := &CliOptions{
 		enableTLS:     *enableTLS,
 		verifyTLS:     *verifyTLS,
@@ -137,17 +148,6 @@ func handleFlags() (*CliOptions, bool) {
 		fullserver:    fmt.Sprintf("%s:%d", *serverAddr, *serverPort),
 		portLayerAddr: fmt.Sprintf("%s:%d", *portLayerAddr, *portLayerPort),
 		proto:         "tcp",
-	}
-
-	// load the vch config
-	src, err := extraconfig.GuestInfoSource()
-	if err != nil {
-		log.Errorf("Unable to load configuration from guestinfo")
-	}
-	extraconfig.Decode(src, &vchConfig)
-
-	if *debug || vchConfig.Diagnostics.DebugLevel > 0 {
-		log.SetLevel(log.DebugLevel)
 	}
 
 	return cli, true
