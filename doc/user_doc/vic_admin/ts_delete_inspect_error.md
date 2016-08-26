@@ -12,4 +12,9 @@ resource pool '/ha-datacenter/host/localhost./Resources/<i>vch_name</i>' not fou
 You set the `target` option to the address of an ESXi host that is managed by a vCenter Server instance.
 
 ## Solution ##
-Set the `target` option to the address of the vCenter Server instance that manages the ESXi host on which the virtual container host is running. 
+
+
+1. Run `vic-machine ls` with the `target` option set to the same ESXi host.
+
+  The `vic-machine ls` operation fails but informs you of the address of the  vCenter Server instance that manages the ESXi host.
+2. Run `vic-machine delete` or `vic-machine inspect` again, setting the `target` option to the address of the vCenter Server instance that was returned by `vic-machine ls`.
