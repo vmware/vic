@@ -1,4 +1,4 @@
-# VIC Integration & Functional Test Suite
+# VIC Engine Integration & Functional Test Suite
 
 To run the integration tests locally:
 
