@@ -22,7 +22,7 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/lib/portlayer"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -42,7 +42,7 @@ func NewAttachServer(ip string, port int) *Server {
 	defer trace.End(trace.Begin(""))
 
 	if port == 0 {
-		port = portlayer.SerialOverLANPort
+		port = constants.SerialOverLANPort
 	}
 
 	return &Server{ip: ip, port: port}

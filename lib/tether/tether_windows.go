@@ -23,6 +23,10 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
+const (
+	PIDFileDir = "C:\\Temp"
+)
+
 func (t *tether) childReaper() error {
 	// TODO: windows child process notifications
 	return errors.New("Child reaping unimplemented on windows")
