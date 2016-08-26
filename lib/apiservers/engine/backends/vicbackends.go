@@ -15,6 +15,7 @@
 package vicbackends
 
 import (
+	"context"
 	"net"
 	"time"
 
@@ -22,16 +23,17 @@ import (
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/misc"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
+	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
 const (
 	Imagec             = "imagec"
 	PortlayerName      = "Backend Engine"
 	IndexServerAddress = "registry-1.docker.io"
-
-	// Retries defines how many times to attempt refreshing the image cache at startup
-	Retries = 5
 
 	// RetryTimeSeconds defines how many seconds to wait between retries
 	RetryTimeSeconds = 2
@@ -71,21 +73,23 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 	portLayerClient = client.New(t, nil)
 	portLayerServerAddr = portLayerAddr
 
-	// attempt to update the image cache at startup
-	log.Info("Refreshing image cache...")
+	// block indefinitely while waiting on the portlayer to respond to pings
+	// the vic-machine installer timeout will intervene if this blocks for too long
+	pingPortLayer()
+
+	log.Info("Creating image store")
+	if err := createImageStore(); err != nil {
+		log.Errorf("Failed to create image store")
+		return err
+	}
+
+	log.Info("Refreshing image cache")
 	go func() {
-		for i := 0; i < Retries; i++ {
-
-			// initial pause to wait for the portlayer to come up
-			time.Sleep(RetryTimeSeconds * time.Second)
-
-			if err := cache.ImageCache().Update(portLayerClient); err == nil {
-				log.Info("Image cache updated successfully")
-				return
-			}
-			log.Info("Failed to refresh image cache, retrying...")
+		if err := cache.ImageCache().Update(portLayerClient); err != nil {
+			log.Warn("Failed to refresh image cache: %s", err)
+			return
 		}
-		log.Warn("Failed to refresh image cache. Is the portlayer server down?")
+		log.Info("Image cache updated successfully")
 	}()
 
 	return nil
@@ -113,4 +117,44 @@ func ProductVersion() string {
 
 func VchConfig() *config.VirtualContainerHostConfigSpec {
 	return vchConfig
+}
+
+func pingPortLayer() {
+	ticker := time.NewTicker(RetryTimeSeconds * time.Second)
+	defer ticker.Stop()
+	params := misc.NewPingParamsWithContext(context.TODO())
+
+	log.Infof("Waiting for portlayer to come up")
+
+	for _ = range ticker.C {
+		if _, err := portLayerClient.Misc.Ping(params); err == nil {
+			log.Info("Portlayer is up and responding to pings")
+			return
+		}
+	}
+}
+
+func createImageStore() error {
+	// TODO(jzt): we should move this to a utility package or something
+	host, err := sys.UUID()
+	if err != nil {
+		log.Errorf("Failed to determine host UUID")
+		return err
+	}
+
+	// attempt to create the image store if it doesn't exist
+	store := &models.ImageStore{Name: host}
+	_, err = portLayerClient.Storage.CreateImageStore(
+		storage.NewCreateImageStoreParamsWithContext(ctx).WithBody(store),
+	)
+
+	if err != nil {
+		if _, ok := err.(*storage.CreateImageStoreConflict); ok {
+			log.Debugf("Store already exists")
+			return nil
+		}
+		return err
+	}
+	log.Infof("Image store created successfully")
+	return nil
 }

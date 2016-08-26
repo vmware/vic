@@ -348,29 +348,6 @@ func TestPingPortLayer(t *testing.T) {
 	}
 }
 
-func TestCreateImageStore(t *testing.T) {
-	s := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
-
-			resp := `
-			{
-				"code":201,"url":"http://Photon/storage/PetStore"
-			}
-			`
-			w.Write([]byte(resp))
-		}))
-	defer s.Close()
-
-	options.host = s.URL[7:]
-
-	err := CreateImageStore(Storename)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-}
-
 func TestListImages(t *testing.T) {
 	s := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -31,6 +31,7 @@ import (
 const (
 	//https://github.com/golang/go/blob/master/src/syscall/zerrors_linux_arm64.go#L919
 	SetChildSubreaper = 0x24
+	PIDFileDir        = "/var/run"
 )
 
 // Mkdev will hopefully get rolled into go.sys at some point

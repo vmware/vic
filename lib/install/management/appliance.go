@@ -35,6 +35,7 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
@@ -47,6 +48,8 @@ import (
 
 	"golang.org/x/net/context"
 )
+
+const portLayerPort = constants.SerialOverLANPort
 
 var (
 	lastSeenProgressMessage string
@@ -477,7 +480,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 				//FIXME: hack during config migration
 				"-serveraddr=0.0.0.0",
 				"-port=" + d.DockerPort,
-				"-port-layer-port=8080",
+				fmt.Sprintf("-port-layer-port=%d", portLayerPort),
 			},
 			Env: []string{
 				"PATH=/sbin",
@@ -494,7 +497,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 				"/sbin/port-layer-server",
 				//FIXME: hack during config migration
 				"--host=localhost",
-				"--port=8080",
+				fmt.Sprintf("--port=%d", portLayerPort),
 				"--insecure",
 				"--sdk=" + conf.Target.String(),
 				"--datacenter=" + settings.DatacenterName,
@@ -700,7 +703,9 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	// keeping it short
 	ctxerr = d.ctx.Err()
 
-	d.ctx, _ = context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	d.ctx = ctx
 	err := d.applianceConfiguration(conf)
 	if err != nil {
 		return fmt.Errorf("unable to retrieve updated configuration from appliance for diagnostics: %s", err)

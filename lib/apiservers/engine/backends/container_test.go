@@ -34,6 +34,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
+	plclient "github.com/vmware/vic/lib/apiservers/portlayer/client"
 	plscopes "github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	plmodels "github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/metadata"
@@ -205,6 +206,10 @@ func (m *MockContainerProxy) CommitContainerHandle(handle, imageID string) error
 	}
 
 	return m.mockCommitData[respIdx].retErr
+}
+
+func (m *MockContainerProxy) Client() *plclient.PortLayer {
+	return nil
 }
 
 func (m *MockContainerProxy) StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error {
