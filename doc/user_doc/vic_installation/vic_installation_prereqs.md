@@ -52,7 +52,7 @@ You must use an account with the vSphere Administrator role when you install vSp
 * Use a trusted network for the deployment and use of vSphere Integrated Containers.
 * Use a trusted network for connections between Docker clients and the virtual container hosts.
 * Each virtual container host requires the following network configuration:
- * One IP address, that can be either static or set by using DHCP.
+ * An IP address that is obtained by DHCP. Virtual container hosts do not currently support static IP addresses.
  * One VLAN, if you use VLAN for network isolation.
  * One IP address for each container that you run with the `docker run --net=host` option.
 * Virtual container hosts require a network with DHCP for use as the external network. You can share this network between multiple virtual container hosts.
