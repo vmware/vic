@@ -12,7 +12,7 @@ The vSphere Integrated Containers installation and management utility, `vic-mach
 |Mac OS X |10.11 (El Capitan)|
 |Linux|Ubuntu 16.04 LTS|
 
-It is possible to use `vic-machine` on other platforms, including all recent Linux platforms and Photon OS, but results are not guaranteed.
+Other recent OS versions should work but are untested.
 
 ## Supported vSphere Configurations ##
 
