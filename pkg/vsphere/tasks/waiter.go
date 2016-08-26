@@ -34,11 +34,8 @@ const (
 	maxBackoffFactor = int64(16)
 )
 
-//FIXME: remove these types and refactor to use object.Task from govmomi
-type Waiter interface {
-	Wait(ctx context.Context) error
-}
-
+//FIXME: remove this type and refactor to use object.Task from govmomi
+//       this will require a lot of code being touched in a lot of places.
 type ResultWaiter interface {
 	WaitForResult(ctx context.Context, s progress.Sinker) (*types.TaskInfo, error)
 }
@@ -48,10 +45,9 @@ type ResultWaiter interface {
 //    info, err := Wait(ctx, func(ctx) (*TaskInfo, error) {
 //       return vm.Reconfigure(ctx, config)
 //    })
-func Wait(ctx context.Context, f func(context.Context) (Waiter, error)) error {
+func Wait(ctx context.Context, f func(context.Context) (ResultWaiter, error)) error {
 	_, err := WaitForResult(ctx, func(context.Context) (ResultWaiter, error) {
-		waiter, err := f(ctx)
-		return waiter.(ResultWaiter), err
+		return f(ctx)
 	})
 	return err
 }
@@ -103,7 +99,7 @@ func WaitForResult(ctx context.Context, f func(context.Context) (ResultWaiter, e
 		err = werr
 		break
 	}
-	log.Errorf("Task failed with non fault error : %#v", err)
+	log.Errorf("Task failed with non fault error : %s", err)
 	return taskInfo, err
 
 }

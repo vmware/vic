@@ -182,7 +182,7 @@ func (m *Manager) Create(ctx context.Context, newDiskURI string,
 
 	log.Infof("Creating vmdk for layer or volume %s", d.DatastoreURI)
 
-	err = tasks.Wait(ctx, func(ctx context.Context) (tasks.Waiter, error) {
+	err = tasks.Wait(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return vdm.CreateVirtualDisk(ctx, d.DatastoreURI, nil, spec)
 	})
 	if err != nil {
