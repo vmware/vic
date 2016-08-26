@@ -151,7 +151,7 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 			}
 			return err
 		}
-		if _, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		if _, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 			return vm.PowerOff(ctx)
 		}); err != nil {
 			log.Debugf("Failed to power off existing appliance for %s, try to remove anyway", err)
@@ -163,7 +163,7 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		log.Warnf("Failed to get actual folder name for VM. Will not attempt to delete additional data files in VM directory: %s", err)
 	}
 
-	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return vm.Destroy(ctx)
 	})
 	if err != nil {
@@ -385,12 +385,12 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	var info *types.TaskInfo
 	// create appliance VM
 	if d.isVC && d.vchVapp != nil {
-		info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 			return d.vchVapp.CreateChildVM_Task(ctx, *spec, d.session.Host)
 		})
 	} else {
 		// if vapp is not created, fall back to create VM under default resource pool
-		info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 			return d.session.Folders(ctx).VmFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
 		})
 	}
@@ -520,7 +520,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	}
 
 	// reconfig
-	info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return vm2.Reconfigure(ctx, *spec)
 	})
 

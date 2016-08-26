@@ -182,7 +182,7 @@ func (m *Manager) Create(ctx context.Context, newDiskURI string,
 
 	log.Infof("Creating vmdk for layer or volume %s", d.DatastoreURI)
 
-	err = tasks.Wait(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	err = tasks.Wait(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return vdm.CreateVirtualDisk(ctx, d.DatastoreURI, nil, spec)
 	})
 	if err != nil {
@@ -235,7 +235,7 @@ func (m *Manager) Attach(ctx context.Context, disk *types.VirtualDisk) error {
 	machineSpec := types.VirtualMachineConfigSpec{}
 	machineSpec.DeviceChange = append(machineSpec.DeviceChange, changeSpec...)
 
-	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return m.vm.Reconfigure(ctx, machineSpec)
 	})
 
@@ -278,7 +278,7 @@ func (m *Manager) Detach(ctx context.Context, d *VirtualDisk) error {
 
 	spec.DeviceChange = config
 
-	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return m.vm.Reconfigure(ctx, spec)
 	})
 

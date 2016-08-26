@@ -36,7 +36,7 @@ const (
 
 //FIXME: remove this type and refactor to use object.Task from govmomi
 //       this will require a lot of code being touched in a lot of places.
-type ResultWaiter interface {
+type Task interface {
 	WaitForResult(ctx context.Context, s progress.Sinker) (*types.TaskInfo, error)
 }
 
@@ -45,8 +45,8 @@ type ResultWaiter interface {
 //    info, err := Wait(ctx, func(ctx) (*TaskInfo, error) {
 //       return vm.Reconfigure(ctx, config)
 //    })
-func Wait(ctx context.Context, f func(context.Context) (ResultWaiter, error)) error {
-	_, err := WaitForResult(ctx, func(context.Context) (ResultWaiter, error) {
+func Wait(ctx context.Context, f func(context.Context) (Task, error)) error {
+	_, err := WaitForResult(ctx, func(context.Context) (Task, error) {
 		return f(ctx)
 	})
 	return err
@@ -58,8 +58,7 @@ func Wait(ctx context.Context, f func(context.Context) (ResultWaiter, error)) er
 //    info, err := WaitForResult(ctx, func(ctx) (*TaskInfo, error) {
 //       return vm.Reconfigure(ctx, config)
 //    })
-func WaitForResult(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (*types.TaskInfo, error) {
-	r := rand.New(rand.NewSource(time.Now().UnixNano())) //creates a more unique random
+func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (*types.TaskInfo, error) {
 	var err error
 	var taskInfo *types.TaskInfo
 	backoffFactor := int64(1)
@@ -79,7 +78,7 @@ func WaitForResult(ctx context.Context, f func(context.Context) (ResultWaiter, e
 
 		if terr, ok := err.(*task.Error); ok {
 			if _, ok := terr.Fault().(*types.TaskInProgress); ok {
-				sleepValue := time.Duration(backoffFactor * (r.Int63n(100) + int64(50)))
+				sleepValue := time.Duration(backoffFactor * (rand.Int63n(100) + int64(50)))
 				select {
 				case <-time.After(sleepValue * time.Millisecond):
 					if backoffFactor*2 > maxBackoffFactor {

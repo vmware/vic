@@ -54,7 +54,7 @@ func CreateVM(ctx context.Context, session *session.Session, host *object.HostSy
 	parent := folders.VmFolder
 
 	// Create the vm
-	info, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	info, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return parent.CreateVM(ctx, *linux.Spec().Spec(), session.Pool, host)
 	})
 	if err != nil {
@@ -101,7 +101,7 @@ func TestDeleteExceptDisk(t *testing.T) {
 	diskName := fmt.Sprintf("%s/%s.vmdk", folder, folder)
 
 	// Delete the VM but not it's disk
-	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return vm.DeleteExceptDisks(ctx)
 	})
 	if err != nil {
@@ -178,7 +178,7 @@ func TestVM(t *testing.T) {
 	t.Logf("Got UUID: %s", ruuid)
 
 	// Destroy the vm
-	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return vm.Destroy(ctx)
 	})
 	if err != nil {
@@ -244,7 +244,7 @@ func TestVMAttributes(t *testing.T) {
 	}
 	assert.Equal(t, name, folder)
 
-	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return vm.PowerOn(ctx)
 	})
 	if err != nil {
@@ -258,13 +258,13 @@ func TestVMAttributes(t *testing.T) {
 	}
 	defer func() {
 		// Destroy the vm
-		_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 			return vm.PowerOff(ctx)
 		})
 		if err != nil {
 			t.Fatalf("ERROR: %s", err)
 		}
-		_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 			return vm.Destroy(ctx)
 		})
 		if err != nil {
