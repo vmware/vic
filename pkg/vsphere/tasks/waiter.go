@@ -70,14 +70,14 @@ func WaitForResult(ctx context.Context, f func(context.Context) (ResultWaiter, e
 
 	t, err := f(ctx)
 	if err != nil {
-		log.Error(err)
+		log.Errorf("Failed to invoke task operation : %s", err)
 		return nil, err
 	}
 
 	for {
-		taskInfo, err := t.WaitForResult(ctx, nil)
+		taskInfo, werr := t.WaitForResult(ctx, nil)
 
-		if err == nil {
+		if werr == nil {
 			return taskInfo, nil
 		}
 
@@ -100,9 +100,10 @@ func WaitForResult(ctx context.Context, f func(context.Context) (ResultWaiter, e
 				continue
 			}
 		}
+		err = werr
 		break
 	}
-	log.Error(err)
+	log.Errorf("Task failed with non fault error : %#v", err)
 	return taskInfo, err
 
 }
