@@ -106,9 +106,13 @@ func (v *ImageStore) imageDirPath(storeName, imageName string) string {
 	return path.Join(v.imageStorePath(storeName), imageName)
 }
 
-// Returns the path to the vmdk itself in datastore url format
 func (v *ImageStore) imageDiskPath(storeName, imageName string) string {
-	return path.Join(v.ds.RootURL, v.imageDirPath(storeName, imageName), imageName+".vmdk")
+	return path.Join(v.imageDirPath(storeName, imageName), imageName+".vmdk")
+}
+
+// Returns the path to the vmdk itself in datastore url format
+func (v *ImageStore) imageDiskDSPath(storeName, imageName string) string {
+	return path.Join(v.ds.RootURL, v.imageDiskPath(storeName, imageName))
 }
 
 // Returns the path to the metadata directory for an image
@@ -276,36 +280,40 @@ func (v *ImageStore) writeImage(ctx context.Context, storeName, parentID, ID str
 	}
 
 	// datastore path to the parent
-	parentDiskDsURI := v.imageDiskPath(storeName, parentID)
+	parentDiskDsURI := v.imageDiskDSPath(storeName, parentID)
 
 	// datastore path to the disk we're creating
-	diskDsURI := v.imageDiskPath(storeName, ID)
+	diskDsURI := v.imageDiskDSPath(storeName, ID)
 	log.Infof("Creating image %s (%s)", ID, diskDsURI)
 
-	// Create the disk
-	vmdisk, err := v.dm.CreateAndAttach(ctx, diskDsURI, parentDiskDsURI, 0, os.O_RDWR)
-	if err != nil {
-		return err
-	}
+	var vmdisk *disk.VirtualDisk
 
+	// On error, unmount if mounted, detach if attached, and nuke the image directory
 	defer func() {
-		var cleanup bool
-		if vmdisk.Mounted() {
-			cleanup = true
-			log.Debugf("Unmounting abandonned disk")
-			vmdisk.Unmount()
-		}
-		if vmdisk.Attached() {
-			cleanup = true
-			log.Debugf("Detaching abandonned disk")
-			v.dm.Detach(ctx, vmdisk)
-		}
+		if err != nil {
+			log.Errorf("Cleaning up failed WriteImage directory %s", imageDir)
 
-		if cleanup {
+			if vmdisk != nil {
+				if vmdisk.Mounted() {
+					log.Debugf("Unmounting abandonned disk")
+					vmdisk.Unmount()
+				}
+
+				if vmdisk.Attached() {
+					log.Debugf("Detaching abandonned disk")
+					v.dm.Detach(ctx, vmdisk)
+				}
+			}
+
 			v.ds.Rm(ctx, imageDir)
 		}
 	}()
 
+	// Create the disk
+	vmdisk, err = v.dm.CreateAndAttach(ctx, diskDsURI, parentDiskDsURI, 0, os.O_RDWR)
+	if err != nil {
+		return err
+	}
 	// tmp dir to mount the disk
 	dir, err := ioutil.TempDir("", "mnt-"+ID)
 	if err != nil {
@@ -362,7 +370,7 @@ func (v *ImageStore) scratch(ctx context.Context, storeName string) error {
 		return err
 	}
 
-	imageDiskDsURI := v.imageDiskPath(storeName, portlayer.Scratch.ID)
+	imageDiskDsURI := v.imageDiskDSPath(storeName, portlayer.Scratch.ID)
 	log.Infof("Creating image %s (%s)", portlayer.Scratch.ID, imageDiskDsURI)
 
 	// Create the disk
@@ -405,15 +413,8 @@ func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*
 		return nil, err
 	}
 
-	p := v.imageDirPath(storeName, ID)
-	info, err := v.ds.Stat(ctx, p)
-	if err != nil {
+	if err = v.verifyImage(ctx, storeName, ID); err != nil {
 		return nil, err
-	}
-
-	_, ok := info.(*types.FolderFileInfo)
-	if !ok {
-		return nil, fmt.Errorf("Stat error:  image doesn't exist (%s)", p)
 	}
 
 	// get the metadata
@@ -504,16 +505,13 @@ func (v *ImageStore) cleanup(ctx context.Context, store *url.URL) error {
 			continue
 		}
 
-		imageDir := v.imageDirPath(storeName, ID)
-
-		// check for the manifest file.
-		_, err = v.ds.Stat(ctx, path.Join(imageDir, manifest))
-		if err != nil {
-
+		if err := v.verifyImage(ctx, storeName, ID); err != nil {
+			imageDir := v.imageDirPath(storeName, ID)
 			log.Infof("Removing inconsistent image (%s) %s", ID, imageDir)
 
 			// Eat the error so we can continue cleaning up.  The tasks package will log the error if there is one.
 			_ = v.ds.Rm(ctx, imageDir)
+
 		}
 	}
 
@@ -525,6 +523,19 @@ func (v *ImageStore) writeManifest(ctx context.Context, storeName, ID string, r 
 	pth := path.Join(v.imageDirPath(storeName, ID), manifest)
 	if err := v.ds.Upload(ctx, r, pth); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// check for the manifest file AND the vmdk
+func (v *ImageStore) verifyImage(ctx context.Context, storeName, ID string) error {
+	imageDir := v.imageDirPath(storeName, ID)
+
+	for _, p := range []string{path.Join(imageDir, manifest), v.imageDiskPath(storeName, ID)} {
+		if _, err := v.ds.Stat(ctx, p); err != nil {
+			return err
+		}
 	}
 
 	return nil
