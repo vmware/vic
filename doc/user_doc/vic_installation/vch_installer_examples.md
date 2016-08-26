@@ -79,6 +79,8 @@ This example deploys a virtual container host with the following configuration:
 --name vch1
 </pre>
 
+For more information about the networking options, see the [Networking Options section in Virtual Container Host Deployment Options](vch_installer_options.md#networking).
+
 <a name="ip-range"></a>
 ## Deploy a Virtual Container Host and Configure a Non-DHCP Container Network ##
 
@@ -104,6 +106,8 @@ This example deploys a virtual container host with the following configuration:
 --container-network-ip-range vic-containers:192.168.100.0/24
 --name vch1
 </pre>
+
+For more information about the container network options, see the [container network section in Virtual Container Host Deployment Options](vch_installer_options.md#container-network).
 
 
 <a name="datastores"></a>
@@ -131,7 +135,7 @@ This example deploys a virtual container host with the following configuration:
 --name vch1
 </pre>
 
-
+For more information about the datastore options, see the [Datastore Options section in Virtual Container Host Deployment Options](vch_installer_options.md#datastore). 
 
 <a name="volume-stores"></a>
 ## Deploy a Virtual Container Host and Specify One or More Volume Stores ##
@@ -157,6 +161,7 @@ This example deploys a virtual container host with the following configuration:
 --name vch1
 </pre>
 
+For more information about volume stores, see the [volume-store section in Virtual Container Host Deployment Options](vch_installer_options.md#volume-store). 
 
 <a name="standalone"></a> 
 ## Deploy a Virtual Container Host on a Standalone Host in vCenter Server ##
@@ -230,6 +235,8 @@ This example deploys a virtual container host with the following configuration:
 --name vch1
 </pre>
 
+For more information about using CA certificates, see the [Security  Options section in Virtual Container Host Deployment Options](vch_installer_options.md#security).
+
 <a name="customized"></a>
 ## Deploy a Virtual Container Host with Limits on Resource Use ##
 
@@ -253,3 +260,5 @@ This example deploys a virtual container host with the following configuration:
 --pool-cpu-shares low
 --name vch1
 </pre>
+
+For more information about setting resource use limitations on virtual container hosts, see the [vApp Deployment Options section in Virtual Container Host Deployment Options](vch_installer_options.md#deployment).

@@ -7,7 +7,7 @@ The command line utility for vSphere Integrated Containers, `vic-machine`, provi
 - [Compute Resource Options](#compute)
 - [Datastore Options](#datastore)
 - [Security Options](#security)
-- [Appliance Deployment Options](#deployment)
+- [vApp Deployment Options](#deployment)
 - [Advanced Options](#advanced)
 
 <a name="mandatory"></a>
@@ -170,6 +170,7 @@ Wrap the network name in single quotes (Linux or Mac OS) or double quotes (Windo
 
 <pre>--client-network '<i>network name</i>'</pre>
 
+<a name="container-network"></a>
 ### `container-network` ###
 
 Short name: `--cn`
@@ -381,7 +382,7 @@ Wrap the folder names in the paths in single quotes (Linux or Mac OS) or double 
 --key '<i>path to key file</i>'/<i>key_file_name</i>.pem</pre>
 
 <a name="deployment"></a>
-## Appliance Deployment Options ##
+## vApp Deployment Options ##
 
 The `vic-machine` utility provides options to customize the deployment of virtual container hosts.
 
