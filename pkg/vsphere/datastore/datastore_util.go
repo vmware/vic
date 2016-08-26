@@ -48,6 +48,7 @@ func Session(ctx context.Context, t *testing.T) *session.Session {
 }
 
 func DSsetup(t *testing.T) (context.Context, *Helper, func()) {
+	log.SetLevel(log.DebugLevel)
 	ctx := context.Background()
 	sess := Session(ctx, t)
 

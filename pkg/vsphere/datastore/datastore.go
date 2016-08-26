@@ -68,7 +68,7 @@ func NewHelper(ctx context.Context, s *session.Session, ds *object.Datastore, ro
 	}
 
 	// Get the root directory element split from the rest of the path (if there is one)
-	root := strings.SplitN(rootdir, "/", 2)
+	root := strings.Split(rootdir, "/")
 
 	// Create the first element.  This handles vsan vmfs top level dirs.
 	if err := d.mkRootDir(ctx, root[0]); err != nil {
@@ -78,7 +78,9 @@ func NewHelper(ctx context.Context, s *session.Session, ds *object.Datastore, ro
 
 	// Create the rest conventionally
 	if len(root) > 1 {
-		r, err := d.Mkdir(ctx, true, root[1])
+		p := path.Join(root[1:]...)
+		log.Debugf("creating the rest of the path %s", p)
+		r, err := d.Mkdir(ctx, true, p)
 		if err != nil {
 			if !os.IsExist(err) {
 				return nil, err
@@ -143,7 +145,7 @@ func (d *Helper) Mkdir(ctx context.Context, createParentDirectories bool, dirs .
 			if soap.IsSoapFault(err) {
 				soapFault := soap.ToSoapFault(err)
 				if _, ok := soapFault.VimFault().(types.FileAlreadyExists); ok {
-					return "", os.ErrExist
+					return upth, os.ErrExist
 				}
 			}
 		}
