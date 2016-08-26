@@ -245,9 +245,10 @@ func (m *MockContainerProxy) ContainerRunning(vc *viccontainer.VicContainer) (bo
 
 func AddMockImageToCache() {
 	mockImage := &metadata.ImageConfig{
-		ImageID: "e732471cb81a564575aad46b9510161c5945deaf18e9be3db344333d72f0b4b2",
-		Name:    "busybox",
-		Tags:    []string{"latest"},
+		ImageID:   "e732471cb81a564575aad46b9510161c5945deaf18e9be3db344333d72f0b4b2",
+		Name:      "busybox",
+		Tags:      []string{"latest"},
+		Reference: "busybox:latest",
 	}
 	mockImage.Config = &container.Config{
 		Hostname:     "55cd1f8f6e5b",
