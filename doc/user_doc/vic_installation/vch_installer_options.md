@@ -8,6 +8,7 @@ The command line utility for vSphere Integrated Containers, `vic-machine`, provi
 - [Datastore Options](#datastore)
 - [Security Options](#security)
 - [Appliance Deployment Options](#deployment)
+- [Advanced Options](#advanced)
 
 <a name="mandatory"></a>
 ## Mandatory Options ##
@@ -211,7 +212,7 @@ Short name: `--cnd`
 
 The address of the DNS server for the container network. This option is recommended if the network that you specify in the `container-network` option does not support DHCP. 
 
-When you specify the container network DNS server, you use the distributed port group that you specify in the `container-network` option.
+When you specify the container network DNS server, you use the distributed port group that you specify in the `container-network` option. You can specify `container-network-dns` multiple times, to configure multiple DNS servers.
 
 <pre>--container-network-dns <i>distributed_port_group_name</i>:8.8.8.8</pre>
 
@@ -446,11 +447,74 @@ Wrap the folder names in the path in single quotes (Linux or Mac OS) or double q
 
 <pre>--bootstrap-iso '<i>path to ISO file</i>'/<i>ISO_file_name</i>.iso</pre>
 
+
+### `pool-memory-reservation` ###
+
+Short name: `--pmr`
+
+Reserve a quantity of memory for use by the virtual container host vApp   and container VMs. Specify the memory reservation value in MB. If not specified, `vic-machine create` sets the reservation to 1.
+
+<pre>--pool-memory-reservation 1024</pre>
+
+### `pool-memory-limit` ###
+
+Short name: `--pml`
+
+Limit the amount of memory that is available for use by the virtual container host vApp and container VMs. Specify the memory limit value in MB. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
+
+<pre>--pool-memory-limit 1024</pre>
+
+### `pool-memory-shares` ###
+
+Short name: `--pms`
+
+Set memory shares on the virtual container host vApp. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `normal`.
+
+<pre>--pool-memory-shares low</pre>
+
+### `pool-cpu-reservation` ###
+
+Short name: `--pcr`
+
+Reserve a quantity of CPU capacity for use by the virtual container host vApp and container VMs.  Specify the CPU reservation value in MHz. If not specified, `vic-machine create` sets the reservation to 1.
+
+<pre>--pool-cpu-reservation 1024</pre>
+
+### `pool-cpu-limit` ###
+
+Short name: `--pcl`
+
+Limit the amount of CPU capacity that is available for use by the virtual container host vApp and container VMs. Specify the CPU limit value in MHz. If not specified, `vic-machine create` sets the reservation to 0 (unlimited).
+
+<pre>--pool-cpu-limit 1024</pre>
+
+### `pool-cpu-shares` ###
+
+Short name: `--pcs`
+
+Set CPU shares on the virtual container host vApp. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `normal`.
+
+<pre>--pool-cpu-shares low</pre>
+
+### `debug` ###
+Short name: `-v`
+
+Provide verbose logging output, for troubleshooting purposes when running `vic-machine create`. If not specified, the `debug` value is set to 0 and verbose logging is disabled. Provide a value of 1 or greater to increase the verbosity of the logging. Note that setting debug to a value greater than 1 can affect the behavior of `vic-machine create`.
+
+<pre>--debug 1</pre>
+
+<a name="mandatory"></a>
+## Advanced Options ##
+
+The options in this section are exposed in the `vic-machine create` help if you run <code>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create --advanced-options</code>. 
+
 ### `appliance-cpu ` ###
 
 Short name: none
 
 The number of virtual CPUs for the virtual container host VM. The default is 1. Set this option to increase the number of CPUs in the virtual container host VM, for example if the virtual container host will handle large volumes of containers, or containers that require a lot of processing power.
+
+**NOTE** Use the `--pool-cpu` options instead of the `--appliance-cpu` option. This option is mainly intended for use by VMware Support.
 
 <pre>--appliance-cpu <i>number_of_CPUs</i></pre>
 
@@ -459,6 +523,8 @@ The number of virtual CPUs for the virtual container host VM. The default is 1. 
 Short name: none
 
 The amount of memory for the virtual container host VM. The default is 2048MB. Set this option to increase the amount of memory in the virtual container host VM, for example if the virtual container host will handle large volumes of containers, or containers that consume a lot of memory.
+
+**NOTE** Use the `--pool-memory` options instead of the `--appliance-memory` option. This option is mainly intended for use by VMware Support.
 
 <pre>--appliance-memory <i>amount_of_memory</i></pre>
 
@@ -469,58 +535,3 @@ Short name: none
 Deploy the virtual container host to a resource pool rather than to a vApp. If you specify this option, `vic-machine create` creates a resource pool with the same name as the virtual container host.
 
 <pre>--use-rp</pre>
-
-### `pool-memory-reservation` ###
-
-Short name: `--pmr`
-
-Reserve a quantity of memory for use by the vApp or resource pool that contains the virtual container host and container VMs. Specify the memory reservation value in MB. If not specified, `vic-machine create` sets the reservation to 1.
-
-<pre>--pool-memory-reservation 1024</pre>
-
-### `pool-memory-limit` ###
-
-Short name: `--pml`
-
-Limit the amount of memory that is available for use by the vApp or resource pool that contains the virtual container host and container VMs. Specify the memory limit value in MB. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
-
-<pre>--pool-memory-limit 1024</pre>
-
-### `pool-memory-shares` ###
-
-Short name: `--pms`
-
-Set memory shares on the vApp or resource pool that contains the virtual container host and container VMs. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `normal`.
-
-<pre>--pool-memory-shares low</pre>
-
-### `pool-cpu-reservation` ###
-
-Short name: `--pcr`
-
-Reserve a quantity of CPU capacity for use by the vApp or resource pool that contains the virtual container host and container VMs.  Specify the CPU reservation value in MHz. If not specified, `vic-machine create` sets the reservation to 1.
-
-<pre>--pool-cpu-reservation 1024</pre>
-
-### `pool-cpu-limit` ###
-
-Short name: `--pcl`
-
-Limit the amount of CPU capacity that is available for use by the vApp or resource pool that contains the virtual container host and container VMs. Specify the CPU limit value in MHz. If not specified, `vic-machine create` sets the reservation to 0 (unlimited).
-
-<pre>--pool-cpu-limit 1024</pre>
-
-### `pool-cpu-shares` ###
-
-Short name: `--pcs`
-
-Set CPU shares on the vApp or resource pool that contains the virtual container host and container VMs. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `normal`.
-
-<pre>--pool-cpu-shares low</pre>
-
-### `debug` ###
-Short name: `-v`
-
-Provide verbose logging output, for troubleshooting purposes when running `vic-machine create`. If not specified, the `debug` value is set to 0 and verbose logging is disabled. Provide a value of 1 or greater to increase the verbosity of the logging. Note that setting debug to a value greater than 1 can affect the behavior of `vic-machine create`.
-
-<pre>--debug 1</pre>
