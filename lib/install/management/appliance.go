@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"path"
 	"strconv"
-	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -131,7 +130,7 @@ func (d *Dispatcher) checkExistence(conf *config.VirtualContainerHostConfigSpec,
 func (d *Dispatcher) getName(vm *vm.VirtualMachine) string {
 	name, err := vm.Name(d.ctx)
 	if err != nil {
-		log.Errorf("VM name is not found: %s", err)
+		log.Errorf("VM name not found: %s", err)
 		return ""
 	}
 	return name
@@ -167,17 +166,16 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	// get the actual folder name before we delete it
 	folder, err := vm.FolderName(d.ctx)
 	if err != nil {
-		log.Warnf("Failed to get folder name for VM. Delete may not completely remove all files in datastore for VM %q: %s", vm.Reference(), err)
+		// failed to get folder name, might not be able to remove files for this VM
 		name := d.getName(vm)
 		if name == "" {
-			log.Errorf("Failed to get VM name. Delete is unable to remove all files in datastore for VM %q", vm.Reference())
+			log.Errorf("Unable to automatically remove all files in datastore for VM %q", vm.Reference())
 		} else {
 			// try to use the vm name in place of folder
-			log.Infof("Attempting to remove datastore files for VM %q", name)
+			log.Infof("Delete will attempt to remove datastore files for VM %q", name)
 			folder = name
 		}
 	}
-	log.Info("ATC attempting folder %q for vm %q", folder, vm.Reference())
 
 	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return vm.Destroy(ctx)
@@ -189,12 +187,10 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		if err2 != nil {
 			return errors.Errorf("%s then failed to unregister VM: %s", err, err2)
 		}
-		log.Warnf("Unregistered VM after failed destroy: %q", vm.Reference())
-		// Try deleting datastore...
-		//return err
+		log.Infof("Unregistered VM to cleanup after failed destroy: %q", vm.Reference())
 	}
 	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {
-		log.Warnf("Failed to remove VM path %q: %s", folder, err)
+		log.Warnf("Failed to remove datastore files for VM path %q: %s", folder, err)
 	}
 
 	return nil
