@@ -211,24 +211,25 @@ func (ic *ICache) AddImage(imageConfig *metadata.ImageConfig) {
 
 	for _, tag := range imageConfig.Tags {
 		ref, err = reference.WithTag(ref, tag)
-
 		if err != nil {
 			log.Errorf("Tried to create tagged reference from %s and tag %s: %s", imageConfig.Name, tag, err.Error())
 			return
 		}
 
 		if tagged, ok := ref.(reference.NamedTagged); ok {
-			taggedName := fmt.Sprintf("%s:%s", tagged.Name(), tagged.Tag())
 			if imageConfig.Registry == DefaultDockerRegistry {
+				taggedName := fmt.Sprintf("%s:%s", tagged.Name(), tagged.Tag())
 				ic.cacheByName[taggedName] = imageConfig
 			} else {
 				// prepend the registry URL for a custom registry image
-				ic.cacheByName[imageConfig.Registry+taggedName] = imageConfig
+				fullTaggedName := fmt.Sprintf("%s%s:%s", imageConfig.Registry, tagged.RemoteName(), tagged.Tag())
+				ic.cacheByName[fullTaggedName] = imageConfig
 			}
 		} else {
 			ic.cacheByName[ref.Name()] = imageConfig
 		}
 	}
+
 }
 
 // copyImageConfig performs and returns deep copy of an ImageConfig struct

@@ -674,12 +674,7 @@ func main() {
 		log.Debugf("Running standalone")
 	}
 
-	// track whether the image is from a custom registry or not
 	registryURL := fmt.Sprintf("%s/", options.registry)
-	defaultRegistry := true
-	if options.registry != DefaultDockerURL {
-		defaultRegistry = false
-	}
 
 	// Calculate (and overwrite) the registry URL and make sure that it responds to requests
 	options.registry, err = LearnRegistryURL(options)
@@ -705,12 +700,7 @@ func main() {
 	// HACK: Required to learn the name of the vmdk from given reference
 	// Used by docker personality until metadata support lands
 	if !options.resolv {
-		if defaultRegistry {
-			progress.Message(po, "", "Pulling from "+options.image)
-		} else {
-			// prepend the custom registry URL
-			progress.Message(po, "", "Pulling from "+registryURL+options.image)
-		}
+		progress.Message(po, "", "Pulling from "+options.image)
 	}
 
 	// Get the manifest
