@@ -188,7 +188,7 @@ func convertV1ImageToDockerImage(image *metadata.ImageConfig) *types.Image {
 	return &types.Image{
 		ID:          image.ImageID,
 		ParentID:    image.Parent,
-		RepoTags:    clientFriendlyTags(image.Name, image.Tags),
+		RepoTags:    clientFriendlyTags(image.Reference, image.Tags),
 		RepoDigests: clientFriendlyDigests(image.Name, image.Digests),
 		Created:     image.Created.Unix(),
 		Size:        image.Size,
@@ -216,7 +216,7 @@ func imageConfigToDockerImageInspect(imageConfig *metadata.ImageConfig, productN
 	}
 
 	inspectData := &types.ImageInspect{
-		RepoTags:        clientFriendlyTags(imageConfig.Name, imageConfig.Tags),
+		RepoTags:        clientFriendlyTags(imageConfig.Reference, imageConfig.Tags),
 		RepoDigests:     clientFriendlyDigests(imageConfig.Name, imageConfig.Digests),
 		Parent:          imageConfig.Parent,
 		Comment:         imageConfig.Comment,
@@ -255,15 +255,14 @@ func imageConfigToDockerImageInspect(imageConfig *metadata.ImageConfig, productN
 	image
 */
 
-func clientFriendlyTags(imageName string, tags []string) []string {
+func clientFriendlyTags(reference string, tags []string) []string {
 	clientTags := make([]string, len(tags))
 	if len(tags) > 0 {
-		for index, tag := range tags {
-			clientTags[index] = fmt.Sprintf("%s:%s", imageName, tag)
+		for index := range tags {
+			clientTags[index] = fmt.Sprintf("%s", reference)
 		}
 	} else {
 		clientTags = append(clientTags, fmt.Sprintf("%s:%s", "<none>", "<none>"))
-
 	}
 	return clientTags
 }
