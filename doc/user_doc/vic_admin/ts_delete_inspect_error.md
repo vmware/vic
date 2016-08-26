@@ -1,6 +1,6 @@
 # Deleting or Inspecting a VCH Fails with a Resource Pool Error #
 
-When you use `vic-machine delete` or `vic-machine inspect` to delete or inspect a virtual container host and you specify the address of an ESXi host in the `target` option, the operation fails with a resource pool creation error.
+When you use `vic-machine delete` or `vic-machine inspect` to delete or inspect a virtual container host and you specify the address of an ESXi host in the `target` option, the operation fails with a resource pool  error.
 
 ## Problem ##
 Deleting or inspecting a virtual container host fails with the error message: 
