@@ -246,13 +246,6 @@ func (c *Create) Flags() []cli.Flag {
 			Usage:       "Virtual Container Host x509 certificate file",
 			Destination: &c.cert,
 		},
-		cli.StringFlag{
-			Name:        "base-image-size",
-			Value:       "8GB",
-			Usage:       "Specify the size of the base image from which all other images are created e.g. 8GB/8000MB",
-			Destination: &c.ScratchSize,
-			Hidden:      true,
-		},
 		cli.BoolFlag{
 			Name:        "no-tls, k",
 			Usage:       "Disable TLS support",
