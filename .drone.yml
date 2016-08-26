@@ -30,7 +30,7 @@ build:
       - make sincemark
 
   integration-test-on-pr:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.5}
+    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.4}
     pull: true
     environment:
       BIN: bin
@@ -63,7 +63,7 @@ build:
       success: true
 
   vicui:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.5}
+    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.4}
     pull: true
     environment:
       BINTRAY_DOWNLOAD_PATH: "https://bintray.com/vmware/vic-repo/download_file?file_path="

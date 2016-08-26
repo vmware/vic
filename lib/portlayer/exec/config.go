@@ -68,7 +68,4 @@ type Configuration struct {
 
 	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
 	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores"`
-
-	// Size of scratch layer in KB
-	ScratchSize int64 `vic:"0.1" scope:"read-only" key:"scratch_size"`
 }

@@ -125,9 +125,6 @@ type VirtualContainerHostConfigSpec struct {
 
 	// Allow custom naming convention for containerVMs
 	ContainerNameConvention string
-
-	// default size for root image
-	ScratchSize int64 `vic:"0.1" scope:"read-only" key:"scratch_size"`
 }
 
 // RawCertificate is present until we add extraconfig support for [][]byte slices that are present
