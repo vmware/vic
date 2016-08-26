@@ -88,6 +88,7 @@ func (ic *ICache) Update(client *client.PortLayer) error {
 	}
 
 	for _, layer := range layers.Payload {
+
 		imageConfig := &metadata.ImageConfig{}
 		if err := json.Unmarshal([]byte(layer.Metadata[metadata.MetaDataKey]), imageConfig); err != nil {
 			derr.NewErrorWithStatusCode(fmt.Errorf("Failed to unmarshal image config: %s", err),
@@ -178,6 +179,8 @@ func (ic *ICache) getImageByNamed(named reference.Named) (*metadata.ImageConfig,
 	return copyImageConfig(config), nil
 }
 
+const DefaultDockerRegistry = "registry-1.docker.io/"
+
 // AddImage adds an image to the image cache
 func (ic *ICache) AddImage(imageConfig *metadata.ImageConfig) {
 
@@ -214,12 +217,19 @@ func (ic *ICache) AddImage(imageConfig *metadata.ImageConfig) {
 		}
 
 		if tagged, ok := ref.(reference.NamedTagged); ok {
-			taggedName := fmt.Sprintf("%s:%s", tagged.Name(), tagged.Tag())
-			ic.cacheByName[taggedName] = imageConfig
+			if imageConfig.Registry == DefaultDockerRegistry {
+				taggedName := fmt.Sprintf("%s:%s", tagged.Name(), tagged.Tag())
+				ic.cacheByName[taggedName] = imageConfig
+			} else {
+				// prepend the registry URL for a custom registry image
+				fullTaggedName := fmt.Sprintf("%s%s:%s", imageConfig.Registry, tagged.RemoteName(), tagged.Tag())
+				ic.cacheByName[fullTaggedName] = imageConfig
+			}
 		} else {
 			ic.cacheByName[ref.Name()] = imageConfig
 		}
 	}
+
 }
 
 // copyImageConfig performs and returns deep copy of an ImageConfig struct
