@@ -182,7 +182,6 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	})
 	if err != nil {
 		err = errors.Errorf("Failed to destroy VM %q: %s", vm.Reference(), err)
-		// Unregister then do we still want to deleteDatastoreFiles? something about attached volumes
 		err2 := vm.Unregister(d.ctx)
 		if err2 != nil {
 			return errors.Errorf("%s then failed to unregister VM: %s", err, err2)
