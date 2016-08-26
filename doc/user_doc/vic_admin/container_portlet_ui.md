@@ -20,3 +20,4 @@ Information about the container appears in the Container portlet in the **Summar
 
 -  The name of the running container. If the container developer used <code>docker run -name <i>container_name</i></code> to run the container, <code><i>container_name</i></code> appears in the portlet.
 -  The image from which the container was deployed.
+-  If the container developer used <code>docker run -p <i>port</i></code> to map a port when running the container, the port number and the protocol appear in the portlet.
