@@ -65,13 +65,20 @@ func TestConvertV1ImageToDockerImage(t *testing.T) {
 func TestClientFriendlyTags(t *testing.T) {
 	imageName := "busybox"
 	tags := []string{"1.24.2", "latest"}
+	defaultRegistry := "registry-1.docker.io/"
+	customRegistry := "custom.reg.com/"
 
-	friendlyTags := clientFriendlyTags(imageName, tags)
-	assert.Equal(t, len(friendlyTags), len(tags), "Error: expected %d tags, got %d", len(tags), len(friendlyTags))
-	assert.Equal(t, friendlyTags[0], "busybox:1.24.2", "Error: expected %s, got %s", "busybox:1.24.2", friendlyTags[0])
-	assert.Equal(t, friendlyTags[1], "busybox:latest", "Error: expected %s, got %s", "busybox:latest", friendlyTags[1])
+	defaultFriendlyTags := clientFriendlyTags(defaultRegistry, imageName, tags)
+	assert.Equal(t, len(defaultFriendlyTags), len(tags), "Error: expected %d tags, got %d", len(tags), len(defaultFriendlyTags))
+	assert.Equal(t, defaultFriendlyTags[0], "busybox:1.24.2", "Error: expected %s, got %s", "busybox:1.24.2", defaultFriendlyTags[0])
+	assert.Equal(t, defaultFriendlyTags[1], "busybox:latest", "Error: expected %s, got %s", "busybox:latest", defaultFriendlyTags[1])
 
-	emptyTags := clientFriendlyTags(imageName, []string{})
+	customFriendlyTags := clientFriendlyTags(customRegistry, imageName, tags)
+	assert.Equal(t, len(customFriendlyTags), len(tags), "Error: expected %d tags, got %d", len(tags), len(customFriendlyTags))
+	assert.Equal(t, customFriendlyTags[0], "custom.reg.com/busybox:1.24.2", "Error: expected %s, got %s", "custom.reg.com/busybox:1.24.2", customFriendlyTags[0])
+	assert.Equal(t, customFriendlyTags[1], "custom.reg.com/busybox:latest", "Error: expected %s, got %s", "custom.reg.com/busybox:latest", customFriendlyTags[1])
+
+	emptyTags := clientFriendlyTags(defaultRegistry, imageName, []string{})
 	assert.Equal(t, len(emptyTags), 1, "Error: expected %d tags, got %d", 1, len(emptyTags))
 	assert.Equal(t, emptyTags[0], "<none>:<none>", "Error: expected %s tags, got %s", "<none>:<none>", emptyTags[0])
 
