@@ -412,8 +412,38 @@ func (c *Create) processContainerNetworks() error {
 		c.MappedNetworksIPRanges[vicnet] = pools[vnet]
 		c.MappedNetworksDNS[vicnet] = dns[vnet]
 
+		delete(gws, vnet)
+		delete(pools, vnet)
+		delete(dns, vnet)
 	}
 
+	var hasError bool
+	fmtMsg := "The following container network %s is set, but CONTAINER-NETWORK cannot be found. Please check the --container-network and %s settings"
+	if len(gws) > 0 {
+		log.Error(fmt.Sprintf(fmtMsg, "gateway", "--container-network-gateway"))
+		for key, value := range gws {
+			mask, _ := value.Mask.Size()
+			log.Errorf("\t%s:%s/%d, %q should be vSphere network name", key, value.IP, mask, key)
+		}
+		hasError = true
+	}
+	if len(pools) > 0 {
+		log.Error(fmt.Sprintf(fmtMsg, "ip range", "--container-network-ip-range"))
+		for key, value := range pools {
+			log.Errorf("\t%s:%s, %q should be vSphere network name", key, value, key)
+		}
+		hasError = true
+	}
+	if len(dns) > 0 {
+		log.Errorf(fmt.Sprintf(fmtMsg, "dns", "--container-network-dns"))
+		for key, value := range dns {
+			log.Errorf("\t%s:%s, %q should be vSphere network name", key, value, key)
+		}
+		hasError = true
+	}
+	if hasError {
+		return cli.NewExitError("Inconsistent container network configuration.", 1)
+	}
 	return nil
 }
 
