@@ -15,6 +15,7 @@
 package vm
 
 import (
+	"errors"
 	"net/url"
 	"path"
 	"strings"

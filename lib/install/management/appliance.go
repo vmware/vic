@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -166,32 +167,34 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	// get the actual folder name before we delete it
 	folder, err := vm.FolderName(d.ctx)
 	if err != nil {
+		log.Warnf("Failed to get folder name for VM. Delete may not completely remove all files in datastore for VM %q: %s", vm.Reference(), err)
 		name := d.getName(vm)
 		if name == "" {
-			name = vm.Reference()
+			log.Errorf("Failed to get VM name. Delete is unable to remove all files in datastore for VM %q", vm.Reference())
 		} else {
 			// try to use the vm name in place of folder
+			log.Infof("Attempting to remove datastore files for VM %q", name)
 			folder = name
 		}
-		log.Warnf("Failed to get actual folder name for VM. Delete may not completely remove all files in datastore for VM %q: %s", name, vm.err)
 	}
+	log.Info("ATC attempting folder %q for vm %q", folder, vm.Reference())
 
 	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
 		return vm.Destroy(ctx)
 	})
 	if err != nil {
-		err = errors.Errorf("Failed to destroy vm %q: %s", vm.Reference(), err)
+		err = errors.Errorf("Failed to destroy VM %q: %s", vm.Reference(), err)
 		// Unregister then do we still want to deleteDatastoreFiles? something about attached volumes
 		err2 := vm.Unregister(d.ctx)
 		if err2 != nil {
-			return errors.Errorf("%s then failed to unregister vm: %s", err, err2)
+			return errors.Errorf("%s then failed to unregister VM: %s", err, err2)
 		}
 		log.Warnf("Unregistered VM after failed destroy: %q", vm.Reference())
 		// Try deleting datastore...
 		//return err
 	}
 	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {
-		log.Warnf("VM path %q is not removed: %s", folder, err)
+		log.Warnf("Failed to remove VM path %q: %s", folder, err)
 	}
 
 	return nil
