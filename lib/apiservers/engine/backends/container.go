@@ -564,9 +564,9 @@ func (c *Container) containerStart(name string, hostConfig *container.HostConfig
 	// commit the handle; this will reconfigure and start the vm
 	_, err = client.Containers.Commit(containers.NewCommitParamsWithTimeout(commitTimeout).WithHandle(handle))
 	if err != nil {
-		cache.ContainerCache().DeleteContainer(name)
 		switch err := err.(type) {
 		case *containers.CommitNotFound:
+			cache.ContainerCache().DeleteContainer(name)
 			return NotFoundError(paramName)
 		case *containers.CommitDefault:
 			return InternalServerError(err.Payload.Message)
