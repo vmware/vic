@@ -37,7 +37,7 @@ const (
 //FIXME: remove this type and refactor to use object.Task from govmomi
 //       this will require a lot of code being touched in a lot of places.
 type Task interface {
-	Wait(ctx context.Context, s progress.Sinker) error
+	Wait(ctx context.Context) error
 	WaitForResult(ctx context.Context, s progress.Sinker) (*types.TaskInfo, error)
 }
 
