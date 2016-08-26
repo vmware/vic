@@ -47,9 +47,7 @@ type Task interface {
 //       return vm.Reconfigure(ctx, config)
 //    })
 func Wait(ctx context.Context, f func(context.Context) (Task, error)) error {
-	_, err := WaitForResult(ctx, func(context.Context) (Task, error) {
-		return f(ctx)
-	})
+	_, err := WaitForResult(ctx, f)
 	return err
 }
 
@@ -99,7 +97,7 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 		err = werr
 		break
 	}
-	log.Errorf("Task failed with non fault error : %s", err)
+	log.Errorf("Task failed with error : %s", err)
 	return taskInfo, err
 
 }
