@@ -1,8 +1,8 @@
 # VCH Deployment Fails with Resource Pool Creation Error #
-When you use the command line installer to deploy a virtual container host directly on an ESXi host, the installation fails with a resource pool creation error.
+When you use `vic-machine create` to deploy a virtual container host directly on an ESXi host, the installation fails with a resource pool creation error.
 
 ## Problem ##
-Command line installation on an ESXi host fails during the validation of the configuration that you provided: 
+Deployment on an ESXi host fails during the validation of the configuration that you provided: 
 
 <pre>
 Creating resource pool failed with ServerFaultCode: 
@@ -16,4 +16,5 @@ You set the `target` option to the address of an ESXi host that is managed by a 
 
 ## Solution ##
 - Set the `target` option to the address of the vCenter Server instance that manages the ESXi host. 
-- Disassociate the ESXi host from the vCenter Server instance and run the installer again. 
+- Disassociate the ESXi host from the vCenter Server instance. 
+- Set the `target` option to a different ESXi host.
