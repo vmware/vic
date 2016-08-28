@@ -5,6 +5,8 @@
 Contributors and users are encouraged to collaborate using the following resources in addition to the GitHub issue
 tracker:
 
+- [Slack](https://vmwarecode.slack.com/messages/vic-engine)
+
 - [Socialcast](https://vic-vmware.socialcast.com)
 
 - [Gitter](https://gitter.im/vmware/vic)
