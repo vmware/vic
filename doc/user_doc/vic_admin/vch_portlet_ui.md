@@ -11,12 +11,12 @@ After you have installed the vSphere Web Client plug-in for vSphere Integrated C
 
 1. In the vSphere Web Client Home page, select **Hosts and Clusters**.
 2. Expand the hierarchy of vCenter Server objects to navigate to the virtual container host vApp.
-3. Expand the virtual container host vApp and select the virtual container host VM.
-4. Click the **Summary** tab for the virtual container host VM.
+3. Expand the virtual container host vApp and select the virtual container host endpoint VM.
+4. Click the **Summary** tab for the virtual container host VM and scroll down to the Virtual Container Host portlet.
 
 **Result**
 
-Information about the virtual container host appears in the Virtual Container Host portlet in the Summary tab:
+Information about the virtual container host appears in the Virtual Container Host portlet in the **Summary** tab:
 
 -  The address of the Docker API endpoint for this virtual container host
 -  A link to the vic-admin portal for the virtual container host, from which you can obtain health information and download log bundles for the virtual container host.

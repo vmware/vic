@@ -10,8 +10,9 @@ The vSphere Integrated Containers installation and management utility, `vic-mach
 |---|---|
 |Windows|7, 10|
 |Mac OS X |10.11 (El Capitan)|
-|Linux|Ubuntu 15.04|
-|Photon OS|1.0|
+|Linux|Ubuntu 16.04 LTS|
+
+Other recent OS versions should work but are untested.
 
 ## Supported vSphere Configurations ##
 
@@ -27,7 +28,7 @@ Deploying vSphere Integrated Containers to a vCenter Server instance that is run
 
 To be valid targets for virtual container hosts and container VMs, standalone ESXi hosts and all ESXi hosts in vCenter Server clusters must meet the following criteria:
 
-- All ESXi hosts must be attached to shared storage for use as container datastores, image datastores, and volume stores. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability. The use of VMware Virtual SAN datastores is fully supported.
+- In vCenter Server clusters, at least two ESXi hosts must be attached to shared storage for use as container stores, image stores, and volume stores. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability. The use of VMware Virtual SAN datastores is fully supported.
 - The firewall on all ESXi hosts must be configured to allow connections on the back channel and to allow outbound connections on port 2377. For instruction about how to open port 2377 on ESXi hosts, see [VCH Deployment Fails with Firewall Validation Error](ts_firewall_error.md).
 - All ESXi hosts must be attached to the distributed virtual switch for the bridge network in vCenter Server. For more information about distributed virtual switches, see [Network Requirements](#networkreqs) below.
 - All ESXi hosts must be attached to any mapped vSphere networks.
@@ -52,7 +53,7 @@ You must use an account with the vSphere Administrator role when you install vSp
 * Use a trusted network for the deployment and use of vSphere Integrated Containers.
 * Use a trusted network for connections between Docker clients and the virtual container hosts.
 * Each virtual container host requires the following network configuration:
- * One IP address, that can be either static or set by using DHCP.
+ * An IP address that is obtained by DHCP. Virtual container hosts do not currently support static IP addresses.
  * One VLAN, if you use VLAN for network isolation.
  * One IP address for each container that you run with the `docker run --net=host` option.
 * Virtual container hosts require a network with DHCP for use as the external network. You can share this network between multiple virtual container hosts.

@@ -88,6 +88,7 @@ func (ic *ICache) Update(client *client.PortLayer) error {
 	}
 
 	for _, layer := range layers.Payload {
+
 		imageConfig := &metadata.ImageConfig{}
 		if err := json.Unmarshal([]byte(layer.Metadata[metadata.MetaDataKey]), imageConfig); err != nil {
 			derr.NewErrorWithStatusCode(fmt.Errorf("Failed to unmarshal image config: %s", err),
@@ -118,6 +119,11 @@ func (ic *ICache) GetImages() []*metadata.ImageConfig {
 func (ic *ICache) GetImage(idOrRef string) (*metadata.ImageConfig, error) {
 	ic.m.RLock()
 	defer ic.m.RUnlock()
+
+	// cover the case of creating by a full reference
+	if config, ok := ic.cacheByName[idOrRef]; ok {
+		return config, nil
+	}
 
 	// get the full image ID if supplied a prefix
 	if id, err := ic.idIndex.Get(idOrRef); err == nil {
@@ -212,14 +218,9 @@ func (ic *ICache) AddImage(imageConfig *metadata.ImageConfig) {
 			log.Errorf("Tried to create tagged reference from %s and tag %s: %s", imageConfig.Name, tag, err.Error())
 			return
 		}
-
-		if tagged, ok := ref.(reference.NamedTagged); ok {
-			taggedName := fmt.Sprintf("%s:%s", tagged.Name(), tagged.Tag())
-			ic.cacheByName[taggedName] = imageConfig
-		} else {
-			ic.cacheByName[ref.Name()] = imageConfig
-		}
+		ic.cacheByName[imageConfig.Reference] = imageConfig
 	}
+
 }
 
 // copyImageConfig performs and returns deep copy of an ImageConfig struct

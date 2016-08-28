@@ -7,7 +7,8 @@ Deployment fails with a firewall error during the validation phase:
 <pre>Firewall must permit 2377/tcp outbound to use VIC.</pre>
 
 ## Cause ##
-ESXi hosts communicate with the virtual container hosts via port 2377. For deployment of a virtual container host to succeed, port 2377 must be open for outgoing connections on all all ESXi hosts before you run `vic-machine create`. Opening port 2377 for outgoing connections on ESXi hosts opens port 2377 for inbound connections on the virtual container hosts.
+
+ESXi hosts communicate with the virtual container hosts through port 2377 via Serial Over LAN. For deployment of a virtual container host to succeed, port 2377 must be open for outgoing connections on all ESXi hosts before you run `vic-machine create`. Opening port 2377 for outgoing connections on ESXi hosts opens port 2377 for inbound connections on the virtual container hosts.
 
 ## Solution ##
 
