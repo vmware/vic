@@ -496,7 +496,7 @@ func WriteImageBlobs(images []*ImageWithMeta) error {
 }
 
 // CreateImageConfig constructs the image metadata from layers that compose the image
-func CreateImageConfig(images []*ImageWithMeta, manifest *Manifest) error {
+func CreateImageConfig(images []*ImageWithMeta, manifest *Manifest, reference string) error {
 
 	if len(images) == 0 {
 		return nil
@@ -562,11 +562,12 @@ func CreateImageConfig(images []*ImageWithMeta, manifest *Manifest) error {
 		ImageID: sum,
 		// TODO: this will change when issue 1186 is
 		// implemented -- only populate the digests when pulled by digest
-		Digests: []string{manifest.Digest},
-		Tags:    []string{options.tag},
-		Name:    manifest.Name,
-		DiffIDs: diffIDs,
-		History: history,
+		Digests:   []string{manifest.Digest},
+		Tags:      []string{options.tag},
+		Name:      manifest.Name,
+		DiffIDs:   diffIDs,
+		History:   history,
+		Reference: reference,
 	}
 
 	blob, err := json.Marshal(metaData)
@@ -731,7 +732,7 @@ func main() {
 		log.Fatalf(err.Error())
 	}
 
-	if err := CreateImageConfig(images, manifest); err != nil {
+	if err := CreateImageConfig(images, manifest, options.reference); err != nil {
 		log.Fatalf(err.Error())
 	}
 

@@ -1,4 +1,4 @@
-# Contributing to vIC
+# Contributing to VIC Engine
 
 ## Community
 
@@ -141,7 +141,7 @@ drone exec --yaml .drone.yml -e VIC_ESX_TEST_URL=""
 
 #### Integration tests
 
-Integration tests require a running ESX on which to deploy VIC. See [VIC Integration & Functional Test Suite](tests/README.md).
+Integration tests require a running ESX on which to deploy VIC Engine. See [VIC Integration & Functional Test Suite](tests/README.md).
 
 
 ## Reporting Bugs and Creating Issues

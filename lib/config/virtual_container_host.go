@@ -122,6 +122,8 @@ type VirtualContainerHostConfigSpec struct {
 	RegistryWhitelist []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	// Blacklist of registries
 	RegistryBlacklist []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	// Insecure registries
+	InsecureRegistries []url.URL `vic:"0.1" scope:"read-only" key:"insecure_registries"`
 
 	// Allow custom naming convention for containerVMs
 	ContainerNameConvention string

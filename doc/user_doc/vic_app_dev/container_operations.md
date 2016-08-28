@@ -4,15 +4,15 @@
 
 ## General Container Operations ##
 
-
 | **Container** | **Docker Reference** | **Supported** |
 | --- | --- | --- |
+|Docker login| [Log into a Docker registry](https://docs.docker.com/engine/reference/commandline/login/)|Yes, use to access private repository|
 |Docker start|[Start a container](https://docs.docker.com/engine/reference/commandline/start/)|Yes|
 |Docker version|[Docker version information](https://docs.docker.com/engine/reference/commandline/version/)|Yes. vSphere Integrated Containers version provided|
-|Docker run|Composite command of create, start, inspect, attach, rm, resize, wait, kill|Yes. <code>docker run -c</code> and <code>docker run -m</code> parameters are supported|
+|Docker run|Composite command of create, start, inspect, attach, rm, resize, wait, kill|Yes. <code>docker run -c</code> and <code>docker run -m</code> parameters are supported.  <br>Container search using prettyname-ID <code>docker run -name</code> is supported. <br> Mapping a random host port to the container when the host port is not specified is supported. <br>Running images from private and custom registries is supported.|
 |Docker create|[Create a container](https://docs.docker.com/engine/reference/commandline/create/)|Yes|
 |Docker inspect|[Inspect a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#inspect-a-container) <br>[Inspect an image](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#inspect-an-image)|Yes|
-|Docker port|[Obtain port data](https://docs.docker.com/engine/reference/commandline/port/)|Yes. Displays port mapping data.|
+|Docker port|[Obtain port data](https://docs.docker.com/engine/reference/commandline/port/)|Yes. Displays port mapping data. <br> Mapping a random host port to the container when the host port is not specified is supported.|
 |Docker attach|[Attach to a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#attach-to-a-container)<br> [Attach to a container websocket](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#attach-to-a-container-websocket)|Yes|
 |Docker rm|[Remove a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#remove-a-container)|Yes, only the <code>name</code> parameter is supported. <code>force</code> and <code>v</code> are a future implementation. Also removes associated volumes.|
 |Docker info|[Docker system information](https://docs.docker.com/engine/reference/commandline/info/)|Yes, docker-specific data, basic capacity information, list of configured volume stores, virtual container host information. Does not reveal vSphere datastore paths that might contain sensitive vSphere information|
@@ -22,8 +22,9 @@
 |Docker ps|[Show running containers](https://docs.docker.com/engine/reference/commandline/ps/)|Yes|
 |Docker logs|[Get container logs](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#get-container-logs)|Yes, except for the `docker logs --timestamps` (`-t`) and `--since` options, which are not supported.|
 |Docker restart|[Restart a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#restart-a-container)<br> [Restart](https://docs.docker.com/engine/reference/commandline/restart/)|Yes|
-|Docker kill|[Kill a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#kill-a-container)<br> [Kill](https://docs.docker.com/engine/reference/commandline/kill/)|No. Use Docker stop|
+|Docker kill|[Kill a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#kill-a-container)<br> [Kill](https://docs.docker.com/engine/reference/commandline/kill/)|Yes. Docker must wait for the container to shut down.|
 |Docker Container list|[List Containers](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#list-containers)|Yes|
+|Docker pull|[Pull an image or repository from a registry](https://docs.docker.com/engine/reference/commandline/pull/)| Yes, pulling from insecure and custom registries is supported|
 
 ## Network Operations ##
 
@@ -35,7 +36,7 @@ For more information about network operations, see [Network Port Use Cases](netw
 |Network ls|[List networks/](https://docs.docker.com/engine/reference/commandline/network_ls/)|Yes|
 |Network inspect|[Inspect a network](https://docs.docker.com/engine/reference/commandline/network_inspect/)|Yes|
 |Network connect|[Connect to a network](https://docs.docker.com/engine/reference/commandline/network_connect/)|Yes|
-|Network rm|[Remove a network](https://docs.docker.com/engine/reference/commandline/network_rm/)|Yes|
+|Network rm|[Remove a network](https://docs.docker.com/engine/reference/commandline/network_rm/)|Yes. Network name and network ID are supported|
 
 ## Volume Operations ##
 

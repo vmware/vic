@@ -28,10 +28,11 @@ type ImageConfig struct {
 	docker.V1Image
 
 	// image specific data
-	ImageID string            `json:"image_id"`
-	Digests []string          `json:"digests,omitempty"`
-	Tags    []string          `json:"tags,omitempty"`
-	Name    string            `json:"name,omitempty"`
-	DiffIDs map[string]string `json:"diff_ids,omitempty"`
-	History []docker.History  `json:"history,omitempty"`
+	ImageID   string            `json:"image_id"`
+	Digests   []string          `json:"digests,omitempty"`
+	Tags      []string          `json:"tags,omitempty"`
+	Name      string            `json:"name,omitempty"`
+	DiffIDs   map[string]string `json:"diff_ids,omitempty"`
+	History   []docker.History  `json:"history,omitempty"`
+	Reference string            `json:"registry"`
 }

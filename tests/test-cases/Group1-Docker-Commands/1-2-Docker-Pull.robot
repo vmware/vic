@@ -31,6 +31,9 @@ Pull non-default tag
 Pull an image based on digest
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  nginx@sha256:7281cf7c854b0dfc7c68a6a4de9a785a973a14f1481bc028e2022bcd6a8d9f64
 
+Pull an image with the full docker registry URL
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  registry.hub.docker.com/library/hello-world
+
 Pull an image from non-default repo
     #${result}=  Run Process  docker run -d -p 5000:5000 --name registry registry:2  shell=True
     #Log to console  ${result.stdout}

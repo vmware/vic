@@ -17,8 +17,10 @@ package vicadmin
 import (
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"net"
 	"os"
+	"path"
 	"sort"
 	"strings"
 
@@ -28,6 +30,7 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/validate"
+	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/govmomi/property"
@@ -48,6 +51,8 @@ type Validator struct {
 	StorageRemaining template.HTML
 	HostIP           string
 	DockerPort       string
+	VCHStatus        template.HTML
+	VCHIssues        template.HTML
 }
 
 const (
@@ -136,6 +141,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	}
 
 	v.QueryDatastore(ctx, vch, sess)
+	v.QueryVCHStatus(vch)
 	return v
 }
 
@@ -189,5 +195,58 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 			  <div class="sixty">%s:</div>
 			  <div class="fourty">%.1f GB remaining</div>
 			</div>`, v.StorageRemaining, ds.Name, float64(ds.Summary.FreeSpace)/(1<<30)))
+	}
+}
+
+func (v *Validator) QueryVCHStatus(vch *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin(""))
+	v.VCHIssues = template.HTML("")
+	v.VCHStatus = GoodStatus
+
+	procs := map[string]string { "vic-init" : "vic-init", }
+
+	// Extract required components from vchConfig
+	// Only report on components with Restart set to true
+	for service, sess := range vch.ExecutorConfig.Sessions {
+		if !sess.Restart {
+			continue
+		}
+		cmd := path.Base(sess.Cmd.Path)
+		procs[service] = cmd
+	}
+	log.Infof("Processes to check: %+v", procs)
+
+	for service, proc := range procs {
+		log.Infof("Checking status of %s", proc)
+		pid, err := ioutil.ReadFile(fmt.Sprintf("%s.pid", path.Join(tether.PIDFileDir, proc)))
+		if err != nil {
+			v.VCHIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s service is not running</span>\n",
+				v.VCHIssues, strings.Title(service)))
+			log.Errorf("Process %s not running: %s", proc, err)
+			continue
+		}
+
+		status, err := ioutil.ReadFile(path.Join("/proc", string(pid), "stat"))
+		if err != nil {
+			v.VCHIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">Unable to query service %s</span>\n",
+				v.VCHIssues, strings.Title(service)))
+			continue
+		}
+
+		fields := strings.Split(string(status), " ")
+		// Field 3 is the current state as reported by the kernel
+		switch fields[2][0] {
+		// We're good
+		case 'R', 'S', 'D':
+			log.Infof("Process %s running as PID %s", proc, pid)
+			break
+		// Process has been killed, is dying, or a zombie
+		case 'K', 'X', 'x', 'Z':
+			v.VCHIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s has failed</span>\n",
+				v.VCHIssues, strings.Title(service)))
+		}
+	}
+	if v.VCHIssues != template.HTML("") {
+		v.VCHStatus = BadStatus
 	}
 }

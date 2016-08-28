@@ -65,6 +65,8 @@ When you deploy a virtual container host, `vic-machine` creates a folder named `
 
 If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `image-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability.
 
+If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `image-store` option must be shared by all of the ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability.
+
 You can designate the same datastore as the image store for multiple virtual container hosts. In this case, only one `VIC` folder is created in the datastore and the container image files are made available to all of the virtual container hosts that use that image store.
 
 vSphere Integrated Containers supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters. 

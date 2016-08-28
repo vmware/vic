@@ -4,7 +4,7 @@ Before you install vSphere Integrated Containers, you must ensure that your infr
 
 ## Supported Platforms for `vic-machine` ##
 
-The vSphere Integrated Containers installation and management utility, `vic-machine`, has been tested and verified on the following Linux OS, Windows, and Mac OS systems.
+The vSphere Integrated Containers installation and management utility, `vic-machine`, has been tested and verified on the following Linux OS, Windows, Mac OS, and Photon OS systems. It is possible to use `vic-machine` on other platforms, but results are not guaranteed.
 
 |**Platform**|**Supported Versions**|
 |---|---|
