@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/uid"
 )
 
@@ -208,6 +209,11 @@ func (s *Scope) DNS() []net.IP {
 	return s.dns
 }
 
-func (i *IPAM) Pools() []string {
-	return i.pools
+func (i *IPAM) Pools() []ip.Range {
+	var pools []ip.Range
+	for _, s := range i.spaces {
+		pools = append(pools, *s.Pool)
+	}
+
+	return pools
 }

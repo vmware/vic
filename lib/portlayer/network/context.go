@@ -321,8 +321,8 @@ func (c *Context) checkNetOverlap(subnet *net.IPNet) error {
 }
 
 func reservePools(space *AddressSpace, ipam *IPAM) ([]*AddressSpace, error) {
-	if ipam.pools == nil || len(ipam.pools) == 0 {
-		// pool not specified so use the default
+	if len(ipam.pools) == 0 {
+		// pool not specified so use the entire space
 		ipam.pools = []string{space.Network.String()}
 		return []*AddressSpace{space}, nil
 	}
@@ -866,6 +866,7 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 				Name: s.Name(),
 			},
 			Aliases: options.Aliases,
+			Pools:   s.IPAM().Pools(),
 		},
 		Ports: options.Ports,
 	}

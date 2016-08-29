@@ -366,10 +366,16 @@ func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
 		ID:        &id,
 		Name:      scope.Name(),
 		ScopeType: scope.Type(),
-		IPAM:      scope.IPAM().Pools(),
 		Subnet:    &subnet,
 		Gateway:   &gateway,
 	}
+
+	var pools []string
+	for _, p := range scope.IPAM().Pools() {
+		pools = append(pools, p.String())
+	}
+
+	sc.IPAM = pools
 
 	if len(sc.IPAM) == 0 && len(subnet) != 0 {
 		// use subnet as pool
@@ -399,9 +405,9 @@ func toEndpointConfig(e *network.Endpoint) *models.EndpointConfig {
 
 	return &models.EndpointConfig{
 		Address:   addr,
-		Container: e.Container().ID().String(),
+		Container: e.ID().String(),
 		ID:        e.ID().String(),
-		Name:      e.Container().Name(),
+		Name:      e.Name(),
 		Scope:     e.Scope().Name(),
 		Ports:     ecports,
 	}
