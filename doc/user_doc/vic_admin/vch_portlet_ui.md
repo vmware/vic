@@ -1,11 +1,11 @@
 # Find Virtual Container Host Information in the vSphere Web Client #
 
-After you have installed the vSphere Web Client plug-in for vSphere Integrated Containers, you can find information about virtual container hosts in the vSphere Web Client.
+After you have installed the vSphere Web Client plug-in for vSphere Integrated Containers Engine, you can find information about virtual container hosts in the vSphere Web Client.
 
 **Prerequisites**
 
 - You deployed a virtual container host.
-- You installed the vSphere Web Client plug-in for vSphere Integrated Containers.
+- You installed the vSphere Web Client plug-in for vSphere Integrated Containers Engine.
 
 **Procedure**
 

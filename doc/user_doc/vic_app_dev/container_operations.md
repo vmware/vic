@@ -1,6 +1,6 @@
 # Supported Docker Commands
 
- vSphere Integrated Containers supports Docker 1.11.2. The supported version of the Docker API is 1.23. If you are using a more recent version of the Docker client, see [Docker Commands Fail with a Docker API Version Error](ts_docker_version_error.md).
+ vSphere Integrated Containers Engine supports Docker 1.11.2. The supported version of the Docker API is 1.23. If you are using a more recent version of the Docker client, see [Docker Commands Fail with a Docker API Version Error](ts_docker_version_error.md).
 
 ## General Container Operations ##
 
@@ -8,7 +8,7 @@
 | --- | --- | --- |
 |Docker login| [Log into a Docker registry](https://docs.docker.com/engine/reference/commandline/login/)|Yes, use to access private repository|
 |Docker start|[Start a container](https://docs.docker.com/engine/reference/commandline/start/)|Yes|
-|Docker version|[Docker version information](https://docs.docker.com/engine/reference/commandline/version/)|Yes. vSphere Integrated Containers version provided|
+|Docker version|[Docker version information](https://docs.docker.com/engine/reference/commandline/version/)|Yes. vSphere Integrated Containers Engine version provided|
 |Docker run|Composite command of create, start, inspect, attach, rm, resize, wait, kill|Yes. <code>docker run -c</code> and <code>docker run -m</code> parameters are supported.  <br>Container search using prettyname-ID <code>docker run -name</code> is supported. <br> Mapping a random host port to the container when the host port is not specified is supported. <br>Running images from private and custom registries is supported.|
 |Docker create|[Create a container](https://docs.docker.com/engine/reference/commandline/create/)|Yes|
 |Docker inspect|[Inspect a container](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#inspect-a-container) <br>[Inspect an image](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#inspect-an-image)|Yes|
@@ -40,7 +40,7 @@ For more information about network operations, see [Network Port Use Cases](netw
 
 ## Volume Operations ##
 
-For more information about volume operations, see [Using Volumes with vSphere Integrated Containers](using_volumes_with_vic.md).
+For more information about volume operations, see [Using Volumes with vSphere Integrated Containers Engine](using_volumes_with_vic.md).
 
 | **Volume** | **Docker Reference** | **Supported** |
 | --- | --- | --- |

@@ -1,10 +1,10 @@
-# Environment Prerequisites for vSphere Integrated Containers Installation #
+# Environment Prerequisites for vSphere Integrated Containers Engine Installation #
 
-Before you install vSphere Integrated Containers, you must ensure that your infrastructure meets certain requirements.
+Before you install vSphere Integrated Containers Engine, you must ensure that your infrastructure meets certain requirements.
 
 ## Supported Platforms for `vic-machine` ##
 
-The vSphere Integrated Containers installation and management utility, `vic-machine`, has been tested and verified on the following Linux OS, Windows, Mac OS, and Photon OS systems. It is possible to use `vic-machine` on other platforms, but results are not guaranteed.
+The vSphere Integrated Containers Engine installation and management utility, `vic-machine`, has been tested and verified on the following Linux OS, Windows, Mac OS, and Photon OS systems. It is possible to use `vic-machine` on other platforms, but results are not guaranteed.
 
 |**Platform**|**Supported Versions**|
 |---|---|
@@ -16,13 +16,13 @@ Other recent OS versions should work but are untested.
 
 ## Supported vSphere Configurations ##
 
-You can install vSphere Integrated Containers in the following vSphere setups:
+You can install vSphere Integrated Containers Engine in the following vSphere setups:
 
 * Standalone ESXi 5.5 or 6.0 host that is not managed by a vCenter Server instance.
 * vCenter Server 5.5 or 6.0, managing one or more standalone ESXi 5.5 or 6.0 hosts.
 * vCenter Server 5.5 or 6.0, managing a cluster of ESXi 5.5 or 6.0 hosts, with DRS enabled.
 
-Deploying vSphere Integrated Containers to a vCenter Server instance that is running in Enhanced Linked Mode is fully supported.  
+Deploying vSphere Integrated Containers Engine to a vCenter Server instance that is running in Enhanced Linked Mode is fully supported.  
 
 ## ESXi Host Requirements ##
 
@@ -36,7 +36,7 @@ To be valid targets for virtual container hosts and container VMs, standalone ES
 During deployment of virtual container hosts, the `vic-machine` utilty checks that the target ESXi hosts meet the requirements, and issues warnings if they do not.
 
 ## License Requirements ##
-The type of license that vSphere Integrated Containers requires depends on the way in which you deploy the software.
+The type of license that vSphere Integrated Containers Engine requires depends on the way in which you deploy the software.
 
 | **Type of Installation** | **vSphere Feature Used** | **Required License** |
 | --- | --- | --- |
@@ -46,11 +46,11 @@ The type of license that vSphere Integrated Containers requires depends on the w
 All of the ESXi hosts in a cluster require an appropriate license. Installation fails if your environment includes one or more ESXi hosts that have inadequate licenses.
 
 ## Role and Permissions Requirements
-You must use an account with the vSphere Administrator role when you install vSphere Integrated Containers.
+You must use an account with the vSphere Administrator role when you install vSphere Integrated Containers Engine.
 
 <a name="networkreqs"></a>
 ## Network Requirements
-* Use a trusted network for the deployment and use of vSphere Integrated Containers.
+* Use a trusted network for the deployment and use of vSphere Integrated Containers Engine.
 * Use a trusted network for connections between Docker clients and the virtual container hosts.
 * Each virtual container host requires the following network configuration:
  * An IP address that is obtained by DHCP. Virtual container hosts do not currently support static IP addresses.

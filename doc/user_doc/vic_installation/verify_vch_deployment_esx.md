@@ -13,7 +13,7 @@ After you have deployed a virtual container host to a standalone ESXi host, you 
 
 1. In the vSphere Client, go to **Inventory** and select the host on which you deployed the virtual container host.
  
-    You should see a resource pool with the name that you set for the virtual container host. The resource pool contains the vSphere Integrated Containers endpoint VM.   
+    You should see a resource pool with the name that you set for the virtual container host. The resource pool contains the vSphere Integrated Containers Engine endpoint VM.   
 
 1.  In your Docker client, run the `docker info` command to confirm that you can connect to the virtual container host. 
  

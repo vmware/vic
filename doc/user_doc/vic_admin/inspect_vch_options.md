@@ -1,6 +1,6 @@
 #  Virtual Container Host Inspect Options #
 
-The command line utility for vSphere Integrated Containers, `vic-machine`, provides an `inspect` command that allows you to see information about virtual container hosts. The options that `vic-machine inspect` requires depend on the location in your vSphere environment in which you deployed the virtual container host.
+The command line utility for vSphere Integrated Containers Engine, `vic-machine`, provides an `inspect` command that allows you to see information about virtual container hosts. The options that `vic-machine inspect` requires depend on the location in your vSphere environment in which you deployed the virtual container host.
 
 ### `target` ###
 

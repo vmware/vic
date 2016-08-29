@@ -1,4 +1,4 @@
-# vSphere Integrated Containers Network Overview #
+# vSphere Integrated Containers Engine Network Overview #
 
 vSphere Container Host connects to four network types.
  ![vSphere Container Host Management Network](vch-net.png)

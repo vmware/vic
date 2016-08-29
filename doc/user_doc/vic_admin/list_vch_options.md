@@ -1,6 +1,6 @@
 #  Virtual Container Host List Options #
 
-The command line utility for vSphere Integrated Containers, `vic-machine`, provides an `ls` command that lists the virtual container hosts that are running on an ESXi host or vCenter Server instance. The options that `vic-machine ls` provides allow you to list the virtual container hosts that are running in specific areas of your vSphere environment.
+The command line utility for vSphere Integrated Containers Engine, `vic-machine`, provides an `ls` command that lists the virtual container hosts that are running on an ESXi host or vCenter Server instance. The options that `vic-machine ls` provides allow you to list the virtual container hosts that are running in specific areas of your vSphere environment.
 
 ### `target` ###
 

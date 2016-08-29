@@ -1,10 +1,10 @@
 # Summary
 
 * [Introduction](README.md)
-* [Overview of vSphere Integrated Containers](README.md)
-* [vSphere Integrated Containers Architecture](vicarch.md)
-* [vSphere Integrated Containers Interoperability with Other VMware Software](interop.md)
-* [vSphere Integrated Containers Network Overview](networks.md)
+* [Overview of vSphere Integrated Containers Engine](README.md)
+* [vSphere Integrated Containers Engine Architecture](vicarch.md)
+* [vSphere Integrated Containers Engine Interoperability with Other VMware Software](interop.md)
+* [vSphere Integrated Containers Engine Network Overview](networks.md)
 * [Virtual Container Host Administration](vch_admin.md)
   * [Obtain vic-machine Version Information](vic_machine_version.md)
   * [List Virtual Container Hosts and Obtain Their IDs](list_vch.md)
@@ -15,6 +15,6 @@
     * [Virtual Container Host Delete Options](delete_vch_options.md)
 * [Find Virtual Container Host Information in the vSphere Web Client](vch_portlet_ui.md)
 * [Find Container Information in the vSphere Web Client](container_portlet_ui.md)
-* [Troubleshooting vSphere Integrated Containers Administration](troubleshoot_vic_admin.md)
+* [Troubleshooting vSphere Integrated Containers Engine Administration](troubleshoot_vic_admin.md)
   * [Running `vic-machine ls` on an ESXi Host Fails with an Error](ts_ls_error.md)
   * [Deleting or Inspecting a VCH Fails with a Resource Pool Error](ts_delete_inspect_error.md)

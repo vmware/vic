@@ -1,6 +1,6 @@
-# Developing Container Applications with vSphere Integrated Containers 
+# Developing Container Applications with vSphere Integrated Containers Engine 
 
-*Developing Container Applications with vSphere Integrated Containers* provides information about how to use vSphere Integrated Containers as the endpoint for Docker container application development.
+*Developing Container Applications with vSphere Integrated Containers Engine* provides information about how to use vSphere Integrated Containers Engine as the endpoint for Docker container application development.
 
 **Product version: 0.5.5**
 
@@ -8,7 +8,7 @@
 
 ## Intended Audience
 
-This information is intended for container application developers who's Docker environment uses vSphere Integrated Containers as its endpoint. Knowledge of [container technology](https://en.wikipedia.org/wiki/Operating-system-level_virtualization) and [Docker](https://docs.docker.com/) is assumed.
+This information is intended for container application developers who's Docker environment uses vSphere Integrated Containers Engine as its endpoint. Knowledge of [container technology](https://en.wikipedia.org/wiki/Operating-system-level_virtualization) and [Docker](https://docs.docker.com/) is assumed.
 
 ----------
 

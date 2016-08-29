@@ -1,6 +1,6 @@
 # Create a Private Port Group for Virtual Container Hosts
 
-If you install vSphere Integrated Containers in an environment that includes more than one ESXi host, you must create a private port group for container VMs to use to communicate with each other.
+If you install vSphere Integrated Containers Engine in an environment that includes more than one ESXi host, you must create a private port group for container VMs to use to communicate with each other.
 
 You must create the private port group in advance of deploying a virtual container host, and use the `-bridge-network` option to assign the network to the virtual container host.
 
@@ -8,7 +8,7 @@ In an environment with a single ESXi host, the `-bridge-network` option is optio
 
 You create private port groups in the vSphere Web Client.
 
-**IMPORTANT** vSphere Integrated Containers does not support tagging on private port groups. Do not apply tags to the private port groups that you create. 
+**IMPORTANT** vSphere Integrated Containers Engine does not support tagging on private port groups. Do not apply tags to the private port groups that you create. 
 
 1. Log into the vSphere Web Client for the vCenter Server instance that manages your host or cluster.
 2. In the **Home** view, click **Hosts and Clusters**. 
