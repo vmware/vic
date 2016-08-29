@@ -15,6 +15,7 @@
 package vm
 
 import (
+	"container/list"
 	"fmt"
 	"math"
 	"math/rand"
@@ -271,4 +272,93 @@ func TestVMAttributes(t *testing.T) {
 			t.Fatalf("ERROR: %s", err)
 		}
 	}()
+}
+
+func createSnapshotTree(prefix string, deep int, wide int) []types.VirtualMachineSnapshotTree {
+	var result []types.VirtualMachineSnapshotTree
+	if deep == 0 {
+		return nil
+	}
+	for i := 1; i <= wide; i++ {
+		nodeID := fmt.Sprintf("%s%d", prefix, i)
+		node := types.VirtualMachineSnapshotTree{
+			Snapshot: types.ManagedObjectReference{
+				Type:  "Snapshot",
+				Value: nodeID,
+			},
+			Name: nodeID,
+		}
+		node.ChildSnapshotList = createSnapshotTree(nodeID, deep-1, wide)
+		result = append(result, node)
+	}
+	return result
+}
+
+func TestBfsSnapshotTree(t *testing.T) {
+	ref := &types.ManagedObjectReference{
+		Type:  "Snapshot",
+		Value: "12131",
+	}
+	rootList := createSnapshotTree("", 5, 5)
+
+	ctx := context.Background()
+
+	session := test.Session(ctx, t)
+	defer session.Logout(ctx)
+	vm := NewVirtualMachine(ctx, session, *ref)
+	q := list.New()
+	for _, c := range rootList {
+		q.PushBack(c)
+	}
+
+	compareID := func(node types.VirtualMachineSnapshotTree) bool {
+		if node.Snapshot == *ref {
+			t.Logf("Found match")
+			return true
+		}
+		return false
+	}
+	current := vm.bfsSnapshotTree(q, compareID)
+	if current == nil {
+		t.Errorf("Should found current snapshot")
+	}
+	q = list.New()
+	for _, c := range rootList {
+		q.PushBack(c)
+	}
+
+	ref = &types.ManagedObjectReference{
+		Type:  "Snapshot",
+		Value: "185",
+	}
+	current = vm.bfsSnapshotTree(q, compareID)
+	if current != nil {
+		t.Errorf("Should not found snapshot")
+	}
+
+	name := "12131"
+	compareName := func(node types.VirtualMachineSnapshotTree) bool {
+		if node.Name == name {
+			t.Logf("Found match")
+			return true
+		}
+		return false
+	}
+	q = list.New()
+	for _, c := range rootList {
+		q.PushBack(c)
+	}
+	found := vm.bfsSnapshotTree(q, compareName)
+	if found == nil {
+		t.Errorf("Should found snapshot %q", name)
+	}
+	q = list.New()
+	for _, c := range rootList {
+		q.PushBack(c)
+	}
+	name = "185"
+	found = vm.bfsSnapshotTree(q, compareName)
+	if found != nil {
+		t.Errorf("Should not found snapshot")
+	}
 }

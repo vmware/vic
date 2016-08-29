@@ -15,13 +15,12 @@
 package create
 
 import (
+	"bytes"
 	"encoding"
 	"fmt"
 	"net"
 	"net/url"
-	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -37,8 +36,6 @@ import (
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 
-	"bytes"
-
 	"golang.org/x/net/context"
 )
 
@@ -46,16 +43,7 @@ const (
 	// Max permitted length of Virtual Machine name
 	MaxVirtualMachineNameLen = 80
 	// Max permitted length of Virtual Switch name
-	MaxDisplayNameLen  = 31
-	ApplianceImageKey  = "core"
-	LinuxImageKey      = "linux"
-	ApplianceImageName = "appliance.iso"
-	LinuxImageName     = "bootstrap.iso"
-
-	// An ISO 9660 sector is normally 2 KiB long. Although the specification allows for alternative sector sizes, you will rarely find anything other than 2 KiB.
-	ISO9660SectorSize = 2048
-	ISOVolumeSector   = 0x10
-	PublisherOffset   = 318
+	MaxDisplayNameLen = 31
 )
 
 var EntireOptionHelpTemplate = `NAME:
@@ -85,9 +73,6 @@ type Create struct {
 	noTLS           bool
 	advancedOptions bool
 
-	osType  string
-	logfile string
-
 	containerNetworks         cli.StringSlice
 	containerNetworksGateway  cli.StringSlice
 	containerNetworksIPRanges cli.StringSlice
@@ -103,19 +88,9 @@ type Create struct {
 	executor *management.Dispatcher
 }
 
-var (
-	images = map[string][]string{
-		ApplianceImageKey: {ApplianceImageName},
-		LinuxImageKey:     {LinuxImageName},
-	}
-)
-
 func NewCreate() *Create {
 	create := &Create{}
 	create.Data = data.NewData()
-
-	// FIXME: make this a flag
-	create.logfile = "create.log"
 
 	return create
 }
@@ -224,87 +199,78 @@ func (c *Create) Flags() []cli.Flag {
 			Value: flags.NewSharesFlag(&c.VCHCPUShares),
 			Usage: "VCH vCPUs shares, in level or share number, e.g. high, normal, low, or 4000",
 		},
-		cli.StringFlag{
-			Name:        "appliance-iso, ai",
-			Value:       "",
-			Usage:       "The appliance iso",
-			Destination: &c.ApplianceISO,
-		},
-		cli.StringFlag{
-			Name:        "bootstrap-iso, bi",
-			Value:       "",
-			Usage:       "The bootstrap iso",
-			Destination: &c.BootstrapISO,
-		},
-		cli.StringFlag{
-			Name:        "key",
-			Value:       "",
-			Usage:       "Virtual Container Host private key file",
-			Destination: &c.key,
-		},
-		cli.StringFlag{
-			Name:        "cert",
-			Value:       "",
-			Usage:       "Virtual Container Host x509 certificate file",
-			Destination: &c.cert,
-		},
-		cli.StringFlag{
-			Name:        "base-image-size",
-			Value:       "8GB",
-			Usage:       "Specify the size of the base image from which all other images are created e.g. 8GB/8000MB",
-			Destination: &c.ScratchSize,
-			Hidden:      true,
-		},
-		cli.BoolFlag{
-			Name:        "no-tls, k",
-			Usage:       "Disable TLS support",
-			Destination: &c.noTLS,
-		},
-		cli.BoolFlag{
-			Name:        "force, f",
-			Usage:       "Force the install, removing existing if present",
-			Destination: &c.Force,
-		},
-		cli.DurationFlag{
-			Name:        "timeout",
-			Value:       3 * time.Minute,
-			Usage:       "Time to wait for create",
-			Destination: &c.Timeout,
-		},
-		cli.BoolFlag{
-			Name:        "advanced-options, x",
-			Usage:       "Show all options",
-			Destination: &c.advancedOptions,
-		},
-		cli.IntFlag{
-			Name:        "appliance-memory",
-			Value:       2048,
-			Usage:       "Memory for the appliance VM, in MB",
-			Hidden:      true,
-			Destination: &c.MemoryMB,
-		},
-		cli.IntFlag{
-			Name:        "appliance-cpu",
-			Value:       1,
-			Usage:       "vCPUs for the appliance VM",
-			Hidden:      true,
-			Destination: &c.NumCPUs,
-		},
-		cli.BoolFlag{
-			Name:        "use-rp",
-			Usage:       "Use resource pool for vch parent in VC",
-			Destination: &c.UseRP,
-			Hidden:      true,
-		},
-		cli.StringSliceFlag{
-			Name:  "docker-insecure-registry, dir",
-			Value: &c.insecureRegistries,
-			Usage: "Specify a list of insecure registry server URLs for the docker personality server",
-		},
 	}
-	preFlags := append(c.TargetFlags(), c.ComputeFlags()...)
-	flags = append(preFlags, flags...)
-	flags = append(flags, c.DebugFlags()...)
+
+	flags = append(append(flags, c.ImageFlags()...),
+		[]cli.Flag{
+			cli.StringFlag{
+				Name:        "key",
+				Value:       "",
+				Usage:       "Virtual Container Host private key file",
+				Destination: &c.key,
+			},
+			cli.StringFlag{
+				Name:        "cert",
+				Value:       "",
+				Usage:       "Virtual Container Host x509 certificate file",
+				Destination: &c.cert,
+			},
+			cli.StringFlag{
+				Name:        "base-image-size",
+				Value:       "8GB",
+				Usage:       "Specify the size of the base image from which all other images are created e.g. 8GB/8000MB",
+				Destination: &c.ScratchSize,
+				Hidden:      true,
+			},
+			cli.BoolFlag{
+				Name:        "no-tls, k",
+				Usage:       "Disable TLS support",
+				Destination: &c.noTLS,
+			},
+			cli.BoolFlag{
+				Name:        "force, f",
+				Usage:       "Force the install, removing existing if present",
+				Destination: &c.Force,
+			},
+			cli.DurationFlag{
+				Name:        "timeout",
+				Value:       3 * time.Minute,
+				Usage:       "Time to wait for create",
+				Destination: &c.Timeout,
+			},
+			cli.BoolFlag{
+				Name:        "advanced-options, x",
+				Usage:       "Show all options",
+				Destination: &c.advancedOptions,
+			},
+			cli.IntFlag{
+				Name:        "appliance-memory",
+				Value:       2048,
+				Usage:       "Memory for the appliance VM, in MB",
+				Hidden:      true,
+				Destination: &c.MemoryMB,
+			},
+			cli.IntFlag{
+				Name:        "appliance-cpu",
+				Value:       1,
+				Usage:       "vCPUs for the appliance VM",
+				Hidden:      true,
+				Destination: &c.NumCPUs,
+			},
+			cli.BoolFlag{
+				Name:        "use-rp",
+				Usage:       "Use resource pool for vch parent in VC",
+				Destination: &c.UseRP,
+				Hidden:      true,
+			},
+			cli.StringSliceFlag{
+				Name:  "docker-insecure-registry, dir",
+				Value: &c.insecureRegistries,
+				Usage: "Specify a list of insecure registry server URLs for the docker personality server",
+			},
+		}...)
+
+	flags = append(append(append(c.TargetFlags(), c.ComputeFlags()...), flags...), c.DebugFlags()...)
 	return flags
 }
 
@@ -364,13 +330,7 @@ func (c *Create) processParams() error {
 	if err := c.processInsecureRegistries(); err != nil {
 		return err
 	}
-
-	//	if err := c.processReservations(); err != nil {
-	//		return err
-	//	}
 	// FIXME: add parameters for these configurations
-	c.osType = "linux"
-
 	c.Insecure = true
 	return nil
 }
@@ -490,113 +450,6 @@ func (c *Create) loadCertificate() (*certificate.Keypair, error) {
 	return keypair, nil
 }
 
-func (c *Create) checkImagesFiles(cliContext *cli.Context) (map[string]string, error) {
-	defer trace.End(trace.Begin(""))
-
-	// detect images files
-	osImgs, ok := images[c.osType]
-	if !ok {
-		return nil, fmt.Errorf("Specified OS \"%s\" is not known to this installer", c.osType)
-	}
-
-	imgs := make(map[string]string)
-	result := make(map[string]string)
-	if c.ApplianceISO == "" {
-		c.ApplianceISO = images[ApplianceImageKey][0]
-	}
-	imgs[ApplianceImageName] = c.ApplianceISO
-
-	if c.BootstrapISO == "" {
-		c.BootstrapISO = osImgs[0]
-	}
-	imgs[LinuxImageName] = c.BootstrapISO
-
-	for name, img := range imgs {
-		_, err := os.Open(img)
-		if os.IsNotExist(err) {
-			var dir string
-			dir, err = filepath.Abs(filepath.Dir(os.Args[0]))
-			_, err = os.Stat(filepath.Join(dir, img))
-			if err == nil {
-				img = filepath.Join(dir, img)
-			}
-		}
-
-		if os.IsNotExist(err) {
-			log.Warnf("\t\tUnable to locate %s in the current or installer directory.", img)
-			return nil, err
-		}
-
-		version, err := c.getImageVersion(cliContext, img)
-		if err != nil {
-			log.Error(err)
-			return nil, err
-		}
-		versionedName := fmt.Sprintf("%s-%s", version, name)
-		result[versionedName] = img
-		if name == ApplianceImageName {
-			c.ApplianceISO = versionedName
-		} else {
-			c.BootstrapISO = versionedName
-		}
-	}
-
-	return result, nil
-}
-
-// checkImageVersion will read iso file version from Primary Volume Descriptor, field "Publisher Identifier"
-func (c *Create) getImageVersion(cliContext *cli.Context, img string) (string, error) {
-	f, err := os.Open(img)
-	if err != nil {
-		return "", errors.Errorf("failed to open iso file %q: %s", img, err)
-	}
-	defer f.Close()
-
-	// System area goes from sectors 0x00 to 0x0F. Volume descriptors can be
-	// found starting at sector 0x10
-
-	_, err = f.Seek(int64(ISOVolumeSector*ISO9660SectorSize)+PublisherOffset, 0)
-	if err != nil {
-		return "", errors.Errorf("failed to locate iso version section in file %q: %s", img, err)
-	}
-	publisherBytes := make([]byte, 128)
-	size, err := f.Read(publisherBytes)
-	if err != nil {
-		return "", errors.Errorf("failed to read iso version in file %q: %s", img, err)
-	}
-	if size == 0 {
-		return "", errors.Errorf("version is not set in iso file %q", img)
-	}
-
-	versions := strings.Fields(string(publisherBytes[:size]))
-	version := versions[len(versions)-1]
-	sv := c.getNoCommitHashVersion(version)
-	if sv == "" {
-		log.Debugf("Version is not set in %q", img)
-		version = ""
-	}
-
-	installerSV := c.getNoCommitHashVersion(cliContext.App.Version)
-
-	// here compare version without last commit hash, to make developer life easier
-	if !strings.EqualFold(installerSV, sv) {
-		message := fmt.Sprintf("iso file %q has inconsistent version with installer %q != %q.", img, strings.ToLower(version), cliContext.App.Version)
-		if !c.Force {
-			return "", errors.Errorf("%s. Specify --force to force create. ", message)
-		}
-		log.Warn(message)
-	}
-	return version, nil
-}
-
-func (c *Create) getNoCommitHashVersion(version string) string {
-	i := strings.LastIndex(version, "-")
-	if i == -1 {
-		return ""
-	}
-	return version[:i]
-}
-
 func (c *Create) Run(cliContext *cli.Context) (err error) {
 
 	if c.advancedOptions {
@@ -613,7 +466,7 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 	}
 
 	var images map[string]string
-	if images, err = c.checkImagesFiles(cliContext); err != nil {
+	if images, err = c.CheckImagesFiles(c.Force); err != nil {
 		return err
 	}
 

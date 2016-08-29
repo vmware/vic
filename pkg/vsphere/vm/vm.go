@@ -15,6 +15,7 @@
 package vm
 
 import (
+	"container/list"
 	"errors"
 	"net/url"
 	"path"
@@ -287,4 +288,94 @@ func (vm *VirtualMachine) Unregister(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// RemoveSnapshot delete one snapshot
+func (vm *VirtualMachine) RemoveSnapshot(ctx context.Context, id types.ManagedObjectReference, removeChildren bool, consolidate bool) (*object.Task, error) {
+	req := types.RemoveSnapshot_Task{
+		This:           id,
+		RemoveChildren: removeChildren,
+		Consolidate:    &consolidate,
+	}
+	res, err := methods.RemoveSnapshot_Task(ctx, vm.Client.RoundTripper, &req)
+	if err != nil {
+		return nil, err
+	}
+
+	return object.NewTask(vm.Client.Client, res.Returnval), nil
+}
+
+// GetCurrentSnapshotTree returns current snapshot, with tree information
+func (vm *VirtualMachine) GetCurrentSnapshotTree(ctx context.Context) (*types.VirtualMachineSnapshotTree, error) {
+	var err error
+
+	var mvm mo.VirtualMachine
+
+	if err = vm.Properties(ctx, vm.Reference(), []string{"snapshot"}, &mvm); err != nil {
+		log.Infof("Unable to get vm properties: %s", err)
+		return nil, err
+	}
+	if mvm.Snapshot == nil {
+		// no snapshot at all
+		return nil, nil
+	}
+
+	current := mvm.Snapshot.CurrentSnapshot
+	q := list.New()
+	for _, c := range mvm.Snapshot.RootSnapshotList {
+		q.PushBack(c)
+	}
+
+	compareID := func(node types.VirtualMachineSnapshotTree) bool {
+		if node.Snapshot == *current {
+			return true
+		}
+		return false
+	}
+	return vm.bfsSnapshotTree(q, compareID), nil
+}
+
+// GetCurrentSnapshotTree returns current snapshot, with tree information
+func (vm *VirtualMachine) GetSnapshotTreeByName(ctx context.Context, name string) (*types.VirtualMachineSnapshotTree, error) {
+	var err error
+
+	var mvm mo.VirtualMachine
+
+	if err = vm.Properties(ctx, vm.Reference(), []string{"snapshot"}, &mvm); err != nil {
+		log.Infof("Unable to get vm properties: %s", err)
+		return nil, err
+	}
+	if mvm.Snapshot == nil {
+		// no snapshot at all
+		return nil, nil
+	}
+
+	q := list.New()
+	for _, c := range mvm.Snapshot.RootSnapshotList {
+		q.PushBack(c)
+	}
+
+	compareName := func(node types.VirtualMachineSnapshotTree) bool {
+		if node.Name == name {
+			return true
+		}
+		return false
+	}
+	return vm.bfsSnapshotTree(q, compareName), nil
+}
+
+func (vm *VirtualMachine) bfsSnapshotTree(q *list.List, compare func(node types.VirtualMachineSnapshotTree) bool) *types.VirtualMachineSnapshotTree {
+	if q.Len() == 0 {
+		return nil
+	}
+
+	e := q.Front()
+	tree := q.Remove(e).(types.VirtualMachineSnapshotTree)
+	if compare(tree) {
+		return &tree
+	}
+	for _, c := range tree.ChildSnapshotList {
+		q.PushBack(c)
+	}
+	return vm.bfsSnapshotTree(q, compare)
 }
