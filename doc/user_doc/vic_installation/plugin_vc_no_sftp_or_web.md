@@ -1,6 +1,6 @@
-# Install the vSphere Integrated Containers Plug-In on vCenter Server For Windows, without SFTP or a Web Server #
+# Install the vSphere Integrated Containers Engine Plug-In on vCenter Server For Windows, without SFTP or a Web Server #
 
-You can install the vSphere Web Client plug-in for vSphere Integrated Containers on a vCenter Server instance for Windows that has neither access to an SFTP service nor to a Web Server.
+You can install the vSphere Web Client plug-in for vSphere Integrated Containers Engine on a vCenter Server instance for Windows that has neither access to an SFTP service nor to a Web Server.
 
 **Prerequisites**
 

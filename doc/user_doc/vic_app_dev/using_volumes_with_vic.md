@@ -1,6 +1,6 @@
-# Using Volumes with vSphere Integrated Containers #
+# Using Volumes with vSphere Integrated Containers Engine #
 
-vSphere Integrated Containers supports the use of container volumes. When you create or the vSphere Administrator creates a virtual container host, you or the Administrator specify the datastore to use to store container volumes in the `vic-machine create --volume-store` option. For information about how to use the `vic-machine create --volume-store` option, see the section on `volume-store` in [Virtual Container Host Deployment Options](../vic_installation/vch_installer_options.html#volume-store) in *vSphere Integrated Containers Installation and Configuration*.   
+vSphere Integrated Containers Engine supports the use of container volumes. When you create or the vSphere Administrator creates a virtual container host, you or the Administrator specify the datastore to use to store container volumes in the `vic-machine create --volume-store` option. For information about how to use the `vic-machine create --volume-store` option, see the section on `volume-store` in [Virtual Container Host Deployment Options](../vic_installation/vch_installer_options.html#volume-store) in *vSphere Integrated Containers Engine Installation and Configuration*.   
 
 ## Obtain the List of Available Volume Stores ##
 
@@ -36,7 +36,7 @@ When you use the `docker volume create` command to create a volume, you can opti
   <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls create 
 -v <i>destination_path_for_anonymous_volume</i> busybox</pre>
 
-  **NOTE**: If you use `docker create -v`, vSphere Integrated Containers only supports the `-r` and `-rw` options.
+  **NOTE**: If you use `docker create -v`, vSphere Integrated Containers Engine only supports the `-r` and `-rw` options.
 
 - You can optionally set the capacity of a volume by specifying the `--opt Capacity` option when you run `docker volume create`. If you do not specify the `--opt Capacity` option, the volume is created with the default capacity of 1024MB. 
 
@@ -53,7 +53,7 @@ When you use the `docker volume create` command to create a volume, you can opti
 --name <i>volume_name</i></pre>
 
 
-**NOTE**: When using a vSphere Integrated Containers virtual container host as your Docker endpoint, the storage driver is always the vSphere Integrated Containers Backend Engine. If you specify the `docker volume create --driver` option, it is ignored.  
+**NOTE**: When using a vSphere Integrated Containers Engine virtual container host as your Docker endpoint, the storage driver is always the vSphere Integrated Containers Engine Backend Engine. If you specify the `docker volume create --driver` option, it is ignored.  
 
 ## Obtain the List of Available Volumes ##
 

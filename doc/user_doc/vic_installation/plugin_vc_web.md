@@ -1,6 +1,6 @@
-# Install the vSphere Integrated Containers Plug-In on vCenter Server For Windows by Using a Web Server #
+# Install the vSphere Integrated Containers Engine Plug-In on vCenter Server For Windows by Using a Web Server #
 
-If your vCenter Server instance runs on Windows, you can use a Web server to host the vSphere Web Client plug-in for vSphere Integrated Containers.
+If your vCenter Server instance runs on Windows, you can use a Web server to host the vSphere Web Client plug-in for vSphere Integrated Containers Engine.
 
 **Prerequisites**
 

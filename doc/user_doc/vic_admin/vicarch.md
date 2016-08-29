@@ -1,12 +1,12 @@
-# vSphere Integrated Containers Architecture
+# vSphere Integrated Containers Engine Architecture
 
-vSphere Integrated Containers exists in a vSphere environment, allowing you to use virtual machines like containers. The architecture consists of these components:
+vSphere Integrated Containers Engine exists in a vSphere environment, allowing you to use virtual machines like containers. The architecture consists of these components:
 
 - vCenter management tools: monitor and manage virtual machines as well as container virtual machines.
 
 - vCenter Server: manage a single ESXi host or cluster of ESXi hosts with DRS enabled. Specify and deploy datastores and network paths, define clusters, resource pools, and port groups.
 
-- Trusted networks: Deploy and use vSphere Integrated Containers and connections between Docker clients and virtual container hosts.
+- Trusted networks: Deploy and use vSphere Integrated Containers Engine and connections between Docker clients and virtual container hosts.
 
 - Virtual SAN datastores: specify a datastore and top level directory with the name of the virtual container host.
 
@@ -14,7 +14,7 @@ vSphere Integrated Containers exists in a vSphere environment, allowing you to u
 
 - Docker container virtual machines: Using vSphere Instant Clone and Photon OS technology, you can create and provision multiple container virtual machines directly from a template. The Docker daemon runs outside the container virtual machine. The container is a x86 hardware virtualized virtual machine with a process ID, container interfaces and mounts.
  
-![vSphere Integrated Containers Architecture](vSphereContainerArch.png)
+![vSphere Integrated Containers Engine Architecture](vSphereContainerArch.png)
 
 ## Virtual Container Host 
 
@@ -38,7 +38,7 @@ You deploy a virtual container host using the CLI installer, then access Virtual
 
 ## vSphere Web Client Plugin
 
-You can monitor and manage containers using the vSphere Integrated Containers plugin in the vSphere Web Client.
+You can monitor and manage containers using the vSphere Integrated Containers Engine plugin in the vSphere Web Client.
 
 The plugin allows you to create virtual container hosts, perform administrative tasks on containers such as resource allocation, port mapping, and manage communications between administrators, developers, and application owners during troubleshooting.
 

@@ -1,6 +1,6 @@
-# Install the vSphere Integrated Containers Plug-In on a vCenter Server Appliance Without Access to a Web Server #
+# Install the vSphere Integrated Containers Engine Plug-In on a vCenter Server Appliance Without Access to a Web Server #
 
-If you are running the vCenter Server Appliance and you do not have access to a Web server, you can manually install the vSphere Web Client plug-in for vSphere Integrated Containers.
+If you are running the vCenter Server Appliance and you do not have access to a Web server, you can manually install the vSphere Web Client plug-in for vSphere Integrated Containers Engine.
 
 **Prerequisites**
 

@@ -1,6 +1,6 @@
-# Use the Vagrant DevBox VM to Build the vSphere Integrated Containers Binaries #
+# Use the Vagrant DevBox VM to Build the vSphere Integrated Containers Engine Binaries #
 
-The current builds of vSphere Integrated Containers only run on a Linux OS system. If you do not have a Linux OS system available, the easiest way to build the vSphere Integrated Containers binaries and to deploy a virtual container host is to use Vagrant to deploy a preconfigured Ubuntu VM, DevBox, that is included in the vSphere Integrated Containers repository.
+The current builds of vSphere Integrated Containers Engine only run on a Linux OS system. If you do not have a Linux OS system available, the easiest way to build the vSphere Integrated Containers Engine binaries and to deploy a virtual container host is to use Vagrant to deploy a preconfigured Ubuntu VM, DevBox, that is included in the vSphere Integrated Containers Engine repository.
 
 **Prerequisites**
 
@@ -19,7 +19,7 @@ The current builds of vSphere Integrated Containers only run on a Linux OS syste
 12. Update all of the Linux packages in the devbox VM. <pre>apt-get update</pre> If you do not do this you will get errors when you try to do the next steps.
 13. Install Git in the DevBox VM. <pre>apt-get install git</pre>
 14. Install Docker in the DevBox VM.<pre>apt install docker.io</pre>
-15. Clone the vSphere Integrated Containers repository from GitHub into the DevBox VM.<pre>git clone https://github.com/vmware/vic.git</pre>
+15. Clone the vSphere Integrated Containers Engine repository from GitHub into the DevBox VM.<pre>git clone https://github.com/vmware/vic.git</pre>
 16. Go to the `/vic` folder.<pre>cd vic</pre>
-17. Run the `make` command to build the vSphere Integrated Containers binaries. <pre>docker run -v $(pwd):/go/src/github.com/vmware/vic -w /go/src/github.com/vmware/vic golang:1.7 make all</pre> This command uses containers and golang to build vSphere Integrated Containers. Copy the command as is into the Vagrant terminal. The build takes approximately 10 minutes.
+17. Run the `make` command to build the vSphere Integrated Containers Engine binaries. <pre>docker run -v $(pwd):/go/src/github.com/vmware/vic -w /go/src/github.com/vmware/vic golang:1.7 make all</pre> This command uses containers and golang to build vSphere Integrated Containers Engine. Copy the command as is into the Vagrant terminal. The build takes approximately 10 minutes.
 18. Add the `vic-machine` executable to the path of the DevBox VM.<pre>PATH=$PATH:/home/vagrant/vic/bin</pre>
