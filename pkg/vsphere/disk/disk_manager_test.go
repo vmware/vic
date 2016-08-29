@@ -158,7 +158,7 @@ func TestCreateAndDetach(t *testing.T) {
 	//	}
 
 	// Nuke the image store
-	_, err = tasks.WaitForResult(context.TODO(), func(ctx context.Context) (tasks.ResultWaiter, error) {
+	_, err = tasks.WaitForResult(context.TODO(), func(ctx context.Context) (tasks.Task, error) {
 		return fm.DeleteDatastoreFile(ctx, imagestore, nil)
 	})
 

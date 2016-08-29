@@ -17,20 +17,27 @@
 package tasks
 
 import (
+	"fmt"
+	"math/rand"
+	"time"
+
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/progress"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/pkg/errors"
 )
 
-type Waiter interface {
-	Wait(ctx context.Context) error
-}
+const (
+	maxBackoffFactor = int64(16)
+)
 
-type ResultWaiter interface {
+//FIXME: remove this type and refactor to use object.Task from govmomi
+//       this will require a lot of code being touched in a lot of places.
+type Task interface {
+	Wait(ctx context.Context) error
 	WaitForResult(ctx context.Context, s progress.Sinker) (*types.TaskInfo, error)
 }
 
@@ -39,21 +46,9 @@ type ResultWaiter interface {
 //    info, err := Wait(ctx, func(ctx) (*TaskInfo, error) {
 //       return vm.Reconfigure(ctx, config)
 //    })
-func Wait(ctx context.Context, f func(context.Context) (Waiter, error)) error {
-	task, err := f(ctx)
-	if err != nil {
-		cerr := errors.Errorf("Failed to invoke operation: %s", errors.ErrorStack(err))
-		log.Errorf(cerr.Error())
-		return cerr
-	}
-
-	err = task.Wait(ctx)
-	if err != nil {
-		cerr := errors.Errorf("Operation failed: %s", errors.ErrorStack(err))
-		log.Errorf(cerr.Error())
-		return cerr
-	}
-	return nil
+func Wait(ctx context.Context, f func(context.Context) (Task, error)) error {
+	_, err := WaitForResult(ctx, f)
+	return err
 }
 
 // WaitForResult wraps govmomi operations and wait the operation to complete.
@@ -62,23 +57,47 @@ func Wait(ctx context.Context, f func(context.Context) (Waiter, error)) error {
 //    info, err := WaitForResult(ctx, func(ctx) (*TaskInfo, error) {
 //       return vm.Reconfigure(ctx, config)
 //    })
-func WaitForResult(ctx context.Context, f func(context.Context) (ResultWaiter, error)) (*types.TaskInfo, error) {
-	task, err := f(ctx)
+func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (*types.TaskInfo, error) {
+	var err error
+	var taskInfo *types.TaskInfo
+	backoffFactor := int64(1)
+
+	t, err := f(ctx)
 	if err != nil {
-		cerr := errors.Errorf("Failed to invoke operation: %s", errors.ErrorStack(err))
-		log.Errorf(cerr.Error())
-		return nil, cerr
+		log.Errorf("Failed to invoke task operation : %s", err)
+		return nil, err
 	}
 
-	info, err := task.WaitForResult(ctx, nil)
-	if err != nil {
-		cerr := errors.Errorf("Operation failed: %s", errors.ErrorStack(err))
-		if info != nil && info.Error != nil {
-			cerr = errors.Errorf("%s - (%s)", cerr, info.Error)
+	for {
+		taskInfo, werr := t.WaitForResult(ctx, nil)
+
+		if werr == nil {
+			return taskInfo, nil
 		}
 
-		log.Errorf(cerr.Error())
-		return nil, cerr
+		if terr, ok := err.(*task.Error); ok {
+			if _, ok := terr.Fault().(*types.TaskInProgress); ok {
+				sleepValue := time.Duration(backoffFactor * (rand.Int63n(100) + int64(50)))
+				select {
+				case <-time.After(sleepValue * time.Millisecond):
+					if backoffFactor*2 > maxBackoffFactor {
+						backoffFactor = maxBackoffFactor
+					} else {
+						backoffFactor *= 2
+					}
+				case <-ctx.Done():
+					err = fmt.Errorf("%s while retrying task %#v", ctx.Err(), taskInfo)
+					log.Error(err)
+					return nil, err
+				}
+				log.Warnf("Retrying Task due to TaskInProgressFault: %s", taskInfo.Task.Reference())
+				continue
+			}
+		}
+		err = werr
+		break
 	}
-	return info, nil
+	log.Errorf("Task failed with error : %s", err)
+	return taskInfo, err
+
 }

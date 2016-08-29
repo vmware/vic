@@ -92,8 +92,8 @@ func (m *Manager) CreateAndAttach(ctx context.Context, newDiskURI,
 
 	log.Infof("Create/attach vmdk %s from parent %s", newDiskURI, parentURI)
 
-	if err := m.vm.AddDevice(ctx, spec); err != nil {
-		log.Errorf("vmdk storage driver failed to attach disk: %s", errors.ErrorStack(err))
+	err = m.Attach(ctx, spec)
+	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
@@ -182,7 +182,7 @@ func (m *Manager) Create(ctx context.Context, newDiskURI string,
 
 	log.Infof("Creating vmdk for layer or volume %s", d.DatastoreURI)
 
-	err = tasks.Wait(ctx, func(ctx context.Context) (tasks.Waiter, error) {
+	err = tasks.Wait(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return vdm.CreateVirtualDisk(ctx, d.DatastoreURI, nil, spec)
 	})
 	if err != nil {
@@ -223,6 +223,29 @@ func (m *Manager) Create(ctx context.Context, newDiskURI string,
 //	return nil
 // }
 
+func (m *Manager) Attach(ctx context.Context, disk *types.VirtualDisk) error {
+	deviceList := object.VirtualDeviceList{}
+	deviceList = append(deviceList, disk)
+
+	changeSpec, err := deviceList.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
+	if err != nil {
+		return err
+	}
+
+	machineSpec := types.VirtualMachineConfigSpec{}
+	machineSpec.DeviceChange = append(machineSpec.DeviceChange, changeSpec...)
+
+	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+		return m.vm.Reconfigure(ctx, machineSpec)
+	})
+
+	if err != nil {
+		log.Errorf("vmdk storage driver failed to attach disk: %s", errors.ErrorStack(err))
+		return errors.Trace(err)
+	}
+	return nil
+}
+
 func (m *Manager) Detach(ctx context.Context, d *VirtualDisk) error {
 	defer trace.End(trace.Begin(d.DevicePath))
 	log.Infof("Detaching disk %s", d.DevicePath)
@@ -255,9 +278,10 @@ func (m *Manager) Detach(ctx context.Context, d *VirtualDisk) error {
 
 	spec.DeviceChange = config
 
-	err = tasks.Wait(ctx, func(ctx context.Context) (tasks.Waiter, error) {
+	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return m.vm.Reconfigure(ctx, spec)
 	})
+
 	if err != nil {
 		log.Warnf("detach for %s failed with %s", d.DevicePath, errors.ErrorStack(err))
 		return errors.Trace(err)
