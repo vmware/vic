@@ -70,7 +70,7 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 	// Clean up the mess
 	defer func() {
 		fm := object.NewFileManager(client.Vim25())
-		tasks.WaitForResult(context.TODO(), func(ctx context.Context) (tasks.ResultWaiter, error) {
+		tasks.WaitForResult(context.TODO(), func(ctx context.Context) (tasks.Task, error) {
 			return fm.DeleteDatastoreFile(ctx, client.Datastore.Path(testStorePath), client.Datacenter)
 		})
 	}()

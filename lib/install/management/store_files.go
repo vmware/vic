@@ -148,7 +148,7 @@ func (d *Dispatcher) deleteFilesIteratively(m *object.FileManager, ds *object.Da
 func (d *Dispatcher) deleteVMFSFiles(m *object.FileManager, ds *object.Datastore, dsPath string) error {
 	defer trace.End(trace.Begin(dsPath))
 
-	if _, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	if _, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return m.DeleteDatastoreFile(ctx, dsPath, d.session.Datacenter)
 	}); err != nil {
 		log.Debugf("Failed to delete %q: %s", dsPath, err)

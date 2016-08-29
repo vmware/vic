@@ -90,7 +90,7 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 			return errors.Errorf("Error registering VCH vSphere extension: %s", err)
 		}
 	}
-	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.PowerOn(ctx)
 	})
 

@@ -6,12 +6,8 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Simple docker volume create
-    ${status}=  Get State Of Github Issue  1560
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-19-Docker-Volume-Create.robot needs to be updated now that Issue #1560 has been resolved
-    Log  Issue \#1560 is blocking implementation  WARN
-    # Auto-named volumes not supported yet
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create
-    #Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create
+    Should Be Equal As Integers  ${rc}  0
 
 Docker volume create named volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test
@@ -34,7 +30,7 @@ Docker volume create volume with bad driver
     #Should Be Equal As Integers  ${rc}  1
     #Should Contain  ${output}  Error looking up volume plugin fakeDriver: plugin not found
     
-Docker volume create with bad datastore
+Docker volume create with bad volumestore
     ${status}=  Get State Of Github Issue  1561
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-19-Docker-Volume-Create.robot needs to be updated now that Issue #1561 has been resolved
     Log  Issue \#1561 is blocking implementation  WARN
@@ -93,19 +89,16 @@ Docker volume create with possibly invalid name
     #Should Be Equal As Integers  ${rc}  1
     #Should Be Equal As Strings  ${output}  Error response from daemon: create test???: "test???" includes invalid characters for a local volume name, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed
     
-Docker volume create 10 volumes rapidly
-    ${status}=  Get State Of Github Issue  2013
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-19-Docker-Volume-Create.robot needs to be updated now that Issue #2013 has been resolved
-    Log  Issue \#2013 is blocking implementation  WARN
-    #${pids}=  Create List
+Docker volume create 100 volumes rapidly
+    ${pids}=  Create List
 
-    # Create 10 volumes rapidly
-    #:FOR  ${idx}  IN RANGE  0  10
-    #\   ${pid}=  Start Process  docker ${params} volume create --name\=multiple${idx} --opt Capacity\=2MB  shell=True
-    #\   Append To List  ${pids}  ${pid}
+    # Create 100 volumes rapidly
+    :FOR  ${idx}  IN RANGE  0  100
+    \   ${pid}=  Start Process  docker ${params} volume create --name\=multiple${idx} --opt Capacity\=512MB  shell=True
+    \   Append To List  ${pids}  ${pid}
 
     # Wait for them to finish and check their RC
-    #:FOR  ${pid}  IN  @{pids}
-    #\   ${res}=  Wait For Process  ${pid}
-    #\   Log  ${res.stdout} ${res.stderr}
-    #\   Should Be Equal As Integers  ${res.rc}  0
+    :FOR  ${pid}  IN  @{pids}
+    \   ${res}=  Wait For Process  ${pid}
+    \   Log  ${res.stdout} ${res.stderr}
+    \   Should Be Equal As Integers  ${res.rc}  0

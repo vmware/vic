@@ -41,18 +41,18 @@ func (t *MyTask) WaitForResult(ctx context.Context, s progress.Sinker) (*types.T
 	return nil, errors.Errorf("Wait failed")
 }
 
-func createFailedTask(context.Context) (ResultWaiter, error) {
+func createFailedTask(context.Context) (Task, error) {
 	return nil, errors.Errorf("Create VM failed")
 }
 
-func createFailedResultWaiter(context.Context) (ResultWaiter, error) {
+func createFailedResultWaiter(context.Context) (Task, error) {
 	task := &MyTask{
 		false,
 	}
 	return task, nil
 }
 
-func createResultWaiter(context.Context) (ResultWaiter, error) {
+func createResultWaiter(context.Context) (Task, error) {
 	task := &MyTask{
 		true,
 	}
@@ -62,7 +62,7 @@ func createResultWaiter(context.Context) (ResultWaiter, error) {
 func TestFailedInvokeResult(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	ctx := context.TODO()
-	_, err := WaitForResult(ctx, func(ctx context.Context) (ResultWaiter, error) {
+	_, err := WaitForResult(ctx, func(ctx context.Context) (Task, error) {
 		return createFailedTask(ctx)
 	})
 	if err == nil || !strings.Contains(err.Error(), "Create VM failed") {
@@ -73,7 +73,7 @@ func TestFailedInvokeResult(t *testing.T) {
 func TestFailedWaitResult(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	ctx := context.TODO()
-	_, err := WaitForResult(ctx, func(ctx context.Context) (ResultWaiter, error) {
+	_, err := WaitForResult(ctx, func(ctx context.Context) (Task, error) {
 		return createFailedResultWaiter(ctx)
 	})
 	log.Debugf("got error: %s", err.Error())
@@ -85,7 +85,7 @@ func TestFailedWaitResult(t *testing.T) {
 func TestSuccessWaitResult(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	ctx := context.TODO()
-	_, err := WaitForResult(ctx, func(ctx context.Context) (ResultWaiter, error) {
+	_, err := WaitForResult(ctx, func(ctx context.Context) (Task, error) {
 		return createResultWaiter(ctx)
 	})
 	if err != nil {
@@ -93,18 +93,18 @@ func TestSuccessWaitResult(t *testing.T) {
 	}
 }
 
-func createFailed(context.Context) (Waiter, error) {
+func createFailed(context.Context) (Task, error) {
 	return nil, errors.Errorf("Create VM failed")
 }
 
-func createFailedWaiter(context.Context) (Waiter, error) {
+func createFailedWaiter(context.Context) (Task, error) {
 	task := &MyTask{
 		false,
 	}
 	return task, nil
 }
 
-func createWaiter(context.Context) (Waiter, error) {
+func createWaiter(context.Context) (Task, error) {
 	task := &MyTask{
 		true,
 	}
@@ -114,7 +114,7 @@ func createWaiter(context.Context) (Waiter, error) {
 func TestFailedInvoke(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	ctx := context.TODO()
-	err := Wait(ctx, func(ctx context.Context) (Waiter, error) {
+	err := Wait(ctx, func(ctx context.Context) (Task, error) {
 		return createFailed(ctx)
 	})
 	if err == nil || !strings.Contains(err.Error(), "Create VM failed") {
@@ -125,7 +125,7 @@ func TestFailedInvoke(t *testing.T) {
 func TestFailedWait(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	ctx := context.TODO()
-	err := Wait(ctx, func(ctx context.Context) (Waiter, error) {
+	err := Wait(ctx, func(ctx context.Context) (Task, error) {
 		return createFailedWaiter(ctx)
 	})
 	log.Debugf("got error: %s", err.Error())
@@ -137,7 +137,7 @@ func TestFailedWait(t *testing.T) {
 func TestSuccessWait(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	ctx := context.TODO()
-	err := Wait(ctx, func(ctx context.Context) (Waiter, error) {
+	err := Wait(ctx, func(ctx context.Context) (Task, error) {
 		return createWaiter(ctx)
 	})
 	if err != nil {
