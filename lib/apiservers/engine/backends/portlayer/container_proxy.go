@@ -781,12 +781,7 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 	if info.ProcessConfig.Env != nil {
 		container.Env = info.ProcessConfig.Env // List of environment variable to set in the container
 	}
-	if info.ProcessConfig.ExecPath != nil {
-		container.Cmd = append(container.Cmd, *info.ProcessConfig.ExecPath) // Command to run when starting the container
-	}
-	if info.ProcessConfig.ExecArgs != nil {
-		container.Cmd = append(container.Cmd, info.ProcessConfig.ExecArgs[1:]...)
-	}
+
 	if info.ProcessConfig.WorkingDir != nil {
 		container.WorkingDir = *info.ProcessConfig.WorkingDir // Current directory (PWD) in the command will be launched
 	}
