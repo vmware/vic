@@ -239,7 +239,7 @@ func (d *Helper) Mv(ctx context.Context, fromPath, toPath string) error {
 	from := path.Join(d.RootURL, fromPath)
 	to := path.Join(d.RootURL, toPath)
 	log.Infof("Moving %s to %s", from, to)
-	err := tasks.Wait(ctx, func(context.Context) (tasks.Waiter, error) {
+	err := tasks.Wait(ctx, func(context.Context) (tasks.Task, error) {
 		return d.fm.MoveDatastoreFile(ctx, from, d.s.Datacenter, to, d.s.Datacenter, true)
 	})
 
@@ -249,7 +249,7 @@ func (d *Helper) Mv(ctx context.Context, fromPath, toPath string) error {
 func (d *Helper) Rm(ctx context.Context, pth string) error {
 	f := path.Join(d.RootURL, pth)
 	log.Infof("Removing %s", pth)
-	return tasks.Wait(context.TODO(), func(ctx context.Context) (tasks.Waiter, error) {
+	return tasks.Wait(context.TODO(), func(ctx context.Context) (tasks.Task, error) {
 		return d.fm.DeleteDatastoreFile(ctx, f, d.s.Datacenter)
 	})
 }

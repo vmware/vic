@@ -129,7 +129,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 		if sess.IsVC() && VCHConfig.VirtualApp != nil {
 			// Create the vm
-			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 				return VCHConfig.VirtualApp.CreateChildVM_Task(ctx, *h.Spec.Spec(), nil)
 			})
 
@@ -145,7 +145,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 			parent := folders.VmFolder
 
 			// Create the vm
-			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 				return parent.CreateVM(ctx, *h.Spec.Spec(), VCHConfig.ResourcePool, nil)
 			})
 
@@ -178,7 +178,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		// extraconfig if it's not.
 
 		s := h.Spec.Spec()
-		_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 			return c.vm.Reconfigure(ctx, *s)
 		})
 
@@ -216,7 +216,7 @@ func (c *Container) start(ctx context.Context) error {
 	c.State = StateStarting
 
 	// Power on
-	_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return c.vm.PowerOn(ctx)
 	})
 	if err != nil {
@@ -312,7 +312,7 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 
 	log.Warnf("stopping %s via hard power off due to: %s", c.ExecConfig.ID, err)
 
-	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return c.vm.PowerOff(ctx)
 	})
 
@@ -447,7 +447,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	dsPath := fmt.Sprintf("[%s] %s", url.Host, url.Path)
 
 	//removes the vm from vsphere, but detaches the disks first
-	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return c.vm.DeleteExceptDisks(ctx)
 	})
 	if err != nil {
@@ -458,7 +458,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	// remove from datastore
 	fm := object.NewFileManager(c.vm.Client.Client)
 
-	if _, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+	if _, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return fm.DeleteDatastoreFile(ctx, dsPath, sess.Datacenter)
 	}); err != nil {
 		c.State = existingState

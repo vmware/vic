@@ -1,6 +1,6 @@
-# Remove a Virtual Container Host #
+# Delete a Virtual Container Host #
 
-You remove virtual container hosts by using the `vic-machine delete` command.
+You delete virtual container hosts by using the `vic-machine delete` command.
 
 **Prerequisites**
 

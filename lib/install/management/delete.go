@@ -160,7 +160,7 @@ func (d *Dispatcher) deleteNetworkDevices(vmm *vm.VirtualMachine, conf *config.V
 
 	}
 	if power != types.VirtualMachinePowerStatePoweredOff {
-		if _, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		if _, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 			return vmm.PowerOff(ctx)
 		}); err != nil {
 			log.Errorf("Failed to power off existing appliance for %s", err)

@@ -218,7 +218,7 @@ func createNodes(ctx context.Context, sess *session.Session, pool *object.Resour
 				VmPathName: fmt.Sprintf("[LocalDS_0] %s", node.Name),
 			},
 		}
-		if _, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		if _, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 			return vapp.CreateChildVM_Task(ctx, config, nil)
 		}); err != nil {
 			return err
@@ -231,7 +231,7 @@ func createNodes(ctx context.Context, sess *session.Session, pool *object.Resour
 				VmPathName: fmt.Sprintf("[LocalDS_0] %s", node.Name),
 			},
 		}
-		if _, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.ResultWaiter, error) {
+		if _, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 			return sess.Folders(ctx).VmFolder.CreateVM(ctx, config, pool, nil)
 		}); err != nil {
 			return err

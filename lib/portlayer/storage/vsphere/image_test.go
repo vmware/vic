@@ -414,6 +414,11 @@ func TestInProgressCleanup(t *testing.T) {
 	// nuke the done file.
 	rm(t, client, path.Join(vsStore.ds.RootURL, vsStore.imageDirPath("testStore", imageID), manifest))
 
+	// ensure GetImage doesn't find this image now
+	if _, err = vsStore.GetImage(context.TODO(), storeURL, imageID); !assert.Error(t, err) {
+		return
+	}
+
 	// call cleanup
 	if err = vsStore.cleanup(context.TODO(), storeURL); !assert.NoError(t, err) {
 		return
@@ -470,8 +475,8 @@ func tarFiles(files []tarFile) (*bytes.Buffer, error) {
 }
 
 func mountLayerRO(v *ImageStore, parent *portlayer.Image) (*disk.VirtualDisk, error) {
-	roName := v.imageDiskPath("testStore", parent.ID) + "-ro.vmdk"
-	parentDsURI := v.imageDiskPath("testStore", parent.ID)
+	roName := v.imageDiskDSPath("testStore", parent.ID) + "-ro.vmdk"
+	parentDsURI := v.imageDiskDSPath("testStore", parent.ID)
 
 	roDisk, err := v.dm.CreateAndAttach(context.TODO(), roName, parentDsURI, 0, os.O_RDONLY)
 	if err != nil {

@@ -1,14 +1,14 @@
-# vSphere Integrated Containers for vSphere Administrators
+# vSphere Integrated Containers Engine for vSphere Administrators
 
-*vSphere Integrated Containers for vSphere Administrators* provides information about how to install and configure VMware vSphere Integrated Containers.
+*vSphere Integrated Containers Engine for vSphere Administrators* provides information about how to install and configure VMware vSphere Integrated Containers Engine.
 
-**Product version: 0.5**
+**Product version: 0.5.5**
 
 **NOTE**  This book is a work in progress.
 
 ## Intended Audience
 
-This information is intended for vSphere&reg; Administrators who must manage a vSphere Integrated Containers implementation in their vSphere environment. The information is written for experienced vSphere  administrators who are familiar with virtual machine technology and datacenter operations. Knowledge of [container technology](https://en.wikipedia.org/wiki/Operating-system-level_virtualization) and [Docker](https://docs.docker.com/) is assumed.
+This information is intended for vSphere&reg; Administrators who must manage a vSphere Integrated Containers Engine implementation in their vSphere environment. The information is written for experienced vSphere  administrators who are familiar with virtual machine technology and datacenter operations. Knowledge of [container technology](https://en.wikipedia.org/wiki/Operating-system-level_virtualization) and [Docker](https://docs.docker.com/) is assumed.
 
 ----------
 

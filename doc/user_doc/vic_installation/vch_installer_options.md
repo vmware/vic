@@ -1,18 +1,19 @@
 # Virtual Container Host Deployment Options
 
-The command line utility for vSphere Integrated Containers, `vic-machine`, provides a `create` command that has options to allow you to customize the deployment of a virtual container host to correspond to your vSphere environment.
+The command line utility for vSphere Integrated Containers Engine, `vic-machine`, provides a `create` command that has options to allow you to customize the deployment of a virtual container host to correspond to your vSphere environment.
 
 - [Mandatory Options](#mandatory)
 - [Networking Options](#networking)
 - [Compute Resource Options](#compute)
 - [Datastore Options](#datastore)
 - [Security Options](#security)
-- [Appliance Deployment Options](#deployment)
+- [vApp Deployment Options](#deployment)
+- [Advanced Options](#advanced)
 
 <a name="mandatory"></a>
 ## Mandatory Options ##
 
-The `create` command of the `vic-machine` utility requires you to provide information about where in your vSphere environment to deploy the virtual container host, the user account to use, the bridge network to use, and the location in which to store container image files. The options in this section are **mandatory**.
+The `create` command of the `vic-machine` utility requires you to provide information about where in your vSphere environment to deploy the virtual container host, the user account to use, the bridge network to use, and the location in which to store container image files. The options in this section are either always **mandatory** or mandatory in most circumstances.
 
 ### `target` ###
 
@@ -22,7 +23,7 @@ The IPv4 address, fully qualified domain name (FQDN), or URL of the ESXi host or
 
 To facilitate IP address changes in your infrastructure, provide an FQDN whenever possible, rather than an IP address.
 
-- If the target ESXi host is not managed by vCenter Server, provide the address  the host.<pre>--target <i>esxi_host_address</i></pre>
+- If the target ESXi host is not managed by vCenter Server, provide the address of the ESXi host.<pre>--target <i>esxi_host_address</i></pre>
 - If the target ESXi host is managed by vCenter Server, or if you are deploying to a cluster, provide the address of vCenter Server.<pre>--target <i>vcenter_server_address</i></pre>
 - You can include the user name and password in the target URL. <pre>--target <i>vcenter_or_esxi_username</i>:<i>password</i>@<i>vcenter_or_esxi_address</i></pre>
 
@@ -40,9 +41,9 @@ To facilitate IP address changes in your infrastructure, provide an FQDN wheneve
 
 Short name: `-u`
 
-The username for the ESXi host or vCenter Server instance on which you are installing vSphere Integrated containers.
+The username for the ESXi host or vCenter Server instance on which you are deploying a virtual container host.
 
-If you are deploying vSphere Integrated Containers on vCenter Server, specify a username for an account that has the Administrator role on that vCenter Server. 
+If you are deploying a virtual container host on vCenter Server, specify a username for an account that has the Administrator role on that vCenter Server instance. 
 
 <pre>--user <i>esxi_or_vcenter_server_username</i></pre>
 
@@ -51,20 +52,22 @@ Wrap the user name in single quotes (Linux or Mac OS) or double quotes (Windows)
 <pre>--user '<i>esxi_or_vcenter_server_usern@me</i>'</pre>
 
 
-You can also specify the username in the URL that you pass to `vic-machine create` in the `target` option.
+You can also specify the username in the URL that you pass to `vic-machine create` in the `target` option, in which case the `user` option is not required.
 
 <a name="image"></a>
 ### `image-store` ###
 
 Short name: `-i`
 
-The datastore in which to store container image files. When you deploy a virtual container host, `vic-machine` creates a folder named `VIC` on the target datastore,  in which to store all of the container images that you pull into a virtual container host. The `vic-machine` utility also places the VM files for the virtual container host in the datastore that you designate as the image store, in a folder that has the same name as the virtual container host. 
+The datastore in which to store container image files. The `image-store` option is **mandatory** if there is more than one datastore in your vSphere environment. If there is only one datastore in your vSphere environment, the `image-store` option is not required. 
 
-If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `image-store` option must be shared by all of the ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability.
+When you deploy a virtual container host, `vic-machine` creates a folder named `VIC` on the target datastore,  in which to store all of the container images that you pull into a virtual container host. The `vic-machine` utility also places the VM files for the virtual container host in the datastore that you designate as the image store, in a folder that has the same name as the virtual container host. 
+
+If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `image-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability.
 
 You can designate the same datastore as the image store for multiple virtual container hosts. In this case, only one `VIC` folder is created in the datastore and the container image files are made available to all of the virtual container hosts that use that image store.
 
-vSphere Integrated Containers supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters. 
+vSphere Integrated Containers Engine supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters. 
 
 <pre>--image-store <i>datastore_name</i></pre> 
 
@@ -78,24 +81,28 @@ Wrap the datastore name or path in single quotes (Linux or Mac OS) or double quo
 
 If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores.
 
-**NOTE**: In the current builds the `container-datastore` option is not enabled. As a consequence, container VM files are also stored in the datastore that you designate as the image store.
+**NOTE**: In the current builds the `container-store` option is not enabled. As a consequence, container VM files are also stored in the datastore that you designate as the image store.
 
 <a name="bridge"></a>
 ### `bridge-network` ###
 
 Short name: `-b`
 
-The network that container VMs use to communicate with each other. You can assign the same bridge network to multiple virtual container hosts.
-
-**IMPORTANT** The bridge network is used exclusively by vSphere Integrated Containers. You cannot use the network that you specify in the `bridge-network` option as the target for any of the other `vic-machine create` networking options.
-
-The `bridge-network` option is **optional** when you are deploying a virtual container host to an ESXi host with no vCenter Server. In this case, if you do not specify `bridge-network`, `vic-machine` creates a  virtual switch and a port group that each have the same name as the virtual container host. You can optionally specify this option to assign an existing port group for use as the bridge network for container VMs. You can also optionally specify this option to create a new virtual switch and port group that have a different name to the virtual container host.
+A distributed port group that container VMs use to communicate with each other. 
 
 The `bridge-network` option is **mandatory** if you are deploying a virtual container host to vCenter Server.
 
-In a vCenter Server environment, before you run `vic-machine create`, you must create a distributed virtual switch and a distributed port group. You must add the target ESXi host or hosts to the distributed virtual switch. For information about how to create a distributed virtual switch and port group, see *Network Requirements* in [Environment Prerequisites for vSphere Integrated Containers Installation](vic_installation_prereqs.md#networkreqs).
+In a vCenter Server environment, before you run `vic-machine create`, you must create a distributed virtual switch and a distributed port group. You must add the target ESXi host or hosts to the distributed virtual switch, and assign a VLAN ID to the port group, to ensure that the bridge network is isolated. For information about how to create a distributed virtual switch and port group, see *Network Requirements* in [Environment Prerequisites for vSphere Integrated Containers Engine Installation](vic_installation_prereqs.md#networkreqs).
 
-You pass the name of the distributed port group to the `bridge-network` option. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+You pass the name of the distributed port group to the `bridge-network` option. Each virtual container host requires its own distributed port group. 
+
+**IMPORTANT** 
+- Do not assign the same `bridge-network` distributed port group to multiple virtual container hosts. Sharing a distributed port group between virtual container hosts might result in multiple container VMs being assigned the same IP address. 
+- Do not use the `bridge-network` distributed port group as the target for any of the other `vic-machine create` networking options.
+
+If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+
+The `bridge-network` option is **optional** when you are deploying a virtual container host to an ESXi host with no vCenter Server. In this case, if you do not specify `bridge-network`, `vic-machine` creates a  virtual switch and a port group that each have the same name as the virtual container host. You can optionally specify this option to assign an existing port group for use as the bridge network for container VMs. You can also optionally specify this option to create a new virtual switch and port group that have a different name to the virtual container host.
 
 <pre>--bridge-network <i>distributed_port_group_name</i></pre>
 
@@ -163,23 +170,24 @@ Wrap the network name in single quotes (Linux or Mac OS) or double quotes (Windo
 
 <pre>--client-network '<i>network name</i>'</pre>
 
+<a name="container-network"></a>
 ### `container-network` ###
 
 Short name: `--cn`
 
-A network for container VMs to use for external communication when you  run `docker run` or `docker create` with the `--net` option. 
+A network for container VMs to use for external communication when container developers  run `docker run` or `docker create` with the `--net` option. 
 
-To specify a container network, you provide the name of a distributed port group for the container VMs to use, and a descriptive name for the container network that is used by Docker. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+To specify a container network, you provide the name of a distributed port group for the container VMs to use, and a descriptive name for the container network for use by Docker. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
 - The distributed port group must exist before you run `vic-machine create`. 
-- You cannot use the same distributed port group that you use for the bridge network. 
+- You cannot use the same distributed port group as you use for the bridge network. 
 - You can create the distributed port group on the same distributed virtual switch as the distributed port group that you use for the bridge network.
 - The descriptive name appears under `Networks` when you run `docker info` on the deployed virtual container host.
 - Container developers use the descriptive name in the `--net` option when they run `docker run` or `docker create`.
 
-If you do not specify the `container-network` option, or if you run `docker run` or `docker create` without specifying `--net`, container VMs use the bridge network. 
+If you do not specify the `container-network` option, or if container developers run `docker run` or `docker create` without specifying `--net`, container VMs use the bridge network. 
 
-If the network that you specify does not support DHCP, you must also specify the `container-network-gateway` option. 
+If the network that you specify in the `container-network` option does not support DHCP, you must also specify the `container-network-gateway` option. 
 
 <pre>--container-network <i>distributed_port_group_name</i>:<i>container_network_name</i></pre>
 
@@ -207,7 +215,7 @@ Short name: `--cnd`
 
 The address of the DNS server for the container network. This option is recommended if the network that you specify in the `container-network` option does not support DHCP. 
 
-When you specify the container network DNS server, you use the distributed port group that you specify in the `container-network` option.
+When you specify the container network DNS server, you use the distributed port group that you specify in the `container-network` option. You can specify `container-network-dns` multiple times, to configure multiple DNS servers.
 
 <pre>--container-network-dns <i>distributed_port_group_name</i>:8.8.8.8</pre>
 
@@ -251,7 +259,7 @@ The relative path to the host, cluster, or resource pool in which to deploy the 
 If you do not specify the `compute-resource` option and multiple possible resources exist, `vic-machine create` fails and suggests valid targets for `compute-resource` in the failure message. 
 
 * To deploy to a specific resource pool on an ESXi host, specify the name of the resource pool: <pre>--compute-resource  <i>resource_pool_name</i></pre>
-* To deploy to a vCenter Server instance that has more than one standalone host but no clusters, specify the IPv4 address or fully qualified domain name (FQDN) of the target host:<pre>--compute-resource <i>host_address</i></pre>
+* To deploy to a vCenter Server instance that has more than one standalone host that are not part of a cluster, specify the IPv4 address or fully qualified domain name (FQDN) of the target host:<pre>--compute-resource <i>host_address</i></pre>
 * To deploy to a vCenter Server with more than one cluster, specify the name of the target cluster: <pre>--compute-resource <i>cluster_name</i></pre>
 * To deploy to a specific resource pool on a standalone host that is managed by vCenter Server, specify the IPv4 address or FQDN of the target host and name of the resource pool:<pre>--compute-resource <i>host_name</i>/<i>resource_pool_name</i></pre>
 * To deploy to a specific resource pool in a cluster, specify the names of the target cluster and the resource pool:<pre>--compute-resource <i>cluster_name</i>/<i>resource_pool_name</i></pre>
@@ -259,57 +267,65 @@ If you do not specify the `compute-resource` option and multiple possible resour
 
 <a name="datastore"></a>
 ## Datastore Options ##
-The `vic-machine` utility allows you to specify the datastores in which to store container VM files, container image files, and the files for the virtual container host appliance. 
+The `vic-machine` utility allows you to specify the datastores in which to store container image files, the files for the virtual container host appliance, container VM files, and container volumes. 
 
-- vSphere Integrated Containers fully supports VMware Virtual SAN datastores. 
-- vSphere Integrated Containers supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters.
+- vSphere Integrated Containers Engine fully supports VMware Virtual SAN datastores. 
+- vSphere Integrated Containers Engine supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters.
 
 ### `image-store` ###
 
 See [image-store](#image) in the section on mandatory options.
 
-### `container-datastore` ###
+### `container-store` ###
 
 Short name: `--cs`
 
 The datastore in which to store container VM files. When you run a container, container VM files are stored in folders at the top level of the designated datastore. If multiple virtual container hosts use the same container store, all of the container VM files appear at the top level of the container store. You cannot currently designate a specific datastore folder for the VM files of the containers that run in a particular virtual container host.
 
-If you do not specify the `container-datastore` option, vSphere Integrated Containers stores container VM files in the same datastore that you specify in the mandatory `image-store` option.
+If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `container-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability.
+
+You can designate the same datastore as the container store for multiple virtual container hosts.
+
+If you do not specify the `container-store` option, vSphere Integrated Containers Engine stores container VM files in the image store.
 
 If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores.
 
-<pre>--container-datastore <i>datastore_name</i></pre>
+<pre>--container-store <i>datastore_name</i></pre>
 
 Wrap the datastore name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
 
-<pre>--container-datastore '<i>datastore name</i>'</pre>
+<pre>--container-store '<i>datastore name</i>'</pre>
 
-**NOTE**: In the current builds the `container-datastore` option is not enabled. Container VM files are stored in the datastore that you designate as the image store. 
+**NOTE**: In the current builds the `container-store` option is not enabled. Container VM files are stored in the datastore that you designate as the image store. 
 
 <a name="volume-store"></a>
 ### `volume-store` ###
 
 Short name: `--vs`
 
-The datastore in which to create volumes when using the `docker volume create` command. When you specify the `volume-store` option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores.
+The datastore in which to create volumes when container developers use the `docker volume create` command. When you specify the `volume-store` option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores. 
 
-The label that you specify is the volume store name that Docker uses. For example, the volume store label appears in the information for a virtual container host when container application developers run `docker info`. Container application developers also specify the volume store label in the <code>docker volume create --opt VolumeStore=<i>volume_store_label</i></code> option when they create a  volume.
+If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `volume-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability.
 
-- If you only require one volume store, you can set the volume store label to `default`. If you set the volume store label to `default`, container application developers do not need to specify the <code>--opt VolumeStore=<i>volume_store_label</i></code> option when they run `docker volume create`. 
+You can designate the same datastore as the volume store for multiple virtual container hosts.
 
-  **NOTE**: If container application developers intend to create anonymous volumes by using `docker create -v`, you must create a volume store with a label of `default`.
+The label that you specify is the volume store name that Docker uses. For example, the volume store label appears in the information for a virtual container host when container developers run `docker info`. Container developers also specify the volume store label in the <code>docker volume create --opt VolumeStore=<i>volume_store_label</i></code> option when they create a  volume.
+
+- If you only require one volume store, you can set the volume store label to `default`. If you set the volume store label to `default`, container developers do not need to specify the <code>--opt VolumeStore=<i>volume_store_label</i></code> option when they run `docker volume create`. 
+
+  **NOTE**: If container developers intend to create anonymous volumes by using `docker create -v`, you must create a volume store with a label of `default`.
 
   <pre>--volume-store <i>datastore_name</i>:default</pre>
-- If you specify the target datastore and the volume store label, `vic-machine create` creates a folder named `volumes` under the `VIC` folder on the target datastore. Any volumes that container application developers create will appear in the `volumes` folder.
+- If you specify the target datastore and the volume store label, `vic-machine create` creates a folder named `volumes` under the `VIC` folder on the target datastore. Any volumes that container developers create will appear in the `volumes` folder.
 
   <pre>--volume-store <i>datastore_name</i>:<i>volume_store_label</i></pre>
-- If you specify the target datastore, a datastore path, and the volume store label, `vic-machine create` creates a folder named `VIC/volumes` in the location that you specify in the datastore path. If the folders that you specify in the path do not already exist on the datastore, `vic-machine create` creates the appropriate folder structure. Any volumes that container application developers create will appear in the <code><i>path</i>/VIC/volumes</code> folder.
+- If you specify the target datastore, a datastore path, and the volume store label, `vic-machine create` creates a folder named `VIC/volumes` in the location that you specify in the datastore path. If the folders that you specify in the path do not already exist on the datastore, `vic-machine create` creates the appropriate folder structure. Any volumes that container developers create will appear in the <code><i>path</i>/VIC/volumes</code> folder.
 
   <pre>--volume-store <i>datastore_name</i>/<i>datastore_path</i>:<i>volume_store_label</i></pre>
 - Wrap the datastore name and path in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces. The volume store label cannot include spaces.
 
   <pre>--volume-store '<i>datastore name</i>'/'<i>datastore path</i>':<i>volume_store_label</i></pre>
-- You can specify the `volume-store` option multiple times, to create multiple volume stores on the virtual container host.
+- You can specify the `volume-store` option multiple times, to create multiple volume stores for the virtual container host.
 
   <pre>--volume-store <i>datastore_name</i>/path:<i>volume_store_label_1</i>
 --volume-store <i>datastore_name</i>/<i>path</i>:<i>volume_store_label_2</i>
@@ -320,15 +336,17 @@ The label that you specify is the volume store name that Docker uses. For exampl
 <a name="security"></a>
 ## Security Options ##
 
-You can configure a virtual container host to use an automatically generated certificate, no certificate, or a Certificate Authority (CA) certificate to authenticate connections with Docker clients.
+ By default, virtual container hosts automatically generate TLS certificates to authenticate connections with Docker clients. You can configure a virtual container host to use no certificate or a Certificate Authority (CA) certificate to authenticate connections with Docker clients.
 
 ### `no-tls` ###
 
 Short name: `-k`
 
-If you do not set the `no-tls` option, `vic-machine` by default generates a TLS certificate and key for the virtual container host to  use to authenticate with a Docker client. Set the `no-tls` option if you do not require certificate-based authentication between the virtual container host and the Docker client. If you use the `cert` and `key` options to upload a custom CA certificate, `vic-machine` does not auto-generate a certificate, without requiring you to set `no-tls` to `false`.
+If you do not set the `no-tls` option, `vic-machine` by default generates a TLS certificate and key for the virtual container host to  use to authenticate with a Docker client. Set the `no-tls` option if you do not require certificate-based authentication between the virtual container host and the Docker client.
 
 <pre>--no-tls</pre>
+
+If you use the `no-tls` option, you connect Docker clients to the virtual container host via port 2375, instead of via port 2376.
 
 ### `cert` ###
 
@@ -366,7 +384,7 @@ Wrap the folder names in the paths in single quotes (Linux or Mac OS) or double 
 --key '<i>path to key file</i>'/<i>key_file_name</i>.pem</pre>
 
 <a name="deployment"></a>
-## Appliance Deployment Options ##
+## vApp Deployment Options ##
 
 The `vic-machine` utility provides options to customize the deployment of virtual container hosts.
 
@@ -374,7 +392,7 @@ The `vic-machine` utility provides options to customize the deployment of virtua
 
 Short name: `-n`
 
-A name for the virtual container host appliance. If not specified, `vic-machine` sets the name of the virtual container host to `virtual-container-host`. If a virtual container host of the same name exists on the ESXi host or in the vCenter Server inventory, or if a folder of the same name exists in the target datastore, the deployment of the virtual container host fails. Use the `force` option to replace an existing virtual container host with a new one with the same name.
+A name for the virtual container host appliance. If not specified, `vic-machine` sets the name of the virtual container host to `virtual-container-host`. If a virtual container host of the same name exists on the ESXi host or in the vCenter Server inventory, or if a folder of the same name exists in the target datastore, the deployment of the virtual container host fails.
 
 <pre>--name <i>vch_appliance_name</i></pre>
 
@@ -406,7 +424,7 @@ Forces `vic-machine create` to ignore warnings and non-fatal errors and continue
 
 Short name: none
 
-The timeout period for uploading the vSphere Integrated Containers  appliance and container images to the ESXi host, and for powering on the appliance. Specify a value in the format `XmYs` if the default timeout of 3m0s is insufficient.
+The timeout period for uploading the vSphere Integrated Containers Engine  appliance and container images to the ESXi host, and for powering on the appliance. Specify a value in the format `XmYs` if the default timeout of 3m0s is insufficient.
 
 <pre>--timeout 5m0s</pre> 
 
@@ -434,11 +452,74 @@ Wrap the folder names in the path in single quotes (Linux or Mac OS) or double q
 
 <pre>--bootstrap-iso '<i>path to ISO file</i>'/<i>ISO_file_name</i>.iso</pre>
 
+
+### `pool-memory-reservation` ###
+
+Short name: `--pmr`
+
+Reserve a quantity of memory for use by the virtual container host vApp   and container VMs. Specify the memory reservation value in MB. If not specified, `vic-machine create` sets the reservation to 1.
+
+<pre>--pool-memory-reservation 1024</pre>
+
+### `pool-memory-limit` ###
+
+Short name: `--pml`
+
+Limit the amount of memory that is available for use by the virtual container host vApp and container VMs. Specify the memory limit value in MB. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
+
+<pre>--pool-memory-limit 1024</pre>
+
+### `pool-memory-shares` ###
+
+Short name: `--pms`
+
+Set memory shares on the virtual container host vApp. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `normal`.
+
+<pre>--pool-memory-shares low</pre>
+
+### `pool-cpu-reservation` ###
+
+Short name: `--pcr`
+
+Reserve a quantity of CPU capacity for use by the virtual container host vApp and container VMs.  Specify the CPU reservation value in MHz. If not specified, `vic-machine create` sets the reservation to 1.
+
+<pre>--pool-cpu-reservation 1024</pre>
+
+### `pool-cpu-limit` ###
+
+Short name: `--pcl`
+
+Limit the amount of CPU capacity that is available for use by the virtual container host vApp and container VMs. Specify the CPU limit value in MHz. If not specified, `vic-machine create` sets the reservation to 0 (unlimited).
+
+<pre>--pool-cpu-limit 1024</pre>
+
+### `pool-cpu-shares` ###
+
+Short name: `--pcs`
+
+Set CPU shares on the virtual container host vApp. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `normal`.
+
+<pre>--pool-cpu-shares low</pre>
+
+### `debug` ###
+Short name: `-v`
+
+Provide verbose logging output, for troubleshooting purposes when running `vic-machine create`. If not specified, the `debug` value is set to 0 and verbose logging is disabled. Provide a value of 1 or greater to increase the verbosity of the logging. Note that setting debug to a value greater than 1 can affect the behavior of `vic-machine create`.
+
+<pre>--debug 1</pre>
+
+<a name="mandatory"></a>
+## Advanced Options ##
+
+The options in this section are exposed in the `vic-machine create` help if you run <code>vic-machine create --advanced-options</code>. 
+
 ### `appliance-cpu ` ###
 
 Short name: none
 
 The number of virtual CPUs for the virtual container host VM. The default is 1. Set this option to increase the number of CPUs in the virtual container host VM, for example if the virtual container host will handle large volumes of containers, or containers that require a lot of processing power.
+
+**NOTE** Use the `--pool-cpu` options instead of the `--appliance-cpu` option. The `--appliance-cpu` option is mainly intended for use by VMware Support.
 
 <pre>--appliance-cpu <i>number_of_CPUs</i></pre>
 
@@ -447,6 +528,8 @@ The number of virtual CPUs for the virtual container host VM. The default is 1. 
 Short name: none
 
 The amount of memory for the virtual container host VM. The default is 2048MB. Set this option to increase the amount of memory in the virtual container host VM, for example if the virtual container host will handle large volumes of containers, or containers that consume a lot of memory.
+
+**NOTE** Use the `--pool-memory` options instead of the `--appliance-memory` option. The `--appliance-memory` option is mainly intended for use by VMware Support.
 
 <pre>--appliance-memory <i>amount_of_memory</i></pre>
 
@@ -457,58 +540,3 @@ Short name: none
 Deploy the virtual container host to a resource pool rather than to a vApp. If you specify this option, `vic-machine create` creates a resource pool with the same name as the virtual container host.
 
 <pre>--use-rp</pre>
-
-### `pool-memory-reservation` ###
-
-Short name: `--pmr`
-
-Reserve a quantity of memory for use by the vApp or resource pool that contains the virtual container host and container VMs. Specify the memory reservation value in MB. If not specified, `vic-machine create` sets the reservation to 1.
-
-<pre>--pool-memory-reservation 1024</pre>
-
-### `pool-memory-limit` ###
-
-Short name: `--pml`
-
-Limit the amount of memory that is available for use by the vApp or resource pool that contains the virtual container host and container VMs. Specify the memory limit value in MB. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
-
-<pre>--pool-memory-limit 1024</pre>
-
-### `pool-memory-shares` ###
-
-Short name: `--pms`
-
-Set memory shares on the vApp or resource pool that contains the virtual container host and container VMs. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `normal`.
-
-<pre>--pool-memory-shares low</pre>
-
-### `pool-cpu-reservation` ###
-
-Short name: `--pcr`
-
-Reserve a quantity of CPU capacity for use by the vApp or resource pool that contains the virtual container host and container VMs.  Specify the CPU reservation value in MHz. If not specified, `vic-machine create` sets the reservation to 1.
-
-<pre>--pool-cpu-reservation 1024</pre>
-
-### `pool-cpu-limit` ###
-
-Short name: `--pcl`
-
-Limit the amount of CPU capacity that is available for use by the vApp or resource pool that contains the virtual container host and container VMs. Specify the CPU limit value in MHz. If not specified, `vic-machine create` sets the reservation to 0 (unlimited).
-
-<pre>--pool-cpu-limit 1024</pre>
-
-### `pool-cpu-shares` ###
-
-Short name: `--pcs`
-
-Set CPU shares on the vApp or resource pool that contains the virtual container host and container VMs. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `normal`.
-
-<pre>--pool-cpu-shares low</pre>
-
-### `debug` ###
-Short name: `-v`
-
-Provide verbose logging output, for troubleshooting purposes when running `vic-machine create`. If not specified, the `debug` value is set to 0 and verbose logging is disabled. Provide a value of 1 or greater to increase the verbosity of the logging. Note that setting debug to a value greater than 1 can affect the behavior of `vic-machine create`.
-
-<pre>--debug 1</pre>

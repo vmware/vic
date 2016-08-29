@@ -1,6 +1,6 @@
-## Installing Virtual Integrated Containers
+## Installing Virtual Integrated Containers Engine
 
-The intent is that vSphere Integrated Containers (VIC) should not _require_ an installation step - deploying a [Virtual Container Host](../design/arch/vic-container-abstraction.md#virtual-container-host) (VCH) directly without any prior steps should always be possible. At the current time this is the only approach available.
+The intent is that vSphere Integrated Containers Engine (VIC Engine) should not _require_ an installation step - deploying a [Virtual Container Host](../design/arch/vic-container-abstraction.md#virtual-container-host) (VCH) directly without any prior steps should always be possible. At the current time this is the only approach available.
 
 ## Deploying a Virtual Container Host
 
@@ -21,7 +21,7 @@ Replace the `<fields>` in the example with values specific to your environment -
 ```
 vic-machine-linux create --target target-host[/datacenter] --image-store <datastore name> --name <vch-name> --user root --password <password> --compute-resource <resource pool path>
 ```
-This will, if successful, produce output similar to the following when deploying VIC onto an ESXi:
+This will, if successful, produce output similar to the following when deploying VIC Engine onto an ESXi:
 ```
 INFO[2016-06-29T14:41:08-07:00] ### Installing VCH ####
 INFO[2016-06-29T14:41:08-07:00] Generating certificate/key pair - private key in ./vic-001-key.pem

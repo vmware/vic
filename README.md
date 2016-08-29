@@ -1,16 +1,16 @@
 [![Build Status](https://ci.vmware.run/api/badges/vmware/vic/status.svg)](https://ci.vmware.run/vmware/vic) [![Coverage Status](https://coverage.vmware.run/badges/vmware/vic/coverage.svg)](https://coverage.vmware.run/vmware/vic) [![Download](https://api.bintray.com/packages/vmware/vic/Download/images/download.svg)](https://bintray.com/vmware/vic/Download/_latestVersion)
 
 
-# vSphere Integrated Containers
+# vSphere Integrated Containers Engine
 
-vSphere Integrated Containers (VIC) is a container runtime for vSphere, allowing developers familiar with Docker to develop in containers and deploy them alongside traditional VM-based workloads on vSphere clusters, and allowing for these workloads to be managed through the vSphere UI in a way familiar to existing vSphere admins.
+vSphere Integrated Containers Engine (VIC Engine) is a container runtime for vSphere, allowing developers familiar with Docker to develop in containers and deploy them alongside traditional VM-based workloads on vSphere clusters, and allowing for these workloads to be managed through the vSphere UI in a way familiar to existing vSphere admins.
 
-See [VIC Containers Architecture](doc/design/arch/arch.md) for a high level overview.
+See [VIC Engine Architecture](doc/design/arch/arch.md) for a high level overview.
 
 
 ## Project Status
 
-VIC now provides:
+VIC Engine now provides:
 * basic function for most of the core lifecycle operations: pull, create, start, attach, run, stop, rm, logs.
 * early vCenter support, leveraging DRS for initial placement.
 * volume support [--volume-store](doc/user/usage.md#configuring-volumes-in-a-virtual-container-host) - SIOC is not integrated but can be set as normal.
@@ -26,7 +26,7 @@ The function is still basic and there two limitations worth pulling out as they'
 We are working hard to add functionality while building out our [foundation](doc/design/arch/arch.md#port-layer-abstractions) so continue to watch the repo for new features. Initial focus is on the production end of the CI pipeline, building backwards towards developer laptop scenarios.
 
 This extremely limited set of current capabilities may come as a surprise to people who are familiar with [Project Bonneville](http://blogs.vmware.com/cloudnative/introducing-project-bonneville/) that was [reasonably fully featured](https://www.youtube.com/watch?v=XkFQw8ueT1w) when demonstrated at VMworld in 2015.
-Project Bonneville was research aimed at determining best approaches to enabling container workflows in a vSphere environment and therefore enabled a broad set of features, but not in a manner that made it a viable product for large scale consumption. Building on top of research code is a great shortcut for fast time-to-market, but does not provide a good foundation for an enterprise quality product. vSphere Integrated Containers is a full re-architecture and re-write, building off the knowledge gained during Project Bonneville while keeping almost zero code.
+Project Bonneville was research aimed at determining best approaches to enabling container workflows in a vSphere environment and therefore enabled a broad set of features, but not in a manner that made it a viable product for large scale consumption. Building on top of research code is a great shortcut for fast time-to-market, but does not provide a good foundation for an enterprise quality product. vSphere Integrated Containers Engine is a full re-architecture and re-write, building off the knowledge gained during Project Bonneville while keeping almost zero code.
 
 
 ## Installing
@@ -100,7 +100,7 @@ $ make test
 
 ## Managing vendor/ directory
 
-To build the VIC dependencies, ensure `GOPATH` is set, then issue the following.
+To build the VIC Engine dependencies, ensure `GOPATH` is set, then issue the following.
 ``
 $ make gvt vendor
 ``
@@ -117,7 +117,7 @@ iso-base, appliance-staging, bootstrap-staging, appliance, and bootstrap. Genera
 $ make isos
 ```
 
-The appliance and bootstrap ISOs are bootable CD images used to start the VMs that make up VIC. To build the image using [docker](https://www.docker.com/), ensure `GOPATH` is set and `docker` is installed, then issue the following.
+The appliance and bootstrap ISOs are bootable CD images used to start the VMs that make up VIC Engine. To build the image using [docker](https://www.docker.com/), ensure `GOPATH` is set and `docker` is installed, then issue the following.
 
 ```
 docker run -v $(pwd):/go/src/github.com/vmware/vic -w /go/src/github.com/vmware/vic golang:1.7 make isos
@@ -167,9 +167,9 @@ From the root directory of the `vic` repository run `drone exec -trusted -cache 
 
 ## Integration Tests
 
-[VIC Integration Test Suite](tests/README.md) includes instructions to run locally.
+[VIC Engine Integration Test Suite](tests/README.md) includes instructions to run locally.
 
 
 ## License
 
-VIC is available under the [Apache 2 license](LICENSE).
+VIC Engine is available under the [Apache 2 license](LICENSE).

@@ -1,9 +1,11 @@
-# Contributing to vIC
+# Contributing to VIC Engine
 
 ## Community
 
 Contributors and users are encouraged to collaborate using the following resources in addition to the GitHub issue
 tracker:
+
+- [Slack](https://vmwarecode.slack.com/messages/vic-engine)
 
 - [Socialcast](https://vic-vmware.socialcast.com)
 
@@ -141,7 +143,7 @@ drone exec --yaml .drone.yml -e VIC_ESX_TEST_URL=""
 
 #### Integration tests
 
-Integration tests require a running ESX on which to deploy VIC. See [VIC Integration & Functional Test Suite](tests/README.md).
+Integration tests require a running ESX on which to deploy VIC Engine. See [VIC Integration & Functional Test Suite](tests/README.md).
 
 
 ## Reporting Bugs and Creating Issues
