@@ -31,6 +31,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/system"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
@@ -163,6 +164,14 @@ func (t *Mocker) Fork() error {
 func TestMain(m *testing.M) {
 	log.SetLevel(log.DebugLevel)
 	trace.Logger = log.StandardLogger()
+
+	// replace the Sys variable with a mock
+	tether.Sys = system.System{
+		Hosts:      &tether.MockHosts{},
+		ResolvConf: &tether.MockResolvConf{},
+		Syscall:    &tether.MockSyscall{},
+		Root:       os.TempDir(),
+	}
 
 	retCode := m.Run()
 

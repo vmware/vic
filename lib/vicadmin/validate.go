@@ -220,7 +220,7 @@ func (v *Validator) QueryVCHStatus(vch *config.VirtualContainerHostConfigSpec) {
 
 	for service, proc := range procs {
 		log.Infof("Checking status of %s", proc)
-		pid, err := ioutil.ReadFile(fmt.Sprintf("%s.pid", path.Join(tether.PIDFileDir, proc)))
+		pid, err := ioutil.ReadFile(fmt.Sprintf("%s.pid", path.Join(tether.PIDFileDir(), proc)))
 		if err != nil {
 			v.VCHIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s service is not running</span>\n",
 				v.VCHIssues, strings.Title(service)))
