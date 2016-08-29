@@ -12,7 +12,7 @@ This topic provides examples of the options of the `vic-machine` `create` comman
 - [Deploy a Virtual Container Host in a Resource Pool on an ESXi Host](#rp_host)
 - [Deploy a Virtual Container Host in a Resource Pool in a vCenter Server Cluster](#rp_cluster)
 - [Deploy a Virtual Container Host for Use with a Docker Client that Requires CA Certificates](#ca_cert)
-- [Deploy a Virtual Container Host with Customized VM Settings](#customized)
+- [Deploy a Virtual Container Host with Limits on Resource Use](#customized)
 
 For detailed descriptions of all of the `vic-machine create` options, see [Virtual Container Host Deployment Options](vch_installer_options.md)
 
@@ -58,7 +58,7 @@ In addition to the mandatory bridge network, if your vCenter Server environment 
 - You can direct the traffic between the virtual container host, container VMs, and the internet to a specific network by specifying the `external-network` option. If you do not specify the `external-network` option, the virtual container host uses the default VM Network for external traffic.
 - You can direct traffic between ESXi hosts, vCenter Server, and the virtual container host to a specific network by specifying the `management-network` option. If you do not specify the `management-network` option, the virtual container host uses the external network for management traffic.
 - You can designate a specific network for use by the Docker API by specifying the `client-network` option. If you do not specify the `client-network` option, the Docker API uses the external network.
-- You can designate a specific network for container VMs to use by specifying the `container-network` option. Containers use this network if the container developer runs `docker run` or `docker create` with the `--net` option when they run or create a container. This option requires a distributed port group that must exist before you run `vic-machine create`. You cannot use the same distributed port group that you use for the bridge network. You provide a descriptive name for the network, that is used by Docker. For example, the descriptive name appears as an available network in the output of `docker info`.
+- You can designate a specific network for container VMs to use by specifying the `container-network` option. Containers use this network if the container developer runs `docker run` or `docker create` with the `--net` option when they run or create a container. This option requires a distributed port group that must exist before you run `vic-machine create`. You cannot use the same distributed port group that you use for the bridge network. You provide a descriptive name for the network, for use by Docker. For example, the descriptive name appears as an available network in the output of `docker info`.
 
 This example deploys a virtual container host with the following configuration:
 
@@ -142,7 +142,7 @@ For more information about the datastore options, see the [Datastore Options sec
 
 If container application developers will use the `docker volume create` command to create containers that use volumes, you must create volume stores when you deploy virtual container hosts. You specify volume stores in the `volume-store` option. You can specify `volume-store` multiple times to create multiple volume stores. 
 
-When you create a volume store, you specify the name of the datastore to use and an optional path to a folder on that datastore. You also specify a descriptive name for that volume store that is used by Docker.
+When you create a volume store, you specify the name of the datastore to use and an optional path to a folder on that datastore. You also specify a descriptive name for that volume store for use by Docker.
 
 This example deploys a virtual container host with the following configuration:
 
@@ -200,7 +200,7 @@ This example deploys a virtual container host with the following configuration:
 <a name="rp_cluster"></a>
 ## Deploy a Virtual Container Host in a Resource Pool in a vCenter Server Cluster ##
 
-To deploy a virtual container host in a resource pool in a vCenter Server Cluster, you specify the names of the cluster and resource pool in the `compute-resource` option.
+To deploy a virtual container host in a resource pool in a vCenter Server cluster, you specify the names of the cluster and resource pool in the `compute-resource` option.
 
 This example deploys a virtual container host with the following configuration:
 
@@ -218,7 +218,7 @@ This example deploys a virtual container host with the following configuration:
 <a name="ca_cert"></a>
 ## Deploy a Virtual Container Host for Use with a Docker Client that Requires CA Certificates ##
 
-If your development environment uses custom Certificate Authority certificates to authenticate connections between Docker clients and virtual container hosts, use the `cert` and `key` options to provide the paths to an X.509 certificate and its key when you deploy a virtual container host. The paths to the certificate and key files must be relative to the location from which you are deploying a virtual container host.
+If your development environment uses custom Certificate Authority certificates to authenticate connections between Docker clients and virtual container hosts, use the `cert` and `key` options to provide the paths to an X.509 certificate and its key when you deploy a virtual container host. The paths to the certificate and key files must be relative to the location from which you are running `vic-machine create`.
 
 This example deploys a virtual container host with the following configuration:
 
@@ -245,7 +245,7 @@ To limit the amount of system resources that the container VMs in a virtual cont
 This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, image store, cluster, bridge network, and name for the virtual container host.
-- Sets resource limits on the virtual container host by imposing memory ahd CPU reservations, limits, and shares.
+- Sets resource limits on the virtual container host by imposing memory and CPU reservations, limits, and shares.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1

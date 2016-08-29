@@ -37,7 +37,7 @@ Short name: `-p`
 
 The password for the user account on the vCenter Server on which you  deployed the virtual container hosts, or the password for the ESXi host if you deployed directly to an ESXi host. If not specified, `vic-machine ls` prompts you to enter the password.
 
-<pre>--password '<i>esxi_host_or_vcenter_server_p@ssword</i>'</pre>
+<pre>--password <i>esxi_host_or_vcenter_server_password</i></pre>
 
 Wrap the password in single quotation marks (') on Mac OS and Linux and in double quotation (") marks on Windows if it includes special characters.
 
