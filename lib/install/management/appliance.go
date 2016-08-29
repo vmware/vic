@@ -137,7 +137,7 @@ func (d *Dispatcher) getName(vm *vm.VirtualMachine) string {
 }
 
 func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
-	defer trace.End(trace.Begin(vm.String()))
+	defer trace.End(trace.Begin(fmt.Sprintf("vm %q, force %t", vm.String(), force)))
 
 	var err error
 	power, err := vm.PowerState(d.ctx)
@@ -187,6 +187,10 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 			return errors.Errorf("%s then failed to unregister VM: %s", err, err2)
 		}
 		log.Infof("Unregistered VM to cleanup after failed destroy: %q", vm.Reference())
+	}
+	if folder == "" {
+		log.Warnf("Skipping remove datastore files for VM %q: unable to determine path to delete", vm.Reference())
+		return nil
 	}
 	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {
 		log.Warnf("Failed to remove datastore files for VM path %q: %s", folder, err)
