@@ -3,7 +3,7 @@
 vSphere Container Host connects to four network types.
  ![vSphere Container Host Management Network](vch-net.png)
 
-- vSphere Management Network: to communicate with vCenter and ESXi hosts. This network also serves as a tether within the containers to communicate with the vSphere Container Host.
+- vSphere Management Network: to communicate with vCenter and ESXi hosts. This network also serves as a tether within the containers to communicate with the vSphere Integrated Containers virtual container host.
  ![vSphere Management Network](vch-management-net.png)
 - Docker Management Endpoint Network: to connect to Docker clients and isolate the Docker endpoints from the more public external network.
  ![Docker Management Endpoint Network](vch-docker-net.png)
@@ -14,7 +14,7 @@ vSphere Container Host connects to four network types.
 
 ## The Port Layer
 
-You can configure networks that are tied into the vSphere infrastructure. Pre-configured networks available to a vSphere Container Host are determined by the networks that are part of the provisioning or added when you reconfigure the vSphere Container Host.
+You can configure networks that are tied into the vSphere infrastructure. Pre-configured networks available to a virtual container host are determined by the networks that are part of the provisioning or added when you reconfigure the virtual container host.
 
 The port layer augments vSphere API with low level, platform-specific primitives to allow you to implement a simple container engine:
 

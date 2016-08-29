@@ -4,7 +4,7 @@ Before you install vSphere Integrated Containers Engine, you must ensure that yo
 
 ## Supported Platforms for `vic-machine` ##
 
-The vSphere Integrated Containers Engine installation and management utility, `vic-machine`, has been tested and verified on the following Linux OS, Windows, Mac OS, and Photon OS systems. It is possible to use `vic-machine` on other platforms, but results are not guaranteed.
+The vSphere Integrated Containers Engine installation and management utility, `vic-machine`, has been tested and verified on the following Linux OS, Windows, Mac OS, and Photon OS systems.
 
 |**Platform**|**Supported Versions**|
 |---|---|
@@ -54,9 +54,11 @@ You must use an account with the vSphere Administrator role when you install vSp
 * Use a trusted network for connections between Docker clients and the virtual container hosts.
 * Each virtual container host requires the following network configuration:
  * An IP address that is obtained by DHCP. Virtual container hosts do not currently support static IP addresses.
+ * A network with DHCP for use as the external network. You can share this network between multiple virtual container hosts.
  * One VLAN, if you use VLAN for network isolation.
  * One IP address for each container that you run with the `docker run --net=host` option.
-* Virtual container hosts require a network with DHCP for use as the external network. You can share this network between multiple virtual container hosts.
-* In a vCenter Server environment, before you deploy a virtual container host, you must create a distributed virtual switch with a distributed port group for each virtual container host. Container VMs that the virtual container host provisions connect to the port groups. You must add the target ESXi host or hosts to the distributed virtual switch. You can create multiple port groups on the same distributed virtual switch, but each virtual container host requires its own port group. 
- - For information about how to create a distributed port group, see [Create a vSphere Distributed Switch](https://pubs.vmware.com/vsphere-60/topic/com.vmware.vsphere.networking.doc/GUID-D21B3241-0AC9-437C-80B1-0C8043CC1D7D.html) in the vSphere 6.0 documentation.
- - For information about how to add hosts to a distributed virtual switch, see [Add Hosts to a vSphere Distributed Switch](https://pubs.vmware.com/vsphere-60/topic/com.vmware.vsphere.networking.doc/GUID-E90C1B0D-82CB-4A3D-BE1B-0FDCD6575725.html) in the vSphere 6.0 documentation.
+* In vCenter Server environment, before you deploy a virtual container host, you must create a bridge network for use by container VMs.
+ - Create a distributed virtual switch with a distributed port group for each virtual container host, for use as the bridge network. You can create multiple port groups on the same distributed virtual switch, but each virtual container host requires its own port group.  For information about how to create a distributed virtual switch and a distributed port group, see [Create a vSphere Distributed Switch](https://pubs.vmware.com/vsphere-60/topic/com.vmware.vsphere.networking.doc/GUID-D21B3241-0AC9-437C-80B1-0C8043CC1D7D.html) in the vSphere 6.0 documentation. 
+ - Add the target ESXi host or hosts to the distributed virtual switch. For information about how to add hosts to a distributed virtual switch, see [Add Hosts to a vSphere Distributed Switch](https://pubs.vmware.com/vsphere-60/topic/com.vmware.vsphere.networking.doc/GUID-E90C1B0D-82CB-4A3D-BE1B-0FDCD6575725.html) in the vSphere 6.0 documentation.
+ - Assign a VLAN ID to the port group, to ensure that the bridge network is isolated. For information about how to assign a VLAN ID to a port group, see [VMware KB 1003825](https://kb.vmware.com/kb/1003825).
+

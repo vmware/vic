@@ -12,7 +12,7 @@ Connect the container with the external mapped port on the external surface of t
 
 ##### Outcome
 
-You can access Port 80 on test1 from the external network interface on the vSphere Container Host at port 8080.
+You can access Port 80 on test1 from the external network interface on the virtual container host at port 8080.
 
 #### Simple Bridge Network
 
@@ -39,7 +39,7 @@ Server and Client can ping each other by name.
 
 #### Bridged Containers with Exposed Port
 
-Connect two containers on a bridge network and set up one of the containers to publish a port via the vSphere Container Host. Assume server_app binds to port 5000.
+Connect two containers on a bridge network and set up one of the containers to publish a port via the virtual container host. Assume server_app binds to port 5000.
 
 
     $ docker network create -d bridge my-bridge-network
@@ -69,7 +69,7 @@ Connect two containers on a bridge network and set up one of the containers to p
     Hello world!Connection closed by foreign host.
 
 ##### Outcome
-Server and Client can ping each other by name. You can connect to the server on port 5000 from the client container and to port 5000 on the vSphere Container Host external interface.
+Server and Client can ping each other by name. You can connect to the server on port 5000 from the client container and to port 5000 on the virtual container host external interface.
 
 #### Containers using External Network
 
@@ -77,9 +77,9 @@ Configure two external networks in vSphere:
 `default-external` is `10.2.0.0/16` with gateway `10.2.0.1`  
 `vic-production` is `208.91.3.0/24` with gateway `208.91.3.1`  
 
-Associate a vSphere Container Host, then set up the vSphere Container Host to the default external network.
+Associate a virtual container host, then set up the virtual container host to the default external network.
 
-Attach the vSphere Container Host to the default-external network at 08.91.3.2.
+Attach the virtual container host to the default-external network at 08.91.3.2.
 
 `docker network ls` shows:
 

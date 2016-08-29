@@ -1,6 +1,6 @@
 # Deploy a Virtual Container Host
 
-You use the `create` command of the `vic-machine` command line utility to deploy a vSphere Integrated Containers Engine virtual container host. 
+You install vSphere Integrated Containers Engine by deploying a vSphere Integrated Containers Engine virtual container host. You use the `vic-machine create` command to deploy a virtual container host. 
 
 The `vic-machine` utility can deploy a virtual container host in one of the following setups: 
 * vCenter Server with a cluster
@@ -9,19 +9,17 @@ The `vic-machine` utility can deploy a virtual container host in one of the foll
 
 When you deploy a virtual container host, `vic-machine` registers the virtual container host as a vSphere extension. Authentication between the virtual container host and vSphere is handled via key pair authentication against the vSphere extension.
 
-The virtual container host allows you to use an ESXi host or vCenter Server instance as the Docker endpoint for a Docker client. The containers that you pull or create in your Docker client are stored and managed in the vSphere environment.
-
-**NOTE** The `vic-machine` utility does not add an extension in the vSphere Web Client. 
+The virtual container host allows you to use an ESXi host or vCenter Server instance as the Docker endpoint for a Docker client. The containers that you pull or create by using your Docker client are stored and managed in the vSphere environment.
 
 **Prerequisites**
 
 * Verify that your vSphere infrastructure meets the requirements in [Environment Prerequisites for vSphere Integrated Containers Engine Installation](vic_installation_prereqs.md).
-* In a vCenter Server environment, before you deploy a virtual container host, you must create a distributed virtual switch and a distributed port group. You must add the target ESXi host or hosts to the distributed virtual switch. For information about how to create a distributed virtual switch and port group, see *Network Requirements* in [Environment Prerequisites for vSphere Integrated Containers Engine Installation](vic_installation_prereqs.md#networkreqs).
+* In a vCenter Server environment, before you deploy a virtual container host, you must create a distributed virtual switch and a distributed port group for use as the bridge network for container VMs. For information about how to create a distributed virtual switch and port group, see *Network Requirements* in [Environment Prerequisites for vSphere Integrated Containers Engine Installation](vic_installation_prereqs.md#networkreqs).
 * Obtain either a verified build, the latest daily build, or the source code of vSphere Integrated Containers Engine: 
  * Download the most recent verified build of vSphere Integrated Containers Engine from https://github.com/vmware/vic/releases and unpack it. This version has been tested and approved, but it does not reflect the most up-to-date version of the code.
  * Download the latest daily build of vSphere Integrated Containers Engine from https://bintray.com/vmware/vic-repo/build/view#files and unpack it. This version reflects the version of the code as it was at the last daily build. It has not been tested or approved.
  * For the very latest version, for example to include changes that you have made since the last daily build, build the vSphere Integrated Containers Engine binaries from the source code.
-* Add the folder that contains the vSphere Integrated Containers Engine binaries to the `PATH` environment variable. 
+* Add the folder that contains the vSphere Integrated Containers Engine binaries to the `PATH` environment variable on the machine on which you are running `vic-machine`. 
 * Familiarize yourself with the vSphere Integrated Containers Engine binaries, as described in [Contents of the vSphere Integrated Containers Engine Binaries](contents_of_vic_binaries.md). 
 * Familiarize yourself with the options of the `create` command of the `vic-machine` utility described in [Virtual Container Host Deployment Options](vch_installer_options.md).
 * For examples of commands to deploy a virtual container host in various vSphere configurations, see [Examples of Deploying a Virtual Container Host](vch_installer_examples.md).
@@ -35,7 +33,7 @@ The virtual container host allows you to use an ESXi host or vCenter Server inst
  * If you built the vSphere Integrated Containers Engine binaries, go to <code><i>installation_dir</i>/vic/bin</code>.
 2. Run the `create` command of the `vic-machine` utility. 
 
-   The following examples include the fewest possible options, for installation in a simple vCenter Server environment with a cluster.
+   The following examples include the fewest possible options for installation in a simple vCenter Server environment with a cluster.
 
    Deploy a virtual container host from a Mac OS system:
 
@@ -75,9 +73,7 @@ Installer completed successfully</pre>
 
   If you did not explicitly disable TLS certificate generation by using the `no-tls` option, and if your Docker client is not on the same system as the one that you used to run `vic-machine`, you must copy the <code><i>vch_name</i>-cert.pem</code> and <code><i>vch_name</i>-key.pem</code> files to the Docker client system.
 
-**What to Do Next**
-
-If you did not explicitly disable TLS certificate generation by using the `no-tls` option, and if your Docker client is not on the same system as the one that you used to run `vic-machine`, copy the <code><i>vch_name</i>-cert.pem</code> and <code><i>vch_name</i>-key.pem</code> files to the Docker client system. 
+**What to Do Next** 
 
 To test your virtual container host, see [Verify the Deployment of a Virtual Container Host to vCenter Server](verify_vch_deployment.md) or [Verify the Deployment of a Virtual Container Host to an ESXi Host](verify_vch_deployment_esx.md).
     
