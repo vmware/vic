@@ -23,12 +23,9 @@ Docker volume create already named volume
     #Should Contain  ${output}  Error response from daemon: A volume named test already exists. Choose a different volume name.
     
 Docker volume create volume with bad driver
-    ${status}=  Get State Of Github Issue  1564
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-19-Docker-Volume-Create.robot needs to be updated now that Issue #1564 has been resolved
-    Log  Issue \#1564 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create -d fakeDriver --name=test2
-    #Should Be Equal As Integers  ${rc}  1
-    #Should Contain  ${output}  Error looking up volume plugin fakeDriver: plugin not found
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create -d fakeDriver --name=test2
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  Error looking up volume plugin fakeDriver: plugin not found
     
 Docker volume create with bad volumestore
     ${status}=  Get State Of Github Issue  1561

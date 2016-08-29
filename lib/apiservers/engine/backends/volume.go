@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/pkg/trace"
+	"strings"
 )
 
 // NOTE: FIXME: These might be moved to a utility package once there are multiple personalities
@@ -106,7 +107,7 @@ func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]s
 	// assign the values of the model to be passed to the portlayer handler
 	model, varErr := translateInputsToPortlayerRequestModel(name, driverName, opts, labels)
 	if varErr != nil {
-		return result, derr.NewErrorWithStatusCode(fmt.Errorf("Bad Driver Arg: %s", varErr), http.StatusBadRequest)
+		return result, derr.NewErrorWithStatusCode(varErr, http.StatusBadRequest)
 	}
 
 	if model.Name == "" {
@@ -220,6 +221,13 @@ func validateDriverArgs(args map[string]string, model *models.VolumeRequest) err
 }
 
 func translateInputsToPortlayerRequestModel(name, driverName string, opts, labels map[string]string) (*models.VolumeRequest, error) {
+	defaultDriver := strings.EqualFold(driverName, "local")
+	vsphereDriver := strings.EqualFold(driverName, "vsphere")
+
+	if !defaultDriver && !vsphereDriver {
+		return nil, fmt.Errorf("Error looking up volume plugin %s: plugin not found", driverName)
+	}
+
 	model := &models.VolumeRequest{
 		Driver:     driverName,
 		DriverArgs: opts,
@@ -234,7 +242,7 @@ func translateInputsToPortlayerRequestModel(name, driverName string, opts, label
 	model.Metadata = make(map[string]string)
 	model.Metadata[dockerMetadataModelKey] = metadata
 	if err := validateDriverArgs(opts, model); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Bad Driver Arg: %s", err)
 	}
 
 	return model, nil
