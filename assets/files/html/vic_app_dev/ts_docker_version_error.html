@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Docker Commands Fail with a Docker API Version Error | Developing Container Applications with VMware vSphere Integrated Containers, version 0.5</title>
+        <title>Docker Commands Fail with a Docker API Version Error | Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.5.5</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -51,7 +51,7 @@
         data-chapter-title="Docker Commands Fail with a Docker API Version Error"
         data-filepath="ts_docker_version_error.md"
         data-basepath="."
-        data-revision="Wed Aug 17 2016 17:05:54 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Mon Aug 29 2016 16:38:04 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -104,7 +104,7 @@
                         
                             <b>2.</b>
                         
-                        Use and Limitations of Containers in vSphere Integrated Containers
+                        Use and Limitations of Containers in vSphere Integrated Containers Engine
                     </a>
             
             
@@ -119,7 +119,7 @@
                         
                             <b>3.</b>
                         
-                        Using Volumes with vSphere Integrated Containers
+                        Using Volumes with vSphere Integrated Containers Engine
                     </a>
             
             
@@ -178,7 +178,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers, version 0.5</a>
+        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.5.5</a>
     </h1>
 </div>
 
@@ -189,15 +189,15 @@
                     <section class="normal" id="section-">
                     
                         <h1 id="docker-commands-fail-with-a-docker-api-version-error">Docker Commands Fail with a Docker API Version Error</h1>
-<p>After a successful deployment of a vSphere Integrated Containers virtual container host, attempting to run a Docker command fails with a Docker version error.</p>
+<p>After a successful deployment of a vSphere Integrated Containers Engine virtual container host, attempting to run a Docker command fails with a Docker version error.</p>
 <h2 id="problem">Problem</h2>
 <p>When you attempt to run a Docker command from a Docker client that is connecting to a virtual container host, the command fails with the error <code>Error response from daemon: client is newer than server (client API version: 1.24, server API version: 1.23)</code>.</p>
 <h2 id="cause">Cause</h2>
-<p>vSphere Integrated Containers supports Docker 1.11, that includes version 1.23 of the Docker API. You are using version 1.12 of the Docker client, that uses version 1.24 of the Docker API, which is incompatible.</p>
+<p>vSphere Integrated Containers Engine supports Docker 1.11, that includes version 1.23 of the Docker API. You are using version 1.12 of the Docker client, that uses version 1.24 of the Docker API, which is incompatible.</p>
 <h2 id="solution">Solution</h2>
 <ol>
 <li>Open a Docker client terminal.</li>
-<li><p>Set the Docker client API to the same version as is used by vSphere Integrated Containers.</p>
+<li><p>Set the Docker client API to the same version as is used by vSphere Integrated Containers Engine.</p>
 <pre>export DOCKER_API_VERSION=1.23</pre> </li>
 <li><p>Check that your Docker client can now connect to the virtual container host by running a Docker command. </p>
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls info</pre>

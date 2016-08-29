@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Virtual Container Host Delete Options | VMware vSphere Integrated Containers Engine for vSphere Administrators, version 0.5.5</title>
+        <title>Find Container Information in the vSphere Web Client | VMware vSphere Integrated Containers Engine for vSphere Administrators, version 0.5.5</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -37,10 +37,10 @@
         
     
     
-    <link rel="next" href="./vch_portlet_ui.html" />
+    <link rel="next" href="./troubleshoot_vic_admin.html" />
     
     
-    <link rel="prev" href="./remove_vch.html" />
+    <link rel="prev" href="./vch_portlet_ui.html" />
     
 
         
@@ -49,9 +49,9 @@
         
         
     <div class="book"
-        data-level="4.4.1"
-        data-chapter-title="Virtual Container Host Delete Options"
-        data-filepath="delete_vch_options.md"
+        data-level="6"
+        data-chapter-title="Find Container Information in the vSphere Web Client"
+        data-filepath="container_portlet_ui.md"
         data-basepath="."
         data-revision="Mon Aug 29 2016 16:37:47 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
@@ -246,7 +246,7 @@
             <ul class="articles">
                 
     
-        <li class="chapter active" data-level="4.4.1" data-path="delete_vch_options.html">
+        <li class="chapter " data-level="4.4.1" data-path="delete_vch_options.html">
             
                 
                     <a href="./delete_vch_options.html">
@@ -286,7 +286,7 @@
             
         </li>
     
-        <li class="chapter " data-level="6" data-path="container_portlet_ui.html">
+        <li class="chapter active" data-level="6" data-path="container_portlet_ui.html">
             
                 
                     <a href="./container_portlet_ui.html">
@@ -385,86 +385,28 @@
                 
                     <section class="normal" id="section-">
                     
-                        <h1 id="virtual-container-host-delete-options">Virtual Container Host Delete Options</h1>
-<p>The command line utility for vSphere Integrated Containers Engine, <code>vic-machine</code>, provides a <code>delete</code> command that allows you to cleanly remove virtual container hosts. The options that <code>vic-machine delete</code> requires depend on the location in your vSphere environment in which you deployed the virtual container host.</p>
-<h3 id="target"><code>target</code></h3>
-<p>Short name: <code>-t</code></p>
-<p>The IPv4 address, fully qualified domain name (FQDN), or URL of the ESXi host or vCenter Server instance on which you deployed the virtual container host. This option is mandatory.</p>
+                        <h1 id="find-container-information-in-the-vsphere-web-client">Find Container Information in the vSphere Web Client</h1>
+<p>After you have installed the vSphere Web Client plug-in for vSphere Integrated Containers Engine, you can use the vSphere Web Client to find information about containers that are running in virtual container hosts.</p>
+<p><strong>Prerequisites</strong></p>
 <ul>
-<li>If the target ESXi host is not managed by vCenter Server, provide the address of the host.<pre>--target <i>esxi_host_address</i></pre></li>
-<li>If the target ESXi host is managed by vCenter Server, or if you deployed the virtual container host to a cluster, provide the address of vCenter Server.<pre>--target <i>vcenter_server_address</i></pre></li>
-<li><p>You can include the user name and password in the target URL. <pre>--target <i>vcenter_or_esxi_username</i>:<i>password</i>@<i>vcenter_or_esxi_address</i></pre></p>
-<p>Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>&apos;<i>vcenter_or_esxi_usern@me</i>&apos;:&apos;<i>p@ssword</i>&apos;@<i>vcenter_or_esxi_address</i></pre></p>
-<p>If you do not include the user name in the target URL, you must specify the <code>user</code> option. If you do not specify the <code>password</code> option or include the password in the target URL, <code>vic-machine delete</code> prompts you to enter the password.</p>
-</li>
-<li>If you deployed the virtual container host on a vCenter Server instance that includes more than one datacenter, include the datacenter name in the target URL. If you include an invalid datacenter name, <code>vic-machine delete</code> fails and suggests the available datacenters that you can specify.<pre>--target <i>vcenter_server_address</i>/<i>datacenter_name</i></pre></li>
+<li>You deployed a virtual container host and pulled and ran at least one container.</li>
+<li>You installed the vSphere Web Client plug-in for vSphere Integrated Containers Engine.</li>
 </ul>
-<h3 id="user"><code>user</code></h3>
-<p>Short name: <code>-u</code></p>
-<p>The username for the ESXi host or vCenter Server instance on which you deployed the virtual container host. This option is mandatory if you do not specify the username in the <code>target</code> option.</p>
-<pre>--user <i>esxi_or_vcenter_server_username</i></pre>
-
-<p>Wrap the user name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes special characters.</p>
-<pre>--user &apos;<i>esxi_or_vcenter_server_usern@me</i>&apos;</pre>
-
-
-<h3 id="password"><code>password</code></h3>
-<p>Short name: <code>-p</code></p>
-<p>The password for the user account on the vCenter Server on which you  deployed the virtual container host, or the password for the ESXi host if you deployed directly to an ESXi host. If not specified, <code>vic-machine delete</code> prompts you to enter the password.</p>
-<pre>--password <i>esxi_host_or_vcenter_server_password</i></pre>
-
-<p>Wrap the password in single quotation marks (&apos;) on Mac OS and Linux and in double quotation (&quot;) marks on Windows if it includes special characters.</p>
-<pre>--password &apos;<i>esxi_host_or_vcenter_server_p@ssword</i>&apos;</pre>
-
-<h3 id="computeresource"><code>compute-resource</code></h3>
-<p>Short name: <code>-r</code></p>
-<p>The relative path to the host, cluster, or resource pool in which you deployed the virtual container host. Specify <code>--compute-resource</code> with exactly the same value that you used when you ran <code>vic-machine create</code>. You specify the <code>compute-resource</code> option in the following circumstances:</p>
+<p><strong>Procedure</strong></p>
+<ol>
+<li>In the vSphere Web Client Home page, select <strong>Hosts and Clusters</strong>.</li>
+<li>Expand the hierarchy of vCenter Server objects to navigate to the virtual container host vApp.</li>
+<li>Expand the virtual container host vApp and select a container VM.</li>
+<li>Click the <strong>Summary</strong> tab for the container VM and scroll down to the <strong>Container</strong> portlet.</li>
+</ol>
+<p><strong>Result</strong></p>
+<p>Information about the container appears in the Container portlet in the <strong>Summary</strong> tab:</p>
 <ul>
-<li>vCenter Server includes multiple instances of standalone hosts or clusters, or a mixture of standalone hosts and clusters.</li>
-<li>The ESXi host includes multiple resource pools. </li>
-<li>You deployed the virtual container host in a specific resource pool in your environment. </li>
+<li>The name of the running container. If the container developer used <code>docker run -name container_name</code> to run the container, <code>container_name</code> appears in the portlet.</li>
+<li>The image from which the container was deployed.</li>
+<li>If the container developer used <code>docker run -p port</code> to map a port when running the container, the port number and the protocol appear in the portlet.</li>
 </ul>
-<p>If you specify the <code>id</code> option, you do not need to specify the <code>compute-resource</code> option.</p>
-<p>If you do not specify the <code>compute-resource</code> or <code>id</code> options and multiple possible resources exist, <code>vic-machine delete</code> fails and suggests valid targets for <code>compute-resource</code> in the failure message. </p>
-<ul>
-<li>If the virtual container host is in a specific resource pool on an ESXi host, specify the name of the resource pool: <pre>--compute-resource  <i>resource_pool_name</i></pre></li>
-<li>If the virtual container host is on a vCenter Server instance that has more than one standalone host but no clusters, specify the IPv4 address or fully qualified domain name (FQDN) of the target host:<pre>--compute-resource <i>host_address</i></pre></li>
-<li>If the virtual container host is on a vCenter Server with more than one cluster, specify the name of the target cluster: <pre>--compute-resource <i>cluster_name</i></pre></li>
-<li>If the virtual container host is in a specific resource pool on a standalone host that is managed by vCenter Server, specify the IPv4 address or FQDN of the target host and name of the resource pool:<pre>--compute-resource <i>host_name</i>/<i>resource_pool_name</i></pre></li>
-<li>If the virtual container host is in a specific resource pool in a cluster, specify the names of the target cluster and the resource pool:<pre>--compute-resource <i>cluster_name</i>/<i>resource_pool_name</i></pre></li>
-<li>Wrap the resource names in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces:<pre>--compute-resource &apos;<i>cluster name</i>&apos;/&apos;<i>resource pool name</i>&apos;</pre></li>
-</ul>
-<h3 id="name"><code>name</code></h3>
-<p>Short name: <code>-n</code></p>
-<p>The name of the virtual container host appliance to delete. This option is mandatory if the virtual container host to delete has a name other than the default name, <code>virtual-container-host</code>, or if you do not use the <code>id</code> option. Specify <code>--name</code> with exactly the same value that you used when you ran <code>vic-machine create</code>.</p>
-<pre>--name <i>vch_appliance_name</i></pre>
 
-<p>Wrap the appliance name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.</p>
-<pre>--name &apos;<i>vch appliance name</i>&apos;</pre>
-
-<h3 id="id"><code>id</code></h3>
-<p>Short name: None</p>
-<p>The ID of the virtual container host to delete, for example <code>vm-100</code>.  You obtain the ID of a virtual container host by running <code>vic-machine ls</code>. If you specify the <code>id</code> option, you do not need to specify the <code>name</code> or <code>compute-resource</code> options.</p>
-<pre>--id <i>vch_id</i></pre>
-
-<h3 id="force"><code>force</code></h3>
-<p>Short name: <code>-f</code></p>
-<p>Forces <code>vic-machine delete</code> to ignore warnings and continue with the deletion of a virtual container host. Any running container VMs and any volume stores associated with the virtual container host are deleted. Errors such as an incorrect compute resource still cause the deletion to fail. </p>
-<ul>
-<li>If you do not specify <code>force</code> and the virtual container host contains running container VMs, the deletion fails with a warning. </li>
-<li>If you do not specify <code>force</code> and the virtual container host has volume stores, the deletion of the virtual container host succeeds without deleting the volume stores. The list of volume stores appears in the <code>vic-machine delete</code> success message for reference and optional manual removal.</li>
-</ul>
-<pre>--force</pre>
-
-<h3 id="timeout"><code>timeout</code></h3>
-<p>Short name: none</p>
-<p>The timeout period for deleting the virtual container host. Specify a value in the format <code>XmYs</code> if the default timeout of 3m0s is insufficient.</p>
-<pre>--timeout 5m0s</pre> 
-
-<h3 id="debug"><code>debug</code></h3>
-<p>Short name: <code>-v</code></p>
-<p>Provide verbose logging output, for troubleshooting purposes when running <code>vic-machine delete</code>. If not specified, the <code>debug</code> value is set to 0 and verbose logging is disabled. Provide a value of 1 or greater to increase the verbosity of the logging.</p>
-<pre>--debug 1</pre>
                     
                     </section>
                 
@@ -474,10 +416,10 @@
         </div>
 
         
-        <a href="./remove_vch.html" class="navigation navigation-prev " aria-label="Previous page: Delete a Virtual Container Host"><i class="fa fa-angle-left"></i></a>
+        <a href="./vch_portlet_ui.html" class="navigation navigation-prev " aria-label="Previous page: Find Virtual Container Host Information in the vSphere Web Client"><i class="fa fa-angle-left"></i></a>
         
         
-        <a href="./vch_portlet_ui.html" class="navigation navigation-next " aria-label="Next page: Find Virtual Container Host Information in the vSphere Web Client"><i class="fa fa-angle-right"></i></a>
+        <a href="./troubleshoot_vic_admin.html" class="navigation navigation-next " aria-label="Next page: Troubleshooting vSphere Integrated Containers Engine Administration"><i class="fa fa-angle-right"></i></a>
         
     </div>
 </div>

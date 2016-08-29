@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Network Port Use Cases | Developing Container Applications with VMware vSphere Integrated Containers, version 0.5</title>
+        <title>Network Port Use Cases | Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.5.5</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -53,7 +53,7 @@
         data-chapter-title="Network Port Use Cases"
         data-filepath="network_use_cases.md"
         data-basepath="."
-        data-revision="Wed Aug 17 2016 17:05:54 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Mon Aug 29 2016 16:38:04 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -106,7 +106,7 @@
                         
                             <b>2.</b>
                         
-                        Use and Limitations of Containers in vSphere Integrated Containers
+                        Use and Limitations of Containers in vSphere Integrated Containers Engine
                     </a>
             
             
@@ -121,7 +121,7 @@
                         
                             <b>3.</b>
                         
-                        Using Volumes with vSphere Integrated Containers
+                        Using Volumes with vSphere Integrated Containers Engine
                     </a>
             
             
@@ -180,7 +180,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers, version 0.5</a>
+        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.5.5</a>
     </h1>
 </div>
 
@@ -197,7 +197,7 @@
 <p>Connect the container with the external mapped port on the external surface of the vSphere Container Host.</p>
 <p><code>$ docker run -p 8080:80 --name test1 my_container my_app</code></p>
 <h5 id="outcome">Outcome</h5>
-<p>You can access Port 80 on test1 from the external network interface on the vSphere Container Host at port 8080.</p>
+<p>You can access Port 80 on test1 from the external network interface on the virtual container host at port 8080.</p>
 <h4 id="simple-bridge-network">Simple Bridge Network</h4>
 <p>Create a new non-default bridge network and set up two containers on the network. Verify that the containers can locate and communicate with each other.</p>
 <pre><code>$ docker network create -d bridge my-bridge-network
@@ -217,7 +217,7 @@ PING server (172.18.0.2): 56 data bytes
 </code></pre><h5 id="outcome">Outcome</h5>
 <p>Server and Client can ping each other by name.</p>
 <h4 id="bridged-containers-with-exposed-port">Bridged Containers with Exposed Port</h4>
-<p>Connect two containers on a bridge network and set up one of the containers to publish a port via the vSphere Container Host. Assume server_app binds to port 5000.</p>
+<p>Connect two containers on a bridge network and set up one of the containers to publish a port via the virtual container host. Assume server_app binds to port 5000.</p>
 <pre><code>$ docker network create -d bridge my-bridge-network
 $ docker network ls
 ...
@@ -244,12 +244,12 @@ GET /
 
 Hello world!Connection closed by foreign host.
 </code></pre><h5 id="outcome">Outcome</h5>
-<p>Server and Client can ping each other by name. You can connect to the server on port 5000 from the client container and to port 5000 on the vSphere Container Host external interface.</p>
+<p>Server and Client can ping each other by name. You can connect to the server on port 5000 from the client container and to port 5000 on the virtual container host external interface.</p>
 <h4 id="containers-using-external-network">Containers using External Network</h4>
 <p>Configure two external networks in vSphere:
 <code>default-external</code> is <code>10.2.0.0/16</code> with gateway <code>10.2.0.1</code><br><code>vic-production</code> is <code>208.91.3.0/24</code> with gateway <code>208.91.3.1</code>  </p>
-<p>Associate a vSphere Container Host, then set up the vSphere Container Host to the default external network.</p>
-<p>Attach the vSphere Container Host to the default-external network at 08.91.3.2.</p>
+<p>Associate a virtual container host, then set up the virtual container host to the default external network.</p>
+<p>Attach the virtual container host to the default-external network at 08.91.3.2.</p>
 <p><code>docker network ls</code> shows:</p>
 <pre><code>$ docker network ls
 NETWORK ID          NAME                DRIVER
@@ -257,7 +257,7 @@ e2113b821ead        none                null
 37470ed9992f        default-external    bridge
 ea96a6b919de        vic-production      bridge
 b7e91524f3e2        bridge              bridge  
-</code></pre><p>You have a container providing a web service to expose outside of the vSphere Integrated Containers environment.</p>
+</code></pre><p>You have a container providing a web service to expose outside of the vSphere Integrated Containers Engine environment.</p>
 <p>Output of <code>docker network inspect default-external</code>:</p>
 <pre><code>[
     {
@@ -325,7 +325,7 @@ Hello world!Connection closed by foreign host.
         </div>
 
         
-        <a href="./using_volumes_with_vic.html" class="navigation navigation-prev " aria-label="Previous page: Using Volumes with vSphere Integrated Containers"><i class="fa fa-angle-left"></i></a>
+        <a href="./using_volumes_with_vic.html" class="navigation navigation-prev " aria-label="Previous page: Using Volumes with vSphere Integrated Containers Engine"><i class="fa fa-angle-left"></i></a>
         
         
         <a href="./ts_docker_version_error.html" class="navigation navigation-next " aria-label="Next page: Docker Commands Fail with a Docker API Version Error"><i class="fa fa-angle-right"></i></a>
