@@ -85,6 +85,7 @@ func TestRestart(t *testing.T) {
 		assert.Equal(t, 0, result.Sessions["pathlookup"].ExitStatus, "Expected command to have exited cleanly")
 		// proceed to the next reincarnation
 		<-Mocked.SessionExit
+		tthr.Reload()
 	}
 
 	// read the output from the session

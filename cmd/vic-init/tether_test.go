@@ -115,7 +115,6 @@ func (t *Mocker) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWrit
 func (t *Mocker) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) func() {
 	return func() {
 		t.SessionExit <- true
-		tthr.Reload()
 	}
 }
 
@@ -228,9 +227,9 @@ func testSetup(t *testing.T) {
 
 	// use the mock ops - fresh one each time as tests might apply different mocked calls
 	Mocked = Mocker{
-		Started:     make(chan bool, 0),
-		Cleaned:     make(chan bool, 0),
-		SessionExit: make(chan bool, 0),
+		Started:     make(chan bool),
+		Cleaned:     make(chan bool),
+		SessionExit: make(chan bool),
 	}
 }
 
