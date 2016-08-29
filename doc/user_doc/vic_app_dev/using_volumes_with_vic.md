@@ -11,9 +11,9 @@ To obtain the list of volume stores that are available on a virtual container ho
 The list of available volume stores for this virtual container host appears in the `docker info` output under `VolumeStores`.
 
 <pre>[...]
-Storage Driver: vSphere Integrated Containers Engine Backend Engine
+Storage Driver: vSphere Integrated Containers Backend Engine
 VolumeStores: <i>volume_store_1</i> <i>volume_store_2</i> ... <i>volume_store_n</i>
-vSphere Integrated Containers Engine Backend Engine: RUNNING
+vSphere Integrated Containers Backend Engine: RUNNING
 [...]</pre>
 
 ## Create a Volume in a Volume Store ##
