@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Deploy a Virtual Container Host | VMware vSphere Integrated Containers Engine Installation, version 0.5.5</title>
+        <title>VCH Deployment Fails with Firewall Validation Error | VMware vSphere Integrated Containers Engine Installation, version 0.5.5</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -37,10 +37,8 @@
         
     
     
-    <link rel="next" href="./vch_installer_options.html" />
     
-    
-    <link rel="prev" href="./contents_of_vic_binaries.html" />
+    <link rel="prev" href="./ts_cli_argument_error.html" />
     
 
         
@@ -49,9 +47,9 @@
         
         
     <div class="book"
-        data-level="5"
-        data-chapter-title="Deploy a Virtual Container Host"
-        data-filepath="install_vic_cli.md"
+        data-level="7.3"
+        data-chapter-title="VCH Deployment Fails with Firewall Validation Error"
+        data-filepath="ts_firewall_error.md"
         data-basepath="."
         data-revision="Mon Aug 29 2016 16:37:26 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
@@ -142,7 +140,7 @@
             
         </li>
     
-        <li class="chapter active" data-level="5" data-path="install_vic_cli.html">
+        <li class="chapter " data-level="5" data-path="install_vic_cli.html">
             
                 
                     <a href="./install_vic_cli.html">
@@ -365,7 +363,7 @@
             
         </li>
     
-        <li class="chapter " data-level="7.3" data-path="ts_firewall_error.html">
+        <li class="chapter active" data-level="7.3" data-path="ts_firewall_error.html">
             
                 
                     <a href="./ts_firewall_error.html">
@@ -418,77 +416,46 @@
                 
                     <section class="normal" id="section-">
                     
-                        <h1 id="deploy-a-virtual-container-host">Deploy a Virtual Container Host</h1>
-<p>You install vSphere Integrated Containers Engine by deploying a vSphere Integrated Containers Engine virtual container host. You use the <code>vic-machine create</code> command to deploy a virtual container host. </p>
-<p>The <code>vic-machine</code> utility can deploy a virtual container host in one of the following setups: </p>
-<ul>
-<li>vCenter Server with a cluster</li>
-<li>vCenter Server with one or more standalone ESXi hosts</li>
-<li>A standalone ESXi host</li>
-</ul>
-<p>When you deploy a virtual container host, <code>vic-machine</code> registers the virtual container host as a vSphere extension. Authentication between the virtual container host and vSphere is handled via key pair authentication against the vSphere extension.</p>
-<p>The virtual container host allows you to use an ESXi host or vCenter Server instance as the Docker endpoint for a Docker client. The containers that you pull or create by using your Docker client are stored and managed in the vSphere environment.</p>
-<p><strong>Prerequisites</strong></p>
-<ul>
-<li>Verify that your vSphere infrastructure meets the requirements in <a href="vic_installation_prereqs.html">Environment Prerequisites for vSphere Integrated Containers Engine Installation</a>.</li>
-<li>In a vCenter Server environment, before you deploy a virtual container host, you must create a distributed virtual switch and a distributed port group for use as the bridge network for container VMs. For information about how to create a distributed virtual switch and port group, see <em>Network Requirements</em> in <a href="vic_installation_prereqs.html#networkreqs">Environment Prerequisites for vSphere Integrated Containers Engine Installation</a>.</li>
-<li>Obtain either a verified build, the latest daily build, or the source code of vSphere Integrated Containers Engine: <ul>
-<li>Download the most recent verified build of vSphere Integrated Containers Engine from <a href="https://github.com/vmware/vic/releases" target="_blank">https://github.com/vmware/vic/releases</a> and unpack it. This version has been tested and approved, but it does not reflect the most up-to-date version of the code.</li>
-<li>Download the latest daily build of vSphere Integrated Containers Engine from <a href="https://bintray.com/vmware/vic-repo/build/view#files" target="_blank">https://bintray.com/vmware/vic-repo/build/view#files</a> and unpack it. This version reflects the version of the code as it was at the last daily build. It has not been tested or approved.</li>
-<li>For the very latest version, for example to include changes that you have made since the last daily build, build the vSphere Integrated Containers Engine binaries from the source code.</li>
-</ul>
-</li>
-<li>Add the folder that contains the vSphere Integrated Containers Engine binaries to the <code>PATH</code> environment variable on the machine on which you are running <code>vic-machine</code>. </li>
-<li>Familiarize yourself with the vSphere Integrated Containers Engine binaries, as described in <a href="contents_of_vic_binaries.html">Contents of the vSphere Integrated Containers Engine Binaries</a>. </li>
-<li>Familiarize yourself with the options of the <code>create</code> command of the <code>vic-machine</code> utility described in <a href="vch_installer_options.html">Virtual Container Host Deployment Options</a>.</li>
-<li>For examples of commands to deploy a virtual container host in various vSphere configurations, see <a href="vch_installer_examples.html">Examples of Deploying a Virtual Container Host</a>.</li>
-</ul>
-<p><strong>Procedure</strong></p>
+                        <h1 id="vch-deployment-fails-with-firewall-validation-error">VCH Deployment Fails with Firewall Validation Error</h1>
+<p>When you use <code>vic-machine create</code> to deploy a virtual container host, deployment fails because firewall port 2377 is not open on the target ESXi host or hosts.</p>
+<h2 id="problem">Problem</h2>
+<p>Deployment fails with a firewall error during the validation phase: </p>
+<pre>Firewall must permit 2377/tcp outbound to use VIC.</pre>
+
+<h2 id="cause">Cause</h2>
+<p>ESXi hosts communicate with the virtual container hosts through port 2377 via Serial Over LAN. For deployment of a virtual container host to succeed, port 2377 must be open for outgoing connections on all ESXi hosts before you run <code>vic-machine create</code>. Opening port 2377 for outgoing connections on ESXi hosts opens port 2377 for inbound connections on the virtual container hosts.</p>
+<h2 id="solution">Solution</h2>
+<p>Set a firewall ruleset on the ESXi host or hosts. In test environments, you can disable the firewall on the hosts.</p>
+<h3 id="set-a-firewall-ruleset-manually">Set a Firewall Ruleset Manually</h3>
+<p>In production environments, if you are deploying to a standalone ESXi host, set a firewall ruleset on that ESXi host. If you are deploying to a cluster, set the firewall ruleset on all of the ESXi hosts in the cluster.</p>
+<p><strong>IMPORTANT</strong>: Firewall rulesets that you set manually are not persistent. If you reboot the ESXi hosts, any firewall rules that you set are lost. You must recreate firewall rules each time you reboot a host.</p>
 <ol>
-<li>Open a terminal on the system on which you downloaded and unpacked the vSphere Integrated Containers Engine binary bundle.</li>
-<li>Navigate to the directory that contains the <code>vic-machine</code> utility:<ul>
-<li>If you downloaded the most recent verified build or the latest daily build, go to the location in which you unpacked the vSphere Integrated Containers Engine bundle.</li>
-<li>If you built the vSphere Integrated Containers Engine binaries, go to <code>installation_dir/vic/bin</code>.</li>
-</ul>
-</li>
-<li><p>Run the <code>create</code> command of the <code>vic-machine</code> utility. </p>
-<p>The following examples include the fewest possible options for installation in a simple vCenter Server environment with a cluster.</p>
-<p>Deploy a virtual container host from a Mac OS system:</p>
-<pre>$ vic-machine-darwin create
---target <i>vcenter_server_address</i>
---image-store <i>datastore_name</i> 
---user <i>username</i>
---bridge-network <i>network_name</i></pre>  
+<li>Use SSH to log in to each ESXi host as <code>root</code> user. </li>
+<li>Follow the instructions in <a href="http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&amp;cmd=displayKC&amp;externalId=2008226" target="_blank">VMware KB 2008226</a> to add the following rule after the last rule in the file <code>/etc/vmware/firewall/service.xml</code>.<pre>
+&lt;service id=&apos;<i>id_number</i>&apos;&gt;
+&lt;id&gt;vicoutgoing&lt;/id&gt;
+&lt;rule id=&apos;0000&apos;&gt;
+ &lt;direction&gt;outbound&lt;/direction&gt;
+ &lt;protocol&gt;tcp&lt;/protocol&gt;
+ &lt;port type=&apos;dst&apos;&gt;2377&lt;/port&gt;
+&lt;/rule&gt;
+&lt;enabled&gt;true&lt;/enabled&gt;
+&lt;required&gt;true&lt;/required&gt;
+&lt;/service&gt;
+</pre>
 
-<p>Deploy a virtual container host from a Linux OS system:</p>
-<pre>$ vic-machine-linux create
---target <i>vcenter_server_address</i>
---image-store <i>datastore_name</i> 
---user <i>username</i>
---bridge-network <i>network_name</i></pre> 
 
-<p>Deploy a virtual container host from a Windows system:</p>
-<pre>$ vic-machine-windows create
---target <i>vcenter_server_address</i>
---image-store <i>datastore_name</i> 
---user <i>username</i>
---bridge-network <i>network_name</i></pre> 
-
-<p>At the end of a successful installation, <code>vic-machine</code> displays a success message:</p>
-<pre>Initialization of appliance successful
-vic-admin portal:
-https://<i>vch_address</i>:2378
-DOCKER_HOST=<i>vch_address</i>:2376
-Connect to docker:
-docker -H <i>vch_address</i>:2376 --tls info
-Installer completed successfully</pre>
-</li>
-<li><p>(Optional) Copy the generated certificate and key files to the Docker client system.</p>
-<p>If you did not explicitly disable TLS certificate generation by using the <code>no-tls</code> option, and if your Docker client is not on the same system as the one that you used to run <code>vic-machine</code>, you must copy the <code>vch_name-cert.pem</code> and <code>vch_name-key.pem</code> files to the Docker client system.</p>
 </li>
 </ol>
-<p><strong>What to Do Next</strong> </p>
-<p>To test your virtual container host, see <a href="verify_vch_deployment.html">Verify the Deployment of a Virtual Container Host to vCenter Server</a> or <a href="verify_vch_deployment_esx.html">Verify the Deployment of a Virtual Container Host to an ESXi Host</a>.</p>
+<p>  In this example, <em>id_number</em> is the number of the preceding ruleset in <code>service.xml</code>, incremented by 1.</p>
+<h3 id="disable-the-firewall">Disable the Firewall</h3>
+<p>In test environments, you can disable the firewalls on the ESXi hosts instead of opening port 2377. </p>
+<ol>
+<li>Use SSH to log in to each ESXi host as <code>root</code> user. </li>
+<li><p>Run the following command: </p>
+<p><code>$ esxcli network firewall set --enabled false</code> </p>
+</li>
+</ol>
 
                     
                     </section>
@@ -499,10 +466,8 @@ Installer completed successfully</pre>
         </div>
 
         
-        <a href="./contents_of_vic_binaries.html" class="navigation navigation-prev " aria-label="Previous page: Contents of the vSphere Integrated Containers Engine Binaries"><i class="fa fa-angle-left"></i></a>
+        <a href="./ts_cli_argument_error.html" class="navigation navigation-prev navigation-unique" aria-label="Previous page: VCH Deployment Fails with Unknown or Non-Specified Argument Error or Incorrect User Name Error"><i class="fa fa-angle-left"></i></a>
         
-        
-        <a href="./vch_installer_options.html" class="navigation navigation-next " aria-label="Next page: Virtual Container Host Deployment Options"><i class="fa fa-angle-right"></i></a>
         
     </div>
 </div>

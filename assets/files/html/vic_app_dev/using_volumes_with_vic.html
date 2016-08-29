@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Using Volumes with vSphere Integrated Containers | Developing Container Applications with VMware vSphere Integrated Containers, version 0.5</title>
+        <title>Using Volumes with vSphere Integrated Containers Engine | Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.5.5</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -50,10 +50,10 @@
         
     <div class="book"
         data-level="3"
-        data-chapter-title="Using Volumes with vSphere Integrated Containers"
+        data-chapter-title="Using Volumes with vSphere Integrated Containers Engine"
         data-filepath="using_volumes_with_vic.md"
         data-basepath="."
-        data-revision="Wed Aug 17 2016 17:05:54 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Mon Aug 29 2016 16:38:04 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -106,7 +106,7 @@
                         
                             <b>2.</b>
                         
-                        Use and Limitations of Containers in vSphere Integrated Containers
+                        Use and Limitations of Containers in vSphere Integrated Containers Engine
                     </a>
             
             
@@ -121,7 +121,7 @@
                         
                             <b>3.</b>
                         
-                        Using Volumes with vSphere Integrated Containers
+                        Using Volumes with vSphere Integrated Containers Engine
                     </a>
             
             
@@ -180,7 +180,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers, version 0.5</a>
+        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.5.5</a>
     </h1>
 </div>
 
@@ -190,8 +190,8 @@
                 
                     <section class="normal" id="section-">
                     
-                        <h1 id="using-volumes-with-vsphere-integrated-containers">Using Volumes with vSphere Integrated Containers</h1>
-<p>vSphere Integrated Containers supports the use of container volumes. When you create or the vSphere Administrator creates a virtual container host, you or the Administrator specify the datastore to use to store container volumes in the <code>vic-machine create --volume-store</code> option. For information about how to use the <code>vic-machine create --volume-store</code> option, see the section on <code>volume-store</code> in <a href="../vic_installation/vch_installer_options.html#volume-store">Virtual Container Host Deployment Options</a> in <em>vSphere Integrated Containers Installation and Configuration</em>.   </p>
+                        <h1 id="using-volumes-with-vsphere-integrated-containers-engine">Using Volumes with vSphere Integrated Containers Engine</h1>
+<p>vSphere Integrated Containers Engine supports the use of container volumes. When you create or the vSphere Administrator creates a virtual container host, you or the Administrator specify the datastore to use to store container volumes in the <code>vic-machine create --volume-store</code> option. For information about how to use the <code>vic-machine create --volume-store</code> option, see the section on <code>volume-store</code> in <a href="../vic_installation/vch_installer_options.html#volume-store">Virtual Container Host Deployment Options</a> in <em>vSphere Integrated Containers Engine Installation and Configuration</em>.   </p>
 <h2 id="obtain-the-list-of-available-volume-stores">Obtain the List of Available Volume Stores</h2>
 <p>To obtain the list of volume stores that are available on a virtual container host, run <code>docker info</code>.</p>
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls info</pre>
@@ -219,7 +219,7 @@ vSphere Integrated Containers Backend Engine: RUNNING
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls create 
 -v <i>destination_path_for_anonymous_volume</i> busybox</pre>
 
-<p><strong>NOTE</strong>: If you use <code>docker create -v</code>, vSphere Integrated Containers only supports the <code>-r</code> and <code>-rw</code> options.</p>
+<p><strong>NOTE</strong>: If you use <code>docker create -v</code>, vSphere Integrated Containers Engine only supports the <code>-r</code> and <code>-rw</code> options.</p>
 </li>
 <li><p>You can optionally set the capacity of a volume by specifying the <code>--opt Capacity</code> option when you run <code>docker volume create</code>. If you do not specify the <code>--opt Capacity</code> option, the volume is created with the default capacity of 1024MB. </p>
 <p>If you do not specify a unit for the capacity, the volume is created with a capacity in megabytes.</p>
@@ -236,7 +236,7 @@ vSphere Integrated Containers Backend Engine: RUNNING
 
 </li>
 </ul>
-<p><strong>NOTE</strong>: When using a vSphere Integrated Containers virtual container host as your Docker endpoint, the storage driver is always the vSphere Integrated Containers Backend Engine. If you specify the <code>docker volume create --driver</code> option, it is ignored.  </p>
+<p><strong>NOTE</strong>: When using a vSphere Integrated Containers Engine virtual container host as your Docker endpoint, the storage driver is always the vSphere Integrated Containers Engine Backend Engine. If you specify the <code>docker volume create --driver</code> option, it is ignored.  </p>
 <h2 id="obtain-the-list-of-available-volumes">Obtain the List of Available Volumes</h2>
 <p>To obtain a list of volumes that are available on a virtual container host, run <code>docker volume ls</code>.</p>
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls volume ls
@@ -263,7 +263,7 @@ volume rm <i>volume_name</i></pre>
         </div>
 
         
-        <a href="./container_limitations.html" class="navigation navigation-prev " aria-label="Previous page: Use and Limitations of Containers in vSphere Integrated Containers"><i class="fa fa-angle-left"></i></a>
+        <a href="./container_limitations.html" class="navigation navigation-prev " aria-label="Previous page: Use and Limitations of Containers in vSphere Integrated Containers Engine"><i class="fa fa-angle-left"></i></a>
         
         
         <a href="./network_use_cases.html" class="navigation navigation-next " aria-label="Next page: Network Port Use Cases"><i class="fa fa-angle-right"></i></a>

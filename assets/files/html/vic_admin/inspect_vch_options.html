@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Virtual Container Host Inspect Options | VMware vSphere Integrated Containers for vSphere Administrators, version 0.5</title>
+        <title>Virtual Container Host Inspect Options | VMware vSphere Integrated Containers Engine for vSphere Administrators, version 0.5.5</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -53,7 +53,7 @@
         data-chapter-title="Virtual Container Host Inspect Options"
         data-filepath="inspect_vch_options.md"
         data-basepath="."
-        data-revision="Wed Aug 17 2016 17:05:38 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Mon Aug 29 2016 16:37:47 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -91,7 +91,7 @@
                         
                             <b>1.</b>
                         
-                        vSphere Integrated Containers Architecture
+                        vSphere Integrated Containers Engine Architecture
                     </a>
             
             
@@ -106,7 +106,7 @@
                         
                             <b>2.</b>
                         
-                        vSphere Integrated Containers Interoperability with Other VMware Software
+                        vSphere Integrated Containers Engine Interoperability with Other VMware Software
                     </a>
             
             
@@ -121,7 +121,7 @@
                         
                             <b>3.</b>
                         
-                        vSphere Integrated Containers Network Overview
+                        vSphere Integrated Containers Engine Network Overview
                     </a>
             
             
@@ -239,7 +239,7 @@
                         
                             <b>4.4.</b>
                         
-                        Remove a Virtual Container Host
+                        Delete a Virtual Container Host
                     </a>
             
             
@@ -271,6 +271,87 @@
             
         </li>
     
+        <li class="chapter " data-level="5" data-path="vch_portlet_ui.html">
+            
+                
+                    <a href="./vch_portlet_ui.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.</b>
+                        
+                        Find Virtual Container Host Information in the vSphere Web Client
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="6" data-path="container_portlet_ui.html">
+            
+                
+                    <a href="./container_portlet_ui.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>6.</b>
+                        
+                        Find Container Information in the vSphere Web Client
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="7" data-path="troubleshoot_vic_admin.html">
+            
+                
+                    <a href="./troubleshoot_vic_admin.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>7.</b>
+                        
+                        Troubleshooting vSphere Integrated Containers Engine Administration
+                    </a>
+            
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="7.1" data-path="ts_ls_error.html">
+            
+                
+                    <a href="./ts_ls_error.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>7.1.</b>
+                        
+                        Running `vic-machine ls` on an ESXi Host Fails with an Error
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="7.2" data-path="ts_delete_inspect_error.html">
+            
+                
+                    <a href="./ts_delete_inspect_error.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>7.2.</b>
+                        
+                        Deleting or Inspecting a VCH Fails with a Resource Pool Error
+                    </a>
+            
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
 
 
             
@@ -294,7 +375,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href="./" >VMware vSphere Integrated Containers for vSphere Administrators, version 0.5</a>
+        <a href="./" >VMware vSphere Integrated Containers Engine for vSphere Administrators, version 0.5.5</a>
     </h1>
 </div>
 
@@ -305,26 +386,33 @@
                     <section class="normal" id="section-">
                     
                         <h1 id="virtual-container-host-inspect-options">Virtual Container Host Inspect Options</h1>
-<p>The command line utility for vSphere Integrated Containers, <code>vic-machine</code>, provides an <code>inspect</code> command that allows you to see information about virtual container hosts. The options that <code>vic-machine inspect</code> requires depend on the location in your vSphere environment in which you deployed the virtual container host.</p>
+<p>The command line utility for vSphere Integrated Containers Engine, <code>vic-machine</code>, provides an <code>inspect</code> command that allows you to see information about virtual container hosts. The options that <code>vic-machine inspect</code> requires depend on the location in your vSphere environment in which you deployed the virtual container host.</p>
 <h3 id="target"><code>target</code></h3>
 <p>Short name: <code>-t</code></p>
 <p>The IPv4 address, fully qualified domain name (FQDN), or URL of the ESXi host or vCenter Server instance on which you deployed the virtual container host. This option is mandatory.</p>
 <ul>
 <li>If the target ESXi host is not managed by vCenter Server, provide the address of the host.<pre>--target <i>esxi_host_address</i></pre></li>
 <li>If the target ESXi host is managed by vCenter Server, or if you deployed the virtual container host to a cluster, provide the address of vCenter Server.<pre>--target <i>vcenter_server_address</i></pre></li>
-<li>You can optionally include the user name and password of the ESXi host or vCenter Server in the target URL. Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>--target <i>username</i>:<i>password</i>@<i>esxi_or_vcenter_server_address</i></pre></li>
+<li><p>You can include the user name and password in the target URL. <pre>--target <i>vcenter_or_esxi_username</i>:<i>password</i>@<i>vcenter_or_esxi_address</i></pre></p>
+<p>Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>&apos;<i>vcenter_or_esxi_usern@me</i>&apos;:&apos;<i>p@ssword</i>&apos;@<i>vcenter_or_esxi_address</i></pre></p>
+<p>If you do not include the user name in the target URL, you must specify the <code>user</code> option. If you do not specify the <code>password</code> option or include the password in the target URL, <code>vic-machine inspect</code> prompts you to enter the password.</p>
+</li>
 <li>If you deployed the virtual container host on a vCenter Server instance that includes more than one datacenter, include the datacenter name in the target URL. If you omit the datacenter name or include an invalid datacenter, <code>vic-machine inspect</code> fails and suggests the available datacenters that you can specify.<pre>--target <i>vcenter_server_address</i>/<i>datacenter_name</i></pre></li>
-<li>If you do not specify the <code>passwd</code> option or include the password in the target URL, <code>vic-machine inspect</code> prompts you to enter the password.</li>
 </ul>
 <h3 id="user"><code>user</code></h3>
 <p>Short name: <code>-u</code></p>
 <p>The username for the ESXi host or vCenter Server instance on which you deployed the virtual container host. This option is mandatory if you do not specify the username in the <code>target</code> option.</p>
 <pre>--user <i>esxi_or_vcenter_server_username</i></pre>
 
+<p>Wrap the user name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes special characters.</p>
+<pre>--user &apos;<i>esxi_or_vcenter_server_usern@me</i>&apos;</pre>
+
 <h3 id="password"><code>password</code></h3>
 <p>Short name: <code>-p</code></p>
 <p>The password for the user account on the vCenter Server on which you  deployed the virtual container host, or the password for the ESXi host if you deployed directly to an ESXi host. If not specified, <code>vic-machine inspect</code> prompts you to enter the password.</p>
-<p><strong>NOTE</strong>: If your password contains special characters, you must wrap the password in single quotation marks (&apos;) on Mac OS and Linux and in double quotation (&quot;) marks on Windows.</p>
+<pre>--password &apos;<i>esxi_host_or_vcenter_server_p@ssword</i>&apos;</pre>
+
+<p>Wrap the password in single quotation marks (&apos;) on Mac OS and Linux and in double quotation (&quot;) marks on Windows if it includes special characters.</p>
 <pre>--password &apos;<i>esxi_host_or_vcenter_server_p@ssword</i>&apos;</pre>
 
 <h3 id="computeresource"><code>compute-resource</code></h3>
@@ -343,11 +431,15 @@
 <li>If the virtual container host is on a vCenter Server with more than one cluster, specify the name of the target cluster: <pre>--compute-resource <i>cluster_name</i></pre></li>
 <li>If the virtual container host is in a specific resource pool on a standalone host that is managed by vCenter Server, specify the IPv4 address or FQDN of the target host and name of the resource pool:<pre>--compute-resource <i>host_name</i>/<i>resource_pool_name</i></pre></li>
 <li>If the virtual container host is in a specific resource pool in a cluster, specify the names of the target cluster and the resource pool:<pre>--compute-resource <i>cluster_name</i>/<i>resource_pool_name</i></pre></li>
+<li>Wrap the resource names in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces:<pre>--compute-resource &apos;<i>cluster name</i>&apos;/&apos;<i>resource pool name</i>&apos;</pre></li>
 </ul>
 <h3 id="name"><code>name</code></h3>
 <p>Short name: <code>-n</code></p>
 <p>The name of the virtual container host to inspect. This option is mandatory if the virtual container host to inspect has a name other than the default name, <code>virtual-container-host</code>, and you do not use the <code>id</code> option. Specify <code>--name</code> with exactly the same value that you used when you ran <code>vic-machine create</code>.</p>
 <pre>--name <i>vch_name</i></pre>
+
+<p>Wrap the appliance name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.</p>
+<pre>--name &apos;<i>vch appliance name</i>&apos;</pre>
 
 <h3 id="id"><code>id</code></h3>
 <p>Short name: None</p>
@@ -370,7 +462,7 @@
         <a href="./inspect_vch.html" class="navigation navigation-prev " aria-label="Previous page: Obtain Information About a Virtual Container Host"><i class="fa fa-angle-left"></i></a>
         
         
-        <a href="./remove_vch.html" class="navigation navigation-next " aria-label="Next page: Remove a Virtual Container Host"><i class="fa fa-angle-right"></i></a>
+        <a href="./remove_vch.html" class="navigation navigation-next " aria-label="Next page: Delete a Virtual Container Host"><i class="fa fa-angle-right"></i></a>
         
     </div>
 </div>

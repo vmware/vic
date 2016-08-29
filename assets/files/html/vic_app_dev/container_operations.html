@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Supported Docker Commands | Developing Container Applications with VMware vSphere Integrated Containers, version 0.5</title>
+        <title>Supported Docker Commands | Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.5.5</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -53,7 +53,7 @@
         data-chapter-title="Supported Docker Commands"
         data-filepath="container_operations.md"
         data-basepath="."
-        data-revision="Wed Aug 17 2016 17:05:54 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Mon Aug 29 2016 16:38:04 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -106,7 +106,7 @@
                         
                             <b>2.</b>
                         
-                        Use and Limitations of Containers in vSphere Integrated Containers
+                        Use and Limitations of Containers in vSphere Integrated Containers Engine
                     </a>
             
             
@@ -121,7 +121,7 @@
                         
                             <b>3.</b>
                         
-                        Using Volumes with vSphere Integrated Containers
+                        Using Volumes with vSphere Integrated Containers Engine
                     </a>
             
             
@@ -180,7 +180,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers, version 0.5</a>
+        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.5.5</a>
     </h1>
 </div>
 
@@ -191,7 +191,7 @@
                     <section class="normal" id="section-">
                     
                         <h1 id="supported-docker-commands">Supported Docker Commands</h1>
-<p> vSphere Integrated Containers supports Docker 1.11.2. The supported version of the Docker API is 1.23. If you are using a more recent version of the Docker client, see <a href="ts_docker_version_error.html">Docker Commands Fail with a Docker API Version Error</a>.</p>
+<p> vSphere Integrated Containers Engine supports Docker 1.11.2. The supported version of the Docker API is 1.23. If you are using a more recent version of the Docker client, see <a href="ts_docker_version_error.html">Docker Commands Fail with a Docker API Version Error</a>.</p>
 <h2 id="general-container-operations">General Container Operations</h2>
 <table>
 <thead>
@@ -203,6 +203,11 @@
 </thead>
 <tbody>
 <tr>
+<td>Docker login</td>
+<td><a href="https://docs.docker.com/engine/reference/commandline/login/" target="_blank">Log into a Docker registry</a></td>
+<td>Yes, use to access private repository</td>
+</tr>
+<tr>
 <td>Docker start</td>
 <td><a href="https://docs.docker.com/engine/reference/commandline/start/" target="_blank">Start a container</a></td>
 <td>Yes</td>
@@ -210,12 +215,12 @@
 <tr>
 <td>Docker version</td>
 <td><a href="https://docs.docker.com/engine/reference/commandline/version/" target="_blank">Docker version information</a></td>
-<td>Yes. vSphere Integrated Containers version provided</td>
+<td>Yes. vSphere Integrated Containers Engine version provided</td>
 </tr>
 <tr>
 <td>Docker run</td>
 <td>Composite command of create, start, inspect, attach, rm, resize, wait, kill</td>
-<td>Yes. <code>docker run -c</code> and <code>docker run -m</code> parameters are supported</td>
+<td>Yes. <code>docker run -c</code> and <code>docker run -m</code> parameters are supported.  <br>Container search using prettyname-ID <code>docker run -name</code> is supported. <br> Mapping a random host port to the container when the host port is not specified is supported. <br>Running images from private and custom registries is supported.</td>
 </tr>
 <tr>
 <td>Docker create</td>
@@ -230,7 +235,7 @@
 <tr>
 <td>Docker port</td>
 <td><a href="https://docs.docker.com/engine/reference/commandline/port/" target="_blank">Obtain port data</a></td>
-<td>Yes. Displays port mapping data.</td>
+<td>Yes. Displays port mapping data. <br> Mapping a random host port to the container when the host port is not specified is supported.</td>
 </tr>
 <tr>
 <td>Docker attach</td>
@@ -280,12 +285,17 @@
 <tr>
 <td>Docker kill</td>
 <td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#kill-a-container" target="_blank">Kill a container</a><br> <a href="https://docs.docker.com/engine/reference/commandline/kill/" target="_blank">Kill</a></td>
-<td>No. Use Docker stop</td>
+<td>Yes. Docker must wait for the container to shut down.</td>
 </tr>
 <tr>
 <td>Docker Container list</td>
 <td><a href="https://docs.docker.com/engine/reference/api/docker_remote_api_v1.22/#list-containers" target="_blank">List Containers</a></td>
 <td>Yes</td>
+</tr>
+<tr>
+<td>Docker pull</td>
+<td><a href="https://docs.docker.com/engine/reference/commandline/pull/" target="_blank">Pull an image or repository from a registry</a></td>
+<td>Yes, pulling from insecure and custom registries is supported</td>
 </tr>
 </tbody>
 </table>
@@ -323,12 +333,12 @@
 <tr>
 <td>Network rm</td>
 <td><a href="https://docs.docker.com/engine/reference/commandline/network_rm/" target="_blank">Remove a network</a></td>
-<td>Yes</td>
+<td>Yes. Network name and network ID are supported</td>
 </tr>
 </tbody>
 </table>
 <h2 id="volume-operations">Volume Operations</h2>
-<p>For more information about volume operations, see <a href="using_volumes_with_vic.html">Using Volumes with vSphere Integrated Containers</a>.</p>
+<p>For more information about volume operations, see <a href="using_volumes_with_vic.html">Using Volumes with vSphere Integrated Containers Engine</a>.</p>
 <table>
 <thead>
 <tr>
@@ -430,7 +440,7 @@
         <a href="./index.html" class="navigation navigation-prev " aria-label="Previous page: Introduction"><i class="fa fa-angle-left"></i></a>
         
         
-        <a href="./container_limitations.html" class="navigation navigation-next " aria-label="Next page: Use and Limitations of Containers in vSphere Integrated Containers"><i class="fa fa-angle-right"></i></a>
+        <a href="./container_limitations.html" class="navigation navigation-next " aria-label="Next page: Use and Limitations of Containers in vSphere Integrated Containers Engine"><i class="fa fa-angle-right"></i></a>
         
     </div>
 </div>

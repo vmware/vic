@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Deploy a Virtual Container Host | VMware vSphere Integrated Containers Engine Installation, version 0.5.5</title>
+        <title>Overview of vSphere Integrated Containers Engine | VMware vSphere Integrated Containers Engine Installation, version 0.5.5</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -37,10 +37,10 @@
         
     
     
-    <link rel="next" href="./vch_installer_options.html" />
+    <link rel="next" href="./installing_vic.html" />
     
     
-    <link rel="prev" href="./contents_of_vic_binaries.html" />
+    <link rel="prev" href="./index.html" />
     
 
         
@@ -49,9 +49,9 @@
         
         
     <div class="book"
-        data-level="5"
-        data-chapter-title="Deploy a Virtual Container Host"
-        data-filepath="install_vic_cli.md"
+        data-level="1"
+        data-chapter-title="Overview of vSphere Integrated Containers Engine"
+        data-filepath="introduction.md"
         data-basepath="."
         data-revision="Mon Aug 29 2016 16:37:26 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
@@ -82,7 +82,7 @@
             
         </li>
     
-        <li class="chapter " data-level="1" data-path="introduction.html">
+        <li class="chapter active" data-level="1" data-path="introduction.html">
             
                 
                     <a href="./introduction.html">
@@ -142,7 +142,7 @@
             
         </li>
     
-        <li class="chapter active" data-level="5" data-path="install_vic_cli.html">
+        <li class="chapter " data-level="5" data-path="install_vic_cli.html">
             
                 
                     <a href="./install_vic_cli.html">
@@ -418,77 +418,20 @@
                 
                     <section class="normal" id="section-">
                     
-                        <h1 id="deploy-a-virtual-container-host">Deploy a Virtual Container Host</h1>
-<p>You install vSphere Integrated Containers Engine by deploying a vSphere Integrated Containers Engine virtual container host. You use the <code>vic-machine create</code> command to deploy a virtual container host. </p>
-<p>The <code>vic-machine</code> utility can deploy a virtual container host in one of the following setups: </p>
-<ul>
-<li>vCenter Server with a cluster</li>
-<li>vCenter Server with one or more standalone ESXi hosts</li>
-<li>A standalone ESXi host</li>
-</ul>
-<p>When you deploy a virtual container host, <code>vic-machine</code> registers the virtual container host as a vSphere extension. Authentication between the virtual container host and vSphere is handled via key pair authentication against the vSphere extension.</p>
-<p>The virtual container host allows you to use an ESXi host or vCenter Server instance as the Docker endpoint for a Docker client. The containers that you pull or create by using your Docker client are stored and managed in the vSphere environment.</p>
-<p><strong>Prerequisites</strong></p>
-<ul>
-<li>Verify that your vSphere infrastructure meets the requirements in <a href="vic_installation_prereqs.html">Environment Prerequisites for vSphere Integrated Containers Engine Installation</a>.</li>
-<li>In a vCenter Server environment, before you deploy a virtual container host, you must create a distributed virtual switch and a distributed port group for use as the bridge network for container VMs. For information about how to create a distributed virtual switch and port group, see <em>Network Requirements</em> in <a href="vic_installation_prereqs.html#networkreqs">Environment Prerequisites for vSphere Integrated Containers Engine Installation</a>.</li>
-<li>Obtain either a verified build, the latest daily build, or the source code of vSphere Integrated Containers Engine: <ul>
-<li>Download the most recent verified build of vSphere Integrated Containers Engine from <a href="https://github.com/vmware/vic/releases" target="_blank">https://github.com/vmware/vic/releases</a> and unpack it. This version has been tested and approved, but it does not reflect the most up-to-date version of the code.</li>
-<li>Download the latest daily build of vSphere Integrated Containers Engine from <a href="https://bintray.com/vmware/vic-repo/build/view#files" target="_blank">https://bintray.com/vmware/vic-repo/build/view#files</a> and unpack it. This version reflects the version of the code as it was at the last daily build. It has not been tested or approved.</li>
-<li>For the very latest version, for example to include changes that you have made since the last daily build, build the vSphere Integrated Containers Engine binaries from the source code.</li>
-</ul>
-</li>
-<li>Add the folder that contains the vSphere Integrated Containers Engine binaries to the <code>PATH</code> environment variable on the machine on which you are running <code>vic-machine</code>. </li>
-<li>Familiarize yourself with the vSphere Integrated Containers Engine binaries, as described in <a href="contents_of_vic_binaries.html">Contents of the vSphere Integrated Containers Engine Binaries</a>. </li>
-<li>Familiarize yourself with the options of the <code>create</code> command of the <code>vic-machine</code> utility described in <a href="vch_installer_options.html">Virtual Container Host Deployment Options</a>.</li>
-<li>For examples of commands to deploy a virtual container host in various vSphere configurations, see <a href="vch_installer_examples.html">Examples of Deploying a Virtual Container Host</a>.</li>
-</ul>
-<p><strong>Procedure</strong></p>
-<ol>
-<li>Open a terminal on the system on which you downloaded and unpacked the vSphere Integrated Containers Engine binary bundle.</li>
-<li>Navigate to the directory that contains the <code>vic-machine</code> utility:<ul>
-<li>If you downloaded the most recent verified build or the latest daily build, go to the location in which you unpacked the vSphere Integrated Containers Engine bundle.</li>
-<li>If you built the vSphere Integrated Containers Engine binaries, go to <code>installation_dir/vic/bin</code>.</li>
-</ul>
-</li>
-<li><p>Run the <code>create</code> command of the <code>vic-machine</code> utility. </p>
-<p>The following examples include the fewest possible options for installation in a simple vCenter Server environment with a cluster.</p>
-<p>Deploy a virtual container host from a Mac OS system:</p>
-<pre>$ vic-machine-darwin create
---target <i>vcenter_server_address</i>
---image-store <i>datastore_name</i> 
---user <i>username</i>
---bridge-network <i>network_name</i></pre>  
-
-<p>Deploy a virtual container host from a Linux OS system:</p>
-<pre>$ vic-machine-linux create
---target <i>vcenter_server_address</i>
---image-store <i>datastore_name</i> 
---user <i>username</i>
---bridge-network <i>network_name</i></pre> 
-
-<p>Deploy a virtual container host from a Windows system:</p>
-<pre>$ vic-machine-windows create
---target <i>vcenter_server_address</i>
---image-store <i>datastore_name</i> 
---user <i>username</i>
---bridge-network <i>network_name</i></pre> 
-
-<p>At the end of a successful installation, <code>vic-machine</code> displays a success message:</p>
-<pre>Initialization of appliance successful
-vic-admin portal:
-https://<i>vch_address</i>:2378
-DOCKER_HOST=<i>vch_address</i>:2376
-Connect to docker:
-docker -H <i>vch_address</i>:2376 --tls info
-Installer completed successfully</pre>
-</li>
-<li><p>(Optional) Copy the generated certificate and key files to the Docker client system.</p>
-<p>If you did not explicitly disable TLS certificate generation by using the <code>no-tls</code> option, and if your Docker client is not on the same system as the one that you used to run <code>vic-machine</code>, you must copy the <code>vch_name-cert.pem</code> and <code>vch_name-key.pem</code> files to the Docker client system.</p>
-</li>
-</ol>
-<p><strong>What to Do Next</strong> </p>
-<p>To test your virtual container host, see <a href="verify_vch_deployment.html">Verify the Deployment of a Virtual Container Host to vCenter Server</a> or <a href="verify_vch_deployment_esx.html">Verify the Deployment of a Virtual Container Host to an ESXi Host</a>.</p>
+                        <h1 id="overview-of-vsphere-integrated-containers-engine">Overview of vSphere Integrated Containers Engine</h1>
+<p>vSphere Integrated Containers Engine provides developers the portability, speed, and agility of using  enterprise-class containers, and provide IT Ops the management, security, and visibility they require to run workloads in production.</p>
+<p>vSphere Integrated Containers Engine enables IT teams to run traditional and container workloads side-by-side on existing infrastructure seamlessly.</p>
+<p>Using constructs from the Open Container Initiative to map Docker containers to vSphere infrastructure, vSphere Integrated Containers Engine containers are provisioned as virtual machines, offering the same security and functionality of virtual machines in ESXi.</p>
+<p>A virtual container host is compatible with standard Docker client tools and backed by a pool of resources to accommodate applications.</p>
+<p>From a developer&apos;s perspective, vSphere Integrated Containers Engine is a seamless Docker interface for containers with a vSphere back end. Developers can deploy, test, and run container processes faster in the same environment as traditional applications.</p>
+<h2 id="comparing-vsphere-integrated-containers-engine-and-traditional-container-hosts">Comparing vSphere Integrated Containers Engine and Traditional Container Hosts</h2>
+<p>vSphere Integrated Containers Engine provisions containers as virtual machines, rather than in virtual machines. </p>
+<h3 id="traditional-container-host">Traditional Container Host</h3>
+<p>A traditional container host is a virtual machine running a Linux OS with the necessary libraries, kernel version, and daemon installed. The container host has a fixed amount of memory and vCPU resource used by the containers provisioned into it.</p>
+<p>The hypervisor provides hardware virtualization of the entire container host VM, one or more VMDKs providing local disk for the OS, one or more vNICs to provide network connectivity for the OS and possibly paravirtualization capabilities allowing the containers to directly access hypervisor infrastructure.</p>
+<h3 id="vsphere-integrated-containers-engine">vSphere Integrated Containers Engine</h3>
+<p>vSphere Integrated Containers Engine containers run as virtual machines. The virtual container host is not a VM, but a vApp, which is a kind of resource pool. It is an abstract dynamic resource boundary defined and controlled by vSphere into which you can provision container VMs. The virtual container host can be a subset of a physical host or a subset of a cluster of hosts.</p>
+<p>A one to one coupling exists between a container and a virtual machine. A container image is attached to the VM as a disk, the VM is either booted or forked from the kernel ISO, then the containerVM chroots into the container filesystem, effectively becoming the container.</p>
 
                     
                     </section>
@@ -499,10 +442,10 @@ Installer completed successfully</pre>
         </div>
 
         
-        <a href="./contents_of_vic_binaries.html" class="navigation navigation-prev " aria-label="Previous page: Contents of the vSphere Integrated Containers Engine Binaries"><i class="fa fa-angle-left"></i></a>
+        <a href="./index.html" class="navigation navigation-prev " aria-label="Previous page: Introduction"><i class="fa fa-angle-left"></i></a>
         
         
-        <a href="./vch_installer_options.html" class="navigation navigation-next " aria-label="Next page: Virtual Container Host Deployment Options"><i class="fa fa-angle-right"></i></a>
+        <a href="./installing_vic.html" class="navigation navigation-next " aria-label="Next page: Installing vSphere Integrated Containers Engine"><i class="fa fa-angle-right"></i></a>
         
     </div>
 </div>
