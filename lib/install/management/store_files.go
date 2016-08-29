@@ -84,6 +84,12 @@ func (d *Dispatcher) deleteParent(ds *object.Datastore, root string) (bool, erro
 func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, force bool) (bool, error) {
 	defer trace.End(trace.Begin(fmt.Sprintf("path %q, force %t", path, force)))
 
+	// refuse to delete everything on the datstore, ignore force
+	if path == "" {
+		msg := fmt.Sprintf("refusing to remove datastore files for path \"\" on datastore %s", ds.ObjectName())
+		return false, errors.New(msg)
+	}
+
 	var empty bool
 	dsPath := ds.Path(path)
 

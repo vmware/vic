@@ -188,10 +188,6 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		}
 		log.Infof("Unregistered VM to cleanup after failed destroy: %q", vm.Reference())
 	}
-	if folder == "" {
-		log.Warnf("Skipping remove datastore files for VM %q: unable to determine path to delete", vm.Reference())
-		return nil
-	}
 	if _, err = d.deleteDatastoreFiles(d.session.Datastore, folder, true); err != nil {
 		log.Warnf("Failed to remove datastore files for VM path %q: %s", folder, err)
 	}
