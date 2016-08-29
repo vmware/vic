@@ -40,6 +40,16 @@ Docker inspect container specifying type
     ${output}=  Evaluate  json.loads(r'''${output}''')  json
     ${id}=  Get From Dictionary  ${output[0]}  Id
 
+Docker inspect container check image name
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} inspect --type=container ${container}
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Evaluate  json.loads(r'''${output}''')  json
+    ${config}=  Get From Dictionary  ${output[0]}  Config
+    ${image}=  Get From Dictionary  ${config}  Image
+    Should Contain  ${image}  busybox
+
 Docker inspect container specifying incorrect type
     ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create busybox
     Should Be Equal As Integers  ${rc}  0
