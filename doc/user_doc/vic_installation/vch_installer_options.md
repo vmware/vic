@@ -1,6 +1,6 @@
 # Virtual Container Host Deployment Options
 
-The command line utility for vSphere Integrated Containers, `vic-machine`, provides a `create` command that has options to allow you to customize the deployment of a virtual container host to correspond to your vSphere environment.
+The command line utility for vSphere Integrated Containers Engine, `vic-machine`, provides a `create` command that has options to allow you to customize the deployment of a virtual container host to correspond to your vSphere environment.
 
 - [Mandatory Options](#mandatory)
 - [Networking Options](#networking)
@@ -41,9 +41,9 @@ To facilitate IP address changes in your infrastructure, provide an FQDN wheneve
 
 Short name: `-u`
 
-The username for the ESXi host or vCenter Server instance on which you are installing vSphere Integrated containers.
+The username for the ESXi host or vCenter Server instance on which you are installing vSphere Integrated Containers Engine.
 
-If you are deploying vSphere Integrated Containers on vCenter Server, specify a username for an account that has the Administrator role on that vCenter Server. 
+If you are deploying vSphere Integrated Containers Engine on vCenter Server, specify a username for an account that has the Administrator role on that vCenter Server. 
 
 <pre>--user <i>esxi_or_vcenter_server_username</i></pre>
 
@@ -69,7 +69,7 @@ If you are deploying the virtual container host to a vCenter Server cluster, the
 
 You can designate the same datastore as the image store for multiple virtual container hosts. In this case, only one `VIC` folder is created in the datastore and the container image files are made available to all of the virtual container hosts that use that image store.
 
-vSphere Integrated Containers supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters. 
+vSphere Integrated Containers Engine supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters. 
 
 <pre>--image-store <i>datastore_name</i></pre> 
 
@@ -94,7 +94,7 @@ A distributed port group that container VMs use to communicate with each other.
 
 The `bridge-network` option is **mandatory** if you are deploying a virtual container host to vCenter Server.
 
-In a vCenter Server environment, before you run `vic-machine create`, you must create a distributed virtual switch and a distributed port group. You must add the target ESXi host or hosts to the distributed virtual switch. For information about how to create a distributed virtual switch and port group, see *Network Requirements* in [Environment Prerequisites for vSphere Integrated Containers Installation](vic_installation_prereqs.md#networkreqs).
+In a vCenter Server environment, before you run `vic-machine create`, you must create a distributed virtual switch and a distributed port group. You must add the target ESXi host or hosts to the distributed virtual switch. For information about how to create a distributed virtual switch and port group, see *Network Requirements* in [Environment Prerequisites for vSphere Integrated Containers Engine Installation](vic_installation_prereqs.md#networkreqs).
 
 You pass the name of the distributed port group to the `bridge-network` option. Each virtual container host requires its own distributed port group. 
 
@@ -271,8 +271,8 @@ If you do not specify the `compute-resource` option and multiple possible resour
 ## Datastore Options ##
 The `vic-machine` utility allows you to specify the datastores in which to store container VM files, container image files, and the files for the virtual container host appliance. 
 
-- vSphere Integrated Containers fully supports VMware Virtual SAN datastores. 
-- vSphere Integrated Containers supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters.
+- vSphere Integrated Containers Engine fully supports VMware Virtual SAN datastores. 
+- vSphere Integrated Containers Engine supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters.
 
 ### `image-store` ###
 
@@ -288,7 +288,7 @@ If you are deploying the virtual container host to a vCenter Server cluster, the
 
 You can designate the same datastore as the container store for multiple virtual container hosts.
 
-If you do not specify the `container-store` option, vSphere Integrated Containers stores container VM files in the same datastore that you specify in the mandatory `image-store` option.
+If you do not specify the `container-store` option, vSphere Integrated Containers Engine stores container VM files in the same datastore that you specify in the mandatory `image-store` option.
 
 If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores.
 
@@ -424,7 +424,7 @@ Forces `vic-machine create` to ignore warnings and non-fatal errors and continue
 
 Short name: none
 
-The timeout period for uploading the vSphere Integrated Containers  appliance and container images to the ESXi host, and for powering on the appliance. Specify a value in the format `XmYs` if the default timeout of 3m0s is insufficient.
+The timeout period for uploading the vSphere Integrated Containers Engine  appliance and container images to the ESXi host, and for powering on the appliance. Specify a value in the format `XmYs` if the default timeout of 3m0s is insufficient.
 
 <pre>--timeout 5m0s</pre> 
 

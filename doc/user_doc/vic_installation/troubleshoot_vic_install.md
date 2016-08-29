@@ -1,4 +1,4 @@
-# Troubleshooting vSphere Integrated Containers Installation #
+# Troubleshooting vSphere Integrated Containers Engine Installation #
 
 This information provides solutions for common problems that you might encounter when deploying virtual container hosts.
 

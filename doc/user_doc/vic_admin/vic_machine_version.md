@@ -4,7 +4,7 @@ You can obtain information about the version of `vic-machine` by using the `vic-
 
 **Prerequisites**
 
-You have downloaded and unpacked the vSphere Integrated Containers binaries.
+You have downloaded and unpacked the vSphere Integrated Containers Engine binaries.
 
 **Procedure**
 

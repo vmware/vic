@@ -33,7 +33,7 @@ If vCenter Server has more than one datacenter, you specify the datacenter in th
 
 If vCenter Server manages more than one cluster, you use the `compute-resource` option to specify the cluster on which to deploy the virtual container host.
 
-When deploying a virtual container host to vCenter Server, you must use the `bridge-network` option to specify an existing distributed port group for container VMs to use to communicate with each other. For information about how to create a distributed virtual switch and port group, see *Network Requirements* in [Environment Prerequisites for vSphere Integrated Containers Installation](vic_installation_prereqs.md#networkreqs).
+When deploying a virtual container host to vCenter Server, you must use the `bridge-network` option to specify an existing distributed port group for container VMs to use to communicate with each other. For information about how to create a distributed virtual switch and port group, see *Network Requirements* in [Environment Prerequisites for vSphere Integrated Containers Engine Installation](vic_installation_prereqs.md#networkreqs).
 
 This example deploys a virtual container host with the following configuration:
 
@@ -117,7 +117,7 @@ If your vSphere environment includes multiple datastores, you can specify differ
 
 You specify a specific folder in which to store your container images by providing a path in the `image-store` option.
 
-**NOTE**: In the current builds of vSphere Integrated Containers, the `container-store` option is not enabled. Container VM files are stored in the datastore that you designate as the image store.
+**NOTE**: In the current builds of vSphere Integrated Containers Engine, the `container-store` option is not enabled. Container VM files are stored in the datastore that you designate as the image store.
 
 This example deploys a virtual container host with the following configuration:
 

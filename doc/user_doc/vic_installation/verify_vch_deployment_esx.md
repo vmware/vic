@@ -13,13 +13,13 @@ After you have deployed a virtual container host to a standalone ESXi host, you 
 
 1. In the vSphere Client, go to **Inventory** and select the host on which you deployed the virtual container host.
  
-    You should see a resource pool with the name that you set for the virtual container host. The resource pool contains the vSphere Integrated Containers endpoint VM.   
+    You should see a resource pool with the name that you set for the virtual container host. The resource pool contains the vSphere Integrated Containers Engine endpoint VM.   
 
 1.  In your Docker client, run the `docker info` command to confirm that you can connect to the virtual container host. 
  
  <pre>$ docker -H <i>vch_address</i>:2376 --tls info</pre>
 
- You should see confirmation that the Storage Driver is `vSphere Integrated Containers Backend Engine`.
+ You should see confirmation that the Storage Driver is `vSphere Integrated Containers Engine Backend Engine`.
 1.  Pull a Docker container image into the virtual container host, for example, the `BusyBox` container.
 
   <pre>$ docker -H <i>vch_address</i>:2376 --tls pull busybox:latest</pre>

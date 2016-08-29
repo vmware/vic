@@ -1,6 +1,6 @@
 #  Virtual Container Host Delete Options #
 
-The command line utility for vSphere Integrated Containers, `vic-machine`, provides a `delete` command that allows you to cleanly remove virtual container hosts. The options that `vic-machine delete` requires depend on the location in your vSphere environment in which you deployed the virtual container host.
+The command line utility for vSphere Integrated Containers Engine, `vic-machine`, provides a `delete` command that allows you to cleanly remove virtual container hosts. The options that `vic-machine delete` requires depend on the location in your vSphere environment in which you deployed the virtual container host.
 
 ### `target` ###
 

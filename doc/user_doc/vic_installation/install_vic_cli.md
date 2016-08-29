@@ -1,6 +1,6 @@
 # Deploy a Virtual Container Host
 
-You use the `create` command of the `vic-machine` command line utility to deploy a vSphere Integrated Containers virtual container host. 
+You use the `create` command of the `vic-machine` command line utility to deploy a vSphere Integrated Containers Engine virtual container host. 
 
 The `vic-machine` utility can deploy a virtual container host in one of the following setups: 
 * vCenter Server with a cluster
@@ -15,24 +15,24 @@ The virtual container host allows you to use an ESXi host or vCenter Server inst
 
 **Prerequisites**
 
-* Verify that your vSphere infrastructure meets the requirements in [Environment Prerequisites for vSphere Integrated Containers Installation](vic_installation_prereqs.md).
-* In a vCenter Server environment, before you deploy a virtual container host, you must create a distributed virtual switch and a distributed port group. You must add the target ESXi host or hosts to the distributed virtual switch. For information about how to create a distributed virtual switch and port group, see *Network Requirements* in [Environment Prerequisites for vSphere Integrated Containers Installation](vic_installation_prereqs.md#networkreqs).
-* Obtain either a verified build, the latest daily build, or the source code of vSphere Integrated Containers: 
- * Download the most recent verified build of vSphere Integrated Containers from https://github.com/vmware/vic/releases and unpack it. This version has been tested and approved, but it does not reflect the most up-to-date version of the code.
- * Download the latest daily build of vSphere Integrated Containers from https://bintray.com/vmware/vic-repo/build/view#files and unpack it. This version reflects the version of the code as it was at the last daily build. It has not been tested or approved.
- * For the very latest version, for example to include changes that you have made since the last daily build, build the vSphere Integrated Containers binaries from the source code.
-* Add the folder that contains the vSphere Integrated Containers binaries to the `PATH` environment variable. 
-* Familiarize yourself with the vSphere Integrated Containers binaries, as described in [Contents of the vSphere Integrated Containers Binaries](contents_of_vic_binaries.md). 
+* Verify that your vSphere infrastructure meets the requirements in [Environment Prerequisites for vSphere Integrated Containers Engine Installation](vic_installation_prereqs.md).
+* In a vCenter Server environment, before you deploy a virtual container host, you must create a distributed virtual switch and a distributed port group. You must add the target ESXi host or hosts to the distributed virtual switch. For information about how to create a distributed virtual switch and port group, see *Network Requirements* in [Environment Prerequisites for vSphere Integrated Containers Engine Installation](vic_installation_prereqs.md#networkreqs).
+* Obtain either a verified build, the latest daily build, or the source code of vSphere Integrated Containers Engine: 
+ * Download the most recent verified build of vSphere Integrated Containers Engine from https://github.com/vmware/vic/releases and unpack it. This version has been tested and approved, but it does not reflect the most up-to-date version of the code.
+ * Download the latest daily build of vSphere Integrated Containers Engine from https://bintray.com/vmware/vic-repo/build/view#files and unpack it. This version reflects the version of the code as it was at the last daily build. It has not been tested or approved.
+ * For the very latest version, for example to include changes that you have made since the last daily build, build the vSphere Integrated Containers Engine binaries from the source code.
+* Add the folder that contains the vSphere Integrated Containers Engine binaries to the `PATH` environment variable. 
+* Familiarize yourself with the vSphere Integrated Containers Engine binaries, as described in [Contents of the vSphere Integrated Containers Engine Binaries](contents_of_vic_binaries.md). 
 * Familiarize yourself with the options of the `create` command of the `vic-machine` utility described in [Virtual Container Host Deployment Options](vch_installer_options.md).
 * For examples of commands to deploy a virtual container host in various vSphere configurations, see [Examples of Deploying a Virtual Container Host](vch_installer_examples.md).
  
 
 **Procedure**
 
-1. Open a terminal on the system on which you downloaded and unpacked the vSphere Integrated Containers binary bundle.
+1. Open a terminal on the system on which you downloaded and unpacked the vSphere Integrated Containers Engine binary bundle.
 2. Navigate to the directory that contains the `vic-machine` utility:
- * If you downloaded the most recent verified build or the latest daily build, go to the location in which you unpacked the vSphere Integrated Containers bundle.
- * If you built the vSphere Integrated Containers binaries, go to <code><i>installation_dir</i>/vic/bin</code>.
+ * If you downloaded the most recent verified build or the latest daily build, go to the location in which you unpacked the vSphere Integrated Containers Engine bundle.
+ * If you built the vSphere Integrated Containers Engine binaries, go to <code><i>installation_dir</i>/vic/bin</code>.
 2. Run the `create` command of the `vic-machine` utility. 
 
    The following examples include the fewest possible options, for installation in a simple vCenter Server environment with a cluster.

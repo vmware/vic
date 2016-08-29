@@ -90,7 +90,7 @@ Attach the vSphere Container Host to the default-external network at 08.91.3.2.
     ea96a6b919de        vic-production      bridge
     b7e91524f3e2        bridge              bridge  
 
-You have a container providing a web service to expose outside of the vSphere Integrated Containers environment.
+You have a container providing a web service to expose outside of the vSphere Integrated Containers Engine environment.
 
 Output of `docker network inspect default-external`:
 
