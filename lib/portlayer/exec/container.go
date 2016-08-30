@@ -80,14 +80,14 @@ func NewContainer(id uid.UID) *Handle {
 		State:      StateStopped,
 	}
 	con.ExecConfig.ID = id.String()
-	return con.newHandle()
+	return con.NewHandle()
 }
 
 func GetContainer(id uid.UID) *Handle {
 	// get from the cache
 	container := containers.Container(id.String())
 	if container != nil {
-		return container.newHandle()
+		return container.NewHandle()
 	}
 	return nil
 
@@ -114,7 +114,7 @@ func (s State) String() string {
 	return ""
 }
 
-func (c *Container) newHandle() *Handle {
+func (c *Container) NewHandle() *Handle {
 	return newHandle(c)
 }
 
