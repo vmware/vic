@@ -16,15 +16,23 @@ package index
 
 import (
 	"container/list"
+	"errors"
 	"fmt"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
 )
 
+var (
+	ErrNodeNotFound = errors.New("Node not found")
+)
+
 type Node interface {
 	// Returns the string representation (usually the ID) of the node
 	String() string
+
+	// Returns the string respresentation of the nodes parent (usually it's ID)
+	Parent() string
 
 	// Deep copy of the node
 	Copy() Node
@@ -56,7 +64,7 @@ func NewIndex() *Index {
 }
 
 // Insert inserts a copy of the given node to the tree under the given parent.
-func (i *Index) Insert(parent string, n Node) error {
+func (i *Index) Insert(n Node) error {
 	i.l.Lock()
 	defer i.l.Unlock()
 
@@ -65,11 +73,13 @@ func (i *Index) Insert(parent string, n Node) error {
 		return fmt.Errorf("node %s already exists in index", n.String())
 	}
 
+	log.Debugf("Inserting %s (parent: %s) in index", n.String(), n.Parent())
+
 	newNode := &node{
 		Node: n.Copy(),
 	}
 
-	if parent == n.String() {
+	if n.Parent() == n.String() {
 		if i.root != nil {
 			return fmt.Errorf("node cannot point to self unless it's root")
 		}
@@ -78,9 +88,9 @@ func (i *Index) Insert(parent string, n Node) error {
 		i.root = newNode
 
 	} else {
-		p, ok := i.lookupTable[parent]
+		p, ok := i.lookupTable[n.Parent()]
 		if !ok {
-			return fmt.Errorf("Can't find parent %s", parent)
+			return fmt.Errorf("Can't find parent %s", n.Parent())
 		}
 		newNode.parent = p
 		p.addChild(newNode)
@@ -97,7 +107,7 @@ func (i *Index) Get(nodeId string) (Node, error) {
 
 	n, ok := i.lookupTable[nodeId]
 	if !ok {
-		return nil, fmt.Errorf("Node %s not found", nodeId)
+		return nil, ErrNodeNotFound
 	}
 
 	return n.Copy(), nil

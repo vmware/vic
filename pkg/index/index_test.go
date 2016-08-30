@@ -25,11 +25,13 @@ import (
 
 type mockEntry struct {
 	number int
+	parent int
 }
 
-func newMockEntry(n int) *mockEntry {
+func newMockEntry(n, parent int) *mockEntry {
 	return &mockEntry{
 		number: n,
+		parent: parent,
 	}
 }
 
@@ -37,16 +39,21 @@ func (m *mockEntry) String() string {
 	return strconv.Itoa(m.number)
 }
 
+func (m *mockEntry) Parent() string {
+	return strconv.Itoa(m.parent)
+}
+
 func (m *mockEntry) Copy() Node {
 	return &mockEntry{
 		number: m.number,
+		parent: m.parent,
 	}
 }
 
 func TestInsertAndGet(t *testing.T) {
 	i := NewIndex()
-	root := newMockEntry(0)
-	err := i.Insert(root.String(), root)
+	root := newMockEntry(0, 0)
+	err := i.Insert(root)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -55,14 +62,14 @@ func TestInsertAndGet(t *testing.T) {
 
 	// insert
 	for n := 1; n < max; n++ {
-		err = i.Insert(strconv.Itoa(n-1), newMockEntry(n))
+		err = i.Insert(newMockEntry(n, n-1))
 		if !assert.NoError(t, err) {
 			return
 		}
 	}
 
 	// add an entry that already exists
-	err = i.Insert("1", newMockEntry(1))
+	err = i.Insert(newMockEntry(1, 1))
 	if !assert.Error(t, err) {
 		return
 	}
@@ -90,11 +97,12 @@ func TestInsertAndGet(t *testing.T) {
 }
 
 func TestBFS(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
 	i := NewIndex()
 
-	root := newMockEntry(0)
+	root := newMockEntry(0, 0)
 
-	i.Insert(root.String(), root)
+	i.Insert(root)
 
 	branches := 10
 	expectedNodes := createTree(t, i, branches)
@@ -124,9 +132,9 @@ func TestDelete(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	i := NewIndex()
 
-	root := newMockEntry(0)
+	root := newMockEntry(0, 0)
 
-	i.Insert(root.String(), root)
+	i.Insert(root)
 
 	branches := 10
 	expectedNodes := createTree(t, i, branches)
@@ -172,23 +180,23 @@ func TestDelete(t *testing.T) {
 func createTree(t *testing.T, i *Index, count int) map[int]*mockEntry {
 	expectedNodes := make(map[int]*mockEntry)
 
-	insert := func(id int, n *mockEntry) {
-		if !assert.NoError(t, i.Insert(strconv.Itoa(id), n)) {
+	insert := func(n *mockEntry) {
+		if !assert.NoError(t, i.Insert(n)) {
 			return
 		}
 	}
 
 	// insert and create 3 children for each branch
 	for n := 1; n < count; n++ {
-		expectedNodes[n] = newMockEntry(n)
-		expectedNodes[n*10] = newMockEntry(n * 10)
-		expectedNodes[n*100] = newMockEntry(n * 100)
-		expectedNodes[n*1000] = newMockEntry(n * 1000)
+		expectedNodes[n] = newMockEntry(n, 0)
+		expectedNodes[n*10] = newMockEntry(n*10, n)
+		expectedNodes[n*100] = newMockEntry(n*100, n)
+		expectedNodes[n*1000] = newMockEntry(n*1000, n)
 
-		insert(0, expectedNodes[n])
-		insert(n, expectedNodes[n*10])
-		insert(n, expectedNodes[n*100])
-		insert(n, expectedNodes[n*1000])
+		insert(expectedNodes[n])
+		insert(expectedNodes[n*10])
+		insert(expectedNodes[n*100])
+		insert(expectedNodes[n*1000])
 	}
 
 	return expectedNodes
