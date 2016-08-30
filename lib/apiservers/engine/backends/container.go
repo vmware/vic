@@ -268,7 +268,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	}
 
 	// Container created ok, save the container id and save the config override from the API
-	// caller and save this container internal represenation in our personality server's cache
+	// caller and save this container internal representation in our personality server's cache
 	copyConfigOverrides(container, config)
 	container.ContainerID = id
 	cache.ContainerCache().AddContainer(container)

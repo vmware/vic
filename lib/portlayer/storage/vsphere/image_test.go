@@ -126,7 +126,7 @@ func TestCreateAndGetImageStore(t *testing.T) {
 		return
 	}
 
-	// Negative test.  Check for a dir that doesnt exist
+	// Negative test.  Check for a dir that doesn't exist
 	u, err = vsis.GetImageStore(context.TODO(), storeName+"garbage")
 	if !assert.Error(t, err) || !assert.Nil(t, u) {
 		return

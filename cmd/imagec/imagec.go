@@ -196,7 +196,7 @@ func ParseReference() error {
 func DestinationDirectory() string {
 	u, _ := url.Parse(options.registry)
 
-	// Use a hierachy like following so that we can support multiple schemes, registries and versions
+	// Use a hierarchy like following so that we can support multiple schemes, registries and versions
 	/*
 		https/
 		├── 192.168.218.5:5000

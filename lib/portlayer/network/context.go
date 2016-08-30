@@ -66,7 +66,7 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 	pones, pbits := bridgePool.Mask.Size()
 	mones, mbits := bridgeMask.Size()
 	if pbits != mbits || mones < pones {
-		return nil, fmt.Errorf("bridge mask is not compatiable with bridge pool mask")
+		return nil, fmt.Errorf("bridge mask is not compatible with bridge pool mask")
 	}
 
 	ctx := &Context{

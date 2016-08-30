@@ -270,7 +270,7 @@ type datastoreReader struct {
 	path string
 }
 
-// listVMPaths returns an array of datastore paths for VMs assocaited with the
+// listVMPaths returns an array of datastore paths for VMs associated with the
 // VCH - this includes containerVMs and the appliance
 func listVMPaths(ctx context.Context, s *session.Session) ([]url.URL, error) {
 	defer trace.End(trace.Begin(""))
