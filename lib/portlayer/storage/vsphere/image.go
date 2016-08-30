@@ -335,7 +335,8 @@ func (v *ImageStore) writeImage(ctx context.Context, storeName, parentID, ID str
 
 	actualSum := fmt.Sprintf("sha256:%x", h.Sum(nil))
 	if actualSum != sum {
-		return fmt.Errorf("Failed to validate image checksum. Expected %s, got %s", sum, actualSum)
+		err = fmt.Errorf("Failed to validate image checksum. Expected %s, got %s", sum, actualSum)
+		return err
 	}
 
 	if err = vmdisk.Unmount(); err != nil {
