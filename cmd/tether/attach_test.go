@@ -302,7 +302,7 @@ func TestAttach(t *testing.T) {
 	sshSession.Stdin().Write(testBytes)
 	log.Debug("sent test data")
 
-	// wait for the close to propogate
+	// wait for the close to propagate
 	<-done
 	sshSession.Stdin().Close()
 
@@ -402,7 +402,7 @@ func TestAttachTTY(t *testing.T) {
 	session.Stdin().Write(testBytes)
 	log.Debug("sent test data")
 
-	// wait for the close to propogate
+	// wait for the close to propagate
 	wg.Wait()
 	session.Stdin().Close()
 
@@ -549,7 +549,7 @@ func TestAttachTwo(t *testing.T) {
 	sessionB.Stdin().Write(testBytesB)
 	log.Debug("sent test data")
 
-	// wait for the close to propogate
+	// wait for the close to propagate
 	wg.Wait()
 	sessionA.Stdin().Close()
 	sessionB.Stdin().Close()

@@ -80,7 +80,7 @@ func (v *Validator) DatastoreHelper(ctx context.Context, path string, label stri
 
 	dsURL.Scheme = "ds"
 
-	// if a datastore name (e.g. "datastore1") is specifed with no decoration then this
+	// if a datastore name (e.g. "datastore1") is specified with no decoration then this
 	// is interpreted as the Path
 	if dsURL.Host == "" && dsURL.Path != "" {
 		pathElements := strings.SplitN(path, "/", 2)

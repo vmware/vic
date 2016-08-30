@@ -693,7 +693,7 @@
 		},
 		"/scopes/{scope}/containers": {
 			"post": {
-				"description": "Add a container to scopes modifying the conatiner VM's config as necessary",
+				"description": "Add a container to scopes modifying the container VM's config as necessary",
 				"tags": [
 					"scopes"
 				],

@@ -295,12 +295,12 @@ func (v *ImageStore) writeImage(ctx context.Context, storeName, parentID, ID str
 
 			if vmdisk != nil {
 				if vmdisk.Mounted() {
-					log.Debugf("Unmounting abandonned disk")
+					log.Debugf("Unmounting abandoned disk")
 					vmdisk.Unmount()
 				}
 
 				if vmdisk.Attached() {
-					log.Debugf("Detaching abandonned disk")
+					log.Debugf("Detaching abandoned disk")
 					v.dm.Detach(ctx, vmdisk)
 				}
 			}

@@ -28,7 +28,7 @@ import (
 )
 
 // AttachServer waits for TCP client connections on serialOverLANPort, then
-// once connected, attemps to negotiate an SSH connection to the attached
+// once connected, attempts to negotiate an SSH connection to the attached
 // client.  The client is the ssh server.
 type Server struct {
 	port int
