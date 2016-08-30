@@ -177,7 +177,7 @@ Short name: `--cn`
 
 A network for container VMs to use for external communication when container developers  run `docker run` or `docker create` with the `--net` option. 
 
-To specify a container network, you provide the name of a distributed port group for the container VMs to use, and a descriptive name for the container network for use by Docker. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+To specify a container network, you provide the name of a distributed port group for the container VMs to use, and an optional descriptive name for the container network for use by Docker.  If you do not specify a descriptive name, Docker uses the vSphere network name. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
 - The distributed port group must exist before you run `vic-machine create`. 
 - You cannot use the same distributed port group as you use for the bridge network. 

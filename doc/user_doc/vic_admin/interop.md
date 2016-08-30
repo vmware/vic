@@ -11,7 +11,7 @@ You can apply vSphere High Availability and Fault Tolerance to both the containe
 
 You can also restart or upgrade the virtual container host without needing to take the containers offline during the process. You do not require a native agent on the ESXi host. The appliance VM does not need to be running for vMotion to occur. Clusters with non-container VMs can also vMotion with fully automated DRS.
 
-**NOTE**: In the current builds of vSphere Integrated Containers Engine, support for vMotion is not yet fully implemented. 
+**NOTE**: In the current builds of vSphere Integrated Containers Engine, support for HA, Fault Tolerance, and vMotion is not yet fully implemented. 
 
 #### VMware Virtual SAN
 The virtual container host maintains filesystem layers inherent in container images by mapping to discrete VMDK files, all of which are housed in vSphere datastores on VSAN, NFS, or local disks.
