@@ -169,6 +169,7 @@ func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID stri
 	// Definitely not in cache or image store, create image.
 	i, err = c.DataStore.WriteImage(ctx, p, ID, meta, sum, r)
 	if err != nil {
+		log.Errorf("WriteImage of %s failed with: %s", ID, err)
 		return nil, err
 	}
 
