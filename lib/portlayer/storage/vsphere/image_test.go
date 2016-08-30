@@ -40,7 +40,6 @@ import (
 
 func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, error) {
 	logrus.SetLevel(logrus.DebugLevel)
-	StorageParentDir = datastore.TestName("imageTests")
 
 	client := datastore.Session(context.TODO(), t)
 	if client == nil {
@@ -48,7 +47,7 @@ func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, error) {
 	}
 
 	storeURL := &url.URL{
-		Path: StorageParentDir,
+		Path: datastore.TestName("imageTests"),
 		Host: client.DatastorePath}
 
 	vsImageStore, err := NewImageStore(context.TODO(), client, storeURL)

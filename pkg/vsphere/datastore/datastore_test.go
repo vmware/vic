@@ -18,6 +18,7 @@ import (
 	"math/rand"
 	"net/url"
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -65,6 +66,46 @@ func TestDatastoreGetDatastores(t *testing.T) {
 	}
 
 	if !assert.Equal(t, firstSummary, secondSummary) {
+		return
+	}
+}
+
+func TestDatastoreRestart(t *testing.T) {
+	// creates a root in the datastore
+	ctx, ds, cleanupfunc := DSsetup(t)
+	if t.Failed() {
+		return
+	}
+	defer cleanupfunc()
+
+	// Create a nested dir in the root and use that as the datastore
+	nestedRoot := path.Join(ds.rootDir(), "foo")
+	ds, err := NewHelper(ctx, ds.s, ds.s.Datastore, nestedRoot)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// test we can ls the root
+	_, err = ds.Ls(ctx, "")
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// create a dir
+	_, err = ds.Mkdir(ctx, true, "baz")
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// create a new datastore object with the same path as the nested one
+	ds, err = NewHelper(ctx, ds.s, ds.s.Datastore, nestedRoot)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// try to create the same baz dir, assert it exists
+	_, err = ds.Mkdir(ctx, true, "baz")
+	if !assert.Error(t, err) || !assert.True(t, os.IsExist(err)) {
 		return
 	}
 }
