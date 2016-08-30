@@ -143,7 +143,7 @@ func pingPortLayer() {
 
 	log.Infof("Waiting for portlayer to come up")
 
-	for _ = range ticker.C {
+	for range ticker.C {
 		if _, err := portLayerClient.Misc.Ping(params); err == nil {
 			log.Info("Portlayer is up and responding to pings")
 			return

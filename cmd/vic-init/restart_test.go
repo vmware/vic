@@ -45,7 +45,7 @@ func TestRestart(t *testing.T) {
 			DebugLevel: 2,
 		},
 		Sessions: map[string]executor.SessionConfig{
-			"pathlookup": executor.SessionConfig{
+			"pathlookup": {
 				Common: executor.Common{
 					ID:   "pathlookup",
 					Name: "tether_test_session",

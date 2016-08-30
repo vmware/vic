@@ -286,10 +286,9 @@ func TestLogTail(t *testing.T) {
 }
 
 type seekTest struct {
-	input string
+	input  string
 	output int
 }
-
 
 func testSeek(t *testing.T, st seekTest, td string) {
 	f, err := ioutil.TempFile(td, "FindSeekPos")
@@ -317,10 +316,10 @@ func TestFindSeekPos(t *testing.T) {
 		t.SkipNow()
 	}
 
-    seekTests := []seekTest{
-	    { "abcd\nabcd\n", 0 },
-		{ "abcd\nabcd\nabcd\nabcd\nabcd\nabcd\nabcd\nabcd\nabcd\nabcd\n", 10 },
-    }
+	seekTests := []seekTest{
+		{"abcd\nabcd\n", 0},
+		{"abcd\nabcd\nabcd\nabcd\nabcd\nabcd\nabcd\nabcd\nabcd\nabcd\n", 10},
+	}
 
 	str := "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"
 	str = fmt.Sprintf("%s%s", str, str)

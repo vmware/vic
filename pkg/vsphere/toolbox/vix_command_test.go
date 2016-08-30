@@ -27,24 +27,24 @@ import (
 
 func TestMarshalVixMsgStartProgramRequest(t *testing.T) {
 	requests := []*VixMsgStartProgramRequest{
-		&VixMsgStartProgramRequest{},
-		&VixMsgStartProgramRequest{
+		{},
+		{
 			ProgramPath: "/bin/date",
 		},
-		&VixMsgStartProgramRequest{
+		{
 			ProgramPath: "/bin/date",
 			Arguments:   "--date=@2147483647",
 		},
-		&VixMsgStartProgramRequest{
+		{
 			ProgramPath: "/bin/date",
 			WorkingDir:  "/tmp",
 		},
-		&VixMsgStartProgramRequest{
+		{
 			ProgramPath: "/bin/date",
 			WorkingDir:  "/tmp",
 			EnvVars:     []string{"FOO=bar"},
 		},
-		&VixMsgStartProgramRequest{
+		{
 			ProgramPath: "/bin/date",
 			WorkingDir:  "/tmp",
 			EnvVars:     []string{"FOO=bar", "BAR=foo"},

@@ -170,7 +170,7 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 	}
 
 	refs := []types.ManagedObjectReference{}
-	for dsName, _ := range dsNames {
+	for dsName := range dsNames {
 		ds, err := sess.Finder.DatastoreOrDefault(ctx, dsName)
 		if err != nil {
 			log.Errorf("Unable to collect information for datastore %s: %s", dsName, err)
