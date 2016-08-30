@@ -54,7 +54,7 @@ func (handler *ScopesHandlersImpl) Configure(api *operations.PortLayerAPI, handl
 	api.ScopesBindContainerHandler = scopes.BindContainerHandlerFunc(handler.ScopesBindContainer)
 	api.ScopesUnbindContainerHandler = scopes.UnbindContainerHandlerFunc(handler.ScopesUnbindContainer)
 
-	err := network.Init()
+	err := network.Init(context.Background(), handlerCtx.Session)
 	if err != nil {
 		log.Fatalf("failed to create network context: %s", err)
 	}

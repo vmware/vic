@@ -15,10 +15,13 @@
 package network
 
 import (
+	"context"
 	"fmt"
 	"net"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/vmware/vic/lib/portlayer/exec"
 )
 
 var (
@@ -37,7 +40,7 @@ func (e DuplicateResourceError) Error() string {
 	return fmt.Sprintf("%s already exists", e.resID)
 }
 
-func Init() error {
+func Init(ctx context.Context, sess *session.Session) error {
 	var err error
 
 	bridgeRange := Config.BridgeIPRange
@@ -64,6 +67,9 @@ func Init() error {
 	if err == nil {
 		log.Infof("Default network context allocated: %s", bridgeRange.String())
 	}
+
+	// populate existing containers
+	exec.InfraContainers(ctx, sess)
 
 	return err
 }

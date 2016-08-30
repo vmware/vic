@@ -558,7 +558,7 @@ func Containers(all bool) []*Container {
 }
 
 // get the containerVMs from infrastructure for this resource pool
-func infraContainers(ctx context.Context, sess *session.Session) ([]mo.VirtualMachine, error) {
+func InfraContainers(ctx context.Context, sess *session.Session) ([]*Container, error) {
 	var rp mo.ResourcePool
 
 	// popluate the vm property of the vch resource pool
@@ -571,7 +571,8 @@ func infraContainers(ctx context.Context, sess *session.Session) ([]mo.VirtualMa
 	if err != nil {
 		return nil, err
 	}
-	return vms, nil
+
+	return convertInfraContainers(vms, true), nil
 }
 
 func instanceUUID(id string) (string, error) {
