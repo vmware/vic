@@ -268,7 +268,7 @@ func (s *server) tailFiles(res http.ResponseWriter, req *http.Request, names []s
 	}
 
 	<-cc
-	for _, _ = range names {
+	for range names {
 		done <- true
 	}
 }

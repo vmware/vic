@@ -42,7 +42,7 @@ func TestPathLookup(t *testing.T) {
 		},
 
 		Sessions: map[string]executor.SessionConfig{
-			"pathlookup": executor.SessionConfig{
+			"pathlookup": {
 				Common: executor.Common{
 					ID:   "pathlookup",
 					Name: "tether_test_session",
@@ -80,7 +80,7 @@ func TestRelativePath(t *testing.T) {
 		},
 
 		Sessions: map[string]executor.SessionConfig{
-			"relpath": executor.SessionConfig{
+			"relpath": {
 				Common: executor.Common{
 					ID:   "relpath",
 					Name: "tether_test_session",
@@ -118,7 +118,7 @@ func TestAbsPath(t *testing.T) {
 		},
 
 		Sessions: map[string]executor.SessionConfig{
-			"abspath": executor.SessionConfig{
+			"abspath": {
 				Common: executor.Common{
 					ID:   "abspath",
 					Name: "tether_test_session",
@@ -174,7 +174,7 @@ func TestHalt(t *testing.T) {
 		},
 
 		Sessions: map[string]executor.SessionConfig{
-			"abspath": executor.SessionConfig{
+			"abspath": {
 				Common: executor.Common{
 					ID:   "abspath",
 					Name: "tether_test_session",
@@ -248,7 +248,7 @@ func TestMissingBinary(t *testing.T) {
 		},
 
 		Sessions: map[string]executor.SessionConfig{
-			"missing": executor.SessionConfig{
+			"missing": {
 				Common: executor.Common{
 					ID:   "missing",
 					Name: "tether_test_session",
@@ -295,7 +295,7 @@ func TestMissingRelativeBinary(t *testing.T) {
 		},
 
 		Sessions: map[string]executor.SessionConfig{
-			"missing": executor.SessionConfig{
+			"missing": {
 				Common: executor.Common{
 					ID:   "missing",
 					Name: "tether_test_session",

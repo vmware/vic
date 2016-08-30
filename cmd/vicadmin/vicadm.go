@@ -428,10 +428,10 @@ func main() {
 	// to extract the userid/password from UserPassword
 	if vchConfig.UserPassword != "" {
 		newurl, _ := url.Parse(fmt.Sprintf("%s://%s@%s%s",
-					vchConfig.Target.Scheme,
-					vchConfig.UserPassword,
-					vchConfig.Target.Host,
-					vchConfig.Target.Path))
+			vchConfig.Target.Scheme,
+			vchConfig.UserPassword,
+			vchConfig.Target.Host,
+			vchConfig.Target.Path))
 		vchConfig.Target = *newurl
 	}
 

@@ -77,7 +77,7 @@ func TestSetIpAddress(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 		Networks: map[string]*executor.NetworkEndpoint{
-			"bridge": &executor.NetworkEndpoint{
+			"bridge": {
 				Common: executor.Common{
 					ID: bridge,
 					// interface rename
@@ -95,7 +95,7 @@ func TestSetIpAddress(t *testing.T) {
 					Mask: lmask.Mask,
 				},
 			},
-			"cnet": &executor.NetworkEndpoint{
+			"cnet": {
 				Common: executor.Common{
 					ID: bridge,
 					// no interface rename
@@ -107,7 +107,7 @@ func TestSetIpAddress(t *testing.T) {
 				},
 				Static: secondIP,
 			},
-			"external": &executor.NetworkEndpoint{
+			"external": {
 				Common: executor.Common{
 					ID: external,
 					// interface rename

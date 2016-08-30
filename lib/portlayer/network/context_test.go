@@ -107,10 +107,10 @@ func TestMain(m *testing.M) {
 		BridgeLink:    &mockLink{},
 		BridgeNetwork: "bridge",
 		ContainerNetworks: map[string]*ContainerNetwork{
-			"bridge": &ContainerNetwork{
+			"bridge": {
 				PortGroup: testBridgeNetwork,
 			},
-			"bar7": &ContainerNetwork{
+			"bar7": {
 				Common: executor.Common{
 					Name: "external",
 				},
@@ -119,7 +119,7 @@ func TestMain(m *testing.M) {
 				Pools:       []ip.Range{*ip.ParseRange("10.13.1.0-255"), *ip.ParseRange("10.13.2.0-10.13.2.15")},
 				PortGroup:   testExternalNetwork,
 			},
-			"bar71": &ContainerNetwork{
+			"bar71": {
 				Common: executor.Common{
 					Name: "external",
 				},
@@ -128,13 +128,13 @@ func TestMain(m *testing.M) {
 				Pools:       []ip.Range{*ip.ParseRange("10.131.1.0/16")},
 				PortGroup:   testExternalNetwork,
 			},
-			"bar72": &ContainerNetwork{
+			"bar72": {
 				Common: executor.Common{
 					Name: "external",
 				},
 				PortGroup: testExternalNetwork,
 			},
-			"bar73": &ContainerNetwork{
+			"bar73": {
 				Common: executor.Common{
 					Name: "external",
 				},

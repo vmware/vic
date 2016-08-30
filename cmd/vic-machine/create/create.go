@@ -105,8 +105,8 @@ type Create struct {
 
 var (
 	images = map[string][]string{
-		ApplianceImageKey: []string{ApplianceImageName},
-		LinuxImageKey:     []string{LinuxImageName},
+		ApplianceImageKey: {ApplianceImageName},
+		LinuxImageKey:     {LinuxImageName},
 	}
 )
 

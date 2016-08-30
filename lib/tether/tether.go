@@ -178,7 +178,7 @@ func (t *tether) Start() error {
 
 	// initial entry, so seed this
 	t.reload <- true
-	for _ = range t.reload {
+	for range t.reload {
 		log.Info("Loading main configuration")
 		// load the config - this modifies the structure values in place
 		extraconfig.Decode(t.src, t.config)
@@ -463,7 +463,7 @@ func (t *tether) forkHandler() {
 	signal.Notify(incoming, syscall.SIGABRT)
 
 	log.Info("SIGABRT handling initialized for fork support")
-	for _ = range incoming {
+	for range incoming {
 		// validate that this is a fork trigger and not just a random signal from
 		// container processes
 		log.Info("Received SIGABRT - preparing to transition to fork parent")

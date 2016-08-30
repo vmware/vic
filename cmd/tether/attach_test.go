@@ -235,7 +235,7 @@ func TestAttach(t *testing.T) {
 		},
 
 		Sessions: map[string]executor.SessionConfig{
-			"attach": executor.SessionConfig{
+			"attach": {
 				Common: executor.Common{
 					ID:   "attach",
 					Name: "tether_test_session",
@@ -332,7 +332,7 @@ func TestAttachTTY(t *testing.T) {
 		},
 
 		Sessions: map[string]executor.SessionConfig{
-			"attach": executor.SessionConfig{
+			"attach": {
 				Common: executor.Common{
 					ID:   "attach",
 					Name: "tether_test_session",
@@ -432,7 +432,7 @@ func TestAttachTwo(t *testing.T) {
 		},
 
 		Sessions: map[string]executor.SessionConfig{
-			"tee1": executor.SessionConfig{
+			"tee1": {
 				Common: executor.Common{
 					ID:   "tee1",
 					Name: "tether_test_session",
@@ -447,7 +447,7 @@ func TestAttachTwo(t *testing.T) {
 					Dir:  "/",
 				},
 			},
-			"tee2": executor.SessionConfig{
+			"tee2": {
 				Common: executor.Common{
 					ID:   "tee2",
 					Name: "tether_test_session2",
@@ -585,7 +585,7 @@ func TestAttachInvalid(t *testing.T) {
 		},
 
 		Sessions: map[string]executor.SessionConfig{
-			"valid": executor.SessionConfig{
+			"valid": {
 				Common: executor.Common{
 					ID:   "valid",
 					Name: "tether_test_session",

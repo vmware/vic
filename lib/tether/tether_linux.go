@@ -66,7 +66,7 @@ func (t *tether) childReaper() error {
 	log.Info("Started reaping child processes")
 
 	go func() {
-		for _ = range t.incoming {
+		for range t.incoming {
 			var status syscall.WaitStatus
 
 			func() {

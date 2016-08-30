@@ -52,7 +52,7 @@ var portlayerhandlers = []handler{
 
 func configureFlags(api *operations.PortLayerAPI) {
 	api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{
-		swag.CommandLineOptionsGroup{
+		{
 			LongDescription:  "Port Layer Options",
 			Options:          options.PortLayerOptions,
 			ShortDescription: "Port Layer Options",
