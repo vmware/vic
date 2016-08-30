@@ -770,8 +770,8 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 	container.OpenStdin = true // Open stdin
 	container.StdinOnce = true
 
-	if info.ContainerConfig.LayerID != nil {
-		container.Image = *info.ContainerConfig.LayerID // Name of the image as it was passed by the operator (eg. could be symbolic)
+	if info.ContainerConfig.RepoName != nil {
+		container.Image = *info.ContainerConfig.RepoName // Name of the image as it was passed by the operator (eg. could be symbolic)
 	}
 	if info.ContainerConfig.Labels != nil {
 		container.Labels = info.ContainerConfig.Labels // List of labels set to this container

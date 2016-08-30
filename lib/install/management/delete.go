@@ -90,7 +90,7 @@ func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec) erro
 }
 
 func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) error {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin(conf.Name))
 
 	log.Infof("Removing VMs")
 	var errs []string
@@ -149,7 +149,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 }
 
 func (d *Dispatcher) deleteNetworkDevices(vmm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec) error {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin(conf.Name))
 
 	log.Infof("Removing appliance VM network devices")
 
