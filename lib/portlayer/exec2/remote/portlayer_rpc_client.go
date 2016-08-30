@@ -29,7 +29,7 @@ type PortLayerRPCClient struct {
 }
 
 func (p *PortLayerRPCClient) Connect() error {
-	// Ignore Init args on the client - that is the server's responsibilty
+	// Ignore Init args on the client - that is the server's responsibility
 	var err error
 	gob.Register(uuid.New())
 	p.client, err = rpc.DialHTTP("tcp", serverAddress+":1234")

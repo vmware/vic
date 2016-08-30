@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// IP address managment
+// IP address management
 //
 // The API here just concerns itself with tracking blocks of
 // IP addresses, as well as individual IPs within the blocks.

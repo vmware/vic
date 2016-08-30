@@ -192,7 +192,7 @@ func (t *tether) Start() error {
 		if err := t.ops.SetHostname(short, t.config.Name); err != nil {
 			detail := fmt.Sprintf("failed to set hostname: %s", err)
 			log.Error(detail)
-			// we don't attempt to recover from this - it's a fundemental misconfiguration
+			// we don't attempt to recover from this - it's a fundamental misconfiguration
 			// so just exit
 			return errors.New(detail)
 		}

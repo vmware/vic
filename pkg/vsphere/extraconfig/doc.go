@@ -17,7 +17,7 @@ package extraconfig
 /*
 Package extraconfig provides Encode/Decode methods to convert data between Go structs and VMware Extraconfig values.
 
-The implementation understands the following set of annotations and map the fields to appropriate extraConfig keys - in the case where the key describes a boolean state, ommitting the annotation implies the opposite:
+The implementation understands the following set of annotations and map the fields to appropriate extraConfig keys - in the case where the key describes a boolean state, omitting the annotation implies the opposite:
 
 hidden - hidden from GuestOS
 read-only - value can only be modified via vSphere APIs
@@ -27,8 +27,8 @@ volatile - field is not exported directly, but via a function that freshens the 
 
 The struct fields are required to be annotated with the "vic" tag, otherwise extraconfig package simply skips them. Scope and key tags are also required.
 
-Scope tag can contain multiple values (comma seperated)
-Key tag can contain extra properties (comma seperated) but the first element has to the name of the key.
+Scope tag can contain multiple values (comma separated)
+Key tag can contain extra properties (comma separated) but the first element has to the name of the key.
 
 type Example struct {
     // skipped - does not contain any tag

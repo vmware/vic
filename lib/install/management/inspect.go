@@ -33,7 +33,7 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 
 	state, err := vch.PowerState(d.ctx)
 	if err != nil {
-		log.Errorf("Failed to get VM power state, service might not be avaialble at this moment.")
+		log.Errorf("Failed to get VM power state, service might not be available at this moment.")
 	}
 	if state != types.VirtualMachinePowerStatePoweredOn {
 		err = errors.Errorf("VCH is not powered on, state %s", state)

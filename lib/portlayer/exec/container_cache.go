@@ -137,7 +137,7 @@ func callback(ie event.Event, session *session.Session) {
 				container.State = newState
 			case StateSuspended:
 				//set state only in cache
-				log.Debugf("Container(%s) suspened via OOB activity", container.ExecConfig.ID)
+				log.Debugf("Container(%s) suspend via OOB activity", container.ExecConfig.ID)
 				container.State = newState
 			case StateRemoved:
 				log.Debugf("Container(%s) removed via OOB activity", container.ExecConfig.ID)
