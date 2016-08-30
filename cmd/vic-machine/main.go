@@ -78,7 +78,7 @@ func main() {
 		},
 	}
 
-	app.Version = fmt.Sprintf("%s-%s-%s", version.Version, version.BuildNumber, version.GitCommit)
+	app.Version = version.GetBuild().ShortVersion()
 
 	logs := []io.Writer{app.Writer}
 	// Open log file

@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"golang.org/x/net/context"
 )
@@ -245,6 +246,7 @@ func (v *Validator) basics(ctx context.Context, input *data.Data, conf *config.V
 	conf.SetName(input.DisplayName)
 	conf.SetDebug(input.Debug.Debug)
 	conf.Name = input.DisplayName
+	conf.Version = version.GetBuild()
 }
 
 func (v *Validator) checkSessionSet() []string {

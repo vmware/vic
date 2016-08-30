@@ -31,6 +31,14 @@ var (
 	v bool
 )
 
+type Build struct {
+	Version     string
+	GitCommit   string
+	BuildDate   string
+	BuildNumber string
+	State       string
+}
+
 func init() {
 	flag.BoolVar(&v, "version", false, "Show version info")
 }
@@ -42,12 +50,30 @@ func Show() bool {
 
 // String returns a string representation of the version
 func String() string {
-	if State == "" {
-		State = "clean"
+	return GetBuild().String()
+}
+
+func GetBuild() *Build {
+	return &Build{
+		Version:     Version,
+		GitCommit:   GitCommit,
+		BuildDate:   BuildDate,
+		BuildNumber: BuildNumber,
+		State:       State,
+	}
+}
+
+func (v *Build) String() string {
+	if v.State == "" {
+		v.State = "clean"
 	}
 
-	if BuildNumber == "" {
-		BuildNumber = "N/A"
+	if v.BuildNumber == "" {
+		v.BuildNumber = "N/A"
 	}
-	return fmt.Sprintf("%s git:%s-%s build:%s id:%s runtime:%s", Version, GitCommit, State, BuildDate, BuildNumber, runtime.Version())
+	return fmt.Sprintf("%s git:%s-%s build:%s id:%s runtime:%s", v.Version, v.GitCommit, v.State, v.BuildDate, v.BuildNumber, runtime.Version())
+}
+
+func (v *Build) ShortVersion() string {
+	return fmt.Sprintf("%s-%s-%s", v.Version, v.BuildNumber, v.GitCommit)
 }
