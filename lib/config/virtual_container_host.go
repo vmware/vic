@@ -68,8 +68,6 @@ type VirtualContainerHostConfigSpec struct {
 	Insecure bool `vic:"0.1" scope:"read-only" key:"insecure"`
 	// The session timeout
 	Keepalive time.Duration `vic:"0.1" scope:"read-only" key:"keepalive"`
-	// Virtual Container Host version
-	Version string `vic:"0.1" scope:"read-only" key:"version"`
 
 	////////////// basic contact information
 	// Administrative contact for the Virtual Container Host

@@ -28,14 +28,14 @@ import (
 	// "github.com/vmware/govmomi/vim25/types"
 
 	"github.com/docker/docker/opts"
+	"github.com/vmware/govmomi/property"
+	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/govmomi/property"
-	"github.com/vmware/govmomi/vim25/mo"
-	"github.com/vmware/govmomi/vim25/types"
 	"golang.org/x/net/context"
 )
 
@@ -64,7 +64,9 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	defer trace.End(trace.Begin(""))
 	log.Infof("Creating new validator")
 	v := &Validator{}
-	v.Version = vch.Version
+	if vch.Version != nil {
+		v.Version = vch.Version.String()
+	}
 	log.Info(fmt.Sprintf("Setting version to %s", v.Version))
 
 	//VCH Name
@@ -147,8 +149,8 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 
 type dsList []mo.Datastore
 
-func (d dsList) Len() int { return len(d) }
-func (d dsList) Swap(i, j int) { d[i], d[j] = d[j], d[i] }
+func (d dsList) Len() int           { return len(d) }
+func (d dsList) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
 func (d dsList) Less(i, j int) bool { return d[i].Name < d[j].Name }
 
 func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) {
@@ -203,7 +205,7 @@ func (v *Validator) QueryVCHStatus(vch *config.VirtualContainerHostConfigSpec) {
 	v.VCHIssues = template.HTML("")
 	v.VCHStatus = GoodStatus
 
-	procs := map[string]string { "vic-init" : "vic-init", }
+	procs := map[string]string{"vic-init": "vic-init"}
 
 	// Extract required components from vchConfig
 	// Only report on components with Restart set to true

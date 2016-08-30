@@ -36,6 +36,7 @@ import (
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
+	"github.com/vmware/vic/pkg/version"
 )
 
 // ContainersHandlersImpl is the receiver for all of the exec handler methods
@@ -91,6 +92,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 			ID:   id,
 			Name: *params.CreateConfig.Name,
 		},
+		Version: version.GetBuild(),
 		Sessions: map[string]executor.SessionConfig{
 			id: executor.SessionConfig{
 				Common: executor.Common{

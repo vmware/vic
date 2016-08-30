@@ -17,6 +17,8 @@ package executor
 import (
 	"net/url"
 	"time"
+
+	"github.com/vmware/vic/pkg/version"
 )
 
 type State int
@@ -138,6 +140,9 @@ type ExecutorConfig struct {
 
 	// StopSignal is the signal name or number used to stop a container
 	StopSignal string `vic:"0.1" scope:"read-only" key:"stopSignal"`
+
+	// version
+	Version *version.Build `vic:"0.1" scope:"read-only" key:"version"`
 }
 
 // Cmd is here because the encoding packages seem to have issues with the full exec.Cmd struct

@@ -64,7 +64,9 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 	productName = product
 
 	if config != nil {
-		productVersion = config.Version
+		if config.Version != nil {
+			productVersion = config.Version.ShortVersion()
+		}
 		if productVersion == "" {
 			portLayerName = product + " Backend Engine"
 		} else {
