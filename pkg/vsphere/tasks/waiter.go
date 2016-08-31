@@ -75,7 +75,7 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 			return taskInfo, nil
 		}
 
-		if terr, ok := err.(*task.Error); ok {
+		if terr, ok := werr.(*task.Error); ok {
 			if _, ok := terr.Fault().(*types.TaskInProgress); ok {
 				sleepValue := time.Duration(backoffFactor * (rand.Int63n(100) + int64(50)))
 				select {
