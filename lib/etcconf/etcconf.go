@@ -40,8 +40,13 @@ type Conf interface {
 }
 
 func load(filePath string, con EntryConsumer) error {
-	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDONLY, 0644)
+	f, err := os.Open(filePath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			log.Infof("not loading file %s as it does not exist", filePath)
+			return nil
+		}
+
 		return err
 	}
 	defer f.Close()

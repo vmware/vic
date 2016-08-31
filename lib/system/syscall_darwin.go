@@ -12,6 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package etcconf
+package system
 
-const hostsPath = "/etc/hosts"
+import "syscall"
+
+func (s syscallImpl) Mount(source string, target string, fstype string, flags uintptr, data string) error {
+	return syscall.ENOSYS
+}
+
+func (s syscallImpl) Sethostname(hostname []byte) error {
+	return syscall.ENOSYS
+}
+
+func (s syscallImpl) Unmount(target string, flags int) error {
+	return syscall.ENOSYS
+}

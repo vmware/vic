@@ -30,6 +30,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/system"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
@@ -161,6 +162,14 @@ func (t *Mocker) Fork() error {
 // TestMain simply so we have control of debugging level and somewhere to call package wide test setup
 func TestMain(m *testing.M) {
 	log.SetLevel(log.DebugLevel)
+
+	// replace the Sys variable with a mock
+	tether.Sys = system.System{
+		Hosts:      &tether.MockHosts{},
+		ResolvConf: &tether.MockResolvConf{},
+		Syscall:    &tether.MockSyscall{},
+		Root:       os.TempDir(),
+	}
 
 	retCode := m.Run()
 

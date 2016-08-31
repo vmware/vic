@@ -31,11 +31,9 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/vishvananda/netlink"
 	"github.com/vmware/vic/lib/dhcp"
 	"github.com/vmware/vic/lib/dhcp/client"
-	"github.com/vmware/vic/lib/etcconf"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vmw-guestinfo/rpcout"
@@ -44,8 +42,6 @@ import (
 var (
 	hostnameFile = "/etc/hostname"
 	byLabelDir   = "/dev/disk/by-label"
-	hostsFile    = "/etc/hosts"
-	resolvFile   = "/etc/resolv.conf"
 )
 
 const (
@@ -56,8 +52,6 @@ const (
 type BaseOperations struct {
 	dhcpClient   client.Client
 	dhcpLoops    map[string]chan bool
-	hosts        etcconf.Hosts
-	resolvConf   etcconf.ResolvConf
 	dynEndpoints map[string][]*NetworkEndpoint
 	config       Config
 }
@@ -144,7 +138,7 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 		log.Warnf("Unable to get current hostname - will not be able to revert on failure: %s", err)
 	}
 
-	err = syscall.Sethostname([]byte(hostname))
+	err = Sys.Syscall.Sethostname([]byte(hostname))
 	if err != nil {
 		log.Errorf("Unable to set hostname: %s", err)
 		return err
@@ -159,7 +153,7 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 		// revert the hostname
 		if old != "" {
 			log.Warnf("Reverting kernel hostname to %s", old)
-			err2 := syscall.Sethostname([]byte(old))
+			err2 := Sys.Syscall.Sethostname([]byte(old))
 			if err2 != nil {
 				log.Errorf("Unable to revert kernel hostname - kernel and hostname file are out of sync! Error: %s", err2)
 			}
@@ -171,9 +165,9 @@ func (t *BaseOperations) SetHostname(hostname string, aliases ...string) error {
 	// add entry to hosts for resolution without nameservers
 	lo4 := net.IPv4(127, 0, 1, 1)
 	for _, a := range append(aliases, hostname) {
-		t.hosts.SetHost(a, lo4)
+		Sys.Hosts.SetHost(a, lo4)
 	}
-	if err = t.hosts.Save(); err != nil {
+	if err = Sys.Hosts.Save(); err != nil {
 		return err
 	}
 
@@ -387,9 +381,9 @@ func (t *BaseOperations) updateHosts(endpoint *NetworkEndpoint) error {
 		return nil
 	}
 
-	t.hosts.SetHost(fmt.Sprintf("%s.localhost", endpoint.Network.Name), endpoint.Assigned.IP)
+	Sys.Hosts.SetHost(fmt.Sprintf("%s.localhost", endpoint.Network.Name), endpoint.Assigned.IP)
 
-	if err := t.hosts.Save(); err != nil {
+	if err := Sys.Hosts.Save(); err != nil {
 		return err
 	}
 
@@ -400,14 +394,14 @@ func (t *BaseOperations) updateNameservers(endpoint *NetworkEndpoint) error {
 	// Add nameservers
 	// This is incredibly trivial for now - should be updated to a less messy approach
 	if len(endpoint.Network.Nameservers) > 0 {
-		t.resolvConf.AddNameservers(endpoint.Network.Nameservers...)
+		Sys.ResolvConf.AddNameservers(endpoint.Network.Nameservers...)
 		log.Infof("Added nameservers: %+v", endpoint.Network.Nameservers)
 	} else if !ip.IsUnspecifiedIP(endpoint.Network.Gateway.IP) {
-		t.resolvConf.AddNameservers(endpoint.Network.Gateway.IP)
+		Sys.ResolvConf.AddNameservers(endpoint.Network.Gateway.IP)
 		log.Infof("Added nameserver: %s", endpoint.Network.Gateway.IP)
 	}
 
-	if err := t.resolvConf.Save(); err != nil {
+	if err := Sys.ResolvConf.Save(); err != nil {
 		return err
 	}
 
@@ -498,7 +492,7 @@ func apply(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
 		return err
 	}
 
-	t.resolvConf.RemoveNameservers(endpoint.Network.Nameservers...)
+	Sys.ResolvConf.RemoveNameservers(endpoint.Network.Nameservers...)
 	if err = t.updateNameservers(endpoint); err != nil {
 		return err
 	}
@@ -615,7 +609,7 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 		return errors.New(detail)
 	}
 
-	if err := syscall.Mount(label, target, "ext4", syscall.MS_NOATIME, ""); err != nil {
+	if err := Sys.Syscall.Mount(label, target, "ext4", syscall.MS_NOATIME, ""); err != nil {
 		detail := fmt.Sprintf("mounting %s on %s failed: %s", label, target, err)
 		return errors.New(detail)
 	}
@@ -673,13 +667,16 @@ func (t *BaseOperations) Fork() error {
 }
 
 func (t *BaseOperations) Setup(config Config) error {
+	if err := t.fixupMounts(); err != nil {
+		return err
+	}
+
 	c, err := client.NewClient()
 	if err != nil {
 		return err
 	}
 
-	h := etcconf.NewHosts(hostsFile)
-	if err = h.Load(); err != nil {
+	if err = Sys.Hosts.Load(); err != nil {
 		return err
 	}
 
@@ -698,40 +695,17 @@ func (t *BaseOperations) Setup(config Config) error {
 	}
 
 	for _, e := range entries {
-		h.SetHost(e.hostname, e.addr)
+		Sys.Hosts.SetHost(e.hostname, e.addr)
 	}
 
-	if err = h.Save(); err != nil {
+	if err = Sys.Hosts.Save(); err != nil {
 		return err
 	}
-
-	// start with empty resolv.conf
-	os.Remove(resolvFile)
-
-	rc := etcconf.NewResolvConf(resolvFile)
 
 	t.dynEndpoints = make(map[string][]*NetworkEndpoint)
 	t.dhcpLoops = make(map[string]chan bool)
 	t.dhcpClient = c
-	t.hosts = h
-	t.resolvConf = rc
 	t.config = config
-
-	// support the df command (#1642)
-	if err = os.Symlink("/proc/mounts", "/etc/mtab"); err != nil {
-		return err
-	}
-
-	mounted, err := mount.Mounted(runMountPoint)
-	if err != nil {
-		return err
-	}
-	if mounted {
-		// unmount /run - https://github.com/vmware/vic/issues/1643
-		if err := syscall.Unmount(runMountPoint, syscall.MNT_DETACH); err != nil {
-			return fmt.Errorf("unmount %s failed with %q", runMountPoint, err)
-		}
-	}
 
 	return nil
 }
@@ -739,6 +713,18 @@ func (t *BaseOperations) Setup(config Config) error {
 func (t *BaseOperations) Cleanup() error {
 	for _, stop := range t.dhcpLoops {
 		stop <- true
+	}
+
+	return nil
+}
+
+func (t *BaseOperations) fixupMounts() error {
+	var err error
+	// unmount /run - https://github.com/vmware/vic/issues/1643
+	if err = Sys.Syscall.Unmount(runMountPoint, syscall.MNT_DETACH); err != nil {
+		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EINVAL {
+			return err
+		}
 	}
 
 	return nil

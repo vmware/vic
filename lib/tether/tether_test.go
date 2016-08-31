@@ -33,6 +33,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/system"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -166,6 +167,14 @@ func (t *Mocker) Fork() error {
 func TestMain(m *testing.M) {
 	log.SetLevel(log.DebugLevel)
 	trace.Logger = log.StandardLogger()
+
+	// replace the Sys variable with a mock
+	Sys = system.System{
+		Hosts:      &MockHosts{},
+		ResolvConf: &MockResolvConf{},
+		Syscall:    &MockSyscall{},
+		Root:       os.TempDir(),
+	}
 
 	retCode := m.Run()
 

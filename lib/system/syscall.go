@@ -12,6 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package etcconf
+package system
 
-const hostsPath = "/etc/hosts"
+import "syscall"
+
+// Syscall provides an interface to make system calls
+type Syscall interface {
+	Mount(source string, target string, fstype string, flags uintptr, data string) error
+	Sethostname(p []byte) error
+	Symlink(oldname, newname string) error
+	Unmount(path string, flags int) error
+}
+
+type syscallImpl struct {
+}
+
+func (s syscallImpl) Symlink(oldname, newname string) error {
+	return syscall.Symlink(oldname, newname)
+}
