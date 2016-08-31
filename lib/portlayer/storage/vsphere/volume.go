@@ -159,7 +159,7 @@ func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.UR
 	var volDiskDsURL string
 	volDiskDsURL, err = v.volDiskDsURL(store, ID)
 	if err != nil {
-		return nil, err
+		return nil, os.ErrNotExist
 	}
 
 	// Create the disk

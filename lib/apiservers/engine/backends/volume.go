@@ -28,7 +28,8 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/pkg/trace"
-	"strings"
+	"regexp"
+	"strconv"
 )
 
 // NOTE: FIXME: These might be moved to a utility package once there are multiple personalities
@@ -104,11 +105,12 @@ func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]s
 	}
 
 	// TODO: support having another driver besides vsphere.
-	// assign the values of the model to be passed to the portlayer handler
+	// assign the values of the model to be paassed to the portlayer handler
 	model, varErr := translateInputsToPortlayerRequestModel(name, driverName, opts, labels)
 	if varErr != nil {
 		return result, derr.NewErrorWithStatusCode(varErr, http.StatusBadRequest)
 	}
+	log.Infof("Finalized model for volume create request to portlayer: %#v", model)
 
 	if model.Name == "" {
 		model.Name = uuid.New().String()
@@ -118,6 +120,8 @@ func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]s
 	if err != nil {
 		switch err := err.(type) {
 
+		case *storage.CreateVolumeNotFound:
+			return result, derr.NewBadRequestError(fmt.Errorf("VolumeStore does not exist: %s", model.Store))
 		case *storage.CreateVolumeInternalServerError:
 			// FIXME: right now this does not return an error model...
 			return result, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err.Error()), http.StatusInternalServerError)
@@ -212,17 +216,35 @@ func validateDriverArgs(args map[string]string, model *models.VolumeRequest) err
 		return nil
 	}
 
+	//check if it is just a numerical value
+	validator, _ := regexp.Compile("^[0-9][0-9]*$") //note this is a global line match. Find will return 1 or no matches.
+	match := validator.Find([]byte(capstr))
+	if match != nil {
+		//input has no units in this case.
+		capacity, err := strconv.ParseInt(capstr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("Invalid size: %s", capstr)
+		}
+		model.Capacity = capacity
+		return nil
+	}
+
 	capacity, err := units.FromHumanSize(capstr)
 	if err != nil {
 		return err
 	}
+
+	if capacity < 1 {
+		return fmt.Errorf("Capacity value too large: %s", capstr)
+	}
+
 	model.Capacity = int64(capacity) / int64(units.MB)
 	return nil
 }
 
 func translateInputsToPortlayerRequestModel(name, driverName string, opts, labels map[string]string) (*models.VolumeRequest, error) {
-	defaultDriver := strings.EqualFold(driverName, "local")
-	vsphereDriver := strings.EqualFold(driverName, "vsphere")
+	defaultDriver := driverName == "local"
+	vsphereDriver := driverName == "vsphere"
 
 	if !defaultDriver && !vsphereDriver {
 		return nil, fmt.Errorf("Error looking up volume plugin %s: plugin not found", driverName)

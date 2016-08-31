@@ -416,6 +416,12 @@
 							"$ref": "#/definitions/VolumeResponse"
 						}
 					},
+          "404": {
+                "description": "VolumeStore Does not Exist",
+                "schema": {
+                    "$ref": "#/definitions/Error"
+                }
+          },
 					"500": {
 						"description": "Error",
 						"schema": {
