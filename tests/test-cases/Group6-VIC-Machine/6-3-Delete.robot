@@ -20,7 +20,7 @@ Initial load
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
     Set Suite Variable  ${containerName}  ${name}
-    
+
 Delete VCH and verify
     # Get VCH uuid and container VM uuid, to check if resources are removed correctly
     Run Keyword And Ignore Error  Gather Logs From Test Server

@@ -103,10 +103,29 @@ Cleanup VIC Appliance On Test Server
     ${output}=  Run VIC Machine Delete Command
     [Return]  ${output}
 
-Run VIC Machine Delete Command
+Check Delete Success
+    [Arguments]  ${vch-name}
+    ${out}=  Run  govc ls vm
+    Log  ${out}
+    Should Not Contain  ${out}  ${vch-name}
+    ${out}=  Run  govc datastore.ls
+    Log  ${out}
+    Should Not Contain  ${out}  ${vch-name}
+    ${out}=  Run  govc ls host/*/Resources/*
+    Log  ${out}
+    Should Not Contain  ${out}  ${vch-name}
+
+Run Secret VIC Machine Delete Command
     [Tags]  secret
-    ${output}=  Run  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
-    Run Keyword And Ignore Error  Should Contain  ${output}  Completed successfully
+    [Arguments]  ${vch-name}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    [Return]  ${rc}  ${output}
+
+Run VIC Machine Delete Command
+    ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vch-name}
+    Check Delete Success  ${vch-name}
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Completed successfully
     ${output}=  Run  rm -f ${vch-name}-*.pem
     [Return]  ${output}
 
@@ -132,11 +151,12 @@ Cleanup Dangling VMs On Test Server
     \   ${state}=  Get State Of Drone Build  @{build}[1]
     \   Continue For Loop If  '${state}' == 'running'
     \   ${uuid}=  Run  govc vm.info -json\=true ${vm} | jq -r '.VirtualMachines[0].Config.Uuid'
+    \   Log To Console  Destroying dangling VM ${vm}
     \   ${output}=  Run  govc vm.destroy ${vm}
     \   ${output}=  Run  govc pool.destroy %{GOVC_RESOURCE_POOL}/${vm}
     \   ${output}=  Run  govc datastore.rm ${vm}
     \   ${output}=  Run  govc datastore.rm VIC/${uuid}
-    
+
 Cleanup Dangling Networks On Test Server
     ${out}=  Run  govc ls network
     ${nets}=  Split To Lines  ${out}
@@ -292,7 +312,7 @@ Wait Until Container Stops
     \   Return From Keyword If  ${status}
     \   Sleep  1
     Fail  Container did not stop within 10 seconds
-    
+
 Wait Until VM Powers Off
     [Arguments]  ${vm}
     :FOR  ${idx}  IN RANGE  0  10
@@ -345,7 +365,7 @@ Run Regression Tests
     Should Be Equal As Integers  ${rc}  0
     ${rc}=  Run And Return Rc  docker ${params} rm ${container2}
     Should Be Equal As Integers  ${rc}  0
-	
+
     #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rmi busybox
     #Should Be Equal As Integers  ${rc}  0
     #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images

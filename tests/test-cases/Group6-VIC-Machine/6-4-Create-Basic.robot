@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation  Test 6-4 - Verify vic-machine create basic use cases
 Resource  ../../resources/Util.robot
-Suite Teardown  Cleanup VIC Appliance On Test Server
+Suite Teardown  Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
