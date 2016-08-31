@@ -60,7 +60,7 @@ type Diagnostics struct {
 	ExitLogs []ExitLog `vic:"0.1" scope:"read-write" key:"exitlogs"`
 }
 
-// ExitLog records some basic diagnostics about anomolous exit for restartable entities
+// ExitLog records some basic diagnostics about anomalous exit for restartable entities
 type ExitLog struct {
 	Time       time.Time
 	ExitStatus int

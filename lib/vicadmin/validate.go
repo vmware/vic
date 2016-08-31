@@ -170,7 +170,7 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 	}
 
 	refs := []types.ManagedObjectReference{}
-	for dsName, _ := range dsNames {
+	for dsName := range dsNames {
 		ds, err := sess.Finder.DatastoreOrDefault(ctx, dsName)
 		if err != nil {
 			log.Errorf("Unable to collect information for datastore %s: %s", dsName, err)
@@ -195,7 +195,7 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 		v.StorageRemaining = template.HTML(fmt.Sprintf(`%s
 			<div class="row card-text">
 			  <div class="sixty">%s:</div>
-			  <div class="fourty">%.1f GB remaining</div>
+			  <div class="forty">%.1f GB remaining</div>
 			</div>`, v.StorageRemaining, ds.Name, float64(ds.Summary.FreeSpace)/(1<<30)))
 	}
 }

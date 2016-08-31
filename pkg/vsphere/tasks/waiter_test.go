@@ -89,7 +89,7 @@ func TestSuccessWaitResult(t *testing.T) {
 		return createResultWaiter(ctx)
 	})
 	if err != nil {
-		t.Errorf("Unexcepted error: %s", err.Error())
+		t.Errorf("Unexpected error: %s", err.Error())
 	}
 }
 
@@ -141,6 +141,6 @@ func TestSuccessWait(t *testing.T) {
 		return createWaiter(ctx)
 	})
 	if err != nil {
-		t.Errorf("Unexcepted error: %s", err.Error())
+		t.Errorf("Unexpected error: %s", err.Error())
 	}
 }

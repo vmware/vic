@@ -94,7 +94,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		},
 		Version: version.GetBuild(),
 		Sessions: map[string]executor.SessionConfig{
-			id: executor.SessionConfig{
+			id: {
 				Common: executor.Common{
 					ID:   id,
 					Name: *params.CreateConfig.Name,

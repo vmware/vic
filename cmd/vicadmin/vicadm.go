@@ -270,7 +270,7 @@ type datastoreReader struct {
 	path string
 }
 
-// listVMPaths returns an array of datastore paths for VMs assocaited with the
+// listVMPaths returns an array of datastore paths for VMs associated with the
 // VCH - this includes containerVMs and the appliance
 func listVMPaths(ctx context.Context, s *session.Session) ([]url.URL, error) {
 	defer trace.End(trace.Begin(""))
@@ -428,10 +428,10 @@ func main() {
 	// to extract the userid/password from UserPassword
 	if vchConfig.UserPassword != "" {
 		newurl, _ := url.Parse(fmt.Sprintf("%s://%s@%s%s",
-					vchConfig.Target.Scheme,
-					vchConfig.UserPassword,
-					vchConfig.Target.Host,
-					vchConfig.Target.Path))
+			vchConfig.Target.Scheme,
+			vchConfig.UserPassword,
+			vchConfig.Target.Host,
+			vchConfig.Target.Path))
 		vchConfig.Target = *newurl
 	}
 

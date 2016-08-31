@@ -674,7 +674,7 @@ func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.Con
 	// Resources don't really map well to VIC so we leave most of them empty. If we look
 	// at the struct in engine-api/types/container/host_config.go, Microsoft added
 	// additional attributes to the struct that are applicable to Windows containers.
-	// If understanding VIC's host resources are desireable, we should go down this
+	// If understanding VIC's host resources are desirable, we should go down this
 	// same route.
 	//
 	// The values we fill out below is an abridged list of the original struct.
@@ -741,7 +741,7 @@ func mountsFromContainerInfo(vc *viccontainer.VicContainer, info *models.Contain
 // containerConfigFromContainerInfo() returns a container.Config that has attributes
 // overridden at create or start time.  This is important.  This function is called
 // to help build the Container Inspect struct.  That struct contains the original
-// container config that is part of the image metadata AND the overriden container
+// container config that is part of the image metadata AND the overridden container
 // config.  The user can override these via the remote API or the docker CLI.
 func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.ContainerInfo) *container.Config {
 	if vc == nil || vc.Config == nil || info == nil || info.ContainerConfig == nil || info.ProcessConfig == nil {

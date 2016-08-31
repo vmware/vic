@@ -49,7 +49,7 @@ func (mgr *vSphereManager) AddMonitoredObject(ref string) error {
 	log.Debugf("EventManager added (%s) to monitor", ref)
 	moRef := types.ManagedObjectReference{}
 	if !moRef.FromString(ref) {
-		return fmt.Errorf("Invalid Managed Object provided for Montioring(%s)", ref)
+		return fmt.Errorf("Invalid Managed Object provided for Monitoring(%s)", ref)
 	}
 	mgr.objects[ref] = moRef
 	return nil
@@ -183,7 +183,7 @@ func (mgr *vSphereManager) Start() error {
 // evented will process the event and call registered callbacks
 //
 // Initial implmentation will only act on certain events -- future implementations
-// may provide more flexibilty
+// may provide more flexibility
 func evented(mgr *vSphereManager, page []types.BaseEvent) {
 
 	if mgr.RegistryCount() == 0 {

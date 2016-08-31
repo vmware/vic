@@ -66,7 +66,7 @@ func (t *tether) childReaper() error {
 	log.Info("Started reaping child processes")
 
 	go func() {
-		for _ = range t.incoming {
+		for range t.incoming {
 			var status syscall.WaitStatus
 
 			func() {
@@ -133,7 +133,7 @@ func findExecutable(file string) error {
 
 // lookPath searches for an executable binary named file in the directories
 // specified by the path argument.
-// This is a direct modification of the unix os/exec core libary impl
+// This is a direct modification of the unix os/exec core library impl
 func lookPath(file string, env []string, dir string) (string, error) {
 	// if it starts with a ./ or ../ it's a relative path
 	// need to check explicitly to allow execution of .hidden files

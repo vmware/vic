@@ -30,7 +30,7 @@ func TestContainerCache(t *testing.T) {
 
 	// create a new container
 	NewContainer(id)
-	// shouldn't have a container as it's not commited
+	// shouldn't have a container as it's not committed
 	assert.Equal(t, len(containers.cache), 0)
 
 	// create a new container
@@ -65,9 +65,9 @@ func TestPoweredOnEvents(t *testing.T) {
 	assert.EqualValues(t, StateStarting, eventedState(po, StateStarting))
 	// if container is running and poweredOn event then it's either PL activity or it's been handled
 	assert.EqualValues(t, StateRunning, eventedState(po, StateRunning))
-	// if container stopped and then poweredOn event recieved then return state running
+	// if container stopped and then poweredOn event received then return state running
 	assert.EqualValues(t, StateRunning, eventedState(po, StateStopped))
-	// if container suspended and then poweredOn event recieved then return state running
+	// if container suspended and then poweredOn event received then return state running
 	assert.EqualValues(t, StateRunning, eventedState(po, StateSuspended))
 }
 
@@ -77,7 +77,7 @@ func TestPoweredOffEvents(t *testing.T) {
 	assert.EqualValues(t, StateStopping, eventedState(po, StateStopping))
 	// if container is stopped and poweredOff event then it's either PL activity or it's been handled
 	assert.EqualValues(t, StateStopped, eventedState(po, StateStopped))
-	// if container running and then poweredOff event recieved then return state stopped
+	// if container running and then poweredOff event received then return state stopped
 	assert.EqualValues(t, StateStopped, eventedState(po, StateRunning))
 }
 
@@ -87,6 +87,6 @@ func TestSuspendedEvents(t *testing.T) {
 	assert.EqualValues(t, StateSuspending, eventedState(se, StateSuspending))
 	// if container is suspeded (paused) and suspended event then it's either PL activity or it's been handled
 	assert.EqualValues(t, StateSuspended, eventedState(se, StateSuspended))
-	// if container running and then suspended event recieved then return state stopped
+	// if container running and then suspended event received then return state stopped
 	assert.EqualValues(t, StateSuspended, eventedState(se, StateRunning))
 }

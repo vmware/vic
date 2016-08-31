@@ -64,7 +64,7 @@ func (t *tether) processEnvOS(env []string) []string {
 
 // lookPath searches for an executable binary named file in the directories
 // specified by the path argument.
-// This is a direct modification of the unix os/exec core libary impl
+// This is a direct modification of the unix os/exec core library impl
 func lookPath(file string, env []string, dir string) (string, error) {
 	return "", errors.New("unimplemented on OSX")
 }

@@ -198,8 +198,8 @@ type bintree struct {
 }
 
 var _bintree = &bintree{nil, map[string]*bintree{
-	"messages": &bintree{nil, map[string]*bintree{
-		"en": &bintree{messagesEn, map[string]*bintree{}},
+	"messages": {nil, map[string]*bintree{
+		"en": {messagesEn, map[string]*bintree{}},
 	}},
 }}
 

@@ -46,12 +46,12 @@ func checkHeader(expected, actual *Operation) error {
 
 func TestHeaderParsing(t *testing.T) {
 	headers := []*Operation{
-		&Operation{
+		{
 			Mode: 0644,
 			Size: 6,
 			Name: "test",
 		},
-		&Operation{
+		{
 			// need to test this on M$
 			Mode: 0644 | os.ModeDir,
 			Size: 0,

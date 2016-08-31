@@ -39,8 +39,8 @@ func TestParseContainerNetworkGateways(t *testing.T) {
 		{
 			[]string{"foo:10.10.10.10/24", "bar:10.10.9.1/16"},
 			map[string]net.IPNet{
-				"foo": net.IPNet{IP: net.ParseIP("10.10.10.10"), Mask: net.CIDRMask(24, 32)},
-				"bar": net.IPNet{IP: net.ParseIP("10.10.9.1"), Mask: net.CIDRMask(16, 32)},
+				"foo": {IP: net.ParseIP("10.10.10.10"), Mask: net.CIDRMask(24, 32)},
+				"bar": {IP: net.ParseIP("10.10.9.1"), Mask: net.CIDRMask(16, 32)},
 			},
 			nil,
 		},
@@ -88,16 +88,16 @@ func TestParseContainerNetworkIPRanges(t *testing.T) {
 		{[]string{"foo:10.10.10.10-10.10.10.9"}, nil, fmt.Errorf("")},
 		{
 			[]string{"foo:10.10.10.10-24"},
-			map[string][]*ip.Range{"foo": []*ip.Range{ip.NewRange(net.ParseIP("10.10.10.10"), net.ParseIP("10.10.10.24"))}}, nil},
+			map[string][]*ip.Range{"foo": {ip.NewRange(net.ParseIP("10.10.10.10"), net.ParseIP("10.10.10.24"))}}, nil},
 		{
 			[]string{"foo:10.10.10.10-10.10.10.24"},
-			map[string][]*ip.Range{"foo": []*ip.Range{ip.NewRange(net.ParseIP("10.10.10.10"), net.ParseIP("10.10.10.24"))}},
+			map[string][]*ip.Range{"foo": {ip.NewRange(net.ParseIP("10.10.10.10"), net.ParseIP("10.10.10.24"))}},
 			nil,
 		},
 		{
 			[]string{"foo:10.10.10.10-10.10.10.24", "foo:10.10.10.100-10.10.10.105"},
 			map[string][]*ip.Range{
-				"foo": []*ip.Range{
+				"foo": {
 					ip.NewRange(net.ParseIP("10.10.10.10"), net.ParseIP("10.10.10.24")),
 					ip.NewRange(net.ParseIP("10.10.10.100"), net.ParseIP("10.10.10.105")),
 				},
@@ -107,8 +107,8 @@ func TestParseContainerNetworkIPRanges(t *testing.T) {
 		{
 			[]string{"foo:10.10.10.10-10.10.10.24", "bar:10.10.9.1-10.10.9.10"},
 			map[string][]*ip.Range{
-				"foo": []*ip.Range{ip.NewRange(net.ParseIP("10.10.10.10"), net.ParseIP("10.10.10.24"))},
-				"bar": []*ip.Range{ip.NewRange(net.ParseIP("10.10.9.1"), net.ParseIP("10.10.9.10"))},
+				"foo": {ip.NewRange(net.ParseIP("10.10.10.10"), net.ParseIP("10.10.10.24"))},
+				"bar": {ip.NewRange(net.ParseIP("10.10.9.1"), net.ParseIP("10.10.9.10"))},
 			},
 			nil,
 		},
@@ -163,11 +163,11 @@ func TestParseContainerNetworkDNS(t *testing.T) {
 		{[]string{":10.10.10.10"}, nil, fmt.Errorf("")},
 		{[]string{":foo"}, nil, fmt.Errorf("")},
 		{[]string{"foo:10"}, nil, fmt.Errorf("")},
-		{[]string{"foo:10.10.10.109"}, map[string][]net.IP{"foo": []net.IP{net.ParseIP("10.10.10.109")}}, nil},
+		{[]string{"foo:10.10.10.109"}, map[string][]net.IP{"foo": {net.ParseIP("10.10.10.109")}}, nil},
 		{[]string{"foo:10.10.10.109", "foo:10.10.10.110", "bar:10.10.9.109", "bar:10.10.9.110"},
 			map[string][]net.IP{
-				"foo": []net.IP{net.ParseIP("10.10.10.109"), net.ParseIP("10.10.10.110")},
-				"bar": []net.IP{net.ParseIP("10.10.9.109"), net.ParseIP("10.10.9.110")},
+				"foo": {net.ParseIP("10.10.10.109"), net.ParseIP("10.10.10.110")},
+				"bar": {net.ParseIP("10.10.9.109"), net.ParseIP("10.10.9.110")},
 			},
 			nil,
 		},

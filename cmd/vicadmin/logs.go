@@ -308,7 +308,7 @@ func tailFile(wr io.Writer, file string, done *chan bool) error {
 	defer trace.End(trace.Begin(file))
 
 	// By default, seek to EOF (if file doesn't exist)
-	spos :=   tail.SeekInfo{
+	spos := tail.SeekInfo{
 		Offset: 0,
 		Whence: 2,
 	}
@@ -378,7 +378,7 @@ func findSeekPos(f *os.File) int64 {
 		readPos -= int64(len(buf))
 		if readPos < 0 {
 			// We don't want to overlap our read with previous reads...
-			buf = buf[:(int(readPos)+nBytes)]
+			buf = buf[:(int(readPos) + nBytes)]
 			readPos = 0
 		}
 		bufend, err := f.ReadAt(buf, readPos)

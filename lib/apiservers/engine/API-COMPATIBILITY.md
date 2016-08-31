@@ -232,7 +232,7 @@ This operation will return StdOut and StdErr logs from the target container.
 
 ### Query parameters
 
-|Paramter|Description|support|
+|Parameter|Description|support|
 |---|---|---|
 | __follow__ |1/true/True or 0/false/False, defaults to false. This determines if a stream is returned. | YES |
 | __stdout__ |1/true/True or 0/false/False, defaults to false. Indicates whether stdout logs are desired. | YES |
@@ -326,7 +326,7 @@ Handshake according to `RFC 6455`
 
 removes indicated container.
 
-###Query Paramter
+###Query Parameter
 
 |parameter|description|supported?|
 |---|---|---|

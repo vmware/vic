@@ -118,15 +118,15 @@ func TestStructMap(t *testing.T) {
 
 	StructMap := Type{
 		map[string]Common{
-			"Key1": Common{
+			"Key1": {
 				ID:   "0xDEADBEEF",
 				Name: "beef",
 			},
-			"Key2": Common{
+			"Key2": {
 				ID:   "0x8BADF00D",
 				Name: "food",
 			},
-			"Key3": Common{
+			"Key3": {
 				ID:   "0xDEADF00D",
 				Name: "dead",
 			},
@@ -163,15 +163,15 @@ func TestIntStructMap(t *testing.T) {
 
 	StructMap := Type{
 		map[int]Common{
-			1: Common{
+			1: {
 				ID:   "0xDEADBEEF",
 				Name: "beef",
 			},
-			2: Common{
+			2: {
 				ID:   "0x8BADF00D",
 				Name: "food",
 			},
-			3: Common{
+			3: {
 				ID:   "0xDEADF00D",
 				Name: "dead",
 			},
@@ -208,11 +208,11 @@ func TestStructSlice(t *testing.T) {
 
 	StructSlice := Type{
 		[]Common{
-			Common{
+			{
 				ID:   "0xDEADFEED",
 				Name: "feed",
 			},
-			Common{
+			{
 				ID:   "0xFACEFEED",
 				Name: "face",
 			},
@@ -310,7 +310,7 @@ func TestComplex(t *testing.T) {
 	ExecutorConfig := Type{
 		ExecutorConfig{
 			Sessions: map[string]SessionConfig{
-				"Session1": SessionConfig{
+				"Session1": {
 					Common: Common{
 						ID:   "SessionID",
 						Name: "SessionName",
@@ -363,7 +363,7 @@ func TestComplexPointer(t *testing.T) {
 	ExecutorConfig := Type{
 		&ExecutorConfig{
 			Sessions: map[string]SessionConfig{
-				"Session1": SessionConfig{
+				"Session1": {
 					Common: Common{
 						ID:   "SessionID",
 						Name: "SessionName",
@@ -413,7 +413,7 @@ func TestComplexPointer(t *testing.T) {
 func TestPointerDecode(t *testing.T) {
 	reference := ExecutorConfig{
 		Sessions: map[string]SessionConfig{
-			"Session1": SessionConfig{
+			"Session1": {
 				Common: Common{
 					ID:   "SessionID",
 					Name: "SessionName",

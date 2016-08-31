@@ -235,7 +235,7 @@ func TestAttach(t *testing.T) {
 		},
 
 		Sessions: map[string]executor.SessionConfig{
-			"attach": executor.SessionConfig{
+			"attach": {
 				Common: executor.Common{
 					ID:   "attach",
 					Name: "tether_test_session",
@@ -302,7 +302,7 @@ func TestAttach(t *testing.T) {
 	sshSession.Stdin().Write(testBytes)
 	log.Debug("sent test data")
 
-	// wait for the close to propogate
+	// wait for the close to propagate
 	<-done
 	sshSession.Stdin().Close()
 
@@ -332,7 +332,7 @@ func TestAttachTTY(t *testing.T) {
 		},
 
 		Sessions: map[string]executor.SessionConfig{
-			"attach": executor.SessionConfig{
+			"attach": {
 				Common: executor.Common{
 					ID:   "attach",
 					Name: "tether_test_session",
@@ -402,7 +402,7 @@ func TestAttachTTY(t *testing.T) {
 	session.Stdin().Write(testBytes)
 	log.Debug("sent test data")
 
-	// wait for the close to propogate
+	// wait for the close to propagate
 	wg.Wait()
 	session.Stdin().Close()
 
@@ -432,7 +432,7 @@ func TestAttachTwo(t *testing.T) {
 		},
 
 		Sessions: map[string]executor.SessionConfig{
-			"tee1": executor.SessionConfig{
+			"tee1": {
 				Common: executor.Common{
 					ID:   "tee1",
 					Name: "tether_test_session",
@@ -447,7 +447,7 @@ func TestAttachTwo(t *testing.T) {
 					Dir:  "/",
 				},
 			},
-			"tee2": executor.SessionConfig{
+			"tee2": {
 				Common: executor.Common{
 					ID:   "tee2",
 					Name: "tether_test_session2",
@@ -549,7 +549,7 @@ func TestAttachTwo(t *testing.T) {
 	sessionB.Stdin().Write(testBytesB)
 	log.Debug("sent test data")
 
-	// wait for the close to propogate
+	// wait for the close to propagate
 	wg.Wait()
 	sessionA.Stdin().Close()
 	sessionB.Stdin().Close()
@@ -585,7 +585,7 @@ func TestAttachInvalid(t *testing.T) {
 		},
 
 		Sessions: map[string]executor.SessionConfig{
-			"valid": executor.SessionConfig{
+			"valid": {
 				Common: executor.Common{
 					ID:   "valid",
 					Name: "tether_test_session",

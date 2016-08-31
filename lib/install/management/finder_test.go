@@ -119,23 +119,23 @@ func createTestData(ctx context.Context, sess *session.Session, prefix string) e
 			Kind: rpNode,
 			Name: prefix + "Root",
 			Children: []*Node{
-				&Node{
+				{
 					Kind: rpNode,
 					Name: prefix + "pool1",
 					Children: []*Node{
-						&Node{
+						{
 							Kind: vmNode,
 							Name: prefix + "pool1",
 						},
-						&Node{
+						{
 							Kind: rpNode,
 							Name: prefix + "pool1-2",
 							Children: []*Node{
-								&Node{
+								{
 									Kind: rpNode,
 									Name: prefix + "pool1-2-1",
 									Children: []*Node{
-										&Node{
+										{
 											Kind: vmNode,
 											Name: prefix + "vch1-2-1",
 										},
@@ -145,7 +145,7 @@ func createTestData(ctx context.Context, sess *session.Session, prefix string) e
 						},
 					},
 				},
-				&Node{
+				{
 					Kind: vmNode,
 					Name: prefix + "vch2",
 				},

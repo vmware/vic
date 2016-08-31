@@ -107,7 +107,7 @@ func (c *destroyPoolTask) Run(task *Task) (types.AnyType, types.BaseMethodFault)
 	// Remove child reference from rp
 	rp.ResourcePool = RemoveReference(c.Reference(), rp.ResourcePool)
 
-	// The grandchilden become children of the parent (rp)
+	// The grandchildren become children of the parent (rp)
 	//..........................................hello........hello........hello..........
 	rp.ResourcePool = append(rp.ResourcePool, c.ResourcePool.ResourcePool.ResourcePool...)
 
