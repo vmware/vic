@@ -17,4 +17,5 @@ SET sftp_username=
 SET sftp_password=
 
 REM Location of C:\ProgramData\VMware\vCenterServer\cfg\vsphere-client\vc-packages\vsphere-serenity relative to the root of SFTP connection
+REM Note: If you are running vCenter 5.5 Windows, the location should point to C:\ProgramData\VMware\vSphere Web Client\vc-packages\vsphere-serenity
 SET target_vc_packages_path=/vsphere-client/vc-packages/vsphere-client-serenity/

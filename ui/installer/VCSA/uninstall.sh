@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash
 # Copyright 2016 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,14 +35,6 @@ echo -n "Enter your vCenter Administrator Password: "
 read -s VCENTER_ADMIN_PASSWORD
 echo ""
 
-read -p "Are you running vCenter 5.5? (y/n): " IS_VCENTER_5_5
-if [[ $(echo $IS_VCENTER_5_5 | grep -i "y") ]] ; then
-    IS_VCENTER_5_5=1
-    WEBCLIENT_PLUGINS_FOLDER="/var/lib/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
-else
-    WEBCLIENT_PLUGINS_FOLDER="/etc/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
-fi
-
 OS=$(uname)
 PLUGIN_BUNDLES=''
 VCENTER_SDK_URL="https://${VCENTER_IP}/sdk/"
@@ -55,6 +47,13 @@ else
     PLUGIN_MANAGER_BIN="../../vic-ui-linux"
 fi
 
+check_prerequisite () {
+    if [[ ! -d ../vsphere-client-serenity ]] ; then
+        echo "Error! VIC UI plugin bundle was not found. Please try downloading the VIC UI installer again"
+        exit 1
+    fi
+}
+
 parse_and_unregister_plugins () {
     for d in ../vsphere-client-serenity/* ; do
         if [[ -d $d ]] ; then
@@ -63,7 +62,7 @@ parse_and_unregister_plugins () {
             while IFS='' read -r p_line; do
                 eval "local $p_line"
             done < $d/vc_extension_flags
-            
+
             local plugin_flags="--key $key"
             echo "-------------------------------------------------------------"
             echo "Unregistering vCenter Server Extension..."
@@ -71,23 +70,12 @@ parse_and_unregister_plugins () {
             $PLUGIN_MANAGER_BIN remove $COMMONFLAGS $plugin_flags
 
             if [[ $? > 0 ]] ; then
-                echo "Error! Could not unregister plugin with vCenter Server. Please see the message above."
+                echo "-------------------------------------------------------------"
+                echo "Error! Could not unregister plugin from vCenter Server. Please see the message above."
                 exit 1
-            fi
-
-            if [[ $PLUGIN_FOLDERS -eq "" ]] ; then
-                PLUGIN_FOLDERS="$key-*"
-            else
-                PLUGIN_FOLDERS="$PLUGIN_FOLDERS $key-*"
             fi
         fi
     done
-
-    echo "-------------------------------------------------------------"
-    echo "Deleting plugin contents..."
-    echo "Please enter the root password for your machine running VCSA"
-    echo "-------------------------------------------------------------"
-    ssh -t root@$VCENTER_IP "cd $WEBCLIENT_PLUGINS_FOLDER; rm -rf $PLUGIN_FOLDERS"
 }
 
 rename_package_folder () {
@@ -98,15 +86,8 @@ rename_package_folder () {
     fi
 }
 
-# Read from each plugin bundle the plugin-package.xml file and register a vCenter Server Extension based off of it
-# Also, rename the folders such that they follow the convention of $PLUGIN_KEY-$PLUGIN_VERSION
+check_prerequisite
 parse_and_unregister_plugins
 
-if [[ $? > 0 ]] ; then
-    echo "--------------------------------------------------------------"
-    echo "There was a problem in the VIC UI unregistration process"
-    exit 1
-else
-    echo "--------------------------------------------------------------"
-    echo "VIC UI unregistration was successful"
-fi
+echo "--------------------------------------------------------------"
+echo "VIC UI unregistration was successful"
