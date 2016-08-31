@@ -24,7 +24,7 @@ This test requires that a vSphere server is running and available
 11. Issue docker run -it busybox /bin/df to the VIC appliance
 12. Issue docker run -d -p 6379 redis:alpine to the VIC appliance
 13. Issue docker run -it busybox /bin/true
-14 Issue docker run -it busybox /bin/false
+14. Issue docker run -it busybox /bin/false
 15. Issue docker run -it busybox /bin/fakeCommand
 
 #Expected Outcome:
