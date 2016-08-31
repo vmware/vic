@@ -74,3 +74,11 @@ Docker run -d unspecified host port
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -d -p 6379 redis:alpine
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
+    
+Docker run check exit codes
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -it busybox /bin/true
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -it busybox /bin/false
+    Should Be Equal As Integers  ${rc}  1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -it busybox /bin/fakeCommand
+    Should Be Equal As Integers  ${rc}  127
