@@ -247,11 +247,11 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 	}
 
 	newImage := &portlayer.Image{
-		ID:       ID,
-		SelfLink: imageURL,
-		Parent:   parent.SelfLink,
-		Store:    parent.Store,
-		Metadata: meta,
+		ID:         ID,
+		SelfLink:   imageURL,
+		ParentLink: parent.SelfLink,
+		Store:      parent.Store,
+		Metadata:   meta,
 	}
 
 	return newImage, nil
@@ -439,9 +439,9 @@ func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*
 		// We're relying on the parent map for this since we don't currently have a
 		// way to get the disk's spec.  See VIC #482 for details.  Parent:
 		// parent.SelfLink,
-		Store:    &s,
-		Parent:   parentURL,
-		Metadata: meta,
+		Store:      &s,
+		ParentLink: parentURL,
+		Metadata:   meta,
 	}
 
 	log.Debugf("Returning image from location %s with parent url %s", newImage.SelfLink, newImage.Parent)

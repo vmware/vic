@@ -60,11 +60,30 @@ func (c *MockDataStore) ListImageStores(ctx context.Context) ([]*url.URL, error)
 }
 
 func (c *MockDataStore) WriteImage(ctx context.Context, parent *Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*Image, error) {
+	storeName, err := util.ImageStoreName(parent.Store)
+	if err != nil {
+		return nil, err
+	}
+
+	selflink, err := util.ImageURL(storeName, ID)
+	if err != nil {
+		return nil, err
+	}
+
+	var parentLink *url.URL
+	if parent.ID != "" {
+		parentLink, err = util.ImageURL(storeName, parent.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	i := &Image{
-		ID:       ID,
-		Store:    parent.Store,
-		Parent:   parent.SelfLink,
-		Metadata: meta,
+		ID:         ID,
+		Store:      parent.Store,
+		ParentLink: parentLink,
+		SelfLink:   selflink,
+		Metadata:   meta,
 	}
 
 	c.db[*parent.Store][ID] = i
@@ -213,6 +232,7 @@ func TestOutsideCacheWriteImage(t *testing.T) {
 // with the first cache, then get the image with the second.  This simulates
 // restart since the second cache is empty and has to go to the backing store.
 func TestImageStoreRestart(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
 	ds := NewMockDataStore()
 
 	firstCache := NewLookupCache(ds)
