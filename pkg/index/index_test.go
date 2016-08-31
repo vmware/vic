@@ -35,7 +35,7 @@ func newMockEntry(n, parent int) *mockEntry {
 	}
 }
 
-func (m *mockEntry) String() string {
+func (m *mockEntry) Self() string {
 	return strconv.Itoa(m.number)
 }
 
@@ -43,7 +43,7 @@ func (m *mockEntry) Parent() string {
 	return strconv.Itoa(m.parent)
 }
 
-func (m *mockEntry) Copy() Node {
+func (m *mockEntry) Copy() Element {
 	return &mockEntry{
 		number: m.number,
 		parent: m.parent,
@@ -76,7 +76,7 @@ func TestInsertAndGet(t *testing.T) {
 
 	// check children
 	for _, node := range i.lookupTable {
-		if node.String() != "9" && !assert.True(t, len(node.children) > 0) {
+		if node.Self() != "9" && !assert.True(t, len(node.children) > 0) {
 			return
 		}
 	}
@@ -109,7 +109,7 @@ func TestBFS(t *testing.T) {
 	expectedNodes[0] = root
 
 	var count int
-	err := i.bfs(i.root, func(n Node) (iterflag, error) {
+	err := i.bfs(i.root, func(n Element) (iterflag, error) {
 		mynode := n.(*mockEntry)
 		t.Logf("%#v\n", mynode)
 

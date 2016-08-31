@@ -27,19 +27,19 @@ var (
 	ErrNodeNotFound = errors.New("Node not found")
 )
 
-type Node interface {
-	// Returns the string representation (usually the ID) of the node
-	String() string
+type Element interface {
+	// Returns the identifier of the node
+	Self() string
 
 	// Returns the string respresentation of the nodes parent (usually it's ID)
 	Parent() string
 
 	// Deep copy of the node
-	Copy() Node
+	Copy() Element
 }
 
 type node struct {
-	Node
+	Element
 	parent   *node
 	children []*node
 	mask     uint32
@@ -52,41 +52,38 @@ func (n *node) addChild(child *node) {
 type Index struct {
 	root        *node
 	lookupTable map[string]*node
-	l           sync.Mutex
+	m           sync.Mutex
 }
 
 func NewIndex() *Index {
-	i := &Index{
+	return &Index{
 		lookupTable: make(map[string]*node),
 	}
-
-	return i
 }
 
 // Insert inserts a copy of the given node to the tree under the given parent.
-func (i *Index) Insert(n Node) error {
-	i.l.Lock()
-	defer i.l.Unlock()
+func (i *Index) Insert(n Element) error {
+	i.m.Lock()
+	defer i.m.Unlock()
 
-	_, ok := i.lookupTable[n.String()]
+	_, ok := i.lookupTable[n.Self()]
 	if ok {
-		return fmt.Errorf("node %s already exists in index", n.String())
+		return fmt.Errorf("node %s already exists in index", n.Self())
 	}
 
-	log.Debugf("Inserting %s (parent: %s) in index", n.String(), n.Parent())
+	log.Debugf("Inserting %s (parent: %s) in index", n.Self(), n.Parent())
 
 	newNode := &node{
-		Node: n.Copy(),
+		Element: n.Copy(),
 	}
 
-	if n.Parent() == n.String() {
+	if n.Parent() == n.Self() {
 		if i.root != nil {
 			return fmt.Errorf("node cannot point to self unless it's root")
 		}
 
 		// set root
 		i.root = newNode
-
 	} else {
 		p, ok := i.lookupTable[n.Parent()]
 		if !ok {
@@ -96,14 +93,14 @@ func (i *Index) Insert(n Node) error {
 		p.addChild(newNode)
 	}
 
-	i.lookupTable[n.String()] = newNode
+	i.lookupTable[n.Self()] = newNode
 	return nil
 }
 
 // Get returns a Copy of the named node.
-func (i *Index) Get(nodeId string) (Node, error) {
-	i.l.Lock()
-	defer i.l.Unlock()
+func (i *Index) Get(nodeId string) (Element, error) {
+	i.m.Lock()
+	defer i.m.Unlock()
 
 	n, ok := i.lookupTable[nodeId]
 	if !ok {
@@ -113,11 +110,11 @@ func (i *Index) Get(nodeId string) (Node, error) {
 	return n.Copy(), nil
 }
 
-func (i *Index) List() ([]Node, error) {
-	i.l.Lock()
-	defer i.l.Unlock()
+func (i *Index) List() ([]Element, error) {
+	i.m.Lock()
+	defer i.m.Unlock()
 
-	nodes := make([]Node, 0, len(i.lookupTable))
+	nodes := make([]Element, 0, len(i.lookupTable))
 
 	for _, v := range i.lookupTable {
 		nodes = append(nodes, v.Copy())
@@ -127,9 +124,9 @@ func (i *Index) List() ([]Node, error) {
 }
 
 // Delete deletes a leaf node
-func (i *Index) Delete(nodeId string) (Node, error) {
-	i.l.Lock()
-	defer i.l.Unlock()
+func (i *Index) Delete(nodeId string) (Element, error) {
+	i.m.Lock()
+	defer i.m.Unlock()
 
 	n, ok := i.lookupTable[nodeId]
 	if !ok {
@@ -144,7 +141,7 @@ func (i *Index) Delete(nodeId string) (Node, error) {
 	parent := n.parent
 	var deleted bool
 	for idx, child := range parent.children {
-		if child.String() == nodeId {
+		if child.Self() == nodeId {
 			parent.children = append(parent.children[:idx], parent.children[idx+1:]...)
 			deleted = true
 		}
@@ -160,7 +157,7 @@ func (i *Index) Delete(nodeId string) (Node, error) {
 	delete(i.lookupTable, nodeId)
 	n.parent = nil
 
-	return n.Node, nil
+	return n.Element, nil
 }
 
 type iterflag int
@@ -170,14 +167,14 @@ const (
 	STOP
 )
 
-type visitor func(Node) (iterflag, error)
+type visitor func(Element) (iterflag, error)
 
 func (i *Index) bfs(root *node, visitFunc visitor) error {
-	i.l.Lock()
-	defer i.l.Unlock()
+	i.m.Lock()
+	defer i.m.Unlock()
 
 	// XXX Look into parallelizing this without breaking API boundaries.
-	return i.bfsworker(root, func(n *node) (iterflag, error) { return visitFunc(n.Node) })
+	return i.bfsworker(root, func(n *node) (iterflag, error) { return visitFunc(n.Element) })
 }
 
 func (i *Index) bfsworker(root *node, visitFunc func(*node) (iterflag, error)) error {
