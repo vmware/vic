@@ -63,31 +63,17 @@ func NewHelper(ctx context.Context, s *session.Session, ds *object.Datastore, ro
 		fm: object.NewFileManager(s.Vim25()),
 	}
 
-	if strings.HasPrefix(rootdir, "/") {
-		rootdir = strings.TrimPrefix(rootdir, "/")
+	if path.IsAbs(rootdir) {
+		rootdir = rootdir[1:]
 	}
 
-	// Get the root directory element split from the rest of the path (if there is one)
-	root := strings.Split(rootdir, "/")
-
-	// Create the first element.  This handles vsan vmfs top level dirs.
-	if err := d.mkRootDir(ctx, root[0]); err != nil {
+	if err := d.mkRootDir(ctx, rootdir); err != nil {
 		log.Infof("error creating root directory %s: %s", rootdir, err)
 		return nil, err
 	}
 
-	// Create the rest conventionally
-	if len(root) > 1 {
-		p := path.Join(root[1:]...)
-		log.Debugf("creating the rest of the path %s", p)
-		r, err := d.Mkdir(ctx, true, p)
-		if err != nil {
-			if !os.IsExist(err) {
-				return nil, err
-			}
-			log.Debugf("%s already exists", d.RootURL)
-		}
-		d.RootURL = r
+	if d.RootURL == "" {
+		return nil, fmt.Errorf("failed to create root directory")
 	}
 
 	log.Infof("Datastore path is %s", d.RootURL)
@@ -129,31 +115,29 @@ func (d *Helper) Summary(ctx context.Context) (*types.DatastoreSummary, error) {
 	return &mds.Summary, nil
 }
 
-// Mkdir creates directories.
-func (d *Helper) Mkdir(ctx context.Context, createParentDirectories bool, dirs ...string) (string, error) {
+func mkdir(ctx context.Context, sess *session.Session, fm *object.FileManager, createParentDirectories bool, path string) (string, error) {
+	log.Infof("Creating directory %s", path)
 
-	upth := path.Join(dirs...)
-	upth = path.Join(d.RootURL, upth)
+	if err := fm.MakeDirectory(ctx, path, sess.Datacenter, createParentDirectories); err != nil {
+		log.Debugf("Creating %s error: %s", path, err)
+		if !soap.IsSoapFault(err) {
+			return "", err
+		}
 
-	log.Infof("Creating directory %s", upth)
-
-	if err := d.fm.MakeDirectory(ctx, upth, d.s.Datacenter, createParentDirectories); err != nil {
-
-		log.Debugf("Creating %s error: %s", upth, err)
-
-		if err != nil {
-			if soap.IsSoapFault(err) {
-				soapFault := soap.ToSoapFault(err)
-				if _, ok := soapFault.VimFault().(types.FileAlreadyExists); ok {
-					return upth, os.ErrExist
-				}
-			}
+		soapFault := soap.ToSoapFault(err)
+		if _, ok := soapFault.VimFault().(types.FileAlreadyExists); ok {
+			return "", os.ErrExist
 		}
 
 		return "", err
 	}
 
-	return upth, nil
+	return path, nil
+}
+
+// Mkdir creates directories.
+func (d *Helper) Mkdir(ctx context.Context, createParentDirectories bool, dirs ...string) (string, error) {
+	return mkdir(ctx, d.s, d.fm, createParentDirectories, path.Join(d.RootURL, path.Join(dirs...)))
 }
 
 // Ls returns a list of dirents at the given path (relative to root)
@@ -268,54 +252,59 @@ func (d *Helper) IsVSAN(ctx context.Context) bool {
 // result so the URI doesn't need to be recomputed for every datastore
 // operation.
 func (d *Helper) mkRootDir(ctx context.Context, rootdir string) error {
+	if rootdir == "" {
+		return fmt.Errorf("root directory is empty")
+	}
+
+	if path.IsAbs(rootdir) {
+		return fmt.Errorf("root directory (%s) must not be an absolute path", rootdir)
+	}
 
 	// Handle vsan
 	// Vsan will complain if the root dir exists.  Just call it directly and
 	// swallow the error if it's already there.
 	if d.IsVSAN(ctx) {
+		comps := strings.Split(rootdir, "/")
+
 		nm := object.NewDatastoreNamespaceManager(d.s.Vim25())
 
 		// This returns the vmfs path (including the datastore and directory
 		// UUIDs).  Use the directory UUID in future operations because it is
 		// the stable path which we can use regardless of vsan state.
-		uuid, err := nm.CreateDirectory(ctx, d.ds, rootdir, "")
+		uuid, err := nm.CreateDirectory(ctx, d.ds, comps[0], "")
 		if err != nil {
 			if !soap.IsSoapFault(err) {
 				return err
 			}
 
 			soapFault := soap.ToSoapFault(err)
-			_, ok := soapFault.VimFault().(types.FileAlreadyExists)
-			if ok {
-				// XXX UGLY HACK until we move this into the installer.  Use the
-				// display name if the dir exists since we can't get the UUID after the
-				// directory is created.
-
-				uuid = rootdir
-				err = nil
-			} else {
+			if _, ok := soapFault.VimFault().(types.FileAlreadyExists); !ok {
 				return err
 			}
+
+			// XXX UGLY HACK until we move this into the installer.  Use the
+			// display name if the dir exists since we can't get the UUID after the
+			// directory is created.
+			uuid = comps[0]
+			err = nil
 		}
 
-		// set the root url to the UUID of the dir we created
-		d.RootURL = d.ds.Path(path.Base(uuid))
-		log.Infof("Created store parent directory (%s) at %s", rootdir, d.RootURL)
-	} else {
-
-		// Handle regular local datastore
-		// check if it already exists
-
-		d.RootURL = d.ds.Path(rootdir)
-		if _, err := d.Mkdir(ctx, true); err != nil {
-			if os.IsExist(err) {
-				log.Debugf("%s already exists", d.RootURL)
-				return nil
-			}
-			return err
-		}
+		rootdir = path.Join(path.Base(uuid), path.Join(comps[1:]...))
 	}
 
+	rooturl := d.ds.Path(rootdir)
+
+	// create the rest of the root dir in case of vSAN, otherwise
+	// create the full path
+	if _, err := mkdir(ctx, d.s, d.fm, true, rooturl); err != nil {
+		if !os.IsExist(err) {
+			return err
+		}
+
+		log.Infof("datastore root %s already exists", rooturl)
+	}
+
+	d.RootURL = rooturl
 	return nil
 }
 

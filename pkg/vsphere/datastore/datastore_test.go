@@ -108,6 +108,8 @@ func TestDatastoreRestart(t *testing.T) {
 	if !assert.Error(t, err) || !assert.True(t, os.IsExist(err)) {
 		return
 	}
+
+	assert.NotEmpty(t, ds.RootURL)
 }
 
 func TestDatastoreCreateDir(t *testing.T) {
