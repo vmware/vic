@@ -42,6 +42,8 @@ type ContainerNetwork struct {
 	// Common.ID - identifier of the underlay for the network
 	executor.Common
 
+	Type string `vic:"0.1" scope:"read-write" key:"type"`
+
 	// The network scope the IP belongs to.
 	// The IP address is the default gateway
 	Gateway net.IPNet `vic:"0.1" scope:"read-write" key:"gateway"`

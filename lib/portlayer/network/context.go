@@ -39,7 +39,7 @@ const (
 	pciSlotNumberEnd   int32 = 1 << 10
 	pciSlotNumberInc   int32 = 1 << 5
 
-	DefaultScopeName = "bridge"
+	DefaultBridgeName = "bridge"
 )
 
 // Context denotes a networking context that represents a set of scopes, endpoints,
@@ -76,7 +76,7 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 		containers:        make(map[uid.UID]*Container),
 	}
 
-	s, err := ctx.NewScope(DefaultScopeName, BridgeScopeType, nil, net.IPv4(0, 0, 0, 0), nil, nil)
+	s, err := ctx.NewScope(DefaultBridgeName, BridgeScopeType, nil, net.IPv4(0, 0, 0, 0), nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -84,9 +84,9 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 	s.dns = []net.IP{s.gateway}
 	ctx.defaultScope = s
 
-	// add any external networks
+	// add any bridge/external networks
 	for nn, n := range Config.ContainerNetworks {
-		if nn == "bridge" {
+		if nn == DefaultBridgeName {
 			continue
 		}
 
@@ -95,12 +95,14 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 			pools[i] = p.String()
 		}
 
-		s, err := ctx.NewScope(ExternalScopeType, nn, &net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}, n.Gateway.IP, n.Nameservers, pools)
+		s, err := ctx.NewScope(n.Type, nn, &net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}, n.Gateway.IP, n.Nameservers, pools)
 		if err != nil {
 			return nil, err
 		}
 
-		s.builtin = true
+		if n.Type == ExternalScopeType {
+			s.builtin = true
+		}
 	}
 
 	return ctx, nil
@@ -395,16 +397,38 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 		return nil, DuplicateResourceError{resID: name}
 	}
 
+	var s *Scope
+	var err error
 	switch scopeType {
 	case BridgeScopeType:
-		return c.newBridgeScope(uid.New(), name, subnet, gateway, dns, &IPAM{pools: pools})
+		s, err = c.newBridgeScope(uid.New(), name, subnet, gateway, dns, &IPAM{pools: pools})
 
 	case ExternalScopeType:
-		return c.newExternalScope(uid.New(), name, subnet, gateway, dns, &IPAM{pools: pools})
+		s, err = c.newExternalScope(uid.New(), name, subnet, gateway, dns, &IPAM{pools: pools})
 
 	default:
 		return nil, fmt.Errorf("scope type not supported")
 	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	// add the new scope to the config
+	Config.ContainerNetworks[s.Name()] = &ContainerNetwork{
+		Common: executor.Common{
+			ID:   s.ID().String(),
+			Name: s.Name(),
+		},
+		Type:        s.Type(),
+		Gateway:     net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask},
+		Nameservers: s.DNS(),
+		Pools:       s.IPAM().Pools(),
+		PortGroup:   s.network,
+	}
+	// write config
+
+	return s, nil
 }
 
 func (c *Context) findScopes(idName *string) ([]*Scope, error) {

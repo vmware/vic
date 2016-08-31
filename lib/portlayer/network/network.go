@@ -63,7 +63,7 @@ func Init(ctx context.Context, sess *session.Session) error {
 		bridgeWidth = &w
 	}
 
-	DefaultContext, err = NewContext(*bridgeRange, *bridgeWidth)
+	netctx, err := NewContext(*bridgeRange, *bridgeWidth)
 	if err == nil {
 		log.Infof("Default network context allocated: %s", bridgeRange.String())
 	}
@@ -75,43 +75,15 @@ func Init(ctx context.Context, sess *session.Session) error {
 	}
 
 	for _, c := range cons {
-		for nn, ne := range c.ExecConfig.Networks {
-			scopes, _ := DefaultContext.Scopes(&ne.Network.Name)
-			if len(scopes) == 1 {
-				continue
-			}
-
-			// add new scope
-			subnet := &net.IPNet{
-				IP:   ne.Network.Gateway.IP.Mask(ne.Network.Gateway.Mask),
-				Mask: ne.Network.Gateway.Mask,
-			}
-			pools := ne.Network.Pools
-			if len(pools) == 1 && bridgeRange.Contains(pools[0].FirstIP) && bridgeRange.Contains(pools[0].LastIP) {
-				// bridge network
-				_, err = DefaultContext.NewScope(BridgeScopeType, nn, subnet, nil, nil, nil)
-				if err != nil {
-					return err
-				}
-			} else {
-				// external network
-				pools := []string{}
-				for _, p := range ne.Network.Pools {
-					pools = append(pools, p.String())
-				}
-
-				_, err = DefaultContext.NewScope(ExternalScopeType, nn, subnet, ne.Network.Gateway.IP, ne.Network.Nameservers, pools)
-				if err != nil {
-					return err
-				}
-			}
-		}
-
 		h := c.NewHandle()
 		defer h.Close()
-		if _, err = DefaultContext.BindContainer(h); err != nil {
+		if _, err = netctx.BindContainer(h); err != nil {
 			return err
 		}
+	}
+
+	if err == nil {
+		DefaultContext = netctx
 	}
 
 	return err
