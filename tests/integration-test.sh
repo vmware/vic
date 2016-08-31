@@ -31,9 +31,9 @@ fi
 rc="$?"
 
 timestamp=$(date +%s)
-outfile="integration_logs_"$DRONE_BUILD_NUMBER"_"$DRONE_COMMIT"_$timestamp.tar"
+outfile="integration_logs_"$DRONE_BUILD_NUMBER"_"$DRONE_COMMIT"_$timestamp.zip"
 
-tar cf $outfile log.html package.list *container-logs.zip *.log
+zip -9 $outfile log.html package.list *container-logs.zip *.log
 
 # GC credentials
 set +x
