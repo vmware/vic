@@ -15,55 +15,45 @@
 package vsphere
 
 import (
-	"github.com/vmware/vic/lib/portlayer/event"
+	"github.com/vmware/vic/lib/portlayer/event/events"
 
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-type VMEvent struct {
-	eventType string
-	eventID   int
-	message   string
-	ref       string
+type VmEvent struct {
+	*events.BaseEvent
 }
 
-func NewVMEvent(be types.BaseEvent) *VMEvent {
-	var eventType string
+func NewVMEvent(be types.BaseEvent) *VmEvent {
+	var ee string
 	// vm events that we care about
 	switch be.(type) {
 	case *types.VmPoweredOnEvent:
-		eventType = event.ContainerPoweredOn
+		ee = events.ContainerPoweredOn
 	case *types.VmPoweredOffEvent:
-		eventType = event.ContainerPoweredOff
+		ee = events.ContainerPoweredOff
 	case *types.VmSuspendedEvent:
-		eventType = event.ContainerSuspended
+		ee = events.ContainerSuspended
 	case *types.VmRemovedEvent:
-		eventType = event.ContainerRemoved
+		ee = events.ContainerRemoved
 	case *types.VmGuestShutdownEvent:
-		eventType = event.ContainerShutdown
+		ee = events.ContainerShutdown
 	}
 	e := be.GetEvent()
-	return &VMEvent{
-		eventType: eventType,
-		eventID:   int(e.Key),
-		message:   e.FullFormattedMessage,
-		ref:       e.Vm.Vm.String(),
+	return &VmEvent{
+		&events.BaseEvent{
+			Event:  ee,
+			ID:     int(e.Key),
+			Detail: e.FullFormattedMessage,
+			Ref:    e.Vm.Vm.String(),
+		},
 	}
+
 }
 
-func (vme *VMEvent) EventID() int {
-	return vme.eventID
-}
-
-// return event type / description
-func (vme *VMEvent) String() string {
-	return vme.eventType
-}
-
-func (vme *VMEvent) Message() string {
-	return vme.message
-}
-
-func (vme *VMEvent) Reference() string {
-	return vme.ref
+func (vme *VmEvent) Topic() string {
+	if vme.Type == "" {
+		vme.Type = events.NewEventType(vme)
+	}
+	return vme.Type.Topic()
 }

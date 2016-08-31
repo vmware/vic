@@ -19,7 +19,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/lib/config/executor"
-	"github.com/vmware/vic/lib/portlayer/event"
+	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/pkg/uid"
 )
 
@@ -61,7 +61,7 @@ func TestIsContainerID(t *testing.T) {
 
 func TestPoweredOnEvents(t *testing.T) {
 	// if container is starting then viewed that poweredOn event is part of PL activity
-	po := event.ContainerPoweredOn
+	po := events.ContainerPoweredOn
 	assert.EqualValues(t, StateStarting, eventedState(po, StateStarting))
 	// if container is running and poweredOn event then it's either PL activity or it's been handled
 	assert.EqualValues(t, StateRunning, eventedState(po, StateRunning))
@@ -73,7 +73,7 @@ func TestPoweredOnEvents(t *testing.T) {
 
 func TestPoweredOffEvents(t *testing.T) {
 	// if container is stopping then viewed that poweredOff event is part of PL activity
-	po := event.ContainerPoweredOff
+	po := events.ContainerPoweredOff
 	assert.EqualValues(t, StateStopping, eventedState(po, StateStopping))
 	// if container is stopped and poweredOff event then it's either PL activity or it's been handled
 	assert.EqualValues(t, StateStopped, eventedState(po, StateStopped))
@@ -83,7 +83,7 @@ func TestPoweredOffEvents(t *testing.T) {
 
 func TestSuspendedEvents(t *testing.T) {
 	// if container is suspending (pause) then viewed that suspended event is part of PL activity
-	se := event.ContainerSuspended
+	se := events.ContainerSuspended
 	assert.EqualValues(t, StateSuspending, eventedState(se, StateSuspending))
 	// if container is suspeded (paused) and suspended event then it's either PL activity or it's been handled
 	assert.EqualValues(t, StateSuspended, eventedState(se, StateSuspended))

@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/portlayer/event"
+	"github.com/vmware/vic/lib/portlayer/event/events"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -30,8 +30,9 @@ func TestNewEvent(t *testing.T) {
 	vmwEve := &types.VmPoweredOnEvent{VmEvent: types.VmEvent{Event: types.Event{FullFormattedMessage: msg, Key: int32(k), Vm: &types.VmEventArgument{Vm: *vm}}}}
 	vme := NewVMEvent(vmwEve)
 	assert.NotNil(t, vme)
-	assert.Equal(t, event.ContainerPoweredOn, vme.String())
+	assert.Equal(t, events.ContainerPoweredOn, vme.String())
 	assert.Equal(t, vm.String(), vme.Reference())
 	assert.Equal(t, k, vme.EventID())
 	assert.Equal(t, msg, vme.Message())
+	assert.Equal(t, vme.Topic(), "vsphere.VmEvent")
 }
