@@ -182,6 +182,12 @@ Get State Of Drone Build
     ${out}=  Run  drone build info vmware/vic ${num}
     ${lines}=  Split To Lines  ${out}
     [Return]  @{lines}[2]
+    
+Get Title of Drone Build
+    [Arguments]  ${num}
+    ${out}=  Run  drone build info vmware/vic ${num}
+    ${lines}=  Split To Lines  ${out}
+    [Return]  @{lines}[-1]
 
 Get Image IDs
     [Arguments]  ${dir}
@@ -211,13 +217,13 @@ Verify Checksums
     \   ${idx}=  Evaluate  ${idx}+1
 
 Deploy Nimbus ESXi Server
-    [Arguments]  ${user}  ${password}
+    [Arguments]  ${user}  ${password}  ${version}=3620759
     ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
     Open Connection  %{NIMBUS_GW}
     Login  ${user}  ${password}
 
-    ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=40000000 --nics 2 3620759
+    ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version}
     # Make sure the deploy actually worked
     Should Contain  ${out}  To manage this VM use
     # Now grab the IP address and return the name and ip for later use
@@ -240,13 +246,13 @@ Deploy Nimbus ESXi Server
     [Return]  ${user}-${name}  ${ip}
 
 Deploy Nimbus vCenter Server
-    [Arguments]  ${user}  ${password}
+    [Arguments]  ${user}  ${password}  ${version}=3634791
     ${name}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nDeploying Nimbus vCenter server: ${name}
     Open Connection  %{NIMBUS_GW}
     Login  ${user}  ${password}
 
-    ${out}=  Execute Command  nimbus-vcvadeploy --vcvaBuild 3634791 ${name}
+    ${out}=  Execute Command  nimbus-vcvadeploy --vcvaBuild ${version} ${name}
     # Make sure the deploy actually worked
     Should Contain  ${out}  Overall Status: Succeeded
     # Now grab the IP address and return the name and ip for later use
@@ -263,6 +269,13 @@ Deploy Nimbus vCenter Server
     Log To Console  Successfully deployed new vCenter server - ${user}-${name}
     Close connection
     [Return]  ${user}-${name}  ${ip}
+
+Deploy Nimbus Testbed
+    [Arguments]  ${user}  ${password}  ${testbed}
+    Open Connection  %{NIMBUS_GW}
+    Login  ${user}  ${password}
+    ${out}=  Execute Command  nimbus-testbeddeploy ${testbed}
+    [Return]  ${out}
 
 Kill Nimbus Server
     [Arguments]  ${user}  ${password}  ${name}
