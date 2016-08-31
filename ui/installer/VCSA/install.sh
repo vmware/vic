@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash
 # Copyright 2016 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,9 +14,19 @@
 # limitations under the License.
 #
 
+cleanup () {
+    unset VCENTER_ADMIN_USERNAME
+    unset VCENTER_ADMIN_PASSWORD
+    unset BASH_ENABLED_ON_VCSA
+    if [[ -f tmp.txt ]] ; then
+        rm tmp.txt
+    fi
+}
+
 if [[ ! -f "configs" ]] ; then
     echo "Error! Configs file is missing. Please try downloading the VIC UI installer again"
     echo ""
+    cleanup
     exit 1
 fi
 
@@ -27,6 +37,7 @@ done < $CONFIGS_FILE
 
 if [[ $VCENTER_IP == "" ]] ; then
     echo "Error! vCenter IP cannot be empty. Please provide a valid IP in the configs file"
+    cleanup
     exit 1
 fi
 
@@ -35,23 +46,33 @@ echo -n "Enter your vCenter Administrator Password: "
 read -s VCENTER_ADMIN_PASSWORD
 echo ""
 
-read -p "Are you running vCenter 5.5? (y/n): " IS_VCENTER_5_5
-if [[ $(echo $IS_VCENTER_5_5 | grep -i "y") ]] ; then
-    IS_VCENTER_5_5=1
-    WEBCLIENT_PLUGINS_FOLDER="/var/lib/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
-else
-    WEBCLIENT_PLUGINS_FOLDER="/etc/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
-fi
+BASH_ENABLED_ON_VCSA=1
 
-echo "----------------------------------------"
-echo "Checking if VCSA has Bash shell enabled..."
-echo "Please enter the root password"
-echo "----------------------------------------"
+if [[ $VIC_UI_HOST_URL == "NOURL" ]] ; then
+    read -p "Are you running vCenter 5.5? (y/n): " IS_VCENTER_5_5
+    if [[ $(echo $IS_VCENTER_5_5 | grep -i "y") ]] ; then
+        IS_VCENTER_5_5=1
+        WEBCLIENT_PLUGINS_FOLDER="/var/lib/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
+    else
+        WEBCLIENT_PLUGINS_FOLDER="/etc/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
+    fi
 
-if [[ $(ssh root@$VCENTER_IP -t "scp" 2> /dev/null 2>&1 | grep -i "unknown command") ]] ; then
-    BASH_ENABLED_ON_VCSA=0
-else
-    BASH_ENABLED_ON_VCSA=1
+    echo "----------------------------------------"
+    echo "Checking if VCSA has Bash shell enabled..."
+    echo "Please enter the root password"
+    echo "----------------------------------------"
+
+    ssh root@$VCENTER_IP -t "scp" > tmp.txt 2>&1
+    if [[ $(cat tmp.txt | grep -i "unknown command") ]] ; then
+        BASH_ENABLED_ON_VCSA=0
+    elif [[ $(cat tmp.txt | grep -i "Permission denied (publickey,password).") ]] ; then
+        echo "----------------------------------------"
+        echo "Error! Root password is incorrect"
+        cleanup
+        exit 1
+    elif [[ $SIMULATE_NO_BASH_SUPPORT -eq 1 ]] ; then
+        BASH_ENABLED_ON_VCSA=0
+    fi
 fi
 
 OS=$(uname)
@@ -78,9 +99,9 @@ fi
 
 if [[ $VIC_UI_HOST_URL != 'NOURL' ]] ; then
     if [[ ${VIC_UI_HOST_URL:0:5} == 'https' ]] ; then
-        COMMONFLAGS="${COMMONFLAGS} --serverThumbprint ${VIC_UI_HOST_THUMBPRINT}"
+        COMMONFLAGS="${COMMONFLAGS} --server-thumbprint ${VIC_UI_HOST_THUMBPRINT}"
     elif [[ ${VIC_UI_HOST_URL:0:5} == 'HTTPS' ]] ; then
-        COMMONFLAGS="${COMMONFLAGS} --serverThumbprint ${VIC_UI_HOST_THUMBPRINT}"
+        COMMONFLAGS="${COMMONFLAGS} --server-thumbprint ${VIC_UI_HOST_THUMBPRINT}"
     fi
 
     if [[ ${VIC_UI_HOST_URL: -1: 1} != "/" ]] ; then
@@ -91,17 +112,12 @@ fi
 check_prerequisite () {
     if [[ ! -d ../vsphere-client-serenity ]] ; then
         echo "Error! VIC UI plugin bundle was not found. Please try downloading the VIC UI installer again"
+        cleanup
         exit 1
     fi
 }
 
 parse_and_register_plugins () {
-    if [[ $BASH_ENABLED_ON_VCSA -eq 0 ]] ; then
-        if [[ -f extension_already_registered ]] ; then
-            return 0
-        fi
-    fi
-
     for d in ../vsphere-client-serenity/* ; do
         if [[ -d $d ]] ; then
             echo "Reading plugin-package.xml..."
@@ -118,11 +134,12 @@ parse_and_register_plugins () {
             if [[ $plugin_url != 'NOURL' ]] ; then
                 if [[ ! -f "../vsphere-client-serenity/${key}-${version}.zip" ]] ; then
                     echo "File ${key}-${version}.zip does not exist!"
+                    cleanup
                     exit 1
                 fi
                 local plugin_url="$plugin_url$key-$version.zip"
             fi
-            
+
             local plugin_flags="--key $key --name $name --version $version --summary $summary --company $company --url $plugin_url"
             echo "----------------------------------------"
             echo "Registering vCenter Server Extension..."
@@ -137,19 +154,20 @@ parse_and_register_plugins () {
             $PLUGIN_MANAGER_BIN install $COMMONFLAGS $plugin_flags
 
             if [[ $? > 0 ]] ; then
+                echo "-------------------------------------------------------------"
                 echo "Error! Could not register plugin with vCenter Server. Please see the message above"
+                cleanup
                 exit 1
             fi
         fi
     done
-
-    touch extension_already_registered
 }
 
 rename_package_folder () {
     mv $1 $2
     if [[ $? > 0 ]] ; then
         echo "Error! Could not rename folder"
+        cleanup
         exit 1
     fi
 }
@@ -168,7 +186,9 @@ upload_packages () {
         echo "-------------------------------------------------------------"
         scp -qr $PLUGIN_BUNDLES root@$VCENTER_IP:/tmp/
         if [[ $? > 0 ]] ; then
+            echo "-------------------------------------------------------------"
             echo "Error! Could not upload the VIC plugins to the target VCSA"
+            cleanup
             exit 1
         fi
     else
@@ -215,39 +235,45 @@ update_ownership () {
 
     ssh -t root@$VCENTER_IP $SSH_COMMANDS_STR
     if [[ $? > 0 ]] ; then
+        echo "-------------------------------------------------------------"
         echo "Error! Failed to update the ownership of folders. Please manually set them to vsphere-client:users"
+        cleanup
         exit 1
     fi
 }
 
-cleanup () {
-    unset VCENTER_ADMIN_USERNAME
-    unset VCENTER_ADMIN_PASSWORD
-    unset BASH_ENABLED_ON_VCSA
+verify_plugin_url () {
+    local PLUGIN_BASENAME=$(find ../vsphere-client-serenity/ -name '*.zip' -print0 | xargs -0 basename)
+    local CURL_RESPONSE=$(curl -v --head $VIC_UI_HOST_URL$PLUGIN_BASENAME -k 2>&1)
+    local RESPONSE_STATUS=$(echo $CURL_RESPONSE | grep -E "HTTP\/.*\s4\d{2}\s.*")
+
+    if [[ $(echo $CURL_RESPONSE | grep -i "could not resolve host") ]] ; then
+        echo "-------------------------------------------------------------"
+        echo "Error! Could not resolve the host provided. Please make sure the URL is correct"
+        cleanup
+        exit 1
+
+    elif [[ ! $(echo $RESPONSE_STATUS | wc -w) -eq 0 ]] ; then
+        echo "-------------------------------------------------------------"
+        echo "Error! Plugin was not found in the web server. Please make sure you have uploaded \"$PLUGIN_BASENAME\" to \"$VIC_UI_HOST_URL\", and retry installing the plugin"
+        cleanup
+        exit 1
+    fi
+
 }
 
-# Check if plugin is located properly 
 check_prerequisite
 
-# Read from each plugin bundle the plugin-package.xml file and register a vCenter Server Extension based off of it
-# Also, rename the folders such that they follow the convention of $PLUGIN_KEY-$PLUGIN_VERSION
-parse_and_register_plugins
-
-# if VIC_UI_HOST_URL is NOURL
 if [[ $VIC_UI_HOST_URL == "NOURL" ]] ; then
-    # Upload the folders to VCSA's vSphere Web Client plugins cache folder
+    parse_and_register_plugins
     upload_packages
-    # Chown the uploaded folders from root to vsphere-client
     update_ownership
+else
+    verify_plugin_url
+    parse_and_register_plugins
 fi
 
 cleanup
-rm extension_already_registered
 
-if [[ $? > 0 ]] ; then
-    echo "--------------------------------------------------------------"
-    echo "Error! There was a problem removing a temporary file. Please manually remove extension_already_registered if it exists"
-else
-    echo "--------------------------------------------------------------"
-    echo "VIC UI registration was successful"
-fi
+echo "--------------------------------------------------------------"
+echo "VIC UI registration was successful"
