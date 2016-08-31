@@ -22,6 +22,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/lib/portlayer/util"
 )
@@ -249,14 +250,16 @@ func TestImageStoreRestart(t *testing.T) {
 	// Create a set of images
 	expectedImages := make(map[string]*Image)
 
-	parent := Scratch
-	parent.Store = storeURL
+	parent, err := firstCache.GetImage(context.TODO(), storeURL, Scratch.ID)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	testSum := "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 	for i := 1; i < 50; i++ {
 		id := fmt.Sprintf("ID-%d", i)
 
-		img, werr := firstCache.WriteImage(context.TODO(), &parent, id, nil, testSum, nil)
+		img, werr := firstCache.WriteImage(context.TODO(), parent, id, nil, testSum, nil)
 		if !assert.NoError(t, werr) {
 			return
 		}
