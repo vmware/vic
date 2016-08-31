@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	PIDFileDir = "C:\\Temp"
+	pidFilePath = "Temp"
 )
 
 func (t *tether) childReaper() error {

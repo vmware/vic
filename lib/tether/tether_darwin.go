@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	PIDFileDir = "/var/run"
+	pidFilePath = "var/run"
 )
 
 // Mkdev will hopefully get rolled into go.sys at some point

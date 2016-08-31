@@ -68,6 +68,17 @@ func (w *hostsWalker) Next() string {
 	return s
 }
 
+func NewHosts(path string) Hosts {
+	if path == "" {
+		path = hostsPath
+	}
+
+	return &hosts{
+		path:  path,
+		hosts: make(map[string]net.IP),
+	}
+}
+
 func (h *hosts) ConsumeEntry(t string) error {
 	h.Lock()
 	defer h.Unlock()
@@ -101,6 +112,7 @@ func (h *hosts) Load() error {
 	}
 
 	h.hosts = newHosts.hosts
+	h.dirty = false
 	return nil
 }
 

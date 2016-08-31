@@ -14,4 +14,4 @@
 
 package etcconf
 
-const hostsPath = "/etc/hosts"
+const hostsPath = "c:\\Windows\\System32\\Drivers\\etc\\hosts"

@@ -30,6 +30,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/system"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -42,6 +43,8 @@ const (
 	// the length of a truncated ID for use as hostname
 	shortLen = 12
 )
+
+var Sys = system.New()
 
 type tether struct {
 	// the implementation to use for tailored operations
@@ -124,7 +127,10 @@ func (t *tether) setup() error {
 		return err
 	}
 
-	t.ops.Setup(t)
+	if err := t.ops.Setup(t); err != nil {
+		log.Errorf("Failed tether setup: %s", err)
+		return err
+	}
 
 	for name, ext := range t.extensions {
 		log.Infof("Starting extension %s", name)
@@ -137,7 +143,7 @@ func (t *tether) setup() error {
 
 	// Create PID file for tether
 	tname := path.Base(os.Args[0])
-	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(PIDFileDir, tname)),
+	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(PIDFileDir(), tname)),
 		[]byte(fmt.Sprintf("%d", os.Getpid())),
 		0644)
 	if err != nil {
@@ -318,7 +324,7 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 
 	// Remove associated PID file
 	cmdname := path.Base(session.Cmd.Path)
-	_ = os.Remove(fmt.Sprintf("%s.pid", path.Join(PIDFileDir, cmdname)))
+	_ = os.Remove(fmt.Sprintf("%s.pid", path.Join(PIDFileDir(), cmdname)))
 
 	session.Diagnostics.ExitLogs = append(logs, executor.ExitLog{
 		Time:       time.Now(),
@@ -423,7 +429,11 @@ func (t *tether) launch(session *SessionConfig) error {
 	session.Started = "true"
 	// Write the PID to the associated PID file
 	cmdname := path.Base(session.Cmd.Path)
-	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(PIDFileDir, cmdname)),
+	if err = os.MkdirAll(PIDFileDir(), 0755); err != nil {
+		log.Errorf("could not create pid file directory %s: %s", PIDFileDir(), err)
+	}
+
+	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(PIDFileDir(), cmdname)),
 		[]byte(fmt.Sprintf("%d", session.Cmd.Process.Pid)),
 		0644)
 	if err != nil {
@@ -519,4 +529,8 @@ func (t *tether) Flush() error {
 
 	extraconfig.Encode(t.sink, t.config)
 	return nil
+}
+
+func PIDFileDir() string {
+	return path.Join(Sys.Root, pidFilePath)
 }

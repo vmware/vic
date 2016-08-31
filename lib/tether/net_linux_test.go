@@ -26,6 +26,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/etcconf"
 )
 
 // Utility method to add an interface to Mocked
@@ -58,13 +59,13 @@ func TestSetIpAddress(t *testing.T) {
 	}
 
 	// give us a hosts file we can modify
-	defer func(hosts, resolv string) {
-		hostsFile = hosts
-		resolvFile = resolv
-	}(hostsFile, resolvFile)
+	defer func(hosts etcconf.Hosts, resolv etcconf.ResolvConf) {
+		Sys.Hosts = hosts
+		Sys.ResolvConf = resolv
+	}(Sys.Hosts, Sys.ResolvConf)
 
-	hostsFile = hFile.Name()
-	resolvFile = rFile.Name()
+	Sys.Hosts = etcconf.NewHosts(hFile.Name())
+	Sys.ResolvConf = etcconf.NewResolvConf(rFile.Name())
 
 	bridge := AddInterface("eth1", mocker)
 	external := AddInterface("eth2", mocker)
