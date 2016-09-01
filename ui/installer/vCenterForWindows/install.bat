@@ -44,7 +44,7 @@ IF [%1] == [--force] (
 
 IF /I %vic_ui_host_url% NEQ NOURL (
     IF /I %vic_ui_host_url:~0,5%==https (
-        SET vcenter_reg_common_flags=%vcenter_reg_common_flags% --serverThumbprint %vic_ui_host_thumbprint%
+        SET vcenter_reg_common_flags=%vcenter_reg_common_flags% --server-thumbprint %vic_ui_host_thumbprint%
     )
 
     IF %vic_ui_host_url:~-1,1% NEQ / (
@@ -56,6 +56,7 @@ IF /I %vic_ui_host_url% NEQ NOURL (
         "%utils_path%winscp.com" /command "open -hostkey=* sftp://%sftp_username%:%sftp_password%@%target_vcenter_ip%" "put -filemask=|*.zip ..\vsphere-client-serenity\* %target_vc_packages_path%" "exit"
     ) ELSE (
         ECHO SFTP not enabled. You have to manually copy the com.vmware.vicui.* folder in \ui\vsphere-client-serenity to %VMWARE_CFG_DIR%\vsphere-client\vc-packages\vsphere-client-serenity
+        ECHO Note: If you are running vCenter 5.5 Windows, copy the folder to %PROGRAMDATA%\VMware\vSphere Web Client\vc-packages\vsphere-client-serenity
     )
 )
 

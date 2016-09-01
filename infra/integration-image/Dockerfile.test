@@ -26,3 +26,4 @@ Run apt-get install sshpass
 Run apt-get install -yq ant openjdk-7-jdk
 
 Run apt-get install unzip
+Run apt-get install zip
