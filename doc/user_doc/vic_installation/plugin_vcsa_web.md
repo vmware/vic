@@ -31,7 +31,7 @@ else
 7. Open a command prompt, navigate to <code><i>vic_unpack_dir</i>/vic/ui/VCSA</code>, and run the installer.
    <pre>./install.sh</pre>
   - Make sure that `install.sh` is executable by running `chmod` before you run it.
-  - On Windows systems, use a Cygwin or Git Bash shell to run `install.sh`. Do not use Windows 10 native Bash.
+  - On Windows systems, run `install.sh` in a UNIX shell that supports SSH and SCP, for example Cygwyn or Git Bash. Do not use Windows 10 native Bash. Do not use Windows 10 native Bash.
 9. Enter the user name and password for the vCenter Server administrator account.
 10. Answer the question about the version of vCenter Server that you are using.
   - Answer `y` if you are using vCenter Server 5.5.
