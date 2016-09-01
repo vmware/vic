@@ -25,9 +25,10 @@ This test requires that a vSphere server is running and available
 12. Issue docker create --name test busybox to the VIC appliance
 13. Remove the containerVM out-of-band using govc
 14. Issue docker rm test to the VIC appliance
+15. Issue docker rm to container created with an unknown executable
 
 #Expected Outcome:
-* Steps 2-8,12 should complete without error
+* Steps 2-8,12,15 should complete without error
 * Step 3,6,10 should result in the container being removed from the VIC appliance
 * Step 9 should result in the following error:  
 ```
