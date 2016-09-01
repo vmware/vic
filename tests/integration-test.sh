@@ -15,8 +15,8 @@
 #
 
 set -x
-
 gsutil version -l
+set +x
 
 dpkg -l > package.list
 
@@ -36,7 +36,6 @@ outfile="integration_logs_"$DRONE_BUILD_NUMBER"_"$DRONE_COMMIT"_$timestamp.zip"
 zip -9 $outfile log.html package.list *container-logs.zip *.log
 
 # GC credentials
-set +x
 keyfile="/root/vic-ci-logs.key"
 botofile="/root/.boto"
 echo -en $GS_PRIVATE_KEY > $keyfile
@@ -47,13 +46,14 @@ echo "gs_service_client_id = $GS_CLIENT_EMAIL" >> $botofile
 echo "[GSUtil]" >> $botofile
 echo "content_language = en" >> $botofile
 echo "default_project_id = $GS_PROJECT_ID" >> $botofile
-set -x
 
 if [ -f "$outfile" ]; then
   gsutil cp $outfile gs://vic-ci-logs
   loglink="https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/$outfile?authuser=1"
+  echo "----------------------------------------------"
   echo "Download test logs:"
   echo $loglink
+  echo "----------------------------------------------"
 else
   echo "No log output file to upload"
 fi
