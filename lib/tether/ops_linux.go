@@ -45,8 +45,7 @@ var (
 )
 
 const (
-	pciDevPath    = "/sys/bus/pci/devices"
-	runMountPoint = "/run"
+	pciDevPath = "/sys/bus/pci/devices"
 )
 
 type BaseOperations struct {
@@ -667,10 +666,6 @@ func (t *BaseOperations) Fork() error {
 }
 
 func (t *BaseOperations) Setup(config Config) error {
-	if err := t.fixupMounts(); err != nil {
-		return err
-	}
-
 	c, err := client.NewClient()
 	if err != nil {
 		return err
@@ -713,18 +708,6 @@ func (t *BaseOperations) Setup(config Config) error {
 func (t *BaseOperations) Cleanup() error {
 	for _, stop := range t.dhcpLoops {
 		stop <- true
-	}
-
-	return nil
-}
-
-func (t *BaseOperations) fixupMounts() error {
-	var err error
-	// unmount /run - https://github.com/vmware/vic/issues/1643
-	if err = Sys.Syscall.Unmount(runMountPoint, syscall.MNT_DETACH); err != nil {
-		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EINVAL {
-			return err
-		}
 	}
 
 	return nil
