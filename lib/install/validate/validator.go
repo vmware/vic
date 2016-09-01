@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	units "github.com/docker/go-units"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/vic/lib/config"
@@ -247,6 +248,15 @@ func (v *Validator) basics(ctx context.Context, input *data.Data, conf *config.V
 	conf.SetDebug(input.Debug.Debug)
 	conf.Name = input.DisplayName
 	conf.Version = version.GetBuild()
+
+	scratchSize, err := units.FromHumanSize(input.ScratchSize)
+	if err != nil { // TODO set minimum size of scratch disk
+		v.NoteIssue(errors.Errorf("Invalid default image size %s provided; error from parser: %s", input.ScratchSize, err.Error()))
+	} else {
+		conf.ScratchSize = scratchSize / units.KB
+		log.Debugf("Setting scratch image size to %d KB in VCHConfig", conf.ScratchSize)
+	}
+
 }
 
 func (v *Validator) checkSessionSet() []string {
