@@ -75,5 +75,8 @@ func (v *Build) String() string {
 }
 
 func (v *Build) ShortVersion() string {
+	if v.BuildNumber == "" {
+		v.BuildNumber = "0"
+	}
 	return fmt.Sprintf("%s-%s-%s", v.Version, v.BuildNumber, v.GitCommit)
 }
