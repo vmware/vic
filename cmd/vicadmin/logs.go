@@ -329,6 +329,7 @@ func tailFile(wr io.Writer, file string, done *chan bool) error {
 		Location:  &spos,
 		ReOpen:    true,
 		MustExist: false,
+		Poll:      true,
 		Follow:    true,
 	}
 
