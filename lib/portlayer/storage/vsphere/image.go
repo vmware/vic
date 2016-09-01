@@ -481,6 +481,13 @@ func (v *ImageStore) ListImages(ctx context.Context, store *url.URL, IDs []strin
 	return images, nil
 }
 
+// DeleteImage deletes an image from the image store.  If the image is in
+// use either by way of inheritence or because it's attached to a
+// container, this will return an error.
+func (v *ImageStore) DeleteImage(ctx context.Context, image *portlayer.Image) error {
+	return fmt.Errorf("not implemented")
+}
+
 // Find any image directories without the manifest file and remove them.
 func (v *ImageStore) cleanup(ctx context.Context, store *url.URL) error {
 	log.Infof("Checking for inconsistent images on %s", store.String())

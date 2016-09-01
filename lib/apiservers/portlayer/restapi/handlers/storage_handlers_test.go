@@ -184,6 +184,10 @@ func (c *MockDataStore) ListImages(ctx context.Context, store *url.URL, IDs []st
 	return nil, fmt.Errorf("store (%s) doesn't exist", store.String())
 }
 
+func (c *MockDataStore) DeleteImage(ctx context.Context, image *spl.Image) error {
+	return nil
+}
+
 func TestCreateImageStore(t *testing.T) {
 	storageImageLayer = spl.NewLookupCache(&MockDataStore{})
 
