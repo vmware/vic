@@ -73,15 +73,16 @@ type ImageStorer interface {
 // `/storage/<image store identifier, usually the vch uuid>/<image id>`
 //
 type Image struct {
-	// Identifer for this layer.  Usually a SHA
+	// ID is the identifer for this layer.  Usually a SHA
 	ID string
 
-	// location of the layer.  Filled in by the runtime.
+	// SelfLink is the URL for this layer.  Filled in by the runtime.
 	SelfLink *url.URL
 
-	// Parent's location.  It's the VMDK this snapshot inerits from.
+	// ParentLink is the URL for the parent.  It's the VMDK this snapshot inerits from.
 	ParentLink *url.URL
 
+	// Store is the URL for the image store the image can be found on.
 	Store *url.URL
 
 	// Metadata associated with the image.
@@ -106,7 +107,6 @@ func (i *Image) Copy() index.Element {
 	}
 
 	if i.Metadata != nil {
-
 		c.Metadata = make(map[string][]byte)
 
 		for k, v := range i.Metadata {

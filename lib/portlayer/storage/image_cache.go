@@ -288,7 +288,6 @@ func (c *NameLookupCache) ListImages(ctx context.Context, store *url.URL, IDs []
 		}
 
 		for _, v := range images {
-
 			img, _ := v.(*Image)
 			// filter out scratch
 			if img.ID == Scratch.ID {
