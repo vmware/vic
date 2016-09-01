@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/ip"
@@ -336,7 +337,7 @@ func TestContextNewScope(t *testing.T) {
 			continue
 		}
 
-		if s.Type() == BridgeScopeType && s.Network() != testBridgeNetwork {
+		if s.Type() == constants.BridgeScopeType && s.Network() != testBridgeNetwork {
 			t.Fatalf("s.NetworkName => %v, want %s", s.Network(), testBridgeNetwork)
 			continue
 		}
@@ -500,7 +501,7 @@ func TestContextAddContainer(t *testing.T) {
 		return nil, fmt.Errorf("error")
 	}
 
-	otherScope, err := ctx.NewScope(BridgeScopeType, "other", nil, net.IPv4(0, 0, 0, 0), nil, nil)
+	otherScope, err := ctx.NewScope(constants.BridgeScopeType, "other", nil, net.IPv4(0, 0, 0, 0), nil, nil)
 	if err != nil {
 		t.Fatalf("failed to add scope")
 	}
@@ -630,9 +631,9 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
 
-	scope, err := ctx.NewScope(BridgeScopeType, "scope", nil, nil, nil, nil)
+	scope, err := ctx.NewScope(constants.BridgeScopeType, "scope", nil, nil, nil, nil)
 	if err != nil {
-		t.Fatalf("ctx.NewScope(%s, %s, nil, nil, nil) => (nil, %s)", BridgeScopeType, "scope", err)
+		t.Fatalf("ctx.NewScope(%s, %s, nil, nil, nil) => (nil, %s)", constants.BridgeScopeType, "scope", err)
 	}
 
 	foo := exec.NewContainer(uid.New())
@@ -869,7 +870,7 @@ func TestContextRemoveContainer(t *testing.T) {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
 
-	scope, err := ctx.NewScope(BridgeScopeType, "scope", nil, nil, nil, nil)
+	scope, err := ctx.NewScope(constants.BridgeScopeType, "scope", nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("ctx.NewScope() => (nil, %s), want (scope, nil)", err)
 	}
@@ -973,9 +974,9 @@ func TestDeleteScope(t *testing.T) {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
 
-	foo, err := ctx.NewScope(BridgeScopeType, "foo", nil, nil, nil, nil)
+	foo, err := ctx.NewScope(constants.BridgeScopeType, "foo", nil, nil, nil, nil)
 	if err != nil {
-		t.Fatalf("ctx.NewScope(%s, \"foo\", nil, nil, nil, nil) => (nil, %#v), want (foo, nil)", BridgeScopeType, err)
+		t.Fatalf("ctx.NewScope(%s, \"foo\", nil, nil, nil, nil) => (nil, %#v), want (foo, nil)", constants.BridgeScopeType, err)
 	}
 	h := exec.NewContainer("container")
 	options := &AddContainerOptions{
@@ -984,9 +985,9 @@ func TestDeleteScope(t *testing.T) {
 	ctx.AddContainer(h, options)
 
 	// bar is a scope with bound endpoints
-	bar, err := ctx.NewScope(BridgeScopeType, "bar", nil, nil, nil, nil)
+	bar, err := ctx.NewScope(constants.BridgeScopeType, "bar", nil, nil, nil, nil)
 	if err != nil {
-		t.Fatalf("ctx.NewScope(%s, \"bar\", nil, nil, nil, nil) => (nil, %#v), want (bar, nil)", BridgeScopeType, err)
+		t.Fatalf("ctx.NewScope(%s, \"bar\", nil, nil, nil, nil) => (nil, %#v), want (bar, nil)", constants.BridgeScopeType, err)
 	}
 
 	h = exec.NewContainer("container2")
@@ -994,14 +995,14 @@ func TestDeleteScope(t *testing.T) {
 	ctx.AddContainer(h, options)
 	ctx.BindContainer(h)
 
-	baz, err := ctx.NewScope(BridgeScopeType, "bazScope", nil, nil, nil, nil)
+	baz, err := ctx.NewScope(constants.BridgeScopeType, "bazScope", nil, nil, nil, nil)
 	if err != nil {
-		t.Fatalf("ctx.NewScope(%s, \"bazScope\", nil, nil, nil, nil) => (nil, %#v), want (baz, nil)", BridgeScopeType, err)
+		t.Fatalf("ctx.NewScope(%s, \"bazScope\", nil, nil, nil, nil) => (nil, %#v), want (baz, nil)", constants.BridgeScopeType, err)
 	}
 
-	qux, err := ctx.NewScope(BridgeScopeType, "quxScope", nil, nil, nil, nil)
+	qux, err := ctx.NewScope(constants.BridgeScopeType, "quxScope", nil, nil, nil, nil)
 	if err != nil {
-		t.Fatalf("ctx.NewScope(%s, \"quxScope\", nil, nil, nil, nil) => (nil, %#v), want (qux, nil)", BridgeScopeType, err)
+		t.Fatalf("ctx.NewScope(%s, \"quxScope\", nil, nil, nil, nil) => (nil, %#v), want (qux, nil)", constants.BridgeScopeType, err)
 	}
 
 	var tests = []struct {

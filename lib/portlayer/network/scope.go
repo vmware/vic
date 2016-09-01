@@ -20,15 +20,9 @@ import (
 	"sync"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/uid"
-)
-
-const (
-	// BridgeScopeType denotes a scope that is of type bridge
-	BridgeScopeType = "bridge"
-	// ExternalScopeType denotes a scope that is of type external
-	ExternalScopeType = "external"
 )
 
 type Scope struct {
@@ -74,7 +68,7 @@ func (s *Scope) Network() object.NetworkReference {
 }
 
 func (s *Scope) isDynamic() bool {
-	return s.scopeType != BridgeScopeType && s.ipam.spaces == nil
+	return s.scopeType != constants.BridgeScopeType && s.ipam.spaces == nil
 }
 
 func (s *Scope) reserveEndpointIP(e *Endpoint) error {

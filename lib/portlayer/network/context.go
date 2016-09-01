@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/ip"
@@ -47,6 +48,8 @@ const (
 type Context struct {
 	sync.Mutex
 
+	config *Configuration
+
 	defaultBridgePool *AddressSpace
 	defaultBridgeMask net.IPMask
 
@@ -62,7 +65,11 @@ type AddContainerOptions struct {
 	Ports   []string
 }
 
-func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
+func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask, config *Configuration) (*Context, error) {
+	if config == nil {
+		return nil, fmt.Errorf("missing config")
+	}
+
 	pones, pbits := bridgePool.Mask.Size()
 	mones, mbits := bridgeMask.Size()
 	if pbits != mbits || mones < pones {
@@ -70,13 +77,14 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 	}
 
 	ctx := &Context{
+		config:            config,
 		defaultBridgeMask: bridgeMask,
 		defaultBridgePool: NewAddressSpaceFromNetwork(&bridgePool),
 		scopes:            make(map[string]*Scope),
 		containers:        make(map[uid.UID]*Container),
 	}
 
-	s, err := ctx.NewScope(DefaultBridgeName, BridgeScopeType, nil, net.IPv4(0, 0, 0, 0), nil, nil)
+	s, err := ctx.newBridgeScope(uid.New(), DefaultBridgeName, nil, net.IPv4(0, 0, 0, 0), nil, &IPAM{})
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +93,7 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 	ctx.defaultScope = s
 
 	// add any bridge/external networks
-	for nn, n := range Config.ContainerNetworks {
+	for nn, n := range ctx.config.ContainerNetworks {
 		if nn == DefaultBridgeName {
 			continue
 		}
@@ -100,7 +108,7 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask) (*Context, error) {
 			return nil, err
 		}
 
-		if n.Type == ExternalScopeType {
+		if n.Type == constants.ExternalScopeType {
 			s.builtin = true
 		}
 	}
@@ -241,7 +249,7 @@ func (c *Context) newScopeCommon(id uid.UID, name, scopeType string, subnet *net
 }
 
 func (c *Context) newBridgeScope(id uid.UID, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (newScope *Scope, err error) {
-	bn, ok := Config.ContainerNetworks[Config.BridgeNetwork]
+	bn, ok := c.config.ContainerNetworks[c.config.BridgeNetwork]
 	if !ok || bn == nil {
 		return nil, fmt.Errorf("bridge network not set")
 	}
@@ -255,13 +263,13 @@ func (c *Context) newBridgeScope(id uid.UID, name string, subnet *net.IPNet, gat
 		}
 	}
 
-	s, err := c.newScopeCommon(id, name, BridgeScopeType, subnet, gateway, dns, ipam, bn.PortGroup)
+	s, err := c.newScopeCommon(id, name, constants.BridgeScopeType, subnet, gateway, dns, ipam, bn.PortGroup)
 	if err != nil {
 		return nil, err
 	}
 
 	// add the gateway address to the bridge interface
-	if err = Config.BridgeLink.AddrAdd(net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}); err != nil {
+	if err = c.config.BridgeLink.AddrAdd(net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}); err != nil {
 		if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EEXIST {
 			log.Warnf("failed to add gateway address %s to bridge interface: %s", s.Gateway(), err)
 		}
@@ -286,12 +294,12 @@ func (c *Context) newExternalScope(id uid.UID, name string, subnet *net.IPNet, g
 		}
 	}
 
-	n := Config.ContainerNetworks[name]
+	n := c.config.ContainerNetworks[name]
 	if n == nil {
 		return nil, fmt.Errorf("no network info for external scope %s", name)
 	}
 
-	return c.newScopeCommon(id, name, ExternalScopeType, subnet, gateway, dns, ipam, n.PortGroup)
+	return c.newScopeCommon(id, name, constants.ExternalScopeType, subnet, gateway, dns, ipam, n.PortGroup)
 }
 
 func (c *Context) reserveSubnet(subnet *net.IPNet) (*AddressSpace, bool, error) {
@@ -400,10 +408,10 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 	var s *Scope
 	var err error
 	switch scopeType {
-	case BridgeScopeType:
+	case constants.BridgeScopeType:
 		s, err = c.newBridgeScope(uid.New(), name, subnet, gateway, dns, &IPAM{pools: pools})
 
-	case ExternalScopeType:
+	case constants.ExternalScopeType:
 		s, err = c.newExternalScope(uid.New(), name, subnet, gateway, dns, &IPAM{pools: pools})
 
 	default:
@@ -415,7 +423,7 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 	}
 
 	// add the new scope to the config
-	Config.ContainerNetworks[s.Name()] = &ContainerNetwork{
+	c.config.ContainerNetworks[s.Name()] = &ContainerNetwork{
 		Common: executor.Common{
 			ID:   s.ID().String(),
 			Name: s.Name(),
@@ -426,7 +434,9 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 		Pools:       s.IPAM().Pools(),
 		PortGroup:   s.network,
 	}
+
 	// write config
+	c.config.Encode()
 
 	return s, nil
 }
@@ -545,7 +555,7 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		copy(ne.Network.Nameservers, s.dns)
 
 		// mark the external network as default
-		if !defaultMarked && e.Scope().Type() == ExternalScopeType {
+		if !defaultMarked && e.Scope().Type() == constants.ExternalScopeType {
 			defaultMarked = true
 			ne.Network.Default = true
 		}
@@ -827,10 +837,10 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 
 		// check if container is already part of an "external" scope;
 		// only one "external" scope per container is allowed
-		if s.Type() == ExternalScopeType {
+		if s.Type() == constants.ExternalScopeType {
 			for name := range h.ExecConfig.Networks {
 				sc, _ := c.resolveScope(name)
-				if sc.Type() == ExternalScopeType {
+				if sc.Type() == constants.ExternalScopeType {
 					return fmt.Errorf("container can only be added to at most one mapped network")
 				}
 			}
@@ -847,14 +857,14 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 	// to a bridge network, we just reuse that
 	// NIC
 	var pciSlot int32
-	if s.Type() == BridgeScopeType {
+	if s.Type() == constants.BridgeScopeType {
 		for _, ne := range h.ExecConfig.Networks {
 			sc, err := c.resolveScope(ne.Network.Name)
 			if err != nil {
 				return err
 			}
 
-			if sc.Type() != BridgeScopeType {
+			if sc.Type() != constants.BridgeScopeType {
 				continue
 			}
 
@@ -1002,13 +1012,13 @@ func (c *Context) DeleteScope(name string) error {
 		return fmt.Errorf("%s has active endpoints", s.Name())
 	}
 
-	if s.Type() == BridgeScopeType {
+	if s.Type() == constants.BridgeScopeType {
 
 		// remove gateway ip from bridge interface
 		addr := net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}
-		if err := Config.BridgeLink.AddrDel(addr); err != nil {
+		if err := c.config.BridgeLink.AddrDel(addr); err != nil {
 			if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EADDRNOTAVAIL {
-				log.Warnf("could not remove gateway address %s for scope %s on link %s: %s", addr, s.Name(), Config.BridgeLink.Attrs().Name, err)
+				log.Warnf("could not remove gateway address %s for scope %s on link %s: %s", addr, s.Name(), c.config.BridgeLink.Attrs().Name, err)
 			}
 
 			err = nil

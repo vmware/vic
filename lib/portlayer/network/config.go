@@ -20,11 +20,13 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/ip"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
-var Config Configuration
-
 type Configuration struct {
+	source extraconfig.DataSource `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	sink   extraconfig.DataSink   `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+
 	// The default bridge network supplied for the Virtual Container Host
 	BridgeNetwork string `vic:"0.1" scope:"read-only" key:"bridge_network"`
 	// Published networks available for containers to join, keyed by consumption name
@@ -55,4 +57,12 @@ type ContainerNetwork struct {
 	Pools []ip.Range `vic:"0.1" scope:"read-only" key:"pools"`
 
 	PortGroup object.NetworkReference
+}
+
+func (c *Configuration) Encode() {
+	extraconfig.Encode(c.sink, c)
+}
+
+func (c *Configuration) Decode() {
+	extraconfig.Decode(c.source, c)
 }

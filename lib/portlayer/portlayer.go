@@ -47,14 +47,19 @@ func Init(ctx context.Context, sess *session.Session) error {
 		return err
 	}
 
+	sink, err := extraconfig.GuestInfoSink()
+	if err != nil {
+		return err
+	}
+
 	f := find.NewFinder(sess.Vim25(), false)
 
 	extraconfig.Decode(source, &exec.VCHConfig)
 	log.Debugf("Decoded VCH config for execution: %#v", exec.VCHConfig)
 	ccount := len(exec.VCHConfig.ComputeResources)
 	if ccount != 1 {
-		detail := fmt.Sprintf("expected singular compute resource element, found %d", ccount)
-		log.Errorf(detail)
+		err := fmt.Errorf("expected singular compute resource element, found %d", ccount)
+		log.Error(err)
 		return err
 	}
 
@@ -77,21 +82,8 @@ func Init(ctx context.Context, sess *session.Session) error {
 	}
 	exec.VCHConfig.DebugNetwork = r.(object.NetworkReference)
 
-	extraconfig.Decode(source, &network.Config)
-	log.Debugf("Decoded VCH config for network: %#v", network.Config)
-	for nn, n := range network.Config.ContainerNetworks {
-		pgref := new(types.ManagedObjectReference)
-		if !pgref.FromString(n.ID) {
-			log.Errorf("Could not reacquire object reference from id for network %s: %s", nn, n.ID)
-		}
-
-		r, err = f.ObjectReference(ctx, *pgref)
-		if err != nil {
-			log.Warnf("could not get network reference for %s network", nn)
-			continue
-		}
-
-		n.PortGroup = r.(object.NetworkReference)
+	if err = network.Init(ctx, sess, source, sink); err != nil {
+		return err
 	}
 
 	// Grab the storage layer config blobs from extra config
