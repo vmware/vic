@@ -21,8 +21,5 @@ You deployed at least one virtual container host to a vCenter Server instance th
 6. Save and close the `configs` file.
 7. Open a command prompt and navigate to <code><i>vic_unpack_dir</i>\vic\ui\vCenterForWindows</code>.
 8. Run the installer.<pre>install.bat</pre>
-  Make sure that you use the correct account to run `install.bat`. 
-  - If vCenter Server uses the local system account, run `install.bat` with the local system account.
-  - If vCenter Server uses a different user account, run `install.bat` with that account.
 9. Enter the user name and password for the vCenter Server administrator account.
 10. When installation finishes, if you are logged into the vSphere Web Client, log out then log back in again.
