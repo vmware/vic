@@ -7,7 +7,7 @@ Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 *** Test Cases ***
 Create VCH - custom base disk
     Log To Console  \nRunning vic-machine create - custom base image size
-    Set Test Environment Variables  ${true}  default  network  'VM Network'
+    Set Test Environment Variables  ${true}  default
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
@@ -23,9 +23,7 @@ Create VCH - custom base disk
     ${output}=  Run  unzip ${vch-name}-container-logs.zip -d ${vch-name}-logs
     Log To Console  ${output}
     ${output}=  Run  grep rootfs ${vch-name}-logs/df | awk '{print $2}'
-    Should Be Equal As Numbers  ${output}  964320
-    ${status}=  Get State Of Github Issue  1109
-    Run Keyword If  '${status}' == 'closed'  Fail  6-4-Create-Basic.robot needs to be updated now that Issue #1109 has been resolved
+    Should Be Equal As Numbers  ${output}  964116
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
