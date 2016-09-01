@@ -39,19 +39,18 @@ func (v *Validator) storage(ctx context.Context, input *data.Data, conf *config.
 		v.NoteIssue(err)
 		return
 	}
-	if err != nil {
-		v.NoteIssue(err)
-	}
 
 	// provide a default path if only a DS name is provided
 	if imageDSpath.Path == "" {
 		imageDSpath.Path = input.DisplayName
 	}
 
+	v.NoteIssue(err)
 	if ds != nil {
 		v.SetDatastore(ds, imageDSpath)
 		conf.AddImageStore(imageDSpath)
 	}
+
 	if conf.VolumeLocations == nil {
 		conf.VolumeLocations = make(map[string]*url.URL)
 	}
