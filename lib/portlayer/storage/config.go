@@ -31,4 +31,6 @@ type Configuration struct {
 	// Keyed by the volume store name (which is used by the docker user to
 	// refer to the datstore + path), valued by the datastores and the path.
 	VolumeLocations map[string]url.URL `vic:"0.1" scope:"read-only"`
+
+	ScratchSize int64 `vic:"0.1" scope:"read-only" key:"scratch_size"`
 }
