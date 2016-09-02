@@ -416,6 +416,12 @@
 							"$ref": "#/definitions/VolumeResponse"
 						}
 					},
+            "409": {
+						    "description": "Volume already exists by that ID",
+						    "schema": {
+							      "$ref": "#/definitions/Error"
+						    }
+					  },
           "404": {
                 "description": "VolumeStore Does not Exist",
                 "schema": {

@@ -120,8 +120,10 @@ func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]s
 	if err != nil {
 		switch err := err.(type) {
 
+		case *storage.CreateVolumeConflict:
+			return result, derr.NewBadRequestError(fmt.Errorf("A volume named %s already exists. Choose a different volume name.", model.Name))
 		case *storage.CreateVolumeNotFound:
-			return result, derr.NewBadRequestError(fmt.Errorf("VolumeStore does not exist: %s", model.Store))
+			return result, derr.NewBadRequestError(fmt.Errorf("No volume store named (%s) exists", model.Store))
 		case *storage.CreateVolumeInternalServerError:
 			// FIXME: right now this does not return an error model...
 			return result, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err.Error()), http.StatusInternalServerError)

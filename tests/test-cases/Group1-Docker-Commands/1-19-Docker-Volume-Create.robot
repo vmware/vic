@@ -15,12 +15,9 @@ Docker volume create named volume
     Should Be Equal As Strings  ${output}  test
 
 Docker volume create already named volume
-    ${status}=  Get State Of Github Issue  1562
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-19-Docker-Volume-Create.robot needs to be updated now that Issue #1562 has been resolved
-    Log  Issue \#1562 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test
-    #Should Be Equal As Integers  ${rc}  1
-    #Should Contain  ${output}  Error response from daemon: A volume named test already exists. Choose a different volume name.
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  Error response from daemon: A volume named test already exists. Choose a different volume name.
     
 Docker volume create volume with bad driver
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create -d fakeDriver --name=test2
@@ -30,7 +27,7 @@ Docker volume create volume with bad driver
 Docker volume create with bad volumestore
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test3 --opt VolumeStore=fakeStore
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Error looking up volume store fakeStore: datastore not found
+    Should Contain  ${output}  No volume store named (fakeStore) exists
 
 Docker volume create with specific capacity
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test4 --opt Capacity=100000
@@ -38,7 +35,6 @@ Docker volume create with specific capacity
     Should Be Equal As Strings  ${output}  test4
     ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls -json=true test/VIC/volumes/test4
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  "FileSize":100000
     
 Docker volume create with zero capacity
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test5 --opt Capacity=0

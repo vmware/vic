@@ -286,11 +286,18 @@ func (handler *StorageHandlersImpl) CreateVolume(params storage.CreateVolumePara
 
 	volume, err := storageVolumeLayer.VolumeCreate(context.TODO(), params.VolumeRequest.Name, storeURL, capacity*1024, byteMap)
 	if err != nil {
-		log.Errorf("storagehandler: VolumeCreate error: %s", err)
+		log.Errorf("storagehandler: VolumeCreate error: %#v", err)
 
-		if err == os.ErrNotExist {
+		if os.IsExist(err) {
+			return storage.NewCreateVolumeConflict().WithPayload(&models.Error{
+				Code:    swag.Int64(http.StatusNotFound),
+				Message: err.Error(),
+			})
+		}
+
+		if _, ok := err.(vsphereSpl.VolumeStoreNotFoundError); ok {
 			return storage.NewCreateVolumeNotFound().WithPayload(&models.Error{
-				Code:    swag.Int64(http.StatusInternalServerError),
+				Code:    swag.Int64(http.StatusNotFound),
 				Message: err.Error(),
 			})
 		}
