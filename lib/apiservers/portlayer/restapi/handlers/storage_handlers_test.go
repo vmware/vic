@@ -146,11 +146,22 @@ func (c *MockDataStore) ListImageStores(ctx context.Context) ([]*url.URL, error)
 }
 
 func (c *MockDataStore) WriteImage(ctx context.Context, parent *spl.Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*spl.Image, error) {
+	storeName, err := util.ImageStoreName(parent.Store)
+	if err != nil {
+		return nil, err
+	}
+
+	selflink, err := util.ImageURL(storeName, ID)
+	if err != nil {
+		return nil, err
+	}
+
 	i := spl.Image{
-		ID:       ID,
-		Store:    parent.Store,
-		Parent:   parent.SelfLink,
-		Metadata: meta,
+		ID:         ID,
+		Store:      parent.Store,
+		ParentLink: parent.SelfLink,
+		SelfLink:   selflink,
+		Metadata:   meta,
 	}
 
 	return &i, nil
@@ -262,10 +273,10 @@ func TestGetImage(t *testing.T) {
 
 	// add image to store
 	parent := spl.Image{
-		ID:       "scratch",
-		SelfLink: nil,
-		Parent:   nil,
-		Store:    &testStoreURL,
+		ID:         "scratch",
+		SelfLink:   nil,
+		ParentLink: nil,
+		Store:      &testStoreURL,
 	}
 
 	expectedMeta := make(map[string][]byte)
@@ -276,14 +287,26 @@ func TestGetImage(t *testing.T) {
 		return
 	}
 
+	selflink, err := util.ImageURL(testStoreName, testImageID)
+	if !assert.NoError(t, err) {
+		return
+	}
+	sl := selflink.String()
+
+	parentlink, err := util.ImageURL(testStoreName, parent.ID)
+	if !assert.NoError(t, err) {
+		return
+	}
+	p := parentlink.String()
+
 	eMeta := make(map[string]string)
 	eMeta["foo"] = "bar"
 	// expect our image back now that we've created it
 	expected := &storage.GetImageOK{
 		Payload: &models.Image{
 			ID:       image.ID,
-			SelfLink: nil,
-			Parent:   nil,
+			SelfLink: &sl,
+			Parent:   &p,
 			Store:    testStoreURL.String(),
 			Metadata: eMeta,
 		},
@@ -370,7 +393,7 @@ func TestListImages(t *testing.T) {
 	params.Ids = ids
 	outImages = s.ListImages(*params)
 	assert.IsType(t, &storage.ListImagesOK{}, outImages)
-	assert.Equal(t, len(outImages.(*storage.ListImagesOK).Payload), len(ids))
+	assert.Equal(t, len(ids), len(outImages.(*storage.ListImagesOK).Payload))
 
 	outmap := make(map[string]*models.Image)
 	for _, image := range outImages.(*storage.ListImagesOK).Payload {
@@ -416,13 +439,25 @@ func TestWriteImage(t *testing.T) {
 		ImageFile:   nil,
 	}
 
+	parentlink, err := util.ImageURL(testStoreName, params.ParentID)
+	if !assert.NoError(t, err) {
+		return
+	}
+	p := parentlink.String()
+
+	selflink, err := util.ImageURL(testStoreName, testImageID)
+	if !assert.NoError(t, err) {
+		return
+	}
+	sl := selflink.String()
+
 	expected := &storage.WriteImageCreated{
 		Payload: &models.Image{
 			ID:       testImageID,
-			Parent:   nil,
+			Parent:   &p,
+			SelfLink: &sl,
 			Store:    testStoreURL.String(),
 			Metadata: eMeta,
-			SelfLink: nil,
 		},
 	}
 

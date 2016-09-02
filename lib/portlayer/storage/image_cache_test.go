@@ -22,6 +22,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/lib/portlayer/util"
 )
@@ -60,11 +61,30 @@ func (c *MockDataStore) ListImageStores(ctx context.Context) ([]*url.URL, error)
 }
 
 func (c *MockDataStore) WriteImage(ctx context.Context, parent *Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*Image, error) {
+	storeName, err := util.ImageStoreName(parent.Store)
+	if err != nil {
+		return nil, err
+	}
+
+	selflink, err := util.ImageURL(storeName, ID)
+	if err != nil {
+		return nil, err
+	}
+
+	var parentLink *url.URL
+	if parent.ID != "" {
+		parentLink, err = util.ImageURL(storeName, parent.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	i := &Image{
-		ID:       ID,
-		Store:    parent.Store,
-		Parent:   parent.SelfLink,
-		Metadata: meta,
+		ID:         ID,
+		Store:      parent.Store,
+		ParentLink: parentLink,
+		SelfLink:   selflink,
+		Metadata:   meta,
 	}
 
 	c.db[*parent.Store][ID] = i
@@ -213,6 +233,7 @@ func TestOutsideCacheWriteImage(t *testing.T) {
 // with the first cache, then get the image with the second.  This simulates
 // restart since the second cache is empty and has to go to the backing store.
 func TestImageStoreRestart(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
 	ds := NewMockDataStore()
 
 	firstCache := NewLookupCache(ds)
@@ -229,14 +250,16 @@ func TestImageStoreRestart(t *testing.T) {
 	// Create a set of images
 	expectedImages := make(map[string]*Image)
 
-	parent := Scratch
-	parent.Store = storeURL
+	parent, err := firstCache.GetImage(context.TODO(), storeURL, Scratch.ID)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	testSum := "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 	for i := 1; i < 50; i++ {
 		id := fmt.Sprintf("ID-%d", i)
 
-		img, werr := firstCache.WriteImage(context.TODO(), &parent, id, nil, testSum, nil)
+		img, werr := firstCache.WriteImage(context.TODO(), parent, id, nil, testSum, nil)
 		if !assert.NoError(t, werr) {
 			return
 		}

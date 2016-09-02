@@ -15,6 +15,7 @@
     * [Virtual Container Host Delete Options](delete_vch_options.md)
 * [Find Virtual Container Host Information in the vSphere Web Client](vch_portlet_ui.md)
 * [Find Container Information in the vSphere Web Client](container_portlet_ui.md)
+* [Access the Administration Portal for a Virtual Container Host](access_vicadmin.md)
 * [Troubleshooting vSphere Integrated Containers Engine Administration](troubleshoot_vic_admin.md)
   * [Running `vic-machine ls` on an ESXi Host Fails with an Error](ts_ls_error.md)
   * [Deleting or Inspecting a VCH Fails with a Resource Pool Error](ts_delete_inspect_error.md)

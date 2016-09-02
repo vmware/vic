@@ -24,29 +24,8 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/lib/portlayer/util"
+	"github.com/vmware/vic/pkg/index"
 )
-
-// Image is the handle to identify an image layer on the backing store.  The
-// URI namespace used to identify the Image in the storage layer has the
-// following path scheme:
-//
-// `/storage/<image store identifier, usually the vch uuid>/<image id>`
-//
-type Image struct {
-	// Identifer for this layer.  Usually a SHA
-	ID string
-
-	// location of the layer.  Filled in by the runtime.
-	SelfLink *url.URL
-
-	// Parent's location.  It's the VMDK this snapshot inerits from.
-	Parent *url.URL
-
-	Store *url.URL
-
-	// Metadata associated with the image.
-	Metadata map[string][]byte
-}
 
 // ImageStorer is an interface to store images in the Image Store
 type ImageStorer interface {
@@ -85,6 +64,72 @@ type ImageStorer interface {
 	// ListImages returns a list of Images given a list of image IDs, or all
 	// images in the image store if no param is passed.
 	ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*Image, error)
+}
+
+// Image is the handle to identify an image layer on the backing store.  The
+// URI namespace used to identify the Image in the storage layer has the
+// following path scheme:
+//
+// `/storage/<image store identifier, usually the vch uuid>/<image id>`
+//
+type Image struct {
+	// ID is the identifer for this layer.  Usually a SHA
+	ID string
+
+	// SelfLink is the URL for this layer.  Filled in by the runtime.
+	SelfLink *url.URL
+
+	// ParentLink is the URL for the parent.  It's the VMDK this snapshot inerits from.
+	ParentLink *url.URL
+
+	// Store is the URL for the image store the image can be found on.
+	Store *url.URL
+
+	// Metadata associated with the image.
+	Metadata map[string][]byte
+}
+
+func (i *Image) Copy() index.Element {
+
+	selflink, _ := url.Parse(i.SelfLink.String())
+	store, _ := url.Parse(i.Store.String())
+
+	var parent *url.URL
+	if i.ParentLink != nil {
+		parent, _ = url.Parse(i.ParentLink.String())
+	}
+
+	c := &Image{
+		ID:         i.ID,
+		SelfLink:   selflink,
+		ParentLink: parent,
+		Store:      store,
+	}
+
+	if i.Metadata != nil {
+		c.Metadata = make(map[string][]byte)
+
+		for k, v := range i.Metadata {
+			buf := make([]byte, len(v))
+			copy(buf, v)
+			c.Metadata[k] = buf
+		}
+	}
+	return c
+}
+
+// Returns the Selflink of the image
+func (i *Image) Self() string {
+	return i.SelfLink.String()
+}
+
+// Returns a link to the parent.  Returns link to self if there is no parent
+func (i *Image) Parent() string {
+	if i.ParentLink != nil {
+		return i.ParentLink.String()
+	} else {
+		return i.Self()
+	}
 }
 
 func Parse(u *url.URL) (*Image, error) {
