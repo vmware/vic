@@ -73,6 +73,8 @@ type Data struct {
 
 	Force bool
 	UseRP bool
+
+	ScratchSize string
 }
 
 // InstallerData is used to hold the transient installation configuration that shouldn't be serialized

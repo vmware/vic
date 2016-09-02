@@ -14,11 +14,24 @@ If you are running the vCenter Server Appliance, you can use a Web server to hos
   <pre><i>vic_unpack_dir</i>/vic/ui/vsphere-client-serenity/com.vmware.vicui.Vicui-0.0.1.zip</pre>
 3. Open the  <code><i>vic_unpack_dir</i>/vic/ui/VCSA/configs</code> file in a text editor.
 4. Enter the IPv4 address or FQDN of the vCenter Server instance on which to install the plug-in.<pre>VCENTER_IP="<i>vcenter_server_address</i>"</pre>
-5. Enter the URL of the ZIP file on your Web server.<pre>VIC_UI_HOST_URL="<i>vic_web_server_location</i>"</pre>
+5. Enter the path to the folder on your Web server that contains the `com.vmware.vicui.Vicui-0.0.1.zip`  file.<pre>VIC_UI_HOST_URL="<i>vicui_zip_location</i>"</pre>
 6. (Optional) If you used an HTTPS address in `vic_ui_host_url`, provide the SHA-1 thumbprint of the Web server.<pre>VIC_UI_HOST_THUMBPRINT="<i>thumbprint</i>"</pre> 
 6. Save and close the `configs` file.
-7. Open a command prompt and navigate to <code><i>vic_unpack_dir</i>/vic/ui/VCSA</code>.
-8. Run the installer.<pre>./install.sh</pre>Make sure that `install.sh` is executable by running `chmod` before you run it.
+7. (Optional) If you run `vic-machine` on a Windows system, open  the <code><i>vic_unpack_dir</i>/vic/ui/VCSA/install.sh</code> file in a text editor and point `PLUGIN_MANAGER_BIN` to the Windows UI executable.
+
+ - Before:<pre>if [[ $(echo $OS | grep -i "darwin") ]] ; then
+    PLUGIN_MANAGER_BIN="../../vic-ui-darwin"
+else
+    PLUGIN_MANAGER_BIN="../../vic-ui-linux"</pre>
+  - After:<pre>if [[ $(echo $OS | grep -i "darwin") ]] ; then
+    PLUGIN_MANAGER_BIN="../../vic-ui-darwin"
+else
+    PLUGIN_MANAGER_BIN="../../vic-ui-windows"</pre>
+
+7. Open a command prompt, navigate to <code><i>vic_unpack_dir</i>/vic/ui/VCSA</code>, and run the installer.
+   <pre>./install.sh</pre>
+  - Make sure that `install.sh` is executable by running `chmod` before you run it.
+  - On Windows systems, run `install.sh` in a UNIX shell that supports SSH and SCP, for example Cygwyn or Git Bash. Do not use Windows 10 native Bash.
 9. Enter the user name and password for the vCenter Server administrator account.
 10. Answer the question about the version of vCenter Server that you are using.
   - Answer `y` if you are using vCenter Server 5.5.

@@ -16,6 +16,7 @@ package util
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"path"
 	"path/filepath"
@@ -60,6 +61,10 @@ func ImageStoreName(u *url.URL) (string, error) {
 }
 
 func ImageURL(storeName, imageName string) (*url.URL, error) {
+	if imageName == "" {
+		return nil, fmt.Errorf("image ID missing")
+	}
+
 	u, err := ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err

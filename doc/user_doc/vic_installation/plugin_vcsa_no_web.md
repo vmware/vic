@@ -8,12 +8,25 @@ You deployed at least one virtual container host to a vCenter Server Appliance i
 
 **Procedure**
 
-1. On the system on which you run `vic-machine`, navigate to the folder that contains the `vic-machine` utility and open the `ui` folder.
-3. Open the  <code><i>vic_unpack_dir</i>/vic/ui/VCSA/configs</code> file in a text editor.
+1. On the system on which you run `vic-machine`, open the <code><i>vic_unpack_dir</i>/vic/ui/VCSA/configs</code> file in a text editor.
 4. Enter the IPv4 address or FQDN of the vCenter Server instance on which to install the plug-in. <pre>VCENTER_IP="<i>vcenter_server_address</i>"</pre>
 6. Save and close the `configs` file.
-7. Open a command prompt and navigate to <code><i>vic_unpack_dir</i>/vic/ui/VCSA</code>.
-8. Run the installer.<pre>./install.sh</pre>Make sure that `install.sh` is executable by running `chmod` before you run it.
+7. (Optional) If you run `vic-machine` on a Windows system, open  the <code><i>vic_unpack_dir</i>/vic/ui/VCSA/install.sh</code> file in a text editor and point `PLUGIN_MANAGER_BIN` to the Windows UI executable.
+
+ - Before:<pre>if [[ $(echo $OS | grep -i "darwin") ]] ; then
+    PLUGIN_MANAGER_BIN="../../vic-ui-darwin"
+else
+    PLUGIN_MANAGER_BIN="../../vic-ui-linux"</pre>
+  - After:<pre>if [[ $(echo $OS | grep -i "darwin") ]] ; then
+    PLUGIN_MANAGER_BIN="../../vic-ui-darwin"
+else
+    PLUGIN_MANAGER_BIN="../../vic-ui-windows"</pre>
+
+7. Open a command prompt, navigate to <code><i>vic_unpack_dir</i>/vic/ui/VCSA</code>, and run the installer.
+   <pre>./install.sh</pre>
+  - Make sure that `install.sh` is executable by running `chmod` before you run it.
+  - On Windows systems, run `install.sh` in a UNIX shell that supports SSH and SCP, for example Cygwyn or Git Bash. Do not use Windows 10 native Bash.
+  
 9. Enter the user name and password for the vCenter Server administrator account.
 10. Answer the question about the version of vCenter Server that you are using.
   - Answer `y` if you are using vCenter Server 5.5.

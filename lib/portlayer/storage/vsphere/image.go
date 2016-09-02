@@ -247,11 +247,11 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 	}
 
 	newImage := &portlayer.Image{
-		ID:       ID,
-		SelfLink: imageURL,
-		Parent:   parent.SelfLink,
-		Store:    parent.Store,
-		Metadata: meta,
+		ID:         ID,
+		SelfLink:   imageURL,
+		ParentLink: parent.SelfLink,
+		Store:      parent.Store,
+		Metadata:   meta,
 	}
 
 	return newImage, nil
@@ -375,7 +375,7 @@ func (v *ImageStore) scratch(ctx context.Context, storeName string) error {
 	log.Infof("Creating image %s (%s)", portlayer.Scratch.ID, imageDiskDsURI)
 
 	// Create the disk
-	vmdisk, err := v.dm.CreateAndAttach(ctx, imageDiskDsURI, "", defaultDiskSize, os.O_RDWR)
+	vmdisk, err := v.dm.CreateAndAttach(ctx, imageDiskDsURI, "", portlayer.Config.ScratchSize, os.O_RDWR)
 	if err != nil {
 		return err
 	}
@@ -384,6 +384,7 @@ func (v *ImageStore) scratch(ctx context.Context, storeName string) error {
 			v.dm.Detach(ctx, vmdisk)
 		}
 	}()
+	log.Debugf("Scratch disk created with size %d", portlayer.Config.ScratchSize)
 
 	// Make the filesystem and set its label to defaultDiskLabel
 	if err = vmdisk.Mkfs(defaultDiskLabel); err != nil {
@@ -439,9 +440,9 @@ func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*
 		// We're relying on the parent map for this since we don't currently have a
 		// way to get the disk's spec.  See VIC #482 for details.  Parent:
 		// parent.SelfLink,
-		Store:    &s,
-		Parent:   parentURL,
-		Metadata: meta,
+		Store:      &s,
+		ParentLink: parentURL,
+		Metadata:   meta,
 	}
 
 	log.Debugf("Returning image from location %s with parent url %s", newImage.SelfLink, newImage.Parent)
