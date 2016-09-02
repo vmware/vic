@@ -4,7 +4,7 @@ Before you install vSphere Integrated Containers Engine, you must ensure that yo
 
 ## Supported Platforms for `vic-machine` ##
 
-The vSphere Integrated Containers Engine installation and management utility, `vic-machine`, has been tested and verified on the following Linux OS, Windows, Mac OS, and Photon OS systems.
+The vSphere Integrated Containers Engine installation and management utility, `vic-machine`, has been tested and verified on the following  64-bit OS, Windows, Mac OS, and Photon OS systems.
 
 |**Platform**|**Supported Versions**|
 |---|---|
@@ -12,7 +12,7 @@ The vSphere Integrated Containers Engine installation and management utility, `v
 |Mac OS X |10.11 (El Capitan)|
 |Linux|Ubuntu 16.04 LTS|
 
-Other recent OS versions should work but are untested.
+Other recent 64-bit OS versions should work but are untested.
 
 ## Supported vSphere Configurations ##
 
