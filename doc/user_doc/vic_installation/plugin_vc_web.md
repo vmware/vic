@@ -6,7 +6,7 @@ If your vCenter Server instance runs on Windows, you can use a Web server to hos
 
 - You deployed at least one virtual container host to a vCenter Server instance that runs on Windows.
 - You are running a Web server that your vCenter Server instance can access.
-- You must use a Windows system to run the script to install the plug-in on a vCenter Server that runs on Windows. If you used a Linux or Mac OS system to deploy the virtual container host, download and unpack the vSphere Integrated Containers Engine package on a Windows system.
+- You must use a Windows system to run the script to install the plug-in on a vCenter Server that runs on Windows. If you used a Linux or Mac OS system to deploy the virtual container host, download and unpack the vSphere Integrated Containers Engine package on a Windows system. For example, download the package to the system on which vCenter Server is running.
 
 **Procedure**
 

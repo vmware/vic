@@ -4,7 +4,6 @@
 * [Overview of vSphere Integrated Containers Engine](README.md)
 * [vSphere Integrated Containers Engine Architecture](vicarch.md)
 * [Interoperability of vSphere Integrated Containers Engine with Other VMware Software](interop.md)
-* [vSphere Integrated Containers Engine Network Overview](networks.md)
 * [Virtual Container Host Administration](vch_admin.md)
   * [Obtain vic-machine Version Information](vic_machine_version.md)
   * [List Virtual Container Hosts and Obtain Their IDs](list_vch.md)
