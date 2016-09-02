@@ -382,7 +382,7 @@ func convertImage(image *spl.Image) *models.Image {
 
 	// scratch image
 	if image.Parent != nil {
-		s := image.Parent.String()
+		s := image.ParentLink.String()
 		parent = &s
 	}
 
