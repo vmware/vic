@@ -118,6 +118,7 @@ The `vic-machine create` utility allows you to specify different networks for th
 
 See [bridge-network](#bridge) in the section on mandatory options.
 
+<a name="bridge-range"></a>
 ### `bridge-network-range` ###
 
 Short name: `--bnr`
@@ -128,6 +129,7 @@ When you specify the bridge network IP range, you specify the IP range as a CIDR
 
 <pre>--bridge-network-range 192.168.100.0/24</pre>
 
+<a name="external-network"></a>
 ### `external-network` ###
 
 Short name: `--en`
@@ -142,6 +144,7 @@ Wrap the network name in single quotes (Linux or Mac OS) or double quotes (Windo
 
 <pre>--external-network '<i>network name</i>'</pre>
 
+<a name="management-network"></a>
 ### `management-network` ###
 
 Short name: `--mn`
@@ -156,6 +159,7 @@ Wrap the network name in single quotes (Linux or Mac OS) or double quotes (Windo
 
 <pre>--management-network '<i>network name</i>'</pre>
 
+<a name="client-network"></a>
 ### `client-network` ###
 
 Short name: `--cln`
