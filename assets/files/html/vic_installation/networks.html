@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Install the vSphere Integrated Containers Engine Plug-In on vCenter Server For Windows, without SFTP or a Web Server | VMware vSphere Integrated Containers Engine Installation, version 0.5.5</title>
+        <title>vSphere Integrated Containers Engine Networking Overview | VMware vSphere Integrated Containers Engine Installation, version 0.5.5</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -37,10 +37,10 @@
         
     
     
-    <link rel="next" href="./plugin_vcsa_web.html" />
+    <link rel="next" href="./contents_of_vic_binaries.html" />
     
     
-    <link rel="prev" href="./plugin_vc_sftp.html" />
+    <link rel="prev" href="./vic_installation_prereqs.html" />
     
 
         
@@ -49,9 +49,9 @@
         
         
     <div class="book"
-        data-level="4.3"
-        data-chapter-title="Install the vSphere Integrated Containers Engine Plug-In on vCenter Server For Windows, without SFTP or a Web Server"
-        data-filepath="plugin_vc_no_sftp_or_web.md"
+        data-level="2.2"
+        data-chapter-title="vSphere Integrated Containers Engine Networking Overview"
+        data-filepath="networks.md"
         data-basepath="."
         data-revision="Fri Sep 02 2016 15:31:23 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
@@ -128,7 +128,7 @@
             
         </li>
     
-        <li class="chapter " data-level="2.2" data-path="networks.html">
+        <li class="chapter active" data-level="2.2" data-path="networks.html">
             
                 
                     <a href="./networks.html">
@@ -290,7 +290,7 @@
             
         </li>
     
-        <li class="chapter active" data-level="4.3" data-path="plugin_vc_no_sftp_or_web.html">
+        <li class="chapter " data-level="4.3" data-path="plugin_vc_no_sftp_or_web.html">
             
                 
                     <a href="./plugin_vc_no_sftp_or_web.html">
@@ -439,32 +439,40 @@
                 
                     <section class="normal" id="section-">
                     
-                        <h1 id="install-the-vsphere-integrated-containers-engine-plugin-on-vcenter-server-for-windows-without-sftp-or-a-web-server">Install the vSphere Integrated Containers Engine Plug-In on vCenter Server For Windows, without SFTP or a Web Server</h1>
-<p>You can install the vSphere Web Client plug-in for vSphere Integrated Containers Engine on a vCenter Server instance for Windows that has neither access to an SFTP service nor to a Web Server.</p>
-<p><strong>Prerequisites</strong></p>
+                        <h1 id="vsphere-integrated-containers-engine-networking-overview">vSphere Integrated Containers Engine Networking Overview</h1>
+<p>Virtual container hosts connect to different types of network. </p>
+<p> <img src="graphics/vch-net.png" alt="vSphere Container Host Management Network"></p>
+<p>This topic provides an overview of the different network types. </p>
+<h2 id="container-bridge-networks">Container Bridge Networks</h2>
+<p>The network or networks that container VMs use to communicate with each other. Each virtual container host requires a unique bridge network.</p>
+<p>You define the bridge networks by setting the <code>bridge-network</code> option when you run <code>vic-machine create</code>.  For  more detailed information about bridge networks, see the section on the <code>bridge-network</code> option in <a href="vch_installer_options.html#bridge">Virtual Container Host Deployment Options</a>.</p>
+<p>Container application developers can also use <code>docker network create</code> to create additional bridge networks. You can define a range of IP addresses that additional bridge networks can use by defining the <code>bridge-network-range</code> option when you run <code>vic-machine create</code>. For  more detailed information about  how to set bridge network ranges, see the section on the <a href="vch_installer_options.html#bridge-range"><code>bridge-network-range</code> option</a>. </p>
+<p> <img src="graphics/vch-bridge-net.png" alt="Container Bridge Network"></p>
+<h2 id="external-network">External Network</h2>
+<p>The network that container VMs use to connect to the internet. Containers can use this external network to publish network services. After defining the external network, you can deploy containers directly on the external interface.</p>
+<p>You define the external network by setting the <code>external-network</code> option when you run <code>vic-machine create</code>. For  more detailed information about management networks, see the section on the <code>external-network</code> option in <a href="vch_installer_options.html#external-network">Virtual Container Host Deployment Options</a>.</p>
+<p> <img src="graphics/vch-external-net.png" alt="External Network"></p>
+<h2 id="vsphere-management-network">vSphere Management Network</h2>
+<p>The network for communication between the virtual container host and vCenter Server and ESXi hosts. This network also serves as a tether within container VMs for communication with the virtual container host.</p>
+<p>You define the management network by setting the <code>management-network</code> option when you run <code>vic-machine create</code>. For  more detailed information about management networks, see the section on the <code>management-network</code> option in <a href="vch_installer_options.html#management-network">Virtual Container Host Deployment Options</a>.</p>
+<p> <img src="graphics/vch-management-net.png" alt="vSphere Management Network"></p>
+<h2 id="docker-management-endpoint-network">Docker Management Endpoint Network</h2>
+<p>Connects virtual container hosts to Docker clients and isolates the Docker endpoints from the more public external network.</p>
+<p>You define the Docker management endpoint network by setting the <code>client-network</code> option when you run <code>vic-machine create</code>. For  more detailed information about Docker management endpoint networks, see the section on the <code>client-network</code> option in <a href="vch_installer_options.html#client-network">Virtual Container Host Deployment Options</a>.</p>
+<p> <img src="graphics/vch-docker-net.png" alt="Docker Management Endpoint Network"></p>
+<h2 id="container-networks">Container Networks</h2>
+<p>Networks for container VMs to use for external communication when container developers  run <code>docker run</code> or <code>docker create</code> with the <code>--net</code> option. For  more detailed information about setting up container networks, see the sections on the <code>container-network-xxx</code> options in <a href="vch_installer_options.html#container-network">Virtual Container Host Deployment Options</a>.</p>
+<h2 id="the-port-layer">The Port Layer</h2>
+<p>You can configure networks that are tied into the vSphere infrastructure. Pre-configured networks available to a virtual container host are determined by the networks that you define when you configure the virtual container host.</p>
+<p>The port layer augments the vSphere API with low level, platform-specific primitives to allow you to implement a simple container engine:</p>
 <ul>
-<li>You deployed at least one virtual container host to a vCenter Server instance that runs on Windows.</li>
-<li>You must use a Windows system to run the script to install the plug-in on a vCenter Server that runs on Windows. If you used a Linux or Mac OS system to deploy the virtual container host, download and unpack the vSphere Integrated Containers Engine package on a Windows system. For example, download the package to the system on which vCenter Server is running.</li>
+<li>Port Layer Execution: Handles container management, such as create, start, and stop. </li>
+<li>Port Layer Interaction: Handles interaction with a running container. </li>
+<li>Port Layer Networking: Handles specific vSphere network mappings into the Docker network namespace as well as mapping existing network entities such as database servers into the Docker container namespace with defined aliases.</li>
+<li>Port Layer Storage: Provides storage manipulation, including container image storage, layering with volume creation and manipulation. imagec, the docker registry client library, uses this component to translate registry images into a layered format that VMDK disk chains can use directly.</li>
 </ul>
-<p><strong>Procedure</strong></p>
-<ol>
-<li>On the Windows system on which you have downloaded and unpacked vSphere Integrated Containers Engine, navigate to the folder that contains the <code>vic-machine</code> utility and open the <code>ui</code> folder.</li>
-<li><p>Copy the <code>com.vmware.vicui.Vicui-0.0.1</code> folder into the folder on the vCenter Server system that contains the vSphere Web Client packages.</p>
-<ul>
-<li>Source location on <code>vic-machine</code> system: <pre><i>vic_unpack_dir</i>\vic\ui\vsphere-client-serenity</pre></li>
-<li><p>Destination location on vCenter Server Windows system: <pre><i>instl_dir</i>\vCenterServer\cfg\vsphere-client\vc-packages\vsphere-client-serenity</pre></p>
-<p><code>instl_dir</code> is the location in which vCenter Server is installed. If the <code>vc-packages\vsphere-client-serenity</code> folders do not exist under the <code>vsphere-client</code> folder, create them manually.</p>
-</li>
-</ul>
-</li>
-<li>On the <code>vic-machine</code> system, open the <code>vic_unpack_dir\vic\ui\vCenterForWindows\configs</code> file in a text editor.</li>
-<li>Enter the IPv4 address or FQDN of the vCenter Server instance on which to install the plug-in.<pre>SET target_vcenter_ip=<i>vcenter_server_address</i></pre></li>
-<li>Deactivate SFTP by changing the value of <code>sftp_supported</code> to 0.<pre>SET sftp_supported=0</pre></li>
-<li>Save and close the <code>configs</code> file.</li>
-<li>Open a command prompt, navigate to <code>vic_unpack_dir\vic\ui\vCenterForWindows</code>, and run the installer.<pre>install.bat</pre></li>
-<li>Enter the user name and password for the vCenter Server administrator account.</li>
-<li>When installation finishes, if you are logged into the vSphere Web Client, log out then log back in again.</li>
-</ol>
+<h2 id="tether-process">Tether Process</h2>
+<p>The tether process is a minimal agent in the container VM that starts and stops processes and provides monitoring statistics. </p>
 
                     
                     </section>
@@ -475,10 +483,10 @@
         </div>
 
         
-        <a href="./plugin_vc_sftp.html" class="navigation navigation-prev " aria-label="Previous page: Install the vSphere Integrated Containers Engine Plug-In on vCenter Server For Windows, by Using SFTP"><i class="fa fa-angle-left"></i></a>
+        <a href="./vic_installation_prereqs.html" class="navigation navigation-prev " aria-label="Previous page: Environment Prerequisites for vSphere Integrated Containers Engine Installation"><i class="fa fa-angle-left"></i></a>
         
         
-        <a href="./plugin_vcsa_web.html" class="navigation navigation-next " aria-label="Next page: Install the vSphere Integrated Containers Engine Plug-In on a vCenter Server Appliance by Using a Web Server"><i class="fa fa-angle-right"></i></a>
+        <a href="./contents_of_vic_binaries.html" class="navigation navigation-next " aria-label="Next page: Contents of the vSphere Integrated Containers Engine Binaries"><i class="fa fa-angle-right"></i></a>
         
     </div>
 </div>
