@@ -5,7 +5,7 @@ You can install the vSphere Web Client plug-in for vSphere Integrated Containers
 **Prerequisites**
 
 - You deployed at least one virtual container host to a vCenter Server instance that runs on Windows.
-- You must use a Windows system to run the script to install the plug-in on a vCenter Server that runs on Windows. If you used a Linux or Mac OS system to deploy the virtual container host, download and unpack the vSphere Integrated Containers Engine package on a Windows system.
+- You must use a Windows system to run the script to install the plug-in on a vCenter Server that runs on Windows. If you used a Linux or Mac OS system to deploy the virtual container host, download and unpack the vSphere Integrated Containers Engine package on a Windows system. For example, download the package to the system on which vCenter Server is running.
 
 **Procedure**
 
