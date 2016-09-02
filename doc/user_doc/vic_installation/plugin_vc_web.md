@@ -6,21 +6,18 @@ If your vCenter Server instance runs on Windows, you can use a Web server to hos
 
 - You deployed at least one virtual container host to a vCenter Server instance that runs on Windows.
 - You are running a Web server that your vCenter Server instance can access.
+- You must use a Windows system to run the script to install the plug-in on a vCenter Server that runs on Windows. If you used a Linux or Mac OS system to deploy the virtual container host, download and unpack the vSphere Integrated Containers Engine package on a Windows system.
 
 **Procedure**
 
-1. On the system on which you run `vic-machine`, navigate to the folder that contains the `vic-machine` utility and open the `ui` folder.
+1. On the Windows system on which you have downloaded and unpacked vSphere Integrated Containers Engine, navigate to the folder that contains the `vic-machine` utility and open the `ui` folder.
 2. Upload the plug-in bundle to your Web server.
   <pre><i>vic_unpack_dir</i>\vic\ui\vsphere-client-serenity\com.vmware.vicui.Vicui-0.0.1.zip</pre>
 3. On the `vic-machine` system, open the <code><i>vic_unpack_dir</i>\vic\ui\vCenterForWindows\configs</code> file in a text editor.
 4. Enter the IPv4 address or FQDN of the vCenter Server instance on which to install the plug-in.<pre>SET target_vcenter_ip=<i>vcenter_server_address</i></pre>
-5. Enter the URL of the ZIP file on your Web server.<pre>SET vic_ui_host_url=<i>vic_web_server_location</i></pre>
+5. Enter the path to the folder on your Web server that contains the `com.vmware.vicui.Vicui-0.0.1.zip`  file.<pre>VIC_UI_HOST_URL="<i>vicui_zip_location</i>"</pre>
 6. (Optional) If you used an HTTPS address in `vic_ui_host_url`, provide the SHA-1 thumbprint of the Web server.<pre>SET vic_ui_host_thumbprint=<i>thumbprint</i></pre> 
 6. Save and close the `configs` file.
-7. Open a command prompt and navigate to <code><i>vic_unpack_dir</i>\vic\ui\vCenterForWindows</code>.
-8. Run the installer.<pre>install.bat</pre>
-  Make sure that you use the correct account to run `install.bat`. 
-  - If vCenter Server uses the local system account, run `install.bat` with the local system account.
-  - If vCenter Server uses a different user account, run `install.bat` with that account.
+7. Open a command prompt, navigate to <code><i>vic_unpack_dir</i>\vic\ui\vCenterForWindows</code>, and run the installer.<pre>install.bat</pre>
 9. Enter the user name and password for the vCenter Server administrator account.
 10. When installation finishes, if you are logged into the vSphere Web Client, log out then log back in again.
