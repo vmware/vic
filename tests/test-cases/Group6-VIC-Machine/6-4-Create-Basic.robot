@@ -5,6 +5,31 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
+Create VCH - custom base disk
+    Log To Console  \nRunning vic-machine create - custom base image size
+    Set Test Environment Variables  ${true}  default
+    # Attempt to cleanup old/canceled tests
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+    Set Test VCH Name
+
+    Log To Console  \nInstalling VCH to test server...
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --base-image-size=6GB
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: ${vch-name}...
+
+    ${status}=  Get State Of Github Issue  384
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-6-Docker-Run.robot needs to be updated now that Issue #384 has been resolved
+    # Replace this hack when we have docker run in a state where it's usable in tests (Issue #384)
+
+    ${output}=  Run  docker ${params} logs $(docker ${params} start $(docker ${params} create busybox /bin/df -h) && sleep 10) | grep /dev/sda | awk '{print $2}'
+    # df shows GiB and vic-machine takes in GB so 6GB on cmd line == 5.5GB in df
+    Should Be Equal As Strings  ${output}  5.5G
+
+    Run Regression Tests
+    Cleanup VIC Appliance On Test Server
+
 Create VCH - defaults
     Log To Console  \nRunning vic-machine create - defaults
     Set Test Environment Variables  ${true}  default
