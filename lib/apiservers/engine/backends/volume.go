@@ -39,6 +39,9 @@ const (
 	dockerMetadataModelKey string = "DockerMetaData"
 )
 
+//Validation pattern for Volume Names
+var VolumeNameRegex = regexp.MustCompile("^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
+
 func NewVolumeModel(volume *models.VolumeResponse, labels map[string]string) *types.Volume {
 	return &types.Volume{
 		Driver:     volume.Driver,
@@ -250,6 +253,10 @@ func translateInputsToPortlayerRequestModel(name, driverName string, opts, label
 
 	if !defaultDriver && !vsphereDriver {
 		return nil, fmt.Errorf("Error looking up volume plugin %s: plugin not found", driverName)
+	}
+
+	if !VolumeNameRegex.Match([]byte(name)) && name != "" {
+		return nil, fmt.Errorf("volume name \"%s\" includes invalid characters, only \"[a-zA-Z0-9][a-zA-Z0-9_.-]\" are allowed", name)
 	}
 
 	model := &models.VolumeRequest{

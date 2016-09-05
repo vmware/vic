@@ -33,8 +33,6 @@ Docker volume create with specific capacity
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test4 --opt Capacity=100000
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${output}  test4
-    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls -json=true test/VIC/volumes/test4
-    Should Be Equal As Integers  ${rc}  0
     
 Docker volume create with zero capacity
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test5 --opt Capacity=0
@@ -57,12 +55,9 @@ Docker volume create with capacity exceeding int size
     Should Contain  ${output}  Error
     
 Docker volume create with possibly invalid name
-    ${status}=  Get State Of Github Issue  1563
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-19-Docker-Volume-Create.robot needs to be updated now that Issue #1563 has been resolved
-    Log  Issue \#1563 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test???
-    #Should Be Equal As Integers  ${rc}  1
-    #Should Be Equal As Strings  ${output}  Error response from daemon: create test???: "test???" includes invalid characters for a local volume name, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test???
+    Should Be Equal As Integers  ${rc}  1
+    Should Be Equal As Strings  ${output}  Error response from daemon: volume name "test???" includes invalid characters, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed
     
 Docker volume create 100 volumes rapidly
     ${pids}=  Create List
