@@ -3,7 +3,7 @@ Resource  ../../resources/Util.robot
 
 *** Test Cases ***
 Test
-    ${result}=  Run Process  ${bin-dir}/imagec -standalone -reference photon -logfile /tmp/foo.log -destination /tmp/images  shell=True 
+    ${result}=  Run Process  ${bin-dir}/imagec -debug -standalone -reference photon -logfile /tmp/foo.log -destination /tmp/images  shell=True 
     Should Be Equal As Integers  0  ${result.rc}
     OperatingSystem.File Should Exist  /tmp/foo.log
     File Should Not Be Empty  /tmp/foo.log
