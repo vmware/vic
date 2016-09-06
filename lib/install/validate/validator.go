@@ -49,9 +49,8 @@ type Validator struct {
 	Session *session.Session
 	Context context.Context
 
-	isVC         bool
-	issues       []error
-	computeHosts []*object.HostSystem
+	isVC   bool
+	issues []error
 
 	DisableFirewallCheck bool
 	DisableDRSCheck      bool
@@ -369,31 +368,76 @@ func (v *Validator) compatibility(ctx context.Context, conf *config.VirtualConta
 	_, err := v.Session.Datastore.AttachedClusterHosts(v.Context, v.Session.Cluster)
 	v.NoteIssue(err)
 
-	// closure to look up a datastore based on a URL from the config & check to see if it's writeable
-	checkDS := func(u *url.URL) {
-		datastores, err := v.Session.Finder.DatastoreList(ctx, fmt.Sprintf("[%s] %s", u.Host, u.Path))
-		if err != nil {
-			v.NoteIssue(err)
-		}
-		if len(datastores) != 1 {
-			// this is basically an assert; at this point DatastoreList should absolutely only return one result
-			v.NoteIssue(errors.Errorf("Looking up datastore %s returned %d results.", u.String(), len(datastores)))
-		}
-		if !v.isTargetDatastoreWriteable(ctx, datastores[0]) {
-			v.NoteIssue(errors.Errorf("Datastore %s is not writeable by the compute resource provided by --compute-resource", u.String()))
-		}
+	v.checkDatastoresAreWriteable(ctx, conf)
+}
+
+// looks up a datastore and adds it to the set
+func (v *Validator) getDatastore(ctx context.Context, u *url.URL, datastoreSet map[*object.Datastore]bool) {
+	if datastoreSet == nil {
+		datastoreSet = make(map[*object.Datastore]bool)
 	}
 
-	// call above closure on each of the collections of datastores that we have in the config
+	datastores, err := v.Session.Finder.DatastoreList(ctx, u.Host)
+	if err != nil {
+		v.NoteIssue(err)
+	}
+	if len(datastores) != 1 {
+		v.NoteIssue(errors.Errorf("Looking up datastore %s returned %d results.", u.String(), len(datastores)))
+	}
+	for _, d := range datastores {
+		datastoreSet[d] = true
+	}
+}
+
+// populates the v.datastoreSet "set" with datastore references generated from config
+func (v *Validator) getAllDatastores(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) map[*object.Datastore]bool {
+	// note that ImageStores, ContainerStores, and VolumeLocations
+	// have just-different-enough types/structures that this cannot be made more succinct
+	var datastoreSet map[*object.Datastore]bool
 	for _, u := range conf.ImageStores {
-		checkDS(&u)
+		v.getDatastore(ctx, &u, datastoreSet)
 	}
 	for _, u := range conf.ContainerStores {
-		checkDS(&u)
+		v.getDatastore(ctx, &u, datastoreSet)
+	}
+	for _, u := range conf.VolumeLocations {
+		v.getDatastore(ctx, u, datastoreSet)
+	}
+	return datastoreSet
+}
+
+func (v *Validator) checkDatastoresAreWriteable(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) {
+	// gather compute host references
+
+	clusterDatastores, err := v.Session.Cluster.Datastores(ctx)
+	v.NoteIssue(err)
+
+	// check that the cluster can see all of the datastores in question
+	requestedDatastores := v.getAllDatastores(ctx, conf)
+	var validStores map[*object.Datastore]bool
+	// remove any found datastores from requested datastores
+	for _, cds := range clusterDatastores {
+		if requestedDatastores[cds] {
+			delete(requestedDatastores, cds)
+			validStores[cds] = true
+		}
+	}
+	// if requestedDatastores is not empty, some requested datastores are not writable
+	for store := range requestedDatastores {
+		v.NoteIssue(errors.Errorf("Datastore %s is not accessible by the compute resource", store.String()))
 	}
 
-	for _, u := range conf.VolumeLocations {
-		checkDS(u)
+	computeHosts, err := v.Session.Cluster.Hosts(ctx)
+	v.NoteIssue(err)
+
+	for _, host := range computeHosts {
+		for store := range validStores {
+			// call AttachedHosts
+			v.NoteIssue(err)
+			if !v.isDatastoreAttachedToHost(ctx, host, store) {
+				log.Warningf("Datastore %s is not directly accessible to host %s, which may cause performance degradation", store.String(), host.String())
+			}
+		}
 	}
 }
 
@@ -515,67 +559,14 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.Virtua
 	return &dconfig
 }
 
-// helper to grab HostSystem references out of the Session cluster
-func (v *Validator) getHostsInCluster(ctx context.Context) ([]*object.HostSystem, error) {
-	computeHosts, err := v.Session.Cluster.Hosts(ctx)
-	if err != nil {
-		return nil, err
-	}
-	// computeHosts shouldn't be zero anymore; if it still is, there's a problem
-	if len(computeHosts) == 0 {
-		return nil, errors.New("Couldn't get list of hosts connected to target cluster")
-	}
-	return computeHosts, nil
-}
-
-// checks if a given datastore ds is writeable by compute resource specified on cmd line --compute-resource
-func (v *Validator) isTargetDatastoreWriteable(ctx context.Context, ds *object.Datastore) bool {
-	defer trace.End(trace.Begin(ds.String()))
-
-	// get compute hosts if we haven't run this method on this object before
-	if len(v.computeHosts) == 0 {
-		var err error
-		v.computeHosts, err = v.getHostsInCluster(ctx)
-		if err != nil {
-			v.NoteIssue(err)
-		}
-	}
-
-	// now get hosts connected to ds
+// isDatastoreAttachedToHost tells us whether computeHost can write to ds
+func (v *Validator) isDatastoreAttachedToHost(ctx context.Context, computeHost *object.HostSystem, ds *object.Datastore) bool {
 	attachedHosts, err := ds.AttachedClusterHosts(ctx, v.Session.Cluster)
-	if err != nil {
-		v.NoteIssue(err)
-		return false
-	}
-
-	if len(attachedHosts) == 0 {
-		// this could mean that we're not operating on a cluster..
-		log.Debugf("AttachedClusterHosts returned nothing; searching for unclustered hosts connected to datastore %s", ds.String())
-		attachedHosts, err := ds.AttachedHosts(ctx)
-
-		if err != nil {
-			v.NoteIssue(err)
-			return false
-		}
-
-		if len(attachedHosts) == 0 {
-			// shouldn't be possible to wind up here, but we should get an error message if we do
-			v.NoteIssue(errors.Errorf("No attached hosts found for datastore %s", ds.String()))
-			return false
+	v.NoteIssue(err)
+	for _, attachedHost := range attachedHosts {
+		if attachedHost.Reference() == computeHost.Reference() {
+			return true
 		}
 	}
-
-	// find a common host in the two lists
-	for _, c := range v.computeHosts {
-		for _, a := range attachedHosts {
-			if c.Reference() == a.Reference() {
-				return true
-			}
-		}
-	}
-
-	// no common host found -- erroneous user input
-	v.NoteIssue(errors.Errorf("Datastore %s is not writeable from the compute resource specified under --compute-resource", ds.String()))
 	return false
-
 }
