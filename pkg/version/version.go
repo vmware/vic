@@ -15,9 +15,11 @@
 package version
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"runtime"
+	"strconv"
 )
 
 // These fields are set by the compiler using the linker flags upon build via Makefile.
@@ -76,4 +78,44 @@ func (v *Build) String() string {
 
 func (v *Build) ShortVersion() string {
 	return fmt.Sprintf("%s-%s-%s", v.Version, v.BuildNumber, v.GitCommit)
+}
+
+// Equal determines if v is equal to b based on BuildNumber
+func (v *Build) Equal(b *Build) bool {
+	if v.BuildNumber != b.BuildNumber {
+		return false
+	}
+	return true
+}
+
+// IsOlder determines if v is older than b based on BuildNumber
+func (v *Build) IsOlder(b *Build) (bool, error) {
+	if v.Equal(b) {
+		return false, nil
+	}
+
+	if v.BuildNumber == "" || b.BuildNumber == "" {
+		return false, errors.New("invalid BuildNumber")
+	}
+
+	vi, errv := strconv.Atoi(v.BuildNumber)
+	bi, errb := strconv.Atoi(b.BuildNumber)
+	if errv != nil || errb != nil {
+		return false, errors.New("invalid BuildNumber format")
+	}
+
+	buildBefore := vi < bi
+	return buildBefore, nil
+}
+
+// IsNewer determines if v is newer than b based on BuildNumber
+func (v *Build) IsNewer(b *Build) (bool, error) {
+	if v.Equal(b) {
+		return false, nil
+	}
+	older, err := v.IsOlder(b)
+	if err != nil {
+		return false, err
+	}
+	return !older, nil
 }
