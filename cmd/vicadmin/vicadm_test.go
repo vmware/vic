@@ -251,15 +251,19 @@ func TestLogTail(t *testing.T) {
 		"/logs/tail/" + name,
 	}
 
-	i := 0
-
 	u := url.URL{
 		// User:   url.UserPassword("root", "thisisinsecure"),
 		Scheme: "https",
 		Host:   fmt.Sprintf("localhost:%d", port),
 	}
 
-	f.WriteString("this is line 0\n")
+	str := "The quick brown fox jumps over the lazy dog.\n"
+
+	// Pre-populate the log file
+	for i := 0; i < tailLines; i++ {
+		f.WriteString(str)
+	}
+
 	log.Printf("Testing TestLogTail\n")
 	for _, path := range paths {
 		u.Path = path
@@ -270,15 +274,18 @@ func TestLogTail(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		// Each line written to the log file has enough bytes to ensure
+		// that 8 lines make up at least 256 bytes. This is in case this
+		// goroutine finishes writing all lines before tail kicks in.
 		go func() {
 			for j := 1; j < 512; j++ {
-				i++
-				f.WriteString(fmt.Sprintf("this is line %d\n", i))
+				f.WriteString(str)
 			}
 		}()
 
 		size := int64(256)
-		n, _ := io.CopyN(out, res.Body, size)
+		n, err := io.CopyN(out, res.Body, size)
+		assert.NoError(t, err)
 		out.Write([]byte("...\n"))
 
 		assert.Equal(t, size, n)
