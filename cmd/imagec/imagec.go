@@ -705,9 +705,12 @@ func main() {
 	// Get the manifest
 	manifest, err := FetchImageManifest(options)
 	if err != nil {
-		if strings.Contains(err.Error(), "image not found") {
+		switch err := err.(type) {
+		case ImageNotFoundError:
 			log.Fatalf("Error: image %s not found", options.image)
-		} else {
+		case TagNotFoundError:
+			log.Fatalf("Tag %s not found in repository %s", options.tag, options.image)
+		default:
 			log.Fatalf("Error while pulling image manifest: %s", err)
 		}
 	}
