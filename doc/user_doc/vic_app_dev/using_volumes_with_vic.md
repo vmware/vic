@@ -40,12 +40,12 @@ When you use the `docker volume create` command to create a volume, you can opti
 
 - You can optionally set the capacity of a volume by specifying the `--opt Capacity` option when you run `docker volume create`. If you do not specify the `--opt Capacity` option, the volume is created with the default capacity of 1024MB. 
 
-  If you do not specify a unit for the capacity, the volume is created with a capacity in megabytes.
+  If you do not specify a unit for the capacity, the default unit will be in Megabytes.
   <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls volume create 
 --opt VolumeStore=<i>volume_store_label</i> 
 --opt Capacity=2048
 --name <i>volume_name</i></pre>
-- To create a volume with a capacity in gigabytes or terabytes, include `GB`, or `TB` in the value that you pass to `--opt Capacity`. The unit is case insensitive.
+- To create a volume with a capacity in megabytes, gigabytes, or terabytes, include `MB`, `GB`, or `TB` in the value that you pass to `--opt Capacity`. The unit is case insensitive.
 
   <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls volume create 
 --opt VolumeStore=<i>volume_store_label</i> 
