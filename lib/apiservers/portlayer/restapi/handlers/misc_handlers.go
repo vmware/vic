@@ -37,11 +37,11 @@ func (handler *MiscHandlersImpl) Ping() middleware.Responder {
 
 func (handler *MiscHandlersImpl) GetVCHInfo() middleware.Responder {
 	vchInfo := &models.VCHInfo{
-		CPUMhz:          &exec.VCHConfig.VCHMhz,
-		Memory:          &exec.VCHConfig.VCHMemoryLimit,
-		HostOS:          &exec.VCHConfig.HostOS,
-		HostOSVersion:   &exec.VCHConfig.HostOSVersion,
-		HostProductName: &exec.VCHConfig.HostProductName,
+		CPUMhz:          &exec.Config.VCHMhz,
+		Memory:          &exec.Config.VCHMemoryLimit,
+		HostOS:          &exec.Config.HostOS,
+		HostOSVersion:   &exec.Config.HostOSVersion,
+		HostProductName: &exec.Config.HostProductName,
 	}
 
 	return misc.NewGetVCHInfoOK().WithPayload(vchInfo)

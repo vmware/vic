@@ -145,10 +145,10 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		var res *types.TaskInfo
 		var err error
 
-		if sess.IsVC() && VCHConfig.VirtualApp != nil {
+		if sess.IsVC() && Config.VirtualApp != nil {
 			// Create the vm
 			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-				return VCHConfig.VirtualApp.CreateChildVM_Task(ctx, *h.Spec.Spec(), nil)
+				return Config.VirtualApp.CreateChildVM_Task(ctx, *h.Spec.Spec(), nil)
 			})
 
 		} else {
@@ -163,7 +163,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 			// Create the vm
 			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-				return parent.CreateVM(ctx, *h.Spec.Spec(), VCHConfig.ResourcePool, nil)
+				return parent.CreateVM(ctx, *h.Spec.Spec(), Config.ResourcePool, nil)
 			})
 		}
 
@@ -562,8 +562,8 @@ func InfraContainers(ctx context.Context, sess *session.Session) ([]*Container, 
 	var rp mo.ResourcePool
 
 	// popluate the vm property of the vch resource pool
-	if err := VCHConfig.ResourcePool.Properties(ctx, VCHConfig.ResourcePool.Reference(), []string{"vm"}, &rp); err != nil {
-		name := VCHConfig.ResourcePool.Name()
+	if err := Config.ResourcePool.Properties(ctx, Config.ResourcePool.Reference(), []string{"vm"}, &rp); err != nil {
+		name := Config.ResourcePool.Name()
 		log.Errorf("List failed to get %s resource pool child vms: %s", name, err)
 		return nil, err
 	}

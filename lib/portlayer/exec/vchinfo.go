@@ -23,18 +23,18 @@ import (
 
 // NCPU returns the CPU limit (MHZ)
 func NCPU(ctx context.Context, moref ...types.ManagedObjectReference) int64 {
-	if VCHConfig.ResourcePool == nil {
+	if Config.ResourcePool == nil {
 		return 0
 	}
 
 	var p mo.ResourcePool
 
-	r := VCHConfig.ResourcePool.Reference()
+	r := Config.ResourcePool.Reference()
 	if len(moref) > 0 {
 		r = moref[0]
 	}
 
-	if err := VCHConfig.ResourcePool.Properties(ctx, r, []string{"parent", "config.cpuAllocation"}, &p); err != nil {
+	if err := Config.ResourcePool.Properties(ctx, r, []string{"parent", "config.cpuAllocation"}, &p); err != nil {
 		return 0
 	}
 
@@ -47,18 +47,18 @@ func NCPU(ctx context.Context, moref ...types.ManagedObjectReference) int64 {
 
 // MemTotal returns the memory limit (GiB)
 func MemTotal(ctx context.Context, moref ...types.ManagedObjectReference) int64 {
-	if VCHConfig.ResourcePool == nil {
+	if Config.ResourcePool == nil {
 		return 0
 	}
 
 	var p mo.ResourcePool
 
-	r := VCHConfig.ResourcePool.Reference()
+	r := Config.ResourcePool.Reference()
 	if len(moref) > 0 {
 		r = moref[0]
 	}
 
-	if err := VCHConfig.ResourcePool.Properties(ctx, r, []string{"parent", "config.memoryAllocation"}, &p); err != nil {
+	if err := Config.ResourcePool.Properties(ctx, r, []string{"parent", "config.memoryAllocation"}, &p); err != nil {
 		return 0
 	}
 

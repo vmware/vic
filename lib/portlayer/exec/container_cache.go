@@ -40,7 +40,6 @@ func NewContainerCache() {
 	containers = &containerCache{
 		cache: make(map[string]*Container),
 	}
-
 }
 
 func (conCache *containerCache) Container(idOrRef string) *Container {

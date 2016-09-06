@@ -39,17 +39,17 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 	initializer.Do(func() {
 		f := find.NewFinder(sess.Vim25(), false)
 
-		extraconfig.Decode(source, &config)
+		extraconfig.Decode(source, &Config)
 
-		log.Debugf("Decoded VCH config for execution: %#v", config)
-		ccount := len(config.ComputeResources)
+		log.Debugf("Decoded VCH config for execution: %#v", Config)
+		ccount := len(Config.ComputeResources)
 		if ccount != 1 {
 			err = fmt.Errorf("expected singular compute resource element, found %d", ccount)
 			log.Error(err)
 			return
 		}
 
-		cr := config.ComputeResources[0]
+		cr := Config.ComputeResources[0]
 		var r object.Reference
 		r, err = f.ObjectReference(ctx, cr)
 		if err != nil {
@@ -59,10 +59,10 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		}
 		switch o := r.(type) {
 		case *object.VirtualApp:
-			config.VirtualApp = o
-			config.ResourcePool = o.ResourcePool
+			Config.VirtualApp = o
+			Config.ResourcePool = o.ResourcePool
 		case *object.ResourcePool:
-			config.ResourcePool = o
+			Config.ResourcePool = o
 		default:
 			err = fmt.Errorf("could not get resource pool or virtual app from reference %q: object type is wrong", cr.String())
 			log.Error(err)
@@ -70,7 +70,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		}
 
 		// we want to monitor the resource pool, so create a vSphere Event Collector
-		ec := vsphere.NewCollector(sess.Vim25(), config.ResourcePool.Reference().String())
+		ec := vsphere.NewCollector(sess.Vim25(), Config.ResourcePool.Reference().String())
 
 		// start the collection of vsphere events
 		err = ec.Start()
@@ -81,13 +81,13 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		}
 
 		// create the event manager &  register the existing collector
-		config.EventManager = event.NewEventManager(ec)
+		Config.EventManager = event.NewEventManager(ec)
 
 		// instantiate the container cache now
 		NewContainerCache()
 
 		//FIXME: temporary injection of debug network for debug nic
-		ne := config.Networks["client"]
+		ne := Config.Networks["client"]
 		if ne == nil {
 			err = fmt.Errorf("could not get client network reference for debug nic - this code can be removed once network mapping/dhcp client is present")
 			log.Error(err)
@@ -102,17 +102,17 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			log.Error(err)
 			return
 		}
-		config.DebugNetwork = r.(object.NetworkReference)
+		Config.DebugNetwork = r.(object.NetworkReference)
 
 		// Grab the AboutInfo about our host environment
 		about := sess.Vim25().ServiceContent.About
-		config.VCHMhz = NCPU(ctx)
-		config.VCHMemoryLimit = MemTotal(ctx)
-		config.HostOS = about.OsType
-		config.HostOSVersion = about.Version
-		config.HostProductName = about.Name
+		Config.VCHMhz = NCPU(ctx)
+		Config.VCHMemoryLimit = MemTotal(ctx)
+		Config.HostOS = about.OsType
+		Config.HostOSVersion = about.Version
+		Config.HostProductName = about.Name
 		log.Debugf("Host - OS (%s), version (%s), name (%s)", about.OsType, about.Version, about.Name)
-		log.Debugf("VCH limits - %d Mhz, %d MB", config.VCHMhz, config.VCHMemoryLimit)
+		log.Debugf("VCH limits - %d Mhz, %d MB", Config.VCHMhz, Config.VCHMemoryLimit)
 
 	})
 
