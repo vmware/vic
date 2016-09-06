@@ -99,6 +99,8 @@ func (s State) String() string {
 		return "Running"
 	case StateRemoving:
 		return "Removing"
+	case StateRemoved:
+		return "Removed"
 	case StateStopping:
 		return "Stopping"
 	case StateStopped:

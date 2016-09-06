@@ -15,38 +15,31 @@
 package event
 
 import (
-	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/lib/portlayer/event/collector"
+	"github.com/vmware/vic/lib/portlayer/event/events"
 )
 
+// EventManager will provide a basic event pub/sub implementation
 type EventManager interface {
 
-	// AddMonitoredObject will add the object for event listening
-	AddMonitoredObject(ref string) error
+	// RegisterCollector a collector with the manager
+	RegisterCollector(collector.Collector)
 
-	// RemoveMonitoredObject will remove the object from event listening
-	RemoveMonitoredObject(ref string)
+	// Collectors returns registered collectors
+	Collectors() map[string]collector.Collector
 
-	// Register will for event callbacks
-	Register(caller string, callback func(Event, *session.Session))
+	// Subscribe for event callbacks
+	Subscribe(eventTopic string, caller string, callback func(events.Event))
 
-	// Unregsiter from event callbacks
-	Unregister(caller string)
+	// Unsubscribe from event callbacks
+	Unsubscribe(eventTopic string, caller string)
 
-	// Registry will return the callback map
-	Registry() map[string]func(Event, *session.Session)
+	// Subscribers will return the subscriber map
+	Subscribers() map[string]map[string]func(events.Event)
 
-	// RegistryCount returns the count of callbacks
-	RegistryCount() int
+	// Subscribed returns subscriber count
+	Subscribed() int
 
-	// Start listening for events
-	Start() error
-
-	// Stop listening for events
-	Stop()
-
-	// Blacklist will identify an object to be omitted from event callbacks
-	Blacklist(ref string) error
-
-	// Unblacklist will remove an object that was previously blacklisted
-	Unblacklist(ref string)
+	// Publish the event to the subscribers
+	Publish(e events.Event)
 }
