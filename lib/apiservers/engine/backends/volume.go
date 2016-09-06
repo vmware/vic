@@ -124,9 +124,9 @@ func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]s
 		switch err := err.(type) {
 
 		case *storage.CreateVolumeConflict:
-			return result, derr.NewBadRequestError(fmt.Errorf("A volume named %s already exists. Choose a different volume name.", model.Name))
+			return result, derr.NewErrorWithStatusCode(fmt.Errorf("A volume named %s already exists. Choose a different volume name.", model.Name), http.StatusInternalServerError)
 		case *storage.CreateVolumeNotFound:
-			return result, derr.NewBadRequestError(fmt.Errorf("No volume store named (%s) exists", model.Store))
+			return result, derr.NewErrorWithStatusCode(fmt.Errorf("No volume store named (%s) exists", model.Store), http.StatusInternalServerError)
 		case *storage.CreateVolumeInternalServerError:
 			// FIXME: right now this does not return an error model...
 			return result, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err.Error()), http.StatusInternalServerError)
@@ -222,11 +222,9 @@ func validateDriverArgs(args map[string]string, model *models.VolumeRequest) err
 	}
 
 	//check if it is just a numerical value
-	validator, _ := regexp.Compile("^[0-9][0-9]*$") //note this is a global line match. Find will return 1 or no matches.
-	match := validator.Find([]byte(capstr))
-	if match != nil {
+	capacity, err := strconv.ParseInt(capstr, 10, 64)
+	if err == nil {
 		//input has no units in this case.
-		capacity, err := strconv.ParseInt(capstr, 10, 64)
 		if err != nil {
 			return fmt.Errorf("Invalid size: %s", capstr)
 		}
@@ -234,7 +232,7 @@ func validateDriverArgs(args map[string]string, model *models.VolumeRequest) err
 		return nil
 	}
 
-	capacity, err := units.FromHumanSize(capstr)
+	capacity, err = units.FromHumanSize(capstr)
 	if err != nil {
 		return err
 	}
