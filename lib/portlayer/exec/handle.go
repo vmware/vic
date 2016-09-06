@@ -80,7 +80,10 @@ func newHandle(con *Container) *Handle {
 		committed:  false,
 		Container:  con,
 		ExecConfig: *con.ExecConfig,
+		State:      new(State),
 	}
+
+	*h.State = con.State
 
 	handlesLock.Lock()
 	defer handlesLock.Unlock()

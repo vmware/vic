@@ -47,7 +47,7 @@ import (
 type State int
 
 const (
-	StateStarting = iota + 1
+	StateStarting State = iota
 	StateRunning
 	StateStopping
 	StateStopped

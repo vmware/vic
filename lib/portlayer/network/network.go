@@ -61,7 +61,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		for nn, n := range config.ContainerNetworks {
 			pgref := new(types.ManagedObjectReference)
 			if !pgref.FromString(n.ID) {
-				log.Errorf("Could not reacquire object reference from id for network %s: %s", nn, n.ID)
+				log.Warnf("Could not reacquire object reference from id for network %s: %s", nn, n.ID)
 			}
 
 			r, err := f.ObjectReference(ctx, *pgref)
@@ -112,6 +112,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			h := c.NewHandle()
 			defer h.Close()
 			if *h.State != exec.StateRunning {
+				log.Debugf("skip binding container=%s state=%s", c.ExecConfig.ID, *h.State)
 				continue
 			}
 
