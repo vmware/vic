@@ -8,3 +8,5 @@ VIC Manual Test Suite
 -
 [Group 11 - Stress](Group11-Stress/TestCases.md)
 -
+[Group 12 - Maintenance Mode](Group12-Maintenance-Mode/TestCases.md)
+-
