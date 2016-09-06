@@ -222,6 +222,7 @@ func TestLogTail(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	defer os.Remove(f.Name())
 
 	f.WriteString("# not much here yet\n")
@@ -281,6 +282,7 @@ func TestLogTail(t *testing.T) {
 			for j := 1; j < 512; j++ {
 				f.WriteString(str)
 			}
+			f.Sync()
 		}()
 
 		size := int64(256)
