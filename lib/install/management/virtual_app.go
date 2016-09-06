@@ -24,6 +24,7 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 )
 
 func (d *Dispatcher) createVApp(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*object.VirtualApp, error) {
@@ -79,7 +80,7 @@ func (d *Dispatcher) createVApp(conf *config.VirtualContainerHostConfigSpec, set
 			Name:      "vSphere Integrated Containers",
 			Vendor:    "VMware",
 			VendorUrl: "http://www.vmware.com/",
-			Version:   "0.0.1",
+			Version:   version.Version,
 		},
 		ArrayUpdateSpec: types.ArrayUpdateSpec{
 			Operation: types.ArrayUpdateOperationAdd,
