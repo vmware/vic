@@ -40,7 +40,7 @@ const (
 )
 
 //Validation pattern for Volume Names
-var VolumeNameRegex = regexp.MustCompile("^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
+var volumeNameRegex = regexp.MustCompile("^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
 
 func NewVolumeModel(volume *models.VolumeResponse, labels map[string]string) *types.Volume {
 	return &types.Volume{
@@ -108,7 +108,7 @@ func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]s
 	}
 
 	// TODO: support having another driver besides vsphere.
-	// assign the values of the model to be paassed to the portlayer handler
+	// assign the values of the model to be passed to the portlayer handler
 	model, varErr := translateInputsToPortlayerRequestModel(name, driverName, opts, labels)
 	if varErr != nil {
 		return result, derr.NewErrorWithStatusCode(varErr, http.StatusBadRequest)
@@ -225,7 +225,7 @@ func validateDriverArgs(args map[string]string, model *models.VolumeRequest) err
 	capacity, err := strconv.ParseInt(capstr, 10, 64)
 	if err == nil {
 		//input has no units in this case.
-		if err != nil {
+		if capacity < 1 {
 			return fmt.Errorf("Invalid size: %s", capstr)
 		}
 		model.Capacity = capacity
@@ -253,7 +253,7 @@ func translateInputsToPortlayerRequestModel(name, driverName string, opts, label
 		return nil, fmt.Errorf("Error looking up volume plugin %s: plugin not found", driverName)
 	}
 
-	if !VolumeNameRegex.Match([]byte(name)) && name != "" {
+	if !volumeNameRegex.Match([]byte(name)) && name != "" {
 		return nil, fmt.Errorf("volume name \"%s\" includes invalid characters, only \"[a-zA-Z0-9][a-zA-Z0-9_.-]\" are allowed", name)
 	}
 
@@ -271,7 +271,7 @@ func translateInputsToPortlayerRequestModel(name, driverName string, opts, label
 	model.Metadata = make(map[string]string)
 	model.Metadata[dockerMetadataModelKey] = metadata
 	if err := validateDriverArgs(opts, model); err != nil {
-		return nil, fmt.Errorf("Bad Driver Arg: %s", err)
+		return nil, fmt.Errorf("bad driver value - %s", err)
 	}
 
 	return model, nil

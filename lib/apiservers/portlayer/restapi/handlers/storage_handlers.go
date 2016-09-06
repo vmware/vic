@@ -290,7 +290,7 @@ func (handler *StorageHandlersImpl) CreateVolume(params storage.CreateVolumePara
 
 		if os.IsExist(err) {
 			return storage.NewCreateVolumeConflict().WithPayload(&models.Error{
-				Code:    swag.Int64(http.StatusNotFound),
+				Code:    swag.Int64(http.StatusConflict),
 				Message: err.Error(),
 			})
 		}

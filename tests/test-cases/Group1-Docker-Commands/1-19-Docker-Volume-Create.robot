@@ -22,12 +22,12 @@ Docker volume create already named volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: A volume named test already exists. Choose a different volume name.
-    
+
 Docker volume create volume with bad driver
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create -d fakeDriver --name=test2
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error looking up volume plugin fakeDriver: plugin not found
-    
+
 Docker volume create with bad volumestore
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test3 --opt VolumeStore=fakeStore
     Should Be Equal As Integers  ${rc}  1
@@ -39,32 +39,33 @@ Docker volume create with specific capacity
     Should Be Equal As Strings  ${output}  test4
     ${disk-size}=  Run  docker ${params} logs $(docker ${params} start $(docker ${params} create -v ${output}:/mydata busybox /bin/df -Ph) && sleep 10) | grep by-label | awk '{print $2}' 
     Should Be Equal As Strings  ${disk-size}  96.0G
-    
+
 Docker volume create with zero capacity
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test5 --opt Capacity=0
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Error
-    
+    Should Contain  ${output}  Error response from daemon: bad driver value - Invalid size: 0
+
 Docker volume create with negative one capacity
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test6 --opt Capacity=-1
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Error    
-    
+    ${disk-size}=  Run  docker ${params} logs $(docker ${params} start $(docker ${params} create -v ${output}:/mydata busybox /bin/df -Ph) && sleep 10) | grep by-label | awk '{print $2}'
+    Should Contain  ${output}  Error response from daemon: bad driver value - Invalid size: -1
+
 Docker volume create with capacity too big
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test7 --opt Capacity=9223372036854775808
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Error
-    
+    Should Contain  ${output}  Error response from daemon: bad driver value - Capacity value too large: 9223372036854775808
+
 Docker volume create with capacity exceeding int size
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test8 --opt Capacity=9999999999999999999
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Error
-    
+    Should Contain  ${output}  Error response from daemon: bad driver value - Capacity value too large: 9999999999999999999
+
 Docker volume create with possibly invalid name
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test???
     Should Be Equal As Integers  ${rc}  1
     Should Be Equal As Strings  ${output}  Error response from daemon: volume name "test???" includes invalid characters, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed
-    
+
 Docker volume create 100 volumes rapidly
     ${pids}=  Create List
 
