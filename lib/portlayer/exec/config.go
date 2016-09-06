@@ -19,12 +19,11 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/event"
 )
 
-var VCHConfig Configuration
+var config Configuration
 
 // Configuration is a slice of the VCH config that is relevant to the exec part of the port layer
 type Configuration struct {

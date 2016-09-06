@@ -15,18 +15,10 @@
 package portlayer
 
 import (
-	"fmt"
-
 	log "github.com/Sirupsen/logrus"
-
-	"github.com/vmware/govmomi/find"
-	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/types"
-
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/network"
 	"github.com/vmware/vic/lib/portlayer/storage"
-
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"golang.org/x/net/context"
@@ -52,35 +44,9 @@ func Init(ctx context.Context, sess *session.Session) error {
 		return err
 	}
 
-	f := find.NewFinder(sess.Vim25(), false)
-
-	extraconfig.Decode(source, &exec.VCHConfig)
-	log.Debugf("Decoded VCH config for execution: %#v", exec.VCHConfig)
-	ccount := len(exec.VCHConfig.ComputeResources)
-	if ccount != 1 {
-		err := fmt.Errorf("expected singular compute resource element, found %d", ccount)
-		log.Error(err)
+	if err := exec.Init(ctx, sess, source, sink); err != nil {
 		return err
 	}
-
-	exec.Init(ctx, f, sess)
-
-	//FIXME: temporary injection of debug network for debug nic
-	ne := exec.VCHConfig.Networks["client"]
-	if ne == nil {
-		detail := fmt.Sprintf("could not get client network reference for debug nic - this code can be removed once network mapping/dhcp client is present")
-		log.Errorf(detail)
-		return err
-	}
-	nr := new(types.ManagedObjectReference)
-	nr.FromString(ne.Network.ID)
-	r, err := f.ObjectReference(ctx, *nr)
-	if err != nil {
-		detail := fmt.Sprintf("could not get client network reference from %s: %s", nr.String(), err)
-		log.Errorf(detail)
-		return err
-	}
-	exec.VCHConfig.DebugNetwork = r.(object.NetworkReference)
 
 	if err = network.Init(ctx, sess, source, sink); err != nil {
 		return err
