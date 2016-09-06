@@ -48,7 +48,6 @@ Docker volume create with zero capacity
 Docker volume create with negative one capacity
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test6 --opt Capacity=-1
     Should Be Equal As Integers  ${rc}  1
-    ${disk-size}=  Run  docker ${params} logs $(docker ${params} start $(docker ${params} create -v ${output}:/mydata busybox /bin/df -Ph) && sleep 10) | grep by-label | awk '{print $2}'
     Should Contain  ${output}  Error response from daemon: bad driver value - Invalid size: -1
 
 Docker volume create with capacity too big
