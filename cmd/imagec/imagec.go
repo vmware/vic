@@ -172,6 +172,7 @@ func ParseReference() error {
 	// Validate and parse reference name
 	ref, err := reference.ParseNamed(options.reference)
 	if err != nil {
+		log.Warn("Error while parsing reference %s: %#v", options.reference, err)
 		return err
 	}
 
