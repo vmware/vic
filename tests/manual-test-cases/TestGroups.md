@@ -12,3 +12,5 @@ VIC Manual Test Suite
 -
 [Group 13 - vMotion](Group13-vMotion/TestCases.md)
 -
+[Group 15 - Dogfood](Group15-Dogfood/TestCases.md)
+-
