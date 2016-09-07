@@ -27,6 +27,7 @@ import (
 	uninstall "github.com/vmware/vic/cmd/vic-machine/delete"
 	"github.com/vmware/vic/cmd/vic-machine/inspect"
 	"github.com/vmware/vic/cmd/vic-machine/list"
+	"github.com/vmware/vic/cmd/vic-machine/upgrade"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/version"
 )
@@ -46,6 +47,7 @@ func main() {
 	uninstall := uninstall.NewUninstall()
 	inspect := inspect.NewInspect()
 	list := list.NewList()
+	upgrade := upgrade.NewUpgrade()
 	app.Commands = []cli.Command{
 		{
 			Name:   "create",
@@ -70,6 +72,13 @@ func main() {
 			Usage:  "Inspect VCH",
 			Action: inspect.Run,
 			Flags:  inspect.Flags(),
+		},
+		{
+			Name:   "upgrade",
+			Usage:  "Upgrade VCH to latest version - test only",
+			Action: upgrade.Run,
+			Flags:  upgrade.Flags(),
+			Hidden: true,
 		},
 		{
 			Name:   "version",

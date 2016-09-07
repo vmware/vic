@@ -37,8 +37,7 @@ type Data struct {
 	CertPEM []byte
 	KeyPEM  []byte
 
-	ApplianceISO string
-	BootstrapISO string
+	common.Images
 
 	ImageDatastorePath     string
 	VolumeLocations        map[string]string
@@ -98,8 +97,11 @@ type InstallerData struct {
 
 	ImageFiles map[string]string
 
-	ApplianceISO string
-	BootstrapISO string
+	ApplianceISO      string
+	BootstrapISO      string
+	ISOVersion        string
+	PreUpgradeVersion string
+	RollbackTimeout   time.Duration
 
 	Extension types.Extension
 	UseRP     bool
