@@ -1,166 +1,188 @@
 <!DOCTYPE html>
 <html>
-<head>
-<meta content='text/html; charset=UTF-8' http-equiv='Content-Type'>
-<meta charset='utf-8'>
-<meta content='width=device-width, initial-scale=1, user-scalable=0' name='viewport'>
-<!-- Always force latest IE rendering engine or request Chrome Frame -->
-<meta content='IE=edge,chrome=1' http-equiv='X-UA-Compatible'>
-<!-- Use title if it's in the page YAML frontmatter -->
-<title>vSphere Integrated Containers by VMware&reg;</title>
-<link href='apple-touch-icon-152x152-precomposed.png' rel='apple-touch-icon' sizes='152x152'>
-<link href='apple-touch-icon-144x144-precomposed.png' rel='apple-touch-icon' sizes='144x144'>
-<link href='apple-touch-icon-114x114-precomposed.png' rel='apple-touch-icon' sizes='114x114'>
-<link href='apple-touch-icon-72x72-precomposed.png' rel='apple-touch-icon' sizes='72x72'>
-<link href='apple-touch-icon-precomposed.png' rel='apple-touch-icon'>
-<link href='favicon.png' rel='shortcut icon' />
-<link href='favicon.ico' rel='icon' type='image/ico' />
-<link href="assets/css/all-7082dbf5.css" rel="stylesheet" type="text/css" />
-</head>
-<body class='index'>
-<header>
-  <div class='peelback'></div>
-  <div class='container'>
-    <div class='row'>
-      <div class='brand-container'> <a class="brand" href="https://vmware.github.io/vic">
-        <h1> vSphere Integrated Containers </h1>
-        </a>
-        <div class='by-vmware'> by VMware, Inc. </div>
+  <head>
+    <meta content='text/html; charset=UTF-8' http-equiv='Content-Type'>
+    <meta charset='utf-8'>
+    <meta content='width=device-width, initial-scale=1, user-scalable=0' name='viewport'>
+    <!-- Always force latest IE rendering engine or request Chrome Frame -->
+    <meta content='IE=edge,chrome=1' http-equiv='X-UA-Compatible'>
+    <!-- Use title if it's in the page YAML frontmatter -->
+    <title>vSphere Integrated Containers by VMware&reg;</title>
+    <link href='apple-touch-icon-152x152-precomposed.png' rel='apple-touch-icon' sizes='152x152'>
+    <link href='apple-touch-icon-144x144-precomposed.png' rel='apple-touch-icon' sizes='144x144'>
+    <link href='apple-touch-icon-114x114-precomposed.png' rel='apple-touch-icon' sizes='114x114'>
+    <link href='apple-touch-icon-72x72-precomposed.png' rel='apple-touch-icon' sizes='72x72'>
+    <link href='apple-touch-icon-precomposed.png' rel='apple-touch-icon'>
+    <link href='favicon.png' rel='shortcut icon' />
+    <link href='favicon.ico' rel='icon' type='image/ico' />
+    <link href="assets/css/all-7082dbf5.css" rel="stylesheet" type="text/css" />
+  </head>
+  <body class='index'>
+    <header>
+      <div class='peelback'></div>
+      <div class='container'>
+        <div class='row'>
+          <div class='brand-container'>
+            <a class="brand" href="https://vmware.github.io/vic"><h1>
+              vSphere Integrated Containers
+            </h1>
+            </a>
+            <div class='by-vmware'>
+              by VMware, Inc.            </div>
+          </div>
+          <nav>
+            <a class="menu-actuator" href="#"><i class='ion-navicon'></i>
+            Menu            </a>
+            <div class='nav-collapse'>
+              <div class='container'>
+                <div class='row'>
+                  <a href="#what-is-vic">What is VIC?</a>
+                  <a href="#getting-vic">Getting VIC</a>
+                  <a href="#getting-started">Getting Started</a>
+                  <a href="#support">Support</a>
+                  <a href="#contributors">Contributors</a>
+                  <a href="#contributing">Contributing</a>
+                  <a href="#license">License</a>
+                </div>
+              </div>
+            </div>
+          </nav>
+        </div>
       </div>
-      <nav> <a class="menu-actuator" href="#"><i class='ion-navicon'></i> Menu </a>
-        <div class='nav-collapse'>
-          <div class='container'>
-            <div class='row'> <a href="#what-is-vic">What is VIC?</a> <a href="#getting-vic">Getting VIC</a> <a href="#getting-started">Getting Started</a> <a href="#support">Support</a> <a href="#contributors">Contributors</a> <a href="#contributing">Contributing</a> <a href="#license">License</a> </div>
+    </header>
+    <section class='hero'>
+      <div class='container'>
+
+        <div class="hero-image">
+          <a href="https://github.com/vmware/vic"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/e7bbb0521b397edbd5fe43e7f760759336b5e05f/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f677265656e5f3030373230302e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_green_007200.png" /></a>
+          <img src="assets/img/vic.png" />
+        </div>
+
+        <h2 id="vmware-vic">VMware vSphere Integrated Containers</h2>
+        <a class="button button-primary button-large" href="https://github.com/vmware/vic"><i class='ion-social-github'></i>
+        Fork
+        vSphere Integrated Containers
+        <i class='ion-ios-arrow-right'></i>
+        </a>
+      </div>
+    </section>
+    <section class='about-vic'>
+      <div class='container'>
+        <div class='row'>
+          <div class='content'>
+            <h2 id="what-is-vic">What is vSphere Integrated Containers Engine?</h2>
+
+            <p>vSphere Integrated Containers Engine is a container runtime for vSphere, allowing developers familiar with Docker to develop in containers and deploy them alongside traditional VM-based workloads on vSphere clusters, and allowing for these workloads to be managed through the vSphere UI in a way familiar to existing vSphere admins.</p>
+
+            <p>See <a href="https://github.com/vmware/vic/blob/master/doc/design/arch/arch.md" target="_blank">vSphere Integrated Containers Engine Architecture</a> for a high level overview.</p>
           </div>
         </div>
-      </nav>
-    </div>
-  </div>
-</header>
-<section class='hero'>
-  <div class='container'>
-    <div class="hero-image"> <a href="https://github.com/vmware/vic"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/e7bbb0521b397edbd5fe43e7f760759336b5e05f/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f677265656e5f3030373230302e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_green_007200.png" /></a> <img src="assets/img/vic.png" /> </div>
-    <h2 id="vmware-vic">VMware vSphere Integrated Containers</h2>
-    <a class="button button-primary button-large" href="https://github.com/vmware/vic"><i class='ion-social-github'></i> Fork
-    vSphere Integrated Containers <i class='ion-ios-arrow-right'></i> </a> </div>
-</section>
-<section class='about-vic'>
-  <div class='container'>
-    <div class='row'>
-      <div class='content'>
-        <h2 id="what-is-vic">What is vSphere Integrated Containers?</h2>
-        <p>vSphere Integrated Containers comprises of three main components, all of which are available as open source projects on Github:
-        <ul>
-          <li><a href="https://github.com/vmware/vic" target="_blank">VMware vSphere Integrated Containers Engine</a>, the container runtime for vSphere, allows developers who are familiar with Docker to develop in containers and deploy them alongside traditional VM-based workloads on vSphere clusters. vSphere admins can manage these workloads through the vSphere Web Client in a way that is familiar.</li>
-          <li><a href="https://github.com/vmware/harbor" target="_blank">VMware Harbor</a>, the enterprise container registry, is an enterprise-class registry server that stores and distributes container images. Harbor extends the Docker Distribution open source project by adding the functionalities usually required by an enterprise, such as security, identity and management. For more information about Harbor, see the <a href="https://vmware.github.io/harbor/" target="_blank">Harbor page on vmware.github.io</a>.</li>
-          <li><a href="https://github.com/vmware/admiral" target="_blank">VMware Admiral</a>, the container management portal, provides a UI for developers and app teams to provision and manage containers, including retrieving stats and info about container instances. Cloud administrators will be able to manage container hosts and apply governance to their usage, including capacity quotas and approval workflows. When integrated with vRealize Automation, more advanced capabilities become available, such as deployment blueprints and enterprise-grade Containers-as-a-Service. For more information about Admiral, see the <a href="https://vmware.github.io/admiral/" target="_blank">Admiral page on vmware.github.io</a>.</li>
-        </ul>
-        <p>With these three capabilities, vSphere Integrated Containers enables VMware customers to deliver a production-ready container solution to their developers and app teams. By leveraging their existing SDDC, customers can run container-based applications alongside existing virtual machine based workloads in production without having to build out a separate, specialized container infrastructure stack. As an added benefit for customers and partners, vSphere Integrated Containers is modular. So if your organization already has a container registry in production, you can use that registry with the other components of vSphere Integrated Containers.</p>
       </div>
-    </div>
-  </div>
-</section>
-<section class='getting-vic'>
-  <div class='container'>
-    <div class='row'>
-      <div class='content'>
-        <h2 id="getting-vic">Getting vSphere Integrated Containers Engine</h2>
-        <ul>
-          <li>vSphere Integrated Containers Engine source code is available on the VMware <a href="https://github.com/vmware/vic" target="_blank">vSphere Integrated Containers Engine GitHub source repository</a>.
-            <ul>
-              <li>You can download the latest approved build of vSphere Integrated Containers Engine from <a href="https://github.com/vmware/vic/releases/" target="_blank">https://github.com/vmware/vic/releases/</a>.</li>
-              <li>You can download the latest daily (unapproved) build of vSphere Integrated Containers Engine from <a href="https://bintray.com/vmware/vic-repo/build/view#" target="_blank">https://bintray.com/vmware/vic-repo/build/view#</a>.</li>
-            </ul>
-          </li>
-          <li>Harbor source code is available on the VMware <a href="https://github.com/vmware/harbor" target="_blank">Harbor GitHub source repository</a>.</li>
-          <li>Admiral source code is available on the VMware <a href="https://github.com/vmware/admiral" target="_blank">Admiral GitHub source repository</a>.</li>
-        </ul>
+    </section>
+    <section class='getting-vic'>
+      <div class='container'>
+        <div class='row'>
+          <div class='content'>
+            <h2 id="getting-vic">Getting vSphere Integrated Containers Engine</h2>
+            <p>vSphere Integrated Containers Engine source code is available on the VMware <a href="https://github.com/vmware/vic">vSphere Integrated Containers Engine GitHub source repository</a>.</p>
+			<ul>
+			<li>You can download the latest approved build of vSphere Integrated Containers Engine from <a href="https://github.com/vmware/vic/releases/" target="_blank">https://github.com/vmware/vic/releases/</a>.</li>
+			<li>You can download the latest daily (unapproved) build of vSphere Integrated Containers Engine from <a href="https://bintray.com/vmware/vic-repo/build/view#" target="_blank">https://bintray.com/vmware/vic-repo/build/view#</a>.</li>
+			</ul>
+
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-</section>
-<section class='getting-started'>
-  <div class='container'>
-    <div class='row'>
-      <h2 id='getting-started'>Getting Started</h2>
-      <p>Here are some docs to help get you started. Note that these docs are works-in-progess, and not all sections have necessarily been fully reviewed. They reflect the code as it is in a recent build rather than in the latest verified build. </p>
-    </div>
-    <div class="row">
-      <div>
-        <p><strong>vSphere Integrated Containers Engine<br>
-          Installation</strong> <font size="-1">Last updated: 2016-0-02</font></p>
-        <div><a href="assets/files/html/vic_installation/index.html" target="_blank" class="button">HTML</a> <a href="assets/files/pdf/vic_installation.pdf" target="_blank" class="button">PDF</a></div>
+    </section>
+    <section class='getting-started'>
+      <div class='container'>
+        <div class='row'>
+          <h2 id='getting-started'>Getting Started</h2>
+          <p>Here are some docs to help get you started. Note that these docs are works-in-progess, and not all sections have necessarily been fully reviewed. They reflect the code as it is in a recent build rather than in the latest verified build. </p>
+          </div>
+        <div class="row">
+		
+		 <div>
+            <p><strong>vSphere Integrated Containers Engine<br>Installation</strong> <font size="-1">Last updated: 2016-09-02</font></p>
+
+            <div><a href="assets/files/html/vic_installation/index.html" target="_blank" class="button">HTML</a> <a href="assets/files/pdf/vic_installation.pdf" target="_blank" class="button">PDF</a></div>
+          </div>
+          <div>
+            <p><strong>vSphere Integrated Containers Engine for vSphere Administrators</strong> <font size="-1">Last updated: 2016-09-02</font></p>
+
+            <div><a href="assets/files/html/vic_admin/index.html" target="_blank" class="button">HTML</a> <a href="assets/files/pdf/vic_admin.pdf" target="_blank" class="button">PDF</a> </div>
+		
+          </div>
+		  </div>
+<div class="row">
+		  <div>
+            <p><strong>Developing Container Applications with vSphere Integrated Containers Engine</strong> <font size="-1">Last updated: 2016-09-02</font></p>
+
+            <div><a href="assets/files/html/vic_app_dev/index.html" target="_blank" class="button">HTML</a> <a href="assets/files/pdf/vic_app_dev.pdf" target="_blank" class="button">PDF</a></div>
+          </div>
+        </div>
+        
       </div>
-      <div>
-        <p><strong>vSphere Integrated Containers Engine for vSphere Administrators</strong> <font size="-1">Last updated: 2016-09-02</font></p>
-        <div><a href="assets/files/html/vic_admin/index.html" target="_blank" class="button">HTML</a> <a href="assets/files/pdf/vic_admin.pdf" target="_blank" class="button">PDF</a> </div>
+    </section>
+    <section class='support'>
+      <div class='container'>
+        <div class='row'>
+          <div class='content'>
+            <h2 id="support">Support</h2>
+
+            <p>vSphere Integrated Containers is released as open source software and comes with no commercial support.</p>
+            <p>For general questions, visit the <a href="https://gitter.im/vmware/vic" target="_blank">vSphere Integrated Containers channel on Gitter.im</a>.</p>
+
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="row">
-      <div>
-        <p><strong>Developing Container Applications with vSphere Integrated Containers Engine</strong> <font size="-1">Last updated: 2016-09-02</font></p>
-        <div><a href="assets/files/html/vic_app_dev/index.html" target="_blank" class="button">HTML</a> <a href="assets/files/pdf/vic_app_dev.pdf" target="_blank" class="button">PDF</a></div>
+    </section>
+    <section class='contributors'>
+      <div class='container'>
+        <div class='row'>
+          <div class='content'>
+            <h2 id='contributors'>Contributors</h2>
+           <p> <a title="S.Çağlar Onur" href="https://github.com/caglar10ur"><img alt="S.Çağlar Onur" src="https://avatars2.githubusercontent.com/u/205498?v=3" /> </a> <a title="George Hicken" href="https://github.com/hickeng"><img alt="George Hicken" src="https://avatars3.githubusercontent.com/u/3923729?v=3" /> </a> <a title="Faiyaz Ahmed" href="https://github.com/fdawg4l"><img alt="Faiyaz Ahmed" src="https://avatars1.githubusercontent.com/u/4296242?v=3" /> </a> <a title="Zach Tucker" href="https://github.com/jzt"><img alt="Zach Tucker" src="https://avatars3.githubusercontent.com/u/128130?v=3" /> </a> <a title="Doug MacEachern" href="https://github.com/dougm"><img alt="Doug MacEachern" src="https://avatars0.githubusercontent.com/u/30171?v=3" /> </a> <a title="Loc Nguyen" href="https://github.com/sflxn"><img alt="Loc Nguyen" src="https://avatars3.githubusercontent.com/u/1330508?v=3" /> </a> <a title="Andrew Chin" href="https://github.com/andrewtchin"><img alt="Andrew Chin" src="https://avatars2.githubusercontent.com/u/1649165?v=3" /> </a> <a title="Emma Lin" href="https://github.com/emlin"><img alt="Emma Lin" src="https://avatars1.githubusercontent.com/u/1091772?v=3" /> </a> <a title="Hasan Mahmood" href="https://github.com/hmahmood"><img alt="Hasan Mahmood" src="https://avatars2.githubusercontent.com/u/6599778?v=3" /> </a> <a title="Ian Whitlock" href="https://github.com/gigawhitlocks"><img alt="Ian Whitlock" src="https://avatars1.githubusercontent.com/u/3743903?v=3" /> </a> <a title="Matthew Avery" href="https://github.com/matthewavery"><img alt="Matthew Avery" src="https://avatars0.githubusercontent.com/u/8620942?v=3" /> </a> <a title="Matt Williamson" href="https://github.com/mdubya66"><img alt="Matt Williamson" src="https://avatars3.githubusercontent.com/u/15821624?v=3" /> </a> <a title="Clint Greenwood" href="https://github.com/cgtexmex"><img alt="Clint Greenwood" src="https://avatars1.githubusercontent.com/u/726112?v=3" /> </a> <a title="Mike Hall" href="https://github.com/mlh78750"><img alt="Mike Hall" src="https://avatars2.githubusercontent.com/u/16670605?v=3" /> </a> <a title="Ben Corrie" href="https://github.com/corrieb"><img alt="Ben Corrie" src="https://avatars2.githubusercontent.com/u/1699842?v=3" /> </a> <a title="Fabio Rapposelli" href="https://github.com/frapposelli"><img alt="Fabio Rapposelli" src="https://avatars3.githubusercontent.com/u/541832?v=3" /> </a> <a title="Ivan Porto Carrero" href="https://github.com/casualjim"><img alt="Ivan Porto Carrero" src="https://avatars2.githubusercontent.com/u/456109?v=3" /> </a> <a title="Stuart Clements" href="https://github.com/stuclem"><img alt="Stuart Clements" src="https://avatars3.githubusercontent.com/u/16718369?v=3" /> </a> <a title="sgairo" href="https://github.com/sgairo"><img alt="sgairo" src="https://avatars2.githubusercontent.com/u/19394901?v=30" /> </a> <a title="Mikkel Hagan" href="https://github.com/mhagen-vmware"><img alt="Mikkel Hagan" src="https://avatars1.githubusercontent.com/u/19393273?v=3" /> </a> <a title="Josh Kim" href="https://github.com/jooskim"><img alt="Josh Kim" src="https://avatars3.githubusercontent.com/u/3834071?v=3" /> </a> <a title="Nandita Deianova" href="https://github.com/npakrasi"><img alt="Nandita Deianova" src="https://avatars2.githubusercontent.com/u/16723048?v=3" /> </a> <a title="Travis Finch" href="https://github.com/travisfinch"><img alt="Travis Finch" src="https://avatars0.githubusercontent.com/u/505983?v=3" /> </a> <a title="Alexander Yamshanov" href="https://github.com/ayamshanov"><img alt="Alexander Yamshanov" src="https://avatars0.githubusercontent.com/u/20258957?v=3" /> </a></p>
+          </div>
+        </div>
       </div>
-	   <div>
-        <p><strong>Using vSphere Integrated Containers Engine with Harbour and Admiral</strong> <font size="-1">Temporary doc. Official doc coming soon.</font></p>
-        <div><a href="https://github.com/vmware/vic-product/blob/master/docs/setup/alpha/README.md" target="_blank" class="button">HTML</a></div>
+    </section>
+    <section class='contributing'>
+      <div class='container'>
+        <div class='row'>
+          <div class='content'>
+            <h2 id="contributing">Contributing</h2>
+            <p>The vSphere Integrated Containers project team welcomes contributions from the community. If you wish to contribute code, we require that you first sign our <a href="assets/files/pdf/vmware_cla.pdf" target="_blank">Contributor License Agreement</a> and return a copy to <a href="&#109;&#097;&#105;&#108;&#116;&#111;:&#111;&#115;&#115;&#099;&#111;&#110;&#116;&#114;&#105;&#098;&#117;&#116;&#105;&#111;&#110;&#115;&#064;&#118;&#109;&#119;&#097;&#114;&#101;&#046;&#099;&#111;&#109;">&#111;&#115;&#115;&#099;&#111;&#110;&#116;&#114;&#105;&#098;&#117;&#116;&#105;&#111;&#110;&#115;&#064;&#118;&#109;&#119;&#097;&#114;&#101;&#046;&#099;&#111;&#109;</a> before we can merge your contribution.</p>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-</section>
-<section class='support'>
-  <div class='container'>
-    <div class='row'>
-      <div class='content'>
-        <h2 id="support">Support</h2>
-        <p>vSphere Integrated Containers is released as open source software and comes with no commercial support.</p>
-        <p>For general questions, visit the <a href="https://gitter.im/vmware/vic" target="_blank">vSphere Integrated Containers channel on Gitter.im</a>.</p>
+    </section>
+    <section class='license'>
+      <div class='container'>
+        <div class='row'>
+          <div class='content'>
+            <h2 id="license">License</h2>
+
+            <p>vSphere Integrated Containers Engine is comprised of many open source software components, each of which has its own license that is located in the source code of the respective component as well as documented in the <a href="https://github.com/vmware/vic/blob/master/LICENSE">open source license file</a> in the vSphere Integrated Containers Engine repository.</p>
+          </div>
+          <div class='image'></div>
+        </div>
       </div>
-    </div>
-  </div>
-</section>
-<section class='contributors'>
-  <div class='container'>
-    <div class='row'>
-      <div class='content'>
-        <h2 id='contributors'>Contributors</h2>
-        <p> <a title="S.Çağlar Onur" href="https://github.com/caglar10ur"><img alt="S.Çağlar Onur" src="https://avatars2.githubusercontent.com/u/205498?v=3" /> </a> <a title="George Hicken" href="https://github.com/hickeng"><img alt="George Hicken" src="https://avatars3.githubusercontent.com/u/3923729?v=3" /> </a> <a title="Faiyaz Ahmed" href="https://github.com/fdawg4l"><img alt="Faiyaz Ahmed" src="https://avatars1.githubusercontent.com/u/4296242?v=3" /> </a> <a title="Zach Tucker" href="https://github.com/jzt"><img alt="Zach Tucker" src="https://avatars3.githubusercontent.com/u/128130?v=3" /> </a> <a title="Doug MacEachern" href="https://github.com/dougm"><img alt="Doug MacEachern" src="https://avatars0.githubusercontent.com/u/30171?v=3" /> </a> <a title="Loc Nguyen" href="https://github.com/sflxn"><img alt="Loc Nguyen" src="https://avatars3.githubusercontent.com/u/1330508?v=3" /> </a> <a title="Andrew Chin" href="https://github.com/andrewtchin"><img alt="Andrew Chin" src="https://avatars2.githubusercontent.com/u/1649165?v=3" /> </a> <a title="Emma Lin" href="https://github.com/emlin"><img alt="Emma Lin" src="https://avatars1.githubusercontent.com/u/1091772?v=3" /> </a> <a title="Hasan Mahmood" href="https://github.com/hmahmood"><img alt="Hasan Mahmood" src="https://avatars2.githubusercontent.com/u/6599778?v=3" /> </a> <a title="Ian Whitlock" href="https://github.com/gigawhitlocks"><img alt="Ian Whitlock" src="https://avatars1.githubusercontent.com/u/3743903?v=3" /> </a> <a title="Matthew Avery" href="https://github.com/matthewavery"><img alt="Matthew Avery" src="https://avatars0.githubusercontent.com/u/8620942?v=3" /> </a> <a title="Matt Williamson" href="https://github.com/mdubya66"><img alt="Matt Williamson" src="https://avatars3.githubusercontent.com/u/15821624?v=3" /> </a> <a title="Clint Greenwood" href="https://github.com/cgtexmex"><img alt="Clint Greenwood" src="https://avatars1.githubusercontent.com/u/726112?v=3" /> </a> <a title="Mike Hall" href="https://github.com/mlh78750"><img alt="Mike Hall" src="https://avatars2.githubusercontent.com/u/16670605?v=3" /> </a> <a title="Ben Corrie" href="https://github.com/corrieb"><img alt="Ben Corrie" src="https://avatars2.githubusercontent.com/u/1699842?v=3" /> </a> <a title="Fabio Rapposelli" href="https://github.com/frapposelli"><img alt="Fabio Rapposelli" src="https://avatars3.githubusercontent.com/u/541832?v=3" /> </a> <a title="Ivan Porto Carrero" href="https://github.com/casualjim"><img alt="Ivan Porto Carrero" src="https://avatars2.githubusercontent.com/u/456109?v=3" /> </a> <a title="Stuart Clements" href="https://github.com/stuclem"><img alt="Stuart Clements" src="https://avatars3.githubusercontent.com/u/16718369?v=3" /> </a> <a title="sgairo" href="https://github.com/sgairo"><img alt="sgairo" src="https://avatars2.githubusercontent.com/u/19394901?v=30" /> </a> <a title="Mikkel Hagan" href="https://github.com/mhagen-vmware"><img alt="Mikkel Hagan" src="https://avatars1.githubusercontent.com/u/19393273?v=3" /> </a> <a title="Josh Kim" href="https://github.com/jooskim"><img alt="Josh Kim" src="https://avatars3.githubusercontent.com/u/3834071?v=3" /> </a> <a title="Nandita Deianova" href="https://github.com/npakrasi"><img alt="Nandita Deianova" src="https://avatars2.githubusercontent.com/u/16723048?v=3" /> </a> <a title="Travis Finch" href="https://github.com/travisfinch"><img alt="Travis Finch" src="https://avatars0.githubusercontent.com/u/505983?v=3" /> </a> <a title="Alexander Yamshanov" href="https://github.com/ayamshanov"><img alt="Alexander Yamshanov" src="https://avatars0.githubusercontent.com/u/20258957?v=3" /> </a></p>
+    </section>
+    <footer>
+      <div class='container'>
+        <div>
+          <p>
+            <a class="vmware" target="_blank" href="http://www.vmware.com">VMware, Inc.</a>
+          </p>
+          <p>
+            &copy;
+            2016
+            VMware, Inc. All Rights Reserved.
+          </p>
+        </div>
       </div>
-    </div>
-  </div>
-</section>
-<section class='contributing'>
-  <div class='container'>
-    <div class='row'>
-      <div class='content'>
-        <h2 id="contributing">Contributing</h2>
-        <p>The vSphere Integrated Containers project team welcomes contributions from the community. If you wish to contribute code, we require that you first sign our <a href="assets/files/pdf/vmware_cla.pdf" target="_blank">Contributor License Agreement</a> and return a copy to <a href="&#109;&#097;&#105;&#108;&#116;&#111;:&#111;&#115;&#115;&#099;&#111;&#110;&#116;&#114;&#105;&#098;&#117;&#116;&#105;&#111;&#110;&#115;&#064;&#118;&#109;&#119;&#097;&#114;&#101;&#046;&#099;&#111;&#109;">&#111;&#115;&#115;&#099;&#111;&#110;&#116;&#114;&#105;&#098;&#117;&#116;&#105;&#111;&#110;&#115;&#064;&#118;&#109;&#119;&#097;&#114;&#101;&#046;&#099;&#111;&#109;</a> before we can merge your contribution.</p>
-      </div>
-    </div>
-  </div>
-</section>
-<section class='license'>
-  <div class='container'>
-    <div class='row'>
-      <div class='content'>
-        <h2 id="license">License</h2>
-        <p>vSphere Integrated Containers is comprised of many open source software components, each of which has its own license that is located in the source code of the respective component as well as documented in the <a href="https://github.com/vmware/vic/blob/master/LICENSE">open source license file</a> in the vSphere Integrated Containers repository.</p>
-      </div>
-      <div class='image'></div>
-    </div>
-  </div>
-</section>
-<footer>
-  <div class='container'>
-    <div>
-      <p> <a class="vmware" target="_blank" href="http://www.vmware.com">VMware, Inc.</a> </p>
-      <p> &copy;
-        2016
-        VMware, Inc. All Rights Reserved. </p>
-    </div>
-  </div>
-</footer>
-</body>
-<script src="//use.typekit.net/lqm4sxw.js" type="text/javascript"></script>
-<script src="assets/js/all-86b9d6be.js" type="text/javascript"></script>
+    </footer>
+  </body>
+  <script src="//use.typekit.net/lqm4sxw.js" type="text/javascript"></script><script src="assets/js/all-86b9d6be.js" type="text/javascript"></script>
 </html>
