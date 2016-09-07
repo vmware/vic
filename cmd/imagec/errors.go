@@ -14,6 +14,8 @@
 
 package main
 
+import "fmt"
+
 // DoNotRetry is an error wrapper indicating that the error cannot be resolved with a retry.
 type DoNotRetry struct {
 	Err error
@@ -21,5 +23,23 @@ type DoNotRetry struct {
 
 // Error returns the stringified representation of the encapsulated error.
 func (e DoNotRetry) Error() string {
-	return e.Err.Error()
+	return fmt.Sprintf("download failed: %s", e.Err.Error())
+}
+
+// ImageNotFoundError is returned when an image is not found.
+type ImageNotFoundError struct {
+	Err error
+}
+
+func (e ImageNotFoundError) Error() string {
+	return fmt.Sprintf("image not found: %s", e.Err.Error())
+}
+
+// TagNotFoundError is returned when an image's tag doesn't exist.
+type TagNotFoundError struct {
+	Err error
+}
+
+func (e TagNotFoundError) Error() string {
+	return fmt.Sprintf("image tag not found: %s", e.Err.Error())
 }

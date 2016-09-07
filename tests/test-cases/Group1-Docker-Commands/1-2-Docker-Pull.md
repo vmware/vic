@@ -21,12 +21,14 @@ This test requires that an vSphere server is running and available.
 5. Issue a docker pull command to the new VIC appliance using a different repo than the default
     * myregistry.local:5000/testing/test-image
 6. Issue a docker pull command to the new VIC appliance using all tags option
-    * --all-tags fedora
+    * --all-tags nginx
 7. Issue a docker pull command to the new VIC appliance using an image that doesn't exist
 8. Issue a docker pull command to the new VIC appliance using a non-default repository that doesn't exist
+9. Issue a docker pull command for an image with a tag that doesn't exist
+10. Issue a docker pull command for an image that has already been pulled
 
 #Expected Outcome:
-VIC appliance should respond with a properly formatted pull response to each command issued to it. No errors should be seen, except in the case of step 7 and 8.
+VIC appliance should respond with a properly formatted pull response to each command issued to it. No errors should be seen, except in the case of step 7, 8 and 9.
 
 #Possible Problems:
 None
