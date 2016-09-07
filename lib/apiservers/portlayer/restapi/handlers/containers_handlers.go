@@ -315,7 +315,18 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 		})
 	}
 
-	reader, err := h.Container.LogReader(context.Background())
+	follow := false
+	tail := -1
+
+	if params.Follow != nil {
+		follow = *params.Follow
+	}
+
+	if params.Taillines != nil {
+		tail = int(*params.Taillines)
+	}
+
+	reader, err := h.Container.LogReader(context.Background(), tail, follow)
 	if err != nil {
 		return containers.NewGetContainerLogsInternalServerError().WithPayload(&models.Error{Message: err.Error()})
 	}

@@ -16,6 +16,20 @@
 # Run robot integration tests locally, no .yml files required.
 # Set GITHUB_TOKEN once and switch environments just by changing GOVC_URL
 
+cmd="pybot"
+
+while getopts t: flag
+do
+    case $flag in
+        # run a specific test
+        t)
+            cmd="$cmd -t \"$OPTARG\""
+            ;;
+    esac
+done
+
+shift $((OPTIND-1))
+
 if [ -z "$GITHUB_TOKEN" ] || [ -z "$GOVC_URL" ]; then
     echo "usage: GITHUB_TOKEN=... GOVC_URL=... $0 test.robot..."
     exit 1
@@ -51,6 +65,6 @@ build:
       TEST_TIMEOUT: 60s
       GOVC_INSECURE: true
     commands:
-      - pybot ${tests:-tests/test-cases}
+      - $cmd ${tests:-tests/test-cases}
 CONFIG
 )

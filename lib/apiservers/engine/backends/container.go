@@ -1506,7 +1506,6 @@ func (c *Container) validateContainerLogsConfig(vc *viccontainer.VicContainer, c
 			return 0, 0, fmt.Errorf("error parsing tail option: %s", err)
 		}
 		tailLines = n
-		return unsupported("tail")
 	}
 
 	var since time.Time
