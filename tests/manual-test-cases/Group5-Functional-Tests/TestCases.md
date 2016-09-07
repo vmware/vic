@@ -12,3 +12,7 @@ Group 5 - Functional Tests
 -
 [Test 5-5 - Heterogeneous ESXi](5-5-Heterogeneous-ESXi.md)
 -
+[Test 5-6 - VSAN](5-6-VSAN.md)
+-
+[Test 5-7 - NSX](5-7-NSX.md)
+-
