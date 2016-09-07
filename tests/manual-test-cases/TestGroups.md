@@ -10,3 +10,5 @@ VIC Manual Test Suite
 -
 [Group 12 - Maintenance Mode](Group12-Maintenance-Mode/TestCases.md)
 -
+[Group 13 - vMotion](Group13-vMotion/TestCases.md)
+-
