@@ -61,7 +61,7 @@ INFO[2016-06-29T14:41:36-07:00] Installer completed successfully
 
 ## Deleting a Virtual Container Host
 
-Specify the same resource pool and VCH name used to create a VCH, then the VCH will removed, toghether with the created containers, images, and volumes, if --force is provided. Here is an example command and output - replace the `<fields>` in the example with values specific to your environment.
+Specify the same resource pool and VCH name used to create a VCH, then the VCH will removed, together with the created containers, images, and volumes, if --force is provided. Here is an example command and output - replace the `<fields>` in the example with values specific to your environment.
 
 ```
 vic-machine-linux delete --target target-host[/datacenter] --user root --password <password> --compute-resource <resource pool path> --name <vch-name>
