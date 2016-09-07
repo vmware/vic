@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
@@ -372,9 +373,9 @@ func (v *Validator) compatibility(ctx context.Context, conf *config.VirtualConta
 }
 
 // looks up a datastore and adds it to the set
-func (v *Validator) getDatastore(ctx context.Context, u *url.URL, datastoreSet map[*object.Datastore]bool) {
+func (v *Validator) getDatastore(ctx context.Context, u *url.URL, datastoreSet map[types.ManagedObjectReference]*object.Datastore) map[types.ManagedObjectReference]*object.Datastore {
 	if datastoreSet == nil {
-		datastoreSet = make(map[*object.Datastore]bool)
+		datastoreSet = make(map[types.ManagedObjectReference]*object.Datastore)
 	}
 
 	datastores, err := v.Session.Finder.DatastoreList(ctx, u.Host)
@@ -384,53 +385,55 @@ func (v *Validator) getDatastore(ctx context.Context, u *url.URL, datastoreSet m
 		v.NoteIssue(errors.Errorf("Looking up datastore %s returned %d results.", u.String(), len(datastores)))
 	}
 	for _, d := range datastores {
-		datastoreSet[d] = true
+		datastoreSet[d.Reference()] = d
 	}
+	return datastoreSet
 }
 
 // populates the v.datastoreSet "set" with datastore references generated from config
-func (v *Validator) getAllDatastores(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) map[*object.Datastore]bool {
+func (v *Validator) getAllDatastores(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) map[types.ManagedObjectReference]*object.Datastore {
 	// note that ImageStores, ContainerStores, and VolumeLocations
 	// have just-different-enough types/structures that this cannot be made more succinct
-	var datastoreSet map[*object.Datastore]bool
+	var datastoreSet map[types.ManagedObjectReference]*object.Datastore
 	for _, u := range conf.ImageStores {
-		v.getDatastore(ctx, &u, datastoreSet)
+		datastoreSet = v.getDatastore(ctx, &u, datastoreSet)
 	}
 	for _, u := range conf.ContainerStores {
-		v.getDatastore(ctx, &u, datastoreSet)
+		datastoreSet = v.getDatastore(ctx, &u, datastoreSet)
 	}
 	for _, u := range conf.VolumeLocations {
-		v.getDatastore(ctx, u, datastoreSet)
+		datastoreSet = v.getDatastore(ctx, u, datastoreSet)
 	}
 	return datastoreSet
 }
 
 func (v *Validator) checkDatastoresAreWriteable(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) {
-	// gather compute host references
+	defer trace.End(trace.Begin(""))
 
+	// gather compute host references
 	clusterDatastores, err := v.Session.Cluster.Datastores(ctx)
 	v.NoteIssue(err)
 
 	// check that the cluster can see all of the datastores in question
 	requestedDatastores := v.getAllDatastores(ctx, conf)
-	var validStores map[*object.Datastore]bool
+	validStores := make(map[types.ManagedObjectReference]*object.Datastore)
 	// remove any found datastores from requested datastores
 	for _, cds := range clusterDatastores {
-		if requestedDatastores[cds] {
-			delete(requestedDatastores, cds)
-			validStores[cds] = true
+		if requestedDatastores[cds.Reference()] != nil {
+			delete(requestedDatastores, cds.Reference())
+			validStores[cds.Reference()] = cds
 		}
 	}
 	// if requestedDatastores is not empty, some requested datastores are not writable
-	for store := range requestedDatastores {
-		v.NoteIssue(errors.Errorf("Datastore %s is not accessible by the compute resource", store.String()))
+	for _, store := range requestedDatastores {
+		v.NoteIssue(errors.Errorf("Datastore \"%s\" is not accessible by the compute resource", store.Name()))
 	}
 
 	clusterHosts, err := v.Session.Cluster.Hosts(ctx)
 	justOneHost := len(clusterHosts) == 1
 	v.NoteIssue(err)
 
-	for store := range validStores {
+	for _, store := range validStores {
 		aHosts, err := store.AttachedHosts(ctx)
 		v.NoteIssue(err)
 		clusterHosts = intersect(clusterHosts, aHosts)
