@@ -14,31 +14,11 @@
 
 package main
 
-import (
-	"net/http"
-
-	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/lib/tether"
-)
+import "github.com/vmware/vic/lib/tether"
 
 // pathPrefix is present to allow the various files referenced by tether to be placed
 // in specific directories, primarily for testing.
 var pathPrefix string
-
-func (t *operations) Setup(sink tether.Config) error {
-
-	if err := t.BaseOperations.Setup(sink); err != nil {
-		return err
-	}
-
-	// TODO: enabled for initial dev debugging only
-	log.Info("Launching pprof server on port 6060")
-	go func() {
-		log.Info(http.ListenAndServe("0.0.0.0:6060", nil))
-	}()
-
-	return nil
-}
 
 func (t *operations) Cleanup() error {
 	return t.BaseOperations.Cleanup()
