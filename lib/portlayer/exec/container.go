@@ -20,8 +20,6 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/google/uuid"
 	"github.com/vmware/govmomi/guest"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/task"
@@ -29,6 +27,7 @@ import (
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
@@ -38,6 +37,9 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/sys"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 )
@@ -117,8 +119,20 @@ func (c *Container) newHandle() *Handle {
 func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int32) error {
 	defer trace.End(trace.Begin("Committing handle"))
 
+	// hold the event that has occurred
+	var commitEvent string
+
 	c.Lock()
 	defer c.Unlock()
+
+	// If an event has occurred then put the container in the cache
+	// and publish the container event
+	defer func() {
+		if commitEvent != "" {
+			containers.Put(c)
+			publishContainerEvent(c.ExecConfig.ID, time.Now().UTC(), commitEvent)
+		}
+	}()
 
 	if c.vm == nil {
 		// the only permissible operation is to create a VM
@@ -135,7 +149,6 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 				return VCHConfig.VirtualApp.CreateChildVM_Task(ctx, *h.Spec.Spec(), nil)
 			})
 
-			c.State = StateCreated
 		} else {
 			// Find the Virtual Machine folder that we use
 			var folders *object.DatacenterFolders
@@ -150,8 +163,6 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 				return parent.CreateVM(ctx, *h.Spec.Spec(), VCHConfig.ResourcePool, nil)
 			})
-
-			c.State = StateCreated
 		}
 
 		if err != nil {
@@ -160,6 +171,8 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		}
 
 		c.vm = vm.NewVirtualMachine(ctx, sess, res.Result.(types.ManagedObjectReference))
+		c.State = StateCreated
+		commitEvent = events.ContainerCreated
 
 		// clear the spec as we've acted on it
 		h.Spec = nil
@@ -173,6 +186,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		}
 
 		c.State = *h.State
+		commitEvent = events.ContainerStopped
 	}
 
 	if h.Spec != nil {
@@ -196,12 +210,11 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		}
 
 		c.State = *h.State
+		commitEvent = events.ContainerStarted
 	}
 
 	c.ExecConfig = &h.ExecConfig
 
-	// add or overwrite the container in the cache
-	containers.Put(c)
 	return nil
 }
 
