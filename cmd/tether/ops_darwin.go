@@ -17,8 +17,10 @@ package main
 import (
 	"errors"
 	"io"
+	"net/http"
 	_ "net/http/pprof"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 )
@@ -36,4 +38,19 @@ func (t *operations) Log() (io.Writer, error) {
 // sessionLogWriter returns a writer that will persist the session output
 func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, error) {
 	return nil, errors.New("not implemented on OSX")
+}
+
+func (t *operations) Setup(sink tether.Config) error {
+
+	if err := t.BaseOperations.Setup(sink); err != nil {
+		return err
+	}
+
+	// TODO: enabled for initial dev debugging only
+	log.Info("Launching pprof server on port 6060")
+	go func() {
+		log.Info(http.ListenAndServe("0.0.0.0:6060", nil))
+	}()
+
+	return nil
 }
