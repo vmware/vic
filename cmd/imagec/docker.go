@@ -138,7 +138,7 @@ func LearnAuthURL(options ImageCOptions) (*url.URL, error) {
 
 	// Do we even have the image on that registry
 	if err != nil && fetcher.IsStatusNotFound() {
-		return nil, fmt.Errorf("%s:%s does not exists at %s", options.image, options.tag, options.registry)
+		return nil, fmt.Errorf("%s:%s does not exist at %s", options.image, options.tag, options.registry)
 	}
 
 	return nil, fmt.Errorf("%s returned an unexpected response: %s", url, err)

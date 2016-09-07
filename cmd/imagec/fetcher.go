@@ -136,9 +136,15 @@ func (u *URLFetcher) Fetch(url *url.URL, ids ...string) (string, error) {
 		}
 
 		retries++
-		// give up if we reached maxDownloadAttempts or got a DNR
-		if _, isDNR := err.(DoNotRetry); isDNR || retries == maxDownloadAttempts {
-			log.Debugf("Download failed: %v", err)
+		// give up if we reached maxDownloadAttempts
+		if retries == maxDownloadAttempts {
+			log.Debugf("Hit max download attempts. Download failed: %v", err)
+			return "", err
+		}
+
+		switch err := err.(type) {
+		case DoNotRetry, TagNotFoundError, ImageNotFoundError:
+			log.Debugf("Error: %s", err.Error())
 			return "", err
 		}
 
@@ -202,7 +208,8 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string
 	}
 
 	if u.IsStatusNotFound() {
-		return "", fmt.Errorf("Not found: %d, URL: %s", u.StatusCode, url)
+		err = fmt.Errorf("Not found: %d, URL: %s", u.StatusCode, url)
+		return "", TagNotFoundError{Err: err}
 	}
 
 	if u.IsStatusUnauthorized() {
@@ -210,7 +217,8 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string
 
 		// check if image is non-existent (#757)
 		if strings.Contains(hdr, "error=\"insufficient_scope\"") {
-			return "", DoNotRetry{Err: fmt.Errorf("image not found")}
+			err = fmt.Errorf("image not found")
+			return "", ImageNotFoundError{Err: err}
 		} else if strings.Contains(hdr, "error=\"invalid_token\"") {
 			return "", fmt.Errorf("not authorized")
 		} else {

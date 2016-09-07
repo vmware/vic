@@ -509,8 +509,8 @@ func TestFetchScenarios(t *testing.T) {
 	// valid token but image is missing we shouldn't retry
 	_, err = FetchImageManifest(options)
 	if err != nil {
-		// we should get a DNR error
-		if _, isDNR := err.(DoNotRetry); !isDNR {
+		// we should get a ImageNotFoundError
+		if _, imageErr := err.(ImageNotFoundError); !imageErr {
 			t.Errorf(err.Error())
 		}
 	}
