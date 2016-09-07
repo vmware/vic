@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package event
+package events
 
 const (
 	ContainerCreated      = "Created"
@@ -26,6 +26,7 @@ const (
 )
 
 type Event interface {
+	EventTopic
 	// id of event
 	EventID() int
 	// event (PowerOn, PowerOff, etc)
@@ -34,4 +35,8 @@ type Event interface {
 	Reference() string
 	// event message
 	Message() string
+}
+
+type EventTopic interface {
+	Topic() string
 }

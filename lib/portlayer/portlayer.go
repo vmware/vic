@@ -22,8 +22,8 @@ import (
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/guest"
-	"github.com/vmware/vic/lib/portlayer/event/vsphere"
+	"github.com/vmware/vic/lib/portlayer/event"
+	"github.com/vmware/vic/lib/portlayer/event/collector/vsphere"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/network"
 	"github.com/vmware/vic/lib/portlayer/storage"
@@ -78,23 +78,22 @@ func Init(ctx context.Context, sess *session.Session) error {
 		return errors.New(detail)
 	}
 
-	// we have a resource pool, so lets create the event manager for monitoring
-	exec.VCHConfig.EventManager = vsphere.NewEventManager(sess)
-	// configure event manager to monitor the resource pool
-	exec.VCHConfig.EventManager.AddMonitoredObject(exec.VCHConfig.ResourcePool.Reference().String())
+	// we want to monitor the resource pool, so create a vSphere Event Collector
+	ec := vsphere.NewCollector(sess.Vim25(), exec.VCHConfig.ResourcePool.Reference().String())
+
+	// start the collection of vsphere events
+	err = ec.Start()
+	if err != nil {
+		detail := fmt.Sprintf("%s failed to start: %s", ec.Name(), err.Error())
+		log.Error(detail)
+		return err
+	}
+
+	// create the event manager &  register the existing collector
+	exec.VCHConfig.EventManager = event.NewEventManager(ec)
 
 	// instantiate the container cache now
 	exec.NewContainerCache()
-
-	// need to blacklist the VCH from eventlistening - too many reconfigures
-	vch, err := guest.GetSelf(ctx, sess)
-	if err != nil {
-		return fmt.Errorf("Unable to get a reference to the VCH: %s", err.Error())
-	}
-	exec.VCHConfig.EventManager.Blacklist(vch.Reference().String())
-
-	// other managed objects could be added for the event stream, but for now the resource pool will do
-	exec.VCHConfig.EventManager.Start()
 
 	//FIXME: temporary injection of debug network for debug nic
 	ne := exec.VCHConfig.Networks["client"]

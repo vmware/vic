@@ -58,7 +58,6 @@ func TestTranslatVolumeRequestModel(t *testing.T) {
 	assert.Equal(t, "testStore", testRequest.Store)
 	assert.Equal(t, "vsphere", testRequest.Driver)
 	assert.Equal(t, int64(12), testRequest.Capacity)
-	assert.Equal(t, "important driver stuff", testRequest.DriverArgs["testArg"])
 
 	testMetaDatabuf, err := createVolumeMetadata(testRequest, testLabels)
 	if !assert.NoError(t, err) {

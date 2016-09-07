@@ -111,7 +111,7 @@ func (v *VolumeStore) getDatastore(store *url.URL) (*datastore.Helper, error) {
 	// find the datastore
 	dstore, ok := v.ds[*store]
 	if !ok {
-		return nil, fmt.Errorf("volumestore (%s) not found", store.String())
+		return nil, VolumeStoreNotFoundError{msg: fmt.Sprintf("volumestore (%s) not found", store.String())}
 	}
 
 	return dstore, nil
@@ -247,4 +247,24 @@ func (v *VolumeStore) VolumesList(ctx context.Context) ([]*storage.Volume, error
 	}
 
 	return volumes, nil
+}
+
+//Custom Error Types
+
+// VolumeStoreNotFoundError : custom error type for when we fail to find a target volume store
+type VolumeStoreNotFoundError struct {
+	msg string
+}
+
+func (e VolumeStoreNotFoundError) Error() string {
+	return e.msg
+}
+
+// VolumeExistsError : custom error type for when a create operation targets and already occupied ID
+type VolumeExistsError struct {
+	msg string
+}
+
+func (e VolumeExistsError) Error() string {
+	return e.msg
 }

@@ -19,8 +19,8 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/lib/portlayer/event"
-	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/lib/portlayer/event/collector/vsphere"
+	"github.com/vmware/vic/lib/portlayer/event/events"
 )
 
 /*
@@ -46,7 +46,8 @@ func NewContainerCache() {
 	}
 	// register with the event manager
 	if VCHConfig.EventManager != nil {
-		VCHConfig.EventManager.Register("ContainerCache", callback)
+		// subscribe for VM Events
+		VCHConfig.EventManager.Subscribe(events.NewEventType(vsphere.VmEvent{}).Topic(), "containerCache", callback)
 	}
 }
 
@@ -115,7 +116,7 @@ func isContainerID(id string) bool {
 }
 
 // callback for the event stream
-func callback(ie event.Event, session *session.Session) {
+func callback(ie events.Event) {
 	// grab the container from the cache
 	container := containers.Container(ie.Reference())
 	if container != nil {
@@ -124,23 +125,14 @@ func callback(ie event.Event, session *session.Session) {
 		// do we have a state change
 		if newState != container.State {
 			switch newState {
-			case StateStopping:
-				// set state only in cache -- allow tether / tools to update vmx
-				log.Debugf("Container(%s) Shutdown via OOB activity", container.ExecConfig.ID)
-				container.State = StateStopped
-			case StateRunning:
-				// set state only in cache -- allow tether / tools to update vmx
-				log.Debugf("Container(%s) started via OOB activity", container.ExecConfig.ID)
-				container.State = newState
-			case StateStopped:
-				log.Debugf("Container(%s) stopped via OOB activity", container.ExecConfig.ID)
-				container.State = newState
-			case StateSuspended:
-				//set state only in cache
-				log.Debugf("Container(%s) suspend via OOB activity", container.ExecConfig.ID)
+			case StateStopping,
+				StateRunning,
+				StateStopped,
+				StateSuspended:
+				log.Debugf("Container(%s) state set to %s via event activity", container.ExecConfig.ID, newState.String())
 				container.State = newState
 			case StateRemoved:
-				log.Debugf("Container(%s) removed via OOB activity", container.ExecConfig.ID)
+				log.Debugf("Container(%s) %s via event activity", container.ExecConfig.ID, newState.String())
 				// remove from cache
 				containers.Remove(container.ExecConfig.ID)
 
@@ -155,30 +147,25 @@ func callback(ie event.Event, session *session.Session) {
 // state based on the current container state and the event
 func eventedState(e string, current State) State {
 	switch e {
-	case event.ContainerShutdown:
+	case events.ContainerShutdown:
 		// no need to worry about existing state
 		return StateStopping
-	case event.ContainerPoweredOn:
+	case events.ContainerPoweredOn:
 		// are we in the process of starting
 		if current != StateStarting {
-			// TODO: this sets the state correctly, but doesn't
-			// actually wait for the container process to start - we could see issues w/ps
-			//
-			// if we start a propery collector w/o a timeout might hit issue seen where
-			// OOB activity results in a loop at startup w/o container process ever starting
 			return StateRunning
 		}
-	case event.ContainerPoweredOff:
+	case events.ContainerPoweredOff:
 		// are we in the process of stopping
 		if current != StateStopping {
 			return StateStopped
 		}
-	case event.ContainerSuspended:
+	case events.ContainerSuspended:
 		// are we in the process of suspending
 		if current != StateSuspending {
 			return StateSuspended
 		}
-	case event.ContainerRemoved:
+	case events.ContainerRemoved:
 		if current != StateRemoving {
 			return StateRemoved
 		}

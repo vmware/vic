@@ -73,4 +73,10 @@ Remove a container deleted out of band
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm test
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: No such container: test
+
+Remove a container created with unknown executable
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create busybox xxxx
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
+    Should Be Equal As Integers  ${rc}  0
     

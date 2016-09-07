@@ -18,9 +18,9 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/vmware/vic/lib/portlayer/event/events"
+
 	"github.com/vmware/govmomi/vim25/types"
-	"github.com/vmware/vic/lib/portlayer/event"
-	"github.com/vmware/vic/pkg/vsphere/session"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -32,18 +32,9 @@ func newVMMO() *types.ManagedObjectReference {
 	return &types.ManagedObjectReference{Value: "101", Type: "vm"}
 }
 
-func TestNewEventManager(t *testing.T) {
-	// TODO: use simulator
-	// for now create uninitilized session
-	s := &session.Session{}
-	mgr := NewEventManager(s)
-	assert.NotNil(t, mgr)
-}
-
 func TestMonitoredObject(t *testing.T) {
 
-	s := &session.Session{}
-	mgr := NewEventManager(s)
+	mgr := newCollector()
 	mo := newVMMO()
 
 	mgr.AddMonitoredObject(mo.String())
@@ -54,43 +45,20 @@ func TestMonitoredObject(t *testing.T) {
 	assert.Equal(t, 0, len(mos))
 }
 
-func TestBlacklist(t *testing.T) {
-
-	s := &session.Session{}
-	mgr := NewEventManager(s)
-	mo := newVMMO()
-	mos := mo.String()
-
-	mgr.Blacklist(mos)
-	assert.Equal(t, 1, mgr.BlacklistCount())
-	assert.True(t, mgr.blacklisted(*mo))
-	mgr.Unblacklist(mos)
-	assert.Equal(t, 0, mgr.BlacklistCount())
-	assert.False(t, mgr.blacklisted(*mo))
-}
-
 func TestRegistration(t *testing.T) {
-	s := &session.Session{}
-	mgr := NewEventManager(s)
+	mgr := newCollector()
 
-	mgr.Register("test", callMe)
-	assert.Equal(t, 1, mgr.RegistryCount())
-	assert.NotNil(t, mgr.Registry())
-	assert.Equal(t, 1, len(mgr.Registry()))
-	mgr.Unregister("FooBar")
-	assert.Equal(t, 1, mgr.RegistryCount())
-	mgr.Unregister("test")
-	assert.Equal(t, 0, mgr.RegistryCount())
+	mgr.Register(callMe)
+	assert.NotNil(t, mgr.callback)
 
 }
 
 func TestEvented(t *testing.T) {
-	s := &session.Session{}
-	mgr := NewEventManager(s)
+	mgr := newCollector()
 	callcount = 0
 
 	// register local callback
-	mgr.Register("test", callMe)
+	mgr.Register(callMe)
 
 	// test lifecycle events
 	page := eventPage(3, true)
@@ -104,17 +72,24 @@ func TestEvented(t *testing.T) {
 
 }
 
-// will test basic failure of no callbacks configured
-// additional testing requires additions to the simulator
-func TestStartFailure(t *testing.T) {
-	s := &session.Session{}
-	mgr := NewEventManager(s)
-	assert.Error(t, mgr.Start())
+func TestName(t *testing.T) {
+	mgr := newCollector()
+	assert.NotNil(t, mgr.Name())
+	assert.Equal(t, name, mgr.Name())
+}
 
+func TestStart(t *testing.T) {
+	mgr := newCollector()
+	// start should fail as no objects registered
+	assert.Error(t, mgr.Start())
+}
+
+func newCollector() *EventCollector {
+	return &EventCollector{mos: monitoredCache{mos: make(map[string]types.ManagedObjectReference)}}
 }
 
 // simple callback counter
-func callMe(ie event.Event, s *session.Session) {
+func callMe(vm events.Event) {
 	callcount++
 }
 
