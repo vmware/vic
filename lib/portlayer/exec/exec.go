@@ -114,6 +114,10 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		log.Debugf("Host - OS (%s), version (%s), name (%s)", about.OsType, about.Version, about.Name)
 		log.Debugf("VCH limits - %d Mhz, %d MB", Config.VCHMhz, Config.VCHMemoryLimit)
 
+		// sync container cache
+		if err = Containers.sync(ctx, sess); err != nil {
+			return
+		}
 	})
 
 	return err
@@ -122,7 +126,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 // eventCallback will process events
 func eventCallback(ie events.Event) {
 	// grab the container from the cache
-	container := containers.Container(ie.Reference())
+	container := Containers.Container(ie.Reference())
 	if container != nil {
 
 		newState := eventedState(ie.String(), container.State)
@@ -156,7 +160,7 @@ func eventCallback(ie events.Event) {
 				}()
 			case StateRemoved:
 				log.Debugf("Container(%s) %s via event activity", container.ExecConfig.ID, newState.String())
-				containers.Remove(container.ExecConfig.ID)
+				Containers.Remove(container.ExecConfig.ID)
 				publishContainerEvent(container.ExecConfig.ID, ie.Created(), ie.String())
 
 			}
@@ -195,7 +199,7 @@ func eventedState(e string, current State) State {
 
 // publishContainerEvent will publish a ContainerEvent to the vic event stream
 func publishContainerEvent(id string, created time.Time, eventType string) {
-	if VCHConfig.EventManager == nil || eventType == "" {
+	if Config.EventManager == nil || eventType == "" {
 		return
 	}
 
@@ -208,7 +212,7 @@ func publishContainerEvent(id string, created time.Time, eventType string) {
 		},
 	}
 
-	VCHConfig.EventManager.Publish(ce)
+	Config.EventManager.Publish(ce)
 }
 
 func WaitForContainerStop(ctx context.Context, id string) error {

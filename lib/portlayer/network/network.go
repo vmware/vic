@@ -102,13 +102,8 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		log.Infof("Default network context allocated: %s", bridgeRange.String())
 
 		// populate existing containers
-		var cons []*exec.Container
-		cons, err = exec.InfraContainers(ctx, sess)
-		if err != nil {
-			return
-		}
-
-		for _, c := range cons {
+		state := exec.StateRunning
+		for _, c := range exec.Containers.Containers(&state) {
 			h := c.NewHandle()
 			defer h.Close()
 			if *h.State != exec.StateRunning {

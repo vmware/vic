@@ -85,7 +85,7 @@ func NewContainer(id uid.UID) *Handle {
 
 func GetContainer(id uid.UID) *Handle {
 	// get from the cache
-	container := containers.Container(id.String())
+	container := Containers.Container(id.String())
 	if container != nil {
 		return container.NewHandle()
 	}
@@ -131,7 +131,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 	// and publish the container event
 	defer func() {
 		if commitEvent != "" {
-			containers.Put(c)
+			Containers.Put(c)
 			publishContainerEvent(c.ExecConfig.ID, time.Now().UTC(), commitEvent)
 		}
 	}()
@@ -477,7 +477,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 		if soap.IsSoapFault(err) {
 			fault := soap.ToSoapFault(err).VimFault()
 			if _, ok := fault.(types.ManagedObjectNotFound); ok {
-				containers.Remove(c.ExecConfig.ID)
+				Containers.Remove(c.ExecConfig.ID)
 				return NotFoundError{}
 			}
 		}
@@ -525,7 +525,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	}
 
 	//remove container from cache
-	containers.Remove(c.ExecConfig.ID)
+	Containers.Remove(c.ExecConfig.ID)
 	return nil
 }
 
@@ -548,17 +548,8 @@ func (c *Container) Update(ctx context.Context, sess *session.Session) (*executo
 	return c.ExecConfig, nil
 }
 
-// return specific container to caller
-func ContainerInfo(containerID string) *Container {
-	return containers.Container(containerID)
-}
-
-func Containers(all bool) []*Container {
-	return containers.Containers(all)
-}
-
 // get the containerVMs from infrastructure for this resource pool
-func InfraContainers(ctx context.Context, sess *session.Session) ([]*Container, error) {
+func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, error) {
 	var rp mo.ResourcePool
 
 	// popluate the vm property of the vch resource pool
@@ -572,7 +563,7 @@ func InfraContainers(ctx context.Context, sess *session.Session) ([]*Container, 
 		return nil, err
 	}
 
-	return convertInfraContainers(vms, true), nil
+	return convertInfraContainers(vms), nil
 }
 
 func instanceUUID(id string) (string, error) {
@@ -625,49 +616,42 @@ func populateVMAttributes(ctx context.Context, sess *session.Session, refs []typ
 }
 
 // convert the infra containers to a container object
-func convertInfraContainers(vms []mo.VirtualMachine, all bool) []*Container {
-	var containerVMs []*Container
+func convertInfraContainers(vms []mo.VirtualMachine) []*Container {
+	var cons []*Container
 
-	for i := range vms {
-		// poweredOn or all states
-		if !all && vms[i].Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff {
-			// don't want it
-			log.Debugf("Skipping poweredOff VM %s", vms[i].Config.Name)
-			continue
-		}
-
-		container := &Container{ExecConfig: &executor.ExecutorConfig{}}
-		source := vmomi.OptionValueSource(vms[i].Config.ExtraConfig)
-		extraconfig.Decode(source, container.ExecConfig)
-
-		// check extraConfig to see if we have a containerVM -- assumes
-		// that ID will always be populated for each containerVM
-		if container.ExecConfig == nil || container.ExecConfig.ID == "" {
-			log.Debugf("Skipping non-container vm %s", vms[i].Config.Name)
+	for _, vm := range vms {
+		source := vmomi.OptionValueSource(vm.Config.ExtraConfig)
+		c := &Container{State: StateCreated}
+		extraconfig.Decode(source, &c.ExecConfig)
+		id := uid.Parse(c.ExecConfig.ID)
+		if id == uid.NilUID {
+			log.Warnf("skipping converting container VM %s: could not parse id", vm.Reference())
 			continue
 		}
 
 		// set state
-		if vms[i].Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
-			container.State = StateRunning
-		} else {
-			// look in the container cache and check state
-			// if it's created we'll take that as it's been created, but
-			// not started
-			cached := containers.Container(container.ExecConfig.ID)
-			if cached != nil && cached.State == StateCreated {
-				container.State = StateCreated
-			} else {
-				container.State = StateStopped
+		switch vm.Runtime.PowerState {
+		case types.VirtualMachinePowerStatePoweredOn:
+			c.State = StateRunning
+		case types.VirtualMachinePowerStatePoweredOff:
+			// check if any of the sessions was started
+			for _, s := range c.ExecConfig.Sessions {
+				if s.Started != "" {
+					c.State = StateStopped
+					break
+				}
 			}
-		}
-		if vms[i].Summary.Storage != nil {
-			container.VMUnsharedDisk = vms[i].Summary.Storage.Unshared
+		case types.VirtualMachinePowerStateSuspended:
+			log.Warnf("skipping converting container VM %s: invalid power state %s", vm.Reference(), vm.Runtime.PowerState)
+			continue
 		}
 
-		containerVMs = append(containerVMs, container)
+		if vm.Summary.Storage != nil {
+			c.VMUnsharedDisk = vm.Summary.Storage.Unshared
+		}
 
+		cons = append(cons, c)
 	}
 
-	return containerVMs
+	return cons
 }
