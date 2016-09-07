@@ -378,9 +378,8 @@ func (v *Validator) getDatastore(ctx context.Context, u *url.URL, datastoreSet m
 	}
 
 	datastores, err := v.Session.Finder.DatastoreList(ctx, u.Host)
-	if err != nil {
-		v.NoteIssue(err)
-	}
+	v.NoteIssue(err)
+
 	if len(datastores) != 1 {
 		v.NoteIssue(errors.Errorf("Looking up datastore %s returned %d results.", u.String(), len(datastores)))
 	}
@@ -427,18 +426,38 @@ func (v *Validator) checkDatastoresAreWriteable(ctx context.Context, conf *confi
 		v.NoteIssue(errors.Errorf("Datastore %s is not accessible by the compute resource", store.String()))
 	}
 
-	computeHosts, err := v.Session.Cluster.Hosts(ctx)
+	clusterHosts, err := v.Session.Cluster.Hosts(ctx)
+	justOneHost := len(clusterHosts) == 1
 	v.NoteIssue(err)
 
-	for _, host := range computeHosts {
-		for store := range validStores {
-			// call AttachedHosts
-			v.NoteIssue(err)
-			if !v.isDatastoreAttachedToHost(ctx, host, store) {
-				log.Warningf("Datastore %s is not directly accessible to host %s, which may cause performance degradation", store.String(), host.String())
+	for store := range validStores {
+		aHosts, err := store.AttachedHosts(ctx)
+		v.NoteIssue(err)
+		clusterHosts = intersect(clusterHosts, aHosts)
+	}
+
+	if len(clusterHosts) == 0 {
+		v.NoteIssue(errors.New("No single host can access all of the requested datastores. Installation cannot continue."))
+	}
+
+	if len(clusterHosts) == 1 && v.Session.IsVC() && !justOneHost {
+		// if we have a cluster with >1 host to begin with, on VC, and only one host can talk to all the datastores, warn
+		// on ESX and clusters with only one host to begin with, this warning would be redundant/irrelevant
+		log.Warnf("Only one host can access all of the image/container/volume datastores. This may be a point of contention/performance degradation and HA/DRS may not work as intended.")
+	}
+}
+
+// finds the intersection between two sets of HostSystem objects
+func intersect(one []*object.HostSystem, two []*object.HostSystem) []*object.HostSystem {
+	var result []*object.HostSystem
+	for _, o := range one {
+		for _, t := range two {
+			if o.Reference() == t.Reference() {
+				result = append(result, o)
 			}
 		}
 	}
+	return result
 }
 
 func (v *Validator) computePathToInventoryPath(path string) string {
@@ -557,16 +576,4 @@ func (v *Validator) AddDeprecatedFields(ctx context.Context, conf *config.Virtua
 	dconfig.VCHSize.Memory.Shares = input.VCHMemoryShares
 
 	return &dconfig
-}
-
-// isDatastoreAttachedToHost tells us whether computeHost can write to ds
-func (v *Validator) isDatastoreAttachedToHost(ctx context.Context, computeHost *object.HostSystem, ds *object.Datastore) bool {
-	attachedHosts, err := ds.AttachedClusterHosts(ctx, v.Session.Cluster)
-	v.NoteIssue(err)
-	for _, attachedHost := range attachedHosts {
-		if attachedHost.Reference() == computeHost.Reference() {
-			return true
-		}
-	}
-	return false
 }
