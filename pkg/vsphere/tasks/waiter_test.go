@@ -15,11 +15,11 @@
 package tasks
 
 import (
+	"context"
 	"strings"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/vim25/progress"
 	"github.com/vmware/govmomi/vim25/types"

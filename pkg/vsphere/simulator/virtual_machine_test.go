@@ -15,6 +15,7 @@
 package simulator
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -23,7 +24,6 @@ import (
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 func TestCreateVm(t *testing.T) {

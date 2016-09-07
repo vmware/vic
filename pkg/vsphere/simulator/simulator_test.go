@@ -15,6 +15,7 @@
 package simulator
 
 import (
+	"context"
 	"errors"
 	"io"
 	"log"
@@ -23,8 +24,6 @@ import (
 	"reflect"
 	"testing"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/vim25/methods"

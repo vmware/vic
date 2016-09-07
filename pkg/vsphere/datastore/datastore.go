@@ -15,6 +15,7 @@
 package datastore
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/url"
@@ -31,7 +32,6 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
-	"golang.org/x/net/context"
 )
 
 // Helper gives access to the datastore regardless of type (esx, esx + vc,
