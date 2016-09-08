@@ -421,6 +421,7 @@ func (r RemovePowerError) Error() string {
 	return r.err.Error()
 }
 
+// Remove removes a containerVM after detaching the disks
 func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	defer trace.End(trace.Begin("Container.Remove"))
 	c.Lock()
@@ -466,8 +467,23 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 		return c.vm.DeleteExceptDisks(ctx)
 	})
 	if err != nil {
-		c.State = existingState
-		return err
+		f, ok := err.(types.HasFault)
+		if !ok {
+			c.State = existingState
+			return err
+		}
+		switch f.Fault().(type) {
+		case *types.InvalidState:
+			log.Warnf("container VM is in invalid state, unregistering")
+			if err := c.vm.Unregister(ctx); err != nil {
+				log.Errorf("Error while attempting to unregister container VM: %s", err)
+				return err
+			}
+		default:
+			log.Debugf("Fault while attempting to destroy vm: %#v", f.Fault())
+			c.State = existingState
+			return err
+		}
 	}
 
 	// remove from datastore
