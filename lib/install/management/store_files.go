@@ -39,7 +39,7 @@ const (
 )
 
 func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) error {
-	var emptyImages bool
+	defer trace.End(trace.Begin(""))
 	var errs []string
 
 	for _, imageDir := range conf.ImageStores {
@@ -57,13 +57,25 @@ func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) e
 			continue
 		}
 
-		if emptyImages, err = d.deleteDatastoreFiles(imageDSes[0], imageDir.Path, true); err != nil {
+		if d.appliance, err = d.findApplianceByID(conf); err != nil {
 			errs = append(errs, err.Error())
+			continue
 		}
 
-		if !emptyImages {
-			log.Infof("Not deleting [%s] %s as it still contains files after removing images", imageDir.Host, imageDir.Path)
+		if d.appliance == nil {
+			errs = append(errs, "Trying to find the appliance VM path failed without error from vSphere")
 			continue
+		}
+
+		if d.vmPathName, err = d.appliance.FolderName(d.ctx); err != nil {
+			errs = append(errs, err.Error())
+			continue
+		}
+
+		if d.vmPathName != imageDir.Path {
+			if _, err = d.deleteDatastoreFiles(imageDSes[0], imageDir.Path, true); err != nil {
+				errs = append(errs, err.Error())
+			}
 		}
 	}
 
