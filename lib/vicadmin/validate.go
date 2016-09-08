@@ -35,6 +35,7 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"golang.org/x/net/context"
 )
@@ -64,8 +65,8 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	defer trace.End(trace.Begin(""))
 	log.Infof("Creating new validator")
 	v := &Validator{}
-	if vch.Version != nil {
-		v.Version = vch.Version.String()
+	if version.Version != "" {
+		v.Version = version.Version
 	}
 	log.Info(fmt.Sprintf("Setting version to %s", v.Version))
 
