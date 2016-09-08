@@ -204,7 +204,7 @@ func publishContainerEvent(id string, created time.Time, eventType string) {
 	}
 
 	ce := &events.ContainerEvent{
-		&events.BaseEvent{
+		BaseEvent: &events.BaseEvent{
 			Ref:         id,
 			CreatedTime: created,
 			Event:       eventType,
