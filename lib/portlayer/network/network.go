@@ -106,10 +106,6 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		for _, c := range exec.Containers.Containers(&state) {
 			h := c.NewHandle()
 			defer h.Close()
-			if *h.State != exec.StateRunning {
-				log.Debugf("skip binding container=%s state=%s", c.ExecConfig.ID, *h.State)
-				continue
-			}
 
 			if _, err = netctx.BindContainer(h); err != nil {
 				return
