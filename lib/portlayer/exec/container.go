@@ -563,7 +563,7 @@ func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, 
 		return nil, err
 	}
 
-	return convertInfraContainers(vms), nil
+	return convertInfraContainers(ctx, sess, vms), nil
 }
 
 func instanceUUID(id string) (string, error) {
@@ -616,21 +616,21 @@ func populateVMAttributes(ctx context.Context, sess *session.Session, refs []typ
 }
 
 // convert the infra containers to a container object
-func convertInfraContainers(vms []mo.VirtualMachine) []*Container {
+func convertInfraContainers(ctx context.Context, sess *session.Session, vms []mo.VirtualMachine) []*Container {
 	var cons []*Container
 
-	for _, vm := range vms {
-		source := vmomi.OptionValueSource(vm.Config.ExtraConfig)
+	for _, v := range vms {
+		source := vmomi.OptionValueSource(v.Config.ExtraConfig)
 		c := &Container{State: StateCreated}
 		extraconfig.Decode(source, &c.ExecConfig)
 		id := uid.Parse(c.ExecConfig.ID)
 		if id == uid.NilUID {
-			log.Warnf("skipping converting container VM %s: could not parse id", vm.Reference())
+			log.Warnf("skipping converting container VM %s: could not parse id", v.Reference())
 			continue
 		}
 
 		// set state
-		switch vm.Runtime.PowerState {
+		switch v.Runtime.PowerState {
 		case types.VirtualMachinePowerStatePoweredOn:
 			c.State = StateRunning
 		case types.VirtualMachinePowerStatePoweredOff:
@@ -642,14 +642,15 @@ func convertInfraContainers(vms []mo.VirtualMachine) []*Container {
 				}
 			}
 		case types.VirtualMachinePowerStateSuspended:
-			log.Warnf("skipping converting container VM %s: invalid power state %s", vm.Reference(), vm.Runtime.PowerState)
+			log.Warnf("skipping converting container VM %s: invalid power state %s", v.Reference(), v.Runtime.PowerState)
 			continue
 		}
 
-		if vm.Summary.Storage != nil {
-			c.VMUnsharedDisk = vm.Summary.Storage.Unshared
+		if v.Summary.Storage != nil {
+			c.VMUnsharedDisk = v.Summary.Storage.Unshared
 		}
 
+		c.vm = vm.NewVirtualMachine(ctx, sess, v.Reference())
 		cons = append(cons, c)
 	}
 
