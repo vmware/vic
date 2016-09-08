@@ -42,10 +42,11 @@ func NewVMEvent(be types.BaseEvent) *VmEvent {
 	e := be.GetEvent()
 	return &VmEvent{
 		&events.BaseEvent{
-			Event:  ee,
-			ID:     int(e.Key),
-			Detail: e.FullFormattedMessage,
-			Ref:    e.Vm.Vm.String(),
+			Event:       ee,
+			ID:          int(e.Key),
+			Detail:      e.FullFormattedMessage,
+			Ref:         e.Vm.Vm.String(),
+			CreatedTime: e.CreatedTime,
 		},
 	}
 

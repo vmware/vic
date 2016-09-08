@@ -14,24 +14,26 @@
 
 package events
 
-import (
-	"time"
+const (
+	ContainerCreated      = "Created"
+	ContainerShutdown     = "Shutdown"
+	ContainerPoweredOn    = "PoweredOn"
+	ContainerPoweredOff   = "PoweredOff"
+	ContainerSuspended    = "Suspended"
+	ContainerResumed      = "Resumed"
+	ContainerRemoved      = "Removed"
+	ContainerReconfigured = "Reconfigured"
+	ContainerStarted      = "Started"
+	ContainerStopped      = "Stopped"
 )
 
-type Event interface {
-	EventTopic
-	// id of event
-	EventID() int
-	// event (PowerOn, PowerOff, etc)
-	String() string
-	// reference evented object
-	Reference() string
-	// event message
-	Message() string
-
-	Created() time.Time
+type ContainerEvent struct {
+	*BaseEvent
 }
 
-type EventTopic interface {
-	Topic() string
+func (ce *ContainerEvent) Topic() string {
+	if ce.Type == "" {
+		ce.Type = NewEventType(ce)
+	}
+	return ce.Type.Topic()
 }

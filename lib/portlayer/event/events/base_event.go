@@ -18,16 +18,18 @@ import (
 	"fmt"
 	"path"
 	"reflect"
+	"time"
 )
 
 type EventType string
 
 type BaseEvent struct {
-	Type   EventType
-	Event  string
-	ID     int
-	Detail string
-	Ref    string
+	Type        EventType
+	Event       string
+	ID          int
+	Detail      string
+	Ref         string
+	CreatedTime time.Time
 }
 
 func (be *BaseEvent) EventID() int {
@@ -45,6 +47,9 @@ func (be *BaseEvent) Message() string {
 
 func (be *BaseEvent) Reference() string {
 	return be.Ref
+}
+func (be *BaseEvent) Created() time.Time {
+	return be.CreatedTime
 }
 
 // NewEventType utility function that uses reflection to return

@@ -131,16 +131,19 @@ func (mgr *Manager) Subscribed() int {
 
 // Publish events to subscribers
 func (mgr *Manager) Publish(e events.Event) {
+	// TODO: this will not block, but might still want to consider
+	// a timeout for the callback
+	go func() {
+		// subscribers for this event
+		mgr.subs.mu.RLock()
+		subs := mgr.subs.subscribers[e.Topic()]
+		mgr.subs.mu.RUnlock()
 
-	// subscribers for this event
-	subs := mgr.subs.subscribers[e.Topic()]
+		log.Debugf("Found %d subscribers to %s: %s", len(subs), e.Topic(), e.Message())
 
-	log.Debugf("Found %d subscribers to %s", len(subs), e.Topic())
-
-	for sub, f := range subs {
-		//TODO: need to introduce timeout -- either with callbacks
-		// or when channels are introduced
-		log.Debugf("Event manager calling back to %s", sub)
-		f(e)
-	}
+		for sub, f := range subs {
+			log.Debugf("Event manager calling back to %s", sub)
+			f(e)
+		}
+	}()
 }
