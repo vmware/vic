@@ -21,11 +21,27 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestEndpointNameID(t *testing.T) {
+	c := &Container{id: "foo", name: "bar"}
+	s := &Scope{}
+	e := Endpoint{
+		container: c,
+		scope:     s,
+		ip:        net.ParseIP("10.10.10.10"),
+		gateway:   net.ParseIP("10.10.10.1"),
+		subnet:    net.IPNet{IP: net.ParseIP("10.10.10.0"), Mask: net.CIDRMask(24, 32)},
+		static:    true,
+		ports:     make(map[Port]interface{}),
+	}
+
+	assert.Equal(t, c.ID(), e.ID())
+	assert.Equal(t, c.Name(), e.Name())
+}
+
 func TestEndpointCopy(t *testing.T) {
 	c := &Container{id: "foo"}
 	s := &Scope{}
 	e := Endpoint{
-		id:        "foo",
 		container: c,
 		scope:     s,
 		ip:        net.ParseIP("10.10.10.10"),
@@ -41,7 +57,7 @@ func TestEndpointCopy(t *testing.T) {
 
 	other := e.copy()
 
-	assert.Equal(t, other.id, e.id)
+	assert.Equal(t, other.ID(), e.ID())
 	assert.Equal(t, other.container, c)
 	assert.Equal(t, other.container, e.container)
 	assert.Equal(t, other.scope, s)

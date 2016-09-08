@@ -37,7 +37,7 @@ var addEthernetCardErr = func(_ *exec.Handle, _ *Scope) (types.BaseVirtualDevice
 
 func TestScopeAddRemoveContainer(t *testing.T) {
 	var err error
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
 	if err != nil {
 		t.Errorf("NewContext() => (nil, %s), want (ctx, nil)", err)
 		return
