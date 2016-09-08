@@ -42,11 +42,56 @@ func (i *Range) Overlaps(other Range) bool {
 }
 
 func (i *Range) String() string {
-	return fmt.Sprintf("%s-%s", i.FirstIP, i.LastIP)
+	n := i.Network()
+	if n == nil {
+		return fmt.Sprintf("%s-%s", i.FirstIP, i.LastIP)
+	}
+
+	return n.String()
 }
 
 func (i *Range) Equal(other *Range) bool {
 	return i.FirstIP.Equal(other.FirstIP) && i.LastIP.Equal(other.LastIP)
+}
+
+// Network returns the network that this range represents, if any
+func (i *Range) Network() *net.IPNet {
+	// only works for ipv4
+	first := i.FirstIP.To4()
+	last := i.LastIP.To4()
+	diff := net.IPv4(0, 0, 0, 0).To4()
+	for j := 0; j < net.IPv4len; j++ {
+		diff[j] = first[j] ^ last[j]
+	}
+
+	var m uint
+	for j := net.IPv4len - 1; j >= 0; j-- {
+		var k uint
+		for ; k < 8; k++ {
+			if diff[j]>>k == 0 {
+				break
+			}
+		}
+
+		m += k
+		if k < 8 {
+			break
+		}
+	}
+
+	if m == 0 {
+		return nil
+	}
+
+	mask := net.CIDRMask(32-int(m), 32)
+	for j, f := range first {
+		l := f | ^mask[j]
+		if l != last[j] {
+			return nil
+		}
+	}
+
+	return &net.IPNet{IP: first, Mask: mask}
 }
 
 func ParseRange(r string) *Range {
@@ -60,7 +105,10 @@ func ParseRange(r string) *Range {
 			last[i] = f | ^ipnet.Mask[i]
 		}
 
-		return &Range{first, last}
+		return &Range{
+			FirstIP: first,
+			LastIP:  last,
+		}
 	}
 
 	comps := strings.Split(r, "-")
@@ -88,7 +136,10 @@ func ParseRange(r string) *Range {
 		return nil
 	}
 
-	return &Range{first, last}
+	return &Range{
+		FirstIP: first,
+		LastIP:  last,
+	}
 }
 
 // MarshalText implements the encoding.TextMarshaler interface

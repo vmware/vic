@@ -373,11 +373,6 @@ func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
 
 	sc.IPAM = pools
 
-	if len(sc.IPAM) == 0 && len(subnet) != 0 {
-		// use subnet as pool
-		sc.IPAM = []string{subnet}
-	}
-
 	eps := scope.Endpoints()
 	sc.Endpoints = make([]*models.EndpointConfig, len(eps))
 	for i, e := range eps {
