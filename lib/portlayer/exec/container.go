@@ -47,7 +47,8 @@ import (
 type State int
 
 const (
-	StateStarting State = iota
+	StateUnknown State = iota
+	StateStarting
 	StateRunning
 	StateStopping
 	StateStopped
@@ -56,9 +57,6 @@ const (
 	StateCreated
 	StateRemoving
 	StateRemoved
-	StateUnknown
-
-	propertyCollectorTimeout = 3 * time.Minute
 )
 
 type Container struct {
