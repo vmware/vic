@@ -23,7 +23,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	units "github.com/docker/go-units"
 	"github.com/vmware/govmomi/find"
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
@@ -363,8 +365,102 @@ func (v *Validator) compatibility(ctx context.Context, conf *config.VirtualConta
 		return
 	}
 
+	// check session's datastore(s) exist
 	_, err := v.Session.Datastore.AttachedClusterHosts(v.Context, v.Session.Cluster)
 	v.NoteIssue(err)
+
+	v.checkDatastoresAreWriteable(ctx, conf)
+}
+
+// looks up a datastore and adds it to the set
+func (v *Validator) getDatastore(ctx context.Context, u *url.URL, datastoreSet map[types.ManagedObjectReference]*object.Datastore) map[types.ManagedObjectReference]*object.Datastore {
+	if datastoreSet == nil {
+		datastoreSet = make(map[types.ManagedObjectReference]*object.Datastore)
+	}
+
+	datastores, err := v.Session.Finder.DatastoreList(ctx, u.Host)
+	v.NoteIssue(err)
+
+	if len(datastores) != 1 {
+		v.NoteIssue(errors.Errorf("Looking up datastore %s returned %d results.", u.String(), len(datastores)))
+	}
+	for _, d := range datastores {
+		datastoreSet[d.Reference()] = d
+	}
+	return datastoreSet
+}
+
+// populates the v.datastoreSet "set" with datastore references generated from config
+func (v *Validator) getAllDatastores(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) map[types.ManagedObjectReference]*object.Datastore {
+	// note that ImageStores, ContainerStores, and VolumeLocations
+	// have just-different-enough types/structures that this cannot be made more succinct
+	var datastoreSet map[types.ManagedObjectReference]*object.Datastore
+	for _, u := range conf.ImageStores {
+		datastoreSet = v.getDatastore(ctx, &u, datastoreSet)
+	}
+	for _, u := range conf.ContainerStores {
+		datastoreSet = v.getDatastore(ctx, &u, datastoreSet)
+	}
+	for _, u := range conf.VolumeLocations {
+		datastoreSet = v.getDatastore(ctx, u, datastoreSet)
+	}
+	return datastoreSet
+}
+
+func (v *Validator) checkDatastoresAreWriteable(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin(""))
+
+	// gather compute host references
+	clusterDatastores, err := v.Session.Cluster.Datastores(ctx)
+	v.NoteIssue(err)
+
+	// check that the cluster can see all of the datastores in question
+	requestedDatastores := v.getAllDatastores(ctx, conf)
+	validStores := make(map[types.ManagedObjectReference]*object.Datastore)
+	// remove any found datastores from requested datastores
+	for _, cds := range clusterDatastores {
+		if requestedDatastores[cds.Reference()] != nil {
+			delete(requestedDatastores, cds.Reference())
+			validStores[cds.Reference()] = cds
+		}
+	}
+	// if requestedDatastores is not empty, some requested datastores are not writable
+	for _, store := range requestedDatastores {
+		v.NoteIssue(errors.Errorf("Datastore \"%s\" is not accessible by the compute resource", store.Name()))
+	}
+
+	clusterHosts, err := v.Session.Cluster.Hosts(ctx)
+	justOneHost := len(clusterHosts) == 1
+	v.NoteIssue(err)
+
+	for _, store := range validStores {
+		aHosts, err := store.AttachedHosts(ctx)
+		v.NoteIssue(err)
+		clusterHosts = intersect(clusterHosts, aHosts)
+	}
+
+	if len(clusterHosts) == 0 {
+		v.NoteIssue(errors.New("No single host can access all of the requested datastores. Installation cannot continue."))
+	}
+
+	if len(clusterHosts) == 1 && v.Session.IsVC() && !justOneHost {
+		// if we have a cluster with >1 host to begin with, on VC, and only one host can talk to all the datastores, warn
+		// on ESX and clusters with only one host to begin with, this warning would be redundant/irrelevant
+		log.Warnf("Only one host can access all of the image/container/volume datastores. This may be a point of contention/performance degradation and HA/DRS may not work as intended.")
+	}
+}
+
+// finds the intersection between two sets of HostSystem objects
+func intersect(one []*object.HostSystem, two []*object.HostSystem) []*object.HostSystem {
+	var result []*object.HostSystem
+	for _, o := range one {
+		for _, t := range two {
+			if o.Reference() == t.Reference() {
+				result = append(result, o)
+			}
+		}
+	}
+	return result
 }
 
 func (v *Validator) computePathToInventoryPath(path string) string {

@@ -90,6 +90,13 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 			return errors.Errorf("Error registering VCH vSphere extension: %s", err)
 		}
 	}
+	return d.startAppliance(conf)
+}
+
+func (d *Dispatcher) startAppliance(conf *config.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin(""))
+
+	var err error
 	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.PowerOn(ctx)
 	})
@@ -106,7 +113,6 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 	if err = d.ensureComponentsInitialize(conf); err != nil {
 		return errors.Errorf("%s. Exiting...", err)
 	}
-
 	return nil
 }
 

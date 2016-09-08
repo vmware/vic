@@ -28,7 +28,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Delete has all input parameters for vic-machine delete command
+// Inspect has all input parameters for vic-machine inspect command
 type Inspect struct {
 	*data.Data
 
@@ -41,7 +41,7 @@ func NewInspect() *Inspect {
 	return d
 }
 
-// Flags return all cli flags for delete
+// Flags return all cli flags for inspect
 func (i *Inspect) Flags() []cli.Flag {
 	preFlags := append(i.TargetFlags(), i.IDFlags()...)
 	preFlags = append(preFlags, i.ComputeFlags()...)

@@ -17,10 +17,6 @@ package exec
 import (
 	"regexp"
 	"sync"
-
-	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/lib/portlayer/event/collector/vsphere"
-	"github.com/vmware/vic/lib/portlayer/event/events"
 )
 
 /*
@@ -44,11 +40,7 @@ func NewContainerCache() {
 	containers = &containerCache{
 		cache: make(map[string]*Container),
 	}
-	// register with the event manager
-	if VCHConfig.EventManager != nil {
-		// subscribe for VM Events
-		VCHConfig.EventManager.Subscribe(events.NewEventType(vsphere.VmEvent{}).Topic(), "containerCache", callback)
-	}
+
 }
 
 func (conCache *containerCache) Container(idOrRef string) *Container {
@@ -84,15 +76,18 @@ func (conCache *containerCache) Containers(allStates bool) []*Container {
 
 // puts a container in the cache and will overwrite an existing container
 func (conCache *containerCache) Put(container *Container) {
+	// only add containers w/backing VMs
+	if container.vm == nil {
+		return
+	}
+
 	conCache.m.Lock()
 	defer conCache.m.Unlock()
 
 	// add pointer to cache by container ID
 	conCache.cache[container.ExecConfig.ID] = container
-	//if we have a moref then add to infra ID
-	if container.vm != nil {
-		conCache.cache[container.vm.Reference().String()] = container
-	}
+	conCache.cache[container.vm.Reference().String()] = container
+
 }
 
 func (conCache *containerCache) Remove(idOrRef string) {
@@ -102,9 +97,7 @@ func (conCache *containerCache) Remove(idOrRef string) {
 	container := conCache.cache[idOrRef]
 	if container != nil {
 		delete(conCache.cache, container.ExecConfig.ID)
-		if container.vm != nil {
-			delete(conCache.cache, container.vm.Reference().String())
-		}
+		delete(conCache.cache, container.vm.Reference().String())
 	}
 
 }
@@ -113,62 +106,4 @@ func isContainerID(id string) bool {
 	// ID should only be lower case chars & numbers
 	match, _ := regexp.Match("^[a-z0-9]*$", []byte(id))
 	return match
-}
-
-// callback for the event stream
-func callback(ie events.Event) {
-	// grab the container from the cache
-	container := containers.Container(ie.Reference())
-	if container != nil {
-
-		newState := eventedState(ie.String(), container.State)
-		// do we have a state change
-		if newState != container.State {
-			switch newState {
-			case StateStopping,
-				StateRunning,
-				StateStopped,
-				StateSuspended:
-				log.Debugf("Container(%s) state set to %s via event activity", container.ExecConfig.ID, newState.String())
-				container.State = newState
-			case StateRemoved:
-				log.Debugf("Container(%s) %s via event activity", container.ExecConfig.ID, newState.String())
-				// remove from cache
-				containers.Remove(container.ExecConfig.ID)
-
-			}
-		}
-	}
-
-	return
-}
-
-// eventedState will determine the target container
-// state based on the current container state and the event
-func eventedState(e string, current State) State {
-	switch e {
-	case events.ContainerShutdown:
-		// no need to worry about existing state
-		return StateStopping
-	case events.ContainerPoweredOn:
-		// are we in the process of starting
-		if current != StateStarting {
-			return StateRunning
-		}
-	case events.ContainerPoweredOff:
-		// are we in the process of stopping
-		if current != StateStopping {
-			return StateStopped
-		}
-	case events.ContainerSuspended:
-		// are we in the process of suspending
-		if current != StateSuspending {
-			return StateSuspended
-		}
-	case events.ContainerRemoved:
-		if current != StateRemoving {
-			return StateRemoved
-		}
-	}
-	return current
 }

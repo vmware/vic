@@ -19,26 +19,32 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/lib/config/executor"
-	"github.com/vmware/vic/lib/portlayer/event/events"
-	"github.com/vmware/vic/pkg/uid"
+	"github.com/vmware/vic/pkg/vsphere/vm"
+
+	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/types"
 )
 
 func TestContainerCache(t *testing.T) {
 	NewContainerCache()
 	containerID := "1234"
-	id := uid.Parse(containerID)
 
 	// create a new container
-	NewContainer(id)
-	// shouldn't have a container as it's not committed
-	assert.Equal(t, len(containers.cache), 0)
+	container := newTestContainer(containerID)
 
-	// create a new container
-	container := &Container{ExecConfig: &executor.ExecutorConfig{}}
-	container.ExecConfig.ID = containerID
 	// put it in the cache
 	containers.Put(container)
-	// Get it
+	// still shouldn't have a container because there's no vm
+	assert.Equal(t, len(containers.cache), 0)
+
+	// add a test vm
+	addTestVM(container)
+
+	// put in cache
+	containers.Put(container)
+	// get all containers -- should have 1
+	assert.Equal(t, len(containers.Containers(true)), 1)
+	// Get specific container
 	cachedContainer := containers.Container(containerID)
 	// did we find it?
 	assert.NotNil(t, cachedContainer)
@@ -59,34 +65,15 @@ func TestIsContainerID(t *testing.T) {
 	assert.False(t, isContainerID(invalidID))
 }
 
-func TestPoweredOnEvents(t *testing.T) {
-	// if container is starting then viewed that poweredOn event is part of PL activity
-	po := events.ContainerPoweredOn
-	assert.EqualValues(t, StateStarting, eventedState(po, StateStarting))
-	// if container is running and poweredOn event then it's either PL activity or it's been handled
-	assert.EqualValues(t, StateRunning, eventedState(po, StateRunning))
-	// if container stopped and then poweredOn event received then return state running
-	assert.EqualValues(t, StateRunning, eventedState(po, StateStopped))
-	// if container suspended and then poweredOn event received then return state running
-	assert.EqualValues(t, StateRunning, eventedState(po, StateSuspended))
+// addTestVM will add a psuedo VM to the container
+func addTestVM(container *Container) {
+	mo := types.ManagedObjectReference{Type: "vm", Value: "12"}
+	v := object.NewVirtualMachine(nil, mo)
+	container.vm = vm.NewVirtualMachineFromVM(nil, nil, v)
 }
 
-func TestPoweredOffEvents(t *testing.T) {
-	// if container is stopping then viewed that poweredOff event is part of PL activity
-	po := events.ContainerPoweredOff
-	assert.EqualValues(t, StateStopping, eventedState(po, StateStopping))
-	// if container is stopped and poweredOff event then it's either PL activity or it's been handled
-	assert.EqualValues(t, StateStopped, eventedState(po, StateStopped))
-	// if container running and then poweredOff event received then return state stopped
-	assert.EqualValues(t, StateStopped, eventedState(po, StateRunning))
-}
-
-func TestSuspendedEvents(t *testing.T) {
-	// if container is suspending (pause) then viewed that suspended event is part of PL activity
-	se := events.ContainerSuspended
-	assert.EqualValues(t, StateSuspending, eventedState(se, StateSuspending))
-	// if container is suspeded (paused) and suspended event then it's either PL activity or it's been handled
-	assert.EqualValues(t, StateSuspended, eventedState(se, StateSuspended))
-	// if container running and then suspended event received then return state stopped
-	assert.EqualValues(t, StateSuspended, eventedState(se, StateRunning))
+func newTestContainer(id string) *Container {
+	c := &Container{ExecConfig: &executor.ExecutorConfig{}}
+	c.ExecConfig.ID = id
+	return c
 }

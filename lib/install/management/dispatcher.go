@@ -48,6 +48,8 @@ type Dispatcher struct {
 	vchPool   *object.ResourcePool
 	vchVapp   *object.VirtualApp
 	appliance *vm.VirtualMachine
+
+	oldApplianceISO string
 }
 
 type diagnosticLog struct {

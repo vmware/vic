@@ -65,14 +65,14 @@ Remove a fake container
     Should Contain  ${output}  Error response from daemon: No such container: fakeContainer
 
 Remove a container deleted out of band
-    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name test busybox
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name testRMOOB busybox
     Should Be Equal As Integers  ${rc}  0
     # Remove container VM out-of-band
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy "test*"
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy "testRMOOB*"
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm test
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm testRMOOB
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Error response from daemon: No such container: test
+    Should Contain  ${output}  Error response from daemon: No such container: testRMOOB
 
 Remove a container created with unknown executable
     ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create busybox xxxx
