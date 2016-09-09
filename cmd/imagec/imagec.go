@@ -684,7 +684,12 @@ func main() {
 	// Get the URL of the OAuth endpoint
 	url, err := LearnAuthURL(options)
 	if err != nil {
-		log.Fatalf("Failed to obtain OAuth endpoint: %s", err)
+		switch err := err.(type) {
+		case ImageNotFoundError:
+			log.Fatalf("Error: image %s not found", options.reference)
+		default:
+			log.Fatalf("Failed to obtain OAuth endpoint: %s", err)
+		}
 	}
 
 	// Get the OAuth token - if only we have a URL
