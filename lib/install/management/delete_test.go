@@ -90,8 +90,8 @@ func TestDelete(t *testing.T) {
 		// FIXME: cannot check if it's VCH or not
 		// testNewVCHFromCompute(input.ComputeResourcePath, input.DisplayName, validator, t)
 		//	testDeleteVCH(validator, conf, t)
-		// FIXME: ServerFaultCode: HostDatastoreBrowser:hostdatastorebrowser-34 does not implement: SearchDatastoreSubFolders_Task
-		// testDeleteDatastoreFiles(validator, t)
+
+		testDeleteDatastoreFiles(validator, t)
 	}
 }
 
@@ -218,17 +218,17 @@ func testDeleteDatastoreFiles(v *validate.Validator, t *testing.T) {
 
 	ds := v.Session.Datastore
 	m := object.NewFileManager(ds.Client())
-	err := m.MakeDirectory(v.Context, ds.Path("/Test/folder/data"), v.Session.Datacenter, true)
+	err := m.MakeDirectory(v.Context, ds.Path("Test/folder/data"), v.Session.Datacenter, true)
 	if err != nil {
 		t.Errorf("Failed to create datastore dir: %s", err)
 		return
 	}
-	err = m.MakeDirectory(v.Context, ds.Path("/Test/folder/metadata"), v.Session.Datacenter, true)
+	err = m.MakeDirectory(v.Context, ds.Path("Test/folder/metadata"), v.Session.Datacenter, true)
 	if err != nil {
 		t.Errorf("Failed to create datastore dir: %s", err)
 		return
 	}
-	err = m.MakeDirectory(v.Context, ds.Path("/Test/folder/file)"), v.Session.Datacenter, true)
+	err = m.MakeDirectory(v.Context, ds.Path("Test/folder/file"), v.Session.Datacenter, true)
 	if err != nil {
 		t.Errorf("Failed to create datastore dir: %s", err)
 		return
@@ -237,20 +237,25 @@ func testDeleteDatastoreFiles(v *validate.Validator, t *testing.T) {
 	isVSAN := d.isVSAN(ds)
 	t.Logf("datastore is vsan: %t", isVSAN)
 
-	//FIXME: upload file returns 301 Moved Permanently
-	//	if err = createDatastoreFiles(d, ds, t); err != nil {
-	//		t.Errorf("Failed to upload file: %s", err)
-	//		return
-	//	}
+	if err = createDatastoreFiles(d, ds, t); err != nil {
+		t.Errorf("Failed to upload file: %s", err)
+		return
+	}
 
 	if err = d.deleteFilesIteratively(m, ds, ds.Path("Test")); err != nil {
 		t.Errorf("Failed to delete recursively: %s", err)
 	}
 
-	//	if err = createDatastoreFiles(d, ds, t); err != nil {
-	//		t.Errorf("Failed to upload file: %s", err)
-	//		return
-	//	}
+	err = m.MakeDirectory(v.Context, ds.Path("Test/folder/data"), v.Session.Datacenter, true)
+	if err != nil {
+		t.Errorf("Failed to create datastore dir: %s", err)
+		return
+	}
+
+	if err = createDatastoreFiles(d, ds, t); err != nil {
+		t.Errorf("Failed to upload file: %s", err)
+		return
+	}
 
 	if _, err = d.deleteDatastoreFiles(ds, "Test", true); err != nil {
 		t.Errorf("Failed to delete recursively: %s", err)
@@ -266,12 +271,12 @@ func createDatastoreFiles(d *Dispatcher, ds *object.Datastore, t *testing.T) err
 
 	defer os.Remove(tmpfile.Name()) // clean up
 
-	if err = ds.UploadFile(d.ctx, tmpfile.Name(), "/Test/folder/data/temp.vmdk", nil); err != nil {
-		t.Errorf("Failed to upload file %q: %s", "/Test/folder/data/temp.vmdk", err)
+	if err = ds.UploadFile(d.ctx, tmpfile.Name(), "Test/folder/data/temp.vmdk", nil); err != nil {
+		t.Errorf("Failed to upload file %q: %s", "Test/folder/data/temp.vmdk", err)
 		return err
 	}
-	if err = ds.UploadFile(d.ctx, tmpfile.Name(), "/Test/folder/tempMetadata", nil); err != nil {
-		t.Errorf("Failed to upload file %q: %s", "/Test/folder/data/temp.vmdk", err)
+	if err = ds.UploadFile(d.ctx, tmpfile.Name(), "Test/folder/tempMetadata", nil); err != nil {
+		t.Errorf("Failed to upload file %q: %s", "Test/folder/tempMetadata", err)
 		return err
 	}
 	return nil
