@@ -281,10 +281,38 @@ func TestDatastoreHTTP(t *testing.T) {
 			return info.Result.(types.HostDatastoreBrowserSearchResults).File
 		}
 
+		lsr := func(name string, fail bool) []types.HostDatastoreBrowserSearchResults {
+			spec := types.HostDatastoreBrowserSearchSpec{
+				MatchPattern: []string{"*"},
+			}
+
+			task, err := browser.SearchDatastoreSubFolders(ctx, dsPath(name), &spec)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			info, err := task.WaitForResult(ctx, nil)
+			if err != nil {
+				if fail {
+					if err == nil {
+						t.Fatalf("find %s: expected error", name)
+					}
+				} else {
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
+				return nil
+			}
+
+			return info.Result.(types.ArrayOfHostDatastoreBrowserSearchResults).HostDatastoreBrowserSearchResults
+		}
+
 		// GET file does not exist = fail
 		download(dst, true)
 		stat(dst, true)
 		ls(dst, true)
+		lsr(dst, true)
 
 		// delete file does not exist = fail
 		rm(dst, true)
@@ -293,6 +321,7 @@ func TestDatastoreHTTP(t *testing.T) {
 		upload(dst, false, "PUT")
 		stat(dst, false)
 		ls("", false)
+		lsr("", false)
 
 		// GET file exists = ok
 		download(dst, false)
@@ -341,6 +370,16 @@ func TestDatastoreHTTP(t *testing.T) {
 
 		// mv src does not exist = fail
 		mv(dst, target, true, true)
+
+		// ls -R = ok
+		res := lsr("foo", false)
+		n := len(res)
+		for _, r := range res {
+			n += len(r.File)
+		}
+		if n != 5 {
+			t.Errorf("ls -R foo==%d", n)
+		}
 
 		invalid := []string{
 			"",       //InvalidDatastorePath
