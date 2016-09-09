@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
@@ -39,7 +40,7 @@ const (
 )
 
 func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) error {
-	var emptyImages bool
+	defer trace.End(trace.Begin(""))
 	var errs []string
 
 	for _, imageDir := range conf.ImageStores {
@@ -57,13 +58,29 @@ func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) e
 			continue
 		}
 
-		if emptyImages, err = d.deleteDatastoreFiles(imageDSes[0], imageDir.Path, true); err != nil {
+		if _, err = d.deleteDatastoreFiles(imageDSes[0], path.Join(imageDir.Path, vsphere.StorageParentDir), true); err != nil {
 			errs = append(errs, err.Error())
 		}
 
-		if !emptyImages {
-			log.Infof("Not deleting [%s] %s as it still contains files after removing images", imageDir.Host, imageDir.Path)
+		dsPath, err := datastore.URLtoDatastore(&imageDir)
+		if err != nil {
+			errs = append(errs, err.Error())
 			continue
+		}
+
+		children, err := d.getChildren(imageDSes[0], dsPath)
+		if err != nil {
+			errs = append(errs, err.Error())
+			continue
+		}
+
+		if len(children) == 0 {
+			log.Debugf("Removing empty image store parent directory [%s] %s", imageDir.Host, imageDir.Path)
+			if _, err = d.deleteDatastoreFiles(imageDSes[0], imageDir.Path, true); err != nil {
+				errs = append(errs, err.Error())
+			}
+		} else {
+			log.Debugf("Image store parent directory not empty, leaving in place.")
 		}
 	}
 
@@ -163,8 +180,8 @@ func (d *Dispatcher) deleteVMFSFiles(m *object.FileManager, ds *object.Datastore
 	return nil
 }
 
-// getSortedChildren returns all children under datastore path in reversed order.
-func (d *Dispatcher) getSortedChildren(ds *object.Datastore, dsPath string) ([]string, error) {
+// getChildren returns all children under datastore path in unsorted order. (see also getSortedChildren)
+func (d *Dispatcher) getChildren(ds *object.Datastore, dsPath string) ([]string, error) {
 	res, err := d.lsSubFolder(ds, dsPath)
 	if err != nil {
 		return nil, err
@@ -178,6 +195,15 @@ func (d *Dispatcher) getSortedChildren(ds *object.Datastore, dsPath string) ([]s
 			}
 			result = append(result, path.Join(dir.FolderPath, dsf.Path))
 		}
+	}
+	return result, nil
+}
+
+// getSortedChildren returns all children under datastore path in reversed order.
+func (d *Dispatcher) getSortedChildren(ds *object.Datastore, dsPath string) ([]string, error) {
+	result, err := d.getChildren(ds, dsPath)
+	if err != nil {
+		return nil, err
 	}
 	sort.Sort(sort.Reverse(sort.StringSlice(result)))
 	return result, nil

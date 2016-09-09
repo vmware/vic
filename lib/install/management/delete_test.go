@@ -88,10 +88,10 @@ func TestDelete(t *testing.T) {
 
 		createAppliance(ctx, validator.Session, conf, installSettings, false, t)
 		// FIXME: cannot check if it's VCH or not
-		//		testNewVCHFromCompute(input.ComputeResourcePath, input.DisplayName, validator, t)
-		testDeleteVCH(validator, conf, t)
+		// testNewVCHFromCompute(input.ComputeResourcePath, input.DisplayName, validator, t)
+		//	testDeleteVCH(validator, conf, t)
 		// FIXME: ServerFaultCode: HostDatastoreBrowser:hostdatastorebrowser-34 does not implement: SearchDatastoreSubFolders_Task
-		//		testDeleteDatastoreFiles(validator, t)
+		// testDeleteDatastoreFiles(validator, t)
 	}
 }
 
