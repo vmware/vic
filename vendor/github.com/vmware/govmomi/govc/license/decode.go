@@ -17,12 +17,12 @@ limitations under the License.
 package license
 
 import (
+	"context"
 	"flag"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
 	"github.com/vmware/govmomi/license"
-	"golang.org/x/net/context"
 )
 
 type decode struct {
@@ -69,7 +69,7 @@ func (cmd *decode) Run(ctx context.Context, f *flag.FlagSet) error {
 	var result license.InfoList
 	m := license.NewManager(client)
 	for _, v := range f.Args() {
-		license, err := m.Decode(context.TODO(), v)
+		license, err := m.Decode(ctx, v)
 		if err != nil {
 			return err
 		}

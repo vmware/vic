@@ -1,11 +1,10 @@
 package flags
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
-
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/object"
 )
@@ -53,6 +52,7 @@ func (f *StoragePodFlag) Isset() bool {
 }
 
 func (f *StoragePodFlag) StoragePod() (*object.StoragePod, error) {
+	ctx := context.TODO()
 	if f.sp != nil {
 		return f.sp, nil
 	}
@@ -63,12 +63,12 @@ func (f *StoragePodFlag) StoragePod() (*object.StoragePod, error) {
 	}
 
 	if f.Isset() {
-		f.sp, err = finder.DatastoreCluster(context.TODO(), f.Name)
+		f.sp, err = finder.DatastoreCluster(ctx, f.Name)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		f.sp, err = finder.DefaultDatastoreCluster(context.TODO())
+		f.sp, err = finder.DefaultDatastoreCluster(ctx)
 		if err != nil {
 			return nil, err
 		}

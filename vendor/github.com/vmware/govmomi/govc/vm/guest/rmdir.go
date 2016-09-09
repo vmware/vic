@@ -17,10 +17,10 @@ limitations under the License.
 package guest
 
 import (
+	"context"
 	"flag"
 
 	"github.com/vmware/govmomi/govc/cli"
-	"golang.org/x/net/context"
 )
 
 type rmdir struct {
@@ -37,7 +37,7 @@ func (cmd *rmdir) Register(ctx context.Context, f *flag.FlagSet) {
 	cmd.GuestFlag, ctx = newGuestFlag(ctx)
 	cmd.GuestFlag.Register(ctx, f)
 
-	f.BoolVar(&cmd.recursive, "p", false, "Recursive removal")
+	f.BoolVar(&cmd.recursive, "r", false, "Recursive removal")
 }
 
 func (cmd *rmdir) Process(ctx context.Context) error {
@@ -53,5 +53,5 @@ func (cmd *rmdir) Run(ctx context.Context, f *flag.FlagSet) error {
 		return err
 	}
 
-	return m.DeleteDirectory(context.TODO(), cmd.Auth(), f.Arg(0), cmd.recursive)
+	return m.DeleteDirectory(ctx, cmd.Auth(), f.Arg(0), cmd.recursive)
 }

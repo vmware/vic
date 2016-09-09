@@ -17,11 +17,11 @@ limitations under the License.
 package guest
 
 import (
+	"context"
 	"flag"
 	"fmt"
 
 	"github.com/vmware/govmomi/govc/cli"
-	"golang.org/x/net/context"
 )
 
 type mktemp struct {
@@ -63,7 +63,7 @@ func (cmd *mktemp) Run(ctx context.Context, f *flag.FlagSet) error {
 		mk = m.CreateTemporaryDirectory
 	}
 
-	name, err := mk(context.TODO(), cmd.Auth(), cmd.prefix, cmd.suffix)
+	name, err := mk(ctx, cmd.Auth(), cmd.prefix, cmd.suffix)
 	if err != nil {
 		return err
 	}

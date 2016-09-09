@@ -17,12 +17,12 @@ limitations under the License.
 package vm
 
 import (
+	"context"
 	"flag"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
 	"github.com/vmware/govmomi/object"
-	"golang.org/x/net/context"
 )
 
 type markasvm struct {
@@ -69,12 +69,12 @@ func (cmd *markasvm) Run(ctx context.Context, f *flag.FlagSet) error {
 	if err != nil {
 		return err
 	}
-	cmd.ResourcePool, err = cmd.HostSystem.ResourcePool(context.TODO())
+	cmd.ResourcePool, err = cmd.HostSystem.ResourcePool(ctx)
 	if err != nil {
 		return err
 	}
 	for _, vm := range vms {
-		err := vm.MarkAsVirtualMachine(context.TODO(), *cmd.ResourcePool, cmd.HostSystem)
+		err := vm.MarkAsVirtualMachine(ctx, *cmd.ResourcePool, cmd.HostSystem)
 		if err != nil {
 			return err
 		}

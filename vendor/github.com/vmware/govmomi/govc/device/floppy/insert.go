@@ -17,11 +17,11 @@ limitations under the License.
 package floppy
 
 import (
+	"context"
 	"flag"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
-	"golang.org/x/net/context"
 )
 
 type insert struct {
@@ -74,7 +74,7 @@ func (cmd *insert) Run(ctx context.Context, f *flag.FlagSet) error {
 		return flag.ErrHelp
 	}
 
-	devices, err := vm.Device(context.TODO())
+	devices, err := vm.Device(ctx)
 	if err != nil {
 		return err
 	}
@@ -89,5 +89,5 @@ func (cmd *insert) Run(ctx context.Context, f *flag.FlagSet) error {
 		return nil
 	}
 
-	return vm.EditDevice(context.TODO(), devices.InsertImg(c, img))
+	return vm.EditDevice(ctx, devices.InsertImg(c, img))
 }
