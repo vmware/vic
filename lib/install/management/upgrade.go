@@ -120,14 +120,14 @@ func (d *Dispatcher) createSnapshot(name string, desc string) (*types.ManagedObj
 func (d *Dispatcher) tryCreateSnapshot(name, desc string) (*types.ManagedObjectReference, error) {
 	defer trace.End(trace.Begin(name))
 
-	node, err := d.appliance.GetCurrentSnapshotTree(d.ctx)
+	upgrading, snapshot, err := d.appliance.UpgradeInProgress(d.ctx, UpgradePrefix)
 	if err != nil {
-		return nil, errors.Errorf("Failed to get current snapshot: %s", err)
+		return nil, err
+	}
+	if upgrading {
+		return nil, errors.Errorf("Detected another upgrade process in progress. If this is incorrect, manually remove appliance snapshot %q and restart upgrade", snapshot)
 	}
 
-	if node != nil && strings.HasPrefix(node.Name, UpgradePrefix) {
-		return nil, errors.Errorf("Another upgrade process is in progress. If not remove appliance snapshot %q and try again", node.Name)
-	}
 	taskInfo, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.CreateSnapshot(d.ctx, name, desc, true, true)
 	})
