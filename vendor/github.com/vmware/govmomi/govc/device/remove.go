@@ -17,12 +17,12 @@ limitations under the License.
 package device
 
 import (
+	"context"
 	"flag"
 	"fmt"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
-	"golang.org/x/net/context"
 )
 
 type remove struct {
@@ -61,7 +61,7 @@ func (cmd *remove) Run(ctx context.Context, f *flag.FlagSet) error {
 		return flag.ErrHelp
 	}
 
-	devices, err := vm.Device(context.TODO())
+	devices, err := vm.Device(ctx)
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (cmd *remove) Run(ctx context.Context, f *flag.FlagSet) error {
 			return fmt.Errorf("device '%s' not found", name)
 		}
 
-		if err = vm.RemoveDevice(context.TODO(), cmd.keepFiles, device); err != nil {
+		if err = vm.RemoveDevice(ctx, cmd.keepFiles, device); err != nil {
 			return err
 		}
 	}

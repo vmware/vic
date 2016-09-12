@@ -16,6 +16,7 @@ package management
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"path"
 	"sort"
@@ -31,8 +32,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
-
-	"golang.org/x/net/context"
 )
 
 const (

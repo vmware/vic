@@ -15,6 +15,7 @@
 package management
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"sync"
@@ -30,8 +31,6 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-
-	"golang.org/x/net/context"
 )
 
 func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {

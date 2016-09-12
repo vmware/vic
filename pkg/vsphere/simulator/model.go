@@ -15,6 +15,7 @@
 package simulator
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -24,7 +25,6 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
 	"github.com/vmware/vic/pkg/vsphere/simulator/vc"
-	"golang.org/x/net/context"
 )
 
 // Model is used to populate a Model with an initial set of managed entities.

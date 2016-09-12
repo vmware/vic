@@ -15,6 +15,7 @@
 package exec
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"sync"
@@ -41,7 +42,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/context"
 )
 
 type State int

@@ -17,6 +17,7 @@ limitations under the License.
 package scsi
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"strings"
@@ -25,7 +26,6 @@ import (
 	"github.com/vmware/govmomi/govc/flags"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 type add struct {
@@ -72,7 +72,7 @@ func (cmd *add) Run(ctx context.Context, f *flag.FlagSet) error {
 		return flag.ErrHelp
 	}
 
-	devices, err := vm.Device(context.TODO())
+	devices, err := vm.Device(ctx)
 	if err != nil {
 		return err
 	}
@@ -86,13 +86,13 @@ func (cmd *add) Run(ctx context.Context, f *flag.FlagSet) error {
 	c.HotAddRemove = &cmd.hotAddRemove
 	c.SharedBus = types.VirtualSCSISharing(cmd.sharedBus)
 
-	err = vm.AddDevice(context.TODO(), d)
+	err = vm.AddDevice(ctx, d)
 	if err != nil {
 		return err
 	}
 
 	// output name of device we just created
-	devices, err = vm.Device(context.TODO())
+	devices, err = vm.Device(ctx)
 	if err != nil {
 		return err
 	}

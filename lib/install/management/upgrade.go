@@ -15,6 +15,7 @@
 package management
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"strings"
@@ -32,8 +33,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-
-	"golang.org/x/net/context"
 )
 
 const (

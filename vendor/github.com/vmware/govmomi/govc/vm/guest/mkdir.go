@@ -17,12 +17,12 @@ limitations under the License.
 package guest
 
 import (
+	"context"
 	"flag"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 type mkdir struct {
@@ -55,7 +55,7 @@ func (cmd *mkdir) Run(ctx context.Context, f *flag.FlagSet) error {
 		return err
 	}
 
-	err = m.MakeDirectory(context.TODO(), cmd.Auth(), f.Arg(0), cmd.createParents)
+	err = m.MakeDirectory(ctx, cmd.Auth(), f.Arg(0), cmd.createParents)
 
 	// ignore EEXIST if -p flag is given
 	if err != nil && cmd.createParents {
