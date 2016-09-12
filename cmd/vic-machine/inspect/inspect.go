@@ -23,6 +23,7 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	"golang.org/x/net/context"
@@ -112,6 +113,15 @@ func (i *Inspect) Run(cli *cli.Context) error {
 	}
 	executor.InitDiagnosticLogs(vchConfig)
 
+	installerVer := version.GetBuild()
+
+	log.Info("")
+	log.Infof("Installer version: %s", installerVer.ShortVersion())
+	log.Infof("VCH version: %s", vchConfig.Version.ShortVersion())
+	log.Info("")
+	log.Info("VCH upgrade status:")
+	i.upgradeStatusMessage(ctx, vch, installerVer, vchConfig.Version)
+
 	if err = executor.InspectVCH(vch, vchConfig); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Errorf("%s", err)
@@ -121,4 +131,32 @@ func (i *Inspect) Run(cli *cli.Context) error {
 	log.Infof("Completed successfully")
 
 	return nil
+}
+
+// upgradeStatusMessage generates a user facing status string about upgrade progress and status
+func (i *Inspect) upgradeStatusMessage(ctx context.Context, vch *vm.VirtualMachine, installerVer *version.Build, vchVer *version.Build) {
+	upgrading, _, err := vch.UpgradeInProgress(ctx, management.UpgradePrefix)
+	if err != nil {
+		log.Errorf("Unable to determine if upgrade is in progress: %s", err)
+		return
+	}
+	if upgrading {
+		log.Info("Upgrade in progress")
+		return
+	}
+
+	canUpgrade, err := installerVer.IsNewer(vchVer)
+	if err != nil {
+		log.Errorf("Unable to determine if upgrade is availabile: %s", err)
+		return
+	}
+	if canUpgrade {
+		log.Info("Upgrade available")
+		return
+	}
+
+	if sameVer := installerVer.Equal(vchVer); sameVer {
+		log.Info("Installer has same version as VCH")
+		log.Info("No upgrade available with this installer version")
+	}
 }

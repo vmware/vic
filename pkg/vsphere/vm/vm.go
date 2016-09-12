@@ -17,6 +17,7 @@ package vm
 import (
 	"container/list"
 	"errors"
+	"fmt"
 	"net/url"
 	"path"
 	"strings"
@@ -378,4 +379,18 @@ func (vm *VirtualMachine) bfsSnapshotTree(q *list.List, compare func(node types.
 		q.PushBack(c)
 	}
 	return vm.bfsSnapshotTree(q, compare)
+}
+
+// UpgradeInProgress tells if an upgrade has already been started based on snapshot name beginning with upgradePrefix
+func (vm *VirtualMachine) UpgradeInProgress(ctx context.Context, upgradePrefix string) (bool, string, error) {
+	node, err := vm.GetCurrentSnapshotTree(ctx)
+	if err != nil {
+		return false, "", fmt.Errorf("Failed to check upgrade snapshot status: %s", err)
+	}
+
+	if node != nil && strings.HasPrefix(node.Name, upgradePrefix) {
+		return true, node.Name, nil
+	}
+
+	return false, "", nil
 }
