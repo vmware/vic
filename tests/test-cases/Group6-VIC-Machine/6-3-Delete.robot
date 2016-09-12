@@ -31,6 +31,7 @@ Delete VCH and verify
     # Delete with force
     ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name ${vch-name} --force
     Should Contain  ${ret}  Completed successfully
+    Should Not Contain  ${ret}  Operation failed: Error caused by file
 
     # Check VM is removed
     ${ret}=  Run  govc vm.info -json=true ${containerName}-*

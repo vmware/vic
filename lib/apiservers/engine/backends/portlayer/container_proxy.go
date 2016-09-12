@@ -515,7 +515,7 @@ func processAnonymousVolumes(h *string, volumes map[string]struct{}, client *cli
 
 	for v := range volumes {
 		fields, err := processVolumeParam(v)
-		log.Infof("Processed Volume arguments : %#v", fields)
+		log.Infof("Processed anonymous volume arguments: %#v", fields)
 		if err != nil {
 			return nil, err
 		}
@@ -544,6 +544,7 @@ func processSpecifiedVolumes(volumes []string) ([]volumeFields, error) {
 	var volumeFields []volumeFields
 	for _, v := range volumes {
 		fields, err := processVolumeParam(v)
+		log.Infof("Processed specified volume arguments: %#v", fields)
 		if err != nil {
 			return volumeFields, err
 		}
