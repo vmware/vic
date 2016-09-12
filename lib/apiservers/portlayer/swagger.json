@@ -1423,6 +1423,56 @@
 				}
 			}
 		},
+		"/containers/{id}/wait": {
+			"get": {
+				"description": "Wait for the container to stop",
+				"operationId": "ContainerWait",
+				"tags": [
+					"containers"
+				],
+				"consumes": [
+					"application/octet-stream",
+					"application/json"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"type": "string",
+						"required": true
+					},
+					{
+						"name": "timeout",
+						"in": "query",
+						"type": "int64",
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/ContainerInfo"
+						}
+					},
+					"404": {
+						"description": "Container not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "Failed to wait on Container",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			}
+		},
 		"/interaction/{id}/resize": {
 			"post": {
 				"description": "Resize the container's tty session",
@@ -2069,6 +2119,10 @@
 						"type": "string"
 					}
 				},
+				"exitCode": {
+					"type": "integer",
+					"format": "int32"
+				},
 				"created": {
 					"type": "integer",
 					"format": "int64"
@@ -2234,7 +2288,8 @@
 					"format": "datetime"
 				},
 				"exitCode": {
-					"type": "integer"
+					"type": "integer",
+					"format": "int32"
 				},
 				"errorMsg": {
 					"type": "string"

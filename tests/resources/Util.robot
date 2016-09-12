@@ -349,7 +349,7 @@ Run Regression Tests
     Wait Until Container Stops  ${container}
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  Stopped
+    Should Contain  ${output}  Exited
     # Ensure container logs are correctly being gathered for debugging purposes
     ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz | tar tvzf -
     Should Be Equal As Integers  ${rc}  0
