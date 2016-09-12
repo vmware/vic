@@ -17,6 +17,7 @@ This test requires access to VMWare Nimbus cluster for dynamic ESXi and vCenter 
 ```
 --compute-resource /ha-datacenter/host/cls
 ```
+3. Run a variety of docker commands on the VCH appliance
 
 #Expected Outcome:
 The VCH appliance should deploy without error and each of the docker commands executed against it should return without error
