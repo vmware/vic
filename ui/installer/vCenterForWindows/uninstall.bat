@@ -56,11 +56,6 @@ FOR /F "tokens=*" %%A IN (..\vCenterForWindows\_scratch_flags.txt) DO (
             GOTO:EOF
         )
     )
-    IF %sftp_supported% EQU 1 (
-        "%utils_path%winscp.com" /command "open -hostkey=* sftp://%sftp_username%:%sftp_password%@%target_vcenter_ip%" "cd %target_vc_packages_path%" "rm com.vmware.vicui.*" "exit"
-    ) ELSE (
-        ECHO SFTP not enabled. You have to manually delete %target_vc_packages_path%\com.vmware.vicui.Vicui
-    )
 )
 
 cd ..\vCenterForWindows
