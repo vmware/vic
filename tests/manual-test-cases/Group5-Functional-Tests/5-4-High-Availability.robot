@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation  Test 5-4 - High Availability
 Resource  ../../resources/Util.robot
-#Suite Teardown  Nimbus Cleanup
+Suite Teardown  Nimbus Cleanup
 
 *** Test Cases ***
 Test
