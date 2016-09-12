@@ -41,8 +41,8 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
 	containertypes "github.com/docker/engine-api/types/container"
+	dnetwork "github.com/docker/engine-api/types/network"
 	timetypes "github.com/docker/engine-api/types/time"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork/portallocator"
@@ -460,12 +460,12 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 }
 
 // ContainerStart starts a container.
-func (c *Container) ContainerStart(name string, hostConfig *container.HostConfig) error {
+func (c *Container) ContainerStart(name string, hostConfig *containertypes.HostConfig) error {
 	defer trace.End(trace.Begin(name))
 	return c.containerStart(name, hostConfig, true)
 }
 
-func (c *Container) containerStart(name string, hostConfig *container.HostConfig, bind bool) error {
+func (c *Container) containerStart(name string, hostConfig *containertypes.HostConfig, bind bool) error {
 	var err error
 
 	// save the name provided to us so we can refer to it if we have to return an error
@@ -584,7 +584,7 @@ func requestHostPort(proto string) (int, error) {
 	return pa.RequestPortInRange(nil, proto, 0, 0)
 }
 
-func (c *Container) mapPorts(op portmap.Operation, hostconfig *container.HostConfig, endpoint *models.EndpointConfig) error {
+func (c *Container) mapPorts(op portmap.Operation, hostconfig *containertypes.HostConfig, endpoint *models.EndpointConfig) error {
 	if len(hostconfig.PortBindings) == 0 || endpoint == nil {
 		return nil
 	}
@@ -660,7 +660,7 @@ func (c *Container) defaultScope() string {
 	return defaultScope.scope
 }
 
-func (c *Container) findPortBoundNetworkEndpoint(hostconfig *container.HostConfig, endpoints []*models.EndpointConfig) *models.EndpointConfig {
+func (c *Container) findPortBoundNetworkEndpoint(hostconfig *containertypes.HostConfig, endpoints []*models.EndpointConfig) *models.EndpointConfig {
 	if len(hostconfig.PortBindings) == 0 {
 		return nil
 	}
@@ -794,7 +794,7 @@ func (c *Container) ContainerUnpause(name string) error {
 }
 
 // ContainerUpdate updates configuration of the container
-func (c *Container) ContainerUpdate(name string, hostConfig *container.HostConfig) ([]string, error) {
+func (c *Container) ContainerUpdate(name string, hostConfig *containertypes.HostConfig) ([]string, error) {
 	return make([]string, 0, 0), fmt.Errorf("%s does not implement container.ContainerUpdate", ProductName())
 }
 
@@ -1336,7 +1336,11 @@ func setPathFromImageConfig(config, imageConfig *containertypes.Config) {
 func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	defer trace.End(trace.Begin("Container.validateCreateConfig"))
 
-	if config.HostConfig == nil || config.Config == nil || config.NetworkingConfig == nil {
+	if config.NetworkingConfig == nil {
+		config.NetworkingConfig = &dnetwork.NetworkingConfig{}
+	}
+
+	if config.HostConfig == nil || config.Config == nil {
 		return BadRequestError("invalid config")
 	}
 
