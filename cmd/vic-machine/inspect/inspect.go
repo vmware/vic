@@ -148,6 +148,7 @@ func (i *Inspect) upgradeStatusMessage(ctx context.Context, vch *vm.VirtualMachi
 	canUpgrade, err := installerVer.IsNewer(vchVer)
 	if err != nil {
 		log.Errorf("Unable to determine if upgrade is availabile: %s", err)
+		return
 	}
 	if canUpgrade {
 		log.Info("Upgrade available")
@@ -157,6 +158,5 @@ func (i *Inspect) upgradeStatusMessage(ctx context.Context, vch *vm.VirtualMachi
 	if sameVer := installerVer.Equal(vchVer); sameVer {
 		log.Info("Installer has same version as VCH")
 		log.Info("No upgrade available with this installer version")
-		return
 	}
 }

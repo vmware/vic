@@ -15,7 +15,6 @@
 package version
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"runtime"
@@ -82,10 +81,7 @@ func (v *Build) ShortVersion() string {
 
 // Equal determines if v is equal to b based on BuildNumber
 func (v *Build) Equal(b *Build) bool {
-	if v.BuildNumber != b.BuildNumber {
-		return false
-	}
-	return true
+	return v.BuildNumber == b.BuildNumber
 }
 
 // IsOlder determines if v is older than b based on BuildNumber
@@ -95,13 +91,16 @@ func (v *Build) IsOlder(b *Build) (bool, error) {
 	}
 
 	if v.BuildNumber == "" || b.BuildNumber == "" {
-		return false, errors.New("invalid BuildNumber")
+		return false, fmt.Errorf("invalid BuildNumber - comparing %s to %s", v.BuildNumber, b.BuildNumber)
 	}
 
 	vi, errv := strconv.Atoi(v.BuildNumber)
 	bi, errb := strconv.Atoi(b.BuildNumber)
-	if errv != nil || errb != nil {
-		return false, errors.New("invalid BuildNumber format")
+	if errv != nil {
+		return false, fmt.Errorf("invalid BuildNumber format %s: %s", v, errv)
+	}
+	if errb != nil {
+		return false, fmt.Errorf("invalid BuildNumber format %s: %s", b, errb)
 	}
 
 	buildBefore := vi < bi
