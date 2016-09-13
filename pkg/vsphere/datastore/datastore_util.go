@@ -15,6 +15,7 @@
 package datastore
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -23,7 +24,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
-	"golang.org/x/net/context"
 )
 
 // Used in testing

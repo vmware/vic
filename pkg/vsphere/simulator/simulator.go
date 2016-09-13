@@ -16,6 +16,7 @@ package simulator
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -27,8 +28,6 @@ import (
 	"path"
 	"reflect"
 	"strings"
-
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/vim25"

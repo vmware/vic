@@ -17,6 +17,7 @@ limitations under the License.
 package license
 
 import (
+	"context"
 	"flag"
 	"fmt"
 
@@ -24,7 +25,6 @@ import (
 	"github.com/vmware/govmomi/govc/flags"
 	"github.com/vmware/govmomi/license"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 type add struct {
@@ -84,7 +84,7 @@ func (cmd *add) Run(ctx context.Context, f *flag.FlagSet) error {
 
 	result := make(licenseOutput, 0)
 	for _, v := range f.Args() {
-		license, err := addFunc(context.TODO(), v, nil)
+		license, err := addFunc(ctx, v, nil)
 		if err != nil {
 			return err
 		}

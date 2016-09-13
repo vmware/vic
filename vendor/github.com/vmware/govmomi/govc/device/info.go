@@ -17,6 +17,7 @@ limitations under the License.
 package device
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -28,7 +29,6 @@ import (
 	"github.com/vmware/govmomi/govc/flags"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 type info struct {
@@ -79,7 +79,7 @@ func (cmd *info) Run(ctx context.Context, f *flag.FlagSet) error {
 		return flag.ErrHelp
 	}
 
-	devices, err := vm.Device(context.TODO())
+	devices, err := vm.Device(ctx)
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func (cmd *info) Run(ctx context.Context, f *flag.FlagSet) error {
 			return err
 		}
 
-		backing, err := net.EthernetCardBackingInfo(context.TODO())
+		backing, err := net.EthernetCardBackingInfo(ctx)
 		if err != nil {
 			return err
 		}

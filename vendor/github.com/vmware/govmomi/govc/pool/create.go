@@ -17,6 +17,7 @@ limitations under the License.
 package pool
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"path"
@@ -25,7 +26,6 @@ import (
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 type create struct {
@@ -81,7 +81,7 @@ func (cmd *create) Run(ctx context.Context, f *flag.FlagSet) error {
 	for _, arg := range f.Args() {
 		dir := path.Dir(arg)
 		base := path.Base(arg)
-		parents, err := finder.ResourcePoolList(context.TODO(), dir)
+		parents, err := finder.ResourcePoolList(ctx, dir)
 		if err != nil {
 			if _, ok := err.(*find.NotFoundError); ok {
 				return fmt.Errorf("cannot create resource pool '%s': parent not found", base)
@@ -90,7 +90,7 @@ func (cmd *create) Run(ctx context.Context, f *flag.FlagSet) error {
 		}
 
 		for _, parent := range parents {
-			_, err = parent.Create(context.TODO(), base, cmd.ResourceConfigSpec)
+			_, err = parent.Create(ctx, base, cmd.ResourceConfigSpec)
 			if err != nil {
 				return err
 			}

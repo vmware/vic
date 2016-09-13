@@ -30,6 +30,7 @@ import (
 	_ "github.com/vmware/govmomi/govc/device/floppy"
 	_ "github.com/vmware/govmomi/govc/device/scsi"
 	_ "github.com/vmware/govmomi/govc/device/serial"
+	_ "github.com/vmware/govmomi/govc/device/usb"
 	_ "github.com/vmware/govmomi/govc/dvs"
 	_ "github.com/vmware/govmomi/govc/dvs/portgroup"
 	_ "github.com/vmware/govmomi/govc/env"
@@ -61,6 +62,7 @@ import (
 	_ "github.com/vmware/govmomi/govc/vm/disk"
 	_ "github.com/vmware/govmomi/govc/vm/guest"
 	_ "github.com/vmware/govmomi/govc/vm/network"
+	_ "github.com/vmware/govmomi/govc/vm/snapshot"
 )
 
 func main() {

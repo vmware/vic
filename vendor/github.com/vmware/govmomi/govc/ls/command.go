@@ -17,6 +17,7 @@ limitations under the License.
 package ls
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -27,7 +28,6 @@ import (
 	"github.com/vmware/govmomi/list"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 type ls struct {
@@ -101,7 +101,7 @@ func (cmd *ls) Run(ctx context.Context, f *flag.FlagSet) error {
 			}
 		}
 
-		es, err := finder.ManagedObjectListChildren(context.TODO(), arg)
+		es, err := finder.ManagedObjectListChildren(ctx, arg)
 		if err != nil {
 			return err
 		}

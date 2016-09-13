@@ -17,13 +17,13 @@ limitations under the License.
 package vapp
 
 import (
+	"context"
 	"flag"
 	"fmt"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
 	"github.com/vmware/govmomi/object"
-	"golang.org/x/net/context"
 )
 
 type power struct {
@@ -84,13 +84,13 @@ func (cmd *power) Run(ctx context.Context, f *flag.FlagSet) error {
 		switch {
 		case cmd.On:
 			fmt.Fprintf(cmd, "Powering on %s... ", vapp.Reference())
-			task, err = vapp.PowerOnVApp_Task(context.TODO())
+			task, err = vapp.PowerOnVApp_Task(ctx)
 		case cmd.Off:
 			fmt.Fprintf(cmd, "Powering off %s... ", vapp.Reference())
-			task, err = vapp.PowerOffVApp_Task(context.TODO(), cmd.Force)
+			task, err = vapp.PowerOffVApp_Task(ctx, cmd.Force)
 		case cmd.Suspend:
 			fmt.Fprintf(cmd, "Suspend %s... ", vapp.Reference())
-			task, err = vapp.SuspendVApp_Task(context.TODO())
+			task, err = vapp.SuspendVApp_Task(ctx)
 		}
 
 		if err != nil {
@@ -98,7 +98,7 @@ func (cmd *power) Run(ctx context.Context, f *flag.FlagSet) error {
 		}
 
 		if task != nil {
-			err = task.Wait(context.TODO())
+			err = task.Wait(ctx)
 		}
 		if err == nil {
 			fmt.Fprintf(cmd, "OK\n")

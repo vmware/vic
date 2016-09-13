@@ -17,10 +17,10 @@ limitations under the License.
 package guest
 
 import (
+	"context"
 	"flag"
 
 	"github.com/vmware/govmomi/govc/cli"
-	"golang.org/x/net/context"
 )
 
 type chmod struct {
@@ -55,5 +55,5 @@ func (cmd *chmod) Run(ctx context.Context, f *flag.FlagSet) error {
 		return err
 	}
 
-	return m.ChangeFileAttributes(context.TODO(), cmd.Auth(), f.Arg(0), cmd.Attr())
+	return m.ChangeFileAttributes(ctx, cmd.Auth(), f.Arg(0), cmd.Attr())
 }

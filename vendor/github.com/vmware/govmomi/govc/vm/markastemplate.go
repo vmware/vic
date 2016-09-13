@@ -17,11 +17,11 @@ limitations under the License.
 package vm
 
 import (
+	"context"
 	"flag"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
-	"golang.org/x/net/context"
 )
 
 type markastemplate struct {
@@ -58,7 +58,7 @@ func (cmd *markastemplate) Run(ctx context.Context, f *flag.FlagSet) error {
 	}
 
 	for _, vm := range vms {
-		err := vm.MarkAsTemplate(context.TODO())
+		err := vm.MarkAsTemplate(ctx)
 		if err != nil {
 			return err
 		}

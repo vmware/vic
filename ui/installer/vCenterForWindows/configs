@@ -8,14 +8,3 @@ SET vic_ui_host_url=NOURL
 
 REM If line 10 starts with "https", enter the SHA-1 thumbprint of the web server hosting the zip files
 SET vic_ui_host_thumbprint=
-
-REM Enter 1 if your server has the SFTP service enabled or 0 if not
-SET sftp_supported=1
-
-REM Enter SFTP username and password
-SET sftp_username=
-SET sftp_password=
-
-REM Location of C:\ProgramData\VMware\vCenterServer\cfg\vsphere-client\vc-packages\vsphere-serenity relative to the root of SFTP connection
-REM Note: If you are running vCenter 5.5 Windows, the location should point to C:\ProgramData\VMware\vSphere Web Client\vc-packages\vsphere-serenity
-SET target_vc_packages_path=/vsphere-client/vc-packages/vsphere-client-serenity/

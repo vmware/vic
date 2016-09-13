@@ -132,7 +132,7 @@ func (ec *EventCollector) Start() error {
 		//
 		// the manager will be closed with the session
 
-		err := ec.vmwManager.Events(ctx, refs, 1, followStream, force, func(page []types.BaseEvent) error {
+		err := ec.vmwManager.Events(ctx, refs, 1, followStream, force, func(_ types.ManagedObjectReference, page []types.BaseEvent) error {
 			evented(ec, page)
 			return nil
 		})

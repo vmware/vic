@@ -15,6 +15,7 @@
 package simulator
 
 import (
+	"context"
 	"testing"
 
 	"github.com/vmware/govmomi"
@@ -25,7 +26,6 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
 	"github.com/vmware/vic/pkg/vsphere/simulator/vc"
-	"golang.org/x/net/context"
 )
 
 func addStandaloneHost(folder *object.Folder, spec types.HostConnectSpec) (*object.Task, error) {
