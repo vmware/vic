@@ -700,30 +700,27 @@ func (c *Container) ContainerStop(name string, seconds int) error {
 
 func (c *Container) containerStop(name string, seconds int, unbound bool) error {
 
-	// save the name provided to us so we can refer to it if we have to return an error
-	paramName := name
-
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
 		return NotFoundError(name)
 	}
-	name = vc.ContainerID
+	id := vc.ContainerID
 
 	//retrieve client to portlayer
 	client := c.containerProxy.Client()
-	handle, err := c.Handle(name, paramName)
+	handle, err := c.Handle(id, name)
 	if err != nil {
 		return err
 	}
 
 	// we have a container on the PL side lets check the state before proceeding
 	// ignore the error  since others will be checking below..this is an attempt to short circuit the op
-	// TODO: can be replaced with simple cache check once power events are propigated to persona
-	infoResponse, _ := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(name))
+	// TODO: can be replaced with simple cache check once power events are propagated to persona
+	infoResponse, err := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(id))
 	if err != nil {
-		cache.ContainerCache().DeleteContainer(name)
-		return NotFoundError(paramName)
+		cache.ContainerCache().DeleteContainer(id)
+		return NotFoundError(name)
 	}
 	if *infoResponse.Payload.ContainerConfig.State == "Stopped" || *infoResponse.Payload.ContainerConfig.State == "Created" {
 		return nil
@@ -736,7 +733,7 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 			switch err := err.(type) {
 			case *scopes.UnbindContainerNotFound:
 				// ignore error
-				log.Warnf("Container %s not found by network unbind", name)
+				log.Warnf("Container %s not found by network unbind", id)
 			case *scopes.UnbindContainerInternalServerError:
 				return InternalServerError(err.Payload.Message)
 			default:
@@ -757,10 +754,10 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 	// TODO: We need a resolved ID from the name
 	stateChangeResponse, err := client.Containers.StateChange(containers.NewStateChangeParamsWithContext(ctx).WithHandle(handle).WithState("STOPPED"))
 	if err != nil {
-		cache.ContainerCache().DeleteContainer(name)
+		cache.ContainerCache().DeleteContainer(id)
 		switch err := err.(type) {
 		case *containers.StateChangeNotFound:
-			return NotFoundError(paramName)
+			return NotFoundError(name)
 		case *containers.StateChangeDefault:
 			return InternalServerError(err.Payload.Message)
 		default:
@@ -774,10 +771,10 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle).WithWaitTime(&wait))
 	if err != nil {
 		// delete from cache since all cases are 404's
-		cache.ContainerCache().DeleteContainer(name)
+		cache.ContainerCache().DeleteContainer(id)
 		switch err := err.(type) {
 		case *containers.CommitNotFound:
-			return NotFoundError(paramName)
+			return NotFoundError(name)
 		case *containers.CommitDefault:
 			return InternalServerError(err.Payload.Message)
 		default:

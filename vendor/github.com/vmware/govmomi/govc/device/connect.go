@@ -17,12 +17,12 @@ limitations under the License.
 package device
 
 import (
+	"context"
 	"flag"
 	"fmt"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
-	"golang.org/x/net/context"
 )
 
 type connect struct {
@@ -59,7 +59,7 @@ func (cmd *connect) Run(ctx context.Context, f *flag.FlagSet) error {
 		return flag.ErrHelp
 	}
 
-	devices, err := vm.Device(context.TODO())
+	devices, err := vm.Device(ctx)
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func (cmd *connect) Run(ctx context.Context, f *flag.FlagSet) error {
 			return err
 		}
 
-		if err = vm.EditDevice(context.TODO(), device); err != nil {
+		if err = vm.EditDevice(ctx, device); err != nil {
 			return err
 		}
 	}

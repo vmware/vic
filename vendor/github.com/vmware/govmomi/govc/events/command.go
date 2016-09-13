@@ -17,6 +17,7 @@ limitations under the License.
 package events
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -27,7 +28,6 @@ import (
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 type events struct {
@@ -60,8 +60,12 @@ func (cmd *events) Process(ctx context.Context) error {
 	return nil
 }
 
-func (cmd *events) printEvents(ctx context.Context, page []types.BaseEvent, m *event.Manager) error {
+func (cmd *events) printEvents(ctx context.Context, obj *types.ManagedObjectReference, page []types.BaseEvent, m *event.Manager) error {
 	event.Sort(page)
+	if obj != nil {
+		// print the object reference
+		fmt.Fprintf(os.Stdout, "\n==> %s <==\n", obj.String())
+	}
 	for _, e := range page {
 		cat, err := m.EventCategory(ctx, e)
 		if err != nil {
@@ -71,13 +75,18 @@ func (cmd *events) printEvents(ctx context.Context, page []types.BaseEvent, m *e
 		event := e.GetEvent()
 		msg := strings.TrimSpace(event.FullFormattedMessage)
 
+		// if this is a TaskEvent gather a little more information
 		if t, ok := e.(*types.TaskEvent); ok {
-			msg = fmt.Sprintf("%s (target=%s %s)", msg, t.Info.Entity.Type, t.Info.EntityName)
+			// some tasks won't have this information, so just use the event message
+			if t.Info.Entity != nil {
+				msg = fmt.Sprintf("%s (target=%s %s)", msg, t.Info.Entity.Type, t.Info.EntityName)
+			}
 		}
 
 		fmt.Fprintf(os.Stdout, "[%s] [%s] %s\n",
 			event.CreatedTime.Local().Format(time.ANSIC),
-			cat, msg)
+			cat,
+			msg)
 	}
 	return nil
 }
@@ -102,8 +111,12 @@ func (cmd *events) Run(ctx context.Context, f *flag.FlagSet) error {
 		m := event.NewManager(c)
 
 		// get the event stream
-		err := m.Events(ctx, objs, cmd.Max, cmd.Tail, cmd.Force, func(ee []types.BaseEvent) error {
-			err = cmd.printEvents(ctx, ee, m)
+		err := m.Events(ctx, objs, cmd.Max, cmd.Tail, cmd.Force, func(obj types.ManagedObjectReference, ee []types.BaseEvent) error {
+			var o *types.ManagedObjectReference
+			if len(objs) > 1 {
+				o = &obj
+			}
+			err = cmd.printEvents(ctx, o, ee, m)
 			if err != nil {
 				return err
 			}

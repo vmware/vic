@@ -17,6 +17,7 @@ limitations under the License.
 package esxcli
 
 import (
+	"context"
 	"strings"
 
 	"github.com/vmware/govmomi/object"
@@ -24,7 +25,6 @@ import (
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 type hostInfo struct {
@@ -83,10 +83,12 @@ func (g *GuestInfo) hostInfo(ref *types.ManagedObjectReference) (*hostInfo, erro
 // For example:
 // $ govc host.esxcli -- system settings advanced set -o /Net/GuestIPHack -i 1
 func (g *GuestInfo) IpAddress(vm *object.VirtualMachine) (string, error) {
+	ctx := context.TODO()
+	const any = "0.0.0.0"
 	var mvm mo.VirtualMachine
 
 	pc := property.DefaultCollector(g.c)
-	err := pc.RetrieveOne(context.TODO(), vm.Reference(), []string{"runtime.host", "config.uuid"}, &mvm)
+	err := pc.RetrieveOne(ctx, vm.Reference(), []string{"runtime.host", "config.uuid"}, &mvm)
 	if err != nil {
 		return "", err
 	}
@@ -105,12 +107,14 @@ func (g *GuestInfo) IpAddress(vm *object.VirtualMachine) (string, error) {
 			return "", err
 		}
 
-		if len(res.Values) == 1 {
-			if ip, ok := res.Values[0]["IPAddress"]; ok {
-				return ip[0], nil
+		for _, val := range res.Values {
+			if ip, ok := val["IPAddress"]; ok {
+				if ip[0] != any {
+					return ip[0], nil
+				}
 			}
 		}
 	}
 
-	return "", nil
+	return any, nil
 }

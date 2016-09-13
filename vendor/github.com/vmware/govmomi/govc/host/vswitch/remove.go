@@ -17,11 +17,11 @@ limitations under the License.
 package vswitch
 
 import (
+	"context"
 	"flag"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
-	"golang.org/x/net/context"
 )
 
 type remove struct {
@@ -54,5 +54,5 @@ func (cmd *remove) Run(ctx context.Context, f *flag.FlagSet) error {
 		return err
 	}
 
-	return ns.RemoveVirtualSwitch(context.TODO(), f.Arg(0))
+	return ns.RemoveVirtualSwitch(ctx, f.Arg(0))
 }

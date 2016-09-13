@@ -15,6 +15,7 @@
 package management
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"path"
@@ -31,8 +32,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/simulator"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-
-	"golang.org/x/net/context"
 )
 
 func TestFinder(t *testing.T) {

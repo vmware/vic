@@ -15,6 +15,7 @@
 package management
 
 import (
+	"context"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -26,8 +27,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-
-	"golang.org/x/net/context"
 )
 
 func (d *Dispatcher) DeleteVCH(conf *config.VirtualContainerHostConfigSpec) error {

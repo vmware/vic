@@ -135,6 +135,12 @@ func (i *Inspect) Run(cli *cli.Context) error {
 
 // upgradeStatusMessage generates a user facing status string about upgrade progress and status
 func (i *Inspect) upgradeStatusMessage(ctx context.Context, vch *vm.VirtualMachine, installerVer *version.Build, vchVer *version.Build) {
+	if sameVer := installerVer.Equal(vchVer); sameVer {
+		log.Info("Installer has same version as VCH")
+		log.Info("No upgrade available with this installer version")
+		return
+	}
+
 	upgrading, _, err := vch.UpgradeInProgress(ctx, management.UpgradePrefix)
 	if err != nil {
 		log.Errorf("Unable to determine if upgrade is in progress: %s", err)
@@ -155,8 +161,18 @@ func (i *Inspect) upgradeStatusMessage(ctx context.Context, vch *vm.VirtualMachi
 		return
 	}
 
-	if sameVer := installerVer.Equal(vchVer); sameVer {
-		log.Info("Installer has same version as VCH")
-		log.Info("No upgrade available with this installer version")
+	oldInstaller, err := installerVer.IsOlder(vchVer)
+	if err != nil {
+		log.Errorf("Unable to determine if upgrade is available: %s", err)
+		return
 	}
+	if oldInstaller {
+		log.Info("Installer has older version than VCH")
+		log.Info("No upgrade available with this installer version")
+		return
+	}
+
+	// can't get here
+	log.Warn("Invalid upgrade status")
+	return
 }

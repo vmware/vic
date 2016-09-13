@@ -94,7 +94,7 @@ func (v *Build) IsOlder(b *Build) (bool, error) {
 	}
 
 	if v.BuildNumber == "" || b.BuildNumber == "" {
-		return false, fmt.Errorf("invalid BuildNumber - comparing %s to %s", v.BuildNumber, b.BuildNumber)
+		return false, fmt.Errorf("invalid BuildNumber - comparing %q to %q", v.BuildNumber, b.BuildNumber)
 	}
 
 	vi, errv := strconv.Atoi(v.BuildNumber)

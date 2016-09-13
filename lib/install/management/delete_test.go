@@ -15,6 +15,7 @@
 package management
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -34,8 +35,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/simulator"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-
-	"golang.org/x/net/context"
 )
 
 func TestDelete(t *testing.T) {

@@ -16,6 +16,7 @@ package vm
 
 import (
 	"container/list"
+	"context"
 	"fmt"
 	"math"
 	"math/rand"
@@ -33,8 +34,6 @@ import (
 
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/test"
-
-	"golang.org/x/net/context"
 )
 
 func CreateVM(ctx context.Context, session *session.Session, host *object.HostSystem, name string) (*types.ManagedObjectReference, error) {

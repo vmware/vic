@@ -15,6 +15,7 @@
 package disk
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -26,7 +27,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
-	"golang.org/x/net/context"
 )
 
 const (

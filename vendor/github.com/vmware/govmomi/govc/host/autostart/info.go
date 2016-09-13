@@ -17,6 +17,7 @@ limitations under the License.
 package autostart
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -28,7 +29,6 @@ import (
 	"github.com/vmware/govmomi/govc/flags"
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/mo"
-	"golang.org/x/net/context"
 )
 
 type info struct {
@@ -88,9 +88,10 @@ func (r *infoResult) MarshalJSON() ([]byte, error) {
 
 // vmPaths resolves the paths for the VMs in the result.
 func (r *infoResult) vmPaths() (map[string]string, error) {
+	ctx := context.TODO()
 	paths := make(map[string]string)
 	for _, info := range r.mhas.Config.PowerInfo {
-		mes, err := mo.Ancestors(context.TODO(), r.client, r.client.ServiceContent.PropertyCollector, info.Key)
+		mes, err := mo.Ancestors(ctx, r.client, r.client.ServiceContent.PropertyCollector, info.Key)
 		if err != nil {
 			return nil, err
 		}
