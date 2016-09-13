@@ -12,9 +12,9 @@ This test requires that a vCenter server is running and available
 
 #Test Steps:
 1. Install a new VCH appliance onto one of the hosts within the vCenter server
-2. Create several containers on the new VCH appliance that are in the following states: created but not started, started and running, started and stopped
+2. Create several containers on the new VCH appliance that are in the following states: created but not started, started and running, started and stopped, stopped after running and being attached to, running after being attached to but currently not attached to, running and currently attached to
 3. vMotion each of the containers to a new host within the vCenter server
-4. Complete the life cycle of the containers created in Step 2.
+4. Complete the life cycle of the containers created in Step 2, including getting docker logs and re-attaching to containers that are running
 
 #Expected Outcome:
 In each scenario, the VCH appliance should continue to work as expected after being vMotioned and all docker commands should return without error
