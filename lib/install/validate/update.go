@@ -58,7 +58,7 @@ func (v *Validator) assertTarget(conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 	if conf.Target.User != nil {
 		if _, set := conf.Target.User.Password(); set {
-			v.NoteIssue(errors.New("Password should not set in target URL"))
+			v.NoteIssue(errors.New("Password should not be set in target URL"))
 		}
 	}
 
@@ -80,7 +80,7 @@ func (v *Validator) assertVersion(conf *config.VirtualContainerHostConfigSpec) {
 	}
 	installerBuild := version.GetBuild()
 	if installerBuild.Equal(conf.Version) {
-		v.NoteIssue(errors.Errorf("%q has same version as installer. No upgrade is avaialble.", conf.Name))
+		v.NoteIssue(errors.Errorf("%q has same version as installer. No upgrade is available.", conf.Name))
 		return
 	}
 	older, err := installerBuild.IsOlder(conf.Version)

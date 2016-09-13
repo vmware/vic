@@ -56,7 +56,7 @@ func (u *Upgrade) Flags() []cli.Flag {
 		},
 		cli.BoolFlag{
 			Name:        "force, f",
-			Usage:       "Force the upgrade -- ignore version issue",
+			Usage:       "Force the upgrade (ignores version checks)",
 			Destination: &u.Force,
 		},
 	}

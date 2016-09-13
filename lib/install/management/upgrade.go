@@ -24,7 +24,6 @@ import (
 
 	"github.com/docker/docker/opts"
 	"github.com/vmware/govmomi/object"
-	//	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
@@ -71,7 +70,7 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 	}
 	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)
 
-	snapshotName := fmt.Sprintf("upgrade for %s", conf.Version.BuildNumber)
+	snapshotName := fmt.Sprintf("%s %s", UpgradePrefix, conf.Version.BuildNumber)
 	snapshotName = strings.TrimSpace(snapshotName)
 	snapshotRefID, err := d.createSnapshot(snapshotName, "upgrade snapshot")
 	if err != nil {
