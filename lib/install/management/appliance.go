@@ -691,17 +691,17 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	}
 
 	log.Infof("Waiting for IP information")
-	d.waitForKey("guestinfo..init.networks|client.ip.IP")
+	d.waitForKey("guestinfo.vice..init.networks|client.ip.IP")
 	ctxerr := d.ctx.Err()
 
 	if ctxerr == nil {
 		log.Info("Waiting for major appliance components to launch")
 		log.Debug("waiting for vicadmin to start")
-		d.waitForKey("guestinfo..init.sessions|vicadmin.started")
+		d.waitForKey("guestinfo.vice..init.sessions|vicadmin.started")
 		log.Debug("waiting for docker personality to start")
-		d.waitForKey("guestinfo..init.sessions|docker-personality.started")
+		d.waitForKey("guestinfo.vice..init.sessions|docker-personality.started")
 		log.Debug("waiting for port layer to start")
-		d.waitForKey("guestinfo..init.sessions|port-layer.started")
+		d.waitForKey("guestinfo.vice..init.sessions|port-layer.started")
 	}
 
 	// at this point either everything has succeeded or we're going into diagnostics, ignore error
