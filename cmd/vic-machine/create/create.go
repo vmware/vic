@@ -279,10 +279,20 @@ func (c *Create) processVolumeStores() error {
 	c.VolumeLocations = make(map[string]string)
 	for _, arg := range c.volumeStores {
 		splitMeta := strings.SplitN(arg, ":", 2)
+		// splitMeta[0] is "name/path" and splitMeta[1] is "label"
+
 		if len(splitMeta) != 2 {
 			return errors.New("Volume store input must be in format datastore/path:label")
 		}
 		c.VolumeLocations[splitMeta[1]] = splitMeta[0]
+		if !strings.ContainsRune(splitMeta[0], '/') {
+			// path is left empty
+			return errors.New("Must provide a path to the volume store argument; no default location is provided. The destination directory will be created if it does not exist.")
+		}
+		if strings.HasSuffix(splitMeta[0], "/") && len(strings.Split(splitMeta[0], "/")) == 2 {
+			// path is /
+			return errors.New("Cannot use root directory for storing volumes. Specify a path to a containing directory for your volumes e.g. 'Datastore1/volumes:default' if the default volume store should be at path /volumes on datastore \"Datastore1\" and the destination directory will be created for you if it does not already exist.")
+		}
 	}
 
 	return nil
