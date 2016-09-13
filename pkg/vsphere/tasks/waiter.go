@@ -17,11 +17,10 @@
 package tasks
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"time"
-
-	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 

@@ -17,17 +17,16 @@ limitations under the License.
 package version
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
-
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
 )
 
-const Version = "0.8.0"
+const Version = "0.9.0"
 
 var gitVersion string
 

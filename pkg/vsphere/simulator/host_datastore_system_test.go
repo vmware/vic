@@ -15,6 +15,7 @@
 package simulator
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -23,7 +24,6 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
-	"golang.org/x/net/context"
 )
 
 func TestHostDatastoreSystem(t *testing.T) {

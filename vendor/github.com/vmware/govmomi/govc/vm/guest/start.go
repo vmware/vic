@@ -17,13 +17,13 @@ limitations under the License.
 package guest
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"strings"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 type start struct {
@@ -76,7 +76,7 @@ func (cmd *start) Run(ctx context.Context, f *flag.FlagSet) error {
 		EnvVariables:     cmd.vars,
 	}
 
-	pid, err := m.StartProgram(context.TODO(), cmd.Auth(), &spec)
+	pid, err := m.StartProgram(ctx, cmd.Auth(), &spec)
 	if err != nil {
 		return err
 	}

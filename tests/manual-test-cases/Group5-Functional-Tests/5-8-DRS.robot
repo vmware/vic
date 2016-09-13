@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation  Test 5-8 - DRS
 Resource  ../../resources/Util.robot
-Suite Teardown  Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  *
+Suite Teardown  Nimbus Cleanup
 
 *** Test Cases ***
 Test

@@ -17,12 +17,12 @@ limitations under the License.
 package license
 
 import (
+	"context"
 	"flag"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
 	"github.com/vmware/govmomi/license"
-	"golang.org/x/net/context"
 )
 
 type remove struct {
@@ -64,7 +64,7 @@ func (cmd *remove) Run(ctx context.Context, f *flag.FlagSet) error {
 
 	m := license.NewManager(client)
 	for _, v := range f.Args() {
-		err = m.Remove(context.TODO(), v)
+		err = m.Remove(ctx, v)
 		if err != nil {
 			return err
 		}

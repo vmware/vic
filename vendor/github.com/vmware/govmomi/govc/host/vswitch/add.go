@@ -17,12 +17,12 @@ limitations under the License.
 package vswitch
 
 import (
+	"context"
 	"flag"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 type add struct {
@@ -69,5 +69,5 @@ func (cmd *add) Run(ctx context.Context, f *flag.FlagSet) error {
 		}
 	}
 
-	return ns.AddVirtualSwitch(context.TODO(), f.Arg(0), &cmd.spec)
+	return ns.AddVirtualSwitch(ctx, f.Arg(0), &cmd.spec)
 }

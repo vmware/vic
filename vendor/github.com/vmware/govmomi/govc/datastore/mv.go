@@ -17,13 +17,13 @@ limitations under the License.
 package datastore
 
 import (
+	"context"
 	"errors"
 	"flag"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
 	"github.com/vmware/govmomi/object"
-	"golang.org/x/net/context"
 )
 
 type mv struct {
@@ -83,10 +83,10 @@ func (cmd *mv) Run(ctx context.Context, f *flag.FlagSet) error {
 	}
 
 	m := object.NewFileManager(c)
-	task, err := m.MoveDatastoreFile(context.TODO(), src, dc, dst, dc, cmd.force)
+	task, err := m.MoveDatastoreFile(ctx, src, dc, dst, dc, cmd.force)
 	if err != nil {
 		return err
 	}
 
-	return task.Wait(context.TODO())
+	return task.Wait(ctx)
 }

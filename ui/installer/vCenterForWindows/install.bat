@@ -49,20 +49,7 @@ IF /I %vic_ui_host_url% NEQ NOURL (
 
     IF %vic_ui_host_url:~-1,1% NEQ / (
         SET vic_ui_host_url=%vic_ui_host_url%/
-    )    
-) ELSE (
-    IF %sftp_supported% EQU 1 (
-        ECHO Copying plugins...
-        "%utils_path%winscp.com" /command "open -hostkey=* sftp://%sftp_username%:%sftp_password%@%target_vcenter_ip%" "put -filemask=|*.zip ..\vsphere-client-serenity\* %target_vc_packages_path%" "exit"
-    ) ELSE (
-        ECHO SFTP not enabled. You have to manually copy the com.vmware.vicui.* folder in \ui\vsphere-client-serenity to %VMWARE_CFG_DIR%\vsphere-client\vc-packages\vsphere-client-serenity
-        ECHO Note: If you are running vCenter 5.5 Windows, copy the folder to %PROGRAMDATA%\VMware\vSphere Web Client\vc-packages\vsphere-client-serenity
     )
-)
-
-IF %ERRORLEVEL% GTR 0 (
-    ECHO Error: Failed uploading plugin files! Check the configs file for correct connection credentials
-    GOTO:EOF
 )
 
 IF EXIST _scratch_flags.txt (
@@ -92,4 +79,12 @@ FOR /F "tokens=*" %%A IN (..\vCenterForWindows\_scratch_flags.txt) DO (
 cd ..\vCenterForWindows
 DEL _scratch_flags.txt
 
-ECHO VIC UI was successfully installed. Make sure to log out of vSphere Web Client if you are logged in, and log back in.
+IF /I %vic_ui_host_url% EQU NOURL (
+    ECHO =============================
+    ECHO With the current version of VIC, you have to manually copy the com.vmware.vicui.* folder in \ui\vsphere-client-serenity to %VMWARE_CFG_DIR%\vsphere-client\vc-packages\vsphere-client-serenity
+    ECHO Note: If you are running vCenter Server 5.5, copy the folder to %PROGRAMDATA%\VMware\vSphere Web Client\vc-packages\vsphere-client-serenity instead
+    ECHO After that, log out of vSphere Web Client and then log back in.
+    ECHO =============================
+) ELSE (
+    ECHO VIC UI was successfully installed. Make sure to log out of vSphere Web Client and log back in.
+)

@@ -17,12 +17,12 @@ limitations under the License.
 package network
 
 import (
+	"context"
 	"errors"
 	"flag"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
-	"golang.org/x/net/context"
 )
 
 type add struct {
@@ -71,5 +71,5 @@ func (cmd *add) Run(ctx context.Context, f *flag.FlagSet) error {
 		return err
 	}
 
-	return vm.AddDevice(context.TODO(), net)
+	return vm.AddDevice(ctx, net)
 }

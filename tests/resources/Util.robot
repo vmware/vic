@@ -304,23 +304,27 @@ Kill Nimbus Server
     ${out}=  Execute Command  nimbus-ctl kill '${name}'
     Close connection
 
+Nimbus Cleanup
+    Gather Logs From Test Server
+    Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  *
+
 Wait Until Container Stops
     [Arguments]  ${container}
-    :FOR  ${idx}  IN RANGE  0  10
+    :FOR  ${idx}  IN RANGE  0  30
     \   ${out}=  Run  docker ${params} ps --filter status=running --no-trunc
     \   ${status}=  Run Keyword And Return Status  Should Not Contain  ${out}  ${container}
     \   Return From Keyword If  ${status}
     \   Sleep  1
-    Fail  Container did not stop within 10 seconds
+    Fail  Container did not stop within 30 seconds
 
 Wait Until VM Powers Off
     [Arguments]  ${vm}
-    :FOR  ${idx}  IN RANGE  0  10
+    :FOR  ${idx}  IN RANGE  0  30
     \   ${out}=  Run  govc vm.info ${vm}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  poweredOff
     \   Return From Keyword If  ${status}
     \   Sleep  1
-    Fail  VM did not power off within 10 seconds
+    Fail  VM did not power off within 30 seconds
 
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox

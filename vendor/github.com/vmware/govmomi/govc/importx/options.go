@@ -17,11 +17,10 @@ limitations under the License.
 package importx
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"os"
-
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/ovf"
 	"github.com/vmware/govmomi/vim25/types"
@@ -30,6 +29,11 @@ import (
 type Property struct {
 	types.KeyValue
 	Spec *ovf.Property `json:",omitempty"`
+}
+
+type Network struct {
+	Name    string
+	Network string
 }
 
 type Options struct {
@@ -46,6 +50,10 @@ type Options struct {
 	IPProtocol           string
 
 	PropertyMapping []Property `json:",omitempty"`
+
+	NetworkMapping []Network `json:",omitempty"`
+
+	Annotation string `json:",omitempty"`
 
 	PowerOn      bool
 	InjectOvfEnv bool
