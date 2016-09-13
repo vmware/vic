@@ -716,8 +716,8 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 
 	// we have a container on the PL side lets check the state before proceeding
 	// ignore the error  since others will be checking below..this is an attempt to short circuit the op
-	// TODO: can be replaced with simple cache check once power events are propigated to persona
-	infoResponse, _ := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(name))
+	// TODO: can be replaced with simple cache check once power events are propagated to persona
+	infoResponse, err := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(id))
 	if err != nil {
 		cache.ContainerCache().DeleteContainer(id)
 		return NotFoundError(name)
