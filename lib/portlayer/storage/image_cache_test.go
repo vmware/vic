@@ -329,7 +329,7 @@ func TestDeleteImage(t *testing.T) {
 		return
 	}
 
-	// create a 3 level tree with 9 branches
+	// create a 3 level tree with 4 branches
 	branches := 4
 	images := make(map[int]*Image)
 	for branch := 1; branch < branches; branch++ {

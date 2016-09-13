@@ -541,6 +541,7 @@ func (v *ImageStore) writeManifest(ctx context.Context, storeName, ID string, r 
 func (v *ImageStore) verifyImage(ctx context.Context, storeName, ID string) error {
 	imageDir := v.imageDirPath(storeName, ID)
 
+	// Check for teh manifiest file and the vmdk
 	for _, p := range []string{path.Join(imageDir, manifest), v.imageDiskPath(storeName, ID)} {
 		if _, err := v.ds.Stat(ctx, p); err != nil {
 			return err
