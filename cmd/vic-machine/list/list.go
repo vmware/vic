@@ -15,6 +15,7 @@
 package list
 
 import (
+	"fmt"
 	"path"
 	"text/tabwriter"
 	"text/template"
@@ -28,20 +29,23 @@ import (
 	"github.com/vmware/vic/lib/install/validate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	"golang.org/x/net/context"
 )
 
 type items struct {
-	ID   string
-	Path string
-	Name string
+	ID            string
+	Path          string
+	Name          string
+	Version       string
+	UpgradeStatus string
 }
 
 // templ is parsed by text/template package
 const templ = `{{range .}}
-{{.ID}}	{{.Path}}	{{.Name}}{{end}}
+{{.ID}}	{{.Path}}	{{.Name}}	{{.Version}}	{{.UpgradeStatus}}{{end}}
 `
 
 // List has all input parameters for vic-machine ls command
@@ -85,15 +89,28 @@ func (l *List) processParams() error {
 	return nil
 }
 
-func (l *List) prettyPrint(cli *cli.Context, ctx context.Context, vchs []*vm.VirtualMachine) {
+func (l *List) prettyPrint(cli *cli.Context, ctx context.Context, vchs []*vm.VirtualMachine, executor *management.Dispatcher) {
 	data := []items{
-		{"ID", "PATH", "NAME"},
+		{"ID", "PATH", "NAME", "VERSION", "UPGRADE STATUS"},
 	}
+	installerVer := version.GetBuild()
 	for _, vch := range vchs {
+
+		vchConfig, err := executor.GetVCHConfig(vch)
+		var version string
+		if err != nil {
+			log.Error("Failed to get Virtual Container Host configuration")
+			log.Error(err)
+			version = "unknown"
+		} else {
+			version = vchConfig.Version.ShortVersion()
+		}
+
 		parentPath := path.Dir(path.Dir(vch.InventoryPath))
 		name := path.Base(vch.InventoryPath)
+		upgradeStatus := l.upgradeStatusMessage(ctx, vch, installerVer, vchConfig.Version)
 		data = append(data,
-			items{vch.Reference().Value, parentPath, name})
+			items{vch.Reference().Value, parentPath, name, version, upgradeStatus})
 	}
 	t := template.New("vic-machine ls")
 	t, _ = t.Parse(templ)
@@ -156,6 +173,40 @@ func (l *List) Run(cli *cli.Context) (err error) {
 	if err != nil {
 		log.Errorf("List cannot continue - failed to search VCHs in %s: %s", validator.ResourcePoolPath, err)
 	}
-	l.prettyPrint(cli, ctx, vchs)
+	l.prettyPrint(cli, ctx, vchs, executor)
 	return nil
+}
+
+// upgradeStatusMessage generates a user facing status string about upgrade progress and status
+func (l *List) upgradeStatusMessage(ctx context.Context, vch *vm.VirtualMachine, installerVer *version.Build, vchVer *version.Build) string {
+	if sameVer := installerVer.Equal(vchVer); sameVer {
+		return "Up to date"
+	}
+
+	upgrading, _, err := vch.UpgradeInProgress(ctx, management.UpgradePrefix)
+	if err != nil {
+		return fmt.Sprintf("Unknown: %s", err)
+	}
+	if upgrading {
+		return "Upgrade in progress"
+	}
+
+	canUpgrade, err := installerVer.IsNewer(vchVer)
+	if err != nil {
+		return fmt.Sprintf("Unknown: %s", err)
+	}
+	if canUpgrade {
+		return fmt.Sprintf("Upgradeable to %s", installerVer.ShortVersion())
+	}
+
+	oldInstaller, err := installerVer.IsOlder(vchVer)
+	if err != nil {
+		return fmt.Sprintf("Unknown: %s", err)
+	}
+	if oldInstaller {
+		return fmt.Sprintf("VCH has newer version")
+	}
+
+	// can't get here
+	return "Invalid upgrade status"
 }
