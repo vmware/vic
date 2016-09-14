@@ -31,8 +31,10 @@ import (
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/registry"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
 // byCreated is a temporary type used to sort a list of images by creation
@@ -54,8 +56,33 @@ func (i *Image) Exists(containerName string) bool {
 	return false
 }
 
+// TODO fix the errors so the client doesnt print the generic POST or DELETE message
 func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDelete, error) {
-	return []types.ImageDelete{}, fmt.Errorf("%s does not implement image.Delete", ProductName())
+	host, err := sys.UUID()
+	if err != nil {
+		return nil, err
+	}
+
+	// Use the image cache to go from the reference to the ID we use in the image store
+	img, err := cache.ImageCache().GetImage(imageRef)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Infof("Deleting image %s (%s)", img.ImageID, img.ID)
+	params := storage.NewDeleteImageParamsWithContext(ctx).WithStoreName(host).WithID(img.ID)
+
+	_, err = PortLayerClient().Storage.DeleteImage(params)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO remove the image from the image cache (in the personality) (GH #2070)
+	// NOTE: This requires untagging the image.  Once we purge the image from
+	// the cache and untag, the return struct will need to include the untagged
+	// ID
+
+	return []types.ImageDelete{types.ImageDelete{Deleted: img.ImageID}}, err
 }
 
 func (i *Image) ImageHistory(imageName string) ([]*types.ImageHistory, error) {

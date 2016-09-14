@@ -307,7 +307,7 @@ func (c *NameLookupCache) DeleteImage(ctx context.Context, image *Image) error {
 	infof("DeleteImage: deleting %s", image.Self())
 
 	// Check the image exists.  This will rehydrate the cache if necessary.
-	_, err := c.GetImage(ctx, image.Store, image.ID)
+	img, err := c.GetImage(ctx, image.Store, image.ID)
 	if err != nil {
 		errorf("DeleteImage: %s", err)
 		return err
@@ -315,27 +315,27 @@ func (c *NameLookupCache) DeleteImage(ctx context.Context, image *Image) error {
 
 	// get the relevant cache
 	c.storeCacheLock.Lock()
-	indx := c.storeCache[*image.Store]
+	indx := c.storeCache[*img.Store]
 	c.storeCacheLock.Unlock()
 
-	hasChildren, err := indx.HasChildren(image.Self())
+	hasChildren, err := indx.HasChildren(img.Self())
 	if err != nil {
 		errorf("DeleteImage: %s", err)
 		return err
 	}
 
 	if hasChildren {
-		return &ErrImageInUse{image.Self() + " in use by child images"}
+		return &ErrImageInUse{img.Self() + " in use by child images"}
 	}
 
 	// The datastore will tell us if the image is attached
-	if err = c.DataStore.DeleteImage(ctx, image); err != nil {
+	if err = c.DataStore.DeleteImage(ctx, img); err != nil {
 		errorf("%s", err)
 		return err
 	}
 
 	// Remove the image from the cache
-	if _, err = indx.Delete(image.Self()); err != nil {
+	if _, err = indx.Delete(img.Self()); err != nil {
 		errorf("%s", err)
 		return err
 	}

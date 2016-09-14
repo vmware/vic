@@ -25,12 +25,14 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"testing"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/portlayer/exec"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
@@ -273,9 +275,17 @@ func TestCreateImageLayers(t *testing.T) {
 		return
 	}
 
-	defer vsStore.dm.Detach(context.TODO(), roDisk)
-	defer os.RemoveAll(p)
-	defer roDisk.Unmount()
+	rodiskcleanupfunc := func() {
+		if roDisk != nil {
+			if roDisk.Mounted() {
+				roDisk.Unmount()
+			}
+			if roDisk.Attached() {
+				vsStore.dm.Detach(context.TODO(), roDisk)
+			}
+		}
+		os.RemoveAll(p)
+	}
 
 	filesFoundOnDisk := []string{}
 	// Diff the contents of the RO file of the last child (with all of the contents)
@@ -295,10 +305,31 @@ func TestCreateImageLayers(t *testing.T) {
 		return
 	}
 
+	rodiskcleanupfunc()
 	sort.Strings(filesFoundOnDisk)
 	sort.Strings(expectedFilesOnDisk)
 
 	if !assert.Equal(t, expectedFilesOnDisk, filesFoundOnDisk) {
+		return
+	}
+
+	// Try to delete an intermediate image (should fail)
+	exec.NewContainerCache()
+	err = cacheStore.DeleteImage(context.TODO(), expectedImages["dir1"])
+	if !assert.Error(t, err) || !assert.True(t, portlayer.IsErrImageInUse(err)) {
+		return
+	}
+
+	// Try to delete a leaf (should pass)
+	leaf := expectedImages["dir"+strconv.Itoa(numLayers-1)]
+	err = cacheStore.DeleteImage(context.TODO(), leaf)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// Get the delete image directly via the vsphere image store impl.
+	deletedImage, err := vsStore.GetImage(context.TODO(), parent.Store, leaf.ID)
+	if !assert.Error(t, err) || !assert.Nil(t, deletedImage) || !assert.True(t, os.IsNotExist(err)) {
 		return
 	}
 }

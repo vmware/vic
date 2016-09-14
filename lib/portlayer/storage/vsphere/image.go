@@ -27,6 +27,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/portlayer/exec"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/trace"
@@ -445,7 +446,7 @@ func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*
 		Metadata:   meta,
 	}
 
-	log.Debugf("Returning image from location %s with parent url %s", newImage.SelfLink, newImage.Parent)
+	log.Debugf("Returning image from location %s with parent url %s", newImage.SelfLink, newImage.Parent())
 	return newImage, nil
 }
 
@@ -485,7 +486,25 @@ func (v *ImageStore) ListImages(ctx context.Context, store *url.URL, IDs []strin
 // use either by way of inheritence or because it's attached to a
 // container, this will return an error.
 func (v *ImageStore) DeleteImage(ctx context.Context, image *portlayer.Image) error {
-	return fmt.Errorf("not implemented")
+	//  check if the image is in use.
+	if err := inUse(ctx, image.ID); err != nil {
+		log.Errorf("ImageStore: delete image error: %s", err.Error())
+		return err
+	}
+
+	storeName, err := util.ImageStoreName(image.Store)
+	if err != nil {
+		return err
+	}
+
+	imageDir := v.imageDirPath(storeName, image.ID)
+	log.Infof("ImageStore: Deleting %s", imageDir)
+	if err := v.ds.Rm(ctx, imageDir); err != nil {
+		log.Errorf("ImageStore: delete image error: %s", err.Error())
+		return err
+	}
+
+	return nil
 }
 
 // Find any image directories without the manifest file and remove them.
@@ -545,6 +564,28 @@ func (v *ImageStore) verifyImage(ctx context.Context, storeName, ID string) erro
 	for _, p := range []string{path.Join(imageDir, manifest), v.imageDiskPath(storeName, ID)} {
 		if _, err := v.ds.Stat(ctx, p); err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+// XXX TODO This should be tied to an interface so we don't have to import exec
+// here (or wherever the cache lives).
+func inUse(ctx context.Context, ID string) error {
+	// XXX why doesnt this ever return an error?  Strange.
+	// Gather all the running containers and the images they are refering to.
+	conts := exec.Containers(true)
+	if len(conts) == 0 {
+		return nil
+	}
+
+	for _, cont := range conts {
+		layerID := cont.ExecConfig.LayerID
+		if layerID == ID {
+			return &portlayer.ErrImageInUse{
+				fmt.Sprintf("image %s in use by %s", layerID, cont.ExecConfig.ID),
+			}
 		}
 	}
 
