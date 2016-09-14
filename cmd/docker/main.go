@@ -31,7 +31,7 @@ import (
 	"github.com/docker/docker/docker/listeners"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/vmware/vic/lib/apiservers/engine/backends"
+	vicbackends "github.com/vmware/vic/lib/apiservers/engine/backends"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/pkg/trace"
