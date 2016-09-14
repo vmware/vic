@@ -68,8 +68,10 @@ Remove a container deleted out of band
     ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name testRMOOB busybox
     Should Be Equal As Integers  ${rc}  0
     # Remove container VM out-of-band
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy "testRMOOB*"
-    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "testRMOOB*"
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy ${vch-name}/"testRMOOB*"
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm testRMOOB
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: No such container: testRMOOB
