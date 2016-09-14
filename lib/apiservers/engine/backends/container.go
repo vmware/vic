@@ -108,8 +108,7 @@ type Container struct {
 }
 
 const (
-	commitTimeout  = 1 * time.Minute
-	DefaultEnvPath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+	defaultEnvPath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 )
 
 func NotFoundError(msg string) error {
@@ -555,7 +554,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 	}
 
 	// commit the handle; this will reconfigure and start the vm
-	_, err = client.Containers.Commit(containers.NewCommitParamsWithTimeout(commitTimeout).WithHandle(handle))
+	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.CommitNotFound:
@@ -1318,7 +1317,7 @@ func setPathFromImageConfig(config, imageConfig *containertypes.Config) {
 	}
 
 	// no PATH set, use the default
-	config.Env = append(config.Env, fmt.Sprintf("PATH=%s", DefaultEnvPath))
+	config.Env = append(config.Env, fmt.Sprintf("PATH=%s", defaultEnvPath))
 }
 
 // validateCreateConfig() checks the parameters for ContainerCreate().
