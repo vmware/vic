@@ -578,15 +578,8 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 		if info.ProcessConfig.ErrorMsg != nil {
 			containerState.Error = *info.ProcessConfig.ErrorMsg
 		}
-		if info.ProcessConfig.Started != nil {
-			swaggerTime := time.Time(*info.ProcessConfig.Started)
-			containerState.StartedAt = swaggerTime.Format(time.RFC3339Nano)
-		}
-
-		if info.ProcessConfig.Finished != nil {
-			swaggerTime := time.Time(*info.ProcessConfig.Finished)
-			containerState.FinishedAt = swaggerTime.Format(time.RFC3339Nano)
-		}
+		containerState.StartedAt = vc.StartedAt.Format(time.RFC3339Nano)
+		containerState.FinishedAt = vc.FinishedAt.Format(time.RFC3339Nano)
 	}
 
 	inspectJSON := &types.ContainerJSON{
