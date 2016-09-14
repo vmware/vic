@@ -51,7 +51,6 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
-	"github.com/vmware/vic/lib/apiservers/engine/backends/portlayer"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/portmap"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
@@ -105,18 +104,12 @@ func (r containerByCreated) Less(i, j int) bool { return r[i].Created < r[j].Cre
 
 // Container struct represents the Container
 type Container struct {
-	containerProxy portlayer.VicContainerProxy
+	containerProxy VicContainerProxy
 }
 
 const (
-	commitTimeout          = 1 * time.Minute
-	attachConnectTimeout   = 15 * time.Second //timeout for the connection
-	attachAttemptTimeout   = 40 * time.Second //timeout before we ditch an attach attempt
-	attachPLAttemptDiff    = 10 * time.Second
-	attachPLAttemptTimeout = attachAttemptTimeout - attachPLAttemptDiff //timeout for the portlayer before ditching an attempt
-	attachRequestTimeout   = 2 * time.Hour                              //timeout to hold onto the attach connection
-	swaggerSubstringEOF    = "EOF"
-	DefaultEnvPath         = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+	commitTimeout  = 1 * time.Minute
+	DefaultEnvPath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 )
 
 func NotFoundError(msg string) error {
@@ -150,7 +143,7 @@ func (c *Container) Handle(name, paramName string) (string, error) {
 // NewContainerBackend returns a new Container
 func NewContainerBackend() *Container {
 	return &Container{
-		containerProxy: portlayer.NewContainerProxy(PortLayerClient(), PortLayerServer(), PortLayerName()),
+		containerProxy: NewContainerProxy(PortLayerClient(), PortLayerServer(), PortLayerName()),
 	}
 }
 
@@ -844,7 +837,7 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 		}
 	}
 
-	inspectJSON, err := portlayer.ContainerInfoToDockerContainerInspect(vc, results.Payload, PortLayerName())
+	inspectJSON, err := ContainerInfoToDockerContainerInspect(vc, results.Payload, PortLayerName())
 	if err != nil {
 		log.Errorf("containerInfoToDockerContainerInspect failed with %s", err)
 		return nil, err

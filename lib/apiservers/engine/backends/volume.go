@@ -22,14 +22,15 @@ import (
 	log "github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/errors"
 
+	"regexp"
+	"strconv"
+
 	"github.com/docker/engine-api/types"
 	"github.com/docker/go-units"
 	"github.com/google/uuid"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/pkg/trace"
-	"regexp"
-	"strconv"
 )
 
 // NOTE: FIXME: These might be moved to a utility package once there are multiple personalities
@@ -98,7 +99,7 @@ func (v *Volume) VolumeInspect(name string) (*types.Volume, error) {
 }
 
 // VolumeCreate : docker personality implementation for VIC
-func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]string) (*types.Volume, error) {
+func (v *Volume) VolumeCreate(name, driverName string, driverArgs, labels map[string]string) (*types.Volume, error) {
 	defer trace.End(trace.Begin("Volume.VolumeCreate"))
 	result := &types.Volume{}
 
@@ -107,26 +108,26 @@ func (v *Volume) VolumeCreate(name, driverName string, opts, labels map[string]s
 		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get a portlayer client"), http.StatusInternalServerError)
 	}
 
+	if name == "" {
+		name = uuid.New().String()
+	}
+
 	// TODO: support having another driver besides vsphere.
 	// assign the values of the model to be passed to the portlayer handler
-	model, varErr := translateInputsToPortlayerRequestModel(name, driverName, opts, labels)
+	req, varErr := newVolumeCreateReq(name, driverName, driverArgs, labels)
 	if varErr != nil {
 		return result, derr.NewErrorWithStatusCode(varErr, http.StatusBadRequest)
 	}
-	log.Infof("Finalized model for volume create request to portlayer: %#v", model)
+	log.Infof("Finalized model for volume create request to portlayer: %#v", req)
 
-	if model.Name == "" {
-		model.Name = uuid.New().String()
-	}
-
-	res, err := client.Storage.CreateVolume(storage.NewCreateVolumeParamsWithContext(ctx).WithVolumeRequest(model))
+	res, err := client.Storage.CreateVolume(storage.NewCreateVolumeParamsWithContext(ctx).WithVolumeRequest(req))
 	if err != nil {
 		switch err := err.(type) {
 
 		case *storage.CreateVolumeConflict:
-			return result, derr.NewErrorWithStatusCode(fmt.Errorf("A volume named %s already exists. Choose a different volume name.", model.Name), http.StatusInternalServerError)
+			return result, derr.NewErrorWithStatusCode(fmt.Errorf("A volume named %s already exists. Choose a different volume name.", req.Name), http.StatusInternalServerError)
 		case *storage.CreateVolumeNotFound:
-			return result, derr.NewErrorWithStatusCode(fmt.Errorf("No volume store named (%s) exists", model.Store), http.StatusInternalServerError)
+			return result, derr.NewErrorWithStatusCode(fmt.Errorf("No volume store named (%s) exists", req.Store), http.StatusInternalServerError)
 		case *storage.CreateVolumeInternalServerError:
 			// FIXME: right now this does not return an error model...
 			return result, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err.Error()), http.StatusInternalServerError)
@@ -179,11 +180,11 @@ type volumeMetadata struct {
 	Labels     map[string]string
 }
 
-func createVolumeMetadata(model *models.VolumeRequest, labels map[string]string) (string, error) {
+func createVolumeMetadata(req *models.VolumeRequest, labels map[string]string) (string, error) {
 	metadata := volumeMetadata{
-		Driver:     model.Driver,
-		DriverOpts: model.DriverArgs,
-		Name:       model.Name,
+		Driver:     req.Driver,
+		DriverOpts: req.DriverArgs,
+		Name:       req.Name,
 		Labels:     labels,
 	}
 	result, err := json.Marshal(metadata)
@@ -192,11 +193,10 @@ func createVolumeMetadata(model *models.VolumeRequest, labels map[string]string)
 
 // Unmarshal the docker metadata using the docker metadata key.  The docker
 // metadatakey.  We stash the vals we know about in that map with that key.
-func extractDockerMetadata(metadataMap map[string]string) (*volumeMetadata,
-	error) {
+func extractDockerMetadata(metadataMap map[string]string) (*volumeMetadata, error) {
 	v, ok := metadataMap[dockerMetadataModelKey]
 	if !ok {
-		return nil, nil
+		return nil, fmt.Errorf("metadata %s missing", dockerMetadataModelKey)
 	}
 
 	result := &volumeMetadata{}
@@ -206,18 +206,51 @@ func extractDockerMetadata(metadataMap map[string]string) (*volumeMetadata,
 
 // Utility Functions
 
-func validateDriverArgs(args map[string]string, model *models.VolumeRequest) error {
+func newVolumeCreateReq(name, driverName string, driverArgs, labels map[string]string) (*models.VolumeRequest, error) {
+	defaultDriver := driverName == "local"
+	vsphereDriver := driverName == "vsphere"
+
+	if !defaultDriver && !vsphereDriver {
+		return nil, fmt.Errorf("Error looking up volume plugin %s: plugin not found", driverName)
+	}
+
+	if !volumeNameRegex.Match([]byte(name)) && name != "" {
+		return nil, fmt.Errorf("volume name \"%s\" includes invalid characters, only \"[a-zA-Z0-9][a-zA-Z0-9_.-]\" are allowed", name)
+	}
+
+	req := &models.VolumeRequest{
+		Driver:     driverName,
+		DriverArgs: driverArgs,
+		Name:       name,
+		Metadata:   make(map[string]string),
+	}
+
+	metadata, err := createVolumeMetadata(req, labels)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Metadata[dockerMetadataModelKey] = metadata
+
+	if err := validateDriverArgs(driverArgs, req); err != nil {
+		return nil, fmt.Errorf("bad driver value - %s", err)
+	}
+
+	return req, nil
+}
+
+func validateDriverArgs(args map[string]string, req *models.VolumeRequest) error {
 	// volumestore name validation
 	storeName, ok := args[OptsVolumeStoreKey]
 	if !ok {
 		storeName = "default"
 	}
-	model.Store = storeName
+	req.Store = storeName
 
 	// capacity validation
 	capstr, ok := args[OptsCapacityKey]
 	if !ok {
-		model.Capacity = -1
+		req.Capacity = -1
 		return nil
 	}
 
@@ -228,7 +261,7 @@ func validateDriverArgs(args map[string]string, model *models.VolumeRequest) err
 		if capacity < 1 {
 			return fmt.Errorf("Invalid size: %s", capstr)
 		}
-		model.Capacity = capacity
+		req.Capacity = capacity
 		return nil
 	}
 
@@ -241,38 +274,6 @@ func validateDriverArgs(args map[string]string, model *models.VolumeRequest) err
 		return fmt.Errorf("Capacity value too large: %s", capstr)
 	}
 
-	model.Capacity = int64(capacity) / int64(units.MB)
+	req.Capacity = int64(capacity) / int64(units.MB)
 	return nil
-}
-
-func translateInputsToPortlayerRequestModel(name, driverName string, opts, labels map[string]string) (*models.VolumeRequest, error) {
-	defaultDriver := driverName == "local"
-	vsphereDriver := driverName == "vsphere"
-
-	if !defaultDriver && !vsphereDriver {
-		return nil, fmt.Errorf("Error looking up volume plugin %s: plugin not found", driverName)
-	}
-
-	if !volumeNameRegex.Match([]byte(name)) && name != "" {
-		return nil, fmt.Errorf("volume name \"%s\" includes invalid characters, only \"[a-zA-Z0-9][a-zA-Z0-9_.-]\" are allowed", name)
-	}
-
-	model := &models.VolumeRequest{
-		Driver:     driverName,
-		DriverArgs: opts,
-		Name:       name,
-	}
-
-	metadata, err := createVolumeMetadata(model, labels)
-	if err != nil {
-		return nil, err
-	}
-
-	model.Metadata = make(map[string]string)
-	model.Metadata[dockerMetadataModelKey] = metadata
-	if err := validateDriverArgs(opts, model); err != nil {
-		return nil, fmt.Errorf("bad driver value - %s", err)
-	}
-
-	return model, nil
 }
