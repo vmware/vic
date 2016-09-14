@@ -2,6 +2,12 @@
 
 To run the integration tests locally:
 
+## Automatic with defaults
+
+Use ./local-integration-test.sh
+
+## Manually configure local Drone
+
 1. Create a `test_secrets.yml` file that includes:
 
   ```
@@ -25,47 +31,10 @@ If you are using a vSAN environment or non-default ESX install, then you can als
     EXTERNAL_NETWORK: external
   ```
 
-2. Create a `.drone.local.yml` file that includes:
 
-  ```
-  ---
-  clone:
-    path: github.com/vmware/vic
-    tags: true
+2. Execute Drone from the project root directory:
 
-  build:
-    integration-test:
-      image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.7}
-      pull: true
-      environment:
-        BIN: bin
-        GOPATH: /drone
-        SHELL: /bin/bash
-        DOCKER_API_VERSION: "1.21"
-        VIC_ESX_TEST_URL: $$VIC_ESX_TEST_URL
-        LOG_TEMP_DIR: install-logs
-        DRONE_SERVER:  $$DRONE_SERVER
-        GITHUB_AUTOMATION_API_KEY:  $$GITHUB_AUTOMATION_API_KEY
-        DRONE_TOKEN:  $$DRONE_TOKEN
-        TEST_URL_ARRAY:  $$TEST_URL_ARRAY
-        TEST_USERNAME:  $$TEST_USERNAME
-        TEST_PASSWORD:  $$TEST_PASSWORD
-        TEST_DATASTORE: $$TEST_DATASTORE
-        TEST_TIMEOUT: $$TEST_TIMEOUT
-        GOVC_INSECURE: true
-        GOVC_USERNAME:  $$TEST_USERNAME
-        GOVC_PASSWORD:  $$TEST_PASSWORD
-        GOVC_RESOURCE_POOL:  $$TEST_RESOURCE
-        GOVC_DATASTORE: $$TEST_DATASTORE
-        GS_PROJECT_ID: $$GS_PROJECT_ID
-        GS_CLIENT_EMAIL: $$GS_CLIENT_EMAIL
-        GS_PRIVATE_KEY: $$GS_PRIVATE_KEY
-      commands:
-        - tests/integration-test.sh
-        #- pybot tests/test-cases/Group1-Docker-Commands/1-5-Docker-Start.robot
-  ```
-
-3. Execute drone from the projects root directory:
+Drone will run based on `.drone.local.yml` - defaults should be fine, edit as needed
 
 To run only the regression tests:
 `drone exec --trusted -E "test_secrets.yml" --yaml ".drone.local.yml" --payload '{"build": {"branch":"regression", "event":"push"}, "repo": {"full_name":"regression"}}'`
@@ -73,7 +42,6 @@ To run only the regression tests:
 To run the full suite:
 `drone exec --trusted -E "test_secrets.yml" --yaml ".drone.local.yml" --payload '{"build": {"branch":"master", "event":"push"}, "repo": {"full_name":"vmware/vic"}}'`
 
-4. Forget about all that and use ./local-integration-test.sh
 
 ## Find the documentation for each of the tests here:
 
