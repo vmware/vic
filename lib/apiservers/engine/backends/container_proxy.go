@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package portlayer
+package backends
 
 //****
 // container_proxy.go
@@ -38,8 +38,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/google/uuid"
 	"github.com/mreiferson/go-httpclient"
@@ -57,7 +55,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
-	"github.com/vmware/vic/lib/apiservers/engine/backends/endpoint"
+	epoint "github.com/vmware/vic/lib/apiservers/engine/backends/endpoint"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
@@ -101,10 +99,6 @@ const (
 	forceLogType                         = "json-file" //Use in inspect to allow docker logs to work
 )
 
-var (
-	ctx = context.TODO()
-)
-
 // NewContainerProxy creates a new ContainerProxy
 func NewContainerProxy(plClient *client.PortLayer, portlayerAddr string, portlayerName string) *ContainerProxy {
 	return &ContainerProxy{client: plClient, portlayerAddr: portlayerAddr, portlayerName: portlayerName}
@@ -117,7 +111,7 @@ func (c *ContainerProxy) Client() *client.PortLayer {
 // CreateContainerHandle creates a new VIC container by calling the portlayer
 //
 // returns:
-// 	(containerID, containerHandle, error)
+//	(containerID, containerHandle, error)
 func (c *ContainerProxy) CreateContainerHandle(imageID string, config types.ContainerCreateConfig) (string, string, error) {
 	defer trace.End(trace.Begin(imageID))
 
@@ -464,7 +458,7 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 				copy(es.Links, cc.HostConfig.Links)
 			}
 			// Pass Links and Aliases to PL
-			nc.Aliases = endpoint.Alias(es)
+			nc.Aliases = epoint.Alias(es)
 
 		}
 	}
@@ -522,19 +516,13 @@ func processAnonymousVolumes(h *string, volumes map[string]struct{}, client *cli
 		//NOTE: This should be the guard for the case of an anonymous volume.
 		//NOTE: we should not expect any driver args if the drive is anonymous.
 		log.Infof("anonymous volume being created - Container Create - volume mount section ID: %s ", fields.ID)
-		metadata := make(map[string]string)
-		metadata["flags"] = fields.Flags
-		volumeRequest := models.VolumeRequest{
-			Capacity: -1,
-			Driver:   "vsphere",
-			Store:    "default",
-			Name:     fields.ID,
-			Metadata: metadata,
-		}
-		_, err = client.Storage.CreateVolume(storage.NewCreateVolumeParamsWithContext(ctx).WithVolumeRequest(&volumeRequest))
-		if err != nil {
-			return nil, err
-		}
+		//
+		driverArgs := make(map[string]string)
+		driverArgs["flags"] = fields.Flags
+
+		vol := &Volume{}
+		_, err = vol.VolumeCreate(fields.ID, "vsphere", driverArgs, nil)
+
 		volumeFields = append(volumeFields, fields)
 	}
 	return volumeFields, nil
