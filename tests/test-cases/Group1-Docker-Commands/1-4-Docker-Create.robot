@@ -19,7 +19,7 @@ Simple creates
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-Create with volume
+Create with anonymous volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -v /var/log busybox ls /var/log
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
@@ -32,6 +32,21 @@ Create with volume
     #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs ${output}
     #Should Be Equal As Integers  ${rc}  0
     #Should Not Contain  ${output}  Error
+
+Create with named volume
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -v test-named-vol:/testdir busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
+    ${status}=  Get State Of Github Issue  1718
+    Run Keyword If  '${status}' == 'closed'  Log  Test `Create with named volume` can be improved with volume name filtering, now that #1718 has been resolved  WARN
+    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume ls -f name=test-named-vol
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume ls
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  test-named-vol
 
 Create simple top example
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create busybox /bin/top
