@@ -6,7 +6,6 @@ binary/
 vic_binaries*.tar.gz
 secrets.yml
 test_secrets.yml
-.drone.local.yml
 secrets-e2e.yml
 vic-ci-logs.key
 install-*.tar.gz
