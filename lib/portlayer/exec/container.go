@@ -57,6 +57,8 @@ const (
 	StateRemoving
 	StateRemoved
 	StateUnknown
+
+	propertyCollectorTimeout = 3 * time.Minute
 )
 
 type Container struct {
@@ -240,6 +242,10 @@ func (c *Container) start(ctx context.Context) error {
 	// guestinfo key that we want to wait for
 	key := fmt.Sprintf("guestinfo..sessions|%s.started", c.ExecConfig.ID)
 	var detail string
+
+	// Wait some before giving up...
+	ctx, cancel := context.WithTimeout(ctx, propertyCollectorTimeout)
+	defer cancel()
 
 	detail, err = c.vm.WaitForKeyInExtraConfig(ctx, key)
 	if err != nil {
