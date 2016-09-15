@@ -220,7 +220,7 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 	var joinList []volumeFields
 	var err error
 
-	joinList, err = processAnonymousVolumes(&handle, config.Config.Volumes, c.client)
+	joinList, err = processAnonymousVolumes(config.Config.Volumes)
 	if err != nil {
 		return handle, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err), http.StatusBadRequest)
 	}
@@ -474,7 +474,7 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 }
 
 //This function is used to turn any call from docker create -v <stuff> into a volumeFields object.
-//the -v has 3 forms. 1: -v <anonymouse mount path>, -v <Volume Name>:<Destination Mount Path>, and -v <Volume Name>:<Destination Mount Path>:<mount flags>
+//the -v has 3 forms. 1: -v <anonymous mount path>, -v <Volume Name>:<Destination Mount Path>, and -v <Volume Name>:<Destination Mount Path>:<mount flags>
 func processVolumeParam(volString string) (volumeFields, error) {
 	volumeStrings := strings.Split(volString, ":")
 	fields := volumeFields{}
@@ -504,7 +504,9 @@ func processVolumeParam(volString string) (volumeFields, error) {
 	return fields, nil
 }
 
-func processAnonymousVolumes(h *string, volumes map[string]struct{}, client *client.PortLayer) ([]volumeFields, error) {
+// processAnonymousVolumes parses fields for implicit volume mappings in a
+// create/run (such as -v /dir) and creates volumes for them.
+func processAnonymousVolumes(volumes map[string]struct{}) ([]volumeFields, error) {
 	var volumeFields []volumeFields
 
 	for v := range volumes {
@@ -516,7 +518,7 @@ func processAnonymousVolumes(h *string, volumes map[string]struct{}, client *cli
 		//NOTE: This should be the guard for the case of an anonymous volume.
 		//NOTE: we should not expect any driver args if the drive is anonymous.
 		log.Infof("anonymous volume being created - Container Create - volume mount section ID: %s ", fields.ID)
-		//
+
 		driverArgs := make(map[string]string)
 		driverArgs["flags"] = fields.Flags
 
@@ -528,14 +530,31 @@ func processAnonymousVolumes(h *string, volumes map[string]struct{}, client *cli
 	return volumeFields, nil
 }
 
+// processSpecifiedVolumes parses fields for volumes specified explicitly during a
+// create/run (such as -v volume-name:/dir) and creates them if they don't already exist.
 func processSpecifiedVolumes(volumes []string) ([]volumeFields, error) {
 	var volumeFields []volumeFields
+	vol := &Volume{}
+
 	for _, v := range volumes {
 		fields, err := processVolumeParam(v)
 		log.Infof("Processed specified volume arguments: %#v", fields)
 		if err != nil {
 			return volumeFields, err
 		}
+
+		// Error out if the intended volume is a directory on the client filesystem.
+		if strings.HasPrefix(fields.ID, "/") {
+			return nil, fmt.Errorf("%s does not support mounting directories as a data volume.", ProductName())
+		}
+
+		driverArgs := make(map[string]string)
+		driverArgs["flags"] = fields.Flags
+		_, err = vol.VolumeCreate(fields.ID, "vsphere", driverArgs, nil)
+		if err == nil {
+			log.Infof("named volume created - Container Create - volume mount section ID: %s ", fields.ID)
+		}
+
 		volumeFields = append(volumeFields, fields)
 	}
 	return volumeFields, nil
