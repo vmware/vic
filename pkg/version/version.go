@@ -55,17 +55,14 @@ func String() string {
 }
 
 func GetBuild() *Build {
-	var b string
 	if BuildNumber == "" {
-		b = "0"
-	} else {
-		b = BuildNumber
+		BuildNumber = "0"
 	}
 	return &Build{
 		Version:     Version,
 		GitCommit:   GitCommit,
 		BuildDate:   BuildDate,
-		BuildNumber: b,
+		BuildNumber: BuildNumber,
 		State:       State,
 	}
 }
