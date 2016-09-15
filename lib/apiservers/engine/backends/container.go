@@ -265,7 +265,8 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	container.ContainerID = id
 	cache.ContainerCache().AddContainer(container)
 
-	log.Debugf("Container create: %#v", container)
+	log.Debugf("Container create - name(%s), containerID(%s), config(%#v), host(%#v)",
+		container.Name, container.ContainerID, container.Config, container.HostConfig)
 
 	return types.ContainerCreateResponse{ID: id}, nil
 }
@@ -1463,6 +1464,7 @@ func copyConfigOverrides(vc *viccontainer.VicContainer, config types.ContainerCr
 	vc.Config.OpenStdin = config.Config.OpenStdin
 	vc.Config.StdinOnce = config.Config.StdinOnce
 	vc.Config.StopSignal = config.Config.StopSignal
+	vc.Config.Labels = config.Config.Labels
 	vc.HostConfig = config.HostConfig
 }
 
