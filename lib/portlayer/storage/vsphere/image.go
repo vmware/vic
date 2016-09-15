@@ -375,8 +375,14 @@ func (v *ImageStore) scratch(ctx context.Context, storeName string) error {
 	imageDiskDsURI := v.imageDiskDSPath(storeName, portlayer.Scratch.ID)
 	log.Infof("Creating image %s (%s)", portlayer.Scratch.ID, imageDiskDsURI)
 
+	var size int64
+	size = defaultDiskSize
+	if portlayer.Config.ScratchSize != 0 {
+		size = portlayer.Config.ScratchSize
+	}
+
 	// Create the disk
-	vmdisk, err := v.dm.CreateAndAttach(ctx, imageDiskDsURI, "", portlayer.Config.ScratchSize, os.O_RDWR)
+	vmdisk, err := v.dm.CreateAndAttach(ctx, imageDiskDsURI, "", size, os.O_RDWR)
 	if err != nil {
 		return err
 	}
