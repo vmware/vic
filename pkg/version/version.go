@@ -61,7 +61,6 @@ func GetBuild() *Build {
 	} else {
 		b = BuildNumber
 	}
-	fmt.Printf("set build no to %s\n", b)
 	return &Build{
 		Version:     Version,
 		GitCommit:   GitCommit,
