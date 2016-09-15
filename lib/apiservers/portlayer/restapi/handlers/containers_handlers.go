@@ -20,6 +20,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"time"
 
 	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
 	"golang.org/x/net/context"
@@ -39,6 +40,8 @@ import (
 	"github.com/vmware/vic/pkg/version"
 )
 
+const containerWaitTimeout = 3 * time.Minute
+
 // ContainersHandlersImpl is the receiver for all of the exec handler methods
 type ContainersHandlersImpl struct {
 	handlerCtx *HandlerContext
@@ -56,6 +59,7 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 	api.ContainersGetContainerListHandler = containers.GetContainerListHandlerFunc(handler.GetContainerListHandler)
 	api.ContainersContainerSignalHandler = containers.ContainerSignalHandlerFunc(handler.ContainerSignalHandler)
 	api.ContainersGetContainerLogsHandler = containers.GetContainerLogsHandlerFunc(handler.GetContainerLogsHandler)
+	api.ContainersContainerWaitHandler = containers.ContainerWaitHandlerFunc(handler.ContainerWaitHandler)
 
 	handler.handlerCtx = handlerCtx
 }
@@ -259,7 +263,7 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 	defer trace.End(trace.Begin("Containers.GetContainerListHandler"))
 
 	containerVMs := exec.Containers(*params.All)
-	vmList := make([]models.ContainerListInfo, 0, len(containerVMs))
+	containerList := make([]models.ContainerListInfo, 0, len(containerVMs))
 
 	for i := range containerVMs {
 		// convert to return model
@@ -269,14 +273,20 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 		info.LayerID = &container.ExecConfig.LayerID
 		info.Created = &container.ExecConfig.Created
 		state := container.State.String()
-		info.Status = &state
+		info.State = &state
+		processStatus := container.ExecConfig.Sessions[*info.ContainerID].Started
+		info.Status = &processStatus
+
+		exitCode := int32(container.ExecConfig.Sessions[*info.ContainerID].ExitStatus)
+		info.ExitCode = &exitCode
+
 		info.Names = []string{container.ExecConfig.Name}
 		info.ExecArgs = container.ExecConfig.Sessions[*info.ContainerID].Cmd.Args
 		info.StorageSize = &container.VMUnsharedDisk
 		info.RepoName = &container.ExecConfig.RepoName
-		vmList = append(vmList, info)
+		containerList = append(containerList, info)
 	}
-	return containers.NewGetContainerListOK().WithPayload(vmList)
+	return containers.NewGetContainerListOK().WithPayload(containerList)
 }
 
 func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.ContainerSignalParams) middleware.Responder {
@@ -315,6 +325,45 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 	return NewContainerOutputHandler("logs").WithPayload(detachableOut, params.ID)
 }
 
+func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.ContainerWaitParams) middleware.Responder {
+	defer trace.End(trace.Begin(fmt.Sprintf("%s:%d", params.ID, params.Timeout)))
+
+	// default context timeout in seconds
+	defaultTimeout := int64(containerWaitTimeout.Seconds())
+
+	// if we have a positive timeout specified then use it
+	if params.Timeout > 0 {
+		defaultTimeout = params.Timeout
+	}
+
+	timeout := time.Duration(defaultTimeout) * time.Second
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	c := exec.ContainerInfo(uid.Parse(params.ID).String())
+	if c == nil {
+		return containers.NewContainerWaitNotFound().WithPayload(&models.Error{
+			Message: fmt.Sprintf("container %s not found", params.ID),
+		})
+	}
+
+	// if the container is already stopped return
+	if c.State != exec.StateRunning {
+		containerInfo := convertContainerToContainerInfo(c)
+		return containers.NewContainerWaitOK().WithPayload(containerInfo)
+	}
+
+	err := exec.WaitForContainerStop(ctx, params.ID)
+	if err != nil {
+		return containers.NewContainerWaitInternalServerError().WithPayload(&models.Error{Message: err.Error()})
+	}
+
+	c = exec.ContainerInfo(uid.Parse(params.ID).String())
+	containerInfo := convertContainerToContainerInfo(c)
+	return containers.NewContainerWaitOK().WithPayload(containerInfo)
+}
+
 // utility function to convert from a Container type to the API Model ContainerInfo (which should prob be called ContainerDetail)
 func convertContainerToContainerInfo(container *exec.Container) *models.ContainerInfo {
 	// convert the container type to the required model
@@ -350,8 +399,13 @@ func convertContainerToContainerInfo(container *exec.Container) *models.Containe
 	info.ProcessConfig.ExecArgs = container.ExecConfig.Sessions[ccid].Cmd.Args
 	info.ProcessConfig.Env = container.ExecConfig.Sessions[ccid].Cmd.Env
 
-	exitcode := int64(container.ExecConfig.Sessions[ccid].ExitStatus)
+	exitcode := int32(container.ExecConfig.Sessions[ccid].ExitStatus)
 	info.ProcessConfig.ExitCode = &exitcode
+
+	// started is a string in the vmx that is not to be confused
+	// with started the datetime in the models.ContainerInfo
+	status := container.ExecConfig.Sessions[ccid].Started
+	info.ProcessConfig.Status = &status
 
 	return info
 }

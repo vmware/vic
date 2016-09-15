@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/vic/lib/portlayer/event/collector/vsphere"
 	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 
 	"github.com/vmware/vic/pkg/vsphere/session"
 
@@ -108,9 +109,22 @@ func eventCallback(ie events.Event) {
 				StateRunning,
 				StateStopped,
 				StateSuspended:
+
 				log.Debugf("Container(%s) state set to %s via event activity", container.ExecConfig.ID, newState.String())
 				container.State = newState
-				publishContainerEvent(container.ExecConfig.ID, ie.Created(), ie.String())
+				// container state has changed so we need to update the container attributes
+				// we'll do this in a go routine to avoid blocking
+				go func() {
+					ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
+					defer cancel()
+
+					_, err := container.Update(ctx, container.vm.Session)
+					if err != nil {
+						log.Errorf("Event driven container update failed: %s", err.Error())
+					}
+					// regardless of update success failure publish the container event
+					publishContainerEvent(container.ExecConfig.ID, ie.Created(), ie.String())
+				}()
 			case StateRemoved:
 				log.Debugf("Container(%s) %s via event activity", container.ExecConfig.ID, newState.String())
 				containers.Remove(container.ExecConfig.ID)
@@ -127,9 +141,6 @@ func eventCallback(ie events.Event) {
 // state based on the current container state and the vsphere event
 func eventedState(e string, current State) State {
 	switch e {
-	case events.ContainerShutdown:
-		// no need to worry about existing state
-		return StateStopping
 	case events.ContainerPoweredOn:
 		// are we in the process of starting
 		if current != StateStarting {
@@ -170,4 +181,36 @@ func publishContainerEvent(id string, created time.Time, eventType string) {
 
 	VCHConfig.EventManager.Publish(ce)
 
+}
+
+func WaitForContainerStop(ctx context.Context, id string) error {
+	defer trace.End(trace.Begin(id))
+
+	listen := make(chan interface{})
+	defer close(listen)
+
+	watch := func(ce events.Event) {
+		event := ce.String()
+		if ce.Reference() == id {
+			switch event {
+			case events.ContainerStopped,
+				events.ContainerPoweredOff:
+				listen <- event
+			}
+		}
+	}
+
+	sub := fmt.Sprintf("%s:%s(%d)", id, "watcher", &watch)
+	topic := events.NewEventType(events.ContainerEvent{}).Topic()
+	VCHConfig.EventManager.Subscribe(topic, sub, watch)
+	defer VCHConfig.EventManager.Unsubscribe(topic, sub)
+
+	// wait for the event to be pushed on the channel or
+	// the context to be complete
+	select {
+	case <-listen:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("WaitForContainerStop(%s) Error: %s", id, ctx.Err())
+	}
 }

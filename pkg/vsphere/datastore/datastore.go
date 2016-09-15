@@ -218,7 +218,17 @@ func (d *Helper) Download(ctx context.Context, pth string) (io.ReadCloser, error
 }
 
 func (d *Helper) Stat(ctx context.Context, pth string) (types.BaseFileInfo, error) {
-	return d.ds.Stat(ctx, path.Join(d.rootDir(), pth))
+	i, err := d.ds.Stat(ctx, path.Join(d.rootDir(), pth))
+	if err != nil {
+		switch err.(type) {
+		case object.DatastoreNoSuchDirectoryError:
+			return nil, os.ErrNotExist
+		default:
+			return nil, err
+		}
+	}
+
+	return i, nil
 }
 
 func (d *Helper) Mv(ctx context.Context, fromPath, toPath string) error {
