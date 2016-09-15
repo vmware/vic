@@ -22,8 +22,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/docker/docker/opts"
 	"github.com/vmware/govmomi/object"
-	//	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/install/data"
@@ -57,14 +57,28 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 		return err
 	}
 	d.session.Datastore = ds
+	if !conf.HostCertificate.IsNil() {
+		d.VICAdminProto = "https"
+		d.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
+	} else {
+		d.VICAdminProto = "http"
+		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
+	}
 
-	snapshotName := fmt.Sprintf("upgrade for %s", conf.Version.BuildNumber)
+	if err = d.uploadImages(settings.ImageFiles); err != nil {
+		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
+	}
+	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)
+
+	snapshotName := fmt.Sprintf("%s %s", UpgradePrefix, conf.Version.BuildNumber)
+	snapshotName = strings.TrimSpace(snapshotName)
 	snapshotRefID, err := d.createSnapshot(snapshotName, "upgrade snapshot")
 	if err != nil {
 		return err
 	}
 
 	if err = d.update(conf, settings); err == nil {
+		d.cleanSnapshot(*snapshotRefID, snapshotName, conf.Name)
 		return nil
 	}
 	log.Errorf("Failed to upgrade: %s", err)
@@ -128,12 +142,13 @@ func (d *Dispatcher) tryCreateSnapshot(name, desc string) (*types.ManagedObjectR
 	}
 
 	taskInfo, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-		return d.appliance.CreateSnapshot(d.ctx, name, desc, true, true)
+		return d.appliance.CreateSnapshot(d.ctx, name, desc, true, false)
 	})
 	if err != nil {
 		return nil, errors.Errorf("Failed to create upgrade snapshot %q: %s.", name, err)
 	}
-	return taskInfo.Entity, nil
+	ref := taskInfo.Result.(types.ManagedObjectReference)
+	return &ref, nil
 }
 
 func (d *Dispatcher) deleteUpgradeImages(ds *object.Datastore, settings *data.InstallerData) {
@@ -171,19 +186,6 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 		}
 	}
 
-	if err = d.uploadImages(settings.ImageFiles); err != nil {
-		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
-	}
-
-	// FIXME: move to existing configuration validation func
-	paths := strings.Split(conf.BootstrapImagePath, "/")
-	if len(paths) != 2 {
-		err = errors.Errorf("Old bootstrap image path %q is incorrect", conf.BootstrapImagePath)
-		log.Error(err)
-		return err
-	}
-	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)
-
 	if err = d.reconfigVCH(conf, fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.ApplianceISO)); err != nil {
 		return err
 	}
@@ -194,32 +196,29 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 func (d *Dispatcher) rollback(conf *config.VirtualContainerHostConfigSpec, snapshot string) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("old appliance iso: %q, snapshot: %q", d.oldApplianceISO, snapshot)))
 
-	power, err := d.appliance.PowerState(d.ctx)
-	if err != nil {
-		log.Errorf("Failed to get vm power status %q: %s", d.appliance.Reference(), err)
-		return err
-	}
-	if power != types.VirtualMachinePowerStatePoweredOff {
-		if _, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-			return d.appliance.PowerOff(ctx)
-		}); err != nil {
-			log.Errorf("Failed to power off appliance: %s", err)
-			return err
-		}
-	}
-	// switch back appliance iso file, cause snapshot does not take care of it
-	if err = d.reconfigVCH(nil, d.oldApplianceISO); err != nil {
-		return err
-	}
-
 	// do not power on appliance in this snapsthot revert
 	log.Infof("Reverting to snapshot %s", snapshot)
-	if _, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	if _, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.RevertToSnapshot(d.ctx, snapshot, true)
 	}); err != nil {
 		return errors.Errorf("Failed to roll back upgrade: %s.", err)
 	}
 
+	return d.ensureRollbackReady(conf)
+}
+
+func (d *Dispatcher) ensureRollbackReady(conf *config.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin(conf.Name))
+
+	power, err := d.appliance.PowerState(d.ctx)
+	if err != nil {
+		log.Errorf("Failed to get vm power status %q after rollback: %s", d.appliance.Reference(), err)
+		return err
+	}
+	if power == types.VirtualMachinePowerStatePoweredOff {
+		log.Infof("Roll back finished - Appliance is kept in powered off status")
+		return nil
+	}
 	return d.startAppliance(conf)
 }
 

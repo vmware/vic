@@ -35,6 +35,11 @@ Set Test Environment Variables
     Set Environment Variable  GOVC_RESOURCE_POOL  %{TEST_RESOURCE}
     Set Environment Variable  GOVC_DATASTORE  %{TEST_DATASTORE}
 
+    ${about}=  Run  govc about
+    ${status}=  Run Keyword And Return Status  Should Contain  ${about}  VMware ESXi
+    Run Keyword If  ${status}  Set Environment Variable  HOST_TYPE  ESXi
+    Run Keyword Unless  ${status}  Set Environment Variable  HOST_TYPE  VC
+
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${vch-name}  ${name}
