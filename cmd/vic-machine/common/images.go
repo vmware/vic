@@ -170,9 +170,12 @@ func (i *Images) checkImageVersion(img string, force bool) (string, error) {
 
 	installerSV := i.getNoCommitHashVersion(version.GetBuild().ShortVersion())
 
+	log.Infof("isover: %s installerver: %s", strings.ToLower(ver), version.GetBuild().ShortVersion())
+	log.Infof("sv: %s installerSV: %s", sv, installerSV)
+
 	// here compare version without last commit hash, to make developer life easier
 	if !strings.EqualFold(installerSV, sv) {
-		message := fmt.Sprintf("iso file %q has inconsistent version with installer %q != %q", img, strings.ToLower(ver), version.GetBuild().ShortVersion())
+		message := fmt.Sprintf("iso file %q version %q inconsistent with installer version %q", img, strings.ToLower(ver), version.GetBuild().ShortVersion())
 		if !force {
 			return "", errors.Errorf("%s. Specify --force to force create. ", message)
 		}

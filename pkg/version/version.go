@@ -55,11 +55,18 @@ func String() string {
 }
 
 func GetBuild() *Build {
+	var b string
+	if BuildNumber == "" {
+		b = "0"
+	} else {
+		b = BuildNumber
+	}
+	fmt.Printf("set build no to %s\n", b)
 	return &Build{
 		Version:     Version,
 		GitCommit:   GitCommit,
 		BuildDate:   BuildDate,
-		BuildNumber: BuildNumber,
+		BuildNumber: b,
 		State:       State,
 	}
 }
@@ -76,9 +83,6 @@ func (v *Build) String() string {
 }
 
 func (v *Build) ShortVersion() string {
-	if v.BuildNumber == "" {
-		v.BuildNumber = "0"
-	}
 	return fmt.Sprintf("%s-%s-%s", v.Version, v.BuildNumber, v.GitCommit)
 }
 
