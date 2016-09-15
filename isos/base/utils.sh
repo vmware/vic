@@ -17,6 +17,11 @@
 # utility functions for staged authoring of ISOs
 [ -n "$DEBUG" ] && set -x
 BASE_DIR=$(dirname $(readlink -f "$BASH_SOURCE"))
+
+if [ -z ${BUILD_NUMBER+x} ]; then
+  BUILD_NUMBER=0
+fi
+
 VERSION=`git describe --abbrev=0 --tags`-${BUILD_NUMBER}-`git rev-parse --short HEAD`
 
 # initialize a directory with the assumptions we make for authoring

@@ -108,8 +108,7 @@ type Container struct {
 }
 
 const (
-	commitTimeout  = 1 * time.Minute
-	DefaultEnvPath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+	defaultEnvPath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 )
 
 func NotFoundError(msg string) error {
@@ -350,16 +349,13 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 func (c *Container) ContainerResize(name string, height, width int) error {
 	defer trace.End(trace.Begin(name))
 
-	// save the name provided to us so we can refer to it if we have to return an error
-	paramName := name
-
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
 		return NotFoundError(name)
 
 	}
-	name = vc.ContainerID
+	id := vc.ContainerID
 
 	// Get an API client to the portlayer
 	client := c.containerProxy.Client()
@@ -367,13 +363,13 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 	// Call the port layer to resize
 	plHeight := int32(height)
 	plWidth := int32(width)
-	plResizeParam := interaction.NewContainerResizeParamsWithContext(ctx).WithID(name).WithHeight(plHeight).WithWidth(plWidth)
+	plResizeParam := interaction.NewContainerResizeParamsWithContext(ctx).WithID(id).WithHeight(plHeight).WithWidth(plWidth)
 
 	_, err := client.Interaction.ContainerResize(plResizeParam)
 	if err != nil {
 		if _, isa := err.(*interaction.ContainerResizeNotFound); isa {
-			cache.ContainerCache().DeleteContainer(name)
-			return NotFoundError(paramName)
+			cache.ContainerCache().DeleteContainer(id)
+			return NotFoundError(name)
 		}
 
 		// If we get here, most likely something went wrong with the port layer API server
@@ -412,14 +408,12 @@ func (c *Container) ContainerRestart(name string, seconds int) error {
 func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) error {
 	defer trace.End(trace.Begin(name))
 
-	// save the name provided to us so we can refer to it if we have to return an error
-	paramName := name
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
-		return NotFoundError(paramName)
+		return NotFoundError(name)
 	}
-	name = vc.ContainerID
+	id := vc.ContainerID
 
 	// Get the portlayer Client API
 	client := c.containerProxy.Client()
@@ -429,16 +423,16 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 
 	// Use the force and stop the container first
 	if config.ForceRemove {
-		c.containerStop(name, 0, true)
+		c.containerStop(id, 0, true)
 	}
 
 	//call the remove directly on the name. No need for using a handle.
-	_, err := client.Containers.ContainerRemove(containers.NewContainerRemoveParamsWithContext(ctx).WithID(name))
+	_, err := client.Containers.ContainerRemove(containers.NewContainerRemoveParamsWithContext(ctx).WithID(id))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.ContainerRemoveNotFound:
-			cache.ContainerCache().DeleteContainer(name)
-			return NotFoundError(paramName)
+			cache.ContainerCache().DeleteContainer(id)
+			return NotFoundError(name)
 		case *containers.ContainerRemoveDefault:
 			return InternalServerError(err.Payload.Message)
 		case *containers.ContainerRemoveConflict:
@@ -448,7 +442,7 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		}
 	}
 	// delete container from the cache
-	cache.ContainerCache().DeleteContainer(name)
+	cache.ContainerCache().DeleteContainer(id)
 	return nil
 }
 
@@ -461,15 +455,12 @@ func (c *Container) ContainerStart(name string, hostConfig *containertypes.HostC
 func (c *Container) containerStart(name string, hostConfig *containertypes.HostConfig, bind bool) error {
 	var err error
 
-	// save the name provided to us so we can refer to it if we have to return an error
-	paramName := name
-
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
-		return NotFoundError(paramName)
+		return NotFoundError(name)
 	}
-	name = vc.ContainerID
+	id := vc.ContainerID
 
 	// Get an API client to the portlayer
 	client := c.containerProxy.Client()
@@ -487,7 +478,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 	}
 
 	// get a handle to the container
-	handle, err := c.Handle(name, paramName)
+	handle, err := c.Handle(id, name)
 	if err != nil {
 		return err
 	}
@@ -500,8 +491,8 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 		if err != nil {
 			switch err := err.(type) {
 			case *scopes.BindContainerNotFound:
-				cache.ContainerCache().DeleteContainer(name)
-				return NotFoundError(paramName)
+				cache.ContainerCache().DeleteContainer(id)
+				return NotFoundError(name)
 			case *scopes.BindContainerInternalServerError:
 				return InternalServerError(err.Payload.Message)
 			default:
@@ -526,10 +517,10 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 	var stateChangeRes *containers.StateChangeOK
 	stateChangeRes, err = client.Containers.StateChange(containers.NewStateChangeParamsWithContext(ctx).WithHandle(handle).WithState("RUNNING"))
 	if err != nil {
-		cache.ContainerCache().DeleteContainer(name)
+		cache.ContainerCache().DeleteContainer(id)
 		switch err := err.(type) {
 		case *containers.StateChangeNotFound:
-			return NotFoundError(paramName)
+			return NotFoundError(name)
 		case *containers.StateChangeDefault:
 			return InternalServerError(err.Payload.Message)
 		default:
@@ -555,12 +546,12 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 	}
 
 	// commit the handle; this will reconfigure and start the vm
-	_, err = client.Containers.Commit(containers.NewCommitParamsWithTimeout(commitTimeout).WithHandle(handle))
+	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.CommitNotFound:
-			cache.ContainerCache().DeleteContainer(name)
-			return NotFoundError(paramName)
+			cache.ContainerCache().DeleteContainer(id)
+			return NotFoundError(name)
 		case *containers.CommitDefault:
 			return InternalServerError(err.Payload.Message)
 		default:
@@ -794,7 +785,84 @@ func (c *Container) ContainerUpdate(name string, hostConfig *containertypes.Host
 // timeout, an error is returned. If you want to wait forever, supply
 // a negative duration for the timeout.
 func (c *Container) ContainerWait(name string, timeout time.Duration) (int, error) {
-	return 0, fmt.Errorf("%s does not implement container.ContainerWait", ProductName())
+	defer trace.End(trace.Begin(fmt.Sprintf("name(%s):timeout(%s)", name, timeout)))
+
+	// Look up the container name in the metadata cache to get long ID
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc == nil {
+		return -1, NotFoundError(name)
+	}
+	id := vc.ContainerID
+
+	//retrieve client to portlayer
+	client := c.containerProxy.Client()
+	results, err := client.Containers.ContainerWait(containers.NewContainerWaitParamsWithContext(ctx).WithTimeout(int64(timeout.Seconds())).WithID(id))
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.ContainerWaitNotFound:
+			// since the container wasn't found on the PL lets remove from the local
+			// cache
+			cache.ContainerCache().DeleteContainer(id)
+			return -1, NotFoundError(name)
+		case *containers.ContainerWaitInternalServerError:
+			return -1, InternalServerError(err.Payload.Message)
+		default:
+			return -1, InternalServerError(err.Error())
+		}
+	}
+
+	containerInfo := results.Payload
+
+	// call to the dockerStatus function to retrieve the docker friendly exitCode
+	// TODO: once started / finished time are available replace time.Now()
+	exitCode, _ := dockerStatus(int(*containerInfo.ProcessConfig.ExitCode),
+		*containerInfo.ProcessConfig.Status,
+		*containerInfo.ContainerConfig.State,
+		time.Now(), time.Now())
+
+	return exitCode, nil
+}
+
+// dockerStatus will evaluate the container state, exit code and
+// process status to return a docker friendly status
+//
+// exitCode is the container process exit code
+// status is the container process status -- stored in the vmx file as "started"
+// started / finished are timestamps, but are not yet implemented
+func dockerStatus(exitCode int, status string, state string, started time.Time, finished time.Time) (int, string) {
+	// TODO: once started / finished are available then github.com/docker/go-units must be imported for use in
+	// the status string
+	switch state {
+	case "Created":
+		status = state
+	case "Running":
+		//TODO: once we have started use commented out status
+		// status = fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(started)))
+		status = state
+	case "Stopped":
+		// interrogate the process status returned from the portlayer
+		// and based on status text and exit codes set the appropriate
+		// docker exit code
+		if strings.Contains(status, "permission denied") {
+			exitCode = 126
+		} else if strings.Contains(status, "no such") {
+			exitCode = 127
+		} else if status == "true" && exitCode == -1 {
+			// most likely the process was killed via the cli
+			// or recieved a sigkill
+			exitCode = 137
+		} else if status == "" && exitCode == 0 {
+			// the process was stopped via the cli
+			// or recieved a sigterm
+			exitCode = 143
+		}
+
+		// TODO: once we have finished use commented out status
+		// status = fmt.Sprintf("Exited (%d) %s ago", exitCode, units.HumanDuration(time.Now().UTC().Sub(finished)))
+		status = fmt.Sprintf("Exited (%d)", exitCode)
+	}
+
+	return exitCode, status
 }
 
 // docker's container.monitorBackend
@@ -811,31 +879,39 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 	// Ignore version.  We're supporting post-1.20 version.
 	defer trace.End(trace.Begin(name))
 
-	// save the name provided to us so we can refer to it if we have to return an error
-	paramName := name
-
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
-		return nil, NotFoundError(paramName)
+		return nil, NotFoundError(name)
 	}
-	name = vc.ContainerID
-	log.Debugf("Found %q in cache as %q", name, vc.ContainerID)
+	id := vc.ContainerID
+	log.Debugf("Found %q in cache as %q", id, vc.ContainerID)
 
 	client := c.containerProxy.Client()
 
-	results, err := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(name))
+	results, err := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(id))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerInfoNotFound:
-			cache.ContainerCache().DeleteContainer(name)
-			return nil, NotFoundError(paramName)
+			cache.ContainerCache().DeleteContainer(id)
+			return nil, NotFoundError(name)
 		case *containers.GetContainerInfoInternalServerError:
 			return nil, InternalServerError(err.Payload.Message)
 		default:
 			return nil, InternalServerError(err.Error())
 		}
 	}
+	// call to the dockerStatus function to retrieve the docker friendly exitCode
+	// TODO: once started / finished time are available replace time.Now()
+	exitCode, status := dockerStatus(int(*results.Payload.ProcessConfig.ExitCode),
+		*results.Payload.ProcessConfig.Status,
+		*results.Payload.ContainerConfig.State,
+		time.Now(), time.Now())
+
+	// set the payload values
+	exit := int32(exitCode)
+	results.Payload.ProcessConfig.ExitCode = &exit
+	results.Payload.ProcessConfig.Status = &status
 
 	inspectJSON, err := ContainerInfoToDockerContainerInspect(vc, results.Payload, PortLayerName())
 	if err != nil {
@@ -930,11 +1006,17 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 		for i := range t.Names {
 			names = append(names, clientFriendlyContainerName(t.Names[i]))
 		}
+
+		// get the docker friendly status
+		// TODO: when started / finished are available replace the last two variables
+		// https://github.com/vmware/vic/issues/1899
+		_, status := dockerStatus(int(*t.ExitCode), *t.Status, *t.State, time.Now(), time.Now())
+
 		c := &types.Container{
 			ID:      *t.ContainerID,
 			Image:   *t.RepoName,
 			Created: *t.Created,
-			Status:  *t.Status,
+			Status:  status,
 			Names:   names,
 			Command: cmd,
 			SizeRw:  *t.StorageSize,
@@ -952,16 +1034,12 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConfig) error {
 	defer trace.End(trace.Begin(name))
 
-	// save the name provided to us so we can refer to it if we have to return an error
-	paramName := name
-
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
-		return NotFoundError(paramName)
+		return NotFoundError(name)
 
 	}
-	name = vc.ContainerID
 
 	clStdin, clStdout, clStderr, err := ca.GetStreams()
 	if err != nil {
@@ -1318,7 +1396,7 @@ func setPathFromImageConfig(config, imageConfig *containertypes.Config) {
 	}
 
 	// no PATH set, use the default
-	config.Env = append(config.Env, fmt.Sprintf("PATH=%s", DefaultEnvPath))
+	config.Env = append(config.Env, fmt.Sprintf("PATH=%s", defaultEnvPath))
 }
 
 // validateCreateConfig() checks the parameters for ContainerCreate().

@@ -15,11 +15,13 @@
 package event
 
 import (
+	"fmt"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/lib/portlayer/event/collector"
 	"github.com/vmware/vic/lib/portlayer/event/events"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 type Manager struct {
@@ -83,6 +85,7 @@ func (mgr *Manager) Collectors() map[string]collector.Collector {
 
 // Subscribe to the event manager for callback
 func (mgr *Manager) Subscribe(eventTopic string, caller string, callback func(events.Event)) {
+	defer trace.End(trace.Begin(fmt.Sprintf("%s:%s", eventTopic, caller)))
 	mgr.subs.mu.Lock()
 	defer mgr.subs.mu.Unlock()
 
@@ -94,6 +97,7 @@ func (mgr *Manager) Subscribe(eventTopic string, caller string, callback func(ev
 
 // Unsubscribe from callbacks
 func (mgr *Manager) Unsubscribe(eventTopic string, caller string) {
+	defer trace.End(trace.Begin(fmt.Sprintf("%s:%s", eventTopic, caller)))
 	mgr.subs.mu.Lock()
 	defer mgr.subs.mu.Unlock()
 	if _, ok := mgr.subs.subscribers[eventTopic]; ok {
