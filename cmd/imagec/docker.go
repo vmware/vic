@@ -335,7 +335,7 @@ func FetchImageManifest(options ImageCOptions) (*Manifest, error) {
 	log.Debugf("URL: %s", url)
 
 	fetcher := NewURLFetcher(FetcherOptions{
-		Timeout:            10 * time.Second,
+		Timeout:            options.timeout,
 		Username:           options.username,
 		Password:           options.password,
 		Token:              options.token,
