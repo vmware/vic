@@ -31,7 +31,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-var volumesDir = StorageParentDir + "/volumes"
+const VolumesDir = "volumes"
 
 // VolumeStore caches Volume references to volumes in the system.
 type VolumeStore struct {
@@ -77,7 +77,7 @@ func (v *VolumeStore) AddStore(ctx context.Context, ds *datastore.Helper, storeN
 		return nil, fmt.Errorf("volumestore (%s) already added", u.String())
 	}
 
-	if _, err = ds.Mkdir(ctx, true, volumesDir); err != nil && !os.IsExist(err) {
+	if _, err = ds.Mkdir(ctx, true, VolumesDir); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
@@ -121,7 +121,7 @@ func (v *VolumeStore) getDatastore(store *url.URL) (*datastore.Helper, error) {
 // for a vol in the datastore is `<configured datastore path>/volumes/<vol ID>/<vol ID>.vmkd`.
 // Everything up to "volumes" is taken care of by the datastore wrapper.
 func (v *VolumeStore) volDirPath(ID string) string {
-	return path.Join(volumesDir, ID)
+	return path.Join(VolumesDir, ID)
 }
 
 // Returns the path to the metadata directory for a volume
@@ -206,7 +206,7 @@ func (v *VolumeStore) VolumesList(ctx context.Context) ([]*storage.Volume, error
 
 		store := volStore
 
-		res, err := vols.Ls(ctx, volumesDir)
+		res, err := vols.Ls(ctx, VolumesDir)
 		if err != nil {
 			return nil, fmt.Errorf("error listing vols: %s", err)
 		}

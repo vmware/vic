@@ -261,11 +261,17 @@ func (d *Dispatcher) lsFolder(ds *object.Datastore, dsPath string) (*types.HostD
 }
 
 func (d *Dispatcher) createVolumeStores(conf *config.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin(""))
 	for _, url := range conf.VolumeLocations {
 		ds, err := d.session.Finder.Datastore(d.ctx, url.Host)
 		if err != nil {
 			return errors.Errorf("Could not retrieve datastore with host %q due to error %s", url.Host, err)
 		}
+
+		if url.Path == "/" || url.Path == "" {
+			url.Path = vsphere.StorageParentDir
+		}
+
 		nds, err := datastore.NewHelper(d.ctx, d.session, ds, url.Path)
 		if err != nil {
 			return errors.Errorf("Could not create volume store due to error: %s", err)
@@ -303,8 +309,11 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *config.VirtualContainerHost
 			continue
 		}
 
-		log.Debugf("Provided datastore URL: %q\nParsed volume store path: %q", url.Path, dsURL.Path)
+		if dsURL.Path == vsphere.StorageParentDir {
+			dsURL.Path = path.Join(dsURL.Path, vsphere.VolumesDir)
+		}
 
+		log.Debugf("Provided datastore URL: %q\nParsed volume store path: %q", url.Path, dsURL.Path)
 		log.Infof("Deleting volume store %q on Datastore %q at path %q", label, dsURL.Host, dsURL.Path)
 
 		datastores, err := d.session.Finder.DatastoreList(d.ctx, dsURL.Host)
