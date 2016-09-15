@@ -237,8 +237,8 @@ func WaitForContainerStop(ctx context.Context, id string) error {
 
 	sub := fmt.Sprintf("%s:%s(%d)", id, "watcher", &watch)
 	topic := events.NewEventType(events.ContainerEvent{}).Topic()
-	VCHConfig.EventManager.Subscribe(topic, sub, watch)
-	defer VCHConfig.EventManager.Unsubscribe(topic, sub)
+	Config.EventManager.Subscribe(topic, sub, watch)
+	defer Config.EventManager.Unsubscribe(topic, sub)
 
 	// wait for the event to be pushed on the channel or
 	// the context to be complete

@@ -358,7 +358,7 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	c := exec.ContainerInfo(uid.Parse(params.ID).String())
+	c := exec.Containers.Container(uid.Parse(params.ID).String())
 	if c == nil {
 		return containers.NewContainerWaitNotFound().WithPayload(&models.Error{
 			Message: fmt.Sprintf("container %s not found", params.ID),
@@ -376,7 +376,7 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 		return containers.NewContainerWaitInternalServerError().WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	c = exec.ContainerInfo(uid.Parse(params.ID).String())
+	c = exec.Containers.Container(uid.Parse(params.ID).String())
 	containerInfo := convertContainerToContainerInfo(c)
 	return containers.NewContainerWaitOK().WithPayload(containerInfo)
 }

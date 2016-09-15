@@ -57,6 +57,8 @@ const (
 	StateCreated
 	StateRemoving
 	StateRemoved
+
+	propertyCollectorTimeout = 3 * time.Minute
 )
 
 type Container struct {
