@@ -21,7 +21,7 @@ This test requires that a vSphere server is running and available
 8. Issue docker logs <containerID> to the new VIC appliance
 9. Issue docker create -v test-named-vol:/testdir busybox
 10. Issue docker start <containerID>
-11. Issue docker volume ls
+11. Issue docker logs <containerID> to grab the disk size of the volume
 12. Issue docker create busybox /bin/top to the new VIC appliance
 13. Issue docker create fakeimage to the new VIC appliance
 14. Issue docker create fakeImage to the new VIC appliance
@@ -37,7 +37,7 @@ This test requires that a vSphere server is running and available
 #Expected Outcome:
 * Steps 3-7 should all return without error and printing the container ID on return
 * Step 8 should show that the contents of the containers /var/log matches the contents of the hosts /var/log
-* Steps 9, 10 and 11 should return without errors and should successfully create a new volume called `test-named-vol`
+* Steps 9, 10 and 11 should return without errors and should successfully create a new volume called `test-named-vol` with disk size 975.9M
 * Step 13 should return with the error message - Error: image library/fakeimage not found
 * Step 14 should return with the error message - Error parsing reference: "fakeImage" is not a valid repository/tag
 * Step 17 should result in success and the busy2 container should exist

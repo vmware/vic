@@ -34,19 +34,8 @@ Create with anonymous volume
     #Should Not Contain  ${output}  Error
 
 Create with named volume
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -v test-named-vol:/testdir busybox
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${output}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-
-    ${status}=  Get State Of Github Issue  1718
-    Run Keyword If  '${status}' == 'closed'  Log  Test `Create with named volume` can be improved with volume name filtering, now that #1718 has been resolved  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume ls -f name=test-named-vol
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume ls
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  test-named-vol
+    ${disk-size}=  Run  docker ${params} logs $(docker ${params} start $(docker ${params} create -v test-named-vol:/testdir busybox /bin/df -Ph) && sleep 10) | grep by-label | awk '{print $2}'
+    Should Be Equal As Strings  ${disk-size}  975.9M
 
 Create simple top example
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create busybox /bin/top
