@@ -5,7 +5,7 @@ clone:
 
 build:
   integration-test:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.7}
+    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.8}
     pull: true
     environment:
       BIN: bin
