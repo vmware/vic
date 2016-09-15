@@ -48,7 +48,7 @@ func TestTranslatVolumeRequestModel(t *testing.T) {
 	testDriverArgs[OptsVolumeStoreKey] = "testStore"
 	testDriverArgs[OptsCapacityKey] = "12MB"
 
-	testRequest, err := translateInputsToPortlayerRequestModel("testName", "vsphere", testDriverArgs, testLabels)
+	testRequest, err := newVolumeCreateReq("testName", "vsphere", testDriverArgs, testLabels)
 	if !assert.NoError(t, err) {
 		return
 	}
