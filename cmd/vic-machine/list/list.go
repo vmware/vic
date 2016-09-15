@@ -104,7 +104,6 @@ func (l *List) prettyPrint(cli *cli.Context, ctx context.Context, vchs []*vm.Vir
 			version = "unknown"
 		} else {
 			version = vchConfig.Version.ShortVersion()
-			log.Infof("VCH Version: %s", version)
 		}
 
 		parentPath := path.Dir(path.Dir(vch.InventoryPath))
@@ -138,8 +137,6 @@ func (l *List) Run(cli *cli.Context) (err error) {
 	}
 
 	log.Infof("### Listing VCHs ####")
-
-	log.Infof("Installer version: %s", version.GetBuild().ShortVersion())
 
 	ctx, cancel := context.WithTimeout(context.Background(), l.Timeout)
 	defer cancel()
