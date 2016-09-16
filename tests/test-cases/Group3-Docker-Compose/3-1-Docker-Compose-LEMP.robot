@@ -9,9 +9,9 @@ ${yml}  vic.mysql:\n${SPACE}container_name: vic.mysql\n${SPACE}image: mysql\n${S
 
 *** Test Cases ***
 Compose LEMP Server
-    ${status}=  Get State Of Github Issue  1734
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 3-1-Docker-Compose-LEMP.robot needs to be updated now that Issue #1734 has been resolved
-    Log  Issue \#1734 is blocking implementation  WARN
+    ${status}=  Get State Of Github Issue  2357
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 3-1-Docker-Compose-LEMP.robot needs to be updated now that Issue #2357 has been resolved
+    Log  Issue \#2357 is blocking implementation  WARN
     #Run  echo '${yml}' > lemp-compose.yml
     #${rc}  ${output}=  Run And Return Rc And Output  DOCKER_HOST=${vch-ip}:2375 docker-compose --file lemp-compose.yml up
     #Log  ${output}

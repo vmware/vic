@@ -6,9 +6,9 @@ Resource  ../../resources/Util.robot
 
 *** Test Cases ***
 Compose Voting App
-    ${status}=  Get State Of Github Issue  1745
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 3-2-Docker-Compose-Voting-App.robot needs to be updated now that Issue #1745 has been resolved
-    Log  Issue \#1745 is blocking implementation  WARN
+    ${status}=  Get State Of Github Issue  2358
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 3-2-Docker-Compose-Voting-App.robot needs to be updated now that Issue #2358 has been resolved
+    Log  Issue \#2358 is blocking implementation  WARN
     #Run  git clone https://github.com/docker/example-voting-app test
     #${rc}  ${output}=  Run And Return Rc And Output  cd test; DOCKER_HOST=${vch-ip}:2375 docker-compose up
     #Log  ${output}
