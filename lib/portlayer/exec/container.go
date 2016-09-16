@@ -70,6 +70,8 @@ type Container struct {
 	VMUnsharedDisk int64
 
 	vm *vm.VirtualMachine
+
+	logFollowers []io.Closer
 }
 
 func NewContainer(id uid.UID) *Handle {
@@ -315,6 +317,9 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
 	}
+
+	defer c.onStop()
+
 	// get existing state and set to stopping
 	// if there's a failure we'll revert to existing
 	existingState := c.State
@@ -377,14 +382,22 @@ func (c *Container) Signal(ctx context.Context, num int64) error {
 	return c.startGuestProgram(ctx, "kill", fmt.Sprintf("%d", num))
 }
 
-func (c *Container) LogReader(ctx context.Context) (io.ReadCloser, error) {
+func (c *Container) onStop() {
+	lf := c.logFollowers
+	c.logFollowers = nil
+
+	log.Debugf("Container(%s) closing %d log followers", c.ExecConfig.ID, len(lf))
+	for _, l := range lf {
+		_ = l.Close()
+	}
+}
+
+func (c *Container) LogReader(ctx context.Context, tail int, follow bool) (io.ReadCloser, error) {
 	defer trace.End(trace.Begin("Container.LogReader"))
 
 	if c.vm == nil {
 		return nil, fmt.Errorf("vm not set")
 	}
-
-	p := soap.DefaultDownload
 
 	url, err := c.vm.DSPath(ctx)
 	if err != nil {
@@ -395,12 +408,27 @@ func (c *Container) LogReader(ctx context.Context) (io.ReadCloser, error) {
 
 	log.Infof("pulling %s", name)
 
-	r, _, err := c.vm.Datastore.Download(ctx, name, &p)
+	file, err := c.vm.Datastore.Open(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 
-	return r, nil
+	if tail >= 0 {
+		err = file.Tail(tail)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if follow && c.State == StateRunning {
+		follower := file.Follow(time.Second)
+
+		c.logFollowers = append(c.logFollowers, follower)
+
+		return follower, nil
+	}
+
+	return file, nil
 }
 
 // NotFoundError is returned when a types.ManagedObjectNotFound is returned from a vmomi call
