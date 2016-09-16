@@ -781,9 +781,6 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 	if info.ContainerConfig.RepoName != nil {
 		container.Image = *info.ContainerConfig.RepoName // Name of the image as it was passed by the operator (eg. could be symbolic)
 	}
-	if info.ContainerConfig.Labels != nil {
-		container.Labels = info.ContainerConfig.Labels // List of labels set to this container
-	}
 
 	// Fill in information about the process
 	if info.ProcessConfig.Env != nil {
