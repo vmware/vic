@@ -19,10 +19,6 @@ Create VCH - custom base disk
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: ${vch-name}...
 
-    ${status}=  Get State Of Github Issue  384
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-6-Docker-Run.robot needs to be updated now that Issue #384 has been resolved
-    # Replace this hack when we have docker run in a state where it's usable in tests (Issue #384)
-
     ${output}=  Run  docker ${params} logs $(docker ${params} start $(docker ${params} create busybox /bin/df -h) && sleep 10) | grep /dev/sda | awk '{print $2}'
     # df shows GiB and vic-machine takes in GB so 6GB on cmd line == 5.5GB in df
     Should Be Equal As Strings  ${output}  5.5G
