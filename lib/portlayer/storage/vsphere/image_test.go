@@ -25,12 +25,14 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"testing"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/portlayer/exec"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
@@ -38,12 +40,12 @@ import (
 	"golang.org/x/net/context"
 )
 
-func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, error) {
+func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, string, error) {
 	logrus.SetLevel(logrus.DebugLevel)
 
 	client := datastore.Session(context.TODO(), t)
 	if client == nil {
-		return nil, nil, fmt.Errorf("skip")
+		return nil, nil, "", fmt.Errorf("skip")
 	}
 
 	storeURL := &url.URL{
@@ -55,23 +57,25 @@ func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, error) {
 		if err.Error() == "can't find the hosting vm" {
 			t.Skip("Skipping: test must be run in a VM")
 		}
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 
 	s := portlayer.NewLookupCache(vsImageStore)
 
-	return s, client, nil
+	return s, client, storeURL.Path, nil
 }
 
 func TestRestartImageStore(t *testing.T) {
+	t.Skip("this test needs TLC")
+
 	// Start the image store once
-	cacheStore, client, err := setup(t)
+	cacheStore, client, parentPath, err := setup(t)
 	if !assert.NoError(t, err) {
 		return
 	}
-	defer rm(t, client, client.Datastore.Path(StorageParentDir))
 
 	origVsStore := cacheStore.DataStore.(*ImageStore)
+	defer cleanup(t, client, origVsStore, parentPath)
 
 	storeName := "bogusStoreName"
 	origStore, err := cacheStore.CreateImageStore(context.TODO(), storeName)
@@ -106,13 +110,13 @@ func TestRestartImageStore(t *testing.T) {
 
 // Create an image store then test it exists
 func TestCreateAndGetImageStore(t *testing.T) {
-	vsis, client, err := setup(t)
+	vsis, client, parentPath, err := setup(t)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	// Nuke the parent image store directory
-	defer rm(t, client, client.Datastore.Path(StorageParentDir))
+	defer rm(t, client, client.Datastore.Path(parentPath))
 
 	storeName := "bogusStoreName"
 	u, err := vsis.CreateImageStore(context.TODO(), storeName)
@@ -139,13 +143,13 @@ func TestCreateAndGetImageStore(t *testing.T) {
 }
 
 func TestListImageStore(t *testing.T) {
-	vsis, client, err := setup(t)
+	vsis, client, parentPath, err := setup(t)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	// Nuke the parent image store directory
-	defer rm(t, client, client.Datastore.Path(StorageParentDir))
+	defer rm(t, client, client.Datastore.Path(parentPath))
 
 	count := 3
 	for i := 0; i < count; i++ {
@@ -166,13 +170,13 @@ func TestListImageStore(t *testing.T) {
 func TestCreateImageLayers(t *testing.T) {
 	numLayers := 4
 
-	cacheStore, client, err := setup(t)
+	cacheStore, client, parentPath, err := setup(t)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	vsStore := cacheStore.DataStore.(*ImageStore)
-	defer cleanup(t, client, vsStore)
+	defer cleanup(t, client, vsStore, parentPath)
 
 	storeURL, err := cacheStore.CreateImageStore(context.TODO(), "testStore")
 	if !assert.NoError(t, err) {
@@ -273,9 +277,17 @@ func TestCreateImageLayers(t *testing.T) {
 		return
 	}
 
-	defer vsStore.dm.Detach(context.TODO(), roDisk)
-	defer os.RemoveAll(p)
-	defer roDisk.Unmount()
+	rodiskcleanupfunc := func() {
+		if roDisk != nil {
+			if roDisk.Mounted() {
+				roDisk.Unmount()
+			}
+			if roDisk.Attached() {
+				vsStore.dm.Detach(context.TODO(), roDisk)
+			}
+		}
+		os.RemoveAll(p)
+	}
 
 	filesFoundOnDisk := []string{}
 	// Diff the contents of the RO file of the last child (with all of the contents)
@@ -295,24 +307,45 @@ func TestCreateImageLayers(t *testing.T) {
 		return
 	}
 
+	rodiskcleanupfunc()
 	sort.Strings(filesFoundOnDisk)
 	sort.Strings(expectedFilesOnDisk)
 
 	if !assert.Equal(t, expectedFilesOnDisk, filesFoundOnDisk) {
 		return
 	}
+
+	// Try to delete an intermediate image (should fail)
+	exec.NewContainerCache()
+	err = cacheStore.DeleteImage(context.TODO(), expectedImages["dir1"])
+	if !assert.Error(t, err) || !assert.True(t, portlayer.IsErrImageInUse(err)) {
+		return
+	}
+
+	// Try to delete a leaf (should pass)
+	leaf := expectedImages["dir"+strconv.Itoa(numLayers-1)]
+	err = cacheStore.DeleteImage(context.TODO(), leaf)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// Get the delete image directly via the vsphere image store impl.
+	deletedImage, err := vsStore.GetImage(context.TODO(), parent.Store, leaf.ID)
+	if !assert.Error(t, err) || !assert.Nil(t, deletedImage) || !assert.True(t, os.IsNotExist(err)) {
+		return
+	}
 }
 
 func TestBrokenPull(t *testing.T) {
 
-	cacheStore, client, err := setup(t)
+	cacheStore, client, parentPath, err := setup(t)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	vsStore := cacheStore.DataStore.(*ImageStore)
 
-	defer cleanup(t, client, vsStore)
+	defer cleanup(t, client, vsStore, parentPath)
 
 	storeURL, err := cacheStore.CreateImageStore(context.TODO(), "testStore")
 	if !assert.NoError(t, err) {
@@ -367,14 +400,14 @@ func TestBrokenPull(t *testing.T) {
 
 func TestInProgressCleanup(t *testing.T) {
 
-	cacheStore, client, err := setup(t)
+	cacheStore, client, parentPath, err := setup(t)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	vsStore := cacheStore.DataStore.(*ImageStore)
 
-	defer cleanup(t, client, vsStore)
+	defer cleanup(t, client, vsStore, parentPath)
 
 	storeURL, err := cacheStore.CreateImageStore(context.TODO(), "testStore")
 	if !assert.NoError(t, err) {
@@ -507,7 +540,7 @@ func rm(t *testing.T, client *session.Session, name string) {
 // Nuke the files and then the parent dir.  Unfortunately, because this is
 // vsan, we need to delete the files in the directories first (maybe
 // because they're linked vmkds) before we can delete the parent directory.
-func cleanup(t *testing.T, client *session.Session, vsStore *ImageStore) {
+func cleanup(t *testing.T, client *session.Session, vsStore *ImageStore, parentPath string) {
 	res, err := vsStore.ds.LsDirs(context.TODO(), "")
 	if err != nil {
 		t.Logf("error: %s", err)
@@ -526,5 +559,5 @@ func cleanup(t *testing.T, client *session.Session, vsStore *ImageStore) {
 		rm(t, client, dir.FolderPath)
 	}
 
-	rm(t, client, client.Datastore.Path(StorageParentDir))
+	rm(t, client, client.Datastore.Path(parentPath))
 }

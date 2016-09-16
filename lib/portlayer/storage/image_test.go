@@ -35,6 +35,11 @@ func TestImageCopy(t *testing.T) {
 		return
 	}
 
+	img, err := Parse(imageURL)
+	if !assert.NoError(t, err) || !assert.NotNil(t, img) {
+		return
+	}
+
 	storeURL, err := util.ImageStoreNameToURL(storeName)
 	if !assert.NoError(t, err) {
 		return

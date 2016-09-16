@@ -15,9 +15,18 @@
 package storage
 
 type ErrImageInUse struct {
-	msg string
+	Msg string
 }
 
 func (e *ErrImageInUse) Error() string {
-	return e.msg
+	return e.Msg
+}
+
+func IsErrImageInUse(err error) bool {
+	if err == nil {
+		return false
+	}
+	_, ok := err.(*ErrImageInUse)
+
+	return ok
 }

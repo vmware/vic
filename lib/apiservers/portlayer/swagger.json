@@ -259,6 +259,54 @@
 						}
 					}
 				}
+			},
+			"delete" : {
+				"description": "Delete an image by id in an image store",
+				"summary": "Delete an image",
+				"tags": [
+					"storage"
+				],
+				"operationId": "DeleteImage",
+				"parameters": [
+					{
+						"name": "store_name",
+						"type": "string",
+						"in": "path",
+						"required": true
+					},
+					{
+						"name": "id",
+						"type": "string",
+						"in": "path",
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"type": "string"
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"423": {
+						"description": "In use",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"default": {
+						"description": "error",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
 			}
 		},
 		"/storage/{store_name}/tar/{id}": {

@@ -144,6 +144,9 @@ func Parse(u *url.URL) (*Image, error) {
 	}
 
 	segments := strings.Split(filepath.Clean(u.Path), "/")
+	if segments[0] == "" {
+		segments = segments[1:]
+	}
 
 	if segments[0] != util.StorageURLPath {
 		return nil, errors.New("not a storage path")

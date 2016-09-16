@@ -115,6 +115,7 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, hand
 	api.StorageGetImageTarHandler = storage.GetImageTarHandlerFunc(handler.GetImageTar)
 	api.StorageListImagesHandler = storage.ListImagesHandlerFunc(handler.ListImages)
 	api.StorageWriteImageHandler = storage.WriteImageHandlerFunc(handler.WriteImage)
+	api.StorageDeleteImageHandler = storage.DeleteImageHandlerFunc(handler.DeleteImage)
 
 	api.StorageVolumeStoresListHandler = storage.VolumeStoresListHandlerFunc(handler.VolumeStoresList)
 	api.StorageCreateVolumeHandler = storage.CreateVolumeHandlerFunc(handler.CreateVolume)
@@ -165,6 +166,44 @@ func (handler *StorageHandlersImpl) GetImage(params storage.GetImageParams) midd
 	}
 	result := convertImage(image)
 	return storage.NewGetImageOK().WithPayload(result)
+}
+
+// DeleteImage deletes an image from a store
+func (handler *StorageHandlersImpl) DeleteImage(params storage.DeleteImageParams) middleware.Responder {
+
+	ferr := func(err error, code int) middleware.Responder {
+		log.Errorf("DeleteImage: error %s", err.Error())
+		return storage.NewDeleteImageDefault(code).WithPayload(
+			&models.Error{
+				Code:    swag.Int64(int64(code)),
+				Message: err.Error(),
+			})
+	}
+
+	imageUrl, err := util.ImageURL(params.StoreName, params.ID)
+	if err != nil {
+		return ferr(err, http.StatusInternalServerError)
+	}
+
+	image, err := spl.Parse(imageUrl)
+	if err != nil {
+		return ferr(err, http.StatusInternalServerError)
+	}
+
+	if err = storageImageLayer.DeleteImage(context.Background(), image); err != nil {
+		switch {
+		case spl.IsErrImageInUse(err):
+			return ferr(err, http.StatusLocked)
+
+		case os.IsNotExist(err):
+			return ferr(err, http.StatusNotFound)
+
+		default:
+			return ferr(err, http.StatusInternalServerError)
+		}
+	}
+
+	return storage.NewDeleteImageOK()
 }
 
 // GetImageTar returns an image tar file
