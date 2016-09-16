@@ -39,7 +39,7 @@ Created Network Persists And Containers Are Discovered With Correct IPs
     ${new-vch-ip}=  Get VM IP  ${vch-name}
     Log To Console  New VCH IP is ${new-vch-ip}
     Replace String  ${params}  ${vch-ip}  ${new-vch-ip}
-    ${rc}  ${output}=  Run And Return Rc And Output  docker -H ${params} network ls
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network ls
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  bar
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network inspect bridge

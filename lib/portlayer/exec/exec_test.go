@@ -76,8 +76,6 @@ func TestPublishContainerEvent(t *testing.T) {
 	assert.Equal(t, 1, len(containerEvents))
 	assert.Equal(t, id, containerEvents[0].Reference())
 	assert.Equal(t, events.ContainerPoweredOff, containerEvents[0].String())
-	assert.EqualValues(t, StateStopped, Containers.Container(id).State)
-
 }
 
 func containerCallback(ee events.Event) {
