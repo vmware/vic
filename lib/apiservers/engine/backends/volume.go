@@ -98,14 +98,14 @@ func (v *Volume) VolumeInspect(name string) (*types.Volume, error) {
 	return nil, fmt.Errorf("%s does not implement volume.VolumeInspect", ProductName())
 }
 
-// VolumeCreate : docker personality implementation for VIC
-func (v *Volume) VolumeCreate(name, driverName string, driverArgs, labels map[string]string) (*types.Volume, error) {
-	defer trace.End(trace.Begin("Volume.VolumeCreate"))
+// volumeCreate issues a CreateVolume request to the portlayer
+func (v *Volume) volumeCreate(name, driverName string, driverArgs, labels map[string]string) (*types.Volume, *models.VolumeRequest, error) {
+	defer trace.End(trace.Begin(""))
 	result := &types.Volume{}
 
 	client := PortLayerClient()
 	if client == nil {
-		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get a portlayer client"), http.StatusInternalServerError)
+		return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get a portlayer client"), http.StatusInternalServerError)
 	}
 
 	if name == "" {
@@ -116,11 +116,23 @@ func (v *Volume) VolumeCreate(name, driverName string, driverArgs, labels map[st
 	// assign the values of the model to be passed to the portlayer handler
 	req, varErr := newVolumeCreateReq(name, driverName, driverArgs, labels)
 	if varErr != nil {
-		return result, derr.NewErrorWithStatusCode(varErr, http.StatusBadRequest)
+		return result, req, derr.NewErrorWithStatusCode(varErr, http.StatusBadRequest)
 	}
 	log.Infof("Finalized model for volume create request to portlayer: %#v", req)
 
 	res, err := client.Storage.CreateVolume(storage.NewCreateVolumeParamsWithContext(ctx).WithVolumeRequest(req))
+	if err != nil {
+		return result, req, err
+	}
+	result = NewVolumeModel(res.Payload, labels)
+	return result, req, nil
+}
+
+// VolumeCreate : docker personality implementation for VIC
+func (v *Volume) VolumeCreate(name, driverName string, driverArgs, labels map[string]string) (*types.Volume, error) {
+	defer trace.End(trace.Begin("Volume.VolumeCreate"))
+
+	result, req, err := v.volumeCreate(name, driverName, driverArgs, labels)
 	if err != nil {
 		switch err := err.(type) {
 
@@ -140,7 +152,6 @@ func (v *Volume) VolumeCreate(name, driverName string, driverArgs, labels map[st
 		}
 	}
 
-	result = NewVolumeModel(res.Payload, labels)
 	return result, nil
 }
 
