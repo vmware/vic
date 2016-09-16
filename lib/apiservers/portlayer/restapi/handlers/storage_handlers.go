@@ -168,7 +168,7 @@ func (handler *StorageHandlersImpl) GetImage(params storage.GetImageParams) midd
 	return storage.NewGetImageOK().WithPayload(result)
 }
 
-// GetImage retrieves an image from a store
+// DeleteImage deletes an image from a store
 func (handler *StorageHandlersImpl) DeleteImage(params storage.DeleteImageParams) middleware.Responder {
 
 	ferr := func(err error, code int) middleware.Responder {
