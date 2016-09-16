@@ -43,7 +43,7 @@
 					"misc"
 				],
 				"operationId": "GetVCHInfo",
-				"contains": [
+				"consumes": [
 					"application/json"
 				],
 				"produces": [
@@ -1115,13 +1115,13 @@
 					{
 						"name": "force",
 						"in": "query",
-						"type": "bool",
+						"type": "boolean",
 						"default": false
 					},
 					{
 						"name": "v",
 						"in": "query",
-						"type": "bool",
+						"type": "boolean",
 						"default": false
 					}
 				],
@@ -1447,7 +1447,8 @@
 					{
 						"name": "timeout",
 						"in": "query",
-						"type": "int64",
+						"type": "integer",
+						"format": "int64",
 						"required": true
 					}
 				],
@@ -1837,6 +1838,9 @@
 					"type": "string"
 				},
 				"address": {
+					"type": "string"
+				},
+				"gateway": {
 					"type": "string"
 				},
 				"container": {
