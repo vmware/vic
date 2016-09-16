@@ -29,7 +29,7 @@ const (
 	// DefaultPrefix value
 	DefaultPrefix = ""
 	// DefaultGuestInfoPrefix value
-	DefaultGuestInfoPrefix = "guestinfo."
+	DefaultGuestInfoPrefix = "guestinfo.vice."
 )
 
 const (

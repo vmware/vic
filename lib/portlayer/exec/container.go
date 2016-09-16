@@ -242,7 +242,7 @@ func (c *Container) start(ctx context.Context) error {
 	}
 
 	// guestinfo key that we want to wait for
-	key := fmt.Sprintf("guestinfo..sessions|%s.started", c.ExecConfig.ID)
+	key := fmt.Sprintf("guestinfo.vice..sessions|%s.started", c.ExecConfig.ID)
 	var detail string
 
 	// Wait some before giving up...
