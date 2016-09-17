@@ -16,6 +16,7 @@ package pprof
 
 import (
 	"errors"
+	_ "expvar"
 	"fmt"
 	"net"
 	"net/http"
@@ -61,7 +62,7 @@ func GetPprofEndpoint(component PprofPort) *url.URL {
 	port := component + basePort
 
 	ip := "127.0.0.1"
-	if vchConfig.ExecutorConfig.Diagnostics.DebugLevel > 1 {
+	if vchConfig.ExecutorConfig.Diagnostics.DebugLevel > 0 {
 		ips, err := net.LookupIP("client.localhost")
 		if err != nil || len(ips) == 0 {
 			log.Warnf("Unable to resolve 'client.localhost': ", err)
