@@ -26,12 +26,9 @@ Create with anonymous volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${status}=  Get State Of Github Issue  366
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-4-Docker-Create.robot needs to be updated now that Issue #366 has been resolved
-    Log  Issue \#366 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs ${output}
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
 
 Create with named volume
     ${disk-size}=  Run  docker ${params} logs $(docker ${params} start $(docker ${params} create -v test-named-vol:/testdir busybox /bin/df -Ph) && sleep 10) | grep by-label | awk '{print $2}'
@@ -67,12 +64,11 @@ Create linked containers that can ping
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start busy2
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${status}=  Get State Of Github Issue  366
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-4-Docker-Create.robot needs to be updated now that Issue #366 has been resolved
-    Log  Issue \#366 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs busy2
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow busy2
+    Should Be Equal As Integers  ${rc}  0
+    ${status}=  Get State Of Github Issue  1459
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-4-Docker-Create.robot needs to be updated now that Issue #1459 has been resolved
+    Log  Issue \#1459 is blocking implementation  WARN
     #Should Contain  ${output}  2 packets transmitted, 2 received
 
 Create a container after the last container is removed
