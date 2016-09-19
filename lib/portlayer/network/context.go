@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/ip"
@@ -111,6 +112,12 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask, config *Configurati
 		if n.Type == constants.ExternalScopeType {
 			s.builtin = true
 		}
+	}
+
+	// subscribe to the event stream for Vm events
+	sub := fmt.Sprintf("%s(%p)", "netCtx", ctx)
+	if exec.Config.EventManager != nil {
+		exec.Config.EventManager.Subscribe(events.NewEventType(events.ContainerEvent{}).Topic(), sub, ctx.handleEvent)
 	}
 
 	return ctx, nil
@@ -1068,4 +1075,21 @@ func (c *Context) UpdateContainer(h *exec.Handle) error {
 func atoiOrZero(a string) int32 {
 	i, _ := strconv.Atoi(a)
 	return int32(i)
+}
+
+// handleEvent processes events
+func (c *Context) handleEvent(ie events.Event) {
+	switch ie.String() {
+	case events.ContainerPoweredOff:
+		handle := exec.GetContainer(uid.Parse(ie.Reference()))
+		if handle == nil {
+			log.Errorf("Container %s not found - unable to UnbindContainer", ie.Reference())
+			return
+		}
+		_, err := c.UnbindContainer(handle)
+		if err != nil {
+			log.Warnf("Failed to unbind container %s", ie.Reference())
+		}
+	}
+	return
 }
