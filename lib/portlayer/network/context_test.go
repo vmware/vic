@@ -20,10 +20,12 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"golang.org/x/net/context"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
@@ -676,6 +678,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		t.Fatalf("ctx.AddContainer(%s, %s, nil) => %s", staticIP, ctx.DefaultScope().Name(), err)
 	}
 
+	// add the "added" container to the "scope" scope
 	options = &AddContainerOptions{
 		Scope: scope.Name(),
 	}
@@ -705,7 +708,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		static bool
 		err    error
 	}{
-		// not scopes to bind to
+		// no scopes to bind to
 		{0, foo, []string{}, []net.IP{}, false, nil},
 		// container has bad ip address
 		{1, ipErr, []string{}, nil, false, fmt.Errorf("")},
@@ -775,12 +778,6 @@ func TestContextBindUnbindContainer(t *testing.T) {
 				}
 				if ne.Network.Gateway.Mask.String() != e.Scope().Subnet().Mask.String() {
 					t.Fatalf("%d: ctx.BindContainer(%s) => metadata endpoint gateway mask %s, want %s", te.i, te.h, ne.Network.Gateway.Mask.String(), e.Scope().Subnet().Mask.String())
-				}
-				for _, n := range e.Aliases() {
-					con := ctx.Container(n)
-					if con == nil {
-						t.Fatalf("%d: ctx.Container(%s) => nil, want %s", te.i, te.h.Container.ExecConfig.ID, te.h.Container.ExecConfig.ID)
-					}
 				}
 
 				break
@@ -1040,4 +1037,107 @@ func TestDeleteScope(t *testing.T) {
 			t.Fatalf("scope %s not deleted", te.name)
 		}
 	}
+}
+
+func TestAliases(t *testing.T) {
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
+	assert.NoError(t, err)
+	assert.NotNil(t, ctx)
+
+	scope := ctx.DefaultScope()
+
+	var tests = []struct {
+		con     string
+		aliases []string
+		err     error
+	}{
+		// bad alias
+		{"bad1", []string{"bad1"}, assert.AnError},
+		{"bad2", []string{"foo:bar:baz"}, assert.AnError},
+		// ok
+		{"c1", []string{"c2:other", ":c1", ":c1"}, nil},
+		{"c2", []string{"c1:other"}, nil},
+		{"c3", []string{"c2:c2", "c1:c1"}, nil},
+	}
+
+	containers := make(map[string]*exec.Handle)
+	for _, te := range tests {
+		t.Logf("%+v", te)
+		c := newContainer(te.con)
+
+		opts := &AddContainerOptions{
+			Scope:   scope.Name(),
+			Aliases: te.aliases,
+		}
+
+		err = ctx.AddContainer(c, opts)
+		assert.NoError(t, err)
+		assert.EqualValues(t, opts.Aliases, c.ExecConfig.Networks[scope.Name()].Network.Aliases)
+
+		eps, err := ctx.BindContainer(c)
+		if te.err != nil {
+			assert.Error(t, err)
+			assert.Empty(t, eps)
+			continue
+		}
+
+		assert.NoError(t, err)
+		assert.Len(t, eps, 1)
+
+		// verify aliases are present
+		assert.NotNil(t, ctx.Container(c.ExecConfig.ID))
+		assert.NotNil(t, ctx.Container(uid.Parse(c.ExecConfig.ID).Truncate().String()))
+		assert.NotNil(t, ctx.Container(c.ExecConfig.Name))
+		assert.NotNil(t, ctx.Container(fmt.Sprintf("%s:%s", scope.Name(), c.ExecConfig.Name)))
+
+		aliases := c.ExecConfig.Networks[scope.Name()].Network.Aliases
+		for _, a := range aliases {
+			l := strings.Split(a, ":")
+			con, alias := l[0], l[1]
+			found := false
+			var scopedName string
+			for _, ea := range eps[0].getAliases(con) {
+				if ea.name == alias {
+					found = true
+					scopedName = ea.scopedName()
+					break
+				}
+			}
+			assert.True(t, found, "alias %s not found for container %s", alias, con)
+
+			// if the aliased container is bound we should be able to look it up with
+			// the scoped alias name
+			c := ctx.Container(con)
+			if c != nil {
+				assert.NotNil(t, ctx.Container(scopedName))
+			}
+		}
+
+		// now that the container is bound, there
+		// should be additional aliases scoped to
+		// other containers
+		for _, e := range scope.Endpoints() {
+			for _, a := range e.getAliases(c.ExecConfig.Name) {
+				t.Logf("alias: %s", a.scopedName())
+				assert.NotNil(t, ctx.Container(a.scopedName()))
+			}
+		}
+
+		containers[te.con] = c
+	}
+
+	t.Logf("containers: %#v", ctx.containers)
+
+	c := containers["c2"]
+	_, err = ctx.UnbindContainer(c)
+	assert.NoError(t, err)
+	// verify aliases are gone
+	assert.Nil(t, ctx.Container(c.ExecConfig.ID))
+	assert.Nil(t, ctx.Container(uid.Parse(c.ExecConfig.ID).Truncate().String()))
+	assert.Nil(t, ctx.Container(c.ExecConfig.Name))
+	assert.Nil(t, ctx.Container(fmt.Sprintf("%s:%s", scope.Name(), c.ExecConfig.Name)))
+
+	// aliases from c1 and c3 to c2 should not resolve anymore
+	assert.Nil(t, ctx.Container(fmt.Sprintf("%s:c1:other", scope.Name())))
+	assert.Nil(t, ctx.Container(fmt.Sprintf("%s:c3:c2", scope.Name())))
 }

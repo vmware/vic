@@ -584,20 +584,23 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			}
 			if a, exists := e.addAlias(who, what); a != badAlias && !exists {
 				whoc := con
+				// if the alias is not for this container, then
+				// find it in the container collection
 				if who != con.name {
-					// find the container
 					whoc = c.containers[who]
 				}
 
+				// whoc may be nil here, which means that the aliased
+				// container is not bound yet; this is OK, and will be
+				// fixed up when "who" is bound
 				if whoc != nil {
 					aliases[a.scopedName()] = whoc
 				}
 			}
 		}
 
-		// go over all the other endpoints in the scope
-		// to see if we need to add aliases for this
-		// container, now that it is bound
+		// fix up the aliases to this container
+		// from other containers
 		for _, e := range s.Endpoints() {
 			if e.Container() == con {
 				continue
@@ -609,6 +612,14 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		}
 
 		endpoints = append(endpoints, e)
+	}
+
+	// verify all the aliases to be added do not conflict with
+	// existing container keys
+	for a := range aliases {
+		if _, ok := c.containers[a]; ok {
+			return nil, fmt.Errorf("duplicate alias %s for container %s", a, con.ID)
+		}
 	}
 
 	// FIXME: if there was no external network to mark as default,

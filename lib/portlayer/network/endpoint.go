@@ -39,6 +39,8 @@ type Endpoint struct {
 	aliases   map[string][]alias
 }
 
+// scopeName returns the "fully qualified" name of an alias. Aliases are scoped
+// by the container and network scope they are in.
 func (a alias) scopedName() string {
 	return fmt.Sprintf("%s:%s:%s", a.ep.Scope().Name(), a.ep.Container().Name(), a.name)
 }
@@ -153,18 +155,6 @@ func (e *Endpoint) getAliases(con string) []alias {
 	}
 
 	return e.aliases[con]
-}
-
-func (e *Endpoint) resolveAlias(s string) string {
-	for con, as := range e.aliases {
-		for _, a := range as {
-			if a.name == s {
-				return con
-			}
-		}
-	}
-
-	return ""
 }
 
 func (e *Endpoint) copy() *Endpoint {
