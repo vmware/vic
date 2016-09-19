@@ -151,6 +151,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 				Name: "bridge",
 				ID:   netMoid,
 			},
+			Type: "bridge",
 		},
 	}
 	// we need to have the bridge network identified as an available container network
@@ -229,6 +230,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 				Name: name,
 				ID:   moref.String(),
 			},
+			Type:        "external",
 			Gateway:     gw,
 			Nameservers: dns,
 			Pools:       pools,

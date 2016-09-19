@@ -248,7 +248,7 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers.GetContainerInfoParams) middleware.Responder {
 	defer trace.End(trace.Begin("Containers.GetContainerInfoHandler"))
 
-	container := exec.ContainerInfo(params.ID)
+	container := exec.Containers.Container(params.ID)
 	if container == nil {
 		info := fmt.Sprintf("GetContainerInfoHandler ContainerCache miss for container(%s)", params.ID)
 		log.Error(info)
@@ -262,7 +262,13 @@ func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers
 func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers.GetContainerListParams) middleware.Responder {
 	defer trace.End(trace.Begin("Containers.GetContainerListHandler"))
 
-	containerVMs := exec.Containers(*params.All)
+	var state *exec.State
+	if params.All != nil && !*params.All {
+		state = new(exec.State)
+		*state = exec.StateRunning
+	}
+
+	containerVMs := exec.Containers.Containers(state)
 	containerList := make([]models.ContainerListInfo, 0, len(containerVMs))
 
 	for i := range containerVMs {
@@ -352,7 +358,7 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	c := exec.ContainerInfo(uid.Parse(params.ID).String())
+	c := exec.Containers.Container(uid.Parse(params.ID).String())
 	if c == nil {
 		return containers.NewContainerWaitNotFound().WithPayload(&models.Error{
 			Message: fmt.Sprintf("container %s not found", params.ID),
@@ -370,7 +376,7 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 		return containers.NewContainerWaitInternalServerError().WithPayload(&models.Error{Message: err.Error()})
 	}
 
-	c = exec.ContainerInfo(uid.Parse(params.ID).String())
+	c = exec.Containers.Container(uid.Parse(params.ID).String())
 	containerInfo := convertContainerToContainerInfo(c)
 	return containers.NewContainerWaitOK().WithPayload(containerInfo)
 }

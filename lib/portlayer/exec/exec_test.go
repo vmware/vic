@@ -57,10 +57,10 @@ func TestPublishContainerEvent(t *testing.T) {
 
 	NewContainerCache()
 	containerEvents = make([]events.Event, 0)
-	VCHConfig = Configuration{}
+	Config = Configuration{}
 
 	mgr := event.NewEventManager()
-	VCHConfig.EventManager = mgr
+	Config.EventManager = mgr
 	mgr.Subscribe(events.NewEventType(events.ContainerEvent{}).Topic(), "testing", containerCallback)
 
 	// create new running container and place in cache
@@ -68,7 +68,7 @@ func TestPublishContainerEvent(t *testing.T) {
 	container := newTestContainer(id)
 	addTestVM(container)
 	container.State = StateRunning
-	containers.Put(container)
+	Containers.Put(container)
 
 	publishContainerEvent(id, time.Now().UTC(), events.ContainerPoweredOff)
 	time.Sleep(time.Millisecond * 30)
@@ -76,7 +76,6 @@ func TestPublishContainerEvent(t *testing.T) {
 	assert.Equal(t, 1, len(containerEvents))
 	assert.Equal(t, id, containerEvents[0].Reference())
 	assert.Equal(t, events.ContainerPoweredOff, containerEvents[0].String())
-
 }
 
 func containerCallback(ee events.Event) {

@@ -16,89 +16,120 @@ package exec
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
-
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/event"
 	"github.com/vmware/vic/lib/portlayer/event/collector/vsphere"
 	"github.com/vmware/vic/lib/portlayer/event/events"
-	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
-
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
-
-	log "github.com/Sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
-func Init(ctx context.Context, f *find.Finder, session *session.Session) error {
+var initializer sync.Once
 
-	ccount := len(VCHConfig.ComputeResources)
-	if ccount != 1 {
-		detail := fmt.Sprintf("expected singular compute resource element, found %d", ccount)
-		log.Errorf(detail)
-		return errors.New(detail)
-	}
+func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSource, _ extraconfig.DataSink) error {
+	var err error
+	initializer.Do(func() {
+		f := find.NewFinder(sess.Vim25(), false)
 
-	cr := VCHConfig.ComputeResources[0]
+		extraconfig.Decode(source, &Config)
 
-	r, err := f.ObjectReference(ctx, cr)
-	if err != nil {
-		detail := fmt.Sprintf("could not get resource pool or virtual app reference from %q: %s", cr.String(), err)
-		log.Errorf(detail)
-		return err
-	}
-	switch o := r.(type) {
-	case *object.VirtualApp:
-		VCHConfig.VirtualApp = o
-		VCHConfig.ResourcePool = o.ResourcePool
-	case *object.ResourcePool:
-		VCHConfig.ResourcePool = o
-	default:
-		detail := fmt.Sprintf("could not get resource pool or virtual app from reference %q: object type is wrong", cr.String())
-		log.Errorf(detail)
-		return errors.New(detail)
-	}
+		log.Debugf("Decoded VCH config for execution: %#v", Config)
+		ccount := len(Config.ComputeResources)
+		if ccount != 1 {
+			err = fmt.Errorf("expected singular compute resource element, found %d", ccount)
+			log.Error(err)
+			return
+		}
 
-	// we want to monitor the resource pool, so create a vSphere Event Collector
-	ec := vsphere.NewCollector(session.Vim25(), VCHConfig.ResourcePool.Reference().String())
+		cr := Config.ComputeResources[0]
+		var r object.Reference
+		r, err = f.ObjectReference(ctx, cr)
+		if err != nil {
+			err = fmt.Errorf("could not get resource pool or virtual app reference from %q: %s", cr.String(), err)
+			log.Error(err)
+			return
+		}
+		switch o := r.(type) {
+		case *object.VirtualApp:
+			Config.VirtualApp = o
+			Config.ResourcePool = o.ResourcePool
+		case *object.ResourcePool:
+			Config.ResourcePool = o
+		default:
+			err = fmt.Errorf("could not get resource pool or virtual app from reference %q: object type is wrong", cr.String())
+			log.Error(err)
+			return
+		}
 
-	// start the collection of vsphere events
-	err = ec.Start()
-	if err != nil {
-		detail := fmt.Sprintf("%s failed to start: %s", ec.Name(), err.Error())
-		log.Error(detail)
-		return err
-	}
+		// we want to monitor the resource pool, so create a vSphere Event Collector
+		ec := vsphere.NewCollector(sess.Vim25(), Config.ResourcePool.Reference().String())
 
-	// create the event manager &  register the existing collector
-	VCHConfig.EventManager = event.NewEventManager(ec)
+		// start the collection of vsphere events
+		err = ec.Start()
+		if err != nil {
+			err = fmt.Errorf("%s failed to start: %s", ec.Name(), err)
+			log.Error(err)
+			return
+		}
 
-	// subscribe the exec layer to the event stream for Vm events
-	VCHConfig.EventManager.Subscribe(events.NewEventType(vsphere.VmEvent{}).Topic(), "exec", eventCallback)
+		// create the event manager &  register the existing collector
+		Config.EventManager = event.NewEventManager(ec)
 
-	// instantiate the container cache now
-	NewContainerCache()
+		// subscribe the exec layer to the event stream for Vm events
+		Config.EventManager.Subscribe(events.NewEventType(vsphere.VmEvent{}).Topic(), "exec", eventCallback)
 
-	// Grab the AboutInfo about our host environment
-	about := session.Vim25().ServiceContent.About
-	VCHConfig.VCHMhz = NCPU(ctx)
-	VCHConfig.VCHMemoryLimit = MemTotal(ctx)
-	VCHConfig.HostOS = about.OsType
-	VCHConfig.HostOSVersion = about.Version
-	VCHConfig.HostProductName = about.Name
-	log.Debugf("Host - OS (%s), version (%s), name (%s)", about.OsType, about.Version, about.Name)
-	log.Debugf("VCH limits - %d Mhz, %d MB", VCHConfig.VCHMhz, VCHConfig.VCHMemoryLimit)
+		// instantiate the container cache now
+		NewContainerCache()
 
-	return nil
+		//FIXME: temporary injection of debug network for debug nic
+		ne := Config.Networks["client"]
+		if ne == nil {
+			err = fmt.Errorf("could not get client network reference for debug nic - this code can be removed once network mapping/dhcp client is present")
+			log.Error(err)
+			return
+		}
+
+		nr := new(types.ManagedObjectReference)
+		nr.FromString(ne.Network.ID)
+		r, err = f.ObjectReference(ctx, *nr)
+		if err != nil {
+			err = fmt.Errorf("could not get client network reference from %s: %s", nr.String(), err)
+			log.Error(err)
+			return
+		}
+		Config.DebugNetwork = r.(object.NetworkReference)
+
+		// Grab the AboutInfo about our host environment
+		about := sess.Vim25().ServiceContent.About
+		Config.VCHMhz = NCPU(ctx)
+		Config.VCHMemoryLimit = MemTotal(ctx)
+		Config.HostOS = about.OsType
+		Config.HostOSVersion = about.Version
+		Config.HostProductName = about.Name
+		log.Debugf("Host - OS (%s), version (%s), name (%s)", about.OsType, about.Version, about.Name)
+		log.Debugf("VCH limits - %d Mhz, %d MB", Config.VCHMhz, Config.VCHMemoryLimit)
+
+		// sync container cache
+		if err = Containers.sync(ctx, sess); err != nil {
+			return
+		}
+	})
+
+	return err
 }
 
 // eventCallback will process events
 func eventCallback(ie events.Event) {
 	// grab the container from the cache
-	container := containers.Container(ie.Reference())
+	container := Containers.Container(ie.Reference())
 	if container != nil {
 
 		newState := eventedState(ie.String(), container.State)
@@ -132,7 +163,7 @@ func eventCallback(ie events.Event) {
 				}()
 			case StateRemoved:
 				log.Debugf("Container(%s) %s via event activity", container.ExecConfig.ID, newState.String())
-				containers.Remove(container.ExecConfig.ID)
+				Containers.Remove(container.ExecConfig.ID)
 				publishContainerEvent(container.ExecConfig.ID, ie.Created(), ie.String())
 
 			}
@@ -171,12 +202,12 @@ func eventedState(e string, current State) State {
 
 // publishContainerEvent will publish a ContainerEvent to the vic event stream
 func publishContainerEvent(id string, created time.Time, eventType string) {
-	if VCHConfig.EventManager == nil || eventType == "" {
+	if Config.EventManager == nil || eventType == "" {
 		return
 	}
 
 	ce := &events.ContainerEvent{
-		&events.BaseEvent{
+		BaseEvent: &events.BaseEvent{
 			Ref:         id,
 			CreatedTime: created,
 			Event:       eventType,
@@ -184,8 +215,7 @@ func publishContainerEvent(id string, created time.Time, eventType string) {
 		},
 	}
 
-	VCHConfig.EventManager.Publish(ce)
-
+	Config.EventManager.Publish(ce)
 }
 
 func WaitForContainerStop(ctx context.Context, id string) error {
@@ -207,8 +237,8 @@ func WaitForContainerStop(ctx context.Context, id string) error {
 
 	sub := fmt.Sprintf("%s:%s(%d)", id, "watcher", &watch)
 	topic := events.NewEventType(events.ContainerEvent{}).Topic()
-	VCHConfig.EventManager.Subscribe(topic, sub, watch)
-	defer VCHConfig.EventManager.Unsubscribe(topic, sub)
+	Config.EventManager.Subscribe(topic, sub, watch)
+	defer Config.EventManager.Unsubscribe(topic, sub)
 
 	// wait for the event to be pushed on the channel or
 	// the context to be complete
