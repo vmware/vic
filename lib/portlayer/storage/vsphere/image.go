@@ -581,7 +581,8 @@ func (v *ImageStore) verifyImage(ctx context.Context, storeName, ID string) erro
 func inUse(ctx context.Context, ID string) error {
 	// XXX why doesnt this ever return an error?  Strange.
 	// Gather all the running containers and the images they are refering to.
-	conts := exec.Containers(true)
+	state := exec.StateRunning
+	conts := exec.Containers.Containers(&state)
 	if len(conts) == 0 {
 		return nil
 	}
@@ -590,7 +591,7 @@ func inUse(ctx context.Context, ID string) error {
 		layerID := cont.ExecConfig.LayerID
 		if layerID == ID {
 			return &portlayer.ErrImageInUse{
-				fmt.Sprintf("image %s in use by %s", layerID, cont.ExecConfig.ID),
+				Msg: fmt.Sprintf("image %s in use by %s", layerID, cont.ExecConfig.ID),
 			}
 		}
 	}
