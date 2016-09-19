@@ -16,12 +16,17 @@ package main
 
 import (
 	"archive/zip"
+	"bufio"
+	"bytes"
 	"compress/gzip"
 	"crypto/tls"
 	"html/template"
+	"io"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -36,6 +41,13 @@ type server struct {
 	l    net.Listener
 	addr string
 	mux  *http.ServeMux
+}
+
+type Entry struct {
+	TS      string
+	Service string
+	Code    string
+	Message string
 }
 
 type format int
@@ -225,6 +237,69 @@ func (s *server) zipDefaultLogs(res http.ResponseWriter, req *http.Request) {
 
 func (s *server) bundleLogs(res http.ResponseWriter, req *http.Request, readers map[string]entryReader, f format) {
 	defer trace.End(trace.Begin(""))
+
+	lf, er := os.Open("vmware.log") //correct path?
+	if er != nil {
+		log.Errorf("Error opening logfile: %s", er)
+	}
+	defer lf.Close()
+
+	bufReader := bufio.NewReader(lf)
+	bufWriter := bufio.NewWriter(lf)
+
+	for {
+		e := &Entry{}                          //create new struct
+		line, er := bufReader.ReadString('\n') //newline separator
+
+		if er != nil {
+			if er != io.EOF {
+				log.Errorf("Error reading logfile: %s", er)
+			}
+			break
+		}
+
+		tokens := strings.Fields(line)
+		//populate struct
+		e.TS = tokens[0] + " "
+		e.Service = tokens[1] + " "
+		e.Code = tokens[2] + " "
+		partial := tokens[3:] //slice rest of line and join together
+		e.Message = strings.Join(partial, " ")
+
+		for {
+			startOfNextLine, _ := bufReader.Peek(64) //peek at first 64 bytes of next line
+
+			if !bytes.Contains(startOfNextLine, []byte("I120+")) {
+
+				break //not a continuation line
+			}
+
+			line, er := bufReader.ReadString('\n') //newline separator
+
+			if er != nil {
+				if er != io.EOF {
+					log.Errorf("Error reading logfile: %s", er)
+				}
+				break
+			}
+
+			e.Message += line //append keys to guestinfo for grouping
+
+		}
+
+		//Log fully populated struct
+		log.Infof("Log entry: %#v", e)
+
+		if !string.Contains(e.Message, "guestinfo") {
+			_, er := bufWriter.WriteString(line)
+		}
+
+	}
+
+	//ready to write
+	//
+	//if !string.Contains(e.Message, "guestinfo")
+	// write (to where, what writer)
 
 	var err error
 	if f == formatTGZ {
