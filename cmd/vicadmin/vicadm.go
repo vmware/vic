@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"flag"
@@ -60,10 +61,11 @@ var (
 		"vicadmin.log",
 		"init.log",
 	}
+	tmpFile = sanitize()
 
 	// VMFiles is the set of files to collect per VM associated with the VCH
 	vmFiles = []string{
-		"vmware.log",
+		tmpFile,
 		string(vchconfig.VM + ".debug"),
 	}
 
@@ -89,6 +91,13 @@ var (
 
 	datastoreInventoryPath string
 )
+
+type Entry struct {
+	TS      string
+	Service string
+	Code    string
+	Message string
+}
 
 func init() {
 	defer trace.End(trace.Begin(""))
@@ -307,6 +316,80 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]url.URL, error) {
 	return directories, nil
 }
 
+func sanitize() string {
+
+	lf, er := os.Open("vmware.log") //correct path?
+	if er != nil {
+		log.Errorf("Error opening logfile: %s", er)
+	}
+	defer lf.Close()
+
+	bufReader := bufio.NewReader(lf)
+	//bufWriter := bufio.NewWriter(lf)
+	tmpfile, er := ioutil.TempFile("", "vmw")
+	if er != nil {
+		log.Errorf("Error creating temporary file: %s", er)
+	}
+
+	for {
+		e := &Entry{}                          //create new struct
+		line, er := bufReader.ReadString('\n') //newline separator
+
+		if er != nil {
+			if er != io.EOF {
+				log.Errorf("Error reading logfile: %s", er)
+			}
+			break
+		}
+
+		tokens := strings.Fields(line)
+		//populate struct
+		e.TS = tokens[0] + " "
+		e.Service = tokens[1] + " "
+		e.Code = tokens[2] + " "
+		partial := tokens[3:] //slice rest of line and join together
+		e.Message = strings.Join(partial, " ")
+
+		for {
+			startOfNextLine, _ := bufReader.Peek(64) //peek at first 64 bytes of next line
+
+			if !bytes.Contains(startOfNextLine, []byte("I120+")) {
+
+				break //not a continuation line
+			}
+
+			line, er := bufReader.ReadString('\n') //newline separator
+
+			if er != nil {
+				if er != io.EOF {
+					log.Errorf("Error reading logfile: %s", er)
+				}
+				break
+			}
+
+			e.Message += line //append keys to guestinfo for grouping
+
+		}
+
+		//Log fully populated struct
+		log.Infof("Log entry: %#v", e)
+
+		if !strings.Contains(e.Message, "guestinfo") {
+			content := []byte(line)
+			if _, er := tmpfile.Write(content); er != nil {
+				log.Errorf("Error writing to temporary file: %s", er)
+			}
+
+		}
+
+	}
+	if er := tmpfile.Close(); er != nil {
+		log.Errorf("Error closing temporary file: %s", er)
+	}
+
+	return tmpfile.Name()
+}
+
 // find datastore logs for the appliance itself and all containers
 func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 	defer trace.End(trace.Begin(""))
@@ -346,6 +429,10 @@ func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 	}
 
 	return readers, nil
+}
+
+func cleanUpFiles() {
+	os.Remove(tmpFile)
 }
 
 func (r datastoreReader) open() (entry, error) {
