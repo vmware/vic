@@ -1,4 +1,4 @@
-# Install the vSphere Integrated Containers Engine Plug-In on vCenter Server for Windows without Access to a Web Server #
+# Install the vSphere Integrated Containers Engine Plug-In on vCenter Server for Windows Without Access to a Web Server #
 
 You can install the vSphere Web Client plug-in for vSphere Integrated Containers Engine on a vCenter Server instance for Windows that does not have access to a Web Server.
 
