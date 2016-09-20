@@ -19,6 +19,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	"github.com/vmware/govmomi/object"
@@ -27,38 +28,38 @@ import (
 
 func TestContainerCache(t *testing.T) {
 	NewContainerCache()
-	containerID := "1234"
+	containerID := uid.New().String()
 
 	// create a new container
 	container := newTestContainer(containerID)
 
 	// put it in the cache
-	containers.Put(container)
+	Containers.Put(container)
 	// still shouldn't have a container because there's no vm
-	assert.Equal(t, len(containers.cache), 0)
+	assert.Equal(t, len(Containers.cache), 0)
 
 	// add a test vm
 	addTestVM(container)
 
 	// put in cache
-	containers.Put(container)
+	Containers.Put(container)
 	// get all containers -- should have 1
-	assert.Equal(t, len(containers.Containers(true)), 1)
+	assert.Equal(t, len(Containers.Containers(nil)), 1)
 	// Get specific container
-	cachedContainer := containers.Container(containerID)
+	cachedContainer := Containers.Container(containerID)
 	// did we find it?
 	assert.NotNil(t, cachedContainer)
 	// do we have this one in the cache?
 	assert.Equal(t, cachedContainer.ExecConfig.ID, containerID)
 	// remove the container
-	containers.Remove(containerID)
-	assert.Equal(t, len(containers.cache), 0)
+	Containers.Remove(containerID)
+	assert.Equal(t, len(Containers.cache), 0)
 	// remove non-existent container
-	containers.Remove("blahblah")
+	Containers.Remove("blahblah")
 }
 
 func TestIsContainerID(t *testing.T) {
-	validID := "aba122943"
+	validID := uid.New().String()
 	invalidID := "ABC-XZ_@"
 
 	assert.True(t, isContainerID(validID))

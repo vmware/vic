@@ -111,14 +111,16 @@ build:
       success: true
 
 notify:
-   slack:
-     channel: vic-dev
-     webhook_url: $$SLACK_URL
-     username: drone
-     when:
-       repo: vmware/vic
-       branch: master
-       success: false
+  slack:
+    webhook_url: $$SLACK_URL
+    channel: mwilliamson-staff
+    username: drone
+    template: >
+      build #{{ build.number }} finished with a {{ build.status }} status
+    when:
+      repo: vmware/vic
+      branch: master
+      failure: true
 
 publish:
   coverage:

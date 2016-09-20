@@ -27,13 +27,15 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/uid"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
-var testBridgeNetwork object.NetworkReference
+var testBridgeNetwork, testExternalNetwork object.NetworkReference
 
 type params struct {
 	scopeType, name string
@@ -67,7 +69,7 @@ var validScopeTests = []struct {
 		&params{"bridge", "bar4", &net.IPNet{IP: net.ParseIP("10.11.0.0"), Mask: net.CIDRMask(16, 32)}, net.ParseIP("10.11.0.1"), []net.IP{net.ParseIP("10.10.1.1")}, nil},
 		nil},
 	// not from default pool, dns and ipam specified
-	{params{"bridge", "bar5", &net.IPNet{IP: net.ParseIP("10.12.0.0"), Mask: net.CIDRMask(16, 32)}, net.IPv4(0, 0, 0, 0), []net.IP{net.ParseIP("10.10.1.1")}, []string{"10.12.1.0/24", "10.12.2.0-10.12.2.15"}},
+	{params{"bridge", "bar5", &net.IPNet{IP: net.ParseIP("10.12.0.0"), Mask: net.CIDRMask(16, 32)}, net.IPv4(0, 0, 0, 0), []net.IP{net.ParseIP("10.10.1.1")}, []string{"10.12.1.0/24", "10.12.2.0/28"}},
 		&params{"bridge", "bar5", &net.IPNet{IP: net.ParseIP("10.12.0.0"), Mask: net.CIDRMask(16, 32)}, net.ParseIP("10.12.1.0"), []net.IP{net.ParseIP("10.10.1.1")}, nil},
 		nil},
 	// not from default pool, dns, gateway, and ipam specified
@@ -94,21 +96,16 @@ func (l *mockLink) Attrs() *LinkAttrs {
 	return &LinkAttrs{Name: "foo"}
 }
 
-func TestMain(m *testing.M) {
-	n := object.NewNetwork(nil, types.ManagedObjectReference{})
-	n.InventoryPath = "testBridge"
-	testBridgeNetwork = n
-
-	n = object.NewNetwork(nil, types.ManagedObjectReference{})
-	n.InventoryPath = "testExternal"
-	testExternalNetwork := n
-
-	Config = Configuration{
+func testConfig() *Configuration {
+	return &Configuration{
+		source:        extraconfig.MapSource(map[string]string{}),
+		sink:          extraconfig.MapSink(map[string]string{}),
 		BridgeLink:    &mockLink{},
 		BridgeNetwork: "bridge",
 		ContainerNetworks: map[string]*ContainerNetwork{
 			"bridge": {
 				PortGroup: testBridgeNetwork,
+				Type:      constants.BridgeScopeType,
 			},
 			"bar7": {
 				Common: executor.Common{
@@ -118,6 +115,7 @@ func TestMain(m *testing.M) {
 				Nameservers: []net.IP{net.ParseIP("10.10.1.1")},
 				Pools:       []ip.Range{*ip.ParseRange("10.13.1.0-255"), *ip.ParseRange("10.13.2.0-10.13.2.15")},
 				PortGroup:   testExternalNetwork,
+				Type:        constants.ExternalScopeType,
 			},
 			"bar71": {
 				Common: executor.Common{
@@ -127,12 +125,14 @@ func TestMain(m *testing.M) {
 				Nameservers: []net.IP{net.ParseIP("10.131.0.1"), net.ParseIP("10.131.0.2")},
 				Pools:       []ip.Range{*ip.ParseRange("10.131.1.0/16")},
 				PortGroup:   testExternalNetwork,
+				Type:        constants.ExternalScopeType,
 			},
 			"bar72": {
 				Common: executor.Common{
 					Name: "external",
 				},
 				PortGroup: testExternalNetwork,
+				Type:      constants.ExternalScopeType,
 			},
 			"bar73": {
 				Common: executor.Common{
@@ -140,9 +140,20 @@ func TestMain(m *testing.M) {
 				},
 				Gateway:   net.IPNet{IP: net.ParseIP("10.133.0.1"), Mask: net.CIDRMask(16, 32)},
 				PortGroup: testExternalNetwork,
+				Type:      constants.ExternalScopeType,
 			},
 		},
 	}
+}
+
+func TestMain(m *testing.M) {
+	n := object.NewNetwork(nil, types.ManagedObjectReference{})
+	n.InventoryPath = "testBridge"
+	testBridgeNetwork = n
+
+	n = object.NewNetwork(nil, types.ManagedObjectReference{})
+	n.InventoryPath = "testExternal"
+	testExternalNetwork = n
 
 	rc := m.Run()
 
@@ -150,13 +161,14 @@ func TestMain(m *testing.M) {
 }
 
 func TestMapExternalNetworks(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
+	conf := testConfig()
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), conf)
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
 
 	// check if external networks were loaded
-	for n, nn := range Config.ContainerNetworks {
+	for n, nn := range conf.ContainerNetworks {
 		scopes, err := ctx.Scopes(&n)
 		if err != nil || len(scopes) != 1 {
 			t.Fatalf("external network %s was not loaded", n)
@@ -176,7 +188,7 @@ func TestMapExternalNetworks(t *testing.T) {
 
 			if len(nn.Pools) == 0 {
 				// only one pool corresponding to the subnet
-				if len(pools) != 1 || pools[0] != subnet.String() {
+				if len(pools) != 1 || !pools[0].Equal(ip.ParseRange(subnet.String())) {
 					t.Fatalf("external network %s was loaded with wrong pool, got: %+v, want %+v", n, pools, []*net.IPNet{subnet})
 				}
 			}
@@ -199,7 +211,7 @@ func TestMapExternalNetworks(t *testing.T) {
 		for _, p := range nn.Pools {
 			found := false
 			for _, p2 := range pools {
-				if p2 == p.String() {
+				if p2.Equal(&p) {
 					found = true
 					break
 				}
@@ -213,7 +225,7 @@ func TestMapExternalNetworks(t *testing.T) {
 }
 
 func TestContextNewScope(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
@@ -336,7 +348,7 @@ func TestContextNewScope(t *testing.T) {
 			continue
 		}
 
-		if s.Type() == BridgeScopeType && s.Network() != testBridgeNetwork {
+		if s.Type() == constants.BridgeScopeType && s.Network() != testBridgeNetwork {
 			t.Fatalf("s.NetworkName => %v, want %s", s.Network(), testBridgeNetwork)
 			continue
 		}
@@ -370,7 +382,7 @@ func TestContextNewScope(t *testing.T) {
 }
 
 func TestScopes(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 		return
@@ -465,7 +477,7 @@ func TestScopes(t *testing.T) {
 }
 
 func TestContextAddContainer(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 		return
@@ -500,7 +512,7 @@ func TestContextAddContainer(t *testing.T) {
 		return nil, fmt.Errorf("error")
 	}
 
-	otherScope, err := ctx.NewScope(BridgeScopeType, "other", nil, net.IPv4(0, 0, 0, 0), nil, nil)
+	otherScope, err := ctx.NewScope(constants.BridgeScopeType, "other", nil, net.IPv4(0, 0, 0, 0), nil, nil)
 	if err != nil {
 		t.Fatalf("failed to add scope")
 	}
@@ -625,14 +637,14 @@ func TestContextAddContainer(t *testing.T) {
 }
 
 func TestContextBindUnbindContainer(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
 
-	scope, err := ctx.NewScope(BridgeScopeType, "scope", nil, nil, nil, nil)
+	scope, err := ctx.NewScope(constants.BridgeScopeType, "scope", nil, nil, nil, nil)
 	if err != nil {
-		t.Fatalf("ctx.NewScope(%s, %s, nil, nil, nil) => (nil, %s)", BridgeScopeType, "scope", err)
+		t.Fatalf("ctx.NewScope(%s, %s, nil, nil, nil) => (nil, %s)", constants.BridgeScopeType, "scope", err)
 	}
 
 	foo := exec.NewContainer(uid.New())
@@ -864,12 +876,12 @@ func TestContextRemoveContainer(t *testing.T) {
 
 	hFoo := exec.NewContainer(uid.New())
 
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
 
-	scope, err := ctx.NewScope(BridgeScopeType, "scope", nil, nil, nil, nil)
+	scope, err := ctx.NewScope(constants.BridgeScopeType, "scope", nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("ctx.NewScope() => (nil, %s), want (scope, nil)", err)
 	}
@@ -968,14 +980,14 @@ func TestContextRemoveContainer(t *testing.T) {
 }
 
 func TestDeleteScope(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
 
-	foo, err := ctx.NewScope(BridgeScopeType, "foo", nil, nil, nil, nil)
+	foo, err := ctx.NewScope(constants.BridgeScopeType, "foo", nil, nil, nil, nil)
 	if err != nil {
-		t.Fatalf("ctx.NewScope(%s, \"foo\", nil, nil, nil, nil) => (nil, %#v), want (foo, nil)", BridgeScopeType, err)
+		t.Fatalf("ctx.NewScope(%s, \"foo\", nil, nil, nil, nil) => (nil, %#v), want (foo, nil)", constants.BridgeScopeType, err)
 	}
 	h := exec.NewContainer("container")
 	options := &AddContainerOptions{
@@ -984,9 +996,9 @@ func TestDeleteScope(t *testing.T) {
 	ctx.AddContainer(h, options)
 
 	// bar is a scope with bound endpoints
-	bar, err := ctx.NewScope(BridgeScopeType, "bar", nil, nil, nil, nil)
+	bar, err := ctx.NewScope(constants.BridgeScopeType, "bar", nil, nil, nil, nil)
 	if err != nil {
-		t.Fatalf("ctx.NewScope(%s, \"bar\", nil, nil, nil, nil) => (nil, %#v), want (bar, nil)", BridgeScopeType, err)
+		t.Fatalf("ctx.NewScope(%s, \"bar\", nil, nil, nil, nil) => (nil, %#v), want (bar, nil)", constants.BridgeScopeType, err)
 	}
 
 	h = exec.NewContainer("container2")
@@ -994,14 +1006,14 @@ func TestDeleteScope(t *testing.T) {
 	ctx.AddContainer(h, options)
 	ctx.BindContainer(h)
 
-	baz, err := ctx.NewScope(BridgeScopeType, "bazScope", nil, nil, nil, nil)
+	baz, err := ctx.NewScope(constants.BridgeScopeType, "bazScope", nil, nil, nil, nil)
 	if err != nil {
-		t.Fatalf("ctx.NewScope(%s, \"bazScope\", nil, nil, nil, nil) => (nil, %#v), want (baz, nil)", BridgeScopeType, err)
+		t.Fatalf("ctx.NewScope(%s, \"bazScope\", nil, nil, nil, nil) => (nil, %#v), want (baz, nil)", constants.BridgeScopeType, err)
 	}
 
-	qux, err := ctx.NewScope(BridgeScopeType, "quxScope", nil, nil, nil, nil)
+	qux, err := ctx.NewScope(constants.BridgeScopeType, "quxScope", nil, nil, nil, nil)
 	if err != nil {
-		t.Fatalf("ctx.NewScope(%s, \"quxScope\", nil, nil, nil, nil) => (nil, %#v), want (qux, nil)", BridgeScopeType, err)
+		t.Fatalf("ctx.NewScope(%s, \"quxScope\", nil, nil, nil, nil) => (nil, %#v), want (qux, nil)", constants.BridgeScopeType, err)
 	}
 
 	var tests = []struct {

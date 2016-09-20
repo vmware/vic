@@ -1,8 +1,8 @@
 *** Settings ***
 Documentation  Test 4-1 - Docker Integration
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
-Suite Teardown  Cleanup VIC Appliance On Test Server
+#Suite Setup  Install VIC Appliance To Test Server
+#Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases *** 
 Docker Integration Tests

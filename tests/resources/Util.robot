@@ -59,8 +59,10 @@ Get Docker Params
     Run Keyword Unless  ${certs}  Set Suite Variable  ${params}  -H ${ret}
 
     @{ret}=  Split String  ${ret}  :
-    ${ret}=  Strip String  @{ret}[0]
-    Set Suite Variable  ${vch-ip}  ${ret}
+    ${ip}=  Strip String  @{ret}[0]
+    ${port}=  Strip String  @{ret}[1]
+    Set Suite Variable  ${vch-ip}  ${ip}
+    Set Suite Variable  ${vch-port}  ${port}
 
     ${proto}=  Set Variable If  ${certs}  "https"  "http"
     Set Suite Variable  ${proto}
@@ -330,6 +332,21 @@ Wait Until VM Powers Off
     \   Return From Keyword If  ${status}
     \   Sleep  1
     Fail  VM did not power off within 30 seconds
+
+Wait Until VM Powers On
+    [Arguments]  ${vm}
+    :FOR  ${idx}  IN RANGE  0  30
+    \   ${out}=  Run  govc vm.info ${vm}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  poweredOn
+    \   Return From Keyword If  ${status}
+    \   Sleep  1
+    Fail  VM did not power on within 30 seconds
+
+Get VM IP
+    [Arguments]  ${vm}
+    ${rc}  ${out}=  Run And Return Rc And Output  govc vm.ip ${vm}
+    Should Be Equal As Integers  ${rc}  0
+    [Return]  ${out}
 
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox

@@ -22,7 +22,6 @@ import (
 )
 
 type Endpoint struct {
-	id        uid.UID
 	container *Container
 	scope     *Scope
 	ip        net.IP
@@ -34,7 +33,6 @@ type Endpoint struct {
 
 func newEndpoint(container *Container, scope *Scope, ip *net.IP, subnet net.IPNet, gateway net.IP, pciSlot *int32) *Endpoint {
 	e := &Endpoint{
-		id:        uid.New(),
 		container: container,
 		scope:     scope,
 		gateway:   gateway,
@@ -92,7 +90,11 @@ func (e *Endpoint) Container() *Container {
 }
 
 func (e *Endpoint) ID() uid.UID {
-	return e.id
+	return e.container.ID()
+}
+
+func (e *Endpoint) Name() string {
+	return e.container.Name()
 }
 
 func (e *Endpoint) Gateway() net.IP {
