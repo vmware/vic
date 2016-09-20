@@ -201,7 +201,7 @@ func (vm *VirtualMachine) WaitForExtraConfig(ctx context.Context, waitFunc func(
 
 	// Wait on config.extraConfig
 	// https://www.vmware.com/support/developer/vc-sdk/visdk2xpubs/ReferenceGuide/vim.vm.ConfigInfo.html
-	err := property.Wait(ctx, p, vm.Reference(), []string{"config.extraConfig"}, waitFunc)
+	err := property.Wait(ctx, p, vm.Reference(), []string{object.PropRuntimePowerState, "config.extraConfig"}, waitFunc)
 	if err != nil {
 		log.Errorf("Property collector error: %s", err)
 		return err
@@ -211,25 +211,41 @@ func (vm *VirtualMachine) WaitForExtraConfig(ctx context.Context, waitFunc func(
 
 func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key string) (string, error) {
 	var detail string
+	var poweredOff error
+
 	waitFunc := func(pc []types.PropertyChange) bool {
 		for _, c := range pc {
 			if c.Op != types.PropertyChangeOpAssign {
 				continue
 			}
 
-			values := c.Val.(types.ArrayOfOptionValue).OptionValue
-			for _, value := range values {
-				// check the status of the key and return true if it's been set to non-nil
-				if key == value.GetOptionValue().Key {
-					detail = value.GetOptionValue().Value.(string)
-					return detail != "" && detail != "<nil>"
+			switch v := c.Val.(type) {
+			case types.ArrayOfOptionValue:
+				for _, value := range v.OptionValue {
+					// check the status of the key and return true if it's been set to non-nil
+					if key == value.GetOptionValue().Key {
+						detail = value.GetOptionValue().Value.(string)
+						return detail != "" && detail != "<nil>"
+					}
+				}
+			case types.VirtualMachinePowerState:
+				if v != types.VirtualMachinePowerStatePoweredOn {
+					// Give up if the vm has powered off
+					poweredOff = fmt.Errorf("%s=%s", c.Name, v)
+					return true
 				}
 			}
+
 		}
 		return false
 	}
 
-	if err := vm.WaitForExtraConfig(ctx, waitFunc); err != nil {
+	err := vm.WaitForExtraConfig(ctx, waitFunc)
+	if err == nil && poweredOff != nil {
+		err = poweredOff
+	}
+
+	if err != nil {
 		log.Errorf("Unable to wait for extra config property %s: %s", key, err.Error())
 		return "", err
 	}

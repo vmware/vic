@@ -23,6 +23,7 @@ import (
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/vim25/types"
 )
 
@@ -43,6 +44,8 @@ func TestCreateVm(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		p := property.DefaultCollector(c.Client)
 
 		spec := types.VirtualMachineConfigSpec{
 			// Note: real ESX allows the VM to be created without a GuestId,
@@ -193,6 +196,21 @@ func TestCreateVm(t *testing.T) {
 				if state != op.state {
 					t.Errorf("state=%s", state)
 				}
+
+				err = property.Wait(ctx, p, vm.Reference(), []string{object.PropRuntimePowerState}, func(pc []types.PropertyChange) bool {
+					for _, c := range pc {
+						switch v := c.Val.(type) {
+						case types.VirtualMachinePowerState:
+							if v != op.state {
+								t.Errorf("state=%s", v)
+							}
+						default:
+							t.Errorf("unexpected type %T", v)
+						}
+
+					}
+					return false
+				})
 			}
 		}
 	}

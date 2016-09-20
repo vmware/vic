@@ -37,3 +37,16 @@ Start non-existent container
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: No such container: fakeContainer
     Should Contain  ${output}  Error: failed to start containers: fakeContainer
+Start with no ethernet card
+    # Testing that port layer doesn't hang forever if tether fails to initialize (see issue #2327)
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${name}=  Generate Random String  15
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create --name ${name} busybox date
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  govc device.remove -vm ${name}-* ethernet-0
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${name}
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  unable to wait for process launch status
+    Should Not Contain  ${output}  context deadline exceeded
