@@ -131,10 +131,13 @@ func highestIP4(ipRange *net.IPNet) net.IP {
 
 // NewAddressSpaceFromNetwork creates a new AddressSpace from a network specification.
 func NewAddressSpaceFromNetwork(ipRange *net.IPNet) *AddressSpace {
-	return &AddressSpace{
+	s := &AddressSpace{
 		Network: ipRange,
-		availableRanges: []*ip.Range{
-			{FirstIP: lowestIP4(ipRange), LastIP: highestIP4(ipRange)}}}
+		Pool:    &ip.Range{FirstIP: lowestIP4(ipRange), LastIP: highestIP4(ipRange)},
+	}
+	s.availableRanges = []*ip.Range{s.Pool}
+
+	return s
 }
 
 // NewAddressSpaceFromRange creates a new AddressSpace from a range of IP addresses.

@@ -17,4 +17,8 @@ package constants
 const (
 	SerialOverLANPort  = 2377
 	ManagementHostName = "management.localhost"
+	// BridgeScopeType denotes a scope that is of type bridge
+	BridgeScopeType = "bridge"
+	// ExternalScopeType denotes a scope that is of type external
+	ExternalScopeType = "external"
 )

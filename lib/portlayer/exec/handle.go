@@ -80,7 +80,10 @@ func newHandle(con *Container) *Handle {
 		committed:  false,
 		Container:  con,
 		ExecConfig: *con.ExecConfig,
+		State:      new(State),
 	}
+
+	*h.State = con.State
 
 	handlesLock.Lock()
 	defer handlesLock.Unlock()
@@ -179,7 +182,7 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 	// add create time to config
 	h.ExecConfig.Common.Created = time.Now().UTC().Unix()
 	// configure with debug
-	h.ExecConfig.Diagnostics.DebugLevel = VCHConfig.DebugLevel
+	h.ExecConfig.Diagnostics.DebugLevel = Config.DebugLevel
 	// Convert the management hostname to IP
 	ips, err := net.LookupIP(constants.ManagementHostName)
 	if err != nil {
@@ -200,7 +203,7 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 	URI := fmt.Sprintf("tcp://%s:%d", ips[0], constants.SerialOverLANPort)
 
 	//FIXME: remove debug network
-	backing, err := VCHConfig.DebugNetwork.EthernetCardBackingInfo(ctx)
+	backing, err := Config.DebugNetwork.EthernetCardBackingInfo(ctx)
 	if err != nil {
 		detail := fmt.Sprintf("unable to generate backing info for debug network - this code can be removed once network mapping/dhcp client are available: %s", err)
 		log.Error(detail)
@@ -224,12 +227,12 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 		BiosUUID: uuid,
 
 		ParentImageID: config.ParentImageID,
-		BootMediaPath: VCHConfig.BootstrapImagePath,
+		BootMediaPath: Config.BootstrapImagePath,
 		VMPathName:    fmt.Sprintf("[%s]", sess.Datastore.Name()),
 		DebugNetwork:  backing,
 
 		ImageStoreName: config.ImageStoreName,
-		ImageStorePath: &VCHConfig.ImageStores[0],
+		ImageStorePath: &Config.ImageStores[0],
 
 		Metadata: config.Metadata,
 	}

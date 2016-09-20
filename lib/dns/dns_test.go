@@ -22,6 +22,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/network"
 
@@ -96,7 +97,7 @@ func TestVIC(t *testing.T) {
 	n.InventoryPath = "testBridge"
 	bridgeNetwork = n
 
-	network.Config = network.Configuration{
+	config := &network.Configuration{
 		BridgeNetwork: "lo",
 		ContainerNetworks: map[string]*network.ContainerNetwork{
 			"lo": {
@@ -104,12 +105,13 @@ func TestVIC(t *testing.T) {
 					Name: "testBridge",
 				},
 				PortGroup: bridgeNetwork,
+				Type:      constants.BridgeScopeType,
 			},
 		},
 	}
 
 	// initialize the context
-	err := network.Init()
+	ctx, err := network.NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), config)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -123,13 +125,13 @@ func TestVIC(t *testing.T) {
 		IP:    &ip,
 	}
 	// add it
-	err = network.DefaultContext.AddContainer(con, ctxOptions)
+	err = ctx.AddContainer(con, ctxOptions)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
 
 	// bind it
-	_, err = network.DefaultContext.BindContainer(con)
+	_, err = ctx.BindContainer(con)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}

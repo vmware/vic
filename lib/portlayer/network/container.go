@@ -23,9 +23,8 @@ import (
 type Container struct {
 	sync.Mutex
 
-	id   uid.UID
-	name string
-
+	id        uid.UID
+	name      string
 	endpoints []*Endpoint
 }
 

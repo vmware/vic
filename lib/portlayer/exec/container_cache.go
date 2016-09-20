@@ -15,8 +15,11 @@
 package exec
 
 import (
-	"regexp"
 	"sync"
+
+	"github.com/vmware/vic/pkg/uid"
+	"github.com/vmware/vic/pkg/vsphere/session"
+	"golang.org/x/net/context"
 )
 
 /*
@@ -32,45 +35,41 @@ type containerCache struct {
 	cache map[string]*Container
 }
 
-var containers *containerCache
+var Containers *containerCache
 
 func NewContainerCache() {
 	// cache by the container ID and the vsphere
 	// managed object reference
-	containers = &containerCache{
+	Containers = &containerCache{
 		cache: make(map[string]*Container),
 	}
-
 }
 
 func (conCache *containerCache) Container(idOrRef string) *Container {
 	conCache.m.RLock()
 	defer conCache.m.RUnlock()
 	// find by id or moref
-	container := conCache.cache[idOrRef]
-	return container
+	return conCache.cache[idOrRef]
 }
 
-func (conCache *containerCache) Containers(allStates bool) []*Container {
+func (conCache *containerCache) Containers(state *State) []*Container {
 	conCache.m.RLock()
 	defer conCache.m.RUnlock()
 	// cache contains 2 items for each container
 	capacity := len(conCache.cache) / 2
 	containers := make([]*Container, 0, capacity)
 
-	for id := range conCache.cache {
+	for id, con := range conCache.cache {
 		// is the key a proper ID?
-		if isContainerID(id) {
-			container := conCache.cache[id]
-			if allStates {
-				containers = append(containers, container)
-			} else if container.State == StateRunning {
-				// only include running...
-				containers = append(containers, container)
+		if !isContainerID(id) {
+			continue
+		}
 
-			}
+		if state == nil || *state == con.State {
+			containers = append(containers, con)
 		}
 	}
+
 	return containers
 }
 
@@ -84,6 +83,10 @@ func (conCache *containerCache) Put(container *Container) {
 	conCache.m.Lock()
 	defer conCache.m.Unlock()
 
+	conCache.put(container)
+}
+
+func (conCache *containerCache) put(container *Container) {
 	// add pointer to cache by container ID
 	conCache.cache[container.ExecConfig.ID] = container
 	conCache.cache[container.vm.Reference().String()] = container
@@ -99,11 +102,25 @@ func (conCache *containerCache) Remove(idOrRef string) {
 		delete(conCache.cache, container.ExecConfig.ID)
 		delete(conCache.cache, container.vm.Reference().String())
 	}
+}
 
+func (conCache *containerCache) sync(ctx context.Context, sess *session.Session) error {
+	cons, err := infraContainers(ctx, sess)
+	if err != nil {
+		return err
+	}
+
+	conCache.m.Lock()
+	defer conCache.m.Unlock()
+
+	conCache.cache = make(map[string]*Container)
+	for _, c := range cons {
+		conCache.put(c)
+	}
+
+	return nil
 }
 
 func isContainerID(id string) bool {
-	// ID should only be lower case chars & numbers
-	match, _ := regexp.Match("^[a-z0-9]*$", []byte(id))
-	return match
+	return uid.Parse(id) != uid.NilUID
 }

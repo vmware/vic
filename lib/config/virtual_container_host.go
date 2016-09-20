@@ -101,7 +101,7 @@ type VirtualContainerHostConfigSpec struct {
 	BridgeNetwork       string `vic:"0.1" scope:"read-only" key:"bridge_network"`
 	CreateBridgeNetwork bool   `vic:"0.1" scope:"read-only" key:"create_bridge_network"`
 	// Published networks available for containers to join, keyed by consumption name
-	ContainerNetworks map[string]*executor.ContainerNetwork `vic:"0.1" scope:"read-only" key:"container_networks"`
+	ContainerNetworks map[string]*executor.ContainerNetwork `vic:"0.1" scope:"read-write" key:"container_networks"`
 	// The IP range for the bridge networks
 	BridgeIPRange *net.IPNet `vic:"0.1" scope:"read-only" key:"bridge-ip-range"`
 

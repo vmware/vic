@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/scopes"
+	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/network"
 
@@ -53,11 +54,6 @@ func (handler *ScopesHandlersImpl) Configure(api *operations.PortLayerAPI, handl
 	api.ScopesRemoveContainerHandler = scopes.RemoveContainerHandlerFunc(handler.ScopesRemoveContainer)
 	api.ScopesBindContainerHandler = scopes.BindContainerHandlerFunc(handler.ScopesBindContainer)
 	api.ScopesUnbindContainerHandler = scopes.UnbindContainerHandlerFunc(handler.ScopesUnbindContainer)
-
-	err := network.Init()
-	if err != nil {
-		log.Fatalf("failed to create network context: %s", err)
-	}
 
 	handler.netCtx = network.DefaultContext
 	handler.handlerCtx = handlerCtx
@@ -107,7 +103,7 @@ func (handler *ScopesHandlersImpl) listScopes(idName string) ([]*models.ScopeCon
 			// may be using DHCP, in which case we need to
 			// get the current IP address, and other network
 			// info from the container VM.
-			if s.Type() != network.BridgeScopeType {
+			if s.Type() != constants.BridgeScopeType {
 				var h *exec.Handle
 				c := e.Container().ID()
 				if h = updated[c]; h == nil {
@@ -366,15 +362,16 @@ func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
 		ID:        &id,
 		Name:      scope.Name(),
 		ScopeType: scope.Type(),
-		IPAM:      scope.IPAM().Pools(),
 		Subnet:    &subnet,
 		Gateway:   &gateway,
 	}
 
-	if len(sc.IPAM) == 0 && len(subnet) != 0 {
-		// use subnet as pool
-		sc.IPAM = []string{subnet}
+	var pools []string
+	for _, p := range scope.IPAM().Pools() {
+		pools = append(pools, p.String())
 	}
+
+	sc.IPAM = pools
 
 	eps := scope.Endpoints()
 	sc.Endpoints = make([]*models.EndpointConfig, len(eps))
@@ -399,9 +396,9 @@ func toEndpointConfig(e *network.Endpoint) *models.EndpointConfig {
 
 	return &models.EndpointConfig{
 		Address:   addr,
-		Container: e.Container().ID().String(),
+		Container: e.ID().String(),
 		ID:        e.ID().String(),
-		Name:      e.Container().Name(),
+		Name:      e.Name(),
 		Scope:     e.Scope().Name(),
 		Ports:     ecports,
 	}
