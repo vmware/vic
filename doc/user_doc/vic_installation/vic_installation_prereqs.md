@@ -18,9 +18,9 @@ Other recent 64-bit OS versions should work but are untested.
 
 You can install vSphere Integrated Containers Engine in the following vSphere setups:
 
-* Standalone ESXi 5.5 or 6.0 host that is not managed by a vCenter Server instance.
-* vCenter Server 5.5 or 6.0, managing one or more standalone ESXi 5.5 or 6.0 hosts.
-* vCenter Server 5.5 or 6.0, managing a cluster of ESXi 5.5 or 6.0 hosts, with DRS enabled.
+* Standalone ESXi 6.0 host that is not managed by a vCenter Server instance.
+* vCenter Server 6.0, managing one or more standalone ESXi 6.0 hosts.
+* vCenter Server 6.0, managing a cluster of ESXi 6.0 hosts, with DRS enabled.
 
 Deploying vSphere Integrated Containers Engine to a vCenter Server instance that is running in Enhanced Linked Mode is fully supported.  
 
