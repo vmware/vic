@@ -18,6 +18,7 @@ import (
 	"context"
 	"net"
 	"net/url"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -25,10 +26,12 @@ import (
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/misc"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
@@ -90,13 +93,34 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 		return err
 	}
 
+	var wg sync.WaitGroup
+
+	initNum := 2
+	wg.Add(initNum)
+	results := make(chan error, initNum)
+
 	log.Info("Refreshing image cache")
 	go func() {
+		defer wg.Done()
 		if err := cache.ImageCache().Update(portLayerClient); err != nil {
-			log.Warn("Failed to refresh image cache: %s", err)
+			err = errors.Errorf("Failed to refresh image cache: %s", err)
+			log.Warn(err)
+			results <- err
 			return
 		}
 		log.Info("Image cache updated successfully")
+		results <- nil
+	}()
+
+	go func() {
+		defer wg.Done()
+		if err := syncContainerCache(portLayerClient); err != nil {
+			err = errors.Errorf("Failed to refresh container cache: %s", err)
+			log.Warn(err)
+			results <- err
+		}
+		log.Info("Container cache updated successfully")
+		results <- nil
 	}()
 
 	serviceOptions := registry.ServiceOptions{}
@@ -109,6 +133,18 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 	log.Debugf("New registry service with options %#v", serviceOptions)
 	RegistryService = registry.NewService(serviceOptions)
 
+	wg.Wait()
+	close(results)
+
+	var errs []string
+	for err := range results {
+		if err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+	if len(errs) > 0 {
+		return errors.Errorf("Cache initialization failed: %s", errs)
+	}
 	return nil
 }
 
@@ -183,4 +219,21 @@ func InsecureRegistries() []string {
 	}
 
 	return registries
+}
+
+// syncContainerCache runs once at startup to populate the container cache
+func syncContainerCache(client *client.PortLayer) error {
+	log.Debugf("Sync up container cache from portlyaer")
+
+	all := true
+	containme, err := client.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(ctx).WithAll(&all))
+	if err != nil {
+		return errors.Errorf("Failed to retrieve container list from portlayer: %s", err)
+	}
+	cc := cache.ContainerCache()
+	for _, info := range containme.Payload {
+		container := ContainerInfoToVicContainer(info)
+		cc.AddContainer(container)
+	}
+	return nil
 }
