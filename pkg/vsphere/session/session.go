@@ -202,7 +202,7 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 		return nil, errors.Errorf("Failed to log in to %s: %s", soapURL.String(), err)
 	}
 
-	s.Finder = find.NewFinder(s.Vim25(), true)
+	s.Finder = find.NewFinder(s.Vim25(), false)
 	// log high-level environement information
 	s.logEnvironmentInfo()
 	return s, nil

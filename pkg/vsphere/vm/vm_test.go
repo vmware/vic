@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/simulator"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -271,6 +272,61 @@ func TestVMAttributes(t *testing.T) {
 			t.Fatalf("ERROR: %s", err)
 		}
 	}()
+}
+
+func TestWaitForKeyInExtraConfig(t *testing.T) {
+	ctx := context.Background()
+
+	m := simulator.ESX()
+	defer m.Remove()
+	err := m.Create()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server := m.Service.NewServer()
+	defer server.Close()
+
+	config := &session.Config{
+		Service: server.URL.String(),
+	}
+
+	s, err := session.NewSession(config).Connect(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if s, err = s.Populate(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	vms, err := s.Finder.VirtualMachineList(ctx, "*")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vm := NewVirtualMachineFromVM(ctx, s, vms[0])
+
+	opt := &types.OptionValue{Key: "foo", Value: "bar"}
+	obj := simulator.Map.Get(vm.Reference()).(*simulator.VirtualMachine)
+	obj.Config.ExtraConfig = append(obj.Config.ExtraConfig, opt)
+
+	val, err := vm.WaitForKeyInExtraConfig(ctx, opt.Key)
+
+	if err == nil {
+		t.Error("expected error")
+	}
+
+	obj.Summary.Runtime.PowerState = types.VirtualMachinePowerStatePoweredOn
+
+	val, err = vm.WaitForKeyInExtraConfig(ctx, opt.Key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if val != opt.Value {
+		t.Errorf("%s != %s", val, opt.Value)
+	}
 }
 
 func createSnapshotTree(prefix string, deep int, wide int) []types.VirtualMachineSnapshotTree {
