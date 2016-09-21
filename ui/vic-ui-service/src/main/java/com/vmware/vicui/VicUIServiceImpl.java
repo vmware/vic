@@ -44,8 +44,8 @@ import com.vmware.vise.vim.data.VimObjectReferenceService;
 public class VicUIServiceImpl implements VicUIService, ClientSessionEndListener {
 	private static final Log _logger = LogFactory.getLog(VicUIServiceImpl.class);
 	private static final String[] VIC_VM_TYPES = {"isVCH", "isContainer"};
-	private static final String EXTRACONFIG_VCH_PATH = "guestinfo./init/common/name";
-	private static final String EXTRACONFIG_CONTAINER_PATH = "guestinfo./common/name";
+	private static final String EXTRACONFIG_VCH_PATH = "guestinfo.vice./init/common/name";
+	private static final String EXTRACONFIG_CONTAINER_PATH = "guestinfo.vice./common/name";
 	private static final String SERVICE_INSTANCE = "ServiceInstance";
 	private final VimObjectReferenceService _vimObjRefService;
 	private final UserSessionService _userSessionService;
