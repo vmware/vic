@@ -34,7 +34,7 @@ timestamp=$(date +%s)
 outfile="integration_logs_"$DRONE_BUILD_NUMBER"_"$DRONE_COMMIT"_$timestamp.zip"
 export LOGLINK="https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/$outfile?authuser=1"
 
-zip -9 $outfile log.html package.list *container-logs.zip *.log
+zip -9 $outfile output.xml log.html package.list *container-logs.zip *.log
 
 # GC credentials
 keyfile="/root/vic-ci-logs.key"
