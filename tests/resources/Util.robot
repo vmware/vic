@@ -327,7 +327,10 @@ Wait Until Container Stops
 Wait Until VM Powers Off
     [Arguments]  ${vm}
     :FOR  ${idx}  IN RANGE  0  30
-    \   ${out}=  Run  govc vm.info ${vm}
+    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc vm.info ${vch-name}/${vm}
+    \   Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${out}  ${ret}
+    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc vm.info ${vm}
+    \   Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${out}  ${ret}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  poweredOff
     \   Return From Keyword If  ${status}
     \   Sleep  1
