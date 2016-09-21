@@ -200,7 +200,7 @@ func pciToLinkName(pciPath string) (string, error) {
 	}
 
 	if len(matches) != 1 {
-		return "", fmt.Errorf("more than one eth interface matches %s", p)
+		return "", fmt.Errorf("%d eth interfaces match %s (%v)", len(matches), p, matches)
 	}
 
 	return path.Base(matches[0]), nil

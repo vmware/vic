@@ -30,7 +30,10 @@ import (
 
 const (
 	// The duration waitForPath will tolerate before timing out.
-	pathTimeout = 5 * time.Second
+	// TODO FIXME see GH issues 2340 and 2385
+	// TODO We need to add a vSphere cancellation step to cancel calls that are taking too long
+	// TODO Remove these TODOs after 2385 is completed
+	pathTimeout = 60 * time.Second
 )
 
 func waitForPath(ctx context.Context, path string) error {
@@ -41,7 +44,9 @@ func waitForPath(ctx context.Context, path string) error {
 	done := make(chan struct{})
 
 	go func() {
-		for {
+		t := time.NewTicker(200 * time.Microsecond)
+		defer t.Stop()
+		for _ = range t.C {
 			if _, err := os.Stat(path); err == nil {
 				close(done)
 				break
@@ -51,7 +56,6 @@ func waitForPath(ctx context.Context, path string) error {
 			if ctx.Err() != nil {
 				break
 			}
-			time.Sleep(200 * time.Microsecond)
 		}
 	}()
 
