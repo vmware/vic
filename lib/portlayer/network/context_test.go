@@ -1040,7 +1040,7 @@ func TestDeleteScope(t *testing.T) {
 }
 
 func TestAliases(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32))
+	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
 	assert.NoError(t, err)
 	assert.NotNil(t, ctx)
 
@@ -1093,23 +1093,24 @@ func TestAliases(t *testing.T) {
 		aliases := c.ExecConfig.Networks[scope.Name()].Network.Aliases
 		for _, a := range aliases {
 			l := strings.Split(a, ":")
-			con, alias := l[0], l[1]
+			con, al := l[0], l[1]
 			found := false
-			var scopedName string
-			for _, ea := range eps[0].getAliases(con) {
-				if ea.name == alias {
+			var ea alias
+			for _, a := range eps[0].getAliases(con) {
+				if al == a.Name {
 					found = true
-					scopedName = ea.scopedName()
+					ea = a
 					break
 				}
 			}
-			assert.True(t, found, "alias %s not found for container %s", alias, con)
+			assert.True(t, found, "alias %s not found for container %s", al, con)
 
 			// if the aliased container is bound we should be able to look it up with
 			// the scoped alias name
-			c := ctx.Container(con)
-			if c != nil {
-				assert.NotNil(t, ctx.Container(scopedName))
+			if c := ctx.Container(ea.Container); c != nil {
+				assert.NotNil(t, ctx.Container(ea.scopedName()))
+			} else {
+				assert.Nil(t, ctx.Container(ea.scopedName()), "scoped name=%s", ea.scopedName())
 			}
 		}
 

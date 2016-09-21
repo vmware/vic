@@ -22,8 +22,10 @@ import (
 )
 
 type alias struct {
-	name string
-	ep   *Endpoint
+	Name      string
+	Container string
+
+	ep *Endpoint
 }
 
 var badAlias = alias{}
@@ -42,7 +44,14 @@ type Endpoint struct {
 // scopeName returns the "fully qualified" name of an alias. Aliases are scoped
 // by the container and network scope they are in.
 func (a alias) scopedName() string {
-	return fmt.Sprintf("%s:%s:%s", a.ep.Scope().Name(), a.ep.Container().Name(), a.name)
+	// an alias for the container itself is network scoped
+	for _, al := range a.ep.getAliases("") {
+		if a.Name == al.Name {
+			return fmt.Sprintf("%s:%s", a.ep.Scope().Name(), a.Name)
+		}
+	}
+
+	return fmt.Sprintf("%s:%s:%s", a.ep.Scope().Name(), a.ep.Container().Name(), a.Name)
 }
 
 func newEndpoint(container *Container, scope *Scope, ip *net.IP, subnet net.IPNet, gateway net.IP, pciSlot *int32) *Endpoint {
@@ -138,13 +147,17 @@ func (e *Endpoint) addAlias(con, a string) (alias, bool) {
 
 	aliases := e.aliases[con]
 	for _, as := range aliases {
-		if as.name == a {
+		if as.Name == a {
 			// already present
 			return as, true
 		}
 	}
 
-	na := alias{name: a, ep: e}
+	na := alias{
+		Name:      a,
+		Container: con,
+		ep:        e,
+	}
 	e.aliases[con] = append(aliases, na)
 	return na, false
 }
