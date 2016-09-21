@@ -55,6 +55,7 @@ const (
 	StateSuspending
 	StateSuspended
 	StateCreated
+	StateCreating
 	StateRemoving
 	StateRemoved
 
@@ -77,7 +78,7 @@ type Container struct {
 func NewContainer(id uid.UID) *Handle {
 	con := &Container{
 		ExecConfig: &executor.ExecutorConfig{},
-		State:      StateStopped,
+		State:      StateCreating,
 	}
 	con.ExecConfig.ID = id.String()
 	return con.NewHandle()
@@ -173,9 +174,6 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 		c.vm = vm.NewVirtualMachine(ctx, sess, res.Result.(types.ManagedObjectReference))
 		c.State = StateCreated
-
-		// align the handle state w/the container
-		h.State = &c.State
 
 		commitEvent = events.ContainerCreated
 

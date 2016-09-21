@@ -45,6 +45,7 @@ import (
 	dnetwork "github.com/docker/engine-api/types/network"
 	timetypes "github.com/docker/engine-api/types/time"
 	"github.com/docker/go-connections/nat"
+	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/portallocator"
 
 	"github.com/vishvananda/netlink"
@@ -94,7 +95,6 @@ func init() {
 	clientIfaceName = l.Attrs().Name
 }
 
-//TODO: gotta be a better way...
 // type and funcs to provide sorting by created date
 type containerByCreated []*types.Container
 
@@ -811,13 +811,12 @@ func (c *Container) ContainerWait(name string, timeout time.Duration) (int, erro
 	}
 
 	containerInfo := results.Payload
-
 	// call to the dockerStatus function to retrieve the docker friendly exitCode
-	// TODO: once started / finished time are available replace time.Now()
+	// we are only calling for the exitCode, thus the zero time
 	exitCode, _ := dockerStatus(int(*containerInfo.ProcessConfig.ExitCode),
 		*containerInfo.ProcessConfig.Status,
 		*containerInfo.ContainerConfig.State,
-		time.Now(), time.Now())
+		time.Time{}, time.Time{})
 
 	return exitCode, nil
 }
@@ -827,41 +826,43 @@ func (c *Container) ContainerWait(name string, timeout time.Duration) (int, erro
 //
 // exitCode is the container process exit code
 // status is the container process status -- stored in the vmx file as "started"
-// started / finished are timestamps, but are not yet implemented
+// started & finished are the process start / finish times
 func dockerStatus(exitCode int, status string, state string, started time.Time, finished time.Time) (int, string) {
-	// TODO: once started / finished are available then github.com/docker/go-units must be imported for use in
-	// the status string
-	switch state {
-	case "Created":
-		status = state
-	case "Running":
-		//TODO: once we have started use commented out status
-		// status = fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(started)))
-		status = state
-	case "Stopped":
-		// interrogate the process status returned from the portlayer
-		// and based on status text and exit codes set the appropriate
-		// docker exit code
-		if strings.Contains(status, "permission denied") {
-			exitCode = 126
-		} else if strings.Contains(status, "no such") {
-			exitCode = 127
-		} else if status == "true" && exitCode == -1 {
-			// most likely the process was killed via the cli
-			// or recieved a sigkill
-			exitCode = 137
-		} else if status == "" && exitCode == 0 {
-			// the process was stopped via the cli
-			// or recieved a sigterm
-			exitCode = 143
-		}
 
-		// TODO: once we have finished use commented out status
-		// status = fmt.Sprintf("Exited (%d) %s ago", exitCode, units.HumanDuration(time.Now().UTC().Sub(finished)))
-		status = fmt.Sprintf("Exited (%d)", exitCode)
+	// set docker status to state and we'll change if needed
+	dockStatus := state
+
+	switch state {
+	case "Running":
+		// if we don't have a start date leave the status as the state
+		if !started.IsZero() {
+			dockStatus = fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(started)))
+		}
+	case "Stopped":
+		// if we don't have a finished date then don't process exitCode and return "Stopped" for the status
+		if !finished.IsZero() {
+			// interrogate the process status returned from the portlayer
+			// and based on status text and exit codes set the appropriate
+			// docker exit code
+			if strings.Contains(status, "permission denied") {
+				exitCode = 126
+			} else if strings.Contains(status, "no such") {
+				exitCode = 127
+			} else if status == "true" && exitCode == -1 {
+				// most likely the process was killed via the cli
+				// or recieved a sigkill
+				exitCode = 137
+			} else if status == "" && exitCode == 0 {
+				// the process was stopped via the cli
+				// or recieved a sigterm
+				exitCode = 143
+			}
+
+			dockStatus = fmt.Sprintf("Exited (%d) %s ago", exitCode, units.HumanDuration(time.Now().UTC().Sub(finished)))
+		}
 	}
 
-	return exitCode, status
+	return exitCode, dockStatus
 }
 
 // docker's container.monitorBackend
@@ -900,12 +901,19 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 			return nil, InternalServerError(err.Error())
 		}
 	}
+	var started time.Time
+	var stopped time.Time
+	if results.Payload.ProcessConfig.StartTime != nil && *results.Payload.ProcessConfig.StartTime > 0 {
+		started = time.Unix(*results.Payload.ProcessConfig.StartTime, 0)
+	}
+	if results.Payload.ProcessConfig.StopTime != nil && *results.Payload.ProcessConfig.StopTime > 0 {
+		stopped = time.Unix(*results.Payload.ProcessConfig.StopTime, 0)
+	}
 	// call to the dockerStatus function to retrieve the docker friendly exitCode
-	// TODO: once started / finished time are available replace time.Now()
 	exitCode, status := dockerStatus(int(*results.Payload.ProcessConfig.ExitCode),
 		*results.Payload.ProcessConfig.Status,
 		*results.Payload.ContainerConfig.State,
-		time.Now(), time.Now())
+		started, stopped)
 
 	// set the payload values
 	exit := int32(exitCode)
@@ -1005,16 +1013,21 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 		for i := range t.Names {
 			names = append(names, clientFriendlyContainerName(t.Names[i]))
 		}
-
+		var started time.Time
+		var stopped time.Time
+		if t.StartTime != nil && *t.StartTime > 0 {
+			started = time.Unix(*t.StartTime, 0)
+		}
+		if t.StopTime != nil && *t.StopTime > 0 {
+			stopped = time.Unix(*t.StopTime, 0)
+		}
 		// get the docker friendly status
-		// TODO: when started / finished are available replace the last two variables
-		// https://github.com/vmware/vic/issues/1899
-		_, status := dockerStatus(int(*t.ExitCode), *t.Status, *t.State, time.Now(), time.Now())
+		_, status := dockerStatus(int(*t.ExitCode), *t.Status, *t.State, started, stopped)
 
 		c := &types.Container{
 			ID:      *t.ContainerID,
 			Image:   *t.RepoName,
-			Created: *t.Created,
+			Created: *t.CreateTime,
 			Status:  status,
 			Names:   names,
 			Command: cmd,

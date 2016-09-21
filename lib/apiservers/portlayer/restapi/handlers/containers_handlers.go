@@ -96,7 +96,8 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 			ID:   id,
 			Name: *params.CreateConfig.Name,
 		},
-		Version: version.GetBuild(),
+		CreateTime: time.Now().UTC().Unix(),
+		Version:    version.GetBuild(),
 		Sessions: map[string]executor.SessionConfig{
 			id: {
 				Common: executor.Common{
@@ -277,7 +278,11 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 		info := models.ContainerListInfo{}
 		info.ContainerID = &container.ExecConfig.ID
 		info.LayerID = &container.ExecConfig.LayerID
-		info.Created = &container.ExecConfig.Created
+		info.CreateTime = &container.ExecConfig.CreateTime
+		started := container.ExecConfig.Sessions[*info.ContainerID].StartTime
+		info.StartTime = &started
+		stopped := container.ExecConfig.Sessions[*info.ContainerID].StopTime
+		info.StopTime = &stopped
 		state := container.State.String()
 		info.State = &state
 		processStatus := container.ExecConfig.Sessions[*info.ContainerID].Started
@@ -393,7 +398,7 @@ func convertContainerToContainerInfo(container *exec.Container) *models.Containe
 	info.ContainerConfig.State = &s
 	info.ContainerConfig.LayerID = &container.ExecConfig.LayerID
 	info.ContainerConfig.RepoName = &container.ExecConfig.RepoName
-	info.ContainerConfig.Created = &container.ExecConfig.Created
+	info.ContainerConfig.CreateTime = &container.ExecConfig.CreateTime
 	info.ContainerConfig.Names = []string{container.ExecConfig.Name}
 
 	restart := int32(container.ExecConfig.Diagnostics.ResurrectionCount)
@@ -418,6 +423,12 @@ func convertContainerToContainerInfo(container *exec.Container) *models.Containe
 
 	exitcode := int32(container.ExecConfig.Sessions[ccid].ExitStatus)
 	info.ProcessConfig.ExitCode = &exitcode
+
+	startTime := container.ExecConfig.Sessions[ccid].StartTime
+	info.ProcessConfig.StartTime = &startTime
+
+	stopTime := container.ExecConfig.Sessions[ccid].StopTime
+	info.ProcessConfig.StopTime = &stopTime
 
 	// started is a string in the vmx that is not to be confused
 	// with started the datetime in the models.ContainerInfo

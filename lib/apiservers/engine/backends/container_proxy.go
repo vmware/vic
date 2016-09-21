@@ -567,14 +567,12 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 		if info.ProcessConfig.ErrorMsg != nil {
 			containerState.Error = *info.ProcessConfig.ErrorMsg
 		}
-		if info.ProcessConfig.Started != nil {
-			swaggerTime := time.Time(*info.ProcessConfig.Started)
-			containerState.StartedAt = swaggerTime.Format(time.RFC3339Nano)
+		if info.ProcessConfig.StartTime != nil && *info.ProcessConfig.StartTime != 0 {
+			containerState.StartedAt = time.Unix(*info.ProcessConfig.StartTime, 0).Format(time.RFC3339Nano)
 		}
 
-		if info.ProcessConfig.Finished != nil {
-			swaggerTime := time.Time(*info.ProcessConfig.Finished)
-			containerState.FinishedAt = swaggerTime.Format(time.RFC3339Nano)
+		if info.ProcessConfig.StopTime != nil && *info.ProcessConfig.StopTime != 0 {
+			containerState.FinishedAt = time.Unix(*info.ProcessConfig.StopTime, 0).Format(time.RFC3339Nano)
 		}
 	}
 
@@ -639,8 +637,8 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 		if info.ContainerConfig.ContainerID != nil {
 			inspectJSON.ID = *info.ContainerConfig.ContainerID
 		}
-		if info.ContainerConfig.Created != nil {
-			inspectJSON.Created = time.Unix(*info.ContainerConfig.Created, 0).Format(time.RFC3339Nano)
+		if info.ContainerConfig.CreateTime != nil {
+			inspectJSON.Created = time.Unix(*info.ContainerConfig.CreateTime, 0).Format(time.RFC3339Nano)
 		}
 		if len(info.ContainerConfig.Names) > 0 {
 			inspectJSON.Name = info.ContainerConfig.Names[0]
