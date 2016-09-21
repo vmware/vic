@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Using Volumes with vSphere Integrated Containers Engine | Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.5.5</title>
+        <title>Using Volumes with vSphere Integrated Containers Engine | Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.6.0</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -53,7 +53,7 @@
         data-chapter-title="Using Volumes with vSphere Integrated Containers Engine"
         data-filepath="using_volumes_with_vic.md"
         data-basepath="."
-        data-revision="Fri Sep 02 2016 15:31:59 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Wed Sep 21 2016 20:11:19 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -180,7 +180,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.5.5</a>
+        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.6.0</a>
     </h1>
 </div>
 
@@ -222,12 +222,12 @@ vSphere Integrated Containers Backend Engine: RUNNING
 <p><strong>NOTE</strong>: If you use <code>docker create -v</code>, vSphere Integrated Containers Engine only supports the <code>-r</code> and <code>-rw</code> options.</p>
 </li>
 <li><p>You can optionally set the capacity of a volume by specifying the <code>--opt Capacity</code> option when you run <code>docker volume create</code>. If you do not specify the <code>--opt Capacity</code> option, the volume is created with the default capacity of 1024MB. </p>
-<p>If you do not specify a unit for the capacity, the volume is created with a capacity in megabytes.</p>
+<p>If you do not specify a unit for the capacity, the default unit will be in Megabytes.</p>
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls volume create 
 --opt VolumeStore=<i>volume_store_label</i> 
 --opt Capacity=2048
 --name <i>volume_name</i></pre></li>
-<li><p>To create a volume with a capacity in gigabytes or terabytes, include <code>GB</code>, or <code>TB</code> in the value that you pass to <code>--opt Capacity</code>. The unit is case insensitive.</p>
+<li><p>To create a volume with a capacity in megabytes, gigabytes, or terabytes, include <code>MB</code>, <code>GB</code>, or <code>TB</code> in the value that you pass to <code>--opt Capacity</code>. The unit is case insensitive.</p>
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls volume create 
 --opt VolumeStore=<i>volume_store_label</i> 
 --opt Capacity=10GB
