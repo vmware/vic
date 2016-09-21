@@ -37,6 +37,7 @@ join() { local IFS="$1"; shift; echo "$*"; }
 excludes=$(join "|" ${exclude_files[@]} | sed -e 's/\./\\./g')
 
 generate_pkg_cover_data() {
+    echo "$@"
     mkdir -p "$workdir"
 
     for pkg in "$@"; do
