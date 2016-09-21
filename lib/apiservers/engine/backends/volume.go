@@ -105,9 +105,8 @@ func (v *Volume) volumeCreate(name, driverName string, driverArgs, labels map[st
 
 	client := PortLayerClient()
 	if client == nil {
-		return nil, nil, derr.NewErrorWithStatusCode(fmt.Errorf("Failed to get a portlayer client"), http.StatusInternalServerError)
+		return nil, nil, fmt.Errorf("failed to get a portlayer client")
 	}
-
 	if name == "" {
 		name = uuid.New().String()
 	}
@@ -116,7 +115,7 @@ func (v *Volume) volumeCreate(name, driverName string, driverArgs, labels map[st
 	// assign the values of the model to be passed to the portlayer handler
 	req, varErr := newVolumeCreateReq(name, driverName, driverArgs, labels)
 	if varErr != nil {
-		return result, req, derr.NewErrorWithStatusCode(varErr, http.StatusBadRequest)
+		return result, req, varErr
 	}
 	log.Infof("Finalized model for volume create request to portlayer: %#v", req)
 
@@ -143,10 +142,8 @@ func (v *Volume) VolumeCreate(name, driverName string, driverArgs, labels map[st
 		case *storage.CreateVolumeInternalServerError:
 			// FIXME: right now this does not return an error model...
 			return result, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err.Error()), http.StatusInternalServerError)
-
 		case *storage.CreateVolumeDefault:
 			return result, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err.Payload.Message), http.StatusInternalServerError)
-
 		default:
 			return result, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err), http.StatusInternalServerError)
 		}

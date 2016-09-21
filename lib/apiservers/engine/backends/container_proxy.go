@@ -224,6 +224,9 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 		driverArgs := make(map[string]string)
 		driverArgs["flags"] = fields.Flags
 
+		// NOTE: calling volumeCreate regardless of whether the volume is already
+		// present can be avoided by adding an extra optional param to VolumeJoin,
+		// which would then call volumeCreate if the volume does not exist.
 		vol := &Volume{}
 		_, req, err := vol.volumeCreate(fields.ID, "vsphere", driverArgs, nil)
 		if err != nil {
