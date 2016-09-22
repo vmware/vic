@@ -34,7 +34,6 @@ package backends
 import (
 	"fmt"
 	"io"
-	"net/http"
 	"strings"
 	"time"
 
@@ -45,7 +44,6 @@ import (
 	"github.com/go-swagger/go-swagger/httpkit"
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
@@ -116,22 +114,17 @@ func (c *ContainerProxy) CreateContainerHandle(imageID string, config types.Cont
 	defer trace.End(trace.Begin(imageID))
 
 	if c.client == nil {
-		return "", "",
-			derr.NewErrorWithStatusCode(fmt.Errorf("ContainerProxy.CreateContainerHandle failed to create a portlayer client"),
-				http.StatusInternalServerError)
+		return "", "", InternalServerError("ContainerProxy.CreateContainerHandle failed to create a portlayer client")
 	}
 
 	if imageID == "" {
-		return "", "",
-			derr.NewRequestNotFoundError(fmt.Errorf("No image specified"))
+		return "", "", NotFoundError("No image specified")
 	}
 
 	// Call the Exec port layer to create the container
 	host, err := sys.UUID()
 	if err != nil {
-		return "", "",
-			derr.NewErrorWithStatusCode(fmt.Errorf("ContainerProxy.CreateContainerHandle got unexpected error getting VCH UUID"),
-				http.StatusInternalServerError)
+		return "", "", InternalServerError("ContainerProxy.CreateContainerHandle got unexpected error getting VCH UUID")
 	}
 
 	plCreateParams := dockerContainerCreateParamsToPortlayer(config, imageID, host)
@@ -140,12 +133,11 @@ func (c *ContainerProxy) CreateContainerHandle(imageID string, config types.Cont
 		if _, ok := err.(*containers.CreateNotFound); ok {
 			cerr := fmt.Errorf("No such image: %s", imageID)
 			log.Errorf("%s (%s)", cerr, err)
-			return "", "", derr.NewRequestNotFoundError(cerr)
+			return "", "", NotFoundError(cerr.Error())
 		}
 
 		// If we get here, most likely something went wrong with the port layer API server
-		return "", "",
-			derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		return "", "", InternalServerError(err.Error())
 	}
 
 	id := createResults.Payload.ID
@@ -163,9 +155,7 @@ func (c *ContainerProxy) AddContainerToScope(handle string, config types.Contain
 	defer trace.End(trace.Begin(handle))
 
 	if c.client == nil {
-		return "",
-			derr.NewErrorWithStatusCode(fmt.Errorf("ContainerProxy.AddContainerToScope failed to create a portlayer client"),
-				http.StatusInternalServerError)
+		return "", InternalServerError("ContainerProxy.AddContainerToScope failed to create a portlayer client")
 	}
 
 	log.Debugf("Network Configuration Section - Container Create")
@@ -181,7 +171,7 @@ func (c *ContainerProxy) AddContainerToScope(handle string, config types.Contain
 
 		if err != nil {
 			log.Errorf("ContainerProxy.AddContainerToScope: Scopes error: %s", err.Error())
-			return handle, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+			return handle, InternalServerError(err.Error())
 		}
 
 		defer func() {
@@ -209,9 +199,7 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 	defer trace.End(trace.Begin(handle))
 
 	if c.client == nil {
-		return "",
-			derr.NewErrorWithStatusCode(fmt.Errorf("ContainerProxy.AddVolumesToContainer failed to create a portlayer client"),
-				http.StatusInternalServerError)
+		return "", InternalServerError("ContainerProxy.AddVolumesToContainer failed to create a portlayer client")
 	}
 
 	//Volume Attachment Section
@@ -222,12 +210,12 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 
 	joinList, err = processAnonymousVolumes(config.Config.Volumes)
 	if err != nil {
-		return handle, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err), http.StatusBadRequest)
+		return handle, BadRequestError(err.Error())
 	}
 
 	volumeSubset, err := processSpecifiedVolumes(config.HostConfig.Binds)
 	if err != nil {
-		return handle, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err), http.StatusBadRequest)
+		return handle, BadRequestError(err.Error())
 	}
 	joinList = append(joinList, volumeSubset...)
 
@@ -245,11 +233,11 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 		if err != nil {
 			switch err := err.(type) {
 			case *storage.VolumeJoinInternalServerError:
-				return handle, derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+				return handle, InternalServerError(err.Payload.Message)
 			case *storage.VolumeJoinDefault:
-				return handle, derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+				return handle, InternalServerError(err.Payload.Message)
 			default:
-				return handle, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+				return handle, InternalServerError(err.Error())
 			}
 		}
 
@@ -265,8 +253,7 @@ func (c *ContainerProxy) CommitContainerHandle(handle, imageID string) error {
 	defer trace.End(trace.Begin(handle))
 
 	if c.client == nil {
-		return derr.NewErrorWithStatusCode(fmt.Errorf("ContainerProxy.CommitContainerHandle failed to create a portlayer client"),
-			http.StatusInternalServerError)
+		return InternalServerError("ContainerProxy.CommitContainerHandle failed to create a portlayer client")
 	}
 
 	_, err := c.client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
@@ -276,7 +263,7 @@ func (c *ContainerProxy) CommitContainerHandle(handle, imageID string) error {
 		// FIXME: Containers.Commit returns more errors than it's swagger spec says.
 		// When no image exist, it also sends back non swagger errors.  We should fix
 		// this once Commit returns correct error codes.
-		return derr.NewRequestNotFoundError(cerr)
+		return NotFoundError(cerr.Error())
 	}
 
 	return nil
@@ -301,12 +288,9 @@ func (c *ContainerProxy) StreamContainerLogs(name string, out io.Writer, started
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerLogsNotFound:
-			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
-
+			return NotFoundError(fmt.Sprintf("No such container: %s", name))
 		case *containers.GetContainerLogsInternalServerError:
-			return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from the interaction port layer"),
-				http.StatusInternalServerError)
-
+			return InternalServerError("Server error from the interaction port layer")
 		default:
 			//Check for EOF.  Since the connection, transport, and data handling are
 			//encapsulated inisde of Swagger, we can only detect EOF by checking the
@@ -314,8 +298,7 @@ func (c *ContainerProxy) StreamContainerLogs(name string, out io.Writer, started
 			if strings.Contains(err.Error(), swaggerSubstringEOF) {
 				return nil
 			}
-			unknownErrMsg := fmt.Errorf("Unknown error from the interaction port layer: %s", err)
-			return derr.NewErrorWithStatusCode(unknownErrMsg, http.StatusInternalServerError)
+			return InternalServerError(fmt.Sprintf("Unknown error from the interaction port layer: %s", err))
 		}
 	}
 
@@ -327,19 +310,18 @@ func (c *ContainerProxy) ContainerRunning(vc *viccontainer.VicContainer) (bool, 
 	defer trace.End(trace.Begin(""))
 
 	if c.client == nil {
-		return false, derr.NewErrorWithStatusCode(fmt.Errorf("ContainerProxy.CommitContainerHandle failed to create a portlayer client"),
-			http.StatusInternalServerError)
+		return false, InternalServerError("ContainerProxy.CommitContainerHandle failed to create a portlayer client")
 	}
 
 	results, err := c.client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(vc.ContainerID))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerInfoNotFound:
-			return false, derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", vc.ContainerID))
+			return false, NotFoundError(fmt.Sprintf("No such container: %s", vc.ContainerID))
 		case *containers.GetContainerInfoInternalServerError:
-			return false, derr.NewErrorWithStatusCode(fmt.Errorf("Error from portlayer: %#v", err.Payload), http.StatusInternalServerError)
+			return false, InternalServerError(err.Payload.Message)
 		default:
-			return false, derr.NewErrorWithStatusCode(fmt.Errorf("Unknown error from the container portlayer"), http.StatusInternalServerError)
+			return false, InternalServerError(fmt.Sprintf("Unknown error from the interaction port layer: %s", err))
 		}
 	}
 
@@ -569,7 +551,7 @@ func processSpecifiedVolumes(volumes []string) ([]volumeFields, error) {
 // There maybe other asset gathering if ContainerInfo does not have all the information
 func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *models.ContainerInfo, portlayerName string) (*types.ContainerJSON, error) {
 	if vc == nil || info == nil || info.ContainerConfig == nil {
-		return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", vc.ContainerID))
+		return nil, NotFoundError(fmt.Sprintf("No such container: %s", vc.ContainerID))
 	}
 
 	// Set default container state attributes
