@@ -1016,10 +1016,10 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 		var started time.Time
 		var stopped time.Time
 		if t.ProcessConfig.StartTime != nil && *t.ProcessConfig.StartTime > 0 {
-			started = time.Unix(*t.StartTime, 0)
+			started = time.Unix(*t.ProcessConfig.StartTime, 0)
 		}
 		if t.ProcessConfig.StopTime != nil && *t.ProcessConfig.StopTime > 0 {
-			stopped = time.Unix(*t.StopTime, 0)
+			stopped = time.Unix(*t.ProcessConfig.StopTime, 0)
 		}
 		// get the docker friendly status
 		_, status := dockerStatus(int(*t.ProcessConfig.ExitCode), *t.ProcessConfig.Status, *t.ContainerConfig.State, started, stopped)
