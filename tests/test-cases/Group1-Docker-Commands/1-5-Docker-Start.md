@@ -19,10 +19,9 @@ This test requires that a vSphere server is running and available
 6. Issue docker create vmware/photon
 7. Issue docker start vmware/photon <containerID>
 8. Issue docker start fakeContainer
-9. Issue docker start to a previously started ans stopped container
 
 #Expected Outcome:
-* Commands 1-7 and 9 should all return without error and respond with the container ID
+* Commands 1-7 should all return without error and respond with the container ID
 * After commands 3, 5, and 7 verify that the containers are running
 * Step 8 should result in the VIC applaiance returning the following error:
 ```

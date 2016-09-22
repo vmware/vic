@@ -114,20 +114,13 @@ Attempt to stop a container that has been started out of band
     Assert Kill Signal  ${container}  False
 
 Restart a stopped container
-    ${status}=  Get State Of Github Issue  1086
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-7-Docker-Stop.robot needs to be updated now that Issue #1086 has been resolved
-    Log  Issue \#1086 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull golang
-    #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create -it golang
-    #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo
-    #${result}=  Start Process  docker ${params} start ${container} < /tmp/fifo  shell=True  alias=golang
-    #${rc2}  ${output2}=  Run And Return Rc And Output  echo exit > /tmp/fifo
-    #${result2}=  Wait For Process  golang
-    #Log  ${result2.stdout}
-    #Log  ${result2.stderr}
-    #Log  ${result2.rc}
-
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container}
-    #Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it busybox /bin/ls
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
+    Sleep  5s
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error:
