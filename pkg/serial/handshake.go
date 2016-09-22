@@ -54,8 +54,9 @@ func PurgeIncoming(conn net.Conn) {
 func HandshakeClient(ctx context.Context, conn net.Conn) error {
 	syn := make([]byte, 2)
 	synack := make([]byte, 2)
-	buf := make([]byte, 255)
 	ack := make([]byte, 2)
+
+	buf := make([]byte, 255)
 
 	syn[0] = SYN
 	synack[0] = ACK
@@ -132,11 +133,11 @@ func HandshakeClient(ctx context.Context, conn net.Conn) error {
 	}
 
 	if ack[0] != ACK {
-		err = fmt.Errorf("lossiness check FAILED")
+		err = fmt.Errorf("client: lossiness check FAILED")
 		log.Error(err)
 		return err
 	}
-	log.Infof("lossiness check PASSED")
+	log.Infof("client: lossiness check PASSED")
 
 	return nil
 }
@@ -254,7 +255,7 @@ func HandshakeServer(ctx context.Context, conn net.Conn) error {
 
 	if bytes.Compare(rxbuf, txbuf) != 0 {
 		conn.Write([]byte{NAK})
-		err = fmt.Errorf("lossiness check FAILED")
+		err = fmt.Errorf("server: lossiness check FAILED")
 		log.Error(err)
 		return err
 	}
@@ -264,7 +265,7 @@ func HandshakeServer(ctx context.Context, conn net.Conn) error {
 		return err
 	}
 
-	log.Infof("lossiness check PASSED")
+	log.Infof("server: lossiness check PASSED")
 
 	return nil
 }

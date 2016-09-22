@@ -76,7 +76,7 @@ func save(filePath string, walker EntryWalker) error {
 	w := bufio.NewWriter(f)
 	for walker.HasNext() {
 		l := fmt.Sprintf("%s\n", walker.Next())
-		log.Debugf("writing \"%s\" to %s", l, filePath)
+		log.Debugf("writing %q to %s", l, filePath)
 		var n int
 		for n < len(l) {
 			b, err := w.WriteString(l[n:])

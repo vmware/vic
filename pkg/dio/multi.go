@@ -39,20 +39,26 @@ type multiWriter struct {
 	writers []io.Writer
 }
 
-func (t *multiWriter) Write(p []byte) (n int, err error) {
+func (t *multiWriter) Write(p []byte) (int, error) {
+	var n int
+	var err error
+
 	// stash a local copy of the slice as we never want to write twice to a single writer
 	// if remove is called during this flow
 	wTmp := t.writers
 
 	if verbose {
-		log.Debugf("[%p] writing \"%s\" to %d writers", t, string(p), len(t.writers))
+		defer func() {
+			log.Debugf("[%p] write %q to %d writers (err: %#+v)", t, string(p[:n]), len(t.writers), err)
+		}()
 	}
+
 	// possibly want to add buffering or parallelize this
 	for _, w := range wTmp {
 		n, err = w.Write(p)
 		if err != nil {
 			if err != io.EOF {
-				return
+				return n, err
 			}
 
 			// remove the writer
@@ -64,7 +70,7 @@ func (t *multiWriter) Write(p []byte) (n int, err error) {
 		// everything as we abort
 		if n != len(p) {
 			err = io.ErrShortWrite
-			return
+			return n, err
 		}
 	}
 	return len(p), nil
@@ -86,9 +92,11 @@ func (t *multiWriter) Close() error {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 
+	log.Debugf("Close on writers")
 	for _, w := range t.writers {
 		// squash closing of stdout/err if bound
 		if c, ok := w.(io.Closer); ok && c != os.Stdout && c != os.Stderr {
+			log.Debugf("Closing writer %+v", w)
 			c.Close()
 		}
 	}
@@ -147,7 +155,9 @@ type multiReader struct {
 func (t *multiReader) Read(p []byte) (int, error) {
 	n := 0
 	if verbose {
-		defer log.Debugf("[%p] read \"%s\" from %d readers", t, string(p[:n]), len(t.readers))
+		defer func() {
+			log.Debugf("[%p] read %q from %d readers (err: %#+v)", t, string(p[:n]), len(t.readers), t.err)
+		}()
 	}
 
 	if t.err == io.EOF {
@@ -203,8 +213,10 @@ func (t *multiReader) Close() error {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 
+	log.Debugf("Close on readers")
 	for _, r := range t.readers {
 		if c, ok := r.(io.Closer); ok {
+			log.Debugf("Closing reader %+v", r)
 			c.Close()
 		}
 	}
@@ -241,8 +253,7 @@ func (t *multiReader) Remove(reader io.Reader) {
 	for i, r := range t.readers {
 		if r == reader {
 			t.readers = append(t.readers[:i], t.readers[i+1:]...)
-			// using range directly means that we're looping up, so indexes are now
-			// invalid
+			// using range directly means that we're looping up, so indexes are now invalid
 			if verbose {
 				log.Debugf("[%p] removed reader - currently %d readers", t, len(t.readers))
 			}

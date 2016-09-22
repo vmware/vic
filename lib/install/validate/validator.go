@@ -426,7 +426,7 @@ func (v *Validator) checkDatastoresAreWriteable(ctx context.Context, conf *confi
 	}
 	// if requestedDatastores is not empty, some requested datastores are not writable
 	for _, store := range requestedDatastores {
-		v.NoteIssue(errors.Errorf("Datastore \"%s\" is not accessible by the compute resource", store.Name()))
+		v.NoteIssue(errors.Errorf("Datastore %q is not accessible by the compute resource", store.Name()))
 	}
 
 	clusterHosts, err := v.Session.Cluster.Hosts(ctx)

@@ -74,7 +74,7 @@ func NewFileConn(file *os.File) (*RawConn, error) {
 	return NewTypedConn(file, file, "file")
 }
 
-// NewFileConn creates a connection via the provided file descriptor - assumes file is a
+// NewRawConn creates a connection via the provided file descriptor - assumes file is a
 // full duplex comm mechanism
 func NewRawConn(fd uintptr, name string, net string) (*RawConn, error) {
 	defer trace.End(trace.Begin(""))
@@ -83,19 +83,25 @@ func NewRawConn(fd uintptr, name string, net string) (*RawConn, error) {
 	return NewTypedConn(file, file, net)
 }
 
-// NewHalfDuplixFileConn creates a connection via the provided files - this assumes that
+// NewHalfDuplexFileConn creates a connection via the provided files - this assumes that
 // each file is a half-duplex mechanism, such as a linux fifo pipe
-func NewHalfDuplixFileConn(read *os.File, write *os.File, name string, net string) (*RawConn, error) {
+func NewHalfDuplexFileConn(read *os.File, write *os.File, name string, net string) (*RawConn, error) {
 	defer trace.End(trace.Begin(""))
 
 	return NewTypedConn(read, write, net)
 }
 
-func (conn *RawConn) Read(b []byte) (n int, err error) {
+// Read reads data from the connection.
+func (conn *RawConn) Read(b []byte) (int, error) {
 	defer trace.End(trace.Begin(""))
 
+	var n int
+	var err error
+
 	if verbose {
-		defer log.Debugf("Returning error and bytes from read (%s:%s): %d, %s", conn.rchannel.Name(), conn.wchannel.Name(), n, err)
+		defer func() {
+			log.Debugf("Returning error and bytes from read (%s:%s): %d, %s", conn.rchannel.Name(), conn.wchannel.Name(), n, err)
+		}()
 	}
 
 	// TODO: this is horrific from a performance perspective - really need a better
@@ -125,13 +131,14 @@ func (conn *RawConn) Read(b []byte) (n int, err error) {
 	}
 }
 
-func (conn *RawConn) Write(b []byte) (n int, err error) {
+// Write writes data to the connection
+func (conn *RawConn) Write(b []byte) (int, error) {
 	defer trace.End(trace.Begin(""))
 
-	n, err = conn.wchannel.Write(b)
-	return
+	return conn.wchannel.Write(b)
 }
 
+// Close closes the connection.
 func (conn *RawConn) Close() error {
 	defer trace.End(trace.Begin(""))
 
@@ -167,20 +174,24 @@ func (conn *RawConn) Close() error {
 	return errW
 }
 
+// LocalAddr returns the local network address.
 func (conn *RawConn) LocalAddr() net.Addr {
 	defer trace.End(trace.Begin(""))
 
 	return conn.localAddr
 }
 
+// RemoteAddr returns the remote network address.
 func (conn *RawConn) RemoteAddr() net.Addr {
 	defer trace.End(trace.Begin(""))
 
 	return conn.remoteAddr
 }
 
+// SetDeadline sets the read and write deadlines associated
+// with the connection
 func (conn *RawConn) SetDeadline(t time.Time) error {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin(t.String()))
 
 	// https://golang.org/src/net/fd_poll_runtime.go#L133
 	// consider implementing this by making RawConn a netFD
@@ -188,14 +199,16 @@ func (conn *RawConn) SetDeadline(t time.Time) error {
 	return nil
 }
 
+// SetReadDeadline sets the deadline for future Read calls.
 func (conn *RawConn) SetReadDeadline(t time.Time) error {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin(t.String()))
 
 	return nil
 }
 
+// SetWriteDeadline sets the deadline for future Write calls.
 func (conn *RawConn) SetWriteDeadline(t time.Time) error {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin(t.String()))
 
 	return nil
 }
