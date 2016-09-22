@@ -57,8 +57,6 @@ func TestVirtualMachineConfigSpec(t *testing.T) {
 		MemoryMB:      2048,
 		VMForkEnabled: true,
 
-		ConnectorURI: "tcp://1.2.3.4:9876",
-
 		ID: "zombie_attack",
 
 		BootMediaPath: s.Datastore.Path("brainz.iso"),
@@ -101,12 +99,6 @@ func TestVirtualMachineConfigSpec(t *testing.T) {
 
 	e1000 := NewVirtualE1000()
 	root.AddVirtualE1000(e1000)
-
-	serial := NewVirtualSerialPort()
-	root.AddVirtualSerialPort(serial)
-
-	debugserial := NewVirtualSerialPort()
-	root.AddVirtualFileSerialPort(debugserial, "debug")
 
 	for i := 0; i < len(root.DeviceChange); i++ {
 		t.Logf("%+v", root.DeviceChange[i].GetVirtualDeviceConfigSpec().Device)

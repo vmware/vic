@@ -19,6 +19,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 	"time"
@@ -44,24 +45,28 @@ type ContainerCreateConfig struct {
 
 	ParentImageID  string
 	ImageStoreName string
-	VCHName        string
 }
 
 var handles *lru.Cache
 var handlesLock sync.Mutex
 
-const handleLen = 16
-const lruSize = 1000
+const (
+	handleLen = 16
+	lruSize   = 1000
+)
 
 func init() {
 	handles = lru.New(lruSize)
 }
 
 type Handle struct {
-	Spec       *spec.VirtualMachineConfigSpec
+	Spec *spec.VirtualMachineConfigSpec
+
+	// desired
 	ExecConfig executor.ExecutorConfig
-	Container  *Container
 	State      *State
+
+	Container *Container
 
 	key       string
 	committed bool
@@ -69,9 +74,10 @@ type Handle struct {
 
 func newHandleKey() string {
 	b := make([]byte, handleLen)
-	rand.Read(b)
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+		panic(err) // This shouldn't happen
+	}
 	return hex.EncodeToString(b)
-
 }
 
 func newHandle(con *Container) *Handle {
@@ -200,8 +206,6 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 		return fmt.Errorf("Multiple IPs found on %s: %#v", constants.ManagementHostName, ips)
 	}
 
-	URI := fmt.Sprintf("tcp://%s:%d", ips[0], constants.SerialOverLANPort)
-
 	//FIXME: remove debug network
 	backing, err := Config.DebugNetwork.EthernetCardBackingInfo(ctx)
 	if err != nil {
@@ -219,8 +223,6 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 		// FIXME: hardcoded values
 		NumCPUs:  2,
 		MemoryMB: 2048,
-
-		ConnectorURI: URI,
 
 		ID:       config.Metadata.ID,
 		Name:     config.Metadata.Name,

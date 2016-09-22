@@ -135,6 +135,13 @@ func (t *attachSSH) Close() error {
 	return t.channel.Close()
 }
 
+// closes + sends eof so tears down tether
+func (t *attachSSH) CloseWrite() error {
+	defer trace.End(trace.Begin(""))
+
+	return t.channel.CloseWrite()
+}
+
 // Resize resizes the terminal.
 func (t *attachSSH) Resize(cols, rows, widthpx, heightpx uint32) error {
 	defer trace.End(trace.Begin(""))
@@ -153,6 +160,5 @@ func (t *attachSSH) Resize(cols, rows, widthpx, heightpx uint32) error {
 	if err != nil {
 		return fmt.Errorf("resize error: %s", err)
 	}
-
 	return nil
 }
