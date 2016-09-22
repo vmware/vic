@@ -336,10 +336,25 @@ Wait Until VM Powers Off
     \   Sleep  1
     Fail  VM did not power off within 30 seconds
 
+Wait Until VM Is Destroyed
+    [Arguments]  ${vm}
+    :FOR  ${idx}  IN RANGE  0  30
+    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc ls vm/${vch-name}/${vm}
+    \   Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${out}  ${ret}
+    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc ls vm/${vm}
+    \   Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${out}  ${ret}
+    \   ${status}=  Run Keyword And Return Status  Should Be Empty  ${out}
+    \   Return From Keyword If  ${status}
+    \   Sleep  1
+    Fail  VM was not destroyed within 30 seconds
+
 Wait Until VM Powers On
     [Arguments]  ${vm}
     :FOR  ${idx}  IN RANGE  0  30
-    \   ${out}=  Run  govc vm.info ${vm}
+    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc vm.info ${vch-name}/${vm}
+    \   Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${out}  ${ret}
+    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc vm.info ${vm}
+    \   Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${out}  ${ret}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  poweredOn
     \   Return From Keyword If  ${status}
     \   Sleep  1

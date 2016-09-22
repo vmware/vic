@@ -7,9 +7,12 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 *** Keywords ***
 Assert VM Power State
     [Arguments]  ${name}  ${state}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -json ${name}-* | jq -r .VirtualMachines[].Runtime.PowerState
-    Should Be Equal As Integers  ${rc}  0
-    Should Be Equal  ${output}  ${state}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info -json ${vch-name}/${name}-* | jq -r .VirtualMachines[].Runtime.PowerState
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal  ${output}  ${state}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info -json ${name}-* | jq -r .VirtualMachines[].Runtime.PowerState
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal  ${output}  ${state}
 
 *** Test Cases ***
 Empty docker ps command
@@ -62,7 +65,8 @@ Docker ps powerOn container OOB
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  1
     # powerOn container VM out-of-band
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -on "jojo*"
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -on ${vch-name}/"jojo*"
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.power -on "jojo*"
     # a complete powerOn can take some time with reconfigures, so let's ensure state before we proceed
     Wait Until Keyword Succeeds  20x  500 milliseconds  Assert VM Power State  jojo  poweredOn
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
@@ -76,8 +80,11 @@ Docker ps powerOff container OOB
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  2
     # PowerOff VM out-of-band
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -off "jojo*"
-    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -off ${vch-name}/"jojo*"
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.power -off "jojo*"
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Wait Until VM Powers Off  "jojo*"
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
@@ -89,8 +96,11 @@ Docker ps Remove container OOB
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  4
     # Remove container VM out-of-band
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy "jojo*"
-    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy ${vch-name}/"jojo*"
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "jojo*"
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Wait Until VM Is Destroyed  "jojo*"
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
