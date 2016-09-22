@@ -215,7 +215,7 @@ func newVolumeCreateReq(name, driverName string, driverArgs, labels map[string]s
 	}
 
 	if !volumeNameRegex.Match([]byte(name)) && name != "" {
-		return nil, fmt.Errorf("volume name \"%s\" includes invalid characters, only \"[a-zA-Z0-9][a-zA-Z0-9_.-]\" are allowed", name)
+		return nil, fmt.Errorf("volume name %q includes invalid characters, only \"[a-zA-Z0-9][a-zA-Z0-9_.-]\" are allowed", name)
 	}
 
 	req := &models.VolumeRequest{
