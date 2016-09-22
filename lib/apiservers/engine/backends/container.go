@@ -1526,7 +1526,6 @@ func copyConfigOverrides(vc *viccontainer.VicContainer, config types.ContainerCr
 	vc.Config.OpenStdin = config.Config.OpenStdin
 	vc.Config.StdinOnce = config.Config.StdinOnce
 	vc.Config.StopSignal = config.Config.StopSignal
-	vc.Config.Labels = config.Config.Labels
 	vc.HostConfig = config.HostConfig
 }
 

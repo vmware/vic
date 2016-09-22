@@ -120,6 +120,13 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		RepoName:   *params.CreateConfig.RepoName,
 		StopSignal: *params.CreateConfig.StopSignal,
 	}
+	if params.CreateConfig.Annotations != nil && len(params.CreateConfig.Annotations) > 0 {
+		m.Annotations = make(map[string]string)
+		for k, v := range params.CreateConfig.Annotations {
+			m.Annotations[k] = v
+		}
+	}
+
 	log.Infof("CreateHandler Metadata: %#v", m)
 
 	// Create new portlayer executor and call Create on it
@@ -393,6 +400,14 @@ func convertContainerToContainerInfo(container *exec.Container) *models.Containe
 	info.ContainerConfig.AttachStderr = &attach
 
 	info.ContainerConfig.StorageSize = &container.VMUnsharedDisk
+
+	if container.ExecConfig.Annotations != nil && len(container.ExecConfig.Annotations) > 0 {
+		info.ContainerConfig.Annotations = make(map[string]string)
+
+		for k, v := range container.ExecConfig.Annotations {
+			info.ContainerConfig.Annotations[k] = v
+		}
+	}
 
 	path := container.ExecConfig.Sessions[ccid].Cmd.Path
 	info.ProcessConfig.ExecPath = &path

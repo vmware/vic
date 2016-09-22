@@ -134,6 +134,9 @@ type ExecutorConfig struct {
 	// Layer id that is backing this container VM
 	LayerID string `vic:"0.1" scope:"read-only" key:"layerid"`
 
+	// Blob metadata for the caller
+	Annotations map[string]string `vic:"0.1" scope:"hidden" key:"annotation"`
+
 	// Repository requested by user
 	// TODO: a bit docker specific
 	RepoName string `vic:"0.1" scope:"read-only" key:"repo"`

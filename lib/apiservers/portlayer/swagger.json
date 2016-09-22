@@ -1950,6 +1950,12 @@
 				},
 				"stopSignal": {
 					"type": "string"
+				},
+				"annotations": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
+					}
 				}
 			}
 		},
@@ -2239,7 +2245,7 @@
 						"type": "string"
 					}
 				},
-				"labels": {
+				"annotations": {
 					"type": "object",
 					"additionalProperties": {
 						"type": "string"
