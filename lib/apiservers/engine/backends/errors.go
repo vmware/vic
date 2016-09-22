@@ -46,3 +46,18 @@ func VolumeJoinNotFoundError(msg string) error {
 func VolumeCreateNotFoundError(msg string) error {
 	return derr.NewErrorWithStatusCode(fmt.Errorf("No volume store named (%s) exists", msg), http.StatusInternalServerError)
 }
+
+// NotFoundError returns a 404 docker error when a container is not found.
+func NotFoundError(msg string) error {
+	return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", msg))
+}
+
+// InternalServerError returns a 500 docker error on a portlayer error.
+func InternalServerError(msg string) error {
+	return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", msg), http.StatusInternalServerError)
+}
+
+// BadRequestError returns a 400 docker error on a bad request.
+func BadRequestError(msg string) error {
+	return derr.NewErrorWithStatusCode(fmt.Errorf("Bad request error from portlayer: %s", msg), http.StatusBadRequest)
+}

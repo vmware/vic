@@ -111,18 +111,6 @@ const (
 	defaultEnvPath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 )
 
-func NotFoundError(msg string) error {
-	return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", msg))
-}
-
-func InternalServerError(msg string) error {
-	return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", msg), http.StatusInternalServerError)
-}
-
-func BadRequestError(msg string) error {
-	return derr.NewErrorWithStatusCode(fmt.Errorf("Bad request error from portlayer: %s", msg), http.StatusBadRequest)
-}
-
 func (c *Container) Handle(id, name string) (string, error) {
 	resp, err := c.containerProxy.Client().Containers.Get(containers.NewGetParamsWithContext(ctx).WithID(id))
 	if err != nil {

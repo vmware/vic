@@ -236,9 +236,9 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 				// already exists. We can just join the said volume to the container.
 				log.Infof("a volume with the name %s already exists", fields.ID)
 			case *storage.CreateVolumeNotFound:
-				return handle, VolumeCreateNotFoundError(req.Store) //derr.NewErrorWithStatusCode(fmt.Errorf("No volume store named (%s) exists", volRequest.Store), http.StatusInternalServerError)
+				return handle, VolumeCreateNotFoundError(req.Store)
 			default:
-				return handle, InternalServerError(err.Error()) //derr.NewErrorWithStatusCode(fmt.Errorf("%s", err), http.StatusInternalServerError)
+				return handle, InternalServerError(err.Error())
 			}
 		} else {
 			log.Infof("volumeCreate succeeded. Volume mount section ID: %s", fields.ID)
@@ -261,7 +261,7 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 			case *storage.VolumeJoinDefault:
 				return handle, InternalServerError(err.Payload.Message)
 			case *storage.VolumeJoinNotFound:
-				return handle, VolumeJoinNotFoundError(err.Payload.Message) //derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusNotFound)
+				return handle, VolumeJoinNotFoundError(err.Payload.Message)
 			default:
 				return handle, InternalServerError(err.Error())
 			}

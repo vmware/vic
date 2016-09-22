@@ -37,7 +37,7 @@ Create with named volume
 Create with a directory as a volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -v /dir:/dir busybox
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Error response from daemon: vSphere Integrated Containers does not support mounting directories as a data volume.
+    Should Contain  ${output}  Error response from daemon: Bad request error from portlayer: vSphere Integrated Containers does not support mounting directories as a data volume.
 
 Create simple top example
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create busybox /bin/top
