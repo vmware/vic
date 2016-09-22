@@ -618,7 +618,7 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	// existing container keys
 	for a := range aliases {
 		if _, ok := c.containers[a]; ok {
-			return nil, fmt.Errorf("duplicate alias %s for container %s", a, con.ID)
+			return nil, fmt.Errorf("duplicate alias %s for container %s", a, con.ID())
 		}
 	}
 
