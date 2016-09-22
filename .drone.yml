@@ -116,7 +116,7 @@ notify:
     channel: mwilliamson-staff
     username: drone
     template: >
-      build https://ci.vmware.run/vmware/vic/{{ build.number }} finished with a {{ build.status }} status, find the logs here: $LOGLINK
+      build https://ci.vmware.run/vmware/vic/{{ build.number }} finished with a {{ build.status }} status, find the logs here: https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/integration_logs_{{ build.number }}_{{ build.commit }}.zip?authuser=1
     when:
       repo: vmware/vic
       branch: master
