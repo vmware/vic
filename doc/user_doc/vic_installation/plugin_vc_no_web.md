@@ -1,6 +1,6 @@
-# Install the vSphere Integrated Containers Engine Plug-In on vCenter Server For Windows, without SFTP or a Web Server #
+# Install the vSphere Integrated Containers Engine Plug-In on vCenter Server for Windows Without Access to a Web Server #
 
-You can install the vSphere Web Client plug-in for vSphere Integrated Containers Engine on a vCenter Server instance for Windows that has neither access to an SFTP service nor to a Web Server.
+You can install the vSphere Web Client plug-in for vSphere Integrated Containers Engine on a vCenter Server instance for Windows that does not have access to a Web Server.
 
 **Prerequisites**
 
@@ -18,7 +18,6 @@ You can install the vSphere Web Client plug-in for vSphere Integrated Containers
     <code><i>instl_dir</i></code> is the location in which vCenter Server is installed. If the `vc-packages\vsphere-client-serenity` folders do not exist under the <code>vsphere-client</code> folder, create them manually.
 3. On the `vic-machine` system, open the <code><i>vic_unpack_dir</i>\vic\ui\vCenterForWindows\configs</code> file in a text editor.
 4. Enter the IPv4 address or FQDN of the vCenter Server instance on which to install the plug-in.<pre>SET target_vcenter_ip=<i>vcenter_server_address</i></pre>
-5. Deactivate SFTP by changing the value of `sftp_supported` to 0.<pre>SET sftp_supported=0</pre>
 6. Save and close the `configs` file.
 7. Open a command prompt, navigate to <code><i>vic_unpack_dir</i>\vic\ui\vCenterForWindows</code>, and run the installer.<pre>install.bat</pre>
 9. Enter the user name and password for the vCenter Server administrator account.

@@ -5,9 +5,9 @@
 Contributors and users are encouraged to collaborate using the following resources in addition to the GitHub issue
 tracker:
 
-- [Slack](https://vmwarecode.slack.com/messages/vic-engine) : This is the primary community channel. 
+- [Slack](https://vmwarecode.slack.com/messages/vic-engine): This is the primary community channel.
 
-- [Gitter](https://gitter.im/vmware/vic) : Gitter is monitored but go to slack if you need a response quickly.
+- [Gitter](https://gitter.im/vmware/vic): Gitter is monitored but go to slack if you need a response quickly.
 
 ## Getting started
 
@@ -39,7 +39,7 @@ This is a rough outline of what a contributor's workflow looks like:
 - Push your changes to a topic branch in your fork of the repository.
 - Test your changes as detailed in the [Automated Testing](#automated-testing) section.
 - Submit a pull request to vmware/vic.
-- Your PR must receive at least one LGTM from a maintainer before merging.
+- Your PR must receive at least two LGTMs from maintainers before merging.
 
 Example:
 

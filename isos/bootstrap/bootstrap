@@ -2,6 +2,9 @@
 
 set -x
 
+echo "Loading drivers"
+/usr/sbin/modprobe vmxnet3
+
 MOUNTPOINT="/mnt/containerfs"
 
 mkdir -p /mnt/containerfs
@@ -11,7 +14,7 @@ while [ ! -e /dev/disk/by-label/containerfs ]; do :;done
 if mount -t ext4 /dev/disk/by-label/containerfs ${MOUNTPOINT}; then
     # ensure mountpoint exists
     mkdir -p ${MOUNTPOINT}/.tether
- 
+
     # ensure that no matter what we have access to required devices
     # WARNING WARNING WARNING WARNING WARNING
     # if the tmpfs is not large enough odd hangs can occur and the ESX event log will

@@ -174,6 +174,10 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 		c.vm = vm.NewVirtualMachine(ctx, sess, res.Result.(types.ManagedObjectReference))
 		c.State = StateCreated
+
+		// align the handle state w/the container
+		h.State = &c.State
+
 		commitEvent = events.ContainerCreated
 
 		// clear the spec as we've acted on it

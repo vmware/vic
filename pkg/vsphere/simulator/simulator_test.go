@@ -20,7 +20,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"reflect"
 	"testing"
 	"time"
@@ -236,7 +235,7 @@ func TestServeHTTP(t *testing.T) {
 			t.Fatal("expected invalid login error")
 		}
 
-		err = client.Login(ctx, url.UserPassword("user", "pass"))
+		err = client.Login(ctx, ts.URL.User)
 		if err != nil {
 			t.Fatal(err)
 		}

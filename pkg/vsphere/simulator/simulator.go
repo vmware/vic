@@ -271,6 +271,7 @@ func (s *Service) NewServer() *Server {
 		Scheme: "http",
 		Host:   ts.Listener.Addr().String(),
 		Path:   path,
+		User:   url.UserPassword("user", "pass"),
 	}
 
 	// Enable use of SessionManagerGenericServiceTicket.HostName in govmomi, disabled by default.
