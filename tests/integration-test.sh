@@ -31,8 +31,7 @@ fi
 rc="$?"
 
 timestamp=$(date +%s)
-outfile="integration_logs_"$DRONE_BUILD_NUMBER"_"$DRONE_COMMIT"_$timestamp.zip"
-export LOGLINK="https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/$outfile?authuser=1"
+outfile="integration_logs_"$DRONE_BUILD_NUMBER"_"$DRONE_COMMIT".zip"
 
 zip -9 $outfile output.xml log.html package.list *container-logs.zip *.log
 
@@ -52,7 +51,7 @@ if [ -f "$outfile" ]; then
   gsutil cp $outfile gs://vic-ci-logs
   echo "----------------------------------------------"
   echo "Download test logs:"
-  echo $LOGLINK
+  echo "https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/$outfile?authuser=1"
   echo "----------------------------------------------"
 else
   echo "No log output file to upload"
