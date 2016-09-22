@@ -239,6 +239,8 @@ func (s *server) bundleLogs(res http.ResponseWriter, req *http.Request, readers 
 		err = zipEntries(readers, z)
 	}
 
+	cleanUpFiles()
+
 	if err != nil {
 		log.Errorf("Error bundling logs: %s", err)
 	}
