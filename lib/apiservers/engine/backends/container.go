@@ -1417,7 +1417,7 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	if config.HostConfig != nil {
 		for _, pbs := range config.HostConfig.PortBindings {
 			for _, pb := range pbs {
-				if pb.HostIP != "" {
+				if pb.HostIP != "" && pb.HostIP != "0.0.0.0" {
 					return InternalServerError("host IP is not supported for port bindings")
 				}
 

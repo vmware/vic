@@ -712,7 +712,7 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	// but instead...
 	if !ip.IsUnspecifiedIP(conf.ExecutorConfig.Networks["client"].Assigned.IP) {
 		d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.IP.String()
-		log.Debug("Obtained IP address for client interface: %q", d.HostIP)
+		log.Debugf("Obtained IP address for client interface: %q", d.HostIP)
 		return nil
 	}
 

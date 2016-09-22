@@ -92,7 +92,7 @@ func (t *testAttachServer) Start() error {
 
 	log.Infof("creating raw connection from ttyS0 pipe pair (c=%d, s=%d)\n", c.Fd(), s.Fd())
 	var conn net.Conn
-	conn, err = serial.NewHalfDuplixFileConn(s, c, pathPrefix+"/ttyS0", "file")
+	conn, err = serial.NewHalfDuplexFileConn(s, c, pathPrefix+"/ttyS0", "file")
 	if err != nil {
 		detail := fmt.Sprintf("failed to create raw connection from ttyS0 pipe pair: %s", err)
 		log.Error(detail)
@@ -125,7 +125,7 @@ func mockBackChannel(ctx context.Context) (net.Conn, error) {
 	}
 
 	log.Infof("creating raw connection from ttyS0 pipe pair (c=%d, s=%d)\n", c.Fd(), s.Fd())
-	conn, err := serial.NewHalfDuplixFileConn(c, s, pathPrefix+"/ttyS0", "file")
+	conn, err := serial.NewHalfDuplexFileConn(c, s, pathPrefix+"/ttyS0", "file")
 
 	if err != nil {
 		detail := fmt.Sprintf("failed to create raw connection from ttyS0 pipe pair: %s", err)
@@ -172,7 +172,7 @@ func mockNetworkToSerialConnection(host string) (*sync.WaitGroup, error) {
 	}
 
 	log.Infof("creating raw connection from ttyS0 pipe pair (c=%d, s=%d)\n", c.Fd(), s.Fd())
-	fconn, err := serial.NewHalfDuplixFileConn(c, s, pathPrefix+"/ttyS0", "file")
+	fconn, err := serial.NewHalfDuplexFileConn(c, s, pathPrefix+"/ttyS0", "file")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create raw connection from ttyS0 pipe pair: %s", err)
 	}

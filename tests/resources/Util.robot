@@ -209,7 +209,7 @@ Get State Of Drone Build
     ${out}=  Run  drone build info vmware/vic ${num}
     ${lines}=  Split To Lines  ${out}
     [Return]  @{lines}[2]
-    
+
 Get Title of Drone Build
     [Arguments]  ${num}
     ${out}=  Run  drone build info vmware/vic ${num}
@@ -419,7 +419,7 @@ Run Regression Tests
 Put Host Into Maintenance Mode
     ${rc}  ${output}=  Run And Return Rc And Output  govc host.maintenance.enter -host.ip=%{TEST_URL}
     Should Contain  ${output}  entering maintenance mode... OK
-    
+
 Remove Host From Maintenance Mode
     ${rc}  ${output}=  Run And Return Rc And Output  govc host.maintenance.exit -host.ip=%{TEST_URL}
     Should Contain  ${output}  exiting maintenance mode... OK
