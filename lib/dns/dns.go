@@ -355,11 +355,11 @@ func (s *Server) HandleVIC(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
 		return false, fmt.Errorf("Inter-scope request for container %s in %s from %s", name, domain, scope.Name())
 	}
 
-	// scope-wide search
-	c := ctx.Container(fmt.Sprintf("%s:%s", scope.Name(), name))
+	// container specific alias search
+	c := ctx.Container(fmt.Sprintf("%s:%s:%s", scope.Name(), e.Container().Name(), name))
 	if c == nil {
-		// container specific alias search
-		c = ctx.Container(fmt.Sprintf("%s:%s:%s", scope.Name(), e.Container().Name(), name))
+		// scope-wide search
+		c = ctx.Container(fmt.Sprintf("%s:%s", scope.Name(), name))
 	}
 
 	if c == nil {
