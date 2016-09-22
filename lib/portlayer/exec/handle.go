@@ -147,6 +147,19 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 	// make sure there is a spec
 	h.SetSpec(nil)
 	cfg := make(map[string]string)
+
+	// Set timestamps based on target state
+	switch *h.State {
+	case StateRunning:
+		se := h.ExecConfig.Sessions[h.ExecConfig.ID]
+		se.StartTime = time.Now().UTC().Unix()
+		h.ExecConfig.Sessions[h.ExecConfig.ID] = se
+	case StateStopped:
+		se := h.ExecConfig.Sessions[h.ExecConfig.ID]
+		se.StopTime = time.Now().UTC().Unix()
+		h.ExecConfig.Sessions[h.ExecConfig.ID] = se
+	}
+
 	extraconfig.Encode(extraconfig.MapSink(cfg), h.ExecConfig)
 	s := h.Spec.Spec()
 	s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
@@ -179,8 +192,6 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 
 	// update the handle with Metadata
 	h.ExecConfig = config.Metadata
-	// add create time to config
-	h.ExecConfig.Common.Created = time.Now().UTC().Unix()
 	// configure with debug
 	h.ExecConfig.Diagnostics.DebugLevel = Config.DebugLevel
 	// Convert the management hostname to IP

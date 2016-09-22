@@ -29,7 +29,6 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/system"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"
@@ -315,28 +314,16 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 	session.Outwriter.Close()
 	session.Errwriter.Close()
 
-	// Log a death record trimming records if need be
-	logs := session.Diagnostics.ExitLogs
-	logCount := len(logs)
-	if logCount >= MaxDeathRecords {
-		logs = logs[logCount-MaxDeathRecords+1:]
-	}
-
 	// Remove associated PID file
 	cmdname := path.Base(session.Cmd.Path)
 	_ = os.Remove(fmt.Sprintf("%s.pid", path.Join(PIDFileDir(), cmdname)))
 
-	session.Diagnostics.ExitLogs = append(logs, executor.ExitLog{
-		Time:       time.Now(),
-		ExitStatus: session.ExitStatus,
-		// We don't have any message for now
-	})
+	// set the stop time
+	session.StopTime = time.Now().UTC().Unix()
 
 	// this returns an arbitrary closure for invocation after the session status update
 	f := t.ops.HandleSessionExit(t.config, session)
 
-	log.Infof("%s exit code: %d", session.ID, session.ExitStatus)
-	// record exit status
 	// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
 	// currently sure how to expose it neatly via a utility function
 	extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo.vice..sessions|%s", session.ID))
