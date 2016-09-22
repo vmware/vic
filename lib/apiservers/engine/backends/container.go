@@ -45,6 +45,7 @@ import (
 	dnetwork "github.com/docker/engine-api/types/network"
 	timetypes "github.com/docker/engine-api/types/time"
 	"github.com/docker/go-connections/nat"
+	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/portallocator"
 
 	"github.com/vishvananda/netlink"
@@ -94,7 +95,6 @@ func init() {
 	clientIfaceName = l.Attrs().Name
 }
 
-//TODO: gotta be a better way...
 // type and funcs to provide sorting by created date
 type containerByCreated []*types.Container
 
@@ -123,13 +123,13 @@ func BadRequestError(msg string) error {
 	return derr.NewErrorWithStatusCode(fmt.Errorf("Bad request error from portlayer: %s", msg), http.StatusBadRequest)
 }
 
-func (c *Container) Handle(name, paramName string) (string, error) {
-	resp, err := c.containerProxy.Client().Containers.Get(containers.NewGetParamsWithContext(ctx).WithID(name))
+func (c *Container) Handle(id, name string) (string, error) {
+	resp, err := c.containerProxy.Client().Containers.Get(containers.NewGetParamsWithContext(ctx).WithID(id))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetNotFound:
-			cache.ContainerCache().DeleteContainer(name)
-			return "", NotFoundError(paramName)
+			cache.ContainerCache().DeleteContainer(id)
+			return "", NotFoundError(name)
 		case *containers.GetDefault:
 			return "", InternalServerError(err.Payload.Message)
 		default:
@@ -225,7 +225,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 
 	// bail early if container name already exists
 	if exists := cache.ContainerCache().GetContainer(config.Name); exists != nil {
-		err := fmt.Errorf("Conflict. The name \"%s\" is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", config.Name, exists.ContainerID)
+		err := fmt.Errorf("Conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", config.Name, exists.ContainerID)
 		log.Errorf("%s", err.Error())
 		return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(err, http.StatusConflict)
 	}
@@ -534,9 +534,7 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 	if bind {
 		e := c.findPortBoundNetworkEndpoint(hostConfig, endpoints)
 		if err = c.mapPorts(portmap.Map, hostConfig, e); err != nil {
-			err = fmt.Errorf("error mapping ports: %s", err)
-			log.Error(err)
-			return InternalServerError(err.Error())
+			return InternalServerError(fmt.Sprintf("error mapping ports: %s", err))
 		}
 
 		defer func() {
@@ -813,13 +811,12 @@ func (c *Container) ContainerWait(name string, timeout time.Duration) (int, erro
 	}
 
 	containerInfo := results.Payload
-
 	// call to the dockerStatus function to retrieve the docker friendly exitCode
-	// TODO: once started / finished time are available replace time.Now()
+	// we are only calling for the exitCode, thus the zero time
 	exitCode, _ := dockerStatus(int(*containerInfo.ProcessConfig.ExitCode),
 		*containerInfo.ProcessConfig.Status,
 		*containerInfo.ContainerConfig.State,
-		time.Now(), time.Now())
+		time.Time{}, time.Time{})
 
 	return exitCode, nil
 }
@@ -829,41 +826,43 @@ func (c *Container) ContainerWait(name string, timeout time.Duration) (int, erro
 //
 // exitCode is the container process exit code
 // status is the container process status -- stored in the vmx file as "started"
-// started / finished are timestamps, but are not yet implemented
+// started & finished are the process start / finish times
 func dockerStatus(exitCode int, status string, state string, started time.Time, finished time.Time) (int, string) {
-	// TODO: once started / finished are available then github.com/docker/go-units must be imported for use in
-	// the status string
-	switch state {
-	case "Created":
-		status = state
-	case "Running":
-		//TODO: once we have started use commented out status
-		// status = fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(started)))
-		status = state
-	case "Stopped":
-		// interrogate the process status returned from the portlayer
-		// and based on status text and exit codes set the appropriate
-		// docker exit code
-		if strings.Contains(status, "permission denied") {
-			exitCode = 126
-		} else if strings.Contains(status, "no such") {
-			exitCode = 127
-		} else if status == "true" && exitCode == -1 {
-			// most likely the process was killed via the cli
-			// or recieved a sigkill
-			exitCode = 137
-		} else if status == "" && exitCode == 0 {
-			// the process was stopped via the cli
-			// or recieved a sigterm
-			exitCode = 143
-		}
 
-		// TODO: once we have finished use commented out status
-		// status = fmt.Sprintf("Exited (%d) %s ago", exitCode, units.HumanDuration(time.Now().UTC().Sub(finished)))
-		status = fmt.Sprintf("Exited (%d)", exitCode)
+	// set docker status to state and we'll change if needed
+	dockStatus := state
+
+	switch state {
+	case "Running":
+		// if we don't have a start date leave the status as the state
+		if !started.IsZero() {
+			dockStatus = fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(started)))
+		}
+	case "Stopped":
+		// if we don't have a finished date then don't process exitCode and return "Stopped" for the status
+		if !finished.IsZero() {
+			// interrogate the process status returned from the portlayer
+			// and based on status text and exit codes set the appropriate
+			// docker exit code
+			if strings.Contains(status, "permission denied") {
+				exitCode = 126
+			} else if strings.Contains(status, "no such") {
+				exitCode = 127
+			} else if status == "true" && exitCode == -1 {
+				// most likely the process was killed via the cli
+				// or recieved a sigkill
+				exitCode = 137
+			} else if status == "" && exitCode == 0 {
+				// the process was stopped via the cli
+				// or recieved a sigterm
+				exitCode = 143
+			}
+
+			dockStatus = fmt.Sprintf("Exited (%d) %s ago", exitCode, units.HumanDuration(time.Now().UTC().Sub(finished)))
+		}
 	}
 
-	return exitCode, status
+	return exitCode, dockStatus
 }
 
 // docker's container.monitorBackend
@@ -902,12 +901,19 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 			return nil, InternalServerError(err.Error())
 		}
 	}
+	var started time.Time
+	var stopped time.Time
+	if results.Payload.ProcessConfig.StartTime != nil && *results.Payload.ProcessConfig.StartTime > 0 {
+		started = time.Unix(*results.Payload.ProcessConfig.StartTime, 0)
+	}
+	if results.Payload.ProcessConfig.StopTime != nil && *results.Payload.ProcessConfig.StopTime > 0 {
+		stopped = time.Unix(*results.Payload.ProcessConfig.StopTime, 0)
+	}
 	// call to the dockerStatus function to retrieve the docker friendly exitCode
-	// TODO: once started / finished time are available replace time.Now()
 	exitCode, status := dockerStatus(int(*results.Payload.ProcessConfig.ExitCode),
 		*results.Payload.ProcessConfig.Status,
 		*results.Payload.ContainerConfig.State,
-		time.Now(), time.Now())
+		started, stopped)
 
 	// set the payload values
 	exit := int32(exitCode)
@@ -1007,16 +1013,21 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 		for i := range t.Names {
 			names = append(names, clientFriendlyContainerName(t.Names[i]))
 		}
-
+		var started time.Time
+		var stopped time.Time
+		if t.StartTime != nil && *t.StartTime > 0 {
+			started = time.Unix(*t.StartTime, 0)
+		}
+		if t.StopTime != nil && *t.StopTime > 0 {
+			stopped = time.Unix(*t.StopTime, 0)
+		}
 		// get the docker friendly status
-		// TODO: when started / finished are available replace the last two variables
-		// https://github.com/vmware/vic/issues/1899
-		_, status := dockerStatus(int(*t.ExitCode), *t.Status, *t.State, time.Now(), time.Now())
+		_, status := dockerStatus(int(*t.ExitCode), *t.Status, *t.State, started, stopped)
 
 		c := &types.Container{
 			ID:      *t.ContainerID,
 			Image:   *t.RepoName,
-			Created: *t.Created,
+			Created: *t.CreateTime,
 			Status:  status,
 			Names:   names,
 			Command: cmd,
@@ -1087,14 +1098,22 @@ func attachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin i
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+
 			err := copyStdIn(ctx, plClient, vc, clStdin, ca.DetachKeys)
 			if err != nil {
-				log.Errorf("container attach: stdin (%s): %s", vc.ContainerID, err.Error())
+				log.Errorf("stdin (%s) error: %s", vc.ContainerID, err.Error())
 			} else {
-				log.Infof("container attach: stdin (%s) done: %s", vc.ContainerID)
+				log.Infof("stdin (%s) done", vc.ContainerID)
 			}
 
+			// no need to take action if we are canceled
+			// as that means error happened somewhere else
+			if ctx.Err() == context.Canceled {
+				log.Infof("returning from stdin as context canceled somewhere else")
+				return
+			}
 			cancel()
+
 			errors <- err
 		}()
 	}
@@ -1103,14 +1122,22 @@ func attachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin i
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+
 			err := copyStdOut(ctx, plClient, attachAttemptTimeout, vc, clStdout)
 			if err != nil {
-				log.Errorf("container attach: stdout (%s): %s", vc.ContainerID, err.Error())
+				log.Errorf("stdout (%s) error: %s", vc.ContainerID, err.Error())
 			} else {
-				log.Infof("container attach: stdout (%s) done: %s", vc.ContainerID)
+				log.Infof("stdout (%s) done", vc.ContainerID)
 			}
 
+			// no need to take action if we are canceled
+			// as that means error happened somewhere else
+			if ctx.Err() == context.Canceled {
+				log.Infof("returning from stdout as context canceled somewhere else")
+				return
+			}
 			cancel()
+
 			errors <- err
 		}()
 	}
@@ -1119,14 +1146,22 @@ func attachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin i
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+
 			err := copyStdErr(ctx, plClient, vc, clStderr)
 			if err != nil {
-				log.Errorf("container attach: stderr (%s): %s", vc.ContainerID, err.Error())
+				log.Errorf("stderr (%s) error: %s", vc.ContainerID, err.Error())
 			} else {
-				log.Infof("container attach: stderr (%s) done: %s", vc.ContainerID)
+				log.Infof("stderr (%s) done", vc.ContainerID)
 			}
 
+			// no need to take action if we are canceled
+			// as that means error happened somewhere else
+			if ctx.Err() == context.Canceled {
+				log.Infof("returning from stderr as context canceled somewhere else")
+				return
+			}
 			cancel()
+
 			errors <- err
 		}()
 	}
@@ -1134,21 +1169,30 @@ func attachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin i
 	// Wait for all stream copy to exit
 	wg.Wait()
 
-	log.Infof("container attach:  cleaned up connections to %s.", vc.ContainerID)
+	// close the channel so that we don't leak (if there is an error)/or get blocked (if there are no errors)
+	close(errors)
+
+	log.Infof("cleaned up connections to %s. Checking errors", vc.ContainerID)
 	for err := range errors {
 		if err != nil {
+			// check if we got DetachError
+			if _, ok := err.(DetachError); ok {
+				log.Infof("Detached from container detected")
+				return err
+			}
+
 			// If we get here, most likely something went wrong with the port layer API server
 			// These errors originate within the go-swagger client itself.
 			// Go-swagger returns untyped errors to us if the error is not one that we define
 			// in the swagger spec.  Even EOF.  Therefore, we must scan the error string (if there
 			// is an error string in the untyped error) for the term EOF.
-
-			log.Errorf("container attach error: %s", err.Error())
+			log.Errorf("container attach error: %s", err)
 
 			return err
 		}
 	}
 
+	log.Infof("No error found. Returning nil...")
 	return nil
 }
 
@@ -1171,11 +1215,13 @@ func createNewAttachClientWithTimeouts(connectTimeout, responseTimeout, response
 func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, clStdin io.ReadCloser, keys []byte) error {
 	// Pipe for stdin so we can interject and watch the input streams for detach keys.
 	stdinReader, stdinWriter := io.Pipe()
-
 	defer stdinWriter.Close()
+
+	var detach bool
 
 	go func() {
 		defer stdinReader.Close()
+
 		// Copy the stdin from the CLI and write to a pipe.  We need to do this so we can
 		// watch the stdin stream for the detach keys.
 		var err error
@@ -1186,7 +1232,12 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 		}
 
 		if err != nil {
-			log.Errorf("container attach: stdin err: %s", err.Error())
+			if _, ok := err.(DetachError); ok {
+				log.Infof("stdin detach detected")
+				detach = true
+			} else {
+				log.Errorf("stdin err: %s", err)
+			}
 		}
 	}()
 
@@ -1194,8 +1245,8 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 	// to set the stdin is synchronous so we need to run in a goroutine
 	setStdinParams := interaction.NewContainerSetStdinParamsWithContext(ctx).WithID(vc.ContainerID)
 	setStdinParams = setStdinParams.WithRawStream(stdinReader)
-	_, err := pl.Interaction.ContainerSetStdin(setStdinParams)
 
+	_, err := pl.Interaction.ContainerSetStdin(setStdinParams)
 	if vc.Config.StdinOnce && !vc.Config.Tty {
 		// Close the stdin connection.  Mimicing Docker's behavior.
 		// FIXME: If we close this stdin connection.  The portlayer does
@@ -1206,11 +1257,16 @@ func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicCo
 		// in the tether in the portlayer.
 		log.Errorf("Attach stream has stdinOnce set.  VIC does not yet support this.")
 	}
+
+	// ignore the portlayer error when it is DetachError as that is what we should return to the caller when we detach
+	if detach {
+		return DetachError{}
+	}
 	return err
 }
 
 func copyStdOut(ctx context.Context, pl *client.PortLayer, attemptTimeout time.Duration, vc *viccontainer.VicContainer, clStdout io.Writer) error {
-	name := vc.ContainerID
+	id := vc.ContainerID
 	//Calculate how much time to let portlayer attempt
 	plAttemptTimeout := attemptTimeout - attachPLAttemptDiff //assumes personality deadline longer than portlayer's deadline
 	plAttemptDeadline := time.Now().Add(plAttemptTimeout)
@@ -1219,12 +1275,12 @@ func copyStdOut(ctx context.Context, pl *client.PortLayer, attemptTimeout time.D
 	log.Debugf("* stdout personality deadline: %s", time.Now().Add(attemptTimeout).Format(time.UnixDate))
 
 	log.Debugf("* stdout attach start %s", time.Now().Format(time.UnixDate))
-	getStdoutParams := interaction.NewContainerGetStdoutParamsWithContext(ctx).WithID(name).WithDeadline(&swaggerDeadline)
+	getStdoutParams := interaction.NewContainerGetStdoutParamsWithContext(ctx).WithID(id).WithDeadline(&swaggerDeadline)
 	_, err := pl.Interaction.ContainerGetStdout(getStdoutParams, clStdout)
 	log.Debugf("* stdout attach end %s", time.Now().Format(time.UnixDate))
 	if err != nil {
 		if _, ok := err.(*interaction.ContainerGetStdoutNotFound); ok {
-			return NotFoundError(name)
+			return NotFoundError(id)
 		}
 		if _, ok := err.(*interaction.ContainerGetStdoutInternalServerError); ok {
 			return InternalServerError(err.Error())
@@ -1238,8 +1294,8 @@ func copyStdOut(ctx context.Context, pl *client.PortLayer, attemptTimeout time.D
 func copyStdErr(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, clStderr io.Writer) error {
 	name := vc.ContainerID
 	getStderrParams := interaction.NewContainerGetStderrParamsWithContext(ctx).WithID(name)
-	_, err := pl.Interaction.ContainerGetStderr(getStderrParams, clStderr)
 
+	_, err := pl.Interaction.ContainerGetStderr(getStderrParams, clStderr)
 	if err != nil {
 		if _, ok := err.(*interaction.ContainerGetStderrNotFound); ok {
 			return NotFoundError(name)
@@ -1258,6 +1314,15 @@ func copyStdErr(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicC
 // we have ignore capabilities in our header-check.sh that checks for copyright
 // header.
 // Code c/c from io.Copy() modified by Docker to handle escape sequence
+// Begin
+
+// DetachError is special error which returned in case of container detach.
+type DetachError struct{}
+
+func (DetachError) Error() string {
+	return "detached from container"
+}
+
 func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64, err error) {
 	if len(keys) == 0 {
 		// Default keys : ctrl-p ctrl-q
@@ -1268,20 +1333,27 @@ func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64
 		nr, er := src.Read(buf)
 		if nr > 0 {
 			// ---- Docker addition
+			preservBuf := []byte{}
 			for i, key := range keys {
+				preservBuf = append(preservBuf, buf[0:nr]...)
 				if nr != 1 || buf[0] != key {
 					break
 				}
 				if i == len(keys)-1 {
-					if err := src.Close(); err != nil {
-						return 0, err
-					}
-					return 0, nil
+					src.Close()
+					return 0, DetachError{}
 				}
 				nr, er = src.Read(buf)
 			}
-			// ---- End of docker
-			nw, ew := dst.Write(buf[0:nr])
+			var nw int
+			var ew error
+			if len(preservBuf) > 0 {
+				nw, ew = dst.Write(preservBuf)
+				nr = len(preservBuf)
+			} else {
+				// ---- End of docker
+				nw, ew = dst.Write(buf[0:nr])
+			}
 			if nw > 0 {
 				written += int64(nw)
 			}
@@ -1304,6 +1376,8 @@ func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64
 	}
 	return written, err
 }
+
+// End
 
 // helper function to format the container name
 // to the docker client approved format

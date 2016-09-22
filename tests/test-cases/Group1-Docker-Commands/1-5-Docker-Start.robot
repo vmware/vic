@@ -50,13 +50,3 @@ Start with no ethernet card
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  unable to wait for process launch status
     Should Not Contain  ${output}  context deadline exceeded
-Restart a stopped container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it busybox /bin/ls
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error:
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${output}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error:
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${output}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error:

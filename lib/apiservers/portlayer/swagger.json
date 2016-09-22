@@ -2175,7 +2175,15 @@
 					"type": "integer",
 					"format": "int32"
 				},
-				"created": {
+				"createTime": {
+					"type": "integer",
+					"format": "int64"
+				},
+				"startTime": {
+					"type": "integer",
+					"format": "int64"
+				},
+				"stopTime": {
 					"type": "integer",
 					"format": "int64"
 				},
@@ -2215,7 +2223,7 @@
 				"repoName": {
 					"type": "string"
 				},
-				"created": {
+				"createTime": {
 					"type": "integer",
 					"format": "int64"
 				},
@@ -2331,13 +2339,13 @@
 				"status": {
 					"type": "string"
 				},
-				"started": {
-					"type": "string",
-					"format": "datetime"
+				"startTime": {
+					"type": "integer",
+					"format": "int64"
 				},
-				"finished": {
-					"type": "string",
-					"format": "datetime"
+				"stopTime": {
+					"type": "integer",
+					"format": "int64"
 				},
 				"exitCode": {
 					"type": "integer",
