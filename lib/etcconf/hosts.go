@@ -85,13 +85,13 @@ func (h *hosts) ConsumeEntry(t string) error {
 
 	fs := strings.Fields(t)
 	if len(fs) < 2 {
-		log.Warnf("ignoring incomplete line \"%s\"", t)
+		log.Warnf("ignoring incomplete line %q", t)
 		return nil
 	}
 
 	ip := net.ParseIP(fs[0])
 	if ip == nil {
-		log.Warnf("ignoring line \"%s\" due to invalid ip address", t)
+		log.Warnf("ignoring line %q due to invalid ip address", t)
 		return nil
 	}
 
