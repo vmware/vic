@@ -568,6 +568,7 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 
 		// dns lookup aliases
 		aliases[fmt.Sprintf("%s:%s", s.Name(), con.name)] = con
+		aliases[fmt.Sprintf("%s:%s", s.Name(), con.id.Truncate())] = con
 
 		// container specific aliases
 		for _, a := range ne.Network.Aliases {
@@ -709,6 +710,7 @@ func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		// aliases to remove
 		// name for dns lookup
 		aliases = append(aliases, fmt.Sprintf("%s:%s", s.Name(), con.name))
+		aliases = append(aliases, fmt.Sprintf("%s:%s", s.Name(), con.id.Truncate()))
 		for _, as := range e.aliases {
 			for _, a := range as {
 				aliases = append(aliases, a.scopedName())

@@ -1089,6 +1089,7 @@ func TestAliases(t *testing.T) {
 		assert.NotNil(t, ctx.Container(uid.Parse(c.ExecConfig.ID).Truncate().String()))
 		assert.NotNil(t, ctx.Container(c.ExecConfig.Name))
 		assert.NotNil(t, ctx.Container(fmt.Sprintf("%s:%s", scope.Name(), c.ExecConfig.Name)))
+		assert.NotNil(t, ctx.Container(fmt.Sprintf("%s:%s", scope.Name(), uid.Parse(c.ExecConfig.ID).Truncate())))
 
 		aliases := c.ExecConfig.Networks[scope.Name()].Network.Aliases
 		for _, a := range aliases {
@@ -1137,6 +1138,7 @@ func TestAliases(t *testing.T) {
 	assert.Nil(t, ctx.Container(uid.Parse(c.ExecConfig.ID).Truncate().String()))
 	assert.Nil(t, ctx.Container(c.ExecConfig.Name))
 	assert.Nil(t, ctx.Container(fmt.Sprintf("%s:%s", scope.Name(), c.ExecConfig.Name)))
+	assert.Nil(t, ctx.Container(fmt.Sprintf("%s:%s", scope.Name(), uid.Parse(c.ExecConfig.ID).Truncate())))
 
 	// aliases from c1 and c3 to c2 should not resolve anymore
 	assert.Nil(t, ctx.Container(fmt.Sprintf("%s:c1:other", scope.Name())))
