@@ -62,7 +62,7 @@ const (
 )
 
 type Container struct {
-	sync.Mutex
+	m sync.Mutex
 
 	ExecConfig *executor.ExecutorConfig
 	State      State
@@ -124,8 +124,8 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 	// hold the event that has occurred
 	var commitEvent string
 
-	c.Lock()
-	defer c.Unlock()
+	c.m.Lock()
+	defer c.m.Unlock()
 
 	// If an event has occurred then put the container in the cache
 	// and publish the container event
@@ -150,7 +150,6 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 				return Config.VirtualApp.CreateChildVM_Task(ctx, *h.Spec.Spec(), nil)
 			})
-
 		} else {
 			// Find the Virtual Machine folder that we use
 			var folders *object.DatacenterFolders
@@ -456,8 +455,8 @@ func (r RemovePowerError) Error() string {
 // Remove removes a containerVM after detaching the disks
 func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	defer trace.End(trace.Begin("Container.Remove"))
-	c.Lock()
-	defer c.Unlock()
+	c.m.Lock()
+	defer c.m.Unlock()
 
 	if c.vm == nil {
 		return NotFoundError{}
@@ -535,8 +534,8 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 
 func (c *Container) Update(ctx context.Context, sess *session.Session) (*executor.ExecutorConfig, error) {
 	defer trace.End(trace.Begin("Container.Update"))
-	c.Lock()
-	defer c.Unlock()
+	c.m.Lock()
+	defer c.m.Unlock()
 
 	if c.vm == nil {
 		return nil, fmt.Errorf("container does not have a vm")
