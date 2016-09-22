@@ -77,7 +77,7 @@ func (i *Images) CheckImagesFiles(force bool) (map[string]string, error) {
 	// detect images files
 	osImgs, ok := images[i.OSType]
 	if !ok {
-		return nil, fmt.Errorf("Specified OS \"%s\" is not known to this installer", i.OSType)
+		return nil, fmt.Errorf("Specified OS %q is not known to this installer", i.OSType)
 	}
 
 	imgs := make(map[string]string)

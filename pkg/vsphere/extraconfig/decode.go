@@ -87,7 +87,7 @@ func decode(src DataSource, dest reflect.Value, prefix string, depth recursion) 
 func decodeString(src DataSource, dest reflect.Value, prefix string, depth recursion) (reflect.Value, error) {
 	v, err := src(prefix)
 	if err != nil {
-		log.Debugf("No value found in data source for string at key \"%s\"", prefix)
+		log.Debugf("No value found in data source for string at key %q", prefix)
 		return nilValue, err
 	}
 
@@ -219,13 +219,13 @@ func decodeByteSlice(src DataSource, dest reflect.Value, prefix string, depth re
 	log.Debugf("Converting string to []byte")
 	base, err := src(prefix)
 	if err != nil {
-		log.Debugf("No value found in data source for []byte \"%s\"", prefix)
+		log.Debugf("No value found in data source for []byte %q", prefix)
 		return nilValue, err
 	}
 
 	bytes, err := base64.StdEncoding.DecodeString(base)
 	if err != nil {
-		log.Debugf("Expected base64 encoded string for []byte \"%s\": %s", prefix, err)
+		log.Debugf("Expected base64 encoded string for []byte %q: %s", prefix, err)
 		return nilValue, err
 	}
 
@@ -306,7 +306,7 @@ func decodeSlice(src DataSource, dest reflect.Value, prefix string, depth recurs
 	key := fmt.Sprintf("%s~", prefix)
 	kval, err := src(key)
 	if err != nil {
-		log.Debugf("No value found in data source for key \"%s\"", key)
+		log.Debugf("No value found in data source for key %q", key)
 		return this, err
 	}
 
@@ -338,7 +338,7 @@ func decodeMap(src DataSource, dest reflect.Value, prefix string, depth recursio
 
 	mapkeys, err := src(prefix)
 	if mapkeys == "" || err != nil {
-		log.Debugf("No value found in data source for maps keys \"%s\"", prefix)
+		log.Debugf("No value found in data source for maps keys %q", prefix)
 		return this, err
 	}
 
@@ -369,13 +369,13 @@ func decodeMap(src DataSource, dest reflect.Value, prefix string, depth recursio
 func decodeTime(src DataSource, dest reflect.Value, prefix string, depth recursion) (reflect.Value, error) {
 	v, err := src(prefix)
 	if err != nil {
-		log.Debugf("No value found in data source for time \"%s\"", prefix)
+		log.Debugf("No value found in data source for time %q", prefix)
 		return nilValue, err
 	}
 
 	t, err := time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", v)
 	if err != nil {
-		log.Debugf("Failed to convert value \"%s\" to time", v)
+		log.Debugf("Failed to convert value %q to time", v)
 	}
 
 	return reflect.ValueOf(t), nil
