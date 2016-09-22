@@ -315,6 +315,8 @@ You can designate the same datastore as the volume store for multiple virtual co
 
 The label that you specify is the volume store name that Docker uses. For example, the volume store label appears in the information for a virtual container host when container developers run `docker info`. Container developers also specify the volume store label in the <code>docker volume create --opt VolumeStore=<i>volume_store_label</i></code> option when they create a  volume.
 
+**IMPORTANT** If you do not specify the `volume-store` option, no  volume store is created and container developers cannot use the `docker volume create` command.
+
 - If you only require one volume store, you can set the volume store label to `default`. If you set the volume store label to `default`, container developers do not need to specify the <code>--opt VolumeStore=<i>volume_store_label</i></code> option when they run `docker volume create`. 
 
   **NOTE**: If container developers intend to create anonymous volumes by using `docker create -v`, you must create a volume store with a label of `default`.
