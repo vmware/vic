@@ -225,7 +225,10 @@ func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key strin
 					// check the status of the key and return true if it's been set to non-nil
 					if key == value.GetOptionValue().Key {
 						detail = value.GetOptionValue().Value.(string)
-						return detail != "" && detail != "<nil>"
+						if detail != "" && detail != "<nil>" {
+							return true
+						}
+						break // continue the outer loop as we may have a powerState change too
 					}
 				}
 			case types.VirtualMachinePowerState:

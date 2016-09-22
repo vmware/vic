@@ -30,11 +30,10 @@ Assert Kill Signal
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -json *-${id} | jq -r .VirtualMachines[].Runtime.PowerState
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal  ${output}  poweredOff
-	${rc}  ${dir}=  Run And Return Rc And Output  govc datastore.ls *-${id}
+    ${rc}  ${dir}=  Run And Return Rc And Output  govc datastore.ls *-${id}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}=  Run And Return Rc  govc datastore.download ${dir}/${id}.debug ${TEMPDIR}/${id}.debug
+    ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.download ${dir}/${id}.debug -
     Should Be Equal As Integers  ${rc}  0
-    ${output}=  OperatingSystem.Get File  ${TEMPDIR}/${id}.debug
     Run Keyword If  ${expect}  Should Contain  ${output}  sending signal KILL
     Run Keyword Unless  ${expect}  Should Not Contain  ${output}  sending signal KILL
 
@@ -62,7 +61,9 @@ Stop a container with SIGKILL using default grace period
     ${rc}=  Run And Return Rc  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
     ${trap}=  Trap Signal Command  HUP
-    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} run -d ${trap}
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create ${trap}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container}
     Should Be Equal As Integers  ${rc}  0
     Wait Until Keyword Succeeds  20x  200 milliseconds  Assert Ready  ${container}
     ${rc}=  Run And Return Rc  docker ${params} stop ${container}
@@ -82,18 +83,18 @@ Stop a container with SIGKILL using specific stop signal
     Assert Kill Signal  ${container}  True
 
 Stop a container with SIGKILL using specific grace period
-    ${status}=  Get State Of Github Issue  1924
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-7-Docker-Stop.robot needs to be updated now that Issue #1924 has been resolved
-    Log  Issue \#1924 is blocking implementation  WARN
-    #${rc}=  Run And Return Rc  docker ${params} pull busybox
-    #Should Be Equal As Integers  ${rc}  0
-    #${trap}=  Trap Signal Command  HUP
-    #${rc}  ${container}=  Run And Return Rc And Output  docker ${params} run -d --stop-signal HUP ${trap}
-    #Should Be Equal As Integers  ${rc}  0
-    #${rc}=  Run And Return Rc  docker ${params} stop -t 2 ${container}
-    #Should Be Equal As Integers  ${rc}  0
-    #Assert Stop Signal  ${container}  HUP
-    #Assert Kill Signal  ${container}  True
+    ${rc}=  Run And Return Rc  docker ${params} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${trap}=  Trap Signal Command  HUP
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --stop-signal HUP ${trap}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container}
+    Should Be Equal As Integers  ${rc}  0
+    Wait Until Keyword Succeeds  20x  200 milliseconds  Assert Ready  ${container}
+    ${rc}=  Run And Return Rc  docker ${params} stop -t 2 ${container}
+    Should Be Equal As Integers  ${rc}  0
+    Assert Stop Signal  ${container}  HUP
+    Assert Kill Signal  ${container}  True
 
 Stop a non-existent container
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop fakeContainer
