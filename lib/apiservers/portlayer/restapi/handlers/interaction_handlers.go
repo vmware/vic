@@ -29,22 +29,16 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/interaction"
-	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
-	portlayer "github.com/vmware/vic/lib/portlayer/attach"
+	"github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
 // InteractionHandlersImpl is the receiver for all of the interaction handler methods
 type InteractionHandlersImpl struct {
-	attachServer *portlayer.Server
+	attachServer *attach.Server
 }
-
-var (
-	interactionSession = &session.Session{}
-)
 
 const (
 	interactionTimeout time.Duration = 30 * time.Second
@@ -52,7 +46,6 @@ const (
 
 // Configure initializes the interaction handler
 func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *HandlerContext) {
-	var err error
 
 	api.InteractionInteractionJoinHandler = interaction.InteractionJoinHandlerFunc(i.JoinHandler)
 	api.InteractionInteractionBindHandler = interaction.InteractionBindHandlerFunc(i.BindHandler)
@@ -63,23 +56,9 @@ func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Han
 	api.InteractionContainerGetStdoutHandler = interaction.ContainerGetStdoutHandlerFunc(i.ContainerGetStdoutHandler)
 	api.InteractionContainerGetStderrHandler = interaction.ContainerGetStderrHandlerFunc(i.ContainerGetStderrHandler)
 
-	sessionconfig := &session.Config{
-		Service:        options.PortLayerOptions.SDK,
-		Insecure:       options.PortLayerOptions.Insecure,
-		Keepalive:      options.PortLayerOptions.Keepalive,
-		DatacenterPath: options.PortLayerOptions.DatacenterPath,
-		ClusterPath:    options.PortLayerOptions.ClusterPath,
-		PoolPath:       options.PortLayerOptions.PoolPath,
-		DatastorePath:  options.PortLayerOptions.DatastorePath,
-	}
+	api.InteractionContainerCloseStdinHandler = interaction.ContainerCloseStdinHandlerFunc(i.ContainerCloseStdinHandler)
 
-	ctx := context.Background()
-	interactionSession, err = session.NewSession(sessionconfig).Create(ctx)
-	if err != nil {
-		log.Fatalf("InteractionHandler ERROR: %s", err)
-	}
-
-	i.attachServer = portlayer.NewAttachServer(constants.ManagementHostName, 0)
+	i.attachServer = attach.NewAttachServer(constants.ManagementHostName, 0)
 
 	if err := i.attachServer.Start(); err != nil {
 		log.Fatalf("Attach server unable to start: %s", err)
@@ -96,8 +75,10 @@ func (i *InteractionHandlersImpl) JoinHandler(params interaction.InteractionJoin
 		return interaction.NewInteractionJoinInternalServerError().WithPayload(err)
 	}
 
-	handleprime, err := portlayer.Join(handle)
+	handleprime, err := attach.Join(handle)
 	if err != nil {
+		log.Errorf("%s", err.Error())
+
 		return interaction.NewInteractionJoinInternalServerError().WithPayload(
 			&models.Error{Message: err.Error()},
 		)
@@ -118,8 +99,10 @@ func (i *InteractionHandlersImpl) BindHandler(params interaction.InteractionBind
 		return interaction.NewInteractionBindInternalServerError().WithPayload(err)
 	}
 
-	handleprime, err := portlayer.Bind(handle)
+	handleprime, err := attach.Bind(handle)
 	if err != nil {
+		log.Errorf("%s", err.Error())
+
 		return interaction.NewInteractionBindInternalServerError().WithPayload(
 			&models.Error{Message: err.Error()},
 		)
@@ -141,8 +124,10 @@ func (i *InteractionHandlersImpl) UnbindHandler(params interaction.InteractionUn
 		return interaction.NewInteractionUnbindInternalServerError().WithPayload(err)
 	}
 
-	handleprime, err := portlayer.Unbind(handle)
+	handleprime, err := attach.Unbind(handle)
 	if err != nil {
+		log.Errorf("%s", err.Error())
+
 		return interaction.NewInteractionUnbindInternalServerError().WithPayload(
 			&models.Error{Message: err.Error()},
 		)
@@ -154,27 +139,35 @@ func (i *InteractionHandlersImpl) UnbindHandler(params interaction.InteractionUn
 	return interaction.NewInteractionUnbindOK().WithPayload(res)
 }
 
+// ContainerResizeHandler calls resize
 func (i *InteractionHandlersImpl) ContainerResizeHandler(params interaction.ContainerResizeParams) middleware.Responder {
 	// Get the session to the container
-	connContainer, err := i.attachServer.Get(context.Background(), params.ID, interactionTimeout)
+	session, err := i.attachServer.Get(context.Background(), params.ID, interactionTimeout)
 	if err != nil {
-		retErr := &models.Error{Message: fmt.Sprintf("No such container: %s", params.ID)}
-		return interaction.NewContainerResizeNotFound().WithPayload(retErr)
+		log.Errorf("%s", err.Error())
+
+		e := &models.Error{
+			Message: fmt.Sprintf("No resize connection found (id: %s): %s", params.ID, err.Error()),
+		}
+		return interaction.NewContainerResizeNotFound().WithPayload(e)
 	}
 
 	// Request a resize
 	cWidth := uint32(params.Width)
 	cHeight := uint32(params.Height)
 
-	err = connContainer.Resize(cWidth, cHeight, 0, 0)
-	if err != nil {
-		log.Errorf("InteractionHandler (%s) error: %s", params.ID, err.Error())
-		return interaction.NewContainerResizeInternalServerError()
+	if err = session.Resize(cWidth, cHeight, 0, 0); err != nil {
+		log.Errorf("%s", err.Error())
+
+		return interaction.NewContainerResizeInternalServerError().WithPayload(
+			&models.Error{Message: err.Error()},
+		)
 	}
 
 	return interaction.NewContainerResizeOK()
 }
 
+// ContainerSetStdinHandler returns the stdin
 func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.ContainerSetStdinParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
@@ -182,40 +175,70 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 	var timeout time.Duration
 
 	// Calculate the timeout for the attach if the caller specified a deadline.  This deadline
-
 	if params.Deadline != nil {
 		ctxDeadline = time.Time(*params.Deadline)
 		timeout = ctxDeadline.Sub(time.Now())
-		log.Printf("Attempting to get ssh session for container %s stdin with deadline %s", params.ID, ctxDeadline.Format(time.UnixDate))
+		log.Debugf("Attempting to get ssh session for container %s stdin with deadline %s", params.ID, ctxDeadline.Format(time.UnixDate))
 		if timeout < 0 {
 			e := &models.Error{Message: fmt.Sprintf("Deadline for stdin already passed for container %s", params.ID)}
 			return interaction.NewContainerSetStdinInternalServerError().WithPayload(e)
 		}
 	} else {
-		log.Printf("Attempting to get ssh session for container %s stdin", params.ID)
+		log.Debugf("Attempting to get ssh session for container %s stdin", params.ID)
 		timeout = interactionTimeout
 	}
 
-	contConn, err := i.attachServer.Get(context.Background(), params.ID, timeout)
+	session, err := i.attachServer.Get(context.Background(), params.ID, timeout)
 	if err != nil {
-		err = fmt.Errorf("No stdin found (id:%s): %s", params.ID, err.Error())
 		log.Errorf("%s", err.Error())
 
-		return interaction.NewContainerSetStdinNotFound()
+		e := &models.Error{
+			Message: fmt.Sprintf("No stdin connection found (id: %s): %s", params.ID, err.Error()),
+		}
+		return interaction.NewContainerSetStdinNotFound().WithPayload(e)
 	}
 
 	detachableIn := NewFlushingReader(params.RawStream)
-	_, err = io.Copy(contConn.Stdin(), detachableIn)
+	_, err = io.Copy(session.Stdin(), detachableIn)
 	if err != nil {
-		err = fmt.Errorf("Error copying stdin (id:%s): %s", params.ID, err.Error())
 		log.Errorf("%s", err.Error())
+
+		e := &models.Error{
+			Message: fmt.Sprintf("Error copying stdin (id: %s): %s", params.ID, err.Error()),
+		}
+		return interaction.NewContainerSetStdinInternalServerError().WithPayload(e)
 	}
 
-	log.Printf("Done copying stdin")
+	log.Debugf("Done copying stdin")
 
 	return interaction.NewContainerSetStdinOK()
 }
 
+// ContainerCloseStdinHandler closes the stdin, it returns an error if there is no active connection between portlayer and the tether
+func (i *InteractionHandlersImpl) ContainerCloseStdinHandler(params interaction.ContainerCloseStdinParams) middleware.Responder {
+	defer trace.End(trace.Begin(params.ID))
+
+	session, err := i.attachServer.Get(context.Background(), params.ID, 0)
+	if err != nil {
+		log.Errorf("%s", err.Error())
+
+		e := &models.Error{
+			Message: fmt.Sprintf("No stdin connection found (id: %s): %s", params.ID, err.Error()),
+		}
+		return interaction.NewContainerCloseStdinNotFound().WithPayload(e)
+	}
+
+	if err = session.CloseStdin(); err != nil {
+		log.Errorf("%s", err.Error())
+
+		return interaction.NewContainerCloseStdinInternalServerError().WithPayload(
+			&models.Error{Message: err.Error()},
+		)
+	}
+	return interaction.NewContainerCloseStdinOK()
+}
+
+// ContainerGetStdoutHandler returns the stdout
 func (i *InteractionHandlersImpl) ContainerGetStdoutHandler(params interaction.ContainerGetStdoutParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
@@ -226,30 +249,35 @@ func (i *InteractionHandlersImpl) ContainerGetStdoutHandler(params interaction.C
 	if params.Deadline != nil {
 		ctxDeadline = time.Time(*params.Deadline)
 		timeout = ctxDeadline.Sub(time.Now())
-		log.Printf("Attempting to get ssh session for container %s stdout with deadline %s", params.ID, ctxDeadline.Format(time.UnixDate))
+		log.Debugf("Attempting to get ssh session for container %s stdout with deadline %s", params.ID, ctxDeadline.Format(time.UnixDate))
 		if timeout < 0 {
-			e := &models.Error{Message: fmt.Sprintf("Deadline for stdin already passed for container %s", params.ID)}
+			e := &models.Error{Message: fmt.Sprintf("Deadline for stdout already passed for container %s", params.ID)}
 			return interaction.NewContainerGetStdoutInternalServerError().WithPayload(e)
 		}
 	} else {
-		log.Printf("Attempting to get ssh session for container %s stdout", params.ID)
+		log.Debugf("Attempting to get ssh session for container %s stdout", params.ID)
 		timeout = interactionTimeout
 	}
 
-	contConn, err := i.attachServer.Get(context.Background(), params.ID, timeout)
+	session, err := i.attachServer.Get(context.Background(), params.ID, timeout)
 	if err != nil {
-
-		err = fmt.Errorf("No stdout found for %s: %s", params.ID, err.Error())
 		log.Errorf("%s", err.Error())
 
-		return interaction.NewContainerGetStdoutNotFound()
+		e := &models.Error{
+			Message: fmt.Sprintf("No stdout connection found (id: %s): %s", params.ID, err.Error()),
+		}
+		return interaction.NewContainerGetStdoutNotFound().WithPayload(e)
 	}
 
-	detachableOut := NewFlushingReader(contConn.Stdout())
-
-	return NewContainerOutputHandler("stdout").WithPayload(detachableOut, params.ID)
+	return NewContainerOutputHandler("stdout").WithPayload(
+		NewFlushingReader(
+			session.Stdout(),
+		),
+		params.ID,
+	)
 }
 
+// ContainerGetStderrHandler returns the stderr
 func (i *InteractionHandlersImpl) ContainerGetStderrHandler(params interaction.ContainerGetStderrParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
@@ -260,32 +288,35 @@ func (i *InteractionHandlersImpl) ContainerGetStderrHandler(params interaction.C
 	if params.Deadline != nil {
 		ctxDeadline = time.Time(*params.Deadline)
 		timeout = ctxDeadline.Sub(time.Now())
-		log.Printf("Attempting to get ssh session for container %s stderr with deadline %s", params.ID, ctxDeadline.Format(time.UnixDate))
+		log.Debugf("Attempting to get ssh session for container %s stderr with deadline %s", params.ID, ctxDeadline.Format(time.UnixDate))
 		if timeout < 0 {
-			e := &models.Error{Message: fmt.Sprintf("Deadline for stdin already passed for container %s", params.ID)}
+			e := &models.Error{Message: fmt.Sprintf("Deadline for stderr already passed for container %s", params.ID)}
 			return interaction.NewContainerGetStderrInternalServerError().WithPayload(e)
 		}
 	} else {
-		log.Printf("Attempting to get ssh session for container %s stderr", params.ID)
+		log.Debugf("Attempting to get ssh session for container %s stderr", params.ID)
 		timeout = interactionTimeout
 	}
 
-	contConn, err := i.attachServer.Get(context.Background(), params.ID, timeout)
+	session, err := i.attachServer.Get(context.Background(), params.ID, timeout)
 	if err != nil {
-
-		err = fmt.Errorf("No stderr found for %s: %s", params.ID, err.Error())
 		log.Errorf("%s", err.Error())
 
-		return interaction.NewContainerGetStderrNotFound()
+		e := &models.Error{
+			Message: fmt.Sprintf("No stderr connection found (id: %s): %s", params.ID, err.Error()),
+		}
+		return interaction.NewContainerGetStderrNotFound().WithPayload(e)
 	}
 
-	detachableErr := NewFlushingReader(contConn.Stderr())
-
-	return NewContainerOutputHandler("stderr").WithPayload(detachableErr, params.ID)
+	return NewContainerOutputHandler("stderr").WithPayload(
+		NewFlushingReader(
+			session.Stderr(),
+		),
+		params.ID,
+	)
 }
 
-// Custom reader to allow us to detach cleanly during an io.Copy
-
+// GenericFlusher is a custom reader to allow us to detach cleanly during an io.Copy
 type GenericFlusher interface {
 	Flush()
 }
@@ -344,15 +375,14 @@ func (d *FlushingReader) WriteTo(w io.Writer) (written int64, err error) {
 	return written, err
 }
 
-// Custom return handlers for stdout/stderr
-
+// ContainerOutputHandler is custom return handlers for stdout/stderr
 type ContainerOutputHandler struct {
 	outputStream *FlushingReader
 	containerID  string
 	outputName   string
 }
 
-// NewContainerSetStdinInternalServerError creates ContainerSetStdinInternalServerError with default headers values
+// NewContainerOutputHandler creates ContainerOutputHandler with default headers values
 func NewContainerOutputHandler(name string) *ContainerOutputHandler {
 	return &ContainerOutputHandler{outputName: name}
 }
@@ -374,8 +404,8 @@ func (c *ContainerOutputHandler) WriteResponse(rw http.ResponseWriter, producer 
 	_, err := io.Copy(rw, c.outputStream)
 
 	if err != nil {
-		log.Printf("Error copying %s stream for container %s: %s", c.outputName, c.containerID, err)
+		log.Debugf("Error copying %s stream for container %s: %s", c.outputName, c.containerID, err)
 	} else {
-		log.Printf("Finished copying %s stream for container %s", c.outputName, c.containerID)
+		log.Debugf("Finished copying %s stream for container %s", c.outputName, c.containerID)
 	}
 }
