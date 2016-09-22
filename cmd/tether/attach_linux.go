@@ -65,6 +65,9 @@ func backchannel(ctx context.Context, conn *net.Conn) error {
 func (t *attachServerSSH) Start() error {
 	defer trace.End(trace.Begin(""))
 
+	t.m.Lock()
+	defer t.m.Unlock()
+
 	var err error
 
 	rand.Reader, err = os.Open(pathPrefix + "/urandom")

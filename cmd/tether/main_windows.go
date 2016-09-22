@@ -53,9 +53,7 @@ func main() {
 	// get the windows service logic running so that we can play well in that mode
 	runService("VMware Tether", false)
 
-	sshserver := &attachServerSSH{}
-	server = sshserver
-
+	sshserver := NewAttachServerSSH()
 	src, err := extraconfig.GuestInfoSource()
 	if err != nil {
 		log.Error(err)
