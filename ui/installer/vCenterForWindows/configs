@@ -6,5 +6,6 @@ REM For example, if vic-ui.zip is available at https://192.168.1.5/vic-ui-plugin
 REM Note: each uploaded zip file will be accessed only once when the user logs into vSphere Web Client for the first time after successful installation
 SET vic_ui_host_url=NOURL
 
-REM If line 10 starts with "https", enter the SHA-1 thumbprint of the web server hosting the zip files
+REM If line 11 starts with "https", enter the SHA-1 thumbprint of the web server hosting the zip files
+REM The fingerprint should be in the format of A0:B1:C2:... In case you retrieved the fingerprint from Google Chrome make sure to replace spaces with colons (:)
 SET vic_ui_host_thumbprint=

@@ -9,4 +9,8 @@ VCENTER_IP=""
 VIC_UI_HOST_URL="NOURL"
 
 # If VIC_UI_HOST_URL starts with "https", enter SHA-1 thumbprint of the web server hosting the vic-ui.zip file
+# The fingerprint should be in the format of A0:B1:C2:... In case you retrieved the fingerprint from Google Chrome make sure to replace spaces with colons (:)
 VIC_UI_HOST_THUMBPRINT=""
+
+# WARNING: VIC UI can run on a vCenter 5.5 setup, but is not officially supported. Use it with your own risk. If you wish to continue change the value from 0 to 1
+IS_VCENTER_5_5=0

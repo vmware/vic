@@ -49,9 +49,7 @@ echo ""
 BASH_ENABLED_ON_VCSA=1
 
 if [[ $VIC_UI_HOST_URL == "NOURL" ]] ; then
-    read -p "Are you running vCenter 5.5? (y/n): " IS_VCENTER_5_5
-    if [[ $(echo $IS_VCENTER_5_5 | grep -i "y") ]] ; then
-        IS_VCENTER_5_5=1
+    if [[ $IS_VCENTER_5_5 -eq 1 ]] ; then
         WEBCLIENT_PLUGINS_FOLDER="/var/lib/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
     else
         WEBCLIENT_PLUGINS_FOLDER="/etc/vmware/vsphere-client/vc-packages/vsphere-client-serenity/"
@@ -98,12 +96,6 @@ else
 fi
 
 if [[ $VIC_UI_HOST_URL != 'NOURL' ]] ; then
-    if [[ ${VIC_UI_HOST_URL:0:5} == 'https' ]] ; then
-        COMMONFLAGS="${COMMONFLAGS} --server-thumbprint ${VIC_UI_HOST_THUMBPRINT}"
-    elif [[ ${VIC_UI_HOST_URL:0:5} == 'HTTPS' ]] ; then
-        COMMONFLAGS="${COMMONFLAGS} --server-thumbprint ${VIC_UI_HOST_THUMBPRINT}"
-    fi
-
     if [[ ${VIC_UI_HOST_URL: -1: 1} != "/" ]] ; then
         VIC_UI_HOST_URL="$VIC_UI_HOST_URL/"
     fi
@@ -141,6 +133,7 @@ parse_and_register_plugins () {
             fi
 
             local plugin_flags="--key $key --name $name --version $version --summary $summary --company $company --url $plugin_url"
+
             echo "----------------------------------------"
             echo "Registering vCenter Server Extension..."
             echo "----------------------------------------"
@@ -151,7 +144,11 @@ parse_and_register_plugins () {
                 OLD_PLUGIN_FOLDERS="$OLD_PLUGIN_FOLDERS $key-*"
             fi
 
-            $PLUGIN_MANAGER_BIN install $COMMONFLAGS $plugin_flags
+            if [[ $(echo ${VIC_UI_HOST_URL:0:5} | grep -i "https") ]] ; then
+                $PLUGIN_MANAGER_BIN install $COMMONFLAGS $plugin_flags --server-thumbprint "$VIC_UI_HOST_THUMBPRINT"
+            else
+                $PLUGIN_MANAGER_BIN install $COMMONFLAGS $plugin_flags
+            fi
 
             if [[ $? > 0 ]] ; then
                 echo "-------------------------------------------------------------"
