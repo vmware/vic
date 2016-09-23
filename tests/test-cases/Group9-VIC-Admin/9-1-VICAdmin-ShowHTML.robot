@@ -36,6 +36,7 @@ Get Container Logs
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
     Should Contain  ${output}  ${container}/vmware.log
+    Should Contain  ${output}  ${container}/*.debug
 
 Get VICAdmin Log
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk ${vic-admin}/logs/vicadmin.log
