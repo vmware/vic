@@ -35,18 +35,15 @@ Pull an image with the full docker registry URL
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  registry.hub.docker.com/library/hello-world
 
 Pull an image from non-default repo
-    #${result}=  Run Process  docker run -d -p 5000:5000 --name registry registry:2  shell=True
-    #Log to console  ${result.stdout}
-    #Log to console  ${result.stderr}
-    #${result}=  Run Process  docker pull nginx  shell=True
-    #Log to console  ${result.stdout}
-    #Log to console  ${result.stderr}
-    #${result}=  Run Process  docker tag nginx localhost:5000/testImage  shell=True
-    #Log to console  ${result.stdout}
-    #Log to console  ${result.stderr}
-    #Wait Until Keyword Succeeds  5x  15 seconds  Pull image  localhost:5000/testImage
-    Log  Not quite working yet...  WARN
-    Log To Console  Not quite working yet...
+    ${output}=  Run  docker run -d -p 5000:5000 --name registry registry
+    Log  ${output}
+    ${output}=  Run  docker pull busybox
+    Log  ${output}
+    ${output}=  Run  docker tag busybox localhost:5000/busybox:latest
+    Log  ${output}
+    ${output}=  Run  docker push localhost:5000/busybox
+    Log  ${output}
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  172.17.0.1:5000/busybox
 
 Pull an image with all tags
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  --all-tags nginx
