@@ -18,7 +18,6 @@ import (
 	"context"
 	"net"
 	"net/url"
-	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -93,34 +92,22 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 		return err
 	}
 
-	var wg sync.WaitGroup
-
-	initNum := 2
-	wg.Add(initNum)
-	results := make(chan error, initNum)
-
 	log.Info("Refreshing image cache")
 	go func() {
-		defer wg.Done()
 		if err := cache.ImageCache().Update(portLayerClient); err != nil {
-			err = errors.Errorf("Failed to refresh image cache: %s", err)
-			log.Warn(err)
-			results <- err
+			log.Warnf("Failed to refresh image cache: %s", err)
 			return
 		}
 		log.Info("Image cache updated successfully")
-		results <- nil
 	}()
 
+	log.Info("Refreshing container cache")
 	go func() {
-		defer wg.Done()
 		if err := syncContainerCache(portLayerClient); err != nil {
-			err = errors.Errorf("Failed to refresh container cache: %s", err)
-			log.Warn(err)
-			results <- err
+			log.Warnf("Failed to refresh container cache: %s", err)
+			return
 		}
 		log.Info("Container cache updated successfully")
-		results <- nil
 	}()
 
 	serviceOptions := registry.ServiceOptions{}
@@ -133,18 +120,6 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 	log.Debugf("New registry service with options %#v", serviceOptions)
 	RegistryService = registry.NewService(serviceOptions)
 
-	wg.Wait()
-	close(results)
-
-	var errs []string
-	for err := range results {
-		if err != nil {
-			errs = append(errs, err.Error())
-		}
-	}
-	if len(errs) > 0 {
-		return errors.Errorf("Cache initialization failed: %s", errs)
-	}
 	return nil
 }
 
