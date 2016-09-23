@@ -191,7 +191,7 @@ func (c *ContainerProxy) AddContainerToScope(handle string, config types.Contain
 }
 
 // AddVolumesToContainer adds volumes to a container, referenced by handle.
-// If an error is return, the returned handle should not be used.
+// If an error is returned, the returned handle should not be used.
 //
 // returns:
 //	modified handle
@@ -205,21 +205,45 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 	//Volume Attachment Section
 	log.Debugf("ContainerProxy.AddVolumesToContainer - VolumeSection")
 	log.Debugf("Raw Volume arguments : binds:  %#v : volumes : %#v", config.HostConfig.Binds, config.Config.Volumes)
-	var joinList []volumeFields
-	var err error
 
-	joinList, err = processAnonymousVolumes(config.Config.Volumes)
+	// Collect all volume mappings. In a docker create/run, they
+	// can be anonymous (-v /dir) or specific (-v vol-name:/dir).
+	volumes := config.HostConfig.Binds
+	for anonVol := range config.Config.Volumes {
+		volumes = append(volumes, anonVol)
+	}
+
+	volList, err := processVolumeFields(volumes)
 	if err != nil {
 		return handle, BadRequestError(err.Error())
 	}
 
-	volumeSubset, err := processSpecifiedVolumes(config.HostConfig.Binds)
-	if err != nil {
-		return handle, BadRequestError(err.Error())
-	}
-	joinList = append(joinList, volumeSubset...)
+	// Create and join volumes.
+	for _, fields := range volList {
 
-	for _, fields := range joinList {
+		driverArgs := make(map[string]string)
+		driverArgs["flags"] = fields.Flags
+
+		// NOTE: calling volumeCreate regardless of whether the volume is already
+		// present can be avoided by adding an extra optional param to VolumeJoin,
+		// which would then call volumeCreate if the volume does not exist.
+		vol := &Volume{}
+		_, err := vol.volumeCreate(fields.ID, "vsphere", driverArgs, nil)
+		if err != nil {
+			switch err := err.(type) {
+			case *storage.CreateVolumeConflict:
+				// Implicitly ignore the error where a volume with the same name
+				// already exists. We can just join the said volume to the container.
+				log.Infof("a volume with the name %s already exists", fields.ID)
+			case *storage.CreateVolumeNotFound:
+				return handle, VolumeCreateNotFoundError(volumeStore(driverArgs))
+			default:
+				return handle, InternalServerError(err.Error())
+			}
+		} else {
+			log.Infof("volumeCreate succeeded. Volume mount section ID: %s", fields.ID)
+		}
+
 		flags := make(map[string]string)
 		//NOTE: for now we are passing the flags directly through. This is NOT SAFE and only a stop gap.
 		flags["Mode"] = fields.Flags
@@ -236,6 +260,8 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 				return handle, InternalServerError(err.Payload.Message)
 			case *storage.VolumeJoinDefault:
 				return handle, InternalServerError(err.Payload.Message)
+			case *storage.VolumeJoinNotFound:
+				return handle, VolumeJoinNotFoundError(err.Payload.Message)
 			default:
 				return handle, InternalServerError(err.Error())
 			}
@@ -248,7 +274,6 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 }
 
 // CommitContainerHandle() commits any changes to container handle.
-//
 func (c *ContainerProxy) CommitContainerHandle(handle, imageID string) error {
 	defer trace.End(trace.Begin(handle))
 
@@ -455,14 +480,21 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 	return nc
 }
 
-//This function is used to turn any call from docker create -v <stuff> into a volumeFields object.
-//the -v has 3 forms. 1: -v <anonymous mount path>, -v <Volume Name>:<Destination Mount Path>, and -v <Volume Name>:<Destination Mount Path>:<mount flags>
+// processVolumeParam is used to turn any call from docker create -v <stuff> into a volumeFields object.
+// The -v has 3 forms. -v <anonymous mount path>, -v <Volume Name>:<Destination Mount Path> and
+// -v <Volume Name>:<Destination Mount Path>:<mount flags>
 func processVolumeParam(volString string) (volumeFields, error) {
 	volumeStrings := strings.Split(volString, ":")
 	fields := volumeFields{}
 
-	//This switch determines which type of -v was invoked.
-	switch len(volumeStrings) {
+	// Error out if the intended volume is a directory on the client filesystem.
+	numVolParams := len(volumeStrings)
+	if numVolParams > 1 && strings.HasPrefix(volumeStrings[0], "/") {
+		return volumeFields{}, InvalidVolumeError{}
+	}
+
+	// This switch determines which type of -v was invoked.
+	switch numVolParams {
 	case 1:
 		VolumeID, err := uuid.NewUUID()
 		if err != nil {
@@ -480,63 +512,22 @@ func processVolumeParam(volString string) (volumeFields, error) {
 		fields.Dest = volumeStrings[1]
 		fields.Flags = volumeStrings[2]
 	default:
-		//NOTE: the docker cli should cover this case. This is here for posterity.
-		return volumeFields{}, fmt.Errorf("Volume bind input is invalid : -v %s", volString)
+		// NOTE: the docker cli should cover this case. This is here for posterity.
+		return volumeFields{}, InvalidBindError{volume: volString}
 	}
 	return fields, nil
 }
 
-// processAnonymousVolumes parses fields for implicit volume mappings in a
-// create/run (such as -v /dir) and creates volumes for them.
-func processAnonymousVolumes(volumes map[string]struct{}) ([]volumeFields, error) {
+// processVolumeFields parses fields for volume mappings specified in a create/run -v.
+func processVolumeFields(volumes []string) ([]volumeFields, error) {
 	var volumeFields []volumeFields
-
-	for v := range volumes {
-		fields, err := processVolumeParam(v)
-		log.Infof("Processed anonymous volume arguments: %#v", fields)
-		if err != nil {
-			return nil, err
-		}
-		//NOTE: This should be the guard for the case of an anonymous volume.
-		//NOTE: we should not expect any driver args if the drive is anonymous.
-		log.Infof("anonymous volume being created - Container Create - volume mount section ID: %s ", fields.ID)
-
-		driverArgs := make(map[string]string)
-		driverArgs["flags"] = fields.Flags
-
-		vol := &Volume{}
-		_, err = vol.VolumeCreate(fields.ID, "vsphere", driverArgs, nil)
-
-		volumeFields = append(volumeFields, fields)
-	}
-	return volumeFields, nil
-}
-
-// processSpecifiedVolumes parses fields for volumes specified explicitly during a
-// create/run (such as -v volume-name:/dir) and creates them if they don't already exist.
-func processSpecifiedVolumes(volumes []string) ([]volumeFields, error) {
-	var volumeFields []volumeFields
-	vol := &Volume{}
 
 	for _, v := range volumes {
 		fields, err := processVolumeParam(v)
-		log.Infof("Processed specified volume arguments: %#v", fields)
+		log.Infof("Processed volume arguments: %#v", fields)
 		if err != nil {
-			return volumeFields, err
+			return nil, err
 		}
-
-		// Error out if the intended volume is a directory on the client filesystem.
-		if strings.HasPrefix(fields.ID, "/") {
-			return nil, fmt.Errorf("%s does not support mounting directories as a data volume.", ProductName())
-		}
-
-		driverArgs := make(map[string]string)
-		driverArgs["flags"] = fields.Flags
-		_, err = vol.VolumeCreate(fields.ID, "vsphere", driverArgs, nil)
-		if err == nil {
-			log.Infof("named volume created - Container Create - volume mount section ID: %s ", fields.ID)
-		}
-
 		volumeFields = append(volumeFields, fields)
 	}
 	return volumeFields, nil

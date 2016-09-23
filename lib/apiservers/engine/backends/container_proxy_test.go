@@ -22,6 +22,7 @@ import (
 
 func TestProcessVolumeParams(t *testing.T) {
 	rawTestVolumes := []string{"/blah", "testVolume:/mount", "testVolume:/mount/path:r"}
+	invalidVolume := "/dir:/dir"
 	var processedTestVolumes []volumeFields
 
 	for _, testString := range rawTestVolumes {
@@ -42,27 +43,7 @@ func TestProcessVolumeParams(t *testing.T) {
 	assert.Equal(t, "testVolume", processedTestVolumes[2].ID)
 	assert.Equal(t, "/mount/path", processedTestVolumes[2].Dest)
 	assert.Equal(t, "r", processedTestVolumes[2].Flags)
-}
 
-func TestProcessSpecifiedVolumes(t *testing.T) {
-	rawTestVolumes := []string{"masterVolume:/blah", "testVolume:/mount:r", "specVol:/mount/path:r"}
-	var processedTestVolumes []volumeFields
-
-	processedFields, err := processSpecifiedVolumes(rawTestVolumes)
-	assert.Nil(t, err)
-	processedTestVolumes = append(processedTestVolumes, processedFields...)
-
-	assert.Len(t, processedFields, 3)
-
-	assert.Equal(t, "masterVolume", processedTestVolumes[0].ID)
-	assert.Equal(t, "/blah", processedTestVolumes[0].Dest)
-	assert.Equal(t, "rw", processedTestVolumes[0].Flags)
-
-	assert.Equal(t, "testVolume", processedTestVolumes[1].ID)
-	assert.Equal(t, "/mount", processedTestVolumes[1].Dest)
-	assert.Equal(t, "r", processedTestVolumes[1].Flags)
-
-	assert.Equal(t, "specVol", processedTestVolumes[2].ID)
-	assert.Equal(t, "/mount/path", processedTestVolumes[2].Dest)
-	assert.Equal(t, "r", processedTestVolumes[2].Flags)
+	invalidFields, _ := processVolumeParam(invalidVolume)
+	assert.Equal(t, volumeFields{}, invalidFields)
 }

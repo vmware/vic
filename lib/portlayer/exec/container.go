@@ -146,7 +146,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		var res *types.TaskInfo
 		var err error
 
-		if sess.IsVC() && Config.VirtualApp != nil {
+		if sess.IsVC() && Config.VirtualApp.ResourcePool != nil {
 			// Create the vm
 			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 				return Config.VirtualApp.CreateChildVM_Task(ctx, *h.Spec.Spec(), nil)

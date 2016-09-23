@@ -15,6 +15,7 @@
 package trace
 
 import (
+	"fmt"
 	"runtime"
 	"time"
 
@@ -23,19 +24,58 @@ import (
 
 var Logger = log.New()
 
-func Begin(msg string) (string, string, time.Time) {
-	pc, _, _, _ := runtime.Caller(1)
-	name := runtime.FuncForPC(pc).Name()
+// trace object used to grab run-time state
+type Message struct {
+	msg      string
+	funcName string
+	lineNo   int
 
-	if msg == "" {
-		Logger.Debugf("[BEGIN] [%s]", name)
-	} else {
-		Logger.Debugf("[BEGIN] [%s] %s", name, msg)
-	}
-	return msg, name, time.Now()
+	startTime time.Time
 }
 
-func End(msg string, name string, startTime time.Time) {
-	endTime := time.Now()
-	Logger.Debugf("[ END ] [%s] [%s] %s", name, endTime.Sub(startTime), msg)
+func (t *Message) delta() time.Duration {
+	return time.Now().Sub(t.startTime)
+}
+
+func (t *Message) beginHdr() string {
+	return fmt.Sprintf("[BEGIN] [%s:%d]", t.funcName, t.lineNo)
+}
+
+func (t *Message) endHdr() string {
+	return fmt.Sprintf("[ END ] [%s:%d]", t.funcName, t.lineNo)
+}
+
+// begin a trace from this stack frame less the skip.
+func newTrace(msg string, skip int) *Message {
+	pc, _, line, ok := runtime.Caller(skip)
+	if !ok {
+		return nil
+	}
+
+	name := runtime.FuncForPC(pc).Name()
+
+	return &Message{
+		msg:       msg,
+		funcName:  name,
+		lineNo:    line,
+		startTime: time.Now(),
+	}
+}
+
+// Begin starts the trace.  Msg is the msg to log.
+func Begin(msg string) *Message {
+	t := newTrace(msg, 2)
+
+	if msg == "" {
+		Logger.Debugf(t.beginHdr())
+	} else {
+		Logger.Debugf("%s %s", t.beginHdr(), t.msg)
+	}
+
+	return t
+}
+
+// End ends the trace.
+func End(t *Message) {
+	Logger.Debugf("%s [%s] %s", t.endHdr(), t.delta(), t.msg)
 }

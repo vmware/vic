@@ -27,7 +27,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/lib/portlayer/network"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/uid"
 
 	mdns "github.com/miekg/dns"
 )
@@ -337,7 +336,6 @@ func (s *Server) HandleVIC(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
 
 	var name string
 	var domain string
-	var scopename string
 
 	name = strings.TrimSuffix(question.Name, ".")
 	// Do we have a domain?
@@ -346,49 +344,37 @@ func (s *Server) HandleVIC(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
 		name, domain = name[:i], name[i+1:]
 	}
 
-	// first look for the network alias
-	c := ctx.Container(uid.UID(name))
-	if c == nil {
-		// find the scope of the request
-		scopes, _ := ctx.Scopes(nil)
-		// FIXME: We are doing linear search here
-		for i := range scopes {
-			s := scopes[i].Subnet()
-			if s.Contains(ip) {
-				scopename = scopes[i].Name()
-				log.Debugf("Found the scope, using %s", scopename)
+	// get the requesting container's endpoint
+	e := ctx.ContainerByAddr(ip)
+	if e == nil {
+		return false, fmt.Errorf("Could not find requesting container with ip %s", ip)
+	}
+	scope := e.Scope()
 
-				// convert for or foo.bar to bar:foo
-				if domain == "" || domain == scopename {
-					name = scopename + ":" + name
-					break
-				}
-			}
-		}
-
-		c = ctx.Container(uid.UID(name))
-		if c == nil {
-			log.Debugf("Can't find the container: %q", name)
-			return false, fmt.Errorf("Can't find the container: %q", name)
-		}
+	if domain != "" && scope.Name() != domain {
+		return false, fmt.Errorf("Inter-scope request for container %s in %s from %s", name, domain, scope.Name())
 	}
 
-	var answer []mdns.RR
-	for _, e := range c.Endpoints() {
-		log.Debugf("Working on %s", e.Scope().Name())
+	// container specific alias search
+	c := ctx.Container(fmt.Sprintf("%s:%s:%s", scope.Name(), e.Container().Name(), name))
+	if c == nil {
+		// scope-wide search
+		c = ctx.Container(fmt.Sprintf("%s:%s", scope.Name(), name))
+	}
 
-		if scopename != "" && e.Scope().Name() != scopename {
-			log.Debugf("Skipping non-matching scope %s", e.Scope().Name())
-			continue
-		}
+	if c == nil {
+		log.Debugf("Can't find the container: %q", name)
+		return false, fmt.Errorf("Can't find the container: %q", name)
+	}
 
-		if e.IP().IsUnspecified() {
-			log.Debugf("Skipping unspecified IP for %s", e.Scope().Name())
-			continue
-		}
+	e = c.Endpoint(scope)
+	if e.IP().IsUnspecified() {
+		return false, fmt.Errorf("No ip for container %q", name)
+	}
 
-		// FIXME: Add AAAA when we support it
-		rr := &mdns.A{
+	// FIXME: Add AAAA when we support it
+	answer := []mdns.RR{
+		&mdns.A{
 			Hdr: mdns.RR_Header{
 				Name:   question.Name,
 				Rrtype: mdns.TypeA,
@@ -396,8 +382,7 @@ func (s *Server) HandleVIC(w mdns.ResponseWriter, r *mdns.Msg) (bool, error) {
 				Ttl:    uint32(DefaultTTL.Seconds()),
 			},
 			A: e.IP(),
-		}
-		answer = append(answer, rr)
+		},
 	}
 
 	// Start crafting reply msg
@@ -489,20 +474,20 @@ func (s *Server) ServeDNS(w mdns.ResponseWriter, r *mdns.Msg) {
 		return
 	}
 
-	// Do we have the response in our cache?
-	ok, err := s.SeenBefore(w, r)
+	// Check VIC first
+	ok, err := s.HandleVIC(w, r)
 	if ok {
 		if err != nil {
-			log.Errorf("SeenBefore returned: %q", err)
+			log.Errorf("HandleVIC returned: %q", err)
 		}
 		return
 	}
 
-	// Check VIC first
-	ok, err = s.HandleVIC(w, r)
+	// Do we have the response in our cache?
+	ok, err = s.SeenBefore(w, r)
 	if ok {
 		if err != nil {
-			log.Errorf("HandleVIC returned: %q", err)
+			log.Errorf("SeenBefore returned: %q", err)
 		}
 		return
 	}
