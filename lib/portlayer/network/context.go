@@ -55,7 +55,7 @@ type Context struct {
 	defaultBridgeMask net.IPMask
 
 	scopes       map[string]*Scope
-	containers   map[uid.UID]*Container
+	containers   map[string]*Container
 	defaultScope *Scope
 }
 
@@ -82,7 +82,7 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask, config *Configurati
 		defaultBridgeMask: bridgeMask,
 		defaultBridgePool: NewAddressSpaceFromNetwork(&bridgePool),
 		scopes:            make(map[string]*Scope),
-		containers:        make(map[uid.UID]*Container),
+		containers:        make(map[string]*Container),
 	}
 
 	s, err := ctx.newBridgeScope(uid.New(), DefaultBridgeName, nil, net.IPv4(0, 0, 0, 0), nil, &IPAM{})
@@ -496,23 +496,22 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	c.Lock()
 	defer c.Unlock()
 
-	var con *Container
-	var err error
-
-	if len(h.ExecConfig.Networks) == 0 {
-		return nil, fmt.Errorf("nothing to bind")
+	con, err := c.container(h)
+	if con != nil {
+		return con.Endpoints(), nil // already bound
 	}
 
-	con, ok := c.containers[uid.Parse(h.ExecConfig.ID)]
-	if ok {
-		return nil, fmt.Errorf("container %s already bound", h.ExecConfig.ID)
+	if _, ok := err.(ResourceNotFoundError); !ok {
+		return nil, err
 	}
 
 	con = &Container{
 		id:   uid.Parse(h.ExecConfig.ID),
 		name: h.ExecConfig.Name,
 	}
+
 	defaultMarked := false
+	aliases := make(map[string]*Container)
 	var endpoints []*Endpoint
 	for _, ne := range h.ExecConfig.Networks {
 		var s *Scope
@@ -567,7 +566,61 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			ne.Network.Default = true
 		}
 
+		// dns lookup aliases
+		aliases[fmt.Sprintf("%s:%s", s.Name(), con.name)] = con
+		aliases[fmt.Sprintf("%s:%s", s.Name(), con.id.Truncate())] = con
+
+		// container specific aliases
+		for _, a := range ne.Network.Aliases {
+			log.Debugf("adding alias %s", a)
+			l := strings.Split(a, ":")
+			if len(l) != 2 {
+				err = fmt.Errorf("Parsing network alias %s failed", a)
+				return nil, err
+			}
+
+			who, what := l[0], l[1]
+			if who == "" {
+				who = con.name
+			}
+			if a, exists := e.addAlias(who, what); a != badAlias && !exists {
+				whoc := con
+				// if the alias is not for this container, then
+				// find it in the container collection
+				if who != con.name {
+					whoc = c.containers[who]
+				}
+
+				// whoc may be nil here, which means that the aliased
+				// container is not bound yet; this is OK, and will be
+				// fixed up when "who" is bound
+				if whoc != nil {
+					aliases[a.scopedName()] = whoc
+				}
+			}
+		}
+
+		// fix up the aliases to this container
+		// from other containers
+		for _, e := range s.Endpoints() {
+			if e.Container() == con {
+				continue
+			}
+
+			for _, a := range e.getAliases(con.name) {
+				aliases[a.scopedName()] = con
+			}
+		}
+
 		endpoints = append(endpoints, e)
+	}
+
+	// verify all the aliases to be added do not conflict with
+	// existing container keys
+	for a := range aliases {
+		if _, ok := c.containers[a]; ok {
+			return nil, fmt.Errorf("duplicate alias %s for container %s", a, con.ID())
+		}
 	}
 
 	// FIXME: if there was no external network to mark as default,
@@ -580,105 +633,50 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		}
 	}
 
-	// local map to hold the container mapping
-	containers := make(map[uid.UID]*Container)
-
-	// Adding long id, short id and common name to the map to point same container
-	// Last two is needed by DNS subsystem
-	containers[con.id] = con
-
-	tid := con.id.Truncate()
-	cname := h.ExecConfig.Common.Name
-
-	var key string
-	// network scoped entries
-	for i := range endpoints {
-		e := endpoints[i]
-		// scope name
-		sname := e.Scope().Name()
-
-		// SCOPE:SHORT ID
-		key = fmt.Sprintf("%s:%s", sname, tid)
-		log.Debugf("Adding %s to the containers", key)
-		containers[uid.Parse(key)] = con
-
-		// SCOPE:NAME
-		key = fmt.Sprintf("%s:%s", sname, cname)
-		log.Debugf("Adding %s to the containers", key)
-		containers[uid.Parse(key)] = con
-
-		ne, ok := h.ExecConfig.Networks[sname]
-		if !ok {
-			err := fmt.Errorf("Failed to find Network %s", sname)
-			log.Errorf(err.Error())
-			return nil, err
-		}
-
-		// Aliases/Links
-		for i := range ne.Network.Aliases {
-			l := strings.Split(ne.Network.Aliases[i], ":")
-			if len(l) != 2 {
-				err := fmt.Errorf("Parsing %s failed", l)
-				log.Errorf(err.Error())
-				return nil, err
-			}
-			who, what := l[0], l[1]
-			// if who is empty string that means it is a alias
-			// which points to the container itself
-			if who == "" {
-				who = cname
-			}
-			// Find the scope:who container
-			key = fmt.Sprintf("%s:%s", sname, who)
-			// search global map
-			con, ok := c.containers[uid.Parse(key)]
-			if !ok {
-				// search local map
-				con, ok = containers[uid.Parse(key)]
-				if !ok {
-					err := fmt.Errorf("Failed to find container %s", key)
-					log.Errorf(err.Error())
-					return nil, err
-				}
-			}
-			log.Debugf("Found container %s", key)
-
-			// Set scope:what to scope:who
-			key = fmt.Sprintf("%s:%s", sname, what)
-			log.Debugf("Adding %s to the containers", key)
-			containers[uid.Parse(key)] = con
-		}
-	}
-
-	// set the real map now that we are err free
-	for k, v := range containers {
+	// long id
+	c.containers[con.id.String()] = con
+	// short id
+	c.containers[con.id.Truncate().String()] = con
+	// name
+	c.containers[con.name] = con
+	// aliases
+	for k, v := range aliases {
+		log.Debugf("adding alias %s -> %s", k, v.Name())
 		c.containers[k] = v
 	}
 
 	return endpoints, nil
 }
 
+func (c *Context) container(h *exec.Handle) (*Container, error) {
+	id := uid.Parse(h.ExecConfig.ID)
+	if id == uid.NilUID {
+		return nil, fmt.Errorf("invalid container id %s", h.ExecConfig.ID)
+	}
+
+	if con, ok := c.containers[id.String()]; ok {
+		return con, nil
+	}
+
+	return nil, ResourceNotFoundError{error: fmt.Errorf("container %s not found", id.String())}
+}
+
 func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	c.Lock()
 	defer c.Unlock()
 
-	con, ok := c.containers[uid.Parse(h.ExecConfig.ID)]
-	if !ok {
-		return nil, ResourceNotFoundError{error: fmt.Errorf("container %s not found", h.ExecConfig.ID)}
+	con, err := c.container(h)
+	if err != nil {
+		if _, ok := err.(ResourceNotFoundError); ok {
+			return nil, nil // not bound
+		}
+
+		return nil, err
 	}
 
-	// local map to hold the container mapping
-	var containers []uid.UID
-
-	// Removing long id, short id and common name from the map
-	containers = append(containers, uid.Parse(h.ExecConfig.ID))
-
-	tid := con.id.Truncate()
-	cname := h.ExecConfig.Common.Name
-
-	var key string
+	// aliases to remove
+	var aliases []string
 	var endpoints []*Endpoint
-	var err error
 	for _, ne := range h.ExecConfig.Networks {
 		var s *Scope
 		s, ok := c.scopes[ne.Network.Name]
@@ -709,43 +707,41 @@ func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			ne.Static = nil
 		}
 
-		// scope name
-		sname := e.Scope().Name()
+		// aliases to remove
+		// name for dns lookup
+		aliases = append(aliases, fmt.Sprintf("%s:%s", s.Name(), con.name))
+		aliases = append(aliases, fmt.Sprintf("%s:%s", s.Name(), con.id.Truncate()))
+		for _, as := range e.aliases {
+			for _, a := range as {
+				aliases = append(aliases, a.scopedName())
+			}
+		}
 
-		// delete scope:short id
-		key = fmt.Sprintf("%s:%s", sname, tid)
-		log.Debugf("Removing %s from the containers", key)
-		containers = append(containers, uid.Parse(key))
-
-		// delete scope:name
-		key = fmt.Sprintf("%s:%s", sname, cname)
-		log.Debugf("Removing %s from the containers", key)
-		containers = append(containers, uid.Parse(key))
-
-		// delete aliases
-		for i := range ne.Network.Aliases {
-			l := strings.Split(ne.Network.Aliases[i], ":")
-			if len(l) != 2 {
-				err := fmt.Errorf("Parsing %s failed", l)
-				log.Errorf(err.Error())
-				return nil, err
+		// aliases from other containers
+		for _, e := range s.Endpoints() {
+			if e.Container() == con {
+				continue
 			}
 
-			_, what := l[0], l[1]
-
-			// delete scope:what
-			key = fmt.Sprintf("%s:%s", sname, what)
-			log.Debugf("Removing %s from the containers", key)
-			containers = append(containers, uid.Parse(key))
+			for _, a := range e.getAliases(con.name) {
+				aliases = append(aliases, a.scopedName())
+			}
 		}
 
 		endpoints = append(endpoints, e)
 	}
 
-	// delete from real map now that we are err free
-	for i := range containers {
-		delete(c.containers, containers[i])
+	// remove aliases
+	for _, a := range aliases {
+		delete(c.containers, a)
 	}
+
+	// long id
+	delete(c.containers, con.ID().String())
+	// short id
+	delete(c.containers, con.ID().Truncate().String())
+	// name
+	delete(c.containers, con.Name())
 
 	return endpoints, nil
 }
@@ -931,7 +927,7 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 		return fmt.Errorf("handle is required")
 	}
 
-	if _, ok := c.containers[uid.Parse(h.ExecConfig.ID)]; ok {
+	if con, _ := c.container(h); con != nil {
 		return fmt.Errorf("container is bound")
 	}
 
@@ -987,12 +983,26 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 	return nil
 }
 
-func (c *Context) Container(id uid.UID) *Container {
+func (c *Context) Container(key string) *Container {
 	c.Lock()
 	defer c.Unlock()
 
-	if con, ok := c.containers[id]; ok {
+	log.Debugf("container lookup for %s", key)
+	if con, ok := c.containers[key]; ok {
 		return con
+	}
+
+	return nil
+}
+
+func (c *Context) ContainerByAddr(addr net.IP) *Endpoint {
+	c.Lock()
+	defer c.Unlock()
+
+	for _, s := range c.scopes {
+		if e := s.ContainerByAddr(addr); e != nil {
+			return e
+		}
 	}
 
 	return nil
@@ -1040,9 +1050,9 @@ func (c *Context) UpdateContainer(h *exec.Handle) error {
 	c.Lock()
 	defer c.Unlock()
 
-	con := c.containers[uid.Parse(h.ExecConfig.ID)]
-	if con == nil {
-		return ResourceNotFoundError{}
+	con, err := c.container(h)
+	if err != nil {
+		return err
 	}
 
 	for _, s := range con.Scopes() {

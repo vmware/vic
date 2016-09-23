@@ -201,11 +201,11 @@ func (handler *ScopesHandlersImpl) ScopesList(params scopes.ListParams) middlewa
 func (handler *ScopesHandlersImpl) ScopesGetContainerEndpoints(params scopes.GetContainerEndpointsParams) middleware.Responder {
 	defer trace.End(trace.Begin("ScopesGetContainerEndpoint"))
 
-	cid := uid.Parse(params.HandleOrID)
+	cid := params.HandleOrID
 	// lookup by handle
-	h := exec.GetHandle(cid.String())
+	h := exec.GetHandle(cid)
 	if h != nil {
-		cid = uid.Parse(h.ExecConfig.ID)
+		cid = h.ExecConfig.ID
 	}
 
 	c := handler.netCtx.Container(cid)
