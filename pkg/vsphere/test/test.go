@@ -61,8 +61,6 @@ func SpecConfig(session *session.Session, name string) *spec.VirtualMachineConfi
 		MemoryMB:      2048,
 		VMForkEnabled: true,
 
-		ConnectorURI: "tcp://1.2.3.4:9876",
-
 		ID:            name,
 		Name:          "zombie_attack",
 		BootMediaPath: session.Datastore.Path("brainz.iso"),

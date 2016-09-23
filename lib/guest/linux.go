@@ -67,18 +67,6 @@ func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.V
 	cdrom := spec.NewVirtualCdrom(ide)
 	s.AddVirtualCdrom(cdrom)
 
-	// Tether serial port - backed by network
-	serial := spec.NewVirtualSerialPort()
-	s.AddVirtualConnectedSerialPort(serial)
-
-	// Debug serial port - backed by datastore file
-	debugserial := spec.NewVirtualSerialPort()
-	s.AddVirtualFileSerialPort(debugserial, "debug")
-
-	// Session log serial port - backed by datastore file
-	sessionserial := spec.NewVirtualSerialPort()
-	s.AddVirtualFileSerialPort(sessionserial, "log")
-
 	// Set the guest id
 	s.GuestId = linuxGuestID
 

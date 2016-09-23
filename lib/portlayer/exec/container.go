@@ -65,14 +65,20 @@ const (
 type Container struct {
 	m sync.Mutex
 
+	// Current values
 	ExecConfig *executor.ExecutorConfig
 	State      State
 
+	// Size of the leaf (unused)
 	VMUnsharedDisk int64
 
 	vm *vm.VirtualMachine
 
 	logFollowers []io.Closer
+
+	// Current state
+	Config  *types.VirtualMachineConfigInfo
+	Runtime *types.VirtualMachineRuntimeInfo
 }
 
 func NewContainer(id uid.UID) *Handle {
@@ -88,6 +94,8 @@ func GetContainer(id uid.UID) *Handle {
 	// get from the cache
 	container := Containers.Container(id.String())
 	if container != nil {
+		// Call property collector to fill the data
+		container.Refresh()
 		return container.NewHandle()
 	}
 	return nil
@@ -119,6 +127,34 @@ func (c *Container) NewHandle() *Handle {
 	return newHandle(c)
 }
 
+// Refresh calls the propery collector to get config and runtime info and Guest RPC for ExtraConfig
+func (c *Container) Refresh() error {
+	var o mo.VirtualMachine
+
+	// make sure we have vm
+	if c.vm == nil {
+		return fmt.Errorf("There is no backing VirtualMachine %#v", c)
+	}
+	ctx := context.TODO()
+
+	if err := c.vm.Properties(ctx, c.vm.Reference(), []string{"config", "runtime"}, &o); err != nil {
+		return err
+	}
+
+	c.Config = o.Config
+	c.Runtime = &o.Runtime
+
+	// Get the ExtraConfig
+	src, err := extraconfig.GuestInfoSource()
+	if err != nil {
+		return err
+	}
+	extraconfig.Decode(src, c.ExecConfig)
+
+	return nil
+}
+
+// Commit executes the requires steps on the handle
 func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int32) error {
 	defer trace.End(trace.Begin(h.ExecConfig.ID))
 
@@ -193,15 +229,23 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 	}
 
 	if h.Spec != nil {
-		// FIXME: add check that the VM is powered off - it should be, but this will destroy the
-		// extraconfig if it's not.
-
 		s := h.Spec.Spec()
+
+		// nilify ExtraConfig if vm is running
+		if c.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
+			log.Errorf("Nilifying ExtraConfig as we are running")
+			s.ExtraConfig = nil
+		}
+
 		_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 			return c.vm.Reconfigure(ctx, *s)
 		})
-
 		if err != nil {
+			return err
+		}
+
+		// refresh the struct with what propery collector provides
+		if err = c.Refresh(); err != nil {
 			return err
 		}
 	}

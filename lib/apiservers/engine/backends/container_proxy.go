@@ -58,6 +58,8 @@ import (
 	epoint "github.com/vmware/vic/lib/apiservers/engine/backends/endpoint"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/interaction"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/logging"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
@@ -66,10 +68,13 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
+// VicContainerProxy interface
 type VicContainerProxy interface {
 	CreateContainerHandle(imageID string, config types.ContainerCreateConfig) (string, string, error)
 	AddContainerToScope(handle string, config types.ContainerCreateConfig) (string, error)
 	AddVolumesToContainer(handle string, config types.ContainerCreateConfig) (string, error)
+	AddLoggingToContainer(handle string, config types.ContainerCreateConfig) (string, error)
+	AddInteractionToContainer(handle string, config types.ContainerCreateConfig) (string, error)
 	CommitContainerHandle(handle, imageID string) error
 	StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
 	ContainerRunning(vc *viccontainer.VicContainer) (bool, error)
@@ -77,6 +82,7 @@ type VicContainerProxy interface {
 	Client() *client.PortLayer
 }
 
+// ContainerProxy struct
 type ContainerProxy struct {
 	client        *client.PortLayer
 	portlayerAddr string
@@ -276,7 +282,61 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 	return handle, nil
 }
 
-// CommitContainerHandle() commits any changes to container handle.
+// AddLoggingToContainer adds logging capability to a container, referenced by handle.
+// If an error is return, the returned handle should not be used.
+//
+// returns:
+//	modified handle
+func (c *ContainerProxy) AddLoggingToContainer(handle string, config types.ContainerCreateConfig) (string, error) {
+	defer trace.End(trace.Begin(handle))
+
+	if c.client == nil {
+		return "", InternalServerError("ContainerProxy.AddLoggingToContainer failed to get the portlayer client")
+	}
+
+	response, err := c.client.Logging.LoggingJoin(logging.NewLoggingJoinParamsWithContext(ctx).
+		WithConfig(&models.LoggingJoinConfig{
+			Handle: handle,
+		}))
+	if err != nil {
+		return "", InternalServerError(err.Error())
+	}
+	handle, ok := response.Payload.Handle.(string)
+	if !ok {
+		return "", InternalServerError(fmt.Sprintf("Type assertion failed for %#+v", handle))
+	}
+
+	return handle, nil
+}
+
+// AddInteractionToContainer adds interaction capabilies to a container, referenced by handle.
+// If an error is return, the returned handle should not be used.
+//
+// returns:
+//	modified handle
+func (c *ContainerProxy) AddInteractionToContainer(handle string, config types.ContainerCreateConfig) (string, error) {
+	defer trace.End(trace.Begin(handle))
+
+	if c.client == nil {
+		return "", InternalServerError("ContainerProxy.AddInteractionToContainer failed to get the portlayer client")
+	}
+
+	response, err := c.client.Interaction.InteractionJoin(interaction.NewInteractionJoinParamsWithContext(ctx).
+		WithConfig(&models.InteractionJoinConfig{
+			Handle: handle,
+		}))
+	if err != nil {
+		return "", InternalServerError(err.Error())
+	}
+	handle, ok := response.Payload.Handle.(string)
+	if !ok {
+		return "", InternalServerError(fmt.Sprintf("Type assertion failed for %#+v", handle))
+	}
+
+	return handle, nil
+}
+
+// CommitContainerHandle commits any changes to container handle.
 func (c *ContainerProxy) CommitContainerHandle(handle, imageID string) error {
 	defer trace.End(trace.Begin(handle))
 

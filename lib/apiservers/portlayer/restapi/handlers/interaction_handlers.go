@@ -30,25 +30,33 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/interaction"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
-	"github.com/vmware/vic/lib/portlayer/attach"
+	portlayer "github.com/vmware/vic/lib/portlayer/attach"
 	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
-// ExecHandlersImpl is the receiver for all of the exec handler methods
+// InteractionHandlersImpl is the receiver for all of the interaction handler methods
 type InteractionHandlersImpl struct {
-	attachServer *attach.Server
+	attachServer *portlayer.Server
 }
 
 var (
 	interactionSession = &session.Session{}
 )
 
-const interactionTimeout time.Duration = 30 * time.Second
+const (
+	interactionTimeout time.Duration = 30 * time.Second
+)
 
+// Configure initializes the interaction handler
 func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *HandlerContext) {
 	var err error
+
+	api.InteractionInteractionJoinHandler = interaction.InteractionJoinHandlerFunc(i.JoinHandler)
+	api.InteractionInteractionBindHandler = interaction.InteractionBindHandlerFunc(i.BindHandler)
+	api.InteractionInteractionUnbindHandler = interaction.InteractionUnbindHandlerFunc(i.UnbindHandler)
 
 	api.InteractionContainerResizeHandler = interaction.ContainerResizeHandlerFunc(i.ContainerResizeHandler)
 	api.InteractionContainerSetStdinHandler = interaction.ContainerSetStdinHandlerFunc(i.ContainerSetStdinHandler)
@@ -71,11 +79,79 @@ func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Han
 		log.Fatalf("InteractionHandler ERROR: %s", err)
 	}
 
-	i.attachServer = attach.NewAttachServer(constants.ManagementHostName, 0)
+	i.attachServer = portlayer.NewAttachServer(constants.ManagementHostName, 0)
 
 	if err := i.attachServer.Start(); err != nil {
 		log.Fatalf("Attach server unable to start: %s", err)
 	}
+}
+
+// JoinHandler calls the Join
+func (i *InteractionHandlersImpl) JoinHandler(params interaction.InteractionJoinParams) middleware.Responder {
+	defer trace.End(trace.Begin(""))
+
+	handle := exec.HandleFromInterface(params.Config.Handle)
+	if handle == nil {
+		err := &models.Error{Message: "Failed to get the Handle"}
+		return interaction.NewInteractionJoinInternalServerError().WithPayload(err)
+	}
+
+	handleprime, err := portlayer.Join(handle)
+	if err != nil {
+		return interaction.NewInteractionJoinInternalServerError().WithPayload(
+			&models.Error{Message: err.Error()},
+		)
+	}
+	res := &models.InteractionJoinResponse{
+		Handle: exec.ReferenceFromHandle(handleprime),
+	}
+	return interaction.NewInteractionJoinOK().WithPayload(res)
+}
+
+// BindHandler calls the Bind
+func (i *InteractionHandlersImpl) BindHandler(params interaction.InteractionBindParams) middleware.Responder {
+	defer trace.End(trace.Begin(""))
+
+	handle := exec.HandleFromInterface(params.Config.Handle)
+	if handle == nil {
+		err := &models.Error{Message: "Failed to get the Handle"}
+		return interaction.NewInteractionBindInternalServerError().WithPayload(err)
+	}
+
+	handleprime, err := portlayer.Bind(handle)
+	if err != nil {
+		return interaction.NewInteractionBindInternalServerError().WithPayload(
+			&models.Error{Message: err.Error()},
+		)
+	}
+
+	res := &models.InteractionBindResponse{
+		Handle: exec.ReferenceFromHandle(handleprime),
+	}
+	return interaction.NewInteractionBindOK().WithPayload(res)
+}
+
+// UnbindHandler calls the Unbind
+func (i *InteractionHandlersImpl) UnbindHandler(params interaction.InteractionUnbindParams) middleware.Responder {
+	defer trace.End(trace.Begin(""))
+
+	handle := exec.HandleFromInterface(params.Config.Handle)
+	if handle == nil {
+		err := &models.Error{Message: "Failed to get the Handle"}
+		return interaction.NewInteractionUnbindInternalServerError().WithPayload(err)
+	}
+
+	handleprime, err := portlayer.Unbind(handle)
+	if err != nil {
+		return interaction.NewInteractionUnbindInternalServerError().WithPayload(
+			&models.Error{Message: err.Error()},
+		)
+	}
+
+	res := &models.InteractionUnbindResponse{
+		Handle: exec.ReferenceFromHandle(handleprime),
+	}
+	return interaction.NewInteractionUnbindOK().WithPayload(res)
 }
 
 func (i *InteractionHandlersImpl) ContainerResizeHandler(params interaction.ContainerResizeParams) middleware.Responder {
@@ -113,7 +189,7 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 		log.Printf("Attempting to get ssh session for container %s stdin with deadline %s", params.ID, ctxDeadline.Format(time.UnixDate))
 		if timeout < 0 {
 			e := &models.Error{Message: fmt.Sprintf("Deadline for stdin already passed for container %s", params.ID)}
-			return interaction.NewContainerGetStdoutInternalServerError().WithPayload(e)
+			return interaction.NewContainerSetStdinInternalServerError().WithPayload(e)
 		}
 	} else {
 		log.Printf("Attempting to get ssh session for container %s stdin", params.ID)
@@ -187,7 +263,7 @@ func (i *InteractionHandlersImpl) ContainerGetStderrHandler(params interaction.C
 		log.Printf("Attempting to get ssh session for container %s stderr with deadline %s", params.ID, ctxDeadline.Format(time.UnixDate))
 		if timeout < 0 {
 			e := &models.Error{Message: fmt.Sprintf("Deadline for stdin already passed for container %s", params.ID)}
-			return interaction.NewContainerGetStdoutInternalServerError().WithPayload(e)
+			return interaction.NewContainerGetStderrInternalServerError().WithPayload(e)
 		}
 	} else {
 		log.Printf("Attempting to get ssh session for container %s stderr", params.ID)
