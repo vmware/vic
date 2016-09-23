@@ -354,8 +354,8 @@ func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 			// replace the VM token in file name with the VM name
 			vmHashName := strings.Split(logfile.VMName, "-")
 			processed := strings.Replace(file, string(vchconfig.VM), vmHashName[1], -1)
-			wpath := fmt.Sprintf("%s/%s", logfile.VMName, processed)
-			rpath := fmt.Sprintf("%s/%s", logfile.URL.Path, processed)
+			wpath := fmt.Sprintf("log write path: %s/%s", logfile.VMName, processed)
+			rpath := fmt.Sprintf("log read path: %s/%s", logfile.URL.Path, processed)
 			log.Infof("Processed File Path : %s", rpath)
 			readers[wpath] = datastoreReader{
 				ds:   ds,
