@@ -99,14 +99,15 @@ func (v *Volume) VolumeInspect(name string) (*types.Volume, error) {
 }
 
 // volumeCreate issues a CreateVolume request to the portlayer
-func (v *Volume) volumeCreate(name, driverName string, driverArgs, labels map[string]string) (*types.Volume, *models.VolumeRequest, error) {
+func (v *Volume) volumeCreate(name, driverName string, driverArgs, labels map[string]string) (*types.Volume, error) {
 	defer trace.End(trace.Begin(""))
 	result := &types.Volume{}
 
 	client := PortLayerClient()
 	if client == nil {
-		return nil, nil, fmt.Errorf("failed to get a portlayer client")
+		return nil, fmt.Errorf("failed to get a portlayer client")
 	}
+
 	if name == "" {
 		name = uuid.New().String()
 	}
@@ -115,30 +116,29 @@ func (v *Volume) volumeCreate(name, driverName string, driverArgs, labels map[st
 	// assign the values of the model to be passed to the portlayer handler
 	req, varErr := newVolumeCreateReq(name, driverName, driverArgs, labels)
 	if varErr != nil {
-		return result, req, varErr
+		return result, varErr
 	}
 	log.Infof("Finalized model for volume create request to portlayer: %#v", req)
 
 	res, err := client.Storage.CreateVolume(storage.NewCreateVolumeParamsWithContext(ctx).WithVolumeRequest(req))
 	if err != nil {
-		return result, req, err
+		return result, err
 	}
 	result = NewVolumeModel(res.Payload, labels)
-	return result, req, nil
+	return result, nil
 }
 
 // VolumeCreate : docker personality implementation for VIC
 func (v *Volume) VolumeCreate(name, driverName string, driverArgs, labels map[string]string) (*types.Volume, error) {
 	defer trace.End(trace.Begin("Volume.VolumeCreate"))
 
-	result, req, err := v.volumeCreate(name, driverName, driverArgs, labels)
+	result, err := v.volumeCreate(name, driverName, driverArgs, labels)
 	if err != nil {
 		switch err := err.(type) {
-
 		case *storage.CreateVolumeConflict:
-			return result, derr.NewErrorWithStatusCode(fmt.Errorf("A volume named %s already exists. Choose a different volume name.", req.Name), http.StatusInternalServerError)
+			return result, derr.NewErrorWithStatusCode(fmt.Errorf("A volume named %s already exists. Choose a different volume name.", name), http.StatusInternalServerError)
 		case *storage.CreateVolumeNotFound:
-			return result, derr.NewErrorWithStatusCode(fmt.Errorf("No volume store named (%s) exists", req.Store), http.StatusInternalServerError)
+			return result, derr.NewErrorWithStatusCode(fmt.Errorf("No volume store named (%s) exists", volumeStore(driverArgs)), http.StatusInternalServerError)
 		case *storage.CreateVolumeInternalServerError:
 			// FIXME: right now this does not return an error model...
 			return result, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err.Error()), http.StatusInternalServerError)
@@ -247,13 +247,18 @@ func newVolumeCreateReq(name, driverName string, driverArgs, labels map[string]s
 	return req, nil
 }
 
-func validateDriverArgs(args map[string]string, req *models.VolumeRequest) error {
-	// volumestore name validation
+// volumeStore returns the value of the optional volume store param specified in the CLI.
+func volumeStore(args map[string]string) string {
 	storeName, ok := args[OptsVolumeStoreKey]
 	if !ok {
-		storeName = "default"
+		return "default"
 	}
-	req.Store = storeName
+	return storeName
+}
+
+func validateDriverArgs(args map[string]string, req *models.VolumeRequest) error {
+	// volumestore name validation
+	req.Store = volumeStore(args)
 
 	// capacity validation
 	capstr, ok := args[OptsCapacityKey]

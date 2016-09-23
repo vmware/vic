@@ -228,7 +228,7 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 		// present can be avoided by adding an extra optional param to VolumeJoin,
 		// which would then call volumeCreate if the volume does not exist.
 		vol := &Volume{}
-		_, req, err := vol.volumeCreate(fields.ID, "vsphere", driverArgs, nil)
+		_, err := vol.volumeCreate(fields.ID, "vsphere", driverArgs, nil)
 		if err != nil {
 			switch err := err.(type) {
 			case *storage.CreateVolumeConflict:
@@ -236,7 +236,7 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 				// already exists. We can just join the said volume to the container.
 				log.Infof("a volume with the name %s already exists", fields.ID)
 			case *storage.CreateVolumeNotFound:
-				return handle, VolumeCreateNotFoundError(req.Store)
+				return handle, VolumeCreateNotFoundError(volumeStore(driverArgs))
 			default:
 				return handle, InternalServerError(err.Error())
 			}
