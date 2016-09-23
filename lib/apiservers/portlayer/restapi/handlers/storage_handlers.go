@@ -402,7 +402,7 @@ func (handler *StorageHandlersImpl) VolumesList(params storage.ListVolumesParams
 
 //VolumeJoin : modifies the config spec of a container to mount the specified container
 func (handler *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middleware.Responder {
-	defer trace.End(trace.Begin("storage_handlers.RemoveVolume"))
+	defer trace.End(trace.Begin(""))
 	actualHandle := epl.GetHandle(params.JoinArgs.Handle)
 
 	//Note: Name should already be populated by now.
