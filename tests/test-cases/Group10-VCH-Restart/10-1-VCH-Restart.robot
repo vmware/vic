@@ -25,6 +25,8 @@ Launch Container
 Created Network And Images Persists As Well As Containers Are Discovered With Correct IPs
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull nginx
     Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create foo
+    Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create bar
     Should Be Equal As Integers  ${rc}  0
     Comment  Launch first container on bridge network
@@ -41,9 +43,13 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10001
 
     Log To Console  Rebooting VCH ...
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -reset=true ${vch-name}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -power=off ${vch-name}
     Should Be Equal As Integers  ${rc}  0
-    Log To Console  Waiting for VCH to boot ...
+    Log To Console  Waiting for VCH to power off ...
+    Wait Until VM Powers Off  ${vch-name}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -power=on ${vch-name}
+    Should Be Equal As Integers  ${rc}  0
+    Log To Console  Waiting for VCH to power on ...
     Wait Until Vm Powers On  ${vch-name}
     Log To Console  VCH Powered On
     Sleep  5
@@ -62,9 +68,11 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     Should Contain  ${output}  bar
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network inspect bridge
     Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network inspect bar
+    Should Be Equal As Integers  ${rc}  0
     ${ip}=  Get Container IP  ${id1}  bridge
     Should Be Equal  ${ip}  ${ip1}
-    ${ip}=  Get Container IP  ${id2}  bridge
+    ${ip}=  Get Container IP  ${id2}  bar
     Should Be Equal  ${ip}  ${ip2}
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} inspect vch-restart-test1
     Should Be Equal As Integers  ${rc}  0
@@ -89,3 +97,8 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start webserver1
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  port 10000 is not available
+    ${status}=  Get State Of Github Issue  2448
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 10-1-VCH-Restart.robot needs to be updated now that Issue #2448 has been resolved
+    Log  Issue \#2448 is blocking implementation  WARN
+    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network inspect foo
+    #Should Be Equal As Integers  ${rc}  0

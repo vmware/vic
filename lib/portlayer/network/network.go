@@ -106,8 +106,34 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		// populate existing containers
 		state := exec.StateRunning
 		for _, c := range exec.Containers.Containers(&state) {
+			log.Debugf("adding container %s", c.ExecConfig.ID)
 			h := c.NewHandle()
 			defer h.Close()
+
+			// add any user created networks that show up in container's config
+			for n, ne := range h.ExecConfig.Networks {
+				var s []*Scope
+				s, err = netctx.Scopes(&n)
+				if err != nil {
+					if _, ok := err.(ResourceNotFoundError); !ok {
+						return
+					}
+				}
+
+				if len(s) > 0 {
+					continue
+				}
+
+				pools := make([]string, len(ne.Network.Pools))
+				for i, p := range ne.Network.Pools {
+					pools[i] = p.String()
+				}
+
+				log.Debugf("adding scope %s", n)
+				if _, err = netctx.NewScope(ne.Network.Type, n, nil, ne.Network.Gateway.IP, ne.Network.Nameservers, pools); err != nil {
+					return
+				}
+			}
 
 			if _, err = netctx.BindContainer(h); err != nil {
 				return

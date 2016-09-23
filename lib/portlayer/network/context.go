@@ -439,22 +439,6 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 		return nil, err
 	}
 
-	// add the new scope to the config
-	c.config.ContainerNetworks[s.Name()] = &executor.ContainerNetwork{
-		Common: executor.Common{
-			ID:   s.ID().String(),
-			Name: s.Name(),
-		},
-		Type:        s.Type(),
-		Gateway:     net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask},
-		Nameservers: s.DNS(),
-		Pools:       s.IPAM().Pools(),
-	}
-	c.config.PortGroups[s.Name()] = s.network
-
-	// write config
-	c.config.Encode()
-
 	return s, nil
 }
 
@@ -923,6 +907,7 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 			},
 			Aliases: options.Aliases,
 			Pools:   s.IPAM().Pools(),
+			Type:    s.Type(),
 		},
 		Ports: options.Ports,
 	}
