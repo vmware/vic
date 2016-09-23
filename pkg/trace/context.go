@@ -119,7 +119,7 @@ func (o *Operation) newChild(ctx context.Context, msg string) Operation {
 }
 
 func opID(opNum uint64) string {
-	return fmt.Sprintf("%d%d", opIDPrefix, opNum)
+	return fmt.Sprintf("%d.%d", opIDPrefix, opNum)
 }
 
 // Add tracing info to the context.
