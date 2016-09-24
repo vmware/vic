@@ -71,10 +71,7 @@ Create linked containers that can ping
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow busy2
     Should Be Equal As Integers  ${rc}  0
-    ${status}=  Get State Of Github Issue  1459
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-4-Docker-Create.robot needs to be updated now that Issue #1459 has been resolved
-    Log  Issue \#1459 is blocking implementation  WARN
-    #Should Contain  ${output}  2 packets transmitted, 2 received
+    Should Contain  ${output}  2 packets transmitted, 2 packets received
 
 Create a container after the last container is removed
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
