@@ -29,6 +29,8 @@ import (
 
 	"net/http"
 
+	"encoding/json"
+	"github.com/docker/engine-api/types"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/containers"
@@ -38,6 +40,8 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/version"
+	"strconv"
+	"strings"
 )
 
 const containerWaitTimeout = 3 * time.Minute
@@ -287,6 +291,37 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 	return containers.NewGetContainerListOK().WithPayload(containerList)
 }
 
+func gatherPortBindings(container *exec.Container) []string {
+	var ports []string
+	for _, network := range container.ExecConfig.Networks {
+		for _, portTypeAndNum := range network.Ports {
+			port := new(types.Port)
+			if exec.Config.Networks["client"] != nil {
+				port.IP = exec.Config.Networks["client"].Assigned.IP.String()
+			}
+			portComponents := strings.SplitN(portTypeAndNum, "/", 2)
+			if len(portComponents) != 2 {
+				log.Errorf("Couldn't gather port type & number from %s due to bad format", portTypeAndNum)
+				continue
+			}
+			privPort, err := strconv.Atoi(portComponents[0])
+			if err != nil {
+				log.Errorf("Couldn't cast %s to an integer to determine exposed port number due to error: %s",
+					portComponents[0], err.Error())
+				continue
+			}
+			port.PrivatePort = int(privPort)
+			port.Type = portComponents[1]
+			jsonPort, err := json.Marshal(port)
+			if err != nil {
+				log.Errorf("Couldn't marshal %+v due to error %s", port, err)
+				continue
+			}
+			ports = append(ports, string(jsonPort))
+		}
+	}
+	return ports
+}
 func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.ContainerSignalParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
@@ -433,5 +468,6 @@ func convertContainerToContainerInfo(container *exec.Container) *models.Containe
 	status := container.ExecConfig.Sessions[ccid].Started
 	info.ProcessConfig.Status = &status
 
+	info.Ports = gatherPortBindings(container)
 	return info
 }

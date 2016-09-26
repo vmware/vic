@@ -50,6 +50,7 @@ import (
 
 	"github.com/vishvananda/netlink"
 
+	"encoding/json"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/portmap"
@@ -1019,6 +1020,7 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 			Names:   names,
 			Command: cmd,
 			SizeRw:  *t.ContainerConfig.StorageSize,
+			Ports:   getPortInformation(&t),
 		}
 		containers = append(containers, c)
 	}
@@ -1541,6 +1543,31 @@ func ContainerSignal(containerID string, sig uint64) error {
 	}
 
 	return nil
+}
+
+func getPortInformation(t *models.ContainerListInfo) []types.Port {
+	portBindings := cache.ContainerCache().GetContainer(t.Names[0]).HostConfig.PortBindings
+	var ports []types.Port
+	for _, jsonPort := range t.Ports {
+		port := new(types.Port)
+		err := json.Unmarshal([]byte(jsonPort), port)
+		if err != nil {
+			log.Errorf("Failed to unmarshal %+v due to error %s", jsonPort, err)
+			continue
+		}
+		privatePort, err := nat.NewPort(port.Type, strconv.Itoa(port.PrivatePort))
+		if err != nil {
+			log.Errorf("Got error %s while trying to create a new Port from type %s and number %d",
+				err.Error(), port.Type, port.PrivatePort)
+			continue
+		}
+		for i := 0; i < len(portBindings[privatePort]); i++ {
+			newport := port
+			newport.PublicPort, err = strconv.Atoi(portBindings[privatePort][i].HostPort)
+			ports = append(ports, *newport)
+		}
+	}
+	return ports
 }
 
 //----------------------------------
