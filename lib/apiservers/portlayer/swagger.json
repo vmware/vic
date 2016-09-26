@@ -605,6 +605,12 @@
 							"type": "string"
 						}
 					},
+					"404": {
+						"description": "Volume not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+                                        },
 					"500": {
 						"description": "ServerError",
 						"schema": {

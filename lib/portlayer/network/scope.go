@@ -185,6 +185,23 @@ func (s *Scope) Container(id uid.UID) *Container {
 	return nil
 }
 
+func (s *Scope) ContainerByAddr(addr net.IP) *Endpoint {
+	if addr == nil || addr.IsUnspecified() {
+		return nil
+	}
+
+	s.Lock()
+	defer s.Unlock()
+
+	for _, e := range s.endpoints {
+		if addr.Equal(e.IP()) {
+			return e
+		}
+	}
+
+	return nil
+}
+
 func (s *Scope) Endpoints() []*Endpoint {
 	eps := make([]*Endpoint, len(s.endpoints))
 	copy(eps, s.endpoints)
