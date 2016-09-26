@@ -61,7 +61,6 @@ func NewKeyValueStore(op trace.Operation, store Backend, fileName string) (*KeyV
 		fileName: fileName,
 	}
 
-	// XXX FIXME
 	if err := p.restore(op); err != nil {
 		return nil, err
 	}
