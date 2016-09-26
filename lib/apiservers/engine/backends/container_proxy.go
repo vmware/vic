@@ -32,6 +32,8 @@ package backends
 //		- Please USE the aliased docker error package 'derr'
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -95,6 +97,7 @@ const (
 	attachRequestTimeout   time.Duration = 2 * time.Hour                              //timeout to hold onto the attach connection
 	swaggerSubstringEOF                  = "EOF"
 	forceLogType                         = "json-file" //Use in inspect to allow docker logs to work
+	annotationKeyLabels                  = "docker.labels"
 )
 
 // NewContainerProxy creates a new ContainerProxy
@@ -435,6 +438,9 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, laye
 	// container stop signal
 	config.StopSignal = new(string)
 	*config.StopSignal = cc.Config.StopSignal
+
+	// Stuff the Docker labels into VIC container annotations
+	annotationsFromLabels(config, cc.Config.Labels)
 
 	log.Debugf("dockerContainerCreateParamsToPortlayer = %+v", config)
 
@@ -793,6 +799,9 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 		container.Volumes = imageConfig.ContainerConfig.Volumes
 	}
 
+	// Pull labels from the annotation
+	labelsFromAnnotations(&container, info.ContainerConfig.Annotations)
+
 	return &container
 }
 
@@ -891,4 +900,62 @@ func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicCon
 	vc.Config = containerConfigFromContainerInfo(tempVC, &info)
 	vc.HostConfig = hostConfigFromContainerInfo(tempVC, &info, PortLayerName())
 	return vc
+}
+
+// annotationsFromLabels() encodes labels into annotations within the swagger
+// create config.  The difference between labels and annotations is that labels
+// is specific to Docker.  Annotations is a generic per VIC container k,v struct.
+// We store the labels in an annotation key.
+func annotationsFromLabels(config *models.ContainerCreateConfig, labels map[string]string) error {
+	var err error
+
+	if config == nil || len(labels) == 0 {
+		return nil
+	}
+
+	if config.Annotations == nil {
+		config.Annotations = make(map[string]string)
+	}
+
+	// Encoding the labels map into a blob that can be stored as ansi regardless
+	// of what encoding the input labels are.  We do this by first marshaling to
+	// to a json byte array to get a self describing encoding and then encoding
+	// to base64.  We could use another encoding for the self describing part,
+	// such as Golang GOB, but this data will be pushed over to a standard REST
+	// server so we use standard web standards instead.
+	if labelsBytes, merr := json.Marshal(labels); merr == nil {
+		labelsBlob := base64.StdEncoding.EncodeToString(labelsBytes)
+		config.Annotations[annotationKeyLabels] = labelsBlob
+	} else {
+		err = merr
+		log.Errorf("Unable to marshal docker labels to json: %s", err)
+	}
+
+	return err
+}
+
+// labelsFromAnnotations() decodes the Docker label value from the VIC annotations.
+func labelsFromAnnotations(config *container.Config, annotations map[string]string) error {
+	var err error
+
+	if config == nil || len(annotations) == 0 {
+		return nil
+	}
+
+	if config.Labels == nil {
+		config.Labels = make(map[string]string)
+	}
+
+	if labelsBlob, ok := annotations[annotationKeyLabels]; ok {
+		if labelsBytes, decodeErr := base64.StdEncoding.DecodeString(labelsBlob); decodeErr == nil {
+			if err = json.Unmarshal(labelsBytes, &config.Labels); err != nil {
+				log.Errorf("Unable to unmarshal docker labels: %s", err)
+			}
+		} else {
+			err = decodeErr
+			log.Errorf("Unable to decode container annotations: %s", err)
+		}
+	}
+
+	return err
 }
