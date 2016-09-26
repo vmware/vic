@@ -16,6 +16,7 @@
   * [Install the vSphere Integrated Containers Engine Plug-In on vCenter Server for Windows Without Access to a Web Server](plugin_vc_no_web.md)
   * [Install the vSphere Integrated Containers Engine Plug-In on a vCenter Server Appliance by Using a Web Server](plugin_vcsa_web.md)
   * [Install the vSphere Integrated Containers Engine Plug-In on a vCenter Server Appliance Without Access to a Web Server](plugin_vcsa_no_web.md)
+  * [Verify the Deployment of the vSphere Integrated Containers Engine Plug-In](plugin_verify_deployment.md)
 * [Troubleshooting vSphere Integrated Containers Engine Installation](troubleshoot_vic_install.md)
   * [VCH Deployment Fails with Resource Pool Creation Error](ts_resource_pool_error.md)
   * [VCH Deployment Fails with Unknown or Non-Specified Argument Error or Incorrect User Name Error](ts_cli_argument_error.md)

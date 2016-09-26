@@ -38,3 +38,6 @@ else
    - Once to copy the files to the appliance over SSH.
    - Once to set the correct ownership on the files and folders.
 10. When installation finishes, if you are logged into the vSphere Web Client, log out then log back in again.
+
+**What to Do Next**
+Check that the deployment has succeeded by following the procedure in [Verify the Deployment of the vSphere Integrated Containers Engine Plug-In](plugin_verify_deployment.md).
