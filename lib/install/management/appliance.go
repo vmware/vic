@@ -177,7 +177,6 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	}
 
 	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-
 		return vm.DeleteExceptDisks(ctx)
 	})
 	if err != nil {
