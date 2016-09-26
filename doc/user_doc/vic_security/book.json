@@ -1,0 +1,10 @@
+{
+
+	"title": "VMware vSphere Integrated Containers Engine Security, version 0.6.0",
+
+	"pdf": {
+		"headerTemplate": "_TITLE_",
+		"footerTemplate": "_PAGENUM_"
+	}
+
+}

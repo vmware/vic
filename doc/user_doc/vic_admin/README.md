@@ -6,6 +6,8 @@
 
 **NOTE**  This book is a work in progress.
 
+For an introduction to vSphere Integrated Containers Engine and descriptions of its main components, see *vSphere Integrated Containers Engine for vSphere Installation*.
+
 ## Intended Audience
 
 This information is intended for vSphere&reg; Administrators who must manage a vSphere Integrated Containers Engine implementation in their vSphere environment. The information is written for experienced vSphere  administrators who are familiar with virtual machine technology and datacenter operations. Knowledge of [container technology](https://en.wikipedia.org/wiki/Operating-system-level_virtualization) and [Docker](https://docs.docker.com/) is assumed.
