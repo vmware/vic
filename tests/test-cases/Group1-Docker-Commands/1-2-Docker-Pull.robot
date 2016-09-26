@@ -34,17 +34,6 @@ Pull an image based on digest
 Pull an image with the full docker registry URL
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  registry.hub.docker.com/library/hello-world
 
-Pull an image from non-default repo
-    ${output}=  Run  docker run -d -p 5000:5000 --name registry registry
-    Log  ${output}
-    ${output}=  Run  docker pull busybox
-    Log  ${output}
-    ${output}=  Run  docker tag busybox localhost:5000/busybox:latest
-    Log  ${output}
-    ${output}=  Run  docker push localhost:5000/busybox
-    Log  ${output}
-    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  172.17.0.1:5000/busybox
-
 Pull an image with all tags
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  --all-tags nginx
 
