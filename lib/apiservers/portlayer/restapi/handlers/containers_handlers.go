@@ -103,9 +103,8 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 					ID:   id,
 					Name: *params.CreateConfig.Name,
 				},
-				Tty: *params.CreateConfig.Tty,
-				// FIXME: default to true for now until we can have a more sophisticated approach
-				Attach: true,
+				Tty:    *params.CreateConfig.Tty,
+				Attach: *params.CreateConfig.Attach,
 				Cmd: executor.Cmd{
 					Env:  params.CreateConfig.Env,
 					Dir:  *params.CreateConfig.WorkingDir,

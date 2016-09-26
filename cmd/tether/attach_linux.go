@@ -16,7 +16,6 @@ package main
 
 import (
 	"crypto/rand"
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -36,6 +35,35 @@ import (
 )
 
 var backchannelMode = os.ModePerm
+
+func rawConnectionFromSerial() (*net.Conn, error) {
+	log.Info("opening ttyS0 for backchannel")
+	f, err := os.OpenFile(pathPrefix+"/ttyS0", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, backchannelMode)
+	if err != nil {
+		detail := fmt.Errorf("failed to open serial port for backchannel: %s", err)
+		log.Error(detail)
+		return nil, detail
+	}
+
+	// set the provided FDs to raw if it's a termial
+	// 0 is the uninitialized value for Fd
+	if f.Fd() != 0 && terminal.IsTerminal(int(f.Fd())) {
+		log.Debug("setting terminal to raw mode")
+		s, err := terminal.MakeRaw(int(f.Fd()))
+		if err != nil {
+			return nil, err
+		}
+
+		log.Infof("s = %#v", s)
+	}
+
+	var conn net.Conn
+
+	log.Infof("creating raw connection from ttyS0 (fd=%d)", f.Fd())
+
+	conn, err = serial.NewFileConn(f)
+	return &conn, err
+}
 
 func backchannel(ctx context.Context, conn *net.Conn) error {
 	defer trace.End(trace.Begin("establish tether backchannel"))
@@ -73,41 +101,18 @@ func (t *attachServerSSH) Start() error {
 
 	rand.Reader, err = os.Open(pathPrefix + "/urandom")
 	if err != nil {
-		detail := fmt.Sprintf("failed to open new urandom device: %s", err)
+		detail := fmt.Errorf("failed to open new urandom device: %s", err)
 		log.Error(detail)
-		return errors.New(detail)
+		return detail
 	}
 
-	log.Info("opening ttyS0 for backchannel")
-	f, err := os.OpenFile(pathPrefix+"/ttyS0", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, backchannelMode)
+	t.conn, err = rawConnectionFromSerial()
 	if err != nil {
-		detail := fmt.Sprintf("failed to open serial port for backchannel: %s", err)
+		detail := fmt.Errorf("failed to create raw connection from ttyS0 file handle: %s", err)
 		log.Error(detail)
-		return errors.New(detail)
+		return detail
 	}
 
-	// set the provided FDs to raw if it's a termial
-	// 0 is the uninitialized value for Fd
-	if f.Fd() != 0 && terminal.IsTerminal(int(f.Fd())) {
-		log.Debug("setting terminal to raw mode")
-		s, err := terminal.MakeRaw(int(f.Fd()))
-		if err != nil {
-			return err
-		}
-
-		log.Infof("s = %#v", s)
-	}
-
-	log.Infof("creating raw connection from ttyS0 (fd=%d)\n", f.Fd())
-	var conn net.Conn
-	conn, err = serial.NewFileConn(f)
-	if err != nil {
-		detail := fmt.Sprintf("failed to create raw connection from ttyS0 file handle: %s", err)
-		log.Error(detail)
-		return errors.New(detail)
-	}
-
-	t.conn = &conn
 	return nil
 }
 

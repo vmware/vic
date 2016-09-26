@@ -29,12 +29,37 @@ import (
 
 	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/pkg/serial"
+	"github.com/vmware/vic/pkg/trace"
 )
 
-func backchannel(ctx context.Context, conn *net.Conn) error {
+const (
+	com = "COM1"
+)
 
+func rawConnectionFromSerial() (*net.Conn, error) {
+	var err error
+
+	// redirect backchannel to the serial connection
+	log.Infof("opening %s%s for backchannel", pathPrefix, com)
+	// TODO: set read timeout on port during open
+	_, err = OpenPort(fmt.Sprintf("%s%s", pathPrefix, com))
+	if err != nil {
+		detail := fmt.Sprintf("failed to open serial port for backchannel: %s", err)
+		log.Error(detail)
+		return nil, errors.New(detail)
+	}
+
+	log.Errorf("creating raw connection from %s\n", com)
+
+	// TODO: sort out the named port impl so that we can transparently switch from that to/from
+	// regular files for testing
+	// t.conn, err := serial.NewTypedConn(f, "file")
+	return nil, nil
+}
+
+func backchannel(ctx context.Context, conn *net.Conn) error {
 	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
-	ticker := time.NewTicker(50 * time.Millisecond)
+	ticker := time.NewTicker(10 * time.Millisecond)
 	for {
 		select {
 		case <-ticker.C:
@@ -51,30 +76,18 @@ func backchannel(ctx context.Context, conn *net.Conn) error {
 }
 
 func (t *attachServerSSH) Start() error {
+	defer trace.End(trace.Begin(""))
+
+	t.m.Lock()
+	defer t.m.Unlock()
+
 	var err error
 
-	com := "COM1"
-
-	// redirect backchannel to the serial connection
-	log.Infof("opening %s%s for backchannel", pathPrefix, com)
-	// TODO: set read timeout on port during open
-	_, err = OpenPort(fmt.Sprintf("%s%s", pathPrefix, com))
+	t.conn, err = rawConnectionFromSerial()
 	if err != nil {
-		detail := fmt.Sprintf("failed to open serial port for backchannel: %s", err)
+		detail := fmt.Errorf("failed to create raw connection from %s file handle: %s", com, err)
 		log.Error(detail)
-		return errors.New(detail)
-	}
-
-	log.Errorf("creating raw connection from %s\n", com)
-
-	// TODO: sort out the named port impl so that we can transparently switch from that to/from
-	// regular files for testing
-	// t.conn, err := serial.NewTypedConn(f, "file")
-
-	if err != nil {
-		detail := fmt.Sprintf("failed to create raw connection from %s file handle: %s", com, err)
-		log.Error(detail)
-		return errors.New(detail)
+		return detail
 	}
 
 	return nil
