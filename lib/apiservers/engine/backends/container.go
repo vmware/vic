@@ -994,32 +994,32 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 	// TODO: move to conversion function
 	containers := make([]*types.Container, 0, len(containme.Payload))
 	for _, t := range containme.Payload {
-		cmd := strings.Join(t.ExecArgs, " ")
+		cmd := strings.Join(t.ProcessConfig.ExecArgs, " ")
 		// the docker client expects the friendly name to be prefixed
 		// with a forward slash -- create a new slice and add here
-		names := make([]string, 0, len(t.Names))
-		for i := range t.Names {
-			names = append(names, clientFriendlyContainerName(t.Names[i]))
+		names := make([]string, 0, len(t.ContainerConfig.Names))
+		for i := range t.ContainerConfig.Names {
+			names = append(names, clientFriendlyContainerName(t.ContainerConfig.Names[i]))
 		}
 		var started time.Time
 		var stopped time.Time
-		if t.StartTime != nil && *t.StartTime > 0 {
-			started = time.Unix(*t.StartTime, 0)
+		if t.ProcessConfig.StartTime != nil && *t.ProcessConfig.StartTime > 0 {
+			started = time.Unix(*t.ProcessConfig.StartTime, 0)
 		}
-		if t.StopTime != nil && *t.StopTime > 0 {
-			stopped = time.Unix(*t.StopTime, 0)
+		if t.ProcessConfig.StopTime != nil && *t.ProcessConfig.StopTime > 0 {
+			stopped = time.Unix(*t.ProcessConfig.StopTime, 0)
 		}
 		// get the docker friendly status
-		_, status := dockerStatus(int(*t.ExitCode), *t.Status, *t.State, started, stopped)
+		_, status := dockerStatus(int(*t.ProcessConfig.ExitCode), *t.ProcessConfig.Status, *t.ContainerConfig.State, started, stopped)
 
 		c := &types.Container{
-			ID:      *t.ContainerID,
-			Image:   *t.RepoName,
-			Created: *t.CreateTime,
+			ID:      *t.ContainerConfig.ContainerID,
+			Image:   *t.ContainerConfig.RepoName,
+			Created: *t.ContainerConfig.CreateTime,
 			Status:  status,
 			Names:   names,
 			Command: cmd,
-			SizeRw:  *t.StorageSize,
+			SizeRw:  *t.ContainerConfig.StorageSize,
 		}
 		containers = append(containers, c)
 	}

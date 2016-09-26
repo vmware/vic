@@ -1094,7 +1094,7 @@
 						"schema": {
 							"type": "array",
 							"items": {
-								"$ref": "#definitions/ContainerListInfo"
+								"$ref": "#definitions/ContainerInfo"
 							}
 						}
 					},
@@ -2286,6 +2286,10 @@
 				},
 				"reservation": {
 					"$ref": "#/definitions/ReservationConfig"
+				},
+				"storageSize": {
+					"type": "integer",
+					"format": "int64"
 				}
 			}
 		},

@@ -866,3 +866,29 @@ func portMapFromVicContainer(vc *viccontainer.VicContainer) nat.PortMap {
 
 	return portMap
 }
+
+func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicContainer {
+	log.Debugf("Convert container info to vic container")
+
+	vc := viccontainer.NewVicContainer()
+
+	var name string
+	if len(info.ContainerConfig.Names) > 0 {
+		vc.Name = info.ContainerConfig.Names[0]
+	}
+	log.Debugf("Container %q", name)
+
+	if info.ContainerConfig.LayerID != nil {
+		vc.ImageID = *info.ContainerConfig.LayerID
+	}
+
+	if info.ContainerConfig.ContainerID != nil {
+		vc.ContainerID = *info.ContainerConfig.ContainerID
+	}
+
+	tempVC := viccontainer.NewVicContainer()
+	tempVC.HostConfig = &container.HostConfig{}
+	vc.Config = containerConfigFromContainerInfo(tempVC, &info)
+	vc.HostConfig = hostConfigFromContainerInfo(tempVC, &info, PortLayerName())
+	return vc
+}
