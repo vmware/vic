@@ -27,9 +27,12 @@ Assert Stop Signal
 Assert Kill Signal
     # Assert SIGKILL was sent or not by checking the tether debug log file
     [Arguments]  ${id}  ${expect}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info -json *-${id} | jq -r .VirtualMachines[].Runtime.PowerState
-    Should Be Equal As Integers  ${rc}  0
-    Should Be Equal  ${output}  poweredOff
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.info -json ${vch-name}/*-${id} | jq -r .VirtualMachines[].Runtime.PowerState
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal  ${output}  poweredOff
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info -json *-${id} | jq -r .VirtualMachines[].Runtime.PowerState
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal  ${output}  poweredOff
     ${rc}  ${dir}=  Run And Return Rc And Output  govc datastore.ls *-${id}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.download ${dir}/${id}.debug -
@@ -107,8 +110,10 @@ Attempt to stop a container that has been started out of band
     ${name}=  Generate Random String  15
     ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name ${name} busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -on=true ${name}-*
-    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -on=true ${vch-name}/${name}-*
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.power -on=true ${name}-*
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop ${container}
     Should Be Equal As Integers  ${rc}  0
     Assert Kill Signal  ${container}  False
@@ -120,7 +125,7 @@ Restart a stopped container
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
-    Sleep  5s
+    Wait Until VM Powers Off  *-${output}
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error:
