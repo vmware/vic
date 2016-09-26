@@ -25,6 +25,7 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/go-connections/nat"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
@@ -548,9 +549,13 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			return nil, err
 		}
 
-		for _, p := range ne.Ports {
+		ports, _, err := nat.ParsePortSpecs(ne.Ports)
+		if err != nil {
+			return nil, err
+		}
+		for p := range ports {
 			var port Port
-			if port, err = ParsePort(p); err != nil {
+			if port, err = ParsePort(string(p)); err != nil {
 				return nil, err
 			}
 
@@ -558,6 +563,8 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 				return nil, err
 			}
 		}
+		// cache portmapping string directly after ports verification is done. this value is used for ScopesGetContainerEndpoints
+		e.portmapping = ne.Ports
 
 		eip := e.IP()
 		if eip != nil && !eip.IsUnspecified() {

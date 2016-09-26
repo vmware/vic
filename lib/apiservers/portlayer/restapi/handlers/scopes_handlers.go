@@ -213,7 +213,6 @@ func (handler *ScopesHandlersImpl) ScopesGetContainerEndpoints(params scopes.Get
 	if c == nil {
 		return scopes.NewGetContainerEndpointsNotFound().WithPayload(errorPayload(fmt.Errorf("container not found")))
 	}
-
 	eps := c.Endpoints()
 	ecs := make([]*models.EndpointConfig, len(eps))
 	for i, e := range eps {
@@ -389,18 +388,12 @@ func toEndpointConfig(e *network.Endpoint) *models.EndpointConfig {
 		addr = e.IP().String()
 	}
 
-	ports := e.Ports()
-	ecports := make([]string, len(ports))
-	for i, p := range e.Ports() {
-		ecports[i] = p.String()
-	}
-
 	return &models.EndpointConfig{
 		Address:   addr,
 		Container: e.ID().String(),
 		ID:        e.ID().String(),
 		Name:      e.Name(),
 		Scope:     e.Scope().Name(),
-		Ports:     ecports,
+		Ports:     e.Portmapping(),
 	}
 }

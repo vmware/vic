@@ -435,5 +435,6 @@ func convertContainerToContainerInfo(container *exec.Container) *models.Containe
 	status := container.ExecConfig.Sessions[ccid].Started
 	info.ProcessConfig.Status = &status
 
+
 	return info
 }

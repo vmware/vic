@@ -72,3 +72,12 @@ func TestEndpointCopy(t *testing.T) {
 	other.ports["foo"] = nil
 	assert.NotContains(t, e.ports, "foo")
 }
+
+func TestPortmapping(t *testing.T) {
+	e := Endpoint{}
+	mapping := []string{"80/tcp", "8080:80/tcp"}
+	e.portmapping = mapping
+	copied := e.Portmapping()
+	copied[0] = "81/tcp"
+	assert.NotEqual(t, e.portmapping[0], copied[0])
+}
