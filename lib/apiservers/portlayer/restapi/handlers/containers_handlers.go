@@ -270,32 +270,12 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 	}
 
 	containerVMs := exec.Containers.Containers(state)
-	containerList := make([]models.ContainerListInfo, 0, len(containerVMs))
+	containerList := make([]models.ContainerInfo, 0, len(containerVMs))
 
-	for i := range containerVMs {
+	for _, container := range containerVMs {
 		// convert to return model
-		container := containerVMs[i]
-		info := models.ContainerListInfo{}
-		info.ContainerID = &container.ExecConfig.ID
-		info.LayerID = &container.ExecConfig.LayerID
-		info.CreateTime = &container.ExecConfig.CreateTime
-		started := container.ExecConfig.Sessions[*info.ContainerID].StartTime
-		info.StartTime = &started
-		stopped := container.ExecConfig.Sessions[*info.ContainerID].StopTime
-		info.StopTime = &stopped
-		state := container.State.String()
-		info.State = &state
-		processStatus := container.ExecConfig.Sessions[*info.ContainerID].Started
-		info.Status = &processStatus
-
-		exitCode := int32(container.ExecConfig.Sessions[*info.ContainerID].ExitStatus)
-		info.ExitCode = &exitCode
-
-		info.Names = []string{container.ExecConfig.Name}
-		info.ExecArgs = container.ExecConfig.Sessions[*info.ContainerID].Cmd.Args
-		info.StorageSize = &container.VMUnsharedDisk
-		info.RepoName = &container.ExecConfig.RepoName
-		containerList = append(containerList, info)
+		info := convertContainerToContainerInfo(container)
+		containerList = append(containerList, *info)
 	}
 	return containers.NewGetContainerListOK().WithPayload(containerList)
 }
@@ -411,6 +391,8 @@ func convertContainerToContainerInfo(container *exec.Container) *models.Containe
 	info.ContainerConfig.AttachStdin = &attach
 	info.ContainerConfig.AttachStdout = &attach
 	info.ContainerConfig.AttachStderr = &attach
+
+	info.ContainerConfig.StorageSize = &container.VMUnsharedDisk
 
 	path := container.ExecConfig.Sessions[ccid].Cmd.Path
 	info.ProcessConfig.ExecPath = &path

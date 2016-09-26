@@ -48,4 +48,16 @@ Created Network Persists And Containers Are Discovered With Correct IPs
     Should Be Equal  ${ip}  ${ip1}
     ${ip}=  Get Container IP  ${id2}  bridge
     Should Be Equal  ${ip}  ${ip2}
-     
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} inspect vch-restart-test1
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  "Id"
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop vch-restart-test1
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  Exited (0)
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start vch-restart-test1
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Exited (0)

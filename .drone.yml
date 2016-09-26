@@ -26,6 +26,7 @@ build:
       - make -j3 all
       - make sincemark
       - make mark
+      - ls vendor/github.com/vmware/govmomi/vim25/methods
       - make -j3 test
       - make sincemark
 

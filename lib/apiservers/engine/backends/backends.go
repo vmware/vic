@@ -25,10 +25,12 @@ import (
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/misc"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
@@ -93,10 +95,19 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 	log.Info("Refreshing image cache")
 	go func() {
 		if err := cache.ImageCache().Update(portLayerClient); err != nil {
-			log.Warn("Failed to refresh image cache: %s", err)
+			log.Warnf("Failed to refresh image cache: %s", err)
 			return
 		}
 		log.Info("Image cache updated successfully")
+	}()
+
+	log.Info("Refreshing container cache")
+	go func() {
+		if err := syncContainerCache(portLayerClient); err != nil {
+			log.Warnf("Failed to refresh container cache: %s", err)
+			return
+		}
+		log.Info("Container cache updated successfully")
 	}()
 
 	serviceOptions := registry.ServiceOptions{}
@@ -183,4 +194,21 @@ func InsecureRegistries() []string {
 	}
 
 	return registries
+}
+
+// syncContainerCache runs once at startup to populate the container cache
+func syncContainerCache(client *client.PortLayer) error {
+	log.Debugf("Sync up container cache from portlyaer")
+
+	all := true
+	containme, err := client.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(ctx).WithAll(&all))
+	if err != nil {
+		return errors.Errorf("Failed to retrieve container list from portlayer: %s", err)
+	}
+	cc := cache.ContainerCache()
+	for _, info := range containme.Payload {
+		container := ContainerInfoToVicContainer(info)
+		cc.AddContainer(container)
+	}
+	return nil
 }
