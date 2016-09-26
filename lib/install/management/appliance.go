@@ -177,7 +177,7 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 	}
 
 	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-		return vm.Destroy(ctx)
+		return vm.DeleteExceptDisks(ctx)
 	})
 	if err != nil {
 		err = errors.Errorf("Failed to destroy VM %q: %s", vm.Reference(), err)
