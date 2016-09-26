@@ -24,7 +24,11 @@ import (
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/portlayer/event"
+	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/lib/portlayer/exec"
+	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -32,7 +36,10 @@ import (
 var (
 	DefaultContext *Context
 
-	initializer sync.Once
+	initializer struct {
+		err  error
+		once sync.Once
+	}
 )
 
 type DuplicateResourceError struct {
@@ -48,8 +55,14 @@ func (e DuplicateResourceError) Error() string {
 }
 
 func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSource, sink extraconfig.DataSink) error {
-	var err error
-	initializer.Do(func() {
+	trace.End(trace.Begin("network.Init"))
+
+	initializer.once.Do(func() {
+		var err error
+		defer func() {
+			initializer.err = err
+		}()
+
 		f := find.NewFinder(sess.Vim25(), false)
 
 		var config Configuration
@@ -99,51 +112,100 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			return
 		}
 
-		log.Infof("Default network context allocated: %s", bridgeRange.String())
-
-		// populate existing containers
-		state := exec.StateRunning
-		for _, c := range exec.Containers.Containers(&state) {
-			log.Debugf("adding container %s", c.ExecConfig.ID)
-			h := c.NewHandle()
-			defer h.Close()
-
-			// add any user created networks that show up in container's config
-			for n, ne := range h.ExecConfig.Networks {
-				var s []*Scope
-				s, err = netctx.Scopes(&n)
-				if err != nil {
-					if _, ok := err.(ResourceNotFoundError); !ok {
-						return
-					}
-				}
-
-				if len(s) > 0 {
-					continue
-				}
-
-				pools := make([]string, len(ne.Network.Pools))
-				for i, p := range ne.Network.Pools {
-					pools[i] = p.String()
-				}
-
-				log.Debugf("adding scope %s", n)
-				if _, err = netctx.NewScope(ne.Network.Type, n, nil, ne.Network.Gateway.IP, ne.Network.Nameservers, pools); err != nil {
-					return
-				}
-			}
-
-			if _, err = netctx.BindContainer(h); err != nil {
-				return
-			}
-		}
-
-		if err == nil {
+		if err = engageContext(netctx, exec.Config.EventManager); err == nil {
 			DefaultContext = netctx
+			log.Infof("Default network context allocated: %s", bridgeRange.String())
 		}
 	})
 
-	return err
+	return initializer.err
+}
+
+// handleEvent processes events
+func handleEvent(netctx *Context, ie events.Event) {
+	switch ie.String() {
+	case events.ContainerPoweredOff:
+		handle := exec.GetContainer(uid.Parse(ie.Reference()))
+		if handle == nil {
+			log.Errorf("Container %s not found - unable to UnbindContainer", ie.Reference())
+			return
+		}
+		_, err := netctx.UnbindContainer(handle)
+		if err != nil {
+			log.Warnf("Failed to unbind container %s", ie.Reference())
+		}
+	}
+	return
+}
+
+// engageContext connects the given network context into a vsphere environment
+// using an event manager, and a container cache. This hooks up a callback to
+// react to vsphere events, as well as populate the context with any containers
+// that are present.
+func engageContext(netctx *Context, em event.EventManager) error {
+	var err error
+
+	// grab the context lock so that we do not unbind any containers
+	// that stop out of band. this could cause, for example, for us
+	// to bind a container when it has already been unbound by an
+	// event callback
+	netctx.Lock()
+	defer netctx.Unlock()
+
+	// subscribe to the event stream for Vm events
+	if em == nil {
+		return fmt.Errorf("event manager is required for default network context")
+	}
+
+	sub := fmt.Sprintf("%s(%p)", "netCtx", netctx)
+	topic := events.NewEventType(events.ContainerEvent{}).Topic()
+	em.Subscribe(topic, sub, func(ie events.Event) {
+		handleEvent(netctx, ie)
+	})
+
+	defer func() {
+		if err != nil {
+			em.Unsubscribe(topic, sub)
+		}
+	}()
+
+	state := exec.StateRunning
+	for _, c := range exec.Containers.Containers(&state) {
+		log.Debugf("adding container %s", c.ExecConfig.ID)
+		h := c.NewHandle()
+		defer h.Close()
+
+		// add any user created networks that show up in container's config
+		for n, ne := range h.ExecConfig.Networks {
+			var s []*Scope
+			s, err = netctx.findScopes(&n)
+			if err != nil {
+				if _, ok := err.(ResourceNotFoundError); !ok {
+					return err
+				}
+			}
+
+			if len(s) > 0 {
+				continue
+			}
+
+			pools := make([]string, len(ne.Network.Pools))
+			for i := range ne.Network.Pools {
+				pools[i] = ne.Network.Pools[i].String()
+			}
+
+			log.Debugf("adding scope %s", n)
+			if _, err = netctx.newScope(ne.Network.Type, n, nil, ne.Network.Gateway.IP, ne.Network.Nameservers, pools); err != nil {
+				return err
+			}
+		}
+
+		if _, err = netctx.bindContainer(h); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func getBridgeLink(config *Configuration) (Link, error) {

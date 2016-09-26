@@ -29,7 +29,6 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/constants"
-	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/ip"
@@ -114,12 +113,6 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask, config *Configurati
 		if n.Type == constants.ExternalScopeType {
 			s.builtin = true
 		}
-	}
-
-	// subscribe to the event stream for Vm events
-	sub := fmt.Sprintf("%s(%p)", "netCtx", ctx)
-	if exec.Config.EventManager != nil {
-		exec.Config.EventManager.Subscribe(events.NewEventType(events.ContainerEvent{}).Topic(), sub, ctx.handleEvent)
 	}
 
 	return ctx, nil
@@ -404,6 +397,14 @@ func reservePools(space *AddressSpace, ipam *IPAM) ([]*AddressSpace, error) {
 
 func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string) (*Scope, error) {
 	defer trace.End(trace.Begin(""))
+
+	c.Lock()
+	defer c.Unlock()
+
+	return c.newScope(scopeType, name, subnet, gateway, dns, pools)
+}
+
+func (c *Context) newScope(scopeType, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string) (*Scope, error) {
 	// sanity checks
 	if name == "" {
 		return nil, fmt.Errorf("scope name must not be empty")
@@ -412,9 +413,6 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 	if gateway == nil {
 		gateway = net.IPv4(0, 0, 0, 0)
 	}
-
-	c.Lock()
-	defer c.Unlock()
 
 	if _, ok := c.scopes[name]; ok {
 		return nil, DuplicateResourceError{resID: name}
@@ -490,6 +488,10 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	c.Lock()
 	defer c.Unlock()
 
+	return c.bindContainer(h)
+}
+
+func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	con, err := c.container(h)
 	if con != nil {
 		return con.Endpoints(), nil // already bound
@@ -1086,22 +1088,4 @@ func (c *Context) UpdateContainer(h *exec.Handle) error {
 func atoiOrZero(a string) int32 {
 	i, _ := strconv.Atoi(a)
 	return int32(i)
-}
-
-// handleEvent processes events
-func (c *Context) handleEvent(ie events.Event) {
-	defer trace.End(trace.Begin(ie.String()))
-	switch ie.String() {
-	case events.ContainerPoweredOff:
-		handle := exec.GetContainer(uid.Parse(ie.Reference()))
-		if handle == nil {
-			log.Errorf("Container %s not found - unable to UnbindContainer", ie.Reference())
-			return
-		}
-		_, err := c.UnbindContainer(handle)
-		if err != nil {
-			log.Warnf("Failed to unbind container %s", ie.Reference())
-		}
-	}
-	return
 }
