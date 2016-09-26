@@ -352,6 +352,7 @@ func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 		// generate the full paths to collect
 		for _, file := range vmFiles {
 			// replace the VM token in file name with the VM name
+			//FIXME: this is currently a workaround until we rename the tether logs
 			vmHashName := strings.Split(logfile.VMName, "-")
 			processed := strings.Replace(file, string(vchconfig.VM), vmHashName[1], -1)
 			wpath := fmt.Sprintf("%s/%s", logfile.VMName, processed)
