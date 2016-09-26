@@ -20,15 +20,17 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/ip"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
 
-var Config Configuration
-
 type Configuration struct {
+	source extraconfig.DataSource `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	sink   extraconfig.DataSink   `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+
 	// The default bridge network supplied for the Virtual Container Host
 	BridgeNetwork string `vic:"0.1" scope:"read-only" key:"bridge_network"`
 	// Published networks available for containers to join, keyed by consumption name
-	ContainerNetworks map[string]*ContainerNetwork `vic:"0.1" scope:"read-only" key:"container_networks"`
+	ContainerNetworks map[string]*ContainerNetwork `vic:"0.1" scope:"read-write" key:"container_networks"`
 	// The bridge link
 	BridgeLink Link
 	// The IP range for the bridge networks
@@ -42,6 +44,8 @@ type ContainerNetwork struct {
 	// Common.ID - identifier of the underlay for the network
 	executor.Common
 
+	Type string `vic:"0.1" scope:"read-write" key:"type"`
+
 	// The network scope the IP belongs to.
 	// The IP address is the default gateway
 	Gateway net.IPNet `vic:"0.1" scope:"read-write" key:"gateway"`
@@ -53,4 +57,12 @@ type ContainerNetwork struct {
 	Pools []ip.Range `vic:"0.1" scope:"read-only" key:"pools"`
 
 	PortGroup object.NetworkReference
+}
+
+func (c *Configuration) Encode() {
+	extraconfig.Encode(c.sink, c)
+}
+
+func (c *Configuration) Decode() {
+	extraconfig.Decode(c.source, c)
 }

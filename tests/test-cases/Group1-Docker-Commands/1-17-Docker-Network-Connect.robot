@@ -10,19 +10,17 @@ Connect container to a new network
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create busybox ifconfig
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create busybox ip -4 addr show eth0
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect test-network ${containerID}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
     Should Be Equal As Integers  ${rc}  0
-    ${status}=  Get State Of Github Issue  366
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-17-Docker-Network-Connect.robot needs to be updated now that Issue #366 has been resolved
-    Log  Issue \#366 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs ${containerID}
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Contain  ${output}  eth0
-    #Should Contain  ${output}  eth1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow ${containerID}
+    Should Be Equal As Integers  ${rc}  0
+    ${ips}=  Get Lines Containing String  ${output}  inet
+    @{lines}=  Split To Lines  ${ips}
+    Length Should Be  ${lines}  2
 
 Connect to non-existent container
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect test-network fakeContainer

@@ -64,6 +64,11 @@ type ImageStorer interface {
 	// ListImages returns a list of Images given a list of image IDs, or all
 	// images in the image store if no param is passed.
 	ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*Image, error)
+
+	// DeleteImage deletes an image from the image store.  If the image is in
+	// use either by way of inheritence or because it's attached to a
+	// container, this will return an error.
+	DeleteImage(ctx context.Context, image *Image) error
 }
 
 // Image is the handle to identify an image layer on the backing store.  The
@@ -139,6 +144,9 @@ func Parse(u *url.URL) (*Image, error) {
 	}
 
 	segments := strings.Split(filepath.Clean(u.Path), "/")
+	if segments[0] == "" {
+		segments = segments[1:]
+	}
 
 	if segments[0] != util.StorageURLPath {
 		return nil, errors.New("not a storage path")

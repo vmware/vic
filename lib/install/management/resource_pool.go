@@ -15,6 +15,7 @@
 package management
 
 import (
+	"context"
 	"path"
 
 	log "github.com/Sirupsen/logrus"
@@ -29,8 +30,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-
-	"golang.org/x/net/context"
 )
 
 func (d *Dispatcher) createResourcePool(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*object.ResourcePool, error) {

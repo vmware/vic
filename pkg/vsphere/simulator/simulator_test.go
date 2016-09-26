@@ -15,16 +15,14 @@
 package simulator
 
 import (
+	"context"
 	"errors"
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"reflect"
 	"testing"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/vim25/methods"
@@ -237,7 +235,7 @@ func TestServeHTTP(t *testing.T) {
 			t.Fatal("expected invalid login error")
 		}
 
-		err = client.Login(ctx, url.UserPassword("user", "pass"))
+		err = client.Login(ctx, ts.URL.User)
 		if err != nil {
 			t.Fatal(err)
 		}

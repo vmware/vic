@@ -17,6 +17,7 @@ package vm
 import (
 	"container/list"
 	"errors"
+	"fmt"
 	"net/url"
 	"path"
 	"strings"
@@ -200,7 +201,7 @@ func (vm *VirtualMachine) WaitForExtraConfig(ctx context.Context, waitFunc func(
 
 	// Wait on config.extraConfig
 	// https://www.vmware.com/support/developer/vc-sdk/visdk2xpubs/ReferenceGuide/vim.vm.ConfigInfo.html
-	err := property.Wait(ctx, p, vm.Reference(), []string{"config.extraConfig"}, waitFunc)
+	err := property.Wait(ctx, p, vm.Reference(), []string{object.PropRuntimePowerState, "config.extraConfig"}, waitFunc)
 	if err != nil {
 		log.Errorf("Property collector error: %s", err)
 		return err
@@ -210,25 +211,44 @@ func (vm *VirtualMachine) WaitForExtraConfig(ctx context.Context, waitFunc func(
 
 func (vm *VirtualMachine) WaitForKeyInExtraConfig(ctx context.Context, key string) (string, error) {
 	var detail string
+	var poweredOff error
+
 	waitFunc := func(pc []types.PropertyChange) bool {
 		for _, c := range pc {
 			if c.Op != types.PropertyChangeOpAssign {
 				continue
 			}
 
-			values := c.Val.(types.ArrayOfOptionValue).OptionValue
-			for _, value := range values {
-				// check the status of the key and return true if it's been set to non-nil
-				if key == value.GetOptionValue().Key {
-					detail = value.GetOptionValue().Value.(string)
-					return detail != "" && detail != "<nil>"
+			switch v := c.Val.(type) {
+			case types.ArrayOfOptionValue:
+				for _, value := range v.OptionValue {
+					// check the status of the key and return true if it's been set to non-nil
+					if key == value.GetOptionValue().Key {
+						detail = value.GetOptionValue().Value.(string)
+						if detail != "" && detail != "<nil>" {
+							return true
+						}
+						break // continue the outer loop as we may have a powerState change too
+					}
+				}
+			case types.VirtualMachinePowerState:
+				if v != types.VirtualMachinePowerStatePoweredOn {
+					// Give up if the vm has powered off
+					poweredOff = fmt.Errorf("%s=%s", c.Name, v)
+					return true
 				}
 			}
+
 		}
 		return false
 	}
 
-	if err := vm.WaitForExtraConfig(ctx, waitFunc); err != nil {
+	err := vm.WaitForExtraConfig(ctx, waitFunc)
+	if err == nil && poweredOff != nil {
+		err = poweredOff
+	}
+
+	if err != nil {
 		log.Errorf("Unable to wait for extra config property %s: %s", key, err.Error())
 		return "", err
 	}
@@ -378,4 +398,18 @@ func (vm *VirtualMachine) bfsSnapshotTree(q *list.List, compare func(node types.
 		q.PushBack(c)
 	}
 	return vm.bfsSnapshotTree(q, compare)
+}
+
+// UpgradeInProgress tells if an upgrade has already been started based on snapshot name beginning with upgradePrefix
+func (vm *VirtualMachine) UpgradeInProgress(ctx context.Context, upgradePrefix string) (bool, string, error) {
+	node, err := vm.GetCurrentSnapshotTree(ctx)
+	if err != nil {
+		return false, "", fmt.Errorf("Failed to check upgrade snapshot status: %s", err)
+	}
+
+	if node != nil && strings.HasPrefix(node.Name, upgradePrefix) {
+		return true, node.Name, nil
+	}
+
+	return false, "", nil
 }

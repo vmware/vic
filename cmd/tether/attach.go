@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sync"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
@@ -36,6 +37,7 @@ const (
 // server is the singleton attachServer for the tether - there can be only one
 // as the backchannel line protocol may not provide multiplexing of connections
 var server attachServer
+var once sync.Once
 
 type attachServer interface {
 	tether.Extension
@@ -44,8 +46,11 @@ type attachServer interface {
 	stop()
 }
 
-// conn is held directly as it's how we stop the attach server
 type attachServerSSH struct {
+	// serializes data access for exported functions
+	m sync.Mutex
+
+	// conn is held directly as it's how we stop the attach server
 	conn      *net.Conn
 	config    *tether.ExecutorConfig
 	sshConfig *ssh.ServerConfig
@@ -53,9 +58,20 @@ type attachServerSSH struct {
 	enabled bool
 }
 
+// NewAttachServerSSH either creates a new instance or returns the inialized one
+func NewAttachServerSSH() attachServer {
+	once.Do(func() {
+		server = &attachServerSSH{}
+	})
+	return server
+}
+
 // Reload - tether.Extension implementation
 func (t *attachServerSSH) Reload(config *tether.ExecutorConfig) error {
 	defer trace.End(trace.Begin("attach reload"))
+
+	t.m.Lock()
+	defer t.m.Unlock()
 
 	t.config = config
 	// process the sessions and launch if needed
@@ -82,15 +98,20 @@ func (t *attachServerSSH) Reload(config *tether.ExecutorConfig) error {
 	return nil
 }
 
+// Start is implemented at _ARCH.go files
+
 // Stop needed for tether.Extensions interface
 func (t *attachServerSSH) Stop() error {
 	defer trace.End(trace.Begin("stop attach server"))
+
+	t.m.Lock()
+	defer t.m.Unlock()
+
 	// calling server.start not t.start so that test impl gets invoked
 	server.stop()
 	return nil
 }
 
-// start is not thread safe with stop
 func (t *attachServerSSH) start() error {
 	defer trace.End(trace.Begin("start attach server"))
 

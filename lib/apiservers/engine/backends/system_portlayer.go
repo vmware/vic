@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vicbackends
+package backends
 
 //****
 // system_portlayer.go
@@ -94,9 +94,9 @@ func (s *SystemProxy) ContainerCount() (int, int, int, error) {
 	}
 
 	for _, t := range containList.Payload {
-		if *t.Status == "Running" {
+		if *t.ContainerConfig.State == "Running" {
 			running++
-		} else if *t.Status == "Stopped" || *t.Status == "Created" {
+		} else if *t.ContainerConfig.State == "Stopped" || *t.ContainerConfig.State == "Created" {
 			stopped++
 		}
 	}

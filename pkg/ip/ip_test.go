@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"net"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRangeMarshalText(t *testing.T) {
@@ -126,5 +128,32 @@ func TestAllOnesAddr(t *testing.T) {
 		if !te.addr.Equal(addr) {
 			t.Fatalf("AllOnesAddr(%s) => got %s, want %s", te.subnet, addr, te.addr)
 		}
+	}
+}
+
+func TestRangeNetwork(t *testing.T) {
+	var tests = []struct {
+		r *Range
+		n *net.IPNet
+	}{
+		{ParseRange("10.10.10.10/24"), &net.IPNet{IP: net.ParseIP("10.10.10.0"), Mask: net.CIDRMask(24, 32)}},
+		{ParseRange("10.10.10.10-10.10.14.11"), nil},
+		{ParseRange("10.10.10.10-10.10.10.11"), &net.IPNet{IP: net.ParseIP("10.10.10.10"), Mask: net.CIDRMask(31, 32)}},
+	}
+
+	for _, te := range tests {
+		n := te.r.Network()
+		if te.n != nil {
+			assert.NotNil(t, n)
+		} else {
+			assert.Nil(t, n)
+			continue
+		}
+
+		if !n.IP.Equal(te.n.IP) {
+			assert.FailNow(t, fmt.Sprintf("got %s, want %s", n, te.n))
+		}
+
+		assert.EqualValues(t, n.Mask, te.n.Mask)
 	}
 }

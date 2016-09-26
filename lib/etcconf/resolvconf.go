@@ -89,7 +89,7 @@ func (r *resolvConf) ConsumeEntry(t string) error {
 
 	fs := strings.Fields(t)
 	if len(fs) < 2 {
-		log.Warnf("skipping invalid line \"%s\"", t)
+		log.Warnf("skipping invalid line %q", t)
 		return nil
 	}
 
@@ -97,7 +97,7 @@ func (r *resolvConf) ConsumeEntry(t string) error {
 	case "nameserver":
 		ip := net.ParseIP(fs[1])
 		if ip == nil {
-			log.Warnf("skipping invalid line \"%s\": invalid ip address", t)
+			log.Warnf("skipping invalid line %q: invalid ip address", t)
 			return nil
 		}
 
@@ -105,7 +105,7 @@ func (r *resolvConf) ConsumeEntry(t string) error {
 	case "options":
 		parts := strings.Split(fs[1], ":")
 		if len(parts) > 2 {
-			log.Warnf("skipping invalid line \"%s\"", t)
+			log.Warnf("skipping invalid line %q", t)
 			return nil
 		}
 
@@ -115,13 +115,13 @@ func (r *resolvConf) ConsumeEntry(t string) error {
 			fallthrough
 		case "attempts":
 			if len(parts) < 2 {
-				log.Warnf("skipping invalid line \"%s\"", t)
+				log.Warnf("skipping invalid line %q", t)
 				return nil
 			}
 
 			o, err := strconv.ParseUint(parts[1], 10, strconv.IntSize)
 			if err != nil {
-				log.Warnf("skipping invalid line \"%s\": %s", t, err)
+				log.Warnf("skipping invalid line %q: %s", t, err)
 				return nil
 			}
 			v = uint(o)

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"strconv"
 	"testing"
 
 	"golang.org/x/net/context"
@@ -108,6 +109,12 @@ func (c *MockDataStore) ListImages(ctx context.Context, store *url.URL, IDs []st
 		imageList = append(imageList, i)
 	}
 	return imageList, nil
+}
+
+// DeleteImage removes an image from the image store
+func (c *MockDataStore) DeleteImage(ctx context.Context, image *Image) error {
+	delete(c.db[*image.Store], image.ID)
+	return nil
 }
 
 func TestListImages(t *testing.T) {
@@ -304,5 +311,91 @@ func TestImageStoreRestart(t *testing.T) {
 		if !assert.NoError(t, err) || !assert.Equal(t, expectedImg, img) {
 			return
 		}
+	}
+}
+
+func TestDeleteImage(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+	imageCache := NewLookupCache(NewMockDataStore())
+	ctx := context.Background()
+
+	storeURL, err := imageCache.CreateImageStore(ctx, "testStore")
+	if !assert.NoError(t, err) || !assert.NotNil(t, storeURL) {
+		return
+	}
+
+	scratch, err := imageCache.GetImage(ctx, storeURL, Scratch.ID)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// create a 3 level tree with 4 branches
+	branches := 4
+	images := make(map[int]*Image)
+	for branch := 1; branch < branches; branch++ {
+		// level 1
+		img, err := imageCache.WriteImage(ctx, scratch, strconv.Itoa(branch), nil, "", nil)
+		if !assert.NoError(t, err) || !assert.NotNil(t, img) {
+			return
+		}
+		images[branch] = img
+
+		// level 2
+		i, err := imageCache.WriteImage(ctx, img, strconv.Itoa(branch*10), nil, "", nil)
+		if !assert.NoError(t, err) || !assert.NotNil(t, i) {
+			return
+		}
+		images[branch*10] = i
+
+		// level 3
+		i, err = imageCache.WriteImage(ctx, img, strconv.Itoa(branch*100), nil, "", nil)
+		if !assert.NoError(t, err) || !assert.NotNil(t, i) {
+			return
+		}
+		images[branch*100] = i
+	}
+
+	// Deletion of an intermediate node should fail
+	err = imageCache.DeleteImage(ctx, images[1])
+	if !assert.Error(t, err) {
+		return
+	}
+
+	imageList, err := imageCache.ListImages(ctx, storeURL, nil)
+	if !assert.NoError(t, err) || !assert.NotNil(t, imageList) {
+		return
+	}
+
+	// image list should be uneffected
+	if !assert.Equal(t, len(images), len(imageList)) {
+		return
+	}
+
+	// Deletion of leaves should be fine
+	for branch := 1; branch < branches; branch++ {
+		// range up the branch
+		for _, img := range []*Image{images[branch*100], images[branch*10], images[branch]} {
+
+			err = imageCache.DeleteImage(ctx, img)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			// the image should be gone
+			i, err := imageCache.GetImage(ctx, storeURL, img.ID)
+			if !assert.Error(t, err) || !assert.Nil(t, i) {
+				return
+			}
+		}
+	}
+
+	// List images should be empty (because we filter out scratch)
+	imageList, err = imageCache.ListImages(ctx, storeURL, nil)
+	if !assert.NoError(t, err) || !assert.NotNil(t, imageList) {
+		return
+	}
+
+	if !assert.True(t, len(imageList) == 0) {
+		return
 	}
 }

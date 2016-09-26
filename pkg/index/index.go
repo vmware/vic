@@ -71,7 +71,7 @@ func (i *Index) Insert(n Element) error {
 		return fmt.Errorf("node %s already exists in index", n.Self())
 	}
 
-	log.Debugf("Inserting %s (parent: %s) in index", n.Self(), n.Parent())
+	log.Debugf("Index: inserting %s (parent: %s) in index", n.Self(), n.Parent())
 
 	newNode := &node{
 		Element: n.Copy(),
@@ -108,6 +108,19 @@ func (i *Index) Get(nodeId string) (Element, error) {
 	}
 
 	return n.Copy(), nil
+}
+
+// HasChildren returns whether a node has children or not
+func (i *Index) HasChildren(nodeId string) (bool, error) {
+	i.m.Lock()
+	defer i.m.Unlock()
+
+	n, ok := i.lookupTable[nodeId]
+	if !ok {
+		return false, ErrNodeNotFound
+	}
+
+	return (len(n.children) > 0), nil
 }
 
 func (i *Index) List() ([]Element, error) {

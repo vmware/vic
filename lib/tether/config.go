@@ -65,6 +65,7 @@ type ExecutorConfig struct {
 type SessionConfig struct {
 	// The primary session may have the same ID as the executor owning it
 	executor.Common `vic:"0.1" scope:"read-only" key:"common"`
+	executor.Detail `vic:"0.1" scope:"read-write" key:"detail"`
 
 	// Diagnostics holds basic diagnostics data
 	Diagnostics executor.Diagnostics `vic:"0.1" scope:"read-write" key:"diagnostics"`

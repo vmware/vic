@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/govmomi/find"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/simulator"
 
@@ -77,7 +76,7 @@ func getESXSession(ctx context.Context, service string) (*session.Session, error
 	if err != nil {
 		return nil, err
 	}
-	s.Finder = find.NewFinder(s.Client.Client, false)
+
 	if s, err = s.Populate(ctx); err != nil {
 		return nil, err
 	}
@@ -99,7 +98,7 @@ func getVPXSession(ctx context.Context, service string) (*session.Session, error
 	if err != nil {
 		return nil, err
 	}
-	s.Finder = find.NewFinder(s.Client.Client, false)
+
 	if s, err = s.Populate(ctx); err != nil {
 		return nil, err
 	}

@@ -26,7 +26,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"path"
 	"strings"
 	"syscall"
 	"time"
@@ -89,6 +88,11 @@ var (
 
 	datastoreInventoryPath string
 )
+
+type logfile struct {
+	URL    url.URL
+	VMName string
+}
 
 func init() {
 	defer trace.End(trace.Begin(""))
@@ -272,7 +276,7 @@ type datastoreReader struct {
 
 // listVMPaths returns an array of datastore paths for VMs associated with the
 // VCH - this includes containerVMs and the appliance
-func listVMPaths(ctx context.Context, s *session.Session) ([]url.URL, error) {
+func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 	defer trace.End(trace.Begin(""))
 
 	var err error
@@ -290,21 +294,35 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]url.URL, error) {
 
 	log.Infof("Found %d candidate VMs in resource pool %s for log collection", len(children), ref.String())
 
-	directories := []url.URL{}
+	logfiles := []logfile{}
 	for _, child := range children {
 		path, err := child.DSPath(ctx)
+
 		if err != nil {
 			log.Errorf("Unable to get datastore path for child VM %s: %s", child.Reference(), err)
 			// we need to get as many logs as possible
 			continue
 		}
 
+		logname, err := child.Name(ctx)
+		if err != nil {
+			log.Errorf("Unable to get the vm name for %s: %s", child.Reference(), err)
+			continue
+		}
+
 		log.Debugf("Adding VM for log collection: %s", path.String())
-		directories = append(directories, path)
+
+		log := logfile{
+			URL:    path,
+			VMName: logname,
+		}
+
+		logfiles = append(logfiles, log)
 	}
 
-	log.Infof("Collecting logs from %d VMs", len(directories))
-	return directories, nil
+	log.Infof("Collecting logs from %d VMs", len(logfiles))
+	log.Infof("Found VM paths are : %#v", logfiles)
+	return logfiles, nil
 }
 
 // find datastore logs for the appliance itself and all containers
@@ -315,33 +333,38 @@ func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 	readers := map[string]entryReader{}
 	ctx := context.Background()
 
-	paths, err := listVMPaths(ctx, c)
+	logfiles, err := listVMPaths(ctx, c)
 	if err != nil {
 		detail := fmt.Sprintf("unable to perform datastore log collection due to failure looking up paths: %s", err)
 		log.Error(detail)
 		return nil, errors.New(detail)
 	}
 
-	for _, vmpath := range paths {
-		log.Debugf("Assembling datastore readers for %s", vmpath.String())
+	for _, logfile := range logfiles {
+		log.Debugf("Assembling datastore readers for %s", logfile.URL.String())
 		// obtain datastore object
-		ds, err := c.Finder.Datastore(ctx, vmpath.Host)
+		ds, err := c.Finder.Datastore(ctx, logfile.URL.Host)
 		if err != nil {
-			log.Errorf("Failed to acquire reference to datastore %s: %s", vmpath.Host, err)
+			log.Errorf("Failed to acquire reference to datastore %s: %s", logfile.URL.Host, err)
 			continue
 		}
 
 		// generate the full paths to collect
 		for _, file := range vmFiles {
 			// replace the VM token in file name with the VM name
-			processed := strings.Replace(file, string(vchconfig.VM), path.Base(vmpath.Path), -1)
-			rpath := fmt.Sprintf("%s/%s", vmpath.Path, processed)
-			readers[rpath] = datastoreReader{
+			//FIXME: this is currently a workaround until we rename the tether logs
+			vmHashName := strings.Split(logfile.VMName, "-")
+			processed := strings.Replace(file, string(vchconfig.VM), vmHashName[1], -1)
+			wpath := fmt.Sprintf("%s/%s", logfile.VMName, processed)
+			rpath := fmt.Sprintf("%s/%s", logfile.URL.Path, processed)
+			log.Infof("Processed File read Path : %s", rpath)
+			log.Infof("Processed File write Path : %s", wpath)
+			readers[wpath] = datastoreReader{
 				ds:   ds,
 				path: rpath,
 			}
 
-			log.Debugf("Added log file for collection: %s", vmpath.String())
+			log.Debugf("Added log file for collection: %s", logfile.URL.String())
 		}
 	}
 

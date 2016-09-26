@@ -21,7 +21,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/lib/portlayer/event"
-	"github.com/vmware/vic/lib/portlayer/event/collector/vsphere"
 	"github.com/vmware/vic/lib/portlayer/event/events"
 )
 
@@ -58,35 +57,25 @@ func TestPublishContainerEvent(t *testing.T) {
 
 	NewContainerCache()
 	containerEvents = make([]events.Event, 0)
-	VCHConfig = Configuration{}
+	Config = Configuration{}
 
 	mgr := event.NewEventManager()
-	VCHConfig.EventManager = mgr
+	Config.EventManager = mgr
 	mgr.Subscribe(events.NewEventType(events.ContainerEvent{}).Topic(), "testing", containerCallback)
-	mgr.Subscribe(events.NewEventType(vsphere.VmEvent{}).Topic(), "infra", eventCallback)
 
 	// create new running container and place in cache
 	id := "123439"
 	container := newTestContainer(id)
 	addTestVM(container)
 	container.State = StateRunning
-	containers.Put(container)
+	Containers.Put(container)
 
-	// create vm PoweredOff event and publish
-	ve := &vsphere.VmEvent{
-		&events.BaseEvent{
-			Event: events.ContainerPoweredOff,
-			Ref:   container.vm.Reference().String(),
-		},
-	}
-	mgr.Publish(ve)
+	publishContainerEvent(id, time.Now().UTC(), events.ContainerPoweredOff)
 	time.Sleep(time.Millisecond * 30)
 
 	assert.Equal(t, 1, len(containerEvents))
 	assert.Equal(t, id, containerEvents[0].Reference())
 	assert.Equal(t, events.ContainerPoweredOff, containerEvents[0].String())
-	assert.EqualValues(t, StateStopped, containers.Container(id).State)
-
 }
 
 func containerCallback(ee events.Event) {

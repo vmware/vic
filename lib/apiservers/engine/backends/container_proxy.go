@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package portlayer
+package backends
 
 //****
 // container_proxy.go
@@ -34,11 +34,8 @@ package portlayer
 import (
 	"fmt"
 	"io"
-	"net/http"
 	"strings"
 	"time"
-
-	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/google/uuid"
@@ -47,7 +44,6 @@ import (
 	"github.com/go-swagger/go-swagger/httpkit"
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
@@ -57,7 +53,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
-	"github.com/vmware/vic/lib/apiservers/engine/backends/endpoint"
+	epoint "github.com/vmware/vic/lib/apiservers/engine/backends/endpoint"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
@@ -101,10 +97,6 @@ const (
 	forceLogType                         = "json-file" //Use in inspect to allow docker logs to work
 )
 
-var (
-	ctx = context.TODO()
-)
-
 // NewContainerProxy creates a new ContainerProxy
 func NewContainerProxy(plClient *client.PortLayer, portlayerAddr string, portlayerName string) *ContainerProxy {
 	return &ContainerProxy{client: plClient, portlayerAddr: portlayerAddr, portlayerName: portlayerName}
@@ -117,27 +109,22 @@ func (c *ContainerProxy) Client() *client.PortLayer {
 // CreateContainerHandle creates a new VIC container by calling the portlayer
 //
 // returns:
-// 	(containerID, containerHandle, error)
+//	(containerID, containerHandle, error)
 func (c *ContainerProxy) CreateContainerHandle(imageID string, config types.ContainerCreateConfig) (string, string, error) {
 	defer trace.End(trace.Begin(imageID))
 
 	if c.client == nil {
-		return "", "",
-			derr.NewErrorWithStatusCode(fmt.Errorf("ContainerProxy.CreateContainerHandle failed to create a portlayer client"),
-				http.StatusInternalServerError)
+		return "", "", InternalServerError("ContainerProxy.CreateContainerHandle failed to create a portlayer client")
 	}
 
 	if imageID == "" {
-		return "", "",
-			derr.NewRequestNotFoundError(fmt.Errorf("No image specified"))
+		return "", "", NotFoundError("No image specified")
 	}
 
 	// Call the Exec port layer to create the container
 	host, err := sys.UUID()
 	if err != nil {
-		return "", "",
-			derr.NewErrorWithStatusCode(fmt.Errorf("ContainerProxy.CreateContainerHandle got unexpected error getting VCH UUID"),
-				http.StatusInternalServerError)
+		return "", "", InternalServerError("ContainerProxy.CreateContainerHandle got unexpected error getting VCH UUID")
 	}
 
 	plCreateParams := dockerContainerCreateParamsToPortlayer(config, imageID, host)
@@ -146,12 +133,11 @@ func (c *ContainerProxy) CreateContainerHandle(imageID string, config types.Cont
 		if _, ok := err.(*containers.CreateNotFound); ok {
 			cerr := fmt.Errorf("No such image: %s", imageID)
 			log.Errorf("%s (%s)", cerr, err)
-			return "", "", derr.NewRequestNotFoundError(cerr)
+			return "", "", NotFoundError(cerr.Error())
 		}
 
 		// If we get here, most likely something went wrong with the port layer API server
-		return "", "",
-			derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+		return "", "", InternalServerError(err.Error())
 	}
 
 	id := createResults.Payload.ID
@@ -169,9 +155,7 @@ func (c *ContainerProxy) AddContainerToScope(handle string, config types.Contain
 	defer trace.End(trace.Begin(handle))
 
 	if c.client == nil {
-		return "",
-			derr.NewErrorWithStatusCode(fmt.Errorf("ContainerProxy.AddContainerToScope failed to create a portlayer client"),
-				http.StatusInternalServerError)
+		return "", InternalServerError("ContainerProxy.AddContainerToScope failed to create a portlayer client")
 	}
 
 	log.Debugf("Network Configuration Section - Container Create")
@@ -187,7 +171,7 @@ func (c *ContainerProxy) AddContainerToScope(handle string, config types.Contain
 
 		if err != nil {
 			log.Errorf("ContainerProxy.AddContainerToScope: Scopes error: %s", err.Error())
-			return handle, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+			return handle, InternalServerError(err.Error())
 		}
 
 		defer func() {
@@ -207,7 +191,7 @@ func (c *ContainerProxy) AddContainerToScope(handle string, config types.Contain
 }
 
 // AddVolumesToContainer adds volumes to a container, referenced by handle.
-// If an error is return, the returned handle should not be used.
+// If an error is returned, the returned handle should not be used.
 //
 // returns:
 //	modified handle
@@ -215,29 +199,51 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 	defer trace.End(trace.Begin(handle))
 
 	if c.client == nil {
-		return "",
-			derr.NewErrorWithStatusCode(fmt.Errorf("ContainerProxy.AddVolumesToContainer failed to create a portlayer client"),
-				http.StatusInternalServerError)
+		return "", InternalServerError("ContainerProxy.AddVolumesToContainer failed to create a portlayer client")
 	}
 
 	//Volume Attachment Section
 	log.Debugf("ContainerProxy.AddVolumesToContainer - VolumeSection")
 	log.Debugf("Raw Volume arguments : binds:  %#v : volumes : %#v", config.HostConfig.Binds, config.Config.Volumes)
-	var joinList []volumeFields
-	var err error
 
-	joinList, err = processAnonymousVolumes(&handle, config.Config.Volumes, c.client)
-	if err != nil {
-		return handle, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err), http.StatusBadRequest)
+	// Collect all volume mappings. In a docker create/run, they
+	// can be anonymous (-v /dir) or specific (-v vol-name:/dir).
+	volumes := config.HostConfig.Binds
+	for anonVol := range config.Config.Volumes {
+		volumes = append(volumes, anonVol)
 	}
 
-	volumeSubset, err := processSpecifiedVolumes(config.HostConfig.Binds)
+	volList, err := processVolumeFields(volumes)
 	if err != nil {
-		return handle, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err), http.StatusBadRequest)
+		return handle, BadRequestError(err.Error())
 	}
-	joinList = append(joinList, volumeSubset...)
 
-	for _, fields := range joinList {
+	// Create and join volumes.
+	for _, fields := range volList {
+
+		driverArgs := make(map[string]string)
+		driverArgs["flags"] = fields.Flags
+
+		// NOTE: calling volumeCreate regardless of whether the volume is already
+		// present can be avoided by adding an extra optional param to VolumeJoin,
+		// which would then call volumeCreate if the volume does not exist.
+		vol := &Volume{}
+		_, err := vol.volumeCreate(fields.ID, "vsphere", driverArgs, nil)
+		if err != nil {
+			switch err := err.(type) {
+			case *storage.CreateVolumeConflict:
+				// Implicitly ignore the error where a volume with the same name
+				// already exists. We can just join the said volume to the container.
+				log.Infof("a volume with the name %s already exists", fields.ID)
+			case *storage.CreateVolumeNotFound:
+				return handle, VolumeCreateNotFoundError(volumeStore(driverArgs))
+			default:
+				return handle, InternalServerError(err.Error())
+			}
+		} else {
+			log.Infof("volumeCreate succeeded. Volume mount section ID: %s", fields.ID)
+		}
+
 		flags := make(map[string]string)
 		//NOTE: for now we are passing the flags directly through. This is NOT SAFE and only a stop gap.
 		flags["Mode"] = fields.Flags
@@ -251,11 +257,13 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 		if err != nil {
 			switch err := err.(type) {
 			case *storage.VolumeJoinInternalServerError:
-				return handle, derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+				return handle, InternalServerError(err.Payload.Message)
 			case *storage.VolumeJoinDefault:
-				return handle, derr.NewErrorWithStatusCode(fmt.Errorf(err.Payload.Message), http.StatusInternalServerError)
+				return handle, InternalServerError(err.Payload.Message)
+			case *storage.VolumeJoinNotFound:
+				return handle, VolumeJoinNotFoundError(err.Payload.Message)
 			default:
-				return handle, derr.NewErrorWithStatusCode(err, http.StatusInternalServerError)
+				return handle, InternalServerError(err.Error())
 			}
 		}
 
@@ -266,13 +274,11 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 }
 
 // CommitContainerHandle() commits any changes to container handle.
-//
 func (c *ContainerProxy) CommitContainerHandle(handle, imageID string) error {
 	defer trace.End(trace.Begin(handle))
 
 	if c.client == nil {
-		return derr.NewErrorWithStatusCode(fmt.Errorf("ContainerProxy.CommitContainerHandle failed to create a portlayer client"),
-			http.StatusInternalServerError)
+		return InternalServerError("ContainerProxy.CommitContainerHandle failed to create a portlayer client")
 	}
 
 	_, err := c.client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
@@ -282,7 +288,7 @@ func (c *ContainerProxy) CommitContainerHandle(handle, imageID string) error {
 		// FIXME: Containers.Commit returns more errors than it's swagger spec says.
 		// When no image exist, it also sends back non swagger errors.  We should fix
 		// this once Commit returns correct error codes.
-		return derr.NewRequestNotFoundError(cerr)
+		return NotFoundError(cerr.Error())
 	}
 
 	return nil
@@ -307,12 +313,9 @@ func (c *ContainerProxy) StreamContainerLogs(name string, out io.Writer, started
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerLogsNotFound:
-			return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", name))
-
+			return NotFoundError(fmt.Sprintf("No such container: %s", name))
 		case *containers.GetContainerLogsInternalServerError:
-			return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from the interaction port layer"),
-				http.StatusInternalServerError)
-
+			return InternalServerError("Server error from the interaction port layer")
 		default:
 			//Check for EOF.  Since the connection, transport, and data handling are
 			//encapsulated inisde of Swagger, we can only detect EOF by checking the
@@ -320,8 +323,7 @@ func (c *ContainerProxy) StreamContainerLogs(name string, out io.Writer, started
 			if strings.Contains(err.Error(), swaggerSubstringEOF) {
 				return nil
 			}
-			unknownErrMsg := fmt.Errorf("Unknown error from the interaction port layer: %s", err)
-			return derr.NewErrorWithStatusCode(unknownErrMsg, http.StatusInternalServerError)
+			return InternalServerError(fmt.Sprintf("Unknown error from the interaction port layer: %s", err))
 		}
 	}
 
@@ -333,19 +335,18 @@ func (c *ContainerProxy) ContainerRunning(vc *viccontainer.VicContainer) (bool, 
 	defer trace.End(trace.Begin(""))
 
 	if c.client == nil {
-		return false, derr.NewErrorWithStatusCode(fmt.Errorf("ContainerProxy.CommitContainerHandle failed to create a portlayer client"),
-			http.StatusInternalServerError)
+		return false, InternalServerError("ContainerProxy.CommitContainerHandle failed to create a portlayer client")
 	}
 
 	results, err := c.client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(vc.ContainerID))
 	if err != nil {
 		switch err := err.(type) {
 		case *containers.GetContainerInfoNotFound:
-			return false, derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", vc.ContainerID))
+			return false, NotFoundError(fmt.Sprintf("No such container: %s", vc.ContainerID))
 		case *containers.GetContainerInfoInternalServerError:
-			return false, derr.NewErrorWithStatusCode(fmt.Errorf("Error from portlayer: %#v", err.Payload), http.StatusInternalServerError)
+			return false, InternalServerError(err.Payload.Message)
 		default:
-			return false, derr.NewErrorWithStatusCode(fmt.Errorf("Unknown error from the container portlayer"), http.StatusInternalServerError)
+			return false, InternalServerError(fmt.Sprintf("Unknown error from the interaction port layer: %s", err))
 		}
 	}
 
@@ -464,7 +465,7 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 				copy(es.Links, cc.HostConfig.Links)
 			}
 			// Pass Links and Aliases to PL
-			nc.Aliases = endpoint.Alias(es)
+			nc.Aliases = epoint.Alias(es)
 
 		}
 	}
@@ -479,14 +480,21 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 	return nc
 }
 
-//This function is used to turn any call from docker create -v <stuff> into a volumeFields object.
-//the -v has 3 forms. 1: -v <anonymouse mount path>, -v <Volume Name>:<Destination Mount Path>, and -v <Volume Name>:<Destination Mount Path>:<mount flags>
+// processVolumeParam is used to turn any call from docker create -v <stuff> into a volumeFields object.
+// The -v has 3 forms. -v <anonymous mount path>, -v <Volume Name>:<Destination Mount Path> and
+// -v <Volume Name>:<Destination Mount Path>:<mount flags>
 func processVolumeParam(volString string) (volumeFields, error) {
 	volumeStrings := strings.Split(volString, ":")
 	fields := volumeFields{}
 
-	//This switch determines which type of -v was invoked.
-	switch len(volumeStrings) {
+	// Error out if the intended volume is a directory on the client filesystem.
+	numVolParams := len(volumeStrings)
+	if numVolParams > 1 && strings.HasPrefix(volumeStrings[0], "/") {
+		return volumeFields{}, InvalidVolumeError{}
+	}
+
+	// This switch determines which type of -v was invoked.
+	switch numVolParams {
 	case 1:
 		VolumeID, err := uuid.NewUUID()
 		if err != nil {
@@ -504,48 +512,21 @@ func processVolumeParam(volString string) (volumeFields, error) {
 		fields.Dest = volumeStrings[1]
 		fields.Flags = volumeStrings[2]
 	default:
-		//NOTE: the docker cli should cover this case. This is here for posterity.
-		return volumeFields{}, fmt.Errorf("Volume bind input is invalid : -v %s", volString)
+		// NOTE: the docker cli should cover this case. This is here for posterity.
+		return volumeFields{}, InvalidBindError{volume: volString}
 	}
 	return fields, nil
 }
 
-func processAnonymousVolumes(h *string, volumes map[string]struct{}, client *client.PortLayer) ([]volumeFields, error) {
+// processVolumeFields parses fields for volume mappings specified in a create/run -v.
+func processVolumeFields(volumes []string) ([]volumeFields, error) {
 	var volumeFields []volumeFields
 
-	for v := range volumes {
-		fields, err := processVolumeParam(v)
-		log.Infof("Processed Volume arguments : %#v", fields)
-		if err != nil {
-			return nil, err
-		}
-		//NOTE: This should be the guard for the case of an anonymous volume.
-		//NOTE: we should not expect any driver args if the drive is anonymous.
-		log.Infof("anonymous volume being created - Container Create - volume mount section ID: %s ", fields.ID)
-		metadata := make(map[string]string)
-		metadata["flags"] = fields.Flags
-		volumeRequest := models.VolumeRequest{
-			Capacity: -1,
-			Driver:   "vsphere",
-			Store:    "default",
-			Name:     fields.ID,
-			Metadata: metadata,
-		}
-		_, err = client.Storage.CreateVolume(storage.NewCreateVolumeParamsWithContext(ctx).WithVolumeRequest(&volumeRequest))
-		if err != nil {
-			return nil, err
-		}
-		volumeFields = append(volumeFields, fields)
-	}
-	return volumeFields, nil
-}
-
-func processSpecifiedVolumes(volumes []string) ([]volumeFields, error) {
-	var volumeFields []volumeFields
 	for _, v := range volumes {
 		fields, err := processVolumeParam(v)
+		log.Infof("Processed volume arguments: %#v", fields)
 		if err != nil {
-			return volumeFields, err
+			return nil, err
 		}
 		volumeFields = append(volumeFields, fields)
 	}
@@ -561,7 +542,7 @@ func processSpecifiedVolumes(volumes []string) ([]volumeFields, error) {
 // There maybe other asset gathering if ContainerInfo does not have all the information
 func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *models.ContainerInfo, portlayerName string) (*types.ContainerJSON, error) {
 	if vc == nil || info == nil || info.ContainerConfig == nil {
-		return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", vc.ContainerID))
+		return nil, NotFoundError(fmt.Sprintf("No such container: %s", vc.ContainerID))
 	}
 
 	// Set default container state attributes
@@ -577,14 +558,12 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 		if info.ProcessConfig.ErrorMsg != nil {
 			containerState.Error = *info.ProcessConfig.ErrorMsg
 		}
-		if info.ProcessConfig.Started != nil {
-			swaggerTime := time.Time(*info.ProcessConfig.Started)
-			containerState.StartedAt = swaggerTime.Format(time.RFC3339Nano)
+		if info.ProcessConfig.StartTime != nil && *info.ProcessConfig.StartTime != 0 {
+			containerState.StartedAt = time.Unix(*info.ProcessConfig.StartTime, 0).Format(time.RFC3339Nano)
 		}
 
-		if info.ProcessConfig.Finished != nil {
-			swaggerTime := time.Time(*info.ProcessConfig.Finished)
-			containerState.FinishedAt = swaggerTime.Format(time.RFC3339Nano)
+		if info.ProcessConfig.StopTime != nil && *info.ProcessConfig.StopTime != 0 {
+			containerState.FinishedAt = time.Unix(*info.ProcessConfig.StopTime, 0).Format(time.RFC3339Nano)
 		}
 	}
 
@@ -649,8 +628,8 @@ func ContainerInfoToDockerContainerInspect(vc *viccontainer.VicContainer, info *
 		if info.ContainerConfig.ContainerID != nil {
 			inspectJSON.ID = *info.ContainerConfig.ContainerID
 		}
-		if info.ContainerConfig.Created != nil {
-			inspectJSON.Created = time.Unix(*info.ContainerConfig.Created, 0).Format(time.RFC3339Nano)
+		if info.ContainerConfig.CreateTime != nil {
+			inspectJSON.Created = time.Unix(*info.ContainerConfig.CreateTime, 0).Format(time.RFC3339Nano)
 		}
 		if len(info.ContainerConfig.Names) > 0 {
 			inspectJSON.Name = info.ContainerConfig.Names[0]
@@ -773,9 +752,6 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 	if info.ContainerConfig.RepoName != nil {
 		container.Image = *info.ContainerConfig.RepoName // Name of the image as it was passed by the operator (eg. could be symbolic)
 	}
-	if info.ContainerConfig.Labels != nil {
-		container.Labels = info.ContainerConfig.Labels // List of labels set to this container
-	}
 
 	// Fill in information about the process
 	if info.ProcessConfig.Env != nil {
@@ -889,4 +865,30 @@ func portMapFromVicContainer(vc *viccontainer.VicContainer) nat.PortMap {
 	}
 
 	return portMap
+}
+
+func ContainerInfoToVicContainer(info models.ContainerInfo) *viccontainer.VicContainer {
+	log.Debugf("Convert container info to vic container")
+
+	vc := viccontainer.NewVicContainer()
+
+	var name string
+	if len(info.ContainerConfig.Names) > 0 {
+		vc.Name = info.ContainerConfig.Names[0]
+	}
+	log.Debugf("Container %q", name)
+
+	if info.ContainerConfig.LayerID != nil {
+		vc.ImageID = *info.ContainerConfig.LayerID
+	}
+
+	if info.ContainerConfig.ContainerID != nil {
+		vc.ContainerID = *info.ContainerConfig.ContainerID
+	}
+
+	tempVC := viccontainer.NewVicContainer()
+	tempVC.HostConfig = &container.HostConfig{}
+	vc.Config = containerConfigFromContainerInfo(tempVC, &info)
+	vc.HostConfig = hostConfigFromContainerInfo(tempVC, &info, PortLayerName())
+	return vc
 }

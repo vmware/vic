@@ -33,22 +33,21 @@ type HostDatastoreBrowser struct {
 type searchDatastoreTask struct {
 	*HostDatastoreBrowser
 
-	req *types.SearchDatastore_Task
-	res *types.HostDatastoreBrowserSearchResults
+	DatastorePath string
+	SearchSpec    *types.HostDatastoreBrowserSearchSpec
+
+	res []types.HostDatastoreBrowserSearchResults
+
+	recurse bool
 }
 
-func (s *searchDatastoreTask) addFile(dir string, name string) {
-	details := s.req.SearchSpec.Details
+func (s *searchDatastoreTask) addFile(file os.FileInfo, res *types.HostDatastoreBrowserSearchResults) {
+	details := s.SearchSpec.Details
 	if details == nil {
 		details = new(types.FileQueryFlags)
 	}
 
-	file := path.Join(dir, name)
-	st, err := os.Stat(file)
-	if err != nil {
-		log.Printf("stat(%s): %s", file, err)
-		return
-	}
+	name := file.Name()
 
 	info := types.FileInfo{
 		Path: name,
@@ -57,11 +56,11 @@ func (s *searchDatastoreTask) addFile(dir string, name string) {
 	var finfo types.BaseFileInfo
 
 	if details.FileSize {
-		info.FileSize = st.Size()
+		info.FileSize = file.Size()
 	}
 
 	if details.Modification {
-		mtime := st.ModTime()
+		mtime := file.ModTime()
 		info.Modification = &mtime
 	}
 
@@ -72,7 +71,7 @@ func (s *searchDatastoreTask) addFile(dir string, name string) {
 		info.Owner = user
 	}
 
-	if st.IsDir() {
+	if file.IsDir() {
 		finfo = &types.FolderFileInfo{FileInfo: info}
 	} else if details.FileType {
 		switch path.Ext(name) {
@@ -94,11 +93,43 @@ func (s *searchDatastoreTask) addFile(dir string, name string) {
 		}
 	}
 
-	s.res.File = append(s.res.File, finfo)
+	res.File = append(res.File, finfo)
+}
+
+func (s *searchDatastoreTask) search(ds *types.ManagedObjectReference, folder string, dir string) error {
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		log.Printf("search %s: %s", dir, err)
+		return err
+	}
+
+	res := types.HostDatastoreBrowserSearchResults{
+		Datastore:  ds,
+		FolderPath: folder,
+	}
+
+	for _, file := range files {
+		name := file.Name()
+
+		for _, m := range s.SearchSpec.MatchPattern {
+			if ok, _ := path.Match(m, name); ok {
+				s.addFile(file, &res)
+				break
+			}
+		}
+
+		if s.recurse && file.IsDir() {
+			_ = s.search(ds, path.Join(folder, name), path.Join(dir, name))
+		}
+	}
+
+	s.res = append(s.res, res)
+
+	return nil
 }
 
 func (s *searchDatastoreTask) Run(Task *Task) (types.AnyType, types.BaseMethodFault) {
-	p, fault := parseDatastorePath(s.req.DatastorePath)
+	p, fault := parseDatastorePath(s.DatastorePath)
 	if fault != nil {
 		return nil, fault
 	}
@@ -112,7 +143,7 @@ func (s *searchDatastoreTask) Run(Task *Task) (types.AnyType, types.BaseMethodFa
 
 	dir := path.Join(ds.Info.GetDatastoreInfo().Url, p.Path)
 
-	files, err := ioutil.ReadDir(dir)
+	err := s.search(&ds.Self, s.DatastorePath, dir)
 	if err != nil {
 		ff := types.FileFault{
 			File: p.Path,
@@ -124,29 +155,43 @@ func (s *searchDatastoreTask) Run(Task *Task) (types.AnyType, types.BaseMethodFa
 		return nil, &ff
 	}
 
-	s.res = &types.HostDatastoreBrowserSearchResults{
-		Datastore:  &ds.Self,
-		FolderPath: s.req.DatastorePath,
+	if s.recurse {
+		return types.ArrayOfHostDatastoreBrowserSearchResults{
+			HostDatastoreBrowserSearchResults: s.res,
+		}, nil
 	}
 
-	for _, file := range files {
-		for _, m := range s.req.SearchSpec.MatchPattern {
-			if ok, _ := path.Match(m, file.Name()); ok {
-				s.addFile(dir, file.Name())
-			}
-		}
-	}
-
-	return s.res, nil
+	return s.res[0], nil
 }
 
 func (b *HostDatastoreBrowser) SearchDatastoreTask(s *types.SearchDatastore_Task) soap.HasFault {
-	task := NewTask(&searchDatastoreTask{b, s, nil})
+	task := NewTask(&searchDatastoreTask{
+		HostDatastoreBrowser: b,
+		DatastorePath:        s.DatastorePath,
+		SearchSpec:           s.SearchSpec,
+	})
 
 	task.Run()
 
 	return &methods.SearchDatastore_TaskBody{
 		Res: &types.SearchDatastore_TaskResponse{
+			Returnval: task.Self,
+		},
+	}
+}
+
+func (b *HostDatastoreBrowser) SearchDatastoreSubFoldersTask(s *types.SearchDatastoreSubFolders_Task) soap.HasFault {
+	task := NewTask(&searchDatastoreTask{
+		HostDatastoreBrowser: b,
+		DatastorePath:        s.DatastorePath,
+		SearchSpec:           s.SearchSpec,
+		recurse:              true,
+	})
+
+	task.Run()
+
+	return &methods.SearchDatastoreSubFolders_TaskBody{
+		Res: &types.SearchDatastoreSubFolders_TaskResponse{
 			Returnval: task.Self,
 		},
 	}

@@ -15,6 +15,7 @@
 package management
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -45,8 +46,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-
-	"golang.org/x/net/context"
 )
 
 const portLayerPort = constants.SerialOverLANPort
@@ -692,17 +691,17 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	}
 
 	log.Infof("Waiting for IP information")
-	d.waitForKey("guestinfo..init.networks|client.ip.IP")
+	d.waitForKey("guestinfo.vice..init.networks|client.ip.IP")
 	ctxerr := d.ctx.Err()
 
 	if ctxerr == nil {
 		log.Info("Waiting for major appliance components to launch")
 		log.Debug("waiting for vicadmin to start")
-		d.waitForKey("guestinfo..init.sessions|vicadmin.started")
+		d.waitForKey("guestinfo.vice..init.sessions|vicadmin.started")
 		log.Debug("waiting for docker personality to start")
-		d.waitForKey("guestinfo..init.sessions|docker-personality.started")
+		d.waitForKey("guestinfo.vice..init.sessions|docker-personality.started")
 		log.Debug("waiting for port layer to start")
-		d.waitForKey("guestinfo..init.sessions|port-layer.started")
+		d.waitForKey("guestinfo.vice..init.sessions|port-layer.started")
 	}
 
 	// at this point either everything has succeeded or we're going into diagnostics, ignore error
@@ -713,7 +712,7 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	// but instead...
 	if !ip.IsUnspecifiedIP(conf.ExecutorConfig.Networks["client"].Assigned.IP) {
 		d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.IP.String()
-		log.Debug("Obtained IP address for client interface: %q", d.HostIP)
+		log.Debugf("Obtained IP address for client interface: %q", d.HostIP)
 		return nil
 	}
 

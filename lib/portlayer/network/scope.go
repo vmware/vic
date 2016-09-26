@@ -20,14 +20,9 @@ import (
 	"sync"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/uid"
-)
-
-const (
-	// BridgeScopeType denotes a scope that is of type bridge
-	BridgeScopeType = "bridge"
-	// ExternalScopeType denotes a scope that is of type external
-	ExternalScopeType = "external"
 )
 
 type Scope struct {
@@ -73,7 +68,7 @@ func (s *Scope) Network() object.NetworkReference {
 }
 
 func (s *Scope) isDynamic() bool {
-	return s.scopeType != BridgeScopeType && s.ipam.spaces == nil
+	return s.scopeType != constants.BridgeScopeType && s.ipam.spaces == nil
 }
 
 func (s *Scope) reserveEndpointIP(e *Endpoint) error {
@@ -190,6 +185,23 @@ func (s *Scope) Container(id uid.UID) *Container {
 	return nil
 }
 
+func (s *Scope) ContainerByAddr(addr net.IP) *Endpoint {
+	if addr == nil || addr.IsUnspecified() {
+		return nil
+	}
+
+	s.Lock()
+	defer s.Unlock()
+
+	for _, e := range s.endpoints {
+		if addr.Equal(e.IP()) {
+			return e
+		}
+	}
+
+	return nil
+}
+
 func (s *Scope) Endpoints() []*Endpoint {
 	eps := make([]*Endpoint, len(s.endpoints))
 	copy(eps, s.endpoints)
@@ -208,6 +220,11 @@ func (s *Scope) DNS() []net.IP {
 	return s.dns
 }
 
-func (i *IPAM) Pools() []string {
-	return i.pools
+func (i *IPAM) Pools() []ip.Range {
+	var pools []ip.Range
+	for _, s := range i.spaces {
+		pools = append(pools, *s.Pool)
+	}
+
+	return pools
 }

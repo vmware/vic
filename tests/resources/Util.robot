@@ -35,6 +35,11 @@ Set Test Environment Variables
     Set Environment Variable  GOVC_RESOURCE_POOL  %{TEST_RESOURCE}
     Set Environment Variable  GOVC_DATASTORE  %{TEST_DATASTORE}
 
+    ${about}=  Run  govc about
+    ${status}=  Run Keyword And Return Status  Should Contain  ${about}  VMware ESXi
+    Run Keyword If  ${status}  Set Environment Variable  HOST_TYPE  ESXi
+    Run Keyword Unless  ${status}  Set Environment Variable  HOST_TYPE  VC
+
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${vch-name}  ${name}
@@ -54,8 +59,10 @@ Get Docker Params
     Run Keyword Unless  ${certs}  Set Suite Variable  ${params}  -H ${ret}
 
     @{ret}=  Split String  ${ret}  :
-    ${ret}=  Strip String  @{ret}[0]
-    Set Suite Variable  ${vch-ip}  ${ret}
+    ${ip}=  Strip String  @{ret}[0]
+    ${port}=  Strip String  @{ret}[1]
+    Set Suite Variable  ${vch-ip}  ${ip}
+    Set Suite Variable  ${vch-port}  ${port}
 
     ${proto}=  Set Variable If  ${certs}  "https"  "http"
     Set Suite Variable  ${proto}
@@ -202,7 +209,7 @@ Get State Of Drone Build
     ${out}=  Run  drone build info vmware/vic ${num}
     ${lines}=  Split To Lines  ${out}
     [Return]  @{lines}[2]
-    
+
 Get Title of Drone Build
     [Arguments]  ${num}
     ${out}=  Run  drone build info vmware/vic ${num}
@@ -304,23 +311,60 @@ Kill Nimbus Server
     ${out}=  Execute Command  nimbus-ctl kill '${name}'
     Close connection
 
+Nimbus Cleanup
+    Gather Logs From Test Server
+    Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  *
+
 Wait Until Container Stops
     [Arguments]  ${container}
-    :FOR  ${idx}  IN RANGE  0  10
+    :FOR  ${idx}  IN RANGE  0  30
     \   ${out}=  Run  docker ${params} ps --filter status=running --no-trunc
     \   ${status}=  Run Keyword And Return Status  Should Not Contain  ${out}  ${container}
     \   Return From Keyword If  ${status}
     \   Sleep  1
-    Fail  Container did not stop within 10 seconds
+    Fail  Container did not stop within 30 seconds
 
 Wait Until VM Powers Off
     [Arguments]  ${vm}
-    :FOR  ${idx}  IN RANGE  0  10
-    \   ${out}=  Run  govc vm.info ${vm}
+    :FOR  ${idx}  IN RANGE  0  30
+    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc vm.info ${vch-name}/${vm}
+    \   Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${out}  ${ret}
+    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc vm.info ${vm}
+    \   Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${out}  ${ret}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  poweredOff
     \   Return From Keyword If  ${status}
     \   Sleep  1
-    Fail  VM did not power off within 10 seconds
+    Fail  VM did not power off within 30 seconds
+
+Wait Until VM Is Destroyed
+    [Arguments]  ${vm}
+    :FOR  ${idx}  IN RANGE  0  30
+    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc ls vm/${vch-name}/${vm}
+    \   Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${out}  ${ret}
+    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc ls vm/${vm}
+    \   Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${out}  ${ret}
+    \   ${status}=  Run Keyword And Return Status  Should Be Empty  ${out}
+    \   Return From Keyword If  ${status}
+    \   Sleep  1
+    Fail  VM was not destroyed within 30 seconds
+
+Wait Until VM Powers On
+    [Arguments]  ${vm}
+    :FOR  ${idx}  IN RANGE  0  30
+    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc vm.info ${vch-name}/${vm}
+    \   Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${out}  ${ret}
+    \   ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc vm.info ${vm}
+    \   Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${out}  ${ret}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  poweredOn
+    \   Return From Keyword If  ${status}
+    \   Sleep  1
+    Fail  VM did not power on within 30 seconds
+
+Get VM IP
+    [Arguments]  ${vm}
+    ${rc}  ${out}=  Run And Return Rc And Output  govc vm.ip ${vm}
+    Should Be Equal As Integers  ${rc}  0
+    [Return]  ${out}
 
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
@@ -340,7 +384,7 @@ Run Regression Tests
     Wait Until Container Stops  ${container}
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  Stopped
+    Should Contain  ${output}  Exited
     # Ensure container logs are correctly being gathered for debugging purposes
     ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz | tar tvzf -
     Should Be Equal As Integers  ${rc}  0
@@ -375,7 +419,7 @@ Run Regression Tests
 Put Host Into Maintenance Mode
     ${rc}  ${output}=  Run And Return Rc And Output  govc host.maintenance.enter -host.ip=%{TEST_URL}
     Should Contain  ${output}  entering maintenance mode... OK
-    
+
 Remove Host From Maintenance Mode
     ${rc}  ${output}=  Run And Return Rc And Output  govc host.maintenance.exit -host.ip=%{TEST_URL}
     Should Contain  ${output}  exiting maintenance mode... OK

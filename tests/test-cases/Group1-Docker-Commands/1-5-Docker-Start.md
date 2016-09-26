@@ -23,10 +23,10 @@ This test requires that a vSphere server is running and available
 #Expected Outcome:
 * Commands 1-7 should all return without error and respond with the container ID
 * After commands 3, 5, and 7 verify that the containers are running
-* Step 8 should result in the VIC applaiance returning the following error:  
+* Step 8 should result in the VIC applaiance returning the following error:
 ```
-Error response from daemon: No such container: fakeContainer  
-Error: failed to start containers: fakeContainer  
+Error response from daemon: No such container: fakeContainer
+Error: failed to start containers: fakeContainer
 ```
 
 #Possible Problems:

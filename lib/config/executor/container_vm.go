@@ -40,9 +40,6 @@ type Common struct {
 	// Convenience field to record a human readable name
 	Name string `vic:"0.1" scope:"read-only" key:"name"`
 
-	// creation timestamp
-	Created int64 `vic:"0.1" scope:"read-only" key:"created"`
-
 	// Freeform notes related to the entity
 	Notes string `vic:"0.1" scope:"hidden" key:"notes"`
 }
@@ -113,6 +110,9 @@ type ContainerVM struct {
 type ExecutorConfig struct {
 	Common `vic:"0.1" scope:"read-only" key:"common"`
 
+	// CreateTime stamp
+	CreateTime int64 `vic:"0.1" scope:"read-write" key:"createtime"`
+
 	// Diagnostics holds basic diagnostics data
 	Diagnostics Diagnostics `vic:"0.1" scope:"read-only" key:"diagnostics"`
 
@@ -166,6 +166,7 @@ type Cmd struct {
 type SessionConfig struct {
 	// The primary session may have the same ID as the executor owning it
 	Common `vic:"0.1" scope:"read-only" key:"common"`
+	Detail `vic:"0.1" scope:"read-write" key:"detail"`
 
 	// The primary process for the session
 	Cmd Cmd `vic:"0.1" scope:"read-only" key:"cmd"`
@@ -198,4 +199,12 @@ type SessionConfig struct {
 	// Need to go here since UID/GID resolution must be done on appliance
 	User  string `vic:"0.1" scope:"read-only" key:"User"`
 	Group string `vic:"0.1" scope:"read-only" key:"Group"`
+}
+
+type Detail struct {
+
+	// creation, started & stopped timestamps
+	CreateTime int64 `vic:"0.1" scope:"read-write" key:"createtime"`
+	StartTime  int64 `vic:"0.1" scope:"read-write" key:"starttime"`
+	StopTime   int64 `vic:"0.1" scope:"read-write" key:"stoptime"`
 }

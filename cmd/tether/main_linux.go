@@ -60,8 +60,7 @@ func main() {
 		return
 	}
 
-	sshserver := &attachServerSSH{}
-	server = sshserver
+	sshserver := NewAttachServerSSH()
 	src, err := extraconfig.GuestInfoSource()
 	if err != nil {
 		log.Error(err)

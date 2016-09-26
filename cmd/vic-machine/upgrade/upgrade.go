@@ -54,6 +54,11 @@ func (u *Upgrade) Flags() []cli.Flag {
 			Usage:       "Time to wait for upgrade",
 			Destination: &u.Timeout,
 		},
+		cli.BoolFlag{
+			Name:        "force, f",
+			Usage:       "Force the upgrade (ignores version checks)",
+			Destination: &u.Force,
+		},
 	}
 	flags = append(
 		append(
@@ -137,13 +142,17 @@ func (u *Upgrade) Run(cli *cli.Context) error {
 	}
 	executor.InitDiagnosticLogs(vchConfig)
 
-	// FIXME: add vchConfig validation here, to make the old vch config is compatible with new version
-
 	vConfig := validator.AddDeprecatedFields(ctx, vchConfig, u.Data)
 	vConfig.ImageFiles = images
 	vConfig.ApplianceISO = path.Base(u.ApplianceISO)
 	vConfig.BootstrapISO = path.Base(u.BootstrapISO)
 	vConfig.RollbackTimeout = u.Timeout
+
+	if vchConfig, err = validator.MigrateConfig(ctx, vchConfig); err != nil {
+		log.Errorf("Failed to migrate Virtual Container Host configuration %s", u.DisplayName)
+		log.Error(err)
+		return errors.New("upgrade failed")
+	}
 
 	if err = executor.Upgrade(vch, vchConfig, vConfig); err != nil {
 		// upgrade failed

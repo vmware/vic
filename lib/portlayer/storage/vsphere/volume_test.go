@@ -15,6 +15,7 @@
 package vsphere
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -25,7 +26,6 @@ import (
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
-	"golang.org/x/net/context"
 )
 
 func TestVolumeCreateListAndRestart(t *testing.T) {

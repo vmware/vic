@@ -43,7 +43,7 @@
 					"misc"
 				],
 				"operationId": "GetVCHInfo",
-				"contains": [
+				"consumes": [
 					"application/json"
 				],
 				"produces": [
@@ -248,6 +248,54 @@
 					},
 					"404": {
 						"description": "Not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"default": {
+						"description": "error",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			},
+			"delete" : {
+				"description": "Delete an image by id in an image store",
+				"summary": "Delete an image",
+				"tags": [
+					"storage"
+				],
+				"operationId": "DeleteImage",
+				"parameters": [
+					{
+						"name": "store_name",
+						"type": "string",
+						"in": "path",
+						"required": true
+					},
+					{
+						"name": "id",
+						"type": "string",
+						"in": "path",
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"type": "string"
+						}
+					},
+					"404": {
+						"description": "Not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"423": {
+						"description": "In use",
 						"schema": {
 							"$ref": "#/definitions/Error"
 						}
@@ -557,6 +605,12 @@
 							"type": "string"
 						}
 					},
+					"404": {
+						"description": "Volume not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+                                        },
 					"500": {
 						"description": "ServerError",
 						"schema": {
@@ -1040,7 +1094,7 @@
 						"schema": {
 							"type": "array",
 							"items": {
-								"$ref": "#definitions/ContainerListInfo"
+								"$ref": "#definitions/ContainerInfo"
 							}
 						}
 					},
@@ -1115,13 +1169,13 @@
 					{
 						"name": "force",
 						"in": "query",
-						"type": "bool",
+						"type": "boolean",
 						"default": false
 					},
 					{
 						"name": "v",
 						"in": "query",
-						"type": "bool",
+						"type": "boolean",
 						"default": false
 					}
 				],
@@ -1416,6 +1470,57 @@
 					},
 					"500": {
 						"description": "Failed to get logs",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			}
+		},
+		"/containers/{id}/wait": {
+			"get": {
+				"description": "Wait for the container to stop",
+				"operationId": "ContainerWait",
+				"tags": [
+					"containers"
+				],
+				"consumes": [
+					"application/octet-stream",
+					"application/json"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"type": "string",
+						"required": true
+					},
+					{
+						"name": "timeout",
+						"in": "query",
+						"type": "integer",
+						"format": "int64",
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/ContainerInfo"
+						}
+					},
+					"404": {
+						"description": "Container not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "Failed to wait on Container",
 						"schema": {
 							"$ref": "#/definitions/Error"
 						}
@@ -1789,6 +1894,9 @@
 				"address": {
 					"type": "string"
 				},
+				"gateway": {
+					"type": "string"
+				},
 				"container": {
 					"type": "string"
 				},
@@ -2069,7 +2177,19 @@
 						"type": "string"
 					}
 				},
-				"created": {
+				"exitCode": {
+					"type": "integer",
+					"format": "int32"
+				},
+				"createTime": {
+					"type": "integer",
+					"format": "int64"
+				},
+				"startTime": {
+					"type": "integer",
+					"format": "int64"
+				},
+				"stopTime": {
 					"type": "integer",
 					"format": "int64"
 				},
@@ -2109,7 +2229,7 @@
 				"repoName": {
 					"type": "string"
 				},
-				"created": {
+				"createTime": {
 					"type": "integer",
 					"format": "int64"
 				},
@@ -2166,6 +2286,10 @@
 				},
 				"reservation": {
 					"$ref": "#/definitions/ReservationConfig"
+				},
+				"storageSize": {
+					"type": "integer",
+					"format": "int64"
 				}
 			}
 		},
@@ -2225,16 +2349,17 @@
 				"status": {
 					"type": "string"
 				},
-				"started": {
-					"type": "string",
-					"format": "datetime"
+				"startTime": {
+					"type": "integer",
+					"format": "int64"
 				},
-				"finished": {
-					"type": "string",
-					"format": "datetime"
+				"stopTime": {
+					"type": "integer",
+					"format": "int64"
 				},
 				"exitCode": {
-					"type": "integer"
+					"type": "integer",
+					"format": "int32"
 				},
 				"errorMsg": {
 					"type": "string"

@@ -16,6 +16,7 @@ package management
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"path"
 	"sort"
@@ -26,12 +27,11 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
-
-	"golang.org/x/net/context"
 )
 
 const (
@@ -39,7 +39,7 @@ const (
 )
 
 func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) error {
-	var emptyImages bool
+	defer trace.End(trace.Begin(""))
 	var errs []string
 
 	for _, imageDir := range conf.ImageStores {
@@ -57,13 +57,29 @@ func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) e
 			continue
 		}
 
-		if emptyImages, err = d.deleteDatastoreFiles(imageDSes[0], imageDir.Path, true); err != nil {
+		if _, err = d.deleteDatastoreFiles(imageDSes[0], path.Join(imageDir.Path, vsphere.StorageParentDir), true); err != nil {
 			errs = append(errs, err.Error())
 		}
 
-		if !emptyImages {
-			log.Infof("Not deleting [%s] %s as it still contains files after removing images", imageDir.Host, imageDir.Path)
+		dsPath, err := datastore.URLtoDatastore(&imageDir)
+		if err != nil {
+			errs = append(errs, err.Error())
 			continue
+		}
+
+		children, err := d.getChildren(imageDSes[0], dsPath)
+		if err != nil {
+			errs = append(errs, err.Error())
+			continue
+		}
+
+		if len(children) == 0 {
+			log.Debugf("Removing empty image store parent directory [%s] %s", imageDir.Host, imageDir.Path)
+			if _, err = d.deleteDatastoreFiles(imageDSes[0], imageDir.Path, true); err != nil {
+				errs = append(errs, err.Error())
+			}
+		} else {
+			log.Debugf("Image store parent directory not empty, leaving in place.")
 		}
 	}
 
@@ -163,8 +179,8 @@ func (d *Dispatcher) deleteVMFSFiles(m *object.FileManager, ds *object.Datastore
 	return nil
 }
 
-// getSortedChildren returns all children under datastore path in reversed order.
-func (d *Dispatcher) getSortedChildren(ds *object.Datastore, dsPath string) ([]string, error) {
+// getChildren returns all children under datastore path in unsorted order. (see also getSortedChildren)
+func (d *Dispatcher) getChildren(ds *object.Datastore, dsPath string) ([]string, error) {
 	res, err := d.lsSubFolder(ds, dsPath)
 	if err != nil {
 		return nil, err
@@ -178,6 +194,15 @@ func (d *Dispatcher) getSortedChildren(ds *object.Datastore, dsPath string) ([]s
 			}
 			result = append(result, path.Join(dir.FolderPath, dsf.Path))
 		}
+	}
+	return result, nil
+}
+
+// getSortedChildren returns all children under datastore path in reversed order.
+func (d *Dispatcher) getSortedChildren(ds *object.Datastore, dsPath string) ([]string, error) {
+	result, err := d.getChildren(ds, dsPath)
+	if err != nil {
+		return nil, err
 	}
 	sort.Sort(sort.Reverse(sort.StringSlice(result)))
 	return result, nil
@@ -236,11 +261,17 @@ func (d *Dispatcher) lsFolder(ds *object.Datastore, dsPath string) (*types.HostD
 }
 
 func (d *Dispatcher) createVolumeStores(conf *config.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin(""))
 	for _, url := range conf.VolumeLocations {
 		ds, err := d.session.Finder.Datastore(d.ctx, url.Host)
 		if err != nil {
 			return errors.Errorf("Could not retrieve datastore with host %q due to error %s", url.Host, err)
 		}
+
+		if url.Path == "/" || url.Path == "" {
+			url.Path = vsphere.StorageParentDir
+		}
+
 		nds, err := datastore.NewHelper(d.ctx, d.session, ds, url.Path)
 		if err != nil {
 			return errors.Errorf("Could not create volume store due to error: %s", err)
@@ -278,8 +309,11 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *config.VirtualContainerHost
 			continue
 		}
 
-		log.Debugf("Provided datastore URL: %q\nParsed volume store path: %q", url.Path, dsURL.Path)
+		if dsURL.Path == vsphere.StorageParentDir {
+			dsURL.Path = path.Join(dsURL.Path, vsphere.VolumesDir)
+		}
 
+		log.Debugf("Provided datastore URL: %q\nParsed volume store path: %q", url.Path, dsURL.Path)
 		log.Infof("Deleting volume store %q on Datastore %q at path %q", label, dsURL.Host, dsURL.Path)
 
 		datastores, err := d.session.Finder.DatastoreList(d.ctx, dsURL.Host)

@@ -12,26 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package guest
+package storage
 
-import (
-	"testing"
+type ErrImageInUse struct {
+	Msg string
+}
 
-	"github.com/stretchr/testify/assert"
+func (e *ErrImageInUse) Error() string {
+	return e.Msg
+}
 
-	"github.com/vmware/vic/pkg/vsphere/test"
-	"golang.org/x/net/context"
-)
+func IsErrImageInUse(err error) bool {
+	if err == nil {
+		return false
+	}
+	_, ok := err.(*ErrImageInUse)
 
-func TestNewLinuxGuest(t *testing.T) {
-
-	ctx := context.Background()
-
-	session := test.Session(ctx, t)
-	defer session.Logout(ctx)
-
-	specconfig := test.SpecConfig(session, "NewLinuxGuestTest")
-
-	root, _ := NewLinuxGuest(ctx, session, specconfig)
-	assert.Equal(t, "other3xLinux64Guest", root.GuestID())
+	return ok
 }

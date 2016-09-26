@@ -19,19 +19,25 @@ Simple creates
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-Create with volume
+Create with anonymous volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -v /var/log busybox ls /var/log
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${output}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${status}=  Get State Of Github Issue  366
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-4-Docker-Create.robot needs to be updated now that Issue #366 has been resolved
-    Log  Issue \#366 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs ${output}
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
+Create with named volume
+    ${disk-size}=  Run  docker ${params} logs $(docker ${params} start $(docker ${params} create -v test-named-vol:/testdir busybox /bin/df -Ph) && sleep 10) | grep by-label | awk '{print $2}'
+    Should Be Equal As Strings  ${disk-size}  975.9M
+
+Create with a directory as a volume
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -v /dir:/dir busybox
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  Error response from daemon: Bad request error from portlayer: vSphere Integrated Containers does not support mounting directories as a data volume.
 
 Create simple top example
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create busybox /bin/top
@@ -63,13 +69,9 @@ Create linked containers that can ping
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start busy2
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${status}=  Get State Of Github Issue  366
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-4-Docker-Create.robot needs to be updated now that Issue #366 has been resolved
-    Log  Issue \#366 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs busy2
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Not Contain  ${output}  Error
-    #Should Contain  ${output}  2 packets transmitted, 2 received
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow busy2
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  2 packets transmitted, 2 packets received
 
 Create a container after the last container is removed
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox

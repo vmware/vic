@@ -16,3 +16,7 @@ Group 5 - Functional Tests
 -
 [Test 5-7 - NSX](5-7-NSX.md)
 -
+[Test 5-8 - DRS](5-8-DRS.md)
+-
+[Test 5-9 - Private Registry](5-9-Private-Registry.md)
+-

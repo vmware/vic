@@ -31,9 +31,9 @@ fi
 rc="$?"
 
 timestamp=$(date +%s)
-outfile="integration_logs_"$DRONE_BUILD_NUMBER"_"$DRONE_COMMIT"_$timestamp.zip"
+outfile="integration_logs_"$DRONE_BUILD_NUMBER"_"$DRONE_COMMIT".zip"
 
-zip -9 $outfile log.html package.list *container-logs.zip *.log
+zip -9 $outfile output.xml log.html package.list *container-logs.zip *.log
 
 # GC credentials
 keyfile="/root/vic-ci-logs.key"
@@ -49,10 +49,9 @@ echo "default_project_id = $GS_PROJECT_ID" >> $botofile
 
 if [ -f "$outfile" ]; then
   gsutil cp $outfile gs://vic-ci-logs
-  loglink="https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/$outfile?authuser=1"
   echo "----------------------------------------------"
   echo "Download test logs:"
-  echo $loglink
+  echo "https://console.cloud.google.com/m/cloudstorage/b/vic-ci-logs/o/$outfile?authuser=1"
   echo "----------------------------------------------"
 else
   echo "No log output file to upload"

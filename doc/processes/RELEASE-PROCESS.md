@@ -75,11 +75,15 @@ new needs to be addressed as part of the release process.
   Release Versioning for details.
 * Upload the artifact to the release repo under Download
     https://bintray.com/vmware/vic/Download
-  ``` curl -T <FILE.EXT> -u<BINTRAY_USERNAME>:<API_KEY>
+
+``` 
+curl -T <FILE.EXT> -u<BINTRAY_USERNAME>:<API_KEY>
 https://api.bintray.com/content/vmware/vic/Download/<VERSION_NAME>/<FILE_TARGET_PATH>
 ```
-  Example: ``` curl -T vic_v0.1.0.tar.gz -u<BINTRAY_USERNAME>:<API_KEY>
-https://api.bintray.com/content/vmware/vic/Download/v0.1.0/vic_v0.1.0.tar.gz
+  Example: 
+``` 
+curl -T vic_0.1.0.tar.gz -u<BINTRAY_USERNAME>:<API_KEY>
+https://api.bintray.com/content/vmware/vic/Download/v0.1.0/vic_0.1.0.tar.gz
 ```
 * Display the latest version under Downloads at
   https://bintray.com/vmware/vic/Download by clicking `Actions` and `Add to

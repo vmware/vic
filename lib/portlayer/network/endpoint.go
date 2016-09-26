@@ -21,8 +21,16 @@ import (
 	"github.com/vmware/vic/pkg/uid"
 )
 
+type alias struct {
+	Name      string
+	Container string
+
+	ep *Endpoint
+}
+
+var badAlias = alias{}
+
 type Endpoint struct {
-	id        uid.UID
 	container *Container
 	scope     *Scope
 	ip        net.IP
@@ -30,11 +38,24 @@ type Endpoint struct {
 	subnet    net.IPNet
 	static    bool
 	ports     map[Port]interface{} // exposed ports
+	aliases   map[string][]alias
+}
+
+// scopeName returns the "fully qualified" name of an alias. Aliases are scoped
+// by the container and network scope they are in.
+func (a alias) scopedName() string {
+	// an alias for the container itself is network scoped
+	for _, al := range a.ep.getAliases("") {
+		if a.Name == al.Name {
+			return fmt.Sprintf("%s:%s", a.ep.Scope().Name(), a.Name)
+		}
+	}
+
+	return fmt.Sprintf("%s:%s:%s", a.ep.Scope().Name(), a.ep.Container().Name(), a.Name)
 }
 
 func newEndpoint(container *Container, scope *Scope, ip *net.IP, subnet net.IPNet, gateway net.IP, pciSlot *int32) *Endpoint {
 	e := &Endpoint{
-		id:        uid.New(),
 		container: container,
 		scope:     scope,
 		gateway:   gateway,
@@ -42,6 +63,7 @@ func newEndpoint(container *Container, scope *Scope, ip *net.IP, subnet net.IPNe
 		ip:        net.IPv4(0, 0, 0, 0),
 		static:    false,
 		ports:     make(map[Port]interface{}),
+		aliases:   make(map[string][]alias),
 	}
 
 	if ip != nil {
@@ -92,7 +114,11 @@ func (e *Endpoint) Container() *Container {
 }
 
 func (e *Endpoint) ID() uid.UID {
-	return e.id
+	return e.container.ID()
+}
+
+func (e *Endpoint) Name() string {
+	return e.container.Name()
 }
 
 func (e *Endpoint) Gateway() net.IP {
@@ -108,6 +134,40 @@ func (e *Endpoint) Ports() []Port {
 	}
 
 	return ports
+}
+
+func (e *Endpoint) addAlias(con, a string) (alias, bool) {
+	if a == "" {
+		return badAlias, false
+	}
+
+	if con == "" {
+		con = e.container.Name()
+	}
+
+	aliases := e.aliases[con]
+	for _, as := range aliases {
+		if as.Name == a {
+			// already present
+			return as, true
+		}
+	}
+
+	na := alias{
+		Name:      a,
+		Container: con,
+		ep:        e,
+	}
+	e.aliases[con] = append(aliases, na)
+	return na, false
+}
+
+func (e *Endpoint) getAliases(con string) []alias {
+	if con == "" {
+		con = e.container.Name()
+	}
+
+	return e.aliases[con]
 }
 
 func (e *Endpoint) copy() *Endpoint {
