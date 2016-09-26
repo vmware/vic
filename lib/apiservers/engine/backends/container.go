@@ -506,9 +506,9 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 	var stateChangeRes *containers.StateChangeOK
 	stateChangeRes, err = client.Containers.StateChange(containers.NewStateChangeParamsWithContext(ctx).WithHandle(handle).WithState("RUNNING"))
 	if err != nil {
-		cache.ContainerCache().DeleteContainer(id)
 		switch err := err.(type) {
 		case *containers.StateChangeNotFound:
+			cache.ContainerCache().DeleteContainer(id)
 			return NotFoundError(name)
 		case *containers.StateChangeDefault:
 			return InternalServerError(err.Payload.Message)
@@ -725,9 +725,9 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 	// TODO: We need a resolved ID from the name
 	stateChangeResponse, err := client.Containers.StateChange(containers.NewStateChangeParamsWithContext(ctx).WithHandle(handle).WithState("STOPPED"))
 	if err != nil {
-		cache.ContainerCache().DeleteContainer(id)
 		switch err := err.(type) {
 		case *containers.StateChangeNotFound:
+			cache.ContainerCache().DeleteContainer(id)
 			return NotFoundError(name)
 		case *containers.StateChangeDefault:
 			return InternalServerError(err.Payload.Message)
@@ -741,10 +741,9 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 
 	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle).WithWaitTime(&wait))
 	if err != nil {
-		// delete from cache since all cases are 404's
-		cache.ContainerCache().DeleteContainer(id)
 		switch err := err.(type) {
 		case *containers.CommitNotFound:
+			cache.ContainerCache().DeleteContainer(id)
 			return NotFoundError(name)
 		case *containers.CommitDefault:
 			return InternalServerError(err.Payload.Message)
