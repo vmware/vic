@@ -20,9 +20,11 @@ This test requires access to a vSphere Server
 ```docker push localhost:5000/busybox```
 5. Attempt to pull the local registry image using the VCH appliance:  
 ```docker pull ${params} 172.17.0.1:5000/busybox```
+6. Use imagec binary standalone to pull the image from the local registry:  
+```imagec -standalone -insecure-allow-http -reference localhost:5000/busybox```
 
 #Expected Outcome:
-The VCH appliance should be able to successfully pull the image from a local registry without error
+The VCH appliance should be able to successfully pull the image from a local registry without error and imagec should be able to pull the image as well directly
 
 #Possible Problems:
 The default network on VCH containers is in the 172.17.0.x space, but this could potentially change. If you are having issues running the tests make sure that the container has an IP address in that network space. 

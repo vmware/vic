@@ -8,7 +8,7 @@ Library  SSHLibrary  1 minute  prompt=bash-4.1$
 Library  DateTime
 
 *** Variables ***
-${bin-dir}  /drone/src/github.com/vmware/vic/bin
+${bin-dir}  ${CURDIR}/../../bin
 
 *** Keywords ***
 Set Test Environment Variables
