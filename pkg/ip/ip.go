@@ -159,6 +159,24 @@ func (i *Range) UnmarshalText(text []byte) error {
 	return nil
 }
 
+// ParseIPandMask parses a CIDR format address (e.g. 1.1.1.1/8)
+func ParseIPandMask(s string) (net.IPNet, error) {
+	var i net.IPNet
+	ip, ipnet, err := net.ParseCIDR(s)
+	if err != nil {
+		return i, err
+	}
+
+	i.IP = ip
+	i.Mask = ipnet.Mask
+	return i, nil
+}
+
+// Empty determines if net.IPNet is empty
+func Empty(i net.IPNet) bool {
+	return i.IP == nil && i.Mask == nil
+}
+
 func IsUnspecifiedIP(ip net.IP) bool {
 	return len(ip) == 0 || ip.IsUnspecified()
 }
