@@ -69,8 +69,10 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			return
 		}
 
-		// we want to monitor the resource pool, so create a vSphere Event Collector
-		ec := vsphere.NewCollector(sess.Vim25(), Config.ResourcePool.Reference().String())
+		// we want to monitor the cluster, so create a vSphere Event Collector
+		// The cluster managed object will either be a proper vSphere Cluster or
+		// a specific host when standalone mode
+		ec := vsphere.NewCollector(sess.Vim25(), sess.Cluster.Reference().String())
 
 		// start the collection of vsphere events
 		err = ec.Start()
