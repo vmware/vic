@@ -30,7 +30,6 @@ import (
 	"net/http"
 
 	"encoding/json"
-	"github.com/docker/engine-api/types"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/containers"
@@ -295,7 +294,12 @@ func gatherPortBindings(container *exec.Container) []string {
 	var ports []string
 	for _, network := range container.ExecConfig.Networks {
 		for _, portTypeAndNum := range network.Ports {
-			port := new(types.Port)
+			port := new(struct {
+				IP          string `json:",omitempty"`
+				PrivatePort int
+				PublicPort  int `json:",omitempty"`
+				Type        string
+			})
 			if exec.Config.Networks["client"] != nil {
 				port.IP = exec.Config.Networks["client"].Assigned.IP.String()
 			}
