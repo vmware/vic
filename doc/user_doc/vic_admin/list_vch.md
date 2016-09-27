@@ -30,30 +30,24 @@ You have deployed at least one virtual container host.
 
 The `vic-machine ls` command lists the virtual container hosts that are running on the ESXi host or vCenter Server instance that you specified.
 
-- Virtual container hosts running on an ESXi host:
-
-  <pre>ID      PATH                                         NAME
-1       /ha-datacenter/host/<i>host_name</i>/Resources      <i>vch_1</i>
-2       /ha-datacenter/host/<i>host_name</i>/Resources      <i>vch_2</i>
-[...]   [...]                                        [...]
-<i>n</i>       /ha-datacenter/host/<i>host_name</i>/Resources      <i>vch_n</i></pre>
-
-- Virtual container hosts running on a standalone host that is managed by vCenter Server:
-
-  <pre>ID           PATH                                           NAME
-vm-<i>id_1</i>      /<i>datacenter</i>/host/<i>host_address</i>/Resources        <i>vch_1</i>
-vm-<i>id_2</i>      /<i>datacenter</i>/host/<i>host_address</i>/Resources        <i>vch_2</i>
-[...]        [...]                                          [...]
-vm-<i>id_n</i>      /<i>datacenter</i>/host/<i>host_address</i>/Resources       <i> vch_n</i>
+<pre>ID         PATH     NAME    VERSION                     UPGRADE STATUS
+vm-101     <i>path</i>     <i>vch_1</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
+vm-102     <i>path</i>     <i>vch_2</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
+[...]
+vm-<i>n</i>       <i>path</i>     <i>vch_n</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
 </pre>
 
-- Virtual container hosts running in a vCenter Server cluster:
+- You can use the virtual container host ID when running `vic-machine inspect` or `delete`. Using a virtual container host ID reduces the number of options that you need to specify when you use `vic-machine inspect` or `delete`.
+- The `PATH` value depends on where the virtual container host is deployed:
 
-  <pre>ID           PATH                                           NAME
-vm-<i>id_1</i>      /<i>datacenter</i>/host/<i>cluster_name</i>/Resources        <i>vch_1</i>
-vm-<i>id_2</i>      /<i>datacenter</i>/host/<i>cluster_name</i>/Resources        <i>vch_2</i>
-[...]        [...]                                          [...]
-vm-<i>id_n</i>      /<i>datacenter</i>/host/<i>cluster_name</i>/Resources       <i> vch_n</i>
-</pre>
+  - ESXi host that is not managed by vCenter Server:
+  <pre>/ha-datacenter/host/<i>host_name</i>/Resources</pre>
+  - Standalone host that is managed by vCenter Server: 
+  <pre>/<i>datacenter</i>/host/<i>host_address</i>/Resources</pre>
+  - vCenter Server cluster:
+  <pre>/<i>datacenter</i>/host/<i>cluster_name</i>/Resources</pre>
+  - If virtual container hosts are deployed in resource pools on hosts or clusters, the resource pool names appear after `Resources` in the path.
+- The `VERSION` value includes the version of `vic-machine`  that was used to create the virtual container host, the build number of this version, and a hashtag to identify the build.
+- The `UPGRADE STATUS` reflects whether the version of `vic-machine` that you are using is the same as the version of the virtual container host. If the version or build number of the virtual container host does not match that of `vic-machine`, `UPGRADE STATUS` is <code>Upgradeable to <i>vch_version</i>-<i>vch_build</i>-<i>tag</i></code>.
 
-If virtual container hosts are deployed in resource pools on hosts or clusters, the resource pool names appear after `Resources` in the `PATH`.
+  **NOTE**: In the current builds, virtual container host upgrade is not yet implemented.
