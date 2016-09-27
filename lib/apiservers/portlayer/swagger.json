@@ -2251,7 +2251,13 @@
 						"type": "string"
 					}
 				},
-				"state": {
+        "ports": {
+          "type": "array",
+            "items": {
+               "type": "string"
+            }
+        },
+        "state": {
 					"type": "string"
 				},
 				"restartCount": {

@@ -322,6 +322,7 @@ func gatherPortBindings(container *exec.Container) []string {
 	}
 	return ports
 }
+
 func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.ContainerSignalParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
@@ -468,6 +469,6 @@ func convertContainerToContainerInfo(container *exec.Container) *models.Containe
 	status := container.ExecConfig.Sessions[ccid].Started
 	info.ProcessConfig.Status = &status
 
-	info.Ports = gatherPortBindings(container)
+	info.ContainerConfig.Ports = gatherPortBindings(container)
 	return info
 }

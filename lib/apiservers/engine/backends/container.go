@@ -61,6 +61,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
+	"regexp"
 )
 
 const (
@@ -1020,7 +1021,7 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 			Names:   names,
 			Command: cmd,
 			SizeRw:  *t.ContainerConfig.StorageSize,
-			Ports:   getPortInformation(&t),
+			Ports:   getPortInformation(&t, names),
 		}
 		containers = append(containers, c)
 	}
@@ -1545,10 +1546,27 @@ func ContainerSignal(containerID string, sig uint64) error {
 	return nil
 }
 
-func getPortInformation(t *models.ContainerListInfo) []types.Port {
-	portBindings := cache.ContainerCache().GetContainer(t.Names[0]).HostConfig.PortBindings
+func getPortInformation(t *models.ContainerInfo, names []string) []types.Port {
 	var ports []types.Port
-	for _, jsonPort := range t.Ports {
+	if len(names) == 0 {
+		log.Errorf("Couldn't find container while looking up port bindings; No container names provided")
+		return ports
+	}
+
+	var container *viccontainer.VicContainer
+	container = cache.ContainerCache().GetContainer(names[0])
+	if container == nil {
+		if match := regexp.MustCompile(`[\w_]+`).FindString(names[0]); match != "" {
+			container = cache.ContainerCache().GetContainer(match)
+		} else {
+			log.Errorf("Could not find container based on incorrectly formatted name")
+			return ports
+		}
+	}
+
+	portBindings := container.HostConfig.PortBindings
+
+	for _, jsonPort := range t.ContainerConfig.Ports {
 		port := new(types.Port)
 		err := json.Unmarshal([]byte(jsonPort), port)
 		if err != nil {
