@@ -47,5 +47,7 @@ vm-<i>n</i>       <i>path</i>     <i>vch_n</i>   <i>vch_version</i>-<i>vch_build
   - vCenter Server cluster:
   <pre>/<i>datacenter</i>/host/<i>cluster_name</i>/Resources</pre>
   - If virtual container hosts are deployed in resource pools on hosts or clusters, the resource pool names appear after `Resources` in the path.
-- The `VERSION` value includes the version of vSphere Integrated Containers that was used to create the virtual container host and the build number of this version.
-- The `UPGRADE` status reflects whether the version of `vic-machine` that you used to run `ls` is the same as the version of the virtual container host.
+- The `VERSION` value includes the version of `vic-machine`  that was used to create the virtual container host, the build number of this version, and a hashtag to identify the build.
+- The `UPGRADE STATUS` reflects whether the version of `vic-machine` that you are using is the same as the version of the virtual container host. If the version or build number of the virtual container host does not match that of `vic-machine`, `UPGRADE STATUS` is <code>Upgradeable to <i>vch_version</i>-<i>vch_build</i>-<i>tag</i></code>.
+
+  **NOTE**: In the current builds, virtual container host upgrade is not yet implemented.

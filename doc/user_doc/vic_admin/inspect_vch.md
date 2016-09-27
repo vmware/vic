@@ -30,7 +30,7 @@ VCH version: <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>
 VCH upgrade status: 
 Installer has same version as VCH
 No upgrade available with this installer version</pre>
-  If `vic-machine inspect` reports a difference between the version of `vic-machine` and the version of the virtual container host, upgrade the virtual container host. 
+  If `vic-machine inspect` reports a difference between the version or build number of `vic-machine` and the version or build number of the virtual container host, the upgrade status is `Upgrade available`. 
 
   **NOTE**: In the current builds, virtual container host upgrade is not yet implemented.
 - The address of the VIC Admin portal for the virtual container host.

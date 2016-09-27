@@ -12,7 +12,7 @@ After you have installed the vSphere Web Client plug-in for vSphere Integrated C
 1. In the vSphere Web Client Home page, select **Hosts and Clusters**.
 2. Expand the hierarchy of vCenter Server objects to navigate to the virtual container host vApp.
 3. Expand the virtual container host vApp and select the virtual container host endpoint VM.
-4. Click the **Summary** tab for the virtual container host VM and scroll down to the Virtual Container Host portlet.
+4. Click the **Summary** tab for the virtual container host endpoint VM and scroll down to the Virtual Container Host portlet.
 
 **Result**
 
