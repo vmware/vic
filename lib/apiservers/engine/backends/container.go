@@ -15,7 +15,6 @@
 package backends
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -78,7 +77,8 @@ var (
 
 	portMapper portmap.PortMapper
 
-	ctx = context.TODO()
+	ctx                          = context.TODO()
+	containerFriendlyNamePattern = regexp.MustCompile(`[\w_]+`)
 )
 
 func init() {
@@ -1546,16 +1546,37 @@ func ContainerSignal(containerID string, sig uint64) error {
 	return nil
 }
 
-func getPortInformation(t *models.ContainerInfo, names []string) []types.Port {
-	var ports []types.Port
-	if len(names) == 0 {
-		log.Infof("Couldn't find container while looking up port bindings; No container names provided")
-		return ports
+func getClientIPAddrs() []netlink.Addr {
+
+	l, err := netlink.LinkByName(clientIfaceName)
+	if err != nil {
+		log.Errorf("Could not look up link from client interface name %s due to error %s",
+			clientIfaceName, err.Error())
+		return nil
+	}
+	ips, err := netlink.AddrList(l, netlink.FAMILY_V4)
+	if err != nil {
+		log.Errorf("Could not get IP addresses of link due to error %s", err.Error())
+		return nil
 	}
 
+	return ips
+}
+func getPortInformation(t *models.ContainerInfo, names []string) []types.Port {
+	if len(names) == 0 {
+		log.Infof("No container names provided; cannot get port information for unknown containers")
+		return nil
+	}
+
+	// create a port for each IP on the interface (usually only 1, if netlink.FAMILY_ALL then usually 2)
+	ips := getClientIPAddrs()
+	var ports []types.Port
+	for _, ip := range ips {
+		ports = append(ports, types.Port{IP: ip.IP.String()})
+	}
 	container := cache.ContainerCache().GetContainer(names[0])
 	if container == nil {
-		if match := regexp.MustCompile(`[\w_]+`).FindString(names[0]); match != "" {
+		if match := containerFriendlyNamePattern.FindString(names[0]); match != "" {
 			container = cache.ContainerCache().GetContainer(match)
 		} else {
 			log.Errorf("Could not find container based on incorrectly formatted name")
@@ -1564,27 +1585,31 @@ func getPortInformation(t *models.ContainerInfo, names []string) []types.Port {
 	}
 
 	portBindings := container.HostConfig.PortBindings
+	var resultPorts []types.Port
+	var err error
 
-	for _, jsonPort := range t.ContainerConfig.Ports {
-		port := new(types.Port)
-		err := json.Unmarshal([]byte(jsonPort), port)
-		if err != nil {
-			log.Errorf("Failed to unmarshal %+v due to error %s", jsonPort, err)
-			continue
-		}
-		privatePort, err := nat.NewPort(port.Type, strconv.Itoa(port.PrivatePort))
-		if err != nil {
-			log.Errorf("Got error %s while trying to create a new Port from type %s and number %d",
-				err.Error(), port.Type, port.PrivatePort)
-			continue
-		}
-		for i := 0; i < len(portBindings[privatePort]); i++ {
-			newport := port
-			newport.PublicPort, err = strconv.Atoi(portBindings[privatePort][i].HostPort)
-			ports = append(ports, *newport)
+	for _, port := range ports {
+		for portBindingPrivatePort, hostPortBindings := range portBindings {
+			portAndType := strings.SplitN(string(portBindingPrivatePort), "/", 2)
+			port.PrivatePort, err = strconv.Atoi(portAndType[0])
+			if err != nil {
+				log.Infof("Got an error trying to convert private port number to an int")
+				continue
+			}
+			port.Type = portAndType[1]
+
+			for i := 0; i < len(hostPortBindings); i++ {
+				newport := port
+				newport.PublicPort, err = strconv.Atoi(hostPortBindings[i].HostPort)
+				if err != nil {
+					log.Infof("Got an error trying to convert public port number to an int")
+					continue
+				}
+				resultPorts = append(resultPorts, newport)
+			}
 		}
 	}
-	return ports
+	return resultPorts
 }
 
 //----------------------------------

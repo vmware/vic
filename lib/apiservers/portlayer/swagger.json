@@ -2251,12 +2251,6 @@
 						"type": "string"
 					}
 				},
-				"ports": {
-				  "type": "array",
-				    "items": {
-				       "type": "string"
-				    }
-				},
 				"state": {
 					"type": "string"
 				},
