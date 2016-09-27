@@ -1,10 +1,10 @@
 *** Settings ***
 Documentation  Test 6-3 - Verify delete clean up all resources
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Test Setup  Install VIC Appliance To Test Server
 Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 
-*** Test Cases ***
+*** Keywords ***
 Initial load
     # Create container VM first
     Log To Console  \nRunning docker pull busybox...
@@ -21,7 +21,9 @@ Initial load
     Should Not Contain  ${output}  Error:
     Set Suite Variable  ${containerName}  ${name}
 
+*** Test Cases ***
 Delete VCH and verify
+    Initial load
     # Get VCH uuid and container VM uuid, to check if resources are removed correctly
     Run Keyword And Ignore Error  Gather Logs From Test Server
     ${uuid}=  Run  govc vm.info -json\=true ${vch-name} | jq -r '.VirtualMachines[0].Config.Uuid'
