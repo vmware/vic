@@ -205,7 +205,7 @@ Short name: `--cng`
 
 The gateway for the subnet of the container network. This option is required if the network that you specify in the `container-network` option does not support DHCP. Specify the gateway in the format <code><i>container_network</i>:<i>subnet</i></code>. If you specify this option, it is recommended that you also specify the  `container-network-dns` option.
 
-When you specify the container network gateway, you use the distributed port group that you specify in the `container-network `option.
+When you specify the container network gateway, you must use the distributed port group that you specify in the `container-network` option. If you specify `container-network-gateway` but you do not specify `container-network`, or if you specify a different distributed port group to the one that you specify in `container-network`, `vic-machine create` fails with an error.
 
 <pre>--container-network-gateway <i>distributed_port_group_name</i>:<i>gateway_ip_address</i>/<i>subnet_mask</i></pre>
 
@@ -219,7 +219,7 @@ Short name: `--cnd`
 
 The address of the DNS server for the container network. This option is recommended if the network that you specify in the `container-network` option does not support DHCP. 
 
-When you specify the container network DNS server, you use the distributed port group that you specify in the `container-network` option. You can specify `container-network-dns` multiple times, to configure multiple DNS servers.
+When you specify the container network DNS server, you must use the distributed port group that you specify in the `container-network` option. You can specify `container-network-dns` multiple times, to configure multiple DNS servers. If you specify `container-network-dns` but you do not specify `container-network`, or if you specify a different distributed port group to the one that you specify in `container-network`, `vic-machine create` fails with an error.
 
 <pre>--container-network-dns <i>distributed_port_group_name</i>:8.8.8.8</pre>
 
@@ -233,7 +233,7 @@ Short name: `--cnr`
 
 The range of IP addresses that container VMs can use if the network that you specify in the `container-network` option does not support DHCP. If you do not specify this option, the IP range for container VMs is the entire subnet that you specify in `container-network-gateway`.
 
-When you specify the container network IP range, you use the distributed port group that you specify in the `container-network `option.
+When you specify the container network IP range, you must use the distributed port group that you specify in the `container-network `option. If you specify `container-network-ip-range` but you do not specify `container-network`, or if you specify a different distributed port group to the one that you specify in `container-network`, `vic-machine create` fails with an error.
 
 <pre>--container-network-ip-range <i>distributed_port_group_name</i>:192.168.100.2-192.168.100.254</pre>
 
