@@ -1,6 +1,6 @@
-# Find Virtual Container Host Information in the vSphere Web Client #
+# Verify the Deployment of the vSphere Integrated Containers Engine Plug-In #
 
-After you have installed the vSphere Web Client plug-in for vSphere Integrated Containers Engine, you can find information about virtual container hosts in the vSphere Web Client.
+After you have installed the vSphere Web Client plug-in for vSphere Integrated Containers Engine, verify the deployment of the plug-in in the vSphere Web Client.
 
 **Prerequisites**
 
@@ -20,4 +20,3 @@ Information about the virtual container host appears in the Virtual Container Ho
 
 -  The address of the Docker API endpoint for this virtual container host
 -  A link to the vic-admin portal for the virtual container host, from which you can obtain health information and download log bundles for the virtual container host.
-
