@@ -13,6 +13,21 @@ Assert VM Power State
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info -json ${name}-* | jq -r .VirtualMachines[].Runtime.PowerState
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal  ${output}  ${state}
+    
+Create several containers
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${container2}=  Run And Return Rc And Output  docker ${params} create busybox ls
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container2}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${container1}=  Run And Return Rc And Output  docker ${params} create busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container1}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${container3}=  Run And Return Rc And Output  docker ${params} create busybox dmesg
+    Should Be Equal As Integers  ${rc}  0
+    Wait Until VM Powers Off  *-${container2}
 
 *** Test Cases ***
 Empty docker ps command
@@ -29,33 +44,30 @@ Empty docker ps command
     Length Should Be  ${output}  1
 
 Docker ps only running containers
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container2}=  Run And Return Rc And Output  docker ${params} create busybox ls
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container2}
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container1}=  Run And Return Rc And Output  docker ${params} create busybox /bin/top
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${container1}
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${container3}=  Run And Return Rc And Output  docker ${params} create busybox dmesg
-    Should Be Equal As Integers  ${rc}  0
-    Wait Until VM Powers Off  *-${container2}
+    ${output}=  Split To Lines  ${output}
+    ${len}=  Get Length  ${output}
+    Create several containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  /bin/top
     ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  2
-
+    Length Should Be  ${output}  ${len+1}
+    
 Docker ps all containers
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
+    Should Be Equal As Integers  ${rc}  0
+    ${output}=  Split To Lines  ${output}
+    ${len}=  Get Length  ${output}
+    Create several containers 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  /bin/top
     Should Contain  ${output}  dmesg
     Should Contain  ${output}  ls
     ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  4
+    Length Should Be  ${output}  ${len+3}
 
 Docker ps powerOn container OOB
     ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name jojo busybox /bin/top
@@ -63,7 +75,7 @@ Docker ps powerOn container OOB
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  1
+    ${len}=  Get Length  ${output}
     # powerOn container VM out-of-band
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -on ${vch-name}/"jojo*"
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.power -on "jojo*"
@@ -72,39 +84,49 @@ Docker ps powerOn container OOB
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  2
+    Length Should Be  ${output}  ${len+1}
 
 Docker ps powerOff container OOB
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name koko busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start koko
+    Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  2
+    ${len}=  Get Length  ${output}
     # PowerOff VM out-of-band
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -off ${vch-name}/"jojo*"
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -off ${vch-name}/"koko*"
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.power -off "jojo*"
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.power -off "koko*"
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    Wait Until VM Powers Off  "jojo*"
+    Wait Until VM Powers Off  "koko*"
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  1
+    Length Should Be  ${output}  ${len-1}
 
 Docker ps Remove container OOB
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name lolo busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start lolo
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop lolo
+    Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  4
+    ${len}=  Get Length  ${output}
     # Remove container VM out-of-band
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy ${vch-name}/"jojo*"
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy ${vch-name}/"lolo*"
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "jojo*"
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "lolo*"
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    Wait Until VM Is Destroyed  "jojo*"
+    Wait Until VM Is Destroyed  "lolo*"
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  3
+    Length Should Be  ${output}  ${len-1}
 
 Docker ps last container
     ${status}=  Get State Of Github Issue  1545
@@ -140,13 +162,17 @@ Docker ps last container with size
 
 Docker ps all containers with only IDs
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq
+    ${output}=  Split To Lines  ${output}
+    ${len}=  Get Length  ${output}
+    Create several containers 
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  CONTAINER ID
     Should Not Contain  ${output}  /bin/top
     Should Not Contain  ${output}  dmesg
     Should Not Contain  ${output}  ls
     ${output}=  Split To Lines  ${output}
-    Length Should Be  ${output}  3
+    Length Should Be  ${output}  ${len+3}
 
 Docker ps with filter
     ${status}=  Get State Of Github Issue  1676
