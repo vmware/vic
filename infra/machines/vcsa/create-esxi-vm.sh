@@ -180,6 +180,9 @@ else
     action="create"
 fi
 
+echo "Disabling VSAN device monitoring"
+govc host.esxcli system settings advanced set -o /LSOM/VSANDeviceMonitoring -i 0
+
 echo "ESX host account $action for user $username..."
 govc host.account.$action -id $username -password "$password"
 
