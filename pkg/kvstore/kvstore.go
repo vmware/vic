@@ -39,15 +39,17 @@ type KeyValueStore struct {
 
 	fileName string
 
-	l sync.Mutex
+	l sync.RWMutex
 }
 
 type Backend interface {
-	// Creates path and ovewrites whatever is there
+	// Creates path and overwrites whatever is there.
 	Upload(ctx context.Context, r io.Reader, pth string) error
 
+	// Downloads from the given path.
 	Download(ctx context.Context, pth string) (io.ReadCloser, error)
 
+	// Moves the given path.
 	Mv(ctx context.Context, fromPath, toPath string) error
 }
 
@@ -88,10 +90,9 @@ func (p *KeyValueStore) restore(op trace.Operation) error {
 	return nil
 }
 
-// Add a key to the KeyValueStore with the given value.  The Add operation is
-// write-through consistent, which means it will sync the data to the backend
-// before updating the in-memory state and returning to the caller.
-func (p *KeyValueStore) Add(op trace.Operation, key string, value []byte) error {
+// Set a key to the KeyValueStore with the given value.  If they key already
+// exists, the value is overwritten.
+func (p *KeyValueStore) Set(op trace.Operation, key string, value []byte) error {
 	p.l.Lock()
 	defer p.l.Unlock()
 
@@ -116,8 +117,8 @@ func (p *KeyValueStore) Add(op trace.Operation, key string, value []byte) error 
 
 // Get retrieves a key from the KeyValueStore.
 func (p *KeyValueStore) Get(op trace.Operation, key string) ([]byte, error) {
-	p.l.Lock()
-	defer p.l.Unlock()
+	p.l.RLock()
+	defer p.l.RUnlock()
 
 	v, ok := p.kv[key]
 	if !ok {

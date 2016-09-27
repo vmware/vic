@@ -60,7 +60,7 @@ func (m *MockBackend) Mv(ctx context.Context, fromPath, toPath string) error {
 func save(t *testing.T, kv *KeyValueStore, key string, expectedvalue []byte) {
 	op := trace.NewOperation(context.Background(), "save")
 
-	if !assert.NoError(t, kv.Add(op, key, expectedvalue)) {
+	if !assert.NoError(t, kv.Set(op, key, expectedvalue)) {
 		return
 	}
 }
