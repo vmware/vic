@@ -205,7 +205,7 @@ Short name: `--cng`
 
 The gateway for the subnet of the container network. This option is required if the network that you specify in the `container-network` option does not support DHCP. Specify the gateway in the format <code><i>container_network</i>:<i>subnet</i></code>. If you specify this option, it is recommended that you also specify the  `container-network-dns` option.
 
-When you specify the container network gateway, you use the distributed port group that you specify in the `container-network `option.
+When you specify the container network gateway, you must use the distributed port group that you specify in the `container-network` option. If you specify `container-network-gateway` but you do not specify `container-network`, or if you specify a different distributed port group to the one that you specify in `container-network`, `vic-machine create` fails with an error.
 
 <pre>--container-network-gateway <i>distributed_port_group_name</i>:<i>gateway_ip_address</i>/<i>subnet_mask</i></pre>
 
@@ -219,7 +219,7 @@ Short name: `--cnd`
 
 The address of the DNS server for the container network. This option is recommended if the network that you specify in the `container-network` option does not support DHCP. 
 
-When you specify the container network DNS server, you use the distributed port group that you specify in the `container-network` option. You can specify `container-network-dns` multiple times, to configure multiple DNS servers.
+When you specify the container network DNS server, you must use the distributed port group that you specify in the `container-network` option. You can specify `container-network-dns` multiple times, to configure multiple DNS servers. If you specify `container-network-dns` but you do not specify `container-network`, or if you specify a different distributed port group to the one that you specify in `container-network`, `vic-machine create` fails with an error.
 
 <pre>--container-network-dns <i>distributed_port_group_name</i>:8.8.8.8</pre>
 
@@ -233,7 +233,7 @@ Short name: `--cnr`
 
 The range of IP addresses that container VMs can use if the network that you specify in the `container-network` option does not support DHCP. If you do not specify this option, the IP range for container VMs is the entire subnet that you specify in `container-network-gateway`.
 
-When you specify the container network IP range, you use the distributed port group that you specify in the `container-network `option.
+When you specify the container network IP range, you must use the distributed port group that you specify in the `container-network `option. If you specify `container-network-ip-range` but you do not specify `container-network`, or if you specify a different distributed port group to the one that you specify in `container-network`, `vic-machine create` fails with an error.
 
 <pre>--container-network-ip-range <i>distributed_port_group_name</i>:192.168.100.2-192.168.100.254</pre>
 
@@ -275,6 +275,11 @@ The `vic-machine` utility allows you to specify the datastores in which to store
 
 - vSphere Integrated Containers Engine fully supports VMware Virtual SAN datastores. 
 - vSphere Integrated Containers Engine supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters.
+- If you specify different datastores in the different datastore options, and if no single host in a cluster can access all of those datastores, `vic-machine create` fails with an error.<pre>No single host can access all of the requested datastores. 
+Installation cannot continue.</pre>
+- If you specify different datastores in the different datastore options, and if only one host in a cluster can access all of them, `vic-machine create` succeeds with a warning.<pre>Only one host can access all of the image/container/volume datastores. 
+This may be a point of contention/performance degradation and HA/DRS 
+may not work as intended.</pre> 
 
 ### `image-store` ###
 
@@ -314,6 +319,8 @@ If you are deploying the virtual container host to a vCenter Server cluster, the
 You can designate the same datastore as the volume store for multiple virtual container hosts.
 
 The label that you specify is the volume store name that Docker uses. For example, the volume store label appears in the information for a virtual container host when container developers run `docker info`. Container developers also specify the volume store label in the <code>docker volume create --opt VolumeStore=<i>volume_store_label</i></code> option when they create a  volume.
+
+**IMPORTANT** If you do not specify the `volume-store` option, no  volume store is created and container developers cannot use the `docker volume create` command.
 
 - If you only require one volume store, you can set the volume store label to `default`. If you set the volume store label to `default`, container developers do not need to specify the <code>--opt VolumeStore=<i>volume_store_label</i></code> option when they run `docker volume create`. 
 

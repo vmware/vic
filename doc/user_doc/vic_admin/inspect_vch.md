@@ -19,11 +19,28 @@ You have deployed a virtual container host.
 
 **Result**
 
-The `vic-machine inspect` command displays the connection information about the virtual container host:
+The `vic-machine inspect` command displays information about the virtual container host:
 
-<pre>vic-admin portal:
-https://<i>vch_address</i>:2378
-DOCKER_HOST=<i>vch_address</i>:2376
-Connect to docker:
-docker -H <i>vch_address</i>:2376 --tls info
-Completed successfully</pre>
+- The virtual container host ID:
+  
+  <pre>VCH ID: VirtualMachine:vm-101</pre> You can use virtual container host ID when you run the `vic-machine delete` command. Using a virtual container host ID reduces the number of options that you need to specify when you use `vic-machine delete`.
+- The version of the `vic-machine` utility and the version of the virtual container host that you are inspecting.
+  <pre>Installer version: <i>vic_machine_version</i>-<i>vic_machine_build</i>-<i>tag</i>
+VCH version: <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>
+VCH upgrade status: 
+Installer has same version as VCH
+No upgrade available with this installer version</pre>
+  If `vic-machine inspect` reports a difference between the version or build number of `vic-machine` and the version or build number of the virtual container host, the upgrade status is `Upgrade available`. 
+
+  **NOTE**: In the current builds, virtual container host upgrade is not yet implemented.
+- The address of the VIC Admin portal for the virtual container host.
+  
+  <pre>vic-admin portal:
+https://<i>vch_address</i>:2378</pre>
+
+- The address of the Docker endpoint.
+
+  <pre>DOCKER_HOST=<i>vch_address</i>:2376</pre>
+- The Docker command to use to connect to the Docker endpoint.
+  <pre>Connect to docker:
+docker -H <i>vch_address</i>:2376 --tls info</pre>

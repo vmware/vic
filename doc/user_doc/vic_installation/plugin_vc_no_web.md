@@ -22,3 +22,6 @@ You can install the vSphere Web Client plug-in for vSphere Integrated Containers
 7. Open a command prompt, navigate to <code><i>vic_unpack_dir</i>\vic\ui\vCenterForWindows</code>, and run the installer.<pre>install.bat</pre>
 9. Enter the user name and password for the vCenter Server administrator account.
 10. When installation finishes, if you are logged into the vSphere Web Client, log out then log back in again.
+
+**What to Do Next**
+Check that the deployment has succeeded by following the procedure in [Verify the Deployment of the vSphere Integrated Containers Engine Plug-In](plugin_verify_deployment.md).
