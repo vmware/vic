@@ -15,10 +15,12 @@
 package backends
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -50,7 +52,6 @@ import (
 
 	"github.com/vishvananda/netlink"
 
-	"encoding/json"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/portmap"
@@ -61,7 +62,6 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
-	"regexp"
 )
 
 const (
@@ -1549,12 +1549,11 @@ func ContainerSignal(containerID string, sig uint64) error {
 func getPortInformation(t *models.ContainerInfo, names []string) []types.Port {
 	var ports []types.Port
 	if len(names) == 0 {
-		log.Errorf("Couldn't find container while looking up port bindings; No container names provided")
+		log.Infof("Couldn't find container while looking up port bindings; No container names provided")
 		return ports
 	}
 
-	var container *viccontainer.VicContainer
-	container = cache.ContainerCache().GetContainer(names[0])
+	container := cache.ContainerCache().GetContainer(names[0])
 	if container == nil {
 		if match := regexp.MustCompile(`[\w_]+`).FindString(names[0]); match != "" {
 			container = cache.ContainerCache().GetContainer(match)
