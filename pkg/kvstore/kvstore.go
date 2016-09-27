@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"sync"
 
 	"github.com/vmware/vic/pkg/trace"
@@ -82,12 +81,7 @@ func (p *KeyValueStore) restore(op trace.Operation) error {
 	}
 	defer rc.Close()
 
-	buf, err := ioutil.ReadAll(rc)
-	if err != nil {
-		return err
-	}
-
-	if err = json.Unmarshal(buf, &p.kv); err != nil {
+	if err = json.NewDecoder(rc).Decode(&p.kv); err != nil {
 		return err
 	}
 
