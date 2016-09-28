@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"sync"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/vim25/types"
@@ -37,7 +38,8 @@ const VolumesDir = "volumes"
 type VolumeStore struct {
 
 	// maps datastore uri (volume store) to datastore
-	ds map[url.URL]*datastore.Helper
+	ds     map[url.URL]*datastore.Helper
+	dsLock sync.RWMutex
 
 	// wraps our vmdks and filesystem primitives.
 	dm *disk.Manager
@@ -68,6 +70,9 @@ func NewVolumeStore(ctx context.Context, s *session.Session) (*VolumeStore, erro
 //
 // returns the URL used to refer to the volume store
 func (v *VolumeStore) AddStore(ctx context.Context, ds *datastore.Helper, storeName string) (*url.URL, error) {
+	v.dsLock.Lock()
+	defer v.dsLock.Unlock()
+
 	u, err := util.VolumeStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
@@ -87,6 +92,10 @@ func (v *VolumeStore) AddStore(ctx context.Context, ds *datastore.Helper, storeN
 
 func (v *VolumeStore) VolumeStoresList(ctx context.Context) (map[string]url.URL, error) {
 	m := make(map[string]url.URL)
+
+	v.dsLock.RLock()
+	defer v.dsLock.RUnlock()
+
 	for u, ds := range v.ds {
 
 		// Get the ds:// URL given the datastore url ("[datastore] /path")
@@ -108,6 +117,10 @@ func (v *VolumeStore) VolumeStoresList(ctx context.Context) (map[string]url.URL,
 }
 
 func (v *VolumeStore) getDatastore(store *url.URL) (*datastore.Helper, error) {
+
+	v.dsLock.RLock()
+	defer v.dsLock.RUnlock()
+
 	// find the datastore
 	dstore, ok := v.ds[*store]
 	if !ok {
@@ -199,8 +212,10 @@ func (v *VolumeStore) VolumeGet(ctx context.Context, ID string) (*storage.Volume
 }
 
 func (v *VolumeStore) VolumesList(ctx context.Context) ([]*storage.Volume, error) {
-
 	volumes := []*storage.Volume{}
+
+	v.dsLock.RLock()
+	defer v.dsLock.RUnlock()
 
 	for volStore, vols := range v.ds {
 
