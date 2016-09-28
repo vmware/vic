@@ -120,7 +120,7 @@ func (c *Container) NewHandle() *Handle {
 }
 
 func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int32) error {
-	defer trace.End(trace.Begin("Committing handle"))
+	defer trace.End(trace.Begin(h.ExecConfig.ID))
 
 	// hold the event that has occurred
 	var commitEvent string
@@ -223,7 +223,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 // Start starts a container vm with the given params
 func (c *Container) start(ctx context.Context) error {
-	defer trace.End(trace.Begin("Container.start"))
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
@@ -265,6 +265,7 @@ func (c *Container) start(ctx context.Context) error {
 }
 
 func (c *Container) waitForPowerState(ctx context.Context, max time.Duration, state types.VirtualMachinePowerState) (bool, error) {
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 	timeout, cancel := context.WithTimeout(ctx, max)
 	defer cancel()
 
@@ -277,6 +278,7 @@ func (c *Container) waitForPowerState(ctx context.Context, max time.Duration, st
 }
 
 func (c *Container) shutdown(ctx context.Context, waitTime *int32) error {
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 	wait := 10 * time.Second // default
 	if waitTime != nil && *waitTime > 0 {
 		wait = time.Duration(*waitTime) * time.Second
@@ -313,7 +315,7 @@ func (c *Container) shutdown(ctx context.Context, waitTime *int32) error {
 }
 
 func (c *Container) stop(ctx context.Context, waitTime *int32) error {
-	defer trace.End(trace.Begin("Container.stop"))
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
@@ -353,6 +355,7 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 }
 
 func (c *Container) startGuestProgram(ctx context.Context, name string, args string) error {
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 	o := guest.NewOperationsManager(c.vm.Client.Client, c.vm.Reference())
 	m, err := o.ProcessManager(ctx)
 	if err != nil {
@@ -374,7 +377,7 @@ func (c *Container) startGuestProgram(ctx context.Context, name string, args str
 }
 
 func (c *Container) Signal(ctx context.Context, num int64) error {
-	defer trace.End(trace.Begin("Container.Signal"))
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
@@ -394,7 +397,7 @@ func (c *Container) onStop() {
 }
 
 func (c *Container) LogReader(ctx context.Context, tail int, follow bool) (io.ReadCloser, error) {
-	defer trace.End(trace.Begin("Container.LogReader"))
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 
 	if c.vm == nil {
 		return nil, fmt.Errorf("vm not set")
@@ -452,7 +455,7 @@ func (r RemovePowerError) Error() string {
 
 // Remove removes a containerVM after detaching the disks
 func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
-	defer trace.End(trace.Begin("Container.Remove"))
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 	c.m.Lock()
 	defer c.m.Unlock()
 
@@ -531,7 +534,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 }
 
 func (c *Container) Update(ctx context.Context, sess *session.Session) (*executor.ExecutorConfig, error) {
-	defer trace.End(trace.Begin("Container.Update"))
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 	c.m.Lock()
 	defer c.m.Unlock()
 
@@ -551,6 +554,7 @@ func (c *Container) Update(ctx context.Context, sess *session.Session) (*executo
 
 // get the containerVMs from infrastructure for this resource pool
 func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, error) {
+	defer trace.End(trace.Begin(""))
 	var rp mo.ResourcePool
 
 	// popluate the vm property of the vch resource pool
@@ -582,6 +586,7 @@ func instanceUUID(id string) (string, error) {
 
 // find the childVM for this resource pool by name
 func childVM(ctx context.Context, sess *session.Session, name string) (*vm.VirtualMachine, error) {
+	defer trace.End(trace.Begin(""))
 	// Search container back through instance UUID
 	uuid, err := instanceUUID(name)
 	if err != nil {
@@ -606,6 +611,7 @@ func childVM(ctx context.Context, sess *session.Session, name string) (*vm.Virtu
 
 // populate the vm attributes for the specified morefs
 func populateVMAttributes(ctx context.Context, sess *session.Session, refs []types.ManagedObjectReference) ([]mo.VirtualMachine, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("populating %d refs", len(refs))))
 	var vms []mo.VirtualMachine
 
 	// current attributes we care about
@@ -618,6 +624,7 @@ func populateVMAttributes(ctx context.Context, sess *session.Session, refs []typ
 
 // convert the infra containers to a container object
 func convertInfraContainers(ctx context.Context, sess *session.Session, vms []mo.VirtualMachine) []*Container {
+	defer trace.End(trace.Begin(fmt.Sprintf("converting %d containers", len(vms))))
 	var cons []*Container
 
 	for _, v := range vms {

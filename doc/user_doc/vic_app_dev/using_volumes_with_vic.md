@@ -1,7 +1,14 @@
 # Using Volumes with vSphere Integrated Containers Engine #
 
-vSphere Integrated Containers Engine supports the use of container volumes. When you create or the vSphere Administrator creates a virtual container host, you or the Administrator specify the datastore to use to store container volumes in the `vic-machine create --volume-store` option. For information about how to use the `vic-machine create --volume-store` option, see the section on `volume-store` in [Virtual Container Host Deployment Options](../vic_installation/vch_installer_options.html#volume-store) in *vSphere Integrated Containers Engine Installation and Configuration*.   
+vSphere Integrated Containers Engine supports the use of container volumes. When you create or the vSphere Administrator creates a virtual container host, you or the Administrator specify the datastore to use to store container volumes in the `vic-machine create --volume-store` option. For information about how to use the `vic-machine create --volume-store` option, see the section on `volume-store` in [Virtual Container Host Deployment Options](../vic_installation/vch_installer_options.html#volume-store) in *vSphere Integrated Containers Engine Installation*.  
 
+- [Obtain the List of Available Volume Stores](#list_vs) 
+- [Obtain the List of Available Volumes](#list_vols)
+- [Create a Volume in a Volume Store](#create_vol)
+- [Create a Container and Attach it to an Anonymous or Named Volume](#create_container)
+- [Delete a Named Volume from a Volume Store](#delete_vol) 
+
+<a name="list_vs"></a>
 ## Obtain the List of Available Volume Stores ##
 
 To obtain the list of volume stores that are available on a virtual container host, run `docker info`.
@@ -16,6 +23,20 @@ VolumeStores: <i>volume_store_1</i> <i>volume_store_2</i> ... <i>volume_store_n<
 vSphere Integrated Containers Backend Engine: RUNNING
 [...]</pre>
 
+<a name="list_vols"></a>
+## Obtain the List of Available Volumes ##
+
+To obtain a list of volumes that are available on a virtual container host, run `docker volume ls`.
+
+<pre>docker -H <i>virtual_container_host_address</i>:2376 --tls volume ls
+
+DRIVER         VOLUME NAME
+vsphere        <i>volume_1</i>
+vsphere        <i>volume_2</i>
+[...]          [...]
+vsphere        <i>volume_n</i></pre>
+
+<a name="create_vol"></a>
 ## Create a Volume in a Volume Store ##
 
 When you use the `docker volume create` command to create a volume, you can optionally provide a name for the volume by specifying the `--name` option. If you do not specify `--name`, `docker volume create` assigns a random UUID to the volume.
@@ -31,13 +52,6 @@ When you use the `docker volume create` command to create a volume, you can opti
   <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls volume create 
 --name <i>volume_name</i></pre>
 
-- If you intend to create anonymous volumes by using `docker create -v`, a volume store named `default` must exist. In this case, you include the path to the destination at which you want to mount an anonymous volume in the `docker create -v` command. Docker creates the volume in the `default` volume store, if it exists.
-
-  <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls create 
--v <i>destination_path_for_anonymous_volume</i> busybox</pre>
-
-  **NOTE**: If you use `docker create -v`, vSphere Integrated Containers Engine only supports the `-r` and `-rw` options.
-
 - You can optionally set the capacity of a volume by specifying the `--opt Capacity` option when you run `docker volume create`. If you do not specify the `--opt Capacity` option, the volume is created with the default capacity of 1024MB. 
 
   If you do not specify a unit for the capacity, the default unit will be in Megabytes.
@@ -52,21 +66,37 @@ When you use the `docker volume create` command to create a volume, you can opti
 --opt Capacity=10GB
 --name <i>volume_name</i></pre>
 
+After you create a volume by using docker volume create, you can attach it to a container by running either of the following commands:
 
-**NOTE**: When using a vSphere Integrated Containers Engine virtual container host as your Docker endpoint, the storage driver is always the vSphere Integrated Containers Engine Backend Engine. If you specify the `docker volume create --driver` option, it is ignored.  
+<pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
+create -v /<i>volume_name</i> busybox</pre>
+<pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
+run -v /<i>volume_name</i> busybox</pre>
 
-## Obtain the List of Available Volumes ##
+**NOTE**: When using a vSphere Integrated Containers Engine virtual container host as your Docker endpoint, the storage driver is always the vSphere Integrated Containers Engine Backend Engine. If you specify the `docker volume create --driver` option, it is ignored.
 
-To obtain a list of volumes that are available on a virtual container host, run `docker volume ls`.
+<a name="create_container"></a>
+## Create a Container and Attach it to an Anonymous or Named Volume ##
 
-<pre>docker -H <i>virtual_container_host_address</i>:2376 --tls volume ls
+If you intend to create named or anonymous volumes by using `docker create -v` when creating containers, a volume store named `default` must exist in the virtual container host. In this case, you include the path to the destination at which you want to mount an anonymous volume in the `docker create -v` command. Docker creates the anonymous volume in the `default` volume store, if it exists. The virtual container host attaches the anonymous volume to the container.
 
-DRIVER         VOLUME NAME
-vsphere        <i>volume_1</i>
-vsphere        <i>volume_2</i>
-[...]          [...]
-vsphere        <i>volume_n</i></pre>
+For example, to create a busybox container that is mounted to the `volumes` folder of an anonymous volume in the default volume store, run the following command:
 
+<pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
+create -v /volumes busybox</pre>
+
+You can create containers that are attached to named volumes by using `docker create -v` and specifying a volume name. When you create containers that are attached to named volumes, the virtual container host checks whether the volume exists in the volume store, and if it does not, creates it. The virtual container host attaches the existing or new volume to the container.
+
+For example, to create a busybox container that is mounted to the `volumes` folder of a volume named `volume_1` in the default volume store, run the following command:
+
+<pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
+create -v volume_1:/volumes busybox</pre>
+
+**NOTES**: 
+- vSphere Integrated Containers Engine does not support mounting directories as data volumes. A command such as <code>docker create -v /<i>folder_name</i>:/<i>folder_name</i> busybox</code> is not supported.
+- If you use `docker create -v` to create containers that are attached to volumes, vSphere Integrated Containers Engine only supports the `-r` and `-rw` options.
+
+<a name="delete_vol"></a>
 ## Delete a Named Volume from a Volume Store ##
 To delete a volume, run `docker volume rm` and specify the name of the volume to delete.
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
