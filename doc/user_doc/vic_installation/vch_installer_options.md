@@ -394,6 +394,20 @@ Wrap the folder names in the paths in single quotes (Linux or Mac OS) or double 
 <pre>--cert '<i>path to certificate file</i>'/<i>certificate_file_name</i>.pem 
 --key '<i>path to key file</i>'/<i>key_file_name</i>.pem</pre>
 
+<a name="registry"></a>
+### `docker-insecure-registry` ###
+
+Short name: `--dir`
+
+If your Docker environment stores Docker images in an insecure registry server, you must configure virtual container hosts to connect to this registry server when you deploy them. An insecure registry server is a registry server that is secured by self-signed certificates rather than by TLS. You authorize connections from a virtual container host to an insecure registry server by setting the `docker-insecure-registry` option.
+
+You can specify `docker-insecure-registry` multiple times to allow connections from the virtual container host to multiple insecure registry servers.
+
+If your Docker setup uses TLS, you do not need to specify this option.
+
+<pre>--docker-insecure-registry <i>registry_URL_1</i>
+--docker-insecure-registry <i>registry_URL_2</i></pre>
+
 <a name="deployment"></a>
 ## vApp Deployment Options ##
 
