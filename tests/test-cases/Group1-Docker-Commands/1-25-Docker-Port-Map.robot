@@ -12,9 +12,11 @@ Create container with port mappings
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start webserver
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  wget ${vch-ip}:10000 --retry-connrefused --timeout=10 --tries=10
+    ${rc}  ${output}=  Run And Return Rc And Output  wget ${vch-ip}:10000 --retry-connrefused --timeout=10
+    Log To Console  ${output}
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  wget ${vch-ip}:10001 --retry-connrefused --timeout=10 --tries=10
+    ${rc}  ${output}=  Run And Return Rc And Output  wget ${vch-ip}:10001 --retry-connrefused --timeout=10
+    Log To Console  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop webserver
     Should Be Equal As Integers  ${rc}  0
