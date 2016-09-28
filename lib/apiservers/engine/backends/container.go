@@ -1570,7 +1570,7 @@ func getPortInformation(t *models.ContainerInfo) []types.Port {
 	}
 	container := cache.ContainerCache().GetContainer(*t.ContainerConfig.ContainerID)
 	if container == nil {
-		log.Errorf("Could not find container based on incorrectly formatted name")
+		log.Errorf("Could not find container with ID %s", *t.ContainerConfig.ContainerID)
 		return ports
 	}
 
