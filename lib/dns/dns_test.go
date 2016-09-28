@@ -21,6 +21,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
@@ -97,21 +98,23 @@ func TestVIC(t *testing.T) {
 	n.InventoryPath = "testBridge"
 	bridgeNetwork = n
 
-	config := &network.Configuration{
-		BridgeNetwork: "lo",
-		ContainerNetworks: map[string]*network.ContainerNetwork{
-			"lo": {
-				Common: executor.Common{
-					Name: "testBridge",
+	conf := &network.Configuration{
+		NetworkConfig: config.NetworkConfig{
+			BridgeNetwork: "lo",
+			ContainerNetworks: map[string]*executor.ContainerNetwork{
+				"lo": {
+					Common: executor.Common{
+						Name: "testBridge",
+					},
+					PortGroup: bridgeNetwork,
+					Type:      constants.BridgeScopeType,
 				},
-				PortGroup: bridgeNetwork,
-				Type:      constants.BridgeScopeType,
 			},
 		},
 	}
 
 	// initialize the context
-	ctx, err := network.NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), config)
+	ctx, err := network.NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), conf)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}

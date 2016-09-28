@@ -17,6 +17,7 @@ package executor
 import (
 	"net"
 
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/ip"
 )
 
@@ -66,4 +67,6 @@ type ContainerNetwork struct {
 
 	// set of network wide links and aliases for this container on this network
 	Aliases []string `vic:"0.1" scope:"hidden" key:"aliases"`
+
+	PortGroup object.NetworkReference `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 }

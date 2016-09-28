@@ -46,14 +46,14 @@ func TestDatastoreGetDatastores(t *testing.T) {
 	t.Logf("  Capacity:\t%.1f GB\n", float64(firstSummary.Capacity)/(1<<30))
 	t.Logf("  Free:\t%.1f GB\n", float64(firstSummary.FreeSpace)/(1<<30))
 
-	inMap := make(map[string]url.URL)
+	inMap := make(map[string]*url.URL)
 
 	p, err := url.Parse(ds.RootURL)
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	inMap["foo"] = *p
+	inMap["foo"] = p
 
 	dstores, err := GetDatastores(context.TODO(), ds.s, inMap)
 	if !assert.NoError(t, err) || !assert.NotNil(t, dstores) {

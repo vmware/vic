@@ -439,7 +439,7 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 	}
 
 	// add the new scope to the config
-	c.config.ContainerNetworks[s.Name()] = &ContainerNetwork{
+	c.config.ContainerNetworks[s.Name()] = &executor.ContainerNetwork{
 		Common: executor.Common{
 			ID:   s.ID().String(),
 			Name: s.Name(),

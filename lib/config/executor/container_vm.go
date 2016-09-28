@@ -141,9 +141,6 @@ type ExecutorConfig struct {
 	// TODO: a bit docker specific
 	RepoName string `vic:"0.1" scope:"read-only" key:"repo"`
 
-	// StopSignal is the signal name or number used to stop a container
-	StopSignal string `vic:"0.1" scope:"read-only" key:"stopSignal"`
-
 	// version
 	Version *version.Build `vic:"0.1" scope:"read-only" key:"version"`
 }
@@ -185,6 +182,9 @@ type SessionConfig struct {
 	Started string `vic:"0.1" scope:"read-write" key:"started"`
 
 	Restart bool `vic:"0.1" scope:"read-only" key:"restart"`
+
+	// StopSignal is the signal name or number used to stop container session
+	StopSignal string `vic:"0.1" scope:"read-only" key:"stopSignal"`
 
 	// Diagnostics holds basic diagnostics data
 	Diagnostics Diagnostics `vic:"0.1" scope:"read-only" key:"diagnostics"`

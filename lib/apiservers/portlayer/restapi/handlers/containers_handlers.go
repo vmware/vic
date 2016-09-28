@@ -112,12 +112,12 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 					Path: *params.CreateConfig.Path,
 					Args: append([]string{*params.CreateConfig.Path}, params.CreateConfig.Args...),
 				},
+				StopSignal: *params.CreateConfig.StopSignal,
 			},
 		},
-		Key:        pem.EncodeToMemory(&privateKeyBlock),
-		LayerID:    *params.CreateConfig.Image,
-		RepoName:   *params.CreateConfig.RepoName,
-		StopSignal: *params.CreateConfig.StopSignal,
+		Key:      pem.EncodeToMemory(&privateKeyBlock),
+		LayerID:  *params.CreateConfig.Image,
+		RepoName: *params.CreateConfig.RepoName,
 	}
 	if params.CreateConfig.Annotations != nil && len(params.CreateConfig.Annotations) > 0 {
 		m.Annotations = make(map[string]string)

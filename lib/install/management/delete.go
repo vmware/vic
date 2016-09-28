@@ -97,6 +97,10 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 	var err error
 	var children []*vm.VirtualMachine
 
+	if len(conf.ComputeResources) == 0 {
+		err = errors.Errorf("Cannot find compute resources from configuration, please delete VCH manually")
+		return err
+	}
 	rpRef := conf.ComputeResources[len(conf.ComputeResources)-1]
 	ref, err := d.session.Finder.ObjectReference(d.ctx, rpRef)
 	if err != nil {
