@@ -105,7 +105,7 @@ Connect containers to multiple networks overlapping
 #    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
 #    Should Be Equal As Integers  ${rc}  0
 
-#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --network cross3-network --name cross3-container3 busybox ping -c2 cross3-container
+#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --network cross3-network --name cross3-container3 busybox /bin/sh -c "ping -c2 cross3-container && ping -c2 cross3-container2"
 #    Should Be Equal As Integers  ${rc}  0
 #    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect cross3-network2 ${containerID}
 #    Should Be Equal As Integers  ${rc}  0
@@ -113,14 +113,4 @@ Connect containers to multiple networks overlapping
 #    Should Be Equal As Integers  ${rc}  0
 #    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow cross3-container3
 #    Should Be Equal As Integers  ${rc}  0
-#    Should Contain  ${output}  2 packets transmitted, 2 packets received
-
-#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --network cross3-network --name cross3-container4 busybox ping -c2 cross3-container2
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect cross3-network2 ${containerID}
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow cross3-container4
-#    Should Be Equal As Integers  ${rc}  0
-#    Should Contain  ${output}  2 packets transmitted, 2 packets received
+#    Should Contain X Times  ${output}  2 packets transmitted, 2 packets received  2
