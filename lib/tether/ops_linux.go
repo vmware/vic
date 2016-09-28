@@ -30,6 +30,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"bytes"
 	log "github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 
@@ -581,7 +582,8 @@ func (t *BaseOperations) dhcpLoop(stop chan bool, e *NetworkEndpoint, ack *dhcp.
 	}
 }
 
-// MountLabel performs a mount with the label and target being absolute paths
+// MountLabel performs a mount by looking up a fsinfo from the device map using the volume label
+// the value of the map is the fsinfo object which has the device path.
 func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", label, target)))
 
@@ -589,27 +591,12 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) e
 		return fmt.Errorf("unable to create mount point %s: %s", target, err)
 	}
 
-	// convert the label to a filesystem path
-	label = "/dev/disk/by-label/" + label
-
-	// do..while ! timedout
-	var timeout bool
-	for timeout = false; !timeout; {
-		_, err := os.Stat(label)
-		if err == nil || !os.IsNotExist(err) {
-			break
-		}
-
-		deadline, ok := ctx.Deadline()
-		timeout = ok && time.Now().After(deadline)
+	blockInfo, ok := DeviceMap[label]
+	if !ok {
+		return fmt.Errorf(fmt.Sprintf("Could not find block device (%s) when attempting to perform mount operation", label))
 	}
 
-	if timeout {
-		detail := fmt.Sprintf("timed out waiting for %s to appear", label)
-		return errors.New(detail)
-	}
-
-	if err := Sys.Syscall.Mount(label, target, "ext4", syscall.MS_NOATIME, ""); err != nil {
+	if err := Sys.Syscall.Mount(blockInfo.DevicePath, target, "ext4", syscall.MS_NOATIME, ""); err != nil {
 		detail := fmt.Sprintf("mounting %s on %s failed: %s", label, target, err)
 		return errors.New(detail)
 	}
