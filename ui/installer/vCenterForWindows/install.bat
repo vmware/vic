@@ -82,8 +82,11 @@ DEL _scratch_flags.txt
 IF /I %vic_ui_host_url% EQU NOURL (
     ECHO =============================
     ECHO With the current version of VIC, you have to manually copy the com.vmware.vicui.* folder in \ui\vsphere-client-serenity to %VMWARE_CFG_DIR%\vsphere-client\vc-packages\vsphere-client-serenity
-    ECHO Note: If you are running vCenter Server 5.5, copy the folder to %PROGRAMDATA%\VMware\vSphere Web Client\vc-packages\vsphere-client-serenity instead
-    ECHO After that, log out of vSphere Web Client and then log back in.
+    ECHO
+    ECHO Note for vCenter 5.5 users:
+    ECHO VIC UI may run on a vCenter 5.5 setup, but is not officially supported. Use it with your own risk. To proceed, copy the aforementioned folder to %PROGRAMDATA%\VMware\vSphere Web Client\vc-packages\vsphere-client-serenity instead
+    ECHO
+    ECHO Once you've copied the folder, log out of vSphere Web Client and then log back in.
     ECHO =============================
 ) ELSE (
     ECHO VIC UI was successfully installed. Make sure to log out of vSphere Web Client and log back in.

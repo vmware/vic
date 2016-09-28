@@ -312,21 +312,22 @@ Wrap the datastore name in single quotes (Linux or Mac OS) or double quotes (Win
 
 Short name: `--vs`
 
-The datastore in which to create volumes when container developers use the `docker volume create` command. When you specify the `volume-store` option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores. 
+The datastore in which to create volumes when container developers use the `docker volume create` or `docker create -v` commands. When you specify the `volume-store` option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores. 
 
-If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `volume-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability.
+If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `volume-store` option should be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible and `vic-machine create` succeeds, but it issues a warning that this configuration limits the use of vSphere features such as DRS and High Availability.
 
 You can designate the same datastore as the volume store for multiple virtual container hosts.
 
-The label that you specify is the volume store name that Docker uses. For example, the volume store label appears in the information for a virtual container host when container developers run `docker info`. Container developers also specify the volume store label in the <code>docker volume create --opt VolumeStore=<i>volume_store_label</i></code> option when they create a  volume.
+The label that you specify is the volume store name that Docker uses. For example, the volume store label appears in the information for a virtual container host when container developers run `docker info`. Container developers specify the volume store label in the <code>docker volume create --opt VolumeStore=<i>volume_store_label</i></code> option when they create a volume.
 
-**IMPORTANT** If you do not specify the `volume-store` option, no  volume store is created and container developers cannot use the `docker volume create` command.
+**IMPORTANT** If you do not specify the `volume-store` option, no  volume store is created and container developers cannot use the `docker volume create` or `docker create -v` commands.
 
 - If you only require one volume store, you can set the volume store label to `default`. If you set the volume store label to `default`, container developers do not need to specify the <code>--opt VolumeStore=<i>volume_store_label</i></code> option when they run `docker volume create`. 
 
-  **NOTE**: If container developers intend to create anonymous volumes by using `docker create -v`, you must create a volume store with a label of `default`.
+  **NOTE**: If container developers intend to use `docker create -v` to create containers that are attached to anonymous or named volumes, you must create a volume store with a label of `default`.
 
   <pre>--volume-store <i>datastore_name</i>:default</pre>
+ 
 - If you specify the target datastore and the volume store label, `vic-machine create` creates a folder named `volumes` under the `VIC` folder on the target datastore. Any volumes that container developers create will appear in the `volumes` folder.
 
   <pre>--volume-store <i>datastore_name</i>:<i>volume_store_label</i></pre>
@@ -393,6 +394,20 @@ Wrap the folder names in the paths in single quotes (Linux or Mac OS) or double 
 
 <pre>--cert '<i>path to certificate file</i>'/<i>certificate_file_name</i>.pem 
 --key '<i>path to key file</i>'/<i>key_file_name</i>.pem</pre>
+
+<a name="registry"></a>
+### `docker-insecure-registry` ###
+
+Short name: `--dir`
+
+If your Docker environment stores Docker images in an insecure registry server, you must configure virtual container hosts to connect to this registry server when you deploy them. An insecure registry server is a registry server that is secured by self-signed certificates rather than by TLS. You authorize connections from a virtual container host to an insecure registry server by setting the `docker-insecure-registry` option.
+
+You can specify `docker-insecure-registry` multiple times to allow connections from the virtual container host to multiple insecure registry servers.
+
+If your Docker setup uses TLS, you do not need to specify this option.
+
+<pre>--docker-insecure-registry <i>registry_URL_1</i>
+--docker-insecure-registry <i>registry_URL_2</i></pre>
 
 <a name="deployment"></a>
 ## vApp Deployment Options ##

@@ -1019,6 +1019,7 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 			Names:   names,
 			Command: cmd,
 			SizeRw:  *t.ContainerConfig.StorageSize,
+			Ports:   portInformation(&t),
 		}
 		containers = append(containers, c)
 	}
@@ -1541,6 +1542,67 @@ func ContainerSignal(containerID string, sig uint64) error {
 	}
 
 	return nil
+}
+
+func clientIPv4Addrs() ([]netlink.Addr, error) {
+	l, err := netlink.LinkByName(clientIfaceName)
+	if err != nil {
+		return nil, fmt.Errorf("Could not look up link from client interface name %s due to error %s",
+			clientIfaceName, err.Error())
+	}
+	ips, err := netlink.AddrList(l, netlink.FAMILY_V4)
+	if err != nil {
+		return nil, fmt.Errorf("Could not get IP addresses of link due to error %s", err.Error())
+	}
+
+	return ips, nil
+}
+
+// returns port bindings as a list of Docker Ports for return to the client
+// returns empty slice on error
+func portInformation(t *models.ContainerInfo) []types.Port {
+	// create a port for each IP on the interface (usually only 1, if netlink.FAMILY_ALL then usually 2)
+	var ports []types.Port
+
+	ips, err := clientIPv4Addrs()
+	if err != nil {
+		log.Errorf("Problem getting client IP address: %s", err.Error())
+		return ports
+	}
+	for _, ip := range ips {
+		ports = append(ports, types.Port{IP: ip.IP.String()})
+	}
+	container := cache.ContainerCache().GetContainer(*t.ContainerConfig.ContainerID)
+	if container == nil {
+		log.Errorf("Could not find container with ID %s", *t.ContainerConfig.ContainerID)
+		return ports
+	}
+
+	portBindings := container.HostConfig.PortBindings
+	var resultPorts []types.Port
+
+	for _, port := range ports {
+		for portBindingPrivatePort, hostPortBindings := range portBindings {
+			portAndType := strings.SplitN(string(portBindingPrivatePort), "/", 2)
+			port.PrivatePort, err = strconv.Atoi(portAndType[0])
+			if err != nil {
+				log.Infof("Got an error trying to convert private port number to an int")
+				continue
+			}
+			port.Type = portAndType[1]
+
+			for i := 0; i < len(hostPortBindings); i++ {
+				newport := port
+				newport.PublicPort, err = strconv.Atoi(hostPortBindings[i].HostPort)
+				if err != nil {
+					log.Infof("Got an error trying to convert public port number to an int")
+					continue
+				}
+				resultPorts = append(resultPorts, newport)
+			}
+		}
+	}
+	return resultPorts
 }
 
 //----------------------------------
