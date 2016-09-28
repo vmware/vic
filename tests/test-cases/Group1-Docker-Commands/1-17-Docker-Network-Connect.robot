@@ -74,16 +74,12 @@ Connect containers to multiple networks overlapping
 
 #    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
 #    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --name cross2-container busybox /bin/top
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect cross2-network ${containerID}
+#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --network cross2-network --name cross2-container busybox /bin/top
 #    Should Be Equal As Integers  ${rc}  0
 #    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
 #    Should Be Equal As Integers  ${rc}  0
 
-#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --name cross2-container2 busybox ping -c2 cross2-container
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect cross2-network2 ${containerID}
+#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --network cross2-network2 --name cross2-container2 busybox ping -c2 cross2-container
 #    Should Be Equal As Integers  ${rc}  0
 #    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
 #    Should Be Equal As Integers  ${rc}  0
@@ -99,28 +95,32 @@ Connect containers to multiple networks overlapping
 
 #    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
 #    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --name cross3-container busybox /bin/top
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect cross3-network ${containerID}
+#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --network cross3-network --name cross3-container busybox /bin/top
 #    Should Be Equal As Integers  ${rc}  0
 #    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
 #    Should Be Equal As Integers  ${rc}  0
     
-#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --name cross3-container2 busybox /bin/top
+#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --network cross3-network2 --name cross3-container2 busybox /bin/top
 #    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect cross3-network ${containerID}
+#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
+#    Should Be Equal As Integers  ${rc}  0
+
+#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --network cross3-network --name cross3-container3 busybox ping -c2 cross3-container
 #    Should Be Equal As Integers  ${rc}  0
 #    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect cross3-network2 ${containerID}
 #    Should Be Equal As Integers  ${rc}  0
 #    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
 #    Should Be Equal As Integers  ${rc}  0
-    
-#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --name cross3-container3 busybox ping -c2 cross3-container
+#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow cross3-container3
+#    Should Be Equal As Integers  ${rc}  0
+#    Should Contain  ${output}  2 packets transmitted, 2 packets received
+
+#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --network cross3-network --name cross3-container4 busybox ping -c2 cross3-container2
 #    Should Be Equal As Integers  ${rc}  0
 #    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect cross3-network2 ${containerID}
 #    Should Be Equal As Integers  ${rc}  0
 #    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
 #    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow cross3-container2
+#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow cross3-container4
 #    Should Be Equal As Integers  ${rc}  0
 #    Should Contain  ${output}  2 packets transmitted, 2 packets received
