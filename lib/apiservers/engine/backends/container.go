@@ -1019,7 +1019,7 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 			Names:   names,
 			Command: cmd,
 			SizeRw:  *t.ContainerConfig.StorageSize,
-			Ports:   getPortInformation(&t),
+			Ports:   portInformation(&t),
 		}
 		containers = append(containers, c)
 	}
@@ -1544,7 +1544,7 @@ func ContainerSignal(containerID string, sig uint64) error {
 	return nil
 }
 
-func getClientIPv4Addrs() ([]netlink.Addr, error) {
+func clientIPv4Addrs() ([]netlink.Addr, error) {
 	l, err := netlink.LinkByName(clientIfaceName)
 	if err != nil {
 		return nil, fmt.Errorf("Could not look up link from client interface name %s due to error %s",
@@ -1560,11 +1560,11 @@ func getClientIPv4Addrs() ([]netlink.Addr, error) {
 
 // returns port bindings as a list of Docker Ports for return to the client
 // returns empty slice on error
-func getPortInformation(t *models.ContainerInfo) []types.Port {
+func portInformation(t *models.ContainerInfo) []types.Port {
 	// create a port for each IP on the interface (usually only 1, if netlink.FAMILY_ALL then usually 2)
 	var ports []types.Port
 
-	ips, err := getClientIPv4Addrs()
+	ips, err := clientIPv4Addrs()
 	if err != nil {
 		log.Errorf("Problem getting client IP address: %s", err.Error())
 		return ports
