@@ -1094,7 +1094,7 @@
 						"schema": {
 							"type": "array",
 							"items": {
-								"$ref": "#definitions/ContainerInfo"
+								"$ref": "#/definitions/ContainerInfo"
 							}
 						}
 					},
@@ -1231,8 +1231,8 @@
                                         {
 						"name": "wait_time",
 						"in": "query",
-					        "type": "integer",
-                                                "format": "int32"
+						"type": "integer",
+						"format": "int32"
 					}
 
 				],
@@ -2159,67 +2159,6 @@
 					"items": {
 						"$ref": "#/definitions/ScopeConfig"
 					}
-				}
-			}
-		},
-		"ContainerListInfo": {
-			"type": "object",
-			"properties": {
-				"containerId": {
-					"type": "string"
-				},
-				"layerId": {
-					"type": "string"
-				},
-				"repoName": {
-					"type": "string"
-				},
-				"execPath": {
-					"type": "string"
-				},
-				"execArgs": {
-					"type": "array",
-					"items": {
-						"type": "string"
-					}
-				},
-				"exitCode": {
-					"type": "integer",
-					"format": "int32"
-				},
-				"createTime": {
-					"type": "integer",
-					"format": "int64"
-				},
-				"startTime": {
-					"type": "integer",
-					"format": "int64"
-				},
-				"stopTime": {
-					"type": "integer",
-					"format": "int64"
-				},
-				"state": {
-					"type": "string"
-				},
-				"status": {
-					"type": "string"
-				},
-				"ports": {
-					"type": "array",
-					"items": {
-						"type": "string"
-					}
-				},
-				"names": {
-					"type": "array",
-					"items": {
-						"type": "string"
-					}
-				},
-				"storageSize": {
-					"type": "integer",
-					"format": "int64"
 				}
 			}
 		},

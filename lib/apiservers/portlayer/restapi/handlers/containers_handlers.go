@@ -277,12 +277,12 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 	}
 
 	containerVMs := exec.Containers.Containers(state)
-	containerList := make([]models.ContainerInfo, 0, len(containerVMs))
+	containerList := make([]*models.ContainerInfo, 0, len(containerVMs))
 
 	for _, container := range containerVMs {
 		// convert to return model
 		info := convertContainerToContainerInfo(container)
-		containerList = append(containerList, *info)
+		containerList = append(containerList, info)
 	}
 	return containers.NewGetContainerListOK().WithPayload(containerList)
 }

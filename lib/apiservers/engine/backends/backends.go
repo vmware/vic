@@ -207,7 +207,7 @@ func syncContainerCache(client *client.PortLayer) error {
 	}
 	cc := cache.ContainerCache()
 	for _, info := range containme.Payload {
-		container := ContainerInfoToVicContainer(info)
+		container := ContainerInfoToVicContainer(*info)
 		cc.AddContainer(container)
 	}
 	return nil

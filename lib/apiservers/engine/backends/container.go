@@ -1019,7 +1019,7 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 			Names:   names,
 			Command: cmd,
 			SizeRw:  *t.ContainerConfig.StorageSize,
-			Ports:   portInformation(&t),
+			Ports:   portInformation(t),
 		}
 		containers = append(containers, c)
 	}
