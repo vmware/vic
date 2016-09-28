@@ -16,9 +16,9 @@ You have deployed at least one virtual container host.
    To obtain a list of all virtual container hosts that are running on an ESXi host or vCenter Server instance, you must provide the address of the target ESXi host or vCenter Server. You must specify the username and optionally the password, either in the `target` option or separately in the `user` and `password` options. 
 
   <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> ls
---target <i>esxi_host <i>esxi_host_address</i>
+--target <i>esxi_host_address</i>
 --user root
---password <i>esxi_host_passwor</i>
+--password <i>esxi_host_password</i>
 </pre>
 
    <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> ls
