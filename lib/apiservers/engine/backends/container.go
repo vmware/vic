@@ -1544,27 +1544,31 @@ func ContainerSignal(containerID string, sig uint64) error {
 	return nil
 }
 
-func getClientIPAddrs() []netlink.Addr {
+func getClientIPv4Addrs() ([]netlink.Addr, error) {
 	l, err := netlink.LinkByName(clientIfaceName)
 	if err != nil {
-		log.Errorf("Could not look up link from client interface name %s due to error %s",
+		return nil, fmt.Errorf("Could not look up link from client interface name %s due to error %s",
 			clientIfaceName, err.Error())
-		return nil
 	}
 	ips, err := netlink.AddrList(l, netlink.FAMILY_V4)
 	if err != nil {
-		log.Errorf("Could not get IP addresses of link due to error %s", err.Error())
-		return nil
+		return nil, fmt.Errorf("Could not get IP addresses of link due to error %s", err.Error())
 	}
 
-	return ips
+	return ips, nil
 }
 
 // returns port bindings as a list of Docker Ports for return to the client
+// returns empty slice on error
 func getPortInformation(t *models.ContainerInfo) []types.Port {
 	// create a port for each IP on the interface (usually only 1, if netlink.FAMILY_ALL then usually 2)
-	ips := getClientIPAddrs()
 	var ports []types.Port
+
+	ips, err := getClientIPv4Addrs()
+	if err != nil {
+		log.Errorf("Problem getting client IP address: %s", err.Error())
+		return ports
+	}
 	for _, ip := range ips {
 		ports = append(ports, types.Port{IP: ip.IP.String()})
 	}
@@ -1576,7 +1580,6 @@ func getPortInformation(t *models.ContainerInfo) []types.Port {
 
 	portBindings := container.HostConfig.PortBindings
 	var resultPorts []types.Port
-	var err error
 
 	for _, port := range ports {
 		for portBindingPrivatePort, hostPortBindings := range portBindings {
