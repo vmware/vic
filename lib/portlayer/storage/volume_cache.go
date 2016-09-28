@@ -81,7 +81,7 @@ func (v *VolumeLookupCache) VolumeDestroy(ctx context.Context, ID string) error 
 	}
 
 	// remove it from the volumestore
-	if err := v.volumeStore.VolumeDestroy(ctx, ID); err != nil {
+	if err := v.volumeStore.VolumeDestroy(ctx, &vol); err != nil {
 		return err
 	}
 	delete(v.vlc, vol.ID)

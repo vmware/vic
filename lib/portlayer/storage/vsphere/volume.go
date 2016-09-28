@@ -202,8 +202,26 @@ func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.UR
 	return vol, nil
 }
 
-func (v *VolumeStore) VolumeDestroy(ctx context.Context, ID string) error {
-	return fmt.Errorf("TBD.  Not supported yet")
+func (v *VolumeStore) VolumeDestroy(ctx context.Context, vol *storage.Volume) error {
+	if err := inUse(ctx, vol.ID); err != nil {
+		log.Errorf("VolumeStore: delete error: %s", err.Error())
+		return err
+	}
+
+	volDir := v.volDirPath(vol.ID)
+
+	dstore, err := v.getDatastore(vol.Store)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("VolumeStore: Deleting %s", volDir)
+	if err := dstore.Rm(ctx, volDir); err != nil {
+		log.Errorf("VolumeStore: delete error: %s", err.Error())
+		return err
+	}
+
+	return nil
 }
 
 func (v *VolumeStore) VolumeGet(ctx context.Context, ID string) (*storage.Volume, error) {

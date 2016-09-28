@@ -589,9 +589,16 @@ func inUse(ctx context.Context, ID string) error {
 
 	for _, cont := range conts {
 		layerID := cont.ExecConfig.LayerID
-		if layerID == ID {
+
+		// check if the id is a volume
+		var mounted bool
+		if cont.ExecConfig.Mounts != nil {
+			_, mounted = cont.ExecConfig.Mounts[ID]
+		}
+
+		if layerID == ID || mounted {
 			return &portlayer.ErrImageInUse{
-				Msg: fmt.Sprintf("image %s in use by %s", layerID, cont.ExecConfig.ID),
+				Msg: fmt.Sprintf("image %s in use by %s", ID, cont.ExecConfig.ID),
 			}
 		}
 	}
