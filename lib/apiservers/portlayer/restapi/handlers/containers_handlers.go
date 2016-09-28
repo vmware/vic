@@ -66,7 +66,7 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 
 // CreateHandler creates a new container
 func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreateParams) middleware.Responder {
-	defer trace.End(trace.Begin("Containers.CreateHandler"))
+	defer trace.End(trace.Begin(""))
 
 	var err error
 
@@ -151,7 +151,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 
 // StateChangeHandler changes the state of a container
 func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.StateChangeParams) middleware.Responder {
-	defer trace.End(trace.Begin("Containers.StateChangeHandler"))
+	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", params.Handle)))
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {
@@ -176,7 +176,7 @@ func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.Stat
 }
 
 func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStateParams) middleware.Responder {
-	defer trace.End(trace.Begin("Containers.GetStateHandler"))
+	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", params.Handle)))
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {
@@ -202,7 +202,7 @@ func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStat
 }
 
 func (handler *ContainersHandlersImpl) GetHandler(params containers.GetParams) middleware.Responder {
-	defer trace.End(trace.Begin("Containers.GetHandler"))
+	defer trace.End(trace.Begin(params.ID))
 
 	h := exec.GetContainer(uid.Parse(params.ID))
 	if h == nil {
@@ -213,7 +213,7 @@ func (handler *ContainersHandlersImpl) GetHandler(params containers.GetParams) m
 }
 
 func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitParams) middleware.Responder {
-	defer trace.End(trace.Begin("Containers.CommitHandler"))
+	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", params.Handle)))
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {
@@ -221,7 +221,7 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 	}
 
 	if err := h.Commit(context.Background(), handler.handlerCtx.Session, params.WaitTime); err != nil {
-		log.Errorf("CommitHandler error (%s): %s", h.String(), err)
+		log.Errorf("CommitHandler error on handle(%s) for %s: %s", h.String(), h.ExecConfig.ID, err)
 		return containers.NewCommitDefault(http.StatusServiceUnavailable).WithPayload(&models.Error{Message: err.Error()})
 	}
 
@@ -229,7 +229,7 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 }
 
 func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.ContainerRemoveParams) middleware.Responder {
-	defer trace.End(trace.Begin("Containers.RemoveContainerHandler"))
+	defer trace.End(trace.Begin(params.ID))
 
 	// get the indicated container for removal
 	cID := uid.Parse(params.ID)
@@ -254,7 +254,7 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 }
 
 func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers.GetContainerInfoParams) middleware.Responder {
-	defer trace.End(trace.Begin("Containers.GetContainerInfoHandler"))
+	defer trace.End(trace.Begin(params.ID))
 
 	container := exec.Containers.Container(params.ID)
 	if container == nil {
@@ -268,7 +268,7 @@ func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers
 }
 
 func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers.GetContainerListParams) middleware.Responder {
-	defer trace.End(trace.Begin("Containers.GetContainerListHandler"))
+	defer trace.End(trace.Begin(""))
 
 	var state *exec.State
 	if params.All != nil && !*params.All {
@@ -288,7 +288,7 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 }
 
 func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.ContainerSignalParams) middleware.Responder {
-	defer trace.End(trace.Begin("Containers.ContainerSignal"))
+	defer trace.End(trace.Begin(params.ID))
 
 	h := exec.GetContainer(uid.Parse(params.ID))
 	if h == nil {
@@ -375,6 +375,7 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 
 // utility function to convert from a Container type to the API Model ContainerInfo (which should prob be called ContainerDetail)
 func convertContainerToContainerInfo(container *exec.Container) *models.ContainerInfo {
+	defer trace.End(trace.Begin(container.ExecConfig.ID))
 	// convert the container type to the required model
 	info := &models.ContainerInfo{ContainerConfig: &models.ContainerConfig{}, ProcessConfig: &models.ProcessConfig{}}
 
