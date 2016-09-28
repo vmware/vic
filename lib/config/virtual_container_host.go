@@ -58,29 +58,29 @@ type VirtualContainerHostConfigSpec struct {
 	Connection `vic:"0.1" scope:"read-only" key:"connect"`
 
 	// basic contact information
-	Contact `vic:"0.1" scope:"read-only" key:"contact"`
+	Contacts `vic:"0.1" scope:"read-only" key:"contact"`
 
 	// certificate configuration, for both inbound and outbound access
-	CertificateConfig `vic:"0.1" scope:"read-only" key:"cert"`
+	Certificate `vic:"0.1" scope:"read-only" key:"cert"`
 
 	// Port Layer - storage
-	StorageConfig `vic:"0.1" scope:"read-only" key:"storage"`
+	Storage `vic:"0.1" scope:"read-only" key:"storage"`
 
 	// Port Layer - network
-	NetworkConfig `vic:"0.1" scope:"read-only" key:"network"`
+	Network `vic:"0.1" scope:"read-only" key:"network"`
 
 	// Port Layer - exec
-	ContainerConfig `vic:"0.1" scope:"read-only" key:"container"`
+	Container `vic:"0.1" scope:"read-only" key:"container"`
 
 	// Registry configuration for Imagec
-	RegistryConfig `vic:"0.1" scope:"read-only" key:"registry"`
+	Registry `vic:"0.1" scope:"read-only" key:"registry"`
 
 	// configuration for vic-machine
 	CreateBridgeNetwork bool `vic:"0.1" scope:"read-only" key:"create_bridge_network"`
 }
 
 // ContainerConfig holds the container configuration for a virtual container host
-type ContainerConfig struct {
+type Container struct {
 	// Default containerVM capacity
 	ContainerVMSize Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	// Resource pools under which all containers will be created
@@ -94,7 +94,7 @@ type ContainerConfig struct {
 }
 
 // RegistryConfig defines the registries virtual container host can talk to
-type RegistryConfig struct {
+type Registry struct {
 	// Whitelist of registries
 	RegistryWhitelist []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	// Blacklist of registries
@@ -104,7 +104,7 @@ type RegistryConfig struct {
 }
 
 // NetworkConfig defines the network configuration of virtual container host
-type NetworkConfig struct {
+type Network struct {
 	// The network to use by default to provide access to the world
 	BridgeNetwork string `vic:"0.1" scope:"read-only" key:"bridge_network"`
 	// Published networks available for containers to join, keyed by consumption name
@@ -116,7 +116,7 @@ type NetworkConfig struct {
 }
 
 // StorageConfig defines the storage configuration including images and volumes
-type StorageConfig struct {
+type Storage struct {
 	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
 	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores"`
 	// Permitted datastore URL roots for volumes
@@ -127,7 +127,7 @@ type StorageConfig struct {
 	ScratchSize int64 `vic:"0.1" scope:"read-only" key:"scratch_size"`
 }
 
-type CertificateConfig struct {
+type Certificate struct {
 	// Certificates for user authentication - this needs to be expanded to allow for directory server auth
 	UserCertificates []*RawCertificate
 	// Certificates for general outgoing network access, keyed by CIDR (IPNet.String())
@@ -160,7 +160,7 @@ type Connection struct {
 	Keepalive time.Duration `vic:"0.1" scope:"read-only" key:"keepalive"`
 }
 
-type Contact struct {
+type Contacts struct {
 	// Administrative contact for the Virtual Container Host
 	Admin []mail.Address
 	// Administrative contact for hosting infrastructure

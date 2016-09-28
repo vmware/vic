@@ -99,7 +99,7 @@ func TestVIC(t *testing.T) {
 	bridgeNetwork = n
 
 	conf := &network.Configuration{
-		NetworkConfig: config.NetworkConfig{
+		Network: config.Network{
 			BridgeNetwork: "lo",
 			ContainerNetworks: map[string]*executor.ContainerNetwork{
 				"lo": {

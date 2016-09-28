@@ -26,5 +26,5 @@ type Configuration struct {
 	DebugLevel int `vic:"0.1" scope:"read-only" key:"init/common/debug"`
 
 	// Port Layer - storage
-	config.StorageConfig `vic:"0.1" scope:"read-only" key:"storage"`
+	config.Storage `vic:"0.1" scope:"read-only" key:"storage"`
 }

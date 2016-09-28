@@ -24,7 +24,7 @@ type Configuration struct {
 	sink   extraconfig.DataSink   `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
 	// Port Layer - network
-	config.NetworkConfig `vic:"0.1" scope:"read-only" key:"network"`
+	config.Network `vic:"0.1" scope:"read-only" key:"network"`
 
 	// The bridge link
 	BridgeLink Link

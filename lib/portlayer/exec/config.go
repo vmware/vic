@@ -31,7 +31,7 @@ type Configuration struct {
 	DebugLevel int `vic:"0.1" scope:"read-only" key:"init/common/debug"`
 
 	// Port Layer - exec
-	config.ContainerConfig `vic:"0.1" scope:"read-only" key:"container"`
+	config.Container `vic:"0.1" scope:"read-only" key:"container"`
 
 	// Resource pool is the working version of the compute resource config
 	ResourcePool *object.ResourcePool
