@@ -214,6 +214,8 @@ func (t *tether) Start() error {
 		log.Info("Populating ext4 block device list now.")
 		deviceManager := fs.Ext4DeviceManager{}
 		DeviceMap, err := deviceManager.GetDeviceByLbel(linuxBlockDevicePath)
+		log.Infof("Found ext4 block devices : %s", DeviceMap)
+
 		if err != nil {
 			log.Errorf("error while trying to identify mountable volumes: %s", err)
 		}
