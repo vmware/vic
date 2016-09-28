@@ -19,7 +19,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -77,8 +76,7 @@ var (
 
 	portMapper portmap.PortMapper
 
-	ctx                          = context.TODO()
-	containerFriendlyNamePattern = regexp.MustCompile(`[\w_]+`)
+	ctx = context.TODO()
 )
 
 func init() {
@@ -1021,7 +1019,7 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 			Names:   names,
 			Command: cmd,
 			SizeRw:  *t.ContainerConfig.StorageSize,
-			Ports:   getPortInformation(&t, names),
+			Ports:   getPortInformation(&t),
 		}
 		containers = append(containers, c)
 	}
@@ -1547,7 +1545,6 @@ func ContainerSignal(containerID string, sig uint64) error {
 }
 
 func getClientIPAddrs() []netlink.Addr {
-
 	l, err := netlink.LinkByName(clientIfaceName)
 	if err != nil {
 		log.Errorf("Could not look up link from client interface name %s due to error %s",
@@ -1562,26 +1559,19 @@ func getClientIPAddrs() []netlink.Addr {
 
 	return ips
 }
-func getPortInformation(t *models.ContainerInfo, names []string) []types.Port {
-	if len(names) == 0 {
-		log.Infof("No container names provided; cannot get port information for unknown containers")
-		return nil
-	}
 
+// returns port bindings as a list of Docker Ports for return to the client
+func getPortInformation(t *models.ContainerInfo) []types.Port {
 	// create a port for each IP on the interface (usually only 1, if netlink.FAMILY_ALL then usually 2)
 	ips := getClientIPAddrs()
 	var ports []types.Port
 	for _, ip := range ips {
 		ports = append(ports, types.Port{IP: ip.IP.String()})
 	}
-	container := cache.ContainerCache().GetContainer(names[0])
+	container := cache.ContainerCache().GetContainer(*t.ContainerConfig.ContainerID)
 	if container == nil {
-		if match := containerFriendlyNamePattern.FindString(names[0]); match != "" {
-			container = cache.ContainerCache().GetContainer(match)
-		} else {
-			log.Errorf("Could not find container based on incorrectly formatted name")
-			return ports
-		}
+		log.Errorf("Could not find container based on incorrectly formatted name")
+		return ports
 	}
 
 	portBindings := container.HostConfig.PortBindings
