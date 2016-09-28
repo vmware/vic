@@ -33,6 +33,7 @@ import (
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/ip"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 )
 
@@ -67,6 +68,7 @@ type AddContainerOptions struct {
 }
 
 func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask, config *Configuration) (*Context, error) {
+	defer trace.End(trace.Begin(""))
 	if config == nil {
 		return nil, fmt.Errorf("missing config")
 	}
@@ -124,6 +126,7 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask, config *Configurati
 }
 
 func reserveGateway(gateway net.IP, subnet *net.IPNet, ipam *IPAM) (net.IP, error) {
+	defer trace.End(trace.Begin(""))
 	if ip.IsUnspecifiedSubnet(subnet) {
 		return nil, fmt.Errorf("cannot reserve gateway for nil subnet")
 	}
@@ -162,7 +165,7 @@ func reserveGateway(gateway net.IP, subnet *net.IPNet, ipam *IPAM) (net.IP, erro
 }
 
 func (c *Context) newScopeCommon(id uid.UID, name, scopeType string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM, network object.NetworkReference) (*Scope, error) {
-
+	defer trace.End(trace.Begin(""))
 	var err error
 	var space *AddressSpace
 	var defaultPool bool
@@ -256,6 +259,7 @@ func (c *Context) newScopeCommon(id uid.UID, name, scopeType string, subnet *net
 }
 
 func (c *Context) newBridgeScope(id uid.UID, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (newScope *Scope, err error) {
+	defer trace.End(trace.Begin(""))
 	bn, ok := c.config.ContainerNetworks[c.config.BridgeNetwork]
 	if !ok || bn == nil {
 		return nil, fmt.Errorf("bridge network not set")
@@ -286,6 +290,7 @@ func (c *Context) newBridgeScope(id uid.UID, name string, subnet *net.IPNet, gat
 }
 
 func (c *Context) newExternalScope(id uid.UID, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (*Scope, error) {
+	defer trace.End(trace.Begin(""))
 	// ipam cannot be specified without gateway and subnet
 	if ipam != nil && len(ipam.pools) > 0 {
 		if ip.IsUnspecifiedSubnet(subnet) || gateway.IsUnspecified() {
@@ -310,6 +315,7 @@ func (c *Context) newExternalScope(id uid.UID, name string, subnet *net.IPNet, g
 }
 
 func (c *Context) reserveSubnet(subnet *net.IPNet) (*AddressSpace, bool, error) {
+	defer trace.End(trace.Begin(""))
 	err := c.checkNetOverlap(subnet)
 	if err != nil {
 		return nil, false, err
@@ -338,6 +344,7 @@ func (c *Context) checkNetOverlap(subnet *net.IPNet) error {
 }
 
 func reservePools(space *AddressSpace, ipam *IPAM) ([]*AddressSpace, error) {
+	defer trace.End(trace.Begin(""))
 	if len(ipam.pools) == 0 {
 		// pool not specified so use the entire space
 		ipam.pools = []string{space.Network.String()}
@@ -396,6 +403,7 @@ func reservePools(space *AddressSpace, ipam *IPAM) ([]*AddressSpace, error) {
 }
 
 func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string) (*Scope, error) {
+	defer trace.End(trace.Begin(""))
 	// sanity checks
 	if name == "" {
 		return nil, fmt.Errorf("scope name must not be empty")
@@ -449,6 +457,7 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 }
 
 func (c *Context) findScopes(idName *string) ([]*Scope, error) {
+	defer trace.End(trace.Begin(""))
 	if idName != nil && *idName != "" {
 		if *idName == "default" {
 			return []*Scope{c.DefaultScope()}, nil
@@ -493,6 +502,7 @@ func (c *Context) DefaultScope() *Scope {
 }
 
 func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
+	defer trace.End(trace.Begin(""))
 	c.Lock()
 	defer c.Unlock()
 
@@ -649,6 +659,7 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 }
 
 func (c *Context) container(h *exec.Handle) (*Container, error) {
+	defer trace.End(trace.Begin(""))
 	id := uid.Parse(h.ExecConfig.ID)
 	if id == uid.NilUID {
 		return nil, fmt.Errorf("invalid container id %s", h.ExecConfig.ID)
@@ -662,6 +673,7 @@ func (c *Context) container(h *exec.Handle) (*Container, error) {
 }
 
 func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
+	defer trace.End(trace.Begin(""))
 	c.Lock()
 	defer c.Unlock()
 
@@ -819,6 +831,7 @@ func (c *Context) resolveScope(scope string) (*Scope, error) {
 // AddContainer add a container to the specified scope, optionally specifying an ip address
 // for the container in the scope
 func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) error {
+	defer trace.End(trace.Begin(""))
 	c.Lock()
 	defer c.Unlock()
 
@@ -920,6 +933,7 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 }
 
 func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
+	defer trace.End(trace.Begin(""))
 	c.Lock()
 	defer c.Unlock()
 
@@ -1009,6 +1023,7 @@ func (c *Context) ContainerByAddr(addr net.IP) *Endpoint {
 }
 
 func (c *Context) DeleteScope(name string) error {
+	defer trace.End(trace.Begin(""))
 	c.Lock()
 	defer c.Unlock()
 
@@ -1047,6 +1062,7 @@ func (c *Context) DeleteScope(name string) error {
 }
 
 func (c *Context) UpdateContainer(h *exec.Handle) error {
+	defer trace.End(trace.Begin(""))
 	c.Lock()
 	defer c.Unlock()
 
@@ -1089,6 +1105,7 @@ func atoiOrZero(a string) int32 {
 
 // handleEvent processes events
 func (c *Context) handleEvent(ie events.Event) {
+	defer trace.End(trace.Begin(ie.String()))
 	switch ie.String() {
 	case events.ContainerPoweredOff:
 		handle := exec.GetContainer(uid.Parse(ie.Reference()))
