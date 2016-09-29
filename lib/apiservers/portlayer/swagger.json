@@ -493,7 +493,7 @@
 		},
 		"/storage/volumes/{name}": {
 			"get": {
-				"description": "Get a Volume Handle",
+				"description": "Get info about a volume",
 				"operationId": "GetVolume",
 				"tags": [
 					"storage"
@@ -517,7 +517,7 @@
 					"200": {
 						"description": "OK",
 						"schema": {
-							"type": "string"
+							"$ref": "#/definitions/VolumeResponse"
 						}
 					},
 					"404": {

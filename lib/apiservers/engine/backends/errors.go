@@ -47,6 +47,11 @@ func VolumeCreateNotFoundError(msg string) error {
 	return derr.NewErrorWithStatusCode(fmt.Errorf("No volume store named (%s) exists", msg), http.StatusInternalServerError)
 }
 
+// VolumeNotFoundError returns a 404 docker error for a volume get request.
+func VolumeNotFoundError(msg string) error {
+	return derr.NewErrorWithStatusCode(fmt.Errorf("No such volume: %s", msg), http.StatusNotFound)
+}
+
 // NotFoundError returns a 404 docker error when a container is not found.
 func NotFoundError(msg string) error {
 	return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", msg))
