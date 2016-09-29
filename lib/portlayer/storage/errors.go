@@ -30,3 +30,20 @@ func IsErrImageInUse(err error) bool {
 
 	return ok
 }
+
+type ErrVolumeInUse struct {
+	Msg string
+}
+
+func (e *ErrVolumeInUse) Error() string {
+	return e.Msg
+}
+
+func IsErrVolumeInUse(err error) bool {
+	if err == nil {
+		return false
+	}
+	_, ok := err.(*ErrVolumeInUse)
+
+	return ok
+}

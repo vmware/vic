@@ -203,7 +203,7 @@ func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.UR
 }
 
 func (v *VolumeStore) VolumeDestroy(ctx context.Context, vol *storage.Volume) error {
-	if err := inUse(ctx, vol.ID); err != nil {
+	if err := imagesInUse(ctx, vol.ID); err != nil {
 		log.Errorf("VolumeStore: delete error: %s", err.Error())
 		return err
 	}
