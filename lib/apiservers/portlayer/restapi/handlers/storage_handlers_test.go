@@ -95,12 +95,12 @@ func (m *MockVolumeStore) VolumeGet(ctx context.Context, ID string) (*spl.Volume
 }
 
 // Destroys a volume
-func (m *MockVolumeStore) VolumeDestroy(ctx context.Context, ID string) error {
-	if _, ok := m.db[ID]; !ok {
+func (m *MockVolumeStore) VolumeDestroy(ctx context.Context, vol *spl.Volume) error {
+	if _, ok := m.db[vol.ID]; !ok {
 		return os.ErrNotExist
 	}
 
-	delete(m.db, ID)
+	delete(m.db, vol.ID)
 
 	return nil
 }
