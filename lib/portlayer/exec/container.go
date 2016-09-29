@@ -215,6 +215,11 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 		// clear the spec as we've acted on it
 		h.Spec = nil
+
+		// refresh the struct with what propery collector provides
+		if err = c.Refresh(); err != nil {
+			return err
+		}
 	}
 
 	// if we're stopping the VM, do so before the reconfigure to preserve the extraconfig
@@ -226,6 +231,11 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 		c.State = *h.State
 		commitEvent = events.ContainerStopped
+
+		// refresh the struct with what propery collector provides
+		if err := c.Refresh(); err != nil {
+			return err
+		}
 	}
 
 	if h.Spec != nil {
@@ -236,6 +246,10 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 			log.Errorf("Nilifying ExtraConfig as we are running")
 			s.ExtraConfig = nil
 		}
+
+		// set ChangeVersion. This property is useful because it guards against updates that have happened between when the VM’s config is read and when it is applied.
+		// Will return "Cannot complete operation due to concurrent modification by another operation.." on failure
+		s.ChangeVersion = c.Config.ChangeVersion
 
 		_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 			return c.vm.Reconfigure(ctx, *s)
@@ -258,6 +272,11 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 		c.State = *h.State
 		commitEvent = events.ContainerStarted
+
+		// refresh the struct with what propery collector provides
+		if err := c.Refresh(); err != nil {
+			return err
+		}
 	}
 
 	c.ExecConfig = &h.ExecConfig
