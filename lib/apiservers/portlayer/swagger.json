@@ -1207,7 +1207,7 @@
 				}
 			}
 		},
-		"/containers/{handle}": {
+		"/containers/handle/{handle}": {
 			"put": {
 				"description": "Commit and close a container handle",
 				"operationId": "Commit",
