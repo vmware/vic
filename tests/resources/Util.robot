@@ -12,7 +12,6 @@ ${bin-dir}  ${CURDIR}/../../bin
 
 *** Keywords ***
 Set Test Environment Variables
-    [Arguments]  ${certs}  ${vol}
     # Finish setting up environment variables
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  DRONE_BUILD_NUMBER
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  DRONE_BUILD_NUMBER  0
@@ -76,7 +75,7 @@ Get Docker Params
 
 Install VIC Appliance To Test Server
     [Arguments]  ${certs}=${false}  ${vol}=default
-    Set Test Environment Variables  ${certs}  ${vol}
+    Set Test Environment Variables
     # disable firewall
     Run  govc host.esxcli network firewall set -e false
     # Attempt to cleanup old/canceled tests

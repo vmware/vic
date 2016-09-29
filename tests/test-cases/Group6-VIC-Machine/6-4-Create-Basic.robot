@@ -6,7 +6,7 @@ Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 *** Test Cases ***
 Create VCH - custom base disk
     Log To Console  \nRunning vic-machine create - custom base image size
-    Set Test Environment Variables  ${true}  default
+    Set Test Environment Variables
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
@@ -27,7 +27,7 @@ Create VCH - custom base disk
 
 Create VCH - defaults
     Log To Console  \nRunning vic-machine create - defaults
-    Set Test Environment Variables  ${true}  default
+    Set Test Environment Variables
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
@@ -47,7 +47,7 @@ Create VCH - defaults
 
 Create VCH - defaults with --no-tls
     Log To Console  \nRunning vic-machine create - defaults with --no-tls
-    Set Test Environment Variables  ${true}  default
+    Set Test Environment Variables
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
@@ -59,7 +59,7 @@ Create VCH - defaults with --no-tls
 
 Create VCH - target URL
     Log To Console  \nRunning vic-machine create - target URL
-    Set Test Environment Variables  ${true}  default
+    Set Test Environment Variables
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
@@ -79,7 +79,7 @@ Create VCH - full params
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-    Set Test Environment Variables  ${true}  default
+    Set Test Environment Variables
     Set Test VCH Name
 
     Log To Console  \nInstalling VCH to test server...
@@ -96,7 +96,7 @@ Create VCH - custom image store directory
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-    Set Test Environment Variables  ${true}  default
+    Set Test Environment Variables
     Set Test VCH Name
 
     Log To Console  \nInstalling VCH to test server...

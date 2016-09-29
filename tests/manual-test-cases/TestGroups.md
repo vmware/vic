@@ -14,3 +14,5 @@ VIC Manual Test Suite
 -
 [Group 15 - Dogfood](Group15-Dogfood/TestCases.md)
 -
+[Group 16 - Windows Client](Group16-WindowsClient/TestCases.md)
+-
