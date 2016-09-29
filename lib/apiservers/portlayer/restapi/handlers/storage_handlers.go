@@ -382,7 +382,17 @@ func (handler *StorageHandlersImpl) RemoveVolume(params storage.RemoveVolumePara
 
 	err := storageVolumeLayer.VolumeDestroy(context.TODO(), params.Name)
 	if err != nil {
-		switch err := err.(type) {
+		switch {
+		case os.IsNotExist(err):
+			return storage.NewRemoveVolumeNotFound().WithPayload(&models.Error{
+				Message: err.Error(),
+			})
+
+		case spl.IsErrVolumeInUse(err):
+			return storage.NewRemoveVolumeConflict().WithPayload(&models.Error{
+				Message: err.Error(),
+			})
+
 		default:
 			return storage.NewRemoveVolumeInternalServerError().WithPayload(&models.Error{
 				Message: err.Error(),
