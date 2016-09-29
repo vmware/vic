@@ -32,7 +32,6 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/containers"
-	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/trace"
@@ -136,7 +135,6 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		Metadata:       m,
 		ParentImageID:  *params.CreateConfig.Image,
 		ImageStoreName: params.CreateConfig.ImageStore.Name,
-		VCHName:        options.PortLayerOptions.VCHName,
 	}
 
 	err = h.Create(ctx, session, c)
@@ -162,7 +160,6 @@ func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.Stat
 	switch params.State {
 	case "RUNNING":
 		state = exec.StateRunning
-
 	case "STOPPED":
 		state = exec.StateStopped
 	case "CREATED":

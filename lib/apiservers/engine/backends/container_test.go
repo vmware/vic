@@ -65,6 +65,18 @@ type AddVolumesMockData struct {
 	createErrSubstr string
 }
 
+type AddInteractionMockData struct {
+	retHandle       string
+	retErr          error
+	createErrSubstr string
+}
+
+type AddLoggingMockData struct {
+	retHandle       string
+	retErr          error
+	createErrSubstr string
+}
+
 type CommitHandleMockData struct {
 	createInputID   string
 	createErrSubstr string
@@ -78,11 +90,13 @@ type LogMockData struct {
 }
 
 type MockContainerProxy struct {
-	mockRespIndices      []int
-	mockCreateHandleData []CreateHandleMockData
-	mockAddToScopeData   []AddToScopeMockData
-	mockAddVolumesData   []AddVolumesMockData
-	mockCommitData       []CommitHandleMockData
+	mockRespIndices        []int
+	mockCreateHandleData   []CreateHandleMockData
+	mockAddToScopeData     []AddToScopeMockData
+	mockAddVolumesData     []AddVolumesMockData
+	mockAddInteractionData []AddInteractionMockData
+	mockAddLoggingData     []AddLoggingMockData
+	mockCommitData         []CommitHandleMockData
 }
 
 const (
@@ -95,11 +109,13 @@ var dummyContainers []string = []string{dummyContainerID, dummyContainerID_tty}
 
 func NewMockContainerProxy() *MockContainerProxy {
 	return &MockContainerProxy{
-		mockRespIndices:      make([]int, 4),
-		mockCreateHandleData: MockCreateHandleData(),
-		mockAddToScopeData:   MockAddToScopeData(),
-		mockAddVolumesData:   MockAddVolumesData(),
-		mockCommitData:       MockCommitData(),
+		mockRespIndices:        make([]int, 6),
+		mockCreateHandleData:   MockCreateHandleData(),
+		mockAddToScopeData:     MockAddToScopeData(),
+		mockAddVolumesData:     MockAddVolumesData(),
+		mockAddInteractionData: MockAddInteractionData(),
+		mockAddLoggingData:     MockAddLoggingData(),
+		mockCommitData:         MockCommitData(),
 	}
 }
 
@@ -146,6 +162,14 @@ func MockAddVolumesData() []AddVolumesMockData {
 	return nil
 }
 
+func MockAddInteractionData() []AddInteractionMockData {
+	return nil
+}
+
+func MockAddLoggingData() []AddLoggingMockData {
+	return nil
+}
+
 func MockCommitData() []CommitHandleMockData {
 	noSuchImageErr := fmt.Errorf("No such image: busybox")
 
@@ -162,11 +186,13 @@ func (m *MockContainerProxy) GetMockDataCount() (int, int, int, int) {
 	return len(m.mockCreateHandleData), len(m.mockAddToScopeData), len(m.mockAddVolumesData), len(m.mockCommitData)
 }
 
-func (m *MockContainerProxy) SetMockDataResponse(createHandleResp int, addToScopeResp int, addVolumeResp int, commitContainerResp int) {
+func (m *MockContainerProxy) SetMockDataResponse(createHandleResp int, addToScopeResp int, addVolumeResp int, addInteractionResp int, addLoggingResp int, commitContainerResp int) {
 	m.mockRespIndices[0] = createHandleResp
 	m.mockRespIndices[1] = addToScopeResp
 	m.mockRespIndices[2] = addVolumeResp
-	m.mockRespIndices[3] = commitContainerResp
+	m.mockRespIndices[3] = addInteractionResp
+	m.mockRespIndices[4] = addLoggingResp
+	m.mockRespIndices[5] = commitContainerResp
 }
 
 func (m *MockContainerProxy) CreateContainerHandle(imageID string, config types.ContainerCreateConfig) (string, string, error) {
@@ -198,8 +224,28 @@ func (m *MockContainerProxy) AddVolumesToContainer(handle string, config types.C
 	return m.mockAddVolumesData[respIdx].retHandle, m.mockAddVolumesData[respIdx].retErr
 }
 
-func (m *MockContainerProxy) CommitContainerHandle(handle, imageID string) error {
+func (m *MockContainerProxy) AddInteractionToContainer(handle string, config types.ContainerCreateConfig) (string, error) {
 	respIdx := m.mockRespIndices[3]
+
+	if respIdx >= len(m.mockAddInteractionData) {
+		return "", nil
+	}
+
+	return m.mockAddInteractionData[respIdx].retHandle, m.mockAddInteractionData[respIdx].retErr
+}
+
+func (m *MockContainerProxy) AddLoggingToContainer(handle string, config types.ContainerCreateConfig) (string, error) {
+	respIdx := m.mockRespIndices[4]
+
+	if respIdx >= len(m.mockAddLoggingData) {
+		return "", nil
+	}
+
+	return m.mockAddLoggingData[respIdx].retHandle, m.mockAddLoggingData[respIdx].retErr
+}
+
+func (m *MockContainerProxy) CommitContainerHandle(handle, imageID string) error {
+	respIdx := m.mockRespIndices[5]
 
 	if respIdx >= len(m.mockCommitData) {
 		return nil
@@ -354,7 +400,7 @@ func TestCreateHandle(t *testing.T) {
 			continue
 		}
 
-		mockContainerProxy.SetMockDataResponse(i, 0, 0, 0)
+		mockContainerProxy.SetMockDataResponse(i, 0, 0, 0, 0, 0)
 		config.Config.Image = mockCreateHandleData[i].createInputID
 		_, err := cb.ContainerCreate(config)
 
@@ -393,7 +439,7 @@ func TestContainerAddToScope(t *testing.T) {
 			continue
 		}
 
-		mockContainerProxy.SetMockDataResponse(0, i, 0, 0)
+		mockContainerProxy.SetMockDataResponse(0, i, 0, 0, 0, 0)
 		config.Config.Image = mockAddToScopeData[i].createInputID
 		_, err := cb.ContainerCreate(config)
 
@@ -432,7 +478,7 @@ func TestCommitHandle(t *testing.T) {
 			continue
 		}
 
-		mockContainerProxy.SetMockDataResponse(0, 0, 0, i)
+		mockContainerProxy.SetMockDataResponse(0, 0, 0, 0, 0, i)
 		config.Config.Image = mockCommitHandleData[i].createInputID
 		_, err := cb.ContainerCreate(config)
 

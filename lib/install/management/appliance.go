@@ -521,7 +521,6 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 				"--cluster=" + settings.ClusterPath,
 				"--pool=" + settings.ResourcePoolPath,
 				"--datastore=" + conf.ImageStores[0].Host,
-				"--vch=" + conf.ExecutorConfig.Name,
 			},
 		},
 		Restart: true,

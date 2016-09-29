@@ -28,8 +28,6 @@ type PortLayerOptionsType struct {
 	PoolPath       string `long:"pool" default:"" description:"Resource pool path" env:"POOL_PATH" required:"true"`
 	DatastorePath  string `long:"datastore" default:"/ha-datacenter/datastore/*" description:"Datastore path" env:"DS_PATH" required:"true"`
 
-	VCHName string `long:"vch" default:"" description:"VCH name" env:"VCH_NAME" required:"true"`
-
 	Debug bool `long:"debug" default:"true" description:"Debug logging"`
 }
 

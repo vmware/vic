@@ -283,6 +283,16 @@ func (c *Container) containerCreate(vc *viccontainer.VicContainer, config types.
 		return id, err
 	}
 
+	h, err = c.containerProxy.AddInteractionToContainer(h, config)
+	if err != nil {
+		return id, err
+	}
+
+	h, err = c.containerProxy.AddLoggingToContainer(h, config)
+	if err != nil {
+		return id, err
+	}
+
 	h, err = c.containerProxy.AddVolumesToContainer(h, config)
 	if err != nil {
 		return id, err
@@ -1040,6 +1050,7 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 		return NotFoundError(name)
 
 	}
+	id := vc.ContainerID
 
 	clStdin, clStdout, clStderr, err := ca.GetStreams()
 	if err != nil {
@@ -1053,6 +1064,37 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 		}
 		if ca.UseStderr {
 			clStdout = stdcopy.NewStdWriter(clStdout, stdcopy.Stdout)
+		}
+	}
+
+	client := c.containerProxy.Client()
+	handle, err := c.Handle(id, name)
+	if err != nil {
+		return err
+	}
+
+	bind, err := client.Interaction.InteractionBind(interaction.NewInteractionBindParamsWithContext(ctx).
+		WithConfig(&models.InteractionBindConfig{
+			Handle: handle,
+		}))
+	if err != nil {
+		return InternalServerError(err.Error())
+	}
+	handle, ok := bind.Payload.Handle.(string)
+	if !ok {
+		return InternalServerError(fmt.Sprintf("Type assertion failed for %#+v", handle))
+	}
+
+	// commit the handle; this will reconfigure the vm
+	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.CommitNotFound:
+			return NotFoundError(name)
+		case *containers.CommitDefault:
+			return InternalServerError(err.Payload.Message)
+		default:
+			return InternalServerError(err.Error())
 		}
 	}
 

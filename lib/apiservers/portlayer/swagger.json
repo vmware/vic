@@ -1477,6 +1477,284 @@
 				}
 			}
 		},
+		"/logging": {
+			"post": {
+				"description": "Adds logging capabilities to given handle",
+				"summary": "Add logging capability",
+				"operationId": "LoggingJoin",
+				"tags": [
+					"logging"
+				],
+				"consumes": [
+					"application/octet-stream",
+					"application/json"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "config",
+						"in": "body",
+						"schema": {
+							"$ref": "#/definitions/LoggingJoinConfig"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/LoggingJoinResponse"
+						}
+					},
+					"404": {
+						"description": "VirtualDevice not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "Adding a VirtualDevice failed",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			}
+		},
+		"/logging/binding": {
+			"post": {
+				"description": "Enable/bind/activate the VirtualDevice",
+				"summary": "Enable/bind/activate the VirtualDevice",
+				"operationId": "LoggingBind",
+				"tags": [
+					"logging"
+				],
+				"consumes": [
+					"application/octet-stream",
+					"application/json"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "config",
+						"in": "body",
+						"schema": {
+							"$ref": "#/definitions/LoggingBindConfig"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/LoggingBindResponse"
+						}
+					},
+					"404": {
+						"description": "VirtualDevice not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "Connecting VirtualDevice failed",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			},
+			"delete": {
+				"description": "Disable/unbind/deactivate the VirtualDevice",
+				"summary": "Disable/unbind/deactivate the VirtualDevice",
+				"operationId": "LoggingUnbind",
+				"tags": [
+					"logging"
+				],
+				"consumes": [
+					"application/octet-stream",
+					"application/json"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "config",
+						"in": "body",
+						"schema": {
+							"$ref": "#/definitions/LoggingUnbindConfig"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/LoggingUnbindResponse"
+						}
+					},
+					"404": {
+						"description": "VirtualDevice not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "Disconnecting VirtualDevice failed",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			}
+		},
+		"/interaction": {
+			"post": {
+				"description": "Adds interaction capabilities to given handle",
+				"summary": "Add interaction capability",
+				"operationId": "InteractionJoin",
+				"tags": [
+					"interaction"
+				],
+				"consumes": [
+					"application/octet-stream",
+					"application/json"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "config",
+						"in": "body",
+						"schema": {
+							"$ref": "#/definitions/InteractionJoinConfig"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/InteractionJoinResponse"
+						}
+					},
+					"404": {
+						"description": "VirtualDevice not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "Adding a VirtualDevice failed",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			}
+		},
+		"/interaction/binding": {
+			"post": {
+				"description": "Enable/bind/activate the VirtualDevice",
+				"summary": "Enable/bind/activate the VirtualDevice",
+				"operationId": "InteractionBind",
+				"tags": [
+					"interaction"
+				],
+				"consumes": [
+					"application/octet-stream",
+					"application/json"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "config",
+						"in": "body",
+						"schema": {
+							"$ref": "#/definitions/InteractionBindConfig"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/InteractionBindResponse"
+						}
+					},
+					"404": {
+						"description": "VirtualDevice not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "Connecting VirtualDevice failed",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			},
+			"delete": {
+				"description": "Disable/unbind/deactivate the VirtualDevice",
+				"summary": "Disable/unbind/deactivate the VirtualDevice",
+				"operationId": "InteractionUnbind",
+				"tags": [
+					"interaction"
+				],
+				"consumes": [
+					"application/octet-stream",
+					"application/json"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "config",
+						"in": "body",
+						"schema": {
+							"$ref": "#/definitions/InteractionUnbindConfig"
+						},
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/InteractionUnbindResponse"
+						}
+					},
+					"404": {
+						"description": "VirtualDevice not found",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					},
+					"500": {
+						"description": "Disconnecting VirtualDevice failed",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			}
+		},
 		"/containers/{id}/wait": {
 			"get": {
 				"description": "Wait for the container to stop",
@@ -2361,6 +2639,138 @@
 					"items": {
 						"$ref": "#/definitions/EndpointConfig"
 					}
+				}
+			}
+		},
+		"LoggingJoinConfig": {
+			"type": "object",
+			"required": [
+				"handle"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
+		"LoggingBindConfig": {
+			"type": "object",
+			"required": [
+				"handle"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
+		"LoggingUnbindConfig": {
+			"type": "object",
+			"required": [
+				"handle"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
+		"LoggingJoinResponse": {
+			"type": "object",
+			"required": [
+				"handle"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
+		"LoggingBindResponse": {
+			"type": "object",
+			"required": [
+				"handle"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
+		"LoggingUnbindResponse": {
+			"type": "object",
+			"required": [
+				"handle"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
+		"InteractionJoinConfig": {
+			"type": "object",
+			"required": [
+				"handle"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
+		"InteractionBindConfig": {
+			"type": "object",
+			"required": [
+				"handle"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
+		"InteractionUnbindConfig": {
+			"type": "object",
+			"required": [
+				"handle"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
+		"InteractionJoinResponse": {
+			"type": "object",
+			"required": [
+				"handle"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
+		"InteractionBindResponse": {
+			"type": "object",
+			"required": [
+				"handle"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
+				}
+			}
+		},
+		"InteractionUnbindResponse": {
+			"type": "object",
+			"required": [
+				"handle"
+			],
+			"properties": {
+				"handle": {
+					"type": "object"
 				}
 			}
 		}
