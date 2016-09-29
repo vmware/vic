@@ -15,14 +15,11 @@
 package storage
 
 import (
-	"fmt"
 	"net/url"
 	"os"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/vic/lib/portlayer/exec"
-	"github.com/vmware/vic/lib/portlayer/storage"
 	"golang.org/x/net/context"
 )
 
@@ -139,28 +136,6 @@ func (v *VolumeLookupCache) rebuildCache(ctx context.Context) error {
 		log.Infof("Volumestore: Found vol %s on store %s.", vol.ID, vol.Store)
 		// Add it to the cache.
 		v.vlc[vol.ID] = *vol
-	}
-
-	return nil
-}
-
-func volumesInUse(ctx context.Context, ID string) error {
-	conts := exec.Containers.Containers(nil)
-	if len(conts) == 0 {
-		return nil
-	}
-
-	for _, cont := range conts {
-		layerID := cont.ExecConfig.LayerID
-
-		// check if the id is a volume
-		if cont.ExecConfig.Mounts != nil {
-			if _, mounted := cont.ExecConfig.Mounts[ID]; mounted {
-				return &storage.ErrVolumeInUse{
-					Msg: fmt.Sprintf("volume %s in use by %s", ID, cont.ExecConfig.ID),
-				}
-			}
-		}
 	}
 
 	return nil

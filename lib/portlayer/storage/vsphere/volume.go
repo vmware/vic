@@ -23,6 +23,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
@@ -124,7 +125,7 @@ func (v *VolumeStore) getDatastore(store *url.URL) (*datastore.Helper, error) {
 	// find the datastore
 	dstore, ok := v.ds[*store]
 	if !ok {
-		return nil, VolumeStoreNotFoundError{msg: fmt.Sprintf("volume store (%s) not found", store.String())}
+		return nil, storage.VolumeStoreNotFoundError{fmt.Sprintf("volume store (%s) not found", store.String())}
 	}
 
 	return dstore, nil
@@ -203,7 +204,7 @@ func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.UR
 }
 
 func (v *VolumeStore) VolumeDestroy(ctx context.Context, vol *storage.Volume) error {
-	if err := imagesInUse(ctx, vol.ID); err != nil {
+	if err := volumesInUse(ctx, vol.ID); err != nil {
 		log.Errorf("VolumeStore: delete error: %s", err.Error())
 		return err
 	}
@@ -282,22 +283,24 @@ func (v *VolumeStore) VolumesList(ctx context.Context) ([]*storage.Volume, error
 	return volumes, nil
 }
 
-//Custom Error Types
+func volumesInUse(ctx context.Context, ID string) error {
+	conts := exec.Containers.Containers(nil)
+	if len(conts) == 0 {
+		return nil
+	}
 
-// VolumeStoreNotFoundError : custom error type for when we fail to find a target volume store
-type VolumeStoreNotFoundError struct {
-	msg string
-}
+	for _, cont := range conts {
 
-func (e VolumeStoreNotFoundError) Error() string {
-	return e.msg
-}
+		if cont.ExecConfig.Mounts == nil {
+			continue
+		}
 
-// VolumeExistsError : custom error type for when a create operation targets and already occupied ID
-type VolumeExistsError struct {
-	msg string
-}
+		if _, mounted := cont.ExecConfig.Mounts[ID]; mounted {
+			return &storage.ErrVolumeInUse{
+				Msg: fmt.Sprintf("volume %s in use by %s", ID, cont.ExecConfig.ID),
+			}
+		}
+	}
 
-func (e VolumeExistsError) Error() string {
-	return e.msg
+	return nil
 }

@@ -335,7 +335,7 @@ func (handler *StorageHandlersImpl) CreateVolume(params storage.CreateVolumePara
 			})
 		}
 
-		if _, ok := err.(vsphereSpl.VolumeStoreNotFoundError); ok {
+		if _, ok := err.(spl.VolumeStoreNotFoundError); ok {
 			return storage.NewCreateVolumeNotFound().WithPayload(&models.Error{
 				Code:    swag.Int64(http.StatusNotFound),
 				Message: err.Error(),
