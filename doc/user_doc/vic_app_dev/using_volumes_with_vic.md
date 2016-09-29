@@ -6,6 +6,7 @@ vSphere Integrated Containers Engine supports the use of container volumes. When
 - [Obtain the List of Available Volumes](#list_vols)
 - [Create a Volume in a Volume Store](#create_vol)
 - [Create a Container and Attach it to an Anonymous or Named Volume](#create_container)
+- [Attach an Existing Volume to a Container](#attach)
 - [Delete a Named Volume from a Volume Store](#delete_vol) 
 
 <a name="list_vs"></a>
@@ -95,6 +96,32 @@ create -v volume_1:/volumes busybox</pre>
 **NOTES**: 
 - vSphere Integrated Containers Engine does not support mounting directories as data volumes. A command such as <code>docker create -v /<i>folder_name</i>:/<i>folder_name</i> busybox</code> is not supported.
 - If you use `docker create -v` to create containers that are attached to volumes, vSphere Integrated Containers Engine only supports the `-r` and `-rw` options.
+
+<a name="attach"></a>
+## Mount an Existing Volume on a Container ##
+vSphere Integrated Containers Engine currently supports mounting a volume on only one container at a time. When you mount a volume on a container by using `docker create -v`,  that volume remains mounted on the container until you remove that container. When you have removed the container you can mount the volume on a new container.
+
+This example performs the following operations:
+
+- Creates a container named `container1` from the `busybox` image.
+- Mounts the `myData` folder of a volume named `volume1` on that container, starts the container, and attaches to it.
+- After performing operations in `volume1:/myData` then stopping and detaching `container1`, creates `container2` from the `ubuntu` image and mounts the `myData` folder of `volume1` on it.
+
+<pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
+create --name container1 -v volume1:/myData busybox
+docker start container1
+docker attach container1 
+
+[Perform container operations and detach]
+
+docker stop container1 
+docker rm container1
+docker create -it --name container2 -v volume1:/myData ubuntu
+docker start container2 
+docker attach container2 
+
+[Perform container operations with the same volume that was 
+previously mounted to container1]</pre>
 
 <a name="delete_vol"></a>
 ## Delete a Named Volume from a Volume Store ##
