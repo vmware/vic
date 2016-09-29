@@ -242,13 +242,6 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 		return fmt.Errorf("Multiple IPs found on %s: %#v", constants.ManagementHostName, ips)
 	}
 
-	//FIXME: remove debug network
-	backing, err := Config.DebugNetwork.EthernetCardBackingInfo(ctx)
-	if err != nil {
-		detail := fmt.Sprintf("unable to generate backing info for debug network - this code can be removed once network mapping/dhcp client are available: %s", err)
-		log.Error(detail)
-		return errors.New(detail)
-	}
 	uuid, err := instanceUUID(config.Metadata.ID)
 	if err != nil {
 		detail := fmt.Sprintf("unable to get instance UUID: %s", err)
@@ -267,7 +260,6 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 		ParentImageID: config.ParentImageID,
 		BootMediaPath: Config.BootstrapImagePath,
 		VMPathName:    fmt.Sprintf("[%s]", sess.Datastore.Name()),
-		DebugNetwork:  backing,
 
 		ImageStoreName: config.ImageStoreName,
 		ImageStorePath: &Config.ImageStores[0],

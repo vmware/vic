@@ -66,9 +66,6 @@ type VirtualMachineConfigSpecConfig struct {
 	// datastore path of the VM
 	VMPathName string
 
-	// Network backing info
-	DebugNetwork types.BaseVirtualDeviceBackingInfo
-
 	// Name of the image store
 	ImageStoreName string
 
@@ -243,13 +240,6 @@ func (s *VirtualMachineConfigSpec) VMPathName() string {
 	defer trace.End(trace.Begin(s.config.ID))
 
 	return s.config.VMPathName
-}
-
-// NetworkName returns the network name
-func (s *VirtualMachineConfigSpec) DebugNetwork() types.BaseVirtualDeviceBackingInfo {
-	defer trace.End(trace.Begin(s.config.ID))
-
-	return s.config.DebugNetwork
 }
 
 // ImageStoreName returns the image store name

@@ -19,7 +19,6 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/config"
-	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/event"
 )
 
@@ -37,10 +36,6 @@ type Configuration struct {
 	ResourcePool *object.ResourcePool
 	// Parent resource will be a VirtualApp on VC
 	VirtualApp *object.VirtualApp
-
-	// FIXME: temporary work around for injecting network path of debug nic
-	Networks     map[string]*executor.NetworkEndpoint `vic:"0.1" scope:"read-only" key:"init/networks"`
-	DebugNetwork object.NetworkReference
 
 	// For now throw the Event Manager here
 	EventManager event.EventManager
