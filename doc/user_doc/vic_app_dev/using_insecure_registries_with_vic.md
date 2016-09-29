@@ -8,6 +8,11 @@ For information about how to use the `vic-machine create --docker-insecure-regis
 
 ## Pull a Container Image from an Insecure Registry ##
 
-To pull a container image from an insecure registry server, run the following Docker command.
+To pull a container image from an insecure registry server, run the following Docker command. 
 <pre>docker -H <i>vch_address</i>:2376 --tls 
-pull <i>vch_address</i>/path/to/image/<i>image_name</i>:<i>image_version</i></pre>
+pull <i>registry_server_address</i>/path/to/image/<i>image_name</i>:<i>image_version</i></pre>
+
+If the registry server listens for connections on a specific port, include the port number in the registry server URL.
+
+<pre>docker -H <i>vch_address</i>:2376 --tls 
+pull <i>registry_server_address</i>:<i>port_number</i>/path/to/image/<i>image_name</i>:<i>image_version</i></pre>
