@@ -106,6 +106,14 @@ Docker ps powerOff container OOB
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  ${len-1}
 
+Docker ps ports output
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create -p 8000:80 -p 8443:443 nginx
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  :8000->80/tcp
+    Should Contain  ${output}  :8443->443/tcp
+
 Docker ps Remove container OOB
     ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name lolo busybox /bin/top
     Should Be Equal As Integers  ${rc}  0

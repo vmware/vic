@@ -26,9 +26,11 @@ type Port string
 const NilPort = Port("")
 
 func ParsePort(p string) (Port, error) {
-	port := Port(p).Port()
+	if _, err := Port(p).Port(); err != nil {
+		return NilPort, err
+	}
 	proto := Port(p).Proto()
-	if proto == "" || port < 0 {
+	if proto == "" {
 		return NilPort, fmt.Errorf("bad port spec %s", p)
 	}
 
@@ -40,18 +42,18 @@ func (p Port) Proto() string {
 	return proto
 }
 
-func (p Port) Port() int16 {
+func (p Port) Port() (uint16, error) {
 	_, port := nat.SplitProtoPort(string(p))
 	if port == "" {
-		return -1
+		return 0, fmt.Errorf("bad port spec %s", p)
 	}
 
 	pout, err := strconv.Atoi(port)
 	if err != nil {
-		return -1
+		return 0, fmt.Errorf("bad port spec %s", p)
 	}
 
-	return int16(pout)
+	return uint16(pout), nil
 }
 
 func (p Port) String() string {

@@ -1231,8 +1231,8 @@
                                         {
 						"name": "wait_time",
 						"in": "query",
-					        "type": "integer",
-                                                "format": "int32"
+						"type": "integer",
+						"format": "int32"
 					}
 
 				],
