@@ -148,7 +148,7 @@ When you create a volume store, you specify the name of the datastore to use and
 This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, datacenter, cluster, bridge network, and name for the virtual container host.
-- Specifies the `volumes` folder on `datastore 1` as the default volume store. Creating a volume store named `default` allows container application developers to create anonymous volumes by using `docker create -v`. 
+- Specifies the `volumes` folder on `datastore 1` as the default volume store. Creating a volume store named `default` allows container application developers to create anonymous or named volumes by using `docker create -v`. 
 - Specifies a second volume store named `volume_store_2` in the `volumes` folder on `datastore 2`. 
 - Note that the datastore names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 
@@ -284,5 +284,5 @@ This example deploys a virtual container host with the following configuration:
 --name vch1
 </pre>
 
-For more information about setting resource use limitations on virtual container hosts, see the section on the `docker-insecure-registry` option in [Virtual Container Host Deployment Options](vch_installer_options.md#registry).
+For more information about setting resource use limitations on virtual container hosts, see the section on the [`docker-insecure-registry` option in Virtual Container Host Deployment Options](vch_installer_options.md#registry).
 
