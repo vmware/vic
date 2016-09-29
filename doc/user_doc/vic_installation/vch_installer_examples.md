@@ -273,6 +273,7 @@ This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, image store, cluster, bridge network, and name for the virtual container host.
 - Authorizes the virtual container host to pull Docker images from the insecure registry servers located at the URLs <i>registry_URL_1</i> and <i>registry_URL_2</i>.
+- The registry server at <i>registry_URL_2</i> listens for connections on port 5000. 
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
@@ -280,7 +281,7 @@ This example deploys a virtual container host with the following configuration:
 --image-store datastore1
 --bridge-network vic-bridge
 --docker-insecure-registry <i>registry_URL_1</i>
---docker-insecure-registry <i>registry_URL_2</i>
+--docker-insecure-registry <i>registry_URL_2:5000</i>
 --name vch1
 </pre>
 
