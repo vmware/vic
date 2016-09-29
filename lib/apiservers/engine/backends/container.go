@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -215,7 +214,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	if exists := cache.ContainerCache().GetContainer(config.Name); exists != nil {
 		err := fmt.Errorf("Conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", config.Name, exists.ContainerID)
 		log.Errorf("%s", err.Error())
-		return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(err, http.StatusConflict)
+		return types.ContainerCreateResponse{}, derr.NewRequestConflictError(err)
 	}
 
 	// get the image from the cache
@@ -435,7 +434,7 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		case *containers.ContainerRemoveDefault:
 			return InternalServerError(err.Payload.Message)
 		case *containers.ContainerRemoveConflict:
-			return derr.NewErrorWithStatusCode(fmt.Errorf("You cannot remove a running container. Stop the container before attempting removal or use -f"), http.StatusConflict)
+			return derr.NewRequestConflictError(fmt.Errorf("You cannot remove a running container. Stop the container before attempting removal or use -f"))
 		default:
 			return InternalServerError(err.Error())
 		}
@@ -549,6 +548,8 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 		case *containers.CommitNotFound:
 			cache.ContainerCache().DeleteContainer(id)
 			return NotFoundError(name)
+		case *containers.CommitConflict:
+			return ConflictError(err.Error())
 		case *containers.CommitDefault:
 			return InternalServerError(err.Payload.Message)
 		default:
@@ -755,6 +756,8 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 		case *containers.CommitNotFound:
 			cache.ContainerCache().DeleteContainer(id)
 			return NotFoundError(name)
+		case *containers.CommitConflict:
+			return ConflictError(err.Error())
 		case *containers.CommitDefault:
 			return InternalServerError(err.Payload.Message)
 		default:
@@ -1091,6 +1094,8 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 		switch err := err.(type) {
 		case *containers.CommitNotFound:
 			return NotFoundError(name)
+		case *containers.CommitConflict:
+			return ConflictError(err.Error())
 		case *containers.CommitDefault:
 			return InternalServerError(err.Payload.Message)
 		default:
@@ -1098,9 +1103,7 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 		}
 	}
 
-	err = attachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
-
-	return err
+	return attachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
 }
 
 //------------------------------------

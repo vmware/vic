@@ -62,6 +62,33 @@ const (
 	propertyCollectorTimeout = 3 * time.Minute
 )
 
+// NotFoundError is returned when a types.ManagedObjectNotFound is returned from a vmomi call
+type NotFoundError struct {
+	err error
+}
+
+func (r NotFoundError) Error() string {
+	return "VM has either been deleted or has not been fully created"
+}
+
+// RemovePowerError is returned when attempting to remove a containerVM that is powered on
+type RemovePowerError struct {
+	err error
+}
+
+func (r RemovePowerError) Error() string {
+	return r.err.Error()
+}
+
+// ConcurrentAccessError is returned when concurrent calls tries to modify same object
+type ConcurrentAccessError struct {
+	err error
+}
+
+func (r ConcurrentAccessError) Error() string {
+	return r.err.Error()
+}
+
 type Container struct {
 	m sync.Mutex
 
@@ -223,7 +250,8 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 	}
 
 	// if we're stopping the VM, do so before the reconfigure to preserve the extraconfig
-	if h.State != nil && *h.State == StateStopped {
+	if h.State != nil && *h.State == StateStopped &&
+		c.Runtime != nil && c.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
 		// stop the container
 		if err := h.Container.stop(ctx, waitTime); err != nil {
 			return err
@@ -255,6 +283,17 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 			return c.vm.Reconfigure(ctx, *s)
 		})
 		if err != nil {
+			log.Errorf("Reconfigure failed with %#+v", err)
+
+			// Check whether we get ConcurrentAccess and wrap it if needed
+			if f, ok := err.(types.HasFault); ok {
+				switch f.Fault().(type) {
+				case *types.ConcurrentAccess:
+					log.Errorf("We have ConcurrentAccess for version %s", s.ChangeVersion)
+
+					return ConcurrentAccessError{err}
+				}
+			}
 			return err
 		}
 
@@ -264,7 +303,8 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		}
 	}
 
-	if h.State != nil && *h.State == StateRunning {
+	if h.State != nil && *h.State == StateRunning &&
+		c.Runtime != nil && c.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff {
 		// start the container
 		if err := h.Container.start(ctx); err != nil {
 			return err
@@ -496,24 +536,6 @@ func (c *Container) LogReader(ctx context.Context, tail int, follow bool) (io.Re
 	}
 
 	return file, nil
-}
-
-// NotFoundError is returned when a types.ManagedObjectNotFound is returned from a vmomi call
-type NotFoundError struct {
-	err error
-}
-
-func (r NotFoundError) Error() string {
-	return "VM has either been deleted or has not been fully created"
-}
-
-// RemovePowerError is returned when attempting to remove a containerVM that is powered on
-type RemovePowerError struct {
-	err error
-}
-
-func (r RemovePowerError) Error() string {
-	return r.err.Error()
 }
 
 // Remove removes a containerVM after detaching the disks

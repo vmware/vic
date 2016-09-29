@@ -61,3 +61,7 @@ func InternalServerError(msg string) error {
 func BadRequestError(msg string) error {
 	return derr.NewErrorWithStatusCode(fmt.Errorf("Bad request error from portlayer: %s", msg), http.StatusBadRequest)
 }
+
+func ConflictError(msg string) error {
+	return derr.NewRequestConflictError(fmt.Errorf("Conflict error from portlayer: %s", msg))
+}
