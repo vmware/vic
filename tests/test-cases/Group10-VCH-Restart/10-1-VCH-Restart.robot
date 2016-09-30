@@ -43,16 +43,16 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10001
 
     Log To Console  Rebooting VCH ...
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -power=off ${vch-name}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -off=true ${vch-name}
     Should Be Equal As Integers  ${rc}  0
     Log To Console  Waiting for VCH to power off ...
     Wait Until VM Powers Off  ${vch-name}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -power=on ${vch-name}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -on=true ${vch-name}
     Should Be Equal As Integers  ${rc}  0
     Log To Console  Waiting for VCH to power on ...
     Wait Until Vm Powers On  ${vch-name}
     Log To Console  VCH Powered On
-    Sleep  5
+    Sleep  10
     Log To Console  Getting VCH IP ...
     ${new-vch-ip}=  Get VM IP  ${vch-name}
     Log To Console  New VCH IP is ${new-vch-ip}
