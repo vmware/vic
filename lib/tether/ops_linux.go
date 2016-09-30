@@ -596,9 +596,7 @@ func (t *BaseOperations) MountLabel(ctx context.Context, label, target string, B
 		return fmt.Errorf(fmt.Sprintf("Could not find block device (%s) when attempting to perform mount operation", label))
 	}
 
-	log.Infof("Found device %#v for label %s", blockInfo, label)
 	sourcePath, err := filepath.EvalSymlinks(blockInfo.DevicePath)
-	log.Infof("Followed symlink to device %s", sourcePath)
 	if err != nil {
 		return fmt.Errorf("error attempting to follow the symlink in (%s)", blockInfo.DevicePath)
 	}
