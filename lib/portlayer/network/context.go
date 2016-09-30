@@ -471,10 +471,15 @@ func (c *Context) findScopes(idName *string) ([]*Scope, error) {
 		}
 
 		// search by id or partial id
+		var ss []*Scope
 		for _, s := range c.scopes {
 			if strings.HasPrefix(s.id.String(), *idName) {
-				return []*Scope{s}, nil
+				ss = append(ss, s)
 			}
+		}
+
+		if len(ss) > 0 {
+			return ss, nil
 		}
 
 		return nil, ResourceNotFoundError{error: fmt.Errorf("scope %s not found", *idName)}
@@ -1093,6 +1098,11 @@ func (c *Context) UpdateContainer(h *exec.Handle) error {
 
 		e := con.Endpoint(s)
 		e.ip = ne.Assigned.IP
+		if ip.IsUnspecifiedSubnet(&ne.Network.Gateway) {
+			log.Warnf("updating container %s: gateway not present for scope %s", con.ID(), s.Name())
+			continue
+		}
+
 		gw, snet, err := net.ParseCIDR(ne.Network.Gateway.String())
 		if err != nil {
 			return err
