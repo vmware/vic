@@ -35,6 +35,7 @@ import (
 
 	"github.com/vmware/vic/lib/dhcp"
 	"github.com/vmware/vic/lib/dhcp/client"
+	"github.com/vmware/vic/pkg/fs"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vmw-guestinfo/rpcout"
@@ -583,14 +584,14 @@ func (t *BaseOperations) dhcpLoop(stop chan bool, e *NetworkEndpoint, ack *dhcp.
 
 // MountLabel performs a mount by looking up a fsinfo from the device map using the volume label
 // the value of the map is the fsinfo object which has the device path.
-func (t *BaseOperations) MountLabel(ctx context.Context, label, target string) error {
+func (t *BaseOperations) MountLabel(ctx context.Context, label, target string, BlockDeviceMap map[string]fs.Fsinfo) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", label, target)))
 
 	if err := os.MkdirAll(target, 0600); err != nil {
 		return fmt.Errorf("unable to create mount point %s: %s", target, err)
 	}
 
-	blockInfo, ok := DeviceMap[label]
+	blockInfo, ok := BlockDeviceMap[label]
 	if !ok {
 		return fmt.Errorf(fmt.Sprintf("Could not find block device (%s) when attempting to perform mount operation", label))
 	}

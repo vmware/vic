@@ -228,8 +228,12 @@ func (t *tether) Start() error {
 				return errors.New(detail)
 			}
 
+			log.Infof("attempting to mount %s to %s", v.Source.Path, v.Path)
 			// this could block indefinitely while waiting for a volume to present
-			t.ops.MountLabel(context.Background(), v.Source.Path, v.Path)
+			mountErr := t.ops.MountLabel(context.Background(), v.Source.Path, v.Path, DeviceMap)
+			if mountErr != nil {
+				log.Error(mountErr.Error())
+			}
 		}
 
 		// process the sessions and launch if needed
