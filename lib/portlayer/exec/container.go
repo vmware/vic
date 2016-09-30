@@ -121,12 +121,10 @@ func GetContainer(id uid.UID) *Handle {
 	// get from the cache
 	container := Containers.Container(id.String())
 	if container != nil {
-		// Call property collector to fill the data
-		container.Refresh(context.TODO())
 		return container.NewHandle()
 	}
-	return nil
 
+	return nil
 }
 
 func (s State) String() string {
@@ -151,18 +149,36 @@ func (s State) String() string {
 }
 
 func (c *Container) NewHandle() *Handle {
+	c.m.Lock()
+	defer c.m.Unlock()
+
+	// Call property collector to fill the data
+	if c.vm != nil {
+		if err := c.refresh(context.TODO()); err != nil {
+			log.Errorf("refreshing container %s failed: %s", c.ExecConfig.ID, err)
+			return nil
+		}
+	}
+
 	return newHandle(c)
 }
 
 // Refresh calls the propery collector to get config and runtime info and Guest RPC for ExtraConfig
 func (c *Container) Refresh(ctx context.Context) error {
+	c.m.Lock()
+	defer c.m.Unlock()
+
+	return c.refresh(ctx)
+}
+
+func (c *Container) refresh(ctx context.Context) error {
 	var o mo.VirtualMachine
 
 	// make sure we have vm
 	if c.vm == nil {
 		return fmt.Errorf("There is no backing VirtualMachine %#v", c)
 	}
-	if err := c.vm.Properties(ctx, c.vm.Reference(), []string{"config", "runtime"}, &o); err != nil {
+	if err := c.vm.Properties(ctx, c.vm.Reference(), []string{"config", "config.extraConfig", "runtime"}, &o); err != nil {
 		return err
 	}
 
@@ -170,11 +186,7 @@ func (c *Container) Refresh(ctx context.Context) error {
 	c.Runtime = &o.Runtime
 
 	// Get the ExtraConfig
-	src, err := extraconfig.GuestInfoSource()
-	if err != nil {
-		return err
-	}
-	extraconfig.Decode(src, c.ExecConfig)
+	extraconfig.Decode(vmomi.OptionValueSource(o.Config.ExtraConfig), c.ExecConfig)
 
 	return nil
 }
@@ -242,7 +254,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		h.Spec = nil
 
 		// refresh the struct with what propery collector provides
-		if err = c.Refresh(ctx); err != nil {
+		if err = c.refresh(ctx); err != nil {
 			return err
 		}
 	}
@@ -259,7 +271,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		commitEvent = events.ContainerStopped
 
 		// refresh the struct with what propery collector provides
-		if err := c.Refresh(ctx); err != nil {
+		if err := c.refresh(ctx); err != nil {
 			return err
 		}
 	}
@@ -296,7 +308,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		}
 
 		// refresh the struct with what propery collector provides
-		if err = c.Refresh(ctx); err != nil {
+		if err = c.refresh(ctx); err != nil {
 			return err
 		}
 	}
@@ -312,7 +324,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		commitEvent = events.ContainerStarted
 
 		// refresh the struct with what propery collector provides
-		if err := c.Refresh(ctx); err != nil {
+		if err := c.refresh(ctx); err != nil {
 			return err
 		}
 	}
