@@ -100,31 +100,29 @@ func (handler *ScopesHandlersImpl) listScopes(idName string) ([]*models.ScopeCon
 		// may be using DHCP, in which case we need to
 		// get the current IP address, and other network
 		// info from the container VM.
-		if s.Type() == constants.BridgeScopeType {
-			continue
-		}
+		if s.Type() != constants.BridgeScopeType {
+			for _, e := range s.Endpoints() {
+				// update the container config, if necessary
+				cid := e.Container().ID()
+				if _, ok := updated[cid]; ok {
+					continue
+				}
 
-		for _, e := range s.Endpoints() {
-			// update the container config, if necessary
-			cid := e.Container().ID()
-			if _, ok := updated[cid]; ok {
-				continue
+				// this will "refresh" the container executor config that contains
+				// the current ip addresses
+				h := exec.GetContainer(cid)
+				if h == nil {
+					return nil, fmt.Errorf("could not find container %s", cid)
+				}
+
+				defer h.Close()
+
+				if err = handler.netCtx.UpdateContainer(h); err != nil {
+					return nil, err
+				}
+
+				updated[cid] = nil
 			}
-
-			// this will "refresh" the container executor config that contains
-			// the current ip addresses
-			h := exec.GetContainer(cid)
-			if h == nil {
-				return nil, fmt.Errorf("could not find container %s", cid)
-			}
-
-			defer h.Close()
-
-			if err = handler.netCtx.UpdateContainer(h); err != nil {
-				return nil, err
-			}
-
-			updated[cid] = nil
 		}
 
 		cfgs[i] = toScopeConfig(s)
@@ -374,6 +372,9 @@ func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
 	}
 
 	sc.IPAM = pools
+	if len(sc.IPAM) == 0 {
+		sc.IPAM = []string{subnet}
+	}
 
 	eps := scope.Endpoints()
 	sc.Endpoints = make([]*models.EndpointConfig, len(eps))
