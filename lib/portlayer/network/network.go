@@ -17,7 +17,6 @@ package network
 import (
 	"context"
 	"fmt"
-	"net"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -55,7 +54,7 @@ func (e DuplicateResourceError) Error() string {
 }
 
 func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSource, sink extraconfig.DataSink) error {
-	trace.End(trace.Begin("network.Init"))
+	trace.End(trace.Begin(""))
 
 	initializer.once.Do(func() {
 		var err error
@@ -86,35 +85,21 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			n.PortGroup = r.(object.NetworkReference)
 		}
 
-		bridgeRange := config.BridgeIPRange
-		if bridgeRange == nil || len(bridgeRange.IP) == 0 || bridgeRange.IP.IsUnspecified() {
-			_, bridgeRange, err = net.ParseCIDR("172.16.0.0/12")
-			if err != nil {
-				return
-			}
-		}
-
 		// make sure a NIC attached to the bridge network exists
 		config.BridgeLink, err = getBridgeLink(&config)
 		if err != nil {
 			return
 		}
 
-		bridgeWidth := config.BridgeNetworkWidth
-		if bridgeWidth == nil || len(*bridgeWidth) == 0 {
-			w := net.CIDRMask(16, 32)
-			bridgeWidth = &w
-		}
-
 		var netctx *Context
-		netctx, err = NewContext(*bridgeRange, *bridgeWidth, &config)
+		netctx, err = NewContext(&config)
 		if err != nil {
 			return
 		}
 
 		if err = engageContext(netctx, exec.Config.EventManager); err == nil {
 			DefaultContext = netctx
-			log.Infof("Default network context allocated: %s", bridgeRange.String())
+			log.Infof("Default network context allocated")
 		}
 	})
 
@@ -195,7 +180,7 @@ func engageContext(netctx *Context, em event.EventManager) error {
 			}
 
 			log.Debugf("adding scope %s", n)
-			if _, err = netctx.newScope(ne.Network.Type, n, nil, ne.Network.Gateway.IP, ne.Network.Nameservers, pools); err != nil {
+			if _, err = netctx.newScope(ne.Network.Type, n, &ne.Network.Gateway, ne.Network.Gateway.IP, ne.Network.Nameservers, pools); err != nil {
 				return err
 			}
 		}
