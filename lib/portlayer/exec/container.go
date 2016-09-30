@@ -122,7 +122,7 @@ func GetContainer(id uid.UID) *Handle {
 	container := Containers.Container(id.String())
 	if container != nil {
 		// Call property collector to fill the data
-		container.Refresh()
+		container.Refresh(context.TODO())
 		return container.NewHandle()
 	}
 	return nil
@@ -155,15 +155,13 @@ func (c *Container) NewHandle() *Handle {
 }
 
 // Refresh calls the propery collector to get config and runtime info and Guest RPC for ExtraConfig
-func (c *Container) Refresh() error {
+func (c *Container) Refresh(ctx context.Context) error {
 	var o mo.VirtualMachine
 
 	// make sure we have vm
 	if c.vm == nil {
 		return fmt.Errorf("There is no backing VirtualMachine %#v", c)
 	}
-	ctx := context.TODO()
-
 	if err := c.vm.Properties(ctx, c.vm.Reference(), []string{"config", "runtime"}, &o); err != nil {
 		return err
 	}
@@ -244,7 +242,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		h.Spec = nil
 
 		// refresh the struct with what propery collector provides
-		if err = c.Refresh(); err != nil {
+		if err = c.Refresh(ctx); err != nil {
 			return err
 		}
 	}
@@ -261,7 +259,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		commitEvent = events.ContainerStopped
 
 		// refresh the struct with what propery collector provides
-		if err := c.Refresh(); err != nil {
+		if err := c.Refresh(ctx); err != nil {
 			return err
 		}
 	}
@@ -298,7 +296,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		}
 
 		// refresh the struct with what propery collector provides
-		if err = c.Refresh(); err != nil {
+		if err = c.Refresh(ctx); err != nil {
 			return err
 		}
 	}
@@ -314,7 +312,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		commitEvent = events.ContainerStarted
 
 		// refresh the struct with what propery collector provides
-		if err := c.Refresh(); err != nil {
+		if err := c.Refresh(ctx); err != nil {
 			return err
 		}
 	}
@@ -616,25 +614,6 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	//remove container from cache
 	Containers.Remove(c.ExecConfig.ID)
 	return nil
-}
-
-func (c *Container) Update(ctx context.Context, sess *session.Session) (*executor.ExecutorConfig, error) {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
-	c.m.Lock()
-	defer c.m.Unlock()
-
-	if c.vm == nil {
-		return nil, fmt.Errorf("container does not have a vm")
-	}
-
-	var vm []mo.VirtualMachine
-
-	if err := sess.Retrieve(ctx, []types.ManagedObjectReference{c.vm.Reference()}, []string{"config"}, &vm); err != nil {
-		return nil, err
-	}
-
-	extraconfig.Decode(vmomi.OptionValueSource(vm[0].Config.ExtraConfig), c.ExecConfig)
-	return c.ExecConfig, nil
 }
 
 // get the containerVMs from infrastructure for this resource pool
