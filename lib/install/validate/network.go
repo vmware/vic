@@ -30,7 +30,6 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/install/data"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
@@ -262,7 +261,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 				Name: "bridge",
 				ID:   netMoid,
 			},
-			Type: constants.BridgeScopeType,
+			Type: "bridge",
 		},
 	}
 	// we need to have the bridge network identified as an available container network
@@ -271,10 +270,6 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 	// port forwarding
 	conf.AddNetwork(bridgeNet)
 	conf.BridgeIPRange = input.BridgeIPRange
-
-	externalNet := conf.Networks["external"].Network
-	externalNet.Type = constants.ExternalScopeType
-	conf.AddContainerNetwork(&externalNet)
 
 	err = v.checkVDSMembership(ctx, endpointMoref, input.BridgeNetworkName)
 	if err != nil && checkBridgeVDS {
@@ -345,7 +340,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 				Name: name,
 				ID:   moref.String(),
 			},
-			Type:        constants.ExternalScopeType,
+			Type:        "external",
 			Gateway:     gw,
 			Nameservers: dns,
 			Pools:       pools,
