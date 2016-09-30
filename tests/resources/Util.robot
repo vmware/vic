@@ -83,6 +83,10 @@ Install VIC Appliance To Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
     Set Test VCH Name
+    # Set a unique bridge network for each VCH that has a random VLAN ID
+    ${vlan}=  Evaluate  str(random.randint(1, 4093))  modules=random
+    ${out}=  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitch0 ${vch-name}-bridge
+    Set Environment Variable  BRIDGE_NETWORK  ${vch-name}-bridge
 
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
@@ -107,6 +111,7 @@ Cleanup VIC Appliance On Test Server
     Gather Logs From Test Server
     Log To Console  Deleting the VCH appliance...
     ${output}=  Run VIC Machine Delete Command
+    ${out}=  Run  govc host.portgroup.remove ${vch-name}-bridge
     [Return]  ${output}
 
 Check Delete Success
@@ -364,6 +369,15 @@ Get VM IP
     ${rc}  ${out}=  Run And Return Rc And Output  govc vm.ip ${vm}
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${out}
+    
+Get VCH Host Name
+    ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc vm.info ${vch-name}/${vch-name}
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${out}  ${ret}
+    ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc vm.info ${vch-name}
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${out}  ${ret}
+    ${out}=  Split To Lines  ${out}
+    ${host}=  Fetch From Right  @{out}[-1]  ${SPACE} 
+    [Return]  ${host}
 
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
