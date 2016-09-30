@@ -104,8 +104,12 @@ func testConfig() *Configuration {
 		sink:          extraconfig.MapSink(map[string]string{}),
 		BridgeLink:    &mockLink{},
 		BridgeNetwork: "bridge",
+		BridgeIPRange: &net.IPNet{IP: net.ParseIP("172.16.0.0"), Mask: net.CIDRMask(12, 32)},
 		ContainerNetworks: map[string]*ContainerNetwork{
 			"bridge": {
+				Common: executor.Common{
+					Name: "bridge",
+				},
 				PortGroup: testBridgeNetwork,
 				Type:      constants.BridgeScopeType,
 			},
@@ -164,7 +168,7 @@ func TestMain(m *testing.M) {
 
 func TestMapExternalNetworks(t *testing.T) {
 	conf := testConfig()
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), conf)
+	ctx, err := NewContext(conf)
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
@@ -227,7 +231,7 @@ func TestMapExternalNetworks(t *testing.T) {
 }
 
 func TestContextNewScope(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
+	ctx, err := NewContext(testConfig())
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
@@ -384,7 +388,7 @@ func TestContextNewScope(t *testing.T) {
 }
 
 func TestScopes(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
+	ctx, err := NewContext(testConfig())
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 		return
@@ -479,7 +483,7 @@ func TestScopes(t *testing.T) {
 }
 
 func TestContextAddContainer(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
+	ctx, err := NewContext(testConfig())
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 		return
@@ -645,7 +649,7 @@ func newContainer(name string) *exec.Handle {
 }
 
 func TestContextBindUnbindContainer(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
+	ctx, err := NewContext(testConfig())
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
@@ -863,7 +867,7 @@ func TestContextRemoveContainer(t *testing.T) {
 
 	hFoo := newContainer("foo")
 
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
+	ctx, err := NewContext(testConfig())
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
@@ -967,7 +971,7 @@ func TestContextRemoveContainer(t *testing.T) {
 }
 
 func TestDeleteScope(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
+	ctx, err := NewContext(testConfig())
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
@@ -1040,7 +1044,7 @@ func TestDeleteScope(t *testing.T) {
 }
 
 func TestAliases(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
+	ctx, err := NewContext(testConfig())
 	assert.NoError(t, err)
 	assert.NotNil(t, ctx)
 

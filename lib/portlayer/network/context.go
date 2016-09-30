@@ -124,7 +124,8 @@ func NewContext(config *Configuration) (*Context, error) {
 			pools[i] = p.String()
 		}
 
-		s, err := ctx.NewScope(n.Type, nn, &n.Gateway, n.Gateway.IP, n.Nameservers, pools)
+		subnet := net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}
+		s, err := ctx.NewScope(n.Type, nn, &subnet, n.Gateway.IP, n.Nameservers, pools)
 		if err != nil {
 			return nil, err
 		}
