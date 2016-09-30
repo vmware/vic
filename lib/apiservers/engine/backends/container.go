@@ -1597,6 +1597,7 @@ func ContainerSignal(containerID string, sig uint64) error {
 	return nil
 }
 
+// pulls out the client IP(s) from program state
 func clientIPv4Addrs() ([]netlink.Addr, error) {
 	l, err := netlink.LinkByName(clientIfaceName)
 	if err != nil {
@@ -1611,10 +1612,11 @@ func clientIPv4Addrs() ([]netlink.Addr, error) {
 	return ips, nil
 }
 
-// returns port bindings as a list of Docker Ports for return to the client
+// returns port bindings as a slice of Docker Ports for return to the client
 // returns empty slice on error
 func portInformation(t *models.ContainerInfo, ips []netlink.Addr) []types.Port {
-	// create a port for each IP on the interface (usually only 1, if netlink.FAMILY_ALL then usually 2)
+	// create a port for each IP on the interface (usually only 1, but could be more)
+	// (works with both IPv4 and IPv6 addresses)
 	var ports []types.Port
 
 	container := cache.ContainerCache().GetContainer(*t.ContainerConfig.ContainerID)
@@ -1640,7 +1642,6 @@ func portInformation(t *models.ContainerInfo, ips []netlink.Addr) []types.Port {
 				continue
 			}
 			port.Type = portAndType[1]
-			log.Infof("%d", len(hostPortBindings))
 
 			for i := 0; i < len(hostPortBindings); i++ {
 				newport := port
@@ -1649,8 +1650,8 @@ func portInformation(t *models.ContainerInfo, ips []netlink.Addr) []types.Port {
 					log.Infof("Got an error trying to convert public port number to an int")
 					continue
 				}
-				// sanity check -- sometimes these come back as 0 which doesn't make sense
-				// so in that case we don't want to report these bindings
+				// sanity check -- sometimes these come back as 0 when no binding actually exists
+				// that doesn't make sense, so in that case we don't want to report these bindings
 				if newport.PublicPort != 0 && newport.PrivatePort != 0 {
 					resultPorts = append(resultPorts, newport)
 				}

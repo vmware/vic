@@ -584,6 +584,7 @@ func TestContainerLogs(t *testing.T) {
 }
 
 func TestPortInformation(t *testing.T) {
+	// I could refactor this to have a loop and an array or whatever but eh
 	mockContainerInfo := &plmodels.ContainerInfo{}
 	mockContainerConfig := &plmodels.ContainerConfig{}
 	containerID := "foo"
@@ -619,9 +620,27 @@ func TestPortInformation(t *testing.T) {
 
 	// ports = portInformation(mockContainerInfo, ips)
 	assert.NotEmpty(t, ports, "There should be bound IPs")
-	assert.Equal(len(ports), 1)
+	assert.Equal(t, len(ports), 1, "Expected 1 port binding, found %d", len(ports))
 
 	// add another port, 0->0 binding to check that it doesn't get added
 	// add another port valid->valid and check that we get both
 	// remove things and make sure it comes back empty
+	port, _ = nat.NewPort("tcp", "80")
+	portBinding = nat.PortBinding{
+		HostIP:   "127.0.0.1",
+		HostPort: "00",
+	}
+	portMap[port] = portBindings
+	ports = portInformation(mockContainerInfo, ips)
+	assert.NotEmpty(t, ports, "There should be 1 bound IP")
+	assert.Equal(t, len(ports), 1, "Expected 1 port binding, found %d", len(ports))
+
+	port, _ = nat.NewPort("tcp", "800")
+	portBinding = nat.PortBinding{
+		HostIP:   "127.0.0.1",
+		HostPort: "800",
+	}
+	portMap[port] = portBindings
+	ports = portInformation(mockContainerInfo, ips)
+	assert.Equal(t, len(ports), 2, "Expected 2 port binding, found %d", len(ports))
 }
