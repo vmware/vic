@@ -62,17 +62,50 @@ const (
 	propertyCollectorTimeout = 3 * time.Minute
 )
 
+// NotFoundError is returned when a types.ManagedObjectNotFound is returned from a vmomi call
+type NotFoundError struct {
+	err error
+}
+
+func (r NotFoundError) Error() string {
+	return "VM has either been deleted or has not been fully created"
+}
+
+// RemovePowerError is returned when attempting to remove a containerVM that is powered on
+type RemovePowerError struct {
+	err error
+}
+
+func (r RemovePowerError) Error() string {
+	return r.err.Error()
+}
+
+// ConcurrentAccessError is returned when concurrent calls tries to modify same object
+type ConcurrentAccessError struct {
+	err error
+}
+
+func (r ConcurrentAccessError) Error() string {
+	return r.err.Error()
+}
+
 type Container struct {
 	m sync.Mutex
 
+	// Current values
 	ExecConfig *executor.ExecutorConfig
 	State      State
 
+	// Size of the leaf (unused)
 	VMUnsharedDisk int64
 
 	vm *vm.VirtualMachine
 
 	logFollowers []io.Closer
+
+	// Current state
+	Config  *types.VirtualMachineConfigInfo
+	Runtime *types.VirtualMachineRuntimeInfo
 }
 
 func NewContainer(id uid.UID) *Handle {
@@ -88,6 +121,8 @@ func GetContainer(id uid.UID) *Handle {
 	// get from the cache
 	container := Containers.Container(id.String())
 	if container != nil {
+		// Call property collector to fill the data
+		container.Refresh()
 		return container.NewHandle()
 	}
 	return nil
@@ -119,8 +154,36 @@ func (c *Container) NewHandle() *Handle {
 	return newHandle(c)
 }
 
+// Refresh calls the propery collector to get config and runtime info and Guest RPC for ExtraConfig
+func (c *Container) Refresh() error {
+	var o mo.VirtualMachine
+
+	// make sure we have vm
+	if c.vm == nil {
+		return fmt.Errorf("There is no backing VirtualMachine %#v", c)
+	}
+	ctx := context.TODO()
+
+	if err := c.vm.Properties(ctx, c.vm.Reference(), []string{"config", "runtime"}, &o); err != nil {
+		return err
+	}
+
+	c.Config = o.Config
+	c.Runtime = &o.Runtime
+
+	// Get the ExtraConfig
+	src, err := extraconfig.GuestInfoSource()
+	if err != nil {
+		return err
+	}
+	extraconfig.Decode(src, c.ExecConfig)
+
+	return nil
+}
+
+// Commit executes the requires steps on the handle
 func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int32) error {
-	defer trace.End(trace.Begin("Committing handle"))
+	defer trace.End(trace.Begin(h.ExecConfig.ID))
 
 	// hold the event that has occurred
 	var commitEvent string
@@ -179,10 +242,16 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 		// clear the spec as we've acted on it
 		h.Spec = nil
+
+		// refresh the struct with what propery collector provides
+		if err = c.Refresh(); err != nil {
+			return err
+		}
 	}
 
 	// if we're stopping the VM, do so before the reconfigure to preserve the extraconfig
-	if h.State != nil && *h.State == StateStopped {
+	if h.State != nil && *h.State == StateStopped &&
+		c.Runtime != nil && c.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
 		// stop the container
 		if err := h.Container.stop(ctx, waitTime); err != nil {
 			return err
@@ -190,23 +259,52 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 		c.State = *h.State
 		commitEvent = events.ContainerStopped
-	}
 
-	if h.Spec != nil {
-		// FIXME: add check that the VM is powered off - it should be, but this will destroy the
-		// extraconfig if it's not.
-
-		s := h.Spec.Spec()
-		_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-			return c.vm.Reconfigure(ctx, *s)
-		})
-
-		if err != nil {
+		// refresh the struct with what propery collector provides
+		if err := c.Refresh(); err != nil {
 			return err
 		}
 	}
 
-	if h.State != nil && *h.State == StateRunning {
+	if h.Spec != nil {
+		s := h.Spec.Spec()
+
+		// nilify ExtraConfig if vm is running
+		if c.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
+			log.Errorf("Nilifying ExtraConfig as we are running")
+			s.ExtraConfig = nil
+		}
+
+		// set ChangeVersion. This property is useful because it guards against updates that have happened between when the VM’s config is read and when it is applied.
+		// Will return "Cannot complete operation due to concurrent modification by another operation.." on failure
+		s.ChangeVersion = c.Config.ChangeVersion
+
+		_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+			return c.vm.Reconfigure(ctx, *s)
+		})
+		if err != nil {
+			log.Errorf("Reconfigure failed with %#+v", err)
+
+			// Check whether we get ConcurrentAccess and wrap it if needed
+			if f, ok := err.(types.HasFault); ok {
+				switch f.Fault().(type) {
+				case *types.ConcurrentAccess:
+					log.Errorf("We have ConcurrentAccess for version %s", s.ChangeVersion)
+
+					return ConcurrentAccessError{err}
+				}
+			}
+			return err
+		}
+
+		// refresh the struct with what propery collector provides
+		if err = c.Refresh(); err != nil {
+			return err
+		}
+	}
+
+	if h.State != nil && *h.State == StateRunning &&
+		c.Runtime != nil && c.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff {
 		// start the container
 		if err := h.Container.start(ctx); err != nil {
 			return err
@@ -214,6 +312,11 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 		c.State = *h.State
 		commitEvent = events.ContainerStarted
+
+		// refresh the struct with what propery collector provides
+		if err := c.Refresh(); err != nil {
+			return err
+		}
 	}
 
 	c.ExecConfig = &h.ExecConfig
@@ -223,7 +326,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 // Start starts a container vm with the given params
 func (c *Container) start(ctx context.Context) error {
-	defer trace.End(trace.Begin("Container.start"))
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
@@ -265,6 +368,7 @@ func (c *Container) start(ctx context.Context) error {
 }
 
 func (c *Container) waitForPowerState(ctx context.Context, max time.Duration, state types.VirtualMachinePowerState) (bool, error) {
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 	timeout, cancel := context.WithTimeout(ctx, max)
 	defer cancel()
 
@@ -277,6 +381,7 @@ func (c *Container) waitForPowerState(ctx context.Context, max time.Duration, st
 }
 
 func (c *Container) shutdown(ctx context.Context, waitTime *int32) error {
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 	wait := 10 * time.Second // default
 	if waitTime != nil && *waitTime > 0 {
 		wait = time.Duration(*waitTime) * time.Second
@@ -313,7 +418,7 @@ func (c *Container) shutdown(ctx context.Context, waitTime *int32) error {
 }
 
 func (c *Container) stop(ctx context.Context, waitTime *int32) error {
-	defer trace.End(trace.Begin("Container.stop"))
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
@@ -353,6 +458,7 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 }
 
 func (c *Container) startGuestProgram(ctx context.Context, name string, args string) error {
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 	o := guest.NewOperationsManager(c.vm.Client.Client, c.vm.Reference())
 	m, err := o.ProcessManager(ctx)
 	if err != nil {
@@ -374,7 +480,7 @@ func (c *Container) startGuestProgram(ctx context.Context, name string, args str
 }
 
 func (c *Container) Signal(ctx context.Context, num int64) error {
-	defer trace.End(trace.Begin("Container.Signal"))
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
@@ -394,7 +500,7 @@ func (c *Container) onStop() {
 }
 
 func (c *Container) LogReader(ctx context.Context, tail int, follow bool) (io.ReadCloser, error) {
-	defer trace.End(trace.Begin("Container.LogReader"))
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 
 	if c.vm == nil {
 		return nil, fmt.Errorf("vm not set")
@@ -432,27 +538,9 @@ func (c *Container) LogReader(ctx context.Context, tail int, follow bool) (io.Re
 	return file, nil
 }
 
-// NotFoundError is returned when a types.ManagedObjectNotFound is returned from a vmomi call
-type NotFoundError struct {
-	err error
-}
-
-func (r NotFoundError) Error() string {
-	return "VM has either been deleted or has not been fully created"
-}
-
-// RemovePowerError is returned when attempting to remove a containerVM that is powered on
-type RemovePowerError struct {
-	err error
-}
-
-func (r RemovePowerError) Error() string {
-	return r.err.Error()
-}
-
 // Remove removes a containerVM after detaching the disks
 func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
-	defer trace.End(trace.Begin("Container.Remove"))
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 	c.m.Lock()
 	defer c.m.Unlock()
 
@@ -531,7 +619,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 }
 
 func (c *Container) Update(ctx context.Context, sess *session.Session) (*executor.ExecutorConfig, error) {
-	defer trace.End(trace.Begin("Container.Update"))
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
 	c.m.Lock()
 	defer c.m.Unlock()
 
@@ -551,6 +639,7 @@ func (c *Container) Update(ctx context.Context, sess *session.Session) (*executo
 
 // get the containerVMs from infrastructure for this resource pool
 func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, error) {
+	defer trace.End(trace.Begin(""))
 	var rp mo.ResourcePool
 
 	// popluate the vm property of the vch resource pool
@@ -582,6 +671,7 @@ func instanceUUID(id string) (string, error) {
 
 // find the childVM for this resource pool by name
 func childVM(ctx context.Context, sess *session.Session, name string) (*vm.VirtualMachine, error) {
+	defer trace.End(trace.Begin(""))
 	// Search container back through instance UUID
 	uuid, err := instanceUUID(name)
 	if err != nil {
@@ -606,6 +696,7 @@ func childVM(ctx context.Context, sess *session.Session, name string) (*vm.Virtu
 
 // populate the vm attributes for the specified morefs
 func populateVMAttributes(ctx context.Context, sess *session.Session, refs []types.ManagedObjectReference) ([]mo.VirtualMachine, error) {
+	defer trace.End(trace.Begin(fmt.Sprintf("populating %d refs", len(refs))))
 	var vms []mo.VirtualMachine
 
 	// current attributes we care about
@@ -618,6 +709,7 @@ func populateVMAttributes(ctx context.Context, sess *session.Session, refs []typ
 
 // convert the infra containers to a container object
 func convertInfraContainers(ctx context.Context, sess *session.Session, vms []mo.VirtualMachine) []*Container {
+	defer trace.End(trace.Begin(fmt.Sprintf("converting %d containers", len(vms))))
 	var cons []*Container
 
 	for _, v := range vms {

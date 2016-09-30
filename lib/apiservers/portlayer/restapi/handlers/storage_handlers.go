@@ -122,6 +122,7 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, hand
 	api.StorageRemoveVolumeHandler = storage.RemoveVolumeHandlerFunc(handler.RemoveVolume)
 	api.StorageVolumeJoinHandler = storage.VolumeJoinHandlerFunc(handler.VolumeJoin)
 	api.StorageListVolumesHandler = storage.ListVolumesHandlerFunc(handler.VolumesList)
+	api.StorageGetVolumeHandler = storage.GetVolumeHandlerFunc(handler.GetVolume)
 }
 
 // CreateImageStore creates a new image store
@@ -349,6 +350,30 @@ func (handler *StorageHandlersImpl) CreateVolume(params storage.CreateVolumePara
 
 	response := volumeToCreateResponse(volume, params.VolumeRequest)
 	return storage.NewCreateVolumeCreated().WithPayload(&response)
+}
+
+//GetVolume : Gets a handle to a volume
+func (handler *StorageHandlersImpl) GetVolume(params storage.GetVolumeParams) middleware.Responder {
+	defer trace.End(trace.Begin(params.Name))
+
+	data, err := storageVolumeLayer.VolumeGet(context.TODO(), params.Name)
+	if err == os.ErrNotExist {
+		return storage.NewGetVolumeNotFound().WithPayload(&models.Error{
+			Code:    swag.Int64(http.StatusNotFound),
+			Message: err.Error(),
+		})
+	}
+
+	response, err := fillVolumeModel(data)
+	if err != nil {
+		return storage.NewListVolumesInternalServerError().WithPayload(&models.Error{
+			Code:    swag.Int64(http.StatusInternalServerError),
+			Message: err.Error(),
+		})
+	}
+
+	log.Debugf("VolumeGet returned : %#v", response)
+	return storage.NewGetVolumeOK().WithPayload(&response)
 }
 
 //RemoveVolume : Remove a Volume from existence

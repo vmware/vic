@@ -4,6 +4,12 @@ Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
+*** Keywords ***
+Hit Nginx Endpoint
+    [Arguments]  ${vch-ip}  ${port}
+    ${rc}  ${output}=  Run And Return Rc And Output  wget ${vch-ip}:${port}
+    Should Be Equal As Integers  ${rc}  0
+
 *** Test Cases ***
 Create container with port mappings
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p 10000:80 -p 10001:80 --name webserver nginx
@@ -12,10 +18,9 @@ Create container with port mappings
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start webserver
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  wget ${vch-ip}:10000 --retry-connrefused --timeout=10 --tries=10
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  wget ${vch-ip}:10001 --retry-connrefused --timeout=10 --tries=10
-    Should Be Equal As Integers  ${rc}  0
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10000
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10001
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop webserver
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  curl ${vch-ip}:10000 --connect-timeout 5

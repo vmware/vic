@@ -95,7 +95,35 @@ func (v *Volume) Volumes(filter string) ([]*types.Volume, []string, error) {
 
 // VolumeInspect : docker personality implementation for VIC
 func (v *Volume) VolumeInspect(name string) (*types.Volume, error) {
-	return nil, fmt.Errorf("%s does not implement volume.VolumeInspect", ProductName())
+	defer trace.End(trace.Begin(name))
+
+	client := PortLayerClient()
+	if client == nil {
+		return nil, fmt.Errorf("failed to get a portlayer client")
+	}
+
+	if name == "" {
+		return nil, nil
+	}
+
+	param := storage.NewGetVolumeParamsWithContext(ctx).WithName(name)
+	res, err := client.Storage.GetVolume(param)
+	if err != nil {
+		switch err := err.(type) {
+		case *storage.GetVolumeNotFound:
+			return nil, VolumeNotFoundError(name)
+		default:
+			return nil, derr.NewErrorWithStatusCode(fmt.Errorf("error from portlayer server: %s", err.Error()), http.StatusInternalServerError)
+		}
+	}
+
+	volumeMetadata, err := extractDockerMetadata(res.Payload.Metadata)
+	if err != nil {
+		return nil, derr.NewErrorWithStatusCode(fmt.Errorf("error unmarshalling docker metadata: %s", err), http.StatusInternalServerError)
+	}
+	volume := NewVolumeModel(res.Payload, volumeMetadata.Labels)
+
+	return volume, nil
 }
 
 // volumeCreate issues a CreateVolume request to the portlayer

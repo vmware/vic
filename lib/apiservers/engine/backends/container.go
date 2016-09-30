@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -215,7 +214,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	if exists := cache.ContainerCache().GetContainer(config.Name); exists != nil {
 		err := fmt.Errorf("Conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", config.Name, exists.ContainerID)
 		log.Errorf("%s", err.Error())
-		return types.ContainerCreateResponse{}, derr.NewErrorWithStatusCode(err, http.StatusConflict)
+		return types.ContainerCreateResponse{}, derr.NewRequestConflictError(err)
 	}
 
 	// get the image from the cache
@@ -279,6 +278,16 @@ func (c *Container) containerCreate(vc *viccontainer.VicContainer, config types.
 	}
 
 	h, err = c.containerProxy.AddContainerToScope(h, config)
+	if err != nil {
+		return id, err
+	}
+
+	h, err = c.containerProxy.AddInteractionToContainer(h, config)
+	if err != nil {
+		return id, err
+	}
+
+	h, err = c.containerProxy.AddLoggingToContainer(h, config)
 	if err != nil {
 		return id, err
 	}
@@ -425,7 +434,7 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 		case *containers.ContainerRemoveDefault:
 			return InternalServerError(err.Payload.Message)
 		case *containers.ContainerRemoveConflict:
-			return derr.NewErrorWithStatusCode(fmt.Errorf("You cannot remove a running container. Stop the container before attempting removal or use -f"), http.StatusConflict)
+			return derr.NewRequestConflictError(fmt.Errorf("You cannot remove a running container. Stop the container before attempting removal or use -f"))
 		default:
 			return InternalServerError(err.Error())
 		}
@@ -539,6 +548,8 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 		case *containers.CommitNotFound:
 			cache.ContainerCache().DeleteContainer(id)
 			return NotFoundError(name)
+		case *containers.CommitConflict:
+			return ConflictError(err.Error())
 		case *containers.CommitDefault:
 			return InternalServerError(err.Payload.Message)
 		default:
@@ -745,6 +756,8 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 		case *containers.CommitNotFound:
 			cache.ContainerCache().DeleteContainer(id)
 			return NotFoundError(name)
+		case *containers.CommitConflict:
+			return ConflictError(err.Error())
 		case *containers.CommitDefault:
 			return InternalServerError(err.Payload.Message)
 		default:
@@ -1019,6 +1032,7 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 			Names:   names,
 			Command: cmd,
 			SizeRw:  *t.ContainerConfig.StorageSize,
+			Ports:   portInformation(t),
 		}
 		containers = append(containers, c)
 	}
@@ -1039,6 +1053,7 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 		return NotFoundError(name)
 
 	}
+	id := vc.ContainerID
 
 	clStdin, clStdout, clStderr, err := ca.GetStreams()
 	if err != nil {
@@ -1055,9 +1070,40 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 		}
 	}
 
-	err = attachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
+	client := c.containerProxy.Client()
+	handle, err := c.Handle(id, name)
+	if err != nil {
+		return err
+	}
 
-	return err
+	bind, err := client.Interaction.InteractionBind(interaction.NewInteractionBindParamsWithContext(ctx).
+		WithConfig(&models.InteractionBindConfig{
+			Handle: handle,
+		}))
+	if err != nil {
+		return InternalServerError(err.Error())
+	}
+	handle, ok := bind.Payload.Handle.(string)
+	if !ok {
+		return InternalServerError(fmt.Sprintf("Type assertion failed for %#+v", handle))
+	}
+
+	// commit the handle; this will reconfigure the vm
+	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.CommitNotFound:
+			return NotFoundError(name)
+		case *containers.CommitConflict:
+			return ConflictError(err.Error())
+		case *containers.CommitDefault:
+			return InternalServerError(err.Payload.Message)
+		default:
+			return InternalServerError(err.Error())
+		}
+	}
+
+	return attachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
 }
 
 //------------------------------------
@@ -1541,6 +1587,67 @@ func ContainerSignal(containerID string, sig uint64) error {
 	}
 
 	return nil
+}
+
+func clientIPv4Addrs() ([]netlink.Addr, error) {
+	l, err := netlink.LinkByName(clientIfaceName)
+	if err != nil {
+		return nil, fmt.Errorf("Could not look up link from client interface name %s due to error %s",
+			clientIfaceName, err.Error())
+	}
+	ips, err := netlink.AddrList(l, netlink.FAMILY_V4)
+	if err != nil {
+		return nil, fmt.Errorf("Could not get IP addresses of link due to error %s", err.Error())
+	}
+
+	return ips, nil
+}
+
+// returns port bindings as a list of Docker Ports for return to the client
+// returns empty slice on error
+func portInformation(t *models.ContainerInfo) []types.Port {
+	// create a port for each IP on the interface (usually only 1, if netlink.FAMILY_ALL then usually 2)
+	var ports []types.Port
+
+	ips, err := clientIPv4Addrs()
+	if err != nil {
+		log.Errorf("Problem getting client IP address: %s", err.Error())
+		return ports
+	}
+	for _, ip := range ips {
+		ports = append(ports, types.Port{IP: ip.IP.String()})
+	}
+	container := cache.ContainerCache().GetContainer(*t.ContainerConfig.ContainerID)
+	if container == nil {
+		log.Errorf("Could not find container with ID %s", *t.ContainerConfig.ContainerID)
+		return ports
+	}
+
+	portBindings := container.HostConfig.PortBindings
+	var resultPorts []types.Port
+
+	for _, port := range ports {
+		for portBindingPrivatePort, hostPortBindings := range portBindings {
+			portAndType := strings.SplitN(string(portBindingPrivatePort), "/", 2)
+			port.PrivatePort, err = strconv.Atoi(portAndType[0])
+			if err != nil {
+				log.Infof("Got an error trying to convert private port number to an int")
+				continue
+			}
+			port.Type = portAndType[1]
+
+			for i := 0; i < len(hostPortBindings); i++ {
+				newport := port
+				newport.PublicPort, err = strconv.Atoi(hostPortBindings[i].HostPort)
+				if err != nil {
+					log.Infof("Got an error trying to convert public port number to an int")
+					continue
+				}
+				resultPorts = append(resultPorts, newport)
+			}
+		}
+	}
+	return resultPorts
 }
 
 //----------------------------------

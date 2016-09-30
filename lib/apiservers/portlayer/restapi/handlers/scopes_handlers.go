@@ -87,6 +87,7 @@ func parseScopeConfig(cfg *models.ScopeConfig) (subnet *net.IPNet, gateway net.I
 }
 
 func (handler *ScopesHandlersImpl) listScopes(idName string) ([]*models.ScopeConfig, error) {
+	defer trace.End(trace.Begin(idName))
 	_scopes, err := handler.netCtx.Scopes(&idName)
 	if err != nil {
 		return nil, err
@@ -136,7 +137,7 @@ func errorPayload(err error) *models.Error {
 }
 
 func (handler *ScopesHandlersImpl) ScopesCreate(params scopes.CreateScopeParams) middleware.Responder {
-	defer trace.End(trace.Begin("ScopesCreate"))
+	defer trace.End(trace.Begin(""))
 
 	cfg := params.Config
 	if cfg.ScopeType == "external" {
@@ -161,7 +162,7 @@ func (handler *ScopesHandlersImpl) ScopesCreate(params scopes.CreateScopeParams)
 }
 
 func (handler *ScopesHandlersImpl) ScopesDelete(params scopes.DeleteScopeParams) middleware.Responder {
-	defer trace.End(trace.Begin("ScopesDelete"))
+	defer trace.End(trace.Begin(params.IDName))
 
 	if err := handler.netCtx.DeleteScope(params.IDName); err != nil {
 		switch err := err.(type) {
@@ -177,7 +178,7 @@ func (handler *ScopesHandlersImpl) ScopesDelete(params scopes.DeleteScopeParams)
 }
 
 func (handler *ScopesHandlersImpl) ScopesListAll() middleware.Responder {
-	defer trace.End(trace.Begin("ScopesListAll"))
+	defer trace.End(trace.Begin(""))
 
 	cfgs, err := handler.listScopes("")
 	if err != nil {
@@ -199,7 +200,7 @@ func (handler *ScopesHandlersImpl) ScopesList(params scopes.ListParams) middlewa
 }
 
 func (handler *ScopesHandlersImpl) ScopesGetContainerEndpoints(params scopes.GetContainerEndpointsParams) middleware.Responder {
-	defer trace.End(trace.Begin("ScopesGetContainerEndpoint"))
+	defer trace.End(trace.Begin(params.HandleOrID))
 
 	cid := params.HandleOrID
 	// lookup by handle
@@ -223,7 +224,7 @@ func (handler *ScopesHandlersImpl) ScopesGetContainerEndpoints(params scopes.Get
 }
 
 func (handler *ScopesHandlersImpl) ScopesAddContainer(params scopes.AddContainerParams) middleware.Responder {
-	defer trace.End(trace.Begin("ScopesAddContainer"))
+	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", params.Config.Handle)))
 
 	h := exec.GetHandle(params.Config.Handle)
 	if h == nil {
@@ -266,7 +267,7 @@ func (handler *ScopesHandlersImpl) ScopesAddContainer(params scopes.AddContainer
 }
 
 func (handler *ScopesHandlersImpl) ScopesRemoveContainer(params scopes.RemoveContainerParams) middleware.Responder {
-	defer trace.End(trace.Begin("ScopesRemoveContainer"))
+	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", params.Handle)))
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {
@@ -285,7 +286,7 @@ func (handler *ScopesHandlersImpl) ScopesRemoveContainer(params scopes.RemoveCon
 }
 
 func (handler *ScopesHandlersImpl) ScopesBindContainer(params scopes.BindContainerParams) middleware.Responder {
-	defer trace.End(trace.Begin("ScopesBindContainer"))
+	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", params.Handle)))
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {
@@ -316,7 +317,7 @@ func (handler *ScopesHandlersImpl) ScopesBindContainer(params scopes.BindContain
 }
 
 func (handler *ScopesHandlersImpl) ScopesUnbindContainer(params scopes.UnbindContainerParams) middleware.Responder {
-	defer trace.End(trace.Begin("ScopesUnbindContainer"))
+	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", params.Handle)))
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {

@@ -66,9 +66,6 @@ type VirtualMachineConfigSpecConfig struct {
 	// datastore path of the VM
 	VMPathName string
 
-	// URI of the network serial port
-	ConnectorURI string
-
 	// Network backing info
 	DebugNetwork types.BaseVirtualDeviceBackingInfo
 
@@ -259,13 +256,6 @@ func (s *VirtualMachineConfigSpec) DebugNetwork() types.BaseVirtualDeviceBacking
 	defer trace.End(trace.Begin(s.config.ID))
 
 	return s.config.DebugNetwork
-}
-
-// ConnectorURI returns the connector URI
-func (s *VirtualMachineConfigSpec) ConnectorURI() string {
-	defer trace.End(trace.Begin(s.config.ID))
-
-	return s.config.ConnectorURI
 }
 
 // ImageStoreName returns the image store name
