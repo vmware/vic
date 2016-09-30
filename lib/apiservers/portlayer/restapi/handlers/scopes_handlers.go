@@ -19,8 +19,6 @@ import (
 	"net"
 	"net/http"
 
-	"golang.org/x/net/context"
-
 	log "github.com/Sirupsen/logrus"
 
 	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
@@ -94,39 +92,42 @@ func (handler *ScopesHandlersImpl) listScopes(idName string) ([]*models.ScopeCon
 	}
 
 	cfgs := make([]*models.ScopeConfig, len(_scopes))
-	updated := make(map[uid.UID]*exec.Handle)
+	updated := make(map[uid.UID]interface{})
 	for i, s := range _scopes {
+		// do not need do this for non-bridge scopes, since
+		// IPAM is done by the port layer. For other
+		// scopes types, like external, the network
+		// may be using DHCP, in which case we need to
+		// get the current IP address, and other network
+		// info from the container VM.
+		if s.Type() == constants.BridgeScopeType {
+			continue
+		}
+
 		for _, e := range s.Endpoints() {
 			// update the container config, if necessary
-			// do not need do this for non-bridge scopes, since
-			// IPAM is done by the port layer. For other
-			// scopes types, like external, the network
-			// may be using DHCP, in which case we need to
-			// get the current IP address, and other network
-			// info from the container VM.
-			if s.Type() != constants.BridgeScopeType {
-				var h *exec.Handle
-				c := e.Container().ID()
-				if h = updated[c]; h == nil {
-					h = exec.GetContainer(c)
-					if _, err := h.Update(context.Background(), handler.handlerCtx.Session); err != nil {
-						return nil, err
-					}
-
-					updated[c] = h
-				}
-
-				if err = handler.netCtx.UpdateContainer(h); err != nil {
-					return nil, err
-				}
+			cid := e.Container().ID()
+			if _, ok := updated[cid]; ok {
+				continue
 			}
+
+			// this will "refresh" the container executor config that contains
+			// the current ip addresses
+			h := exec.GetContainer(cid)
+			if h == nil {
+				return nil, fmt.Errorf("could not find container %s", cid)
+			}
+
+			defer h.Close()
+
+			if err = handler.netCtx.UpdateContainer(h); err != nil {
+				return nil, err
+			}
+
+			updated[cid] = nil
 		}
 
 		cfgs[i] = toScopeConfig(s)
-	}
-
-	for _, h := range updated {
-		h.Close()
 	}
 
 	return cfgs, nil

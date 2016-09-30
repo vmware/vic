@@ -138,7 +138,7 @@ func eventCallback(ie events.Event) {
 					ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
 					defer cancel()
 
-					_, err := container.Update(ctx, container.vm.Session)
+					err := container.Refresh(ctx)
 					if err != nil {
 						log.Errorf("Event driven container update failed: %s", err.Error())
 					}
