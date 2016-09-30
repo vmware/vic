@@ -56,6 +56,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		config.sink = sink
 		config.source = source
 		config.Decode()
+		config.PortGroups = make(map[string]object.NetworkReference)
 
 		log.Debugf("Decoded VCH config for network: %#v", config)
 		for nn, n := range config.ContainerNetworks {
@@ -70,7 +71,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 				continue
 			}
 
-			n.PortGroup = r.(object.NetworkReference)
+			config.PortGroups[nn] = r.(object.NetworkReference)
 		}
 
 		bridgeRange := config.BridgeIPRange

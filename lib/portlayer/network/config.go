@@ -15,6 +15,7 @@
 package network
 
 import (
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
@@ -27,7 +28,10 @@ type Configuration struct {
 	config.Network `vic:"0.1" scope:"read-only" key:"network"`
 
 	// The bridge link
-	BridgeLink Link
+	BridgeLink Link `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+
+	// the vsphere portgroups corresponding to container network configuration
+	PortGroups map[string]object.NetworkReference `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 }
 
 func (c *Configuration) Encode() {

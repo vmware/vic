@@ -106,10 +106,12 @@ func TestVIC(t *testing.T) {
 					Common: executor.Common{
 						Name: "testBridge",
 					},
-					PortGroup: bridgeNetwork,
-					Type:      constants.BridgeScopeType,
+					Type: constants.BridgeScopeType,
 				},
 			},
+		},
+		PortGroups: map[string]object.NetworkReference{
+			"lo": bridgeNetwork,
 		},
 	}
 
