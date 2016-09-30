@@ -48,7 +48,7 @@ const (
 
 var Sys = system.New()
 
-//this map contains the found bock devices native to the containerVM
+//this map contains the found block devices native to the containerVM
 var DeviceMap = make(map[string]fs.Fsinfo)
 
 type tether struct {
