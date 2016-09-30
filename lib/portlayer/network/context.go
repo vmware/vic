@@ -68,38 +68,57 @@ type AddContainerOptions struct {
 	Ports   []string
 }
 
-func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask, config *Configuration) (*Context, error) {
+func NewContext(config *Configuration) (*Context, error) {
 	defer trace.End(trace.Begin(""))
 	if config == nil {
 		return nil, fmt.Errorf("missing config")
 	}
 
-	pones, pbits := bridgePool.Mask.Size()
-	mones, mbits := bridgeMask.Size()
+	bridgeRange := config.BridgeIPRange
+	if bridgeRange == nil || len(bridgeRange.IP) == 0 || bridgeRange.IP.IsUnspecified() {
+		var err error
+		_, bridgeRange, err = net.ParseCIDR("172.16.0.0/12")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	bridgeWidth := config.BridgeNetworkWidth
+	if bridgeWidth == nil || len(*bridgeWidth) == 0 {
+		w := net.CIDRMask(16, 32)
+		bridgeWidth = &w
+	}
+
+	pones, pbits := bridgeRange.Mask.Size()
+	mones, mbits := bridgeWidth.Size()
 	if pbits != mbits || mones < pones {
 		return nil, fmt.Errorf("bridge mask is not compatible with bridge pool mask")
 	}
 
 	ctx := &Context{
 		config:            config,
-		defaultBridgeMask: bridgeMask,
-		defaultBridgePool: NewAddressSpaceFromNetwork(&bridgePool),
+		defaultBridgeMask: *bridgeWidth,
+		defaultBridgePool: NewAddressSpaceFromNetwork(bridgeRange),
 		scopes:            make(map[string]*Scope),
 		containers:        make(map[string]*Container),
 	}
 
-	s, err := ctx.newBridgeScope(uid.New(), DefaultBridgeName, nil, net.IPv4(0, 0, 0, 0), nil, &IPAM{})
+	n := ctx.config.ContainerNetworks[ctx.config.BridgeNetwork]
+	if n == nil {
+		return nil, fmt.Errorf("default bridge network %s not present in config", ctx.config.BridgeNetwork)
+	}
+
+	s, err := ctx.NewScope(n.Type, n.Name, nil, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
 	s.builtin = true
-	s.dns = []net.IP{s.gateway}
 	ctx.defaultScope = s
 
 	// add any bridge/external networks
 	for nn, n := range ctx.config.ContainerNetworks {
-		if nn == DefaultBridgeName {
-			continue
+		if nn == ctx.config.BridgeNetwork {
+			continue // already added above
 		}
 
 		pools := make([]string, len(n.Pools))
@@ -107,14 +126,12 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask, config *Configurati
 			pools[i] = p.String()
 		}
 
-		s, err := ctx.NewScope(n.Type, nn, &net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}, n.Gateway.IP, n.Nameservers, pools)
+		s, err := ctx.NewScope(n.Type, nn, &n.Gateway, n.Gateway.IP, n.Nameservers, pools)
 		if err != nil {
 			return nil, err
 		}
 
-		if n.Type == constants.ExternalScopeType {
-			s.builtin = true
-		}
+		s.builtin = true
 	}
 
 	return ctx, nil
