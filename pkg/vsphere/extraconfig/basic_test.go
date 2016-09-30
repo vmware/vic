@@ -202,6 +202,7 @@ func TestBasicSlice(t *testing.T) {
 	assert.Equal(t, expected, encoded, "Encoded and expected does not match")
 
 	var decoded Type
+	decoded.IntSlice = make([]int, 1)
 	Decode(MapSource(encoded), &decoded)
 
 	assert.Equal(t, IntSlice, decoded, "Encoded and decoded does not match")
