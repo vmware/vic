@@ -329,8 +329,6 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		}
 	}
 
-	c.ExecConfig = &h.ExecConfig
-
 	return nil
 }
 
