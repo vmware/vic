@@ -30,7 +30,7 @@ type VolumeLookupCache struct {
 	//
 	// id -> Volume
 	vlc     map[string]Volume
-	vlcLock sync.Mutex
+	vlcLock sync.RWMutex
 
 	// The underlying data storage implementation
 	volumeStore VolumeStorer
@@ -81,7 +81,7 @@ func (v *VolumeLookupCache) VolumeDestroy(ctx context.Context, ID string) error 
 	}
 
 	// remove it from the volumestore
-	if err := v.volumeStore.VolumeDestroy(ctx, ID); err != nil {
+	if err := v.volumeStore.VolumeDestroy(ctx, &vol); err != nil {
 		return err
 	}
 	delete(v.vlc, vol.ID)
@@ -90,8 +90,8 @@ func (v *VolumeLookupCache) VolumeDestroy(ctx context.Context, ID string) error 
 }
 
 func (v *VolumeLookupCache) VolumeGet(ctx context.Context, ID string) (*Volume, error) {
-	v.vlcLock.Lock()
-	defer v.vlcLock.Unlock()
+	v.vlcLock.RLock()
+	defer v.vlcLock.RUnlock()
 
 	// look in the cache
 	vol, ok := v.vlc[ID]
@@ -103,8 +103,8 @@ func (v *VolumeLookupCache) VolumeGet(ctx context.Context, ID string) (*Volume, 
 }
 
 func (v *VolumeLookupCache) VolumesList(ctx context.Context) ([]*Volume, error) {
-	v.vlcLock.Lock()
-	defer v.vlcLock.Unlock()
+	v.vlcLock.RLock()
+	defer v.vlcLock.RUnlock()
 
 	// look in the cache, return the list
 	l := make([]*Volume, 0, len(v.vlc))

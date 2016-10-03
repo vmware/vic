@@ -493,7 +493,7 @@ func (v *ImageStore) ListImages(ctx context.Context, store *url.URL, IDs []strin
 // container, this will return an error.
 func (v *ImageStore) DeleteImage(ctx context.Context, image *portlayer.Image) error {
 	//  check if the image is in use.
-	if err := inUse(ctx, image.ID); err != nil {
+	if err := imagesInUse(ctx, image.ID); err != nil {
 		log.Errorf("ImageStore: delete image error: %s", err.Error())
 		return err
 	}
@@ -578,20 +578,20 @@ func (v *ImageStore) verifyImage(ctx context.Context, storeName, ID string) erro
 
 // XXX TODO This should be tied to an interface so we don't have to import exec
 // here (or wherever the cache lives).
-func inUse(ctx context.Context, ID string) error {
-	// XXX why doesnt this ever return an error?  Strange.
-	// Gather all the running containers and the images they are refering to.
-	state := exec.StateRunning
-	conts := exec.Containers.Containers(&state)
+func imagesInUse(ctx context.Context, ID string) error {
+	// XXX Why doesnt this ever return an error?  Strange.
+	// Gather all containers
+	conts := exec.Containers.Containers(nil)
 	if len(conts) == 0 {
 		return nil
 	}
 
 	for _, cont := range conts {
 		layerID := cont.ExecConfig.LayerID
+
 		if layerID == ID {
 			return &portlayer.ErrImageInUse{
-				Msg: fmt.Sprintf("image %s in use by %s", layerID, cont.ExecConfig.ID),
+				Msg: fmt.Sprintf("image %s in use by %s", ID, cont.ExecConfig.ID),
 			}
 		}
 	}
