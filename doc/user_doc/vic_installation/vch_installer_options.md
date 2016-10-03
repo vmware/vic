@@ -354,7 +354,9 @@ The label that you specify is the volume store name that Docker uses. For exampl
 
 Short name: `-k`
 
-If you do not set the `no-tls` option, `vic-machine` by default generates a TLS certificate and key for the virtual container host to  use to authenticate with a Docker client. Set the `no-tls` option if you do not require certificate-based authentication between the virtual container host and the Docker client.
+By default, `vic-machine` generates a TLS certificate and key for the virtual container host to  use to authenticate with a Docker client.
+
+If you set the `no-tls` option, `vic-machine` does not create certificates. Set the `no-tls` option if you do not require certificate-based authentication between the virtual container host and the Docker client. If you use the `no-tls` option, you connect Docker clients to the virtual container host via port 2375, instead of via port 2376.
 
 <pre>--no-tls</pre>
 
