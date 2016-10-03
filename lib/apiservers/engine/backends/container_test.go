@@ -31,7 +31,9 @@ import (
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	dnetwork "github.com/docker/engine-api/types/network"
+	"github.com/docker/go-connections/nat"
 
+	"github.com/vishvananda/netlink"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	plclient "github.com/vmware/vic/lib/apiservers/portlayer/client"
@@ -579,4 +581,58 @@ func TestContainerLogs(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestPortInformation(t *testing.T) {
+	mockContainerInfo := &plmodels.ContainerInfo{}
+	mockContainerConfig := &plmodels.ContainerConfig{}
+	containerID := "foo"
+	mockContainerConfig.ContainerID = &containerID
+
+	mockHostConfig := &container.HostConfig{}
+
+	portMap := nat.PortMap{}
+	port, _ := nat.NewPort("tcp", "80")
+	portBinding := nat.PortBinding{
+		HostIP:   "127.0.0.1",
+		HostPort: "8000",
+	}
+	portBindings := []nat.PortBinding{portBinding}
+	portMap[port] = portBindings
+	mockHostConfig.PortBindings = portMap
+
+	mockContainerInfo.ContainerConfig = mockContainerConfig
+
+	ip, _ := netlink.ParseAddr("192.168.1.1/24")
+	ips := []netlink.Addr{*ip}
+
+	co := viccontainer.NewVicContainer()
+	co.HostConfig = mockHostConfig
+	co.ContainerID = containerID
+	co.Name = "bar"
+	cache.ContainerCache().AddContainer(co)
+
+	ports := portInformation(mockContainerInfo, ips)
+
+	assert.NotEmpty(t, ports, "There should be bound IPs")
+	assert.Equal(t, len(ports), 1, "Expected 1 port binding, found %d", len(ports))
+
+	port, _ = nat.NewPort("tcp", "80")
+	portBinding = nat.PortBinding{
+		HostIP:   "127.0.0.1",
+		HostPort: "00",
+	}
+	portMap[port] = portBindings
+	ports = portInformation(mockContainerInfo, ips)
+	assert.NotEmpty(t, ports, "There should be 1 bound IP")
+	assert.Equal(t, len(ports), 1, "Expected 1 port binding, found %d", len(ports))
+
+	port, _ = nat.NewPort("tcp", "800")
+	portBinding = nat.PortBinding{
+		HostIP:   "127.0.0.1",
+		HostPort: "800",
+	}
+	portMap[port] = portBindings
+	ports = portInformation(mockContainerInfo, ips)
+	assert.Equal(t, len(ports), 2, "Expected 2 port binding, found %d", len(ports))
 }
