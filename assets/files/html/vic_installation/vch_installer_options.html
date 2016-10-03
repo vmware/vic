@@ -53,7 +53,7 @@
         data-chapter-title="Virtual Container Host Deployment Options"
         data-filepath="vch_installer_options.md"
         data-basepath="."
-        data-revision="Wed Sep 21 2016 20:10:36 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Mon Oct 03 2016 13:09:52 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -91,7 +91,7 @@
                         
                             <b>1.</b>
                         
-                        Overview of vSphere Integrated Containers Engine
+                        Overview of vSphere Integrated Containers Engine for vSphere Administrators
                     </a>
             
             
@@ -320,6 +320,21 @@
             
         </li>
     
+        <li class="chapter " data-level="4.5" data-path="plugin_verify_deployment.html">
+            
+                
+                    <a href="./plugin_verify_deployment.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.5.</b>
+                        
+                        Verify the Deployment of the vSphere Integrated Containers Engine Plug-In
+                    </a>
+            
+            
+        </li>
+    
 
             </ul>
             
@@ -381,6 +396,21 @@
                             <b>5.3.</b>
                         
                         VCH Deployment Fails with Firewall Validation Error
+                    </a>
+            
+            
+        </li>
+    
+        <li class="chapter " data-level="5.4" data-path="ts_ui_not_appearing.html">
+            
+                
+                    <a href="./ts_ui_not_appearing.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.4.</b>
+                        
+                        vSphere Integrated Containers Engine Plug-In Does Not Appear in the vSphere Web Client
                     </a>
             
             
@@ -569,7 +599,7 @@
 <h3 id="containernetworkgateway"><code>container-network-gateway</code></h3>
 <p>Short name: <code>--cng</code></p>
 <p>The gateway for the subnet of the container network. This option is required if the network that you specify in the <code>container-network</code> option does not support DHCP. Specify the gateway in the format <code>container_network:subnet</code>. If you specify this option, it is recommended that you also specify the  <code>container-network-dns</code> option.</p>
-<p>When you specify the container network gateway, you use the distributed port group that you specify in the <code>container-network</code>option.</p>
+<p>When you specify the container network gateway, you must use the distributed port group that you specify in the <code>container-network</code> option. If you specify <code>container-network-gateway</code> but you do not specify <code>container-network</code>, or if you specify a different distributed port group to the one that you specify in <code>container-network</code>, <code>vic-machine create</code> fails with an error.</p>
 <pre>--container-network-gateway <i>distributed_port_group_name</i>:<i>gateway_ip_address</i>/<i>subnet_mask</i></pre>
 
 <p>Wrap the distributed port group name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.</p>
@@ -578,7 +608,7 @@
 <h3 id="containernetworkdns"><code>container-network-dns</code></h3>
 <p>Short name: <code>--cnd</code></p>
 <p>The address of the DNS server for the container network. This option is recommended if the network that you specify in the <code>container-network</code> option does not support DHCP. </p>
-<p>When you specify the container network DNS server, you use the distributed port group that you specify in the <code>container-network</code> option. You can specify <code>container-network-dns</code> multiple times, to configure multiple DNS servers.</p>
+<p>When you specify the container network DNS server, you must use the distributed port group that you specify in the <code>container-network</code> option. You can specify <code>container-network-dns</code> multiple times, to configure multiple DNS servers. If you specify <code>container-network-dns</code> but you do not specify <code>container-network</code>, or if you specify a different distributed port group to the one that you specify in <code>container-network</code>, <code>vic-machine create</code> fails with an error.</p>
 <pre>--container-network-dns <i>distributed_port_group_name</i>:8.8.8.8</pre>
 
 <p>Wrap the distributed port group name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.</p>
@@ -587,7 +617,7 @@
 <h3 id="containernetworkiprange"><code>container-network-ip-range</code></h3>
 <p>Short name: <code>--cnr</code></p>
 <p>The range of IP addresses that container VMs can use if the network that you specify in the <code>container-network</code> option does not support DHCP. If you do not specify this option, the IP range for container VMs is the entire subnet that you specify in <code>container-network-gateway</code>.</p>
-<p>When you specify the container network IP range, you use the distributed port group that you specify in the <code>container-network</code>option.</p>
+<p>When you specify the container network IP range, you must use the distributed port group that you specify in the <code>container-network</code>option. If you specify <code>container-network-ip-range</code> but you do not specify <code>container-network</code>, or if you specify a different distributed port group to the one that you specify in <code>container-network</code>, <code>vic-machine create</code> fails with an error.</p>
 <pre>--container-network-ip-range <i>distributed_port_group_name</i>:192.168.100.2-192.168.100.254</pre>
 
 <p>You can also specify the IP range as a CIDR.</p>
@@ -622,6 +652,11 @@
 <ul>
 <li>vSphere Integrated Containers Engine fully supports VMware Virtual SAN datastores. </li>
 <li>vSphere Integrated Containers Engine supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters.</li>
+<li>If you specify different datastores in the different datastore options, and if no single host in a cluster can access all of those datastores, <code>vic-machine create</code> fails with an error.<pre>No single host can access all of the requested datastores. 
+Installation cannot continue.</pre></li>
+<li>If you specify different datastores in the different datastore options, and if only one host in a cluster can access all of them, <code>vic-machine create</code> succeeds with a warning.<pre>Only one host can access all of the image/container/volume datastores. 
+This may be a point of contention/performance degradation and HA/DRS 
+may not work as intended.</pre> </li>
 </ul>
 <h3 id="imagestore"><code>image-store</code></h3>
 <p>See <a href="#image">image-store</a> in the section on mandatory options.</p>
@@ -641,14 +676,16 @@
 <p><a name="volume-store"></a></p>
 <h3 id="volumestore"><code>volume-store</code></h3>
 <p>Short name: <code>--vs</code></p>
-<p>The datastore in which to create volumes when container developers use the <code>docker volume create</code> command. When you specify the <code>volume-store</code> option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If you specify an invalid datastore name, <code>vic-machine create</code> fails and suggests valid datastores. </p>
-<p>If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the <code>volume-store</code> option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability.</p>
+<p>The datastore in which to create volumes when container developers use the <code>docker volume create</code> or <code>docker create -v</code> commands. When you specify the <code>volume-store</code> option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If you specify an invalid datastore name, <code>vic-machine create</code> fails and suggests valid datastores. </p>
+<p>If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the <code>volume-store</code> option should be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible and <code>vic-machine create</code> succeeds, but it issues a warning that this configuration limits the use of vSphere features such as DRS and High Availability.</p>
 <p>You can designate the same datastore as the volume store for multiple virtual container hosts.</p>
-<p>The label that you specify is the volume store name that Docker uses. For example, the volume store label appears in the information for a virtual container host when container developers run <code>docker info</code>. Container developers also specify the volume store label in the <code>docker volume create --opt VolumeStore=volume_store_label</code> option when they create a  volume.</p>
+<p>The label that you specify is the volume store name that Docker uses. For example, the volume store label appears in the information for a virtual container host when container developers run <code>docker info</code>. Container developers specify the volume store label in the <code>docker volume create --opt VolumeStore=volume_store_label</code> option when they create a volume.</p>
+<p><strong>IMPORTANT</strong> If you do not specify the <code>volume-store</code> option, no  volume store is created and container developers cannot use the <code>docker volume create</code> or <code>docker create -v</code> commands.</p>
 <ul>
 <li><p>If you only require one volume store, you can set the volume store label to <code>default</code>. If you set the volume store label to <code>default</code>, container developers do not need to specify the <code>--opt VolumeStore=volume_store_label</code> option when they run <code>docker volume create</code>. </p>
-<p><strong>NOTE</strong>: If container developers intend to create anonymous volumes by using <code>docker create -v</code>, you must create a volume store with a label of <code>default</code>.</p>
-<pre>--volume-store <i>datastore_name</i>:default</pre></li>
+<p><strong>NOTE</strong>: If container developers intend to use <code>docker create -v</code> to create containers that are attached to anonymous or named volumes, you must create a volume store with a label of <code>default</code>.</p>
+<pre>--volume-store <i>datastore_name</i>:default</pre>
+</li>
 <li><p>If you specify the target datastore and the volume store label, <code>vic-machine create</code> creates a folder named <code>volumes</code> under the <code>VIC</code> folder on the target datastore. Any volumes that container developers create will appear in the <code>volumes</code> folder.</p>
 <pre>--volume-store <i>datastore_name</i>:<i>volume_store_label</i></pre></li>
 <li><p>If you specify the target datastore, a datastore path, and the volume store label, <code>vic-machine create</code> creates a folder named <code>VIC/volumes</code> in the location that you specify in the datastore path. If the folders that you specify in the path do not already exist on the datastore, <code>vic-machine create</code> creates the appropriate folder structure. Any volumes that container developers create will appear in the <code>path/VIC/volumes</code> folder.</p>
@@ -669,7 +706,8 @@
 <p> By default, virtual container hosts automatically generate TLS certificates to authenticate connections with Docker clients. You can configure a virtual container host to use no certificate or a Certificate Authority (CA) certificate to authenticate connections with Docker clients.</p>
 <h3 id="notls"><code>no-tls</code></h3>
 <p>Short name: <code>-k</code></p>
-<p>If you do not set the <code>no-tls</code> option, <code>vic-machine</code> by default generates a TLS certificate and key for the virtual container host to  use to authenticate with a Docker client. Set the <code>no-tls</code> option if you do not require certificate-based authentication between the virtual container host and the Docker client.</p>
+<p>By default, <code>vic-machine</code> generates a TLS certificate and key for the virtual container host to  use to authenticate with a Docker client.</p>
+<p>If you set the <code>no-tls</code> option, <code>vic-machine</code> does not create certificates. Set the <code>no-tls</code> option if you do not require certificate-based authentication between the virtual container host and the Docker client. If you use the <code>no-tls</code> option, you connect Docker clients to the virtual container host via port 2375, instead of via port 2376.</p>
 <pre>--no-tls</pre>
 
 <p>If you use the <code>no-tls</code> option, you connect Docker clients to the virtual container host via port 2375, instead of via port 2376.</p>
@@ -699,6 +737,15 @@
 <pre>--cert &apos;<i>path to certificate file</i>&apos;/<i>certificate_file_name</i>.pem 
 --key &apos;<i>path to key file</i>&apos;/<i>key_file_name</i>.pem</pre>
 
+<p><a name="registry"></a></p>
+<h3 id="dockerinsecureregistry"><code>docker-insecure-registry</code></h3>
+<p>Short name: <code>--dir</code></p>
+<p>If your Docker environment stores Docker images in an insecure private registry server, you must configure virtual container hosts to connect to this private registry server when you deploy them. An insecure  private registry server is a private registry server that is secured by self-signed certificates rather than by TLS. You authorize connections from a virtual container host to an insecure private registry server by setting the URL of a registry server in the <code>docker-insecure-registry</code> option. If the registry server listens on a specific port, add the port number to the URL.</p>
+<p>You can specify <code>docker-insecure-registry</code> multiple times to allow connections from the virtual container host to multiple insecure  private registry servers.</p>
+<pre>--docker-insecure-registry <i>registry_URL_1</i>
+--docker-insecure-registry <i>registry_URL_2</i>:<i>port_number</i></pre>
+
+<p><strong>NOTE</strong>: The current builds of vSphere Integrated Containers do not yet support private registry servers that you secure by using TLS certificates.</p>
 <p><a name="deployment"></a></p>
 <h2 id="vapp-deployment-options">vApp Deployment Options</h2>
 <p>The <code>vic-machine</code> utility provides options to customize the deployment of virtual container hosts.</p>

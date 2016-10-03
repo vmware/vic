@@ -53,7 +53,7 @@
         data-chapter-title="Examples of Deploying a Virtual Container Host"
         data-filepath="vch_installer_examples.md"
         data-basepath="."
-        data-revision="Wed Sep 21 2016 20:10:36 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Mon Oct 03 2016 13:09:52 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -91,7 +91,7 @@
                         
                             <b>1.</b>
                         
-                        Overview of vSphere Integrated Containers Engine
+                        Overview of vSphere Integrated Containers Engine for vSphere Administrators
                     </a>
             
             
@@ -320,6 +320,21 @@
             
         </li>
     
+        <li class="chapter " data-level="4.5" data-path="plugin_verify_deployment.html">
+            
+                
+                    <a href="./plugin_verify_deployment.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>4.5.</b>
+                        
+                        Verify the Deployment of the vSphere Integrated Containers Engine Plug-In
+                    </a>
+            
+            
+        </li>
+    
 
             </ul>
             
@@ -386,6 +401,21 @@
             
         </li>
     
+        <li class="chapter " data-level="5.4" data-path="ts_ui_not_appearing.html">
+            
+                
+                    <a href="./ts_ui_not_appearing.html">
+                
+                        <i class="fa fa-check"></i>
+                        
+                            <b>5.4.</b>
+                        
+                        vSphere Integrated Containers Engine Plug-In Does Not Appear in the vSphere Web Client
+                    </a>
+            
+            
+        </li>
+    
 
             </ul>
             
@@ -438,6 +468,7 @@
 <li><a href="#rp_cluster">Deploy a Virtual Container Host in a Resource Pool in a vCenter Server Cluster</a></li>
 <li><a href="#ca_cert">Deploy a Virtual Container Host for Use with a Docker Client that Requires CA Certificates</a></li>
 <li><a href="#customized">Deploy a Virtual Container Host with Limits on Resource Use</a></li>
+<li><a href="#registry">Deploy a Virtual Container Host and Authorize Access to an Insecure Private Registry Server</a></li>
 </ul>
 <p>For detailed descriptions of all of the <code>vic-machine create</code> options, see <a href="vch_installer_options.html">Virtual Container Host Deployment Options</a></p>
 <p><a name="esxi"></a></p>
@@ -551,7 +582,7 @@
 <p>This example deploys a virtual container host with the following configuration:</p>
 <ul>
 <li>Specifies the user name, password, datacenter, cluster, bridge network, and name for the virtual container host.</li>
-<li>Specifies the <code>volumes</code> folder on <code>datastore 1</code> as the default volume store. Creating a volume store named <code>default</code> allows container application developers to create anonymous volumes by using <code>docker create -v</code>. </li>
+<li>Specifies the <code>volumes</code> folder on <code>datastore 1</code> as the default volume store. Creating a volume store named <code>default</code> allows container application developers to create anonymous or named volumes by using <code>docker create -v</code>. </li>
 <li>Specifies a second volume store named <code>volume_store_2</code> in the <code>volumes</code> folder on <code>datastore 2</code>. </li>
 <li>Note that the datastore names are wrapped in quotes, because they contain spaces. Use single quotes if you are using <code>vic-machine</code> on a Linux or Mac OS system and double quotes on a Windows system.</li>
 </ul>
@@ -654,6 +685,27 @@
 </pre>
 
 <p>For more information about setting resource use limitations on virtual container hosts, see the <a href="vch_installer_options.html#deployment">vApp Deployment Options section in Virtual Container Host Deployment Options</a>.</p>
+<p><a name="registry"></a></p>
+<h2 id="deploy-a-virtual-container-host-and-authorize-access-to-an-insecure-private-registry-server">Deploy a Virtual Container Host and Authorize Access to an Insecure Private Registry Server</h2>
+<p>An insecure private registry server is a private registry server for Docker images that is secured by self-signed certificates rather than by TLS. To authorize connections from a virtual container host to an insecure private registry server, set the <code>docker-insecure-registry</code> option. You can specify <code>docker-insecure-registry</code> multiple times to allow connections from the virtual container host to multiple insecure private registry servers.</p>
+<p>This example deploys a virtual container host with the following configuration:</p>
+<ul>
+<li>Specifies the user name, password, image store, cluster, bridge network, and name for the virtual container host.</li>
+<li>Authorizes the virtual container host to pull Docker images from the insecure private registry servers located at the URLs <i>registry_URL_1</i> and <i>registry_URL_2</i>.</li>
+<li>The registry server at <i>registry_URL_2</i> listens for connections on port 5000. </li>
+</ul>
+<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+--target &apos;Administrator@vsphere.local&apos;:<i>password</i>@<i>vcenter_server_address</i>/dc1
+--compute-resource cluster1
+--image-store datastore1
+--bridge-network vic-bridge
+--docker-insecure-registry <i>registry_URL_1</i>
+--docker-insecure-registry <i>registry_URL_2:5000</i>
+--name vch1
+</pre>
+
+<p>For more information about configuring virtual container hosts to connect to insecure private registry servers, see the section on the <a href="vch_installer_options.html#registry"><code>docker-insecure-registry</code> option in Virtual Container Host Deployment Options</a>.</p>
+<p><strong>NOTE</strong>: The current builds of vSphere Integrated Containers do not yet support private registry servers that you secure by using TLS certificates.</p>
 
                     
                     </section>

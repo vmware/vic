@@ -53,7 +53,7 @@
         data-chapter-title="Obtain Information About a Virtual Container Host"
         data-filepath="inspect_vch.md"
         data-basepath="."
-        data-revision="Wed Sep 21 2016 20:10:59 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Mon Oct 03 2016 13:10:14 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
     
 
@@ -401,13 +401,30 @@
 </li>
 </ol>
 <p><strong>Result</strong></p>
-<p>The <code>vic-machine inspect</code> command displays the connection information about the virtual container host:</p>
+<p>The <code>vic-machine inspect</code> command displays information about the virtual container host:</p>
+<ul>
+<li><p>The virtual container host ID:</p>
+<p><pre>VCH ID: VirtualMachine:vm-101</pre> You can use virtual container host ID when you run the <code>vic-machine delete</code> command. Using a virtual container host ID reduces the number of options that you need to specify when you use <code>vic-machine delete</code>.</p>
+</li>
+<li><p>The version of the <code>vic-machine</code> utility and the version of the virtual container host that you are inspecting.
+<pre>Installer version: <i>vic_machine_version</i>-<i>vic_machine_build</i>-<i>tag</i>
+VCH version: <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>
+VCH upgrade status: 
+Installer has same version as VCH
+No upgrade available with this installer version</pre>
+If <code>vic-machine inspect</code> reports a difference between the version or build number of <code>vic-machine</code> and the version or build number of the virtual container host, the upgrade status is <code>Upgrade available</code>. </p>
+<p><strong>NOTE</strong>: In the current builds, virtual container host upgrade is not yet implemented.</p>
+</li>
+<li><p>The address of the VIC Admin portal for the virtual container host.</p>
 <pre>vic-admin portal:
-https://<i>vch_address</i>:2378
-DOCKER_HOST=<i>vch_address</i>:2376
-Connect to docker:
-docker -H <i>vch_address</i>:2376 --tls info
-Completed successfully</pre>
+https://<i>vch_address</i>:2378</pre>
+</li>
+<li><p>The address of the Docker endpoint.</p>
+<pre>DOCKER_HOST=<i>vch_address</i>:2376</pre></li>
+<li>The Docker command to use to connect to the Docker endpoint.<pre>Connect to docker:
+docker -H <i>vch_address</i>:2376 --tls info</pre></li>
+</ul>
+
                     
                     </section>
                 
