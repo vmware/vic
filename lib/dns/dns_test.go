@@ -111,7 +111,7 @@ func TestVIC(t *testing.T) {
 	}
 
 	// initialize the context
-	ctx, err := network.NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), config)
+	ctx, err := network.NewContext(config)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
