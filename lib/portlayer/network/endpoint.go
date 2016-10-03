@@ -31,15 +31,14 @@ type alias struct {
 var badAlias = alias{}
 
 type Endpoint struct {
-	container   *Container
-	scope       *Scope
-	ip          net.IP
-	gateway     net.IP
-	subnet      net.IPNet
-	static      bool
-	ports       map[Port]interface{} // exposed ports
-	aliases     map[string][]alias
-	portmapping []string
+	container *Container
+	scope     *Scope
+	ip        net.IP
+	gateway   net.IP
+	subnet    net.IPNet
+	static    bool
+	ports     map[Port]interface{} // exposed ports
+	aliases   map[string][]alias
 }
 
 // scopeName returns the "fully qualified" name of an alias. Aliases are scoped
@@ -135,10 +134,6 @@ func (e *Endpoint) Ports() []Port {
 	}
 
 	return ports
-}
-
-func (e *Endpoint) Portmapping() (res []string) {
-	return append(res, e.portmapping...)
 }
 
 func (e *Endpoint) addAlias(con, a string) (alias, bool) {

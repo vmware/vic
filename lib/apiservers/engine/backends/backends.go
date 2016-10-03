@@ -23,7 +23,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/registry"
-	"github.com/docker/go-connections/nat"
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
@@ -218,7 +217,7 @@ func syncContainerCache() error {
 	for _, info := range containme.Payload {
 		container := ContainerInfoToVicContainer(*info)
 		cc.AddContainer(container)
-		if err = setPortMapping(backend, container); err != nil {
+		if err = setPortMapping(info, backend, container); err != nil {
 			errs = append(errs, err.Error())
 		}
 	}
@@ -228,22 +227,26 @@ func syncContainerCache() error {
 	return nil
 }
 
-func setPortMapping(backend *Container, container *container.VicContainer) error {
-	log.Debugf("Set port mapping for container %q", container.Name)
+func setPortMapping(info *models.ContainerInfo, backend *Container, container *container.VicContainer) error {
+	if info.ContainerConfig.State == nil {
+		log.Infof("container state is nil")
+		return nil
+	}
+	if *info.ContainerConfig.State != "Running" || len(container.HostConfig.PortBindings) == 0 {
+		log.Infof("Container info state: %s", *info.ContainerConfig.State)
+		log.Infof("container portbinding: %+v", container.HostConfig.PortBindings)
+		return nil
+	}
 
+	log.Debugf("Set port mapping for container %q, portmapping %+v", container.Name, container.HostConfig.PortBindings)
 	client := backend.containerProxy.Client()
-	endpointsOK, err := client.Scopes.GetContainerEndpoints(scopes.NewGetContainerEndpointsParamsWithContext(ctx).WithHandleOrID(container.ContainerID))
+	endpointsOK, err := client.Scopes.GetContainerEndpoints(
+		scopes.NewGetContainerEndpointsParamsWithContext(ctx).WithHandleOrID(container.ContainerID))
 	if err != nil {
 		return err
 	}
 	for _, e := range endpointsOK.Payload {
 		if len(e.Ports) > 0 {
-			log.Infof("Map ports %s", e.Ports)
-			_, container.HostConfig.PortBindings, err = nat.ParsePortSpecs(e.Ports)
-			if err != nil {
-				return errors.Errorf("Failed to parse port mapping %s: %s", e.Ports, err)
-			}
-			log.Infof("host config port binding: %+v", container.HostConfig.PortBindings)
 			if err = backend.mapPorts(portmap.Map, container.HostConfig, e); err != nil {
 				return err
 			}

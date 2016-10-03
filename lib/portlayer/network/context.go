@@ -563,8 +563,6 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 				return nil, err
 			}
 		}
-		// cache portmapping string directly after ports verification is done. this value is used for ScopesGetContainerEndpoints
-		e.portmapping = ne.Ports
 
 		eip := e.IP()
 		if eip != nil && !eip.IsUnspecified() {

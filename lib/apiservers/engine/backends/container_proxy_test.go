@@ -50,10 +50,15 @@ func TestProcessVolumeParams(t *testing.T) {
 }
 
 func TestPort(t *testing.T) {
-
-	portMap, bindingMap, err := nat.ParsePortSpecs([]string{"1236:1235/tcp", "1237:1235/tcp", "2345/udp", "80", "127.0.0.1::8080", "127.0.0.1:5279:8080"})
+	portMap, bindingMap, err := nat.ParsePortSpecs([]string{
+		"1236:1235/tcp",
+		"1237:1235/tcp",
+		"2345/udp", "80",
+		"127.0.0.1::8080",
+		"127.0.0.1:5279:8080",
+	})
 	if err != nil {
-		t.Errorf("Failed to part ports: %s", err.Error())
+		t.Errorf("Failed to parse ports: %s", err.Error())
 	}
 	t.Logf("portMap: %s", portMap)
 	t.Logf("bindingMap: %s", bindingMap)

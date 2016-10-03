@@ -766,6 +766,12 @@ func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.Con
 	// Set this to json-file to force the docker CLI to allow us to use docker logs
 	hostConfig.LogConfig.Type = forceLogType
 
+	var err error
+	_, hostConfig.PortBindings, err = nat.ParsePortSpecs(info.HostConfig.Ports)
+	if err != nil {
+		log.Errorf("Failed to parse port mapping %s: %s", info.HostConfig.Ports, err)
+	}
+
 	return &hostConfig
 }
 
