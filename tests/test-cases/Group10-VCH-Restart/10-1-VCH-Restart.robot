@@ -35,10 +35,8 @@ Created Network Persists And Containers Are Discovered With Correct IPs
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start webserver
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  wget ${vch-ip}:10000 --retry-connrefused --timeout=10 --tries=10
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  wget ${vch-ip}:10001 --retry-connrefused --timeout=10 --tries=10
-    Should Be Equal As Integers  ${rc}  0
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10000
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10001
 
     Log To Console  Rebooting VCH ...
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -reset=true ${vch-name}
@@ -75,10 +73,9 @@ Created Network Persists And Containers Are Discovered With Correct IPs
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Exited (0)
 
-    ${rc}  ${output}=  Run And Return Rc And Output  wget ${vch-ip}:10000 --retry-connrefused --timeout=10 --tries=10
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  wget ${vch-ip}:10001 --retry-connrefused --timeout=10 --tries=10
-    Should Be Equal As Integers  ${rc}  0
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10000
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10001
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p 10000:80 -p 10001:80 --name webserver1 nginx
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
