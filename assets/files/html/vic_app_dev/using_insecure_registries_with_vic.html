@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Use and Limitations of Containers in vSphere Integrated Containers Engine | Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.6.0</title>
+        <title>Using Insecure Private Registry Servers with vSphere Integrated Containers Engine | Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.6.0</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -37,10 +37,10 @@
         
     
     
-    <link rel="next" href="./obtain_vch.html" />
+    <link rel="next" href="./network_use_cases.html" />
     
     
-    <link rel="prev" href="./container_operations.html" />
+    <link rel="prev" href="./using_volumes_with_vic.html" />
     
 
         
@@ -49,9 +49,9 @@
         
         
     <div class="book"
-        data-level="3"
-        data-chapter-title="Use and Limitations of Containers in vSphere Integrated Containers Engine"
-        data-filepath="container_limitations.md"
+        data-level="6"
+        data-chapter-title="Using Insecure Private Registry Servers with vSphere Integrated Containers Engine"
+        data-filepath="using_insecure_registries_with_vic.md"
         data-basepath="."
         data-revision="Mon Oct 03 2016 13:10:31 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
@@ -112,7 +112,7 @@
             
         </li>
     
-        <li class="chapter active" data-level="3" data-path="container_limitations.html">
+        <li class="chapter " data-level="3" data-path="container_limitations.html">
             
                 
                     <a href="./container_limitations.html">
@@ -157,7 +157,7 @@
             
         </li>
     
-        <li class="chapter " data-level="6" data-path="using_insecure_registries_with_vic.html">
+        <li class="chapter active" data-level="6" data-path="using_insecure_registries_with_vic.html">
             
                 
                     <a href="./using_insecure_registries_with_vic.html">
@@ -235,18 +235,20 @@
                 
                     <section class="normal" id="section-">
                     
-                        <h1 id="use-and-limitations-of-containers-in-vsphere-integrated-containers-engine">Use and Limitations of Containers in vSphere Integrated Containers Engine</h1>
-<p>vSphere Integrated Containers Engine currently includes the following  capabilities and limitations:</p>
-<ul>
-<li>Container VMs only support root user.</li>
-<li>You can resolve the symbolic names of a container from within another container except for the following:<ul>
-<li>aliases</li>
-<li>IPv6 support</li>
-<li>service discovery</li>
-</ul>
-</li>
-<li>Containers are capable of acquiring DHCP addresses if they are on a network that has DHCP.</li>
-</ul>
+                        <h1 id="using-insecure-private-registry-servers-with-vsphere-integrated-containers-engine">Using Insecure Private Registry Servers with vSphere Integrated Containers Engine</h1>
+<p>An insecure private registry server is a private registry server that is secured by self-signed certificates rather than by TLS.</p>
+<p>If your Docker environment stores Docker images in an insecure private registry server, you or the vSphere administrator must have set the <code>vic-machine  create --docker-insecure-registry</code> option when creating the virtual container host. Setting the <code>docker-insecure-registry</code> option on a virtual container host informs that virtual container host that it is permitted to pull images from the designated insecure registry server. </p>
+<p>For information about how to use the <code>vic-machine create --docker-insecure-registry</code> option, see the section on <code>docker-insecure-registry</code> in <a href="../vic_installation/vch_installer_options.html#registry">Virtual Container Host Deployment Options</a> in <em>vSphere Integrated Containers Engine Installation</em>. </p>
+<h2 id="pull-a-container-image-from-an-insecure-private-registry-server">Pull a Container Image from an Insecure Private Registry Server</h2>
+<p>To pull a container image from an insecure private registry server, run the following Docker command. </p>
+<pre>docker -H <i>vch_address</i>:2376 --tls 
+pull <i>registry_server_address</i>/path/to/image/<i>image_name</i>:<i>image_version</i></pre>
+
+<p>If the private registry server listens for connections on a specific port, include the port number in the registry server URL.</p>
+<pre>docker -H <i>vch_address</i>:2376 --tls 
+pull <i>registry_server_address</i>:<i>port_number</i>/path/to/image/<i>image_name</i>:<i>image_version</i></pre>
+
+<p><strong>NOTE</strong>: The current builds of vSphere Integrated Containers do not yet support private registry servers that you secure by using TLS certificates.</p>
 
                     
                     </section>
@@ -257,10 +259,10 @@
         </div>
 
         
-        <a href="./container_operations.html" class="navigation navigation-prev " aria-label="Previous page: Supported Docker Commands"><i class="fa fa-angle-left"></i></a>
+        <a href="./using_volumes_with_vic.html" class="navigation navigation-prev " aria-label="Previous page: Using Volumes with vSphere Integrated Containers Engine"><i class="fa fa-angle-left"></i></a>
         
         
-        <a href="./obtain_vch.html" class="navigation navigation-next " aria-label="Next page: Obtain a Virtual Container Host"><i class="fa fa-angle-right"></i></a>
+        <a href="./network_use_cases.html" class="navigation navigation-next " aria-label="Next page: Network Port Use Cases"><i class="fa fa-angle-right"></i></a>
         
     </div>
 </div>

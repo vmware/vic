@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Verify the Deployment of a Virtual Container Host to vCenter Server | VMware vSphere Integrated Containers Engine Installation, version 0.6.0</title>
+        <title>Verify the Deployment of the vSphere Integrated Containers Engine Plug-In | VMware vSphere Integrated Containers Engine Installation, version 0.6.0</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -37,10 +37,10 @@
         
     
     
-    <link rel="next" href="./verify_vch_deployment_esx.html" />
+    <link rel="next" href="./troubleshoot_vic_install.html" />
     
     
-    <link rel="prev" href="./vch_installer_examples.html" />
+    <link rel="prev" href="./plugin_vcsa_no_web.html" />
     
 
         
@@ -49,9 +49,9 @@
         
         
     <div class="book"
-        data-level="3.3"
-        data-chapter-title="Verify the Deployment of a Virtual Container Host to vCenter Server"
-        data-filepath="verify_vch_deployment.md"
+        data-level="4.5"
+        data-chapter-title="Verify the Deployment of the vSphere Integrated Containers Engine Plug-In"
+        data-filepath="plugin_verify_deployment.md"
         data-basepath="."
         data-revision="Mon Oct 03 2016 13:09:52 GMT+0200 (W. Europe Daylight Time)"
         data-innerlanguage="">
@@ -209,7 +209,7 @@
             
         </li>
     
-        <li class="chapter active" data-level="3.3" data-path="verify_vch_deployment.html">
+        <li class="chapter " data-level="3.3" data-path="verify_vch_deployment.html">
             
                 
                     <a href="./verify_vch_deployment.html">
@@ -320,7 +320,7 @@
             
         </li>
     
-        <li class="chapter " data-level="4.5" data-path="plugin_verify_deployment.html">
+        <li class="chapter active" data-level="4.5" data-path="plugin_verify_deployment.html">
             
                 
                     <a href="./plugin_verify_deployment.html">
@@ -454,50 +454,30 @@
                 
                     <section class="normal" id="section-">
                     
-                        <h1 id="verify-the-deployment-of-a-virtual-container-host-to-vcenter-server">Verify the Deployment of a Virtual Container Host to vCenter Server</h1>
-<p>After you have deployed a virtual container host to vCenter Server, you can verify the deployment by connecting a Docker client to the virtual container host and running Docker operations. You can check the results in the vSphere Web Client.</p>
+                        <h1 id="verify-the-deployment-of-the-vsphere-integrated-containers-engine-plugin">Verify the Deployment of the vSphere Integrated Containers Engine Plug-In</h1>
+<p>After you have installed the vSphere Web Client plug-in for vSphere Integrated Containers Engine, verify the deployment of the plug-in in the vSphere Web Client.</p>
+<p><strong>IMPORTANT</strong>: The vSphere Integrated Containers Engine plug-in is not functioning in vSphere Integrated Containers Engine 0.6.0.</p>
 <p><strong>Prerequisites</strong></p>
 <ul>
-<li>You used <code>vic-machine</code> <code>create</code> to deploy a virtual container host to vCenter Server. For information about running <code>vic-machine</code>, see <a href="install_vic_cli.html">Deploy a Virtual Container Host</a> and <a href="vch_installer_options.html">Virtual Container Host Deployment Options</a>.</li>
-<li>You have installed a Docker client.</li>
-<li>If you did not explicitly disable certificate generation when you deployed the virtual container host, and if you are not running the Docker client in the same location as the one on which you ran <code>vic-machine</code>, copy the <code>vch_name-cert.pem</code> and <code>vch_name-key.pem</code> files to the system on which you you are running the Docker client. Copy the certificate and key files either to the folder in which you run Docker, or to the <code>~/.docker</code> folder. Alternatively, specify the following options when you run Docker commands:<pre>docker -H <i>vch_address</i>:2376 --tlscacert --tlscert=<i>path</i> --tlskey=<i>path</i></pre></li>
-<li>Connect a vSphere Web Client to the vCenter Server instance on which you deployed the virtual container host.</li>
+<li>You deployed a virtual container host.</li>
+<li>You installed the vSphere Web Client plug-in for vSphere Integrated Containers Engine.</li>
+<li>You logged out of the vSphere Web Client after deploying the plug-in, and logged back in.</li>
 </ul>
-<p><strong>Procedure</strong>    </p>
+<p><strong>Procedure</strong></p>
 <ol>
-<li><p>In the vSphere Web Client, go to <strong>Hosts and Clusters</strong> and select the cluster or host on which you deployed the virtual container host.</p>
-<p> You should see a vApp with the name that you set for the virtual container host. The vApp contains the vSphere Integrated Containers Engine endpoint VM.   </p>
-</li>
-<li><p>In your Docker client, run the <code>docker info</code> command to confirm that you can connect to the virtual container host.</p>
-<ul>
-<li>With TLS authentication: <pre>$ docker -H <i>vch_address</i>:2376 --tls info</pre></li>
-<li>Without TLS authentication: <pre>$ docker -H <i>vch_address</i>:2375 info</pre></li>
-</ul>
-<p>You should see confirmation that the Storage Driver is <code>vSphere Integrated Containers Backend Engine</code>.</p>
-</li>
-<li><p>Pull a Docker container image into the virtual container host, for example, the <code>BusyBox</code> container.</p>
-<ul>
-<li>With TLS authentication: <pre>$ docker -H <i>vch_address</i>:2376 --tls pull busybox:latest</pre></li>
-<li>Without TLS authentication: <pre>$ docker -H <i>vch_address</i>:2375 pull busybox:latest</pre></li>
-</ul>
-</li>
-<li><p>In the vSphere Web Client, go to <strong>Storage</strong>, select the datastore that you designated as the image store, click <strong>Manage</strong> &gt; <strong>Files</strong>, and navigate to the <strong>VIC</strong> folder. </p>
-<p>If you specified a specific datastore folder as the image store, the <strong>VIC</strong> folder appears inside that folder.</p>
-<p> You should see a folder for every container image that you have pulled into the virtual container host. The folders contain the container image files.</p>
-</li>
-<li><p>In your Docker client, run the Docker container that you pulled into the virtual container host.</p>
-<ul>
-<li>With TLS authentication: <pre>$ docker -H <i>vch_address</i>:2376 --tls run busybox --name test</pre> </li>
-<li>Without TLS authentication: <pre>$ docker -H <i>vch_address</i>:2375 run busybox --name test</pre> </li>
-</ul>
-</li>
-<li><p>In the vSphere Web Client, go to <strong>Hosts and Clusters</strong> and expand the virtual container host vApp</p>
-<p> You should see a VM for every container that you run, including a VM named <code>test</code>.</p>
-</li>
-<li><p>In the vSphere Web Client, go to <strong>Storage</strong> and select the datastore that you designated as the container store.  </p>
-<p> At the top-level of the datastore, you should see a folder for every container that you run. The folders contain the container VM files.</p>
-</li>
+<li>In the vSphere Web Client Home page, select <strong>Hosts and Clusters</strong>.</li>
+<li>Expand the hierarchy of vCenter Server objects to navigate to the virtual container host vApp.</li>
+<li>Expand the virtual container host vApp and select the virtual container host endpoint VM.</li>
+<li>Click the <strong>Summary</strong> tab for the virtual container host endpoint VM and scroll down to the Virtual Container Host portlet.</li>
 </ol>
+<p><strong>Result</strong></p>
+<p>Information about the virtual container host appears in the Virtual Container Host portlet in the <strong>Summary</strong> tab:</p>
+<ul>
+<li>The address of the Docker API endpoint for this virtual container host</li>
+<li>A link to the vic-admin portal for the virtual container host, from which you can obtain health information and download log bundles for the virtual container host.</li>
+</ul>
+<p><strong>What to Do Next</strong></p>
+<p>If the Virtual Container Host portlet does not appear in the <strong>Summary</strong> tab for the virtual container host endpoint VM, restart the vSphere Web Client service. For instructions about how to restart the vSphere Web Client service, see <a href="ts_ui_not_appearing.html">vSphere Integrated Containers Engine Plug-In Does Not Appear in the vSphere Web Client</a>.</p>
 
                     
                     </section>
@@ -508,10 +488,10 @@
         </div>
 
         
-        <a href="./vch_installer_examples.html" class="navigation navigation-prev " aria-label="Previous page: Examples of Deploying a Virtual Container Host"><i class="fa fa-angle-left"></i></a>
+        <a href="./plugin_vcsa_no_web.html" class="navigation navigation-prev " aria-label="Previous page: Install the vSphere Integrated Containers Engine Plug-In on a vCenter Server Appliance Without Access to a Web Server"><i class="fa fa-angle-left"></i></a>
         
         
-        <a href="./verify_vch_deployment_esx.html" class="navigation navigation-next " aria-label="Next page: Verify the Deployment of a Virtual Container Host to an ESXi Host"><i class="fa fa-angle-right"></i></a>
+        <a href="./troubleshoot_vic_install.html" class="navigation navigation-next " aria-label="Next page: Troubleshooting vSphere Integrated Containers Engine Installation"><i class="fa fa-angle-right"></i></a>
         
     </div>
 </div>
