@@ -156,8 +156,7 @@ func engageContext(netctx *Context, em event.EventManager) error {
 		}
 	}()
 
-	state := exec.StateRunning
-	for _, c := range exec.Containers.Containers(&state) {
+	for _, c := range exec.Containers.Containers(nil) {
 		log.Debugf("adding container %s", c.ExecConfig.ID)
 		h := c.NewHandle()
 		defer h.Close()
@@ -187,8 +186,10 @@ func engageContext(netctx *Context, em event.EventManager) error {
 			}
 		}
 
-		if _, err = netctx.bindContainer(h); err != nil {
-			return err
+		if *h.State == exec.StateRunning {
+			if _, err = netctx.bindContainer(h); err != nil {
+				return err
+			}
 		}
 	}
 
