@@ -1026,7 +1026,7 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 
 		ips, err := clientIPv4Addrs()
 		var ports []types.Port
-		if err == nil {
+		if err != nil {
 			log.Errorf("Couldn't get IP information from connected client for reporting port bindings.")
 		} else {
 			ports = portInformation(t, ips)

@@ -606,8 +606,6 @@ func TestPortInformation(t *testing.T) {
 
 	ip, _ := netlink.ParseAddr("192.168.1.1/24")
 	ips := []netlink.Addr{*ip}
-	// ports := portInformation(mockContainerInfo, ips)
-	// assert.Empty(t, ports, "There should be no bound IPs")
 
 	co := viccontainer.NewVicContainer()
 	co.HostConfig = mockHostConfig
@@ -616,9 +614,7 @@ func TestPortInformation(t *testing.T) {
 	cache.ContainerCache().AddContainer(co)
 
 	ports := portInformation(mockContainerInfo, ips)
-	// assert.Empty(t, ports, "There should still be no bound IPs")
 
-	// ports = portInformation(mockContainerInfo, ips)
 	assert.NotEmpty(t, ports, "There should be bound IPs")
 	assert.Equal(t, len(ports), 1, "Expected 1 port binding, found %d", len(ports))
 
