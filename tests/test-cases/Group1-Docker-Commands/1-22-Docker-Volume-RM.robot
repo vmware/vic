@@ -6,9 +6,6 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Simple volume rm
-    ${status}=  Get State Of Github Issue  1511
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-22-Docker-Volume-RM.robot needs to be updated now that Issue #1511 has been resolved
-    Log  Issue \#1511 is blocking implementation  WARN
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${output}  test

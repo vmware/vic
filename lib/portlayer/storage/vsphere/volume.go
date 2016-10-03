@@ -204,7 +204,7 @@ func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.UR
 }
 
 func (v *VolumeStore) VolumeDestroy(ctx context.Context, vol *storage.Volume) error {
-	if err := volumesInUse(ctx, vol.ID); err != nil {
+	if err := volumeInUse(vol.ID); err != nil {
 		log.Errorf("VolumeStore: delete error: %s", err.Error())
 		return err
 	}
@@ -283,7 +283,7 @@ func (v *VolumeStore) VolumesList(ctx context.Context) ([]*storage.Volume, error
 	return volumes, nil
 }
 
-func volumesInUse(ctx context.Context, ID string) error {
+func volumeInUse(ID string) error {
 	conts := exec.Containers.Containers(nil)
 	if len(conts) == 0 {
 		return nil
