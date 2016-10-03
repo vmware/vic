@@ -14,3 +14,5 @@ VIC Integration Test Suite
 -
 [Group 9 - VIC Admin](Group9-VIC-Admin/TestCases.md)
 -
+[Group 10 - VCH Restart](Group10-VCH-Restart/TestCases.md)
+-

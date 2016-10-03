@@ -6,6 +6,7 @@ Verify VM guest tools integration for VCH and container VMs
 
 #References:
 * govc vm.ip
+
 #Environment:
 This test requires that a vSphere server is running and available
 

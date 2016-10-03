@@ -4,13 +4,13 @@ VIC Manual Test Suite
 
 [Group 5 - Functional Tests](Group5-Functional-Tests/TestCases.md)
 -
-[Group 10 - Longevity](Group10-Longevity/TestCases.md)
--
 [Group 11 - Stress](Group11-Stress/TestCases.md)
 -
 [Group 12 - Maintenance Mode](Group12-Maintenance-Mode/TestCases.md)
 -
 [Group 13 - vMotion](Group13-vMotion/TestCases.md)
+-
+[Group 14 - Longevity](Group14-Longevity/TestCases.md)
 -
 [Group 15 - Dogfood](Group15-Dogfood/TestCases.md)
 -
