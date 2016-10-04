@@ -26,36 +26,36 @@ import (
 const testStore = "testStore"
 
 func TestParentEmptyRestore(t *testing.T) {
-	ctx, ds, cleanupfunc := datastore.DSsetup(t)
+	op, ds, cleanupfunc := datastore.DSsetup(t)
 	if t.Failed() {
 		return
 	}
 	defer cleanupfunc()
 
-	par, err := restoreParentMap(ctx, ds, testStore)
+	par, err := restoreParentMap(op, ds, testStore)
 	if !assert.NoError(t, err) && !assert.NotNil(t, par) {
 		return
 	}
 }
 
 func TestParentEmptySaveRestore(t *testing.T) {
-	ctx, ds, cleanupfunc := datastore.DSsetup(t)
+	op, ds, cleanupfunc := datastore.DSsetup(t)
 	if t.Failed() {
 		return
 	}
 	defer cleanupfunc()
 
-	par, err := restoreParentMap(ctx, ds, testStore)
+	par, err := restoreParentMap(op, ds, testStore)
 	if !assert.NoError(t, err) && !assert.NotNil(t, par) {
 		return
 	}
 
-	err = par.Save(ctx)
+	err = par.Save(op)
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	p, err := restoreParentMap(ctx, ds, testStore)
+	p, err := restoreParentMap(op, ds, testStore)
 	if !assert.NoError(t, err) && !assert.NotNil(t, p) {
 		return
 	}
@@ -63,13 +63,13 @@ func TestParentEmptySaveRestore(t *testing.T) {
 
 // Write some child -> parent mappings and see if we can read them.
 func TestParentSaveRestore(t *testing.T) {
-	ctx, ds, cleanupfunc := datastore.DSsetup(t)
+	op, ds, cleanupfunc := datastore.DSsetup(t)
 	if t.Failed() {
 		return
 	}
 	defer cleanupfunc()
 
-	par, err := restoreParentMap(ctx, ds, testStore)
+	par, err := restoreParentMap(op, ds, testStore)
 	if !assert.NoError(t, err) && !assert.NotNil(t, par) {
 		return
 	}
@@ -81,13 +81,13 @@ func TestParentSaveRestore(t *testing.T) {
 		expected[child] = parent
 		par.Add(child, parent)
 	}
-	err = par.Save(ctx)
+	err = par.Save(op)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	// load into a different map
-	p, err := restoreParentMap(ctx, ds, testStore)
+	p, err := restoreParentMap(op, ds, testStore)
 	if !assert.NoError(t, err) && !assert.NotNil(t, p) {
 		return
 	}
@@ -98,7 +98,7 @@ func TestParentSaveRestore(t *testing.T) {
 	}
 
 	// Now save it to be extra paranoid
-	err = p.Save(ctx)
+	err = p.Save(op)
 	if !assert.NoError(t, err) {
 		return
 	}

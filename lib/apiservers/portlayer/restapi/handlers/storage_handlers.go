@@ -15,6 +15,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 
@@ -40,18 +41,17 @@ import (
 )
 
 // StorageHandlersImpl is the receiver for all of the storage handler methods
-type StorageHandlersImpl struct{}
-
-var (
-	storageImageLayer  = &spl.NameLookupCache{}
-	storageVolumeLayer = &spl.VolumeLookupCache{}
-)
+type StorageHandlersImpl struct {
+	imageCache  *spl.NameLookupCache
+	volumeCache *spl.VolumeLookupCache
+}
 
 // Configure assigns functions to all the storage api handlers
-func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx *HandlerContext) {
+func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx *HandlerContext) {
 	var err error
 
 	ctx := context.Background()
+	op := trace.NewOperation(ctx, "configure")
 
 	sessionconfig := &session.Config{
 		Service:        options.PortLayerOptions.SDK,
@@ -75,7 +75,8 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, hand
 	if len(spl.Config.ImageStores) > 1 {
 		log.Warningf("Multiple image stores found. Multiple image stores are not yet supported. Using [%s] %s", imageStoreURL.Host, imageStoreURL.Path)
 	}
-	ds, err := vsphereSpl.NewImageStore(ctx, storageSession, &imageStoreURL)
+
+	ds, err := vsphereSpl.NewImageStore(op, storageSession, &imageStoreURL)
 	if err != nil {
 		log.Panicf("Cannot instantiate storage layer: %s", err)
 	}
@@ -83,8 +84,11 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, hand
 	// The imagestore is implemented via a cache which is backed via an
 	// implementation that writes to disks.  The cache is used to avoid
 	// expensive metadata lookups.
-	storageImageLayer = spl.NewLookupCache(ds)
-	vsVolumeStore, err := vsphereSpl.NewVolumeStore(context.TODO(), storageSession)
+	h.imageCache = spl.NewLookupCache(ds)
+
+	// The same is done for volumes.  It's implemented via a cache which writes
+	// to an implementation that takes a datastore to write to.
+	vsVolumeStore, err := vsphereSpl.NewVolumeStore(op, storageSession)
 	if err != nil {
 		log.Panicf("Cannot instantiate the volume store: %s", err)
 	}
@@ -99,35 +103,36 @@ func (handler *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, hand
 	// Add datastores to the vsphere volume store impl
 	for volStoreName, volDatastore := range dstores {
 		log.Infof("Adding volume store %s (%s)", volStoreName, volDatastore.RootURL)
-		_, err := vsVolumeStore.AddStore(context.TODO(), volDatastore, volStoreName)
+		_, err := vsVolumeStore.AddStore(op, volDatastore, volStoreName)
 		if err != nil {
 			log.Errorf("volume addition error %s", err)
 		}
 	}
 
-	storageVolumeLayer, err = spl.NewVolumeLookupCache(context.TODO(), vsVolumeStore)
+	h.volumeCache, err = spl.NewVolumeLookupCache(op, vsVolumeStore)
 	if err != nil {
 		log.Panicf("Cannot instantiate the Volume Lookup cache: %s", err)
 	}
 
-	api.StorageCreateImageStoreHandler = storage.CreateImageStoreHandlerFunc(handler.CreateImageStore)
-	api.StorageGetImageHandler = storage.GetImageHandlerFunc(handler.GetImage)
-	api.StorageGetImageTarHandler = storage.GetImageTarHandlerFunc(handler.GetImageTar)
-	api.StorageListImagesHandler = storage.ListImagesHandlerFunc(handler.ListImages)
-	api.StorageWriteImageHandler = storage.WriteImageHandlerFunc(handler.WriteImage)
-	api.StorageDeleteImageHandler = storage.DeleteImageHandlerFunc(handler.DeleteImage)
+	api.StorageCreateImageStoreHandler = storage.CreateImageStoreHandlerFunc(h.CreateImageStore)
+	api.StorageGetImageHandler = storage.GetImageHandlerFunc(h.GetImage)
+	api.StorageGetImageTarHandler = storage.GetImageTarHandlerFunc(h.GetImageTar)
+	api.StorageListImagesHandler = storage.ListImagesHandlerFunc(h.ListImages)
+	api.StorageWriteImageHandler = storage.WriteImageHandlerFunc(h.WriteImage)
+	api.StorageDeleteImageHandler = storage.DeleteImageHandlerFunc(h.DeleteImage)
 
-	api.StorageVolumeStoresListHandler = storage.VolumeStoresListHandlerFunc(handler.VolumeStoresList)
-	api.StorageCreateVolumeHandler = storage.CreateVolumeHandlerFunc(handler.CreateVolume)
-	api.StorageRemoveVolumeHandler = storage.RemoveVolumeHandlerFunc(handler.RemoveVolume)
-	api.StorageVolumeJoinHandler = storage.VolumeJoinHandlerFunc(handler.VolumeJoin)
-	api.StorageListVolumesHandler = storage.ListVolumesHandlerFunc(handler.VolumesList)
-	api.StorageGetVolumeHandler = storage.GetVolumeHandlerFunc(handler.GetVolume)
+	api.StorageVolumeStoresListHandler = storage.VolumeStoresListHandlerFunc(h.VolumeStoresList)
+	api.StorageCreateVolumeHandler = storage.CreateVolumeHandlerFunc(h.CreateVolume)
+	api.StorageRemoveVolumeHandler = storage.RemoveVolumeHandlerFunc(h.RemoveVolume)
+	api.StorageVolumeJoinHandler = storage.VolumeJoinHandlerFunc(h.VolumeJoin)
+	api.StorageListVolumesHandler = storage.ListVolumesHandlerFunc(h.VolumesList)
+	api.StorageGetVolumeHandler = storage.GetVolumeHandlerFunc(h.GetVolume)
 }
 
 // CreateImageStore creates a new image store
-func (handler *StorageHandlersImpl) CreateImageStore(params storage.CreateImageStoreParams) middleware.Responder {
-	url, err := storageImageLayer.CreateImageStore(context.TODO(), params.Body.Name)
+func (h *StorageHandlersImpl) CreateImageStore(params storage.CreateImageStoreParams) middleware.Responder {
+	op := trace.NewOperation(context.Background(), fmt.Sprintf("CreateImageStore(%s)", params.Body.Name))
+	url, err := h.imageCache.CreateImageStore(op, params.Body.Name)
 	if err != nil {
 		if os.IsExist(err) {
 			return storage.NewCreateImageStoreConflict().WithPayload(
@@ -148,7 +153,7 @@ func (handler *StorageHandlersImpl) CreateImageStore(params storage.CreateImageS
 }
 
 // GetImage retrieves an image from a store
-func (handler *StorageHandlersImpl) GetImage(params storage.GetImageParams) middleware.Responder {
+func (h *StorageHandlersImpl) GetImage(params storage.GetImageParams) middleware.Responder {
 	id := params.ID
 
 	url, err := util.ImageStoreNameToURL(params.StoreName)
@@ -160,17 +165,19 @@ func (handler *StorageHandlersImpl) GetImage(params storage.GetImageParams) midd
 			})
 	}
 
-	image, err := storageImageLayer.GetImage(context.TODO(), url, id)
+	op := trace.NewOperation(context.Background(), fmt.Sprintf("GetImage(%s)", id))
+	image, err := h.imageCache.GetImage(op, url, id)
 	if err != nil {
 		e := &models.Error{Code: swag.Int64(http.StatusNotFound), Message: err.Error()}
 		return storage.NewGetImageNotFound().WithPayload(e)
 	}
+
 	result := convertImage(image)
 	return storage.NewGetImageOK().WithPayload(result)
 }
 
 // DeleteImage deletes an image from a store
-func (handler *StorageHandlersImpl) DeleteImage(params storage.DeleteImageParams) middleware.Responder {
+func (h *StorageHandlersImpl) DeleteImage(params storage.DeleteImageParams) middleware.Responder {
 
 	ferr := func(err error, code int) middleware.Responder {
 		log.Errorf("DeleteImage: error %s", err.Error())
@@ -191,7 +198,8 @@ func (handler *StorageHandlersImpl) DeleteImage(params storage.DeleteImageParams
 		return ferr(err, http.StatusInternalServerError)
 	}
 
-	if err = storageImageLayer.DeleteImage(context.Background(), image); err != nil {
+	op := trace.NewOperation(context.Background(), fmt.Sprintf("DeleteImage(%s)", image.ID))
+	if err = h.imageCache.DeleteImage(op, image); err != nil {
 		switch {
 		case spl.IsErrImageInUse(err):
 			return ferr(err, http.StatusLocked)
@@ -208,12 +216,12 @@ func (handler *StorageHandlersImpl) DeleteImage(params storage.DeleteImageParams
 }
 
 // GetImageTar returns an image tar file
-func (handler *StorageHandlersImpl) GetImageTar(params storage.GetImageTarParams) middleware.Responder {
+func (h *StorageHandlersImpl) GetImageTar(params storage.GetImageTarParams) middleware.Responder {
 	return middleware.NotImplemented("operation storage.GetImageTar has not yet been implemented")
 }
 
 // ListImages returns a list of images in a store
-func (handler *StorageHandlersImpl) ListImages(params storage.ListImagesParams) middleware.Responder {
+func (h *StorageHandlersImpl) ListImages(params storage.ListImagesParams) middleware.Responder {
 	u, err := util.ImageStoreNameToURL(params.StoreName)
 	if err != nil {
 		return storage.NewListImagesDefault(http.StatusInternalServerError).WithPayload(
@@ -223,7 +231,8 @@ func (handler *StorageHandlersImpl) ListImages(params storage.ListImagesParams) 
 			})
 	}
 
-	images, err := storageImageLayer.ListImages(context.TODO(), u, params.Ids)
+	op := trace.NewOperation(context.Background(), fmt.Sprintf("ListImages(%s, %q)", u.String(), params.Ids))
+	images, err := h.imageCache.ListImages(op, u, params.Ids)
 	if err != nil {
 		return storage.NewListImagesNotFound().WithPayload(
 			&models.Error{
@@ -241,7 +250,7 @@ func (handler *StorageHandlersImpl) ListImages(params storage.ListImagesParams) 
 }
 
 // WriteImage writes an image to an image store
-func (handler *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) middleware.Responder {
+func (h *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) middleware.Responder {
 	u, err := util.ImageStoreNameToURL(params.StoreName)
 	if err != nil {
 		return storage.NewWriteImageDefault(http.StatusInternalServerError).WithPayload(
@@ -262,7 +271,8 @@ func (handler *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) 
 		meta = map[string][]byte{*params.Metadatakey: []byte(*params.Metadataval)}
 	}
 
-	image, err := storageImageLayer.WriteImage(context.TODO(), parent, params.ImageID, meta, params.Sum, params.ImageFile)
+	op := trace.NewOperation(context.Background(), fmt.Sprintf("WriteImage(%s)", params.ImageID))
+	image, err := h.imageCache.WriteImage(op, parent, params.ImageID, meta, params.Sum, params.ImageFile)
 	if err != nil {
 		return storage.NewWriteImageDefault(http.StatusInternalServerError).WithPayload(
 			&models.Error{
@@ -275,10 +285,11 @@ func (handler *StorageHandlersImpl) WriteImage(params storage.WriteImageParams) 
 }
 
 // VolumeStoresList lists the configured volume stores and their datastore path URIs.
-func (handler *StorageHandlersImpl) VolumeStoresList() middleware.Responder {
+func (h *StorageHandlersImpl) VolumeStoresList() middleware.Responder {
 	defer trace.End(trace.Begin("storage_handlers.VolumeStoresList"))
 
-	stores, err := storageVolumeLayer.VolumeStoresList(context.TODO())
+	op := trace.NewOperation(context.Background(), "VolumeStoresList")
+	stores, err := h.volumeCache.VolumeStoresList(op)
 	if err != nil {
 		return storage.NewVolumeStoresListInternalServerError().WithPayload(
 			&models.Error{
@@ -299,7 +310,7 @@ func (handler *StorageHandlersImpl) VolumeStoresList() middleware.Responder {
 }
 
 //CreateVolume : Create a Volume
-func (handler *StorageHandlersImpl) CreateVolume(params storage.CreateVolumeParams) middleware.Responder {
+func (h *StorageHandlersImpl) CreateVolume(params storage.CreateVolumeParams) middleware.Responder {
 	defer trace.End(trace.Begin("storage_handlers.CreateVolume"))
 
 	//TODO: FIXME: add more errorcodes as we identify error scenarios.
@@ -324,7 +335,8 @@ func (handler *StorageHandlersImpl) CreateVolume(params storage.CreateVolumePara
 		capacity = uint64(params.VolumeRequest.Capacity)
 	}
 
-	volume, err := storageVolumeLayer.VolumeCreate(context.TODO(), params.VolumeRequest.Name, storeURL, capacity*1024, byteMap)
+	op := trace.NewOperation(context.Background(), fmt.Sprintf("VolumeCreate(%s)", params.VolumeRequest.Name))
+	volume, err := h.volumeCache.VolumeCreate(op, params.VolumeRequest.Name, storeURL, capacity*1024, byteMap)
 	if err != nil {
 		log.Errorf("storagehandler: VolumeCreate error: %#v", err)
 
@@ -353,10 +365,11 @@ func (handler *StorageHandlersImpl) CreateVolume(params storage.CreateVolumePara
 }
 
 //GetVolume : Gets a handle to a volume
-func (handler *StorageHandlersImpl) GetVolume(params storage.GetVolumeParams) middleware.Responder {
+func (h *StorageHandlersImpl) GetVolume(params storage.GetVolumeParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.Name))
 
-	data, err := storageVolumeLayer.VolumeGet(context.TODO(), params.Name)
+	op := trace.NewOperation(context.Background(), fmt.Sprintf("VolumeGet(%s)", params.Name))
+	data, err := h.volumeCache.VolumeGet(op, params.Name)
 	if err == os.ErrNotExist {
 		return storage.NewGetVolumeNotFound().WithPayload(&models.Error{
 			Code:    swag.Int64(http.StatusNotFound),
@@ -377,10 +390,11 @@ func (handler *StorageHandlersImpl) GetVolume(params storage.GetVolumeParams) mi
 }
 
 //RemoveVolume : Remove a Volume from existence
-func (handler *StorageHandlersImpl) RemoveVolume(params storage.RemoveVolumeParams) middleware.Responder {
+func (h *StorageHandlersImpl) RemoveVolume(params storage.RemoveVolumeParams) middleware.Responder {
 	defer trace.End(trace.Begin("storage_handlers.RemoveVolume"))
 
-	err := storageVolumeLayer.VolumeDestroy(context.TODO(), params.Name)
+	op := trace.NewOperation(context.Background(), fmt.Sprintf("VolumeDestroy(%s)", params.Name))
+	err := h.volumeCache.VolumeDestroy(op, params.Name)
 	if err != nil {
 		switch {
 		case os.IsNotExist(err):
@@ -403,11 +417,12 @@ func (handler *StorageHandlersImpl) RemoveVolume(params storage.RemoveVolumePara
 }
 
 //VolumesList : Lists available volumes for use
-func (handler *StorageHandlersImpl) VolumesList(params storage.ListVolumesParams) middleware.Responder {
+func (h *StorageHandlersImpl) VolumesList(params storage.ListVolumesParams) middleware.Responder {
 	defer trace.End(trace.Begin(""))
 	var result []*models.VolumeResponse
 
-	portlayerVolumes, err := storageVolumeLayer.VolumesList(context.TODO())
+	op := trace.NewOperation(context.Background(), "VolumeList")
+	portlayerVolumes, err := h.volumeCache.VolumesList(op)
 	if err != nil {
 		log.Error(err)
 		return storage.NewListVolumesInternalServerError().WithPayload(&models.Error{
@@ -436,28 +451,34 @@ func (handler *StorageHandlersImpl) VolumesList(params storage.ListVolumesParams
 }
 
 //VolumeJoin : modifies the config spec of a container to mount the specified container
-func (handler *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middleware.Responder {
+func (h *StorageHandlersImpl) VolumeJoin(params storage.VolumeJoinParams) middleware.Responder {
 	defer trace.End(trace.Begin(""))
+
+	op := trace.NewOperation(context.Background(), fmt.Sprintf("VolumeJoin(%s)", params.Name))
+
 	actualHandle := epl.GetHandle(params.JoinArgs.Handle)
 
 	//Note: Name should already be populated by now.
-	volume, err := storageVolumeLayer.VolumeGet(context.Background(), params.Name)
+	volume, err := h.volumeCache.VolumeGet(op, params.Name)
 	if err != nil {
 		log.Errorf("Volumes: StorageHandler : %#v", err)
+
 		return storage.NewVolumeJoinInternalServerError().WithPayload(&models.Error{
 			Code:    swag.Int64(http.StatusInternalServerError),
 			Message: err.Error(),
 		})
 	}
-	log.Infof("found volume %s for volume join", volume.ID)
-	actualHandle, err = vsphereSpl.VolumeJoin(context.Background(), actualHandle, volume, params.JoinArgs.MountPath, params.JoinArgs.Flags)
+
+	actualHandle, err = vsphereSpl.VolumeJoin(op, actualHandle, volume, params.JoinArgs.MountPath, params.JoinArgs.Flags)
 	if err != nil {
 		log.Errorf("Volumes: StorageHandler : %#v", err)
+
 		return storage.NewVolumeJoinInternalServerError().WithPayload(&models.Error{
 			Code:    swag.Int64(http.StatusInternalServerError),
 			Message: err.Error(),
 		})
 	}
+
 	log.Infof("volume %s has been joined to a container", volume.ID)
 	return storage.NewVolumeJoinOK().WithPayload(actualHandle.String())
 }

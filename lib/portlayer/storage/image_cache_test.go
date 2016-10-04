@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/lib/portlayer/util"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 type MockDataStore struct {
@@ -44,11 +45,11 @@ func NewMockDataStore() *MockDataStore {
 
 // GetImageStore checks to see if a named image store exists and returls the
 // URL to it if so or error.
-func (c *MockDataStore) GetImageStore(ctx context.Context, storeName string) (*url.URL, error) {
+func (c *MockDataStore) GetImageStore(op trace.Operation, storeName string) (*url.URL, error) {
 	return nil, nil
 }
 
-func (c *MockDataStore) CreateImageStore(ctx context.Context, storeName string) (*url.URL, error) {
+func (c *MockDataStore) CreateImageStore(op trace.Operation, storeName string) (*url.URL, error) {
 	u, err := util.ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
@@ -58,11 +59,11 @@ func (c *MockDataStore) CreateImageStore(ctx context.Context, storeName string) 
 	return u, nil
 }
 
-func (c *MockDataStore) ListImageStores(ctx context.Context) ([]*url.URL, error) {
+func (c *MockDataStore) ListImageStores(op trace.Operation) ([]*url.URL, error) {
 	return nil, nil
 }
 
-func (c *MockDataStore) WriteImage(ctx context.Context, parent *Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*Image, error) {
+func (c *MockDataStore) WriteImage(op trace.Operation, parent *Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*Image, error) {
 	storeName, err := util.ImageStoreName(parent.Store)
 	if err != nil {
 		return nil, err
@@ -95,7 +96,7 @@ func (c *MockDataStore) WriteImage(ctx context.Context, parent *Image, ID string
 }
 
 // GetImage gets the specified image from the given store by retreiving it from the cache.
-func (c *MockDataStore) GetImage(ctx context.Context, store *url.URL, ID string) (*Image, error) {
+func (c *MockDataStore) GetImage(op trace.Operation, store *url.URL, ID string) (*Image, error) {
 	i, ok := c.db[*store][ID]
 	if !ok {
 		return nil, fmt.Errorf("not found")
@@ -104,7 +105,7 @@ func (c *MockDataStore) GetImage(ctx context.Context, store *url.URL, ID string)
 }
 
 // ListImages resturns a list of Images for a list of IDs, or all if no IDs are passed
-func (c *MockDataStore) ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*Image, error) {
+func (c *MockDataStore) ListImages(op trace.Operation, store *url.URL, IDs []string) ([]*Image, error) {
 	var imageList []*Image
 	for _, i := range c.db[*store] {
 		imageList = append(imageList, i)
@@ -113,7 +114,7 @@ func (c *MockDataStore) ListImages(ctx context.Context, store *url.URL, IDs []st
 }
 
 // DeleteImage removes an image from the image store
-func (c *MockDataStore) DeleteImage(ctx context.Context, image *Image) error {
+func (c *MockDataStore) DeleteImage(op trace.Operation, image *Image) error {
 	delete(c.db[*image.Store], image.ID)
 	return nil
 }
@@ -318,14 +319,14 @@ func TestImageStoreRestart(t *testing.T) {
 func TestDeleteImage(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	imageCache := NewLookupCache(NewMockDataStore())
-	ctx := context.Background()
+	op := context.Background()
 
-	storeURL, err := imageCache.CreateImageStore(ctx, "testStore")
+	storeURL, err := imageCache.CreateImageStore(op, "testStore")
 	if !assert.NoError(t, err) || !assert.NotNil(t, storeURL) {
 		return
 	}
 
-	scratch, err := imageCache.GetImage(ctx, storeURL, Scratch.ID)
+	scratch, err := imageCache.GetImage(op, storeURL, Scratch.ID)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -335,21 +336,21 @@ func TestDeleteImage(t *testing.T) {
 	images := make(map[int]*Image)
 	for branch := 1; branch < branches; branch++ {
 		// level 1
-		img, err := imageCache.WriteImage(ctx, scratch, strconv.Itoa(branch), nil, "", nil)
+		img, err := imageCache.WriteImage(op, scratch, strconv.Itoa(branch), nil, "", nil)
 		if !assert.NoError(t, err) || !assert.NotNil(t, img) {
 			return
 		}
 		images[branch] = img
 
 		// level 2
-		i, err := imageCache.WriteImage(ctx, img, strconv.Itoa(branch*10), nil, "", nil)
+		i, err := imageCache.WriteImage(op, img, strconv.Itoa(branch*10), nil, "", nil)
 		if !assert.NoError(t, err) || !assert.NotNil(t, i) {
 			return
 		}
 		images[branch*10] = i
 
 		// level 3
-		i, err = imageCache.WriteImage(ctx, img, strconv.Itoa(branch*100), nil, "", nil)
+		i, err = imageCache.WriteImage(op, img, strconv.Itoa(branch*100), nil, "", nil)
 		if !assert.NoError(t, err) || !assert.NotNil(t, i) {
 			return
 		}
@@ -357,12 +358,12 @@ func TestDeleteImage(t *testing.T) {
 	}
 
 	// Deletion of an intermediate node should fail
-	err = imageCache.DeleteImage(ctx, images[1])
+	err = imageCache.DeleteImage(op, images[1])
 	if !assert.Error(t, err) {
 		return
 	}
 
-	imageList, err := imageCache.ListImages(ctx, storeURL, nil)
+	imageList, err := imageCache.ListImages(op, storeURL, nil)
 	if !assert.NoError(t, err) || !assert.NotNil(t, imageList) {
 		return
 	}
@@ -377,13 +378,13 @@ func TestDeleteImage(t *testing.T) {
 		// range up the branch
 		for _, img := range []*Image{images[branch*100], images[branch*10], images[branch]} {
 
-			err = imageCache.DeleteImage(ctx, img)
+			err = imageCache.DeleteImage(op, img)
 			if !assert.NoError(t, err) {
 				return
 			}
 
 			// the image should be gone
-			i, err := imageCache.GetImage(ctx, storeURL, img.ID)
+			i, err := imageCache.GetImage(op, storeURL, img.ID)
 			if !assert.Error(t, err) || !assert.Nil(t, i) {
 				return
 			}
@@ -391,7 +392,7 @@ func TestDeleteImage(t *testing.T) {
 	}
 
 	// List images should be empty (because we filter out scratch)
-	imageList, err = imageCache.ListImages(ctx, storeURL, nil)
+	imageList, err = imageCache.ListImages(op, storeURL, nil)
 	if !assert.NoError(t, err) || !assert.NotNil(t, imageList) {
 		return
 	}

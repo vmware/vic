@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/lib/portlayer/util"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 type MockVolumeStore struct {
@@ -41,12 +42,12 @@ func NewMockVolumeStore() *MockVolumeStore {
 	return m
 }
 
-func (m *MockVolumeStore) VolumeStoresList(ctx context.Context) (map[string]url.URL, error) {
+func (m *MockVolumeStore) VolumeStoresList(op trace.Operation) (map[string]url.URL, error) {
 	return nil, nil
 }
 
 // Creates a volume on the given volume store, of the given size, with the given metadata.
-func (m *MockVolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*Volume, error) {
+func (m *MockVolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*Volume, error) {
 	storeName, err := util.VolumeStoreName(store)
 	if err != nil {
 		return nil, err
@@ -69,7 +70,7 @@ func (m *MockVolumeStore) VolumeCreate(ctx context.Context, ID string, store *ur
 }
 
 // Get an existing volume via it's ID and volume store.
-func (m *MockVolumeStore) VolumeGet(ctx context.Context, ID string) (*Volume, error) {
+func (m *MockVolumeStore) VolumeGet(op trace.Operation, ID string) (*Volume, error) {
 	vol, ok := m.db[ID]
 	if !ok {
 		return nil, os.ErrNotExist
@@ -79,7 +80,7 @@ func (m *MockVolumeStore) VolumeGet(ctx context.Context, ID string) (*Volume, er
 }
 
 // Destroys a volume
-func (m *MockVolumeStore) VolumeDestroy(ctx context.Context, vol *Volume) error {
+func (m *MockVolumeStore) VolumeDestroy(op trace.Operation, vol *Volume) error {
 	if _, ok := m.db[vol.ID]; !ok {
 		return os.ErrNotExist
 	}
@@ -90,7 +91,7 @@ func (m *MockVolumeStore) VolumeDestroy(ctx context.Context, vol *Volume) error 
 }
 
 // Lists all volumes on the given volume store`
-func (m *MockVolumeStore) VolumesList(ctx context.Context) ([]*Volume, error) {
+func (m *MockVolumeStore) VolumesList(op trace.Operation) ([]*Volume, error) {
 	var i int
 	list := make([]*Volume, len(m.db))
 	for _, v := range m.db {

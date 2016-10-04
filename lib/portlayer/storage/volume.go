@@ -23,8 +23,7 @@ import (
 	"strings"
 
 	"github.com/vmware/vic/lib/portlayer/util"
-
-	"golang.org/x/net/context"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 type Disk interface {
@@ -36,16 +35,16 @@ type Disk interface {
 // VolumeStorer is an interface to create, remove, enumerate, and get Volumes.
 type VolumeStorer interface {
 	// Creates a volume on the given volume store, of the given size, with the given metadata.
-	VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*Volume, error)
+	VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*Volume, error)
 
 	// Destroys a volume
-	VolumeDestroy(ctx context.Context, vol *Volume) error
+	VolumeDestroy(op trace.Operation, vol *Volume) error
 
 	// Lists all volumes
-	VolumesList(ctx context.Context) ([]*Volume, error)
+	VolumesList(op trace.Operation) ([]*Volume, error)
 
 	// List the configured volume stores
-	VolumeStoresList(ctx context.Context) (map[string]url.URL, error)
+	VolumeStoresList(op trace.Operation) (map[string]url.URL, error)
 }
 
 // Volume is the handle to identify a volume on the backing store.  The URI
