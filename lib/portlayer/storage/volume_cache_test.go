@@ -104,8 +104,9 @@ func (m *MockVolumeStore) VolumesList(op trace.Operation) ([]*Volume, error) {
 }
 
 func TestVolumeCreateGetListAndDelete(t *testing.T) {
+	op := trace.NewOperation(context.Background(), "test")
 	mvs := NewMockVolumeStore()
-	v, err := NewVolumeLookupCache(context.TODO(), mvs)
+	v, err := NewVolumeLookupCache(op, mvs)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -125,7 +126,7 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 		id := fmt.Sprintf("ID-%d", i)
 
 		// Write to the datastore
-		vol, err := v.VolumeCreate(context.TODO(), id, storeURL, 0, nil)
+		vol, err := v.VolumeCreate(op, id, storeURL, 0, nil)
 		if !assert.NoError(t, err) || !assert.NotNil(t, vol) {
 			return
 		}
@@ -144,7 +145,7 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 	wg.Wait()
 
 	getFn := func(inVol *Volume) {
-		vol, err := v.VolumeGet(context.TODO(), inVol.ID)
+		vol, err := v.VolumeGet(op, inVol.ID)
 		if !assert.NoError(t, err) || !assert.NotNil(t, vol) {
 			return
 		}
@@ -161,7 +162,7 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 	}
 	wg.Wait()
 
-	volumeList, err := v.VolumesList(context.TODO())
+	volumeList, err := v.VolumesList(op)
 	if !assert.NoError(t, err) || !assert.Equal(t, numVolumes, len(volumeList)) {
 		return
 	}
@@ -174,7 +175,7 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 			return
 		}
 
-		if err = v.VolumeDestroy(context.TODO(), outVol.ID); !assert.NoError(t, err) {
+		if err = v.VolumeDestroy(op, outVol.ID); !assert.NoError(t, err) {
 			return
 		}
 	}
@@ -190,7 +191,8 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 // restart since the second cache is empty and has to go to the backing store.
 func TestVolumeCacheRestart(t *testing.T) {
 	mvs := NewMockVolumeStore()
-	firstCache, err := NewVolumeLookupCache(context.TODO(), mvs)
+	op := trace.NewOperation(context.Background(), "test")
+	firstCache, err := NewVolumeLookupCache(op, mvs)
 	if !assert.NoError(t, err) || !assert.NotNil(t, firstCache) {
 		return
 	}
@@ -206,7 +208,7 @@ func TestVolumeCacheRestart(t *testing.T) {
 		id := fmt.Sprintf("ID-%d", i)
 
 		// Write to the datastore
-		vol, err := firstCache.VolumeCreate(context.TODO(), id, storeURL, 0, nil)
+		vol, err := firstCache.VolumeCreate(op, id, storeURL, 0, nil)
 		if !assert.NoError(t, err) || !assert.NotNil(t, vol) {
 			return
 		}
@@ -214,14 +216,14 @@ func TestVolumeCacheRestart(t *testing.T) {
 		inVols[id] = vol
 	}
 
-	secondCache, err := NewVolumeLookupCache(context.TODO(), mvs)
+	secondCache, err := NewVolumeLookupCache(op, mvs)
 	if !assert.NoError(t, err) || !assert.NotNil(t, secondCache) {
 		return
 	}
 
 	// get the vols from the second cache to ensure it goes to the ds
 	for _, expectedVol := range inVols {
-		vol, err := secondCache.VolumeGet(context.TODO(), expectedVol.ID)
+		vol, err := secondCache.VolumeGet(op, expectedVol.ID)
 		if !assert.NoError(t, err) || !assert.Equal(t, expectedVol, vol) {
 			return
 		}

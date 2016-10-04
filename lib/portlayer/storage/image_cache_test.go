@@ -122,7 +122,8 @@ func (c *MockDataStore) DeleteImage(op trace.Operation, image *Image) error {
 func TestListImages(t *testing.T) {
 	s := NewLookupCache(NewMockDataStore())
 
-	storeURL, err := s.CreateImageStore(context.TODO(), "testStore")
+	op := trace.NewOperation(context.Background(), "test")
+	storeURL, err := s.CreateImageStore(op, "testStore")
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -138,7 +139,7 @@ func TestListImages(t *testing.T) {
 	for i := 1; i < 50; i++ {
 		id := fmt.Sprintf("ID-%d", i)
 
-		img, werr := s.WriteImage(context.TODO(), &parent, id, nil, testSum, nil)
+		img, werr := s.WriteImage(op, &parent, id, nil, testSum, nil)
 		if !assert.NoError(t, werr) {
 			return
 		}
@@ -150,7 +151,7 @@ func TestListImages(t *testing.T) {
 	}
 
 	// List all images
-	outImages, err := s.ListImages(context.TODO(), storeURL, nil)
+	outImages, err := s.ListImages(op, storeURL, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -166,7 +167,7 @@ func TestListImages(t *testing.T) {
 
 	// Check we can retrieve a subset
 	inIDs := []string{"ID-1", "ID-2", "ID-3"}
-	outImages, err = s.ListImages(context.TODO(), storeURL, inIDs)
+	outImages, err = s.ListImages(op, storeURL, inIDs)
 
 	if !assert.NoError(t, err) {
 		return
@@ -189,8 +190,9 @@ func TestListImages(t *testing.T) {
 // without an error.
 func TestOutsideCacheWriteImage(t *testing.T) {
 	s := NewLookupCache(NewMockDataStore())
+	op := trace.NewOperation(context.Background(), "test")
 
-	storeURL, err := s.CreateImageStore(context.TODO(), "testStore")
+	storeURL, err := s.CreateImageStore(op, "testStore")
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -206,7 +208,7 @@ func TestOutsideCacheWriteImage(t *testing.T) {
 		id := fmt.Sprintf("ID-%d", i)
 
 		// Write to the datastore creating images
-		img, werr := s.DataStore.WriteImage(context.TODO(), &parent, id, nil, "", nil)
+		img, werr := s.DataStore.WriteImage(op, &parent, id, nil, "", nil)
 		if !assert.NoError(t, werr) {
 			return
 		}
@@ -223,7 +225,7 @@ func TestOutsideCacheWriteImage(t *testing.T) {
 		id := fmt.Sprintf("ID-%d", i)
 
 		// Write to the datastore creating images
-		img, werr := s.WriteImage(context.TODO(), &parent, id, nil, testSum, nil)
+		img, werr := s.WriteImage(op, &parent, id, nil, testSum, nil)
 		if !assert.NoError(t, werr) {
 			return
 		}
@@ -244,11 +246,12 @@ func TestOutsideCacheWriteImage(t *testing.T) {
 func TestImageStoreRestart(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	ds := NewMockDataStore()
+	op := trace.NewOperation(context.Background(), "test")
 
 	firstCache := NewLookupCache(ds)
 	secondCache := NewLookupCache(ds)
 
-	storeURL, err := firstCache.CreateImageStore(context.TODO(), "testStore")
+	storeURL, err := firstCache.CreateImageStore(op, "testStore")
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -259,7 +262,7 @@ func TestImageStoreRestart(t *testing.T) {
 	// Create a set of images
 	expectedImages := make(map[string]*Image)
 
-	parent, err := firstCache.GetImage(context.TODO(), storeURL, Scratch.ID)
+	parent, err := firstCache.GetImage(op, storeURL, Scratch.ID)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -268,7 +271,7 @@ func TestImageStoreRestart(t *testing.T) {
 	for i := 1; i < 50; i++ {
 		id := fmt.Sprintf("ID-%d", i)
 
-		img, werr := firstCache.WriteImage(context.TODO(), parent, id, nil, testSum, nil)
+		img, werr := firstCache.WriteImage(op, parent, id, nil, testSum, nil)
 		if !assert.NoError(t, werr) {
 			return
 		}
@@ -281,7 +284,7 @@ func TestImageStoreRestart(t *testing.T) {
 
 	// get the images from the second cache to ensure it goes to the ds
 	for id, expectedImg := range expectedImages {
-		img, werr := secondCache.GetImage(context.TODO(), storeURL, id)
+		img, werr := secondCache.GetImage(op, storeURL, id)
 		if !assert.NoError(t, werr) || !assert.Equal(t, expectedImg, img) {
 			return
 		}
@@ -290,7 +293,7 @@ func TestImageStoreRestart(t *testing.T) {
 	// Nuke the second cache's datastore.  All data should come from the cache.
 	secondCache.DataStore = nil
 	for id, expectedImg := range expectedImages {
-		img, gerr := secondCache.GetImage(context.TODO(), storeURL, id)
+		img, gerr := secondCache.GetImage(op, storeURL, id)
 		if !assert.NoError(t, gerr) || !assert.Equal(t, expectedImg, img) {
 			return
 		}
@@ -298,7 +301,7 @@ func TestImageStoreRestart(t *testing.T) {
 
 	// Same should happen with a third cache when image list is called
 	thirdCache := NewLookupCache(ds)
-	imageList, err := thirdCache.ListImages(context.TODO(), storeURL, nil)
+	imageList, err := thirdCache.ListImages(op, storeURL, nil)
 	if !assert.NoError(t, err) || !assert.NotNil(t, imageList) {
 		return
 	}
@@ -309,7 +312,7 @@ func TestImageStoreRestart(t *testing.T) {
 
 	// check the image data is the same
 	for id, expectedImg := range expectedImages {
-		img, err := thirdCache.GetImage(context.TODO(), storeURL, id)
+		img, err := thirdCache.GetImage(op, storeURL, id)
 		if !assert.NoError(t, err) || !assert.Equal(t, expectedImg, img) {
 			return
 		}
@@ -319,7 +322,7 @@ func TestImageStoreRestart(t *testing.T) {
 func TestDeleteImage(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	imageCache := NewLookupCache(NewMockDataStore())
-	op := context.Background()
+	op := trace.NewOperation(context.Background(), "test")
 
 	storeURL, err := imageCache.CreateImageStore(op, "testStore")
 	if !assert.NoError(t, err) || !assert.NotNil(t, storeURL) {

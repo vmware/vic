@@ -36,7 +36,7 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 		return
 	}
 
-	op := context.TODO()
+	op := trace.NewOperation(context.Background(), "test")
 
 	// Create the backing store on vsphere
 	vsVolumeStore, err := NewVolumeStore(op, client)
@@ -72,8 +72,8 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 	// Clean up the mess
 	defer func() {
 		fm := object.NewFileManager(client.Vim25())
-		tasks.WaitForResult(context.TODO(), func(op trace.Operation) (tasks.Task, error) {
-			return fm.DeleteDatastoreFile(op, client.Datastore.Path(testStorePath), client.Datacenter)
+		tasks.WaitForResult(context.TODO(), func(ctx context.Context) (tasks.Task, error) {
+			return fm.DeleteDatastoreFile(ctx, client.Datastore.Path(testStorePath), client.Datacenter)
 		})
 	}()
 

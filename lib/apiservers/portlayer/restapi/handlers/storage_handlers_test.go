@@ -191,9 +191,10 @@ func (c *MockDataStore) DeleteImage(op trace.Operation, image *spl.Image) error 
 }
 
 func TestCreateImageStore(t *testing.T) {
-	storageImageLayer = spl.NewLookupCache(&MockDataStore{})
+	s := &StorageHandlersImpl{
+		imageCache: spl.NewLookupCache(&MockDataStore{}),
+	}
 
-	s := &StorageHandlersImpl{}
 	store := &models.ImageStore{
 		Name: "testStore",
 	}
@@ -226,9 +227,10 @@ func TestCreateImageStore(t *testing.T) {
 }
 
 func TestGetImage(t *testing.T) {
-	storageImageLayer = spl.NewLookupCache(&MockDataStore{})
 
-	s := &StorageHandlersImpl{}
+	s := &StorageHandlersImpl{
+		imageCache: spl.NewLookupCache(&MockDataStore{}),
+	}
 
 	params := &storage.GetImageParams{
 		ID:        testImageID,
@@ -254,7 +256,7 @@ func TestGetImage(t *testing.T) {
 	op := trace.NewOperation(context.Background(), "test")
 
 	// create the image store
-	url, err := storageImageLayer.CreateImageStore(op, testStoreName)
+	url, err := s.imageCache.CreateImageStore(op, testStoreName)
 	// TODO(jzt): these are testing NameLookupCache, do we need them here?
 	if !assert.Nil(t, err, "Error while creating image store") {
 		return
@@ -290,7 +292,7 @@ func TestGetImage(t *testing.T) {
 	expectedMeta := make(map[string][]byte)
 	expectedMeta["foo"] = []byte("bar")
 	// add the image to the store
-	image, err := storageImageLayer.WriteImage(op, &parent, testImageID, expectedMeta, testImageSum, nil)
+	image, err := s.imageCache.WriteImage(op, &parent, testImageID, expectedMeta, testImageSum, nil)
 	if !assert.NoError(t, err) || !assert.NotNil(t, image) {
 		return
 	}
@@ -330,9 +332,10 @@ func TestGetImage(t *testing.T) {
 }
 
 func TestListImages(t *testing.T) {
-	storageImageLayer = spl.NewLookupCache(&MockDataStore{})
 
-	s := &StorageHandlersImpl{}
+	s := &StorageHandlersImpl{
+		imageCache: spl.NewLookupCache(&MockDataStore{}),
+	}
 
 	params := &storage.ListImagesParams{
 		StoreName: testStoreName,
@@ -357,7 +360,7 @@ func TestListImages(t *testing.T) {
 	op := trace.NewOperation(context.Background(), "test")
 
 	// create the image store
-	url, err := storageImageLayer.CreateImageStore(op, testStoreName)
+	url, err := s.imageCache.CreateImageStore(op, testStoreName)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -371,7 +374,7 @@ func TestListImages(t *testing.T) {
 	parent.Store = &testStoreURL
 	for i := 1; i < 50; i++ {
 		id := fmt.Sprintf("id-%d", i)
-		img, err := storageImageLayer.WriteImage(op, &parent, id, nil, testImageSum, nil)
+		img, err := s.imageCache.WriteImage(op, &parent, id, nil, testImageSum, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -421,15 +424,18 @@ func TestListImages(t *testing.T) {
 }
 
 func TestWriteImage(t *testing.T) {
-	storageImageLayer = spl.NewLookupCache(&MockDataStore{})
+	ic := spl.NewLookupCache(&MockDataStore{})
 
 	// create image store
-	_, err := storageImageLayer.CreateImageStore(op, testStoreName)
+	op := trace.NewOperation(context.Background(), "test")
+	_, err := ic.CreateImageStore(op, testStoreName)
 	if err != nil {
 		return
 	}
 
-	s := &StorageHandlersImpl{}
+	s := &StorageHandlersImpl{
+		imageCache: ic,
+	}
 
 	eMeta := make(map[string]string)
 	eMeta["foo"] = "bar"
@@ -482,11 +488,15 @@ func TestWriteImage(t *testing.T) {
 
 func TestVolumeCreate(t *testing.T) {
 
-	var err error
 	testStore := NewMockVolumeStore()
-	storageVolumeLayer, err = spl.NewVolumeLookupCache(op, testStore)
+	op := trace.NewOperation(context.Background(), "test")
+	volCache, err := spl.NewVolumeLookupCache(op, testStore)
 	if !assert.NoError(t, err) {
 		return
+	}
+
+	handler := StorageHandlersImpl{
+		volumeCache: volCache,
 	}
 
 	model := models.VolumeRequest{}
@@ -499,10 +509,8 @@ func TestVolumeCreate(t *testing.T) {
 	model.Metadata = make(map[string]string)
 	params := storage.NewCreateVolumeParams()
 	params.VolumeRequest = &model
-	implementationHandler := StorageHandlersImpl{}
 
-	implementationHandler.CreateVolume(params)
-	op := trace.NewOperation(context.Background(), "test")
+	handler.CreateVolume(params)
 	testVolume, err := testStore.VolumeGet(op, model.Name)
 	if !assert.NoError(t, err) {
 		return

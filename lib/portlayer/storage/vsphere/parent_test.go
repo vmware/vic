@@ -20,17 +20,20 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 )
 
 const testStore = "testStore"
 
 func TestParentEmptyRestore(t *testing.T) {
-	op, ds, cleanupfunc := datastore.DSsetup(t)
+	ctx, ds, cleanupfunc := datastore.DSsetup(t)
 	if t.Failed() {
 		return
 	}
 	defer cleanupfunc()
+
+	op := trace.NewOperation(ctx, "test")
 
 	par, err := restoreParentMap(op, ds, testStore)
 	if !assert.NoError(t, err) && !assert.NotNil(t, par) {
@@ -39,12 +42,13 @@ func TestParentEmptyRestore(t *testing.T) {
 }
 
 func TestParentEmptySaveRestore(t *testing.T) {
-	op, ds, cleanupfunc := datastore.DSsetup(t)
+	ctx, ds, cleanupfunc := datastore.DSsetup(t)
 	if t.Failed() {
 		return
 	}
 	defer cleanupfunc()
 
+	op := trace.NewOperation(ctx, "test")
 	par, err := restoreParentMap(op, ds, testStore)
 	if !assert.NoError(t, err) && !assert.NotNil(t, par) {
 		return
@@ -63,12 +67,13 @@ func TestParentEmptySaveRestore(t *testing.T) {
 
 // Write some child -> parent mappings and see if we can read them.
 func TestParentSaveRestore(t *testing.T) {
-	op, ds, cleanupfunc := datastore.DSsetup(t)
+	ctx, ds, cleanupfunc := datastore.DSsetup(t)
 	if t.Failed() {
 		return
 	}
 	defer cleanupfunc()
 
+	op := trace.NewOperation(ctx, "test")
 	par, err := restoreParentMap(op, ds, testStore)
 	if !assert.NoError(t, err) && !assert.NotNil(t, par) {
 		return
