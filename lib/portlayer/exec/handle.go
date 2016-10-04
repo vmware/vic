@@ -181,15 +181,17 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 	cfg := make(map[string]string)
 
 	// Set timestamps based on target state
-	switch *h.State {
-	case StateRunning:
-		se := h.ExecConfig.Sessions[h.ExecConfig.ID]
-		se.StartTime = time.Now().UTC().Unix()
-		h.ExecConfig.Sessions[h.ExecConfig.ID] = se
-	case StateStopped:
-		se := h.ExecConfig.Sessions[h.ExecConfig.ID]
-		se.StopTime = time.Now().UTC().Unix()
-		h.ExecConfig.Sessions[h.ExecConfig.ID] = se
+	if h.State != nil {
+		switch *h.State {
+		case StateRunning:
+			se := h.ExecConfig.Sessions[h.ExecConfig.ID]
+			se.StartTime = time.Now().UTC().Unix()
+			h.ExecConfig.Sessions[h.ExecConfig.ID] = se
+		case StateStopped:
+			se := h.ExecConfig.Sessions[h.ExecConfig.ID]
+			se.StopTime = time.Now().UTC().Unix()
+			h.ExecConfig.Sessions[h.ExecConfig.ID] = se
+		}
 	}
 
 	extraconfig.Encode(extraconfig.MapSink(cfg), h.ExecConfig)
