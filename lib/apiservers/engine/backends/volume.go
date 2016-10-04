@@ -165,13 +165,17 @@ func (v *Volume) VolumeCreate(name, driverName string, driverArgs, labels map[st
 		switch err := err.(type) {
 		case *storage.CreateVolumeConflict:
 			return result, derr.NewErrorWithStatusCode(fmt.Errorf("A volume named %s already exists. Choose a different volume name.", name), http.StatusInternalServerError)
+
 		case *storage.CreateVolumeNotFound:
 			return result, derr.NewErrorWithStatusCode(fmt.Errorf("No volume store named (%s) exists", volumeStore(driverArgs)), http.StatusInternalServerError)
+
 		case *storage.CreateVolumeInternalServerError:
 			// FIXME: right now this does not return an error model...
 			return result, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err.Error()), http.StatusInternalServerError)
+
 		case *storage.CreateVolumeDefault:
 			return result, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err.Payload.Message), http.StatusInternalServerError)
+
 		default:
 			return result, derr.NewErrorWithStatusCode(fmt.Errorf("%s", err), http.StatusInternalServerError)
 		}
@@ -198,7 +202,7 @@ func (v *Volume) VolumeRm(name string) error {
 			return derr.NewRequestNotFoundError(fmt.Errorf("Get %s: no such volume", name))
 
 		case *storage.RemoveVolumeConflict:
-			return derr.NewRequestConflictError(fmt.Errorf("Volume '%s' is in use", name))
+			return derr.NewRequestConflictError(fmt.Errorf(err.Payload.Message))
 
 		case *storage.RemoveVolumeInternalServerError:
 			return derr.NewErrorWithStatusCode(fmt.Errorf("Server error from portlayer: %s", err.Payload.Message), http.StatusInternalServerError)

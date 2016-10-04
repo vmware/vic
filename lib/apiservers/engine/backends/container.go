@@ -1024,6 +1024,14 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 		// get the docker friendly status
 		_, status := dockerStatus(int(*t.ProcessConfig.ExitCode), *t.ProcessConfig.Status, *t.ContainerConfig.State, started, stopped)
 
+		ips, err := clientIPv4Addrs()
+		var ports []types.Port
+		if err != nil {
+			log.Errorf("Couldn't get IP information from connected client for reporting port bindings.")
+		} else {
+			ports = portInformation(t, ips)
+		}
+
 		c := &types.Container{
 			ID:      *t.ContainerConfig.ContainerID,
 			Image:   *t.ContainerConfig.RepoName,
@@ -1032,7 +1040,7 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 			Names:   names,
 			Command: cmd,
 			SizeRw:  *t.ContainerConfig.StorageSize,
-			Ports:   portInformation(t),
+			Ports:   ports,
 		}
 		containers = append(containers, c)
 	}
@@ -1589,6 +1597,7 @@ func ContainerSignal(containerID string, sig uint64) error {
 	return nil
 }
 
+// pulls out the client IP(s) from program state
 func clientIPv4Addrs() ([]netlink.Addr, error) {
 	l, err := netlink.LinkByName(clientIfaceName)
 	if err != nil {
@@ -1603,28 +1612,26 @@ func clientIPv4Addrs() ([]netlink.Addr, error) {
 	return ips, nil
 }
 
-// returns port bindings as a list of Docker Ports for return to the client
+// returns port bindings as a slice of Docker Ports for return to the client
 // returns empty slice on error
-func portInformation(t *models.ContainerInfo) []types.Port {
-	// create a port for each IP on the interface (usually only 1, if netlink.FAMILY_ALL then usually 2)
+func portInformation(t *models.ContainerInfo, ips []netlink.Addr) []types.Port {
+	// create a port for each IP on the interface (usually only 1, but could be more)
+	// (works with both IPv4 and IPv6 addresses)
 	var ports []types.Port
 
-	ips, err := clientIPv4Addrs()
-	if err != nil {
-		log.Errorf("Problem getting client IP address: %s", err.Error())
-		return ports
-	}
-	for _, ip := range ips {
-		ports = append(ports, types.Port{IP: ip.IP.String()})
-	}
 	container := cache.ContainerCache().GetContainer(*t.ContainerConfig.ContainerID)
 	if container == nil {
 		log.Errorf("Could not find container with ID %s", *t.ContainerConfig.ContainerID)
 		return ports
 	}
 
+	for _, ip := range ips {
+		ports = append(ports, types.Port{IP: ip.IP.String()})
+	}
+
 	portBindings := container.HostConfig.PortBindings
 	var resultPorts []types.Port
+	var err error
 
 	for _, port := range ports {
 		for portBindingPrivatePort, hostPortBindings := range portBindings {
@@ -1643,7 +1650,11 @@ func portInformation(t *models.ContainerInfo) []types.Port {
 					log.Infof("Got an error trying to convert public port number to an int")
 					continue
 				}
-				resultPorts = append(resultPorts, newport)
+				// sanity check -- sometimes these come back as 0 when no binding actually exists
+				// that doesn't make sense, so in that case we don't want to report these bindings
+				if newport.PublicPort != 0 && newport.PrivatePort != 0 {
+					resultPorts = append(resultPorts, newport)
+				}
 			}
 		}
 	}

@@ -19,9 +19,11 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"sync"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
@@ -37,7 +39,8 @@ const VolumesDir = "volumes"
 type VolumeStore struct {
 
 	// maps datastore uri (volume store) to datastore
-	ds map[url.URL]*datastore.Helper
+	ds     map[url.URL]*datastore.Helper
+	dsLock sync.RWMutex
 
 	// wraps our vmdks and filesystem primitives.
 	dm *disk.Manager
@@ -68,6 +71,9 @@ func NewVolumeStore(ctx context.Context, s *session.Session) (*VolumeStore, erro
 //
 // returns the URL used to refer to the volume store
 func (v *VolumeStore) AddStore(ctx context.Context, ds *datastore.Helper, storeName string) (*url.URL, error) {
+	v.dsLock.Lock()
+	defer v.dsLock.Unlock()
+
 	u, err := util.VolumeStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
@@ -87,6 +93,10 @@ func (v *VolumeStore) AddStore(ctx context.Context, ds *datastore.Helper, storeN
 
 func (v *VolumeStore) VolumeStoresList(ctx context.Context) (map[string]url.URL, error) {
 	m := make(map[string]url.URL)
+
+	v.dsLock.RLock()
+	defer v.dsLock.RUnlock()
+
 	for u, ds := range v.ds {
 
 		// Get the ds:// URL given the datastore url ("[datastore] /path")
@@ -108,10 +118,14 @@ func (v *VolumeStore) VolumeStoresList(ctx context.Context) (map[string]url.URL,
 }
 
 func (v *VolumeStore) getDatastore(store *url.URL) (*datastore.Helper, error) {
+
+	v.dsLock.RLock()
+	defer v.dsLock.RUnlock()
+
 	// find the datastore
 	dstore, ok := v.ds[*store]
 	if !ok {
-		return nil, VolumeStoreNotFoundError{msg: fmt.Sprintf("volume store (%s) not found", store.String())}
+		return nil, storage.VolumeStoreNotFoundError{fmt.Sprintf("volume store (%s) not found", store.String())}
 	}
 
 	return dstore, nil
@@ -189,8 +203,26 @@ func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.UR
 	return vol, nil
 }
 
-func (v *VolumeStore) VolumeDestroy(ctx context.Context, ID string) error {
-	return fmt.Errorf("TBD.  Not supported yet")
+func (v *VolumeStore) VolumeDestroy(ctx context.Context, vol *storage.Volume) error {
+	if err := volumeInUse(vol.ID); err != nil {
+		log.Errorf("VolumeStore: delete error: %s", err.Error())
+		return err
+	}
+
+	volDir := v.volDirPath(vol.ID)
+
+	dstore, err := v.getDatastore(vol.Store)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("VolumeStore: Deleting %s", volDir)
+	if err := dstore.Rm(ctx, volDir); err != nil {
+		log.Errorf("VolumeStore: delete error: %s", err.Error())
+		return err
+	}
+
+	return nil
 }
 
 func (v *VolumeStore) VolumeGet(ctx context.Context, ID string) (*storage.Volume, error) {
@@ -199,8 +231,10 @@ func (v *VolumeStore) VolumeGet(ctx context.Context, ID string) (*storage.Volume
 }
 
 func (v *VolumeStore) VolumesList(ctx context.Context) ([]*storage.Volume, error) {
-
 	volumes := []*storage.Volume{}
+
+	v.dsLock.RLock()
+	defer v.dsLock.RUnlock()
 
 	for volStore, vols := range v.ds {
 
@@ -249,22 +283,24 @@ func (v *VolumeStore) VolumesList(ctx context.Context) ([]*storage.Volume, error
 	return volumes, nil
 }
 
-//Custom Error Types
+func volumeInUse(ID string) error {
+	conts := exec.Containers.Containers(nil)
+	if len(conts) == 0 {
+		return nil
+	}
 
-// VolumeStoreNotFoundError : custom error type for when we fail to find a target volume store
-type VolumeStoreNotFoundError struct {
-	msg string
-}
+	for _, cont := range conts {
 
-func (e VolumeStoreNotFoundError) Error() string {
-	return e.msg
-}
+		if cont.ExecConfig.Mounts == nil {
+			continue
+		}
 
-// VolumeExistsError : custom error type for when a create operation targets and already occupied ID
-type VolumeExistsError struct {
-	msg string
-}
+		if _, mounted := cont.ExecConfig.Mounts[ID]; mounted {
+			return &storage.ErrVolumeInUse{
+				Msg: fmt.Sprintf("volume %s in use by %s", ID, cont.ExecConfig.ID),
+			}
+		}
+	}
 
-func (e VolumeExistsError) Error() string {
-	return e.msg
+	return nil
 }

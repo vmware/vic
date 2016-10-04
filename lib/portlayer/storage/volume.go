@@ -38,11 +38,8 @@ type VolumeStorer interface {
 	// Creates a volume on the given volume store, of the given size, with the given metadata.
 	VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*Volume, error)
 
-	// Get an existing volume via it's ID.
-	VolumeGet(ctx context.Context, ID string) (*Volume, error)
-
 	// Destroys a volume
-	VolumeDestroy(ctx context.Context, ID string) error
+	VolumeDestroy(ctx context.Context, vol *Volume) error
 
 	// Lists all volumes
 	VolumesList(ctx context.Context) ([]*Volume, error)
