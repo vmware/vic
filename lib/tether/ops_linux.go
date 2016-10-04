@@ -584,25 +584,20 @@ func (t *BaseOperations) dhcpLoop(stop chan bool, e *NetworkEndpoint, ack *dhcp.
 
 // MountLabel performs a mount by looking up a fsinfo from the device map using the volume label
 // the value of the map is the fsinfo object which has the device path.
-func (t *BaseOperations) MountLabel(ctx context.Context, label, target string, BlockDeviceMap map[string]fs.Fsinfo) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", label, target)))
+func (t *BaseOperations) MountLabel(ctx context.Context, devicepath, target string) error {
+	defer trace.End(trace.Begin(fmt.Sprintf("Mounting %s on %s", devicepath, target)))
 
 	if err := os.MkdirAll(target, 0600); err != nil {
 		return fmt.Errorf("unable to create mount point %s: %s", target, err)
 	}
 
-	blockInfo, ok := BlockDeviceMap[label]
-	if !ok {
-		return fmt.Errorf(fmt.Sprintf("Could not find block device (%s) when attempting to perform mount operation", label))
-	}
-
-	sourcePath, err := filepath.EvalSymlinks(blockInfo.DevicePath)
+	sourcePath, err := filepath.EvalSymlinks(blockInfo.DevPath())
 	if err != nil {
-		return fmt.Errorf("error attempting to follow the symlink in (%s)", blockInfo.DevicePath)
+		return fmt.Errorf("error attempting to follow the symlink in (%s)", devicepath)
 	}
 
 	if err := Sys.Syscall.Mount(sourcePath, target, "ext4", syscall.MS_NOATIME, ""); err != nil {
-		detail := fmt.Sprintf("mounting %s on %s failed: %s", label, target, err)
+		detail := fmt.Sprintf("mounting %s on %s failed: %s", devicepath, target, err)
 		return errors.New(detail)
 	}
 

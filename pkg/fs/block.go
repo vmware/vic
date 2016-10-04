@@ -16,9 +16,10 @@ package fs
 
 import (
 	"fmt"
-	"github.com/ctdk/sbinfo"
 	"io/ioutil"
 	"os"
+
+	"github.com/ctdk/sbinfo"
 )
 
 //this contains the fs block info that we are interested in.
@@ -28,15 +29,77 @@ type Fsinfo struct {
 	VolumeLabel string
 }
 
-type fsDeviceManager interface {
-	FindMountableBlockDevices(devicesPath string) ([]Fsinfo, error)
-	GetDevicesByLabel(devicesPath string) (map[string]Fsinfo, error)
+type FileSystem interface {
+	DevPath() string
+	UUID() string
+	Label() string
+	Info() Fsinfo
 }
 
-type Ext4DeviceManager struct{}
+type Ext4FileSystem struct {
+	FilesystemInfo Fsinfo
+}
 
-func (m *Ext4DeviceManager) FindMountableBlockDevices(devicesPath string) ([]Fsinfo, error) {
-	ext4BlockDevices := make([]Fsinfo, 1, 1)
+func (fs Ext4FileSystem) DevPath() string {
+	return fs.FilesystemInfo.DevicePath
+}
+
+func (fs Ext4FileSystem) UUID() string {
+	return fs.FilesystemInfo.UUID
+}
+
+func (fs Ext4FileSystem) Label() string {
+	return fs.FilesystemInfo.VolumeLabel
+}
+
+func (fs Ext4FileSystem) Info() Fsinfo {
+	return fs.FilesystemInfo
+}
+
+type BlockDevices struct {
+	FileSystems []FileSystem
+}
+
+func NewBlockDevices(DevicesPath string) (BlockDevices, error) {
+	devices := BlockDevices{}
+
+	_, err := os.Stat(DevicesPath)
+	if err != nil {
+		return devices, err
+	}
+
+	deviceTypes := []SuperBlock{Ext4SuperBlock{}}
+
+	//TODO: make this more efficient we should not be trying to read
+	//      blocks that are already identified.
+	for _, sbReader := range deviceTypes {
+		fs, err := sbReader.Read(DevicesPath)
+		if err != nil {
+			devices.FileSystems = append(devices.FileSystems, fs...)
+		}
+	}
+	return devices, nil
+}
+
+func (b *BlockDevices) DevicesByLabel() map[string]FileSystem {
+	deviceLabelMap := make(map[string]FileSystem)
+
+	for _, device := range b.FileSystems {
+		deviceLabelMap[device.Label()] = device
+	}
+	return deviceLabelMap
+}
+
+//interface for identifying super block information
+type SuperBlock interface {
+	Read(devicePath string) ([]FileSystem, error)
+}
+
+//ext4 super block implementation
+type Ext4SuperBlock struct{}
+
+func (m Ext4SuperBlock) Read(devicesPath string) ([]FileSystem, error) {
+	ext4BlockDevices := make([]FileSystem, 1, 1)
 
 	//first make sure devicesPath is valid
 	devicesDir, err := os.Stat(devicesPath)
@@ -56,33 +119,22 @@ func (m *Ext4DeviceManager) FindMountableBlockDevices(devicesPath string) ([]Fsi
 	for _, block := range blockDevices {
 		blockPath := fmt.Sprintf("%s/%s", devicesPath, block.Name())
 		info, berr := sbinfo.ReadExt2Superblock(blockPath)
+		fs := Ext4FileSystem{
+			FilesystemInfo: m.newExt4Fsinfo(info, blockPath),
+		}
 
 		if berr != nil {
 			//ignore this block, it is probably not ext4
 			continue
 		}
 
-		ext4BlockDevices = append(ext4BlockDevices, m.newExt4Fsinfo(info, blockPath))
+		ext4BlockDevices = append(ext4BlockDevices, fs)
 	}
 
 	return ext4BlockDevices, nil
 }
 
-func (m *Ext4DeviceManager) GetDeviceByLbel(devicesPath string) (map[string]Fsinfo, error) {
-	deviceLabelMap := make(map[string]Fsinfo)
-
-	devices, err := m.FindMountableBlockDevices(devicesPath)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, device := range devices {
-		deviceLabelMap[device.VolumeLabel] = device
-	}
-	return deviceLabelMap, nil
-}
-
-func (m *Ext4DeviceManager) newExt4Fsinfo(info *sbinfo.Ext2Sb, devicePath string) Fsinfo {
+func (m *Ext4SuperBlock) newExt4Fsinfo(info *sbinfo.Ext2Sb, devicePath string) Fsinfo {
 	ext4info := Fsinfo{
 		DevicePath:  devicePath,
 		UUID:        string(info.SUUID[:]),

@@ -36,7 +36,7 @@ type Operations interface {
 
 	SetHostname(hostname string, aliases ...string) error
 	Apply(endpoint *NetworkEndpoint) error
-	MountLabel(ctx context.Context, label, target string, BlockDeviceMap map[string]fs.Fsinfo) error
+	MountLabel(ctx context.Context, devicePath, target string) error
 	Fork() error
 
 	SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, error)
