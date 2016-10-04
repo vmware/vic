@@ -15,6 +15,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -110,7 +111,7 @@ func (handler *ScopesHandlersImpl) listScopes(idName string) ([]*models.ScopeCon
 
 				// this will "refresh" the container executor config that contains
 				// the current ip addresses
-				h := exec.GetContainer(cid)
+				h := exec.GetContainer(context.Background(), cid)
 				if h == nil {
 					return nil, fmt.Errorf("could not find container %s", cid)
 				}
