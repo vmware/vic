@@ -30,3 +30,38 @@ func IsErrImageInUse(err error) bool {
 
 	return ok
 }
+
+type ErrVolumeInUse struct {
+	Msg string
+}
+
+func (e *ErrVolumeInUse) Error() string {
+	return e.Msg
+}
+
+func IsErrVolumeInUse(err error) bool {
+	if err == nil {
+		return false
+	}
+	_, ok := err.(*ErrVolumeInUse)
+
+	return ok
+}
+
+// VolumeStoreNotFoundError : custom error type for when we fail to find a target volume store
+type VolumeStoreNotFoundError struct {
+	Msg string
+}
+
+func (e VolumeStoreNotFoundError) Error() string {
+	return e.Msg
+}
+
+// VolumeExistsError : custom error type for when a create operation targets and already occupied ID
+type VolumeExistsError struct {
+	Msg string
+}
+
+func (e VolumeExistsError) Error() string {
+	return e.Msg
+}

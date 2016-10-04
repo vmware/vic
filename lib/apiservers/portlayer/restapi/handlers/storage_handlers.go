@@ -335,7 +335,7 @@ func (handler *StorageHandlersImpl) CreateVolume(params storage.CreateVolumePara
 			})
 		}
 
-		if _, ok := err.(vsphereSpl.VolumeStoreNotFoundError); ok {
+		if _, ok := err.(spl.VolumeStoreNotFoundError); ok {
 			return storage.NewCreateVolumeNotFound().WithPayload(&models.Error{
 				Code:    swag.Int64(http.StatusNotFound),
 				Message: err.Error(),
@@ -382,7 +382,17 @@ func (handler *StorageHandlersImpl) RemoveVolume(params storage.RemoveVolumePara
 
 	err := storageVolumeLayer.VolumeDestroy(context.TODO(), params.Name)
 	if err != nil {
-		switch err := err.(type) {
+		switch {
+		case os.IsNotExist(err):
+			return storage.NewRemoveVolumeNotFound().WithPayload(&models.Error{
+				Message: err.Error(),
+			})
+
+		case spl.IsErrVolumeInUse(err):
+			return storage.NewRemoveVolumeConflict().WithPayload(&models.Error{
+				Message: err.Error(),
+			})
+
 		default:
 			return storage.NewRemoveVolumeInternalServerError().WithPayload(&models.Error{
 				Message: err.Error(),
