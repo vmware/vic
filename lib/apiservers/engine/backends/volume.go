@@ -215,13 +215,15 @@ func (v *Volume) VolumeRm(name string) error {
 }
 
 type volumeMetadata struct {
-	Driver     string
-	DriverOpts map[string]string
-	Name       string
-	Labels     map[string]string
+	Driver        string
+	DriverOpts    map[string]string
+	Name          string
+	Labels        map[string]string
+	AttachHistory []string
+	Image         string
 }
 
-func createVolumeMetadata(req *models.VolumeRequest, labels map[string]string) (string, error) {
+func createVolumeMetadata(req *models.VolumeRequest, labels map[string]string, Container, Image string) (string, error) {
 	metadata := volumeMetadata{
 		Driver:     req.Driver,
 		DriverOpts: req.DriverArgs,
