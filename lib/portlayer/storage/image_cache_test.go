@@ -409,7 +409,7 @@ func TestDeleteImage(t *testing.T) {
 func TestPopulateCacheInExpectedOrder(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	st := NewMockDataStore()
-	ctx := context.Background()
+	op := trace.NewOperation(context.Background(), "test")
 
 	storeURL, _ := util.ImageStoreNameToURL("testStore")
 
@@ -444,12 +444,12 @@ func TestPopulateCacheInExpectedOrder(t *testing.T) {
 	st.db[*storeURL] = imageMap
 
 	imageCache := NewLookupCache(st)
-	imageCache.GetImageStore(ctx, "testStore")
+	imageCache.GetImageStore(op, "testStore")
 
 	// Check if all images are available.
 	imageIds := []string{"id1", "id2", "id3", "id4"}
 	for _, imageID := range imageIds {
-		v, _ := imageCache.GetImage(ctx, storeURL, imageID)
+		v, _ := imageCache.GetImage(op, storeURL, imageID)
 		assert.NotNil(t, v)
 	}
 }

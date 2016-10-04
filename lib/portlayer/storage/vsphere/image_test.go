@@ -54,7 +54,7 @@ func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, string, 
 		Path: datastore.TestName("imageTests"),
 		Host: client.DatastorePath}
 
-	op := trace.NewOperation(context.Background(), "test")
+	op := trace.NewOperation(context.Background(), "setup")
 	vsImageStore, err := NewImageStore(op, client, storeURL)
 	if err != nil {
 		if err.Error() == "can't find the hosting vm" {
@@ -523,7 +523,9 @@ func mountLayerRO(v *ImageStore, parent *portlayer.Image) (*disk.VirtualDisk, er
 	roName := v.imageDiskDSPath("testStore", parent.ID) + "-ro.vmdk"
 	parentDsURI := v.imageDiskDSPath("testStore", parent.ID)
 
-	roDisk, err := v.dm.CreateAndAttach(context.TODO(), roName, parentDsURI, 0, os.O_RDONLY)
+	op := trace.NewOperation(context.TODO(), "ro")
+
+	roDisk, err := v.dm.CreateAndAttach(op, roName, parentDsURI, 0, os.O_RDONLY)
 	if err != nil {
 		return nil, err
 	}

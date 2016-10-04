@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
@@ -72,7 +73,8 @@ func TestCreateAndDetach(t *testing.T) {
 	// eat the error because we dont care if it exists
 	fm.MakeDirectory(context.TODO(), imagestore, nil, true)
 
-	vdm, err := NewDiskManager(context.TODO(), client)
+	op := trace.NewOperation(context.Background(), "test")
+	vdm, err := NewDiskManager(op, client)
 	if err != nil && err.Error() == "can't find the hosting vm" {
 		t.Skip("Skipping: test must be run in a VM")
 	}
@@ -82,7 +84,7 @@ func TestCreateAndDetach(t *testing.T) {
 	}
 
 	diskSize := int64(1 << 10)
-	parent, err := vdm.Create(context.TODO(), path.Join(imagestore, "scratch.vmdk"), diskSize)
+	parent, err := vdm.Create(op, path.Join(imagestore, "scratch.vmdk"), diskSize)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -96,7 +98,7 @@ func TestCreateAndDetach(t *testing.T) {
 	for i := 0; i < numChildren; i++ {
 
 		p := path.Join(imagestore, fmt.Sprintf("child%d.vmdk", i))
-		child, cerr := vdm.CreateAndAttach(context.TODO(), p, parent.DatastoreURI, 0, os.O_RDWR)
+		child, cerr := vdm.CreateAndAttach(op, p, parent.DatastoreURI, 0, os.O_RDWR)
 		if !assert.NoError(t, cerr) {
 			return
 		}
@@ -141,7 +143,7 @@ func TestCreateAndDetach(t *testing.T) {
 
 		f.Close()
 
-		cerr = vdm.Detach(context.TODO(), child)
+		cerr = vdm.Detach(op, child)
 		if !assert.NoError(t, cerr) {
 			return
 		}
@@ -159,7 +161,7 @@ func TestCreateAndDetach(t *testing.T) {
 	//	}
 
 	// Nuke the image store
-	_, err = tasks.WaitForResult(context.TODO(), func(ctx context.Context) (tasks.Task, error) {
+	_, err = tasks.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		return fm.DeleteDatastoreFile(ctx, imagestore, nil)
 	})
 

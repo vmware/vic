@@ -229,15 +229,10 @@ func (c *NameLookupCache) WriteImage(op trace.Operation, parent *Image, ID strin
 	return i, nil
 }
 
-<<<<<<< 977b7162ee6beae9f8a602bd1429a4183adc99c0
-// GetImage gets the specified image from the given store by retrieving it from the cache.
-func (c *NameLookupCache) GetImage(ctx context.Context, store *url.URL, ID string) (*Image, error) {
-=======
 // GetImage gets the specified image from the given store by retreiving it from the cache.
 func (c *NameLookupCache) GetImage(op trace.Operation, store *url.URL, ID string) (*Image, error) {
->>>>>>> Integrate trace Operations into storage layer
 
-	debugf("Getting image %s from %s", ID, store.String())
+	op.Debugf("Getting image %s from %s", ID, store.String())
 
 	storeName, err := util.ImageStoreName(store)
 	if err != nil {
