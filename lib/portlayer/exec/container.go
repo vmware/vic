@@ -114,14 +114,14 @@ func NewContainer(id uid.UID) *Handle {
 		State:      StateCreating,
 	}
 	con.ExecConfig.ID = id.String()
-	return con.NewHandle()
+	return newHandle(con)
 }
 
-func GetContainer(id uid.UID) *Handle {
+func GetContainer(ctx context.Context, id uid.UID) *Handle {
 	// get from the cache
 	container := Containers.Container(id.String())
 	if container != nil {
-		return container.NewHandle()
+		return container.NewHandle(ctx)
 	}
 
 	return nil
@@ -148,13 +148,13 @@ func (s State) String() string {
 	return ""
 }
 
-func (c *Container) NewHandle() *Handle {
+func (c *Container) NewHandle(ctx context.Context) *Handle {
 	c.m.Lock()
 	defer c.m.Unlock()
 
 	// Call property collector to fill the data
 	if c.vm != nil {
-		if err := c.refresh(context.TODO()); err != nil {
+		if err := c.refresh(ctx); err != nil {
 			log.Errorf("refreshing container %s failed: %s", c.ExecConfig.ID, err)
 			return nil
 		}
@@ -211,6 +211,11 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 	}()
 
 	if c.vm == nil {
+		if sess == nil {
+			// session must not be nil
+			return fmt.Errorf("no session provided for commit operation")
+		}
+
 		// the only permissible operation is to create a VM
 		if h.Spec == nil {
 			return fmt.Errorf("only create operations can be committed without an existing VM")
