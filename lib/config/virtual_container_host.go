@@ -138,9 +138,6 @@ type Certificate struct {
 	CertificateAuthorities []byte `vic:"0.1" scope:"read-only"`
 	// Certificates for specific system access, keyed by FQDN
 	HostCertificates map[string]*RawCertificate
-	// Used for authentication against e.g. the Docker HTTP endpoint
-	UserKeyPEM  string `vic:"0.1" scope:"read-only" key:"key_pem"`
-	UserCertPEM string `vic:"0.1" scope:"read-only" key:"cert_pem"`
 }
 
 // Connection holds the vSphere connection configuration

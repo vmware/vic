@@ -89,7 +89,7 @@ func (i *Inspect) Run(cli *cli.Context) error {
 		log.Errorf("Inspect cannot continue - failed to create validator: %s", err)
 		return errors.New("inspect failed")
 	}
-	executor := management.NewDispatcher(validator.Context, validator.Session, nil, i.Force)
+	executor := management.NewDispatcher(validator.Context, validator.Session, nil, nil, i.Force)
 
 	var vch *vm.VirtualMachine
 	if i.Data.ID != "" {

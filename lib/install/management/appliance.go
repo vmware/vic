@@ -17,6 +17,7 @@ package management
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -491,6 +492,9 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	}
 
 	conf.AddComponent("docker-personality", &executor.SessionConfig{
+		// TODO: replace this when imagec is libridized
+		// User:  "nobody",
+		// Group: "nobody",
 		Cmd: executor.Cmd{
 			Path: "/sbin/docker-engine-server",
 			Args: []string{
@@ -632,12 +636,15 @@ func isPortLayerRunning(res *http.Response) bool {
 // ensureComponentsInitialize checks if the appliance components are initialized by issuing
 // `docker info` to the appliance
 func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHostConfigSpec) error {
+	defer trace.End(trace.Begin(""))
+
 	var (
-		proto  string
-		client *http.Client
-		res    *http.Response
-		err    error
-		req    *http.Request
+		proto          string
+		client         *http.Client
+		res            *http.Response
+		err            error
+		req            *http.Request
+		tlsErrExpected bool
 	)
 
 	if conf.HostCertificate.IsNil() {
@@ -647,10 +654,38 @@ func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHos
 	} else {
 		// TLS enabled
 		proto = "https"
-		// TODO: configure this when support is added for user-signed certs
+
 		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
 		}
+
+		// appliance is configured for tlsverify, but we don't have a client certificate
+		if len(conf.CertificateAuthorities) > 0 {
+			log.Debug("Loading CAs for client auth")
+			pool := x509.NewCertPool()
+			if !pool.AppendCertsFromPEM(conf.CertificateAuthorities) {
+				log.Debug("Unable to load CAs in config, if any")
+			}
+
+			// tr.TLSClientConfig.ClientCAs = pool
+			tr.TLSClientConfig.RootCAs = pool
+
+			if d.clientCert == nil {
+				tlsErrExpected = true
+				log.Debugf("CA configured on appliance but no client certificate available")
+			}
+
+			// if tlsverify was configured at all then we must verify the remote
+			tr.TLSClientConfig.InsecureSkipVerify = false
+		}
+
+		if d.clientCert != nil {
+			log.Debug("Assigning certificates for client auth")
+			tr.TLSClientConfig.Certificates = []tls.Certificate{*d.clientCert}
+		}
+
 		client = &http.Client{Transport: tr}
 	}
 
@@ -665,10 +700,23 @@ func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHos
 	defer ticker.Stop()
 	for {
 		res, err = client.Do(req)
+		if err != nil {
+			log.Debugf("Error recieved from endpoint: %s", err)
+		}
+
 		if err == nil && res.StatusCode == http.StatusOK {
 			if isPortLayerRunning(res) {
 				break
 			}
+		}
+
+		// TODO: add check for rejection without cert - indicates a degree of initialization
+		// HTTP status 403.7
+		if tlsErrExpected && res.StatusCode == http.StatusForbidden {
+			log.Debugf("Expected status forbidden received from endpoint (%s): %s", res.Status, err)
+			// TODO: check for 403.17 - we see that regardless until the appliance has updated
+			// it's clock in some cases
+			break
 		}
 
 		select {
@@ -676,7 +724,8 @@ func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHos
 		case <-d.ctx.Done():
 			return d.ctx.Err()
 		}
-		log.Debug("Components not initialized yet, retrying docker info request")
+
+		log.Debug("Components not yet initialized, retrying")
 	}
 
 	return nil

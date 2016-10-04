@@ -56,11 +56,11 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 		d.VICAdminProto = "http"
 		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
 	}
-	d.ShowVCH(conf, "", "")
+	d.ShowVCH(conf, "", "", "")
 	return nil
 }
 
-func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key string, cert string) {
+func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key string, cert string, cacert string) {
 	if d.sshEnabled {
 		log.Infof("")
 		log.Infof("SSH to appliance")
@@ -76,7 +76,7 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 	if !conf.HostCertificate.IsNil() {
 		// if we're generating then there's no CA currently
 		if len(conf.CertificateAuthorities) > 0 && key != "" {
-			tls = fmt.Sprintf(" --tls --tlscert='%s' --tlskey='%s'", cert, key)
+			tls = fmt.Sprintf(" --tlsverify --tlscacert=%s --tlscert='%s' --tlskey='%s'", cacert, cert, key)
 		} else {
 			tls = " --tls"
 		}

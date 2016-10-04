@@ -169,7 +169,7 @@ func (l *List) Run(cli *cli.Context) (err error) {
 		log.Errorf("List cannot continue - compute resource validation failed: %s", err)
 		return err
 	}
-	executor := management.NewDispatcher(validator.Context, validator.Session, nil, false)
+	executor := management.NewDispatcher(validator.Context, validator.Session, nil, nil, false)
 	vchs, err := executor.SearchVCHs(validator.ResourcePoolPath)
 	if err != nil {
 		log.Errorf("List cannot continue - failed to search VCHs in %s: %s", validator.ResourcePoolPath, err)
