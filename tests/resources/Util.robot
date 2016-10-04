@@ -84,9 +84,9 @@ Install VIC Appliance To Test Server
     Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
     Set Test VCH Name
     # Set a unique bridge network for each VCH that has a random VLAN ID
-    ${vlan}=  Evaluate  str(random.randint(1, 4093))  modules=random
-    ${out}=  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitch0 ${vch-name}-bridge
-    Set Environment Variable  BRIDGE_NETWORK  ${vch-name}-bridge
+    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitch0 ${vch-name}-bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  BRIDGE_NETWORK  ${vch-name}-bridge
 
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
@@ -111,7 +111,7 @@ Cleanup VIC Appliance On Test Server
     Gather Logs From Test Server
     Log To Console  Deleting the VCH appliance...
     ${output}=  Run VIC Machine Delete Command
-    ${out}=  Run  govc host.portgroup.remove ${vch-name}-bridge
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${vch-name}-bridge
     [Return]  ${output}
 
 Check Delete Success
@@ -370,10 +370,11 @@ Get VM IP
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${out}
     
-Get VCH Host Name
-    ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc vm.info ${vch-name}/${vch-name}
+Get VM Host Name
+    [Arguments]  ${vm}
+    ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc vm.info ${vm}/${vm}
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${out}  ${ret}
-    ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc vm.info ${vch-name}
+    ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc vm.info ${vm}
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${out}  ${ret}
     ${out}=  Split To Lines  ${out}
     ${host}=  Fetch From Right  @{out}[-1]  ${SPACE} 
