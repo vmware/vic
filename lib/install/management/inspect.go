@@ -61,10 +61,12 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 }
 
 func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key string, cert string) {
-	// #1218: Temporarily disable SSH access for TP3
-	//	log.Infof("")
-	//	log.Infof("SSH to appliance (default=root:password)")
-	//	log.Infof("ssh root@%s", d.HostIP)
+	if d.sshEnabled {
+		log.Infof("")
+		log.Infof("SSH to appliance")
+		log.Infof("ssh root@%s", d.HostIP)
+	}
+
 	log.Infof("")
 	log.Infof("vic-admin portal:")
 	log.Infof("%s://%s:2378", d.VICAdminProto, d.HostIP)
