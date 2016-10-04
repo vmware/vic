@@ -65,8 +65,8 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 	}
 
 	for _, te := range tests1 {
-		var e *Endpoint
-		e, err = s.addContainer(te.c, te.ip)
+		e := newEndpoint(te.c, s, te.ip, s.subnet, s.gateway, nil)
+		err = s.addContainer(te.c, e)
 		if te.err != nil {
 			if err == nil {
 				t.Errorf("s.AddContainer() => (_, nil), want (_, err)")

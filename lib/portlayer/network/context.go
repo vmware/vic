@@ -46,6 +46,8 @@ const (
 	DefaultBridgeName = "bridge"
 )
 
+var UnspecifiedIP = &net.IPNet{IP: net.IPv4zero}
+
 // Context denotes a networking context that represents a set of scopes, endpoints,
 // and containers. Each context has its own separate IPAM.
 type Context struct {
@@ -549,13 +551,22 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			s.removeContainer(con)
 		}()
 
-		var ip *net.IP
-		if ne.Static != nil {
-			ip = &ne.Static.IP
+		var eip *net.IP
+		if ne.Static {
+			eip = &ne.IP.IP
+		} else if !ip.IsUnspecifiedIP(ne.Assigned.IP) {
+			// for VCH restart, we need to reserve
+			// the IP of the running container
+			//
+			// this may be a DHCP assigned IP, however, the
+			// addContainer call below will ignore reserving
+			// an IP if the scope is "dynamic"
+			eip = &ne.Assigned.IP
 		}
 
-		var e *Endpoint
-		if e, err = s.addContainer(con, ip); err != nil {
+		e := newEndpoint(con, s, eip, s.subnet, s.gateway, nil)
+		e.static = ne.Static
+		if err = s.addContainer(con, e); err != nil {
 			return nil, err
 		}
 
@@ -574,10 +585,9 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			}
 		}
 
-		eip := e.IP()
-		if eip != nil && !eip.IsUnspecified() {
-			ne.Static = &net.IPNet{
-				IP:   eip,
+		if !ip.IsUnspecifiedIP(e.IP()) {
+			ne.IP = &net.IPNet{
+				IP:   e.IP(),
 				Mask: e.Scope().Subnet().Mask,
 			}
 		}
@@ -711,18 +721,6 @@ func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			return nil, &ResourceNotFoundError{}
 		}
 
-		defer func() {
-			if err == nil {
-				return
-			}
-
-			var ip *net.IP
-			if ne.Static != nil {
-				ip = &ne.Static.IP
-			}
-			s.addContainer(con, ip)
-		}()
-
 		// save the endpoint info
 		e := con.Endpoint(s).copy()
 
@@ -730,9 +728,8 @@ func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			return nil, err
 		}
 
-		if !e.static {
-			ne.Static = nil
-		}
+		// clear out assigned ip
+		ne.Assigned.IP = net.IPv4zero
 
 		// aliases to remove
 		// name for dns lookup
@@ -937,8 +934,10 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 		Ports: options.Ports,
 	}
 
-	if options.IP != nil && !options.IP.IsUnspecified() {
-		ne.Static = &net.IPNet{
+	ne.Static = false
+	if options.IP != nil && !ip.IsUnspecifiedIP(*options.IP) {
+		ne.Static = true
+		ne.IP = &net.IPNet{
 			IP:   *options.IP,
 			Mask: s.Subnet().Mask,
 		}

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/uid"
 )
 
@@ -54,7 +55,7 @@ func (a alias) scopedName() string {
 	return fmt.Sprintf("%s:%s:%s", a.ep.Scope().Name(), a.ep.Container().Name(), a.Name)
 }
 
-func newEndpoint(container *Container, scope *Scope, ip *net.IP, subnet net.IPNet, gateway net.IP, pciSlot *int32) *Endpoint {
+func newEndpoint(container *Container, scope *Scope, eip *net.IP, subnet net.IPNet, gateway net.IP, pciSlot *int32) *Endpoint {
 	e := &Endpoint{
 		container: container,
 		scope:     scope,
@@ -66,10 +67,8 @@ func newEndpoint(container *Container, scope *Scope, ip *net.IP, subnet net.IPNe
 		aliases:   make(map[string][]alias),
 	}
 
-	if ip != nil {
-		e.ip = *ip
-	}
-	if !e.ip.IsUnspecified() {
+	if eip != nil && !ip.IsUnspecifiedIP(*eip) {
+		e.ip = *eip
 		e.static = true
 	}
 
