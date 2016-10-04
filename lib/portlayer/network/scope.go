@@ -79,14 +79,14 @@ func (s *Scope) reserveEndpointIP(e *Endpoint) error {
 	// reserve an ip address
 	var err error
 	for _, p := range s.ipam.spaces {
-		if e.static {
+		if !ip.IsUnspecifiedIP(e.ip) {
 			if err = p.ReserveIP4(e.ip); err == nil {
 				return nil
 			}
 		} else {
-			var ip net.IP
-			if ip, err = p.ReserveNextIP4(); err == nil {
-				e.ip = ip
+			var eip net.IP
+			if eip, err = p.ReserveNextIP4(); err == nil {
+				e.ip = eip
 				return nil
 			}
 		}
@@ -112,28 +112,27 @@ func (s *Scope) releaseEndpointIP(e *Endpoint) error {
 	return fmt.Errorf("could not release IP for endpoint")
 }
 
-func (s *Scope) addContainer(con *Container, ip *net.IP) (*Endpoint, error) {
+func (s *Scope) addContainer(con *Container, e *Endpoint) error {
 	s.Lock()
 	defer s.Unlock()
 
 	if con == nil {
-		return nil, fmt.Errorf("container is nil")
+		return fmt.Errorf("container is nil")
 	}
 
 	_, ok := s.containers[con.id]
 	if ok {
-		return nil, DuplicateResourceError{resID: con.id.String()}
+		return DuplicateResourceError{resID: con.id.String()}
 	}
 
-	e := newEndpoint(con, s, ip, s.subnet, s.gateway, nil)
 	if err := s.reserveEndpointIP(e); err != nil {
-		return nil, err
+		return err
 	}
 
 	con.addEndpoint(e)
 	s.endpoints = append(s.endpoints, e)
 	s.containers[con.id] = con
-	return e, nil
+	return nil
 }
 
 func (s *Scope) removeContainer(con *Container) error {

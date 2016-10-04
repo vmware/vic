@@ -635,12 +635,12 @@ func TestContextAddContainer(t *testing.T) {
 			t.Fatalf("case %d; ctx.AddContainer(%v, %s, %s) => ne.NetworkName == %s, want %s", i, te.h, te.scope, te.ip, ne.Network.Name, s.Name())
 		}
 
-		if te.ip != nil && !te.ip.Equal(ne.Static.IP) {
-			t.Fatalf("case %d; ctx.AddContainer(%v, %s, %s) => ne.Static.IP == %s, want %s", i, te.h, te.scope, te.ip, ne.Static.IP, te.ip)
+		if te.ip != nil && (!ne.Static || !te.ip.Equal(ne.IP.IP)) {
+			t.Fatalf("case %d; ctx.AddContainer(%v, %s, %s) => ne.IP.IP=%s ne.Static=%v, want ne.IP.IP=%s ne.Static=%v", i, te.h, te.scope, te.ip, ne.IP.IP, ne.Static, te.ip, true)
 		}
 
-		if te.ip == nil && ne.Static != nil {
-			t.Fatalf("case %d; ctx.AddContainer(%v, %s, %s) => ne.Static.IP == %s, want %s", i, te.h, te.scope, te.ip, ne.Static.IP, net.IPv4zero)
+		if te.ip == nil && (ne.Static || ne.IP != nil) {
+			t.Fatalf("case %d; ctx.AddContainer(%v, %s, %s) => ne.Static=%v, want ne.Static=%v", i, te.h, te.scope, te.ip, ne.Static, false)
 		}
 	}
 }
@@ -773,11 +773,11 @@ func TestContextBindUnbindContainer(t *testing.T) {
 				}
 
 				ne := te.h.ExecConfig.Networks[s]
-				if !ne.Static.IP.Equal(te.ips[i]) {
-					t.Fatalf("%d: ctx.BindContainer(%s) => metadata endpoint IP %s, want %s", i, te.h, ne.Static.IP, te.ips[i])
+				if !ne.IP.IP.Equal(te.ips[i]) {
+					t.Fatalf("%d: ctx.BindContainer(%s) => metadata endpoint IP %s, want %s", i, te.h, ne.IP.IP, te.ips[i])
 				}
-				if ne.Static.Mask.String() != e.Scope().Subnet().Mask.String() {
-					t.Fatalf("%d: ctx.BindContainer(%s) => metadata endpoint IP mask %s, want %s", i, te.h, ne.Static.Mask.String(), e.Scope().Subnet().Mask.String())
+				if ne.IP.Mask.String() != e.Scope().Subnet().Mask.String() {
+					t.Fatalf("%d: ctx.BindContainer(%s) => metadata endpoint IP mask %s, want %s", i, te.h, ne.IP.Mask.String(), e.Scope().Subnet().Mask.String())
 				}
 				if !ne.Network.Gateway.IP.Equal(e.Scope().Gateway()) {
 					t.Fatalf("%d: ctx.BindContainer(%s) => metadata endpoint gateway %s, want %s", i, te.h, ne.Network.Gateway.IP, e.Scope().Gateway())
@@ -853,12 +853,8 @@ func TestContextBindUnbindContainer(t *testing.T) {
 				t.Fatalf("%d: container endpoint not present in %v", i, te.h.ExecConfig)
 			}
 
-			if !te.static && ne.Static != nil {
-				t.Fatalf("%d: endpoint IP should be nil in %+v", i, ne)
-			}
-
-			if te.static && (ne.Static == nil || ne.Static.IP.Equal(net.IPv4zero)) {
-				t.Fatalf("%d: endpoint IP should not be zero in %v", i, ne)
+			if te.static != ne.Static {
+				t.Fatalf("%d: ne.Static=%v, want %v", i, ne.Static, te.static)
 			}
 		}
 	}

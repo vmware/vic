@@ -97,7 +97,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			return
 		}
 
-		if err = engageContext(netctx, exec.Config.EventManager); err == nil {
+		if err = engageContext(ctx, netctx, exec.Config.EventManager); err == nil {
 			DefaultContext = netctx
 			log.Infof("Default network context allocated")
 		}
@@ -110,15 +110,23 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 func handleEvent(netctx *Context, ie events.Event) {
 	switch ie.String() {
 	case events.ContainerPoweredOff:
-		handle := exec.GetContainer(uid.Parse(ie.Reference()))
+		handle := exec.GetContainer(context.Background(), uid.Parse(ie.Reference()))
 		if handle == nil {
 			log.Errorf("Container %s not found - unable to UnbindContainer", ie.Reference())
 			return
 		}
-		_, err := netctx.UnbindContainer(handle)
-		if err != nil {
-			log.Warnf("Failed to unbind container %s", ie.Reference())
+		defer handle.Close()
+		if _, err := netctx.UnbindContainer(handle); err != nil {
+			log.Warnf("Failed to unbind container %s: %s", ie.Reference(), err)
+			return
 		}
+
+		// make sure we don't change the state of the container in the Commit
+		handle.State = nil
+		if err := handle.Commit(context.Background(), nil, nil); err != nil {
+			log.Warnf("Failed to commit handle after network unbind for container %s: %s", ie.Reference(), err)
+		}
+
 	}
 	return
 }
@@ -127,7 +135,7 @@ func handleEvent(netctx *Context, ie events.Event) {
 // using an event manager, and a container cache. This hooks up a callback to
 // react to vsphere events, as well as populate the context with any containers
 // that are present.
-func engageContext(netctx *Context, em event.EventManager) error {
+func engageContext(ctx context.Context, netctx *Context, em event.EventManager) error {
 	var err error
 
 	// grab the context lock so that we do not unbind any containers
@@ -156,7 +164,7 @@ func engageContext(netctx *Context, em event.EventManager) error {
 
 	for _, c := range exec.Containers.Containers(nil) {
 		log.Debugf("adding container %s", c.ExecConfig.ID)
-		h := c.NewHandle()
+		h := c.NewHandle(ctx)
 		defer h.Close()
 
 		// add any user created networks that show up in container's config
