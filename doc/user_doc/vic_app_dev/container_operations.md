@@ -49,7 +49,7 @@ For more information about volume operations, see [Using Volumes with vSphere In
 |Docker volume create|[Create a volume](https://docs.docker.com/engine/reference/commandline/volume_create/)| The driver option is ignored even if you specify it. You must include <code>--opt VolumeStore=<name of volumestore> --Capacity=<size  in MB></code> as these are direct vSphere arguments. VIC does not assign random names during a volume create, but only for anonymous volumes.|
 |Docker volume inspect|[Information about a volume](https://docs.docker.com/engine/reference/commandline/volume_inspect/)|Yes, use with docker compose|
 |Docker volume ls|[List volumes](https://docs.docker.com/engine/reference/commandline/volume_ls/) | Yes |
-|Docker volume rm|[Remove a volume](https://docs.docker.com/engine/reference/commandline/volume_rm/) | No |
+|Docker volume rm|[Remove or delete a volume](https://docs.docker.com/engine/reference/commandline/volume_rm/) | Yes |
 
 ## Other Operations ##
 
