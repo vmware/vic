@@ -649,6 +649,7 @@ func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 	// and constructs a byte array suitable for passing to CertPool.AppendCertsFromPEM
 	var certs []byte
 	for _, f := range c.clientCAs {
+		log.Infof("Loading CA from %s", f)
 		b, err := ioutil.ReadFile(f)
 		if err != nil {
 			err = errors.Errorf("Failed to load authority from file %s: %s", f, err)
