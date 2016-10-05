@@ -38,4 +38,3 @@ build:
       GS_PRIVATE_KEY: $$GS_PRIVATE_KEY
     commands:
         - $$test
-        #- pybot tests/manual-test-cases/Group5-Functional-Tests/5-1-Distributed-Switch.robot
