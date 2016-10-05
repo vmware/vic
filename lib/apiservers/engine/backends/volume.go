@@ -223,12 +223,14 @@ type volumeMetadata struct {
 	Image         string
 }
 
-func createVolumeMetadata(req *models.VolumeRequest, labels map[string]string, Container, Image string) (string, error) {
+func createVolumeMetadata(req *models.VolumeRequest, driverargs, labels map[string]string) (string, error) {
 	metadata := volumeMetadata{
-		Driver:     req.Driver,
-		DriverOpts: req.DriverArgs,
-		Name:       req.Name,
-		Labels:     labels,
+		Driver:        req.Driver,
+		DriverOpts:    req.DriverArgs,
+		Name:          req.Name,
+		Labels:        labels,
+		AttachHistory: []string{driverargs[DriverArgContainerKey]},
+		Image:         driverargs[DriverArgImageKey],
 	}
 	result, err := json.Marshal(metadata)
 	return string(result), err
@@ -268,7 +270,7 @@ func newVolumeCreateReq(name, driverName string, driverArgs, labels map[string]s
 		Metadata:   make(map[string]string),
 	}
 
-	metadata, err := createVolumeMetadata(req, labels)
+	metadata, err := createVolumeMetadata(req, driverArgs, labels)
 	if err != nil {
 		return nil, err
 	}

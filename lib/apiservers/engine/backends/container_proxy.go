@@ -239,6 +239,7 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 	// Create and join volumes.
 	for _, fields := range volList {
 
+		//we only set these here for volumes made on a docker create
 		driverArgs := make(map[string]string)
 		driverArgs[DriverArgFlagKey] = fields.Flags
 		driverArgs[DriverArgContainerKey] = config.Name
