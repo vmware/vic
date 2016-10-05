@@ -15,7 +15,6 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -29,9 +28,9 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/scopes"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/network"
-
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
+	"golang.org/x/net/context"
 )
 
 // ScopesHandlersImpl is the receiver for all of the storage handler methods
