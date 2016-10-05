@@ -44,8 +44,6 @@ const (
 	DefaultBridgeName = "bridge"
 )
 
-var UnspecifiedIP = &net.IPNet{IP: net.IPv4zero}
-
 // Context denotes a networking context that represents a set of scopes, endpoints,
 // and containers. Each context has its own separate IPAM.
 type Context struct {
