@@ -50,12 +50,12 @@ public class VicUIServiceImpl implements VicUIService, ClientSessionEndListener 
 	private final VimObjectReferenceService _vimObjRefService;
 	private final UserSessionService _userSessionService;
 	private static VimPortType _vimPort = initializeVimPort();
-	
+
 	private static VimPortType initializeVimPort() {
 		VimService vimService = new VimService();
 		return vimService.getVimPort();
 	}
-	
+
 	static {
 	      HostnameVerifier hostNameVerifier = new HostnameVerifier() {
 	         @Override
@@ -86,49 +86,49 @@ public class VicUIServiceImpl implements VicUIService, ClientSessionEndListener 
 	      javax.net.ssl.HttpsURLConnection.setDefaultSSLSocketFactory(
 	            sc.getSocketFactory());
 	   }
-	
+
 	public VicUIServiceImpl(DataServiceExtensionRegistry extensionRegistry, VimObjectReferenceService vimObjectReferenceService, UserSessionService userSessionService) {
 		TypeInfo vmTypeInfo = new TypeInfo();
 		vmTypeInfo.type = "VirtualMachine";
 		vmTypeInfo.properties = VIC_VM_TYPES;
 		TypeInfo[] providerTypes = new TypeInfo[] { vmTypeInfo };
-		
+
 		_vimObjRefService = vimObjectReferenceService;
 		_userSessionService = userSessionService;
 		extensionRegistry.registerDataAdapter(this, providerTypes);
 	}
-   
+
 	@Override
 	public ResultSet getProperties(PropertyRequestSpec propertyRequest) {
 		ResultSet resultSet = new ResultSet();
-		
+
 		try {
 			List<ResultItem> resultItems = new ArrayList<ResultItem>();
-			
+
 			for (Object objRef : propertyRequest.objects) {
 				ResultItem resultItem = getProperties(objRef);
 				if (resultItem != null) {
 					resultItems.add(resultItem);
 				}
 			}
-			
+
 			resultSet.items = resultItems.toArray(new ResultItem[] {});
-			
+
 		} catch (Exception e) {
-			_logger.error("VicUIServiceImpl.getProperties error: " + e);			
+			_logger.error("VicUIServiceImpl.getProperties error: " + e);
 		}
-			
+
 		return resultSet;
 	}
-	
+
 	@Override
 	public void sessionEnded(String clientId) {
 		_logger.info("Logging out client session - " + clientId);
 	}
-	
+
 	private ServerInfo getServerInfoObject(String serverGuid) {
 		UserSession userSession = _userSessionService.getUserSession();
-		
+
 		for (ServerInfo sinfo : userSession.serversInfo) {
 			if (sinfo.serviceGuid.equalsIgnoreCase(serverGuid)) {
 				return sinfo;
@@ -136,82 +136,78 @@ public class VicUIServiceImpl implements VicUIService, ClientSessionEndListener 
 		}
 		return null;
 	}
-	
+
 	private ServiceContent getServiceContent(String serverGuid) {
 		ServerInfo serverInfoObject = getServerInfoObject(serverGuid);
 		String sessionCookie = serverInfoObject.sessionCookie;
 		String serviceUrl = serverInfoObject.serviceUrl;
-		
-		if(_logger.isDebugEnabled()) {
-			_logger.debug("getServiceContent: sessionCookie = "+ sessionCookie + ", serviceUrl = " + serviceUrl);
-		}
-		
+
 		List<String> values = new ArrayList<String>();
 		values.add("vmware_soap_session=" + sessionCookie);
 		Map<String, List<String>> reqHeadrs = new HashMap<String, List<String>>();
 		reqHeadrs.put("Cookie", values);
-		
+
 		Map<String, Object> reqContext = ((BindingProvider) _vimPort).getRequestContext();
 		reqContext.put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, serviceUrl);
 		reqContext.put(BindingProvider.SESSION_MAINTAIN_PROPERTY, true);
 		reqContext.put(MessageContext.HTTP_REQUEST_HEADERS, reqHeadrs);
-		
+
 		final ManagedObjectReference svgInstanceRef = new ManagedObjectReference();
 		svgInstanceRef.setType(SERVICE_INSTANCE);
 		svgInstanceRef.setValue(SERVICE_INSTANCE);
-		
+
 		ServiceContent serviceContent = null;
 		try {
 			serviceContent = _vimPort.retrieveServiceContent(svgInstanceRef);
 		} catch (RuntimeFaultFaultMsg e) {
 			_logger.error("getServiceContent error: " + e);
 		}
-		
+
 		return serviceContent;
 	}
-	
+
 	private ResultItem getProperties(Object objRef) throws InvalidPropertyFaultMsg, RuntimeFaultFaultMsg {
 		ResultItem resultItem = new ResultItem();
 		resultItem.resourceObject = objRef;
 		String entityType = _vimObjRefService.getResourceObjectType(objRef);
 		String entityName = _vimObjRefService.getValue(objRef);
 		String serverGuid = _vimObjRefService.getServerGuid(objRef);
-		
+
 		ManagedObjectReference vmMor = new ManagedObjectReference();
 		vmMor.setType(entityType);
 		vmMor.setValue(entityName);
-		
+
 		VirtualMachineConfigInfo config = null;
-		
+
 		// initialize properties isVCH and isContainer
 		PropertyValue pv_is_vch = new PropertyValue();
 		pv_is_vch.resourceObject = objRef;
 		pv_is_vch.propertyName = VIC_VM_TYPES[0];
 		pv_is_vch.value = false;
-		
+
 		PropertyValue pv_is_container = new PropertyValue();
 		pv_is_container.resourceObject = objRef;
 		pv_is_container.propertyName = VIC_VM_TYPES[1];
 		pv_is_container.value = false;
-		
+
 		ServiceContent service = getServiceContent(serverGuid);
 	    if (service == null) {
 	    	return null;
     	}
-	    
+
 	    PropertySpec propertySpec = new PropertySpec();
 	    propertySpec.setAll(Boolean.FALSE);
 	    propertySpec.setType("VirtualMachine");
 	    propertySpec.getPathSet().add("config");
-	    
+
 	    ObjectSpec objectSpec = new ObjectSpec();
 	    objectSpec.setObj(vmMor);
 	    objectSpec.setSkip(Boolean.FALSE);
-	    
+
 	    PropertyFilterSpec propertyFilterSpec = new PropertyFilterSpec();
 	    propertyFilterSpec.getPropSet().add(propertySpec);
 	    propertyFilterSpec.getObjectSet().add(objectSpec);
-	    
+
 	    List<PropertyFilterSpec> propertyFilterSpecs = new ArrayList<PropertyFilterSpec>();
 	    propertyFilterSpecs.add(propertyFilterSpec);
 
@@ -222,15 +218,15 @@ public class VicUIServiceImpl implements VicUIService, ClientSessionEndListener 
 	    		if (dps != null) {
 	    			for (DynamicProperty dp : dps) {
 	    				config = (VirtualMachineConfigInfo) dp.getVal();
-	    				
+
 	    				List<OptionValue> extraConfigs = config.getExtraConfig();
 	    				for(OptionValue option : extraConfigs) {
-	    					
+
 	    		    		if(option.getKey().equals(EXTRACONFIG_CONTAINER_PATH)) {
 	    		    			pv_is_container.value = true;
 	    		    			break;
 	    		    		}
-	    		    		
+
 	    		    		if(option.getKey().equals(EXTRACONFIG_VCH_PATH)) {
 	    		    			pv_is_vch.value = true;
 	    		    			break;
@@ -240,12 +236,12 @@ public class VicUIServiceImpl implements VicUIService, ClientSessionEndListener 
 	    		}
 	    	}
 	    }
-		
+
 	    resultItem.properties = new PropertyValue[] {pv_is_vch, pv_is_container};
-    	
+
     	return resultItem;
 	}
-	
+
 	private static class TrustAllTrustManager implements
     javax.net.ssl.TrustManager, javax.net.ssl.X509TrustManager {
 
