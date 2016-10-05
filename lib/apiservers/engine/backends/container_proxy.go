@@ -536,14 +536,34 @@ func toModelsNetworkConfig(cc types.ContainerCreateConfig) *models.NetworkConfig
 		}
 	}
 
-	nc.Ports = make([]string, len(cc.HostConfig.PortBindings))
-	i := 0
 	for p := range cc.HostConfig.PortBindings {
-		nc.Ports[i] = string(p)
-		i++
+		nc.Ports = append(nc.Ports, fromPortbinding(p, cc.HostConfig.PortBindings[p])...)
 	}
 
 	return nc
+}
+
+// fromPortbinding translate Port/PortBinding pair to string array with format "hostPort:containerPort/protocol" or
+// "containerPort/protocol" if hostPort is empty
+// HostIP is ignored here, cause VCH ip address might change. Will query back real interface address in docker ps
+func fromPortbinding(port nat.Port, binding []nat.PortBinding) []string {
+	var portMappings []string
+	if len(binding) == 0 {
+		portMappings = append(portMappings, string(port))
+		return portMappings
+	}
+
+	proto, privatePort := nat.SplitProtoPort(string(port))
+	for _, bind := range binding {
+		var portMap string
+		if bind.HostPort != "" {
+			portMap = fmt.Sprintf("%s:%s/%s", bind.HostPort, privatePort, proto)
+		} else {
+			portMap = string(port)
+		}
+		portMappings = append(portMappings, portMap)
+	}
+	return portMappings
 }
 
 // processVolumeParam is used to turn any call from docker create -v <stuff> into a volumeFields object.
@@ -745,6 +765,12 @@ func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.Con
 
 	// Set this to json-file to force the docker CLI to allow us to use docker logs
 	hostConfig.LogConfig.Type = forceLogType
+
+	var err error
+	_, hostConfig.PortBindings, err = nat.ParsePortSpecs(info.HostConfig.Ports)
+	if err != nil {
+		log.Errorf("Failed to parse port mapping %s: %s", info.HostConfig.Ports, err)
+	}
 
 	return &hostConfig
 }

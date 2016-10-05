@@ -577,8 +577,12 @@ func (c *Container) mapPorts(op portmap.Operation, hostconfig *containertypes.Ho
 		return fmt.Errorf("invalid endpoint address %s", endpoint.Address)
 	}
 
-	for _, p := range endpoint.Ports {
-		proto, port := nat.SplitProtoPort(p)
+	_, bindings, err := nat.ParsePortSpecs(endpoint.Ports)
+	if err != nil {
+		return err
+	}
+	for p := range bindings {
+		proto, port := nat.SplitProtoPort(string(p))
 		var nport nat.Port
 		nport, err := nat.NewPort(proto, port)
 		if err != nil {

@@ -18,15 +18,19 @@ import (
 	"context"
 	"net"
 	"net/url"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/registry"
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
+	"github.com/vmware/vic/lib/apiservers/engine/backends/portmap"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/misc"
+	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/config"
@@ -103,7 +107,7 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 
 	log.Info("Refreshing container cache")
 	go func() {
-		if err := syncContainerCache(portLayerClient); err != nil {
+		if err := syncContainerCache(); err != nil {
 			log.Warnf("Failed to refresh container cache: %s", err)
 			return
 		}
@@ -197,18 +201,56 @@ func InsecureRegistries() []string {
 }
 
 // syncContainerCache runs once at startup to populate the container cache
-func syncContainerCache(client *client.PortLayer) error {
+func syncContainerCache() error {
 	log.Debugf("Sync up container cache from portlyaer")
 
+	backend := NewContainerBackend()
+	client := backend.containerProxy.Client()
 	all := true
 	containme, err := client.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(ctx).WithAll(&all))
 	if err != nil {
 		return errors.Errorf("Failed to retrieve container list from portlayer: %s", err)
 	}
+
 	cc := cache.ContainerCache()
+	var errs []string
 	for _, info := range containme.Payload {
 		container := ContainerInfoToVicContainer(*info)
 		cc.AddContainer(container)
+		if err = setPortMapping(info, backend, container); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+	if len(errs) > 0 {
+		return errors.Errorf("Failed to set port mapping: %s", strings.Join(errs, "\n"))
+	}
+	return nil
+}
+
+func setPortMapping(info *models.ContainerInfo, backend *Container, container *container.VicContainer) error {
+	if info.ContainerConfig.State == nil {
+		log.Infof("container state is nil")
+		return nil
+	}
+	if *info.ContainerConfig.State != "Running" || len(container.HostConfig.PortBindings) == 0 {
+		log.Infof("Container info state: %s", *info.ContainerConfig.State)
+		log.Infof("container portbinding: %+v", container.HostConfig.PortBindings)
+		return nil
+	}
+
+	log.Debugf("Set port mapping for container %q, portmapping %+v", container.Name, container.HostConfig.PortBindings)
+	client := backend.containerProxy.Client()
+	endpointsOK, err := client.Scopes.GetContainerEndpoints(
+		scopes.NewGetContainerEndpointsParamsWithContext(ctx).WithHandleOrID(container.ContainerID))
+	if err != nil {
+		return err
+	}
+	for _, e := range endpointsOK.Payload {
+		if len(e.Ports) > 0 {
+			if err = backend.mapPorts(portmap.Map, container.HostConfig, e); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
