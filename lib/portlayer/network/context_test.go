@@ -183,7 +183,7 @@ func TestMapExternalNetworks(t *testing.T) {
 
 	// check if external networks were loaded
 	for n, nn := range conf.ContainerNetworks {
-		scopes, err := ctx.Scopes(&n)
+		scopes, err := ctx.findScopes(&n)
 		if err != nil || len(scopes) != 1 {
 			t.Fatalf("external network %s was not loaded", n)
 		}
@@ -447,7 +447,7 @@ func TestScopes(t *testing.T) {
 	}
 
 	for _, te := range tests {
-		l, err := ctx.Scopes(te.in)
+		l, err := ctx.Scopes(context.TODO(), te.in)
 		if te.out == nil {
 			if err == nil {
 				t.Fatalf("Scopes() => (_, nil), want (_, err)")
@@ -844,7 +844,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 			}
 
 			// container should not be part of scope
-			scopes, err := ctx.Scopes(&s)
+			scopes, err := ctx.findScopes(&s)
 			if err != nil || len(scopes) != 1 {
 				t.Fatalf("%d: ctx.Scopes(%s) => (%#v, %#v)", i, s, scopes, err)
 			}
@@ -1038,7 +1038,7 @@ func TestDeleteScope(t *testing.T) {
 			continue
 		}
 
-		scopes, err := ctx.Scopes(&te.name)
+		scopes, err := ctx.findScopes(&te.name)
 		if _, ok := err.(ResourceNotFoundError); !ok || len(scopes) != 0 {
 			t.Fatalf("scope %s not deleted", te.name)
 		}
