@@ -222,7 +222,7 @@ func (ic *ICache) AddImage(imageConfig *metadata.ImageConfig) {
 	}
 }
 
-// RemoveImage removes image from the cache. The call return
+// RemoveImage removes image from the cache.
 func (ic *ICache) RemoveImageByConfig(imageConfig *metadata.ImageConfig) {
 	ic.m.Lock()
 	defer ic.m.Unlock()
