@@ -15,6 +15,7 @@
 package config
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"net"
@@ -298,7 +299,15 @@ func CreateSession(cmd string, args ...string) *executor.SessionConfig {
 	return cfg
 }
 
-func (t *RawCertificate) Certificate() (*x509.Certificate, error) {
+func (t *RawCertificate) Certificate() (*tls.Certificate, error) {
+	if t.IsNil() {
+		return nil, errors.New("nil certificate")
+	}
+	cert, err := tls.X509KeyPair(t.Cert, t.Key)
+	return &cert, err
+}
+
+func (t *RawCertificate) X509Certificate() (*x509.Certificate, error) {
 	if t.IsNil() {
 		return nil, errors.New("nil certificate")
 	}

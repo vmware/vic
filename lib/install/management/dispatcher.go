@@ -222,7 +222,7 @@ func addrToUse(ip string, conf *config.VirtualContainerHostConfigSpec) string {
 		return ip
 	}
 
-	cert, err := conf.HostCertificate.Certificate()
+	cert, err := conf.HostCertificate.X509Certificate()
 	if err != nil {
 		log.Errorf("Unable to extract host certificate - skipping component check: %s", err)
 		return ip
