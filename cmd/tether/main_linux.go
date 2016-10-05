@@ -39,6 +39,10 @@ func main() {
 		halt()
 	}()
 
+	logFile, _ := os.OpenFile("/dev/ttyS1", os.O_WRONLY|os.O_SYNC, 0644)
+	syscall.Dup2(int(logFile.Fd()), 2)
+	os.Stderr.WriteString("all stderr redirected to debug log")
+
 	// where to look for the various devices and files related to tether
 	pathPrefix = "/.tether"
 
