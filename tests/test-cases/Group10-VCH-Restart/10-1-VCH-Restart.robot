@@ -16,7 +16,7 @@ Launch Container
     [Arguments]  ${name}  ${network}=default  ${command}=sh
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --name ${name} --net ${network} -itd busybox ${command}
     Should Be Equal As Integers  ${rc}  0
-    ${id}=  Get Line  ${output}  -
+    ${id}=  Get Line  ${output}  -1
     [Return]  ${id}
 
 Reboot VCH
