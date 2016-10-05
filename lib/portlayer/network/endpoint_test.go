@@ -23,13 +23,14 @@ import (
 
 func TestEndpointNameID(t *testing.T) {
 	c := &Container{id: "foo", name: "bar"}
-	s := &Scope{}
+	s := &Scope{
+		gateway: net.ParseIP("10.10.10.1"),
+		subnet:  net.IPNet{IP: net.ParseIP("10.10.10.0"), Mask: net.CIDRMask(24, 32)},
+	}
 	e := Endpoint{
 		container: c,
 		scope:     s,
 		ip:        net.ParseIP("10.10.10.10"),
-		gateway:   net.ParseIP("10.10.10.1"),
-		subnet:    net.IPNet{IP: net.ParseIP("10.10.10.0"), Mask: net.CIDRMask(24, 32)},
 		static:    true,
 		ports:     make(map[Port]interface{}),
 	}
@@ -40,13 +41,14 @@ func TestEndpointNameID(t *testing.T) {
 
 func TestEndpointCopy(t *testing.T) {
 	c := &Container{id: "foo"}
-	s := &Scope{}
+	s := &Scope{
+		gateway: net.ParseIP("10.10.10.1"),
+		subnet:  net.IPNet{IP: net.ParseIP("10.10.10.0"), Mask: net.CIDRMask(24, 32)},
+	}
 	e := Endpoint{
 		container: c,
 		scope:     s,
 		ip:        net.ParseIP("10.10.10.10"),
-		gateway:   net.ParseIP("10.10.10.1"),
-		subnet:    net.IPNet{IP: net.ParseIP("10.10.10.0"), Mask: net.CIDRMask(24, 32)},
 		static:    true,
 		ports:     make(map[Port]interface{}),
 	}
@@ -63,9 +65,9 @@ func TestEndpointCopy(t *testing.T) {
 	assert.Equal(t, other.scope, s)
 	assert.Equal(t, other.scope, e.scope)
 	assert.True(t, other.ip.Equal(e.ip), "other.ip (%s) != e.ip (%s)", other.ip, e.ip)
-	assert.True(t, other.gateway.Equal(e.gateway), "other.gateway (%s) != e.gateway (%s)", other.gateway, e.gateway)
-	assert.True(t, other.subnet.IP.Equal(e.subnet.IP), "other.subnet (%s) != e.subnet (%s)", other.subnet, e.subnet)
-	assert.Equal(t, other.subnet.Mask, e.subnet.Mask, "other.subnet (%s) != e.subnet (%s)", other.subnet, e.subnet)
+	assert.True(t, other.Gateway().Equal(e.Gateway()), "other.Gateway() (%s) != e.Gateway() (%s)", other.Gateway(), e.Gateway())
+	assert.True(t, other.Subnet().IP.Equal(e.Subnet().IP), "other.Subnet() (%s) != e.Subnet() (%s)", other.Subnet(), e.Subnet())
+	assert.Equal(t, other.Subnet().Mask, e.Subnet().Mask, "other.Subnet() (%s) != e.Subnet() (%s)", other.Subnet(), e.Subnet())
 	assert.EqualValues(t, other.ports, e.ports)
 
 	// make sure .ports is a copy

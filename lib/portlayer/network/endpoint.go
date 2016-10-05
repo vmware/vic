@@ -35,8 +35,6 @@ type Endpoint struct {
 	container *Container
 	scope     *Scope
 	ip        net.IP
-	gateway   net.IP
-	subnet    net.IPNet
 	static    bool
 	ports     map[Port]interface{} // exposed ports
 	aliases   map[string][]alias
@@ -55,12 +53,10 @@ func (a alias) scopedName() string {
 	return fmt.Sprintf("%s:%s:%s", a.ep.Scope().Name(), a.ep.Container().Name(), a.Name)
 }
 
-func newEndpoint(container *Container, scope *Scope, eip *net.IP, subnet net.IPNet, gateway net.IP, pciSlot *int32) *Endpoint {
+func newEndpoint(container *Container, scope *Scope, eip *net.IP, pciSlot *int32) *Endpoint {
 	e := &Endpoint{
 		container: container,
 		scope:     scope,
-		gateway:   gateway,
-		subnet:    subnet,
 		ip:        net.IPv4(0, 0, 0, 0),
 		static:    false,
 		ports:     make(map[Port]interface{}),
@@ -105,7 +101,7 @@ func (e *Endpoint) Scope() *Scope {
 }
 
 func (e *Endpoint) Subnet() *net.IPNet {
-	return &e.subnet
+	return e.Scope().Subnet()
 }
 
 func (e *Endpoint) Container() *Container {
@@ -121,7 +117,7 @@ func (e *Endpoint) Name() string {
 }
 
 func (e *Endpoint) Gateway() net.IP {
-	return e.gateway
+	return e.Scope().Gateway()
 }
 
 func (e *Endpoint) Ports() []Port {

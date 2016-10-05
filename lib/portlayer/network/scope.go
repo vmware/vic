@@ -21,12 +21,13 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/portlayer/constants"
+	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/uid"
 )
 
 type Scope struct {
-	sync.Mutex
+	sync.RWMutex
 
 	id         uid.UID
 	name       string
@@ -48,22 +49,37 @@ type IPAM struct {
 }
 
 func (s *Scope) Name() string {
+	s.RLock()
+	defer s.RUnlock()
+
 	return s.name
 }
 
 func (s *Scope) ID() uid.UID {
+	s.RLock()
+	defer s.RUnlock()
+
 	return s.id
 }
 
 func (s *Scope) Type() string {
+	s.RLock()
+	defer s.RUnlock()
+
 	return s.scopeType
 }
 
 func (s *Scope) IPAM() *IPAM {
+	s.RLock()
+	defer s.RUnlock()
+
 	return s.ipam
 }
 
 func (s *Scope) Network() object.NetworkReference {
+	s.RLock()
+	defer s.RUnlock()
+
 	return s.network
 }
 
@@ -112,7 +128,7 @@ func (s *Scope) releaseEndpointIP(e *Endpoint) error {
 	return fmt.Errorf("could not release IP for endpoint")
 }
 
-func (s *Scope) addContainer(con *Container, e *Endpoint) error {
+func (s *Scope) AddContainer(con *Container, e *Endpoint) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -135,11 +151,11 @@ func (s *Scope) addContainer(con *Container, e *Endpoint) error {
 	return nil
 }
 
-func (s *Scope) removeContainer(con *Container) error {
+func (s *Scope) RemoveContainer(con *Container) error {
 	s.Lock()
 	defer s.Unlock()
 
-	c, ok := s.containers[con.ID()]
+	c, ok := s.containers[con.id]
 	if !ok || c != con {
 		return ResourceNotFoundError{}
 	}
@@ -160,8 +176,8 @@ func (s *Scope) removeContainer(con *Container) error {
 }
 
 func (s *Scope) Containers() []*Container {
-	s.Lock()
-	defer s.Unlock()
+	s.RLock()
+	defer s.RUnlock()
 
 	containers := make([]*Container, len(s.containers))
 	i := 0
@@ -174,8 +190,8 @@ func (s *Scope) Containers() []*Container {
 }
 
 func (s *Scope) Container(id uid.UID) *Container {
-	s.Lock()
-	defer s.Unlock()
+	s.RLock()
+	defer s.RUnlock()
 
 	if c, ok := s.containers[id]; ok {
 		return c
@@ -185,12 +201,12 @@ func (s *Scope) Container(id uid.UID) *Container {
 }
 
 func (s *Scope) ContainerByAddr(addr net.IP) *Endpoint {
+	s.RLock()
+	defer s.RUnlock()
+
 	if addr == nil || addr.IsUnspecified() {
 		return nil
 	}
-
-	s.Lock()
-	defer s.Unlock()
 
 	for _, e := range s.endpoints {
 		if addr.Equal(e.IP()) {
@@ -202,21 +218,57 @@ func (s *Scope) ContainerByAddr(addr net.IP) *Endpoint {
 }
 
 func (s *Scope) Endpoints() []*Endpoint {
+	s.RLock()
+	defer s.RUnlock()
+
 	eps := make([]*Endpoint, len(s.endpoints))
 	copy(eps, s.endpoints)
 	return eps
 }
 
 func (s *Scope) Subnet() *net.IPNet {
+	s.RLock()
+	defer s.RUnlock()
+
 	return &s.subnet
 }
 
 func (s *Scope) Gateway() net.IP {
+	s.RLock()
+	defer s.RUnlock()
+
 	return s.gateway
 }
 
 func (s *Scope) DNS() []net.IP {
+	s.RLock()
+	defer s.RUnlock()
+
 	return s.dns
+}
+
+func (s *Scope) Refresh(h *exec.Handle) error {
+	s.Lock()
+	defer s.Unlock()
+
+	if !s.isDynamic() {
+		return nil
+	}
+
+	ne := h.ExecConfig.Networks[s.name]
+	if ip.IsUnspecifiedSubnet(&ne.Network.Gateway) {
+		return fmt.Errorf("updating container %s: gateway not present for scope %s", h.ExecConfig.ID, s.name)
+	}
+
+	gw, snet, err := net.ParseCIDR(ne.Network.Gateway.String())
+	if err != nil {
+		return err
+	}
+
+	s.gateway = gw
+	s.subnet = *snet
+
+	return nil
 }
 
 func (i *IPAM) Pools() []ip.Range {

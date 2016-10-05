@@ -460,6 +460,7 @@ func (c *Context) newScope(scopeType, name string, subnet *net.IPNet, gateway ne
 
 func (c *Context) findScopes(idName *string) ([]*Scope, error) {
 	defer trace.End(trace.Begin(""))
+
 	if idName != nil && *idName != "" {
 		if *idName == "default" {
 			return []*Scope{c.DefaultScope()}, nil
@@ -497,11 +498,28 @@ func (c *Context) findScopes(idName *string) ([]*Scope, error) {
 	return _scopes, nil
 }
 
-func (c *Context) Scopes(idName *string) ([]*Scope, error) {
+func (c *Context) Scopes(ctx context.Context, idName *string) ([]*Scope, error) {
 	c.Lock()
 	defer c.Unlock()
 
-	return c.findScopes(idName)
+	scopes, err := c.findScopes(idName)
+	if err != nil {
+		return nil, err
+	}
+
+	// collate the containers to update
+	containers := make(map[uid.UID]*Container)
+	for _, s := range scopes {
+		for _, c := range s.Containers() {
+			containers[c.ID()] = c
+		}
+	}
+
+	for _, c := range containers {
+		c.Refresh(ctx)
+	}
+
+	return scopes, nil
 }
 
 func (c *Context) DefaultScope() *Scope {
@@ -546,7 +564,7 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 				return
 			}
 
-			s.removeContainer(con)
+			s.RemoveContainer(con)
 		}()
 
 		var eip *net.IP
@@ -562,9 +580,9 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			eip = &ne.Assigned.IP
 		}
 
-		e := newEndpoint(con, s, eip, s.subnet, s.gateway, nil)
+		e := newEndpoint(con, s, eip, nil)
 		e.static = ne.Static
-		if err = s.addContainer(con, e); err != nil {
+		if err = s.AddContainer(con, e); err != nil {
 			return nil, err
 		}
 
@@ -585,7 +603,7 @@ func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 				Mask: e.Scope().Subnet().Mask,
 			}
 		}
-		ne.Network.Gateway = net.IPNet{IP: e.gateway, Mask: e.subnet.Mask}
+		ne.Network.Gateway = net.IPNet{IP: e.Gateway(), Mask: e.Subnet().Mask}
 		ne.Network.Nameservers = make([]net.IP, len(s.dns))
 		copy(ne.Network.Nameservers, s.dns)
 
@@ -718,7 +736,7 @@ func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 		// save the endpoint info
 		e := con.Endpoint(s).copy()
 
-		if err = s.removeContainer(con); err != nil {
+		if err = s.RemoveContainer(con); err != nil {
 			return nil, err
 		}
 
@@ -1067,48 +1085,6 @@ func (c *Context) DeleteScope(name string) error {
 	}
 
 	delete(c.scopes, s.Name())
-	return nil
-}
-
-func (c *Context) UpdateContainer(h *exec.Handle) error {
-	defer trace.End(trace.Begin(""))
-	c.Lock()
-	defer c.Unlock()
-
-	con, err := c.container(h)
-	if err != nil {
-		return err
-	}
-
-	for _, s := range con.Scopes() {
-		if !s.isDynamic() {
-			continue
-		}
-
-		ne := h.ExecConfig.Networks[s.Name()]
-		if ne == nil {
-			return fmt.Errorf("container config does not have info for network scope %s", s.Name())
-		}
-
-		e := con.Endpoint(s)
-		e.ip = ne.Assigned.IP
-		if ip.IsUnspecifiedSubnet(&ne.Network.Gateway) {
-			log.Warnf("updating container %s: gateway not present for scope %s", con.ID(), s.Name())
-			continue
-		}
-
-		gw, snet, err := net.ParseCIDR(ne.Network.Gateway.String())
-		if err != nil {
-			return err
-		}
-
-		e.gateway = gw
-		e.subnet = *snet
-
-		s.gateway = gw
-		s.subnet = *snet
-	}
-
 	return nil
 }
 

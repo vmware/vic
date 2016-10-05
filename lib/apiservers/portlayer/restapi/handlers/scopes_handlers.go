@@ -27,13 +27,11 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/scopes"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/network"
 
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/uid"
 )
 
 // ScopesHandlersImpl is the receiver for all of the storage handler methods
@@ -87,45 +85,13 @@ func parseScopeConfig(cfg *models.ScopeConfig) (subnet *net.IPNet, gateway net.I
 
 func (handler *ScopesHandlersImpl) listScopes(idName string) ([]*models.ScopeConfig, error) {
 	defer trace.End(trace.Begin(idName))
-	_scopes, err := handler.netCtx.Scopes(&idName)
+	_scopes, err := handler.netCtx.Scopes(context.Background(), &idName)
 	if err != nil {
 		return nil, err
 	}
 
 	cfgs := make([]*models.ScopeConfig, len(_scopes))
-	updated := make(map[uid.UID]interface{})
 	for i, s := range _scopes {
-		// do not need do this for non-bridge scopes, since
-		// IPAM is done by the port layer. For other
-		// scopes types, like external, the network
-		// may be using DHCP, in which case we need to
-		// get the current IP address, and other network
-		// info from the container VM.
-		if s.Type() != constants.BridgeScopeType {
-			for _, e := range s.Endpoints() {
-				// update the container config, if necessary
-				cid := e.Container().ID()
-				if _, ok := updated[cid]; ok {
-					continue
-				}
-
-				// this will "refresh" the container executor config that contains
-				// the current ip addresses
-				h := exec.GetContainer(context.Background(), cid)
-				if h == nil {
-					return nil, fmt.Errorf("could not find container %s", cid)
-				}
-
-				defer h.Close()
-
-				if err = handler.netCtx.UpdateContainer(h); err != nil {
-					return nil, err
-				}
-
-				updated[cid] = nil
-			}
-		}
-
 		cfgs[i] = toScopeConfig(s)
 	}
 
