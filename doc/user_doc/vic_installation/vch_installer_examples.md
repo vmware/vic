@@ -13,7 +13,7 @@ This topic provides examples of the options of the `vic-machine` `create` comman
 - [Deploy a Virtual Container Host in a Resource Pool in a vCenter Server Cluster](#rp_cluster)
 - [Deploy a Virtual Container Host for Use with a Docker Client that Requires CA Certificates](#ca_cert)
 - [Deploy a Virtual Container Host with Limits on Resource Use](#customized)
-- [Deploy a Virtual Container Host and Authorize Access to an Insecure Registry](#registry)
+- [Deploy a Virtual Container Host and Authorize Access to an Insecure Private Registry Server](#registry)
 
 For detailed descriptions of all of the `vic-machine create` options, see [Virtual Container Host Deployment Options](vch_installer_options.md)
 
@@ -148,7 +148,7 @@ When you create a volume store, you specify the name of the datastore to use and
 This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, datacenter, cluster, bridge network, and name for the virtual container host.
-- Specifies the `volumes` folder on `datastore 1` as the default volume store. Creating a volume store named `default` allows container application developers to create anonymous volumes by using `docker create -v`. 
+- Specifies the `volumes` folder on `datastore 1` as the default volume store. Creating a volume store named `default` allows container application developers to create anonymous or named volumes by using `docker create -v`. 
 - Specifies a second volume store named `volume_store_2` in the `volumes` folder on `datastore 2`. 
 - Note that the datastore names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 
@@ -265,14 +265,15 @@ This example deploys a virtual container host with the following configuration:
 For more information about setting resource use limitations on virtual container hosts, see the [vApp Deployment Options section in Virtual Container Host Deployment Options](vch_installer_options.md#deployment).
 
 <a name="registry"></a>
-## Deploy a Virtual Container Host and Authorize Access to an Insecure Registry ##
+## Deploy a Virtual Container Host and Authorize Access to an Insecure Private Registry Server ##
 
-An insecure registry server is a registry server for Docker images that is secured by self-signed certificates rather than by TLS. To authorize connections from a virtual container host to an insecure registry server, set the `docker-insecure-registry` option. You can specify `docker-insecure-registry` multiple times to allow connections from the virtual container host to multiple insecure registry servers.
+An insecure private registry server is a private registry server for Docker images that is secured by self-signed certificates rather than by TLS. To authorize connections from a virtual container host to an insecure private registry server, set the `docker-insecure-registry` option. You can specify `docker-insecure-registry` multiple times to allow connections from the virtual container host to multiple insecure private registry servers.
 
 This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, image store, cluster, bridge network, and name for the virtual container host.
-- Authorizes the virtual container host to pull Docker images from the insecure registry servers located at the URLs <i>registry_URL_1</i> and <i>registry_URL_2</i>.
+- Authorizes the virtual container host to pull Docker images from the insecure private registry servers located at the URLs <i>registry_URL_1</i> and <i>registry_URL_2</i>.
+- The registry server at <i>registry_URL_2</i> listens for connections on port 5000. 
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
@@ -280,9 +281,11 @@ This example deploys a virtual container host with the following configuration:
 --image-store datastore1
 --bridge-network vic-bridge
 --docker-insecure-registry <i>registry_URL_1</i>
---docker-insecure-registry <i>registry_URL_2</i>
+--docker-insecure-registry <i>registry_URL_2:5000</i>
 --name vch1
 </pre>
 
-For more information about setting resource use limitations on virtual container hosts, see the section on the `docker-insecure-registry` option in [Virtual Container Host Deployment Options](vch_installer_options.md#registry).
+For more information about configuring virtual container hosts to connect to insecure private registry servers, see the section on the [`docker-insecure-registry` option in Virtual Container Host Deployment Options](vch_installer_options.md#registry).
+
+**NOTE**: The current builds of vSphere Integrated Containers do not yet support private registry servers that you secure by using TLS certificates.
 

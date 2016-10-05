@@ -12,14 +12,13 @@ To verify that VIC appliance can work when deploying the example docker voting a
 This test requires that a vSphere server is running and available
 
 #Test Steps:
-1. Download the voting app
-2. Deploy VIC appliance to the vSphere server
+1. Deploy VIC appliance to the vSphere server
+2. Log into the docker hub
 3. Issue the following command in the docker voting app folder:  
-```DOCKER_HOST=<VCH IP> docker-compose up``` 
-4. Verify that the server is running on http://localhost:5000 and the results are found on http://localhost:5001
+```cd demos/compose/voting-app; COMPOSE_HTTP_TIMEOUT=300 DOCKER_HOST=<VCH IP> docker-compose up```
 
 #Expected Outcome:
-Docker compose should return with success and the server and results should be running.
+Docker compose should return with success and the voting and results servers are up and running.
 
 #Possible Problems:
 None

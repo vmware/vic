@@ -435,5 +435,11 @@ func convertContainerToContainerInfo(container *exec.Container) *models.Containe
 	status := container.ExecConfig.Sessions[ccid].Started
 	info.ProcessConfig.Status = &status
 
+	info.HostConfig = &models.HostConfig{}
+	for _, endpoint := range container.ExecConfig.Networks {
+		if len(endpoint.Ports) > 0 {
+			info.HostConfig.Ports = append(info.HostConfig.Ports, endpoint.Ports...)
+		}
+	}
 	return info
 }

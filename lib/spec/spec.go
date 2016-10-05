@@ -108,17 +108,11 @@ func NewVirtualMachineConfigSpec(ctx context.Context, session *session.Session, 
 	fullName := fmt.Sprintf("%s-%s", prettyName, config.ID)
 	config.VMFullName = fullName
 
-	VMPathName := config.VMPathName
-	if !session.IsVSAN(ctx) {
-		// VMFS requires the full path to vmx or everything but the datastore is ignored
-		VMPathName = fmt.Sprintf("%s/%s/%s.vmx", config.VMPathName, config.VMFullName, config.ID)
-	}
-
 	s := &types.VirtualMachineConfigSpec{
 		Name: fullName,
 		Uuid: config.BiosUUID,
 		Files: &types.VirtualMachineFileInfo{
-			VmPathName: VMPathName,
+			VmPathName: config.VMPathName,
 		},
 		NumCPUs:             config.NumCPUs,
 		CpuHotAddEnabled:    &config.VMForkEnabled, // this disables vNUMA when true

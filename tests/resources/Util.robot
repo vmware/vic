@@ -437,3 +437,8 @@ Put Host Into Maintenance Mode
 Remove Host From Maintenance Mode
     ${rc}  ${output}=  Run And Return Rc And Output  govc host.maintenance.exit -host.ip=%{TEST_URL}
     Should Contain  ${output}  exiting maintenance mode... OK
+
+Hit Nginx Endpoint
+    [Arguments]  ${vch-ip}  ${port}
+    ${rc}  ${output}=  Run And Return Rc And Output  wget ${vch-ip}:${port}
+    Should Be Equal As Integers  ${rc}  0
