@@ -69,14 +69,6 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 	if err = d.uploadImages(settings.ImageFiles); err != nil {
 		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
 	}
-	var deleteImage bool
-	defer func() {
-		if deleteImage {
-			// do clean up aggressively, even the previous operation failed with context deadline excceeded.
-			d.ctx = context.Background()
-			d.deleteUpgradeImages(ds, settings)
-		}
-	}()
 
 	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)
 
@@ -84,20 +76,17 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 	snapshotName = strings.TrimSpace(snapshotName)
 	snapshotRefID, err := d.createSnapshot(snapshotName, "upgrade snapshot")
 	if err != nil {
-		deleteImage = true
+		d.deleteUpgradeImages(ds, settings)
 		return err
 	}
-	var deleteSnapshot bool
 	defer func() {
-		if deleteSnapshot {
+		if err == nil {
 			// do clean up aggressively, even the previous operation failed with context deadline excceeded.
-			d.ctx = context.Background()
-			d.cleanSnapshot(*snapshotRefID, snapshotName, conf.Name)
+			d.deleteSnapshot(*snapshotRefID, snapshotName, conf.Name)
 		}
 	}()
 
 	if err = d.update(conf, settings); err == nil {
-		deleteSnapshot = true
 		return nil
 	}
 	log.Errorf("Failed to upgrade: %s", err)
@@ -114,14 +103,16 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 		return err
 	}
 
-	deleteSnapshot = true
-	deleteImage = true
+	d.deleteUpgradeImages(ds, settings)
 	log.Infof("Appliance is rollback to old version")
 	return err
 }
 
-func (d *Dispatcher) cleanSnapshot(id types.ManagedObjectReference, snapshotName string, applianceName string) error {
+func (d *Dispatcher) deleteSnapshot(id types.ManagedObjectReference, snapshotName string, applianceName string) error {
+	defer trace.End(trace.Begin(snapshotName))
 	log.Infof("Deleting upgrade snapshot %q", snapshotName)
+	// do clean up aggressively, even the previous operation failed with context deadline excceeded.
+	d.ctx = context.Background()
 	if _, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.RemoveSnapshot(ctx, id, true, true)
 	}); err != nil {
@@ -172,6 +163,9 @@ func (d *Dispatcher) deleteUpgradeImages(ds *object.Datastore, settings *data.In
 	defer trace.End(trace.Begin(""))
 
 	log.Infof("Deleting upgrade images")
+
+	// do clean up aggressively, even the previous operation failed with context deadline excceeded.
+	d.ctx = context.Background()
 
 	m := object.NewFileManager(ds.Client())
 
