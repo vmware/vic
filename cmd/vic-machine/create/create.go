@@ -79,6 +79,16 @@ type Create struct {
 	containerNetworksDNS      cli.StringSlice
 	volumeStores              cli.StringSlice
 	insecureRegistries        cli.StringSlice
+	dns                       cli.StringSlice
+	clientNetworkName         string
+	clientNetworkGateway      string
+	clientNetworkIP           string
+	externalNetworkName       string
+	externalNetworkGateway    string
+	externalNetworkIP         string
+	managementNetworkName     string
+	managementNetworkGateway  string
+	managementNetworkIP       string
 
 	memoryReservLimits string
 	cpuReservLimits    string
@@ -107,7 +117,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "container-store, cs",
 			Value:       "",
-			Usage:       "Container datastore path - not supported yet, default to image datastore",
+			Usage:       "Container datastore path - not supported yet, defaults to image datastore",
 			Destination: &c.ContainerDatastoreName,
 		},
 		cli.StringSliceFlag{
@@ -118,32 +128,68 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "bridge-network, b",
 			Value:       "",
-			Usage:       "The bridge network (private port group for containers). Default to Virtual Container Host name",
+			Usage:       "The bridge network port group name (private port group for containers). Defaults to the Virtual Container Host name",
 			Destination: &c.BridgeNetworkName,
 		},
 		cli.StringFlag{
 			Name:        "bridge-network-range, bnr",
 			Value:       "172.16.0.0/12",
-			Usage:       "The ip range from which bridge networks are allocated",
+			Usage:       "The IP range from which bridge networks are allocated",
 			Destination: &c.BridgeIPRange,
-		},
-		cli.StringFlag{
-			Name:        "external-network, en",
-			Value:       "",
-			Usage:       "The external network (can see hub.docker.com)",
-			Destination: &c.ExternalNetworkName,
-		},
-		cli.StringFlag{
-			Name:        "management-network, mn",
-			Value:       "",
-			Usage:       "The management network (provides route to target hosting vSphere)",
-			Destination: &c.ManagementNetworkName,
 		},
 		cli.StringFlag{
 			Name:        "client-network, cln",
 			Value:       "",
-			Usage:       "The client network (restricts DOCKER_API access to this network)",
-			Destination: &c.ClientNetworkName,
+			Usage:       "The client network port group name (restricts DOCKER_API access to this network)",
+			Destination: &c.clientNetworkName,
+		},
+		cli.StringFlag{
+			Name:        "client-network-gateway",
+			Value:       "",
+			Usage:       "Gateway for the VCH on the client network, e.g. 10.0.0.1/24",
+			Destination: &c.clientNetworkGateway,
+		},
+		cli.StringFlag{
+			Name:        "client-network-ip",
+			Value:       "",
+			Usage:       "IP address for the VCH on the client network, e.g. 10.0.0.2/24",
+			Destination: &c.clientNetworkIP,
+		},
+		cli.StringFlag{
+			Name:        "external-network, en",
+			Value:       "",
+			Usage:       "The external network port group name - forwarded ports are exposed on this network and this is the default route. Defaults to 'VM Network'",
+			Destination: &c.externalNetworkName,
+		},
+		cli.StringFlag{
+			Name:        "external-network-gateway",
+			Value:       "",
+			Usage:       "Gateway for the VCH on the external network, e.g. 10.0.1.1/24",
+			Destination: &c.externalNetworkGateway,
+		},
+		cli.StringFlag{
+			Name:        "external-network-ip",
+			Value:       "",
+			Usage:       "IP address for the VCH on the external network, e.g. 10.0.1.2/24",
+			Destination: &c.externalNetworkIP,
+		},
+		cli.StringFlag{
+			Name:        "management-network, mn",
+			Value:       "",
+			Usage:       "The management network port group name (provides route to target hosting vSphere)",
+			Destination: &c.managementNetworkName,
+		},
+		cli.StringFlag{
+			Name:        "management-network-gateway",
+			Value:       "",
+			Usage:       "Gateway for the VCH on the management network, e.g. 10.0.2.1/24",
+			Destination: &c.managementNetworkGateway,
+		},
+		cli.StringFlag{
+			Name:        "management-network-ip",
+			Value:       "",
+			Usage:       "IP address for the VCH on the management network, e.g. 10.0.2.2/24",
+			Destination: &c.managementNetworkIP,
 		},
 		cli.StringSliceFlag{
 			Name:  "container-network, cn",
@@ -163,7 +209,12 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringSliceFlag{
 			Name:  "container-network-dns, cnd",
 			Value: &c.containerNetworksDNS,
-			Usage: "DNS servers for the container network in CONTAINER-NETWORK:DNS format, e.g. a_network:8.8.8.8",
+			Usage: "DNS servers for the container network in CONTAINER-NETWORK:DNS format, e.g. a_network:8.8.8.8. Ignored if no static IP assigned.",
+		},
+		cli.StringSliceFlag{
+			Name:  "dns-server",
+			Value: &c.dns,
+			Usage: "DNS server for the client, external, and management networks. Defaults to 8.8.8.8 and 8.8.4.4 when not using DHCP",
 		},
 		cli.IntFlag{
 			Name:        "pool-memory-reservation, pmr",
@@ -303,8 +354,8 @@ func (c *Create) processParams() error {
 		return cli.NewExitError("key cert should be specified at the same time", 1)
 	}
 
-	if c.ExternalNetworkName == "" {
-		c.ExternalNetworkName = "VM Network"
+	if c.externalNetworkName == "" {
+		c.externalNetworkName = "VM Network"
 	}
 
 	if c.BridgeNetworkName == "" {
@@ -320,6 +371,25 @@ func (c *Create) processParams() error {
 	}
 
 	if err := c.processBridgeNetwork(); err != nil {
+		return err
+	}
+
+	if err := c.processNetwork(&c.Data.ClientNetwork, "client", c.clientNetworkName,
+		c.clientNetworkIP, c.clientNetworkGateway); err != nil {
+		return err
+	}
+
+	if err := c.processNetwork(&c.Data.ExternalNetwork, "external", c.externalNetworkName,
+		c.externalNetworkIP, c.externalNetworkGateway); err != nil {
+		return err
+	}
+
+	if err := c.processNetwork(&c.Data.ManagementNetwork, "management", c.managementNetworkName,
+		c.managementNetworkIP, c.managementNetworkGateway); err != nil {
+		return err
+	}
+
+	if err := c.processDNSServers(); err != nil {
 		return err
 	}
 
@@ -411,6 +481,56 @@ func (c *Create) processContainerNetworks() error {
 	if hasError {
 		return cli.NewExitError("Inconsistent container network configuration.", 1)
 	}
+	return nil
+}
+
+// processNetwork parses network args if present
+func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, staticIP, gateway string) error {
+	network.Name = pgName
+
+	i := staticIP != ""
+	g := gateway != ""
+	if !i && !g {
+		return nil
+	}
+	if i != g {
+		return fmt.Errorf("%s network IP and gateway must both be specified", netName)
+	}
+
+	ci, err := ip.ParseIPandMask(staticIP)
+	if err != nil {
+		return fmt.Errorf("Invalid %s network IP: %s", netName, err)
+	}
+
+	cg, err := ip.ParseIPandMask(gateway)
+	if err != nil {
+		return fmt.Errorf("Invalid %s network gateway: %s", netName, err)
+	}
+
+	log.Debugf("%s network: IP %q gateway %q", netName, ci, cg)
+
+	network.Gateway = cg
+	network.IP = ci
+
+	return nil
+}
+
+// processDNSServers parses DNS servers used for client, external, mgmt networks
+func (c *Create) processDNSServers() error {
+	for _, d := range c.dns {
+		s := net.ParseIP(d)
+		if s == nil {
+			return errors.New("Invalid DNS server specified")
+		}
+		c.Data.DNS = append(c.Data.DNS, s)
+	}
+	if len(c.Data.DNS) > 3 {
+		log.Warn("Maximum of 3 DNS servers. Additional servers specified will be ignored.")
+	}
+	if c.Data.ClientNetwork.Empty() && c.Data.ExternalNetwork.Empty() && c.Data.ManagementNetwork.Empty() {
+		log.Warn("Specified DNS servers are ignored if static IP is not set on any networks. VCH will use DNS servers provided by DHCP.")
+	}
+	log.Debugf("VCH DNS servers: %s", c.Data.DNS)
 	return nil
 }
 
@@ -560,6 +680,7 @@ func (m *ipNetUnmarshaler) UnmarshalText(text []byte) error {
 	m.ip = ip
 	return nil
 }
+
 func parseContainerNetworkGateways(cgs []string) (map[string]net.IPNet, error) {
 	gws := make(map[string]net.IPNet)
 	for _, cg := range cgs {

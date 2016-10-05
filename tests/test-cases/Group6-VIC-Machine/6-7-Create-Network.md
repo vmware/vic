@@ -15,7 +15,7 @@ This test requires that a vSphere server is running and available
 #Test Steps
 1. Create without external network provided
 2. Verify "VM Network" is connected in VCH VM
-3. Integration test passed 
+3. Integration test passed
 
 #Test Steps
 1. Create with wrong network name provided for external network
@@ -39,7 +39,7 @@ This test requires that a vSphere server is running and available
 1. Create without management network provided, but external network correctly set
 2. Verify warning message set for management network and client network sharing the same network
 3. No multiple attachement in VM network to same vSphere virtual switch (or DPG)
-4. Integration test passed 
+4. Integration test passed
 
 #Test Steps
 1. Create with wrong network name provided for management network
@@ -83,7 +83,7 @@ This test requires that a vSphere server is running and available
 3. Verify integration test passed
 
 #Test Steps
-1. Create with same network for bridige and external network 
+1. Create with same network for bridge and external network
 2. Verify create failed for same network with external network
 3. Same case with management network
 4. Same case with container network
@@ -159,3 +159,47 @@ This test requires that a vSphere server is running and available
 7. Docker network ls show net1
 8. Docker container created with network attached with net1, got ip address inside of network range
 9. Docker create another container, and link to previous one, can talk to the the first container successfully
+
+
+# Test Cases: VCH static IP
+
+# Test Steps
+1. Create with static IP address for external network (client and management networks unspecified
+   default to same port group as external network)
+2. Verify debug output shows specified static IP address correctly assigned and copied to client and
+   management networks
+
+# Test Steps
+1. Create with static IP address for client network and specify client, external, and management
+   networks to be on same port group
+2. Verify debug output shows specified static IP address correctly assigned and copied to external
+   and management networks
+
+# Test Steps
+1. Create with static IP address for managment network and specify client, external, and management
+   networks to be on the same port group
+2. Verify debug output shows specified static IP address correctly assigned and copied to client
+   and external management networks
+
+# Test Steps
+1. Create with static IP address for external network and specify client and management networks to
+   be on different port group
+2. Verify debug output shows specified static IP address correctly assigned
+3. Verify debug output shows client and management networks set to DHCP
+
+# Test Steps
+1. Create with static IP address for external network on `external-network` port group and a static
+   IP address for client network on `client-network` port group
+2. Verify debug output shows correct IP address assigned to each interface
+
+# Test Steps
+1. Create with static IP address for each external network and client network and specify both to be
+   on the same port group
+2. Verify output shows configuration error and install does not proceed
+
+# Test Steps
+1. Create with static IP address for external network and a static IP address for client network.
+   Specify the addresses to be on the same subnet, but assign each network to a different port
+   group
+2. Verify output shows warning that assigning the same subnet to different port groups is
+   unsupported
