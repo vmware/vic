@@ -15,7 +15,6 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
