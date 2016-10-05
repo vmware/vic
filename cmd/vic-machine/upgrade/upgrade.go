@@ -118,7 +118,7 @@ func (u *Upgrade) Run(cli *cli.Context) error {
 		log.Errorf("Upgrade cannot continue - failed to create validator: %s", err)
 		return errors.New("upgrade failed")
 	}
-	executor := management.NewDispatcher(validator.Context, validator.Session, nil, nil, u.Force)
+	executor := management.NewDispatcher(validator.Context, validator.Session, nil, u.Force)
 
 	var vch *vm.VirtualMachine
 	if u.Data.ID != "" {

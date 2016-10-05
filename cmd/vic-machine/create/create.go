@@ -807,8 +807,15 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		vchConfig.ExtensionKey = keybuffer.String()
 	}
 
-	executor := management.NewDispatcher(ctx, validator.Session, vchConfig, c.clientCert, c.Force)
+	executor := management.NewDispatcher(ctx, validator.Session, vchConfig, c.Force)
 	if err = executor.CreateVCH(vchConfig, vConfig); err != nil {
+
+		executor.CollectDiagnosticLogs()
+		return err
+	}
+
+	// check the docker endpoint is responsive
+	if err = executor.CheckDockerAPI(vchConfig, c.clientCert); err != nil {
 
 		executor.CollectDiagnosticLogs()
 		return err

@@ -15,7 +15,6 @@
 package management
 
 import (
-	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"math"
@@ -45,7 +44,6 @@ type Dispatcher struct {
 	vchPoolPath   string
 	vmPathName    string
 	dockertlsargs string
-	clientCert    *tls.Certificate
 
 	DockerPort    string
 	HostIP        string
@@ -73,16 +71,14 @@ var diagnosticLogs = make(map[string]*diagnosticLog)
 // NewDispatcher creates a dispatcher that can act upon VIC management operations.
 // clientCert is an optional client certificate to allow interaction with the Docker API for verification
 // force will ignore some errors
-func NewDispatcher(ctx context.Context, s *session.Session, conf *config.VirtualContainerHostConfigSpec,
-	clientCert *tls.Certificate, force bool) *Dispatcher {
+func NewDispatcher(ctx context.Context, s *session.Session, conf *config.VirtualContainerHostConfigSpec, force bool) *Dispatcher {
 	defer trace.End(trace.Begin(""))
 	isVC := s.IsVC()
 	e := &Dispatcher{
-		session:    s,
-		ctx:        ctx,
-		isVC:       isVC,
-		clientCert: clientCert,
-		force:      force,
+		session: s,
+		ctx:     ctx,
+		isVC:    isVC,
+		force:   force,
 	}
 	if conf != nil {
 		e.InitDiagnosticLogs(conf)

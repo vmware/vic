@@ -633,9 +633,9 @@ func isPortLayerRunning(res *http.Response) bool {
 	return false
 }
 
-// ensureComponentsInitialize checks if the appliance components are initialized by issuing
+// CheckDockerAPI checks if the appliance components are initialized by issuing
 // `docker info` to the appliance
-func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec, clientCert *tls.Certificate) error {
 	defer trace.End(trace.Begin(""))
 
 	var (
@@ -674,7 +674,9 @@ func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHos
 			// tr.TLSClientConfig.ClientCAs = pool
 			tr.TLSClientConfig.RootCAs = pool
 
-			if d.clientCert == nil {
+			if clientCert == nil {
+				// we know this will fail, but we can try to distinguish the expected error vs
+				// unresponse endpoint
 				tlsErrExpected = true
 				log.Debugf("CA configured on appliance but no client certificate available")
 			}
@@ -686,9 +688,9 @@ func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHos
 			addr = addrToUse(d.HostIP, conf)
 		}
 
-		if d.clientCert != nil {
+		if clientCert != nil {
 			log.Debug("Assigning certificates for client auth")
-			tr.TLSClientConfig.Certificates = []tls.Certificate{*d.clientCert}
+			tr.TLSClientConfig.Certificates = []tls.Certificate{*clientCert}
 		}
 
 		client = &http.Client{Transport: tr}
