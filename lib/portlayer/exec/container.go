@@ -438,18 +438,26 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 
 	log.Warnf("stopping %s via hard power off due to: %s", c.ExecConfig.ID, err)
 
-	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+	taskInfo, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return c.vm.PowerOff(ctx)
 	})
 
 	if err != nil {
+		log.Debugf("taskInfo during failed power off: %+v", taskInfo)
+
 		// It is possible the VM has finally shutdown in between, ignore the error in that case
 		if terr, ok := err.(task.Error); ok {
-			if serr, ok := terr.Fault().(*types.InvalidPowerState); ok {
-				if serr.ExistingState == types.VirtualMachinePowerStatePoweredOff {
-					log.Warnf("power off %s task skipped (state was already %s)", c.ExecConfig.ID, serr.ExistingState)
+			switch terr := terr.Fault().(type) {
+			case *types.InvalidPowerState:
+				if terr.ExistingState == types.VirtualMachinePowerStatePoweredOff {
+					log.Warnf("power off %s task skipped (state was already %s)", c.ExecConfig.ID, terr.ExistingState)
 					return nil
+				} else {
+					log.Warnf("invalid power state during power off: %s", terr.ExistingState)
 				}
+
+			default:
+				log.Warnf("hard power off failed due to: %#v", terr)
 			}
 		}
 		c.State = existingState

@@ -27,7 +27,7 @@ echo "export GOPATH=${BASH_ARGV[1]}" >> "$pro"
 # add GOPATH/bin to the PATH
 echo "export PATH=$PATH:${BASH_ARGV[1]}/bin" >> "$pro"
 
-apt-get -y install curl lsof strace git shellcheck tree mc silversearcher-ag jq htpdate apt-transport-https ca-certificates
+apt-get -y install curl lsof strace git shellcheck tree mc silversearcher-ag jq htpdate apt-transport-https ca-certificates nfs-common
 
 function update_go {
     (cd /usr/local &&

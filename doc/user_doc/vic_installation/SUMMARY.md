@@ -1,7 +1,7 @@
 # Summary
 
 * [Introduction](README.md)
-* [Overview of vSphere Integrated Containers Engine](introduction.md)
+* [Overview of vSphere Integrated Containers Engine for vSphere Administrators](introduction.md)
 * [Installing vSphere Integrated Containers Engine](installing_vic.md)
   * [Environment Prerequisites for vSphere Integrated Containers Engine Installation](vic_installation_prereqs.md)
   * [vSphere Integrated Containers Engine Networking Overview](networks.md)
