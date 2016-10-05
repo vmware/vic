@@ -63,6 +63,9 @@ type ExecutorConfig struct {
 // inside an executor
 // This is close to but not perfectly aligned with the new docker/docker/daemon/execdriver/driver:CommonProcessConfig
 type SessionConfig struct {
+	// Protects the structure
+	m sync.Mutex
+
 	// The primary session may have the same ID as the executor owning it
 	executor.Common `vic:"0.1" scope:"read-only" key:"common"`
 	executor.Detail `vic:"0.1" scope:"read-write" key:"detail"`

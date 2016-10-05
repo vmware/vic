@@ -74,7 +74,7 @@ func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) 
 		extensions: make(map[string]Extension),
 		src:        src,
 		sink:       sink,
-		incoming:   make(chan os.Signal, 10),
+		incoming:   make(chan os.Signal, 32),
 	}
 
 	// HACK: workaround file descriptor conflict in pipe2 return from the exec.Command.Start
@@ -240,6 +240,7 @@ func (t *tether) Start() error {
 				if proc == nil {
 					log.Infof("Launching process for session %s", session.ID)
 				} else {
+					session.m.Lock()
 					session.Diagnostics.ResurrectionCount++
 
 					// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
@@ -247,6 +248,7 @@ func (t *tether) Start() error {
 					extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo.vice..sessions|%s", session.ID))
 					log.Warnf("Re-launching process for session %s (count: %d)", session.ID, session.Diagnostics.ResurrectionCount)
 					session.Cmd = *restartableCmd(&session.Cmd)
+					session.m.Unlock()
 				}
 
 				err := t.launch(session)
@@ -306,6 +308,9 @@ func (t *tether) Register(name string, extension Extension) {
 func (t *tether) handleSessionExit(session *SessionConfig) {
 	defer trace.End(trace.Begin("handling exit of session " + session.ID))
 
+	session.m.Lock()
+	defer session.m.Unlock()
+
 	// stdio must be closed before calling wait or Wait hangs indefinitely
 	session.Reader.Close()
 	session.Cmd.Wait()
@@ -337,6 +342,9 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 // This will return an error if the session fails to launch
 func (t *tether) launch(session *SessionConfig) error {
 	defer trace.End(trace.Begin("launching session " + session.ID))
+
+	session.m.Lock()
+	defer session.m.Unlock()
 
 	// encode the result whether success or error
 	defer func() {
@@ -378,6 +386,7 @@ func (t *tether) launch(session *SessionConfig) error {
 	log.Debugf("Resolved %s to %s", session.Cmd.Path, resolved)
 	session.Cmd.Path = resolved
 
+	pid := 0
 	// Use the mutex to make creating a child and adding the child pid into the
 	// childPidTable appear atomic to the reaper function. Use a anonymous function
 	// so we can defer unlocking locally
@@ -396,8 +405,9 @@ func (t *tether) launch(session *SessionConfig) error {
 			return err
 		}
 
+		pid = session.Cmd.Process.Pid
 		// ChildReaper will use this channel to inform us the wait status of the child.
-		t.config.pids[session.Cmd.Process.Pid] = session
+		t.config.pids[pid] = session
 
 		return nil
 	}()
@@ -414,6 +424,7 @@ func (t *tether) launch(session *SessionConfig) error {
 
 	// Set the Started key to "true" - this indicates a successful launch
 	session.Started = "true"
+
 	// Write the PID to the associated PID file
 	cmdname := path.Base(session.Cmd.Path)
 	if err = os.MkdirAll(PIDFileDir(), 0755); err != nil {
@@ -421,12 +432,12 @@ func (t *tether) launch(session *SessionConfig) error {
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(PIDFileDir(), cmdname)),
-		[]byte(fmt.Sprintf("%d", session.Cmd.Process.Pid)),
+		[]byte(fmt.Sprintf("%d", pid)),
 		0644)
 	if err != nil {
 		log.Errorf("Unable to write PID file for %s: %s", cmdname, err)
 	}
-	log.Debugf("Launched command with pid %d", session.Cmd.Process.Pid)
+	log.Debugf("Launched command with pid %d", pid)
 
 	return nil
 }
