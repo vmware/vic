@@ -64,7 +64,10 @@ func (v *Validator) getEndpoint(ctx context.Context, conf *config.VirtualContain
 			Gateway:     gw,
 			Nameservers: ns,
 		},
-		Static: staticIP,
+		IP: staticIP,
+	}
+	if staticIP != nil {
+		e.Static = true
 	}
 	log.Debugf("NetworkEndpoint: %v", e)
 
