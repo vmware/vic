@@ -28,7 +28,7 @@ func TestCreateCA(t *testing.T) {
 	cacert, cakey, err := CreateRootCA("somewhere.com", "MyOrg", 2048)
 	assert.NoError(t, err, "Failed generating CA certificate")
 
-	_, _, err = parseCertificate(cacert.Bytes(), cakey.Bytes())
+	_, _, err = ParseCertificate(cacert.Bytes(), cakey.Bytes())
 	assert.NoError(t, err, "Failed reparsing CA certificate")
 
 }
@@ -51,9 +51,44 @@ func TestSignedCertificate(t *testing.T) {
 		Roots: roots,
 	}
 
-	tlsCert, _, err := parseCertificate(cert.Bytes(), key.Bytes())
+	tlsCert, _, err := ParseCertificate(cert.Bytes(), key.Bytes())
 	assert.NoError(t, err, "Failed loading signed certificate")
 
 	_, err = tlsCert.Verify(opts)
 	assert.NoError(t, err, "Failed loading signed certificate")
+}
+
+func TestFailedValidation(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+
+	cacert, cakey, err := CreateRootCA("somewhere.com", "MyOrg", 2048)
+	assert.NoError(t, err, "Failed generating ca certificate")
+
+	cert, key, err := CreateServerCertificate("somewere.com", "MyOrg", 2048, cacert.Bytes(), cakey.Bytes())
+	assert.NoError(t, err, "Failed generating signed certificate")
+
+	// validate
+	roots := x509.NewCertPool()
+	ok := roots.AppendCertsFromPEM(cacert.Bytes())
+	assert.Equal(t, true, ok, "Failed to append CA to roots")
+
+	tlsCert, _, err := ParseCertificate(cert.Bytes(), key.Bytes())
+	assert.NoError(t, err, "Failed loading signed certificate")
+
+	opts := x509.VerifyOptions{
+		Roots:   roots,
+		DNSName: "somewhereELSE.com",
+	}
+
+	_, err = tlsCert.Verify(opts)
+	assert.Error(t, err, "Expected to fail initial verify")
+
+	opts = x509.VerifyOptions{
+		Roots:   roots,
+		DNSName: "somewhere.com",
+	}
+
+	_, err = tlsCert.Verify(opts)
+	assert.Error(t, err, "Expected to pass second verify")
+
 }

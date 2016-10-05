@@ -79,7 +79,10 @@ func (s *server) listen(useTLS bool) error {
 		log.Errorf("Could not load certificate from config - running without TLS: %s", err)
 		// TODO: add static web page with the vic
 	} else {
-		tlsconfig.Certificates = []tls.Certificate{*certificate}
+		tlsconfig.Certificates = []tls.Certificate{
+			tls.Certificate{
+				Certificate: [][]byte{certificate.Raw},
+			}}
 	}
 
 	if !useTLS || err != nil {

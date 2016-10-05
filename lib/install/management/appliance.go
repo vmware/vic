@@ -647,6 +647,8 @@ func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHos
 		tlsErrExpected bool
 	)
 
+	addr := d.HostIP
+
 	if conf.HostCertificate.IsNil() {
 		// TLS disabled
 		proto = "http"
@@ -679,6 +681,9 @@ func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHos
 
 			// if tlsverify was configured at all then we must verify the remote
 			tr.TLSClientConfig.InsecureSkipVerify = false
+
+			// find the name to use
+			addr = addrToUse(d.HostIP, conf)
 		}
 
 		if d.clientCert != nil {
@@ -689,7 +694,7 @@ func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHos
 		client = &http.Client{Transport: tr}
 	}
 
-	dockerInfoURL := fmt.Sprintf("%s://%s:%s/info", proto, d.HostIP, d.DockerPort)
+	dockerInfoURL := fmt.Sprintf("%s://%s:%s/info", proto, addr, d.DockerPort)
 	req, err = http.NewRequest("GET", dockerInfoURL, nil)
 	if err != nil {
 		return errors.New("invalid HTTP request for docker info")
@@ -711,9 +716,9 @@ func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHos
 		}
 
 		// TODO: add check for rejection without cert - indicates a degree of initialization
-		// HTTP status 403.7
-		if tlsErrExpected && res.StatusCode == http.StatusForbidden {
-			log.Debugf("Expected status forbidden received from endpoint (%s): %s", res.Status, err)
+		// HTTP status 403.7. Change this to check for structured error and status codes if possible
+		if tlsErrExpected && err != nil {
+			log.Debugf("Expected TLS error from endpoint due to IP based addressing, skipping component check: %+v", err)
 			// TODO: check for 403.17 - we see that regardless until the appliance has updated
 			// it's clock in some cases
 			break

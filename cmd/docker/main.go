@@ -209,7 +209,11 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 			log.Fatalf("Could not load certificate from config and refusing to run without TLS with a host certificate specified: %s", err)
 		}
 
-		tlsConfig.Certificates = []tls.Certificate{*cert}
+		tlsConfig.Certificates = []tls.Certificate{
+			tls.Certificate{
+				Certificate: [][]byte{cert.Raw},
+			}}
+
 		serverConfig.TLSConfig = tlsConfig
 
 		// Set options for TLS

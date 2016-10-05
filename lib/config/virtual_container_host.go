@@ -15,7 +15,7 @@
 package config
 
 import (
-	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"net"
 	"net/mail"
@@ -24,6 +24,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/pkg/certificate"
 )
 
 // PatternToken is a set of tokens that can be placed into string constants
@@ -297,12 +298,12 @@ func CreateSession(cmd string, args ...string) *executor.SessionConfig {
 	return cfg
 }
 
-func (t *RawCertificate) Certificate() (*tls.Certificate, error) {
+func (t *RawCertificate) Certificate() (*x509.Certificate, error) {
 	if t.IsNil() {
 		return nil, errors.New("nil certificate")
 	}
-	cert, err := tls.X509KeyPair(t.Cert, t.Key)
-	return &cert, err
+	cert, _, err := certificate.ParseCertificate(t.Cert, t.Key)
+	return cert, err
 }
 
 func (t *RawCertificate) IsNil() bool {

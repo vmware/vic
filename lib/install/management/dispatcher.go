@@ -16,9 +16,12 @@ package management
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"math"
+	"net"
 	"os"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -209,4 +212,41 @@ func (d *Dispatcher) CollectDiagnosticLogs() {
 			fmt.Fprintln(f, line)
 		}
 	}
+}
+
+func addrToUse(ip string, conf *config.VirtualContainerHostConfigSpec) string {
+	log.Debug("Loading CAs for client auth")
+	pool := x509.NewCertPool()
+	pool.AppendCertsFromPEM(conf.CertificateAuthorities)
+
+	// update target to use FQDN
+	names, err := net.LookupAddr(ip)
+	if err != nil {
+		log.Errorf("Unable to perform reverse lookup of IP address - skipping component check: %s", err)
+		return ip
+	}
+
+	cert, err := conf.HostCertificate.Certificate()
+	if err != nil {
+		log.Errorf("Unable to extract host certificate - skipping component check: %s", err)
+		return ip
+	}
+
+	for _, n := range names {
+		opts := x509.VerifyOptions{
+			Roots:   pool,
+			DNSName: n,
+		}
+
+		_, err := cert.Verify(opts)
+		if err == nil {
+			// this name will work
+			log.Debugf("Matched %s for use against host certificate", n)
+			// trim '.' fqdn suffix
+			return strings.TrimSuffix(n, ".")
+		}
+	}
+
+	// no viable fqdns
+	return ip
 }

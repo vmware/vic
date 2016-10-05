@@ -73,16 +73,27 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 	log.Infof("")
 	tls := ""
 
+	addr := d.HostIP
 	if !conf.HostCertificate.IsNil() {
 		// if we're generating then there's no CA currently
-		if len(conf.CertificateAuthorities) > 0 && key != "" {
-			tls = fmt.Sprintf(" --tlsverify --tlscacert=%s --tlscert='%s' --tlskey='%s'", cacert, cert, key)
+		if len(conf.CertificateAuthorities) > 0 {
+			// find the name to use
+			addr = addrToUse(d.HostIP, conf)
+
+			if key != "" {
+				tls = fmt.Sprintf(" --tlsverify --tlscacert=%s --tlscert='%s' --tlskey='%s'", cacert, cert, key)
+			} else {
+				tls = fmt.Sprintf(" --tlsverify --tlscacert=... --tlscert=... --tlskey=...")
+			}
+
+			log.Infof("DOCKER_TLS_VERIFY=1")
 		} else {
 			tls = " --tls"
 		}
 	}
-	log.Infof("DOCKER_HOST=%s:%s", d.HostIP, d.DockerPort)
+
+	log.Infof("DOCKER_HOST=%s:%s", addr, d.DockerPort)
 	log.Infof("")
 	log.Infof("Connect to docker:")
-	log.Infof("docker -H %s:%s%s info", d.HostIP, d.DockerPort, tls)
+	log.Infof("docker -H %s:%s%s info", addr, d.DockerPort, tls)
 }

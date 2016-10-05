@@ -217,10 +217,10 @@ func loadCertificate(cf, kf string) (*x509.Certificate, *rsa.PrivateKey, error) 
 		return nil, nil, err
 	}
 
-	return parseCertificate(cb, kb)
+	return ParseCertificate(cb, kb)
 }
 
-func parseCertificate(cb, kb []byte) (*x509.Certificate, *rsa.PrivateKey, error) {
+func ParseCertificate(cb, kb []byte) (*x509.Certificate, *rsa.PrivateKey, error) {
 	defer trace.End(trace.Begin(""))
 
 	block, _ := pem.Decode(cb)
@@ -266,7 +266,7 @@ func CreateServerCertificate(domain, org string, size int, cb, kb []byte) (cert 
 	defer trace.End(trace.Begin(""))
 
 	// Load up the CA
-	cacert, cakey, err := parseCertificate(cb, kb)
+	cacert, cakey, err := ParseCertificate(cb, kb)
 	if err != nil {
 		return cert, key, err
 	}
@@ -284,7 +284,7 @@ func CreateClientCertificate(domain, org string, size int, cb, kb []byte) (cert 
 	defer trace.End(trace.Begin(""))
 
 	// Load up the CA
-	cacert, cakey, err := parseCertificate(cb, kb)
+	cacert, cakey, err := ParseCertificate(cb, kb)
 
 	// Generate the new cert
 	template, pkey, err := templateWithKey(templateAsClientOnly(template(org)), size)
