@@ -441,9 +441,10 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 	taskInfo, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return c.vm.PowerOff(ctx)
 	})
-	log.Debugf("taskInfo during power off: %+v", taskInfo)
 
 	if err != nil {
+		log.Debugf("taskInfo during failed power off: %+v", taskInfo)
+
 		// It is possible the VM has finally shutdown in between, ignore the error in that case
 		if terr, ok := err.(task.Error); ok {
 			switch terr := terr.Fault().(type) {
