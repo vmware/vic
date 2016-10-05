@@ -34,38 +34,40 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (v *Validator) addNetworkHelper(ctx context.Context, conf *config.VirtualContainerHostConfigSpec, netName, epName, contNetName string, def bool) error {
+func (v *Validator) getEndpoint(ctx context.Context, conf *config.VirtualContainerHostConfigSpec, network data.NetworkConfig, epName, contNetName string, def bool, ns []net.IP) (*executor.NetworkEndpoint, error) {
 	defer trace.End(trace.Begin(""))
+	var gw net.IPNet
+	var staticIP *net.IPNet
 
-	moid, err := v.networkHelper(ctx, netName)
+	if !network.Empty() {
+		log.Debugf("Setting static IP for %q on port group %q", contNetName, network.Name)
+		gw = network.Gateway
+		staticIP = &network.IP
+	}
+
+	moid, err := v.networkHelper(ctx, network.Name)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if epName != "" {
-		conf.AddNetwork(&executor.NetworkEndpoint{
+	e := &executor.NetworkEndpoint{
+		Common: executor.Common{
+			Name: epName,
+		},
+		Network: executor.ContainerNetwork{
 			Common: executor.Common{
-				Name: epName,
+				Name: contNetName,
+				ID:   moid,
 			},
-			Network: executor.ContainerNetwork{
-				Common: executor.Common{
-					Name: contNetName,
-					ID:   moid,
-				},
-				Default: def,
-			},
-		})
-	} else {
-		conf.AddNetwork(&executor.NetworkEndpoint{
-			Network: executor.ContainerNetwork{
-				Common: executor.Common{
-					Name: contNetName,
-					ID:   moid,
-				},
-			},
-		})
+			Default:     def,
+			Gateway:     gw,
+			Nameservers: ns,
+		},
+		Static: staticIP,
 	}
-	return nil
+	log.Debugf("NetworkEndpoint: %v", e)
+
+	return e, nil
 }
 
 func (v *Validator) checkNetworkConflict(bridgeNetName, otherNetName, otherNetType string) {
@@ -74,40 +76,147 @@ func (v *Validator) checkNetworkConflict(bridgeNetName, otherNetName, otherNetTy
 	}
 }
 
+// portGroupConfig gets the input config for all networks
+// for use in checking that the config is valid
+func (v *Validator) portGroupConfig(input *data.Data, counts map[string]int, ips map[string][]data.NetworkConfig) {
+	defer trace.End(trace.Begin(""))
+
+	if input.ManagementNetwork.Name != "" {
+		counts[input.ManagementNetwork.Name]++
+		if !input.ManagementNetwork.Empty() {
+			ips[input.ManagementNetwork.Name] = append(ips[input.ManagementNetwork.Name], input.ManagementNetwork)
+		}
+	}
+	if input.ClientNetwork.Name != "" {
+		counts[input.ClientNetwork.Name]++
+		if !input.ClientNetwork.Empty() {
+			ips[input.ClientNetwork.Name] = append(ips[input.ClientNetwork.Name], input.ClientNetwork)
+		}
+	}
+	if input.ExternalNetwork.Name != "" {
+		counts[input.ExternalNetwork.Name]++
+		if !input.ExternalNetwork.Empty() {
+			ips[input.ExternalNetwork.Name] = append(ips[input.ExternalNetwork.Name], input.ExternalNetwork)
+		}
+	}
+}
+
+// checkPortGroups checks that network config is valid
+// prevent assigning > 1 static IP to the same port group
+// warn if assigning addresses in the same subnet to > 1 port group
+func (v *Validator) checkPortGroups(counts map[string]int, ips map[string][]data.NetworkConfig) error {
+	defer trace.End(trace.Begin(""))
+
+	networks := make(map[string]string)
+
+	for pg, config := range ips {
+		if len(ips[pg]) > 1 {
+			var msgIPs []string
+			for _, v := range ips[pg] {
+				msgIPs = append(msgIPs, v.IP.IP.String())
+			}
+			log.Errorf("Port group %q is configured for networks with more than one static IP: %s", pg, msgIPs)
+			log.Error("All VCH networks on the same port group must have the same IP address")
+			log.Error("To resolve this, configure static IP for one network and assign other networks to same port group.")
+			log.Error("The static IP will be automatically configured for networks sharing the port group.")
+			return fmt.Errorf("Incorrect static IP configuration for networks on port group %q", pg)
+		}
+
+		// check if same subnet assigned to multiple portgroups - this can cause routing problems
+		_, net, _ := net.ParseCIDR(config[0].IP.String())
+		netAddr := net.String()
+		if networks[netAddr] != "" {
+			log.Warnf("Unsupported static IP configuration: Same subnet %q is assigned to multiple port groups %q and %q", netAddr, networks[netAddr], pg)
+		} else {
+			networks[netAddr] = pg
+		}
+	}
+
+	return nil
+}
+
+// configureSharedPortGroups sets VCH static IP for networks that share a
+// portgroup with another network that has a configured static IP
+func (v *Validator) configureSharedPortGroups(input *data.Data, counts map[string]int, ips map[string][]data.NetworkConfig) error {
+	defer trace.End(trace.Begin(""))
+
+	// find other networks using same portgroup and copy the NetworkConfig to them
+	for name, config := range ips {
+		if len(config) != 1 {
+			return fmt.Errorf("Failed to configure static IP for additional networks using port group %q", name)
+		}
+		log.Infof("Configuring static IP for additional networks using port group %q", name)
+		if input.ClientNetwork.Name == name && input.ClientNetwork.Empty() {
+			input.ClientNetwork = config[0]
+		}
+		if input.ExternalNetwork.Name == name && input.ExternalNetwork.Empty() {
+			input.ExternalNetwork = config[0]
+		}
+		if input.ManagementNetwork.Name == name && input.ManagementNetwork.Empty() {
+			input.ManagementNetwork = config[0]
+		}
+	}
+
+	return nil
+}
+
 func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
+	var e *executor.NetworkEndpoint
+	var err error
+
+	// set default portgroup if user input not provided
+	if input.ClientNetwork.Name == "" {
+		input.ClientNetwork.Name = input.ExternalNetwork.Name
+	}
+	if input.ManagementNetwork.Name == "" {
+		input.ManagementNetwork.Name = input.ClientNetwork.Name
+	}
+
+	c := make(map[string]int)                  // number of VCH networks using portgroup
+	i := make(map[string][]data.NetworkConfig) // user configured IPs for portgroup
+	v.portGroupConfig(input, c, i)
+
+	err = v.checkPortGroups(c, i)
+	v.NoteIssue(err)
+
+	err = v.configureSharedPortGroups(input, c, i)
+	v.NoteIssue(err)
+
 	// External net
 	// external network is default for appliance
-	err := v.addNetworkHelper(ctx, conf, input.ExternalNetworkName, "external", "external", true)
+	e, err = v.getEndpoint(ctx, conf, input.ExternalNetwork, "external", "external", true, input.DNS)
 	if err != nil {
 		v.NoteIssue(fmt.Errorf("Error checking network for --external-network: %s", err))
 		v.suggestNetwork("--external-network", true)
 	}
 	// Bridge network should be different than all other networks
-	v.checkNetworkConflict(input.BridgeNetworkName, input.ExternalNetworkName, "external")
+	v.checkNetworkConflict(input.BridgeNetworkName, input.ExternalNetwork.Name, "external")
+	conf.AddNetwork(e)
 
-	// Client net
-	if input.ClientNetworkName == "" {
-		input.ClientNetworkName = input.ExternalNetworkName
-	}
-	err = v.addNetworkHelper(ctx, conf, input.ClientNetworkName, "client", "client", false)
+	// Client net - defaults to connect to same portgroup as external
+	e, err = v.getEndpoint(ctx, conf, input.ClientNetwork, "client", "client", false, input.DNS)
 	if err != nil {
 		v.NoteIssue(fmt.Errorf("Error checking network for --client-network: %s", err))
 		v.suggestNetwork("--client-network", true)
 	}
-	v.checkNetworkConflict(input.BridgeNetworkName, input.ClientNetworkName, "client")
+	v.checkNetworkConflict(input.BridgeNetworkName, input.ClientNetwork.Name, "client")
+	conf.AddNetwork(e)
 
-	// Management net
-	if input.ManagementNetworkName == "" {
-		input.ManagementNetworkName = input.ClientNetworkName
-	}
-	err = v.addNetworkHelper(ctx, conf, input.ManagementNetworkName, "", "management", false)
+	// Management net - defaults to connect to the same portgroup as client
+	e, err = v.getEndpoint(ctx, conf, input.ManagementNetwork, "", "management", false, input.DNS)
 	if err != nil {
 		v.NoteIssue(fmt.Errorf("Error checking network for --management-network: %s", err))
 		v.suggestNetwork("--management-network", true)
 	}
-	v.checkNetworkConflict(input.BridgeNetworkName, input.ManagementNetworkName, "management")
+	v.checkNetworkConflict(input.BridgeNetworkName, input.ManagementNetwork.Name, "management")
+	conf.AddNetwork(e)
+
+	log.Debug("Network configuration:")
+	for net, val := range conf.ExecutorConfig.Networks {
+		log.Debugf("\tNetwork: %s NetworkEndpoint: %v", net, val)
+	}
 
 	// Bridge net -
 	//   vCenter: must exist and must be a DPG
@@ -255,27 +364,29 @@ func (v *Validator) generateBridgeName(ctx, input *data.Data, conf *config.Virtu
 	return input.DisplayName
 }
 
-func (v *Validator) getNetwork(ctx context.Context, path string) (object.NetworkReference, error) {
-	defer trace.End(trace.Begin(path))
+// getNetwork gets a moref based on the network name
+func (v *Validator) getNetwork(ctx context.Context, name string) (object.NetworkReference, error) {
+	defer trace.End(trace.Begin(name))
 
-	nets, err := v.Session.Finder.NetworkList(ctx, path)
+	nets, err := v.Session.Finder.NetworkList(ctx, name)
 	if err != nil {
-		log.Debugf("no such network %q", path)
+		log.Debugf("no such network %q", name)
 		// TODO: error message about no such match and how to get a network list
 		// we return err directly here so we can check the type
 		return nil, err
 	}
 	if len(nets) > 1 {
 		// TODO: error about required disabmiguation and list entries in nets
-		return nil, errors.New("ambiguous network " + path)
+		return nil, errors.New("ambiguous network " + name)
 	}
 	return nets[0], nil
 }
 
-func (v *Validator) networkHelper(ctx context.Context, path string) (string, error) {
-	defer trace.End(trace.Begin(path))
+// networkHelper gets a moid based on the network name
+func (v *Validator) networkHelper(ctx context.Context, name string) (string, error) {
+	defer trace.End(trace.Begin(name))
 
-	net, err := v.getNetwork(ctx, path)
+	net, err := v.getNetwork(ctx, name)
 	if err != nil {
 		return "", err
 	}

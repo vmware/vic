@@ -125,7 +125,7 @@ func (v *VolumeStore) getDatastore(store *url.URL) (*datastore.Helper, error) {
 	// find the datastore
 	dstore, ok := v.ds[*store]
 	if !ok {
-		return nil, storage.VolumeStoreNotFoundError{fmt.Sprintf("volume store (%s) not found", store.String())}
+		return nil, storage.VolumeStoreNotFoundError{Msg: fmt.Sprintf("volume store (%s) not found", store.String())}
 	}
 
 	return dstore, nil
