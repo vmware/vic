@@ -69,17 +69,35 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 	if err = d.uploadImages(settings.ImageFiles); err != nil {
 		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
 	}
+	var deleteImage bool
+	defer func() {
+		if deleteImage {
+			// do clean up aggressively, even the previous operation failed with context deadline excceeded.
+			d.ctx = context.Background()
+			d.deleteUpgradeImages(ds, settings)
+		}
+	}()
+
 	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)
 
 	snapshotName := fmt.Sprintf("%s %s", UpgradePrefix, conf.Version.BuildNumber)
 	snapshotName = strings.TrimSpace(snapshotName)
 	snapshotRefID, err := d.createSnapshot(snapshotName, "upgrade snapshot")
 	if err != nil {
+		deleteImage = true
 		return err
 	}
+	var deleteSnapshot bool
+	defer func() {
+		if deleteSnapshot {
+			// do clean up aggressively, even the previous operation failed with context deadline excceeded.
+			d.ctx = context.Background()
+			d.cleanSnapshot(*snapshotRefID, snapshotName, conf.Name)
+		}
+	}()
 
 	if err = d.update(conf, settings); err == nil {
-		d.cleanSnapshot(*snapshotRefID, snapshotName, conf.Name)
+		deleteSnapshot = true
 		return nil
 	}
 	log.Errorf("Failed to upgrade: %s", err)
@@ -96,10 +114,8 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 		return err
 	}
 
-	// do clean up aggressively, even the previous operation failed with context deadline excceeded.
-	d.ctx = context.Background()
-	d.cleanSnapshot(*snapshotRefID, snapshotName, conf.Name)
-	d.deleteUpgradeImages(ds, settings)
+	deleteSnapshot = true
+	deleteImage = true
 	log.Infof("Appliance is rollback to old version")
 	return err
 }
@@ -159,12 +175,12 @@ func (d *Dispatcher) deleteUpgradeImages(ds *object.Datastore, settings *data.In
 
 	m := object.NewFileManager(ds.Client())
 
-	file := path.Join(d.vmPathName, settings.ApplianceISO)
+	file := ds.Path(path.Join(d.vmPathName, settings.ApplianceISO))
 	if err := d.deleteVMFSFiles(m, ds, file); err != nil {
 		log.Warnf("Image file %q is not removed for %s. Use the vSphere UI to delete content", file, err)
 	}
 
-	file = path.Join(d.vmPathName, settings.BootstrapISO)
+	file = ds.Path(path.Join(d.vmPathName, settings.BootstrapISO))
 	if err := d.deleteVMFSFiles(m, ds, file); err != nil {
 		log.Warnf("Image file %q is not removed for %s. Use the vSphere UI to delete content", file, err)
 	}
