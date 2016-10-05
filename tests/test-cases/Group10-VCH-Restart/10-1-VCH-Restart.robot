@@ -39,8 +39,7 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create bar
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create bar
-    Should Be Equal As Integers  ${rc}  0
+
     ${bridge-exited}=  Launch Container  vch-restart-bridge-exited  bridge  ls
     ${bridge-running}=  Launch Container  vch-restart-bridge-running  bridge
     ${bridge-running-ip}=  Get Container IP  ${bridge-running}  bridge
