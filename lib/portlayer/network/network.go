@@ -78,9 +78,10 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 				log.Warnf("Could not reacquire object reference from id for network %s: %s", nn, n.ID)
 			}
 
-			r, err := f.ObjectReference(ctx, *pgref)
-			if err != nil {
-				log.Warnf("could not get network reference for %s network", nn)
+			var r object.Reference
+			if r, err = f.ObjectReference(ctx, *pgref); err != nil {
+				log.Warnf("could not get network reference for %s network: %s", nn, err)
+				err = nil
 				continue
 			}
 

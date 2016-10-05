@@ -84,13 +84,13 @@ func parseScopeConfig(cfg *models.ScopeConfig) (subnet *net.IPNet, gateway net.I
 
 func (handler *ScopesHandlersImpl) listScopes(idName string) ([]*models.ScopeConfig, error) {
 	defer trace.End(trace.Begin(idName))
-	_scopes, err := handler.netCtx.Scopes(context.Background(), &idName)
+	scs, err := handler.netCtx.Scopes(context.Background(), &idName)
 	if err != nil {
 		return nil, err
 	}
 
-	cfgs := make([]*models.ScopeConfig, len(_scopes))
-	for i, s := range _scopes {
+	cfgs := make([]*models.ScopeConfig, len(scs))
+	for i, s := range scs {
 		cfgs[i] = toScopeConfig(s)
 	}
 

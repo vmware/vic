@@ -157,7 +157,7 @@ func (c *Container) NewHandle(ctx context.Context) *Handle {
 	if c.vm != nil {
 		if err := c.refresh(ctx); err != nil {
 			log.Errorf("refreshing container %s failed: %s", c.ExecConfig.ID, err)
-			return nil
+			return nil // nil indicates error
 		}
 	}
 
