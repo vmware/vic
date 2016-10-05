@@ -107,7 +107,9 @@ func (v *Validator) portGroupConfig(input *data.Data, counts map[string]int, ips
 func (v *Validator) checkPortGroups(counts map[string]int, ips map[string][]data.NetworkConfig) error {
 	defer trace.End(trace.Begin(""))
 
-	for pg := range ips {
+	networks := make(map[string]string)
+
+	for pg, config := range ips {
 		if len(ips[pg]) > 1 {
 			var msgIPs []string
 			for _, v := range ips[pg] {
@@ -119,17 +121,14 @@ func (v *Validator) checkPortGroups(counts map[string]int, ips map[string][]data
 			log.Error("The static IP will be automatically configured for networks sharing the port group.")
 			return fmt.Errorf("Incorrect static IP configuration for networks on port group %q", pg)
 		}
-	}
 
-	// check if same subnet assigned to multiple portgroups - this can cause routing problems
-	networks := make(map[string]string)
-	for n, config := range ips {
+		// check if same subnet assigned to multiple portgroups - this can cause routing problems
 		_, net, _ := net.ParseCIDR(config[0].IP.String())
 		netAddr := net.String()
 		if networks[netAddr] != "" {
-			log.Warnf("Unsupported static IP configuration: Same subnet %q is assigned to multiple port groups %q and %q", netAddr, networks[netAddr], n)
+			log.Warnf("Unsupported static IP configuration: Same subnet %q is assigned to multiple port groups %q and %q", netAddr, networks[netAddr], pg)
 		} else {
-			networks[netAddr] = n
+			networks[netAddr] = pg
 		}
 	}
 
