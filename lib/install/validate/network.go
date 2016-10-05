@@ -145,7 +145,8 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 			Name: "bridge",
 			ID:   bridgeID,
 		},
-		Static: &net.IPNet{IP: net.IPv4zero}, // static but managed externally
+		Static: true,
+		IP:     &net.IPNet{IP: net.IPv4zero}, // static but managed externally
 		Network: executor.ContainerNetwork{
 			Common: executor.Common{
 				Name: "bridge",
