@@ -66,42 +66,53 @@ func (t *tether) childReaper() error {
 	log.Info("Started reaping child processes")
 
 	go func() {
-		for range t.incoming {
-			var status syscall.WaitStatus
+		var status syscall.WaitStatus
 
+		flag := syscall.WNOHANG | syscall.WUNTRACED | syscall.WCONTINUED
+		for range t.incoming {
 			func() {
 				// general resiliency
-				defer recover()
+				defer func() {
+					if r := recover(); r != nil {
+						fmt.Printf("Recovered in childReaper %v", r)
+					}
+				}()
 
 				// reap until no more children to process
 				for {
 					log.Debugf("Inspecting children with status change")
-					pid, err := syscall.Wait4(-1, &status, syscall.WNOHANG, nil)
+
+					pid, err := syscall.Wait4(-1, &status, flag, nil)
+					// pid 0 means no processes wish to report status
 					if pid == 0 || err == syscall.ECHILD {
 						log.Debug("No more child processes to reap")
 						break
 					}
-					if err == nil {
-						if !status.Exited() && !status.Signaled() {
-							log.Debugf("Received notifcation about non-exit status change for %d: %d", pid, status)
-							// no reaping or exit handling required
-							continue
-						}
 
-						log.Debugf("Reaped process %d, return code: %d", pid, status.ExitStatus())
-
-						session, ok := t.removeChildPid(pid)
-						if ok {
-							// will be -1 if terminated due to signal
-							session.ExitStatus = status.ExitStatus()
-							t.handleSessionExit(session)
-						} else {
-							// This is an adopted zombie. The Wait4 call
-							// already clean it up from the kernel
-							log.Infof("Reaped zombie process PID %d\n", pid)
-						}
-					} else {
+					if err != nil {
 						log.Warnf("Wait4 got error: %v\n", err)
+						break
+					}
+
+					if !status.Exited() && !status.Signaled() {
+						log.Debugf("Received notifcation about non-exit status change for %d: %d", pid, status)
+						// no reaping or exit handling required
+						continue
+					}
+
+					log.Debugf("Reaped process %d, return code: %d", pid, status.ExitStatus())
+
+					session, ok := t.removeChildPid(pid)
+					log.Debugf("Remove child pid: %d session: %#+v ok: %t", pid, session, ok)
+					if ok {
+						session.m.Lock()
+						session.ExitStatus = status.ExitStatus()
+						session.m.Unlock()
+
+						t.handleSessionExit(session)
+					} else {
+						// This is an adopted zombie. The Wait4 call already clean it up from the kernel
+						log.Infof("Reaped zombie process PID %d\n", pid)
 					}
 				}
 			}()

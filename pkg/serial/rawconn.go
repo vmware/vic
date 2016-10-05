@@ -116,9 +116,13 @@ func (conn *RawConn) Read(b []byte) (int, error) {
 		bytes <- n
 	}()
 
+	conn.mutex.Lock()
+	closed := conn.closed
+	conn.mutex.Unlock()
+
 	select {
 	case n = <-bytes:
-		if err != nil && conn.closed {
+		if err != nil && closed {
 			err = io.EOF
 		}
 		return n, err
@@ -159,9 +163,9 @@ func (conn *RawConn) Close() error {
 	errR := conn.rchannel.Close()
 	errW := conn.wchannel.Close()
 
-	buf := make([]byte, 4096)
-	bytes := runtime.Stack(buf, false)
 	if verbose {
+		buf := make([]byte, 4096)
+		bytes := runtime.Stack(buf, false)
 		log.Debugf("Close called on RawConn (%s:%s):\n%s", conn.rchannel.Name(), conn.wchannel.Name(), string(buf[:bytes]))
 	}
 

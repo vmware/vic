@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"sync"
 	"syscall"
 
@@ -299,7 +298,7 @@ func (t *attachServerSSH) run() error {
 		}
 		log.Debugf("reader/writers bound for channel for %s", sessionid)
 
-		go t.channelMux(requests, session.Cmd.Process, session.Pty, detach)
+		go t.channelMux(requests, session, detach)
 	}
 
 	log.Info("incoming attach channel closed")
@@ -308,7 +307,7 @@ func (t *attachServerSSH) run() error {
 }
 
 func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
-	defer trace.End(trace.Begin("start attach server global request handler"))
+	defer trace.End(trace.Begin("attach server global request handler"))
 
 	for req := range reqchan {
 		var pendingFn func()
@@ -349,8 +348,14 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 	}
 }
 
-func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process, pty *os.File, detach func()) {
-	defer trace.End(trace.Begin("start attach server channel request handler"))
+func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.SessionConfig, detach func()) {
+	defer trace.End(trace.Begin("attach server channel request handler"))
+
+	// detach
+	defer detach()
+
+	process := session.Cmd.Process
+	pty := session.Pty
 
 	var err error
 	for req := range in {
@@ -382,6 +387,12 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 					log.Errorf("Failed to dispatch signal to process: %s\n", err)
 				}
 			}
+		case msgs.CloseStdinReq:
+			// call Close as the pendingFn so that we can send reply back before closing the channel
+			pendingFn = func() {
+				log.Debugf("Closing stdin for %s", session.ID)
+				session.Reader.Close()
+			}
 		default:
 			ok = false
 			err = fmt.Errorf("ssh request type %s is not supported", req.Type)
@@ -390,6 +401,7 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 
 		// payload is ignored on channel specific replies.  The ok is passed, however.
 		if req.WantReply {
+			log.Debugf("Sending reply %t back", ok)
 			req.Reply(ok, nil)
 		}
 
@@ -401,7 +413,6 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, process *os.Process
 		}
 	}
 
-	detach()
 }
 
 // The syscall struct
