@@ -22,6 +22,7 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"

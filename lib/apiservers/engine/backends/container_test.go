@@ -34,6 +34,7 @@ import (
 	"github.com/docker/go-connections/nat"
 
 	"github.com/vishvananda/netlink"
+
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	plclient "github.com/vmware/vic/lib/apiservers/portlayer/client"

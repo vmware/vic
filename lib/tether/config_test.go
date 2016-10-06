@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"

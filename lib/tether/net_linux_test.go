@@ -25,6 +25,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/etcconf"
 )

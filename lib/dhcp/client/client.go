@@ -24,6 +24,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/d2g/dhcp4"
 	"github.com/d2g/dhcp4client"
+
 	"github.com/vmware/vic/lib/dhcp"
 	"github.com/vmware/vic/pkg/ip"
 )

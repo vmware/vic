@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/govmomi/object"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/vsphere/datastore"

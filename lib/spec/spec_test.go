@@ -20,11 +20,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
-	"golang.org/x/net/context"
 )
 
 func TestVirtualMachineConfigSpec(t *testing.T) {

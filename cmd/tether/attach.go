@@ -22,11 +22,12 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/net/context"
+
 	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/trace"
-	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/context"
 )
 
 const (

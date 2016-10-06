@@ -21,11 +21,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/urfave/cli"
+	"golang.org/x/net/context"
+
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/install/plugin"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
-	"golang.org/x/net/context"
 )
 
 // Plugin has all input parameters for vic-ui ui command

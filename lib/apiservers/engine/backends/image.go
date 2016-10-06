@@ -30,6 +30,7 @@ import (
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/registry"
+
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/metadata"

@@ -28,6 +28,7 @@ import (
 	"github.com/docker/engine-api/types"
 	"github.com/docker/go-units"
 	"github.com/google/uuid"
+
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/pkg/trace"

@@ -22,6 +22,7 @@ import (
 	errors "github.com/go-swagger/go-swagger/errors"
 	httpkit "github.com/go-swagger/go-swagger/httpkit"
 	"github.com/go-swagger/go-swagger/swag"
+
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/handlers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"

@@ -16,6 +16,7 @@ package handlers
 
 import (
 	"github.com/go-swagger/go-swagger/httpkit/middleware"
+
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/misc"

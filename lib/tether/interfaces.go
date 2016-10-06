@@ -17,8 +17,9 @@ package tether
 import (
 	"io"
 
-	"github.com/vmware/vic/pkg/dio"
 	"golang.org/x/net/context"
+
+	"github.com/vmware/vic/pkg/dio"
 )
 
 // Operations defines the set of operations that Tether depends upon. These are split out for:

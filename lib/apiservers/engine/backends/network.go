@@ -25,6 +25,7 @@ import (
 	derr "github.com/docker/docker/errors"
 	apinet "github.com/docker/engine-api/types/network"
 	"github.com/docker/libnetwork"
+
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	vicendpoint "github.com/vmware/vic/lib/apiservers/engine/backends/endpoint"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"

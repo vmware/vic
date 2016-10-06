@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 )
 

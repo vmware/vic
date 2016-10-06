@@ -786,7 +786,7 @@
 			"importpath": "golang.org/x/tools/cmd/goimports",
 			"repository": "https://go.googlesource.com/tools",
 			"vcs": "git",
-			"revision": "c550f66b0b48fb80f7076e0a5f8a0d736e3bb7bd",
+			"revision": "b5358b5feea9734b97ff1e792ca6bc55170bc92a",
 			"branch": "master",
 			"path": "/cmd/goimports"
 		},

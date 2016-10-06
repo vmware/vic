@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/urfave/cli"
+
 	"github.com/vmware/govmomi/vim25/soap"
 )
 

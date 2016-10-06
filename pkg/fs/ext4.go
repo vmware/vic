@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/mount"
+
 	"github.com/vmware/vic/pkg/trace"
 
 	log "github.com/Sirupsen/logrus"
