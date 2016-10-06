@@ -47,7 +47,7 @@ func waitForPath(ctx context.Context, path string) error {
 	go func() {
 		t := time.NewTicker(200 * time.Microsecond)
 		defer t.Stop()
-		for _ = range t.C {
+		for range t.C {
 			if _, err := os.Stat(path); err == nil {
 				close(done)
 				break
