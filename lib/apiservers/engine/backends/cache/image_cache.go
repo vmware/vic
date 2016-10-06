@@ -183,11 +183,10 @@ func (ic *ICache) getImageByNamed(named reference.Named) *metadata.ImageConfig {
 	return copyImageConfig(config)
 }
 
+// Add the "sha256:" prefix to the image ID if missing.
 // Don't assume the image id in image has "sha256:<id> as format.  We store it in
 // this format to make it easier to lookup by digest
 func prefixImageID(imageID string) string {
-	// Prefix was just "sha" which seems weird to be. Following general logic,
-	// I have update it to "sha256:"
 	if strings.HasPrefix(imageID, "sha256:") {
 		return imageID
 	} else {
