@@ -397,10 +397,6 @@ func (c *Create) processParams() error {
 		return cli.NewExitError(fmt.Sprintf("Display name %s exceeds the permitted 31 characters limit. Please use a shorter -name parameter", c.DisplayName), 1)
 	}
 
-	if err := c.processCertificates(); err != nil {
-		return err
-	}
-
 	if err := c.processContainerNetworks(); err != nil {
 		return err
 	}
@@ -425,6 +421,11 @@ func (c *Create) processParams() error {
 	}
 
 	if err := c.processDNSServers(); err != nil {
+		return err
+	}
+
+	// must come after client network processing as it checks for static IP on that interface
+	if err := c.processCertificates(); err != nil {
 		return err
 	}
 
@@ -570,6 +571,8 @@ func (c *Create) processContainerNetworks() error {
 func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, staticIP, gateway string) error {
 	network.Name = pgName
 
+	var err error
+
 	i := staticIP != ""
 	g := gateway != ""
 	if !i && !g {
@@ -579,22 +582,44 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 		return fmt.Errorf("%s network IP and gateway must both be specified", netName)
 	}
 
-	ci, err := ip.ParseIPandMask(staticIP)
-	if err != nil {
-		return fmt.Errorf("Invalid %s network IP: %s", netName, err)
-	}
+	defer func(net *data.NetworkConfig) {
+		if err == nil {
+			log.Debugf("%s network: IP %q gateway %q", netName, net.IP, net.Gateway)
+		}
+	}(network)
 
-	cg, err := ip.ParseIPandMask(gateway)
+	network.Gateway, err = ip.ParseIPandMask(gateway)
 	if err != nil {
 		return fmt.Errorf("Invalid %s network gateway: %s", netName, err)
 	}
 
-	log.Debugf("%s network: IP %q gateway %q", netName, ci, cg)
+	network.IP, err = ip.ParseIPandMask(staticIP)
+	if err == nil {
+		return nil
+	}
 
-	network.Gateway = cg
-	network.IP = ci
+	// try treating it as a name, using the mask from the gateway
+	ips, err := net.LookupIP(staticIP)
+	if err != nil {
+		return fmt.Errorf("Invalid %s network address - neither IP nor resolvable hostname", netName)
+	}
 
-	return nil
+	for _, ip := range ips {
+		if !network.Gateway.Contains(ip) {
+			log.Debugf("Skipping %s as value for %s because it's not in the network specified by gateway", ip.String(), staticIP)
+			continue
+		}
+
+		log.Infof("Assigning %s based on %s", ip.String(), staticIP)
+		network.IP = net.IPNet{
+			IP:   ip,
+			Mask: network.Gateway.Mask,
+		}
+
+		return nil
+	}
+
+	return fmt.Errorf("Invalid %s network address: %s does not resolve to a gateway compatible IP", netName, staticIP)
 }
 
 // processDNSServers parses DNS servers used for client, external, mgmt networks
@@ -715,6 +740,11 @@ func (c *Create) generateCertificates(ca bool) ([]byte, *certificate.KeyPair, er
 		}
 
 		return certs, keypair, nil
+	}
+
+	// if we've not got a specific CommonName but do have a static IP then go with that.
+	if c.cname == "" && c.clientNetworkIP != "" {
+		c.cname = c.clientNetworkIP
 	}
 
 	if c.cname == "" {

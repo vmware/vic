@@ -119,6 +119,13 @@ func templateWithServer(template *x509.Certificate, domain string) *x509.Certifi
 	ip := net.ParseIP(domain)
 	if ip != nil {
 		template.IPAddresses = []net.IP{ip}
+
+		// try best guess at DNSNames entries
+		names, err := net.LookupAddr(domain)
+		if err == nil && len(names) > 0 {
+			template.DNSNames = names
+		}
+
 		return template
 	}
 

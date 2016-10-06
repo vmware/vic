@@ -77,7 +77,7 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 	tls := ""
 
 	addr := d.HostIP
-	dEnv := ""
+	dEnv := " "
 	if !conf.HostCertificate.IsNil() {
 		// if we're generating then there's no CA currently
 		if len(conf.CertificateAuthorities) > 0 {
@@ -98,14 +98,12 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 				}
 			}
 		} else {
-			dEnv = fmt.Sprintf("%s DOCKER_TLS_VERIFY=0", dEnv)
-
 			tls = " --tls"
 		}
 	}
 
 	dEnv = fmt.Sprintf("%s DOCKER_HOST=%s:%s", dEnv, addr, d.DockerPort)
-	log.Infof("Docker environment variables:%s", dEnv)
+	log.Infof("Docker environment variables:")
 	log.Info(dEnv)
 	log.Infof("")
 
