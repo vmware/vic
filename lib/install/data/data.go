@@ -25,7 +25,7 @@ import (
 	"github.com/vmware/vic/pkg/ip"
 )
 
-// Data wrapps all parameters required by value validation
+// Data wraps all parameters required by value validation
 type Data struct {
 	*common.Target
 	common.Debug
@@ -43,10 +43,11 @@ type Data struct {
 	VolumeLocations        map[string]string
 	ContainerDatastoreName string
 
-	ExternalNetworkName   string
-	ManagementNetworkName string
-	BridgeNetworkName     string
-	ClientNetworkName     string
+	BridgeNetworkName string
+	ClientNetwork     NetworkConfig
+	ExternalNetwork   NetworkConfig
+	ManagementNetwork NetworkConfig
+	DNS               []net.IP
 
 	MappedNetworks         map[string]string
 	MappedNetworksGateways map[string]net.IPNet
@@ -74,6 +75,18 @@ type Data struct {
 	UseRP bool
 
 	ScratchSize string
+}
+
+// NetworkConfig is used to set IP addr for each network
+type NetworkConfig struct {
+	Name    string
+	Gateway net.IPNet
+	IP      net.IPNet
+}
+
+// Empty determines if ip and gateway are unset
+func (n *NetworkConfig) Empty() bool {
+	return ip.Empty(n.Gateway) && ip.Empty(n.IP)
 }
 
 // InstallerData is used to hold the transient installation configuration that shouldn't be serialized

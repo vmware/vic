@@ -86,6 +86,7 @@
    <target name="make-deployable" depends="make-folder,compile-ui,copy-ui-module,compile-service-and-copy">
       <copy file="${basedir}/plugin-package.xml" tofile="${DEPLOY_DIR}/plugin-package.xml"/>
       <copy file="${VSPHERE_SDK_HOME}/libs/vim25.jar" tofile="${DEPLOY_DIR}/plugins/vim25.jar"/>
+      <delete dir="${basedir}/../installer/vsphere-client-serenity"/>
       <zip basedir="${DEPLOY_DIR}" destfile="${basedir}/../installer/vsphere-client-serenity/${pluginPackage(id)}-${pluginPackage(version)}.zip"/>
       <copy todir="${basedir}/../installer/vsphere-client-serenity/${pluginPackage(id)}-${pluginPackage(version)}">
          <fileset dir="${DEPLOY_DIR}"/>

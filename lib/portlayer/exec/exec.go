@@ -22,7 +22,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/event"
 	"github.com/vmware/vic/lib/portlayer/event/collector/vsphere"
 	"github.com/vmware/vic/lib/portlayer/event/events"
@@ -90,24 +89,6 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 
 		// instantiate the container cache now
 		NewContainerCache()
-
-		//FIXME: temporary injection of debug network for debug nic
-		ne := Config.Networks["client"]
-		if ne == nil {
-			err = fmt.Errorf("could not get client network reference for debug nic - this code can be removed once network mapping/dhcp client is present")
-			log.Error(err)
-			return
-		}
-
-		nr := new(types.ManagedObjectReference)
-		nr.FromString(ne.Network.ID)
-		r, err = f.ObjectReference(ctx, *nr)
-		if err != nil {
-			err = fmt.Errorf("could not get client network reference from %s: %s", nr.String(), err)
-			log.Error(err)
-			return
-		}
-		Config.DebugNetwork = r.(object.NetworkReference)
 
 		// Grab the AboutInfo about our host environment
 		about := sess.Vim25().ServiceContent.About

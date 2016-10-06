@@ -354,7 +354,9 @@ The label that you specify is the volume store name that Docker uses. For exampl
 
 Short name: `-k`
 
-If you do not set the `no-tls` option, `vic-machine` by default generates a TLS certificate and key for the virtual container host to  use to authenticate with a Docker client. Set the `no-tls` option if you do not require certificate-based authentication between the virtual container host and the Docker client.
+By default, `vic-machine` generates a TLS certificate and key for the virtual container host to  use to authenticate with a Docker client.
+
+If you set the `no-tls` option, `vic-machine` does not create certificates. Set the `no-tls` option if you do not require certificate-based authentication between the virtual container host and the Docker client. If you use the `no-tls` option, you connect Docker clients to the virtual container host via port 2375, instead of via port 2376.
 
 <pre>--no-tls</pre>
 
@@ -400,14 +402,14 @@ Wrap the folder names in the paths in single quotes (Linux or Mac OS) or double 
 
 Short name: `--dir`
 
-If your Docker environment stores Docker images in an insecure registry server, you must configure virtual container hosts to connect to this registry server when you deploy them. An insecure registry server is a registry server that is secured by self-signed certificates rather than by TLS. You authorize connections from a virtual container host to an insecure registry server by setting the `docker-insecure-registry` option.
+If your Docker environment stores Docker images in an insecure private registry server, you must configure virtual container hosts to connect to this private registry server when you deploy them. An insecure  private registry server is a private registry server that is secured by self-signed certificates rather than by TLS. You authorize connections from a virtual container host to an insecure private registry server by setting the URL of a registry server in the `docker-insecure-registry` option. If the registry server listens on a specific port, add the port number to the URL.
 
-You can specify `docker-insecure-registry` multiple times to allow connections from the virtual container host to multiple insecure registry servers.
-
-If your Docker setup uses TLS, you do not need to specify this option.
+You can specify `docker-insecure-registry` multiple times to allow connections from the virtual container host to multiple insecure  private registry servers.
 
 <pre>--docker-insecure-registry <i>registry_URL_1</i>
---docker-insecure-registry <i>registry_URL_2</i></pre>
+--docker-insecure-registry <i>registry_URL_2</i>:<i>port_number</i></pre>
+
+**NOTE**: The current builds of vSphere Integrated Containers do not yet support private registry servers that you secure by using TLS certificates.
 
 <a name="deployment"></a>
 ## vApp Deployment Options ##

@@ -14,7 +14,9 @@
 
 package storage
 
-import "net/url"
+import (
+	"github.com/vmware/vic/lib/config"
+)
 
 var Config Configuration
 
@@ -23,14 +25,6 @@ type Configuration struct {
 	// Turn on debug logging
 	DebugLevel int `vic:"0.1" scope:"read-only" key:"init/common/debug"`
 
-	////////////// Port Layer - storage
-	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
-	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores"`
-
-	// Permitted datastore URL roots for volumes
-	// Keyed by the volume store name (which is used by the docker user to
-	// refer to the datstore + path), valued by the datastores and the path.
-	VolumeLocations map[string]url.URL `vic:"0.1" scope:"read-only"`
-
-	ScratchSize int64 `vic:"0.1" scope:"read-only" key:"scratch_size"`
+	// Port Layer - storage
+	config.Storage `vic:"0.1" scope:"read-only" key:"storage"`
 }

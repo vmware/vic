@@ -266,7 +266,7 @@ func decodeSlice(src DataSource, dest reflect.Value, prefix string, depth recurs
 	}
 
 	var this reflect.Value
-	if !dest.IsValid() || dest.IsNil() {
+	if !dest.IsValid() || dest.IsNil() || length > dest.Cap() {
 		log.Debugf("Making new slice for %s", prefix)
 		this = reflect.MakeSlice(dest.Type(), length, length)
 	} else {

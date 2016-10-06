@@ -4,12 +4,6 @@ Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
-*** Keywords ***
-Hit Nginx Endpoint
-    [Arguments]  ${vch-ip}  ${port}
-    ${rc}  ${output}=  Run And Return Rc And Output  wget ${vch-ip}:${port}
-    Should Be Equal As Integers  ${rc}  0
-
 *** Test Cases ***
 Create container with port mappings
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p 10000:80 -p 10001:80 --name webserver nginx

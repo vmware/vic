@@ -218,10 +218,6 @@ func genKey() []byte {
 	return pem.EncodeToMemory(&privateKeyBlock)
 }
 
-/////////////////////////////////////////////////////////////////////////////////////
-// TestAttachConfig sets up the config for attach testing - the grep will echo anything
-// sent and adds colour which is useful for tty testing
-//
 func TestAttach(t *testing.T) {
 	_, mocker := testSetup(t)
 	defer testTeardown(t, mocker)
@@ -260,8 +256,7 @@ func TestAttach(t *testing.T) {
 	<-testServer.updated
 
 	if !testServer.enabled {
-		t.Error("attach server was not enabled")
-		return
+		t.Errorf("attach server was not enabled")
 	}
 
 	containerConfig := &ssh.ClientConfig{
@@ -273,18 +268,13 @@ func TestAttach(t *testing.T) {
 
 	// create the SSH client from the mocked connection
 	sshConn, chans, reqs, err := ssh.NewClientConn(conn, "notappliable", containerConfig)
-	if !assert.NoError(t, err) {
-		return
-	}
+	assert.NoError(t, err)
 	defer sshConn.Close()
 
 	attachClient := ssh.NewClient(sshConn, chans, reqs)
 
 	sshSession, err := attach.SSHAttach(attachClient, cfg.ID)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	assert.NoError(t, err)
 
 	stdout := sshSession.Stdout()
 
@@ -304,11 +294,9 @@ func TestAttach(t *testing.T) {
 
 	// wait for the close to propagate
 	<-done
-	sshSession.Stdin().Close()
+	sshSession.CloseStdin()
 
-	if !assert.Equal(t, buf.Bytes(), testBytes) {
-		return
-	}
+	assert.Equal(t, buf.Bytes(), testBytes)
 }
 
 //
@@ -357,8 +345,7 @@ func TestAttachTTY(t *testing.T) {
 	<-testServer.updated
 
 	if !testServer.enabled {
-		t.Error("attach server was not enabled")
-		return
+		t.Errorf("attach server was not enabled")
 	}
 
 	cconfig := &ssh.ClientConfig{
@@ -370,18 +357,13 @@ func TestAttachTTY(t *testing.T) {
 
 	// create the SSH client
 	sConn, chans, reqs, err := ssh.NewClientConn(conn, "notappliable", cconfig)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	assert.NoError(t, err)
+
 	defer sConn.Close()
 	client := ssh.NewClient(sConn, chans, reqs)
 
 	session, err := attach.SSHAttach(client, cfg.ID)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	assert.NoError(t, err)
 
 	stdout := session.Stdout()
 
@@ -395,7 +377,11 @@ func TestAttachTTY(t *testing.T) {
 	buf := &bytes.Buffer{}
 
 	var wg sync.WaitGroup
-	go func() { wg.Add(1); io.CopyN(buf, stdout, int64(len(refBytes))); wg.Done() }()
+	wg.Add(1)
+	go func() {
+		io.CopyN(buf, stdout, int64(len(refBytes)))
+		wg.Done()
+	}()
 
 	// write something to echo
 	log.Debug("sending test data")
@@ -404,11 +390,9 @@ func TestAttachTTY(t *testing.T) {
 
 	// wait for the close to propagate
 	wg.Wait()
-	session.Stdin().Close()
+	session.CloseStdin()
 
-	if !assert.Equal(t, refBytes, buf.Bytes()) {
-		return
-	}
+	assert.Equal(t, refBytes, buf.Bytes())
 }
 
 //
@@ -473,8 +457,7 @@ func TestAttachTwo(t *testing.T) {
 	<-testServer.updated
 
 	if !testServer.enabled {
-		t.Error("attach server was not enabled")
-		return
+		t.Errorf("attach server was not enabled")
 	}
 
 	cconfig := &ssh.ClientConfig{
@@ -486,44 +469,31 @@ func TestAttachTwo(t *testing.T) {
 
 	// create the SSH client
 	sConn, chans, reqs, err := ssh.NewClientConn(conn, "notappliable", cconfig)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	assert.NoError(t, err)
+
 	defer sConn.Close()
 	client := ssh.NewClient(sConn, chans, reqs)
 
 	ids, err := attach.SSHls(client)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	assert.NoError(t, err)
 
 	// there's no ordering guarantee in the returned ids
 	if len(ids) != len(cfg.Sessions) {
 		t.Errorf("ID list - expected %d, got %d", len(cfg.Sessions), len(ids))
-		return
 	}
 
 	// check the ids we got correspond to those in the config
 	for _, id := range ids {
 		if _, ok := cfg.Sessions[id]; !ok {
 			t.Errorf("Expected sessions to have an entry for %s", id)
-			return
 		}
 	}
 
 	sessionA, err := attach.SSHAttach(client, "tee1")
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	assert.NoError(t, err)
 
 	sessionB, err := attach.SSHAttach(client, "tee2")
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	assert.NoError(t, err)
 
 	stdoutA := sessionA.Stdout()
 	stdoutB := sessionB.Stdout()
@@ -537,11 +507,16 @@ func TestAttachTwo(t *testing.T) {
 	bufB := &bytes.Buffer{}
 
 	var wg sync.WaitGroup
-	// wg.Add cannot go inside the go routines as the Add may not have happened by the time we
-	// call Wait
+	// wg.Add cannot go inside the go routines as the Add may not have happened by the time we call Wait
 	wg.Add(2)
-	go func() { io.CopyN(bufA, stdoutA, int64(len(testBytesA))); wg.Done() }()
-	go func() { io.CopyN(bufB, stdoutB, int64(len(testBytesB))); wg.Done() }()
+	go func() {
+		io.CopyN(bufA, stdoutA, int64(len(testBytesA)))
+		wg.Done()
+	}()
+	go func() {
+		io.CopyN(bufB, stdoutB, int64(len(testBytesB)))
+		wg.Done()
+	}()
 
 	// write something to echo
 	log.Debug("sending test data")
@@ -551,18 +526,13 @@ func TestAttachTwo(t *testing.T) {
 
 	// wait for the close to propagate
 	wg.Wait()
-	sessionA.Stdin().Close()
-	sessionB.Stdin().Close()
+	sessionA.CloseStdin()
+	sessionB.CloseStdin()
 
 	<-mocker.Cleaned
 
-	if !assert.Equal(t, bufA.Bytes(), testBytesA) {
-		return
-	}
-
-	if !assert.Equal(t, bufB.Bytes(), testBytesB) {
-		return
-	}
+	assert.Equal(t, bufA.Bytes(), testBytesA)
+	assert.Equal(t, bufB.Bytes(), testBytesB)
 }
 
 //
@@ -610,8 +580,7 @@ func TestAttachInvalid(t *testing.T) {
 	<-testServer.updated
 
 	if !testServer.enabled {
-		t.Error("attach server was not enabled")
-		return
+		t.Errorf("attach server was not enabled")
 	}
 
 	cconfig := &ssh.ClientConfig{
@@ -623,21 +592,18 @@ func TestAttachInvalid(t *testing.T) {
 
 	// create the SSH client
 	sConn, chans, reqs, err := ssh.NewClientConn(conn, "notappliable", cconfig)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	assert.NoError(t, err)
+
 	defer sConn.Close()
 	client := ssh.NewClient(sConn, chans, reqs)
 
 	_, err = attach.SSHAttach(client, "invalidID")
 	tthr.Stop()
 	if err == nil {
-		t.Error("Expected to fail on attempt to attach to invalid session")
+		t.Errorf("Expected to fail on attempt to attach to invalid session")
 	}
 
 	t.Log(err)
-
 }
 
 //
@@ -711,3 +677,109 @@ func TestMockAttachTetherToPL(t *testing.T) {
 	}
 }
 */
+
+func TestReattach(t *testing.T) {
+	_, mocker := testSetup(t)
+	defer testTeardown(t, mocker)
+
+	testServer, _ := server.(*testAttachServer)
+
+	cfg := executor.ExecutorConfig{
+		Common: executor.Common{
+			ID:   "attach",
+			Name: "tether_test_executor",
+		},
+
+		Sessions: map[string]executor.SessionConfig{
+			"attach": {
+				Common: executor.Common{
+					ID:   "attach",
+					Name: "tether_test_session",
+				},
+				Tty:    false,
+				Attach: true,
+				Cmd: executor.Cmd{
+					Path: "/usr/bin/tee",
+					// grep, matching everything, reading from stdin
+					Args: []string{"/usr/bin/tee", pathPrefix + "/tee.out"},
+					Env:  []string{},
+					Dir:  "/",
+				},
+			},
+		},
+		Key: genKey(),
+	}
+
+	_, _, conn := StartAttachTether(t, &cfg, mocker)
+
+	// wait for updates to occur
+	<-testServer.updated
+
+	if !testServer.enabled {
+		t.Errorf("attach server was not enabled")
+	}
+
+	containerConfig := &ssh.ClientConfig{
+		User: "daemon",
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			return nil
+		},
+	}
+
+	// create the SSH client from the mocked connection
+	sshConn, chans, reqs, err := ssh.NewClientConn(conn, "notappliable", containerConfig)
+	assert.NoError(t, err)
+	defer sshConn.Close()
+
+	var sshSession attach.SessionInteraction
+	done := make(chan bool)
+	buf := &bytes.Buffer{}
+	testBytes := []byte("\x1b[32mhello world\x1b[39m!\n")
+
+	attachFunc := func() {
+		attachClient := ssh.NewClient(sshConn, chans, reqs)
+		if attachClient == nil {
+			t.Errorf("Failed to get ssh.NewClient")
+		}
+		sshSession, err = attach.SSHAttach(attachClient, cfg.ID)
+		assert.NoError(t, err)
+
+		stdout := sshSession.Stdout()
+
+		// read from session into buffer
+		go func() {
+			io.CopyN(buf, stdout, int64(len(testBytes)))
+			done <- true
+		}()
+
+		// write something to echo
+		log.Debug("sending test data")
+		sshSession.Stdin().Write(testBytes)
+		log.Debug("sent test data")
+	}
+
+	limit := 100
+	for i := 0; i <= limit; i++ {
+		if i > 0 {
+			// truncate the buffer for the retach
+			buf.Reset()
+			testBytes = []byte(fmt.Sprintf("\x1b[32mhello world - again %dth time \x1b[39m!\n", i))
+		}
+
+		// attach
+		attachFunc()
+
+		// wait for the close to propagate
+		<-done
+
+		// send close-stdin if this is the last iteration
+		if i == limit {
+			// exit
+			sshSession.CloseStdin()
+		} else {
+			// detach
+			sshSession.Stdin().Close()
+		}
+		assert.Equal(t, buf.Bytes(), testBytes)
+	}
+}

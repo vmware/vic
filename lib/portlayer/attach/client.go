@@ -42,6 +42,8 @@ type SessionInteraction interface {
 
 	// Resize the terminal
 	Resize(cols, rows, widthpx, heightpx uint32) error
+
+	CloseStdin() error
 }
 
 type attachSSH struct {
@@ -106,6 +108,21 @@ func (t *attachSSH) Signal(signal ssh.Signal) error {
 
 	if err != nil {
 		return fmt.Errorf("signal error: %s", err)
+	}
+
+	return nil
+}
+
+func (t *attachSSH) CloseStdin() error {
+	defer trace.End(trace.Begin(""))
+
+	ok, err := t.channel.SendRequest(msgs.CloseStdinReq, true, nil)
+	if err == nil && !ok {
+		return fmt.Errorf("unknown error closing stdin")
+	}
+
+	if err != nil {
+		return fmt.Errorf("close stdin error: %s", err)
 	}
 
 	return nil

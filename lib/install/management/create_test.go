@@ -97,8 +97,8 @@ func getESXData(url *url.URL) *data.Data {
 	result.ComputeResourcePath = "/ha-datacenter/host/localhost.localdomain/Resources"
 	result.ImageDatastorePath = "LocalDS_0"
 	result.BridgeNetworkName = "bridge"
-	result.ManagementNetworkName = "VM Network"
-	result.ExternalNetworkName = "VM Network"
+	result.ManagementNetwork.Name = "VM Network"
+	result.ExternalNetwork.Name = "VM Network"
 	result.VolumeLocations = make(map[string]string)
 	result.VolumeLocations["volume-store"] = "LocalDS_0/volumes/test"
 
@@ -111,7 +111,7 @@ func getVPXData(url *url.URL) *data.Data {
 	result.DisplayName = "test001"
 	result.ComputeResourcePath = "/DC0/host/DC0_C0/Resources"
 	result.ImageDatastorePath = "LocalDS_0"
-	result.ExternalNetworkName = "VM Network"
+	result.ExternalNetwork.Name = "VM Network"
 	result.BridgeNetworkName = "bridge"
 	result.VolumeLocations = make(map[string]string)
 	result.VolumeLocations["volume-store"] = "LocalDS_0/volumes/test"

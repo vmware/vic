@@ -19,7 +19,7 @@ Launch Container
     ${id}=  Get Line  ${output}  -1
     ${ip}=  Get Container IP  ${id}  ${network}
     [Return]  ${id}  ${ip}
-    
+
 
 *** Test Cases ***
 Created Network Persists And Containers Are Discovered With Correct IPs
@@ -28,6 +28,16 @@ Created Network Persists And Containers Are Discovered With Correct IPs
     Comment  Launch first container on bridge network
     ${id1}  ${ip1}=  Launch Container  vch-restart-test1  bridge
     ${id2}  ${ip2}=  Launch Container  vch-restart-test2  bridge
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p 10000:80 -p 10001:80 --name webserver nginx
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start webserver
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10000
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10001
+
     Log To Console  Rebooting VCH ...
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -reset=true ${vch-name}
     Should Be Equal As Integers  ${rc}  0
@@ -39,6 +49,7 @@ Created Network Persists And Containers Are Discovered With Correct IPs
     ${new-vch-ip}=  Get VM IP  ${vch-name}
     Log To Console  New VCH IP is ${new-vch-ip}
     Replace String  ${params}  ${vch-ip}  ${new-vch-ip}
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network ls
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  bar
@@ -61,3 +72,13 @@ Created Network Persists And Containers Are Discovered With Correct IPs
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Exited (0)
+
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10000
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10001
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p 10000:80 -p 10001:80 --name webserver1 nginx
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start webserver1
+    Should Be Equal As Integers  ${rc}  1
+    Should Contain  ${output}  port 10000 is not available

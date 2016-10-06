@@ -213,7 +213,6 @@ func (handler *ScopesHandlersImpl) ScopesGetContainerEndpoints(params scopes.Get
 	if c == nil {
 		return scopes.NewGetContainerEndpointsNotFound().WithPayload(errorPayload(fmt.Errorf("container not found")))
 	}
-
 	eps := c.Endpoints()
 	ecs := make([]*models.EndpointConfig, len(eps))
 	for i, e := range eps {
