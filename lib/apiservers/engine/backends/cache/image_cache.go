@@ -30,7 +30,6 @@ import (
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types/container"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
@@ -130,42 +129,42 @@ func (ic *ICache) GetImage(idOrRef string) (*metadata.ImageConfig, error) {
 		idOrRef = id
 	}
 
-	digest, named, err := reference.ParseIDOrReference(idOrRef)
+	imgDigest, named, err := reference.ParseIDOrReference(idOrRef)
 	if err != nil {
 		return nil, err
 	}
 
 	var config *metadata.ImageConfig
-	if digest != "" {
-		config, err = ic.getImageByDigest(digest)
-		if err != nil {
-			return nil, err
-		}
+	if imgDigest != "" {
+		config = ic.getImageByDigest(imgDigest)
 	} else {
-		config, err = ic.getImageByNamed(named)
-		if err != nil {
-			return nil, err
-		}
+		config = ic.getImageByNamed(named)
 	}
 
 	if config == nil {
-		return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", idOrRef))
+		// docker automatically prints out ":latest" tag if not specified in case if image is not found.
+		postfixLatest := ""
+		if !strings.Contains(idOrRef, ":") {
+			postfixLatest += ":" + reference.DefaultTag
+		}
+		return nil, derr.NewRequestNotFoundError(fmt.Errorf(
+			"No such image: %s%s", idOrRef, postfixLatest))
 	}
 
 	return copyImageConfig(config), nil
 }
 
-func (ic *ICache) getImageByDigest(digest digest.Digest) (*metadata.ImageConfig, error) {
+func (ic *ICache) getImageByDigest(digest digest.Digest) *metadata.ImageConfig {
 	var config *metadata.ImageConfig
 	config, ok := ic.cacheByID[string(digest)]
 	if !ok {
-		return nil, derr.NewRequestNotFoundError(fmt.Errorf("No such image: %s", digest))
+		return nil
 	}
-	return copyImageConfig(config), nil
+	return copyImageConfig(config)
 }
 
 // Looks up image by reference.Named
-func (ic *ICache) getImageByNamed(named reference.Named) (*metadata.ImageConfig, error) {
+func (ic *ICache) getImageByNamed(named reference.Named) *metadata.ImageConfig {
 
 	var config *metadata.ImageConfig
 
@@ -181,7 +180,18 @@ func (ic *ICache) getImageByNamed(named reference.Named) (*metadata.ImageConfig,
 		}
 	}
 
-	return copyImageConfig(config), nil
+	return copyImageConfig(config)
+}
+
+// Add the "sha256:" prefix to the image ID if missing.
+// Don't assume the image id in image has "sha256:<id> as format.  We store it in
+// this format to make it easier to lookup by digest
+func prefixImageID(imageID string) string {
+	if strings.HasPrefix(imageID, "sha256:") {
+		return imageID
+	} else {
+		return "sha256:" + imageID
+	}
 }
 
 // AddImage adds an image to the image cache
@@ -190,27 +200,16 @@ func (ic *ICache) AddImage(imageConfig *metadata.ImageConfig) {
 	ic.m.Lock()
 	defer ic.m.Unlock()
 
-	var imageID string
-
-	// Don't assume the image id in image has "sha256:<id> as format.  We store it in
-	// this fomat to make it easier to lookup by digest
-	if strings.HasPrefix(imageConfig.ImageID, "sha") {
-		imageID = imageConfig.ImageID
-	} else {
-		imageID = "sha256:" + imageConfig.ImageID
-	}
-
-	// add image id to truncindex
-	ic.idIndex.Add(imageConfig.ImageID)
-
-	ic.cacheByID[imageID] = imageConfig
-
 	// Normalize the name stored in imageConfig using Docker's reference code
 	ref, err := reference.WithName(imageConfig.Name)
 	if err != nil {
 		log.Errorf("Tried to create reference from %s: %s", imageConfig.Name, err.Error())
 		return
 	}
+
+	imageID := prefixImageID(imageConfig.ImageID)
+	ic.idIndex.Add(imageConfig.ImageID)
+	ic.cacheByID[imageID] = imageConfig
 
 	for _, tag := range imageConfig.Tags {
 		ref, err = reference.WithTag(ref, tag)
@@ -220,7 +219,32 @@ func (ic *ICache) AddImage(imageConfig *metadata.ImageConfig) {
 		}
 		ic.cacheByName[imageConfig.Reference] = imageConfig
 	}
+}
 
+// RemoveImage removes image from the cache.
+func (ic *ICache) RemoveImageByConfig(imageConfig *metadata.ImageConfig) {
+	ic.m.Lock()
+	defer ic.m.Unlock()
+
+	// If we get here we definitely want to remove image config from any data structure
+	// where it can be present. So that, if there is something is wrong
+	// it could be tracked on debug level.
+	if err := ic.idIndex.Delete(imageConfig.ImageID); err != nil {
+		log.Debugf("Not found in image cache index: %v", err)
+	}
+
+	prefixedId := prefixImageID(imageConfig.ImageID)
+	if _, ok := ic.cacheByID[prefixedId]; ok {
+		delete(ic.cacheByID, prefixedId)
+	} else {
+		log.Debugf("Not found in cache by id: %s", prefixedId)
+	}
+
+	if _, ok := ic.cacheByName[imageConfig.Reference]; ok {
+		delete(ic.cacheByName, imageConfig.Reference)
+	} else {
+		log.Debugf("Not found in cache by name: %s", imageConfig.Reference)
+	}
 }
 
 // copyImageConfig performs and returns deep copy of an ImageConfig struct
@@ -230,15 +254,12 @@ func copyImageConfig(image *metadata.ImageConfig) *metadata.ImageConfig {
 		return nil
 	}
 
-	newImage := new(metadata.ImageConfig)
-
 	// copy everything
-	*newImage = *image
+	newImage := *image
 
 	// replace the pointer to metadata.ImageConfig.Config and copy the contents
-	newConfig := new(container.Config)
-	*newConfig = *image.Config
-	newImage.Config = newConfig
+	newConfig := *image.Config
+	newImage.Config = &newConfig
 
-	return newImage
+	return &newImage
 }

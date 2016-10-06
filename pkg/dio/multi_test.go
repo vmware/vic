@@ -18,6 +18,7 @@ package dio
 import (
 	"bytes"
 	"io"
+	"sync"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
@@ -176,6 +177,8 @@ func TestWriteConcurrentRemove(t *testing.T) {
 }
 
 func TestMultiRead(t *testing.T) {
+	var wg sync.WaitGroup
+
 	dataA := "verify base multireader functionA"
 	dataB := "verify base multireader functionB"
 
@@ -187,19 +190,32 @@ func TestMultiRead(t *testing.T) {
 	var buf bytes.Buffer
 
 	// do the read
-	_, err := io.Copy(&buf, mreader)
-	if err != nil || err == io.EOF {
+	_, err := io.CopyN(&buf, mreader, int64(len(dataA)+len(dataB)))
+	if err != nil {
 		t.Error(err)
 	}
-
 	// compare the data
 	if buf.String() != dataA+dataB {
 		t.Errorf("A: expected: %s, actual: %s", dataA+dataB, buf.String())
 		return
 	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, err := mreader.Read(buf.Bytes())
+		if err != io.EOF {
+			t.Error(err)
+		}
+	}()
+
+	mreader.Close()
+	wg.Wait()
 }
 
 func TestReadAdd(t *testing.T) {
+	var wg sync.WaitGroup
+
 	dataA := "verify base multireader functionA"
 	dataB := "verify base multireader functionB"
 
@@ -213,7 +229,7 @@ func TestReadAdd(t *testing.T) {
 
 	// do the read - bytes.NewReader does not return data and EOF
 	// from the same call, so this should have err==nil
-	_, err := io.Copy(&bufA, mreader)
+	_, err := io.CopyN(&bufA, mreader, int64(len(dataA)))
 	if err != nil {
 		t.Error(err)
 	}
@@ -224,6 +240,15 @@ func TestReadAdd(t *testing.T) {
 		return
 	}
 
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, err := mreader.Read(bufA.Bytes())
+		if err != io.EOF {
+			t.Error(err)
+		}
+	}()
+
 	// Add reader to existing MultiReader
 	// this should furnish new data to the copy without further action being
 	// taken
@@ -231,7 +256,7 @@ func TestReadAdd(t *testing.T) {
 
 	// do the read - we expect mreader to now switch to the new source, which
 	// has the standard bytes.NewReader behaviour
-	_, err = io.Copy(&bufB, mreader)
+	_, err = io.CopyN(&bufB, mreader, int64(len(dataB)))
 	if err != nil {
 		t.Error(err)
 	}
@@ -241,42 +266,97 @@ func TestReadAdd(t *testing.T) {
 		t.Errorf("A: expected: %s, actual: %s", dataB, bufB.String())
 		return
 	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, err := mreader.Read(bufB.Bytes())
+		if err != io.EOF {
+			t.Error(err)
+		}
+	}()
+
+	mreader.Close()
+	wg.Wait()
 }
 
 func TestReadRemove(t *testing.T) {
-	dataA := "verify base multireader functionA"
-	dataB := "verify base multireader functionB"
+	var wg sync.WaitGroup
 
-	readerA := bytes.NewReader([]byte(dataA))
-	readerB := &bytes.Buffer{}
-	readerB.Write([]byte(dataB))
+	pipeAR, pipeAW := io.Pipe()
+	pipeBR, pipeBW := io.Pipe()
 
-	mreader := MultiReader(readerA, readerB)
+	mreader := MultiReader(pipeAR, pipeBR)
 
 	var buf bytes.Buffer
 
-	// do the read
-	io.Copy(&buf, mreader)
+	// send the test string
+	data := "verify base multiwriter function"
 
-	// compare the data
-	if buf.String() != dataA+dataB {
-		t.Errorf("A: expected: %s, actual: %s", dataA+dataB, buf.String())
-		return
-	}
-
-	mreader.Remove(readerB)
-
-	// write more data to dataB, which should not show up in the buffer
-	readerB.WriteString("should not be read")
+	go func() {
+		defer pipeAW.Close()
+		_, err := pipeAW.Write([]byte(data))
+		if err != nil {
+			t.Error(err)
+		}
+	}()
 
 	// do the read
-	io.Copy(&buf, mreader)
+	_, err := io.CopyN(&buf, mreader, int64(len(data)))
+	if err != nil {
+		t.Error(err)
+	}
 
 	// compare the data
-	if buf.String() != dataA+dataB {
-		t.Errorf("A: expected: %s, actual: %s", dataA+dataB, buf.String())
-		return
+	if buf.String() != data {
+		t.Errorf("A: expected: %s, actual: %s", data, buf.String())
 	}
+	buf.Truncate(0)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, err := mreader.Read(buf.Bytes())
+		if err != io.EOF {
+			t.Error(err)
+		}
+	}()
+
+	// Add writer to existing MultiWriter
+	mreader.Remove(pipeAR)
+
+	data = "verify dynamic remove"
+
+	go func() {
+		defer pipeAW.Close()
+		_, err = pipeBW.Write([]byte(data))
+		if err != nil {
+			t.Error(err)
+		}
+	}()
+
+	// do the read
+	_, err = io.CopyN(&buf, mreader, int64(len(data)))
+	if err != nil {
+		t.Error(err)
+	}
+
+	// compare the data - shouldn't be present
+	if buf.String() != data {
+		t.Errorf("A: expected: %s, actual: %s", data, buf.String())
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, err := mreader.Read(buf.Bytes())
+		if err != io.EOF {
+			t.Error(err)
+		}
+	}()
+
+	mreader.Close()
+	wg.Wait()
 }
 
 func TestReadConcurrentRemove(t *testing.T) {

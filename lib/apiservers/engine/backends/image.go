@@ -58,6 +58,9 @@ func (i *Image) Exists(containerName string) bool {
 
 // TODO fix the errors so the client doesnt print the generic POST or DELETE message
 func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDelete, error) {
+	defer trace.End(trace.Begin("ImageDelete"))
+
+	log.Debugf("Deleting image referenced as %s", imageRef)
 	host, err := sys.UUID()
 	if err != nil {
 		return nil, err
@@ -77,12 +80,17 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 		return nil, err
 	}
 
+	cache.ImageCache().RemoveImageByConfig(img)
+
 	// TODO remove the image from the image cache (in the personality) (GH #2070)
 	// NOTE: This requires untagging the image.  Once we purge the image from
 	// the cache and untag, the return struct will need to include the untagged
-	// ID
+	// ID.
+	// So far tags are not really supported.
 
-	return []types.ImageDelete{types.ImageDelete{Deleted: img.ImageID}}, err
+	return []types.ImageDelete{
+		{Deleted: img.ImageID},
+	}, err
 }
 
 func (i *Image) ImageHistory(imageName string) ([]*types.ImageHistory, error) {
