@@ -200,8 +200,7 @@ func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStat
 func (handler *ContainersHandlersImpl) GetHandler(params containers.GetParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
-	ctx := context.Background()
-	h := exec.GetContainer(ctx, uid.Parse(params.ID))
+	h := exec.GetContainer(context.Background(), uid.Parse(params.ID))
 	if h == nil {
 		return containers.NewGetNotFound().WithPayload(&models.Error{Message: fmt.Sprintf("container %s not found", params.ID)})
 	}
