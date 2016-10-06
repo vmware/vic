@@ -179,7 +179,7 @@ func (c *Container) refresh(ctx context.Context) error {
 	if c.vm == nil {
 		return fmt.Errorf("There is no backing VirtualMachine %#v", c)
 	}
-	if err := c.vm.Properties(ctx, c.vm.Reference(), []string{"config", "config.extraConfig", "runtime"}, &o); err != nil {
+	if err := c.vm.Properties(ctx, c.vm.Reference(), []string{"config", "runtime"}, &o); err != nil {
 		return err
 	}
 
