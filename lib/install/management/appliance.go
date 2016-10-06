@@ -751,7 +751,7 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	}
 
 	log.Infof("Waiting for IP information")
-	d.waitForKey("guestinfo.vice..init.networks|client.ip.IP")
+	d.waitForKey("guestinfo.vice..init.networks|client.assigned.IP")
 	ctxerr := d.ctx.Err()
 
 	if ctxerr == nil {

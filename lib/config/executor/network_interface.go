@@ -33,10 +33,10 @@ type NetworkEndpoint struct {
 	Static bool `vic:"0.1" scope:"read-only" key:"static"`
 
 	// IP address to assign
-	IP *net.IPNet `vic:"0.1" scope:"read-only" key:"eip"`
+	IP *net.IPNet `vic:"0.1" scope:"read-only" key:"ip"`
 
 	// Actual IP address assigned
-	Assigned net.IPNet `vic:"0.1" scope:"read-write" key:"ip"`
+	Assigned net.IPNet `vic:"0.1" scope:"read-write" key:"assigned"`
 
 	// The network in which this information should be interpreted. This is embedded directly rather than
 	// as a pointer so that we can ensure the data is consistent
