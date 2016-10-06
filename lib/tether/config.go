@@ -54,9 +54,6 @@ type ExecutorConfig struct {
 	// Key is the host key used during communicate back with the Interaction endpoint if any
 	// Used if the in-guest tether is responsible for authenticating the connection
 	Key []byte `vic:"0.1" scope:"read-only" key:"key"`
-
-	// StopSignal is the signal name or number used to stop a container
-	StopSignal string `vic:"0.1" scope:"read-only" key:"stopSignal"`
 }
 
 // SessionConfig defines the content of a session - this maps to the root of a process tree
@@ -89,6 +86,9 @@ type SessionConfig struct {
 
 	// Restart controls whether a process gets relaunched if it exists
 	Restart bool `vic:"0.1" scope:"read-only" key:"restart"`
+
+	// StopSignal is the signal name or number used to stop a container
+	StopSignal string `vic:"0.1" scope:"read-only" key:"stopSignal"`
 
 	// User and group for setuid programs
 	User  string `vic:"0.1" scope:"read-only" key:"user"`

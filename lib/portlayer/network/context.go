@@ -261,8 +261,8 @@ func (c *Context) newScopeCommon(id uid.UID, name, scopeType string, subnet *net
 
 func (c *Context) newBridgeScope(id uid.UID, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (newScope *Scope, err error) {
 	defer trace.End(trace.Begin(""))
-	bn, ok := c.config.ContainerNetworks[c.config.BridgeNetwork]
-	if !ok || bn == nil {
+	bnPG, ok := c.config.PortGroups[c.config.BridgeNetwork]
+	if !ok || bnPG == nil {
 		return nil, fmt.Errorf("bridge network not set")
 	}
 
@@ -275,7 +275,7 @@ func (c *Context) newBridgeScope(id uid.UID, name string, subnet *net.IPNet, gat
 		}
 	}
 
-	s, err := c.newScopeCommon(id, name, constants.BridgeScopeType, subnet, gateway, dns, ipam, bn.PortGroup)
+	s, err := c.newScopeCommon(id, name, constants.BridgeScopeType, subnet, gateway, dns, ipam, bnPG)
 	if err != nil {
 		return nil, err
 	}
@@ -307,12 +307,12 @@ func (c *Context) newExternalScope(id uid.UID, name string, subnet *net.IPNet, g
 		}
 	}
 
-	n := c.config.ContainerNetworks[name]
-	if n == nil {
+	nPG := c.config.PortGroups[name]
+	if nPG == nil {
 		return nil, fmt.Errorf("no network info for external scope %s", name)
 	}
 
-	return c.newScopeCommon(id, name, constants.ExternalScopeType, subnet, gateway, dns, ipam, n.PortGroup)
+	return c.newScopeCommon(id, name, constants.ExternalScopeType, subnet, gateway, dns, ipam, nPG)
 }
 
 func (c *Context) reserveSubnet(subnet *net.IPNet) (*AddressSpace, bool, error) {
@@ -439,7 +439,7 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 	}
 
 	// add the new scope to the config
-	c.config.ContainerNetworks[s.Name()] = &ContainerNetwork{
+	c.config.ContainerNetworks[s.Name()] = &executor.ContainerNetwork{
 		Common: executor.Common{
 			ID:   s.ID().String(),
 			Name: s.Name(),
@@ -448,8 +448,8 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 		Gateway:     net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask},
 		Nameservers: s.DNS(),
 		Pools:       s.IPAM().Pools(),
-		PortGroup:   s.network,
 	}
+	c.config.PortGroups[s.Name()] = s.network
 
 	// write config
 	c.config.Encode()

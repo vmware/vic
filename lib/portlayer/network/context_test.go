@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
@@ -100,50 +101,54 @@ func (l *mockLink) Attrs() *LinkAttrs {
 
 func testConfig() *Configuration {
 	return &Configuration{
-		source:        extraconfig.MapSource(map[string]string{}),
-		sink:          extraconfig.MapSink(map[string]string{}),
-		BridgeLink:    &mockLink{},
-		BridgeNetwork: "bridge",
-		ContainerNetworks: map[string]*ContainerNetwork{
-			"bridge": {
-				PortGroup: testBridgeNetwork,
-				Type:      constants.BridgeScopeType,
-			},
-			"bar7": {
-				Common: executor.Common{
-					Name: "external",
+		source:     extraconfig.MapSource(map[string]string{}),
+		sink:       extraconfig.MapSink(map[string]string{}),
+		BridgeLink: &mockLink{},
+		Network: config.Network{
+			BridgeNetwork: "bridge",
+			ContainerNetworks: map[string]*executor.ContainerNetwork{
+				"bridge": {
+					Type: constants.BridgeScopeType,
 				},
-				Gateway:     net.IPNet{IP: net.ParseIP("10.13.0.1"), Mask: net.CIDRMask(16, 32)},
-				Nameservers: []net.IP{net.ParseIP("10.10.1.1")},
-				Pools:       []ip.Range{*ip.ParseRange("10.13.1.0-255"), *ip.ParseRange("10.13.2.0-10.13.2.15")},
-				PortGroup:   testExternalNetwork,
-				Type:        constants.ExternalScopeType,
-			},
-			"bar71": {
-				Common: executor.Common{
-					Name: "external",
+				"bar7": {
+					Common: executor.Common{
+						Name: "external",
+					},
+					Gateway:     net.IPNet{IP: net.ParseIP("10.13.0.1"), Mask: net.CIDRMask(16, 32)},
+					Nameservers: []net.IP{net.ParseIP("10.10.1.1")},
+					Pools:       []ip.Range{*ip.ParseRange("10.13.1.0-255"), *ip.ParseRange("10.13.2.0-10.13.2.15")},
+					Type:        constants.ExternalScopeType,
 				},
-				Gateway:     net.IPNet{IP: net.ParseIP("10.131.0.1"), Mask: net.CIDRMask(16, 32)},
-				Nameservers: []net.IP{net.ParseIP("10.131.0.1"), net.ParseIP("10.131.0.2")},
-				Pools:       []ip.Range{*ip.ParseRange("10.131.1.0/16")},
-				PortGroup:   testExternalNetwork,
-				Type:        constants.ExternalScopeType,
-			},
-			"bar72": {
-				Common: executor.Common{
-					Name: "external",
+				"bar71": {
+					Common: executor.Common{
+						Name: "external",
+					},
+					Gateway:     net.IPNet{IP: net.ParseIP("10.131.0.1"), Mask: net.CIDRMask(16, 32)},
+					Nameservers: []net.IP{net.ParseIP("10.131.0.1"), net.ParseIP("10.131.0.2")},
+					Pools:       []ip.Range{*ip.ParseRange("10.131.1.0/16")},
+					Type:        constants.ExternalScopeType,
 				},
-				PortGroup: testExternalNetwork,
-				Type:      constants.ExternalScopeType,
-			},
-			"bar73": {
-				Common: executor.Common{
-					Name: "external",
+				"bar72": {
+					Common: executor.Common{
+						Name: "external",
+					},
+					Type: constants.ExternalScopeType,
 				},
-				Gateway:   net.IPNet{IP: net.ParseIP("10.133.0.1"), Mask: net.CIDRMask(16, 32)},
-				PortGroup: testExternalNetwork,
-				Type:      constants.ExternalScopeType,
+				"bar73": {
+					Common: executor.Common{
+						Name: "external",
+					},
+					Gateway: net.IPNet{IP: net.ParseIP("10.133.0.1"), Mask: net.CIDRMask(16, 32)},
+					Type:    constants.ExternalScopeType,
+				},
 			},
+		},
+		PortGroups: map[string]object.NetworkReference{
+			"bridge": testBridgeNetwork,
+			"bar7":   testExternalNetwork,
+			"bar71":  testExternalNetwork,
+			"bar72":  testExternalNetwork,
+			"bar73":  testExternalNetwork,
 		},
 	}
 }

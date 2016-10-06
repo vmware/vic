@@ -386,8 +386,8 @@ func (c *Container) shutdown(ctx context.Context, waitTime *int32) error {
 	if waitTime != nil && *waitTime > 0 {
 		wait = time.Duration(*waitTime) * time.Second
 	}
-
-	stop := []string{c.ExecConfig.StopSignal, string(ssh.SIGKILL)}
+	cs := c.ExecConfig.Sessions[c.ExecConfig.ID]
+	stop := []string{cs.StopSignal, string(ssh.SIGKILL)}
 	if stop[0] == "" {
 		stop[0] = string(ssh.SIGTERM)
 	}
