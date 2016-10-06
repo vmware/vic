@@ -18,6 +18,8 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/govc/host/esxcli"
 	"github.com/vmware/govmomi/license"
 	"github.com/vmware/govmomi/object"
@@ -26,7 +28,6 @@ import (
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
-	"golang.org/x/net/context"
 )
 
 func (v *Validator) CheckFirewall(ctx context.Context) {

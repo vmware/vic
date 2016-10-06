@@ -27,6 +27,7 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/pkg/trace"
 )
 

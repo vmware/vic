@@ -23,6 +23,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/pkg/trace"
 )
 

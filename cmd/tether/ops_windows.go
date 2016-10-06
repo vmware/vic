@@ -25,6 +25,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	winserial "github.com/tarm/serial"
+
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 	"github.com/vmware/vic/pkg/trace"

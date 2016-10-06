@@ -192,7 +192,7 @@ gopath:
 
 $(go-imports): $(GOIMPORTS) $(find . -type f -name '*.go' -not -path "./vendor/*") $(PORTLAYER_DEPS)
 	@echo checking go imports...
-	@! $(GOIMPORTS) -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
+	@! $(GOIMPORTS) -local github.com/vmware -d $$(find . -type f -name '*.go' -not -path "./vendor/*") 2>&1 | egrep -v '^$$'
 	@touch $@
 
 govet:

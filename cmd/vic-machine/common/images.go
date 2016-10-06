@@ -23,6 +23,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/urfave/cli"
+
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"

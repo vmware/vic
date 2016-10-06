@@ -16,8 +16,9 @@ package backends
 
 import (
 	"fmt"
-	derr "github.com/docker/docker/errors"
 	"net/http"
+
+	derr "github.com/docker/docker/errors"
 )
 
 // InvalidVolumeError is returned when the user specifies a client directory as a volume.

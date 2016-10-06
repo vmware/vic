@@ -20,9 +20,10 @@ import (
 	"path"
 
 	log "github.com/Sirupsen/logrus"
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
-	"golang.org/x/net/context"
 )
 
 // Write the opaque metadata blobs (by name).

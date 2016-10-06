@@ -22,6 +22,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"

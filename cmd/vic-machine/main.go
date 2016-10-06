@@ -23,6 +23,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/urfave/cli"
+
 	"github.com/vmware/vic/cmd/vic-machine/create"
 	uninstall "github.com/vmware/vic/cmd/vic-machine/delete"
 	"github.com/vmware/vic/cmd/vic-machine/inspect"

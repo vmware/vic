@@ -21,6 +21,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/test/env"

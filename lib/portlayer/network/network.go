@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"

@@ -24,12 +24,13 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/pkg/vsphere/session"
 )

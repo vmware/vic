@@ -24,6 +24,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/vic/lib/portlayer/util"
 )
 

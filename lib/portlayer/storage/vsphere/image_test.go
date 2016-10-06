@@ -30,6 +30,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/exec"
@@ -37,7 +39,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"golang.org/x/net/context"
 )
 
 func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, string, error) {

@@ -32,6 +32,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+
 	"github.com/vmware/vic/lib/dhcp"
 	"github.com/vmware/vic/lib/dhcp/client"
 	"github.com/vmware/vic/pkg/ip"

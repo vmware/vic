@@ -24,6 +24,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/registry"
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
+
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/portmap"

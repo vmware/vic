@@ -20,6 +20,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/portlayer/event"
@@ -28,7 +30,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"golang.org/x/net/context"
 )
 
 var initializer sync.Once

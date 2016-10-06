@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/lib/portlayer/event/collector"
 	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/pkg/trace"

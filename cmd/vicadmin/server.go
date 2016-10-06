@@ -27,6 +27,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/tlsconfig"
+
 	"github.com/vmware/vic/lib/vicadmin"
 	"github.com/vmware/vic/pkg/trace"
 )

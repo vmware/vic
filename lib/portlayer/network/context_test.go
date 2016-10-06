@@ -26,6 +26,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"

@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/storage"

@@ -26,6 +26,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/pkg/vsphere/toolbox"
 )

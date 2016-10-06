@@ -28,6 +28,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/golang/groupcache/lru"
+
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/guest"

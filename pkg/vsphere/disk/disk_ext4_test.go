@@ -23,9 +23,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
-	"golang.org/x/net/context"
 )
 
 // Create a disk, make an ext filesystem on it, set the label, mount it,

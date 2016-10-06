@@ -29,6 +29,7 @@ import (
 
 	"github.com/docker/docker/opts"
 	dockertypes "github.com/docker/engine-api/types"
+
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
