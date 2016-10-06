@@ -21,4 +21,6 @@ const (
 	BridgeScopeType = "bridge"
 	// ExternalScopeType denotes a scope that is of type external
 	ExternalScopeType = "external"
+	// DefaultBridgeRange is the default pool for bridge networks
+	DefaultBridgeRange = "172.16.0.0/12"
 )

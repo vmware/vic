@@ -22,8 +22,6 @@ import (
 	"sync"
 	"syscall"
 
-	"golang.org/x/net/context"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/go-connections/nat"
 
@@ -36,6 +34,7 @@ import (
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -77,7 +76,7 @@ func NewContext(config *Configuration) (*Context, error) {
 	bridgeRange := config.BridgeIPRange
 	if bridgeRange == nil || len(bridgeRange.IP) == 0 || bridgeRange.IP.IsUnspecified() {
 		var err error
-		_, bridgeRange, err = net.ParseCIDR("172.16.0.0/12")
+		_, bridgeRange, err = net.ParseCIDR(constants.DefaultBridgeRange)
 		if err != nil {
 			return nil, err
 		}
