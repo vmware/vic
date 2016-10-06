@@ -685,7 +685,11 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 			tr.TLSClientConfig.InsecureSkipVerify = false
 
 			// find the name to use
-			addr = addrToUse(d.HostIP, conf)
+			addr, err = addrToUse(d.HostIP, conf)
+			if err != nil {
+				log.Warn("Unable to determine address to use with remote certificate, skipping component checks")
+				tlsErrExpected = true
+			}
 		}
 
 		if clientCert != nil {

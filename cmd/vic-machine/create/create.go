@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/url"
+	"os"
 	"path"
 	"strings"
 	"time"
@@ -76,6 +77,8 @@ type Create struct {
 	cakey      string
 	clientCert *tls.Certificate
 
+	envFile string
+
 	cname   string
 	org     string
 	keySize int
@@ -84,13 +87,14 @@ type Create struct {
 	noTLSverify     bool
 	advancedOptions bool
 
+	clientCAs cli.StringSlice
+
 	containerNetworks         cli.StringSlice
 	containerNetworksGateway  cli.StringSlice
 	containerNetworksIPRanges cli.StringSlice
 	containerNetworksDNS      cli.StringSlice
 	volumeStores              cli.StringSlice
 	insecureRegistries        cli.StringSlice
-<<<<<<< a29310c9c49ec24b1735ca780840424e6066e57d
 	dns                       cli.StringSlice
 	clientNetworkName         string
 	clientNetworkGateway      string
@@ -101,9 +105,6 @@ type Create struct {
 	managementNetworkName     string
 	managementNetworkGateway  string
 	managementNetworkIP       string
-=======
-	clientCAs                 cli.StringSlice
->>>>>>> Certificate generation and TLS verify
 
 	memoryReservLimits string
 	cpuReservLimits    string
@@ -348,10 +349,9 @@ func (c *Create) Flags() []cli.Flag {
 			},
 			cli.StringFlag{
 				Name:        "cname",
-				Value:       "*.",
+				Value:       "",
 				Usage:       "Common Name to use in generated CA certificate",
 				Destination: &c.cname,
-				Hidden:      true,
 			},
 			cli.StringFlag{
 				Name:        "organisation",
@@ -599,6 +599,10 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 
 // processDNSServers parses DNS servers used for client, external, mgmt networks
 func (c *Create) processDNSServers() error {
+	if len(c.dns) == 0 {
+		return nil
+	}
+
 	for _, d := range c.dns {
 		s := net.ParseIP(d)
 		if s == nil {
@@ -606,9 +610,11 @@ func (c *Create) processDNSServers() error {
 		}
 		c.Data.DNS = append(c.Data.DNS, s)
 	}
+
 	if len(c.Data.DNS) > 3 {
 		log.Warn("Maximum of 3 DNS servers. Additional servers specified will be ignored.")
 	}
+
 	if c.Data.ClientNetwork.Empty() && c.Data.ExternalNetwork.Empty() && c.Data.ManagementNetwork.Empty() {
 		log.Warn("Specified DNS servers are ignored if static IP is not set on any networks. VCH will use DNS servers provided by DHCP.")
 	}
@@ -645,6 +651,8 @@ func (c *Create) processInsecureRegistries() error {
 func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 	defer trace.End(trace.Begin(""))
 
+	c.envFile = fmt.Sprintf("%s.env", c.DisplayName)
+
 	// reads each of the files specified, assuming that they are PEM encoded certs,
 	// and constructs a byte array suitable for passing to CertPool.AppendCertsFromPEM
 	var certs []byte
@@ -677,12 +685,25 @@ func (c *Create) generateCertificates(ca bool) ([]byte, *certificate.KeyPair, er
 	defer trace.End(trace.Begin(""))
 
 	var certs []byte
-	c.key = fmt.Sprintf("./%s-key.pem", c.DisplayName)
-	c.cert = fmt.Sprintf("./%s-cert.pem", c.DisplayName)
-	skey := fmt.Sprintf("./%s-server-key.pem", c.DisplayName)
-	scert := fmt.Sprintf("./%s-server-cert.pem", c.DisplayName)
-	cakey := fmt.Sprintf("./%s-cakey.pem", c.DisplayName)
-	c.cacert = fmt.Sprintf("./%s-cacert.pem", c.DisplayName)
+	// generate the certs and keys with names conforming the default the docker client expects
+	// to avoid overwriting for a different vch, place this in a directory named for the vch
+	err := os.MkdirAll(fmt.Sprintf("./%s", c.DisplayName), 640)
+	if err != nil {
+		log.Errorf("Unable to make directory to hold certificates")
+		return nil, nil, err
+	}
+
+	// the locations for the certificates and env file
+	c.envFile = fmt.Sprintf("%s/%[1]s.env", c.DisplayName)
+
+	c.key = fmt.Sprintf("./%s/key.pem", c.DisplayName)
+	c.cert = fmt.Sprintf("./%s/cert.pem", c.DisplayName)
+
+	skey := fmt.Sprintf("./%s/server-key.pem", c.DisplayName)
+	scert := fmt.Sprintf("./%s/server-cert.pem", c.DisplayName)
+
+	cakey := fmt.Sprintf("./%s/ca-key.pem", c.DisplayName)
+	c.cacert = fmt.Sprintf("./%s/ca.pem", c.DisplayName)
 
 	if !ca {
 		log.Infof("Generating self-signed certificate/key pair - private key in %s", c.key)
@@ -696,10 +717,20 @@ func (c *Create) generateCertificates(ca bool) ([]byte, *certificate.KeyPair, er
 		return certs, keypair, nil
 	}
 
+	if c.cname == "" {
+		log.Error("Common Name must be provided when generating certificates for client authentication:")
+		log.Info("  --cname=<FQDN or static IP> # for the appliance VM")
+		log.Info("  --cname=<*.yourdomain.com>  # if DNS has entries in that form for DHCP addresses (less secure)")
+		log.Info("  --no-tlsverify              # disables client authentication (anyone can connect to the VCH)")
+		log.Info("")
+
+		return certs, nil, errors.New("provide Common Name for server certificate")
+	}
+
 	// Certificate authority
 	log.Infof("Generating CA certificate/key pair - private key in %s", cakey)
 	cakp := certificate.NewKeyPair(c.cacert, cakey, nil, nil)
-	err := cakp.CreateRootCA(c.cname, c.org, c.keySize)
+	err = cakp.CreateRootCA(c.cname, c.org, c.keySize)
 	if err != nil {
 		log.Errorf("Failed to generate CA: %s", err)
 		return nil, nil, err
@@ -823,7 +854,7 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 
 	log.Infof("Initialization of appliance successful")
 
-	executor.ShowVCH(vchConfig, c.key, c.cert, c.cacert)
+	executor.ShowVCH(vchConfig, c.key, c.cert, c.cacert, c.envFile)
 	log.Infof("Installer completed successfully")
 	return nil
 }

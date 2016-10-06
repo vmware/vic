@@ -16,6 +16,7 @@ package management
 
 import (
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -210,7 +211,7 @@ func (d *Dispatcher) CollectDiagnosticLogs() {
 	}
 }
 
-func addrToUse(ip string, conf *config.VirtualContainerHostConfigSpec) string {
+func addrToUse(ip string, conf *config.VirtualContainerHostConfigSpec) (string, error) {
 	log.Debug("Loading CAs for client auth")
 	pool := x509.NewCertPool()
 	pool.AppendCertsFromPEM(conf.CertificateAuthorities)
@@ -218,17 +219,17 @@ func addrToUse(ip string, conf *config.VirtualContainerHostConfigSpec) string {
 	// update target to use FQDN
 	names, err := net.LookupAddr(ip)
 	if err != nil {
-		log.Errorf("Unable to perform reverse lookup of IP address - skipping component check: %s", err)
-		return ip
+		log.Debugf("Unable to perform reverse lookup of IP address: %s", err)
 	}
 
 	cert, err := conf.HostCertificate.X509Certificate()
 	if err != nil {
-		log.Errorf("Unable to extract host certificate - skipping component check: %s", err)
-		return ip
+		log.Debugf("Unable to extract host certificate: %s", err)
+		return ip, err
 	}
 
-	for _, n := range names {
+	// check all the returned names, and lastly the raw IP
+	for _, n := range append(names, ip) {
 		opts := x509.VerifyOptions{
 			Roots:   pool,
 			DNSName: n,
@@ -236,13 +237,13 @@ func addrToUse(ip string, conf *config.VirtualContainerHostConfigSpec) string {
 
 		_, err := cert.Verify(opts)
 		if err == nil {
-			// this name will work
+			// this identifier will work
 			log.Debugf("Matched %s for use against host certificate", n)
-			// trim '.' fqdn suffix
-			return strings.TrimSuffix(n, ".")
+			// trim '.' fqdn suffix if fqdn
+			return strings.TrimSuffix(n, "."), nil
 		}
 	}
 
-	// no viable fqdns
-	return ip
+	// no viable address
+	return ip, errors.New("unable to determine viable address")
 }
