@@ -1,0 +1,30 @@
+version: "2"
+
+services:
+  vote:
+    image: victest/vote
+    container_name: vote
+    command: python app.py
+    ports:
+      - "5000:80"
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports: ["6379"]
+
+  worker:
+    container_name: worker
+    image: victest/vote-worker
+
+  db:
+    container_name: db
+    image: postgres:9.4
+
+  result:
+    image: victest/vote-result
+    container_name: result
+    command: nodemon --debug server.js
+    ports:
+      - "5001:80"
+      - "5858:5858"

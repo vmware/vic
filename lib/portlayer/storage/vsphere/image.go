@@ -330,9 +330,12 @@ func (v *ImageStore) writeImage(ctx context.Context, storeName, parentID, ID str
 	t := io.TeeReader(r, h)
 
 	// Untar the archive
-	if err = archive.Untar(t, dir, &archive.TarOptions{}); err != nil {
+	var n int64
+	if n, err = archive.ApplyLayer(dir, t); err != nil {
 		return err
 	}
+
+	log.Debugf("%s wrote %d bytes", ID, n)
 
 	actualSum := fmt.Sprintf("sha256:%x", h.Sum(nil))
 	if actualSum != sum {

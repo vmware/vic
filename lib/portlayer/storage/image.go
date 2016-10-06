@@ -66,7 +66,7 @@ type ImageStorer interface {
 	ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*Image, error)
 
 	// DeleteImage deletes an image from the image store.  If the image is in
-	// use either by way of inheritence or because it's attached to a
+	// use either by way of inheritance or because it's attached to a
 	// container, this will return an error.
 	DeleteImage(ctx context.Context, image *Image) error
 }
@@ -78,13 +78,13 @@ type ImageStorer interface {
 // `/storage/<image store identifier, usually the vch uuid>/<image id>`
 //
 type Image struct {
-	// ID is the identifer for this layer.  Usually a SHA
+	// ID is the identifier for this layer.  Usually a SHA
 	ID string
 
 	// SelfLink is the URL for this layer.  Filled in by the runtime.
 	SelfLink *url.URL
 
-	// ParentLink is the URL for the parent.  It's the VMDK this snapshot inerits from.
+	// ParentLink is the URL for the parent.  It's the VMDK this snapshot inherits from.
 	ParentLink *url.URL
 
 	// Store is the URL for the image store the image can be found on.

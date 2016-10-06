@@ -121,6 +121,9 @@ func (s *SignalMsg) FromString(name string) error {
 	return nil
 }
 
+// CloseStdinMsg
+const CloseStdinReq = "close-stdin"
+
 // ContainersMsg
 const ContainersReq = "container-ids"
 

@@ -112,12 +112,12 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 					Path: *params.CreateConfig.Path,
 					Args: append([]string{*params.CreateConfig.Path}, params.CreateConfig.Args...),
 				},
+				StopSignal: *params.CreateConfig.StopSignal,
 			},
 		},
-		Key:        pem.EncodeToMemory(&privateKeyBlock),
-		LayerID:    *params.CreateConfig.Image,
-		RepoName:   *params.CreateConfig.RepoName,
-		StopSignal: *params.CreateConfig.StopSignal,
+		Key:      pem.EncodeToMemory(&privateKeyBlock),
+		LayerID:  *params.CreateConfig.Image,
+		RepoName: *params.CreateConfig.RepoName,
 	}
 	if params.CreateConfig.Annotations != nil && len(params.CreateConfig.Annotations) > 0 {
 		m.Annotations = make(map[string]string)
@@ -435,5 +435,11 @@ func convertContainerToContainerInfo(container *exec.Container) *models.Containe
 	status := container.ExecConfig.Sessions[ccid].Started
 	info.ProcessConfig.Status = &status
 
+	info.HostConfig = &models.HostConfig{}
+	for _, endpoint := range container.ExecConfig.Networks {
+		if len(endpoint.Ports) > 0 {
+			info.HostConfig.Ports = append(info.HostConfig.Ports, endpoint.Ports...)
+		}
+	}
 	return info
 }

@@ -157,7 +157,7 @@ func (t *Toolbox) halt() error {
 	session := t.config.Sessions[t.config.ID]
 	log.Infof("stopping %s", session.ID)
 
-	if err := t.kill(t.config.StopSignal); err != nil {
+	if err := t.kill(session.StopSignal); err != nil {
 		return err
 	}
 

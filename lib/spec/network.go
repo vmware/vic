@@ -62,7 +62,6 @@ func NewVirtualE1000() *types.VirtualE1000 {
 func (s *VirtualMachineConfigSpec) addVirtualNIC(device types.BaseVirtualDevice) *VirtualMachineConfigSpec {
 	device.GetVirtualDevice().Key = s.generateNextKey()
 
-	device.GetVirtualDevice().Backing = s.DebugNetwork()
 	return s.AddVirtualDevice(device)
 }
 

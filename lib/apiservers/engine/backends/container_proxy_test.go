@@ -17,6 +17,7 @@ package backends
 import (
 	"testing"
 
+	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -46,4 +47,37 @@ func TestProcessVolumeParams(t *testing.T) {
 
 	invalidFields, _ := processVolumeParam(invalidVolume)
 	assert.Equal(t, volumeFields{}, invalidFields)
+}
+
+func TestPort(t *testing.T) {
+	portMap, bindingMap, err := nat.ParsePortSpecs([]string{
+		"1236:1235/tcp",
+		"1237:1235/tcp",
+		"2345/udp", "80",
+		"127.0.0.1::8080",
+		"127.0.0.1:5279:8080",
+	})
+	if err != nil {
+		t.Errorf("Failed to parse ports: %s", err.Error())
+	}
+	t.Logf("portMap: %s", portMap)
+	t.Logf("bindingMap: %s", bindingMap)
+
+	for p := range bindingMap {
+		expected := bindingMap[p]
+		for i := range expected {
+			expected[i].HostIP = ""
+		}
+
+		bindings := fromPortbinding(p, bindingMap[p])
+		t.Logf("binding: %s", bindings)
+		_, outMap, err := nat.ParsePortSpecs(bindings)
+		if err != nil {
+			t.Errorf("Failed to parse back string bindings: %s", err)
+		}
+		for op := range outMap {
+			assert.Equal(t, outMap[op], bindingMap[op])
+		}
+
+	}
 }

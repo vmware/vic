@@ -18,9 +18,7 @@ import (
 	"net/url"
 
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
-	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/event"
 )
 
@@ -32,28 +30,12 @@ type Configuration struct {
 	DebugLevel int `vic:"0.1" scope:"read-only" key:"init/common/debug"`
 
 	// Port Layer - exec
-	// Default containerVM capacity
-	ContainerVMSize config.Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	config.Container `vic:"0.1" scope:"read-only" key:"container"`
 
-	// Permitted datastore URLs for container storage for this virtual container host
-	ContainerStores []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-
-	// Resource pools under which all containers will be created
-	ComputeResources []types.ManagedObjectReference `vic:"0.1" scope:"read-only"`
 	// Resource pool is the working version of the compute resource config
 	ResourcePool *object.ResourcePool
 	// Parent resource will be a VirtualApp on VC
 	VirtualApp *object.VirtualApp
-
-	// Path of the ISO to use for bootstrapping containers
-	BootstrapImagePath string `vic:"0.1" scope:"read-only" key:"bootstrap_image_path"`
-
-	// Allow custom naming convention for containerVMs
-	ContainerNameConvention string
-
-	// FIXME: temporary work around for injecting network path of debug nic
-	Networks     map[string]*executor.NetworkEndpoint `vic:"0.1" scope:"read-only" key:"init/networks"`
-	DebugNetwork object.NetworkReference
 
 	// For now throw the Event Manager here
 	EventManager event.EventManager
@@ -67,8 +49,5 @@ type Configuration struct {
 	HostProductName string //'VMware vCenter Server' or 'VMare ESXi'
 
 	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
-	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores"`
-
-	// Size of scratch layer in KB
-	ScratchSize int64 `vic:"0.1" scope:"read-only" key:"scratch_size"`
+	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"storage/image_stores"`
 }

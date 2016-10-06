@@ -54,28 +54,80 @@ type VirtualContainerHostConfigSpec struct {
 	// Networks are keyed by interface name
 	executor.ExecutorConfig `vic:"0.1" scope:"read-only" key:"init"`
 
-	////////////// vSphere connection configuration
-	// The sdk URL
-	Target url.URL `vic:"0.1" scope:"read-only" key:"target"`
-	// User/Password (For ESXi only)
-	// Required because url.URL does not Marshal the UserInfo field
-	UserPassword string `vic:"0.1" scope:"read-only" key:"userpw"`
-	// Certificate for authentication as vSphere Extension
-	ExtensionCert string `vic:"0.1" scope:"read-only" key:"extension_cert"`
-	ExtensionKey  string `vic:"0.1" scope:"read-only" key:"extension_key"`
-	ExtensionName string `vic:"0.1" scope:"read-only" key:"extension_name"`
-	// Whether the session connection is secure
-	Insecure bool `vic:"0.1" scope:"read-only" key:"insecure"`
-	// The session timeout
-	Keepalive time.Duration `vic:"0.1" scope:"read-only" key:"keepalive"`
+	// vSphere connection configuration
+	Connection `vic:"0.1" scope:"read-only" key:"connect"`
 
-	////////////// basic contact information
-	// Administrative contact for the Virtual Container Host
-	Admin []mail.Address
-	// Administrative contact for hosting infrastructure
-	InfrastructureAdmin []mail.Address
+	// basic contact information
+	Contacts `vic:"0.1" scope:"read-only" key:"contact"`
 
-	////////////// certificate configuration, for both inbound and outbound access
+	// certificate configuration, for both inbound and outbound access
+	Certificate `vic:"0.1" scope:"read-only" key:"cert"`
+
+	// Port Layer - storage
+	Storage `vic:"0.1" scope:"read-only" key:"storage"`
+
+	// Port Layer - network
+	Network `vic:"0.1" scope:"read-only" key:"network"`
+
+	// Port Layer - exec
+	Container `vic:"0.1" scope:"read-only" key:"container"`
+
+	// Registry configuration for Imagec
+	Registry `vic:"0.1" scope:"read-only" key:"registry"`
+
+	// configuration for vic-machine
+	CreateBridgeNetwork bool `vic:"0.1" scope:"read-only" key:"create_bridge_network"`
+}
+
+// ContainerConfig holds the container configuration for a virtual container host
+type Container struct {
+	// Default containerVM capacity
+	ContainerVMSize Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	// Resource pools under which all containers will be created
+	ComputeResources []types.ManagedObjectReference `vic:"0.1" scope:"read-only"`
+	// Path of the ISO to use for bootstrapping containers
+	BootstrapImagePath string `vic:"0.1" scope:"read-only" key:"bootstrap_image_path"`
+	// Allow custom naming convention for containerVMs
+	ContainerNameConvention string
+	// Permitted datastore URLs for container storage for this virtual container host
+	ContainerStores []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+}
+
+// RegistryConfig defines the registries virtual container host can talk to
+type Registry struct {
+	// Whitelist of registries
+	RegistryWhitelist []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	// Blacklist of registries
+	RegistryBlacklist []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	// Insecure registries
+	InsecureRegistries []url.URL `vic:"0.1" scope:"read-only" key:"insecure_registries"`
+}
+
+// NetworkConfig defines the network configuration of virtual container host
+type Network struct {
+	// The network to use by default to provide access to the world
+	BridgeNetwork string `vic:"0.1" scope:"read-only" key:"bridge_network"`
+	// Published networks available for containers to join, keyed by consumption name
+	ContainerNetworks map[string]*executor.ContainerNetwork `vic:"0.1" scope:"read-write" key:"container_networks"`
+	// The IP range for the bridge networks
+	BridgeIPRange *net.IPNet `vic:"0.1" scope:"read-only" key:"bridge-ip-range"`
+	// The width of each new bridge network
+	BridgeNetworkWidth *net.IPMask `vic:"0.1" scope:"read-only" key:"bridge-net-width"`
+}
+
+// StorageConfig defines the storage configuration including images and volumes
+type Storage struct {
+	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
+	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores"`
+	// Permitted datastore URL roots for volumes
+	// Keyed by the volume store name (which is used by the docker user to
+	// refer to the datstore + path), valued by the datastores and the path.
+	VolumeLocations map[string]*url.URL `vic:"0.1" scope:"read-only"`
+	// default size for root image
+	ScratchSize int64 `vic:"0.1" scope:"read-only" key:"scratch_size"`
+}
+
+type Certificate struct {
 	// Certificates for user authentication - this needs to be expanded to allow for directory server auth
 	UserCertificates []*RawCertificate
 	// Certificates for general outgoing network access, keyed by CIDR (IPNet.String())
@@ -89,45 +141,30 @@ type VirtualContainerHostConfigSpec struct {
 	// Used for authentication against e.g. the Docker HTTP endpoint
 	UserKeyPEM  string `vic:"0.1" scope:"read-only" key:"key_pem"`
 	UserCertPEM string `vic:"0.1" scope:"read-only" key:"cert_pem"`
+}
 
-	////////////// Port Layer - storage
-	// Datastore URLs for image stores - the top layer is [0], the bottom layer is [len-1]
-	ImageStores []url.URL `vic:"0.1" scope:"read-only" key:"image_stores"`
-	// Permitted datastore URL roots for volumes
-	VolumeLocations map[string]*url.URL `vic:"0.1" scope:"read-only"`
+// Connection holds the vSphere connection configuration
+type Connection struct {
+	// The sdk URL
+	Target url.URL `vic:"0.1" scope:"read-only" key:"target"`
+	// User/Password (For ESXi only)
+	// Required because url.URL does not Marshal the UserInfo field
+	UserPassword string `vic:"0.1" scope:"read-only" key:"userpw"`
+	// Certificate for authentication as vSphere Extension
+	ExtensionCert string `vic:"0.1" scope:"read-only" key:"extension_cert"`
+	ExtensionKey  string `vic:"0.1" scope:"read-only" key:"extension_key"`
+	ExtensionName string `vic:"0.1" scope:"read-only" key:"extension_name"`
+	// Whether the session connection is secure
+	Insecure bool `vic:"0.1" scope:"read-only" key:"insecure"`
+	// The session timeout
+	Keepalive time.Duration `vic:"0.1" scope:"read-only" key:"keepalive"`
+}
 
-	////////////// Port Layer - network
-	// The network to use by default to provide access to the world
-	BridgeNetwork       string `vic:"0.1" scope:"read-only" key:"bridge_network"`
-	CreateBridgeNetwork bool   `vic:"0.1" scope:"read-only" key:"create_bridge_network"`
-	// Published networks available for containers to join, keyed by consumption name
-	ContainerNetworks map[string]*executor.ContainerNetwork `vic:"0.1" scope:"read-write" key:"container_networks"`
-	// The IP range for the bridge networks
-	BridgeIPRange *net.IPNet `vic:"0.1" scope:"read-only" key:"bridge-ip-range"`
-
-	////////////// Port Layer - exec
-	// Default containerVM capacity
-	ContainerVMSize Resources `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-	// Permitted datastore URLs for container storage for this virtual container host
-	ContainerStores []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-	// Resource pools under which all containers will be created
-	ComputeResources []types.ManagedObjectReference `vic:"0.1" scope:"read-only"`
-	// Path of the ISO to use for bootstrapping containers
-	BootstrapImagePath string `vic:"0.1" scope:"read-only" key:"bootstrap_image_path"`
-
-	////////////// Imagec
-	// Whitelist of registries
-	RegistryWhitelist []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-	// Blacklist of registries
-	RegistryBlacklist []url.URL `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-	// Insecure registries
-	InsecureRegistries []url.URL `vic:"0.1" scope:"read-only" key:"insecure_registries"`
-
-	// Allow custom naming convention for containerVMs
-	ContainerNameConvention string
-
-	// default size for root image
-	ScratchSize int64 `vic:"0.1" scope:"read-only" key:"scratch_size"`
+type Contacts struct {
+	// Administrative contact for the Virtual Container Host
+	Admin []mail.Address
+	// Administrative contact for hosting infrastructure
+	InfrastructureAdmin []mail.Address
 }
 
 // RawCertificate is present until we add extraconfig support for [][]byte slices that are present

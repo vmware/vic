@@ -12,19 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package storage
+// Package dio adds dynamic behaviour to the standard io package mutliX types
+package dio
 
-import (
-	"github.com/vmware/vic/lib/config"
-)
-
-var Config Configuration
-
-// Configuration is a slice of the VCH config that is relevant to the exec part of the port layer
-type Configuration struct {
-	// Turn on debug logging
-	DebugLevel int `vic:"0.1" scope:"read-only" key:"init/common/debug"`
-
-	// Port Layer - storage
-	config.Storage `vic:"0.1" scope:"read-only" key:"storage"`
-}
+var verbose = true
