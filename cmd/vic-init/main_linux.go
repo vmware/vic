@@ -42,8 +42,11 @@ func main() {
 		reboot()
 	}()
 
-	logFile, _ := os.OpenFile("/dev/ttyS1", os.O_WRONLY|os.O_SYNC, 0644)
-	syscall.Dup2(int(logFile.Fd()), 2)
+	logFile, err := os.OpenFile("/dev/ttyS1", os.O_WRONLY|os.O_SYNC, 0644)
+	if err != nil {
+		log.Errorf("Could not pipe stderr to serial for debugging info. Some debug info may be lost! Error reported was %s", err)
+	}
+	syscall.Dup3(int(logFile.Fd()), int(os.Stderr.Fd()), 0)
 	os.Stderr.WriteString("all stderr redirected to debug log")
 
 	if strings.HasSuffix(os.Args[0], "-debug") {
