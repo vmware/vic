@@ -150,7 +150,7 @@ func TestWriteRemove(t *testing.T) {
 		return
 	}
 
-	// Add writer to existing MultiWriter
+	// Remove the writer from the MultiWriter
 	mwriter.Remove(pipeBW)
 
 	data2 := "verify dynamic remove"
@@ -194,6 +194,7 @@ func TestMultiRead(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
 	// compare the data
 	if buf.String() != dataA+dataB {
 		t.Errorf("A: expected: %s, actual: %s", dataA+dataB, buf.String())
@@ -215,6 +216,9 @@ func TestMultiRead(t *testing.T) {
 
 func TestReadAdd(t *testing.T) {
 	var wg sync.WaitGroup
+
+	done := make(chan struct{}, 1)
+	defer close(done)
 
 	dataA := "verify base multireader functionA"
 	dataB := "verify base multireader functionB"
@@ -243,6 +247,9 @@ func TestReadAdd(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+
+		<-done
+
 		_, err := mreader.Read(bufA.Bytes())
 		if err != io.EOF {
 			t.Error(err)
@@ -260,21 +267,13 @@ func TestReadAdd(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	done <- struct{}{}
 
 	// compare the data
 	if bufB.String() != dataB {
 		t.Errorf("A: expected: %s, actual: %s", dataB, bufB.String())
 		return
 	}
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		_, err := mreader.Read(bufB.Bytes())
-		if err != io.EOF {
-			t.Error(err)
-		}
-	}()
 
 	mreader.Close()
 	wg.Wait()
@@ -283,12 +282,16 @@ func TestReadAdd(t *testing.T) {
 func TestReadRemove(t *testing.T) {
 	var wg sync.WaitGroup
 
+	done := make(chan struct{}, 1)
+	defer close(done)
+
 	pipeAR, pipeAW := io.Pipe()
 	pipeBR, pipeBW := io.Pipe()
 
 	mreader := MultiReader(pipeAR, pipeBR)
 
-	var buf bytes.Buffer
+	var bufA bytes.Buffer
+	var bufB bytes.Buffer
 
 	// send the test string
 	data := "verify base multiwriter function"
@@ -301,59 +304,68 @@ func TestReadRemove(t *testing.T) {
 		}
 	}()
 
-	// do the read
-	_, err := io.CopyN(&buf, mreader, int64(len(data)))
-	if err != nil {
-		t.Error(err)
-	}
-
-	// compare the data
-	if buf.String() != data {
-		t.Errorf("A: expected: %s, actual: %s", data, buf.String())
-	}
-	buf.Truncate(0)
-
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		_, err := mreader.Read(buf.Bytes())
-		if err != io.EOF {
+
+		<-done
+
+		_, err := mreader.Read(bufA.Bytes())
+		if err != nil && err != io.EOF && err != io.ErrClosedPipe {
 			t.Error(err)
 		}
 	}()
 
-	// Add writer to existing MultiWriter
+	// do the read
+	_, err := io.CopyN(&bufA, mreader, int64(len(data)))
+	if err != nil {
+		t.Error(err)
+	}
+
+	done <- struct{}{}
+
+	// compare the data
+	if bufA.String() != data {
+		t.Errorf("A: expected: %s, actual: %s", data, bufA.String())
+	}
+
+	// Remove the writer from existing MultiWriter
 	mreader.Remove(pipeAR)
 
 	data = "verify dynamic remove"
 
 	go func() {
-		defer pipeAW.Close()
+		defer pipeBW.Close()
 		_, err = pipeBW.Write([]byte(data))
 		if err != nil {
 			t.Error(err)
 		}
 	}()
 
-	// do the read
-	_, err = io.CopyN(&buf, mreader, int64(len(data)))
-	if err != nil {
-		t.Error(err)
-	}
-
-	// compare the data - shouldn't be present
-	if buf.String() != data {
-		t.Errorf("A: expected: %s, actual: %s", data, buf.String())
-	}
-
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		_, err := mreader.Read(buf.Bytes())
-		if err != io.EOF {
+
+		<-done
+
+		_, err := mreader.Read(bufB.Bytes())
+		if err != nil && err != io.EOF && err != io.ErrClosedPipe {
 			t.Error(err)
 		}
+
 	}()
+
+	// do the read
+	_, err = io.CopyN(&bufB, mreader, int64(len(data)))
+	if err != nil {
+		t.Error(err)
+	}
+	done <- struct{}{}
+
+	// compare the data - shouldn't be present
+	if bufB.String() != data {
+		t.Errorf("B: expected: %s, actual: %s", data, bufB.String())
+	}
 
 	mreader.Close()
 	wg.Wait()
