@@ -120,16 +120,14 @@ func mkdir(ctx context.Context, sess *session.Session, fm *object.FileManager, c
 	log.Infof("Creating directory %s", path)
 
 	if err := fm.MakeDirectory(ctx, path, sess.Datacenter, createParentDirectories); err != nil {
+		if soap.IsSoapFault(err) {
+			soapFault := soap.ToSoapFault(err)
+			if _, ok := soapFault.VimFault().(types.FileAlreadyExists); ok {
+				log.Debugf("File already exists: %s", path)
+				return "", os.ErrExist
+			}
+		}
 		log.Debugf("Creating %s error: %s", path, err)
-		if !soap.IsSoapFault(err) {
-			return "", err
-		}
-
-		soapFault := soap.ToSoapFault(err)
-		if _, ok := soapFault.VimFault().(types.FileAlreadyExists); ok {
-			return "", os.ErrExist
-		}
-
 		return "", err
 	}
 
