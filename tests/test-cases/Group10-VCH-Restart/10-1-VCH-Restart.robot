@@ -22,7 +22,9 @@ Launch Container
 
 
 *** Test Cases ***
-Created Network Persists And Containers Are Discovered With Correct IPs
+Created Network And Images Persists As Well As Containers Are Discovered With Correct IPs
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull nginx
+    Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create bar
     Should Be Equal As Integers  ${rc}  0
     Comment  Launch first container on bridge network
@@ -49,6 +51,11 @@ Created Network Persists And Containers Are Discovered With Correct IPs
     ${new-vch-ip}=  Get VM IP  ${vch-name}
     Log To Console  New VCH IP is ${new-vch-ip}
     Replace String  ${params}  ${vch-ip}  ${new-vch-ip}
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  nginx
+    Should Contain  ${output}  busybox
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network ls
     Should Be Equal As Integers  ${rc}  0
