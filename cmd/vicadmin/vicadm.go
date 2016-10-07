@@ -63,8 +63,8 @@ var (
 
 	// VMFiles is the set of files to collect per VM associated with the VCH
 	vmFiles = []string{
-		"vmware.log",
-		string(vchconfig.VM + ".debug"),
+		"output.log",
+		"tether.debug",
 	}
 
 	config struct {
