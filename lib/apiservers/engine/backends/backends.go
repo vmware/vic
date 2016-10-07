@@ -24,6 +24,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/registry"
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
+	"github.com/go-swagger/go-swagger/swag"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
@@ -207,12 +208,14 @@ func syncContainerCache() error {
 
 	backend := NewContainerBackend()
 	client := backend.containerProxy.Client()
-	all := true
-	containme, err := client.Containers.GetContainerList(containers.NewGetContainerListParamsWithContext(ctx).WithAll(&all))
+
+	reqParams := containers.NewGetContainerListParamsWithContext(ctx).WithAll(swag.Bool(true))
+	containme, err := client.Containers.GetContainerList(reqParams)
 	if err != nil {
 		return errors.Errorf("Failed to retrieve container list from portlayer: %s", err)
 	}
 
+	log.Debugf("Found %d containers", len(containme.Payload))
 	cc := cache.ContainerCache()
 	var errs []string
 	for _, info := range containme.Payload {
