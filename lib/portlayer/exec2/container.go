@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 

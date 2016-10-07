@@ -21,6 +21,7 @@ import (
 	_ "net/http/pprof"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/dio"
 )

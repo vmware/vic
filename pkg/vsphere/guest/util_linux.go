@@ -19,9 +19,10 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"golang.org/x/net/context"
 )
 
 const (

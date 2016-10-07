@@ -21,6 +21,7 @@ import (
 
 	"github.com/dchest/siphash"
 	"github.com/google/uuid"
+
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 

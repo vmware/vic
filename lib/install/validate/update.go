@@ -15,11 +15,12 @@
 package validate
 
 import (
+	"golang.org/x/net/context"
+
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
-	"golang.org/x/net/context"
 )
 
 // MigrateConfig migrate old VCH configuration to new version. Currently check required fields only

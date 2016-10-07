@@ -21,11 +21,12 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -46,7 +47,7 @@ func waitForPath(ctx context.Context, path string) error {
 	go func() {
 		t := time.NewTicker(200 * time.Microsecond)
 		defer t.Stop()
-		for _ = range t.C {
+		for range t.C {
 			if _, err := os.Stat(path); err == nil {
 				close(done)
 				break

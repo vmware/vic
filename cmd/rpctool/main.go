@@ -20,6 +20,7 @@ import (
 	"os"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vmw-guestinfo/rpcout"

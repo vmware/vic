@@ -19,6 +19,7 @@ import (
 	"net/rpc"
 
 	"github.com/google/uuid"
+
 	"github.com/vmware/vic/lib/portlayer/exec2"
 )
 

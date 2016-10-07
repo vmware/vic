@@ -22,6 +22,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	units "github.com/docker/go-units"
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
@@ -32,7 +34,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"golang.org/x/net/context"
 )
 
 type Validator struct {

@@ -28,8 +28,8 @@ echo $outfile
 /usr/bin/zip -9 $outfile *.xml *.html *.log
 
 # GC credentials
-keyfile="vic-ci-logs.key"
-botofile=".boto"
+keyfile="/root/vic-ci-logs.key"
+botofile="/root/.boto"
 echo -en $GS_PRIVATE_KEY > $keyfile
 chmod 400 $keyfile
 echo "[Credentials]" >> $botofile

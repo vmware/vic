@@ -22,6 +22,7 @@ import (
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/types"
+
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 )
 

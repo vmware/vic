@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netlink"
+
 	"github.com/vmware/vic/pkg/trace"
 )
 

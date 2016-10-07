@@ -28,6 +28,8 @@ import (
 	// "github.com/vmware/govmomi/vim25/types"
 
 	"github.com/docker/docker/opts"
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
@@ -37,7 +39,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"golang.org/x/net/context"
 )
 
 type Validator struct {

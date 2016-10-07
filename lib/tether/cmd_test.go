@@ -21,6 +21,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
