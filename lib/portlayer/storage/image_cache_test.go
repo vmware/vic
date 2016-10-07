@@ -400,3 +400,52 @@ func TestDeleteImage(t *testing.T) {
 		return
 	}
 }
+
+// Cache population should be happening in order starting from parent(id1) to children(id4)
+func TestPopulateCacheInExpectedOrder(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+	st := NewMockDataStore()
+	ctx := context.Background()
+
+	storeURL, _ := util.ImageStoreNameToURL("testStore")
+
+	storageURLStr := storeURL.String()
+
+	url1, _ := url.Parse(storageURLStr + "/id1")
+	url2, _ := url.Parse(storageURLStr + "/id2")
+	url3, _ := url.Parse(storageURLStr + "/id3")
+	url4, _ := url.Parse(storageURLStr + "/id4")
+	scratchURL, _ := url.Parse(storageURLStr + Scratch.ID)
+
+	img1 := &Image{ID: "id1", SelfLink: url1, ParentLink: scratchURL, Store: storeURL}
+	img2 := &Image{ID: "id2", SelfLink: url2, ParentLink: url1, Store: storeURL}
+	img3 := &Image{ID: "id3", SelfLink: url3, ParentLink: url2, Store: storeURL}
+	img4 := &Image{ID: "id4", SelfLink: url4, ParentLink: url3, Store: storeURL}
+	scratchImg := &Image{
+		ID:         Scratch.ID,
+		SelfLink:   scratchURL,
+		ParentLink: scratchURL,
+		Store:      storeURL,
+	}
+
+	// Order does matter for some reason.
+	imageMap := map[string]*Image{
+		img1.ID:       img1,
+		img4.ID:       img4,
+		img2.ID:       img2,
+		img3.ID:       img3,
+		scratchImg.ID: scratchImg,
+	}
+
+	st.db[*storeURL] = imageMap
+
+	imageCache := NewLookupCache(st)
+	imageCache.GetImageStore(ctx, "testStore")
+
+	// Check if all images are available.
+	imageIds := []string{"id1", "id2", "id3", "id4"}
+	for _, imageID := range imageIds {
+		v, _ := imageCache.GetImage(ctx, storeURL, imageID)
+		assert.NotNil(t, v)
+	}
+}
