@@ -32,7 +32,12 @@ import (
 
 // startCommand is the switch for the synthetic commands that are permitted within the appliance.
 // This is not intended to allow arbitrary commands to be executed.
+// returns:
+//  pid: we return -1 as this is a synthetic command
+//  error
 func startCommand(r *toolbox.VixMsgStartProgramRequest) (int, error) {
+	defer trace.End(trace.Begin(r.ProgramPath))
+
 	switch r.ProgramPath {
 	case "enable-ssh":
 		return -1, enableSSH(r.Arguments)
@@ -121,9 +126,8 @@ func passwd(pass string) error {
 	_, err = stdin.Write([]byte("root:" + pass))
 
 	// so that we're actively waiting when the process exits, or we'll race (and lose) to child reaper
-	var waitErr error
 	go func() {
-		waitErr = setPasswd.Wait()
+		setPasswd.Wait()
 	}()
 
 	err = stdin.Close()

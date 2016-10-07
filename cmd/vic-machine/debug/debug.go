@@ -15,6 +15,8 @@
 package debug
 
 import (
+	"io/ioutil"
+
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/urfave/cli"
@@ -60,7 +62,7 @@ func (d *Debug) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "authorized-key, key",
 			Value:       "",
-			Usage:       "Key to place as /root/.ssh/authorized_keys",
+			Usage:       "File with public key to place as /root/.ssh/authorized_keys",
 			Destination: &d.authorizedKey,
 		},
 		cli.StringFlag{
@@ -144,7 +146,17 @@ func (d *Debug) Run(cli *cli.Context) error {
 	log.Infof("Installer version: %s", installerVer.ShortVersion())
 	log.Infof("VCH version: %s", vchConfig.Version.ShortVersion())
 
-	if err = executor.DebugVCH(vch, vchConfig, d.password, d.authorizedKey); err != nil {
+	// load the key file if set
+	var key []byte
+	if d.authorizedKey != "" {
+		key, err = ioutil.ReadFile(d.authorizedKey)
+		if err != nil {
+			log.Errorf("Unable to read public key from %s: %s", d.authorizedKey, err)
+			return errors.New("unable to load public key")
+		}
+	}
+
+	if err = executor.DebugVCH(vch, vchConfig, d.password, string(key)); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Errorf("%s", err)
 		return errors.New("Debug failed")
