@@ -23,8 +23,8 @@ Launch Container
 
 *** Test Cases ***
 Created Network And Images Persists As Well As Containers Are Discovered With Correct IPs
-	${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull nginx
-	Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull nginx
+    Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create bar
     Should Be Equal As Integers  ${rc}  0
     Comment  Launch first container on bridge network
