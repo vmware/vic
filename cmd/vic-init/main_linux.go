@@ -46,9 +46,15 @@ func main() {
 	if err != nil {
 		log.Errorf("Could not pipe stderr to serial for debugging info. Some debug info may be lost! Error reported was %s", err)
 	}
-	syscall.Dup3(int(logFile.Fd()), int(os.Stderr.Fd()), 0)
-	os.Stderr.WriteString("all stderr redirected to debug log")
+	err = syscall.Dup3(int(logFile.Fd()), int(os.Stderr.Fd()), 0)
+	if err != nil {
+		log.Errorf("Could not pipe logfile to standard error due to error %s", err)
+	}
 
+	_, err = os.Stderr.WriteString("all stderr redirected to debug log")
+	if err != nil {
+		log.Errorf("Could not write to Stderr due to error %s", err)
+	}
 	if strings.HasSuffix(os.Args[0], "-debug") {
 		extraconfig.DecodeLogLevel = log.DebugLevel
 		extraconfig.EncodeLogLevel = log.DebugLevel
