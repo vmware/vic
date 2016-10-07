@@ -46,6 +46,7 @@ Simple VSAN
     Set Environment Variable  EXTERNAL_NETWORK  vm-network
     Set Environment Variable  TEST_DATASTORE  vsanDatastore
     Set Environment Variable  TEST_RESOURCE  cls
+    Set Environment Variable  TEST_TIMEOUT  30m
     
     Install VIC Appliance To Test Server  ${false}  default
 
@@ -91,8 +92,10 @@ Complex VSAN
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  EXTERNAL_NETWORK  vm-network
-    Set Environment Variable  TEST_DATASTORE  vsanDatastore
+    ${datastore}=  Run  govc ls -t Datastore host/cluster-vsan-1/* | grep -v local | xargs -n1 basename | sort | uniq | grep vsan
+    Set Environment Variable  TEST_DATASTORE  "${datastore}"
     Set Environment Variable  TEST_RESOURCE  cluster-vsan-1
+    Set Environment Variable  TEST_TIMEOUT  30m
     
     Install VIC Appliance To Test Server  ${false}  default
 

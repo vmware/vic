@@ -60,6 +60,7 @@ Test
     Set Environment Variable  EXTERNAL_NETWORK  vm-network
     Set Environment Variable  TEST_DATASTORE  datastore1
     Set Environment Variable  TEST_RESOURCE  cls
+    Set Environment Variable  TEST_TIMEOUT  30m
 
     Install VIC Appliance To Test Server  ${false}  default
 
