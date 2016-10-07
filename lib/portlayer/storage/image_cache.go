@@ -230,7 +230,7 @@ func (c *NameLookupCache) WriteImage(ctx context.Context, parent *Image, ID stri
 	return i, nil
 }
 
-// GetImage gets the specified image from the given store by retreiving it from the cache.
+// GetImage gets the specified image from the given store by retrieving it from the cache.
 func (c *NameLookupCache) GetImage(ctx context.Context, store *url.URL, ID string) (*Image, error) {
 
 	debugf("Getting image %s from %s", ID, store.String())
