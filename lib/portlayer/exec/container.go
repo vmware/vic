@@ -60,6 +60,7 @@ const (
 	StateRemoved
 
 	propertyCollectorTimeout = 3 * time.Minute
+	containerLogName         = "output.log"
 )
 
 // NotFoundError is returned when a types.ManagedObjectNotFound is returned from a vmomi call
@@ -519,7 +520,7 @@ func (c *Container) LogReader(ctx context.Context, tail int, follow bool) (io.Re
 		return nil, err
 	}
 
-	name := fmt.Sprintf("%s/%s.log", url.Path, c.ExecConfig.ID)
+	name := fmt.Sprintf("%s/%s", url.Path, containerLogName)
 
 	log.Infof("pulling %s", name)
 
