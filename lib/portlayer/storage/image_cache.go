@@ -84,9 +84,9 @@ func (c *NameLookupCache) GetImageStore(ctx context.Context, storeName string) (
 			return nil, err
 		}
 
-		indx := index.NewIndex()
+		idx := index.NewIndex()
 
-		c.storeCache[*store] = indx
+		c.storeCache[*store] = idx
 
 		// Add Scratch
 		scratch, err := c.DataStore.GetImage(ctx, store, Scratch.ID)
@@ -95,7 +95,7 @@ func (c *NameLookupCache) GetImageStore(ctx context.Context, storeName string) (
 			return nil, ErrCorruptImageStore
 		}
 
-		if err = indx.Insert(scratch); err != nil {
+		if err = idx.Insert(scratch); err != nil {
 			return nil, err
 		}
 
@@ -107,21 +107,44 @@ func (c *NameLookupCache) GetImageStore(ctx context.Context, storeName string) (
 			return nil, err
 		}
 
-		// add the images we retrieved to the cache.
-		for _, image := range images {
-			if image.ID == Scratch.ID {
+		debugf("Found %d images", len(images))
+
+		// Build image map to simplify tree traversal.
+		imageMap := make(map[string]*Image, len(images))
+		for _, img := range images {
+			if img.ID == Scratch.ID {
 				continue
 			}
+			imageMap[img.Self()] = img
+		}
 
-			infof("Found image %s on datastore.", image.ID)
-
-			if err := indx.Insert(image); err != nil {
-				return nil, err
-			}
+		for k := range imageMap {
+			parentTree(k, idx, imageMap)
 		}
 	}
 
 	return store, nil
+}
+
+// parentTree adds images into the cache starting from the parent.
+func parentTree(imgLink string, idx *index.Index, imageMap map[string]*Image) {
+	img, ok := imageMap[imgLink]
+	if !ok {
+		return
+	}
+
+	if img.Parent() != img.Self() {
+		debugf("Looking for parent %s for %s", img.Parent(), img.Self())
+		parentTree(img.Parent(), idx, imageMap)
+	}
+
+	if err := idx.Insert(img); err != nil {
+		errorf("Could not insert image %s: %v", imgLink, err)
+	} else {
+		infof("Added image %s on datastore.", imgLink)
+	}
+
+	delete(imageMap, imgLink)
 }
 
 func (c *NameLookupCache) CreateImageStore(ctx context.Context, storeName string) (*url.URL, error) {
