@@ -41,10 +41,17 @@ func main() {
 
 	logFile, err := os.OpenFile("/dev/ttyS1", os.O_WRONLY|os.O_SYNC, 0644)
 	if err != nil {
-		log.Errorf("Could not pipe stderr to serial for debugging info. Some debug info may be lost! Error reported was %s", err)
+		log.Errorf("Could not open serial port for debugging info. Some debug info may be lost! Error reported was %s", err)
 	}
-	syscall.Dup3(int(logFile.Fd()), int(os.Stderr.Fd()), 0)
-	os.Stderr.WriteString("all stderr redirected to debug log")
+	err = syscall.Dup3(int(logFile.Fd()), int(os.Stderr.Fd()), 0)
+	if err != nil {
+		log.Errorf("Could not pipe logfile to standard error due to error %s", err)
+	}
+
+	_, err = os.Stderr.WriteString("all stderr redirected to debug log")
+	if err != nil {
+		log.Errorf("Could not write to Stderr due to error %s", err)
+	}
 
 	// where to look for the various devices and files related to tether
 	pathPrefix = "/.tether"
