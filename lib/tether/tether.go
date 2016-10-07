@@ -66,7 +66,7 @@ type tether struct {
 }
 
 func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) Tether {
-	t := &tether{
+	return &tether{
 		ops:    ops,
 		reload: make(chan bool, 1),
 		config: &ExecutorConfig{
@@ -77,13 +77,6 @@ func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) 
 		sink:       sink,
 		incoming:   make(chan os.Signal, 32),
 	}
-
-	// HACK: workaround file descriptor conflict in pipe2 return from the exec.Command.Start
-	// it's not clear whether this is a cross platform issue, or still an issue as of this commit
-	// keeping it until there's time to verify and fix properly with a Go PR.
-	_, _, _ = os.Pipe()
-
-	return t
 }
 
 // removeChildPid is a synchronized accessor for the pid map the deletes the entry and returns the value
