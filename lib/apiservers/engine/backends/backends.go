@@ -16,6 +16,7 @@ package backends
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/url"
 	"strings"
@@ -115,6 +116,11 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 		}
 		log.Info("Container cache updated successfully")
 	}()
+
+	// creates and potentially restore repository cache
+	if err := cache.NewRepositoryCache(portLayerClient); err != nil {
+		return fmt.Errorf("Failed to create repository cache: %s", err.Error())
+	}
 
 	serviceOptions := registry.ServiceOptions{}
 	for _, registry := range insecureRegs {

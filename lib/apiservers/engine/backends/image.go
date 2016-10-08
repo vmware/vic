@@ -36,6 +36,7 @@ import (
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
@@ -60,13 +61,11 @@ func (i *Image) Exists(containerName string) bool {
 
 // TODO fix the errors so the client doesnt print the generic POST or DELETE message
 func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDelete, error) {
-	defer trace.End(trace.Begin("ImageDelete"))
+	defer trace.End(trace.Begin(imageRef))
 
-	log.Debugf("Deleting image referenced as %s", imageRef)
-	host, err := sys.UUID()
-	if err != nil {
-		return nil, err
-	}
+	var deleted []types.ImageDelete
+	var userRefIsID bool
+	var imageRemoved bool
 
 	// Use the image cache to go from the reference to the ID we use in the image store
 	img, err := cache.ImageCache().GetImage(imageRef)
@@ -74,31 +73,80 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 		return nil, err
 	}
 
-	log.Infof("Deleting image %s (%s)", img.ImageID, img.ID)
-	params := storage.NewDeleteImageParamsWithContext(ctx).WithStoreName(host).WithID(img.ID)
+	// Get the tags from the repo cache for this image
+	// TODO: remove this -- we have it in the image above
+	tags := cache.RepositoryCache().Tags(img.ImageID)
 
-	_, err = PortLayerClient().Storage.DeleteImage(params)
-	if err != nil {
-		switch err := err.(type) {
-		case *storage.DeleteImageLocked:
-			return nil, fmt.Errorf("Failed to remove image %q: %s", imageRef, err.Payload.Message)
-		default:
-			return nil, err
-		}
+	// did the user pass an id or partial id
+	userRefIsID = cache.ImageCache().IsImageID(imageRef)
+	// do we have any reference conflicts
+	if len(tags) > 1 && userRefIsID && !force {
+		t := uid.Parse(img.ImageID).Truncate()
+		return nil,
+			fmt.Errorf("conflict: unable to delete %s (must be forced) - image is referenced in one or more repositories", t)
 	}
 
-	cache.ImageCache().RemoveImageByConfig(img)
-	cache.LayerCache().Remove(img.ID)
+	// if we have an ID or only 1 tag lets delete the vmdk(s) via the PL
+	if userRefIsID || len(tags) == 1 {
+		log.Infof("Deleting image via PL %s (%s)", img.ImageID, img.ID)
 
-	// TODO remove the image from the image cache (in the personality) (GH #2070)
-	// NOTE: This requires untagging the image.  Once we purge the image from
-	// the cache and untag, the return struct will need to include the untagged
-	// ID.
-	// So far tags are not really supported.
+		// needed for image store
+		host, err := sys.UUID()
+		if err != nil {
+			return nil, err
+		}
 
-	return []types.ImageDelete{
-		{Deleted: img.ImageID},
-	}, err
+		params := storage.NewDeleteImageParamsWithContext(ctx).WithStoreName(host).WithID(img.ID)
+		// TODO: This will fail if any containerVMs are referencing the vmdk - vanilla docker
+		// allows the removal of an image (via force flag) even if a container is referencing it
+		// should vic?
+		_, err = PortLayerClient().Storage.DeleteImage(params)
+		if err != nil {
+			switch err := err.(type) {
+			case *storage.DeleteImageLocked:
+				return nil, fmt.Errorf("Failed to remove image %q: %s", imageRef, err.Payload.Message)
+			default:
+				return nil, err
+			}
+		}
+
+		// we've deleted the image so remove from cache
+		cache.ImageCache().RemoveImageByConfig(img)
+		cache.LayerCache().Remove(img.ID)
+		imageRemoved = true
+
+	} else {
+
+		// only untag the ref supplied
+		n, err := reference.ParseNamed(imageRef)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse reference(%s): %s", imageRef, err.Error())
+		}
+		tag := reference.WithDefaultTag(n)
+		tags = []string{tag.String()}
+	}
+	// loop thru and remove from repoCache
+	for i := range tags {
+		// remove from cache, but don't save -- we'll do that afer all
+		// updates
+		refNamed, _ := cache.RepositoryCache().Remove(tags[i], false)
+		dd := types.ImageDelete{Untagged: refNamed}
+		deleted = append(deleted, dd)
+	}
+
+	// save repo now -- this will limit the number of PL
+	// calls to one per rmi call
+	err = cache.RepositoryCache().Save()
+	if err != nil {
+		return nil, fmt.Errorf("Untag error: %s", err.Error())
+	}
+
+	if imageRemoved {
+		imageDeleted := types.ImageDelete{Deleted: img.ImageID}
+		deleted = append(deleted, imageDeleted)
+	}
+
+	return deleted, err
 }
 
 func (i *Image) ImageHistory(imageName string) ([]*types.ImageHistory, error) {
@@ -189,7 +237,8 @@ func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders 
 
 	log.Infof("PullImage: reference: %s, %s, portlayer: %#v",
 		options.Reference,
-		options.Host)
+		options.Host,
+		portLayerServer)
 
 	ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter())
 	err := ic.PullImage()
@@ -219,8 +268,8 @@ func convertV1ImageToDockerImage(image *metadata.ImageConfig) *types.Image {
 	return &types.Image{
 		ID:          image.ImageID,
 		ParentID:    image.Parent,
-		RepoTags:    clientFriendlyTags(image.Reference, image.Tags),
-		RepoDigests: clientFriendlyDigests(image.Name, image.Digests),
+		RepoTags:    image.Tags,
+		RepoDigests: image.Digests,
 		Created:     image.Created.Unix(),
 		Size:        image.Size,
 		VirtualSize: image.Size,
@@ -247,8 +296,8 @@ func imageConfigToDockerImageInspect(imageConfig *metadata.ImageConfig, productN
 	}
 
 	inspectData := &types.ImageInspect{
-		RepoTags:        clientFriendlyTags(imageConfig.Reference, imageConfig.Tags),
-		RepoDigests:     clientFriendlyDigests(imageConfig.Name, imageConfig.Digests),
+		RepoTags:        imageConfig.Tags,
+		RepoDigests:     imageConfig.Digests,
 		Parent:          imageConfig.Parent,
 		Comment:         imageConfig.Comment,
 		Created:         imageConfig.Created.Format(time.RFC3339Nano),
@@ -271,54 +320,4 @@ func imageConfigToDockerImageInspect(imageConfig *metadata.ImageConfig, productN
 	inspectData.ID = "sha256:" + imageConfig.ImageID
 
 	return inspectData
-}
-
-/*
-	function will take the array of image tags (1.24,1.24.1,latest, etc)
-	and create a new array of tags that are supported by the docker client
-
-	The format for the client is reponame + : + tag
-	i.e. busybox:latest, busybox:1.24.1
-
-	If the image is untagged then the correct tagging is "<none>:<none>"
-
-	The docker client will then render the image properly as a mutli-tagged
-	image
-*/
-
-func clientFriendlyTags(reference string, tags []string) []string {
-	clientTags := make([]string, len(tags))
-	if len(tags) > 0 {
-		for index := range tags {
-			clientTags[index] = fmt.Sprintf("%s", reference)
-		}
-	} else {
-		clientTags = append(clientTags, fmt.Sprintf("%s:%s", "<none>", "<none>"))
-	}
-	return clientTags
-}
-
-/*
-	function will take the array of image digests
-	and create a new array of digests that are supported by the docker client
-
-	The format for the client is reponame + @ sha256 + : + digest
-	i.e. busybox@sha256:a59906e33509d14c036c8678d687bd4eec81ed7c4b8ce907b888c607f6a1e0e6
-
-	If the image has no defined digests the proper digest response is "<none>@<none>"
-
-	The docker client will then render the image properly
-*/
-
-func clientFriendlyDigests(imageName string, digests []string) []string {
-	clientDigests := make([]string, len(digests))
-	if len(digests) > 0 {
-		for index, digest := range digests {
-			clientDigests[index] = fmt.Sprintf("%s@sha:%s", imageName, digest)
-		}
-	} else {
-		clientDigests = append(clientDigests, fmt.Sprintf("%s@%s", "<none>", "<none>"))
-
-	}
-	return clientDigests
 }

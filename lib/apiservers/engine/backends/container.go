@@ -34,6 +34,7 @@ import (
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/version"
+	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
 	dnetwork "github.com/docker/engine-api/types/network"
@@ -52,6 +53,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/uid"
 )
 
 const (
@@ -988,9 +990,25 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 			ports = portInformation(t, ips)
 		}
 
+		// verify that the repo:tag exists for the container -- if it doesn't then we should present the
+		// truncated imageID -- if we have a failure determining then we'll show the data we have
+		repo := *t.ContainerConfig.RepoName
+		ref, _ := reference.ParseNamed(*t.ContainerConfig.RepoName)
+		if ref != nil {
+			imageID, err := cache.RepositoryCache().Get(ref)
+			if err != nil && err == cache.ErrDoesNotExist {
+				// the tag has been removed, so we need to show the truncated imageID
+				imageID = cache.RepositoryCache().GetImageID(*t.ContainerConfig.LayerID)
+				if imageID != "" {
+					id := uid.Parse(imageID)
+					repo = id.Truncate().String()
+				}
+			}
+		}
+
 		c := &types.Container{
 			ID:      *t.ContainerConfig.ContainerID,
-			Image:   *t.ContainerConfig.RepoName,
+			Image:   repo,
 			Created: *t.ContainerConfig.CreateTime,
 			Status:  status,
 			Names:   names,
