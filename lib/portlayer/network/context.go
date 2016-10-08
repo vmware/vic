@@ -509,6 +509,10 @@ func (c *Context) Scopes(ctx context.Context, idName *string) ([]*Scope, error) 
 	// collate the containers to update
 	containers := make(map[uid.UID]*Container)
 	for _, s := range scopes {
+		if !s.isDynamic() {
+			continue
+		}
+
 		for _, c := range s.Containers() {
 			containers[c.ID()] = c
 		}

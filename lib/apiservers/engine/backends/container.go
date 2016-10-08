@@ -26,10 +26,10 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/mreiferson/go-httpclient"
 	"github.com/go-swagger/go-swagger/httpkit"
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 	strfmt "github.com/go-swagger/go-swagger/strfmt"
+	"github.com/mreiferson/go-httpclient"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/backend"

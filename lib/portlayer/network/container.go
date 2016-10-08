@@ -107,6 +107,10 @@ func (c *Container) Refresh(ctx context.Context) error {
 
 	for _, e := range c.endpoints {
 		s := e.Scope()
+		if !s.isDynamic() {
+			continue
+		}
+
 		ne := h.ExecConfig.Networks[s.Name()]
 		if ne == nil {
 			return fmt.Errorf("container config does not have info for network scope %s", s.Name())
