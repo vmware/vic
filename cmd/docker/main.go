@@ -218,7 +218,7 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 			// server requires and verifies client's certificate
 			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
 			tlsConfig.ClientCAs = loadCAPool()
-			tlsConfig.InsecureSkipVerify = true
+			tlsConfig.InsecureSkipVerify = false
 		}
 	}
 

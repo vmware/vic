@@ -36,7 +36,7 @@ if [ -z "$GITHUB_TOKEN" ] || [ -z "$GOVC_URL" ]; then
 fi
 
 # check if govc env command works as expected
-if [[ $(govc env GOVC_URL_SCHEME) =~ GOVC ]]; then
+if !govc version -require 0.9.0; then
     echo "govc version must be updated"
     exit 1
 fi

@@ -85,7 +85,7 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 			addr, _ = addrToUse(d.HostIP, conf)
 
 			if key != "" {
-				tls = fmt.Sprintf(" --tlsverify --tlscacert=%s --tlscert='%s' --tlskey='%s'", cacert, cert, key)
+				tls = fmt.Sprintf(" --tlsverify --tlscacert=%q --tlscert=%q --tlskey=%q", cacert, cert, key)
 			} else {
 				tls = fmt.Sprintf(" --tlsverify ")
 			}

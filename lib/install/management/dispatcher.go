@@ -242,6 +242,8 @@ func addrToUse(ip string, conf *config.VirtualContainerHostConfigSpec) (string, 
 			// trim '.' fqdn suffix if fqdn
 			return strings.TrimSuffix(n, "."), nil
 		}
+
+		log.Debugf("Checked %s, no match for host cert", n)
 	}
 
 	// no viable address
