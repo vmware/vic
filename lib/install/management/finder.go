@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
@@ -135,13 +136,14 @@ func (d *Dispatcher) GetVCHConfig(vm *vm.VirtualMachine) (*config.VirtualContain
 	defer trace.End(trace.Begin(""))
 
 	//this is the appliance vm
-	mapConfig, err := vm.FetchExtraConfig(d.ctx)
+	mapConfig, err := vm.FetchExtraConfigBaseOptions(d.ctx)
 	if err != nil {
 		err = errors.Errorf("Failed to get VM extra config of %q: %s", vm.Reference(), err)
 		log.Error(err)
 		return nil, err
 	}
-	data := extraconfig.MapSource(mapConfig)
+
+	data := vmomi.OptionValueSource(mapConfig)
 	vchConfig := &config.VirtualContainerHostConfigSpec{}
 	result := extraconfig.Decode(data, vchConfig)
 	if result == nil {
