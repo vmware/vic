@@ -223,6 +223,10 @@ func (s *Service) SetOption(args []byte) ([]byte, error) {
 	case "broadcastIP": // TODO: const-ify
 		if val == "1" {
 			ip := s.PrimaryIP()
+			if ip == "" {
+				log.Printf("failed to find primary IP\n")
+				return nil, nil
+			}
 			msg := fmt.Sprintf("info-set guestinfo.ip %s", ip)
 			_, err := s.out.Request([]byte(msg))
 			if err != nil {

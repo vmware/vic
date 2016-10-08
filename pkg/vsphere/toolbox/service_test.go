@@ -183,9 +183,23 @@ func TestServiceErrors(t *testing.T) {
 		return nil, errors.New("i am so sorry")
 	})
 
+	ip := ""
+	service.PrimaryIP = func() string {
+		if ip == "" {
+			ip = "127"
+		} else if ip == "127" {
+			ip = "127.0.0.1"
+		} else if ip == "127.0.0.1" {
+			ip = ""
+		}
+		return ip
+	}
+
 	in.rpc = []*testRPC{
 		{"Capabilities_Register", "OK "},
 		{"Set_Option broadcastIP 1", "ERR "},
+		{"Set_Option broadcastIP 1", "OK "},
+		{"Set_Option broadcastIP 1", "OK "},
 		{"NOPE", "Unknown Command"},
 		{"Sorry", "ERR "},
 	}
@@ -201,6 +215,7 @@ func TestServiceErrors(t *testing.T) {
 	out.reply = append(
 		out.reply,
 		rpciERR,
+		rpciOK,
 		append(rpciOK, foo...),
 		rpciERR,
 	)
