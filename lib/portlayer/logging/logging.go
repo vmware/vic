@@ -37,8 +37,8 @@ func Join(h interface{}) (interface{}, error) {
 	VMPathName := handle.Spec.VMPathName()
 	VMName := handle.Spec.Spec().Name
 
-	for _, suffix := range []string{"tether.debug", "output.log"} {
-		filename := fmt.Sprintf("%s/%s/%s", VMPathName, VMName, suffix)
+	for _, logFile := range []string{"tether.debug", "output.log"} {
+		filename := fmt.Sprintf("%s/%s/%s", VMPathName, VMName, logFile)
 
 		// Debug and log serial ports - backed by datastore file
 		serial := &types.VirtualSerialPort{

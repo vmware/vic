@@ -403,7 +403,7 @@ Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz | tar tvzf -
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
-    Should Contain  ${output}  ${container}/output.log
+    Should Contain  ${output}  ${container}/vmware.log
     Should Contain  ${output}  ${container}/tether.debug
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
     Should Be Equal As Integers  ${rc}  0
