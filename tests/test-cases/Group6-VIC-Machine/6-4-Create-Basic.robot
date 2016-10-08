@@ -53,7 +53,7 @@ Create VCH - defaults with --no-tls
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
     Set Test VCH Name
 
-    Install VIC Appliance To Test Server
+    Install VIC Appliance To Test Server  certs=${false}
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 

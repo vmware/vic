@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation  Test 3-2 - Docker Compose Voting App
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server  ${false}  default
+Suite Setup  Install VIC Appliance To Test Server  certs=${false}
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***

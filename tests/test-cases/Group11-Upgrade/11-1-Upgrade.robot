@@ -11,7 +11,7 @@ Install VIC with version to Test Server
     Log To Console  \nDownloading vic ${version} from bintray...
     ${rc}  ${output}=  Run And Return Rc And Output  wget https://bintray.com/vmware/vic-repo/download_file?file_path=vic_${version}.tar.gz -O vic.tar.gz
     ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
-	Install VIC Appliance To Test Server  ./vic/vic-machine-linux  ./vic/appliance.iso  ./vic/bootstrap.iso  ${true}
+	Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}
 
 Clean up VIC Appliance And Local Binary
     Cleanup VIC Appliance On Test Server
