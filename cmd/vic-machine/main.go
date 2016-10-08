@@ -25,6 +25,7 @@ import (
 	"github.com/urfave/cli"
 
 	"github.com/vmware/vic/cmd/vic-machine/create"
+	"github.com/vmware/vic/cmd/vic-machine/debug"
 	uninstall "github.com/vmware/vic/cmd/vic-machine/delete"
 	"github.com/vmware/vic/cmd/vic-machine/inspect"
 	"github.com/vmware/vic/cmd/vic-machine/list"
@@ -49,6 +50,7 @@ func main() {
 	inspect := inspect.NewInspect()
 	list := list.NewList()
 	upgrade := upgrade.NewUpgrade()
+	debug := debug.NewDebug()
 	app.Commands = []cli.Command{
 		{
 			Name:   "create",
@@ -84,6 +86,12 @@ func main() {
 			Name:   "version",
 			Usage:  "Show VIC version information",
 			Action: showVersion,
+		},
+		{
+			Name:   "debug",
+			Usage:  "Debug VCH",
+			Action: debug.Run,
+			Flags:  debug.Flags(),
 		},
 	}
 
