@@ -68,7 +68,7 @@ func (s *server) listen(useTLS bool) error {
 			SessionTicketsDisabled:   c.SessionTicketsDisabled,
 			SessionTicketKey:         c.SessionTicketKey,
 			ClientSessionCache:       c.ClientSessionCache,
-			MinVersion:               c.MinVersion,
+			MinVersion:               tls.VersionTLS12,
 			MaxVersion:               c.MaxVersion,
 			CurvePreferences:         c.CurvePreferences,
 		}

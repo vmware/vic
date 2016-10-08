@@ -270,10 +270,10 @@ func TestLogTail(t *testing.T) {
 		u.Path = path
 		log.Printf("GET %s:\n", u.String())
 		res, err := insecureClient.Get(u.String())
-		defer res.Body.Close()
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer res.Body.Close()
 
 		// Each line written to the log file has enough bytes to ensure
 		// that 8 lines make up at least 256 bytes. This is in case this

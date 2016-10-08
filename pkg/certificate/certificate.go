@@ -18,51 +18,48 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"io/ioutil"
 	"math/big"
+	"net"
 	"os"
 	"time"
 
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 )
 
-type Keypair struct {
-	tlsGenerate bool
-	keyFile     string
-	certFile    string
-
-	CertPEM []byte
-	KeyPEM  []byte
-}
-
-func NewKeyPair(tlsGenerate bool, keyFile, certFile string) *Keypair {
-	return &Keypair{
-		tlsGenerate: tlsGenerate,
-		keyFile:     keyFile,
-		certFile:    certFile,
-	}
-}
-
-// CreateRawKeyPair generates a default certificate / key and returns them as bytes buffers
-// If you wish to save them to files as a side effect, use GetCertificate() instead
-func CreateRawKeyPair() (cert bytes.Buffer, key bytes.Buffer, err error) {
-	org := "VMware"
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+func hashPublicKey(key *rsa.PublicKey) ([]byte, error) {
+	b, err := x509.MarshalPKIXPublicKey(key)
 	if err != nil {
-		return cert, key, err
+		return nil, fmt.Errorf("Unable to hash key: %s", err)
 	}
 
-	notBefore := time.Now()
-	notAfter := notBefore.Add(365 * 24 * time.Hour) // 1 year
+	h := sha1.New()
+	h.Write(b)
+	return h.Sum(nil), nil
+}
+
+func template(org string) *x509.Certificate {
+	now := time.Now().UTC()
+	// help address issues with clock drift
+	notBefore := now.AddDate(0, 0, -1)
+	notAfter := now.AddDate(1, 0, 0) // 1 year
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
 		err = errors.Errorf("Failed to generate random number: %s", err)
-		return cert, key, err
+		return nil
+	}
+
+	// ensure that org is set to something
+	if org == "" {
+		org = "default"
 	}
 
 	template := x509.Certificate{
@@ -72,11 +69,93 @@ func CreateRawKeyPair() (cert bytes.Buffer, key bytes.Buffer, err error) {
 		},
 		NotBefore:             notBefore,
 		NotAfter:              notAfter,
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageKeyAgreement,
 		BasicConstraintsValid: true,
 	}
 
-	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	return &template
+}
+
+func templateWithKey(template *x509.Certificate, size int) (*x509.Certificate, *rsa.PrivateKey, error) {
+	priv, err := rsa.GenerateKey(rand.Reader, size)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	keyID, err := hashPublicKey(&priv.PublicKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	template.SubjectKeyId = keyID
+	template.PublicKey = priv.Public()
+
+	return template, priv, nil
+}
+
+func templateWithCA(template *x509.Certificate) *x509.Certificate {
+	template.IsCA = true
+	template.KeyUsage |= x509.KeyUsageCertSign
+	template.KeyUsage |= x509.KeyUsageKeyEncipherment
+	template.KeyUsage |= x509.KeyUsageKeyAgreement
+	template.ExtKeyUsage = nil
+
+	return template
+}
+
+// templateAsClientOnly restricts the capabilities of the certificate to be only used for client auth
+func templateAsClientOnly(template *x509.Certificate) *x509.Certificate {
+	template.KeyUsage = x509.KeyUsageDigitalSignature
+	template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
+
+	return template
+}
+
+// templateWithServer adds the capabilities of the certificate to be only used for server auth
+func templateWithServer(template *x509.Certificate, domain string) *x509.Certificate {
+	template.ExtKeyUsage = append(template.ExtKeyUsage, x509.ExtKeyUsageServerAuth)
+
+	// abide by the spec - if CN is an IP, put it in the subjectAltName as well
+	ip := net.ParseIP(domain)
+	if ip != nil {
+		template.IPAddresses = []net.IP{ip}
+
+		// try best guess at DNSNames entries
+		names, err := net.LookupAddr(domain)
+		if err == nil && len(names) > 0 {
+			template.DNSNames = names
+		}
+
+		return template
+	}
+
+	if domain != "" {
+		template.Subject.CommonName = domain
+		template.DNSNames = []string{domain}
+	}
+
+	return template
+}
+
+// createCertificate creates a certificate from the supplied template:
+// template: an x509 template describing the certificate to generate.
+// parent: either a CA certificate, or template (for self-signed). If nil, will use template.
+// templateKey: the private key for the certificate supplied as template
+// parentKey: the private key for the certificate supplied as parent (whether CA or self-signed). If nil will use templateKey
+//
+// return PEM encoded certificate and key
+func createCertificate(template, parent *x509.Certificate, templateKey, parentKey *rsa.PrivateKey) (cert bytes.Buffer, key bytes.Buffer, err error) {
+	defer trace.End(trace.Begin(""))
+
+	if parent == nil {
+		parent = template
+	}
+
+	if parentKey == nil {
+		parentKey = templateKey
+	}
+
+	derBytes, err := x509.CreateCertificate(rand.Reader, template, parent, &templateKey.PublicKey, parentKey)
 	if err != nil {
 		err = errors.Errorf("Failed to generate x509 certificate: %s", err)
 		return cert, key, err
@@ -88,7 +167,7 @@ func CreateRawKeyPair() (cert bytes.Buffer, key bytes.Buffer, err error) {
 		return cert, key, err
 	}
 
-	err = pem.Encode(&key, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+	err = pem.Encode(&key, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(templateKey)})
 	if err != nil {
 		err = errors.Errorf("Failed to encode tls key pairs: %s", err)
 		return cert, key, err
@@ -97,15 +176,14 @@ func CreateRawKeyPair() (cert bytes.Buffer, key bytes.Buffer, err error) {
 	return cert, key, nil
 }
 
-func (k *Keypair) generate() error {
-	cert, key, err := CreateRawKeyPair()
-	if err != nil {
-		return err
-	}
+// saveCertificate saves the certificate and key to files of the form basename-cert.pem and basename-key.pem
+// cf and kf are the certificate file and key file respectively
+func saveCertificate(cf, kf string, cert, key *bytes.Buffer) error {
+	defer trace.End(trace.Begin(""))
 
-	certFile, err := os.Create(k.certFile)
+	certFile, err := os.OpenFile(cf, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		err = errors.Errorf("Failed to create key/cert file %s: %s", k.certFile, err)
+		err = errors.Errorf("Failed to create certificate file %s: %s", cf, err)
 		return err
 	}
 	defer certFile.Close()
@@ -116,40 +194,110 @@ func (k *Keypair) generate() error {
 		return err
 	}
 
-	keyFile, err := os.Create(k.keyFile)
+	keyFile, err := os.OpenFile(kf, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		err = errors.Errorf("Failed to create key/cert file %s: %s", k.keyFile, err)
+		err = errors.Errorf("Failed to create key file %s: %s", kf, err)
 		return err
 	}
 	defer keyFile.Close()
+
 	_, err = keyFile.Write(key.Bytes())
 	if err != nil {
-		err = errors.Errorf("Failed to write certificate: %s", err)
+		err = errors.Errorf("Failed to write key: %s", err)
 		return err
 	}
-	k.KeyPEM = key.Bytes()
-	k.CertPEM = cert.Bytes()
 	return nil
 }
 
-func (k *Keypair) GetCertificate() error {
-	if k.tlsGenerate {
-		return k.generate()
-	}
+func loadCertificate(cf, kf string) (*x509.Certificate, *rsa.PrivateKey, error) {
+	defer trace.End(trace.Begin(""))
 
-	b, err := ioutil.ReadFile(k.certFile)
+	cb, err := ioutil.ReadFile(cf)
 	if err != nil {
-		err = errors.Errorf("Failed to read certificate file %s: %s", k.certFile, err)
-		return err
+		err = errors.Errorf("Failed to read certificate file %s: %s", cf, err)
+		return nil, nil, err
 	}
 
-	k.CertPEM = b
-
-	if b, err = ioutil.ReadFile(k.keyFile); err != nil {
-		err = errors.Errorf("Failed to read key file %s: %s", k.keyFile, err)
-		return err
+	kb, err := ioutil.ReadFile(kf)
+	if err != nil {
+		err = errors.Errorf("Failed to read key file %s: %s", kf, err)
+		return nil, nil, err
 	}
 
-	k.KeyPEM = b
-	return nil
+	return ParseCertificate(cb, kb)
+}
+
+func ParseCertificate(cb, kb []byte) (*x509.Certificate, *rsa.PrivateKey, error) {
+	defer trace.End(trace.Begin(""))
+
+	block, _ := pem.Decode(cb)
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		err = errors.Errorf("Failed to parse certificate data: %s", err)
+		return nil, nil, err
+	}
+
+	block, _ = pem.Decode(kb)
+	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		err = errors.Errorf("Failed to parse key data: %s", err)
+		return nil, nil, err
+	}
+
+	return cert, key, nil
+}
+
+func CreateSelfSigned(domain, org string, size int) (cert bytes.Buffer, key bytes.Buffer, err error) {
+	defer trace.End(trace.Begin(""))
+
+	template, pkey, err := templateWithKey(templateWithServer(template(org), domain), size)
+	if err != nil {
+		return cert, key, err
+	}
+
+	return createCertificate(template, nil, pkey, nil)
+}
+
+func CreateRootCA(domain, org string, size int) (cert bytes.Buffer, key bytes.Buffer, err error) {
+	defer trace.End(trace.Begin(""))
+
+	template, pkey, err := templateWithKey(templateWithCA(template(org)), size)
+	if err != nil {
+		return cert, key, err
+	}
+
+	return createCertificate(template, nil, pkey, nil)
+}
+
+func CreateServerCertificate(domain, org string, size int, cb, kb []byte) (cert bytes.Buffer, key bytes.Buffer, err error) {
+	defer trace.End(trace.Begin(""))
+
+	// Load up the CA
+	cacert, cakey, err := ParseCertificate(cb, kb)
+	if err != nil {
+		return cert, key, err
+	}
+
+	// Generate the new cert
+	template, pkey, err := templateWithKey(templateWithServer(template(org), domain), size)
+	if err != nil {
+		return cert, key, err
+	}
+
+	return createCertificate(template, cacert, pkey, cakey)
+}
+
+func CreateClientCertificate(domain, org string, size int, cb, kb []byte) (cert bytes.Buffer, key bytes.Buffer, err error) {
+	defer trace.End(trace.Begin(""))
+
+	// Load up the CA
+	cacert, cakey, err := ParseCertificate(cb, kb)
+
+	// Generate the new cert
+	template, pkey, err := templateWithKey(templateAsClientOnly(template(org)), size)
+	if err != nil {
+		return cert, key, err
+	}
+
+	return createCertificate(template, cacert, pkey, cakey)
 }

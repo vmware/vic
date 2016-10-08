@@ -15,9 +15,13 @@
 package management
 
 import (
+	"crypto/x509"
+	"errors"
 	"fmt"
 	"math"
+	"net"
 	"os"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -41,6 +45,7 @@ type Dispatcher struct {
 	vchPoolPath   string
 	vmPathName    string
 	dockertlsargs string
+
 	DockerPort    string
 	HostIP        string
 	VICAdminProto string
@@ -64,8 +69,10 @@ type diagnosticLog struct {
 
 var diagnosticLogs = make(map[string]*diagnosticLog)
 
-func NewDispatcher(ctx context.Context, s *session.Session,
-	conf *config.VirtualContainerHostConfigSpec, force bool) *Dispatcher {
+// NewDispatcher creates a dispatcher that can act upon VIC management operations.
+// clientCert is an optional client certificate to allow interaction with the Docker API for verification
+// force will ignore some errors
+func NewDispatcher(ctx context.Context, s *session.Session, conf *config.VirtualContainerHostConfigSpec, force bool) *Dispatcher {
 	defer trace.End(trace.Begin(""))
 	isVC := s.IsVC()
 	e := &Dispatcher{
@@ -202,4 +209,43 @@ func (d *Dispatcher) CollectDiagnosticLogs() {
 			fmt.Fprintln(f, line)
 		}
 	}
+}
+
+func addrToUse(ip string, conf *config.VirtualContainerHostConfigSpec) (string, error) {
+	log.Debug("Loading CAs for client auth")
+	pool := x509.NewCertPool()
+	pool.AppendCertsFromPEM(conf.CertificateAuthorities)
+
+	// update target to use FQDN
+	names, err := net.LookupAddr(ip)
+	if err != nil {
+		log.Debugf("Unable to perform reverse lookup of IP address: %s", err)
+	}
+
+	cert, err := conf.HostCertificate.X509Certificate()
+	if err != nil {
+		log.Debugf("Unable to extract host certificate: %s", err)
+		return ip, err
+	}
+
+	// check all the returned names, and lastly the raw IP
+	for _, n := range append(names, ip) {
+		opts := x509.VerifyOptions{
+			Roots:   pool,
+			DNSName: n,
+		}
+
+		_, err := cert.Verify(opts)
+		if err == nil {
+			// this identifier will work
+			log.Debugf("Matched %s for use against host certificate", n)
+			// trim '.' fqdn suffix if fqdn
+			return strings.TrimSuffix(n, "."), nil
+		}
+
+		log.Debugf("Checked %s, no match for host cert", n)
+	}
+
+	// no viable address
+	return ip, errors.New("unable to determine viable address")
 }

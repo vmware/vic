@@ -39,6 +39,10 @@ Set Test Environment Variables
     Run Keyword If  ${status}  Set Environment Variable  HOST_TYPE  ESXi
     Run Keyword Unless  ${status}  Set Environment Variable  HOST_TYPE  VC
 
+    # set the TLS config options suitable for vic-machine in this env
+    Run Keyword If  '%{DOMAIN}' == ''  Set Suite Variable  ${vicmachinetls}  '--no-tlsverify'
+    Run Keyword If  '%{DOMAIN}' != ''  Set Suite Variable  ${vicmachinetls}  '--cname=*.%{DOMAIN}'  
+
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${vch-name}  ${name}
@@ -51,20 +55,30 @@ Get Docker Params
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  DOCKER_HOST=
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
 
-    ${ret}=  Fetch From Right  ${line}  DOCKER_HOST=
-    ${ret}=  Strip String  ${ret}
+    # Ensure we start from a clean slate with docker env vars
+    Remove Environment Variable  DOCKER_HOST  DOCKER_TLS_VERIFY  DOCKER_CERT_PATH
 
-    Run Keyword If  ${certs}  Set Suite Variable  ${params}  -H ${ret} --tls
-    Run Keyword Unless  ${certs}  Set Suite Variable  ${params}  -H ${ret}
+    # Split the log log into pieces, discarding the initial log decoration, and assign to env vars
+    ${logdeco}  ${vars}=  Split String  ${line}  ${SPACE}  1
+    ${vars}=  Split String  ${vars}
+    :FOR  ${var}  IN  @{vars}
+    \   ${varname}  ${varval}=  Split String  ${var}  =
+    \   Set Environment Variable  ${varname}  ${varval}
 
-    @{ret}=  Split String  ${ret}  :
-    ${ip}=  Strip String  @{ret}[0]
-    ${port}=  Strip String  @{ret}[1]
+    ${dockerHost}=  Get Environment Variable  DOCKER_HOST
+
+    @{hostParts}=  Split String  ${dockerHost}  :
+    ${ip}=  Strip String  @{hostParts}[0]
+    ${port}=  Strip String  @{hostParts}[1]
     Set Suite Variable  ${vch-ip}  ${ip}
     Set Suite Variable  ${vch-port}  ${port}
 
-    ${proto}=  Set Variable If  ${certs}  "https"  "http"
+    ${proto}=  Set Variable If  ${port} == 2376  "https"  "http"
     Set Suite Variable  ${proto}
+
+    Run Keyword If  ${port} == 2376  Set Suite Variable  ${params}  -H ${dockerHost} --tls
+    Run Keyword If  ${port} == 2375  Set Suite Variable  ${params}  -H ${dockerHost}
+
 
     :FOR  ${item}  IN  @{output}
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  http
@@ -74,7 +88,7 @@ Get Docker Params
     Set Suite Variable  ${vic-admin}
 
 Install VIC Appliance To Test Server
-    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${false}  ${vol}=default
+    [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default
     Set Test Environment Variables
     # disable firewall
     Run  govc host.esxcli network firewall set -e false
@@ -98,11 +112,11 @@ Install VIC Appliance To Test Server
 Run VIC Machine Command
     [Tags]  secret
     [Arguments]  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}
-    ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug 1 --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol}
+    ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug 1 --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} ${vicmachinetls} 
     Run Keyword If  ${certs}  Should Contain  ${output}  Installer completed successfully
     Return From Keyword If  ${certs}  ${output}
 
-    ${output}=  Run Keyword Unless  ${certs}  Run  bin/vic-machine-linux create --debug 1 --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --no-tls --force=true --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol}
+    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug 1 --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} --no-tls
     Run Keyword Unless  ${certs}  Should Contain  ${output}  Installer completed successfully
     [Return]  ${output}
 
