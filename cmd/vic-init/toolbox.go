@@ -18,6 +18,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -172,11 +173,27 @@ func enableSSH(key string) error {
 		}
 	}
 
-	// because init is explicitly reaping child processes we cannot use simple
-	// exec commands to gather status
-	startSSH := exec.Command("/usr/bin/systemctl", "start", "sshd")
-	out, err := startSSH.CombinedOutput()
-	log.Info("Attempted to start ssh service:\n %s", out)
+	return startSSH()
+}
+
+// startSSH launches the sshd server
+func startSSH() error {
+	c := exec.Command("/usr/bin/systemctl", "start", "sshd")
+
+	var b bytes.Buffer
+	c.Stdout = &b
+	c.Stderr = &b
+
+	if err := c.Start(); err != nil {
+		return err
+	}
+
+	go func() {
+		// because init is explicitly reaping child processes we cannot use simple
+		// exec commands to gather status
+		_ = c.Wait()
+		log.Info("Attempted to start ssh service:\n %s", b)
+	}()
 
 	return nil
 }
