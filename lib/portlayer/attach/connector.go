@@ -50,16 +50,20 @@ type Connector struct {
 	// Quit channel for listener routine
 	listenerQuit chan bool
 	wg           sync.WaitGroup
+
+	// enable extra debug on the line
+	debug bool
 }
 
 // On connect from a client (over TCP), attempt to SSH (over the same sock) to the client.
-func NewConnector(listener net.Listener) *Connector {
+func NewConnector(listener net.Listener, debug bool) *Connector {
 	defer trace.End(trace.Begin(""))
 
 	connector := &Connector{
 		connections:  make(map[string]*Connection),
 		listener:     listener,
 		listenerQuit: make(chan bool),
+		debug:        debug,
 	}
 	connector.cond = sync.NewCond(connector.mutex.RLocker())
 
@@ -161,7 +165,7 @@ func (c *Connector) processIncoming(conn net.Conn) {
 		// The PL sends the first SYN in the handshake and if the tether is not
 		// waiting, the handshake may never succeed.
 		ctx, cancel := context.WithTimeout(context.TODO(), 50*time.Millisecond)
-		if err = serial.HandshakeClient(ctx, conn); err == nil {
+		if err = serial.HandshakeClient(ctx, conn, c.debug); err == nil {
 			log.Debugf("attach connector: New connection")
 			cancel()
 			break

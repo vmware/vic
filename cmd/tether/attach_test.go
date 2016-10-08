@@ -141,7 +141,7 @@ func mockBackChannel(ctx context.Context) (net.Conn, error) {
 			// FIXME: need to implement timeout of purging hangs with no content
 			// on the pipe
 			// serial.PurgeIncoming(ctx, conn)
-			err := serial.HandshakeClient(ctx, conn)
+			err := serial.HandshakeClient(ctx, conn, true)
 			if err == nil {
 				return conn, nil
 			}
