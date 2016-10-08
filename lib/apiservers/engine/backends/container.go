@@ -26,10 +26,10 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/mreiferson/go-httpclient"
 	"github.com/go-swagger/go-swagger/httpkit"
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 	strfmt "github.com/go-swagger/go-swagger/strfmt"
-	"github.com/mreiferson/go-httpclient"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/backend"
@@ -310,24 +310,17 @@ func (c *Container) containerCreate(vc *viccontainer.VicContainer, config types.
 // for the container to exit.
 // If a signal is given, then just send it to the container and return.
 func (c *Container) ContainerKill(name string, sig uint64) error {
-	defer trace.End(trace.Begin(name))
+	defer trace.End(trace.Begin(fmt.Sprintf("%s, %d", name, sig)))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
 		return NotFoundError(name)
 	}
-	name = vc.ContainerID
 
-	if err := ContainerSignal(name, sig); err != nil {
-		return err
-	}
+	err := c.containerProxy.Signal(vc, sig)
 
-	if sig == 0 {
-		// Use ContainerWait infrastructure to wait for container to exit
-	}
-
-	return nil
+	return err
 }
 
 // ContainerPause pauses a container
@@ -795,32 +788,15 @@ func (c *Container) ContainerWait(name string, timeout time.Duration) (int, erro
 	if vc == nil {
 		return -1, NotFoundError(name)
 	}
-	id := vc.ContainerID
 
-	//retrieve client to portlayer
-	client := c.containerProxy.Client()
-	results, err := client.Containers.ContainerWait(containers.NewContainerWaitParamsWithContext(ctx).WithTimeout(int64(timeout.Seconds())).WithID(id))
+	processExitCode, processStatus, containerState, err := c.containerProxy.Wait(vc, timeout)
 	if err != nil {
-		switch err := err.(type) {
-		case *containers.ContainerWaitNotFound:
-			// since the container wasn't found on the PL lets remove from the local
-			// cache
-			cache.ContainerCache().DeleteContainer(id)
-			return -1, NotFoundError(name)
-		case *containers.ContainerWaitInternalServerError:
-			return -1, InternalServerError(err.Payload.Message)
-		default:
-			return -1, InternalServerError(err.Error())
-		}
+		return -1, err
 	}
 
-	containerInfo := results.Payload
 	// call to the dockerStatus function to retrieve the docker friendly exitCode
-	// we are only calling for the exitCode, thus the zero time
-	exitCode, _ := dockerStatus(int(*containerInfo.ProcessConfig.ExitCode),
-		*containerInfo.ProcessConfig.Status,
-		*containerInfo.ContainerConfig.State,
-		time.Time{}, time.Time{})
+	// TODO: once started / finished time are available replace time.Now()
+	exitCode, _ := dockerStatus(int(processExitCode), processStatus, containerState, time.Time{}, time.Time{})
 
 	return exitCode, nil
 }
@@ -1586,22 +1562,6 @@ func copyConfigOverrides(vc *viccontainer.VicContainer, config types.ContainerCr
 	vc.HostConfig = config.HostConfig
 }
 
-func ContainerSignal(containerID string, sig uint64) error {
-	// Get an API client to the portlayer
-	client := PortLayerClient()
-	if client == nil {
-		return InternalServerError("ContainerSignal failed to create a portlayer client")
-	}
-
-	params := containers.NewContainerSignalParamsWithContext(ctx).WithID(containerID).WithSignal(int64(sig))
-	if _, err := client.Containers.ContainerSignal(params); err != nil {
-		return InternalServerError(err.Error())
-	}
-
-	return nil
-}
-
-// pulls out the client IP(s) from program state
 func clientIPv4Addrs() ([]netlink.Addr, error) {
 	l, err := netlink.LinkByName(clientIfaceName)
 	if err != nil {
