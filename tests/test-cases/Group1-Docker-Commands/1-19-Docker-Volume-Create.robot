@@ -31,6 +31,13 @@ Docker volume create image volume
     ${disk-size}=  Run  docker ${params} logs ${ContainerID} | grep by-label | awk '{print $2}'
     Should Contain  ${disk-size}  976M
 
+Docker volume create anonymous volume
+    ${ContainerID}= Run  docker ${params} run -d -v /mydata busybox /bin/df -Ph
+    ${ContainerRC}= Run  docker ${params} wait ${ContainerID}
+    Should Be Equal As Integers  ${ContainerRC}  0
+    ${disk-size}=  Run  docker ${params} logs ${ContainerID} | grep by-label | awk '{print $2}'
+    Should Contain  ${disk-size}  976M
+
 Docker volume create already named volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test
     Should Be Equal As Integers  ${rc}  1
