@@ -46,6 +46,7 @@ import (
 
 	"github.com/go-swagger/go-swagger/httpkit"
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
+	"github.com/go-swagger/go-swagger/swag"
 
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/engine-api/types"
@@ -544,12 +545,10 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, laye
 	config := &models.ContainerCreateConfig{}
 
 	// Image
-	config.Image = new(string)
-	*config.Image = layerID
+	config.Image = swag.String(layerID)
 
 	// Repo Requested
-	config.RepoName = new(string)
-	*config.RepoName = cc.Config.Image
+	config.RepoName = swag.String(cc.Config.Image)
 
 	var path string
 	var args []string
@@ -563,12 +562,10 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, laye
 	}
 
 	//copy friendly name
-	config.Name = new(string)
-	*config.Name = cc.Name
+	config.Name = swag.String(cc.Name)
 
 	// copy the path
-	config.Path = new(string)
-	*config.Path = path
+	config.Path = swag.String(path)
 
 	// copy the args
 	config.Args = make([]string, len(args))
@@ -582,20 +579,19 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, laye
 	config.ImageStore = &models.ImageStore{Name: imageStore}
 
 	// network
-	config.NetworkDisabled = new(bool)
-	*config.NetworkDisabled = cc.Config.NetworkDisabled
+	config.NetworkDisabled = swag.Bool(cc.Config.NetworkDisabled)
 
 	// working dir
-	config.WorkingDir = new(string)
-	*config.WorkingDir = cc.Config.WorkingDir
+	config.WorkingDir = swag.String(cc.Config.WorkingDir)
+
+	// attach
+	config.Attach = swag.Bool(cc.Config.AttachStdin || cc.Config.AttachStdout || cc.Config.AttachStderr)
 
 	// tty
-	config.Tty = new(bool)
-	*config.Tty = cc.Config.Tty
+	config.Tty = swag.Bool(cc.Config.Tty)
 
 	// container stop signal
-	config.StopSignal = new(string)
-	*config.StopSignal = cc.Config.StopSignal
+	config.StopSignal = swag.String(cc.Config.StopSignal)
 
 	// Stuff the Docker labels into VIC container annotations
 	annotationsFromLabels(config, cc.Config.Labels)

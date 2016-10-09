@@ -2264,6 +2264,10 @@
 				"networkDisabled": {
 					"type": "boolean"
 				},
+				"attach": {
+					"type": "boolean",
+					"default": false
+				},
 				"tty": {
 					"type": "boolean",
 					"default": false

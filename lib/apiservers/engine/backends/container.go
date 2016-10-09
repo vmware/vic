@@ -359,7 +359,6 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 	_, err := client.Interaction.ContainerResize(plResizeParam)
 	if err != nil {
 		if _, isa := err.(*interaction.ContainerResizeNotFound); isa {
-			cache.ContainerCache().DeleteContainer(id)
 			return NotFoundError(name)
 		}
 
@@ -1091,7 +1090,46 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 		}
 	}
 
-	return attachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
+	err = attachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
+	if err != nil {
+		if _, ok := err.(DetachError); ok {
+			log.Infof("Detach detected, tearing down connection")
+			client = c.containerProxy.Client()
+			handle, err = c.Handle(id, name)
+			if err != nil {
+				return err
+			}
+
+			unbind, err := client.Interaction.InteractionUnbind(interaction.NewInteractionUnbindParamsWithContext(ctx).
+				WithConfig(&models.InteractionUnbindConfig{
+					Handle: handle,
+				}))
+			if err != nil {
+				return InternalServerError(err.Error())
+			}
+
+			handle, ok = unbind.Payload.Handle.(string)
+			if !ok {
+				return InternalServerError("type assertion failed")
+			}
+
+			// commit the handle; this will reconfigure the vm
+			_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
+			if err != nil {
+				switch err := err.(type) {
+				case *containers.CommitNotFound:
+					return NotFoundError(name)
+				case *containers.CommitDefault:
+					return InternalServerError(err.Payload.Message)
+				default:
+					return InternalServerError(err.Error())
+				}
+			}
+		}
+		return err
+	}
+
+	return nil
 }
 
 //------------------------------------
