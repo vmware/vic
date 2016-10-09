@@ -740,13 +740,11 @@ func finalizeVolumeList(specifiedVolumes, anonymousVolumes []string) ([]volumeFi
 	}
 
 	//combine all volumes, specified volumes are taken over anonymous volumes
-	for k, v := range processedAnonVolumes {
-		if _, ok := processedVolumes[k]; !ok {
-			processedVolumes[k] = v
-		}
+	for k, v := range processedVolumes {
+		processedAnonVolumes[k] = v
 	}
 
-	finalizedVolumes := make([]volumeFields, 0, len(processedVolumes))
+	finalizedVolumes := make([]volumeFields, 0, len(processedAnonVolumes))
 	for _, v := range processedVolumes {
 		finalizedVolumes = append(finalizedVolumes, v)
 	}
