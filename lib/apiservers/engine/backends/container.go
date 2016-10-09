@@ -359,7 +359,7 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 	_, err := client.Interaction.ContainerResize(plResizeParam)
 	if err != nil {
 		if _, isa := err.(*interaction.ContainerResizeNotFound); isa {
-			return NotFoundError(name)
+			return ResourceNotFoundError(name, "interaction connection")
 		}
 
 		// If we get here, most likely something went wrong with the port layer API server
