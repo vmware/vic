@@ -61,7 +61,7 @@ func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Han
 
 	i.attachServer = attach.NewAttachServer(constants.ManagementHostName, 0)
 
-	if err := i.attachServer.Start(); err != nil {
+	if err := i.attachServer.Start(false); err != nil {
 		log.Fatalf("Attach server unable to start: %s", err)
 	}
 }

@@ -50,7 +50,7 @@ func NewAttachServer(ip string, port int) *Server {
 }
 
 // Start starts the TCP listener.
-func (n *Server) Start() error {
+func (n *Server) Start(debug bool) error {
 	defer trace.End(trace.Begin(""))
 
 	log.Infof("Attach server listening on %s:%d", n.ip, n.port)
@@ -65,7 +65,7 @@ func (n *Server) Start() error {
 	}
 
 	// starts serving requests immediately
-	n.connServer = NewConnector(n.l)
+	n.connServer = NewConnector(n.l, debug)
 
 	return nil
 }
