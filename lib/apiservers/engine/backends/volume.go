@@ -128,7 +128,7 @@ func (v *Volume) VolumeInspect(name string) (*types.Volume, error) {
 }
 
 // volumeCreate issues a CreateVolume request to the portlayer
-func (v *Volume) volumeCreate(name, driverName string, driverArgs, labels map[string]string) (*types.Volume, error) {
+func (v *Volume) volumeCreate(name, driverName string, volumeData, labels map[string]string) (*types.Volume, error) {
 	defer trace.End(trace.Begin(""))
 	result := &types.Volume{}
 
@@ -143,7 +143,7 @@ func (v *Volume) volumeCreate(name, driverName string, driverArgs, labels map[st
 
 	// TODO: support having another driver besides vsphere.
 	// assign the values of the model to be passed to the portlayer handler
-	req, varErr := newVolumeCreateReq(name, driverName, driverArgs, labels)
+	req, varErr := newVolumeCreateReq(name, driverName, volumeData, labels)
 	if varErr != nil {
 		return result, varErr
 	}
@@ -158,17 +158,17 @@ func (v *Volume) volumeCreate(name, driverName string, driverArgs, labels map[st
 }
 
 // VolumeCreate : docker personality implementation for VIC
-func (v *Volume) VolumeCreate(name, driverName string, driverArgs, labels map[string]string) (*types.Volume, error) {
+func (v *Volume) VolumeCreate(name, driverName string, volumeData, labels map[string]string) (*types.Volume, error) {
 	defer trace.End(trace.Begin("Volume.VolumeCreate"))
 
-	result, err := v.volumeCreate(name, driverName, driverArgs, labels)
+	result, err := v.volumeCreate(name, driverName, volumeData, labels)
 	if err != nil {
 		switch err := err.(type) {
 		case *storage.CreateVolumeConflict:
 			return result, derr.NewErrorWithStatusCode(fmt.Errorf("A volume named %s already exists. Choose a different volume name.", name), http.StatusInternalServerError)
 
 		case *storage.CreateVolumeNotFound:
-			return result, derr.NewErrorWithStatusCode(fmt.Errorf("No volume store named (%s) exists", volumeStore(driverArgs)), http.StatusInternalServerError)
+			return result, derr.NewErrorWithStatusCode(fmt.Errorf("No volume store named (%s) exists", volumeStore(volumeData)), http.StatusInternalServerError)
 
 		case *storage.CreateVolumeInternalServerError:
 			// FIXME: right now this does not return an error model...
@@ -251,7 +251,7 @@ func extractDockerMetadata(metadataMap map[string]string) (*volumeMetadata, erro
 
 // Utility Functions
 
-func newVolumeCreateReq(name, driverName string, driverArgs, labels map[string]string) (*models.VolumeRequest, error) {
+func newVolumeCreateReq(name, driverName string, volumeData, labels map[string]string) (*models.VolumeRequest, error) {
 	defaultDriver := driverName == "local"
 	vsphereDriver := driverName == "vsphere"
 
@@ -265,19 +265,19 @@ func newVolumeCreateReq(name, driverName string, driverArgs, labels map[string]s
 
 	req := &models.VolumeRequest{
 		Driver:     driverName,
-		DriverArgs: driverArgs,
+		DriverArgs: volumeData,
 		Name:       name,
 		Metadata:   make(map[string]string),
 	}
 
-	metadata, err := createVolumeMetadata(req, driverArgs, labels)
+	metadata, err := createVolumeMetadata(req, volumeData, labels)
 	if err != nil {
 		return nil, err
 	}
 
 	req.Metadata[dockerMetadataModelKey] = metadata
 
-	if err := validateDriverArgs(driverArgs, req); err != nil {
+	if err := validateDriverArgs(volumeData, req); err != nil {
 		return nil, fmt.Errorf("bad driver value - %s", err)
 	}
 
