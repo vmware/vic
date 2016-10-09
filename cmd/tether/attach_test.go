@@ -48,8 +48,8 @@ type testAttachServer struct {
 }
 
 func (t *testAttachServer) start() error {
+	t.testing = true
 	err := t.attachServerSSH.start()
-
 	if err == nil {
 		t.updated <- true
 		t.enabled = true
@@ -251,6 +251,7 @@ func TestAttach(t *testing.T) {
 	}
 
 	_, _, conn := StartAttachTether(t, &cfg, mocker)
+	defer conn.Close()
 
 	// wait for updates to occur
 	<-testServer.updated
@@ -340,6 +341,7 @@ func TestAttachTTY(t *testing.T) {
 	}
 
 	_, _, conn := StartAttachTether(t, &cfg, mocker)
+	defer conn.Close()
 
 	// wait for updates to occur
 	<-testServer.updated
@@ -451,6 +453,7 @@ func TestAttachTwo(t *testing.T) {
 	}
 
 	_, _, conn := StartAttachTether(t, &cfg, mocker)
+	defer conn.Close()
 
 	// wait for updates to occur
 	<-mocker.Started
@@ -575,6 +578,7 @@ func TestAttachInvalid(t *testing.T) {
 	}
 
 	tthr, _, conn := StartAttachTether(t, &cfg, mocker)
+	defer conn.Close()
 
 	// wait for updates to occur
 	<-testServer.updated
@@ -711,6 +715,7 @@ func TestReattach(t *testing.T) {
 	}
 
 	_, _, conn := StartAttachTether(t, &cfg, mocker)
+	defer conn.Close()
 
 	// wait for updates to occur
 	<-testServer.updated

@@ -34,9 +34,9 @@ type Data struct {
 
 	Insecure bool
 
-	CertPEM []byte
-	KeyPEM  []byte
-
+	CertPEM   []byte
+	KeyPEM    []byte
+	ClientCAs []byte
 	common.Images
 
 	ImageDatastorePath     string

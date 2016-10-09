@@ -198,6 +198,8 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 		}
 		return interaction.NewContainerSetStdinNotFound().WithPayload(e)
 	}
+	// Remove the connection from the map
+	defer i.attachServer.Remove(params.ID)
 
 	detachableIn := NewFlushingReader(params.RawStream)
 	_, err = io.Copy(session.Stdin(), detachableIn)

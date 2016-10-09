@@ -37,6 +37,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"syscall"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -45,6 +46,7 @@ import (
 
 	"github.com/go-swagger/go-swagger/httpkit"
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
+	"github.com/go-swagger/go-swagger/swag"
 
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/engine-api/types"
@@ -78,6 +80,8 @@ type VicContainerProxy interface {
 	CommitContainerHandle(handle, imageID string) error
 	StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
 	ContainerRunning(vc *viccontainer.VicContainer) (bool, error)
+	Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error)
+	Signal(vc *viccontainer.VicContainer, sig uint64) error
 
 	Client() *client.PortLayer
 }
@@ -104,6 +108,7 @@ const (
 	swaggerSubstringEOF                  = "EOF"
 	forceLogType                         = "json-file" //Use in inspect to allow docker logs to work
 	annotationKeyLabels                  = "docker.labels"
+	killWaitForExit        time.Duration = 2 * time.Second
 )
 
 // NewContainerProxy creates a new ContainerProxy
@@ -422,6 +427,100 @@ func (c *ContainerProxy) ContainerRunning(vc *viccontainer.VicContainer) (bool, 
 	return inspectJSON.State.Running, nil
 }
 
+func (c *ContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error) {
+	defer trace.End(trace.Begin(vc.ContainerID))
+
+	if vc == nil {
+		reterr = InternalServerError("Wait bad arguments")
+		return
+	}
+
+	// Get an API client to the portlayer
+	client := PortLayerClient()
+	if client == nil {
+		reterr = InternalServerError("Wait failed to create a portlayer client")
+		return
+	}
+
+	params := containers.NewContainerWaitParamsWithContext(ctx).
+		WithTimeout(int64(timeout.Seconds())).
+		WithID(vc.ContainerID)
+	results, err := client.Containers.ContainerWait(params)
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.ContainerWaitNotFound:
+			// since the container wasn't found on the PL lets remove from the local
+			// cache
+			cache.ContainerCache().DeleteContainer(vc.ContainerID)
+			reterr = NotFoundError(vc.ContainerID)
+			return
+		case *containers.ContainerWaitInternalServerError:
+			reterr = InternalServerError(err.Payload.Message)
+			return
+		default:
+			reterr = InternalServerError(err.Error())
+			return
+		}
+	}
+
+	if results == nil || results.Payload == nil {
+		reterr = InternalServerError("Unexpected swagger error")
+	}
+
+	containerInfo := results.Payload
+
+	return *containerInfo.ProcessConfig.ExitCode, *containerInfo.ProcessConfig.Status, *containerInfo.ContainerConfig.State, nil
+}
+
+func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error {
+	defer trace.End(trace.Begin(vc.ContainerID))
+
+	if vc == nil {
+		return InternalServerError("Signal bad arguments")
+	}
+
+	// Get an API client to the portlayer
+	client := PortLayerClient()
+	if client == nil {
+		return InternalServerError("Signal failed to create a portlayer client")
+	}
+
+	if running, err := c.ContainerRunning(vc); !running && err == nil {
+		return fmt.Errorf("Signal %s is not running", vc.ContainerID)
+	}
+
+	if sig == 0 || syscall.Signal(sig) == syscall.SIGKILL {
+		params := containers.NewContainerSignalParamsWithContext(ctx).WithID(vc.ContainerID).WithSignal(int64(syscall.SIGKILL))
+		if _, err := client.Containers.ContainerSignal(params); err != nil {
+			switch err.(type) {
+			case *containers.ContainerSignalNotFound:
+				return NotFoundError(vc.ContainerID)
+			case *containers.ContainerSignalInternalServerError:
+				// Container may have received the signal but we got an error.
+				// Give it some time and check again.
+				c.Wait(vc, killWaitForExit)
+				if running, _ := c.ContainerRunning(vc); running {
+					err := InternalServerError(err.Error())
+					log.Infof("Container was signaled but is still running: %s", err)
+					return err
+				} else {
+					return nil
+				}
+			}
+		}
+
+		c.Wait(vc, -1*time.Second)
+		return nil
+	}
+
+	params := containers.NewContainerSignalParamsWithContext(ctx).WithID(vc.ContainerID).WithSignal(int64(sig))
+	if _, err := client.Containers.ContainerSignal(params); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *ContainerProxy) createNewAttachClientWithTimeouts(connectTimeout, responseTimeout, responseHeaderTimeout time.Duration) (*client.PortLayer, *httpclient.Transport) {
 	runtime := httptransport.New(c.portlayerAddr, "/", []string{"http"})
 	transport := &httpclient.Transport{
@@ -446,12 +545,10 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, laye
 	config := &models.ContainerCreateConfig{}
 
 	// Image
-	config.Image = new(string)
-	*config.Image = layerID
+	config.Image = swag.String(layerID)
 
 	// Repo Requested
-	config.RepoName = new(string)
-	*config.RepoName = cc.Config.Image
+	config.RepoName = swag.String(cc.Config.Image)
 
 	var path string
 	var args []string
@@ -465,12 +562,10 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, laye
 	}
 
 	//copy friendly name
-	config.Name = new(string)
-	*config.Name = cc.Name
+	config.Name = swag.String(cc.Name)
 
 	// copy the path
-	config.Path = new(string)
-	*config.Path = path
+	config.Path = swag.String(path)
 
 	// copy the args
 	config.Args = make([]string, len(args))
@@ -484,20 +579,19 @@ func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, laye
 	config.ImageStore = &models.ImageStore{Name: imageStore}
 
 	// network
-	config.NetworkDisabled = new(bool)
-	*config.NetworkDisabled = cc.Config.NetworkDisabled
+	config.NetworkDisabled = swag.Bool(cc.Config.NetworkDisabled)
 
 	// working dir
-	config.WorkingDir = new(string)
-	*config.WorkingDir = cc.Config.WorkingDir
+	config.WorkingDir = swag.String(cc.Config.WorkingDir)
+
+	// attach
+	config.Attach = swag.Bool(cc.Config.AttachStdin || cc.Config.AttachStdout || cc.Config.AttachStderr)
 
 	// tty
-	config.Tty = new(bool)
-	*config.Tty = cc.Config.Tty
+	config.Tty = swag.Bool(cc.Config.Tty)
 
 	// container stop signal
-	config.StopSignal = new(string)
-	*config.StopSignal = cc.Config.StopSignal
+	config.StopSignal = swag.String(cc.Config.StopSignal)
 
 	// Stuff the Docker labels into VIC container annotations
 	annotationsFromLabels(config, cc.Config.Labels)

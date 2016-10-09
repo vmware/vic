@@ -56,6 +56,9 @@ type attachServerSSH struct {
 	sshConfig *ssh.ServerConfig
 
 	enabled bool
+
+	// INTERNAL: must set by testAttachServer only
+	testing bool
 }
 
 // NewAttachServerSSH either creates a new instance or returns the inialized one
@@ -74,27 +77,13 @@ func (t *attachServerSSH) Reload(config *tether.ExecutorConfig) error {
 	defer t.m.Unlock()
 
 	t.config = config
-	// process the sessions and launch if needed
-	for id, session := range config.Sessions {
-		log.Infof("Processing config for session %s", id)
-		if session.Attach {
-			log.Infof("Session %s is configured for attach", id)
-			// this will return nil if already running - calling server.start not t.start so that
-			// test impl gets invoked (couldn't find a better way of doing this without full polymorphism)
-			err := server.start()
-			if err != nil {
-				detail := fmt.Sprintf("unable to start attach server: %s", err)
-				log.Error(detail)
-				return errors.New(detail)
-			}
 
-			return nil
-		}
+	err := server.start()
+	if err != nil {
+		detail := fmt.Sprintf("unable to start attach server: %s", err)
+		log.Error(detail)
+		return errors.New(detail)
 	}
-
-	// none of the sessions allows attach, so stop the server - calling server.start not t.start so that
-	// test impl gets invoked
-	server.stop()
 	return nil
 }
 
@@ -179,131 +168,148 @@ func (t *attachServerSSH) stop() {
 func (t *attachServerSSH) run() error {
 	defer trace.End(trace.Begin("main attach server loop"))
 
-	var sConn *ssh.ServerConn
+	var serverConn *ssh.ServerConn
 	var chans <-chan ssh.NewChannel
 	var reqs <-chan *ssh.Request
 	var err error
 
-	// keep waiting for the connection to establish
-	for t.enabled && sConn == nil {
-		conn := t.conn
-		if conn == nil {
-			// Stop has probably been called as t.conn is set in Start and should
-			// never be nil otherwise
-			err := fmt.Errorf("connection provided for backchannel is nil")
-			log.Debug(err.Error())
-			return err
-		}
+	for t.enabled {
+		// keep waiting for the connection to establish
+		for serverConn == nil {
+			// tests are passing their own connections so do not create connections when testing is set
+			if !t.testing {
+				// close the connection if required
+				if t.conn != nil {
+					(*t.conn).Close()
+				}
+				t.conn, err = rawConnectionFromSerial()
+				if err != nil {
+					detail := fmt.Errorf("failed to create raw connection raw connection: %s", err)
+					log.Error(detail)
+					continue
+				}
+			}
+			conn := t.conn
 
-		// wait for backchannel to establish
-		err = backchannel(context.Background(), conn)
-		if err != nil {
-			detail := fmt.Sprintf("failed to establish backchannel: %s", err)
-			log.Error(detail)
-			continue
-		}
+			// wait for backchannel to establish
+			err = backchannel(context.Background(), conn)
+			if err != nil {
+				detail := fmt.Errorf("failed to establish backchannel: %s", err)
+				log.Error(detail)
+				continue
+			}
 
-		// create the SSH server
-		sConn, chans, reqs, err = ssh.NewServerConn(*conn, t.sshConfig)
-		if err != nil {
-			detail := fmt.Sprintf("failed to establish ssh handshake: %s", err)
-			log.Error(detail)
-			continue
-		}
-	}
-	if err != nil {
-		detail := fmt.Sprintf("abandoning attempt to start attach server: %s", err)
-		log.Error(detail)
-		return err
-	}
-
-	defer func() {
-		if sConn != nil {
-			sConn.Close()
-		}
-	}()
-
-	// Global requests
-	go t.globalMux(reqs)
-
-	log.Println("ready to service attach requests")
-	// Service the incoming channels
-	for attachchan := range chans {
-		// The only channel type we'll support is attach
-		if attachchan.ChannelType() != attachChannelType {
-			detail := fmt.Sprintf("unknown channel type %s", attachchan.ChannelType())
-			log.Error(detail)
-			attachchan.Reject(ssh.UnknownChannelType, "unknown channel type")
-			continue
-		}
-
-		// check we have a Session matching the requested ID
-		bytes := attachchan.ExtraData()
-		if bytes == nil {
-			detail := "attach channel requires ID in ExtraData"
-			log.Error(detail)
-			attachchan.Reject(ssh.Prohibited, detail)
-			continue
-		}
-
-		sessionid := string(bytes)
-		session, ok := t.config.Sessions[sessionid]
-
-		reason := ""
-		if !ok {
-			reason = "is unknown"
-		} else if session.Cmd.Process == nil {
-			reason = "process has not been launched"
-		} else if session.Cmd.Process.Signal(syscall.Signal(0)) != nil {
-			reason = "process has exited"
-		}
-
-		if reason != "" {
-			detail := fmt.Sprintf("attach request: session %s %s", sessionid, reason)
-			log.Error(detail)
-			attachchan.Reject(ssh.Prohibited, detail)
-			continue
-		}
-
-		log.Infof("accepting incoming channel for %s", sessionid)
-		channel, requests, err := attachchan.Accept()
-		log.Debugf("accepted incoming channel for %s", sessionid)
-		if err != nil {
-			detail := fmt.Sprintf("could not accept channel: %s", err)
-			log.Errorf(detail)
-			continue
-		}
-
-		// bind the channel to the Session
-		log.Debugf("binding reader/writers for channel for %s", sessionid)
-		session.Outwriter.Add(channel)
-		session.Reader.Add(channel)
-
-		// cleanup on detach from the session
-		detach := func() {
-			session.Outwriter.Remove(channel)
-			session.Reader.Remove(channel)
-		}
-
-		// tty's merge stdout and stderr so we don't bind an additional reader in that case
-		// but we need to do so for non-tty
-		if session.Pty == nil {
-			session.Errwriter.Add(channel.Stderr())
-
-			// no good way to function chain, so reimplement appropriately
-			detach = func() {
-				session.Outwriter.Remove(channel)
-				session.Reader.Remove(channel)
-				session.Errwriter.Remove(channel)
+			// create the SSH server
+			serverConn, chans, reqs, err = ssh.NewServerConn(*conn, t.sshConfig)
+			if err != nil {
+				detail := fmt.Errorf("failed to establish ssh handshake: %s", err)
+				log.Error(detail)
+				continue
 			}
 		}
-		log.Debugf("reader/writers bound for channel for %s", sessionid)
 
-		go t.channelMux(requests, session, detach)
+		defer func() {
+			log.Debugf("cleanup on connection")
+
+			if serverConn != nil {
+				log.Debugf("closing underlying connection")
+				serverConn.Close()
+			}
+		}()
+
+		// Global requests
+		go t.globalMux(reqs)
+
+		log.Println("ready to service attach requests")
+		// Service the incoming channels
+		for attachchan := range chans {
+			// The only channel type we'll support is attach
+			if attachchan.ChannelType() != attachChannelType {
+				detail := fmt.Sprintf("unknown channel type %s", attachchan.ChannelType())
+				log.Error(detail)
+				attachchan.Reject(ssh.UnknownChannelType, "unknown channel type")
+				continue
+			}
+
+			// check we have a Session matching the requested ID
+			bytes := attachchan.ExtraData()
+			if bytes == nil {
+				detail := "attach channel requires ID in ExtraData"
+				log.Error(detail)
+				attachchan.Reject(ssh.Prohibited, detail)
+				continue
+			}
+
+			sessionid := string(bytes)
+			session, ok := t.config.Sessions[sessionid]
+
+			reason := ""
+			if !ok {
+				reason = "is unknown"
+			} else if session.Cmd.Process == nil {
+				reason = "process has not been launched"
+			} else if session.Cmd.Process.Signal(syscall.Signal(0)) != nil {
+				reason = "process has exited"
+			}
+
+			if reason != "" {
+				detail := fmt.Sprintf("attach request: session %s %s", sessionid, reason)
+				log.Error(detail)
+				attachchan.Reject(ssh.Prohibited, detail)
+				continue
+			}
+
+			log.Infof("accepting incoming channel for %s", sessionid)
+			channel, requests, err := attachchan.Accept()
+			log.Debugf("accepted incoming channel for %s", sessionid)
+			if err != nil {
+				detail := fmt.Sprintf("could not accept channel: %s", err)
+				log.Errorf(detail)
+				continue
+			}
+
+			// bind the channel to the Session
+			log.Debugf("binding reader/writers for channel for %s", sessionid)
+			session.Outwriter.Add(channel)
+			session.Reader.Add(channel)
+
+			// cleanup on detach from the session
+			detach := func() {
+				log.Debugf("cleanup on detach from the session")
+
+				session.Outwriter.Remove(channel)
+				session.Reader.Remove(channel)
+
+				channel.Close()
+
+				serverConn = nil
+			}
+
+			// tty's merge stdout and stderr so we don't bind an additional reader in that case
+			// but we need to do so for non-tty
+			if session.Pty == nil {
+				session.Errwriter.Add(channel.Stderr())
+
+				// no good way to function chain, so reimplement appropriately
+				detach = func() {
+					log.Debugf("cleanup on detach from the session")
+
+					session.Outwriter.Remove(channel)
+					session.Reader.Remove(channel)
+					session.Errwriter.Remove(channel)
+
+					channel.Close()
+
+					serverConn = nil
+				}
+			}
+			log.Debugf("reader/writers bound for channel for %s", sessionid)
+
+			go t.channelMux(requests, session, detach)
+		}
+
+		log.Info("incoming attach channel closed")
 	}
-
-	log.Info("incoming attach channel closed")
-
 	return nil
 }
 

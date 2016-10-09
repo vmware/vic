@@ -170,6 +170,5 @@ func (t *attachSSH) Resize(cols, rows, widthpx, heightpx uint32) error {
 	if err != nil {
 		return fmt.Errorf("resize error: %s", err)
 	}
-
 	return nil
 }
