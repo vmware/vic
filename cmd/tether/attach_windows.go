@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	_ "net/http/pprof"
 	"os"
 	"time"
 

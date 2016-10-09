@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
+	_ "net/http/pprof" // allow enabling pprof in contianerVM
 	"os"
 	"os/exec"
 	"os/signal"
@@ -181,7 +183,25 @@ func (t *tether) Start() error {
 		log.Info("Loading main configuration")
 		// load the config - this modifies the structure values in place
 		extraconfig.Decode(t.src, t.config)
-		logConfig(t.config)
+
+		// TODO: move all of this into an extension.Pre() block when we move to that model
+		// adjust the logging level appropriately
+		switch t.config.DebugLevel {
+		case 0:
+			log.SetLevel(log.InfoLevel)
+			// TODO: do not echo application output to console without debug enabled
+		case 1:
+			log.SetLevel(log.DebugLevel)
+		case 2:
+			log.Info("Launching pprof server on port 6060")
+			go func() {
+				// may not error if port already in use.
+				log.Info(http.ListenAndServe("0.0.0.0:6060", nil))
+			}()
+		default:
+			log.SetLevel(log.DebugLevel)
+			logConfig(t.config)
+		}
 
 		short := t.config.ID
 		if len(short) > shortLen {
@@ -440,8 +460,6 @@ func logConfig(config *ExecutorConfig) {
 	// just pretty print the json for now
 	log.Info("Loaded executor config")
 
-	// TODO: investigate whether it's the govmomi types package cause the binary size
-	// inflation - if so we need an alternative approach here or in extraconfig
 	if log.GetLevel() == log.DebugLevel && config.DebugLevel > 1 {
 		sink := map[string]string{}
 		extraconfig.Encode(extraconfig.MapSink(sink), config)
