@@ -868,6 +868,9 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		vchConfig.ExtensionKey = keybuffer.String()
 	}
 
+	// separate initial validation from dispatch of creation task
+	log.Info("")
+
 	executor := management.NewDispatcher(ctx, validator.Session, vchConfig, c.Force)
 	if err = executor.CreateVCH(vchConfig, vConfig); err != nil {
 

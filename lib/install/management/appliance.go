@@ -500,7 +500,6 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			Args: []string{
 				"/sbin/docker-engine-server",
 				//FIXME: hack during config migration
-				"-serveraddr=0.0.0.0",
 				"-port=" + d.DockerPort,
 				fmt.Sprintf("-port-layer-port=%d", portLayerPort),
 			},
