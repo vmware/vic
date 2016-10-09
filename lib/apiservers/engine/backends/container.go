@@ -1474,6 +1474,17 @@ func setCreateConfigOptions(config, imageConfig *containertypes.Config) {
 		config.Entrypoint = imageConfig.Entrypoint
 	}
 
+	if config.Volumes == nil {
+		config.Volumes = imageConfig.Volumes
+	} else {
+		for k, v := range imageConfig.Volumes {
+			//NOTE: the value of the map is an empty struct.
+			//      we also do not care about duplicates.
+			//      This Volumes map is really a Set.
+			config.Volumes[k] = v
+		}
+	}
+
 	// set up environment
 	setEnvFromImageConfig(config, imageConfig)
 }

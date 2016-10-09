@@ -109,6 +109,10 @@ const (
 	forceLogType                         = "json-file" //Use in inspect to allow docker logs to work
 	annotationKeyLabels                  = "docker.labels"
 	killWaitForExit        time.Duration = 2 * time.Second
+
+	DriverArgFlagKey      = "flags"
+	DriverArgContainerKey = "Container"
+	DriverArgImageKey     = "Image"
 )
 
 // NewContainerProxy creates a new ContainerProxy
@@ -222,27 +226,34 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 
 	// Collect all volume mappings. In a docker create/run, they
 	// can be anonymous (-v /dir) or specific (-v vol-name:/dir).
-	volumes := config.HostConfig.Binds
-	for anonVol := range config.Config.Volumes {
-		volumes = append(volumes, anonVol)
+	// anonymous volumes can also come from Image Metadata
+
+	rawAnonVolumes := make([]string, 0, len(config.Config.Volumes))
+	for k := range config.Config.Volumes {
+		rawAnonVolumes = append(rawAnonVolumes, k)
 	}
 
-	volList, err := processVolumeFields(volumes)
+	volList, err := finalizeVolumeList(config.HostConfig.Binds, rawAnonVolumes)
 	if err != nil {
 		return handle, BadRequestError(err.Error())
 	}
 
+	log.Infof("Finalized Volume list : %#v", volList)
+
 	// Create and join volumes.
 	for _, fields := range volList {
 
-		driverArgs := make(map[string]string)
-		driverArgs["flags"] = fields.Flags
+		//we only set these here for volumes made on a docker create
+		volumeData := make(map[string]string)
+		volumeData[DriverArgFlagKey] = fields.Flags
+		volumeData[DriverArgContainerKey] = config.Name
+		volumeData[DriverArgImageKey] = config.Config.Image
 
 		// NOTE: calling volumeCreate regardless of whether the volume is already
 		// present can be avoided by adding an extra optional param to VolumeJoin,
 		// which would then call volumeCreate if the volume does not exist.
 		vol := &Volume{}
-		_, err := vol.volumeCreate(fields.ID, "vsphere", driverArgs, nil)
+		_, err := vol.volumeCreate(fields.ID, "vsphere", volumeData, nil)
 		if err != nil {
 			switch err := err.(type) {
 			case *storage.CreateVolumeConflict:
@@ -250,7 +261,7 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 				// already exists. We can just join the said volume to the container.
 				log.Infof("a volume with the name %s already exists", fields.ID)
 			case *storage.CreateVolumeNotFound:
-				return handle, VolumeCreateNotFoundError(volumeStore(driverArgs))
+				return handle, VolumeCreateNotFoundError(volumeStore(volumeData))
 			default:
 				return handle, InternalServerError(err.Error())
 			}
@@ -699,8 +710,10 @@ func processVolumeParam(volString string) (volumeFields, error) {
 }
 
 // processVolumeFields parses fields for volume mappings specified in a create/run -v.
-func processVolumeFields(volumes []string) ([]volumeFields, error) {
-	var volumeFields []volumeFields
+// It returns a map of unique mountable volumes. This means that it removes dupes favoring
+// specified volumes over anonymous volumes.
+func processVolumeFields(volumes []string) (map[string]volumeFields, error) {
+	volumeFields := make(map[string]volumeFields)
 
 	for _, v := range volumes {
 		fields, err := processVolumeParam(v)
@@ -708,9 +721,34 @@ func processVolumeFields(volumes []string) ([]volumeFields, error) {
 		if err != nil {
 			return nil, err
 		}
-		volumeFields = append(volumeFields, fields)
+		volumeFields[fields.Dest] = fields
 	}
 	return volumeFields, nil
+}
+
+func finalizeVolumeList(specifiedVolumes, anonymousVolumes []string) ([]volumeFields, error) {
+	log.Infof("Specified Volumes : %#v", specifiedVolumes)
+	processedVolumes, err := processVolumeFields(specifiedVolumes)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Infof("anonymous Volumes : %#v", anonymousVolumes)
+	processedAnonVolumes, err := processVolumeFields(anonymousVolumes)
+	if err != nil {
+		return nil, err
+	}
+
+	//combine all volumes, specified volumes are taken over anonymous volumes
+	for k, v := range processedVolumes {
+		processedAnonVolumes[k] = v
+	}
+
+	finalizedVolumes := make([]volumeFields, 0, len(processedAnonVolumes))
+	for _, v := range processedAnonVolumes {
+		finalizedVolumes = append(finalizedVolumes, v)
+	}
+	return finalizedVolumes, nil
 }
 
 //-------------------------------------
