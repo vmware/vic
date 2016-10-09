@@ -745,7 +745,7 @@ func finalizeVolumeList(specifiedVolumes, anonymousVolumes []string) ([]volumeFi
 	}
 
 	finalizedVolumes := make([]volumeFields, 0, len(processedAnonVolumes))
-	for _, v := range processedVolumes {
+	for _, v := range processedAnonVolumes {
 		finalizedVolumes = append(finalizedVolumes, v)
 	}
 	return finalizedVolumes, nil

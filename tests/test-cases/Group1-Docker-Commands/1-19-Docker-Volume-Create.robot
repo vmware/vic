@@ -8,19 +8,28 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Simple docker volume create
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create
     Should Be Equal As Integers  ${rc}  0
-    ${disk-size}=  Run  docker ${params} logs $(docker ${params} start $(docker ${params} create -v ${output}:/mydata busybox /bin/df -Ph) && sleep 10) | grep by-label | awk '{print $2}'
+    ${ContainerID}= Run  docker ${params} run -d -v ${output}:/mydata busybox /bin/df -Ph
+    ${ContainerRC}= Run  docker ${params} wait ${ContainerID}
+    Should Be Equal As Integers  ${ContainerRC}  0
+    ${disk-size}=  Run  docker ${params} logs ${ContainerID} | grep by-label | awk '{print $2}'
     Should Be Equal As Strings  ${disk-size}  975.9M
 
 Docker volume create named volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${output}  test
-    ${disk-size}=  Run  docker ${params} logs $(docker ${params} start $(docker ${params} create -v ${output}:/mydata busybox /bin/df -Ph) && sleep 10) | grep by-label | awk '{print $2}'
+    ${ContainerID}= Run  docker ${params} run -d -v ${output}:/mydata busybox /bin/df -Ph
+    ${ContainerRC}= Run  docker ${params} wait ${ContainerID}
+    Should Be Equal As Integers  ${ContainerRC}  0
+    ${disk-size}=  Run  docker ${params} logs ${ContainerID} | grep by-label | awk '{print $2}'
     Should Be Equal As Strings  ${disk-size}  975.9M
 
 Docker volume create image volume
-       ${disk-size}=  Run  docker ${params} logs $(docker ${params} start $(docker ${params} create mongo /bin/df -Ph ) && sleep 10) | grep by-label | awk '{print $2}'
-       Should Contain  ${disk-size}  976M
+    ${ContainerID}= Run  docker ${params} run -d -v ${output}:/mydata mongo /bin/df -Ph
+    ${ContainerRC}= Run  docker ${params} wait ${ContainerID}
+    Should Be Equal As Integers  ${ContainerRC}  0
+    ${disk-size}=  Run  docker ${params} logs ${ContainerID} | grep by-label | awk '{print $2}'
+    Should Contain  ${disk-size}  976M
 
 Docker volume create already named volume
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test
@@ -40,8 +49,10 @@ Docker volume create with bad volumestore
 Docker volume create with specific capacity
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test4 --opt Capacity=100000
     Should Be Equal As Integers  ${rc}  0
-    Should Be Equal As Strings  ${output}  test4
-    ${disk-size}=  Run  docker ${params} logs $(docker ${params} start $(docker ${params} create -v ${output}:/mydata busybox /bin/df -Ph) && sleep 10) | grep by-label | awk '{print $2}'
+    Should Be Equal As Strings  ${output}  test4${ContainerID}= Run  docker ${params} run -d -v ${output}:/mydata busybox /bin/df -Ph
+    ${ContainerRC}= Run  docker ${params} wait ${ContainerID}
+    Should Be Equal As Integers  ${ContainerRC}  0
+    ${disk-size}=  Run  docker ${params} logs ${ContainerID} | grep by-label | awk '{print $2}'
     Should Be Equal As Strings  ${disk-size}  96.0G
 
 Docker volume create with zero capacity
