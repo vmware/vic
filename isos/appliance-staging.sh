@@ -113,11 +113,16 @@ yum_cached -p $PKGDIR clean all
 pwhash=$(openssl passwd -1 -salt vic password)
 sed -i -e "s/^root:[^:]*:/root:${pwhash}:/" $(rootfs_dir $PKGDIR)/etc/shadow
 
-# 1218: Temporarily disable SSH for TP3
+
+# Disable SSH by default - this can be enabled via guest operations
 rm $(rootfs_dir $PKGDIR)/usr/lib/systemd/system/sshd@.service
+rm $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/sshd.service
 
 # Allow root login via ssh
 sed -i -e "s/\#*PermitRootLogin\s.*/PermitRootLogin yes/" $(rootfs_dir $PKGDIR)/etc/ssh/sshd_config
+
+# Disable root login
+sed -i -e 's@:/bin/bash$@:/bin/false@' $(rootfs_dir $PKGDIR)/etc/passwd
 
 # package up the result
 pack $PKGDIR $OUT

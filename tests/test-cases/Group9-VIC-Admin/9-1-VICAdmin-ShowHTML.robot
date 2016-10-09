@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation  Test 9-1 - VICAdmin ShowHTML
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server  ${true}
+Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Default Tags
 
@@ -35,7 +35,7 @@ Get Container Logs
     ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz | tar tvzf -
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
-    Should Contain  ${output}  ${container}/output.log
+    Should Contain  ${output}  ${container}/vmware.log
     Should Contain  ${output}  ${container}/tether.debug
 
 Get VICAdmin Log
