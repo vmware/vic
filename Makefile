@@ -84,12 +84,12 @@ tether-windows := $(BIN)/tether-windows.exe
 tether-darwin := $(BIN)/tether-darwin
 
 appliance := $(BIN)/appliance.iso
-appliance-staging := $(BIN)/appliance-staging.tgz
+appliance-staging := $(BIN)/.appliance-staging.tgz
 bootstrap := $(BIN)/bootstrap.iso
-bootstrap-staging := $(BIN)/bootstrap-staging.tgz
-bootstrap-staging-debug := $(BIN)/bootstrap-staging-debug.tgz
+bootstrap-staging := $(BIN)/.bootstrap-staging.tgz
+bootstrap-staging-debug := $(BIN)/.bootstrap-staging-debug.tgz
 bootstrap-debug := $(BIN)/bootstrap-debug.iso
-iso-base := $(BIN)/iso-base.tgz
+iso-base := $(BIN)/.iso-base.tgz
 
 # target aliases - target mapping
 docker-engine-api: $(docker-engine-api)
@@ -295,12 +295,12 @@ $(portlayerapi): $(call godeps,cmd/port-layer-server/*.go) $(portlayerapi-server
 
 $(iso-base): isos/base.sh isos/base/*.repo isos/base/isolinux/** isos/base/xorriso-options.cfg
 	@echo building iso-base docker image
-	@$(TIME) $< -c $(BIN)/yum-cache.tgz -p $@
+	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $@
 
 # appliance staging - allows for caching of package install
 $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 	@echo staging for VCH appliance
-	@$(TIME) $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@
+	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $(iso-base) -o $@
 
 # main appliance target - depends on all top level component targets
 $(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(rpctool) $(vicadmin) $(imagec) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
@@ -318,11 +318,11 @@ $(bootstrap-debug): isos/bootstrap.sh $(tether-linux) $(rpctool) $(bootstrap-sta
 
 $(bootstrap-staging): isos/bootstrap-staging.sh $(iso-base)
 	@echo staging for bootstrap
-	@$(TIME) $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@
+	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $(iso-base) -o $@
 
 $(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base)
 	@echo staging debug for bootstrap
-	@$(TIME) $< -c $(BIN)/yum-cache.tgz -p $(iso-base) -o $@ -d true
+	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $(iso-base) -o $@ -d true
 
 $(vic-machine-linux): $(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine linux...
@@ -361,7 +361,7 @@ $(vic-dns-darwin): $(call godeps,cmd/vic-dns/*.go)
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
 clean:
-	@rm -rf $(BIN)
+	@rm -rf $(BIN)/*
 
 	@echo removing swagger generated files...
 	@rm -f ./lib/apiservers/portlayer/restapi/doc.go
@@ -375,3 +375,7 @@ clean:
 	@rm -f *.log
 	@rm -f *.pem
 	@rm -f *.gas
+
+# removes the yum cache as well as the generated binaries
+distclean:
+	@rm -fr $(BIN)

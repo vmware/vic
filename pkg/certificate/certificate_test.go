@@ -15,92 +15,80 @@
 package certificate
 
 import (
-	"bytes"
-	"os"
-	"strings"
+	"crypto/x509"
 	"testing"
 
-	"crypto/tls"
-
 	log "github.com/Sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
-const (
-	keyFile  = "./key.pem"
-	certFile = "./cert.pem"
-)
+func TestCreateCA(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
 
-func TestCreateRawKeyPair(t *testing.T) {
-	cert, key, err := CreateRawKeyPair()
-	if err != nil {
-		t.Errorf("CreateRawKeyPair failed with error %s", err)
-	}
+	cacert, cakey, err := CreateRootCA("somewhere.com", "MyOrg", 2048)
+	assert.NoError(t, err, "Failed generating CA certificate")
 
-	certString := cert.String()
-	keyString := key.String()
-
-	log.Infof("cert: %s", certString)
-	log.Infof("key: %s", keyString)
-
-	if !strings.HasPrefix(certString, "-----BEGIN CERTIFICATE-----") {
-		t.Errorf("Certificate lacks proper prefix; must not have been generated properly.")
-	}
-
-	if !strings.HasSuffix(certString, "-----END CERTIFICATE-----\n") {
-		t.Errorf("Certificate lacks proper suffix; must not have been generated properly.")
-	}
-
-	if !strings.HasPrefix(keyString, "-----BEGIN RSA PRIVATE KEY-----") {
-		t.Errorf("Private key lacks proper prefix; must not have been generated properly.")
-	}
-
-	if !strings.HasSuffix(keyString, "-----END RSA PRIVATE KEY-----\n") {
-		t.Errorf("Private key lacks proper suffix; must not have been generated properly.")
-	}
-
-	_, err = tls.X509KeyPair([]byte(certString), []byte(keyString))
-	if err != nil {
-		t.Errorf("Unable to load X509 key pair(%s,%s): %s", certString, keyString, err)
-	}
+	_, _, err = ParseCertificate(cacert.Bytes(), cakey.Bytes())
+	assert.NoError(t, err, "Failed reparsing CA certificate")
 
 }
 
-func TestGenerate(t *testing.T) {
-	log.SetLevel(log.InfoLevel)
-	if _, err := os.Stat(keyFile); err == nil {
-		os.Remove(keyFile)
+func TestSignedCertificate(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+
+	cacert, cakey, err := CreateRootCA("somewhere.com", "MyOrg", 2048)
+	assert.NoError(t, err, "Failed generating ca certificate")
+
+	cert, key, err := CreateServerCertificate("somewere.com", "MyOrg", 2048, cacert.Bytes(), cakey.Bytes())
+	assert.NoError(t, err, "Failed generating signed certificate")
+
+	// validate
+	roots := x509.NewCertPool()
+	ok := roots.AppendCertsFromPEM(cacert.Bytes())
+	assert.Equal(t, true, ok, "Failed to append CA to roots")
+
+	opts := x509.VerifyOptions{
+		Roots: roots,
 	}
 
-	pair := NewKeyPair(true, keyFile, certFile)
-	if err := pair.GetCertificate(); err != nil {
-		t.Errorf("%s", err)
-	}
-	log.Infof("key: %s", pair.KeyPEM)
-	log.Infof("Cert: %s", pair.CertPEM)
+	tlsCert, _, err := ParseCertificate(cert.Bytes(), key.Bytes())
+	assert.NoError(t, err, "Failed loading signed certificate")
 
-	if _, err := os.Stat(keyFile); err != nil {
-		t.Errorf("key file is not generated")
-	}
-	if !strings.Contains(string(pair.KeyPEM), "RSA PRIVATE KEY") {
-		t.Errorf("Key is not correctly generated")
-	}
+	_, err = tlsCert.Verify(opts)
+	assert.NoError(t, err, "Failed loading signed certificate")
 }
 
-func TestGetCertificate(t *testing.T) {
-	pair := NewKeyPair(true, keyFile, certFile)
-	if err := pair.GetCertificate(); err != nil {
-		t.Errorf("%s", err)
-	}
-	keyPEM := pair.KeyPEM
+func TestFailedValidation(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
 
-	pair = NewKeyPair(false, keyFile, certFile)
-	if err := pair.GetCertificate(); err != nil {
-		t.Errorf("%s", err)
+	cacert, cakey, err := CreateRootCA("somewhere.com", "MyOrg", 2048)
+	assert.NoError(t, err, "Failed generating ca certificate")
+
+	cert, key, err := CreateServerCertificate("somewere.com", "MyOrg", 2048, cacert.Bytes(), cakey.Bytes())
+	assert.NoError(t, err, "Failed generating signed certificate")
+
+	// validate
+	roots := x509.NewCertPool()
+	ok := roots.AppendCertsFromPEM(cacert.Bytes())
+	assert.Equal(t, true, ok, "Failed to append CA to roots")
+
+	tlsCert, _, err := ParseCertificate(cert.Bytes(), key.Bytes())
+	assert.NoError(t, err, "Failed loading signed certificate")
+
+	opts := x509.VerifyOptions{
+		Roots:   roots,
+		DNSName: "somewhereELSE.com",
 	}
 
-	if !bytes.Equal(pair.KeyPEM, keyPEM) {
-		log.Errorf("Expected pem: %s", keyPEM)
-		log.Errorf("Actual pem: %s", pair.KeyPEM)
-		t.Errorf("key is not correctly read out")
+	_, err = tlsCert.Verify(opts)
+	assert.Error(t, err, "Expected to fail initial verify")
+
+	opts = x509.VerifyOptions{
+		Roots:   roots,
+		DNSName: "somewhere.com",
 	}
+
+	_, err = tlsCert.Verify(opts)
+	assert.Error(t, err, "Expected to pass second verify")
+
 }

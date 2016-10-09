@@ -16,10 +16,13 @@ package create
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/url"
+	"os"
 	"path"
 	"strings"
 	"time"
@@ -68,11 +71,23 @@ OPTIONS:
 type Create struct {
 	*data.Data
 
-	cert string
-	key  string
+	cert       string
+	key        string
+	cacert     string
+	cakey      string
+	clientCert *tls.Certificate
+
+	envFile string
+
+	cname   string
+	org     string
+	keySize int
 
 	noTLS           bool
+	noTLSverify     bool
 	advancedOptions bool
+
+	clientCAs cli.StringSlice
 
 	containerNetworks         cli.StringSlice
 	containerNetworksGateway  cli.StringSlice
@@ -267,6 +282,11 @@ func (c *Create) Flags() []cli.Flag {
 				Usage:       "Virtual Container Host x509 certificate file",
 				Destination: &c.cert,
 			},
+			cli.StringSliceFlag{
+				Name:  "client-verification-ca, ca",
+				Usage: "Specify a list of certificate authorities to use for client verification",
+				Value: &c.clientCAs,
+			},
 			cli.StringFlag{
 				Name:        "base-image-size",
 				Value:       "8GB",
@@ -275,8 +295,13 @@ func (c *Create) Flags() []cli.Flag {
 				Hidden:      true,
 			},
 			cli.BoolFlag{
+				Name:        "no-tlsverify, kv",
+				Usage:       "Disable authentication via client certificates",
+				Destination: &c.noTLSverify,
+			},
+			cli.BoolFlag{
 				Name:        "no-tls, k",
-				Usage:       "Disable TLS support",
+				Usage:       "Disable TLS support completely",
 				Destination: &c.noTLS,
 			},
 			cli.BoolFlag{
@@ -315,6 +340,26 @@ func (c *Create) Flags() []cli.Flag {
 				Destination: &c.UseRP,
 				Hidden:      true,
 			},
+			cli.IntFlag{
+				Name:        "certificate-key-size, ksz",
+				Usage:       "Size of key to use when generating certificates",
+				Value:       2048,
+				Destination: &c.keySize,
+				Hidden:      true,
+			},
+			cli.StringFlag{
+				Name:        "cname",
+				Value:       "",
+				Usage:       "Common Name to use in generated CA certificate",
+				Destination: &c.cname,
+			},
+			cli.StringFlag{
+				Name:        "organisation",
+				Value:       "default",
+				Usage:       "Organisation to use in generated CA certificate",
+				Destination: &c.org,
+				Hidden:      true,
+			},
 			cli.StringSliceFlag{
 				Name:  "docker-insecure-registry, dir",
 				Value: &c.insecureRegistries,
@@ -326,21 +371,6 @@ func (c *Create) Flags() []cli.Flag {
 	return flags
 }
 
-func (c *Create) processVolumeStores() error {
-	defer trace.End(trace.Begin(""))
-	c.VolumeLocations = make(map[string]string)
-	for _, arg := range c.volumeStores {
-		splitMeta := strings.SplitN(arg, ":", 2)
-		if len(splitMeta) != 2 {
-			return errors.New("Volume store input must be in format datastore/path:label")
-		}
-		c.VolumeLocations[splitMeta[1]] = splitMeta[0]
-	}
-
-	return nil
-
-}
-
 func (c *Create) processParams() error {
 	defer trace.End(trace.Begin(""))
 
@@ -349,10 +379,10 @@ func (c *Create) processParams() error {
 	}
 
 	if c.cert != "" && c.key == "" {
-		return cli.NewExitError("key cert should be specified at the same time", 1)
+		return cli.NewExitError("key and cert should be specified at the same time", 1)
 	}
 	if c.cert == "" && c.key != "" {
-		return cli.NewExitError("key cert should be specified at the same time", 1)
+		return cli.NewExitError("key and cert should be specified at the same time", 1)
 	}
 
 	if c.externalNetworkName == "" {
@@ -394,6 +424,11 @@ func (c *Create) processParams() error {
 		return err
 	}
 
+	// must come after client network processing as it checks for static IP on that interface
+	if err := c.processCertificates(); err != nil {
+		return err
+	}
+
 	if err := c.processVolumeStores(); err != nil {
 		return errors.Errorf("Error occurred while processing volume stores: %s", err)
 	}
@@ -403,6 +438,53 @@ func (c *Create) processParams() error {
 	}
 	// FIXME: add parameters for these configurations
 	c.Insecure = true
+	return nil
+}
+
+func (c *Create) processCertificates() error {
+	// check for insecure case
+	if c.noTLS {
+		log.Warn("Configuring without TLS - all communications will be insecure")
+		return nil
+	}
+
+	// if one or more CAs are provided, then so must the key and cert for host certificate
+	cas, keypair, err := c.loadCertificates()
+	if err != nil {
+		log.Error("Create cannot continue: unable to load certificates")
+		return err
+	}
+
+	if len(cas) != 0 && keypair == nil {
+		log.Error("Create cannot continue: specifying a CA requires --key and --cert parameters")
+		return errors.New("If supplying a CA, certificate and key for TLS must also be supplied")
+	}
+
+	if len(cas) == 0 && keypair == nil {
+		// if we get here we didn't load a CA or keys, so we're generating
+		cas, keypair, err = c.generateCertificates(!c.noTLSverify)
+		if err != nil {
+			log.Error("Create cannot continue: unable to generate certificates")
+			return err
+		}
+	}
+
+	if keypair == nil {
+		// this shoudl be caught in earlier error returns, but sanity check
+		log.Error("Create cannot continue: unable to load or generate TLS certificates and --no-tls was not specified")
+		return err
+	}
+
+	c.KeyPEM = keypair.KeyPEM
+	c.CertPEM = keypair.CertPEM
+
+	// do we have key, cert, and --no-tlsverify
+	if c.noTLSverify || len(cas) == 0 {
+		log.Warnf("Configuring without TLS verify - client authentication disabled")
+		return nil
+	}
+
+	c.ClientCAs = cas
 	return nil
 }
 
@@ -489,6 +571,8 @@ func (c *Create) processContainerNetworks() error {
 func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, staticIP, gateway string) error {
 	network.Name = pgName
 
+	var err error
+
 	i := staticIP != ""
 	g := gateway != ""
 	if !i && !g {
@@ -498,26 +582,52 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 		return fmt.Errorf("%s network IP and gateway must both be specified", netName)
 	}
 
-	ci, err := ip.ParseIPandMask(staticIP)
-	if err != nil {
-		return fmt.Errorf("Invalid %s network IP: %s", netName, err)
-	}
+	defer func(net *data.NetworkConfig) {
+		if err == nil {
+			log.Debugf("%s network: IP %q gateway %q", netName, net.IP, net.Gateway)
+		}
+	}(network)
 
-	cg, err := ip.ParseIPandMask(gateway)
+	network.Gateway, err = ip.ParseIPandMask(gateway)
 	if err != nil {
 		return fmt.Errorf("Invalid %s network gateway: %s", netName, err)
 	}
 
-	log.Debugf("%s network: IP %q gateway %q", netName, ci, cg)
+	network.IP, err = ip.ParseIPandMask(staticIP)
+	if err == nil {
+		return nil
+	}
 
-	network.Gateway = cg
-	network.IP = ci
+	// try treating it as a name, using the mask from the gateway
+	ips, err := net.LookupIP(staticIP)
+	if err != nil {
+		return fmt.Errorf("Invalid %s network address - neither IP nor resolvable hostname", netName)
+	}
 
-	return nil
+	for _, ip := range ips {
+		if !network.Gateway.Contains(ip) {
+			log.Debugf("Skipping %s as value for %s because it's not in the network specified by gateway", ip.String(), staticIP)
+			continue
+		}
+
+		log.Infof("Assigning %s based on %s", ip.String(), staticIP)
+		network.IP = net.IPNet{
+			IP:   ip,
+			Mask: network.Gateway.Mask,
+		}
+
+		return nil
+	}
+
+	return fmt.Errorf("Invalid %s network address: %s does not resolve to a gateway compatible IP", netName, staticIP)
 }
 
 // processDNSServers parses DNS servers used for client, external, mgmt networks
 func (c *Create) processDNSServers() error {
+	if len(c.dns) == 0 {
+		return nil
+	}
+
 	for _, d := range c.dns {
 		s := net.ParseIP(d)
 		if s == nil {
@@ -525,13 +635,29 @@ func (c *Create) processDNSServers() error {
 		}
 		c.Data.DNS = append(c.Data.DNS, s)
 	}
+
 	if len(c.Data.DNS) > 3 {
 		log.Warn("Maximum of 3 DNS servers. Additional servers specified will be ignored.")
 	}
+
 	if c.Data.ClientNetwork.Empty() && c.Data.ExternalNetwork.Empty() && c.Data.ManagementNetwork.Empty() {
 		log.Warn("Specified DNS servers are ignored if static IP is not set on any networks. VCH will use DNS servers provided by DHCP.")
 	}
 	log.Debugf("VCH DNS servers: %s", c.Data.DNS)
+	return nil
+}
+
+func (c *Create) processVolumeStores() error {
+	defer trace.End(trace.Begin(""))
+	c.VolumeLocations = make(map[string]string)
+	for _, arg := range c.volumeStores {
+		splitMeta := strings.SplitN(arg, ":", 2)
+		if len(splitMeta) != 2 {
+			return errors.New("Volume store input must be in format datastore/path:label")
+		}
+		c.VolumeLocations[splitMeta[1]] = splitMeta[0]
+	}
+
 	return nil
 }
 
@@ -547,28 +673,135 @@ func (c *Create) processInsecureRegistries() error {
 	return nil
 }
 
-func (c *Create) loadCertificate() (*certificate.Keypair, error) {
+func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 	defer trace.End(trace.Begin(""))
 
-	var keypair *certificate.Keypair
+	c.envFile = fmt.Sprintf("%s.env", c.DisplayName)
+
+	// reads each of the files specified, assuming that they are PEM encoded certs,
+	// and constructs a byte array suitable for passing to CertPool.AppendCertsFromPEM
+	var certs []byte
+	for _, f := range c.clientCAs {
+		log.Infof("Loading CA from %s", f)
+		b, err := ioutil.ReadFile(f)
+		if err != nil {
+			err = errors.Errorf("Failed to load authority from file %s: %s", f, err)
+			return nil, nil, err
+		}
+
+		certs = append(certs, b...)
+	}
+
+	var keypair *certificate.KeyPair
 	if c.cert != "" && c.key != "" {
 		log.Infof("Loading certificate/key pair - private key in %s", c.key)
-		keypair = certificate.NewKeyPair(false, c.key, c.cert)
-	} else if !c.noTLS && c.DisplayName != "" {
-		c.key = fmt.Sprintf("./%s-key.pem", c.DisplayName)
-		c.cert = fmt.Sprintf("./%s-cert.pem", c.DisplayName)
-		log.Infof("Generating certificate/key pair - private key in %s", c.key)
-		keypair = certificate.NewKeyPair(true, c.key, c.cert)
+		keypair = certificate.NewKeyPair(c.cert, c.key, nil, nil)
+
+		if err := keypair.LoadCertificate(); err != nil {
+			log.Errorf("Failed to load certificate: %s", err)
+			return certs, nil, err
+		}
 	}
-	if keypair == nil {
-		log.Warnf("Configuring without TLS - to enable drop --no-tls or use --key/--cert parameters")
-		return nil, nil
+
+	return certs, keypair, nil
+}
+
+func (c *Create) generateCertificates(ca bool) ([]byte, *certificate.KeyPair, error) {
+	defer trace.End(trace.Begin(""))
+
+	var certs []byte
+	// generate the certs and keys with names conforming the default the docker client expects
+	// to avoid overwriting for a different vch, place this in a directory named for the vch
+	err := os.MkdirAll(fmt.Sprintf("./%s", c.DisplayName), 700)
+	if err != nil {
+		log.Errorf("Unable to make directory to hold certificates")
+		return nil, nil, err
 	}
-	if err := keypair.GetCertificate(); err != nil {
-		log.Errorf("Failed to read/generate certificate: %s", err)
-		return nil, err
+
+	// the locations for the certificates and env file
+	c.envFile = fmt.Sprintf("%s/%[1]s.env", c.DisplayName)
+
+	c.key = fmt.Sprintf("./%s/key.pem", c.DisplayName)
+	c.cert = fmt.Sprintf("./%s/cert.pem", c.DisplayName)
+
+	skey := fmt.Sprintf("./%s/server-key.pem", c.DisplayName)
+	scert := fmt.Sprintf("./%s/server-cert.pem", c.DisplayName)
+
+	cakey := fmt.Sprintf("./%s/ca-key.pem", c.DisplayName)
+	c.cacert = fmt.Sprintf("./%s/ca.pem", c.DisplayName)
+
+	if !ca {
+		log.Infof("Generating self-signed certificate/key pair - private key in %s", c.key)
+		keypair := certificate.NewKeyPair(c.key, c.cert, nil, nil)
+		err := keypair.CreateSelfSigned(c.cname, "", c.keySize)
+		if err != nil {
+			log.Errorf("Failed to generate self-signed certificate: %s", err)
+			return nil, nil, err
+		}
+
+		return certs, keypair, nil
 	}
-	return keypair, nil
+
+	// if we've not got a specific CommonName but do have a static IP then go with that.
+	if c.cname == "" && c.clientNetworkIP != "" {
+		c.cname = c.clientNetworkIP
+	}
+
+	if c.cname == "" {
+		log.Error("Common Name must be provided when generating certificates for client authentication:")
+		log.Info("  --cname=<FQDN or static IP> # for the appliance VM")
+		log.Info("  --cname=<*.yourdomain.com>  # if DNS has entries in that form for DHCP addresses (less secure)")
+		log.Info("  --no-tlsverify              # disables client authentication (anyone can connect to the VCH)")
+		log.Info("")
+
+		return certs, nil, errors.New("provide Common Name for server certificate")
+	}
+
+	// Certificate authority
+	log.Infof("Generating CA certificate/key pair - private key in %s", cakey)
+	cakp := certificate.NewKeyPair(c.cacert, cakey, nil, nil)
+	err = cakp.CreateRootCA(c.cname, c.org, c.keySize)
+	if err != nil {
+		log.Errorf("Failed to generate CA: %s", err)
+		return nil, nil, err
+	}
+	if err = cakp.SaveCertificate(); err != nil {
+		log.Errorf("Failed to save CA certificates: %s", err)
+		return nil, nil, err
+	}
+
+	// Server certificates
+	log.Infof("Generating server certificate/key pair - private key in %s", skey)
+	skp := certificate.NewKeyPair(scert, skey, nil, nil)
+	err = skp.CreateServerCertificate(c.cname, c.org, c.keySize, cakp)
+	if err != nil {
+		log.Errorf("Failed to generate server certificates: %s", err)
+		return nil, nil, err
+	}
+	if err = skp.SaveCertificate(); err != nil {
+		log.Errorf("Failed to save server certificates: %s", err)
+		return nil, nil, err
+	}
+
+	// Client certificates
+	log.Infof("Generating client certificate/key pair - private key in %s", c.key)
+	ckp := certificate.NewKeyPair(c.cert, c.key, nil, nil)
+	err = ckp.CreateClientCertificate(c.cname, c.org, c.keySize, cakp)
+	if err != nil {
+		log.Errorf("Failed to generate server certificates: %s", err)
+		return nil, nil, err
+	}
+	if err = ckp.SaveCertificate(); err != nil {
+		log.Errorf("Failed to save client certificates: %s", err)
+		return nil, nil, err
+	}
+
+	c.clientCert, err = ckp.Certificate()
+	if err != nil {
+		log.Warnf("Failed to stash client certificate for later application level validation: %s", err)
+	}
+
+	return cakp.CertPEM, skp, nil
 }
 
 func (c *Create) Run(cliContext *cli.Context) (err error) {
@@ -598,17 +831,6 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 
 	log.Infof("### Installing VCH ####")
 
-	var keypair *certificate.Keypair
-	if keypair, err = c.loadCertificate(); err != nil {
-		log.Error("Create cannot continue: unable to load certificate")
-		return err
-	}
-
-	if keypair != nil {
-		c.KeyPEM = keypair.KeyPEM
-		c.CertPEM = keypair.CertPEM
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
 	defer func() {
@@ -630,11 +852,6 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		return err
 	}
 
-	if keypair != nil {
-		vchConfig.UserKeyPEM = string(keypair.KeyPEM)
-		vchConfig.UserCertPEM = string(keypair.CertPEM)
-	}
-
 	vConfig := validator.AddDeprecatedFields(ctx, vchConfig, c.Data)
 	vConfig.ImageFiles = images
 	vConfig.ApplianceISO = path.Base(c.ApplianceISO)
@@ -644,7 +861,7 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 
 	{ // create certificates for VCH extension
 		var certbuffer, keybuffer bytes.Buffer
-		if certbuffer, keybuffer, err = certificate.CreateRawKeyPair(); err != nil {
+		if certbuffer, keybuffer, err = certificate.CreateSelfSigned("", "VMware Inc.", 2048); err != nil {
 			return errors.Errorf("Failed to create certificate for VIC vSphere extension: %s", err)
 		}
 		vchConfig.ExtensionCert = certbuffer.String()
@@ -658,9 +875,16 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		return err
 	}
 
+	// check the docker endpoint is responsive
+	if err = executor.CheckDockerAPI(vchConfig, c.clientCert); err != nil {
+
+		executor.CollectDiagnosticLogs()
+		return err
+	}
+
 	log.Infof("Initialization of appliance successful")
 
-	executor.ShowVCH(vchConfig, c.key, c.cert)
+	executor.ShowVCH(vchConfig, c.key, c.cert, c.cacert, c.envFile)
 	log.Infof("Installer completed successfully")
 	return nil
 }

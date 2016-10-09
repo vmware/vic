@@ -292,6 +292,14 @@ func (m *MockContainerProxy) ContainerRunning(vc *viccontainer.VicContainer) (bo
 	return true, nil
 }
 
+func (m *MockContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error) {
+	return 0, "", "", nil
+}
+
+func (m *MockContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error {
+	return nil
+}
+
 func AddMockImageToCache() {
 	mockImage := &metadata.ImageConfig{
 		ImageID:   "e732471cb81a564575aad46b9510161c5945deaf18e9be3db344333d72f0b4b2",

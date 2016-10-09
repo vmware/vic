@@ -35,6 +35,16 @@ if [ -z "$GITHUB_TOKEN" ] || [ -z "$GOVC_URL" ]; then
     exit 1
 fi
 
+# check if govc env command works as expected
+if ! govc version -require 0.9.0; then
+    echo "govc version must be updated"
+    exit 1
+fi
+
+if [ -z "$DOMAIN" ]; then
+  echo "DOMAIN not set, using --no-tlsverify for all tests"
+fi
+
 cd "$(git rev-parse --show-toplevel)"
 
 tests=${*#${PWD}/}
@@ -58,6 +68,7 @@ build:
       TEST_RESOURCE:    ${GOVC_RESOURCE_POOL:-$(govc ls host/*/Resources)}
       BRIDGE_NETWORK:   $BRIDGE_NETWORK
       EXTERNAL_NETWORK: $EXTERNAL_NETWORK
+      DOMAIN:           $DOMAIN
       BIN: bin
       GOPATH: /drone
       SHELL: /bin/bash

@@ -16,6 +16,7 @@ package validate
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net/url"
 	"strings"
@@ -223,6 +224,7 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 	v.CheckDrs(ctx)
 
 	v.certificate(ctx, input, conf)
+	v.certificateAuthorities(ctx, input, conf)
 
 	// Perform the higher level compatibility and consistency checks
 	v.compatibility(ctx, conf)
@@ -353,6 +355,31 @@ func (v *Validator) certificate(ctx context.Context, input *data.Data, conf *con
 		Key:  input.KeyPEM,
 		Cert: input.CertPEM,
 	}
+}
+
+func (v *Validator) certificateAuthorities(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
+	defer trace.End(trace.Begin(""))
+
+	if len(input.ClientCAs) == 0 {
+		// if there's no data supplied then we're configuring without client verification
+		log.Debug("Configuring without client verification due to empty certificate authorities")
+		return
+	}
+
+	// ensure TLS is configurable
+	if len(input.CertPEM) == 0 {
+		v.NoteIssue(errors.New("Certificate authority specified, but no TLS certificate provided"))
+		return
+	}
+
+	// check a CA can be loaded
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(input.ClientCAs) {
+		v.NoteIssue(errors.New("Unable to load certificate authority data"))
+		return
+	}
+
+	conf.CertificateAuthorities = input.ClientCAs
 }
 
 func (v *Validator) compatibility(ctx context.Context, conf *config.VirtualContainerHostConfigSpec) {

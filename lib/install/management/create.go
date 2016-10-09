@@ -108,10 +108,6 @@ func (d *Dispatcher) startAppliance(conf *config.VirtualContainerHostConfigSpec)
 		return errors.Errorf("%s. Exiting...", err)
 	}
 
-	// wait till the appliance components are fully initialized
-	if err = d.ensureComponentsInitialize(conf); err != nil {
-		return errors.Errorf("%s. Exiting...", err)
-	}
 	return nil
 }
 

@@ -1,11 +1,22 @@
 *** Settings ***
-Documentation  Test 10-1 - VCH Restart
+Documentation  Test 11-1 - Upgrade 
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
-Suite Teardown  Cleanup VIC Appliance On Test Server
+Suite Setup  Install VIC with version to Test Server  5470
+Suite Teardown  Clean up VIC Appliance And Local Binary
 Default Tags
 
 *** Keywords ***
+Install VIC with version to Test Server
+    [Arguments]  ${version}=5470
+    Log To Console  \nDownloading vic ${version} from bintray...
+    ${rc}  ${output}=  Run And Return Rc And Output  wget https://bintray.com/vmware/vic-repo/download_file?file_path=vic_${version}.tar.gz -O vic.tar.gz
+    ${rc}  ${output}=  Run And Return Rc And Output  tar zxvf vic.tar.gz
+	Install VIC Appliance To Test Server  vic-machine=./vic/vic-machine-linux  appliance-iso=./vic/appliance.iso  bootstrap-iso=./vic/bootstrap.iso  certs=${false}
+
+Clean up VIC Appliance And Local Binary
+    Cleanup VIC Appliance On Test Server
+    Run  rm -rf vic.tar.gz vic
+
 Get Container IP
     [Arguments]  ${id}  ${network}=default
     ${rc}  ${ip}=  Run And Return Rc And Output  docker ${params} network inspect ${network} | jq '.[0].Containers."${id}".IPv4Address'
@@ -20,11 +31,8 @@ Launch Container
     ${ip}=  Get Container IP  ${id}  ${network}
     [Return]  ${id}  ${ip}
 
-
 *** Test Cases ***
-Created Network And Images Persists As Well As Containers Are Discovered With Correct IPs
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull nginx
-    Should Be Equal As Integers  ${rc}  0
+Upgrade VCH with containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create bar
     Should Be Equal As Integers  ${rc}  0
     Comment  Launch first container on bridge network
@@ -40,22 +48,17 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10000
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10001
 
-    Log To Console  Rebooting VCH ...
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -reset=true ${vch-name}
+    Log To Console  \nUpgrading VCH...
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux upgrade --debug 1 --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    Should Contain  ${output}  Completed successfully
+    Should Not Contain  ${output}  Rolling back upgrade
     Should Be Equal As Integers  ${rc}  0
-    Log To Console  Waiting for VCH to boot ...
-    Wait Until Vm Powers On  ${vch-name}
-    Log To Console  VCH Powered On
-    Sleep  5
-    Log To Console  Getting VCH IP ...
-    ${new-vch-ip}=  Get VM IP  ${vch-name}
-    Log To Console  New VCH IP is ${new-vch-ip}
-    Replace String  ${params}  ${vch-ip}  ${new-vch-ip}
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux inspect --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE}
+    Should Contain  ${output}  Completed successfully
     Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  nginx
-    Should Contain  ${output}  busybox
+    Log  ${output}
+    Get Docker Params  ${output}  ${true}
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network ls
     Should Be Equal As Integers  ${rc}  0
