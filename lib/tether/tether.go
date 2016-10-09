@@ -26,9 +26,8 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/net/context"
-
 	log "github.com/Sirupsen/logrus"
+	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/lib/system"
 	"github.com/vmware/vic/pkg/dio"
@@ -49,7 +48,7 @@ const (
 var Sys = system.New()
 
 //this map contains the found block devices native to the containerVM
-var DeviceMap = make(map[string]fs.Fsinfo)
+var DeviceMap = make(map[string]fs.DeviceInfo)
 
 type tether struct {
 	// the implementation to use for tailored operations
@@ -213,8 +212,8 @@ func (t *tether) Start() error {
 
 		log.Info("Populating block device list now.")
 		BlockDevices, err := fs.NewBlockDevices(linuxBlockDevicePath)
-		DeviceMap := BlockDevices.DevicesByLabel()
-		log.Infof("Found ext4 block devices : %s", DeviceMap)
+		labeledDevices := BlockDevices.DevicesByLabel()
+		log.Infof("Found block devices : %s", labeledDevices)
 
 		if err != nil {
 			log.Errorf("error while trying to identify mountable volumes: %s", err)
@@ -228,10 +227,7 @@ func (t *tether) Start() error {
 				return errors.New(detail)
 			}
 
-			log.Infof("attempting to mount %s to %s", v.Source.Path, v.Path)
-			// this could block indefinitely while waiting for a volume to present
-
-			filesystem, ok := DeviceMap[v.Source.Path]
+			filesystem, ok := labeledDevices[v.Source.Path]
 			if !ok {
 				log.Warnf("Could not find Mount Label (%s) during a mount operation", v.Source.Path)
 				continue

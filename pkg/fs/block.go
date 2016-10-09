@@ -23,7 +23,7 @@ import (
 )
 
 //this contains the fs block info that we are interested in.
-type Fsinfo struct {
+type DeviceInfo struct {
 	DevicePath  string
 	UUID        string
 	VolumeLabel string
@@ -33,11 +33,11 @@ type FileSystem interface {
 	DevPath() string
 	UUID() string
 	Label() string
-	Info() Fsinfo
+	Info() DeviceInfo
 }
 
 type Ext4FileSystem struct {
-	FilesystemInfo Fsinfo
+	FilesystemInfo DeviceInfo
 }
 
 func (fs Ext4FileSystem) DevPath() string {
@@ -52,7 +52,7 @@ func (fs Ext4FileSystem) Label() string {
 	return fs.FilesystemInfo.VolumeLabel
 }
 
-func (fs Ext4FileSystem) Info() Fsinfo {
+func (fs Ext4FileSystem) Info() DeviceInfo {
 	return fs.FilesystemInfo
 }
 
@@ -120,7 +120,7 @@ func (m Ext4SuperBlock) Read(devicesPath string) ([]FileSystem, error) {
 		blockPath := fmt.Sprintf("%s/%s", devicesPath, block.Name())
 		info, berr := sbinfo.ReadExt2Superblock(blockPath)
 		fs := Ext4FileSystem{
-			FilesystemInfo: m.newExt4Fsinfo(info, blockPath),
+			FilesystemInfo: m.newExt4DeviceInfo(info, blockPath),
 		}
 
 		if berr != nil {
@@ -134,8 +134,8 @@ func (m Ext4SuperBlock) Read(devicesPath string) ([]FileSystem, error) {
 	return ext4BlockDevices, nil
 }
 
-func (m *Ext4SuperBlock) newExt4Fsinfo(info *sbinfo.Ext2Sb, devicePath string) Fsinfo {
-	ext4info := Fsinfo{
+func (m *Ext4SuperBlock) newExt4DeviceInfo(info *sbinfo.Ext2Sb, devicePath string) DeviceInfo {
+	ext4info := DeviceInfo{
 		DevicePath:  devicePath,
 		UUID:        string(info.SUUID[:]),
 		VolumeLabel: string(info.SVolumeName[:]),
