@@ -333,9 +333,9 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.cname,
 		},
 		cli.StringFlag{
-			Name:        "organisation",
+			Name:        "organization",
 			Value:       "default",
-			Usage:       "Organisation to use for generated CA certificate",
+			Usage:       "Organization to use for generated CA certificate",
 			Destination: &c.org,
 			Hidden:      true,
 		},
@@ -805,13 +805,14 @@ func (c *Create) generateCertificates(ca bool) ([]byte, *certificate.KeyPair, er
 	// if we've not got a specific CommonName but do have a static IP then go with that.
 	if c.cname == "" && c.clientNetworkIP != "" {
 		c.cname = c.clientNetworkIP
+		log.Infof("Using client-network-ip as cname for server certificates - use --tls-cname to override: %s", c.cname)
 	}
 
 	if c.cname == "" {
 		log.Error("Common Name must be provided when generating certificates for client authentication:")
 		log.Info("  --tls-cname=<FQDN or static IP> # for the appliance VM")
 		log.Info("  --tls-cname=<*.yourdomain.com>  # if DNS has entries in that form for DHCP addresses (less secure)")
-		log.Info("  --no-tlsverify              # disables client authentication (anyone can connect to the VCH)")
+		log.Info("  --no-tlsverify              	# disables client authentication (anyone can connect to the VCH)")
 		log.Info("")
 
 		return certs, nil, errors.New("provide Common Name for server certificate")
