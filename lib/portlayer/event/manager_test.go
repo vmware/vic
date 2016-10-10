@@ -32,7 +32,7 @@ func TestNewManager(t *testing.T) {
 
 func TestTopic(t *testing.T) {
 	vmEvent := newVMEvent()
-	assert.Equal(t, vmEvent.Topic(), "vsphere.VmEvent")
+	assert.Equal(t, vmEvent.Topic(), "vsphere.VMEvent")
 }
 
 func TestSubscribe(t *testing.T) {
