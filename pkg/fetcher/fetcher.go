@@ -53,7 +53,7 @@ type Fetcher interface {
 
 	Head(url *url.URL) (http.Header, error)
 
-	ExtractOAuthUrl(hdr string, repository *url.URL) (*url.URL, error)
+	ExtractOAuthURL(hdr string, repository *url.URL) (*url.URL, error)
 
 	IsStatusUnauthorized() bool
 	IsStatusOK() bool

@@ -938,7 +938,7 @@ func (c *Container) ContainerLogs(name string, config *backend.ContainerLogsConf
 
 	wf.Flush()
 
-	outStream := wf
+	outStream := io.Writer(wf)
 	if !vc.Config.Tty {
 		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
 	}

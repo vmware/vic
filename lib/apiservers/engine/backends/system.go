@@ -283,7 +283,7 @@ func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.A
 		// Attempt to get the Auth URL from HEAD operation to the registry
 		hdr, err := fetcher.Head(registryURL)
 		if err == nil && fetcher.IsStatusUnauthorized() {
-			authURL, err = fetcher.ExtractOAuthUrl(hdr.Get("www-authenticate"), nil)
+			authURL, err = fetcher.ExtractOAuthURL(hdr.Get("www-authenticate"), nil)
 		}
 		if err != nil {
 			log.Errorf("Looking up OAuth URL failed: %s", err)
