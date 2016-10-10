@@ -79,7 +79,12 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 
 	_, err = PortLayerClient().Storage.DeleteImage(params)
 	if err != nil {
-		return nil, err
+		switch err := err.(type) {
+		case *storage.DeleteImageLocked:
+			return nil, fmt.Errorf("Failed to remove image (%s): ", imageRef, err.Payload.Message)
+		default:
+			return nil, err
+		}
 	}
 
 	cache.ImageCache().RemoveImageByConfig(img)
