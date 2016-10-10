@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation  Test 5-2 - Cluster
 Resource  ../../resources/Util.robot
-Suite Teardown  Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  *
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup
 
 *** Test Cases ***
 Test
