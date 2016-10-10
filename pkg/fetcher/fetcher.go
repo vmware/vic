@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package fetcher
 
 import (
+	"bytes"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -39,11 +41,15 @@ import (
 
 const (
 	maxDownloadAttempts = 5
+
+	// DefaultTokenExpirationDuration specifies the default token expiration
+	DefaultTokenExpirationDuration = 60 * time.Second
 )
 
 // Fetcher interface
 type Fetcher interface {
-	Fetch(url *url.URL, id ...string) (string, error)
+	Fetch(url *url.URL, toFile bool, po progress.Output, id ...string) (string, error)
+	FetchAuthToken(url *url.URL) (*Token, error)
 
 	Head(url *url.URL) (http.Header, error)
 
@@ -106,7 +112,7 @@ func NewURLFetcher(options FetcherOptions) Fetcher {
 }
 
 // Fetch fetches from a url and stores its content in a temporary file.
-func (u *URLFetcher) Fetch(url *url.URL, ids ...string) (string, error) {
+func (u *URLFetcher) Fetch(url *url.URL, toFile bool, po progress.Output, ids ...string) (string, error) {
 	defer trace.End(trace.Begin(url.String()))
 
 	// extract ID from ids. Existence of an ID enables progress reporting
@@ -119,13 +125,17 @@ func (u *URLFetcher) Fetch(url *url.URL, ids ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), u.options.Timeout)
 	defer cancel()
 
-	var name string
+	var data string
 	var err error
 	var retries int
 	for {
-		name, err = u.fetch(ctx, url, ID)
+		if toFile {
+			data, err = u.fetchToFile(ctx, url, ID, po)
+		} else {
+			data, err = u.fetchToString(ctx, url, ID)
+		}
 		if err == nil {
-			return name, nil
+			return data, nil
 		}
 
 		// If an error was returned because the context was cancelled, we shouldn't retry.
@@ -157,7 +167,7 @@ func (u *URLFetcher) Fetch(url *url.URL, ids ...string) (string, error) {
 	selectLoop:
 		for {
 			// Do not report progress back if ID is empty
-			if ID != "" {
+			if ID != "" && po != nil {
 				progress.Updatef(po, ID, "Retrying in %d second%s", delay, (map[bool]string{true: "s"})[delay != 1])
 			}
 
@@ -176,11 +186,36 @@ func (u *URLFetcher) Fetch(url *url.URL, ids ...string) (string, error) {
 	}
 }
 
-// fetch fetches the given URL using ctxhttp. It also streams back the progress bar only when ID is not an empty string.
-func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string, error) {
+func (u *URLFetcher) FetchAuthToken(url *url.URL) (*Token, error) {
+	defer trace.End(trace.Begin(url.String()))
+
+	data, err := u.Fetch(url, false, nil)
+	if err != nil {
+		log.Errorf("Download failed: %v", err)
+		return nil, err
+	}
+
+	token := &Token{}
+
+	err = json.Unmarshal([]byte(data), &token)
+	if err != nil {
+		log.Errorf("Incorrect token format: %v", err)
+		return nil, err
+	}
+
+	if token.ExpiresIn == 0 {
+		token.Expires = time.Now().Add(DefaultTokenExpirationDuration)
+	} else {
+		token.Expires = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
+	}
+
+	return token, nil
+}
+
+func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (io.ReadCloser, http.Header, error) {
 	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
-		return "", err
+		return nil, nil, err
 	}
 
 	u.setBasicAuth(req)
@@ -189,27 +224,26 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string
 
 	res, err := ctxhttp.Do(ctx, u.client, req)
 	if err != nil {
-		return "", err
+		return nil, nil, err
 	}
-	defer res.Body.Close()
 
 	u.StatusCode = res.StatusCode
 
 	if u.options.Token == nil && u.IsStatusUnauthorized() {
 		hdr := res.Header.Get("www-authenticate")
 		if hdr == "" {
-			return "", fmt.Errorf("www-authenticate header is missing")
+			return nil, nil, fmt.Errorf("www-authenticate header is missing")
 		}
 		u.OAuthEndpoint, err = u.ExtractOAuthUrl(hdr, url)
 		if err != nil {
-			return "", err
+			return nil, nil, err
 		}
-		return "", DoNotRetry{Err: fmt.Errorf("Authentication required")}
+		return nil, nil, DoNotRetry{Err: fmt.Errorf("Authentication required")}
 	}
 
 	if u.IsStatusNotFound() {
 		err = fmt.Errorf("Not found: %d, URL: %s", u.StatusCode, url)
-		return "", TagNotFoundError{Err: err}
+		return nil, nil, TagNotFoundError{Err: err}
 	}
 
 	if u.IsStatusUnauthorized() {
@@ -218,31 +252,46 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string
 		// check if image is non-existent (#757)
 		if strings.Contains(hdr, "error=\"insufficient_scope\"") {
 			err = fmt.Errorf("image not found")
-			return "", ImageNotFoundError{Err: err}
+			return nil, nil, ImageNotFoundError{Err: err}
 		} else if strings.Contains(hdr, "error=\"invalid_token\"") {
-			return "", fmt.Errorf("not authorized")
+			return nil, nil, fmt.Errorf("not authorized")
 		} else {
-			return "", fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
+			return nil, nil, fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
 		}
 	}
 
 	// FIXME: handle StatusTemporaryRedirect and StatusFound
 	if !u.IsStatusOK() {
-		return "", fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
+		return nil, nil, fmt.Errorf("Unexpected http code: %d, URL: %s", u.StatusCode, url)
 	}
 
-	in := res.Body
+	log.Debugf("URLFetcher.fetch() - %#v, %#v", res.Body, res.Header)
+	return res.Body, res.Header, nil
+}
+
+// fetch fetches the given URL using ctxhttp. It also streams back the progress bar only when ID is not an empty string.
+func (u *URLFetcher) fetchToFile(ctx context.Context, url *url.URL, ID string, po progress.Output) (string, error) {
+	rdr, hdrs, err := u.fetch(ctx, url, ID)
+	if err != nil {
+		return "", err
+	}
+	defer rdr.Close()
+
 	// stream progress as json and body into a file - only if we have an ID and a Content-Length header
-	if hdr := res.Header.Get("Content-Length"); ID != "" && hdr != "" {
-		cl, cerr := strconv.ParseInt(hdr, 10, 64)
+	if contLen := hdrs.Get("Content-Length"); ID != "" && contLen != "" {
+		cl, cerr := strconv.ParseInt(contLen, 10, 64)
 		if cerr != nil {
 			return "", cerr
 		}
 
-		in = progress.NewProgressReader(
-			ioutils.NewCancelReadCloser(ctx, res.Body), po, cl, ID, "Downloading",
-		)
-		defer in.Close()
+		if po != nil {
+			rdr = progress.NewProgressReader(
+				ioutils.NewCancelReadCloser(ctx, rdr), po, cl, ID, "Downloading",
+			)
+			defer rdr.Close()
+		} else {
+			rdr = ioutils.NewCancelReadCloser(ctx, rdr)
+		}
 	}
 
 	// Create a temporary file and stream the res.Body into it
@@ -253,8 +302,10 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string
 	defer out.Close()
 
 	// Stream into it
-	_, err = io.Copy(out, in)
+	_, err = io.Copy(out, rdr)
 	if err != nil {
+		log.Errorf("Fetch (%s) to file failed to stream to file: %s", url.String(), err)
+
 		// cleanup
 		defer os.Remove(out.Name())
 		return "", DoNotRetry{Err: err}
@@ -262,6 +313,28 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (string
 
 	// Return the temporary file name
 	return out.Name(), nil
+}
+
+// fetch fetches the given URL using ctxhttp. It also streams back the progress bar only when ID is not an empty string.
+func (u *URLFetcher) fetchToString(ctx context.Context, url *url.URL, ID string) (string, error) {
+	rdr, _, err := u.fetch(ctx, url, ID)
+	if err != nil {
+		log.Errorf("Fetch (%s) to string error: %s", url.String(), err)
+		return "", err
+	}
+	defer rdr.Close()
+
+	out := bytes.NewBuffer(nil)
+
+	// Stream into it
+	_, err = io.Copy(out, rdr)
+	if err != nil {
+		// cleanup
+		return "", DoNotRetry{Err: err}
+	}
+
+	// Return the string
+	return string(out.Bytes()), nil
 }
 
 // Head sends a HEAD request to url

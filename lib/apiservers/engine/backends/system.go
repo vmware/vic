@@ -28,7 +28,9 @@ package backends
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"runtime"
+	"strings"
 	"time"
 
 	"golang.org/x/net/context"
@@ -38,10 +40,10 @@ import (
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
+	urlfetcher "github.com/vmware/vic/pkg/fetcher"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 
-	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/platform"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/events"
@@ -60,6 +62,7 @@ const (
 	systemOSVersion    = " VMware OS version"
 	systemProductName  = " VMware Product"
 	volumeStoresID     = "VolumeStores"
+	loginTimeout       = 20 * time.Second
 )
 
 func NewSystemBackend() *System {
@@ -242,7 +245,75 @@ func (s *System) UnsubscribeFromEvents(chan interface{}) {
 
 func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.AuthConfig) (string, string, error) {
 	defer trace.End(trace.Begin(""))
-	return RegistryService.Auth(authConfig, dockerversion.DockerUserAgent(ctx))
+
+	fetcher := urlfetcher.NewURLFetcher(urlfetcher.FetcherOptions{
+		Timeout:  loginTimeout,
+		Username: authConfig.Username,
+		Password: authConfig.Password,
+	})
+
+	// Only look at V2 registries
+	registryAddress := authConfig.ServerAddress
+	if !strings.Contains(authConfig.ServerAddress, "/v2") {
+		registryAddress = registryAddress + "/v2/"
+	}
+
+	registryUrl, err := url.Parse(registryAddress)
+	if err != nil {
+		msg := fmt.Sprintf("Bad login address: %s", registryAddress)
+		log.Errorf(msg)
+		return msg, "", err
+	}
+
+	// Check if requested registry is in our list of allowed insecure registries
+	var insecureOk bool
+	insecureRegistries := InsecureRegistries()
+	for _, registry := range insecureRegistries {
+		if registry == registryUrl.Host {
+			insecureOk = true
+			break
+		}
+	}
+
+	dologin := func(scheme string) (string, error) {
+		registryUrl.Scheme = scheme
+
+		var authUrl *url.URL
+
+		// Attempt to get the Auth URL from HEAD operation to the registry
+		hdr, err := fetcher.Head(registryUrl)
+		if err == nil && fetcher.IsStatusUnauthorized() {
+			authUrl, err = fetcher.ExtractOAuthUrl(hdr.Get("www-authenticate"), nil)
+		}
+		if err != nil {
+			log.Errorf("Looking up OAuth URL failed: %s", err)
+			return "", err
+		}
+
+		log.Debugf("logging onto %s", authUrl.String())
+
+		// Just check if we get a token back.
+		token, err := fetcher.FetchAuthToken(authUrl)
+		if err != nil || token.Token == "" {
+			log.Errorf("Fetch auth token failed: %s", err)
+			return "", err
+		}
+
+		return token.Token, nil
+	}
+
+	_, err = dologin("https")
+	if err != nil && insecureOk {
+		_, err = dologin("http")
+	}
+
+	if err != nil {
+		return "", "", err
+	}
+
+	// We don't return the token.  The config.json will store token if we return
+	// it, but the regular docker daemon doesn't seem to return it  either.
+	return "Login Succeeded", "", nil
 }
 
 // Utility functions
