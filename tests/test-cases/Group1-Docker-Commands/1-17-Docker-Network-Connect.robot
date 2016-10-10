@@ -42,18 +42,14 @@ Connect containers to multiple networks overlapping
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --name cross1-container busybox /bin/top
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect cross1-network ${containerID}
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --net cross1-network --name cross1-container busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect cross1-network2 ${containerID}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --name cross1-container2 busybox ping -c2 cross1-container
-    Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect cross1-network ${containerID}
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --net cross1-network --name cross1-container2 busybox ping -c2 cross1-container
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect cross1-network2 ${containerID}
     Should Be Equal As Integers  ${rc}  0
