@@ -712,7 +712,7 @@ func (c *Create) generateCertificates(ca bool) ([]byte, *certificate.KeyPair, er
 	var certs []byte
 	// generate the certs and keys with names conforming the default the docker client expects
 	// to avoid overwriting for a different vch, place this in a directory named for the vch
-	err := os.MkdirAll(fmt.Sprintf("./%s", c.DisplayName), 700)
+	err := os.MkdirAll(fmt.Sprintf("./%s", c.DisplayName), 0700)
 	if err != nil {
 		log.Errorf("Unable to make directory to hold certificates")
 		return nil, nil, err
