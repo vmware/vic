@@ -21,15 +21,22 @@ Launch Container
 
 Reboot VCH
     Log To Console  Rebooting VCH ...
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -off=true ${vch-name}
+    ${vm}=  Get VM Name  ${vch-name}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -off=true ${vm}
     Should Be Equal As Integers  ${rc}  0
     Log To Console  Waiting for VCH to power off ...
-    Wait Until VM Powers Off  ${vch-name}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -on=true ${vch-name}
+    Wait Until VM Powers Off  ${vm}
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -on=true ${vm}
     Should Be Equal As Integers  ${rc}  0
     Log To Console  Waiting for VCH to power on ...
-    Wait Until Vm Powers On  ${vch-name}
+    Wait Until Vm Powers On  ${vm}
     Log To Console  VCH Powered On
+
+Run Docker Info
+    [Arguments]  ${docker-params}
+    ${rc}=  Run And Return Rc  docker ${docker-params} info
+    Should Be Equal As Integers  ${rc}  0
+    
 
 *** Test Cases ***
 Created Network And Images Persists As Well As Containers Are Discovered With Correct IPs
@@ -57,11 +64,14 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10001
 
     Reboot VCH
-    Sleep  10
+
     Log To Console  Getting VCH IP ...
     ${new-vch-ip}=  Get VM IP  ${vch-name}
     Log To Console  New VCH IP is ${new-vch-ip}
     Replace String  ${params}  ${vch-ip}  ${new-vch-ip}
+
+    # wait for docker info to succeed
+    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  ${params}
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
     Should Be Equal As Integers  ${rc}  0
