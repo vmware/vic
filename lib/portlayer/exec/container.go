@@ -280,8 +280,6 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		c.State = *h.State
 		commitEvent = events.ContainerStopped
 
-		c.ExecConfig = &h.ExecConfig
-
 		// refresh the struct with what propery collector provides
 		if err := c.refresh(ctx); err != nil {
 			return err
@@ -336,8 +334,6 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 		c.State = *h.State
 		commitEvent = events.ContainerStarted
-
-		c.ExecConfig = &h.ExecConfig
 
 		// refresh the struct with what propery collector provides
 		if err := c.refresh(ctx); err != nil {
