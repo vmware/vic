@@ -37,7 +37,7 @@ GOVC ?= $(GOPATH)/bin/govc$(BIN_ARCH)
 GAS ?= $(GOPATH)/bin/gas$(BIN_ARCH)
 
 .PHONY: all tools clean test check \
-	goversion goimports gopath govet gas \
+	goversion goimports gopath govet gas lintcode \
 	isos tethers apiservers copyright
 
 .DEFAULT_GOAL := all
@@ -127,7 +127,7 @@ gas: $(GAS)
 # convenience targets
 all: components tethers isos vic-machine vic-ui
 tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) goversion
-check: goversion goimports govet golint copyright whitespace gas
+check: goversion goimports govet lintcode copyright whitespace gas
 apiservers: $(portlayerapi) $(docker-engine-api)
 components: check apiservers $(imagec) $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
@@ -173,9 +173,9 @@ whitespace:
 	@infra/scripts/whitespace-check.sh
 
 # exit 1 if golint complains about anything other than comments
-golintf = $(GOLINT) $(1) | sh -c "! grep -v 'should have comment'" | sh -c "! grep -v 'comment on exported'"
+golintf = $(GOLINT) $(1) | sh -c "! grep -v 'should have comment'" | sh -c "! grep -v 'comment on exported'" | sh -c "! grep -v 'by other packages, and that stutters'"
 
-$(go-lint): $(GOLINT)
+lintcode: $(GOLINT)
 	@echo checking go lint...
 	@$(call golintf,github.com/vmware/vic/cmd/...)
 	@$(call golintf,github.com/vmware/vic/pkg/...)
@@ -183,7 +183,6 @@ $(go-lint): $(GOLINT)
 	@$(call golintf,github.com/vmware/vic/lib/portlayer/...)
 	@$(call golintf,github.com/vmware/vic/lib/apiservers/portlayer/restapi/handlers/...)
 	@$(call golintf,github.com/vmware/vic/lib/apiservers/engine/backends/...)
-	@touch $@
 
 # For use by external tools such as emacs or for example:
 # GOPATH=$(make gopath) go get ...

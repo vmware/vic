@@ -20,11 +20,11 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-type VmEvent struct {
+type VMEvent struct {
 	*events.BaseEvent
 }
 
-func NewVMEvent(be types.BaseEvent) *VmEvent {
+func NewVMEvent(be types.BaseEvent) *VMEvent {
 	var ee string
 	// vm events that we care about
 	switch be.(type) {
@@ -40,7 +40,7 @@ func NewVMEvent(be types.BaseEvent) *VmEvent {
 		ee = events.ContainerShutdown
 	}
 	e := be.GetEvent()
-	return &VmEvent{
+	return &VMEvent{
 		&events.BaseEvent{
 			Event:       ee,
 			ID:          int(e.Key),
@@ -52,7 +52,7 @@ func NewVMEvent(be types.BaseEvent) *VmEvent {
 
 }
 
-func (vme *VmEvent) Topic() string {
+func (vme *VMEvent) Topic() string {
 	if vme.Type == "" {
 		vme.Type = events.NewEventType(vme)
 	}
