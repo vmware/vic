@@ -32,6 +32,7 @@ import (
 	"github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
+	urlfetcher "github.com/vmware/vic/pkg/fetcher"
 )
 
 const (
@@ -168,7 +169,7 @@ func TestFetchToken(t *testing.T) {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 
-			body, err := json.Marshal(&Token{Token: OAuthToken})
+			body, err := json.Marshal(&urlfetcher.Token{Token: OAuthToken})
 			if err != nil {
 				t.Errorf(err.Error())
 			}
@@ -206,7 +207,7 @@ func TestFetchImageManifest(t *testing.T) {
 	options.registry = s.URL
 	options.image = Image
 	options.tag = Tag
-	options.token = &Token{Token: OAuthToken}
+	options.token = &urlfetcher.Token{Token: OAuthToken}
 
 	// create a temporary directory
 	dir, err := ioutil.TempDir("", "imagec")
@@ -267,7 +268,7 @@ func TestFetchImageBlob(t *testing.T) {
 	options.registry = s.URL
 	options.image = Image
 	options.tag = Tag
-	options.token = &Token{Token: OAuthToken}
+	options.token = &urlfetcher.Token{Token: OAuthToken}
 
 	// create a temporary directory
 	dir, err := ioutil.TempDir("", "imagec")
@@ -487,14 +488,14 @@ func TestFetchScenarios(t *testing.T) {
 	_, err = FetchImageManifest(options)
 	if err != nil {
 		// we should get a DNR error
-		if _, isDNR := err.(DoNotRetry); !isDNR {
+		if _, isDNR := err.(urlfetcher.DoNotRetry); !isDNR {
 			t.Errorf(err.Error())
 		}
 	}
 	wwwAuthenticate = false
 
 	// set a valid token
-	options.token = &Token{Token: OAuthToken}
+	options.token = &urlfetcher.Token{Token: OAuthToken}
 
 	// enable invalid token test
 	invalidToken = true
@@ -511,7 +512,7 @@ func TestFetchScenarios(t *testing.T) {
 	_, err = FetchImageManifest(options)
 	if err != nil {
 		// we should get a ImageNotFoundError
-		if _, imageErr := err.(ImageNotFoundError); !imageErr {
+		if _, imageErr := err.(urlfetcher.ImageNotFoundError); !imageErr {
 			t.Errorf(err.Error())
 		}
 	}
