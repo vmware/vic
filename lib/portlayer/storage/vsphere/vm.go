@@ -23,11 +23,9 @@ import (
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/pkg/trace"
-
-	"golang.org/x/net/context"
 )
 
-func VolumeJoin(ctx context.Context, handle *exec.Handle, volume *storage.Volume, mountPath string, diskOpts map[string]string) (*exec.Handle, error) {
+func VolumeJoin(op trace.Operation, handle *exec.Handle, volume *storage.Volume, mountPath string, diskOpts map[string]string) (*exec.Handle, error) {
 	defer trace.End(trace.Begin("vsphere.VolumeJoin"))
 
 	if _, ok := handle.ExecConfig.Mounts[volume.ID]; ok {

@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/vic/lib/portlayer/util"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 type MockVolumeStore struct {
@@ -41,12 +42,12 @@ func NewMockVolumeStore() *MockVolumeStore {
 	return m
 }
 
-func (m *MockVolumeStore) VolumeStoresList(ctx context.Context) (map[string]url.URL, error) {
+func (m *MockVolumeStore) VolumeStoresList(op trace.Operation) (map[string]url.URL, error) {
 	return nil, nil
 }
 
 // Creates a volume on the given volume store, of the given size, with the given metadata.
-func (m *MockVolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*Volume, error) {
+func (m *MockVolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*Volume, error) {
 	storeName, err := util.VolumeStoreName(store)
 	if err != nil {
 		return nil, err
@@ -69,7 +70,7 @@ func (m *MockVolumeStore) VolumeCreate(ctx context.Context, ID string, store *ur
 }
 
 // Get an existing volume via it's ID and volume store.
-func (m *MockVolumeStore) VolumeGet(ctx context.Context, ID string) (*Volume, error) {
+func (m *MockVolumeStore) VolumeGet(op trace.Operation, ID string) (*Volume, error) {
 	vol, ok := m.db[ID]
 	if !ok {
 		return nil, os.ErrNotExist
@@ -79,7 +80,7 @@ func (m *MockVolumeStore) VolumeGet(ctx context.Context, ID string) (*Volume, er
 }
 
 // Destroys a volume
-func (m *MockVolumeStore) VolumeDestroy(ctx context.Context, vol *Volume) error {
+func (m *MockVolumeStore) VolumeDestroy(op trace.Operation, vol *Volume) error {
 	if _, ok := m.db[vol.ID]; !ok {
 		return os.ErrNotExist
 	}
@@ -90,7 +91,7 @@ func (m *MockVolumeStore) VolumeDestroy(ctx context.Context, vol *Volume) error 
 }
 
 // Lists all volumes on the given volume store`
-func (m *MockVolumeStore) VolumesList(ctx context.Context) ([]*Volume, error) {
+func (m *MockVolumeStore) VolumesList(op trace.Operation) ([]*Volume, error) {
 	var i int
 	list := make([]*Volume, len(m.db))
 	for _, v := range m.db {
@@ -103,8 +104,9 @@ func (m *MockVolumeStore) VolumesList(ctx context.Context) ([]*Volume, error) {
 }
 
 func TestVolumeCreateGetListAndDelete(t *testing.T) {
+	op := trace.NewOperation(context.Background(), "test")
 	mvs := NewMockVolumeStore()
-	v, err := NewVolumeLookupCache(context.TODO(), mvs)
+	v, err := NewVolumeLookupCache(op, mvs)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -124,7 +126,7 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 		id := fmt.Sprintf("ID-%d", i)
 
 		// Write to the datastore
-		vol, err := v.VolumeCreate(context.TODO(), id, storeURL, 0, nil)
+		vol, err := v.VolumeCreate(op, id, storeURL, 0, nil)
 		if !assert.NoError(t, err) || !assert.NotNil(t, vol) {
 			return
 		}
@@ -143,7 +145,7 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 	wg.Wait()
 
 	getFn := func(inVol *Volume) {
-		vol, err := v.VolumeGet(context.TODO(), inVol.ID)
+		vol, err := v.VolumeGet(op, inVol.ID)
 		if !assert.NoError(t, err) || !assert.NotNil(t, vol) {
 			return
 		}
@@ -160,7 +162,7 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 	}
 	wg.Wait()
 
-	volumeList, err := v.VolumesList(context.TODO())
+	volumeList, err := v.VolumesList(op)
 	if !assert.NoError(t, err) || !assert.Equal(t, numVolumes, len(volumeList)) {
 		return
 	}
@@ -173,7 +175,7 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 			return
 		}
 
-		if err = v.VolumeDestroy(context.TODO(), outVol.ID); !assert.NoError(t, err) {
+		if err = v.VolumeDestroy(op, outVol.ID); !assert.NoError(t, err) {
 			return
 		}
 	}
@@ -189,7 +191,8 @@ func TestVolumeCreateGetListAndDelete(t *testing.T) {
 // restart since the second cache is empty and has to go to the backing store.
 func TestVolumeCacheRestart(t *testing.T) {
 	mvs := NewMockVolumeStore()
-	firstCache, err := NewVolumeLookupCache(context.TODO(), mvs)
+	op := trace.NewOperation(context.Background(), "test")
+	firstCache, err := NewVolumeLookupCache(op, mvs)
 	if !assert.NoError(t, err) || !assert.NotNil(t, firstCache) {
 		return
 	}
@@ -205,7 +208,7 @@ func TestVolumeCacheRestart(t *testing.T) {
 		id := fmt.Sprintf("ID-%d", i)
 
 		// Write to the datastore
-		vol, err := firstCache.VolumeCreate(context.TODO(), id, storeURL, 0, nil)
+		vol, err := firstCache.VolumeCreate(op, id, storeURL, 0, nil)
 		if !assert.NoError(t, err) || !assert.NotNil(t, vol) {
 			return
 		}
@@ -213,14 +216,14 @@ func TestVolumeCacheRestart(t *testing.T) {
 		inVols[id] = vol
 	}
 
-	secondCache, err := NewVolumeLookupCache(context.TODO(), mvs)
+	secondCache, err := NewVolumeLookupCache(op, mvs)
 	if !assert.NoError(t, err) || !assert.NotNil(t, secondCache) {
 		return
 	}
 
 	// get the vols from the second cache to ensure it goes to the ds
 	for _, expectedVol := range inVols {
-		vol, err := secondCache.VolumeGet(context.TODO(), expectedVol.ID)
+		vol, err := secondCache.VolumeGet(op, expectedVol.ID)
 		if !assert.NoError(t, err) || !assert.Equal(t, expectedVol, vol) {
 			return
 		}

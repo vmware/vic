@@ -20,6 +20,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 )
 
@@ -32,7 +33,9 @@ func TestParentEmptyRestore(t *testing.T) {
 	}
 	defer cleanupfunc()
 
-	par, err := restoreParentMap(ctx, ds, testStore)
+	op := trace.NewOperation(ctx, "test")
+
+	par, err := restoreParentMap(op, ds, testStore)
 	if !assert.NoError(t, err) && !assert.NotNil(t, par) {
 		return
 	}
@@ -45,17 +48,18 @@ func TestParentEmptySaveRestore(t *testing.T) {
 	}
 	defer cleanupfunc()
 
-	par, err := restoreParentMap(ctx, ds, testStore)
+	op := trace.NewOperation(ctx, "test")
+	par, err := restoreParentMap(op, ds, testStore)
 	if !assert.NoError(t, err) && !assert.NotNil(t, par) {
 		return
 	}
 
-	err = par.Save(ctx)
+	err = par.Save(op)
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	p, err := restoreParentMap(ctx, ds, testStore)
+	p, err := restoreParentMap(op, ds, testStore)
 	if !assert.NoError(t, err) && !assert.NotNil(t, p) {
 		return
 	}
@@ -69,7 +73,8 @@ func TestParentSaveRestore(t *testing.T) {
 	}
 	defer cleanupfunc()
 
-	par, err := restoreParentMap(ctx, ds, testStore)
+	op := trace.NewOperation(ctx, "test")
+	par, err := restoreParentMap(op, ds, testStore)
 	if !assert.NoError(t, err) && !assert.NotNil(t, par) {
 		return
 	}
@@ -81,13 +86,13 @@ func TestParentSaveRestore(t *testing.T) {
 		expected[child] = parent
 		par.Add(child, parent)
 	}
-	err = par.Save(ctx)
+	err = par.Save(op)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	// load into a different map
-	p, err := restoreParentMap(ctx, ds, testStore)
+	p, err := restoreParentMap(op, ds, testStore)
 	if !assert.NoError(t, err) && !assert.NotNil(t, p) {
 		return
 	}
@@ -98,7 +103,7 @@ func TestParentSaveRestore(t *testing.T) {
 	}
 
 	// Now save it to be extra paranoid
-	err = p.Save(ctx)
+	err = p.Save(op)
 	if !assert.NoError(t, err) {
 		return
 	}

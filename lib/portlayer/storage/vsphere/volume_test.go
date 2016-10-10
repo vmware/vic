@@ -25,6 +25,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
@@ -35,29 +36,29 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 		return
 	}
 
-	ctx := context.TODO()
+	op := trace.NewOperation(context.Background(), "test")
 
 	// Create the backing store on vsphere
-	vsVolumeStore, err := NewVolumeStore(ctx, client)
+	vsVolumeStore, err := NewVolumeStore(op, client)
 	if !assert.NoError(t, err) || !assert.NotNil(t, vsVolumeStore) {
 		return
 	}
 
 	// Root our datastore
 	testStorePath := datastore.TestName("voltest")
-	ds, err := datastore.NewHelper(ctx, client, client.Datastore, testStorePath)
+	ds, err := datastore.NewHelper(op, client, client.Datastore, testStorePath)
 	if !assert.NoError(t, err) || !assert.NotNil(t, ds) {
 		return
 	}
 
 	// Add a volume store and give it a name ("testStoreName")
-	volumeStore, err := vsVolumeStore.AddStore(ctx, ds, "testStoreName")
+	volumeStore, err := vsVolumeStore.AddStore(op, ds, "testStoreName")
 	if !assert.NoError(t, err) || !assert.NotNil(t, volumeStore) {
 		return
 	}
 
 	// test we can list it
-	m, err := vsVolumeStore.VolumeStoresList(ctx)
+	m, err := vsVolumeStore.VolumeStoresList(op)
 	if !assert.NoError(t, err) || !assert.NotNil(t, m) {
 		return
 	}
@@ -77,7 +78,7 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 	}()
 
 	// Create the cache
-	cache, err := portlayer.NewVolumeLookupCache(ctx, vsVolumeStore)
+	cache, err := portlayer.NewVolumeLookupCache(op, vsVolumeStore)
 	if !assert.NoError(t, err) || !assert.NotNil(t, cache) {
 		return
 	}
@@ -100,7 +101,7 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 				info[ID] = []byte(ID)
 			}
 
-			outVol, err := cache.VolumeCreate(ctx, ID, volumeStore, 10240, info)
+			outVol, err := cache.VolumeCreate(op, ID, volumeStore, 10240, info)
 			if !assert.NoError(t, err) || !assert.NotNil(t, outVol) {
 				return
 			}
@@ -112,7 +113,7 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 	wg.Wait()
 
 	// list using the datastore (skipping the cache)
-	outVols, err := vsVolumeStore.VolumesList(ctx)
+	outVols, err := vsVolumeStore.VolumesList(op)
 	if !assert.NoError(t, err) || !assert.NotNil(t, outVols) || !assert.Equal(t, numVols, len(outVols)) {
 		return
 	}
@@ -126,21 +127,21 @@ func TestVolumeCreateListAndRestart(t *testing.T) {
 	// Test restart
 
 	// Create a new vs and cache to the same datastore (simulating restart) and compare
-	secondVStore, err := NewVolumeStore(ctx, client)
+	secondVStore, err := NewVolumeStore(op, client)
 	if !assert.NoError(t, err) || !assert.NotNil(t, vsVolumeStore) {
 		return
 	}
 
-	volumeStore, err = secondVStore.AddStore(ctx, ds, "testStoreName")
+	volumeStore, err = secondVStore.AddStore(op, ds, "testStoreName")
 	if !assert.NoError(t, err) || !assert.NotNil(t, volumeStore) {
 		return
 	}
-	secondCache, err := portlayer.NewVolumeLookupCache(ctx, secondVStore)
+	secondCache, err := portlayer.NewVolumeLookupCache(op, secondVStore)
 	if !assert.NoError(t, err) || !assert.NotNil(t, cache) {
 		return
 	}
 
-	secondOutVols, err := secondCache.VolumesList(ctx)
+	secondOutVols, err := secondCache.VolumesList(op)
 	if !assert.NoError(t, err) || !assert.NotNil(t, secondOutVols) || !assert.Equal(t, numVols, len(secondOutVols)) {
 		return
 	}

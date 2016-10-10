@@ -26,7 +26,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/archive"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/exec"
@@ -66,13 +65,13 @@ type ImageStore struct {
 	parents *parentM
 }
 
-func NewImageStore(ctx context.Context, s *session.Session, u *url.URL) (*ImageStore, error) {
-	dm, err := disk.NewDiskManager(ctx, s)
+func NewImageStore(op trace.Operation, s *session.Session, u *url.URL) (*ImageStore, error) {
+	dm, err := disk.NewDiskManager(op, s)
 	if err != nil {
 		return nil, err
 	}
 
-	datastores, err := s.Finder.DatastoreList(ctx, u.Host)
+	datastores, err := s.Finder.DatastoreList(op, u.Host)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Host returned error when trying to locate provided datastore %s: %s", u.String(), err.Error()))
 	}
@@ -81,7 +80,7 @@ func NewImageStore(ctx context.Context, s *session.Session, u *url.URL) (*ImageS
 		return nil, errors.New(fmt.Sprintf("Found %d datastores with provided datastore path %s. Cannot create image store.", len(datastores), u.String()))
 	}
 
-	ds, err := datastore.NewHelper(ctx, s, datastores[0], path.Join(u.Path, StorageParentDir))
+	ds, err := datastore.NewHelper(op, s, datastores[0], path.Join(u.Path, StorageParentDir))
 	if err != nil {
 		return nil, err
 	}
@@ -122,19 +121,19 @@ func (v *ImageStore) imageMetadataDirPath(storeName, imageName string) string {
 	return path.Join(v.imageDirPath(storeName, imageName), metaDataDir)
 }
 
-func (v *ImageStore) CreateImageStore(ctx context.Context, storeName string) (*url.URL, error) {
+func (v *ImageStore) CreateImageStore(op trace.Operation, storeName string) (*url.URL, error) {
 	// convert the store name to a port layer url.
 	u, err := util.ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err = v.ds.Mkdir(ctx, true, v.imageStorePath(storeName)); err != nil {
+	if _, err = v.ds.Mkdir(op, true, v.imageStorePath(storeName)); err != nil {
 		return nil, err
 	}
 
 	if v.parents == nil {
-		pm, err := restoreParentMap(ctx, v.ds, storeName)
+		pm, err := restoreParentMap(op, v.ds, storeName)
 		if err != nil {
 			return nil, err
 		}
@@ -145,14 +144,14 @@ func (v *ImageStore) CreateImageStore(ctx context.Context, storeName string) (*u
 
 // GetImageStore checks to see if the image store exists on disk and returns an
 // error or the store's URL.
-func (v *ImageStore) GetImageStore(ctx context.Context, storeName string) (*url.URL, error) {
+func (v *ImageStore) GetImageStore(op trace.Operation, storeName string) (*url.URL, error) {
 	u, err := util.ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
 	}
 
 	p := v.imageStorePath(storeName)
-	info, err := v.ds.Stat(ctx, p)
+	info, err := v.ds.Stat(op, p)
 	if err != nil {
 		return nil, err
 	}
@@ -165,11 +164,11 @@ func (v *ImageStore) GetImageStore(ctx context.Context, storeName string) (*url.
 	if v.parents == nil {
 		// This is startup.  Look for image directories without manifest files and
 		// nuke them.
-		if err := v.cleanup(ctx, u); err != nil {
+		if err := v.cleanup(op, u); err != nil {
 			return nil, err
 		}
 
-		pm, err := restoreParentMap(ctx, v.ds, storeName)
+		pm, err := restoreParentMap(op, v.ds, storeName)
 		if err != nil {
 			return nil, err
 		}
@@ -179,8 +178,8 @@ func (v *ImageStore) GetImageStore(ctx context.Context, storeName string) (*url.
 	return u, nil
 }
 
-func (v *ImageStore) ListImageStores(ctx context.Context) ([]*url.URL, error) {
-	res, err := v.ds.Ls(ctx, v.imageStorePath(""))
+func (v *ImageStore) ListImageStores(op trace.Operation) ([]*url.URL, error) {
+	res, err := v.ds.Ls(op, v.imageStorePath(""))
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +208,7 @@ func (v *ImageStore) ListImageStores(ctx context.Context) ([]*url.URL, error) {
 // ID - textual ID for the image to be written
 // meta - metadata associated with the image
 // Tag - the tag of the image to be written
-func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID string, meta map[string][]byte, sum string,
+func (v *ImageStore) WriteImage(op trace.Operation, parent *portlayer.Image, ID string, meta map[string][]byte, sum string,
 	r io.Reader) (*portlayer.Image, error) {
 
 	storeName, err := util.ImageStoreName(parent.Store)
@@ -226,7 +225,7 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 	// will be descended from this created and prepared fs.
 	if ID == portlayer.Scratch.ID {
 		// Create the scratch layer
-		if err := v.scratch(ctx, storeName); err != nil {
+		if err := v.scratch(op, storeName); err != nil {
 			return nil, err
 		}
 	} else {
@@ -238,11 +237,11 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 		// persist the relationship
 		v.parents.Add(ID, parent.ID)
 
-		if err := v.parents.Save(ctx); err != nil {
+		if err := v.parents.Save(op); err != nil {
 			return nil, err
 		}
 
-		if err := v.writeImage(ctx, storeName, parent.ID, ID, meta, sum, r); err != nil {
+		if err := v.writeImage(op, storeName, parent.ID, ID, meta, sum, r); err != nil {
 			return nil, err
 		}
 
@@ -264,19 +263,19 @@ func (v *ImageStore) WriteImage(ctx context.Context, parent *portlayer.Image, ID
 // doesn't match the expected checksum, abort by nuking the image directory.
 // If everything matches, move the tmp vmdk to ID.vmdk.  The unwind path is a
 // bit convoluted here;  we need to clean up on the way out in the error case
-func (v *ImageStore) writeImage(ctx context.Context, storeName, parentID, ID string, meta map[string][]byte,
+func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID string, meta map[string][]byte,
 	sum string, r io.Reader) error {
 
 	// Create a temp image directory in the store.
 	imageDir := v.imageDirPath(storeName, ID)
-	_, err := v.ds.Mkdir(ctx, true, imageDir)
+	_, err := v.ds.Mkdir(op, true, imageDir)
 	if err != nil {
 		return err
 	}
 
 	// Write the metadata to the datastore
 	metaDataDir := v.imageMetadataDirPath(storeName, ID)
-	err = writeMetadata(ctx, v.ds, metaDataDir, meta)
+	err = writeMetadata(op, v.ds, metaDataDir, meta)
 	if err != nil {
 		return err
 	}
@@ -303,16 +302,16 @@ func (v *ImageStore) writeImage(ctx context.Context, storeName, parentID, ID str
 
 				if vmdisk.Attached() {
 					log.Debugf("Detaching abandoned disk")
-					v.dm.Detach(ctx, vmdisk)
+					v.dm.Detach(op, vmdisk)
 				}
 			}
 
-			v.ds.Rm(ctx, imageDir)
+			v.ds.Rm(op, imageDir)
 		}
 	}()
 
 	// Create the disk
-	vmdisk, err = v.dm.CreateAndAttach(ctx, diskDsURI, parentDiskDsURI, 0, os.O_RDWR)
+	vmdisk, err = v.dm.CreateAndAttach(op, diskDsURI, parentDiskDsURI, 0, os.O_RDWR)
 	if err != nil {
 		return err
 	}
@@ -348,31 +347,31 @@ func (v *ImageStore) writeImage(ctx context.Context, storeName, parentID, ID str
 		return err
 	}
 
-	if err = v.dm.Detach(ctx, vmdisk); err != nil {
+	if err = v.dm.Detach(op, vmdisk); err != nil {
 		return err
 	}
 
 	// Write our own bookkeeping manifest file to the image's directory.  We
 	// treat the manifest file like a done file.  Its existence means this vmdk
 	// is consistent.
-	if err = v.writeManifest(ctx, storeName, ID, nil); err != nil {
+	if err = v.writeManifest(op, storeName, ID, nil); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (v *ImageStore) scratch(ctx context.Context, storeName string) error {
+func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 
 	// Create the image directory in the store.
 	imageDir := v.imageDirPath(storeName, portlayer.Scratch.ID)
-	if _, err := v.ds.Mkdir(ctx, false, imageDir); err != nil {
+	if _, err := v.ds.Mkdir(op, false, imageDir); err != nil {
 		return err
 	}
 
 	// Write the metadata to the datastore
 	metaDataDir := v.imageMetadataDirPath(storeName, portlayer.Scratch.ID)
-	if err := writeMetadata(ctx, v.ds, metaDataDir, nil); err != nil {
+	if err := writeMetadata(op, v.ds, metaDataDir, nil); err != nil {
 		return err
 	}
 
@@ -386,13 +385,13 @@ func (v *ImageStore) scratch(ctx context.Context, storeName string) error {
 	}
 
 	// Create the disk
-	vmdisk, err := v.dm.CreateAndAttach(ctx, imageDiskDsURI, "", size, os.O_RDWR)
+	vmdisk, err := v.dm.CreateAndAttach(op, imageDiskDsURI, "", size, os.O_RDWR)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if vmdisk.Attached() {
-			v.dm.Detach(ctx, vmdisk)
+			v.dm.Detach(op, vmdisk)
 		}
 	}()
 	log.Debugf("Scratch disk created with size %d", portlayer.Config.ScratchSize)
@@ -402,18 +401,18 @@ func (v *ImageStore) scratch(ctx context.Context, storeName string) error {
 		return err
 	}
 
-	if err = v.dm.Detach(ctx, vmdisk); err != nil {
+	if err = v.dm.Detach(op, vmdisk); err != nil {
 		return err
 	}
 
-	if err = v.writeManifest(ctx, storeName, portlayer.Scratch.ID, nil); err != nil {
+	if err = v.writeManifest(op, storeName, portlayer.Scratch.ID, nil); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*portlayer.Image, error) {
+func (v *ImageStore) GetImage(op trace.Operation, store *url.URL, ID string) (*portlayer.Image, error) {
 
 	defer trace.End(trace.Begin(store.String()))
 	storeName, err := util.ImageStoreName(store)
@@ -426,13 +425,13 @@ func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*
 		return nil, err
 	}
 
-	if err = v.verifyImage(ctx, storeName, ID); err != nil {
+	if err = v.verifyImage(op, storeName, ID); err != nil {
 		return nil, err
 	}
 
 	// get the metadata
 	metaDataDir := v.imageMetadataDirPath(storeName, ID)
-	meta, err := getMetadata(ctx, v.ds, metaDataDir)
+	meta, err := getMetadata(op, v.ds, metaDataDir)
 	if err != nil {
 		return nil, err
 	}
@@ -460,14 +459,14 @@ func (v *ImageStore) GetImage(ctx context.Context, store *url.URL, ID string) (*
 	return newImage, nil
 }
 
-func (v *ImageStore) ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*portlayer.Image, error) {
+func (v *ImageStore) ListImages(op trace.Operation, store *url.URL, IDs []string) ([]*portlayer.Image, error) {
 
 	storeName, err := util.ImageStoreName(store)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := v.ds.Ls(ctx, v.imageStorePath(storeName))
+	res, err := v.ds.Ls(op, v.imageStorePath(storeName))
 	if err != nil {
 		return nil, err
 	}
@@ -481,7 +480,7 @@ func (v *ImageStore) ListImages(ctx context.Context, store *url.URL, IDs []strin
 
 		ID := file.Path
 
-		img, err := v.GetImage(ctx, store, ID)
+		img, err := v.GetImage(op, store, ID)
 		if err != nil {
 			return nil, err
 		}
@@ -495,9 +494,9 @@ func (v *ImageStore) ListImages(ctx context.Context, store *url.URL, IDs []strin
 // DeleteImage deletes an image from the image store.  If the image is in
 // use either by way of inheritence or because it's attached to a
 // container, this will return an error.
-func (v *ImageStore) DeleteImage(ctx context.Context, image *portlayer.Image) error {
+func (v *ImageStore) DeleteImage(op trace.Operation, image *portlayer.Image) error {
 	//  check if the image is in use.
-	if err := imagesInUse(ctx, image.ID); err != nil {
+	if err := imagesInUse(op, image.ID); err != nil {
 		log.Errorf("ImageStore: delete image error: %s", err.Error())
 		return err
 	}
@@ -509,7 +508,7 @@ func (v *ImageStore) DeleteImage(ctx context.Context, image *portlayer.Image) er
 
 	imageDir := v.imageDirPath(storeName, image.ID)
 	log.Infof("ImageStore: Deleting %s", imageDir)
-	if err := v.ds.Rm(ctx, imageDir); err != nil {
+	if err := v.ds.Rm(op, imageDir); err != nil {
 		log.Errorf("ImageStore: delete image error: %s", err.Error())
 		return err
 	}
@@ -518,7 +517,7 @@ func (v *ImageStore) DeleteImage(ctx context.Context, image *portlayer.Image) er
 }
 
 // Find any image directories without the manifest file and remove them.
-func (v *ImageStore) cleanup(ctx context.Context, store *url.URL) error {
+func (v *ImageStore) cleanup(op trace.Operation, store *url.URL) error {
 	log.Infof("Checking for inconsistent images on %s", store.String())
 
 	storeName, err := util.ImageStoreName(store)
@@ -526,7 +525,7 @@ func (v *ImageStore) cleanup(ctx context.Context, store *url.URL) error {
 		return err
 	}
 
-	res, err := v.ds.Ls(ctx, v.imageStorePath(storeName))
+	res, err := v.ds.Ls(op, v.imageStorePath(storeName))
 	if err != nil {
 		return err
 	}
@@ -543,12 +542,12 @@ func (v *ImageStore) cleanup(ctx context.Context, store *url.URL) error {
 			continue
 		}
 
-		if err := v.verifyImage(ctx, storeName, ID); err != nil {
+		if err := v.verifyImage(op, storeName, ID); err != nil {
 			imageDir := v.imageDirPath(storeName, ID)
 			log.Infof("Removing inconsistent image (%s) %s", ID, imageDir)
 
 			// Eat the error so we can continue cleaning up.  The tasks package will log the error if there is one.
-			_ = v.ds.Rm(ctx, imageDir)
+			_ = v.ds.Rm(op, imageDir)
 
 		}
 	}
@@ -557,9 +556,9 @@ func (v *ImageStore) cleanup(ctx context.Context, store *url.URL) error {
 }
 
 // Manifest file for the image.
-func (v *ImageStore) writeManifest(ctx context.Context, storeName, ID string, r io.Reader) error {
+func (v *ImageStore) writeManifest(op trace.Operation, storeName, ID string, r io.Reader) error {
 	pth := path.Join(v.imageDirPath(storeName, ID), manifest)
-	if err := v.ds.Upload(ctx, r, pth); err != nil {
+	if err := v.ds.Upload(op, r, pth); err != nil {
 		return err
 	}
 
@@ -567,12 +566,12 @@ func (v *ImageStore) writeManifest(ctx context.Context, storeName, ID string, r 
 }
 
 // check for the manifest file AND the vmdk
-func (v *ImageStore) verifyImage(ctx context.Context, storeName, ID string) error {
+func (v *ImageStore) verifyImage(op trace.Operation, storeName, ID string) error {
 	imageDir := v.imageDirPath(storeName, ID)
 
 	// Check for teh manifiest file and the vmdk
 	for _, p := range []string{path.Join(imageDir, manifest), v.imageDiskPath(storeName, ID)} {
-		if _, err := v.ds.Stat(ctx, p); err != nil {
+		if _, err := v.ds.Stat(op, p); err != nil {
 			return err
 		}
 	}
@@ -582,7 +581,7 @@ func (v *ImageStore) verifyImage(ctx context.Context, storeName, ID string) erro
 
 // XXX TODO This should be tied to an interface so we don't have to import exec
 // here (or wherever the cache lives).
-func imagesInUse(ctx context.Context, ID string) error {
+func imagesInUse(op trace.Operation, ID string) error {
 	// XXX Why doesnt this ever return an error?  Strange.
 	// Gather all containers
 	conts := exec.Containers.Containers(nil)

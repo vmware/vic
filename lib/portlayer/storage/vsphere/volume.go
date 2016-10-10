@@ -27,11 +27,10 @@ import (
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
-
-	"golang.org/x/net/context"
 )
 
 const VolumesDir = "volumes"
@@ -49,8 +48,8 @@ type VolumeStore struct {
 	sess *session.Session
 }
 
-func NewVolumeStore(ctx context.Context, s *session.Session) (*VolumeStore, error) {
-	dm, err := disk.NewDiskManager(ctx, s)
+func NewVolumeStore(op trace.Operation, s *session.Session) (*VolumeStore, error) {
+	dm, err := disk.NewDiskManager(op, s)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +70,7 @@ func NewVolumeStore(ctx context.Context, s *session.Session) (*VolumeStore, erro
 // storeName is the name used to refer to the datastore + path (ds above).
 //
 // returns the URL used to refer to the volume store
-func (v *VolumeStore) AddStore(ctx context.Context, ds *datastore.Helper, storeName string) (*url.URL, error) {
+func (v *VolumeStore) AddStore(op trace.Operation, ds *datastore.Helper, storeName string) (*url.URL, error) {
 	v.dsLock.Lock()
 	defer v.dsLock.Unlock()
 
@@ -84,7 +83,7 @@ func (v *VolumeStore) AddStore(ctx context.Context, ds *datastore.Helper, storeN
 		return nil, fmt.Errorf("volumestore (%s) already added", u.String())
 	}
 
-	if _, err = ds.Mkdir(ctx, true, VolumesDir); err != nil && !os.IsExist(err) {
+	if _, err = ds.Mkdir(op, true, VolumesDir); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
@@ -92,7 +91,7 @@ func (v *VolumeStore) AddStore(ctx context.Context, ds *datastore.Helper, storeN
 	return u, nil
 }
 
-func (v *VolumeStore) VolumeStoresList(ctx context.Context) (map[string]url.URL, error) {
+func (v *VolumeStore) VolumeStoresList(op trace.Operation) (map[string]url.URL, error) {
 	m := make(map[string]url.URL)
 
 	v.dsLock.RLock()
@@ -156,7 +155,7 @@ func (v *VolumeStore) volDiskDsURL(store *url.URL, ID string) (string, error) {
 	return path.Join(dstore.RootURL, v.volDirPath(ID), ID+".vmdk"), nil
 }
 
-func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*storage.Volume, error) {
+func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*storage.Volume, error) {
 
 	// find the datastore
 	dstore, err := v.getDatastore(store)
@@ -165,7 +164,7 @@ func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.UR
 	}
 
 	// Create the volume directory in the store.
-	_, err = dstore.Mkdir(ctx, false, v.volDirPath(ID))
+	_, err = dstore.Mkdir(op, false, v.volDirPath(ID))
 	if err != nil {
 		return nil, err
 	}
@@ -178,11 +177,11 @@ func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.UR
 	}
 
 	// Create the disk
-	vmdisk, err := v.dm.CreateAndAttach(ctx, volDiskDsURL, "", int64(capacityKB), os.O_RDWR)
+	vmdisk, err := v.dm.CreateAndAttach(op, volDiskDsURL, "", int64(capacityKB), os.O_RDWR)
 	if err != nil {
 		return nil, err
 	}
-	defer v.dm.Detach(ctx, vmdisk)
+	defer v.dm.Detach(op, vmdisk)
 
 	vol, err := storage.NewVolume(store, ID, info, vmdisk)
 	if err != nil {
@@ -196,7 +195,7 @@ func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.UR
 
 	// Persist the metadata
 	metaDataDir := v.volMetadataDirPath(ID)
-	if err = writeMetadata(ctx, dstore, metaDataDir, info); err != nil {
+	if err = writeMetadata(op, dstore, metaDataDir, info); err != nil {
 		return nil, err
 	}
 
@@ -204,7 +203,7 @@ func (v *VolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.UR
 	return vol, nil
 }
 
-func (v *VolumeStore) VolumeDestroy(ctx context.Context, vol *storage.Volume) error {
+func (v *VolumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume) error {
 	if err := volumeInUse(vol.ID); err != nil {
 		log.Errorf("VolumeStore: delete error: %s", err.Error())
 		return err
@@ -218,7 +217,7 @@ func (v *VolumeStore) VolumeDestroy(ctx context.Context, vol *storage.Volume) er
 	}
 
 	log.Infof("VolumeStore: Deleting %s", volDir)
-	if err := dstore.Rm(ctx, volDir); err != nil {
+	if err := dstore.Rm(op, volDir); err != nil {
 		log.Errorf("VolumeStore: delete error: %s", err.Error())
 		return err
 	}
@@ -226,12 +225,12 @@ func (v *VolumeStore) VolumeDestroy(ctx context.Context, vol *storage.Volume) er
 	return nil
 }
 
-func (v *VolumeStore) VolumeGet(ctx context.Context, ID string) (*storage.Volume, error) {
+func (v *VolumeStore) VolumeGet(op trace.Operation, ID string) (*storage.Volume, error) {
 	// We can't get the volume directly without looking up what datastore it's on.
 	return nil, fmt.Errorf("not supported: use VolumesList")
 }
 
-func (v *VolumeStore) VolumesList(ctx context.Context) ([]*storage.Volume, error) {
+func (v *VolumeStore) VolumesList(op trace.Operation) ([]*storage.Volume, error) {
 	volumes := []*storage.Volume{}
 
 	v.dsLock.RLock()
@@ -241,7 +240,7 @@ func (v *VolumeStore) VolumesList(ctx context.Context) ([]*storage.Volume, error
 
 		store := volStore
 
-		res, err := vols.Ls(ctx, VolumesDir)
+		res, err := vols.Ls(op, VolumesDir)
 		if err != nil {
 			return nil, fmt.Errorf("error listing vols: %s", err)
 		}
@@ -266,7 +265,7 @@ func (v *VolumeStore) VolumesList(ctx context.Context) ([]*storage.Volume, error
 			}
 
 			metaDataDir := v.volMetadataDirPath(ID)
-			meta, err := getMetadata(ctx, vols, metaDataDir)
+			meta, err := getMetadata(op, vols, metaDataDir)
 			if err != nil {
 				return nil, err
 			}
