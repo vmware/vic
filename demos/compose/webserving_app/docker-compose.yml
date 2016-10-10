@@ -1,0 +1,28 @@
+version: '2'
+
+networks:
+  my_net:
+    driver: bridge
+services:
+
+  web_server:
+  image: wangcheng86/wangcheng86:web_mail_enabled
+  #image: your_own_image_built_before
+    container_name: web_server    
+    networks:
+       - my_net
+    ports:
+      - "8080:8080"
+      - "25:25"
+      
+  mysql_server:
+    image: cloudsuite/web-serving:db_server
+    container_name: mysql_server
+    networks:
+       - my_net
+       
+  memcache_server:
+    image: cloudsuite/web-serving:memcached_server
+    container_name: memcache_server
+    networks:
+       - my_net    

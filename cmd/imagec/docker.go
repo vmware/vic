@@ -34,6 +34,7 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/libtrust"
 
+	urlfetcher "github.com/vmware/vic/pkg/fetcher"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -75,7 +76,7 @@ func LearnRegistryURL(options ImageCOptions) (string, error) {
 		}
 		log.Debugf("URL: %s", url)
 
-		fetcher := NewURLFetcher(FetcherOptions{
+		fetcher := urlfetcher.NewURLFetcher(urlfetcher.FetcherOptions{
 			Timeout:            options.timeout,
 			Username:           options.username,
 			Password:           options.password,
@@ -116,7 +117,7 @@ func LearnAuthURL(options ImageCOptions) (*url.URL, error) {
 
 	log.Debugf("URL: %s", url)
 
-	fetcher := NewURLFetcher(FetcherOptions{
+	fetcher := urlfetcher.NewURLFetcher(urlfetcher.FetcherOptions{
 		Timeout:            options.timeout,
 		Username:           options.username,
 		Password:           options.password,
@@ -139,53 +140,29 @@ func LearnAuthURL(options ImageCOptions) (*url.URL, error) {
 	// Do we even have the image on that registry
 	if err != nil && fetcher.IsStatusNotFound() {
 		err = fmt.Errorf("image not found")
-		return nil, ImageNotFoundError{Err: err}
+		return nil, urlfetcher.ImageNotFoundError{Err: err}
 	}
 
 	return nil, fmt.Errorf("%s returned an unexpected response: %s", url, err)
 }
 
 // FetchToken fetches the OAuth token from OAuth endpoint
-func FetchToken(url *url.URL) (*Token, error) {
+func FetchToken(url *url.URL) (*urlfetcher.Token, error) {
 	defer trace.End(trace.Begin(url.String()))
 
 	log.Debugf("URL: %s", url)
 
-	fetcher := NewURLFetcher(FetcherOptions{
+	fetcher := urlfetcher.NewURLFetcher(urlfetcher.FetcherOptions{
 		Timeout:            options.timeout,
 		Username:           options.username,
 		Password:           options.password,
 		InsecureSkipVerify: options.insecureSkipVerify,
 	})
-	tokenFileName, err := fetcher.Fetch(url)
+	token, err := fetcher.FetchAuthToken(url)
 	if err != nil {
 		err := fmt.Errorf("FetchToken (%s) failed: %s", url, err)
 		log.Error(err)
 		return nil, err
-	}
-
-	// Clenaup function
-	defer func() {
-		os.Remove(tokenFileName)
-	}()
-
-	// Read the file content into []byte for json.Unmarshal
-	content, err := ioutil.ReadFile(tokenFileName)
-	if err != nil {
-		return nil, err
-	}
-
-	token := &Token{}
-
-	err = json.Unmarshal(content, &token)
-	if err != nil {
-		return nil, err
-	}
-
-	if token.ExpiresIn == 0 {
-		token.Expires = time.Now().Add(DefaultTokenExpirationDuration)
-	} else {
-		token.Expires = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
 	}
 
 	return token, nil
@@ -210,14 +187,14 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) (string, error)
 
 	progress.Update(po, image.String(), "Pulling fs layer")
 
-	fetcher := NewURLFetcher(FetcherOptions{
+	fetcher := urlfetcher.NewURLFetcher(urlfetcher.FetcherOptions{
 		Timeout:            options.timeout,
 		Username:           options.username,
 		Password:           options.password,
 		Token:              options.token,
 		InsecureSkipVerify: options.insecureSkipVerify,
 	})
-	imageFileName, err := fetcher.Fetch(url, image.String())
+	imageFileName, err := fetcher.Fetch(url, true, po, image.String())
 	if err != nil {
 		return diffID, err
 	}
@@ -334,14 +311,14 @@ func FetchImageManifest(options ImageCOptions) (*Manifest, error) {
 
 	log.Debugf("URL: %s", url)
 
-	fetcher := NewURLFetcher(FetcherOptions{
-		Timeout:            options.timeout,
+	fetcher := urlfetcher.NewURLFetcher(urlfetcher.FetcherOptions{
+		Timeout:            10 * time.Second,
 		Username:           options.username,
 		Password:           options.password,
 		Token:              options.token,
 		InsecureSkipVerify: options.insecureSkipVerify,
 	})
-	manifestFileName, err := fetcher.Fetch(url)
+	manifestFileName, err := fetcher.Fetch(url, true, po)
 	if err != nil {
 		return nil, err
 	}

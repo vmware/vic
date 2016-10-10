@@ -43,6 +43,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/metadata"
+	urlfetcher "github.com/vmware/vic/pkg/fetcher"
 	"github.com/vmware/vic/pkg/i18n"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/sys"
@@ -75,7 +76,7 @@ type ImageCOptions struct {
 	username string
 	password string
 
-	token *Token
+	token *urlfetcher.Token
 
 	timeout time.Duration
 
@@ -121,9 +122,6 @@ const (
 
 	// DefaultHTTPTimeout specifies the default HTTP timeout
 	DefaultHTTPTimeout = 3600 * time.Second
-
-	// DefaultTokenExpirationDuration specifies the default token expiration
-	DefaultTokenExpirationDuration = 60 * time.Second
 
 	// attribute update actions
 	Add = iota + 1
@@ -201,14 +199,14 @@ func DestinationDirectory() string {
 	/*
 		https/
 		├── 192.168.218.5:5000
-		│   └── v2
-		│       └── busybox
-		│           └── latest
+		│   └── v2
+		│       └── busybox
+		│           └── latest
 		...
-		│               ├── fef924a0204a00b3ec67318e2ed337b189c99ea19e2bf10ed30a13b87c5e17ab
-		│               │   ├── fef924a0204a00b3ec67318e2ed337b189c99ea19e2bf10ed30a13b87c5e17ab.json
-		│               │   └── fef924a0204a00b3ec67318e2ed337b189c99ea19e2bf10ed30a13b87c5e17ab.tar
-		│               └── manifest.json
+		│               ├── fef924a0204a00b3ec67318e2ed337b189c99ea19e2bf10ed30a13b87c5e17ab
+		│               │   ├── fef924a0204a00b3ec67318e2ed337b189c99ea19e2bf10ed30a13b87c5e17ab.json
+		│               │   └── fef924a0204a00b3ec67318e2ed337b189c99ea19e2bf10ed30a13b87c5e17ab.tar
+		│               └── manifest.json
 		└── registry-1.docker.io
 		    └── v2
 		        └── library
@@ -216,8 +214,8 @@ func DestinationDirectory() string {
 		                └── latest
 		                    ...
 		                    ├── f61ebe2817bb4e6a7f0a4cf249a5316223f7ecc886feac24b9887a490feaed57
-		                    │   ├── f61ebe2817bb4e6a7f0a4cf249a5316223f7ecc886feac24b9887a490feaed57.json
-		                    │   └── f61ebe2817bb4e6a7f0a4cf249a5316223f7ecc886feac24b9887a490feaed57.tar
+		                    │   ├── f61ebe2817bb4e6a7f0a4cf249a5316223f7ecc886feac24b9887a490feaed57.json
+		                    │   └── f61ebe2817bb4e6a7f0a4cf249a5316223f7ecc886feac24b9887a490feaed57.tar
 		                    └── manifest.json
 
 	*/
@@ -685,7 +683,7 @@ func main() {
 	url, err := LearnAuthURL(options)
 	if err != nil {
 		switch err := err.(type) {
-		case ImageNotFoundError:
+		case urlfetcher.ImageNotFoundError:
 			log.Fatalf("Error: image %s not found", options.reference)
 		default:
 			log.Fatalf("Failed to obtain OAuth endpoint: %s", err)
@@ -711,9 +709,9 @@ func main() {
 	manifest, err := FetchImageManifest(options)
 	if err != nil {
 		switch err := err.(type) {
-		case ImageNotFoundError:
+		case urlfetcher.ImageNotFoundError:
 			log.Fatalf("Error: image %s not found", options.image)
-		case TagNotFoundError:
+		case urlfetcher.TagNotFoundError:
 			log.Fatalf("Tag %s not found in repository %s", options.tag, options.image)
 		default:
 			log.Fatalf("Error while pulling image manifest: %s", err)

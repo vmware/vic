@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation  Test 5-6 - VSAN
 Resource  ../../resources/Util.robot
-#Test Teardown  Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  *
+#Test Teardown  Run Keyword And Ignore Error  Nimbus Cleanup
 
 *** Test Cases ***
 Simple VSAN
