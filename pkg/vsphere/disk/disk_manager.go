@@ -51,14 +51,14 @@ type Manager struct {
 	byPathFormat string
 }
 
-func NewDiskManager(ctx context.Context, session *session.Session) (*Manager, error) {
-	vm, err := guest.GetSelf(ctx, session)
+func NewDiskManager(op trace.Operation, session *session.Session) (*Manager, error) {
+	vm, err := guest.GetSelf(op, session)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
 	// create handle to the docker daemon VM as we need to mount disks on it
-	controller, byPathFormat, err := verifyParavirtualScsiController(ctx, vm)
+	controller, byPathFormat, err := verifyParavirtualScsiController(op, vm)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -76,7 +76,7 @@ func NewDiskManager(ctx context.Context, session *session.Session) (*Manager, er
 // Returns a VirtualDisk corresponding to the created and attached disk.  The
 // newDiskURI and parentURI are both Datastore URI paths in the form of
 // [datastoreN] /path/to/disk.vmdk.
-func (m *Manager) CreateAndAttach(ctx context.Context, newDiskURI,
+func (m *Manager) CreateAndAttach(op trace.Operation, newDiskURI,
 	parentURI string,
 	capacity int64, flags int) (*VirtualDisk, error) {
 	defer trace.End(trace.Begin(newDiskURI))
@@ -91,27 +91,27 @@ func (m *Manager) CreateAndAttach(ctx context.Context, newDiskURI,
 
 	spec := m.createDiskSpec(newDiskURI, parentURI, capacity, flags)
 
-	log.Infof("Create/attach vmdk %s from parent %s", newDiskURI, parentURI)
+	op.Infof("Create/attach vmdk %s from parent %s", newDiskURI, parentURI)
 
-	err = m.Attach(ctx, spec)
+	err = m.Attach(op, spec)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
-	log.Debugf("Mapping vmdk to pci device %s", newDiskURI)
-	devicePath, err := m.devicePathByURI(ctx, newDiskURI)
+	op.Debugf("Mapping vmdk to pci device %s", newDiskURI)
+	devicePath, err := m.devicePathByURI(op, newDiskURI)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
 	d.setAttached(devicePath)
 
-	if err := waitForPath(ctx, devicePath); err != nil {
-		log.Infof("waitForPath failed for %s with %s", newDiskURI, errors.ErrorStack(err))
+	if err := waitForPath(op, devicePath); err != nil {
+		op.Infof("waitForPath failed for %s with %s", newDiskURI, errors.ErrorStack(err))
 		// ensure that the disk is detached if it's the publish that's failed
 
-		if detachErr := m.Detach(ctx, d); detachErr != nil {
-			log.Debugf("detach(%s) failed with %s", newDiskURI, errors.ErrorStack(detachErr))
+		if detachErr := m.Detach(op, d); detachErr != nil {
+			op.Debugf("detach(%s) failed with %s", newDiskURI, errors.ErrorStack(detachErr))
 		}
 
 		return nil, errors.Trace(err)
@@ -160,7 +160,7 @@ func (m *Manager) createDiskSpec(childURI, parentURI string, capacity int64, fla
 }
 
 // Create creates a disk without a parent (and doesn't attach it).
-func (m *Manager) Create(ctx context.Context, newDiskURI string,
+func (m *Manager) Create(op trace.Operation, newDiskURI string,
 	capacityKB int64) (*VirtualDisk, error) {
 
 	defer trace.End(trace.Begin(newDiskURI))
@@ -181,11 +181,11 @@ func (m *Manager) Create(ctx context.Context, newDiskURI string,
 		CapacityKb: capacityKB,
 	}
 
-	log.Infof("Creating vmdk for layer or volume %s", d.DatastoreURI)
-
-	err = tasks.Wait(ctx, func(ctx context.Context) (tasks.Task, error) {
+	op.Infof("Creating vmdk for layer or volume %s", d.DatastoreURI)
+	err = tasks.Wait(op, func(ctx context.Context) (tasks.Task, error) {
 		return vdm.CreateVirtualDisk(ctx, d.DatastoreURI, nil, spec)
 	})
+
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -224,7 +224,7 @@ func (m *Manager) Create(ctx context.Context, newDiskURI string,
 //	return nil
 // }
 
-func (m *Manager) Attach(ctx context.Context, disk *types.VirtualDisk) error {
+func (m *Manager) Attach(op trace.Operation, disk *types.VirtualDisk) error {
 	deviceList := object.VirtualDeviceList{}
 	deviceList = append(deviceList, disk)
 
@@ -236,26 +236,26 @@ func (m *Manager) Attach(ctx context.Context, disk *types.VirtualDisk) error {
 	machineSpec := types.VirtualMachineConfigSpec{}
 	machineSpec.DeviceChange = append(machineSpec.DeviceChange, changeSpec...)
 
-	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+	_, err = tasks.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		return m.vm.Reconfigure(ctx, machineSpec)
 	})
 
 	if err != nil {
-		log.Errorf("vmdk storage driver failed to attach disk: %s", errors.ErrorStack(err))
+		op.Errorf("vmdk storage driver failed to attach disk: %s", errors.ErrorStack(err))
 		return errors.Trace(err)
 	}
 	return nil
 }
 
-func (m *Manager) Detach(ctx context.Context, d *VirtualDisk) error {
+func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 	defer trace.End(trace.Begin(d.DevicePath))
-	log.Infof("Detaching disk %s", d.DevicePath)
+	op.Infof("Detaching disk %s", d.DevicePath)
 
 	d.lock()
 	defer d.unlock()
 
 	if !d.Attached() {
-		log.Infof("Disk %s is already detached", d.DevicePath)
+		op.Infof("Disk %s is already detached", d.DevicePath)
 		return nil
 	}
 
@@ -265,7 +265,7 @@ func (m *Manager) Detach(ctx context.Context, d *VirtualDisk) error {
 
 	spec := types.VirtualMachineConfigSpec{}
 
-	disk, err := findDisk(ctx, m.vm, d.DatastoreURI)
+	disk, err := findDisk(op, m.vm, d.DatastoreURI)
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -279,11 +279,12 @@ func (m *Manager) Detach(ctx context.Context, d *VirtualDisk) error {
 
 	spec.DeviceChange = config
 
-	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+	_, err = tasks.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		return m.vm.Reconfigure(ctx, spec)
 	})
 
 	if err != nil {
+		op.Errorf(err.Error())
 		log.Warnf("detach for %s failed with %s", d.DevicePath, errors.ErrorStack(err))
 		return errors.Trace(err)
 	}
@@ -298,8 +299,8 @@ func (m *Manager) Detach(ctx context.Context, d *VirtualDisk) error {
 	return d.setDetached()
 }
 
-func (m *Manager) devicePathByURI(ctx context.Context, datastoreURI string) (string, error) {
-	disk, err := findDisk(ctx, m.vm, datastoreURI)
+func (m *Manager) devicePathByURI(op trace.Operation, datastoreURI string) (string, error) {
+	disk, err := findDisk(op, m.vm, datastoreURI)
 	if err != nil {
 		log.Debugf("findDisk failed for %s with %s", datastoreURI, errors.ErrorStack(err))
 		return "", errors.Trace(err)

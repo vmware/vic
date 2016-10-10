@@ -21,7 +21,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
@@ -37,11 +36,11 @@ const (
 	pathTimeout = 60 * time.Second
 )
 
-func waitForPath(ctx context.Context, path string) error {
+func waitForPath(op trace.Operation, path string) error {
 	defer trace.End(trace.Begin(path))
 	timeout := time.Duration(pathTimeout)
 
-	ctx, _ = context.WithTimeout(ctx, timeout)
+	op, _ = trace.WithTimeout(&op, timeout, path)
 	done := make(chan struct{})
 
 	go func() {
@@ -54,7 +53,7 @@ func waitForPath(ctx context.Context, path string) error {
 			}
 
 			// We've timed out.
-			if ctx.Err() != nil {
+			if op.Err() != nil {
 				break
 			}
 		}
@@ -64,8 +63,8 @@ func waitForPath(ctx context.Context, path string) error {
 	select {
 	case <-done:
 		log.Infof("Attached disk present at %s", path)
-	case <-ctx.Done():
-		if ctx.Err() != nil {
+	case <-op.Done():
+		if op.Err() != nil {
 			return errors.Errorf("timeout waiting for layer to present as %s", path)
 		}
 	}
@@ -77,8 +76,8 @@ func waitForPath(ctx context.Context, path string) error {
 // base path of disks attached to it returns a handle to the controller and a
 // format string, with a single decimal for the disk unit number which will
 // result in the /dev/disk/by-path path
-func verifyParavirtualScsiController(ctx context.Context, vm *object.VirtualMachine) (*types.ParaVirtualSCSIController, string, error) {
-	devices, err := vm.Device(ctx)
+func verifyParavirtualScsiController(op trace.Operation, vm *object.VirtualMachine) (*types.ParaVirtualSCSIController, string, error) {
+	devices, err := vm.Device(op)
 	if err != nil {
 		log.Errorf("vmware driver failed to retrieve device list for VM %s: %s", vm, errors.ErrorStack(err))
 		return nil, "", errors.Trace(err)
@@ -151,12 +150,12 @@ func verifyParavirtualScsiController(ctx context.Context, vm *object.VirtualMach
 }
 
 // Find the disk by name attached to the given vm.
-func findDisk(ctx context.Context, vm *object.VirtualMachine, name string) (*types.VirtualDisk, error) {
+func findDisk(op trace.Operation, vm *object.VirtualMachine, name string) (*types.VirtualDisk, error) {
 	defer trace.End(trace.Begin(vm.String()))
 
 	log.Debugf("Looking for attached disk matching filename %s", name)
 
-	devices, err := vm.Device(ctx)
+	devices, err := vm.Device(op)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to refresh devices for vm: %s", errors.ErrorStack(err))
 	}

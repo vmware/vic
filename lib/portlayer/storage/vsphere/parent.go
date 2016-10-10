@@ -21,10 +21,8 @@ import (
 	"path"
 	"sync"
 
-	"golang.org/x/net/context"
-
 	log "github.com/Sirupsen/logrus"
-
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 )
 
@@ -57,14 +55,14 @@ type parentM struct {
 }
 
 // Starts here.  Tries to create a new parentM or load an existing one.
-func restoreParentMap(ctx context.Context, ds *datastore.Helper, storeName string) (*parentM, error) {
+func restoreParentMap(op trace.Operation, ds *datastore.Helper, storeName string) (*parentM, error) {
 	p := &parentM{
 		ds: ds,
 	}
 	p.parentMFile = path.Join(storeName, mapFile)
 
 	// Download the map file
-	if err := p.download(ctx); err != nil {
+	if err := p.download(op); err != nil {
 		log.Infof("err = %#v", err)
 		return nil, err
 	}
@@ -89,7 +87,7 @@ func (p *parentM) Get(i string) string {
 }
 
 // Save persists the parent map to the datastore
-func (p *parentM) Save(ctx context.Context) error {
+func (p *parentM) Save(op trace.Operation) error {
 	p.l.Lock()
 	defer p.l.Unlock()
 
@@ -102,13 +100,13 @@ func (p *parentM) Save(ctx context.Context) error {
 	tmpURI := p.parentMFile + ".tmp"
 
 	r := bytes.NewReader(buf)
-	if err = p.ds.Upload(ctx, r, tmpURI); err != nil {
+	if err = p.ds.Upload(op, r, tmpURI); err != nil {
 		log.Errorf("Error uploading %s: %s", tmpURI, err)
 		return err
 	}
 
 	log.Infof("Saving parent map (%s)", p.parentMFile)
-	if err := p.ds.Mv(ctx, tmpURI, p.parentMFile); err != nil {
+	if err := p.ds.Mv(op, tmpURI, p.parentMFile); err != nil {
 		log.Errorf("Error moving %s: %s", tmpURI, err)
 		return err
 	}
@@ -116,13 +114,13 @@ func (p *parentM) Save(ctx context.Context) error {
 	return nil
 }
 
-func (p *parentM) download(ctx context.Context) error {
+func (p *parentM) download(op trace.Operation) error {
 	p.l.Lock()
 	defer p.l.Unlock()
 
 	p.db = make(map[string]string)
 
-	rc, err := p.ds.Download(ctx, p.parentMFile)
+	rc, err := p.ds.Download(op, p.parentMFile)
 	if err != nil {
 		// We need to check for 404 vs something else here.
 		return nil

@@ -21,10 +21,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"golang.org/x/net/context"
-
 	"github.com/vmware/vic/lib/portlayer/util"
 	"github.com/vmware/vic/pkg/index"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // ImageStorer is an interface to store images in the Image Store
@@ -37,13 +36,13 @@ type ImageStorer interface {
 	// unique.
 	//
 	// Returns the URL of the created store
-	CreateImageStore(ctx context.Context, storeName string) (*url.URL, error)
+	CreateImageStore(op trace.Operation, storeName string) (*url.URL, error)
 
 	// Gets the url to an image store via name
-	GetImageStore(ctx context.Context, storeName string) (*url.URL, error)
+	GetImageStore(op trace.Operation, storeName string) (*url.URL, error)
 
 	// ListImageStores lists the available image stores
-	ListImageStores(ctx context.Context) ([]*url.URL, error)
+	ListImageStores(op trace.Operation) ([]*url.URL, error)
 
 	// WriteImage creates a new image layer from the given parent.  Eg
 	// parentImage + newLayer = new Image built from parent
@@ -53,22 +52,22 @@ type ImageStorer interface {
 	// meta - metadata associated with the image
 	// sum - expected sha266 sum of the image content.
 	// r - the image tar to be written
-	WriteImage(ctx context.Context, parent *Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*Image, error)
+	WriteImage(op trace.Operation, parent *Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*Image, error)
 
 	// GetImage queries the image store for the specified image.
 	//
 	// store - The image store to query name - The name of the image (optional)
 	// ID - textual ID for the image to be retrieved
-	GetImage(ctx context.Context, store *url.URL, ID string) (*Image, error)
+	GetImage(op trace.Operation, store *url.URL, ID string) (*Image, error)
 
 	// ListImages returns a list of Images given a list of image IDs, or all
 	// images in the image store if no param is passed.
-	ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*Image, error)
+	ListImages(op trace.Operation, store *url.URL, IDs []string) ([]*Image, error)
 
 	// DeleteImage deletes an image from the image store.  If the image is in
 	// use either by way of inheritance or because it's attached to a
 	// container, this will return an error.
-	DeleteImage(ctx context.Context, image *Image) error
+	DeleteImage(op trace.Operation, image *Image) error
 }
 
 // Image is the handle to identify an image layer on the backing store.  The
