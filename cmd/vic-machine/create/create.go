@@ -152,7 +152,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringSliceFlag{
 			Name:  "volume-store, vs",
 			Value: &c.volumeStores,
-			Usage: "Specify location and label for volume store; path optional: \"datastore/path:label\" or \"datastore:label\"",
+			Usage: "Specify a list of location and label for volume store, e.g. \"datastore/path:label\" or \"datastore:label\".",
 		},
 
 		// bridge
@@ -248,24 +248,24 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringSliceFlag{
 			Name:  "container-network, cn",
 			Value: &c.containerNetworks,
-			Usage: "vSphere networks that containers can use directly, without port forwarding. Defaults to DCHP - see advanced help (-x)",
+			Usage: "vSphere network list that containers can use directly with labels, e.g. vsphere-net:backend. Defaults to DCHP - see advanced help (-x).",
 		},
 		cli.StringSliceFlag{
 			Name:   "container-network-gateway, cng",
 			Value:  &c.containerNetworksGateway,
-			Usage:  "Gateway for the container network's subnet in CONTAINER-NETWORK:SUBNET format, e.g. a_network:172.16.0.0/16",
+			Usage:  "Gateway for the container network's subnet in CONTAINER-NETWORK:SUBNET format, e.g. vsphere-net:172.16.0.0/16.",
 			Hidden: true,
 		},
 		cli.StringSliceFlag{
 			Name:   "container-network-ip-range, cnr",
 			Value:  &c.containerNetworksIPRanges,
-			Usage:  "IP range for the container network in CONTAINER-NETWORK:IP-RANGE format, e.g. a_network:172.16.0.0/24, a_network:172.16.0.10-20",
+			Usage:  "IP range for the container network in CONTAINER-NETWORK:IP-RANGE format, e.g. vsphere-net:172.16.0.0/24, vsphere-net:172.16.0.10-20.",
 			Hidden: true,
 		},
 		cli.StringSliceFlag{
 			Name:   "container-network-dns, cnd",
 			Value:  &c.containerNetworksDNS,
-			Usage:  "DNS servers for the container network in CONTAINER-NETWORK:DNS format, e.g. a_network:8.8.8.8. Ignored if no static IP assigned.",
+			Usage:  "DNS servers for the container network in CONTAINER-NETWORK:DNS format, e.g. vsphere-net:8.8.8.8. Ignored if no static IP assigned.",
 			Hidden: true,
 		},
 
@@ -273,7 +273,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.IntFlag{
 			Name:        "memory, mem",
 			Value:       0,
-			Usage:       "VCH resource pool memory limit in MB",
+			Usage:       "VCH resource pool memory limit in MB (unlimited=0)",
 			Destination: &c.VCHMemoryLimitsMB,
 		},
 		cli.IntFlag{
@@ -301,7 +301,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.IntFlag{
 			Name:        "cpu",
 			Value:       0,
-			Usage:       "VCH resource pool vCPUs limit in MHz",
+			Usage:       "VCH resource pool vCPUs limit in MHz (unlimited=0)",
 			Destination: &c.VCHCPULimitsMHz,
 		},
 		cli.IntFlag{
@@ -386,7 +386,7 @@ func (c *Create) Flags() []cli.Flag {
 		},
 	}
 
-	misc := []cli.Flag{
+	util := []cli.Flag{
 		// miscellaneous
 		cli.BoolFlag{
 			Name:        "use-rp",
@@ -411,7 +411,7 @@ func (c *Create) Flags() []cli.Flag {
 	help := []cli.Flag{
 		// help options
 		cli.BoolFlag{
-			Name:        "advanced-options, x",
+			Name:        "extended-help, x",
 			Usage:       "Show all options - this must be specified instead of --help",
 			Destination: &c.advancedOptions,
 		},
@@ -419,12 +419,12 @@ func (c *Create) Flags() []cli.Flag {
 
 	target := c.TargetFlags()
 	compute := c.ComputeFlags()
-	iso := c.ImageFlags()
+	iso := c.ImageFlags(true)
 	debug := c.DebugFlags()
 
 	// flag arrays are declared, now combined
 	var flags []cli.Flag
-	for _, f := range [][]cli.Flag{target, compute, create, iso, misc, debug, help} {
+	for _, f := range [][]cli.Flag{target, compute, create, iso, util, debug, help} {
 		flags = append(flags, f...)
 	}
 
