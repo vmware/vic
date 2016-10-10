@@ -56,7 +56,8 @@ func TestToExtraConfig(t *testing.T) {
 		},
 		Networks: map[string]*executor.NetworkEndpoint{
 			"eth0": {
-				Static: &net.IPNet{IP: localhost, Mask: lmask.Mask},
+				Static: true,
+				IP:     &net.IPNet{IP: localhost, Mask: lmask.Mask},
 				Network: executor.ContainerNetwork{
 					Common: executor.Common{
 						Name: "notsure",

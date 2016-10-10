@@ -18,14 +18,13 @@ package tasks
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/progress"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 )
 
@@ -58,45 +57,58 @@ func Wait(ctx context.Context, f func(context.Context) (Task, error)) error {
 //    })
 func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (*types.TaskInfo, error) {
 	var err error
-	var taskInfo *types.TaskInfo
-	backoffFactor := int64(1)
-
-	t, err := f(ctx)
-	if err != nil {
-		log.Errorf("Failed to invoke task operation : %s", err)
-		return nil, err
-	}
+	var info *types.TaskInfo
+	var backoffFactor int64 = 1
 
 	for {
-		taskInfo, werr := t.WaitForResult(ctx, nil)
-
-		if werr == nil {
-			return taskInfo, nil
-		}
-
-		if terr, ok := werr.(*task.Error); ok {
-			if _, ok := terr.Fault().(*types.TaskInProgress); ok {
-				sleepValue := time.Duration(backoffFactor * (rand.Int63n(100) + int64(50)))
-				select {
-				case <-time.After(sleepValue * time.Millisecond):
-					if backoffFactor*2 > maxBackoffFactor {
-						backoffFactor = maxBackoffFactor
-					} else {
-						backoffFactor *= 2
-					}
-				case <-ctx.Done():
-					err = fmt.Errorf("%s while retrying task %#v", ctx.Err(), taskInfo)
-					log.Error(err)
-					return nil, err
-				}
-				log.Warnf("Retrying Task due to TaskInProgressFault: %s", taskInfo.Task.Reference())
-				continue
+		var t Task
+		if t, err = f(ctx); err == nil {
+			info, err = t.WaitForResult(ctx, nil)
+			if err == nil {
+				return info, err
 			}
 		}
-		err = werr
-		break
-	}
-	log.Errorf("Task failed with error : %s", err)
-	return taskInfo, err
 
+		log.Errorf("task failed: %s", err)
+		if !isTaskInProgress(err) {
+			return info, err
+		}
+
+		sleepValue := time.Duration(backoffFactor * (rand.Int63n(100) + int64(50)))
+		select {
+		case <-time.After(sleepValue * time.Millisecond):
+			backoffFactor *= 2
+			if backoffFactor > maxBackoffFactor {
+				backoffFactor = maxBackoffFactor
+			}
+		case <-ctx.Done():
+			return info, ctx.Err()
+		}
+
+		log.Warnf("retrying task")
+	}
+}
+
+func isTaskInProgress(err error) bool {
+	if soap.IsSoapFault(err) {
+		if _, ok := soap.ToSoapFault(err).VimFault().(types.TaskInProgress); ok {
+			return true
+		}
+	}
+
+	if soap.IsVimFault(err) {
+		switch soap.ToVimFault(err).(type) {
+		case *types.TaskInProgress:
+			return true
+		}
+	}
+
+	switch err := err.(type) {
+	case task.Error:
+		if _, ok := err.Fault().(*types.TaskInProgress); ok {
+			return true
+		}
+	}
+
+	return false
 }

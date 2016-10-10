@@ -37,7 +37,7 @@ var addEthernetCardErr = func(_ *exec.Handle, _ *Scope) (types.BaseVirtualDevice
 
 func TestScopeAddRemoveContainer(t *testing.T) {
 	var err error
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
+	ctx, err := NewContext(testConfig())
 	if err != nil {
 		t.Errorf("NewContext() => (nil, %s), want (ctx, nil)", err)
 		return
@@ -57,16 +57,16 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 		// no container
 		{nil, nil, nil, fmt.Errorf("")},
 		// add a new container to scope
-		{&Container{id: idFoo}, nil, &Endpoint{ip: net.IPv4(172, 16, 0, 2), subnet: s.subnet, gateway: s.gateway}, nil},
+		{&Container{id: idFoo}, nil, &Endpoint{ip: net.IPv4(172, 16, 0, 2), scope: s}, nil},
 		// container already part of scope
 		{&Container{id: idFoo}, nil, nil, DuplicateResourceError{}},
 		// container with ip
-		{&Container{id: idBar}, makeIP(172, 16, 0, 3), &Endpoint{ip: net.IPv4(172, 16, 0, 3), subnet: s.subnet, gateway: s.gateway, static: true}, nil},
+		{&Container{id: idBar}, makeIP(172, 16, 0, 3), &Endpoint{ip: net.IPv4(172, 16, 0, 3), scope: s, static: true}, nil},
 	}
 
 	for _, te := range tests1 {
-		var e *Endpoint
-		e, err = s.addContainer(te.c, te.ip)
+		e := newEndpoint(te.c, s, te.ip, nil)
+		err = s.AddContainer(te.c, e)
 		if te.err != nil {
 			if err == nil {
 				t.Errorf("s.AddContainer() => (_, nil), want (_, err)")
@@ -104,8 +104,8 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 			continue
 		}
 
-		if e.subnet.String() != s.subnet.String() {
-			t.Errorf("s.AddContainer() => e.subnet == %s, want e.subnet == %s", e.subnet, s.subnet)
+		if e.Subnet().String() != s.Subnet().String() {
+			t.Errorf("s.AddContainer() => e.Subnet() == %s, want e.Subnet() == %s", e.Subnet(), s.Subnet())
 			continue
 		}
 
@@ -160,7 +160,7 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 	}
 
 	for _, te := range tests2 {
-		err = s.removeContainer(te.c)
+		err = s.RemoveContainer(te.c)
 		if te.err != nil {
 			if err == nil {
 				t.Errorf("s.RemoveContainer() => nil, want %v", te.err)

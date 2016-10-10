@@ -22,8 +22,6 @@ import (
 	"sync"
 	"syscall"
 
-	"golang.org/x/net/context"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/go-connections/nat"
 
@@ -31,12 +29,12 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/constants"
-	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -69,38 +67,57 @@ type AddContainerOptions struct {
 	Ports   []string
 }
 
-func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask, config *Configuration) (*Context, error) {
+func NewContext(config *Configuration) (*Context, error) {
 	defer trace.End(trace.Begin(""))
 	if config == nil {
 		return nil, fmt.Errorf("missing config")
 	}
 
-	pones, pbits := bridgePool.Mask.Size()
-	mones, mbits := bridgeMask.Size()
+	bridgeRange := config.BridgeIPRange
+	if bridgeRange == nil || len(bridgeRange.IP) == 0 || bridgeRange.IP.IsUnspecified() {
+		var err error
+		_, bridgeRange, err = net.ParseCIDR(constants.DefaultBridgeRange)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	bridgeWidth := config.BridgeNetworkWidth
+	if bridgeWidth == nil || len(*bridgeWidth) == 0 {
+		w := net.CIDRMask(16, 32)
+		bridgeWidth = &w
+	}
+
+	pones, pbits := bridgeRange.Mask.Size()
+	mones, mbits := bridgeWidth.Size()
 	if pbits != mbits || mones < pones {
 		return nil, fmt.Errorf("bridge mask is not compatible with bridge pool mask")
 	}
 
 	ctx := &Context{
 		config:            config,
-		defaultBridgeMask: bridgeMask,
-		defaultBridgePool: NewAddressSpaceFromNetwork(&bridgePool),
+		defaultBridgeMask: *bridgeWidth,
+		defaultBridgePool: NewAddressSpaceFromNetwork(bridgeRange),
 		scopes:            make(map[string]*Scope),
 		containers:        make(map[string]*Container),
 	}
 
-	s, err := ctx.newBridgeScope(uid.New(), DefaultBridgeName, nil, net.IPv4(0, 0, 0, 0), nil, &IPAM{})
+	n := ctx.config.ContainerNetworks[ctx.config.BridgeNetwork]
+	if n == nil {
+		return nil, fmt.Errorf("default bridge network %s not present in config", ctx.config.BridgeNetwork)
+	}
+
+	s, err := ctx.NewScope(n.Type, n.Name, nil, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
 	s.builtin = true
-	s.dns = []net.IP{s.gateway}
 	ctx.defaultScope = s
 
 	// add any bridge/external networks
 	for nn, n := range ctx.config.ContainerNetworks {
-		if nn == DefaultBridgeName {
-			continue
+		if nn == ctx.config.BridgeNetwork {
+			continue // already added above
 		}
 
 		pools := make([]string, len(n.Pools))
@@ -108,20 +125,13 @@ func NewContext(bridgePool net.IPNet, bridgeMask net.IPMask, config *Configurati
 			pools[i] = p.String()
 		}
 
-		s, err := ctx.NewScope(n.Type, nn, &net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}, n.Gateway.IP, n.Nameservers, pools)
+		subnet := net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}
+		s, err := ctx.NewScope(n.Type, nn, &subnet, n.Gateway.IP, n.Nameservers, pools)
 		if err != nil {
 			return nil, err
 		}
 
-		if n.Type == constants.ExternalScopeType {
-			s.builtin = true
-		}
-	}
-
-	// subscribe to the event stream for Vm events
-	sub := fmt.Sprintf("%s(%p)", "netCtx", ctx)
-	if exec.Config.EventManager != nil {
-		exec.Config.EventManager.Subscribe(events.NewEventType(events.ContainerEvent{}).Topic(), sub, ctx.handleEvent)
+		s.builtin = true
 	}
 
 	return ctx, nil
@@ -406,6 +416,14 @@ func reservePools(space *AddressSpace, ipam *IPAM) ([]*AddressSpace, error) {
 
 func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string) (*Scope, error) {
 	defer trace.End(trace.Begin(""))
+
+	c.Lock()
+	defer c.Unlock()
+
+	return c.newScope(scopeType, name, subnet, gateway, dns, pools)
+}
+
+func (c *Context) newScope(scopeType, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string) (*Scope, error) {
 	// sanity checks
 	if name == "" {
 		return nil, fmt.Errorf("scope name must not be empty")
@@ -414,9 +432,6 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 	if gateway == nil {
 		gateway = net.IPv4(0, 0, 0, 0)
 	}
-
-	c.Lock()
-	defer c.Unlock()
 
 	if _, ok := c.scopes[name]; ok {
 		return nil, DuplicateResourceError{resID: name}
@@ -439,27 +454,12 @@ func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway ne
 		return nil, err
 	}
 
-	// add the new scope to the config
-	c.config.ContainerNetworks[s.Name()] = &executor.ContainerNetwork{
-		Common: executor.Common{
-			ID:   s.ID().String(),
-			Name: s.Name(),
-		},
-		Type:        s.Type(),
-		Gateway:     net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask},
-		Nameservers: s.DNS(),
-		Pools:       s.IPAM().Pools(),
-	}
-	c.config.PortGroups[s.Name()] = s.network
-
-	// write config
-	c.config.Encode()
-
 	return s, nil
 }
 
 func (c *Context) findScopes(idName *string) ([]*Scope, error) {
 	defer trace.End(trace.Begin(""))
+
 	if idName != nil && *idName != "" {
 		if *idName == "default" {
 			return []*Scope{c.DefaultScope()}, nil
@@ -472,10 +472,15 @@ func (c *Context) findScopes(idName *string) ([]*Scope, error) {
 		}
 
 		// search by id or partial id
+		var ss []*Scope
 		for _, s := range c.scopes {
 			if strings.HasPrefix(s.id.String(), *idName) {
-				return []*Scope{s}, nil
+				ss = append(ss, s)
 			}
+		}
+
+		if len(ss) > 0 {
+			return ss, nil
 		}
 
 		return nil, ResourceNotFoundError{error: fmt.Errorf("scope %s not found", *idName)}
@@ -492,11 +497,32 @@ func (c *Context) findScopes(idName *string) ([]*Scope, error) {
 	return _scopes, nil
 }
 
-func (c *Context) Scopes(idName *string) ([]*Scope, error) {
+func (c *Context) Scopes(ctx context.Context, idName *string) ([]*Scope, error) {
 	c.Lock()
 	defer c.Unlock()
 
-	return c.findScopes(idName)
+	scopes, err := c.findScopes(idName)
+	if err != nil {
+		return nil, err
+	}
+
+	// collate the containers to update
+	containers := make(map[uid.UID]*Container)
+	for _, s := range scopes {
+		if !s.isDynamic() {
+			continue
+		}
+
+		for _, c := range s.Containers() {
+			containers[c.ID()] = c
+		}
+	}
+
+	for _, c := range containers {
+		c.Refresh(ctx)
+	}
+
+	return scopes, nil
 }
 
 func (c *Context) DefaultScope() *Scope {
@@ -508,6 +534,10 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	c.Lock()
 	defer c.Unlock()
 
+	return c.bindContainer(h)
+}
+
+func (c *Context) bindContainer(h *exec.Handle) ([]*Endpoint, error) {
 	con, err := c.container(h)
 	if con != nil {
 		return con.Endpoints(), nil // already bound
@@ -537,16 +567,25 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 				return
 			}
 
-			s.removeContainer(con)
+			s.RemoveContainer(con)
 		}()
 
-		var ip *net.IP
-		if ne.Static != nil {
-			ip = &ne.Static.IP
+		var eip *net.IP
+		if ne.Static {
+			eip = &ne.IP.IP
+		} else if !ip.IsUnspecifiedIP(ne.Assigned.IP) {
+			// for VCH restart, we need to reserve
+			// the IP of the running container
+			//
+			// this may be a DHCP assigned IP, however, the
+			// addContainer call below will ignore reserving
+			// an IP if the scope is "dynamic"
+			eip = &ne.Assigned.IP
 		}
 
-		var e *Endpoint
-		if e, err = s.addContainer(con, ip); err != nil {
+		e := newEndpoint(con, s, eip, nil)
+		e.static = ne.Static
+		if err = s.AddContainer(con, e); err != nil {
 			return nil, err
 		}
 
@@ -565,14 +604,13 @@ func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			}
 		}
 
-		eip := e.IP()
-		if eip != nil && !eip.IsUnspecified() {
-			ne.Static = &net.IPNet{
-				IP:   eip,
+		if !ip.IsUnspecifiedIP(e.IP()) {
+			ne.IP = &net.IPNet{
+				IP:   e.IP(),
 				Mask: e.Scope().Subnet().Mask,
 			}
 		}
-		ne.Network.Gateway = net.IPNet{IP: e.gateway, Mask: e.subnet.Mask}
+		ne.Network.Gateway = net.IPNet{IP: e.Gateway(), Mask: e.Subnet().Mask}
 		ne.Network.Nameservers = make([]net.IP, len(s.dns))
 		copy(ne.Network.Nameservers, s.dns)
 
@@ -702,28 +740,15 @@ func (c *Context) UnbindContainer(h *exec.Handle) ([]*Endpoint, error) {
 			return nil, &ResourceNotFoundError{}
 		}
 
-		defer func() {
-			if err == nil {
-				return
-			}
-
-			var ip *net.IP
-			if ne.Static != nil {
-				ip = &ne.Static.IP
-			}
-			s.addContainer(con, ip)
-		}()
-
 		// save the endpoint info
 		e := con.Endpoint(s).copy()
 
-		if err = s.removeContainer(con); err != nil {
+		if err = s.RemoveContainer(con); err != nil {
 			return nil, err
 		}
 
-		if !e.static {
-			ne.Static = nil
-		}
+		// clear out assigned ip
+		ne.Assigned.IP = net.IPv4zero
 
 		// aliases to remove
 		// name for dns lookup
@@ -923,12 +948,15 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 			},
 			Aliases: options.Aliases,
 			Pools:   s.IPAM().Pools(),
+			Type:    s.Type(),
 		},
 		Ports: options.Ports,
 	}
 
-	if options.IP != nil && !options.IP.IsUnspecified() {
-		ne.Static = &net.IPNet{
+	ne.Static = false
+	if options.IP != nil && !ip.IsUnspecifiedIP(*options.IP) {
+		ne.Static = true
+		ne.IP = &net.IPNet{
 			IP:   *options.IP,
 			Mask: s.Subnet().Mask,
 		}
@@ -1067,62 +1095,7 @@ func (c *Context) DeleteScope(name string) error {
 	return nil
 }
 
-func (c *Context) UpdateContainer(h *exec.Handle) error {
-	defer trace.End(trace.Begin(""))
-	c.Lock()
-	defer c.Unlock()
-
-	con, err := c.container(h)
-	if err != nil {
-		return err
-	}
-
-	for _, s := range con.Scopes() {
-		if !s.isDynamic() {
-			continue
-		}
-
-		ne := h.ExecConfig.Networks[s.Name()]
-		if ne == nil {
-			return fmt.Errorf("container config does not have info for network scope %s", s.Name())
-		}
-
-		e := con.Endpoint(s)
-		e.ip = ne.Assigned.IP
-		gw, snet, err := net.ParseCIDR(ne.Network.Gateway.String())
-		if err != nil {
-			return err
-		}
-
-		e.gateway = gw
-		e.subnet = *snet
-
-		s.gateway = gw
-		s.subnet = *snet
-	}
-
-	return nil
-}
-
 func atoiOrZero(a string) int32 {
 	i, _ := strconv.Atoi(a)
 	return int32(i)
-}
-
-// handleEvent processes events
-func (c *Context) handleEvent(ie events.Event) {
-	defer trace.End(trace.Begin(ie.String()))
-	switch ie.String() {
-	case events.ContainerPoweredOff:
-		handle := exec.GetContainer(uid.Parse(ie.Reference()))
-		if handle == nil {
-			log.Errorf("Container %s not found - unable to UnbindContainer", ie.Reference())
-			return
-		}
-		_, err := c.UnbindContainer(handle)
-		if err != nil {
-			log.Warnf("Failed to unbind container %s", ie.Reference())
-		}
-	}
-	return
 }

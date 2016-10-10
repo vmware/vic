@@ -33,6 +33,7 @@ Launch Container
 
 *** Test Cases ***
 Upgrade VCH with containers
+    [Tags]  skip
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create bar
     Should Be Equal As Integers  ${rc}  0
     Comment  Launch first container on bridge network

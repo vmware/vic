@@ -25,6 +25,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/govmomi/object"
@@ -109,6 +110,9 @@ func testConfig() *Configuration {
 			BridgeNetwork: "bridge",
 			ContainerNetworks: map[string]*executor.ContainerNetwork{
 				"bridge": {
+					Common: executor.Common{
+						Name: "bridge",
+					},
 					Type: constants.BridgeScopeType,
 				},
 				"bar7": {
@@ -163,6 +167,8 @@ func TestMain(m *testing.M) {
 	n.InventoryPath = "testExternal"
 	testExternalNetwork = n
 
+	log.SetLevel(log.DebugLevel)
+
 	rc := m.Run()
 
 	os.Exit(rc)
@@ -170,14 +176,14 @@ func TestMain(m *testing.M) {
 
 func TestMapExternalNetworks(t *testing.T) {
 	conf := testConfig()
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), conf)
+	ctx, err := NewContext(conf)
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
 
 	// check if external networks were loaded
 	for n, nn := range conf.ContainerNetworks {
-		scopes, err := ctx.Scopes(&n)
+		scopes, err := ctx.findScopes(&n)
 		if err != nil || len(scopes) != 1 {
 			t.Fatalf("external network %s was not loaded", n)
 		}
@@ -233,7 +239,7 @@ func TestMapExternalNetworks(t *testing.T) {
 }
 
 func TestContextNewScope(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
+	ctx, err := NewContext(testConfig())
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
@@ -390,7 +396,7 @@ func TestContextNewScope(t *testing.T) {
 }
 
 func TestScopes(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
+	ctx, err := NewContext(testConfig())
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 		return
@@ -441,7 +447,7 @@ func TestScopes(t *testing.T) {
 	}
 
 	for _, te := range tests {
-		l, err := ctx.Scopes(te.in)
+		l, err := ctx.Scopes(context.TODO(), te.in)
 		if te.out == nil {
 			if err == nil {
 				t.Fatalf("Scopes() => (_, nil), want (_, err)")
@@ -485,7 +491,7 @@ func TestScopes(t *testing.T) {
 }
 
 func TestContextAddContainer(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
+	ctx, err := NewContext(testConfig())
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 		return
@@ -634,12 +640,12 @@ func TestContextAddContainer(t *testing.T) {
 			t.Fatalf("case %d; ctx.AddContainer(%v, %s, %s) => ne.NetworkName == %s, want %s", i, te.h, te.scope, te.ip, ne.Network.Name, s.Name())
 		}
 
-		if te.ip != nil && !te.ip.Equal(ne.Static.IP) {
-			t.Fatalf("case %d; ctx.AddContainer(%v, %s, %s) => ne.Static.IP == %s, want %s", i, te.h, te.scope, te.ip, ne.Static.IP, te.ip)
+		if te.ip != nil && (!ne.Static || !te.ip.Equal(ne.IP.IP)) {
+			t.Fatalf("case %d; ctx.AddContainer(%v, %s, %s) => ne.IP.IP=%s ne.Static=%v, want ne.IP.IP=%s ne.Static=%v", i, te.h, te.scope, te.ip, ne.IP.IP, ne.Static, te.ip, true)
 		}
 
-		if te.ip == nil && ne.Static != nil {
-			t.Fatalf("case %d; ctx.AddContainer(%v, %s, %s) => ne.Static.IP == %s, want %s", i, te.h, te.scope, te.ip, ne.Static.IP, net.IPv4zero)
+		if te.ip == nil && (ne.Static || ne.IP != nil) {
+			t.Fatalf("case %d; ctx.AddContainer(%v, %s, %s) => ne.Static=%v, want ne.Static=%v", i, te.h, te.scope, te.ip, ne.Static, false)
 		}
 	}
 }
@@ -651,7 +657,7 @@ func newContainer(name string) *exec.Handle {
 }
 
 func TestContextBindUnbindContainer(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
+	ctx, err := NewContext(testConfig())
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
@@ -707,7 +713,6 @@ func TestContextBindUnbindContainer(t *testing.T) {
 	ctx.AddContainer(ipErr, options)
 
 	var tests = []struct {
-		i      int
 		h      *exec.Handle
 		scopes []string
 		ips    []net.IP
@@ -715,25 +720,25 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		err    error
 	}{
 		// no scopes to bind to
-		{0, foo, []string{}, []net.IP{}, false, nil},
+		{foo, []string{}, []net.IP{}, false, nil},
 		// container has bad ip address
-		{1, ipErr, []string{}, nil, false, fmt.Errorf("")},
+		{ipErr, []string{}, nil, false, fmt.Errorf("")},
 		// successful container bind
-		{2, added, []string{ctx.DefaultScope().Name(), scope.Name()}, []net.IP{net.IPv4(172, 16, 0, 2), net.IPv4(172, 17, 0, 2)}, false, nil},
-		{3, staticIP, []string{ctx.DefaultScope().Name()}, []net.IP{net.IPv4(172, 16, 0, 10)}, true, nil},
+		{added, []string{ctx.DefaultScope().Name(), scope.Name()}, []net.IP{net.IPv4(172, 16, 0, 2), net.IPv4(172, 17, 0, 2)}, false, nil},
+		{staticIP, []string{ctx.DefaultScope().Name()}, []net.IP{net.IPv4(172, 16, 0, 10)}, true, nil},
 	}
 
-	for _, te := range tests {
+	for i, te := range tests {
 		eps, err := ctx.BindContainer(te.h)
 		if te.err != nil {
 			// expect an error
 			if err == nil || eps != nil {
-				t.Fatalf("%d: ctx.BindContainer(%s) => (%#v, %#v), want (%#v, %#v)", te.i, te.h, eps, err, nil, te.err)
+				t.Fatalf("%d: ctx.BindContainer(%s) => (%+v, %+v), want (%+v, %+v)", i, te.h, eps, err, nil, te.err)
 			}
 
 			con := ctx.Container(te.h.Container.ExecConfig.ID)
 			if con != nil {
-				t.Fatalf("%d: ctx.BindContainer(%s) added container %#v", te.i, te.h, con)
+				t.Fatalf("%d: ctx.BindContainer(%s) added container %#v", i, te.h, con)
 			}
 
 			continue
@@ -746,11 +751,11 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		// check if the correct endpoints were added
 		con := ctx.Container(te.h.Container.ExecConfig.ID)
 		if con == nil {
-			t.Fatalf("%d: ctx.Container(%s) => nil, want %s", te.i, te.h.Container.ExecConfig.ID, te.h.Container.ExecConfig.ID)
+			t.Fatalf("%d: ctx.Container(%s) => nil, want %s", i, te.h.Container.ExecConfig.ID, te.h.Container.ExecConfig.ID)
 		}
 
 		if len(con.Scopes()) != len(te.scopes) {
-			t.Fatalf("%d: len(con.Scopes()) %#v != len(te.scopes) %#v", te.i, con.Scopes(), te.scopes)
+			t.Fatalf("%d: len(con.Scopes()) %#v != len(te.scopes) %#v", i, con.Scopes(), te.scopes)
 		}
 
 		// check endpoints
@@ -763,40 +768,39 @@ func TestContextBindUnbindContainer(t *testing.T) {
 
 				found = true
 				if !e.Gateway().Equal(e.Scope().Gateway()) {
-					t.Fatalf("%d: ctx.BindContainer(%s) => endpoint gateway %s, want %s", te.i, te.h, e.Gateway(), e.Scope().Gateway())
+					t.Fatalf("%d: ctx.BindContainer(%s) => endpoint gateway %s, want %s", i, te.h, e.Gateway(), e.Scope().Gateway())
 				}
 				if !e.IP().Equal(te.ips[i]) {
-					t.Fatalf("%d: ctx.BindContainer(%s) => endpoint IP %s, want %s", te.i, te.h, e.IP(), te.ips[i])
+					t.Fatalf("%d: ctx.BindContainer(%s) => endpoint IP %s, want %s", i, te.h, e.IP(), te.ips[i])
 				}
 				if e.Subnet().String() != e.Scope().Subnet().String() {
-					t.Fatalf("%d: ctx.BindContainer(%s) => endpoint subnet %s, want %s", te.i, te.h, e.Subnet(), e.Scope().Subnet())
+					t.Fatalf("%d: ctx.BindContainer(%s) => endpoint subnet %s, want %s", i, te.h, e.Subnet(), e.Scope().Subnet())
 				}
 
 				ne := te.h.ExecConfig.Networks[s]
-				if !ne.Static.IP.Equal(te.ips[i]) {
-					t.Fatalf("%d: ctx.BindContainer(%s) => metadata endpoint IP %s, want %s", te.i, te.h, ne.Static.IP, te.ips[i])
+				if !ne.IP.IP.Equal(te.ips[i]) {
+					t.Fatalf("%d: ctx.BindContainer(%s) => metadata endpoint IP %s, want %s", i, te.h, ne.IP.IP, te.ips[i])
 				}
-				if ne.Static.Mask.String() != e.Scope().Subnet().Mask.String() {
-					t.Fatalf("%d: ctx.BindContainer(%s) => metadata endpoint IP mask %s, want %s", te.i, te.h, ne.Static.Mask.String(), e.Scope().Subnet().Mask.String())
+				if ne.IP.Mask.String() != e.Scope().Subnet().Mask.String() {
+					t.Fatalf("%d: ctx.BindContainer(%s) => metadata endpoint IP mask %s, want %s", i, te.h, ne.IP.Mask.String(), e.Scope().Subnet().Mask.String())
 				}
 				if !ne.Network.Gateway.IP.Equal(e.Scope().Gateway()) {
-					t.Fatalf("%d: ctx.BindContainer(%s) => metadata endpoint gateway %s, want %s", te.i, te.h, ne.Network.Gateway.IP, e.Scope().Gateway())
+					t.Fatalf("%d: ctx.BindContainer(%s) => metadata endpoint gateway %s, want %s", i, te.h, ne.Network.Gateway.IP, e.Scope().Gateway())
 				}
 				if ne.Network.Gateway.Mask.String() != e.Scope().Subnet().Mask.String() {
-					t.Fatalf("%d: ctx.BindContainer(%s) => metadata endpoint gateway mask %s, want %s", te.i, te.h, ne.Network.Gateway.Mask.String(), e.Scope().Subnet().Mask.String())
+					t.Fatalf("%d: ctx.BindContainer(%s) => metadata endpoint gateway mask %s, want %s", i, te.h, ne.Network.Gateway.Mask.String(), e.Scope().Subnet().Mask.String())
 				}
 
 				break
 			}
 
 			if !found {
-				t.Fatalf("%d: ctx.BindContainer(%s) => endpoint for scope %s not added", te.i, te.h, s)
+				t.Fatalf("%d: ctx.BindContainer(%s) => endpoint for scope %s not added", i, te.h, s)
 			}
 		}
 	}
 
 	tests = []struct {
-		i      int
 		h      *exec.Handle
 		scopes []string
 		ips    []net.IP
@@ -804,18 +808,18 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		err    error
 	}{
 		// container not bound
-		{0, foo, []string{}, nil, false, nil},
+		{foo, []string{}, nil, false, nil},
 		// successful container unbind
-		{1, added, []string{ctx.DefaultScope().Name(), scope.Name()}, nil, false, nil},
-		{2, staticIP, []string{ctx.DefaultScope().Name()}, nil, true, nil},
+		{added, []string{ctx.DefaultScope().Name(), scope.Name()}, nil, false, nil},
+		{staticIP, []string{ctx.DefaultScope().Name()}, nil, true, nil},
 	}
 
 	// test UnbindContainer
-	for _, te := range tests {
+	for i, te := range tests {
 		eps, err := ctx.UnbindContainer(te.h)
 		if te.err != nil {
 			if err == nil {
-				t.Fatalf("%d: ctx.UnbindContainer(%s) => nil, want err", te.i, te.h)
+				t.Fatalf("%d: ctx.UnbindContainer(%s) => nil, want err", i, te.h)
 			}
 
 			continue
@@ -824,7 +828,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		// container should not be there
 		con := ctx.Container(te.h.Container.ExecConfig.ID)
 		if con != nil {
-			t.Fatalf("%d: ctx.Container(%s) => %#v, want nil", te.i, te.h, con)
+			t.Fatalf("%d: ctx.Container(%s) => %#v, want nil", i, te.h, con)
 		}
 
 		for _, s := range te.scopes {
@@ -836,30 +840,26 @@ func TestContextBindUnbindContainer(t *testing.T) {
 			}
 
 			if !found {
-				t.Fatalf("%d: ctx.UnbindContainer(%s) did not return endpoint for scope %s. Endpoints: %+v", te.i, te.h, s, eps)
+				t.Fatalf("%d: ctx.UnbindContainer(%s) did not return endpoint for scope %s. Endpoints: %+v", i, te.h, s, eps)
 			}
 
 			// container should not be part of scope
-			scopes, err := ctx.Scopes(&s)
+			scopes, err := ctx.findScopes(&s)
 			if err != nil || len(scopes) != 1 {
-				t.Fatalf("%d: ctx.Scopes(%s) => (%#v, %#v)", te.i, s, scopes, err)
+				t.Fatalf("%d: ctx.Scopes(%s) => (%#v, %#v)", i, s, scopes, err)
 			}
 			if scopes[0].Container(uid.Parse(te.h.Container.ExecConfig.ID)) != nil {
-				t.Fatalf("%d: container %s is still part of scope %s", te.i, te.h.Container.ExecConfig.ID, s)
+				t.Fatalf("%d: container %s is still part of scope %s", i, te.h.Container.ExecConfig.ID, s)
 			}
 
 			// check if endpoint is still there, but without the ip
 			ne, ok := te.h.ExecConfig.Networks[s]
 			if !ok {
-				t.Fatalf("%d: container endpoint not present in %v", te.i, te.h.ExecConfig)
+				t.Fatalf("%d: container endpoint not present in %v", i, te.h.ExecConfig)
 			}
 
-			if !te.static && ne.Static != nil {
-				t.Fatalf("%d: endpoint IP should be nil in %v", te.i, ne)
-			}
-
-			if te.static && (ne.Static == nil || ne.Static.IP.Equal(net.IPv4zero)) {
-				t.Fatalf("%d: endpoint IP should not be zero in %v", te.i, ne)
+			if te.static != ne.Static {
+				t.Fatalf("%d: ne.Static=%v, want %v", i, ne.Static, te.static)
 			}
 		}
 	}
@@ -869,7 +869,7 @@ func TestContextRemoveContainer(t *testing.T) {
 
 	hFoo := newContainer("foo")
 
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
+	ctx, err := NewContext(testConfig())
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
@@ -973,7 +973,7 @@ func TestContextRemoveContainer(t *testing.T) {
 }
 
 func TestDeleteScope(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
+	ctx, err := NewContext(testConfig())
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
@@ -1038,7 +1038,7 @@ func TestDeleteScope(t *testing.T) {
 			continue
 		}
 
-		scopes, err := ctx.Scopes(&te.name)
+		scopes, err := ctx.findScopes(&te.name)
 		if _, ok := err.(ResourceNotFoundError); !ok || len(scopes) != 0 {
 			t.Fatalf("scope %s not deleted", te.name)
 		}
@@ -1046,7 +1046,7 @@ func TestDeleteScope(t *testing.T) {
 }
 
 func TestAliases(t *testing.T) {
-	ctx, err := NewContext(net.IPNet{IP: net.IPv4(172, 16, 0, 0), Mask: net.CIDRMask(12, 32)}, net.CIDRMask(16, 32), testConfig())
+	ctx, err := NewContext(testConfig())
 	assert.NoError(t, err)
 	assert.NotNil(t, ctx)
 
