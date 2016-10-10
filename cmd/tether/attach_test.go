@@ -230,8 +230,8 @@ func TestAttach(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]executor.SessionConfig{
-			"attach": {
+		Sessions: map[string]*executor.SessionConfig{
+			"attach": &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "attach",
 					Name: "tether_test_session",
@@ -320,8 +320,8 @@ func TestAttachTTY(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]executor.SessionConfig{
-			"attach": {
+		Sessions: map[string]*executor.SessionConfig{
+			"attach": &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "attach",
 					Name: "tether_test_session",
@@ -417,8 +417,8 @@ func TestAttachTwo(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]executor.SessionConfig{
-			"tee1": {
+		Sessions: map[string]*executor.SessionConfig{
+			"tee1": &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "tee1",
 					Name: "tether_test_session",
@@ -433,7 +433,7 @@ func TestAttachTwo(t *testing.T) {
 					Dir:  "/",
 				},
 			},
-			"tee2": {
+			"tee2": &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "tee2",
 					Name: "tether_test_session2",
@@ -557,8 +557,8 @@ func TestAttachInvalid(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]executor.SessionConfig{
-			"valid": {
+		Sessions: map[string]*executor.SessionConfig{
+			"valid": &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "valid",
 					Name: "tether_test_session",
@@ -631,7 +631,7 @@ func TestMockAttachTetherToPL(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]executor.SessionConfig{
+		Sessions: map[string]*executor.SessionConfig{
 			"attach": executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "attach",
@@ -694,8 +694,8 @@ func TestReattach(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]executor.SessionConfig{
-			"attach": {
+		Sessions: map[string]*executor.SessionConfig{
+			"attach": &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "attach",
 					Name: "tether_test_session",

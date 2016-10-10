@@ -519,12 +519,6 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 				//FIXME: hack during config migration
 				"--host=localhost",
 				fmt.Sprintf("--port=%d", portLayerPort),
-				"--insecure",
-				"--sdk=" + conf.Target.String(),
-				"--datacenter=" + settings.DatacenterName,
-				"--cluster=" + settings.ClusterPath,
-				"--pool=" + settings.ResourcePoolPath,
-				"--datastore=" + conf.ImageStores[0].Host,
 			},
 		},
 		Restart: true,
