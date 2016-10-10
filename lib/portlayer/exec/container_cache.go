@@ -106,13 +106,13 @@ func (conCache *containerCache) Remove(idOrRef string) {
 }
 
 func (conCache *containerCache) sync(ctx context.Context, sess *session.Session) error {
+	conCache.m.Lock()
+	defer conCache.m.Unlock()
+
 	cons, err := infraContainers(ctx, sess)
 	if err != nil {
 		return err
 	}
-
-	conCache.m.Lock()
-	defer conCache.m.Unlock()
 
 	conCache.cache = make(map[string]*Container)
 	for _, c := range cons {

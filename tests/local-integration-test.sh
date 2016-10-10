@@ -23,7 +23,7 @@ do
     case $flag in
         # run a specific test
         t)
-            cmd="$cmd -t \"$OPTARG\""
+            cmd="$cmd --exclude skip -t \"$OPTARG\""
             ;;
     esac
 done

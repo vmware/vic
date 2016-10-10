@@ -15,9 +15,12 @@
 package network
 
 import (
+	"fmt"
 	"sync"
 
+	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/pkg/uid"
+	"golang.org/x/net/context"
 )
 
 type Container struct {
@@ -88,4 +91,36 @@ func (c *Container) removeEndpoint(e *Endpoint) {
 	defer c.Unlock()
 
 	c.endpoints = removeEndpointHelper(e, c.endpoints)
+}
+
+func (c *Container) Refresh(ctx context.Context) error {
+	c.Lock()
+	defer c.Unlock()
+
+	// this will "refresh" the container executor config that contains
+	// the current ip addresses
+	h := exec.GetContainer(ctx, c.ID())
+	if h == nil {
+		return fmt.Errorf("could not find container %s", c.ID())
+	}
+	defer h.Close()
+
+	for _, e := range c.endpoints {
+		s := e.Scope()
+		if !s.isDynamic() {
+			continue
+		}
+
+		ne := h.ExecConfig.Networks[s.Name()]
+		if ne == nil {
+			return fmt.Errorf("container config does not have info for network scope %s", s.Name())
+		}
+
+		e.ip = ne.Assigned.IP
+		if err := s.Refresh(h); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

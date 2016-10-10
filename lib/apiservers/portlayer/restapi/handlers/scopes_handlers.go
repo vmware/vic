@@ -19,8 +19,6 @@ import (
 	"net"
 	"net/http"
 
-	"golang.org/x/net/context"
-
 	log "github.com/Sirupsen/logrus"
 
 	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
@@ -28,13 +26,11 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/scopes"
-	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/network"
-
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/uid"
+	"golang.org/x/net/context"
 )
 
 // ScopesHandlersImpl is the receiver for all of the storage handler methods
@@ -88,45 +84,14 @@ func parseScopeConfig(cfg *models.ScopeConfig) (subnet *net.IPNet, gateway net.I
 
 func (handler *ScopesHandlersImpl) listScopes(idName string) ([]*models.ScopeConfig, error) {
 	defer trace.End(trace.Begin(idName))
-	_scopes, err := handler.netCtx.Scopes(&idName)
+	scs, err := handler.netCtx.Scopes(context.Background(), &idName)
 	if err != nil {
 		return nil, err
 	}
 
-	cfgs := make([]*models.ScopeConfig, len(_scopes))
-	updated := make(map[uid.UID]*exec.Handle)
-	for i, s := range _scopes {
-		for _, e := range s.Endpoints() {
-			// update the container config, if necessary
-			// do not need do this for non-bridge scopes, since
-			// IPAM is done by the port layer. For other
-			// scopes types, like external, the network
-			// may be using DHCP, in which case we need to
-			// get the current IP address, and other network
-			// info from the container VM.
-			if s.Type() != constants.BridgeScopeType {
-				var h *exec.Handle
-				c := e.Container().ID()
-				if h = updated[c]; h == nil {
-					h = exec.GetContainer(c)
-					if _, err := h.Update(context.Background(), handler.handlerCtx.Session); err != nil {
-						return nil, err
-					}
-
-					updated[c] = h
-				}
-
-				if err = handler.netCtx.UpdateContainer(h); err != nil {
-					return nil, err
-				}
-			}
-		}
-
+	cfgs := make([]*models.ScopeConfig, len(scs))
+	for i, s := range scs {
 		cfgs[i] = toScopeConfig(s)
-	}
-
-	for _, h := range updated {
-		h.Close()
 	}
 
 	return cfgs, nil
@@ -372,6 +337,9 @@ func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
 	}
 
 	sc.IPAM = pools
+	if len(sc.IPAM) == 0 {
+		sc.IPAM = []string{subnet}
+	}
 
 	eps := scope.Endpoints()
 	sc.Endpoints = make([]*models.EndpointConfig, len(eps))

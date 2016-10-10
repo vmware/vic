@@ -64,7 +64,10 @@ func (v *Validator) getEndpoint(ctx context.Context, conf *config.VirtualContain
 			Gateway:     gw,
 			Nameservers: ns,
 		},
-		Static: staticIP,
+		IP: staticIP,
+	}
+	if staticIP != nil {
+		e.Static = true
 	}
 	log.Debugf("NetworkEndpoint: %v", e)
 
@@ -255,7 +258,8 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 			Name: "bridge",
 			ID:   bridgeID,
 		},
-		Static: &net.IPNet{IP: net.IPv4zero}, // static but managed externally
+		Static: true,
+		IP:     &net.IPNet{IP: net.IPv4zero}, // static but managed externally
 		Network: executor.ContainerNetwork{
 			Common: executor.Common{
 				Name: "bridge",
