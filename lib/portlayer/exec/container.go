@@ -166,6 +166,8 @@ func (c *Container) NewHandle(ctx context.Context) *Handle {
 
 // Refresh calls the propery collector to get config and runtime info and Guest RPC for ExtraConfig
 func (c *Container) Refresh(ctx context.Context) error {
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
+
 	c.m.Lock()
 	defer c.m.Unlock()
 
@@ -173,6 +175,8 @@ func (c *Container) Refresh(ctx context.Context) error {
 }
 
 func (c *Container) refresh(ctx context.Context) error {
+	defer trace.End(trace.Begin(c.ExecConfig.ID))
+
 	var o mo.VirtualMachine
 
 	// make sure we have vm
@@ -224,7 +228,6 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 		var res *types.TaskInfo
 		var err error
-
 		if sess.IsVC() && Config.VirtualApp.ResourcePool != nil {
 			// Create the vm
 			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
@@ -259,6 +262,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		// clear the spec as we've acted on it
 		h.Spec = nil
 
+		c.ExecConfig = &h.ExecConfig
 		// refresh the struct with what propery collector provides
 		if err = c.refresh(ctx); err != nil {
 			return err
@@ -275,6 +279,8 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 		c.State = *h.State
 		commitEvent = events.ContainerStopped
+
+		c.ExecConfig = &h.ExecConfig
 
 		// refresh the struct with what propery collector provides
 		if err := c.refresh(ctx); err != nil {
@@ -313,6 +319,8 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 			return err
 		}
 
+		c.ExecConfig = &h.ExecConfig
+
 		// refresh the struct with what propery collector provides
 		if err = c.refresh(ctx); err != nil {
 			return err
@@ -328,6 +336,8 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 		c.State = *h.State
 		commitEvent = events.ContainerStarted
+
+		c.ExecConfig = &h.ExecConfig
 
 		// refresh the struct with what propery collector provides
 		if err := c.refresh(ctx); err != nil {
