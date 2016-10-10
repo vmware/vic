@@ -466,13 +466,8 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			Path: "/sbin/vicadmin",
 			Args: []string{
 				"/sbin/vicadmin",
-				"-docker-host=unix:///var/run/docker.sock",
-				// FIXME: hack during config migration
-				"-insecure",
-				"-ds=" + conf.ImageStores[0].Host,
-				"-cluster=" + settings.ClusterPath,
-				"-pool=" + settings.ResourcePoolPath,
-				"-vm-path=" + vm2.InventoryPath,
+				"--pool=" + settings.ResourcePoolPath,
+				"--cluster=" + settings.ClusterPath,
 			},
 			Env: []string{
 				"PATH=/sbin:/bin",
@@ -516,9 +511,16 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			Path: "/sbin/port-layer-server",
 			Args: []string{
 				"/sbin/port-layer-server",
-				//FIXME: hack during config migration
 				"--host=localhost",
 				fmt.Sprintf("--port=%d", portLayerPort),
+			},
+			Env: []string{
+				//FIXME: hack during config migration
+				"VC_URL=" + conf.Target.String(),
+				"DC_PATH=" + settings.DatacenterName,
+				"CS_PATH=" + settings.ClusterPath,
+				"POOL_PATH=" + settings.ResourcePoolPath,
+				"DS_PATH=" + conf.ImageStores[0].Host,
 			},
 		},
 		Restart: true,

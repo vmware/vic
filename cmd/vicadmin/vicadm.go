@@ -69,14 +69,8 @@ var (
 
 	config struct {
 		session.Config
-		addr         string
-		dockerHost   string
-		vmPath       string
-		hostCertFile string
-		hostKeyFile  string
-		authType     string
-		timeout      time.Time
-		tls          bool
+		addr string
+		tls  bool
 	}
 
 	resources vchconfig.Resources
@@ -111,22 +105,11 @@ func init() {
 	// os.Exit(1)
 	// }
 
-	flag.StringVar(&config.addr, "l", ":2378", "Listen address")
-	flag.StringVar(&config.dockerHost, "docker-host", "127.0.0.1:2376", "Docker host")
-	flag.StringVar(&config.hostCertFile, "hostcert", "", "Host certificate file")
-	flag.StringVar(&config.hostKeyFile, "hostkey", "", "Host private key file")
-	flag.StringVar(&config.DatacenterPath, "dc", "", "Name of the Datacenter")
-	flag.StringVar(&config.DatastorePath, "ds", "", "Name of the Datastore")
+	flag.StringVar(&config.addr, "l", "client.localhost:2378", "Listen address")
 	flag.StringVar(&config.ClusterPath, "cluster", "", "Path of the cluster")
 	flag.StringVar(&config.PoolPath, "pool", "", "Path of the resource pool")
 	flag.BoolVar(&config.Insecure, "insecure", false, "Allow connection when sdk certificate cannot be verified")
 	flag.BoolVar(&config.tls, "tls", true, "Set to false to disable -hostcert and -hostkey and enable plain HTTP")
-
-	// This is only applicable for containers hosted under the VCH VM folder
-	// This will not function for vSAN
-	flag.StringVar(&config.vmPath, "vm-path", "", "Docker vm path")
-
-	flag.Parse()
 
 	// load the vch config
 	src, err := extraconfig.GuestInfoSource()
@@ -136,6 +119,10 @@ func init() {
 	}
 
 	extraconfig.Decode(src, &vchConfig)
+
+	// FIXME: pull the rest from flags
+	flag.Parse()
+
 }
 
 type Authenticator interface {
@@ -311,6 +298,14 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 			continue
 		}
 
+		// FIXME: until #2630 is address, and we confirm this filters secrets from appliance vmware.log as well,
+		// we're skipping direct collection of those logs. Matching by name is terrible, but we cannot use
+		// GetSelf as non-root currently because of /sys/class/dmi/id/product_serial permissions
+		if logname == vchConfig.Name {
+			log.Info("Skipping collection for appliance VM")
+			continue
+		}
+
 		log.Debugf("Adding VM for log collection: %s", path.String())
 
 		log := logfile{
@@ -455,10 +450,14 @@ func main() {
 		vchConfig.Target = *newurl
 	}
 
+	// FIXME: these should just be consumed directly inside Session
 	config.Service = vchConfig.Target.String()
 	config.ExtensionCert = vchConfig.ExtensionCert
 	config.ExtensionKey = vchConfig.ExtensionKey
 	config.ExtensionName = vchConfig.ExtensionName
+
+	config.DatastorePath = vchConfig.Storage.ImageStores[0].Host
+	config.Insecure = vchConfig.Connection.Insecure
 
 	s := &server{
 		addr: config.addr,

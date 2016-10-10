@@ -82,7 +82,7 @@ func (s *server) listen(useTLS bool) error {
 		tlsconfig.Certificates = []tls.Certificate{*certificate}
 	}
 
-	if !useTLS || err != nil {
+	if !useTLS {
 		s.l, err = net.Listen("tcp", s.addr)
 		return err
 	}
