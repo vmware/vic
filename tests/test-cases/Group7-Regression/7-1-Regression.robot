@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation  Test 7-1 - Regression
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Install VIC Appliance To Test Server  certs=${false}
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Default Tags  regression
 
