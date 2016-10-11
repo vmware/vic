@@ -60,6 +60,9 @@ Upgrade VCH with containers
     Log  ${output}
     Get Docker Params  ${output}  ${true}
 
+    # wait for docker info to succeed
+    Wait Until Keyword Succeeds  20x  5 seconds  Run Docker Info  ${params}
+
     ${status}=  Get State Of Github Issue  2448
     Run Keyword If  '${status}' == 'closed'  Fail  Test 11-1-VCH-Upgrade.robot needs to be updated now that Issue #2448 has been resolved
     Log  Issue \#2448 is blocking implementation  WARN

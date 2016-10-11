@@ -31,13 +31,7 @@ Reboot VCH
     Log To Console  Waiting for VCH to power on ...
     Wait Until Vm Powers On  ${vm}
     Log To Console  VCH Powered On
-
-Run Docker Info
-    [Arguments]  ${docker-params}
-    ${rc}=  Run And Return Rc  docker ${docker-params} info
-    Should Be Equal As Integers  ${rc}  0
     
-
 *** Test Cases ***
 Created Network And Images Persists As Well As Containers Are Discovered With Correct IPs
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull nginx

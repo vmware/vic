@@ -37,7 +37,7 @@ Remove image with a container
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rmi busybox
     Should Be Equal As Integers  ${rc}  1
-    Should Contain  ${output}  Failed to remove image (busybox)
+    Should Contain  ${output}  Failed to remove image "busybox"
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  busybox
