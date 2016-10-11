@@ -131,9 +131,8 @@ func (i *Image) Self() string {
 func (i *Image) Parent() string {
 	if i.ParentLink != nil {
 		return i.ParentLink.String()
-	} else {
-		return i.Self()
 	}
+	return i.Self()
 }
 
 func Parse(u *url.URL) (*Image, error) {

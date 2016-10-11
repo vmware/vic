@@ -86,7 +86,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		Config.EventManager = event.NewEventManager(ec)
 
 		// subscribe the exec layer to the event stream for Vm events
-		Config.EventManager.Subscribe(events.NewEventType(vsphere.VmEvent{}).Topic(), "exec", eventCallback)
+		Config.EventManager.Subscribe(events.NewEventType(vsphere.VMEvent{}).Topic(), "exec", eventCallback)
 
 		// instantiate the container cache now
 		NewContainerCache()

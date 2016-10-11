@@ -46,7 +46,6 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/portallocator"
-
 	"github.com/vishvananda/netlink"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
@@ -939,7 +938,7 @@ func (c *Container) ContainerLogs(name string, config *backend.ContainerLogsConf
 
 	wf.Flush()
 
-	var outStream io.Writer = wf
+	outStream := io.Writer(wf)
 	if !vc.Config.Tty {
 		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
 	}

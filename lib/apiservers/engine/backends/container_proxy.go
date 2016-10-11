@@ -514,9 +514,8 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 					err := InternalServerError(err.Error())
 					log.Infof("Container was signaled but is still running: %s", err)
 					return err
-				} else {
-					return nil
 				}
+				return nil
 			}
 		}
 

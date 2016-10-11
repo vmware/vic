@@ -32,12 +32,12 @@ func TestNewManager(t *testing.T) {
 
 func TestTopic(t *testing.T) {
 	vmEvent := newVMEvent()
-	assert.Equal(t, vmEvent.Topic(), "vsphere.VmEvent")
+	assert.Equal(t, vmEvent.Topic(), "vsphere.VMEvent")
 }
 
 func TestSubscribe(t *testing.T) {
 	mgr := NewEventManager()
-	topic := events.NewEventType(vsphere.VmEvent{}).Topic()
+	topic := events.NewEventType(vsphere.VMEvent{}).Topic()
 	mgr.Subscribe(topic, "tester", callback)
 	subs := mgr.Subscribers()
 	assert.Equal(t, 1, len(subs))
@@ -51,7 +51,7 @@ func TestSubscribe(t *testing.T) {
 	// now two subscribers for that topic
 	assert.Equal(t, 2, mgr.Subscribed())
 
-	mgr.Subscribe(events.NewEventType(&vsphere.VmEvent{}).Topic(), "tester3", callback)
+	mgr.Subscribe(events.NewEventType(&vsphere.VMEvent{}).Topic(), "tester3", callback)
 	subs = mgr.Subscribers()
 	// should still have 1 topic
 	assert.Equal(t, 1, len(subs))
@@ -65,7 +65,7 @@ func TestSubscribe(t *testing.T) {
 	// now two subscribers for that topic
 	assert.Equal(t, 2, mgr.Subscribed())
 
-	mgr.Unsubscribe(events.NewEventType(&vsphere.VmEvent{}).Topic(), "tester3")
+	mgr.Unsubscribe(events.NewEventType(&vsphere.VMEvent{}).Topic(), "tester3")
 	subs = mgr.Subscribers()
 	// should still have 1 topic
 	assert.Equal(t, 1, len(subs))
@@ -91,7 +91,7 @@ func newBaseEvent() types.BaseEvent {
 	return types.BaseEvent(&types.VmPoweredOnEvent{VmEvent: types.VmEvent{Event: types.Event{Vm: &types.VmEventArgument{Vm: *vm}}}})
 }
 
-func newVMEvent() *vsphere.VmEvent {
+func newVMEvent() *vsphere.VMEvent {
 	return vsphere.NewVMEvent(newBaseEvent())
 }
 
