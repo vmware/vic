@@ -61,6 +61,8 @@ const (
 
 	propertyCollectorTimeout = 3 * time.Minute
 	containerLogName         = "output.log"
+
+	notSuspendedMsg = "The virtual machine is not suspended."
 )
 
 // NotFoundError is returned when a types.ManagedObjectNotFound is returned from a vmomi call
@@ -458,12 +460,11 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 
 	log.Warnf("stopping %s via hard power off due to: %s", c.ExecConfig.ID, err)
 
-	taskInfo, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return c.vm.PowerOff(ctx)
 	})
 
 	if err != nil {
-		log.Debugf("taskInfo during failed power off: %+v", taskInfo)
 
 		// It is possible the VM has finally shutdown in between, ignore the error in that case
 		if terr, ok := err.(task.Error); ok {
@@ -475,12 +476,20 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 				}
 				log.Warnf("invalid power state during power off: %s", terr.ExistingState)
 
+			case *types.GenericVmConfigFault:
+				if terr.Reason == notSuspendedMsg {
+					log.Infof("power off %s task skipped due to guest shutdown", c.ExecConfig.ID)
+					return nil
+				}
+				log.Warnf("hard power off failed due to: %#v", terr)
+
 			default:
 				log.Warnf("hard power off failed due to: %#v", terr)
 			}
 		}
 		c.State = existingState
 	}
+
 	return err
 }
 
