@@ -56,7 +56,7 @@ endif
 # Generate Go package dependency set, skipping if the only targets specified are clean and/or distclean
 # Caches dependencies to speed repeated calls
 define godeps
-  	$(call assert,$(call gmsl_compatible,1 1 7), Wrong GMSL version) \
+	$(call assert,$(call gmsl_compatible,1 1 7), Wrong GMSL version) \
 	$(if $(filter-out clean distclean .DEFAULT,$(MAKECMDGOALS)), \
 		$(if $(call defined,dep_cache,$(dir $1)),,$(info Generating dependency set for $(dir $1))) \
 		$(or \
@@ -234,7 +234,11 @@ sincemark:
 	@echo seconds passed since we start
 	@stat -c %Y /started | echo `expr $$(date +%s) - $$(cat)`
 
-test: portlayerapi $(TEST_JOBS)
+install-govmomi:
+# manually install govmomi so the huge types package doesn't break cover
+	$(GO) install ./vendor/github.com/vmware/govmomi
+
+test: install-govmomi portlayerapi $(TEST_JOBS)
 
 $(TEST_JOBS): test-job-%:
 	@echo Running unit tests
