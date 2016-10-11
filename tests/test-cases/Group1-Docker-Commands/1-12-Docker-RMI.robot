@@ -8,11 +8,14 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Basic docker remove image
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull alpine
+    Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rmi busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  busybox
+    Should Contain  ${output}  alpine
 
 Remove image with a removed container
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
