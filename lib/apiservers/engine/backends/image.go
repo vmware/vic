@@ -81,7 +81,7 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 	if err != nil {
 		switch err := err.(type) {
 		case *storage.DeleteImageLocked:
-			return nil, fmt.Errorf("Failed to remove image (%s): ", imageRef, err.Payload.Message)
+			return nil, fmt.Errorf("Failed to remove image %q: %s", imageRef, err.Payload.Message)
 		default:
 			return nil, err
 		}
