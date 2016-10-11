@@ -70,8 +70,6 @@ show_cover_report() {
     go tool cover -${1}="$profile"
 }
 
-# manually install govmomi so the huge types package doesn't break cover
-go install ./vendor/github.com/vmware/govmomi
 generate_pkg_cover_data $(dir_to_pkg "$@")
 
 show_cover_report func
