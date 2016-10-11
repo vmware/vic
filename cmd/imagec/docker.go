@@ -127,7 +127,7 @@ func LearnAuthURL(options ImageCOptions) (*url.URL, error) {
 	// We parse that header and learn the OAuth endpoint to fetch OAuth token.
 	hdr, err := fetcher.Head(url)
 	if err == nil && fetcher.IsStatusUnauthorized() {
-		return fetcher.ExtractOAuthUrl(hdr.Get("www-authenticate"), url)
+		return fetcher.ExtractOAuthURL(hdr.Get("www-authenticate"), url)
 	}
 
 	// Private registry returned the manifest directly as auth option is optional.

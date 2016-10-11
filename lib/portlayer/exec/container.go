@@ -472,9 +472,8 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 				if terr.ExistingState == types.VirtualMachinePowerStatePoweredOff {
 					log.Warnf("power off %s task skipped (state was already %s)", c.ExecConfig.ID, terr.ExistingState)
 					return nil
-				} else {
-					log.Warnf("invalid power state during power off: %s", terr.ExistingState)
 				}
+				log.Warnf("invalid power state during power off: %s", terr.ExistingState)
 
 			default:
 				log.Warnf("hard power off failed due to: %#v", terr)

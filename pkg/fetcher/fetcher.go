@@ -53,7 +53,7 @@ type Fetcher interface {
 
 	Head(url *url.URL) (http.Header, error)
 
-	ExtractOAuthUrl(hdr string, repository *url.URL) (*url.URL, error)
+	ExtractOAuthURL(hdr string, repository *url.URL) (*url.URL, error)
 
 	IsStatusUnauthorized() bool
 	IsStatusOK() bool
@@ -234,7 +234,7 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (io.Rea
 		if hdr == "" {
 			return nil, nil, fmt.Errorf("www-authenticate header is missing")
 		}
-		u.OAuthEndpoint, err = u.ExtractOAuthUrl(hdr, url)
+		u.OAuthEndpoint, err = u.ExtractOAuthURL(hdr, url)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -396,7 +396,7 @@ func (u *URLFetcher) setAuthToken(req *http.Request) {
 	}
 }
 
-func (u *URLFetcher) ExtractOAuthUrl(hdr string, repository *url.URL) (*url.URL, error) {
+func (u *URLFetcher) ExtractOAuthURL(hdr string, repository *url.URL) (*url.URL, error) {
 	tokens := strings.Split(hdr, " ")
 	if len(tokens) != 2 || strings.ToLower(tokens[0]) != "bearer" {
 		return nil, fmt.Errorf("www-authenticate header is corrupted")

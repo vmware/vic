@@ -18,7 +18,6 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"crypto/tls"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -311,11 +310,11 @@ func testSeek(t *testing.T, st seekTest, td string) {
 		t.Fatal(err)
 	}
 	if n != len(st.input) {
-		t.Fatal(errors.New(fmt.Sprintf("Incorrect byte count on write: %d/%d", n, len(st.input))))
+		t.Fatal(fmt.Errorf("Incorrect byte count on write: %d/%d", n, len(st.input)))
 	}
 
 	if ret := findSeekPos(f); ret != int64(st.output) {
-		t.Fatal(errors.New(fmt.Sprintf("Incorrect seek position: %d/%d", ret, st.output)))
+		t.Fatal(fmt.Errorf("Incorrect seek position: %d/%d", ret, st.output))
 	}
 	log.Printf("Successfully seeked to position %d", st.output)
 	os.Remove(f.Name())

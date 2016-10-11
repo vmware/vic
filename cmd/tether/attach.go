@@ -36,10 +36,10 @@ const (
 
 // server is the singleton attachServer for the tether - there can be only one
 // as the backchannel line protocol may not provide multiplexing of connections
-var server attachServer
+var server AttachServer
 var once sync.Once
 
-type attachServer interface {
+type AttachServer interface {
 	tether.Extension
 
 	start() error
@@ -61,8 +61,8 @@ type attachServerSSH struct {
 	testing bool
 }
 
-// NewAttachServerSSH either creates a new instance or returns the inialized one
-func NewAttachServerSSH() attachServer {
+// NewAttachServerSSH either creates a new instance or returns the initialized one
+func NewAttachServerSSH() AttachServer {
 	once.Do(func() {
 		server = &attachServerSSH{}
 	})
