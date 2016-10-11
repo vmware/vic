@@ -7,6 +7,7 @@ vSphere Integrated Containers Engine supports the use of container volumes. When
 - [Create a Volume in a Volume Store](#create_vol)
 - [Create a Container and Attach it to an Anonymous or Named Volume](#create_container)
 - [Attach an Existing Volume to a Container](#attach)
+- [Obtain Information About a Volume](#inspect_vol) 
 - [Delete a Named Volume from a Volume Store](#delete_vol) 
 
 <a name="list_vs"></a>
@@ -123,10 +124,16 @@ docker attach container2
 [Perform container operations with the same volume that was 
 previously mounted to container1]</pre>
 
+<a name="inspect_vol"></a>
+## Obtain Information About a Volume ##
+To get information about a volume, run `docker volume inspect` and specify the name of the volume.
+<pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
+volume inspect <i>volume_name</i></pre>
+
 <a name="delete_vol"></a>
 ## Delete a Named Volume from a Volume Store ##
 To delete a volume, run `docker volume rm` and specify the name of the volume to delete.
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
 volume rm <i>volume_name</i></pre>
 
-**NOTE**: In the current builds, `docker volume rm` is not yet supported.
+
