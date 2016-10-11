@@ -28,12 +28,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/tlsconfig"
 
+	"crypto/x509"
 	"github.com/vmware/vic/lib/vicadmin"
 	"github.com/vmware/vic/pkg/trace"
 )
 
 type server struct {
-	auth Authenticator
 	l    net.Listener
 	addr string
 	mux  *http.ServeMux
@@ -53,6 +53,13 @@ func (s *server) listen(useTLS bool) error {
 
 	// FIXME: assignment copies lock value to tlsConfig: crypto/tls.Config contains sync.Once contains sync.Mutex
 	tlsconfig := func(c *tls.Config) *tls.Config {
+		if c.ClientCAs == nil {
+			c.ClientCAs = x509.NewCertPool()
+		}
+		clientCAs := c.ClientCAs
+		if !clientCAs.AppendCertsFromPEM(vchConfig.CertificateAuthorities) {
+			log.Warnf("Unable to load CAs from config; client auth via certificate will not function")
+		}
 		return &tls.Config{
 			Certificates:             c.Certificates,
 			NameToCertificate:        c.NameToCertificate,
@@ -60,8 +67,8 @@ func (s *server) listen(useTLS bool) error {
 			RootCAs:                  c.RootCAs,
 			NextProtos:               c.NextProtos,
 			ServerName:               c.ServerName,
-			ClientAuth:               c.ClientAuth,
-			ClientCAs:                c.ClientCAs,
+			ClientAuth:               tls.VerifyClientCertIfGiven,
+			ClientCAs:                clientCAs,
 			InsecureSkipVerify:       c.InsecureSkipVerify,
 			CipherSuites:             c.CipherSuites,
 			PreferServerCipherSuites: c.PreferServerCipherSuites,
@@ -101,25 +108,23 @@ func (s *server) listenPort() int {
 	return s.l.Addr().(*net.TCPAddr).Port
 }
 
+func (s *server) Handle(link string, h http.Handler) {
+	s.HandleFunc(link, h.ServeHTTP)
+}
+
 // handleFunc does preparatory work and then calls the HandleFunc method owned by the HTTP multiplexer
-func (s *server) handleFunc(link string, handler func(http.ResponseWriter, *http.Request)) {
+func (s *server) HandleFunc(link string, handler func(http.ResponseWriter, *http.Request)) {
 	defer trace.End(trace.Begin(""))
-
-	if s.auth != nil {
-		authHandler := func(w http.ResponseWriter, r *http.Request) {
-			user, password, ok := r.BasicAuth()
-			if !ok || !s.auth.Validate(user, password) {
-				w.Header().Add("WWW-Authenticate", "Basic realm=vicadmin")
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-			handler(w, r)
+	authHandler := func(w http.ResponseWriter, r *http.Request) {
+		if len(r.TLS.PeerCertificates) == 0 && len(r.Cookies()) == 0 {
+			// 	// username/password authentication
+			log.Infof("redirecting to auth page")
+			http.Redirect(w, r, "/authentication", 302)
+			return
 		}
-		s.mux.HandleFunc(link, authHandler)
-		return
+		handler(w, r)
 	}
-
-	s.mux.HandleFunc(link, handler)
+	s.mux.HandleFunc(link, authHandler)
 }
 
 func (s *server) serve() error {
@@ -127,35 +132,38 @@ func (s *server) serve() error {
 
 	s.mux = http.NewServeMux()
 
+	s.mux.HandleFunc("/authentication", s.authPage)
+	// NOTE:
+	// DO NOT USE s.mux.HandleFunc directly outside of HandleFunc; you will bypass authentication!
+
 	// tar of appliance system logs
-	s.mux.HandleFunc("/logs.tar.gz", s.tarDefaultLogs)
-	s.handleFunc("/logs.zip", s.zipDefaultLogs)
+	s.HandleFunc("/logs.tar.gz", s.tarDefaultLogs)
+	s.HandleFunc("/logs.zip", s.zipDefaultLogs)
 
 	// tar of appliance system logs + container logs
-	s.mux.HandleFunc("/container-logs.tar.gz", s.tarContainerLogs)
-	s.handleFunc("/container-logs.zip", s.zipContainerLogs)
+	s.HandleFunc("/container-logs.tar.gz", s.tarContainerLogs)
+	s.HandleFunc("/container-logs.zip", s.zipContainerLogs)
 
-	s.mux.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("css/"))))
-	s.mux.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir("images/"))))
-	s.mux.Handle("/fonts/", http.StripPrefix("/fonts/", http.FileServer(http.Dir("fonts/"))))
+	s.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("css/"))))
+	s.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir("images/"))))
+	s.Handle("/fonts/", http.StripPrefix("/fonts/", http.FileServer(http.Dir("fonts/"))))
 
 	for _, path := range logFiles() {
 		name := filepath.Base(path)
 		p := path
 
 		// get single log file (no tail)
-		s.handleFunc("/logs/"+name, func(w http.ResponseWriter, r *http.Request) {
+		s.HandleFunc("/logs/"+name, func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, p)
 		})
 
 		// get single log file (with tail)
-		s.handleFunc("/logs/tail/"+name, func(w http.ResponseWriter, r *http.Request) {
+		s.HandleFunc("/logs/tail/"+name, func(w http.ResponseWriter, r *http.Request) {
 			s.tailFiles(w, r, []string{p})
 		})
 	}
 
-	//s.handleFunc("/", s.index)
-	s.mux.HandleFunc("/", s.index)
+	s.HandleFunc("/", s.index)
 	server := &http.Server{
 		Handler: s.mux,
 	}
@@ -271,6 +279,19 @@ func (s *server) tailFiles(res http.ResponseWriter, req *http.Request, names []s
 	<-cc
 	for range names {
 		done <- true
+	}
+}
+
+func (s *server) authPage(res http.ResponseWriter, req *http.Request) {
+	defer trace.End(trace.Begin(""))
+	ctx := context.Background()
+	sess, err := client()
+	v := vicadmin.NewValidator(ctx, &vchConfig, sess)
+
+	tmpl, err := template.ParseFiles("auth.html")
+	err = tmpl.ExecuteTemplate(res, "auth.html", v)
+	if err != nil {
+		log.Errorf("Error parsing template: %s", err)
 	}
 }
 
