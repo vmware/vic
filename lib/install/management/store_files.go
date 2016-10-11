@@ -126,7 +126,7 @@ func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, for
 	}
 
 	m := object.NewFileManager(ds.Client())
-	if d.isVSAN(ds) {
+	if d.geVC65() || d.isVSAN(ds) {
 		if err = d.deleteFilesIteratively(m, ds, dsPath); err != nil {
 			return empty, err
 		}
@@ -137,6 +137,12 @@ func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, for
 		return empty, err
 	}
 	return true, nil
+}
+
+func (d *Dispatcher) geVC65() bool {
+	vcVersion := d.session.Client.ServiceContent.About.Version
+	// vsphere only has versions 5.5.x, 6.0.x, 6.5.x, not likely to have 6.10.x, so compare string directly here
+	return strings.Compare(vcVersion, "6.5.0") >= 0
 }
 
 func (d *Dispatcher) isVSAN(ds *object.Datastore) bool {
