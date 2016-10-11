@@ -1,6 +1,7 @@
 *** Settings ***
 Documentation  Test 5-3 - Enhanced Linked Mode
 Resource  ../../resources/Nimbus-Util.robot
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup
 
 *** Test Cases ***
 Test
