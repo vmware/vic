@@ -463,3 +463,8 @@ Hit Nginx Endpoint
     [Arguments]  ${vch-ip}  ${port}
     ${rc}  ${output}=  Run And Return Rc And Output  wget ${vch-ip}:${port}
     Should Be Equal As Integers  ${rc}  0
+
+Run Docker Info
+    [Arguments]  ${docker-params}
+    ${rc}=  Run And Return Rc  docker ${docker-params} info
+    Should Be Equal As Integers  ${rc}  0
