@@ -188,12 +188,12 @@ func (h *StorageHandlersImpl) DeleteImage(params storage.DeleteImageParams) midd
 			})
 	}
 
-	imageUrl, err := util.ImageURL(params.StoreName, params.ID)
+	imageURL, err := util.ImageURL(params.StoreName, params.ID)
 	if err != nil {
 		return ferr(err, http.StatusInternalServerError)
 	}
 
-	image, err := spl.Parse(imageUrl)
+	image, err := spl.Parse(imageURL)
 	if err != nil {
 		return ferr(err, http.StatusInternalServerError)
 	}

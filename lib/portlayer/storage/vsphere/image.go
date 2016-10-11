@@ -16,7 +16,6 @@ package vsphere
 
 import (
 	"crypto/sha256"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -73,11 +72,11 @@ func NewImageStore(op trace.Operation, s *session.Session, u *url.URL) (*ImageSt
 
 	datastores, err := s.Finder.DatastoreList(op, u.Host)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Host returned error when trying to locate provided datastore %s: %s", u.String(), err.Error()))
+		return nil, fmt.Errorf("Host returned error when trying to locate provided datastore %s: %s", u.String(), err.Error())
 	}
 
 	if len(datastores) != 1 {
-		return nil, errors.New(fmt.Sprintf("Found %d datastores with provided datastore path %s. Cannot create image store.", len(datastores), u.String()))
+		return nil, fmt.Errorf("Found %d datastores with provided datastore path %s. Cannot create image store.", len(datastores), u)
 	}
 
 	ds, err := datastore.NewHelper(op, s, datastores[0], path.Join(u.Path, StorageParentDir))

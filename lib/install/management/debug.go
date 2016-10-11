@@ -27,7 +27,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-func (d *Dispatcher) DebugVCH(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, password, authorized_key string) error {
+func (d *Dispatcher) DebugVCH(vch *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, password, authorizedKey string) error {
 	defer trace.End(trace.Begin(conf.Name))
 
 	op, err := trace.FromContext(d.ctx)
@@ -35,7 +35,7 @@ func (d *Dispatcher) DebugVCH(vch *vm.VirtualMachine, conf *config.VirtualContai
 		op = trace.NewOperation(d.ctx, "enable appliance debug")
 	}
 
-	err = d.enableSSH(op, vch, password, authorized_key)
+	err = d.enableSSH(op, vch, password, authorizedKey)
 	if err != nil {
 		op.Errorf("Unable to enable ssh on the VCH appliance VM: %s", err)
 		return err
@@ -46,7 +46,7 @@ func (d *Dispatcher) DebugVCH(vch *vm.VirtualMachine, conf *config.VirtualContai
 	return nil
 }
 
-func (d *Dispatcher) enableSSH(ctx context.Context, vch *vm.VirtualMachine, password, authorized_key string) error {
+func (d *Dispatcher) enableSSH(ctx context.Context, vch *vm.VirtualMachine, password, authorizedKey string) error {
 	op, err := trace.FromContext(ctx)
 	if err != nil {
 		op = trace.NewOperation(ctx, "enable ssh in appliance")
@@ -81,7 +81,7 @@ func (d *Dispatcher) enableSSH(ctx context.Context, vch *vm.VirtualMachine, pass
 
 	spec := types.GuestProgramSpec{
 		ProgramPath:      "enable-ssh",
-		Arguments:        string(authorized_key),
+		Arguments:        string(authorizedKey),
 		WorkingDirectory: "/",
 		EnvVariables:     []string{},
 	}

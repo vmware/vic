@@ -248,11 +248,11 @@ func (c *NameLookupCache) GetImage(op trace.Operation, store *url.URL, ID string
 	indx := c.storeCache[*store]
 	c.storeCacheLock.Unlock()
 
-	imgUrl, err := util.ImageURL(storeName, ID)
+	imgURL, err := util.ImageURL(storeName, ID)
 	if err != nil {
 		return nil, err
 	}
-	node, err := c.storeCache[*store].Get(imgUrl.String())
+	node, err := c.storeCache[*store].Get(imgURL.String())
 
 	var img *Image
 	if err != nil {

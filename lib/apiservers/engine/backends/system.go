@@ -258,7 +258,7 @@ func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.A
 		registryAddress = registryAddress + "/v2/"
 	}
 
-	registryUrl, err := url.Parse(registryAddress)
+	registryURL, err := url.Parse(registryAddress)
 	if err != nil {
 		msg := fmt.Sprintf("Bad login address: %s", registryAddress)
 		log.Errorf(msg)
@@ -269,31 +269,31 @@ func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.A
 	var insecureOk bool
 	insecureRegistries := InsecureRegistries()
 	for _, registry := range insecureRegistries {
-		if registry == registryUrl.Host {
+		if registry == registryURL.Host {
 			insecureOk = true
 			break
 		}
 	}
 
 	dologin := func(scheme string) (string, error) {
-		registryUrl.Scheme = scheme
+		registryURL.Scheme = scheme
 
-		var authUrl *url.URL
+		var authURL *url.URL
 
 		// Attempt to get the Auth URL from HEAD operation to the registry
-		hdr, err := fetcher.Head(registryUrl)
+		hdr, err := fetcher.Head(registryURL)
 		if err == nil && fetcher.IsStatusUnauthorized() {
-			authUrl, err = fetcher.ExtractOAuthUrl(hdr.Get("www-authenticate"), nil)
+			authURL, err = fetcher.ExtractOAuthURL(hdr.Get("www-authenticate"), nil)
 		}
 		if err != nil {
 			log.Errorf("Looking up OAuth URL failed: %s", err)
 			return "", err
 		}
 
-		log.Debugf("logging onto %s", authUrl.String())
+		log.Debugf("logging onto %s", authURL.String())
 
 		// Just check if we get a token back.
-		token, err := fetcher.FetchAuthToken(authUrl)
+		token, err := fetcher.FetchAuthToken(authURL)
 		if err != nil || token.Token == "" {
 			log.Errorf("Fetch auth token failed: %s", err)
 			return "", err
