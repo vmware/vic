@@ -16,6 +16,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -33,7 +34,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/attach"
@@ -99,7 +99,10 @@ func (t *testAttachServer) Start() error {
 		return errors.New(detail)
 	}
 
-	t.conn = &conn
+	t.conn.Lock()
+	defer t.conn.Unlock()
+
+	t.conn.conn = &conn
 	return nil
 }
 

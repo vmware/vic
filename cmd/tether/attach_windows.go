@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -22,7 +23,6 @@ import (
 	"time"
 
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -82,7 +82,10 @@ func (t *attachServerSSH) Start() error {
 
 	var err error
 
-	t.conn, err = rawConnectionFromSerial()
+	t.conn.Lock()
+	defer t.conn.Unlock()
+
+	t.conn.conn, err = rawConnectionFromSerial()
 	if err != nil {
 		detail := fmt.Errorf("failed to create raw connection from %s file handle: %s", com, err)
 		log.Error(detail)

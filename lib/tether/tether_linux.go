@@ -68,9 +68,11 @@ func (t *tether) childReaper() error {
 
 	go func() {
 		var status syscall.WaitStatus
-
 		flag := syscall.WNOHANG | syscall.WUNTRACED | syscall.WCONTINUED
+
 		for range t.incoming {
+			log.Debugf("Woke up because of a received SIGCHLD")
+
 			func() {
 				// general resiliency
 				defer func() {
@@ -82,6 +84,14 @@ func (t *tether) childReaper() error {
 				// reap until no more children to process
 				for {
 					log.Debugf("Inspecting children with status change")
+
+					// We can still read from a closed channel (eg; after Stop) so we use this to stop the iteration
+					select {
+					case <-t.done:
+						log.Errorf("Someone called shutdown, bailing out")
+						return
+					default:
+					}
 
 					pid, err := syscall.Wait4(-1, &status, flag, nil)
 					// pid 0 means no processes wish to report status
@@ -113,11 +123,12 @@ func (t *tether) childReaper() error {
 						t.handleSessionExit(session)
 					} else {
 						// This is an adopted zombie. The Wait4 call already clean it up from the kernel
-						log.Infof("Reaped zombie process PID %d\n", pid)
+						log.Warnf("Reaped zombie process PID %d", pid)
 					}
 				}
 			}()
 		}
+		log.Info("Stopped reaping child processes")
 	}()
 
 	return nil
@@ -126,10 +137,16 @@ func (t *tether) childReaper() error {
 func (t *tether) stopReaper() {
 	defer trace.End(trace.Begin("Shutting down child reaping"))
 
-	// stop child reaping
-	log.Info("Shutting down reaper")
+	// Ordering is important otherwise we may one goroutine closing, and the other goroutine is trying to write afterwards
+	log.Debugf("Removing the signal notifier")
 	signal.Reset(syscall.SIGCHLD)
+
+	log.Debugf("Closing the channel done to reaper")
 	close(t.incoming)
+
+	log.Debugf("Sending true to the done channel")
+	// just closing the channel is not going to stop the iteration over the channel so signal it as well
+	close(t.done)
 }
 
 func findExecutable(file string) error {

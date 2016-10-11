@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	"net"
@@ -25,7 +26,6 @@ import (
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
-	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -106,13 +106,15 @@ func (t *attachServerSSH) Start() error {
 		return detail
 	}
 
-	t.conn, err = rawConnectionFromSerial()
+	t.conn.Lock()
+	defer t.conn.Unlock()
+
+	t.conn.conn, err = rawConnectionFromSerial()
 	if err != nil {
 		detail := fmt.Errorf("failed to create raw connection from ttyS0 file handle: %s", err)
 		log.Error(detail)
 		return detail
 	}
-
 	return nil
 }
 

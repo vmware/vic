@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -97,9 +98,14 @@ func testSetup(t *testing.T) (string, *Mocker) {
 		t.Error(err)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
 	// supply custom attach server so we can inspect its state
 	testServer := &testAttachServer{
 		updated: make(chan bool, 10),
+		attachServerSSH: attachServerSSH{
+			ctx:    ctx,
+			cancel: cancel,
+		},
 	}
 	server = testServer
 

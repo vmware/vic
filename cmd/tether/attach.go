@@ -15,15 +15,16 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"sync"
+	"sync/atomic"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/lib/tether"
@@ -51,11 +52,18 @@ type attachServerSSH struct {
 	m sync.Mutex
 
 	// conn is held directly as it's how we stop the attach server
-	conn      *net.Conn
+	conn struct {
+		sync.Mutex
+		conn *net.Conn
+	}
+
 	config    *tether.ExecutorConfig
 	sshConfig *ssh.ServerConfig
 
-	enabled bool
+	enabled int32
+
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	// INTERNAL: must set by testAttachServer only
 	testing bool
@@ -64,7 +72,12 @@ type attachServerSSH struct {
 // NewAttachServerSSH either creates a new instance or returns the initialized one
 func NewAttachServerSSH() AttachServer {
 	once.Do(func() {
-		server = &attachServerSSH{}
+		// create a cancelable context and assign it to the CancelFunc
+		ctx, cancel := context.WithCancel(context.Background())
+		server = &attachServerSSH{
+			ctx:    ctx,
+			cancel: cancel,
+		}
 	})
 	return server
 }
@@ -85,6 +98,21 @@ func (t *attachServerSSH) Reload(config *tether.ExecutorConfig) error {
 		return errors.New(detail)
 	}
 	return nil
+}
+
+// Enabled sets the enabled to true
+func (t *attachServerSSH) Enabled() {
+	atomic.StoreInt32(&t.enabled, 1)
+}
+
+// Disabled sets the enabled to false
+func (t *attachServerSSH) Disabled() {
+	atomic.StoreInt32(&t.enabled, 0)
+}
+
+// IsEnabled returns whether the enabled is true
+func (t *attachServerSSH) IsEnabled() bool {
+	return atomic.LoadInt32(&t.enabled) == 1
 }
 
 // Start is implemented at _ARCH.go files
@@ -108,7 +136,7 @@ func (t *attachServerSSH) start() error {
 		return errors.New("attach server is not configured")
 	}
 
-	if t.enabled {
+	if t.IsEnabled() {
 		return nil
 	}
 
@@ -140,7 +168,7 @@ func (t *attachServerSSH) start() error {
 	}
 	t.sshConfig.AddHostKey(pkey)
 
-	t.enabled = true
+	t.Enabled()
 	go t.run()
 
 	return nil
@@ -150,17 +178,25 @@ func (t *attachServerSSH) start() error {
 func (t *attachServerSSH) stop() {
 	defer trace.End(trace.Begin("stop attach server"))
 
-	if t == nil || !t.enabled {
+	if t == nil || !t.IsEnabled() {
 		return
 	}
 
-	t.enabled = false
-	conn := t.conn
-	t.conn = nil
+	log.Debugf("Setting enabled to false")
+	t.Disabled()
 
-	if conn != nil {
-		(*conn).Close()
+	log.Debugf("Canceling the context")
+	t.cancel()
+
+	log.Debugf("Acquiring the connection lock")
+	t.conn.Lock()
+	if t.conn.conn != nil {
+		log.Debugf("Closing the connection")
+		(*t.conn.conn).Close()
+		t.conn.conn = nil
 	}
+	t.conn.Unlock()
+	log.Debugf("Released the connection lock")
 }
 
 // run should not be called directly, but via start
@@ -168,50 +204,76 @@ func (t *attachServerSSH) stop() {
 func (t *attachServerSSH) run() error {
 	defer trace.End(trace.Begin("main attach server loop"))
 
-	var serverConn *ssh.ServerConn
+	var serverConn struct {
+		sync.Mutex
+		*ssh.ServerConn
+	}
+	var established bool
+
 	var chans <-chan ssh.NewChannel
 	var reqs <-chan *ssh.Request
 	var err error
 
-	for t.enabled {
+	for t.IsEnabled() {
+		serverConn.Lock()
+		established = serverConn.ServerConn != nil
+		serverConn.Unlock()
+
 		// keep waiting for the connection to establish
-		for serverConn == nil {
+		for !established && t.IsEnabled() {
+			log.Debugf("Trying to establish a connection")
 			// tests are passing their own connections so do not create connections when testing is set
-			if !t.testing {
-				// close the connection if required
-				if t.conn != nil {
-					(*t.conn).Close()
+
+			establishFn := func() error {
+				t.conn.Lock()
+				defer t.conn.Unlock()
+
+				if !t.testing {
+
+					// close the connection if required
+					if t.conn.conn != nil {
+						(*t.conn.conn).Close()
+						t.conn.conn = nil
+					}
+					t.conn.conn, err = rawConnectionFromSerial()
+					if err != nil {
+						detail := fmt.Errorf("failed to create raw connection raw connection: %s", err)
+						log.Error(detail)
+						return detail
+					}
 				}
-				t.conn, err = rawConnectionFromSerial()
+
+				// wait for backchannel to establish
+				err = backchannel(t.ctx, t.conn.conn)
 				if err != nil {
-					detail := fmt.Errorf("failed to create raw connection raw connection: %s", err)
+					detail := fmt.Errorf("failed to establish backchannel: %s", err)
 					log.Error(detail)
-					continue
+					return detail
 				}
-			}
-			conn := t.conn
 
-			// wait for backchannel to establish
-			err = backchannel(context.Background(), conn)
-			if err != nil {
-				detail := fmt.Errorf("failed to establish backchannel: %s", err)
-				log.Error(detail)
-				continue
-			}
+				// create the SSH server
+				serverConn.Lock()
+				defer serverConn.Unlock()
 
-			// create the SSH server
-			serverConn, chans, reqs, err = ssh.NewServerConn(*conn, t.sshConfig)
-			if err != nil {
-				detail := fmt.Errorf("failed to establish ssh handshake: %s", err)
-				log.Error(detail)
-				continue
+				serverConn.ServerConn, chans, reqs, err = ssh.NewServerConn(*t.conn.conn, t.sshConfig)
+				if err != nil {
+					detail := fmt.Errorf("failed to establish ssh handshake: %s", err)
+					log.Error(detail)
+					return detail
+				}
+
+				return nil
 			}
+			established = establishFn() == nil
 		}
 
 		defer func() {
 			log.Debugf("cleanup on connection")
 
-			if serverConn != nil {
+			serverConn.Lock()
+			defer serverConn.Unlock()
+
+			if serverConn.ServerConn != nil {
 				log.Debugf("closing underlying connection")
 				serverConn.Close()
 			}
@@ -282,7 +344,9 @@ func (t *attachServerSSH) run() error {
 
 				channel.Close()
 
-				serverConn = nil
+				serverConn.Lock()
+				serverConn.ServerConn = nil
+				serverConn.Unlock()
 			}
 
 			// tty's merge stdout and stderr so we don't bind an additional reader in that case
@@ -300,7 +364,9 @@ func (t *attachServerSSH) run() error {
 
 					channel.Close()
 
-					serverConn = nil
+					serverConn.Lock()
+					serverConn.ServerConn = nil
+					serverConn.Unlock()
 				}
 			}
 			log.Debugf("reader/writers bound for channel for %s", sessionid)
