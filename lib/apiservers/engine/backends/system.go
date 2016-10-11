@@ -246,7 +246,7 @@ func (s *System) UnsubscribeFromEvents(chan interface{}) {
 func (s *System) AuthenticateToRegistry(ctx context.Context, authConfig *types.AuthConfig) (string, string, error) {
 	defer trace.End(trace.Begin(""))
 
-	fetcher := urlfetcher.NewURLFetcher(urlfetcher.FetcherOptions{
+	fetcher := urlfetcher.NewURLFetcher(urlfetcher.Options{
 		Timeout:  loginTimeout,
 		Username: authConfig.Username,
 		Password: authConfig.Password,

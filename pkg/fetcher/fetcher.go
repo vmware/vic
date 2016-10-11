@@ -48,7 +48,7 @@ const (
 
 // Fetcher interface
 type Fetcher interface {
-	Fetch(url *url.URL, toFile bool, po progress.Output, id ...string) (string, error)
+	Fetch(ctx context.Context, url *url.URL, toFile bool, po progress.Output, id ...string) (string, error)
 	FetchAuthToken(url *url.URL) (*Token, error)
 
 	Head(url *url.URL) (http.Header, error)
@@ -72,8 +72,8 @@ type Token struct {
 	IssueAt   time.Time `json:"issued_at"`
 }
 
-// FetcherOptions struct
-type FetcherOptions struct {
+// Options struct
+type Options struct {
 	Timeout time.Duration
 
 	Username string
@@ -92,11 +92,11 @@ type URLFetcher struct {
 
 	StatusCode int
 
-	options FetcherOptions
+	options Options
 }
 
 // NewURLFetcher creates a new URLFetcher
-func NewURLFetcher(options FetcherOptions) Fetcher {
+func NewURLFetcher(options Options) Fetcher {
 	/* #nosec */
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
@@ -112,7 +112,7 @@ func NewURLFetcher(options FetcherOptions) Fetcher {
 }
 
 // Fetch fetches from a url and stores its content in a temporary file.
-func (u *URLFetcher) Fetch(url *url.URL, toFile bool, po progress.Output, ids ...string) (string, error) {
+func (u *URLFetcher) Fetch(ctx context.Context, url *url.URL, toFile bool, po progress.Output, ids ...string) (string, error) {
 	defer trace.End(trace.Begin(url.String()))
 
 	// extract ID from ids. Existence of an ID enables progress reporting
@@ -189,7 +189,7 @@ func (u *URLFetcher) Fetch(url *url.URL, toFile bool, po progress.Output, ids ..
 func (u *URLFetcher) FetchAuthToken(url *url.URL) (*Token, error) {
 	defer trace.End(trace.Begin(url.String()))
 
-	data, err := u.Fetch(url, false, nil)
+	data, err := u.Fetch(context.Background(), url, false, nil)
 	if err != nil {
 		log.Errorf("Download failed: %v", err)
 		return nil, err
@@ -396,6 +396,7 @@ func (u *URLFetcher) setAuthToken(req *http.Request) {
 	}
 }
 
+// ExtractOAuthURL extracts the OAuth url from the www-authenticate header
 func (u *URLFetcher) ExtractOAuthURL(hdr string, repository *url.URL) (*url.URL, error) {
 	tokens := strings.Split(hdr, " ")
 	if len(tokens) != 2 || strings.ToLower(tokens[0]) != "bearer" {
