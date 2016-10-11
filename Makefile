@@ -37,7 +37,7 @@ GOVC ?= $(GOPATH)/bin/govc$(BIN_ARCH)
 GAS ?= $(GOPATH)/bin/gas$(BIN_ARCH)
 
 .PHONY: all tools clean test check \
-	goversion goimports gopath govet gas lintcode \
+	goversion goimports gopath govet gas golint \
 	isos tethers apiservers copyright
 
 .DEFAULT_GOAL := all
@@ -120,14 +120,13 @@ vic-ui: $(vic-ui-linux) $(vic-ui-windows) $(vic-ui-darwin)
 vic-dns: $(vic-dns-linux) $(vic-dns-windows) $(vic-dns-darwin)
 
 swagger: $(SWAGGER)
-golint: $(GOLINT)
 goimports: $(GOIMPORTS)
 gas: $(GAS)
 
 # convenience targets
 all: components tethers isos vic-machine vic-ui
 tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) goversion
-check: goversion goimports govet lintcode copyright whitespace gas
+check: goversion goimports govet golint copyright whitespace gas
 apiservers: $(portlayerapi) $(docker-engine-api)
 components: check apiservers $(imagec) $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
@@ -175,7 +174,7 @@ whitespace:
 # exit 1 if golint complains about anything other than comments
 golintf = $(GOLINT) $(1) | sh -c "! grep -v 'should have comment'" | sh -c "! grep -v 'comment on exported'" | sh -c "! grep -v 'by other packages, and that stutters'"
 
-lintcode: $(GOLINT)
+golint: $(GOLINT)
 	@echo checking go lint...
 	@$(call golintf,github.com/vmware/vic/cmd/...)
 	@$(call golintf,github.com/vmware/vic/pkg/...)
