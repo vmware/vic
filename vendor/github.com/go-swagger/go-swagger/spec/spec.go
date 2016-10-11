@@ -35,7 +35,7 @@ const (
 
 var (
 	jsonSchema    = MustLoadJSONSchemaDraft04()
-	swaggerSchema = MustLoadSwagger20Schema()
+	swagger20Schema = MustLoadSwagger20Schema()
 )
 
 // DocLoader represents a doc loader type
@@ -111,10 +111,11 @@ func Swagger20Schema() (*Schema, error) {
 // Document represents a swagger spec document
 type Document struct {
 	specAnalyzer
-	spec   *Swagger
-	schema *Schema
-	raw    json.RawMessage
-	orig   *Document
+	spec     *Swagger
+	origSpec *Swagger
+	schema   *Schema
+	raw      json.RawMessage
+	orig     *Document
 }
 
 // Load loads a new spec document
@@ -156,9 +157,10 @@ func New(data json.RawMessage, version string) (*Document, error) {
 			allSchemas:  make(map[string]SchemaRef),
 			allOfs:      make(map[string]SchemaRef),
 		},
-		schema: MustLoadSwagger20Schema(),
-		spec:   spec,
-		raw:    data,
+		schema:   swagger20Schema,
+		origSpec: spec,
+		spec:     spec,
+		raw:      data,
 	}
 	d.initialize()
 	d.orig = &(*d)
@@ -172,6 +174,7 @@ func (d *Document) Expanded() (*Document, error) {
 	if err := json.Unmarshal(d.raw, spec); err != nil {
 		return nil, err
 	}
+
 	if err := expandSpec(spec); err != nil {
 		return nil, err
 	}
@@ -187,12 +190,10 @@ func (d *Document) Expanded() (*Document, error) {
 			allOfs:      make(map[string]SchemaRef),
 		},
 		spec:   spec,
-		schema: MustLoadSwagger20Schema(),
+		schema: swagger20Schema,
 		raw:    d.raw,
+		orig:   d.orig,
 	}
-	dd.initialize()
-	dd.orig = d.orig
-	dd.orig.spec = &(*d.orig.spec)
 
 	return dd, nil
 }
@@ -244,20 +245,19 @@ func (d *Document) Reload() *Document {
 	return d
 }
 
+func (d *Document) OrigSpec() *Swagger {
+	return d.origSpec
+}
+
 // ResetDefinitions gives a shallow copy with the models reset
 func (d *Document) ResetDefinitions() *Document {
 	defs := make(map[string]Schema)
-	for k, v := range d.orig.spec.Definitions {
+	for k, v := range d.origSpec.Definitions {
 		defs[k] = v
 	}
 
-	dd := &(*d)
-	dd.spec = &(*d.orig.spec)
-	dd.schema = MustLoadSwagger20Schema()
-	dd.spec.Definitions = defs
-	dd.initialize()
-	dd.orig = d.orig
-	return dd.Reload()
+	d.spec.Definitions = defs
+	return d
 }
 
 // Pristine creates a new pristine document instance based on the input data

@@ -44,6 +44,8 @@ func defaultResolutionCache() ResolutionCache {
 	}}
 }
 
+var defaultCache = defaultResolutionCache()
+
 func (s *simpleCache) Get(uri string) (interface{}, bool) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -115,7 +117,7 @@ var refPtr, _ = jsonpointer.New("/$ref")
 
 func defaultSchemaLoader(root interface{}, ref *Ref, cache ResolutionCache) (*schemaLoader, error) {
 	if cache == nil {
-		cache = defaultResolutionCache()
+		cache = defaultCache
 	}
 
 	var ptr *jsonpointer.Pointer
