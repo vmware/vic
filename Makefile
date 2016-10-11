@@ -42,15 +42,30 @@ GAS ?= $(GOPATH)/bin/gas$(BIN_ARCH)
 
 .DEFAULT_GOAL := all
 
+# allow deferred godeps calls
+.SECONDEXPANSION:
+
+include infra/util/gsml/gmsl
+
 ifeq ($(ENABLE_RACE_DETECTOR),true)
 	RACE := -race
 else
 	RACE :=
 endif
 
-# utility function to dynamically generate go dependencies
+# Generate Go package dependency set, skipping if the only targets specified are clean and/or distclean
+# Caches dependencies to speed repeated calls
 define godeps
-	$(wildcard $1) $(shell $(BASE_DIR)/infra/scripts/go-deps.sh $(dir $1) $(MAKEFLAGS))
+  	$(call assert,$(call gmsl_compatible,1 1 7), Wrong GMSL version) \
+	$(if $(filter-out clean distclean .DEFAULT,$(MAKECMDGOALS)), \
+		$(if $(call defined,dep_cache,$(dir $1)),,$(info Generating dependency set for $(dir $1))) \
+		$(or \
+			$(if $(call defined,dep_cache,$(dir $1)), $(debug Using cached Go dependencies) $(wildcard $1) $(call get,dep_cache,$(dir $1))),
+			$(call set,dep_cache,$(dir $1),$(shell $(BASE_DIR)/infra/scripts/go-deps.sh $(dir $1) $(MAKEFLAGS))),
+			$(debug Cached Go dependency for $(dir $1): $(call get,dep_cache,$(dir $1))),
+			$(wildcard $1) $(call get,dep_cache,$(dir $1))
+		) \
+	)
 endef
 
 define ldflags
@@ -232,24 +247,24 @@ else
 	@$(TIME) infra/scripts/coverage.sh --html $*
 endif
 
-$(vic-init): $(call godeps,cmd/vic-init/*.go)
+$(vic-init): $$(call godeps,cmd/vic-init/*.go)
 	@echo building vic-init
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(GO) build $(RACE) -tags netgo -installsuffix netgo -o ./$@ ./$(dir $<)
 
-$(tether-linux): $(call godeps,cmd/tether/*.go)
+$(tether-linux): $$(call godeps,cmd/tether/*.go)
 	@echo building tether-linux
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
-$(tether-windows): $(call godeps,cmd/tether/*.go)
+$(tether-windows): $$(call godeps,cmd/tether/*.go)
 	@echo building tether-windows
 	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
 # CGO is disabled for darwin otherwise build fails with "gcc: error: unrecognized command line option '-mmacosx-version-min=10.6'"
-$(tether-darwin): $(call godeps,cmd/tether/*.go)
+$(tether-darwin): $$(call godeps,cmd/tether/*.go)
 	@echo building tether-darwin
 	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(TIME) $(GO) build $(RACE) -tags netgo -installsuffix netgo -ldflags '-extldflags "-static"' -o ./$@ ./$(dir $<)
 
-$(rpctool): $(call godeps,cmd/rpctool/*.go)
+$(rpctool): $$(call godeps,cmd/rpctool/*.go)
 ifeq ($(OS),linux)
 	@echo building rpctool
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
@@ -257,15 +272,15 @@ else
 	@echo skipping rpctool, cannot cross compile cgo
 endif
 
-$(vicadmin): $(call godeps,cmd/vicadmin/*.go)
+$(vicadmin): $$(call godeps,cmd/vicadmin/*.go)
 	@echo building vicadmin
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
-$(imagec): $(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
+$(imagec): $$(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
 	@echo building imagec...
 	@$(TIME) $(GO) build $(RACE)  $(ldflags) -o ./$@ ./$(dir $<)
 
-$(docker-engine-api): $(call godeps,cmd/docker/*.go) $(portlayerapi-client)
+$(docker-engine-api): $$(call godeps,cmd/docker/*.go) $(portlayerapi-client)
 ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
 	@$(TIME) $(GO) build $(RACE) $(ldflags) -o $@ ./cmd/docker
@@ -287,7 +302,7 @@ $(portlayerapi-server): $(PORTLAYER_DEPS) $(SWAGGER)
 	@echo regenerating swagger models and operations for Portlayer API server...
 	@$(SWAGGER) generate server --exclude-main -A PortLayer --template-dir lib/apiservers/templates -t $(realpath $(dir $<)) -f $<
 
-$(portlayerapi): $(call godeps,cmd/port-layer-server/*.go) $(portlayerapi-server) $(portlayerapi-client)
+$(portlayerapi): $$(call godeps,cmd/port-layer-server/*.go) $(portlayerapi-server) $(portlayerapi-client)
 	@echo building Portlayer API server...
 	@$(TIME) $(GO) build $(RACE) $(ldflags) -o $@ ./cmd/port-layer-server
 
@@ -322,39 +337,39 @@ $(bootstrap-staging-debug): isos/bootstrap-staging.sh $(iso-base)
 	@echo staging debug for bootstrap
 	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $(iso-base) -o $@ -d true
 
-$(vic-machine-linux): $(call godeps,cmd/vic-machine/*.go)
+$(vic-machine-linux): $$(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine linux...
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
-$(vic-machine-windows): $(call godeps,cmd/vic-machine/*.go)
+$(vic-machine-windows): $$(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine windows...
 	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
-$(vic-machine-darwin): $(call godeps,cmd/vic-machine/*.go)
+$(vic-machine-darwin): $$(call godeps,cmd/vic-machine/*.go)
 	@echo building vic-machine darwin...
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
-$(vic-ui-linux): $(call godeps,cmd/vic-ui/*.go)
+$(vic-ui-linux): $$(call godeps,cmd/vic-ui/*.go)
 	@echo building vic-ui linux...
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
 
-$(vic-ui-windows): $(call godeps,cmd/vic-ui/*.go)
+$(vic-ui-windows): $$(call godeps,cmd/vic-ui/*.go)
 	@echo building vic-ui windows...
 	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
 
-$(vic-ui-darwin): $(call godeps,cmd/vic-ui/*.go)
+$(vic-ui-darwin): $$(call godeps,cmd/vic-ui/*.go)
 	@echo building vic-ui darwin...
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) -ldflags "-X main.BuildID=${BUILD_NUMBER} -X main.CommitID=${COMMIT}" -o ./$@ ./$(dir $<)
 
-$(vic-dns-linux): $(call godeps,cmd/vic-dns/*.go)
+$(vic-dns-linux): $$(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns linux...
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
-$(vic-dns-windows): $(call godeps,cmd/vic-dns/*.go)
+$(vic-dns-windows): $$(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns windows...
 	@GOARCH=amd64 GOOS=windows $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
-$(vic-dns-darwin): $(call godeps,cmd/vic-dns/*.go)
+$(vic-dns-darwin): $$(call godeps,cmd/vic-dns/*.go)
 	@echo building vic-dns darwin...
 	@GOARCH=amd64 GOOS=darwin $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
