@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sync"
 	"syscall"
 	"time"
 
@@ -35,8 +36,12 @@ import (
 type Toolbox struct {
 	*toolbox.Service
 
-	config *ExecutorConfig
-	stop   chan struct{}
+	sess struct {
+		sync.Mutex
+		session *SessionConfig
+	}
+
+	stop chan struct{}
 }
 
 // NewToolbox returns a tether.Extension that wraps the vsphere/toolbox service
@@ -93,7 +98,12 @@ func (t *Toolbox) Stop() error {
 
 // Reload implementation of the tether.Extension interface
 func (t *Toolbox) Reload(config *ExecutorConfig) error {
-	t.config = config
+	if config != nil && config.Sessions != nil {
+		t.sess.Lock()
+		defer t.sess.Unlock()
+		t.sess.session = config.Sessions[config.ID]
+	}
+
 	return nil
 }
 
@@ -108,9 +118,24 @@ func (t *Toolbox) InContainer() *Toolbox {
 	return t
 }
 
-func (t *Toolbox) kill(name string) error {
-	session := t.config.Sessions[t.config.ID]
+func (t *Toolbox) session() *SessionConfig {
+	t.sess.Lock()
+	defer t.sess.Unlock()
+	return t.sess.session
+}
 
+func (t *Toolbox) kill(name string) error {
+	session := t.session()
+	if session == nil {
+		return fmt.Errorf("failed to kill container: process not found")
+	}
+
+	session.m.Lock()
+	defer session.m.Unlock()
+	return t.killHelper(session, name)
+}
+
+func (t *Toolbox) killHelper(session *SessionConfig, name string) error {
 	if name == "" {
 		name = string(ssh.SIGTERM)
 	}
@@ -137,8 +162,17 @@ func (t *Toolbox) containerAuthenticate(_ toolbox.VixCommandRequestHeader, data 
 	if err := c.UnmarshalBinary(data); err != nil {
 		return err
 	}
+
+	session := t.session()
+	if session == nil {
+		return errors.New("not yet initialized")
+	}
+
+	session.m.Lock()
+	defer session.m.Unlock()
+
 	// no authentication yet, just using container ID as a sanity check for now
-	if c.Name != t.config.ID {
+	if c.Name != session.ID {
 		return errors.New("failed to verify container ID")
 	}
 
@@ -155,10 +189,17 @@ func (t *Toolbox) containerStartCommand(r *toolbox.VixMsgStartProgramRequest) (i
 }
 
 func (t *Toolbox) halt() error {
-	session := t.config.Sessions[t.config.ID]
+	session := t.session()
+	if session == nil {
+		return fmt.Errorf("failed to halt container: not initialized yet")
+	}
+
+	session.m.Lock()
+	defer session.m.Unlock()
+
 	log.Infof("stopping %s", session.ID)
 
-	if err := t.kill(session.StopSignal); err != nil {
+	if err := t.killHelper(session, session.StopSignal); err != nil {
 		return err
 	}
 
