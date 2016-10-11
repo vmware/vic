@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package imagec
 
 import (
 	"archive/tar"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -24,7 +25,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -64,11 +64,11 @@ type Manifest struct {
 }
 
 // LearnRegistryURL returns the registry URL after making sure that it responds to queries
-func LearnRegistryURL(options ImageCOptions) (string, error) {
-	defer trace.End(trace.Begin(options.registry))
+func LearnRegistryURL(options Options) (string, error) {
+	defer trace.End(trace.Begin(options.Registry))
 
 	req := func(schema string) (string, error) {
-		registry := fmt.Sprintf("%s://%s/v2/", schema, options.registry)
+		registry := fmt.Sprintf("%s://%s/v2/", schema, options.Registry)
 
 		url, err := url.Parse(registry)
 		if err != nil {
@@ -76,12 +76,13 @@ func LearnRegistryURL(options ImageCOptions) (string, error) {
 		}
 		log.Debugf("URL: %s", url)
 
-		fetcher := urlfetcher.NewURLFetcher(urlfetcher.FetcherOptions{
-			Timeout:            options.timeout,
-			Username:           options.username,
-			Password:           options.password,
-			InsecureSkipVerify: options.insecureSkipVerify,
+		fetcher := urlfetcher.NewURLFetcher(urlfetcher.Options{
+			Timeout:            options.Timeout,
+			Username:           options.Username,
+			Password:           options.Password,
+			InsecureSkipVerify: options.InsecureSkipVerify,
 		})
+
 		headers, err := fetcher.Head(url)
 		if err != nil {
 			return "", err
@@ -96,7 +97,7 @@ func LearnRegistryURL(options ImageCOptions) (string, error) {
 	// first try https
 	log.Debugf("Trying https scheme")
 	registry, err := req("https")
-	if err != nil && options.insecureAllowHTTP {
+	if err != nil && options.InsecureAllowHTTP {
 		// fallback to http if it's allowed
 		log.Debugf("Falling back to http scheme")
 		registry, err = req("http")
@@ -106,23 +107,24 @@ func LearnRegistryURL(options ImageCOptions) (string, error) {
 }
 
 // LearnAuthURL returns the URL of the OAuth endpoint
-func LearnAuthURL(options ImageCOptions) (*url.URL, error) {
-	defer trace.End(trace.Begin(options.image + "/" + options.tag))
+func LearnAuthURL(options Options) (*url.URL, error) {
+	defer trace.End(trace.Begin(options.Image + "/" + options.Tag))
 
-	url, err := url.Parse(options.registry)
+	url, err := url.Parse(options.Registry)
 	if err != nil {
 		return nil, err
 	}
-	url.Path = path.Join(url.Path, options.image, "manifests", options.tag)
+	url.Path = path.Join(url.Path, options.Image, "manifests", options.Tag)
 
 	log.Debugf("URL: %s", url)
 
-	fetcher := urlfetcher.NewURLFetcher(urlfetcher.FetcherOptions{
-		Timeout:            options.timeout,
-		Username:           options.username,
-		Password:           options.password,
-		InsecureSkipVerify: options.insecureSkipVerify,
+	fetcher := urlfetcher.NewURLFetcher(urlfetcher.Options{
+		Timeout:            options.Timeout,
+		Username:           options.Username,
+		Password:           options.Password,
+		InsecureSkipVerify: options.InsecureSkipVerify,
 	})
+
 	// We expect docker registry to return a 401 to us - with a WWW-Authenticate header
 	// We parse that header and learn the OAuth endpoint to fetch OAuth token.
 	hdr, err := fetcher.Head(url)
@@ -132,7 +134,7 @@ func LearnAuthURL(options ImageCOptions) (*url.URL, error) {
 
 	// Private registry returned the manifest directly as auth option is optional.
 	// https://github.com/docker/distribution/blob/master/docs/configuration.md#auth
-	if err == nil && options.registry != DefaultDockerURL && fetcher.IsStatusOK() {
+	if err == nil && options.Registry != DefaultDockerURL && fetcher.IsStatusOK() {
 		log.Debugf("%s does not support OAuth", url)
 		return nil, nil
 	}
@@ -147,17 +149,18 @@ func LearnAuthURL(options ImageCOptions) (*url.URL, error) {
 }
 
 // FetchToken fetches the OAuth token from OAuth endpoint
-func FetchToken(url *url.URL) (*urlfetcher.Token, error) {
+func FetchToken(ctx context.Context, options Options, url *url.URL, progressOutput progress.Output) (*urlfetcher.Token, error) {
 	defer trace.End(trace.Begin(url.String()))
 
 	log.Debugf("URL: %s", url)
 
-	fetcher := urlfetcher.NewURLFetcher(urlfetcher.FetcherOptions{
-		Timeout:            options.timeout,
-		Username:           options.username,
-		Password:           options.password,
-		InsecureSkipVerify: options.insecureSkipVerify,
+	fetcher := urlfetcher.NewURLFetcher(urlfetcher.Options{
+		Timeout:            options.Timeout,
+		Username:           options.Username,
+		Password:           options.Password,
+		InsecureSkipVerify: options.InsecureSkipVerify,
 	})
+
 	token, err := fetcher.FetchAuthToken(url)
 	if err != nil {
 		err := fmt.Errorf("FetchToken (%s) failed: %s", url, err)
@@ -169,32 +172,35 @@ func FetchToken(url *url.URL) (*urlfetcher.Token, error) {
 }
 
 // FetchImageBlob fetches the image blob
-func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) (string, error) {
-	defer trace.End(trace.Begin(options.image + "/" + image.layer.BlobSum))
+func FetchImageBlob(ctx context.Context, options Options, image *ImageWithMeta, progressOutput progress.Output) (string, error) {
+	defer trace.End(trace.Begin(options.Image + "/" + image.layer.BlobSum))
 
 	id := image.ID
 	layer := image.layer.BlobSum
 	meta := image.meta
 	diffID := ""
 
-	url, err := url.Parse(options.registry)
+	url, err := url.Parse(options.Registry)
 	if err != nil {
 		return diffID, err
 	}
-	url.Path = path.Join(url.Path, options.image, "blobs", layer)
+	url.Path = path.Join(url.Path, options.Image, "blobs", layer)
 
 	log.Debugf("URL: %s\n ", url)
 
-	progress.Update(po, image.String(), "Pulling fs layer")
-
-	fetcher := urlfetcher.NewURLFetcher(urlfetcher.FetcherOptions{
-		Timeout:            options.timeout,
-		Username:           options.username,
-		Password:           options.password,
-		Token:              options.token,
-		InsecureSkipVerify: options.insecureSkipVerify,
+	fetcher := urlfetcher.NewURLFetcher(urlfetcher.Options{
+		Timeout:            options.Timeout,
+		Username:           options.Username,
+		Password:           options.Password,
+		Token:              options.Token,
+		InsecureSkipVerify: options.InsecureSkipVerify,
 	})
-	imageFileName, err := fetcher.Fetch(url, true, po, image.String())
+
+	// ctx
+	ctx, cancel := context.WithTimeout(ctx, options.Timeout)
+	defer cancel()
+
+	imageFileName, err := fetcher.Fetch(ctx, url, true, progressOutput, image.String())
 	if err != nil {
 		return diffID, err
 	}
@@ -223,7 +229,7 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) (string, error)
 	// see https://golang.org/pkg/io/#TeeReader
 	blobTr := io.TeeReader(imageFile, blobSum)
 
-	progress.Update(po, image.String(), "Verifying Checksum")
+	progress.Update(progressOutput, image.String(), "Verifying Checksum")
 	decompressedTar, err := archive.DecompressStream(blobTr)
 	if err != nil {
 		return diffID, err
@@ -276,7 +282,7 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) (string, error)
 	log.Infof("diffID for layer %s: %s", id, diffID)
 
 	// Ensure the parent directory exists
-	destination := path.Join(DestinationDirectory(), id)
+	destination := path.Join(DestinationDirectory(options), id)
 	err = os.MkdirAll(destination, 0755) /* #nosec */
 	if err != nil {
 		return diffID, err
@@ -294,31 +300,32 @@ func FetchImageBlob(options ImageCOptions, image *ImageWithMeta) (string, error)
 		return diffID, err
 	}
 
-	progress.Update(po, image.String(), "Download complete")
+	progress.Update(progressOutput, image.String(), "Download complete")
 
 	return diffID, nil
 }
 
 // FetchImageManifest fetches the image manifest file
-func FetchImageManifest(options ImageCOptions) (*Manifest, error) {
-	defer trace.End(trace.Begin(options.image + "/" + options.tag))
+func FetchImageManifest(ctx context.Context, options Options, progressOutput progress.Output) (*Manifest, error) {
+	defer trace.End(trace.Begin(options.Image + "/" + options.Tag))
 
-	url, err := url.Parse(options.registry)
+	url, err := url.Parse(options.Registry)
 	if err != nil {
 		return nil, err
 	}
-	url.Path = path.Join(url.Path, options.image, "manifests", options.tag)
+	url.Path = path.Join(url.Path, options.Image, "manifests", options.Tag)
 
 	log.Debugf("URL: %s", url)
 
-	fetcher := urlfetcher.NewURLFetcher(urlfetcher.FetcherOptions{
-		Timeout:            10 * time.Second,
-		Username:           options.username,
-		Password:           options.password,
-		Token:              options.token,
-		InsecureSkipVerify: options.insecureSkipVerify,
+	fetcher := urlfetcher.NewURLFetcher(urlfetcher.Options{
+		Timeout:            options.Timeout,
+		Username:           options.Username,
+		Password:           options.Password,
+		Token:              options.Token,
+		InsecureSkipVerify: options.InsecureSkipVerify,
 	})
-	manifestFileName, err := fetcher.Fetch(url, true, po)
+
+	manifestFileName, err := fetcher.Fetch(ctx, url, true, progressOutput)
 	if err != nil {
 		return nil, err
 	}
@@ -343,12 +350,12 @@ func FetchImageManifest(options ImageCOptions) (*Manifest, error) {
 		return nil, err
 	}
 
-	if manifest.Name != options.image {
-		return nil, fmt.Errorf("name doesn't match what was requested, expected: %s, downloaded: %s", options.image, manifest.Name)
+	if manifest.Name != options.Image {
+		return nil, fmt.Errorf("name doesn't match what was requested, expected: %s, downloaded: %s", options.Image, manifest.Name)
 	}
 
-	if manifest.Tag != options.tag {
-		return nil, fmt.Errorf("tag doesn't match what was requested, expected: %s, downloaded: %s", options.tag, manifest.Tag)
+	if manifest.Tag != options.Tag {
+		return nil, fmt.Errorf("tag doesn't match what was requested, expected: %s, downloaded: %s", options.Tag, manifest.Tag)
 	}
 
 	digest, err := getManifestDigest(content)
@@ -359,7 +366,7 @@ func FetchImageManifest(options ImageCOptions) (*Manifest, error) {
 	manifest.Digest = digest
 
 	// Ensure the parent directory exists
-	destination := DestinationDirectory()
+	destination := DestinationDirectory(options)
 	err = os.MkdirAll(destination, 0755) /* #nosec */
 	if err != nil {
 		return nil, err

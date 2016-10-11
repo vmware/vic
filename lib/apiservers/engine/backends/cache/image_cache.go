@@ -88,6 +88,11 @@ func (ic *ICache) Update(client *client.PortLayer) error {
 
 	for _, layer := range layers.Payload {
 
+		// populate the layer cache as we go
+		// TODO(jzt): this will probably change once the k/v store is being used to track
+		// images (and layers?)
+		LayerCache().AddExisting(layer.ID)
+
 		imageConfig := &metadata.ImageConfig{}
 		if err := json.Unmarshal([]byte(layer.Metadata[metadata.MetaDataKey]), imageConfig); err != nil {
 			derr.NewErrorWithStatusCode(fmt.Errorf("Failed to unmarshal image config: %s", err),

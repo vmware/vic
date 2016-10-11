@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"sort"
 	"time"
 
@@ -26,6 +25,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
@@ -33,6 +33,7 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
+	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/lib/metadata"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/sys"
@@ -82,6 +83,7 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 	}
 
 	cache.ImageCache().RemoveImageByConfig(img)
+	cache.LayerCache().Remove(img.ID)
 
 	// TODO remove the image from the image cache (in the personality) (GH #2070)
 	// NOTE: This requires untagging the image.  Once we purge the image from
@@ -145,63 +147,51 @@ func (i *Image) ExportImage(names []string, outStream io.Writer) error {
 }
 
 func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
-	defer trace.End(trace.Begin("PullImage"))
+	defer trace.End(trace.Begin(ref.String()))
 
 	log.Debugf("PullImage: ref = %+v, metaheaders = %+v\n", ref, metaHeaders)
 
-	var cmdArgs []string
-
-	cmdArgs = append(cmdArgs, "-reference", ref.String())
+	options := imagec.Options{
+		Destination: os.TempDir(),
+		Reference:   ref.String(),
+		Timeout:     imagec.DefaultHTTPTimeout,
+		Stdout:      true,
+		Outstream:   outStream,
+	}
 
 	if authConfig != nil {
 		if len(authConfig.Username) > 0 {
-			cmdArgs = append(cmdArgs, "-username", authConfig.Username)
+			options.Username = authConfig.Username
 		}
 		if len(authConfig.Password) > 0 {
-			cmdArgs = append(cmdArgs, "-password", authConfig.Password)
+			options.Password = authConfig.Password
 		}
 	}
 
 	portLayerServer := PortLayerServer()
 
 	if portLayerServer != "" {
-		cmdArgs = append(cmdArgs, "-host", portLayerServer)
+		options.Host = portLayerServer
 	}
-
-	// intruct imagec to use os.TempDir
-	cmdArgs = append(cmdArgs, "-destination", os.TempDir())
 
 	insecureRegistries := InsecureRegistries()
 	for _, registry := range insecureRegistries {
 		if registry == ref.Hostname() {
-			cmdArgs = append(cmdArgs, "-insecure-allow-http")
+			options.InsecureAllowHTTP = true
 			break
 		}
 	}
 
-	log.Debugf("PullImage: cmd = %s %+v\n", Imagec, cmdArgs)
+	log.Infof("PullImage: reference: %s, %s, portlayer: %#v",
+		options.Reference,
+		options.Host)
 
-	cmd := exec.Command(Imagec, cmdArgs...)
-	cmd.Stdout = outStream
-	cmd.Stderr = outStream
-
-	// Execute
-	err := cmd.Start()
-
+	ic := imagec.NewImageC(options, streamformatter.NewJSONStreamFormatter())
+	err := ic.PullImage()
 	if err != nil {
-		log.Errorf("Error starting %s - %s\n", Imagec, err)
-		return fmt.Errorf("Error starting %s - %s\n", Imagec, err)
-	}
-
-	err = cmd.Wait()
-
-	if err != nil {
-		log.Errorf("imagec exit code: %s", err)
 		return err
 	}
 
-	client := PortLayerClient()
-	cache.ImageCache().Update(client)
 	return nil
 }
 
