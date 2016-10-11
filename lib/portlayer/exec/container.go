@@ -62,7 +62,7 @@ const (
 	propertyCollectorTimeout = 3 * time.Minute
 	containerLogName         = "output.log"
 
-	notSuspendedMsg = "The virtual machine is not suspended."
+	vmNotSuspendedKey = "msg.suspend.powerOff.notsuspended"
 )
 
 // NotFoundError is returned when a types.ManagedObjectNotFound is returned from a vmomi call
@@ -477,7 +477,9 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 				log.Warnf("invalid power state during power off: %s", terr.ExistingState)
 
 			case *types.GenericVmConfigFault:
-				if terr.Reason == notSuspendedMsg {
+
+				// Check if the poweroff task was canceled due to a concurrent guest shutdown
+				if len(terr.FaultMessage) > 0 && terr.FaultMessage[0].Key == vmNotSuspendedKey {
 					log.Infof("power off %s task skipped due to guest shutdown", c.ExecConfig.ID)
 					return nil
 				}
