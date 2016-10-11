@@ -58,7 +58,7 @@ Test
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
 
-    ${status}  ${message}=  Run Keyword And Ignore Error  Install VIC Appliance To Test Server  ${false}  default
+    ${status}  ${message}=  Run Keyword And Ignore Error  Install VIC Appliance To Test Server  certs=${true}  vol=default
     Should Contain  ${message}  DRS must be enabled to use VIC
     Should Be Equal As Strings  ${status}  FAIL
 
@@ -66,6 +66,6 @@ Test
     ${out}=  Run  govc cluster.change -drs-enabled /ha-datacenter/host/cls
     Should Be Empty  ${out}
 
-    Install VIC Appliance To Test Server  ${false}  default
+    Install VIC Appliance To Test Server  certs=${true}  vol=default
     
     Run Regression Tests
