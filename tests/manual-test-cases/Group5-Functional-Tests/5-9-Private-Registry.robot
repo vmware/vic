@@ -6,7 +6,7 @@ Suite Teardown  Private Registry Cleanup
 
 *** Keywords ***
 Private Registry Setup
-    Install VIC Appliance To Test Server
+    Install VIC Appliance To Test Server  certs=${true}  vol=default
     ${rc}  ${output}=  Run And Return Rc And Output  docker run -d -p 5000:5000 --name registry registry
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker pull busybox
