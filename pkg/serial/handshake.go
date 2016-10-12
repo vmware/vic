@@ -40,6 +40,9 @@ const (
 
 // PurgeIncoming is used to clear a channel of bytes prior to handshaking
 func PurgeIncoming(conn net.Conn) {
+	if tracing {
+		defer trace.End(trace.Begin(""))
+	}
 	buf := make([]byte, 255)
 
 	// read until the incoming channel is empty
@@ -54,6 +57,9 @@ func PurgeIncoming(conn net.Conn) {
 }
 
 func HandshakeClient(ctx context.Context, conn net.Conn, debug bool) error {
+	if tracing {
+		defer trace.End(trace.Begin(""))
+	}
 	syn := make([]byte, 2)
 	synack := make([]byte, 2)
 	ack := make([]byte, 2)
@@ -178,8 +184,9 @@ func readMultiple(conn net.Conn, b []byte) (int, error) {
 }
 
 func HandshakeServer(ctx context.Context, conn net.Conn) error {
-	defer trace.End(trace.Begin(""))
-
+	if tracing {
+		defer trace.End(trace.Begin(""))
+	}
 	syn := make([]byte, 3)
 	synack := make([]byte, 3)
 	buf := make([]byte, 2)

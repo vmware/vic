@@ -27,8 +27,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-const verbose = false
-
 type NamedReadChannel interface {
 	io.ReadCloser
 	Name() string
@@ -52,8 +50,9 @@ type RawConn struct {
 }
 
 func NewTypedConn(r NamedReadChannel, w NamedWriteChannel, net string) (*RawConn, error) {
-	defer trace.End(trace.Begin(""))
-
+	if tracing {
+		defer trace.End(trace.Begin(""))
+	}
 	conn := &RawConn{
 		rchannel: r,
 		wchannel: w,
@@ -70,16 +69,18 @@ func NewTypedConn(r NamedReadChannel, w NamedWriteChannel, net string) (*RawConn
 // NewFileConn creates a connection of the provided file - assumes file is a
 // full duplex comm mechanism
 func NewFileConn(file *os.File) (*RawConn, error) {
-	defer trace.End(trace.Begin(""))
-
+	if tracing {
+		defer trace.End(trace.Begin(""))
+	}
 	return NewTypedConn(file, file, "file")
 }
 
 // NewRawConn creates a connection via the provided file descriptor - assumes file is a
 // full duplex comm mechanism
 func NewRawConn(fd uintptr, name string, net string) (*RawConn, error) {
-	defer trace.End(trace.Begin(""))
-
+	if tracing {
+		defer trace.End(trace.Begin(""))
+	}
 	file := os.NewFile(fd, name)
 	return NewTypedConn(file, file, net)
 }
@@ -87,14 +88,17 @@ func NewRawConn(fd uintptr, name string, net string) (*RawConn, error) {
 // NewHalfDuplexFileConn creates a connection via the provided files - this assumes that
 // each file is a half-duplex mechanism, such as a linux fifo pipe
 func NewHalfDuplexFileConn(read *os.File, write *os.File, name string, net string) (*RawConn, error) {
-	defer trace.End(trace.Begin(""))
-
+	if tracing {
+		defer trace.End(trace.Begin(""))
+	}
 	return NewTypedConn(read, write, net)
 }
 
 // Read reads data from the connection.
 func (conn *RawConn) Read(b []byte) (int, error) {
-	defer trace.End(trace.Begin(""))
+	if tracing {
+		defer trace.End(trace.Begin(""))
+	}
 
 	var n int
 	var err error
@@ -138,15 +142,17 @@ func (conn *RawConn) Read(b []byte) (int, error) {
 
 // Write writes data to the connection
 func (conn *RawConn) Write(b []byte) (int, error) {
-	defer trace.End(trace.Begin(""))
-
+	if tracing {
+		defer trace.End(trace.Begin(""))
+	}
 	return conn.wchannel.Write(b)
 }
 
 // Close closes the connection.
 func (conn *RawConn) Close() error {
-	defer trace.End(trace.Begin(""))
-
+	if tracing {
+		defer trace.End(trace.Begin(""))
+	}
 	var closed bool
 
 	conn.mutex.Lock()
@@ -181,23 +187,26 @@ func (conn *RawConn) Close() error {
 
 // LocalAddr returns the local network address.
 func (conn *RawConn) LocalAddr() net.Addr {
-	defer trace.End(trace.Begin(""))
-
+	if tracing {
+		defer trace.End(trace.Begin(""))
+	}
 	return conn.localAddr
 }
 
 // RemoteAddr returns the remote network address.
 func (conn *RawConn) RemoteAddr() net.Addr {
-	defer trace.End(trace.Begin(""))
-
+	if tracing {
+		defer trace.End(trace.Begin(""))
+	}
 	return conn.remoteAddr
 }
 
 // SetDeadline sets the read and write deadlines associated
 // with the connection
 func (conn *RawConn) SetDeadline(t time.Time) error {
-	defer trace.End(trace.Begin(t.String()))
-
+	if tracing {
+		defer trace.End(trace.Begin(t.String()))
+	}
 	// https://golang.org/src/net/fd_poll_runtime.go#L133
 	// consider implementing this by making RawConn a netFD
 	// if we can find a way around the lack of export
@@ -206,14 +215,16 @@ func (conn *RawConn) SetDeadline(t time.Time) error {
 
 // SetReadDeadline sets the deadline for future Read calls.
 func (conn *RawConn) SetReadDeadline(t time.Time) error {
-	defer trace.End(trace.Begin(t.String()))
-
+	if tracing {
+		defer trace.End(trace.Begin(t.String()))
+	}
 	return nil
 }
 
 // SetWriteDeadline sets the deadline for future Write calls.
 func (conn *RawConn) SetWriteDeadline(t time.Time) error {
-	defer trace.End(trace.Begin(t.String()))
-
+	if tracing {
+		defer trace.End(trace.Begin(t.String()))
+	}
 	return nil
 }
