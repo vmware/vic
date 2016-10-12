@@ -74,7 +74,7 @@ Pull the same image concurrently
      \   Should Contain  ${res.stdout}  Downloaded newer image for library/redis:latest
 
 Pull two images that share layers concurrently
-     ${pid1}=  Start Process  docker ${params} pull golang  shell=True
+     ${pid1}=  Start Process  docker ${params} pull golang:1.7  shell=True
      ${pid2}=  Start Process  docker ${params} pull golang:1.6  shell=True
 
     # Wait for them to finish and check their output
@@ -82,5 +82,5 @@ Pull two images that share layers concurrently
     ${res2}=  Wait For Process  ${pid2}
     Should Be Equal As Integers  ${res1.rc}  0
     Should Be Equal As Integers  ${res2.rc}  0
-    Should Contain  ${res1.stdout}  Downloaded newer image for library/golang:latest
+    Should Contain  ${res1.stdout}  Downloaded newer image for library/golang:1.7
     Should Contain  ${res2.stdout}  Downloaded newer image for library/golang:1.6
