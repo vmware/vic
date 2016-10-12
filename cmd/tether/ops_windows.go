@@ -18,8 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"strings"
 
@@ -148,12 +146,6 @@ func (t *operations) Setup(sink tether.Config) error {
 	if err := t.BaseOperations.Setup(sink); err != nil {
 		return err
 	}
-
-	// TODO: enabled for initial dev debugging only
-	log.Info("Launching pprof server on port 6060")
-	go func() {
-		log.Info(http.ListenAndServe("0.0.0.0:6060", nil))
-	}()
 
 	return nil
 }

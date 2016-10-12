@@ -15,7 +15,6 @@
 package main
 
 import (
-	_ "net/http/pprof"
 	"os"
 	"runtime/debug"
 	"strings"

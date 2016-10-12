@@ -63,7 +63,9 @@ func GetPprofEndpoint(component PprofPort) *url.URL {
 	port := component + basePort
 
 	ip := "127.0.0.1"
-	if vchConfig.ExecutorConfig.Diagnostics.DebugLevel > 0 {
+	// exposing this data on an external port definitely counts as a change of behaviour,
+	// so this is > 1, just debug on/off.
+	if vchConfig.ExecutorConfig.Diagnostics.DebugLevel > 1 {
 		ips, err := net.LookupIP("client.localhost")
 		if err != nil || len(ips) == 0 {
 			log.Warnf("Unable to resolve 'client.localhost': ", err)
@@ -88,7 +90,7 @@ func StartPprof(name string, component PprofPort) error {
 	}
 	location := url.String()[7:] // Strip off leading "http://"
 
-	log.Info(fmt.Sprintf("Launching %s server on %s", name, location))
+	log.Info(fmt.Sprintf("Launching %s pprof server on %s", name, location))
 	go func() {
 		log.Info(http.ListenAndServe(location, nil))
 	}()

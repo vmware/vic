@@ -476,6 +476,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			},
 			Env: []string{
 				"PATH=/sbin:/bin",
+				"GOTRACEBACK=all",
 			},
 			Dir: "/home/vicadmin",
 		},
@@ -506,6 +507,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			},
 			Env: []string{
 				"PATH=/sbin",
+				"GOTRACEBACK=all",
 			},
 		},
 		Restart: true,
@@ -526,6 +528,9 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 				"--cluster=" + settings.ClusterPath,
 				"--pool=" + settings.ResourcePoolPath,
 				"--datastore=" + conf.ImageStores[0].Host,
+			},
+			Env: []string{
+				"GOTRACEBACK=all",
 			},
 		},
 		Restart: true,

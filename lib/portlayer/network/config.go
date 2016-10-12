@@ -24,6 +24,9 @@ type Configuration struct {
 	source extraconfig.DataSource `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	sink   extraconfig.DataSink   `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
+	// Turn on debug logging
+	DebugLevel int `vic:"0.1" scope:"read-only" key:"init/diagnostics/debug"`
+
 	// Port Layer - network
 	config.Network `vic:"0.1" scope:"read-only" key:"network"`
 

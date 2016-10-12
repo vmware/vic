@@ -17,7 +17,6 @@ package main
 import (
 	"errors"
 	"net"
-	_ "net/http/pprof"
 	"os"
 
 	"golang.org/x/crypto/ssh"

@@ -33,7 +33,7 @@ type ExecutorConfig struct {
 	ID string `vic:"0.1" scope:"read-only" key:"common/id"`
 
 	// Debug is a numeric level that controls extent of debugging
-	DebugLevel int `vic:"0.1" scope:"read-only" key:"common/diagnostics/debug"`
+	DebugLevel int `vic:"0.1" scope:"read-only" key:"diagnostics/debug"`
 
 	// Exclusive access to childPidTable
 	pidMutex sync.Mutex
