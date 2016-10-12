@@ -26,6 +26,8 @@ This test requires that an vSphere server is running and available.
 8. Issue a docker pull command to the new VIC appliance using a non-default repository that doesn't exist
 9. Issue a docker pull command for an image with a tag that doesn't exist
 10. Issue a docker pull command for an image that has already been pulled
+11. Issue a docker pull command multiple times for the same image
+12. Issue a docker pull command for each of two images that share layers
 
 #Expected Outcome:
 VIC appliance should respond with a properly formatted pull response to each command issued to it. No errors should be seen, except in the case of step 7, 8 and 9.
