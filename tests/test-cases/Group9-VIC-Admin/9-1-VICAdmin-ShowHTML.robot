@@ -41,4 +41,4 @@ Get Container Logs
 Get VICAdmin Log
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk ${vic-admin}/logs/vicadmin.log
     Log  ${output}
-    Should contain  ${output}  Launching vicadmin server
+    Should contain  ${output}  Launching vicadmin pprof server
