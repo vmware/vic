@@ -1,4 +1,4 @@
-# Web-serving on vSphere Integrated Container Engine
+# Web-serving on vSphere Integrated Containers Engine
 
 We take the Web-serving benchmark from CloudSuite (http://cloudsuite.ch/webserving/) as an example, to demonstrate how customers who are interested in the LEMP implementation of a cloud native web-serving application could deploy it on vSphere Integrated Containers Engine 0.7.0 with Docker Compose. This demo has three tiers deployed on three containerVMs: an Nginx Web server, a Memcached server, and a MySQL database server. The Web server runs Elgg (a social networking engine) and connects the Memcached server and the database server through the network.
 
