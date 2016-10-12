@@ -116,9 +116,9 @@ func eventCallback(ie events.Event) {
 	container := Containers.Container(ie.Reference())
 	if container != nil {
 
-		newState := eventedState(ie.String(), container.State)
+		newState := eventedState(ie.String(), container.state)
 		// do we have a state change
-		if newState != container.State {
+		if newState != container.CurrentState() {
 			switch newState {
 			case StateStopping,
 				StateRunning,
@@ -126,7 +126,7 @@ func eventCallback(ie events.Event) {
 				StateSuspended:
 
 				log.Debugf("Container(%s) state set to %s via event activity", container.ExecConfig.ID, newState.String())
-				container.State = newState
+				container.SetState(newState)
 
 				if newState == StateStopped {
 					container.onStop()
@@ -202,19 +202,18 @@ func publishContainerEvent(id string, created time.Time, eventType string) {
 	Config.EventManager.Publish(ce)
 }
 
-func WaitForContainerStop(ctx context.Context, id string) error {
+func WaitForContainerStop(ctx context.Context, id string, c *Container) error {
 	defer trace.End(trace.Begin(id))
 
-	listen := make(chan interface{})
+	listen := make(chan struct{}, 1)
 	defer close(listen)
 
 	watch := func(ce events.Event) {
-		event := ce.String()
+		e := ce.String()
 		if ce.Reference() == id {
-			switch event {
-			case events.ContainerStopped,
-				events.ContainerPoweredOff:
-				listen <- event
+			switch e {
+			case events.ContainerStopped, events.ContainerPoweredOff:
+				listen <- struct{}{}
 			}
 		}
 	}
@@ -223,6 +222,11 @@ func WaitForContainerStop(ctx context.Context, id string) error {
 	topic := events.NewEventType(events.ContainerEvent{}).Topic()
 	Config.EventManager.Subscribe(topic, sub, watch)
 	defer Config.EventManager.Unsubscribe(topic, sub)
+
+	// Container has changed it's status, existing.
+	if c.CurrentState() == StateStopped {
+		return nil
+	}
 
 	// wait for the event to be pushed on the channel or
 	// the context to be complete

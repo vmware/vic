@@ -125,8 +125,7 @@ func handleEvent(netctx *Context, ie events.Event) {
 		}
 
 		// make sure we don't change the state of the container in the Commit
-		handle.State = nil
-		if err := handle.Commit(context.Background(), nil, nil); err != nil {
+		if err := handle.Commit(context.Background(), nil, nil, true); err != nil {
 			log.Warnf("Failed to commit handle after network unbind for container %s: %s", ie.Reference(), err)
 		}
 
@@ -195,7 +194,7 @@ func engageContext(ctx context.Context, netctx *Context, em event.EventManager) 
 			}
 		}
 
-		if *h.State == exec.StateRunning {
+		if h.ContainerState() == exec.StateRunning {
 			if _, err = netctx.bindContainer(h); err != nil {
 				return err
 			}

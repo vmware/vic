@@ -167,7 +167,7 @@ func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.Stat
 		return containers.NewStateChangeDefault(http.StatusServiceUnavailable).WithPayload(&models.Error{Message: "unknown state"})
 	}
 
-	h.SetState(state)
+	h.SetContainerState(state)
 	return containers.NewStateChangeOK().WithPayload(h.String())
 }
 
@@ -180,7 +180,7 @@ func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStat
 	}
 
 	var state string
-	switch h.Container.State {
+	switch h.Container.CurrentState() {
 	case exec.StateRunning:
 		state = "RUNNING"
 
@@ -216,7 +216,7 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 		return containers.NewCommitNotFound().WithPayload(&models.Error{Message: "container not found"})
 	}
 
-	if err := h.Commit(context.Background(), handler.handlerCtx.Session, params.WaitTime); err != nil {
+	if err := h.Commit(context.Background(), handler.handlerCtx.Session, params.WaitTime, false); err != nil {
 		log.Errorf("CommitHandler error on handle(%s) for %s: %#v", h.String(), h.ExecConfig.ID, err)
 		switch err := err.(type) {
 		case exec.ConcurrentAccessError:
@@ -359,12 +359,12 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 	}
 
 	// if the container is already stopped return
-	if c.State != exec.StateRunning {
+	if c.CurrentState() != exec.StateRunning {
 		containerInfo := convertContainerToContainerInfo(c)
 		return containers.NewContainerWaitOK().WithPayload(containerInfo)
 	}
 
-	err := exec.WaitForContainerStop(ctx, params.ID)
+	err := exec.WaitForContainerStop(ctx, params.ID, c)
 	if err != nil {
 		return containers.NewContainerWaitInternalServerError().WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -383,7 +383,7 @@ func convertContainerToContainerInfo(container *exec.Container) *models.Containe
 	ccid := container.ExecConfig.ID
 	info.ContainerConfig.ContainerID = &ccid
 
-	s := container.State.String()
+	s := container.CurrentState().String()
 	info.ContainerConfig.State = &s
 	info.ContainerConfig.LayerID = &container.ExecConfig.LayerID
 	info.ContainerConfig.RepoName = &container.ExecConfig.RepoName
