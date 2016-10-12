@@ -9,7 +9,7 @@ services:
     image: victest/web_elgg
     container_name: web_server
     networks:
-       - my_net
+      - my_net
     ports:
       - "8080:8080"
       - "25:25"
@@ -24,8 +24,8 @@ services:
        - web_host=192.168.60.130 
        - root_password=root  
        
-   memcache_server:
-     image: cloudsuite/web-serving:memcached_server
-     container_name: memcache_server
-     networks:
+  memcache_server:
+    image: cloudsuite/web-serving:memcached_server
+    container_name: memcache_server
+    networks:
        - my_net    
