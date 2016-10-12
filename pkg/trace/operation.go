@@ -138,7 +138,8 @@ func opID(opNum uint64) string {
 func NewOperation(ctx context.Context, msg string) Operation {
 	o := newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, msg)
 
-	o.Debugf(o.t[0].beginHdr())
+	frame := o.t[0]
+	o.Debugf("[NewOperation] %s [%s:%d]", o.header(), frame.funcName, frame.lineNo)
 	return o
 }
 
