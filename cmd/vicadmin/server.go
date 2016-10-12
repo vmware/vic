@@ -27,6 +27,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/gorilla/securecookie"
+	// "github.com/gorilla/sessions"
 
 	"crypto/x509"
 	"github.com/vmware/vic/lib/vicadmin"
@@ -45,6 +47,8 @@ const (
 	formatTGZ format = iota
 	formatZip
 )
+
+var store = sessions.NewCookieStore([]byte("something-very-secret"))
 
 func (s *server) listen(useTLS bool) error {
 	defer trace.End(trace.Begin(""))
@@ -108,17 +112,23 @@ func (s *server) listenPort() int {
 	return s.l.Addr().(*net.TCPAddr).Port
 }
 
-func (s *server) Handle(link string, h http.Handler) {
-	s.HandleFunc(link, h.ServeHTTP)
+// Enforces authentication on route `link` and runs `handler` on successful auth
+func (s *server) AuthenticatedHandle(link string, h http.Handler) {
+	s.Authenticated(link, h.ServeHTTP)
 }
 
-// handleFunc does preparatory work and then calls the HandleFunc method owned by the HTTP multiplexer
-func (s *server) HandleFunc(link string, handler func(http.ResponseWriter, *http.Request)) {
+func (s *server) Handle(link string, h http.Handler) {
+	s.mux.HandleFunc(link, h.ServeHTTP)
+}
+
+// Enforces authentication on route `link` and runs `handler` on successful auth
+func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *http.Request)) {
 	defer trace.End(trace.Begin(""))
 	authHandler := func(w http.ResponseWriter, r *http.Request) {
-		if len(r.TLS.PeerCertificates) == 0 && len(r.Cookies()) == 0 {
+		_, err := r.Cookie("cookie-name")
+		if len(r.TLS.PeerCertificates) == 0 && err != nil {
+			log.Infof("No cookie found: %s", err)
 			// 	// username/password authentication
-			log.Infof("redirecting to auth page")
 			http.Redirect(w, r, "/authentication", 302)
 			return
 		}
@@ -132,18 +142,18 @@ func (s *server) serve() error {
 
 	s.mux = http.NewServeMux()
 
+	// s.mux.HandleFunc bypasses authentication
 	s.mux.HandleFunc("/authentication", s.authPage)
-	// NOTE:
-	// DO NOT USE s.mux.HandleFunc directly outside of HandleFunc; you will bypass authentication!
 
 	// tar of appliance system logs
-	s.HandleFunc("/logs.tar.gz", s.tarDefaultLogs)
-	s.HandleFunc("/logs.zip", s.zipDefaultLogs)
+	s.Authenticated("/logs.tar.gz", s.tarDefaultLogs)
+	s.Authenticated("/logs.zip", s.zipDefaultLogs)
 
 	// tar of appliance system logs + container logs
-	s.HandleFunc("/container-logs.tar.gz", s.tarContainerLogs)
-	s.HandleFunc("/container-logs.zip", s.zipContainerLogs)
+	s.Authenticated("/container-logs.tar.gz", s.tarContainerLogs)
+	s.Authenticated("/container-logs.zip", s.zipContainerLogs)
 
+	// these assets bypass authentication & are world-readable
 	s.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("css/"))))
 	s.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir("images/"))))
 	s.Handle("/fonts/", http.StripPrefix("/fonts/", http.FileServer(http.Dir("fonts/"))))
@@ -153,17 +163,17 @@ func (s *server) serve() error {
 		p := path
 
 		// get single log file (no tail)
-		s.HandleFunc("/logs/"+name, func(w http.ResponseWriter, r *http.Request) {
+		s.Authenticated("/logs/"+name, func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, p)
 		})
 
 		// get single log file (with tail)
-		s.HandleFunc("/logs/tail/"+name, func(w http.ResponseWriter, r *http.Request) {
+		s.Authenticated("/logs/tail/"+name, func(w http.ResponseWriter, r *http.Request) {
 			s.tailFiles(w, r, []string{p})
 		})
 	}
 
-	s.HandleFunc("/", s.index)
+	s.Authenticated("/", s.index)
 	server := &http.Server{
 		Handler: s.mux,
 	}
@@ -191,7 +201,7 @@ func (s *server) bundleContainerLogs(res http.ResponseWriter, req *http.Request,
 	readers := defaultReaders
 
 	if config.Service != "" {
-		c, err := client()
+		c, err := client(&config)
 		if err != nil {
 			log.Errorf("failed to connect: %s", err)
 		} else {
@@ -285,9 +295,46 @@ func (s *server) tailFiles(res http.ResponseWriter, req *http.Request, names []s
 func (s *server) authPage(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 	ctx := context.Background()
-	sess, err := client()
-	v := vicadmin.NewValidator(ctx, &vchConfig, sess)
+	sess, err := client(&config)
+	if req.Method == "POST" {
+		// authenticate against ESXi/vSphere and create a session object
+		log.Infof("Request %+v", req)
+		log.Infof("Body %+v", req.Body)
+		log.Infof("Headers %+v", req.Header)
 
+		err := req.ParseForm()
+		if err != nil {
+			log.Errorf("Could not parse form data on authentication page due to error %s", err.Error())
+		}
+
+		log.Infof("Form data %+v", req.Form)
+		// set headers
+		var hashKey = []byte("very-secret")
+		var blockKey = []byte("a-lot-secret")
+		var sc = securecookie.New(hashKey, blockKey)
+		value := map[string]string{
+			"foo": "bar",
+		}
+
+		if encoded, err := sc.Encode("cookie-name", value); err == nil {
+			cookie := &http.Cookie{
+				Name:  "cookie-name",
+				Value: encoded,
+				Path:  "/",
+			}
+			http.SetCookie(res, cookie)
+
+			session, err := store.Get(r, "session-name")
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			// redirect to requested URI on success
+			http.Redirect(res, req, "/", 302)
+		}
+	}
+
+	v := vicadmin.NewValidator(ctx, &vchConfig, sess)
 	tmpl, err := template.ParseFiles("auth.html")
 	err = tmpl.ExecuteTemplate(res, "auth.html", v)
 	if err != nil {
@@ -298,7 +345,7 @@ func (s *server) authPage(res http.ResponseWriter, req *http.Request) {
 func (s *server) index(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 	ctx := context.Background()
-	sess, err := client()
+	sess, err := client(&config)
 	v := vicadmin.NewValidator(ctx, &vchConfig, sess)
 
 	tmpl, err := template.ParseFiles("dashboard.html")
