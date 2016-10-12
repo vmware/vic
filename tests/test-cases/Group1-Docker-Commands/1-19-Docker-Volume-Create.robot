@@ -92,17 +92,3 @@ Docker volume create with possibly invalid name
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create --name=test???
     Should Be Equal As Integers  ${rc}  1
     Should Be Equal As Strings  ${output}  Error response from daemon: volume name "test???" includes invalid characters, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed
-
-Docker volume create 10 volumes rapidly
-    ${pids}=  Create List
-
-    # Create 10 volumes rapidly
-    :FOR  ${idx}  IN RANGE  0  10
-    \   ${pid}=  Start Process  docker ${params} volume create --name\=multiple${idx} --opt Capacity\=16MB  shell=True
-    \   Append To List  ${pids}  ${pid}
-
-    # Wait for them to finish and check their RC
-    :FOR  ${pid}  IN  @{pids}
-    \   ${res}=  Wait For Process  ${pid}
-    \   Log  ${res.stdout} ${res.stderr}
-    \   Should Be Equal As Integers  ${res.rc}  0
