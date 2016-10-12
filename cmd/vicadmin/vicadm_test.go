@@ -63,11 +63,11 @@ func init() {
 	insecureClient = &http.Client{Transport: transport}
 	flag.Set("docker-host", u.Host)
 
-	config.hostCertFile = "fixtures/vicadmin_test_cert.pem"
-	config.hostKeyFile = "fixtures/vicadmin_test_pkey.pem"
+	hostCertFile := "fixtures/vicadmin_test_cert.pem"
+	hostKeyFile := "fixtures/vicadmin_test_pkey.pem"
 
-	cert, cerr := ioutil.ReadFile(config.hostCertFile)
-	key, kerr := ioutil.ReadFile(config.hostKeyFile)
+	cert, cerr := ioutil.ReadFile(hostCertFile)
+	key, kerr := ioutil.ReadFile(hostKeyFile)
 	if kerr != nil || cerr != nil {
 		panic("unable to load test certificate")
 	}
