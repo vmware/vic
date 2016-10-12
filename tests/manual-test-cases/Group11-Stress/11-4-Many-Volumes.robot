@@ -16,7 +16,6 @@ Docker volume create 1000 volumes rapidly
     # Wait for them to finish and check their RC
     :FOR  ${pid}  IN  @{pids}
     \   ${res}=  Wait For Process  ${pid}
-    \   Log  ${res.stdout} ${res.stderr}
     \   Should Be Equal As Integers  ${res.rc}  0
 
     Run Regression Tests
