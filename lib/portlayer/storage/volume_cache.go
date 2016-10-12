@@ -20,7 +20,7 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // VolumeLookupCache caches Volume references to volumes in the system.
@@ -36,21 +36,21 @@ type VolumeLookupCache struct {
 	volumeStore VolumeStorer
 }
 
-func NewVolumeLookupCache(ctx context.Context, vs VolumeStorer) (*VolumeLookupCache, error) {
+func NewVolumeLookupCache(op trace.Operation, vs VolumeStorer) (*VolumeLookupCache, error) {
 	v := &VolumeLookupCache{
 		vlc:         make(map[string]Volume),
 		volumeStore: vs,
 	}
 
-	return v, v.rebuildCache(ctx)
+	return v, v.rebuildCache(op)
 }
 
 // List the configured volume stores
-func (v *VolumeLookupCache) VolumeStoresList(ctx context.Context) (map[string]url.URL, error) {
-	return v.volumeStore.VolumeStoresList(ctx)
+func (v *VolumeLookupCache) VolumeStoresList(op trace.Operation) (map[string]url.URL, error) {
+	return v.volumeStore.VolumeStoresList(op)
 }
 
-func (v *VolumeLookupCache) VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*Volume, error) {
+func (v *VolumeLookupCache) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*Volume, error) {
 	v.vlcLock.Lock()
 	defer v.vlcLock.Unlock()
 
@@ -60,7 +60,7 @@ func (v *VolumeLookupCache) VolumeCreate(ctx context.Context, ID string, store *
 		return nil, os.ErrExist
 	}
 
-	vol, err := v.volumeStore.VolumeCreate(ctx, ID, store, capacityKB, info)
+	vol, err := v.volumeStore.VolumeCreate(op, ID, store, capacityKB, info)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (v *VolumeLookupCache) VolumeCreate(ctx context.Context, ID string, store *
 	return vol, nil
 }
 
-func (v *VolumeLookupCache) VolumeDestroy(ctx context.Context, ID string) error {
+func (v *VolumeLookupCache) VolumeDestroy(op trace.Operation, ID string) error {
 	v.vlcLock.Lock()
 	defer v.vlcLock.Unlock()
 
@@ -81,7 +81,7 @@ func (v *VolumeLookupCache) VolumeDestroy(ctx context.Context, ID string) error 
 	}
 
 	// remove it from the volumestore
-	if err := v.volumeStore.VolumeDestroy(ctx, &vol); err != nil {
+	if err := v.volumeStore.VolumeDestroy(op, &vol); err != nil {
 		return err
 	}
 	delete(v.vlc, vol.ID)
@@ -89,7 +89,7 @@ func (v *VolumeLookupCache) VolumeDestroy(ctx context.Context, ID string) error 
 	return nil
 }
 
-func (v *VolumeLookupCache) VolumeGet(ctx context.Context, ID string) (*Volume, error) {
+func (v *VolumeLookupCache) VolumeGet(op trace.Operation, ID string) (*Volume, error) {
 	v.vlcLock.RLock()
 	defer v.vlcLock.RUnlock()
 
@@ -102,7 +102,7 @@ func (v *VolumeLookupCache) VolumeGet(ctx context.Context, ID string) (*Volume, 
 	return &vol, nil
 }
 
-func (v *VolumeLookupCache) VolumesList(ctx context.Context) ([]*Volume, error) {
+func (v *VolumeLookupCache) VolumesList(op trace.Operation) ([]*Volume, error) {
 	v.vlcLock.RLock()
 	defer v.vlcLock.RUnlock()
 
@@ -119,7 +119,7 @@ func (v *VolumeLookupCache) VolumesList(ctx context.Context) ([]*Volume, error) 
 }
 
 // goto the volume store and repopulate the cache.
-func (v *VolumeLookupCache) rebuildCache(ctx context.Context) error {
+func (v *VolumeLookupCache) rebuildCache(op trace.Operation) error {
 
 	// Lock everything because we're rewriting the whole cache
 	v.vlcLock.Lock()
@@ -127,7 +127,7 @@ func (v *VolumeLookupCache) rebuildCache(ctx context.Context) error {
 
 	log.Info("Refreshing volume cache.")
 	// if it's not in the cache, check the volumeStore, cache the result, and return the list.
-	vols, err := v.volumeStore.VolumesList(ctx)
+	vols, err := v.volumeStore.VolumesList(op)
 	if err != nil {
 		return err
 	}

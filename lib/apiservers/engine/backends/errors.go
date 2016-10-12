@@ -53,6 +53,10 @@ func VolumeNotFoundError(msg string) error {
 	return derr.NewErrorWithStatusCode(fmt.Errorf("No such volume: %s", msg), http.StatusNotFound)
 }
 
+func ResourceNotFoundError(cid, res string) error {
+	return derr.NewRequestNotFoundError(fmt.Errorf("No such %s for container: %s", res, cid))
+}
+
 // NotFoundError returns a 404 docker error when a container is not found.
 func NotFoundError(msg string) error {
 	return derr.NewRequestNotFoundError(fmt.Errorf("No such container: %s", msg))

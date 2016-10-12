@@ -92,7 +92,8 @@ func TestSetIpAddress(t *testing.T) {
 					Default: true,
 					Gateway: *gwIP,
 				},
-				Static: &net.IPNet{
+				Static: true,
+				IP: &net.IPNet{
 					IP:   localhost,
 					Mask: lmask.Mask,
 				},
@@ -107,7 +108,8 @@ func TestSetIpAddress(t *testing.T) {
 						Name: "cnet",
 					},
 				},
-				Static: secondIP,
+				Static: true,
+				IP:     secondIP,
 			},
 			"external": {
 				Common: executor.Common{
@@ -120,7 +122,8 @@ func TestSetIpAddress(t *testing.T) {
 						Name: "external",
 					},
 				},
-				Static: &net.IPNet{
+				Static: true,
+				IP: &net.IPNet{
 					IP:   gateway,
 					Mask: gmask.Mask,
 				},

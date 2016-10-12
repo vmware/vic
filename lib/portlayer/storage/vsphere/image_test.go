@@ -36,6 +36,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	portlayer "github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/disk"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -53,7 +54,8 @@ func setup(t *testing.T) (*portlayer.NameLookupCache, *session.Session, string, 
 		Path: datastore.TestName("imageTests"),
 		Host: client.DatastorePath}
 
-	vsImageStore, err := NewImageStore(context.TODO(), client, storeURL)
+	op := trace.NewOperation(context.Background(), "setup")
+	vsImageStore, err := NewImageStore(op, client, storeURL)
 	if err != nil {
 		if err.Error() == "can't find the hosting vm" {
 			t.Skip("Skipping: test must be run in a VM")
@@ -79,7 +81,8 @@ func TestRestartImageStore(t *testing.T) {
 	defer cleanup(t, client, origVsStore, parentPath)
 
 	storeName := "bogusStoreName"
-	origStore, err := cacheStore.CreateImageStore(context.TODO(), storeName)
+	op := trace.NewOperation(context.Background(), "test")
+	origStore, err := cacheStore.CreateImageStore(op, storeName)
 	if !assert.NoError(t, err) || !assert.NotNil(t, origStore) {
 		return
 	}
@@ -89,7 +92,7 @@ func TestRestartImageStore(t *testing.T) {
 		Host: client.DatastorePath}
 
 	// now start it again
-	restartedVsStore, err := NewImageStore(context.TODO(), client, imageStoreURL)
+	restartedVsStore, err := NewImageStore(op, client, imageStoreURL)
 	if !assert.NoError(t, err) || !assert.NotNil(t, restartedVsStore) {
 		return
 	}
@@ -99,7 +102,7 @@ func TestRestartImageStore(t *testing.T) {
 		return
 	}
 
-	restartedStore, err := restartedVsStore.GetImageStore(context.TODO(), storeName)
+	restartedStore, err := restartedVsStore.GetImageStore(op, storeName)
 	if !assert.NoError(t, err) || !assert.NotNil(t, restartedStore) {
 		return
 	}
@@ -120,24 +123,25 @@ func TestCreateAndGetImageStore(t *testing.T) {
 	defer rm(t, client, client.Datastore.Path(parentPath))
 
 	storeName := "bogusStoreName"
-	u, err := vsis.CreateImageStore(context.TODO(), storeName)
+	op := trace.NewOperation(context.Background(), "test")
+	u, err := vsis.CreateImageStore(op, storeName)
 	if !assert.NoError(t, err) || !assert.NotNil(t, u) {
 		return
 	}
 
-	u, err = vsis.GetImageStore(context.TODO(), storeName)
+	u, err = vsis.GetImageStore(op, storeName)
 	if !assert.NoError(t, err) || !assert.NotNil(t, u) {
 		return
 	}
 
 	// Negative test.  Check for a dir that doesn't exist
-	u, err = vsis.GetImageStore(context.TODO(), storeName+"garbage")
+	u, err = vsis.GetImageStore(op, storeName+"garbage")
 	if !assert.Error(t, err) || !assert.Nil(t, u) {
 		return
 	}
 
 	// Test for a store that already exists
-	u, err = vsis.CreateImageStore(context.TODO(), storeName)
+	u, err = vsis.CreateImageStore(op, storeName)
 	if !assert.Error(t, err) || !assert.Nil(t, u) || !assert.Equal(t, err, os.ErrExist) {
 		return
 	}
@@ -152,16 +156,18 @@ func TestListImageStore(t *testing.T) {
 	// Nuke the parent image store directory
 	defer rm(t, client, client.Datastore.Path(parentPath))
 
+	op := trace.NewOperation(context.Background(), "test")
+
 	count := 3
 	for i := 0; i < count; i++ {
 		storeName := fmt.Sprintf("storeName%d", i)
-		u, err := vsis.CreateImageStore(context.TODO(), storeName)
+		u, err := vsis.CreateImageStore(op, storeName)
 		if !assert.NoError(t, err) || !assert.NotNil(t, u) {
 			return
 		}
 	}
 
-	images, err := vsis.ListImageStores(context.TODO())
+	images, err := vsis.ListImageStores(op)
 	if !assert.NoError(t, err) || !assert.Equal(t, len(images), count) {
 		return
 	}
@@ -179,19 +185,21 @@ func TestCreateImageLayers(t *testing.T) {
 	vsStore := cacheStore.DataStore.(*ImageStore)
 	defer cleanup(t, client, vsStore, parentPath)
 
-	storeURL, err := cacheStore.CreateImageStore(context.TODO(), "testStore")
+	op := trace.NewOperation(context.Background(), "test")
+
+	storeURL, err := cacheStore.CreateImageStore(op, "testStore")
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	// Get an image that doesn't exist and check for error
-	grbg, err := cacheStore.GetImage(context.TODO(), storeURL, "garbage")
+	grbg, err := cacheStore.GetImage(op, storeURL, "garbage")
 	if !assert.Error(t, err) || !assert.Nil(t, grbg) {
 		return
 	}
 
 	// base this image off scratch
-	parent, err := cacheStore.GetImage(context.TODO(), storeURL, portlayer.Scratch.ID)
+	parent, err := cacheStore.GetImage(op, storeURL, portlayer.Scratch.ID)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -237,7 +245,7 @@ func TestCreateImageLayers(t *testing.T) {
 		sum := fmt.Sprintf("sha256:%x", h.Sum(nil))
 
 		// Write the image via the cache (which writes to the vsphere impl)
-		writtenImage, terr := cacheStore.WriteImage(context.TODO(), parent, dirName, meta, sum, buf)
+		writtenImage, terr := cacheStore.WriteImage(op, parent, dirName, meta, sum, buf)
 		if !assert.NoError(t, terr) || !assert.NotNil(t, writtenImage) {
 			return
 		}
@@ -245,7 +253,7 @@ func TestCreateImageLayers(t *testing.T) {
 		expectedImages[dirName] = writtenImage
 
 		// Get the image directly via the vsphere image store impl.
-		vsImage, terr := vsStore.GetImage(context.TODO(), parent.Store, dirName)
+		vsImage, terr := vsStore.GetImage(op, parent.Store, dirName)
 		if !assert.NoError(t, terr) || !assert.NotNil(t, vsImage) {
 			return
 		}
@@ -257,7 +265,7 @@ func TestCreateImageLayers(t *testing.T) {
 	}
 
 	// Test list images on the datastore
-	listedImages, err := vsStore.ListImages(context.TODO(), parent.Store, nil)
+	listedImages, err := vsStore.ListImages(op, parent.Store, nil)
 	if !assert.NoError(t, err) || !assert.NotNil(t, listedImages) {
 		return
 	}
@@ -284,7 +292,7 @@ func TestCreateImageLayers(t *testing.T) {
 				roDisk.Unmount()
 			}
 			if roDisk.Attached() {
-				vsStore.dm.Detach(context.TODO(), roDisk)
+				vsStore.dm.Detach(op, roDisk)
 			}
 		}
 		os.RemoveAll(p)
@@ -318,20 +326,20 @@ func TestCreateImageLayers(t *testing.T) {
 
 	// Try to delete an intermediate image (should fail)
 	exec.NewContainerCache()
-	err = cacheStore.DeleteImage(context.TODO(), expectedImages["dir1"])
+	err = cacheStore.DeleteImage(op, expectedImages["dir1"])
 	if !assert.Error(t, err) || !assert.True(t, portlayer.IsErrImageInUse(err)) {
 		return
 	}
 
 	// Try to delete a leaf (should pass)
 	leaf := expectedImages["dir"+strconv.Itoa(numLayers-1)]
-	err = cacheStore.DeleteImage(context.TODO(), leaf)
+	err = cacheStore.DeleteImage(op, leaf)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	// Get the delete image directly via the vsphere image store impl.
-	deletedImage, err := vsStore.GetImage(context.TODO(), parent.Store, leaf.ID)
+	deletedImage, err := vsStore.GetImage(op, parent.Store, leaf.ID)
 	if !assert.Error(t, err) || !assert.Nil(t, deletedImage) || !assert.True(t, os.IsNotExist(err)) {
 		return
 	}
@@ -348,13 +356,15 @@ func TestBrokenPull(t *testing.T) {
 
 	defer cleanup(t, client, vsStore, parentPath)
 
-	storeURL, err := cacheStore.CreateImageStore(context.TODO(), "testStore")
+	op := trace.NewOperation(context.Background(), "test")
+
+	storeURL, err := cacheStore.CreateImageStore(op, "testStore")
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	// base this image off scratch
-	parent, err := cacheStore.GetImage(context.TODO(), storeURL, portlayer.Scratch.ID)
+	parent, err := cacheStore.GetImage(op, storeURL, portlayer.Scratch.ID)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -387,13 +397,13 @@ func TestBrokenPull(t *testing.T) {
 	actualsum := fmt.Sprintf("sha256:%x", h.Sum(nil))
 
 	// Write the image via the cache (which writes to the vsphere impl).  We're passing a bogus sum so the image should fail to save.
-	writtenImage, err := cacheStore.WriteImage(context.TODO(), parent, imageID, meta, "bogusSum", new(bytes.Buffer))
+	writtenImage, err := cacheStore.WriteImage(op, parent, imageID, meta, "bogusSum", new(bytes.Buffer))
 	if !assert.Error(t, err) || !assert.Nil(t, writtenImage) {
 		return
 	}
 
 	// Now try again with the right sum and there shouldn't be an error.
-	writtenImage, err = cacheStore.WriteImage(context.TODO(), parent, imageID, meta, actualsum, buf)
+	writtenImage, err = cacheStore.WriteImage(op, parent, imageID, meta, actualsum, buf)
 	if !assert.NoError(t, err) || !assert.NotNil(t, writtenImage) {
 		return
 	}
@@ -410,13 +420,15 @@ func TestInProgressCleanup(t *testing.T) {
 
 	defer cleanup(t, client, vsStore, parentPath)
 
-	storeURL, err := cacheStore.CreateImageStore(context.TODO(), "testStore")
+	op := trace.NewOperation(context.Background(), "test")
+
+	storeURL, err := cacheStore.CreateImageStore(op, "testStore")
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	// base this image off scratch
-	parent, err := cacheStore.GetImage(context.TODO(), storeURL, portlayer.Scratch.ID)
+	parent, err := cacheStore.GetImage(op, storeURL, portlayer.Scratch.ID)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -439,7 +451,7 @@ func TestInProgressCleanup(t *testing.T) {
 	h.Write(buf.Bytes())
 	sum := fmt.Sprintf("sha256:%x", h.Sum(nil))
 
-	writtenImage, err := cacheStore.WriteImage(context.TODO(), parent, imageID, meta, sum, buf)
+	writtenImage, err := cacheStore.WriteImage(op, parent, imageID, meta, sum, buf)
 	if !assert.NoError(t, err) || !assert.NotNil(t, writtenImage) {
 		return
 	}
@@ -448,17 +460,17 @@ func TestInProgressCleanup(t *testing.T) {
 	rm(t, client, path.Join(vsStore.ds.RootURL, vsStore.imageDirPath("testStore", imageID), manifest))
 
 	// ensure GetImage doesn't find this image now
-	if _, err = vsStore.GetImage(context.TODO(), storeURL, imageID); !assert.Error(t, err) {
+	if _, err = vsStore.GetImage(op, storeURL, imageID); !assert.Error(t, err) {
 		return
 	}
 
 	// call cleanup
-	if err = vsStore.cleanup(context.TODO(), storeURL); !assert.NoError(t, err) {
+	if err = vsStore.cleanup(op, storeURL); !assert.NoError(t, err) {
 		return
 	}
 
 	// Make sure list is now empty.
-	listedImages, err := vsStore.ListImages(context.TODO(), parent.Store, nil)
+	listedImages, err := vsStore.ListImages(op, parent.Store, nil)
 	if !assert.NoError(t, err) || !assert.Equal(t, len(listedImages), 1) || !assert.Equal(t, listedImages[0].ID, portlayer.Scratch.ID) {
 		return
 	}
@@ -511,7 +523,9 @@ func mountLayerRO(v *ImageStore, parent *portlayer.Image) (*disk.VirtualDisk, er
 	roName := v.imageDiskDSPath("testStore", parent.ID) + "-ro.vmdk"
 	parentDsURI := v.imageDiskDSPath("testStore", parent.ID)
 
-	roDisk, err := v.dm.CreateAndAttach(context.TODO(), roName, parentDsURI, 0, os.O_RDONLY)
+	op := trace.NewOperation(context.TODO(), "ro")
+
+	roDisk, err := v.dm.CreateAndAttach(op, roName, parentDsURI, 0, os.O_RDONLY)
 	if err != nil {
 		return nil, err
 	}

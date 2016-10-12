@@ -20,9 +20,9 @@ import (
 	"path"
 
 	log "github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 )
 
@@ -30,7 +30,7 @@ import (
 // Each blob in the metadata map is written to a file with the corresponding
 // name.  Likewise, when we read it back (on restart) we populate the map
 // accordingly.
-func writeMetadata(ctx context.Context, ds *datastore.Helper, dir string, meta map[string][]byte) error {
+func writeMetadata(op trace.Operation, ds *datastore.Helper, dir string, meta map[string][]byte) error {
 	// XXX this should be done via disklib so this meta follows the disk in
 	// case of motion.
 
@@ -39,12 +39,12 @@ func writeMetadata(ctx context.Context, ds *datastore.Helper, dir string, meta m
 			r := bytes.NewReader(value)
 			pth := path.Join(dir, name)
 			log.Infof("Writing metadata %s", pth)
-			if err := ds.Upload(ctx, r, pth); err != nil {
+			if err := ds.Upload(op, r, pth); err != nil {
 				return err
 			}
 		}
 	} else {
-		if _, err := ds.Mkdir(ctx, false, dir); err != nil {
+		if _, err := ds.Mkdir(op, false, dir); err != nil {
 			return err
 		}
 	}
@@ -53,9 +53,9 @@ func writeMetadata(ctx context.Context, ds *datastore.Helper, dir string, meta m
 }
 
 // Read the metadata from the given dir
-func getMetadata(ctx context.Context, ds *datastore.Helper, dir string) (map[string][]byte, error) {
+func getMetadata(op trace.Operation, ds *datastore.Helper, dir string) (map[string][]byte, error) {
 
-	res, err := ds.Ls(ctx, dir)
+	res, err := ds.Ls(op, dir)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func getMetadata(ctx context.Context, ds *datastore.Helper, dir string) (map[str
 
 		p := path.Join(dir, finfo.Path)
 		log.Infof("Getting metadata %s", p)
-		rc, err := ds.Download(ctx, p)
+		rc, err := ds.Download(op, p)
 		if err != nil {
 			return nil, err
 		}

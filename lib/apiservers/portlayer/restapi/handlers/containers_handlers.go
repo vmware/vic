@@ -103,9 +103,8 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 					ID:   id,
 					Name: *params.CreateConfig.Name,
 				},
-				Tty: *params.CreateConfig.Tty,
-				// FIXME: default to true for now until we can have a more sophisticated approach
-				Attach: true,
+				Tty:    *params.CreateConfig.Tty,
+				Attach: *params.CreateConfig.Attach,
 				Cmd: executor.Cmd{
 					Env:  params.CreateConfig.Env,
 					Dir:  *params.CreateConfig.WorkingDir,
@@ -201,7 +200,7 @@ func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStat
 func (handler *ContainersHandlersImpl) GetHandler(params containers.GetParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
-	h := exec.GetContainer(uid.Parse(params.ID))
+	h := exec.GetContainer(context.Background(), uid.Parse(params.ID))
 	if h == nil {
 		return containers.NewGetNotFound().WithPayload(&models.Error{Message: fmt.Sprintf("container %s not found", params.ID)})
 	}
@@ -235,7 +234,7 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 
 	// get the indicated container for removal
 	cID := uid.Parse(params.ID)
-	h := exec.GetContainer(cID)
+	h := exec.GetContainer(context.Background(), cID)
 	if h == nil {
 		return containers.NewContainerRemoveNotFound()
 	}
@@ -292,7 +291,7 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.ContainerSignalParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
-	h := exec.GetContainer(uid.Parse(params.ID))
+	h := exec.GetContainer(context.Background(), uid.Parse(params.ID))
 	if h == nil {
 		return containers.NewContainerSignalNotFound().WithPayload(&models.Error{Message: fmt.Sprintf("container %s not found", params.ID)})
 	}
@@ -308,7 +307,7 @@ func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.
 func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers.GetContainerLogsParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
-	h := exec.GetContainer(uid.Parse(params.ID))
+	h := exec.GetContainer(context.Background(), uid.Parse(params.ID))
 	if h == nil {
 		return containers.NewGetContainerLogsNotFound().WithPayload(&models.Error{
 			Message: fmt.Sprintf("container %s not found", params.ID),

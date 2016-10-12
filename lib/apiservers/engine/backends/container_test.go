@@ -22,17 +22,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
-	"github.com/go-swagger/go-swagger/client"
-
 	"github.com/docker/docker/api/types/backend"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	dnetwork "github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
-
+	"github.com/go-swagger/go-swagger/client"
+	"github.com/stretchr/testify/assert"
 	"github.com/vishvananda/netlink"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
@@ -103,12 +100,12 @@ type MockContainerProxy struct {
 }
 
 const (
-	SUCCESS              = 0
-	dummyContainerID     = "abc123"
-	dummyContainerID_tty = "tty123"
+	SUCCESS             = 0
+	dummyContainerID    = "abc123"
+	dummyContainerIDTTY = "tty123"
 )
 
-var dummyContainers []string = []string{dummyContainerID, dummyContainerID_tty}
+var dummyContainers = []string{dummyContainerID, dummyContainerIDTTY}
 
 func NewMockContainerProxy() *MockContainerProxy {
 	return &MockContainerProxy{
@@ -283,9 +280,9 @@ func (m *MockContainerProxy) StreamContainerLogs(name string, out io.Writer, sta
 func (m *MockContainerProxy) ContainerRunning(vc *viccontainer.VicContainer) (bool, error) {
 	// Assume container is running if container in cache.  If we need other conditions
 	// in the future, we can add it, but for now, just assume running.
-	container := cache.ContainerCache().GetContainer(vc.ContainerID)
+	c := cache.ContainerCache().GetContainer(vc.ContainerID)
 
-	if container == nil {
+	if c == nil {
 		return false, nil
 	}
 
@@ -346,7 +343,7 @@ func AddMockContainerToCache() {
 		vc.ImageID = image.ID
 		vc.Config = image.Config
 		vc.Config.Tty = true
-		vc.ContainerID = dummyContainerID_tty
+		vc.ContainerID = dummyContainerIDTTY
 
 		cache.ContainerCache().AddContainer(vc)
 	}

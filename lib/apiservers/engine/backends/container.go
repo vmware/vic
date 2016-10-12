@@ -26,10 +26,10 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/mreiferson/go-httpclient"
 	"github.com/go-swagger/go-swagger/httpkit"
 	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
 	strfmt "github.com/go-swagger/go-swagger/strfmt"
+	"github.com/mreiferson/go-httpclient"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/backend"
@@ -46,7 +46,6 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/portallocator"
-
 	"github.com/vishvananda/netlink"
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
@@ -359,8 +358,7 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 	_, err := client.Interaction.ContainerResize(plResizeParam)
 	if err != nil {
 		if _, isa := err.(*interaction.ContainerResizeNotFound); isa {
-			cache.ContainerCache().DeleteContainer(id)
-			return NotFoundError(name)
+			return ResourceNotFoundError(name, "interaction connection")
 		}
 
 		// If we get here, most likely something went wrong with the port layer API server
@@ -940,7 +938,7 @@ func (c *Container) ContainerLogs(name string, config *backend.ContainerLogsConf
 
 	wf.Flush()
 
-	var outStream io.Writer = wf
+	outStream := io.Writer(wf)
 	if !vc.Config.Tty {
 		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
 	}
@@ -1091,7 +1089,46 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 		}
 	}
 
-	return attachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
+	err = attachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
+	if err != nil {
+		if _, ok := err.(DetachError); ok {
+			log.Infof("Detach detected, tearing down connection")
+			client = c.containerProxy.Client()
+			handle, err = c.Handle(id, name)
+			if err != nil {
+				return err
+			}
+
+			unbind, err := client.Interaction.InteractionUnbind(interaction.NewInteractionUnbindParamsWithContext(ctx).
+				WithConfig(&models.InteractionUnbindConfig{
+					Handle: handle,
+				}))
+			if err != nil {
+				return InternalServerError(err.Error())
+			}
+
+			handle, ok = unbind.Payload.Handle.(string)
+			if !ok {
+				return InternalServerError("type assertion failed")
+			}
+
+			// commit the handle; this will reconfigure the vm
+			_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
+			if err != nil {
+				switch err := err.(type) {
+				case *containers.CommitNotFound:
+					return NotFoundError(name)
+				case *containers.CommitDefault:
+					return InternalServerError(err.Payload.Message)
+				default:
+					return InternalServerError(err.Error())
+				}
+			}
+		}
+		return err
+	}
+
+	return nil
 }
 
 //------------------------------------
@@ -1434,6 +1471,17 @@ func setCreateConfigOptions(config, imageConfig *containertypes.Config) {
 	}
 	if len(config.Entrypoint) == 0 {
 		config.Entrypoint = imageConfig.Entrypoint
+	}
+
+	if config.Volumes == nil {
+		config.Volumes = imageConfig.Volumes
+	} else {
+		for k, v := range imageConfig.Volumes {
+			//NOTE: the value of the map is an empty struct.
+			//      we also do not care about duplicates.
+			//      This Volumes map is really a Set.
+			config.Volumes[k] = v
+		}
 	}
 
 	// set up environment

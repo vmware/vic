@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation  Test 1-16 - Docker Network LS
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Install VIC Appliance To Test Server  certs=${false}
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
@@ -16,7 +16,7 @@ Docker network ls -q
     Should Not Contain  ${output}  NAME
     Should Not Contain  ${output}  DRIVER
     Should Not Contain  ${output}  bridge
-    
+
 Docker network ls -f
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network ls -f name=bridge
     Should Be Equal As Integers  ${rc}  0
@@ -31,7 +31,7 @@ Docker network ls --no-trunc
     @{line}=  Split String  @{lines}[1]
     ${status}=  Get State Of Github Issue  1225
     Length Should Be  @{line}[0]  64
-    
+
 Docker network ls -f fake network
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network ls -f name=fakeName
     Should Be Equal As Integers  ${rc}  0

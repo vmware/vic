@@ -72,9 +72,8 @@ func newOperation(ctx context.Context, id string, skip int, msg string) Operatio
 func (o *Operation) header() string {
 	if Logger.Level >= logrus.DebugLevel {
 		return fmt.Sprintf("op=%s (delta:%s)", o.id, o.t[0].delta())
-	} else {
-		return fmt.Sprintf("op=%s", o.id)
 	}
+	return fmt.Sprintf("op=%s", o.id)
 }
 
 // Err returns a non-nil error value after Done is closed.  Err returns

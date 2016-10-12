@@ -383,13 +383,19 @@ Get VM IP
     ${rc}  ${out}=  Run And Return Rc And Output  govc vm.ip ${vm}
     Should Be Equal As Integers  ${rc}  0
     [Return]  ${out}
+
+Get VM Name
+    [Arguments]  ${vm}
+    ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Variable  ${vm}/${vm}
+    ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Variable  ${vm}
+    [Return]  ${ret}
+
     
 Get VM Host Name
     [Arguments]  ${vm}
-    ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  govc vm.info ${vm}/${vm}
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Set Test Variable  ${out}  ${ret}
-    ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc vm.info ${vm}
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Test Variable  ${out}  ${ret}
+    ${vm}=  Get VM Name  ${vm}
+    ${ret}=  Run  govc vm.info ${vm}/${vm}
+    Set Test Variable  ${out}  ${ret}
     ${out}=  Split To Lines  ${out}
     ${host}=  Fetch From Right  @{out}[-1]  ${SPACE} 
     [Return]  ${host}
@@ -456,4 +462,9 @@ Remove Host From Maintenance Mode
 Hit Nginx Endpoint
     [Arguments]  ${vch-ip}  ${port}
     ${rc}  ${output}=  Run And Return Rc And Output  wget ${vch-ip}:${port}
+    Should Be Equal As Integers  ${rc}  0
+
+Run Docker Info
+    [Arguments]  ${docker-params}
+    ${rc}=  Run And Return Rc  docker ${docker-params} info
     Should Be Equal As Integers  ${rc}  0

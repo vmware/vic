@@ -415,7 +415,7 @@ func TestDefaultResolutionCache(t *testing.T) {
 
 	sch, ok = cache.Get("http://swagger.io/v2/schema.json")
 	assert.True(t, ok)
-	assert.Equal(t, swaggerSchema, sch)
+	assert.Equal(t, swagger20Schema, sch)
 
 	sch, ok = cache.Get("http://json-schema.org/draft-04/schema")
 	assert.True(t, ok)

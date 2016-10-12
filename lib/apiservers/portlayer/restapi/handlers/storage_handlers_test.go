@@ -32,6 +32,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/storage"
 	spl "github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/util"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 var (
@@ -63,7 +64,7 @@ func NewMockVolumeStore() *MockVolumeStore {
 }
 
 // Creates a volume on the given volume store, of the given size, with the given metadata.
-func (m *MockVolumeStore) VolumeCreate(ctx context.Context, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*spl.Volume, error) {
+func (m *MockVolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL, capacityKB uint64, info map[string][]byte) (*spl.Volume, error) {
 	storeName, err := util.VolumeStoreName(store)
 	if err != nil {
 		return nil, err
@@ -86,7 +87,7 @@ func (m *MockVolumeStore) VolumeCreate(ctx context.Context, ID string, store *ur
 }
 
 // Get an existing volume via it's ID and volume store.
-func (m *MockVolumeStore) VolumeGet(ctx context.Context, ID string) (*spl.Volume, error) {
+func (m *MockVolumeStore) VolumeGet(op trace.Operation, ID string) (*spl.Volume, error) {
 	vol, ok := m.db[ID]
 	if !ok {
 		return nil, os.ErrNotExist
@@ -96,7 +97,7 @@ func (m *MockVolumeStore) VolumeGet(ctx context.Context, ID string) (*spl.Volume
 }
 
 // Destroys a volume
-func (m *MockVolumeStore) VolumeDestroy(ctx context.Context, vol *spl.Volume) error {
+func (m *MockVolumeStore) VolumeDestroy(op trace.Operation, vol *spl.Volume) error {
 	if _, ok := m.db[vol.ID]; !ok {
 		return os.ErrNotExist
 	}
@@ -106,12 +107,12 @@ func (m *MockVolumeStore) VolumeDestroy(ctx context.Context, vol *spl.Volume) er
 	return nil
 }
 
-func (m *MockVolumeStore) VolumeStoresList(ctx context.Context) (map[string]url.URL, error) {
+func (m *MockVolumeStore) VolumeStoresList(op trace.Operation) (map[string]url.URL, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
 // Lists all volumes on the given volume store`
-func (m *MockVolumeStore) VolumesList(ctx context.Context) ([]*spl.Volume, error) {
+func (m *MockVolumeStore) VolumesList(op trace.Operation) ([]*spl.Volume, error) {
 	var i int
 	list := make([]*spl.Volume, len(m.db))
 	for _, v := range m.db {
@@ -125,7 +126,7 @@ func (m *MockVolumeStore) VolumesList(ctx context.Context) ([]*spl.Volume, error
 
 // GetImageStore checks to see if a named image store exists and returls the
 // URL to it if so or error.
-func (c *MockDataStore) GetImageStore(ctx context.Context, storeName string) (*url.URL, error) {
+func (c *MockDataStore) GetImageStore(op trace.Operation, storeName string) (*url.URL, error) {
 	u, err := util.ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
@@ -133,7 +134,7 @@ func (c *MockDataStore) GetImageStore(ctx context.Context, storeName string) (*u
 	return nil, fmt.Errorf("store (%s) doesn't exist", u.String())
 }
 
-func (c *MockDataStore) CreateImageStore(ctx context.Context, storeName string) (*url.URL, error) {
+func (c *MockDataStore) CreateImageStore(op trace.Operation, storeName string) (*url.URL, error) {
 	u, err := util.ImageStoreNameToURL(storeName)
 	if err != nil {
 		return nil, err
@@ -142,11 +143,11 @@ func (c *MockDataStore) CreateImageStore(ctx context.Context, storeName string) 
 	return u, nil
 }
 
-func (c *MockDataStore) ListImageStores(ctx context.Context) ([]*url.URL, error) {
+func (c *MockDataStore) ListImageStores(op trace.Operation) ([]*url.URL, error) {
 	return nil, nil
 }
 
-func (c *MockDataStore) WriteImage(ctx context.Context, parent *spl.Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*spl.Image, error) {
+func (c *MockDataStore) WriteImage(op trace.Operation, parent *spl.Image, ID string, meta map[string][]byte, sum string, r io.Reader) (*spl.Image, error) {
 	storeName, err := util.ImageStoreName(parent.Store)
 	if err != nil {
 		return nil, err
@@ -167,12 +168,12 @@ func (c *MockDataStore) WriteImage(ctx context.Context, parent *spl.Image, ID st
 
 	return &i, nil
 }
-func (c *MockDataStore) WriteMetadata(ctx context.Context, storeName string, ID string, meta map[string][]byte) error {
+func (c *MockDataStore) WriteMetadata(op trace.Operation, storeName string, ID string, meta map[string][]byte) error {
 	return nil
 }
 
 // GetImage gets the specified image from the given store by retreiving it from the cache.
-func (c *MockDataStore) GetImage(ctx context.Context, store *url.URL, ID string) (*spl.Image, error) {
+func (c *MockDataStore) GetImage(op trace.Operation, store *url.URL, ID string) (*spl.Image, error) {
 	if ID == spl.Scratch.ID {
 		return &spl.Image{Store: store}, nil
 	}
@@ -181,18 +182,19 @@ func (c *MockDataStore) GetImage(ctx context.Context, store *url.URL, ID string)
 }
 
 // ListImages resturns a list of Images for a list of IDs, or all if no IDs are passed
-func (c *MockDataStore) ListImages(ctx context.Context, store *url.URL, IDs []string) ([]*spl.Image, error) {
+func (c *MockDataStore) ListImages(op trace.Operation, store *url.URL, IDs []string) ([]*spl.Image, error) {
 	return nil, fmt.Errorf("store (%s) doesn't exist", store.String())
 }
 
-func (c *MockDataStore) DeleteImage(ctx context.Context, image *spl.Image) error {
+func (c *MockDataStore) DeleteImage(op trace.Operation, image *spl.Image) error {
 	return nil
 }
 
 func TestCreateImageStore(t *testing.T) {
-	storageImageLayer = spl.NewLookupCache(&MockDataStore{})
+	s := &StorageHandlersImpl{
+		imageCache: spl.NewLookupCache(&MockDataStore{}),
+	}
 
-	s := &StorageHandlersImpl{}
 	store := &models.ImageStore{
 		Name: "testStore",
 	}
@@ -225,9 +227,10 @@ func TestCreateImageStore(t *testing.T) {
 }
 
 func TestGetImage(t *testing.T) {
-	storageImageLayer = spl.NewLookupCache(&MockDataStore{})
 
-	s := &StorageHandlersImpl{}
+	s := &StorageHandlersImpl{
+		imageCache: spl.NewLookupCache(&MockDataStore{}),
+	}
 
 	params := &storage.GetImageParams{
 		ID:        testImageID,
@@ -250,8 +253,10 @@ func TestGetImage(t *testing.T) {
 		return
 	}
 
+	op := trace.NewOperation(context.Background(), "test")
+
 	// create the image store
-	url, err := storageImageLayer.CreateImageStore(context.TODO(), testStoreName)
+	url, err := s.imageCache.CreateImageStore(op, testStoreName)
 	// TODO(jzt): these are testing NameLookupCache, do we need them here?
 	if !assert.Nil(t, err, "Error while creating image store") {
 		return
@@ -287,7 +292,7 @@ func TestGetImage(t *testing.T) {
 	expectedMeta := make(map[string][]byte)
 	expectedMeta["foo"] = []byte("bar")
 	// add the image to the store
-	image, err := storageImageLayer.WriteImage(context.TODO(), &parent, testImageID, expectedMeta, testImageSum, nil)
+	image, err := s.imageCache.WriteImage(op, &parent, testImageID, expectedMeta, testImageSum, nil)
 	if !assert.NoError(t, err) || !assert.NotNil(t, image) {
 		return
 	}
@@ -327,9 +332,10 @@ func TestGetImage(t *testing.T) {
 }
 
 func TestListImages(t *testing.T) {
-	storageImageLayer = spl.NewLookupCache(&MockDataStore{})
 
-	s := &StorageHandlersImpl{}
+	s := &StorageHandlersImpl{
+		imageCache: spl.NewLookupCache(&MockDataStore{}),
+	}
 
 	params := &storage.ListImagesParams{
 		StoreName: testStoreName,
@@ -351,8 +357,10 @@ func TestListImages(t *testing.T) {
 		return
 	}
 
+	op := trace.NewOperation(context.Background(), "test")
+
 	// create the image store
-	url, err := storageImageLayer.CreateImageStore(context.TODO(), testStoreName)
+	url, err := s.imageCache.CreateImageStore(op, testStoreName)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -366,7 +374,7 @@ func TestListImages(t *testing.T) {
 	parent.Store = &testStoreURL
 	for i := 1; i < 50; i++ {
 		id := fmt.Sprintf("id-%d", i)
-		img, err := storageImageLayer.WriteImage(context.TODO(), &parent, id, nil, testImageSum, nil)
+		img, err := s.imageCache.WriteImage(op, &parent, id, nil, testImageSum, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -416,15 +424,18 @@ func TestListImages(t *testing.T) {
 }
 
 func TestWriteImage(t *testing.T) {
-	storageImageLayer = spl.NewLookupCache(&MockDataStore{})
+	ic := spl.NewLookupCache(&MockDataStore{})
 
 	// create image store
-	_, err := storageImageLayer.CreateImageStore(context.TODO(), testStoreName)
+	op := trace.NewOperation(context.Background(), "test")
+	_, err := ic.CreateImageStore(op, testStoreName)
 	if err != nil {
 		return
 	}
 
-	s := &StorageHandlersImpl{}
+	s := &StorageHandlersImpl{
+		imageCache: ic,
+	}
 
 	eMeta := make(map[string]string)
 	eMeta["foo"] = "bar"
@@ -477,11 +488,15 @@ func TestWriteImage(t *testing.T) {
 
 func TestVolumeCreate(t *testing.T) {
 
-	var err error
 	testStore := NewMockVolumeStore()
-	storageVolumeLayer, err = spl.NewVolumeLookupCache(context.TODO(), testStore)
+	op := trace.NewOperation(context.Background(), "test")
+	volCache, err := spl.NewVolumeLookupCache(op, testStore)
 	if !assert.NoError(t, err) {
 		return
+	}
+
+	handler := StorageHandlersImpl{
+		volumeCache: volCache,
 	}
 
 	model := models.VolumeRequest{}
@@ -494,10 +509,9 @@ func TestVolumeCreate(t *testing.T) {
 	model.Metadata = make(map[string]string)
 	params := storage.NewCreateVolumeParams()
 	params.VolumeRequest = &model
-	implementationHandler := StorageHandlersImpl{}
 
-	implementationHandler.CreateVolume(params)
-	testVolume, err := testStore.VolumeGet(context.TODO(), model.Name)
+	handler.CreateVolume(params)
+	testVolume, err := testStore.VolumeGet(op, model.Name)
 	if !assert.NoError(t, err) {
 		return
 	}

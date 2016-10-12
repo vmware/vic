@@ -22,6 +22,7 @@ import (
 
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/dio"
+	"github.com/vmware/vic/pkg/ip"
 )
 
 type ExecutorConfig struct {
@@ -106,11 +107,14 @@ type NetworkEndpoint struct {
 	// Common.ID - pci slot of the vnic allowing for interface identifcation in-guest
 	executor.Common
 
-	// IP address to assign - nil if DHCP
-	Static *net.IPNet `vic:"0.1" scope:"read-only" key:"staticip"`
+	// Whether this endpoint's IP was specified by the client (true if it was)
+	Static bool `vic:"0.1" scope:"read-only" key:"static"`
+
+	// IP address to assign
+	IP *net.IPNet `vic:"0.1" scope:"read-only" key:"ip"`
 
 	// Actual IP address assigned
-	Assigned net.IPNet `vic:"0.1" scope:"read-write" key:"ip"`
+	Assigned net.IPNet `vic:"0.1" scope:"read-write" key:"assigned"`
 
 	// The network in which this information should be interpreted. This is embedded directly rather than
 	// as a pointer so that we can ensure the data is consistent
@@ -121,7 +125,7 @@ type NetworkEndpoint struct {
 }
 
 func (e *NetworkEndpoint) IsDynamic() bool {
-	return e.Static == nil || len(e.Static.IP) == 0
+	return !e.Static && (e.IP == nil || ip.IsUnspecifiedIP(e.IP.IP))
 }
 
 type DHCPInfo struct {

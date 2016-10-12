@@ -37,13 +37,14 @@ type simpleCache struct {
 	store map[string]interface{}
 }
 
-func defaultResolutionCache() ResolutionCache {
-	return &simpleCache{lock: new(sync.RWMutex), store: map[string]interface{}{
-		"http://swagger.io/v2/schema.json":       MustLoadSwagger20Schema(),
-		"http://json-schema.org/draft-04/schema": MustLoadJSONSchemaDraft04(),
-	}}
-}
+var resCache = &simpleCache{lock: new(sync.RWMutex), store: map[string]interface{}{
+	"http://swagger.io/v2/schema.json":       MustLoadSwagger20Schema(),
+	"http://json-schema.org/draft-04/schema": MustLoadJSONSchemaDraft04(),
+}}
 
+func defaultResolutionCache() ResolutionCache {
+	return resCache
+}
 func (s *simpleCache) Get(uri string) (interface{}, bool) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()

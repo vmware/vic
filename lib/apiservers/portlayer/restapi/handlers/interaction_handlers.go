@@ -61,7 +61,7 @@ func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Han
 
 	i.attachServer = attach.NewAttachServer(constants.ManagementHostName, 0)
 
-	if err := i.attachServer.Start(); err != nil {
+	if err := i.attachServer.Start(false); err != nil {
 		log.Fatalf("Attach server unable to start: %s", err)
 	}
 }
@@ -198,16 +198,21 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 		}
 		return interaction.NewContainerSetStdinNotFound().WithPayload(e)
 	}
+	// Remove the connection from the map
+	defer i.attachServer.Remove(params.ID)
 
 	detachableIn := NewFlushingReader(params.RawStream)
 	_, err = io.Copy(session.Stdin(), detachableIn)
 	if err != nil {
 		log.Errorf("%s", err.Error())
 
-		e := &models.Error{
-			Message: fmt.Sprintf("Error copying stdin (id: %s): %s", params.ID, err.Error()),
-		}
-		return interaction.NewContainerSetStdinInternalServerError().WithPayload(e)
+		// FIXME (caglar10ur): Do not return an error here - https://github.com/vmware/vic/issues/2594
+		/*
+			e := &models.Error{
+				Message: fmt.Sprintf("Error copying stdin (id: %s): %s", params.ID, err.Error()),
+			}
+			return interaction.NewContainerSetStdinInternalServerError().WithPayload(e)
+		*/
 	}
 
 	log.Debugf("Done copying stdin")
@@ -264,10 +269,14 @@ func (i *InteractionHandlersImpl) ContainerGetStdoutHandler(params interaction.C
 	if err != nil {
 		log.Errorf("%s", err.Error())
 
-		e := &models.Error{
-			Message: fmt.Sprintf("No stdout connection found (id: %s): %s", params.ID, err.Error()),
-		}
-		return interaction.NewContainerGetStdoutNotFound().WithPayload(e)
+		// FIXME (caglar10ur): Do not return an error here - https://github.com/vmware/vic/issues/2594
+		/*
+			e := &models.Error{
+				Message: fmt.Sprintf("No stdout connection found (id: %s): %s", params.ID, err.Error()),
+			}
+			return interaction.NewContainerGetStdoutNotFound().WithPayload(e)
+		*/
+		return interaction.NewContainerGetStdoutNotFound()
 	}
 
 	return NewContainerOutputHandler("stdout").WithPayload(
@@ -303,10 +312,14 @@ func (i *InteractionHandlersImpl) ContainerGetStderrHandler(params interaction.C
 	if err != nil {
 		log.Errorf("%s", err.Error())
 
-		e := &models.Error{
-			Message: fmt.Sprintf("No stderr connection found (id: %s): %s", params.ID, err.Error()),
-		}
-		return interaction.NewContainerGetStderrNotFound().WithPayload(e)
+		// FIXME (caglar10ur): Do not return an error here - https://github.com/vmware/vic/issues/2594
+		/*
+			e := &models.Error{
+				Message: fmt.Sprintf("No stderr connection found (id: %s): %s", params.ID, err.Error()),
+			}
+			return interaction.NewContainerGetStderrNotFound().WithPayload(e)
+		*/
+		return interaction.NewContainerGetStderrNotFound()
 	}
 
 	return NewContainerOutputHandler("stderr").WithPayload(

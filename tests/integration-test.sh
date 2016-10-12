@@ -21,11 +21,11 @@ set +x
 dpkg -l > package.list
 
 if [ $DRONE_BRANCH = "master" ] && [ $DRONE_REPO = "vmware/vic" ]; then
-    pybot --removekeywords TAG:secret tests/test-cases
+    pybot --removekeywords TAG:secret --exclude skip tests/test-cases
 elif grep -q "\[full ci\]" <(drone build info vmware/vic $DRONE_BUILD_NUMBER); then
-    pybot --removekeywords TAG:secret tests/test-cases
+    pybot --removekeywords TAG:secret --exclude skip tests/test-cases
 else
-    pybot --removekeywords TAG:secret --include regression tests/test-cases
+    pybot --removekeywords TAG:secret --exclude skip --include regression tests/test-cases
 fi
 
 rc="$?"

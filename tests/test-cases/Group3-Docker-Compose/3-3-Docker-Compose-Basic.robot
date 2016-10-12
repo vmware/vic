@@ -14,12 +14,13 @@ Compose basic
     Log  ${output}
     ${rc}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml create
     Log  ${output}
-    ${rc1}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml start
-    Log  ${output}
-    ${rc2}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml logs
-    Log  ${output}
-    ${rc2}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml stop
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml start
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-    Should Be Equal As Integers  ${rc1}  0
-    Should Be Equal As Integers  ${rc2}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml logs
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker-compose ${params} --file basic-compose.yml stop
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0

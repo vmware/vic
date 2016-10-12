@@ -57,7 +57,7 @@ func TestAttachStartStop(t *testing.T) {
 		wg.Done()
 	}
 
-	assert.NoError(t, s.Start())
+	assert.NoError(t, s.Start(true))
 
 	for i := 0; i < 200; i++ {
 		go dial()
@@ -84,7 +84,7 @@ func TestAttachSshSession(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
 
 	s := NewAttachServer("", -1)
-	assert.NoError(t, s.Start())
+	assert.NoError(t, s.Start(true))
 	defer s.Stop()
 
 	expectedID := "foo"
