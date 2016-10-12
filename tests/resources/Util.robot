@@ -406,6 +406,8 @@ Run Unit Tests
     Log To Console  Execute the unit tests...
     ${output}=  Run  make -j3 test
     Log To Console  ${output}
+    Should Not Contain  ${output}  FAIL
+    Should Not Contain  ${output}  [build failed]
 
 Run Regression Tests
     Run Unit Tests
