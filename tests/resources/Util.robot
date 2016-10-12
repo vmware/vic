@@ -401,6 +401,13 @@ Get VM Host Name
     [Return]  ${host}
 
 Run Regression Tests
+    # Run the unit tests on the right ESX host
+    Set Environment Variable  VIC_ESX_URL  %{TEST_URL}
+    ${output}=  Run  ls vendor/github.com/vmware/govmomi/vim25/methods
+    Log To Console  ${output}
+    ${output}=  Run  make -j3 test
+    Log To Console  ${output}
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
