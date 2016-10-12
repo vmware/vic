@@ -53,12 +53,19 @@ func (s *server) listen(useTLS bool) error {
 
 	// FIXME: assignment copies lock value to tlsConfig: crypto/tls.Config contains sync.Once contains sync.Mutex
 	tlsconfig := func(c *tls.Config) *tls.Config {
-		if c.ClientCAs == nil {
-			c.ClientCAs = x509.NewCertPool()
+		// if there are CAs, then TLS is enabled
+		if len(vchConfig.CertificateAuthorities) != 0 {
+			if c.ClientCAs == nil {
+				c.ClientCAs = x509.NewCertPool()
+			}
+			if !c.ClientCAs.AppendCertsFromPEM(vchConfig.CertificateAuthorities) {
+				log.Errorf("Unable to load CAs from config; client auth via certificate will not function")
+			}
+			c.ClientAuth = tls.RequireAndVerifyClientCert
+		} else {
+			log.Warnf("No certificate authorities found for certificate-based authentication. This may be intentional, however, authentication is disabled")
 		}
-		if !c.ClientCAs.AppendCertsFromPEM(vchConfig.CertificateAuthorities) {
-			log.Warnf("Unable to load CAs from config; client auth via certificate will not function")
-		}
+
 		return &tls.Config{
 			Certificates:             c.Certificates,
 			NameToCertificate:        c.NameToCertificate,
@@ -66,7 +73,7 @@ func (s *server) listen(useTLS bool) error {
 			RootCAs:                  c.RootCAs,
 			NextProtos:               c.NextProtos,
 			ServerName:               c.ServerName,
-			ClientAuth:               tls.VerifyClientCertIfGiven,
+			ClientAuth:               c.ClientAuth,
 			ClientCAs:                c.ClientCAs,
 			InsecureSkipVerify:       c.InsecureSkipVerify,
 			CipherSuites:             c.CipherSuites,
