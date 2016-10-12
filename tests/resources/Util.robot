@@ -176,11 +176,8 @@ Cleanup Dangling VMs On Test Server
     \   ${state}=  Get State Of Drone Build  @{build}[1]
     \   Continue For Loop If  '${state}' == 'running'
     \   ${uuid}=  Run  govc vm.info -json\=true ${vm} | jq -r '.VirtualMachines[0].Config.Uuid'
-    \   Log To Console  Destroying dangling VM ${vm}
-    \   ${output}=  Run  govc vm.destroy ${vm}
-    \   ${output}=  Run  govc pool.destroy %{GOVC_RESOURCE_POOL}/${vm}
-    \   ${output}=  Run  govc datastore.rm ${vm}
-    \   ${output}=  Run  govc datastore.rm VIC/${uuid}
+    \   Log To Console  Destroying dangling VCH: ${vm}
+    \   ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vm}
 
 Cleanup Dangling Networks On Test Server
     ${out}=  Run  govc ls network
@@ -400,7 +397,20 @@ Get VM Host Name
     ${host}=  Fetch From Right  @{out}[-1]  ${SPACE} 
     [Return]  ${host}
 
+Run Unit Tests
+    [Tags]  secret
+    Set Environment Variable  VIC_ESX_TEST_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
+    Log To Console  \nls vendor/github.com/vmware/govmomi/vim25/methods:
+    ${output}=  Run  ls vendor/github.com/vmware/govmomi/vim25/methods
+    Log To Console  ${output}
+    Log To Console  Execute the unit tests...
+    ${output}=  Run  make -j3 test
+    Log To Console  ${output}
+    Should Not Contain  ${output}  FAIL
+    Should Not Contain  ${output}  [build failed]
+
 Run Regression Tests
+    Run Unit Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
@@ -423,6 +433,7 @@ Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz | tar tvzf -
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
+    Should Contain  ${output}  ${container}/output.log
     Should Contain  ${output}  ${container}/vmware.log
     Should Contain  ${output}  ${container}/tether.debug
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}
