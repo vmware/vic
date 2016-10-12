@@ -10,7 +10,7 @@ Docker volume create 1000 volumes rapidly
 
     # Create 1000 volumes rapidly
     :FOR  ${idx}  IN RANGE  0  1000
-    \   ${pid}=  Start Process  docker ${params} volume create --name\=multiple${idx} --opt Capacity\=1MB  shell=True
+    \   ${pid}=  Start Process  docker ${params} volume create --name\=multiple${idx} --opt Capacity\=32MB  shell=True
     \   Append To List  ${pids}  ${pid}
 
     # Wait for them to finish and check their RC
