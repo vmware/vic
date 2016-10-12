@@ -27,13 +27,16 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/tlsconfig"
+	gorillacontext "github.com/gorilla/context"
+	"github.com/gorilla/securecookie"
+	"github.com/gorilla/sessions"
 
+	"crypto/x509"
 	"github.com/vmware/vic/lib/vicadmin"
 	"github.com/vmware/vic/pkg/trace"
 )
 
 type server struct {
-	auth Authenticator
 	l    net.Listener
 	addr string
 	mux  *http.ServeMux
@@ -46,6 +49,8 @@ const (
 	formatZip
 )
 
+var store = sessions.NewCookieStore([]byte(securecookie.GenerateRandomKey(64)))
+
 func (s *server) listen(useTLS bool) error {
 	defer trace.End(trace.Begin(""))
 
@@ -53,6 +58,13 @@ func (s *server) listen(useTLS bool) error {
 
 	// FIXME: assignment copies lock value to tlsConfig: crypto/tls.Config contains sync.Once contains sync.Mutex
 	tlsconfig := func(c *tls.Config) *tls.Config {
+		if c.ClientCAs == nil {
+			c.ClientCAs = x509.NewCertPool()
+		}
+		clientCAs := c.ClientCAs
+		if !clientCAs.AppendCertsFromPEM(vchConfig.CertificateAuthorities) {
+			log.Warnf("Unable to load CAs from config; client auth via certificate will not function")
+		}
 		return &tls.Config{
 			Certificates:             c.Certificates,
 			NameToCertificate:        c.NameToCertificate,
@@ -60,8 +72,8 @@ func (s *server) listen(useTLS bool) error {
 			RootCAs:                  c.RootCAs,
 			NextProtos:               c.NextProtos,
 			ServerName:               c.ServerName,
-			ClientAuth:               c.ClientAuth,
-			ClientCAs:                c.ClientCAs,
+			ClientAuth:               tls.VerifyClientCertIfGiven,
+			ClientCAs:                clientCAs,
 			InsecureSkipVerify:       c.InsecureSkipVerify,
 			CipherSuites:             c.CipherSuites,
 			PreferServerCipherSuites: c.PreferServerCipherSuites,
@@ -101,25 +113,66 @@ func (s *server) listenPort() int {
 	return s.l.Addr().(*net.TCPAddr).Port
 }
 
-// handleFunc does preparatory work and then calls the HandleFunc method owned by the HTTP multiplexer
-func (s *server) handleFunc(link string, handler func(http.ResponseWriter, *http.Request)) {
+// Enforces authentication on route `link` and runs `handler` on successful auth
+func (s *server) AuthenticatedHandle(link string, h http.Handler) {
+	s.Authenticated(link, h.ServeHTTP)
+}
+
+func (s *server) Handle(link string, h http.Handler) {
+	s.mux.Handle(link, gorillacontext.ClearHandler(h))
+}
+
+// Enforces authentication on route `link` and runs `handler` on successful auth
+func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *http.Request)) {
 	defer trace.End(trace.Begin(""))
 
-	if s.auth != nil {
-		authHandler := func(w http.ResponseWriter, r *http.Request) {
-			user, password, ok := r.BasicAuth()
-			if !ok || !s.auth.Validate(user, password) {
-				w.Header().Add("WWW-Authenticate", "Basic realm=vicadmin")
-				w.WriteHeader(http.StatusUnauthorized)
-				return
+	authHandler := func(w http.ResponseWriter, r *http.Request) {
+		websession, err := store.Get(r, "secret-store")
+		// "authenticate" if any cookie is present (HACK TODO FIXME)
+		if len(r.TLS.PeerCertificates) == 0 && websession.Values["foo"] != "bar" {
+			// if err != nil, then no authentication cookie is set
+			log.Infof("No cookie found: %s", err)
+			if err != nil {
+				log.Infof("Secret store was empty, but that's expected?")
 			}
-			handler(w, r)
+			http.Redirect(w, r, "/authentication", 302)
+			return
 		}
-		s.mux.HandleFunc(link, authHandler)
-		return
+		handler(w, r)
+	}
+	s.mux.Handle(link, gorillacontext.ClearHandler(http.HandlerFunc(authHandler)))
+}
+
+// renders the page for login and handles authorization requests
+func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
+	defer trace.End(trace.Begin(""))
+	ctx := context.Background()
+	sess, err := client(&config)
+	if req.Method == "POST" {
+		log.Infof("Request %+v", req)
+		log.Infof("Body %+v", req.Body)
+		log.Infof("Headers %+v", req.Header)
+		err := req.ParseForm()
+		if err != nil {
+			log.Errorf("Could not parse form data on authentication page due to error %s", err.Error())
+		}
+		log.Infof("Form data %+v", req.Form)
+
+		// take the form data and use it to try to authenticate with vsphere
+		// then, create a session:
+		websession, _ := store.Get(req, "secret-store")
+		websession.Values["foo"] = "bar"
+		websession.Save(req, res)
+
+		http.Redirect(res, req, "/", 302)
 	}
 
-	s.mux.HandleFunc(link, handler)
+	v := vicadmin.NewValidator(ctx, &vchConfig, sess)
+	tmpl, err := template.ParseFiles("auth.html")
+	err = tmpl.ExecuteTemplate(res, "auth.html", v)
+	if err != nil {
+		log.Errorf("Error parsing template: %s", err)
+	}
 }
 
 func (s *server) serve() error {
@@ -127,35 +180,38 @@ func (s *server) serve() error {
 
 	s.mux = http.NewServeMux()
 
+	// s.mux.HandleFunc bypasses authentication
+	s.mux.HandleFunc("/authentication", s.loginPage)
+
 	// tar of appliance system logs
-	s.mux.HandleFunc("/logs.tar.gz", s.tarDefaultLogs)
-	s.handleFunc("/logs.zip", s.zipDefaultLogs)
+	s.Authenticated("/logs.tar.gz", s.tarDefaultLogs)
+	s.Authenticated("/logs.zip", s.zipDefaultLogs)
 
 	// tar of appliance system logs + container logs
-	s.mux.HandleFunc("/container-logs.tar.gz", s.tarContainerLogs)
-	s.handleFunc("/container-logs.zip", s.zipContainerLogs)
+	s.Authenticated("/container-logs.tar.gz", s.tarContainerLogs)
+	s.Authenticated("/container-logs.zip", s.zipContainerLogs)
 
-	s.mux.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("css/"))))
-	s.mux.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir("images/"))))
-	s.mux.Handle("/fonts/", http.StripPrefix("/fonts/", http.FileServer(http.Dir("fonts/"))))
+	// these assets bypass authentication & are world-readable
+	s.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("css/"))))
+	s.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir("images/"))))
+	s.Handle("/fonts/", http.StripPrefix("/fonts/", http.FileServer(http.Dir("fonts/"))))
 
 	for _, path := range logFiles() {
 		name := filepath.Base(path)
 		p := path
 
 		// get single log file (no tail)
-		s.handleFunc("/logs/"+name, func(w http.ResponseWriter, r *http.Request) {
+		s.Authenticated("/logs/"+name, func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, p)
 		})
 
 		// get single log file (with tail)
-		s.handleFunc("/logs/tail/"+name, func(w http.ResponseWriter, r *http.Request) {
+		s.Authenticated("/logs/tail/"+name, func(w http.ResponseWriter, r *http.Request) {
 			s.tailFiles(w, r, []string{p})
 		})
 	}
 
-	//s.handleFunc("/", s.index)
-	s.mux.HandleFunc("/", s.index)
+	s.Authenticated("/", s.index)
 	server := &http.Server{
 		Handler: s.mux,
 	}
@@ -183,7 +239,7 @@ func (s *server) bundleContainerLogs(res http.ResponseWriter, req *http.Request,
 	readers := defaultReaders
 
 	if config.Service != "" {
-		c, err := client()
+		c, err := client(&config)
 		if err != nil {
 			log.Errorf("failed to connect: %s", err)
 		} else {
@@ -277,7 +333,7 @@ func (s *server) tailFiles(res http.ResponseWriter, req *http.Request, names []s
 func (s *server) index(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 	ctx := context.Background()
-	sess, err := client()
+	sess, err := client(&config)
 	v := vicadmin.NewValidator(ctx, &vchConfig, sess)
 
 	tmpl, err := template.ParseFiles("dashboard.html")

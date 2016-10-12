@@ -51,6 +51,18 @@ const (
 	timeout = time.Duration(2 * time.Second)
 )
 
+type vicAdminConfig struct {
+	session.Config
+	addr         string
+	dockerHost   string
+	vmPath       string
+	hostCertFile string
+	hostKeyFile  string
+	authType     string
+	timeout      time.Time
+	tls          bool
+}
+
 var (
 	logFileDir  = "/var/log/vic"
 	logFileList = []string{
@@ -68,17 +80,7 @@ var (
 		"tether.debug",
 	}
 
-	config struct {
-		session.Config
-		addr         string
-		dockerHost   string
-		vmPath       string
-		hostCertFile string
-		hostKeyFile  string
-		authType     string
-		timeout      time.Time
-		tls          bool
-	}
+	config vicAdminConfig
 
 	resources vchconfig.Resources
 
@@ -137,11 +139,6 @@ func init() {
 	}
 
 	extraconfig.Decode(src, &vchConfig)
-}
-
-type Authenticator interface {
-	// Validate will validate a user and password combo and return a bool.
-	Validate(string, string) bool
 }
 
 type entryReader interface {
@@ -388,7 +385,7 @@ func (r datastoreReader) open() (entry, error) {
 	return httpEntry(r.path, res)
 }
 
-func client() (*session.Session, error) {
+func client(config *vicAdminConfig) (*session.Session, error) {
 	defer trace.End(trace.Begin(""))
 
 	ctx := context.Background()
@@ -412,7 +409,7 @@ func client() (*session.Session, error) {
 func findDatastore() error {
 	defer trace.End(trace.Begin(""))
 
-	session, err := client()
+	session, err := client(&config)
 	if err != nil {
 		return err
 	}
