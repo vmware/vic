@@ -146,6 +146,14 @@
 			"path": "/util"
 		},
 		{
+			"importpath": "github.com/ctdk/sbinfo",
+			"repository": "https://github.com/ctdk/sbinfo",
+			"vcs": "git",
+			"revision": "6eaed7001b5a904ad86e3598ddd797eb82050e18",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/d2g/dhcp4",
 			"repository": "https://github.com/d2g/dhcp4",
 			"vcs": "git",

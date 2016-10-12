@@ -28,12 +28,12 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/net/context"
-
 	log "github.com/Sirupsen/logrus"
+	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/lib/system"
 	"github.com/vmware/vic/pkg/dio"
+	"github.com/vmware/vic/pkg/fs"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
@@ -43,10 +43,14 @@ const (
 	MaxDeathRecords = 5
 
 	// the length of a truncated ID for use as hostname
-	shortLen = 12
+	shortLen             = 12
+	linuxBlockDevicePath = "/dev/block"
 )
 
 var Sys = system.New()
+
+//this map contains the found block devices native to the containerVM
+var DeviceMap = make(map[string]fs.DeviceInfo)
 
 type tether struct {
 	// the implementation to use for tailored operations
@@ -226,6 +230,15 @@ func (t *tether) Start() error {
 		}
 		extraconfig.Encode(t.sink, t.config)
 
+		log.Info("Populating block device list now.")
+		BlockDevices, err := fs.NewBlockDevices(linuxBlockDevicePath)
+		labeledDevices := BlockDevices.DevicesByLabel()
+		log.Infof("Found block devices : %s", labeledDevices)
+
+		if err != nil {
+			log.Errorf("error while trying to identify mountable volumes: %s", err)
+		}
+
 		//process the filesystem mounts - this is performed after networks to allow for network mounts
 		for k, v := range t.config.Mounts {
 			if v.Source.Scheme != "label" {
@@ -234,8 +247,15 @@ func (t *tether) Start() error {
 				return errors.New(detail)
 			}
 
-			// this could block indefinitely while waiting for a volume to present
-			t.ops.MountLabel(context.Background(), v.Source.Path, v.Path)
+			filesystem, ok := labeledDevices[v.Source.Path]
+			if !ok {
+				log.Warnf("Could not find Mount Label (%s) during a mount operation", v.Source.Path)
+				continue
+			}
+			mountErr := t.ops.MountLabel(context.Background(), filesystem.DevPath(), v.Path)
+			if mountErr != nil {
+				log.Error(mountErr.Error())
+			}
 		}
 
 		// process the sessions and launch if needed

@@ -135,15 +135,14 @@ func (t *Mocker) Apply(endpoint *tether.NetworkEndpoint) error {
 }
 
 // MountLabel performs a mount with the source treated as a disk label
-// This assumes that /dev/disk/by-label is being populated, probably by udev
-func (t *Mocker) MountLabel(ctx context.Context, label, target string) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("mocking mounting %s on %s", label, target)))
+func (t *Mocker) MountLabel(ctx context.Context, devicePath string, target string) error {
+	defer trace.End(trace.Begin(fmt.Sprintf("mocking mounting %s on %s", devicePath, target)))
 
 	if t.Mounts == nil {
 		t.Mounts = make(map[string]string)
 	}
 
-	t.Mounts[label] = target
+	t.Mounts[devicePath] = target
 	return nil
 }
 

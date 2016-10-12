@@ -32,7 +32,7 @@ func NewExt4() *Ext4 {
 	return &Ext4{}
 }
 
-// Mkfs creates an ext4 fs on the given device and applices the given label
+// Mkfs creates an ext4 fs on the given device and applies the given label
 func (e *Ext4) Mkfs(devPath, label string) error {
 	defer trace.End(trace.Begin(devPath))
 

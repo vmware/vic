@@ -17,6 +17,7 @@ package tether
 import (
 	"io"
 
+	"github.com/vmware/vic/pkg/dio"
 	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/pkg/dio"
@@ -34,7 +35,7 @@ type Operations interface {
 
 	SetHostname(hostname string, aliases ...string) error
 	Apply(endpoint *NetworkEndpoint) error
-	MountLabel(ctx context.Context, label, target string) error
+	MountLabel(ctx context.Context, devicePath string, target string) error
 	Fork() error
 
 	SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, error)
