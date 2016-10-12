@@ -1,12 +1,12 @@
 # Web-serving on vSphere Integrated Container Engine
 
-We take the Web-serving benchmark from CloudSuite (http://cloudsuite.ch/webserving/) as an example, to demonstrate how customers who are interested in the LEMP implementation of a cloud native web-serving application could use our guidelines to deploy the system on vSphere Integrated Container Engine 0.7.0 with Docker Compose. This demo has three tiers deployed on three containerVMs: an Nginx Web server, a Memcached server, and a Mysql database server. The Web server runs Elgg (a social networking engine) and connects the Memcached server and the database server through network.
+We take the Web-serving benchmark from CloudSuite (http://cloudsuite.ch/webserving/) as an example, to demonstrate how customers who are interested in the LEMP implementation of a cloud native web-serving application could deploy it on vSphere Integrated Container Engine 0.7.0 with Docker Compose. This demo has three tiers deployed on three containerVMs: an Nginx Web server, a Memcached server, and a MySQL database server. The Web server runs Elgg (a social networking engine) and connects the Memcached server and the database server through the network.
 
 ## Workflow
 
 ### Build docker image for the Web server (on regular docker)
 
-In the original the Web-server docker image from Cloudsuite, the functionality of “email verification for new user registration” is not enabled, which makes it less realistic and practical. Therefore, we need make some modifications and re-build the docker image for the Web server. **You can also skip this section and proceed to "Compose File for vSphere Integrated Container Engine" if you do not want to build your own image**.
+In the original the Web-server docker image from Cloudsuite, the functionality of “email verification for new user registration” is not enabled, which makes it less realistic and practical. Therefore, we need make some modifications and re-build the docker image for the Web server. **You can also skip this section and proceed to "Compose File for vSphere Integrated Containers Engine" if you do not want to build your own image**.
 
 Step I: 
 Download the original installation files from https://github.com/ParsaLab/cloudsuite/tree/master/benchmarks/web-serving/web_server
@@ -46,7 +46,7 @@ $> docker push repo/directory:tag
 
 ### Build docker image for the Mysql server (on regular docker)
 
-THe Web server reads from the database to obtain the "site_url" to generate links for the Web pages. However, the original database image from cloudsuite (cloudsuite/web-serving:db_server) is configured with pre-defined environment variable "env web_host web_server" in the Dockerfile, which is then used to pre-dump the ELGG database with static "site_url" of "http://web_server:8080" in the image; thus the url is not accessible when deployed on the VCH. Therefore, we need to modify the database image: allow the database to be populated at the start of the containerVM using the environment variable ${web_host}; then you can push the new image to your own registry. **You can also skip this section and proceed to "Compose File for vSphere Integrated Container Engine" if you do not want to build your own image**.
+THe Web server reads from the database to obtain the "site_url" to generate links for the Web pages. However, the original database image from cloudsuite (cloudsuite/web-serving:db_server) is configured with pre-defined environment variable "env web_host web_server" in the Dockerfile, which is then used to pre-dump the ELGG database with static "site_url" of "http://web_server:8080" in the image; thus the url is not accessible when deployed on the VCH. Therefore, we need to modify the database image: allow the database to be populated at the start of the containerVM using the environment variable ${web_host}; then you can push the new image to your own registry. **You can also skip this section and proceed to "Compose File for vSphere Integrated Containers Engine" if you do not want to build your own image**.
 
 Step I: 
 Download the original installation files from https://github.com/ParsaLab/cloudsuite/tree/master/benchmarks/web-serving/db_server
@@ -84,7 +84,7 @@ service mysql stop
 
 Step IV: The same with the Step IV when creating the docker image for the Web server.
 
-### Compose File for vSphere Integrated Container Engine
+### Compose File for vSphere Integrated Containers Engine
 ```
 version: '2'
 
