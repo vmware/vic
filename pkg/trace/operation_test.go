@@ -88,23 +88,22 @@ func TestNestedLogging(t *testing.T) {
 
 	// Sample stack
 	//
-	// ERRO[0000] op=1: [ END ] [github.com/vmware/vic/pkg/trace.TestNestedLogging:60]: root error: context deadline exceeded
-	// ERRO[0000]      github.com/vmware/vic/pkg/trace.TestNestedLogging:60 root
-	// ERRO[0000]      github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:70 level 0
-	// ERRO[0000]      github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:70 level 1
-	// ERRO[0000]      github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:70 level 2
-	// ERRO[0000]      github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:70 level 3
-	// ERRO[0000]      github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:70 level 4
-	// ERRO[0000]      github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:70 level 5
-	// ERRO[0000]      github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:70 level 6
-	// ERRO[0000]      github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:70 level 7
-	// ERRO[0000]      github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:70 level 8
-	// ERRO[0000]      github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:70 level 9
-	// ERRO[0000]      github.com/vmware/vic/pkg/trace.TestNestedLogging:80 Err
+	//        ERRO[0000] op=21598.101: github.com/vmware/vic/pkg/trace.TestNestedLogging: level 9 error: context deadline exceeded
+	//                        github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:71 level 9
+	//                        github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:71 level 8
+	//                        github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:71 level 7
+	//                        github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:71 level 6
+	//                        github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:71 level 5
+	//                        github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:71 level 4
+	//                        github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:71 level 3
+	//                        github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:71 level 2
+	//                        github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:71 level 1
+	//                        github.com/vmware/vic/pkg/trace.TestNestedLogging.func1:71 level 0
+	//                        github.com/vmware/vic/pkg/trace.TestNestedLogging:61 root
 
-	// We arrive at 3 because we have the err line (line 0), then the root
-	// (line 1), the then final "Err" line.
-	if !assert.Equal(t, lines, levels+3) {
+	// We arrive at 2 because we have the err line (line 0), then the root
+	// (line 11) of where we created the ctx.
+	if !assert.Equal(t, levels+2, lines) {
 		return
 	}
 }
