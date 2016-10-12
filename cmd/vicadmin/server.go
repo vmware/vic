@@ -27,8 +27,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/tlsconfig"
+	gorillacontext "github.com/gorilla/context"
 	"github.com/gorilla/securecookie"
-	// "github.com/gorilla/sessions"
+	"github.com/gorilla/sessions"
 
 	"crypto/x509"
 	"github.com/vmware/vic/lib/vicadmin"
@@ -48,7 +49,7 @@ const (
 	formatZip
 )
 
-var store = sessions.NewCookieStore([]byte("something-very-secret"))
+var store = sessions.NewCookieStore([]byte(securecookie.GenerateRandomKey(64)))
 
 func (s *server) listen(useTLS bool) error {
 	defer trace.End(trace.Begin(""))
@@ -118,23 +119,60 @@ func (s *server) AuthenticatedHandle(link string, h http.Handler) {
 }
 
 func (s *server) Handle(link string, h http.Handler) {
-	s.mux.HandleFunc(link, h.ServeHTTP)
+	s.mux.Handle(link, gorillacontext.ClearHandler(h))
 }
 
 // Enforces authentication on route `link` and runs `handler` on successful auth
 func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *http.Request)) {
 	defer trace.End(trace.Begin(""))
+
 	authHandler := func(w http.ResponseWriter, r *http.Request) {
-		_, err := r.Cookie("cookie-name")
-		if len(r.TLS.PeerCertificates) == 0 && err != nil {
+		websession, err := store.Get(r, "secret-store")
+		// "authenticate" if any cookie is present (HACK TODO FIXME)
+		if len(r.TLS.PeerCertificates) == 0 && websession.Values["foo"] != "bar" {
+			// if err != nil, then no authentication cookie is set
 			log.Infof("No cookie found: %s", err)
-			// 	// username/password authentication
+			if err != nil {
+				log.Infof("Secret store was empty, but that's expected?")
+			}
 			http.Redirect(w, r, "/authentication", 302)
 			return
 		}
 		handler(w, r)
 	}
-	s.mux.HandleFunc(link, authHandler)
+	s.mux.Handle(link, gorillacontext.ClearHandler(http.HandlerFunc(authHandler)))
+}
+
+// renders the page for login and handles authorization requests
+func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
+	defer trace.End(trace.Begin(""))
+	ctx := context.Background()
+	sess, err := client(&config)
+	if req.Method == "POST" {
+		log.Infof("Request %+v", req)
+		log.Infof("Body %+v", req.Body)
+		log.Infof("Headers %+v", req.Header)
+		err := req.ParseForm()
+		if err != nil {
+			log.Errorf("Could not parse form data on authentication page due to error %s", err.Error())
+		}
+		log.Infof("Form data %+v", req.Form)
+
+		// take the form data and use it to try to authenticate with vsphere
+		// then, create a session:
+		websession, _ := store.Get(req, "secret-store")
+		websession.Values["foo"] = "bar"
+		websession.Save(req, res)
+
+		http.Redirect(res, req, "/", 302)
+	}
+
+	v := vicadmin.NewValidator(ctx, &vchConfig, sess)
+	tmpl, err := template.ParseFiles("auth.html")
+	err = tmpl.ExecuteTemplate(res, "auth.html", v)
+	if err != nil {
+		log.Errorf("Error parsing template: %s", err)
+	}
 }
 
 func (s *server) serve() error {
@@ -143,7 +181,7 @@ func (s *server) serve() error {
 	s.mux = http.NewServeMux()
 
 	// s.mux.HandleFunc bypasses authentication
-	s.mux.HandleFunc("/authentication", s.authPage)
+	s.mux.HandleFunc("/authentication", s.loginPage)
 
 	// tar of appliance system logs
 	s.Authenticated("/logs.tar.gz", s.tarDefaultLogs)
@@ -289,56 +327,6 @@ func (s *server) tailFiles(res http.ResponseWriter, req *http.Request, names []s
 	<-cc
 	for range names {
 		done <- true
-	}
-}
-
-func (s *server) authPage(res http.ResponseWriter, req *http.Request) {
-	defer trace.End(trace.Begin(""))
-	ctx := context.Background()
-	sess, err := client(&config)
-	if req.Method == "POST" {
-		// authenticate against ESXi/vSphere and create a session object
-		log.Infof("Request %+v", req)
-		log.Infof("Body %+v", req.Body)
-		log.Infof("Headers %+v", req.Header)
-
-		err := req.ParseForm()
-		if err != nil {
-			log.Errorf("Could not parse form data on authentication page due to error %s", err.Error())
-		}
-
-		log.Infof("Form data %+v", req.Form)
-		// set headers
-		var hashKey = []byte("very-secret")
-		var blockKey = []byte("a-lot-secret")
-		var sc = securecookie.New(hashKey, blockKey)
-		value := map[string]string{
-			"foo": "bar",
-		}
-
-		if encoded, err := sc.Encode("cookie-name", value); err == nil {
-			cookie := &http.Cookie{
-				Name:  "cookie-name",
-				Value: encoded,
-				Path:  "/",
-			}
-			http.SetCookie(res, cookie)
-
-			session, err := store.Get(r, "session-name")
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			// redirect to requested URI on success
-			http.Redirect(res, req, "/", 302)
-		}
-	}
-
-	v := vicadmin.NewValidator(ctx, &vchConfig, sess)
-	tmpl, err := template.ParseFiles("auth.html")
-	err = tmpl.ExecuteTemplate(res, "auth.html", v)
-	if err != nil {
-		log.Errorf("Error parsing template: %s", err)
 	}
 }
 
