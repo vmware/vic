@@ -39,7 +39,7 @@ SET utils_path=%parent%utils\
 SET vcenter_reg_common_flags=--target https://%target_vcenter_ip%/sdk/ --user %vcenter_username% --password %vcenter_password%
 
 IF [%1] == [--force] (
-   SET vcenter_reg_common_flags=%vcenter_reg_common_flags% --force 
+   SET vcenter_reg_common_flags=%vcenter_reg_common_flags% --force
 )
 
 IF /I %vic_ui_host_url% NEQ NOURL (
@@ -70,7 +70,7 @@ FOR /F "tokens=*" %%A IN (..\vCenterForWindows\_scratch_flags.txt) DO (
     IF NOT %%A=="" (
         %plugin_manager_bin% install %vcenter_reg_common_flags% %%A
         IF %ERRORLEVEL% NEQ 0 (
-            ECHO Error! Could not register plugin with vCenter Server. Please see the message above 
+            ECHO Error! Could not register plugin with vCenter Server. Please see the message above
             GOTO:EOF
         )
     )
@@ -79,15 +79,18 @@ FOR /F "tokens=*" %%A IN (..\vCenterForWindows\_scratch_flags.txt) DO (
 cd ..\vCenterForWindows
 DEL _scratch_flags.txt
 
+ECHO.
+ECHO Installation of UI plugin succeeded
+ECHO.
+
 IF /I %vic_ui_host_url% EQU NOURL (
     ECHO =============================
-    ECHO With the current version of VIC, you have to manually copy the com.vmware.vicui.* folder in \ui\vsphere-client-serenity to %VMWARE_CFG_DIR%\vsphere-client\vc-packages\vsphere-client-serenity
-    ECHO
-    ECHO Note for vCenter 5.5 users:
-    ECHO VIC UI may run on a vCenter 5.5 setup, but is not officially supported. Use it with your own risk. To proceed, copy the aforementioned folder to %PROGRAMDATA%\VMware\vSphere Web Client\vc-packages\vsphere-client-serenity instead
-    ECHO
+    ECHO ** NEXT STEP for vCenter 6.0 users **
+    ECHO With the current version of VIC running on vCenter for Windows, the com.vmware.vicui.* folder needs to be manually copied from \ui\vsphere-client-serenity to %VMWARE_CFG_DIR%\vsphere-client\vc-packages\vsphere-client-serenity. If you have not done so, please copy it now.
+    ECHO.
+    ECHO ** NEXT STEP for vCenter 5.5 users **
+    ECHO VIC UI may run on a vCenter 5.5 setup, but is NOT officially supported. Use it at your own risk. To proceed, copy the com.vmware.vicui.* folder to %PROGRAMDATA%\VMware\vSphere Web Client\vc-packages\vsphere-client-serenity instead.
+    ECHO.
     ECHO Once you've copied the folder, log out of vSphere Web Client and then log back in.
     ECHO =============================
-) ELSE (
-    ECHO VIC UI was successfully installed. Make sure to log out of vSphere Web Client and log back in.
 )
