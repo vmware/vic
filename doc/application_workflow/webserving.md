@@ -48,7 +48,7 @@ $> docker push repo/directory:tag
 
 This example application uses the database to store the address of the Web server. The original Dockerfile from Cloudsuite populates this with "http://web_server:8080", which is not usable in production. Using the suggestions we provided earlier, we modify the execute.sh script to replace the "web_server" text with the actual IP of our VCH.  This script is executed when this database container is executed. In the Docker Compose file, we specify the IP address of our target VCH. You will see that in the modified compose yml file below. 
 
-This example illustrates passing config in via environment variables and having the script use those values to modify internal config in the running container. Another option is to use a script and command line arguments to pass config to a containerized app. Below, we will modify the Dockerfile and script. . **You can also skip this section and proceed to "[Compose File for vSphere Integrated Containers Engine](#compose-file-for-vsphere-integrated-containers-engine)" if you do not want to build your own image**.
+This example illustrates passing config in via environment variables and having the script use those values to modify internal config in the running container. Another option is to use a script and command line arguments to pass config to a containerized app. Below, we will modify the Dockerfile and script. **You can also skip this section and proceed to "[Compose File for vSphere Integrated Containers Engine](#compose-file-for-vsphere-integrated-containers-engine)" if you do not want to build your own image**.
 
 Step I: 
 Download the original installation files from https://github.com/ParsaLab/cloudsuite/tree/master/benchmarks/web-serving/db_server
@@ -99,7 +99,7 @@ services:
     image: victest/web_elgg
     container_name: web_server
     networks:
-       - my_net
+      - my_net
     ports:
       - "8080:8080"
 
@@ -108,16 +108,16 @@ services:
     container_name: mysql_server
     command: [bash, -c, "/execute.sh"]
     networks:
-       - my_net
+      - my_net
     environment:
-       - web_host=192.168.60.130 # Replace this value with VCH_IP
-       - root_password=root  # password for the root user
+      - web_host=192.168.60.130 # This is the VCH_IP
+      - root_password=root  # Password for the root user
        
-   memcache_server:
-     image: cloudsuite/web-serving:memcached_server
-     container_name: memcache_server
-     networks:
-       - my_net    
+  memcache_server:
+    image: cloudsuite/web-serving:memcached_server
+    container_name: memcache_server
+    networks:
+      - my_net    
 ```
 
 ### Deploy to Your VCH
