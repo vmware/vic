@@ -400,10 +400,10 @@ Get VM Host Name
 Run Unit Tests
     [Tags]  secret
     Set Environment Variable  VIC_ESX_TEST_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
-    Log To Console  \nls vendor/github.com/vmware/govmomi/vim25/methods
+    Log To Console  \nls vendor/github.com/vmware/govmomi/vim25/methods:
     ${output}=  Run  ls vendor/github.com/vmware/govmomi/vim25/methods
     Log To Console  ${output}
-    Log To Console  Execute the unit tests:
+    Log To Console  Execute the unit tests...
     ${output}=  Run  make -j3 test
     Log To Console  ${output}
 
