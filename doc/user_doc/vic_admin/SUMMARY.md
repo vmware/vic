@@ -17,5 +17,6 @@
 * [Access the Administration Portal for a Virtual Container Host](access_vicadmin.md)
   * [Virtual Container Host Status Reference](vicadmin_status_ref.md)
 * [Troubleshooting vSphere Integrated Containers Engine Administration](troubleshoot_vic_admin.md)
+  * [Access vSphere Integrated Containers Engine Log Bundles](log_bundles.md)
   * [Running `vic-machine ls` on an ESXi Host Fails with an Error](ts_ls_error.md)
   * [Deleting or Inspecting a VCH Fails with a Resource Pool Error](ts_delete_inspect_error.md)
