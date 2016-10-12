@@ -55,7 +55,6 @@ func TestContextUnpack(t *testing.T) {
 func TestNestedLogging(t *testing.T) {
 	// create a buf to check the log
 	buf := new(bytes.Buffer)
-	Logger = logrus.StandardLogger()
 	logrus.SetOutput(buf)
 
 	root := NewOperation(context.Background(), "root")
