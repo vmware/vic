@@ -12,7 +12,6 @@ services:
       - my_net
     ports:
       - "8080:8080"
-      - "25:25"
 
   mysql_server:
     image: victest/web_db
