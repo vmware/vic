@@ -55,7 +55,7 @@ func TestContextUnpack(t *testing.T) {
 func TestNestedLogging(t *testing.T) {
 	// create a buf to check the log
 	buf := new(bytes.Buffer)
-	logrus.SetOutput(buf)
+	Logger.Out = buf
 
 	root := NewOperation(context.Background(), "root")
 
@@ -82,8 +82,9 @@ func TestNestedLogging(t *testing.T) {
 	}
 
 	// Assert we got a stack trace in the log
-	lines := strings.Count(buf.String(), "\n")
-	t.Log(buf.String())
+	log := buf.String()
+	lines := strings.Count(log, "\n")
+	t.Log(log)
 
 	// Sample stack
 	//
@@ -102,7 +103,8 @@ func TestNestedLogging(t *testing.T) {
 
 	// We arrive at 2 because we have the err line (line 0), then the root
 	// (line 11) of where we created the ctx.
-	if !assert.Equal(t, levels+2, lines) {
+	if !assert.True(t, lines >= levels+2) {
+		t.Logf("exepected %d and got %d", levels+2, lines)
 		return
 	}
 }

@@ -26,7 +26,7 @@ import (
 var Logger = &log.Logger{
 	Out: os.Stderr,
 	// Apparently this forces terminal handling even when Out isn't a TTY (like
-	// on a VCH, where out is currently a serial dev)
+	// on a VCH, where STDOUT/STDERR are currently redirected to a file).
 	Formatter: &log.TextFormatter{ForceColors: true},
 	Hooks:     make(log.LevelHooks),
 	Level:     log.InfoLevel,
