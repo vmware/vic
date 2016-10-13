@@ -80,7 +80,10 @@ Connect containers to multiple networks non-overlapping
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  2 packets transmitted, 2 packets received
 
-#Connect containers to multiple networks non-overlapping with a bridge container
+Connect containers to multiple networks non-overlapping with a bridge container
+    ${status}=  Get State Of Github Issue  2721
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-17-Docker-Network-Connect.robot needs to be updated now that Issue #2721 has been resolved
+    Log  Issue \#2721 is blocking implementation  WARN
 #    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create cross3-network
 #    Should Be Equal As Integers  ${rc}  0
 #    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create cross3-network2
