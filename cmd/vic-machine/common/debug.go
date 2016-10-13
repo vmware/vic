@@ -26,6 +26,7 @@ func (d *Debug) DebugFlags() []cli.Flag {
 			Name:        "debug, v",
 			Destination: &d.Debug,
 			Usage:       "[0(default),1...n], 0 is disabled, 1 is enabled, >= 1 may alter behaviour",
+			Hidden:      true,
 		},
 	}
 }

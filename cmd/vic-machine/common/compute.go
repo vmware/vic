@@ -22,15 +22,16 @@ type Compute struct {
 }
 
 func (c *Compute) ComputeFlags() []cli.Flag {
-	flags := c.ComputeFlagsNoName()
-	nameFlag := cli.StringFlag{
-		Name:        "name, n",
-		Value:       "virtual-container-host",
-		Usage:       "The name of the Virtual Container Host",
-		Destination: &c.DisplayName,
+	nameFlag := []cli.Flag{
+		cli.StringFlag{
+			Name:        "name, n",
+			Value:       "virtual-container-host",
+			Usage:       "The name of the Virtual Container Host",
+			Destination: &c.DisplayName,
+		},
 	}
-	flags = append(flags, nameFlag)
-	return flags
+
+	return append(nameFlag, c.ComputeFlagsNoName()...)
 }
 
 func (c *Compute) ComputeFlagsNoName() []cli.Flag {

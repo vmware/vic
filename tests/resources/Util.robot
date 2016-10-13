@@ -40,8 +40,9 @@ Set Test Environment Variables
     Run Keyword Unless  ${status}  Set Environment Variable  HOST_TYPE  VC
 
     # set the TLS config options suitable for vic-machine in this env
-    Run Keyword If  '%{DOMAIN}' == ''  Set Suite Variable  ${vicmachinetls}  '--no-tlsverify'
-    Run Keyword If  '%{DOMAIN}' != ''  Set Suite Variable  ${vicmachinetls}  '--cname=*.%{DOMAIN}'  
+    ${domain}=  Get Environment Variable  DOMAIN  ''
+    Run Keyword If  '${domain}' == ''  Set Suite Variable  ${vicmachinetls}  '--no-tlsverify'
+    Run Keyword If  '${domain}' != ''  Set Suite Variable  ${vicmachinetls}  '--tls-cname=*.${domain}'
 
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
@@ -96,6 +97,7 @@ Install VIC Appliance To Test Server
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
+    Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
     Set Test VCH Name
     # Set a unique bridge network for each VCH that has a random VLAN ID
     ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
@@ -191,6 +193,19 @@ Cleanup Dangling Networks On Test Server
     \   ${state}=  Get State Of Drone Build  @{build}[1]
     \   Continue For Loop If  '${state}' == 'running'
     \   ${uuid}=  Run  govc host.portgroup.remove ${net}
+    
+Cleanup Dangling vSwitches On Test Server
+    ${out}=  Run  govc host.vswitch.info | grep VCH
+    ${nets}=  Split To Lines  ${out}
+    :FOR  ${net}  IN  @{nets}
+    \   ${net}=  Fetch From Right  ${net}  ${SPACE}
+    \   ${build}=  Split String  ${net}  -
+    \   # Skip any vSwitch that is not associated with integration tests
+    \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   # Skip any vSwitch that is still running
+    \   ${state}=  Get State Of Drone Build  @{build}[1]
+    \   Continue For Loop If  '${state}' == 'running'
+    \   ${uuid}=  Run  govc host.vswitch.remove ${net}
 
 Gather Logs From Test Server
     Variable Should Exist  ${params}
@@ -410,7 +425,6 @@ Run Unit Tests
     Should Not Contain  ${output}  [build failed]
 
 Run Regression Tests
-    Run Unit Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images

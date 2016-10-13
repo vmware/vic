@@ -34,6 +34,7 @@ import (
 
 	"github.com/vmware/vic/lib/system"
 	"github.com/vmware/vic/pkg/dio"
+	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
@@ -190,8 +191,10 @@ func (t *tether) Start() error {
 		case 0:
 			log.SetLevel(log.InfoLevel)
 			// TODO: do not echo application output to console without debug enabled
+			serial.DisableTracing()
 		case 1:
 			log.SetLevel(log.DebugLevel)
+			serial.EnableTracing()
 		case 2:
 			log.Info("Launching pprof server on port 6060")
 			go func() {

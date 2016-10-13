@@ -15,6 +15,8 @@
 package inspect
 
 import (
+	"time"
+
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/urfave/cli"
@@ -45,9 +47,25 @@ func NewInspect() *Inspect {
 
 // Flags return all cli flags for inspect
 func (i *Inspect) Flags() []cli.Flag {
-	preFlags := append(i.TargetFlags(), i.IDFlags()...)
-	preFlags = append(preFlags, i.ComputeFlags()...)
-	flags := append(preFlags, i.DebugFlags()...)
+	util := []cli.Flag{
+		cli.DurationFlag{
+			Name:        "timeout",
+			Value:       3 * time.Minute,
+			Usage:       "Time to wait for upgrade",
+			Destination: &i.Timeout,
+		},
+	}
+
+	target := i.TargetFlags()
+	id := i.IDFlags()
+	compute := i.ComputeFlags()
+	debug := i.DebugFlags()
+
+	// flag arrays are declared, now combined
+	var flags []cli.Flag
+	for _, f := range [][]cli.Flag{target, id, compute, util, debug} {
+		flags = append(flags, f...)
+	}
 
 	return flags
 }

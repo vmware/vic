@@ -26,11 +26,6 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/go-swagger/go-swagger/httpkit"
-	httptransport "github.com/go-swagger/go-swagger/httpkit/client"
-	strfmt "github.com/go-swagger/go-swagger/strfmt"
-	"github.com/mreiferson/go-httpclient"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/backend"
 	derr "github.com/docker/docker/errors"
@@ -51,7 +46,6 @@ import (
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/portmap"
-	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/interaction"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/scopes"
@@ -343,29 +337,13 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
 		return NotFoundError(name)
-
 	}
-	id := vc.ContainerID
-
-	// Get an API client to the portlayer
-	client := c.containerProxy.Client()
 
 	// Call the port layer to resize
 	plHeight := int32(height)
 	plWidth := int32(width)
-	plResizeParam := interaction.NewContainerResizeParamsWithContext(ctx).WithID(id).WithHeight(plHeight).WithWidth(plWidth)
 
-	_, err := client.Interaction.ContainerResize(plResizeParam)
-	if err != nil {
-		if _, isa := err.(*interaction.ContainerResizeNotFound); isa {
-			return ResourceNotFoundError(name, "interaction connection")
-		}
-
-		// If we get here, most likely something went wrong with the port layer API server
-		return InternalServerError(err.Error())
-	}
-
-	return nil
+	return c.containerProxy.Resize(vc, plHeight, plWidth)
 }
 
 // ContainerRestart stops and starts a container. It attempts to
@@ -1089,7 +1067,7 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 		}
 	}
 
-	err = attachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
+	err = c.containerProxy.AttachStreams(context.Background(), vc, clStdin, clStdout, clStderr, ca)
 	if err != nil {
 		if _, ok := err.(DetachError); ok {
 			log.Infof("Detach detected, tearing down connection")
@@ -1130,312 +1108,6 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 
 	return nil
 }
-
-//------------------------------------
-// ContainerAttach() Utility Functions
-//------------------------------------
-
-// attacheStreams takes the the hijacked connections from the calling client and attaches
-// them to the 3 streams from the portlayer's rest server.
-// clStdin, clStdout, clStderr are the hijacked connection
-func attachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error {
-	defer clStdin.Close()
-
-	// Cancel will close the child connections.
-	ctx, cancel := context.WithCancel(ctx)
-
-	var wg sync.WaitGroup
-	errors := make(chan error, 3)
-
-	// For stdin, we only have a timeout for connection.  There can be a long duration before
-	// the first entry so there is no timeout for response.
-	plClient, transport := createNewAttachClientWithTimeouts(attachConnectTimeout, 0, attachAttemptTimeout)
-	defer transport.Close()
-
-	if ca.UseStdin {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			err := copyStdIn(ctx, plClient, vc, clStdin, ca.DetachKeys)
-			if err != nil {
-				log.Errorf("stdin (%s) error: %s", vc.ContainerID, err.Error())
-			} else {
-				log.Infof("stdin (%s) done", vc.ContainerID)
-			}
-
-			// no need to take action if we are canceled
-			// as that means error happened somewhere else
-			if ctx.Err() == context.Canceled {
-				log.Infof("returning from stdin as context canceled somewhere else")
-				return
-			}
-			cancel()
-
-			errors <- err
-		}()
-	}
-
-	if ca.UseStdout {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			err := copyStdOut(ctx, plClient, attachAttemptTimeout, vc, clStdout)
-			if err != nil {
-				log.Errorf("stdout (%s) error: %s", vc.ContainerID, err.Error())
-			} else {
-				log.Infof("stdout (%s) done", vc.ContainerID)
-			}
-
-			// no need to take action if we are canceled
-			// as that means error happened somewhere else
-			if ctx.Err() == context.Canceled {
-				log.Infof("returning from stdout as context canceled somewhere else")
-				return
-			}
-			cancel()
-
-			errors <- err
-		}()
-	}
-
-	if ca.UseStderr {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			err := copyStdErr(ctx, plClient, vc, clStderr)
-			if err != nil {
-				log.Errorf("stderr (%s) error: %s", vc.ContainerID, err.Error())
-			} else {
-				log.Infof("stderr (%s) done", vc.ContainerID)
-			}
-
-			// no need to take action if we are canceled
-			// as that means error happened somewhere else
-			if ctx.Err() == context.Canceled {
-				log.Infof("returning from stderr as context canceled somewhere else")
-				return
-			}
-			cancel()
-
-			errors <- err
-		}()
-	}
-
-	// Wait for all stream copy to exit
-	wg.Wait()
-
-	// close the channel so that we don't leak (if there is an error)/or get blocked (if there are no errors)
-	close(errors)
-
-	log.Infof("cleaned up connections to %s. Checking errors", vc.ContainerID)
-	for err := range errors {
-		if err != nil {
-			// check if we got DetachError
-			if _, ok := err.(DetachError); ok {
-				log.Infof("Detached from container detected")
-				return err
-			}
-
-			// If we get here, most likely something went wrong with the port layer API server
-			// These errors originate within the go-swagger client itself.
-			// Go-swagger returns untyped errors to us if the error is not one that we define
-			// in the swagger spec.  Even EOF.  Therefore, we must scan the error string (if there
-			// is an error string in the untyped error) for the term EOF.
-			log.Errorf("container attach error: %s", err)
-
-			return err
-		}
-	}
-
-	log.Infof("No error found. Returning nil...")
-	return nil
-}
-
-func createNewAttachClientWithTimeouts(connectTimeout, responseTimeout, responseHeaderTimeout time.Duration) (*client.PortLayer, *httpclient.Transport) {
-	runtime := httptransport.New(PortLayerServer(), "/", []string{"http"})
-	transport := &httpclient.Transport{
-		ConnectTimeout:        connectTimeout,
-		ResponseHeaderTimeout: responseHeaderTimeout,
-		RequestTimeout:        responseTimeout,
-	}
-	runtime.Transport = transport
-
-	plClient := client.New(runtime, nil)
-	runtime.Consumers["application/octet-stream"] = httpkit.ByteStreamConsumer()
-	runtime.Producers["application/octet-stream"] = httpkit.ByteStreamProducer()
-
-	return plClient, transport
-}
-
-func copyStdIn(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, clStdin io.ReadCloser, keys []byte) error {
-	// Pipe for stdin so we can interject and watch the input streams for detach keys.
-	stdinReader, stdinWriter := io.Pipe()
-	defer stdinWriter.Close()
-
-	var detach bool
-
-	go func() {
-		defer stdinReader.Close()
-
-		// Copy the stdin from the CLI and write to a pipe.  We need to do this so we can
-		// watch the stdin stream for the detach keys.
-		var err error
-		if vc.Config.Tty {
-			_, err = copyEscapable(stdinWriter, clStdin, keys)
-		} else {
-			_, err = io.Copy(stdinWriter, clStdin)
-		}
-
-		if err != nil {
-			if _, ok := err.(DetachError); ok {
-				log.Infof("stdin detach detected")
-				detach = true
-			} else {
-				log.Errorf("stdin err: %s", err)
-			}
-		}
-	}()
-
-	// Swagger wants an io.reader so give it the reader pipe.  Also, the swagger call
-	// to set the stdin is synchronous so we need to run in a goroutine
-	setStdinParams := interaction.NewContainerSetStdinParamsWithContext(ctx).WithID(vc.ContainerID)
-	setStdinParams = setStdinParams.WithRawStream(stdinReader)
-
-	_, err := pl.Interaction.ContainerSetStdin(setStdinParams)
-	if vc.Config.StdinOnce && !vc.Config.Tty {
-		// Close the stdin connection.  Mimicing Docker's behavior.
-		// FIXME: If we close this stdin connection.  The portlayer does
-		// not really close stdin.  This is diff from current Docker
-		// behavior.  However, we're not sure why Docker even has this
-		// behavior where you connect to stdin on the first time only.
-		// If we really want to add this behavior, we need to add support
-		// in the tether in the portlayer.
-		log.Errorf("Attach stream has stdinOnce set.  VIC does not yet support this.")
-	}
-
-	// ignore the portlayer error when it is DetachError as that is what we should return to the caller when we detach
-	if detach {
-		return DetachError{}
-	}
-	return err
-}
-
-func copyStdOut(ctx context.Context, pl *client.PortLayer, attemptTimeout time.Duration, vc *viccontainer.VicContainer, clStdout io.Writer) error {
-	id := vc.ContainerID
-	//Calculate how much time to let portlayer attempt
-	plAttemptTimeout := attemptTimeout - attachPLAttemptDiff //assumes personality deadline longer than portlayer's deadline
-	plAttemptDeadline := time.Now().Add(plAttemptTimeout)
-	swaggerDeadline := strfmt.DateTime(plAttemptDeadline)
-	log.Debugf("* stdout portlayer deadline: %s", plAttemptDeadline.Format(time.UnixDate))
-	log.Debugf("* stdout personality deadline: %s", time.Now().Add(attemptTimeout).Format(time.UnixDate))
-
-	log.Debugf("* stdout attach start %s", time.Now().Format(time.UnixDate))
-	getStdoutParams := interaction.NewContainerGetStdoutParamsWithContext(ctx).WithID(id).WithDeadline(&swaggerDeadline)
-	_, err := pl.Interaction.ContainerGetStdout(getStdoutParams, clStdout)
-	log.Debugf("* stdout attach end %s", time.Now().Format(time.UnixDate))
-	if err != nil {
-		if _, ok := err.(*interaction.ContainerGetStdoutNotFound); ok {
-			return NotFoundError(id)
-		}
-		if _, ok := err.(*interaction.ContainerGetStdoutInternalServerError); ok {
-			return InternalServerError(err.Error())
-		}
-		return InternalServerError(err.Error())
-	}
-
-	return nil
-}
-
-func copyStdErr(ctx context.Context, pl *client.PortLayer, vc *viccontainer.VicContainer, clStderr io.Writer) error {
-	name := vc.ContainerID
-	getStderrParams := interaction.NewContainerGetStderrParamsWithContext(ctx).WithID(name)
-
-	_, err := pl.Interaction.ContainerGetStderr(getStderrParams, clStderr)
-	if err != nil {
-		if _, ok := err.(*interaction.ContainerGetStderrNotFound); ok {
-			return NotFoundError(name)
-		}
-
-		if _, ok := err.(*interaction.ContainerGetStderrInternalServerError); ok {
-			return NotFoundError(name)
-		}
-		return InternalServerError(err.Error())
-	}
-
-	return nil
-}
-
-// FIXME: Move this function to a pkg to show it's origination from Docker once
-// we have ignore capabilities in our header-check.sh that checks for copyright
-// header.
-// Code c/c from io.Copy() modified by Docker to handle escape sequence
-// Begin
-
-// DetachError is special error which returned in case of container detach.
-type DetachError struct{}
-
-func (DetachError) Error() string {
-	return "detached from container"
-}
-
-func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64, err error) {
-	if len(keys) == 0 {
-		// Default keys : ctrl-p ctrl-q
-		keys = []byte{16, 17}
-	}
-	buf := make([]byte, 32*1024)
-	for {
-		nr, er := src.Read(buf)
-		if nr > 0 {
-			// ---- Docker addition
-			preservBuf := []byte{}
-			for i, key := range keys {
-				preservBuf = append(preservBuf, buf[0:nr]...)
-				if nr != 1 || buf[0] != key {
-					break
-				}
-				if i == len(keys)-1 {
-					src.Close()
-					return 0, DetachError{}
-				}
-				nr, er = src.Read(buf)
-			}
-			var nw int
-			var ew error
-			if len(preservBuf) > 0 {
-				nw, ew = dst.Write(preservBuf)
-				nr = len(preservBuf)
-			} else {
-				// ---- End of docker
-				nw, ew = dst.Write(buf[0:nr])
-			}
-			if nw > 0 {
-				written += int64(nw)
-			}
-			if ew != nil {
-				err = ew
-				break
-			}
-			if nr != nw {
-				err = io.ErrShortWrite
-				break
-			}
-		}
-		if er == io.EOF {
-			break
-		}
-		if er != nil {
-			err = er
-			break
-		}
-	}
-	return written, err
-}
-
-// End
 
 // helper function to format the container name
 // to the docker client approved format
