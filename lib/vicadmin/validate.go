@@ -107,6 +107,8 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 			v.LicenseIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.LicenseIssues, err))
 		}
 	}
+	log.Info(fmt.Sprintf("LicenseStatus set to: %s", v.LicenseStatus))
+	log.Info(fmt.Sprintf("LicenseIssues set to: %s", v.LicenseIssues))
 
 	//Network Connection Check
 	hosts := []string{
@@ -134,6 +136,8 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		v.NetworkIssues = template.HTML("")
 
 	}
+	log.Info(fmt.Sprintf("NetworkStatus set to: %s", v.NetworkStatus))
+	log.Info(fmt.Sprintf("NetworkIssues set to: %s", v.NetworksIssues))
 
 	//Retrieve Host IP Information and Set Docker Endpoint
 	v.HostIP = vch.ExecutorConfig.Networks["client"].Assigned.IP.String()
