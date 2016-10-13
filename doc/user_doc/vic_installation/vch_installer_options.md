@@ -114,6 +114,10 @@ Wrap the distributed port group name in single quotes (Linux or Mac OS) or doubl
 ## Networking Options ##
 The `vic-machine create` utility allows you to specify different networks for the different types of traffic between containers, the virtual container host, the external internet, and your vSphere environment.
 
+You can use DHCP to obtain an IP address for the virtual container host on each network. You can also specify a static IP address for the virtual container host on each of the client, external, and management networks. If you specify static IP addresses, you can only specify one static IP address on a given port group. If more than one of the client, external, or management networks shares a port group, you can only specify an IP address for one of those networks. The same address is then used for all of the networks that share that port group.
+
+Assigning the same subnet to multiple port groups can cause routing problems.  If `vic-machine create` detects that you have assigned the same subnet to multiple port groups, it issues a warning.
+
 ### `bridge-network` ###
 
 See [bridge-network](#bridge) in the section on mandatory options.
@@ -128,6 +132,20 @@ The range of IP addresses that additional bridge networks can use when container
 When you specify the bridge network IP range, you specify the IP range as a CIDR.
 
 <pre>--bridge-network-range 192.168.100.0/24</pre>
+
+### `dns-server` ###
+
+Short name: None
+
+A DNS server to use if you specify static IP addresses for the virtual container host on the client, external, and management networks. You can specify `dns-server` multiple times, to configure multiple DNS servers.  
+
+If you specify `dns-server` but you do not specify a static IP address for one or more of the client, external, and management networks, `vic-machine create` ignores the `dns-server` setting for that network and uses the DNS servers that are provided by DHCP. 
+
+If you use a mixture of static and DHCP addresses for the virtual container host on the different networks, the virtual container host uses the DNS servers that you specify in `dns-server` and those that DHCP provides.
+
+If you specify static IP address for the virtual container host on any of the client, external, and management networks and you do not specify `dns-server`, the DNS server defaults to 8.8.8.8 and 8.8.4.4. 
+
+<pre>--dns-server <i>dns_server_address</i></pre>
 
 <a name="external-network"></a>
 ### `external-network` ###
@@ -144,6 +162,26 @@ Wrap the network name in single quotes (Linux or Mac OS) or double quotes (Windo
 
 <pre>--external-network '<i>network name</i>'</pre>
 
+### `external-network-gateway` ###
+
+Short name: None
+
+The gateway to use if you specify a static IP address for the virtual container host on the external network. If you specify `external-network-gateway` you must also specify `external-network-ip`. If you specify neither `external-network-gateway` nor `external-network-ip`, `vic-machine create` uses DHCP to obtain an IP address for the virtual container host.
+
+Specify `external-network-gateway` in CIDR format.
+
+<pre>--external-network-gateway 192.168.X.1/24</pre>
+
+### `external-network-ip` ###
+
+Short name: None
+
+A static IP address for the virtual container host on the external network. If you specify `external-network-ip` you must also specify `external-network-gateway`. If you specify neither `external-network-gateway` nor `external-network-ip`, `vic-machine create` uses DHCP to obtain an IP address for the virtual container host.
+
+Specify `external-network-ip` in CIDR format.
+
+<pre>--external-network-ip 192.168.X.N/24</pre>
+
 <a name="management-network"></a>
 ### `management-network` ###
 
@@ -159,6 +197,26 @@ Wrap the network name in single quotes (Linux or Mac OS) or double quotes (Windo
 
 <pre>--management-network '<i>network name</i>'</pre>
 
+### `management-network-gateway` ###
+
+Short name: None
+
+The gateway to use if you specify a static IP address for the virtual container host on the management network. If you specify `management-network-gateway` you must also specify `management-network-ip`. If you specify neither `management-network-gateway` nor `management-network-ip`, `vic-machine create` uses DHCP to obtain an IP address for the virtual container host.
+
+Specify `management-network-gateway` in CIDR format.
+
+<pre>--management-network-gateway 192.168.Y.1/24</pre>
+
+### `management-network-ip` ###
+
+Short name: None
+
+A static IP address for the virtual container host on the management network. If you specify `management-network-ip` you must also specify `management-network-gateway`. If you specify neither `management-network-gateway` nor `management-network-ip`, `vic-machine create` uses DHCP to obtain an IP address for the virtual container host.
+
+Specify `management-network-ip` in CIDR format.
+
+<pre>--management-network-ip 192.168.Y.N/24</pre>
+
 <a name="client-network"></a>
 ### `client-network` ###
 
@@ -173,6 +231,26 @@ If not specified, the virtual container host uses the external network for clien
 Wrap the network name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
 
 <pre>--client-network '<i>network name</i>'</pre>
+
+### `client-network-gateway` ###
+
+Short name: None
+
+The gateway to use if you specify a static IP address for the virtual container host on the client network. If you specify `client-network-gateway` you must also specify `client-network-ip`. If you specify neither `client-network-gateway` nor `client-network-ip`, `vic-machine create` uses DHCP to obtain an IP address for the virtual container host.
+
+Specify `client-network-gateway` in CIDR format.
+
+<pre>--client-network-gateway 192.168.Z.1/24</pre>
+
+### `client-network-ip` ###
+
+Short name: None
+
+A static IP address for the virtual container host on the client network. If you specify `client-network-ip` you must also specify `client-network-gateway`. If you specify neither `client-network-gateway` nor `client-network-ip`, `vic-machine create` uses DHCP to obtain an IP address for the virtual container host.
+
+Specify `client-network-ip` in CIDR format.
+
+<pre>--client-network-ip 192.168.Z.N/24</pre>
 
 <a name="container-network"></a>
 ### `container-network` ###

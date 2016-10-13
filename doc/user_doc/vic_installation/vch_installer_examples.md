@@ -6,6 +6,7 @@ This topic provides examples of the options of the `vic-machine` `create` comman
 - [Deploy a Virtual Container Host in a vCenter Server Cluster](#cluster)
 - [Deploy a Virtual Container Host to a Cluster and Specify External, Management, Client, and Container Networks](#networks)
 - [Deploy a Virtual Container Host and Configure a Non-DHCP Container Network](#ip-range)
+- [Deploy a Virtual Container Host with a Static IP Address on the Different Networks](#static-ip)
 - [Deploy a Virtual Container Host and Specify an Image Store Folder and a Different Datastore for Container VM Files](#datastores)
 - [Deploy a Virtual Container Host and Specify One or More Volume Stores](#volume-stores)
 - [Deploy a Virtual Container Host on a Standalone Host in vCenter Server](#standalone)
@@ -110,6 +111,37 @@ This example deploys a virtual container host with the following configuration:
 
 For more information about the container network options, see the [container network section in Virtual Container Host Deployment Options](vch_installer_options.md#container-network).
 
+<a name="static-ip"></a>
+## Deploy a Virtual Container Host with a Static IP Address on the Different Networks ##
+
+If you specify networks for any or all of the external, management, and client networks, you can deploy the virtual container host so that it has a static IP address on those networks. 
+
+This example deploys a virtual container host with the following configuration:
+
+- Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the virtual container host.
+- Directs external, management, and Docker API traffic to network 1, network 2, and network 3 respectively. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
+- Sets a DNS server for use by the virtual container host.
+- Sets a static IP address for the virtual container host on each of the external, management, and client networks. 
+
+<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+--target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
+--compute-resource cluster1
+--image-store datastore1
+--bridge-network vic-bridge
+--external-network 'network 1'
+--external-network-gateway 192.168.1.1/24
+--external-network-ip 192.168.1.10/24
+--management-network 'network 2'
+--management-network-gateway 192.168.2.1/24
+--management-network-ip 192.168.2.10/24
+--client-network 'network 3'
+--client-network-gateway 192.168.3.1/24
+--client-network-ip 192.168.3.10/24
+--dns-server <i>dns_server_address</i>
+--name vch1
+</pre>
+
+For more information about the networking options, see the [Networking Options section in Virtual Container Host Deployment Options](vch_installer_options.md#networking).
 
 <a name="datastores"></a>
 ## Deploy a Virtual Container Host and Specify an Image Store Folder and a Different Datastore for Container VM Files ##
