@@ -7,6 +7,7 @@ Default Tags  regression
 
 *** Test Cases ***
 Regression test
+    Run Unit Tests
     Run Regression Tests
     ${out}=  Run  govc vm.info ${vch-name}
     Should Contain  ${out}  Other 3.x or later Linux (64-bit)
