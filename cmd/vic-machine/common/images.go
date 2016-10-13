@@ -54,19 +54,21 @@ type Images struct {
 	OSType       string
 }
 
-func (i *Images) ImageFlags() []cli.Flag {
+func (i *Images) ImageFlags(hidden bool) []cli.Flag {
 	return []cli.Flag{
 		cli.StringFlag{
 			Name:        "appliance-iso, ai",
 			Value:       "",
 			Usage:       "The appliance iso",
 			Destination: &i.ApplianceISO,
+			Hidden:      hidden,
 		},
 		cli.StringFlag{
 			Name:        "bootstrap-iso, bi",
 			Value:       "",
 			Usage:       "The bootstrap iso",
 			Destination: &i.BootstrapISO,
+			Hidden:      hidden,
 		},
 	}
 }

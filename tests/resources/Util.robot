@@ -41,7 +41,7 @@ Set Test Environment Variables
 
     # set the TLS config options suitable for vic-machine in this env
     Run Keyword If  '%{DOMAIN}' == ''  Set Suite Variable  ${vicmachinetls}  '--no-tlsverify'
-    Run Keyword If  '%{DOMAIN}' != ''  Set Suite Variable  ${vicmachinetls}  '--cname=*.%{DOMAIN}'  
+    Run Keyword If  '%{DOMAIN}' != ''  Set Suite Variable  ${vicmachinetls}  '--tls-cname=*.%{DOMAIN}'  
 
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random

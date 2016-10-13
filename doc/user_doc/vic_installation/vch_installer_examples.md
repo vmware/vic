@@ -285,12 +285,12 @@ This example deploys a virtual container host with the following configuration:
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
---pool-memory-reservation 1024
---pool-memory-limit 1024
---pool-memory-shares low
---pool-cpu-reservation 1024
---pool-cpu-limit 1024
---pool-cpu-shares low
+--memory-reservation 1024
+--memory 1024
+--memory-shares low
+--cpu-reservation 1024
+--cpu 1024
+--cpu-shares low
 --name vch1
 </pre>
 
