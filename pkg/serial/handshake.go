@@ -164,6 +164,14 @@ func HandshakeClient(ctx context.Context, conn net.Conn, debug bool) error {
 
 func readMultiple(ctx context.Context, conn net.Conn, b []byte) (int, error) {
 	if runtime.GOOS != "windows" {
+		// FIXME(caglar10ur): We are passing a context with no deadlines
+		//
+		// The go func will start leaking a channel if we pass a context with timeout
+		// and timeout triggers a cancelation
+		//
+		// Right now we are only canceling the context on stop() method to solve a deadlock
+		// between run() and stop() as we block on the read and that causes run() to not to release
+		// t.conn.Lock. By calling cancel on stop path we return from this blocking call as expected.
 		type ioret struct {
 			n   int
 			err error

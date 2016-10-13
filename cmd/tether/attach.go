@@ -51,8 +51,9 @@ type attachServerSSH struct {
 	// serializes data access for exported functions
 	m sync.Mutex
 
-	// conn is held directly as it's how we stop the attach server
+	// conn is held directly as it is how we stop the attach server
 	conn struct {
+		// serializes data access for the underlying conn
 		sync.Mutex
 		conn *net.Conn
 	}
@@ -62,6 +63,8 @@ type attachServerSSH struct {
 
 	enabled int32
 
+	// Cancelable context and its cancel func. Used for resolving the deadlock
+	// between run() and stop()
 	ctx    context.Context
 	cancel context.CancelFunc
 
@@ -73,6 +76,9 @@ type attachServerSSH struct {
 func NewAttachServerSSH() AttachServer {
 	once.Do(func() {
 		// create a cancelable context and assign it to the CancelFunc
+		// it isused for resolving the deadlock between run() and stop()
+		// it has a Background parent as we don't want timeouts here,
+		// otherwise we may start leaking goroutines in the handshake code
 		ctx, cancel := context.WithCancel(context.Background())
 		server = &attachServerSSH{
 			ctx:    ctx,
@@ -196,6 +202,8 @@ func (t *attachServerSSH) stop() error {
 	log.Debugf("Setting enabled to false")
 	t.Disabled()
 
+	// This context is used by backchannel and we need to cancel it before
+	// trying to obtain the following lock so that backchannel releases it.
 	log.Debugf("Canceling the context")
 	t.cancel()
 
@@ -217,6 +225,7 @@ func (t *attachServerSSH) stop() error {
 func (t *attachServerSSH) run() error {
 	defer trace.End(trace.Begin("main attach server loop"))
 
+	// we pass serverConn to the channelMux goroutine so we need to lock it
 	var serverConn struct {
 		sync.Mutex
 		*ssh.ServerConn
@@ -237,6 +246,7 @@ func (t *attachServerSSH) run() error {
 			log.Debugf("Trying to establish a connection")
 
 			establishFn := func() error {
+				// we hold the t.conn.Lock during the scope of this function
 				t.conn.Lock()
 				defer t.conn.Unlock()
 
@@ -263,7 +273,7 @@ func (t *attachServerSSH) run() error {
 					return detail
 				}
 
-				// create the SSH server
+				// create the SSH server using underlying t.conn
 				serverConn.Lock()
 				defer serverConn.Unlock()
 
