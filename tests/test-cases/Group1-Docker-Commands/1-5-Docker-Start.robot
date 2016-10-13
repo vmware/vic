@@ -50,3 +50,32 @@ Start with no ethernet card
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  unable to wait for process launch status
     Should Not Contain  ${output}  context deadline exceeded
+Serially start 5 long running containers
+    # Perf testing reported (see issue #2496)
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    :FOR  ${idx}  IN RANGE  0  5
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create busybox /bin/top
+    \   Should Be Equal As Integers  ${rc}  0
+    \   Should Not Contain  ${output}  Error:
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${output}
+    \   Should Be Equal As Integers  ${rc}  0
+    \   Should Not Contain  ${output}  Error:
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq | xargs -n1 docker ${params} rm -f
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull ubuntu
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    :FOR  ${idx}  IN RANGE  0  5
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create ubuntu top
+    \   Should Be Equal As Integers  ${rc}  0
+    \   Should Not Contain  ${output}  Error:
+    \   ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${output}
+    \   Should Be Equal As Integers  ${rc}  0
+    \   Should Not Contain  ${output}  Error:
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq | xargs -n1 docker ${params} rm -f
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
