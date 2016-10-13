@@ -15,6 +15,7 @@
 package trace
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"sync/atomic"
@@ -64,7 +65,6 @@ func newOperation(ctx context.Context, id string, skip int, msg string) Operatio
 		operation: op,
 	}
 
-	o.Debugf(o.t[0].beginHdr())
 	return o
 }
 
@@ -84,13 +84,27 @@ func (o Operation) Err() error {
 
 	// Walk up the contexts from which this context was created and get their errors
 	if err := o.Context.Err(); err != nil {
-		// Print the error
-		o.Errorf("%s: %s error: %s", o.t[0].endHdr(), o.t[0].msg, err)
+		buf := &bytes.Buffer{}
 
-		// Walk the stack and end with where this was called from
-		for _, t := range append(o.t, *newTrace("Err", 2)) {
-			Logger.Errorf("\t%s:%d %s", t.funcName, t.lineNo, t.msg)
+		// Add a frame for this Err call, then walk the stack
+		currFrame := newTrace("Err", 2)
+		fmt.Fprintf(buf, "%s: %s error: %s\n", currFrame.funcName, o.t[0].msg, err)
+
+		// handle the carriage return
+		numFrames := len(o.t)
+		cr := "\n"
+
+		for i, t := range o.t {
+			if i == numFrames-1 {
+				// don't add a cr on the last frame
+				cr = ""
+			}
+
+			fmt.Fprintf(buf, "\t%s:%d %s%s", t.funcName, t.lineNo, t.msg, cr)
 		}
+
+		// Print the error
+		o.Errorf(buf.String())
 
 		return err
 	}
@@ -112,8 +126,7 @@ func (o *Operation) Errorf(format string, args ...interface{}) {
 
 func (o *Operation) newChild(ctx context.Context, msg string) Operation {
 	child := newOperation(ctx, o.id, 4, msg)
-	t := child.t[0]
-	child.t = append(o.t, t)
+	child.t = append(child.t, o.t...)
 	return child
 }
 
@@ -123,7 +136,11 @@ func opID(opNum uint64) string {
 
 // Add tracing info to the context.
 func NewOperation(ctx context.Context, msg string) Operation {
-	return newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, msg)
+	o := newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, msg)
+
+	frame := o.t[0]
+	o.Debugf("[NewOperation] %s [%s:%d]", o.header(), frame.funcName, frame.lineNo)
+	return o
 }
 
 // WithTimeout
