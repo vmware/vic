@@ -58,3 +58,29 @@ Pull image with a tag that doesn't exist
 Pull image that already has been pulled
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  alpine
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  alpine
+
+Pull the same image concurrently
+     ${pids}=  Create List
+
+     # Create 5 processes to pull the same image at once
+     :FOR  ${idx}  IN RANGE  0  5
+     \   ${pid}=  Start Process  docker ${params} pull redis  shell=True
+     \   Append To List  ${pids}  ${pid}
+
+     # Wait for them to finish and check their output
+     :FOR  ${pid}  IN  @{pids}
+     \   ${res}=  Wait For Process  ${pid}
+     \   Should Be Equal As Integers  ${res.rc}  0
+     \   Should Contain  ${res.stdout}  Downloaded newer image for library/redis:latest
+
+Pull two images that share layers concurrently
+     ${pid1}=  Start Process  docker ${params} pull golang:1.7  shell=True
+     ${pid2}=  Start Process  docker ${params} pull golang:1.6  shell=True
+
+    # Wait for them to finish and check their output
+    ${res1}=  Wait For Process  ${pid1}
+    ${res2}=  Wait For Process  ${pid2}
+    Should Be Equal As Integers  ${res1.rc}  0
+    Should Be Equal As Integers  ${res2.rc}  0
+    Should Contain  ${res1.stdout}  Downloaded newer image for library/golang:1.7
+    Should Contain  ${res2.stdout}  Downloaded newer image for library/golang:1.6
