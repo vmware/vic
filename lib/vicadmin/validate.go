@@ -137,7 +137,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 
 	}
 	log.Info(fmt.Sprintf("NetworkStatus set to: %s", v.NetworkStatus))
-	log.Info(fmt.Sprintf("NetworkIssues set to: %s", v.NetworksIssues))
+	log.Info(fmt.Sprintf("NetworkIssues set to: %s", v.NetworkIssues))
 
 	//Retrieve Host IP Information and Set Docker Endpoint
 	v.HostIP = vch.ExecutorConfig.Networks["client"].Assigned.IP.String()
