@@ -80,13 +80,13 @@ func newHandleKey() string {
 	return hex.EncodeToString(b)
 }
 
-func newHandle(con *Container) *Handle {
+func newHandle(con *Container, state State) *Handle {
 	h := &Handle{
 		key:        newHandleKey(),
 		committed:  false,
 		Container:  con,
 		ExecConfig: *con.ExecConfig,
-		state:      con.CurrentState(),
+		state:      state,
 	}
 
 	handlesLock.Lock()

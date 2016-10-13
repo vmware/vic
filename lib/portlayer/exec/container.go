@@ -120,7 +120,7 @@ func NewContainer(id uid.UID) *Handle {
 		newStateEvents: make(map[State]chan struct{}),
 	}
 	con.ExecConfig.ID = id.String()
-	return newHandle(con)
+	return newHandle(con, con.state)
 }
 
 func GetContainer(ctx context.Context, id uid.UID) *Handle {
@@ -149,7 +149,8 @@ func (s State) String() string {
 		return "Stopping"
 	case StateStopped:
 		return "Stopped"
-
+	case StateUnknown:
+		return "Unknown"
 	}
 	return ""
 }
@@ -218,7 +219,7 @@ func (c *Container) NewHandle(ctx context.Context) *Handle {
 		}
 	}
 
-	return newHandle(c)
+	return newHandle(c, c.state)
 }
 
 // Refresh calls the property collector to get config and runtime info and Guest RPC for ExtraConfig
@@ -590,6 +591,8 @@ func (c *Container) onStop() {
 
 func (c *Container) LogReader(ctx context.Context, tail int, follow bool) (io.ReadCloser, error) {
 	defer trace.End(trace.Begin(c.ExecConfig.ID))
+	c.m.Lock()
+	defer c.m.Unlock()
 
 	if c.vm == nil {
 		return nil, fmt.Errorf("vm not set")
@@ -616,8 +619,6 @@ func (c *Container) LogReader(ctx context.Context, tail int, follow bool) (io.Re
 		}
 	}
 
-	c.m.Lock()
-	defer c.m.Unlock()
 	if follow && c.state == StateRunning {
 		follower := file.Follow(time.Second)
 
