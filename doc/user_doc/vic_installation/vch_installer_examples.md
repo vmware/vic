@@ -120,8 +120,8 @@ This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the virtual container host.
 - Directs external, management, and Docker API traffic to network 1, network 2, and network 3 respectively. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
-- Identifies a DNS server for static IP addresses.
-- Obtains a static IP address for the virtual container host on each of the external, management, and client networks. 
+- Sets a DNS server for use by the virtual container host.
+- Sets a static IP address for the virtual container host on each of the external, management, and client networks. 
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
