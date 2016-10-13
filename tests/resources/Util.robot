@@ -96,6 +96,7 @@ Install VIC Appliance To Test Server
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
+    Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
     Set Test VCH Name
     # Set a unique bridge network for each VCH that has a random VLAN ID
     ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
@@ -191,6 +192,19 @@ Cleanup Dangling Networks On Test Server
     \   ${state}=  Get State Of Drone Build  @{build}[1]
     \   Continue For Loop If  '${state}' == 'running'
     \   ${uuid}=  Run  govc host.portgroup.remove ${net}
+    
+Cleanup Dangling vSwitches On Test Server
+    ${out}=  Run  govc host.vswitch.info | grep VCH
+    ${nets}=  Split To Lines  ${out}
+    :FOR  ${net}  IN  @{nets}
+    \   ${net}=  Fetch From Right  ${net}  ${SPACE}
+    \   ${build}=  Split String  ${net}  -
+    \   # Skip any vSwitch that is not associated with integration tests
+    \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   # Skip any vSwitch that is still running
+    \   ${state}=  Get State Of Drone Build  @{build}[1]
+    \   Continue For Loop If  '${state}' == 'running'
+    \   ${uuid}=  Run  govc host.vswitch.remove ${net}
 
 Gather Logs From Test Server
     Variable Should Exist  ${params}
