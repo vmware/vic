@@ -148,15 +148,12 @@ func configureReaders() map[string]entryReader {
 		readers[path[1:]] = fileReader(path)
 	}
 
-	if config.vmPath == "" {
-		log.Info("vm-path not set, skipping datastore log collection")
-	} else {
-		err := findDatastore()
+	log.Info("vm-path not set, skipping datastore log collection")
+	// err := findDatastore()
 
-		if err != nil {
-			log.Warning(err)
-		}
-	}
+	// if err != nil {
+	// 	log.Warning(err)
+	// }
 
 	return readers
 }

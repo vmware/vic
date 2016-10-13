@@ -21,6 +21,7 @@ import (
 	"os"
 	"strings"
 	"syscall"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -68,6 +69,9 @@ func (t *operations) HandleSessionExit(config *tether.ExecutorConfig, session *t
 			log.Warnf("Debug is set to %d so squashing relaunch of exited process", config.DebugLevel)
 			return
 		}
+
+		// incredibly basic throttle
+		time.Sleep(3 * time.Second)
 
 		tthr.Reload()
 		log.Info("Triggered reload")

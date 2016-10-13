@@ -46,10 +46,10 @@ func NewUninstall() *Uninstall {
 
 // Flags return all cli flags for delete
 func (d *Uninstall) Flags() []cli.Flag {
-	flags := []cli.Flag{
+	util := []cli.Flag{
 		cli.BoolFlag{
 			Name:        "force, f",
-			Usage:       "Force the uninstall",
+			Usage:       "Force the deletion",
 			Destination: &d.Force,
 		},
 		cli.DurationFlag{
@@ -59,10 +59,17 @@ func (d *Uninstall) Flags() []cli.Flag {
 			Destination: &d.Timeout,
 		},
 	}
-	preFlags := append(d.TargetFlags(), d.IDFlags()...)
-	preFlags = append(preFlags, d.ComputeFlags()...)
-	flags = append(preFlags, flags...)
-	flags = append(flags, d.DebugFlags()...)
+
+	target := d.TargetFlags()
+	id := d.IDFlags()
+	compute := d.ComputeFlags()
+	debug := d.DebugFlags()
+
+	// flag arrays are declared, now combined
+	var flags []cli.Flag
+	for _, f := range [][]cli.Flag{target, id, compute, util, debug} {
+		flags = append(flags, f...)
+	}
 
 	return flags
 }

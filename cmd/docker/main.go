@@ -19,6 +19,7 @@ import (
 	"crypto/x509"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 
 	log "github.com/Sirupsen/logrus"
@@ -40,20 +41,14 @@ import (
 )
 
 type CliOptions struct {
-	enableTLS     bool
-	verifyTLS     bool
-	cafile        string
-	certfile      string
-	keyfile       string
-	serverAddr    string
 	serverPort    uint
-	fullserver    string
 	portLayerAddr string
 	proto         string
 }
 
 const (
-	productName = "vSphere Integrated Containers"
+	productName    = "vSphere Integrated Containers"
+	clientHostName = "client.localhost"
 )
 
 var vchConfig config.VirtualContainerHostConfigSpec
@@ -99,12 +94,7 @@ func main() {
 func handleFlags() (*CliOptions, bool) {
 	flag.Usage = Usage
 
-	enableTLS := flag.Bool("TLS", false, "Use TLS; implied by --tlsverify")
-	verifyTLS := flag.Bool("tlsverify", false, "Use TLS and verify the remote")
-	cafile := flag.String("tls-ca-certificate", "", "Trust certs signed only by this CA")
-	certfile := flag.String("tls-certificate", "", "Path to TLS certificate file")
-	keyfile := flag.String("tls-key", "", "Path to TLS Key file")
-	serverAddr := flag.String("serveraddr", "127.0.0.1", "Server address to listen")
+	_ = flag.String("serveraddr", "127.0.0.1", "Server address to listen") // ignored
 	serverPort := flag.Uint("port", 9000, "Port to listen")
 	portLayerAddr := flag.String("port-layer-addr", "127.0.0.1", "Port layer server address")
 	portLayerPort := flag.Uint("port-layer-port", 9001, "Port Layer server port")
@@ -112,20 +102,6 @@ func handleFlags() (*CliOptions, bool) {
 	debug := flag.Bool("debug", false, "Enable debuglevel logging")
 
 	flag.Parse()
-
-	if *enableTLS && (len(*certfile) == 0 || len(*keyfile) == 0) {
-		fmt.Fprintf(os.Stderr, "TLS requested, but tls-certificate and tls-key were all not specified\n")
-		return nil, false
-	}
-
-	if *verifyTLS {
-		*enableTLS = true
-
-		if len(*certfile) == 0 || len(*keyfile) == 0 || len(*cafile) == 0 {
-			fmt.Fprintf(os.Stderr, "tlsverfiy requested, but tls-ca-certificate, tls-certificate, tls-key were all not specified\n")
-			return nil, false
-		}
-	}
 
 	// load the vch config
 	src, err := extraconfig.GuestInfoSource()
@@ -139,14 +115,7 @@ func handleFlags() (*CliOptions, bool) {
 	}
 
 	cli := &CliOptions{
-		enableTLS:     *enableTLS,
-		verifyTLS:     *verifyTLS,
-		cafile:        *cafile,
-		certfile:      *certfile,
-		keyfile:       *keyfile,
-		serverAddr:    *serverAddr,
 		serverPort:    *serverPort,
-		fullserver:    fmt.Sprintf("%s:%d", *serverAddr, *serverPort),
 		portLayerAddr: fmt.Sprintf("%s:%d", *portLayerAddr, *portLayerPort),
 		proto:         "tcp",
 	}
@@ -222,14 +191,38 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 		}
 	}
 
+	addr := "0.0.0.0"
+	// exposing this on all interfaces
+	if vchConfig.Diagnostics.DebugLevel <= 2 {
+
+		// determine the address to listen on
+		ips, err := net.LookupIP(clientHostName)
+		if err != nil {
+			// TODO: don't want to directly enter this into vchConfig.Sessions[].Started but no
+			// structure currently to report back contents otherwise
+			log.Fatalf("Unable to look up %s to serve docker API: %s", clientHostName, err)
+		}
+
+		if len(ips) == 0 {
+			log.Fatalf("No IP found for %s during launch of docker API server", clientHostName)
+		}
+
+		if len(ips) > 1 {
+			log.Fatalf("Multiple IPs found for %s during launch of docker API server: %v", clientHostName, ips)
+		}
+
+		addr = ips[0].String()
+	}
+
 	api := apiserver.New(serverConfig)
-	l, err := listeners.Init(cli.proto, cli.fullserver, "", serverConfig.TLSConfig)
+	fullserver := fmt.Sprintf("%s:%d", addr, cli.serverPort)
+	l, err := listeners.Init(cli.proto, fullserver, "", serverConfig.TLSConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Println("Listener created for HTTP on TCP", cli.fullserver)
-	api.Accept(cli.fullserver, l...)
+	log.Printf("Listener created for HTTP on %s//%s", addr, cli.proto)
+	api.Accept(fullserver, l...)
 
 	return api
 }

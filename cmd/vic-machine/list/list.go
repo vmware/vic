@@ -64,7 +64,7 @@ func NewList() *List {
 
 // Flags return all cli flags for ls
 func (l *List) Flags() []cli.Flag {
-	flags := []cli.Flag{
+	util := []cli.Flag{
 		cli.DurationFlag{
 			Name:        "timeout",
 			Value:       3 * time.Minute,
@@ -72,9 +72,18 @@ func (l *List) Flags() []cli.Flag {
 			Destination: &l.Timeout,
 		},
 	}
-	preFlags := append(l.TargetFlags(), l.ComputeFlagsNoName()...)
-	flags = append(preFlags, flags...)
-	flags = append(flags, l.DebugFlags()...)
+
+	target := l.TargetFlags()
+	id := l.IDFlags()
+	// TODO: why not allow name as a filter, like most list operations
+	compute := l.ComputeFlagsNoName()
+	debug := l.DebugFlags()
+
+	// flag arrays are declared, now combined
+	var flags []cli.Flag
+	for _, f := range [][]cli.Flag{target, id, compute, util, debug} {
+		flags = append(flags, f...)
+	}
 
 	return flags
 }
