@@ -59,14 +59,17 @@ func (t *testAttachServer) start() error {
 	return err
 }
 
-func (t *testAttachServer) stop() {
+func (t *testAttachServer) stop() error {
 	if t.enabled {
-		t.attachServerSSH.stop()
-
-		log.Info("Stopped test attach server")
-		t.updated <- true
-		t.enabled = false
+		err := t.attachServerSSH.stop()
+		if err == nil {
+			log.Info("Stopped test attach server")
+			t.updated <- true
+			t.enabled = false
+		}
+		return err
 	}
+	return nil
 }
 
 func (t *testAttachServer) Reload(config *tether.ExecutorConfig) error {

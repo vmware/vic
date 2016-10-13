@@ -44,7 +44,7 @@ type AttachServer interface {
 	tether.Extension
 
 	start() error
-	stop()
+	stop() error
 }
 
 type attachServerSSH struct {
@@ -125,19 +125,22 @@ func (t *attachServerSSH) Stop() error {
 	defer t.m.Unlock()
 
 	// calling server.start not t.start so that test impl gets invoked
-	server.stop()
-	return nil
+	return server.stop()
 }
 
 func (t *attachServerSSH) start() error {
 	defer trace.End(trace.Begin("start attach server"))
 
 	if t == nil {
-		return errors.New("attach server is not configured")
+		err := fmt.Errorf("attach server is not configured")
+		log.Error(err)
+		return err
 	}
 
 	if t.IsEnabled() {
-		return nil
+		err := fmt.Errorf("attach server is already enabled")
+		log.Error(err)
+		return err
 	}
 
 	// don't assume that the key hasn't changed
@@ -175,11 +178,19 @@ func (t *attachServerSSH) start() error {
 }
 
 // stop is not thread safe with start
-func (t *attachServerSSH) stop() {
+func (t *attachServerSSH) stop() error {
 	defer trace.End(trace.Begin("stop attach server"))
 
-	if t == nil || !t.IsEnabled() {
-		return
+	if t == nil {
+		err := fmt.Errorf("attach server is not configured")
+		log.Error(err)
+		return err
+	}
+
+	if !t.IsEnabled() {
+		err := fmt.Errorf("attach server is not enabled")
+		log.Error(err)
+		return err
 	}
 
 	log.Debugf("Setting enabled to false")
@@ -197,6 +208,8 @@ func (t *attachServerSSH) stop() {
 	}
 	t.conn.Unlock()
 	log.Debugf("Released the connection lock")
+
+	return nil
 }
 
 // run should not be called directly, but via start
@@ -222,14 +235,13 @@ func (t *attachServerSSH) run() error {
 		// keep waiting for the connection to establish
 		for !established && t.IsEnabled() {
 			log.Debugf("Trying to establish a connection")
-			// tests are passing their own connections so do not create connections when testing is set
 
 			establishFn := func() error {
 				t.conn.Lock()
 				defer t.conn.Unlock()
 
+				// tests are passing their own connections so do not create connections when testing is set
 				if !t.testing {
-
 					// close the connection if required
 					if t.conn.conn != nil {
 						(*t.conn.conn).Close()
@@ -399,7 +411,6 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 			}
 			msg := msgs.ContainersMsg{IDs: keys}
 			payload = msg.Marshal()
-
 		default:
 			ok = false
 			payload = []byte("unknown global request type: " + req.Type)
