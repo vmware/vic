@@ -106,15 +106,6 @@ func (t *attachServerSSH) Start() error {
 		return detail
 	}
 
-	t.conn.Lock()
-	defer t.conn.Unlock()
-
-	t.conn.conn, err = rawConnectionFromSerial()
-	if err != nil {
-		detail := fmt.Errorf("failed to create raw connection from ttyS0 file handle: %s", err)
-		log.Error(detail)
-		return detail
-	}
 	return nil
 }
 

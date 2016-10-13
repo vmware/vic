@@ -71,8 +71,6 @@ func (t *tether) childReaper() error {
 		flag := syscall.WNOHANG | syscall.WUNTRACED | syscall.WCONTINUED
 
 		for range t.incoming {
-			log.Debugf("Woke up because of a received SIGCHLD")
-
 			func() {
 				// general resiliency
 				defer func() {
@@ -141,12 +139,13 @@ func (t *tether) stopReaper() {
 	log.Debugf("Removing the signal notifier")
 	signal.Reset(syscall.SIGCHLD)
 
-	log.Debugf("Closing the channel done to reaper")
-	close(t.incoming)
-
-	log.Debugf("Sending true to the done channel")
-	// just closing the channel is not going to stop the iteration over the channel so signal it as well
+	// just closing the incoming channel is not going to stop the iteration
+	// so we use done channel to signal it
+	log.Debugf("Signalling the child reaper loop")
 	close(t.done)
+
+	log.Debugf("Closing the reapers signal channel")
+	close(t.incoming)
 }
 
 func findExecutable(file string) error {
