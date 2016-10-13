@@ -240,7 +240,7 @@ func (t *VirtualContainerHostConfigSpec) AddContainerNetwork(net *executor.Conta
 func (t *VirtualContainerHostConfigSpec) AddComponent(name string, component *executor.SessionConfig) {
 	if component != nil {
 		if t.ExecutorConfig.Sessions == nil {
-			t.ExecutorConfig.Sessions = make(map[string]executor.SessionConfig)
+			t.ExecutorConfig.Sessions = make(map[string]*executor.SessionConfig)
 		}
 
 		if component.Name == "" {
@@ -249,7 +249,7 @@ func (t *VirtualContainerHostConfigSpec) AddComponent(name string, component *ex
 		if component.ID == "" {
 			component.ID = name
 		}
-		t.ExecutorConfig.Sessions[name] = *component
+		t.ExecutorConfig.Sessions[name] = component
 	}
 }
 
