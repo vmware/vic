@@ -86,7 +86,7 @@ func newHandle(con *Container) *Handle {
 		committed:  false,
 		Container:  con,
 		ExecConfig: *con.ExecConfig,
-		state:      StateUnknown,
+		state:      con.CurrentState(),
 	}
 
 	handlesLock.Lock()
