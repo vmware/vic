@@ -13,41 +13,48 @@ Curl
     [Return]  ${output}
 
 *** Test Cases ***
-# Display HTML
-#     ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl  ${EMPTY}
-#     Should contain  ${output}  <title>VCH Admin</title>
+Display HTML    
+     ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl  ${EMPTY}
+     Should contain  ${output}  <title>VCH Admin</title>
 
-# Get Portlayer Log
-#     ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl  /logs/port-layer.log
-#     Should contain  ${output}  Launching portlayer server
+Get Portlayer Log
+    ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl  /logs/port-layer.log
+    Should contain  ${output}  Launching portlayer server
 
-# Get VCH-Init Log
-#     ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl  /logs/init.log
-#     Should contain  ${output}  reaping child processes
+Get VCH-Init Log
+    ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl  /logs/init.log
+    Should contain  ${output}  reaping child processes
 
-# Get Docker Personality Log
-#     ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl  /logs/docker-personality.log
-#     Should contain  ${output}  docker personality
-
-Get Container Logs
-    Run Keyword  Set Environment Variable  DOMAIN  ${EMPTY}
-    ${rc}  ${output}=  Run And Return Rc and Output  docker ${params} pull busybox
-    Log To Console  ${output}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${rc}  ${container}=  Run And Return Rc and Output  docker ${params} create busybox /bin/top
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${container}  Error
-    ${rc}  ${output}=  Run And Return Rc and Output  docker ${params} start ${container}
-    Should Be Equal As Integers  ${rc}  0
-    Should Not Contain  ${output}  Error
-    ${output}=  Run  curl -sk --cert /drone/src/github.com/vmware/vic/${vch-name}/cert.pem --key /drone/src/github.com/vmware/vic/${vch-name}/key.pem ${vic-admin}/container-logs.tar.gz | tar tvzf -
-    Should Be Equal As Integers  ${rc}  0
-    Log  ${output}
-    Should Contain  ${output}  ${container}/vmware.log
-    Should Contain  ${output}  ${container}/tether.debug
+Get Docker Personality Log
+    ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl  /logs/docker-personality.log
+    Should contain  ${output}  docker personality
 
 Get VICAdmin Log
-    ${output}=  Run  curl -sk --cert /drone/src/github.com/vmware/vic/${vch-name}/cert.pem --key /drone/src/github.com/vmware/vic/${vch-name}/key.pem ${vic-admin}/logs/vicadmin.log
+    ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl  /logs/vicadmin.log
     Log  ${output}
     Should contain  ${output}  Launching vicadmin pprof server
+
+Fail to Get VICAdmin Log without cert
+    ${output}=  Run  curl -sk ${vic-admin}/logs/vicadmin.log
+    Log  ${output}
+    Should Not contain  ${output}  Launching vicadmin pprof server
+    
+Fail to Display HTML without cert
+    ${output}=  Run  curl -sk ${vic-admin}
+    Log  ${output}
+    Should Not contain  ${output}  <title>VCH Admin</title>
+
+Fail to get Portlayer Log without cert
+    ${output}=  Run  curl -sk ${vic-admin}/logs/port-layer.log
+    Log  ${output}
+    Should Not contain  ${output}  Launching portlayer server
+
+Fail to get Docker Personality Log without cert
+    ${output}=  Run  curl -sk ${vic-admin}/logs/docker-personality.log
+    Log  ${output}
+    Should Not contain  ${output}  docker personality
+
+Fail to get VCH init logs without cert
+    ${output}=  Run  curl -sk ${vic-admin}/logs/init.log
+    Log  ${output}
+    Should Not contain  ${output}  reaping child processes
