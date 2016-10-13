@@ -16,10 +16,14 @@ package management
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/docker/docker/opts"
+
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/pkg/errors"
@@ -55,31 +59,60 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 		d.VICAdminProto = "http"
 		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
 	}
-	d.ShowVCH(conf, "", "")
+	d.ShowVCH(conf, "", "", "", "")
 	return nil
 }
 
-func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key string, cert string) {
-	// #1218: Temporarily disable SSH access for TP3
-	//	log.Infof("")
-	//	log.Infof("SSH to appliance (default=root:password)")
-	//	log.Infof("ssh root@%s", d.HostIP)
+func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key string, cert string, cacert string, envfile string) {
+	if d.sshEnabled {
+		log.Infof("")
+		log.Infof("SSH to appliance")
+		log.Infof("ssh root@%s", d.HostIP)
+	}
+
 	log.Infof("")
 	log.Infof("vic-admin portal:")
 	log.Infof("%s://%s:2378", d.VICAdminProto, d.HostIP)
 	log.Infof("")
 	tls := ""
 
+	addr := d.HostIP
+	dEnv := " "
 	if !conf.HostCertificate.IsNil() {
 		// if we're generating then there's no CA currently
-		if len(conf.CertificateAuthorities) > 0 && key != "" {
-			tls = fmt.Sprintf(" --tls --tlscert='%s' --tlskey='%s'", cert, key)
+		if len(conf.CertificateAuthorities) > 0 {
+			// find the name to use
+			addr, _ = addrToUse(d.HostIP, conf)
+
+			if key != "" {
+				tls = fmt.Sprintf(" --tlsverify --tlscacert=%q --tlscert=%q --tlskey=%q", cacert, cert, key)
+			} else {
+				tls = fmt.Sprintf(" --tlsverify ")
+			}
+
+			dEnv = fmt.Sprintf("%s DOCKER_TLS_VERIFY=1", dEnv)
+			info, err := os.Stat(conf.ExecutorConfig.Name)
+			if err == nil && info.IsDir() {
+				if abs, err := filepath.Abs(info.Name()); err == nil {
+					dEnv = fmt.Sprintf("%s DOCKER_CERT_PATH=%s", dEnv, abs)
+				}
+			}
 		} else {
 			tls = " --tls"
 		}
 	}
-	log.Infof("DOCKER_HOST=%s:%s", d.HostIP, d.DockerPort)
+
+	dEnv = fmt.Sprintf("%s DOCKER_HOST=%s:%s", dEnv, addr, d.DockerPort)
+	log.Infof("Docker environment variables:")
+	log.Info(dEnv)
+	log.Infof("")
+
+	if envfile != "" {
+		log.Infof("Environment saved in %s", envfile)
+		ioutil.WriteFile(envfile, []byte(dEnv), 0644)
+	}
+
 	log.Infof("")
 	log.Infof("Connect to docker:")
-	log.Infof("docker -H %s:%s%s info", d.HostIP, d.DockerPort, tls)
+	log.Infof("docker -H %s:%s%s info", addr, d.DockerPort, tls)
 }

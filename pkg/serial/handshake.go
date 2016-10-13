@@ -27,17 +27,22 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/pkg/trace"
 )
 
 const (
-	SYN = 0x16
-	ACK = 0x06
-	NAK = 0x15
+	flagSyn      = 0x16
+	flagAck      = 0x06
+	flagDebugAck = 0x07
+	flagNak      = 0x15
 )
 
 // PurgeIncoming is used to clear a channel of bytes prior to handshaking
 func PurgeIncoming(conn net.Conn) {
+	if tracing {
+		defer trace.End(trace.Begin(""))
+	}
 	buf := make([]byte, 255)
 
 	// read until the incoming channel is empty
@@ -51,16 +56,19 @@ func PurgeIncoming(conn net.Conn) {
 	conn.SetReadDeadline(time.Time{})
 }
 
-func HandshakeClient(ctx context.Context, conn net.Conn) error {
+func HandshakeClient(ctx context.Context, conn net.Conn, debug bool) error {
+	if tracing {
+		defer trace.End(trace.Begin(""))
+	}
 	syn := make([]byte, 2)
 	synack := make([]byte, 2)
 	ack := make([]byte, 2)
 
 	buf := make([]byte, 255)
 
-	syn[0] = SYN
-	synack[0] = ACK
-	ack[0] = ACK
+	syn[0] = flagSyn
+	synack[0] = flagAck
+	ack[0] = flagAck
 
 	// set the read deadline for timeout
 	// this has no effect on windows as the deadline is set at port open time
@@ -92,52 +100,64 @@ func HandshakeClient(ctx context.Context, conn net.Conn) error {
 	if bytes.Compare(synack, buf[:2]) != 0 {
 		msg := fmt.Sprintf("HandshakeClient: did not receive synack: %#x != %#x", synack, buf[:2])
 		log.Debugf(msg)
-		conn.Write([]byte{NAK})
+		conn.Write([]byte{flagNak})
 		return errors.New(msg)
 	}
 
 	log.Infof("HandshakeClient: received synack: %#x == %#x\n", synack, buf[:2])
 	log.Debug("client: writing ack")
 	ack[1] = buf[2] + 1
+	if debug {
+		ack[0] = flagDebugAck
+	}
 	conn.Write(ack)
 
 	// disable the read timeout
 	conn.SetReadDeadline(time.Time{})
 
-	// Check for lossiness
-	rxbuf := make([]byte, 23)
-	log.Debugf("Checking for lossiness")
-	n, err := io.ReadFull(conn, rxbuf)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
+	if debug {
+		// Verify packet length handling works.  We're going to send a known stream
+		// of data to the container and it will echo it back.  Verify the sent and
+		// received bufs are the same and we know the channel is lossless.
 
-	if n != len(rxbuf) {
-		err = fmt.Errorf("packet size mismatch (expected %d, received %d)", len(rxbuf), n)
-		log.Error(err)
-		return err
-	}
+		log.Debugf("Checking for lossiness")
+		txbuf := []byte("\x1b[32mhello world\x1b[39m!\n")
+		rxbuf := make([]byte, len(txbuf))
 
-	// echo the data back
-	_, err = conn.Write(rxbuf)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
+		_, err := conn.Write(txbuf)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
 
-	// wait for the ack
-	if _, err = conn.Read(ack[:1]); err != nil {
-		log.Error(err)
-		return err
-	}
+		var n int
+		n, err = io.ReadFull(conn, rxbuf)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
 
-	if ack[0] != ACK {
-		err = fmt.Errorf("client: lossiness check FAILED")
-		log.Error(err)
-		return err
+		if n != len(rxbuf) {
+			err = fmt.Errorf("packet size mismatch (expected %d, received %d)", len(rxbuf), n)
+			log.Error(err)
+			return err
+		}
+
+		if bytes.Compare(rxbuf, txbuf) != 0 {
+			conn.Write([]byte{flagNak})
+			err = fmt.Errorf("client: lossiness check FAILED")
+			log.Error(err)
+			return err
+		}
+
+		// Tell the server we're good.
+		if _, err = conn.Write([]byte{flagAck}); err != nil {
+			return err
+		}
+
+		log.Infof("client: lossiness check PASSED")
+
 	}
-	log.Infof("client: lossiness check PASSED")
 
 	return nil
 }
@@ -164,8 +184,9 @@ func readMultiple(conn net.Conn, b []byte) (int, error) {
 }
 
 func HandshakeServer(ctx context.Context, conn net.Conn) error {
-	defer trace.End(trace.Begin(""))
-
+	if tracing {
+		defer trace.End(trace.Begin(""))
+	}
 	syn := make([]byte, 3)
 	synack := make([]byte, 3)
 	buf := make([]byte, 2)
@@ -180,13 +201,13 @@ func HandshakeServer(ctx context.Context, conn net.Conn) error {
 
 	log.Debug("server: reading syn")
 	// syn is 3 bytes as that will eventually syn us again if we're offset
-	if n, err := readMultiple(conn, syn); n != 2 || err != nil || syn[0] != SYN {
+	if n, err := readMultiple(conn, syn); n != 2 || err != nil || syn[0] != flagSyn {
 		var msg string
 		if err != nil {
 			msg = fmt.Sprintf("server: failed to read expected SYN: n=%d, err=%s", n, err)
-		} else if syn[0] != SYN {
-			msg = fmt.Sprintf("server: did not receive SYN (read %v bytes): %#x != %#x", n, SYN, syn[0])
-			conn.Write([]byte{NAK})
+		} else if syn[0] != flagSyn {
+			msg = fmt.Sprintf("server: did not receive SYN (read %v bytes): %#x != %#x", n, flagSyn, syn[0])
+			conn.Write([]byte{flagNak})
 		} else {
 			msg = fmt.Sprintf("server: received SYN (read %d) bytes", n)
 		}
@@ -204,20 +225,20 @@ func HandshakeServer(ctx context.Context, conn net.Conn) error {
 	log.Debugf("server: received syn: %#x\n", syn)
 
 	log.Debug("server: writing synack")
-	synack[0] = ACK
+	synack[0] = flagAck
 	synack[1] = syn[1] + 1
 	rand.Read(synack[2:])
 
 	conn.Write(synack)
 
-	ack[0] = ACK
+	ack[0] = flagAck
 	ack[1] = synack[2] + 1
 	log.Debug("server: reading ack")
 	readMultiple(conn, buf)
-	if bytes.Compare(ack, buf) != 0 {
+	if (buf[0] != flagAck && buf[0] != flagDebugAck) || bytes.Compare(ack[1:], buf[1:]) != 0 {
 		msg := fmt.Sprintf("server: did not receive ack: %#x != %#x", ack, buf)
 		log.Debug(msg)
-		conn.Write([]byte{NAK})
+		conn.Write([]byte{flagNak})
 		return errors.New(msg)
 	}
 	log.Infof("server: received ack: %#x == %#x\n", ack, buf)
@@ -226,46 +247,42 @@ func HandshakeServer(ctx context.Context, conn net.Conn) error {
 	// this has no effect on windows as the deadline is set at port open time
 	conn.SetReadDeadline(time.Time{})
 
-	// Verify packet length handling works.  We're going to send a known stream
-	// of data to the container and it will echo it back.  Verify the sent and
-	// received bufs are the same and we know the channel is lossless.
+	if buf[0] == flagDebugAck {
+		// Check for lossiness
+		rxbuf := make([]byte, 23)
+		log.Debugf("Checking for lossiness")
+		n, err := io.ReadFull(conn, rxbuf)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
 
-	log.Debugf("Checking for lossiness")
-	txbuf := []byte("\x1b[32mhello world\x1b[39m!\n")
-	rxbuf := make([]byte, len(txbuf))
+		if n != len(rxbuf) {
+			err = fmt.Errorf("packet size mismatch (expected %d, received %d)", len(rxbuf), n)
+			log.Error(err)
+			return err
+		}
 
-	_, err := conn.Write(txbuf)
-	if err != nil {
-		log.Error(err)
-		return err
+		// echo the data back
+		_, err = conn.Write(rxbuf)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+
+		// wait for the ack
+		if _, err = conn.Read(ack[:1]); err != nil {
+			log.Error(err)
+			return err
+		}
+
+		if ack[0] != flagAck {
+			err = fmt.Errorf("server: lossiness check FAILED")
+			log.Error(err)
+			return err
+		}
+		log.Infof("server: lossiness check PASSED")
 	}
-
-	var n int
-	n, err = io.ReadFull(conn, rxbuf)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	if n != len(rxbuf) {
-		err = fmt.Errorf("packet size mismatch (expected %d, received %d)", len(rxbuf), n)
-		log.Error(err)
-		return err
-	}
-
-	if bytes.Compare(rxbuf, txbuf) != 0 {
-		conn.Write([]byte{NAK})
-		err = fmt.Errorf("server: lossiness check FAILED")
-		log.Error(err)
-		return err
-	}
-
-	// Tell the server we're good.
-	if _, err = conn.Write([]byte{ACK}); err != nil {
-		return err
-	}
-
-	log.Infof("server: lossiness check PASSED")
 
 	return nil
 }

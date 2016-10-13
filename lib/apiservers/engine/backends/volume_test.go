@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 )
 
@@ -59,7 +60,7 @@ func TestTranslatVolumeRequestModel(t *testing.T) {
 	assert.Equal(t, "vsphere", testRequest.Driver)
 	assert.Equal(t, int64(12), testRequest.Capacity)
 
-	testMetaDatabuf, err := createVolumeMetadata(testRequest, testLabels)
+	testMetaDatabuf, err := createVolumeMetadata(testRequest, testDriverArgs, testLabels)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -79,7 +80,7 @@ func TestCreateVolumeMetada(t *testing.T) {
 	testLabels := make(map[string]string)
 	testLabels["TestMeta"] = "custom info about my volume"
 
-	testMetadataString, err := createVolumeMetadata(&testModel, testLabels)
+	testMetadataString, err := createVolumeMetadata(&testModel, testDriverOpts, testLabels)
 	if !assert.NoError(t, err) {
 		return
 	}

@@ -15,12 +15,12 @@
 package main
 
 import (
-	_ "net/http/pprof"
 	"os"
 	"runtime/debug"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"

@@ -21,6 +21,8 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
@@ -31,7 +33,6 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
-	"golang.org/x/net/context"
 )
 
 func (v *Validator) getEndpoint(ctx context.Context, conf *config.VirtualContainerHostConfigSpec, network data.NetworkConfig, epName, contNetName string, def bool, ns []net.IP) (*executor.NetworkEndpoint, error) {
@@ -63,7 +64,10 @@ func (v *Validator) getEndpoint(ctx context.Context, conf *config.VirtualContain
 			Gateway:     gw,
 			Nameservers: ns,
 		},
-		Static: staticIP,
+		IP: staticIP,
+	}
+	if staticIP != nil {
+		e.Static = true
 	}
 	log.Debugf("NetworkEndpoint: %v", e)
 
@@ -254,7 +258,8 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 			Name: "bridge",
 			ID:   bridgeID,
 		},
-		Static: &net.IPNet{IP: net.IPv4zero}, // static but managed externally
+		Static: true,
+		IP:     &net.IPNet{IP: net.IPv4zero}, // static but managed externally
 		Network: executor.ContainerNetwork{
 			Common: executor.Common{
 				Name: "bridge",

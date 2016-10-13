@@ -98,11 +98,11 @@ func (i *Index) Insert(n Element) error {
 }
 
 // Get returns a Copy of the named node.
-func (i *Index) Get(nodeId string) (Element, error) {
+func (i *Index) Get(nodeID string) (Element, error) {
 	i.m.Lock()
 	defer i.m.Unlock()
 
-	n, ok := i.lookupTable[nodeId]
+	n, ok := i.lookupTable[nodeID]
 	if !ok {
 		return nil, ErrNodeNotFound
 	}
@@ -111,11 +111,11 @@ func (i *Index) Get(nodeId string) (Element, error) {
 }
 
 // HasChildren returns whether a node has children or not
-func (i *Index) HasChildren(nodeId string) (bool, error) {
+func (i *Index) HasChildren(nodeID string) (bool, error) {
 	i.m.Lock()
 	defer i.m.Unlock()
 
-	n, ok := i.lookupTable[nodeId]
+	n, ok := i.lookupTable[nodeID]
 	if !ok {
 		return false, ErrNodeNotFound
 	}
@@ -137,37 +137,37 @@ func (i *Index) List() ([]Element, error) {
 }
 
 // Delete deletes a leaf node
-func (i *Index) Delete(nodeId string) (Element, error) {
+func (i *Index) Delete(nodeID string) (Element, error) {
 	i.m.Lock()
 	defer i.m.Unlock()
 
-	n, ok := i.lookupTable[nodeId]
+	n, ok := i.lookupTable[nodeID]
 	if !ok {
-		return nil, fmt.Errorf("Node %s not found", nodeId)
+		return nil, fmt.Errorf("Node %s not found", nodeID)
 	}
 
 	if len(n.children) != 0 {
-		return nil, fmt.Errorf("Node %s has children %#q", nodeId, n.children)
+		return nil, fmt.Errorf("Node %s has children %#q", nodeID, n.children)
 	}
 
 	// remove the reference to the node from its parent
 	parent := n.parent
 	var deleted bool
 	for idx, child := range parent.children {
-		if child.Self() == nodeId {
+		if child.Self() == nodeID {
 			parent.children = append(parent.children[:idx], parent.children[idx+1:]...)
 			deleted = true
 		}
 	}
 
 	if !deleted {
-		err := fmt.Errorf("%s not found in tree", nodeId)
+		err := fmt.Errorf("%s not found in tree", nodeID)
 		log.Errorf("%s", err)
 		return nil, err
 	}
 
 	// remove from the lookup table
-	delete(i.lookupTable, nodeId)
+	delete(i.lookupTable, nodeID)
 	n.parent = nil
 
 	return n.Element, nil

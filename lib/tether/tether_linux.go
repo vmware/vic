@@ -25,6 +25,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/kr/pty"
+
 	"github.com/vmware/vic/pkg/trace"
 )
 

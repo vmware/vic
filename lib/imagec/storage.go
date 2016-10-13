@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package imagec
 
 import (
 	"io"
@@ -37,10 +37,10 @@ var (
 )
 
 // PingPortLayer calls the _ping endpoint of the portlayer
-func PingPortLayer() (bool, error) {
-	defer trace.End(trace.Begin(options.host))
+func PingPortLayer(host string) (bool, error) {
+	defer trace.End(trace.Begin(host))
 
-	transport := httptransport.New(options.host, "/", []string{"http"})
+	transport := httptransport.New(host, "/", []string{"http"})
 	client := apiclient.New(transport, nil)
 
 	ok, err := client.Misc.Ping(misc.NewPingParamsWithContext(ctx))
@@ -51,10 +51,10 @@ func PingPortLayer() (bool, error) {
 }
 
 // ListImages lists the images from given image store
-func ListImages(storename string, images []*ImageWithMeta) (map[string]*models.Image, error) {
+func ListImages(host, storename string, images []*ImageWithMeta) (map[string]*models.Image, error) {
 	defer trace.End(trace.Begin(storename))
 
-	transport := httptransport.New(options.host, "/", []string{"http"})
+	transport := httptransport.New(host, "/", []string{"http"})
 	client := apiclient.New(transport, nil)
 
 	ids := make([]string, len(images))
@@ -79,10 +79,10 @@ func ListImages(storename string, images []*ImageWithMeta) (map[string]*models.I
 }
 
 // WriteImage writes the image to given image store
-func WriteImage(image *ImageWithMeta, data io.ReadCloser) error {
+func WriteImage(host string, image *ImageWithMeta, data io.ReadCloser) error {
 	defer trace.End(trace.Begin(image.ID))
 
-	transport := httptransport.New(options.host, "/", []string{"http"})
+	transport := httptransport.New(host, "/", []string{"http"})
 	client := apiclient.New(transport, nil)
 
 	transport.Consumers["application/json"] = httpkit.JSONConsumer()

@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation  Test 5-1 - Distributed Switch
 Resource  ../../resources/Util.robot
-Suite Teardown  Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  *
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup
 
 *** Test Cases ***
 Test
@@ -60,7 +60,8 @@ Test
     Set Environment Variable  EXTERNAL_NETWORK  vm-network
     Set Environment Variable  TEST_DATASTORE  datastore1
     Set Environment Variable  TEST_RESOURCE  cls
+    Set Environment Variable  TEST_TIMEOUT  30m
 
-    Install VIC Appliance To Test Server  ${false}  default
+    Install VIC Appliance To Test Server  certs=${true}  vol=default
 
     Run Regression Tests

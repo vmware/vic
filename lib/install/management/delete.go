@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
@@ -101,6 +102,7 @@ func (d *Dispatcher) DeleteVCHInstances(vmm *vm.VirtualMachine, conf *config.Vir
 		err = errors.Errorf("Cannot find compute resources from configuration, please delete VCH manually")
 		return err
 	}
+
 	rpRef := conf.ComputeResources[len(conf.ComputeResources)-1]
 	ref, err := d.session.Finder.ObjectReference(d.ctx, rpRef)
 	if err != nil {

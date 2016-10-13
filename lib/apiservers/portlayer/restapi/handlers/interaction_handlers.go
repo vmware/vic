@@ -15,6 +15,7 @@
 package handlers
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/go-swagger/go-swagger/httpkit"
 	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
+
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/interaction"
@@ -41,10 +43,10 @@ type InteractionHandlersImpl struct {
 }
 
 const (
-	interactionTimeout time.Duration = 30 * time.Second
+	interactionTimeout    time.Duration = 30 * time.Second
+	attachStdinInitString               = "v1c#>"
 )
 
-// Configure initializes the interaction handler
 func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *HandlerContext) {
 
 	api.InteractionInteractionJoinHandler = interaction.InteractionJoinHandlerFunc(i.JoinHandler)
@@ -60,7 +62,7 @@ func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *Han
 
 	i.attachServer = attach.NewAttachServer(constants.ManagementHostName, 0)
 
-	if err := i.attachServer.Start(); err != nil {
+	if err := i.attachServer.Start(false); err != nil {
 		log.Fatalf("Attach server unable to start: %s", err)
 	}
 }
@@ -197,16 +199,21 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 		}
 		return interaction.NewContainerSetStdinNotFound().WithPayload(e)
 	}
+	// Remove the connection from the map
+	defer i.attachServer.Remove(params.ID)
 
-	detachableIn := NewFlushingReader(params.RawStream)
+	detachableIn := NewFlushingReaderWithInitBytes(params.RawStream, []byte(attachStdinInitString))
 	_, err = io.Copy(session.Stdin(), detachableIn)
 	if err != nil {
 		log.Errorf("%s", err.Error())
 
-		e := &models.Error{
-			Message: fmt.Sprintf("Error copying stdin (id: %s): %s", params.ID, err.Error()),
-		}
-		return interaction.NewContainerSetStdinInternalServerError().WithPayload(e)
+		// FIXME (caglar10ur): Do not return an error here - https://github.com/vmware/vic/issues/2594
+		/*
+			e := &models.Error{
+				Message: fmt.Sprintf("Error copying stdin (id: %s): %s", params.ID, err.Error()),
+			}
+			return interaction.NewContainerSetStdinInternalServerError().WithPayload(e)
+		*/
 	}
 
 	log.Debugf("Done copying stdin")
@@ -263,10 +270,14 @@ func (i *InteractionHandlersImpl) ContainerGetStdoutHandler(params interaction.C
 	if err != nil {
 		log.Errorf("%s", err.Error())
 
-		e := &models.Error{
-			Message: fmt.Sprintf("No stdout connection found (id: %s): %s", params.ID, err.Error()),
-		}
-		return interaction.NewContainerGetStdoutNotFound().WithPayload(e)
+		// FIXME (caglar10ur): Do not return an error here - https://github.com/vmware/vic/issues/2594
+		/*
+			e := &models.Error{
+				Message: fmt.Sprintf("No stdout connection found (id: %s): %s", params.ID, err.Error()),
+			}
+			return interaction.NewContainerGetStdoutNotFound().WithPayload(e)
+		*/
+		return interaction.NewContainerGetStdoutNotFound()
 	}
 
 	return NewContainerOutputHandler("stdout").WithPayload(
@@ -302,10 +313,14 @@ func (i *InteractionHandlersImpl) ContainerGetStderrHandler(params interaction.C
 	if err != nil {
 		log.Errorf("%s", err.Error())
 
-		e := &models.Error{
-			Message: fmt.Sprintf("No stderr connection found (id: %s): %s", params.ID, err.Error()),
-		}
-		return interaction.NewContainerGetStderrNotFound().WithPayload(e)
+		// FIXME (caglar10ur): Do not return an error here - https://github.com/vmware/vic/issues/2594
+		/*
+			e := &models.Error{
+				Message: fmt.Sprintf("No stderr connection found (id: %s): %s", params.ID, err.Error()),
+			}
+			return interaction.NewContainerGetStderrNotFound().WithPayload(e)
+		*/
+		return interaction.NewContainerGetStderrNotFound()
 	}
 
 	return NewContainerOutputHandler("stderr").WithPayload(
@@ -325,15 +340,59 @@ type FlushingReader struct {
 	io.Reader
 	io.WriterTo
 
-	flusher GenericFlusher
+	flusher   GenericFlusher
+	initBytes []byte
 }
 
 func NewFlushingReader(rdr io.Reader) *FlushingReader {
-	return &FlushingReader{Reader: rdr, flusher: nil}
+	return &FlushingReader{Reader: rdr, flusher: nil, initBytes: nil}
+}
+
+func NewFlushingReaderWithInitBytes(rdr io.Reader, initBytes []byte) *FlushingReader {
+	return &FlushingReader{Reader: rdr, flusher: nil, initBytes: initBytes}
 }
 
 func (d *FlushingReader) AddFlusher(flusher GenericFlusher) {
 	d.flusher = flusher
+}
+
+// readDetectInit() is used by WriteTo() which is used by io.Copy.  It attempts
+// to detect a init byte buffer.  If it finds that init byte sequence, it is
+// ignored.  This reader does not care about the init sequeunce.  The init sequence
+// maybe used by the higher level interaction, which in this case is the Swagger
+// establishing initial connection for stdin.
+func (d *FlushingReader) readDetectInit(buf []byte) (int, error) {
+	// fast path - len(nil) return 0
+	if len(d.initBytes) == 0 {
+		return d.Read(buf)
+	}
+
+	var er error
+	initLen := len(d.initBytes)
+	total := 0
+	for total < initLen {
+		nr, er := d.Read(buf)
+		total += nr
+
+		if bytes.Compare(d.initBytes[0:total], buf[0:total]) != 0 {
+			// First bytes aren't part of init bytes so client must not be
+			// the docker personality so break and ignore looking for the
+			// init bytes.
+			log.Debugf("Did not find primer bytes, stopping watch")
+			return total, er
+		}
+
+		if er != nil && total < initLen {
+			return 0, er
+		}
+	}
+
+	// would have returned in the compare clause if not matching init bytes
+	copy(buf[0:], buf[initLen:])
+	log.Debugf("Found primer bytes, port layer client might be personality server")
+
+	// no risk of returning <0
+	return total - initLen, er
 }
 
 // Derived from go's io.Copy.  We use a smaller buffer so as to not hold up
@@ -345,8 +404,9 @@ func (d *FlushingReader) AddFlusher(flusher GenericFlusher) {
 func (d *FlushingReader) WriteTo(w io.Writer) (written int64, err error) {
 	buf := make([]byte, 64)
 
+	nr, er := d.readDetectInit(buf)
+
 	for {
-		nr, er := d.Read(buf)
 		if nr > 0 {
 			nw, ew := w.Write(buf[0:nr])
 			if d.flusher != nil {
@@ -371,6 +431,7 @@ func (d *FlushingReader) WriteTo(w io.Writer) (written int64, err error) {
 			err = er
 			break
 		}
+		nr, er = d.Read(buf)
 	}
 	return written, err
 }

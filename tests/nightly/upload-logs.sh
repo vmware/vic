@@ -25,11 +25,11 @@ outfile="functional_logs_"$1".zip"
 echo $Build
 echo $outfile
 
-/usr/bin/zip -9 $outfile *.xml *.html *.log
+/usr/bin/zip -9 $outfile *.xml *.html *.log *.zip
 
 # GC credentials
-keyfile="vic-ci-logs.key"
-botofile=".boto"
+keyfile="/root/vic-ci-logs.key"
+botofile="/root/.boto"
 echo -en $GS_PRIVATE_KEY > $keyfile
 chmod 400 $keyfile
 echo "[Credentials]" >> $botofile

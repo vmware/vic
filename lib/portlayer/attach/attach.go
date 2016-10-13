@@ -120,9 +120,8 @@ func Join(h interface{}) (interface{}, error) {
 				},
 			},
 			Connectable: &types.VirtualDeviceConnectInfo{
-				// FIXME (caglar10ur): make those false for on-demand work
-				Connected:         true,
-				StartConnected:    true,
+				Connected:         false,
+				StartConnected:    false,
 				AllowGuestControl: true,
 			},
 		},

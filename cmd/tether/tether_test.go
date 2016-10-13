@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"os"
 	"runtime"
 	"testing"
@@ -88,11 +87,6 @@ func (t *Mocker) Reload(config *tether.ExecutorConfig) error {
 }
 
 func (t *Mocker) Setup(_ tether.Config) error {
-	log.Info("Launching pprof server for test on port 6060")
-	go func() {
-		log.Info(http.ListenAndServe("0.0.0.0:6060", nil))
-	}()
-
 	return nil
 }
 

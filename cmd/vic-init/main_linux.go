@@ -21,6 +21,7 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -41,6 +42,19 @@ func main() {
 		reboot()
 	}()
 
+	logFile, err := os.OpenFile("/dev/ttyS1", os.O_WRONLY|os.O_SYNC, 0644)
+	if err != nil {
+		log.Errorf("Could not pipe stderr to serial for debugging info. Some debug info may be lost! Error reported was %s", err)
+	}
+	err = syscall.Dup3(int(logFile.Fd()), int(os.Stderr.Fd()), 0)
+	if err != nil {
+		log.Errorf("Could not pipe logfile to standard error due to error %s", err)
+	}
+
+	_, err = os.Stderr.WriteString("all stderr redirected to debug log")
+	if err != nil {
+		log.Errorf("Could not write to Stderr due to error %s", err)
+	}
 	if strings.HasSuffix(os.Args[0], "-debug") {
 		extraconfig.DecodeLogLevel = log.DebugLevel
 		extraconfig.EncodeLogLevel = log.DebugLevel
@@ -62,8 +76,9 @@ func main() {
 	// create the tether
 	tthr = tether.New(src, sink, &operations{})
 
-	// register the toolbox extension
-	tthr.Register("Toolbox", tether.NewToolbox())
+	// register the toolbox extension and configure for appliance
+	toolbox := configureToolbox(tether.NewToolbox())
+	tthr.Register("Toolbox", toolbox)
 
 	err = tthr.Start()
 	if err != nil {
@@ -95,4 +110,11 @@ func reboot() {
 
 	syscall.Sync()
 	syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART)
+}
+
+func configureToolbox(t *tether.Toolbox) *tether.Toolbox {
+	vix := t.Service.VixCommand
+	vix.ProcessStartCommand = startCommand
+
+	return t
 }

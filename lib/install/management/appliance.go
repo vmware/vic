@@ -17,6 +17,7 @@ package management
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -29,6 +30,7 @@ import (
 
 	"github.com/docker/docker/opts"
 	dockertypes "github.com/docker/engine-api/types"
+
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
@@ -474,6 +476,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			},
 			Env: []string{
 				"PATH=/sbin:/bin",
+				"GOTRACEBACK=all",
 			},
 			Dir: "/home/vicadmin",
 		},
@@ -490,6 +493,9 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	}
 
 	conf.AddComponent("docker-personality", &executor.SessionConfig{
+		// TODO: replace this when imagec is libridized
+		// User:  "nobody",
+		// Group: "nobody",
 		Cmd: executor.Cmd{
 			Path: "/sbin/docker-engine-server",
 			Args: []string{
@@ -501,6 +507,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			},
 			Env: []string{
 				"PATH=/sbin",
+				"GOTRACEBACK=all",
 			},
 		},
 		Restart: true,
@@ -521,6 +528,9 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 				"--cluster=" + settings.ClusterPath,
 				"--pool=" + settings.ResourcePoolPath,
 				"--datastore=" + conf.ImageStores[0].Host,
+			},
+			Env: []string{
+				"GOTRACEBACK=all",
 			},
 		},
 		Restart: true,
@@ -628,16 +638,21 @@ func isPortLayerRunning(res *http.Response) bool {
 	return false
 }
 
-// ensureComponentsInitialize checks if the appliance components are initialized by issuing
+// CheckDockerAPI checks if the appliance components are initialized by issuing
 // `docker info` to the appliance
-func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHostConfigSpec) error {
+func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec, clientCert *tls.Certificate) error {
+	defer trace.End(trace.Begin(""))
+
 	var (
-		proto  string
-		client *http.Client
-		res    *http.Response
-		err    error
-		req    *http.Request
+		proto          string
+		client         *http.Client
+		res            *http.Response
+		err            error
+		req            *http.Request
+		tlsErrExpected bool
 	)
+
+	addr := d.HostIP
 
 	if conf.HostCertificate.IsNil() {
 		// TLS disabled
@@ -646,14 +661,51 @@ func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHos
 	} else {
 		// TLS enabled
 		proto = "https"
-		// TODO: configure this when support is added for user-signed certs
+
 		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
 		}
+
+		// appliance is configured for tlsverify, but we don't have a client certificate
+		if len(conf.CertificateAuthorities) > 0 {
+			log.Debug("Loading CAs for client auth")
+			pool := x509.NewCertPool()
+			if !pool.AppendCertsFromPEM(conf.CertificateAuthorities) {
+				log.Debug("Unable to load CAs in config, if any")
+			}
+
+			// tr.TLSClientConfig.ClientCAs = pool
+			tr.TLSClientConfig.RootCAs = pool
+
+			if clientCert == nil {
+				// we know this will fail, but we can try to distinguish the expected error vs
+				// unresponse endpoint
+				tlsErrExpected = true
+				log.Debugf("CA configured on appliance but no client certificate available")
+			}
+
+			// if tlsverify was configured at all then we must verify the remote
+			tr.TLSClientConfig.InsecureSkipVerify = false
+
+			// find the name to use
+			addr, err = addrToUse(d.HostIP, conf)
+			if err != nil {
+				log.Warn("Unable to determine address to use with remote certificate, skipping component checks")
+				tlsErrExpected = true
+			}
+		}
+
+		if clientCert != nil {
+			log.Debug("Assigning certificates for client auth")
+			tr.TLSClientConfig.Certificates = []tls.Certificate{*clientCert}
+		}
+
 		client = &http.Client{Transport: tr}
 	}
 
-	dockerInfoURL := fmt.Sprintf("%s://%s:%s/info", proto, d.HostIP, d.DockerPort)
+	dockerInfoURL := fmt.Sprintf("%s://%s:%s/info", proto, addr, d.DockerPort)
 	req, err = http.NewRequest("GET", dockerInfoURL, nil)
 	if err != nil {
 		return errors.New("invalid HTTP request for docker info")
@@ -664,10 +716,23 @@ func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHos
 	defer ticker.Stop()
 	for {
 		res, err = client.Do(req)
+		if err != nil {
+			log.Debugf("Error recieved from endpoint: %s", err)
+		}
+
 		if err == nil && res.StatusCode == http.StatusOK {
 			if isPortLayerRunning(res) {
 				break
 			}
+		}
+
+		// TODO: add check for rejection without cert - indicates a degree of initialization
+		// HTTP status 403.7. Change this to check for structured error and status codes if possible
+		if tlsErrExpected && err != nil {
+			log.Debugf("Expected TLS error from endpoint due to IP based addressing, skipping component check: %+v", err)
+			// TODO: check for 403.17 - we see that regardless until the appliance has updated
+			// it's clock in some cases
+			break
 		}
 
 		select {
@@ -675,7 +740,8 @@ func (d *Dispatcher) ensureComponentsInitialize(conf *config.VirtualContainerHos
 		case <-d.ctx.Done():
 			return d.ctx.Err()
 		}
-		log.Debug("Components not initialized yet, retrying docker info request")
+
+		log.Debug("Components not yet initialized, retrying")
 	}
 
 	return nil
@@ -690,7 +756,7 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	}
 
 	log.Infof("Waiting for IP information")
-	d.waitForKey("guestinfo.vice..init.networks|client.ip.IP")
+	d.waitForKey("guestinfo.vice..init.networks|client.assigned.IP")
 	ctxerr := d.ctx.Err()
 
 	if ctxerr == nil {

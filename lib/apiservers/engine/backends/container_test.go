@@ -22,9 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
-	"github.com/go-swagger/go-swagger/client"
+	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types/backend"
 	derr "github.com/docker/docker/errors"
@@ -32,8 +30,10 @@ import (
 	"github.com/docker/engine-api/types/container"
 	dnetwork "github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
-
+	"github.com/go-swagger/go-swagger/client"
+	"github.com/stretchr/testify/assert"
 	"github.com/vishvananda/netlink"
+
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	viccontainer "github.com/vmware/vic/lib/apiservers/engine/backends/container"
 	plclient "github.com/vmware/vic/lib/apiservers/portlayer/client"
@@ -102,12 +102,12 @@ type MockContainerProxy struct {
 }
 
 const (
-	SUCCESS              = 0
-	dummyContainerID     = "abc123"
-	dummyContainerID_tty = "tty123"
+	SUCCESS             = 0
+	dummyContainerID    = "abc123"
+	dummyContainerIDTTY = "tty123"
 )
 
-var dummyContainers []string = []string{dummyContainerID, dummyContainerID_tty}
+var dummyContainers = []string{dummyContainerID, dummyContainerIDTTY}
 
 func NewMockContainerProxy() *MockContainerProxy {
 	return &MockContainerProxy{
@@ -279,16 +279,32 @@ func (m *MockContainerProxy) StreamContainerLogs(name string, out io.Writer, sta
 	return nil
 }
 
-func (m *MockContainerProxy) ContainerRunning(vc *viccontainer.VicContainer) (bool, error) {
+func (m *MockContainerProxy) IsRunning(vc *viccontainer.VicContainer) (bool, error) {
 	// Assume container is running if container in cache.  If we need other conditions
 	// in the future, we can add it, but for now, just assume running.
-	container := cache.ContainerCache().GetContainer(vc.ContainerID)
+	c := cache.ContainerCache().GetContainer(vc.ContainerID)
 
-	if container == nil {
+	if c == nil {
 		return false, nil
 	}
 
 	return true, nil
+}
+
+func (m *MockContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error) {
+	return 0, "", "", nil
+}
+
+func (m *MockContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error {
+	return nil
+}
+
+func (m *MockContainerProxy) Resize(vc *viccontainer.VicContainer, height, width int32) error {
+	return nil
+}
+
+func (m *MockContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error {
+	return nil
 }
 
 func AddMockImageToCache() {
@@ -337,7 +353,7 @@ func AddMockContainerToCache() {
 		vc.ImageID = image.ID
 		vc.Config = image.Config
 		vc.Config.Tty = true
-		vc.ContainerID = dummyContainerID_tty
+		vc.ContainerID = dummyContainerIDTTY
 
 		cache.ContainerCache().AddContainer(vc)
 	}

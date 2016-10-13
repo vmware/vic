@@ -32,6 +32,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+
 	"github.com/vmware/vic/lib/dhcp"
 	"github.com/vmware/vic/lib/dhcp/client"
 	"github.com/vmware/vic/pkg/ip"
@@ -465,8 +466,8 @@ func apply(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
 		}
 		newIP = &endpoint.DHCP.Assigned
 	} else {
-		newIP = endpoint.Static
-		if newIP.IP.IsUnspecified() {
+		newIP = endpoint.IP
+		if newIP.IP.Equal(net.IPv4zero) {
 			// managed externally
 			return nil
 		}

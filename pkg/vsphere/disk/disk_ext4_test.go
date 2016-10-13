@@ -23,9 +23,11 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/govmomi/object"
-	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"golang.org/x/net/context"
+
+	"github.com/vmware/govmomi/object"
+	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 )
 
 // Create a disk, make an ext filesystem on it, set the label, mount it,
@@ -61,7 +63,9 @@ func TestCreateFS(t *testing.T) {
 		}
 	}()
 
-	vdm, err := NewDiskManager(context.TODO(), client)
+	op := trace.NewOperation(context.TODO(), "test")
+
+	vdm, err := NewDiskManager(op, client)
 	if err != nil && err.Error() == "can't find the hosting vm" {
 		t.Skip("Skipping: test must be run in a VM")
 	}
@@ -70,7 +74,7 @@ func TestCreateFS(t *testing.T) {
 	}
 
 	diskSize := int64(1 << 10)
-	d, err := vdm.CreateAndAttach(context.TODO(), path.Join(imagestore, "scratch.vmdk"), "", diskSize, os.O_RDWR)
+	d, err := vdm.CreateAndAttach(op, path.Join(imagestore, "scratch.vmdk"), "", diskSize, os.O_RDWR)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -109,7 +113,7 @@ func TestCreateFS(t *testing.T) {
 		return
 	}
 
-	err = vdm.Detach(context.TODO(), d)
+	err = vdm.Detach(op, d)
 	if !assert.NoError(t, err) {
 		return
 	}

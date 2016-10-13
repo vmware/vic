@@ -20,6 +20,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/portlayer/event"
@@ -28,7 +30,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"golang.org/x/net/context"
 )
 
 var initializer sync.Once
@@ -85,7 +86,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		Config.EventManager = event.NewEventManager(ec)
 
 		// subscribe the exec layer to the event stream for Vm events
-		Config.EventManager.Subscribe(events.NewEventType(vsphere.VmEvent{}).Topic(), "exec", eventCallback)
+		Config.EventManager.Subscribe(events.NewEventType(vsphere.VMEvent{}).Topic(), "exec", eventCallback)
 
 		// instantiate the container cache now
 		NewContainerCache()
@@ -137,7 +138,7 @@ func eventCallback(ie events.Event) {
 					ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
 					defer cancel()
 
-					_, err := container.Update(ctx, container.vm.Session)
+					err := container.Refresh(ctx)
 					if err != nil {
 						log.Errorf("Event driven container update failed: %s", err.Error())
 					}

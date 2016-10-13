@@ -88,6 +88,11 @@ func (ic *ICache) Update(client *client.PortLayer) error {
 
 	for _, layer := range layers.Payload {
 
+		// populate the layer cache as we go
+		// TODO(jzt): this will probably change once the k/v store is being used to track
+		// images (and layers?)
+		LayerCache().AddExisting(layer.ID)
+
 		imageConfig := &metadata.ImageConfig{}
 		if err := json.Unmarshal([]byte(layer.Metadata[metadata.MetaDataKey]), imageConfig); err != nil {
 			derr.NewErrorWithStatusCode(fmt.Errorf("Failed to unmarshal image config: %s", err),
@@ -189,9 +194,8 @@ func (ic *ICache) getImageByNamed(named reference.Named) *metadata.ImageConfig {
 func prefixImageID(imageID string) string {
 	if strings.HasPrefix(imageID, "sha256:") {
 		return imageID
-	} else {
-		return "sha256:" + imageID
 	}
+	return "sha256:" + imageID
 }
 
 // AddImage adds an image to the image cache
@@ -221,7 +225,7 @@ func (ic *ICache) AddImage(imageConfig *metadata.ImageConfig) {
 	}
 }
 
-// RemoveImage removes image from the cache.
+// RemoveImageByConfig removes image from the cache.
 func (ic *ICache) RemoveImageByConfig(imageConfig *metadata.ImageConfig) {
 	ic.m.Lock()
 	defer ic.m.Unlock()
@@ -233,11 +237,11 @@ func (ic *ICache) RemoveImageByConfig(imageConfig *metadata.ImageConfig) {
 		log.Debugf("Not found in image cache index: %v", err)
 	}
 
-	prefixedId := prefixImageID(imageConfig.ImageID)
-	if _, ok := ic.cacheByID[prefixedId]; ok {
-		delete(ic.cacheByID, prefixedId)
+	prefixedID := prefixImageID(imageConfig.ImageID)
+	if _, ok := ic.cacheByID[prefixedID]; ok {
+		delete(ic.cacheByID, prefixedID)
 	} else {
-		log.Debugf("Not found in cache by id: %s", prefixedId)
+		log.Debugf("Not found in cache by id: %s", prefixedID)
 	}
 
 	if _, ok := ic.cacheByName[imageConfig.Reference]; ok {

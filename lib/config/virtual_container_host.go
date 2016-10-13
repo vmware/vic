@@ -16,6 +16,7 @@ package config
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"net"
 	"net/mail"
@@ -24,6 +25,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
+	"github.com/vmware/vic/pkg/certificate"
 )
 
 // PatternToken is a set of tokens that can be placed into string constants
@@ -108,7 +110,7 @@ type Network struct {
 	// The network to use by default to provide access to the world
 	BridgeNetwork string `vic:"0.1" scope:"read-only" key:"bridge_network"`
 	// Published networks available for containers to join, keyed by consumption name
-	ContainerNetworks map[string]*executor.ContainerNetwork `vic:"0.1" scope:"read-write" key:"container_networks"`
+	ContainerNetworks map[string]*executor.ContainerNetwork `vic:"0.1" scope:"read-only" key:"container_networks"`
 	// The IP range for the bridge networks
 	BridgeIPRange *net.IPNet `vic:"0.1" scope:"read-only" key:"bridge-ip-range"`
 	// The width of each new bridge network
@@ -138,9 +140,6 @@ type Certificate struct {
 	CertificateAuthorities []byte `vic:"0.1" scope:"read-only"`
 	// Certificates for specific system access, keyed by FQDN
 	HostCertificates map[string]*RawCertificate
-	// Used for authentication against e.g. the Docker HTTP endpoint
-	UserKeyPEM  string `vic:"0.1" scope:"read-only" key:"key_pem"`
-	UserCertPEM string `vic:"0.1" scope:"read-only" key:"cert_pem"`
 }
 
 // Connection holds the vSphere connection configuration
@@ -306,6 +305,14 @@ func (t *RawCertificate) Certificate() (*tls.Certificate, error) {
 	}
 	cert, err := tls.X509KeyPair(t.Cert, t.Key)
 	return &cert, err
+}
+
+func (t *RawCertificate) X509Certificate() (*x509.Certificate, error) {
+	if t.IsNil() {
+		return nil, errors.New("nil certificate")
+	}
+	cert, _, err := certificate.ParseCertificate(t.Cert, t.Key)
+	return cert, err
 }
 
 func (t *RawCertificate) IsNil() bool {

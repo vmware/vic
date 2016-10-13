@@ -28,11 +28,12 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/hpcloud/tail"
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"golang.org/x/net/context"
 )
 
 const (

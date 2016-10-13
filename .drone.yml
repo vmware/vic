@@ -25,10 +25,6 @@ build:
       - apt-get install -yq time
       - make -j3 all
       - make sincemark
-      - make mark
-      - ls vendor/github.com/vmware/govmomi/vim25/methods
-      - make -j3 test
-      - make sincemark
 
   integration-test-on-pr:
     image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.9}
@@ -59,6 +55,7 @@ build:
       GS_PROJECT_ID: $$GS_PROJECT_ID
       GS_CLIENT_EMAIL: $$GS_CLIENT_EMAIL
       GS_PRIVATE_KEY: $$GS_PRIVATE_KEY
+      DOMAIN: $$CI_DOMAIN
     commands:
       - make mark
       - tests/integration-test.sh

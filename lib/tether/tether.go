@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
+	_ "net/http/pprof" // allow enabling pprof in contianerVM
 	"os"
 	"os/exec"
 	"os/signal"
@@ -29,8 +31,10 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/lib/system"
 	"github.com/vmware/vic/pkg/dio"
+	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
@@ -65,7 +69,7 @@ type tether struct {
 }
 
 func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) Tether {
-	t := &tether{
+	return &tether{
 		ops:    ops,
 		reload: make(chan bool, 1),
 		config: &ExecutorConfig{
@@ -76,13 +80,6 @@ func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) 
 		sink:       sink,
 		incoming:   make(chan os.Signal, 32),
 	}
-
-	// HACK: workaround file descriptor conflict in pipe2 return from the exec.Command.Start
-	// it's not clear whether this is a cross platform issue, or still an issue as of this commit
-	// keeping it until there's time to verify and fix properly with a Go PR.
-	_, _, _ = os.Pipe()
-
-	return t
 }
 
 // removeChildPid is a synchronized accessor for the pid map the deletes the entry and returns the value
@@ -187,7 +184,27 @@ func (t *tether) Start() error {
 		log.Info("Loading main configuration")
 		// load the config - this modifies the structure values in place
 		extraconfig.Decode(t.src, t.config)
-		logConfig(t.config)
+
+		// TODO: move all of this into an extension.Pre() block when we move to that model
+		// adjust the logging level appropriately
+		switch t.config.DebugLevel {
+		case 0:
+			log.SetLevel(log.InfoLevel)
+			// TODO: do not echo application output to console without debug enabled
+			serial.DisableTracing()
+		case 1:
+			log.SetLevel(log.DebugLevel)
+			serial.EnableTracing()
+		case 2:
+			log.Info("Launching pprof server on port 6060")
+			go func() {
+				// may not error if port already in use.
+				log.Info(http.ListenAndServe("0.0.0.0:6060", nil))
+			}()
+		default:
+			log.SetLevel(log.DebugLevel)
+			logConfig(t.config)
+		}
 
 		short := t.config.ID
 		if len(short) > shortLen {
@@ -446,8 +463,6 @@ func logConfig(config *ExecutorConfig) {
 	// just pretty print the json for now
 	log.Info("Loaded executor config")
 
-	// TODO: investigate whether it's the govmomi types package cause the binary size
-	// inflation - if so we need an alternative approach here or in extraconfig
 	if log.GetLevel() == log.DebugLevel && config.DebugLevel > 1 {
 		sink := map[string]string{}
 		extraconfig.Encode(extraconfig.MapSink(sink), config)

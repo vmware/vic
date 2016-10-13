@@ -24,12 +24,13 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"golang.org/x/net/context"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -173,6 +174,19 @@ func (vm *VirtualMachine) getNetworkName(ctx context.Context, nic types.BaseVirt
 		return pgo.Config.Name, nil
 	}
 	return nic.GetVirtualEthernetCard().DeviceInfo.GetDescription().Summary, nil
+}
+
+func (vm *VirtualMachine) FetchExtraConfigBaseOptions(ctx context.Context) ([]types.BaseOptionValue, error) {
+	var err error
+
+	var mvm mo.VirtualMachine
+
+	if err = vm.Properties(ctx, vm.Reference(), []string{"config.extraConfig"}, &mvm); err != nil {
+		log.Infof("Unable to get vm config: %s", err)
+		return nil, err
+	}
+
+	return mvm.Config.ExtraConfig, nil
 }
 
 func (vm *VirtualMachine) FetchExtraConfig(ctx context.Context) (map[string]string, error) {

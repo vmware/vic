@@ -33,6 +33,7 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 
@@ -62,8 +63,9 @@ var (
 
 	// VMFiles is the set of files to collect per VM associated with the VCH
 	vmFiles = []string{
+		"output.log",
 		"vmware.log",
-		string(vchconfig.VM + ".debug"),
+		"tether.debug",
 	}
 
 	config struct {
@@ -351,12 +353,8 @@ func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 
 		// generate the full paths to collect
 		for _, file := range vmFiles {
-			// replace the VM token in file name with the VM name
-			//FIXME: this is currently a workaround until we rename the tether logs
-			vmHashName := strings.Split(logfile.VMName, "-")
-			processed := strings.Replace(file, string(vchconfig.VM), vmHashName[1], -1)
-			wpath := fmt.Sprintf("%s/%s", logfile.VMName, processed)
-			rpath := fmt.Sprintf("%s/%s", logfile.URL.Path, processed)
+			wpath := fmt.Sprintf("%s/%s", logfile.VMName, file)
+			rpath := fmt.Sprintf("%s/%s", logfile.URL.Path, file)
 			log.Infof("Processed File read Path : %s", rpath)
 			log.Infof("Processed File write Path : %s", wpath)
 			readers[wpath] = datastoreReader{

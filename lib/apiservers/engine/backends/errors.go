@@ -16,8 +16,9 @@ package backends
 
 import (
 	"fmt"
-	derr "github.com/docker/docker/errors"
 	"net/http"
+
+	derr "github.com/docker/docker/errors"
 )
 
 // InvalidVolumeError is returned when the user specifies a client directory as a volume.
@@ -50,6 +51,10 @@ func VolumeCreateNotFoundError(msg string) error {
 // VolumeNotFoundError returns a 404 docker error for a volume get request.
 func VolumeNotFoundError(msg string) error {
 	return derr.NewErrorWithStatusCode(fmt.Errorf("No such volume: %s", msg), http.StatusNotFound)
+}
+
+func ResourceNotFoundError(cid, res string) error {
+	return derr.NewRequestNotFoundError(fmt.Errorf("No such %s for container: %s", res, cid))
 }
 
 // NotFoundError returns a 404 docker error when a container is not found.

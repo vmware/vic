@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/vic/lib/portlayer/util"
 )
 
@@ -51,8 +52,8 @@ func TestImageCopy(t *testing.T) {
 		ParentLink: parentURL,
 		Store:      storeURL,
 		Metadata: map[string][]byte{
-			"1": []byte{byte(1)},
-			"2": []byte{byte(2)},
+			"1": {byte(1)},
+			"2": {byte(2)},
 			"3": []byte("three"),
 		},
 	}

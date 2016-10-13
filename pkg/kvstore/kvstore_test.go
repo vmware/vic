@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -131,7 +132,7 @@ func TestAddAndGet(t *testing.T) {
 
 	// Ovewrite all of the values and verify again
 	wg.Add(entries)
-	for k, _ := range expected {
+	for k := range expected {
 		newval := []byte("ddddd")
 
 		expected[k] = newval
@@ -168,7 +169,7 @@ func TestAddAndGet(t *testing.T) {
 
 	// Remove all of the entries and assert nothing can be found
 	wg.Add(entries)
-	for k, _ := range expected {
+	for k := range expected {
 		go func(key string) {
 			defer wg.Done()
 			if !assert.NoError(t, thirdkv.Delete(op, key)) {
@@ -190,7 +191,7 @@ func TestAddAndGet(t *testing.T) {
 	// Check the kv is empty after restart
 	fourthkv, err := NewKeyValueStore(op, mb, "datfile")
 	wg.Add(entries)
-	for k, _ := range expected {
+	for k := range expected {
 		go func(key string) {
 			defer wg.Done()
 			_, err := fourthkv.Get(op, key)

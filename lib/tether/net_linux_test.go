@@ -25,6 +25,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/etcconf"
 )
@@ -91,7 +92,8 @@ func TestSetIpAddress(t *testing.T) {
 					Default: true,
 					Gateway: *gwIP,
 				},
-				Static: &net.IPNet{
+				Static: true,
+				IP: &net.IPNet{
 					IP:   localhost,
 					Mask: lmask.Mask,
 				},
@@ -106,7 +108,8 @@ func TestSetIpAddress(t *testing.T) {
 						Name: "cnet",
 					},
 				},
-				Static: secondIP,
+				Static: true,
+				IP:     secondIP,
 			},
 			"external": {
 				Common: executor.Common{
@@ -119,7 +122,8 @@ func TestSetIpAddress(t *testing.T) {
 						Name: "external",
 					},
 				},
-				Static: &net.IPNet{
+				Static: true,
+				IP: &net.IPNet{
 					IP:   gateway,
 					Mask: gmask.Mask,
 				},

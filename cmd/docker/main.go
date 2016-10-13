@@ -31,6 +31,7 @@ import (
 	"github.com/docker/docker/docker/listeners"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/tlsconfig"
+
 	vicbackends "github.com/vmware/vic/lib/apiservers/engine/backends"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/pprof"
@@ -193,7 +194,7 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 			SessionTicketsDisabled:   c.SessionTicketsDisabled,
 			SessionTicketKey:         c.SessionTicketKey,
 			ClientSessionCache:       c.ClientSessionCache,
-			MinVersion:               c.MinVersion,
+			MinVersion:               tls.VersionTLS12,
 			MaxVersion:               c.MaxVersion,
 			CurvePreferences:         c.CurvePreferences,
 		}
@@ -217,6 +218,7 @@ func startServerWithOptions(cli *CliOptions) *apiserver.Server {
 			// server requires and verifies client's certificate
 			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
 			tlsConfig.ClientCAs = loadCAPool()
+			tlsConfig.InsecureSkipVerify = false
 		}
 	}
 

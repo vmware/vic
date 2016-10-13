@@ -27,6 +27,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/tlsconfig"
+
 	"github.com/vmware/vic/lib/vicadmin"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -67,7 +68,7 @@ func (s *server) listen(useTLS bool) error {
 			SessionTicketsDisabled:   c.SessionTicketsDisabled,
 			SessionTicketKey:         c.SessionTicketKey,
 			ClientSessionCache:       c.ClientSessionCache,
-			MinVersion:               c.MinVersion,
+			MinVersion:               tls.VersionTLS12,
 			MaxVersion:               c.MaxVersion,
 			CurvePreferences:         c.CurvePreferences,
 		}

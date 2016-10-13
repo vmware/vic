@@ -23,6 +23,7 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -37,6 +38,20 @@ func main() {
 		}
 		halt()
 	}()
+
+	logFile, err := os.OpenFile("/dev/ttyS1", os.O_WRONLY|os.O_SYNC, 0644)
+	if err != nil {
+		log.Errorf("Could not open serial port for debugging info. Some debug info may be lost! Error reported was %s", err)
+	}
+	err = syscall.Dup3(int(logFile.Fd()), int(os.Stderr.Fd()), 0)
+	if err != nil {
+		log.Errorf("Could not pipe logfile to standard error due to error %s", err)
+	}
+
+	_, err = os.Stderr.WriteString("all stderr redirected to debug log")
+	if err != nil {
+		log.Errorf("Could not write to Stderr due to error %s", err)
+	}
 
 	// where to look for the various devices and files related to tether
 	pathPrefix = "/.tether"
@@ -53,7 +68,7 @@ func main() {
 	log.SetFormatter(&log.TextFormatter{DisableColors: true, FullTimestamp: true})
 
 	// TODO: hard code executor initialization status reporting via guestinfo here
-	err := createDevices()
+	err = createDevices()
 	if err != nil {
 		log.Error(err)
 		// return gives us good behaviour in the case of "-debug" binary

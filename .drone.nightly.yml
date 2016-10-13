@@ -32,10 +32,10 @@ build:
       NIMBUS_USER: $$NIMBUS_USER
       NIMBUS_PASSWORD: $$NIMBUS_PASSWORD
       NIMBUS_GW: $$NIMBUS_GW
+      DOMAIN: $$NIMBUS_DOMAIN
       SLACK_URL: $$SLACK_URL
       GS_PROJECT_ID: $$GS_PROJECT_ID
       GS_CLIENT_EMAIL: $$GS_CLIENT_EMAIL
       GS_PRIVATE_KEY: $$GS_PRIVATE_KEY
     commands:
         - $$test
-        #- pybot tests/manual-test-cases/Group5-Functional-Tests/5-1-Distributed-Switch.robot
