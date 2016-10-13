@@ -30,7 +30,7 @@ EOF
 disk=48
 mem=16
 iso=VMware-VMvisor-6.0.0-3620759.x86_64.iso # 6.0u2
-vib=http://download3.vmware.com/software/vmw-tools/esxui/esxui-signed-4215448.vib
+vib=http://download3.vmware.com/software/vmw-tools/esxui/esxui-signed-4493986.vib
 
 while getopts c:d:hi:m:s flag
 do

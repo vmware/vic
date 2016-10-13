@@ -12,7 +12,7 @@ You deployed at least one virtual container host to a vCenter Server Appliance i
 4. Enter the IPv4 address or FQDN of the vCenter Server instance on which to install the plug-in. <pre>VCENTER_IP="<i>vcenter_server_address</i>"</pre>
 6. (Optional) If you are deploying the plug-in to a vCenter Server 5.5 instance, change the  value of `IS_VCENTER_5_5` from 0 to 1. 
 
-  **IMPORTANT**: Deploying vSphere Integrated Containers Engine to vSphere 5.5 environments works but is unsupported.
+  **IMPORTANT**: Deploying vSphere Integrated Containers Engine to vSphere 5.5 environments works but is not officially supported.
   <pre>IS_VCENTER_5_5=1</pre>
 6. Save and close the `configs` file.
 7. (Optional) If you run `vic-machine` on a Windows system, open  the <code><i>vic_unpack_dir</i>/vic/ui/VCSA/install.sh</code> file in a text editor and point `PLUGIN_MANAGER_BIN` to the Windows UI executable.

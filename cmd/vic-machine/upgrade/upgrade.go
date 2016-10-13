@@ -48,31 +48,32 @@ func NewUpgrade() *Upgrade {
 
 // Flags return all cli flags for upgrade
 func (u *Upgrade) Flags() []cli.Flag {
-	flags := []cli.Flag{
+	util := []cli.Flag{
+		cli.BoolFlag{
+			Name:        "force, f",
+			Usage:       "Force the upgrade (ignores version checks)",
+			Destination: &u.Force,
+		},
 		cli.DurationFlag{
 			Name:        "timeout",
 			Value:       3 * time.Minute,
 			Usage:       "Time to wait for upgrade",
 			Destination: &u.Timeout,
 		},
-		cli.BoolFlag{
-			Name:        "force, f",
-			Usage:       "Force the upgrade (ignores version checks)",
-			Destination: &u.Force,
-		},
 	}
-	flags = append(
-		append(
-			append(
-				append(
-					append(
-						u.TargetFlags(),
-						u.IDFlags()...,
-					), u.ComputeFlags()...,
-				), u.ImageFlags()...,
-			), flags...),
-		u.DebugFlags()...,
-	)
+
+	target := u.TargetFlags()
+	id := u.IDFlags()
+	compute := u.ComputeFlags()
+	iso := u.ImageFlags(false)
+	debug := u.DebugFlags()
+
+	// flag arrays are declared, now combined
+	var flags []cli.Flag
+	for _, f := range [][]cli.Flag{target, id, compute, iso, util, debug} {
+		flags = append(flags, f...)
+	}
+
 	return flags
 }
 
@@ -163,6 +164,14 @@ func (u *Upgrade) Run(cli *cli.Context) error {
 		}
 		return err
 	}
+
+	// check the docker endpoint is responsive
+	if err = executor.CheckDockerAPI(vchConfig, nil); err != nil {
+
+		executor.CollectDiagnosticLogs()
+		return err
+	}
+
 	log.Infof("Completed successfully")
 
 	return nil

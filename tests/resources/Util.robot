@@ -40,8 +40,9 @@ Set Test Environment Variables
     Run Keyword Unless  ${status}  Set Environment Variable  HOST_TYPE  VC
 
     # set the TLS config options suitable for vic-machine in this env
-    Run Keyword If  '%{DOMAIN}' == ''  Set Suite Variable  ${vicmachinetls}  '--no-tlsverify'
-    Run Keyword If  '%{DOMAIN}' != ''  Set Suite Variable  ${vicmachinetls}  '--cname=*.%{DOMAIN}'  
+    ${domain}=  Get Environment Variable  DOMAIN  ''
+    Run Keyword If  '${domain}' == ''  Set Suite Variable  ${vicmachinetls}  '--no-tlsverify'
+    Run Keyword If  '${domain}' != ''  Set Suite Variable  ${vicmachinetls}  '--tls-cname=*.${domain}'
 
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
@@ -96,6 +97,7 @@ Install VIC Appliance To Test Server
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
+    Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
     Set Test VCH Name
     # Set a unique bridge network for each VCH that has a random VLAN ID
     ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
@@ -176,11 +178,8 @@ Cleanup Dangling VMs On Test Server
     \   ${state}=  Get State Of Drone Build  @{build}[1]
     \   Continue For Loop If  '${state}' == 'running'
     \   ${uuid}=  Run  govc vm.info -json\=true ${vm} | jq -r '.VirtualMachines[0].Config.Uuid'
-    \   Log To Console  Destroying dangling VM ${vm}
-    \   ${output}=  Run  govc vm.destroy ${vm}
-    \   ${output}=  Run  govc pool.destroy %{GOVC_RESOURCE_POOL}/${vm}
-    \   ${output}=  Run  govc datastore.rm ${vm}
-    \   ${output}=  Run  govc datastore.rm VIC/${uuid}
+    \   Log To Console  Destroying dangling VCH: ${vm}
+    \   ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vm}
 
 Cleanup Dangling Networks On Test Server
     ${out}=  Run  govc ls network
@@ -194,6 +193,19 @@ Cleanup Dangling Networks On Test Server
     \   ${state}=  Get State Of Drone Build  @{build}[1]
     \   Continue For Loop If  '${state}' == 'running'
     \   ${uuid}=  Run  govc host.portgroup.remove ${net}
+    
+Cleanup Dangling vSwitches On Test Server
+    ${out}=  Run  govc host.vswitch.info | grep VCH
+    ${nets}=  Split To Lines  ${out}
+    :FOR  ${net}  IN  @{nets}
+    \   ${net}=  Fetch From Right  ${net}  ${SPACE}
+    \   ${build}=  Split String  ${net}  -
+    \   # Skip any vSwitch that is not associated with integration tests
+    \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   # Skip any vSwitch that is still running
+    \   ${state}=  Get State Of Drone Build  @{build}[1]
+    \   Continue For Loop If  '${state}' == 'running'
+    \   ${uuid}=  Run  govc host.vswitch.remove ${net}
 
 Gather Logs From Test Server
     Variable Should Exist  ${params}
@@ -400,6 +412,18 @@ Get VM Host Name
     ${host}=  Fetch From Right  @{out}[-1]  ${SPACE} 
     [Return]  ${host}
 
+Run Unit Tests
+    [Tags]  secret
+    Set Environment Variable  VIC_ESX_TEST_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
+    Log To Console  \nls vendor/github.com/vmware/govmomi/vim25/methods:
+    ${output}=  Run  ls vendor/github.com/vmware/govmomi/vim25/methods
+    Log To Console  ${output}
+    Log To Console  Execute the unit tests...
+    ${output}=  Run  make -j3 test
+    Log To Console  ${output}
+    Should Not Contain  ${output}  FAIL
+    Should Not Contain  ${output}  [build failed]
+
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
@@ -423,6 +447,7 @@ Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz | tar tvzf -
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
+    Should Contain  ${output}  ${container}/output.log
     Should Contain  ${output}  ${container}/vmware.log
     Should Contain  ${output}  ${container}/tether.debug
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm ${container}

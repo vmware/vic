@@ -16,6 +16,7 @@ package debug
 
 import (
 	"io/ioutil"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -53,7 +54,7 @@ func (d *Debug) Flags() []cli.Flag {
 	preFlags := append(d.TargetFlags(), d.IDFlags()...)
 	preFlags = append(preFlags, d.ComputeFlags()...)
 
-	flags := []cli.Flag{
+	ssh := []cli.Flag{
 		cli.BoolFlag{
 			Name:        "enable-ssh, ssh",
 			Usage:       "Enable SSH server within appliance VM",
@@ -73,9 +74,27 @@ func (d *Debug) Flags() []cli.Flag {
 		},
 	}
 
-	flags = append(preFlags, flags...)
+	util := []cli.Flag{
+		cli.DurationFlag{
+			Name:        "timeout",
+			Value:       3 * time.Minute,
+			Usage:       "Time to wait for operation to complete",
+			Destination: &d.Timeout,
+		},
+	}
 
-	return append(flags, d.DebugFlags()...)
+	target := d.TargetFlags()
+	id := d.IDFlags()
+	compute := d.ComputeFlags()
+	debug := d.DebugFlags()
+
+	// flag arrays are declared, now combined
+	var flags []cli.Flag
+	for _, f := range [][]cli.Flag{target, id, compute, ssh, util, debug} {
+		flags = append(flags, f...)
+	}
+
+	return flags
 }
 
 func (d *Debug) processParams() error {

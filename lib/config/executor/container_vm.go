@@ -118,7 +118,7 @@ type ExecutorConfig struct {
 
 	// Sessions is the set of sessions currently hosted by this executor
 	// These are keyed by session ID
-	Sessions map[string]SessionConfig `vic:"0.1" scope:"read-only" key:"sessions"`
+	Sessions map[string]*SessionConfig `vic:"0.1" scope:"read-only" key:"sessions"`
 
 	// Maps the mount name to the detail mount specification
 	Mounts map[string]MountSpec `vic:"0.1" scope:"read-only" key:"mounts"`

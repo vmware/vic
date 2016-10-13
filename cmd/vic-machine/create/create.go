@@ -123,7 +123,8 @@ func NewCreate() *Create {
 
 // Flags return all cli flags for create
 func (c *Create) Flags() []cli.Flag {
-	flags := []cli.Flag{
+	create := []cli.Flag{
+		// images
 		cli.StringFlag{
 			Name:        "image-store, i",
 			Value:       "",
@@ -131,16 +132,30 @@ func (c *Create) Flags() []cli.Flag {
 			Destination: &c.ImageDatastorePath,
 		},
 		cli.StringFlag{
+			Name:        "base-image-size",
+			Value:       "8GB",
+			Usage:       "Specify the size of the base image from which all other images are created e.g. 8GB/8000MB",
+			Destination: &c.ScratchSize,
+			Hidden:      true,
+		},
+
+		// container disk
+		cli.StringFlag{
 			Name:        "container-store, cs",
 			Value:       "",
 			Usage:       "Container datastore path - not supported yet, defaults to image datastore",
 			Destination: &c.ContainerDatastoreName,
+			Hidden:      true,
 		},
+
+		// volume
 		cli.StringSliceFlag{
 			Name:  "volume-store, vs",
 			Value: &c.volumeStores,
-			Usage: "Specify location and label for volume store; path optional: \"datastore/path:label\" or \"datastore:label\"",
+			Usage: "Specify a list of location and label for volume store, e.g. \"datastore/path:label\" or \"datastore:label\".",
 		},
+
+		// bridge
 		cli.StringFlag{
 			Name:        "bridge-network, b",
 			Value:       "",
@@ -152,11 +167,14 @@ func (c *Create) Flags() []cli.Flag {
 			Value:       "172.16.0.0/12",
 			Usage:       "The IP range from which bridge networks are allocated",
 			Destination: &c.BridgeIPRange,
+			Hidden:      true,
 		},
+
+		// client
 		cli.StringFlag{
 			Name:        "client-network, cln",
 			Value:       "",
-			Usage:       "The client network port group name (restricts DOCKER_API access to this network)",
+			Usage:       "The client network port group name (restricts DOCKER_API access to this network). Defaults to DCHP - see advanced help (-x)",
 			Destination: &c.clientNetworkName,
 		},
 		cli.StringFlag{
@@ -164,17 +182,21 @@ func (c *Create) Flags() []cli.Flag {
 			Value:       "",
 			Usage:       "Gateway for the VCH on the client network, e.g. 10.0.0.1/24",
 			Destination: &c.clientNetworkGateway,
+			Hidden:      true,
 		},
 		cli.StringFlag{
 			Name:        "client-network-ip",
 			Value:       "",
 			Usage:       "IP address for the VCH on the client network, e.g. 10.0.0.2/24",
 			Destination: &c.clientNetworkIP,
+			Hidden:      true,
 		},
+
+		// external
 		cli.StringFlag{
 			Name:        "external-network, en",
 			Value:       "",
-			Usage:       "The external network port group name - forwarded ports are exposed on this network and this is the default route. Defaults to 'VM Network'",
+			Usage:       "The external network port group name (port forwarding and default route). Defaults to 'VM Network' and DHCP -- see advanced help (-x)",
 			Destination: &c.externalNetworkName,
 		},
 		cli.StringFlag{
@@ -182,17 +204,21 @@ func (c *Create) Flags() []cli.Flag {
 			Value:       "",
 			Usage:       "Gateway for the VCH on the external network, e.g. 10.0.1.1/24",
 			Destination: &c.externalNetworkGateway,
+			Hidden:      true,
 		},
 		cli.StringFlag{
 			Name:        "external-network-ip",
 			Value:       "",
 			Usage:       "IP address for the VCH on the external network, e.g. 10.0.1.2/24",
 			Destination: &c.externalNetworkIP,
+			Hidden:      true,
 		},
+
+		// management
 		cli.StringFlag{
 			Name:        "management-network, mn",
 			Value:       "",
-			Usage:       "The management network port group name (provides route to target hosting vSphere)",
+			Usage:       "The management network port group name (provides route to target hosting vSphere). Defaults to DCHP - see advanced help (-x)",
 			Destination: &c.managementNetworkName,
 		},
 		cli.StringFlag{
@@ -200,174 +226,208 @@ func (c *Create) Flags() []cli.Flag {
 			Value:       "",
 			Usage:       "Gateway for the VCH on the management network, e.g. 10.0.2.1/24",
 			Destination: &c.managementNetworkGateway,
+			Hidden:      true,
 		},
 		cli.StringFlag{
 			Name:        "management-network-ip",
 			Value:       "",
 			Usage:       "IP address for the VCH on the management network, e.g. 10.0.2.2/24",
 			Destination: &c.managementNetworkIP,
+			Hidden:      true,
 		},
+
+		// general DNS
+		cli.StringSliceFlag{
+			Name:   "dns-server",
+			Value:  &c.dns,
+			Usage:  "DNS server for the client, external, and management networks. Defaults to 8.8.8.8 and 8.8.4.4 when not using DHCP",
+			Hidden: true,
+		},
+
+		// container networks - mapped from vSphere
 		cli.StringSliceFlag{
 			Name:  "container-network, cn",
 			Value: &c.containerNetworks,
-			Usage: "Networks that containers can use",
+			Usage: "vSphere network list that containers can use directly with labels, e.g. vsphere-net:backend. Defaults to DCHP - see advanced help (-x).",
 		},
 		cli.StringSliceFlag{
-			Name:  "container-network-gateway, cng",
-			Value: &c.containerNetworksGateway,
-			Usage: "Gateway for the container network's subnet in CONTAINER-NETWORK:SUBNET format, e.g. a_network:172.16.0.0/16",
+			Name:   "container-network-gateway, cng",
+			Value:  &c.containerNetworksGateway,
+			Usage:  "Gateway for the container network's subnet in CONTAINER-NETWORK:SUBNET format, e.g. vsphere-net:172.16.0.0/16.",
+			Hidden: true,
 		},
 		cli.StringSliceFlag{
-			Name:  "container-network-ip-range, cnr",
-			Value: &c.containerNetworksIPRanges,
-			Usage: "IP range for the container network in CONTAINER-NETWORK:IP-RANGE format, e.g. a_network:172.16.0.0/24, a_network:172.16.0.10-20",
+			Name:   "container-network-ip-range, cnr",
+			Value:  &c.containerNetworksIPRanges,
+			Usage:  "IP range for the container network in CONTAINER-NETWORK:IP-RANGE format, e.g. vsphere-net:172.16.0.0/24, vsphere-net:172.16.0.10-20.",
+			Hidden: true,
 		},
 		cli.StringSliceFlag{
-			Name:  "container-network-dns, cnd",
-			Value: &c.containerNetworksDNS,
-			Usage: "DNS servers for the container network in CONTAINER-NETWORK:DNS format, e.g. a_network:8.8.8.8. Ignored if no static IP assigned.",
+			Name:   "container-network-dns, cnd",
+			Value:  &c.containerNetworksDNS,
+			Usage:  "DNS servers for the container network in CONTAINER-NETWORK:DNS format, e.g. vsphere-net:8.8.8.8. Ignored if no static IP assigned.",
+			Hidden: true,
 		},
-		cli.StringSliceFlag{
-			Name:  "dns-server",
-			Value: &c.dns,
-			Usage: "DNS server for the client, external, and management networks. Defaults to 8.8.8.8 and 8.8.4.4 when not using DHCP",
-		},
+
+		// memory
 		cli.IntFlag{
-			Name:        "pool-memory-reservation, pmr",
+			Name:        "memory, mem",
 			Value:       0,
-			Usage:       "VCH Memory reservation in MB",
-			Destination: &c.VCHMemoryReservationsMB,
-		},
-		cli.IntFlag{
-			Name:        "pool-memory-limit, pml",
-			Value:       0,
-			Usage:       "VCH Memory limit in MB",
+			Usage:       "VCH resource pool memory limit in MB (unlimited=0)",
 			Destination: &c.VCHMemoryLimitsMB,
 		},
+		cli.IntFlag{
+			Name:        "memory-reservation, memr",
+			Value:       0,
+			Usage:       "VCH resource pool memory reservation in MB",
+			Destination: &c.VCHMemoryReservationsMB,
+			Hidden:      true,
+		},
 		cli.GenericFlag{
-			Name:  "pool-memory-shares, pms",
-			Value: flags.NewSharesFlag(&c.VCHMemoryShares),
-			Usage: "VCH Memory shares in level or share number, e.g. high, normal, low, or 163840",
+			Name:   "memory-shares, mems",
+			Value:  flags.NewSharesFlag(&c.VCHMemoryShares),
+			Usage:  "VCH resource pool memory shares in level or share number, e.g. high, normal, low, or 163840",
+			Hidden: true,
 		},
 		cli.IntFlag{
-			Name:        "pool-cpu-reservation, pcr",
-			Value:       0,
-			Usage:       "VCH vCPUs reservation in MHz",
-			Destination: &c.VCHCPUReservationsMHz,
+			Name:        "appliance-memory",
+			Value:       2048,
+			Usage:       "Memory for the appliance VM, in MB. Does not impact resources allocated per container.",
+			Hidden:      true,
+			Destination: &c.MemoryMB,
 		},
+
+		// cpu
 		cli.IntFlag{
-			Name:        "pool-cpu-limit, pcl",
+			Name:        "cpu",
 			Value:       0,
-			Usage:       "VCH vCPUs limit in MHz",
+			Usage:       "VCH resource pool vCPUs limit in MHz (unlimited=0)",
 			Destination: &c.VCHCPULimitsMHz,
 		},
+		cli.IntFlag{
+			Name:        "cpu-reservation, cpur",
+			Value:       0,
+			Usage:       "VCH resource pool reservation in MHz",
+			Destination: &c.VCHCPUReservationsMHz,
+			Hidden:      true,
+		},
 		cli.GenericFlag{
-			Name:  "pool-cpu-shares, pcs",
-			Value: flags.NewSharesFlag(&c.VCHCPUShares),
-			Usage: "VCH vCPUs shares, in level or share number, e.g. high, normal, low, or 4000",
+			Name:   "cpu-shares, cpus",
+			Value:  flags.NewSharesFlag(&c.VCHCPUShares),
+			Usage:  "VCH VCH resource pool vCPUs shares, in level or share number, e.g. high, normal, low, or 4000",
+			Hidden: true,
+		},
+		cli.IntFlag{
+			Name:        "appliance-cpu",
+			Value:       1,
+			Usage:       "vCPUs for the appliance VM",
+			Hidden:      true,
+			Destination: &c.NumCPUs,
+		},
+
+		// TLS
+		cli.StringFlag{
+			Name:        "tls-cname",
+			Value:       "",
+			Usage:       "Common Name to use in generated CA certificate when requiring client certificate authentication",
+			Destination: &c.cname,
+		},
+		cli.StringFlag{
+			Name:        "organization",
+			Value:       "default",
+			Usage:       "Organization to use for generated CA certificate",
+			Destination: &c.org,
+			Hidden:      true,
+		},
+		cli.BoolFlag{
+			Name:        "no-tlsverify, kv",
+			Usage:       "Disable authentication via client certificates - for more tls options see advanced help (-x)",
+			Destination: &c.noTLSverify,
+		},
+		cli.BoolFlag{
+			Name:        "no-tls, k",
+			Usage:       "Disable TLS support completely",
+			Destination: &c.noTLS,
+			Hidden:      true,
+		},
+		cli.StringFlag{
+			Name:        "key",
+			Value:       "",
+			Usage:       "Virtual Container Host private key file",
+			Destination: &c.key,
+			Hidden:      true,
+		},
+		cli.StringFlag{
+			Name:        "cert",
+			Value:       "",
+			Usage:       "Virtual Container Host x509 certificate file",
+			Destination: &c.cert,
+			Hidden:      true,
+		},
+		cli.StringSliceFlag{
+			Name:   "tls-ca, ca",
+			Usage:  "Specify a list of certificate authority files to use for client verification",
+			Value:  &c.clientCAs,
+			Hidden: true,
+		},
+		cli.IntFlag{
+			Name:        "certificate-key-size, ksz",
+			Usage:       "Size of key to use when generating certificates",
+			Value:       2048,
+			Destination: &c.keySize,
+			Hidden:      true,
+		},
+
+		// registries
+		cli.StringSliceFlag{
+			Name:  "insecure-registry, dir",
+			Value: &c.insecureRegistries,
+			Usage: "Specify a list of permitted insecure registry server URLs",
 		},
 	}
 
-	flags = append(append(flags, c.ImageFlags()...),
-		[]cli.Flag{
-			cli.StringFlag{
-				Name:        "key",
-				Value:       "",
-				Usage:       "Virtual Container Host private key file",
-				Destination: &c.key,
-			},
-			cli.StringFlag{
-				Name:        "cert",
-				Value:       "",
-				Usage:       "Virtual Container Host x509 certificate file",
-				Destination: &c.cert,
-			},
-			cli.StringSliceFlag{
-				Name:  "client-verification-ca, ca",
-				Usage: "Specify a list of certificate authorities to use for client verification",
-				Value: &c.clientCAs,
-			},
-			cli.StringFlag{
-				Name:        "base-image-size",
-				Value:       "8GB",
-				Usage:       "Specify the size of the base image from which all other images are created e.g. 8GB/8000MB",
-				Destination: &c.ScratchSize,
-				Hidden:      true,
-			},
-			cli.BoolFlag{
-				Name:        "no-tlsverify, kv",
-				Usage:       "Disable authentication via client certificates",
-				Destination: &c.noTLSverify,
-			},
-			cli.BoolFlag{
-				Name:        "no-tls, k",
-				Usage:       "Disable TLS support completely",
-				Destination: &c.noTLS,
-			},
-			cli.BoolFlag{
-				Name:        "force, f",
-				Usage:       "Force the install, removing existing if present",
-				Destination: &c.Force,
-			},
-			cli.DurationFlag{
-				Name:        "timeout",
-				Value:       3 * time.Minute,
-				Usage:       "Time to wait for create",
-				Destination: &c.Timeout,
-			},
-			cli.BoolFlag{
-				Name:        "advanced-options, x",
-				Usage:       "Show all options",
-				Destination: &c.advancedOptions,
-			},
-			cli.IntFlag{
-				Name:        "appliance-memory",
-				Value:       2048,
-				Usage:       "Memory for the appliance VM, in MB",
-				Hidden:      true,
-				Destination: &c.MemoryMB,
-			},
-			cli.IntFlag{
-				Name:        "appliance-cpu",
-				Value:       1,
-				Usage:       "vCPUs for the appliance VM",
-				Hidden:      true,
-				Destination: &c.NumCPUs,
-			},
-			cli.BoolFlag{
-				Name:        "use-rp",
-				Usage:       "Use resource pool for vch parent in VC",
-				Destination: &c.UseRP,
-				Hidden:      true,
-			},
-			cli.IntFlag{
-				Name:        "certificate-key-size, ksz",
-				Usage:       "Size of key to use when generating certificates",
-				Value:       2048,
-				Destination: &c.keySize,
-				Hidden:      true,
-			},
-			cli.StringFlag{
-				Name:        "cname",
-				Value:       "",
-				Usage:       "Common Name to use in generated CA certificate",
-				Destination: &c.cname,
-			},
-			cli.StringFlag{
-				Name:        "organisation",
-				Value:       "default",
-				Usage:       "Organisation to use in generated CA certificate",
-				Destination: &c.org,
-				Hidden:      true,
-			},
-			cli.StringSliceFlag{
-				Name:  "docker-insecure-registry, dir",
-				Value: &c.insecureRegistries,
-				Usage: "Specify a list of insecure registry server URLs for the docker personality server",
-			},
-		}...)
+	util := []cli.Flag{
+		// miscellaneous
+		cli.BoolFlag{
+			Name:        "use-rp",
+			Usage:       "Use resource pool for vch parent in VC instead of a vApp",
+			Destination: &c.UseRP,
+			Hidden:      true,
+		},
 
-	flags = append(append(append(c.TargetFlags(), c.ComputeFlags()...), flags...), c.DebugFlags()...)
+		cli.BoolFlag{
+			Name:        "force, f",
+			Usage:       "Force the install, removing existing if present",
+			Destination: &c.Force,
+		},
+		cli.DurationFlag{
+			Name:        "timeout",
+			Value:       3 * time.Minute,
+			Usage:       "Time to wait for create",
+			Destination: &c.Timeout,
+		},
+	}
+
+	help := []cli.Flag{
+		// help options
+		cli.BoolFlag{
+			Name:        "extended-help, x",
+			Usage:       "Show all options - this must be specified instead of --help",
+			Destination: &c.advancedOptions,
+		},
+	}
+
+	target := c.TargetFlags()
+	compute := c.ComputeFlags()
+	iso := c.ImageFlags(true)
+	debug := c.DebugFlags()
+
+	// flag arrays are declared, now combined
+	var flags []cli.Flag
+	for _, f := range [][]cli.Flag{target, compute, create, iso, util, debug, help} {
+		flags = append(flags, f...)
+	}
+
 	return flags
 }
 
@@ -745,13 +805,15 @@ func (c *Create) generateCertificates(ca bool) ([]byte, *certificate.KeyPair, er
 	// if we've not got a specific CommonName but do have a static IP then go with that.
 	if c.cname == "" && c.clientNetworkIP != "" {
 		c.cname = c.clientNetworkIP
+		log.Infof("Using client-network-ip as cname for server certificates - use --tls-cname to override: %s", c.cname)
 	}
 
 	if c.cname == "" {
 		log.Error("Common Name must be provided when generating certificates for client authentication:")
-		log.Info("  --cname=<FQDN or static IP> # for the appliance VM")
-		log.Info("  --cname=<*.yourdomain.com>  # if DNS has entries in that form for DHCP addresses (less secure)")
-		log.Info("  --no-tlsverify              # disables client authentication (anyone can connect to the VCH)")
+		log.Info("  --tls-cname=<FQDN or static IP> # for the appliance VM")
+		log.Info("  --tls-cname=<*.yourdomain.com>  # if DNS has entries in that form for DHCP addresses (less secure)")
+		log.Info("  --no-tlsverify              	# disables client authentication (anyone can connect to the VCH)")
+		log.Info("  --no-tlsverify                  # disables client authentication (anyone can connect to the VCH)")
 		log.Info("")
 
 		return certs, nil, errors.New("provide Common Name for server certificate")
@@ -867,6 +929,9 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		vchConfig.ExtensionCert = certbuffer.String()
 		vchConfig.ExtensionKey = keybuffer.String()
 	}
+
+	// separate initial validation from dispatch of creation task
+	log.Info("")
 
 	executor := management.NewDispatcher(ctx, validator.Session, vchConfig, c.Force)
 	if err = executor.CreateVCH(vchConfig, vConfig); err != nil {
