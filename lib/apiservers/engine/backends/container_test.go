@@ -22,6 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/docker/docker/api/types/backend"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/engine-api/types"
@@ -277,7 +279,7 @@ func (m *MockContainerProxy) StreamContainerLogs(name string, out io.Writer, sta
 	return nil
 }
 
-func (m *MockContainerProxy) ContainerRunning(vc *viccontainer.VicContainer) (bool, error) {
+func (m *MockContainerProxy) IsRunning(vc *viccontainer.VicContainer) (bool, error) {
 	// Assume container is running if container in cache.  If we need other conditions
 	// in the future, we can add it, but for now, just assume running.
 	c := cache.ContainerCache().GetContainer(vc.ContainerID)
@@ -294,6 +296,14 @@ func (m *MockContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Du
 }
 
 func (m *MockContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error {
+	return nil
+}
+
+func (m *MockContainerProxy) Resize(vc *viccontainer.VicContainer, height, width int32) error {
+	return nil
+}
+
+func (m *MockContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error {
 	return nil
 }
 
