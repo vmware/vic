@@ -410,7 +410,6 @@ Run Unit Tests
     Should Not Contain  ${output}  [build failed]
 
 Run Regression Tests
-    Run Unit Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
