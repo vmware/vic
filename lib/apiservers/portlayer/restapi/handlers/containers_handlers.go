@@ -360,7 +360,6 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 
 	select {
 	case <-c.WaitForState(exec.StateStopped):
-		c = exec.Containers.Container(uid.Parse(params.ID).String())
 		containerInfo := convertContainerToContainerInfo(c)
 		return containers.NewContainerWaitOK().WithPayload(containerInfo)
 	case <-ctx.Done():
