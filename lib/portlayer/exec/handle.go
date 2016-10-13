@@ -66,6 +66,7 @@ type Handle struct {
 	ExecConfig executor.ExecutorConfig
 
 	Container *Container
+	state     State
 
 	key       string
 	committed bool
@@ -85,6 +86,7 @@ func newHandle(con *Container) *Handle {
 		committed:  false,
 		Container:  con,
 		ExecConfig: *con.ExecConfig,
+		state:      StateUnknown,
 	}
 
 	handlesLock.Lock()
@@ -95,11 +97,12 @@ func newHandle(con *Container) *Handle {
 	return h
 }
 
-func (h *Handle) ContainerState() State {
-	if h.Container == nil {
-		return StateUnknown
-	}
-	return h.Container.CurrentState()
+func (h *Handle) CurrentState() State {
+	return h.state
+}
+
+func (h *Handle) SetState(s State) {
+	h.state = s
 }
 
 // GetHandle finds and returns the handle that is referred by key
@@ -173,7 +176,7 @@ func (h *Handle) String() string {
 	return h.key
 }
 
-func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *int32, skipStateCheck bool) error {
+func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *int32) error {
 	if h.committed {
 		return nil // already committed
 	}
@@ -183,17 +186,15 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 	cfg := make(map[string]string)
 
 	// Set timestamps based on target state
-	if skipStateCheck {
-		switch h.ContainerState() {
-		case StateRunning:
-			se := h.ExecConfig.Sessions[h.ExecConfig.ID]
-			se.StartTime = time.Now().UTC().Unix()
-			h.ExecConfig.Sessions[h.ExecConfig.ID] = se
-		case StateStopped:
-			se := h.ExecConfig.Sessions[h.ExecConfig.ID]
-			se.StopTime = time.Now().UTC().Unix()
-			h.ExecConfig.Sessions[h.ExecConfig.ID] = se
-		}
+	switch h.CurrentState() {
+	case StateRunning:
+		se := h.ExecConfig.Sessions[h.ExecConfig.ID]
+		se.StartTime = time.Now().UTC().Unix()
+		h.ExecConfig.Sessions[h.ExecConfig.ID] = se
+	case StateStopped:
+		se := h.ExecConfig.Sessions[h.ExecConfig.ID]
+		se.StopTime = time.Now().UTC().Unix()
+		h.ExecConfig.Sessions[h.ExecConfig.ID] = se
 	}
 
 	extraconfig.Encode(extraconfig.MapSink(cfg), h.ExecConfig)
@@ -211,10 +212,6 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 
 func (h *Handle) Close() {
 	removeHandle(h.key)
-}
-
-func (h *Handle) SetContainerState(s State) {
-	h.Container.SetState(s)
 }
 
 func (h *Handle) Create(ctx context.Context, sess *session.Session, config *ContainerCreateConfig) error {

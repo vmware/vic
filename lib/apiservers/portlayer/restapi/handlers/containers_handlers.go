@@ -167,7 +167,7 @@ func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.Stat
 		return containers.NewStateChangeDefault(http.StatusServiceUnavailable).WithPayload(&models.Error{Message: "unknown state"})
 	}
 
-	h.SetContainerState(state)
+	h.SetState(state)
 	return containers.NewStateChangeOK().WithPayload(h.String())
 }
 
@@ -180,7 +180,7 @@ func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStat
 	}
 
 	var state string
-	switch h.Container.CurrentState() {
+	switch h.CurrentState() {
 	case exec.StateRunning:
 		state = "RUNNING"
 
@@ -216,7 +216,7 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 		return containers.NewCommitNotFound().WithPayload(&models.Error{Message: "container not found"})
 	}
 
-	if err := h.Commit(context.Background(), handler.handlerCtx.Session, params.WaitTime, false); err != nil {
+	if err := h.Commit(context.Background(), handler.handlerCtx.Session, params.WaitTime); err != nil {
 		log.Errorf("CommitHandler error on handle(%s) for %s: %#v", h.String(), h.ExecConfig.ID, err)
 		switch err := err.(type) {
 		case exec.ConcurrentAccessError:

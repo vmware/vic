@@ -286,7 +286,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 	}
 
 	// if we're stopping the VM, do so before the reconfigure to preserve the extraconfig
-	if h.ContainerState() == StateStopped &&
+	if h.CurrentState() == StateStopped &&
 		c.Runtime != nil && c.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
 		// stop the container
 		if err := h.Container.stop(ctx, waitTime); err != nil {
@@ -340,7 +340,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		}
 	}
 
-	if h.ContainerState() == StateRunning &&
+	if h.CurrentState() == StateRunning &&
 		c.Runtime != nil && c.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOff {
 		// start the container
 		if err := h.Container.start(ctx); err != nil {
