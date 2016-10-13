@@ -42,8 +42,8 @@ func TestPathLookup(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]executor.SessionConfig{
-			"pathlookup": {
+		Sessions: map[string]*executor.SessionConfig{
+			"pathlookup": &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "pathlookup",
 					Name: "tether_test_session",
@@ -80,8 +80,8 @@ func TestRelativePath(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]executor.SessionConfig{
-			"relpath": {
+		Sessions: map[string]*executor.SessionConfig{
+			"relpath": &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "relpath",
 					Name: "tether_test_session",
@@ -118,8 +118,8 @@ func TestAbsPath(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]executor.SessionConfig{
-			"abspath": {
+		Sessions: map[string]*executor.SessionConfig{
+			"abspath": &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "abspath",
 					Name: "tether_test_session",
@@ -174,8 +174,8 @@ func TestHalt(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]executor.SessionConfig{
-			"abspath": {
+		Sessions: map[string]*executor.SessionConfig{
+			"abspath": &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "abspath",
 					Name: "tether_test_session",
@@ -248,8 +248,8 @@ func TestMissingBinary(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]executor.SessionConfig{
-			"missing": {
+		Sessions: map[string]*executor.SessionConfig{
+			"missing": &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "missing",
 					Name: "tether_test_session",
@@ -295,8 +295,8 @@ func TestMissingRelativeBinary(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]executor.SessionConfig{
-			"missing": {
+		Sessions: map[string]*executor.SessionConfig{
+			"missing": &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "missing",
 					Name: "tether_test_session",

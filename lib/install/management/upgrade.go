@@ -72,6 +72,11 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 
 	conf.BootstrapImagePath = fmt.Sprintf("[%s] %s/%s", conf.ImageStores[0].Host, d.vmPathName, settings.BootstrapISO)
 
+	// ensure that we wait for components to come up
+	for _, s := range conf.ExecutorConfig.Sessions {
+		s.Started = ""
+	}
+
 	snapshotName := fmt.Sprintf("%s %s", UpgradePrefix, conf.Version.BuildNumber)
 	snapshotName = strings.TrimSpace(snapshotName)
 	snapshotRefID, err := d.createSnapshot(snapshotName, "upgrade snapshot")

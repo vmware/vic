@@ -561,51 +561,51 @@ Wrap the folder names in the path in single quotes (Linux or Mac OS) or double q
 
 ### `pool-memory-reservation` ###
 
-Short name: `--pmr`
+Short name: `--memr`
 
 Reserve a quantity of memory for use by the virtual container host vApp   and container VMs. Specify the memory reservation value in MB. If not specified, `vic-machine create` sets the reservation to 1.
 
-<pre>--pool-memory-reservation 1024</pre>
+<pre>--memory-reservation 1024</pre>
 
 ### `pool-memory-limit` ###
 
-Short name: `--pml`
+Short name: `--mem`
 
 Limit the amount of memory that is available for use by the virtual container host vApp and container VMs. Specify the memory limit value in MB. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
 
-<pre>--pool-memory-limit 1024</pre>
+<pre>--memory 1024</pre>
 
 ### `pool-memory-shares` ###
 
-Short name: `--pms`
+Short name: `--mems`
 
 Set memory shares on the virtual container host vApp. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `normal`.
 
-<pre>--pool-memory-shares low</pre>
+<pre>--memory-shares low</pre>
 
 ### `pool-cpu-reservation` ###
 
-Short name: `--pcr`
+Short name: `--cpur`
 
 Reserve a quantity of CPU capacity for use by the virtual container host vApp and container VMs.  Specify the CPU reservation value in MHz. If not specified, `vic-machine create` sets the reservation to 1.
 
-<pre>--pool-cpu-reservation 1024</pre>
+<pre>--cpu-reservation 1024</pre>
 
 ### `pool-cpu-limit` ###
 
-Short name: `--pcl`
+Short name: `--cpu`
 
 Limit the amount of CPU capacity that is available for use by the virtual container host vApp and container VMs. Specify the CPU limit value in MHz. If not specified, `vic-machine create` sets the reservation to 0 (unlimited).
 
-<pre>--pool-cpu-limit 1024</pre>
+<pre>--cpu 1024</pre>
 
 ### `pool-cpu-shares` ###
 
-Short name: `--pcs`
+Short name: `--cpus`
 
 Set CPU shares on the virtual container host vApp. Specify the share value as a level or a number, for example `high`, `normal`, `low`, or `163840`. If not specified, `vic-machine create` sets the share to `normal`.
 
-<pre>--pool-cpu-shares low</pre>
+<pre>--cpu-shares low</pre>
 
 ### `debug` ###
 Short name: `-v`
