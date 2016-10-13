@@ -8,7 +8,7 @@ Default Tags
 *** Keywords ***
 Curl
     [Arguments]  ${path}
-    ${output}=  Run  curl -sk --cert /drone/src/github.com/vmware/vic/${vch-name}/cert.pem --key /drone/src/github.com/vmware/vic/${vch-name}/key.pem ${vic-admin}${path}
+    ${output}=  Run  curl -sk --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem ${vic-admin}${path}
     Should Not Be Equal As Strings  ''  ${output}
     [Return]  ${output}
 
