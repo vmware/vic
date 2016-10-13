@@ -14,34 +14,17 @@
 
 package serial
 
-import "github.com/vmware/vic/pkg/trace"
+var (
+	verbose = false
+	tracing = false
+)
 
-type RawAddr struct {
-	Net  string
-	Addr string
+// EnableTracing enables trace output for the serial package
+func EnableTracing() {
+	tracing = true
 }
 
-func (addr RawAddr) Network() string {
-	if tracing {
-		defer trace.End(trace.Begin(""))
-	}
-	return addr.Net
-}
-
-func (addr RawAddr) String() string {
-	if tracing {
-
-		defer trace.End(trace.Begin(""))
-	}
-	return addr.Network() + "://" + addr.Addr
-}
-
-func NewRawAddr(net string, addr string) *RawAddr {
-	if tracing {
-		defer trace.End(trace.Begin(""))
-	}
-	return &RawAddr{
-		Net:  net,
-		Addr: addr,
-	}
+// DisableTracing disables trace output for the serial package
+func DisableTracing() {
+	tracing = false
 }
