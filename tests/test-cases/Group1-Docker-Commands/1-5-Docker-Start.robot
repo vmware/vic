@@ -79,3 +79,20 @@ Serially start 5 long running containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq | xargs -n1 docker ${params} rm -f
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
+Parallel start 5 long running containers
+    ${pids}=  Create List
+    ${containers}=  Create List
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    :FOR  ${idx}  IN RANGE  0  5
+    \   ${output}=  Run  docker ${params} create busybox /bin/top
+    \   Should Not Contain  ${output}  Error
+    \   Append To List  ${containers}  ${output}
+
+    :FOR  ${container}  IN  @{containers}
+    \   ${pid}=  Start Process  docker ${params} start ${container}  shell=True
+    \   Append To List  ${pids}  ${pid}
+
+    # Wait for them to finish and check their RC
+    :FOR  ${pid}  IN  @{pids}
+    \   ${res}=  Wait For Process  ${pid}
+    \   Should Be Equal As Integers  ${res.rc}  0
