@@ -358,20 +358,16 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 		})
 	}
 
-	// if the container is already stopped return
-	if c.CurrentState() != exec.StateRunning {
+	select {
+	case <-c.WaitForState(exec.StateStopped):
+		c = exec.Containers.Container(uid.Parse(params.ID).String())
 		containerInfo := convertContainerToContainerInfo(c)
 		return containers.NewContainerWaitOK().WithPayload(containerInfo)
+	case <-ctx.Done():
+		return containers.NewContainerWaitInternalServerError().WithPayload(&models.Error{
+			Message: fmt.Sprintf("ContainerWaitHandler(%s) Error: %s", params.ID, ctx.Err()),
+		})
 	}
-
-	err := exec.WaitForContainerStop(ctx, params.ID, c)
-	if err != nil {
-		return containers.NewContainerWaitInternalServerError().WithPayload(&models.Error{Message: err.Error()})
-	}
-
-	c = exec.Containers.Container(uid.Parse(params.ID).String())
-	containerInfo := convertContainerToContainerInfo(c)
-	return containers.NewContainerWaitOK().WithPayload(containerInfo)
 }
 
 // utility function to convert from a Container type to the API Model ContainerInfo (which should prob be called ContainerDetail)

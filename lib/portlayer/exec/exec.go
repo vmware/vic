@@ -27,7 +27,6 @@ import (
 	"github.com/vmware/vic/lib/portlayer/event"
 	"github.com/vmware/vic/lib/portlayer/event/collector/vsphere"
 	"github.com/vmware/vic/lib/portlayer/event/events"
-	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -200,40 +199,4 @@ func publishContainerEvent(id string, created time.Time, eventType string) {
 	}
 
 	Config.EventManager.Publish(ce)
-}
-
-func WaitForContainerStop(ctx context.Context, id string, c *Container) error {
-	defer trace.End(trace.Begin(id))
-
-	listen := make(chan struct{}, 1)
-	defer close(listen)
-
-	watch := func(ce events.Event) {
-		e := ce.String()
-		if ce.Reference() == id {
-			switch e {
-			case events.ContainerStopped, events.ContainerPoweredOff:
-				listen <- struct{}{}
-			}
-		}
-	}
-
-	sub := fmt.Sprintf("%s:%s(%d)", id, "watcher", &watch)
-	topic := events.NewEventType(events.ContainerEvent{}).Topic()
-	Config.EventManager.Subscribe(topic, sub, watch)
-	defer Config.EventManager.Unsubscribe(topic, sub)
-
-	// Container has changed it's status, existing.
-	if c.CurrentState() == StateStopped {
-		return nil
-	}
-
-	// wait for the event to be pushed on the channel or
-	// the context to be complete
-	select {
-	case <-listen:
-		return nil
-	case <-ctx.Done():
-		return fmt.Errorf("WaitForContainerStop(%s) Error: %s", id, ctx.Err())
-	}
 }

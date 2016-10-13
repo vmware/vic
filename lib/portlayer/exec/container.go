@@ -109,12 +109,15 @@ type Container struct {
 	// Current state
 	Config  *types.VirtualMachineConfigInfo
 	Runtime *types.VirtualMachineRuntimeInfo
+
+	newStateEvents map[State]chan struct{}
 }
 
 func NewContainer(id uid.UID) *Handle {
 	con := &Container{
-		ExecConfig: &executor.ExecutorConfig{},
-		state:      StateCreating,
+		ExecConfig:     &executor.ExecutorConfig{},
+		state:          StateCreating,
+		newStateEvents: make(map[State]chan struct{}),
 	}
 	con.ExecConfig.ID = id.String()
 	return newHandle(con)
@@ -159,10 +162,48 @@ func (c *Container) CurrentState() State {
 }
 
 // SetState changes container state.
-func (c *Container) SetState(s State) {
+func (c *Container) SetState(s State) State {
 	c.m.Lock()
-	c.state = s
-	c.m.Unlock()
+	defer c.m.Unlock()
+	return c.updateState(s)
+}
+
+func (c *Container) updateState(s State) State {
+	prevState := c.state
+	if s != c.state {
+		c.state = s
+		if ch, ok := c.newStateEvents[s]; ok {
+			delete(c.newStateEvents, s)
+			close(ch)
+		}
+	}
+	return prevState
+}
+
+var closedEventChannel = func() <-chan struct{} {
+	a := make(chan struct{})
+	close(a)
+	return a
+}()
+
+// WaitForState subscribes a caller to an event returning
+// a channel that will be closed when an expected state is set.
+// If expected state is already set the caller will receive a closed channel immediately.
+func (c *Container) WaitForState(s State) <-chan struct{} {
+	c.m.Lock()
+	defer c.m.Unlock()
+
+	if s == c.state {
+		return closedEventChannel
+	}
+
+	if ch, ok := c.newStateEvents[s]; ok {
+		return ch
+	}
+
+	eventChan := make(chan struct{})
+	c.newStateEvents[s] = eventChan
+	return eventChan
 }
 
 func (c *Container) NewHandle(ctx context.Context) *Handle {
@@ -180,7 +221,7 @@ func (c *Container) NewHandle(ctx context.Context) *Handle {
 	return newHandle(c)
 }
 
-// Refresh calls the propery collector to get config and runtime info and Guest RPC for ExtraConfig
+// Refresh calls the property collector to get config and runtime info and Guest RPC for ExtraConfig
 func (c *Container) Refresh(ctx context.Context) error {
 	defer trace.End(trace.Begin(c.ExecConfig.ID))
 
@@ -271,7 +312,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		}
 
 		c.vm = vm.NewVirtualMachine(ctx, sess, res.Result.(types.ManagedObjectReference))
-		c.state = StateCreated
+		c.updateState(StateCreated)
 
 		commitEvent = events.ContainerCreated
 
@@ -367,15 +408,15 @@ func (c *Container) start(ctx context.Context) error {
 	}
 	// get existing state and set to starting
 	// if there's a failure we'll revert to existing
-	existingState := c.state
-	c.state = StateStarting
+	finalState := c.updateState(StateStarting)
+
+	defer func() { c.updateState(finalState) }()
 
 	// Power on
 	_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return c.vm.PowerOn(ctx)
 	})
 	if err != nil {
-		c.state = existingState
 		return err
 	}
 
@@ -389,15 +430,15 @@ func (c *Container) start(ctx context.Context) error {
 
 	detail, err = c.vm.WaitForKeyInExtraConfig(ctx, key)
 	if err != nil {
-		c.state = existingState
 		return fmt.Errorf("unable to wait for process launch status: %s", err.Error())
 	}
 
 	if detail != "true" {
-		c.state = existingState
 		return errors.New(detail)
 	}
 
+	// this state will be set by defer function.
+	finalState = StateStarting
 	return nil
 }
 
@@ -462,8 +503,8 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 
 	// get existing state and set to stopping
 	// if there's a failure we'll revert to existing
-	existingState := c.state
-	c.state = StateStopping
+
+	existingState := c.updateState(StateStopping)
 
 	err := c.shutdown(ctx, waitTime)
 	if err == nil {
@@ -499,7 +540,7 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 
 			log.Warnf("hard power off failed due to: %#v", terr)
 		}
-		c.state = existingState
+		c.updateState(existingState)
 	}
 
 	return err
@@ -575,6 +616,8 @@ func (c *Container) LogReader(ctx context.Context, tail int, follow bool) (io.Re
 		}
 	}
 
+	c.m.Lock()
+	defer c.m.Unlock()
 	if follow && c.state == StateRunning {
 		follower := file.Follow(time.Second)
 
@@ -603,8 +646,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 
 	// get existing state and set to removing
 	// if there's a failure we'll revert to existing
-	existingState := c.state
-	c.state = StateRemoving
+	existingState := c.updateState(StateRemoving)
 
 	// get the folder the VM is in
 	url, err := c.vm.DSPath(ctx)
@@ -620,7 +662,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 		}
 
 		log.Errorf("Failed to get datastore path for %s: %s", c.ExecConfig.ID, err)
-		c.state = existingState
+		c.updateState(existingState)
 		return err
 	}
 	// FIXME: was expecting to find a utility function to convert to/from datastore/url given
@@ -634,7 +676,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	if err != nil {
 		f, ok := err.(types.HasFault)
 		if !ok {
-			c.state = existingState
+			c.updateState(existingState)
 			return err
 		}
 		switch f.Fault().(type) {
@@ -646,7 +688,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 			}
 		default:
 			log.Debugf("Fault while attempting to destroy vm: %#v", f.Fault())
-			c.state = existingState
+			c.updateState(existingState)
 			return err
 		}
 	}
@@ -657,7 +699,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	if _, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return fm.DeleteDatastoreFile(ctx, dsPath, sess.Datacenter)
 	}); err != nil {
-		c.state = existingState
+		// at this phase error doesn't matter. Just log it.
 		log.Debugf("Failed to delete %s, %s", dsPath, err)
 	}
 
@@ -743,7 +785,10 @@ func convertInfraContainers(ctx context.Context, sess *session.Session, vms []mo
 
 	for _, v := range vms {
 		source := vmomi.OptionValueSource(v.Config.ExtraConfig)
-		c := &Container{state: StateCreated}
+		c := &Container{
+			state:          StateCreated,
+			newStateEvents: make(map[State]chan struct{}),
+		}
 		extraconfig.Decode(source, &c.ExecConfig)
 		id := uid.Parse(c.ExecConfig.ID)
 		if id == uid.NilUID {
