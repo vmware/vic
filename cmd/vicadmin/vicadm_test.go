@@ -99,6 +99,7 @@ func TestLoginFailure(t *testing.T) {
 
 	s := &server{
 		addr: "127.0.0.1:0",
+		auth: &credentials{"root", "thisisinsecure"},
 	}
 
 	err := s.listen(true)
@@ -124,6 +125,7 @@ func TestNoAuth(t *testing.T) {
 
 	s := &server{
 		addr: "127.0.0.1:0",
+		auth: nil,
 	}
 
 	err := s.listen(true)
@@ -154,6 +156,7 @@ func testLogTar(t *testing.T, plainHTTP bool) {
 
 	s := &server{
 		addr: "127.0.0.1:0",
+		auth: &credentials{"root", "thisisinsecure"},
 	}
 
 	err := s.listen(!plainHTTP)
