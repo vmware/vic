@@ -104,6 +104,8 @@ func CreateNoDCCheck(ctx context.Context, input *data.Data) (*Validator, error) 
 		if cert.Err != nil {
 			if !input.Force {
 				// TODO: prompt user / check ./known_hosts
+				log.Errorf("Failed to verify certificate for target=%s (thumbprint=%s)",
+					tURL.Host, cert.ThumbprintSHA1)
 				return nil, cert.Err
 			}
 		}
