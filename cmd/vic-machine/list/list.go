@@ -95,7 +95,6 @@ func (l *List) processParams() error {
 		return err
 	}
 
-	l.Insecure = true
 	return nil
 }
 

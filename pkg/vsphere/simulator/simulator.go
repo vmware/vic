@@ -17,6 +17,10 @@ package simulator
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -30,6 +34,7 @@ import (
 	"strings"
 
 	"github.com/vmware/govmomi/find"
+	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
@@ -48,12 +53,16 @@ type Service struct {
 	client *vim25.Client
 
 	readAll func(io.Reader) ([]byte, error)
+
+	TLS *tls.Config
 }
 
 // Server provides a simulator Service over HTTP
 type Server struct {
 	*httptest.Server
 	URL *url.URL
+
+	caFile string
 }
 
 // New returns an initialized simulator Service instance
@@ -282,11 +291,64 @@ func (s *Service) NewServer() *Server {
 	// Redirect clients to this http server, rather than HostSystem.Name
 	Map.Get(*s.client.ServiceContent.SessionManager).(*SessionManager).ServiceHostName = u.Host
 
-	ts.Start()
+	if f := flag.Lookup("httptest.serve"); f != nil {
+		// Avoid the blocking behaviour of httptest.Server.Start() when this flag is set
+		_ = f.Value.Set("")
+	}
+
+	if s.TLS == nil {
+		ts.Start()
+	} else {
+		ts.TLS = s.TLS
+		ts.StartTLS()
+		u.Scheme += "s"
+	}
 
 	return &Server{
 		Server: ts,
 		URL:    u,
+	}
+}
+
+// Certificate returns the TLS certificate for the Server if started with TLS enabled.
+// This method will panic if TLS is not enabled for the server.
+func (s *Server) Certificate() *x509.Certificate {
+	// By default httptest.StartTLS uses http/internal.LocalhostCert, which we can access here:
+	cert, _ := x509.ParseCertificate(s.TLS.Certificates[0].Certificate[0])
+	return cert
+}
+
+// CertificateInfo returns Server.Certificate() as object.HostCertificateInfo
+func (s *Server) CertificateInfo() *object.HostCertificateInfo {
+	info := new(object.HostCertificateInfo)
+	info.FromCertificate(s.Certificate())
+	return info
+}
+
+// CertificateFile returns a file name, where the file contains the PEM encoded Server.Certificate.
+// The temporary file is removed when Server.Close() is called.
+func (s *Server) CertificateFile() (string, error) {
+	if s.caFile != "" {
+		return s.caFile, nil
+	}
+
+	f, err := ioutil.TempFile("", "vcsim-")
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	s.caFile = f.Name()
+	cert := s.Certificate()
+	return s.caFile, pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+}
+
+// Close shuts down the server and blocks until all outstanding
+// requests on this server have completed.
+func (s *Server) Close() {
+	s.Server.Close()
+	if s.caFile != "" {
+		_ = os.Remove(s.caFile)
 	}
 }
 

@@ -27,7 +27,7 @@ func TestFlags(t *testing.T) {
 	target := NewTarget()
 	flags := target.TargetFlags()
 
-	if len(flags) != 3 {
+	if len(flags) != 4 {
 		t.Errorf("Wrong flag numbers")
 	}
 }

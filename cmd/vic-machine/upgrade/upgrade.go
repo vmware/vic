@@ -84,7 +84,6 @@ func (u *Upgrade) processParams() error {
 		return err
 	}
 
-	u.Insecure = true
 	return nil
 }
 

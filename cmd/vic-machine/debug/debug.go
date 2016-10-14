@@ -104,7 +104,6 @@ func (d *Debug) processParams() error {
 		return err
 	}
 
-	d.Insecure = true
 	return nil
 }
 
