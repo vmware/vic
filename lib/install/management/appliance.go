@@ -676,6 +676,9 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 
 		// appliance is configured for tlsverify, but we don't have a client certificate
 		if len(conf.CertificateAuthorities) > 0 {
+			// if tlsverify was configured at all then we must verify the remote
+			tr.TLSClientConfig.InsecureSkipVerify = false
+
 			func() {
 				log.Debug("Loading CAs for client auth")
 				pool := x509.NewCertPool()
@@ -693,9 +696,6 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 					log.Debugf("CA configured on appliance but no client certificate available")
 					return
 				}
-
-				// if tlsverify was configured at all then we must verify the remote
-				tr.TLSClientConfig.InsecureSkipVerify = false
 
 				cert, err := conf.HostCertificate.X509Certificate()
 				if err != nil {
