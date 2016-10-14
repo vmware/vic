@@ -77,21 +77,6 @@ func backchannel(ctx context.Context, conn *net.Conn) error {
 func (t *attachServerSSH) Start() error {
 	defer trace.End(trace.Begin(""))
 
-	t.m.Lock()
-	defer t.m.Unlock()
-
-	var err error
-
-	t.conn.Lock()
-	defer t.conn.Unlock()
-
-	t.conn.conn, err = rawConnectionFromSerial()
-	if err != nil {
-		detail := fmt.Errorf("failed to create raw connection from %s file handle: %s", com, err)
-		log.Error(detail)
-		return detail
-	}
-
 	return nil
 }
 
