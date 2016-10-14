@@ -20,7 +20,7 @@ type PortLayerOptionsType struct {
 	SDK       string        `long:"sdk" description:"SDK URL or proxy" env:"VC_URL" required:"true"`
 	Cert      string        `long:"cert" description:"Client certificate" env:"VC_CERTIFICATE"`
 	Key       string        `long:"key" description:"Private key file" env:"VC_PRIVATE_KEY"`
-	Insecure  bool          `long:"insecure" default:"true" description:"Skip verification of server certificate" env:"VC_INSECURE"`
+	Insecure  bool          `long:"insecure" default:"false" description:"Skip verification of server certificate" env:"VC_INSECURE"`
 	Keepalive time.Duration `long:"keepalive" default:"5m" description:"Session timeout" env:"VC_KEEPALIVE"`
 
 	DatacenterPath string `long:"datacenter" default:"/ha-datacenter" description:"Datacenter path" env:"DC_PATH" required:"true"`

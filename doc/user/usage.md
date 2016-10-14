@@ -19,43 +19,45 @@ Replace the `<fields>` in the example with values specific to your environment -
 - --force flag is to remove an existing datastore folder or VM with the same name.
 
 ```
-vic-machine-linux create --target target-host[/datacenter] --image-store <datastore name> --name <vch-name> --user root --password <password> --compute-resource <resource pool path>
+vic-machine-linux create --target target-host[/datacenter] --image-store <datastore name> --name <vch-name> --user root --password <password> --compute-resource <resource pool path> --no-tlsverify
 ```
 This will, if successful, produce output similar to the following when deploying VIC Engine onto an ESXi:
 ```
-INFO[2016-06-29T14:41:08-07:00] ### Installing VCH ####
-INFO[2016-06-29T14:41:08-07:00] Generating certificate/key pair - private key in ./vic-001-key.pem
-INFO[2016-06-29T14:41:09-07:00] Validating supplied configuration
-INFO[2016-06-29T14:41:09-07:00] Firewall status: DISABLED on /ha-datacenter/host/localhost.localdomain/localhost.localdomain
-INFO[2016-06-29T14:41:09-07:00] Firewall configuration OK on hosts:
-INFO[2016-06-29T14:41:09-07:00]   /ha-datacenter/host/localhost.localdomain/localhost.localdomain
-WARN[2016-06-29T14:41:09-07:00] Evaluation license detected. VIC may not function if evaluation expires or insufficient license is later assigned.
-INFO[2016-06-29T14:41:09-07:00] License check OK
-INFO[2016-06-29T14:41:09-07:00] DRS check SKIPPED - target is standalone host
-INFO[2016-06-29T14:41:09-07:00] Creating Resource Pool vic-001
-INFO[2016-06-29T14:41:09-07:00] Creating VirtualSwitch
-INFO[2016-06-29T14:41:09-07:00] Creating Portgroup
-INFO[2016-06-29T14:41:09-07:00] Creating appliance on target
-INFO[2016-06-29T14:41:09-07:00] Network role external is sharing NIC with management
-INFO[2016-06-29T14:41:09-07:00] Network role client is sharing NIC with management
-INFO[2016-06-29T14:41:09-07:00] Uploading images for container
-INFO[2016-06-29T14:41:09-07:00]   /home/user/go/src/github.com/vmware/vic/bin/appliance.iso
-INFO[2016-06-29T14:41:09-07:00]   /home/user/go/src/github.com/vmware/vic/bin/bootstrap.iso
-INFO[2016-06-29T14:41:15-07:00] Waiting for IP information
-INFO[2016-06-29T14:41:35-07:00] Waiting for major appliance components to launch
-INFO[2016-06-29T14:41:36-07:00] Initialization of appliance successful
-INFO[2016-06-29T14:41:36-07:00]
-INFO[2016-06-29T14:41:36-07:00] SSH to appliance (default=root:password)
-INFO[2016-06-29T14:41:36-07:00] ssh root@192.168.218.129
-INFO[2016-06-29T14:41:36-07:00]
-INFO[2016-06-29T14:41:36-07:00] Log server:
-INFO[2016-06-29T14:41:36-07:00] https://192.168.218.129:2378
-INFO[2016-06-29T14:41:36-07:00]
-INFO[2016-06-29T14:41:36-07:00] DOCKER_HOST=192.168.218.129:2376
-INFO[2016-06-29T14:41:36-07:00]
-INFO[2016-06-29T14:41:36-07:00] Connect to docker:
-INFO[2016-06-29T14:41:36-07:00] docker -H 192.168.218.129:2376 --tls info
-INFO[2016-06-29T14:41:36-07:00] Installer completed successfully
+INFO[2016-10-08T23:37:34Z] Generating self-signed certificate/key pair - private key in ./XXX/key.pem
+WARN[2016-10-08T23:37:34Z] Configuring without TLS verify - client authentication disabled
+INFO[2016-10-08T23:37:34Z] ### Installing VCH ####
+INFO[2016-10-08T23:37:34Z] Validating supplied configuration
+INFO[2016-10-08T23:37:34Z] Firewall status: DISABLED on "/ha-datacenter/host/esx-a.localdomain/esx-a.localdomain"
+WARN[2016-10-08T23:37:34Z] Firewall configuration will be incorrect if firewall is reenabled on hosts:
+WARN[2016-10-08T23:37:34Z]   "/ha-datacenter/host/esx-a.localdomain/esx-a.localdomain"
+WARN[2016-10-08T23:37:34Z] Firewall must permit 2377/tcp outbound if firewall is reenabled
+INFO[2016-10-08T23:37:34Z] License check OK
+INFO[2016-10-08T23:37:34Z] DRS check SKIPPED - target is standalone host
+INFO[2016-10-08T23:37:34Z] Creating Resource Pool "XXX"
+INFO[2016-10-08T23:37:35Z] Creating directory [datastore1] volumes
+INFO[2016-10-08T23:37:35Z] Datastore path is [datastore1] volumes
+INFO[2016-10-08T23:37:35Z] Creating appliance on target
+INFO[2016-10-08T23:37:35Z] Network role "management" is sharing NIC with "client"
+INFO[2016-10-08T23:37:35Z] Network role "external" is sharing NIC with "client"
+INFO[2016-10-08T23:37:35Z] Uploading images for container
+INFO[2016-10-08T23:37:35Z]      "bootstrap.iso"
+INFO[2016-10-08T23:37:35Z]      "appliance.iso"
+INFO[2016-10-08T23:37:39Z] Waiting for IP information
+INFO[2016-10-08T23:37:51Z] Waiting for major appliance components to launch
+INFO[2016-10-08T23:38:01Z] Initialization of appliance successful
+INFO[2016-10-08T23:38:01Z]
+INFO[2016-10-08T23:38:01Z] vic-admin portal:
+INFO[2016-10-08T23:38:01Z] https://x.x.x.x:2378
+INFO[2016-10-08T23:38:01Z]
+INFO[2016-10-08T23:38:01Z] Docker environment variables:
+INFO[2016-10-08T23:38:01Z]   DOCKER_HOST=x.x.x.x:2376
+INFO[2016-10-08T23:38:01Z]
+INFO[2016-10-08T23:38:01Z] Environment saved in XXX/XXX.env
+INFO[2016-10-08T23:38:01Z]
+INFO[2016-10-08T23:38:01Z] Connect to docker:
+INFO[2016-10-08T23:38:01Z] docker -H x.x.x.x:2376 --tls info
+INFO[2016-10-08T23:38:01Z] Installer completed successfully
+
 ```
 
 
@@ -83,24 +85,56 @@ Specify the same resource pool and VCH name used to create a VCH, vic-machine in
 
 ```
 vic-machine-linux inspect --target target-host[/datacenter] --user root --password <password> --compute-resource <resource pool path> --name <vch-name>
-INFO[2016-06-29T16:03:17-05:00] ### Inspecting VCH ####
-INFO[2016-06-29T16:03:20-05:00]
-INFO[2016-06-29T16:03:20-05:00] VCH: <resource pool path>/<vch-name>
-INFO[2016-06-29T16:03:21-05:00]
-INFO[2016-06-29T16:03:21-05:00] SSH to appliance (default=root:password)
-INFO[2016-06-29T16:03:21-05:00] ssh root@x.x.x.x
-INFO[2016-06-29T16:03:21-05:00]
-INFO[2016-06-29T16:03:21-05:00] Log server:
-INFO[2016-06-29T16:03:21-05:00] https://x.x.x.x:2378
-INFO[2016-06-29T16:03:21-05:00]
-INFO[2016-06-29T16:03:21-05:00] DOCKER_HOST=x.x.x.x:2376
-INFO[2016-06-29T16:03:21-05:00] DOCKER_OPTS="-H x.x.x.x:2376"
-INFO[2016-06-29T16:03:21-05:00]
-INFO[2016-06-29T16:03:21-05:00] Connect to docker:
-INFO[2016-06-29T16:03:21-05:00] docker -H x.x.x.x:2376 info
-INFO[2016-06-29T16:03:21-05:00] Completed successfully
+INFO[2016-10-08T23:40:28Z] ### Inspecting VCH ####
+INFO[2016-10-08T23:40:29Z]
+INFO[2016-10-08T23:40:29Z] VCH ID: VirtualMachine:286
+INFO[2016-10-08T23:40:29Z]
+INFO[2016-10-08T23:40:29Z] Installer version: v0.6.0-0-0fac2c0
+INFO[2016-10-08T23:40:29Z] VCH version: v0.6.0-0-0fac2c0
+INFO[2016-10-08T23:40:29Z]
+INFO[2016-10-08T23:40:29Z] VCH upgrade status:
+INFO[2016-10-08T23:40:29Z] Installer has same version as VCH
+INFO[2016-10-08T23:40:29Z] No upgrade available with this installer version
+INFO[2016-10-08T23:40:29Z]
+INFO[2016-10-08T23:40:29Z] vic-admin portal:
+INFO[2016-10-08T23:40:29Z] https://x.x.x.x:2378
+INFO[2016-10-08T23:40:29Z]
+INFO[2016-10-08T23:40:29Z] Docker environment variables:
+INFO[2016-10-08T23:40:29Z]   DOCKER_HOST=x.x.x.x:2376
+INFO[2016-10-08T23:40:29Z]
+INFO[2016-10-08T23:40:29Z]
+INFO[2016-10-08T23:40:29Z] Connect to docker:
+INFO[2016-10-08T23:40:29Z] docker -H x.x.x.x:2376 --tls info
+INFO[2016-10-08T23:40:29Z] Completed successfully
 ```
 
+
+## Enabling SSH to Virtual Container Host appliance
+Specify the same resource pool and VCH name used to create a VCH, vic-machine debug will enable SSH on the appliance VM and then display the VCH information, now with SSH entry.
+
+```
+vic-machine-linux debug --target target-host[/datacenter] --user root --password <password> --compute-resource <resource pool path> --name <vch-name> --enable-ssh --rootpw <other password> --authorized-key <keyfile>
+INFO[2016-10-08T23:41:16Z] ### Configuring VCH for debug ####
+INFO[2016-10-08T23:41:16Z]
+INFO[2016-10-08T23:41:16Z] VCH ID: VirtualMachine:286
+INFO[2016-10-08T23:41:16Z]
+INFO[2016-10-08T23:41:16Z] Installer version: v0.6.0-0-0fac2c0
+INFO[2016-10-08T23:41:16Z] VCH version: v0.6.0-0-0fac2c0
+INFO[2016-10-08T23:41:16Z]
+INFO[2016-10-08T23:41:16Z] SSH to appliance
+INFO[2016-10-08T23:41:16Z] ssh root@x.x.x.x
+INFO[2016-10-08T23:41:16Z]
+INFO[2016-10-08T23:41:16Z] vic-admin portal:
+INFO[2016-10-08T23:41:16Z] https://x.x.x.x:2378
+INFO[2016-10-08T23:41:16Z]
+INFO[2016-10-08T23:41:16Z] Docker environment variables:
+INFO[2016-10-08T23:41:16Z]   DOCKER_HOST=x.x.x.x:2376
+INFO[2016-10-08T23:41:16Z]
+INFO[2016-10-08T23:41:16Z]
+INFO[2016-10-08T23:41:16Z] Connect to docker:
+INFO[2016-10-08T23:41:16Z] docker -H x.x.x.x:2376 --tls info
+INFO[2016-10-08T23:41:16Z] Completed successfully
+```
 
 ## List Virtual Container Hosts
 

@@ -2,7 +2,7 @@
 
 *Developing Container Applications with vSphere Integrated Containers Engine* provides information about how to use vSphere Integrated Containers Engine as the endpoint for Docker container application development.
 
-**Product version: 0.6.0**
+**Product version: 0.7.0**
 
 **NOTE**  This book is a work in progress.
 
