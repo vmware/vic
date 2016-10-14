@@ -812,7 +812,6 @@ func (c *Create) generateCertificates(ca bool) ([]byte, *certificate.KeyPair, er
 		log.Error("Common Name must be provided when generating certificates for client authentication:")
 		log.Info("  --tls-cname=<FQDN or static IP> # for the appliance VM")
 		log.Info("  --tls-cname=<*.yourdomain.com>  # if DNS has entries in that form for DHCP addresses (less secure)")
-		log.Info("  --no-tlsverify              	# disables client authentication (anyone can connect to the VCH)")
 		log.Info("  --no-tlsverify                  # disables client authentication (anyone can connect to the VCH)")
 		log.Info("")
 

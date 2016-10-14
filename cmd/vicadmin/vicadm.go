@@ -139,6 +139,11 @@ func init() {
 	extraconfig.Decode(src, &vchConfig)
 }
 
+type Authenticator interface {
+	// Validate will validate a user and password combo and return a bool.
+	Validate(string, string) bool
+}
+
 type entryReader interface {
 	open() (entry, error)
 }

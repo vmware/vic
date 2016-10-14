@@ -21,9 +21,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
+	"net/url"
+	"os"
 	"path"
 	"strconv"
+	"syscall"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -50,7 +54,12 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
-const portLayerPort = constants.SerialOverLANPort
+const (
+	portLayerPort = constants.SerialOverLANPort
+
+	// this is generated in the crypto/tls.alert code
+	badTLSCertificate = "tls: bad certificate"
+)
 
 var (
 	lastSeenProgressMessage string
@@ -692,7 +701,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 			// find the name to use
 			addr, err = addrToUse(d.HostIP, conf)
 			if err != nil {
-				log.Warn("Unable to determine address to use with remote certificate, skipping component checks")
+				log.Warn("Unable to determine address to use with remote certificate, skipping API liveliness checks")
 				tlsErrExpected = true
 			}
 		}
@@ -716,23 +725,76 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 	defer ticker.Stop()
 	for {
 		res, err = client.Do(req)
-		if err != nil {
-			log.Debugf("Error recieved from endpoint: %s", err)
-		}
-
 		if err == nil && res.StatusCode == http.StatusOK {
 			if isPortLayerRunning(res) {
 				break
 			}
 		}
 
-		// TODO: add check for rejection without cert - indicates a degree of initialization
-		// HTTP status 403.7. Change this to check for structured error and status codes if possible
-		if tlsErrExpected && err != nil {
-			log.Debugf("Expected TLS error from endpoint due to IP based addressing, skipping component check: %+v", err)
-			// TODO: check for 403.17 - we see that regardless until the appliance has updated
-			// it's clock in some cases
-			break
+		if err != nil {
+			// DEBU[2016-10-11T22:22:38Z] Error recieved from endpoint: Get https://192.168.78.127:2376/info: dial tcp 192.168.78.127:2376: getsockopt: connection refused &{%!t(string=Get) %!t(string=https://192.168.78.127:2376/info) %!t(*net.OpError=&{dial tcp <nil> 0xc4204505a0 0xc4203a5e00})}
+			// DEBU[2016-10-11T22:22:39Z] Components not yet initialized, retrying
+			// ERR=&url.Error{
+			//     Op:  "Get",
+			//     URL: "https://192.168.78.127:2376/info",
+			//     Err: &net.OpError{
+			//         Op:     "dial",
+			//         Net:    "tcp",
+			//         Source: nil,
+			//         Addr:   &net.TCPAddr{
+			//             IP:   {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xff, 0xff, 0xc0, 0xa8, 0x4e, 0x7f},
+			//             Port: 2376,
+			//             Zone: "",
+			//         },
+			//         Err: &os.SyscallError{
+			//             Syscall: "getsockopt",
+			//             Err:     syscall.Errno(0x6f),
+			//         },
+			//     },
+			// }
+			// DEBU[2016-10-11T22:22:41Z] Error recieved from endpoint: Get https://192.168.78.127:2376/info: remote error: tls: bad certificate &{%!t(string=Get) %!t(string=https://192.168.78.127:2376/info) %!t(*net.OpError=&{remote error  <nil> <nil> 42})}
+			// DEBU[2016-10-11T22:22:42Z] Components not yet initialized, retrying
+			// ERR=&url.Error{
+			//     Op:  "Get",
+			//     URL: "https://192.168.78.127:2376/info",
+			//     Err: &net.OpError{
+			//         Op:     "remote error",
+			//         Net:    "",
+			//         Source: nil,
+			//         Addr:   nil,
+			//         Err:    tls.alert(0x2a),
+			//     },
+			// }
+
+			// ECONNREFUSED: 111, 0x6f
+
+			uerr, ok := err.(*url.Error)
+			if ok {
+				operr, ok2 := uerr.Err.(*net.OpError)
+				if ok2 {
+					switch root := operr.Err.(type) {
+					case *os.SyscallError:
+						if root.Err == syscall.Errno(syscall.ECONNREFUSED) {
+							// waiting for API server to start
+							log.Debug("connection refused")
+						}
+					default:
+						// the TLS package doesn't expose the raw reason codes
+						// but we're actually looking for alertBadCertificate (42)
+						errmsg := root.Error()
+						if errmsg == badTLSCertificate {
+							// TODO: programmatic check for clock skew on host
+							log.Errorf("Connection failed with TLS error \"bad certificate\" - check for clock skew on the host")
+						} else if tlsErrExpected {
+							log.Warnf("Expected TLS error without client certificate, received error: %s", errmsg)
+						} else {
+							log.Errorf("Connection failed with error: %s", root)
+						}
+
+						return root
+					}
+				}
+			}
 		}
 
 		select {
