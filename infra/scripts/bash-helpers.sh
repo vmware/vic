@@ -34,7 +34,7 @@ vic-path () {
 vic-create () {
     pushd $(vic-path)/bin/
 
-    $(vic-path)/bin/vic-machine-linux create -target="$GOVC_URL" -image-store="$IMAGE_STORE" -compute-resource="$COMPUTE" ${TLS} ${TLS_OPTS} --name=${VIC_NAME:-${USER}test} ${MAPPED_NETWORKS} ${VOLUME_STORES} ${NETWORKS} ${IPADDR} ${TIMEOUT} $*
+    $(vic-path)/bin/vic-machine-linux create -target="$GOVC_URL" -image-store="$IMAGE_STORE" -compute-resource="$COMPUTE" ${TLS} ${TLS_OPTS} --name=${VIC_NAME:-${USER}test} ${MAPPED_NETWORKS} ${VOLUME_STORES} ${NETWORKS} ${IPADDR} ${TIMEOUT} --thumbprint=$THUMBPRINT $*
 
     envfile=${VIC_NAME:-${USER}test}/${VIC_NAME:-${USER}test}.env
     if [ -f "$envfile" ]; then
@@ -51,7 +51,7 @@ vic-create () {
 }
 
 vic-delete () {
-    $(vic-path)/bin/vic-machine-linux delete -target="$GOVC_URL" -compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --force $*
+    $(vic-path)/bin/vic-machine-linux delete -target="$GOVC_URL" -compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --thumbprint=$THUMBPRINT --force $*
 }
 
 vic-inspect () {
