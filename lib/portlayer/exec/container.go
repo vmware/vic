@@ -483,7 +483,7 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 					log.Infof("power off %s task skipped due to guest shutdown", c.ExecConfig.ID)
 					return nil
 				}
-				log.Warnf("hard power off failed due to: %#v", terr)
+				log.Warnf("generic vm config fault during power off: %#v", terr)
 
 			default:
 				log.Warnf("hard power off failed due to: %#v", terr)
