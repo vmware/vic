@@ -31,8 +31,9 @@ import (
 type Target struct {
 	URL *url.URL
 
-	User     string
-	Password *string
+	User       string
+	Password   *string
+	Thumbprint string
 }
 
 func NewTarget() *Target {
@@ -56,6 +57,11 @@ func (t *Target) TargetFlags() []cli.Flag {
 			Name:  "password, p",
 			Value: flags.NewOptionalString(&t.Password),
 			Usage: "ESX or vCenter password",
+		},
+		cli.StringFlag{
+			Name:        "thumbprint",
+			Destination: &t.Thumbprint,
+			Usage:       "ESX or vCenter host certificate thumbprint",
 		},
 	}
 }

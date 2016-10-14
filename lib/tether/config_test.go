@@ -36,8 +36,8 @@ func TestToExtraConfig(t *testing.T) {
 			ID:   "deadbeef",
 			Name: "configtest",
 		},
-		Sessions: map[string]executor.SessionConfig{
-			"deadbeef": {
+		Sessions: map[string]*executor.SessionConfig{
+			"deadbeef": &executor.SessionConfig{
 				Cmd: executor.Cmd{
 					Path: "/bin/bash",
 					Args: []string{"/bin/bash", "-c", "echo hello"},
@@ -45,7 +45,7 @@ func TestToExtraConfig(t *testing.T) {
 					Env:  []string{"HOME=/", "PATH=/bin"},
 				},
 			},
-			"beefed": {
+			"beefed": &executor.SessionConfig{
 				Cmd: executor.Cmd{
 					Path: "/bin/bash",
 					Args: []string{"/bin/bash", "-c", "echo goodbye"},
@@ -55,7 +55,7 @@ func TestToExtraConfig(t *testing.T) {
 			},
 		},
 		Networks: map[string]*executor.NetworkEndpoint{
-			"eth0": {
+			"eth0": &executor.NetworkEndpoint{
 				Static: true,
 				IP:     &net.IPNet{IP: localhost, Mask: lmask.Mask},
 				Network: executor.ContainerNetwork{

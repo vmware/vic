@@ -95,8 +95,26 @@ func CreateNoDCCheck(ctx context.Context, input *data.Data) (*Validator, error) 
 		tURL.Path = ""
 	}
 
+	if tURL.Scheme == "https" && input.Thumbprint == "" {
+		var cert object.HostCertificateInfo
+		if err = cert.FromURL(tURL, new(tls.Config)); err != nil {
+			return nil, err
+		}
+
+		if cert.Err != nil {
+			if !input.Force {
+				// TODO: prompt user / check ./known_hosts
+				return nil, cert.Err
+			}
+		}
+
+		input.Thumbprint = cert.ThumbprintSHA1
+		log.Debugf("Accepting host %q thumbprint %s", tURL.Host, input.Thumbprint)
+	}
+
 	sessionconfig := &session.Config{
-		Insecure: input.Insecure,
+		Thumbprint: input.Thumbprint,
+		Insecure:   input.Force,
 	}
 
 	// if a datacenter was specified, set it
@@ -308,7 +326,7 @@ func (v *Validator) target(ctx context.Context, input *data.Data, conf *config.V
 	v.managedbyVC(ctx)
 
 	conf.Target = *targetURL
-	conf.Insecure = input.Insecure
+	conf.TargetThumbprint = input.Thumbprint
 
 	// TODO: more checks needed here if specifying service account for VCH
 }

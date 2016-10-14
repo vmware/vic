@@ -460,6 +460,7 @@ func main() {
 	config.ExtensionCert = vchConfig.ExtensionCert
 	config.ExtensionKey = vchConfig.ExtensionKey
 	config.ExtensionName = vchConfig.ExtensionName
+	config.Thumbprint = vchConfig.TargetThumbprint
 
 	s := &server{
 		addr: config.addr,

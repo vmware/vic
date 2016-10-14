@@ -155,6 +155,8 @@ type Connection struct {
 	ExtensionName string `vic:"0.1" scope:"read-only" key:"extension_name"`
 	// Whether the session connection is secure
 	Insecure bool `vic:"0.1" scope:"read-only" key:"insecure"`
+	// TargetThumbprint is the SHA-1 digest of the Target's public certificate
+	TargetThumbprint string `vic:"0.1" scope:"read-only" key:"target_thumbprint"`
 	// The session timeout
 	Keepalive time.Duration `vic:"0.1" scope:"read-only" key:"keepalive"`
 }
@@ -240,7 +242,7 @@ func (t *VirtualContainerHostConfigSpec) AddContainerNetwork(net *executor.Conta
 func (t *VirtualContainerHostConfigSpec) AddComponent(name string, component *executor.SessionConfig) {
 	if component != nil {
 		if t.ExecutorConfig.Sessions == nil {
-			t.ExecutorConfig.Sessions = make(map[string]executor.SessionConfig)
+			t.ExecutorConfig.Sessions = make(map[string]*executor.SessionConfig)
 		}
 
 		if component.Name == "" {
@@ -249,7 +251,7 @@ func (t *VirtualContainerHostConfigSpec) AddComponent(name string, component *ex
 		if component.ID == "" {
 			component.ID = name
 		}
-		t.ExecutorConfig.Sessions[name] = *component
+		t.ExecutorConfig.Sessions[name] = component
 	}
 }
 
