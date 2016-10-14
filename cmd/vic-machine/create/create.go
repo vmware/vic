@@ -23,6 +23,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"time"
@@ -669,7 +670,10 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 			continue
 		}
 
-		log.Infof("Assigning %s based on %s", ip.String(), staticIP)
+		if ip.String() != staticIP {
+			log.Infof("Assigning %s based on %s", ip.String(), staticIP)
+		}
+
 		network.IP = net.IPNet{
 			IP:   ip,
 			Mask: network.Gateway.Mask,
@@ -859,6 +863,17 @@ func (c *Create) generateCertificates(ca bool) ([]byte, *certificate.KeyPair, er
 	c.clientCert, err = ckp.Certificate()
 	if err != nil {
 		log.Warnf("Failed to stash client certificate for later application level validation: %s", err)
+	}
+
+	// if openssl is present, try to generate a browser friendly pfx file
+	args := strings.Split(fmt.Sprintf("pkcs12 -export -out ./%[1]s/cert.pfx -inkey ./%[1]s/key.pem -in ./%[1]s/cert.pem -certfile ./%[1]s/ca.pem -password pass:", c.DisplayName), " ")
+	pfx := exec.Command("openssl", args...)
+	out, err := pfx.CombinedOutput()
+	if err != nil {
+		log.Debug(out)
+		log.Warnf("Failed to generate browser friendly PFX client certificate: %s", err)
+	} else {
+		log.Infof("Generated browser friendly PFX client certificate - certificate in ./%s/cert.pfx", c.DisplayName)
 	}
 
 	return cakp.CertPEM, skp, nil
