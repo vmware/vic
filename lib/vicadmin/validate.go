@@ -69,12 +69,12 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	if version.Version != "" {
 		v.Version = version.Version
 	}
-	log.Info(fmt.Sprintf("Setting version to %s", v.Version))
+	log.Infof("Setting version to %s", v.Version)
 
 	//VCH Name
 	v.Hostname, _ = os.Hostname()
 	v.Hostname = strings.Title(v.Hostname)
-	log.Info(fmt.Sprintf("Setting hostname to %s", v.Hostname))
+	log.Infof("Setting hostname to %s", v.Hostname)
 
 	//Firewall Status Check
 	v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
@@ -90,8 +90,8 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 			v.FirewallIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.FirewallIssues, err))
 		}
 	}
-	log.Info(fmt.Sprintf("FirewallStatus set to: %s", v.FirewallStatus))
-	log.Info(fmt.Sprintf("FirewallIssues set to: %s", v.FirewallIssues))
+	log.Infof("FirewallStatus set to: %s", v.FirewallStatus)
+	log.Infof("FirewallIssues set to: %s", v.FirewallIssues)
 
 	//License Check
 	v2.ClearIssues()
@@ -107,6 +107,8 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 			v.LicenseIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.LicenseIssues, err))
 		}
 	}
+	log.Infof("LicenseStatus set to: %s", v.LicenseStatus)
+	log.Infof("LicenseIssues set to: %s", v.LicenseIssues)
 
 	//Network Connection Check
 	hosts := []string{
@@ -134,6 +136,8 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 		v.NetworkIssues = template.HTML("")
 
 	}
+	log.Infof("NetworkStatus set to: %s", v.NetworkStatus)
+	log.Infof("NetworkIssues set to: %s", v.NetworkIssues)
 
 	//Retrieve Host IP Information and Set Docker Endpoint
 	v.HostIP = vch.ExecutorConfig.Networks["client"].Assigned.IP.String()
