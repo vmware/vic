@@ -25,7 +25,7 @@ outfile="functional_logs_"$1".zip"
 echo $Build
 echo $outfile
 
-/usr/bin/zip -9 $outfile *.xml *.html *.log *.zip
+/usr/bin/zip -9 -r $outfile 5-1-DistributedSwitch 5-2-Cluster 5-4-High-Availability 5-5-Heterogenous-ESXi 5-6-VSAN 5-7-NSX 5-8-DRS
 
 # GC credentials
 keyfile="/root/vic-ci-logs.key"

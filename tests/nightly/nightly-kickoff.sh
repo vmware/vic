@@ -14,25 +14,13 @@
 # limitations under the License.
 #
 
-# Renames the log files before uploading to google cloud.
-RenameLogs() {
-
-mv output.xml output_$1.xml
-mv log.html log_$1.html
-mv vic-machine.log vic-machine_$1.log
-
-}
-
 echo "Removing VIC directory if present"
-rm -rf bin
-
 echo "Cleanup logs from previous run"
-rm -f *.xml
-rm -f *.html
-rm -f *.log
-rm -f *.zip
+rm -rf bin 5-1-DistributedSwitch 5-2-Cluster 5-4-High-Availability 5-5-Heterogenous-ESXi 5-6-VSAN 5-7-NSX 5-8-DRS
+rm -rf *.zip *.log
 
 input=$(wget -O - https://vmware.bintray.com/vic-repo |tail -n5 |head -n1 |cut -d':' -f 2 |cut -d'.' -f 3| cut -d'>' -f 2)
+buildNumber=${input:4}
 
 echo "Downloading bintray file $input"
 wget https://vmware.bintray.com/vic-repo/$input.tar.gz
@@ -45,7 +33,7 @@ tar xvzf $input.tar.gz -C bin/ --strip 1
 echo "Deleting .tar.gz vic file"
 rm $input.tar.gz
 
-drone exec --trusted -e test="pybot tests/manual-test-cases/Group5-Functional-Tests/5-1-Distributed-Switch.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+drone exec --trusted -e test="pybot -d 5-1-DistributedSwitch tests/manual-test-cases/Group5-Functional-Tests/5-1-Distributed-Switch.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 
 if [ $? -eq 0 ]
 then
@@ -56,9 +44,9 @@ echo "Failed"
 DistributedSwitchStatus="FAILED!"
 fi
 
-RenameLogs "5-1-Distributed-Switch"
+mv *.log 5-1-DistributedSwitch
 
-drone exec --trusted -e test="pybot tests/manual-test-cases/Group5-Functional-Tests/5-2-Cluster.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+drone exec --trusted -e test="pybot -d 5-2-Cluster tests/manual-test-cases/Group5-Functional-Tests/5-2-Cluster.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 
 if [ $? -eq 0 ]
 then
@@ -67,9 +55,9 @@ else
 ClusterStatus="FAILED!"
 fi
 
-RenameLogs "5-2-Cluster"
+mv *.log 5-2-Cluster
 
-drone exec --trusted -e test="pybot tests/manual-test-cases/Group5-Functional-Tests/5-4-High-Availability.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+drone exec --trusted -e test="pybot -d 5-4-High-Availability tests/manual-test-cases/Group5-Functional-Tests/5-4-High-Availability.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 if [ $? -eq 0 ]
 then
 HighAvailabilityStatus="Passed"
@@ -77,9 +65,9 @@ else
 HighAvailabilityStatus="FAILED!"
 fi
 
-RenameLogs "5-4-High-Availability"
+mv *.log 5-4-High-Availability
 
-drone exec --trusted -e test="pybot tests/manual-test-cases/Group5-Functional-Tests/5-5-Heterogenous-ESXi.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+drone exec --trusted -e test="pybot -d 5-5-Heterogenous-ESXi tests/manual-test-cases/Group5-Functional-Tests/5-5-Heterogenous-ESXi.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 if [ $? -eq 0 ]
 then
 HeterogenousStatus="Passed"
@@ -87,9 +75,9 @@ else
 HeterogenousStatus="FAILED!"
 fi
 
-RenameLogs "5-5-Heterogenous-ESXi"
+mv *.log 5-5-Heterogenous-ESXi
 
-drone exec --trusted -e test="pybot tests/manual-test-cases/Group5-Functional-Tests/5-6-VSAN.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+drone exec --trusted -e test="pybot -d 5-6-VSAN tests/manual-test-cases/Group5-Functional-Tests/5-6-VSAN.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 if [ $? -eq 0 ]
 then
 VSANStatus="Passed"
@@ -97,9 +85,9 @@ else
 VSANStatus="FAILED!"
 fi
 
-RenameLogs "5-6-VSAN"
+mv *.log 5-6-VSAN
 
-drone exec --trusted -e test="pybot tests/manual-test-cases/Group5-Functional-Tests/5-7-NSX.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+drone exec --trusted -e test="pybot -d 5-7-NSX tests/manual-test-cases/Group5-Functional-Tests/5-7-NSX.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 if [ $? -eq 0 ]
 then
 NSXStatus="Passed"
@@ -107,9 +95,9 @@ else
 NSXStatus="FAILED!"
 fi
 
-RenameLogs "5-7-NSX"
+mv *.log 5-7-NSX
 
-drone exec --trusted -e test="pybot tests/manual-test-cases/Group5-Functional-Tests/5-8-DRS.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+drone exec --trusted -e test="pybot -d 5-8-DRS tests/manual-test-cases/Group5-Functional-Tests/5-8-DRS.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 if [ $? -eq 0 ]
 then
 DRSStatus="Passed"
@@ -117,9 +105,9 @@ else
 DRSStatus="FAILED!"
 fi
 
-RenameLogs "5-8-DRS"
+mv *.log 5-8-DRS
 
-if [[ $DistributedSwitchStatus = "Passed" && $ClusterStatus = "Passed" && $HighAvailabilityStatus = "Passed" && $HeterogenousStatus = "Passed" && $VSANStatus = "Passed" $NSXStatus = "Passed" $DRSStatus = "Passed" ]]
+if [[ $DistributedSwitchStatus = "Passed" && $ClusterStatus = "Passed" && $HighAvailabilityStatus = "Passed" && $HeterogenousStatus = "Passed" && $VSANStatus = "Passed" && $NSXStatus = "Passed" && $DRSStatus = "Passed" ]]
 then
 buildStatus=0
 else
@@ -136,7 +124,7 @@ then
 echo "Success"
 cat <<EOT >> nightly_mail.html
 To: rashok@vmware.com
-Subject: Nightly Tests $input
+Subject: VIC Nightly Run #$buildNumber
 From: VIC Nightly
 MIME-Version: 1.0
 Content-Type: text/html
@@ -351,10 +339,9 @@ Content-Type: text/html
               <tr>
                   <td class="alert alert-good">
                     <a href="{{ system.link_url }}/{{ repo.owner }}/{{ repo.name }}/{{ build.number }}">
-                      Successful build #$input
+                      Successful build #$buildNumber
                     </a>
                   </td>
-                
               </tr>
               <tr>
                 <td class="content-wrap">
@@ -439,7 +426,7 @@ else
 echo "Failure"
 cat <<EOT >> nightly_mail.html
 To: rashok@vmware.com
-Subject: Nightly Tests $input
+Subject: VIC Nightly Run #$buildNumber
 From: VIC Nightly
 MIME-Version: 1.0
 Content-Type: text/html
@@ -654,7 +641,7 @@ Content-Type: text/html
               <tr>
                   <td class="alert alert-bad">
                     <a href="{{ system.link_url }}/{{ repo.owner }}/{{ repo.name }}/{{ build.number }}">
-                      Failed build #$input
+                      Failed build #$buildNumber
                     </a>
                   </td>
               </tr>
