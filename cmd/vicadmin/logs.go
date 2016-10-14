@@ -131,8 +131,14 @@ func configureReaders() map[string]entryReader {
 		// TODO: ls without shelling out
 		"disk-by-path":  commandReader("ls -l /dev/disk/by-path"),
 		"disk-by-label": commandReader("ls -l /dev/disk/by-label"),
+		"disk-by-uuid":  commandReader("ls -l /dev/disk/by-uuid"),
 		// To check we are not leaking any fds
 		"proc-self-fd": commandReader("ls -l /proc/self/fd"),
+		"ps":           commandReader("ps -ef"),
+		"meminfo":      fileReader("/proc/meminfo"),
+		"journalctl":   commandReader("/bin/journalctl --no-pager"),
+		"dmesg":        commandReader("/bin/journalctl --dmesg --no-pager"),
+		"sys-block":    commandReader("ls -l /sys/block/"),
 	}
 
 	// add the pprof collection
