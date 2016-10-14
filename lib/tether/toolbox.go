@@ -19,14 +19,14 @@ package tether
 import (
 	"errors"
 	"fmt"
-	"net"
+	"os"
 	"sync"
 	"syscall"
 	"time"
 
-	"golang.org/x/crypto/ssh"
-
 	log "github.com/Sirupsen/logrus"
+	"github.com/vishvananda/netlink"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/pkg/vsphere/toolbox"
@@ -219,25 +219,30 @@ func (t *Toolbox) halt() error {
 
 // externalIP attempts to find an external IP to be reported as the guest IP
 func (t *Toolbox) externalIP() string {
-	netif, err := net.InterfaceByName("client")
-	if err != nil {
+	l, err := netlink.LinkByName("client")
+	if err != nil && !os.IsNotExist(err) {
+		log.Errorf("error looking up client interface: %s", err)
 		return ""
 	}
 
-	addrs, err := netif.Addrs()
+	l, err = netlink.LinkByAlias("client")
 	if err != nil {
+		log.Errorf("error looking up client interface: %s", err)
 		return ""
 	}
 
-	for _, addr := range addrs {
-		if ip, ok := addr.(*net.IPNet); ok {
-			if ip.IP.To4() != nil {
-				return ip.IP.String()
-			}
-		}
+	addrs, err := netlink.AddrList(l, netlink.FAMILY_V4)
+	if err != nil {
+		log.Errorf("error getting address list for client interface: %s", err)
+		return ""
 	}
 
-	return ""
+	if len(addrs) == 0 {
+		log.Warnf("no addresses set on client interface")
+		return ""
+	}
+
+	return addrs[0].IP.String()
 }
 
 // defaultIP tries externalIP, falling back to toolbox.DefaultIP()
