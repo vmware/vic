@@ -204,15 +204,17 @@ func (t *attachServerSSH) stop() error {
 	log.Debugf("Setting enabled to false")
 	t.Disabled()
 
-	// This context is used by backchannel and we need to cancel it before
-	// trying to obtain the following lock so that backchannel releases it.
+	// This context is used by backchannel only. We need to cancel it before
+	// trying to obtain the following lock so that backchannel interrupts the
+	// underlying Read call by calling Close on it.
+	// The lock is  held by backchannel's caller and not released until it returns
 	log.Debugf("Canceling the context")
 	t.cancel()
 
 	log.Debugf("Acquiring the connection lock")
 	t.conn.Lock()
 	if t.conn.conn != nil {
-		log.Debugf("Closing the connection")
+		log.Debugf("Close called again on rawconn - squashing")
 		(*t.conn.conn).Close()
 		t.conn.conn = nil
 	}
@@ -235,25 +237,28 @@ func backchannel(ctx context.Context, conn *net.Conn) error {
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
 
-	ch := make(chan struct{}, 1)
-
+	// We run this in a seperate goroutine because HandshakeServer
+	// calls a Read on rawconn which is a blocking call which causes
+	// the caller to block as well so this is the only way to cancel.
+	// Calling Close() will unblock us and on the next tick we will
+	// return ctx.Err()
 	go func() {
 		select {
 		case <-ctx.Done():
 			(*conn).Close()
-			close(ch)
 		}
 	}()
 
 	for {
 		select {
 		case <-ticker.C:
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
 			err := serial.HandshakeServer(ctx, *conn)
 			if err == nil {
 				return nil
 			}
-		case <-ch:
-			return ctx.Err()
 		}
 	}
 }
