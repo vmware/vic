@@ -15,13 +15,11 @@
 package main
 
 import (
-	"context"
 	"crypto/rand"
 	"fmt"
 	"net"
 	"os"
 	"syscall"
-	"time"
 	"unsafe"
 
 	"golang.org/x/crypto/ssh"
@@ -63,42 +61,6 @@ func rawConnectionFromSerial() (*net.Conn, error) {
 
 	conn, err = serial.NewFileConn(f)
 	return &conn, err
-}
-
-func backchannel(ctx context.Context, conn *net.Conn) error {
-	defer trace.End(trace.Begin("establish tether backchannel"))
-
-	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
-	// it does implement the Timeout methods so the intermediary code can be written
-	// to support it, but they are stub implementation in rawconn impl.
-
-	// This needs to tick *faster* than the ticker in connection.go on the
-	// portlayer side.  The PL sends the first syn and if this isn't waiting,
-	// alignment will take a few rounds (or it may never happen).
-	ticker := time.NewTicker(10 * time.Millisecond)
-	defer ticker.Stop()
-
-	ch := make(chan struct{}, 1)
-
-	go func() {
-		select {
-		case <-ctx.Done():
-			(*conn).Close()
-			close(ch)
-		}
-	}()
-
-	for {
-		select {
-		case <-ticker.C:
-			err := serial.HandshakeServer(ctx, *conn)
-			if err == nil {
-				return nil
-			}
-		case <-ch:
-			return ctx.Err()
-		}
-	}
 }
 
 func (t *attachServerSSH) Start() error {
