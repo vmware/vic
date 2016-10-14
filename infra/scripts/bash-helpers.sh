@@ -34,7 +34,7 @@ vic-path () {
 vic-create () {
     pushd $(vic-path)/bin/
 
-    $(vic-path)/bin/vic-machine-linux create -target="$GOVC_URL" -image-store="$IMAGE_STORE" -compute-resource="$COMPUTE" ${TLS} ${TLS_OPTS} --name=${VIC_NAME:-${USER}test} ${MAPPED_NETWORKS} ${VOLUME_STORES} ${NETWORKS} ${IPADDR} ${TIMEOUT} --thumbprint=$THUMBPRINT $*
+    $(vic-path)/bin/vic-machine-linux create --target="$GOVC_URL" --image-store="$IMAGE_STORE" --compute-resource="$COMPUTE" ${TLS} ${TLS_OPTS} --name=${VIC_NAME:-${USER}test} ${MAPPED_NETWORKS} ${VOLUME_STORES} ${NETWORKS} ${IPADDR} ${TIMEOUT} --thumbprint=$THUMBPRINT $*
 
     envfile=${VIC_NAME:-${USER}test}/${VIC_NAME:-${USER}test}.env
     if [ -f "$envfile" ]; then
@@ -51,15 +51,15 @@ vic-create () {
 }
 
 vic-delete () {
-    $(vic-path)/bin/vic-machine-linux delete -target="$GOVC_URL" -compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --thumbprint=$THUMBPRINT --force $*
+    $(vic-path)/bin/vic-machine-linux delete --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --thumbprint=$THUMBPRINT --force $*
 }
 
 vic-inspect () {
-    $(vic-path)/bin/vic-machine-linux inspect -target="$GOVC_URL" -compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --thumbprint=$THUMBPRINT $*
+    $(vic-path)/bin/vic-machine-linux inspect --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --thumbprint=$THUMBPRINT $*
 }
 
 vic-ls () {
-    $(vic-path)/bin/vic-machine-linux ls -target="$GOVC_URL" --thumbprint=$THUMBPRINT $*
+    $(vic-path)/bin/vic-machine-linux ls --target="$GOVC_URL" --thumbprint=$THUMBPRINT $*
 }
 
 vic-ssh () {
@@ -68,7 +68,7 @@ vic-ssh () {
         keyarg="--authorized-key=$HOME/.ssh/authorized_keys"
     fi
 
-    out=$($(vic-path)/bin/vic-machine-linux debug -target="$GOVC_URL" -compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --enable-ssh $keyarg --rootpw=password --thumbprint=$THUMBPRINT $*)
+    out=$($(vic-path)/bin/vic-machine-linux debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --enable-ssh $keyarg --rootpw=password --thumbprint=$THUMBPRINT $*)
     host=$(echo $out | grep DOCKER_HOST | sed -n 's/.*DOCKER_HOST=\([^i:]*\).*/\1/p')
 
     echo "SSH to ${host}"
