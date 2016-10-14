@@ -19,13 +19,11 @@ package tether
 import (
 	"errors"
 	"fmt"
-	"os"
 	"sync"
 	"syscall"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vishvananda/netlink"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
@@ -50,14 +48,13 @@ func NewToolbox() *Toolbox {
 	out := toolbox.NewBackdoorChannelOut()
 
 	service := toolbox.NewService(in, out)
+	service.PrimaryIP = toolbox.DefaultIP
 
 	return &Toolbox{Service: service}
 }
 
 // Start implementation of the tether.Extension interface
 func (t *Toolbox) Start() error {
-	t.Service.PrimaryIP = t.defaultIP
-
 	t.stop = make(chan struct{})
 	on := make(chan struct{})
 
@@ -215,42 +212,4 @@ func (t *Toolbox) halt() error {
 	log.Warnf("killing %s", session.ID)
 
 	return session.Cmd.Process.Kill()
-}
-
-// externalIP attempts to find an external IP to be reported as the guest IP
-func (t *Toolbox) externalIP() string {
-	l, err := netlink.LinkByName("client")
-	if err != nil && !os.IsNotExist(err) {
-		log.Errorf("error looking up client interface: %s", err)
-		return ""
-	}
-
-	l, err = netlink.LinkByAlias("client")
-	if err != nil {
-		log.Errorf("error looking up client interface: %s", err)
-		return ""
-	}
-
-	addrs, err := netlink.AddrList(l, netlink.FAMILY_V4)
-	if err != nil {
-		log.Errorf("error getting address list for client interface: %s", err)
-		return ""
-	}
-
-	if len(addrs) == 0 {
-		log.Warnf("no addresses set on client interface")
-		return ""
-	}
-
-	return addrs[0].IP.String()
-}
-
-// defaultIP tries externalIP, falling back to toolbox.DefaultIP()
-func (t *Toolbox) defaultIP() string {
-	ip := t.externalIP()
-	if ip != "" {
-		return ip
-	}
-
-	return toolbox.DefaultIP()
 }
