@@ -447,35 +447,6 @@ func TestListImages(t *testing.T) {
 	}
 }
 
-func TestArrayUpdate(t *testing.T) {
-	attributes := []string{"green", "blue", "red"}
-
-	// remove an existing value
-	attributes, chg := arrayUpdate("green", attributes, Remove)
-	if !chg && len(attributes) == 2 {
-		t.Error("arrayUpdate failed to remove existing value")
-	}
-
-	// add a new value
-	attributes, chg = arrayUpdate("green", attributes, Add)
-	if !chg && len(attributes) == 3 {
-		t.Error("arrayUpdate failed to add new value")
-	}
-
-	// add existing value
-	attributes, chg = arrayUpdate("green", attributes, Add)
-	if chg && len(attributes) == 3 {
-		t.Error("arrayUpdate failed while adding existing value")
-	}
-
-	// attempt to remove non-existent value
-	attributes, chg = arrayUpdate("foobar", attributes, Remove)
-	if chg && len(attributes) == 3 {
-		t.Error("arrayUpdate failed while removing non-existent value")
-	}
-
-}
-
 func TestFetchScenarios(t *testing.T) {
 
 	ctx := context.TODO()
