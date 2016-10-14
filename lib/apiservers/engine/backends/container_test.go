@@ -26,6 +26,7 @@ import (
 
 	"github.com/docker/docker/api/types/backend"
 	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	dnetwork "github.com/docker/engine-api/types/network"
@@ -334,6 +335,9 @@ func AddMockImageToCache() {
 	}
 
 	cache.ImageCache().AddImage(mockImage)
+
+	ref, _ := reference.ParseNamed(mockImage.Reference)
+	cache.RepositoryCache().AddReference(ref, mockImage.ImageID, false, mockImage.ImageID, false)
 }
 
 func AddMockContainerToCache() {

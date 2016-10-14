@@ -37,6 +37,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/reference"
 
+	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/metadata"
 	urlfetcher "github.com/vmware/vic/pkg/fetcher"
@@ -51,6 +52,11 @@ type ImageC struct {
 	// https://raw.githubusercontent.com/docker/docker/master/distribution/pull_v2.go
 	sf             *streamformatter.StreamFormatter
 	progressOutput progress.Output
+
+	// ImageLayers are sourced from the manifest file
+	ImageLayers []*ImageWithMeta
+	// ImageID is the docker ImageID calculated during download
+	ImageID string
 }
 
 // NewImageC returns a new instance of ImageC
@@ -246,114 +252,43 @@ func (ic *ImageC) LayersToDownload() ([]*ImageWithMeta, error) {
 	return images, nil
 }
 
-// Will updated metadata based on the current image being requested
-//
-// Currently only tags are updated, but once imagec supports pulling by digest
-// then digest will need to be updated as well
-func updateImageMetadata(ic *ImageC, imageLayer *ImageWithMeta, manifest *Manifest) error {
-	// if standalone no need to continue
+// updateRepositoryCache will update the repository cache
+// that resides in the docker persona.  This will add image tag,
+// digest and layer information.
+func updateRepositoryCache(ic *ImageC) error {
+	// if standalone then no persona, so exit
 	if ic.Standalone {
 		return nil
 	}
-	// updated Image slice
-	var updatedImages []*ImageWithMeta
+	// LayerID for the image layer
+	imageLayerID := ic.ImageLayers[0].ID
 
-	// assuming calls to the portlayer are cheap, lets get all existing images
-	existingImages, err := ListImages(ic.Host, imageLayer.Store, nil)
+	ref, err := reference.ParseNamed(ic.Reference)
 	if err != nil {
-		return fmt.Errorf("updateImageMetadata failed to obtain list of images: %s", err)
+		return fmt.Errorf("Unable to parse reference: %s", err.Error())
 	}
+	// get the repoCache
+	repoCache := cache.RepositoryCache()
 
-	// iterate overall the images and remove the tag that was just downloaded
-	for id := range existingImages {
-		// utlizing index to avoid copy
-		existingImage := existingImages[id]
+	// In the case that we don't have the ImageID, then we need
+	// to go to the RepositoryCache to get it.
+	if ic.ImageID == "" {
+		// call to repository cache for the imageID for this layer
+		ic.ImageID = repoCache.GetImageID(imageLayerID)
 
-		imageMeta := &metadata.ImageConfig{}
-		// tag / digest info only resides in the metadata so must unmarshall meta to determine
-		if err := json.Unmarshal([]byte(existingImage.Metadata[metadata.MetaDataKey]), imageMeta); err != nil {
-			return fmt.Errorf("updateImageMetadata failed to get existing metadata: Layer(%s) %s", id, err)
-		}
-
-		// if this isn't an image we can skip..
-		if imageMeta.ImageID == "" {
-			continue
-		}
-
-		// is this the same repo (busybox, etc)
-		if imageMeta.Name == ic.Image {
-
-			// default action to remove and update if necessary
-			action := Remove
-			if id == imageLayer.ID {
-				// add to the array if this layer is the requested layer
-				action = Add
-			}
-
-			// TODO: imagec doesn't support pulling by digest - add digest support once
-			// issue 1186 is implemented
-			if newTags, ok := arrayUpdate(manifest.Tag, imageMeta.Tags, action); ok {
-				imageMeta.Tags = newTags
-
-				// We need the parent id this is the layer ID of the parent disk
-				// Parent is returned from the PL as a full URL, so we only need the base
-				layerParent := path.Base(*existingImage.Parent)
-
-				// marshall back to dumb byte array
-				meta, err := json.Marshal(imageMeta)
-				if err != nil {
-					return fmt.Errorf("updateImageMetadata unable to marshal modified metadata: %s", err.Error())
-				}
-				updatedImage := &ImageWithMeta{Image: &models.Image{
-					ID:     id,
-					Parent: &layerParent,
-					Store:  imageLayer.Store,
-				},
-					meta: string(meta),
-					// create a dummy sum as this is required by the portlayer,
-					// but since we are only updating metadata it will be ignored
-					layer: FSLayer{BlobSum: "this-is-required"},
-				}
-				updatedImages = append(updatedImages, updatedImage)
-			}
-
+		// if we still don't have an imageID we can't continue
+		if ic.ImageID == "" {
+			return fmt.Errorf("ImageID not found by LayerID(%s) in RepositoryCache", imageLayerID)
 		}
 	}
-
-	log.Debugf("%d images require metadata updates", len(updatedImages))
-	for id := range updatedImages {
-		// utlizing index to avoid copy
-		update := updatedImages[id]
-		log.Debugf("updating ImageMetadata: layerID(%s)", update.ID)
-		//Send the Metadata to the PL to write to disk
-		err = WriteImage(ic.Host, update, nil)
-		if err != nil {
-			return fmt.Errorf("updateImageMetadata failed to writeMeta to the portLayer: %s", err.Error())
-		}
-
+	// AddReference will add the tag / digest as appropriate and will persist
+	// to the portlayer k/v
+	err = repoCache.AddReference(ref, ic.ImageID, false, imageLayerID, true)
+	if err != nil {
+		return fmt.Errorf("Unable to Add Image Reference(%s): %s", ref.String(), err.Error())
 	}
+
 	return nil
-}
-
-// Will conditionally update array based on presence of value
-func arrayUpdate(val string, list []string, action int) ([]string, bool) {
-
-	for index, item := range list {
-		if val == item {
-			if action == Remove {
-				// remove item requested
-				list = append(list[:index], list[index+1:]...)
-				return list, true
-			}
-			// item already in array
-			return list, false
-		}
-	}
-	if action == Add {
-		list = append(list, val)
-		return list, true
-	}
-	return list, false
 }
 
 // WriteImageBlob writes the image blob to the storage layer
@@ -580,9 +515,17 @@ func (ic *ImageC) PullImage() error {
 	}
 
 	ic.ImageManifest = manifest
+	layers, err := ic.LayersToDownload()
+	if err != nil {
+		return err
+	}
+	ic.ImageLayers = layers
 
 	err = ldm.DownloadLayers(ctx, ic)
 	if err != nil {
+		return err
+	}
+	if err = updateRepositoryCache(ic); err != nil {
 		return err
 	}
 

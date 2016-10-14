@@ -15,14 +15,15 @@
 package portlayer
 
 import (
-	log "github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
-
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/network"
 	"github.com/vmware/vic/lib/portlayer/storage"
+	"github.com/vmware/vic/lib/portlayer/store"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
+
+	log "github.com/Sirupsen/logrus"
+	"golang.org/x/net/context"
 )
 
 // XXX TODO(FA) use this in the _handlers the swagger server includes.
@@ -56,6 +57,19 @@ func Init(ctx context.Context, sess *session.Session) error {
 	// Grab the storage layer config blobs from extra config
 	extraconfig.Decode(source, &storage.Config)
 	log.Debugf("Decoded VCH config for storage: %#v", storage.Config)
+
+	// create or restore a portlayer k/v store
+	if len(storage.Config.ImageStores) > 0 {
+		// Note: Use of ImageStores is soley to identify the starting point for
+		// k/v store persistence -- specifically the [datastore]{appliance-name} as
+		// the starting point.  If this URL changes and no longer provides that information
+		// then the k/v store persistence will require updating.
+
+		// init the store package and create the default store
+		if err = store.Init(ctx, sess, storage.Config.ImageStores[0]); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
