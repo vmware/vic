@@ -26,6 +26,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/pkg/certificate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
@@ -51,7 +52,7 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 	}
 
 	d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.IP.String()
-	log.Debug("IP address for client interface: %s", d.HostIP)
+	log.Debugf("IP address for client interface: %s", d.HostIP)
 	if !conf.HostCertificate.IsNil() {
 		d.VICAdminProto = "https"
 		d.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
@@ -59,6 +60,20 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 		d.VICAdminProto = "http"
 		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
 	}
+
+	// try looking up preferred name, irrespective of CAs
+	if cert, err := conf.HostCertificate.X509Certificate(); err == nil {
+		names, _ := certificate.ViableHostAddresses(cert)
+		if len(names) > 0 {
+			log.Debugf("Retrieved names from host certificate: %q", names)
+			log.Debugf("Assigning first name from set: %s", names[0])
+
+			log.Infof("Using address from host certificate over allocated IP: %s", d.HostIP)
+			// reassign
+			d.HostIP = names[0]
+		}
+	}
+
 	d.ShowVCH(conf, "", "", "", "")
 	return nil
 }
@@ -76,14 +91,11 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 	log.Infof("")
 	tls := ""
 
-	addr := d.HostIP
 	dEnv := " "
 	if !conf.HostCertificate.IsNil() {
 		// if we're generating then there's no CA currently
 		if len(conf.CertificateAuthorities) > 0 {
 			// find the name to use
-			addr, _ = addrToUse(d.HostIP, conf)
-
 			if key != "" {
 				tls = fmt.Sprintf(" --tlsverify --tlscacert=%q --tlscert=%q --tlskey=%q", cacert, cert, key)
 			} else {
@@ -102,7 +114,7 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 		}
 	}
 
-	dEnv = fmt.Sprintf("%s DOCKER_HOST=%s:%s", dEnv, addr, d.DockerPort)
+	dEnv = fmt.Sprintf("%s DOCKER_HOST=%s:%s", dEnv, d.HostIP, d.DockerPort)
 	log.Infof("Docker environment variables:")
 	log.Info(dEnv)
 	log.Infof("")
@@ -114,5 +126,5 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 
 	log.Infof("")
 	log.Infof("Connect to docker:")
-	log.Infof("docker -H %s:%s%s info", addr, d.DockerPort, tls)
+	log.Infof("docker -H %s:%s%s info", d.HostIP, d.DockerPort, tls)
 }

@@ -697,8 +697,8 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 			// if tlsverify was configured at all then we must verify the remote
 			tr.TLSClientConfig.InsecureSkipVerify = false
 
-			// find the name to use
-			addr, err = addrToUse(d.HostIP, conf)
+			// find the name to use and override the IP
+			d.HostIP, err = addrToUse(d.HostIP, conf)
 			if err != nil {
 				log.Warn("Unable to determine address to use with remote certificate, skipping API liveliness checks")
 				tlsErrExpected = true
@@ -713,7 +713,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 		client = &http.Client{Transport: tr}
 	}
 
-	dockerInfoURL := fmt.Sprintf("%s://%s:%s/info", proto, addr, d.DockerPort)
+	dockerInfoURL := fmt.Sprintf("%s://%s:%s/info", proto, d.HostIP, d.DockerPort)
 	req, err = http.NewRequest("GET", dockerInfoURL, nil)
 	if err != nil {
 		return errors.New("invalid HTTP request for docker info")
