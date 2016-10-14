@@ -15,7 +15,7 @@ Curl
 *** Test Cases ***
 Display HTML    
      ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl  ${EMPTY}
-     Should contain  ${output}  <title>VCH Admin</title>
+     Should contain  ${output}  <title>VIC: ${vch-name}</title>
 
 Get Portlayer Log
     ${output}=  Wait Until Keyword Succeeds  10x  10s  Curl  /logs/port-layer.log
@@ -42,7 +42,7 @@ Fail to Get VICAdmin Log without cert
 Fail to Display HTML without cert
     ${output}=  Run  curl -sk ${vic-admin}
     Log  ${output}
-    Should Not contain  ${output}  <title>VCH Admin</title>
+    Should Not contain  ${output}  <title>VCH ${vch-name}</title>
 
 Fail to get Portlayer Log without cert
     ${output}=  Run  curl -sk ${vic-admin}/logs/port-layer.log
