@@ -17,7 +17,6 @@ package main
 import (
 	"os"
 	"runtime/debug"
-	"strings"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
@@ -29,7 +28,11 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/toolbox"
 )
 
-var tthr tether.Tether
+var (
+	tthr       tether.Tether
+	config     ExecutorConfig
+	debugLevel int
+)
 
 func init() {
 	trace.Logger.Level = log.DebugLevel
@@ -44,6 +47,17 @@ func main() {
 		reboot()
 	}()
 
+	src, err := extraconfig.GuestInfoSourceWithPrefix("init")
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	extraconfig.Decode(src, &config)
+
+	debugLevel = config.Diagnostics.DebugLevel
+	setLogLevels()
+
 	logFile, err := os.OpenFile("/dev/ttyS1", os.O_WRONLY|os.O_SYNC, 0644)
 	if err != nil {
 		log.Errorf("Could not pipe stderr to serial for debugging info. Some debug info may be lost! Error reported was %s", err)
@@ -56,17 +70,6 @@ func main() {
 	_, err = os.Stderr.WriteString("all stderr redirected to debug log")
 	if err != nil {
 		log.Errorf("Could not write to Stderr due to error %s", err)
-	}
-	if strings.HasSuffix(os.Args[0], "-debug") {
-		extraconfig.DecodeLogLevel = log.DebugLevel
-		extraconfig.EncodeLogLevel = log.DebugLevel
-	}
-	log.SetLevel(log.DebugLevel)
-
-	src, err := extraconfig.GuestInfoSourceWithPrefix("init")
-	if err != nil {
-		log.Error(err)
-		return
 	}
 
 	sink, err := extraconfig.GuestInfoSinkWithPrefix("init")
@@ -92,10 +95,19 @@ func main() {
 	log.Info("Clean exit from init")
 }
 
+func setLogLevels() {
+	if debugLevel > 0 {
+		extraconfig.DecodeLogLevel = log.DebugLevel
+		extraconfig.EncodeLogLevel = log.DebugLevel
+
+		log.SetLevel(log.DebugLevel)
+	}
+}
+
 // exit cleanly shuts down the system
 func halt() {
 	log.Infof("Powering off the system")
-	if strings.HasSuffix(os.Args[0], "-debug") {
+	if debugLevel > 0 {
 		log.Info("Squashing power off for debug init")
 		return
 	}
@@ -106,7 +118,7 @@ func halt() {
 
 func reboot() {
 	log.Infof("Rebooting the system")
-	if strings.HasSuffix(os.Args[0], "-debug") {
+	if debugLevel > 0 {
 		log.Info("Squashing reboot for debug init")
 		return
 	}

@@ -16,14 +16,13 @@ package trace
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"sync/atomic"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-
-	"golang.org/x/net/context"
 )
 
 const OpTraceKey = "traceKey"
