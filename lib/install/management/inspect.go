@@ -17,7 +17,6 @@ package management
 import (
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"path/filepath"
 
@@ -27,6 +26,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/pkg/certificate"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/ip"
 	"github.com/vmware/vic/pkg/trace"
@@ -55,6 +55,7 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 	}
 
 	d.HostIP = clientIP.String()
+
 	log.Debugf("IP address for client interface: %s", d.HostIP)
 	if !conf.HostCertificate.IsNil() {
 		d.VICAdminProto = "https"
@@ -66,21 +67,15 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 
 	// try looking up preferred name, irrespective of CAs
 	if cert, err := conf.HostCertificate.X509Certificate(); err == nil {
-		name, _ := viableHostAddress([]net.IP{clientIP}, cert, conf.CertificateAuthorities)
-		if name != "" {
-			log.Debugf("Retrieved proposed name from host certificate: %q", name)
-			log.Debugf("Assigning first name from set: %s", name)
+		names, _ := certificate.ViableHostAddresses(cert)
+		if len(names) > 0 {
+			log.Debugf("Retrieved names from host certificate: %q", names)
+			log.Debugf("Assigning first name from set: %s", names[0])
 
-			if name != d.HostIP {
-				log.Infof("Using address from host certificate over allocated IP: %s", d.HostIP)
-				// reassign
-				d.HostIP = name
-			}
-		} else {
-			log.Warnf("Unable to identify address acceptable to host certificate")
+			log.Infof("Using address from host certificate over allocated IP: %s", d.HostIP)
+			// reassign
+			d.HostIP = names[0]
 		}
-	} else {
-		log.Debugf("Failed to load host cert: %s", err)
 	}
 
 	d.ShowVCH(conf, "", "", "", "")
