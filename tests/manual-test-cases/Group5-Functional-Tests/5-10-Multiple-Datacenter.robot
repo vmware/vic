@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation  Test 5-10 - Multiple Datacenters
 Resource  ../../resources/Nimbus-Util.robot
-#Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup
 
 *** Test Cases ***
 Test
