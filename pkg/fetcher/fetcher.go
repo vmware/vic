@@ -391,7 +391,6 @@ func (u *URLFetcher) setBasicAuth(req *http.Request) {
 
 func (u *URLFetcher) setAuthToken(req *http.Request) {
 	if u.options.Token != nil {
-		log.Debugf("Setting AuthToken: %s", u.options.Token.Token)
 		req.Header.Set("Authorization", "Bearer "+u.options.Token.Token)
 	}
 }
