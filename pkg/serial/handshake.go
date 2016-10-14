@@ -162,8 +162,7 @@ func HandshakeClient(ctx context.Context, conn net.Conn, debug bool) error {
 	return nil
 }
 
-func readMultiple(ctx context.Context, conn net.Conn, b []byte) (int, error) {
-
+func readMultiple(conn net.Conn, b []byte) (int, error) {
 	if runtime.GOOS != "windows" {
 		return conn.Read(b)
 	}
@@ -202,7 +201,7 @@ func HandshakeServer(ctx context.Context, conn net.Conn) error {
 
 	log.Debug("server: reading syn")
 	// syn is 3 bytes as that will eventually syn us again if we're offset
-	if n, err := readMultiple(ctx, conn, syn); n != 2 || err != nil || syn[0] != flagSyn {
+	if n, err := readMultiple(conn, syn); n != 2 || err != nil || syn[0] != flagSyn {
 		var msg string
 		if err != nil {
 			msg = fmt.Sprintf("server: failed to read expected SYN: n=%d, err=%s", n, err)
@@ -235,7 +234,7 @@ func HandshakeServer(ctx context.Context, conn net.Conn) error {
 	ack[0] = flagAck
 	ack[1] = synack[2] + 1
 	log.Debug("server: reading ack")
-	readMultiple(ctx, conn, buf)
+	readMultiple(conn, buf)
 	if (buf[0] != flagAck && buf[0] != flagDebugAck) || bytes.Compare(ack[1:], buf[1:]) != 0 {
 		msg := fmt.Sprintf("server: did not receive ack: %#x != %#x", ack, buf)
 		log.Debug(msg)
