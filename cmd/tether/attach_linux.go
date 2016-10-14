@@ -76,6 +76,18 @@ func backchannel(ctx context.Context, conn *net.Conn) error {
 	// portlayer side.  The PL sends the first syn and if this isn't waiting,
 	// alignment will take a few rounds (or it may never happen).
 	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+
+	ch := make(chan struct{}, 1)
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			(*conn).Close()
+			close(ch)
+		}
+	}()
+
 	for {
 		select {
 		case <-ticker.C:
@@ -83,9 +95,7 @@ func backchannel(ctx context.Context, conn *net.Conn) error {
 			if err == nil {
 				return nil
 			}
-		case <-ctx.Done():
-			(*conn).Close()
-			ticker.Stop()
+		case <-ch:
 			return ctx.Err()
 		}
 	}
