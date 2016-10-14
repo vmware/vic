@@ -155,6 +155,8 @@ type Connection struct {
 	ExtensionName string `vic:"0.1" scope:"read-only" key:"extension_name"`
 	// Whether the session connection is secure
 	Insecure bool `vic:"0.1" scope:"read-only" key:"insecure"`
+	// TargetThumbprint is the SHA-1 digest of the Target's public certificate
+	TargetThumbprint string `vic:"0.1" scope:"read-only" key:"target_thumbprint"`
 	// The session timeout
 	Keepalive time.Duration `vic:"0.1" scope:"read-only" key:"keepalive"`
 }

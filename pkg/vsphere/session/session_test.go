@@ -15,6 +15,7 @@
 package session
 
 import (
+	"crypto/tls"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/find"
+	"github.com/vmware/vic/pkg/vsphere/simulator"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 )
 
@@ -130,6 +132,57 @@ func TestFolder(t *testing.T) {
 		folders := session.Folders(ctx)
 		if folders == nil || folders.VmFolder == nil {
 			t.Errorf("Get empty folder")
+		}
+	}
+}
+
+func TestConnect(t *testing.T) {
+	ctx := context.Background()
+
+	for _, model := range []*simulator.Model{simulator.ESX(), simulator.VPX()} {
+		defer model.Remove()
+		err := model.Create()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		model.Service.TLS = new(tls.Config)
+		s := model.Service.NewServer()
+		defer s.Close()
+
+		config := &Config{
+			Keepalive: time.Minute,
+			Service:   s.URL.String(),
+		}
+
+		for _, thumbprint := range []string{"", s.CertificateInfo().ThumbprintSHA1} {
+			u := *s.URL
+			config.Service = u.String()
+			config.Thumbprint = thumbprint
+
+			_, err = NewSession(config).Connect(ctx)
+			if thumbprint == "" {
+				if err == nil {
+					t.Error("expected x509.UnknownAuthorityError error")
+				}
+			} else {
+				if err != nil {
+					t.Error(err)
+				}
+			}
+
+			u.User = nil
+			config.Service = u.String()
+			_, err = NewSession(config).Connect(ctx)
+			if err == nil {
+				t.Fatal("expected login error")
+			}
+
+			config.Service = ""
+			_, err = NewSession(config).Connect(ctx)
+			if err == nil {
+				t.Fatal("expected URL parse error")
+			}
 		}
 	}
 }
