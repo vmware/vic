@@ -170,6 +170,7 @@ func (c *Container) SetState(s State) State {
 }
 
 func (c *Container) updateState(s State) State {
+	log.Debugf("Setting container %s state: %s", c.ExecConfig.ID, s)
 	prevState := c.state
 	if s != c.state {
 		c.state = s
@@ -267,6 +268,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 	// If an event has occurred then put the container in the cache
 	// and publish the container event
 	defer func() {
+		log.Debugf("Commiting container %s status as: %s", c.ExecConfig.ID, commitEvent)
 		if commitEvent != "" {
 			Containers.Put(c)
 			publishContainerEvent(c.ExecConfig.ID, time.Now().UTC(), commitEvent)
@@ -391,7 +393,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 		commitEvent = events.ContainerStarted
 
-		// refresh the struct with what propery collector provides
+		// refresh the struct with what property collector provides
 		if err := c.refresh(ctx); err != nil {
 			return err
 		}
@@ -439,7 +441,7 @@ func (c *Container) start(ctx context.Context) error {
 	}
 
 	// this state will be set by defer function.
-	finalState = StateStarting
+	finalState = StateRunning
 	return nil
 }
 
@@ -509,6 +511,7 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 
 	err := c.shutdown(ctx, waitTime)
 	if err == nil {
+		c.updateState(StateStopped)
 		return nil
 	}
 
@@ -542,9 +545,10 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 			log.Warnf("hard power off failed due to: %#v", terr)
 		}
 		c.updateState(existingState)
+		return err
 	}
-
-	return err
+	c.updateState(StateStopped)
+	return nil
 }
 
 func (c *Container) startGuestProgram(ctx context.Context, name string, args string) error {

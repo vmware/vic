@@ -115,7 +115,7 @@ func eventCallback(ie events.Event) {
 	container := Containers.Container(ie.Reference())
 	if container != nil {
 
-		newState := eventedState(ie.String(), container.state)
+		newState := eventedState(ie.String(), container.CurrentState())
 		// do we have a state change
 		if newState != container.CurrentState() {
 			switch newState {
@@ -124,9 +124,10 @@ func eventCallback(ie events.Event) {
 				StateStopped,
 				StateSuspended:
 
-				log.Debugf("Container(%s) state set to %s via event activity", container.ExecConfig.ID, newState.String())
-				container.SetState(newState)
+				log.Debugf("Container(%s) state set to %s via event activity",
+					container.ExecConfig.ID, newState.String())
 
+				container.SetState(newState)
 				if newState == StateStopped {
 					container.onStop()
 				}
