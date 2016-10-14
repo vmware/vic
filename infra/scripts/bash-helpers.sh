@@ -55,15 +55,11 @@ vic-delete () {
 }
 
 vic-inspect () {
-    out=$($(vic-path)/bin/vic-machine-linux inspect -target="$GOVC_URL" -compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} $*)
-    thumb=$(echo $out | grep thumbprint | sed -n 's/.*thumbprint=\([^i\)]*\).*/\1/p')
-    $(vic-path)/bin/vic-machine-linux inspect -target="$GOVC_URL" -compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --thumbprint=$thumb $*
+    $(vic-path)/bin/vic-machine-linux inspect -target="$GOVC_URL" -compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --thumbprint=$THUMBPRINT $*
 }
 
 vic-ls () {
-    out=$($(vic-path)/bin/vic-machine-linux ls -target="$GOVC_URL" $*)
-    thumb=$(echo $out | grep thumbprint | sed -n 's/.*thumbprint=\([^i\)]*\).*/\1/p')
-    $(vic-path)/bin/vic-machine-linux ls -target="$GOVC_URL" --thumbprint=$thumb $*
+    $(vic-path)/bin/vic-machine-linux ls -target="$GOVC_URL" --thumbprint=$THUMBPRINT $*
 }
 
 vic-ssh () {
@@ -72,10 +68,7 @@ vic-ssh () {
         keyarg="--authorized-key=$HOME/.ssh/authorized_keys"
     fi
 
-    # run twice, first without --thumbprint to learn the thumbprint and then with --thumbprint
-    out=$($(vic-path)/bin/vic-machine-linux debug -target="$GOVC_URL" -compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --enable-ssh $keyarg --rootpw=password $*)
-    thumb=$(echo $out | grep thumbprint | sed -n 's/.*thumbprint=\([^i\)]*\).*/\1/p')
-    out=$($(vic-path)/bin/vic-machine-linux debug -target="$GOVC_URL" -compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --enable-ssh $keyarg --rootpw=password --thumbprint=$thumb $*)
+    out=$($(vic-path)/bin/vic-machine-linux debug -target="$GOVC_URL" -compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --enable-ssh $keyarg --rootpw=password --thumbprint=$THUMBPRINT $*)
     host=$(echo $out | grep DOCKER_HOST | sed -n 's/.*DOCKER_HOST=\([^i:]*\).*/\1/p')
 
     echo "SSH to ${host}"
@@ -89,18 +82,20 @@ addr-from-dockerhost () {
 # import the custom sites
 # example entry, actived by typing "example"
 #example () {
-    #	target='https://user:password@host.domain.com/datacenter'
-    #	unset-vic
-    #
-    #	export GOVC_URL=$target
-    #	export COMPUTE=cluster/pool
-    #	export DATASTORE=datastore1
-    #	export IMAGE_STORE=$DATASTORE/image/path
-    #	export NETWORKS="--bridge-network=private-dpg-vlan --external-network=extern-dpg"
-    #	export TIMEOUT="--timeout=10m"
-    #	export IPADDR="--client-network-ip=vch-hostname.domain.com --client-network-gateway=x.x.x.x/22 --dns-server=y.y.y.y --dns-server=z.z.z.z"
-    #	export TLS="--tls-cname=vch-hostname.domain.com --organisation=MyCompany"
-    #	export VIC_NAME="MyVCH"
-    #}
+#    target='https://user:password@host.domain.com/datacenter'
+#    unset-vic
+#
+#    export GOVC_URL=$target
+#
+#    eval "export THUMBPRINT=$(govc-linux about.cert -k -json | jq -r .ThumbprintSHA1)"
+#    export COMPUTE=cluster/pool
+#    export DATASTORE=datastore1
+#    export IMAGE_STORE=$DATASTORE/image/path
+#    export NETWORKS="--bridge-network=private-dpg-vlan --external-network=extern-dpg"
+#    export TIMEOUT="--timeout=10m"
+#    export IPADDR="--client-network-ip=vch-hostname.domain.com --client-network-gateway=x.x.x.x/22 --dns-server=y.y.y.y --dns-server=z.z.z.z"
+#    export TLS="--tls-cname=vch-hostname.domain.com --organisation=MyCompany"
+#    export VIC_NAME="MyVCH"
+#}
 
-    . ~/.vic
+. ~/.vic
