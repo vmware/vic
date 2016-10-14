@@ -22,17 +22,17 @@ import (
 
 func TestStateStringer(t *testing.T) {
 
-	c := &Container{State: StateRunning}
+	c := &Container{state: StateRunning}
 
-	assert.Equal(t, "Running", c.State.String())
-	c.State = StateStopped
-	assert.Equal(t, "Stopped", c.State.String())
-	c.State = StateStopping
-	assert.Equal(t, "Stopping", c.State.String())
-	c.State = StateRemoving
-	assert.Equal(t, "Removing", c.State.String())
-	c.State = StateStarting
-	assert.Equal(t, "Starting", c.State.String())
-	c.State = StateCreated
-	assert.Equal(t, "Created", c.State.String())
+	assert.Equal(t, "Running", c.state.String())
+	c.state = StateStopped
+	assert.Equal(t, "Stopped", c.state.String())
+	c.state = StateStopping
+	assert.Equal(t, "Stopping", c.state.String())
+	c.state = StateRemoving
+	assert.Equal(t, "Removing", c.state.String())
+	c.state = StateStarting
+	assert.Equal(t, "Starting", c.state.String())
+	c.state = StateCreated
+	assert.Equal(t, "Created", c.state.String())
 }

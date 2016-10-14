@@ -180,7 +180,7 @@ func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStat
 	}
 
 	var state string
-	switch h.Container.State {
+	switch h.CurrentState() {
 	case exec.StateRunning:
 		state = "RUNNING"
 
@@ -358,20 +358,15 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 		})
 	}
 
-	// if the container is already stopped return
-	if c.State != exec.StateRunning {
+	select {
+	case <-c.WaitForState(exec.StateStopped):
 		containerInfo := convertContainerToContainerInfo(c)
 		return containers.NewContainerWaitOK().WithPayload(containerInfo)
+	case <-ctx.Done():
+		return containers.NewContainerWaitInternalServerError().WithPayload(&models.Error{
+			Message: fmt.Sprintf("ContainerWaitHandler(%s) Error: %s", params.ID, ctx.Err()),
+		})
 	}
-
-	err := exec.WaitForContainerStop(ctx, params.ID)
-	if err != nil {
-		return containers.NewContainerWaitInternalServerError().WithPayload(&models.Error{Message: err.Error()})
-	}
-
-	c = exec.Containers.Container(uid.Parse(params.ID).String())
-	containerInfo := convertContainerToContainerInfo(c)
-	return containers.NewContainerWaitOK().WithPayload(containerInfo)
 }
 
 // utility function to convert from a Container type to the API Model ContainerInfo (which should prob be called ContainerDetail)
@@ -383,7 +378,7 @@ func convertContainerToContainerInfo(container *exec.Container) *models.Containe
 	ccid := container.ExecConfig.ID
 	info.ContainerConfig.ContainerID = &ccid
 
-	s := container.State.String()
+	s := container.CurrentState().String()
 	info.ContainerConfig.State = &s
 	info.ContainerConfig.LayerID = &container.ExecConfig.LayerID
 	info.ContainerConfig.RepoName = &container.ExecConfig.RepoName
