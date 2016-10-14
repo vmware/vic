@@ -429,6 +429,7 @@ Run Unit Tests
     Should Not Contain  ${output}  [build failed]
 
 Run Regression Tests
+    Set Variable If  ${certs}==${true}  ${cert_args}= --cert %{DOCKER_CERT_PATH}/cert.pem --key %{DOCKER_CERT_PATH}/key.pem
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
