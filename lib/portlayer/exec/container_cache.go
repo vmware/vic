@@ -66,7 +66,7 @@ func (conCache *containerCache) Containers(state *State) []*Container {
 			continue
 		}
 
-		if state == nil || *state == con.State {
+		if state == nil || *state == con.CurrentState() {
 			containers = append(containers, con)
 		}
 	}

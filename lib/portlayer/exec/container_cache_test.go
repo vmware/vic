@@ -75,7 +75,7 @@ func addTestVM(container *Container) {
 }
 
 func newTestContainer(id string) *Container {
-	c := &Container{ExecConfig: &executor.ExecutorConfig{}}
+	c := &Container{ExecConfig: &executor.ExecutorConfig{}, newStateEvents: make(map[State]chan struct{})}
 	c.ExecConfig.ID = id
 	return c
 }

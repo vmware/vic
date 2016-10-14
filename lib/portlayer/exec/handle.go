@@ -24,10 +24,9 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/context"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/golang/groupcache/lru"
+	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
@@ -65,9 +64,9 @@ type Handle struct {
 
 	// desired
 	ExecConfig executor.ExecutorConfig
-	State      *State
 
 	Container *Container
+	state     State
 
 	key       string
 	committed bool
@@ -81,16 +80,14 @@ func newHandleKey() string {
 	return hex.EncodeToString(b)
 }
 
-func newHandle(con *Container) *Handle {
+func newHandle(con *Container, state State) *Handle {
 	h := &Handle{
 		key:        newHandleKey(),
 		committed:  false,
 		Container:  con,
 		ExecConfig: *con.ExecConfig,
-		State:      new(State),
+		state:      state,
 	}
-
-	*h.State = con.State
 
 	handlesLock.Lock()
 	defer handlesLock.Unlock()
@@ -98,6 +95,14 @@ func newHandle(con *Container) *Handle {
 	handles.Add(h.key, h)
 
 	return h
+}
+
+func (h *Handle) CurrentState() State {
+	return h.state
+}
+
+func (h *Handle) SetState(s State) {
+	h.state = s
 }
 
 // GetHandle finds and returns the handle that is referred by key
@@ -181,17 +186,15 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 	cfg := make(map[string]string)
 
 	// Set timestamps based on target state
-	if h.State != nil {
-		switch *h.State {
-		case StateRunning:
-			se := h.ExecConfig.Sessions[h.ExecConfig.ID]
-			se.StartTime = time.Now().UTC().Unix()
-			h.ExecConfig.Sessions[h.ExecConfig.ID] = se
-		case StateStopped:
-			se := h.ExecConfig.Sessions[h.ExecConfig.ID]
-			se.StopTime = time.Now().UTC().Unix()
-			h.ExecConfig.Sessions[h.ExecConfig.ID] = se
-		}
+	switch h.CurrentState() {
+	case StateRunning:
+		se := h.ExecConfig.Sessions[h.ExecConfig.ID]
+		se.StartTime = time.Now().UTC().Unix()
+		h.ExecConfig.Sessions[h.ExecConfig.ID] = se
+	case StateStopped:
+		se := h.ExecConfig.Sessions[h.ExecConfig.ID]
+		se.StopTime = time.Now().UTC().Unix()
+		h.ExecConfig.Sessions[h.ExecConfig.ID] = se
 	}
 
 	extraconfig.Encode(extraconfig.MapSink(cfg), h.ExecConfig)
@@ -209,11 +212,6 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 
 func (h *Handle) Close() {
 	removeHandle(h.key)
-}
-
-func (h *Handle) SetState(s State) {
-	h.State = new(State)
-	*h.State = s
 }
 
 func (h *Handle) Create(ctx context.Context, sess *session.Session, config *ContainerCreateConfig) error {
