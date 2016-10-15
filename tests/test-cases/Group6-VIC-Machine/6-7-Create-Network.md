@@ -176,7 +176,7 @@ This test requires that a vSphere server is running and available
    and management networks
 
 # Test Steps
-1. Create with static IP address for managment network and specify client, external, and management
+1. Create with static IP address for management network and specify client, external, and management
    networks to be on the same port group
 2. Verify debug output shows specified static IP address correctly assigned and copied to client
    and external management networks

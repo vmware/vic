@@ -14,7 +14,7 @@ The intent is that vSphere Integrated Containers Engine (VIC Engine) should not 
 
 Replace the `<fields>` in the example with values specific to your environment - this will install VCH to the specified resource pool of ESXi or vCenter, and the container VMs will be created under that resource pool.
 
-- --target is the URL of the destination vSphere environment in the form `https://user:password@ip-or-fqdn/datacenter-name`. Protocol, user, and password are OPTIONAL. Datacenter is OPTIONAL if targetting ESXi or only one datacenter is configured.
+- --target is the URL of the destination vSphere environment in the form `https://user:password@ip-or-fqdn/datacenter-name`. Protocol, user, and password are OPTIONAL. Datacenter is OPTIONAL if targeting ESXi or only one datacenter is configured.
 - --compute-resource is the resource pool where VCH will be deployed to. For vCenter this should start with the cluster, followed by the resource pool path, e.g. `mycluster/a/resource/pool/path` (vCenter), or `/a/resource/pool` (ESXi) .
 - --force flag is to remove an existing datastore folder or VM with the same name.
 
