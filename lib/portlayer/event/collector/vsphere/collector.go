@@ -150,7 +150,7 @@ func (ec *EventCollector) Start() error {
 // evented will process the event and execute the registered callback
 //
 // Initial implmentation will only act on certain events -- future implementations
-// may provide more flexibilty
+// may provide more flexibility
 func evented(ec *EventCollector, page []types.BaseEvent) {
 	if ec.callback == nil {
 		return

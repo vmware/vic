@@ -808,11 +808,11 @@ func dockerStatus(exitCode int, status string, state string, started time.Time, 
 				exitCode = 127
 			} else if status == "true" && exitCode == -1 {
 				// most likely the process was killed via the cli
-				// or recieved a sigkill
+				// or received a sigkill
 				exitCode = 137
 			} else if status == "" && exitCode == 0 {
 				// the process was stopped via the cli
-				// or recieved a sigterm
+				// or received a sigterm
 				exitCode = 143
 			}
 
