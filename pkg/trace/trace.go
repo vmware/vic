@@ -27,9 +27,14 @@ var Logger = &log.Logger{
 	Out: os.Stderr,
 	// Apparently this forces terminal handling even when Out isn't a TTY (like
 	// on a VCH, where STDOUT/STDERR are currently redirected to a file).
-	Formatter: &log.TextFormatter{ForceColors: true},
-	Hooks:     make(log.LevelHooks),
-	Level:     log.InfoLevel,
+	Formatter: &log.TextFormatter{
+		ForceColors:   true,
+		FullTimestamp: true,
+		// from https://godoc.org/github.com/docker/docker/pkg/jsonlog#pkg-constants
+		TimestampFormat: "2006-01-02T15:04:05.000000000Z07:00",
+	},
+	Hooks: make(log.LevelHooks),
+	Level: log.InfoLevel,
 }
 
 // trace object used to grab run-time state
