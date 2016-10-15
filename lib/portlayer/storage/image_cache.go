@@ -153,7 +153,7 @@ func (c *NameLookupCache) CreateImageStore(op trace.Operation, storeName string)
 		return nil, err
 	}
 
-	// Check for existance and rehydrate the cache if it exists on disk.
+	// Check for existence and rehydrate the cache if it exists on disk.
 	_, err = c.GetImageStore(op, storeName)
 	// we expect this not to exist.
 	if err == nil {

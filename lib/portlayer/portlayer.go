@@ -60,7 +60,7 @@ func Init(ctx context.Context, sess *session.Session) error {
 
 	// create or restore a portlayer k/v store
 	if len(storage.Config.ImageStores) > 0 {
-		// Note: Use of ImageStores is soley to identify the starting point for
+		// Note: Use of ImageStores is solely to identify the starting point for
 		// k/v store persistence -- specifically the [datastore]{appliance-name} as
 		// the starting point.  If this URL changes and no longer provides that information
 		// then the k/v store persistence will require updating.

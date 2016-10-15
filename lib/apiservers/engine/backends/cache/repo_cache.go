@@ -75,7 +75,7 @@ type repoCache struct {
 	referencesByIDCache map[string]map[string]reference.Named
 	// Layers is a map of layerIDs to imageIDs
 	// TODO: we might be able to remove this later -- currently
-	// needed becasue an ImageID isn't generated for every pull
+	// needed because an ImageID isn't generated for every pull
 	Layers map[string]string
 	// images is a map of imageIDs to layerIDs
 	// TODO: much like the Layers map this might be able to be

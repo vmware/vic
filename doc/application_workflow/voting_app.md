@@ -97,7 +97,7 @@ services:
 
 ### Deploy to Your VCH
 
-We assume a VCH has already been deployed with vic-machine and VCH_IP is the IP address of the deployed VCH.  This IP should have been presented after the VCH was succesfully installed.  We also assume we are still in the example-voting-app folder, with the modified compose yml file.
+We assume a VCH has already been deployed with vic-machine and VCH_IP is the IP address of the deployed VCH.  This IP should have been presented after the VCH was successfully installed.  We also assume we are still in the example-voting-app folder, with the modified compose yml file.
 
 $> docker-compose -H VCH_IP up -d
 
