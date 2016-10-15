@@ -201,12 +201,21 @@ func (store *repoCache) AddReference(ref reference.Named, imageID string, force 
 	oldID, exists := repository[refStr]
 
 	if exists {
+		if oldID == imageID {
+			log.Debugf("Image %s is already tagged as %s", oldID, ref.String())
+			return nil
+		}
+
 		// force only works for tags
 		if digested, isDigest := ref.(reference.Canonical); isDigest {
+			log.Debugf("Unable to overwrite %s with digest %s", oldID, digested.Digest().String())
+
 			return fmt.Errorf("Cannot overwrite digest %s", digested.Digest().String())
 		}
 
 		if !force {
+			log.Debugf("Refusing to overwrite %s with %s unless force is specified", oldID, ref.String())
+
 			return fmt.Errorf("Conflict: Tag %s is already set to image %s, if you want to replace it, please use -f option", ref.String(), oldID)
 		}
 
