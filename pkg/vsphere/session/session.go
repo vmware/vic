@@ -159,6 +159,14 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 		return nil, errors.Errorf("SDK URL (%s) could not be parsed: %s", s.Service, err)
 	}
 
+	// LoginExtensionByCertificate proxies connections to a virtual host (sdkTunnel:8089) and
+	// Go's http.Transport.DialTLS isn't called when using a proxy.  Even if using a known CA,
+	// "sdkTunnel" does not pass Go's tls.VerifyHostname check.
+	// We are moving away from LoginExtensionByCertificate anyhow, so disable thumbprint checks for now.
+	if s.HasCertificate() {
+		s.Insecure = true
+	}
+
 	// Update the service URL with expanded defaults
 	s.Service = soapURL.String()
 
