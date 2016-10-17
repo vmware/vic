@@ -16,6 +16,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -33,7 +34,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/attach"
@@ -59,14 +59,17 @@ func (t *testAttachServer) start() error {
 	return err
 }
 
-func (t *testAttachServer) stop() {
+func (t *testAttachServer) stop() error {
 	if t.enabled {
-		t.attachServerSSH.stop()
-
-		log.Info("Stopped test attach server")
-		t.updated <- true
-		t.enabled = false
+		err := t.attachServerSSH.stop()
+		if err == nil {
+			log.Info("Stopped test attach server")
+			t.updated <- true
+			t.enabled = false
+		}
+		return err
 	}
+	return nil
 }
 
 func (t *testAttachServer) Reload(config *tether.ExecutorConfig) error {
@@ -99,7 +102,10 @@ func (t *testAttachServer) Start() error {
 		return errors.New(detail)
 	}
 
-	t.conn = &conn
+	t.conn.Lock()
+	defer t.conn.Unlock()
+
+	t.conn.conn = &conn
 	return nil
 }
 
@@ -230,8 +236,8 @@ func TestAttach(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]executor.SessionConfig{
-			"attach": {
+		Sessions: map[string]*executor.SessionConfig{
+			"attach": &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "attach",
 					Name: "tether_test_session",
@@ -320,8 +326,8 @@ func TestAttachTTY(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]executor.SessionConfig{
-			"attach": {
+		Sessions: map[string]*executor.SessionConfig{
+			"attach": &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "attach",
 					Name: "tether_test_session",
@@ -417,8 +423,8 @@ func TestAttachTwo(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]executor.SessionConfig{
-			"tee1": {
+		Sessions: map[string]*executor.SessionConfig{
+			"tee1": &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "tee1",
 					Name: "tether_test_session",
@@ -433,7 +439,7 @@ func TestAttachTwo(t *testing.T) {
 					Dir:  "/",
 				},
 			},
-			"tee2": {
+			"tee2": &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "tee2",
 					Name: "tether_test_session2",
@@ -557,8 +563,8 @@ func TestAttachInvalid(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]executor.SessionConfig{
-			"valid": {
+		Sessions: map[string]*executor.SessionConfig{
+			"valid": &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "valid",
 					Name: "tether_test_session",
@@ -631,7 +637,7 @@ func TestMockAttachTetherToPL(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]executor.SessionConfig{
+		Sessions: map[string]*executor.SessionConfig{
 			"attach": executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "attach",
@@ -694,8 +700,8 @@ func TestReattach(t *testing.T) {
 			Name: "tether_test_executor",
 		},
 
-		Sessions: map[string]executor.SessionConfig{
-			"attach": {
+		Sessions: map[string]*executor.SessionConfig{
+			"attach": &executor.SessionConfig{
 				Common: executor.Common{
 					ID:   "attach",
 					Name: "tether_test_session",

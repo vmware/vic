@@ -19,14 +19,12 @@ package tether
 import (
 	"errors"
 	"fmt"
-	"net"
 	"sync"
 	"syscall"
 	"time"
 
-	"golang.org/x/crypto/ssh"
-
 	log "github.com/Sirupsen/logrus"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/pkg/vsphere/toolbox"
@@ -50,14 +48,13 @@ func NewToolbox() *Toolbox {
 	out := toolbox.NewBackdoorChannelOut()
 
 	service := toolbox.NewService(in, out)
+	service.PrimaryIP = toolbox.DefaultIP
 
 	return &Toolbox{Service: service}
 }
 
 // Start implementation of the tether.Extension interface
 func (t *Toolbox) Start() error {
-	t.Service.PrimaryIP = t.defaultIP
-
 	t.stop = make(chan struct{})
 	on := make(chan struct{})
 
@@ -215,37 +212,4 @@ func (t *Toolbox) halt() error {
 	log.Warnf("killing %s", session.ID)
 
 	return session.Cmd.Process.Kill()
-}
-
-// externalIP attempts to find an external IP to be reported as the guest IP
-func (t *Toolbox) externalIP() string {
-	netif, err := net.InterfaceByName("client")
-	if err != nil {
-		return ""
-	}
-
-	addrs, err := netif.Addrs()
-	if err != nil {
-		return ""
-	}
-
-	for _, addr := range addrs {
-		if ip, ok := addr.(*net.IPNet); ok {
-			if ip.IP.To4() != nil {
-				return ip.IP.String()
-			}
-		}
-	}
-
-	return ""
-}
-
-// defaultIP tries externalIP, falling back to toolbox.DefaultIP()
-func (t *Toolbox) defaultIP() string {
-	ip := t.externalIP()
-	if ip != "" {
-		return ip
-	}
-
-	return toolbox.DefaultIP()
 }

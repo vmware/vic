@@ -15,6 +15,7 @@
 package tether
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -27,8 +28,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"

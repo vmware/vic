@@ -32,8 +32,6 @@ type Data struct {
 	common.Compute
 	common.VCHID
 
-	Insecure bool
-
 	CertPEM   []byte
 	KeyPEM    []byte
 	ClientCAs []byte

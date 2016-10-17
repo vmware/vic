@@ -19,6 +19,10 @@ This test requires that a vSphere server is running and available
 6. Issue docker create vmware/photon
 7. Issue docker start vmware/photon <containerID>
 8. Issue docker start fakeContainer
+9. Create a container, remove it's ethernet adapter, then start the container 
+10. Create and start 5 busybox containers running /bin/top serially
+11. Create and start 5 ubuntu containers running /bin/top serially
+12. Create and start 5 busybox containers running /bin/top all at once
 
 #Expected Outcome:
 * Commands 1-7 should all return without error and respond with the container ID
@@ -28,6 +32,8 @@ This test requires that a vSphere server is running and available
 Error response from daemon: No such container: fakeContainer
 Error: failed to start containers: fakeContainer
 ```
+* Step 9 should result in an error message stating unable to wait for process launch status
+* Steps 10-12 should all result in all containers succeeding and not throwing any errors
 
 #Possible Problems:
 None

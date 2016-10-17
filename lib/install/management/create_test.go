@@ -64,7 +64,7 @@ func TestMain(t *testing.T) {
 
 		validator, err := validate.NewValidator(ctx, input)
 		if err != nil {
-			t.Errorf("Failed to validator: %s", err)
+			t.Fatalf("Failed to validator: %s", err)
 		}
 
 		validator.DisableFirewallCheck = true

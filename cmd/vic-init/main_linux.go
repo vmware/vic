@@ -22,9 +22,11 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/vishvananda/netlink"
 	"github.com/vmware/vic/lib/tether"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
+	"github.com/vmware/vic/pkg/vsphere/toolbox"
 )
 
 var tthr tether.Tether
@@ -78,6 +80,7 @@ func main() {
 
 	// register the toolbox extension and configure for appliance
 	toolbox := configureToolbox(tether.NewToolbox())
+	toolbox.PrimaryIP = externalIP
 	tthr.Register("Toolbox", toolbox)
 
 	err = tthr.Start()
@@ -117,4 +120,44 @@ func configureToolbox(t *tether.Toolbox) *tether.Toolbox {
 	vix.ProcessStartCommand = startCommand
 
 	return t
+}
+
+// externalIP attempts to find an external IP to be reported as the guest IP
+func externalIP() string {
+	l, err := netlink.LinkByName("client")
+	if err != nil && !os.IsNotExist(err) {
+		log.Errorf("error looking up client interface: %s", err)
+		return ""
+	}
+
+	if l == nil {
+		l, err = netlink.LinkByAlias("client")
+		if err != nil {
+			log.Errorf("error looking up client interface: %s", err)
+			return ""
+		}
+	}
+
+	addrs, err := netlink.AddrList(l, netlink.FAMILY_V4)
+	if err != nil {
+		log.Errorf("error getting address list for client interface: %s", err)
+		return ""
+	}
+
+	if len(addrs) == 0 {
+		log.Warnf("no addresses set on client interface")
+		return ""
+	}
+
+	return addrs[0].IP.String()
+}
+
+// defaultIP tries externalIP, falling back to toolbox.DefaultIP()
+func defaultIP() string {
+	ip := externalIP()
+	if ip != "" {
+		return ip
+	}
+
+	return toolbox.DefaultIP()
 }

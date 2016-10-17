@@ -20,17 +20,12 @@ import (
 	"os"
 
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
 )
 
 func rawConnectionFromSerial() (*net.Conn, error) {
 	return nil, errors.New("not supported on OSX")
-}
-
-func backchannel(ctx context.Context, conn *net.Conn) error {
-	return errors.New("not supported on OSX")
 }
 
 func (t *attachServerSSH) Start() error {

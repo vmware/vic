@@ -44,7 +44,7 @@ The _viadmin_ uses vic-machine to create a _base manifest_ containing the follow
     - encrypted credentials and [validating proxy](components.md#validating-proxy) URI, or
     - unencrypted credentials (_viadmin_ and _admin_ roles are held by the same entity and manifests are stored securely)
 
-The _base manifest_ is the minimum set of informtion necessary from the _viadmin_ role. There is additional information that will almost always be required for full function of a VCH:
+The _base manifest_ is the minimum set of information necessary from the _viadmin_ role. There is additional information that will almost always be required for full function of a VCH:
 * vSphere network to use for container network
   - must already exist
 * vSphere switch to use for container network:
@@ -88,10 +88,10 @@ vic-machine create
 
 The first block of these options control the core configuration of the VCH:
 * target - the destination ESX or VC datacenter
-* compute - resource pool, host, cluster, or other compute boundry into which the VCH should be deployed.
+* compute - resource pool, host, cluster, or other compute boundary into which the VCH should be deployed.
 * path - the folder path into which the VCH VMs will be placed - this is VC only
 * image-store - the datastore location where images will be placed, whether pulled via `docker pull` or created via `docker commit`.
-* contianer-store - the datastore location where containerVMs will be created. This does not have to be on the same datastore as the images, but both must be visible to all hosts on which containerVMs are to be created.
+* container-store - the datastore location where containerVMs will be created. This does not have to be on the same datastore as the images, but both must be visible to all hosts on which containerVMs are to be created.
 * client-network - the network on which users will connect to the VCH to issue DOCKER_API commands.
 * management-network - the network providing access to a VMOMI SDK, in deployments where access to the management network is required.
 
@@ -220,7 +220,7 @@ Components:
   - signing and signature validation
   - _package: manifest, path: install/manifest_
 * load/save manifest to/from internal config data structures
-  - this is the mapping from the config held in the compositied manifest to the current end configuration, held in a serializable config structure
+  - this is the mapping from the config held in the composite manifest to the current end configuration, held in a serializable config structure
   - signing and signature validation of manifest layers
   - _package: manifest, path: install/manifest_
 
@@ -332,7 +332,7 @@ Either VCH ID or the VCH resource pool path and VCH name should be specified.
 2. Read back VCH configuration from VM guestinfo
 3. Delete following resources based on VCH configuration.
  - Container VMs managed by the VCH
-   - Contianer datastore paths and resource pool path configured during installation will be used here, to detect if the VM belongs to this VCH. If yes, these VMs will be removed.
+   - Container datastore paths and resource pool path configured during installation will be used here, to detect if the VM belongs to this VCH. If yes, these VMs will be removed.
     - Container VMs will be removed if they are in stopped status.
      - If container VMs are in powered on state, delete will return failure if -force is not specified.
       - If container VMs are in powered on state, and -force is specified, vic-machine delete will power off and remove them those VMs.

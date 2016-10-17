@@ -15,12 +15,11 @@
 package tether
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"syscall"
-
-	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/pkg/trace"
 )
