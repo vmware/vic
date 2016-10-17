@@ -475,6 +475,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			Path: "/sbin/vicadmin",
 			Args: []string{
 				"/sbin/vicadmin",
+				"--dc=" + settings.DatacenterName,
 				"--pool=" + settings.ResourcePoolPath,
 				"--cluster=" + settings.ClusterPath,
 			},
@@ -497,9 +498,8 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	}
 
 	conf.AddComponent("docker-personality", &executor.SessionConfig{
-		// TODO: replace this when imagec is libridized
-		// User:  "nobody",
-		// Group: "nobody",
+		User:  "nobody",
+		Group: "nobody",
 		Cmd: executor.Cmd{
 			Path: "/sbin/docker-engine-server",
 			Args: []string{

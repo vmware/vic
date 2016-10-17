@@ -38,6 +38,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 
 	vchconfig "github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
@@ -106,9 +107,12 @@ func init() {
 	// }
 
 	flag.StringVar(&config.addr, "l", "client.localhost:2378", "Listen address")
+
+	// TODO: This should all be pulled from the config
+	flag.StringVar(&config.DatacenterPath, "dc", "", "Path of the datacenter")
 	flag.StringVar(&config.ClusterPath, "cluster", "", "Path of the cluster")
 	flag.StringVar(&config.PoolPath, "pool", "", "Path of the resource pool")
-	flag.BoolVar(&config.Insecure, "insecure", false, "Allow connection when sdk certificate cannot be verified")
+	flag.BoolVar(&config.Insecure, "insecure", true, "Allow connection when sdk certificate cannot be verified")
 	flag.BoolVar(&config.tls, "tls", true, "Set to false to disable -hostcert and -hostkey and enable plain HTTP")
 
 	// load the vch config
@@ -122,7 +126,6 @@ func init() {
 
 	// FIXME: pull the rest from flags
 	flag.Parse()
-
 }
 
 type entryReader interface {
@@ -275,6 +278,11 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 		return nil, err
 	}
 
+	self, err := guest.GetSelf(ctx, s)
+	if err != nil {
+		log.Errorf("Unable to get handle to self for log filetering")
+	}
+
 	log.Infof("Found %d candidate VMs in resource pool %s for log collection", len(children), ref.String())
 
 	logfiles := []logfile{}
@@ -293,11 +301,16 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 			continue
 		}
 
-		// FIXME: until #2630 is address, and we confirm this filters secrets from appliance vmware.log as well,
-		// we're skipping direct collection of those logs. Matching by name is terrible, but we cannot use
-		// GetSelf as non-root currently because of /sys/class/dmi/id/product_serial permissions
-		if logname == vchConfig.Name {
-			log.Info("Skipping collection for appliance VM")
+		if self != nil && child.Reference().String() == self.Reference().String() {
+			// FIXME: until #2630 is addressed, and we confirm this filters secrets from appliance vmware.log as well,
+			// we're skipping direct collection of those logs.
+			log.Info("Skipping collection for appliance VM (moref match)")
+			continue
+		}
+
+		// backup check if we were unable to initialize self for some reason
+		if self == nil && logname == vchConfig.Name {
+			log.Info("Skipping collection for appliance VM (string match)")
 			continue
 		}
 
@@ -432,8 +445,6 @@ func main() {
 		return
 	}
 
-	flag.Parse()
-
 	// If we're in an ESXi environment, then we need
 	// to extract the userid/password from UserPassword
 	if vchConfig.UserPassword != "" {
@@ -447,13 +458,9 @@ func main() {
 
 	// FIXME: these should just be consumed directly inside Session
 	config.Service = vchConfig.Target.String()
-	config.ExtensionCert = vchConfig.ExtensionCert
-	config.ExtensionKey = vchConfig.ExtensionKey
-	config.ExtensionName = vchConfig.ExtensionName
-	config.Thumbprint = vchConfig.TargetThumbprint
 
 	config.DatastorePath = vchConfig.Storage.ImageStores[0].Host
-	config.Insecure = vchConfig.Connection.Insecure
+	//	config.Insecure = vchConfig.Connection.Insecure
 
 	s := &server{
 		addr: config.addr,
