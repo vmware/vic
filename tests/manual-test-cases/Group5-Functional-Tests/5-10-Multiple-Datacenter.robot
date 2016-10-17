@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation  Test 5-10 - Multiple Datacenters
 Resource  ../../resources/Nimbus-Util.robot
-Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup
+#Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup
 
 *** Test Cases ***
 Test
@@ -23,7 +23,7 @@ Test
     ${out}=  Run  govc host.add -hostname=${esx5-ip} -username=root -dc=datacenter3 -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
 
-    Set Environment Variable  TEST_DATACENTER  datacenter1
+    Set Environment Variable  TEST_DATACENTER  /datacenter1
     Install VIC Appliance To Test Server
 
     Run Regression Tests
