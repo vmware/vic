@@ -660,8 +660,6 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 		tlsErrExpected bool
 	)
 
-	addr := d.HostIP
-
 	if conf.HostCertificate.IsNil() {
 		// TLS disabled
 		proto = "http"
@@ -678,31 +676,51 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 
 		// appliance is configured for tlsverify, but we don't have a client certificate
 		if len(conf.CertificateAuthorities) > 0 {
-			log.Debug("Loading CAs for client auth")
-			pool := x509.NewCertPool()
-			if !pool.AppendCertsFromPEM(conf.CertificateAuthorities) {
-				log.Debug("Unable to load CAs in config, if any")
-			}
-
-			// tr.TLSClientConfig.ClientCAs = pool
-			tr.TLSClientConfig.RootCAs = pool
-
-			if clientCert == nil {
-				// we know this will fail, but we can try to distinguish the expected error vs
-				// unresponsive endpoint
-				tlsErrExpected = true
-				log.Debugf("CA configured on appliance but no client certificate available")
-			}
-
 			// if tlsverify was configured at all then we must verify the remote
 			tr.TLSClientConfig.InsecureSkipVerify = false
 
-			// find the name to use
-			addr, err = addrToUse(d.HostIP, conf)
-			if err != nil {
-				log.Warn("Unable to determine address to use with remote certificate, skipping API liveliness checks")
-				tlsErrExpected = true
-			}
+			func() {
+				log.Debug("Loading CAs for client auth")
+				pool := x509.NewCertPool()
+				if !pool.AppendCertsFromPEM(conf.CertificateAuthorities) {
+					log.Debug("Unable to load CAs in config, if any")
+				}
+
+				// tr.TLSClientConfig.ClientCAs = pool
+				tr.TLSClientConfig.RootCAs = pool
+
+				if clientCert == nil {
+					// we know this will fail, but we can try to distinguish the expected error vs
+					// unresponse endpoint
+					tlsErrExpected = true
+					log.Debugf("CA configured on appliance but no client certificate available")
+					return
+				}
+
+				cert, err := conf.HostCertificate.X509Certificate()
+				if err != nil {
+					log.Debugf("Unable to extract host certificate: %s", err)
+					tlsErrExpected = true
+					return
+				}
+
+				cip := net.ParseIP(d.HostIP)
+				if err != nil {
+					log.Debugf("Unable to process client ip address: %s", err)
+					tlsErrExpected = true
+					return
+				}
+
+				// find the name to use and override the IP
+				addr, err := addrToUse([]net.IP{cip}, cert, conf.CertificateAuthorities)
+				if err != nil {
+					log.Warn("Unable to determine address to use with remote certificate, skipping API liveliness checks")
+					tlsErrExpected = true
+					return
+				}
+
+				d.HostIP = addr
+			}()
 		}
 
 		if clientCert != nil {
@@ -713,7 +731,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 		client = &http.Client{Transport: tr}
 	}
 
-	dockerInfoURL := fmt.Sprintf("%s://%s:%s/info", proto, addr, d.DockerPort)
+	dockerInfoURL := fmt.Sprintf("%s://%s:%s/info", proto, d.HostIP, d.DockerPort)
 	req, err = http.NewRequest("GET", dockerInfoURL, nil)
 	if err != nil {
 		return errors.New("invalid HTTP request for docker info")

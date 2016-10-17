@@ -37,7 +37,7 @@ func TestMain(t *testing.T) {
 }
 
 func TestCreateSelfSigned(t *testing.T) {
-	cert, key, err := CreateSelfSigned("somewhere.com", "MyOrg", 2048)
+	cert, key, err := CreateSelfSigned("somewhere.com", []string{"MyOrg"}, 2048)
 	if err != nil {
 		t.Errorf("CreateSelfSigned failed with error %s", err)
 	}
@@ -79,7 +79,7 @@ func TestGenerate(t *testing.T) {
 
 	pair := NewKeyPair(keyFile, certFile, nil, nil)
 
-	err := pair.CreateSelfSigned("somewhere.com", "MyOrg", 2048)
+	err := pair.CreateSelfSigned("somewhere.com", []string{"MyOrg"}, 2048)
 	assert.NoError(t, err, "Failed generating self-signed certificate")
 
 	err = pair.SaveCertificate()
@@ -104,7 +104,7 @@ func TestGetCertificate(t *testing.T) {
 
 	pair := NewKeyPair(keyFile, certFile, nil, nil)
 
-	err := pair.CreateSelfSigned("somewhere.com", "MyOrg", 2048)
+	err := pair.CreateSelfSigned("somewhere.com", []string{"MyOrg"}, 2048)
 	assert.NoError(t, err, "Failed generating self-signed certificate")
 
 	err = pair.SaveCertificate()
