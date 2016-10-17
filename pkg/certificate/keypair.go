@@ -62,7 +62,7 @@ func (kp *KeyPair) SaveCertificate() error {
 	return saveCertificate(kp.CertFile, kp.KeyFile, bytes.NewBuffer(kp.CertPEM), bytes.NewBuffer(kp.KeyPEM))
 }
 
-func (kp *KeyPair) CreateSelfSigned(domain, org string, size int) error {
+func (kp *KeyPair) CreateSelfSigned(domain string, org []string, size int) error {
 	c, k, err := CreateSelfSigned(domain, org, size)
 	if err != nil {
 		return err
@@ -74,7 +74,7 @@ func (kp *KeyPair) CreateSelfSigned(domain, org string, size int) error {
 	return nil
 }
 
-func (kp *KeyPair) CreateRootCA(domain, org string, size int) error {
+func (kp *KeyPair) CreateRootCA(domain string, org []string, size int) error {
 	c, k, err := CreateRootCA(domain, org, size)
 	if err != nil {
 		return err
@@ -86,7 +86,7 @@ func (kp *KeyPair) CreateRootCA(domain, org string, size int) error {
 	return nil
 }
 
-func (kp *KeyPair) CreateServerCertificate(domain, org string, size int, ca *KeyPair) error {
+func (kp *KeyPair) CreateServerCertificate(domain string, org []string, size int, ca *KeyPair) error {
 	c, k, err := CreateServerCertificate(domain, org, size, ca.CertPEM, ca.KeyPEM)
 	if err != nil {
 		return err
@@ -98,7 +98,7 @@ func (kp *KeyPair) CreateServerCertificate(domain, org string, size int, ca *Key
 	return nil
 }
 
-func (kp *KeyPair) CreateClientCertificate(domain, org string, size int, ca *KeyPair) error {
+func (kp *KeyPair) CreateClientCertificate(domain string, org []string, size int, ca *KeyPair) error {
 	c, k, err := CreateClientCertificate(domain, org, size, ca.CertPEM, ca.KeyPEM)
 	if err != nil {
 		return err

@@ -17,6 +17,7 @@ package management
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 
@@ -44,14 +45,17 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 		log.Errorf("%s", err)
 		return err
 	}
-	if ip.IsUnspecifiedIP(conf.ExecutorConfig.Networks["client"].Assigned.IP) {
+
+	clientIP := conf.ExecutorConfig.Networks["client"].Assigned.IP
+
+	if ip.IsUnspecifiedIP(clientIP) {
 		err = errors.Errorf("No client IP address assigned")
 		log.Errorf("%s", err)
 		return err
 	}
 
-	d.HostIP = conf.ExecutorConfig.Networks["client"].Assigned.IP.String()
-	log.Debug("IP address for client interface: %s", d.HostIP)
+	d.HostIP = clientIP.String()
+	log.Debugf("IP address for client interface: %s", d.HostIP)
 	if !conf.HostCertificate.IsNil() {
 		d.VICAdminProto = "https"
 		d.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
@@ -59,6 +63,26 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 		d.VICAdminProto = "http"
 		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
 	}
+
+	// try looking up preferred name, irrespective of CAs
+	if cert, err := conf.HostCertificate.X509Certificate(); err == nil {
+		name, _ := viableHostAddress([]net.IP{clientIP}, cert, conf.CertificateAuthorities)
+		if name != "" {
+			log.Debugf("Retrieved proposed name from host certificate: %q", name)
+			log.Debugf("Assigning first name from set: %s", name)
+
+			if name != d.HostIP {
+				log.Infof("Using address from host certificate over allocated IP: %s", d.HostIP)
+				// reassign
+				d.HostIP = name
+			}
+		} else {
+			log.Warnf("Unable to identify address acceptable to host certificate")
+		}
+	} else {
+		log.Debugf("Failed to load host cert: %s", err)
+	}
+
 	d.ShowVCH(conf, "", "", "", "")
 	return nil
 }
@@ -76,14 +100,11 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 	log.Infof("")
 	tls := ""
 
-	addr := d.HostIP
 	dEnv := " "
 	if !conf.HostCertificate.IsNil() {
 		// if we're generating then there's no CA currently
 		if len(conf.CertificateAuthorities) > 0 {
 			// find the name to use
-			addr, _ = addrToUse(d.HostIP, conf)
-
 			if key != "" {
 				tls = fmt.Sprintf(" --tlsverify --tlscacert=%q --tlscert=%q --tlskey=%q", cacert, cert, key)
 			} else {
@@ -102,7 +123,7 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 		}
 	}
 
-	dEnv = fmt.Sprintf("%s DOCKER_HOST=%s:%s", dEnv, addr, d.DockerPort)
+	dEnv = fmt.Sprintf("%s DOCKER_HOST=%s:%s", dEnv, d.HostIP, d.DockerPort)
 	log.Infof("Docker environment variables:")
 	log.Info(dEnv)
 	log.Infof("")
@@ -114,5 +135,5 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 
 	log.Infof("")
 	log.Infof("Connect to docker:")
-	log.Infof("docker -H %s:%s%s info", addr, d.DockerPort, tls)
+	log.Infof("docker -H %s:%s%s info", d.HostIP, d.DockerPort, tls)
 }
