@@ -230,6 +230,11 @@ Gather Logs From ESX Server
     Environment Variable Should Be Set  TEST_URL
     ${out}=  Run  govc logs.download
 
+Change Log Level On Server
+    [Arguments]  ${level}
+    ${out}=  Run  govc host.option.set Config.HostAgent.log.level ${level}
+    Should Be Empty  ${out}
+
 Get State Of Github Issue
     [Arguments]  ${num}
     [Tags]  secret
