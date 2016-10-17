@@ -34,7 +34,7 @@ vic-path () {
 vic-create () {
     pushd $(vic-path)/bin/
 
-    $(vic-path)/bin/vic-machine-linux create --target="$GOVC_URL" --image-store="$IMAGE_STORE" --compute-resource="$COMPUTE" ${TLS} ${TLS_OPTS} --name=${VIC_NAME:-${USER}test} ${MAPPED_NETWORKS} ${VOLUME_STORES} ${NETWORKS} ${IPADDR} ${TIMEOUT} --thumbprint=$THUMBPRINT $*
+    $(vic-path)/bin/vic-machine-linux create --target="$GOVC_URL" --image-store="$IMAGE_STORE" --compute-resource="$COMPUTE" ${TLS} ${TLS_OPTS} --name=${VIC_NAME:-${USER}test} "${MAPPED_NETWORKS[@]}" "${VOLUME_STORES[@]}" ${NETWORKS} ${IPADDR} ${TIMEOUT} --thumbprint=$THUMBPRINT $*
 
     envfile=${VIC_NAME:-${USER}test}/${VIC_NAME:-${USER}test}.env
     if [ -f "$envfile" ]; then
@@ -91,6 +91,9 @@ addr-from-dockerhost () {
 #    export COMPUTE=cluster/pool
 #    export DATASTORE=datastore1
 #    export IMAGE_STORE=$DATASTORE/image/path
+#    MAPPED_NETWORKS=("--container-network=VM Network:external" "--container-network=SomeOtherNet:elsewhere")
+#    export MAPPED_NETWORKS
+#    export VOLUME_STORES="--volume-store=$DATASTORE:default"
 #    export NETWORKS="--bridge-network=private-dpg-vlan --external-network=extern-dpg"
 #    export TIMEOUT="--timeout=10m"
 #    export IPADDR="--client-network-ip=vch-hostname.domain.com --client-network-gateway=x.x.x.x/22 --dns-server=y.y.y.y --dns-server=z.z.z.z"
