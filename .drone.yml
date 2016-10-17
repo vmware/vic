@@ -16,7 +16,9 @@ build:
       GOPATH: /drone
       SHELL: /bin/bash
       DOCKER_API_VERSION: "1.21"
-      VIC_ESX_TEST_URL: $$VIC_ESX_TEST_URL
+      TEST_URL_ARRAY:  $$TEST_URL_ARRAY
+      TEST_USERNAME:  $$TEST_USERNAME
+      TEST_PASSWORD:  $$TEST_PASSWORD
       BUILD_NUMBER: $$BUILD_NUMBER
       COMMIT: $$COMMIT
     commands:
@@ -24,6 +26,11 @@ build:
       - apt-get update
       - apt-get install -yq time
       - make -j3 all
+      - make sincemark
+      - make mark
+      - ls vendor/github.com/vmware/govmomi/vim25/methods
+      - export VIC_ESX_URL_ARRAY=`tests/get_test_url.sh`
+      - make -j3 test
       - make sincemark
 
   integration-test-on-pr:
@@ -34,7 +41,6 @@ build:
       GOPATH: /drone
       SHELL: /bin/bash
       DOCKER_API_VERSION: "1.21"
-      VIC_ESX_TEST_URL: $$VIC_ESX_TEST_URL
       LOG_TEMP_DIR: install-logs
       GITHUB_AUTOMATION_API_KEY:  $$GITHUB_AUTOMATION_API_KEY
       DRONE_SERVER:  $$DRONE_SERVER

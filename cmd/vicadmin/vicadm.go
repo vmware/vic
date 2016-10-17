@@ -188,7 +188,7 @@ func (path commandReader) open() (entry, error) {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s: %s", err, string(output))
 	}
 
 	return newBytesEntry(string(path), output), nil

@@ -66,7 +66,8 @@ Create a VSAN Cluster
     Gather Host IPs
 
 Create a Simple VC Cluster
-    Log To Console  \nStarting test...
+    [Arguments]  ${datacenter}=ha-datacenter  ${cluster}=cls
+    Log To Console  \nStarting simple VC cluster deploy...
     ${esx1}  ${esx1-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
     Set Suite Variable  ${ESX1}  ${esx1}
     ${esx2}  ${esx2-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
@@ -78,39 +79,39 @@ Create a Simple VC Cluster
     Set Suite Variable  ${VC}  ${vc}
 
     Log To Console  Create a datacenter on the VC
-    ${out}=  Run  govc datacenter.create ha-datacenter
+    ${out}=  Run  govc datacenter.create ${datacenter}
     Should Be Empty  ${out}
 
     Log To Console  Create a cluster on the VC
-    ${out}=  Run  govc cluster.create cls
+    ${out}=  Run  govc cluster.create ${cluster}
     Should Be Empty  ${out}
 
     Log To Console  Add ESX host to the VC
-    ${out}=  Run  govc cluster.add -hostname=${esx1-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
+    ${out}=  Run  govc cluster.add -hostname=${esx1-ip} -username=root -dc=${datacenter} -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
-    ${out}=  Run  govc cluster.add -hostname=${esx2-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
+    ${out}=  Run  govc cluster.add -hostname=${esx2-ip} -username=root -dc=${datacenter} -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
-    ${out}=  Run  govc cluster.add -hostname=${esx3-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
+    ${out}=  Run  govc cluster.add -hostname=${esx3-ip} -username=root -dc=${datacenter} -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
 
     Log To Console  Create a distributed switch
-    ${out}=  Run  govc dvs.create -dc=ha-datacenter test-ds
+    ${out}=  Run  govc dvs.create -dc=${datacenter} test-ds
     Should Contain  ${out}  OK
 
     Log To Console  Create three new distributed switch port groups for management and vm network traffic
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=ha-datacenter -dvs=test-ds management
+    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=${datacenter} -dvs=test-ds management
     Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=ha-datacenter -dvs=test-ds vm-network
+    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=${datacenter} -dvs=test-ds vm-network
     Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=ha-datacenter -dvs=test-ds bridge
+    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=${datacenter} -dvs=test-ds bridge
     Should Contain  ${out}  OK
 
     Log To Console  Add all the hosts to the distributed switch
-    ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 /ha-datacenter/host/cls
+    ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 /${datacenter}/host/${cluster}
     Should Contain  ${out}  OK
 
     Log To Console  Enable DRS on the cluster
-    ${out}=  Run  govc cluster.change -drs-enabled /ha-datacenter/host/cls
+    ${out}=  Run  govc cluster.change -drs-enabled /${datacenter}/host/${cluster}
     Should Be Empty  ${out}
 
     Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
@@ -119,6 +120,6 @@ Create a Simple VC Cluster
     Set Environment Variable  BRIDGE_NETWORK  bridge
     Set Environment Variable  EXTERNAL_NETWORK  vm-network
     Set Environment Variable  TEST_DATASTORE  datastore1
-    Set Environment Variable  TEST_RESOURCE  cls
+    Set Environment Variable  TEST_RESOURCE  ${cluster}
     Set Environment Variable  TEST_TIMEOUT  30m
     [Return]  ${vc-ip}
