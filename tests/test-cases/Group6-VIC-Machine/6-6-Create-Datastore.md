@@ -25,6 +25,12 @@ This test requires that a vSphere server is running and available
 4. Verify deployment and regression test passed
 5. Verify docker images are persisted in the specified path or default path if image store is not provided
 
+#Test Cases: - image store not found
+#Test steps
+1. Delete VCH created image store through govc
+2. Delete VCH
+3. Verify VCH delete succeeds
+
 #Test Cases: - image store delete
 
 #Test steps

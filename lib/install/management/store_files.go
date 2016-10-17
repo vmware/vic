@@ -69,7 +69,9 @@ func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) e
 
 		children, err := d.getChildren(imageDSes[0], dsPath)
 		if err != nil {
-			errs = append(errs, err.Error())
+			if !types.IsFileNotFound(err) {
+				errs = append(errs, err.Error())
+			}
 			continue
 		}
 
