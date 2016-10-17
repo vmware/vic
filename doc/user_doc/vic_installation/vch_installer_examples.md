@@ -16,7 +16,7 @@ This topic provides examples of the options of the `vic-machine` `create` comman
 - [Deploy a Virtual Container Host with Limits on Resource Use](#customized)
 - [Deploy a Virtual Container Host and Authorize Access to an Insecure Private Registry Server](#registry)
 
-For detailed descriptions of all of the `vic-machine create` options, see [Virtual Container Host Deployment Options](vch_installer_options.md)
+For detailed descriptions of all of the `vic-machine create` options, see [Virtual Container Host Deployment Options](vch_installer_options.md).
 
 <a name="esxi"></a>
 ## Deploy a Virtual Container Host Directly on an ESXi Host with no Resource Pools and a Single Datastore##
