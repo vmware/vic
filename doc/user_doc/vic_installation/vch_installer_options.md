@@ -559,7 +559,7 @@ Wrap the folder names in the path in single quotes (Linux or Mac OS) or double q
 <pre>--bootstrap-iso '<i>path to ISO file</i>'/<i>ISO_file_name</i>.iso</pre>
 
 
-### `pool-memory-reservation` ###
+### `memory-reservation` ###
 
 Short name: `--memr`
 
@@ -567,7 +567,7 @@ Reserve a quantity of memory for use by the virtual container host vApp   and co
 
 <pre>--memory-reservation 1024</pre>
 
-### `pool-memory-limit` ###
+### `memory-limit` ###
 
 Short name: `--mem`
 
@@ -575,7 +575,7 @@ Limit the amount of memory that is available for use by the virtual container ho
 
 <pre>--memory 1024</pre>
 
-### `pool-memory-shares` ###
+### `memory-shares` ###
 
 Short name: `--mems`
 
@@ -583,7 +583,7 @@ Set memory shares on the virtual container host vApp. Specify the share value as
 
 <pre>--memory-shares low</pre>
 
-### `pool-cpu-reservation` ###
+### `cpu-reservation` ###
 
 Short name: `--cpur`
 
@@ -591,7 +591,7 @@ Reserve a quantity of CPU capacity for use by the virtual container host vApp an
 
 <pre>--cpu-reservation 1024</pre>
 
-### `pool-cpu-limit` ###
+### `cpu-limit` ###
 
 Short name: `--cpu`
 
@@ -599,7 +599,7 @@ Limit the amount of CPU capacity that is available for use by the virtual contai
 
 <pre>--cpu 1024</pre>
 
-### `pool-cpu-shares` ###
+### `cpu-shares` ###
 
 Short name: `--cpus`
 
