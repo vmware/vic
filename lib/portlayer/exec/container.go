@@ -268,7 +268,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 	// If an event has occurred then put the container in the cache
 	// and publish the container event
 	defer func() {
-		log.Debugf("Commiting container %s status as: %s", c.ExecConfig.ID, commitEvent)
+		log.Debugf("Committing container %s status as: %s", c.ExecConfig.ID, commitEvent)
 		if commitEvent != "" {
 			Containers.Put(c)
 			publishContainerEvent(c.ExecConfig.ID, time.Now().UTC(), commitEvent)

@@ -119,6 +119,7 @@ func (conn *RawConn) Read(b []byte) (int, error) {
 		// if we've got any bytes we need to pass them back so we cannot return
 		// the error via conn.err
 		bytes <- n
+		close(bytes)
 	}()
 
 	conn.mutex.Lock()

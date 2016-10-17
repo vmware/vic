@@ -67,7 +67,7 @@ func TestIsContainerID(t *testing.T) {
 	assert.False(t, isContainerID(invalidID))
 }
 
-// addTestVM will add a psuedo VM to the container
+// addTestVM will add a pseudo VM to the container
 func addTestVM(container *Container) {
 	mo := types.ManagedObjectReference{Type: "vm", Value: "12"}
 	v := object.NewVirtualMachine(nil, mo)

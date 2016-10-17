@@ -491,7 +491,7 @@ func (v *ImageStore) ListImages(op trace.Operation, store *url.URL, IDs []string
 }
 
 // DeleteImage deletes an image from the image store.  If the image is in
-// use either by way of inheritence or because it's attached to a
+// use either by way of inheritance or because it's attached to a
 // container, this will return an error.
 func (v *ImageStore) DeleteImage(op trace.Operation, image *portlayer.Image) error {
 	//  check if the image is in use.
@@ -568,7 +568,7 @@ func (v *ImageStore) writeManifest(op trace.Operation, storeName, ID string, r i
 func (v *ImageStore) verifyImage(op trace.Operation, storeName, ID string) error {
 	imageDir := v.imageDirPath(storeName, ID)
 
-	// Check for teh manifiest file and the vmdk
+	// Check for the manifiest file and the vmdk
 	for _, p := range []string{path.Join(imageDir, manifest), v.imageDiskPath(storeName, ID)} {
 		if _, err := v.ds.Stat(op, p); err != nil {
 			return err

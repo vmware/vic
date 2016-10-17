@@ -15,6 +15,7 @@
 package tether
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -27,8 +28,6 @@ import (
 	"path"
 	"syscall"
 	"time"
-
-	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -66,6 +65,7 @@ type tether struct {
 	sink extraconfig.DataSink
 
 	incoming chan os.Signal
+	done     chan struct{}
 }
 
 func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) Tether {
@@ -79,6 +79,7 @@ func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) 
 		src:        src,
 		sink:       sink,
 		incoming:   make(chan os.Signal, 32),
+		done:       make(chan struct{}),
 	}
 }
 
