@@ -416,18 +416,6 @@ Get VM Host Name
     ${host}=  Fetch From Right  @{out}[-1]  ${SPACE}
     [Return]  ${host}
 
-Run Unit Tests
-    [Tags]  secret
-    Set Environment Variable  VIC_ESX_TEST_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
-    Log To Console  \nls vendor/github.com/vmware/govmomi/vim25/methods:
-    ${output}=  Run  ls vendor/github.com/vmware/govmomi/vim25/methods
-    Log To Console  ${output}
-    Log To Console  Execute the unit tests...
-    ${output}=  Run  make -j3 test
-    Log To Console  ${output}
-    Should Not Contain  ${output}  FAIL
-    Should Not Contain  ${output}  [build failed]
-
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
