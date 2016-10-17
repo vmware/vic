@@ -299,7 +299,7 @@ For more information about setting resource use limitations on virtual container
 <a name="registry"></a>
 ## Deploy a Virtual Container Host and Authorize Access to an Insecure Private Registry Server ##
 
-An insecure private registry server is a private registry server for Docker images that is secured by self-signed certificates rather than by TLS. To authorize connections from a virtual container host to an insecure private registry server, set the `docker-insecure-registry` option. You can specify `docker-insecure-registry` multiple times to allow connections from the virtual container host to multiple insecure private registry servers.
+An insecure private registry server is a private registry server for Docker images that is secured by self-signed certificates rather than by TLS. To authorize connections from a virtual container host to an insecure private registry server, set the `insecure-registry` option. You can specify `insecure-registry` multiple times to allow connections from the virtual container host to multiple insecure private registry servers.
 
 This example deploys a virtual container host with the following configuration:
 
@@ -312,12 +312,12 @@ This example deploys a virtual container host with the following configuration:
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
---docker-insecure-registry <i>registry_URL_1</i>
---docker-insecure-registry <i>registry_URL_2:5000</i>
+--insecure-registry <i>registry_URL_1</i>
+--insecure-registry <i>registry_URL_2:5000</i>
 --name vch1
 </pre>
 
-For more information about configuring virtual container hosts to connect to insecure private registry servers, see the section on the [`docker-insecure-registry` option in Virtual Container Host Deployment Options](vch_installer_options.md#registry).
+For more information about configuring virtual container hosts to connect to insecure private registry servers, see the section on the [`insecure-registry` option in Virtual Container Host Deployment Options](vch_installer_options.md#registry).
 
 **NOTE**: The current builds of vSphere Integrated Containers do not yet support private registry servers that you secure by using TLS certificates.
 
