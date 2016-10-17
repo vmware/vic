@@ -81,7 +81,7 @@ type Create struct {
 	envFile string
 
 	cname   string
-	org     string
+	org     cli.StringSlice
 	keySize int
 
 	noTLS           bool
@@ -333,12 +333,11 @@ func (c *Create) Flags() []cli.Flag {
 			Usage:       "Common Name to use in generated CA certificate when requiring client certificate authentication",
 			Destination: &c.cname,
 		},
-		cli.StringFlag{
-			Name:        "organization",
-			Value:       "default",
-			Usage:       "Organization to use for generated CA certificate",
-			Destination: &c.org,
-			Hidden:      true,
+		cli.StringSliceFlag{
+			Name:   "organization",
+			Usage:  "A list of identifiers to record in the generated certificates. Defaults to VCH name and IP/FQND if provided.",
+			Value:  &c.org,
+			Hidden: true,
 		},
 		cli.BoolFlag{
 			Name:        "no-tlsverify, kv",
@@ -796,7 +795,7 @@ func (c *Create) generateCertificates(ca bool) ([]byte, *certificate.KeyPair, er
 	if !ca {
 		log.Infof("Generating self-signed certificate/key pair - private key in %s", c.key)
 		keypair := certificate.NewKeyPair(c.key, c.cert, nil, nil)
-		err := keypair.CreateSelfSigned(c.cname, "", c.keySize)
+		err := keypair.CreateSelfSigned(c.cname, nil, c.keySize)
 		if err != nil {
 			log.Errorf("Failed to generate self-signed certificate: %s", err)
 			return nil, nil, err
@@ -816,9 +815,19 @@ func (c *Create) generateCertificates(ca bool) ([]byte, *certificate.KeyPair, er
 		log.Info("  --tls-cname=<FQDN or static IP> # for the appliance VM")
 		log.Info("  --tls-cname=<*.yourdomain.com>  # if DNS has entries in that form for DHCP addresses (less secure)")
 		log.Info("  --no-tlsverify                  # disables client authentication (anyone can connect to the VCH)")
+		log.Info("  --no-tls                        # disables TLS entirely")
 		log.Info("")
 
 		return certs, nil, errors.New("provide Common Name for server certificate")
+	}
+
+	// for now re-use the display name as the organisation if unspecified
+	if len(c.org) == 0 {
+		c.org = []string{c.DisplayName}
+	}
+	if len(c.org) == 1 && !strings.HasPrefix(c.cname, "*") {
+		// Add in the cname if it's not a wildcard
+		c.org = append(c.org, c.cname)
 	}
 
 	// Certificate authority
@@ -865,7 +874,8 @@ func (c *Create) generateCertificates(ca bool) ([]byte, *certificate.KeyPair, er
 		log.Warnf("Failed to stash client certificate for later application level validation: %s", err)
 	}
 
-	// if openssl is present, try to generate a browser friendly pfx file
+	// If openssl is present, try to generate a browser friendly pfx file (a bundle of the public certificate AND the private key)
+	// The pfx file can be imported directly into keychains for client certificate authentication
 	args := strings.Split(fmt.Sprintf("pkcs12 -export -out ./%[1]s/cert.pfx -inkey ./%[1]s/key.pem -in ./%[1]s/cert.pem -certfile ./%[1]s/ca.pem -password pass:", c.DisplayName), " ")
 	pfx := exec.Command("openssl", args...)
 	out, err := pfx.CombinedOutput()
@@ -936,7 +946,7 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 
 	if validator.Session.IsVC() { // create certificates for VCH extension
 		var certbuffer, keybuffer bytes.Buffer
-		if certbuffer, keybuffer, err = certificate.CreateSelfSigned("", "VMware Inc.", 2048); err != nil {
+		if certbuffer, keybuffer, err = certificate.CreateSelfSigned("", []string{"VMware Inc."}, 2048); err != nil {
 			return errors.Errorf("Failed to create certificate for VIC vSphere extension: %s", err)
 		}
 		vchConfig.ExtensionCert = certbuffer.String()

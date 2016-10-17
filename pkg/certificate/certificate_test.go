@@ -25,7 +25,7 @@ import (
 func TestCreateCA(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
-	cacert, cakey, err := CreateRootCA("somewhere.com", "MyOrg", 2048)
+	cacert, cakey, err := CreateRootCA("somewhere.com", []string{"MyOrg"}, 2048)
 	assert.NoError(t, err, "Failed generating CA certificate")
 
 	_, _, err = ParseCertificate(cacert.Bytes(), cakey.Bytes())
@@ -36,10 +36,10 @@ func TestCreateCA(t *testing.T) {
 func TestSignedCertificate(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
-	cacert, cakey, err := CreateRootCA("somewhere.com", "MyOrg", 2048)
+	cacert, cakey, err := CreateRootCA("somewhere.com", []string{"MyOrg"}, 2048)
 	assert.NoError(t, err, "Failed generating ca certificate")
 
-	cert, key, err := CreateServerCertificate("somewere.com", "MyOrg", 2048, cacert.Bytes(), cakey.Bytes())
+	cert, key, err := CreateServerCertificate("somewere.com", []string{"MyOrg"}, 2048, cacert.Bytes(), cakey.Bytes())
 	assert.NoError(t, err, "Failed generating signed certificate")
 
 	// validate
@@ -61,10 +61,10 @@ func TestSignedCertificate(t *testing.T) {
 func TestFailedValidation(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
-	cacert, cakey, err := CreateRootCA("somewhere.com", "MyOrg", 2048)
+	cacert, cakey, err := CreateRootCA("somewhere.com", []string{"MyOrg"}, 2048)
 	assert.NoError(t, err, "Failed generating ca certificate")
 
-	cert, key, err := CreateServerCertificate("somewere.com", "MyOrg", 2048, cacert.Bytes(), cakey.Bytes())
+	cert, key, err := CreateServerCertificate("somewere.com", []string{"MyOrg"}, 2048, cacert.Bytes(), cakey.Bytes())
 	assert.NoError(t, err, "Failed generating signed certificate")
 
 	// validate
