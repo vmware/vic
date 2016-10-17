@@ -8,7 +8,7 @@ Let's take a Linux VM running Docker as an example. The container host is a VM r
 
 The container host operating system along with the Docker daemon have to provide the following:
 * **The control plane** - an endpoint through which control operations are performed, executing in the same OS as its controlling
-* **A container abstraction** - library extentions to the guest OS need to provide a private namespace and resource constraints
+* **A container abstraction** - library extensions to the guest OS need to provide a private namespace and resource constraints
 * **Network virtualization** - simple bridge networking or overlay networking
 * **Layered filesystem** - not an absolute requirement for a container, but typically conflated in most implementations
 * **OS Kernel** - a dependency for the container executable to execute on, typically shared between containers

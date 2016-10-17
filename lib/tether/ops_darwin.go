@@ -15,6 +15,7 @@
 package tether
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -24,7 +25,6 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/pkg/trace"
 )

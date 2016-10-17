@@ -11,7 +11,7 @@ Given that each containerVM in VIC does not share a filesystem with anything els
 
 #### Imagec
 
-Image resolution and the transfer of image data between an external repository and a local image store is something that should be able to happen out-of-band. This also means that it does not need to be a service that is tightly-coupled to any one VCH. A VCH should be able to make asyncronous requests to an image service which maintains a local image store. There is no reason the image store could not be shared between a number of VCHs. When an image is added to the store, the VCH should then be able to query the image store via the PortLayer for metadata about the image.
+Image resolution and the transfer of image data between an external repository and a local image store is something that should be able to happen out-of-band. This also means that it does not need to be a service that is tightly-coupled to any one VCH. A VCH should be able to make asynchronous requests to an image service which maintains a local image store. There is no reason the image store could not be shared between a number of VCHs. When an image is added to the store, the VCH should then be able to query the image store via the PortLayer for metadata about the image.
 
 Given the out-of-band nature of this transaction, plus the potential for the exchange of image data to be be automated or even managed by a different control plane, it makes sense to provide a binary to allow for this. This binary is [imagec](../../../master/cmd/imagec/README.md) described [here](components.md#imagec)
 

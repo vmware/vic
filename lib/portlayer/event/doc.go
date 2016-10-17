@@ -22,12 +22,12 @@ The Event Manager provides basic pub / sub functionality.  A subscription consis
 topic (any defined Event), a subscription name (string) and a callback function.  When an event is
 published the event manager will determine the event type and check to see if any components
 have registered a callback for that event type.  For all subscriptions the event manager will
-faciliate the callback.  Publication of events can be accomplished by any component that has
+facilitate the callback.  Publication of events can be accomplished by any component that has
 a pointer to the event manager or via the registered collectors.
 
 Collectors are responsible for collecting events or data from external systems and then publishing
 relevant vic events to the event manager.  In theory the collector could monitor anything and when
-certain critera are meet publish vic events to the manager.  Collectors are registered with the
+certain criteria are meet publish vic events to the manager.  Collectors are registered with the
 event manager which instructs the collector where to publish.  Multiple collectors are allowed per
 event manager, but each collector has a single publish target.
 

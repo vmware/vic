@@ -114,10 +114,10 @@ Here is the upgrade workflow
 - Upload iso files
 - Prepare combined applianceVM configuration, both hardware spec (ISO path) and the extraconfig portion (VCH version)
 
---- everthing until this portion can be done without interrupting ongoing operation ---
+--- everything until this portion can be done without interrupting ongoing operation ---
 - Snapshot VCH appliance VM.
 - Poweroff VCH appliance VM if it's not
-- Update container VM configuraiton with new config (it should be viable to do this in a sigle reconfigure)
+- Update container VM configuration with new config (it should be viable to do this in a sigle reconfigure)
 - Update VCH configuration with the prepared configuration change
 - Power on VCH, and wait VCH initialization
 - Anything wrong in the above steps, roll back to upgrade snapshot

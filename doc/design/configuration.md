@@ -37,7 +37,7 @@ Configuration of containers and environment:
     * ID
     * command (executable, args, environment, working directory)
     * networks (MAC, CIDR, gateway, name, nameservers)
-* configures logical networks (whether IPAM segragation or SDN logical networks)
+* configures logical networks (whether IPAM segregation or SDN logical networks)
 * configures VMDKs (volumes, images, container read/write layers)
 
 Publishes the following:
@@ -75,7 +75,7 @@ The defacto model for holding configuration in Go is a struct with Fields that c
 
 It is expected that use of the configuration be performed via two endcoder/decoder pairs - one that operates directly on guestinfo via the vmx-guestinfo library, the other that takes a [VirtualMachineConfigSpec](pubs.vmware.com/vsphere-60/topic/com.vmware.wssdk.apiref.doc/vim.vm.ConfigSpec.html) and operates on the ExtraConfig field of the spec.
 
-The implementation will understand the following set of annotations and map the fields to appropriate extraConfig keys - in the case where the key describes a boolean state, ommitting the annotation implies the opposite:
+The implementation will understand the following set of annotations and map the fields to appropriate extraConfig keys - in the case where the key describes a boolean state, omitting the annotation implies the opposite:
 * `hidden` - hidden from GuestOS
 * `read-only` - value can only be modified via vSphere APIs
 * `non-persistent` - value will be lost on VM reboot

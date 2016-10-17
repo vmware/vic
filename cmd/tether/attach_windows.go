@@ -19,15 +19,12 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"time"
 
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
-	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -56,38 +53,8 @@ func rawConnectionFromSerial() (*net.Conn, error) {
 	return nil, nil
 }
 
-func backchannel(ctx context.Context, conn *net.Conn) error {
-	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
-	ticker := time.NewTicker(10 * time.Millisecond)
-	for {
-		select {
-		case <-ticker.C:
-			err := serial.HandshakeServer(ctx, *conn)
-			if err == nil {
-				return nil
-			}
-		case <-ctx.Done():
-			(*conn).Close()
-			ticker.Stop()
-			return ctx.Err()
-		}
-	}
-}
-
 func (t *attachServerSSH) Start() error {
 	defer trace.End(trace.Begin(""))
-
-	t.m.Lock()
-	defer t.m.Unlock()
-
-	var err error
-
-	t.conn, err = rawConnectionFromSerial()
-	if err != nil {
-		detail := fmt.Errorf("failed to create raw connection from %s file handle: %s", com, err)
-		log.Error(detail)
-		return detail
-	}
 
 	return nil
 }

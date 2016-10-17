@@ -79,7 +79,7 @@ As of the v0.1 release logs are being persisted on the datastore along with the 
 ## Appliance
 ### Appliance Base
 
-The appliance VM is bootstrapped from a PhotonOS based liveCD that embeds elements of VIC relevent to Virtual Container Host functions. The appliance is diskless _in essence_, but may well use a non-persistent disk to cache transient data such as docker images in-flight from [Docker Hub](https://hub.docker.com/) but not yet persisted to a datastore.
+The appliance VM is bootstrapped from a PhotonOS based liveCD that embeds elements of VIC relevant to Virtual Container Host functions. The appliance is diskless _in essence_, but may well use a non-persistent disk to cache transient data such as docker images in-flight from [Docker Hub](https://hub.docker.com/) but not yet persisted to a datastore.
 
 The ISO used to bootstrap the appliance is generated from the following make targets - only the first must be specified as the others are pre-requisites:
 ```

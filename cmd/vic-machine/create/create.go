@@ -529,7 +529,7 @@ func (c *Create) processCertificates() error {
 	}
 
 	if keypair == nil {
-		// this shoudl be caught in earlier error returns, but sanity check
+		// this should be caught in earlier error returns, but sanity check
 		log.Error("Create cannot continue: unable to load or generate TLS certificates and --no-tls was not specified")
 		return err
 	}

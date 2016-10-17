@@ -15,18 +15,21 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"sync"
+	"sync/atomic"
 	"syscall"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
 	"github.com/vmware/vic/lib/tether"
+	"github.com/vmware/vic/pkg/serial"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -43,19 +46,29 @@ type AttachServer interface {
 	tether.Extension
 
 	start() error
-	stop()
+	stop() error
 }
 
 type attachServerSSH struct {
 	// serializes data access for exported functions
 	m sync.Mutex
 
-	// conn is held directly as it's how we stop the attach server
-	conn      *net.Conn
+	// conn is held directly as it is how we stop the attach server
+	conn struct {
+		// serializes data access for the underlying conn
+		sync.Mutex
+		conn *net.Conn
+	}
+
 	config    *tether.ExecutorConfig
 	sshConfig *ssh.ServerConfig
 
-	enabled bool
+	enabled int32
+
+	// Cancelable context and its cancel func. Used for resolving the deadlock
+	// between run() and stop()
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	// INTERNAL: must set by testAttachServer only
 	testing bool
@@ -64,7 +77,15 @@ type attachServerSSH struct {
 // NewAttachServerSSH either creates a new instance or returns the initialized one
 func NewAttachServerSSH() AttachServer {
 	once.Do(func() {
-		server = &attachServerSSH{}
+		// create a cancelable context and assign it to the CancelFunc
+		// it isused for resolving the deadlock between run() and stop()
+		// it has a Background parent as we don't want timeouts here,
+		// otherwise we may start leaking goroutines in the handshake code
+		ctx, cancel := context.WithCancel(context.Background())
+		server = &attachServerSSH{
+			ctx:    ctx,
+			cancel: cancel,
+		}
 	})
 	return server
 }
@@ -87,6 +108,21 @@ func (t *attachServerSSH) Reload(config *tether.ExecutorConfig) error {
 	return nil
 }
 
+// Enabled sets the enabled to true
+func (t *attachServerSSH) Enabled() {
+	atomic.StoreInt32(&t.enabled, 1)
+}
+
+// Disabled sets the enabled to false
+func (t *attachServerSSH) Disabled() {
+	atomic.StoreInt32(&t.enabled, 0)
+}
+
+// IsEnabled returns whether the enabled is true
+func (t *attachServerSSH) IsEnabled() bool {
+	return atomic.LoadInt32(&t.enabled) == 1
+}
+
 // Start is implemented at _ARCH.go files
 
 // Stop needed for tether.Extensions interface
@@ -97,19 +133,22 @@ func (t *attachServerSSH) Stop() error {
 	defer t.m.Unlock()
 
 	// calling server.start not t.start so that test impl gets invoked
-	server.stop()
-	return nil
+	return server.stop()
 }
 
 func (t *attachServerSSH) start() error {
 	defer trace.End(trace.Begin("start attach server"))
 
 	if t == nil {
-		return errors.New("attach server is not configured")
+		err := fmt.Errorf("attach server is not configured")
+		log.Error(err)
+		return err
 	}
 
-	if t.enabled {
-		return nil
+	if t.IsEnabled() {
+		err := fmt.Errorf("attach server is already enabled")
+		log.Error(err)
+		return err
 	}
 
 	// don't assume that the key hasn't changed
@@ -140,26 +179,87 @@ func (t *attachServerSSH) start() error {
 	}
 	t.sshConfig.AddHostKey(pkey)
 
-	t.enabled = true
+	t.Enabled()
 	go t.run()
 
 	return nil
 }
 
 // stop is not thread safe with start
-func (t *attachServerSSH) stop() {
+func (t *attachServerSSH) stop() error {
 	defer trace.End(trace.Begin("stop attach server"))
 
-	if t == nil || !t.enabled {
-		return
+	if t == nil {
+		err := fmt.Errorf("attach server is not configured")
+		log.Error(err)
+		return err
 	}
 
-	t.enabled = false
-	conn := t.conn
-	t.conn = nil
+	if !t.IsEnabled() {
+		err := fmt.Errorf("attach server is not enabled")
+		log.Error(err)
+		return err
+	}
 
-	if conn != nil {
-		(*conn).Close()
+	log.Debugf("Setting enabled to false")
+	t.Disabled()
+
+	// This context is used by backchannel only. We need to cancel it before
+	// trying to obtain the following lock so that backchannel interrupts the
+	// underlying Read call by calling Close on it.
+	// The lock is  held by backchannel's caller and not released until it returns
+	log.Debugf("Canceling the context")
+	t.cancel()
+
+	log.Debugf("Acquiring the connection lock")
+	t.conn.Lock()
+	if t.conn.conn != nil {
+		log.Debugf("Close called again on rawconn - squashing")
+		(*t.conn.conn).Close()
+		t.conn.conn = nil
+	}
+	t.conn.Unlock()
+	log.Debugf("Released the connection lock")
+
+	return nil
+}
+
+func backchannel(ctx context.Context, conn *net.Conn) error {
+	defer trace.End(trace.Begin("establish tether backchannel"))
+
+	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
+	// it does implement the Timeout methods so the intermediary code can be written
+	// to support it, but they are stub implementation in rawconn impl.
+
+	// This needs to tick *faster* than the ticker in connection.go on the
+	// portlayer side.  The PL sends the first syn and if this isn't waiting,
+	// alignment will take a few rounds (or it may never happen).
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+
+	// We run this in a seperate goroutine because HandshakeServer
+	// calls a Read on rawconn which is a blocking call which causes
+	// the caller to block as well so this is the only way to cancel.
+	// Calling Close() will unblock us and on the next tick we will
+	// return ctx.Err()
+	go func() {
+		select {
+		case <-ctx.Done():
+			(*conn).Close()
+		}
+	}()
+
+	for {
+		select {
+		case <-ticker.C:
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			err := serial.HandshakeServer(ctx, *conn)
+			if err == nil {
+				return nil
+			}
+		}
 	}
 }
 
@@ -168,50 +268,77 @@ func (t *attachServerSSH) stop() {
 func (t *attachServerSSH) run() error {
 	defer trace.End(trace.Begin("main attach server loop"))
 
-	var serverConn *ssh.ServerConn
+	// we pass serverConn to the channelMux goroutine so we need to lock it
+	var serverConn struct {
+		sync.Mutex
+		*ssh.ServerConn
+	}
+	var established bool
+
 	var chans <-chan ssh.NewChannel
 	var reqs <-chan *ssh.Request
 	var err error
 
-	for t.enabled {
+	for t.IsEnabled() {
+		serverConn.Lock()
+		established = serverConn.ServerConn != nil
+		serverConn.Unlock()
+
 		// keep waiting for the connection to establish
-		for serverConn == nil {
-			// tests are passing their own connections so do not create connections when testing is set
-			if !t.testing {
-				// close the connection if required
-				if t.conn != nil {
-					(*t.conn).Close()
+		for !established && t.IsEnabled() {
+			log.Debugf("Trying to establish a connection")
+
+			establishFn := func() error {
+				// we hold the t.conn.Lock during the scope of this function
+				t.conn.Lock()
+				defer t.conn.Unlock()
+
+				// tests are passing their own connections so do not create connections when testing is set
+				if !t.testing {
+					// close the connection if required
+					if t.conn.conn != nil {
+						(*t.conn.conn).Close()
+						t.conn.conn = nil
+					}
+					t.conn.conn, err = rawConnectionFromSerial()
+					if err != nil {
+						detail := fmt.Errorf("failed to create raw connection raw connection: %s", err)
+						log.Error(detail)
+						return detail
+					}
 				}
-				t.conn, err = rawConnectionFromSerial()
+
+				// wait for backchannel to establish
+				err = backchannel(t.ctx, t.conn.conn)
 				if err != nil {
-					detail := fmt.Errorf("failed to create raw connection raw connection: %s", err)
+					detail := fmt.Errorf("failed to establish backchannel: %s", err)
 					log.Error(detail)
-					continue
+					return detail
 				}
-			}
-			conn := t.conn
 
-			// wait for backchannel to establish
-			err = backchannel(context.Background(), conn)
-			if err != nil {
-				detail := fmt.Errorf("failed to establish backchannel: %s", err)
-				log.Error(detail)
-				continue
-			}
+				// create the SSH server using underlying t.conn
+				serverConn.Lock()
+				defer serverConn.Unlock()
 
-			// create the SSH server
-			serverConn, chans, reqs, err = ssh.NewServerConn(*conn, t.sshConfig)
-			if err != nil {
-				detail := fmt.Errorf("failed to establish ssh handshake: %s", err)
-				log.Error(detail)
-				continue
+				serverConn.ServerConn, chans, reqs, err = ssh.NewServerConn(*t.conn.conn, t.sshConfig)
+				if err != nil {
+					detail := fmt.Errorf("failed to establish ssh handshake: %s", err)
+					log.Error(detail)
+					return detail
+				}
+
+				return nil
 			}
+			established = establishFn() == nil
 		}
 
 		defer func() {
 			log.Debugf("cleanup on connection")
 
-			if serverConn != nil {
+			serverConn.Lock()
+			defer serverConn.Unlock()
+
+			if serverConn.ServerConn != nil {
 				log.Debugf("closing underlying connection")
 				serverConn.Close()
 			}
@@ -282,7 +409,9 @@ func (t *attachServerSSH) run() error {
 
 				channel.Close()
 
-				serverConn = nil
+				serverConn.Lock()
+				serverConn.ServerConn = nil
+				serverConn.Unlock()
 			}
 
 			// tty's merge stdout and stderr so we don't bind an additional reader in that case
@@ -300,7 +429,9 @@ func (t *attachServerSSH) run() error {
 
 					channel.Close()
 
-					serverConn = nil
+					serverConn.Lock()
+					serverConn.ServerConn = nil
+					serverConn.Unlock()
 				}
 			}
 			log.Debugf("reader/writers bound for channel for %s", sessionid)
@@ -333,7 +464,6 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 			}
 			msg := msgs.ContainersMsg{IDs: keys}
 			payload = msg.Marshal()
-
 		default:
 			ok = false
 			payload = []byte("unknown global request type: " + req.Type)
