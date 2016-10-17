@@ -96,9 +96,12 @@ rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
 #
 
 chroot $(rootfs_dir $PKGDIR) groupadd -g 1000 vicadmin
-chroot $(rootfs_dir $PKGDIR) useradd -u 1000 -g 1000 -m -d /home/vicadmin -s /bin/false vicadmin
+chroot $(rootfs_dir $PKGDIR) useradd -u 1000 -g 1000 -G systemd-journal -m -d /home/vicadmin -s /bin/false vicadmin
 cp -R ${DIR}/vicadmin/* $(rootfs_dir $PKGDIR)/home/vicadmin
 chown -R 1000:1000 $(rootfs_dir $PKGDIR)/home/vicadmin
+# so vicadmin can read the system journal via journalctl
+install -m 755 -d $(rootfs_dir $PKGDIR)/etc/tmpfiles.d
+echo "m  /var/log/journal/%m/system.journal 2755 root systemd-journal - -" > $(rootfs_dir $PKGDIR)/etc/tmpfiles.d/systemd.conf
 
 ## main VIC components
 # TEMP: imagec wrapper
