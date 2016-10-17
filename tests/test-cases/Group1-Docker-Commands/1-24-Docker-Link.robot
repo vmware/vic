@@ -18,16 +18,16 @@ Link and alias
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --net jedi busybox ping -c1 first
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --net jedi ubuntu ping -c1 first
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
     # cannot reach first from another network
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run busybox ping -c1 first
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run ubuntu ping -c1 first
     Should Not Be Equal As Integers  ${rc}  0
 
     # the link
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --net jedi --link first:1st busybox ping -c1 1st
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --net jedi --link first:1st ubuntu ping -c1 1st
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
@@ -37,7 +37,7 @@ Link and alias
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     # check if we can use alias "c1" from another container
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --net jedi busybox ping -c1 1st
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --net jedi ubuntu ping -c1 1st
     Should Not Be Equal As Integers  ${rc}  0
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -it -d --net jedi --net-alias 2nd busybox
@@ -45,6 +45,6 @@ Link and alias
     Should Not Contain  ${output}  Error
 
     # the alias
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --net jedi busybox ping -c1 2nd
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --net jedi ubuntu ping -c1 2nd
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
