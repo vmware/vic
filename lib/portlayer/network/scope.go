@@ -279,3 +279,44 @@ func (i *IPAM) Pools() []ip.Range {
 
 	return pools
 }
+
+type scopeJson struct {
+	ID      uid.UID
+	Name    string
+	Type    string
+	Subnet  net.IPNet
+	Gateway net.IP
+	DNS     []net.IP
+	Builtin bool
+	Pools   []string
+}
+
+func (js *scopeJson) Valid() bool {
+	if js.ID == uid.NilUID ||
+		js.Name == "" ||
+		(js.Type != constants.BridgeScopeType && js.Type != constants.ExternalScopeType) ||
+		ip.IsUnspecifiedSubnet(&js.Subnet) ||
+		ip.IsUnspecifiedIP(js.Gateway) {
+		return false
+	}
+
+	return true
+}
+
+func (js *scopeJson) FromScope(s *Scope) {
+	js.ID = s.id
+	js.Name = s.name
+	js.Type = s.scopeType
+	js.Subnet = s.subnet
+	js.Gateway = s.gateway
+	js.DNS = s.dns
+	js.Builtin = s.builtin
+
+	if s.ipam != nil {
+		pools := make([]string, len(s.ipam.Pools()))
+		for i, p := range s.ipam.Pools() {
+			pools[i] = p.String()
+		}
+		js.Pools = pools
+	}
+}

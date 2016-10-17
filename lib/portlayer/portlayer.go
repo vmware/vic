@@ -46,14 +46,6 @@ func Init(ctx context.Context, sess *session.Session) error {
 		return err
 	}
 
-	if err := exec.Init(ctx, sess, source, sink); err != nil {
-		return err
-	}
-
-	if err = network.Init(ctx, sess, source, sink); err != nil {
-		return err
-	}
-
 	// Grab the storage layer config blobs from extra config
 	extraconfig.Decode(source, &storage.Config)
 	log.Debugf("Decoded VCH config for storage: %#v", storage.Config)
@@ -69,6 +61,14 @@ func Init(ctx context.Context, sess *session.Session) error {
 		if err = store.Init(ctx, sess, storage.Config.ImageStores[0]); err != nil {
 			return err
 		}
+	}
+
+	if err := exec.Init(ctx, sess, source, sink); err != nil {
+		return err
+	}
+
+	if err = network.Init(ctx, sess, source, sink); err != nil {
+		return err
 	}
 
 	return nil

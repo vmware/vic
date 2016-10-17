@@ -114,7 +114,7 @@ func (handler *ScopesHandlersImpl) ScopesCreate(params scopes.CreateScopeParams)
 		return scopes.NewCreateScopeDefault(http.StatusServiceUnavailable).WithPayload(errorPayload(err))
 	}
 
-	s, err := handler.netCtx.NewScope(cfg.ScopeType, cfg.Name, subnet, gateway, dns, cfg.IPAM)
+	s, err := handler.netCtx.NewScope(context.Background(), cfg.ScopeType, cfg.Name, subnet, gateway, dns, cfg.IPAM)
 	if _, ok := err.(network.DuplicateResourceError); ok {
 		return scopes.NewCreateScopeConflict()
 	}

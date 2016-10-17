@@ -15,6 +15,7 @@
 package network
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"strconv"
@@ -32,6 +33,7 @@ import (
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/ip"
+	"github.com/vmware/vic/pkg/kvstore"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 	"golang.org/x/net/context"
@@ -44,8 +46,6 @@ const (
 
 	DefaultBridgeName = "bridge"
 )
-
-var UnspecifiedIP = &net.IPNet{IP: net.IPv4zero}
 
 // Context denotes a networking context that represents a set of scopes, endpoints,
 // and containers. Each context has its own separate IPAM.
@@ -60,6 +60,8 @@ type Context struct {
 	scopes       map[string]*Scope
 	containers   map[string]*Container
 	defaultScope *Scope
+
+	kv kvstore.KeyValueStore
 }
 
 type AddContainerOptions struct {
@@ -69,8 +71,9 @@ type AddContainerOptions struct {
 	Ports   []string
 }
 
-func NewContext(config *Configuration) (*Context, error) {
+func NewContext(config *Configuration, kv kvstore.KeyValueStore) (*Context, error) {
 	defer trace.End(trace.Begin(""))
+
 	if config == nil {
 		return nil, fmt.Errorf("missing config")
 	}
@@ -102,6 +105,7 @@ func NewContext(config *Configuration) (*Context, error) {
 		defaultBridgePool: NewAddressSpaceFromNetwork(bridgeRange),
 		scopes:            make(map[string]*Scope),
 		containers:        make(map[string]*Container),
+		kv:                kv,
 	}
 
 	n := ctx.config.ContainerNetworks[ctx.config.BridgeNetwork]
@@ -109,7 +113,7 @@ func NewContext(config *Configuration) (*Context, error) {
 		return nil, fmt.Errorf("default bridge network %s not present in config", ctx.config.BridgeNetwork)
 	}
 
-	s, err := ctx.NewScope(n.Type, n.Name, nil, nil, nil, nil)
+	s, err := ctx.newScope(n.Type, n.Name, nil, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -128,12 +132,35 @@ func NewContext(config *Configuration) (*Context, error) {
 		}
 
 		subnet := net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}
-		s, err := ctx.NewScope(n.Type, nn, &subnet, n.Gateway.IP, n.Nameservers, pools)
+		s, err := ctx.newScope(n.Type, nn, &subnet, n.Gateway.IP, n.Nameservers, pools)
 		if err != nil {
 			return nil, err
 		}
 
 		s.builtin = true
+	}
+
+	// load saved scopes in the kv store
+	if kv != nil {
+		values, err := kv.List(`context\.scopes\..+`)
+		if err != nil && err != kvstore.ErrKeyNotFound {
+			return nil, err
+		}
+
+		for k, v := range values {
+			js := &scopeJson{}
+			if err := json.Unmarshal(v, js); err != nil {
+				return nil, err
+			}
+
+			if !js.Valid() {
+				return nil, fmt.Errorf("invalid scope in kv store: %s", k)
+			}
+
+			if _, err = ctx.newScope(js.Type, js.Name, &js.Subnet, js.Gateway, js.DNS, js.Pools); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	return ctx, nil
@@ -320,12 +347,12 @@ func (c *Context) newExternalScope(id uid.UID, name string, subnet *net.IPNet, g
 		}
 	}
 
-	nPG := c.config.PortGroups[name]
-	if nPG == nil {
+	pg := c.config.PortGroups[name]
+	if pg == nil {
 		return nil, fmt.Errorf("no network info for external scope %s", name)
 	}
 
-	return c.newScopeCommon(id, name, constants.ExternalScopeType, subnet, gateway, dns, ipam, nPG)
+	return c.newScopeCommon(id, name, constants.ExternalScopeType, subnet, gateway, dns, ipam, pg)
 }
 
 func (c *Context) reserveSubnet(subnet *net.IPNet) (*AddressSpace, bool, error) {
@@ -416,13 +443,38 @@ func reservePools(space *AddressSpace, ipam *IPAM) ([]*AddressSpace, error) {
 	return subSpaces, nil
 }
 
-func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string) (*Scope, error) {
+func (c *Context) NewScope(ctx context.Context, scopeType, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string) (*Scope, error) {
 	defer trace.End(trace.Begin(""))
 
 	c.Lock()
 	defer c.Unlock()
 
-	return c.newScope(scopeType, name, subnet, gateway, dns, pools)
+	s, err := c.newScope(scopeType, name, subnet, gateway, dns, pools)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			c.deleteScope(name)
+		}
+	}()
+
+	// save the scope in the kv store
+	if c.kv != nil {
+		sj := &scopeJson{}
+		sj.FromScope(s)
+		var d []byte
+		d, err = json.Marshal(sj)
+		if err != nil {
+			return nil, err
+		}
+
+		if err = c.kv.Set(ctx, fmt.Sprintf("context.scopes.%s", name), d); err != nil {
+			return nil, err
+		}
+	}
+
+	return s, nil
 }
 
 func (c *Context) newScope(scopeType, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string) (*Scope, error) {
@@ -797,7 +849,7 @@ var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, e
 	var dc types.BaseVirtualDeviceConfigSpec
 
 	ctx := context.Background()
-	dcs, err := h.Spec.FindNICs(ctx, s.network)
+	dcs, err := h.Spec.FindNICs(ctx, s.Network())
 	if err != nil {
 		return nil, err
 	}
@@ -811,7 +863,7 @@ var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, e
 	}
 
 	if d == nil {
-		backing, err := s.network.EthernetCardBackingInfo(ctx)
+		backing, err := s.Network().EthernetCardBackingInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -1003,7 +1055,8 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 
 	if removeNIC {
 		var devices object.VirtualDeviceList
-		backing, err := s.network.EthernetCardBackingInfo(context.Background())
+		network := c.config.PortGroups[scope]
+		backing, err := network.EthernetCardBackingInfo(context.Background())
 		if err != nil {
 			return err
 		}
@@ -1053,9 +1106,27 @@ func (c *Context) ContainerByAddr(addr net.IP) *Endpoint {
 
 func (c *Context) DeleteScope(name string) error {
 	defer trace.End(trace.Begin(""))
+
 	c.Lock()
 	defer c.Unlock()
 
+	var err error
+	if c.kv != nil {
+		op := trace.NewOperation(context.Background(), fmt.Sprintf("deleteing scope %s from kv", name))
+		if err = c.kv.Delete(op, fmt.Sprintf("context.scopes.%s", name)); err != nil && err != kvstore.ErrKeyNotFound {
+			return err
+		}
+	}
+
+	// FIXME: restore scope in kv store if deleteScope() fails
+	if err = c.deleteScope(name); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Context) deleteScope(name string) error {
 	s, err := c.resolveScope(name)
 	if err != nil {
 		return err
