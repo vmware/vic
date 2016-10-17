@@ -41,15 +41,13 @@ func TestConvertV1ImageToDockerImage(t *testing.T) {
 			},
 		},
 		ImageID:   "test_id",
-		Digests:   []string{"12345"},
-		Tags:      []string{"test_tag"},
+		Digests:   []string{fmt.Sprintf("%s@sha:%s", "test_name", "12345")},
+		Tags:      []string{fmt.Sprintf("%s:%s", "test_name", "test_tag")},
 		Name:      "test_name",
 		DiffIDs:   map[string]string{"test_diffid": "test_layerid"},
 		History:   []v1.History{},
 		Reference: "test_name:test_tag",
 	}
-	digest := fmt.Sprintf("%s@sha:%s", image.Name, "12345")
-	tag := fmt.Sprintf("%s:%s", image.Name, "test_tag")
 
 	dockerImage := convertV1ImageToDockerImage(image)
 
@@ -59,40 +57,6 @@ func TestConvertV1ImageToDockerImage(t *testing.T) {
 	assert.Equal(t, image.Created.Unix(), dockerImage.Created, "Error: expected created %s, got %s", image.Created, dockerImage.Created)
 	assert.Equal(t, image.Parent, dockerImage.ParentID, "Error: expected parent %s, got %s", image.Parent, dockerImage.ParentID)
 	assert.Equal(t, image.Config.Labels, dockerImage.Labels, "Error: expected labels %s, got %s", image.Config.Labels, dockerImage.Labels)
-	assert.Equal(t, digest, dockerImage.RepoDigests[0], "Error: expected digest %s, got %s", digest, dockerImage.RepoDigests[0])
-	assert.Equal(t, tag, dockerImage.RepoTags[0], "Error: expected tag %s, got %s", tag, dockerImage.RepoTags[0])
-}
-
-func TestClientFriendlyTags(t *testing.T) {
-	tags := []string{"latest"}
-	defaultReference := "busybox:latest"
-	customReference := "custom.reg.com/busybox:latest"
-
-	defaultFriendlyTags := clientFriendlyTags(defaultReference, tags)
-	assert.Equal(t, len(defaultFriendlyTags), len(tags), "Error: expected %d tags, got %d", len(tags), len(defaultFriendlyTags))
-	assert.Equal(t, defaultFriendlyTags[0], "busybox:latest", "Error: expected %s, got %s", "busybox:latest", defaultFriendlyTags[0])
-
-	customFriendlyTags := clientFriendlyTags(customReference, tags)
-	assert.Equal(t, len(customFriendlyTags), len(tags), "Error: expected %d tags, got %d", len(tags), len(customFriendlyTags))
-	assert.Equal(t, customFriendlyTags[0], "custom.reg.com/busybox:latest", "Error: expected %s, got %s", "custom.reg.com/busybox:latest", customFriendlyTags[0])
-
-	emptyTags := clientFriendlyTags(defaultReference, []string{})
-	assert.Equal(t, len(emptyTags), 1, "Error: expected %d tags, got %d", 1, len(emptyTags))
-	assert.Equal(t, emptyTags[0], "<none>:<none>", "Error: expected %s tags, got %s", "<none>:<none>", emptyTags[0])
-
-}
-
-func TestClientFriendlyDigests(t *testing.T) {
-	imageName := "busybox"
-	digests := []string{"12345", "6789"}
-
-	friendlyDigests := clientFriendlyDigests(imageName, digests)
-	assert.Equal(t, len(friendlyDigests), len(digests), "Error: expected %d digests, got %d", len(digests), len(friendlyDigests))
-	assert.Equal(t, friendlyDigests[0], "busybox@sha:12345", "Error: expected %s, got %s", "busybox@sha:12345", friendlyDigests[0])
-	assert.Equal(t, friendlyDigests[1], "busybox@sha:6789", "Error: expected %s, got %s", "busybox@sha:6789", friendlyDigests[1])
-
-	emptyDigests := clientFriendlyDigests(imageName, []string{})
-	assert.Equal(t, len(emptyDigests), 1, "Error: expected %d digests, got %d", 1, len(emptyDigests))
-	assert.Equal(t, emptyDigests[0], "<none>@<none>", "Error: expected %s digests, got %s", "<none>@<none>", emptyDigests[0])
-
+	assert.Equal(t, image.Digests[0], dockerImage.RepoDigests[0], "Error: expected digest %s, got %s", image.Digests[0], dockerImage.RepoDigests[0])
+	assert.Equal(t, image.Tags[0], dockerImage.RepoTags[0], "Error: expected tag %s, got %s", image.Tags[0], dockerImage.RepoTags[0])
 }

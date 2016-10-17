@@ -41,7 +41,7 @@ FAIL=false
 
 for file in $(git ls-files | grep -e "\.go$" -e "Makefile$" -e "\.sh$" -e "\.bash$" | grep -v vendor/); do
   echo -n "Header check: $file... "
-  # get the file extention / type
+  # get the file extension / type
   ext=${file##*.}
 
   # increment line count in certain cases
