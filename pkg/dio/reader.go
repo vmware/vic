@@ -41,10 +41,11 @@ type multiReader struct {
 func (t *multiReader) Read(p []byte) (int, error) {
 	var n int
 	var err error
+	var rTmp []io.Reader
 
 	if verbose {
 		defer func() {
-			log.Debugf("[%p] read %q from %d readers (err: %#+v)", t, string(p[:n]), len(t.readers), err)
+			log.Debugf("[%p] read %q from %d readers (err: %#+v)", t, string(p[:n]), len(rTmp), err)
 		}()
 	}
 
@@ -71,7 +72,7 @@ func (t *multiReader) Read(p []byte) (int, error) {
 		log.Debugf("[%p] Woken from sleep %d readers", t, len(t.readers))
 	}
 	// stash a copy of the readers slie to iterate later
-	rTmp := make([]io.Reader, len(t.readers))
+	rTmp = make([]io.Reader, len(t.readers))
 	copy(rTmp, t.readers)
 	// stash a copy of the t.err
 	err = t.err

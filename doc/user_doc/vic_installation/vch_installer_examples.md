@@ -91,7 +91,7 @@ If the network that you designate as the container network in the `container-net
 This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the virtual container host.
-- Uses the default VM Network for the external, managment, and client networks.
+- Uses the default VM Network for the external, management, and client networks.
 - Designates a distributed port group named `vic-containers` for use by container VMs that are run with the `--net` option.
 - Gives the container network the name `vic-container-network`, for use by Docker. 
 - Specifies the gateway, two DNS servers, and a range of IP addresses on the container network for container VMs to use.

@@ -20,12 +20,10 @@ import (
 	"net"
 	"os"
 	"syscall"
-	"time"
 	"unsafe"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
-	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -65,32 +63,6 @@ func rawConnectionFromSerial() (*net.Conn, error) {
 	return &conn, err
 }
 
-func backchannel(ctx context.Context, conn *net.Conn) error {
-	defer trace.End(trace.Begin("establish tether backchannel"))
-
-	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
-	// it does implement the Timeout methods so the intermediary code can be written
-	// to support it, but they are stub implementation in rawconn impl.
-
-	// This needs to tick *faster* than the ticker in connection.go on the
-	// portlayer side.  The PL sends the first syn and if this isn't waiting,
-	// alignment will take a few rounds (or it may never happen).
-	ticker := time.NewTicker(10 * time.Millisecond)
-	for {
-		select {
-		case <-ticker.C:
-			err := serial.HandshakeServer(ctx, *conn)
-			if err == nil {
-				return nil
-			}
-		case <-ctx.Done():
-			(*conn).Close()
-			ticker.Stop()
-			return ctx.Err()
-		}
-	}
-}
-
 func (t *attachServerSSH) Start() error {
 	defer trace.End(trace.Begin(""))
 
@@ -102,13 +74,6 @@ func (t *attachServerSSH) Start() error {
 	rand.Reader, err = os.Open(pathPrefix + "/urandom")
 	if err != nil {
 		detail := fmt.Errorf("failed to open new urandom device: %s", err)
-		log.Error(detail)
-		return detail
-	}
-
-	t.conn, err = rawConnectionFromSerial()
-	if err != nil {
-		detail := fmt.Errorf("failed to create raw connection from ttyS0 file handle: %s", err)
 		log.Error(detail)
 		return detail
 	}

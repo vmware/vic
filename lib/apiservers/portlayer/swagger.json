@@ -59,6 +59,121 @@
 				}
 			}
 		},
+		"/kv/{key}": {
+			"get": {
+				"description": "Gets value from k/v store",
+				"tags": [
+					"kv"
+				],
+				"operationId": "GetValue",
+				"consumes": [
+					"application/json"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+						"name": "key",
+						"type": "string",
+						"in": "path",
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/KeyValue"
+						}
+					},
+					"404": {
+						"description": "Not found"
+					},
+					"500": {
+						"description": "error",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			},
+			"delete": {
+				"description": "deletes entry in k/v store",
+				"tags": [
+					"kv"
+				],
+				"operationId": "DeleteValue",
+				"consumes": [
+					"application/json"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+					"name": "key",
+					"type": "string",
+					"in": "path",
+					"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK"
+					},
+					"404": {
+						"description": "Not found"
+					},
+					"500": {
+						"description": "error",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			},
+			"put": {
+				"description": "Adds / updates value in k/v store",
+				"tags": [
+					"kv"
+				],
+				"operationId": "PutValue",
+				"consumes": [
+					"application/json"
+				],
+				"produces": [
+					"application/json"
+				],
+				"parameters": [
+					{
+					"name": "key",
+					"type": "string",
+					"in": "path",
+					"required": true
+					},
+					{
+					"name": "key_value",
+					"required": true,
+					"in": "body",
+					"schema": {
+						"$ref": "#/definitions/KeyValue"
+					}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK"
+					},
+					"500": {
+						"description": "error",
+						"schema": {
+							"$ref": "#/definitions/Error"
+						}
+					}
+				}
+			}
+		},
 		"/storage": {
 			"post": {
 				"description": "Creates a location to store images",
@@ -2091,6 +2206,17 @@
 					"type": "string"
 				},
 				"hostOSVersion": {
+					"type": "string"
+				}
+			}
+		},
+		"KeyValue": {
+			"type": "object",
+			"properties": {
+				"Key": {
+					"type": "string"
+				},
+				"Value":{
 					"type": "string"
 				}
 			}

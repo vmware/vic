@@ -41,16 +41,17 @@ func (t *multiWriter) Write(p []byte) (int, error) {
 	var n int
 	var err error
 
+	var wTmp []io.Writer
 	if verbose {
 		defer func() {
-			log.Debugf("[%p] write %q to %d writers (err: %#+v)", t, string(p[:n]), len(t.writers), err)
+			log.Debugf("[%p] write %q to %d writers (err: %#+v)", t, string(p[:n]), len(wTmp), err)
 		}()
 	}
 
 	t.mutex.Lock()
 	// stash a local copy of the slice as we never want to write twice to a single writer
 	// if remove is called during this flow
-	wTmp := make([]io.Writer, len(t.writers))
+	wTmp = make([]io.Writer, len(t.writers))
 	copy(wTmp, t.writers)
 	t.mutex.Unlock()
 
