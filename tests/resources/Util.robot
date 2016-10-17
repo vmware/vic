@@ -431,6 +431,9 @@ Run Unit Tests
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
+    # Pull an image that has been pulled already
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  busybox
