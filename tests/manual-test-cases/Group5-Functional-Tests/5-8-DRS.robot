@@ -66,6 +66,6 @@ Test
     ${out}=  Run  govc cluster.change -drs-enabled /ha-datacenter/host/cls
     Should Be Empty  ${out}
 
-    Install VIC Appliance To Test Server  certs=${true}  vol=default
+    Install VIC Appliance To Test Server  certs=${false}  vol=default
     
     Run Regression Tests
