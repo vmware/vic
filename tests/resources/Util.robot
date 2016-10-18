@@ -224,7 +224,9 @@ Gather Logs From Test Server
     # Certificate case
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  ${params}  ${SPACE}
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  @{ip}[1]  :
-    Run Keyword If  '${status}'=='FAIL'  Run  wget --no-check-certificate ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
+    ${docker_cert_path}=  Get Environment Variable  DOCKER_CERT_PATH  ${EMPTY}
+    ${wget_args}=  Set Variable If  '${docker_certpath}'==''  ${EMPTY}  --private-key=%{DOCKER_CERT_PATH}/key.pem --certificate=%{DOCKER_CERT_PATH}/cert.pem
+    Run Keyword If  '${status}'=='FAIL'  Run  wget ${wget_args} --no-check-certificate ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
 
 Gather Logs From ESX Server
     Environment Variable Should Be Set  TEST_URL
@@ -445,8 +447,11 @@ Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Exited
+    # get docker_cert_path or empty string if it's unset
+    ${docker_cert_path}=  Get Environment Variable  DOCKER_CERT_PATH  ${EMPTY}
+    ${curl_args}=  Set Variable If  '${docker_cert_path}' == ''  ${EMPTY}  --key %{DOCKER_CERT_PATH}/key.pem --cert %{DOCKER_CERT_PATH}/cert.pem
     # Ensure container logs are correctly being gathered for debugging purposes
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz | tar tvzf -
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${curl_args} ${vic-admin}/container-logs.tar.gz | tar tvzf -
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
     Should Contain  ${output}  ${container}/output.log

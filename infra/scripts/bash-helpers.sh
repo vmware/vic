@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.!/bin/bash
 
+OS=$(uname | tr '[:upper:]' '[:lower:]')
+
 tls () {
     unset TLS_OPTS
 }
@@ -34,7 +36,7 @@ vic-path () {
 vic-create () {
     pushd $(vic-path)/bin/
 
-    $(vic-path)/bin/vic-machine-linux create --target="$GOVC_URL" --image-store="$IMAGE_STORE" --compute-resource="$COMPUTE" ${TLS} ${TLS_OPTS} --name=${VIC_NAME:-${USER}test} "${MAPPED_NETWORKS[@]}" "${VOLUME_STORES[@]}" ${NETWORKS} ${IPADDR} ${TIMEOUT} --thumbprint=$THUMBPRINT $*
+    $(vic-path)/bin/vic-machine-"$OS" create --target="$GOVC_URL" --image-store="$IMAGE_STORE" --compute-resource="$COMPUTE" ${TLS} ${TLS_OPTS} --name=${VIC_NAME:-${USER}test} "${MAPPED_NETWORKS[@]}" "${VOLUME_STORES[@]}" ${NETWORKS} ${IPADDR} ${TIMEOUT} --thumbprint=$THUMBPRINT $*
 
     envfile=${VIC_NAME:-${USER}test}/${VIC_NAME:-${USER}test}.env
     if [ -f "$envfile" ]; then
@@ -51,15 +53,16 @@ vic-create () {
 }
 
 vic-delete () {
-    $(vic-path)/bin/vic-machine-linux delete --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --thumbprint=$THUMBPRINT --force $*
+    $(vic-path)/bin/vic-machine-"$OS" delete --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --thumbprint=$THUMBPRINT --force $*
 }
 
 vic-inspect () {
-    $(vic-path)/bin/vic-machine-linux inspect --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --thumbprint=$THUMBPRINT $*
+    $(vic-path)/bin/vic-machine-"$OS" inspect --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --thumbprint=$THUMBPRINT $*
 }
 
 vic-ls () {
-    $(vic-path)/bin/vic-machine-linux ls --target="$GOVC_URL" --thumbprint=$THUMBPRINT $*
+
+    $(vic-path)/bin/vic-machine-"$OS" ls --target="$GOVC_URL" --thumbprint=$THUMBPRINT $*
 }
 
 vic-ssh () {
@@ -68,11 +71,18 @@ vic-ssh () {
         keyarg="--authorized-key=$HOME/.ssh/authorized_keys"
     fi
 
-    out=$($(vic-path)/bin/vic-machine-linux debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --enable-ssh $keyarg --rootpw=password --thumbprint=$THUMBPRINT $*)
+    out=$($(vic-path)/bin/vic-machine-"$OS" debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --enable-ssh $keyarg --rootpw=password --thumbprint=$THUMBPRINT $*)
     host=$(echo $out | grep DOCKER_HOST | sed -n 's/.*DOCKER_HOST=\([^i:]*\).*/\1/p')
 
     echo "SSH to ${host}"
     sshpass -ppassword ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@${host}
+}
+
+vic-admin () {
+    out=$($(vic-path)/bin/vic-machine-"$OS" debug --target="$GOVC_URL" --compute-resource="$COMPUTE" --name=${VIC_NAME:-${USER}test} --enable-ssh $keyarg --rootpw=password --thumbprint=$THUMBPRINT $*)
+    host=$(echo $out | grep DOCKER_HOST | sed -n 's/.*DOCKER_HOST=\([^i:]*\).*/\1/p')
+
+   open http://${host}:2378
 }
 
 addr-from-dockerhost () {
@@ -87,7 +97,7 @@ addr-from-dockerhost () {
 #
 #    export GOVC_URL=$target
 #
-#    eval "export THUMBPRINT=$(govc-linux about.cert -k -json | jq -r .ThumbprintSHA1)"
+#    eval "export THUMBPRINT=$(govc about.cert -k -json | jq -r .ThumbprintSHA1)"
 #    export COMPUTE=cluster/pool
 #    export DATASTORE=datastore1
 #    export IMAGE_STORE=$DATASTORE/image/path

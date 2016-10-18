@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation  Test 1-25 - Docker Port Map
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Install VIC Appliance To Test Server  certs=${false}
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***

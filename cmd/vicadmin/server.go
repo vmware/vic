@@ -28,12 +28,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/tlsconfig"
 
+	"crypto/x509"
 	"github.com/vmware/vic/lib/vicadmin"
 	"github.com/vmware/vic/pkg/trace"
 )
 
 type server struct {
-	auth Authenticator
 	l    net.Listener
 	addr string
 	mux  *http.ServeMux
@@ -53,6 +53,19 @@ func (s *server) listen(useTLS bool) error {
 
 	// FIXME: assignment copies lock value to tlsConfig: crypto/tls.Config contains sync.Once contains sync.Mutex
 	tlsconfig := func(c *tls.Config) *tls.Config {
+		// if there are CAs, then TLS is enabled
+		if len(vchConfig.CertificateAuthorities) != 0 {
+			if c.ClientCAs == nil {
+				c.ClientCAs = x509.NewCertPool()
+			}
+			if !c.ClientCAs.AppendCertsFromPEM(vchConfig.CertificateAuthorities) {
+				log.Errorf("Unable to load CAs from config; client auth via certificate will not function")
+			}
+			c.ClientAuth = tls.RequireAndVerifyClientCert
+		} else {
+			log.Warnf("No certificate authorities found for certificate-based authentication. This may be intentional, however, authentication is disabled")
+		}
+
 		return &tls.Config{
 			Certificates:             c.Certificates,
 			NameToCertificate:        c.NameToCertificate,
@@ -101,27 +114,6 @@ func (s *server) listenPort() int {
 	return s.l.Addr().(*net.TCPAddr).Port
 }
 
-// handleFunc does preparatory work and then calls the HandleFunc method owned by the HTTP multiplexer
-func (s *server) handleFunc(link string, handler func(http.ResponseWriter, *http.Request)) {
-	defer trace.End(trace.Begin(""))
-
-	if s.auth != nil {
-		authHandler := func(w http.ResponseWriter, r *http.Request) {
-			user, password, ok := r.BasicAuth()
-			if !ok || !s.auth.Validate(user, password) {
-				w.Header().Add("WWW-Authenticate", "Basic realm=vicadmin")
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-			handler(w, r)
-		}
-		s.mux.HandleFunc(link, authHandler)
-		return
-	}
-
-	s.mux.HandleFunc(link, handler)
-}
-
 func (s *server) serve() error {
 	defer trace.End(trace.Begin(""))
 
@@ -129,11 +121,11 @@ func (s *server) serve() error {
 
 	// tar of appliance system logs
 	s.mux.HandleFunc("/logs.tar.gz", s.tarDefaultLogs)
-	s.handleFunc("/logs.zip", s.zipDefaultLogs)
+	s.mux.HandleFunc("/logs.zip", s.zipDefaultLogs)
 
 	// tar of appliance system logs + container logs
 	s.mux.HandleFunc("/container-logs.tar.gz", s.tarContainerLogs)
-	s.handleFunc("/container-logs.zip", s.zipContainerLogs)
+	s.mux.HandleFunc("/container-logs.zip", s.zipContainerLogs)
 
 	s.mux.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("css/"))))
 	s.mux.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir("images/"))))
@@ -144,17 +136,16 @@ func (s *server) serve() error {
 		p := path
 
 		// get single log file (no tail)
-		s.handleFunc("/logs/"+name, func(w http.ResponseWriter, r *http.Request) {
+		s.mux.HandleFunc("/logs/"+name, func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, p)
 		})
 
 		// get single log file (with tail)
-		s.handleFunc("/logs/tail/"+name, func(w http.ResponseWriter, r *http.Request) {
+		s.mux.HandleFunc("/logs/tail/"+name, func(w http.ResponseWriter, r *http.Request) {
 			s.tailFiles(w, r, []string{p})
 		})
 	}
 
-	//s.handleFunc("/", s.index)
 	s.mux.HandleFunc("/", s.index)
 	server := &http.Server{
 		Handler: s.mux,
