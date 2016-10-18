@@ -50,6 +50,12 @@ Set Test Environment Variables
     ${domain}=  Get Environment Variable  DOMAIN  ''
     Run Keyword If  '${domain}' == ''  Set Suite Variable  ${vicmachinetls}  '--no-tlsverify'
     Run Keyword If  '${domain}' != ''  Set Suite Variable  ${vicmachinetls}  '--tls-cname=*.${domain}'
+    
+    Set Test VCH Name
+    # Set a unique bridge network for each VCH that has a random VLAN ID
+    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitch0 ${vch-name}-bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  BRIDGE_NETWORK  ${vch-name}-bridge
 
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
@@ -105,12 +111,7 @@ Install VIC Appliance To Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
-    Set Test VCH Name
-    # Set a unique bridge network for each VCH that has a random VLAN ID
-    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitch0 ${vch-name}-bridge
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  BRIDGE_NETWORK  ${vch-name}-bridge
-
+    
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}
@@ -134,7 +135,9 @@ Cleanup VIC Appliance On Test Server
     Gather Logs From Test Server
     Log To Console  Deleting the VCH appliance...
     ${output}=  Run VIC Machine Delete Command
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${vch-name}-bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${vch-name}-bridge
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  ${vch-name}-bridge
     [Return]  ${output}
 
 Check Delete Success
