@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/portlayer/storage/vsphere"
+	"github.com/vmware/vic/lib/portlayer/store"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
@@ -57,7 +58,15 @@ func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) e
 			continue
 		}
 
-		if _, err = d.deleteDatastoreFiles(imageDSes[0], path.Join(imageDir.Path, vsphere.StorageParentDir), true); err != nil {
+		// delete images subfolder
+		imagePath := path.Join(imageDir.Path, vsphere.StorageParentDir)
+		if _, err = d.deleteDatastoreFiles(imageDSes[0], imagePath, true); err != nil {
+			errs = append(errs, err.Error())
+		}
+
+		// delete kvStores subfolder
+		kvPath := path.Join(imageDir.Path, store.KVStoreFolder)
+		if _, err = d.deleteDatastoreFiles(imageDSes[0], kvPath, true); err != nil {
 			errs = append(errs, err.Error())
 		}
 
