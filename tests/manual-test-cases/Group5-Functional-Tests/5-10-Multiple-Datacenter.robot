@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation  Test 5-10 - Multiple Datacenters
 Resource  ../../resources/Nimbus-Util.robot
-#Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup
+Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup
 
 *** Test Cases ***
 Test
@@ -24,7 +24,7 @@ Test
     Should Contain  ${out}  OK
 
     Set Environment Variable  TEST_DATACENTER  /datacenter1
-    Install VIC Appliance To Test Server
+    Install VIC Appliance To Test Server  certs=${false}  vol=default
 
     Run Regression Tests
 

@@ -50,6 +50,12 @@ Set Test Environment Variables
     ${domain}=  Get Environment Variable  DOMAIN  ''
     Run Keyword If  '${domain}' == ''  Set Suite Variable  ${vicmachinetls}  '--no-tlsverify'
     Run Keyword If  '${domain}' != ''  Set Suite Variable  ${vicmachinetls}  '--tls-cname=*.${domain}'
+    
+    Set Test VCH Name
+    # Set a unique bridge network for each VCH that has a random VLAN ID
+    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitch0 ${vch-name}-bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  BRIDGE_NETWORK  ${vch-name}-bridge
 
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
@@ -105,12 +111,7 @@ Install VIC Appliance To Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
-    Set Test VCH Name
-    # Set a unique bridge network for each VCH that has a random VLAN ID
-    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitch0 ${vch-name}-bridge
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  BRIDGE_NETWORK  ${vch-name}-bridge
-
+    
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}
@@ -134,7 +135,9 @@ Cleanup VIC Appliance On Test Server
     Gather Logs From Test Server
     Log To Console  Deleting the VCH appliance...
     ${output}=  Run VIC Machine Delete Command
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${vch-name}-bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${vch-name}-bridge
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  ${vch-name}-bridge
     [Return]  ${output}
 
 Check Delete Success
@@ -224,11 +227,18 @@ Gather Logs From Test Server
     # Certificate case
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  ${params}  ${SPACE}
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  @{ip}[1]  :
-    Run Keyword If  '${status}'=='FAIL'  Run  wget --no-check-certificate ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
+    ${docker_cert_path}=  Get Environment Variable  DOCKER_CERT_PATH  ${EMPTY}
+    ${wget_args}=  Set Variable If  '${docker_certpath}'==''  ${EMPTY}  --private-key=%{DOCKER_CERT_PATH}/key.pem --certificate=%{DOCKER_CERT_PATH}/cert.pem
+    Run Keyword If  '${status}'=='FAIL'  Run  wget ${wget_args} --no-check-certificate ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
 
 Gather Logs From ESX Server
     Environment Variable Should Be Set  TEST_URL
     ${out}=  Run  govc logs.download
+
+Change Log Level On Server
+    [Arguments]  ${level}
+    ${out}=  Run  govc host.option.set Config.HostAgent.log.level ${level}
+    Should Be Empty  ${out}
 
 Get State Of Github Issue
     [Arguments]  ${num}
@@ -440,8 +450,11 @@ Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Exited
+    # get docker_cert_path or empty string if it's unset
+    ${docker_cert_path}=  Get Environment Variable  DOCKER_CERT_PATH  ${EMPTY}
+    ${curl_args}=  Set Variable If  '${docker_cert_path}' == ''  ${EMPTY}  --key %{DOCKER_CERT_PATH}/key.pem --cert %{DOCKER_CERT_PATH}/cert.pem
     # Ensure container logs are correctly being gathered for debugging purposes
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz | tar tvzf -
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${curl_args} ${vic-admin}/container-logs.tar.gz | tar tvzf -
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
     Should Contain  ${output}  ${container}/output.log
