@@ -16,13 +16,21 @@ package trace
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 )
 
-var Logger = logrus.New()
+var Logger = &logrus.Logger{
+	Out: os.Stderr,
+	// We're using our own text formatter to skip the \n and \t escaping logrus
+	// was doing on non TTY Out (we redirect to a file) descriptors.
+	Formatter: &TextFormatter{},
+	Hooks:     make(logrus.LevelHooks),
+	Level:     logrus.InfoLevel,
+}
 
 // trace object used to grab run-time state
 type Message struct {
