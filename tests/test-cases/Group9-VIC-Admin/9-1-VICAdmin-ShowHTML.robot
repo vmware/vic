@@ -8,7 +8,7 @@ Default Tags
 *** Test Cases ***
 Display HTML
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk ${vic-admin}
-    Should contain  ${output}  <title>VCH Admin</title>
+    Should contain  ${output}  <title>VIC: ${vch-name} </title>
 
 Get Portlayer Log
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk ${vic-admin}/logs/port-layer.log

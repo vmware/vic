@@ -14,29 +14,12 @@
 
 package main
 
-import (
-	"bufio"
-	"bytes"
-	"testing"
+type ExecutorConfig struct {
+	// Diagnostics holds basic diagnostics data
+	Diagnostics Diagnostics `vic:"0.1" scope:"read-only" key:"diagnostics"`
+}
 
-	"github.com/Sirupsen/logrus"
-)
-
-func TestNewHook(t *testing.T) {
-	var b bytes.Buffer
-	w := bufio.NewWriter(&b)
-
-	hook := NewErrorHook(w)
-	levels := hook.Levels()
-	if len(levels) != 1 && levels[0] != logrus.FatalLevel {
-		t.Errorf("Returned levels %#v are different than expected", levels)
-	}
-
-	w.Reset(&b)
-	hook.Fire(&logrus.Entry{Message: "Fatal Test", Level: logrus.FatalLevel})
-	w.Flush()
-
-	if string(b.Bytes()) == "" {
-		t.Errorf("Fatal test failed %s", string(b.Bytes()))
-	}
+type Diagnostics struct {
+	// Should debugging be enabled on whatever component this is and at what level
+	DebugLevel int `vic:"0.1" scope:"read-only" key:"debug"`
 }

@@ -19,10 +19,10 @@ import (
 	"runtime"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
-var Logger = log.New()
+var Logger = logrus.New()
 
 // trace object used to grab run-time state
 type Message struct {

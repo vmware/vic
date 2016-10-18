@@ -27,7 +27,6 @@ import (
 	"github.com/vmware/vic/lib/portlayer/event"
 	"github.com/vmware/vic/lib/portlayer/event/collector/vsphere"
 	"github.com/vmware/vic/lib/portlayer/event/events"
-	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -116,18 +115,19 @@ func eventCallback(ie events.Event) {
 	container := Containers.Container(ie.Reference())
 	if container != nil {
 
-		newState := eventedState(ie.String(), container.State)
+		newState := eventedState(ie.String(), container.CurrentState())
 		// do we have a state change
-		if newState != container.State {
+		if newState != container.CurrentState() {
 			switch newState {
 			case StateStopping,
 				StateRunning,
 				StateStopped,
 				StateSuspended:
 
-				log.Debugf("Container(%s) state set to %s via event activity", container.ExecConfig.ID, newState.String())
-				container.State = newState
+				log.Debugf("Container(%s) state set to %s via event activity",
+					container.ExecConfig.ID, newState.String())
 
+				container.SetState(newState)
 				if newState == StateStopped {
 					container.onStop()
 				}
@@ -200,36 +200,4 @@ func publishContainerEvent(id string, created time.Time, eventType string) {
 	}
 
 	Config.EventManager.Publish(ce)
-}
-
-func WaitForContainerStop(ctx context.Context, id string) error {
-	defer trace.End(trace.Begin(id))
-
-	listen := make(chan interface{})
-	defer close(listen)
-
-	watch := func(ce events.Event) {
-		event := ce.String()
-		if ce.Reference() == id {
-			switch event {
-			case events.ContainerStopped,
-				events.ContainerPoweredOff:
-				listen <- event
-			}
-		}
-	}
-
-	sub := fmt.Sprintf("%s:%s(%d)", id, "watcher", &watch)
-	topic := events.NewEventType(events.ContainerEvent{}).Topic()
-	Config.EventManager.Subscribe(topic, sub, watch)
-	defer Config.EventManager.Unsubscribe(topic, sub)
-
-	// wait for the event to be pushed on the channel or
-	// the context to be complete
-	select {
-	case <-listen:
-		return nil
-	case <-ctx.Done():
-		return fmt.Errorf("WaitForContainerStop(%s) Error: %s", id, ctx.Err())
-	}
 }

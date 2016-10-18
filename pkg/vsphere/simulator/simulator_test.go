@@ -16,15 +16,20 @@ package simulator
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/vmware/govmomi"
+	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
@@ -263,6 +268,82 @@ func TestServeHTTP(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
+	}
+}
+
+func TestServeHTTPS(t *testing.T) {
+	s := New(NewServiceInstance(esx.ServiceContent, esx.RootFolder))
+	s.TLS = new(tls.Config)
+	ts := s.NewServer()
+	defer ts.Close()
+
+	ctx := context.Background()
+	// insecure=true OK
+	client, err := govmomi.NewClient(ctx, ts.URL, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = client.Login(ctx, ts.URL.User)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// insecure=false should FAIL
+	_, err = govmomi.NewClient(ctx, ts.URL, false)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	uerr, ok := err.(*url.Error)
+	if !ok {
+		t.Fatalf("err type=%T", err)
+	}
+
+	_, ok = uerr.Err.(x509.UnknownAuthorityError)
+	if !ok {
+		t.Fatalf("err type=%T", uerr.Err)
+	}
+
+	sinfo := ts.CertificateInfo()
+
+	// Test thumbprint validation
+	sc := soap.NewClient(ts.URL, false)
+	// Add host with thumbprint mismatch should fail
+	sc.SetThumbprint(ts.URL.Host, "nope")
+	_, err = vim25.NewClient(ctx, sc)
+	if err == nil {
+		t.Error("expected error")
+	}
+	// Add host with thumbprint match should pass
+	sc.SetThumbprint(ts.URL.Host, sinfo.ThumbprintSHA1)
+	_, err = vim25.NewClient(ctx, sc)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var pinfo object.HostCertificateInfo
+	err = pinfo.FromURL(ts.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pinfo.ThumbprintSHA1 != sinfo.ThumbprintSHA1 {
+		t.Error("thumbprint mismatch")
+	}
+
+	// Test custom RootCAs list
+	sc = soap.NewClient(ts.URL, false)
+	caFile, err := ts.CertificateFile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = sc.SetRootCAs(caFile); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = vim25.NewClient(ctx, sc)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

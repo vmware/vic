@@ -1,8 +1,8 @@
 *** Settings ***
 Documentation  Test 6-11 - Verify enable of ssh in the appliance
 Resource  ../../resources/Util.robot
-Test Setup  Install VIC Appliance To Test Server
-Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
+Suite Setup  Install VIC Appliance To Test Server
+Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Enable SSH and verify
@@ -12,7 +12,7 @@ Enable SSH and verify
     ${rc}=  Run And Return Rc  chmod 600 ${vch-name}.key
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}=  Run And Return Rc  bin/vic-machine-linux debug --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name ${vch-name} --enable-ssh --authorized-key=${vch-name}.key.pub
+    ${rc}=  Run And Return Rc  bin/vic-machine-linux debug --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name ${vch-name} --enable-ssh --authorized-key=${vch-name}.key.pub
     Should Be Equal As Integers  ${rc}  0
 
     # check the ssh
@@ -20,4 +20,4 @@ Enable SSH and verify
     Should Be Equal As Integers  ${rc}  0
 
     # delete the keys
-    Remove Files  ${vch-name}.key  ${vch-name}.key.pub 
+    Remove Files  ${vch-name}.key  ${vch-name}.key.pub

@@ -1,6 +1,6 @@
 # vSphere Integrated Containers - Architecture and Design
 
-The bulk of the design notes currently relate to [components and their role in the sytem](components.md) - high level descriptions primarily.
+The bulk of the design notes currently relate to [components and their role in the system](components.md) - high level descriptions primarily.
 
 Networking is broken out into a subfolder on the expectation that it will become a significantly larger area once NSX integration is addressed - [the 1.0 MVP network design](networking/README.md) does not encompass NSX.
 

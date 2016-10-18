@@ -47,6 +47,8 @@ const (
 	envMinAPIVersion = "GOVC_MIN_API_VERSION"
 	envVimNamespace  = "GOVC_VIM_NAMESPACE"
 	envVimVersion    = "GOVC_VIM_VERSION"
+	envTLSCaCerts    = "GOVC_TLS_CA_CERTS"
+	envTLSKnownHosts = "GOVC_TLS_KNOWN_HOSTS"
 )
 
 const cDescr = "ESX or vCenter URL"
@@ -66,6 +68,9 @@ type ClientFlag struct {
 	minAPIVersion string
 	vimNamespace  string
 	vimVersion    string
+	tlsCaCerts    string
+	tlsKnownHosts string
+	tlsHostHash   string
 
 	client *vim25.Client
 }
@@ -91,6 +96,10 @@ func (flag *ClientFlag) URLWithoutPassword() *url.URL {
 	withoutCredentials := *flag.url
 	withoutCredentials.User = url.User(flag.url.User.Username())
 	return &withoutCredentials
+}
+
+func (flag *ClientFlag) IsSecure() bool {
+	return !flag.insecure
 }
 
 func (flag *ClientFlag) String() string {
@@ -185,6 +194,18 @@ func (flag *ClientFlag) Register(ctx context.Context, f *flag.FlagSet) {
 			usage := fmt.Sprintf("Vim version [%s]", envVimVersion)
 			f.StringVar(&flag.vimVersion, "vim-version", value, usage)
 		}
+
+		{
+			value := os.Getenv(envTLSCaCerts)
+			usage := fmt.Sprintf("TLS CA certificates file [%s]", envTLSCaCerts)
+			f.StringVar(&flag.tlsCaCerts, "tls-ca-certs", value, usage)
+		}
+
+		{
+			value := os.Getenv(envTLSKnownHosts)
+			usage := fmt.Sprintf("TLS known hosts file [%s]", envTLSKnownHosts)
+			f.StringVar(&flag.tlsKnownHosts, "tls-known-hosts", value, usage)
+		}
 	})
 }
 
@@ -229,10 +250,19 @@ func (flag *ClientFlag) Process(ctx context.Context) error {
 	})
 }
 
-// Retry twice when a temporary I/O error occurs.
-// This means a maximum of 3 attempts.
-func attachRetries(rt soap.RoundTripper) soap.RoundTripper {
-	return vim25.Retry(rt, vim25.TemporaryNetworkError(3))
+// configure TLS and retry settings before making any connections
+func (flag *ClientFlag) configure(sc *soap.Client) (soap.RoundTripper, error) {
+	if err := flag.SetRootCAs(sc); err != nil {
+		return nil, err
+	}
+
+	if err := sc.LoadThumbprints(flag.tlsKnownHosts); err != nil {
+		return nil, err
+	}
+
+	// Retry twice when a temporary I/O error occurs.
+	// This means a maximum of 3 attempts.
+	return vim25.Retry(sc, vim25.TemporaryNetworkError(3)), nil
 }
 
 func (flag *ClientFlag) sessionFile() string {
@@ -306,8 +336,10 @@ func (flag *ClientFlag) loadClient() (*vim25.Client, error) {
 		return nil, nil
 	}
 
-	// Add retry functionality before making any calls
-	c.RoundTripper = attachRetries(c.RoundTripper)
+	c.RoundTripper, err = flag.configure(c.Client)
+	if err != nil {
+		return nil, err
+	}
 
 	m := session.NewManager(c)
 	u, err := m.UserSession(context.TODO())
@@ -331,6 +363,13 @@ func (flag *ClientFlag) loadClient() (*vim25.Client, error) {
 	return c, nil
 }
 
+func (flag *ClientFlag) SetRootCAs(c *soap.Client) error {
+	if flag.tlsCaCerts != "" {
+		return c.SetRootCAs(flag.tlsCaCerts)
+	}
+	return nil
+}
+
 func (flag *ClientFlag) newClient() (*vim25.Client, error) {
 	ctx := context.TODO()
 	sc := soap.NewClient(flag.url, flag.insecure)
@@ -350,8 +389,11 @@ func (flag *ClientFlag) newClient() (*vim25.Client, error) {
 	sc.Namespace = flag.vimNamespace
 	sc.Version = flag.vimVersion
 
-	// Add retry functionality before making any calls
-	rt := attachRetries(sc)
+	rt, err := flag.configure(sc)
+	if err != nil {
+		return nil, err
+	}
+
 	c, err := vim25.NewClient(ctx, rt)
 	if err != nil {
 		return nil, err

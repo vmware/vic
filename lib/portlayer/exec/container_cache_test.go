@@ -67,7 +67,7 @@ func TestIsContainerID(t *testing.T) {
 	assert.False(t, isContainerID(invalidID))
 }
 
-// addTestVM will add a psuedo VM to the container
+// addTestVM will add a pseudo VM to the container
 func addTestVM(container *Container) {
 	mo := types.ManagedObjectReference{Type: "vm", Value: "12"}
 	v := object.NewVirtualMachine(nil, mo)
@@ -75,7 +75,7 @@ func addTestVM(container *Container) {
 }
 
 func newTestContainer(id string) *Container {
-	c := &Container{ExecConfig: &executor.ExecutorConfig{}}
+	c := &Container{ExecConfig: &executor.ExecutorConfig{}, newStateEvents: make(map[State]chan struct{})}
 	c.ExecConfig.ID = id
 	return c
 }

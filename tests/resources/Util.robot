@@ -19,14 +19,21 @@ Set Test Environment Variables
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  BRIDGE_NETWORK  network
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  EXTERNAL_NETWORK
     Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  EXTERNAL_NETWORK  'VM Network'
+    ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_DATACENTER
+    Run Keyword If  '${status}' == 'FAIL'  Set Environment Variable  TEST_DATACENTER  ${SPACE}
 
     @{URLs}=  Split String  %{TEST_URL_ARRAY}
     ${len}=  Get Length  ${URLs}
     ${IDX}=  Evaluate  %{DRONE_BUILD_NUMBER} \% ${len}
 
     Set Environment Variable  TEST_URL  @{URLs}[${IDX}]
-    Log To Console  %{TEST_URL}
     Set Environment Variable  GOVC_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
+    # TODO: need an integration/vic-test image update to include the about.cert command
+    #${rc}  ${thumbprint}=  Run And Return Rc And Output  govc about.cert -k | jq -r .ThumbprintSHA1
+    ${rc}  ${thumbprint}=  Run And Return Rc And Output  openssl s_client -connect $(govc env -x GOVC_URL_HOST):443 </dev/null 2>/dev/null | openssl x509 -fingerprint -noout | cut -d= -f2
+    Should Be Equal As Integers  ${rc}  0
+    Set Environment Variable  TEST_THUMBPRINT  ${thumbprint}
+    Log To Console  TEST_URL=%{TEST_URL}
 
     ${host}=  Run  govc ls host
     ${status}  ${message}=  Run Keyword And Ignore Error  Environment Variable Should Be Set  TEST_RESOURCE
@@ -40,8 +47,9 @@ Set Test Environment Variables
     Run Keyword Unless  ${status}  Set Environment Variable  HOST_TYPE  VC
 
     # set the TLS config options suitable for vic-machine in this env
-    Run Keyword If  '%{DOMAIN}' == ''  Set Suite Variable  ${vicmachinetls}  '--no-tlsverify'
-    Run Keyword If  '%{DOMAIN}' != ''  Set Suite Variable  ${vicmachinetls}  '--cname=*.%{DOMAIN}'  
+    ${domain}=  Get Environment Variable  DOMAIN  ''
+    Run Keyword If  '${domain}' == ''  Set Suite Variable  ${vicmachinetls}  '--no-tlsverify'
+    Run Keyword If  '${domain}' != ''  Set Suite Variable  ${vicmachinetls}  '--tls-cname=*.${domain}'
 
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
@@ -96,6 +104,7 @@ Install VIC Appliance To Test Server
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
+    Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
     Set Test VCH Name
     # Set a unique bridge network for each VCH that has a random VLAN ID
     ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
@@ -112,11 +121,11 @@ Install VIC Appliance To Test Server
 Run VIC Machine Command
     [Tags]  secret
     [Arguments]  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}
-    ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug 1 --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} ${vicmachinetls} 
+    ${output}=  Run Keyword If  ${certs}  Run  ${vic-machine} create --debug 1 --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} ${vicmachinetls}
     Run Keyword If  ${certs}  Should Contain  ${output}  Installer completed successfully
     Return From Keyword If  ${certs}  ${output}
 
-    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug 1 --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} --no-tls
+    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug 1 --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} --no-tls
     Run Keyword Unless  ${certs}  Should Contain  ${output}  Installer completed successfully
     [Return]  ${output}
 
@@ -192,6 +201,19 @@ Cleanup Dangling Networks On Test Server
     \   Continue For Loop If  '${state}' == 'running'
     \   ${uuid}=  Run  govc host.portgroup.remove ${net}
 
+Cleanup Dangling vSwitches On Test Server
+    ${out}=  Run  govc host.vswitch.info | grep VCH
+    ${nets}=  Split To Lines  ${out}
+    :FOR  ${net}  IN  @{nets}
+    \   ${net}=  Fetch From Right  ${net}  ${SPACE}
+    \   ${build}=  Split String  ${net}  -
+    \   # Skip any vSwitch that is not associated with integration tests
+    \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   # Skip any vSwitch that is still running
+    \   ${state}=  Get State Of Drone Build  @{build}[1]
+    \   Continue For Loop If  '${state}' == 'running'
+    \   ${uuid}=  Run  govc host.vswitch.remove ${net}
+
 Gather Logs From Test Server
     Variable Should Exist  ${params}
     ${params}=  Strip String  ${params}
@@ -202,11 +224,16 @@ Gather Logs From Test Server
     # Certificate case
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  ${params}  ${SPACE}
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  @{ip}[1]  :
-    Run Keyword If  '${status}'=='FAIL'  Run  wget --no-check-certificate ${vic-admin}/container-logs.zip -O ${vch-name}-container-logs.zip
+    Run Keyword If  '${status}'=='FAIL'  Run  wget --no-check-certificate ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
 
 Gather Logs From ESX Server
     Environment Variable Should Be Set  TEST_URL
     ${out}=  Run  govc logs.download
+
+Change Log Level On Server
+    [Arguments]  ${level}
+    ${out}=  Run  govc host.option.set Config.HostAgent.log.level ${level}
+    Should Be Empty  ${out}
 
 Get State Of Github Issue
     [Arguments]  ${num}
@@ -387,29 +414,19 @@ Get VM Name
     ${ret}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Variable  ${vm}
     [Return]  ${ret}
 
-    
 Get VM Host Name
     [Arguments]  ${vm}
     ${vm}=  Get VM Name  ${vm}
     ${ret}=  Run  govc vm.info ${vm}/${vm}
     Set Test Variable  ${out}  ${ret}
     ${out}=  Split To Lines  ${out}
-    ${host}=  Fetch From Right  @{out}[-1]  ${SPACE} 
+    ${host}=  Fetch From Right  @{out}[-1]  ${SPACE}
     [Return]  ${host}
 
-Run Unit Tests
-    [Tags]  secret
-    Set Environment Variable  VIC_ESX_TEST_URL  %{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}
-    Log To Console  \nls vendor/github.com/vmware/govmomi/vim25/methods:
-    ${output}=  Run  ls vendor/github.com/vmware/govmomi/vim25/methods
-    Log To Console  ${output}
-    Log To Console  Execute the unit tests...
-    ${output}=  Run  make -j3 test
-    Log To Console  ${output}
-    Should Not Contain  ${output}  FAIL
-    Should Not Contain  ${output}  [build failed]
-
 Run Regression Tests
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    # Pull an image that has been pulled already
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images

@@ -15,7 +15,9 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
+	"fmt"
 	"log"
 	"runtime"
 
@@ -35,12 +37,15 @@ func main() {
 	flag.IntVar(&model.Pool, "pool", model.Pool, "Number of resource pools per compute resource")
 
 	isESX := flag.Bool("esx", false, "Simulate standalone ESX")
+	isTLS := flag.Bool("tls", false, "Enable TLS")
+	cert := flag.String("tlscert", "", "Path to TLS certificate file")
+	key := flag.String("tlskey", "", "Path to TLS key file")
 
 	flag.Parse()
 
 	f := flag.Lookup("httptest.serve")
 	if f.Value.String() == "" {
-		f.Value.Set("localhost:8989")
+		_ = f.Value.Set("127.0.0.1:8989")
 	}
 
 	if *isESX {
@@ -64,5 +69,21 @@ func main() {
 		log.Fatal(err)
 	}
 
-	model.Service.NewServer()
+	if *isTLS {
+		model.Service.TLS = new(tls.Config)
+		if *cert != "" {
+			c, err := tls.LoadX509KeyPair(*cert, *key)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			model.Service.TLS.Certificates = []tls.Certificate{c}
+		}
+	}
+
+	s := model.Service.NewServer()
+
+	fmt.Printf("GOVC_URL=%s", s.URL)
+
+	select {}
 }

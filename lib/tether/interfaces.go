@@ -15,9 +15,8 @@
 package tether
 
 import (
+	"context"
 	"io"
-
-	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/pkg/dio"
 )

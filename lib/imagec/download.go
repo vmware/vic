@@ -20,8 +20,6 @@ import (
 	"fmt"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/pkg/trace"
 
@@ -129,14 +127,8 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 	// lock here so that we get all layers in flight before another client comes along
 	ldm.m.Lock()
 
-	// Create the ImageWithMeta slice to hold Image structs
-	// This also informs downloaders when a layer already exists in the store
-	layers, err := ic.LayersToDownload()
-	if err != nil {
-		log.Errorf(err.Error())
-		ldm.m.Unlock()
-		return err
-	}
+	// Grab the imageLayers
+	layers := ic.ImageLayers
 
 	// iterate backwards through layers to download
 	for i := len(layers) - 1; i >= 0; i-- {
@@ -201,7 +193,7 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 		default:
 			<-topDownload.Done()
 		}
-		err = topDownload.result()
+		err := topDownload.result()
 		if err != nil {
 			return err
 		}
@@ -291,6 +283,8 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 				}
 				// cache the image
 				cache.ImageCache().AddImage(&imageConfig)
+				// place calculated ImageID in struct
+				ic.ImageID = imageConfig.ImageID
 			}
 
 			ldm.m.Lock()
@@ -298,13 +292,6 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 
 			// Write blob to the storage layer
 			if err := ic.WriteImageBlob(layer, progressOutput, imageLayer); err != nil {
-				d.err = err
-				return
-			}
-
-			// update tags
-			// TODO(jzt): this does not appear to work any longer
-			if err := updateImageMetadata(ic, layer, ic.ImageManifest); err != nil {
 				d.err = err
 				return
 			}

@@ -119,6 +119,17 @@ func (ic *ICache) GetImages() []*metadata.ImageConfig {
 	return result
 }
 
+// IsImageID will check that a full or partial imageID
+// exists in the cache
+func (ic *ICache) IsImageID(id string) bool {
+	ic.m.RLock()
+	defer ic.m.RUnlock()
+	if _, err := ic.idIndex.Get(id); err == nil {
+		return true
+	}
+	return false
+}
+
 // GetImage parses input to retrieve a cached image
 func (ic *ICache) GetImage(idOrRef string) (*metadata.ImageConfig, error) {
 	ic.m.RLock()
@@ -170,22 +181,9 @@ func (ic *ICache) getImageByDigest(digest digest.Digest) *metadata.ImageConfig {
 
 // Looks up image by reference.Named
 func (ic *ICache) getImageByNamed(named reference.Named) *metadata.ImageConfig {
-
-	var config *metadata.ImageConfig
-
-	if tagged, ok := named.(reference.NamedTagged); ok {
-		taggedName := tagged.Name() + ":" + tagged.Tag()
-		config = ic.cacheByName[taggedName]
-	} else {
-		// First try just the name.
-		if config, ok = ic.cacheByName[named.Name()]; !ok {
-			// try with the default docker tag
-			taggedName := named.Name() + ":" + reference.DefaultTag
-			config = ic.cacheByName[taggedName]
-		}
-	}
-
-	return copyImageConfig(config)
+	// get the imageID from the repoCache
+	id, _ := RepositoryCache().Get(named)
+	return copyImageConfig(ic.cacheByID[prefixImageID(id)])
 }
 
 // Add the "sha256:" prefix to the image ID if missing.
@@ -264,6 +262,10 @@ func copyImageConfig(image *metadata.ImageConfig) *metadata.ImageConfig {
 	// replace the pointer to metadata.ImageConfig.Config and copy the contents
 	newConfig := *image.Config
 	newImage.Config = &newConfig
+
+	// add tags & digests from the repo cache
+	newImage.Tags = RepositoryCache().Tags(newImage.ImageID)
+	newImage.Digests = RepositoryCache().Digests(newImage.ImageID)
 
 	return &newImage
 }
