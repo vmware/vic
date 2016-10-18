@@ -70,6 +70,7 @@ Pull the same image concurrently
      # Wait for them to finish and check their output
      :FOR  ${pid}  IN  @{pids}
      \   ${res}=  Wait For Process  ${pid}
+     \   Log  ${res.output}
      \   Should Be Equal As Integers  ${res.rc}  0
      \   Should Contain  ${res.stdout}  Downloaded newer image for library/redis:latest
 
