@@ -208,7 +208,6 @@ func (i *Image) PullImage(ctx context.Context, ref reference.Named, metaHeaders 
 		Destination: os.TempDir(),
 		Reference:   ref.String(),
 		Timeout:     imagec.DefaultHTTPTimeout,
-		Stdout:      true,
 		Outstream:   outStream,
 	}
 
