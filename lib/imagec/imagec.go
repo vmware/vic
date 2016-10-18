@@ -81,8 +81,6 @@ type Options struct {
 	Host      string
 	Storename string
 
-	Logfile string
-
 	Username string
 	Password string
 
@@ -90,18 +88,10 @@ type Options struct {
 
 	Timeout time.Duration
 
-	Stdout bool
-	Debug  bool
-
 	Outstream io.Writer
 
 	InsecureSkipVerify bool
 	InsecureAllowHTTP  bool
-
-	Standalone bool
-
-	Profiling string
-	Tracing   bool
 
 	ImageManifest *Manifest
 }
@@ -256,10 +246,7 @@ func (ic *ImageC) LayersToDownload() ([]*ImageWithMeta, error) {
 // that resides in the docker persona.  This will add image tag,
 // digest and layer information.
 func updateRepositoryCache(ic *ImageC) error {
-	// if standalone then no persona, so exit
-	if ic.Standalone {
-		return nil
-	}
+
 	// LayerID for the image layer
 	imageLayerID := ic.ImageLayers[0].ID
 
@@ -294,10 +281,6 @@ func updateRepositoryCache(ic *ImageC) error {
 // WriteImageBlob writes the image blob to the storage layer
 func (ic *ImageC) WriteImageBlob(image *ImageWithMeta, progressOutput progress.Output, cleanup bool) error {
 	defer trace.End(trace.Begin(image.Image.ID))
-	if ic.Standalone {
-		log.Debugf("Running in standalone, skipping WriteImageBlob")
-		return nil
-	}
 
 	destination := DestinationDirectory(ic.Options)
 
@@ -442,31 +425,22 @@ func (ic *ImageC) PullImage() error {
 	// Host is either the host's UUID (if run on vsphere) or the hostname of
 	// the system (if run standalone)
 	host, err := sys.UUID()
+	if err != nil {
+		log.Errorf("Failed to return host name: %s", err)
+		return err
+	}
+
 	if host != "" {
 		log.Infof("Using UUID (%s) for imagestore name", host)
-	} else if ic.Standalone {
-		host, err = os.Hostname()
-		log.Infof("Using host (%s) for imagestore name", host)
 	}
 
 	ic.Storename = host
 
-	if err != nil {
-		log.Errorf("Failed to return the UUID or host name: %s", err)
+	// Ping the server to ensure it's at least running
+	ok, err := PingPortLayer(ic.Host)
+	if err != nil || !ok {
+		log.Errorf("Failed to ping portlayer: %s", err)
 		return err
-	}
-
-	if !ic.Standalone {
-		log.Debugf("Running with portlayer")
-
-		// Ping the server to ensure it's at least running
-		ok, err := PingPortLayer(ic.Host)
-		if err != nil || !ok {
-			log.Errorf("Failed to ping portlayer: %s", err)
-			return err
-		}
-	} else {
-		log.Debugf("Running standalone")
 	}
 
 	// Calculate (and overwrite) the registry URL and make sure that it responds to requests

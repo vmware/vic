@@ -1,14 +1,14 @@
 *** Settings ***
 Documentation  Test 9-1 - VICAdmin ShowHTML
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Install VIC Appliance To Test Server  certs=${false}
 Suite Teardown  Cleanup VIC Appliance On Test Server
 Default Tags
 
 *** Test Cases ***
 Display HTML
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk ${vic-admin}
-    Should contain  ${output}  <title>VIC: ${vch-name} </title>
+    Should contain  ${output}  <title>VIC: ${vch-name}</title>
 
 Get Portlayer Log
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk ${vic-admin}/logs/port-layer.log
