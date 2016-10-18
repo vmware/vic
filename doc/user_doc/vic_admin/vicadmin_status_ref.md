@@ -2,7 +2,7 @@
 
 The Web-based administration portal for virtual container hosts, VCH Admin, presents status information about a virtual container host.
 
-If the vSphere environment in which you are deploying a virtual container host does not meet the requirements, the deployment does not succeed. However, a successfully deployed virtual container host can stop functioning if the vSphere environment changes after the deployment. If environment changes adversely affect the virtual container host, the status of the affected component changes from green to yellow or red.
+If the vSphere environment in which you are deploying a virtual container host does not meet the requirements, the deployment does not succeed. However, a successfully deployed virtual container host can stop functioning if the vSphere environment changes after the deployment. If environment changes adversely affect the virtual container host, the status of the affected component changes from green to yellow.
 
 ## Virtual Container Host (VCH) ##
 
@@ -41,7 +41,7 @@ VCH Admin checks external network connectivity by attempting to connect from the
 
 ### Error ###
 
-The Network Connectivity status is red.
+The Network Connectivity status is yellow.
 
 #### Cause ####
 

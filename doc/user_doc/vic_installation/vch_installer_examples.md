@@ -7,7 +7,6 @@ This topic provides examples of the options of the `vic-machine` `create` comman
 - [Deploy a Virtual Container Host to a Cluster and Specify External, Management, Client, and Container Networks](#networks)
 - [Deploy a Virtual Container Host and Configure a Non-DHCP Container Network](#ip-range)
 - [Deploy a Virtual Container Host with a Static IP Address on the Different Networks](#static-ip)
-- [Deploy a Virtual Container Host and Specify an Image Store Folder and a Different Datastore for Container VM Files](#datastores)
 - [Deploy a Virtual Container Host and Specify One or More Volume Stores](#volume-stores)
 - [Deploy a Virtual Container Host on a Standalone Host in vCenter Server](#standalone)
 - [Deploy a Virtual Container Host in a Resource Pool on an ESXi Host](#rp_host)
@@ -143,33 +142,6 @@ This example deploys a virtual container host with the following configuration:
 
 For more information about the networking options, see the [Networking Options section in Virtual Container Host Deployment Options](vch_installer_options.md#networking).
 
-<a name="datastores"></a>
-## Deploy a Virtual Container Host and Specify an Image Store Folder and a Different Datastore for Container VM Files ##
-
-If your vSphere environment includes multiple datastores, you can specify different datastores for the container image files and the container VM files. If you specify the `container-store` option, the VM files for container VMs are placed in folders at the top level of the designated datastore. The virtual container host files and the container image files are placed in the datastore that you specify in the `image-store` option. If you do not specify the `container-store` option, the virtual container host uses the `image-store` datastore for container VM files.
-
-You specify a specific folder in which to store your container images by providing a path in the `image-store` option.
-
-**NOTE**: In the current builds of vSphere Integrated Containers Engine, the `container-store` option is not enabled. Container VM files are stored in the datastore that you designate as the image store.
-
-This example deploys a virtual container host with the following configuration:
-
-- Specifies the user name, password, datacenter, cluster, bridge network, and name for the virtual container host.
-- Designates the folder `vic images` on `datastore 1` as the location in which to store container image files. If the `vic images` folder does not already exist, `vic-machine create` creates it.
-- Designates `datastore 2` as the datastore in which to store container VM files.
-- Note that the datastore and folder names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
-
-<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
---target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
---compute-resource cluster1
---bridge-network vic-bridge
---image-store 'datastore 1/vic images'
---container-store 'datastore 2'
---name vch1
-</pre>
-
-For more information about the datastore options, see the [Datastore Options section in Virtual Container Host Deployment Options](vch_installer_options.md#datastore). 
-
 <a name="volume-stores"></a>
 ## Deploy a Virtual Container Host and Specify One or More Volume Stores ##
 
@@ -285,11 +257,11 @@ This example deploys a virtual container host with the following configuration:
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
---memory-reservation 1024
 --memory 1024
+--memory-reservation 1024
 --memory-shares low
---cpu-reservation 1024
 --cpu 1024
+--cpu-reservation 1024
 --cpu-shares low
 --name vch1
 </pre>
