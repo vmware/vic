@@ -211,41 +211,87 @@ func (d *Dispatcher) CollectDiagnosticLogs() {
 	}
 }
 
-func addrToUse(ip string, conf *config.VirtualContainerHostConfigSpec) (string, error) {
+// given a set of IP addresses this will determine what address, if any, can be used to
+// connect to the host certificate
+// if none can be found, will return empty string and an err
+func addrToUse(candidateIPs []net.IP, cert *x509.Certificate, cas []byte) (string, error) {
+	if cert == nil {
+		return "", errors.New("unable to determine suitable address with nil certificate")
+	}
+
 	log.Debug("Loading CAs for client auth")
 	pool := x509.NewCertPool()
-	pool.AppendCertsFromPEM(conf.CertificateAuthorities)
+	pool.AppendCertsFromPEM(cas)
 
 	// update target to use FQDN
-	names, err := net.LookupAddr(ip)
-	if err != nil {
-		log.Debugf("Unable to perform reverse lookup of IP address: %s", err)
-	}
-
-	cert, err := conf.HostCertificate.X509Certificate()
-	if err != nil {
-		log.Debugf("Unable to extract host certificate: %s", err)
-		return ip, err
-	}
-
-	// check all the returned names, and lastly the raw IP
-	for _, n := range append(names, ip) {
-		opts := x509.VerifyOptions{
-			Roots:   pool,
-			DNSName: n,
+	for _, ip := range candidateIPs {
+		names, err := net.LookupAddr(ip.String())
+		if err != nil {
+			log.Debugf("Unable to perform reverse lookup of IP address: %s", err)
 		}
 
-		_, err := cert.Verify(opts)
-		if err == nil {
-			// this identifier will work
-			log.Debugf("Matched %s for use against host certificate", n)
-			// trim '.' fqdn suffix if fqdn
-			return strings.TrimSuffix(n, "."), nil
-		}
+		// check all the returned names, and lastly the raw IP
+		for _, n := range append(names, ip.String()) {
+			opts := x509.VerifyOptions{
+				Roots:   pool,
+				DNSName: n,
+			}
 
-		log.Debugf("Checked %s, no match for host cert", n)
+			_, err := cert.Verify(opts)
+			if err == nil {
+				// this identifier will work
+				log.Debugf("Matched %s for use against host certificate", n)
+				// trim '.' fqdn suffix if fqdn
+				return strings.TrimSuffix(n, "."), nil
+			}
+
+			log.Debugf("Checked %s, no match for host cert", n)
+		}
 	}
 
 	// no viable address
-	return ip, errors.New("unable to determine viable address")
+	return "", errors.New("unable to determine viable address")
+}
+
+/// viableHostAddresses attempts to determine which possibles addresses in the certificate
+// are viable from the current location.
+// This will return all IP addresses - it attempts to validate DNS names via resolution.
+// This does NOT check connectivity
+func viableHostAddress(candidateIPs []net.IP, cert *x509.Certificate, cas []byte) (string, error) {
+	if cert == nil {
+		return "", fmt.Errorf("unable to determine suitable address with nil certificate")
+	}
+
+	log.Debug("Loading CAs for client auth")
+	pool := x509.NewCertPool()
+	pool.AppendCertsFromPEM(cas)
+
+	dnsnames := cert.DNSNames
+
+	// assemble the common name and alt names
+	ip := net.ParseIP(cert.Subject.CommonName)
+	if ip != nil {
+		candidateIPs = append(candidateIPs, ip)
+	} else {
+		// assume it's dns
+		dnsnames = append([]string{cert.Subject.CommonName}, dnsnames...)
+	}
+
+	// turn the DNS names into IPs
+	for _, n := range dnsnames {
+		// see which resolve from here
+		ips, _ := net.LookupIP(n)
+		if len(ips) == 0 {
+			log.Debugf("Discarding name from viable set: %s", n)
+			continue
+
+		}
+
+		candidateIPs = append(candidateIPs, ips...)
+	}
+
+	// always add all the altname IPs - we're not checking for connectivity
+	candidateIPs = append(candidateIPs, cert.IPAddresses...)
+
+	return addrToUse(candidateIPs, cert, cas)
 }

@@ -224,11 +224,16 @@ Gather Logs From Test Server
     # Certificate case
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  ${params}  ${SPACE}
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  @{ip}[1]  :
-    Run Keyword If  '${status}'=='FAIL'  Run  wget --no-check-certificate ${vic-admin}/container-logs.zip -O ${vch-name}-container-logs.zip
+    Run Keyword If  '${status}'=='FAIL'  Run  wget --no-check-certificate ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
 
 Gather Logs From ESX Server
     Environment Variable Should Be Set  TEST_URL
     ${out}=  Run  govc logs.download
+
+Change Log Level On Server
+    [Arguments]  ${level}
+    ${out}=  Run  govc host.option.set Config.HostAgent.log.level ${level}
+    Should Be Empty  ${out}
 
 Get State Of Github Issue
     [Arguments]  ${num}

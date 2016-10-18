@@ -44,7 +44,7 @@ func hashPublicKey(key *rsa.PublicKey) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-func template(org string) *x509.Certificate {
+func template(org []string) *x509.Certificate {
 	now := time.Now().UTC()
 	// help address issues with clock drift
 	notBefore := now.AddDate(0, 0, -1)
@@ -58,14 +58,14 @@ func template(org string) *x509.Certificate {
 	}
 
 	// ensure that org is set to something
-	if org == "" {
-		org = "default"
+	if len(org) == 0 {
+		org = []string{"default"}
 	}
 
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
-			Organization: []string{org},
+			Organization: org,
 		},
 		NotBefore:             notBefore,
 		NotAfter:              notAfter,
@@ -247,7 +247,7 @@ func ParseCertificate(cb, kb []byte) (*x509.Certificate, *rsa.PrivateKey, error)
 	return cert, key, nil
 }
 
-func CreateSelfSigned(domain, org string, size int) (cert bytes.Buffer, key bytes.Buffer, err error) {
+func CreateSelfSigned(domain string, org []string, size int) (cert bytes.Buffer, key bytes.Buffer, err error) {
 	defer trace.End(trace.Begin(""))
 
 	template, pkey, err := templateWithKey(templateWithServer(template(org), domain), size)
@@ -258,7 +258,7 @@ func CreateSelfSigned(domain, org string, size int) (cert bytes.Buffer, key byte
 	return createCertificate(template, nil, pkey, nil)
 }
 
-func CreateRootCA(domain, org string, size int) (cert bytes.Buffer, key bytes.Buffer, err error) {
+func CreateRootCA(domain string, org []string, size int) (cert bytes.Buffer, key bytes.Buffer, err error) {
 	defer trace.End(trace.Begin(""))
 
 	template, pkey, err := templateWithKey(templateWithCA(template(org)), size)
@@ -269,7 +269,7 @@ func CreateRootCA(domain, org string, size int) (cert bytes.Buffer, key bytes.Bu
 	return createCertificate(template, nil, pkey, nil)
 }
 
-func CreateServerCertificate(domain, org string, size int, cb, kb []byte) (cert bytes.Buffer, key bytes.Buffer, err error) {
+func CreateServerCertificate(domain string, org []string, size int, cb, kb []byte) (cert bytes.Buffer, key bytes.Buffer, err error) {
 	defer trace.End(trace.Begin(""))
 
 	// Load up the CA
@@ -287,7 +287,7 @@ func CreateServerCertificate(domain, org string, size int, cb, kb []byte) (cert 
 	return createCertificate(template, cacert, pkey, cakey)
 }
 
-func CreateClientCertificate(domain, org string, size int, cb, kb []byte) (cert bytes.Buffer, key bytes.Buffer, err error) {
+func CreateClientCertificate(domain string, org []string, size int, cb, kb []byte) (cert bytes.Buffer, key bytes.Buffer, err error) {
 	defer trace.End(trace.Begin(""))
 
 	// Load up the CA

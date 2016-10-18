@@ -16,6 +16,7 @@ package trace
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -24,8 +25,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-
-	"golang.org/x/net/context"
 )
 
 func TestContextUnpack(t *testing.T) {
@@ -83,7 +82,12 @@ func TestNestedLogging(t *testing.T) {
 
 	// Assert we got a stack trace in the log
 	log := buf.String()
-	lines := strings.Count(log, "\n")
+	cr := "\\n"
+	if logrus.IsTerminal() {
+		cr = "\n"
+		levels += 2
+	}
+	lines := strings.Count(log, cr)
 	t.Log(log)
 
 	// Sample stack
@@ -103,8 +107,8 @@ func TestNestedLogging(t *testing.T) {
 
 	// We arrive at 2 because we have the err line (line 0), then the root
 	// (line 11) of where we created the ctx.
-	if !assert.True(t, lines >= levels+2) {
-		t.Logf("exepected %d and got %d", levels+2, lines)
+	if assert.False(t, lines < levels) {
+		t.Logf("exepected %d and got %d", levels, lines)
 		return
 	}
 }
@@ -114,7 +118,8 @@ func TestSanity(t *testing.T) {
 	Logger.Level = logrus.InfoLevel
 	levels := 10
 
-	root, _ := context.WithDeadline(context.Background(), time.Time{})
+	root, cancel := context.WithDeadline(context.Background(), time.Time{})
+	defer cancel()
 
 	var ctxFunc func(parent context.Context, level int) context.Context
 
@@ -123,7 +128,8 @@ func TestSanity(t *testing.T) {
 			return parent
 		}
 
-		child, _ := context.WithDeadline(parent, time.Now().Add(time.Hour))
+		child, cancel := context.WithDeadline(parent, time.Now().Add(time.Hour))
+		defer cancel()
 
 		return ctxFunc(child, level+1)
 	}
