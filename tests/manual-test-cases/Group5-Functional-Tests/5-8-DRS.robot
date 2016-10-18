@@ -58,7 +58,7 @@ Test
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
 
-    ${status}  ${message}=  Run Keyword And Ignore Error  Install VIC Appliance To Test Server  certs=${true}  vol=default
+    ${status}  ${message}=  Run Keyword And Ignore Error  Install VIC Appliance To Test Server  certs=${false}  vol=default
     Should Contain  ${message}  DRS must be enabled to use VIC
     Should Be Equal As Strings  ${status}  FAIL
 

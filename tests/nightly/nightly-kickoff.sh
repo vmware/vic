@@ -164,7 +164,7 @@ if [ $buildStatus -eq 0 ]
 then
 echo "Success"
 cat <<EOT >> nightly_mail.html
-To: mwilliamson-staff-adl@vmware.com
+To: mhagen@vmware.com, mwilliamson@vmware.com, rashok@vmware.com
 Subject: VIC Nightly Run #$buildNumber
 From: VIC Nightly
 MIME-Version: 1.0
@@ -490,7 +490,7 @@ EOT
 else
 echo "Failure"
 cat <<EOT >> nightly_mail.html
-To: mwilliamson-staff-adl@vmware.com
+To: mhagen@vmware.com, mwilliamson@vmware.com, rashok@vmware.com
 Subject: VIC Nightly Run #$buildNumber
 From: VIC Nightly
 MIME-Version: 1.0
