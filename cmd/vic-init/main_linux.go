@@ -137,15 +137,12 @@ func configureToolbox(t *tether.Toolbox) *tether.Toolbox {
 // externalIP attempts to find an external IP to be reported as the guest IP
 func externalIP() string {
 	l, err := netlink.LinkByName("client")
-	if err != nil && !os.IsNotExist(err) {
-		log.Errorf("error looking up client interface: %s", err)
-		return ""
-	}
+	if err != nil {
+		log.Warnf("error looking up client interface by name: %s", err)
 
-	if l == nil {
 		l, err = netlink.LinkByAlias("client")
 		if err != nil {
-			log.Errorf("error looking up client interface: %s", err)
+			log.Errorf("error looking up client interface by alias: %s", err)
 			return ""
 		}
 	}
