@@ -66,7 +66,7 @@ var (
 func Init(ctx context.Context, session *session.Session, imgStoreURL url.URL) error {
 	defer trace.End(trace.Begin(imgStoreURL.String()))
 
-	func() error {
+	initializer.once.Do(func() {
 		var err error
 		defer func() {
 			initializer.err = err
@@ -78,8 +78,7 @@ func Init(ctx context.Context, session *session.Session, imgStoreURL url.URL) er
 		}
 		//create or restore the api accessible datastore backed k/v store
 		_, err = NewDatastoreKeyValue(ctx, session, APIKV)
-		return err
-	}()
+	})
 
 	return initializer.err
 }

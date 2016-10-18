@@ -117,7 +117,7 @@ func TestVIC(t *testing.T) {
 	}
 
 	// initialize the context
-	ctx, err := network.NewContext(conf)
+	ctx, err := network.NewContext(conf, nil)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}

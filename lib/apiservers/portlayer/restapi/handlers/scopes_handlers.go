@@ -129,7 +129,7 @@ func (handler *ScopesHandlersImpl) ScopesCreate(params scopes.CreateScopeParams)
 func (handler *ScopesHandlersImpl) ScopesDelete(params scopes.DeleteScopeParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.IDName))
 
-	if err := handler.netCtx.DeleteScope(params.IDName); err != nil {
+	if err := handler.netCtx.DeleteScope(context.Background(), params.IDName); err != nil {
 		switch err := err.(type) {
 		case network.ResourceNotFoundError:
 			return scopes.NewDeleteScopeNotFound().WithPayload(errorPayload(err))
@@ -332,7 +332,7 @@ func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
 	}
 
 	var pools []string
-	for _, p := range scope.IPAM().Pools() {
+	for _, p := range scope.Pools() {
 		pools = append(pools, p.String())
 	}
 

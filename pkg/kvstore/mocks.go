@@ -142,7 +142,7 @@ func (_m *MockKeyValueStore) Save(ctx context.Context) error {
 }
 
 // Set provides a mock function with given fields: ctx, key, value
-func (_m *MockKeyValueStore) Set(ctx context.Context, key string, value []byte) error {
+func (_m *MockKeyValueStore) Put(ctx context.Context, key string, value []byte) error {
 	ret := _m.Called(ctx, key, value)
 
 	var r0 error

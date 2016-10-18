@@ -29,7 +29,7 @@ import (
 func save(t *testing.T, kv KeyValueStore, key string, expectedvalue []byte) {
 	op := trace.NewOperation(context.Background(), "save")
 
-	if !assert.NoError(t, kv.Set(op, key, expectedvalue)) {
+	if !assert.NoError(t, kv.Put(op, key, expectedvalue)) {
 		return
 	}
 }

@@ -70,7 +70,7 @@ func (handler *KvHandlersImpl) GetValueHandler(params kv.GetValueParams) middlew
 func (handler *KvHandlersImpl) PutValueHandler(params kv.PutValueParams) middleware.Responder {
 	defer trace.End(trace.Begin(*params.KeyValue.Key))
 
-	err := handler.defaultStore.Set(context.Background(), *params.KeyValue.Key, []byte(*params.KeyValue.Value))
+	err := handler.defaultStore.Put(context.Background(), *params.KeyValue.Key, []byte(*params.KeyValue.Value))
 	if err != nil {
 		log.Errorf("Error Setting Key/Value: %s", err.Error())
 		return kv.NewGetValueInternalServerError().WithPayload(&models.Error{

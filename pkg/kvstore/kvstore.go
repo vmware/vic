@@ -35,11 +35,26 @@ var (
 // caller to provision the namespace.
 
 type KeyValueStore interface {
-	Set(ctx context.Context, key string, value []byte) error
+	// Set adds a new key or modifies an existing key in the key-value store
+	Put(ctx context.Context, key string, value []byte) error
+
+	// Get gets an existing key in the key-value store. Returns ErrKeyNotFound
+	// if key does not exist the key-value store.
 	Get(key string) ([]byte, error)
+
+	// List lists the key-value pairs whose keys match the regular expression
+	// passed in.
 	List(re string) (map[string][]byte, error)
+
+	// Delete deletes existing keys from the key-value store. Returns ErrKeyNotFound
+	// if key does not exist the key-value store.
 	Delete(ctx context.Context, key string) error
+
+	// Save saves the key-value store data to the backend.
 	Save(ctx context.Context) error
+
+	// Name returns the unique identifier/name for the key-value store. This is
+	// used to determine the path that is passed to the backend operations.
 	Name() string
 }
 
@@ -99,7 +114,7 @@ func (p *kv) restore(ctx context.Context) error {
 
 // Set a key to the KeyValueStore with the given value.  If they key already
 // exists, the value is overwritten.
-func (p *kv) Set(ctx context.Context, key string, value []byte) error {
+func (p *kv) Put(ctx context.Context, key string, value []byte) error {
 	p.l.Lock()
 	defer p.l.Unlock()
 
