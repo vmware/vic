@@ -127,18 +127,21 @@ func (c *Connector) Get(ctx context.Context, id string, timeout time.Duration) (
 	}
 }
 
-func (c *Connector) Remove(id string) {
+func (c *Connector) Remove(id string) error {
 	defer trace.End(trace.Begin(id))
 
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
+	var err error
+
 	if c.connections[id] != nil {
 		if c.connections[id].id == id {
-			c.connections[id].spty.Close()
+			err = c.connections[id].spty.Close()
 		}
 		delete(c.connections, id)
 	}
+	return err
 }
 
 // takes the base connection, determines the ID of the source and stashes it in the map
