@@ -136,6 +136,7 @@ func init() {
 	}
 
 	extraconfig.Decode(src, &vchConfig)
+
 }
 
 type entryReader interface {
@@ -388,6 +389,7 @@ func client() (*session.Session, error) {
 	ctx := context.Background()
 
 	session := session.NewSession(&config.Config)
+
 	_, err := session.Connect(ctx)
 	if err != nil {
 		log.Warnf("Unable to connect: %s", err)
@@ -407,6 +409,7 @@ func findDatastore() error {
 	defer trace.End(trace.Begin(""))
 
 	session, err := client()
+
 	if err != nil {
 		return err
 	}

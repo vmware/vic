@@ -477,6 +477,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 				"/sbin/vicadmin",
 				"-docker-host=unix:///var/run/docker.sock",
 				// FIXME: hack during config migration
+				"-dc=" + settings.DatacenterName,
 				"-ds=" + conf.ImageStores[0].Host,
 				"-cluster=" + settings.ClusterPath,
 				"-pool=" + settings.ResourcePoolPath,
