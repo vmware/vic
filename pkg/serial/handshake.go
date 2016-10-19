@@ -104,7 +104,7 @@ func HandshakeClient(ctx context.Context, conn net.Conn, debug bool) error {
 		return errors.New(msg)
 	}
 
-	log.Infof("HandshakeClient: received synack: %#x == %#x\n", synack, buf[:2])
+	log.Debugf("HandshakeClient: received synack: %#x == %#x\n", synack, buf[:2])
 	log.Debug("client: writing ack")
 	ack[1] = buf[2] + 1
 	if debug {
@@ -241,7 +241,7 @@ func HandshakeServer(ctx context.Context, conn net.Conn) error {
 		conn.Write([]byte{flagNak})
 		return errors.New(msg)
 	}
-	log.Infof("server: received ack: %#x == %#x\n", ack, buf)
+	log.Debugf("server: received ack: %#x == %#x\n", ack, buf)
 
 	// disable the read timeout
 	// this has no effect on windows as the deadline is set at port open time
