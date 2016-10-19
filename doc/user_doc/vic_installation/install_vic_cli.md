@@ -41,7 +41,9 @@ The virtual container host allows you to use an ESXi host or vCenter Server inst
 --target <i>vcenter_server_address</i>
 --image-store <i>datastore_name</i> 
 --user <i>username</i>
---bridge-network <i>network_name</i></pre>  
+--bridge-network <i>network_name</i>
+--thumbprint <i>certificate_thumbprint</i>
+--no-tlsverify</pre>  
 
    Deploy a virtual container host from a Linux OS system:
 
@@ -49,7 +51,9 @@ The virtual container host allows you to use an ESXi host or vCenter Server inst
 --target <i>vcenter_server_address</i>
 --image-store <i>datastore_name</i> 
 --user <i>username</i>
---bridge-network <i>network_name</i></pre> 
+--bridge-network <i>network_name</i>
+--thumbprint <i>certificate_thumbprint</i>
+--no-tlsverify</pre> 
 
    Deploy a virtual container host from a Windows system:
 
@@ -57,7 +61,9 @@ The virtual container host allows you to use an ESXi host or vCenter Server inst
 --target <i>vcenter_server_address</i>
 --image-store <i>datastore_name</i> 
 --user <i>username</i>
---bridge-network <i>network_name</i></pre> 
+--bridge-network <i>network_name</i>
+--thumbprint <i>certificate_thumbprint</i>
+--no-tlsverify</pre> 
 
    At the end of a successful installation, `vic-machine` displays a success message:
    
