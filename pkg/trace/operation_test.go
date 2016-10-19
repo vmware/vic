@@ -82,12 +82,7 @@ func TestNestedLogging(t *testing.T) {
 
 	// Assert we got a stack trace in the log
 	log := buf.String()
-	cr := "\\n"
-	if logrus.IsTerminal() {
-		cr = "\n"
-		levels += 2
-	}
-	lines := strings.Count(log, cr)
+	lines := strings.Count(log, "\n")
 	t.Log(log)
 
 	// Sample stack
@@ -108,7 +103,7 @@ func TestNestedLogging(t *testing.T) {
 	// We arrive at 2 because we have the err line (line 0), then the root
 	// (line 11) of where we created the ctx.
 	if assert.False(t, lines < levels) {
-		t.Logf("exepected %d and got %d", levels, lines)
+		t.Logf("exepected at least %d and got %d", levels, lines)
 		return
 	}
 }
