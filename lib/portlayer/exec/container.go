@@ -261,10 +261,6 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 
 	// hold the event that has occurred
 	var commitEvent string
-
-	c.m.Lock()
-	defer c.m.Unlock()
-
 	// If an event has occurred then put the container in the cache
 	// and publish the container event
 	defer func() {
@@ -274,6 +270,9 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 			publishContainerEvent(c.ExecConfig.ID, time.Now().UTC(), commitEvent)
 		}
 	}()
+
+	c.m.Lock()
+	defer c.m.Unlock()
 
 	if c.vm == nil {
 		if sess == nil {
