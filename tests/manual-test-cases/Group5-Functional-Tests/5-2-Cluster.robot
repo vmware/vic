@@ -32,21 +32,11 @@ Test
     ${out}=  Run  govc cluster.add -hostname=${esx3-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
 
-    Log To Console  Create a distributed switch
-    ${out}=  Run  govc dvs.create -dc=ha-datacenter test-ds
-    Should Contain  ${out}  OK
+    Create A Distributed Switch  ha-datacenter
 
-    Log To Console  Create three new distributed switch port groups for management and vm network traffic
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=ha-datacenter -dvs=test-ds management
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=ha-datacenter -dvs=test-ds vm-network
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=ha-datacenter -dvs=test-ds bridge
-    Should Contain  ${out}  OK
+    Create Three Distributed Port Groups  ha-datacenter
 
-    Log To Console  Add all the hosts to the distributed switch
-    ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 /ha-datacenter/host/cls
-    Should Contain  ${out}  OK
+    Add Host To Distributed Switch  /ha-datacenter/host/cls
 
     Log To Console  Enable DRS on the cluster
     ${out}=  Run  govc cluster.change -drs-enabled /ha-datacenter/host/cls
@@ -62,6 +52,6 @@ Test
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
     
-    Install VIC Appliance To Test Server  ${false}  default
+    Install VIC Appliance To Test Server
 
     Run Regression Tests
