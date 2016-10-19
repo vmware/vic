@@ -21,15 +21,19 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/pkg/log"
 )
 
 var Logger = &logrus.Logger{
 	Out: os.Stderr,
 	// We're using our own text formatter to skip the \n and \t escaping logrus
 	// was doing on non TTY Out (we redirect to a file) descriptors.
-	Formatter: &TextFormatter{},
-	Hooks:     make(logrus.LevelHooks),
-	Level:     logrus.InfoLevel,
+	Formatter: &log.TextFormatter{
+		Timestamp:       true,
+		TimestampFormat: "2006-01-02T15:04:05.000000000Z07:00",
+	},
+	Hooks: make(logrus.LevelHooks),
+	Level: logrus.InfoLevel,
 }
 
 // trace object used to grab run-time state
