@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -49,6 +50,8 @@ type Manager struct {
 
 	// The PCI + SCSI device /dev node string format the disks can be attached with
 	byPathFormat string
+
+	reconfig sync.Mutex
 }
 
 func NewDiskManager(op trace.Operation, session *session.Session) (*Manager, error) {
@@ -236,9 +239,11 @@ func (m *Manager) Attach(op trace.Operation, disk *types.VirtualDisk) error {
 	machineSpec := types.VirtualMachineConfigSpec{}
 	machineSpec.DeviceChange = append(machineSpec.DeviceChange, changeSpec...)
 
+	m.reconfig.Lock()
 	_, err = tasks.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		return m.vm.Reconfigure(ctx, machineSpec)
 	})
+	m.reconfig.Unlock()
 
 	if err != nil {
 		op.Errorf("vmdk storage driver failed to attach disk: %s", errors.ErrorStack(err))
@@ -279,9 +284,11 @@ func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 
 	spec.DeviceChange = config
 
+	m.reconfig.Lock()
 	_, err = tasks.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		return m.vm.Reconfigure(ctx, spec)
 	})
+	m.reconfig.Unlock()
 
 	if err != nil {
 		op.Errorf(err.Error())
