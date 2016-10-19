@@ -115,6 +115,7 @@ func eventCallback(ie events.Event) {
 	container := Containers.Container(ie.Reference())
 
 	if container != nil {
+		// container should be locked to avoid unexpected state change.
 		container.m.Lock()
 		defer container.m.Unlock()
 
