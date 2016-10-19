@@ -62,7 +62,7 @@ Test
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
     
-    Install VIC Appliance To Test Server  certs=${true}  vol=default
+    Install VIC Appliance To Test Server  certs=${false}  vol=default
 
     Run Keyword And Ignore Error  Run Regression Tests
     

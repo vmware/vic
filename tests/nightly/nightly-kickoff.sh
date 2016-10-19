@@ -16,7 +16,7 @@
 
 echo "Removing VIC directory if present"
 echo "Cleanup logs from previous run"
-rm -rf bin 5-1-DistributedSwitch 5-2-Cluster 5-4-High-Availability 5-5-Heterogenous-ESXi 5-6-VSAN 5-7-NSX 5-8-DRS
+rm -rf bin 5-1-DistributedSwitch 5-2-Cluster 5-4-High-Availability 5-5-Heterogenous-ESXi 5-6-VSAN 5-7-NSX 5-8-DRS 5-10-Multiple-Datacenter 5-11-MultipleCluster
 rm -rf *.zip *.log
 
 input=$(wget -O - https://vmware.bintray.com/vic-repo |tail -n5 |head -n1 |cut -d':' -f 2 |cut -d'.' -f 3| cut -d'>' -f 2)
@@ -45,6 +45,7 @@ DistributedSwitchStatus="FAILED!"
 fi
 
 mv *.log 5-1-DistributedSwitch
+mv *.zip 5-1-DistributedSwitch
 
 drone exec --trusted -e test="pybot -d 5-2-Cluster tests/manual-test-cases/Group5-Functional-Tests/5-2-Cluster.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 
@@ -56,6 +57,19 @@ ClusterStatus="FAILED!"
 fi
 
 mv *.log 5-2-Cluster
+mv *.zip 5-2-Cluster
+
+drone exec --trusted -e test="pybot -d 5-3-EnhancedLinkedMode tests/manual-test-cases/Group5-Functional-Tests/5-3-Enhanced-Linked-Mode.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+
+if [ $? -eq 0 ]
+then
+EnhancedLinkedModeStatus="Passed"
+else
+EnhancedLinkedModeStatus="FAILED!"
+fi
+
+mv *.log 5-3-EnhancedLinkedMode
+mv *.zip 5-3-EnhancedLinkedMode
 
 drone exec --trusted -e test="pybot -d 5-4-High-Availability tests/manual-test-cases/Group5-Functional-Tests/5-4-High-Availability.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 if [ $? -eq 0 ]
@@ -66,6 +80,7 @@ HighAvailabilityStatus="FAILED!"
 fi
 
 mv *.log 5-4-High-Availability
+mv *.zip 5-4-High-Availability
 
 drone exec --trusted -e test="pybot -d 5-5-Heterogenous-ESXi tests/manual-test-cases/Group5-Functional-Tests/5-5-Heterogenous-ESXi.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 if [ $? -eq 0 ]
@@ -76,6 +91,7 @@ HeterogenousStatus="FAILED!"
 fi
 
 mv *.log 5-5-Heterogenous-ESXi
+mv *.zip 5-5-Heterogenous-ESXi
 
 drone exec --trusted -e test="pybot -d 5-6-VSAN tests/manual-test-cases/Group5-Functional-Tests/5-6-VSAN.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 if [ $? -eq 0 ]
@@ -86,6 +102,7 @@ VSANStatus="FAILED!"
 fi
 
 mv *.log 5-6-VSAN
+mv *.zip 5-6-VSAN
 
 drone exec --trusted -e test="pybot -d 5-7-NSX tests/manual-test-cases/Group5-Functional-Tests/5-7-NSX.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 if [ $? -eq 0 ]
@@ -96,6 +113,7 @@ NSXStatus="FAILED!"
 fi
 
 mv *.log 5-7-NSX
+mv *.zip 5-7-NSX
 
 drone exec --trusted -e test="pybot -d 5-8-DRS tests/manual-test-cases/Group5-Functional-Tests/5-8-DRS.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 if [ $? -eq 0 ]
@@ -106,8 +124,31 @@ DRSStatus="FAILED!"
 fi
 
 mv *.log 5-8-DRS
+mv *.zip 5-8-DRS
 
-if [[ $DistributedSwitchStatus = "Passed" && $ClusterStatus = "Passed" && $HighAvailabilityStatus = "Passed" && $HeterogenousStatus = "Passed" && $VSANStatus = "Passed" && $NSXStatus = "Passed" && $DRSStatus = "Passed" ]]
+drone exec --trusted -e test="pybot -d 5-10-Multiple-Datacenter tests/manual-test-cases/Group5-Functional-Tests/5-10-Multiple-Datacenter.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+if [ $? -eq 0 ]
+then
+MultipleDCStatus="Passed"
+else
+MultipleDCStatus="FAILED!"
+fi
+
+mv *.log 5-10-Multiple-Datacenter
+mv *.zip 5-10-Multiple-Datacenter
+
+drone exec --trusted -e test="pybot -d 5-11-MultipleCluster tests/manual-test-cases/Group5-Functional-Tests/5-11-Multiple-Cluster.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+if [ $? -eq 0 ]
+then
+MultipleClusterStatus="Passed"
+else
+MultipleClusterStatus="FAILED!"
+fi
+
+mv *.log 5-11-MultipleCluster
+mv *.zip 5-11-MultipleCluster
+
+if [[ $DistributedSwitchStatus = "Passed" && $ClusterStatus = "Passed" && $EnhancedLinkedModeStatus = "Passed" &&  $HighAvailabilityStatus = "Passed" && $HeterogenousStatus = "Passed" && $VSANStatus = "Passed" && $NSXStatus = "Passed" &&  $DRSStatus = "Passed" && $MultipleDCStatus =  "Passed" && $MultipleClusterStatus = "Passed" ]]
 then
 buildStatus=0
 else
@@ -123,6 +164,8 @@ if [ $buildStatus -eq 0 ]
 then
 echo "Success"
 cat <<EOT >> nightly_mail.html
+To: mwilliamson@vmware.com
+To: mhagen@vmware.com
 To: rashok@vmware.com
 Subject: VIC Nightly Run #$buildNumber
 From: VIC Nightly
@@ -364,6 +407,14 @@ Content-Type: text/html
                     </tr>
                     <tr>
                       <td>
+                        EnhancedLinkedMode:
+                      </td>
+                      <td>
+                        $EnhancedLinkedModeStatus
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
                         HighAvailability:
                       </td>
                       <td>
@@ -402,6 +453,22 @@ Content-Type: text/html
                         $DRSStatus
                       </td>
                     </tr>
+                    <tr>
+                      <td>
+                        MultipleDatacenter:
+                      </td>
+                      <td>
+                        $MultipleDCStatus
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        MultipleCluster:
+                      </td>
+                      <td>
+                        $MultipleClusterStatus
+                      </td>
+                    </tr>
                   </table>
                   <hr>
                   <table width="100%" cellpadding="0" cellspacing="0">
@@ -425,6 +492,8 @@ EOT
 else
 echo "Failure"
 cat <<EOT >> nightly_mail.html
+To: mwilliamson@vmware.com
+To: mhagen@vmware.com
 To: rashok@vmware.com
 Subject: VIC Nightly Run #$buildNumber
 From: VIC Nightly
@@ -666,6 +735,14 @@ Content-Type: text/html
                     </tr>
                     <tr>
                       <td>
+                        EnhancedLinkedMode:
+                      </td>
+                      <td>
+                        $EnhancedLinkedModeStatus
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
                         HighAvailability:
                       </td>
                       <td>
@@ -702,6 +779,22 @@ Content-Type: text/html
                       </td>
                       <td>
                         $DRSStatus
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        MultipleDatacenter:
+                      </td>
+                      <td>
+                        $MultipleDCStatus
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        MultipleCluster:
+                      </td>
+                      <td>
+                        $MultipleClusterStatus
                       </td>
                     </tr>
                   </table>

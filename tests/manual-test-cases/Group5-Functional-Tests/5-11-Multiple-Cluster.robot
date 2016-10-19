@@ -23,7 +23,7 @@ Test
     ${out}=  Run  govc cluster.add -hostname=${esx5-ip} -username=root -dc=datacenter1 -cluster=cls3 -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
 
-    Install VIC Appliance To Test Server
+    Install VIC Appliance To Test Server  certs=${false}  vol=default
 
     Run Regression Tests
 

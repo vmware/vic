@@ -38,7 +38,7 @@ Simple VSAN
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
     
-    Install VIC Appliance To Test Server  certs=${true}  vol=default
+    Install VIC Appliance To Test Server  certs=${false}  vol=default
 
     Run Regression Tests
     
@@ -77,6 +77,6 @@ Complex VSAN
     Set Environment Variable  TEST_RESOURCE  cluster-vsan-1
     Set Environment Variable  TEST_TIMEOUT  30m
     
-    Install VIC Appliance To Test Server  certs=${true}  vol=default
+    Install VIC Appliance To Test Server  certs=${false}  vol=default
 
     Run Regression Tests
