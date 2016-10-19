@@ -130,7 +130,7 @@ func eventCallback(ie events.Event) {
 				log.Debugf("Container(%s) state set to %s via event activity",
 					container.ExecConfig.ID, newState.String())
 
-				container.updateState(newState)
+				container.swapState(newState)
 				if newState == StateStopped {
 					container.onStop()
 				}
