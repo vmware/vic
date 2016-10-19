@@ -6,6 +6,7 @@ Library  requests
 Library  Process
 Library  SSHLibrary  1 minute  prompt=bash-4.1$
 Library  DateTime
+Resource  Nimbus-Util.robot
 
 *** Variables ***
 ${bin-dir}  ${CURDIR}/../../bin
@@ -50,6 +51,12 @@ Set Test Environment Variables
     ${domain}=  Get Environment Variable  DOMAIN  ''
     Run Keyword If  '${domain}' == ''  Set Suite Variable  ${vicmachinetls}  '--no-tlsverify'
     Run Keyword If  '${domain}' != ''  Set Suite Variable  ${vicmachinetls}  '--tls-cname=*.${domain}'
+    
+    Set Test VCH Name
+    # Set a unique bridge network for each VCH that has a random VLAN ID
+    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitch0 ${vch-name}-bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  BRIDGE_NETWORK  ${vch-name}-bridge
 
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
@@ -105,12 +112,7 @@ Install VIC Appliance To Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
-    Set Test VCH Name
-    # Set a unique bridge network for each VCH that has a random VLAN ID
-    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitch0 ${vch-name}-bridge
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  BRIDGE_NETWORK  ${vch-name}-bridge
-
+    
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}
@@ -134,7 +136,9 @@ Cleanup VIC Appliance On Test Server
     Gather Logs From Test Server
     Log To Console  Deleting the VCH appliance...
     ${output}=  Run VIC Machine Delete Command
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${vch-name}-bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${vch-name}-bridge
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  ${vch-name}-bridge
     [Return]  ${output}
 
 Check Delete Success
@@ -287,78 +291,6 @@ Verify Checksums
     \   Should Be Equal  @{sums}[${idx}]  @{imageSum}[0]
     \   ${idx}=  Evaluate  ${idx}+1
 
-Deploy Nimbus ESXi Server
-    [Arguments]  ${user}  ${password}  ${version}=3620759
-    ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
-    Log To Console  \nDeploying Nimbus ESXi server: ${name}
-    Open Connection  %{NIMBUS_GW}
-    Login  ${user}  ${password}
-
-    ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version}
-    # Make sure the deploy actually worked
-    Should Contain  ${out}  To manage this VM use
-    # Now grab the IP address and return the name and ip for later use
-    @{out}=  Split To Lines  ${out}
-    :FOR  ${item}  IN  @{out}
-    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  IP is
-    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
-    @{gotIP}=  Split String  ${line}  ${SPACE}
-    ${ip}=  Remove String  @{gotIP}[5]  ,
-
-    # Let's set a password so govc doesn't complain
-    Remove Environment Variable  GOVC_PASSWORD
-    Remove Environment Variable  GOVC_USERNAME
-    Set Environment Variable  GOVC_INSECURE  1
-    Set Environment Variable  GOVC_URL  root:@${ip}
-    ${out}=  Run  govc host.account.update -id root -password e2eFunctionalTest
-    Should Be Empty  ${out}
-    Log To Console  Successfully deployed new ESXi server - ${user}-${name}
-    Close connection
-    [Return]  ${user}-${name}  ${ip}
-
-Deploy Nimbus vCenter Server
-    [Arguments]  ${user}  ${password}  ${version}=3634791
-    ${name}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
-    Log To Console  \nDeploying Nimbus vCenter server: ${name}
-    Open Connection  %{NIMBUS_GW}
-    Login  ${user}  ${password}
-
-    ${out}=  Execute Command  nimbus-vcvadeploy --vcvaBuild ${version} ${name}
-    # Make sure the deploy actually worked
-    Should Contain  ${out}  Overall Status: Succeeded
-    # Now grab the IP address and return the name and ip for later use
-    @{out}=  Split To Lines  ${out}
-    :FOR  ${item}  IN  @{out}
-    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  Cloudvm is running on IP
-    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
-    ${ip}=  Fetch From Right  ${line}  ${SPACE}
-
-    Set Environment Variable  GOVC_INSECURE  1
-    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
-    Set Environment Variable  GOVC_PASSWORD  Admin!23
-    Set Environment Variable  GOVC_URL  ${ip}
-    Log To Console  Successfully deployed new vCenter server - ${user}-${name}
-    Close connection
-    [Return]  ${user}-${name}  ${ip}
-
-Deploy Nimbus Testbed
-    [Arguments]  ${user}  ${password}  ${testbed}
-    Open Connection  %{NIMBUS_GW}
-    Login  ${user}  ${password}
-    ${out}=  Execute Command  nimbus-testbeddeploy ${testbed}
-    [Return]  ${out}
-
-Kill Nimbus Server
-    [Arguments]  ${user}  ${password}  ${name}
-    Open Connection  %{NIMBUS_GW}
-    Login  ${user}  ${password}
-    ${out}=  Execute Command  nimbus-ctl kill '${name}'
-    Close connection
-
-Nimbus Cleanup
-    Gather Logs From Test Server
-    Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  *
-
 Wait Until Container Stops
     [Arguments]  ${container}
     :FOR  ${idx}  IN RANGE  0  30
@@ -500,3 +432,16 @@ Run Docker Info
     [Arguments]  ${docker-params}
     ${rc}=  Run And Return Rc  docker ${docker-params} info
     Should Be Equal As Integers  ${rc}  0
+
+Install Harbor To Test Server
+    [Arguments]  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}  ${host}=%{TEST_URL}  ${datastore}=${TEST_DATASTORE}  ${network}=%{BRIDGE_NETWORK}  ${name}=harbor
+    ${out}=  Run  wget https://github.com/vmware/harbor/releases/download/0.4.1/harbor_0.4.1_beta.ova
+    ${out}=  Run  ovftool harbor_0.4.1_beta.ova harbor_0.4.1_beta.ovf
+    ${out}=  Run  ovftool --datastore=${datastore} --name=${name} --net:"Network 1"="${network}" --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --prop:vami.domain.Harbor=mgmt.local --prop:vami.searchpath.Harbor=mgmt.local --prop:vami.DNS.Harbor=8.8.8.8 --prop:vm.vmname=Harbor harbor_0.4.1_beta.ovf 'vi://${user}:${password}@${host}'
+    ${out}=  Split To Lines  ${out}
+    
+    :FOR  ${line}  IN  @{out}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  Received IP address:
+    \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
+    \   Run Keyword If  ${status}  Set Environment Variable  HARBOR_IP  ${ip}
+    \   Exit For Loop If  ${status}

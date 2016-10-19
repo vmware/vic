@@ -43,6 +43,8 @@ func (d *Dispatcher) deleteImages(conf *config.VirtualContainerHostConfigSpec) e
 	defer trace.End(trace.Begin(""))
 	var errs []string
 
+	log.Infoln("Removing image stores")
+
 	for _, imageDir := range conf.ImageStores {
 		imageDSes, err := d.session.Finder.DatastoreList(d.ctx, imageDir.Host)
 		if err != nil {
@@ -137,14 +139,7 @@ func (d *Dispatcher) deleteDatastoreFiles(ds *object.Datastore, path string, for
 	}
 
 	m := object.NewFileManager(ds.Client())
-	if d.isVSAN(ds) {
-		if err = d.deleteFilesIteratively(m, ds, dsPath); err != nil {
-			return empty, err
-		}
-		return true, nil
-	}
-
-	if err = d.deleteVMFSFiles(m, ds, dsPath); err != nil {
+	if err = d.deleteFilesIteratively(m, ds, dsPath); err != nil {
 		return empty, err
 	}
 	return true, nil
@@ -311,7 +306,7 @@ func (d *Dispatcher) deleteVolumeStoreIfForced(conf *config.VirtualContainerHost
 		return 0
 	}
 
-	log.Infoln("Removing volume stores...")
+	log.Infoln("Removing volume stores")
 	for label, url := range conf.VolumeLocations {
 		// FIXME: url is being encoded by the portlayer incorrectly, so we have to convert url.Path to the right url.URL object
 		dsURL, err := datastore.ToURL(url.Path)
