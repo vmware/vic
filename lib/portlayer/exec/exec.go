@@ -84,6 +84,9 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		// create the event manager &  register the existing collector
 		Config.EventManager = event.NewEventManager(ec)
 
+		// subscribe the exec layer to the event stream for Vm events
+		Config.EventManager.Subscribe(events.NewEventType(vsphere.VMEvent{}).Topic(), "exec", eventCallback)
+
 		// instantiate the container cache now
 		NewContainerCache()
 
@@ -104,6 +107,81 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 	})
 
 	return err
+}
+
+// eventCallback will process events
+func eventCallback(ie events.Event) {
+	// grab the container from the cache
+	container := Containers.Container(ie.Reference())
+	if container != nil {
+
+		newState := eventedState(ie.String(), container.CurrentState())
+		// do we have a state change
+		if newState != container.CurrentState() {
+			switch newState {
+			case StateStopping,
+				StateRunning,
+				StateStopped,
+				StateSuspended:
+
+				log.Debugf("Container(%s) state set to %s via event activity",
+					container.ExecConfig.ID, newState.String())
+
+				container.SetState(newState)
+				if newState == StateStopped {
+					container.onStop()
+				}
+
+				// container state has changed so we need to update the container attributes
+				// we'll do this in a go routine to avoid blocking
+				go func() {
+					ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
+					defer cancel()
+
+					err := container.Refresh(ctx)
+					if err != nil {
+						log.Errorf("Event driven container update failed: %s", err.Error())
+					}
+					// regardless of update success failure publish the container event
+					publishContainerEvent(container.ExecConfig.ID, ie.Created(), ie.String())
+				}()
+			case StateRemoved:
+				log.Debugf("Container(%s) %s via event activity", container.ExecConfig.ID, newState.String())
+				Containers.Remove(container.ExecConfig.ID)
+				publishContainerEvent(container.ExecConfig.ID, ie.Created(), ie.String())
+
+			}
+		}
+	}
+
+	return
+}
+
+// eventedState will determine the target container
+// state based on the current container state and the vsphere event
+func eventedState(e string, current State) State {
+	switch e {
+	case events.ContainerPoweredOn:
+		// are we in the process of starting
+		if current != StateStarting {
+			return StateRunning
+		}
+	case events.ContainerPoweredOff:
+		// are we in the process of stopping
+		if current != StateStopping {
+			return StateStopped
+		}
+	case events.ContainerSuspended:
+		// are we in the process of suspending
+		if current != StateSuspending {
+			return StateSuspended
+		}
+	case events.ContainerRemoved:
+		if current != StateRemoving {
+			return StateRemoved
+		}
+	}
+	return current
 }
 
 // publishContainerEvent will publish a ContainerEvent to the vic event stream
