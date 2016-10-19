@@ -96,24 +96,28 @@ If you do not specify the `compute-resource` option and multiple possible resour
 * To deploy to a specific resource pool in a cluster, specify the names of the target cluster and the resource pool:<pre>--compute-resource <i>cluster_name</i>/<i>resource_pool_name</i></pre>
 * Wrap the resource names in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if they include spaces:<pre>--compute-resource '<i>cluster name</i>'/'<i>resource pool name</i>'</pre>
 
-
-<a name="security"></a>
-## Security Options ##
-
-For information about the security requirements for virtual container hosts, see [vSphere Integrated Containers Engine Security Overview](security.md).
-
 <a name="thumbprint"></a>
 ### `thumbprint` ###
 
 Short name: None
 
-If your vSphere environment uses default certificates that are generated, signed, and managed by the VMware Certificate Authority (VMCA), you do not need to specify the `thumbprint` option.
+The thumbprint of the vCenter Server or ESXi host certificate. This option is **mandatory** unless you run `vic-machine create` with the `--force` option. 
 
-If your vSphere environment uses custom certificates that are signed by a Certificate Authority (CA), specify the thumbprint of the vCenter Server or ESXi host certificate in the `thumbprint` option. If your environment uses custom certificates, the vSphere Administrator is responsible for managing those certificates. Obtain the thumbprint from your vSphere Administrator.
+**IMPORTANT** Running `vic-machine create` with the `--force` option rather than providing the certificate thumbprint is not recommended, because it permits man-in-the-middle attacks to go undetected.
 
-Wrap the thumbprint in single quotes (') on Mac OS and Linux and in double quotes (") on Windows.
+To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine create` without the specifying the `--thumbprint` or `--force` options. The deployment of the virtual container host fails, but the resulting error message includes the required certificate thumbprint. 
 
-<pre>--thumbprint '<i>certificate_thumbprint</i>'</pre>
+<pre>Failed to verify certificate for target=<i>vcenter_or_esxi_host</i> (thumbprint=<i>thumbprint</i>)
+</pre>
+
+You can copy the thumbprint from the error message and run vic-machine create again, including the `thumbprint` option.
+
+<pre>--thumbprint <i>certificate_thumbprint</i></pre>
+
+<a name="security"></a>
+## Security Options ##
+
+For information about the security requirements for virtual container hosts, see [vSphere Integrated Containers Engine Security Overview](security.md).
 
 ### `tls-cname` ###
 
@@ -361,7 +365,11 @@ Limit the amount of CPU capacity that is available for use by the virtual contai
 
 Short name: `-f`
 
-Forces `vic-machine create` to ignore warnings and non-fatal errors and continue with the deployment of a virtual container host. Errors such as an incorrect compute resource still cause the installation to fail. 
+Forces `vic-machine create` to ignore warnings and non-fatal errors and continue with the deployment of a virtual container host. Errors such as an incorrect compute resource still cause the installation to fail.
+
+You can use the `--force` option to deploy a virtual container host without providing the thumbprint of the vCenter Server or ESXi host in the `thumbprint` option. 
+
+**IMPORTANT** Running `vic-machine create` with the `--force` option rather than providing the certificate thumbprint is not recommended, because it permits man-in-the-middle attacks to go undetected.
 
 <pre>--force</pre>
 

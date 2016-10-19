@@ -41,6 +41,21 @@ Wrap the password in single quotation marks (') on Mac OS and Linux and in doubl
 
 <pre>--password '<i>esxi_host_or_vcenter_server_p@ssword</i>'</pre>
 
+### `thumbprint` ###
+
+Short name: None
+
+The thumbprint of the vCenter Server or ESXi host certificate. This option is **mandatory**. 
+
+To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine inspect` without the specifying the `--thumbprint` option. The operation fails, but the resulting error message includes the required certificate thumbprint. 
+
+<pre>Failed to verify certificate for target=<i>vcenter_or_esxi_host</i> (thumbprint=<i>thumbprint</i>)
+</pre>
+
+You can copy the thumbprint from the error message and run `vic-machine inspect` again, including the `thumbprint` option.
+
+<pre>--thumbprint <i>certificate_thumbprint</i></pre>
+
 ### `compute-resource` ###
 
 Short name: `-r`

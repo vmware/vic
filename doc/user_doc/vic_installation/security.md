@@ -10,11 +10,7 @@ The security requirements for vSphere Integrated Containers Engine relate to con
 <a name="vsphere"></a>
 ## Connections to vSphere ##
 
-If your vSphere environment uses default certificates that are generated, signed, and managed by the VMware Certificate Authority (VMCA), vSphere Integrated Containers uses auto-generated VMCA certificates to authenticate connections to vSphere.
-
-If your vSphere environment uses custom certificates that are signed by a Certificate Authority (CA), you must configure virtual container hosts to use these certificates. 
-- For information about configuring virtual container hosts to use custom CA certificates when connecting to vSphere, see the section on the [`thumbprint` option](vch_installer_options.md) in Virtual Container Host Deployment Options.
-- For information about using custom certificates with vSphere, see [vSphere Security Certificates](https://pubs.vmware.com/vsphere-60/topic/com.vmware.vsphere.security.doc/GUID-779A011D-B2DD-49BE-B0B9-6D73ECF99864.html) in the vSphere documentation.
+Connections from virtual container hosts to vCenter Server and ESXi hosts are authenticated by using the vCenter Server and ESXi host certificates. You provide the thumbprint of the vCenter Server or ESXi host certificate when you deploy a virtual container host. All subsequent connections between the virtual container host and the vCenter Server instance or ESXi host are authenticated by using this thumbprint.
 
 <a name="docker"></a>
 ## Connections to Docker Clients ##

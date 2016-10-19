@@ -20,11 +20,12 @@ For detailed descriptions of all of the `vic-machine create` options, see [Virtu
 <a name="esxi"></a>
 ## Deploy a Virtual Container Host Directly on an ESXi Host with no Resource Pools and a Single Datastore##
 
-You can deploy a virtual container host directly on an ESXi host that is not managed by a vCenter Server instance. This example provides the minimum options required to deploy a virtual container host. The `vic-machine create` command prompts you for the password for the ESXi host and deploys a virtual container host with the default name `virtual-container-host`. If there is only one datastore on the host and there are no resource pools, you do not need to specify the `image-store` or `compute-resource` options. When deploying to an ESXi host, `vic-machine create` creates a standard virtual switch and a distributed port group, so you do not need to specify any network options if you do not have specific network requirements.
+You can deploy a virtual container host directly on an ESXi host that is not managed by a vCenter Server instance. This example provides the minimum options required to deploy a virtual container host, namely the `--target`, `--user`, and `--thumbprint` options. The `vic-machine create` command prompts you for the password for the ESXi host and deploys a virtual container host with the default name `virtual-container-host`. If there is only one datastore on the host and there are no resource pools, you do not need to specify the `image-store` or `compute-resource` options. When deploying to an ESXi host, `vic-machine create` creates a standard virtual switch and a distributed port group, so you do not need to specify any network options if you do not have specific network requirements. 
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target <i>esxi_host_address</i>
 --user root
+--thumbprint <i>certificate_thumbprint</i>
 </pre>
 
 <a name="cluster"></a>
@@ -40,11 +41,13 @@ This example deploys a virtual container host with the following configuration:
 
 - Provides the vCenter Single Sign-On user and password in the `target` option. Note that the user name is wrapped in quotes, because it contains the `@` character. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system. 
 - Deploys a virtual container host named `vch1` to the cluster `cluster1` in datacenter `dc1`. 
+- Provides the thumbprint of the vCenter Server certificate.
 - Uses a distributed port group named `vic-bridge` for the bridge network. 
 - Designates `datastore1` as the datastore in which to store container images and the files for the virtual container host appliance. 
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
+--thumbprint <i>certificate_thumbprint</i>
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
@@ -63,13 +66,14 @@ In addition to the mandatory bridge network, if your vCenter Server environment 
 
 This example deploys a virtual container host with the following configuration:
 
-- Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the virtual container host.
+- Specifies the user name, password, datacenter, cluster, thumbprint, image store, bridge network, and name for the virtual container host.
 - Directs external, management, and Docker API traffic to network 1, network 2, and network 3 respectively. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 - Designates a distributed port group named `vic-containers` for use by container VMs that are run with the `--net` option.
 - Gives the container network the name `vic-container-network`, for use by Docker.  
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
+--thumbprint <i>certificate_thumbprint</i>
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
@@ -89,7 +93,7 @@ If the network that you designate as the container network in the `container-net
 
 This example deploys a virtual container host with the following configuration:
 
-- Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the virtual container host.
+- Specifies the user name, password, datacenter, cluster, thumbprint, image store, bridge network, and name for the virtual container host.
 - Uses the default VM Network for the external, management, and client networks.
 - Designates a distributed port group named `vic-containers` for use by container VMs that are run with the `--net` option.
 - Gives the container network the name `vic-container-network`, for use by Docker. 
@@ -97,6 +101,7 @@ This example deploys a virtual container host with the following configuration:
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
+--thumbprint <i>certificate_thumbprint</i>
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
@@ -117,13 +122,14 @@ If you specify networks for any or all of the external, management, and client n
 
 This example deploys a virtual container host with the following configuration:
 
-- Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the virtual container host.
+- Specifies the user name, password, datacenter, cluster, thumbprint, image store, bridge network, and name for the virtual container host.
 - Directs external, management, and Docker API traffic to network 1, network 2, and network 3 respectively. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 - Sets a DNS server for use by the virtual container host.
 - Sets a static IP address for the virtual container host on each of the external, management, and client networks. 
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
+--thumbprint <i>certificate_thumbprint</i>
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
@@ -151,13 +157,14 @@ When you create a volume store, you specify the name of the datastore to use and
 
 This example deploys a virtual container host with the following configuration:
 
-- Specifies the user name, password, datacenter, cluster, bridge network, and name for the virtual container host.
+- Specifies the user name, password, datacenter, cluster, thumbprint, bridge network, and name for the virtual container host.
 - Specifies the `volumes` folder on `datastore 1` as the default volume store. Creating a volume store named `default` allows container application developers to create anonymous or named volumes by using `docker create -v`. 
 - Specifies a second volume store named `volume_store_2` in the `volumes` folder on `datastore 2`. 
 - Note that the datastore names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
+--thumbprint <i>certificate_thumbprint</i>
 --compute-resource cluster1
 --bridge-network vic-bridge
 --image-store 'datastore 1'
@@ -175,11 +182,12 @@ If vCenter Server manages multiple standalone ESXi hosts that are not part of a 
 
 This example deploys a virtual container host with the following configuration:
 
-- Specifies the user name, password, image store, bridge network, and name for the virtual container host.
+- Specifies the user name, password, thumbprint, image store, bridge network, and name for the virtual container host.
 - Deploys the virtual container host on the ESXi host with the FQDN `esxihost1.organization.company.com` in the datacenter `dc1`. You can also specify an IP address.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
+--thumbprint <i>certificate_thumbprint</i>
 --image-store datastore1
 --bridge-network vic-bridge
 --compute-resource esxihost1.organization.company.com
@@ -193,11 +201,12 @@ To deploy a virtual container host in a specific resource pool on an ESXi host t
 
 This example deploys a virtual container host with the following configuration:
 
-- Specifies the user name and password and a name for the virtual container host.
+- Specifies the user name and password, thumbprint, and a name for the virtual container host.
 - Designates `rp 1` as the resource pool in which to place the virtual container host. Note that the resource pool name is wrapped in quotes, because it contains a space. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target root:<i>password</i>@<i>esxi_host_address</i>
+--thumbprint <i>certificate_thumbprint</i>
 --compute-resource 'rp 1'
 --name vch1
 </pre>
@@ -209,11 +218,12 @@ To deploy a virtual container host in a resource pool in a vCenter Server cluste
 
 This example deploys a virtual container host with the following configuration:
 
-- Specifies the user name, password, datacenter, image store, bridge network, and name for the virtual container host.
+- Specifies the user name, password, datacenter, thumbprint, image store, bridge network, and name for the virtual container host.
 - Designates `rp 1` in cluster `cluster 1` as the resource pool in which to place the virtual container host. Note that the resource pool and cluster names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
+--thumbprint <i>certificate_thumbprint</i>
 --compute-resource 'cluster 1'/'rp 1'
 --image-store datastore1
 --bridge-network vic-bridge
@@ -227,11 +237,12 @@ If your development environment uses custom Certificate Authority certificates t
 
 This example deploys a virtual container host with the following configuration:
 
-- Specifies the user name, password, image store, cluster, bridge network, and name for the virtual container host.
+- Specifies the user name, password, thumbprint, image store, cluster, bridge network, and name for the virtual container host.
 - Provides the paths relative to the current location of the `*.pem` files for the custom CA certificate and key files.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
+--thumbprint <i>certificate_thumbprint</i>
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
@@ -249,11 +260,12 @@ To limit the amount of system resources that the container VMs in a virtual cont
 
 This example deploys a virtual container host with the following configuration:
 
-- Specifies the user name, password, image store, cluster, bridge network, and name for the virtual container host.
+- Specifies the user name, password, thumbprint, image store, cluster, bridge network, and name for the virtual container host.
 - Sets resource limits on the virtual container host by imposing memory and CPU reservations, limits, and shares.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
+--thumbprint <i>certificate_thumbprint</i>
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
@@ -275,12 +287,13 @@ An insecure private registry server is a private registry server for Docker imag
 
 This example deploys a virtual container host with the following configuration:
 
-- Specifies the user name, password, image store, cluster, bridge network, and name for the virtual container host.
+- Specifies the user name, password, thumbprint, image store, cluster, bridge network, and name for the virtual container host.
 - Authorizes the virtual container host to pull Docker images from the insecure private registry servers located at the URLs <i>registry_URL_1</i> and <i>registry_URL_2</i>.
 - The registry server at <i>registry_URL_2</i> listens for connections on port 5000. 
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
+--thumbprint <i>certificate_thumbprint</i>
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge

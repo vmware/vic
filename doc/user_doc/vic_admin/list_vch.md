@@ -13,16 +13,18 @@ You have deployed at least one virtual container host.
 1. On the system on which you run `vic-machine`, navigate to the directory that contains the `vic-machine` utility.
 2. Run the `vic-machine ls` command. 
 
-   To obtain a list of all virtual container hosts that are running on an ESXi host or vCenter Server instance, you must provide the address of the target ESXi host or vCenter Server. You must specify the username and optionally the password, either in the `target` option or separately in the `user` and `password` options. 
+   To obtain a list of all virtual container hosts that are running on an ESXi host or vCenter Server instance, you must provide the address of the target ESXi host or vCenter Server. You must specify the username and optionally the password, either in the `target` option or separately in the `user` and `password` options. You must also specify the thumbprint of the vCenter Server instance or ESXi host in the `thumbprint` option.
 
   <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> ls
 --target <i>esxi_host_address</i>
 --user root
 --password <i>esxi_host_password</i>
+--thumbprint <i>certificate_thumbprint</i>
 </pre>
 
    <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> ls
 --target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
+--thumbprint <i>certificate_thumbprint</i>
 </pre>
 
 
@@ -49,5 +51,3 @@ vm-<i>n</i>       <i>path</i>     <i>vch_n</i>   <i>vch_version</i>-<i>vch_build
   - If virtual container hosts are deployed in resource pools on hosts or clusters, the resource pool names appear after `Resources` in the path.
 - The `VERSION` value includes the version of `vic-machine`  that was used to create the virtual container host, the build number of this version, and a hashtag to identify the build.
 - The `UPGRADE STATUS` reflects whether the version of `vic-machine` that you are using is the same as the version of the virtual container host. If the version or build number of the virtual container host does not match that of `vic-machine`, `UPGRADE STATUS` is <code>Upgradeable to <i>vch_version</i>-<i>vch_build</i>-<i>tag</i></code>.
-
-  **NOTE**: In the current builds, virtual container host upgrade is not yet implemented.

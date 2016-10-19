@@ -6,7 +6,7 @@ The command line utility for vSphere Integrated Containers Engine, `vic-machine`
 
 Short name: `-t`
 
-The IPv4 address, fully qualified domain name (FQDN), or URL of the ESXi host or vCenter Server instance on which you deployed the virtual container hosts. This option is mandatory.
+The IPv4 address, fully qualified domain name (FQDN), or URL of the ESXi host or vCenter Server instance on which you deployed the virtual container hosts. This option is **mandatory**.
 
 - If the target ESXi host is not managed by vCenter Server, provide the address of the host.<pre>--target <i>esxi_host_address</i></pre>
 - If the target ESXi host is managed by vCenter Server, or if you deployed the virtual container hosts to a cluster, provide the address of vCenter Server.<pre>--target <i>vcenter_server_address</i></pre>
@@ -42,6 +42,21 @@ The password for the user account on the vCenter Server on which you  deployed t
 Wrap the password in single quotation marks (') on Mac OS and Linux and in double quotation (") marks on Windows if it includes special characters.
 
 <pre>--password '<i>esxi_host_or_vcenter_server_p@ssword</i>'</pre>
+
+### `thumbprint` ###
+
+Short name: None
+
+The thumbprint of the vCenter Server or ESXi host certificate. This option is **mandatory**. 
+
+To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine ls` without the specifying the `--thumbprint` option. The operation fails, but the resulting error message includes the required certificate thumbprint. 
+
+<pre>Failed to verify certificate for target=<i>vcenter_or_esxi_host</i> (thumbprint=<i>thumbprint</i>)
+</pre>
+
+You can copy the thumbprint from the error message and run `vic-machine ls` again, including the `thumbprint` option.
+
+<pre>--thumbprint <i>certificate_thumbprint</i></pre>
 
 ### `compute-resource` ###
 
