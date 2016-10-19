@@ -40,7 +40,7 @@ var mgr *StoreManager
 
 const (
 	// default store folder name
-	dsFolder = "kvStores"
+	KVStoreFolder = "kvStores"
 	// available via portLayer API
 	APIKV = "apiKV"
 )
@@ -98,7 +98,7 @@ func NewDatastoreKeyValue(ctx context.Context, session *session.Session, name st
 	}
 	// get a ds helper for this ds url
 	dsHelper, err := datastore.NewHelper(trace.NewOperation(ctx, "datastore helper creation"), session,
-		session.Datastore, fmt.Sprintf("%s/%s", mgr.datastoreURL.Path, dsFolder))
+		session.Datastore, fmt.Sprintf("%s/%s", mgr.datastoreURL.Path, KVStoreFolder))
 	if err != nil {
 		return fmt.Errorf("unable to get datastore helper for %s store creation: %s", name, err.Error())
 	}
