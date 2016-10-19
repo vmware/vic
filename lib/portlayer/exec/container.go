@@ -255,6 +255,64 @@ func (c *Container) refresh(ctx context.Context) error {
 	return nil
 }
 
+// eventedState will determine the target container
+// state based on the current container state and the vsphere event
+func eventedState(e string, current State) State {
+	switch e {
+	case events.ContainerPoweredOn:
+		// are we in the process of starting
+		if current != StateStarting {
+			return StateRunning
+		}
+	case events.ContainerPoweredOff:
+		// are we in the process of stopping
+		if current != StateStopping {
+			return StateStopped
+		}
+	case events.ContainerSuspended:
+		// are we in the process of suspending
+		if current != StateSuspending {
+			return StateSuspended
+		}
+	case events.ContainerRemoved:
+		if current != StateRemoving {
+			return StateRemoved
+		}
+	}
+	return current
+}
+
+func (c *Container) normalizeEventedState(commitEvent string) {
+	newState := eventedState(commitEvent, c.state)
+	cid := c.ExecConfig.ID
+	// do we have a state change
+	if newState != c.state {
+		switch newState {
+		case StateStopping, StateRunning, StateStopped, StateSuspended:
+			c.updateState(newState)
+			// container state has changed so we need to update the container attributes
+			// we'll do this in a go routine to avoid blocking
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
+				defer cancel()
+
+				err := c.Refresh(ctx)
+				if err != nil {
+					log.Errorf("Container update failed: %s", err.Error())
+				}
+				// regardless of update success failure publish the container event
+				publishContainerEvent(cid, time.Now().UTC(), commitEvent)
+			}()
+		case StateRemoved:
+			log.Debugf("Container(%s) %s via event activity", cid, newState.String())
+			Containers.Remove(cid)
+			go publishContainerEvent(cid, time.Now().UTC(), commitEvent)
+		}
+	} else {
+		go publishContainerEvent(c.ExecConfig.ID, time.Now().UTC(), commitEvent)
+	}
+}
+
 // Commit executes the requires steps on the handle
 func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int32) error {
 	defer trace.End(trace.Begin(h.ExecConfig.ID))
@@ -268,10 +326,10 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 	// If an event has occurred then put the container in the cache
 	// and publish the container event
 	defer func() {
-		log.Debugf("Committing container %s status as: %s", c.ExecConfig.ID, commitEvent)
 		if commitEvent != "" {
+			log.Debugf("Committing container %s status as: %s", c.ExecConfig.ID, commitEvent)
 			Containers.Put(c)
-			publishContainerEvent(c.ExecConfig.ID, time.Now().UTC(), commitEvent)
+			c.normalizeEventedState(commitEvent)
 		}
 	}()
 
