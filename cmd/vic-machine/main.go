@@ -78,7 +78,7 @@ func main() {
 		},
 		{
 			Name:   "upgrade",
-			Usage:  "Upgrade VCH to latest version - test only",
+			Usage:  "Upgrade VCH to latest version",
 			Action: upgrade.Run,
 			Flags:  upgrade.Flags(),
 		},

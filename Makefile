@@ -78,7 +78,6 @@ portlayerapi := $(BIN)/port-layer-server
 portlayerapi-client := lib/apiservers/portlayer/client/port_layer_client.go
 portlayerapi-server := lib/apiservers/portlayer/restapi/server.go
 
-imagec := $(BIN)/imagec
 vicadmin := $(BIN)/vicadmin
 rpctool := $(BIN)/rpctool
 vic-machine-linux := $(BIN)/vic-machine-linux
@@ -112,7 +111,6 @@ portlayerapi: $(portlayerapi)
 portlayerapi-client: $(portlayerapi-client)
 portlayerapi-server: $(portlayerapi-server)
 
-imagec: $(imagec)
 vicadmin: $(vicadmin)
 rpctool: $(rpctool)
 vic-init: $(vic-init)
@@ -143,11 +141,11 @@ all: components tethers isos vic-machine vic-ui
 tools: $(GOIMPORTS) $(GVT) $(GOLINT) $(SWAGGER) $(GAS) goversion
 check: goversion goimports govet golint copyright whitespace gas
 apiservers: $(portlayerapi) $(docker-engine-api)
-components: check apiservers $(imagec) $(vicadmin) $(rpctool)
+components: check apiservers $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
 tethers: $(tether-linux) $(tether-windows) $(tether-darwin)
 
-most: $(portlayerapi) $(docker-engine-api) $(imagec) $(vicadmin) $(rpctool) $(tether-linux) $(appliance) $(bootstrap) $(vic-machine-linux)
+most: $(portlayerapi) $(docker-engine-api) $(vicadmin) $(rpctool) $(tether-linux) $(appliance) $(bootstrap) $(vic-machine-linux)
 
 # utility targets
 goversion:
@@ -280,10 +278,6 @@ $(vicadmin): $$(call godeps,cmd/vicadmin/*.go)
 	@echo building vicadmin
 	@GOARCH=amd64 GOOS=linux $(TIME) $(GO) build $(RACE) $(ldflags) -o ./$@ ./$(dir $<)
 
-$(imagec): $$(call godeps,cmd/imagec/*.go) $(portlayerapi-client)
-	@echo building imagec...
-	@$(TIME) $(GO) build $(RACE)  $(ldflags) -o ./$@ ./$(dir $<)
-
 $(docker-engine-api): $$(call godeps,cmd/docker/*.go) $(portlayerapi-client)
 ifeq ($(OS),linux)
 	@echo Building docker-engine-api server...
@@ -320,7 +314,7 @@ $(appliance-staging): isos/appliance-staging.sh $(iso-base)
 	@$(TIME) $< -c $(BIN)/.yum-cache.tgz -p $(iso-base) -o $@
 
 # main appliance target - depends on all top level component targets
-$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(rpctool) $(vicadmin) $(imagec) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
+$(appliance): isos/appliance.sh isos/appliance/* isos/vicadmin/** $(rpctool) $(vicadmin) $(vic-init) $(portlayerapi) $(docker-engine-api) $(appliance-staging)
 	@echo building VCH appliance ISO
 	@$(TIME) $< -p $(appliance-staging) -b $(BIN)
 
