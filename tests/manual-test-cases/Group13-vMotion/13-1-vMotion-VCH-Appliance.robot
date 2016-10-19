@@ -1,6 +1,6 @@
 *** Settings ***
 Documentation  Test 13-1 - vMotion VCH Appliance
-Resource  ../../resources/Nimbus-Util.robot
+Resource  ../../resources/Util.robot
 Suite Setup  Create a VSAN Cluster
 Suite Teardown  Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  *
 
