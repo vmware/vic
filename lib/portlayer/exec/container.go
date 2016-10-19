@@ -259,6 +259,9 @@ func (c *Container) refresh(ctx context.Context) error {
 func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int32) error {
 	defer trace.End(trace.Begin(h.ExecConfig.ID))
 
+	c.m.Lock()
+	defer c.m.Unlock()
+
 	// hold the event that has occurred
 	var commitEvent string
 	// If an event has occurred then put the container in the cache
@@ -270,9 +273,6 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 			publishContainerEvent(c.ExecConfig.ID, time.Now().UTC(), commitEvent)
 		}
 	}()
-
-	c.m.Lock()
-	defer c.m.Unlock()
 
 	if c.vm == nil {
 		if sess == nil {
