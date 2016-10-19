@@ -8,7 +8,6 @@ The command line utility for vSphere Integrated Containers Engine, `vic-machine`
 - [Networking Options](#networking)
 - [Appliance Deployment Options](#deployment)
 
-
 To allow you to fine-tune the deployment of virtual container hosts, `vic-machine create` provides [Advanced Options](#advanced).
 
 - [Advanced Security Options](#adv-security)
@@ -41,7 +40,7 @@ To facilitate IP address changes in your infrastructure, provide an FQDN wheneve
 
   <pre>--target <i>vcenter_server_address</i>/<i>datacenter_name</i></pre>
 
-  Wrap the datacenter name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+  Wrap the datacenter name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
   <pre>--target <i>vcenter_server_address</i>/'<i>datacenter name</i>'</pre>
 
 ### `user` ###
@@ -54,7 +53,7 @@ If you are deploying a virtual container host on vCenter Server, specify a usern
 
 <pre>--user <i>esxi_or_vcenter_server_username</i></pre>
 
-Wrap the user name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes special characters.
+Wrap the user name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes special characters.
 
 <pre>--user '<i>esxi_or_vcenter_server_usern@me</i>'</pre>
 
@@ -68,7 +67,7 @@ The password for the user account on the vCenter Server on which you  are deploy
 
 <pre>--password <i>esxi_host_or_vcenter_server_password</i></pre>
 
-Wrap the password in single quotation marks (') on Mac OS and Linux and in double quotation (") marks on Windows if it includes special characters.
+Wrap the password in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes special characters.
 
 <pre>--password '<i>esxi_host_or_vcenter_server_p@ssword</i>'</pre>
 
@@ -95,31 +94,38 @@ If you do not specify the `compute-resource` option and multiple possible resour
 * To deploy to a vCenter Server with more than one cluster, specify the name of the target cluster: <pre>--compute-resource <i>cluster_name</i></pre>
 * To deploy to a specific resource pool on a standalone host that is managed by vCenter Server, specify the IPv4 address or FQDN of the target host and name of the resource pool:<pre>--compute-resource <i>host_name</i>/<i>resource_pool_name</i></pre>
 * To deploy to a specific resource pool in a cluster, specify the names of the target cluster and the resource pool:<pre>--compute-resource <i>cluster_name</i>/<i>resource_pool_name</i></pre>
-* Wrap the resource names in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces:<pre>--compute-resource '<i>cluster name</i>'/'<i>resource pool name</i>'</pre>
+* Wrap the resource names in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if they include spaces:<pre>--compute-resource '<i>cluster name</i>'/'<i>resource pool name</i>'</pre>
 
 
 <a name="security"></a>
 ## Security Options ##
 
-By default, virtual container hosts automatically generate TLS certificates to authenticate connections with Docker clients. You can configure a virtual container host to use no certificate or a Certificate Authority (CA) certificate to authenticate connections with Docker clients.
+For information about the security requirements for virtual container hosts, see [vSphere Integrated Containers Engine Security Overview](security.md).
 
+<a name="thumbprint"></a>
 ### `thumbprint` ###
 
 Short name: None
 
-xxx
+If your vSphere environment uses default certificates that are generated, signed, and managed by the VMware Certificate Authority (VMCA), you do not need to specify the `thumbprint` option.
+
+If your vSphere environment uses custom certificates that are signed by a Certificate Authority (CA), specify the thumbprint of the vCenter Server or ESXi host certificate in the `thumbprint` option. If your environment uses custom certificates, the vSphere Administrator is responsible for managing those certificates. Obtain the thumbprint from your vSphere Administrator.
+
+Wrap the thumbprint in single quotes (') on Mac OS and Linux and in double quotes (") on Windows.
+
+<pre>--thumbprint '<i>certificate_thumbprint</i>'</pre>
 
 ### `tls-cname` ###
 
 Short name: None
 
-xxx
+The Common Name to use in generated CA certificate when requiring client certificate authentication.
 
 ### `no-tlsverify` ###
 
 Short name: `--kv`
 
-xxx
+Disables authentication via client certificates
 
 <a name="registry"></a>
 ### `insecure-registry` ###
@@ -138,7 +144,7 @@ You can specify `insecure-registry` multiple times to allow connections from the
 
 <a name="datastore"></a>
 ## Datastore Options ##
-The `vic-machine` utility allows you to specify the datastores in which to store container image files, the files for the virtual container host appliance, container VM files, and container volumes. 
+The `vic-machine` utility allows you to specify the datastore in which to store container image files, container VM files, and the files for the virtual container host appliance. You can also specify datastores in which to create container volumes. 
 
 - vSphere Integrated Containers Engine fully supports VMware Virtual SAN datastores. 
 - vSphere Integrated Containers Engine supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters.
@@ -153,11 +159,11 @@ may not work as intended.</pre>
 
 Short name: `-i`
 
-The datastore in which to store container image and container VM files. The `image-store` option is **mandatory** if there is more than one datastore in your vSphere environment. If there is only one datastore in your vSphere environment, the `image-store` option is not required. 
+The datastore in which to store container image files, container VM files, and the files for the virtual container host appliance. The `image-store` option is **mandatory** if there is more than one datastore in your vSphere environment. If there is only one datastore in your vSphere environment, the `image-store` option is not required. 
 
 When you deploy a virtual container host, `vic-machine` creates a folder named `VIC` on the target datastore,  in which to store all of the container images that you pull into a virtual container host. The `vic-machine` utility also places the VM files for the virtual container host appliance in the datastore that you designate as the image store, in a folder that has the same name as the virtual container host. The files for a container VM are stored in the image store in a folder that has the same name as the container.
 
-If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `image-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability.
+If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `image-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as vSphere vMotion and DRS.
 
 You can designate the same datastore as the image store for multiple virtual container hosts. In this case, only one `VIC` folder is created in the datastore and container image files are made available to all of the virtual container hosts that use that image store.
 
@@ -169,7 +175,7 @@ You can specify a datastore folder to use as the image store in the format <code
 
 <pre>--image-store <i>datastore_name</i>/<i>path</i></pre> 
 
-Wrap the datastore name or path in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces.
+Wrap the datastore name and path in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if they include spaces.
 
 <pre>--image-store '<i>datastore name</i>'/'<i>datastore path</i>'</pre> 
 
@@ -182,7 +188,7 @@ Short name: `--vs`
 
 The datastore in which to create volumes when container developers use the `docker volume create` or `docker create -v` commands. When you specify the `volume-store` option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores. 
 
-If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `volume-store` option should be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible and `vic-machine create` succeeds, but it issues a warning that this configuration limits the use of vSphere features such as DRS and High Availability.
+If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `volume-store` option should be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible and `vic-machine create` succeeds, but it issues a warning that this configuration limits the use of vSphere features such as vSphere vMotion and DRS.
 
 You can designate the same datastore as the volume store for multiple virtual container hosts.
 
@@ -202,7 +208,7 @@ The label that you specify is the volume store name that Docker uses. For exampl
 - If you specify the target datastore, a datastore path, and the volume store label, `vic-machine create` creates a folder named `VIC/volumes` in the location that you specify in the datastore path. If the folders that you specify in the path do not already exist on the datastore, `vic-machine create` creates the appropriate folder structure. Any volumes that container developers create will appear in the <code><i>path</i>/VIC/volumes</code> folder.
 
   <pre>--volume-store <i>datastore_name</i>/<i>datastore_path</i>:<i>volume_store_label</i></pre>
-- Wrap the datastore name and path in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces. The volume store label cannot include spaces.
+- Wrap the datastore name and path in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if they include spaces. The volume store label cannot include spaces.
 
   <pre>--volume-store '<i>datastore name</i>'/'<i>datastore path</i>':<i>volume_store_label</i></pre>
 - You can specify the `volume-store` option multiple times, to create multiple volume stores for the virtual container host.
@@ -215,7 +221,7 @@ The label that you specify is the volume store name that Docker uses. For exampl
 
 <a name="networking"></a>
 ## Networking Options ##
-The `vic-machine create` utility allows you to specify different networks for the different types of traffic between containers, the virtual container host, the external internet, and your vSphere environment.
+The `vic-machine create` utility allows you to specify different networks for the different types of traffic between containers, the virtual container host, the external internet, and your vSphere environment. For information about the different networks that virtual container hosts use, see [vSphere Integrated Containers Engine Networking Overview](networks.html).
 
 By default, `vic-machine create` obtains IP addresses for virtual container host endpoint VMs by using DHCP. For information about how to specify a static IP address for the virtual container host endpoint VM on the client, external, and management networks, see [Specify a Static IP Address for the Virtual Container Host Endpoint VM](#static-ip) in Advanced Options.
 
@@ -242,7 +248,7 @@ The `bridge-network` option is **optional** when you are deploying a virtual con
 
 <pre>--bridge-network <i>distributed_port_group_name</i></pre>
 
-Wrap the distributed port group name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+Wrap the distributed port group name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
 
 <pre>--bridge-network '<i>distributed port group name</i>'</pre>
 
@@ -259,7 +265,7 @@ If not specified, the virtual container host uses the external network for clien
 
 <pre>--client-network <i>network_name</i></pre>
 
-Wrap the network name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+Wrap the network name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
 
 <pre>--client-network '<i>network name</i>'</pre>
 
@@ -268,13 +274,13 @@ Wrap the network name in single quotes (Linux or Mac OS) or double quotes (Windo
 
 Short name: `--en`
 
-The network for containers to use to connect to the Internet. Containers use the external network to pull container images, for example from https://hub.docker.com/, and to publish network services. If you define the external network, you can deploy containers directly on the external interface. 
+The network for containers to use to connect to the Internet. Virtual container hosts use the external network to pull container images, for example from https://hub.docker.com/. Container VMs use the external network to publish network services. If you define the external network, you can deploy containers directly on the external interface. 
 
 If not specified, containers use the default VM Network for external traffic. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
 <pre>--external-network <i>network_name</i></pre>
 
-Wrap the network name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+Wrap the network name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
 
 <pre>--external-network '<i>network name</i>'</pre>
 
@@ -289,7 +295,7 @@ If not specified, the virtual container host uses the external network for manag
 
 <pre>--management-network <i>network_name</i></pre>
 
-Wrap the network name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+Wrap the network name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
 
 <pre>--management-network '<i>network name</i>'</pre>
 
@@ -312,7 +318,7 @@ If you do not specify the `container-network` option, or if container developers
 
 <pre>--container-network <i>distributed_port_group_name</i>:<i>container_network_name</i></pre>
 
-Wrap the distributed port group name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces. The descriptive name cannot include spaces.
+Wrap the distributed port group name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces. The descriptive name cannot include spaces.
 
 <pre>--container-network '<i>distributed port group name</i>':<i>container_network_name</i></pre>
 
@@ -331,7 +337,7 @@ A name for the virtual container host appliance. If not specified, `vic-machine`
 
 <pre>--name <i>vch_appliance_name</i></pre>
 
-Wrap the appliance name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+Wrap the appliance name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
 
 <pre>--name '<i>vch appliance name</i>'</pre>
 
@@ -347,7 +353,7 @@ Limit the amount of memory that is available for use by the virtual container ho
 
 Short name: None
 
-Limit the amount of CPU capacity that is available for use by the virtual container host appliance and container VMs. Specify the CPU limit value in MHz. If not specified, `vic-machine create` sets the reservation to 0 (unlimited).
+Limit the amount of CPU capacity that is available for use by the virtual container host appliance and container VMs. Specify the CPU limit value in MHz. If not specified, `vic-machine create` sets the limit to 0 (unlimited).
 
 <pre>--cpu 1024</pre>
 
@@ -397,13 +403,9 @@ xx
 
 Short name: `-k`
 
-By default, `vic-machine` generates a TLS certificate and key for the virtual container host to  use to authenticate with a Docker client.
-
-If you set the `no-tls` option, `vic-machine` does not create certificates. Set the `no-tls` option if you do not require certificate-based authentication between the virtual container host and the Docker client. If you use the `no-tls` option, you connect Docker clients to the virtual container host via port 2375, instead of via port 2376.
+Set the `no-tls` option if you do not require certificate-based  TLS authentication between the virtual container host and the Docker client. If you use the `no-tls` option, you connect Docker clients to the virtual container host via port 2375, instead of via port 2376.
 
 <pre>--no-tls</pre>
-
-If you use the `no-tls` option, you connect Docker clients to the virtual container host via port 2375, instead of via port 2376.
 
 ### `cert` ###
 

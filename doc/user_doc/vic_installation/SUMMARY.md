@@ -2,10 +2,10 @@
 
 * [Introduction](README.md)
 * [Overview of vSphere Integrated Containers Engine for vSphere Administrators](introduction.md)
-* [Installing vSphere Integrated Containers Engine](installing_vic.md)
+  * [Contents of the vSphere Integrated Containers Engine Binaries](contents_of_vic_binaries.md)
   * [Environment Prerequisites for vSphere Integrated Containers Engine Installation](vic_installation_prereqs.md)
   * [vSphere Integrated Containers Engine Networking Overview](networks.md)
-  * [Contents of the vSphere Integrated Containers Engine Binaries](contents_of_vic_binaries.md)
+  * [vSphere Integrated Containers Engine Security Overview](security.md)
 * [Deploy a Virtual Container Host](install_vic_cli.md)
   * [Virtual Container Host Deployment Options](vch_installer_options.md)
   * [Examples of Deploying a Virtual Container Host](vch_installer_examples.md)
