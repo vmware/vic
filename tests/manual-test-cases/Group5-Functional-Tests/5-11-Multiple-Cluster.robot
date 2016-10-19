@@ -1,6 +1,6 @@
 *** Settings ***
 Documentation  Test 5-11 - Multiple Clusters
-Resource  ../../resources/Nimbus-Util.robot
+Resource  ../../resources/Util.robot
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup
 
 *** Test Cases ***

@@ -5,10 +5,11 @@ Resource  ../../resources/Util.robot
 
 *** Test Cases ***
 Simple VSAN
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --vcvaBuild 3634791 --esxPxeDir 3620759 --esxBuild 3620759 --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName vic-vsan
+    #${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --vcvaBuild 3634791 --esxPxeDir 3620759 --esxBuild 3620759 --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName vic-vsan
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --vcvaBuild 4531673 --esxPxeDir 4531672 --esxBuild 4531672 --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName vic-vsan
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  .vcva-3634791' is up. IP:
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  .vcva-4531673' is up. IP:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
     \   Run Keyword If  ${status}  Set Test Variable  ${vc-ip}  ${ip}
     \   Exit For Loop If  ${status}
@@ -18,21 +19,11 @@ Simple VSAN
     Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
     Set Environment Variable  GOVC_PASSWORD  Admin\!23
 
-    Log To Console  Create a distributed switch
-    ${out}=  Run  govc dvs.create -dc=vcqaDC test-ds
-    Should Contain  ${out}  OK
+    Create A Distributed Switch  vcqaDC
 
-    Log To Console  Create three new distributed switch port groups for management and vm network traffic
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=vcqaDC -dvs=test-ds management
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=vcqaDC -dvs=test-ds vm-network
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=vcqaDC -dvs=test-ds bridge
-    Should Contain  ${out}  OK
+    Create Three Distributed Port Groups  vcqaDC
 
-    Log To Console  Add all the hosts to the distributed switch
-    ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 /vcqaDC/host/cls
-    Should Contain  ${out}  OK
+    Add Host To Distributed Switch  /vcqaDC/host/cls
 
     Log To Console  Enable DRS and VSAN on the cluster
     ${out}=  Run  govc cluster.change -drs-enabled /vcqaDC/host/cls
@@ -66,21 +57,11 @@ Complex VSAN
     Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
     Set Environment Variable  GOVC_PASSWORD  Admin\!23
 
-    Log To Console  Create a distributed switch
-    ${out}=  Run  govc dvs.create -dc=vcqaDC test-ds
-    Should Contain  ${out}  OK
+    Create A Distributed Switch  vcqaDC
 
-    Log To Console  Create three new distributed switch port groups for management and vm network traffic
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=vcqaDC -dvs=test-ds management
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=vcqaDC -dvs=test-ds vm-network
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=vcqaDC -dvs=test-ds bridge
-    Should Contain  ${out}  OK
+    Create Three Distributed Port Groups  vcqaDC
 
-    Log To Console  Add all the hosts to the distributed switch
-    ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 /vcqaDC/host/cluster-vsan-1
-    Should Contain  ${out}  OK
+    Add Host To Distributed Switch  /vcqaDC/host/cls
 
     Log To Console  Enable DRS and VSAN on the cluster
     ${out}=  Run  govc cluster.change -drs-enabled /vcqaDC/host/cluster-vsan-1
