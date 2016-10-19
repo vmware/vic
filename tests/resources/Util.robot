@@ -294,8 +294,8 @@ Verify Checksums
 Wait Until Container Stops
     [Arguments]  ${container}
     :FOR  ${idx}  IN RANGE  0  30
-    \   ${out}=  Run  docker ${params} ps --filter status=running --no-trunc
-    \   ${status}=  Run Keyword And Return Status  Should Not Contain  ${out}  ${container}
+    \   ${out}=  Run  docker ${params} inspect ${container} | grep Status
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  exited
     \   Return From Keyword If  ${status}
     \   Sleep  1
     Fail  Container did not stop within 30 seconds
