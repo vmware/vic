@@ -112,6 +112,7 @@ type Container struct {
 	Config  *types.VirtualMachineConfigInfo
 	Runtime *types.VirtualMachineRuntimeInfo
 
+	stateEventMu   sync.Mutex
 	newStateEvents map[State]chan struct{}
 }
 
@@ -165,6 +166,7 @@ func (c *Container) CurrentState() State {
 
 func (c *Container) swapState(s State) State {
 	log.Debugf("Setting container %s state: %s", c.ExecConfig.ID, s)
+	c.stateEventMu.Lock()
 	prevState := c.state
 	if s != c.state {
 		atomic.StoreInt32((*int32)(&c.state), int32(s))
@@ -173,6 +175,7 @@ func (c *Container) swapState(s State) State {
 			close(ch)
 		}
 	}
+	c.stateEventMu.Unlock()
 	return prevState
 }
 
@@ -186,10 +189,10 @@ var closedEventChannel = func() <-chan struct{} {
 // a channel that will be closed when an expected state is set.
 // If expected state is already set the caller will receive a closed channel immediately.
 func (c *Container) WaitForState(s State) <-chan struct{} {
-	c.m.Lock()
-	defer c.m.Unlock()
+	c.stateEventMu.Lock()
+	defer c.stateEventMu.Unlock()
 
-	if s == c.state {
+	if s == c.CurrentState() {
 		return closedEventChannel
 	}
 
@@ -199,6 +202,7 @@ func (c *Container) WaitForState(s State) <-chan struct{} {
 
 	eventChan := make(chan struct{})
 	c.newStateEvents[s] = eventChan
+
 	return eventChan
 }
 
