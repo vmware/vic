@@ -283,8 +283,14 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 				}
 				// cache the image
 				cache.ImageCache().AddImage(&imageConfig)
+
 				// place calculated ImageID in struct
 				ic.ImageID = imageConfig.ImageID
+
+				if err = updateRepositoryCache(ic); err != nil {
+					d.err = err
+					return
+				}
 			}
 
 			ldm.m.Lock()

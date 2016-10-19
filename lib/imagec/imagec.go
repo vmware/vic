@@ -499,9 +499,5 @@ func (ic *ImageC) PullImage() error {
 	if err != nil {
 		return err
 	}
-	if err = updateRepositoryCache(ic); err != nil {
-		return err
-	}
-
 	return nil
 }
