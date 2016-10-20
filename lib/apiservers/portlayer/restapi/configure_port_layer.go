@@ -85,6 +85,16 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 		log.Fatalf("configure_port_layer ERROR: %s", err)
 	}
 
+	// Configure the func invoked if the PL panics or is restarted by vic-init
+	api.ServerShutdown = func() {
+		log.Infof("Shutting down port-layer-server")
+
+		// Logout the session
+		if err := sess.Logout(ctx); err != nil {
+			log.Warnf("unable to log out of session: %s", err)
+		}
+	}
+
 	// initialize the port layer
 	if err = portlayer.Init(ctx, sess); err != nil {
 		log.Fatalf("could not initialize port layer: %s", err)
@@ -108,9 +118,6 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 		handler.Configure(api, handlerCtx)
 	}
 
-	api.ServerShutdown = func() {
-		log.Debugf("Shutting down port-layer-server")
-	}
 	return setupGlobalMiddleware(api.Serve(setupMiddlewares))
 }
 
