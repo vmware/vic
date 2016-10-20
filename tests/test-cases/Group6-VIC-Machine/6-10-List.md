@@ -1,4 +1,4 @@
-Test 6-4 - Verify vic-machine ls
+Test 6-10 - Verify vic-machine ls
 =======
 
 #Purpose:
