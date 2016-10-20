@@ -1,4 +1,4 @@
-Test 5-6 - VSAN
+Test 5-6-1 - VSAN-Simple
 =======
 
 #Purpose:
