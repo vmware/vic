@@ -82,7 +82,7 @@ func newTrace(msg string, skip int) *Message {
 
 // Begin starts the trace.  Msg is the msg to log.
 func Begin(msg string) *Message {
-	if !tracingEnabled && Logger.Level >= logrus.DebugLevel {
+	if tracingEnabled && Logger.Level >= logrus.DebugLevel {
 		if t := newTrace(msg, 2); t != nil {
 			if msg == "" {
 				Logger.Debugf("[BEGIN] [%s:%d]", t.funcName, t.lineNo)
