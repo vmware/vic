@@ -85,7 +85,7 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 		log.Fatalf("configure_port_layer ERROR: %s", err)
 	}
 
-	// Configure the func invoked if the PL panics during init
+	// Configure the func invoked if the PL panics or is restarted by vic-init
 	api.ServerShutdown = func() {
 		log.Infof("Shutting down port-layer-server")
 
