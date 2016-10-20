@@ -11,7 +11,7 @@ You have deployed a virtual container host.
 1. On the system on which you run `vic-machine`, navigate to the directory that contains the `vic-machine` utility.
 2. Run the `vic-machine inspect` command. 
 
-   The following example includes the options required to obtain information about a named instance of a virtual container host from a simple  vCenter Server environment. You must specify the username and optionally the password, either in the `target` option or separately in the `user` and `password` options. You must also specify the thumbprint of the vCenter Server instance or ESXi host in the `thumbprint` option. If the virtual container host has a name other than the default name, `virtual-container-host`, you must specify the `--name` option.
+   The following example includes the options required to obtain information about a named instance of a virtual container host from a simple  vCenter Server environment. You must specify the username and optionally the password, either in the `target` option or separately in the `user` and `password` options. If your vSphere environment uses untrusted, self-signed certificates, you must also specify the thumbprint of the vCenter Server instance or ESXi host in the `thumbprint` option. If the virtual container host has a name other than the default name, `virtual-container-host`, you must specify the `--name` option.
 
    <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> inspect
 --target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>

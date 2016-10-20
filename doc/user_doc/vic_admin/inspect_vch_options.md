@@ -45,7 +45,7 @@ Wrap the password in single quotation marks (') on Mac OS and Linux and in doubl
 
 Short name: None
 
-The thumbprint of the vCenter Server or ESXi host certificate. This option is **mandatory**. 
+The thumbprint of the vCenter Server or ESXi host certificate. Specify this option if your vSphere environment uses untrusted, self-signed certificates. If your vSphere environment uses trusted certificates that are signed by a known Certificate Authority (CA), you do not need to specify the `--thumbprint` option.
 
 To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine inspect` without the specifying the `--thumbprint` option. The operation fails, but the resulting error message includes the required certificate thumbprint. 
 

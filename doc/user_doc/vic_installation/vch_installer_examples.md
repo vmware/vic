@@ -15,6 +15,8 @@ This topic provides examples of the options of the `vic-machine` `create` comman
 - [Deploy a Virtual Container Host with Limits on Resource Use](#customized)
 - [Deploy a Virtual Container Host and Authorize Access to an Insecure Private Registry Server](#registry)
 
+For simplicity, these examples assume that the vSphere environment uses trusted certificates signed by a known Certificate Authority (CA), so the `--thumbprint` option is not specified.
+
 For detailed descriptions of all of the `vic-machine create` options, see [Virtual Container Host Deployment Options](vch_installer_options.md).
 
 <a name="esxi"></a>
@@ -25,7 +27,6 @@ You can deploy a virtual container host directly on an ESXi host that is not man
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target <i>esxi_host_address</i>
 --user root
---thumbprint <i>certificate_thumbprint</i>
 </pre>
 
 <a name="cluster"></a>
@@ -47,7 +48,6 @@ This example deploys a virtual container host with the following configuration:
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
---thumbprint <i>certificate_thumbprint</i>
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
@@ -74,7 +74,6 @@ This example deploys a virtual container host with the following configuration:
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
---thumbprint <i>certificate_thumbprint</i>
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
@@ -103,7 +102,6 @@ This example deploys a virtual container host with the following configuration:
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
---thumbprint <i>certificate_thumbprint</i>
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
@@ -132,7 +130,6 @@ This example deploys a virtual container host with the following configuration:
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
---thumbprint <i>certificate_thumbprint</i>
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
@@ -168,7 +165,6 @@ This example deploys a virtual container host with the following configuration:
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
---thumbprint <i>certificate_thumbprint</i>
 --compute-resource cluster1
 --bridge-network vic-bridge
 --image-store 'datastore 1'
@@ -192,7 +188,6 @@ This example deploys a virtual container host with the following configuration:
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
---thumbprint <i>certificate_thumbprint</i>
 --image-store datastore1
 --bridge-network vic-bridge
 --compute-resource esxihost1.organization.company.com
@@ -212,7 +207,6 @@ This example deploys a virtual container host with the following configuration:
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target root:<i>password</i>@<i>esxi_host_address</i>
---thumbprint <i>certificate_thumbprint</i>
 --compute-resource 'rp 1'
 --name vch1
 --no-tlsverify
@@ -230,7 +224,6 @@ This example deploys a virtual container host with the following configuration:
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
---thumbprint <i>certificate_thumbprint</i>
 --compute-resource 'cluster 1'/'rp 1'
 --image-store datastore1
 --bridge-network vic-bridge
@@ -250,7 +243,6 @@ This example deploys a virtual container host with the following configuration:
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
---thumbprint <i>certificate_thumbprint</i>
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
@@ -273,7 +265,6 @@ This example deploys a virtual container host with the following configuration:
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
---thumbprint <i>certificate_thumbprint</i>
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge
@@ -302,7 +293,6 @@ This example deploys a virtual container host with the following configuration:
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
---thumbprint <i>certificate_thumbprint</i>
 --compute-resource cluster1
 --image-store datastore1
 --bridge-network vic-bridge

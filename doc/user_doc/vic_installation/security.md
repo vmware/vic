@@ -10,7 +10,7 @@ The security requirements for vSphere Integrated Containers Engine relate to con
 <a name="vsphere"></a>
 ## Connections to vSphere ##
 
-Connections from virtual container hosts to vCenter Server and ESXi hosts are authenticated by using the vCenter Server and ESXi host certificates. You provide the thumbprint of the vCenter Server or ESXi host certificate when you deploy a virtual container host. All subsequent connections between the virtual container host and the vCenter Server instance or ESXi host are authenticated by using this thumbprint.
+Connections from virtual container hosts to vCenter Server and ESXi hosts are authenticated by using the vCenter Server and ESXi host certificates. If your vSphere environment uses untrusted, self-signed certificates you must provide the thumbprint of the vCenter Server or ESXi host certificate when you deploy a virtual container host. If your vSphere environment uses trusted certificates signed by a known Certificate Authority (CA), no action is required when you deploy a virtual container host. All  connections between the virtual container host and the vCenter Server instance or ESXi host are authenticated by using the vCenter Server or ESXi host certificate.
 
 <a name="docker"></a>
 ## Connections to Docker Clients ##
