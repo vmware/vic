@@ -101,7 +101,7 @@ func (p *portMapper) MapPort(op Operation, ip net.IP, port int, proto string, de
 		destPort = port
 	}
 
-	if destIP == "" {
+	if destIP == "" && op != Unmap {
 		return fmt.Errorf("destination IP is not specified")
 	}
 
