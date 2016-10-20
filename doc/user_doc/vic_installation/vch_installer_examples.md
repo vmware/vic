@@ -150,6 +150,7 @@ This example deploys a virtual container host with the following configuration:
 --client-network-ip 192.168.3.10/24
 --dns-server <i>dns_server_address</i>
 --name vch1
+--no-tlsverify
 </pre>
 
 For more information about the networking options, see the [Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM](vch_installer_options.md#static-ip) in Virtual Container Host Deployment Options.
