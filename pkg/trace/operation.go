@@ -91,15 +91,14 @@ func (o Operation) Err() error {
 
 		// handle the carriage return
 		numFrames := len(o.t)
-		cr := "\n"
 
 		for i, t := range o.t {
-			if i == numFrames-1 {
-				// don't add a cr on the last frame
-				cr = ""
-			}
+			fmt.Fprintf(buf, "%-15s:%d %s", t.funcName, t.lineNo, t.msg)
 
-			fmt.Fprintf(buf, "\t%s:%d %s%s", t.funcName, t.lineNo, t.msg, cr)
+			// don't add a cr on the last frame
+			if i != numFrames-1 {
+				buf.WriteByte('\n')
+			}
 		}
 
 		// Print the error

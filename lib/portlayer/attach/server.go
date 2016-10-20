@@ -93,8 +93,8 @@ func (n *Server) Get(ctx context.Context, id string, timeout time.Duration) (Ses
 	return n.connServer.Get(ctx, id, timeout)
 }
 
-func (n *Server) Remove(id string) {
+func (n *Server) Remove(id string) error {
 	defer trace.End(trace.Begin(id))
 
-	n.connServer.Remove(id)
+	return n.connServer.Remove(id)
 }
