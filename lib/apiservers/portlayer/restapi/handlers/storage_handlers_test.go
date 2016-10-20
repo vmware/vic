@@ -24,7 +24,6 @@ import (
 
 	"golang.org/x/net/context"
 
-	//"github.com/go-swagger/go-swagger/httpkit/middleware"
 	"github.com/go-swagger/go-swagger/swag"
 	"github.com/stretchr/testify/assert"
 
