@@ -16,7 +16,7 @@
 
 echo "Removing VIC directory if present"
 echo "Cleanup logs from previous run"
-rm -rf bin 5-1-DistributedSwitch 5-2-Cluster 5-4-High-Availability 5-5-Heterogenous-ESXi 5-6-VSAN 5-7-NSX 5-8-DRS 5-10-Multiple-Datacenter 5-11-MultipleCluster
+rm -rf bin 5-1-DistributedSwitch 5-2-Cluster 5-4-High-Availability 5-5-Heterogenous-ESXi 5-6-VSAN 5-6-VSAN-Complex 5-7-NSX 5-8-DRS 5-10-Multiple-Datacenter 5-11-MultipleCluster
 rm -rf *.zip *.log
 
 input=$(wget -O - https://vmware.bintray.com/vic-repo |tail -n5 |head -n1 |cut -d':' -f 2 |cut -d'.' -f 3| cut -d'>' -f 2)
@@ -104,6 +104,17 @@ fi
 mv *.log 5-6-VSAN
 mv *.zip 5-6-VSAN
 
+drone exec --trusted -e test="pybot -d 5-6-VSAN-Complex tests/manual-test-cases/Group5-Functional-Tests/5-6-VSAN-Complex.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+if [ $? -eq 0 ]
+then
+VSANComplexStatus="Passed"
+else
+VSANComplexStatus="FAILED!"
+fi
+
+mv *.log 5-6-VSAN-Complex
+mv *.zip 5-6-VSAN-Complex
+
 drone exec --trusted -e test="pybot -d 5-7-NSX tests/manual-test-cases/Group5-Functional-Tests/5-7-NSX.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 if [ $? -eq 0 ]
 then
@@ -148,7 +159,7 @@ fi
 mv *.log 5-11-MultipleCluster
 mv *.zip 5-11-MultipleCluster
 
-if [[ $DistributedSwitchStatus = "Passed" && $ClusterStatus = "Passed" && $EnhancedLinkedModeStatus = "Passed" &&  $HighAvailabilityStatus = "Passed" && $HeterogenousStatus = "Passed" && $VSANStatus = "Passed" && $NSXStatus = "Passed" &&  $DRSStatus = "Passed" && $MultipleDCStatus =  "Passed" && $MultipleClusterStatus = "Passed" ]]
+if [[ $DistributedSwitchStatus = "Passed" && $ClusterStatus = "Passed" && $EnhancedLinkedModeStatus = "Passed" &&  $HighAvailabilityStatus = "Passed" && $HeterogenousStatus = "Passed" && $VSANStatus = "Passed" $VSANComplexStatus = "Passed" && $NSXStatus = "Passed" &&  $DRSStatus = "Passed" && $MultipleDCStatus =  "Passed" && $MultipleClusterStatus = "Passed" ]]
 then
 buildStatus=0
 else
@@ -435,6 +446,14 @@ Content-Type: text/html
                       </td>
                       <td>
                         $VSANStatus
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        VSAN Complex:
+                      </td>
+                      <td>
+                        $VSANComplexStatus
                       </td>
                     </tr>
                     <tr>
@@ -763,6 +782,14 @@ Content-Type: text/html
                       </td>
                       <td>
                         $VSANStatus
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        VSAN Complex:
+                      </td>
+                      <td>
+                        $VSANComplexStatus
                       </td>
                     </tr>
                     <tr>
