@@ -367,7 +367,7 @@ Short name: `-f`
 
 Forces `vic-machine create` to ignore warnings and non-fatal errors and continue with the deployment of a virtual container host. Errors such as an incorrect compute resource still cause the installation to fail.
 
-You can use the `--force` option to deploy a virtual container host without providing the thumbprint of the vCenter Server or ESXi host in the `thumbprint` option. 
+If your vSphere environment uses untrusted, self-signed certificates, you can use the `--force` option to deploy a virtual container host without providing the thumbprint of the vCenter Server or ESXi host in the `thumbprint` option. 
 
 **IMPORTANT** Running `vic-machine create` with the `--force` option rather than providing the certificate thumbprint is not recommended, because it permits man-in-the-middle attacks to go undetected.
 

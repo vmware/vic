@@ -22,7 +22,7 @@ You have deployed a virtual container host that you no longer require.
 
   **CAUTION** Running `vic-machine delete` with the `--force` option removes all running container VMs that the virtual container host manages, as well as any associated volumes and volume stores.
 
-  if your vSphere environment uses untrusted, self-signed certificates, running `vic-machine delete` with the `--force` option allows you to omit the `--thumbprint` option.
+  If your vSphere environment uses untrusted, self-signed certificates, running `vic-machine delete` with the `--force` option allows you to omit the `--thumbprint` option.
 
    <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> delete
 --target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>

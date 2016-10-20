@@ -47,7 +47,7 @@ Wrap the password in single quotation marks (') on Mac OS and Linux and in doubl
 
 Short name: None
 
-The thumbprint of the vCenter Server or ESXi host certificate. Specify this option if your vSphere environment uses untrusted, self-signed certificates. If your vSphere environment uses trusted certificates that are signed by a known Certificate Authority (CA), you do not need to specify the `--thumbprint` option.
+The thumbprint of the vCenter Server or ESXi host certificate. Specify this option if your vSphere environment uses untrusted, self-signed certificates. Alternatively, specifying the `--force` option allows you to omit the `--thumbprint` option. If your vSphere environment uses trusted certificates that are signed by a known Certificate Authority (CA), you do not need to specify the `--thumbprint` option.
 
 To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine delete` without the specifying the `--thumbprint` or `--force` options. The deletion of the virtual container host fails, but the resulting error message includes the required certificate thumbprint. 
 
@@ -107,6 +107,8 @@ Forces `vic-machine delete` to ignore warnings and continue with the deletion of
 
 - If you do not specify `force` and the virtual container host contains running container VMs, the deletion fails with a warning. 
 - If you do not specify `force` and the virtual container host has volume stores, the deletion of the virtual container host succeeds without deleting the volume stores. The list of volume stores appears in the `vic-machine delete` success message for reference and optional manual removal.
+
+If your vSphere environment uses untrusted, self-signed certificates, you can use the `--force` option to delete a virtual container host without providing the thumbprint of the vCenter Server or ESXi host in the `thumbprint` option. 
 
 <pre>--force</pre>
 
