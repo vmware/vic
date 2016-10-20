@@ -150,7 +150,7 @@ You can specify `insecure-registry` multiple times to allow connections from the
 ## Datastore Options ##
 The `vic-machine` utility allows you to specify the datastore in which to store container image files, container VM files, and the files for the virtual container host appliance. You can also specify datastores in which to create container volumes. 
 
-- vSphere Integrated Containers Engine fully supports VMware Virtual SAN datastores. 
+- vSphere Integrated Containers Engine fully supports VMware vSAN datastores. 
 - vSphere Integrated Containers Engine supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters.
 - If you specify different datastores in the different datastore options, and if no single host in a cluster can access all of those datastores, `vic-machine create` fails with an error.<pre>No single host can access all of the requested datastores. 
 Installation cannot continue.</pre>
@@ -167,7 +167,7 @@ The datastore in which to store container image files, container VM files, and t
 
 When you deploy a virtual container host, `vic-machine` creates a folder named `VIC` on the target datastore,  in which to store all of the container images that you pull into a virtual container host. The `vic-machine` utility also places the VM files for the virtual container host appliance in the datastore that you designate as the image store, in a folder that has the same name as the virtual container host. The files for a container VM are stored in the image store in a folder that has the same name as the container.
 
-If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `image-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as vSphere vMotion and DRS.
+If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `image-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as vSphere vMotion&reg; and VMware vSphere Distributed Resource Scheduler&trade; (DRS).
 
 You can designate the same datastore as the image store for multiple virtual container hosts. In this case, only one `VIC` folder is created in the datastore and container image files are made available to all of the virtual container hosts that use that image store.
 

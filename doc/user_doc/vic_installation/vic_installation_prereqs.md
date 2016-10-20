@@ -20,7 +20,7 @@ You can install vSphere Integrated Containers Engine in the following vSphere se
 
 * Standalone ESXi 6.0 host that is not managed by a vCenter Server instance.
 * vCenter Server 6.0, managing one or more standalone ESXi 6.0 hosts.
-* vCenter Server 6.0, managing a cluster of ESXi 6.0 hosts, with DRS enabled.
+* vCenter Server 6.0, managing a cluster of ESXi 6.0 hosts, with VMware vSphere Distributed Resource Scheduler&trade; (DRS) enabled.
 
 Caveats and limitations:
 
@@ -32,7 +32,7 @@ Caveats and limitations:
 
 To be valid targets for virtual container hosts and container VMs, standalone ESXi hosts and all ESXi hosts in vCenter Server clusters must meet the following criteria:
 
-- In vCenter Server clusters, at least two ESXi hosts must be attached to shared storage for use as container stores, image stores, and volume stores. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability. The use of VMware Virtual SAN datastores is fully supported.
+- In vCenter Server clusters, at least two ESXi hosts must be attached to shared storage for use as container stores, image stores, and volume stores. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability. The use of VMware vSAN&trade; datastores is fully supported.
 - The firewall on all ESXi hosts must be configured to allow connections on the back channel and to allow outbound connections on port 2377. For instruction about how to open port 2377 on ESXi hosts, see [VCH Deployment Fails with Firewall Validation Error](ts_firewall_error.md).
 - All ESXi hosts must be attached to the distributed virtual switch for the bridge network in vCenter Server. For more information about distributed virtual switches, see [Network Requirements](#networkreqs) below.
 - All ESXi hosts must be attached to any mapped vSphere networks.
