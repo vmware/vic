@@ -89,11 +89,9 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 	api.ServerShutdown = func() {
 		log.Infof("Shutting down port-layer-server")
 
-		if sess != nil {
-			// Logout the session
-			if err := sess.Logout(ctx); err != nil {
-				log.Warnf("unable to log out of session: %s", err)
-			}
+		// Logout the session
+		if err := sess.Logout(ctx); err != nil {
+			log.Warnf("unable to log out of session: %s", err)
 		}
 	}
 
