@@ -31,9 +31,6 @@ func Join(h interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("Type assertion failed for %#+v", handle)
 	}
 
-	// make sure a spec exists
-	handle.SetSpec(nil)
-
 	VMPathName := handle.Spec.VMPathName()
 	VMName := handle.Spec.Spec().Name
 

@@ -41,7 +41,7 @@ import (
 
 // ContainerCreateConfig defines the parameters for Create call
 type ContainerCreateConfig struct {
-	Metadata executor.ExecutorConfig
+	Metadata *executor.ExecutorConfig
 
 	ParentImageID  string
 	ImageStoreName string
@@ -60,16 +60,16 @@ func init() {
 }
 
 type Handle struct {
+	// copy from container cache
+	containerBase
+
+	// desired spec
 	Spec *spec.VirtualMachineConfigSpec
+	// desired state
+	targetState State
 
-	// desired
-	ExecConfig executor.ExecutorConfig
-
-	Container *Container
-	state     State
-
-	key       string
-	committed bool
+	// allow for passing outside of the process
+	key string
 }
 
 func newHandleKey() string {
@@ -80,13 +80,28 @@ func newHandleKey() string {
 	return hex.EncodeToString(b)
 }
 
-func newHandle(con *Container, state State) *Handle {
+// Added solely to support testing - need a better way to do this
+func TestHandle(id string) *Handle {
+	defer trace.End(trace.Begin("Handle.Create"))
+
+	h := newHandle(&Container{})
+	h.ExecConfig.ID = id
+
+	return h
+}
+
+// newHandle creates a handle for an existing container
+// con must not be nil
+func newHandle(con *Container) *Handle {
 	h := &Handle{
-		key:        newHandleKey(),
-		committed:  false,
-		Container:  con,
-		ExecConfig: *con.ExecConfig,
-		state:      state,
+		key:           newHandleKey(),
+		targetState:   StateUnknown,
+		containerBase: *newBase(con.vm, con.Config, con.Runtime),
+		// currently every operation has a spec, because even the power operations
+		// make changes to extraconfig for timestamps and session status
+		Spec: &spec.VirtualMachineConfigSpec{
+			VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{},
+		},
 	}
 
 	handlesLock.Lock()
@@ -97,12 +112,12 @@ func newHandle(con *Container, state State) *Handle {
 	return h
 }
 
-func (h *Handle) CurrentState() State {
-	return h.state
+func (h *Handle) TargetState() State {
+	return h.targetState
 }
 
-func (h *Handle) SetState(s State) {
-	h.state = s
+func (h *Handle) SetTargetState(s State) {
+	h.targetState = s
 }
 
 // GetHandle finds and returns the handle that is referred by key
@@ -148,64 +163,35 @@ func removeHandle(key string) {
 	handles.Remove(key)
 }
 
-func (h *Handle) IsCommitted() bool {
-	return h.committed
-}
-
-func (h *Handle) SetSpec(s *spec.VirtualMachineConfigSpec) error {
-	if h.Spec != nil {
-		if s != nil {
-			return fmt.Errorf("spec is already set")
-		}
-
-		return nil
-	}
-
-	if s == nil {
-		// initialization
-		s = &spec.VirtualMachineConfigSpec{
-			VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{},
-		}
-	}
-
-	h.Spec = s
-	return nil
-}
-
 func (h *Handle) String() string {
 	return h.key
 }
 
 func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *int32) error {
-	if h.committed {
-		return nil // already committed
-	}
-
-	// make sure there is a spec
-	h.SetSpec(nil)
 	cfg := make(map[string]string)
 
 	// Set timestamps based on target state
-	switch h.CurrentState() {
+	switch h.TargetState() {
 	case StateRunning:
-		se := h.ExecConfig.Sessions[h.ExecConfig.ID]
-		se.StartTime = time.Now().UTC().Unix()
-		h.ExecConfig.Sessions[h.ExecConfig.ID] = se
+		for _, sc := range h.ExecConfig.Sessions {
+			sc.StartTime = time.Now().UTC().Unix()
+			sc.Started = ""
+			sc.ExitStatus = 0
+		}
 	case StateStopped:
-		se := h.ExecConfig.Sessions[h.ExecConfig.ID]
-		se.StopTime = time.Now().UTC().Unix()
-		h.ExecConfig.Sessions[h.ExecConfig.ID] = se
+		for _, sc := range h.ExecConfig.Sessions {
+			sc.StopTime = time.Now().UTC().Unix()
+		}
 	}
 
 	extraconfig.Encode(extraconfig.MapSink(cfg), h.ExecConfig)
 	s := h.Spec.Spec()
 	s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 
-	if err := h.Container.Commit(ctx, sess, h, waitTime); err != nil {
+	if err := Commit(ctx, sess, h, waitTime); err != nil {
 		return err
 	}
 
-	h.committed = true
 	removeHandle(h.key)
 	return nil
 }
@@ -214,41 +200,49 @@ func (h *Handle) Close() {
 	removeHandle(h.key)
 }
 
-func (h *Handle) Create(ctx context.Context, sess *session.Session, config *ContainerCreateConfig) error {
+// Create returns a new handle that can be Committed to create a new container.
+// At this time the config is *not* deep copied so should not be changed once passed
+//
+// TODO: either deep copy the configuration, or provide an alternative means of passing the data that
+// avoids the need for the caller to unpack/repack the parameters
+func Create(ctx context.Context, sess *session.Session, config *ContainerCreateConfig) (*Handle, error) {
 	defer trace.End(trace.Begin("Handle.Create"))
 
-	if h.Spec != nil {
-		log.Debugf("spec has already been set on handle %p during create of %s", h, config.Metadata.ID)
-		return fmt.Errorf("spec already set")
+	h := &Handle{
+		key:         newHandleKey(),
+		targetState: StateCreated,
+		containerBase: containerBase{
+			ExecConfig: config.Metadata,
+		},
 	}
 
-	// update the handle with Metadata
-	h.ExecConfig = config.Metadata
 	// configure with debug
 	h.ExecConfig.Diagnostics.DebugLevel = Config.DebugLevel
+
 	// Convert the management hostname to IP
 	ips, err := net.LookupIP(constants.ManagementHostName)
 	if err != nil {
 		log.Errorf("Unable to look up %s during create of %s: %s", constants.ManagementHostName, config.Metadata.ID, err)
-		return err
+		return nil, err
 	}
 
 	if len(ips) == 0 {
 		log.Errorf("No IP found for %s during create of %s", constants.ManagementHostName, config.Metadata.ID)
-		return fmt.Errorf("No IP found on %s", constants.ManagementHostName)
+		return nil, fmt.Errorf("No IP found on %s", constants.ManagementHostName)
 	}
 
 	if len(ips) > 1 {
 		log.Errorf("Multiple IPs found for %s during create of %s: %v", constants.ManagementHostName, config.Metadata.ID, ips)
-		return fmt.Errorf("Multiple IPs found on %s: %#v", constants.ManagementHostName, ips)
+		return nil, fmt.Errorf("Multiple IPs found on %s: %#v", constants.ManagementHostName, ips)
 	}
 
 	uuid, err := instanceUUID(config.Metadata.ID)
 	if err != nil {
 		detail := fmt.Sprintf("unable to get instance UUID: %s", err)
 		log.Error(detail)
-		return errors.New(detail)
+		return nil, errors.New(detail)
 	}
+
 	specconfig := &spec.VirtualMachineConfigSpecConfig{
 		// FIXME: hardcoded values
 		NumCPUs:  2,
@@ -273,9 +267,15 @@ func (h *Handle) Create(ctx context.Context, sess *session.Session, config *Cont
 	linux, err := guest.NewLinuxGuest(ctx, sess, specconfig)
 	if err != nil {
 		log.Errorf("Failed during linux specific spec generation during create of %s: %s", config.Metadata.ID, err)
-		return err
+		return nil, err
 	}
 
-	h.SetSpec(linux.Spec())
-	return nil
+	h.Spec = linux.Spec()
+
+	handlesLock.Lock()
+	defer handlesLock.Unlock()
+
+	handles.Add(h.key, h)
+
+	return h, nil
 }

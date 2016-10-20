@@ -144,7 +144,7 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 	options := &AddContainerOptions{
 		Scope: ctx.defaultScope.Name(),
 	}
-	bound := exec.NewContainer("bound")
+	bound := exec.TestHandle("bound")
 	ctx.AddContainer(bound, options)
 	ctx.BindContainer(bound)
 

@@ -74,7 +74,7 @@ type VirtualMachineConfigSpecConfig struct {
 	ImageStorePath *url.URL
 
 	// Temporary
-	Metadata executor.ExecutorConfig
+	Metadata *executor.ExecutorConfig
 }
 
 // VirtualMachineConfigSpec type

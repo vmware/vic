@@ -550,6 +550,7 @@ func TestContextAddContainer(t *testing.T) {
 		// add a container
 		{nil, h, nil, "default", nil, nil},
 		// container already added
+		// requires that we preserve h.ExecConfig & h.Spec
 		{nil, h, nil, "default", nil, nil},
 		{nil, hBar, specWithEthCard, "default", nil, nil},
 		{nil, hBar, nil, otherScope.Name(), nil, nil},
@@ -563,9 +564,17 @@ func TestContextAddContainer(t *testing.T) {
 		addEthernetCard = origAEC
 		scopy := &spec.VirtualMachineConfigSpec{}
 		if te.h != nil {
-			te.h.SetSpec(te.s)
+			// seed with a specific spec state
+			if te.s != nil {
+				te.h.Spec = te.s
+			}
+
 			if te.h.Spec != nil {
 				*scopy = *te.h.Spec
+			} else {
+				te.h.Spec = &spec.VirtualMachineConfigSpec{
+					VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{},
+				}
 			}
 		}
 
@@ -609,7 +618,7 @@ func TestContextAddContainer(t *testing.T) {
 		// verify the container was not added to the scope
 		s, _ := ctx.resolveScope(te.scope)
 		if s != nil && te.h != nil {
-			c := s.Container(uid.Parse(te.h.Container.ExecConfig.ID))
+			c := s.Container(uid.Parse(te.h.ExecConfig.ID))
 			if c != nil {
 				t.Fatalf("case %d: ctx.AddContainer(%v, %s, %s) added container", i, te.h, te.scope, te.ip)
 			}
@@ -618,7 +627,9 @@ func TestContextAddContainer(t *testing.T) {
 		// spec should have a nic attached to the scope's network
 		var dev types.BaseVirtualDevice
 		dcs, err := te.h.Spec.FindNICs(context.TODO(), s.Network())
-		if len(dcs) != 1 {
+		if len(dcs) == 0 {
+			t.Fatalf("case %d: ctx.AddContainer(%v, %s, %s) no NIC was added for scope %s", i, te.h, te.scope, te.ip, s.Network())
+		} else if len(dcs) > 1 {
 			t.Fatalf("case %d: ctx.AddContainer(%v, %s, %s) more than one NIC added for scope %s", i, te.h, te.scope, te.ip, s.Network())
 		}
 		dev = dcs[0].GetVirtualDeviceConfigSpec().Device
@@ -651,7 +662,7 @@ func TestContextAddContainer(t *testing.T) {
 }
 
 func newContainer(name string) *exec.Handle {
-	h := exec.NewContainer(uid.New())
+	h := exec.TestHandle(uid.New().String())
 	h.ExecConfig.Common.Name = name
 	return h
 }
@@ -736,7 +747,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 				t.Fatalf("%d: ctx.BindContainer(%s) => (%+v, %+v), want (%+v, %+v)", i, te.h, eps, err, nil, te.err)
 			}
 
-			con := ctx.Container(te.h.Container.ExecConfig.ID)
+			con := ctx.Container(te.h.ExecConfig.ID)
 			if con != nil {
 				t.Fatalf("%d: ctx.BindContainer(%s) added container %#v", i, te.h, con)
 			}
@@ -749,9 +760,9 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		}
 
 		// check if the correct endpoints were added
-		con := ctx.Container(te.h.Container.ExecConfig.ID)
+		con := ctx.Container(te.h.ExecConfig.ID)
 		if con == nil {
-			t.Fatalf("%d: ctx.Container(%s) => nil, want %s", i, te.h.Container.ExecConfig.ID, te.h.Container.ExecConfig.ID)
+			t.Fatalf("%d: ctx.Container(%s) => nil, want %s", i, te.h.ExecConfig.ID, te.h.ExecConfig.ID)
 		}
 
 		if len(con.Scopes()) != len(te.scopes) {
@@ -826,7 +837,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		}
 
 		// container should not be there
-		con := ctx.Container(te.h.Container.ExecConfig.ID)
+		con := ctx.Container(te.h.ExecConfig.ID)
 		if con != nil {
 			t.Fatalf("%d: ctx.Container(%s) => %#v, want nil", i, te.h, con)
 		}
@@ -848,8 +859,8 @@ func TestContextBindUnbindContainer(t *testing.T) {
 			if err != nil || len(scopes) != 1 {
 				t.Fatalf("%d: ctx.Scopes(%s) => (%#v, %#v)", i, s, scopes, err)
 			}
-			if scopes[0].Container(uid.Parse(te.h.Container.ExecConfig.ID)) != nil {
-				t.Fatalf("%d: container %s is still part of scope %s", i, te.h.Container.ExecConfig.ID, s)
+			if scopes[0].Container(uid.Parse(te.h.ExecConfig.ID)) != nil {
+				t.Fatalf("%d: container %s is still part of scope %s", i, te.h.ExecConfig.ID, s)
 			}
 
 			// check if endpoint is still there, but without the ip
@@ -926,7 +937,7 @@ func TestContextRemoveContainer(t *testing.T) {
 			t.Fatalf(err.Error())
 		}
 
-		if s.Container(uid.Parse(te.h.Container.ExecConfig.ID)) != nil {
+		if s.Container(uid.Parse(te.h.ExecConfig.ID)) != nil {
 			t.Fatalf("container %s is part of scope %s", te.h, s.Name())
 		}
 

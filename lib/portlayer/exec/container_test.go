@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vmware/vic/pkg/uid"
 )
 
 func TestStateStringer(t *testing.T) {
@@ -35,4 +36,16 @@ func TestStateStringer(t *testing.T) {
 	assert.Equal(t, "Starting", c.state.String())
 	c.state = StateCreated
 	assert.Equal(t, "Created", c.state.String())
+}
+
+func NewContainer(id uid.UID) *Handle {
+	con := &Container{
+		state:          StateCreating,
+		newStateEvents: make(map[State]chan struct{}),
+	}
+
+	h := newHandle(con)
+	h.ExecConfig.ID = id.String()
+
+	return h
 }

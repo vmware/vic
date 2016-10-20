@@ -894,10 +894,6 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 		}
 	}
 
-	if err := h.SetSpec(nil); err != nil {
-		return err
-	}
-
 	// figure out if we need to add a new NIC
 	// if there is already a NIC connected to a
 	// bridge network and we are adding the container
@@ -1004,9 +1000,6 @@ func (c *Context) RemoveContainer(h *exec.Handle, scope string) error {
 	}
 
 	if removeNIC {
-		// ensure spec is not nil
-		h.SetSpec(nil)
-
 		var devices object.VirtualDeviceList
 		backing, err := s.network.EthernetCardBackingInfo(context.Background())
 		if err != nil {
