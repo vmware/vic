@@ -1,6 +1,7 @@
 *** Settings ***
-Documentation  Test 10-1 - Longevity
+Documentation  Test 14-1 - Longevity
 Resource  ../../resources/Util.robot
+Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Longevity

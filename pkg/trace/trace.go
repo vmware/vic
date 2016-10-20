@@ -15,13 +15,15 @@
 package trace
 
 import (
+	"os"
 	"runtime"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/vmware/vic/pkg/log"
 )
 
-var tracingEnabled = false
+var tracingEnabled = true
 
 // Enable global tracing.
 func EnableTracing() {
@@ -33,7 +35,17 @@ func DisableTracing() {
 	tracingEnabled = false
 }
 
-var Logger = logrus.New()
+var Logger = &logrus.Logger{
+	Out: os.Stderr,
+	// We're using our own text formatter to skip the \n and \t escaping logrus
+	// was doing on non TTY Out (we redirect to a file) descriptors.
+	Formatter: &log.TextFormatter{
+		Timestamp:       true,
+		TimestampFormat: "2006-01-02T15:04:05.000000000Z07:00",
+	},
+	Hooks: make(logrus.LevelHooks),
+	Level: logrus.InfoLevel,
+}
 
 // trace object used to grab run-time state
 type Message struct {

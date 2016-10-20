@@ -28,25 +28,13 @@ Test
     ${out}=  Run  govc host.add -hostname=${esx3-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
 
-    Log To Console  Create a distributed switch
-    ${out}=  Run  govc dvs.create -dc=ha-datacenter test-ds
-    Should Contain  ${out}  OK
+    Create A Distributed Switch  ha-datacenter
 
-    Log To Console  Create three new distributed switch port groups for management and vm network traffic
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=ha-datacenter -dvs=test-ds management
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=ha-datacenter -dvs=test-ds vm-network
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=ha-datacenter -dvs=test-ds bridge
-    Should Contain  ${out}  OK
+    Create Three Distributed Port Groups  ha-datacenter
 
-    Log To Console  Add the ESXi hosts to the portgroups
-    ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 ${esx1-ip}  
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 ${esx2-ip}  
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 ${esx3-ip}  
-    Should Contain  ${out}  OK
+    Add Host To Distributed Switch  ${esx1-ip}
+    Add Host To Distributed Switch  ${esx2-ip}
+    Add Host To Distributed Switch  ${esx3-ip}
 
     Log To Console  Deploy VIC to the VC cluster
     Set Environment Variable  TEST_URL_ARRAY  ${vc-ip}
@@ -57,6 +45,6 @@ Test
     Set Environment Variable  TEST_RESOURCE  /ha-datacenter/host/${esx1-ip}/Resources
     Set Environment Variable  TEST_TIMEOUT  30m
 
-    Install VIC Appliance To Test Server  certs=${false}  vol=default
+    Install VIC Appliance To Test Server
 
     Run Regression Tests

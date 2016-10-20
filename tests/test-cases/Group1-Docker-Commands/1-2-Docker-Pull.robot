@@ -60,20 +60,23 @@ Pull image that already has been pulled
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  alpine
 
 Pull the same image concurrently
-     ${pids}=  Create List
+    ${status}=  Get State Of Github Issue  2782
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-2-Docker-Pull.robot needs to be updated now that Issue #2782 has been resolved
+    Log  Issue \#2782 is blocking implementation  WARN
+#     ${pids}=  Create List
 
      # Create 5 processes to pull the same image at once
-     :FOR  ${idx}  IN RANGE  0  5
-     \   ${pid}=  Start Process  docker ${params} pull redis  shell=True
-     \   Append To List  ${pids}  ${pid}
+#     :FOR  ${idx}  IN RANGE  0  5
+#     \   ${pid}=  Start Process  docker ${params} pull redis  shell=True
+#     \   Append To List  ${pids}  ${pid}
 
      # Wait for them to finish and check their output
-     :FOR  ${pid}  IN  @{pids}
-     \   ${res}=  Wait For Process  ${pid}
-     \   Log  ${res.stdout}
-     \   Log  ${res.stderr}
-     \   Should Be Equal As Integers  ${res.rc}  0
-     \   Should Contain  ${res.stdout}  Downloaded newer image for library/redis:latest
+#     :FOR  ${pid}  IN  @{pids}
+#     \   ${res}=  Wait For Process  ${pid}
+#     \   Log  ${res.stdout}
+#     \   Log  ${res.stderr}
+#     \   Should Be Equal As Integers  ${res.rc}  0
+#     \   Should Contain  ${res.stdout}  Downloaded newer image for library/redis:latest
 
 Pull two images that share layers concurrently
      ${pid1}=  Start Process  docker ${params} pull golang:1.7  shell=True

@@ -55,7 +55,6 @@ var (
 	logFileDir  = "/var/log/vic"
 	logFileList = []string{
 		"docker-personality.log",
-		"imagec.log",
 		"port-layer.log",
 		"vicadmin.log",
 		"init.log",

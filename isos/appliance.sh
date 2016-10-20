@@ -104,12 +104,9 @@ install -m 755 -d $(rootfs_dir $PKGDIR)/etc/tmpfiles.d
 echo "m  /var/log/journal/%m/system.journal 2755 root systemd-journal - -" > $(rootfs_dir $PKGDIR)/etc/tmpfiles.d/systemd.conf
 
 ## main VIC components
-# TEMP: imagec wrapper
-cp ${DIR}/appliance/imagec.sh $(rootfs_dir $PKGDIR)/sbin/imagec
 # tether based init
 cp ${BIN}/vic-init $(rootfs_dir $PKGDIR)/sbin/vic-init
 
-cp ${BIN}/imagec $(rootfs_dir $PKGDIR)/sbin/imagec.bin
 cp ${BIN}/{docker-engine-server,port-layer-server,vicadmin} $(rootfs_dir $PKGDIR)/sbin/
 
 echo "net.ipv4.ip_forward = 1" > $(rootfs_dir $PKGDIR)/usr/lib/sysctl.d/50-vic.conf

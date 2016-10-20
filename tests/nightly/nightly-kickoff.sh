@@ -16,7 +16,7 @@
 
 echo "Removing VIC directory if present"
 echo "Cleanup logs from previous run"
-rm -rf bin 5-1-DistributedSwitch 5-2-Cluster 5-4-High-Availability 5-5-Heterogenous-ESXi 5-6-VSAN 5-7-NSX 5-8-DRS
+rm -rf bin 5-1-DistributedSwitch 5-2-Cluster 5-4-High-Availability 5-5-Heterogenous-ESXi 5-6-VSAN 5-7-NSX 5-8-DRS 5-10-Multiple-Datacenter 5-11-MultipleCluster
 rm -rf *.zip *.log
 
 input=$(wget -O - https://vmware.bintray.com/vic-repo |tail -n5 |head -n1 |cut -d':' -f 2 |cut -d'.' -f 3| cut -d'>' -f 2)
@@ -148,7 +148,7 @@ fi
 mv *.log 5-11-MultipleCluster
 mv *.zip 5-11-MultipleCluster
 
-if [[ $DistributedSwitchStatus = "Passed" && $ClusterStatus = "Passed" && $EnhancedLinkedModeStatus = "Passed" &&  $HighAvailabilityStatus = "Passed" && $HeterogenousStatus = "Passed" && $VSANStatus = "Passed" && $NSXStatus = "Passed" && $DRSStatus = "Passed" && $MultipleDCStatus =  "Passed" && $MultipleClusterStatus = "Passed"]]
+if [[ $DistributedSwitchStatus = "Passed" && $ClusterStatus = "Passed" && $EnhancedLinkedModeStatus = "Passed" &&  $HighAvailabilityStatus = "Passed" && $HeterogenousStatus = "Passed" && $VSANStatus = "Passed" && $NSXStatus = "Passed" &&  $DRSStatus = "Passed" && $MultipleDCStatus =  "Passed" && $MultipleClusterStatus = "Passed" ]]
 then
 buildStatus=0
 else
@@ -164,7 +164,9 @@ if [ $buildStatus -eq 0 ]
 then
 echo "Success"
 cat <<EOT >> nightly_mail.html
-To: mhagen@vmware.com, mwilliamson@vmware.com, rashok@vmware.com
+To: mwilliamson@vmware.com
+To: mhagen@vmware.com
+To: rashok@vmware.com
 Subject: VIC Nightly Run #$buildNumber
 From: VIC Nightly
 MIME-Version: 1.0
@@ -490,7 +492,9 @@ EOT
 else
 echo "Failure"
 cat <<EOT >> nightly_mail.html
-To: mhagen@vmware.com, mwilliamson@vmware.com, rashok@vmware.com
+To: mwilliamson@vmware.com
+To: mhagen@vmware.com
+To: rashok@vmware.com
 Subject: VIC Nightly Run #$buildNumber
 From: VIC Nightly
 MIME-Version: 1.0
