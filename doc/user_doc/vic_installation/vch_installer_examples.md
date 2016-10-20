@@ -52,6 +52,7 @@ This example deploys a virtual container host with the following configuration:
 --image-store datastore1
 --bridge-network vic-bridge
 --name vch1
+--no-tlsverify
 </pre>
 
 <a name="networks"></a>
@@ -82,6 +83,7 @@ This example deploys a virtual container host with the following configuration:
 --client-network 'network 3'
 --container-network vic-containers:vic-container-network
 --name vch1
+--no-tlsverify
 </pre>
 
 For more information about the networking options, see the [Networking Options section in Virtual Container Host Deployment Options](vch_installer_options.md#networking).
@@ -111,6 +113,7 @@ This example deploys a virtual container host with the following configuration:
 --container-network-dns vic-containers:<i>dns2_ip_address</i>
 --container-network-ip-range vic-containers:192.168.100.0/24
 --name vch1
+--no-tlsverify
 </pre>
 
 For more information about the container network options, see the [container network section in Virtual Container Host Deployment Options](vch_installer_options.md#container-network).
@@ -144,6 +147,7 @@ This example deploys a virtual container host with the following configuration:
 --client-network-ip 192.168.3.10/24
 --dns-server <i>dns_server_address</i>
 --name vch1
+--no-tlsverify
 </pre>
 
 For more information about the networking options, see the [Networking Options section in Virtual Container Host Deployment Options](vch_installer_options.md#networking).
@@ -171,6 +175,7 @@ This example deploys a virtual container host with the following configuration:
 --volume-store 'datastore 1'/volumes:default</i>
 --volume-store 'datastore 2'/volumes:volume_store_2</i>
 --name vch1
+--no-tlsverify
 </pre>
 
 For more information about volume stores, see the [volume-store section in Virtual Container Host Deployment Options](vch_installer_options.md#volume-store). 
@@ -192,6 +197,7 @@ This example deploys a virtual container host with the following configuration:
 --bridge-network vic-bridge
 --compute-resource esxihost1.organization.company.com
 --name vch1
+--no-tlsverify
 </pre>
 
 <a name="rp_host"></a>
@@ -209,6 +215,7 @@ This example deploys a virtual container host with the following configuration:
 --thumbprint <i>certificate_thumbprint</i>
 --compute-resource 'rp 1'
 --name vch1
+--no-tlsverify
 </pre>
 
 <a name="rp_cluster"></a>
@@ -228,6 +235,7 @@ This example deploys a virtual container host with the following configuration:
 --image-store datastore1
 --bridge-network vic-bridge
 --name vch1
+--no-tlsverify
 </pre>
 
 <a name="ca_cert"></a>
@@ -276,6 +284,7 @@ This example deploys a virtual container host with the following configuration:
 --cpu-reservation 1024
 --cpu-shares low
 --name vch1
+--no-tlsverify
 </pre>
 
 For more information about setting resource use limitations on virtual container hosts, see the [vApp Deployment Options section in Virtual Container Host Deployment Options](vch_installer_options.md#deployment).
@@ -300,6 +309,7 @@ This example deploys a virtual container host with the following configuration:
 --insecure-registry <i>registry_URL_1</i>
 --insecure-registry <i>registry_URL_2:5000</i>
 --name vch1
+--no-tlsverify
 </pre>
 
 For more information about configuring virtual container hosts to connect to insecure private registry servers, see the section on the [`insecure-registry` option in Virtual Container Host Deployment Options](vch_installer_options.md#registry).
