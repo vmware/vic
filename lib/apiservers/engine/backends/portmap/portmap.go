@@ -32,7 +32,8 @@ const (
 )
 
 type PortMapper interface {
-	MapPort(op Operation, ip net.IP, port int, proto string, destIP string, destPort int, srcIface, destIface string) error
+	MapPort(ip net.IP, port int, proto string, destIP string, destPort int, srcIface, destIface string) error
+	UnmapPort(ip net.IP, port int, proto string, destPort int, srcIface, destIface string) error
 }
 
 type bindKey struct {
@@ -43,11 +44,11 @@ type bindKey struct {
 type portMapper struct {
 	sync.Mutex
 
-	bindings map[bindKey]interface{}
+	bindings map[bindKey][][]string
 }
 
 func NewPortMapper() PortMapper {
-	return &portMapper{bindings: make(map[bindKey]interface{})}
+	return &portMapper{bindings: make(map[bindKey][][]string)}
 }
 
 func (p *portMapper) isPortAvailable(proto string, ip net.IP, port int) bool {
@@ -74,22 +75,13 @@ func (p *portMapper) isPortAvailable(proto string, ip net.IP, port int) bool {
 	return false
 }
 
-func (p *portMapper) MapPort(op Operation, ip net.IP, port int, proto string, destIP string, destPort int, srcIface, destIface string) error {
+func (p *portMapper) MapPort(ip net.IP, port int, proto string, destIP string, destPort int, srcIface, destIface string) error {
 	p.Lock()
 	defer p.Unlock()
 
-	var action iptables.Action
-	switch op {
-	case Map:
-		// check if port is available
-		if !p.isPortAvailable(proto, ip, port) {
-			return fmt.Errorf("port %d is not available", port)
-		}
-		action = iptables.Append
-	case Unmap:
-		action = iptables.Delete
-	default:
-		return fmt.Errorf("invalid port mapping operation %d", op)
+	// check if port is available
+	if !p.isPortAvailable(proto, ip, port) {
+		return fmt.Errorf("port %d is not available", port)
 	}
 
 	if port <= 0 {
@@ -101,11 +93,49 @@ func (p *portMapper) MapPort(op Operation, ip net.IP, port int, proto string, de
 		destPort = port
 	}
 
-	if destIP == "" {
-		return fmt.Errorf("destination IP is not specified")
+	return p.forward(iptables.Append, ip, port, proto, destIP, destPort, srcIface, destIface)
+}
+
+func (p *portMapper) UnmapPort(ip net.IP, port int, proto string, destPort int, srcIface, destIface string) error {
+	p.Lock()
+	defer p.Unlock()
+
+	if port <= 0 {
+		return fmt.Errorf("source port must be specified")
 	}
 
-	return p.forward(action, ip, port, proto, destIP, destPort, srcIface, destIface)
+	if destPort <= 0 {
+		log.Infof("destination port not specified, using source port %d", port)
+		destPort = port
+	}
+
+	return p.forward(iptables.Delete, ip, port, proto, "", destPort, srcIface, destIface)
+}
+
+// iptablesRunAndCheck runs an iptables command with the provided args
+func iptablesRunAndCheck(action iptables.Action, args []string) error {
+	args = append([]string{string(action)}, args...)
+	if output, err := iptables.Raw(args...); err != nil {
+		return err
+	} else if len(output) != 0 {
+		return iptables.ChainError{Chain: "FORWARD", Output: output}
+	}
+	return nil
+}
+
+// iptablesDelete takes the saved args from the Append operation
+// and uses them to delete the previously added rules
+func iptablesDelete(args [][]string) error {
+	var errs []error
+	for _, cmd := range args {
+		if err := iptablesRunAndCheck(iptables.Delete, cmd); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("Failed to delete iptables rules: %s", errs)
+	}
+	return nil
 }
 
 // adapted from https://github.com/docker/libnetwork/blob/master/iptables/iptables.go
@@ -117,52 +147,67 @@ func (p *portMapper) forward(action iptables.Action, ip net.IP, port int, proto,
 		// value" by both iptables and ip6tables.
 		daddr = "0/0"
 	}
-	args := []string{"-t", string(iptables.Nat), string(action), "VIC",
-		"-i", srcIface,
-		"-p", proto,
-		"-d", daddr,
-		"--dport", strconv.Itoa(port),
-		"-j", "DNAT",
-		"--to-destination", net.JoinHostPort(destAddr, strconv.Itoa(destPort))}
-	if output, err := iptables.Raw(args...); err != nil {
-		return err
-	} else if len(output) != 0 {
-		return iptables.ChainError{Chain: "FORWARD", Output: output}
-	}
-
 	ipStr := ""
 	if ip != nil && !ip.IsUnspecified() {
 		ipStr = ip.String()
 	}
 
+	key := bindKey{ip: ipStr, port: port}
 	switch action {
-	case iptables.Append:
-		p.bindings[bindKey{ipStr, port}] = nil
-
 	case iptables.Delete:
-		delete(p.bindings, bindKey{ipStr, port})
-	}
+		//val := p.bindings[key] // lookup commands to reverse
+		if args, ok := p.bindings[key]; ok {
+			if err := iptablesDelete(args); err != nil {
+				return err
+			}
+			delete(p.bindings, bindKey{ipStr, port})
+			return nil
+		}
+		return fmt.Errorf("Failed to find unmap data for %s:%d", ipStr, port)
 
-	if output, err := iptables.Raw("-t", string(iptables.Filter), string(action), "VIC",
-		"-i", srcIface,
-		"-o", destIface,
-		"-p", proto,
-		"-d", destAddr,
-		"--dport", strconv.Itoa(destPort),
-		"-j", "ACCEPT"); err != nil {
-		return err
-	} else if len(output) != 0 {
-		return iptables.ChainError{Chain: "FORWARD", Output: output}
-	}
+	case iptables.Append:
+		var savedArgs [][]string
 
-	if output, err := iptables.Raw("-t", string(iptables.Nat), string(action), "POSTROUTING",
-		"-p", proto,
-		"-d", destAddr,
-		"--dport", strconv.Itoa(destPort),
-		"-j", "MASQUERADE"); err != nil {
-		return err
-	} else if len(output) != 0 {
-		return iptables.ChainError{Chain: "FORWARD", Output: output}
+		args := []string{"VIC", "-t", string(iptables.Nat),
+			"-i", srcIface,
+			"-p", proto,
+			"-d", daddr,
+			"--dport", strconv.Itoa(port),
+			"-j", "DNAT",
+			"--to-destination", net.JoinHostPort(destAddr, strconv.Itoa(destPort))}
+		if err := iptablesRunAndCheck(action, args); err != nil {
+			return err
+		}
+		savedArgs = append(savedArgs, args)
+		p.bindings[key] = savedArgs
+
+		args = []string{"VIC", "-t", string(iptables.Filter),
+			"-i", srcIface,
+			"-o", destIface,
+			"-p", proto,
+			"-d", destAddr,
+			"--dport", strconv.Itoa(destPort),
+			"-j", "ACCEPT"}
+		if err := iptablesRunAndCheck(action, args); err != nil {
+			return err
+		}
+		savedArgs = append(savedArgs, args)
+		p.bindings[key] = savedArgs
+
+		args = []string{"POSTROUTING", "-t", string(iptables.Nat),
+			"-p", proto,
+			"-d", destAddr,
+			"--dport", strconv.Itoa(destPort),
+			"-j", "MASQUERADE"}
+		if err := iptablesRunAndCheck(action, args); err != nil {
+			return err
+		}
+		savedArgs = append(savedArgs, args)
+		p.bindings[key] = savedArgs
+		return nil
+
+	default:
+		log.Warnf("noop for given operation: %s", action)
 	}
 
 	return nil

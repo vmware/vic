@@ -29,7 +29,6 @@ import (
 
 	"github.com/vmware/vic/lib/apiservers/engine/backends/cache"
 	"github.com/vmware/vic/lib/apiservers/engine/backends/container"
-	"github.com/vmware/vic/lib/apiservers/engine/backends/portmap"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/containers"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/misc"
@@ -257,7 +256,7 @@ func setPortMapping(info *models.ContainerInfo, backend *Container, container *c
 	}
 	for _, e := range endpointsOK.Payload {
 		if len(e.Ports) > 0 {
-			if err = backend.mapPorts(portmap.Map, container.HostConfig, e); err != nil {
+			if err = backend.mapPorts(container.HostConfig, e, container.ContainerID); err != nil {
 				return err
 			}
 		}

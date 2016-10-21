@@ -70,11 +70,15 @@ var (
 
 	portMapper portmap.PortMapper
 
+	cbpLock         sync.Mutex
+	containerByPort map[string]string // port:containerID
+
 	ctx = context.TODO()
 )
 
 func init() {
 	portMapper = portmap.NewPortMapper()
+	containerByPort = make(map[string]string)
 
 	l, err := netlink.LinkByName(clientIfaceName)
 	if l == nil {
@@ -415,6 +419,44 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 	return nil
 }
 
+// cleanupPortBindings gets port bindings for the container and
+// unmaps ports if the cVM that previously bound them isn't powered on
+func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
+	for ctrPort, hostPorts := range vc.HostConfig.PortBindings {
+		for _, hostPort := range hostPorts {
+			hPort := hostPort.HostPort
+
+			cbpLock.Lock()
+			mappedCtr, mapped := containerByPort[hPort]
+			cbpLock.Unlock()
+			if !mapped {
+				continue
+			}
+
+			log.Debugf("Container %q maps host port %s to container port %s", mappedCtr, hPort, ctrPort)
+			// check state of the previously bound container with PL
+			cc := cache.ContainerCache().GetContainer(mappedCtr)
+			running, err := c.containerProxy.IsRunning(cc)
+			if err != nil {
+				return fmt.Errorf("Failed to get container %q power state: %s",
+					mappedCtr, err)
+			}
+			if running {
+				log.Debugf("Running container %q still holds port %s", mappedCtr, hPort)
+				continue
+			}
+
+			log.Debugf("Unmapping ports for powered off container %q", mappedCtr)
+			err = c.unmapPorts(cc.HostConfig)
+			if err != nil {
+				return fmt.Errorf("Failed to unmap host port %s for container %q: %s",
+					hPort, mappedCtr, err)
+			}
+		}
+	}
+	return nil
+}
+
 // ContainerStart starts a container.
 func (c *Container) ContainerStart(name string, hostConfig *containertypes.HostConfig) error {
 	defer trace.End(trace.Begin(name))
@@ -424,15 +466,15 @@ func (c *Container) ContainerStart(name string, hostConfig *containertypes.HostC
 func (c *Container) containerStart(name string, hostConfig *containertypes.HostConfig, bind bool) error {
 	var err error
 
+	// Get an API client to the portlayer
+	client := c.containerProxy.Client()
+
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
 		return NotFoundError(name)
 	}
 	id := vc.ContainerID
-
-	// Get an API client to the portlayer
-	client := c.containerProxy.Client()
 
 	// handle legacy hostConfig
 	if hostConfig != nil {
@@ -479,6 +521,11 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 			}
 		}()
 
+		// unmap ports that vc needs if they're not being used by previously mapped container
+		err = c.cleanupPortBindings(vc)
+		if err != nil {
+			return err
+		}
 	}
 
 	// change the state of the container
@@ -499,15 +546,16 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 
 	handle = stateChangeRes.Payload
 
+	// map ports
 	if bind {
 		e := c.findPortBoundNetworkEndpoint(hostConfig, endpoints)
-		if err = c.mapPorts(portmap.Map, hostConfig, e); err != nil {
+		if err = c.mapPorts(hostConfig, e, id); err != nil {
 			return InternalServerError(fmt.Sprintf("error mapping ports: %s", err))
 		}
 
 		defer func() {
 			if err != nil {
-				c.mapPorts(portmap.Unmap, hostConfig, e)
+				c.unmapPorts(hostConfig)
 			}
 		}()
 	}
@@ -537,9 +585,63 @@ func requestHostPort(proto string) (int, error) {
 	return pa.RequestPortInRange(nil, proto, 0, 0)
 }
 
-func (c *Container) mapPorts(op portmap.Operation, hostconfig *containertypes.HostConfig, endpoint *models.EndpointConfig) error {
-	if len(hostconfig.PortBindings) == 0 || endpoint == nil {
+type portMapping struct {
+	intHostPort int
+	strHostPort string
+	portProto   nat.Port
+}
+
+// unrollPortMap processes config for mapping/unmapping ports e.g. from hostconfig.PortBindings
+func unrollPortMap(portMap nat.PortMap) ([]*portMapping, error) {
+	var portMaps []*portMapping
+	for i, pb := range portMap {
+
+		proto, port := nat.SplitProtoPort(string(i))
+		nport, err := nat.NewPort(proto, port)
+		if err != nil {
+			return nil, err
+		}
+
+		// iterate over all the ports in pb []nat.PortBinding
+		for _, p := range pb {
+			var hostPort int
+			var hPort string
+			if p.HostPort == "" {
+				// use a random port since no host port is specified
+				hostPort, err = requestHostPort(proto)
+				if err != nil {
+					log.Errorf("could not find available port on host")
+					return nil, err
+				}
+				// update the hostconfig
+				p.HostPort = strconv.Itoa(hostPort)
+
+			} else {
+				hostPort, err = strconv.Atoi(p.HostPort)
+				if err != nil {
+					return nil, err
+				}
+			}
+			hPort = strconv.Itoa(hostPort)
+			portMaps = append(portMaps, &portMapping{
+				intHostPort: hostPort,
+				strHostPort: hPort,
+				portProto:   nport,
+			})
+		}
+	}
+	return portMaps, nil
+}
+
+// mapPorts maps ports defined in hostconfig for containerID
+func (c *Container) mapPorts(hostconfig *containertypes.HostConfig, endpoint *models.EndpointConfig, containerID string) error {
+	log.Debugf("mapPorts for %q: %v", containerID, hostconfig.PortBindings)
+
+	if len(hostconfig.PortBindings) == 0 {
 		return nil
+	}
+	if endpoint == nil {
+		return fmt.Errorf("invalid endpoint")
 	}
 
 	var containerIP net.IP
@@ -548,48 +650,56 @@ func (c *Container) mapPorts(op portmap.Operation, hostconfig *containertypes.Ho
 		return fmt.Errorf("invalid endpoint address %s", endpoint.Address)
 	}
 
-	_, bindings, err := nat.ParsePortSpecs(endpoint.Ports)
+	portMap, err := unrollPortMap(hostconfig.PortBindings)
 	if err != nil {
 		return err
 	}
-	for p := range bindings {
-		proto, port := nat.SplitProtoPort(string(p))
-		var nport nat.Port
-		nport, err := nat.NewPort(proto, port)
-		if err != nil {
+
+	cbpLock.Lock()
+	defer cbpLock.Unlock()
+	for _, p := range portMap {
+		if err = portMapper.MapPort(nil, p.intHostPort, p.portProto.Proto(), containerIP.String(), p.portProto.Int(), clientIfaceName, bridgeIfaceName); err != nil {
 			return err
 		}
 
-		pbs, ok := hostconfig.PortBindings[nport]
-		if !ok {
+		// update mapped ports
+		containerByPort[p.strHostPort] = containerID
+		log.Debugf("mapped port %s for container %s", p.strHostPort, containerID)
+	}
+	return nil
+}
+
+// unmapPorts unmaps ports defined in hostconfig
+func (c *Container) unmapPorts(hostconfig *containertypes.HostConfig) error {
+	log.Debugf("unmapPorts: %v", hostconfig.PortBindings)
+
+	if len(hostconfig.PortBindings) == 0 {
+		return nil
+	}
+
+	portMap, err := unrollPortMap(hostconfig.PortBindings)
+	if err != nil {
+		return err
+	}
+
+	cbpLock.Lock()
+	defer cbpLock.Unlock()
+	for _, p := range portMap {
+		// check if we should actually unmap based on current mappings
+		_, mapped := containerByPort[p.strHostPort]
+		if !mapped {
+			log.Debugf("skipping already unmapped %s", p.strHostPort)
 			continue
 		}
 
-		for i := range pbs {
-			var hostPort int
-			if pbs[i].HostPort == "" {
-				// use a random port since no host port is specified
-				hostPort, err = requestHostPort(proto)
-				if err != nil {
-					log.Errorf("could not find available port on host")
-					return err
-				}
-				// update the hostconfig
-				pbs[i].HostPort = strconv.Itoa(hostPort)
-
-			} else {
-				hostPort, err = strconv.Atoi(pbs[i].HostPort)
-				if err != nil {
-					return err
-				}
-			}
-
-			if err = portMapper.MapPort(op, nil, hostPort, nport.Proto(), containerIP.String(), nport.Int(), clientIfaceName, bridgeIfaceName); err != nil {
-				return err
-			}
+		if err = portMapper.UnmapPort(nil, p.intHostPort, p.portProto.Proto(), p.portProto.Int(), clientIfaceName, bridgeIfaceName); err != nil {
+			return err
 		}
-	}
 
+		// update mapped ports
+		delete(containerByPort, p.strHostPort)
+		log.Debugf("unmapped port %s", p.strHostPort)
+	}
 	return nil
 }
 
@@ -656,7 +766,6 @@ func (c *Container) ContainerStop(name string, seconds int) error {
 }
 
 func (c *Container) containerStop(name string, seconds int, unbound bool) error {
-
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
@@ -684,7 +793,6 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 	}
 
 	if unbound {
-		var endpoints []*models.EndpointConfig
 		ub, err := client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle))
 		if err != nil {
 			switch err := err.(type) {
@@ -698,11 +806,10 @@ func (c *Container) containerStop(name string, seconds int, unbound bool) error 
 			}
 		} else {
 			handle = ub.Payload.Handle
-			endpoints = ub.Payload.Endpoints
 		}
 
 		// unmap ports
-		if err = c.mapPorts(portmap.Unmap, vc.HostConfig, c.findPortBoundNetworkEndpoint(vc.HostConfig, endpoints)); err != nil {
+		if err = c.unmapPorts(vc.HostConfig); err != nil {
 			return err
 		}
 	}
@@ -963,6 +1070,7 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 	}
 	// TODO: move to conversion function
 	containers := make([]*types.Container, 0, len(containme.Payload))
+
 	for _, t := range containme.Payload {
 		cmd := strings.Join(t.ProcessConfig.ExecArgs, " ")
 		// the docker client expects the friendly name to be prefixed
