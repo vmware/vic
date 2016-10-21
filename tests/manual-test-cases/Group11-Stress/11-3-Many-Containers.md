@@ -12,7 +12,7 @@ This test requires that a vSphere server is running and available
 
 #Test Steps:
 1. Install a new VCH appliance into the vSphere server
-2. In a loop, create 1000 containers using docker run time
+2. In a loop, create 1000 containers using docker run busybox date
 3. After the last iteration, run a variety of docker commands on the VCH appliance
 
 #Expected Outcome:

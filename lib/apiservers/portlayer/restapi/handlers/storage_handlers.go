@@ -26,11 +26,9 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations/storage"
-	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
 
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
-	"github.com/vmware/vic/pkg/vsphere/session"
 
 	epl "github.com/vmware/vic/lib/portlayer/exec"
 	spl "github.com/vmware/vic/lib/portlayer/storage"
@@ -53,20 +51,6 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 	ctx := context.Background()
 	op := trace.NewOperation(ctx, "configure")
 
-	sessionconfig := &session.Config{
-		Service:        options.PortLayerOptions.SDK,
-		Insecure:       options.PortLayerOptions.Insecure,
-		Keepalive:      options.PortLayerOptions.Keepalive,
-		DatacenterPath: options.PortLayerOptions.DatacenterPath,
-		ClusterPath:    options.PortLayerOptions.ClusterPath,
-		PoolPath:       options.PortLayerOptions.PoolPath,
-		DatastorePath:  options.PortLayerOptions.DatastorePath,
-	}
-
-	storageSession, err := session.NewSession(sessionconfig).Create(ctx)
-	if err != nil {
-		log.Fatalf("StorageHandler ERROR: %s", err)
-	}
 	if len(spl.Config.ImageStores) == 0 {
 		log.Panicf("No image stores provided; unable to instantiate storage layer")
 	}
@@ -76,7 +60,7 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 		log.Warningf("Multiple image stores found. Multiple image stores are not yet supported. Using [%s] %s", imageStoreURL.Host, imageStoreURL.Path)
 	}
 
-	ds, err := vsphereSpl.NewImageStore(op, storageSession, &imageStoreURL)
+	ds, err := vsphereSpl.NewImageStore(op, handlerCtx.Session, &imageStoreURL)
 	if err != nil {
 		log.Panicf("Cannot instantiate storage layer: %s", err)
 	}
@@ -88,14 +72,14 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 
 	// The same is done for volumes.  It's implemented via a cache which writes
 	// to an implementation that takes a datastore to write to.
-	vsVolumeStore, err := vsphereSpl.NewVolumeStore(op, storageSession)
+	vsVolumeStore, err := vsphereSpl.NewVolumeStore(op, handlerCtx.Session)
 	if err != nil {
 		log.Panicf("Cannot instantiate the volume store: %s", err)
 	}
 
 	// Get the datastores for volumes.
 	// Each volume store name maps to a datastore + path, which can be referred to by the name.
-	dstores, err := datastore.GetDatastores(context.TODO(), storageSession, spl.Config.VolumeLocations)
+	dstores, err := datastore.GetDatastores(context.TODO(), handlerCtx.Session, spl.Config.VolumeLocations)
 	if err != nil {
 		log.Panicf("Cannot find datastores: %s", err)
 	}

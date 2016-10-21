@@ -8,13 +8,14 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 Docker volume create 1000 volumes rapidly
     ${pids}=  Create List
 
-    # Create 1000 volumes rapidly
+    Log To Console  \nCreate 1000 volumes rapidly
     :FOR  ${idx}  IN RANGE  0  1000
     \   ${pid}=  Start Process  docker ${params} volume create --name\=multiple${idx} --opt Capacity\=32MB  shell=True
     \   Append To List  ${pids}  ${pid}
 
-    # Wait for them to finish and check their RC
+    Log To Console  \nWait for them to finish and check their RC
     :FOR  ${pid}  IN  @{pids}
+    \   Log To Console  \nWaiting for ${pid}
     \   ${res}=  Wait For Process  ${pid}
     \   Should Be Equal As Integers  ${res.rc}  0
 

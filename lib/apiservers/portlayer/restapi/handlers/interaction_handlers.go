@@ -361,29 +361,43 @@ func (d *FlushingReader) AddFlusher(flusher GenericFlusher) {
 // ignored.  This reader does not care about the init sequeunce.  The init sequence
 // maybe used by the higher level interaction, which in this case is the Swagger
 // establishing initial connection for stdin.
+//
+// Panics if the buf is smaller than the initBytes
 func (d *FlushingReader) readDetectInit(buf []byte) (int, error) {
+	initLen := len(d.initBytes)
+
 	// fast path - len(nil) return 0
-	if len(d.initBytes) == 0 {
+	if initLen == 0 {
 		return d.Read(buf)
 	}
 
-	var er error
-	initLen := len(d.initBytes)
+	// make sure we have enough room
+	if len(buf) < initLen {
+		panic("Read buffer is smaller than the initialization byte sequence")
+	}
+
 	total := 0
+	upto := 0
 	for total < initLen {
-		nr, er := d.Read(buf)
-		total += nr
-
-		if bytes.Compare(d.initBytes[0:total], buf[0:total]) != 0 {
-			// First bytes aren't part of init bytes so client must not be
-			// the docker personality so break and ignore looking for the
-			// init bytes.
-			log.Debugf("Did not find primer bytes, stopping watch")
-			return total, er
+		nr, err := d.Read(buf[total:])
+		if nr > 0 {
+			total += nr
+			// we are only interested with the first initLen bytes
+			upto = total
+			if upto > initLen {
+				upto = initLen
+			}
+			if bytes.Compare(d.initBytes[0:upto], buf[0:upto]) != 0 {
+				// First bytes aren't part of init bytes so client must not be
+				// the docker personality so break and ignore looking for the
+				// init bytes.
+				log.Debugf("Did not find primer bytes, stopping watch")
+				return total, err
+			}
 		}
-
-		if er != nil && total < initLen {
-			return 0, er
+		if err != nil && total < initLen {
+			log.Debugf("Primer bytes read %d bytes, err %s, stopping watch", nr, err)
+			return 0, err
 		}
 	}
 
@@ -392,7 +406,7 @@ func (d *FlushingReader) readDetectInit(buf []byte) (int, error) {
 	log.Debugf("Found primer bytes, port layer client might be personality server")
 
 	// no risk of returning <0
-	return total - initLen, er
+	return total - initLen, nil
 }
 
 // Derived from go's io.Copy.  We use a smaller buffer so as to not hold up
@@ -405,7 +419,6 @@ func (d *FlushingReader) WriteTo(w io.Writer) (written int64, err error) {
 	buf := make([]byte, 64)
 
 	nr, er := d.readDetectInit(buf)
-
 	for {
 		if nr > 0 {
 			nw, ew := w.Write(buf[0:nr])
