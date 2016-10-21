@@ -335,8 +335,8 @@ func TestFetchImageBlob(t *testing.T) {
 			Parent: &parent,
 			Store:  Storename,
 		},
-		meta:  LayerHistory,
-		layer: FSLayer{BlobSum: DigestSHA256LayerContent},
+		Meta:  LayerHistory,
+		Layer: FSLayer{BlobSum: DigestSHA256LayerContent},
 	}
 	diffID, err := FetchImageBlob(ctx, ic.Options, &image, ic.progressOutput)
 	if err != nil {

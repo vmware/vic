@@ -17,8 +17,6 @@ package cache
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"os"
 	"strings"
 	"sync"
 
@@ -31,10 +29,10 @@ import (
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/reference"
 
+	"github.com/vmware/vic/lib/apiservers/engine/backends/kv"
 	"github.com/vmware/vic/lib/apiservers/portlayer/client"
-	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/metadata"
-	"github.com/vmware/vic/pkg/vsphere/sys"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // ICache is an in-memory cache of image metadata. It is refreshed at startup
@@ -42,12 +40,19 @@ import (
 // images are deleted.
 type ICache struct {
 	m sync.RWMutex
+	// IDIndex allows image ID lookup by short prefix
+	IDIndex *truncindex.TruncIndex
+	// CacheByID maps imageID to image metadata
+	CacheByID map[string]*metadata.ImageConfig
+	// CacheByName maps image name to image metadata
+	CacheByName map[string]*metadata.ImageConfig
 
-	// cache maps image ID to image metadata
-	idIndex     *truncindex.TruncIndex
-	cacheByID   map[string]*metadata.ImageConfig
-	cacheByName map[string]*metadata.ImageConfig
+	client *client.PortLayer
 }
+
+const (
+	imageCacheKey = "images"
+)
 
 var (
 	imageCache *ICache
@@ -56,9 +61,9 @@ var (
 
 func init() {
 	imageCache = &ICache{
-		idIndex:     truncindex.NewTruncIndex([]string{}),
-		cacheByID:   make(map[string]*metadata.ImageConfig),
-		cacheByName: make(map[string]*metadata.ImageConfig),
+		IDIndex:     truncindex.NewTruncIndex([]string{}),
+		CacheByID:   make(map[string]*metadata.ImageConfig),
+		CacheByName: make(map[string]*metadata.ImageConfig),
 	}
 }
 
@@ -67,40 +72,23 @@ func ImageCache() *ICache {
 	return imageCache
 }
 
-// Update runs only once at startup to hydrate the image cache
-func (ic *ICache) Update(client *client.PortLayer) error {
+// NewImageCache will create a new image cache or rehydrate an
+// existing image cache from the portlayer k/v store
+func NewImageCache(client *client.PortLayer) error {
+	defer trace.End(trace.Begin(""))
+
+	imageCache.client = client
+
 	log.Debugf("Updating image cache")
 
-	host, err := sys.UUID()
-	if host == "" {
-		host, err = os.Hostname()
-	}
-	if err != nil {
-		return fmt.Errorf("Unexpected error getting hostname: %s", err)
+	val, err := kv.Get(client, imageCacheKey)
+	if err != nil && err != kv.ErrKeyNotFound {
+		return err
 	}
 
-	params := storage.NewListImagesParamsWithContext(ctx).WithStoreName(host)
-
-	layers, err := client.Storage.ListImages(params)
-	if err != nil {
-		return fmt.Errorf("Failed to retrieve image list from portlayer: %s", err)
-	}
-
-	for _, layer := range layers.Payload {
-
-		// populate the layer cache as we go
-		// TODO(jzt): this will probably change once the k/v store is being used to track
-		// images (and layers?)
-		LayerCache().AddExisting(layer.ID)
-
-		imageConfig := &metadata.ImageConfig{}
-		if err := json.Unmarshal([]byte(layer.Metadata[metadata.MetaDataKey]), imageConfig); err != nil {
-			derr.NewErrorWithStatusCode(fmt.Errorf("Failed to unmarshal image config: %s", err),
-				http.StatusInternalServerError)
-		}
-
-		if imageConfig.ImageID != "" {
-			ic.AddImage(imageConfig)
+	if val != "" {
+		if err = json.Unmarshal([]byte(val), imageCache); err != nil {
+			return fmt.Errorf("Failed to unmarshal image cache: %s", err)
 		}
 	}
 
@@ -109,11 +97,12 @@ func (ic *ICache) Update(client *client.PortLayer) error {
 
 // GetImages returns a slice containing metadata for all cached images
 func (ic *ICache) GetImages() []*metadata.ImageConfig {
+	defer trace.End(trace.Begin(""))
 	ic.m.RLock()
 	defer ic.m.RUnlock()
 
-	result := make([]*metadata.ImageConfig, 0, len(ic.cacheByID))
-	for _, image := range ic.cacheByID {
+	result := make([]*metadata.ImageConfig, 0, len(ic.CacheByID))
+	for _, image := range ic.CacheByID {
 		result = append(result, copyImageConfig(image))
 	}
 	return result
@@ -124,24 +113,25 @@ func (ic *ICache) GetImages() []*metadata.ImageConfig {
 func (ic *ICache) IsImageID(id string) bool {
 	ic.m.RLock()
 	defer ic.m.RUnlock()
-	if _, err := ic.idIndex.Get(id); err == nil {
+	if _, err := ic.IDIndex.Get(id); err == nil {
 		return true
 	}
 	return false
 }
 
-// GetImage parses input to retrieve a cached image
-func (ic *ICache) GetImage(idOrRef string) (*metadata.ImageConfig, error) {
+// Get parses input to retrieve a cached image
+func (ic *ICache) Get(idOrRef string) (*metadata.ImageConfig, error) {
+	defer trace.End(trace.Begin(""))
 	ic.m.RLock()
 	defer ic.m.RUnlock()
 
 	// cover the case of creating by a full reference
-	if config, ok := ic.cacheByName[idOrRef]; ok {
+	if config, ok := ic.CacheByName[idOrRef]; ok {
 		return config, nil
 	}
 
 	// get the full image ID if supplied a prefix
-	if id, err := ic.idIndex.Get(idOrRef); err == nil {
+	if id, err := ic.IDIndex.Get(idOrRef); err == nil {
 		idOrRef = id
 	}
 
@@ -171,8 +161,9 @@ func (ic *ICache) GetImage(idOrRef string) (*metadata.ImageConfig, error) {
 }
 
 func (ic *ICache) getImageByDigest(digest digest.Digest) *metadata.ImageConfig {
+	defer trace.End(trace.Begin(""))
 	var config *metadata.ImageConfig
-	config, ok := ic.cacheByID[string(digest)]
+	config, ok := ic.CacheByID[string(digest)]
 	if !ok {
 		return nil
 	}
@@ -181,9 +172,10 @@ func (ic *ICache) getImageByDigest(digest digest.Digest) *metadata.ImageConfig {
 
 // Looks up image by reference.Named
 func (ic *ICache) getImageByNamed(named reference.Named) *metadata.ImageConfig {
+	defer trace.End(trace.Begin(""))
 	// get the imageID from the repoCache
 	id, _ := RepositoryCache().Get(named)
-	return copyImageConfig(ic.cacheByID[prefixImageID(id)])
+	return copyImageConfig(ic.CacheByID[prefixImageID(id)])
 }
 
 // Add the "sha256:" prefix to the image ID if missing.
@@ -196,8 +188,13 @@ func prefixImageID(imageID string) string {
 	return "sha256:" + imageID
 }
 
-// AddImage adds an image to the image cache
-func (ic *ICache) AddImage(imageConfig *metadata.ImageConfig) {
+// Add adds an image to the image cache
+func (ic *ICache) Add(imageConfig *metadata.ImageConfig, save bool) {
+	defer trace.End(trace.Begin(""))
+
+	if save {
+		defer ic.Save()
+	}
 
 	ic.m.Lock()
 	defer ic.m.Unlock()
@@ -210,8 +207,8 @@ func (ic *ICache) AddImage(imageConfig *metadata.ImageConfig) {
 	}
 
 	imageID := prefixImageID(imageConfig.ImageID)
-	ic.idIndex.Add(imageConfig.ImageID)
-	ic.cacheByID[imageID] = imageConfig
+	ic.IDIndex.Add(imageConfig.ImageID)
+	ic.CacheByID[imageID] = imageConfig
 
 	for _, tag := range imageConfig.Tags {
 		ref, err = reference.WithTag(ref, tag)
@@ -219,34 +216,56 @@ func (ic *ICache) AddImage(imageConfig *metadata.ImageConfig) {
 			log.Errorf("Tried to create tagged reference from %s and tag %s: %s", imageConfig.Name, tag, err.Error())
 			return
 		}
-		ic.cacheByName[imageConfig.Reference] = imageConfig
+		ic.CacheByName[imageConfig.Reference] = imageConfig
 	}
 }
 
 // RemoveImageByConfig removes image from the cache.
 func (ic *ICache) RemoveImageByConfig(imageConfig *metadata.ImageConfig) {
+	defer trace.End(trace.Begin(""))
 	ic.m.Lock()
 	defer ic.m.Unlock()
 
 	// If we get here we definitely want to remove image config from any data structure
 	// where it can be present. So that, if there is something is wrong
 	// it could be tracked on debug level.
-	if err := ic.idIndex.Delete(imageConfig.ImageID); err != nil {
+	if err := ic.IDIndex.Delete(imageConfig.ImageID); err != nil {
 		log.Debugf("Not found in image cache index: %v", err)
 	}
 
 	prefixedID := prefixImageID(imageConfig.ImageID)
-	if _, ok := ic.cacheByID[prefixedID]; ok {
-		delete(ic.cacheByID, prefixedID)
+	if _, ok := ic.CacheByID[prefixedID]; ok {
+		delete(ic.CacheByID, prefixedID)
 	} else {
 		log.Debugf("Not found in cache by id: %s", prefixedID)
 	}
 
-	if _, ok := ic.cacheByName[imageConfig.Reference]; ok {
-		delete(ic.cacheByName, imageConfig.Reference)
+	if _, ok := ic.CacheByName[imageConfig.Reference]; ok {
+		delete(ic.CacheByName, imageConfig.Reference)
 	} else {
 		log.Debugf("Not found in cache by name: %s", imageConfig.Reference)
 	}
+}
+
+// Save will persist the image cache to the portlayer k/v store
+func (ic *ICache) Save() error {
+	defer trace.End(trace.Begin(""))
+	ic.m.Lock()
+	defer ic.m.Unlock()
+
+	bytes, err := json.Marshal(ic)
+	if err != nil {
+		log.Errorf("Unable to marshal image cache: %s", err.Error())
+		return err
+	}
+
+	err = kv.Put(ic.client, imageCacheKey, string(bytes))
+	if err != nil {
+		log.Errorf("Unable to save image cache: %s", err.Error())
+		return err
+	}
+
+	return nil
 }
 
 // copyImageConfig performs and returns deep copy of an ImageConfig struct

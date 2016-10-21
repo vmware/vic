@@ -36,12 +36,12 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
 const (
-	Imagec             = "imagec"
 	PortlayerName      = "Backend Engine"
 	IndexServerAddress = "registry-1.docker.io"
 
@@ -100,11 +100,20 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 
 	log.Info("Refreshing image cache")
 	go func() {
-		if err := cache.ImageCache().Update(portLayerClient); err != nil {
+		if err := cache.NewImageCache(portLayerClient); err != nil {
 			log.Warnf("Failed to refresh image cache: %s", err)
 			return
 		}
 		log.Info("Image cache updated successfully")
+	}()
+
+	log.Info("Refreshing layer cache")
+	go func() {
+		if err := imagec.NewLayerCache(portLayerClient); err != nil {
+			log.Warnf("Failed to update layer cache: %s", err)
+			return
+		}
+		log.Info("Layer cache updated successfully")
 	}()
 
 	log.Info("Refreshing container cache")

@@ -173,11 +173,11 @@ func FetchToken(ctx context.Context, options Options, url *url.URL, progressOutp
 
 // FetchImageBlob fetches the image blob
 func FetchImageBlob(ctx context.Context, options Options, image *ImageWithMeta, progressOutput progress.Output) (string, error) {
-	defer trace.End(trace.Begin(options.Image + "/" + image.layer.BlobSum))
+	defer trace.End(trace.Begin(options.Image + "/" + image.Layer.BlobSum))
 
 	id := image.ID
-	layer := image.layer.BlobSum
-	meta := image.meta
+	layer := image.Layer.BlobSum
+	meta := image.Meta
 	diffID := ""
 
 	url, err := url.Parse(options.Registry)
@@ -276,7 +276,7 @@ func FetchImageBlob(ctx context.Context, options Options, image *ImageWithMeta, 
 			layerSize += tarHeader.Size
 		}
 
-		image.size = layerSize
+		image.Size = layerSize
 	}
 
 	log.Infof("diffID for layer %s: %s", id, diffID)
