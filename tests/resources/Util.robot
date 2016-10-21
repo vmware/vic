@@ -106,7 +106,7 @@ Install VIC Appliance To Test Server
     [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default
     Set Test Environment Variables
     # disable firewall
-    Run  govc host.esxcli network firewall set -e false
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.esxcli network firewall set -e false
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
@@ -161,7 +161,7 @@ Run Secret VIC Machine Delete Command
 
 Run VIC Machine Delete Command
     ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vch-name}
-    Check Delete Success  ${vch-name}
+    Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vch-name}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
     ${output}=  Run  rm -f ${vch-name}-*.pem
@@ -206,7 +206,7 @@ Cleanup Dangling Networks On Test Server
     \   ${uuid}=  Run  govc host.portgroup.remove ${net}
 
 Cleanup Dangling vSwitches On Test Server
-    ${out}=  Run  govc host.vswitch.info | grep VCH
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.vswitch.info | grep VCH
     ${nets}=  Split To Lines  ${out}
     :FOR  ${net}  IN  @{nets}
     \   ${net}=  Fetch From Right  ${net}  ${SPACE}
