@@ -117,20 +117,12 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 }
 
 func hydrateCaches() error {
-	wg := sync.WaitGroup{}
-	wg.Add(4)
-	errors := make(chan error, 4)
 
-	log.Info("Refreshing image cache")
-	go func() {
-		defer wg.Done()
-		if err := cache.NewImageCache(portLayerClient); err != nil {
-			errors <- fmt.Errorf("Failed to refresh image cache: %s", err)
-			return
-		}
-		log.Info("Image cache updated successfully")
-		errors <- nil
-	}()
+	const waiters = 4
+
+	wg := sync.WaitGroup{}
+	wg.Add(waiters)
+	errors := make(chan error, waiters)
 
 	log.Info("Refreshing layer cache")
 	go func() {
@@ -143,6 +135,28 @@ func hydrateCaches() error {
 		errors <- nil
 	}()
 
+	log.Info("Refreshing image cache")
+	go func() {
+		defer wg.Done()
+		if err := cache.NewImageCache(portLayerClient); err != nil {
+			errors <- fmt.Errorf("Failed to refresh image cache: %s", err)
+			return
+		}
+		log.Info("Image cache updated successfully")
+		errors <- nil
+	}()
+
+	log.Info("Refreshing repository cache")
+	go func() {
+		defer wg.Done()
+		if err := cache.NewRepositoryCache(portLayerClient); err != nil {
+			errors <- fmt.Errorf("Failed to create repository cache: %s", err.Error())
+			return
+		}
+		errors <- nil
+		log.Info("Repository cache updated successfully")
+	}()
+
 	log.Info("Refreshing container cache")
 	go func() {
 		defer wg.Done()
@@ -152,17 +166,6 @@ func hydrateCaches() error {
 		}
 		log.Info("Container cache updated successfully")
 		errors <- nil
-	}()
-
-	// creates and potentially restore repository cache
-	go func() {
-		defer wg.Done()
-		if err := cache.NewRepositoryCache(portLayerClient); err != nil {
-			errors <- fmt.Errorf("Failed to create repository cache: %s", err.Error())
-			return
-		}
-		errors <- nil
-		log.Info("Repository cache updated successfully")
 	}()
 
 	wg.Wait()
@@ -252,7 +255,7 @@ func InsecureRegistries() []string {
 
 // syncContainerCache runs once at startup to populate the container cache
 func syncContainerCache() error {
-	log.Debugf("Sync up container cache from portlyaer")
+	log.Debugf("Updating container cache")
 
 	backend := NewContainerBackend()
 	client := backend.containerProxy.Client()

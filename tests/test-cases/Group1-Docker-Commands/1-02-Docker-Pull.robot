@@ -86,3 +86,17 @@ Pull two images that share layers concurrently
     Should Be Equal As Integers  ${res2.rc}  0
     Should Contain  ${res1.stdout}  Downloaded newer image for library/golang:1.7
     Should Contain  ${res2.stdout}  Downloaded newer image for library/golang:1.6
+
+Re-pull a previously rmi'd image
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images |grep ubuntu
+    ${words}=  Split String  ${output}
+    ${id}=  Get From List  ${words}  2
+    ${size}=  Get From List  ${words}  -2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rmi ubuntu
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  ubuntu
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images |grep ubuntu
+    ${words}=  Split String  ${output}
+    ${newid}=  Get From List  ${words}  2
+    ${newsize}=  Get From List  ${words}  -2
+    Should Be Equal  ${id}  ${newid}
+    Should Be Equal  ${size}  ${newsize}
