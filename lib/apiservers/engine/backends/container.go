@@ -1356,10 +1356,30 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 
 	// validate port bindings
 	if config.HostConfig != nil {
+		var ips []string
+		if addrs, err := clientIPv4Addrs(); err != nil {
+			log.Warnf("could not get address for client interface: %s", err)
+		} else {
+			ips = make([]string, len(addrs))
+			for i := range addrs {
+				ips[i] = addrs[i].IP.String()
+			}
+		}
+
 		for _, pbs := range config.HostConfig.PortBindings {
 			for _, pb := range pbs {
 				if pb.HostIP != "" && pb.HostIP != "0.0.0.0" {
-					return InternalServerError("host IP is not supported for port bindings")
+					// check if specified host ip equals any of the addresses on the "client" interface
+					found := false
+					for _, i := range ips {
+						if i == pb.HostIP {
+							found = true
+							break
+						}
+					}
+					if !found {
+						return InternalServerError("host IP is not supported for port bindings")
+					}
 				}
 
 				start, end, _ := nat.ParsePortRangeToInt(pb.HostPort)
