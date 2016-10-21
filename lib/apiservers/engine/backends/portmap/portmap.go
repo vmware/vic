@@ -32,7 +32,8 @@ const (
 )
 
 type PortMapper interface {
-	MapPort(op Operation, ip net.IP, port int, proto string, destIP string, destPort int, srcIface, destIface string) error
+	MapPort(ip net.IP, port int, proto string, destIP string, destPort int, srcIface, destIface string) error
+	UnmapPort(ip net.IP, port int, proto string, destPort int, srcIface, destIface string) error
 }
 
 type bindKey struct {
@@ -74,22 +75,13 @@ func (p *portMapper) isPortAvailable(proto string, ip net.IP, port int) bool {
 	return false
 }
 
-func (p *portMapper) MapPort(op Operation, ip net.IP, port int, proto string, destIP string, destPort int, srcIface, destIface string) error {
+func (p *portMapper) MapPort(ip net.IP, port int, proto string, destIP string, destPort int, srcIface, destIface string) error {
 	p.Lock()
 	defer p.Unlock()
 
-	var action iptables.Action
-	switch op {
-	case Map:
-		// check if port is available
-		if !p.isPortAvailable(proto, ip, port) {
-			return fmt.Errorf("port %d is not available", port)
-		}
-		action = iptables.Append
-	case Unmap:
-		action = iptables.Delete
-	default:
-		return fmt.Errorf("invalid port mapping operation %d", op)
+	// check if port is available
+	if !p.isPortAvailable(proto, ip, port) {
+		return fmt.Errorf("port %d is not available", port)
 	}
 
 	if port <= 0 {
@@ -101,11 +93,23 @@ func (p *portMapper) MapPort(op Operation, ip net.IP, port int, proto string, de
 		destPort = port
 	}
 
-	if destIP == "" && op != Unmap {
-		return fmt.Errorf("destination IP is not specified")
+	return p.forward(iptables.Append, ip, port, proto, destIP, destPort, srcIface, destIface)
+}
+
+func (p *portMapper) UnmapPort(ip net.IP, port int, proto string, destPort int, srcIface, destIface string) error {
+	p.Lock()
+	defer p.Unlock()
+
+	if port <= 0 {
+		return fmt.Errorf("source port must be specified")
 	}
 
-	return p.forward(action, ip, port, proto, destIP, destPort, srcIface, destIface)
+	if destPort <= 0 {
+		log.Infof("destination port not specified, using source port %d", port)
+		destPort = port
+	}
+
+	return p.forward(iptables.Delete, ip, port, proto, "", destPort, srcIface, destIface)
 }
 
 // iptablesRunAndCheck runs an iptables command with the provided args
