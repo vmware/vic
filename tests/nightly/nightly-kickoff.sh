@@ -159,7 +159,7 @@ fi
 mv *.log 5-11-MultipleCluster
 mv *.zip 5-11-MultipleCluster
 
-if [[ $DistributedSwitchStatus = "Passed" && $ClusterStatus = "Passed" && $EnhancedLinkedModeStatus = "Passed" &&  $HighAvailabilityStatus = "Passed" && $HeterogenousStatus = "Passed" && $VSANStatus = "Passed" $VSANComplexStatus = "Passed" && $NSXStatus = "Passed" &&  $DRSStatus = "Passed" && $MultipleDCStatus =  "Passed" && $MultipleClusterStatus = "Passed" ]]
+if [[ $DistributedSwitchStatus = "Passed" && $ClusterStatus = "Passed" && $EnhancedLinkedModeStatus = "Passed" &&  $HighAvailabilityStatus = "Passed" && $HeterogenousStatus = "Passed" && $VSANStatus = "Passed" && $VSANComplexStatus = "Passed" && $NSXStatus = "Passed" &&  $DRSStatus = "Passed" && $MultipleDCStatus =  "Passed" && $MultipleClusterStatus = "Passed" ]]
 then
 buildStatus=0
 else
