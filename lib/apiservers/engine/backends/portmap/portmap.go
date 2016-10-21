@@ -44,11 +44,11 @@ type bindKey struct {
 type portMapper struct {
 	sync.Mutex
 
-	bindings map[bindKey]interface{}
+	bindings map[bindKey][][]string
 }
 
 func NewPortMapper() PortMapper {
-	return &portMapper{bindings: make(map[bindKey]interface{})}
+	return &portMapper{bindings: make(map[bindKey][][]string)}
 }
 
 func (p *portMapper) isPortAvailable(proto string, ip net.IP, port int) bool {
@@ -155,8 +155,8 @@ func (p *portMapper) forward(action iptables.Action, ip net.IP, port int, proto,
 	key := bindKey{ip: ipStr, port: port}
 	switch action {
 	case iptables.Delete:
-		val := p.bindings[key] // lookup commands to reverse
-		if args, ok := val.([][]string); ok {
+		//val := p.bindings[key] // lookup commands to reverse
+		if args, ok := p.bindings[key]; ok {
 			if err := iptablesDelete(args); err != nil {
 				return err
 			}
