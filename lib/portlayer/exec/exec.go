@@ -113,11 +113,15 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 func eventCallback(ie events.Event) {
 	// grab the container from the cache
 	container := Containers.Container(ie.Reference())
-	if container != nil {
 
-		newState := eventedState(ie.String(), container.CurrentState())
+	if container != nil {
+		// container should be locked to avoid unexpected state change.
+		container.m.Lock()
+		defer container.m.Unlock()
+
+		newState := eventedState(ie.String(), container.state)
 		// do we have a state change
-		if newState != container.CurrentState() {
+		if newState != container.state {
 			switch newState {
 			case StateStopping,
 				StateRunning,
@@ -127,7 +131,7 @@ func eventCallback(ie events.Event) {
 				log.Debugf("Container(%s) state set to %s via event activity",
 					container.ExecConfig.ID, newState.String())
 
-				container.SetState(newState)
+				container.swapState(newState)
 				if newState == StateStopped {
 					container.onStop()
 				}
@@ -149,7 +153,6 @@ func eventCallback(ie events.Event) {
 				log.Debugf("Container(%s) %s via event activity", container.ExecConfig.ID, newState.String())
 				Containers.Remove(container.ExecConfig.ID)
 				publishContainerEvent(container.ExecConfig.ID, ie.Created(), ie.String())
-
 			}
 		}
 	}

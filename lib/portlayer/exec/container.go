@@ -39,12 +39,14 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
+	"sync/atomic"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/ssh"
 )
 
-type State int
+type State int32
 
 const (
 	StateUnknown State = iota
@@ -110,6 +112,7 @@ type Container struct {
 	Config  *types.VirtualMachineConfigInfo
 	Runtime *types.VirtualMachineRuntimeInfo
 
+	stateEventMu   sync.Mutex
 	newStateEvents map[State]chan struct{}
 }
 
@@ -157,28 +160,22 @@ func (s State) String() string {
 
 // CurrentState returns current state.
 func (c *Container) CurrentState() State {
-	c.m.Lock()
-	defer c.m.Unlock()
-	return c.state
+	v := atomic.LoadInt32((*int32)(&c.state))
+	return State(v)
 }
 
-// SetState changes container state.
-func (c *Container) SetState(s State) State {
-	c.m.Lock()
-	defer c.m.Unlock()
-	return c.updateState(s)
-}
-
-func (c *Container) updateState(s State) State {
+func (c *Container) swapState(s State) State {
 	log.Debugf("Setting container %s state: %s", c.ExecConfig.ID, s)
+	c.stateEventMu.Lock()
 	prevState := c.state
 	if s != c.state {
-		c.state = s
+		atomic.StoreInt32((*int32)(&c.state), int32(s))
 		if ch, ok := c.newStateEvents[s]; ok {
 			delete(c.newStateEvents, s)
 			close(ch)
 		}
 	}
+	c.stateEventMu.Unlock()
 	return prevState
 }
 
@@ -192,10 +189,10 @@ var closedEventChannel = func() <-chan struct{} {
 // a channel that will be closed when an expected state is set.
 // If expected state is already set the caller will receive a closed channel immediately.
 func (c *Container) WaitForState(s State) <-chan struct{} {
-	c.m.Lock()
-	defer c.m.Unlock()
+	c.stateEventMu.Lock()
+	defer c.stateEventMu.Unlock()
 
-	if s == c.state {
+	if s == c.CurrentState() {
 		return closedEventChannel
 	}
 
@@ -205,6 +202,7 @@ func (c *Container) WaitForState(s State) <-chan struct{} {
 
 	eventChan := make(chan struct{})
 	c.newStateEvents[s] = eventChan
+
 	return eventChan
 }
 
@@ -259,12 +257,11 @@ func (c *Container) refresh(ctx context.Context) error {
 func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int32) error {
 	defer trace.End(trace.Begin(h.ExecConfig.ID))
 
-	// hold the event that has occurred
-	var commitEvent string
-
 	c.m.Lock()
 	defer c.m.Unlock()
 
+	// hold the event that has occurred
+	var commitEvent string
 	// If an event has occurred then put the container in the cache
 	// and publish the container event
 	defer func() {
@@ -315,7 +312,7 @@ func (c *Container) Commit(ctx context.Context, sess *session.Session, h *Handle
 		}
 
 		c.vm = vm.NewVirtualMachine(ctx, sess, res.Result.(types.ManagedObjectReference))
-		c.updateState(StateCreated)
+		c.swapState(StateCreated)
 
 		commitEvent = events.ContainerCreated
 
@@ -411,9 +408,9 @@ func (c *Container) start(ctx context.Context) error {
 	}
 	// get existing state and set to starting
 	// if there's a failure we'll revert to existing
-	finalState := c.updateState(StateStarting)
+	finalState := c.swapState(StateStarting)
 
-	defer func() { c.updateState(finalState) }()
+	defer func() { c.swapState(finalState) }()
 
 	// Power on
 	_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
@@ -433,6 +430,7 @@ func (c *Container) start(ctx context.Context) error {
 
 	detail, err = c.vm.WaitForKeyInExtraConfig(ctx, key)
 	if err != nil {
+		finalState = StateStopping
 		return fmt.Errorf("unable to wait for process launch status: %s", err.Error())
 	}
 
@@ -507,11 +505,11 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 	// get existing state and set to stopping
 	// if there's a failure we'll revert to existing
 
-	existingState := c.updateState(StateStopping)
+	existingState := c.swapState(StateStopping)
 
 	err := c.shutdown(ctx, waitTime)
 	if err == nil {
-		c.updateState(StateStopped)
+		c.swapState(StateStopped)
 		return nil
 	}
 
@@ -546,10 +544,10 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 				log.Warnf("hard power off failed due to: %#v", terr)
 			}
 		}
-		c.updateState(existingState)
+		c.swapState(existingState)
 		return err
 	}
-	c.updateState(StateStopped)
+	c.swapState(StateStopped)
 	return nil
 }
 
@@ -653,7 +651,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 
 	// get existing state and set to removing
 	// if there's a failure we'll revert to existing
-	existingState := c.updateState(StateRemoving)
+	existingState := c.swapState(StateRemoving)
 
 	// get the folder the VM is in
 	url, err := c.vm.DSPath(ctx)
@@ -669,7 +667,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 		}
 
 		log.Errorf("Failed to get datastore path for %s: %s", c.ExecConfig.ID, err)
-		c.updateState(existingState)
+		c.swapState(existingState)
 		return err
 	}
 	// FIXME: was expecting to find a utility function to convert to/from datastore/url given
@@ -683,7 +681,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	if err != nil {
 		f, ok := err.(types.HasFault)
 		if !ok {
-			c.updateState(existingState)
+			c.swapState(existingState)
 			return err
 		}
 		switch f.Fault().(type) {
@@ -695,7 +693,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 			}
 		default:
 			log.Debugf("Fault while attempting to destroy vm: %#v", f.Fault())
-			c.updateState(existingState)
+			c.swapState(existingState)
 			return err
 		}
 	}

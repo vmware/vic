@@ -67,7 +67,7 @@ func TestPublishContainerEvent(t *testing.T) {
 	id := "123439"
 	container := newTestContainer(id)
 	addTestVM(container)
-	container.SetState(StateRunning)
+	container.swapState(StateRunning)
 	Containers.Put(container)
 
 	publishContainerEvent(id, time.Now().UTC(), events.ContainerPoweredOff)
