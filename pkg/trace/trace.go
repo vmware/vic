@@ -15,7 +15,6 @@
 package trace
 
 import (
-	"fmt"
 	"os"
 	"runtime"
 	"time"
@@ -23,6 +22,18 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/vmware/vic/pkg/log"
 )
+
+var tracingEnabled = true
+
+// Enable global tracing.
+func EnableTracing() {
+	tracingEnabled = true
+}
+
+// Disable global tracing.
+func DisableTracing() {
+	tracingEnabled = false
+}
 
 var Logger = &logrus.Logger{
 	Out: os.Stderr,
@@ -46,15 +57,10 @@ type Message struct {
 }
 
 func (t *Message) delta() time.Duration {
+	if t == nil {
+		return 0
+	}
 	return time.Now().Sub(t.startTime)
-}
-
-func (t *Message) beginHdr() string {
-	return fmt.Sprintf("[BEGIN] [%s:%d]", t.funcName, t.lineNo)
-}
-
-func (t *Message) endHdr() string {
-	return fmt.Sprintf("[ END ] [%s:%d]", t.funcName, t.lineNo)
 }
 
 // begin a trace from this stack frame less the skip.
@@ -76,18 +82,24 @@ func newTrace(msg string, skip int) *Message {
 
 // Begin starts the trace.  Msg is the msg to log.
 func Begin(msg string) *Message {
-	t := newTrace(msg, 2)
+	if tracingEnabled && Logger.Level >= logrus.DebugLevel {
+		if t := newTrace(msg, 2); t != nil {
+			if msg == "" {
+				Logger.Debugf("[BEGIN] [%s:%d]", t.funcName, t.lineNo)
+			} else {
+				Logger.Debugf("[BEGIN] [%s:%d] %s", t.funcName, t.lineNo, t.msg)
+			}
+			return t
 
-	if msg == "" {
-		Logger.Debugf(t.beginHdr())
-	} else {
-		Logger.Debugf("%s %s", t.beginHdr(), t.msg)
+		}
 	}
-
-	return t
+	return nil
 }
 
 // End ends the trace.
 func End(t *Message) {
-	Logger.Debugf("%s [%s] %s", t.endHdr(), t.delta(), t.msg)
+	if t == nil {
+		return
+	}
+	Logger.Debugf("[ END ] [%s:%d] [%s] %s", t.funcName, t.lineNo, t.delta(), t.msg)
 }
