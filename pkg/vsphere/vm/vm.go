@@ -310,17 +310,92 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*object.Task, 
 	return vm.Destroy(ctx)
 }
 
-// Unregister unregisters the VM
-func (vm *VirtualMachine) Unregister(ctx context.Context) error {
-	req := types.UnregisterVM{
-		This: vm.Reference(),
+func (vm *VirtualMachine) VMPathName(ctx context.Context) (string, error) {
+	var err error
+	var mvm mo.VirtualMachine
+
+	if err = vm.Properties(ctx, vm.Reference(), []string{"config.files"}, &mvm); err != nil {
+		log.Errorf("Unable to get vm config.files property: %s", err)
+		return "", err
 	}
 
-	_, err := methods.UnregisterVM(ctx, vm.Client.RoundTripper, &req)
+	return mvm.Config.Files.VmPathName, nil
+}
+
+func (vm *VirtualMachine) registerVM(ctx context.Context, path string, name string, vapp *types.ManagedObjectReference,
+	pool *types.ManagedObjectReference, host *types.ManagedObjectReference, folder *object.Folder) (*object.Task, error) {
+	log.Debugf("Register VM %s", name)
+
+	c := vm.Client.Client
+	if vapp == nil {
+		var hostObject *object.HostSystem
+		if host != nil {
+			hostObject = object.NewHostSystem(c, *host)
+		}
+		poolObject := object.NewResourcePool(c, *pool)
+		return folder.RegisterVM(ctx, path, name, false, poolObject, hostObject)
+	}
+
+	req := types.RegisterChildVM_Task{
+		This: vapp.Reference(),
+		Path: path,
+		Host: host,
+	}
+
+	if name != "" {
+		req.Name = name
+	}
+
+	res, err := methods.RegisterChildVM_Task(ctx, vm.Client.Client, &req)
 	if err != nil {
+		return nil, err
+	}
+
+	return object.NewTask(vm.Client.Client, res.Returnval), nil
+}
+
+// FixInvalidState fix vm invalid state issue through unregister & register
+func (vm *VirtualMachine) FixInvalidState(ctx context.Context) error {
+	log.Debugf("Fix invalid state VM: %s", vm.Reference())
+	folders, err := vm.Session.Datacenter.Folders(ctx)
+	if err != nil {
+		log.Errorf("Unable to get vm folder: %s", err)
 		return err
 	}
 
+	log.Debugf("Get vm properties")
+	var mvm mo.VirtualMachine
+	properties := []string{"config.files", "summary.config", "summary.runtime", "resourcePool", "parentVApp"}
+	if err = vm.Properties(ctx, vm.Reference(), properties, &mvm); err != nil {
+		log.Errorf("Unable to get vm properties: %s", err)
+		return err
+	}
+
+	name := mvm.Summary.Config.Name
+	log.Debugf("Unregister VM %s", name)
+	if err := vm.Unregister(ctx); err != nil {
+		log.Errorf("Unable to unregister vm %q: %s", name, err)
+		return err
+	}
+
+	task, err := vm.registerVM(ctx, mvm.Config.Files.VmPathName, name, mvm.ParentVApp, mvm.ResourcePool, mvm.Summary.Runtime.Host, folders.VmFolder)
+	if err != nil {
+		log.Errorf("Unable to register VM %q back: %s", name, err)
+		return err
+	}
+	info, err := task.WaitForResult(ctx, nil)
+	if err != nil {
+		return err
+	}
+	// re-register vm will change vm reference, so reset the object reference here
+	if info.Error != nil {
+		return errors.New(info.Error.LocalizedMessage)
+	}
+
+	log.Infof("info result: %#v", info.Result)
+	newRef := info.Result.(types.ManagedObjectReference)
+
+	vm.Common = object.NewCommon(vm.Client.Client, newRef)
 	return nil
 }
 

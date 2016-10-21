@@ -52,6 +52,8 @@ type Manager struct {
 	byPathFormat string
 
 	reconfig sync.Mutex
+
+	s *session.Session
 }
 
 func NewDiskManager(op trace.Operation, session *session.Session) (*Manager, error) {
@@ -71,6 +73,7 @@ func NewDiskManager(op trace.Operation, session *session.Session) (*Manager, err
 		vm:           vm,
 		controller:   controller,
 		byPathFormat: byPathFormat,
+		s:            session,
 	}
 	return d, nil
 }
@@ -185,7 +188,7 @@ func (m *Manager) Create(op trace.Operation, newDiskURI string,
 	}
 
 	op.Infof("Creating vmdk for layer or volume %s", d.DatastoreURI)
-	err = tasks.Wait(op, func(ctx context.Context) (tasks.Task, error) {
+	err = tasks.Wait(op, m.s, vdm, func(ctx context.Context) (tasks.Task, error) {
 		return vdm.CreateVirtualDisk(ctx, d.DatastoreURI, nil, spec)
 	})
 
@@ -240,7 +243,7 @@ func (m *Manager) Attach(op trace.Operation, disk *types.VirtualDisk) error {
 	machineSpec.DeviceChange = append(machineSpec.DeviceChange, changeSpec...)
 
 	m.reconfig.Lock()
-	_, err = tasks.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
+	_, err = tasks.WaitForResult(op, m.s, m.vm, func(ctx context.Context) (tasks.Task, error) {
 		t, er := m.vm.Reconfigure(ctx, machineSpec)
 
 		op.Debugf("Attach reconfigure task=%s", t.Reference())
@@ -289,7 +292,7 @@ func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 	spec.DeviceChange = config
 
 	m.reconfig.Lock()
-	_, err = tasks.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
+	_, err = tasks.WaitForResult(op, m.s, m.vm, func(ctx context.Context) (tasks.Task, error) {
 		t, er := m.vm.Reconfigure(ctx, spec)
 
 		op.Debugf("Detach reconfigure task=%s", t.Reference())
