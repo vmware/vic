@@ -22,4 +22,4 @@ git rebase upstream/master
 
 # Kick off the nightly
 now=$(date +"%m_%d_%Y")
-sudo ./tests/nightly/nightly-kickoff.sh > nightly_$now.txt
+echo vmware | sudo -S ./tests/nightly/nightly-kickoff.sh > nightly_$now.txt
