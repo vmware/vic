@@ -325,12 +325,16 @@ func (ic *ImageC) WriteImageBlob(image *ImageWithMeta, progressOutput progress.O
 // CreateImageConfig constructs the image metadata from layers that compose the image
 func (ic *ImageC) CreateImageConfig(images []*ImageWithMeta) (metadata.ImageConfig, error) {
 
-	if len(images) == 0 {
-		return metadata.ImageConfig{}, nil
+	imageLayer := images[0] // the layer that represents the actual image
+
+	// if we already have an imageID associated with this layerID, we don't need
+	// to calculate imageID and can just grab the image config from the cache
+	id := cache.RepositoryCache().GetImageID(imageLayer.ID)
+	if image, err := cache.ImageCache().GetImage(id); err == nil {
+		return *image, nil
 	}
 
 	manifest := ic.ImageManifest
-	imageLayer := images[0] // the layer that represents the actual image
 	image := docker.V1Image{}
 	rootFS := docker.NewRootFS()
 	history := make([]docker.History, 0, len(images))
@@ -499,6 +503,7 @@ func (ic *ImageC) PullImage() error {
 	if err != nil {
 		return err
 	}
+
 	if err = updateRepositoryCache(ic); err != nil {
 		return err
 	}
