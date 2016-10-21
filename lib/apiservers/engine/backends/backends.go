@@ -20,6 +20,7 @@ import (
 	"net"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -92,42 +93,14 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 	// the vic-machine installer timeout will intervene if this blocks for too long
 	pingPortLayer()
 
+	if err := hydrateCaches(); err != nil {
+		return err
+	}
+
 	log.Info("Creating image store")
 	if err := createImageStore(); err != nil {
 		log.Errorf("Failed to create image store")
 		return err
-	}
-
-	log.Info("Refreshing image cache")
-	go func() {
-		if err := cache.NewImageCache(portLayerClient); err != nil {
-			log.Warnf("Failed to refresh image cache: %s", err)
-			return
-		}
-		log.Info("Image cache updated successfully")
-	}()
-
-	log.Info("Refreshing layer cache")
-	go func() {
-		if err := imagec.NewLayerCache(portLayerClient); err != nil {
-			log.Warnf("Failed to update layer cache: %s", err)
-			return
-		}
-		log.Info("Layer cache updated successfully")
-	}()
-
-	log.Info("Refreshing container cache")
-	go func() {
-		if err := syncContainerCache(); err != nil {
-			log.Warnf("Failed to refresh container cache: %s", err)
-			return
-		}
-		log.Info("Container cache updated successfully")
-	}()
-
-	// creates and potentially restore repository cache
-	if err := cache.NewRepositoryCache(portLayerClient); err != nil {
-		return fmt.Errorf("Failed to create repository cache: %s", err.Error())
 	}
 
 	serviceOptions := registry.ServiceOptions{}
@@ -139,6 +112,67 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 	}
 	log.Debugf("New registry service with options %#v", serviceOptions)
 	RegistryService = registry.NewService(serviceOptions)
+
+	return nil
+}
+
+func hydrateCaches() error {
+	wg := sync.WaitGroup{}
+	wg.Add(4)
+	errors := make(chan error, 4)
+
+	log.Info("Refreshing image cache")
+	go func() {
+		defer wg.Done()
+		if err := cache.NewImageCache(portLayerClient); err != nil {
+			errors <- fmt.Errorf("Failed to refresh image cache: %s", err)
+			return
+		}
+		log.Info("Image cache updated successfully")
+		errors <- nil
+	}()
+
+	log.Info("Refreshing layer cache")
+	go func() {
+		defer wg.Done()
+		if err := imagec.NewLayerCache(portLayerClient); err != nil {
+			errors <- fmt.Errorf("Failed to update layer cache: %s", err)
+			return
+		}
+		log.Info("Layer cache updated successfully")
+		errors <- nil
+	}()
+
+	log.Info("Refreshing container cache")
+	go func() {
+		defer wg.Done()
+		if err := syncContainerCache(); err != nil {
+			errors <- fmt.Errorf("Failed to refresh container cache: %s", err)
+			return
+		}
+		log.Info("Container cache updated successfully")
+		errors <- nil
+	}()
+
+	// creates and potentially restore repository cache
+	go func() {
+		defer wg.Done()
+		if err := cache.NewRepositoryCache(portLayerClient); err != nil {
+			errors <- fmt.Errorf("Failed to create repository cache: %s", err.Error())
+			return
+		}
+		errors <- nil
+		log.Info("Repository cache updated successfully")
+	}()
+
+	wg.Wait()
+	close(errors)
+
+	for err := range errors {
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
