@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package folder
+package session
 
 import (
 	"context"
@@ -22,60 +22,46 @@ import (
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
+	"github.com/vmware/govmomi/session"
 )
 
-type rename struct {
+type rm struct {
 	*flags.ClientFlag
-	*flags.FolderFlag
 }
 
 func init() {
-	cli.Register("folder.rename", &rename{})
+	cli.Register("session.rm", &rm{})
 }
 
-func (cmd *rename) Register(ctx context.Context, f *flag.FlagSet) {
+func (cmd *rm) Register(ctx context.Context, f *flag.FlagSet) {
 	cmd.ClientFlag, ctx = flags.NewClientFlag(ctx)
 	cmd.ClientFlag.Register(ctx, f)
-
-	cmd.FolderFlag, ctx = flags.NewFolderFlag(ctx)
-	cmd.FolderFlag.Register(ctx, f)
 }
 
-func (cmd *rename) Usage() string {
-	return "NAME"
+func (cmd *rm) Usage() string {
+	return "KEY..."
 }
 
-func (cmd *rename) Description() string {
-	return `Rename an existing folder with NAME.
+func (cmd *rm) Description() string {
+	return `Remove active sessions.
 
 Examples:
-  govc folder.rename -folder /dc1/vm/folder-foo folder-bar`
+  govc session.ls | grep root
+  govc session.rm 5279e245-e6f1-4533-4455-eb94353b213a`
 }
 
-func (cmd *rename) Process(ctx context.Context) error {
+func (cmd *rm) Process(ctx context.Context) error {
 	if err := cmd.ClientFlag.Process(ctx); err != nil {
-		return err
-	}
-	if err := cmd.FolderFlag.Process(ctx); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (cmd *rename) Run(ctx context.Context, f *flag.FlagSet) error {
-	folder, err := cmd.Folder()
+func (cmd *rm) Run(ctx context.Context, f *flag.FlagSet) error {
+	c, err := cmd.Client()
 	if err != nil {
 		return err
 	}
 
-	if f.NArg() != 1 {
-		return flag.ErrHelp
-	}
-
-	task, err := folder.Rename(ctx, f.Arg(0))
-	if err != nil {
-		return err
-	}
-
-	return task.Wait(ctx)
+	return session.NewManager(c).TerminateSession(ctx, f.Args())
 }

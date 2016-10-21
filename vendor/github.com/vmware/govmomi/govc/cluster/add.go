@@ -73,9 +73,14 @@ func (cmd *add) Process(ctx context.Context) error {
 }
 
 func (cmd *add) Description() string {
-	return `Add host to cluster.
+	return `Add HOST to CLUSTER.
 
-The host is added to the cluster specified by the 'cluster' flag.`
+The host is added to the cluster specified by the 'cluster' flag.
+
+Examples:
+  thumbprint=$(govc about.cert -k -u host.example.com -thumbprint | awk '{print $2}')
+  govc cluster.add -cluster ClusterA -hostname host.example.com -username root -password pass -thumbprint $thumbprint
+  govc cluster.add -cluster ClusterB -hostname 10.0.6.1 -username root -password pass -noverify`
 }
 
 func (cmd *add) Add(ctx context.Context, cluster *object.ClusterComputeResource) error {
@@ -86,7 +91,7 @@ func (cmd *add) Add(ctx context.Context, cluster *object.ClusterComputeResource)
 		license = &cmd.license
 	}
 
-	task, err := cluster.AddHost(ctx, spec, cmd.connect, license, nil)
+	task, err := cluster.AddHost(ctx, cmd.Spec(cluster.Client()), cmd.connect, license, nil)
 	if err != nil {
 		return err
 	}
@@ -110,20 +115,8 @@ func (cmd *add) Run(ctx context.Context, f *flag.FlagSet) error {
 
 	cluster, err := finder.ClusterComputeResource(ctx, cmd.cluster)
 	if err != nil {
-		return nil
-	}
-
-	err = cmd.Add(ctx, cluster)
-
-	if err == nil {
-		return nil
-	}
-
-	// Check if we failed due to SSLVerifyFault and -noverify is set
-	if err := cmd.AcceptThumbprint(err); err != nil {
 		return err
 	}
 
-	// Accepted unverified thumbprint, try again
-	return cmd.Add(ctx, cluster)
+	return cmd.Fault(cmd.Add(ctx, cluster))
 }
