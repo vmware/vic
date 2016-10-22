@@ -112,7 +112,6 @@ func init() {
 	flag.StringVar(&config.DatacenterPath, "dc", "", "Path of the datacenter")
 	flag.StringVar(&config.ClusterPath, "cluster", "", "Path of the cluster")
 	flag.StringVar(&config.PoolPath, "pool", "", "Path of the resource pool")
-	flag.BoolVar(&config.Insecure, "insecure", true, "Allow connection when sdk certificate cannot be verified")
 	flag.BoolVar(&config.tls, "tls", true, "Set to false to disable -hostcert and -hostkey and enable plain HTTP")
 
 	// load the vch config
@@ -395,6 +394,8 @@ func client() (*session.Session, error) {
 
 	ctx := context.Background()
 
+	// TODO: this should be replaced with session.Create so we're
+	// not overriding the parameters from vchconfig
 	session := session.NewSession(&config.Config)
 	_, err := session.Connect(ctx)
 	if err != nil {
@@ -458,9 +459,16 @@ func main() {
 
 	// FIXME: these should just be consumed directly inside Session
 	config.Service = vchConfig.Target.String()
-
+	config.ExtensionCert = vchConfig.ExtensionCert
+	config.ExtensionKey = vchConfig.ExtensionKey
+	config.ExtensionName = vchConfig.ExtensionName
+	config.Thumbprint = vchConfig.TargetThumbprint
 	config.DatastorePath = vchConfig.Storage.ImageStores[0].Host
-	//	config.Insecure = vchConfig.Connection.Insecure
+
+	if vchConfig.Diagnostics.DebugLevel > 2 {
+		config.addr = "0.0.0.0:2378"
+		log.Warn("Listening on all networks because of debug level")
+	}
 
 	s := &server{
 		addr: config.addr,
