@@ -27,7 +27,7 @@ Link and alias
     Should Not Be Equal As Integers  ${rc}  0
 
     # the link
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --net jedi --link first:1st ubuntu ping -c1 1st
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --net jedi --link first:1st debian ping -c1 1st
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
