@@ -49,7 +49,7 @@ Connect containers to multiple networks overlapping
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --net cross1-network --name cross1-container2 ubuntu ping -c2 cross1-container
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --net cross1-network --name cross1-container2 debian ping -c2 cross1-container
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect cross1-network2 ${containerID}
     Should Be Equal As Integers  ${rc}  0
@@ -72,7 +72,7 @@ Connect containers to multiple networks non-overlapping
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
     Should Be Equal As Integers  ${rc}  0
 
-    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --net cross2-network2 --name cross2-container2 ubuntu ping -c2 cross2-container
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --net cross2-network2 --name cross2-container2 debian ping -c2 cross2-container
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
     Should Be Equal As Integers  ${rc}  0
@@ -101,7 +101,7 @@ Connect containers to multiple networks non-overlapping with a bridge container
 #    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
 #    Should Be Equal As Integers  ${rc}  0
 #
-#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --net cross3-network --name cross3-container3 ubuntu /bin/sh -c "ping -c2 cross3-container && ping -c2 cross3-container2"
+#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --net cross3-network --name cross3-container3 debian /bin/sh -c "ping -c2 cross3-container && ping -c2 cross3-container2"
 #    Should Be Equal As Integers  ${rc}  0
 #    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect cross3-network2 ${containerID}
 #    Should Be Equal As Integers  ${rc}  0
