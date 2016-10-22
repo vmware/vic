@@ -498,8 +498,9 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	}
 
 	conf.AddComponent("docker-personality", &executor.SessionConfig{
-		User:  "nobody",
-		Group: "nobody",
+		// currently needed for iptables interaction
+		// User:  "nobody",
+		// Group: "nobody",
 		Cmd: executor.Cmd{
 			Path: "/sbin/docker-engine-server",
 			Args: []string{

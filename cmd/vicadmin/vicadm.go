@@ -112,7 +112,6 @@ func init() {
 	flag.StringVar(&config.DatacenterPath, "dc", "", "Path of the datacenter")
 	flag.StringVar(&config.ClusterPath, "cluster", "", "Path of the cluster")
 	flag.StringVar(&config.PoolPath, "pool", "", "Path of the resource pool")
-	flag.BoolVar(&config.tls, "tls", true, "Set to false to disable -hostcert and -hostkey and enable plain HTTP")
 
 	// load the vch config
 	src, err := extraconfig.GuestInfoSource()
@@ -474,8 +473,7 @@ func main() {
 		addr: config.addr,
 	}
 
-	err := s.listen(config.tls)
-
+	err := s.listen()
 	if err != nil {
 		log.Fatal(err)
 	}

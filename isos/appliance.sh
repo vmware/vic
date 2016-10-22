@@ -101,10 +101,6 @@ chown -R 1000:1000 $(rootfs_dir $PKGDIR)/home/vicadmin
 install -m 755 -d $(rootfs_dir $PKGDIR)/etc/tmpfiles.d
 echo "m  /var/log/journal/%m/system.journal 2755 root systemd-journal - -" > $(rootfs_dir $PKGDIR)/etc/tmpfiles.d/systemd.conf
 
-chroot $(rootfs_dir $PKGDIR) groupadd -g 1001 docker
-chroot $(rootfs_dir $PKGDIR) useradd -u 1001 -g 1001 -m -d /home/docker -s /bin/false docker
-chown -R 1001:1001 $(rootfs_dir $PKGDIR)/home/docker
-
 
 ## main VIC components
 # tether based init
