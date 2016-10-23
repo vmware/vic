@@ -107,15 +107,29 @@ func (r ConcurrentAccessError) Error() string {
 	return r.err.Error()
 }
 
-type Container struct {
-	m sync.Mutex
-
+// Container is used to return data about a container during inspection calls
+// It is a copy rather than a live reflection and does not require locking
+type ContainerInfo struct {
 	containerBase
 
 	state State
 
 	// Size of the leaf (unused)
 	VMUnsharedDisk int64
+}
+
+// Container is used for an entry in the container cache - this is a "live" representation
+// of containers in the infrastructure.
+// DANGEROUS USAGE CONSTRAINTS:
+//   None of the containerBase fields should be partially updated - consider them immutable once they're
+//   part of a cache entry
+//   i.e. Do not make changes in containerBase.ExecConfig - only swap, under lock, the pointer for a
+//   completely new ExecConfig.
+//   This constraint allows us to avoid deep copying those structs every time a container is inspected
+type Container struct {
+	m sync.Mutex
+
+	ContainerInfo
 
 	logFollowers []io.Closer
 
@@ -128,8 +142,10 @@ type Container struct {
 // This copies (shallow) the containerBase that's provided
 func newContainer(base *containerBase) *Container {
 	c := &Container{
-		containerBase:  *base,
-		state:          StateCreated,
+		ContainerInfo: ContainerInfo{
+			containerBase: *base,
+			state:         StateCreated,
+		},
 		newStateEvents: make(map[State]chan struct{}),
 	}
 
@@ -164,6 +180,21 @@ func GetContainer(ctx context.Context, id uid.UID) *Handle {
 	}
 
 	return nil
+}
+
+// State returns the state at the time the ContainerInfo object was created
+func (c *ContainerInfo) State() State {
+	return c.state
+}
+
+// Info returns a copy of the public container configuration that
+// is consistent and copied under lock
+func (c *Container) Info() *ContainerInfo {
+	c.m.Lock()
+	defer c.m.Unlock()
+
+	info := c.ContainerInfo
+	return &info
 }
 
 // CurrentState returns current state.

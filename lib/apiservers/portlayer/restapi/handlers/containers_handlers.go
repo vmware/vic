@@ -276,7 +276,7 @@ func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers
 		return containers.NewGetContainerInfoNotFound().WithPayload(&models.Error{Message: info})
 	}
 
-	containerInfo := convertContainerToContainerInfo(*container)
+	containerInfo := convertContainerToContainerInfo(container.Info())
 	return containers.NewGetContainerInfoOK().WithPayload(containerInfo)
 }
 
@@ -294,7 +294,7 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 
 	for _, container := range containerVMs {
 		// convert to return model
-		info := convertContainerToContainerInfo(*container)
+		info := convertContainerToContainerInfo(container.Info())
 		containerList = append(containerList, info)
 	}
 	return containers.NewGetContainerListOK().WithPayload(containerList)
@@ -377,7 +377,7 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 
 	select {
 	case <-c.WaitForState(exec.StateStopped):
-		containerInfo := convertContainerToContainerInfo(*c)
+		containerInfo := convertContainerToContainerInfo(c.Info())
 		return containers.NewContainerWaitOK().WithPayload(containerInfo)
 	case <-ctx.Done():
 		return containers.NewContainerWaitInternalServerError().WithPayload(&models.Error{
@@ -387,7 +387,7 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 }
 
 // utility function to convert from a Container type to the API Model ContainerInfo (which should prob be called ContainerDetail)
-func convertContainerToContainerInfo(container exec.Container) *models.ContainerInfo {
+func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.ContainerInfo {
 	defer trace.End(trace.Begin(container.ExecConfig.ID))
 	// convert the container type to the required model
 	info := &models.ContainerInfo{ContainerConfig: &models.ContainerConfig{}, ProcessConfig: &models.ProcessConfig{}}
@@ -395,7 +395,7 @@ func convertContainerToContainerInfo(container exec.Container) *models.Container
 	ccid := container.ExecConfig.ID
 	info.ContainerConfig.ContainerID = &ccid
 
-	s := container.CurrentState().String()
+	s := container.State().String()
 	info.ContainerConfig.State = &s
 	info.ContainerConfig.LayerID = &container.ExecConfig.LayerID
 	info.ContainerConfig.RepoName = &container.ExecConfig.RepoName

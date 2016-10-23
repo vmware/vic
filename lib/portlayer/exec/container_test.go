@@ -23,7 +23,11 @@ import (
 
 func TestStateStringer(t *testing.T) {
 
-	c := &Container{state: StateRunning}
+	c := &Container{
+		ContainerInfo: ContainerInfo{
+			state: StateRunning,
+		},
+	}
 
 	assert.Equal(t, "Running", c.state.String())
 	c.state = StateStopped
@@ -40,7 +44,9 @@ func TestStateStringer(t *testing.T) {
 
 func NewContainer(id uid.UID) *Handle {
 	con := &Container{
-		state:          StateCreating,
+		ContainerInfo: ContainerInfo{
+			state: StateCreating,
+		},
 		newStateEvents: make(map[State]chan struct{}),
 	}
 
