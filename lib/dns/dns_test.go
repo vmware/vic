@@ -123,7 +123,7 @@ func TestVIC(t *testing.T) {
 	}
 
 	// create the container
-	con := exec.NewContainer("foo")
+	con := exec.TestHandle("foo")
 	ip := net.IPv4(172, 16, 0, 2)
 
 	ctxOptions := &network.AddContainerOptions{

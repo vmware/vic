@@ -90,7 +90,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		Bytes:   x509.MarshalPKCS1PrivateKey(privateKey),
 	}
 
-	m := executor.ExecutorConfig{
+	m := &executor.ExecutorConfig{
 		Common: executor.Common{
 			ID:   id,
 			Name: *params.CreateConfig.Name,
@@ -118,6 +118,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		LayerID:  *params.CreateConfig.Image,
 		RepoName: *params.CreateConfig.RepoName,
 	}
+
 	if params.CreateConfig.Annotations != nil && len(params.CreateConfig.Annotations) > 0 {
 		m.Annotations = make(map[string]string)
 		for k, v := range params.CreateConfig.Annotations {
@@ -127,8 +128,6 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 
 	log.Infof("CreateHandler Metadata: %#v", m)
 
-	// Create new portlayer executor and call Create on it
-	h := exec.NewContainer(uid.Parse(id))
 	// Create the executor.ExecutorCreateConfig
 	c := &exec.ContainerCreateConfig{
 		Metadata:       m,
@@ -136,7 +135,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		ImageStoreName: params.CreateConfig.ImageStore.Name,
 	}
 
-	err = h.Create(ctx, session, c)
+	h, err := exec.Create(ctx, session, c)
 	if err != nil {
 		log.Errorf("ContainerCreate error: %s", err.Error())
 		return containers.NewCreateNotFound().WithPayload(&models.Error{Message: err.Error()})
@@ -167,20 +166,27 @@ func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.Stat
 		return containers.NewStateChangeDefault(http.StatusServiceUnavailable).WithPayload(&models.Error{Message: "unknown state"})
 	}
 
-	h.SetState(state)
+	h.SetTargetState(state)
 	return containers.NewStateChangeOK().WithPayload(h.String())
 }
 
 func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStateParams) middleware.Responder {
 	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", params.Handle)))
 
+	// NOTE: I've no idea why GetStateHandler takes a handle instead of an ID - hopefully there was a reason for an inspection
+	// operation to take this path
 	h := exec.GetHandle(params.Handle)
-	if h == nil {
+	if h == nil || h.ExecConfig == nil {
+		return containers.NewGetStateNotFound()
+	}
+
+	container := exec.Containers.Container(h.ExecConfig.ID)
+	if container == nil {
 		return containers.NewGetStateNotFound()
 	}
 
 	var state string
-	switch h.CurrentState() {
+	switch container.CurrentState() {
 	case exec.StateRunning:
 		state = "RUNNING"
 
@@ -235,11 +241,17 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 	// get the indicated container for removal
 	cID := uid.Parse(params.ID)
 	h := exec.GetContainer(context.Background(), cID)
-	if h == nil {
+	if h == nil || h.ExecConfig == nil {
 		return containers.NewContainerRemoveNotFound()
 	}
 
-	err := h.Container.Remove(context.Background(), handler.handlerCtx.Session)
+	container := exec.Containers.Container(h.ExecConfig.ID)
+	if container == nil {
+		return containers.NewGetStateNotFound()
+	}
+
+	// NOTE: this should allowing batching of operations, as with Create, Start, Stop, et al
+	err := container.Remove(context.Background(), handler.handlerCtx.Session)
 	if err != nil {
 		switch err := err.(type) {
 		case exec.NotFoundError:
@@ -264,7 +276,7 @@ func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers
 		return containers.NewGetContainerInfoNotFound().WithPayload(&models.Error{Message: info})
 	}
 
-	containerInfo := convertContainerToContainerInfo(container)
+	containerInfo := convertContainerToContainerInfo(container.Info())
 	return containers.NewGetContainerInfoOK().WithPayload(containerInfo)
 }
 
@@ -282,7 +294,7 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 
 	for _, container := range containerVMs {
 		// convert to return model
-		info := convertContainerToContainerInfo(container)
+		info := convertContainerToContainerInfo(container.Info())
 		containerList = append(containerList, info)
 	}
 	return containers.NewGetContainerListOK().WithPayload(containerList)
@@ -291,12 +303,17 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.ContainerSignalParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
-	h := exec.GetContainer(context.Background(), uid.Parse(params.ID))
-	if h == nil {
+	// NOTE: I feel that this should be in a Commit path for consistency
+	// it would allow phrasings such as:
+	// 1. join Volume to container
+	// 2. send HUP to primary process
+	// Only really relevant when we can connect networks or join volumes live
+	container := exec.Containers.Container(params.ID)
+	if container == nil {
 		return containers.NewContainerSignalNotFound().WithPayload(&models.Error{Message: fmt.Sprintf("container %s not found", params.ID)})
 	}
 
-	err := h.Container.Signal(context.Background(), params.Signal)
+	err := container.Signal(context.Background(), params.Signal)
 	if err != nil {
 		return containers.NewContainerSignalInternalServerError().WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -307,8 +324,8 @@ func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.
 func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers.GetContainerLogsParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
-	h := exec.GetContainer(context.Background(), uid.Parse(params.ID))
-	if h == nil {
+	container := exec.Containers.Container(params.ID)
+	if container == nil {
 		return containers.NewGetContainerLogsNotFound().WithPayload(&models.Error{
 			Message: fmt.Sprintf("container %s not found", params.ID),
 		})
@@ -325,7 +342,7 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 		tail = int(*params.Taillines)
 	}
 
-	reader, err := h.Container.LogReader(context.Background(), tail, follow)
+	reader, err := container.LogReader(context.Background(), tail, follow)
 	if err != nil {
 		return containers.NewGetContainerLogsInternalServerError().WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -360,7 +377,7 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 
 	select {
 	case <-c.WaitForState(exec.StateStopped):
-		containerInfo := convertContainerToContainerInfo(c)
+		containerInfo := convertContainerToContainerInfo(c.Info())
 		return containers.NewContainerWaitOK().WithPayload(containerInfo)
 	case <-ctx.Done():
 		return containers.NewContainerWaitInternalServerError().WithPayload(&models.Error{
@@ -370,7 +387,7 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 }
 
 // utility function to convert from a Container type to the API Model ContainerInfo (which should prob be called ContainerDetail)
-func convertContainerToContainerInfo(container *exec.Container) *models.ContainerInfo {
+func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.ContainerInfo {
 	defer trace.End(trace.Begin(container.ExecConfig.ID))
 	// convert the container type to the required model
 	info := &models.ContainerInfo{ContainerConfig: &models.ContainerConfig{}, ProcessConfig: &models.ProcessConfig{}}
@@ -378,7 +395,7 @@ func convertContainerToContainerInfo(container *exec.Container) *models.Containe
 	ccid := container.ExecConfig.ID
 	info.ContainerConfig.ContainerID = &ccid
 
-	s := container.CurrentState().String()
+	s := container.State().String()
 	info.ContainerConfig.State = &s
 	info.ContainerConfig.LayerID = &container.ExecConfig.LayerID
 	info.ContainerConfig.RepoName = &container.ExecConfig.RepoName
