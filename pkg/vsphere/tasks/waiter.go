@@ -18,6 +18,7 @@ package tasks
 
 import (
 	"context"
+	"errors"
 	"math/rand"
 	"time"
 
@@ -102,9 +103,18 @@ func WaitForResult(ctx context.Context, sess *session.Session, target object.Ref
 }
 
 func fixTask(ctx context.Context, sess *session.Session, target object.Reference) error {
-	// already checked target type
-	vmm := vm.NewVirtualMachine(ctx, sess, target.Reference())
-	return vmm.FixInvalidState(ctx)
+	switch vmm := target.(type) {
+	case *object.VirtualMachine:
+		vm := vm.NewVirtualMachine(ctx, sess, target.Reference())
+		err := vm.FixInvalidState(ctx)
+		// make sure original object is updated, to make sure task retry works
+		vmm.Common = vm.Common
+		return err
+	case *vm.VirtualMachine:
+		return vmm.FixInvalidState(ctx)
+	default:
+		return errors.New("Unable to fix non-vm object")
+	}
 }
 
 // check if task is in progress, or vm is in invalid state.
@@ -119,25 +129,25 @@ func needsRetry(target object.Reference, err error) bool {
 }
 
 func needsFix(target object.Reference, err error) bool {
-	if target == nil {
-		log.Debugf("Do not fix nil object")
-		return false
-	}
-	switch target.(type) {
-	case *object.VirtualMachine:
-	default:
-		log.Debugf("Unable to fix non-vm object")
-		return false
-	}
 	f, ok := err.(types.HasFault)
 	if !ok {
 		return false
 	}
 	switch f.Fault().(type) {
 	case *types.InvalidState:
+	default:
+		log.Debugf("Do not fix non invalid state error")
+		return false
+	}
+	if target == nil {
+		log.Debugf("Do not fix nil object")
+		return false
+	}
+	switch target.(type) {
+	case *object.VirtualMachine, *vm.VirtualMachine:
 		return true
 	default:
-		log.Debugf("Non invalid state error cannot be fixed")
+		log.Debugf("Unable to fix non-vm object: %#v", target)
 		return false
 	}
 }

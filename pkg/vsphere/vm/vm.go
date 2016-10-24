@@ -392,7 +392,6 @@ func (vm *VirtualMachine) FixInvalidState(ctx context.Context) error {
 		return errors.New(info.Error.LocalizedMessage)
 	}
 
-	log.Infof("info result: %#v", info.Result)
 	newRef := info.Result.(types.ManagedObjectReference)
 
 	vm.Common = object.NewCommon(vm.Client.Client, newRef)

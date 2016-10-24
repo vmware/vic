@@ -17,8 +17,6 @@ package vsphere
 import (
 	"github.com/vmware/vic/lib/portlayer/event/events"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/vim25/types"
 )
 

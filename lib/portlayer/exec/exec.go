@@ -174,7 +174,6 @@ func eventCallback(ie events.Event) {
 		attrib := []string{"config", "runtime.powerState", "summary", "resourcePool"}
 
 		// populate the vm properties
-		log.Infof("moref: %s", *moref)
 		ctx := context.Background()
 		if err := eventSession.RetrieveOne(ctx, *moref, attrib, &vm); err != nil {
 			log.Errorf("Failed to query registered vm object %s: %s", ie.Reference(), err)
