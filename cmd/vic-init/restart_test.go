@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -72,11 +73,16 @@ func TestRestart(t *testing.T) {
 	result := &tether.ExecutorConfig{}
 	extraconfig.Decode(src, result)
 
-	// tether will block trying to
+	// Started returns when we reload but that doesn't mean that the process is started
+	// Try multiple times before giving up
+	for i := 0; i < 10; i++ {
+		if result.Sessions["pathlookup"].Started != "" {
+			break
+		}
+		time.Sleep(time.Duration(i) * time.Millisecond)
+	}
 
-	assert.Equal(t, "true", result.Sessions["pathlookup"].Started, "Expected command to have been started successfully")
 	assert.Equal(t, 0, result.Sessions["pathlookup"].ExitStatus, "Expected command to have exited cleanly")
-
 	assert.True(t, result.Sessions["pathlookup"].Restart, "Expected command to be configured for restart")
 
 	// wait for the resurrection count to max out the channel

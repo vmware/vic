@@ -174,6 +174,9 @@ type SessionConfig struct {
 	// Allow attach
 	Attach bool `vic:"0.1" scope:"read-only" key:"attach"`
 
+	// Delay launching the Cmd until an attach request comes
+	RunBlock bool `vic:"0.1" scope:"read-only" key:"runblock"`
+
 	// Allocate a tty or not
 	Tty bool `vic:"0.1" scope:"read-only" key:"tty"`
 

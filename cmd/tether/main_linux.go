@@ -15,7 +15,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"runtime/debug"
@@ -43,13 +42,12 @@ func main() {
 	if err != nil {
 		log.Errorf("Could not open serial port for debugging info. Some debug info may be lost! Error reported was %s", err)
 	}
-	err = syscall.Dup3(int(logFile.Fd()), int(os.Stderr.Fd()), 0)
-	if err != nil {
+
+	if err = syscall.Dup3(int(logFile.Fd()), int(os.Stderr.Fd()), 0); err != nil {
 		log.Errorf("Could not pipe logfile to standard error due to error %s", err)
 	}
 
-	_, err = os.Stderr.WriteString("all stderr redirected to debug log")
-	if err != nil {
+	if _, err = os.Stderr.WriteString("all stderr redirected to debug log"); err != nil {
 		log.Errorf("Could not write to Stderr due to error %s", err)
 	}
 
@@ -118,8 +116,7 @@ func createDevices() error {
 		minor := 64 + i
 		err = syscall.Mknod(path, syscall.S_IFCHR|uint32(os.FileMode(0660)), tether.Mkdev(4, minor))
 		if err != nil {
-			detail := fmt.Sprintf("failed to create %s for com%d: %s", path, i+1, err)
-			return errors.New(detail)
+			return fmt.Errorf("failed to create %s for com%d: %s", path, i+1, err)
 		}
 	}
 
@@ -127,8 +124,7 @@ func createDevices() error {
 	path := fmt.Sprintf("%s/urandom", pathPrefix)
 	err = syscall.Mknod(path, syscall.S_IFCHR|uint32(os.FileMode(0444)), tether.Mkdev(1, 9))
 	if err != nil {
-		detail := fmt.Sprintf("failed to create urandom access %s: %s", path, err)
-		return errors.New(detail)
+		return fmt.Errorf("failed to create urandom access %s: %s", path, err)
 	}
 
 	return nil

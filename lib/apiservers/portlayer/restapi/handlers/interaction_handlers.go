@@ -143,15 +143,13 @@ func (i *InteractionHandlersImpl) UnbindHandler(params interaction.InteractionUn
 
 // ContainerResizeHandler calls resize
 func (i *InteractionHandlersImpl) ContainerResizeHandler(params interaction.ContainerResizeParams) middleware.Responder {
-	// Get the session to the container
-	session, err := i.attachServer.Get(context.Background(), params.ID, interactionTimeout)
+	// See whether there is an active session to the container
+	session, err := i.attachServer.Get(context.Background(), params.ID, 0)
 	if err != nil {
-		log.Errorf("%s", err.Error())
+		// just note the warning and return, resize requires an active connection
+		log.Warnf("No resize connection found (id: %s): %s", params.ID, err)
 
-		e := &models.Error{
-			Message: fmt.Sprintf("No resize connection found (id: %s): %s", params.ID, err.Error()),
-		}
-		return interaction.NewContainerResizeNotFound().WithPayload(e)
+		return interaction.NewContainerResizeOK()
 	}
 
 	// Request a resize
@@ -200,7 +198,12 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 		return interaction.NewContainerSetStdinNotFound().WithPayload(e)
 	}
 	// Remove the connection from the map
-	defer i.attachServer.Remove(params.ID)
+	defer func() {
+		// io.EOF is expected if the channel is already closed so ignore it
+		if err := i.attachServer.Remove(params.ID); err != nil && err != io.EOF {
+			log.Errorf("Removing the connection from the map failed with %s", err)
+		}
+	}()
 
 	detachableIn := NewFlushingReaderWithInitBytes(params.RawStream, []byte(attachStdinInitString))
 	_, err = io.Copy(session.Stdin(), detachableIn)
@@ -225,7 +228,7 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 func (i *InteractionHandlersImpl) ContainerCloseStdinHandler(params interaction.ContainerCloseStdinParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
-	session, err := i.attachServer.Get(context.Background(), params.ID, 0)
+	session, err := i.attachServer.Get(context.Background(), params.ID, interactionTimeout)
 	if err != nil {
 		log.Errorf("%s", err.Error())
 

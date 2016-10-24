@@ -22,7 +22,6 @@ import (
 	"syscall"
 	"unsafe"
 
-	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
 
 	log "github.com/Sirupsen/logrus"
@@ -95,12 +94,4 @@ func resizePty(pty uintptr, winSize *msgs.WindowChangeMsg) error {
 		return syscall.Errno(errno)
 	}
 	return nil
-}
-
-func signalProcess(process *os.Process, sig ssh.Signal) error {
-	signal := msgs.Signals[sig]
-	defer trace.End(trace.Begin(fmt.Sprintf("signal process %d: %s", process.Pid, sig)))
-
-	s := syscall.Signal(signal)
-	return process.Signal(s)
 }

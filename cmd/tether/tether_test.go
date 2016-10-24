@@ -217,11 +217,11 @@ func tetherTestSetup(t *testing.T) (string, *Mocker) {
 }
 
 func tetherTestTeardown(t *testing.T, mocker *Mocker) string {
+	<-mocker.Cleaned
+
 	// cleanup
 	os.RemoveAll(pathPrefix)
 	log.SetOutput(os.Stdout)
-
-	<-mocker.Cleaned
 
 	pc, _, _, _ := runtime.Caller(2)
 	name := runtime.FuncForPC(pc).Name()

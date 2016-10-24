@@ -20,13 +20,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"runtime"
-	"sync"
 	"testing"
-
-	_ "net/http/pprof"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -71,16 +67,8 @@ type Mocker struct {
 	Signal    ssh.Signal
 }
 
-var once sync.Once
-
 // Start implements the extension method
 func (t *Mocker) Start() error {
-	// TODO: enabled for initial dev debugging only
-	fn := func() {
-		go http.ListenAndServe("0.0.0.0:6060", nil)
-	}
-
-	once.Do(fn)
 	return nil
 }
 

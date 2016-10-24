@@ -698,12 +698,10 @@ func (c *ContainerProxy) Resize(vc *viccontainer.VicContainer, height, width int
 	return nil
 }
 
-// attacheStreams takes the the hijacked connections from the calling client and attaches
+// AttachStreams takes the the hijacked connections from the calling client and attaches
 // them to the 3 streams from the portlayer's rest server.
 // clStdin, clStdout, clStderr are the hijacked connection
 func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error {
-	defer clStdin.Close()
-
 	// Cancel will close the child connections.
 	ctx, cancel := context.WithCancel(ctx)
 

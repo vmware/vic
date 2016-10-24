@@ -93,6 +93,13 @@ func toggle(handle *exec.Handle, connected bool) (*exec.Handle, error) {
 	}
 	handle.Spec.DeviceChange = append(handle.Spec.DeviceChange, config)
 
+	// iterate over Sessions and set their RunBlock property to connected
+	// if attach happens before start then this property will be persist in the vmx
+	// if attash happens after start then this propery will be thrown away by commit (one simply cannot change ExtraConfig if the vm is powered on)
+	for _, session := range handle.ExecConfig.Sessions {
+		session.RunBlock = connected
+	}
+
 	return handle, nil
 }
 

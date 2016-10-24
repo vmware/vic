@@ -1087,21 +1087,6 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 	}
 	id := vc.ContainerID
 
-	clStdin, clStdout, clStderr, err := ca.GetStreams()
-	if err != nil {
-		return InternalServerError("Unable to get stdio streams for calling client")
-	}
-
-	if !vc.Config.Tty && ca.MuxStreams {
-		// replace the stdout/stderr with Docker's multiplex stream
-		if ca.UseStdout {
-			clStderr = stdcopy.NewStdWriter(clStderr, stdcopy.Stderr)
-		}
-		if ca.UseStderr {
-			clStdout = stdcopy.NewStdWriter(clStdout, stdcopy.Stdout)
-		}
-	}
-
 	client := c.containerProxy.Client()
 	handle, err := c.Handle(id, name)
 	if err != nil {
@@ -1132,6 +1117,22 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 			return InternalServerError(err.Payload.Message)
 		default:
 			return InternalServerError(err.Error())
+		}
+	}
+
+	clStdin, clStdout, clStderr, err := ca.GetStreams()
+	if err != nil {
+		return InternalServerError("Unable to get stdio streams for calling client")
+	}
+	defer clStdin.Close()
+
+	if !vc.Config.Tty && ca.MuxStreams {
+		// replace the stdout/stderr with Docker's multiplex stream
+		if ca.UseStdout {
+			clStderr = stdcopy.NewStdWriter(clStderr, stdcopy.Stderr)
+		}
+		if ca.UseStderr {
+			clStdout = stdcopy.NewStdWriter(clStdout, stdcopy.Stdout)
 		}
 	}
 

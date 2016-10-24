@@ -127,8 +127,8 @@ func (t *Toolbox) kill(name string) error {
 		return fmt.Errorf("failed to kill container: process not found")
 	}
 
-	session.m.Lock()
-	defer session.m.Unlock()
+	session.Lock()
+	defer session.Unlock()
 	return t.killHelper(session, name)
 }
 
@@ -165,8 +165,8 @@ func (t *Toolbox) containerAuthenticate(_ toolbox.VixCommandRequestHeader, data 
 		return errors.New("not yet initialized")
 	}
 
-	session.m.Lock()
-	defer session.m.Unlock()
+	session.Lock()
+	defer session.Unlock()
 
 	// no authentication yet, just using container ID as a sanity check for now
 	if c.Name != session.ID {
@@ -191,8 +191,8 @@ func (t *Toolbox) halt() error {
 		return fmt.Errorf("failed to halt container: not initialized yet")
 	}
 
-	session.m.Lock()
-	defer session.m.Unlock()
+	session.Lock()
+	defer session.Unlock()
 
 	log.Infof("stopping %s", session.ID)
 
