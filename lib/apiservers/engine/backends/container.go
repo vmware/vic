@@ -61,7 +61,7 @@ const (
 )
 
 var (
-	clientIfaceName = "client"
+	externalIfaceName = "external"
 
 	defaultScope struct {
 		sync.Mutex
@@ -80,17 +80,17 @@ func init() {
 	portMapper = portmap.NewPortMapper()
 	containerByPort = make(map[string]string)
 
-	l, err := netlink.LinkByName(clientIfaceName)
+	l, err := netlink.LinkByName(externalIfaceName)
 	if l == nil {
-		l, err = netlink.LinkByAlias(clientIfaceName)
+		l, err = netlink.LinkByAlias(externalIfaceName)
 		if err != nil {
-			log.Errorf("interface %s not found", clientIfaceName)
+			log.Errorf("interface %s not found", externalIfaceName)
 			return
 		}
 	}
 
 	// don't use interface alias for iptables rules
-	clientIfaceName = l.Attrs().Name
+	externalIfaceName = l.Attrs().Name
 }
 
 // type and funcs to provide sorting by created date
@@ -658,7 +658,7 @@ func (c *Container) mapPorts(hostconfig *containertypes.HostConfig, endpoint *mo
 	cbpLock.Lock()
 	defer cbpLock.Unlock()
 	for _, p := range portMap {
-		if err = portMapper.MapPort(nil, p.intHostPort, p.portProto.Proto(), containerIP.String(), p.portProto.Int(), clientIfaceName, bridgeIfaceName); err != nil {
+		if err = portMapper.MapPort(nil, p.intHostPort, p.portProto.Proto(), containerIP.String(), p.portProto.Int(), externalIfaceName, bridgeIfaceName); err != nil {
 			return err
 		}
 
@@ -692,7 +692,7 @@ func (c *Container) unmapPorts(hostconfig *containertypes.HostConfig) error {
 			continue
 		}
 
-		if err = portMapper.UnmapPort(nil, p.intHostPort, p.portProto.Proto(), p.portProto.Int(), clientIfaceName, bridgeIfaceName); err != nil {
+		if err = portMapper.UnmapPort(nil, p.intHostPort, p.portProto.Proto(), p.portProto.Int(), externalIfaceName, bridgeIfaceName); err != nil {
 			return err
 		}
 
@@ -1090,10 +1090,10 @@ func (c *Container) Containers(config *types.ContainerListOptions) ([]*types.Con
 		// get the docker friendly status
 		_, status := dockerStatus(int(*t.ProcessConfig.ExitCode), *t.ProcessConfig.Status, *t.ContainerConfig.State, started, stopped)
 
-		ips, err := clientIPv4Addrs()
+		ips, err := externalIPv4Addrs()
 		var ports []types.Port
 		if err != nil {
-			log.Errorf("Couldn't get IP information from connected client for reporting port bindings.")
+			log.Errorf("Could not get IP information for reporting port bindings.")
 		} else {
 			ports = portInformation(t, ips)
 		}
@@ -1356,10 +1356,30 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 
 	// validate port bindings
 	if config.HostConfig != nil {
+		var ips []string
+		if addrs, err := externalIPv4Addrs(); err != nil {
+			log.Warnf("could not get address for external interface: %s", err)
+		} else {
+			ips = make([]string, len(addrs))
+			for i := range addrs {
+				ips[i] = addrs[i].IP.String()
+			}
+		}
+
 		for _, pbs := range config.HostConfig.PortBindings {
 			for _, pb := range pbs {
 				if pb.HostIP != "" && pb.HostIP != "0.0.0.0" {
-					return InternalServerError("host IP is not supported for port bindings")
+					// check if specified host ip equals any of the addresses on the "client" interface
+					found := false
+					for _, i := range ips {
+						if i == pb.HostIP {
+							found = true
+							break
+						}
+					}
+					if !found {
+						return InternalServerError("host IP for port bindings is only supported for 0.0.0.0 and the external interface IP address")
+					}
 				}
 
 				start, end, _ := nat.ParsePortRangeToInt(pb.HostPort)
@@ -1408,11 +1428,11 @@ func copyConfigOverrides(vc *viccontainer.VicContainer, config types.ContainerCr
 	vc.HostConfig = config.HostConfig
 }
 
-func clientIPv4Addrs() ([]netlink.Addr, error) {
-	l, err := netlink.LinkByName(clientIfaceName)
+func externalIPv4Addrs() ([]netlink.Addr, error) {
+	l, err := netlink.LinkByName(externalIfaceName)
 	if err != nil {
 		return nil, fmt.Errorf("Could not look up link from client interface name %s due to error %s",
-			clientIfaceName, err.Error())
+			externalIfaceName, err.Error())
 	}
 	ips, err := netlink.AddrList(l, netlink.FAMILY_V4)
 	if err != nil {
