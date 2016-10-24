@@ -67,9 +67,6 @@ func (ldm *LayerDownloader) registerDownload(download *downloadTransfer) {
 }
 
 func (ldm *LayerDownloader) unregisterDownload(layer *ImageWithMeta) {
-	// mark the layer as finished downloading
-	LayerCache().Commit(layer)
-
 	// stop tracking the download transfer
 	delete(ldm.downloadsByID, layer.ID)
 }
@@ -222,7 +219,15 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 
 		go func() {
 
-			defer close(progressChan)
+			defer func() {
+				close(progressChan)
+
+				// remove layer from cache if there was an error attempting to download
+				if d.err != nil {
+					LayerCache().Remove(layer.ID)
+				}
+
+			}()
 
 			progressOutput := progress.ChanOutput(progressChan)
 
@@ -303,6 +308,9 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 				d.err = err
 				return
 			}
+
+			// mark the layer as finished downloading
+			LayerCache().Commit(layer)
 
 			ldm.unregisterDownload(layer)
 
