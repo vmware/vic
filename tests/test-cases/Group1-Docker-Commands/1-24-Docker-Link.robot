@@ -13,6 +13,9 @@ Link and alias
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull debian
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error    
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -it -d --net jedi --name first busybox
     Should Be Equal As Integers  ${rc}  0
