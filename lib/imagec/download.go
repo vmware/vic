@@ -235,8 +235,8 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 			select {
 			case <-start:
 			default:
-				<-start
 				progress.Update(progressOutput, layer.String(), "Waiting")
+				<-start
 			}
 
 			if parentDownload != nil {

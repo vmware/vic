@@ -86,7 +86,7 @@ func NewLayerCache(client *client.PortLayer) error {
 	return nil
 }
 
-// AddNew adds a new layer to the cache
+// Add adds a new layer to the cache
 func (lc *LCache) Add(layer *ImageWithMeta) {
 	defer trace.End(trace.Begin(""))
 	lc.m.Lock()
