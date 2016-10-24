@@ -24,6 +24,8 @@ import (
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/event"
 	"github.com/vmware/vic/lib/portlayer/event/collector/vsphere"
 	"github.com/vmware/vic/lib/portlayer/event/events"
@@ -31,11 +33,15 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
-var initializer sync.Once
+var (
+	initializer  sync.Once
+	eventSession *session.Session
+)
 
 func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSource, _ extraconfig.DataSink) error {
 	var err error
 	initializer.Do(func() {
+		eventSession = sess
 		f := find.NewFinder(sess.Vim25(), false)
 
 		extraconfig.Decode(source, &Config)
@@ -152,8 +158,37 @@ func eventCallback(ie events.Event) {
 
 			}
 		}
+		return
 	}
+	// check container registered event if this container is not found in container cache
+	switch ie.String() {
+	case events.ContainerRegistered:
+		moref := new(types.ManagedObjectReference)
+		if ok := moref.FromString(ie.Reference()); !ok {
+			log.Errorf("Failed to get event VM mob reference")
+			return
+		}
+		var vm mo.VirtualMachine
 
+		// current attributes we care about
+		attrib := []string{"config", "runtime.powerState", "summary", "resourcePool"}
+
+		// populate the vm properties
+		log.Infof("moref: %s", *moref)
+		ctx := context.Background()
+		if err := eventSession.RetrieveOne(ctx, *moref, attrib, &vm); err != nil {
+			log.Errorf("Failed to query registered vm object %s: %s", ie.Reference(), err)
+			return
+		}
+		if *vm.ResourcePool != Config.ResourcePool.Reference() {
+			log.Debugf("vm %q is not containers of this VCH, ignore it", vm.Config.Name)
+		}
+		registeredContainers := convertInfraContainers(ctx, eventSession, []mo.VirtualMachine{vm})
+		for i := range registeredContainers {
+			Containers.put(registeredContainers[i])
+			log.Debugf("Container %q is registered back", vm.Config.Name)
+		}
+	}
 	return
 }
 
