@@ -12,14 +12,14 @@ Create container with port mappings
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start webserver
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10000
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10001
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${ext-ip}  10000
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${ext-ip}  10001
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop webserver
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  curl ${vch-ip}:10000 --connect-timeout 5
+    ${rc}  ${output}=  Run And Return Rc And Output  curl ${ext-ip}:10000 --connect-timeout 5
     Should Not Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  curl ${vch-ip}:10001 --connect-timeout 5
+    ${rc}  ${output}=  Run And Return Rc And Output  curl ${ext-ip}:10001 --connect-timeout 5
     Should Not Be Equal As Integers  ${rc}  0
 
 Create container with conflicting port mapping
@@ -51,7 +51,7 @@ Create container with host ip equal to 0.0.0.0
     Should Be Equal As Integers  ${rc}  0
 
 Create container with host ip equal to external IP
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p ${vch-ip}:8089:80 --name webserver6 nginx
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p ${ext-ip}:8089:80 --name webserver6 nginx
     Should Be Equal As Integers  ${rc}  0
 
 Create container without specifying host port
