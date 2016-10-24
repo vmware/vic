@@ -24,7 +24,7 @@ if [ -z "$GOVC_PASSWORD" ] ; then
 fi
 
 usage() {
-    echo "Usage: $0 [-d DATACENTER] [-c CLUSTER] VCSA_IP ESX_IP1 ESX_IP2 ESX_IP3..." 1>&2
+    echo "Usage: $0 [-d DATACENTER] [-c CLUSTER] VCSA_IP ESX_IP..." 1>&2
     exit 1
 }
 
@@ -50,7 +50,7 @@ done
 
 shift $((OPTIND-1))
 
-if [ $# -lt 4 ] ; then
+if [ $# -lt 2 ] ; then
     usage
 fi
 
@@ -76,7 +76,7 @@ fi
 
 if [ -z "$(govc ls "$dvs_path")" ] ; then
     echo "Creating dvs ${dvs_path}..."
-    govc dvs.create -parent "$(dirname "$dvs_path")" "$(basename "$dvs_path")"
+    govc dvs.create -folder "$(dirname "$dvs_path")" "$(basename "$dvs_path")"
 fi
 
 if [ -z "$(govc ls "$external_network")" ] ; then
@@ -88,6 +88,7 @@ if [ -z "$(govc ls "$internal_network")" ] ; then
 fi
 
 hosts=()
+vsan_hosts=()
 
 for host_ip in "$@" ; do
     host_path="$cluster_path/$host_ip"
@@ -99,17 +100,23 @@ for host_ip in "$@" ; do
              -hostname "$host_ip" -username root -password "$GOVC_PASSWORD"
     fi
 
-    echo "Enabling vSAN traffic on ${vsan_vnic} for ${host_path}..."
-    govc host.vnic.service -host "$host_path" -enable vsan "$vsan_vnic"
-
-    echo "Opening firewall for serial port traffic for ${host_path}..."
-    govc host.esxcli -host "$host_path" -- network firewall ruleset set -r remoteSerialPort -e true
+    unclaimed=$(govc host.storage.info -host "$host_path" -unclaimed | wc -l)
+    if [ "$unclaimed" -eq 2 ] ; then
+        echo "Enabling vSAN traffic on ${vsan_vnic} for ${host_path}..."
+        govc host.vnic.service -host "$host_path" -enable vsan "$vsan_vnic"
+        vsan_hosts+=($host_path)
+    fi
 done
 
 govc dvs.add -dvs "$dvs_path" -pnic vmnic1 "${hosts[@]}"
 
-echo "Enabling DRS and vSAN for ${cluster_path}..."
-govc cluster.change -drs-enabled -vsan-enabled -vsan-autoclaim "$cluster_path"
+echo "Enabling DRS for ${cluster_path}..."
+govc cluster.change -drs-enabled "$cluster_path"
+
+if [ ${#vsan_hosts[@]} -ge 3 ] ; then
+    echo "Enabling vSAN for ${cluster_path}..."
+    govc cluster.change -vsan-enabled -vsan-autoclaim "$cluster_path"
+fi
 
 echo "Granting Admin permissions for user root..."
 govc permissions.set -principal root -role Admin
