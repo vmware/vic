@@ -1,6 +1,10 @@
+*** Variables ***
+${ESX_VERSION}  4531672  #6.5 super main
+${VC_VERSION}  4531673   #6.5 super main
+
 *** Keywords ***
 Deploy Nimbus ESXi Server
-    [Arguments]  ${user}  ${password}  ${version}=3620759
+    [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}
     ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nDeploying Nimbus ESXi server: ${name}
     Open Connection  %{NIMBUS_GW}
@@ -29,7 +33,7 @@ Deploy Nimbus ESXi Server
     [Return]  ${user}-${name}  ${ip}
 
 Deploy Nimbus vCenter Server
-    [Arguments]  ${user}  ${password}  ${version}=3634791
+    [Arguments]  ${user}  ${password}  ${version}=${VC_VERSION}
     ${name}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
     Log To Console  \nDeploying Nimbus vCenter server: ${name}
     Open Connection  %{NIMBUS_GW}
@@ -89,10 +93,10 @@ vMotion A VM
     Run Keyword Unless  ${status}  Run  govc vm.migrate -host cls/${esx1-ip} -pool cls/Resources ${vm}
 
 Create a VSAN Cluster
-    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --vcvaBuild 3634791 --esxPxeDir 3620759 --esxBuild 3620759 --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName vic-vmotion
+    ${out}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --noSupportBundles --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --esxBuild ${ESX_VERSION} --testbedName vcqa-vsan-simple-pxeBoot-vcva --runName vic-vmotion
     ${out}=  Split To Lines  ${out}
     :FOR  ${line}  IN  @{out}
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  .vcva-3634791' is up. IP:
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  .vcva-${VC_VERSION}' is up. IP:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
     \   Run Keyword If  ${status}  Set Suite Variable  ${vc-ip}  ${ip}
     \   Exit For Loop If  ${status}
