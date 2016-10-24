@@ -101,7 +101,7 @@ func TestLoginFailure(t *testing.T) {
 		addr: "127.0.0.1:0",
 	}
 
-	err := s.listen(true)
+	err := s.listen()
 	assert.NoError(t, err)
 
 	port := s.listenPort()
@@ -126,7 +126,7 @@ func TestNoAuth(t *testing.T) {
 		addr: "127.0.0.1:0",
 	}
 
-	err := s.listen(true)
+	err := s.listen()
 	assert.NoError(t, err)
 
 	port := s.listenPort()
@@ -156,7 +156,7 @@ func testLogTar(t *testing.T, plainHTTP bool) {
 		addr: "127.0.0.1:0",
 	}
 
-	err := s.listen(!plainHTTP)
+	err := s.listen()
 	assert.NoError(t, err)
 
 	port := s.listenPort()
@@ -165,11 +165,7 @@ func testLogTar(t *testing.T, plainHTTP bool) {
 	defer s.stop()
 
 	var res *http.Response
-	if !plainHTTP {
-		res, err = insecureClient.Get(fmt.Sprintf("https://root:thisisinsecure@localhost:%d/container-logs.tar.gz", port))
-	} else {
-		res, err = http.Get(fmt.Sprintf("http://root:thisisinsecure@localhost:%d/container-logs.tar.gz", port))
-	}
+	res, err = insecureClient.Get(fmt.Sprintf("https://root:thisisinsecure@localhost:%d/container-logs.tar.gz", port))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,7 +227,7 @@ func TestLogTail(t *testing.T) {
 		// auth: &credentials{"root", "thisisinsecure"},
 	}
 
-	err = s.listen(true)
+	err = s.listen()
 	assert.NoError(t, err)
 
 	port := s.listenPort()
