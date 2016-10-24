@@ -27,6 +27,7 @@ import (
 type connect struct {
 	*flags.VirtualMachineFlag
 
+	proxy  string
 	device string
 	client bool
 }
@@ -39,8 +40,18 @@ func (cmd *connect) Register(ctx context.Context, f *flag.FlagSet) {
 	cmd.VirtualMachineFlag, ctx = flags.NewVirtualMachineFlag(ctx)
 	cmd.VirtualMachineFlag.Register(ctx, f)
 
+	f.StringVar(&cmd.proxy, "vspc-proxy", "", "vSPC proxy URI")
 	f.StringVar(&cmd.device, "device", "", "serial port device name")
 	f.BoolVar(&cmd.client, "client", false, "Use client direction")
+}
+
+func (cmd *connect) Description() string {
+	return `Connect service URI to serial port.
+
+Examples:
+  govc device.ls | grep serialport-
+  govc device.serial.connect -vm $vm -device serialport-8000 telnet://:33233
+  govc device.info -vm $vm serialport-*`
 }
 
 func (cmd *connect) Process(ctx context.Context) error {
@@ -70,5 +81,5 @@ func (cmd *connect) Run(ctx context.Context, f *flag.FlagSet) error {
 		return err
 	}
 
-	return vm.EditDevice(ctx, devices.ConnectSerialPort(d, f.Arg(0), cmd.client))
+	return vm.EditDevice(ctx, devices.ConnectSerialPort(d, f.Arg(0), cmd.client, cmd.proxy))
 }
