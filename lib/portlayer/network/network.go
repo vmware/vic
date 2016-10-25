@@ -26,6 +26,8 @@ import (
 	"github.com/vmware/vic/lib/portlayer/event"
 	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/lib/portlayer/exec"
+	"github.com/vmware/vic/lib/portlayer/store"
+	"github.com/vmware/vic/pkg/kvstore"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -94,9 +96,14 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			return
 		}
 
-		var netctx *Context
-		netctx, err = NewContext(&config)
+		var kv kvstore.KeyValueStore
+		kv, err = store.NewDatastoreKeyValue(ctx, sess, "network.contexts.default")
 		if err != nil {
+			return
+		}
+
+		var netctx *Context
+		if netctx, err = NewContext(&config, kv); err != nil {
 			return
 		}
 
