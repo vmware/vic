@@ -241,7 +241,11 @@ func (m *Manager) Attach(op trace.Operation, disk *types.VirtualDisk) error {
 
 	m.reconfig.Lock()
 	_, err = tasks.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
-		return m.vm.Reconfigure(ctx, machineSpec)
+		t, er := m.vm.Reconfigure(ctx, machineSpec)
+
+		op.Debugf("Attach reconfigure task=%s", t.Reference())
+
+		return t, er
 	})
 	m.reconfig.Unlock()
 
@@ -286,7 +290,11 @@ func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 
 	m.reconfig.Lock()
 	_, err = tasks.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
-		return m.vm.Reconfigure(ctx, spec)
+		t, er := m.vm.Reconfigure(ctx, spec)
+
+		op.Debugf("Detach reconfigure task=%s", t.Reference())
+
+		return t, er
 	})
 	m.reconfig.Unlock()
 
