@@ -15,42 +15,46 @@
 package store
 
 import (
+	"context"
+	"os"
 	"testing"
 
-	"github.com/vmware/vic/pkg/kvstore"
-
+	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/vmware/vic/pkg/kvstore"
 )
 
 func setup() {
-	if mgr == nil {
-		// set up fake store manager
-		mgr = &StoreManager{
-			dsStores: make(map[string]*kvstore.KeyValueStore),
-		}
+	// set up fake store manager
+	mgr = &StoreManager{
+		dsStores: make(map[string]kvstore.KeyValueStore),
 	}
+
+	kv, err := kvstore.NewKeyValueStore(context.TODO(), &kvstore.MockBackend{}, "test")
+	log.Errorf("failed to create kv store: %s", err)
+	mgr.dsStores[APIKV] = kv
+}
+
+func TestMain(m *testing.M) {
+	setup()
+	os.Exit(m.Run())
 }
 
 func TestNameValidation(t *testing.T) {
-	setup()
-
-	// valid name -- empty map
-	assert.NoError(t, validateStoreName(APIKV))
 
 	// fail regex
 	assert.Error(t, validateStoreName("jojo-1"))
 	assert.Error(t, validateStoreName("jojo%1"))
 
-	mgr.dsStores[APIKV] = &kvstore.KeyValueStore{}
 	// dupe store
 	assert.Error(t, validateStoreName(APIKV))
 	// valid name
-	assert.NoError(t, validateStoreName("AB_63cd"))
+	assert.NoError(t, validateStoreName("AB_63cd."))
 
 }
 
 func TestStore(t *testing.T) {
-	setup()
 
 	// API store created in first test
 	s, err := Store(APIKV)

@@ -25,7 +25,7 @@ func TestEndpointNameID(t *testing.T) {
 	c := &Container{id: "foo", name: "bar"}
 	s := &Scope{
 		gateway: net.ParseIP("10.10.10.1"),
-		subnet:  net.IPNet{IP: net.ParseIP("10.10.10.0"), Mask: net.CIDRMask(24, 32)},
+		subnet:  &net.IPNet{IP: net.ParseIP("10.10.10.0"), Mask: net.CIDRMask(24, 32)},
 	}
 	e := Endpoint{
 		container: c,
@@ -43,7 +43,7 @@ func TestEndpointCopy(t *testing.T) {
 	c := &Container{id: "foo"}
 	s := &Scope{
 		gateway: net.ParseIP("10.10.10.1"),
-		subnet:  net.IPNet{IP: net.ParseIP("10.10.10.0"), Mask: net.CIDRMask(24, 32)},
+		subnet:  &net.IPNet{IP: net.ParseIP("10.10.10.0"), Mask: net.CIDRMask(24, 32)},
 	}
 	e := Endpoint{
 		container: c,
