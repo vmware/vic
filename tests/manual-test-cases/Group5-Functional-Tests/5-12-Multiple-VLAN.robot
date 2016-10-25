@@ -6,33 +6,31 @@ Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup
 
 *** Test Cases ***
 Test1
-    #${out}=  Run  govc dvs.portgroup.change -vlan=1 bridge
+    ${out}=  Run  govc dvs.portgroup.change -vlan 1 bridge
     #Should Contain  ${out}  OK
-    
-    #${out}=  Run  govc dvs.portgroup.change -vlan=2 vm-nework
+    #Should Be Empty  ${out}
+    ${out}=  Run  govc dvs.portgroup.change -vlan 2 vm-nework
     #Should Contain  ${out}  OK
-    
-    #${out}=  Run  govc dvs.portgroup.change -vlan=3 management
+    #Should Be Empty  ${out}
+    ${out}=  Run  govc dvs.portgroup.change -vlan 3 management
     #Should Contain  ${out}  OK
+    #Should Be Empty  ${out}
 
     Install VIC Appliance To Test Server
-
     Run Regression Tests
-
     Cleanup VIC Appliance On Test Server
 
 Test2
-    #${out}=  Run  govc dvs.portgroup.change -vlan=1 bridge
+    ${out}=  Run  govc dvs.portgroup.change -vlan 1 bridge
     #Should Contain  ${out}  OK
-    
-    #${out}=  Run  govc dvs.portgroup.change -vlan=1 vm-nework
+    #Should Be Empty  ${out}
+    ${out}=  Run  govc dvs.portgroup.change -vlan 1 vm-nework
     #Should Contain  ${out}  OK
-    
-    #${out}=  Run  govc dvs.portgroup.change -vlan=2 management
+    #Should Be Empty  ${out}
+    ${out}=  Run  govc dvs.portgroup.change -vlan 2 management
     #Should Contain  ${out}  OK
+    #Should Be Empty  ${out}
 
     Install VIC Appliance To Test Server
-
     Run Regression Tests
-
     Cleanup VIC Appliance On Test Server
