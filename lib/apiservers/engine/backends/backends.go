@@ -104,8 +104,8 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 	}
 
 	serviceOptions := registry.ServiceOptions{}
-	for _, registry := range insecureRegs {
-		insecureRegistries = append(insecureRegistries, registry.Path)
+	for _, r := range insecureRegs {
+		insecureRegistries = append(insecureRegistries, r.Path)
 	}
 	if len(insecureRegistries) > 0 {
 		serviceOptions.InsecureRegistries = insecureRegistries
