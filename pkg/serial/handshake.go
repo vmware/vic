@@ -36,15 +36,6 @@ const (
 	flagNak      byte = 0x15
 )
 
-const (
-	stateSync byte = iota
-	stateSyncPos
-	stateSynAck
-	stateLossinessCheck
-)
-
-var connEstablised = []byte("established")
-
 // PurgeIncoming is used to clear a channel of bytes prior to handshaking
 func PurgeIncoming(conn net.Conn) {
 	if tracing {
@@ -81,50 +72,44 @@ func HandshakeClient(ctx context.Context, conn net.Conn, debug bool) error {
 		conn.SetReadDeadline(deadline)
 	}
 
-	handshakeState := stateSync
-loop:
+	log.Debugf("HandshakeClient: Establishing connection...")
 	for {
-		switch handshakeState {
-		case stateSync:
-			log.Debug("HandshakeClient: Sending syn")
-			conn.Write([]byte{flagSyn, pos})
-			pos = nextPos(pos)
-			handshakeState = stateSynAck
-		case stateSynAck:
-			// read flag.
-			if _, err := conn.Read(buf1byte); err != nil {
-				return err
-			}
+		log.Debug("HandshakeClient: Sending syn.")
+		conn.Write([]byte{flagSyn, pos})
+		pos = nextPos(pos)
 
-			if buf1byte[0] != flagAck {
-				log.Debugf("HandshakeClient: Unexpected byte for SynAck: %x", buf1byte[0])
-				handshakeState = stateSync
-				continue
-			}
+		if _, err := conn.Read(buf1byte); err != nil {
+			return err
+		}
 
-			// read response sync position.
-			if _, err := conn.Read(buf1byte); err != nil {
-				return err
-			}
-
-			if buf1byte[0] != pos {
-				log.Debugf("HandshakeClient: Unexpected byte pos for SynAck: %x", buf1byte[0])
-				handshakeState = stateSync
-				continue
-			}
-			// read syn position
-			if _, err := conn.Read(buf1byte); err != nil {
-				return err
-			}
-			log.Debug("HandshakeClient: Sending ack")
-			if debug {
-				conn.Write([]byte{flagDebugAck, nextPos(buf1byte[0])})
+		if buf1byte[0] != flagAck {
+			if buf1byte[0] == flagNak {
+				log.Debugf("HandshakeClient: Server didn't accept sync. Trying one more time.")
 			} else {
-				conn.Write([]byte{flagAck, nextPos(buf1byte[0])})
-				break loop
+				log.Debugf("HandshakeClient: Unexpected byte for SynAck: %x", buf1byte[0])
 			}
-			fallthrough
-		case stateLossinessCheck:
+			continue
+		}
+
+		// read response sync position.
+		if _, err := conn.Read(buf1byte); err != nil {
+			return err
+		}
+
+		if buf1byte[0] != pos {
+			log.Debugf("HandshakeClient: Unexpected byte pos for SynAck: %x", buf1byte[0])
+			continue
+		}
+
+		if _, err := conn.Read(buf1byte); err != nil {
+			return err
+		}
+
+		log.Debug("HandshakeClient: Sending ack.")
+		if !debug {
+			conn.Write([]byte{flagAck, nextPos(buf1byte[0])})
+		} else {
+			conn.Write([]byte{flagDebugAck, nextPos(buf1byte[0])})
 			// Verify packet length handling works.  We're going to send a known stream
 			// of data to the container and it will echo it back.  Verify the sent and
 			// received bufs are the same and we know the channel is lossless.
@@ -160,10 +145,10 @@ loop:
 			}
 
 			log.Infof("HandshakeClient: lossiness check PASSED")
-			break loop
 		}
-
+		break
 	}
+	log.Debug("HandshakeClient: Connection established.")
 	conn.SetReadDeadline(time.Time{})
 
 	return nil
@@ -179,69 +164,62 @@ func HandshakeServer(ctx context.Context, conn net.Conn) error {
 		conn.SetReadDeadline(deadline)
 	}
 
-	handshakeState := stateSync
 	buf1byte := make([]byte, 1)
+	syncBuf := make([]byte, 4096)
+
 	rand.Read(buf1byte)
 	pos := nextPos(buf1byte[0])
 
-	detectSyncState := func(b byte) {
-		if buf1byte[0] == stateSync {
-			handshakeState = stateSyncPos
-		} else {
-			conn.Write([]byte{flagNak})
-			handshakeState = stateSync
-		}
-	}
-
-loop:
+	log.Debugf("HandshakeServer: Establishing connection...")
 	for {
+		// Sync packet is 2 bytes, however if we read more than 2
+		// it means buffer is not empty and data is not trusted for this sync.
+
+		n, err := io.ReadAtLeast(conn, syncBuf, 2)
+		if err != nil {
+			return err
+		}
+
+		if n > 2 {
+			log.Debugf("HandshakeServer: More than 2 bytes were received for Syn: %x", syncBuf[:n])
+			conn.Write([]byte{flagNak})
+			continue
+		}
+
+		if syncBuf[0] != flagSyn {
+			log.Debugf("HandshakeServer: Unexpected byte for sync: %x", syncBuf[0])
+			conn.Write([]byte{flagNak})
+			continue
+		}
+		log.Debugf("HandshakeServer: Received Syn. Writing SynAck.")
+
+		// syncBuf[1] contains position token that needs to be incremented
+		// by one to send it back.
+		conn.Write([]byte{flagAck, nextPos(syncBuf[1]), pos})
+		pos = nextPos(pos)
+
 		if _, err := conn.Read(buf1byte); err != nil {
 			return err
 		}
 
-		if buf1byte[0] == flagNak {
-			handshakeState = stateSync
+		ackType := buf1byte[0]
+		if ackType != flagAck && ackType != flagDebugAck {
+			conn.Write([]byte{flagNak})
 			continue
 		}
 
-		switch handshakeState {
-		case stateSync:
-			if buf1byte[0] != flagSyn {
-				log.Debugf("HandshakeServer: Unexpected byte for sync: %x", buf1byte[0])
-				conn.Write([]byte{flagNak})
-				continue
-			}
-			handshakeState = stateSyncPos
-			log.Debugf("HandshakeServer: Received Syn")
-		case stateSyncPos:
-			log.Debugf("HandshakeServer: Writing SynAck")
-			conn.Write([]byte{flagAck, nextPos(buf1byte[0]), pos})
-			pos = nextPos(pos)
-			handshakeState = stateSynAck
-		case stateSynAck:
-			ackType := buf1byte[0]
-			if ackType != flagAck && ackType != flagDebugAck {
-				detectSyncState(buf1byte[0])
-				continue
-			}
+		if _, err := conn.Read(buf1byte); err != nil {
+			return err
+		}
 
-			if _, err := conn.Read(buf1byte); err != nil {
-				return err
-			}
+		if buf1byte[0] != pos {
+			log.Debug("HandshakeServer: Unexpected position %x, expected: %x", buf1byte[0], pos)
+			conn.Write([]byte{flagNak})
+			continue
+		}
 
-			if buf1byte[0] != pos {
-				log.Debug("HandshakeServer: Unexpected position %x, expected: %x", buf1byte[0], pos)
-				detectSyncState(buf1byte[0])
-				continue
-			}
-
-			if ackType != flagDebugAck {
-				break loop
-			}
-
+		if ackType == flagDebugAck {
 			log.Debugf("HandshakeServer: Debug ACK received")
-			fallthrough
-		case stateLossinessCheck:
 			rxbuf := make([]byte, 23)
 			log.Debugf("HandshakeServer: Checking for lossiness")
 
@@ -269,10 +247,10 @@ loop:
 				return fmt.Errorf("HandshakeServer: lossiness check FAILED")
 			}
 			log.Infof("HandshakeServer: lossiness check PASSED")
-			break loop
 		}
-
+		break
 	}
+	log.Debug("HandshakeServer: Connection established.")
 	// disable the read timeout
 	// this has no effect on windows as the deadline is set at port open time
 	conn.SetReadDeadline(time.Time{})
