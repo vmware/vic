@@ -12,14 +12,14 @@ Create container with port mappings
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start webserver
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10000
-    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${vch-ip}  10001
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${ext-ip}  10000
+    Wait Until Keyword Succeeds  20x  5 seconds  Hit Nginx Endpoint  ${ext-ip}  10001
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop webserver
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  curl ${vch-ip}:10000 --connect-timeout 5
+    ${rc}  ${output}=  Run And Return Rc And Output  curl ${ext-ip}:10000 --connect-timeout 5
     Should Not Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run And Return Rc And Output  curl ${vch-ip}:10001 --connect-timeout 5
+    ${rc}  ${output}=  Run And Return Rc And Output  curl ${ext-ip}:10001 --connect-timeout 5
     Should Not Be Equal As Integers  ${rc}  0
 
 Create container with conflicting port mapping
@@ -44,7 +44,15 @@ Create container with port range
 Create container with host ip
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p 10.10.10.10:8088:80 --name webserver5 nginx
     Should Not Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  host IP is not supported for port bindings
+    Should Contain  ${output}  host IP for port bindings is only supported for 0.0.0.0 and the external interface IP address
+
+Create container with host ip equal to 0.0.0.0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p 0.0.0.0:8088:80 --name webserver5 nginx
+    Should Be Equal As Integers  ${rc}  0
+
+Create container with host ip equal to external IP
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p ${ext-ip}:8089:80 --name webserver6 nginx
+    Should Be Equal As Integers  ${rc}  0
 
 Create container without specifying host port
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p 6379 --name test-redis redis:alpine
