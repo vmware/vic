@@ -33,7 +33,7 @@ import (
 )
 
 type KvHandlersImpl struct {
-	defaultStore *kvstore.KeyValueStore
+	defaultStore kvstore.KeyValueStore
 }
 
 func (handler *KvHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx *HandlerContext) {
@@ -50,7 +50,7 @@ func (handler *KvHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCt
 func (handler *KvHandlersImpl) GetValueHandler(params kv.GetValueParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.Key))
 
-	val, err := handler.defaultStore.Get(trace.NewOperation(context.Background(), "GetValue"), params.Key)
+	val, err := handler.defaultStore.Get(params.Key)
 	if err != nil {
 		switch err {
 		case kvstore.ErrKeyNotFound:
@@ -70,7 +70,7 @@ func (handler *KvHandlersImpl) GetValueHandler(params kv.GetValueParams) middlew
 func (handler *KvHandlersImpl) PutValueHandler(params kv.PutValueParams) middleware.Responder {
 	defer trace.End(trace.Begin(*params.KeyValue.Key))
 
-	err := handler.defaultStore.Set(trace.NewOperation(context.Background(), "SetValue"), *params.KeyValue.Key, []byte(*params.KeyValue.Value))
+	err := handler.defaultStore.Put(context.Background(), *params.KeyValue.Key, []byte(*params.KeyValue.Value))
 	if err != nil {
 		log.Errorf("Error Setting Key/Value: %s", err.Error())
 		return kv.NewGetValueInternalServerError().WithPayload(&models.Error{

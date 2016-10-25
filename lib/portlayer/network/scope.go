@@ -15,6 +15,7 @@
 package network
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"sync"
@@ -32,20 +33,27 @@ type Scope struct {
 	id         uid.UID
 	name       string
 	scopeType  string
-	subnet     net.IPNet
+	subnet     *net.IPNet
 	gateway    net.IP
 	dns        []net.IP
-	ipam       *IPAM
 	containers map[uid.UID]*Container
 	endpoints  []*Endpoint
-	space      *AddressSpace
+	spaces     []*AddressSpace
 	builtin    bool
 	network    object.NetworkReference
 }
 
-type IPAM struct {
-	pools  []string
-	spaces []*AddressSpace
+func newScope(id uid.UID, name string, scopeType string, subnet *net.IPNet, gateway net.IP, dns []net.IP, network object.NetworkReference) *Scope {
+	return &Scope{
+		id:         id,
+		name:       name,
+		scopeType:  scopeType,
+		subnet:     subnet,
+		gateway:    gateway,
+		dns:        dns,
+		network:    network,
+		containers: make(map[uid.UID]*Container),
+	}
 }
 
 func (s *Scope) Name() string {
@@ -69,13 +77,6 @@ func (s *Scope) Type() string {
 	return s.scopeType
 }
 
-func (s *Scope) IPAM() *IPAM {
-	s.RLock()
-	defer s.RUnlock()
-
-	return s.ipam
-}
-
 func (s *Scope) Network() object.NetworkReference {
 	s.RLock()
 	defer s.RUnlock()
@@ -84,7 +85,33 @@ func (s *Scope) Network() object.NetworkReference {
 }
 
 func (s *Scope) isDynamic() bool {
-	return s.scopeType != constants.BridgeScopeType && s.ipam.spaces == nil
+	return s.scopeType != constants.BridgeScopeType && len(s.spaces) == 0
+}
+
+func (s *Scope) Pools() []*ip.Range {
+	s.RLock()
+	defer s.RUnlock()
+
+	return s.pools()
+}
+
+func (s *Scope) pools() []*ip.Range {
+	pools := make([]*ip.Range, len(s.spaces))
+	for i := range s.spaces {
+		sp := s.spaces[i]
+		if sp.Network != nil {
+			r := ip.ParseRange(sp.Network.String())
+			if r == nil {
+				continue
+			}
+			pools[i] = r
+			continue
+		}
+
+		pools[i] = sp.Pool
+	}
+
+	return pools
 }
 
 func (s *Scope) reserveEndpointIP(e *Endpoint) error {
@@ -94,7 +121,7 @@ func (s *Scope) reserveEndpointIP(e *Endpoint) error {
 
 	// reserve an ip address
 	var err error
-	for _, p := range s.ipam.spaces {
+	for _, p := range s.spaces {
 		if !ip.IsUnspecifiedIP(e.ip) {
 			if err = p.ReserveIP4(e.ip); err == nil {
 				return nil
@@ -116,7 +143,7 @@ func (s *Scope) releaseEndpointIP(e *Endpoint) error {
 		return nil
 	}
 
-	for _, p := range s.ipam.spaces {
+	for _, p := range s.spaces {
 		if err := p.ReleaseIP4(e.ip); err == nil {
 			if !e.static {
 				e.ip = net.IPv4(0, 0, 0, 0)
@@ -230,7 +257,7 @@ func (s *Scope) Subnet() *net.IPNet {
 	s.RLock()
 	defer s.RUnlock()
 
-	return &s.subnet
+	return s.subnet
 }
 
 func (s *Scope) Gateway() net.IP {
@@ -266,16 +293,83 @@ func (s *Scope) Refresh(h *exec.Handle) error {
 	}
 
 	s.gateway = gw
-	s.subnet = *snet
+	s.subnet = new(net.IPNet)
+	*s.subnet = *snet
 
 	return nil
 }
 
-func (i *IPAM) Pools() []ip.Range {
-	var pools []ip.Range
-	for _, s := range i.spaces {
-		pools = append(pools, *s.Pool)
+type scopeJSON struct {
+	ID      uid.UID
+	Name    string
+	Type    string
+	Subnet  *net.IPNet
+	Gateway net.IP
+	DNS     []net.IP
+	Builtin bool
+	Pools   []*ip.Range
+}
+
+func (s *Scope) MarshalJSON() ([]byte, error) {
+	s.RLock()
+	defer s.RUnlock()
+
+	return json.Marshal(&scopeJSON{
+		ID:      s.id,
+		Name:    s.name,
+		Type:    s.scopeType,
+		Subnet:  s.subnet,
+		Gateway: s.gateway,
+		DNS:     s.dns,
+		Builtin: s.builtin,
+		Pools:   s.pools(),
+	})
+}
+
+func (s *Scope) UnmarshalJSON(data []byte) error {
+	s.Lock()
+	defer s.Unlock()
+
+	var sj scopeJSON
+	if err := json.Unmarshal(data, &sj); err != nil {
+		return err
 	}
 
-	return pools
+	ns := Scope{
+		containers: make(map[uid.UID]*Container),
+	}
+	ns.id = sj.ID
+	ns.name = sj.Name
+	ns.scopeType = sj.Type
+	ns.subnet = sj.Subnet
+	ns.gateway = sj.Gateway
+	ns.dns = sj.DNS
+	ns.builtin = sj.Builtin
+	ns.spaces = make([]*AddressSpace, len(sj.Pools))
+	for i := range sj.Pools {
+		sp := NewAddressSpaceFromRange(sj.Pools[i].FirstIP, sj.Pools[i].LastIP)
+		if sp == nil {
+			return fmt.Errorf("invalid pool %s in scope %s", sj.Pools[i].String(), sj.Name)
+		}
+
+		ns.spaces[i] = sp
+	}
+
+	s.swap(&ns)
+
+	return nil
+}
+
+func (s *Scope) swap(other *Scope) {
+	s.id, other.id = other.id, s.id
+	s.name, other.name = other.name, s.name
+	s.scopeType, other.scopeType = other.scopeType, s.scopeType
+	s.subnet, other.subnet = other.subnet, s.subnet
+	s.gateway, other.gateway = other.gateway, s.gateway
+	s.dns, other.dns = other.dns, s.dns
+	s.builtin, other.builtin = other.builtin, s.builtin
+	s.spaces, other.spaces = other.spaces, s.spaces
+	s.endpoints, other.endpoints = other.endpoints, s.endpoints
+	s.containers, other.containers = other.containers, s.containers
+	s.network, other.network = other.network, s.network
 }

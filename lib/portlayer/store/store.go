@@ -32,11 +32,17 @@ import (
 
 type StoreManager struct {
 	m            sync.RWMutex
-	dsStores     map[string]*kvstore.KeyValueStore
+	dsStores     map[string]kvstore.KeyValueStore
 	datastoreURL url.URL
 }
 
-var mgr *StoreManager
+var (
+	mgr         *StoreManager
+	initializer struct {
+		once sync.Once
+		err  error
+	}
+)
 
 const (
 	// default store folder name
@@ -60,16 +66,25 @@ var (
 func Init(ctx context.Context, session *session.Session, imgStoreURL url.URL) error {
 	defer trace.End(trace.Begin(imgStoreURL.String()))
 
-	mgr = &StoreManager{
-		dsStores:     make(map[string]*kvstore.KeyValueStore),
-		datastoreURL: imgStoreURL,
-	}
-	//create or restore the api accessible datastore backed k/v store
-	return NewDatastoreKeyValue(ctx, session, APIKV)
+	initializer.once.Do(func() {
+		var err error
+		defer func() {
+			initializer.err = err
+		}()
+
+		mgr = &StoreManager{
+			dsStores:     make(map[string]kvstore.KeyValueStore),
+			datastoreURL: imgStoreURL,
+		}
+		//create or restore the api accessible datastore backed k/v store
+		_, err = NewDatastoreKeyValue(ctx, session, APIKV)
+	})
+
+	return initializer.err
 }
 
 // Store will return the requested store
-func Store(name string) (*kvstore.KeyValueStore, error) {
+func Store(name string) (kvstore.KeyValueStore, error) {
 	mgr.m.RLock()
 	defer mgr.m.RUnlock()
 
@@ -85,7 +100,7 @@ func Store(name string) (*kvstore.KeyValueStore, error) {
 //
 // The file will be located at the init datastoreURL  -- currently that's in the
 // appliance directory under the {dsFolder} folder (i.e. [datastore]vch-appliance/{dsFolder}/{name})
-func NewDatastoreKeyValue(ctx context.Context, session *session.Session, name string) error {
+func NewDatastoreKeyValue(ctx context.Context, session *session.Session, name string) (kvstore.KeyValueStore, error) {
 	defer trace.End(trace.Begin(name))
 
 	mgr.m.Lock()
@@ -94,24 +109,24 @@ func NewDatastoreKeyValue(ctx context.Context, session *session.Session, name st
 	// validate the name
 	err := validateStoreName(name)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// get a ds helper for this ds url
 	dsHelper, err := datastore.NewHelper(trace.NewOperation(ctx, "datastore helper creation"), session,
 		session.Datastore, fmt.Sprintf("%s/%s", mgr.datastoreURL.Path, KVStoreFolder))
 	if err != nil {
-		return fmt.Errorf("unable to get datastore helper for %s store creation: %s", name, err.Error())
+		return nil, fmt.Errorf("unable to get datastore helper for %s store creation: %s", name, err.Error())
 	}
 
 	// create or restore the specified K/V store
-	keyVal, err := kvstore.NewKeyValueStore(trace.NewOperation(ctx, "kvStore creation"), dsHelper, name)
+	keyVal, err := kvstore.NewKeyValueStore(ctx, kvstore.NewDatastoreBackend(dsHelper), name)
 	if err != nil && !os.IsExist(err) {
-		return fmt.Errorf("unable to create %s datastore backed store: %s", name, err.Error())
+		return nil, fmt.Errorf("unable to create %s datastore backed store: %s", name, err.Error())
 	}
 	// throw it in the store map
 	mgr.dsStores[name] = keyVal
 
-	return nil
+	return keyVal, nil
 }
 
 // validateStoreName will validate that the store name is not in use
@@ -122,7 +137,7 @@ func validateStoreName(name string) error {
 		return ErrDuplicateName
 	}
 	// compliant w/regexp
-	re := regexp.MustCompile("^[a-zA-Z0-9_]*$")
+	re := regexp.MustCompile("^[a-zA-Z0-9_\\.]*$")
 	if !re.MatchString(name) {
 		return ErrInvalidName
 	}

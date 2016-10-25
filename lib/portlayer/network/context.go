@@ -32,6 +32,7 @@ import (
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/ip"
+	"github.com/vmware/vic/pkg/kvstore"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 	"golang.org/x/net/context"
@@ -58,6 +59,8 @@ type Context struct {
 	scopes       map[string]*Scope
 	containers   map[string]*Container
 	defaultScope *Scope
+
+	kv kvstore.KeyValueStore
 }
 
 type AddContainerOptions struct {
@@ -67,8 +70,9 @@ type AddContainerOptions struct {
 	Ports   []string
 }
 
-func NewContext(config *Configuration) (*Context, error) {
+func NewContext(config *Configuration, kv kvstore.KeyValueStore) (*Context, error) {
 	defer trace.End(trace.Begin(""))
+
 	if config == nil {
 		return nil, fmt.Errorf("missing config")
 	}
@@ -100,6 +104,7 @@ func NewContext(config *Configuration) (*Context, error) {
 		defaultBridgePool: NewAddressSpaceFromNetwork(bridgeRange),
 		scopes:            make(map[string]*Scope),
 		containers:        make(map[string]*Container),
+		kv:                kv,
 	}
 
 	n := ctx.config.ContainerNetworks[ctx.config.BridgeNetwork]
@@ -107,7 +112,7 @@ func NewContext(config *Configuration) (*Context, error) {
 		return nil, fmt.Errorf("default bridge network %s not present in config", ctx.config.BridgeNetwork)
 	}
 
-	s, err := ctx.NewScope(n.Type, n.Name, nil, nil, nil, nil)
+	s, err := ctx.newScope(n.Type, n.Name, nil, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +131,7 @@ func NewContext(config *Configuration) (*Context, error) {
 		}
 
 		subnet := net.IPNet{IP: n.Gateway.IP.Mask(n.Gateway.Mask), Mask: n.Gateway.Mask}
-		s, err := ctx.NewScope(n.Type, nn, &subnet, n.Gateway.IP, n.Nameservers, pools)
+		s, err := ctx.newScope(n.Type, nn, &subnet, n.Gateway.IP, n.Nameservers, pools)
 		if err != nil {
 			return nil, err
 		}
@@ -134,10 +139,46 @@ func NewContext(config *Configuration) (*Context, error) {
 		s.builtin = true
 	}
 
+	// load saved scopes in the kv store
+	if kv != nil {
+		values, err := kv.List(`context\.scopes\..+`)
+		if err != nil && err != kvstore.ErrKeyNotFound {
+			log.Warnf("error listing scopes from key value store: %s", err)
+		} else {
+			for k, v := range values {
+				s := newScope(uid.NilUID, "", "", nil, nil, nil, nil)
+				if err := s.UnmarshalJSON(v); err != nil {
+					log.Warnf("error loading scope data from key %s, skipping: %s", k, err)
+					continue
+				}
+
+				var nn string
+				switch s.Type() {
+				case constants.BridgeScopeType:
+					nn = "bridge"
+				case constants.ExternalScopeType:
+					nn = s.name
+				}
+
+				pg := config.PortGroups[nn]
+				if pg == nil {
+					log.Warnf("skipping adding scope %s: port group %s not found", s.name, nn)
+					continue
+				}
+
+				s.network = pg
+
+				if err := ctx.addScope(s); err != nil {
+					log.Warnf("skipping adding scope %s: %s", s.name, err)
+				}
+			}
+		}
+	}
+
 	return ctx, nil
 }
 
-func reserveGateway(gateway net.IP, subnet *net.IPNet, ipam *IPAM) (net.IP, error) {
+func reserveGateway(gateway net.IP, subnet *net.IPNet, spaces []*AddressSpace) (net.IP, error) {
 	defer trace.End(trace.Begin(""))
 	if ip.IsUnspecifiedSubnet(subnet) {
 		return nil, fmt.Errorf("cannot reserve gateway for nil subnet")
@@ -150,7 +191,7 @@ func reserveGateway(gateway net.IP, subnet *net.IPNet, ipam *IPAM) (net.IP, erro
 		}
 
 		// optionally reserve it in one of the pools
-		for _, p := range ipam.spaces {
+		for _, p := range spaces {
 			if err := p.ReserveIP4(gateway); err == nil {
 				break
 			}
@@ -160,9 +201,9 @@ func reserveGateway(gateway net.IP, subnet *net.IPNet, ipam *IPAM) (net.IP, erro
 	}
 
 	// gateway is not specified, pick one from the available pools
-	if len(ipam.spaces) > 0 {
+	if len(spaces) > 0 {
 		var err error
-		if gateway, err = ipam.spaces[0].ReserveNextIP4(); err != nil {
+		if gateway, err = spaces[0].ReserveNextIP4(); err != nil {
 			return nil, err
 		}
 
@@ -176,12 +217,20 @@ func reserveGateway(gateway net.IP, subnet *net.IPNet, ipam *IPAM) (net.IP, erro
 	return nil, fmt.Errorf("could not reserve gateway address for network %s", subnet)
 }
 
-func (c *Context) newScopeCommon(id uid.UID, name, scopeType string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM, network object.NetworkReference) (*Scope, error) {
+func (c *Context) addScope(s *Scope) error {
 	defer trace.End(trace.Begin(""))
+
+	if _, ok := c.scopes[s.name]; ok {
+		return DuplicateResourceError{}
+	}
+
 	var err error
-	var space *AddressSpace
 	var defaultPool bool
 	var allzeros, allones net.IP
+	var space *AddressSpace
+	spaces := s.spaces
+	subnet := s.subnet
+	gateway := s.gateway
 
 	// cleanup
 	defer func() {
@@ -189,9 +238,9 @@ func (c *Context) newScopeCommon(id uid.UID, name, scopeType string, subnet *net
 			return
 		}
 
-		for _, p := range ipam.spaces {
+		for _, p := range spaces {
 			// release DNS IPs
-			for _, d := range dns {
+			for _, d := range s.dns {
 				p.ReleaseIP4(d)
 			}
 
@@ -217,26 +266,26 @@ func (c *Context) newScopeCommon(id uid.UID, name, scopeType string, subnet *net
 		// allocate the subnet
 		space, defaultPool, err = c.reserveSubnet(subnet)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		subnet = space.Network
 
-		ipam.spaces, err = reservePools(space, ipam)
+		spaces, err = reservePools(space, spaces)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		// reserve all-ones and all-zeros addresses, which are not routable and so
 		// should not be handed out
 		allones = ip.AllOnesAddr(subnet)
 		allzeros = ip.AllZerosAddr(subnet)
-		for _, p := range ipam.spaces {
+		for _, p := range spaces {
 			p.ReserveIP4(allones)
 			p.ReserveIP4(allzeros)
 
 			// reserve DNS IPs
-			for _, d := range dns {
+			for _, d := range s.dns {
 				if d.Equal(gateway) {
 					continue // gateway will be reserved later
 				}
@@ -245,32 +294,42 @@ func (c *Context) newScopeCommon(id uid.UID, name, scopeType string, subnet *net
 			}
 		}
 
-		if gateway, err = reserveGateway(gateway, subnet, ipam); err != nil {
-			return nil, err
+		if gateway, err = reserveGateway(gateway, subnet, spaces); err != nil {
+			return err
 		}
 
+		s.gateway = gateway
+		s.spaces = spaces
+		s.subnet = subnet
 	}
 
-	newScope := &Scope{
-		id:         id,
-		name:       name,
-		subnet:     *subnet,
-		gateway:    gateway,
-		ipam:       ipam,
-		containers: make(map[uid.UID]*Container),
-		scopeType:  scopeType,
-		space:      space,
-		dns:        dns,
-		builtin:    false,
-		network:    network,
+	c.scopes[s.name] = s
+
+	return nil
+}
+
+func (c *Context) newScopeCommon(id uid.UID, name, scopeType string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string, network object.NetworkReference) (*Scope, error) {
+	defer trace.End(trace.Begin(""))
+
+	newScope := newScope(id, name, scopeType, subnet, gateway, dns, network)
+	newScope.spaces = make([]*AddressSpace, len(pools))
+	for i, p := range pools {
+		r := ip.ParseRange(p)
+		if r == nil {
+			return nil, fmt.Errorf("invalid pool %s specified for scope %s", p, name)
+		}
+
+		newScope.spaces[i] = NewAddressSpaceFromRange(r.FirstIP, r.LastIP)
 	}
 
-	c.scopes[name] = newScope
+	if err := c.addScope(newScope); err != nil {
+		return nil, err
+	}
 
 	return newScope, nil
 }
 
-func (c *Context) newBridgeScope(id uid.UID, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (newScope *Scope, err error) {
+func (c *Context) newBridgeScope(id uid.UID, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string) (newScope *Scope, err error) {
 	defer trace.End(trace.Begin(""))
 	bnPG, ok := c.config.PortGroups[c.config.BridgeNetwork]
 	if !ok || bnPG == nil {
@@ -286,7 +345,7 @@ func (c *Context) newBridgeScope(id uid.UID, name string, subnet *net.IPNet, gat
 		}
 	}
 
-	s, err := c.newScopeCommon(id, name, constants.BridgeScopeType, subnet, gateway, dns, ipam, bnPG)
+	s, err := c.newScopeCommon(id, name, constants.BridgeScopeType, subnet, gateway, dns, pools, bnPG)
 	if err != nil {
 		return nil, err
 	}
@@ -301,10 +360,10 @@ func (c *Context) newBridgeScope(id uid.UID, name string, subnet *net.IPNet, gat
 	return s, nil
 }
 
-func (c *Context) newExternalScope(id uid.UID, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, ipam *IPAM) (*Scope, error) {
+func (c *Context) newExternalScope(id uid.UID, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string) (*Scope, error) {
 	defer trace.End(trace.Begin(""))
 	// ipam cannot be specified without gateway and subnet
-	if ipam != nil && len(ipam.pools) > 0 {
+	if len(pools) > 0 {
 		if ip.IsUnspecifiedSubnet(subnet) || gateway.IsUnspecified() {
 			return nil, fmt.Errorf("ipam cannot be specified without gateway and subnet for external network")
 		}
@@ -318,12 +377,12 @@ func (c *Context) newExternalScope(id uid.UID, name string, subnet *net.IPNet, g
 		}
 	}
 
-	nPG := c.config.PortGroups[name]
-	if nPG == nil {
+	pg := c.config.PortGroups[name]
+	if pg == nil {
 		return nil, fmt.Errorf("no network info for external scope %s", name)
 	}
 
-	return c.newScopeCommon(id, name, constants.ExternalScopeType, subnet, gateway, dns, ipam, nPG)
+	return c.newScopeCommon(id, name, constants.ExternalScopeType, subnet, gateway, dns, pools, pg)
 }
 
 func (c *Context) reserveSubnet(subnet *net.IPNet) (*AddressSpace, bool, error) {
@@ -355,16 +414,15 @@ func (c *Context) checkNetOverlap(subnet *net.IPNet) error {
 	return nil
 }
 
-func reservePools(space *AddressSpace, ipam *IPAM) ([]*AddressSpace, error) {
+func reservePools(space *AddressSpace, pools []*AddressSpace) ([]*AddressSpace, error) {
 	defer trace.End(trace.Begin(""))
-	if len(ipam.pools) == 0 {
+	if len(pools) == 0 {
 		// pool not specified so use the entire space
-		ipam.pools = []string{space.Network.String()}
 		return []*AddressSpace{space}, nil
 	}
 
 	var err error
-	subSpaces := make([]*AddressSpace, len(ipam.pools))
+	subSpaces := make([]*AddressSpace, len(pools))
 	defer func() {
 		if err == nil {
 			return
@@ -379,29 +437,21 @@ func reservePools(space *AddressSpace, ipam *IPAM) ([]*AddressSpace, error) {
 		}
 	}()
 
-	for i, p := range ipam.pools {
-		var nw *net.IPNet
-		_, nw, err = net.ParseCIDR(p)
-		if err == nil {
-			subSpaces[i], err = space.ReserveIP4Net(nw)
+	for i, p := range pools {
+		var ss *AddressSpace
+		if p.Network != nil {
+			ss, err = space.ReserveIP4Net(p.Network)
 			if err != nil {
-				break
+				return nil, err
 			}
 
+			subSpaces[i] = ss
 			continue
 		}
 
-		// ip range
-		r := ip.ParseRange(p)
-		if r == nil {
-			err = fmt.Errorf("error in pool spec")
-			break
-		}
-
-		var ss *AddressSpace
-		ss, err = space.ReserveIP4Range(r.FirstIP, r.LastIP)
+		ss, err = space.ReserveIP4Range(p.Pool.FirstIP, p.Pool.LastIP)
 		if err != nil {
-			break
+			return nil, err
 		}
 
 		subSpaces[i] = ss
@@ -414,13 +464,40 @@ func reservePools(space *AddressSpace, ipam *IPAM) ([]*AddressSpace, error) {
 	return subSpaces, nil
 }
 
-func (c *Context) NewScope(scopeType, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string) (*Scope, error) {
+func scopeKey(sn string) string {
+	return fmt.Sprintf("context.scopes.%s", sn)
+}
+
+func (c *Context) NewScope(ctx context.Context, scopeType, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string) (*Scope, error) {
 	defer trace.End(trace.Begin(""))
 
 	c.Lock()
 	defer c.Unlock()
 
-	return c.newScope(scopeType, name, subnet, gateway, dns, pools)
+	s, err := c.newScope(scopeType, name, subnet, gateway, dns, pools)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			c.deleteScope(s)
+		}
+	}()
+
+	// save the scope in the kv store
+	if c.kv != nil {
+		var d []byte
+		d, err = s.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+
+		if err = c.kv.Put(ctx, scopeKey(s.Name()), d); err != nil {
+			return nil, err
+		}
+	}
+
+	return s, nil
 }
 
 func (c *Context) newScope(scopeType, name string, subnet *net.IPNet, gateway net.IP, dns []net.IP, pools []string) (*Scope, error) {
@@ -441,10 +518,10 @@ func (c *Context) newScope(scopeType, name string, subnet *net.IPNet, gateway ne
 	var err error
 	switch scopeType {
 	case constants.BridgeScopeType:
-		s, err = c.newBridgeScope(uid.New(), name, subnet, gateway, dns, &IPAM{pools: pools})
+		s, err = c.newBridgeScope(uid.New(), name, subnet, gateway, dns, pools)
 
 	case constants.ExternalScopeType:
-		s, err = c.newExternalScope(uid.New(), name, subnet, gateway, dns, &IPAM{pools: pools})
+		s, err = c.newExternalScope(uid.New(), name, subnet, gateway, dns, pools)
 
 	default:
 		return nil, fmt.Errorf("scope type not supported")
@@ -498,6 +575,8 @@ func (c *Context) findScopes(idName *string) ([]*Scope, error) {
 }
 
 func (c *Context) Scopes(ctx context.Context, idName *string) ([]*Scope, error) {
+	defer trace.End(trace.Begin(""))
+
 	c.Lock()
 	defer c.Unlock()
 
@@ -795,7 +874,7 @@ var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, e
 	var dc types.BaseVirtualDeviceConfigSpec
 
 	ctx := context.Background()
-	dcs, err := h.Spec.FindNICs(ctx, s.network)
+	dcs, err := h.Spec.FindNICs(ctx, s.Network())
 	if err != nil {
 		return nil, err
 	}
@@ -809,7 +888,7 @@ var addEthernetCard = func(h *exec.Handle, s *Scope) (types.BaseVirtualDevice, e
 	}
 
 	if d == nil {
-		backing, err := s.network.EthernetCardBackingInfo(ctx)
+		backing, err := s.Network().EthernetCardBackingInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -943,10 +1022,14 @@ func (c *Context) AddContainer(h *exec.Handle, options *AddContainerOptions) err
 				Name: s.Name(),
 			},
 			Aliases: options.Aliases,
-			Pools:   s.IPAM().Pools(),
 			Type:    s.Type(),
 		},
 		Ports: options.Ports,
+	}
+	pools := s.Pools()
+	ne.Network.Pools = make([]ip.Range, len(pools))
+	for i, p := range pools {
+		ne.Network.Pools[i] = *p
 	}
 
 	ne.Static = false
@@ -1049,8 +1132,9 @@ func (c *Context) ContainerByAddr(addr net.IP) *Endpoint {
 	return nil
 }
 
-func (c *Context) DeleteScope(name string) error {
+func (c *Context) DeleteScope(ctx context.Context, name string) error {
 	defer trace.End(trace.Begin(""))
+
 	c.Lock()
 	defer c.Unlock()
 
@@ -1071,21 +1155,28 @@ func (c *Context) DeleteScope(name string) error {
 		return fmt.Errorf("%s has active endpoints", s.Name())
 	}
 
-	if s.Type() == constants.BridgeScopeType {
+	if c.kv != nil {
+		if err = c.kv.Delete(ctx, scopeKey(s.Name())); err != nil && err != kvstore.ErrKeyNotFound {
+			return err
+		}
+	}
 
+	c.deleteScope(s)
+	return nil
+}
+
+func (c *Context) deleteScope(s *Scope) {
+	if s.Type() == constants.BridgeScopeType {
 		// remove gateway ip from bridge interface
 		addr := net.IPNet{IP: s.Gateway(), Mask: s.Subnet().Mask}
 		if err := c.config.BridgeLink.AddrDel(addr); err != nil {
 			if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EADDRNOTAVAIL {
 				log.Warnf("could not remove gateway address %s for scope %s on link %s: %s", addr, s.Name(), c.config.BridgeLink.Attrs().Name, err)
 			}
-
-			err = nil
 		}
 	}
 
 	delete(c.scopes, s.Name())
-	return nil
 }
 
 func atoiOrZero(a string) int32 {
