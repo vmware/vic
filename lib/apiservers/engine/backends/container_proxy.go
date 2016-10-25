@@ -110,17 +110,17 @@ type volumeFields struct {
 }
 
 const (
-	attachConnectTimeout   time.Duration = 15 * time.Second //timeout for the connection
-	attachAttemptTimeout   time.Duration = 40 * time.Second //timeout before we ditch an attach attempt
+	attachConnectTimeout   time.Duration = 15 * time.Second // timeout for the connection
+	attachAttemptTimeout   time.Duration = 40 * time.Second // timeout before we ditch an attach attempt
 	attachPLAttemptDiff    time.Duration = 10 * time.Second
-	attachPLAttemptTimeout time.Duration = attachAttemptTimeout - attachPLAttemptDiff //timeout for the portlayer before ditching an attempt
-	attachRequestTimeout   time.Duration = 2 * time.Hour                              //timeout to hold onto the attach connection
+	attachPLAttemptTimeout time.Duration = attachAttemptTimeout - attachPLAttemptDiff // timeout for the portlayer before ditching an attempt
+	attachRequestTimeout   time.Duration = 2 * time.Hour                              // timeout to hold onto the attach connection
 	attachStdinInitString                = "v1c#>"
 	swaggerSubstringEOF                  = "EOF"
-	forceLogType                         = "json-file" //Use in inspect to allow docker logs to work
+	forceLogType                         = "json-file" // Use in inspect to allow docker logs to work
 	annotationKeyLabels                  = "docker.labels"
 	killWaitForExit        time.Duration = 2 * time.Second
-	//Keys for the volume driver argument map
+	// Keys for the volume driver argument map
 	DriverArgFlagKey      = "flags"
 	DriverArgContainerKey = "Container"
 	DriverArgImageKey     = "Image"
