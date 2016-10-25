@@ -271,6 +271,7 @@ func Create(ctx context.Context, sess *session.Session, config *ContainerCreateC
 	}
 
 	h.Spec = linux.Spec()
+	*h.Spec.Flags.SnapshotDisabled = true //disable snapshots, we do not support snapshots on containerVMs
 
 	handlesLock.Lock()
 	defer handlesLock.Unlock()

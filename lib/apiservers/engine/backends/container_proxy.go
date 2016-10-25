@@ -120,7 +120,7 @@ const (
 	forceLogType                         = "json-file" //Use in inspect to allow docker logs to work
 	annotationKeyLabels                  = "docker.labels"
 	killWaitForExit        time.Duration = 2 * time.Second
-
+	//Keys for the volume driver argument map
 	DriverArgFlagKey      = "flags"
 	DriverArgContainerKey = "Container"
 	DriverArgImageKey     = "Image"
