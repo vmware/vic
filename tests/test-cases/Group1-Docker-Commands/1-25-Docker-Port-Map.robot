@@ -78,7 +78,7 @@ Run and exit with mapped ports
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Log  ${output}
-    Wait Until Keyword Succeeds  5x  5s  Should Contain X Times  ${output}  Exited  1
+    Should Contain X Times  ${output}  Stopped  1
 
     ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo2
     ${result}=  Start Process  docker ${params} run -i --name ctr2 -p 1900:9999 -p 3300:3333 busybox /bin/top < /tmp/fifo2  shell=True  alias=sh2
@@ -91,7 +91,7 @@ Run and exit with mapped ports
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Log  ${output}
-    Wait Until Keyword Succeeds  5x  5s  Should Contain X Times  ${output}  Exited  2
+    Should Contain X Times  ${output}  Stopped  2
 
 Remap mapped ports after OOB Stop
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm -f $(docker ${params} ps -aq)
