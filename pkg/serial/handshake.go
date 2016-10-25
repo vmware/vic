@@ -86,6 +86,7 @@ loop:
 	for {
 		switch handshakeState {
 		case stateSync:
+			log.Debug("HandshakeClient: Sending syn")
 			conn.Write([]byte{flagSyn, pos})
 			pos = nextPos(pos)
 			handshakeState = stateSynAck
@@ -105,9 +106,9 @@ loop:
 			if _, err := conn.Read(buf1byte); err != nil {
 				return err
 			}
+
 			if buf1byte[0] != pos {
 				log.Debugf("HandshakeClient: Unexpected byte pos for SynAck: %x", buf1byte[0])
-				conn.Write([]byte{flagNak})
 				handshakeState = stateSync
 				continue
 			}
@@ -115,6 +116,7 @@ loop:
 			if _, err := conn.Read(buf1byte); err != nil {
 				return err
 			}
+			log.Debug("HandshakeClient: Sending ack")
 			if debug {
 				conn.Write([]byte{flagDebugAck, nextPos(buf1byte[0])})
 			} else {
@@ -210,7 +212,9 @@ loop:
 				continue
 			}
 			handshakeState = stateSyncPos
+			log.Debugf("HandshakeServer: Received Syn")
 		case stateSyncPos:
+			log.Debugf("HandshakeServer: Writing SynAck")
 			conn.Write([]byte{flagAck, nextPos(buf1byte[0]), pos})
 			pos = nextPos(pos)
 			handshakeState = stateSynAck
@@ -226,7 +230,7 @@ loop:
 			}
 
 			if buf1byte[0] != pos {
-				log.Debug("Unexpected position %x, expected: %x", buf1byte[0], pos)
+				log.Debug("HandshakeServer: Unexpected position %x, expected: %x", buf1byte[0], pos)
 				detectSyncState(buf1byte[0])
 				continue
 			}
@@ -235,11 +239,11 @@ loop:
 				break loop
 			}
 
-			log.Debugf("Debug ACK received")
+			log.Debugf("HandshakeServer: Debug ACK received")
 			fallthrough
 		case stateLossinessCheck:
 			rxbuf := make([]byte, 23)
-			log.Debugf("Checking for lossiness")
+			log.Debugf("HandshakeServer: Checking for lossiness")
 
 			n, err := io.ReadFull(conn, rxbuf)
 			if err != nil {
@@ -262,9 +266,9 @@ loop:
 			}
 
 			if buf1byte[0] != flagAck {
-				return fmt.Errorf("server: lossiness check FAILED")
+				return fmt.Errorf("HandshakeServer: lossiness check FAILED")
 			}
-			log.Infof("server: lossiness check PASSED")
+			log.Infof("HandshakeServer: lossiness check PASSED")
 			break loop
 		}
 
