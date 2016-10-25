@@ -239,7 +239,7 @@ func (ic *ImageC) LayersToDownload() ([]*ImageWithMeta, error) {
 			Layer: layer,
 		}
 
-		// Add the diff ID if this layer already exists
+		// populate manifest layer with existing cached data
 		if layer, err := LayerCache().Get(images[i].ID); err == nil {
 			if !layer.Downloading { // possibly unnecessary but won't hurt anything
 				images[i] = layer
