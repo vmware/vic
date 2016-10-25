@@ -334,7 +334,7 @@ func AddMockImageToCache() {
 		OnBuild:      nil,
 	}
 
-	cache.ImageCache().Add(mockImage, false)
+	cache.ImageCache().Add(mockImage)
 
 	ref, _ := reference.ParseNamed(mockImage.Reference)
 	cache.RepositoryCache().AddReference(ref, mockImage.ImageID, false, mockImage.ImageID, false)

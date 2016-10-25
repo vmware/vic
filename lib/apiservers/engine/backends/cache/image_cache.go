@@ -189,12 +189,8 @@ func prefixImageID(imageID string) string {
 }
 
 // Add adds an image to the image cache
-func (ic *ICache) Add(imageConfig *metadata.ImageConfig, save bool) {
+func (ic *ICache) Add(imageConfig *metadata.ImageConfig) {
 	defer trace.End(trace.Begin(""))
-
-	if save {
-		defer ic.Save()
-	}
 
 	ic.m.Lock()
 	defer ic.m.Unlock()
