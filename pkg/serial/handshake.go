@@ -30,10 +30,10 @@ import (
 )
 
 const (
-	flagSyn      = 0x16
-	flagAck      = 0x06
-	flagDebugAck = 0x07
-	flagNak      = 0x15
+	flagSyn      byte = 0x16
+	flagAck      byte = 0x06
+	flagDebugAck byte = 0x07
+	flagNak      byte = 0x15
 )
 
 var connEstablised = []byte("established")
@@ -84,32 +84,18 @@ func HandshakeClient(ctx context.Context, conn net.Conn, debug bool) error {
 		}
 	}
 
-	log.Debugf("Received SYNACK: %#v", synAck)
+	log.Debugf("HandshakeClient: Received SYNACK: %#v", synAck)
 	if synAck[0] != flagAck || synAck[1] != syn[1]+1 {
 		conn.Write([]byte{flagNak})
 		return fmt.Errorf("Unexpected sequence received for SYNACK: %#v", synAck)
 	}
 
 	ack := []byte{flagAck, synAck[2] + 1}
-	log.Debug("client: writing ack")
 	if debug {
 		ack[0] = flagDebugAck
 	}
+	log.Debug("client: writing ack: %#v", ack)
 	conn.Write(ack)
-
-	// Ensure both sides are in sync. Both sides will send the same message
-	// that expected to be received on both side.
-	recvData := make([]byte, len(connEstablised))
-	if _, err := io.ReadFull(conn, recvData); err != nil {
-		return fmt.Errorf("Failed to read confirmation line: %s", err)
-	}
-
-	if bytes.Compare(connEstablised, recvData) != 0 {
-		return fmt.Errorf("Received data should be %s, not %s",
-			connEstablised, recvData)
-	}
-
-	conn.Write(connEstablised)
 
 	// disable the read timeout
 	conn.SetReadDeadline(time.Time{})
@@ -158,105 +144,115 @@ func HandshakeClient(ctx context.Context, conn net.Conn, debug bool) error {
 	return nil
 }
 
+const (
+	stateSync byte = iota
+	stateSyncPos
+	stateSynAck
+	stateLossinessCheck
+	stateComplete
+)
+
 func HandshakeServer(ctx context.Context, conn net.Conn) error {
 	if tracing {
 		defer trace.End(trace.Begin(""))
 	}
-	synBuf := make([]byte, 2)
 
-	// set the read deadline for timeout
-	// this has no effect on windows as the deadline is set at port open time
 	deadline, ok := ctx.Deadline()
 	if ok {
 		conn.SetReadDeadline(deadline)
 	}
 
-	log.Debug("server: reading syn")
-	// syn is 2 bytes as that will eventually syn us again if we're offset
-	n, err := io.ReadAtLeast(conn, synBuf, 2)
-	if err != nil {
-		return fmt.Errorf("server: failed to read expected SYN: n=%d, err=%s", n, err)
+	handshakeState := stateSync
+	buf1byte := make([]byte, 1)
+	rand.Read(buf1byte)
+	pos := buf1byte[0]
+
+	detectSyncState := func(b byte) {
+		if buf1byte[0] == stateSync {
+			handshakeState = stateSyncPos
+		} else {
+			conn.Write([]byte{flagNak})
+			handshakeState = stateSync
+		}
 	}
 
-	if synBuf[0] != flagSyn {
-		conn.Write([]byte{flagNak})
-		// to aid in debug we always dump the full handshake
-		log.Debugf("server: read %v bytes: %#v", n, synBuf[:n])
-		return fmt.Errorf("server: did not receive SYN (read %v bytes): %#x != %#x", n, flagSyn, synBuf[0])
+loop:
+	for {
+
+		if _, err := conn.Read(buf1byte); err != nil {
+			return err
+		}
+
+		switch handshakeState {
+		case stateSync:
+			if buf1byte[0] != flagSyn {
+				log.Debugf("Unexpected byte for sync: %x", buf1byte[0])
+				conn.Write([]byte{flagNak})
+				continue
+			}
+			handshakeState = stateSyncPos
+		case stateSyncPos:
+			conn.Write([]byte{flagAck, buf1byte[0] + 1, pos})
+			pos += 1
+			handshakeState = stateSynAck
+		case stateSynAck:
+			ackType := buf1byte[0]
+			if ackType != flagAck && ackType != flagDebugAck {
+				detectSyncState(buf1byte[0])
+				continue
+			}
+
+			if _, err := io.ReadFull(conn, buf1byte); err != nil {
+				return err
+			}
+			if buf1byte[0] != pos {
+				detectSyncState(buf1byte[0])
+				continue
+			}
+
+			conn.SetReadDeadline(time.Time{})
+
+			if ackType != flagDebugAck {
+				break loop
+			}
+
+			log.Debugf("Debug ACK received")
+			fallthrough
+		case stateLossinessCheck:
+			rxbuf := make([]byte, 23)
+			log.Debugf("Checking for lossiness")
+
+			n, err := io.ReadFull(conn, rxbuf)
+			if err != nil {
+				return err
+			}
+
+			if n != len(rxbuf) {
+				return fmt.Errorf("packet size mismatch (expected %d, received %d)", len(rxbuf), n)
+			}
+
+			// echo the data back
+			_, err = conn.Write(rxbuf)
+			if err != nil {
+				return err
+			}
+
+			// wait for the ack
+			if _, err = conn.Read(buf1byte); err != nil {
+				return err
+			}
+
+			if buf1byte[0] != flagAck {
+				return fmt.Errorf("server: lossiness check FAILED")
+			}
+			log.Infof("server: lossiness check PASSED")
+			break loop
+		}
+
 	}
-
-	log.Debugf("server: received syn: %#v", synBuf)
-
-	log.Debug("server: writing synack")
-
-	// last byte is random.
-	synackBuf := []byte{flagAck, synBuf[1] + 1, 0}
-	rand.Read(synackBuf[2:])
-
-	conn.Write(synackBuf)
-
-	ack := []byte{flagAck, synackBuf[2] + 1}
-	log.Debug("server: reading ack")
-
-	buf := make([]byte, 2)
-	io.ReadFull(conn, buf)
-
-	if (buf[0] != flagAck && buf[0] != flagDebugAck) || ack[1] != buf[1] {
-		conn.Write([]byte{flagNak})
-		return fmt.Errorf("server: did not receive ack: %#x != %#x", ack, buf)
-	}
-
-	log.Debugf("server: received ack: %#x == %#x", ack, buf)
-
-	// Ensure both sides are in sync. Both sides will send the same message
-	// that expected to be received on both side.
-	recvData := make([]byte, len(connEstablised))
-
-	conn.Write(connEstablised)
-
-	if _, err := io.ReadFull(conn, recvData); err != nil {
-		return fmt.Errorf("Failed to read confirmation line: %s", err)
-	}
-
-	if bytes.Compare(connEstablised, recvData) != 0 {
-		return fmt.Errorf("Received data should be %s, not %s",
-			connEstablised, recvData)
-	}
-
 	// disable the read timeout
 	// this has no effect on windows as the deadline is set at port open time
 	conn.SetReadDeadline(time.Time{})
-
-	if buf[0] == flagDebugAck {
-		// Check for lossiness
-		rxbuf := make([]byte, 23)
-		log.Debugf("Checking for lossiness")
-
-		n, err := io.ReadFull(conn, rxbuf)
-		if err != nil {
-			return err
-		}
-
-		if n != len(rxbuf) {
-			return fmt.Errorf("packet size mismatch (expected %d, received %d)", len(rxbuf), n)
-		}
-
-		// echo the data back
-		_, err = conn.Write(rxbuf)
-		if err != nil {
-			return err
-		}
-
-		// wait for the ack
-		if _, err = conn.Read(ack[:1]); err != nil {
-			return err
-		}
-
-		if ack[0] != flagAck {
-			return fmt.Errorf("server: lossiness check FAILED")
-		}
-		log.Infof("server: lossiness check PASSED")
-	}
 
 	return nil
 }
