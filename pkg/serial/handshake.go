@@ -97,8 +97,9 @@ func HandshakeClient(ctx context.Context, conn net.Conn, debug bool) error {
 	}
 	conn.Write(ack)
 
+	// Ensure both sides are in sync. Both sides will send the same message
+	// that expected to be received on both side.
 	recvData := make([]byte, len(connEstablised))
-
 	if _, err := io.ReadFull(conn, recvData); err != nil {
 		return fmt.Errorf("Failed to read confirmation line: %s", err)
 	}
@@ -207,6 +208,8 @@ func HandshakeServer(ctx context.Context, conn net.Conn) error {
 
 	log.Debugf("server: received ack: %#x == %#x", ack, buf)
 
+	// Ensure both sides are in sync. Both sides will send the same message
+	// that expected to be received on both side.
 	recvData := make([]byte, len(connEstablised))
 
 	conn.Write(connEstablised)

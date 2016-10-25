@@ -258,8 +258,9 @@ func backchannel(ctx context.Context, conn *net.Conn) error {
 			err := serial.HandshakeServer(ctx, *conn)
 			if err != nil {
 				log.Error(err)
+			} else {
+				return nil
 			}
-			return nil
 		}
 	}
 }
