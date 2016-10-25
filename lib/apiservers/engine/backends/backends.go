@@ -171,13 +171,19 @@ func hydrateCaches() error {
 	wg.Wait()
 	close(errors)
 
+	var errs []string
 	for err := range errors {
 		if err != nil {
-			return err
+			// accumulate all errors into one
+			errs = append(errs, err.Error())
 		}
 	}
 
-	return nil
+	var e error
+	if len(errs) > 0 {
+		e = fmt.Errorf(strings.Join(errs, ", "))
+	}
+	return e
 }
 
 func PortLayerClient() *client.PortLayer {
