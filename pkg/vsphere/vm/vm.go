@@ -322,8 +322,8 @@ func (vm *VirtualMachine) VMPathName(ctx context.Context) (string, error) {
 	return mvm.Config.Files.VmPathName, nil
 }
 
-func (vm *VirtualMachine) registerVM(ctx context.Context, path string, name string, vapp *types.ManagedObjectReference,
-	pool *types.ManagedObjectReference, host *types.ManagedObjectReference, folder *object.Folder) (*object.Task, error) {
+func (vm *VirtualMachine) registerVM(ctx context.Context, path, name string,
+	vapp, pool, host *types.ManagedObjectReference, vmfolder *object.Folder) (*object.Task, error) {
 	log.Debugf("Register VM %s", name)
 
 	c := vm.Client.Client
@@ -333,7 +333,7 @@ func (vm *VirtualMachine) registerVM(ctx context.Context, path string, name stri
 			hostObject = object.NewHostSystem(c, *host)
 		}
 		poolObject := object.NewResourcePool(c, *pool)
-		return folder.RegisterVM(ctx, path, name, false, poolObject, hostObject)
+		return vmfolder.RegisterVM(ctx, path, name, false, poolObject, hostObject)
 	}
 
 	req := types.RegisterChildVM_Task{
@@ -363,9 +363,9 @@ func (vm *VirtualMachine) FixInvalidState(ctx context.Context) error {
 		return err
 	}
 
-	log.Debugf("Get vm properties")
-	var mvm mo.VirtualMachine
 	properties := []string{"config.files", "summary.config", "summary.runtime", "resourcePool", "parentVApp"}
+	log.Debugf("Get vm properties %s", properties)
+	var mvm mo.VirtualMachine
 	if err = vm.Properties(ctx, vm.Reference(), properties, &mvm); err != nil {
 		log.Errorf("Unable to get vm properties: %s", err)
 		return err

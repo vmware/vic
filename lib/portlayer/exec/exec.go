@@ -165,7 +165,7 @@ func eventCallback(ie events.Event) {
 	case events.ContainerRegistered:
 		moref := new(types.ManagedObjectReference)
 		if ok := moref.FromString(ie.Reference()); !ok {
-			log.Errorf("Failed to get event VM mob reference")
+			log.Errorf("Failed to get event VM mobref: %s", ie.Reference())
 			return
 		}
 		var vm mo.VirtualMachine
@@ -180,12 +180,12 @@ func eventCallback(ie events.Event) {
 			return
 		}
 		if *vm.ResourcePool != Config.ResourcePool.Reference() {
-			log.Debugf("vm %q is not containers of this VCH, ignore it", vm.Config.Name)
+			log.Debugf("container vm %q does not belong to this VCH, ignoring", vm.Config.Name)
 		}
 		registeredContainers := convertInfraContainers(ctx, eventSession, []mo.VirtualMachine{vm})
 		for i := range registeredContainers {
 			Containers.put(registeredContainers[i])
-			log.Debugf("Container %q is registered back", vm.Config.Name)
+			log.Debugf("Registered container %q", vm.Config.Name)
 		}
 	}
 	return
