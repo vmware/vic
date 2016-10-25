@@ -31,7 +31,7 @@ Reboot VCH
     Log To Console  Waiting for VCH to power on ...
     Wait Until Vm Powers On  ${vm}
     Log To Console  VCH Powered On
-    
+
 *** Test Cases ***
 Created Network And Images Persists As Well As Containers Are Discovered With Correct IPs
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull nginx
@@ -74,12 +74,16 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network ls
     Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  foo
     Should Contain  ${output}  bar
     Should Contain  ${output}  bridge
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network inspect bridge
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network inspect bar
     Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network inspect foo
+    Should Be Equal As Integers  ${rc}  0
+
     ${ip}=  Get Container IP  ${bridge-running}  bridge
     Should Be Equal  ${ip}  ${bridge-running-ip}
     ${ip}=  Get Container IP  ${bar-running}  bar
@@ -110,9 +114,3 @@ Created Network And Images Persists As Well As Containers Are Discovered With Co
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start webserver1
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  port 10000 is not available
-
-    ${status}=  Get State Of Github Issue  2448
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 10-1-VCH-Restart.robot needs to be updated now that Issue #2448 has been resolved
-    Log  Issue \#2448 is blocking implementation  WARN
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network inspect foo
-    #Should Be Equal As Integers  ${rc}  0

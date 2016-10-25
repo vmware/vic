@@ -19,10 +19,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
+	"fmt"
+	"os"
+	"regexp"
 	"sync"
 
-	"github.com/vmware/vic/pkg/trace"
+	log "github.com/Sirupsen/logrus"
 )
 
 var (
@@ -32,54 +34,74 @@ var (
 // This package implements a very basic key/value store.  It is up to the
 // caller to provision the namespace.
 
-type KeyValueStore struct {
-	b Backend
+type KeyValueStore interface {
+	// Set adds a new key or modifies an existing key in the key-value store
+	Put(ctx context.Context, key string, value []byte) error
 
-	kv map[string][]byte
+	// Get gets an existing key in the key-value store. Returns ErrKeyNotFound
+	// if key does not exist the key-value store.
+	Get(key string) ([]byte, error)
 
-	fileName string
+	// List lists the key-value pairs whose keys match the regular expression
+	// passed in.
+	List(re string) (map[string][]byte, error)
 
-	l sync.RWMutex
+	// Delete deletes existing keys from the key-value store. Returns ErrKeyNotFound
+	// if key does not exist the key-value store.
+	Delete(ctx context.Context, key string) error
+
+	// Save saves the key-value store data to the backend.
+	Save(ctx context.Context) error
+
+	// Name returns the unique identifier/name for the key-value store. This is
+	// used to determine the path that is passed to the backend operations.
+	Name() string
 }
 
-type Backend interface {
-	// Creates path and overwrites whatever is there.
-	Upload(ctx context.Context, r io.Reader, pth string) error
+type kv struct {
+	b    Backend
+	kv   map[string][]byte
+	name string
+	l    sync.RWMutex
+}
 
-	// Downloads from the given path.
-	Download(ctx context.Context, pth string) (io.ReadCloser, error)
-
-	// Moves the given path.
-	Mv(ctx context.Context, fromPath, toPath string) error
+func fileName(name string) string {
+	return fmt.Sprintf("%s.dat", name)
 }
 
 // Create a new KeyValueStore instance using the given Backend with the given
 // file.  If the file exists on the Backend, it is restored.
-func NewKeyValueStore(op trace.Operation, store Backend, fileName string) (*KeyValueStore, error) {
-	p := &KeyValueStore{
-		b:        store,
-		kv:       make(map[string][]byte),
-		fileName: fileName,
+func NewKeyValueStore(ctx context.Context, store Backend, name string) (KeyValueStore, error) {
+	p := &kv{
+		b:    store,
+		kv:   make(map[string][]byte),
+		name: name,
 	}
 
-	if err := p.restore(op); err != nil {
+	if err := p.restore(ctx); err != nil {
 		return nil, err
 	}
 
-	op.Infof("KeyValueStore(%s) restored %d keys", fileName, len(p.kv))
+	log.Infof("NewKeyValueStore(%s) restored %d keys", name, len(p.kv))
 
 	return p, nil
 }
 
-func (p *KeyValueStore) restore(op trace.Operation) error {
+func (p *kv) Name() string {
+	return p.name
+}
+
+func (p *kv) restore(ctx context.Context) error {
 	p.l.Lock()
 	defer p.l.Unlock()
 
-	rc, err := p.b.Download(op, p.fileName)
+	rc, err := p.b.Load(ctx, fileName(p.name))
 	if err != nil {
-		// We need to check for 404 vs something else here.
-		op.Errorf("KeyValueStore(%s) ignoring error: %s", p.fileName, err)
-		return nil
+		if os.IsNotExist(err) {
+			return nil
+		}
+
+		return err
 	}
 	defer rc.Close()
 
@@ -92,7 +114,7 @@ func (p *KeyValueStore) restore(op trace.Operation) error {
 
 // Set a key to the KeyValueStore with the given value.  If they key already
 // exists, the value is overwritten.
-func (p *KeyValueStore) Set(op trace.Operation, key string, value []byte) error {
+func (p *kv) Put(ctx context.Context, key string, value []byte) error {
 	p.l.Lock()
 	defer p.l.Unlock()
 
@@ -106,7 +128,7 @@ func (p *KeyValueStore) Set(op trace.Operation, key string, value []byte) error 
 
 	p.kv[key] = value
 
-	if err := p.save(op); err != nil && ok {
+	if err := p.save(ctx); err != nil && ok {
 		// revert if failure
 		p.kv[key] = oldvalue
 		return err
@@ -116,7 +138,7 @@ func (p *KeyValueStore) Set(op trace.Operation, key string, value []byte) error 
 }
 
 // Get retrieves a key from the KeyValueStore.
-func (p *KeyValueStore) Get(op trace.Operation, key string) ([]byte, error) {
+func (p *kv) Get(key string) ([]byte, error) {
 	p.l.RLock()
 	defer p.l.RUnlock()
 
@@ -128,8 +150,31 @@ func (p *KeyValueStore) Get(op trace.Operation, key string) ([]byte, error) {
 	return v, nil
 }
 
+func (p *kv) List(re string) (map[string][]byte, error) {
+	p.l.RLock()
+	defer p.l.RUnlock()
+
+	regex, err := regexp.Compile(re)
+	if err != nil {
+		return nil, err
+	}
+
+	kv := make(map[string][]byte)
+	for k, v := range p.kv {
+		if regex.MatchString(k) {
+			kv[k] = v
+		}
+	}
+
+	if len(kv) == 0 {
+		return nil, ErrKeyNotFound
+	}
+
+	return kv, nil
+}
+
 // Delete removes a key from the KeyValueStore.
-func (p *KeyValueStore) Delete(op trace.Operation, key string) error {
+func (p *kv) Delete(ctx context.Context, key string) error {
 	p.l.Lock()
 	defer p.l.Unlock()
 
@@ -140,7 +185,7 @@ func (p *KeyValueStore) Delete(op trace.Operation, key string) error {
 
 	delete(p.kv, key)
 
-	if err := p.save(op); err != nil {
+	if err := p.save(ctx); err != nil {
 		// restore the key
 		p.kv[key] = oldvalue
 		return err
@@ -150,31 +195,21 @@ func (p *KeyValueStore) Delete(op trace.Operation, key string) error {
 }
 
 // Save persists the KeyValueStore to the Backend.
-func (p *KeyValueStore) Save(op trace.Operation) error {
+func (p *kv) Save(ctx context.Context) error {
 	p.l.Lock()
 	defer p.l.Unlock()
-	return p.save(op)
+	return p.save(ctx)
 }
 
-func (p *KeyValueStore) save(op trace.Operation) error {
+func (p *kv) save(ctx context.Context) error {
 	buf, err := json.Marshal(p.kv)
 	if err != nil {
 		return err
 	}
 
-	// upload to an ephemeral file
-	tmpfile := p.fileName + ".tmp"
-
 	r := bytes.NewReader(buf)
-	if err = p.b.Upload(op, r, tmpfile); err != nil {
-		op.Errorf("Error uploading %s: %s", tmpfile, err)
-		return err
-	}
-
-	op.Debugf("KeyValueStore(%s) Saving...", p.fileName)
-	if err := p.b.Mv(op, tmpfile, p.fileName); err != nil {
-		op.Errorf("Error moving %s: %s", tmpfile, err)
-		return err
+	if err = p.b.Save(ctx, r, fileName(p.name)); err != nil {
+		return fmt.Errorf("Error uploading %s: %s", fileName(p.name), err)
 	}
 
 	return nil
