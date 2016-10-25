@@ -167,7 +167,7 @@ func (c *Connector) processIncoming(conn net.Conn) {
 		// the tether side (in tether_linux.go) or alignment may not happen.
 		// The PL sends the first SYN in the handshake and if the tether is not
 		// waiting, the handshake may never succeed.
-		ctx, cancel := context.WithTimeout(context.TODO(), 50*time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.TODO(), time.Second)
 		if err = serial.HandshakeClient(ctx, conn, c.debug); err == nil {
 			log.Debugf("attach connector: New connection")
 			cancel()
@@ -177,6 +177,7 @@ func (c *Connector) processIncoming(conn net.Conn) {
 			conn.Close()
 			return
 		}
+		log.Error(err)
 	}
 
 	callback := func(hostname string, remote net.Addr, key ssh.PublicKey) error {
