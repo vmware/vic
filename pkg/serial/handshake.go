@@ -36,6 +36,13 @@ const (
 	flagNak      byte = 0x15
 )
 
+const (
+	stateSync byte = iota
+	stateSyncPos
+	stateSynAck
+	stateLossinessCheck
+)
+
 var connEstablised = []byte("established")
 
 // PurgeIncoming is used to clear a channel of bytes prior to handshaking
@@ -56,101 +63,109 @@ func PurgeIncoming(conn net.Conn) {
 	conn.SetReadDeadline(time.Time{})
 }
 
+func nextPos(syncPos byte) byte { return (syncPos + 1) | 0x80 }
+
 func HandshakeClient(ctx context.Context, conn net.Conn, debug bool) error {
 	if tracing {
 		defer trace.End(trace.Begin(""))
 	}
-	synAck := make([]byte, 3)
-	buf := make([]byte, 255)
-	syn := []byte{flagSyn, 0}
-	rand.Read(syn[1:])
+
+	buf1byte := make([]byte, 1)
+	rand.Read(buf1byte)
+	pos := nextPos(buf1byte[0])
 
 	// set the read deadline for timeout
 	// this has no effect on windows as the deadline is set at port open time
 	deadline, ok := ctx.Deadline()
 	if ok {
-		log.Debugf("Setting deadline to receive data from server: %s", deadline)
 		conn.SetReadDeadline(deadline)
 	}
 
-	log.Debugf("HandshakeClient: Writing SYN: %#v", syn)
-	conn.Write(syn)
+	handshakeState := stateSync
+loop:
+	for {
+		switch handshakeState {
+		case stateSync:
+			conn.Write([]byte{flagSyn, pos})
+			pos = nextPos(pos)
+			handshakeState = stateSynAck
+		case stateSynAck:
+			// read flag.
+			if _, err := conn.Read(buf1byte); err != nil {
+				return err
+			}
 
-	if n, err := io.ReadFull(conn, synAck); err != nil {
-		log.Errorf("HandshakeClient: failed to read expected SYN-ACK: n=%d, err=%s buf=[%#x]",
-			n, err, buf[:n])
-		if err != nil {
-			return err
+			if buf1byte[0] != flagAck {
+				log.Debugf("HandshakeClient: Unexpected byte for SynAck: %x", buf1byte[0])
+				handshakeState = stateSync
+				continue
+			}
+
+			// read response sync position.
+			if _, err := conn.Read(buf1byte); err != nil {
+				return err
+			}
+			if buf1byte[0] != pos {
+				log.Debugf("HandshakeClient: Unexpected byte pos for SynAck: %x", buf1byte[0])
+				conn.Write([]byte{flagNak})
+				handshakeState = stateSync
+				continue
+			}
+			// read syn position
+			if _, err := conn.Read(buf1byte); err != nil {
+				return err
+			}
+			if debug {
+				conn.Write([]byte{flagDebugAck, nextPos(buf1byte[0])})
+			} else {
+				conn.Write([]byte{flagAck, nextPos(buf1byte[0])})
+				break loop
+			}
+			fallthrough
+		case stateLossinessCheck:
+			// Verify packet length handling works.  We're going to send a known stream
+			// of data to the container and it will echo it back.  Verify the sent and
+			// received bufs are the same and we know the channel is lossless.
+
+			log.Debugf("HandshakeClient: Checking for lossiness")
+			txbuf := []byte("\x1b[32mhello world\x1b[39m!\n")
+			rxbuf := make([]byte, len(txbuf))
+
+			_, err := conn.Write(txbuf)
+			if err != nil {
+				return err
+			}
+
+			var n int
+			log.Debugf("HandshakeClient: Reading response")
+			n, err = io.ReadFull(conn, rxbuf)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+
+			if n != len(rxbuf) {
+				return fmt.Errorf("packet size mismatch (expected %d, received %d)", len(rxbuf), n)
+			}
+
+			if bytes.Compare(rxbuf, txbuf) != 0 {
+				return fmt.Errorf("HandshakeClient: lossiness check FAILED")
+			}
+
+			// Tell the server we're good.
+			if _, err = conn.Write([]byte{flagAck}); err != nil {
+				return err
+			}
+
+			log.Infof("HandshakeClient: lossiness check PASSED")
+			break loop
 		}
-	}
 
-	log.Debugf("HandshakeClient: Received SYNACK: %#v", synAck)
-	if synAck[0] != flagAck || synAck[1] != syn[1]+1 {
-		conn.Write([]byte{flagNak})
-		return fmt.Errorf("Unexpected sequence received for SYNACK: %#v", synAck)
 	}
-
-	ack := []byte{flagAck, synAck[2] + 1}
-	if debug {
-		ack[0] = flagDebugAck
-	}
-	log.Debug("client: writing ack: %#v", ack)
-	conn.Write(ack)
-
-	// disable the read timeout
 	conn.SetReadDeadline(time.Time{})
-
-	if debug {
-		// Verify packet length handling works.  We're going to send a known stream
-		// of data to the container and it will echo it back.  Verify the sent and
-		// received bufs are the same and we know the channel is lossless.
-
-		log.Debugf("Checking for lossiness")
-		txbuf := []byte("\x1b[32mhello world\x1b[39m!\n")
-		rxbuf := make([]byte, len(txbuf))
-
-		_, err := conn.Write(txbuf)
-		if err != nil {
-			log.Error(err)
-			return err
-		}
-
-		var n int
-		n, err = io.ReadFull(conn, rxbuf)
-		if err != nil {
-			return err
-		}
-
-		if n != len(rxbuf) {
-			err = fmt.Errorf("packet size mismatch (expected %d, received %d)", len(rxbuf), n)
-			return err
-		}
-
-		if bytes.Compare(rxbuf, txbuf) != 0 {
-			conn.Write([]byte{flagNak})
-			err = fmt.Errorf("client: lossiness check FAILED")
-			return err
-		}
-
-		// Tell the server we're good.
-		if _, err = conn.Write([]byte{flagAck}); err != nil {
-			return err
-		}
-
-		log.Infof("client: lossiness check PASSED")
-
-	}
 
 	return nil
 }
-
-const (
-	stateSync byte = iota
-	stateSyncPos
-	stateSynAck
-	stateLossinessCheck
-	stateComplete
-)
 
 func HandshakeServer(ctx context.Context, conn net.Conn) error {
 	if tracing {
@@ -165,7 +180,7 @@ func HandshakeServer(ctx context.Context, conn net.Conn) error {
 	handshakeState := stateSync
 	buf1byte := make([]byte, 1)
 	rand.Read(buf1byte)
-	pos := buf1byte[0]
+	pos := nextPos(buf1byte[0])
 
 	detectSyncState := func(b byte) {
 		if buf1byte[0] == stateSync {
@@ -178,22 +193,26 @@ func HandshakeServer(ctx context.Context, conn net.Conn) error {
 
 loop:
 	for {
-
 		if _, err := conn.Read(buf1byte); err != nil {
 			return err
+		}
+
+		if buf1byte[0] == flagNak {
+			handshakeState = stateSync
+			continue
 		}
 
 		switch handshakeState {
 		case stateSync:
 			if buf1byte[0] != flagSyn {
-				log.Debugf("Unexpected byte for sync: %x", buf1byte[0])
+				log.Debugf("HandshakeServer: Unexpected byte for sync: %x", buf1byte[0])
 				conn.Write([]byte{flagNak})
 				continue
 			}
 			handshakeState = stateSyncPos
 		case stateSyncPos:
-			conn.Write([]byte{flagAck, buf1byte[0] + 1, pos})
-			pos += 1
+			conn.Write([]byte{flagAck, nextPos(buf1byte[0]), pos})
+			pos = nextPos(pos)
 			handshakeState = stateSynAck
 		case stateSynAck:
 			ackType := buf1byte[0]
@@ -202,15 +221,15 @@ loop:
 				continue
 			}
 
-			if _, err := io.ReadFull(conn, buf1byte); err != nil {
+			if _, err := conn.Read(buf1byte); err != nil {
 				return err
 			}
+
 			if buf1byte[0] != pos {
+				log.Debug("Unexpected position %x, expected: %x", buf1byte[0], pos)
 				detectSyncState(buf1byte[0])
 				continue
 			}
-
-			conn.SetReadDeadline(time.Time{})
 
 			if ackType != flagDebugAck {
 				break loop

@@ -52,7 +52,7 @@ func TestAttachStartStop(t *testing.T) {
 
 	assert.NoError(t, s.Start(true))
 
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 50; i++ {
 		wg.Add(1)
 		go dial()
 	}
@@ -75,7 +75,7 @@ func TestAttachStartStop(t *testing.T) {
 }
 
 func TestAttachSshSession(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.InfoLevel)
 
 	s := NewAttachServer("", -1)
 	assert.NoError(t, s.Start(true))
