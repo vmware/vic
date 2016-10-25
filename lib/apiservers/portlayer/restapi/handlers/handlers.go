@@ -14,9 +14,14 @@
 
 package handlers
 
-import "github.com/vmware/vic/pkg/vsphere/session"
+import (
+	"golang.org/x/net/context"
+
+	"github.com/vmware/vic/pkg/vsphere/session"
+)
 
 // HandlerContext is set of shared objects for the port layer server handlers
 type HandlerContext struct {
 	Session *session.Session
+	Context *context.Context
 }

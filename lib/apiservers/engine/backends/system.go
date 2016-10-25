@@ -75,7 +75,7 @@ func (s *System) SystemInfo() (*types.Info, error) {
 	defer trace.End(trace.Begin("SystemInfo"))
 	client := PortLayerClient()
 
-	// Retieve container status from port layer
+	// Retrieve container status from port layer
 	running, paused, stopped, err := s.systemProxy.ContainerCount()
 	if err != nil {
 		log.Infof("System.SytemInfo unable to get global status on containers: %s", err.Error())
