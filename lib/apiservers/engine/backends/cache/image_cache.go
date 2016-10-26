@@ -35,10 +35,10 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-// iCache is an in-memory cache of image metadata. It is refreshed at startup
+// ICache is an in-memory cache of image metadata. It is refreshed at startup
 // by a call to the portlayer. It is updated when new images are pulled or
 // images are deleted.
-type iCache struct {
+type ICache struct {
 	m           sync.RWMutex
 	iDIndex     *truncindex.TruncIndex
 	cacheByID   map[string]*metadata.ImageConfig
@@ -52,12 +52,12 @@ const (
 )
 
 var (
-	imageCache *iCache
+	imageCache *ICache
 	ctx        = context.TODO()
 )
 
 func init() {
-	imageCache = &iCache{
+	imageCache = &ICache{
 		iDIndex:     truncindex.NewTruncIndex([]string{}),
 		cacheByID:   make(map[string]*metadata.ImageConfig),
 		cacheByName: make(map[string]*metadata.ImageConfig),
@@ -65,7 +65,7 @@ func init() {
 }
 
 // ImageCache returns a reference to the image cache
-func ImageCache() *iCache {
+func ImageCache() *ICache {
 	return imageCache
 }
 
@@ -104,7 +104,7 @@ func InitializeImageCache(client *client.PortLayer) error {
 }
 
 // GetImages returns a slice containing metadata for all cached images
-func (ic *iCache) GetImages() []*metadata.ImageConfig {
+func (ic *ICache) GetImages() []*metadata.ImageConfig {
 	defer trace.End(trace.Begin(""))
 	ic.m.RLock()
 	defer ic.m.RUnlock()
@@ -118,7 +118,7 @@ func (ic *iCache) GetImages() []*metadata.ImageConfig {
 
 // IsImageID will check that a full or partial imageID
 // exists in the cache
-func (ic *iCache) IsImageID(id string) bool {
+func (ic *ICache) IsImageID(id string) bool {
 	ic.m.RLock()
 	defer ic.m.RUnlock()
 	if _, err := ic.iDIndex.Get(id); err == nil {
@@ -128,7 +128,7 @@ func (ic *iCache) IsImageID(id string) bool {
 }
 
 // Get parses input to retrieve a cached image
-func (ic *iCache) Get(idOrRef string) (*metadata.ImageConfig, error) {
+func (ic *ICache) Get(idOrRef string) (*metadata.ImageConfig, error) {
 	defer trace.End(trace.Begin(""))
 	ic.m.RLock()
 	defer ic.m.RUnlock()
@@ -168,7 +168,7 @@ func (ic *iCache) Get(idOrRef string) (*metadata.ImageConfig, error) {
 	return copyImageConfig(config), nil
 }
 
-func (ic *iCache) getImageByDigest(digest digest.Digest) *metadata.ImageConfig {
+func (ic *ICache) getImageByDigest(digest digest.Digest) *metadata.ImageConfig {
 	defer trace.End(trace.Begin(""))
 	var config *metadata.ImageConfig
 	config, ok := ic.cacheByID[string(digest)]
@@ -179,7 +179,7 @@ func (ic *iCache) getImageByDigest(digest digest.Digest) *metadata.ImageConfig {
 }
 
 // Looks up image by reference.Named
-func (ic *iCache) getImageByNamed(named reference.Named) *metadata.ImageConfig {
+func (ic *ICache) getImageByNamed(named reference.Named) *metadata.ImageConfig {
 	defer trace.End(trace.Begin(""))
 	// get the imageID from the repoCache
 	id, _ := RepositoryCache().Get(named)
@@ -197,7 +197,7 @@ func prefixImageID(imageID string) string {
 }
 
 // Add adds an image to the image cache
-func (ic *iCache) Add(imageConfig *metadata.ImageConfig) {
+func (ic *ICache) Add(imageConfig *metadata.ImageConfig) {
 	defer trace.End(trace.Begin(""))
 
 	ic.m.Lock()
@@ -225,7 +225,7 @@ func (ic *iCache) Add(imageConfig *metadata.ImageConfig) {
 }
 
 // RemoveImageByConfig removes image from the cache.
-func (ic *iCache) RemoveImageByConfig(imageConfig *metadata.ImageConfig) {
+func (ic *ICache) RemoveImageByConfig(imageConfig *metadata.ImageConfig) {
 	defer trace.End(trace.Begin(""))
 	ic.m.Lock()
 	defer ic.m.Unlock()
@@ -252,7 +252,7 @@ func (ic *iCache) RemoveImageByConfig(imageConfig *metadata.ImageConfig) {
 }
 
 // Save will persist the image cache to the portlayer k/v store
-func (ic *iCache) Save() error {
+func (ic *ICache) Save() error {
 	defer trace.End(trace.Begin(""))
 	ic.m.Lock()
 	defer ic.m.Unlock()

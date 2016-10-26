@@ -26,10 +26,10 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-// lCache is an in-memory cache to account for existing image layers
+// LCache is an in-memory cache to account for existing image layers
 // It is used primarily by imagec when coordinating layer downloads
 // The cache is initially hydrated by way of the image cache at startup
-type lCache struct {
+type LCache struct {
 	m      sync.RWMutex
 	layers map[string]*ImageWithMeta
 
@@ -48,17 +48,17 @@ const (
 )
 
 var (
-	layerCache *lCache
+	layerCache *LCache
 )
 
 func init() {
-	layerCache = &lCache{
+	layerCache = &LCache{
 		layers: make(map[string]*ImageWithMeta),
 	}
 }
 
 // LayerCache returns a reference to the layer cache
-func LayerCache() *lCache {
+func LayerCache() *LCache {
 	return layerCache
 }
 
@@ -92,7 +92,7 @@ func InitializeLayerCache(client *client.PortLayer) error {
 }
 
 // Add adds a new layer to the cache
-func (lc *lCache) Add(layer *ImageWithMeta) {
+func (lc *LCache) Add(layer *ImageWithMeta) {
 	defer trace.End(trace.Begin(""))
 	lc.m.Lock()
 	defer lc.m.Unlock()
@@ -101,7 +101,7 @@ func (lc *lCache) Add(layer *ImageWithMeta) {
 }
 
 // Remove removes a layer from the cache
-func (lc *lCache) Remove(id string) {
+func (lc *LCache) Remove(id string) {
 	defer trace.End(trace.Begin(""))
 	lc.m.Lock()
 	defer lc.m.Unlock()
@@ -110,7 +110,7 @@ func (lc *lCache) Remove(id string) {
 }
 
 // Commit marks a layer as downloaded
-func (lc *lCache) Commit(layer *ImageWithMeta) {
+func (lc *LCache) Commit(layer *ImageWithMeta) {
 	defer trace.End(trace.Begin(""))
 	lc.m.Lock()
 	defer lc.Save()
@@ -121,7 +121,7 @@ func (lc *lCache) Commit(layer *ImageWithMeta) {
 }
 
 // Get returns a cached layer, or LayerNotFoundError if it doesn't exist
-func (lc *lCache) Get(id string) (*ImageWithMeta, error) {
+func (lc *LCache) Get(id string) (*ImageWithMeta, error) {
 	defer trace.End(trace.Begin(""))
 	lc.m.RLock()
 	defer lc.m.RUnlock()
@@ -135,7 +135,7 @@ func (lc *lCache) Get(id string) (*ImageWithMeta, error) {
 }
 
 // Save will persist the image cache to the portlayer k/v store
-func (lc *lCache) Save() error {
+func (lc *LCache) Save() error {
 	defer trace.End(trace.Begin(""))
 	lc.m.Lock()
 	defer lc.m.Unlock()
