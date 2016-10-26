@@ -51,7 +51,7 @@ Set Test Environment Variables
     ${domain}=  Get Environment Variable  DOMAIN  ''
     Run Keyword If  '${domain}' == ''  Set Suite Variable  ${vicmachinetls}  '--no-tlsverify'
     Run Keyword If  '${domain}' != ''  Set Suite Variable  ${vicmachinetls}  '--tls-cname=*.${domain}'
-    
+
     Set Test VCH Name
     # Set a unique bridge network for each VCH that has a random VLAN ID
     ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
@@ -95,9 +95,16 @@ Get Docker Params
     Run Keyword If  ${port} == 2375  Set Suite Variable  ${params}  -H ${dockerHost}
 
 
-    :FOR  ${item}  IN  @{output}
+    :FOR  ${index}  ${item}  IN ENUMERATE  @{output}
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  http
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
+    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  Published ports can be reached at
+    \   ${idx} =  Evaluate  ${index} + 1
+    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${ext-ip}  @{output}[${idx}]
+
+    ${rest}  ${ext-ip} =  Split String From Right  ${ext-ip}
+    ${ext-ip} =  Strip String  ${ext-ip}
+    Set Suite Variable  ${ext-ip}  ${ext-ip}
 
     ${rest}  ${vic-admin}=  Split String From Right  ${line}
     Set Suite Variable  ${vic-admin}
@@ -112,7 +119,7 @@ Install VIC Appliance To Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
-    
+
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
     ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}
@@ -439,7 +446,7 @@ Install Harbor To Test Server
     ${out}=  Run  ovftool harbor_0.4.1_beta.ova harbor_0.4.1_beta.ovf
     ${out}=  Run  ovftool --datastore=${datastore} --name=${name} --net:"Network 1"="${network}" --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --prop:vami.domain.Harbor=mgmt.local --prop:vami.searchpath.Harbor=mgmt.local --prop:vami.DNS.Harbor=8.8.8.8 --prop:vm.vmname=Harbor harbor_0.4.1_beta.ovf 'vi://${user}:${password}@${host}'
     ${out}=  Split To Lines  ${out}
-    
+
     :FOR  ${line}  IN  @{out}
     \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  Received IP address:
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}

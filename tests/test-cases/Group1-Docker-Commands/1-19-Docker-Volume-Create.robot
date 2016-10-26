@@ -9,11 +9,13 @@ Simple docker volume create
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} volume create
     Should Be Equal As Integers  ${rc}  0
     Set Suite Variable  ${ContainerName}  unnamedSpecVolContainer
-    Run  docker ${params} run --name ${ContainerName} -d -v ${output}:/mydata busybox /bin/df -Ph
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --name ${ContainerName} -d -v ${output}:/mydata busybox /bin/df -Ph
+    Should Be Equal As Integers  ${rc}  0
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker ${params} wait ${ContainerName}
     Should Be Equal As Integers  ${ContainerRC}  0
     Should Not Contain  ${output}  Error response from daemon
-    ${disk-size}=  Run  docker ${params} logs ${ContainerName} | grep by-label | awk '{print $2}'
+    ${rc}  ${disk-size}=  Run And Return Rc And Output  docker ${params} logs ${ContainerName} | grep by-label | awk '{print $2}'
+    Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${disk-size}  975.9M
 
 Docker volume create named volume
@@ -21,29 +23,35 @@ Docker volume create named volume
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${output}  test
     Set Suite Variable  ${ContainerName}  specVolContainer
-    Run  docker ${params} run --name ${ContainerName} -d -v ${output}:/mydata busybox /bin/df -Ph
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --name ${ContainerName} -d -v ${output}:/mydata busybox /bin/df -Ph
+    Should Be Equal As Integers  ${rc}  0
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker ${params} wait ${ContainerName}
     Should Be Equal As Integers  ${ContainerRC}  0
     Should Not Contain  ${output}  Error response from daemon
-    ${disk-size}=  Run  docker ${params} logs ${ContainerName} | grep by-label | awk '{print $2}'
+    ${rc}  ${disk-size}=  Run And Return Rc And Output  docker ${params} logs ${ContainerName} | grep by-label | awk '{print $2}'
+    Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${disk-size}  975.9M
 
 Docker volume create image volume
     Set Suite Variable  ${ContainerName}  imageVolContainer
-    Run  docker ${params} run --name ${ContainerName} -d mongo /bin/df -Ph
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --name ${ContainerName} -d mongo /bin/df -Ph
+    Should Be Equal As Integers  ${rc}  0
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker ${params} wait ${ContainerName}
     Should Be Equal As Integers  ${ContainerRC}  0
     Should Not Contain  ${output}  Error response from daemon
-    ${disk-size}=  Run  docker ${params} logs ${ContainerName} | grep by-label | awk '{print $2}'
+    ${rc}  ${disk-size}=  Run And Return Rc And Output  docker ${params} logs ${ContainerName} | grep by-label | awk '{print $2}'
+    Should Be Equal As Integers  ${rc}  0
     Should Contain  ${disk-size}  976M
 
 Docker volume create anonymous volume
     Set Suite Variable  ${ContainerName}  anonVolContainer
-    Run  docker ${params} run --name ${ContainerName} -d -v /mydata busybox /bin/df -Ph
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --name ${ContainerName} -d -v /mydata busybox /bin/df -Ph
+    Should Be Equal As Integers  ${rc}  0
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker ${params} wait ${ContainerName}
     Should Be Equal As Integers  ${ContainerRC}  0
     Should Not Contain  ${output}  Error response from daemon
-    ${disk-size}=  Run  docker ${params} logs ${ContainerName} | grep by-label | awk '{print $2}'
+    ${rc}  ${disk-size}=  Run And Return Rc And Output  docker ${params} logs ${ContainerName} | grep by-label | awk '{print $2}'
+    Should Be Equal As Integers  ${rc}  0
     Should Contain  ${disk-size}  975.9M
 
 Docker volume create already named volume
@@ -70,7 +78,8 @@ Docker volume create with specific capacity
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker ${params} wait ${ContainerName}
     Should Be Equal As Integers  ${ContainerRC}  0
     Should Not Contain  ${output}  Error response from daemon
-    ${disk-size}=  Run  docker ${params} logs ${ContainerName} | grep by-label | awk '{print $2}'
+    ${rc}  ${disk-size}=  Run And Return Rc And Output  docker ${params} logs ${ContainerName} | grep by-label | awk '{print $2}'
+    Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${disk-size}  96.0G
 
 Docker volume create with zero capacity
