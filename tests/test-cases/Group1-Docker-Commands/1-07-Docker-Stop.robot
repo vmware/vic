@@ -110,10 +110,8 @@ Attempt to stop a container that has been started out of band
     ${name}=  Generate Random String  15
     ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name ${name} busybox /bin/top
     Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -on=true ${vch-name}/${name}-*
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.power -on=true ${name}-*
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+
+    Power On VM OOB  ${name}-*
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} stop ${container}
     Should Be Equal As Integers  ${rc}  0
     Assert Kill Signal  ${container}  False
