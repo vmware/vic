@@ -22,14 +22,8 @@ Launch Container
 Reboot VCH
     Log To Console  Rebooting VCH ...
     ${vm}=  Get VM Name  ${vch-name}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -off=true ${vm}
-    Should Be Equal As Integers  ${rc}  0
-    Log To Console  Waiting for VCH to power off ...
-    Wait Until VM Powers Off  ${vm}
-    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -on=true ${vm}
-    Should Be Equal As Integers  ${rc}  0
-    Log To Console  Waiting for VCH to power on ...
-    Wait Until Vm Powers On  ${vm}
+    Power Off VM OOB  ${vm}
+    Power On VM OOB  ${vm}
     Log To Console  VCH Powered On
 
 *** Test Cases ***
