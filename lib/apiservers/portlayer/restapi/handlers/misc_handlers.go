@@ -25,16 +25,12 @@ import (
 )
 
 // MiscHandlersImpl is the receiver for all the misc handler methods
-type MiscHandlersImpl struct {
-	ctx *context.Context
-}
+type MiscHandlersImpl struct{}
 
 // Configure assigns functions to all the miscellaneous api handlers
 func (handler *MiscHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx *HandlerContext) {
 	api.MiscPingHandler = misc.PingHandlerFunc(handler.Ping)
 	api.MiscGetVCHInfoHandler = misc.GetVCHInfoHandlerFunc(handler.GetVCHInfo)
-
-	handler.ctx = handlerCtx.Context
 }
 
 // Ping sends an OK response to let the client know the server is up
@@ -44,8 +40,9 @@ func (handler *MiscHandlersImpl) Ping() middleware.Responder {
 
 // GetVCHInfo returns VCH-related info for a `docker info` call
 func (handler *MiscHandlersImpl) GetVCHInfo() middleware.Responder {
-	vchCPUMhz := exec.NCPU(*handler.ctx)
-	vchMemLimit := exec.MemTotal(*handler.ctx)
+	ctx := context.Background()
+	vchCPUMhz := exec.NCPU(ctx)
+	vchMemLimit := exec.MemTotal(ctx)
 
 	vchInfo := &models.VCHInfo{
 		CPUMhz:          &vchCPUMhz,

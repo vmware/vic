@@ -113,7 +113,6 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 
 	handlerCtx := &handlers.HandlerContext{
 		Session: sess,
-		Context: &ctx,
 	}
 	for _, handler := range portlayerhandlers {
 		handler.Configure(api, handlerCtx)
