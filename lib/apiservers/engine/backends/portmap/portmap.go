@@ -155,7 +155,7 @@ func (p *portMapper) forward(action iptables.Action, ip net.IP, port int, proto,
 	key := bindKey{ip: ipStr, port: port}
 	switch action {
 	case iptables.Delete:
-		//val := p.bindings[key] // lookup commands to reverse
+		// lookup commands to reverse
 		if args, ok := p.bindings[key]; ok {
 			if err := iptablesDelete(args); err != nil {
 				return err
@@ -175,6 +175,21 @@ func (p *portMapper) forward(action iptables.Action, ip net.IP, port int, proto,
 			"--dport", strconv.Itoa(port),
 			"-j", "DNAT",
 			"--to-destination", net.JoinHostPort(destAddr, strconv.Itoa(destPort))}
+		if err := iptablesRunAndCheck(action, args); err != nil {
+			return err
+		}
+		savedArgs = append(savedArgs, args)
+		p.bindings[key] = savedArgs
+
+		// allow traffic from container to container via vch external interface
+		args = []string{"VIC", "-t", string(iptables.Nat),
+			"-i", destIface,
+			"-p", proto,
+			"--dport", strconv.Itoa(port),
+			"-j", "DNAT",
+			"--to-destination", net.JoinHostPort(destAddr, strconv.Itoa(destPort)),
+			"-m", "addrtype",
+			"--dst-type", "LOCAL"}
 		if err := iptablesRunAndCheck(action, args); err != nil {
 			return err
 		}
