@@ -165,6 +165,12 @@ From the root directory of the `vic` repository run `drone exec -trusted -cache 
 
    *Solution:* Edit the `/etc/default/docker` file, add the option `--storage-driver=overlay` to the `DOCKER_OPTS` settings, and restart Docker.
 
+2. `go vet` fails when doing a `make all`
+
+    *Cause:* Apparently some caching takes place in `$GOPATH/pkg/linux_amd64/github.com/vmware/vic` and can cause `go vet` to fail when evaluating outdated files in this cache.
+
+    *Solution:* Delete everything under `$GOPATH/pkg/linux_amd64/github.com/vmware/vic` and re-run `make all`.
+
 ## Integration Tests
 
 [VIC Engine Integration Test Suite](tests/README.md) includes instructions to run locally.
