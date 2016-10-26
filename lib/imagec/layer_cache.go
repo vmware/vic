@@ -26,13 +26,12 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-// LCache is an in-memory cache to account for existing image layers
+// lCache is an in-memory cache to account for existing image layers
 // It is used primarily by imagec when coordinating layer downloads
 // The cache is initially hydrated by way of the image cache at startup
-type LCache struct {
-	m sync.RWMutex
-	// Layers maps from layer id to layer metadata
-	Layers map[string]*ImageWithMeta
+type lCache struct {
+	m      sync.RWMutex
+	layers map[string]*ImageWithMeta
 
 	client *client.PortLayer
 }
@@ -49,79 +48,85 @@ const (
 )
 
 var (
-	layerCache *LCache
+	layerCache *lCache
 )
 
 func init() {
-	layerCache = &LCache{
-		Layers: make(map[string]*ImageWithMeta),
+	layerCache = &lCache{
+		layers: make(map[string]*ImageWithMeta),
 	}
 }
 
 // LayerCache returns a reference to the layer cache
-func LayerCache() *LCache {
+func LayerCache() *lCache {
 	return layerCache
 }
 
-// NewLayerCache will create a new layer cache or rehydrate an
+// InitializeLayerCache will create a new layer cache or rehydrate an
 // existing layer cache from the portlayer k/v store
-func NewLayerCache(client *client.PortLayer) error {
+func InitializeLayerCache(client *client.PortLayer) error {
 	defer trace.End(trace.Begin(""))
 
 	layerCache.client = client
 
-	log.Debugf("Updating layer cache")
+	log.Debugf("Initializing layer cache")
 
 	val, err := kv.Get(client, layerCacheKey)
 	if err != nil && err != kv.ErrKeyNotFound {
 		return err
 	}
 
+	l := struct {
+		Layers map[string]*ImageWithMeta
+	}{}
+
 	if val != "" {
-		if err = json.Unmarshal([]byte(val), layerCache); err != nil {
+		if err = json.Unmarshal([]byte(val), &l); err != nil {
 			return fmt.Errorf("Failed to unmarshal layer cache: %s", err)
 		}
+
+		layerCache.layers = l.Layers
 	}
 
 	return nil
 }
 
 // Add adds a new layer to the cache
-func (lc *LCache) Add(layer *ImageWithMeta) {
+func (lc *lCache) Add(layer *ImageWithMeta) {
 	defer trace.End(trace.Begin(""))
 	lc.m.Lock()
 	defer lc.m.Unlock()
 
-	lc.Layers[layer.ID] = layer
+	lc.layers[layer.ID] = layer
 }
 
 // Remove removes a layer from the cache
-func (lc *LCache) Remove(id string) {
+func (lc *lCache) Remove(id string) {
 	defer trace.End(trace.Begin(""))
 	lc.m.Lock()
 	defer lc.m.Unlock()
 
-	delete(lc.Layers, id)
+	delete(lc.layers, id)
 }
 
 // Commit marks a layer as downloaded
-func (lc *LCache) Commit(layer *ImageWithMeta) {
+func (lc *lCache) Commit(layer *ImageWithMeta) {
 	defer trace.End(trace.Begin(""))
 	lc.m.Lock()
 	defer lc.Save()
 	defer lc.m.Unlock()
 
-	lc.Layers[layer.ID] = layer
-	lc.Layers[layer.ID].Downloading = false
+	lc.layers[layer.ID] = layer
+	lc.layers[layer.ID].Downloading = false
 }
 
 // Get returns a cached layer, or LayerNotFoundError if it doesn't exist
-func (lc *LCache) Get(id string) (*ImageWithMeta, error) {
+func (lc *lCache) Get(id string) (*ImageWithMeta, error) {
 	defer trace.End(trace.Begin(""))
 	lc.m.RLock()
 	defer lc.m.RUnlock()
 
-	layer, ok := lc.Layers[id]
+	layer, ok := lc.layers[id]
 	if !ok {
 		return nil, LayerNotFoundError{}
 	}
@@ -130,12 +135,18 @@ func (lc *LCache) Get(id string) (*ImageWithMeta, error) {
 }
 
 // Save will persist the image cache to the portlayer k/v store
-func (lc *LCache) Save() error {
+func (lc *lCache) Save() error {
 	defer trace.End(trace.Begin(""))
 	lc.m.Lock()
 	defer lc.m.Unlock()
 
-	bytes, err := json.Marshal(lc)
+	m := struct {
+		Layers map[string]*ImageWithMeta
+	}{
+		Layers: lc.layers,
+	}
+
+	bytes, err := json.Marshal(m)
 	if err != nil {
 		log.Errorf("Unable to marshal layer cache: %s", err.Error())
 		return err

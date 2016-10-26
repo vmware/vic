@@ -124,14 +124,14 @@ func hydrateCaches() error {
 	wg.Add(waiters)
 	errors := make(chan error, waiters)
 
-	log.Info("Refreshing layer cache")
+	log.Info("Initializing layer cache")
 	go func() {
 		defer wg.Done()
-		if err := imagec.NewLayerCache(portLayerClient); err != nil {
-			errors <- fmt.Errorf("Failed to update layer cache: %s", err)
+		if err := imagec.InitializeLayerCache(portLayerClient); err != nil {
+			errors <- fmt.Errorf("Failed to initialize layer cache: %s", err)
 			return
 		}
-		log.Info("Layer cache updated successfully")
+		log.Info("Layer cache initialized successfully")
 		errors <- nil
 	}()
 
