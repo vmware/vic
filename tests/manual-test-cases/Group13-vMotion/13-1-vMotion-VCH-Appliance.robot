@@ -12,12 +12,12 @@ Step 1-5
 #    Install VIC Appliance To Test Server  ${false}  default
 #    Run Regression Tests
 #    ${host}=  Get VM Host Name  ${vch-name}
-#    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -off ${vch-name}/${vch-name}
+#    Power Off VM OOB  ${vch-name}
 #    ${status}=  Run Keyword And Return Status  Should Contain  ${host}  ${esx1-ip}
 #    Run Keyword If  ${status}  Run  govc vm.migrate -host cls/${esx2-ip} -pool cls/Resources ${vch-name}/${vch-name}
 #    Run Keyword Unless  ${status}  Run  govc vm.migrate -host cls/${esx1-ip} -pool cls/Resources ${vch-name}/${vch-name}
 #    Set Suite Variable  ${vch-name}  "${vch-name} (1)"
-#    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.power -on ${vch-name}
+#    Power On VM OOB  ${vch-name}
 #    Run Regression Tests
 #    Cleanup VIC Appliance On Test Server
 
