@@ -10,13 +10,13 @@ Get resource pool CPU and mem values
 
     ${cpuline}=  Get Lines Containing String  ${info}  CPUs:
     ${memline}=  Get Lines Containing String  ${info}  Total Memory:
-    ${cpuline}=  Split String  ${cpuline}
+    @{cpuline}=  Split String  ${cpuline}
     Length Should Be  ${cpuline}  2
-    ${memline}=  Split String  ${memline}
+    @{memline}=  Split String  ${memline}
     Length Should Be  ${memline}  4
-    ${cpuval}=  Get From List  ${cpuline}  1
-    ${memunit}=  Get From List  ${memline}  3
-    ${memval}=  Get From List  ${memline}  2
+    ${cpuval}=  Set Variable  @{cpuline}[1]
+    ${memunit}=  Set Variable  @{memline}[3]
+    ${memval}=  Set Variable  @{memline}[2]
     # Since govc accepts a mem value only in MB, convert the value if necessary
     ${memval}=  Run Keyword If  '${memunit}' == 'GiB'  Evaluate  int(round(${memval}*1024))  ELSE  Evaluate  ${memval}
 
@@ -26,15 +26,12 @@ Set resource pool CPU and mem values
     [Arguments]  ${cpuval}  ${memval}
 
     ${rc}  ${output}=  Run And Return Rc And Output  govc pool.change -cpu.limit=${cpuval} %{TEST_RESOURCE}/${vch-name}
-    Log To Console  ${output}
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  govc pool.change -mem.limit=${memval} %{TEST_RESOURCE}/${vch-name}
-    Log To Console  ${output}
     Should Be Equal As Integers  ${rc}  0
 
 *** Test Cases ***
 Basic Info
-    Log To Console  \nRunning docker info command...
     ${output}=  Run  docker ${params} info
     Log  ${output}
     Should Contain  ${output}  vSphere
