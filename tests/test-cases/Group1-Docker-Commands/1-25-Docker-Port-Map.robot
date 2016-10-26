@@ -64,56 +64,59 @@ Create container without specifying host port
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-#Run and exit with mapped ports
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm -f $(docker ${params} ps -aq)
-#    Should Be Equal As Integers  ${rc}  0
-#
-#    ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo1
-#    ${result}=  Start Process  docker ${params} run -i --name ctr1 -p 1900:9999 -p 2200:2222 busybox /bin/top < /tmp/fifo1  shell=True  alias=sh1
-#    Sleep  5
-#    ${rc}  ${output}=  Run And Return Rc And Output  echo q > /tmp/fifo1
-#    ${result}=  Wait for process  sh1
-#    Log  ${result.stdout}
-#    Log  ${result.stderr}
-#
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
-#    Log  ${output}
-#    Should Contain X Times  ${output}  Exited  1
-#
-#    ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo2
-#    ${result}=  Start Process  docker ${params} run -i --name ctr2 -p 1900:9999 -p 3300:3333 busybox /bin/top < /tmp/fifo2  shell=True  alias=sh2
-#    Sleep  5
-#    ${rc}  ${output}=  Run And Return Rc And Output  echo q > /tmp/fifo2
-#    ${result}=  Wait for process  sh2
-#    Log  ${result.stdout}
-#    Log  ${result.stderr}
-#    Should Be Equal As Integers  ${result.rc}  0
-#
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
-#    Log  ${output}
-#    Should Contain X Times  ${output}  Exited  2
-#
-#Remap mapped ports after OOB Stop
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm -f $(docker ${params} ps -aq)
-#    Should Be Equal As Integers  ${rc}  0
-#
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p 10000:80 -p 10001:80 --name ctr3 busybox
-#    Should Be Equal As Integers  ${rc}  0
-#    Should Not Contain  ${output}  Error
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ctr3
-#    Should Be Equal As Integers  ${rc}  0
-#    Should Not Contain  ${output}  Error
-#
-#    # PowerOff VM out-of-band
-#    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -off ${vch-name}/"ctr3*"
-#    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.power -off "ctr3*"
-#    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-#    Wait Until VM Powers Off  "ctr3*"
-#
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p 10000:80 -p 20000:22222 --name ctr4 busybox
-#    Should Be Equal As Integers  ${rc}  0
-#    Should Not Contain  ${output}  Error
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ctr4
-#    Should Be Equal As Integers  ${rc}  0
-#    Should Not Contain  ${output}  Error
+Run after exit remapping mapped ports
+    Pass Execution  Disabled until we can figure out how to do attach in Robot tests
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm -f $(docker ${params} ps -aq)
+
+    ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo1
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -id --name ctr1 -p 1900:9999 -p 2200:2222 busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} attach ctr1 < /tmp/fifo1
+    Should Be Equal As Integers  ${rc}  0
+    Sleep  5
+    ${rc}  ${output}=  Run And Return Rc And Output  echo q > /tmp/fifo1
+    ${result}=  Wait for process  sh1
+    Log  ${result.stdout}
+    Log  ${result.stderr}
+    Should Be Equal As Integers  ${result.rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
+    Log  ${output}
+    Should Not Contain  ${output}  Running
+
+    ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo2
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -id --name ctr2 -p 1900:9999 -p 3300:3333 busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} attach ctr2 < /tmp/fifo2
+    Should Be Equal As Integers  ${rc}  0
+    Sleep  5
+    ${rc}  ${output}=  Run And Return Rc And Output  echo q > /tmp/fifo2
+    ${result}=  Wait for process  sh2
+    Log  ${result.stdout}
+    Log  ${result.stderr}
+    Should Be Equal As Integers  ${result.rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
+    Log  ${output}
+    Should Not Contain  ${output}  Running
+
+Remap mapped ports after OOB Stop
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm -f $(docker ${params} ps -aq)
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p 10000:80 -p 10001:80 --name ctr3 busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ctr3
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
+    Power Off VM OOB  ctr3*
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p 10000:80 -p 20000:22222 --name ctr4 busybox
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ctr4
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error

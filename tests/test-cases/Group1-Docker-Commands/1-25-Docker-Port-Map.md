@@ -61,7 +61,7 @@ This test requires that a vSphere server is running and available
 * Steps 1-3 should return without error
 
 
-## Run and exit with mapped ports
+## Run after exit remapping mapped ports
 1. Deploy VIC appliance to vSphere server
 2. Issue `docker run -i -p 1900:9999 -p 2200:2222 busybox /bin/top`
 3. Issue `q` to the container
