@@ -138,11 +138,11 @@ func hydrateCaches() error {
 	log.Info("Refreshing image cache")
 	go func() {
 		defer wg.Done()
-		if err := cache.NewImageCache(portLayerClient); err != nil {
-			errors <- fmt.Errorf("Failed to refresh image cache: %s", err)
+		if err := cache.InitializeImageCache(portLayerClient); err != nil {
+			errors <- fmt.Errorf("Failed to initialize image cache: %s", err)
 			return
 		}
-		log.Info("Image cache updated successfully")
+		log.Info("Image cache initialized successfully")
 		errors <- nil
 	}()
 
