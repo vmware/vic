@@ -63,7 +63,10 @@ Create and start named container
     Should Not Contain  ${output}  Error
 
 Create linked containers that can ping
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create --link busy1:busy1 --name busy2 busybox ping -c2 busy1
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull debian
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create --link busy1:busy1 --name busy2 debian ping -c2 busy1
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start busy2
