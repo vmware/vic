@@ -231,13 +231,13 @@ Gather Logs From Test Server
     ${status}  ${message}=  Run Keyword And Ignore Error  Should Not Contain  ${params}  --tls
     # Non-certificate case
     ${ip}=  Run Keyword If  '${status}'=='PASS'  Split String  ${params}  :
-    Run Keyword If  '${status}'=='PASS'  Run  wget ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
+    Run Keyword If  '${status}'=='PASS'  Run  wget --tries=3 --connection-timeout=10 ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
     # Certificate case
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  ${params}  ${SPACE}
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  @{ip}[1]  :
     ${docker_cert_path}=  Get Environment Variable  DOCKER_CERT_PATH  ${EMPTY}
     ${wget_args}=  Set Variable If  '${docker_certpath}'==''  ${EMPTY}  --private-key=%{DOCKER_CERT_PATH}/key.pem --certificate=%{DOCKER_CERT_PATH}/cert.pem
-    Run Keyword If  '${status}'=='FAIL'  Run  wget ${wget_args} --no-check-certificate ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
+    Run Keyword If  '${status}'=='FAIL'  Run  wget ${wget_args} --tries=3 --connection-timeout=10 --no-check-certificate ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
 
 Gather Logs From ESX Server
     Environment Variable Should Be Set  TEST_URL
