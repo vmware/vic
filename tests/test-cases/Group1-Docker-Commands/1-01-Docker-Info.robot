@@ -18,7 +18,7 @@ Get resource pool CPU and mem values
     ${memunit}=  Set Variable  @{memline}[3]
     ${memval}=  Set Variable  @{memline}[2]
     # Since govc accepts a mem value only in MB, convert the value if necessary
-    ${memval}=  Run Keyword If  '${memunit}' == 'GiB'  Evaluate  int(round(${memval}*1024))  ELSE  Evaluate  ${memval}
+    ${memval}=  Run Keyword If  '${memunit}' == 'GiB'  Evaluate  int(round(${memval} * 1024))  ELSE  Evaluate  ${memval}
 
     [Return]  ${cpuval}  ${memval}
 
@@ -74,8 +74,8 @@ Check modified resource pool CPU and memory values
 
     ${oldcpuval}  ${oldmemval}=  Get resource pool CPU and mem values  ${output}
 
-    Set Suite Variable  ${newcpuval}  2950
-    Set Suite Variable  ${newmemval}  860
+    ${newcpuval}=  Evaluate  ${oldcpuval} - 1
+    ${newmemval}=  Evaluate  ${oldmemval} - 1
     Set resource pool CPU and mem values  ${newcpuval}  ${newmemval}
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} info
