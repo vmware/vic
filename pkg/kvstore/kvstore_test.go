@@ -15,12 +15,8 @@
 package kvstore
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"os"
 	"strconv"
 	"sync"
 	"testing"
@@ -30,47 +26,17 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
-type MockBackend struct {
-	buf []byte
-}
-
-// Creates path and ovewrites whatever is there
-func (m *MockBackend) Upload(ctx context.Context, r io.Reader, pth string) error {
-	buf, err := ioutil.ReadAll(r)
-	if err != nil {
-		return err
-	}
-
-	m.buf = buf
-
-	return nil
-}
-
-func (m *MockBackend) Download(ctx context.Context, pth string) (io.ReadCloser, error) {
-	if len(m.buf) == 0 {
-		return nil, os.ErrNotExist
-	}
-
-	return ioutil.NopCloser(bytes.NewReader(m.buf)), nil
-}
-
-func (m *MockBackend) Mv(ctx context.Context, fromPath, toPath string) error {
-	return nil
-}
-
-func save(t *testing.T, kv *KeyValueStore, key string, expectedvalue []byte) {
+func save(t *testing.T, kv KeyValueStore, key string, expectedvalue []byte) {
 	op := trace.NewOperation(context.Background(), "save")
 
-	if !assert.NoError(t, kv.Set(op, key, expectedvalue)) {
+	if !assert.NoError(t, kv.Put(op, key, expectedvalue)) {
 		return
 	}
 }
 
-func get(t *testing.T, kv *KeyValueStore, key string, expectedval []byte) {
-	op := trace.NewOperation(context.Background(), "get")
-
+func get(t *testing.T, kv KeyValueStore, key string, expectedval []byte) {
 	// get the value we added
-	v, err := kv.Get(op, key)
+	v, err := kv.Get(key)
 	if !assert.NoError(t, err) || !assert.NotNil(t, v) || !assert.Equal(t, expectedval, v) {
 		return
 	}
@@ -176,7 +142,7 @@ func TestAddAndGet(t *testing.T) {
 				return
 			}
 
-			_, err := thirdkv.Get(op, key)
+			_, err := thirdkv.Get(key)
 			if !assert.Error(t, err) {
 				return
 			}
@@ -194,7 +160,7 @@ func TestAddAndGet(t *testing.T) {
 	for k := range expected {
 		go func(key string) {
 			defer wg.Done()
-			_, err := fourthkv.Get(op, key)
+			_, err := fourthkv.Get(key)
 			if !assert.Error(t, err) {
 				return
 			}
