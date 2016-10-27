@@ -16,7 +16,7 @@
 
 echo "Removing VIC directory if present"
 echo "Cleanup logs from previous run"
-rm -rf bin 5-1-DistributedSwitch 5-2-Cluster 5-4-High-Availability 5-5-Heterogenous-ESXi 5-6-1-VSAN-Simple 5-6-2-VSAN-Complex 5-7-NSX 5-8-DRS 5-10-Multiple-Datacenter 5-11-MultipleCluster
+rm -rf bin 5-1-DistributedSwitch 5-2-Cluster 5-3-EnhancedLinkedMode 5-5-Heterogenous-ESXi 5-6-1-VSAN-Simple 5-6-2-VSAN-Complex 5-7-NSX 5-8-DRS 5-10-Multiple-Datacenter 5-11-MultipleCluster
 rm -rf *.zip *.log
 
 input=$(wget -O - https://vmware.bintray.com/vic-repo |tail -n5 |head -n1 |cut -d':' -f 2 |cut -d'.' -f 3| cut -d'>' -f 2)
@@ -71,6 +71,7 @@ fi
 mv *.log 5-3-EnhancedLinkedMode
 mv *.zip 5-3-EnhancedLinkedMode
 
+<<'Comment'
 drone exec --trusted -e test="pybot -d 5-4-High-Availability tests/manual-test-cases/Group5-Functional-Tests/5-4-High-Availability.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 if [ $? -eq 0 ]
 then
@@ -81,6 +82,7 @@ fi
 
 mv *.log 5-4-High-Availability
 mv *.zip 5-4-High-Availability
+Comment
 
 drone exec --trusted -e test="pybot -d 5-5-Heterogenous-ESXi tests/manual-test-cases/Group5-Functional-Tests/5-5-Heterogenous-ESXi.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 if [ $? -eq 0 ]
@@ -159,7 +161,7 @@ fi
 mv *.log 5-11-MultipleCluster
 mv *.zip 5-11-MultipleCluster
 
-if [[ $DistributedSwitchStatus = "Passed" && $ClusterStatus = "Passed" && $EnhancedLinkedModeStatus = "Passed" &&  $HighAvailabilityStatus = "Passed" && $HeterogenousStatus = "Passed" && $VSANStatus = "Passed" && $VSANComplexStatus = "Passed" && $NSXStatus = "Passed" &&  $DRSStatus = "Passed" && $MultipleDCStatus =  "Passed" && $MultipleClusterStatus = "Passed" ]]
+if [[ $DistributedSwitchStatus = "Passed" && $ClusterStatus = "Passed" && $EnhancedLinkedModeStatus = "Passed" && $HeterogenousStatus = "Passed" && $VSANStatus = "Passed" && $VSANComplexStatus = "Passed" && $NSXStatus = "Passed" &&  $DRSStatus = "Passed" && $MultipleDCStatus =  "Passed" && $MultipleClusterStatus = "Passed" ]]
 then
 buildStatus=0
 else
@@ -175,8 +177,7 @@ if [ $buildStatus -eq 0 ]
 then
 echo "Success"
 cat <<EOT >> nightly_mail.html
-To: mwilliamson@vmware.com
-To: mhagen@vmware.com
+To: mwilliamson-staff-adl@vmware.com
 To: rashok@vmware.com
 Subject: VIC Nightly Run #$buildNumber
 From: VIC Nightly
@@ -402,7 +403,7 @@ Content-Type: text/html
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
-                        DistributedSwitch:
+                        Distributed Switch:
                       </td>
                       <td>
                         $DistributedSwitchStatus
@@ -418,18 +419,10 @@ Content-Type: text/html
                     </tr>
                     <tr>
                       <td>
-                        EnhancedLinkedMode:
+                        Enhanced Linked Mode:
                       </td>
                       <td>
                         $EnhancedLinkedModeStatus
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        HighAvailability:
-                      </td>
-                      <td>
-                        $HighAvailabilityStatus
                       </td>
                     </tr>
                     <tr>
@@ -442,7 +435,7 @@ Content-Type: text/html
                     </tr>
 		    <tr>
                       <td>
-                        VSAN:
+                        VSAN Simple:
                       </td>
                       <td>
                         $VSANStatus
@@ -474,7 +467,7 @@ Content-Type: text/html
                     </tr>
                     <tr>
                       <td>
-                        MultipleDatacenter:
+                        Multiple Datacenter:
                       </td>
                       <td>
                         $MultipleDCStatus
@@ -482,7 +475,7 @@ Content-Type: text/html
                     </tr>
                     <tr>
                       <td>
-                        MultipleCluster:
+                        Multiple Cluster:
                       </td>
                       <td>
                         $MultipleClusterStatus
@@ -511,8 +504,7 @@ EOT
 else
 echo "Failure"
 cat <<EOT >> nightly_mail.html
-To: mwilliamson@vmware.com
-To: mhagen@vmware.com
+To: mwilliamson-staff-adl@vmware.com
 To: rashok@vmware.com
 Subject: VIC Nightly Run #$buildNumber
 From: VIC Nightly
@@ -738,7 +730,7 @@ Content-Type: text/html
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
-                        DistributedSwitch:
+                        Distributed Switch:
                       </td>
                       <td>
                         $DistributedSwitchStatus
@@ -754,18 +746,10 @@ Content-Type: text/html
                     </tr>
                     <tr>
                       <td>
-                        EnhancedLinkedMode:
+                        Enhanced Linked Mode:
                       </td>
                       <td>
                         $EnhancedLinkedModeStatus
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        HighAvailability:
-                      </td>
-                      <td>
-                        $HighAvailabilityStatus
                       </td>
                     </tr>
                     <tr>
@@ -778,7 +762,7 @@ Content-Type: text/html
                     </tr>
                     <tr>
                       <td>
-                        VSAN:
+                        VSAN Simple:
                       </td>
                       <td>
                         $VSANStatus
@@ -810,7 +794,7 @@ Content-Type: text/html
                     </tr>
                     <tr>
                       <td>
-                        MultipleDatacenter:
+                        Multiple Datacenter:
                       </td>
                       <td>
                         $MultipleDCStatus
@@ -818,7 +802,7 @@ Content-Type: text/html
                     </tr>
                     <tr>
                       <td>
-                        MultipleCluster:
+                        Multiple Cluster:
                       </td>
                       <td>
                         $MultipleClusterStatus
