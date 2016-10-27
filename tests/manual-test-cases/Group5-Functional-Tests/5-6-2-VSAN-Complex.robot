@@ -22,7 +22,7 @@ Complex VSAN
 
     Create Three Distributed Port Groups  vcqaDC
 
-    Add Host To Distributed Switch  /vcqaDC/host/cls
+    Add Host To Distributed Switch  /vcqaDC/host/cluster-vsan-1
 
     Log To Console  Enable DRS and VSAN on the cluster
     ${out}=  Run  govc cluster.change -drs-enabled /vcqaDC/host/cluster-vsan-1
