@@ -32,7 +32,6 @@ Remove a stopped container
     ${rc}  ${output}=  Run And Return Rc And Output  govc ls vm
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  ${container}
-    ${status}=  Get State Of Github Issue  1313
     ${rc}  ${output}=  Run And Return Rc And Output  govc datastore.ls
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  ${container}

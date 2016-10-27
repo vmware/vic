@@ -47,7 +47,10 @@ Docker run named container
     Should Be Equal As Integers  ${rc}  0
 
 Docker run linked containers
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --link busy3:busy3 busybox ping -c2 busy3
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull debian
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --link busy3:busy3 debian ping -c2 busy3
     Should Be Equal As Integers  ${rc}  0
 
 Docker run df command
