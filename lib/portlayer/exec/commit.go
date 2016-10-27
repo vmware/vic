@@ -59,7 +59,7 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 		var err error
 		if sess.IsVC() && Config.VirtualApp.ResourcePool != nil {
 			// Create the vm
-			res, err = tasks.WaitForResult(ctx, sess, Config.VirtualApp, func(ctx context.Context) (tasks.Task, error) {
+			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 				return Config.VirtualApp.CreateChildVM_Task(ctx, *h.Spec.Spec(), nil)
 			})
 		} else {
@@ -73,7 +73,7 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 			parent := folders.VmFolder
 
 			// Create the vm
-			res, err = tasks.WaitForResult(ctx, sess, parent, func(ctx context.Context) (tasks.Task, error) {
+			res, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 				return parent.CreateVM(ctx, *h.Spec.Spec(), Config.ResourcePool, nil)
 			})
 		}
@@ -157,7 +157,7 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 					s.ExtraConfig = nil
 				}
 
-				_, err := tasks.WaitForResult(ctx, sess, h.vm, func(ctx context.Context) (tasks.Task, error) {
+				_, err := h.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 					return h.vm.Reconfigure(ctx, *s)
 				})
 				if err != nil {

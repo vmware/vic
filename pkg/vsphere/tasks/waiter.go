@@ -18,19 +18,14 @@ package tasks
 
 import (
 	"context"
-	"errors"
 	"math/rand"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/progress"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
-
-	"github.com/vmware/vic/pkg/vsphere/session"
-	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 const (
@@ -46,21 +41,21 @@ type Task interface {
 
 // Wait wraps govmomi operations and wait the operation to complete
 // Sample usage:
-//    info, err := Wait(ctx, func(ctx), sess *session.Session, *object.Reference, (*object.Reference, *TaskInfo, error) {
-//       return vm, vm.Reconfigure(ctx, sess, target, config)
+//    info, err := Wait(ctx, func(ctx), (*object.Reference, *TaskInfo, error) {
+//       return vm, vm.Reconfigure(ctx, config)
 //    })
-func Wait(ctx context.Context, sess *session.Session, target object.Reference, f func(context.Context) (Task, error)) error {
-	_, err := WaitForResult(ctx, sess, target, f)
+func Wait(ctx context.Context, f func(context.Context) (Task, error)) error {
+	_, err := WaitForResult(ctx, f)
 	return err
 }
 
 // WaitForResult wraps govmomi operations and wait the operation to complete.
 // Return the operation result
 // Sample usage:
-//    info, err := WaitForResult(ctx, sess *session.Session, *object.Reference, func(ctx) (*TaskInfo, error) {
+//    info, err := WaitForResult(ctx, func(ctx) (*TaskInfo, error) {
 //       return vm, vm.Reconfigure(ctx, config)
 //    })
-func WaitForResult(ctx context.Context, sess *session.Session, target object.Reference, f func(context.Context) (Task, error)) (*types.TaskInfo, error) {
+func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (*types.TaskInfo, error) {
 	var err error
 	var info *types.TaskInfo
 	var backoffFactor int64 = 1
@@ -75,16 +70,8 @@ func WaitForResult(ctx context.Context, sess *session.Session, target object.Ref
 		}
 
 		log.Errorf("task failed: %s", err)
-		if !needsRetry(target, err) {
+		if !isTaskInProgress(err) {
 			return info, err
-		}
-
-		if needsFix(target, err) {
-			if nerr := fixTask(ctx, sess, target); nerr != nil {
-				log.Errorf("Failed to fix task failure: %s", nerr)
-				return info, err
-			}
-			log.Debugf("Fixed error: %s", err)
 		}
 
 		sleepValue := time.Duration(backoffFactor * (rand.Int63n(100) + int64(50)))
@@ -99,56 +86,6 @@ func WaitForResult(ctx context.Context, sess *session.Session, target object.Ref
 		}
 
 		log.Warnf("retrying task")
-	}
-}
-
-func fixTask(ctx context.Context, sess *session.Session, target object.Reference) error {
-	switch vmm := target.(type) {
-	case *object.VirtualMachine:
-		vm := vm.NewVirtualMachine(ctx, sess, target.Reference())
-		err := vm.FixInvalidState(ctx)
-		// make sure original object is updated, to make sure task retry works
-		vmm.Common = vm.Common
-		return err
-	case *vm.VirtualMachine:
-		return vmm.FixInvalidState(ctx)
-	default:
-		return errors.New("Unable to fix non-vm object")
-	}
-}
-
-// check if task is in progress, or vm is in invalid state.
-func needsRetry(target object.Reference, err error) bool {
-	if isTaskInProgress(err) {
-		return true
-	}
-	if needsFix(target, err) {
-		return true
-	}
-	return false
-}
-
-func needsFix(target object.Reference, err error) bool {
-	f, ok := err.(types.HasFault)
-	if !ok {
-		return false
-	}
-	switch f.Fault().(type) {
-	case *types.InvalidState:
-	default:
-		log.Debugf("Do not fix non invalid state error")
-		return false
-	}
-	if target == nil {
-		log.Debugf("Do not fix nil object")
-		return false
-	}
-	switch target.(type) {
-	case *object.VirtualMachine, *vm.VirtualMachine:
-		return true
-	default:
-		log.Debugf("Unable to fix non-vm object: %#v", target)
-		return false
 	}
 }
 

@@ -121,7 +121,7 @@ func (d *Dispatcher) destroyResourcePoolIfEmpty(conf *config.VirtualContainerHos
 		err = errors.Errorf("Resource pool is not empty: %q", rp.Name())
 		return err
 	}
-	if _, err := tasks.WaitForResult(d.ctx, d.session, rp, func(ctx context.Context) (tasks.Task, error) {
+	if _, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return rp.Destroy(ctx)
 	}); err != nil {
 		return err

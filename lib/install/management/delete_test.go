@@ -122,7 +122,7 @@ func createAppliance(ctx context.Context, sess *session.Session, conf *config.Vi
 
 	// create appliance VM
 	folder := d.session.Folders(ctx).VmFolder
-	info, err := tasks.WaitForResult(d.ctx, d.session, folder, func(ctx context.Context) (tasks.Task, error) {
+	info, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return folder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
 	})
 	// get VM reference and save it

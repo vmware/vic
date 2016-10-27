@@ -455,7 +455,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	dsPath := fmt.Sprintf("[%s] %s", url.Host, url.Path)
 
 	//removes the vm from vsphere, but detaches the disks first
-	_, err = tasks.WaitForResult(ctx, c.vm.Session, c.vm, func(ctx context.Context) (tasks.Task, error) {
+	_, err = c.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return c.vm.DeleteExceptDisks(ctx)
 	})
 	if err != nil {
@@ -481,7 +481,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	// remove from datastore
 	fm := object.NewFileManager(c.vm.Client.Client)
 
-	if _, err = tasks.WaitForResult(ctx, c.vm.Session, fm, func(ctx context.Context) (tasks.Task, error) {
+	if _, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return fm.DeleteDatastoreFile(ctx, dsPath, sess.Datacenter)
 	}); err != nil {
 		// at this phase error doesn't matter. Just log it.

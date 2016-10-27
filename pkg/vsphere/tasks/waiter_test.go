@@ -70,7 +70,7 @@ func createResultWaiter(context.Context) (Task, error) {
 
 func TestFailedInvokeResult(t *testing.T) {
 	ctx := context.TODO()
-	_, err := WaitForResult(ctx, nil, nil, func(ctx context.Context) (Task, error) {
+	_, err := WaitForResult(ctx, func(ctx context.Context) (Task, error) {
 		return createFailedTask(ctx)
 	})
 	if err == nil || !strings.Contains(err.Error(), "Create VM failed") {
@@ -80,7 +80,7 @@ func TestFailedInvokeResult(t *testing.T) {
 
 func TestFailedWaitResult(t *testing.T) {
 	ctx := context.TODO()
-	_, err := WaitForResult(ctx, nil, nil, func(ctx context.Context) (Task, error) {
+	_, err := WaitForResult(ctx, func(ctx context.Context) (Task, error) {
 		return createFailedResultWaiter(ctx)
 	})
 	log.Debugf("got error: %s", err.Error())
@@ -91,7 +91,7 @@ func TestFailedWaitResult(t *testing.T) {
 
 func TestSuccessWaitResult(t *testing.T) {
 	ctx := context.TODO()
-	_, err := WaitForResult(ctx, nil, nil, func(ctx context.Context) (Task, error) {
+	_, err := WaitForResult(ctx, func(ctx context.Context) (Task, error) {
 		return createResultWaiter(ctx)
 	})
 	if err != nil {
@@ -119,7 +119,7 @@ func createWaiter(context.Context) (Task, error) {
 
 func TestFailedInvoke(t *testing.T) {
 	ctx := context.TODO()
-	err := Wait(ctx, nil, nil, func(ctx context.Context) (Task, error) {
+	err := Wait(ctx, func(ctx context.Context) (Task, error) {
 		return createFailed(ctx)
 	})
 	if err == nil || !strings.Contains(err.Error(), "Create VM failed") {
@@ -129,7 +129,7 @@ func TestFailedInvoke(t *testing.T) {
 
 func TestFailedWait(t *testing.T) {
 	ctx := context.TODO()
-	err := Wait(ctx, nil, nil, func(ctx context.Context) (Task, error) {
+	err := Wait(ctx, func(ctx context.Context) (Task, error) {
 		return createFailedWaiter(ctx)
 	})
 	log.Debugf("got error: %s", err.Error())
@@ -140,7 +140,7 @@ func TestFailedWait(t *testing.T) {
 
 func TestSuccessWait(t *testing.T) {
 	ctx := context.TODO()
-	err := Wait(ctx, nil, nil, func(ctx context.Context) (Task, error) {
+	err := Wait(ctx, func(ctx context.Context) (Task, error) {
 		return createWaiter(ctx)
 	})
 	if err != nil {
@@ -195,7 +195,7 @@ func TestRetry(t *testing.T) {
 	mustRunInTime(t, 2*time.Second, func() {
 		ctx := context.Background()
 		i := 0
-		ti, err := WaitForResult(ctx, nil, nil, func(_ context.Context) (Task, error) {
+		ti, err := WaitForResult(ctx, func(_ context.Context) (Task, error) {
 			i++
 			return nil, assert.AnError
 		})
@@ -213,7 +213,7 @@ func TestRetry(t *testing.T) {
 				LocalizedMessage: "random fault",
 			},
 		}
-		ti, err = WaitForResult(ctx, nil, nil, func(_ context.Context) (Task, error) {
+		ti, err = WaitForResult(ctx, func(_ context.Context) (Task, error) {
 			i++
 			return nil, e
 		})
@@ -226,7 +226,7 @@ func TestRetry(t *testing.T) {
 		// context cancelled after two retries
 		i = 0
 		ctx, cancel := context.WithCancel(ctx)
-		ti, err = WaitForResult(ctx, nil, nil, func(_ context.Context) (Task, error) {
+		ti, err = WaitForResult(ctx, func(_ context.Context) (Task, error) {
 			i++
 			if i == 2 {
 				cancel()
@@ -251,7 +251,7 @@ func TestRetry(t *testing.T) {
 			},
 		}
 		i = 0
-		ti, err = WaitForResult(context.Background(), nil, nil, func(_ context.Context) (Task, error) {
+		ti, err = WaitForResult(context.Background(), func(_ context.Context) (Task, error) {
 			i++
 			if i == 2 {
 				return tsk, nil
@@ -275,7 +275,7 @@ func TestRetry(t *testing.T) {
 				},
 			},
 		}
-		ti, err = WaitForResult(context.Background(), nil, nil, func(_ context.Context) (Task, error) {
+		ti, err = WaitForResult(context.Background(), func(_ context.Context) (Task, error) {
 			return tsk, nil
 		})
 
@@ -288,7 +288,7 @@ func TestRetry(t *testing.T) {
 		// and then return nil error
 		tsk.cur = 0
 		tsk.err = nil
-		ti, err = WaitForResult(context.Background(), nil, nil, func(_ context.Context) (Task, error) {
+		ti, err = WaitForResult(context.Background(), func(_ context.Context) (Task, error) {
 			return tsk, nil
 		})
 

@@ -168,27 +168,42 @@ func eventCallback(ie events.Event) {
 			log.Errorf("Failed to get event VM mobref: %s", ie.Reference())
 			return
 		}
-		var vm mo.VirtualMachine
-
-		// current attributes we care about
-		attrib := []string{"config", "runtime.powerState", "summary", "resourcePool"}
-
-		// populate the vm properties
-		ctx := context.Background()
-		if err := eventSession.RetrieveOne(ctx, *moref, attrib, &vm); err != nil {
-			log.Errorf("Failed to query registered vm object %s: %s", ie.Reference(), err)
+		if !isManagedbyVCH(*moref) {
 			return
 		}
-		if *vm.ResourcePool != Config.ResourcePool.Reference() {
-			log.Debugf("container vm %q does not belong to this VCH, ignoring", vm.Config.Name)
+		log.Debugf("Register container VM %s", moref)
+		ctx := context.Background()
+		vms, err := populateVMAttributes(ctx, eventSession, []types.ManagedObjectReference{*moref})
+		if err != nil {
+			log.Error(err)
+			return
 		}
-		registeredContainers := convertInfraContainers(ctx, eventSession, []mo.VirtualMachine{vm})
+		registeredContainers := convertInfraContainers(ctx, eventSession, vms)
 		for i := range registeredContainers {
 			Containers.put(registeredContainers[i])
-			log.Debugf("Registered container %q", vm.Config.Name)
+			log.Debugf("Registered container %q", registeredContainers[i].Config.Name)
 		}
 	}
 	return
+}
+
+func isManagedbyVCH(moref types.ManagedObjectReference) bool {
+	var vm mo.VirtualMachine
+
+	// current attributes we care about
+	attrib := []string{"config"}
+
+	// populate the vm properties
+	ctx := context.Background()
+	if err := eventSession.RetrieveOne(ctx, moref, attrib, &vm); err != nil {
+		log.Errorf("Failed to query registered vm object %s: %s", moref.String(), err)
+		return false
+	}
+	if *vm.ResourcePool != Config.ResourcePool.Reference() {
+		log.Debugf("container vm %q does not belong to this VCH, ignoring", vm.Config.Name)
+		return false
+	}
+	return true
 }
 
 // eventedState will determine the target container
