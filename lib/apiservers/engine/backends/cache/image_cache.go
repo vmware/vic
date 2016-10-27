@@ -69,14 +69,14 @@ func ImageCache() *ICache {
 	return imageCache
 }
 
-// NewImageCache will create a new image cache or rehydrate an
+// InitializeImageCache will create a new image cache or rehydrate an
 // existing image cache from the portlayer k/v store
 func InitializeImageCache(client *client.PortLayer) error {
 	defer trace.End(trace.Begin(""))
 
 	imageCache.client = client
 
-	log.Debugf("Updating image cache")
+	log.Debugf("Initializing image cache")
 
 	val, err := kv.Get(client, imageCacheKey)
 	if err != nil && err != kv.ErrKeyNotFound {
@@ -95,7 +95,11 @@ func InitializeImageCache(client *client.PortLayer) error {
 			return fmt.Errorf("Failed to unmarshal image cache: %s", err)
 		}
 
-		imageCache.iDIndex = i.IDIndex
+		// populate the trie with IDs
+		for k := range i.CacheByID {
+			imageCache.iDIndex.Add(k)
+		}
+
 		imageCache.cacheByID = i.CacheByID
 		imageCache.cacheByName = i.CacheByName
 	}

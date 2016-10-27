@@ -118,13 +118,12 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 
 func hydrateCaches() error {
 
-	const waiters = 4
+	const waiters = 3
 
 	wg := sync.WaitGroup{}
 	wg.Add(waiters)
 	errors := make(chan error, waiters)
 
-	log.Info("Initializing layer cache")
 	go func() {
 		defer wg.Done()
 		if err := imagec.InitializeLayerCache(portLayerClient); err != nil {
@@ -135,7 +134,6 @@ func hydrateCaches() error {
 		errors <- nil
 	}()
 
-	log.Info("Refreshing image cache")
 	go func() {
 		defer wg.Done()
 		if err := cache.InitializeImageCache(portLayerClient); err != nil {
@@ -143,11 +141,19 @@ func hydrateCaches() error {
 			return
 		}
 		log.Info("Image cache initialized successfully")
+
+		// container cache relies on image cache so we share a goroutine to update
+		// them serially
+		if err := syncContainerCache(); err != nil {
+			errors <- fmt.Errorf("Failed to update container cache: %s", err)
+			return
+		}
+		log.Info("Container cache updated successfully")
 		errors <- nil
 	}()
 
-	log.Info("Refreshing repository cache")
 	go func() {
+		log.Info("Refreshing repository cache")
 		defer wg.Done()
 		if err := cache.NewRepositoryCache(portLayerClient); err != nil {
 			errors <- fmt.Errorf("Failed to create repository cache: %s", err.Error())
@@ -155,17 +161,6 @@ func hydrateCaches() error {
 		}
 		errors <- nil
 		log.Info("Repository cache updated successfully")
-	}()
-
-	log.Info("Refreshing container cache")
-	go func() {
-		defer wg.Done()
-		if err := syncContainerCache(); err != nil {
-			errors <- fmt.Errorf("Failed to refresh container cache: %s", err)
-			return
-		}
-		log.Info("Container cache updated successfully")
-		errors <- nil
 	}()
 
 	wg.Wait()

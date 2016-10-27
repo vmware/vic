@@ -67,9 +67,9 @@ func LayerCache() *LCache {
 func InitializeLayerCache(client *client.PortLayer) error {
 	defer trace.End(trace.Begin(""))
 
-	layerCache.client = client
-
 	log.Debugf("Initializing layer cache")
+
+	layerCache.client = client
 
 	val, err := kv.Get(client, layerCacheKey)
 	if err != nil && err != kv.ErrKeyNotFound {
