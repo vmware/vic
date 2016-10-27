@@ -278,7 +278,7 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 
 	self, err := guest.GetSelf(ctx, s)
 	if err != nil {
-		log.Errorf("Unable to get handle to self for log filetering")
+		log.Errorf("Unable to get handle to self for log filtering")
 	}
 
 	log.Infof("Found %d candidate VMs in resource pool %s for log collection", len(children), ref.String())
