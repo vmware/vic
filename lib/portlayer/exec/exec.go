@@ -34,14 +34,13 @@ import (
 )
 
 var (
-	initializer  sync.Once
-	eventSession *session.Session
+	initializer sync.Once
+	initError   error
 )
 
 func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSource, _ extraconfig.DataSink) error {
 	var err error
 	initializer.Do(func() {
-		eventSession = sess
 		f := find.NewFinder(sess.Vim25(), false)
 
 		extraconfig.Decode(source, &Config)
@@ -92,6 +91,10 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 
 		// subscribe the exec layer to the event stream for Vm events
 		Config.EventManager.Subscribe(events.NewEventType(vsphere.VMEvent{}).Topic(), "exec", eventCallback)
+		// subscribe callback to handle vm registered event
+		Config.EventManager.Subscribe(events.NewEventType(vsphere.VMEvent{}).Topic(), "registeredVMEvent", func(ie events.Event) {
+			registeredVMCallback(ie, sess)
+		})
 
 		// instantiate the container cache now
 		NewContainerCache()
@@ -111,8 +114,10 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			return
 		}
 	})
-
-	return err
+	if err != nil {
+		initError = err
+	}
+	return initError
 }
 
 // eventCallback will process events
@@ -158,9 +163,19 @@ func eventCallback(ie events.Event) {
 
 			}
 		}
+	}
+	return
+}
+
+// registeredVMCallback will process registeredVMEvent
+func registeredVMCallback(ie events.Event, sess *session.Session) {
+	// check container registered event if this container is not found in container cache
+	// grab the container from the cache
+	container := Containers.Container(ie.Reference())
+	if container != nil {
+		// if container exists, ingore it
 		return
 	}
-	// check container registered event if this container is not found in container cache
 	switch ie.String() {
 	case events.ContainerRegistered:
 		moref := new(types.ManagedObjectReference)
@@ -168,17 +183,17 @@ func eventCallback(ie events.Event) {
 			log.Errorf("Failed to get event VM mobref: %s", ie.Reference())
 			return
 		}
-		if !isManagedbyVCH(*moref) {
+		if !isManagedbyVCH(*moref, sess) {
 			return
 		}
 		log.Debugf("Register container VM %s", moref)
 		ctx := context.Background()
-		vms, err := populateVMAttributes(ctx, eventSession, []types.ManagedObjectReference{*moref})
+		vms, err := populateVMAttributes(ctx, sess, []types.ManagedObjectReference{*moref})
 		if err != nil {
 			log.Error(err)
 			return
 		}
-		registeredContainers := convertInfraContainers(ctx, eventSession, vms)
+		registeredContainers := convertInfraContainers(ctx, sess, vms)
 		for i := range registeredContainers {
 			Containers.put(registeredContainers[i])
 			log.Debugf("Registered container %q", registeredContainers[i].Config.Name)
@@ -187,7 +202,7 @@ func eventCallback(ie events.Event) {
 	return
 }
 
-func isManagedbyVCH(moref types.ManagedObjectReference) bool {
+func isManagedbyVCH(moref types.ManagedObjectReference, sess *session.Session) bool {
 	var vm mo.VirtualMachine
 
 	// current attributes we care about
@@ -195,7 +210,7 @@ func isManagedbyVCH(moref types.ManagedObjectReference) bool {
 
 	// populate the vm properties
 	ctx := context.Background()
-	if err := eventSession.RetrieveOne(ctx, moref, attrib, &vm); err != nil {
+	if err := sess.RetrieveOne(ctx, moref, attrib, &vm); err != nil {
 		log.Errorf("Failed to query registered vm object %s: %s", moref.String(), err)
 		return false
 	}
