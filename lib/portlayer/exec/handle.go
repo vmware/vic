@@ -272,6 +272,11 @@ func Create(ctx context.Context, sess *session.Session, config *ContainerCreateC
 
 	h.Spec = linux.Spec()
 
+	// create flags info object and then disable snapshots
+	h.Spec.Flags = new(types.VirtualMachineFlagInfo)
+	h.Spec.Flags.SnapshotDisabled = new(bool)
+	*h.Spec.Flags.SnapshotDisabled = true
+
 	handlesLock.Lock()
 	defer handlesLock.Unlock()
 
