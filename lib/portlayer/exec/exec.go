@@ -34,13 +34,20 @@ import (
 )
 
 var (
-	initializer sync.Once
-	initError   error
+	initializer struct {
+		err  error
+		once sync.Once
+	}
 )
 
 func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSource, _ extraconfig.DataSink) error {
-	var err error
-	initializer.Do(func() {
+	initializer.once.Do(func() {
+		var err error
+		defer func() {
+			if err != nil {
+				initializer.err = err
+			}
+		}()
 		f := find.NewFinder(sess.Vim25(), false)
 
 		extraconfig.Decode(source, &Config)
@@ -93,7 +100,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		Config.EventManager.Subscribe(events.NewEventType(vsphere.VMEvent{}).Topic(), "exec", eventCallback)
 		// subscribe callback to handle vm registered event
 		Config.EventManager.Subscribe(events.NewEventType(vsphere.VMEvent{}).Topic(), "registeredVMEvent", func(ie events.Event) {
-			registeredVMCallback(ie, sess)
+			registeredVMCallback(sess, ie)
 		})
 
 		// instantiate the container cache now
@@ -114,10 +121,7 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			return
 		}
 	})
-	if err != nil {
-		initError = err
-	}
-	return initError
+	return initializer.err
 }
 
 // eventCallback will process events
@@ -168,7 +172,7 @@ func eventCallback(ie events.Event) {
 }
 
 // registeredVMCallback will process registeredVMEvent
-func registeredVMCallback(ie events.Event, sess *session.Session) {
+func registeredVMCallback(sess *session.Session, ie events.Event) {
 	// check container registered event if this container is not found in container cache
 	// grab the container from the cache
 	container := Containers.Container(ie.Reference())
@@ -183,7 +187,7 @@ func registeredVMCallback(ie events.Event, sess *session.Session) {
 			log.Errorf("Failed to get event VM mobref: %s", ie.Reference())
 			return
 		}
-		if !isManagedbyVCH(*moref, sess) {
+		if !isManagedbyVCH(sess, *moref) {
 			return
 		}
 		log.Debugf("Register container VM %s", moref)
@@ -202,11 +206,11 @@ func registeredVMCallback(ie events.Event, sess *session.Session) {
 	return
 }
 
-func isManagedbyVCH(moref types.ManagedObjectReference, sess *session.Session) bool {
+func isManagedbyVCH(sess *session.Session, moref types.ManagedObjectReference) bool {
 	var vm mo.VirtualMachine
 
 	// current attributes we care about
-	attrib := []string{"config"}
+	attrib := []string{"resourcePool"}
 
 	// populate the vm properties
 	ctx := context.Background()
