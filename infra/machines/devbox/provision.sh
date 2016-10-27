@@ -36,7 +36,7 @@ function update_go {
 }
 
 # install / upgrade go
-go_file="https://storage.googleapis.com/golang/go1.7.1.linux-amd64.tar.gz"
+go_file="https://storage.googleapis.com/golang/go1.7.3.linux-amd64.tar.gz"
 go_version=$(basename $go_file | cut -d. -f1-3)
 
 if [[ ! -d "/usr/local/go" || $(go version | awk '{print $(3)}') != "$go_version" ]] ; then
