@@ -66,12 +66,9 @@ func (ldm *LayerDownloader) registerDownload(download *downloadTransfer) {
 	ldm.downloadsByID[download.layer.ID] = download
 }
 
-func (ldm *LayerDownloader) unregisterDownload(id string) {
-	// mark the layer as finished downloading
-	cache.LayerCache().Commit(id)
-
+func (ldm *LayerDownloader) unregisterDownload(layer *ImageWithMeta) {
 	// stop tracking the download transfer
-	delete(ldm.downloadsByID, id)
+	delete(ldm.downloadsByID, layer.ID)
 }
 
 type prog struct {
@@ -136,11 +133,11 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 		layer := layers[i]
 		id := layer.ID
 
-		downloading, err := cache.LayerCache().IsDownloading(id)
+		layerConfig, err := LayerCache().Get(id)
 		if err != nil {
 
 			switch err := err.(type) {
-			case cache.LayerNotFoundError:
+			case LayerNotFoundError:
 
 				layerCount++
 
@@ -154,7 +151,8 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 				defer topDownload.Transfer.Release(watcher)
 
 				ldm.registerDownload(topDownload)
-				cache.LayerCache().AddNew(id)
+				layer.Downloading = true
+				LayerCache().Add(layer)
 
 				continue
 			default:
@@ -162,7 +160,7 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 			}
 		}
 
-		if downloading {
+		if layerConfig.Downloading {
 
 			layerCount++
 
@@ -221,7 +219,15 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 
 		go func() {
 
-			defer close(progressChan)
+			defer func() {
+				close(progressChan)
+
+				// remove layer from cache if there was an error attempting to download
+				if d.err != nil {
+					LayerCache().Remove(layer.ID)
+				}
+
+			}()
 
 			progressOutput := progress.ChanOutput(progressChan)
 
@@ -229,8 +235,8 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 			select {
 			case <-start:
 			default:
-				<-start
 				progress.Update(progressOutput, layer.String(), "Waiting")
+				<-start
 			}
 
 			if parentDownload != nil {
@@ -252,7 +258,7 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 				return
 			}
 
-			layer.diffID = diffID
+			layer.DiffID = diffID
 
 			close(inactive)
 
@@ -281,11 +287,17 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 					d.err = err
 					return
 				}
-				// cache the image
-				cache.ImageCache().AddImage(&imageConfig)
+				// cache and persist the image
+				cache.ImageCache().Add(&imageConfig)
+				cache.ImageCache().Save()
 
 				// place calculated ImageID in struct
 				ic.ImageID = imageConfig.ImageID
+
+				if err = updateRepositoryCache(ic); err != nil {
+					d.err = err
+					return
+				}
 
 			}
 
@@ -298,7 +310,10 @@ func (ldm *LayerDownloader) makeDownloadFunc(layer *ImageWithMeta, ic *ImageC, p
 				return
 			}
 
-			ldm.unregisterDownload(layer.ID)
+			// mark the layer as finished downloading
+			LayerCache().Commit(layer)
+
+			ldm.unregisterDownload(layer)
 
 		}()
 

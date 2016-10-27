@@ -217,7 +217,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	}
 
 	// get the image from the cache
-	image, err := cache.ImageCache().GetImage(config.Config.Image)
+	image, err := cache.ImageCache().Get(config.Config.Image)
 	if err != nil {
 		// if no image found then error thrown and a pull
 		// will be initiated by the docker client

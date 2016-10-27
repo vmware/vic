@@ -334,7 +334,7 @@ func AddMockImageToCache() {
 		OnBuild:      nil,
 	}
 
-	cache.ImageCache().AddImage(mockImage)
+	cache.ImageCache().Add(mockImage)
 
 	ref, _ := reference.ParseNamed(mockImage.Reference)
 	cache.RepositoryCache().AddReference(ref, mockImage.ImageID, false, mockImage.ImageID, false)
@@ -343,7 +343,7 @@ func AddMockImageToCache() {
 func AddMockContainerToCache() {
 	AddMockImageToCache()
 
-	image, err := cache.ImageCache().GetImage("e732471cb81a564575aad46b9510161c5945deaf18e9be3db344333d72f0b4b2")
+	image, err := cache.ImageCache().Get("e732471cb81a564575aad46b9510161c5945deaf18e9be3db344333d72f0b4b2")
 	if err == nil {
 		vc := viccontainer.NewVicContainer()
 		vc.ImageID = image.ID

@@ -1152,7 +1152,7 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 	var imageConfig *metadata.ImageConfig
 
 	if info.ContainerConfig.LayerID != nil {
-		imageConfig, _ = cache.ImageCache().GetImage(*info.ContainerConfig.LayerID)
+		imageConfig, _ = cache.ImageCache().Get(*info.ContainerConfig.LayerID)
 	}
 
 	// Fill in the values with defaults from the original image's container config
