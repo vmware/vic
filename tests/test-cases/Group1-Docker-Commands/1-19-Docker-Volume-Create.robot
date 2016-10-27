@@ -74,7 +74,8 @@ Docker volume create with specific capacity no units
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${output}  test4
     Set Suite Variable  ${ContainerName}  capacityVolContainer
-    Run  docker ${params} run --name ${ContainerName} -d -v ${output}:/mydata busybox /bin/df -Ph
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --name ${ContainerName} -d -v ${output}:/mydata busybox /bin/df -Ph
+    Should Be Equal As Integers  ${rc}  0
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker ${params} wait ${ContainerName}
     Should Be Equal As Integers  ${ContainerRC}  0
     Should Not Contain  ${output}  Error response from daemon
@@ -87,7 +88,8 @@ Docker volume create large volume specifying units
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${output}  unitVol1
     Set Suite Variable  ${ContainerName}  unitContainer
-    Run  docker ${params} run --name ${ContainerName} -d -v ${output}:/mydata busybox /bin/df -Ph
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --name ${ContainerName} -d -v ${output}:/mydata busybox /bin/df -Ph
+    Should Be Equal As Integers  ${rc}  0
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker ${params} wait ${ContainerName}
     Should Be Equal As Integers  ${ContainerRC}  0
     Should Not Contain  ${output}  Error response from daemon
@@ -97,7 +99,8 @@ Docker volume create large volume specifying units
     Should Be Equal As Integers  ${rc}  0
     Should Be Equal As Strings  ${output}  unitVol2
     Set Suite Variable  ${ContainerName}  unitContainer2
-    Run  docker ${params} run --name ${ContainerName} -d -v ${output}:/mydata busybox /bin/df -Ph
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --name ${ContainerName} -d -v ${output}:/mydata busybox /bin/df -Ph
+    Should Be Equal As Integers  ${rc}  0
     ${ContainerRC}  ${output}=  Run And Return Rc And Output  docker ${params} wait ${ContainerName}
     Should Be Equal As Integers  ${ContainerRC}  0
     Should Not Contain  ${output}  Error response from daemon
