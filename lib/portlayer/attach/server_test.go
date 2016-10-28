@@ -40,19 +40,29 @@ func TestAttachStartStop(t *testing.T) {
 
 	dial := func() {
 		c, err := net.Dial("tcp", s.l.Addr().String())
+		c.SetReadDeadline(time.Now().Add(time.Second))
 		assert.NoError(t, err)
 		assert.NotNil(t, c)
 
-		// intentionally read 1 byte to un-sync server and client.
 		buf := make([]byte, 1)
 		c.Read(buf)
-		assert.NoError(t, serial.HandshakeServer(context.Background(), c))
+		if !assert.Error(t, serial.HandshakeServer(c)) {
+			return
+		}
+
+		c, err = net.Dial("tcp", s.l.Addr().String())
+		assert.NoError(t, err)
+		assert.NotNil(t, c)
+		if !assert.NoError(t, serial.HandshakeServer(c)) {
+			return
+		}
+
 		wg.Done()
 	}
 
 	assert.NoError(t, s.Start(true))
 
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 100; i++ {
 		wg.Add(1)
 		go dial()
 	}
@@ -100,7 +110,7 @@ func TestAttachSshSession(t *testing.T) {
 		return
 	}
 
-	if !assert.NoError(t, serial.HandshakeServer(context.Background(), networkClientCon)) {
+	if !assert.NoError(t, serial.HandshakeServer(networkClientCon)) {
 		return
 	}
 

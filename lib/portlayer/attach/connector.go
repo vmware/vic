@@ -168,7 +168,12 @@ func (c *Connector) processIncoming(conn net.Conn) {
 		// 2 or more bytes it will just wait, so client should timeout.
 		// However, if timeout is too short, client will flood server with Syn requests.
 		ctx, cancel := context.WithTimeout(context.TODO(), time.Second)
-		if err = serial.HandshakeClient(ctx, conn, c.debug); err == nil {
+		deadline, ok := ctx.Deadline()
+		if ok {
+			conn.SetReadDeadline(deadline)
+		}
+		if err = serial.HandshakeClient(conn, c.debug); err == nil {
+			conn.SetReadDeadline(time.Time{})
 			log.Debugf("attach connector: New connection")
 			cancel()
 			break
@@ -177,7 +182,7 @@ func (c *Connector) processIncoming(conn net.Conn) {
 			conn.Close()
 			return
 		}
-		log.Error(err)
+		log.Errorf("ClientError: %s", err)
 	}
 
 	callback := func(hostname string, remote net.Addr, key ssh.PublicKey) error {

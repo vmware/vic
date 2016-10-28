@@ -34,7 +34,7 @@ import (
 
 var backchannelMode = os.ModePerm
 
-func rawConnectionFromSerial() (*net.Conn, error) {
+func rawConnectionFromSerial() (net.Conn, error) {
 	log.Info("opening ttyS0 for backchannel")
 	f, err := os.OpenFile(pathPrefix+"/ttyS0", os.O_RDWR|os.O_SYNC|syscall.O_NOCTTY, backchannelMode)
 	if err != nil {
@@ -60,7 +60,7 @@ func rawConnectionFromSerial() (*net.Conn, error) {
 	log.Infof("creating raw connection from ttyS0 (fd=%d)", f.Fd())
 
 	conn, err = serial.NewFileConn(f)
-	return &conn, err
+	return conn, err
 }
 
 func (t *attachServerSSH) Start() error {
