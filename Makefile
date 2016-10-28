@@ -145,7 +145,7 @@ components: check apiservers $(vicadmin) $(rpctool)
 isos: $(appliance) $(bootstrap)
 tethers: $(tether-linux) $(tether-windows) $(tether-darwin)
 
-most: $(portlayerapi) $(docker-engine-api) $(vicadmin) $(rpctool) $(tether-linux) $(appliance) $(bootstrap) $(vic-machine-linux)
+most: $(portlayerapi) $(docker-engine-api) $(vicadmin) $(tether-linux) $(appliance) $(bootstrap) $(vic-machine-linux)
 
 # utility targets
 goversion:

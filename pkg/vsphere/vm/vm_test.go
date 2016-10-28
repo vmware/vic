@@ -33,7 +33,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/simulator"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 
-	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/test"
 )
 
@@ -55,9 +54,11 @@ func CreateVM(ctx context.Context, session *session.Session, host *object.HostSy
 	parent := folders.VmFolder
 
 	// Create the vm
-	info, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-		return parent.CreateVM(ctx, *linux.Spec().Spec(), session.Pool, host)
-	})
+	task, err := parent.CreateVM(ctx, *linux.Spec().Spec(), session.Pool, host)
+	if err != nil {
+		return nil, err
+	}
+	info, err := task.WaitForResult(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -102,9 +103,11 @@ func TestDeleteExceptDisk(t *testing.T) {
 	diskName := fmt.Sprintf("%s/%s.vmdk", folder, folder)
 
 	// Delete the VM but not it's disk
-	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-		return vm.DeleteExceptDisks(ctx)
-	})
+	task, err := vm.DeleteExceptDisks(ctx)
+	if err != nil {
+		t.Fatalf("ERROR: %s", err)
+	}
+	_, err = task.WaitForResult(ctx, nil)
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
 	}
@@ -118,7 +121,7 @@ func TestDeleteExceptDisk(t *testing.T) {
 	// clean up
 	dm := object.NewVirtualDiskManager(session.Client.Client)
 
-	task, err := dm.DeleteVirtualDisk(context.TODO(), diskName, nil)
+	task, err = dm.DeleteVirtualDisk(context.TODO(), diskName, nil)
 	if err != nil {
 		t.Fatalf("Unable to locate orphan vmdk: %s", err)
 	}
@@ -178,10 +181,21 @@ func TestVM(t *testing.T) {
 	}
 	t.Logf("Got UUID: %s", ruuid)
 
+	err = vm.FixInvalidState(ctx)
+	if err != nil {
+		t.Errorf("Failed to fix vm: %s", err)
+	}
+	newVM, err := session.Finder.VirtualMachine(ctx, name)
+	if err != nil {
+		t.Errorf("Failed to find fixed vm: %s", err)
+	}
+	assert.Equal(t, vm.Reference(), newVM.Reference())
 	// Destroy the vm
-	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-		return vm.Destroy(ctx)
-	})
+	task, err := vm.Destroy(ctx)
+	if err != nil {
+		t.Fatalf("ERROR: %s", err)
+	}
+	_, err = task.WaitForResult(ctx, nil)
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
 	}
@@ -244,10 +258,11 @@ func TestVMAttributes(t *testing.T) {
 		t.Fatalf("ERROR: %s", err)
 	}
 	assert.Equal(t, name, folder)
-
-	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-		return vm.PowerOn(ctx)
-	})
+	task, err := vm.PowerOn(ctx)
+	if err != nil {
+		t.Fatalf("ERROR: %s", err)
+	}
+	_, err = task.WaitForResult(ctx, nil)
 	if err != nil {
 		t.Fatalf("ERROR: %s", err)
 	}
@@ -259,15 +274,19 @@ func TestVMAttributes(t *testing.T) {
 	}
 	defer func() {
 		// Destroy the vm
-		_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-			return vm.PowerOff(ctx)
-		})
+		task, err := vm.PowerOff(ctx)
 		if err != nil {
 			t.Fatalf("ERROR: %s", err)
 		}
-		_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-			return vm.Destroy(ctx)
-		})
+		_, err = task.WaitForResult(ctx, nil)
+		if err != nil {
+			t.Fatalf("ERROR: %s", err)
+		}
+		task, err = vm.Destroy(ctx)
+		if err != nil {
+			t.Fatalf("ERROR: %s", err)
+		}
+		_, err = task.WaitForResult(ctx, nil)
 		if err != nil {
 			t.Fatalf("ERROR: %s", err)
 		}

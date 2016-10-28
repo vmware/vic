@@ -342,6 +342,7 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 	defer func() { c.updateState(finalState) }()
 
 	err := c.containerBase.stop(ctx, waitTime)
+
 	if err != nil {
 		// we've got no idea what state the container is in at this point
 		// running is an _optimistic_ statement
@@ -454,7 +455,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	dsPath := fmt.Sprintf("[%s] %s", url.Host, url.Path)
 
 	//removes the vm from vsphere, but detaches the disks first
-	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+	_, err = c.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return c.vm.DeleteExceptDisks(ctx)
 	})
 	if err != nil {

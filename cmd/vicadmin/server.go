@@ -29,6 +29,7 @@ import (
 	"github.com/docker/docker/pkg/tlsconfig"
 
 	"crypto/x509"
+
 	"github.com/vmware/vic/lib/vicadmin"
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -46,10 +47,18 @@ const (
 	formatZip
 )
 
-func (s *server) listen(useTLS bool) error {
+func (s *server) listen() error {
 	defer trace.End(trace.Begin(""))
 
 	var err error
+
+	certificate, err := vchConfig.HostCertificate.Certificate()
+	if err != nil {
+		log.Errorf("Could not load certificate from config - running without TLS: %s", err)
+
+		s.l, err = net.Listen("tcp", s.addr)
+		return err
+	}
 
 	// FIXME: assignment copies lock value to tlsConfig: crypto/tls.Config contains sync.Once contains sync.Mutex
 	tlsconfig := func(c *tls.Config) *tls.Config {
@@ -87,18 +96,7 @@ func (s *server) listen(useTLS bool) error {
 		}
 	}(&tlsconfig.ServerDefault)
 
-	certificate, err := vchConfig.HostCertificate.Certificate()
-	if err != nil {
-		log.Errorf("Could not load certificate from config - running without TLS: %s", err)
-		// TODO: add static web page with the vic
-	} else {
-		tlsconfig.Certificates = []tls.Certificate{*certificate}
-	}
-
-	if !useTLS || err != nil {
-		s.l, err = net.Listen("tcp", s.addr)
-		return err
-	}
+	tlsconfig.Certificates = []tls.Certificate{*certificate}
 
 	innerListener, err := net.Listen("tcp", s.addr)
 	if err != nil {

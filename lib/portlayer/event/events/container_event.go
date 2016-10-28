@@ -25,6 +25,7 @@ const (
 	ContainerReconfigured = "Reconfigured"
 	ContainerStarted      = "Started"
 	ContainerStopped      = "Stopped"
+	ContainerRegistered   = "Registered"
 )
 
 type ContainerEvent struct {
