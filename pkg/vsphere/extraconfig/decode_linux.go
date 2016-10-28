@@ -39,8 +39,10 @@ func GuestInfoSourceWithPrefix(prefix string) (DataSource, error) {
 		return nil, errors.New("not in a virtual world")
 	}
 
-	return func(key string) (string, error) {
-		key = addPrefixToKey(DefaultGuestInfoPrefix, prefix, key)
+	source := func(key string) (string, error) {
+		if key != guestinfoSecretKey {
+			key = addPrefixToKey(DefaultGuestInfoPrefix, prefix, key)
+		}
 
 		value, err := guestinfo.String(key, "")
 		if value == "" {
@@ -49,7 +51,12 @@ func GuestInfoSourceWithPrefix(prefix string) (DataSource, error) {
 			value = ""
 		}
 
-		log.Debugf("GuestInfoSource: key: %s, value: %#v, error: %s", key, value, err)
+		if key != guestinfoSecretKey { // don't log the secret key
+			log.Debugf("GuestInfoSource: key: %s, value: %#v, error: %s", key, value, err)
+		}
+
 		return value, err
-	}, nil
+	}
+
+	return new(SecretKey).Source(source), nil
 }

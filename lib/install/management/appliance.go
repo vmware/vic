@@ -291,8 +291,10 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 	var devices object.VirtualDeviceList
 	var err error
 
-	cfg := make(map[string]string)
-	extraconfig.Encode(extraconfig.MapSink(cfg), conf)
+	cfg, err := d.encodeConfig(conf)
+	if err != nil {
+		return nil, err
+	}
 
 	spec := &spec.VirtualMachineConfigSpec{
 		VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{
@@ -566,6 +568,24 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	return nil
 }
 
+func (d *Dispatcher) encodeConfig(conf *config.VirtualContainerHostConfigSpec) (map[string]string, error) {
+	if d.secret == nil {
+		log.Debug("generating new config secret key")
+
+		s, err := extraconfig.NewSecretKey()
+		if err != nil {
+			return nil, err
+		}
+
+		d.secret = s
+	}
+
+	cfg := make(map[string]string)
+	extraconfig.Encode(d.secret.Sink(extraconfig.MapSink(cfg)), conf)
+
+	return cfg, nil
+}
+
 func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*types.VirtualMachineConfigSpec, error) {
 	defer trace.End(trace.Begin(""))
 
@@ -590,8 +610,11 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *confi
 
 	spec.DeviceChange = deviceChange
 
-	cfg := make(map[string]string)
-	extraconfig.Encode(extraconfig.MapSink(cfg), conf)
+	cfg, err := d.encodeConfig(conf)
+	if err != nil {
+		return nil, err
+	}
+
 	spec.ExtraConfig = append(spec.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 	return spec, nil
 }

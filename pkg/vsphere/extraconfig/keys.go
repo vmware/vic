@@ -45,6 +45,8 @@ const (
 	NonPersistent
 	// Volatile value
 	Volatile
+	// Secret value
+	Secret
 )
 
 type recursion struct {
@@ -76,11 +78,17 @@ func calculateScope(scopes []string) uint {
 			scope |= NonPersistent
 		case "volatile":
 			scope |= Volatile
+		case "secret":
+			scope |= Secret | ReadOnly
 		default:
 			return Invalid
 		}
 	}
 	return scope
+}
+
+func isSecret(key string) bool {
+	return strings.HasSuffix(key, "@secret")
 }
 
 func calculateScopeFromKey(key string) []string {
@@ -94,6 +102,10 @@ func calculateScopeFromKey(key string) []string {
 		scopes = append(scopes, "read-only")
 	} else {
 		scopes = append(scopes, "read-write")
+	}
+
+	if isSecret(key) {
+		scopes = append(scopes, "secret")
 	}
 
 	return scopes
@@ -200,6 +212,10 @@ func calculateKey(scopes []string, prefix string, key string) string {
 	out := key
 	if prefix != "" {
 		out = strings.Join([]string{prefix, key}, newSep)
+	}
+
+	if scope&Secret != 0 {
+		out += "@secret"
 	}
 
 	// we don't care about existing separators when hiden
