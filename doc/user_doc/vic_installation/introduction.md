@@ -21,11 +21,19 @@ A traditional container host is a virtual machine running a Linux OS with the ne
 
 The hypervisor provides hardware virtualization of the entire container host VM, one or more VMDKs providing local disk for the OS, one or more vNICs to provide network connectivity for the OS and possibly paravirtualization capabilities allowing the containers to directly access hypervisor infrastructure.
 
-### vSphere Integrated Containers Engine
+### vSphere Integrated Containers Engine Virtual Container Host
 
 vSphere Integrated Containers Engine containers run as virtual machines. The virtual container host is not a VM, but a vApp, which is a kind of resource pool. It is an abstract dynamic resource boundary defined and controlled by vSphere into which you can provision container VMs. The virtual container host can be a subset of a physical host or a subset of a cluster of hosts.
 
 A one to one coupling exists between a container and a virtual machine. A container image is attached to the VM as a disk, the VM is either booted or forked from the kernel ISO, then the containerVM chroots into the container filesystem, effectively becoming the container.
+
+## Virtual Container Host Deployment and Management ##
+
+vSphere Integrated Containers Engine provides a command-line utility, `vic-machine`, that you use to deploy and manage virtual container hosts. The different commands of the vic-machine utility allow you to perform the following actions:
+
+- Deploy virtual container hosts in configurations that are tailored to your vSphere and container development environments.
+- List the virtual container hosts that are running on a particular ESXi host or vCenter Server instance.
+- Inspect, delete, debug, and upgrade running virtual container hosts.
 
 ## The Port Layer
 
