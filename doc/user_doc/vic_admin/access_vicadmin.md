@@ -16,7 +16,7 @@ In a Web browser, go to https://<i>vch_address</i>:2378
 
 **Result**
 
-The VIC Admin portal displays information about the virtual container host and the environment in which is running:  
+The VCH Admin portal displays information about the virtual container host and the environment in which is running:  
 
 - Status information about the virtual container host, network,  firewall configuration, and license. For information about these statuses and how to remedy error states, see the [Virtual Container Host Status Reference](vicadmin_status_ref.md).
 - The address of the Docker endpoint.
