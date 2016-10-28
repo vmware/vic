@@ -2,6 +2,7 @@ package serial
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -344,4 +345,29 @@ func TestHandshakeClientWrongServerAck(t *testing.T) {
 	if !ok {
 		t.Errorf("Unexpected error: %v", err)
 	}
+}
+
+func TestHandshakeServerVsClient(t *testing.T) {
+	log.SetLevel(log.InfoLevel)
+	clientConn, serverConn := NewFakeConnection(time.Second * 3)
+	w := sync.WaitGroup{}
+	w.Add(2)
+
+	go func() {
+		defer w.Done()
+		err := HandshakeClient(clientConn, false)
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+	}()
+
+	go func() {
+		defer w.Done()
+		err := HandshakeServer(serverConn)
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+	}()
+
+	w.Wait()
 }
