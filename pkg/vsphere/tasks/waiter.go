@@ -112,6 +112,6 @@ func isTaskInProgress(err error) bool {
 	}
 
 	//if none are found this is an unknown fault so we are dumping the structure.
-	log.Debugf("unexpected fault om task retry : %s", spew.Sdump(err))
+	log.Debugf("unexpected fault on task retry : %s", spew.Sdump(err))
 	return false
 }
