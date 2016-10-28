@@ -1,7 +1,7 @@
 *** Settings ***
 Documentation  Test 1-23 - Docker Inspect
 Resource  ../../resources/Util.robot
-Suite Setup  Install VIC Appliance To Test Server
+Suite Setup  Install VIC Appliance To Test Server  certs=${false}
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
@@ -58,6 +58,22 @@ Docker inspect container specifying incorrect type
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} inspect --type=image ${container}
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error: No such image: ${container}
+
+Docker inspect container with multiple networks
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} network create net-one
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} network create net-two
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name=two-net-test --net=net-one busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} network connect net-two two-net-test
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} start two-net-test
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${out}=  Run And Return Rc And Output  docker ${params} inspect -f '{{range $key, $value := .NetworkSettings.Networks}}{{$key}}{{end}}' two-net-test
+    Should Contain  ${out}  net-two
+    Should Contain  ${out}  net-one
+    Should Be Equal As Integers  ${rc}  0
     
 Docker inspect invalid object
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} inspect fake

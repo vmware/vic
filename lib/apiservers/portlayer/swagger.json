@@ -2325,7 +2325,9 @@
 				"address",
 				"gateway",
 				"container",
-				"ports"
+				"ports",
+				"aliases",
+				"nameservers"
 			],
 			"properties": {
 				"id": {
@@ -2347,6 +2349,18 @@
 					"type": "string"
 				},
 				"ports": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"aliases": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"nameservers": {
 					"type": "array",
 					"items": {
 						"type": "string"
@@ -2604,10 +2618,10 @@
 						"$ref": "#/definitions/VolumeConfig"
 					}
 				},
-				"scopeConfig": {
+				"endpoints": {
 					"type": "array",
 					"items": {
-						"$ref": "#/definitions/ScopeConfig"
+						"$ref": "#/definitions/EndpointConfig"
 					}
 				}
 			}
