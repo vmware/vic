@@ -176,12 +176,15 @@ Run VIC Machine Delete Command
 
 Cleanup Datastore On Test Server
     ${out}=  Run  govc datastore.ls
-    ${lines}=  Split To Lines  ${out}
-    :FOR  ${item}  IN  @{lines}
-    \   Continue For Loop If  '${item}' == 'VIC'
-    \   ${contents}=  Run  govc datastore.ls ${item}
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${contents}  vmx
-    \   Continue For Loop If  ${status}
+    ${items}=  Split To Lines  ${out}
+    :FOR  ${item}  IN  @{items}
+    \   ${build}=  Split String  ${item}  -
+    \   # Skip any item that is not associated with integration tests
+    \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   # Skip any item that is still running
+    \   ${state}=  Get State Of Drone Build  @{build}[1]
+    \   Continue For Loop If  '${state}' == 'running'
+    \   Log To Console  Removing the following item from datastore: ${item}
     \   ${out}=  Run  govc datastore.rm ${item}
 
 Cleanup Dangling VMs On Test Server
