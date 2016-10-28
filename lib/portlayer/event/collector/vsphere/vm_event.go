@@ -38,6 +38,8 @@ func NewVMEvent(be types.BaseEvent) *VMEvent {
 		ee = events.ContainerRemoved
 	case *types.VmGuestShutdownEvent:
 		ee = events.ContainerShutdown
+	case *types.VmRegisteredEvent:
+		ee = events.ContainerRegistered
 	}
 	e := be.GetEvent()
 	return &VMEvent{

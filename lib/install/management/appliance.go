@@ -167,7 +167,7 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 			}
 			return err
 		}
-		if _, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+		if _, err = vm.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 			return vm.PowerOff(ctx)
 		}); err != nil {
 			log.Debugf("Failed to power off existing appliance for %s, try to remove anyway", err)
@@ -187,7 +187,7 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		}
 	}
 
-	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	_, err = vm.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return vm.DeleteExceptDisks(ctx)
 	})
 	if err != nil {
@@ -418,8 +418,9 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		})
 	} else {
 		// if vapp is not created, fall back to create VM under default resource pool
+		folder := d.session.Folders(d.ctx).VmFolder
 		info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-			return d.session.Folders(ctx).VmFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
+			return folder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
 		})
 	}
 
@@ -548,7 +549,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	}
 
 	// reconfig
-	info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	info, err = vm2.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return vm2.Reconfigure(ctx, *spec)
 	})
 

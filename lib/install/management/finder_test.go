@@ -230,8 +230,9 @@ func createNodes(ctx context.Context, sess *session.Session, pool *object.Resour
 				VmPathName: fmt.Sprintf("[LocalDS_0] %s", node.Name),
 			},
 		}
+		folder := sess.Folders(ctx).VmFolder
 		if _, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-			return sess.Folders(ctx).VmFolder.CreateVM(ctx, config, pool, nil)
+			return folder.CreateVM(ctx, config, pool, nil)
 		}); err != nil {
 			return err
 		}

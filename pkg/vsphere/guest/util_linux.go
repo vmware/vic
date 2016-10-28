@@ -23,6 +23,7 @@ import (
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 const (
@@ -54,7 +55,7 @@ func UUID() (string, error) {
 }
 
 // GetSelf gets VirtualMachine reference for the VM this process is running on
-func GetSelf(ctx context.Context, s *session.Session) (*object.VirtualMachine, error) {
+func GetSelf(ctx context.Context, s *session.Session) (*vm.VirtualMachine, error) {
 	u, err := UUID()
 	if err != nil {
 		return nil, err
@@ -70,6 +71,5 @@ func GetSelf(ctx context.Context, s *session.Session) (*object.VirtualMachine, e
 		return nil, fmt.Errorf("can't find the hosting vm")
 	}
 
-	vm := object.NewVirtualMachine(s.Client.Client, ref.Reference())
-	return vm, nil
+	return vm.NewVirtualMachine(ctx, s, ref.Reference()), nil
 }

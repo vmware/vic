@@ -155,7 +155,7 @@ func (c *containerBase) start(ctx context.Context) error {
 	}
 
 	// Power on
-	_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+	_, err := c.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return c.vm.PowerOn(ctx)
 	})
 	if err != nil {
@@ -198,7 +198,7 @@ func (c *containerBase) stop(ctx context.Context, waitTime *int32) error {
 
 	log.Warnf("stopping %s via hard power off due to: %s", c.ExecConfig.ID, err)
 
-	_, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+	_, err = c.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 		return c.vm.PowerOff(ctx)
 	})
 

@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 const (
@@ -43,7 +44,7 @@ type Manager struct {
 	maxAttached chan bool
 
 	// reference to the vm this is running on.
-	vm *object.VirtualMachine
+	vm *vm.VirtualMachine
 
 	// The controller on this vm.
 	controller *types.ParaVirtualSCSIController
@@ -168,7 +169,7 @@ func (m *Manager) Create(op trace.Operation, newDiskURI string,
 
 	defer trace.End(trace.Begin(newDiskURI))
 
-	vdm := object.NewVirtualDiskManager(m.vm.Client())
+	vdm := object.NewVirtualDiskManager(m.vm.Vim25())
 
 	d, err := NewVirtualDisk(newDiskURI)
 	if err != nil {
@@ -240,7 +241,7 @@ func (m *Manager) Attach(op trace.Operation, disk *types.VirtualDisk) error {
 	machineSpec.DeviceChange = append(machineSpec.DeviceChange, changeSpec...)
 
 	m.reconfig.Lock()
-	_, err = tasks.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
+	_, err = m.vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		t, er := m.vm.Reconfigure(ctx, machineSpec)
 
 		op.Debugf("Attach reconfigure task=%s", t.Reference())
@@ -289,7 +290,7 @@ func (m *Manager) Detach(op trace.Operation, d *VirtualDisk) error {
 	spec.DeviceChange = config
 
 	m.reconfig.Lock()
-	_, err = tasks.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
+	_, err = m.vm.WaitForResult(op, func(ctx context.Context) (tasks.Task, error) {
 		t, er := m.vm.Reconfigure(ctx, spec)
 
 		op.Debugf("Detach reconfigure task=%s", t.Reference())

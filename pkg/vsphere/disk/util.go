@@ -22,10 +22,10 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 )
 
 const (
@@ -76,7 +76,7 @@ func waitForPath(op trace.Operation, path string) error {
 // base path of disks attached to it returns a handle to the controller and a
 // format string, with a single decimal for the disk unit number which will
 // result in the /dev/disk/by-path path
-func verifyParavirtualScsiController(op trace.Operation, vm *object.VirtualMachine) (*types.ParaVirtualSCSIController, string, error) {
+func verifyParavirtualScsiController(op trace.Operation, vm *vm.VirtualMachine) (*types.ParaVirtualSCSIController, string, error) {
 	devices, err := vm.Device(op)
 	if err != nil {
 		log.Errorf("vmware driver failed to retrieve device list for VM %s: %s", vm, errors.ErrorStack(err))
@@ -150,7 +150,7 @@ func verifyParavirtualScsiController(op trace.Operation, vm *object.VirtualMachi
 }
 
 // Find the disk by name attached to the given vm.
-func findDisk(op trace.Operation, vm *object.VirtualMachine, name string) (*types.VirtualDisk, error) {
+func findDisk(op trace.Operation, vm *vm.VirtualMachine, name string) (*types.VirtualDisk, error) {
 	defer trace.End(trace.Begin(vm.String()))
 
 	log.Debugf("Looking for attached disk matching filename %s", name)

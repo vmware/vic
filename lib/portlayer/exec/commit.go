@@ -157,7 +157,7 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 					s.ExtraConfig = nil
 				}
 
-				_, err := tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+				_, err := h.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
 					return h.vm.Reconfigure(ctx, *s)
 				})
 				if err != nil {
