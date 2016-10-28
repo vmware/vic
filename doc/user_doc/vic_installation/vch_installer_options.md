@@ -21,7 +21,7 @@ To allow you to fine-tune the deployment of virtual container hosts, `vic-machin
 
 The `create` command of the `vic-machine` utility requires you to provide information about where in your vSphere environment to deploy the virtual container host and the vCenter Server or ESXi user account to use.
 
-### `target` ###
+### `--target` ###
 
 Short name: `-t`
 
@@ -43,7 +43,7 @@ To facilitate IP address changes in your infrastructure, provide an FQDN wheneve
   Wrap the datacenter name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces.
   <pre>--target <i>vcenter_server_address</i>/'<i>datacenter name</i>'</pre>
 
-### `user` ###
+### `--user` ###
 
 Short name: `-u`
 
@@ -59,7 +59,7 @@ Wrap the user name in single quotes (') on Mac OS and Linux and in double quotes
 
 You can also specify the username in the URL that you pass to `vic-machine create` in the `target` option, in which case the `user` option is not required.
 
-### `password` ###
+### `--password` ###
 
 Short name: `-p`
 
@@ -73,7 +73,7 @@ Wrap the password in single quotes (') on Mac OS and Linux and in double quotes 
 
 You can also specify the username and password in the URL that you pass to `vic-machine create` in the `target` option, in which case the `password` option is not required.
 
-### `compute-resource` ###
+### `--compute-resource` ###
 
 Short name: `-r`
 
@@ -97,7 +97,7 @@ If you do not specify the `compute-resource` option and multiple possible resour
 * Wrap the resource names in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if they include spaces:<pre>--compute-resource '<i>cluster name</i>'/'<i>resource pool name</i>'</pre>
 
 <a name="thumbprint"></a>
-### `thumbprint` ###
+### `--thumbprint` ###
 
 Short name: None
 
@@ -117,22 +117,76 @@ You can copy the thumbprint from the error message and run vic-machine create ag
 <a name="security"></a>
 ## Security Options ##
 
-For information about the security requirements for virtual container hosts, see [vSphere Integrated Containers Engine Security Overview](security.md).
+When you deploy a virtual container host, you specify the type of authentication to use when Docker clients connect to that virtual container host. 
 
-### `tls-cname` ###
+- Two-way authentication with trusted auto-generated TLS certificates that are signed by a Certificate Authority (CA). Specify the [`tls-cname`](#tls-cname) option when you deploy the virtual container host.
+- Server-side authentication with auto-generated, untrusted TLS certificates that are not signed by a CA, with no client-side verification. Specify the [`no-tlsverify`](#no-tlsverify) option when you deploy the virtual container host.
+- Authentication with trusted custom TLS certificates that are signed by a CA.  Specify the [`cert`](#cert) and [`key`](#key) advanced options when you deploy the virtual container host.
+- No TLS authentication. Any Docker client can connect to the virtual container host. Specify the [`no-tls`](#no-tls) advanced option when you deploy the virtual container host.
+
+For more information about the possible security configurations for virtual container hosts, see [Securing Virtual Container Host Connections](security.md).
+
+**IMPORTANT**: If you assign a static IP address to a virtual container host on the client network by setting the `--client-network-ip` and `--client-network-gateway` options, you do not need to specify any authentication options. Otherwise, it is **mandatory** to specify an authentication option when you deploy a virtual container host. For information about setting a static IP address on a virtual container host, see [Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM](#static-ip) in Advanced Options.
+
+The security options also allow you to configure virtual container hosts to connect to insecure registries and download container images by setting the `--insecure-registry` option.
+
+<a name="tls-cname"></a>
+### `--tls-cname` ###
 
 Short name: None
 
-The Common Name to use in generated CA certificate when requiring client certificate authentication.
+The Common Name to use in an auto-generated CA certificate if you require two-way, trusted TLS certificate authentication when connecting Docker clients to the virtual container host.
 
-### `no-tlsverify` ###
+The `--tls-cname` option is the minimum option that you must specify when using auto-generated trusted TLS certificates. For information about further options that you can specify when using auto-generated trusted certificates, see  the descriptions of the `--tls-ca`, `--certificate-key-size`, and `--organization` options in [Advanced Security Options](#adv-security).
+
+If you specify a static IP address for the virtual container host on the client network by setting the `--client-network-ip` and `--client-network-gateway` options, `vic-machine create` uses this address as the Common Name when it creates auto-generated trusted certificates. In this case, you do not need to specify `--tls-cname` or any other authentication options. For information about setting a static IP address on a virtual container host, see [Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM](#static-ip) in Advanced Options.
+
+When you specify the `--tls-cname` option, and potentially other options for auto-generating trusted TLS certificates, `vic-machine create` performs the following actions during the deployment of the virtual container host.
+
+- Creates a folder with the same name as the virtual container host in the location in which you run `vic-machine create`.
+- Creates trusted CA, server, and client certificate/key pairs in the newly created folder:
+  - `ca.pem`
+  - `ca-key.pem`
+  - `cert.pem`
+  - `key.pem`
+  - `server-cert.pem`
+  - `server-key.pem`
+- Creates a browser-friendly PFX client certificate, `cert.pfx`, to use to authenticate connections to the VCH Admin portal for the virtual container host.
+
+Running `vic-machine create` with the `--tls-cname` option also creates an environment file named <code><i>vch_name</i>.env</code>, that contains Docker environment variables that container developers can use to configure their Docker client environment:
+- The address of the virtual container host.<pre>DOCKER_HOST=<i>vch_address</i></pre>
+- The path to the client certificates.<pre>DOCKER_CERT_PATH=<i>path_to_certs</i></pre>
+- Activates TLS client verification.<pre>DOCKER_TLS_VERIFY=1</pre>
+
+You must provide copies of the certificate files and the environment file to container developers so that they can connect Docker clients to the virtual container host. 
+
+If you use trusted certificates, container developers run Docker commands with the `--tlsverify`, `--tlscacert`, `--tlscert`, and `--tlskey` options.
+
+When you specify the `--tls-cname` option, you must provide an FQDN for the virtual container host or the name of the domain to which the virtual container host will belong. The system on which you run `vic-machine create` and the remote vCenter Server system must agree on the vCenter Server system's FQDN or domain. As a consequence, to use the `--tls-cname` option, you must have a DNS service running on the client network that the virtual container host uses. You cannot specify an IP address in the `--tls-cname` option. If you do not have a DNS service on the client network, you can still implement full TLS authentication with trusted certificates by either specifying a static IP address or by using the `--cert` and `--key` options to upload custom certificates.  
+
+<pre>--tls-cname vch-name.example.org</pre>
+<pre>--tls-cname *.example.org</pre>
+
+<a name="no-tlsverify"></a>
+### `--no-tlsverify` ###
 
 Short name: `--kv`
 
-Disables authentication via client certificates
+Authentication of the virtual container host with auto-generated TLS certificates that are not signed by a CA, with no client-side verification. The `vic-machine create` command still generates certificates, but these are untrusted, self-signed certificates. 
+
+If you configure the virtual container host for untrusted TLS certificate authentication, clients are not verified. Consequently, container developers do not require copies of the certificate and key files.
+
+When you specify the `--no-tlsverify` option, `vic-machine create` performs the following actions during the deployment of the virtual container host.
+
+- Creates a folder with the same name as the virtual container host in the location in which you run `vic-machine create`.
+- Creates an environment file named <code><i>vch_name</i>.env</code>, that contains the `DOCKER_HOST=vch_address` environment variable, that you can provide to container developers to use to set up their Docker client environment.
+
+If you use untrusted certificates, container developers run Docker commands with the `--tls` option. The `--no-tlsverify` option takes no arguments. 
+
+<pre>--no-tlsverify</pre>
 
 <a name="registry"></a>
-### `insecure-registry` ###
+### `--insecure-registry` ###
 
 Short name: `--dir`
 
@@ -159,7 +213,7 @@ This may be a point of contention/performance degradation and HA/DRS
 may not work as intended.</pre> 
 
 <a name="image"></a>
-### `image-store` ###
+### `--image-store` ###
 
 Short name: `-i`
 
@@ -186,7 +240,7 @@ Wrap the datastore name and path in single quotes (') on Mac OS and Linux and in
 If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores.
 
 <a name="volume-store"></a>
-### `volume-store` ###
+### `--volume-store` ###
 
 Short name: `--vs`
 
@@ -225,12 +279,12 @@ The label that you specify is the volume store name that Docker uses. For exampl
 
 <a name="networking"></a>
 ## Networking Options ##
-The `vic-machine create` utility allows you to specify different networks for the different types of traffic between containers, the virtual container host, the external internet, and your vSphere environment. For information about the different networks that virtual container hosts use, see [vSphere Integrated Containers Engine Networking Overview](networks.html).
+The `vic-machine create` utility allows you to specify different networks for the different types of traffic between containers, the virtual container host, the external internet, and your vSphere environment. For information about the different networks that virtual container hosts use, see [Networks Used by vSphere Integrated Containers Engine](networks.md).
 
 By default, `vic-machine create` obtains IP addresses for virtual container host endpoint VMs by using DHCP. For information about how to specify a static IP address for the virtual container host endpoint VM on the client, external, and management networks, see [Specify a Static IP Address for the Virtual Container Host Endpoint VM](#static-ip) in Advanced Options.
 
 <a name="bridge"></a>
-### `bridge-network` ###
+### `--bridge-network` ###
 
 Short name: `-b`
 
@@ -259,7 +313,7 @@ Wrap the distributed port group name in single quotes (') on Mac OS and Linux an
 For information about how to specify a range of IP addresses for additional bridge networks, see [`bridge-network-range`](#bridge-range) in Advanced Networking Options.
 
 <a name="client-network"></a>
-### `client-network` ###
+### `--client-network` ###
 
 Short name: `--cln`
 
@@ -274,7 +328,7 @@ Wrap the network name in single quotes (') on Mac OS and Linux and in double quo
 <pre>--client-network '<i>network name</i>'</pre>
 
 <a name="external-network"></a>
-### `external-network` ###
+### `--external-network` ###
 
 Short name: `--en`
 
@@ -289,7 +343,7 @@ Wrap the network name in single quotes (') on Mac OS and Linux and in double quo
 <pre>--external-network '<i>network name</i>'</pre>
 
 <a name="management-network"></a>
-### `management-network` ###
+### `--management-network` ###
 
 Short name: `--mn`
 
@@ -304,7 +358,7 @@ Wrap the network name in single quotes (') on Mac OS and Linux and in double quo
 <pre>--management-network '<i>network name</i>'</pre>
 
 <a name="container-network"></a>
-### `container-network` ###
+### `--container-network` ###
 
 Short name: `--cn`
 
@@ -333,7 +387,7 @@ If the network that you specify in the `container-network` option does not suppo
 
 The `vic-machine` utility provides options to customize the virtual container host appliance.
 
-### `name` ###
+### `--name` ###
 
 Short name: `-n`
 
@@ -345,7 +399,7 @@ Wrap the appliance name in single quotes (') on Mac OS and Linux and in double q
 
 <pre>--name '<i>vch appliance name</i>'</pre>
 
-### `memory` ###
+### `--memory` ###
 
 Short name: `--mem`
 
@@ -353,7 +407,7 @@ Limit the amount of memory that is available for use by the virtual container ho
 
 <pre>--memory 1024</pre>
 
-### `cpu` ###
+### `--cpu` ###
 
 Short name: None
 
@@ -361,7 +415,7 @@ Limit the amount of CPU capacity that is available for use by the virtual contai
 
 <pre>--cpu 1024</pre>
 
-### `force` ###
+### `--force` ###
 
 Short name: `-f`
 
@@ -373,7 +427,7 @@ If your vSphere environment uses untrusted, self-signed certificates, you can us
 
 <pre>--force</pre>
 
-### `timeout` ###
+### `--timeout` ###
 
 Short name: none
 
@@ -389,45 +443,51 @@ The options in this section are exposed in the `vic-machine create` help if you 
 <a name="adv-security"></a>
 ## Advanced Security Options ##
 
+The advanced security options allow you to customize the authentication of connections from Docker clients to virtual container hosts.
+
+- Add optional information to auto-generated trusted TLS certificates by specifying the `--tls-ca`, `--certificate-key-size`, and `--organization` options.
+- Use custom trusted TLS certificates by using the `--cert` and `--key` options.
+- Disable TLS authentication completely by using the `--no-tls` option.
+
 ### `--tls-ca` ###
 
 Short name: `--ca`
 
-xx
+Certificate Authority (CA) files to use to verify Docker client certificates. Specify the `--tls-ca` option if your certificates are validated by a CA that is not commonly recognized. Specify the `--tls-ca` option multiple times to specify multiple CA files. 
+
+<pre>--tls-ca <i>path_to_ca_file</i></pre>
 
 ### `--certificate-key-size` ###
 
 Short name: `--ksz`
 
-xx
+The size of the key for `vic-machine create` to use when it creates auto-generated trusted certificates. If not specified, `vic-machine create` creates keys with default size of 2048 bits.
+
+<pre>--certificate-key-size 256</pre>
 
 ### `--organization` ###
 
 Short name: None
 
-xx
+A list of identifiers to record in auto-generated trusted certificates. If not specified,`vic-machine create` uses the name of the virtual container host as the organization value. It also uses the IP address or FQND of the virtual container host as the organization if you set a static IP address by using the `--client-network-ip` and `--client-network-gateway` options.
 
-### `no-tls` ###
+<pre>--organization <i>organization_name</i></pre>
 
-Short name: `-k`
-
-Set the `no-tls` option if you do not require certificate-based  TLS authentication between the virtual container host and the Docker client. If you use the `no-tls` option, you connect Docker clients to the virtual container host via port 2375, instead of via port 2376.
-
-<pre>--no-tls</pre>
-
-### `cert` ###
+<a name="cert"></a>
+### `--cert` ###
 
 Short name: none
 
-The path to an X.509 certificate for the Docker API to use to authenticate the virtual container host with a Docker client.
+The path to a custom X.509 certificate that has been signed by a CA, for the Docker API to use to authenticate the virtual container host with a Docker client.
 
-- This option is mandatory if your Docker environment uses TLS certificates that are signed by a CA. For information about how to set up a Docker client to use CA certificates, see https://docs.docker.com/engine/security/https/.
-- Use this option in combination with the `key` option, that provides the path to the private key file for the CA certificate.
-
-If you use the `cert` and `key` options, `vic-machine` does not automatically generate certificates. Omit this option if your Docker environment does not use certificates that are signed by a CA. Include the names of the certificate and key files in the paths.
+- This option is mandatory if you use custom TLS certificates, rather than auto-generated certificates, to authenticate connections between Docker clients and the virtual container hosts.
+- Use this option in combination with the `key` option, that provides the path to the private key file for the custom certificate.
+- Include the names of the certificate and key files in the paths.
+- If you use trusted custom certificates, container developers run Docker commands with the `--tlsverify`, `--tlscacert`, `--tlscert`, and `--tlskey` options.
 
 <pre>--cert <i>path_to_certificate_file</i>/<i>certificate_file_name</i>.pem 
---key <i>path_to_key_file</i>/<i>key_file_name</i>.pem</pre> 
+--key <i>path_to_key_file</i>/<i>key_file_name</i>.pem
+</pre> 
 
 Wrap the folder names in the paths in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces.
 
@@ -435,22 +495,36 @@ Wrap the folder names in the paths in single quotes (Linux or Mac OS) or double 
 --key '<i>path to key file</i>'/<i>key_file_name</i>.pem
 </pre> 
 
-### `key` ###
+<a name="key"></a>
+### `--key` ###
 
 Short name: none
 
-The path to the private key file for use with a custom CA certificate. This option is mandatory if your Docker environment uses certificates that are signed by a CA. For information about how to set up a Docker client to use CA certificates, see https://docs.docker.com/engine/security/https/.
-
-Use this option in combination with the `cert` option, that provides the path to an X.509 certificate file. Include the names of the certificate and key files in the paths. 
+The path to the private key file to use with a custom CA certificate. This option is mandatory if you specify the `cert` option, that provides the path to a custom X.509 certificate file. Include the names of the certificate and key files in the paths. 
 
 <pre>--cert <i>path_to_certificate_file</i>/<i>certificate_file_name</i>.pem 
---key <i>path_to_key_file</i>/<i>key_file_name</i>.pem</pre> 
+--key <i>path_to_key_file</i>/<i>key_file_name</i>.pem
+</pre> 
 
 Wrap the folder names in the paths in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces.
 
 <pre>--cert '<i>path to certificate file</i>'/<i>certificate_file_name</i>.pem 
 --key '<i>path to key file</i>'/<i>key_file_name</i>.pem
 </pre>
+
+<a name="no-tls"></a>
+### `--no-tls` ###
+
+Short name: `-k`
+
+Disables TLS authentication of connections between the Docker client and  the virtual container host. 
+
+Set the `no-tls` option if you do not require TLS authentication between the virtual container host and the Docker client. Any Docker client can connect to the virtual container host if you disable TLS authentication. 
+
+If you use the `no-tls` option, container developers connect Docker clients to the virtual container host via port 2375, instead of via port 2376.
+
+<pre>--no-tls</pre>
+
 
 <a name="static-ip"></a>
 ## Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM ##
@@ -463,7 +537,9 @@ Assigning the same subnet to multiple port groups can cause routing problems.  I
 
 To specify a static IP address for the endpoint VM, you provide an IP address, and a gateway address. You can also optionally specify one or more DNS server addresses.
 
-### `dns-server` ###
+**IMPORTANT**: If you assign a static IP address to a virtual container host on the client network by setting the `--client-network-ip` and `--client-network-gateway` options, `vic-machine create` uses this address to auto-generate trusted CA certificates. In this case, two-way TLS authentication with trusted certificates is implemented by default, and you do not need to perform any additional TLS configuration when you deploy the virtual container host. If you assign a static IP to a virtual container host on the client network, `vic-machine create` creates the same certificate and environment variable files as described in the [`--tls-cname` option](#tls-cname).
+
+### `--dns-server` ###
 
 Short name: None
 
@@ -479,7 +555,7 @@ If you specify static IP address for the virtual container host on any of the cl
 --dns=172.16.10.11
 </pre>
 
-### `client-network-ip`, `external-network-ip`, `management-network-ip` ###
+### `--client-network-ip`, `--external-network-ip`, `--management-network-ip` ###
 
 Short name: None
 
@@ -499,7 +575,7 @@ You can also specify IP addresses as resolvable FQDNs. If you specify an FQDN, `
 --client-network-ip=vch27-team-c.internal.domain.com
 </pre>
 
-### `client-network-gateway`, `external-network-gateway`, `management-network-gateway` ###
+### `--client-network-gateway`, `--external-network-gateway`, `--management-network-gateway` ###
 
 Short name: None
 
@@ -520,7 +596,7 @@ If the network that you specify in the `container-network` option does not suppo
 
 For information about the container network, see the section on the [`container-network` option](#container-network).
 
-### `container-network-gateway` ###
+### `--container-network-gateway` ###
 
 Short name: `--cng`
 
@@ -534,7 +610,7 @@ Wrap the distributed port group name in single quotes (Linux or Mac OS) or doubl
 
 <pre>--container-network-gateway '<i>distributed port group name</i>':<i>gateway_ip_address</i>/<i>subnet_mask</i></pre>
 
-### `container-network-dns` ###
+### `--container-network-dns` ###
 
 Short name: `--cnd`
 
@@ -548,7 +624,7 @@ Wrap the distributed port group name in single quotes (Linux or Mac OS) or doubl
 
 <pre>--container-network-dns '<i>distributed port group name</i>':8.8.8.8</pre>
 
-### `container-network-ip-range` ###
+### `--container-network-ip-range` ###
 
 Short name: `--cnr`
 
@@ -570,7 +646,7 @@ Wrap the distributed port group name in single quotes (Linux or Mac OS) or doubl
 <a name="adv-mgmt"></a>
 ## Advanced Resource Management Options ##
 
-### `memory-reservation` ###
+### `--memory-reservation` ###
 
 Short name: `--memr`
 
@@ -578,7 +654,7 @@ Reserve a quantity of memory for use by the virtual container host appliance and
 
 <pre>--memory-reservation 1024</pre>
 
-### `memory-shares` ###
+### `--memory-shares` ###
 
 Short name: `--mems`
 
@@ -586,7 +662,7 @@ Set memory shares on the virtual container host appliance. Specify the share val
 
 <pre>--memory-shares low</pre>
 
-### `cpu-reservation` ###
+### `--cpu-reservation` ###
 
 Short name: `--cpur`
 
@@ -594,7 +670,7 @@ Reserve a quantity of CPU capacity for use by the virtual container host applian
 
 <pre>--cpu-reservation 1024</pre>
 
-### `cpu-shares` ###
+### `--cpu-shares` ###
 
 Short name: `--cpus`
 
@@ -602,7 +678,7 @@ Set CPU shares on the virtual container host appliance. Specify the share value 
 
 <pre>--cpu-shares low</pre>
 
-### `appliance-cpu ` ###
+### `--appliance-cpu ` ###
 
 Short name: none
 
@@ -612,7 +688,7 @@ The number of virtual CPUs for the virtual container host endpoint VM. The defau
 
 <pre>--appliance-cpu <i>number_of_CPUs</i></pre>
 
-### `appliance-memory ` ###
+### `--appliance-memory ` ###
 
 Short name: none
 
@@ -626,7 +702,7 @@ The amount of memory for the virtual container host endpoint VM. The default is 
 ## Other Advanced Options ##
 
 <a name="bridge-range"></a>
-### `bridge-network-range` ###
+### `--bridge-network-range` ###
 
 Short name: `--bnr`
 
@@ -637,7 +713,7 @@ When you specify the bridge network IP range, you specify the IP range as a CIDR
 <pre>--bridge-network-range 192.168.100.0/24</pre>
 
 
-### `base-image-size` ###
+### `--base-image-size` ###
 
 Short name: None
 
@@ -645,13 +721,13 @@ The size of the base image from which to create other images. You should not nor
 
 <pre>--base-image-size 4GB</pre>
 
-### `container-store` ###
+### `--container-store` ###
 
 Short name: `--cs`
 
 The `container-store` option is not enabled. Container VM files are stored in the datastore that you designate as the image store. 
 
-### `appliance-iso` ###
+### `--appliance-iso` ###
 
 Short name: `--ai`
 
@@ -663,7 +739,7 @@ Wrap the folder names in the path in single quotes (Linux or Mac OS) or double q
 
 <pre>--appliance-iso '<i>path to ISO file</i>'/<i>ISO_file_name</i>.iso</pre>
 
-### `bootstrap-iso` ###
+### `--bootstrap-iso` ###
 
 Short name: `--bi`
 
@@ -675,7 +751,7 @@ Wrap the folder names in the path in single quotes (Linux or Mac OS) or double q
 
 <pre>--bootstrap-iso '<i>path to ISO file</i>'/<i>ISO_file_name</i>.iso</pre>
 
-### `use-rp` ###
+### `--use-rp` ###
 
 Short name: none
 
@@ -684,7 +760,7 @@ Deploy the virtual container host appliance to a resource pool on vCenter Server
 <pre>--use-rp</pre>
 
 
-### `debug` ###
+### `--debug` ###
 Short name: `-v`
 
 Provide verbose logging output, for troubleshooting purposes when running `vic-machine create`. If not specified, the `debug` value is set to 0 and verbose logging is disabled. Provide a value of 1 or greater to increase the verbosity of the logging. Note that setting debug to a value greater than 1 can affect the behavior of `vic-machine create`.
