@@ -19,6 +19,7 @@ This test requires that a vSphere server is running and available
 
 #Expected Outcome:
 Docker compose should return with success and the voting and results servers are up and running.
+Docker inspect data should show networks, alias, and IP address for the container.
 
 #Possible Problems:
 None
