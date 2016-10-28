@@ -148,7 +148,7 @@ type Connection struct {
 	Target url.URL `vic:"0.1" scope:"read-only" key:"target"`
 	// User/Password (For ESXi only)
 	// Required because url.URL does not Marshal the UserInfo field
-	UserPassword string `vic:"0.1" scope:"read-only" key:"userpw"`
+	UserPassword string `vic:"0.1" scope:"secret" key:"userpw"`
 	// Certificate for authentication as vSphere Extension
 	ExtensionCert string `vic:"0.1" scope:"read-only" key:"extension_cert"`
 	ExtensionKey  string `vic:"0.1" scope:"read-only" key:"extension_key"`
