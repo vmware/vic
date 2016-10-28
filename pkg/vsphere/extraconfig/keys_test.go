@@ -116,3 +116,11 @@ func TestNoScopes(t *testing.T) {
 	key = calculateKey(scopes, "a.b", "c")
 	assert.Equal(t, "a.b/c", key, "Key should remain hidden")
 }
+
+func TestSecret(t *testing.T) {
+	scopes := []string{"secret", "read-write"}
+
+	key := calculateKey(scopes, DefaultGuestInfoPrefix+".a.b", "c")
+
+	assert.Equal(t, DefaultGuestInfoPrefix+".a.b.c@secret", key, "Key should have secret suffix")
+}

@@ -30,7 +30,6 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -251,8 +250,11 @@ func (d *Dispatcher) reconfigVCH(conf *config.VirtualContainerHostConfigSpec, is
 	spec.DeviceChange = deviceChange
 
 	if conf != nil {
-		cfg := make(map[string]string)
-		extraconfig.Encode(extraconfig.MapSink(cfg), conf)
+		cfg, cerr := d.encodeConfig(conf)
+		if cerr != nil {
+			return cerr
+		}
+
 		spec.ExtraConfig = append(spec.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 	}
 
