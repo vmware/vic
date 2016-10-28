@@ -79,7 +79,6 @@ func HandshakeClient(conn io.ReadWriter, debug bool) error {
 	// set the read deadline for timeout
 	// this has no effect on windows as the deadline is set at port open time
 
-	log.Debugf("HandshakeClient: Establishing connection...")
 	log.Debug("HandshakeClient: Sending syn.")
 	conn.Write([]byte{flagSyn, pos})
 	pos = incrementByte(pos)
@@ -178,7 +177,7 @@ func HandshakeServer(conn io.ReadWriter) error {
 	}
 	pos := incrementByte(buf1byte[0])
 
-	log.Debugf("HandshakeServer: Establishing connection...")
+	log.Debug("HandshakeServer: Waiting for incoming syn request...")
 
 	// Sync packet is 2 bytes, however if we read more than 2
 	// it means buffer is not empty and data is not trusted for this sync.
@@ -188,7 +187,7 @@ func HandshakeServer(conn io.ReadWriter) error {
 		return err
 	}
 	if n != 2 {
-		log.Debugf("HandshakeServer: Received %d bytes while awaiting for syn", n)
+		log.Debugf("HandshakeServer: Received %d bytes while awaiting for syn.", n)
 	}
 	syncBuf = syncBuf[n-2:]
 

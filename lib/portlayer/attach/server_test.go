@@ -33,7 +33,7 @@ import (
 
 // Start the server, make 200 client connections, test they connect, then Stop.
 func TestAttachStartStop(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.InfoLevel)
 	s := NewAttachServer("", -1)
 
 	wg := &sync.WaitGroup{}
