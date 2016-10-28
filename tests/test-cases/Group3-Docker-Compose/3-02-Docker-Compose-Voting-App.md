@@ -18,7 +18,7 @@ This test requires that a vSphere server is running and available
 ```cd demos/compose/voting-app; COMPOSE_HTTP_TIMEOUT=300 DOCKER_HOST=<VCH IP> docker-compose up```
 
 #Expected Outcome:
-Docker compose should return with success and the voting and results servers are up and running.
+Docker compose should return with success and all containers in the compose yaml file are up and running.
 Docker inspect data should show networks, alias, and IP address for the container.
 
 #Possible Problems:
