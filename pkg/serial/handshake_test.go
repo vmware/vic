@@ -131,7 +131,7 @@ func TestHandshakeServerLotsOfTrashOnTheLine(t *testing.T) {
 		for {
 			n, e := clientConn.Read(buf)
 			if e != nil {
-				t.Errorf("Unexpected server error: %d", e)
+				t.Errorf("Unexpected server error: %v", e)
 				return
 			}
 
@@ -177,7 +177,7 @@ func TestHandshakeServerComportSync(t *testing.T) {
 		for {
 			n, e := clientConn.Read(buf)
 			if e != nil {
-				t.Errorf("Unexpected server error: %d", e)
+				t.Errorf("Unexpected server error: %v", e)
 				return
 			}
 
@@ -222,7 +222,7 @@ func TestHandshakeServerAckNakResponse(t *testing.T) {
 
 		n, e := clientConn.Read(buf)
 		if e != nil {
-			t.Errorf("Unexpected server error: %d", e)
+			t.Errorf("Unexpected server error: %v", e)
 			return
 		}
 
@@ -241,7 +241,7 @@ func TestHandshakeServerAckNakResponse(t *testing.T) {
 
 		n, e = clientConn.Read(buf)
 		if e != nil {
-			t.Errorf("Unexpected server error: %d", e)
+			t.Errorf("Unexpected server error: %v", e)
 			return
 		}
 

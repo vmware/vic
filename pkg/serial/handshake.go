@@ -34,6 +34,13 @@ const (
 	flagNak      byte = 0x15
 )
 
+// HandshakeError should only occure if the protocol between HandshakeServer and HandshakeClient was violated.
+type HandshakeError struct {
+	msg string
+}
+
+func (he *HandshakeError) Error() string { return "HandshakeServer: " + he.msg }
+
 // PurgeIncoming is used to clear a channel of bytes prior to handshaking
 func PurgeIncoming(conn net.Conn) {
 	if tracing {
@@ -54,6 +61,8 @@ func PurgeIncoming(conn net.Conn) {
 
 func incrementByte(syncPos byte) byte { return (syncPos + 1) | 0x80 }
 
+// HandshakeClient establishes connection with the server making sure
+// they both are in sync.
 func HandshakeClient(conn io.ReadWriter, debug bool) error {
 	if tracing {
 		defer trace.End(trace.Begin(""))
@@ -87,7 +96,7 @@ func HandshakeClient(conn io.ReadWriter, debug bool) error {
 			}
 		}
 		return &HandshakeError{
-			msg: fmt.Sprintf("Unexpected server response: %s", buf1byte[0]),
+			msg: fmt.Sprintf("Unexpected server response: %d", buf1byte[0]),
 		}
 	}
 
@@ -99,7 +108,7 @@ func HandshakeClient(conn io.ReadWriter, debug bool) error {
 	if buf1byte[0] != pos {
 		log.Debugf("HandshakeClient: Unexpected byte pos for SynAck: %x, expected: %x", buf1byte[0], pos)
 		return &HandshakeError{
-			msg: fmt.Sprintf("Unexpected sync position response: %s", buf1byte[0]),
+			msg: fmt.Sprintf("Unexpected sync position response: %d", buf1byte[0]),
 		}
 	}
 
@@ -154,12 +163,8 @@ func HandshakeClient(conn io.ReadWriter, debug bool) error {
 	return nil
 }
 
-type HandshakeError struct {
-	msg string
-}
-
-func (he *HandshakeError) Error() string { return "HandshakeServer: " + he.msg }
-
+// HandshakeServer establishes connection with the client making sure
+// they both are in sync.
 func HandshakeServer(conn io.ReadWriter) error {
 	if tracing {
 		defer trace.End(trace.Begin(""))
