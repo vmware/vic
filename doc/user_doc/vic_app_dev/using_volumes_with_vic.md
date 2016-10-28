@@ -91,7 +91,7 @@ If you intend to create named or anonymous volumes by using `docker create -v` w
 
 For example, to create a busybox container that is mounted to the `volumes` folder of an anonymous volume in the default volume store, run the following command:
 
- <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
+<pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
 create -v /volumes busybox</pre>
 
 You can create containers that are attached to named volumes by using `docker create -v` and specifying a volume name. When you create containers that are attached to named volumes, the virtual container host checks whether the volume exists in the volume store, and if it does not, creates it. The virtual container host attaches the existing or new volume to the container.
