@@ -75,7 +75,7 @@ Check modified resource pool CPU and memory values
     ${oldcpuval}  ${oldmemval}=  Get resource pool CPU and mem values  ${output}
 
     ${newcpuval}=  Evaluate  ${oldcpuval} - 1
-    ${newmemval}=  Evaluate  ${oldmemval} - 1
+    ${newmemval}=  Evaluate  1000
     Set resource pool CPU and mem values  ${newcpuval}  ${newmemval}
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} info
