@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/govmomi/vim25/progress"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
+	"github.com/vmware/vic/vendor/github.com/davecgh/go-spew/spew"
 )
 
 const (
@@ -110,5 +111,7 @@ func isTaskInProgress(err error) bool {
 		}
 	}
 
+	//if none are found this is an unknown fault so we are dumping the structure.
+	log.Debugf("unexpected fault om task retry : %s", spew.Sdump(err))
 	return false
 }
