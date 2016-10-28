@@ -21,7 +21,7 @@ After you have deployed a virtual container host to a standalone ESXi host, you 
  - With TLS authentication: <pre>$ docker -H <i>vch_address</i>:2376 --tls info</pre>
  - Without TLS authentication: <pre>$ docker -H <i>vch_address</i>:2375 info</pre>
 
- You should see confirmation that the Storage Driver is `vSphere Integrated Containers Backend Engine`.
+ You should see confirmation that the Storage Driver is `vSphere Integrated Containers Backend Engine`. If the connection fails with a Docker API version error, see [Docker Commands Fail with a Docker API Version Error](ts_docker_version_error.md).
 1.  Pull a Docker container image into the virtual container host, for example, the `BusyBox` container.
 
    - With TLS authentication: <pre>$ docker -H <i>vch_address</i>:2376 --tls pull busybox:latest</pre>
