@@ -38,6 +38,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/session"
 	"github.com/vmware/govmomi/vim25"
+	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
@@ -205,7 +206,26 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 
 	if s.Keepalive != 0 {
 		// TODO: add login() to the keep alive handler
-		vimClient.RoundTripper = session.KeepAlive(soapClient, s.Keepalive)
+		// vimClient.RoundTripper = session.KeepAlive(soapClient, s.Keepalive)
+		vimClient.RoundTripper = session.KeepAliveHandler(soapClient, s.Keepalive,
+			func(roundTripper soap.RoundTripper) error {
+				_, err := methods.GetCurrentTime(context.Background(), roundTripper)
+				if err != nil {
+					log.Warningf("session keepalive error: %s", err)
+
+					if isNotAuthenticated(err) {
+						err = login(ctx)
+
+						if err != nil {
+							log.Errorf("session keepalive failed to re-authenticate: %s", err)
+						} else {
+							log.Info("session keepalive re-authenticated")
+						}
+					}
+				}
+
+				return nil
+			})
 	}
 
 	// TODO: get rid of govmomi.Client usage, only provides a few helpers we don't need.
@@ -312,4 +332,14 @@ func (s *Session) Folders(ctx context.Context) *object.DatacenterFolders {
 	}
 
 	return s.folders
+}
+
+func isNotAuthenticated(err error) bool {
+	if soap.IsSoapFault(err) {
+		switch soap.ToSoapFault(err).VimFault().(type) {
+		case types.NotAuthenticated:
+			return true
+		}
+	}
+	return false
 }
