@@ -5,6 +5,7 @@ vSphere Integrated Containers Engine supports the use of container volumes. When
 - [Obtain the List of Available Volume Stores](#list_vs) 
 - [Obtain the List of Available Volumes](#list_vols)
 - [Create a Volume in a Volume Store](#create_vol)
+- [Volumes created from Images](#image_volumes)
 - [Create a Container and Attach it to an Anonymous or Named Volume](#create_container)
 - [Attach an Existing Volume to a Container](#attach)
 - [Obtain Information About a Volume](#inspect_vol) 
@@ -77,14 +78,14 @@ run -v /<i>volume_name</i> busybox</pre>
 
 **NOTE**: When using a vSphere Integrated Containers Engine virtual container host as your Docker endpoint, the storage driver is always the vSphere Integrated Containers Engine Backend Engine. If you specify the `docker volume create --driver` option an error stating that a bad driver has been selected will occur.
 
-<a name="create_container"></a>
-
-## Volumes which come from Images ##
+<a name="image_volumes"></a>
+## Volumes created from Images ##
 
 Some images (e.g. mongo or redis:alpine) contain volume bind information in their metadata. These volumes will be created with the default parameters and are treated as anonymous volumes. Like Docker, VIC treats all volume mount paths as unique, this should be kept in mind when attempting to bind other volumes to the same location as an anonymous or image volume(in this case a specified volume will always when over an anonymous volume).
 
 If a different capacity volume is desired than the default for an image volume then a Name Volume should be created with the desired capacity. That named volume can then be mounted to the same location as the image metadata specifies (can be found by doing a `docker inspect <image name>` under the `Volumes` section of the json) and the resulting container will have the desired sized storage and the desired endpoint.  
 
+<a name="create_container"></a>
 ## Create a Container and Attach it to an Anonymous or Named Volume ##
 
 If you intend to create named or anonymous volumes by using `docker create -v` when creating containers, a volume store named `default` must exist in the virtual container host. In this case, you include the path to the destination at which you want to mount an anonymous volume in the `docker create -v` command. Docker creates the anonymous volume in the `default` volume store, if it exists. The virtual container host attaches the anonymous volume to the container.
