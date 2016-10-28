@@ -120,3 +120,43 @@ Remap mapped ports after OOB Stop
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ctr4
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
+
+Container to container traffic via VCH external interface
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm -f $(docker ${params} ps -aq)
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull nginx
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --net bridge -p 8085:80 nginx
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+
+    Sleep  10
+
+    ${rc}  ${ip}=  Run And Return Rc And Output  docker ${params} network inspect bridge | jq '.[0].Containers."${containerID}".IPv4Address'
+    ${ip}=  Split String  ${ip}  /
+    ${nginx-ip}=  Set Variable  @{ip}[0]
+    ${nginx-ip}=  Strip String  ${nginx-ip}  characters="
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --name anjunabeats busybox /bin/ash -c "wget -O index.html ${ext-ip}:8085; md5sum index.html"
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    # Verify hash of nginx default index.html
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs anjunabeats
+    Log  ${output}
+    Should Contain  ${output}  e3eb0a1df437f3f97a64aca5952c8ea0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --name abgt250 busybox /bin/ash -c "wget -O index.html ${nginx-ip}:80; md5sum index.html"
+    Log  ${output}
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    # Verify hash of nginx default index.html
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs abgt250
+    Log  ${output}
+    Should Contain  ${output}  e3eb0a1df437f3f97a64aca5952c8ea0
