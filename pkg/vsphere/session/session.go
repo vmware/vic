@@ -213,9 +213,8 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 					log.Warnf("session keepalive error: %s", err)
 
 					if isNotAuthenticated(err) {
-						err = login(ctx)
 
-						if err != nil {
+						if err = login(ctx); err != nil {
 							log.Errorf("session keepalive failed to re-authenticate: %s", err)
 						} else {
 							log.Info("session keepalive re-authenticated")
