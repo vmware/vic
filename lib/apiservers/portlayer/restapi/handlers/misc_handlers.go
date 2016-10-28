@@ -16,6 +16,7 @@ package handlers
 
 import (
 	"github.com/go-swagger/go-swagger/httpkit/middleware"
+	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
@@ -23,6 +24,7 @@ import (
 	"github.com/vmware/vic/lib/portlayer/exec"
 )
 
+// MiscHandlersImpl is the receiver for all the misc handler methods
 type MiscHandlersImpl struct{}
 
 // Configure assigns functions to all the miscellaneous api handlers
@@ -36,10 +38,15 @@ func (handler *MiscHandlersImpl) Ping() middleware.Responder {
 	return misc.NewPingOK().WithPayload("OK")
 }
 
+// GetVCHInfo returns VCH-related info for a `docker info` call
 func (handler *MiscHandlersImpl) GetVCHInfo() middleware.Responder {
+	ctx := context.Background()
+	vchCPUMhz := exec.NCPU(ctx)
+	vchMemLimit := exec.MemTotal(ctx)
+
 	vchInfo := &models.VCHInfo{
-		CPUMhz:          &exec.Config.VCHMhz,
-		Memory:          &exec.Config.VCHMemoryLimit,
+		CPUMhz:          &vchCPUMhz,
+		Memory:          &vchMemLimit,
 		HostOS:          &exec.Config.HostOS,
 		HostOSVersion:   &exec.Config.HostOSVersion,
 		HostProductName: &exec.Config.HostProductName,

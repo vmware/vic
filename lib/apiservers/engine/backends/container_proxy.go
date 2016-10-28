@@ -36,6 +36,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -120,6 +121,7 @@ const (
 	forceLogType                         = "json-file" //Use in inspect to allow docker logs to work
 	annotationKeyLabels                  = "docker.labels"
 	killWaitForExit        time.Duration = 2 * time.Second
+	ShortIDLen                           = 12
 
 	DriverArgFlagKey      = "flags"
 	DriverArgContainerKey = "Container"
@@ -1038,13 +1040,18 @@ func hostConfigFromContainerInfo(vc *viccontainer.VicContainer, info *models.Con
 
 	hostConfig.VolumeDriver = portlayerName
 	hostConfig.Resources = resourceConfig
+	hostConfig.DNS = make([]string, 0)
 
-	if len(info.ScopeConfig) > 0 {
-		if info.ScopeConfig[0].DNS != nil {
-			hostConfig.DNS = info.ScopeConfig[0].DNS
+	if len(info.Endpoints) > 0 {
+		for _, ep := range info.Endpoints {
+			for _, dns := range ep.Nameservers {
+				if dns != "" {
+					hostConfig.DNS = append(hostConfig.DNS, dns)
+				}
+			}
 		}
 
-		hostConfig.NetworkMode = container.NetworkMode(info.ScopeConfig[0].ScopeType)
+		hostConfig.NetworkMode = container.NetworkMode(info.Endpoints[0].Scope)
 	}
 
 	// Set this to json-file to force the docker CLI to allow us to use docker logs
@@ -1139,7 +1146,7 @@ func containerConfigFromContainerInfo(vc *viccontainer.VicContainer, info *model
 	}
 
 	// Fill in information about the container network
-	if info.ScopeConfig == nil {
+	if info.Endpoints == nil {
 		container.NetworkDisabled = true
 	} else {
 		container.NetworkDisabled = false
@@ -1189,6 +1196,52 @@ func networkFromContainerInfo(vc *viccontainer.VicContainer, info *models.Contai
 			SecondaryIPv6Addresses: nil,
 		},
 		Networks: make(map[string]*dnetwork.EndpointSettings),
+	}
+
+	shortCID := vc.ContainerID[0:ShortIDLen]
+
+	// Fill in as much info from the endpoint struct inside of the ContainerInfo.
+	// The rest of the data must be obtained from the Scopes portlayer.
+	for _, ep := range info.Endpoints {
+		netEp := &dnetwork.EndpointSettings{
+			IPAMConfig:          nil, //Get from Scope PL
+			Links:               nil,
+			Aliases:             nil,
+			NetworkID:           "", //Get from Scope PL
+			EndpointID:          ep.ID,
+			Gateway:             ep.Gateway,
+			IPAddress:           "",
+			IPPrefixLen:         0,  //Get from Scope PL
+			IPv6Gateway:         "", //Get from Scope PL
+			GlobalIPv6Address:   "", //Get from Scope PL
+			GlobalIPv6PrefixLen: 0,  //Get from Scope PL
+			MacAddress:          "", //Container endpoints currently do not have mac addr yet
+		}
+
+		if ep.Address != "" {
+			ip, ipnet, err := net.ParseCIDR(ep.Address)
+			if err == nil {
+				netEp.IPAddress = ip.String()
+				netEp.IPPrefixLen, _ = ipnet.Mask.Size()
+			}
+		}
+
+		if len(ep.Aliases) > 0 {
+			netEp.Aliases = make([]string, len(ep.Aliases))
+			found := false
+			for i, alias := range ep.Aliases {
+				netEp.Aliases[i] = alias
+				if alias == shortCID {
+					found = true
+				}
+			}
+
+			if !found {
+				netEp.Aliases = append(netEp.Aliases, vc.ContainerID[0:ShortIDLen])
+			}
+		}
+
+		networks.Networks[ep.Scope] = netEp
 	}
 
 	return networks

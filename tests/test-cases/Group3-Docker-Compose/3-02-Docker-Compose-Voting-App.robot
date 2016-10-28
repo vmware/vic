@@ -24,3 +24,19 @@ Compose Voting App
     Log  ${out}
     Should Contain  ${out}  true
     Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${out}=  Run And Return Rc And Output  docker ${params} inspect -f '{{range $key, $value := .NetworkSettings.Networks}}{{$key}}{{end}}' vote
+    Log  ${out}
+    Should Not Be Empty  ${out}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${out}=  Run And Return Rc And Output  docker ${params} inspect -f '{{range $key, $value := .NetworkSettings.Networks}}{{index $value "Aliases"}}{{end}}' vote
+    Log  ${out}
+    Should Contain  ${out}  vote
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${out}=  Run And Return Rc And Output  docker ${params} inspect -f '{{range $key, $value := .NetworkSettings.Networks}}{{index $value "IPAddress"}}{{end}}' vote
+    Log  ${out}
+    Should Not Be Empty  ${out}
+    Should Be Equal As Integers  ${rc}  0
+    

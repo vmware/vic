@@ -20,6 +20,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"strings"
 	"time"
 
 	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
@@ -276,6 +277,8 @@ func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers
 		return containers.NewGetContainerInfoNotFound().WithPayload(&models.Error{Message: info})
 	}
 
+	// Refresh to get up to date network info
+	container.Refresh(context.Background())
 	containerInfo := convertContainerToContainerInfo(container.Info())
 	return containers.NewGetContainerInfoOK().WithPayload(containerInfo)
 }
@@ -390,7 +393,11 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.ContainerInfo {
 	defer trace.End(trace.Begin(container.ExecConfig.ID))
 	// convert the container type to the required model
-	info := &models.ContainerInfo{ContainerConfig: &models.ContainerConfig{}, ProcessConfig: &models.ProcessConfig{}}
+	info := &models.ContainerInfo{
+		ContainerConfig: &models.ContainerConfig{},
+		ProcessConfig:   &models.ProcessConfig{},
+		Endpoints:       make([]*models.EndpointConfig, 0),
+	}
 
 	ccid := container.ExecConfig.ID
 	info.ContainerConfig.ContainerID = &ccid
@@ -448,9 +455,46 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 
 	info.HostConfig = &models.HostConfig{}
 	for _, endpoint := range container.ExecConfig.Networks {
+		ep := &models.EndpointConfig{
+			Address:     "",
+			Container:   ccid,
+			Gateway:     "",
+			ID:          endpoint.ID,
+			Name:        endpoint.Name,
+			Ports:       make([]string, 0),
+			Scope:       endpoint.Network.Name,
+			Aliases:     make([]string, 0),
+			Nameservers: make([]string, 0),
+		}
+
+		if len(endpoint.Network.Gateway.IP) > 0 {
+			ep.Gateway = endpoint.Network.Gateway.String()
+		}
+
+		if len(endpoint.Assigned.IP) > 0 {
+			ep.Address = endpoint.Assigned.String()
+		}
+
 		if len(endpoint.Ports) > 0 {
+			ep.Ports = append(ep.Ports, endpoint.Ports...)
 			info.HostConfig.Ports = append(info.HostConfig.Ports, endpoint.Ports...)
 		}
+
+		for _, alias := range endpoint.Network.Aliases {
+			parts := strings.Split(alias, ":")
+			if len(parts) > 1 {
+				ep.Aliases = append(ep.Aliases, parts[1])
+			} else {
+				ep.Aliases = append(ep.Aliases, parts[0])
+			}
+		}
+
+		for _, dns := range endpoint.Network.Nameservers {
+			ep.Nameservers = append(ep.Nameservers, dns.String())
+		}
+
+		info.Endpoints = append(info.Endpoints, ep)
 	}
+
 	return info
 }

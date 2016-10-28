@@ -21,7 +21,13 @@ This test requires that a vSphere server is running and available
 8. Issue docker inspect --type=container <containerID> to the VIC appliance
 9. Issue docker inspect <containerID> to the VIC appliance and verify the Cmd and Image fields
 10. Issue docker inspect --type=image <containerID> to the VIC appliance
-11. Issue docker inspect fake to the VIC appliance
+11. Issue docker network create net-one
+12. Issue docker network create net-two
+13. Issue docker create --network net-one --name two-net-test busybox
+14. Issue docker network connect net-two two-net-test
+15. Issue docker start two-net-test
+16. Issue docker inspect -f '{{range $key, $value := .NetworkSettings.Networks}}{{$key}}{{end}}' two-net-test
+17. Issue docker inspect fake to the VIC appliance
 
 #Expected Outcome:
 * Step 3,4,7,8 should result in success and a properly formatted JSON response
@@ -34,7 +40,8 @@ Error: No such container: busybox
 ```
 Error: No such image: <containerID>
 ```
-* Step 11 should result in an error with the following message:
+* Step 16 should result in two networks listed in the inspect data
+* Step 17 should result in an error with the following message:
 ```
 Error: No such image or container: fake
 ```
