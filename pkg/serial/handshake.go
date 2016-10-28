@@ -182,8 +182,9 @@ func HandshakeServer(conn io.ReadWriter) error {
 	if err != nil {
 		return err
 	}
-
-	log.Debugf("Received %d bytes while awaiting for syn", n)
+	if n != 2 {
+		log.Debugf("HandshakeServer: Received %d bytes while awaiting for syn", n)
+	}
 	syncBuf = syncBuf[n-2:]
 
 	if syncBuf[0] != flagSyn {

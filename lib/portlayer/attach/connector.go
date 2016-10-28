@@ -181,8 +181,11 @@ func (c *Connector) processIncoming(conn net.Conn) {
 			log.Debugf("caught EOF")
 			conn.Close()
 			return
+		} else if _, ok := err.(*serial.HandshakeError); ok {
+			log.Debugf("HandshakeClient: %v", err)
+		} else {
+			log.Errorf("HandshakeClient: %v", err)
 		}
-		log.Errorf("ClientError: %s", err)
 	}
 
 	callback := func(hostname string, remote net.Addr, key ssh.PublicKey) error {
