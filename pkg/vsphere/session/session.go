@@ -210,7 +210,7 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 			func(roundTripper soap.RoundTripper) error {
 				_, err := methods.GetCurrentTime(context.Background(), roundTripper)
 				if err != nil {
-					log.Warningf("session keepalive error: %s", err)
+					log.Warnf("session keepalive error: %s", err)
 
 					if isNotAuthenticated(err) {
 						err = login(ctx)
