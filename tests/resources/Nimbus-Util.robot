@@ -72,7 +72,7 @@ Kill Nimbus Server
     Close connection
 
 Nimbus Cleanup
-    Gather Logs From Test Server
+    Run Keyword And Continue On Failure  Gather Logs From Test Server
     Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  *
 
 Gather Host IPs

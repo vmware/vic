@@ -20,6 +20,7 @@ import (
 	"net"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -36,12 +37,12 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/client/storage"
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
 const (
-	Imagec             = "imagec"
 	PortlayerName      = "Backend Engine"
 	IndexServerAddress = "registry-1.docker.io"
 
@@ -92,38 +93,19 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 	// the vic-machine installer timeout will intervene if this blocks for too long
 	pingPortLayer()
 
+	if err := hydrateCaches(); err != nil {
+		return err
+	}
+
 	log.Info("Creating image store")
 	if err := createImageStore(); err != nil {
 		log.Errorf("Failed to create image store")
 		return err
 	}
 
-	log.Info("Refreshing image cache")
-	go func() {
-		if err := cache.ImageCache().Update(portLayerClient); err != nil {
-			log.Warnf("Failed to refresh image cache: %s", err)
-			return
-		}
-		log.Info("Image cache updated successfully")
-	}()
-
-	log.Info("Refreshing container cache")
-	go func() {
-		if err := syncContainerCache(); err != nil {
-			log.Warnf("Failed to refresh container cache: %s", err)
-			return
-		}
-		log.Info("Container cache updated successfully")
-	}()
-
-	// creates and potentially restore repository cache
-	if err := cache.NewRepositoryCache(portLayerClient); err != nil {
-		return fmt.Errorf("Failed to create repository cache: %s", err.Error())
-	}
-
 	serviceOptions := registry.ServiceOptions{}
-	for _, registry := range insecureRegs {
-		insecureRegistries = append(insecureRegistries, registry.Path)
+	for _, r := range insecureRegs {
+		insecureRegistries = append(insecureRegistries, r.Path)
 	}
 	if len(insecureRegistries) > 0 {
 		serviceOptions.InsecureRegistries = insecureRegistries
@@ -132,6 +114,71 @@ func Init(portLayerAddr, product string, config *config.VirtualContainerHostConf
 	RegistryService = registry.NewService(serviceOptions)
 
 	return nil
+}
+
+func hydrateCaches() error {
+
+	const waiters = 3
+
+	wg := sync.WaitGroup{}
+	wg.Add(waiters)
+	errors := make(chan error, waiters)
+
+	go func() {
+		defer wg.Done()
+		if err := imagec.InitializeLayerCache(portLayerClient); err != nil {
+			errors <- fmt.Errorf("Failed to initialize layer cache: %s", err)
+			return
+		}
+		log.Info("Layer cache initialized successfully")
+		errors <- nil
+	}()
+
+	go func() {
+		defer wg.Done()
+		if err := cache.InitializeImageCache(portLayerClient); err != nil {
+			errors <- fmt.Errorf("Failed to initialize image cache: %s", err)
+			return
+		}
+		log.Info("Image cache initialized successfully")
+
+		// container cache relies on image cache so we share a goroutine to update
+		// them serially
+		if err := syncContainerCache(); err != nil {
+			errors <- fmt.Errorf("Failed to update container cache: %s", err)
+			return
+		}
+		log.Info("Container cache updated successfully")
+		errors <- nil
+	}()
+
+	go func() {
+		log.Info("Refreshing repository cache")
+		defer wg.Done()
+		if err := cache.NewRepositoryCache(portLayerClient); err != nil {
+			errors <- fmt.Errorf("Failed to create repository cache: %s", err.Error())
+			return
+		}
+		errors <- nil
+		log.Info("Repository cache updated successfully")
+	}()
+
+	wg.Wait()
+	close(errors)
+
+	var errs []string
+	for err := range errors {
+		if err != nil {
+			// accumulate all errors into one
+			errs = append(errs, err.Error())
+		}
+	}
+
+	var e error
+	if len(errs) > 0 {
+		e = fmt.Errorf(strings.Join(errs, ", "))
+	}
+	return e
 }
 
 func PortLayerClient() *client.PortLayer {
@@ -209,7 +256,7 @@ func InsecureRegistries() []string {
 
 // syncContainerCache runs once at startup to populate the container cache
 func syncContainerCache() error {
-	log.Debugf("Sync up container cache from portlyaer")
+	log.Debugf("Updating container cache")
 
 	backend := NewContainerBackend()
 	client := backend.containerProxy.Client()

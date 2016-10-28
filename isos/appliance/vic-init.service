@@ -1,6 +1,6 @@
 [Unit]
 Description=Init process for VIC components
-After=basic.target
+After=permissions.service
 
 [Service]
 Type=idle

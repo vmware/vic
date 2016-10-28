@@ -41,8 +41,8 @@ type Task interface {
 
 // Wait wraps govmomi operations and wait the operation to complete
 // Sample usage:
-//    info, err := Wait(ctx, func(ctx) (*TaskInfo, error) {
-//       return vm.Reconfigure(ctx, config)
+//    info, err := Wait(ctx, func(ctx), (*object.Reference, *TaskInfo, error) {
+//       return vm, vm.Reconfigure(ctx, config)
 //    })
 func Wait(ctx context.Context, f func(context.Context) (Task, error)) error {
 	_, err := WaitForResult(ctx, f)
@@ -53,7 +53,7 @@ func Wait(ctx context.Context, f func(context.Context) (Task, error)) error {
 // Return the operation result
 // Sample usage:
 //    info, err := WaitForResult(ctx, func(ctx) (*TaskInfo, error) {
-//       return vm.Reconfigure(ctx, config)
+//       return vm, vm.Reconfigure(ctx, config)
 //    })
 func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (*types.TaskInfo, error) {
 	var err error

@@ -38,6 +38,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 
 	vchconfig "github.com/vmware/vic/lib/config"
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/pprof"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
@@ -69,14 +70,8 @@ var (
 
 	config struct {
 		session.Config
-		addr         string
-		dockerHost   string
-		vmPath       string
-		hostCertFile string
-		hostKeyFile  string
-		authType     string
-		timeout      time.Time
-		tls          bool
+		addr string
+		tls  bool
 	}
 
 	resources vchconfig.Resources
@@ -111,22 +106,12 @@ func init() {
 	// os.Exit(1)
 	// }
 
-	flag.StringVar(&config.addr, "l", ":2378", "Listen address")
-	flag.StringVar(&config.dockerHost, "docker-host", "127.0.0.1:2376", "Docker host")
-	flag.StringVar(&config.hostCertFile, "hostcert", "", "Host certificate file")
-	flag.StringVar(&config.hostKeyFile, "hostkey", "", "Host private key file")
-	flag.StringVar(&config.DatacenterPath, "dc", "", "Name of the Datacenter")
-	flag.StringVar(&config.DatastorePath, "ds", "", "Name of the Datastore")
+	flag.StringVar(&config.addr, "l", "client.localhost:2378", "Listen address")
+
+	// TODO: This should all be pulled from the config
+	flag.StringVar(&config.DatacenterPath, "dc", "", "Path of the datacenter")
 	flag.StringVar(&config.ClusterPath, "cluster", "", "Path of the cluster")
 	flag.StringVar(&config.PoolPath, "pool", "", "Path of the resource pool")
-	flag.BoolVar(&config.Insecure, "insecure", false, "Allow connection when sdk certificate cannot be verified")
-	flag.BoolVar(&config.tls, "tls", true, "Set to false to disable -hostcert and -hostkey and enable plain HTTP")
-
-	// This is only applicable for containers hosted under the VCH VM folder
-	// This will not function for vSAN
-	flag.StringVar(&config.vmPath, "vm-path", "", "Docker vm path")
-
-	flag.Parse()
 
 	// load the vch config
 	src, err := extraconfig.GuestInfoSource()
@@ -136,6 +121,9 @@ func init() {
 	}
 
 	extraconfig.Decode(src, &vchConfig)
+
+	// FIXME: pull the rest from flags
+	flag.Parse()
 }
 
 type entryReader interface {
@@ -288,6 +276,11 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 		return nil, err
 	}
 
+	self, err := guest.GetSelf(ctx, s)
+	if err != nil {
+		log.Errorf("Unable to get handle to self for log filtering")
+	}
+
 	log.Infof("Found %d candidate VMs in resource pool %s for log collection", len(children), ref.String())
 
 	logfiles := []logfile{}
@@ -303,6 +296,19 @@ func listVMPaths(ctx context.Context, s *session.Session) ([]logfile, error) {
 		logname, err := child.Name(ctx)
 		if err != nil {
 			log.Errorf("Unable to get the vm name for %s: %s", child.Reference(), err)
+			continue
+		}
+
+		if self != nil && child.Reference().String() == self.Reference().String() {
+			// FIXME: until #2630 is addressed, and we confirm this filters secrets from appliance vmware.log as well,
+			// we're skipping direct collection of those logs.
+			log.Info("Skipping collection for appliance VM (moref match)")
+			continue
+		}
+
+		// backup check if we were unable to initialize self for some reason
+		if self == nil && logname == vchConfig.Name {
+			log.Info("Skipping collection for appliance VM (string match)")
 			continue
 		}
 
@@ -387,6 +393,8 @@ func client() (*session.Session, error) {
 
 	ctx := context.Background()
 
+	// TODO: this should be replaced with session.Create so we're
+	// not overriding the parameters from vchconfig
 	session := session.NewSession(&config.Config)
 	_, err := session.Connect(ctx)
 	if err != nil {
@@ -437,8 +445,6 @@ func main() {
 		return
 	}
 
-	flag.Parse()
-
 	// If we're in an ESXi environment, then we need
 	// to extract the userid/password from UserPassword
 	if vchConfig.UserPassword != "" {
@@ -450,18 +456,24 @@ func main() {
 		vchConfig.Target = *newurl
 	}
 
+	// FIXME: these should just be consumed directly inside Session
 	config.Service = vchConfig.Target.String()
 	config.ExtensionCert = vchConfig.ExtensionCert
 	config.ExtensionKey = vchConfig.ExtensionKey
 	config.ExtensionName = vchConfig.ExtensionName
 	config.Thumbprint = vchConfig.TargetThumbprint
+	config.DatastorePath = vchConfig.Storage.ImageStores[0].Host
+
+	if vchConfig.Diagnostics.DebugLevel > 2 {
+		config.addr = "0.0.0.0:2378"
+		log.Warn("Listening on all networks because of debug level")
+	}
 
 	s := &server{
 		addr: config.addr,
 	}
 
-	err := s.listen(config.tls)
-
+	err := s.listen()
 	if err != nil {
 		log.Fatal(err)
 	}

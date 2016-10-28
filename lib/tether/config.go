@@ -36,10 +36,10 @@ type ExecutorConfig struct {
 	DebugLevel int `vic:"0.1" scope:"read-only" key:"diagnostics/debug"`
 
 	// Exclusive access to childPidTable
-	pidMutex sync.Mutex
+	pidMutex sync.Mutex `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
 	// Set of child PIDs created by us.
-	pids map[int]*SessionConfig
+	pids map[int]*SessionConfig `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
 	// Sessions is the set of sessions currently hosted by this executor
 	// These are keyed by session ID
@@ -62,7 +62,7 @@ type ExecutorConfig struct {
 // This is close to but not perfectly aligned with the new docker/docker/daemon/execdriver/driver:CommonProcessConfig
 type SessionConfig struct {
 	// Protects the structure
-	m sync.Mutex
+	m sync.Mutex `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
 	// The primary session may have the same ID as the executor owning it
 	executor.Common `vic:"0.1" scope:"read-only" key:"common"`
@@ -97,9 +97,9 @@ type SessionConfig struct {
 
 	// if there's a pty then we need additional management data
 	Pty       *os.File
-	Outwriter dio.DynamicMultiWriter
-	Errwriter dio.DynamicMultiWriter
-	Reader    dio.DynamicMultiReader
+	Outwriter dio.DynamicMultiWriter `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	Errwriter dio.DynamicMultiWriter `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	Reader    dio.DynamicMultiReader `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 }
 
 type NetworkEndpoint struct {

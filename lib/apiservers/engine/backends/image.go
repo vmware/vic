@@ -68,7 +68,7 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 	var imageRemoved bool
 
 	// Use the image cache to go from the reference to the ID we use in the image store
-	img, err := cache.ImageCache().GetImage(imageRef)
+	img, err := cache.ImageCache().Get(imageRef)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (i *Image) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDe
 
 		// we've deleted the image so remove from cache
 		cache.ImageCache().RemoveImageByConfig(img)
-		cache.LayerCache().Remove(img.ID)
+		imagec.LayerCache().Remove(img.ID)
 		imageRemoved = true
 
 	} else {
@@ -175,7 +175,7 @@ func (i *Image) Images(filterArgs string, filter string, all bool) ([]*types.Ima
 func (i *Image) LookupImage(name string) (*types.ImageInspect, error) {
 	defer trace.End(trace.Begin("LookupImage (docker inspect)"))
 
-	imageConfig, err := cache.ImageCache().GetImage(name)
+	imageConfig, err := cache.ImageCache().Get(name)
 	if err != nil {
 		return nil, err
 	}

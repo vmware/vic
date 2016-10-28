@@ -66,13 +66,13 @@ unpack $PACKAGE $PKGDIR
 ## systemd configuration
 # create systemd vic target
 cp ${DIR}/appliance/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/
-cp ${DIR}/appliance/vic-init.service $(rootfs_dir $PKGDIR)/etc/systemd/system/
-cp ${DIR}/appliance/nat.service $(rootfs_dir $PKGDIR)/etc/systemd/system/
-cp ${DIR}/appliance/nat-setup $(rootfs_dir $PKGDIR)/etc/systemd/scripts
+cp ${DIR}/appliance/*.service $(rootfs_dir $PKGDIR)/etc/systemd/system/
+cp ${DIR}/appliance/*-setup $(rootfs_dir $PKGDIR)/etc/systemd/scripts
 
 mkdir -p $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants
 ln -s /etc/systemd/system/vic-init.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
 ln -s /etc/systemd/system/nat.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
+ln -s /etc/systemd/system/permissions.service $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
 ln -s /etc/systemd/system/multi-user.target $(rootfs_dir $PKGDIR)/etc/systemd/system/vic.target.wants/
 
 # disable networkd given we manage the link state directly
@@ -81,8 +81,6 @@ rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/sockets.target.wants/systemd-netw
 
 # change the default systemd target to launch VIC
 ln -sf /etc/systemd/system/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/default.target
-# update the multi-user target to launch VIC - this launches sshd as well
-#ln -s /etc/systemd/system/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/vic.target
 
 # do not use the systemd dhcp client
 rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
@@ -92,7 +90,7 @@ cp ${DIR}/base/no-dhcp.network $(rootfs_dir $PKGDIR)/etc/systemd/network/
 rm -f $(rootfs_dir $PKGDIR)/etc/systemd/network/*
 
 #
-# Set up vicadmin user
+# Set up component users
 #
 
 chroot $(rootfs_dir $PKGDIR) groupadd -g 1000 vicadmin
@@ -103,13 +101,12 @@ chown -R 1000:1000 $(rootfs_dir $PKGDIR)/home/vicadmin
 install -m 755 -d $(rootfs_dir $PKGDIR)/etc/tmpfiles.d
 echo "m  /var/log/journal/%m/system.journal 2755 root systemd-journal - -" > $(rootfs_dir $PKGDIR)/etc/tmpfiles.d/systemd.conf
 
+
 ## main VIC components
 # tether based init
 cp ${BIN}/vic-init $(rootfs_dir $PKGDIR)/sbin/vic-init
 
 cp ${BIN}/{docker-engine-server,port-layer-server,vicadmin} $(rootfs_dir $PKGDIR)/sbin/
-
-echo "net.ipv4.ip_forward = 1" > $(rootfs_dir $PKGDIR)/usr/lib/sysctl.d/50-vic.conf
 
 ## Generate the ISO
 # Select systemd for our init process

@@ -94,7 +94,7 @@ func WriteImage(host string, image *ImageWithMeta, data io.ReadCloser) error {
 	blob := new(string)
 
 	*key = metadata.MetaDataKey
-	*blob = image.meta
+	*blob = image.Meta
 
 	r, err := client.Storage.WriteImage(
 		storage.NewWriteImageParamsWithContext(ctx).
@@ -104,7 +104,7 @@ func WriteImage(host string, image *ImageWithMeta, data io.ReadCloser) error {
 			WithMetadatakey(key).
 			WithMetadataval(blob).
 			WithImageFile(data).
-			WithSum(image.layer.BlobSum),
+			WithSum(image.Layer.BlobSum),
 	)
 	if err != nil {
 		log.Debugf("Creating an image failed: %s", err)

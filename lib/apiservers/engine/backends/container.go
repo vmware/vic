@@ -217,7 +217,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	}
 
 	// get the image from the cache
-	image, err := cache.ImageCache().GetImage(config.Config.Image)
+	image, err := cache.ImageCache().Get(config.Config.Image)
 	if err != nil {
 		// if no image found then error thrown and a pull
 		// will be initiated by the docker client
@@ -436,6 +436,9 @@ func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
 			log.Debugf("Container %q maps host port %s to container port %s", mappedCtr, hPort, ctrPort)
 			// check state of the previously bound container with PL
 			cc := cache.ContainerCache().GetContainer(mappedCtr)
+			if cc == nil {
+				return fmt.Errorf("Unable to find container %q in the cache, unable to get power state", mappedCtr)
+			}
 			running, err := c.containerProxy.IsRunning(cc)
 			if err != nil {
 				return fmt.Errorf("Failed to get container %q power state: %s",

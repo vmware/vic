@@ -163,7 +163,7 @@ Check Delete Success
 Run Secret VIC Machine Delete Command
     [Tags]  secret
     [Arguments]  ${vch-name}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
     [Return]  ${rc}  ${output}
 
 Run VIC Machine Delete Command
@@ -231,13 +231,13 @@ Gather Logs From Test Server
     ${status}  ${message}=  Run Keyword And Ignore Error  Should Not Contain  ${params}  --tls
     # Non-certificate case
     ${ip}=  Run Keyword If  '${status}'=='PASS'  Split String  ${params}  :
-    Run Keyword If  '${status}'=='PASS'  Run  wget ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
+    Run Keyword If  '${status}'=='PASS'  Run  wget --tries=3 --connection-timeout=10 ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
     # Certificate case
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  ${params}  ${SPACE}
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  @{ip}[1]  :
     ${docker_cert_path}=  Get Environment Variable  DOCKER_CERT_PATH  ${EMPTY}
     ${wget_args}=  Set Variable If  '${docker_certpath}'==''  ${EMPTY}  --private-key=%{DOCKER_CERT_PATH}/key.pem --certificate=%{DOCKER_CERT_PATH}/cert.pem
-    Run Keyword If  '${status}'=='FAIL'  Run  wget ${wget_args} --no-check-certificate ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
+    Run Keyword If  '${status}'=='FAIL'  Run  wget ${wget_args} --tries=3 --connection-timeout=10 --no-check-certificate ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
 
 Gather Logs From ESX Server
     Environment Variable Should Be Set  TEST_URL
@@ -452,3 +452,21 @@ Install Harbor To Test Server
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
     \   Run Keyword If  ${status}  Set Environment Variable  HARBOR_IP  ${ip}
     \   Exit For Loop If  ${status}
+
+Power Off VM OOB
+    [Arguments]  ${vm}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -off ${vch-name}/"${vm}"
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.power -off "${vm}"
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Log To Console  Waiting for VM to power off ...
+    Wait Until VM Powers Off  "${vm}"
+
+Power On VM OOB
+    [Arguments]  ${vm}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -on ${vch-name}/"${vm}"
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.power -on "${vm}"
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Log To Console  Waiting for VM to power on ...
+    Wait Until VM Powers On  ${vm}

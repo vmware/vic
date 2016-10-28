@@ -165,7 +165,8 @@ func evented(ec *EventCollector, page []types.BaseEvent) {
 			*types.VmPoweredOnEvent,
 			*types.VmPoweredOffEvent,
 			*types.VmRemovedEvent,
-			*types.VmSuspendedEvent:
+			*types.VmSuspendedEvent,
+			*types.VmRegisteredEvent:
 			vmEvent = NewVMEvent(page[i])
 		}
 
