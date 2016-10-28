@@ -66,17 +66,6 @@ func (t *Target) TargetFlags() []cli.Flag {
 	}
 }
 
-// URLWithoutPassword returns the URL stripped of password
-func (t *Target) URLWithoutPassword() *url.URL {
-	if t.URL == nil {
-		return nil
-	}
-
-	withoutCredentials := *t.URL
-	withoutCredentials.User = url.User(t.URL.User.Username())
-	return &withoutCredentials
-}
-
 // HasCredentials check that the credentials have been supplied by any of the permitted mechanisms
 func (t *Target) HasCredentials() error {
 	if t.URL == nil {
@@ -112,7 +101,7 @@ func (t *Target) HasCredentials() error {
 		t.Password = urlPassword
 	}
 
-	// Override username password if set
+	// Used by vic-machine for Session login
 	t.URL.User = url.UserPassword(t.User, *t.Password)
 
 	return nil

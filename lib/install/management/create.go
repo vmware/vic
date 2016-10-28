@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"path"
 	"sync"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -28,9 +27,6 @@ import (
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
-
-	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/types"
 )
 
 func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) error {
@@ -84,11 +80,6 @@ func (d *Dispatcher) CreateVCH(conf *config.VirtualContainerHostConfigSpec, sett
 		return errors.Errorf("Uploading images failed with %s. Exiting...", err)
 	}
 
-	if d.session.IsVC() {
-		if err = d.RegisterExtension(conf, settings.Extension); err != nil {
-			return errors.Errorf("Error registering VCH vSphere extension: %s", err)
-		}
-	}
 	return d.startAppliance(conf)
 }
 
@@ -149,32 +140,5 @@ func (d *Dispatcher) uploadImages(files map[string]string) error {
 			return err
 		}
 	}
-	return nil
-}
-
-func (d *Dispatcher) RegisterExtension(conf *config.VirtualContainerHostConfigSpec, extension types.Extension) error {
-	defer trace.End(trace.Begin(conf.ExtensionName))
-
-	log.Infoln("Registering VCH as a vSphere extension")
-
-	// vSphere confusingly calls the 'name' of the extension a 'key'
-	// This variable is named IdKey as to not confuse it with its private key
-	if conf.ExtensionCert == "" {
-		return errors.Errorf("Extension certificate does not exist")
-	}
-
-	extensionManager := object.NewExtensionManager(d.session.Vim25())
-
-	extension.LastHeartbeatTime = time.Now().UTC()
-	if err := extensionManager.Register(d.ctx, extension); err != nil {
-		log.Errorf("Could not register the vSphere extension due to err: %s", err)
-		return err
-	}
-
-	if err := extensionManager.SetCertificate(d.ctx, conf.ExtensionName, conf.ExtensionCert); err != nil {
-		log.Errorf("Could not set the certificate on the vSphere extension due to error: %s", err)
-		return err
-	}
-
 	return nil
 }

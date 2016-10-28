@@ -25,8 +25,8 @@
 package session
 
 import (
-	"crypto/tls"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -49,32 +49,23 @@ import (
 // Config contains the configuration used to create a Session.
 type Config struct {
 	// SDK URL or proxy
-	// NOTE contains username/password if ExtensionCert not used
 	Service string
+	// Credentials
+	User *url.Userinfo
 	// Allow insecure connection to Service
 	Insecure bool
 	// Target thumbprint
 	Thumbprint string
 	// Keep alive duration
 	Keepalive time.Duration
+	// User-Agent to identify login sessions (see: govc session.ls)
+	UserAgent string
 
 	ClusterPath    string
 	DatacenterPath string
 	DatastorePath  string
 	HostPath       string
 	PoolPath       string
-
-	// keypair for the vSphere extension
-	ExtensionCert string
-	ExtensionKey  string
-
-	// confusingly vSphere calls this the extension key
-	ExtensionName string
-}
-
-// HasCertificate checks for presence of a certificate and keyfile
-func (c *Config) HasCertificate() bool {
-	return c.ExtensionCert != "" && c.ExtensionKey != ""
 }
 
 // Session caches vSphere objects obtained by querying the SDK.
@@ -128,9 +119,10 @@ func (s *Session) Create(ctx context.Context) (*Session, error) {
 
 	extraconfig.Decode(source, &vchExtraConfig)
 
-	s.ExtensionKey = vchExtraConfig.ExtensionKey
-	s.ExtensionCert = vchExtraConfig.ExtensionCert
-	s.ExtensionName = vchExtraConfig.ExtensionName
+	s.Service = vchExtraConfig.Target
+
+	s.User = url.UserPassword(vchExtraConfig.Username, vchExtraConfig.Token)
+
 	s.Thumbprint = vchExtraConfig.TargetThumbprint
 
 	_, err = s.Connect(ctx)
@@ -160,40 +152,22 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 		return nil, errors.Errorf("SDK URL (%s) could not be parsed: %s", s.Service, err)
 	}
 
-	// LoginExtensionByCertificate proxies connections to a virtual host (sdkTunnel:8089) and
-	// Go's http.Transport.DialTLS isn't called when using a proxy.  Even if using a known CA,
-	// "sdkTunnel" does not pass Go's tls.VerifyHostname check.
-	// We are moving away from LoginExtensionByCertificate anyhow, so disable thumbprint checks for now.
-	if s.HasCertificate() {
-		s.Insecure = true
-	}
-
 	// Update the service URL with expanded defaults
 	s.Service = soapURL.String()
+
+	// VCH components do not include credentials within the target URL
+	if s.User != nil {
+		soapURL.User = s.User
+	}
 
 	soapClient := soap.NewClient(soapURL, s.Insecure)
 	var login func(context.Context) error
 
-	if s.HasCertificate() {
-		cert, err2 := tls.X509KeyPair([]byte(s.ExtensionCert), []byte(s.ExtensionKey))
-		if err2 != nil {
-			return nil, errors.Errorf("Unable to load X509 key pair(%s,%s): %s",
-				s.ExtensionCert, s.ExtensionKey, err2)
-		}
-
-		soapClient.SetCertificate(cert)
-		log.Debugf("Logging in via extension %s certificate", s.ExtensionName)
-
-		login = func(ctx context.Context) error {
-			return s.LoginExtensionByCertificate(ctx, s.ExtensionName, "")
-		}
-	} else {
-		log.Debugf("Logging in via username/password")
-
-		login = func(ctx context.Context) error {
-			return s.Client.Login(ctx, soapURL.User)
-		}
+	login = func(ctx context.Context) error {
+		return s.Client.Login(ctx, soapURL.User)
 	}
+
+	soapClient.UserAgent = s.UserAgent
 
 	soapClient.SetThumbprint(soapURL.Host, s.Thumbprint)
 

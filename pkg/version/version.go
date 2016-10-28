@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"runtime"
 	"strconv"
+	"strings"
 )
 
 // These fields are set by the compiler using the linker flags upon build via Makefile.
@@ -52,6 +53,15 @@ func Show() bool {
 // String returns a string representation of the version
 func String() string {
 	return GetBuild().String()
+}
+
+// UserAgent returns component/version in HTTP User-Agent header value format
+func UserAgent(component string) string {
+	v := Version
+	if strings.HasPrefix(v, "v") {
+		v = v[1:]
+	}
+	return fmt.Sprintf("%s/%s", component, v)
 }
 
 func GetBuild() *Build {
