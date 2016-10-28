@@ -5,6 +5,7 @@ vSphere Integrated Containers Engine supports the use of container volumes. When
 - [Obtain the List of Available Volume Stores](#list_vs) 
 - [Obtain the List of Available Volumes](#list_vols)
 - [Create a Volume in a Volume Store](#create_vol)
+- [Volumes created from Images](#image_volumes)
 - [Create a Container and Attach it to an Anonymous or Named Volume](#create_container)
 - [Attach an Existing Volume to a Container](#attach)
 - [Obtain Information About a Volume](#inspect_vol) 
@@ -75,7 +76,14 @@ create -v /<i>volume_name</i> busybox</pre>
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
 run -v /<i>volume_name</i> busybox</pre>
 
-**NOTE**: When using a vSphere Integrated Containers Engine virtual container host as your Docker endpoint, the storage driver is always the vSphere Integrated Containers Engine Backend Engine. If you specify the `docker volume create --driver` option, it is ignored.
+**NOTE**: When using a vSphere Integrated Containers Engine virtual container host as your Docker endpoint, the storage driver is always the vSphere Integrated Containers Engine Backend Engine. If you specify the `docker volume create --driver` option an error stating that a bad driver has been selected will occur.
+
+<a name="image_volumes"></a>
+## Volumes created from Images ##
+
+Some images (e.g. mongo or redis:alpine) contain volume bind information in their metadata. These volumes will be created with the default parameters and are treated as anonymous volumes. Like Docker, VIC treats all volume mount paths as unique, this should be kept in mind when attempting to bind other volumes to the same location as an anonymous or image volume( in this case a specified volume will always when over an anonymous volume ).
+
+If a different capacity volume is desired than the default for an image volume, a Named Volume should be created with the desired capacity. That named volume can then be mounted to the same location as the image metadata specifies (can be found by doing a `docker inspect <image name>` under the `Volumes` section of the json) and the resulting container will have the desired sized storage and the desired endpoint.  
 
 <a name="create_container"></a>
 ## Create a Container and Attach it to an Anonymous or Named Volume ##
@@ -89,7 +97,7 @@ create -v /volumes busybox</pre>
 
 You can create containers that are attached to named volumes by using `docker create -v` and specifying a volume name. When you create containers that are attached to named volumes, the virtual container host checks whether the volume exists in the volume store, and if it does not, creates it. The virtual container host attaches the existing or new volume to the container.
 
-For example, to create a busybox container that is mounted to the `volumes` folder of a volume named `volume_1` in the default volume store, run the following command:
+For example, to create a busybox container that is mounted to the `volumes` folder of a volume named `volume_1` in the default volume store with default capacity, run the following command:
 
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
 create -v volume_1:/volumes busybox</pre>
