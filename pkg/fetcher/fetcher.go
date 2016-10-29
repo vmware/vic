@@ -37,6 +37,7 @@ import (
 	"golang.org/x/net/context/ctxhttp"
 
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 )
 
 const (
@@ -222,6 +223,8 @@ func (u *URLFetcher) fetch(ctx context.Context, url *url.URL, ID string) (io.Rea
 
 	u.setAuthToken(req)
 
+	u.setUserAgent(req)
+
 	res, err := ctxhttp.Do(ctx, u.client, req)
 	if err != nil {
 		return nil, nil, err
@@ -380,6 +383,11 @@ func (u *URLFetcher) IsStatusOK() bool {
 // IsStatusNotFound returns true if status code is StatusNotFound
 func (u *URLFetcher) IsStatusNotFound() bool {
 	return u.StatusCode == http.StatusNotFound
+}
+
+func (u *URLFetcher) setUserAgent(req *http.Request) {
+	log.Debugf("Setting user-agent to vic/%s", version.Version)
+	req.Header.Set("User-Agent", "vic/"+version.Version)
 }
 
 func (u *URLFetcher) setBasicAuth(req *http.Request) {
