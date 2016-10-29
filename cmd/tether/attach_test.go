@@ -105,7 +105,7 @@ func (t *testAttachServer) Start() error {
 	t.conn.Lock()
 	defer t.conn.Unlock()
 
-	t.conn.conn = &conn
+	t.conn.conn = conn
 	return nil
 }
 
@@ -147,14 +147,16 @@ func mockBackChannel(ctx context.Context) (net.Conn, error) {
 			// FIXME: need to implement timeout of purging hangs with no content
 			// on the pipe
 			// serial.PurgeIncoming(ctx, conn)
-			err := serial.HandshakeClient(ctx, conn, true)
-			if err == nil {
+			err := serial.HandshakeClient(conn, true)
+			if err != nil {
+				if err == io.EOF {
+					// with unix pipes the open will block until both ends are open, therefore
+					// EOF means the other end has been intentionally closed
+					return nil, err
+				}
+				log.Error(err)
+			} else {
 				return conn, nil
-			}
-			if err == io.EOF {
-				// with unix pipes the open will block until both ends are open, therefore
-				// EOF means the other end has been intentionally closed
-				return nil, err
 			}
 		case <-ctx.Done():
 			conn.Close()
@@ -237,7 +239,7 @@ func TestAttach(t *testing.T) {
 		},
 
 		Sessions: map[string]*executor.SessionConfig{
-			"attach": &executor.SessionConfig{
+			"attach": {
 				Common: executor.Common{
 					ID:   "attach",
 					Name: "tether_test_session",

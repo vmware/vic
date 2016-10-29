@@ -32,7 +32,7 @@ const (
 	com = "COM1"
 )
 
-func rawConnectionFromSerial() (*net.Conn, error) {
+func rawConnectionFromSerial() (net.Conn, error) {
 	var err error
 
 	// redirect backchannel to the serial connection

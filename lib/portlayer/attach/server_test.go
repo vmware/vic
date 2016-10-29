@@ -39,18 +39,21 @@ func TestAttachStartStop(t *testing.T) {
 	wg := &sync.WaitGroup{}
 
 	dial := func() {
-		wg.Add(1)
 		c, err := net.Dial("tcp", s.l.Addr().String())
+		c.SetReadDeadline(time.Now().Add(time.Second))
 		assert.NoError(t, err)
 		assert.NotNil(t, c)
 
 		buf := make([]byte, 1)
 		c.Read(buf)
-		if !assert.Error(t, serial.HandshakeServer(context.Background(), c)) {
+		if !assert.Error(t, serial.HandshakeServer(c)) {
 			return
 		}
 
-		if !assert.NoError(t, serial.HandshakeServer(context.Background(), c)) {
+		c, err = net.Dial("tcp", s.l.Addr().String())
+		assert.NoError(t, err)
+		assert.NotNil(t, c)
+		if !assert.NoError(t, serial.HandshakeServer(c)) {
 			return
 		}
 
@@ -59,7 +62,8 @@ func TestAttachStartStop(t *testing.T) {
 
 	assert.NoError(t, s.Start(true))
 
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
 		go dial()
 	}
 
@@ -106,7 +110,7 @@ func TestAttachSshSession(t *testing.T) {
 		return
 	}
 
-	if !assert.NoError(t, serial.HandshakeServer(context.Background(), networkClientCon)) {
+	if !assert.NoError(t, serial.HandshakeServer(networkClientCon)) {
 		return
 	}
 
@@ -128,8 +132,8 @@ func TestAttachSshSession(t *testing.T) {
 	defer sshConn.Close()
 
 	// Service the incoming Channel channel.
+	wg.Add(2)
 	go func() {
-		wg.Add(1)
 		defer wg.Done()
 		for req := range reqs {
 			if req.Type == msgs.ContainersReq {
@@ -141,7 +145,6 @@ func TestAttachSshSession(t *testing.T) {
 	}()
 
 	go func() {
-		wg.Add(1)
 		defer wg.Done()
 		for ch := range chans {
 			assert.Equal(t, ch.ChannelType(), attachChannelType)
