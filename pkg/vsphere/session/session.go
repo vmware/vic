@@ -205,7 +205,6 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 	}
 
 	if s.Keepalive != 0 {
-		// TODO: add login() to the keep alive handler
 		vimClient.RoundTripper = session.KeepAliveHandler(soapClient, s.Keepalive,
 			func(roundTripper soap.RoundTripper) error {
 				_, err := methods.GetCurrentTime(context.Background(), roundTripper)
