@@ -59,16 +59,14 @@ import (
 const (
 	bridgeIfaceName = "bridge"
 
+	// MemoryAlignMB is the value to which container VM memory must align in order for hotadd to work
+	MemoryAlignMB = 128
 	// MemoryMinMB - the minimum allowable container memory size
-	MemoryMinMB = 1024
-	// MemoryMaxMB - the maximum allowable container memory size
-	MemoryMaxMB = 16384
+	MemoryMinMB = 512
 	// MemoryDefaultMB - the default container VM memory size
-	MemoryDefaultMB = 4096
+	MemoryDefaultMB = 2048
 	// MinCPUs - the minimum number of allowable CPUs the container can use
 	MinCPUs = 1
-	// MaxCPUs - the maximum number of allowable CPUs the container can use
-	MaxCPUs = 4
 	// DefaultCPUs - the default number of container VM CPUs
 	DefaultCPUs = 2
 )
@@ -1292,35 +1290,45 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 
 	// process cpucount here
 	var cpuCount int64 = DefaultCPUs
-	if config.HostConfig.CpusetCpus != "" {
-		cpus := strings.Split(config.HostConfig.CpusetCpus, ",")
-		if c, err := strconv.Atoi(cpus[0]); err == nil {
-			cpuCount = int64(c)
-		} else {
-			log.Warnf("Error parsing CPU count, using default of %d: %s", DefaultCPUs, err)
+
+	// support windows client
+	if config.HostConfig.CPUCount > 0 {
+		cpuCount = config.HostConfig.CPUCount
+	} else {
+		// we hijack --cpuset-cpus in the non-windows case
+		if config.HostConfig.CpusetCpus != "" {
+			cpus := strings.Split(config.HostConfig.CpusetCpus, ",")
+			if c, err := strconv.Atoi(cpus[0]); err == nil {
+				cpuCount = int64(c)
+			} else {
+				return fmt.Errorf("Error parsing CPU count: %s", err)
+			}
 		}
 	}
 	config.HostConfig.CPUCount = cpuCount
 
 	// fix-up cpu/memory settings here
-	if cpuCount > MaxCPUs {
-		config.HostConfig.CPUCount = MaxCPUs
-	} else if cpuCount < MinCPUs {
+	if cpuCount < MinCPUs {
 		config.HostConfig.CPUCount = MinCPUs
 	}
 	log.Infof("Container CPU count: %d", config.HostConfig.CPUCount)
 
 	// convert from bytes to MiB for vsphere
-	mem := config.HostConfig.Memory / units.MiB
-	if mem == 0 {
-		mem = MemoryDefaultMB
-	} else if mem > MemoryMaxMB {
-		mem = MemoryMaxMB
-	} else if mem < MemoryMinMB {
-		mem = MemoryMinMB
+	memoryMB := config.HostConfig.Memory / units.MiB
+	if memoryMB == 0 {
+		memoryMB = MemoryDefaultMB
+	} else if memoryMB < MemoryMinMB {
+		memoryMB = MemoryMinMB
 	}
-	config.HostConfig.Memory = mem
-	log.Infof("Container memory: %d MiB", config.HostConfig.Memory)
+
+	// check that memory is aligned
+	if remainder := memoryMB % MemoryAlignMB; remainder != 0 {
+		log.Warnf("Default container VM memory must be %d aligned for hotadd, rounding up.", MemoryAlignMB)
+		memoryMB += MemoryAlignMB - remainder
+	}
+
+	config.HostConfig.Memory = memoryMB
+	log.Infof("Container memory: %d MB", config.HostConfig.Memory)
 
 	if config.NetworkingConfig == nil {
 		config.NetworkingConfig = &dnetwork.NetworkingConfig{}
