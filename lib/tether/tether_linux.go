@@ -211,25 +211,25 @@ func lookPath(file string, env []string, dir string) (string, error) {
 	return "", fmt.Errorf("%s: no such executable in PATH", file)
 }
 
-func establishPty(session *SessionConfig) (*sync.WaitGroup, error) {
+func establishPty(session *SessionConfig) error {
 	defer trace.End(trace.Begin("initializing pty handling for session " + session.ID))
 
 	// TODO: if we want to allow raw output to the log so that subsequent tty enabled
 	// processing receives the control characters then we should be binding the PTY
 	// during attach, and using the same path we have for non-tty here
-	wg := &sync.WaitGroup{}
+	session.wait = &sync.WaitGroup{}
 
 	var err error
 	session.Pty, err = pty.Start(&session.Cmd)
 	if session.Pty != nil {
-		wg.Add(1)
+		session.wait.Add(1)
 
 		// TODO: do we need to ensure all reads have completed before calling Wait on the process?
 		// it frees up all resources - does that mean it frees the output buffers?
 		go func() {
 			_, gerr := io.Copy(session.Outwriter, session.Pty)
 			log.Debugf("PTY stdout copy: %s", gerr)
-			wg.Done()
+			session.wait.Done()
 		}()
 		go func() {
 			_, gerr := io.Copy(session.Pty, session.Reader)
@@ -238,5 +238,5 @@ func establishPty(session *SessionConfig) (*sync.WaitGroup, error) {
 
 	}
 
-	return wg, err
+	return err
 }

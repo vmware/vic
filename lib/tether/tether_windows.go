@@ -17,7 +17,6 @@ package tether
 import (
 	"errors"
 	"os"
-	"sync"
 
 	"golang.org/x/crypto/ssh"
 
@@ -45,6 +44,6 @@ func signalProcess(process *os.Process, sig ssh.Signal) error {
 	return errors.New("unimplemented on windows")
 }
 
-func establishPty(session *SessionConfig) (*sync.WaitGroup, error) {
-	return nil, errors.New("unimplemented on windows")
+func establishPty(session *SessionConfig) error {
+	return errors.New("unimplemented on windows")
 }

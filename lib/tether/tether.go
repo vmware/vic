@@ -420,7 +420,7 @@ func (t *tether) launch(session *SessionConfig) error {
 		if !session.Tty {
 			err = session.Cmd.Start()
 		} else {
-			session.wait, err = establishPty(session)
+			err = establishPty(session)
 		}
 
 		if err != nil {

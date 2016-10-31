@@ -18,7 +18,6 @@ import (
 	"errors"
 	"os"
 	"strings"
-	"sync"
 
 	"golang.org/x/crypto/ssh"
 
@@ -70,10 +69,10 @@ func lookPath(file string, env []string, dir string) (string, error) {
 	return "", errors.New("unimplemented on OSX")
 }
 
-func establishPty(session *SessionConfig) (*sync.WaitGroup, error) {
+func establishPty(session *SessionConfig) error {
 	defer trace.End(trace.Begin("initializing pty handling for session " + session.ID))
 
-	return nil, errors.New("unimplemented on OSX")
+	return errors.New("unimplemented on OSX")
 }
 
 func signalProcess(process *os.Process, sig ssh.Signal) error {
