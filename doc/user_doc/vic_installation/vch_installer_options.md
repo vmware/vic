@@ -461,9 +461,9 @@ Certificate Authority (CA) files to use to verify Docker client certificates. Sp
 
 Short name: `--ksz`
 
-The size of the key for `vic-machine create` to use when it creates auto-generated trusted certificates. If not specified, `vic-machine create` creates keys with default size of 2048 bits.
+The size of the key for `vic-machine create` to use when it creates auto-generated trusted certificates. If not specified, `vic-machine create` creates keys with default size of 2048 bits. It is not recommended to use key sizes of less than 2048 bits.
 
-<pre>--certificate-key-size 256</pre>
+<pre>--certificate-key-size 3072</pre>
 
 ### `--organization` ###
 
