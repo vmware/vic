@@ -154,9 +154,10 @@ When you specify the `--tls-cname` option, and potentially other options for aut
 - Creates a browser-friendly PFX client certificate, `cert.pfx`, to use to authenticate connections to the VCH Admin portal for the virtual container host.
 
 Running `vic-machine create` with the `--tls-cname` option also creates an environment file named <code><i>vch_name</i>.env</code>, that contains Docker environment variables that container developers can use to configure their Docker client environment:
-- The address of the virtual container host.<pre>DOCKER_HOST=<i>vch_address</i></pre>
-- The path to the client certificates.<pre>DOCKER_CERT_PATH=<i>path_to_certs</i></pre>
+
 - Activates TLS client verification.<pre>DOCKER_TLS_VERIFY=1</pre>
+- The path to the client certificates.<pre>DOCKER_CERT_PATH=<i>path_to_certs</i></pre>
+- The address of the virtual container host.<pre>DOCKER_HOST=<i>vch_address</i>:2376</pre>
 
 You must provide copies of the certificate files and the environment file to container developers so that they can connect Docker clients to the virtual container host. 
 

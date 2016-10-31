@@ -1,6 +1,6 @@
 # Examples of Deploying a Virtual Container Host #
 
-This topic provides examples of the options of the `vic-machine` `create` command to use when deploying virtual container hosts in different vSphere configurations.
+This topic provides examples of the options of the `vic-machine create` command to use when deploying virtual container hosts in different vSphere configurations.
 
 - [Deploy a Virtual Container Host Directly on an ESXi Host with no Resource Pools and a Single Datastore](#esxi)
 - [Deploy a Virtual Container Host in a vCenter Server Cluster](#cluster)
@@ -15,7 +15,7 @@ This topic provides examples of the options of the `vic-machine` `create` comman
 - [Deploy a Virtual Container Host with Limits on Resource Use](#customized)
 - [Deploy a Virtual Container Host and Authorize Access to an Insecure Private Registry Server](#registry)
 
-For simplicity, these examples assume that the vSphere environment uses trusted certificates signed by a known Certificate Authority (CA), so the `--thumbprint` option is not specified.
+For simplicity, unless stated otherwise, these examples assume that the vSphere environment uses trusted certificates signed by a known Certificate Authority (CA), so the `--thumbprint` option is not specified. Similarly, the examples use the `--no-tlsverify` option to disable the verification of client TLS certificates.
 
 For detailed descriptions of all of the `vic-machine create` options, see [Virtual Container Host Deployment Options](vch_installer_options.md).
 
