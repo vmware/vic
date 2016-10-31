@@ -1,5 +1,11 @@
 # Obtain a Virtual Container Host #
 
-vSphere Integrated Containers Engine does not provide an automated means of obtaining virtual container hosts to container developers who are not vSphere administrators.
+vSphere Integrated Containers Engine does not provide an automated means of obtaining virtual container hosts.
 
-When you deploy a virtual container host, the virtual container host obtains an IP address from DHCP. This IP address is required by whoever will use the virtual container host as their Docker end-point. Depending on the nature of your organization, the consumer of the Docker end-point might be the person or team who deployed the virtual container host, or might be a different person or team. 
+When you or the vSphere Administrator use `vic-machine create` to deploy a virtual container host, the virtual container host endpoint VM obtains an IP address. The IP address can either be static or obtained from DHCP. As a container developer, you require the IP address of the virtual container host endpoint VM when you run Docker commands. 
+
+Depending on the nature of your organization, you might deploy virtual container hosts yourself, or you might request a virtual container host from a different person or team. If you do not run `vic-machine create` yourself, your organization must define the process by which you obtain virtual container host addresses. This process can be as simple as an exchange of emails with a vSphere Administrator, or as advanced as a custom self-provisioning portal or API end-point. For example, your organization could use VMware vRealize&reg; Automation&trade; to provide a self-provisioning service. In this case, you would use the vRealize Automation interface or APIs to request a virtual container host. At the end of the provisioning process, vRealize Automation would communicate the virtual container host endpoint VM address to you.
+
+## Using Docker Environment Variables ##
+
+If you or the vSphere Administrator deploy the virtual container hosts   with TLS authentication, either with trusted certificates or with untrusted self-signed certificates, `vic-machine create` generates an `env` file that contains Docker environment variables. You can copy the `env` file to the location from which you run Docker commands. The `env` file sets environment variables in your Docker client so that it connects to the correct virtual container host and uses the appropriate level of authentication. A self-provisioning service such as vRealize Automation could potentially provide the `env` file at the end of the provisioning process.
