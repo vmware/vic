@@ -96,10 +96,11 @@ type SessionConfig struct {
 	Group string `vic:"0.1" scope:"read-only" key:"group"`
 
 	// if there's a pty then we need additional management data
-	Pty       *os.File
+	Pty       *os.File               `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	Outwriter dio.DynamicMultiWriter `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	Errwriter dio.DynamicMultiWriter `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	Reader    dio.DynamicMultiReader `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	wait      *sync.WaitGroup        `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 }
 
 type NetworkEndpoint struct {
