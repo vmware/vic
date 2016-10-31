@@ -70,7 +70,6 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 			}
 		}
 
-		log.Errorf("task failed: %s", err)
 		if !isTaskInProgress(err) {
 			return info, err
 		}
