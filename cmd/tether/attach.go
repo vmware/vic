@@ -518,9 +518,6 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.SessionConfig, cleanup func()) {
 	defer trace.End(trace.Begin("attach server channel request handler"))
 
-	var ok bool
-	var err error
-
 	// for the actions after we process the request
 	var pendingFn func()
 
@@ -528,7 +525,7 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 	defer cleanup()
 
 	for req := range in {
-		ok = true
+		ok := true
 
 		switch req.Type {
 		case msgs.WindowChangeReq:
@@ -540,10 +537,10 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 			if pty == nil {
 				ok = false
 				log.Errorf("illegal window-change request for non-tty")
-			} else if err = msg.Unmarshal(req.Payload); err != nil {
+			} else if err := msg.Unmarshal(req.Payload); err != nil {
 				ok = false
 				log.Errorf(err.Error())
-			} else if err = resizePty(pty.Fd(), &msg); err != nil {
+			} else if err := resizePty(pty.Fd(), &msg); err != nil {
 				ok = false
 				log.Errorf(err.Error())
 			}
@@ -558,7 +555,7 @@ func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.Ses
 			}
 		default:
 			ok = false
-			err = fmt.Errorf("ssh request type %s is not supported", req.Type)
+			err := fmt.Errorf("ssh request type %s is not supported", req.Type)
 			log.Error(err.Error())
 		}
 

@@ -194,7 +194,7 @@ func (t *tether) setLogLevel() {
 		serial.DisableTracing()
 	case 1:
 		log.SetLevel(log.DebugLevel)
-		serial.EnableTracing()
+		serial.DisableTracing()
 	case 2:
 		log.SetLevel(log.DebugLevel)
 		serial.EnableTracing()
@@ -218,11 +218,10 @@ func (t *tether) setHostname() error {
 	}
 
 	if err := t.ops.SetHostname(short, t.config.Name); err != nil {
-		detail := fmt.Sprintf("failed to set hostname: %s", err)
-		log.Error(detail)
+		detail := fmt.Errorf("failed to set hostname: %s", err)
 		// we don't attempt to recover from this - it's a fundamental misconfiguration
 		// so just exit
-		return errors.New(detail)
+		return detail
 	}
 	return nil
 }
@@ -230,9 +229,8 @@ func (t *tether) setHostname() error {
 func (t *tether) setNetworks() error {
 	for _, v := range t.config.Networks {
 		if err := t.ops.Apply(v); err != nil {
-			detail := fmt.Sprintf("failed to apply network endpoint config: %s", err)
-			log.Error(detail)
-			return errors.New(detail)
+			detail := fmt.Errorf("failed to apply network endpoint config: %s", err)
+			return detail
 		}
 	}
 	return nil
@@ -241,9 +239,8 @@ func (t *tether) setNetworks() error {
 func (t *tether) setMounts() error {
 	for k, v := range t.config.Mounts {
 		if v.Source.Scheme != "label" {
-			detail := fmt.Sprintf("unsupported volume mount type for %s: %s", k, v.Source.Scheme)
-			log.Error(detail)
-			return errors.New(detail)
+			detail := fmt.Errorf("unsupported volume mount type for %s: %s", k, v.Source.Scheme)
+			return detail
 		}
 
 		// this could block indefinitely while waiting for a volume to present
@@ -267,11 +264,10 @@ func (t *tether) initializeSessions() error {
 
 			logwriter, err := t.ops.SessionLog(session)
 			if err != nil {
-				detail := fmt.Sprintf("failed to get log writer for session: %s", err)
-				log.Error(detail)
-				session.Started = detail
+				detail := fmt.Errorf("failed to get log writer for session: %s", err)
+				session.Started = detail.Error()
 
-				return errors.New(detail)
+				return detail
 			}
 			session.Outwriter = logwriter
 			session.Errwriter = logwriter
@@ -292,8 +288,8 @@ func (t *tether) reloadExtensions() error {
 		log.Debugf("Passing config to %s", name)
 		err := ext.Reload(t.config)
 		if err != nil {
-			log.Errorf("Failed to cleanly reload config for extension %s: %s", name, err)
-			return err
+			detail := fmt.Errorf("Failed to cleanly reload config for extension %s: %s", name, err)
+			return detail
 		}
 	}
 	return nil
@@ -360,8 +356,6 @@ func (t *tether) processSessions() error {
 	for result := range resultsCh {
 		if result.err != nil {
 			detail := fmt.Errorf("failed to launch %s for %s: %s", result.path, result.id, result.err)
-			log.Error(detail)
-
 			return detail
 		}
 	}
@@ -386,29 +380,35 @@ func (t *tether) Start() error {
 		t.setLogLevel()
 
 		if err := t.setHostname(); err != nil {
+			log.Error(err)
 			return err
 		}
 
 		// process the networks then publish any dynamic data
 		if err := t.setNetworks(); err != nil {
+			log.Error(err)
 			return err
 		}
 		extraconfig.Encode(t.sink, t.config)
 
 		//process the filesystem mounts - this is performed after networks to allow for network mounts
 		if err := t.setMounts(); err != nil {
+			log.Error(err)
 			return err
 		}
 
 		if err := t.initializeSessions(); err != nil {
+			log.Error(err)
 			return err
 		}
 
 		if err := t.reloadExtensions(); err != nil {
+			log.Error(err)
 			return err
 		}
 
 		if err := t.processSessions(); err != nil {
+			log.Error(err)
 			return err
 		}
 	}
