@@ -208,16 +208,18 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 		vimClient.RoundTripper = session.KeepAliveHandler(soapClient, s.Keepalive,
 			func(roundTripper soap.RoundTripper) error {
 				_, err := methods.GetCurrentTime(context.Background(), roundTripper)
-				if err != nil {
-					log.Warnf("session keepalive error: %s", err)
+				if err == nil {
+					return nil
+				}
 
-					if isNotAuthenticated(err) {
+				log.Warnf("session keepalive error: %s", err)
 
-						if err = login(ctx); err != nil {
-							log.Errorf("session keepalive failed to re-authenticate: %s", err)
-						} else {
-							log.Info("session keepalive re-authenticated")
-						}
+				if isNotAuthenticated(err) {
+
+					if err = login(ctx); err != nil {
+						log.Errorf("session keepalive failed to re-authenticate: %s", err)
+					} else {
+						log.Info("session keepalive re-authenticated")
 					}
 				}
 
