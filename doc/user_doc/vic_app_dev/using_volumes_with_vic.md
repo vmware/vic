@@ -5,7 +5,7 @@ vSphere Integrated Containers Engine supports the use of container volumes. When
 - [Obtain the List of Available Volume Stores](#list_vs) 
 - [Obtain the List of Available Volumes](#list_vols)
 - [Create a Volume in a Volume Store](#create_vol)
-- [Volumes created from Images](#image_volumes)
+- [Creating Volumes from Images](#image_volumes)
 - [Create a Container and Attach it to an Anonymous or Named Volume](#create_container)
 - [Attach an Existing Volume to a Container](#attach)
 - [Obtain Information About a Volume](#inspect_vol) 
@@ -79,7 +79,7 @@ run -v /<i>volume_name</i> busybox</pre>
 **NOTE**: When using a vSphere Integrated Containers Engine virtual container host as your Docker endpoint, the storage driver is always the vSphere Integrated Containers Engine Backend Engine. If you specify the `docker volume create --driver` option an error stating that a bad driver has been selected will occur.
 
 <a name="image_volumes"></a>
-## Volumes Created from Images ##
+## Creating Volumes from Images ##
 
 Some images, for example, `mongo` or `redis:alpine`, contain volume bind information in their metadata. vSphere Integrated Containers Engine creates such volumes with the default parameters and treats them as anonymous volumes. vSphere Integrated Containers Engine treats all volume mount paths as unique, in the same way that Docker does. This should be kept in mind if you attempt to bind other volumes to the same location as anonymous or image volumes. A specified volume always takes priority over an anonymous volume.
 
