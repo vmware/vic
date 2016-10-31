@@ -230,9 +230,9 @@ func establishPty(session *SessionConfig) error {
 			if e, ok := gerr.(*os.PathError); ok && e.Err == syscall.EIO {
 				// We can safely ignore this error, because
 				// it's just the PTY telling us that it closed all good.
-				log.Debugf("Ignoring EIO error returned by io.Copy")
+				log.Debugf("Ignoring EIO error returned by Outwriter io.Copy")
 			} else {
-				log.Debugf("io.Copy returned %s", gerr)
+				log.Debugf("Outwriter io.Copy returned %s", gerr)
 			}
 			session.wait.Done()
 		}()
@@ -241,9 +241,9 @@ func establishPty(session *SessionConfig) error {
 			if e, ok := gerr.(*os.PathError); ok && e.Err == syscall.EIO {
 				// We can safely ignore this error, because
 				// it's just the PTY telling us that it closed all good.
-				log.Debugf("Ignoring EIO error returned by io.Copy")
+				log.Debugf("Ignoring EIO error returned by Reader io.Copy")
 			} else {
-				log.Debugf("io.Copy returned %s", gerr)
+				log.Debugf("Reader io.Copy returned %s", gerr)
 			}
 		}()
 
