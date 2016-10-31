@@ -92,15 +92,19 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 
 func isTaskInProgress(err error) bool {
 	if soap.IsSoapFault(err) {
-		if _, ok := soap.ToSoapFault(err).VimFault().(types.TaskInProgress); ok {
+		f := soap.ToSoapFault(err)
+		if _, ok := f.VimFault().(types.TaskInProgress); ok {
 			return true
 		}
+		log.Debugf("unexpected soap fault on task retry : %s", spew.Sdump(f))
 	}
 
 	if soap.IsVimFault(err) {
-		switch soap.ToVimFault(err).(type) {
+		switch f := soap.ToVimFault(err).(type) {
 		case *types.TaskInProgress:
 			return true
+		default:
+			log.Debugf("unexpected vim fault on task retry : %s", spew.Sdump(f))
 		}
 	}
 
@@ -109,9 +113,14 @@ func isTaskInProgress(err error) bool {
 		if _, ok := err.Fault().(*types.TaskInProgress); ok {
 			return true
 		}
+		log.Debugf("unexpected error on task retry : %s", spew.Sdump(err))
+	default:
+		if f, ok := err.(types.HasFault); ok {
+			log.Debugf("unexpected fault on task retry : %s", spew.Sdump(f))
+		} else {
+			log.Debugf("unexpected error on task retry : %s", spew.Sdump(err))
+		}
 	}
 
-	//if none are found this is an unknown fault so we are dumping the structure.
-	log.Debugf("unexpected fault on task retry : %s", spew.Sdump(err))
 	return false
 }
