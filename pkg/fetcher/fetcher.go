@@ -100,6 +100,7 @@ type URLFetcher struct {
 func NewURLFetcher(options Options) Fetcher {
 	/* #nosec */
 	tr := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: options.InsecureSkipVerify,
 		},
