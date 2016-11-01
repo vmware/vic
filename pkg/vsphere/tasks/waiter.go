@@ -94,7 +94,7 @@ func isTaskInProgress(err error) bool {
 		case types.TaskInProgress:
 			return true
 		default:
-			log.Debugf("unexpected soap fault on task retry : %#v", f)
+			logSoapFault(f)
 		}
 	}
 
@@ -103,7 +103,7 @@ func isTaskInProgress(err error) bool {
 		case *types.TaskInProgress:
 			return true
 		default:
-			log.Debugf("unexpected vim fault on task retry : %s", f)
+			logFault(f)
 		}
 	}
 
@@ -112,14 +112,26 @@ func isTaskInProgress(err error) bool {
 		if _, ok := err.Fault().(*types.TaskInProgress); ok {
 			return true
 		}
-		log.Debugf("unexpected fault on task retry : %s", err.Fault())
+		logFault(err.Fault())
 	default:
 		if f, ok := err.(types.HasFault); ok {
-			log.Debugf("unexpected fault on task retry : %s", f.Fault())
+			logFault(f.Fault())
 		} else {
-			log.Debugf("unexpected error on task retry : %s", err)
+			logError(err)
 		}
 	}
-
 	return false
+}
+
+// Helper Functions
+func logFault(fault types.BaseMethodFault) {
+	log.Debugf("unexpected fault on task retry : %#v", fault)
+}
+
+func logSoapFault(fault types.AnyType) {
+	log.Debugf("unexpected soap fault on task retry : %#v", fault)
+}
+
+func logError(err error) {
+	log.Debugf("unexpected error on task retry : %#v", err)
 }
