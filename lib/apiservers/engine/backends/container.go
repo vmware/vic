@@ -296,7 +296,7 @@ func (c *Container) containerCreate(vc *viccontainer.VicContainer, config types.
 		return id, err
 	}
 
-	err = c.containerProxy.CommitContainerHandle(h, imageID)
+	err = c.containerProxy.CommitContainerHandle(h, id, -1)
 	if err != nil {
 		return id, err
 	}
@@ -361,7 +361,13 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 func (c *Container) ContainerRestart(name string, seconds int) error {
 	defer trace.End(trace.Begin(name))
 
-	err := c.containerStop(name, seconds, false)
+	// Look up the container name in the metadata cache ot get long ID
+	vc := cache.ContainerCache().GetContainer(name)
+	if vc == nil {
+		return NotFoundError(name)
+	}
+
+	err := c.containerProxy.Stop(vc, name, seconds, false)
 	if err != nil {
 		return InternalServerError(fmt.Sprintf("Stop failed with: %s", err))
 	}
@@ -396,7 +402,7 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 
 	// Use the force and stop the container first
 	if config.ForceRemove {
-		c.containerStop(id, 0, true)
+		c.containerProxy.Stop(vc, name, 0, true)
 	}
 
 	//call the remove directly on the name. No need for using a handle.
@@ -450,7 +456,7 @@ func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
 			}
 
 			log.Debugf("Unmapping ports for powered off container %q", mappedCtr)
-			err = c.unmapPorts(cc.HostConfig)
+			err = UnmapPorts(cc.HostConfig)
 			if err != nil {
 				return fmt.Errorf("Failed to unmap host port %s for container %q: %s",
 					hPort, mappedCtr, err)
@@ -552,13 +558,13 @@ func (c *Container) containerStart(name string, hostConfig *containertypes.HostC
 	// map ports
 	if bind {
 		e := c.findPortBoundNetworkEndpoint(hostConfig, endpoints)
-		if err = c.mapPorts(hostConfig, e, id); err != nil {
+		if err = MapPorts(hostConfig, e, id); err != nil {
 			return InternalServerError(fmt.Sprintf("error mapping ports: %s", err))
 		}
 
 		defer func() {
 			if err != nil {
-				c.unmapPorts(hostConfig)
+				UnmapPorts(hostConfig)
 			}
 		}()
 	}
@@ -636,8 +642,8 @@ func unrollPortMap(portMap nat.PortMap) ([]*portMapping, error) {
 	return portMaps, nil
 }
 
-// mapPorts maps ports defined in hostconfig for containerID
-func (c *Container) mapPorts(hostconfig *containertypes.HostConfig, endpoint *models.EndpointConfig, containerID string) error {
+// MapPorts maps ports defined in hostconfig for containerID
+func MapPorts(hostconfig *containertypes.HostConfig, endpoint *models.EndpointConfig, containerID string) error {
 	log.Debugf("mapPorts for %q: %v", containerID, hostconfig.PortBindings)
 
 	if len(hostconfig.PortBindings) == 0 {
@@ -672,9 +678,9 @@ func (c *Container) mapPorts(hostconfig *containertypes.HostConfig, endpoint *mo
 	return nil
 }
 
-// unmapPorts unmaps ports defined in hostconfig
-func (c *Container) unmapPorts(hostconfig *containertypes.HostConfig) error {
-	log.Debugf("unmapPorts: %v", hostconfig.PortBindings)
+// UnmapPorts unmaps ports defined in hostconfig
+func UnmapPorts(hostconfig *containertypes.HostConfig) error {
+	log.Debugf("UnmapPorts: %v", hostconfig.PortBindings)
 
 	if len(hostconfig.PortBindings) == 0 {
 		return nil
@@ -765,92 +771,14 @@ func (c *Container) findPortBoundNetworkEndpoint(hostconfig *containertypes.Host
 // problem stopping the container.
 func (c *Container) ContainerStop(name string, seconds int) error {
 	defer trace.End(trace.Begin(name))
-	return c.containerStop(name, seconds, true)
-}
 
-func (c *Container) containerStop(name string, seconds int, unbound bool) error {
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
 		return NotFoundError(name)
 	}
-	id := vc.ContainerID
 
-	//retrieve client to portlayer
-	client := c.containerProxy.Client()
-	handle, err := c.Handle(id, name)
-	if err != nil {
-		return err
-	}
-
-	// we have a container on the PL side lets check the state before proceeding
-	// ignore the error  since others will be checking below..this is an attempt to short circuit the op
-	// TODO: can be replaced with simple cache check once power events are propagated to persona
-	infoResponse, err := client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(id))
-	if err != nil {
-		cache.ContainerCache().DeleteContainer(id)
-		return NotFoundError(name)
-	}
-	if *infoResponse.Payload.ContainerConfig.State == "Stopped" || *infoResponse.Payload.ContainerConfig.State == "Created" {
-		return nil
-	}
-
-	if unbound {
-		ub, err := client.Scopes.UnbindContainer(scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle))
-		if err != nil {
-			switch err := err.(type) {
-			case *scopes.UnbindContainerNotFound:
-				// ignore error
-				log.Warnf("Container %s not found by network unbind", id)
-			case *scopes.UnbindContainerInternalServerError:
-				return InternalServerError(err.Payload.Message)
-			default:
-				return InternalServerError(err.Error())
-			}
-		} else {
-			handle = ub.Payload.Handle
-		}
-
-		// unmap ports
-		if err = c.unmapPorts(vc.HostConfig); err != nil {
-			return err
-		}
-	}
-
-	// change the state of the container
-	// TODO: We need a resolved ID from the name
-	stateChangeResponse, err := client.Containers.StateChange(containers.NewStateChangeParamsWithContext(ctx).WithHandle(handle).WithState("STOPPED"))
-	if err != nil {
-		switch err := err.(type) {
-		case *containers.StateChangeNotFound:
-			cache.ContainerCache().DeleteContainer(id)
-			return NotFoundError(name)
-		case *containers.StateChangeDefault:
-			return InternalServerError(err.Payload.Message)
-		default:
-			return InternalServerError(err.Error())
-		}
-	}
-
-	handle = stateChangeResponse.Payload
-	wait := int32(seconds)
-
-	_, err = client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle).WithWaitTime(&wait))
-	if err != nil {
-		switch err := err.(type) {
-		case *containers.CommitNotFound:
-			cache.ContainerCache().DeleteContainer(id)
-			return NotFoundError(name)
-		case *containers.CommitConflict:
-			return ConflictError(err.Error())
-		case *containers.CommitDefault:
-			return InternalServerError(err.Payload.Message)
-		default:
-			return InternalServerError(err.Error())
-		}
-	}
-
-	return nil
+	return c.containerProxy.Stop(vc, name, seconds, true)
 }
 
 // ContainerUnpause unpauses a container

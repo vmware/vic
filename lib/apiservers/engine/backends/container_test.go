@@ -198,6 +198,10 @@ func (m *MockContainerProxy) SetMockDataResponse(createHandleResp int, addToScop
 	m.mockRespIndices[5] = commitContainerResp
 }
 
+func (m *MockContainerProxy) Handle(id, name string) (string, error) {
+	return "", nil
+}
+
 func (m *MockContainerProxy) CreateContainerHandle(imageID string, config types.ContainerCreateConfig) (string, string, error) {
 	respIdx := m.mockRespIndices[0]
 
@@ -247,7 +251,7 @@ func (m *MockContainerProxy) AddLoggingToContainer(handle string, config types.C
 	return m.mockAddLoggingData[respIdx].retHandle, m.mockAddLoggingData[respIdx].retErr
 }
 
-func (m *MockContainerProxy) CommitContainerHandle(handle, imageID string) error {
+func (m *MockContainerProxy) CommitContainerHandle(handle, containerID string, waitTime int32) error {
 	respIdx := m.mockRespIndices[5]
 
 	if respIdx >= len(m.mockCommitData) {
@@ -277,6 +281,10 @@ func (m *MockContainerProxy) StreamContainerLogs(name string, out io.Writer, sta
 		fmt.Fprintf(out, "line %d\n", i)
 	}
 
+	return nil
+}
+
+func (m *MockContainerProxy) Stop(vc *viccontainer.VicContainer, name string, seconds int, unbound bool) error {
 	return nil
 }
 

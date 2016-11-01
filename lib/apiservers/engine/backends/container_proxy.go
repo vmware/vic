@@ -40,7 +40,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"golang.org/x/net/context"
@@ -85,15 +84,17 @@ type VicContainerProxy interface {
 	AddVolumesToContainer(handle string, config types.ContainerCreateConfig) (string, error)
 	AddLoggingToContainer(handle string, config types.ContainerCreateConfig) (string, error)
 	AddInteractionToContainer(handle string, config types.ContainerCreateConfig) (string, error)
-	CommitContainerHandle(handle, imageID string) error
+	CommitContainerHandle(handle, containerID string, waitTime int32) error
 	StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
 
+	Stop(vc *viccontainer.VicContainer, name string, seconds int, unbound bool) error
 	IsRunning(vc *viccontainer.VicContainer) (bool, error)
 	Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error)
 	Signal(vc *viccontainer.VicContainer, sig uint64) error
 	Resize(vc *viccontainer.VicContainer, height, width int32) error
 	AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error
 
+	Handle(id, name string) (string, error)
 	Client() *client.PortLayer
 }
 
@@ -121,6 +122,7 @@ const (
 	forceLogType                         = "json-file" //Use in inspect to allow docker logs to work
 	annotationKeyLabels                  = "docker.labels"
 	killWaitForExit        time.Duration = 2 * time.Second
+	killWaitBeforeForce    time.Duration = 10 * time.Second //Time to wait for signal to take effect before attempting force using Stop()
 	ShortIDLen                           = 12
 
 	DriverArgFlagKey      = "flags"
@@ -131,6 +133,30 @@ const (
 // NewContainerProxy creates a new ContainerProxy
 func NewContainerProxy(plClient *client.PortLayer, portlayerAddr string, portlayerName string) *ContainerProxy {
 	return &ContainerProxy{client: plClient, portlayerAddr: portlayerAddr, portlayerName: portlayerName}
+}
+
+// Handle retrieves a handle to a VIC container.  Handles should be treated as opaque strings.
+//
+// returns:
+//	(handle string, error)
+func (c *ContainerProxy) Handle(id, name string) (string, error) {
+	if c.client == nil {
+		return "", InternalServerError("ContainerProxy.Handle failed to get a portlayer client")
+	}
+
+	resp, err := c.client.Containers.Get(containers.NewGetParamsWithContext(ctx).WithID(id))
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.GetNotFound:
+			cache.ContainerCache().DeleteContainer(id)
+			return "", NotFoundError(name)
+		case *containers.GetDefault:
+			return "", InternalServerError(err.Payload.Message)
+		default:
+			return "", InternalServerError(err.Error())
+		}
+	}
+	return resp.Payload, nil
 }
 
 func (c *ContainerProxy) Client() *client.PortLayer {
@@ -366,21 +392,35 @@ func (c *ContainerProxy) AddInteractionToContainer(handle string, config types.C
 }
 
 // CommitContainerHandle commits any changes to container handle.
-func (c *ContainerProxy) CommitContainerHandle(handle, imageID string) error {
+//
+// Args:
+//	waitTime <= 0 means no wait time
+func (c *ContainerProxy) CommitContainerHandle(handle, containerID string, waitTime int32) error {
 	defer trace.End(trace.Begin(handle))
 
 	if c.client == nil {
-		return InternalServerError("ContainerProxy.CommitContainerHandle failed to create a portlayer client")
+		return InternalServerError("ContainerProxy.CommitContainerHandle failed to get a portlayer client")
 	}
 
-	_, err := c.client.Containers.Commit(containers.NewCommitParamsWithContext(ctx).WithHandle(handle))
+	var commitParams *containers.CommitParams
+	if waitTime > 0 {
+		commitParams = containers.NewCommitParamsWithContext(ctx).WithHandle(handle).WithWaitTime(&waitTime)
+	} else {
+		commitParams = containers.NewCommitParamsWithContext(ctx).WithHandle(handle)
+	}
+
+	_, err := c.client.Containers.Commit(commitParams)
 	if err != nil {
-		cerr := fmt.Errorf("No such image: %s", imageID)
-		log.Errorf("%s (%s)", cerr, err)
-		// FIXME: Containers.Commit returns more errors than it's swagger spec says.
-		// When no image exist, it also sends back non swagger errors.  We should fix
-		// this once Commit returns correct error codes.
-		return NotFoundError(cerr.Error())
+		switch err := err.(type) {
+		case *containers.CommitNotFound:
+			return NotFoundError(containerID)
+		case *containers.CommitConflict:
+			return ConflictError(err.Error())
+		case *containers.CommitDefault:
+			return InternalServerError(err.Payload.Message)
+		default:
+			return InternalServerError(err.Error())
+		}
 	}
 
 	return nil
@@ -422,12 +462,92 @@ func (c *ContainerProxy) StreamContainerLogs(name string, out io.Writer, started
 	return nil
 }
 
+// Stop will stop (shutdown) a VIC container.
+//
+// returns
+//	error
+func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, seconds int, unbound bool) error {
+	defer trace.End(trace.Begin(vc.ContainerID))
+
+	if c.client == nil {
+		return InternalServerError("ContainerProxy.Stop failed to get a portlayer client")
+	}
+
+	//retrieve client to portlayer
+	handle, err := c.Handle(vc.ContainerID, name)
+	if err != nil {
+		return err
+	}
+
+	// we have a container on the PL side lets check the state before proceeding
+	// ignore the error  since others will be checking below..this is an attempt to short circuit the op
+	// TODO: can be replaced with simple cache check once power events are propagated to persona
+	running, err := c.IsRunning(vc)
+	if err != nil && IsNotFoundError(err) {
+		cache.ContainerCache().DeleteContainer(vc.ContainerID)
+		return err
+	}
+	if !running {
+		return nil
+	}
+
+	if unbound {
+		unbindParams := scopes.NewUnbindContainerParamsWithContext(ctx).WithHandle(handle)
+		ub, err := c.client.Scopes.UnbindContainer(unbindParams)
+		if err != nil {
+			switch err := err.(type) {
+			case *scopes.UnbindContainerNotFound:
+				// ignore error
+				log.Warnf("Container %s not found by network unbind", vc.ContainerID)
+			case *scopes.UnbindContainerInternalServerError:
+				return InternalServerError(err.Payload.Message)
+			default:
+				return InternalServerError(err.Error())
+			}
+		} else {
+			handle = ub.Payload.Handle
+		}
+
+		// unmap ports
+		if err = UnmapPorts(vc.HostConfig); err != nil {
+			return err
+		}
+	}
+
+	// change the state of the container
+	changeParams := containers.NewStateChangeParamsWithContext(ctx).WithHandle(handle).WithState("STOPPED")
+	stateChangeResponse, err := c.client.Containers.StateChange(changeParams)
+	if err != nil {
+		switch err := err.(type) {
+		case *containers.StateChangeNotFound:
+			cache.ContainerCache().DeleteContainer(vc.ContainerID)
+			return NotFoundError(name)
+		case *containers.StateChangeDefault:
+			return InternalServerError(err.Payload.Message)
+		default:
+			return InternalServerError(err.Error())
+		}
+	}
+
+	handle = stateChangeResponse.Payload
+	wait := int32(seconds)
+	err = c.CommitContainerHandle(handle, vc.ContainerID, wait)
+	if err != nil {
+		if IsNotFoundError(err) {
+			cache.ContainerCache().DeleteContainer(vc.ContainerID)
+		}
+		return err
+	}
+
+	return nil
+}
+
 // IsRunning returns true if the given container is running
 func (c *ContainerProxy) IsRunning(vc *viccontainer.VicContainer) (bool, error) {
 	defer trace.End(trace.Begin(""))
 
 	if c.client == nil {
-		return false, InternalServerError("ContainerProxy.CommitContainerHandle failed to create a portlayer client")
+		return false, InternalServerError("ContainerProxy.IsRunning failed to get a portlayer client")
 	}
 
 	results, err := c.client.Containers.GetContainerInfo(containers.NewGetContainerInfoParamsWithContext(ctx).WithID(vc.ContainerID))
@@ -510,35 +630,27 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 	}
 
 	if running, err := c.IsRunning(vc); !running && err == nil {
-		return fmt.Errorf("Signal %s is not running", vc.ContainerID)
+		return fmt.Errorf("%s is not running", vc.ContainerID)
 	}
 
-	if sig == 0 || syscall.Signal(sig) == syscall.SIGKILL {
-		params := containers.NewContainerSignalParamsWithContext(ctx).WithID(vc.ContainerID).WithSignal(int64(syscall.SIGKILL))
-		if _, err := client.Containers.ContainerSignal(params); err != nil {
-			switch err.(type) {
-			case *containers.ContainerSignalNotFound:
-				return NotFoundError(vc.ContainerID)
-			case *containers.ContainerSignalInternalServerError:
-				// Container may have received the signal but we got an error.
-				// Give it some time and check again.
-				c.Wait(vc, killWaitForExit)
-				if running, _ := c.IsRunning(vc); running {
-					err := InternalServerError(err.Error())
-					log.Infof("Container was signaled but is still running: %s", err)
-					return err
-				}
-				return nil
-			}
-		}
-
-		c.Wait(vc, -1*time.Second)
-		return nil
-	}
-
+	// If request wasn't for sigkill, we simply pass on the signal to the container
 	params := containers.NewContainerSignalParamsWithContext(ctx).WithID(vc.ContainerID).WithSignal(int64(sig))
 	if _, err := client.Containers.ContainerSignal(params); err != nil {
-		return err
+		switch err := err.(type) {
+		case *containers.ContainerSignalNotFound:
+			return NotFoundError(vc.ContainerID)
+		case *containers.ContainerSignalInternalServerError:
+			return InternalServerError(err.Payload.Message)
+		default:
+			return InternalServerError(err.Error())
+		}
+	}
+
+	if running, err := c.IsRunning(vc); !running && err == nil {
+		// unmap ports
+		if err = UnmapPorts(vc.HostConfig); err != nil {
+			return err
+		}
 	}
 
 	return nil

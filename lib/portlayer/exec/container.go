@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/vmware/govmomi/object"
@@ -358,6 +359,10 @@ func (c *Container) Signal(ctx context.Context, num int64) error {
 
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
+	}
+
+	if num == int64(syscall.SIGKILL) {
+		return c.containerBase.kill(ctx)
 	}
 
 	return c.startGuestProgram(ctx, "kill", fmt.Sprintf("%d", num))

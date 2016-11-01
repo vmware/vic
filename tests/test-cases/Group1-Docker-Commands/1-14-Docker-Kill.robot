@@ -58,3 +58,17 @@ Signal a non-existent container
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} kill fakeContainer
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  No such container: fakeContainer
+
+Signal a tough to kill container - nginx
+    ${rc}=  Run And Return Rc  docker ${params} pull nginx
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${id}=  Run And Return Rc And Output  docker ${params} create nginx
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${id}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} kill ${id}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${out}=  Run And Return Rc And Output  docker ${params} inspect -f {{.State.Running}} ${id}
+    Log  ${out}
+    Should Contain  ${out}  false
+    Should Be Equal As Integers  ${rc}  0

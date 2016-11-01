@@ -303,7 +303,7 @@ func setPortMapping(info *models.ContainerInfo, backend *Container, container *c
 	}
 	for _, e := range endpointsOK.Payload {
 		if len(e.Ports) > 0 {
-			if err = backend.mapPorts(container.HostConfig, e, container.ContainerID); err != nil {
+			if err = MapPorts(container.HostConfig, e, container.ContainerID); err != nil {
 				return err
 			}
 		}
