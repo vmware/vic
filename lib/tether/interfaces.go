@@ -36,7 +36,7 @@ type Operations interface {
 	MountLabel(ctx context.Context, label, target string) error
 	Fork() error
 
-	SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, error)
+	SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, dio.DynamicMultiWriter, error)
 	// Returns a function to invoke after the session state has been persisted
 	HandleSessionExit(config *ExecutorConfig, session *SessionConfig) func()
 	ProcessEnv(env []string) []string

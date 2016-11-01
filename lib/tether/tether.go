@@ -262,15 +262,15 @@ func (t *tether) initializeSessions() error {
 				session.ClearToLaunch = make(chan struct{})
 			}
 
-			logwriter, err := t.ops.SessionLog(session)
+			stdout, stderr, err := t.ops.SessionLog(session)
 			if err != nil {
 				detail := fmt.Errorf("failed to get log writer for session: %s", err)
 				session.Started = detail.Error()
 
 				return detail
 			}
-			session.Outwriter = logwriter
-			session.Errwriter = logwriter
+			session.Outwriter = stdout
+			session.Errwriter = stderr
 			session.Reader = dio.MultiReader()
 
 			return nil
@@ -451,13 +451,14 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 	session.Lock()
 	defer session.Unlock()
 
+	if session.wait != nil {
+		session.wait.Wait()
+	}
+
 	// reader must be closed before calling wait, and this must interrupt the underlying Read
 	// or Wait will not return.
 	session.Reader.Close()
 	session.Cmd.Wait()
-	if session.wait != nil {
-		session.wait.Wait()
-	}
 
 	// close down the outputs
 	session.Outwriter.Close()

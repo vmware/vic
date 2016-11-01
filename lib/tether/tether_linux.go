@@ -246,7 +246,6 @@ func establishPty(session *SessionConfig) error {
 				log.Debugf("Reader io.Copy returned %s", gerr)
 			}
 		}()
-
 	}
 
 	return err

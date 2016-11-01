@@ -115,7 +115,7 @@ func (t *operations) Log() (io.Writer, error) {
 }
 
 // sessionLogWriter returns a writer that will persist the session output
-func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, error) {
+func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, dio.DynamicMultiWriter, error) {
 	com := "COM3"
 
 	defer trace.End(trace.Begin("configure session log writer"))

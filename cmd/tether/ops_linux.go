@@ -52,13 +52,13 @@ func (t *operations) Log() (io.Writer, error) {
 }
 
 // sessionLogWriter returns a writer that will persist the session output
-func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, error) {
+func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, dio.DynamicMultiWriter, error) {
 	defer trace.End(trace.Begin("configure session log writer"))
 
 	if t.logging {
 		detail := "unable to log more than one session concurrently"
 		log.Error(detail)
-		return nil, errors.New(detail)
+		return nil, nil, errors.New(detail)
 	}
 
 	t.logging = true
@@ -69,11 +69,11 @@ func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMulti
 	if err != nil {
 		detail := fmt.Sprintf("failed to open serial port for session log: %s", err)
 		log.Error(detail)
-		return nil, errors.New(detail)
+		return nil, nil, errors.New(detail)
 	}
 
 	// use multi-writer so it goes to both screen and session log
-	return dio.MultiWriter(f, os.Stdout), nil
+	return dio.MultiWriter(f, os.Stdout), dio.MultiWriter(f, os.Stderr), nil
 }
 
 func (t *operations) Setup(sink tether.Config) error {
