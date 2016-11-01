@@ -277,6 +277,7 @@ func (c *Connector) serve() {
 func (c *Connector) Stop() {
 	defer trace.End(trace.Begin(""))
 
+	c.listener.Close()
 	close(c.listenerQuit)
 	c.wg.Wait()
 }

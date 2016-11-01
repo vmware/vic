@@ -21,6 +21,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
@@ -216,19 +217,25 @@ func establishPty(session *SessionConfig) error {
 	// TODO: if we want to allow raw output to the log so that subsequent tty enabled
 	// processing receives the control characters then we should be binding the PTY
 	// during attach, and using the same path we have for non-tty here
+	session.wait = &sync.WaitGroup{}
+
 	var err error
 	session.Pty, err = pty.Start(&session.Cmd)
 	if session.Pty != nil {
+		session.wait.Add(1)
+
 		// TODO: do we need to ensure all reads have completed before calling Wait on the process?
 		// it frees up all resources - does that mean it frees the output buffers?
 		go func() {
 			_, gerr := io.Copy(session.Outwriter, session.Pty)
-			log.Debug(gerr)
+			log.Debugf("PTY stdout copy: %s", gerr)
+			session.wait.Done()
 		}()
 		go func() {
 			_, gerr := io.Copy(session.Pty, session.Reader)
-			log.Debug(gerr)
+			log.Debugf("PTY stdin copy: %s", gerr)
 		}()
+
 	}
 
 	return err

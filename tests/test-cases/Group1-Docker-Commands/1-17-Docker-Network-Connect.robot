@@ -39,64 +39,56 @@ Connect to non-existent network
     Should Contain  ${output}  Error response from daemon: network fakeNetwork not found
 
 Connect containers to multiple networks overlapping
-    ${status}=  Get State Of Github Issue  2669
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-17-Docker-Network-Connect.robot needs to be updated now that Issue #2669 has been resolved
-    Log  Issue \#2669 is blocking implementation  WARN
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create cross1-network
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create cross1-network2
+    Should Be Equal As Integers  ${rc}  0
 
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create cross1-network
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create cross1-network2
-#    Should Be Equal As Integers  ${rc}  0
-#
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull debian
-#    Should Be Equal As Integers  ${rc}  0
-#
-#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --net cross1-network --name cross1-container busybox /bin/top
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect cross1-network2 ${containerID}
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
-#    Should Be Equal As Integers  ${rc}  0
-#
-#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --net cross1-network --name cross1-container2 debian ping -c2 cross1-container
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect cross1-network2 ${containerID}
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow cross1-container2
-#    Should Be Equal As Integers  ${rc}  0
-#    Should Contain  ${output}  2 packets transmitted, 2 packets received
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull debian
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --net cross1-network --name cross1-container busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect cross1-network2 ${containerID}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --net cross1-network --name cross1-container2 debian ping -c2 cross1-container
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network connect cross1-network2 ${containerID}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow cross1-container2
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  2 packets transmitted, 2 packets received
 
 Connect containers to multiple networks non-overlapping
-    ${status}=  Get State Of Github Issue  2669
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-17-Docker-Network-Connect.robot needs to be updated now that Issue #2669 has been resolved
-    Log  Issue \#2669 is blocking implementation  WARN
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create cross2-network
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create cross2-network2
+    Should Be Equal As Integers  ${rc}  0
 
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create cross2-network
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} network create cross2-network2
-#    Should Be Equal As Integers  ${rc}  0
-#
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull debian
-#    Should Be Equal As Integers  ${rc}  0
-#
-#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --net cross2-network --name cross2-container busybox /bin/top
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
-#    Should Be Equal As Integers  ${rc}  0
-#
-#    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --net cross2-network2 --name cross2-container2 debian ping -c2 cross2-container
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
-#    Should Be Equal As Integers  ${rc}  0
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow cross2-container2
-#    Should Be Equal As Integers  ${rc}  0
-#    Should Not Contain  ${output}  2 packets transmitted, 2 packets received
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull debian
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --net cross2-network --name cross2-container busybox /bin/top
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${containerID}=  Run And Return Rc And Output  docker ${params} create --net cross2-network2 --name cross2-container2 debian ping -c2 cross2-container
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${containerID}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow cross2-container2
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  2 packets transmitted, 2 packets received
 
 Connect containers to multiple networks non-overlapping with a bridge container
     ${status}=  Get State Of Github Issue  2721

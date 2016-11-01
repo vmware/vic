@@ -32,7 +32,8 @@ type DynamicMultiWriter interface {
 }
 
 type multiWriter struct {
-	mutex sync.Mutex
+	mutex     sync.Mutex
+	waitGroup sync.WaitGroup
 
 	writers []io.Writer
 }
@@ -49,10 +50,15 @@ func (t *multiWriter) Write(p []byte) (int, error) {
 	}
 
 	t.mutex.Lock()
+
+	t.waitGroup.Add(1)
+	defer t.waitGroup.Done()
+
 	// stash a local copy of the slice as we never want to write twice to a single writer
 	// if remove is called during this flow
 	wTmp = make([]io.Writer, len(t.writers))
 	copy(wTmp, t.writers)
+
 	t.mutex.Unlock()
 
 	eof := 0
@@ -60,23 +66,25 @@ func (t *multiWriter) Write(p []byte) (int, error) {
 	for _, w := range wTmp {
 		n, err = w.Write(p)
 		if err != nil {
-			if err != io.EOF {
-				return n, err
-			}
-
 			// remove the writer
-			log.Debugf("[%p] removing writer due to EOF", t)
+			log.Debugf("[%p] removing writer %p due to %s", t, w, err.Error())
+
 			// Remove grabs the lock
 			t.Remove(w)
 
-			eof++
+			if err == io.EOF {
+				eof++
+			}
 		}
 
 		// FIXME: figure out what semantics we need here - currently we may not write to
 		// everything as we abort
 		if n != len(p) {
-			err = io.ErrShortWrite
-			return n, err
+			// remove the writer
+			log.Debugf("[%p] removing writer %p due to short write: %d != %d", t, w, n, len(p))
+
+			// Remove grabs the lock
+			t.Remove(w)
 		}
 	}
 
@@ -107,6 +115,9 @@ func (t *multiWriter) Close() error {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 
+	// allow any pending writes to complete
+	t.waitGroup.Wait()
+
 	log.Debugf("[%p] Close on writers", t)
 	for _, w := range t.writers {
 		// squash closing of stdout/err if bound
@@ -128,7 +139,7 @@ func (t *multiWriter) Remove(writer io.Writer) {
 	defer t.mutex.Unlock()
 
 	if verbose {
-		log.Debugf("[%p] removing writer - currently %d writers", t, len(t.writers))
+		log.Debugf("[%p] removing writer %p - currently %d writers", t, writer, len(t.writers))
 	}
 	for i, w := range t.writers {
 		if w == writer {

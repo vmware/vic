@@ -329,9 +329,13 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 	session.m.Lock()
 	defer session.m.Unlock()
 
-	// stdio must be closed before calling wait or Wait hangs indefinitely
+	// reader must be closed before calling wait, and this must interrupt the underlying Read
+	// or Wait will not return.
 	session.Reader.Close()
 	session.Cmd.Wait()
+	if session.wait != nil {
+		session.wait.Wait()
+	}
 
 	// close down the outputs
 	session.Outwriter.Close()
