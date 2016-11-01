@@ -73,9 +73,12 @@ Docker run check exit codes
     Should Be Equal As Integers  ${rc}  1
 
 Docker run date
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run busybox date
-    Should Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  UTC
+    ${status}=  Get State Of Github Issue  2669
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-6-Docker-Run.robot needs to be updated now that Issue #2669 has been resolved
+    Log  Issue \#1578 is blocking implementation  WARN
+    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run busybox date
+    #Should Be Equal As Integers  ${rc}  0
+    #Should Contain  ${output}  UTC
 
 Docker run ps password check
     [Tags]  secret
