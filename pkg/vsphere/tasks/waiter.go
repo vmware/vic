@@ -22,7 +22,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/vmware/govmomi/task"
 	"github.com/vmware/govmomi/vim25/progress"
 	"github.com/vmware/govmomi/vim25/soap"
@@ -91,11 +90,12 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 
 func isTaskInProgress(err error) bool {
 	if soap.IsSoapFault(err) {
-		f := soap.ToSoapFault(err)
-		if _, ok := f.VimFault().(types.TaskInProgress); ok {
+		switch f := soap.ToSoapFault(err).VimFault().(type) {
+		case types.TaskInProgress:
 			return true
+		default:
+			log.Debugf("unexpected soap fault on task retry : %#v", f)
 		}
-		log.Debugf("unexpected soap fault on task retry : %s", spew.Sdump(f))
 	}
 
 	if soap.IsVimFault(err) {
@@ -103,7 +103,7 @@ func isTaskInProgress(err error) bool {
 		case *types.TaskInProgress:
 			return true
 		default:
-			log.Debugf("unexpected vim fault on task retry : %s", spew.Sdump(f))
+			log.Debugf("unexpected vim fault on task retry : %s", f)
 		}
 	}
 
@@ -112,12 +112,12 @@ func isTaskInProgress(err error) bool {
 		if _, ok := err.Fault().(*types.TaskInProgress); ok {
 			return true
 		}
-		log.Debugf("unexpected error on task retry : %s", spew.Sdump(err))
+		log.Debugf("unexpected fault on task retry : %s", err.Fault())
 	default:
 		if f, ok := err.(types.HasFault); ok {
-			log.Debugf("unexpected fault on task retry : %s", spew.Sdump(f))
+			log.Debugf("unexpected fault on task retry : %s", f.Fault())
 		} else {
-			log.Debugf("unexpected error on task retry : %s", spew.Sdump(err))
+			log.Debugf("unexpected error on task retry : %s", err)
 		}
 	}
 
