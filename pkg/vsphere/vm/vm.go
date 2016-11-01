@@ -503,7 +503,7 @@ func (vm *VirtualMachine) FixInvalidState(ctx context.Context) error {
 	return nil
 }
 
-func (vm *VirtualMachine) needsFix(err error) bool {
+func (vm *VirtualMachine) needsFix(ctx context.Context, err error) bool {
 	f, ok := err.(types.HasFault)
 	if !ok {
 		return false
@@ -512,16 +512,32 @@ func (vm *VirtualMachine) needsFix(err error) bool {
 	case *types.InvalidState:
 		return true
 	default:
+		if vm.IsInvalidState(ctx) {
+			log.Debugf("vm is invalid")
+			return true
+		}
 		log.Debugf("Do not fix non invalid state error")
 		return false
 	}
+}
+
+func (vm *VirtualMachine) IsInvalidState(ctx context.Context) bool {
+	var o mo.VirtualMachine
+	if err := vm.Properties(ctx, vm.Reference(), []string{"runtime"}, &o); err != nil {
+		log.Debugf("Failed to get vm properties: %s", err)
+		return false
+	}
+	if o.Runtime.ConnectionState == types.VirtualMachineConnectionStateInvalid {
+		return true
+	}
+	return false
 }
 
 // WaitForResult is designed to handle VM invalid state error for any VM operations.
 // It will call tasks.WaitForResult to retry if there is task in progress error.
 func (vm *VirtualMachine) WaitForResult(ctx context.Context, f func(context.Context) (tasks.Task, error)) (*types.TaskInfo, error) {
 	info, err := tasks.WaitForResult(ctx, f)
-	if err == nil || !vm.needsFix(err) {
+	if err == nil || !vm.needsFix(ctx, err) {
 		return info, err
 	}
 	log.Debugf("Try to fix task failure %s", err)
