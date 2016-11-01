@@ -65,6 +65,7 @@ shift $((OPTIND-1))
 
 if [ $# -ne 2 ] ; then
     usage
+    exit 1
 fi
 
 if [[ "$iso" == *"-Installer-"* ]] ; then
@@ -72,9 +73,10 @@ if [[ "$iso" == *"-Installer-"* ]] ; then
     exit 1
 fi
 
-echo -n "Checking govc version..."
-govc version -require 0.8.0
-
+export GOVC_INSECURE=1
+export GOVC_URL=$1
+export GOVC_DATASTORE=${GOVC_DATASTORE:-$(basename "$(govc ls datastore)")}
+network=${GOVC_NETWORK:-"VM Network"}
 username=$GOVC_USERNAME
 password=$GOVC_PASSWORD
 unset GOVC_USERNAME GOVC_PASSWORD
@@ -84,14 +86,13 @@ if [ -z "$password" ] ; then
     password=$(govc env | grep GOVC_PASSWORD= | cut -d= -f 2-)
 fi
 
-export GOVC_INSECURE=1
-export GOVC_URL=$1
-export GOVC_DATASTORE=${GOVC_DATASTORE:-$(basename "$(govc ls datastore)")}
-network=${GOVC_NETWORK:-"VM Network"}
 shift
 
 name=$1
 shift
+
+echo -n "Checking govc version..."
+govc version -require 0.10.0
 
 boot=$(basename "$iso")
 if ! govc datastore.ls "$boot" > /dev/null 2>&1 ; then
@@ -151,24 +152,27 @@ GOVC_URL="$esx_url"
 
 if [ -n "$standalone" ] ; then
     disk=$(govc host.storage.info -rescan | grep /vmfs/devices/disks | awk '{print $1}' | xargs basename)
-    echo "Creating datastore on disk ${disk}..."
+    echo "Creating datastore for ${name} on disk ${disk}..."
     govc datastore.create -type vmfs -name datastore1 -disk="$disk" '*'
 else
-    echo "Rescanning HBA for new devices..."
+    echo "Rescanning ${name} HBA for new devices..."
     disk=($(govc host.storage.info -rescan | grep /vmfs/devices/disks | awk '{print $1}' | sort))
 
-    echo "Marking disk ${disk[0]} as SSD..."
+    echo "Marking ${name} disk ${disk[0]} as SSD..."
     govc host.storage.mark -ssd "${disk[0]}"
 
-    echo "Marking disk ${disk[1]} as HDD..."
+    echo "Marking ${name} disk ${disk[1]} as HDD..."
     govc host.storage.mark -ssd=false "${disk[1]}"
 fi
 
-echo "Enabling MOB..."
+echo "Enabling MOB for ${name}..."
 govc host.option.set Config.HostAgent.plugins.solo.enableMob true
 
-echo "Enabling ESXi Shell and SSH..."
-for id in TSM TSM-SSH ; do
+echo "Configuring NTP for ${name}..."
+govc host.date.change -server time.vmware.com
+
+for id in TSM TSM-SSH ntpd ; do
+    printf "Enabling service %s for ${name}...\n" $id
     govc host.service enable $id
     govc host.service start $id
 done
@@ -180,20 +184,33 @@ else
     action="create"
 fi
 
-echo "Disabling VSAN device monitoring"
+echo "Disabling VSAN device monitoring for ${name}..."
 govc host.esxcli system settings advanced set -o /LSOM/VSANDeviceMonitoring -i 0
 
-echo "ESX host account $action for user $username..."
+echo "ESX host account $action for user $username on ${name}..."
 govc host.account.$action -id $username -password "$password"
 
-echo "Granting Admin permissions for user $username..."
+echo "Granting Admin permissions for user $username on ${name}..."
 govc permissions.set -principal $username -role Admin
 
-echo "Enabling guest ARP inspection to get vm IPs without vmtools..."
+echo "Enabling guest ARP inspection to get vm IPs without vmtools on ${name}..."
 govc host.esxcli system settings advanced set -o /Net/GuestIPHack -i 1
 
+echo "Opening firewall for serial port traffic for ${name}..."
+govc host.esxcli network firewall ruleset set -r remoteSerialPort -e true
+
+echo "Setting hostname for ${name}..."
+govc host.esxcli system hostname set -H "$name"
+
+if which sshpass >/dev/null && [ -e ~/.ssh/id_rsa.pub ] ; then
+    echo "Adding ssh authorized key to ${name}..."
+    sshpass -p "$password" scp \
+            -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -oLogLevel=error \
+            ~/.ssh/id_rsa.pub "root@$vm_ip:/etc/ssh/keys-root/authorized_keys"
+fi
+
 if [ -n "$vib" ] ; then
-    echo -n "Installing host client ($(basename "$vib"))..."
+    echo -n "Installing host client on ${name} ($(basename "$vib"))..."
 
     if govc host.esxcli -- software vib install -v "$vib" > /dev/null 2>&1 ; then
         echo "OK"

@@ -24,7 +24,7 @@ import (
 	"github.com/vmware/vic/cmd/tether/msgs"
 )
 
-func rawConnectionFromSerial() (*net.Conn, error) {
+func rawConnectionFromSerial() (net.Conn, error) {
 	return nil, errors.New("not supported on OSX")
 }
 

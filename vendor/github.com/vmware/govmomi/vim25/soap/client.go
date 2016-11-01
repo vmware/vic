@@ -69,6 +69,7 @@ type Client struct {
 
 	Namespace string // Vim namespace
 	Version   string // Vim version
+	UserAgent string
 }
 
 var schemeMatch = regexp.MustCompile(`^\w+://`)
@@ -202,11 +203,22 @@ func (c *Client) Thumbprint(host string) string {
 
 // LoadThumbprints from file with the give name.
 // If name is empty or name does not exist this function will return nil.
-func (c *Client) LoadThumbprints(name string) error {
-	if name == "" {
+func (c *Client) LoadThumbprints(file string) error {
+	if file == "" {
 		return nil
 	}
 
+	for _, name := range filepath.SplitList(file) {
+		err := c.loadThumbprints(name)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Client) loadThumbprints(name string) error {
 	f, err := os.Open(name)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -428,6 +440,9 @@ func (c *Client) RoundTrip(ctx context.Context, reqBody, resBody HasFault) error
 	req.Header.Set(`Content-Type`, `text/xml; charset="utf-8"`)
 	soapAction := fmt.Sprintf("%s/%s", c.Namespace, c.Version)
 	req.Header.Set(`SOAPAction`, soapAction)
+	if c.UserAgent != "" {
+		req.Header.Set(`User-Agent`, c.UserAgent)
+	}
 
 	if d.enabled() {
 		d.debugRequest(req)

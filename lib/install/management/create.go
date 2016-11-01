@@ -96,7 +96,7 @@ func (d *Dispatcher) startAppliance(conf *config.VirtualContainerHostConfigSpec)
 	defer trace.End(trace.Begin(""))
 
 	var err error
-	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	_, err = d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.PowerOn(ctx)
 	})
 

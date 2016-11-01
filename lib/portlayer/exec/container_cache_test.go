@@ -19,7 +19,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
@@ -75,7 +74,6 @@ func addTestVM(container *Container) {
 }
 
 func newTestContainer(id string) *Container {
-	c := &Container{ExecConfig: &executor.ExecutorConfig{}, newStateEvents: make(map[State]chan struct{})}
-	c.ExecConfig.ID = id
-	return c
+	h := TestHandle(id)
+	return newContainer(&h.containerBase)
 }

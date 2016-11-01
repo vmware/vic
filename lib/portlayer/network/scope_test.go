@@ -37,7 +37,7 @@ var addEthernetCardErr = func(_ *exec.Handle, _ *Scope) (types.BaseVirtualDevice
 
 func TestScopeAddRemoveContainer(t *testing.T) {
 	var err error
-	ctx, err := NewContext(testConfig())
+	ctx, err := NewContext(testConfig(), nil)
 	if err != nil {
 		t.Errorf("NewContext() => (nil, %s), want (ctx, nil)", err)
 		return
@@ -144,7 +144,7 @@ func TestScopeAddRemoveContainer(t *testing.T) {
 	options := &AddContainerOptions{
 		Scope: ctx.defaultScope.Name(),
 	}
-	bound := exec.NewContainer("bound")
+	bound := exec.TestHandle("bound")
 	ctx.AddContainer(bound, options)
 	ctx.BindContainer(bound)
 

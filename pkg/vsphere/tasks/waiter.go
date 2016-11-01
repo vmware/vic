@@ -41,8 +41,8 @@ type Task interface {
 
 // Wait wraps govmomi operations and wait the operation to complete
 // Sample usage:
-//    info, err := Wait(ctx, func(ctx) (*TaskInfo, error) {
-//       return vm.Reconfigure(ctx, config)
+//    info, err := Wait(ctx, func(ctx), (*object.Reference, *TaskInfo, error) {
+//       return vm, vm.Reconfigure(ctx, config)
 //    })
 func Wait(ctx context.Context, f func(context.Context) (Task, error)) error {
 	_, err := WaitForResult(ctx, f)
@@ -53,7 +53,7 @@ func Wait(ctx context.Context, f func(context.Context) (Task, error)) error {
 // Return the operation result
 // Sample usage:
 //    info, err := WaitForResult(ctx, func(ctx) (*TaskInfo, error) {
-//       return vm.Reconfigure(ctx, config)
+//       return vm, vm.Reconfigure(ctx, config)
 //    })
 func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (*types.TaskInfo, error) {
 	var err error
@@ -69,7 +69,6 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 			}
 		}
 
-		log.Errorf("task failed: %s", err)
 		if !isTaskInProgress(err) {
 			return info, err
 		}
@@ -91,15 +90,20 @@ func WaitForResult(ctx context.Context, f func(context.Context) (Task, error)) (
 
 func isTaskInProgress(err error) bool {
 	if soap.IsSoapFault(err) {
-		if _, ok := soap.ToSoapFault(err).VimFault().(types.TaskInProgress); ok {
+		switch f := soap.ToSoapFault(err).VimFault().(type) {
+		case types.TaskInProgress:
 			return true
+		default:
+			logSoapFault(f)
 		}
 	}
 
 	if soap.IsVimFault(err) {
-		switch soap.ToVimFault(err).(type) {
+		switch f := soap.ToVimFault(err).(type) {
 		case *types.TaskInProgress:
 			return true
+		default:
+			logFault(f)
 		}
 	}
 
@@ -108,7 +112,26 @@ func isTaskInProgress(err error) bool {
 		if _, ok := err.Fault().(*types.TaskInProgress); ok {
 			return true
 		}
+		logFault(err.Fault())
+	default:
+		if f, ok := err.(types.HasFault); ok {
+			logFault(f.Fault())
+		} else {
+			logError(err)
+		}
 	}
-
 	return false
+}
+
+// Helper Functions
+func logFault(fault types.BaseMethodFault) {
+	log.Debugf("unexpected fault on task retry : %#v", fault)
+}
+
+func logSoapFault(fault types.AnyType) {
+	log.Debugf("unexpected soap fault on task retry : %#v", fault)
+}
+
+func logError(err error) {
+	log.Debugf("unexpected error on task retry : %#v", err)
 }

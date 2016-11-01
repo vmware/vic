@@ -23,10 +23,15 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/govmomi"
+	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/task"
+	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/progress"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/vsphere/simulator"
 )
 
 func TestMain(m *testing.M) {
@@ -297,4 +302,137 @@ func TestRetry(t *testing.T) {
 		assert.Equal(t, tsk.cur, tsk.max)
 		assert.NoError(t, err)
 	})
+}
+
+// faultyVirtualMachine wrap simulator.VirtualMachine with fault injection
+type faultyVirtualMachine struct {
+	simulator.VirtualMachine
+
+	fault types.BaseMethodFault
+}
+
+// Run implements simulator.TaskRunner and always returns vm.fault
+func (vm *faultyVirtualMachine) Run(task *simulator.Task) (types.AnyType, types.BaseMethodFault) {
+	return nil, vm.fault
+}
+
+// Override PowerOffVMTask to inject a fault
+func (vm *faultyVirtualMachine) PowerOffVMTask(c *types.PowerOffVM_Task) soap.HasFault {
+	r := &methods.PowerOffVM_TaskBody{}
+
+	task := simulator.NewTask(vm)
+
+	r.Res = &types.PowerOffVM_TaskResponse{
+		Returnval: task.Self,
+	}
+
+	task.Run()
+
+	return r
+}
+
+// MarkAsTemplate implements a non-Task method to inject vm.fault
+func (vm *faultyVirtualMachine) MarkAsTemplate(c *types.MarkAsTemplate) soap.HasFault {
+	return &methods.MarkAsTemplateBody{
+		Fault_: simulator.Fault("nope", vm.fault),
+	}
+}
+
+// TestSoapFaults covers the various soap fault checking paths
+func TestSoapFaults(t *testing.T) {
+	ctx := context.Background()
+
+	// Nothing VC specific in this test, so we use the simpler ESX model
+	model := simulator.ESX()
+	defer model.Remove()
+	err := model.Create()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server := model.Service.NewServer()
+	defer server.Close()
+
+	client, err := govmomi.NewClient(ctx, server.URL, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Any VM will do
+	finder := find.NewFinder(client.Client, false)
+	vm, err := finder.VirtualMachine(ctx, "/ha-datacenter/vm/*_VM0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test the success path
+	err = Wait(ctx, func(ctx context.Context) (Task, error) {
+		return vm.PowerOn(ctx)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Wrap existing vm MO with faultyVirtualMachine
+	ref := simulator.Map.Get(vm.Reference())
+	fvm := &faultyVirtualMachine{*ref.(*simulator.VirtualMachine), nil}
+	simulator.Map.Put(fvm)
+
+	// Inject TaskInProgress fault
+	fvm.fault = new(types.TaskInProgress)
+	task, err := vm.PowerOff(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test the task.Error path
+	res, err := task.WaitForResult(ctx, nil)
+	if !isTaskInProgress(err) {
+		t.Error(err)
+	}
+
+	// Test the soap.IsVimFault() path
+	if !isTaskInProgress(soap.WrapVimFault(res.Error.Fault)) {
+		t.Errorf("fault=%#v", res.Error.Fault)
+	}
+
+	// Test the soap.IsSoapFault() path
+	err = vm.MarkAsTemplate(ctx)
+	if !isTaskInProgress(err) {
+		t.Error(err)
+	}
+
+	// Test a fault other than TaskInProgress
+	fvm.fault = &types.QuestionPending{
+		Text: "now why would you want to do such a thing?",
+	}
+
+	err = Wait(ctx, func(ctx context.Context) (Task, error) {
+		return vm.PowerOff(ctx)
+	})
+	if err == nil {
+		t.Error("expected error")
+	}
+	if isTaskInProgress(err) {
+		t.Error(err)
+	}
+
+	// Test with retry
+	fvm.fault = new(types.TaskInProgress)
+	called := 0
+
+	err = Wait(ctx, func(ctx context.Context) (Task, error) {
+		called++
+		if called > 1 {
+			simulator.Map.Put(ref) // remove fault injection
+		}
+
+		return vm.PowerOff(ctx)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if called != 2 {
+		t.Errorf("called=%d", called)
+	}
 }

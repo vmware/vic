@@ -20,14 +20,15 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"strings"
 	"time"
 
 	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
 	"golang.org/x/net/context"
 
-	log "github.com/Sirupsen/logrus"
-
 	"net/http"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
@@ -90,7 +91,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		Bytes:   x509.MarshalPKCS1PrivateKey(privateKey),
 	}
 
-	m := executor.ExecutorConfig{
+	m := &executor.ExecutorConfig{
 		Common: executor.Common{
 			ID:   id,
 			Name: *params.CreateConfig.Name,
@@ -118,6 +119,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		LayerID:  *params.CreateConfig.Image,
 		RepoName: *params.CreateConfig.RepoName,
 	}
+
 	if params.CreateConfig.Annotations != nil && len(params.CreateConfig.Annotations) > 0 {
 		m.Annotations = make(map[string]string)
 		for k, v := range params.CreateConfig.Annotations {
@@ -127,8 +129,6 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 
 	log.Infof("CreateHandler Metadata: %#v", m)
 
-	// Create new portlayer executor and call Create on it
-	h := exec.NewContainer(uid.Parse(id))
 	// Create the executor.ExecutorCreateConfig
 	c := &exec.ContainerCreateConfig{
 		Metadata:       m,
@@ -136,7 +136,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		ImageStoreName: params.CreateConfig.ImageStore.Name,
 	}
 
-	err = h.Create(ctx, session, c)
+	h, err := exec.Create(ctx, session, c)
 	if err != nil {
 		log.Errorf("ContainerCreate error: %s", err.Error())
 		return containers.NewCreateNotFound().WithPayload(&models.Error{Message: err.Error()})
@@ -167,20 +167,27 @@ func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.Stat
 		return containers.NewStateChangeDefault(http.StatusServiceUnavailable).WithPayload(&models.Error{Message: "unknown state"})
 	}
 
-	h.SetState(state)
+	h.SetTargetState(state)
 	return containers.NewStateChangeOK().WithPayload(h.String())
 }
 
 func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStateParams) middleware.Responder {
 	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", params.Handle)))
 
+	// NOTE: I've no idea why GetStateHandler takes a handle instead of an ID - hopefully there was a reason for an inspection
+	// operation to take this path
 	h := exec.GetHandle(params.Handle)
-	if h == nil {
+	if h == nil || h.ExecConfig == nil {
+		return containers.NewGetStateNotFound()
+	}
+
+	container := exec.Containers.Container(h.ExecConfig.ID)
+	if container == nil {
 		return containers.NewGetStateNotFound()
 	}
 
 	var state string
-	switch h.CurrentState() {
+	switch container.CurrentState() {
 	case exec.StateRunning:
 		state = "RUNNING"
 
@@ -235,11 +242,17 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 	// get the indicated container for removal
 	cID := uid.Parse(params.ID)
 	h := exec.GetContainer(context.Background(), cID)
-	if h == nil {
+	if h == nil || h.ExecConfig == nil {
 		return containers.NewContainerRemoveNotFound()
 	}
 
-	err := h.Container.Remove(context.Background(), handler.handlerCtx.Session)
+	container := exec.Containers.Container(h.ExecConfig.ID)
+	if container == nil {
+		return containers.NewGetStateNotFound()
+	}
+
+	// NOTE: this should allowing batching of operations, as with Create, Start, Stop, et al
+	err := container.Remove(context.Background(), handler.handlerCtx.Session)
 	if err != nil {
 		switch err := err.(type) {
 		case exec.NotFoundError:
@@ -264,7 +277,9 @@ func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers
 		return containers.NewGetContainerInfoNotFound().WithPayload(&models.Error{Message: info})
 	}
 
-	containerInfo := convertContainerToContainerInfo(container)
+	// Refresh to get up to date network info
+	container.Refresh(context.Background())
+	containerInfo := convertContainerToContainerInfo(container.Info())
 	return containers.NewGetContainerInfoOK().WithPayload(containerInfo)
 }
 
@@ -282,7 +297,7 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 
 	for _, container := range containerVMs {
 		// convert to return model
-		info := convertContainerToContainerInfo(container)
+		info := convertContainerToContainerInfo(container.Info())
 		containerList = append(containerList, info)
 	}
 	return containers.NewGetContainerListOK().WithPayload(containerList)
@@ -291,12 +306,17 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.ContainerSignalParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
-	h := exec.GetContainer(context.Background(), uid.Parse(params.ID))
-	if h == nil {
+	// NOTE: I feel that this should be in a Commit path for consistency
+	// it would allow phrasings such as:
+	// 1. join Volume to container
+	// 2. send HUP to primary process
+	// Only really relevant when we can connect networks or join volumes live
+	container := exec.Containers.Container(params.ID)
+	if container == nil {
 		return containers.NewContainerSignalNotFound().WithPayload(&models.Error{Message: fmt.Sprintf("container %s not found", params.ID)})
 	}
 
-	err := h.Container.Signal(context.Background(), params.Signal)
+	err := container.Signal(context.Background(), params.Signal)
 	if err != nil {
 		return containers.NewContainerSignalInternalServerError().WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -307,8 +327,8 @@ func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.
 func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers.GetContainerLogsParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.ID))
 
-	h := exec.GetContainer(context.Background(), uid.Parse(params.ID))
-	if h == nil {
+	container := exec.Containers.Container(params.ID)
+	if container == nil {
 		return containers.NewGetContainerLogsNotFound().WithPayload(&models.Error{
 			Message: fmt.Sprintf("container %s not found", params.ID),
 		})
@@ -325,7 +345,7 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 		tail = int(*params.Taillines)
 	}
 
-	reader, err := h.Container.LogReader(context.Background(), tail, follow)
+	reader, err := container.LogReader(context.Background(), tail, follow)
 	if err != nil {
 		return containers.NewGetContainerLogsInternalServerError().WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -360,7 +380,9 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 
 	select {
 	case <-c.WaitForState(exec.StateStopped):
-		containerInfo := convertContainerToContainerInfo(c)
+		c.Refresh(context.Background())
+		containerInfo := convertContainerToContainerInfo(c.Info())
+
 		return containers.NewContainerWaitOK().WithPayload(containerInfo)
 	case <-ctx.Done():
 		return containers.NewContainerWaitInternalServerError().WithPayload(&models.Error{
@@ -370,15 +392,19 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 }
 
 // utility function to convert from a Container type to the API Model ContainerInfo (which should prob be called ContainerDetail)
-func convertContainerToContainerInfo(container *exec.Container) *models.ContainerInfo {
+func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.ContainerInfo {
 	defer trace.End(trace.Begin(container.ExecConfig.ID))
 	// convert the container type to the required model
-	info := &models.ContainerInfo{ContainerConfig: &models.ContainerConfig{}, ProcessConfig: &models.ProcessConfig{}}
+	info := &models.ContainerInfo{
+		ContainerConfig: &models.ContainerConfig{},
+		ProcessConfig:   &models.ProcessConfig{},
+		Endpoints:       make([]*models.EndpointConfig, 0),
+	}
 
 	ccid := container.ExecConfig.ID
 	info.ContainerConfig.ContainerID = &ccid
 
-	s := container.CurrentState().String()
+	s := container.State().String()
 	info.ContainerConfig.State = &s
 	info.ContainerConfig.LayerID = &container.ExecConfig.LayerID
 	info.ContainerConfig.RepoName = &container.ExecConfig.RepoName
@@ -431,9 +457,46 @@ func convertContainerToContainerInfo(container *exec.Container) *models.Containe
 
 	info.HostConfig = &models.HostConfig{}
 	for _, endpoint := range container.ExecConfig.Networks {
+		ep := &models.EndpointConfig{
+			Address:     "",
+			Container:   ccid,
+			Gateway:     "",
+			ID:          endpoint.ID,
+			Name:        endpoint.Name,
+			Ports:       make([]string, 0),
+			Scope:       endpoint.Network.Name,
+			Aliases:     make([]string, 0),
+			Nameservers: make([]string, 0),
+		}
+
+		if len(endpoint.Network.Gateway.IP) > 0 {
+			ep.Gateway = endpoint.Network.Gateway.String()
+		}
+
+		if len(endpoint.Assigned.IP) > 0 {
+			ep.Address = endpoint.Assigned.String()
+		}
+
 		if len(endpoint.Ports) > 0 {
+			ep.Ports = append(ep.Ports, endpoint.Ports...)
 			info.HostConfig.Ports = append(info.HostConfig.Ports, endpoint.Ports...)
 		}
+
+		for _, alias := range endpoint.Network.Aliases {
+			parts := strings.Split(alias, ":")
+			if len(parts) > 1 {
+				ep.Aliases = append(ep.Aliases, parts[1])
+			} else {
+				ep.Aliases = append(ep.Aliases, parts[0])
+			}
+		}
+
+		for _, dns := range endpoint.Network.Nameservers {
+			ep.Nameservers = append(ep.Nameservers, dns.String())
+		}
+
+		info.Endpoints = append(info.Endpoints, ep)
 	}
+
 	return info
 }

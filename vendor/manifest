@@ -674,7 +674,7 @@
 			"importpath": "github.com/vmware/govmomi",
 			"repository": "https://github.com/vmware/govmomi",
 			"vcs": "git",
-			"revision": "1cf2bd6136d458c63617b89243e5cdcc8aab81fe",
+			"revision": "bb498f73762deb009468da8c3bd93b7c6002a63e",
 			"branch": "master"
 		},
 		{
@@ -699,6 +699,33 @@
 			"revision": "77f4136a99ffb5ecdbdd0226bd5cb146cf56bc0e",
 			"branch": "master",
 			"path": "/ed25519",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/crypto/nacl/secretbox",
+			"repository": "https://go.googlesource.com/crypto",
+			"vcs": "git",
+			"revision": "ca7e7f10cb9fd9c1a6ff7f60436c086d73714180",
+			"branch": "master",
+			"path": "/nacl/secretbox",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/crypto/poly1305",
+			"repository": "https://go.googlesource.com/crypto",
+			"vcs": "git",
+			"revision": "ca7e7f10cb9fd9c1a6ff7f60436c086d73714180",
+			"branch": "master",
+			"path": "poly1305",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/crypto/salsa20/salsa",
+			"repository": "https://go.googlesource.com/crypto",
+			"vcs": "git",
+			"revision": "ca7e7f10cb9fd9c1a6ff7f60436c086d73714180",
+			"branch": "master",
+			"path": "salsa20/salsa",
 			"notests": true
 		},
 		{

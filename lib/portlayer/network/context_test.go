@@ -27,15 +27,17 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-
+	"github.com/stretchr/testify/mock"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
 	"github.com/vmware/vic/lib/portlayer/constants"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/spec"
 	"github.com/vmware/vic/pkg/ip"
+	"github.com/vmware/vic/pkg/kvstore"
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 )
@@ -47,7 +49,7 @@ type params struct {
 	subnet          *net.IPNet
 	gateway         net.IP
 	dns             []net.IP
-	ipam            []string
+	pools           []string
 }
 
 var validScopeTests = []struct {
@@ -176,7 +178,7 @@ func TestMain(m *testing.M) {
 
 func TestMapExternalNetworks(t *testing.T) {
 	conf := testConfig()
-	ctx, err := NewContext(conf)
+	ctx, err := NewContext(conf, nil)
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
@@ -189,7 +191,7 @@ func TestMapExternalNetworks(t *testing.T) {
 		}
 
 		s := scopes[0]
-		pools := s.IPAM().Pools()
+		pools := s.Pools()
 		if !ip.IsUnspecifiedIP(nn.Gateway.IP) {
 			subnet := &net.IPNet{IP: nn.Gateway.IP.Mask(nn.Gateway.Mask), Mask: nn.Gateway.Mask}
 			if ip.IsUnspecifiedSubnet(s.Subnet()) || !s.Subnet().IP.Equal(subnet.IP) || !bytes.Equal(s.Subnet().Mask, subnet.Mask) {
@@ -232,17 +234,22 @@ func TestMapExternalNetworks(t *testing.T) {
 			}
 
 			if !found {
-				t.Fatalf("external network %s was loaded with wrong pools, got: %+v, want: %+v", n, s.IPAM().Pools(), nn.Pools)
+				t.Fatalf("external network %s was loaded with wrong pools, got: %+v, want: %+v", n, s.Pools(), nn.Pools)
 			}
 		}
 	}
 }
 
 func TestContextNewScope(t *testing.T) {
-	ctx, err := NewContext(testConfig())
+	kv := &kvstore.MockKeyValueStore{}
+	kv.On("List", mock.Anything).Return(nil, nil)
+	ctx, err := NewContext(testConfig(), kv)
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
+
+	kv.AssertNumberOfCalls(t, "List", 1)
+	kv.AssertCalled(t, "List", `context\.scopes\..+`)
 
 	var tests = []struct {
 		in  params
@@ -281,17 +288,25 @@ func TestContextNewScope(t *testing.T) {
 		{params{"external", "bar16", &net.IPNet{IP: net.IPv4(172, 20, 0, 0), Mask: net.CIDRMask(16, 32)}, net.IPv4(10, 14, 0, 1), nil, []string{"172.20.0.0/16"}}, nil, fmt.Errorf("")},
 	}
 
+	kv.On("Put", context.TODO(), mock.Anything, mock.Anything).Return(nil)
+	setCalls := 0
+
 	tests = append(validScopeTests, tests...)
 
 	for _, te := range tests {
-		s, err := ctx.NewScope(te.in.scopeType,
+		s, err := ctx.NewScope(
+			context.TODO(),
+			te.in.scopeType,
 			te.in.name,
 			te.in.subnet,
 			te.in.gateway,
 			te.in.dns,
-			te.in.ipam)
+			te.in.pools)
 
 		if te.out == nil {
+			// no additional call to kv.Set
+			kv.AssertNumberOfCalls(t, "Put", setCalls)
+
 			// error case
 			if s != nil || err == nil {
 				t.Fatalf("NewScope(%s, %s, %s, %s, %+v, %+v) => (s, nil), want (nil, err)",
@@ -300,7 +315,7 @@ func TestContextNewScope(t *testing.T) {
 					te.in.subnet,
 					te.in.gateway,
 					te.in.dns,
-					te.in.ipam)
+					te.in.pools)
 			}
 
 			// if there is an error specified, check if we got that error
@@ -323,6 +338,14 @@ func TestContextNewScope(t *testing.T) {
 			t.Fatalf("got: %s, expected: nil", err)
 			continue
 		}
+
+		setCalls++
+		kv.AssertNumberOfCalls(t, "Put", setCalls)
+
+		// check if kv.Set was called with the expected arguments
+		d, err := s.MarshalJSON()
+		assert.NoError(t, err)
+		kv.AssertCalled(t, "Put", context.TODO(), scopeKey(s.Name()), d)
 
 		if s.Type() != te.out.scopeType {
 			t.Fatalf("s.Type() => %s, want %s", s.Type(), te.out.scopeType)
@@ -356,47 +379,51 @@ func TestContextNewScope(t *testing.T) {
 			}
 		}
 
-		ipam := s.IPAM()
-		if ipam == nil {
-			t.Fatalf("s.IPAM() == nil, want %q", te.in.ipam)
-			continue
-		}
-
 		if s.Type() == constants.BridgeScopeType && s.Network() != testBridgeNetwork {
 			t.Fatalf("s.NetworkName => %v, want %s", s.Network(), testBridgeNetwork)
 			continue
 		}
 
-		if te.in.ipam != nil && len(ipam.spaces) != len(te.in.ipam) {
-			t.Fatalf("len(ipam.spaces) => %d != len(te.in.ipam) => %d", len(ipam.spaces), len(te.in.ipam))
+		hasPools := len(te.in.pools) > 0
+		if hasPools {
+			assert.Len(t, te.in.pools, len(s.spaces))
+		} else {
+			assert.Len(t, s.spaces, 1)
 		}
 
-		for i, p := range ipam.spaces {
-			if te.in.ipam == nil {
-				if p != s.space {
-					t.Fatalf("got %v, want %v", p, s.space)
-				}
+		var parent *AddressSpace
+		for i, p := range s.spaces {
+			if parent == nil {
+				parent = p.Parent
+			}
+
+			if !hasPools {
+				// only one pool equal to the subnet
+				assert.EqualValues(t, *p.Network, *s.subnet)
 				continue
 			}
 
-			if p.Parent != s.space {
-				t.Fatalf("p.Parent => %v, want %v", p.Parent, s.space)
-				continue
+			assert.NotNil(t, p.Parent)
+			// all pools should have the same parent
+			assert.Equal(t, parent, p.Parent)
+			// if subnet is specified, it should be the same as the parent space
+			if s.subnet != nil {
+				assert.EqualValues(t, *s.subnet, *p.Parent.Network)
 			}
 
 			if p.Network != nil {
-				if p.Network.String() != te.in.ipam[i] {
-					t.Fatalf("p.Network => %s, want %s", p.Network, te.in.ipam[i])
+				if p.Network.String() != te.in.pools[i] {
+					t.Fatalf("p.Network => %s, want %s", p.Network, te.in.pools[i])
 				}
-			} else if p.Pool.String() != te.in.ipam[i] {
-				t.Fatalf("p.Pool => %s, want %s", p.Pool, te.in.ipam[i])
+			} else if p.Pool.String() != te.in.pools[i] {
+				t.Fatalf("p.Pool => %s, want %s", p.Pool, te.in.pools[i])
 			}
 		}
 	}
 }
 
 func TestScopes(t *testing.T) {
-	ctx, err := NewContext(testConfig())
+	ctx, err := NewContext(testConfig(), nil)
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 		return
@@ -407,12 +434,13 @@ func TestScopes(t *testing.T) {
 	scopesByName := make(map[string]*Scope)
 	for _, te := range validScopeTests {
 		s, err := ctx.NewScope(
+			context.TODO(),
 			te.in.scopeType,
 			te.in.name,
 			te.in.subnet,
 			te.in.gateway,
 			te.in.dns,
-			te.in.ipam)
+			te.in.pools)
 
 		if err != nil {
 			t.Fatalf("NewScope() => (_, %s), want (_, nil)", err)
@@ -491,7 +519,7 @@ func TestScopes(t *testing.T) {
 }
 
 func TestContextAddContainer(t *testing.T) {
-	ctx, err := NewContext(testConfig())
+	ctx, err := NewContext(testConfig(), nil)
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 		return
@@ -526,7 +554,7 @@ func TestContextAddContainer(t *testing.T) {
 		return nil, fmt.Errorf("error")
 	}
 
-	otherScope, err := ctx.NewScope(constants.BridgeScopeType, "other", nil, net.IPv4(0, 0, 0, 0), nil, nil)
+	otherScope, err := ctx.NewScope(context.TODO(), constants.BridgeScopeType, "other", nil, net.IPv4(0, 0, 0, 0), nil, nil)
 	if err != nil {
 		t.Fatalf("failed to add scope")
 	}
@@ -550,6 +578,7 @@ func TestContextAddContainer(t *testing.T) {
 		// add a container
 		{nil, h, nil, "default", nil, nil},
 		// container already added
+		// requires that we preserve h.ExecConfig & h.Spec
 		{nil, h, nil, "default", nil, nil},
 		{nil, hBar, specWithEthCard, "default", nil, nil},
 		{nil, hBar, nil, otherScope.Name(), nil, nil},
@@ -563,9 +592,17 @@ func TestContextAddContainer(t *testing.T) {
 		addEthernetCard = origAEC
 		scopy := &spec.VirtualMachineConfigSpec{}
 		if te.h != nil {
-			te.h.SetSpec(te.s)
+			// seed with a specific spec state
+			if te.s != nil {
+				te.h.Spec = te.s
+			}
+
 			if te.h.Spec != nil {
 				*scopy = *te.h.Spec
+			} else {
+				te.h.Spec = &spec.VirtualMachineConfigSpec{
+					VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{},
+				}
 			}
 		}
 
@@ -609,7 +646,7 @@ func TestContextAddContainer(t *testing.T) {
 		// verify the container was not added to the scope
 		s, _ := ctx.resolveScope(te.scope)
 		if s != nil && te.h != nil {
-			c := s.Container(uid.Parse(te.h.Container.ExecConfig.ID))
+			c := s.Container(uid.Parse(te.h.ExecConfig.ID))
 			if c != nil {
 				t.Fatalf("case %d: ctx.AddContainer(%v, %s, %s) added container", i, te.h, te.scope, te.ip)
 			}
@@ -618,7 +655,9 @@ func TestContextAddContainer(t *testing.T) {
 		// spec should have a nic attached to the scope's network
 		var dev types.BaseVirtualDevice
 		dcs, err := te.h.Spec.FindNICs(context.TODO(), s.Network())
-		if len(dcs) != 1 {
+		if len(dcs) == 0 {
+			t.Fatalf("case %d: ctx.AddContainer(%v, %s, %s) no NIC was added for scope %s", i, te.h, te.scope, te.ip, s.Network())
+		} else if len(dcs) > 1 {
 			t.Fatalf("case %d: ctx.AddContainer(%v, %s, %s) more than one NIC added for scope %s", i, te.h, te.scope, te.ip, s.Network())
 		}
 		dev = dcs[0].GetVirtualDeviceConfigSpec().Device
@@ -651,18 +690,18 @@ func TestContextAddContainer(t *testing.T) {
 }
 
 func newContainer(name string) *exec.Handle {
-	h := exec.NewContainer(uid.New())
+	h := exec.TestHandle(uid.New().String())
 	h.ExecConfig.Common.Name = name
 	return h
 }
 
 func TestContextBindUnbindContainer(t *testing.T) {
-	ctx, err := NewContext(testConfig())
+	ctx, err := NewContext(testConfig(), nil)
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
 
-	scope, err := ctx.NewScope(constants.BridgeScopeType, "scope", nil, nil, nil, nil)
+	scope, err := ctx.NewScope(context.TODO(), constants.BridgeScopeType, "scope", nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("ctx.NewScope(%s, %s, nil, nil, nil) => (nil, %s)", constants.BridgeScopeType, "scope", err)
 	}
@@ -736,7 +775,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 				t.Fatalf("%d: ctx.BindContainer(%s) => (%+v, %+v), want (%+v, %+v)", i, te.h, eps, err, nil, te.err)
 			}
 
-			con := ctx.Container(te.h.Container.ExecConfig.ID)
+			con := ctx.Container(te.h.ExecConfig.ID)
 			if con != nil {
 				t.Fatalf("%d: ctx.BindContainer(%s) added container %#v", i, te.h, con)
 			}
@@ -749,9 +788,9 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		}
 
 		// check if the correct endpoints were added
-		con := ctx.Container(te.h.Container.ExecConfig.ID)
+		con := ctx.Container(te.h.ExecConfig.ID)
 		if con == nil {
-			t.Fatalf("%d: ctx.Container(%s) => nil, want %s", i, te.h.Container.ExecConfig.ID, te.h.Container.ExecConfig.ID)
+			t.Fatalf("%d: ctx.Container(%s) => nil, want %s", i, te.h.ExecConfig.ID, te.h.ExecConfig.ID)
 		}
 
 		if len(con.Scopes()) != len(te.scopes) {
@@ -826,7 +865,7 @@ func TestContextBindUnbindContainer(t *testing.T) {
 		}
 
 		// container should not be there
-		con := ctx.Container(te.h.Container.ExecConfig.ID)
+		con := ctx.Container(te.h.ExecConfig.ID)
 		if con != nil {
 			t.Fatalf("%d: ctx.Container(%s) => %#v, want nil", i, te.h, con)
 		}
@@ -848,8 +887,8 @@ func TestContextBindUnbindContainer(t *testing.T) {
 			if err != nil || len(scopes) != 1 {
 				t.Fatalf("%d: ctx.Scopes(%s) => (%#v, %#v)", i, s, scopes, err)
 			}
-			if scopes[0].Container(uid.Parse(te.h.Container.ExecConfig.ID)) != nil {
-				t.Fatalf("%d: container %s is still part of scope %s", i, te.h.Container.ExecConfig.ID, s)
+			if scopes[0].Container(uid.Parse(te.h.ExecConfig.ID)) != nil {
+				t.Fatalf("%d: container %s is still part of scope %s", i, te.h.ExecConfig.ID, s)
 			}
 
 			// check if endpoint is still there, but without the ip
@@ -869,12 +908,12 @@ func TestContextRemoveContainer(t *testing.T) {
 
 	hFoo := newContainer("foo")
 
-	ctx, err := NewContext(testConfig())
+	ctx, err := NewContext(testConfig(), nil)
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
 
-	scope, err := ctx.NewScope(constants.BridgeScopeType, "scope", nil, nil, nil, nil)
+	scope, err := ctx.NewScope(context.TODO(), constants.BridgeScopeType, "scope", nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("ctx.NewScope() => (nil, %s), want (scope, nil)", err)
 	}
@@ -926,7 +965,7 @@ func TestContextRemoveContainer(t *testing.T) {
 			t.Fatalf(err.Error())
 		}
 
-		if s.Container(uid.Parse(te.h.Container.ExecConfig.ID)) != nil {
+		if s.Container(uid.Parse(te.h.ExecConfig.ID)) != nil {
 			t.Fatalf("container %s is part of scope %s", te.h, s.Name())
 		}
 
@@ -973,12 +1012,16 @@ func TestContextRemoveContainer(t *testing.T) {
 }
 
 func TestDeleteScope(t *testing.T) {
-	ctx, err := NewContext(testConfig())
+	kv := &kvstore.MockKeyValueStore{}
+	kv.On("List", mock.Anything).Return(nil, nil)
+	kv.On("Put", context.TODO(), mock.Anything, mock.Anything).Return(nil)
+	kv.On("Delete", context.TODO(), mock.Anything).Return(nil)
+	ctx, err := NewContext(testConfig(), kv)
 	if err != nil {
 		t.Fatalf("NewContext() => (nil, %s), want (ctx, nil)", err)
 	}
 
-	foo, err := ctx.NewScope(constants.BridgeScopeType, "foo", nil, nil, nil, nil)
+	foo, err := ctx.NewScope(context.TODO(), constants.BridgeScopeType, "foo", nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("ctx.NewScope(%s, \"foo\", nil, nil, nil, nil) => (nil, %#v), want (foo, nil)", constants.BridgeScopeType, err)
 	}
@@ -989,7 +1032,7 @@ func TestDeleteScope(t *testing.T) {
 	ctx.AddContainer(h, options)
 
 	// bar is a scope with bound endpoints
-	bar, err := ctx.NewScope(constants.BridgeScopeType, "bar", nil, nil, nil, nil)
+	bar, err := ctx.NewScope(context.TODO(), constants.BridgeScopeType, "bar", nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("ctx.NewScope(%s, \"bar\", nil, nil, nil, nil) => (nil, %#v), want (bar, nil)", constants.BridgeScopeType, err)
 	}
@@ -999,12 +1042,12 @@ func TestDeleteScope(t *testing.T) {
 	ctx.AddContainer(h, options)
 	ctx.BindContainer(h)
 
-	baz, err := ctx.NewScope(constants.BridgeScopeType, "bazScope", nil, nil, nil, nil)
+	baz, err := ctx.NewScope(context.TODO(), constants.BridgeScopeType, "bazScope", nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("ctx.NewScope(%s, \"bazScope\", nil, nil, nil, nil) => (nil, %#v), want (baz, nil)", constants.BridgeScopeType, err)
 	}
 
-	qux, err := ctx.NewScope(constants.BridgeScopeType, "quxScope", nil, nil, nil, nil)
+	qux, err := ctx.NewScope(context.TODO(), constants.BridgeScopeType, "quxScope", nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("ctx.NewScope(%s, \"quxScope\", nil, nil, nil, nil) => (nil, %#v), want (qux, nil)", constants.BridgeScopeType, err)
 	}
@@ -1024,8 +1067,9 @@ func TestDeleteScope(t *testing.T) {
 		{qux.ID().String()[:6], nil},
 	}
 
+	calls := 0
 	for _, te := range tests {
-		err := ctx.DeleteScope(te.name)
+		err := ctx.DeleteScope(context.TODO(), te.name)
 		if te.err != nil {
 			if err == nil {
 				t.Fatalf("DeleteScope(%s) => nil, expected err", te.name)
@@ -1035,9 +1079,12 @@ func TestDeleteScope(t *testing.T) {
 				t.Fatalf("DeleteScope(%s) => %#v, want %#v", te.name, err, te.err)
 			}
 
+			kv.AssertNumberOfCalls(t, "Delete", calls)
 			continue
 		}
 
+		calls++
+		kv.AssertNumberOfCalls(t, "Delete", calls)
 		scopes, err := ctx.findScopes(&te.name)
 		if _, ok := err.(ResourceNotFoundError); !ok || len(scopes) != 0 {
 			t.Fatalf("scope %s not deleted", te.name)
@@ -1046,7 +1093,7 @@ func TestDeleteScope(t *testing.T) {
 }
 
 func TestAliases(t *testing.T) {
-	ctx, err := NewContext(testConfig())
+	ctx, err := NewContext(testConfig(), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, ctx)
 
@@ -1149,4 +1196,145 @@ func TestAliases(t *testing.T) {
 	// aliases from c1 and c3 to c2 should not resolve anymore
 	assert.Nil(t, ctx.Container(fmt.Sprintf("%s:c1:other", scope.Name())))
 	assert.Nil(t, ctx.Container(fmt.Sprintf("%s:c3:c2", scope.Name())))
+}
+
+func TestLoadScopesFromKV(t *testing.T) {
+	// sample kv store data
+	var tests = []struct {
+		pg string
+		sn string
+		s  *Scope
+	}{
+		{
+			pg: "bridge",
+			sn: "foo",
+			s: &Scope{
+				id:         uid.New(),
+				name:       "foo",
+				scopeType:  constants.BridgeScopeType,
+				subnet:     &net.IPNet{IP: net.ParseIP("10.10.10.0"), Mask: net.CIDRMask(16, 32)},
+				gateway:    net.ParseIP("10.10.10.1"),
+				containers: map[uid.UID]*Container{},
+				spaces:     []*AddressSpace{NewAddressSpaceFromNetwork(&net.IPNet{IP: net.ParseIP("10.10.10.0"), Mask: net.CIDRMask(16, 32)})},
+			},
+		},
+		{
+			pg: "bridge",
+			sn: "bar",
+			s: &Scope{
+				id:         uid.New(),
+				name:       "bar",
+				scopeType:  constants.BridgeScopeType,
+				subnet:     &net.IPNet{IP: net.ParseIP("10.11.0.0"), Mask: net.CIDRMask(16, 32)},
+				gateway:    net.ParseIP("10.11.0.1"),
+				containers: map[uid.UID]*Container{},
+				dns:        []net.IP{net.ParseIP("8.8.8.8")},
+				spaces:     []*AddressSpace{NewAddressSpaceFromNetwork(&net.IPNet{IP: net.ParseIP("10.11.0.0"), Mask: net.CIDRMask(16, 32)})},
+			},
+		},
+		{
+			pg: "ext",
+			sn: "ext",
+			s: &Scope{
+				id:         uid.New(),
+				name:       "ext",
+				scopeType:  constants.ExternalScopeType,
+				subnet:     &net.IPNet{IP: net.ParseIP("10.12.0.0"), Mask: net.CIDRMask(16, 32)},
+				gateway:    net.ParseIP("10.12.0.1"),
+				containers: map[uid.UID]*Container{},
+				dns:        []net.IP{net.ParseIP("8.8.8.8")},
+				spaces:     []*AddressSpace{NewAddressSpaceFromNetwork(&net.IPNet{IP: net.ParseIP("10.12.0.0"), Mask: net.CIDRMask(16, 32)})},
+			},
+		},
+		{
+			sn: "bad",
+		},
+	}
+
+	// load the kv store data
+	kvdata := map[string][]byte{}
+	for _, te := range tests {
+		var d []byte
+		if te.s != nil {
+			var err error
+			d, err = te.s.MarshalJSON()
+			assert.NoError(t, err)
+		}
+
+		kvdata[scopeKey(te.sn)] = d
+	}
+
+	// cases where there is no data in the kv store,
+	// or kv.List returns error
+	for _, e := range []error{nil, kvstore.ErrKeyNotFound, assert.AnError} {
+		kv := &kvstore.MockKeyValueStore{}
+		kv.On("List", `context\.scopes\..+`).Return(nil, e)
+		ctx, err := NewContext(testConfig(), kv)
+		assert.NoError(t, err)
+		assert.NotNil(t, ctx)
+
+		// check to see if the only networks
+		// are the ones in the config
+		scs, err := ctx.Scopes(context.TODO(), nil)
+		assert.NoError(t, err)
+		assert.Len(t, scs, len(testConfig().ContainerNetworks))
+	}
+
+	// kv.List returns kvdata
+	kv := &kvstore.MockKeyValueStore{}
+	kv.On("List", `context\.scopes\..+`).Return(kvdata, nil)
+	ctx, err := NewContext(testConfig(), kv)
+	assert.NoError(t, err)
+	assert.NotNil(t, ctx)
+	for _, te := range tests {
+		scs, err := ctx.Scopes(context.TODO(), &te.sn)
+		if te.s == nil || ctx.config.PortGroups[te.pg] == nil {
+			assert.Error(t, err)
+			assert.Len(t, scs, 0)
+			continue
+		}
+
+		assert.NoError(t, err)
+		assert.Len(t, scs, 1)
+
+		assert.Equal(t, scs[0].Name(), te.s.Name())
+		assert.Equal(t, scs[0].ID(), te.s.ID())
+		assert.Equal(t, scs[0].Type(), te.s.Type())
+		assert.True(t, scs[0].Subnet().IP.Equal(te.s.Subnet().IP))
+		assert.Equal(t, scs[0].Subnet().Mask, te.s.Subnet().Mask)
+		assert.True(t, scs[0].Gateway().Equal(te.s.Gateway()))
+		assert.EqualValues(t, scs[0].DNS(), te.s.DNS())
+		assert.Len(t, te.s.Pools(), len(scs[0].Pools()))
+		for _, p := range te.s.Pools() {
+			found := false
+			for _, p2 := range scs[0].Pools() {
+				if p2.Equal(p) {
+					found = true
+					break
+				}
+			}
+
+			assert.True(t, found)
+		}
+	}
+}
+
+func TestKVStoreSetFails(t *testing.T) {
+	sn := "foo"
+
+	// set up kv
+	kv := &kvstore.MockKeyValueStore{}
+	kv.On("List", mock.Anything).Return(nil, nil)
+	kv.On("Put", context.TODO(), scopeKey(sn), mock.Anything).Return(assert.AnError)
+
+	ctx, err := NewContext(testConfig(), kv)
+	assert.NoError(t, err)
+	assert.NotNil(t, ctx)
+
+	_, err = ctx.NewScope(context.TODO(), constants.BridgeScopeType, sn, nil, nil, nil, nil)
+	assert.EqualError(t, err, assert.AnError.Error())
+	scs, err := ctx.Scopes(context.TODO(), &sn)
+	assert.Error(t, err)
+	assert.IsType(t, ResourceNotFoundError{}, err)
+	assert.Len(t, scs, 0)
 }

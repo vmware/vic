@@ -6,6 +6,7 @@ Library  requests
 Library  Process
 Library  SSHLibrary  1 minute  prompt=bash-4.1$
 Library  DateTime
+Resource  Nimbus-Util.robot
 
 *** Variables ***
 ${bin-dir}  ${CURDIR}/../../bin
@@ -51,6 +52,12 @@ Set Test Environment Variables
     Run Keyword If  '${domain}' == ''  Set Suite Variable  ${vicmachinetls}  '--no-tlsverify'
     Run Keyword If  '${domain}' != ''  Set Suite Variable  ${vicmachinetls}  '--tls-cname=*.${domain}'
 
+    Set Test VCH Name
+    # Set a unique bridge network for each VCH that has a random VLAN ID
+    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitch0 ${vch-name}-bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  BRIDGE_NETWORK  ${vch-name}-bridge
+
 Set Test VCH Name
     ${name}=  Evaluate  'VCH-%{DRONE_BUILD_NUMBER}-' + str(random.randint(1000,9999))  modules=random
     Set Suite Variable  ${vch-name}  ${name}
@@ -88,9 +95,16 @@ Get Docker Params
     Run Keyword If  ${port} == 2375  Set Suite Variable  ${params}  -H ${dockerHost}
 
 
-    :FOR  ${item}  IN  @{output}
+    :FOR  ${index}  ${item}  IN ENUMERATE  @{output}
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  http
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
+    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  Published ports can be reached at
+    \   ${idx} =  Evaluate  ${index} + 1
+    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${ext-ip}  @{output}[${idx}]
+
+    ${rest}  ${ext-ip} =  Split String From Right  ${ext-ip}
+    ${ext-ip} =  Strip String  ${ext-ip}
+    Set Suite Variable  ${ext-ip}  ${ext-ip}
 
     ${rest}  ${vic-admin}=  Split String From Right  ${line}
     Set Suite Variable  ${vic-admin}
@@ -99,17 +113,12 @@ Install VIC Appliance To Test Server
     [Arguments]  ${vic-machine}=bin/vic-machine-linux  ${appliance-iso}=bin/appliance.iso  ${bootstrap-iso}=bin/bootstrap.iso  ${certs}=${true}  ${vol}=default
     Set Test Environment Variables
     # disable firewall
-    Run  govc host.esxcli network firewall set -e false
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.esxcli network firewall set -e false
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling Networks On Test Server
     Run Keyword And Ignore Error  Cleanup Dangling vSwitches On Test Server
-    Set Test VCH Name
-    # Set a unique bridge network for each VCH that has a random VLAN ID
-    ${vlan}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Evaluate  str(random.randint(1, 4093))  modules=random
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.add -vlan=${vlan} -vswitch vSwitch0 ${vch-name}-bridge
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Set Environment Variable  BRIDGE_NETWORK  ${vch-name}-bridge
 
     # Install the VCH now
     Log To Console  \nInstalling VCH to test server...
@@ -134,7 +143,9 @@ Cleanup VIC Appliance On Test Server
     Gather Logs From Test Server
     Log To Console  Deleting the VCH appliance...
     ${output}=  Run VIC Machine Delete Command
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${vch-name}-bridge
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${vch-name}-bridge
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  ${vch-name}-bridge
     [Return]  ${output}
 
 Check Delete Success
@@ -152,12 +163,12 @@ Check Delete Success
 Run Secret VIC Machine Delete Command
     [Tags]  secret
     [Arguments]  ${vch-name}
-    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
+    ${rc}  ${output}=  Run And Return Rc And Output  bin/vic-machine-linux delete --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} --force=true --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT}
     [Return]  ${rc}  ${output}
 
 Run VIC Machine Delete Command
     ${rc}  ${output}=  Run Secret VIC Machine Delete Command  ${vch-name}
-    Check Delete Success  ${vch-name}
+    Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vch-name}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
     ${output}=  Run  rm -f ${vch-name}-*.pem
@@ -165,12 +176,15 @@ Run VIC Machine Delete Command
 
 Cleanup Datastore On Test Server
     ${out}=  Run  govc datastore.ls
-    ${lines}=  Split To Lines  ${out}
-    :FOR  ${item}  IN  @{lines}
-    \   Continue For Loop If  '${item}' == 'VIC'
-    \   ${contents}=  Run  govc datastore.ls ${item}
-    \   ${status}=  Run Keyword And Return Status  Should Contain  ${contents}  vmx
-    \   Continue For Loop If  ${status}
+    ${items}=  Split To Lines  ${out}
+    :FOR  ${item}  IN  @{items}
+    \   ${build}=  Split String  ${item}  -
+    \   # Skip any item that is not associated with integration tests
+    \   Continue For Loop If  '@{build}[0]' != 'VCH'
+    \   # Skip any item that is still running
+    \   ${state}=  Get State Of Drone Build  @{build}[1]
+    \   Continue For Loop If  '${state}' == 'running'
+    \   Log To Console  Removing the following item from datastore: ${item}
     \   ${out}=  Run  govc datastore.rm ${item}
 
 Cleanup Dangling VMs On Test Server
@@ -202,7 +216,7 @@ Cleanup Dangling Networks On Test Server
     \   ${uuid}=  Run  govc host.portgroup.remove ${net}
 
 Cleanup Dangling vSwitches On Test Server
-    ${out}=  Run  govc host.vswitch.info | grep VCH
+    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.vswitch.info | grep VCH
     ${nets}=  Split To Lines  ${out}
     :FOR  ${net}  IN  @{nets}
     \   ${net}=  Fetch From Right  ${net}  ${SPACE}
@@ -220,11 +234,13 @@ Gather Logs From Test Server
     ${status}  ${message}=  Run Keyword And Ignore Error  Should Not Contain  ${params}  --tls
     # Non-certificate case
     ${ip}=  Run Keyword If  '${status}'=='PASS'  Split String  ${params}  :
-    Run Keyword If  '${status}'=='PASS'  Run  wget ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
+    Run Keyword If  '${status}'=='PASS'  Run  wget --tries=3 --connect-timeout=10 ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
     # Certificate case
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  ${params}  ${SPACE}
     ${ip}=  Run Keyword If  '${status}'=='FAIL'  Split String  @{ip}[1]  :
-    Run Keyword If  '${status}'=='FAIL'  Run  wget --no-check-certificate ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
+    ${docker_cert_path}=  Get Environment Variable  DOCKER_CERT_PATH  ${EMPTY}
+    ${wget_args}=  Set Variable If  '${docker_certpath}'==''  ${EMPTY}  --private-key=%{DOCKER_CERT_PATH}/key.pem --certificate=%{DOCKER_CERT_PATH}/cert.pem
+    Run Keyword If  '${status}'=='FAIL'  Run  wget ${wget_args} --tries=3 --connect-timeout=10 --no-check-certificate ${vic-admin}/container-logs.zip -O ${SUITE NAME}-${vch-name}-container-logs.zip
 
 Gather Logs From ESX Server
     Environment Variable Should Be Set  TEST_URL
@@ -285,83 +301,11 @@ Verify Checksums
     \   Should Be Equal  @{sums}[${idx}]  @{imageSum}[0]
     \   ${idx}=  Evaluate  ${idx}+1
 
-Deploy Nimbus ESXi Server
-    [Arguments]  ${user}  ${password}  ${version}=3620759
-    ${name}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
-    Log To Console  \nDeploying Nimbus ESXi server: ${name}
-    Open Connection  %{NIMBUS_GW}
-    Login  ${user}  ${password}
-
-    ${out}=  Execute Command  nimbus-esxdeploy ${name} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version}
-    # Make sure the deploy actually worked
-    Should Contain  ${out}  To manage this VM use
-    # Now grab the IP address and return the name and ip for later use
-    @{out}=  Split To Lines  ${out}
-    :FOR  ${item}  IN  @{out}
-    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  IP is
-    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
-    @{gotIP}=  Split String  ${line}  ${SPACE}
-    ${ip}=  Remove String  @{gotIP}[5]  ,
-
-    # Let's set a password so govc doesn't complain
-    Remove Environment Variable  GOVC_PASSWORD
-    Remove Environment Variable  GOVC_USERNAME
-    Set Environment Variable  GOVC_INSECURE  1
-    Set Environment Variable  GOVC_URL  root:@${ip}
-    ${out}=  Run  govc host.account.update -id root -password e2eFunctionalTest
-    Should Be Empty  ${out}
-    Log To Console  Successfully deployed new ESXi server - ${user}-${name}
-    Close connection
-    [Return]  ${user}-${name}  ${ip}
-
-Deploy Nimbus vCenter Server
-    [Arguments]  ${user}  ${password}  ${version}=3634791
-    ${name}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
-    Log To Console  \nDeploying Nimbus vCenter server: ${name}
-    Open Connection  %{NIMBUS_GW}
-    Login  ${user}  ${password}
-
-    ${out}=  Execute Command  nimbus-vcvadeploy --vcvaBuild ${version} ${name}
-    # Make sure the deploy actually worked
-    Should Contain  ${out}  Overall Status: Succeeded
-    # Now grab the IP address and return the name and ip for later use
-    @{out}=  Split To Lines  ${out}
-    :FOR  ${item}  IN  @{out}
-    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  Cloudvm is running on IP
-    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
-    ${ip}=  Fetch From Right  ${line}  ${SPACE}
-
-    Set Environment Variable  GOVC_INSECURE  1
-    Set Environment Variable  GOVC_USERNAME  Administrator@vsphere.local
-    Set Environment Variable  GOVC_PASSWORD  Admin!23
-    Set Environment Variable  GOVC_URL  ${ip}
-    Log To Console  Successfully deployed new vCenter server - ${user}-${name}
-    Close connection
-    [Return]  ${user}-${name}  ${ip}
-
-Deploy Nimbus Testbed
-    [Arguments]  ${user}  ${password}  ${testbed}
-    Open Connection  %{NIMBUS_GW}
-    Login  ${user}  ${password}
-    ${out}=  Execute Command  nimbus-testbeddeploy ${testbed}
-    [Return]  ${out}
-
-Kill Nimbus Server
-    [Arguments]  ${user}  ${password}  ${name}
-    Open Connection  %{NIMBUS_GW}
-    Login  ${user}  ${password}
-    ${out}=  Execute Command  nimbus-ctl kill '${name}'
-    Close connection
-
-Nimbus Cleanup
-    Gather Logs From Test Server
-    Run Keyword And Ignore Error  Kill Nimbus Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  *
-
 Wait Until Container Stops
     [Arguments]  ${container}
     :FOR  ${idx}  IN RANGE  0  30
-    \   ${out}=  Run  docker ${params} ps --filter status=running --no-trunc
-    \   ${status}=  Run Keyword And Return Status  Should Not Contain  ${out}  ${container}
+    \   ${out}=  Run  docker ${params} inspect ${container} | grep Status
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  exited
     \   Return From Keyword If  ${status}
     \   Sleep  1
     Fail  Container did not stop within 30 seconds
@@ -445,8 +389,11 @@ Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Exited
+    # get docker_cert_path or empty string if it's unset
+    ${docker_cert_path}=  Get Environment Variable  DOCKER_CERT_PATH  ${EMPTY}
+    ${curl_args}=  Set Variable If  '${docker_cert_path}' == ''  ${EMPTY}  --key %{DOCKER_CERT_PATH}/key.pem --cert %{DOCKER_CERT_PATH}/cert.pem
     # Ensure container logs are correctly being gathered for debugging purposes
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz | tar tvzf -
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${curl_args} ${vic-admin}/container-logs.tar.gz | tar tvzf -
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
     Should Contain  ${output}  ${container}/output.log
@@ -495,3 +442,34 @@ Run Docker Info
     [Arguments]  ${docker-params}
     ${rc}=  Run And Return Rc  docker ${docker-params} info
     Should Be Equal As Integers  ${rc}  0
+
+Install Harbor To Test Server
+    [Arguments]  ${user}=%{TEST_USERNAME}  ${password}=%{TEST_PASSWORD}  ${host}=%{TEST_URL}  ${datastore}=${TEST_DATASTORE}  ${network}=%{BRIDGE_NETWORK}  ${name}=harbor
+    ${out}=  Run  wget https://github.com/vmware/harbor/releases/download/0.4.1/harbor_0.4.1_beta.ova
+    ${out}=  Run  ovftool harbor_0.4.1_beta.ova harbor_0.4.1_beta.ovf
+    ${out}=  Run  ovftool --datastore=${datastore} --name=${name} --net:"Network 1"="${network}" --diskMode=thin --powerOn --X:waitForIp --X:injectOvfEnv --X:enableHiddenProperties --prop:vami.domain.Harbor=mgmt.local --prop:vami.searchpath.Harbor=mgmt.local --prop:vami.DNS.Harbor=8.8.8.8 --prop:vm.vmname=Harbor harbor_0.4.1_beta.ovf 'vi://${user}:${password}@${host}'
+    ${out}=  Split To Lines  ${out}
+
+    :FOR  ${line}  IN  @{out}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  Received IP address:
+    \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
+    \   Run Keyword If  ${status}  Set Environment Variable  HARBOR_IP  ${ip}
+    \   Exit For Loop If  ${status}
+
+Power Off VM OOB
+    [Arguments]  ${vm}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -off ${vch-name}/"${vm}"
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.power -off "${vm}"
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Log To Console  Waiting for VM to power off ...
+    Wait Until VM Powers Off  "${vm}"
+
+Power On VM OOB
+    [Arguments]  ${vm}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -on ${vch-name}/"${vm}"
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.power -on "${vm}"
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+    Log To Console  Waiting for VM to power on ...
+    Wait Until VM Powers On  ${vm}

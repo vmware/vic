@@ -29,11 +29,9 @@ import (
 )
 
 type add struct {
-	*flags.ClientFlag
-	*flags.DatacenterFlag
+	*flags.FolderFlag
 	*flags.HostConnectFlag
 
-	parent  string
 	connect bool
 }
 
@@ -42,24 +40,17 @@ func init() {
 }
 
 func (cmd *add) Register(ctx context.Context, f *flag.FlagSet) {
-	cmd.ClientFlag, ctx = flags.NewClientFlag(ctx)
-	cmd.ClientFlag.Register(ctx, f)
-
-	cmd.DatacenterFlag, ctx = flags.NewDatacenterFlag(ctx)
-	cmd.DatacenterFlag.Register(ctx, f)
+	cmd.FolderFlag, ctx = flags.NewFolderFlag(ctx)
+	cmd.FolderFlag.Register(ctx, f)
 
 	cmd.HostConnectFlag, ctx = flags.NewHostConnectFlag(ctx)
 	cmd.HostConnectFlag.Register(ctx, f)
 
-	f.StringVar(&cmd.parent, "parent", "", "Path to folder to add the host to")
 	f.BoolVar(&cmd.connect, "connect", true, "Immediately connect to host")
 }
 
 func (cmd *add) Process(ctx context.Context) error {
-	if err := cmd.ClientFlag.Process(ctx); err != nil {
-		return err
-	}
-	if err := cmd.DatacenterFlag.Process(ctx); err != nil {
+	if err := cmd.FolderFlag.Process(ctx); err != nil {
 		return err
 	}
 	if err := cmd.HostConnectFlag.Process(ctx); err != nil {
@@ -80,12 +71,17 @@ func (cmd *add) Process(ctx context.Context) error {
 func (cmd *add) Description() string {
 	return `Add host to datacenter.
 
-The host is added to the folder specified by the 'parent' flag. If not given,
-this defaults to the hosts folder in the specified or default datacenter.`
+The host is added to the folder specified by the 'folder' flag. If not given,
+this defaults to the host folder in the specified or default datacenter.
+
+Examples:
+  thumbprint=$(govc about.cert -k -u host.example.com -thumbprint | awk '{print $2}')
+  govc host.add -hostname host.example.com -username root -password pass -thumbprint $thumbprint
+  govc host.add -hostname 10.0.6.1 -username root -password pass -noverify`
 }
 
 func (cmd *add) Add(ctx context.Context, parent *object.Folder) error {
-	spec := cmd.HostConnectSpec
+	spec := cmd.Spec(parent.Client())
 
 	req := types.AddStandaloneHost_Task{
 		This:         parent.Reference(),
@@ -107,46 +103,14 @@ func (cmd *add) Add(ctx context.Context, parent *object.Folder) error {
 }
 
 func (cmd *add) Run(ctx context.Context, f *flag.FlagSet) error {
-	var parent *object.Folder
-
 	if f.NArg() != 0 {
 		return flag.ErrHelp
 	}
 
-	if cmd.parent == "" {
-		dc, err := cmd.Datacenter()
-		if err != nil {
-			return err
-		}
-
-		folders, err := dc.Folders(ctx)
-		if err != nil {
-			return err
-		}
-
-		parent = folders.HostFolder
-	} else {
-		finder, err := cmd.Finder()
-		if err != nil {
-			return err
-		}
-
-		parent, err = finder.Folder(ctx, cmd.parent)
-		if err != nil {
-			return err
-		}
-	}
-
-	err := cmd.Add(ctx, parent)
-	if err == nil {
-		return nil
-	}
-
-	// Check if we failed due to SSLVerifyFault and -noverify is set
-	if err := cmd.AcceptThumbprint(err); err != nil {
+	folder, err := cmd.FolderOrDefault("host")
+	if err != nil {
 		return err
 	}
 
-	// Accepted unverified thumbprint, try again
-	return cmd.Add(ctx, parent)
+	return cmd.Fault(cmd.Add(ctx, folder))
 }

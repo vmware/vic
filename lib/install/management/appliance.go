@@ -167,7 +167,7 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 			}
 			return err
 		}
-		if _, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+		if _, err = vm.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 			return vm.PowerOff(ctx)
 		}); err != nil {
 			log.Debugf("Failed to power off existing appliance for %s, try to remove anyway", err)
@@ -187,7 +187,7 @@ func (d *Dispatcher) deleteVM(vm *vm.VirtualMachine, force bool) error {
 		}
 	}
 
-	_, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	_, err = vm.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return vm.DeleteExceptDisks(ctx)
 	})
 	if err != nil {
@@ -291,8 +291,10 @@ func (d *Dispatcher) createApplianceSpec(conf *config.VirtualContainerHostConfig
 	var devices object.VirtualDeviceList
 	var err error
 
-	cfg := make(map[string]string)
-	extraconfig.Encode(extraconfig.MapSink(cfg), conf)
+	cfg, err := d.encodeConfig(conf)
+	if err != nil {
+		return nil, err
+	}
 
 	spec := &spec.VirtualMachineConfigSpec{
 		VirtualMachineConfigSpec: &types.VirtualMachineConfigSpec{
@@ -418,8 +420,9 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		})
 	} else {
 		// if vapp is not created, fall back to create VM under default resource pool
+		folder := d.session.Folders(d.ctx).VmFolder
 		info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
-			return d.session.Folders(ctx).VmFolder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
+			return folder.CreateVM(ctx, *spec, d.vchPool, d.session.Host)
 		})
 	}
 
@@ -475,12 +478,9 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			Path: "/sbin/vicadmin",
 			Args: []string{
 				"/sbin/vicadmin",
-				"-docker-host=unix:///var/run/docker.sock",
-				// FIXME: hack during config migration
-				"-ds=" + conf.ImageStores[0].Host,
-				"-cluster=" + settings.ClusterPath,
-				"-pool=" + settings.ResourcePoolPath,
-				"-vm-path=" + vm2.InventoryPath,
+				"--dc=" + settings.DatacenterName,
+				"--pool=" + settings.ResourcePoolPath,
+				"--cluster=" + settings.ClusterPath,
 			},
 			Env: []string{
 				"PATH=/sbin:/bin",
@@ -501,7 +501,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	}
 
 	conf.AddComponent("docker-personality", &executor.SessionConfig{
-		// TODO: replace this when imagec is libridized
+		// currently needed for iptables interaction
 		// User:  "nobody",
 		// Group: "nobody",
 		Cmd: executor.Cmd{
@@ -509,7 +509,6 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			Args: []string{
 				"/sbin/docker-engine-server",
 				//FIXME: hack during config migration
-				"-serveraddr=0.0.0.0",
 				"-port=" + d.DockerPort,
 				fmt.Sprintf("-port-layer-port=%d", portLayerPort),
 			},
@@ -527,18 +526,16 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			Path: "/sbin/port-layer-server",
 			Args: []string{
 				"/sbin/port-layer-server",
-				//FIXME: hack during config migration
 				"--host=localhost",
 				fmt.Sprintf("--port=%d", portLayerPort),
-				"--insecure",
-				"--sdk=" + conf.Target.String(),
-				"--datacenter=" + settings.DatacenterName,
-				"--cluster=" + settings.ClusterPath,
-				"--pool=" + settings.ResourcePoolPath,
-				"--datastore=" + conf.ImageStores[0].Host,
 			},
 			Env: []string{
-				"GOTRACEBACK=all",
+				//FIXME: hack during config migration
+				"VC_URL=" + conf.Target.String(),
+				"DC_PATH=" + settings.DatacenterName,
+				"CS_PATH=" + settings.ClusterPath,
+				"POOL_PATH=" + settings.ResourcePoolPath,
+				"DS_PATH=" + conf.ImageStores[0].Host,
 			},
 		},
 		Restart: true,
@@ -554,7 +551,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	}
 
 	// reconfig
-	info, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	info, err = vm2.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return vm2.Reconfigure(ctx, *spec)
 	})
 
@@ -569,6 +566,24 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 
 	d.appliance = vm2
 	return nil
+}
+
+func (d *Dispatcher) encodeConfig(conf *config.VirtualContainerHostConfigSpec) (map[string]string, error) {
+	if d.secret == nil {
+		log.Debug("generating new config secret key")
+
+		s, err := extraconfig.NewSecretKey()
+		if err != nil {
+			return nil, err
+		}
+
+		d.secret = s
+	}
+
+	cfg := make(map[string]string)
+	extraconfig.Encode(d.secret.Sink(extraconfig.MapSink(cfg)), conf)
+
+	return cfg, nil
 }
 
 func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *config.VirtualContainerHostConfigSpec, settings *data.InstallerData) (*types.VirtualMachineConfigSpec, error) {
@@ -595,8 +610,11 @@ func (d *Dispatcher) reconfigureApplianceSpec(vm *vm.VirtualMachine, conf *confi
 
 	spec.DeviceChange = deviceChange
 
-	cfg := make(map[string]string)
-	extraconfig.Encode(extraconfig.MapSink(cfg), conf)
+	cfg, err := d.encodeConfig(conf)
+	if err != nil {
+		return nil, err
+	}
+
 	spec.ExtraConfig = append(spec.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 	return spec, nil
 }
@@ -749,7 +767,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 		}
 
 		if err != nil {
-			// DEBU[2016-10-11T22:22:38Z] Error received from endpoint: Get https://192.168.78.127:2376/info: dial tcp 192.168.78.127:2376: getsockopt: connection refused &{%!t(string=Get) %!t(string=https://192.168.78.127:2376/info) %!t(*net.OpError=&{dial tcp <nil> 0xc4204505a0 0xc4203a5e00})}
+			// DEBU[2016-10-11T22:22:38Z] Error recieved from endpoint: Get https://192.168.78.127:2376/info: dial tcp 192.168.78.127:2376: getsockopt: connection refused &{%!t(string=Get) %!t(string=https://192.168.78.127:2376/info) %!t(*net.OpError=&{dial tcp <nil> 0xc4204505a0 0xc4203a5e00})}
 			// DEBU[2016-10-11T22:22:39Z] Components not yet initialized, retrying
 			// ERR=&url.Error{
 			//     Op:  "Get",
@@ -769,7 +787,7 @@ func (d *Dispatcher) CheckDockerAPI(conf *config.VirtualContainerHostConfigSpec,
 			//         },
 			//     },
 			// }
-			// DEBU[2016-10-11T22:22:41Z] Error received from endpoint: Get https://192.168.78.127:2376/info: remote error: tls: bad certificate &{%!t(string=Get) %!t(string=https://192.168.78.127:2376/info) %!t(*net.OpError=&{remote error  <nil> <nil> 42})}
+			// DEBU[2016-10-11T22:22:41Z] Error recieved from endpoint: Get https://192.168.78.127:2376/info: remote error: tls: bad certificate &{%!t(string=Get) %!t(string=https://192.168.78.127:2376/info) %!t(*net.OpError=&{remote error  <nil> <nil> 42})}
 			// DEBU[2016-10-11T22:22:42Z] Components not yet initialized, retrying
 			// ERR=&url.Error{
 			//     Op:  "Get",

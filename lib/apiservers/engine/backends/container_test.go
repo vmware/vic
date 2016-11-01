@@ -198,6 +198,10 @@ func (m *MockContainerProxy) SetMockDataResponse(createHandleResp int, addToScop
 	m.mockRespIndices[5] = commitContainerResp
 }
 
+func (m *MockContainerProxy) Handle(id, name string) (string, error) {
+	return "", nil
+}
+
 func (m *MockContainerProxy) CreateContainerHandle(imageID string, config types.ContainerCreateConfig) (string, string, error) {
 	respIdx := m.mockRespIndices[0]
 
@@ -247,7 +251,7 @@ func (m *MockContainerProxy) AddLoggingToContainer(handle string, config types.C
 	return m.mockAddLoggingData[respIdx].retHandle, m.mockAddLoggingData[respIdx].retErr
 }
 
-func (m *MockContainerProxy) CommitContainerHandle(handle, imageID string) error {
+func (m *MockContainerProxy) CommitContainerHandle(handle, containerID string, waitTime int32) error {
 	respIdx := m.mockRespIndices[5]
 
 	if respIdx >= len(m.mockCommitData) {
@@ -277,6 +281,10 @@ func (m *MockContainerProxy) StreamContainerLogs(name string, out io.Writer, sta
 		fmt.Fprintf(out, "line %d\n", i)
 	}
 
+	return nil
+}
+
+func (m *MockContainerProxy) Stop(vc *viccontainer.VicContainer, name string, seconds int, unbound bool) error {
 	return nil
 }
 
@@ -334,7 +342,7 @@ func AddMockImageToCache() {
 		OnBuild:      nil,
 	}
 
-	cache.ImageCache().AddImage(mockImage)
+	cache.ImageCache().Add(mockImage)
 
 	ref, _ := reference.ParseNamed(mockImage.Reference)
 	cache.RepositoryCache().AddReference(ref, mockImage.ImageID, false, mockImage.ImageID, false)
@@ -343,7 +351,7 @@ func AddMockImageToCache() {
 func AddMockContainerToCache() {
 	AddMockImageToCache()
 
-	image, err := cache.ImageCache().GetImage("e732471cb81a564575aad46b9510161c5945deaf18e9be3db344333d72f0b4b2")
+	image, err := cache.ImageCache().Get("e732471cb81a564575aad46b9510161c5945deaf18e9be3db344333d72f0b4b2")
 	if err == nil {
 		vc := viccontainer.NewVicContainer()
 		vc.ImageID = image.ID

@@ -1,11 +1,11 @@
 *** Settings ***
 Documentation  Test 5-3 - Enhanced Linked Mode
-Resource  ../../resources/Nimbus-Util.robot
+Resource  ../../resources/Util.robot
 Suite Teardown  Run Keyword And Ignore Error  Nimbus Cleanup
 
 *** Test Cases ***
 Test
-    ${output}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin test-vpx --testbedName test-vpx-m2n2-vcva-3esx-pxeBoot-8gbmem --vcvaBuild 3634791 --esxPxeDir 3620759 --runName els 
+    ${output}=  Deploy Nimbus Testbed  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}  --plugin test-vpx --testbedName test-vpx-m2n2-vcva-3esx-pxeBoot-8gbmem --vcvaBuild ${VC_VERSION} --esxPxeDir ${ESX_VERSION} --runName els 
 
     ${output}=  Split To Lines  ${output}
     :FOR  ${line}  IN  @{output}
@@ -63,21 +63,11 @@ Test
     ${out}=  Run  govc cluster.add -hostname=${esx3-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
 
-    Log To Console  Create a distributed switch
-    ${out}=  Run  govc dvs.create -dc=ha-datacenter test-ds
-    Should Contain  ${out}  OK
+    Create A Distributed Switch  ha-datacenter
 
-    Log To Console  Create three new distributed switch port groups for management and vm network traffic
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=ha-datacenter -dvs=test-ds management
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=ha-datacenter -dvs=test-ds vm-network
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=ha-datacenter -dvs=test-ds bridge
-    Should Contain  ${out}  OK
+    Create Three Distributed Port Groups  ha-datacenter
 
-    Log To Console  Add all the hosts to the distributed switch
-    ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 /ha-datacenter/host/cls
-    Should Contain  ${out}  OK
+    Add Host To Distributed Switch  /ha-datacenter/host/cls
 
     Log To Console  Enable DRS on the cluster
     ${out}=  Run  govc cluster.change -drs-enabled /ha-datacenter/host/cls
@@ -101,21 +91,11 @@ Test
     ${out}=  Run  govc cluster.add -hostname=${esx6-ip} -username=root -dc=ha-datacenter -password=e2eFunctionalTest -noverify=true
     Should Contain  ${out}  OK
 
-    Log To Console  Create a distributed switch
-    ${out}=  Run  govc dvs.create -dc=ha-datacenter test-ds
-    Should Contain  ${out}  OK
+    Create A Distributed Switch  ha-datacenter
 
-    Log To Console  Create three new distributed switch port groups for management and vm network traffic
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=ha-datacenter -dvs=test-ds management
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=ha-datacenter -dvs=test-ds vm-network
-    Should Contain  ${out}  OK
-    ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=ha-datacenter -dvs=test-ds bridge
-    Should Contain  ${out}  OK
+    Create Three Distributed Port Groups  ha-datacenter
 
-    Log To Console  Add all the hosts to the distributed switch
-    ${out}=  Run  govc dvs.add -dvs=test-ds -pnic=vmnic1 /ha-datacenter/host/cls
-    Should Contain  ${out}  OK
+    Add Host To Distributed Switch  /ha-datacenter/host/cls
 
     Log To Console  Enable DRS on the cluster
     ${out}=  Run  govc cluster.change -drs-enabled /ha-datacenter/host/cls
@@ -132,6 +112,6 @@ Test
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
     
-    Install VIC Appliance To Test Server  certs=${true}  vol=default
+    Install VIC Appliance To Test Server
 
     Run Regression Tests

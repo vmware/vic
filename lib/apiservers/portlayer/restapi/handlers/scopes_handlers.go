@@ -114,7 +114,7 @@ func (handler *ScopesHandlersImpl) ScopesCreate(params scopes.CreateScopeParams)
 		return scopes.NewCreateScopeDefault(http.StatusServiceUnavailable).WithPayload(errorPayload(err))
 	}
 
-	s, err := handler.netCtx.NewScope(cfg.ScopeType, cfg.Name, subnet, gateway, dns, cfg.IPAM)
+	s, err := handler.netCtx.NewScope(context.Background(), cfg.ScopeType, cfg.Name, subnet, gateway, dns, cfg.IPAM)
 	if _, ok := err.(network.DuplicateResourceError); ok {
 		return scopes.NewCreateScopeConflict()
 	}
@@ -129,7 +129,7 @@ func (handler *ScopesHandlersImpl) ScopesCreate(params scopes.CreateScopeParams)
 func (handler *ScopesHandlersImpl) ScopesDelete(params scopes.DeleteScopeParams) middleware.Responder {
 	defer trace.End(trace.Begin(params.IDName))
 
-	if err := handler.netCtx.DeleteScope(params.IDName); err != nil {
+	if err := handler.netCtx.DeleteScope(context.Background(), params.IDName); err != nil {
 		switch err := err.(type) {
 		case network.ResourceNotFoundError:
 			return scopes.NewDeleteScopeNotFound().WithPayload(errorPayload(err))
@@ -332,7 +332,7 @@ func toScopeConfig(scope *network.Scope) *models.ScopeConfig {
 	}
 
 	var pools []string
-	for _, p := range scope.IPAM().Pools() {
+	for _, p := range scope.Pools() {
 		pools = append(pools, p.String())
 	}
 

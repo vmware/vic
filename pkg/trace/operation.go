@@ -91,15 +91,14 @@ func (o Operation) Err() error {
 
 		// handle the carriage return
 		numFrames := len(o.t)
-		cr := "\n"
 
 		for i, t := range o.t {
-			if i == numFrames-1 {
-				// don't add a cr on the last frame
-				cr = ""
-			}
+			fmt.Fprintf(buf, "%-15s:%d %s", t.funcName, t.lineNo, t.msg)
 
-			fmt.Fprintf(buf, "\t%s:%d %s%s", t.funcName, t.lineNo, t.msg, cr)
+			// don't add a cr on the last frame
+			if i != numFrames-1 {
+				buf.WriteByte('\n')
+			}
 		}
 
 		// Print the error
@@ -134,8 +133,8 @@ func opID(opNum uint64) string {
 }
 
 // Add tracing info to the context.
-func NewOperation(ctx context.Context, msg string) Operation {
-	o := newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, msg)
+func NewOperation(ctx context.Context, format string, args ...interface{}) Operation {
+	o := newOperation(ctx, opID(atomic.AddUint64(&opCount, 1)), 3, fmt.Sprintf(format, args...))
 
 	frame := o.t[0]
 	o.Debugf("[NewOperation] %s [%s:%d]", o.header(), frame.funcName, frame.lineNo)
@@ -143,17 +142,17 @@ func NewOperation(ctx context.Context, msg string) Operation {
 }
 
 // WithTimeout
-func WithTimeout(parent *Operation, timeout time.Duration, msg string) (Operation, context.CancelFunc) {
+func WithTimeout(parent *Operation, timeout time.Duration, format string, args ...interface{}) (Operation, context.CancelFunc) {
 	ctx, cancelFunc := context.WithTimeout(parent.Context, timeout)
-	op := parent.newChild(ctx, msg)
+	op := parent.newChild(ctx, fmt.Sprintf(format, args...))
 
 	return op, cancelFunc
 }
 
 // WithDeadline
-func WithDeadline(parent *Operation, expiration time.Time, msg string) (Operation, context.CancelFunc) {
+func WithDeadline(parent *Operation, expiration time.Time, format string, args ...interface{}) (Operation, context.CancelFunc) {
 	ctx, cancelFunc := context.WithDeadline(parent.Context, expiration)
-	op := parent.newChild(ctx, msg)
+	op := parent.newChild(ctx, fmt.Sprintf(format, args...))
 
 	return op, cancelFunc
 }

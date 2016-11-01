@@ -20,3 +20,9 @@ Group 5 - Functional Tests
 -
 [Test 5-9 - Private Registry](5-9-Private-Registry.md)
 -
+[Test 5-10 - Multiple Datacenter](5-10-Multiple-Datacenter.md)
+-
+[Test 5-11 - Multiple Cluster](5-11-Multiple-Cluster.md)
+-
+[Test 5-12 - Multiple VLAN](5-12-Multiple-VLAN.md)
+-

@@ -26,6 +26,8 @@ import (
 	"github.com/vmware/vic/lib/portlayer/event"
 	"github.com/vmware/vic/lib/portlayer/event/events"
 	"github.com/vmware/vic/lib/portlayer/exec"
+	"github.com/vmware/vic/lib/portlayer/store"
+	"github.com/vmware/vic/pkg/kvstore"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
@@ -94,9 +96,14 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 			return
 		}
 
-		var netctx *Context
-		netctx, err = NewContext(&config)
+		var kv kvstore.KeyValueStore
+		kv, err = store.NewDatastoreKeyValue(ctx, sess, "network.contexts.default")
 		if err != nil {
+			return
+		}
+
+		var netctx *Context
+		if netctx, err = NewContext(&config, kv); err != nil {
 			return
 		}
 
@@ -124,8 +131,6 @@ func handleEvent(netctx *Context, ie events.Event) {
 			return
 		}
 
-		// make sure we don't change the state of the container in the Commit
-		handle.SetState(exec.StateUnknown)
 		if err := handle.Commit(context.Background(), nil, nil); err != nil {
 			log.Warnf("Failed to commit handle after network unbind for container %s: %s", ie.Reference(), err)
 		}
@@ -195,7 +200,7 @@ func engageContext(ctx context.Context, netctx *Context, em event.EventManager) 
 			}
 		}
 
-		if h.CurrentState() == exec.StateRunning {
+		if c.CurrentState() == exec.StateRunning {
 			if _, err = netctx.bindContainer(h); err != nil {
 				return err
 			}

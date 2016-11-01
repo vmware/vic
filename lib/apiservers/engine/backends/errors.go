@@ -21,6 +21,11 @@ import (
 	derr "github.com/docker/docker/errors"
 )
 
+// Used to check status code of derr, which is not a public type
+type httpStatusError interface {
+	HTTPErrorStatusCode() int
+}
+
 // InvalidVolumeError is returned when the user specifies a client directory as a volume.
 type InvalidVolumeError struct {
 }
@@ -74,4 +79,17 @@ func BadRequestError(msg string) error {
 
 func ConflictError(msg string) error {
 	return derr.NewRequestConflictError(fmt.Errorf("Conflict error from portlayer: %s", msg))
+}
+
+// Error type check
+
+func IsNotFoundError(err error) bool {
+	// if error was created with the docker error function, check the status code
+	if httpErr, ok := err.(httpStatusError); ok {
+		if httpErr.HTTPErrorStatusCode() == http.StatusNotFound {
+			return true
+		}
+	}
+
+	return false
 }

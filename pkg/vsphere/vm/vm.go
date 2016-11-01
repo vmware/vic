@@ -16,6 +16,7 @@ package vm
 
 import (
 	"container/list"
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -24,8 +25,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"golang.org/x/net/context"
-
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/vim25/methods"
@@ -33,6 +32,7 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
 // VirtualMachine struct defines the VirtualMachine which provides additional
@@ -48,7 +48,7 @@ type VirtualMachine struct {
 
 // NewVirtualMachine returns a NewVirtualMachine object
 func NewVirtualMachine(ctx context.Context, session *session.Session, moref types.ManagedObjectReference) *VirtualMachine {
-	return NewVirtualMachineFromVM(ctx, session, object.NewVirtualMachine(session.Client.Client, moref))
+	return NewVirtualMachineFromVM(ctx, session, object.NewVirtualMachine(session.Vim25(), moref))
 }
 
 func NewVirtualMachineFromVM(ctx context.Context, session *session.Session, vm *object.VirtualMachine) *VirtualMachine {
@@ -160,7 +160,7 @@ func (vm VirtualMachine) WaitForMAC(ctx context.Context) (map[string]string, err
 func (vm *VirtualMachine) getNetworkName(ctx context.Context, nic types.BaseVirtualEthernetCard) (string, error) {
 	if card, ok := nic.GetVirtualEthernetCard().Backing.(*types.VirtualEthernetCardDistributedVirtualPortBackingInfo); ok {
 		pg := card.Port.PortgroupKey
-		pgref := object.NewDistributedVirtualPortgroup(vm.Session.Client.Client, types.ManagedObjectReference{
+		pgref := object.NewDistributedVirtualPortgroup(vm.Session.Vim25(), types.ManagedObjectReference{
 			Type:  "DistributedVirtualPortgroup",
 			Value: pg,
 		})
@@ -310,18 +310,16 @@ func (vm *VirtualMachine) DeleteExceptDisks(ctx context.Context) (*object.Task, 
 	return vm.Destroy(ctx)
 }
 
-// Unregister unregisters the VM
-func (vm *VirtualMachine) Unregister(ctx context.Context) error {
-	req := types.UnregisterVM{
-		This: vm.Reference(),
+func (vm *VirtualMachine) VMPathName(ctx context.Context) (string, error) {
+	var err error
+	var mvm mo.VirtualMachine
+
+	if err = vm.Properties(ctx, vm.Reference(), []string{"config.files"}, &mvm); err != nil {
+		log.Errorf("Unable to get vm config.files property: %s", err)
+		return "", err
 	}
 
-	_, err := methods.UnregisterVM(ctx, vm.Client.RoundTripper, &req)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return mvm.Config.Files.VmPathName, nil
 }
 
 // RemoveSnapshot delete one snapshot
@@ -336,7 +334,7 @@ func (vm *VirtualMachine) RemoveSnapshot(ctx context.Context, id types.ManagedOb
 		return nil, err
 	}
 
-	return object.NewTask(vm.Client.Client, res.Returnval), nil
+	return object.NewTask(vm.Vim25(), res.Returnval), nil
 }
 
 // GetCurrentSnapshotTree returns current snapshot, with tree information
@@ -426,4 +424,111 @@ func (vm *VirtualMachine) UpgradeInProgress(ctx context.Context, upgradePrefix s
 	}
 
 	return false, "", nil
+}
+
+func (vm *VirtualMachine) registerVM(ctx context.Context, path, name string,
+	vapp, pool, host *types.ManagedObjectReference, vmfolder *object.Folder) (*object.Task, error) {
+	log.Debugf("Register VM %s", name)
+
+	if vapp == nil {
+		var hostObject *object.HostSystem
+		if host != nil {
+			hostObject = object.NewHostSystem(vm.Vim25(), *host)
+		}
+		poolObject := object.NewResourcePool(vm.Vim25(), *pool)
+		return vmfolder.RegisterVM(ctx, path, name, false, poolObject, hostObject)
+	}
+
+	req := types.RegisterChildVM_Task{
+		This: vapp.Reference(),
+		Path: path,
+		Host: host,
+	}
+
+	if name != "" {
+		req.Name = name
+	}
+
+	res, err := methods.RegisterChildVM_Task(ctx, vm.Vim25(), &req)
+	if err != nil {
+		return nil, err
+	}
+
+	return object.NewTask(vm.Vim25(), res.Returnval), nil
+}
+
+// FixInvalidState fix vm invalid state issue through unregister & register
+func (vm *VirtualMachine) FixInvalidState(ctx context.Context) error {
+	log.Debugf("Fix invalid state VM: %s", vm.Reference())
+	folders, err := vm.Session.Datacenter.Folders(ctx)
+	if err != nil {
+		log.Errorf("Unable to get vm folder: %s", err)
+		return err
+	}
+
+	properties := []string{"config.files", "summary.config", "summary.runtime", "resourcePool", "parentVApp"}
+	log.Debugf("Get vm properties %s", properties)
+	var mvm mo.VirtualMachine
+	if err = vm.Properties(ctx, vm.Reference(), properties, &mvm); err != nil {
+		log.Errorf("Unable to get vm properties: %s", err)
+		return err
+	}
+
+	name := mvm.Summary.Config.Name
+	log.Debugf("Unregister VM %s", name)
+	if err := vm.Unregister(ctx); err != nil {
+		log.Errorf("Unable to unregister vm %q: %s", name, err)
+		return err
+	}
+
+	task, err := vm.registerVM(ctx, mvm.Config.Files.VmPathName, name, mvm.ParentVApp, mvm.ResourcePool, mvm.Summary.Runtime.Host, folders.VmFolder)
+	if err != nil {
+		log.Errorf("Unable to register VM %q back: %s", name, err)
+		return err
+	}
+	info, err := task.WaitForResult(ctx, nil)
+	if err != nil {
+		return err
+	}
+	// re-register vm will change vm reference, so reset the object reference here
+	if info.Error != nil {
+		return errors.New(info.Error.LocalizedMessage)
+	}
+
+	// set new registered vm attribute back
+	newRef := info.Result.(types.ManagedObjectReference)
+	common := object.NewCommon(vm.Vim25(), newRef)
+	common.InventoryPath = vm.InventoryPath
+	vm.Common = common
+	return nil
+}
+
+func (vm *VirtualMachine) needsFix(err error) bool {
+	f, ok := err.(types.HasFault)
+	if !ok {
+		return false
+	}
+	switch f.Fault().(type) {
+	case *types.InvalidState:
+		return true
+	default:
+		log.Debugf("Do not fix non invalid state error")
+		return false
+	}
+}
+
+// WaitForResult is designed to handle VM invalid state error for any VM operations.
+// It will call tasks.WaitForResult to retry if there is task in progress error.
+func (vm *VirtualMachine) WaitForResult(ctx context.Context, f func(context.Context) (tasks.Task, error)) (*types.TaskInfo, error) {
+	info, err := tasks.WaitForResult(ctx, f)
+	if err == nil || !vm.needsFix(err) {
+		return info, err
+	}
+	log.Debugf("Try to fix task failure %s", err)
+	if nerr := vm.FixInvalidState(ctx); nerr != nil {
+		log.Errorf("Failed to fix task failure: %s", nerr)
+		return info, err
+	}
+	log.Debugf("Fixed")
+	return tasks.WaitForResult(ctx, f)
 }

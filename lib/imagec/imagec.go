@@ -100,14 +100,16 @@ type Options struct {
 type ImageWithMeta struct {
 	*models.Image
 
-	diffID string
-	layer  FSLayer
-	meta   string
-	size   int64
+	DiffID string
+	Layer  FSLayer
+	Meta   string
+	Size   int64
+
+	Downloading bool
 }
 
 func (i *ImageWithMeta) String() string {
-	return stringid.TruncateID(i.layer.BlobSum)
+	return stringid.TruncateID(i.Layer.BlobSum)
 }
 
 var (
@@ -233,9 +235,15 @@ func (ic *ImageC) LayersToDownload() ([]*ImageWithMeta, error) {
 				Parent: &parent,
 				Store:  ic.Storename,
 			},
-			meta:   history.V1Compatibility,
-			layer:  layer,
-			diffID: "",
+			Meta:  history.V1Compatibility,
+			Layer: layer,
+		}
+
+		// populate manifest layer with existing cached data
+		if layer, err := LayerCache().Get(images[i].ID); err == nil {
+			if !layer.Downloading { // possibly unnecessary but won't hurt anything
+				images[i] = layer
+			}
 		}
 	}
 
@@ -325,12 +333,16 @@ func (ic *ImageC) WriteImageBlob(image *ImageWithMeta, progressOutput progress.O
 // CreateImageConfig constructs the image metadata from layers that compose the image
 func (ic *ImageC) CreateImageConfig(images []*ImageWithMeta) (metadata.ImageConfig, error) {
 
-	if len(images) == 0 {
-		return metadata.ImageConfig{}, nil
+	imageLayer := images[0] // the layer that represents the actual image
+
+	// if we already have an imageID associated with this layerID, we don't need
+	// to calculate imageID and can just grab the image config from the cache
+	id := cache.RepositoryCache().GetImageID(imageLayer.ID)
+	if image, err := cache.ImageCache().Get(id); err == nil {
+		return *image, nil
 	}
 
 	manifest := ic.ImageManifest
-	imageLayer := images[0] // the layer that represents the actual image
 	image := docker.V1Image{}
 	rootFS := docker.NewRootFS()
 	history := make([]docker.History, 0, len(images))
@@ -340,7 +352,7 @@ func (ic *ImageC) CreateImageConfig(images []*ImageWithMeta) (metadata.ImageConf
 	// step through layers to get command history and diffID from oldest to newest
 	for i := len(images) - 1; i >= 0; i-- {
 		layer := images[i]
-		if err := json.Unmarshal([]byte(layer.meta), &image); err != nil {
+		if err := json.Unmarshal([]byte(layer.Meta), &image); err != nil {
 			return metadata.ImageConfig{}, fmt.Errorf("Failed to unmarshall layer history: %s", err)
 		}
 		h := docker.History{
@@ -350,9 +362,9 @@ func (ic *ImageC) CreateImageConfig(images []*ImageWithMeta) (metadata.ImageConf
 			Comment:   image.Comment,
 		}
 		history = append(history, h)
-		rootFS.DiffIDs = append(rootFS.DiffIDs, dockerLayer.DiffID(layer.diffID))
-		diffIDs[layer.diffID] = layer.ID
-		size += layer.size
+		rootFS.DiffIDs = append(rootFS.DiffIDs, dockerLayer.DiffID(layer.DiffID))
+		diffIDs[layer.DiffID] = layer.ID
+		size += layer.Size
 	}
 
 	// result is constructed without unused fields
@@ -385,7 +397,7 @@ func (ic *ImageC) CreateImageConfig(images []*ImageWithMeta) (metadata.ImageConf
 	result.V1Image.Parent = image.Parent
 	result.Size = size
 	result.V1Image.ID = imageLayer.ID
-	metaData := metadata.ImageConfig{
+	imageConfig := metadata.ImageConfig{
 		V1Image: result.V1Image,
 		ImageID: sum,
 		// TODO: this will change when issue 1186 is
@@ -398,15 +410,7 @@ func (ic *ImageC) CreateImageConfig(images []*ImageWithMeta) (metadata.ImageConf
 		Reference: ic.Reference,
 	}
 
-	blob, err := json.Marshal(metaData)
-	if err != nil {
-		return metadata.ImageConfig{}, fmt.Errorf("Failed to marshal image metadata: %s", err)
-	}
-
-	// store metadata
-	imageLayer.meta = string(blob)
-
-	return metaData, nil
+	return imageConfig, nil
 }
 
 // PullImage pulls an image from docker hub
@@ -497,9 +501,6 @@ func (ic *ImageC) PullImage() error {
 
 	err = ldm.DownloadLayers(ctx, ic)
 	if err != nil {
-		return err
-	}
-	if err = updateRepositoryCache(ic); err != nil {
 		return err
 	}
 

@@ -97,6 +97,11 @@ func (m HostConfigManager) VsanSystem(ctx context.Context) (*HostVsanSystem, err
 		return nil, err
 	}
 
+	// Added in 5.5
+	if h.ConfigManager.VsanSystem == nil {
+		return nil, ErrNotSupported
+	}
+
 	return NewHostVsanSystem(m.c, *h.ConfigManager.VsanSystem), nil
 }
 
@@ -106,6 +111,11 @@ func (m HostConfigManager) AccountManager(ctx context.Context) (*HostAccountMana
 	err := m.Properties(ctx, m.Reference(), []string{"configManager.accountManager"}, &h)
 	if err != nil {
 		return nil, err
+	}
+
+	// Added in 6.0
+	if h.ConfigManager.AccountManager == nil {
+		return nil, ErrNotSupported
 	}
 
 	return NewHostAccountManager(m.c, *h.ConfigManager.AccountManager), nil
@@ -141,5 +151,21 @@ func (m HostConfigManager) CertificateManager(ctx context.Context) (*HostCertifi
 		return nil, err
 	}
 
+	// Added in 6.0
+	if h.ConfigManager.CertificateManager == nil {
+		return nil, ErrNotSupported
+	}
+
 	return NewHostCertificateManager(m.c, *h.ConfigManager.CertificateManager, m.Reference()), nil
+}
+
+func (m HostConfigManager) DateTimeSystem(ctx context.Context) (*HostDateTimeSystem, error) {
+	var h mo.HostSystem
+
+	err := m.Properties(ctx, m.Reference(), []string{"configManager.dateTimeSystem"}, &h)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewHostDateTimeSystem(m.c, *h.ConfigManager.DateTimeSystem), nil
 }

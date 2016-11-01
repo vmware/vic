@@ -20,6 +20,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -47,9 +48,16 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 	}
 
 	clientIP := conf.ExecutorConfig.Networks["client"].Assigned.IP
+	externalIP := conf.ExecutorConfig.Networks["external"].Assigned.IP
 
 	if ip.IsUnspecifiedIP(clientIP) {
 		err = errors.Errorf("No client IP address assigned")
+		log.Errorf("%s", err)
+		return err
+	}
+
+	if ip.IsUnspecifiedIP(externalIP) {
+		err = errors.Errorf("No external IP address assigned")
 		log.Errorf("%s", err)
 		return err
 	}
@@ -90,17 +98,22 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key string, cert string, cacert string, envfile string) {
 	if d.sshEnabled {
 		log.Infof("")
-		log.Infof("SSH to appliance")
+		log.Infof("SSH to appliance:")
 		log.Infof("ssh root@%s", d.HostIP)
 	}
 
 	log.Infof("")
 	log.Infof("vic-admin portal:")
 	log.Infof("%s://%s:2378", d.VICAdminProto, d.HostIP)
-	log.Infof("")
-	tls := ""
 
-	dEnv := " "
+	log.Infof("")
+	externalIP := conf.ExecutorConfig.Networks["external"].Assigned.IP
+	log.Infof("Published ports can be reached at:")
+	log.Infof("%s", externalIP.String())
+
+	tls := ""
+	var dEnv []string
+
 	if !conf.HostCertificate.IsNil() {
 		// if we're generating then there's no CA currently
 		if len(conf.CertificateAuthorities) > 0 {
@@ -111,11 +124,11 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 				tls = fmt.Sprintf(" --tlsverify ")
 			}
 
-			dEnv = fmt.Sprintf("%s DOCKER_TLS_VERIFY=1", dEnv)
+			dEnv = append(dEnv, "DOCKER_TLS_VERIFY=1")
 			info, err := os.Stat(conf.ExecutorConfig.Name)
 			if err == nil && info.IsDir() {
 				if abs, err := filepath.Abs(info.Name()); err == nil {
-					dEnv = fmt.Sprintf("%s DOCKER_CERT_PATH=%s", dEnv, abs)
+					dEnv = append(dEnv, fmt.Sprintf("DOCKER_CERT_PATH=%s", abs))
 				}
 			}
 		} else {
@@ -123,14 +136,15 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 		}
 	}
 
-	dEnv = fmt.Sprintf("%s DOCKER_HOST=%s:%s", dEnv, d.HostIP, d.DockerPort)
+	dEnv = append(dEnv, fmt.Sprintf("DOCKER_HOST=%s:%s", d.HostIP, d.DockerPort))
+	log.Info("")
 	log.Infof("Docker environment variables:")
-	log.Info(dEnv)
-	log.Infof("")
+	log.Info(strings.Join(dEnv, " "))
 
 	if envfile != "" {
+		log.Infof("")
 		log.Infof("Environment saved in %s", envfile)
-		ioutil.WriteFile(envfile, []byte(dEnv), 0644)
+		ioutil.WriteFile(envfile, []byte(strings.Join(dEnv, " ")), 0644)
 	}
 
 	log.Infof("")

@@ -13,7 +13,7 @@ Assert VM Power State
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.info -json ${name}-* | jq -r .VirtualMachines[].Runtime.PowerState
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal  ${output}  ${state}
-    
+
 Create several containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
@@ -54,13 +54,13 @@ Docker ps only running containers
     Should Contain  ${output}  /bin/top
     ${output}=  Split To Lines  ${output}
     Length Should Be  ${output}  ${len+1}
-    
+
 Docker ps all containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     ${len}=  Get Length  ${output}
-    Create several containers 
+    Create several containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -a
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  /bin/top
@@ -76,11 +76,9 @@ Docker ps powerOn container OOB
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     ${len}=  Get Length  ${output}
-    # powerOn container VM out-of-band
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -on ${vch-name}/"jojo*"
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.power -on "jojo*"
-    # a complete powerOn can take some time with reconfigures, so let's ensure state before we proceed
-    Wait Until Keyword Succeeds  20x  500 milliseconds  Assert VM Power State  jojo  poweredOn
+
+    Power On VM OOB  jojo*
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
@@ -95,12 +93,9 @@ Docker ps powerOff container OOB
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}
     ${len}=  Get Length  ${output}
-    # PowerOff VM out-of-band
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.power -off ${vch-name}/"koko*"
-    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
-    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.power -off "koko*"
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
-    Wait Until VM Powers Off  "koko*"
+
+    Power Off VM OOB  koko*
+
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -q
     Should Be Equal As Integers  ${rc}  0
     ${output}=  Split To Lines  ${output}

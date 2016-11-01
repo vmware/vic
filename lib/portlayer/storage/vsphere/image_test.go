@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/Sirupsen/logrus"
@@ -407,6 +408,50 @@ func TestBrokenPull(t *testing.T) {
 	if !assert.NoError(t, err) || !assert.NotNil(t, writtenImage) {
 		return
 	}
+}
+
+// Creates numLayers layers in parallel using the same parent to exercise parallel reconfigures
+func TestParallel(t *testing.T) {
+	numLayers := 10
+
+	cacheStore, client, parentPath, err := setup(t)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	vsStore := cacheStore.DataStore.(*ImageStore)
+	defer cleanup(t, client, vsStore, parentPath)
+
+	op := trace.NewOperation(context.Background(), "test")
+	storeURL, err := cacheStore.CreateImageStore(op, "testStore")
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// base this image off scratch
+	parent, err := cacheStore.GetImage(op, storeURL, portlayer.Scratch.ID)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(numLayers)
+	for i := 0; i < numLayers; i++ {
+		go func(idx int) {
+			defer wg.Done()
+
+			imageID := fmt.Sprintf("testStore-%d", idx)
+
+			op := trace.NewOperation(context.Background(), imageID)
+			// Write the image via the cache (which writes to the vsphere impl).  We're passing a bogus sum so the image should fail to save.
+			writtenImage, err := cacheStore.WriteImage(op, parent, imageID, nil, "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", new(bytes.Buffer))
+			if !assert.NoError(t, err) || !assert.NotNil(t, writtenImage) {
+				t.FailNow()
+				return
+			}
+		}(i)
+	}
+	wg.Wait()
 }
 
 func TestInProgressCleanup(t *testing.T) {

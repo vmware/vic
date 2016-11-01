@@ -57,7 +57,7 @@ type attachServerSSH struct {
 	conn struct {
 		// serializes data access for the underlying conn
 		sync.Mutex
-		conn *net.Conn
+		conn net.Conn
 	}
 
 	config    *tether.ExecutorConfig
@@ -215,7 +215,7 @@ func (t *attachServerSSH) stop() error {
 	t.conn.Lock()
 	if t.conn.conn != nil {
 		log.Debugf("Close called again on rawconn - squashing")
-		(*t.conn.conn).Close()
+		t.conn.conn.Close()
 		t.conn.conn = nil
 	}
 	t.conn.Unlock()
@@ -224,7 +224,7 @@ func (t *attachServerSSH) stop() error {
 	return nil
 }
 
-func backchannel(ctx context.Context, conn *net.Conn) error {
+func backchannel(ctx context.Context, conn net.Conn) error {
 	defer trace.End(trace.Begin("establish tether backchannel"))
 
 	// HACK: currently RawConn dosn't implement timeout so throttle the spinning
@@ -237,7 +237,7 @@ func backchannel(ctx context.Context, conn *net.Conn) error {
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
 
-	// We run this in a seperate goroutine because HandshakeServer
+	// We run this in a separate goroutine because HandshakeServer
 	// calls a Read on rawconn which is a blocking call which causes
 	// the caller to block as well so this is the only way to cancel.
 	// Calling Close() will unblock us and on the next tick we will
@@ -245,7 +245,7 @@ func backchannel(ctx context.Context, conn *net.Conn) error {
 	go func() {
 		select {
 		case <-ctx.Done():
-			(*conn).Close()
+			conn.Close()
 		}
 	}()
 
@@ -255,9 +255,22 @@ func backchannel(ctx context.Context, conn *net.Conn) error {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			err := serial.HandshakeServer(ctx, *conn)
+			deadline, ok := ctx.Deadline()
+			if ok {
+				conn.SetReadDeadline(deadline)
+			}
+
+			err := serial.HandshakeServer(conn)
 			if err == nil {
+				conn.SetReadDeadline(time.Time{})
 				return nil
+			}
+
+			switch et := err.(type) {
+			case *serial.HandshakeError:
+				log.Debugf("HandshakeServer: %v", et)
+			default:
+				log.Errorf("HandshakeServer: %v", err)
 			}
 		}
 	}
@@ -297,7 +310,7 @@ func (t *attachServerSSH) run() error {
 				if !t.testing {
 					// close the connection if required
 					if t.conn.conn != nil {
-						(*t.conn.conn).Close()
+						t.conn.conn.Close()
 						t.conn.conn = nil
 					}
 					t.conn.conn, err = rawConnectionFromSerial()
@@ -320,7 +333,7 @@ func (t *attachServerSSH) run() error {
 				serverConn.Lock()
 				defer serverConn.Unlock()
 
-				serverConn.ServerConn, chans, reqs, err = ssh.NewServerConn(*t.conn.conn, t.sshConfig)
+				serverConn.ServerConn, chans, reqs, err = ssh.NewServerConn(t.conn.conn, t.sshConfig)
 				if err != nil {
 					detail := fmt.Errorf("failed to establish ssh handshake: %s", err)
 					log.Error(detail)

@@ -30,7 +30,6 @@ import (
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/trace"
-	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
@@ -118,7 +117,7 @@ func (d *Dispatcher) deleteSnapshot(id types.ManagedObjectReference, snapshotNam
 	log.Infof("Deleting upgrade snapshot %q", snapshotName)
 	// do clean up aggressively, even the previous operation failed with context deadline excceeded.
 	d.ctx = context.Background()
-	if _, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	if _, err := d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.RemoveSnapshot(ctx, id, true, true)
 	}); err != nil {
 		log.Errorf("Failed to clean up appliance upgrade snapshot %q: %s.", snapshotName, err)
@@ -154,7 +153,7 @@ func (d *Dispatcher) tryCreateSnapshot(name, desc string) (*types.ManagedObjectR
 		return nil, errors.Errorf("Detected another upgrade process in progress. If this is incorrect, manually remove appliance snapshot %q and restart upgrade", snapshot)
 	}
 
-	taskInfo, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	taskInfo, err := d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.CreateSnapshot(d.ctx, name, desc, true, false)
 	})
 	if err != nil {
@@ -194,7 +193,7 @@ func (d *Dispatcher) update(conf *config.VirtualContainerHostConfigSpec, setting
 		return err
 	}
 	if power != types.VirtualMachinePowerStatePoweredOff {
-		if _, err = tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+		if _, err = d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 			return d.appliance.PowerOff(ctx)
 		}); err != nil {
 			log.Errorf("Failed to power off appliance: %s", err)
@@ -214,7 +213,7 @@ func (d *Dispatcher) rollback(conf *config.VirtualContainerHostConfigSpec, snaps
 
 	// do not power on appliance in this snapsthot revert
 	log.Infof("Reverting to snapshot %s", snapshot)
-	if _, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	if _, err := d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.RevertToSnapshot(d.ctx, snapshot, true)
 	}); err != nil {
 		return errors.Errorf("Failed to roll back upgrade: %s.", err)
@@ -251,8 +250,11 @@ func (d *Dispatcher) reconfigVCH(conf *config.VirtualContainerHostConfigSpec, is
 	spec.DeviceChange = deviceChange
 
 	if conf != nil {
-		cfg := make(map[string]string)
-		extraconfig.Encode(extraconfig.MapSink(cfg), conf)
+		cfg, cerr := d.encodeConfig(conf)
+		if cerr != nil {
+			return cerr
+		}
+
 		spec.ExtraConfig = append(spec.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 	}
 
@@ -264,7 +266,7 @@ func (d *Dispatcher) reconfigVCH(conf *config.VirtualContainerHostConfigSpec, is
 
 	// reconfig
 	log.Infof("Setting VM configuration")
-	info, err := tasks.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
+	info, err := d.appliance.WaitForResult(d.ctx, func(ctx context.Context) (tasks.Task, error) {
 		return d.appliance.Reconfigure(ctx, *spec)
 	})
 

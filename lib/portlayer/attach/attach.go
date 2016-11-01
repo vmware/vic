@@ -46,10 +46,8 @@ func lookupVCHIP() (net.IP, error) {
 }
 
 func toggle(handle *exec.Handle, connected bool) (*exec.Handle, error) {
-	// make sure a spec exists
-	handle.SetSpec(nil)
 	// get the virtual device list
-	devices := object.VirtualDeviceList(handle.Container.Config.Hardware.Device)
+	devices := object.VirtualDeviceList(handle.Config.Hardware.Device)
 
 	// select the virtual serial ports
 	serials := devices.SelectByBackingInfo((*types.VirtualSerialPortURIBackingInfo)(nil))
@@ -106,8 +104,6 @@ func Join(h interface{}) (interface{}, error) {
 	if !ok {
 		return nil, fmt.Errorf("Type assertion failed for %#+v", handle)
 	}
-	// make sure a spec exists
-	handle.SetSpec(nil)
 
 	// Tether serial port - backed by network
 	serial := &types.VirtualSerialPort{

@@ -29,7 +29,6 @@ Docker network ls --no-trunc
     Should Be Equal As Integers  ${rc}  0
     @{lines}=  Split To Lines  ${output}
     @{line}=  Split String  @{lines}[1]
-    ${status}=  Get State Of Github Issue  1225
     Length Should Be  @{line}[0]  64
 
 Docker network ls -f fake network

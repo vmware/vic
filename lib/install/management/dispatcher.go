@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/compute"
 	"github.com/vmware/vic/pkg/vsphere/diagnostic"
+	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/vm"
 
@@ -40,6 +41,7 @@ type Dispatcher struct {
 	session *session.Session
 	ctx     context.Context
 	force   bool
+	secret  *extraconfig.SecretKey
 
 	isVC          bool
 	vchPoolPath   string
