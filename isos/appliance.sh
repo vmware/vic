@@ -79,6 +79,9 @@ ln -s /etc/systemd/system/multi-user.target $(rootfs_dir $PKGDIR)/etc/systemd/sy
 rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/multi-user.target.wants/systemd-networkd.service
 rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/sockets.target.wants/systemd-networkd.socket
 
+# Disable time synching.  We'll use toolbox for this.
+rm -f $(rootfs_dir $PKGDIR)/etc/systemd/system/sysinit.target.wants/systemd-timesyncd.service
+
 # change the default systemd target to launch VIC
 ln -sf /etc/systemd/system/vic.target $(rootfs_dir $PKGDIR)/etc/systemd/system/default.target
 
