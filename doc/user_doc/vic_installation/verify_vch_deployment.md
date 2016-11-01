@@ -21,7 +21,7 @@ After you have deployed a virtual container host, you can verify the deployment 
    - vCenter Server: Go to **Hosts and Clusters** in the vSphere Web Client and select the cluster or host on which you deployed the virtual container host. You should see a vApp with the name that you set for the virtual container host.
    - ESXi host: Go to **Inventory** in the vSphere Client and select the host on which you deployed the virtual container host. You should see a resource pool with the name that you set for the virtual container host.
 
-   The vApp or resource pool contains the vSphere Integrated Containers Engine endpoint VM.   
+   The vApp or resource pool contains the virtual container host endpoint VM.   
 
 2.  In your Docker client terminal, run the `docker info` command to confirm that you can connect to the virtual container host.
 
@@ -35,7 +35,7 @@ After you have deployed a virtual container host, you can verify the deployment 
  
   - Full TLS authentication with trusted CA certificates: <pre>docker -H <i>vch_address</i>:2376 --tlscacert --tlscert=<i>path</i> --tlskey=<i>path</i> pull busybox:latest</pre>
   - TLS authentication with untrusted self-signed certificates: <pre>docker -H <i>vch_address</i>:2376 --tls pull busybox:latest</pre>
-  - With no TLS authentication: <pre>$ docker -H <i>vch_address</i>:2375  pull busybox:latest</pre>
+  - With no TLS authentication: <pre>$ docker -H <i>vch_address</i>:2375 pull busybox:latest</pre>
 
 1. View the container image files in the vSphere Web Client or vSphere Client.
 
