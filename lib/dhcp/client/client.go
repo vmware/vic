@@ -15,9 +15,9 @@
 package client
 
 import (
+	"bytes"
 	"fmt"
 	"net"
-	"sync"
 	"syscall"
 	"time"
 
@@ -27,6 +27,7 @@ import (
 
 	"github.com/vmware/vic/lib/dhcp"
 	"github.com/vmware/vic/pkg/ip"
+	"github.com/vmware/vic/pkg/trace"
 )
 
 // Client represents a DHCP client
@@ -36,35 +37,57 @@ type Client interface {
 
 	// Request sends a full DHCP request, resulting in a DHCP lease.
 	// On a successful lease, returns a DHCP acknowledgment packet
-	Request(ID) (*dhcp.Packet, error)
+	Request() error
 
 	// Renew renews an existing DHCP lease. Returns a new acknowledgment
 	// packet on success.
-	Renew(ID, *dhcp.Packet) (*dhcp.Packet, error)
+	Renew() error
 
 	// Release releases an existing DHCP lease.
-	Release(*dhcp.Packet) error
+	Release() error
+
+	// SetParamterRequestList sets the DHCP parameter request list
+	// per RFC 2132, section 9.8
+	SetParameterRequestList(...byte)
+
+	// LastAck returns the last ack packet from a request or renew operation.
+	LastAck() *dhcp.Packet
 }
 
 type client struct {
-	sync.Mutex
-
 	timeout time.Duration
+	id      ID
+	params  []byte
+	ack     dhcp4.Packet
 }
 
 // The default timeout for the client
 const defaultTimeout = 10 * time.Second
 
 // NewClient creates a new DHCP client. Note the returned object is not thread-safe.
-func NewClient() (Client, error) {
-	return &client{timeout: defaultTimeout}, nil
+func NewClient(ifIndex int, hwaddr net.HardwareAddr) (Client, error) {
+	defer trace.End(trace.Begin(""))
+
+	id, err := NewID(ifIndex, hwaddr)
+	if err != nil {
+		return nil, err
+	}
+
+	return &client{
+		id:      id,
+		timeout: defaultTimeout,
+	}, nil
 }
 
 func (c *client) SetTimeout(t time.Duration) {
+	defer trace.End(trace.Begin(""))
+
 	c.timeout = t
 }
 
 func withRetry(op func() error) error {
+	defer trace.End(trace.Begin(""))
+
 	for {
 		if err := op(); err != nil {
 			if errno, ok := err.(syscall.Errno); !ok || errno != syscall.EAGAIN {
@@ -76,18 +99,30 @@ func withRetry(op func() error) error {
 	}
 }
 
-func isCompletePacket(p *dhcp.Packet) bool {
-	complete := !ip.IsUnspecifiedIP(p.Gateway()) &&
-		!ip.IsUnspecifiedIP(p.YourIP()) &&
+func (c *client) isCompletePacket(p *dhcp.Packet) bool {
+	complete := !ip.IsUnspecifiedIP(p.YourIP()) &&
 		!ip.IsUnspecifiedIP(p.ServerIP())
 
 	if !complete {
 		return false
 	}
 
-	ones, bits := p.SubnetMask().Size()
-	if ones == 0 || bits == 0 {
-		return false
+	for _, param := range c.params {
+		switch dhcp4.OptionCode(param) {
+		case dhcp4.OptionSubnetMask:
+			ones, bits := p.SubnetMask().Size()
+			if ones == 0 || bits == 0 {
+				return false
+			}
+		case dhcp4.OptionRouter:
+			if ip.IsUnspecifiedIP(p.Gateway()) {
+				return false
+			}
+		case dhcp4.OptionDomainNameServer:
+			if len(p.DNS()) == 0 {
+				return false
+			}
+		}
 	}
 
 	if p.LeaseTime().Seconds() == 0 {
@@ -97,68 +132,56 @@ func isCompletePacket(p *dhcp.Packet) bool {
 	return true
 }
 
-func (c *client) appendOptions(p *dhcp4.Packet, id ID) (*dhcp4.Packet, error) {
-	p.AddOption(
-		dhcp4.OptionParameterRequestList,
-		[]byte{
-			byte(dhcp4.OptionSubnetMask),
-			byte(dhcp4.OptionRouter),
-			byte(dhcp4.OptionDomainNameServer),
-		},
-	)
-	b, err := id.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
+func (c *client) discoverPacket(cl *dhcp4client.Client) (dhcp4.Packet, error) {
+	defer trace.End(trace.Begin(""))
 
-	p.AddOption(dhcp4.OptionClientIdentifier, b)
-	return p, nil
-}
-
-func (c *client) discoverPacket(id ID, cl *dhcp4client.Client) (*dhcp4.Packet, error) {
 	dp := cl.DiscoverPacket()
-	return c.appendOptions(&dp, id)
+	return c.setOptions(dp)
 }
 
-func (c *client) requestPacket(id ID, cl *dhcp4client.Client, op *dhcp4.Packet) (*dhcp4.Packet, error) {
+func (c *client) requestPacket(cl *dhcp4client.Client, op *dhcp4.Packet) (dhcp4.Packet, error) {
+	defer trace.End(trace.Begin(""))
+
 	rp := cl.RequestPacket(op)
-	return c.appendOptions(&rp, id)
+	return c.setOptions(rp)
 }
 
-func (c *client) request(id ID, cl *dhcp4client.Client) (bool, *dhcp.Packet, error) {
-	dp, err := c.discoverPacket(id, cl)
+func (c *client) request(cl *dhcp4client.Client) (bool, dhcp4.Packet, error) {
+	defer trace.End(trace.Begin(""))
+
+	dp, err := c.discoverPacket(cl)
 	if err != nil {
 		return false, nil, err
 	}
 
 	dp.PadToMinSize()
-	if err = cl.SendPacket(*dp); err != nil {
+	if err = cl.SendPacket(dp); err != nil {
 		return false, nil, err
 	}
 
 	var op dhcp4.Packet
 	for {
-		op, err = cl.GetOffer(dp)
+		op, err = cl.GetOffer(&dp)
 		if err != nil {
 			return false, nil, err
 		}
 
-		if isCompletePacket(dhcp.NewPacket([]byte(op))) {
+		if c.isCompletePacket(dhcp.NewPacket([]byte(op))) {
 			break
 		}
 	}
 
-	rp, err := c.requestPacket(id, cl, &op)
+	rp, err := c.requestPacket(cl, &op)
 	if err != nil {
 		return false, nil, err
 	}
 
 	rp.PadToMinSize()
-	if err = cl.SendPacket(*rp); err != nil {
+	if err = cl.SendPacket(rp); err != nil {
 		return false, nil, err
 	}
 
-	ack, err := cl.GetAcknowledgement(rp)
+	ack, err := cl.GetAcknowledgement(&rp)
 	if err != nil {
 		return false, nil, err
 	}
@@ -168,44 +191,53 @@ func (c *client) request(id ID, cl *dhcp4client.Client) (bool, *dhcp.Packet, err
 		return false, nil, fmt.Errorf("Got NAK from DHCP server")
 	}
 
-	return true, dhcp.NewPacket([]byte(ack)), nil
+	return true, ack, nil
 }
 
-func (c *client) Request(id ID) (*dhcp.Packet, error) {
-	log.Debugf("id: %+v", id)
+func (c *client) Request() error {
+	defer trace.End(trace.Begin(""))
+
+	log.Debugf("id: %+v", c.id)
 	// send the request over a raw socket
-	raw, err := dhcp4client.NewPacketSock(id.IfIndex)
+	raw, err := dhcp4client.NewPacketSock(c.id.IfIndex)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	rawc, err := dhcp4client.New(dhcp4client.Connection(raw), dhcp4client.Timeout(c.timeout), dhcp4client.HardwareAddr(id.HardwareAddr))
+	rawc, err := dhcp4client.New(
+		dhcp4client.Connection(raw),
+		dhcp4client.Timeout(c.timeout),
+		dhcp4client.HardwareAddr(c.id.HardwareAddr))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer rawc.Close()
 
 	success := false
-	var p *dhcp.Packet
+	var p dhcp4.Packet
 	err = withRetry(func() error {
 		var err error
-		success, p, err = c.request(id, rawc)
+		success, p, err = c.request(rawc)
 		return err
 	})
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if !success {
-		return nil, fmt.Errorf("failed dhcp request")
+		return fmt.Errorf("failed dhcp request")
 	}
 
 	log.Debugf("%+v", p)
-	return p, nil
+	c.ack = p
+	return nil
 }
 
-func (c *client) newClient(ack *dhcp.Packet) (*dhcp4client.Client, error) {
+func (c *client) newClient() (*dhcp4client.Client, error) {
+	defer trace.End(trace.Begin(""))
+
+	ack := dhcp.NewPacket(c.ack)
 	conn, err := dhcp4client.NewInetSock(dhcp4client.SetRemoteAddr(net.UDPAddr{IP: ack.ServerIP(), Port: 67}))
 	if err != nil {
 		return nil, err
@@ -219,9 +251,11 @@ func (c *client) newClient(ack *dhcp.Packet) (*dhcp4client.Client, error) {
 	return cl, nil
 }
 
-func (c *client) renew(id ID, ack dhcp4.Packet, cl *dhcp4client.Client) (dhcp4.Packet, error) {
-	rp := cl.RenewalRequestPacket(&ack)
-	_, err := c.appendOptions(&rp, id)
+func (c *client) renew(cl *dhcp4client.Client) (dhcp4.Packet, error) {
+	defer trace.End(trace.Begin(""))
+
+	rp := cl.RenewalRequestPacket(&c.ack)
+	rp, err := c.setOptions(rp)
 	if err != nil {
 		return nil, err
 	}
@@ -244,46 +278,117 @@ func (c *client) renew(id ID, ack dhcp4.Packet, cl *dhcp4client.Client) (dhcp4.P
 	return newack, nil
 }
 
-func (c *client) Renew(id ID, ack *dhcp.Packet) (*dhcp.Packet, error) {
-	c.Lock()
-	defer c.Unlock()
+func (c *client) Renew() error {
+	defer trace.End(trace.Begin(""))
 
-	log.Debugf("renewing IP %s", ack.YourIP())
+	if c.ack == nil {
+		return fmt.Errorf("no ack packet, call Request first")
+	}
 
-	cl, err := c.newClient(ack)
+	cl, err := c.newClient()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer cl.Close()
 
-	p := dhcp4.Packet(ack.Packet)
 	var newack dhcp4.Packet
 	err = withRetry(func() error {
 		var err error
-		newack, err = c.renew(id, p, cl)
+		newack, err = c.renew(cl)
 		return err
 	})
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return dhcp.NewPacket([]byte(newack)), nil
+	c.ack = newack
+	return nil
 }
 
-func (c *client) Release(ack *dhcp.Packet) error {
-	c.Lock()
-	defer c.Unlock()
+func (c *client) Release() error {
+	defer trace.End(trace.Begin(""))
 
-	log.Debugf("releasing IP %s", ack.YourIP())
+	if len(c.ack) == 0 {
+		return fmt.Errorf("no ack packet, call Request first")
+	}
 
-	cl, err := c.newClient(ack)
+	cl, err := c.newClient()
 	if err != nil {
 		return err
 	}
 	defer cl.Close()
 
 	return withRetry(func() error {
-		return cl.Release(dhcp4.Packet(ack.Packet))
+		return cl.Release(c.ack)
 	})
+}
+
+// SetParamterRequestList sets the DHCP parameter request list
+// per RFC 2132, section 9.8
+func (c *client) SetParameterRequestList(params ...byte) {
+	defer trace.End(trace.Begin(""))
+
+	c.params = make([]byte, len(params))
+	copy(c.params, params)
+	log.Debugf("c.params=%#v", c.params)
+}
+
+// setOptions sets dhcp options on a dhcp packet
+func (c *client) setOptions(p dhcp4.Packet) (dhcp4.Packet, error) {
+	defer trace.End(trace.Begin(""))
+
+	dirty := false
+	opts := p.ParseOptions()
+
+	// the current parameter request list
+	rl := opts[dhcp4.OptionParameterRequestList]
+	// figure out if there are any new parameters
+	for _, p := range c.params {
+		if bytes.IndexByte(rl, p) == -1 {
+			dirty = true
+			rl = append(rl, p)
+		}
+	}
+
+	opts[dhcp4.OptionParameterRequestList] = rl
+
+	if _, ok := opts[dhcp4.OptionClientIdentifier]; !ok {
+		b, err := c.id.MarshalBinary()
+		if err != nil {
+			return p, err
+		}
+
+		opts[dhcp4.OptionClientIdentifier] = b
+		dirty = true
+	}
+
+	// finally reset the options on the packet, if necessary
+	if dirty {
+		// strip out all options, and add them back in with the new changed options;
+		// this is the only way currently to delete/modify a packet option
+		p.StripOptions()
+		// have to copy since values in opts (of type []byte) are still pointing into p
+		var newp dhcp4.Packet
+		newp = make([]byte, len(p))
+		copy(newp, p)
+		log.Debugf("opts=%#v", opts)
+		for o, v := range opts {
+			newp.AddOption(o, v)
+		}
+
+		p = newp
+	}
+
+	return p, nil
+}
+
+func (c *client) LastAck() *dhcp.Packet {
+	defer trace.End(trace.Begin(""))
+
+	if c.ack == nil {
+		return nil
+	}
+
+	return dhcp.NewPacket(c.ack)
 }
