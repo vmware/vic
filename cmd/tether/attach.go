@@ -369,7 +369,7 @@ func (t *attachServerSSH) run() error {
 			// The only channel type we'll support is attach
 			if attachchan.ChannelType() != attachChannelType {
 				detail := fmt.Sprintf("unknown channel type %s", attachchan.ChannelType())
-				attachchan.Reject(ssh.Prohibited, detail)
+				attachchan.Reject(ssh.UnknownChannelType, detail)
 				log.Error(detail)
 				continue
 			}
