@@ -54,7 +54,7 @@ Docker run linked containers
     Should Be Equal As Integers  ${rc}  0
 
 Docker run df command
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -it busybox /bin/df
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -i busybox /bin/df
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Filesystem           1K-blocks      Used Available Use% Mounted on
 
