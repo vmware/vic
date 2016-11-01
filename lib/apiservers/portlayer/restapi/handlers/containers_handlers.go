@@ -26,9 +26,9 @@ import (
 	middleware "github.com/go-swagger/go-swagger/httpkit/middleware"
 	"golang.org/x/net/context"
 
-	log "github.com/Sirupsen/logrus"
-
 	"net/http"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/operations"
@@ -380,7 +380,9 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 
 	select {
 	case <-c.WaitForState(exec.StateStopped):
+		c.Refresh(context.Background())
 		containerInfo := convertContainerToContainerInfo(c.Info())
+
 		return containers.NewContainerWaitOK().WithPayload(containerInfo)
 	case <-ctx.Done():
 		return containers.NewContainerWaitInternalServerError().WithPayload(&models.Error{
