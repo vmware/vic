@@ -367,9 +367,11 @@ A network for container VMs to use for external communication when container dev
 
 To specify a container network, you provide the name of a distributed port group for the container VMs to use, and an optional descriptive name for the container network for use by Docker.  If you do not specify a descriptive name, Docker uses the vSphere network name. If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
 
+- You can specify a vSphere network as the container network.
 - The distributed port group must exist before you run `vic-machine create`. 
 - You cannot use the same distributed port group as you use for the bridge network. 
 - You can create the distributed port group on the same distributed virtual switch as the distributed port group that you use for the bridge network.
+- If the network that you specify in the `container-network` option does not support DHCP, see [Options for Configuring a Non-DHCP Network for Container Traffic](#adv-container-net) in Advanced Options. 
 - The descriptive name appears under `Networks` when you run `docker info` on the deployed virtual container host.
 - Container developers use the descriptive name in the `--net` option when they run `docker run` or `docker create`.
 
@@ -380,8 +382,6 @@ If you do not specify the `container-network` option, or if container developers
 Wrap the distributed port group name in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if it includes spaces. The descriptive name cannot include spaces.
 
 <pre>--container-network '<i>distributed port group name</i>':<i>container_network_name</i></pre>
-
-If the network that you specify in the `container-network` option does not support DHCP, see [Options for Configuring a Non-DHCP Network for Container Traffic](#adv-container-net) in Advanced Options. 
 
 <a name="deployment"></a>
 ## Appliance Deployment Options ##
@@ -629,7 +629,7 @@ Wrap the distributed port group name in single quotes (Linux or Mac OS) or doubl
 
 Short name: `--cnr`
 
-The range of IP addresses that container VMs can use if the network that you specify in the `container-network` option does not support DHCP. If you do not specify this option, the IP range for container VMs is the entire subnet that you specify in `container-network-gateway`.
+The range of IP addresses that container VMs can use if the network that you specify in the `container-network` option does not support DHCP. If you specify `--container-network-ip-range`, virtual container hosts manage the addresses for containers within that range. The range that you specify must not be used by other computers or VMs on the network. If you specify `container-network-gateway` but do not specify `--container-network-ip-range`, the IP range for container VMs is the entire subnet that you specify in `container-network-gateway`. 
 
 When you specify the container network IP range, you must use the distributed port group that you specify in the `container-network `option. If you specify `container-network-ip-range` but you do not specify `container-network`, or if you specify a different distributed port group to the one that you specify in `container-network`, `vic-machine create` fails with an error.
 
