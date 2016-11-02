@@ -154,7 +154,7 @@ publish:
       branch: master
       success: true
   coverage:
-    server: http://192.168.31.20:8001
+    server: https://coverage.vmware.run
     token: $$GITHUB_AUTOMATION_API_KEY
     when:
       repo: vmware/vic
