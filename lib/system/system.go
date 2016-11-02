@@ -21,7 +21,10 @@
 
 package system
 
-import "github.com/vmware/vic/lib/etcconf"
+import (
+	"github.com/vmware/vic/lib/etcconf"
+	"github.com/vmware/vic/pkg/vsphere/sys"
+)
 
 type System struct {
 	Hosts      etcconf.Hosts      // the hosts file on the system, e.g. /etc/hosts
@@ -30,13 +33,16 @@ type System struct {
 
 	// constants
 	Root string // system's root path
+	UUID string // machine id
 }
 
 func New() System {
+	id, _ := sys.UUID()
 	return System{
 		Hosts:      etcconf.NewHosts(""),      // default hosts files, e.g. /etc/hosts on linux
 		ResolvConf: etcconf.NewResolvConf(""), // default resolv.conf file, e.g. /etc/resolv.conf on linux
 		Syscall:    &syscallImpl{},            // the syscall interface
 		Root:       "/",                       // the system root path
+		UUID:       id,
 	}
 }
