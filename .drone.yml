@@ -137,13 +137,6 @@ notify:
       failure: true
 
 publish:
-  coverage:
-    server: https://coverage.vmware.run
-    token: $$GITHUB_AUTOMATION_API_KEY
-    when:
-      repo: vmware/vic
-      branch: master
-      success: true
   bintray:
     username: $$BINTRAY_USERNAME
     api_key: $$BINTRAY_API_KEY
@@ -156,6 +149,13 @@ publish:
         version: $$BUILD_NUMBER
         target: vic_$$BUILD_NUMBER.tar.gz
         publish: true
+    when:
+      repo: vmware/vic
+      branch: master
+      success: true
+  coverage:
+    server: http://192.168.31.20:8001
+    token: $$GITHUB_AUTOMATION_API_KEY
     when:
       repo: vmware/vic
       branch: master
