@@ -54,9 +54,12 @@ Docker run linked containers
     Should Be Equal As Integers  ${rc}  0
 
 Docker run df command
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -i busybox /bin/df
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Contain  ${output}  Filesystem
+    ${status}=  Get State Of Github Issue  1582
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-6-Docker-Run.robot needs to be updated now that Issue #1582 has been resolved
+    Log  Issue \#1582 is blocking implementation  WARN
+#   ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -it busybox /bin/df
+#   Should Be Equal As Integers  ${rc}  0
+#   Should Contain  ${output}  Filesystem
 
 Docker run -d unspecified host port
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -d -p 6379 redis:alpine
@@ -70,9 +73,12 @@ Docker run check exit codes
     Should Be Equal As Integers  ${rc}  1
 
 Docker run date
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run busybox date
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Contain  ${output}  UTC
+    ${status}=  Get State Of Github Issue  1582
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-6-Docker-Run.robot needs to be updated now that Issue #1582 has been resolved
+    Log  Issue \#1582 is blocking implementation  WARN
+#   ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -it busybox date
+#   Should Be Equal As Integers  ${rc}  0
+#   Should Contain  ${output}  UTC
 
 Docker run ps password check
     [Tags]  secret
