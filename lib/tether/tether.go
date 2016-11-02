@@ -26,6 +26,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path"
+	"sync"
 	"syscall"
 	"time"
 
@@ -47,6 +48,7 @@ const (
 )
 
 var Sys = system.New()
+var once sync.Once
 
 type tether struct {
 	// the implementation to use for tailored operations
@@ -64,11 +66,15 @@ type tether struct {
 	src  extraconfig.DataSource
 	sink extraconfig.DataSink
 
+	// Cancelable context and its cancel func.
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	incoming chan os.Signal
-	done     chan struct{}
 }
 
 func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) Tether {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &tether{
 		ops:    ops,
 		reload: make(chan bool, 1),
@@ -78,8 +84,9 @@ func New(src extraconfig.DataSource, sink extraconfig.DataSink, ops Operations) 
 		extensions: make(map[string]Extension),
 		src:        src,
 		sink:       sink,
+		ctx:        ctx,
+		cancel:     cancel,
 		incoming:   make(chan os.Signal, 32),
-		done:       make(chan struct{}),
 	}
 }
 
@@ -138,6 +145,10 @@ func (t *tether) setup() error {
 		}
 	}
 
+	if err = os.MkdirAll(PIDFileDir(), 0755); err != nil {
+		log.Errorf("could not create pid file directory %s: %s", PIDFileDir(), err)
+	}
+
 	// Create PID file for tether
 	tname := path.Base(os.Args[0])
 	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(PIDFileDir(), tname)),
@@ -173,9 +184,188 @@ func (t *tether) cleanup() {
 	t.ops.Cleanup()
 }
 
+func (t *tether) setLogLevel() {
+	// TODO: move all of this into an extension.Pre() block when we move to that model
+	// adjust the logging level appropriately
+	switch t.config.DebugLevel {
+	case 0:
+		log.SetLevel(log.InfoLevel)
+		// TODO: do not echo application output to console without debug enabled
+		serial.DisableTracing()
+	case 1:
+		log.SetLevel(log.DebugLevel)
+		serial.DisableTracing()
+	case 2:
+		log.SetLevel(log.DebugLevel)
+		serial.EnableTracing()
+
+		log.Info("Launching pprof server on port 6060")
+		fn := func() {
+			go http.ListenAndServe("0.0.0.0:6060", nil)
+		}
+
+		once.Do(fn)
+	default:
+		log.SetLevel(log.DebugLevel)
+		logConfig(t.config)
+	}
+}
+
+func (t *tether) setHostname() error {
+	short := t.config.ID
+	if len(short) > shortLen {
+		short = short[:shortLen]
+	}
+
+	if err := t.ops.SetHostname(short, t.config.Name); err != nil {
+		detail := fmt.Errorf("failed to set hostname: %s", err)
+		// we don't attempt to recover from this - it's a fundamental misconfiguration
+		// so just exit
+		return detail
+	}
+	return nil
+}
+
+func (t *tether) setNetworks() error {
+	for _, v := range t.config.Networks {
+		if err := t.ops.Apply(v); err != nil {
+			detail := fmt.Errorf("failed to apply network endpoint config: %s", err)
+			return detail
+		}
+	}
+	return nil
+}
+
+func (t *tether) setMounts() error {
+	for k, v := range t.config.Mounts {
+		if v.Source.Scheme != "label" {
+			detail := fmt.Errorf("unsupported volume mount type for %s: %s", k, v.Source.Scheme)
+			return detail
+		}
+
+		// this could block indefinitely while waiting for a volume to present
+		t.ops.MountLabel(context.Background(), v.Source.Path, v.Path)
+	}
+	return nil
+}
+
+func (t *tether) initializeSessions() error {
+	// Iterate over the Sessions and initialize them if needed
+	for id, session := range t.config.Sessions {
+		// make it a func so that we can use defer
+		err := func() error {
+			session.Lock()
+			defer session.Unlock()
+
+			if session.RunBlock {
+				log.Infof("Session %s wants attach capabilities. Creating its channel", id)
+				session.ClearToLaunch = make(chan struct{})
+			}
+
+			stdout, stderr, err := t.ops.SessionLog(session)
+			if err != nil {
+				detail := fmt.Errorf("failed to get log writer for session: %s", err)
+				session.Started = detail.Error()
+
+				return detail
+			}
+			session.Outwriter = stdout
+			session.Errwriter = stderr
+			session.Reader = dio.MultiReader()
+
+			return nil
+		}()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t *tether) reloadExtensions() error {
+	// reload the extensions
+	for name, ext := range t.extensions {
+		log.Debugf("Passing config to %s", name)
+		err := ext.Reload(t.config)
+		if err != nil {
+			detail := fmt.Errorf("Failed to cleanly reload config for extension %s: %s", name, err)
+			return detail
+		}
+	}
+	return nil
+}
+
+func (t *tether) processSessions() error {
+	type results struct {
+		id   string
+		path string
+		err  error
+	}
+
+	// so that we can launch multiple sessions in parallel
+	var wg sync.WaitGroup
+	// to collect the errors back from them
+	resultsCh := make(chan results, len(t.config.Sessions))
+
+	// process the sessions and launch if needed
+	for id, session := range t.config.Sessions {
+		session.Lock()
+
+		log.Debugf("Processing config for session %s", id)
+		var proc = session.Cmd.Process
+
+		// check if session is alive and well
+		if proc != nil && proc.Signal(syscall.Signal(0)) == nil {
+			log.Debugf("Process for session %s is already running (pid: %d)", id, proc.Pid)
+			session.Unlock()
+			continue
+		}
+
+		// check if session has never been started or is configured for restart
+		if proc == nil || session.Restart {
+			if proc == nil {
+				log.Infof("Launching process for session %s", id)
+			} else {
+				session.Diagnostics.ResurrectionCount++
+
+				// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
+				// currently sure how to expose it neatly via a utility function
+				extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo.vice..sessions|%s", id))
+				log.Warnf("Re-launching process for session %s (count: %d)", id, session.Diagnostics.ResurrectionCount)
+				session.Cmd = *restartableCmd(&session.Cmd)
+			}
+			session.Unlock()
+
+			wg.Add(1)
+			go func(session *SessionConfig) {
+				defer wg.Done()
+				resultsCh <- results{
+					id:   session.ID,
+					path: session.Cmd.Path,
+					err:  t.launch(session),
+				}
+			}(session)
+		}
+	}
+
+	wg.Wait()
+	// close the channel
+	close(resultsCh)
+
+	// iterate over the results
+	for result := range resultsCh {
+		if result.err != nil {
+			detail := fmt.Errorf("failed to launch %s for %s: %s", result.path, result.id, result.err)
+			return detail
+		}
+	}
+	return nil
+}
+
 func (t *tether) Start() error {
 	defer trace.End(trace.Begin("main tether loop"))
 
+	// do the initial setup and start the extensions
 	t.setup()
 	defer t.cleanup()
 
@@ -183,117 +373,47 @@ func (t *tether) Start() error {
 	t.reload <- true
 	for range t.reload {
 		log.Info("Loading main configuration")
+
 		// load the config - this modifies the structure values in place
 		extraconfig.Decode(t.src, t.config)
 
-		// TODO: move all of this into an extension.Pre() block when we move to that model
-		// adjust the logging level appropriately
-		switch t.config.DebugLevel {
-		case 0:
-			log.SetLevel(log.InfoLevel)
-			// TODO: do not echo application output to console without debug enabled
-			serial.DisableTracing()
-		case 1:
-			log.SetLevel(log.DebugLevel)
-			serial.EnableTracing()
-		case 2:
-			log.Info("Launching pprof server on port 6060")
-			go func() {
-				// may not error if port already in use.
-				log.Info(http.ListenAndServe("0.0.0.0:6060", nil))
-			}()
-		default:
-			log.SetLevel(log.DebugLevel)
-			logConfig(t.config)
-		}
+		t.setLogLevel()
 
-		short := t.config.ID
-		if len(short) > shortLen {
-			short = short[:shortLen]
-		}
-
-		if err := t.ops.SetHostname(short, t.config.Name); err != nil {
-			detail := fmt.Sprintf("failed to set hostname: %s", err)
-			log.Error(detail)
-			// we don't attempt to recover from this - it's a fundamental misconfiguration
-			// so just exit
-			return errors.New(detail)
+		if err := t.setHostname(); err != nil {
+			log.Error(err)
+			return err
 		}
 
 		// process the networks then publish any dynamic data
-		for _, v := range t.config.Networks {
-			if err := t.ops.Apply(v); err != nil {
-				detail := fmt.Sprintf("failed to apply network endpoint config: %s", err)
-				log.Error(detail)
-				return errors.New(detail)
-			}
+		if err := t.setNetworks(); err != nil {
+			log.Error(err)
+			return err
 		}
 		extraconfig.Encode(t.sink, t.config)
 
 		//process the filesystem mounts - this is performed after networks to allow for network mounts
-		for k, v := range t.config.Mounts {
-			if v.Source.Scheme != "label" {
-				detail := fmt.Sprintf("unsupported volume mount type for %s: %s", k, v.Source.Scheme)
-				log.Error(detail)
-				return errors.New(detail)
-			}
-
-			// this could block indefinitely while waiting for a volume to present
-			t.ops.MountLabel(context.Background(), v.Source.Path, v.Path)
+		if err := t.setMounts(); err != nil {
+			log.Error(err)
+			return err
 		}
 
-		// process the sessions and launch if needed
-		for id, session := range t.config.Sessions {
-			log.Debugf("Processing config for session %s", session.ID)
-			var proc = session.Cmd.Process
-
-			// check if session is alive and well
-			if proc != nil && proc.Signal(syscall.Signal(0)) == nil {
-				log.Debugf("Process for session %s is already running (pid: %d)", session.ID, proc.Pid)
-				continue
-			}
-
-			// check if session has never been started or is configured for restart
-			if proc == nil || session.Restart {
-				if proc == nil {
-					log.Infof("Launching process for session %s", session.ID)
-				} else {
-					session.m.Lock()
-					session.Diagnostics.ResurrectionCount++
-
-					// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
-					// currently sure how to expose it neatly via a utility function
-					extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo.vice..sessions|%s", session.ID))
-					log.Warnf("Re-launching process for session %s (count: %d)", session.ID, session.Diagnostics.ResurrectionCount)
-					session.Cmd = *restartableCmd(&session.Cmd)
-					session.m.Unlock()
-				}
-
-				err := t.launch(session)
-				if err != nil {
-					detail := fmt.Sprintf("failed to launch %s for %s: %s", session.Cmd.Path, id, err)
-					log.Error(detail)
-
-					// TODO: check if failure to launch this is fatal to everything in this containerVM
-					// 		for now failure to launch at all is terminal
-					return errors.New(detail)
-				}
-
-				continue
-			}
-
-			log.Warnf("Process for session %s has exited (%d) and is not configured for restart", session.ID, session.ExitStatus)
+		if err := t.initializeSessions(); err != nil {
+			log.Error(err)
+			return err
 		}
 
-		for name, ext := range t.extensions {
-			log.Info("Passing config to " + name)
-			err := ext.Reload(t.config)
-			if err != nil {
-				log.Errorf("Failed to cleanly reload config for extension %s: %s", name, err)
-				return err
-			}
+		if err := t.reloadExtensions(); err != nil {
+			log.Error(err)
+			return err
+		}
+
+		if err := t.processSessions(); err != nil {
+			log.Error(err)
+			return err
 		}
 	}
+
+	log.Info("Finished processing sessions")
 
 	return nil
 }
@@ -306,6 +426,8 @@ func (t *tether) Stop() error {
 		close(t.reload)
 	}
 
+	// cancel the context to unblock waiters
+	t.cancel()
 	return nil
 }
 
@@ -326,20 +448,27 @@ func (t *tether) Register(name string, extension Extension) {
 func (t *tether) handleSessionExit(session *SessionConfig) {
 	defer trace.End(trace.Begin("handling exit of session " + session.ID))
 
-	session.m.Lock()
-	defer session.m.Unlock()
+	session.Lock()
+	defer session.Unlock()
+
+	if session.wait != nil {
+		session.wait.Wait()
+	}
 
 	// reader must be closed before calling wait, and this must interrupt the underlying Read
 	// or Wait will not return.
 	session.Reader.Close()
 	session.Cmd.Wait()
-	if session.wait != nil {
-		session.wait.Wait()
-	}
 
 	// close down the outputs
 	session.Outwriter.Close()
 	session.Errwriter.Close()
+
+	// close the signaling channel (it is nil for detached sessions) and set it to nil (for restart)
+	if session.ClearToLaunch != nil {
+		close(session.ClearToLaunch)
+		session.ClearToLaunch = nil
+	}
 
 	// Remove associated PID file
 	cmdname := path.Base(session.Cmd.Path)
@@ -365,28 +494,13 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 func (t *tether) launch(session *SessionConfig) error {
 	defer trace.End(trace.Begin("launching session " + session.ID))
 
-	session.m.Lock()
-	defer session.m.Unlock()
-
 	// encode the result whether success or error
 	defer func() {
 		extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo.vice..sessions|%s", session.ID))
 	}()
 
-	logwriter, err := t.ops.SessionLog(session)
-	if err != nil {
-		detail := fmt.Sprintf("failed to get log writer for session: %s", err)
-		log.Error(detail)
-		session.Started = detail
-
-		return errors.New(detail)
-	}
-
-	// we store these outside of the session.Cmd struct so that there's consistent
-	// handling between tty & non-tty paths
-	session.Outwriter = logwriter
-	session.Errwriter = logwriter
-	session.Reader = dio.MultiReader()
+	session.Lock()
+	defer session.Unlock()
 
 	// Special case here because UID/GID lookup need to be done
 	// on the appliance...
@@ -408,6 +522,18 @@ func (t *tether) launch(session *SessionConfig) error {
 	log.Debugf("Resolved %s to %s", session.Cmd.Path, resolved)
 	session.Cmd.Path = resolved
 
+	// block until we have a connection
+	if session.RunBlock && session.ClearToLaunch != nil {
+		log.Debugf("Waiting clear signal to launch %s", session.ID)
+		select {
+		case <-t.ctx.Done():
+			log.Warnf("Waiting to launch %s canceled, bailing out", session.ID)
+			return nil
+		case <-session.ClearToLaunch:
+			log.Debugf("Received the clear signal to launch %s", session.ID)
+		}
+	}
+
 	pid := 0
 	// Use the mutex to make creating a child and adding the child pid into the
 	// childPidTable appear atomic to the reaper function. Use a anonymous function
@@ -422,13 +548,11 @@ func (t *tether) launch(session *SessionConfig) error {
 		} else {
 			err = establishPty(session)
 		}
-
 		if err != nil {
 			return err
 		}
 
 		pid = session.Cmd.Process.Pid
-		// ChildReaper will use this channel to inform us the wait status of the child.
 		t.config.pids[pid] = session
 
 		return nil
@@ -449,10 +573,6 @@ func (t *tether) launch(session *SessionConfig) error {
 
 	// Write the PID to the associated PID file
 	cmdname := path.Base(session.Cmd.Path)
-	if err = os.MkdirAll(PIDFileDir(), 0755); err != nil {
-		log.Errorf("could not create pid file directory %s: %s", PIDFileDir(), err)
-	}
-
 	err = ioutil.WriteFile(fmt.Sprintf("%s.pid", path.Join(PIDFileDir(), cmdname)),
 		[]byte(fmt.Sprintf("%d", pid)),
 		0644)

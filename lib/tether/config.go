@@ -62,7 +62,7 @@ type ExecutorConfig struct {
 // This is close to but not perfectly aligned with the new docker/docker/daemon/execdriver/driver:CommonProcessConfig
 type SessionConfig struct {
 	// Protects the structure
-	m sync.Mutex `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	sync.Mutex `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
 	// The primary session may have the same ID as the executor owning it
 	executor.Common `vic:"0.1" scope:"read-only" key:"common"`
@@ -82,6 +82,9 @@ type SessionConfig struct {
 	// Allow attach
 	Attach bool `vic:"0.1" scope:"read-only" key:"attach"`
 
+	// Delay launching the Cmd until an attach request comes
+	RunBlock bool `vic:"0.1" scope:"read-only" key:"runblock"`
+
 	// Allocate a tty or not
 	Tty bool `vic:"0.1" scope:"read-only" key:"tty"`
 
@@ -100,7 +103,12 @@ type SessionConfig struct {
 	Outwriter dio.DynamicMultiWriter `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	Errwriter dio.DynamicMultiWriter `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	Reader    dio.DynamicMultiReader `vic:"0.1" scope:"read-only" recurse:"depth=0"`
-	wait      *sync.WaitGroup        `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+
+	wait *sync.WaitGroup `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+
+	// Blocks launching the process.
+	// The channel contains no value; we’re only interested in its closed property.
+	ClearToLaunch chan struct{} `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 }
 
 type NetworkEndpoint struct {

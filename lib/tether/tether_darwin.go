@@ -16,10 +16,7 @@ package tether
 
 import (
 	"errors"
-	"os"
 	"strings"
-
-	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -72,9 +69,5 @@ func lookPath(file string, env []string, dir string) (string, error) {
 func establishPty(session *SessionConfig) error {
 	defer trace.End(trace.Begin("initializing pty handling for session " + session.ID))
 
-	return errors.New("unimplemented on OSX")
-}
-
-func signalProcess(process *os.Process, sig ssh.Signal) error {
 	return errors.New("unimplemented on OSX")
 }

@@ -209,7 +209,6 @@ func mockNetworkToSerialConnection(host string) (*sync.WaitGroup, error) {
 }
 
 func genKey() []byte {
-
 	// generate a host key for the tether
 	privateKey, err := rsa.GenerateKey(rand.Reader, 512)
 	if err != nil {
@@ -226,7 +225,7 @@ func genKey() []byte {
 	return pem.EncodeToMemory(&privateKeyBlock)
 }
 
-func TestAttach(t *testing.T) {
+func attachCase(t *testing.T, runblock bool) {
 	_, mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
@@ -244,8 +243,9 @@ func TestAttach(t *testing.T) {
 					ID:   "attach",
 					Name: "tether_test_session",
 				},
-				Tty:    false,
-				Attach: true,
+				Tty:      false,
+				Attach:   true,
+				RunBlock: runblock,
 				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
 					// grep, matching everything, reading from stdin
@@ -282,6 +282,10 @@ func TestAttach(t *testing.T) {
 
 	attachClient := ssh.NewClient(sshConn, chans, reqs)
 
+	if runblock {
+		_, err = attach.SSHls(attachClient)
+		assert.NoError(t, err)
+	}
 	sshSession, err := attach.SSHAttach(attachClient, cfg.ID)
 	assert.NoError(t, err)
 
@@ -304,8 +308,14 @@ func TestAttach(t *testing.T) {
 	// wait for the close to propagate
 	<-done
 	sshSession.CloseStdin()
+}
 
-	assert.Equal(t, buf.Bytes(), testBytes)
+func TestAttach(t *testing.T) {
+	attachCase(t, false)
+}
+
+func TestAttachBlock(t *testing.T) {
+	attachCase(t, true)
 }
 
 //
@@ -409,11 +419,10 @@ func TestAttachTTY(t *testing.T) {
 /////////////////////////////////////////////////////////////////////////////////////
 
 /////////////////////////////////////////////////////////////////////////////////////
-// TestAttachTwoConfig sets up the config for attach testing - tests launching and
-// attaching to two different processes simultaneously
+// TestAttachMultiple sets up the config for attach testing - tests launching and
+// attaching to multiple processes simultaneously
 //
-func TestAttachTwo(t *testing.T) {
-
+func TestAttachMultiple(t *testing.T) {
 	_, mocker := testSetup(t)
 	defer testTeardown(t, mocker)
 
@@ -436,7 +445,7 @@ func TestAttachTwo(t *testing.T) {
 				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
 					// grep, matching everything, reading from stdin
-					Args: []string{"/usr/bin/tee", pathPrefix + "/tee.out"},
+					Args: []string{"/usr/bin/tee", pathPrefix + "/tee1.out"},
 					Env:  []string{},
 					Dir:  "/",
 				},
@@ -456,8 +465,26 @@ func TestAttachTwo(t *testing.T) {
 					Dir:  "/",
 				},
 			},
+			"tee3": &executor.SessionConfig{
+				Common: executor.Common{
+					ID:   "tee3",
+					Name: "tether_test_session2",
+				},
+				Tty:    false,
+				Attach: false,
+				Cmd: executor.Cmd{
+					Path: "/usr/bin/tee",
+					// grep, matching everything, reading from stdin
+					Args: []string{"/usr/bin/tee", pathPrefix + "/tee3.out"},
+					Env:  []string{},
+					Dir:  "/",
+				},
+			},
 		},
 		Key: genKey(),
+		Diagnostics: executor.Diagnostics{
+			DebugLevel: 2,
+		},
 	}
 
 	_, _, conn := StartAttachTether(t, &cfg, mocker)
@@ -537,6 +564,7 @@ func TestAttachTwo(t *testing.T) {
 
 	// wait for the close to propagate
 	wg.Wait()
+
 	sessionA.CloseStdin()
 	sessionB.CloseStdin()
 
@@ -571,7 +599,7 @@ func TestAttachInvalid(t *testing.T) {
 					ID:   "valid",
 					Name: "tether_test_session",
 				},
-				Tty:    true,
+				Tty:    false,
 				Attach: true,
 				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
@@ -605,17 +633,15 @@ func TestAttachInvalid(t *testing.T) {
 	// create the SSH client
 	sConn, chans, reqs, err := ssh.NewClientConn(conn, "notappliable", cconfig)
 	assert.NoError(t, err)
-
 	defer sConn.Close()
+
 	client := ssh.NewClient(sConn, chans, reqs)
 
-	_, err = attach.SSHAttach(client, "invalidID")
+	_, err = attach.SSHAttach(client, "invalid")
 	tthr.Stop()
 	if err == nil {
 		t.Errorf("Expected to fail on attempt to attach to invalid session")
 	}
-
-	t.Log(err)
 }
 
 //
@@ -708,8 +734,9 @@ func TestReattach(t *testing.T) {
 					ID:   "attach",
 					Name: "tether_test_session",
 				},
-				Tty:    false,
-				Attach: true,
+				Tty:      false,
+				Attach:   true,
+				RunBlock: true,
 				Cmd: executor.Cmd{
 					Path: "/usr/bin/tee",
 					// grep, matching everything, reading from stdin
@@ -754,6 +781,10 @@ func TestReattach(t *testing.T) {
 		if attachClient == nil {
 			t.Errorf("Failed to get ssh.NewClient")
 		}
+
+		_, err = attach.SSHls(attachClient)
+		assert.NoError(t, err)
+
 		sshSession, err = attach.SSHAttach(attachClient, cfg.ID)
 		assert.NoError(t, err)
 

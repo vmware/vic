@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"syscall"
@@ -76,7 +77,7 @@ func (t *tether) childReaper() error {
 				// general resiliency
 				defer func() {
 					if r := recover(); r != nil {
-						fmt.Printf("Recovered in childReaper %v", r)
+						fmt.Fprintf(os.Stderr, "Recovered in childReaper %s", debug.Stack())
 					}
 				}()
 
@@ -84,10 +85,9 @@ func (t *tether) childReaper() error {
 				for {
 					log.Debugf("Inspecting children with status change")
 
-					// We can still read from a closed channel (eg; after Stop) so we use this to stop the iteration
 					select {
-					case <-t.done:
-						log.Errorf("Someone called shutdown, bailing out")
+					case <-t.ctx.Done():
+						log.Warnf("Someone called shutdown, returning from child reaper")
 						return
 					default:
 					}
@@ -115,9 +115,9 @@ func (t *tether) childReaper() error {
 					session, ok := t.removeChildPid(pid)
 					log.Debugf("Remove child pid: %d session: %#+v ok: %t", pid, session, ok)
 					if ok {
-						session.m.Lock()
+						session.Lock()
 						session.ExitStatus = status.ExitStatus()
-						session.m.Unlock()
+						session.Unlock()
 
 						t.handleSessionExit(session)
 					} else {
@@ -141,9 +141,8 @@ func (t *tether) stopReaper() {
 	signal.Reset(syscall.SIGCHLD)
 
 	// just closing the incoming channel is not going to stop the iteration
-	// so we use done channel to signal it
-	log.Debugf("Signalling the child reaper loop")
-	close(t.done)
+	// so we use the context cancellation to signal it
+	t.cancel()
 
 	log.Debugf("Closing the reapers signal channel")
 	close(t.incoming)
@@ -229,13 +228,13 @@ func establishPty(session *SessionConfig) error {
 		go func() {
 			_, gerr := io.Copy(session.Outwriter, session.Pty)
 			log.Debugf("PTY stdout copy: %s", gerr)
+
 			session.wait.Done()
 		}()
 		go func() {
 			_, gerr := io.Copy(session.Pty, session.Reader)
 			log.Debugf("PTY stdin copy: %s", gerr)
 		}()
-
 	}
 
 	return err

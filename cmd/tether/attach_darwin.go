@@ -17,9 +17,6 @@ package main
 import (
 	"errors"
 	"net"
-	"os"
-
-	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/vic/cmd/tether/msgs"
 )
@@ -33,9 +30,5 @@ func (t *attachServerSSH) Start() error {
 }
 
 func resizePty(pty uintptr, winSize *msgs.WindowChangeMsg) error {
-	return errors.New("not supported on OSX")
-}
-
-func signalProcess(process *os.Process, sig ssh.Signal) error {
 	return errors.New("not supported on OSX")
 }
