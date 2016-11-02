@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package folder
+package object
 
 import (
 	"context"
@@ -22,62 +22,65 @@ import (
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
+	"github.com/vmware/govmomi/vim25/methods"
+	"github.com/vmware/govmomi/vim25/types"
 )
 
-type destroy struct {
+type reload struct {
 	*flags.DatacenterFlag
 }
 
 func init() {
-	cli.Register("folder.destroy", &destroy{})
+	cli.Register("object.reload", &reload{})
 }
 
-func (cmd *destroy) Register(ctx context.Context, f *flag.FlagSet) {
+func (cmd *reload) Register(ctx context.Context, f *flag.FlagSet) {
 	cmd.DatacenterFlag, ctx = flags.NewDatacenterFlag(ctx)
 	cmd.DatacenterFlag.Register(ctx, f)
 }
 
-func (cmd *destroy) Process(ctx context.Context) error {
+func (cmd *reload) Usage() string {
+	return "PATH..."
+}
+
+func (cmd *reload) Description() string {
+	return `Reload managed object state.
+
+Examples:
+  govc datastore.upload $vm.vmx $vm/$vm.vmx
+  govc object.reload /dc1/vm/$vm`
+}
+
+func (cmd *reload) Process(ctx context.Context) error {
 	if err := cmd.DatacenterFlag.Process(ctx); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (cmd *destroy) Usage() string {
-	return "FOLDER..."
-}
-
-func (cmd *destroy) Description() string {
-	return "Destroy one or more FOLDERs."
-}
-
-func (cmd *destroy) Run(ctx context.Context, f *flag.FlagSet) error {
+func (cmd *reload) Run(ctx context.Context, f *flag.FlagSet) error {
 	if f.NArg() == 0 {
 		return flag.ErrHelp
 	}
 
-	finder, err := cmd.Finder()
+	c, err := cmd.Client()
 	if err != nil {
 		return err
 	}
 
-	for _, arg := range f.Args() {
-		folders, err := finder.FolderList(ctx, arg)
-		if err != nil {
-			return err
+	objs, err := cmd.ManagedObjects(ctx, f.Args())
+	if err != nil {
+		return err
+	}
+
+	for _, obj := range objs {
+		req := types.Reload{
+			This: obj,
 		}
 
-		for _, folder := range folders {
-			task, err := folder.Destroy(ctx)
-			if err != nil {
-				return err
-			}
-
-			err = task.Wait(ctx)
-			if err != nil {
-				return err
-			}
+		_, err = methods.Reload(ctx, c, &req)
+		if err != nil {
+			return err
 		}
 	}
 

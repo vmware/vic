@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2014-2015 VMware, Inc. All Rights Reserved.
+Copyright (c) 2016 VMware, Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,36 +14,44 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package datacenter
+package object
 
 import (
 	"context"
 	"flag"
+	"fmt"
 
-	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
+	"github.com/vmware/govmomi/object"
 )
 
 type destroy struct {
-	*flags.ClientFlag
+	*flags.DatacenterFlag
 }
 
 func init() {
-	cli.Register("datacenter.destroy", &destroy{})
+	cli.Register("object.destroy", &destroy{})
 }
 
 func (cmd *destroy) Register(ctx context.Context, f *flag.FlagSet) {
-	cmd.ClientFlag, ctx = flags.NewClientFlag(ctx)
-	cmd.ClientFlag.Register(ctx, f)
+	cmd.DatacenterFlag, ctx = flags.NewDatacenterFlag(ctx)
+	cmd.DatacenterFlag.Register(ctx, f)
 }
 
 func (cmd *destroy) Usage() string {
 	return "PATH..."
 }
 
+func (cmd *destroy) Description() string {
+	return `Destroy managed objects.
+
+Examples:
+  govc object.destroy /dc1/network/dvs /dc1/host/cluster`
+}
+
 func (cmd *destroy) Process(ctx context.Context) error {
-	if err := cmd.ClientFlag.Process(ctx); err != nil {
+	if err := cmd.DatacenterFlag.Process(ctx); err != nil {
 		return err
 	}
 	return nil
@@ -54,28 +62,27 @@ func (cmd *destroy) Run(ctx context.Context, f *flag.FlagSet) error {
 		return flag.ErrHelp
 	}
 
-	client, err := cmd.ClientFlag.Client()
+	c, err := cmd.Client()
 	if err != nil {
 		return err
 	}
 
-	finder := find.NewFinder(client, false)
+	objs, err := cmd.ManagedObjects(ctx, f.Args())
+	if err != nil {
+		return err
+	}
 
-	for _, path := range f.Args() {
-		dcs, err := finder.DatacenterList(ctx, path)
+	for _, obj := range objs {
+		task, err := object.NewCommon(c, obj).Destroy(ctx)
 		if err != nil {
 			return err
 		}
 
-		for _, dc := range dcs {
-			task, err := dc.Destroy(ctx)
-			if err != nil {
-				return err
-			}
-
-			if err := task.Wait(ctx); err != nil {
-				return err
-			}
+		logger := cmd.ProgressLogger(fmt.Sprintf("destroying %s... ", obj))
+		_, err = task.WaitForResult(ctx, logger)
+		logger.Wait()
+		if err != nil {
+			return err
 		}
 	}
 
