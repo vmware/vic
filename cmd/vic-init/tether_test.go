@@ -103,8 +103,8 @@ func (t *Mocker) Log() (io.Writer, error) {
 	return &t.LogBuffer, nil
 }
 
-func (t *Mocker) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, error) {
-	return dio.MultiWriter(&t.SessionLogBuffer), nil
+func (t *Mocker) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, dio.DynamicMultiWriter, error) {
+	return dio.MultiWriter(&t.SessionLogBuffer), dio.MultiWriter(&t.SessionLogBuffer), nil
 }
 
 func (t *Mocker) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) func() {
