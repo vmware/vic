@@ -446,7 +446,7 @@ func (t *attachServerSSH) run() error {
 
 			go t.channelMux(requests, session, detach)
 
-			if session.RunBlock && session.Started != "true" {
+			if session.RunBlock && session.ClearToLaunch != nil && session.Started != "true" {
 				log.Debugf("Unblocking the launch of %s", sessionid)
 				// make sure that portlayer received the container id back
 				session.ClearToLaunch <- <-t.askedAndAnswered

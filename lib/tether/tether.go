@@ -464,9 +464,10 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 	session.Outwriter.Close()
 	session.Errwriter.Close()
 
-	// close the signaling channel (it is nil for detached sessions)
+	// close the signaling channel (it is nil for detached sessions) and set it to nil (for restart)
 	if session.ClearToLaunch != nil {
 		close(session.ClearToLaunch)
+		session.ClearToLaunch = nil
 	}
 
 	// Remove associated PID file
@@ -522,7 +523,7 @@ func (t *tether) launch(session *SessionConfig) error {
 	session.Cmd.Path = resolved
 
 	// block until we have a connection
-	if session.RunBlock {
+	if session.RunBlock && session.ClearToLaunch != nil {
 		log.Debugf("Waiting clear signal to launch %s", session.ID)
 		select {
 		case <-t.ctx.Done():
