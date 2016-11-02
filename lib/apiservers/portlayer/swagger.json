@@ -2383,6 +2383,14 @@
 				"repoName": {
 					"type": "string"
 				},
+                                "numCPUs": {
+                                  "type": "integer",
+                                  "format": "int64"
+                                },
+                                "memoryMB": {
+                                  "type": "integer",
+                                  "format": "int64"
+                                },
 				"path": {
 					"type": "string"
 				},
