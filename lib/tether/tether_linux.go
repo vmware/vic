@@ -227,24 +227,13 @@ func establishPty(session *SessionConfig) error {
 		// it frees up all resources - does that mean it frees the output buffers?
 		go func() {
 			_, gerr := io.Copy(session.Outwriter, session.Pty)
-			if e, ok := gerr.(*os.PathError); ok && e.Err == syscall.EIO {
-				// We can safely ignore this error, because
-				// it's just the PTY telling us that it closed all good.
-				log.Debugf("Ignoring EIO error returned by Outwriter io.Copy")
-			} else {
-				log.Debugf("Outwriter io.Copy returned %s", gerr)
-			}
+			log.Debugf("PTY stdout copy: %s", gerr)
+
 			session.wait.Done()
 		}()
 		go func() {
 			_, gerr := io.Copy(session.Pty, session.Reader)
-			if e, ok := gerr.(*os.PathError); ok && e.Err == syscall.EIO {
-				// We can safely ignore this error, because
-				// it's just the PTY telling us that it closed all good.
-				log.Debugf("Ignoring EIO error returned by Reader io.Copy")
-			} else {
-				log.Debugf("Reader io.Copy returned %s", gerr)
-			}
+			log.Debugf("PTY stdin copy: %s", gerr)
 		}()
 	}
 

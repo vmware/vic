@@ -137,6 +137,10 @@ func (t *Toolbox) killHelper(session *SessionConfig, name string) error {
 		name = string(ssh.SIGTERM)
 	}
 
+	if session.Cmd.Process == nil {
+		return fmt.Errorf("the session %s hasn't launched yet", session.ID)
+	}
+
 	sig := new(msgs.SignalMsg)
 	err := sig.FromString(name)
 	if err != nil {
@@ -193,6 +197,10 @@ func (t *Toolbox) halt() error {
 
 	session.Lock()
 	defer session.Unlock()
+
+	if session.Cmd.Process == nil {
+		return fmt.Errorf("the session %s hasn't launched yet", session.ID)
+	}
 
 	log.Infof("stopping %s", session.ID)
 
