@@ -35,6 +35,19 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
+const (
+	summary          = "summary"
+	connectionStatus = "summary.runtime.connectionState"
+)
+
+type InvalidState struct {
+	r types.ManagedObjectReference
+}
+
+func (i *InvalidState) Error() string {
+	return fmt.Sprintf("vm %s is invalid", i.r.String())
+}
+
 // VirtualMachine struct defines the VirtualMachine which provides additional
 // VIC specific methods over object.VirtualMachine as well as keeps some state
 type VirtualMachine struct {
@@ -458,7 +471,7 @@ func (vm *VirtualMachine) registerVM(ctx context.Context, path, name string,
 }
 
 // FixInvalidState fix vm invalid state issue through unregister & register
-func (vm *VirtualMachine) FixInvalidState(ctx context.Context) error {
+func (vm *VirtualMachine) fixVM(ctx context.Context) error {
 	log.Debugf("Fix invalid state VM: %s", vm.Reference())
 	folders, err := vm.Session.Datacenter.Folders(ctx)
 	if err != nil {
@@ -466,10 +479,10 @@ func (vm *VirtualMachine) FixInvalidState(ctx context.Context) error {
 		return err
 	}
 
-	properties := []string{"config.files", "summary.config", "summary.runtime", "resourcePool", "parentVApp"}
+	properties := []string{"summary.config", "summary.runtime", "resourcePool", "parentVApp"}
 	log.Debugf("Get vm properties %s", properties)
 	var mvm mo.VirtualMachine
-	if err = vm.Properties(ctx, vm.Reference(), properties, &mvm); err != nil {
+	if err = vm.VirtualMachine.Properties(ctx, vm.Reference(), properties, &mvm); err != nil {
 		log.Errorf("Unable to get vm properties: %s", err)
 		return err
 	}
@@ -481,7 +494,7 @@ func (vm *VirtualMachine) FixInvalidState(ctx context.Context) error {
 		return err
 	}
 
-	task, err := vm.registerVM(ctx, mvm.Config.Files.VmPathName, name, mvm.ParentVApp, mvm.ResourcePool, mvm.Summary.Runtime.Host, folders.VmFolder)
+	task, err := vm.registerVM(ctx, mvm.Summary.Config.VmPathName, name, mvm.ParentVApp, mvm.ResourcePool, mvm.Summary.Runtime.Host, folders.VmFolder)
 	if err != nil {
 		log.Errorf("Unable to register VM %q back: %s", name, err)
 		return err
@@ -513,7 +526,7 @@ func (vm *VirtualMachine) needsFix(ctx context.Context, err error) bool {
 		return true
 	default:
 		if vm.IsInvalidState(ctx) {
-			log.Debugf("vm is invalid")
+			log.Debugf("vm %s is invalid", vm.Reference())
 			return true
 		}
 		log.Debugf("Do not fix non invalid state error")
@@ -523,11 +536,11 @@ func (vm *VirtualMachine) needsFix(ctx context.Context, err error) bool {
 
 func (vm *VirtualMachine) IsInvalidState(ctx context.Context) bool {
 	var o mo.VirtualMachine
-	if err := vm.Properties(ctx, vm.Reference(), []string{"runtime"}, &o); err != nil {
+	if err := vm.VirtualMachine.Properties(ctx, vm.Reference(), []string{connectionStatus}, &o); err != nil {
 		log.Debugf("Failed to get vm properties: %s", err)
 		return false
 	}
-	if o.Runtime.ConnectionState == types.VirtualMachineConnectionStateInvalid {
+	if o.Summary.Runtime.ConnectionState == types.VirtualMachineConnectionStateInvalid {
 		return true
 	}
 	return false
@@ -541,10 +554,41 @@ func (vm *VirtualMachine) WaitForResult(ctx context.Context, f func(context.Cont
 		return info, err
 	}
 	log.Debugf("Try to fix task failure %s", err)
-	if nerr := vm.FixInvalidState(ctx); nerr != nil {
+	if nerr := vm.fixVM(ctx); nerr != nil {
 		log.Errorf("Failed to fix task failure: %s", nerr)
 		return info, err
 	}
 	log.Debugf("Fixed")
 	return tasks.WaitForResult(ctx, f)
+}
+
+func (vm *VirtualMachine) Properties(ctx context.Context, r types.ManagedObjectReference, ps []string, o *mo.VirtualMachine) error {
+	log.Debugf("get vm properties %s of vm %s", ps, r)
+	contains := false
+	for i := range ps {
+		if ps[i] == summary {
+			contains = true
+			break
+		}
+	}
+	var newps []string
+	if !contains {
+		newps = append(ps, connectionStatus)
+	} else {
+		newps = append(newps, ps...)
+	}
+	log.Debugf("properties: %s", newps)
+	if err := vm.VirtualMachine.Properties(ctx, r, newps, o); err != nil {
+		return err
+	}
+	if o.Summary.Runtime.ConnectionState != types.VirtualMachineConnectionStateInvalid {
+		return nil
+	}
+	log.Infof("vm %s is in invalid state", r)
+	if err := vm.fixVM(ctx); err != nil {
+		log.Errorf("Failed to fix vm %s: %s", vm.Reference(), err)
+		return &InvalidState{r: vm.Reference()}
+	}
+	log.Debugf("Retry properties query %s of vm %s", ps, vm.Reference())
+	return vm.VirtualMachine.Properties(ctx, vm.Reference(), ps, o)
 }

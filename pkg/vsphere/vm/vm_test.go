@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/pkg/vsphere/session"
@@ -181,7 +182,7 @@ func TestVM(t *testing.T) {
 	}
 	t.Logf("Got UUID: %s", ruuid)
 
-	err = vm.FixInvalidState(ctx)
+	err = vm.fixVM(ctx)
 	if err != nil {
 		t.Errorf("Failed to fix vm: %s", err)
 	}
@@ -190,6 +191,13 @@ func TestVM(t *testing.T) {
 		t.Errorf("Failed to find fixed vm: %s", err)
 	}
 	assert.Equal(t, vm.Reference(), newVM.Reference())
+
+	// VM properties
+	var ovm mo.VirtualMachine
+	if err = vm.Properties(ctx, newVM.Reference(), []string{"config"}, &ovm); err != nil {
+		t.Errorf("Failed to get vm properties: %s", err)
+	}
+
 	// Destroy the vm
 	task, err := vm.Destroy(ctx)
 	if err != nil {
