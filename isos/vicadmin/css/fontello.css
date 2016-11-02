@@ -58,3 +58,4 @@
 .icon-ok:before { content: '\e800'; } /* '' */
 .icon-attention:before { content: '\e801'; } /* '' */
 .icon-github-circled:before { content: '\f09b'; } /* '' */
+.icon-logout:before { content: '\f08b'; }

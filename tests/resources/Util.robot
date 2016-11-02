@@ -134,7 +134,7 @@ Run VIC Machine Command
     Run Keyword If  ${certs}  Should Contain  ${output}  Installer completed successfully
     Return From Keyword If  ${certs}  ${output}
 
-    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug 1 --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} --no-tls
+    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug 1 --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} --no-tlsverify
     Run Keyword Unless  ${certs}  Should Contain  ${output}  Installer completed successfully
     [Return]  ${output}
 
