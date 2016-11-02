@@ -72,7 +72,10 @@ Create linked containers that can ping
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start busy2
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow busy2
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} wait busy2
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs busy2
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  2 packets transmitted, 2 packets received
 
