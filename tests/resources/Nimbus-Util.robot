@@ -28,6 +28,7 @@ Deploy Nimbus ESXi Server
     Set Environment Variable  GOVC_URL  root:@${ip}
     ${out}=  Run  govc host.account.update -id root -password e2eFunctionalTest
     Should Be Empty  ${out}
+    Disable TLS On ESX Host
     Log To Console  Successfully deployed new ESXi server - ${user}-${name}
     Close connection
     [Return]  ${user}-${name}  ${ip}
@@ -218,3 +219,8 @@ Add Host To Distributed Switch
     Log To Console  \nAdd host(s) to the distributed switch
     ${out}=  Run  govc dvs.add -dvs=${dvs} -pnic=vmnic1 ${host}
     Should Contain  ${out}  OK
+    
+Disable TLS On ESX Host
+    Log To Console  \nDisable TLS on the host
+    ${out}=  Run  govc host.option.set UserVars.ESXiVPsDisabledProtocols sslv3,tlsv1,tlsv1.1
+    Should Be Empty  ${out}

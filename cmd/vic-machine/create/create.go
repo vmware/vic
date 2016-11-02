@@ -112,6 +112,9 @@ type Create struct {
 
 	BridgeIPRange string
 
+	httpsProxy string
+	httpProxy  string
+
 	executor *management.Dispatcher
 }
 
@@ -384,6 +387,23 @@ func (c *Create) Flags() []cli.Flag {
 			Value: &c.insecureRegistries,
 			Usage: "Specify a list of permitted insecure registry server URLs",
 		},
+
+		// proxies
+		cli.StringFlag{
+			Name:        "https-proxy, sproxy",
+			Value:       "",
+			Usage:       "An HTTPS proxy for use when fetching images, in the form https://fqdn_or_ip:port",
+			Destination: &c.httpsProxy,
+			Hidden:      true,
+		},
+
+		cli.StringFlag{
+			Name:        "http-proxy, hproxy",
+			Value:       "",
+			Usage:       "An HTTP proxy for use when fetching images, in the form http://fqdn_or_ip:port",
+			Destination: &c.httpProxy,
+			Hidden:      true,
+		},
 	}
 
 	util := []cli.Flag{
@@ -494,6 +514,10 @@ func (c *Create) processParams() error {
 	}
 
 	if err := c.processInsecureRegistries(); err != nil {
+		return err
+	}
+
+	if err := c.processProxies(); err != nil {
 		return err
 	}
 
@@ -735,6 +759,25 @@ func (c *Create) processInsecureRegistries() error {
 	return nil
 }
 
+func (c *Create) processProxies() error {
+	var err error
+	if c.httpProxy != "" {
+		c.HTTPProxy, err = url.Parse(c.httpProxy)
+		if err != nil || c.HTTPProxy.Host == "" || c.HTTPProxy.Scheme != "http" {
+			return cli.NewExitError(fmt.Sprintf("Could not parse HTTP proxy - expected format http://fqnd_or_ip:port: %s", c.httpProxy), 1)
+		}
+	}
+
+	if c.httpsProxy != "" {
+		c.HTTPSProxy, err = url.Parse(c.httpsProxy)
+		if err != nil || c.HTTPSProxy.Host == "" || c.HTTPSProxy.Scheme != "https" {
+			return cli.NewExitError(fmt.Sprintf("Could not parse HTTPS proxy - expected format https://fqnd_or_ip:port: %s", c.httpsProxy), 1)
+		}
+	}
+
+	return nil
+}
+
 func (c *Create) loadCertificates() ([]byte, *certificate.KeyPair, error) {
 	defer trace.End(trace.Begin(""))
 
@@ -941,6 +984,9 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 	vConfig.ImageFiles = images
 	vConfig.ApplianceISO = path.Base(c.ApplianceISO)
 	vConfig.BootstrapISO = path.Base(c.BootstrapISO)
+
+	vConfig.HTTPProxy = c.HTTPProxy
+	vConfig.HTTPSProxy = c.HTTPSProxy
 
 	vchConfig.InsecureRegistries = c.Data.InsecureRegistries
 

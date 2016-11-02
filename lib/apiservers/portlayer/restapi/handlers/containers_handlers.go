@@ -134,6 +134,10 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 		Metadata:       m,
 		ParentImageID:  *params.CreateConfig.Image,
 		ImageStoreName: params.CreateConfig.ImageStore.Name,
+		Resources: exec.Resources{
+			NumCPUs:  *params.CreateConfig.NumCpus,
+			MemoryMB: *params.CreateConfig.MemoryMB,
+		},
 	}
 
 	h, err := exec.Create(ctx, session, c)

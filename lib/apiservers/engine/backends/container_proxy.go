@@ -821,6 +821,9 @@ func (c *ContainerProxy) AttachStreams(ctx context.Context, vc *viccontainer.Vic
 func dockerContainerCreateParamsToPortlayer(cc types.ContainerCreateConfig, layerID string, imageStore string) *containers.CreateParams {
 	config := &models.ContainerCreateConfig{}
 
+	config.NumCpus = &cc.HostConfig.CPUCount
+	config.MemoryMB = &cc.HostConfig.Memory
+
 	// Image
 	config.Image = swag.String(layerID)
 
