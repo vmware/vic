@@ -218,10 +218,9 @@ func (t *tether) setHostname() error {
 	}
 
 	if err := t.ops.SetHostname(short, t.config.Name); err != nil {
-		detail := fmt.Errorf("failed to set hostname: %s", err)
 		// we don't attempt to recover from this - it's a fundamental misconfiguration
 		// so just exit
-		return detail
+		return fmt.Errorf("failed to set hostname: %s", err)
 	}
 	return nil
 }
@@ -229,8 +228,7 @@ func (t *tether) setHostname() error {
 func (t *tether) setNetworks() error {
 	for _, v := range t.config.Networks {
 		if err := t.ops.Apply(v); err != nil {
-			detail := fmt.Errorf("failed to apply network endpoint config: %s", err)
-			return detail
+			return fmt.Errorf("failed to apply network endpoint config: %s", err)
 		}
 	}
 	return nil
@@ -239,8 +237,7 @@ func (t *tether) setNetworks() error {
 func (t *tether) setMounts() error {
 	for k, v := range t.config.Mounts {
 		if v.Source.Scheme != "label" {
-			detail := fmt.Errorf("unsupported volume mount type for %s: %s", k, v.Source.Scheme)
-			return detail
+			return fmt.Errorf("unsupported volume mount type for %s: %s", k, v.Source.Scheme)
 		}
 
 		// this could block indefinitely while waiting for a volume to present
@@ -288,8 +285,7 @@ func (t *tether) reloadExtensions() error {
 		log.Debugf("Passing config to %s", name)
 		err := ext.Reload(t.config)
 		if err != nil {
-			detail := fmt.Errorf("Failed to cleanly reload config for extension %s: %s", name, err)
-			return detail
+			return fmt.Errorf("Failed to cleanly reload config for extension %s: %s", name, err)
 		}
 	}
 	return nil
