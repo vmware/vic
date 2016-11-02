@@ -2,7 +2,7 @@
 
 You can obtain a list of the virtual container hosts that are running in vCenter Server or on an ESXi host by using the `vic-machine ls` command. 
 
-The `vic-machine ls` command lists virtual container hosts with their IDs. You can use virtual container host IDs when you run the `vic-machine inspect` and `vic-machine delete` commands. Using virtual container host IDs reduces the number of options that you need to specify when you use `vic-machine inspect` and `vic-machine delete`.
+The `vic-machine ls` command lists virtual container hosts with their IDs, names, and versions. The `vic-machine ls` command informs you whether upgrades are available for the virtual container hosts.
 
 **Prerequisites**
 
@@ -39,7 +39,7 @@ vm-102     <i>path</i>     <i>vch_2</i>   <i>vch_version</i>-<i>vch_build</i>-<i
 vm-<i>n</i>       <i>path</i>     <i>vch_n</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
 </pre>
 
-- You can use the virtual container host ID when running `vic-machine inspect` or `delete`. Using a virtual container host ID reduces the number of options that you need to specify when you use `vic-machine inspect` or `delete`.
+- The IDs are the vSphere Managed Object References, or morefs, for the virtual container host endpoint VMs. You can use virtual container host IDs when you run the  `vic-machine inspect`, `upgrade`, `debug`, and `delete` commands. Using virtual container host IDs reduces the number of options that you need to specify when you run those commands.
 - The `PATH` value depends on where the virtual container host is deployed:
 
   - ESXi host that is not managed by vCenter Server:

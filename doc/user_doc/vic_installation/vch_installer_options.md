@@ -718,7 +718,7 @@ When you specify the bridge network IP range, you specify the IP range as a CIDR
 
 Short name: None
 
-The size of the base image from which to create other images. You should not normally need to use this setting. Specify the size in `GB` or `MB`. The default is 8GB. 
+The size of the base image from which to create other images. You should not normally need to use this option. Specify the size in `GB` or `MB`. The default is 8GB. 
 
 <pre>--base-image-size 4GB</pre>
 
@@ -732,7 +732,9 @@ The `container-store` option is not enabled. Container VM files are stored in th
 
 Short name: `--ai`
 
-The ISO image from which the virtual container host appliance boots. Omit this option to boot the appliance from the default ISO that is included with `vic-machine`. Set this option to boot the appliance from a different ISO file, for example to reinstall an existing virtual container host or to update it to a newer version. Include the name of the ISO file in the path.
+The path to the ISO image from which the virtual container host appliance boots. Set this option if you run `vic-machine` from a folder that is not the one that contains the `appliance.iso` file and you  have not added that folder to your `PATH`. Include the name of the ISO file in the path.
+
+**NOTE**: Do not use the `--appliance-iso` option to point `vic-machine` to an `--appliance-iso` file that is of a different version to the version of `vic-machine` that you are running.
 
 <pre>--appliance-iso <i>path_to_ISO_file</i>/<i>ISO_file_name</i>.iso</pre>
 
@@ -744,7 +746,9 @@ Wrap the folder names in the path in single quotes (Linux or Mac OS) or double q
 
 Short name: `--bi`
 
-The ISO image from which container VMs boot. Omit this option to boot container VMs from the default Photon OS kernel ISO that is included with `vic-machine`. Set this option to a different ISO file to boot container VMs with an operating system other than the Photon OS kernel. Include the name of the ISO file in the path.
+The path to the ISO image from which to boot container VMs. Set this option if you run `vic-machine` from a folder that is not the one that contains the `bootstrap.iso` file and you have not added that folder to your `PATH`. Include the name of the ISO file in the path.
+
+**NOTE**: Do not use the `--bootstrap-iso` option to point `vic-machine` to a `--bootstrap-iso` file that is of a different version to the version of `vic-machine` that you are running.
 
 <pre>--bootstrap-iso <i>path_to_ISO_file</i>/<i>ISO_file_name</i>.iso</pre>
 

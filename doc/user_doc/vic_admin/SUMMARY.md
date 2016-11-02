@@ -1,7 +1,6 @@
 # Summary
 
 * [Introduction](README.md)
-* [Overview of vSphere Integrated Containers Engine](README.md)
 * [vSphere Integrated Containers Engine Architecture](vicarch.md)
 * [Interoperability of vSphere Integrated Containers Engine with Other VMware Software](interop.md)
 * [Virtual Container Host Administration](vch_admin.md)
@@ -12,6 +11,8 @@
     * [Virtual Container Host Inspect Options](inspect_vch_options.md)
   * [Delete a Virtual Container Host](remove_vch.md)
     * [Virtual Container Host Delete Options](delete_vch_options.md)
+  * [Upgrade a Virtual Container Host](upgrade_vch.md)
+    * [Virtual Container Host Upgrade Options](upgrade_vch_options.md)
 * [Find Virtual Container Host Information in the vSphere Web Client](vch_portlet_ui.md)
 * [Find Container Information in the vSphere Web Client](container_portlet_ui.md)
 * [Access the Administration Portal for a Virtual Container Host](access_vicadmin.md)

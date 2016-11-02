@@ -1,0 +1,148 @@
+#  Virtual Container Host Upgrade Options #
+
+The command line utility for vSphere Integrated Containers Engine, `vic-machine`, provides an `upgrade` command that allows you to upgrade virtual container hosts to a newer version. The options that `vic-machine upgrade` requires depend on the location in your vSphere environment in which you deployed the virtual container host to upgrade.
+
+### `--target` ###
+
+Short name: `-t`
+
+The IPv4 address, fully qualified domain name (FQDN), or URL of the ESXi host or vCenter Server instance on which you deployed the virtual container host. This option is **mandatory**.
+
+- If the target ESXi host is not managed by vCenter Server, provide the address of the host.<pre>--target <i>esxi_host_address</i></pre>
+- If the target ESXi host is managed by vCenter Server, or if you deployed the virtual container host to a cluster, provide the address of vCenter Server.<pre>--target <i>vcenter_server_address</i></pre>
+- You can include the user name and password in the target URL. <pre>--target <i>vcenter_or_esxi_username</i>:<i>password</i>@<i>vcenter_or_esxi_address</i></pre>
+
+  Wrap the user name or password in single quotes (Linux or Mac OS) or double quotes (Windows) if they include special characters.<pre>'<i>vcenter_or_esxi_usern@me</i>':'<i>p@ssword</i>'@<i>vcenter_or_esxi_address</i></pre>
+  
+  If you do not include the user name in the target URL, you must specify the `user` option. If you do not specify the `password` option or include the password in the target URL, `vic-machine upgrade` prompts you to enter the password.
+- If you deployed the virtual container host on a vCenter Server instance that includes more than one datacenter, include the datacenter name in the target URL. If you include an invalid datacenter name, `vic-machine upgrade` fails and suggests the available datacenters that you can specify.<pre>--target <i>vcenter_server_address</i>/<i>datacenter_name</i></pre>
+
+
+### `--user` ###
+
+Short name: `-u`
+
+The username for the ESXi host or vCenter Server instance on which you deployed the virtual container host. This option is mandatory if you do not specify the username in the `target` option.
+
+<pre>--user <i>esxi_or_vcenter_server_username</i></pre>
+
+Wrap the user name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes special characters.
+
+<pre>--user '<i>esxi_or_vcenter_server_usern@me</i>'</pre>
+
+
+### `--password` ###
+
+Short name: `-p`
+
+The password for the user account on the vCenter Server on which you  deployed the virtual container host, or the password for the ESXi host if you deployed directly to an ESXi host. If not specified, `vic-machine` prompts you to enter the password.
+
+<pre>--password <i>esxi_host_or_vcenter_server_password</i></pre>
+
+Wrap the password in single quotation marks (') on Mac OS and Linux and in double quotation (") marks on Windows if it includes special characters.
+
+<pre>--password '<i>esxi_host_or_vcenter_server_p@ssword</i>'</pre>
+
+### `--thumbprint` ###
+
+Short name: None
+
+The thumbprint of the vCenter Server or ESXi host certificate. Specify this option if your vSphere environment uses untrusted, self-signed certificates. Alternatively, specifying the `--force` option allows you to omit the `--thumbprint` option. If your vSphere environment uses trusted certificates that are signed by a known Certificate Authority (CA), you do not need to specify the `--thumbprint` option.
+
+To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine upgrade` without the specifying the `--thumbprint` or `--force` options. The upgrade of the virtual container host fails, but the resulting error message includes the required certificate thumbprint. 
+
+<pre>Failed to verify certificate for target=<i>vcenter_or_esxi_host</i> (thumbprint=<i>thumbprint</i>)
+</pre>
+
+You can copy the thumbprint from the error message and run `vic-machine upgrade` again, including the `thumbprint` option.
+
+<pre>--thumbprint <i>certificate_thumbprint</i></pre>
+
+### `--compute-resource` ###
+
+Short name: `-r`
+
+The relative path to the host, cluster, or resource pool in which you deployed the virtual container host. Specify `--compute-resource` with exactly the same value that you used when you ran `vic-machine create`. You specify the `compute-resource` option in the following circumstances:
+
+- vCenter Server includes multiple instances of standalone hosts or clusters, or a mixture of standalone hosts and clusters.
+- The ESXi host includes multiple resource pools. 
+- You deployed the virtual container host in a specific resource pool in your environment. 
+
+If you specify the `id` option, you do not need to specify the `compute-resource` option.
+
+If you do not specify the `compute-resource` or `id` options and multiple possible resources exist, `vic-machine delete` fails and suggests valid targets for `compute-resource` in the failure message. 
+
+* If the virtual container host is in a specific resource pool on an ESXi host, specify the name of the resource pool: <pre>--compute-resource  <i>resource_pool_name</i></pre>
+* If the virtual container host is on a vCenter Server instance that has more than one standalone host but no clusters, specify the IPv4 address or fully qualified domain name (FQDN) of the target host:<pre>--compute-resource <i>host_address</i></pre>
+* If the virtual container host is on a vCenter Server with more than one cluster, specify the name of the target cluster: <pre>--compute-resource <i>cluster_name</i></pre>
+* If the virtual container host is in a specific resource pool on a standalone host that is managed by vCenter Server, specify the IPv4 address or FQDN of the target host and name of the resource pool:<pre>--compute-resource <i>host_name</i>/<i>resource_pool_name</i></pre>
+* If the virtual container host is in a specific resource pool in a cluster, specify the names of the target cluster and the resource pool:<pre>--compute-resource <i>cluster_name</i>/<i>resource_pool_name</i></pre>
+* Wrap the resource names in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces:<pre>--compute-resource '<i>cluster name</i>'/'<i>resource pool name</i>'</pre>
+
+### `--name` ###
+
+Short name: `-n`
+
+The name of the virtual container host appliance to upgrade. This option is mandatory if the virtual container host to upgrade has a name other than the default name, `virtual-container-host`, or if you do not use the `id` option. Specify `--name` with exactly the same value that you used when you ran `vic-machine create`.
+
+<pre>--name <i>vch_appliance_name</i></pre>
+
+Wrap the appliance name in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes spaces.
+
+<pre>--name '<i>vch appliance name</i>'</pre>
+
+### `--id` ###
+
+Short name: None
+
+The vSphere Managed Object Reference, or moref, of the virtual container host to upgrade, for example `vm-100`.  You obtain the ID of a virtual container host by running `vic-machine ls`. If you specify the `id` option, you do not need to specify the `name` or `compute-resource` options.
+
+<pre>--id <i>vch_id</i></pre>
+
+### `--appliance-iso` ###
+
+Short name: `--ai`
+
+The path to the new version of the ISO image from which to upgrade the virtual container host appliance. Set this option if you run `vic-machine upgrade` from a folder that is not the one that contains the `appliance.iso` file and you have not added that folder to your `PATH`. Include the name of the ISO file in the path.
+
+**NOTE**: Do not use the `--appliance-iso` option to point `vic-machine` to an `--appliance-iso` file that is of a different version to the version of `vic-machine` that you are running.
+
+<pre>--appliance-iso <i>path_to_ISO_file</i>/<i>ISO_file_name</i>.iso</pre>
+
+Wrap the folder names in the path in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces.
+
+<pre>--appliance-iso '<i>path to ISO file</i>'/appliance.iso</pre>
+
+### `--bootstrap-iso` ###
+
+Short name: `--bi`
+
+The path to the new version of the ISO image from which to upgrade the container VMs that the virtual container host manages. Set this option if you run `vic-machine upgrade` from a folder that is not the one that contains the `bootstrap.iso` file and you have not added that folder to your `PATH`. Include the name of the ISO file in the path.
+
+**NOTE**: Do not use the `--bootstrap-iso` option to point `vic-machine` to a `--bootstrap-iso` file that is of a different version to the version of `vic-machine` that you are running.
+
+<pre>--bootstrap-iso <i>path_to_ISO_file</i>/bootstrap.iso</pre>
+
+Wrap the folder names in the path in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces.
+
+<pre>--bootstrap-iso '<i>path to ISO file</i>'/<i>ISO_file_name</i>.iso</pre>
+
+### `--force` ###
+
+Short name: `-f`
+
+Forces `vic-machine upgrade` to ignore warnings and continue with the upgrade of a virtual container host. Errors such as an incorrect compute resource still cause the upgrade to fail. 
+
+- If you do not specify `--force` and the virtual container host contains running container VMs, the deletion fails with a warning. 
+
+If your vSphere environment uses untrusted, self-signed certificates, you can use the `--force` option to upgrade a virtual container host without providing the thumbprint of the vCenter Server or ESXi host in the `thumbprint` option. 
+
+<pre>--force</pre>
+
+### `--timeout` ###
+
+Short name: none
+
+The timeout period for upgrading the virtual container host. Specify a value in the format `XmYs` if the default timeout of 3m0s is insufficient.
+
+<pre>--timeout 5m0s</pre> 
