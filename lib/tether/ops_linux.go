@@ -425,23 +425,34 @@ func (t *BaseOperations) Apply(endpoint *NetworkEndpoint) error {
 }
 
 func apply(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
+	if endpoint.applied {
+		log.Infof("skipping applying config for network %s as it has been applied already", endpoint.Network.Name)
+		return nil // already applied
+	}
+
 	// Locate interface
 	slot, err := strconv.Atoi(endpoint.ID)
 	if err != nil {
-		detail := fmt.Sprintf("endpoint ID must be a base10 numeric pci slot identifier: %s", err)
-		return errors.New(detail)
+		return fmt.Errorf("endpoint ID must be a base10 numeric pci slot identifier: %s", err)
 	}
-	link, err := nl.LinkBySlot(int32(slot))
+
+	defer func() {
+		if err == nil {
+			log.Infof("successfully applied config for network %s", endpoint.Network.Name)
+			endpoint.applied = true
+		}
+	}()
+
+	var link netlink.Link
+	link, err = nl.LinkBySlot(int32(slot))
 	if err != nil {
-		detail := fmt.Sprintf("unable to acquire reference to link %s: %s", endpoint.ID, err)
-		return errors.New(detail)
+		return fmt.Errorf("unable to acquire reference to link %s: %s", endpoint.ID, err)
 	}
 
 	// rename the link if needed
 	link, err = renameLink(nl, link, int32(slot), endpoint)
 	if err != nil {
-		detail := fmt.Sprintf("unable to reacquire link %s after rename pass: %s", endpoint.ID, err)
-		return errors.New(detail)
+		return fmt.Errorf("unable to reacquire link %s after rename pass: %s", endpoint.ID, err)
 	}
 
 	var dc client.Client
