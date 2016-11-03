@@ -63,7 +63,7 @@ var (
 // based on the image-store specified at appliance creation via vic-machine.  That URL
 // is the starting point for the datastore persistence path and does not mean that the
 // k/v stores are presisted w/the images.
-func Init(ctx context.Context, session *session.Session, imgStoreURL url.URL) error {
+func Init(ctx context.Context, session *session.Session, imgStoreURL *url.URL) error {
 	defer trace.End(trace.Begin(imgStoreURL.String()))
 
 	initializer.once.Do(func() {
@@ -74,7 +74,7 @@ func Init(ctx context.Context, session *session.Session, imgStoreURL url.URL) er
 
 		mgr = &StoreManager{
 			dsStores:     make(map[string]kvstore.KeyValueStore),
-			datastoreURL: imgStoreURL,
+			datastoreURL: *imgStoreURL,
 		}
 		//create or restore the api accessible datastore backed k/v store
 		_, err = NewDatastoreKeyValue(ctx, session, APIKV)
