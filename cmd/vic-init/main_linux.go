@@ -57,7 +57,7 @@ func main() {
 	extraconfig.Decode(src, &config)
 
 	debugLevel = config.Diagnostics.DebugLevel
-	if debugLevel > 1 {
+	if debugLevel > 2 {
 		enableShell()
 	}
 	setLogLevels()
