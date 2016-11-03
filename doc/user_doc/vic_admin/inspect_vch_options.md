@@ -97,7 +97,7 @@ The vSphere Managed Object Reference, or moref, of the virtual container host to
 
 <pre>--id <i>vch_id</i></pre>
 
-### `timeout` ###
+### `--timeout` ###
 
 Short name: none
 

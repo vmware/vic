@@ -732,29 +732,29 @@ The `container-store` option is not enabled. Container VM files are stored in th
 
 Short name: `--ai`
 
-The path to the ISO image from which the virtual container host appliance boots. Set this option if you run `vic-machine` from a folder that is not the one that contains the `appliance.iso` file and you  have not added that folder to your `PATH`. Include the name of the ISO file in the path.
+The path to the ISO image from which the virtual container host appliance boots. Set this option if you have moved the `appliance.iso` file to a folder that is not the folder that contains the `vic-machine` binary or is not the folder from which you are running `vic-machine`. Include the name of the ISO file in the path.
 
 **NOTE**: Do not use the `--appliance-iso` option to point `vic-machine` to an `--appliance-iso` file that is of a different version to the version of `vic-machine` that you are running.
 
-<pre>--appliance-iso <i>path_to_ISO_file</i>/<i>ISO_file_name</i>.iso</pre>
+<pre>--appliance-iso <i>path_to_ISO_file</i>/appliance.iso</pre>
 
 Wrap the folder names in the path in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces.
 
-<pre>--appliance-iso '<i>path to ISO file</i>'/<i>ISO_file_name</i>.iso</pre>
+<pre>--appliance-iso '<i>path to ISO file</i>'/appliance.iso</pre>
 
 ### `--bootstrap-iso` ###
 
 Short name: `--bi`
 
-The path to the ISO image from which to boot container VMs. Set this option if you run `vic-machine` from a folder that is not the one that contains the `bootstrap.iso` file and you have not added that folder to your `PATH`. Include the name of the ISO file in the path.
+The path to the ISO image from which to boot container VMs. Set this option if you have moved the `bootstrap.iso` file to a folder that is not the folder that contains the `vic-machine` binary or is not the folder from which you are running `vic-machine`. Include the name of the ISO file in the path.
 
 **NOTE**: Do not use the `--bootstrap-iso` option to point `vic-machine` to a `--bootstrap-iso` file that is of a different version to the version of `vic-machine` that you are running.
 
-<pre>--bootstrap-iso <i>path_to_ISO_file</i>/<i>ISO_file_name</i>.iso</pre>
+<pre>--bootstrap-iso <i>path_to_ISO_file</i>/bootstrap.iso</pre>
 
 Wrap the folder names in the path in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces.
 
-<pre>--bootstrap-iso '<i>path to ISO file</i>'/<i>ISO_file_name</i>.iso</pre>
+<pre>--bootstrap-iso '<i>path to ISO file</i>'/bootstrap.iso</pre>
 
 ### `--use-rp` ###
 

@@ -75,7 +75,7 @@ If you do not specify the `--compute-resource` option, `vic-machine ls` lists al
 * To list the virtual container hosts in a specific resource pool in a cluster, specify the names of the target cluster and the resource pool:<pre>--compute-resource <i>cluster_name</i>/<i>resource_pool_name</i></pre>
 * Wrap the resource names in single quotes (Linux or Mac OS) or double quotes (Windows) if they include spaces:<pre>--compute-resource '<i>cluster name</i>'/'<i>resource pool name</i>'</pre>
 
-### `timeout` ###
+### `--timeout` ###
 
 Short name: none
 

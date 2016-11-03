@@ -2,6 +2,8 @@
 
 The command line utility for vSphere Integrated Containers Engine, `vic-machine`, provides an `upgrade` command that allows you to upgrade virtual container hosts to a newer version. The options that `vic-machine upgrade` requires depend on the location in your vSphere environment in which you deployed the virtual container host to upgrade.
 
+**IMPORTANT**: Due to the substantial changes in vSphere Integrated Containers version 0.7, you cannot use `vic-machine upgrade` to upgrade from version 0.6 to version 0.7. You can use `vic-machine upgrade` to upgrade from more recent builds to version 0.7.
+
 ### `--target` ###
 
 Short name: `-t`
@@ -103,7 +105,7 @@ The vSphere Managed Object Reference, or moref, of the virtual container host to
 
 Short name: `--ai`
 
-The path to the new version of the ISO image from which to upgrade the virtual container host appliance. Set this option if you run `vic-machine upgrade` from a folder that is not the one that contains the `appliance.iso` file and you have not added that folder to your `PATH`. Include the name of the ISO file in the path.
+The path to the new version of the ISO image from which to upgrade the virtual container host appliance. Set this option if you have moved the `appliance.iso` file to a folder that is not the folder that contains the `vic-machine` binary or is not the folder from which you are running `vic-machine`. Include the name of the ISO file in the path.
 
 **NOTE**: Do not use the `--appliance-iso` option to point `vic-machine` to an `--appliance-iso` file that is of a different version to the version of `vic-machine` that you are running.
 
@@ -117,7 +119,7 @@ Wrap the folder names in the path in single quotes (Linux or Mac OS) or double q
 
 Short name: `--bi`
 
-The path to the new version of the ISO image from which to upgrade the container VMs that the virtual container host manages. Set this option if you run `vic-machine upgrade` from a folder that is not the one that contains the `bootstrap.iso` file and you have not added that folder to your `PATH`. Include the name of the ISO file in the path.
+The path to the new version of the ISO image from which to upgrade the container VMs that the virtual container host manages. Set this option if you have moved the `bootstrap.iso` file to a folder that is not the folder that contains the `vic-machine` binary or is not the folder from which you are running `vic-machine`. Include the name of the ISO file in the path.
 
 **NOTE**: Do not use the `--bootstrap-iso` option to point `vic-machine` to a `--bootstrap-iso` file that is of a different version to the version of `vic-machine` that you are running.
 
