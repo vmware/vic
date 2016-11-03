@@ -2,6 +2,8 @@
 
 After you have deployed a virtual container host, you can verify the deployment by connecting a Docker client to the virtual container host and running Docker operations. You can check the results in the vSphere Client or vSphere Web Client.
 
+**IMPORTANT**: Do not use the vSphere Client or vSphere Web Client to perform operations on virtual container host appliances or container VMs. Specifically, using the vSphere Client or vSphere Web Client to power off, power on, or delete virtual container host appliances or container VMs can cause vSphere Integrated Containers Engine to not function correctly. Always use `vic-machine` to perform operations on virtual container hosts. Always use Docker commands to perform operations on containers.
+
 **Prerequisites**
 
 - You used `vic-machine` `create` to deploy a virtual container host to either a vCenter Server instance or an ESXi host. For information about running `vic-machine`, see [Deploy a Virtual Container Host](install_vic_cli.md) and [Virtual Container Host Deployment Options](vch_installer_options.md).
