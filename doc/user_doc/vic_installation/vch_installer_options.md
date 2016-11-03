@@ -105,12 +105,7 @@ The thumbprint of the vCenter Server or ESXi host certificate. Specify this opti
 
 **NOTE** If your vSphere environment uses untrusted, self-signed certificates, you can run `vic-machine create` without the `--thumbprint` option by using the `--force` option. However, running `vic-machine create` with the `--force` option rather than providing the certificate thumbprint is not recommended, because it permits man-in-the-middle attacks to go undetected.
 
-To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine create` without the specifying the `--thumbprint` or `--force` options. The deployment of the virtual container host fails, but the resulting error message includes the required certificate thumbprint. 
-
-<pre>Failed to verify certificate for target=<i>vcenter_or_esxi_host</i> (thumbprint=<i>thumbprint</i>)
-</pre>
-
-You can copy the thumbprint from the error message and run vic-machine create again, including the `thumbprint` option.
+To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine create` without the specifying the `--thumbprint` or `--force` options. The deployment of the virtual container host fails, but the resulting error message includes the required certificate thumbprint. You can copy the thumbprint from the error message and run vic-machine create again, including the `thumbprint` option.
 
 <pre>--thumbprint <i>certificate_thumbprint</i></pre>
 

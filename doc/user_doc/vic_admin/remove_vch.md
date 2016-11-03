@@ -2,6 +2,8 @@
 
 You delete virtual container hosts by using the `vic-machine delete` command.
 
+For descriptions of the options that `vic-machine delete` includes in addition to the [Common `vic-machine` Options](common_vic_options.md) , see [Virtual Container Host Delete Options](delete_vch_options.md).
+
 **Prerequisites**
 
 You have deployed a virtual container host that you no longer require.

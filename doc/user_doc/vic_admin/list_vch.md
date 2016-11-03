@@ -4,6 +4,9 @@ You can obtain a list of the virtual container hosts that are running in vCenter
 
 The `vic-machine ls` command lists virtual container hosts with their IDs, names, and versions. The `vic-machine ls` command informs you whether upgrades are available for the virtual container hosts.
 
+The `vic-machine ls` command does not include any options in addition to the common options described in [Common `vic-machine` Options](common_vic_options.md).
+
+
 **Prerequisites**
 
 You have deployed at least one virtual container host.

@@ -2,6 +2,8 @@
 
 You can obtain information about a virtual container host by using the `vic-machine inspect` command.
 
+The `vic-machine inspect` command does not include any options in addition to the common options described in [Common `vic-machine` Options](common_vic_options.md).
+
 **Prerequisites**
 
 You have deployed a virtual container host.
