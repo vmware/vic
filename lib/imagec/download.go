@@ -195,6 +195,10 @@ func (ldm *LayerDownloader) DownloadLayers(ctx context.Context, ic *ImageC) erro
 		if err != nil {
 			return err
 		}
+	} else {
+		if err := updateRepositoryCache(ic); err != nil {
+			return err
+		}
 	}
 
 	progress.Message(progressOutput, "", "Digest: "+ic.ImageManifest.Digest)
