@@ -222,5 +222,13 @@ Add Host To Distributed Switch
     
 Disable TLS On ESX Host
     Log To Console  \nDisable TLS on the host
-    ${out}=  Run  govc host.option.set UserVars.ESXiVPsDisabledProtocols sslv3,tlsv1,tlsv1.1
+    ${ver}=  Get Vsphere Version
+    ${out}=  Run Keyword If  '${ver}' != '5.5.0'  Run  govc host.option.set UserVars.ESXiVPsDisabledProtocols sslv3,tlsv1,tlsv1.1
     Should Be Empty  ${out}
+
+Get Vsphere Version
+    ${out}=  Run  govc about
+    ${out}=  Split To Lines  ${out}
+    :FOR  ${line}  IN  @{out}
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${line}  Version:
+    \   Run Keyword And Return If  ${status}  Fetch From Right  ${line}  ${SPACE}
