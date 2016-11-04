@@ -257,7 +257,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringSliceFlag{
 			Name:   "container-network-gateway, cng",
 			Value:  &c.containerNetworksGateway,
-			Usage:  "Gateway for the container network's subnet in CONTAINER-NETWORK:SUBNET format, e.g. vsphere-net:172.16.0.0/16.",
+			Usage:  "Gateway for the container network's subnet in CONTAINER-NETWORK:SUBNET format, e.g. vsphere-net:172.16.0.1/16.",
 			Hidden: true,
 		},
 		cli.StringSliceFlag{
