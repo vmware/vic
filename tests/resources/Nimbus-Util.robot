@@ -33,6 +33,83 @@ Deploy Nimbus ESXi Server
     Close connection
     [Return]  ${user}-${name}  ${ip}
 
+Deploy Multiple Nimbus ESXi Servers in Parallel
+    [Arguments]  ${user}  ${password}  ${version}=${ESX_VERSION}
+    ${name1}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
+    ${name2}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
+    ${name3}=  Evaluate  'ESX-' + str(random.randint(1000,9999))  modules=random
+    Log To Console  \nDeploying Nimbus ESXi server: ${name1}
+    Log To Console  \nDeploying Nimbus ESXi server: ${name2}
+    Log To Console  \nDeploying Nimbus ESXi server: ${name3}
+
+    Open Connection  %{NIMBUS_GW}
+    Login  ${user}  ${password}
+
+    ${out}=  Execute Command  nimbus-esxdeploy ${name1} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version} & nimbus-esxdeploy ${name2} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version} & nimbus-esxdeploy ${name3} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version}
+    
+    ${out}=  Execute Command  nimbus-ctl ip ${user}-${name1}
+    
+    @{out}=  Split To Lines  ${out}
+    :FOR  ${item}  IN  @{out}
+    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  ${user}-${name1}
+    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
+    @{gotIP}=  Split String  ${line}  ${SPACE}
+    ${ip1}=  Remove String  @{gotIP}[2]
+
+    ${out}=  Execute Command  nimbus-ctl ip ${user}-${name2}
+    
+    @{out}=  Split To Lines  ${out}
+    :FOR  ${item}  IN  @{out}
+    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  ${user}-${name2}
+    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
+    @{gotIP}=  Split String  ${line}  ${SPACE}
+    ${ip2}=  Remove String  @{gotIP}[2]
+
+    ${out}=  Execute Command  nimbus-ctl ip ${user}-${name3}
+    
+    @{out}=  Split To Lines  ${out}
+    :FOR  ${item}  IN  @{out}
+    \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  ${user}-${name3}
+    \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
+    @{gotIP}=  Split String  ${line}  ${SPACE}
+    ${ip3}=  Remove String  @{gotIP}[2]
+    
+    Log To Console  \nDeploying Nimbus ESXi server: ${gotIP}
+    
+    # Let's set a password so govc doesn't complain
+    Remove Environment Variable  GOVC_PASSWORD
+    Remove Environment Variable  GOVC_USERNAME
+    Set Environment Variable  GOVC_INSECURE  1
+    Set Environment Variable  GOVC_URL  root:@${ip1}
+    ${out}=  Run  govc host.account.update -id root -password e2eFunctionalTest
+    Should Be Empty  ${out}
+    Disable TLS On ESX Host
+    Log To Console  Successfully deployed new ESXi server - ${user}-${name1}
+    Log To Console  \nNimbus ESXi server IP: ${ip1}
+    
+    Remove Environment Variable  GOVC_PASSWORD
+    Remove Environment Variable  GOVC_USERNAME
+    Set Environment Variable  GOVC_INSECURE  1
+    Set Environment Variable  GOVC_URL  root:@${ip2}
+    ${out}=  Run  govc host.account.update -id root -password e2eFunctionalTest
+    Should Be Empty  ${out}
+    Disable TLS On ESX Host
+    Log To Console  Successfully deployed new ESXi server - ${user}-${name2}
+    Log To Console  \nNimbus ESXi server IP: ${ip2}
+
+    Remove Environment Variable  GOVC_PASSWORD
+    Remove Environment Variable  GOVC_USERNAME
+    Set Environment Variable  GOVC_INSECURE  1
+    Set Environment Variable  GOVC_URL  root:@${ip3}
+    ${out}=  Run  govc host.account.update -id root -password e2eFunctionalTest
+    Should Be Empty  ${out}
+    Disable TLS On ESX Host
+    Log To Console  Successfully deployed new ESXi server - ${user}-${name3}
+    Log To Console  \nNimbus VC server IP: ${ip3}
+    
+    Close connection
+    [Return]  ${user}-${name1}  ${ip1}  ${user}-${name2}  ${ip2}  ${user}-${name3}  ${ip3}
+
 Deploy Nimbus vCenter Server
     [Arguments]  ${user}  ${password}  ${version}=${VC_VERSION}
     ${name}=  Evaluate  'VC-' + str(random.randint(1000,9999))  modules=random
