@@ -85,7 +85,16 @@ func (d *Uninstall) processParams() error {
 	return nil
 }
 
-func (d *Uninstall) Run(cli *cli.Context) (err error) {
+func (d *Uninstall) Run(clic *cli.Context) (err error) {
+	// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
+	defer func() {
+		if err != nil {
+			log.Errorf("--------------------")
+			log.Errorf("%s %s failed: %s\n", clic.App.Name, clic.Command.Name, errors.ErrorStack(err))
+			err = cli.NewExitError("", 1)
+		}
+	}()
+
 	if err = d.processParams(); err != nil {
 		return err
 	}
@@ -95,8 +104,8 @@ func (d *Uninstall) Run(cli *cli.Context) (err error) {
 		trace.Logger.Level = log.DebugLevel
 	}
 
-	if len(cli.Args()) > 0 {
-		log.Errorf("Unknown argument: %s", cli.Args()[0])
+	if len(clic.Args()) > 0 {
+		log.Errorf("Unknown argument: %s", clic.Args()[0])
 		return errors.New("invalid CLI arguments")
 	}
 
@@ -114,7 +123,7 @@ func (d *Uninstall) Run(cli *cli.Context) (err error) {
 	validator, err := validate.NewValidator(ctx, d.Data)
 	if err != nil {
 		log.Errorf("Delete cannot continue - failed to create validator: %s", err)
-		return errors.New("delete failed")
+		return err
 	}
 	executor := management.NewDispatcher(validator.Context, validator.Session, nil, d.Force)
 
@@ -127,7 +136,7 @@ func (d *Uninstall) Run(cli *cli.Context) (err error) {
 	if err != nil {
 		log.Errorf("Failed to get Virtual Container Host %s", d.DisplayName)
 		log.Error(err)
-		return errors.New("delete failed")
+		return err
 	}
 
 	log.Infof("")
@@ -137,7 +146,7 @@ func (d *Uninstall) Run(cli *cli.Context) (err error) {
 	if err != nil {
 		log.Error("Failed to get Virtual Container Host configuration")
 		log.Error(err)
-		return errors.New("delete failed")
+		return err
 	}
 
 	// compare vch version and vic-machine version
@@ -155,7 +164,7 @@ func (d *Uninstall) Run(cli *cli.Context) (err error) {
 	if err = executor.DeleteVCH(vchConfig); err != nil {
 		executor.CollectDiagnosticLogs()
 		log.Errorf("%s", err)
-		return errors.New("delete failed")
+		return err
 	}
 
 	log.Infof("Completed successfully")

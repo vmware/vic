@@ -1291,6 +1291,16 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		log.SetLevel(log.DebugLevel)
 		trace.Logger.Level = log.DebugLevel
 	}
+
+	// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
+	defer func() {
+		if err != nil {
+			log.Errorf("--------------------")
+			log.Errorf("%s %s failed: %s\n", cliContext.App.Name, cliContext.Command.Name, errors.ErrorStack(err))
+			err = cli.NewExitError("", 1)
+		}
+	}()
+
 	if err = c.processParams(); err != nil {
 		return err
 	}

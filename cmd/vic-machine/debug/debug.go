@@ -108,8 +108,16 @@ func (d *Debug) processParams() error {
 	return nil
 }
 
-func (d *Debug) Run(cli *cli.Context) error {
-	var err error
+func (d *Debug) Run(clic *cli.Context) (err error) {
+	// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
+	defer func() {
+		if err != nil {
+			log.Errorf("--------------------")
+			log.Errorf("%s %s failed: %s\n", clic.App.Name, clic.Command.Name, errors.ErrorStack(err))
+			err = cli.NewExitError("", 1)
+		}
+	}()
+
 	if err = d.processParams(); err != nil {
 		return err
 	}
@@ -119,8 +127,8 @@ func (d *Debug) Run(cli *cli.Context) error {
 		trace.Logger.Level = log.DebugLevel
 	}
 
-	if len(cli.Args()) > 0 {
-		log.Errorf("Unknown argument: %s", cli.Args()[0])
+	if len(clic.Args()) > 0 {
+		log.Errorf("Unknown argument: %s", clic.Args()[0])
 		return errors.New("invalid CLI arguments")
 	}
 

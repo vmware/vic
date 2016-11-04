@@ -30,7 +30,6 @@ import (
 	"github.com/vmware/vic/cmd/vic-machine/inspect"
 	"github.com/vmware/vic/cmd/vic-machine/list"
 	"github.com/vmware/vic/cmd/vic-machine/upgrade"
-	"github.com/vmware/vic/pkg/errors"
 	"github.com/vmware/vic/pkg/version"
 )
 
@@ -112,11 +111,7 @@ func main() {
 	// SetOutput to io.MultiWriter so that we can log to stdout and a file
 	log.SetOutput(io.MultiWriter(logs...))
 
-	if err := app.Run(os.Args); err != nil {
-		log.Errorf("--------------------")
-		log.Errorf("%s failed: %s\n", app.Name, errors.ErrorStack(err))
-		os.Exit(1)
-	}
+	app.Run(os.Args)
 }
 
 func showVersion(cli *cli.Context) error {
