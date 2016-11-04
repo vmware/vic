@@ -1,6 +1,6 @@
 # vSphere Integrated Containers Engine for vSphere Administrators
 
-*vSphere Integrated Containers Engine for vSphere Administrators* provides information about how to install and configure VMware vSphere Integrated Containers Engine.
+*vSphere Integrated Containers Engine for vSphere Administrators* provides information about how to use VMware vSphere&reg; Integrated Containers&trade; Engine as a vSphere Administrator.
 
 **Product version: 0.7.0**
 

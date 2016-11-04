@@ -20,7 +20,7 @@ You can install vSphere Integrated Containers Engine in the following vSphere se
 
 * Standalone ESXi 6.0 host that is not managed by a vCenter Server instance.
 * vCenter Server 6.0, managing one or more standalone ESXi 6.0 hosts.
-* vCenter Server 6.0, managing a cluster of ESXi 6.0 hosts, with DRS enabled.
+* vCenter Server 6.0, managing a cluster of ESXi 6.0 hosts, with VMware vSphere Distributed Resource Scheduler&trade; (DRS) enabled.
 
 Caveats and limitations:
 
@@ -32,7 +32,7 @@ Caveats and limitations:
 
 To be valid targets for virtual container hosts and container VMs, standalone ESXi hosts and all ESXi hosts in vCenter Server clusters must meet the following criteria:
 
-- In vCenter Server clusters, at least two ESXi hosts must be attached to shared storage for use as container stores, image stores, and volume stores. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability. The use of VMware Virtual SAN datastores is fully supported.
+- In vCenter Server clusters, at least two ESXi hosts must be attached to shared storage for use as container stores, image stores, and volume stores. Using non-shared datastores is possible, but limits the use of vSphere features such as DRS and High Availability. The use of VMware vSAN&trade; datastores is fully supported.
 - The firewall on all ESXi hosts must be configured to allow connections on the back channel and to allow outbound connections on port 2377. For instruction about how to open port 2377 on ESXi hosts, see [VCH Deployment Fails with Firewall Validation Error](ts_firewall_error.md).
 - All ESXi hosts must be attached to the distributed virtual switch for the bridge network in vCenter Server. For more information about distributed virtual switches, see [Network Requirements](#networkreqs) below.
 - All ESXi hosts must be attached to any mapped vSphere networks.
@@ -57,12 +57,10 @@ You must use an account with the vSphere Administrator role when you install vSp
 * Use a trusted network for the deployment and use of vSphere Integrated Containers Engine.
 * Use a trusted network for connections between Docker clients and the virtual container hosts.
 * Each virtual container host requires the following network configuration:
- * An IP address that is obtained by DHCP. Virtual container hosts do not currently support static IP addresses.
- * A network with DHCP for use as the external network. You can share this network between multiple virtual container hosts.
- * One VLAN, if you use VLAN for network isolation.
- * One IP address for each container that you run with the `docker run --net=host` option.
+ * An IP address that can be either static or obtained by DHCP.
+ * A network for use as the external network. You can share this network between multiple virtual container hosts.
 * In vCenter Server environment, before you deploy a virtual container host, you must create a bridge network for use by container VMs.
  - Create a distributed virtual switch with a distributed port group for each virtual container host, for use as the bridge network. You can create multiple port groups on the same distributed virtual switch, but each virtual container host requires its own port group.  For information about how to create a distributed virtual switch and a distributed port group, see [Create a vSphere Distributed Switch](https://pubs.vmware.com/vsphere-60/topic/com.vmware.vsphere.networking.doc/GUID-D21B3241-0AC9-437C-80B1-0C8043CC1D7D.html) in the vSphere 6.0 documentation. 
  - Add the target ESXi host or hosts to the distributed virtual switch. For information about how to add hosts to a distributed virtual switch, see [Add Hosts to a vSphere Distributed Switch](https://pubs.vmware.com/vsphere-60/topic/com.vmware.vsphere.networking.doc/GUID-E90C1B0D-82CB-4A3D-BE1B-0FDCD6575725.html) in the vSphere 6.0 documentation.
- - Assign a VLAN ID to the port group, to ensure that the bridge network is isolated. For information about how to assign a VLAN ID to a port group, see [VMware KB 1003825](https://kb.vmware.com/kb/1003825).
+ - If you are not using private VLANs, assign a VLAN ID to the port group, to ensure that the bridge network is isolated. For information about how to assign a VLAN ID to a port group, see [VMware KB 1003825](https://kb.vmware.com/kb/1003825). For more information about private VLAN, see [VMware KB 1010691](https://kb.vmware.com/kb/1010691).
 

@@ -1,6 +1,6 @@
 # vSphere Integrated Containers Engine Security
 
-*vSphere Integrated Containers Engine Security* provides security-related information about VMware vSphere Integrated Containers Engine.
+*vSphere Integrated Containers Engine Security* provides security-related information about VMware vSphere&reg; Integrated Containers&trade; Engine.
 
 **Product version: 0.7.0**
 
