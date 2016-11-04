@@ -24,6 +24,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"
@@ -131,11 +132,7 @@ func (l *List) prettyPrint(cli *cli.Context, ctx context.Context, vchs []*vm.Vir
 func (l *List) Run(clic *cli.Context) (err error) {
 	// urfave/cli will print out exit in error handling, so no more information in main method can be printed out.
 	defer func() {
-		if err != nil {
-			log.Errorf("--------------------")
-			log.Errorf("%s %s failed: %s\n", clic.App.Name, clic.Command.Name, errors.ErrorStack(err))
-			err = cli.NewExitError("", 1)
-		}
+		err = common.LogErrorIfAny(clic, err)
 	}()
 
 	if err = l.processParams(); err != nil {
