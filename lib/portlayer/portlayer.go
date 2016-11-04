@@ -15,19 +15,22 @@
 package portlayer
 
 import (
+	"path"
+
+	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/network"
 	"github.com/vmware/vic/lib/portlayer/storage"
 	"github.com/vmware/vic/lib/portlayer/store"
+	"github.com/vmware/vic/pkg/vsphere/datastore"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
+	"github.com/vmware/vic/pkg/vsphere/vm"
 
 	log "github.com/Sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
-// XXX TODO(FA) use this in the _handlers the swagger server includes.
-//
 // API defines the interface the REST server used by the portlayer expects the
 // implementation side to export
 type API interface {
@@ -50,17 +53,26 @@ func Init(ctx context.Context, sess *session.Session) error {
 	extraconfig.Decode(source, &storage.Config)
 	log.Debugf("Decoded VCH config for storage: %#v", storage.Config)
 
-	// create or restore a portlayer k/v store
-	if len(storage.Config.ImageStores) > 0 {
-		// Note: Use of ImageStores is solely to identify the starting point for
-		// k/v store persistence -- specifically the [datastore]{appliance-name} as
-		// the starting point.  If this URL changes and no longer provides that information
-		// then the k/v store persistence will require updating.
+	// create or restore a portlayer k/v store in the VCH's directory.
+	vch, err := guest.GetSelf(ctx, sess)
+	if err != nil {
+		return err
+	}
 
-		// init the store package and create the default store
-		if err = store.Init(ctx, sess, storage.Config.ImageStores[0]); err != nil {
-			return err
-		}
+	vchvm := vm.NewVirtualMachineFromVM(ctx, sess, vch)
+	vmPath, err := vchvm.VMPathName(ctx)
+	if err != nil {
+		return err
+	}
+
+	// vmPath is set to the vmx.  Grab the directory from that.
+	vmFolder, err := datastore.ToURL(path.Dir(vmPath))
+	if err != nil {
+		return err
+	}
+
+	if err = store.Init(ctx, sess, vmFolder); err != nil {
+		return err
 	}
 
 	if err := exec.Init(ctx, sess, source, sink); err != nil {
