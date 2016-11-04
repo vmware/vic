@@ -35,11 +35,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 )
 
-const (
-	summary          = "summary"
-	connectionStatus = "summary.runtime.connectionState"
-)
-
 type InvalidState struct {
 	r types.ManagedObjectReference
 }
@@ -479,7 +474,7 @@ func (vm *VirtualMachine) fixVM(ctx context.Context) error {
 		return err
 	}
 
-	properties := []string{"summary.config", "summary.runtime", "resourcePool", "parentVApp"}
+	properties := []string{"summary.config", "summary.runtime.host", "resourcePool", "parentVApp"}
 	log.Debugf("Get vm properties %s", properties)
 	var mvm mo.VirtualMachine
 	if err = vm.VirtualMachine.Properties(ctx, vm.Reference(), properties, &mvm); err != nil {
@@ -536,7 +531,7 @@ func (vm *VirtualMachine) needsFix(ctx context.Context, err error) bool {
 
 func (vm *VirtualMachine) IsInvalidState(ctx context.Context) bool {
 	var o mo.VirtualMachine
-	if err := vm.VirtualMachine.Properties(ctx, vm.Reference(), []string{connectionStatus}, &o); err != nil {
+	if err := vm.VirtualMachine.Properties(ctx, vm.Reference(), []string{"summary.runtime.connectionState"}, &o); err != nil {
 		log.Debugf("Failed to get vm properties: %s", err)
 		return false
 	}
@@ -566,14 +561,14 @@ func (vm *VirtualMachine) Properties(ctx context.Context, r types.ManagedObjectR
 	log.Debugf("get vm properties %s of vm %s", ps, r)
 	contains := false
 	for i := range ps {
-		if ps[i] == summary {
+		if ps[i] == "summary" || ps[i] == "summary.runtime" {
 			contains = true
 			break
 		}
 	}
 	var newps []string
 	if !contains {
-		newps = append(ps, connectionStatus)
+		newps = append(ps, "summary.runtime.connectionState")
 	} else {
 		newps = append(newps, ps...)
 	}
