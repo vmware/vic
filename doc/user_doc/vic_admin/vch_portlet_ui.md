@@ -2,6 +2,8 @@
 
 After you have installed the vSphere Web Client plug-in for vSphere Integrated Containers Engine, you can find information about virtual container hosts in the vSphere Web Client.
 
+**IMPORTANT**: Do not use the vSphere Web Client to perform operations on virtual container host appliances or container VMs. Specifically, using the vSphere Web Client to power off, power on, or delete virtual container host appliances or container VMs can cause vSphere Integrated Containers Engine to not function correctly. Always use `vic-machine` to perform operations on virtual container hosts. Always use Docker commands to perform operations on containers.
+
 **Prerequisites**
 
 - You deployed a virtual container host.

@@ -6,7 +6,7 @@ vSphere Integrated Containers Engine exists in a vSphere environment, allowing y
 
 - Trusted networks: Deploy and use vSphere Integrated Containers Engine and create connections between Docker clients and virtual container hosts.
 
-- Virtual SAN datastores: Specify Virtual SAN datastores in which to store container images, container VM files, container volumes, and the virtual container host vApp.
+- VMware vSAN&trade; datastores: Specify vSAN datastores in which to store container images, container VM files, container volumes, and the virtual container host vApp.
 
 - Docker API appliance virtual machine: The vSphere Integrated Containers Engine installer deploys a vApp, referred to as the virtual container host. You point Docker clients to this appliance for use as the Docker endpoint.
 

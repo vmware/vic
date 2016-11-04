@@ -1,4 +1,6 @@
-# vSphere Integrated Containers Engine Networking Overview #
+# Networks Used by vSphere Integrated Containers Engine #
+
+You can configure networks that are tied into the vSphere infrastructure. Pre-configured networks available to a virtual container host are determined by the networks that you define when you configure the virtual container host.
 
 Virtual container hosts connect to different types of network. 
 
@@ -40,21 +42,4 @@ You define the Docker management endpoint network by setting the `client-network
 
 ## Container Networks ##
 
-Networks for container VMs to use for external communication when container developers  run `docker run` or `docker create` with the `--net` option. For  more detailed information about setting up container networks, see the sections on the `container-network-xxx` options in [Virtual Container Host Deployment Options](vch_installer_options.md#container-network).
-
-
-## The Port Layer
-
-You can configure networks that are tied into the vSphere infrastructure. Pre-configured networks available to a virtual container host are determined by the networks that you define when you configure the virtual container host.
-
-The port layer augments the vSphere API with low level, platform-specific primitives to allow you to implement a simple container engine:
-
-- Port Layer Execution: Handles container management, such as create, start, and stop. 
-- Port Layer Interaction: Handles interaction with a running container. 
-- Port Layer Networking: Handles specific vSphere network mappings into the Docker network namespace as well as mapping existing network entities such as database servers into the Docker container namespace with defined aliases.
-- Port Layer Storage: Provides storage manipulation, including container image storage, layering with volume creation and manipulation. imagec, the docker registry client library, uses this component to translate registry images into a layered format that VMDK disk chains can use directly.
-
-
-## Tether Process ##
-
-The tether process is a minimal agent in the container VM that starts and stops processes and provides monitoring statistics. 
+Networks for container VMs to use for external communication when container developers  run `docker run` or `docker create` with the `--net` option. For  more detailed information about setting up container networks, see the sections on the `container-network-xxx` options in [Virtual Container Host Deployment Options](vch_installer_options.md#container-network). 
