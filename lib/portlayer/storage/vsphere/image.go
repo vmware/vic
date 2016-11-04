@@ -23,7 +23,6 @@ import (
 	"os"
 	"path"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/archive"
 
 	"github.com/vmware/govmomi/vim25/types"
@@ -118,6 +117,11 @@ func (v *ImageStore) imageDiskDSPath(storeName, imageName string) string {
 // Returns the path to the metadata directory for an image
 func (v *ImageStore) imageMetadataDirPath(storeName, imageName string) string {
 	return path.Join(v.imageDirPath(storeName, imageName), metaDataDir)
+}
+
+// Returns the path to the manifest file.  This file is our "done" file.
+func (v *ImageStore) manifestPath(storeName, imageName string) string {
+	return path.Join(v.imageDirPath(storeName, imageName), manifest)
 }
 
 func (v *ImageStore) CreateImageStore(op trace.Operation, storeName string) (*url.URL, error) {
@@ -284,23 +288,23 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 
 	// datastore path to the disk we're creating
 	diskDsURI := v.imageDiskDSPath(storeName, ID)
-	log.Infof("Creating image %s (%s)", ID, diskDsURI)
+	op.Infof("Creating image %s (%s)", ID, diskDsURI)
 
 	var vmdisk *disk.VirtualDisk
 
 	// On error, unmount if mounted, detach if attached, and nuke the image directory
 	defer func() {
 		if err != nil {
-			log.Errorf("Cleaning up failed WriteImage directory %s", imageDir)
+			op.Errorf("Cleaning up failed WriteImage directory %s", imageDir)
 
 			if vmdisk != nil {
 				if vmdisk.Mounted() {
-					log.Debugf("Unmounting abandoned disk")
+					op.Debugf("Unmounting abandoned disk")
 					vmdisk.Unmount()
 				}
 
 				if vmdisk.Attached() {
-					log.Debugf("Detaching abandoned disk")
+					op.Debugf("Detaching abandoned disk")
 					v.dm.Detach(op, vmdisk)
 				}
 			}
@@ -334,7 +338,7 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 		return err
 	}
 
-	log.Debugf("%s wrote %d bytes", ID, n)
+	op.Debugf("%s wrote %d bytes", ID, n)
 
 	actualSum := fmt.Sprintf("sha256:%x", h.Sum(nil))
 	if actualSum != sum {
@@ -352,7 +356,14 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 
 	// Write our own bookkeeping manifest file to the image's directory.  We
 	// treat the manifest file like a done file.  Its existence means this vmdk
-	// is consistent.
+	// is consistent.  Previously we were writing the vmdk to a tmp vmdk file
+	// then moving it (using the MoveDatastoreFile or MoveVirtualDisk calls).
+	// However(!!) this flattens the vmdk.  Also mkdir foo && ls -l foo fails
+	// on VSAN (see
+	// https://github.com/vmware/vic/pull/1764#issuecomment-237093424 for
+	// detail).  We basically can't trust any of the datastore calls to help us
+	// with atomic operations.  Touching an empty file seems to work well
+	// enough.
 	if err = v.writeManifest(op, storeName, ID, nil); err != nil {
 		return err
 	}
@@ -375,7 +386,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 	}
 
 	imageDiskDsURI := v.imageDiskDSPath(storeName, portlayer.Scratch.ID)
-	log.Infof("Creating image %s (%s)", portlayer.Scratch.ID, imageDiskDsURI)
+	op.Infof("Creating image %s (%s)", portlayer.Scratch.ID, imageDiskDsURI)
 
 	var size int64
 	size = defaultDiskSize
@@ -393,7 +404,7 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 			v.dm.Detach(op, vmdisk)
 		}
 	}()
-	log.Debugf("Scratch disk created with size %d", portlayer.Config.ScratchSize)
+	op.Debugf("Scratch disk created with size %d", portlayer.Config.ScratchSize)
 
 	// Make the filesystem and set its label to defaultDiskLabel
 	if err = vmdisk.Mkfs(defaultDiskLabel); err != nil {
@@ -454,7 +465,7 @@ func (v *ImageStore) GetImage(op trace.Operation, store *url.URL, ID string) (*p
 		Metadata:   meta,
 	}
 
-	log.Debugf("Returning image from location %s with parent url %s", newImage.SelfLink, newImage.Parent())
+	op.Debugf("Returning image from location %s with parent url %s", newImage.SelfLink, newImage.Parent())
 	return newImage, nil
 }
 
@@ -479,6 +490,7 @@ func (v *ImageStore) ListImages(op trace.Operation, store *url.URL, IDs []string
 
 		ID := file.Path
 
+		// GetImage verifies the image is good by calling verifyImage.
 		img, err := v.GetImage(op, store, ID)
 		if err != nil {
 			return nil, err
@@ -496,7 +508,7 @@ func (v *ImageStore) ListImages(op trace.Operation, store *url.URL, IDs []string
 func (v *ImageStore) DeleteImage(op trace.Operation, image *portlayer.Image) error {
 	//  check if the image is in use.
 	if err := imagesInUse(op, image.ID); err != nil {
-		log.Errorf("ImageStore: delete image error: %s", err.Error())
+		op.Errorf("ImageStore: delete image error: %s", err.Error())
 		return err
 	}
 
@@ -505,10 +517,29 @@ func (v *ImageStore) DeleteImage(op trace.Operation, image *portlayer.Image) err
 		return err
 	}
 
-	imageDir := v.imageDirPath(storeName, image.ID)
-	log.Infof("ImageStore: Deleting %s", imageDir)
-	if err := v.ds.Rm(op, imageDir); err != nil {
-		log.Errorf("ImageStore: delete image error: %s", err.Error())
+	return v.deleteImage(op, storeName, image.ID)
+}
+
+func (v *ImageStore) deleteImage(op trace.Operation, storeName, ID string) error {
+	// Delete in order of manifest (the done file), the vmdk (because VC honors
+	// the deletable flag in the vmdk file), then the directory to get
+	// everything else.
+	paths := []string{
+		v.manifestPath(storeName, ID),
+		v.imageDiskPath(storeName, ID),
+		v.imageDirPath(storeName, ID),
+	}
+
+	for _, pth := range paths {
+		err := v.ds.Rm(op, pth)
+
+		// not exist is ok
+		if err == nil || types.IsFileNotFound(err) {
+			continue
+		}
+
+		// something isn't right.  bale.
+		op.Errorf("ImageStore: delete image error: %s", err.Error())
 		return err
 	}
 
@@ -517,7 +548,7 @@ func (v *ImageStore) DeleteImage(op trace.Operation, image *portlayer.Image) err
 
 // Find any image directories without the manifest file and remove them.
 func (v *ImageStore) cleanup(op trace.Operation, store *url.URL) error {
-	log.Infof("Checking for inconsistent images on %s", store.String())
+	op.Infof("Checking for inconsistent images on %s", store.String())
 
 	storeName, err := util.ImageStoreName(store)
 	if err != nil {
@@ -529,6 +560,8 @@ func (v *ImageStore) cleanup(op trace.Operation, store *url.URL) error {
 		return err
 	}
 
+	// We could call v.ListImages here but that results in calling GetImage,
+	// which pulls and unmarshalls the metadata.  We don't need that.
 	for _, f := range res.File {
 		file, ok := f.(*types.FileInfo)
 		if !ok {
@@ -542,12 +575,11 @@ func (v *ImageStore) cleanup(op trace.Operation, store *url.URL) error {
 		}
 
 		if err := v.verifyImage(op, storeName, ID); err != nil {
-			imageDir := v.imageDirPath(storeName, ID)
-			log.Infof("Removing inconsistent image (%s) %s", ID, imageDir)
 
-			// Eat the error so we can continue cleaning up.  The tasks package will log the error if there is one.
-			_ = v.ds.Rm(op, imageDir)
-
+			if err = v.deleteImage(op, storeName, ID); err != nil {
+				// deleteImage logs the error in the event there is one.
+				return err
+			}
 		}
 	}
 
@@ -556,8 +588,8 @@ func (v *ImageStore) cleanup(op trace.Operation, store *url.URL) error {
 
 // Manifest file for the image.
 func (v *ImageStore) writeManifest(op trace.Operation, storeName, ID string, r io.Reader) error {
-	pth := path.Join(v.imageDirPath(storeName, ID), manifest)
-	if err := v.ds.Upload(op, r, pth); err != nil {
+
+	if err := v.ds.Upload(op, r, v.manifestPath(storeName, ID)); err != nil {
 		return err
 	}
 
@@ -566,10 +598,9 @@ func (v *ImageStore) writeManifest(op trace.Operation, storeName, ID string, r i
 
 // check for the manifest file AND the vmdk
 func (v *ImageStore) verifyImage(op trace.Operation, storeName, ID string) error {
-	imageDir := v.imageDirPath(storeName, ID)
 
 	// Check for the manifiest file and the vmdk
-	for _, p := range []string{path.Join(imageDir, manifest), v.imageDiskPath(storeName, ID)} {
+	for _, p := range []string{v.manifestPath(storeName, ID), v.imageDiskPath(storeName, ID)} {
 		if _, err := v.ds.Stat(op, p); err != nil {
 			return err
 		}
