@@ -213,25 +213,28 @@ may not work as intended.</pre>
 
 Short name: `-i`
 
-The datastore in which to store container image files, container VM files, and the files for the virtual container host appliance. The `image-store` option is **mandatory** if there is more than one datastore in your vSphere environment. If there is only one datastore in your vSphere environment, the `image-store` option is not required. 
-
-When you deploy a virtual container host, `vic-machine` creates a folder named `VIC` on the target datastore,  in which to store all of the container images that you pull into a virtual container host. The `vic-machine` utility also places the VM files for the virtual container host appliance in the datastore that you designate as the image store, in a folder that has the same name as the virtual container host. The files for a container VM are stored in the image store in a folder that has the same name as the container.
+The datastore in which to store container image files, container VM files, and the files for the virtual container host appliance. The `--image-store` option is **mandatory** if there is more than one datastore in your vSphere environment. If there is only one datastore in your vSphere environment, the `--image-store` option is not required. 
 
 If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `image-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as vSphere vMotion&reg; and VMware vSphere Distributed Resource Scheduler&trade; (DRS).
 
-You can designate the same datastore as the image store for multiple virtual container hosts. In this case, only one `VIC` folder is created in the datastore and container image files are made available to all of the virtual container hosts that use that image store.
+When you deploy a virtual container host, `vic-machine` creates a set of folders in the target datastore: 
+
+- A folder with the same name as the virtual container host, at the top level of the datastore. This folder contains the VM files for the virtual container host appliance.
+- A folder named `VIC` inside the virtual container host folder. The `VIC` folder contains a subfolder named `images`, in which to store all of the container images that you pull into a virtual container host. 
+
+You can specify a datastore folder to use as the image store in the format <code><i>datastore_name</i>/<i>path</i></code>. If the folder that you specify does not already exist, `vic-machine create` creates it. In this case, `vic-machine` still creates the folder for the files of the virtual container host appliance at the top level of the datastore. However, `vic-machine create` creates the `VIC` and `images` folders inside the <code><i>datastore_name</i>/<i>path</i></code> folder, rather than in the same folder as the virtual container host files.
+
+By specifying the path to a datastore folder in the `--image-store` option, you can designate the same datastore folder as the image store for multiple virtual container hosts. In this way, only one `VIC` folder is created in the datastore. Container image files are made available to all of the virtual container hosts that use that image store.
+
+**NOTE**: In the current builds of vSphere Integrated Containers Engine, sharing an image store between multiple virtual container hosts can lead to inconsistent behavior. Designate a different folder for the image store for each virtual container host, or omit the datastore folder from the `--image-store` option.
+
+When container developers create containers, vSphere Integrated Containers Engine stores the files for container VMs at the top level of the image store, in folders that have the same name as the containers.
 
 vSphere Integrated Containers Engine supports all alphanumeric characters, hyphens, and underscores in datastore paths and datastore names, but no other special characters. 
 
-<pre>--image-store <i>datastore_name</i></pre> 
-
-You can specify a datastore folder to use as the image store in the format <code>datastore/<i>path</i></code>. In this case, the virtual container host uses <code><i>path</i></code> as the image store instead of using the folder with the same name as the virtual container host. If the folder that you specify does not already exist, `vic-machine create` creates it. 
-
-<pre>--image-store <i>datastore_name</i>/<i>path</i></pre> 
-
-Wrap the datastore name and path in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if they include spaces.
-
-<pre>--image-store '<i>datastore name</i>'/'<i>datastore path</i>'</pre> 
+- Specify a datastore as the image store:<pre>--image-store <i>datastore_name</i></pre> 
+- Specify a datastore folder as the image store:<pre>--image-store <i>datastore_name</i>/<i>path</i></pre> 
+- Wrap the datastore name and path in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if they include spaces:  <pre>--image-store '<i>datastore name</i>'/'<i>datastore path</i>'</pre> 
 
 If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores.
 
