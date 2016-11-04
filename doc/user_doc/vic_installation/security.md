@@ -14,8 +14,8 @@ Docker uses TLS authentication to allow for different levels of security when co
 
 vSphere Integrated Containers Engine allows you to deploy virtual container hosts that implement the following standard Docker authentication options:
 
-- Two-Way TLS authentication with trusted auto-generated or custom certificates
-- Server-side authentication with untrusted, auto-generated, self-signed certificates
+- Mutual authentication with client and server certificates
+- Server authentication with no client authentication
 - No TLS authentication
 
 You specify the type of authentication to use when you deploy a virtual container host.

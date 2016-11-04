@@ -112,8 +112,8 @@ To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vi
 <a name="security"></a>
 ## Security Options ##
 
-When you deploy a virtual container host, you specify the type of authentication to use when Docker clients connect to that virtual container host. 
-
+When you deploy a virtual container host, you must specify the type of authentication to use when Docker clients connect to that virtual container host. 
+<!--
 - Two-way authentication with trusted auto-generated TLS certificates that are signed by a Certificate Authority (CA). Specify the [`tls-cname`](#tls-cname) option when you deploy the virtual container host.
 - Server-side authentication with auto-generated, untrusted TLS certificates that are not signed by a CA, with no client-side verification. Specify the [`no-tlsverify`](#no-tlsverify) option when you deploy the virtual container host.
 - Authentication with trusted custom TLS certificates that are signed by a CA.  Specify the [`cert`](#cert) and [`key`](#key) advanced options when you deploy the virtual container host.
@@ -121,8 +121,8 @@ When you deploy a virtual container host, you specify the type of authentication
 
 For more information about the possible security configurations for virtual container hosts, see [Securing Virtual Container Host Connections](security.md).
 
-**IMPORTANT**: If you assign a static IP address to a virtual container host on the client network by setting the `--client-network-ip` and `--client-network-gateway` options, you do not need to specify any authentication options. Otherwise, it is **mandatory** to specify an authentication option when you deploy a virtual container host. For information about setting a static IP address on a virtual container host, see [Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM](#static-ip) in Advanced Options.
-
+**IMPORTANT**: If you assign a static IP address to a virtual container host on the client network and you do not specify any authentication options, `vic-machine` behaves in the same way as if you set the `--tls-cname` option. If you do not set a static IP address on the virtual container host, it is **mandatory** to specify an authentication option when you deploy a virtual container host. For information about setting a static IP address on a virtual container host, see [Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM](#static-ip) in Advanced Options.
+-->
 The security options also allow you to configure virtual container hosts to connect to insecure registries and download container images by setting the `--insecure-registry` option.
 
 <a name="tls-cname"></a>

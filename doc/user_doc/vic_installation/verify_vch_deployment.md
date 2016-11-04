@@ -28,14 +28,14 @@ After you have deployed a virtual container host, you can verify the deployment 
 2.  In your Docker client terminal, run the `docker info` command to confirm that you can connect to the virtual container host.
 
   How you run Docker commands depends on the level of authentication that the virtual container host requires:
- - Full TLS authentication with trusted CA certificates: <pre>docker -H <i>vch_address</i>:2376 --tlscacert --tlscert=<i>path</i> --tlskey=<i>path</i> info</pre>
+ - Full TLS authentication with trusted CA certificates: <pre>docker -H <i>vch_address</i>:2376 --tlsverify --tlscacert=ca.pem --tlscert=./cert.pem --tlskey=./key.pem info</pre>
  - TLS authentication with untrusted self-signed certificates: <pre>docker -H <i>vch_address</i>:2376 --tls info</pre>
  - With no TLS authentication: <pre>$ docker -H <i>vch_address</i>:2375 info</pre>
 
  You should see confirmation that the Storage Driver is ``` vSphere Integrated Containers Backend Engine```. If the connection fails with a Docker API version error, see [Docker Commands Fail with a Docker API Version Error](ts_docker_version_error.md).
 1.  Pull a Docker container image into the virtual container host, for example, the `BusyBox` container.
  
-  - Full TLS authentication with trusted CA certificates: <pre>docker -H <i>vch_address</i>:2376 --tlscacert --tlscert=<i>path</i> --tlskey=<i>path</i> pull busybox:latest</pre>
+  - Full TLS authentication with trusted CA certificates: <pre>docker -H <i>vch_address</i>:2376 --tlsverify --tlscacert=ca.pem --tlscert=./cert.pem --tlskey=./key.pem pull busybox:latest</pre>
   - TLS authentication with untrusted self-signed certificates: <pre>docker -H <i>vch_address</i>:2376 --tls pull busybox:latest</pre>
   - With no TLS authentication: <pre>$ docker -H <i>vch_address</i>:2375 pull busybox:latest</pre>
 

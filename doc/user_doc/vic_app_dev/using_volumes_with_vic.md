@@ -11,6 +11,8 @@ vSphere Integrated Containers Engine supports the use of container volumes. When
 - [Obtain Information About a Volume](#inspect_vol) 
 - [Delete a Named Volume from a Volume Store](#delete_vol) 
 
+For simplicity, the examples in this topic assume that the virtual container hosts implement TLS authentication with self-signed untrusted certificates, with no client verification.
+
 <a name="list_vs"></a>
 ## Obtain the List of Available Volume Stores ##
 

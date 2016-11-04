@@ -8,6 +8,8 @@ For information about how to use the `vic-machine create --insecure-registry` op
 
 ## Pull a Container Image from an Insecure Private Registry Server ##
 
+For simplicity, the examples in this topic assume that the virtual container hosts implement TLS authentication with self-signed untrusted certificates, with no client verification.
+
 To pull a container image from an insecure private registry server, run the following Docker command. 
 <pre>docker -H <i>vch_address</i>:2376 --tls 
 pull <i>registry_server_address</i>/path/to/image/<i>image_name</i>:<i>image_version</i></pre>

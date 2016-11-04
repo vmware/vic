@@ -5,7 +5,7 @@
   * [Contents of the vSphere Integrated Containers Engine Binaries](contents_of_vic_binaries.md)
   * [Environment Prerequisites for vSphere Integrated Containers Engine Installation](vic_installation_prereqs.md)
   * [Networks Used by vSphere Integrated Containers Engine](networks.md)
-  * [Securing Virtual Container Host Connections](security.md)
+<!--  * [Securing Virtual Container Host Connections](security.md) -->
 * [Deploy a Virtual Container Host](install_vic_cli.md)
   * [Virtual Container Host Deployment Options](vch_installer_options.md)
   * [Examples of Deploying a Virtual Container Host](vch_installer_examples.md)
