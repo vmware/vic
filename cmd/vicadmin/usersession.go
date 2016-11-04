@@ -48,43 +48,42 @@ type UserSessionStorer interface {
 }
 
 // Add creates a config and initializes the UserSession and adds it to the UserSessionStore & returns the created UserSession
-func (u *UserSessionStore) Add(username string, config *session.Config) *UserSession {
+func (u *UserSessionStore) Add(id string, config *session.Config) *UserSession {
 	u.mutex.Lock()
 	defer u.mutex.Unlock()
 	sess := &UserSession{
-		username: username,
-		created:  time.Now(),
-		config:   config,
+		created: time.Now(),
+		config:  config,
 	}
-	u.sessions[username] = sess
+	u.sessions[id] = sess
 	return sess
 }
 
-func (u *UserSessionStore) Delete(username string) {
+func (u *UserSessionStore) Delete(id string) {
 	u.mutex.Lock()
 	defer u.mutex.Unlock()
-	delete(u.sessions, username)
+	delete(u.sessions, id)
 }
 
 // Grabs the UserSession metadta object and doesn't establish a connection to vSphere
-func (u *UserSessionStore) UserSession(username string) *UserSession {
+func (u *UserSessionStore) UserSession(id string) *UserSession {
 	u.mutex.RLock()
 	defer u.mutex.RUnlock()
-	return u.sessions[username]
+	return u.sessions[id]
 }
 
 // Get logs into vSphere and returns a vSphere session object. Caller responsible for error handling/logout
-func (u *UserSessionStore) VSphere(username string) (vSphereSession *session.Session, err error) {
-	return vSphereSessionGet(u.UserSession(username).config)
+func (u *UserSessionStore) VSphere(id string) (vSphereSession *session.Session, err error) {
+	return vSphereSessionGet(u.UserSession(id).config)
 }
 
 // reaper takes abandoned sessions to a farm upstate so they don't build up forever
 func (u *UserSessionStore) reaper() {
 	for range u.ticker.C {
 		log.Infof("Reaping old sessions..")
-		for username, session := range u.sessions {
+		for id, session := range u.sessions {
 			if time.Since(session.created) > sessionExpiration {
-				u.Delete(username)
+				u.Delete(id)
 			}
 		}
 	}

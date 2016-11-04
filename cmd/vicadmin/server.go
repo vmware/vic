@@ -52,11 +52,13 @@ const (
 	formatZip
 )
 
+var beginningOfTime = time.Unix(0, 0).Format(time.RFC3339)
+
 const (
 	sessionExpiration      = time.Hour * 24
-	sessionCookieKey       = "sessiondata"
+	sessionCookieKey       = "session-data"
 	sessionCreationTimeKey = "created"
-	sessionUsernameKey     = "username"
+	sessionKey             = "session-id"
 	loginPagePath          = "/authentication"
 	authFailure            = loginPagePath + "?unauthorized"
 	genericErrorMessage    = "Internal Server Error; see /var/log/vic/vicadmin.log for details" // for http errors that shouldn't be displayed in the browser to the user
@@ -144,7 +146,7 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 		websession, _ := s.uss.cookies.Get(r, sessionCookieKey) // ignore error because it is okay if it doesn't exist
 
 		if len(r.TLS.PeerCertificates) > 0 { // the user is authenticated by certificate at connection time
-			usersess := s.uss.Add("root", &rootConfig.Config)
+			usersess := s.uss.Add(websession.ID, &rootConfig.Config)
 
 			timeNow, err := usersess.created.MarshalText()
 			if err != nil {
@@ -156,7 +158,7 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 			}
 
 			websession.Values[sessionCreationTimeKey] = string(timeNow)
-			websession.Values[sessionUsernameKey] = "root"
+			websession.Values[sessionKey] = websession.ID
 			err = websession.Save(r, w)
 			if err != nil {
 				log.Errorf("Could not create session for user authenticated via client certificate due to error \"%s\"", err.Error())
@@ -243,9 +245,6 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 		// log out, disregard errors
 		usersession.Client.Logout(context.Background())
 
-		// save user config locally
-		usersess := s.uss.Add(req.FormValue("username"), &userconfig)
-
 		// create a token to save as an encrypted & signed cookie
 		websession, err := s.uss.cookies.Get(req, sessionCookieKey)
 		if websession == nil {
@@ -253,6 +252,9 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 			http.Error(res, genericErrorMessage, http.StatusInternalServerError)
 			return
 		}
+
+		// save user config locally
+		usersess := s.uss.Add(websession.ID, &userconfig)
 
 		timeNow, err := usersess.created.MarshalText()
 		if err != nil {
@@ -262,7 +264,7 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 		}
 
 		websession.Values[sessionCreationTimeKey] = string(timeNow)
-		websession.Values[sessionUsernameKey] = req.FormValue("username")
+		websession.Values[sessionKey] = websession.ID
 		if err := websession.Save(req, res); err != nil {
 			log.Errorf("\"%s\" occurred while trying to save session to browser", err.Error())
 			http.Error(res, genericErrorMessage, http.StatusInternalServerError)
@@ -354,14 +356,13 @@ func (s *server) stop() error {
 func (s *server) logoutHandler(res http.ResponseWriter, req *http.Request) {
 	websession, _ := s.uss.cookies.Get(req, sessionCookieKey)
 	// ignore parsing/marshalling errors because we're parsing a hardcoded beginning-of-time string
-	beginningOfTime := time.Unix(0, 0).Format(time.RFC3339)
 	websession.Values[sessionCreationTimeKey] = beginningOfTime
 	if err := websession.Save(req, res); err != nil {
 		http.Error(res, "Failed to expire user session", http.StatusInternalServerError)
 		return
 	}
-	s.uss.Delete(websession.Values[sessionUsernameKey].(string))
-	http.Redirect(res, req, "/", http.StatusTemporaryRedirect)
+	s.uss.Delete(websession.Values[sessionKey].(string))
+	http.Redirect(res, req, "/authentication", http.StatusTemporaryRedirect)
 }
 
 func (s *server) bundleContainerLogs(res http.ResponseWriter, req *http.Request, f format) {
