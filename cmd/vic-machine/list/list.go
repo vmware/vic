@@ -22,8 +22,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-
-	"github.com/urfave/cli"
+	"gopkg.in/urfave/cli.v1"
 
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
