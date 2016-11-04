@@ -25,9 +25,7 @@ Test
     \   ${ip}=  Run Keyword If  ${status}  Fetch From Right  ${line}  ${SPACE}
     \   Run Keyword If  ${status}  Set Test Variable  ${esx3-ip}  ${ip}
 
-    ${esx1}  ${esx4-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${esx2}  ${esx5-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
-    ${esx3}  ${esx6-ip}=  Deploy Nimbus ESXi Server  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
+    ${esx1}  ${esx4-ip}  ${esx2}  ${esx5-ip}  ${esx3}  ${esx6-ip}=  Deploy Multiple Nimbus ESXi Servers in Parallel  %{NIMBUS_USER}  %{NIMBUS_PASSWORD}
 
     Remove Environment Variable  GOVC_PASSWORD
     Remove Environment Variable  GOVC_USERNAME
