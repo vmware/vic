@@ -4,31 +4,36 @@ Resource  ../../resources/Util.robot
 Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
+*** Keywords ***
+Make sure container starts
+    :FOR  ${idx}  IN RANGE  0  30
+    \   ${out}=  Run  docker ${params} ps
+    \   ${status}=  Run Keyword And Return Status  Should Contain  ${out}  /bin/top
+    \   Exit For Loop If  ${status}
+    \   Sleep  1
+
 *** Test Cases ***
 Simple docker run
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run busybox dmesg
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
 
+Simple docker run with app that doesn't exit
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq | xargs -n1 docker ${params} rm -f
+    ${result}=  Start Process  docker ${params} run busybox /bin/top  shell=True  alias=top
+
+    Make sure container starts
+    ${containerID}=  Run  docker ${params} ps -q
+    ${out}=  Run  docker ${params} logs ${containerID}
+    Should Contain  ${out}  Mem:
+    Should Contain  ${out}  CPU:
+    Should Contain  ${out}  Load average:
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps -aq | xargs -n1 docker ${params} rm -f
+
 Docker run with -i
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -i busybox dmesg
     Log  ${output}
     Should Be Equal As Integers  ${rc}  0
-
-Docker run with -it
-    ${rc}  ${output}=  Run And Return Rc And Output  mkfifo /tmp/fifo
-    ${result}=  Start Process  docker ${params} run -i busybox /bin/top < /tmp/fifo  shell=True  alias=top
-    Sleep  5
-    ${rc2}  ${output2}=  Run And Return Rc And Output  echo q > /tmp/fifo
-    ${result2}=  Wait for process  top
-    Log  ${result2.stdout}
-    Log  ${result2.stderr}
-
-Simple docker run with app that doesn't exit
-    Log To Console  Not sure how to implement this just yet...
-    #${result}=  Run Process  docker ${params} run busybox /bin/top  shell=True  timeout=5s  on_timeout=terminate
-    #Log  ${result.stdout}
-    #Should Be Equal As Integers  ${result.rc}  0
 
 Docker run fake command
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run busybox fakeCommand
@@ -53,14 +58,6 @@ Docker run linked containers
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run --link busy3:busy3 debian ping -c2 busy3
     Should Be Equal As Integers  ${rc}  0
 
-Docker run df command
-    ${status}=  Get State Of Github Issue  1582
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-6-Docker-Run.robot needs to be updated now that Issue #1582 has been resolved
-    Log  Issue \#1582 is blocking implementation  WARN
-#   ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -it busybox /bin/df
-#   Should Be Equal As Integers  ${rc}  0
-#   Should Contain  ${output}  Filesystem
-
 Docker run -d unspecified host port
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -d -p 6379 redis:alpine
     Should Be Equal As Integers  ${rc}  0
@@ -71,14 +68,6 @@ Docker run check exit codes
     Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run busybox false
     Should Be Equal As Integers  ${rc}  1
-
-Docker run date
-    ${status}=  Get State Of Github Issue  1582
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-6-Docker-Run.robot needs to be updated now that Issue #1582 has been resolved
-    Log  Issue \#1582 is blocking implementation  WARN
-#   ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run -it busybox date
-#   Should Be Equal As Integers  ${rc}  0
-#   Should Contain  ${output}  UTC
 
 Docker run ps password check
     [Tags]  secret

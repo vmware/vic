@@ -16,3 +16,5 @@ VIC Manual Test Suite
 -
 [Group 16 - Windows Client](Group16-WindowsClient/TestCases.md)
 -
+[Group 17 - Manual TTY](Group17-ManualTTY/TestCases.md)
+-
