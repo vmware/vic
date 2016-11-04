@@ -35,7 +35,8 @@ var (
 )
 
 func init() {
-	trace.Logger.Level = log.DebugLevel
+	// use the same logger as the log files
+	trace.Logger = log.StandardLogger()
 }
 
 func main() {
@@ -56,6 +57,9 @@ func main() {
 	extraconfig.Decode(src, &config)
 
 	debugLevel = config.Diagnostics.DebugLevel
+	if debugLevel > 2 {
+		enableShell()
+	}
 	setLogLevels()
 
 	logFile, err := os.OpenFile("/dev/ttyS1", os.O_WRONLY|os.O_SYNC, 0644)

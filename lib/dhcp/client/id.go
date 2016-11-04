@@ -17,13 +17,20 @@ package client
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"net"
 
 	"github.com/dchest/siphash"
 	"github.com/google/uuid"
 
-	"github.com/vmware/vic/pkg/vsphere/sys"
+	"github.com/vmware/vic/lib/system"
 )
+
+var Sys system.System
+
+func init() {
+	Sys = system.New()
+}
 
 // Duid is a vendor based DUID per https://tools.ietf.org/html/rfc3315#section-9.3
 type Duid struct {
@@ -114,9 +121,9 @@ func makeIaid(ifindex int, hw net.HardwareAddr) Iaid {
 }
 
 func getMachineID() ([]byte, error) {
-	id, err := sys.UUID()
-	if err != nil {
-		return nil, err
+	id := Sys.UUID
+	if id == "" {
+		return nil, fmt.Errorf("could not get machine id")
 	}
 
 	uid, err := uuid.Parse(id)
