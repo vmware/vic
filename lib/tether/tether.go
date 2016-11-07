@@ -187,16 +187,17 @@ func (t *tether) cleanup() {
 func (t *tether) setLogLevel() {
 	// TODO: move all of this into an extension.Pre() block when we move to that model
 	// adjust the logging level appropriately
-	switch t.config.DebugLevel {
-	case 0:
-		log.SetLevel(log.InfoLevel)
-		// TODO: do not echo application output to console without debug enabled
-		serial.DisableTracing()
-	case 1:
+	log.SetLevel(log.InfoLevel)
+	// TODO: do not echo application output to console without debug enabled
+	serial.DisableTracing()
+
+	if t.config.DebugLevel > 0 {
 		log.SetLevel(log.DebugLevel)
-		serial.DisableTracing()
-	case 2:
-		log.SetLevel(log.DebugLevel)
+
+		logConfig(t.config)
+	}
+
+	if t.config.DebugLevel > 1 {
 		serial.EnableTracing()
 
 		log.Info("Launching pprof server on port 6060")
@@ -205,9 +206,6 @@ func (t *tether) setLogLevel() {
 		}
 
 		once.Do(fn)
-	default:
-		log.SetLevel(log.DebugLevel)
-		logConfig(t.config)
 	}
 }
 
@@ -326,7 +324,7 @@ func (t *tether) processSessions() error {
 
 				// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
 				// currently sure how to expose it neatly via a utility function
-				extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo.vice..sessions|%s", id))
+				extraconfig.EncodeWithPrefix(t.sink, session, extraconfig.CalculateKeys(t.config, fmt.Sprintf("Sessions.%s", id), "")[0])
 				log.Warnf("Re-launching process for session %s (count: %d)", id, session.Diagnostics.ResurrectionCount)
 				session.Cmd = *restartableCmd(&session.Cmd)
 			}
@@ -476,9 +474,7 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 	// this returns an arbitrary closure for invocation after the session status update
 	f := t.ops.HandleSessionExit(t.config, session)
 
-	// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
-	// currently sure how to expose it neatly via a utility function
-	extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo.vice..sessions|%s", session.ID))
+	extraconfig.EncodeWithPrefix(t.sink, session, extraconfig.CalculateKeys(t.config, fmt.Sprintf("Sessions.%s", session.ID), "")[0])
 
 	if f != nil {
 		f()
@@ -492,7 +488,7 @@ func (t *tether) launch(session *SessionConfig) error {
 
 	// encode the result whether success or error
 	defer func() {
-		extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo.vice..sessions|%s", session.ID))
+		extraconfig.EncodeWithPrefix(t.sink, session, extraconfig.CalculateKeys(t.config, fmt.Sprintf("Sessions.%s", session.ID), "")[0])
 	}()
 
 	session.Lock()
@@ -584,14 +580,34 @@ func logConfig(config *ExecutorConfig) {
 	// just pretty print the json for now
 	log.Info("Loaded executor config")
 
-	if log.GetLevel() == log.DebugLevel && config.DebugLevel > 1 {
-		sink := map[string]string{}
-		extraconfig.Encode(extraconfig.MapSink(sink), config)
-
-		for k, v := range sink {
-			log.Debugf("%s: %s", k, v)
+	// figure out the keys to filter
+	keys := make(map[string]interface{})
+	for _, f := range []string{
+		"Sessions.*.Cmd.Args",
+		"Sessions.*.Cmd.Args.*",
+		"Sessions.*.Cmd.Env",
+		"Sessions.*.Cmd.Env.*"} {
+		for _, k := range extraconfig.CalculateKeys(config, f, "") {
+			keys[k] = nil
 		}
 	}
+
+	sink := map[string]string{}
+	extraconfig.Encode(
+		func(k, v string) error {
+			if _, ok := keys[k]; !ok {
+				sink[k] = v
+			}
+
+			return nil
+		},
+		config,
+	)
+
+	for k, v := range sink {
+		log.Debugf("%s; %s", k, v)
+	}
+
 }
 
 func (t *tether) forkHandler() {
