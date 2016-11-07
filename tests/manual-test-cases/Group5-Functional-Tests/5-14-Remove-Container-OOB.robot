@@ -16,6 +16,6 @@ Docker run an image from a container that was removed OOB
 #    Should Be Equal As Integers  ${rc}  0
 #    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} run -itd busybox /bin/top 
 #    Should Be Equal As Integers  ${rc}  0
-#    Destory VM OOB  ${container}
+#    Destroy VM OOB  ${container}
 #    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} run -itd busybox /bin/top 
 #    Should Be Equal As Integers  ${rc}  0
