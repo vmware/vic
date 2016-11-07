@@ -13,6 +13,7 @@ To allow you to fine-tune the deployment of virtual container hosts, `vic-machin
 - [Advanced Security Options](#adv-security)
 - [Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM](#static-ip)
 - [Options for Configuring a Non-DHCP Network for Container Traffic](#adv-container-net)
+- [Options to Configure Virtual Container Hosts to Use Proxy Servers](#proxy)
 - [Advanced Resource Management Options](#adv-mgmt)
 - [Other Advanced Options](#adv-other)
 
@@ -283,6 +284,8 @@ The `vic-machine create` utility allows you to specify different networks for th
 **IMPORTANT**: A virtual container host supports a maximum of 3 distinct networks. Because the bridge and container networks require  their own distributed port groups, at least two of the external, client, and management networks must share a network.
 
 By default, `vic-machine create` obtains IP addresses for virtual container host endpoint VMs by using DHCP. For information about how to specify a static IP address for the virtual container host endpoint VM on the client, external, and management networks, see [Specify a Static IP Address for the Virtual Container Host Endpoint VM](#static-ip) in Advanced Options.
+
+If your network access is controlled by a proxy server, see [Options to Configure Virtual Container Hosts to Use Proxy Servers](#proxy) in Advanced Options. 
 
 <a name="bridge"></a>
 ### `--bridge-network` ###
@@ -643,6 +646,28 @@ Wrap the distributed port group name in single quotes (Linux or Mac OS) or doubl
 
 <pre>--container-network-ip-range '<i>distributed port group name</i>':192.168.100.0/24</pre>
 
+<a name="proxy"></a>
+## Options to Configure Virtual Container Hosts to Use Proxy Servers ##
+
+If your network access is controlled by a proxy server, you must   configure a virtual container host to connect to the proxy server when you deploy it.
+
+**IMPORTANT**: Configuring a virtual container host to use a proxy server does not configure proxy support on the containers that this virtual container host runs. Container developers must configure proxy servers on containers when they create them. 
+
+### `--http-proxy` ###
+
+Short name: `--hproxy`
+
+The address of the HTTP proxy server through which the virtual container host accesses the network. Specify the address of the proxy server as either an FQDN or an IP address.
+
+<pre>--http-proxy http://<i>proxy_server_address</i>:<i>port</i></pre>
+
+### `--https-proxy` ###
+
+Short name: `--sproxy`
+
+The address of the HTTPS proxy server through which the virtual container host accesses the network. Specify the address of the proxy server as either an FQDN or an IP address.
+
+<pre>--https-proxy https://<i>proxy_server_address</i>:<i>port</i></pre>
 
 <a name="adv-mgmt"></a>
 ## Advanced Resource Management Options ##
