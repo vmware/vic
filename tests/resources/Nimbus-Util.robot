@@ -301,7 +301,7 @@ Disable TLS On ESX Host
     Log To Console  \nDisable TLS on the host
     ${ver}=  Get Vsphere Version
     ${out}=  Run Keyword If  '${ver}' != '5.5.0'  Run  govc host.option.set UserVars.ESXiVPsDisabledProtocols sslv3,tlsv1,tlsv1.1
-    Should Be Empty  ${out}
+    Run Keyword If  '${ver}' != '5.5.0'  Should Be Empty  ${out}
 
 Get Vsphere Version
     ${out}=  Run  govc about
