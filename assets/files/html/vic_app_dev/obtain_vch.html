@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Obtain a Virtual Container Host | Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.6.0</title>
+        <title>Obtain a Virtual Container Host | Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.7.0</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -53,7 +53,7 @@
         data-chapter-title="Obtain a Virtual Container Host"
         data-filepath="obtain_vch.md"
         data-basepath="."
-        data-revision="Mon Oct 03 2016 13:10:31 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Mon Nov 07 2016 16:39:02 GMT+0100 (W. Europe Standard Time)"
         data-innerlanguage="">
     
 
@@ -225,7 +225,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.6.0</a>
+        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.7.0</a>
     </h1>
 </div>
 
@@ -236,8 +236,11 @@
                     <section class="normal" id="section-">
                     
                         <h1 id="obtain-a-virtual-container-host">Obtain a Virtual Container Host</h1>
-<p>vSphere Integrated Containers Engine does not provide an automated means of obtaining virtual container hosts to container developers who are not vSphere administrators.</p>
-<p>When you deploy a virtual container host, the virtual container host obtains an IP address from DHCP. This IP address is required by whoever will use the virtual container host as their Docker end-point. Depending on the nature of your organization, the consumer of the Docker end-point might be the person or team who deployed the virtual container host, or might be a different person or team. </p>
+<p>vSphere Integrated Containers Engine does not currently provide an automated means of obtaining virtual container hosts.</p>
+<p>When you or the vSphere Administrator use <code>vic-machine create</code> to deploy a virtual container host, the virtual container host endpoint VM obtains an IP address. The IP address can either be static or be obtained from DHCP. As a container developer, you require the IP address of the virtual container host endpoint VM when you run Docker commands. </p>
+<p>Depending on the nature of your organization, you might deploy virtual container hosts yourself, or you might request a virtual container host from a different person or team. If you do not run <code>vic-machine create</code> yourself, your organization must define the process by which you obtain virtual container host addresses. This process can be as simple as an exchange of emails with a vSphere Administrator, or as advanced as a custom self-provisioning portal or API end-point. For example, your organization could use VMware vRealize&#xAE; Automation&#x2122; to provide a self-provisioning service. In this case, you would use the vRealize Automation interface or APIs to request a virtual container host. At the end of the provisioning process, vRealize Automation would communicate the virtual container host endpoint VM address to you.</p>
+<h2 id="using-docker-environment-variables">Using Docker Environment Variables</h2>
+<p>If you or the vSphere Administrator deploy the virtual container hosts   with TLS authentication, either with trusted certificates or with untrusted self-signed certificates, <code>vic-machine create</code> generates a  file named <code>vch_address.env</code>. The <code>env</code> file contains Docker environment variables that are specific to the virtual container host. You can use the contents of the <code>env</code> file to set environment variables in your Docker client so that it connects to the correct virtual container host and uses the appropriate level of authentication. A self-provisioning service such as vRealize Automation could potentially provide the <code>env</code> file at the end of the provisioning process for virtual container hosts.</p>
 
                     
                     </section>

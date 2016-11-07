@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Network Port Use Cases | Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.6.0</title>
+        <title>Network Port Use Cases | Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.7.0</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -53,7 +53,7 @@
         data-chapter-title="Network Port Use Cases"
         data-filepath="network_use_cases.md"
         data-basepath="."
-        data-revision="Mon Oct 03 2016 13:10:31 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Mon Nov 07 2016 16:39:02 GMT+0100 (W. Europe Standard Time)"
         data-innerlanguage="">
     
 
@@ -225,7 +225,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.6.0</a>
+        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.7.0</a>
     </h1>
 </div>
 
@@ -237,13 +237,13 @@
                     
                         <h1 id="network-port-use-cases">Network Port Use Cases</h1>
 <p>These are some use cases of containers using network ports to communicate with each other.</p>
-<h4 id="container-with-a-published-port">Container with a Published Port</h4>
+<h3 id="container-with-a-published-port">Container with a Published Port</h3>
 <p>Launch a container and expose a port: <code>run -p</code></p>
 <p>Connect the container with the external mapped port on the external surface of the vSphere Container Host.</p>
 <p><code>$ docker run -p 8080:80 --name test1 my_container my_app</code></p>
-<h5 id="outcome">Outcome</h5>
+<h4 id="outcome">Outcome</h4>
 <p>You can access Port 80 on test1 from the external network interface on the virtual container host at port 8080.</p>
-<h4 id="simple-bridge-network">Simple Bridge Network</h4>
+<h3 id="container-on-a-simple-bridge-network">Container on a Simple Bridge Network</h3>
 <p>Create a new non-default bridge network and set up two containers on the network. Verify that the containers can locate and communicate with each other.</p>
 <pre><code>$ docker network create -d bridge my-bridge-network
 $ docker network ls
@@ -259,9 +259,9 @@ PING server (172.18.0.2): 56 data bytes
 64 bytes from 172.18.0.2: seq=0 ttl=64 time=0.073 ms
 64 bytes from 172.18.0.2: seq=1 ttl=64 time=0.092 ms
 64 bytes from 172.18.0.2: seq=2 ttl=64 time=0.088 ms
-</code></pre><h5 id="outcome">Outcome</h5>
+</code></pre><h4 id="outcome">Outcome</h4>
 <p>Server and Client can ping each other by name.</p>
-<h4 id="bridged-containers-with-exposed-port">Bridged Containers with Exposed Port</h4>
+<h3 id="bridged-containers-with-exposed-port">Bridged Containers with Exposed Port</h3>
 <p>Connect two containers on a bridge network and set up one of the containers to publish a port via the virtual container host. Assume server_app binds to port 5000.</p>
 <pre><code>$ docker network create -d bridge my-bridge-network
 $ docker network ls
@@ -288,13 +288,24 @@ Escape character is &apos;^]&apos;.
 GET /
 
 Hello world!Connection closed by foreign host.
-</code></pre><h5 id="outcome">Outcome</h5>
+</code></pre><h4 id="outcome">Outcome</h4>
 <p>Server and Client can ping each other by name. You can connect to the server on port 5000 from the client container and to port 5000 on the virtual container host external interface.</p>
-<h4 id="containers-using-external-network">Containers using External Network</h4>
+<h3 id="containers-on-multiple-bridge-networks">Containers on Multiple Bridge Networks</h3>
+<p>Create containers on multiple bridge networks by mapping ports through the Docker server. The virtual container host must have an IP address on the relevant bridge networks. To create bridge networks, use  <code>network create</code></p>
+<p>Example:
+Run a container:
+ <code>docker run -it --net net1 --net net2 busybox</code>
+For this container to reach both networks or containers connected to only those networks:</p>
+<pre><code>docker run -it --net net1 --name n1 busybox
+docker run -it --net net2 --name n2 busybox
+docker run -it --net net1 --net net2 --name n12 busybox
+</code></pre><h4 id="outcome">Outcome</h4>
+<p>n1 and n2 cannot talk to each other<br>
+n12 can talk to both n1 and n2</p>
+<h3 id="containers-using-external-network">Containers using External Network</h3>
 <p>Configure two external networks in vSphere:
 <code>default-external</code> is <code>10.2.0.0/16</code> with gateway <code>10.2.0.1</code><br><code>vic-production</code> is <code>208.91.3.0/24</code> with gateway <code>208.91.3.1</code>  </p>
-<p>Associate a virtual container host, then set up the virtual container host to the default external network.</p>
-<p>Attach the virtual container host to the default-external network at 08.91.3.2.</p>
+<p>Associate a virtual container host, then set up the virtual container host to the default external network at 208.91.3.2.</p>
 <p><code>docker network ls</code> shows:</p>
 <pre><code>$ docker network ls
 NETWORK ID          NAME                DRIVER
@@ -358,8 +369,36 @@ GET /
 Hello world!Connection closed by foreign host.
 </code></pre><p><strong>NOTE:</strong> You can also use <code>-p 80</code> or <code>-p 80:80</code> instead of
 <code>--expose=80</code>. If you try to map to different ports with <code>-p</code>, you get a configuration error.</p>
-<h5 id="outcome">Outcome</h5>
+<h4 id="outcome">Outcome</h4>
 <p>The server container port is exposed on the external network vic-production.</p>
+<h3 id="containers-using-multiple-external-networks">Containers Using Multiple External Networks</h3>
+<p>Create external networks only using <code>vic-machine</code>.</p>
+<p>Example:</p>
+<pre><code>./vic-machine-darwin create --target 172.16.252.131 --image-store datastore1 --name vic-demo --user root --password &apos;Vmware!23&apos; --compute-resource /ha-datacenter/host/*/Resources --cn pg1:pg1 --cn pg2:pg2 --cn pg3:pg3
+</code></pre><p>pg1-3 are port groups on the ESX Server that are now mapped into docker network ls.</p>
+<pre><code>$ docker -H 172.16.252.150:2376 --tls network ls
+NETWORK ID   NAME   DRIVER
+903b61edec66 bridge bridge
+95a91e11b1a8 pg1    external
+ab84ba2a326b pg2    external
+2df4101caac2 pg3    external
+</code></pre><p>If a container is connected to an external network, the traffic to and from that network does not go through the appliance VM.</p>
+<p>You also can create more bridge networks via the docker API. These are all backed by the same port group as the default bridge, but those networks are isolated via IP address management.</p>
+<pre><code>Example:
+$ docker -H 172.16.252.150:2376 --tls network create mikes
+0848ee433797c746b466ffeb57581c301d8e96b7e82a4d524e0fa0222860ba44
+$ docker -H 172.16.252.150:2376 --tls network create bob
+316e34ff3b7b19501fe14982791ee139ce98e62d060203125c5dbdc8543ff641
+$ docker -H 172.16.252.150:2376 --tls network ls
+NETWORK ID   NAME   DRIVER
+316e34ff3b7b bob    bridge
+903b61edec66 bridge bridge
+0848ee433797 mikes  bridge
+95a91e11b1a8 pg1    external
+ab84ba2a326b pg2    external
+2df4101caac2 pg3    external
+</code></pre><h4 id="outcome">Outcome</h4>
+<p>You can create containers with --net mikes or --net pg1 and be on the correct network. With docker you can combine them and attach multiple networks.</p>
 
                     
                     </section>

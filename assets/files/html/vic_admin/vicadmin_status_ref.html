@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>List Virtual Container Hosts and Obtain Their IDs | VMware vSphere Integrated Containers Engine for vSphere Administrators, version 0.7.0</title>
+        <title>Virtual Container Host Status Reference | VMware vSphere Integrated Containers Engine for vSphere Administrators, version 0.7.0</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -37,10 +37,10 @@
         
     
     
-    <link rel="next" href="./inspect_vch.html" />
+    <link rel="next" href="./troubleshoot_vic_admin.html" />
     
     
-    <link rel="prev" href="./common_vic_options.html" />
+    <link rel="prev" href="./access_vicadmin.html" />
     
 
         
@@ -49,9 +49,9 @@
         
         
     <div class="book"
-        data-level="3.3"
-        data-chapter-title="List Virtual Container Hosts and Obtain Their IDs"
-        data-filepath="list_vch.md"
+        data-level="7.1"
+        data-chapter-title="Virtual Container Host Status Reference"
+        data-filepath="vicadmin_status_ref.md"
         data-basepath="."
         data-revision="Mon Nov 07 2016 16:38:43 GMT+0100 (W. Europe Standard Time)"
         data-innerlanguage="">
@@ -158,7 +158,7 @@
             
         </li>
     
-        <li class="chapter active" data-level="3.3" data-path="list_vch.html">
+        <li class="chapter " data-level="3.3" data-path="list_vch.html">
             
                 
                     <a href="./list_vch.html">
@@ -362,7 +362,7 @@
             <ul class="articles">
                 
     
-        <li class="chapter " data-level="7.1" data-path="vicadmin_status_ref.html">
+        <li class="chapter active" data-level="7.1" data-path="vicadmin_status_ref.html">
             
                 
                     <a href="./vicadmin_status_ref.html">
@@ -496,58 +496,84 @@
                 
                     <section class="normal" id="section-">
                     
-                        <h1 id="list-virtual-container-hosts-and-obtain-their-ids">List Virtual Container Hosts and Obtain Their IDs</h1>
-<p>You can obtain a list of the virtual container hosts that are running in vCenter Server or on an ESXi host by using the <code>vic-machine ls</code> command. </p>
-<p>The <code>vic-machine ls</code> command lists virtual container hosts with their IDs, names, and versions. The <code>vic-machine ls</code> command informs you whether upgrades are available for the virtual container hosts.</p>
-<p>The <code>vic-machine ls</code> command does not include any options in addition to the common options described in <a href="common_vic_options.html">Common <code>vic-machine</code> Options</a>.</p>
-<p><strong>Prerequisites</strong></p>
-<p>You have deployed at least one virtual container host.</p>
-<p><strong>Procedure</strong></p>
-<ol>
-<li>On the system on which you run <code>vic-machine</code>, navigate to the directory that contains the <code>vic-machine</code> utility.</li>
-<li><p>Run the <code>vic-machine ls</code> command. </p>
+                        <h1 id="virtual-container-host-status-reference">Virtual Container Host Status Reference</h1>
+<p>The Web-based administration portal for virtual container hosts, VCH Admin, presents status information about a virtual container host.</p>
+<p>If the vSphere environment in which you are deploying a virtual container host does not meet the requirements, the deployment does not succeed. However, a successfully deployed virtual container host can stop functioning if the vSphere environment changes after the deployment. If environment changes adversely affect the virtual container host, the status of the affected component changes from green to yellow.</p>
+<h2 id="virtual-container-host-vch">Virtual Container Host (VCH)</h2>
+<p>VCH Admin checks the status of the processes that the virtual container host runs:</p>
 <ul>
-<li>To obtain a list of all virtual container hosts that are running on an ESXi host or vCenter Server instance, you must provide the address of the target ESXi host or vCenter Server. </li>
-<li>You must specify the username and optionally the password, either in the <code>--target</code> option or separately in the <code>--user</code> and <code>--password</code> options. </li>
-<li>If your vSphere environment uses untrusted, self-signed certificates, you must also specify the thumbprint of the vCenter Server instance or ESXi host in the <code>--thumbprint</code> option. To obtain the thumbprint of the vCenter Server or ESXi host certificate, run <code>vic-machine</code> without the specifying the <code>--thumbprint</code> option. The listing of the virtual container hosts fails, but the resulting error message includes the required certificate thumbprint. You can copy the thumbprint from the error message and run <code>vic-machine</code> again, including the <code>--thumbprint</code> option.</li>
+<li>The port layer server, that presents an API of low-level container primitive operations, and implements those container operations via the vSphere APIs.</li>
+<li>VCH Admin server, that runs the VCH Admin portal. </li>
+<li>The vSphere Integrated Containers Engine initialization service and watchdog service for the other components. </li>
+<li>The Docker engine server, that exposes the Docker API and semantics, translating those composite operations into port layer primitives.</li>
 </ul>
-<pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> ls
---target <i>esxi_host_address</i>
---user root
---password <i>esxi_host_password</i>
---thumbprint <i>certificate_thumbprint</i>
-</pre>
-
-<pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> ls
---target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
---thumbprint <i>certificate_thumbprint</i>
-</pre>
-
-
+<h3 id="error">Error</h3>
+<p>The Virtual Container Host status is yellow.</p>
+<h4 id="cause">Cause</h4>
+<p>One or more of the virtual container host processes is not running correctly.</p>
+<h4 id="solution">Solution</h4>
+<ol>
+<li>In the VCH Admin portal for the virtual container host, click the link for the <strong>VCH Admin Server</strong> log.</li>
+<li><p>Search the log for references to the different virtual container host processes.</p>
+<p>The different processes are identified in the log by the following names:</p>
+<ul>
+<li><code>port-layer-server</code></li>
+<li><code>vicadmin</code></li>
+<li><code>vic-init</code></li>
+<li><code>docker-engine-server</code></li>
+</ul>
+</li>
+<li><p>Identify the process or processes that are not running correctly and attempt to remediate the issues as required.</p>
 </li>
 </ol>
-<p><strong>Result</strong></p>
-<p>The <code>vic-machine ls</code> command lists the virtual container hosts that are running on the ESXi host or vCenter Server instance that you specified.</p>
-<pre>ID         PATH     NAME    VERSION                     UPGRADE STATUS
-vm-101     <i>path</i>     <i>vch_1</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
-vm-102     <i>path</i>     <i>vch_2</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
-[...]
-vm-<i>n</i>       <i>path</i>     <i>vch_n</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
-</pre>
-
+<h2 id="network-connectivity">Network Connectivity</h2>
+<p>VCH Admin checks external network connectivity by attempting to connect from the virtual container host to docker.io and google.com. VCH Admin only checks the external network connection. It does not check other networks, for example the bridge, management, client, or container networks.</p>
+<h3 id="error">Error</h3>
+<p>The Network Connectivity status is yellow.</p>
+<h4 id="cause">Cause</h4>
+<p>The external network connection is down.</p>
+<h4 id="solution">Solution</h4>
+<ol>
+<li>In the VCH Admin portal for the virtual container host, click the link for the <strong>VCH Admin Server</strong> log.</li>
+<li>Search the log for references to network issues.</li>
+<li>In the vSphere Web Client, remediate the network issues as required.</li>
+</ol>
+<h2 id="firewall">Firewall</h2>
+<p>VCH Admin checks that the firewall is correctly configured on the ESXi host or the ESXi hosts in the cluster on which the virtual container host is running.</p>
+<h3 id="error">Error</h3>
+<p>The Firewall status is yellow and shows the error <code>Firewall must permit 2377/tcp outbound to use VIC</code>.</p>
+<h4 id="cause">Cause</h4>
+<p>The firewall on the ESXi host on which the virtual container host is running no longer allows outbound connections on port 2377.</p>
 <ul>
-<li>The IDs are the vSphere Managed Object References, or morefs, for the virtual container host endpoint VMs. You can use virtual container host IDs when you run the  <code>vic-machine inspect</code>, <code>upgrade</code>, <code>debug</code>, and <code>delete</code> commands. Using virtual container host IDs reduces the number of options that you need to specify when you run those commands.</li>
-<li><p>The <code>PATH</code> value depends on where the virtual container host is deployed:</p>
+<li>The firewall was switched off when the virtual container host was deployed. The firewall has been switched on since the deployment of the virtual container host.</li>
+<li>A firewall ruleset was applied to the ESXi host to allow outbound connections on port 2377. The ESXi host has been rebooted since the deployment of the virtual container host. Firewall rulesets are not retained when an ESXi host reboots.</li>
+</ul>
+<h4 id="solution">Solution</h4>
+<p>Reconfigure the firewall on the ESXi host or hosts to allow  outbound connections on port 2377. For information about how to reconfigure the firewall on ESXi hosts, see <a href="../vic_installation/ts_firewall_error.html">VCH Deployment Fails with Firewall Validation Error</a> in <em>vSphere Integrated Containers Engine Installation</em>.</p>
+<h3 id="error">Error</h3>
+<p>The Firewall status is yellow.</p>
+<h4 id="cause">Cause</h4>
+<p>The management network is down, or the virtual container host endpoint VM is unable to connect to vSphere.</p>
+<h4 id="solution">Solution</h4>
+<p>Restore the connection to the management network.</p>
+<h2 id="license">License</h2>
+<p>VCH Admin checks that the ESXi hosts on which you deploy virtual container hosts have the appropriate licenses.</p>
+<h3 id="error">Error</h3>
+<p>The License status is yellow and shows the error <code>License does not meet minimum requirements to use VIC</code>.</p>
+<h4 id="cause">Cause</h4>
+<p>The license for the ESXi host or for one or more of the hosts in a vCenter Server cluster on which the virtual container host is deployed has been removed, downgraded, or has expired since the deployment of the virtual container host.</p>
+<h4 id="solution">Solution</h4>
 <ul>
-<li>ESXi host that is not managed by vCenter Server:<pre>/ha-datacenter/host/<i>host_name</i>/Resources</pre></li>
-<li>Standalone host that is managed by vCenter Server: <pre>/<i>datacenter</i>/host/<i>host_address</i>/Resources</pre></li>
-<li>vCenter Server cluster:<pre>/<i>datacenter</i>/host/<i>cluster_name</i>/Resources</pre></li>
-<li>If virtual container hosts are deployed in resource pools on hosts or clusters, the resource pool names appear after <code>Resources</code> in the path.</li>
+<li>If the virtual container host is running on an ESXi host that is not managed by vCenter Server, replace the ESXi host license with a valid vSphere Enterprise license.</li>
+<li>If the virtual container host is running on a standalone ESXi host in vCenter Server, replace the ESXi host license with a valid vSphere Enterprise Plus license.</li>
+<li>If the virtual container host is running in a vCenter Server cluster, check that all of the hosts in the cluster have a valid vSphere Enterprise Plus license, and replace any licenses that have been removed, downgraded, or have expired.</li>
 </ul>
-</li>
-<li>The <code>VERSION</code> value includes the version of <code>vic-machine</code>  that was used to create the virtual container host, the build number of this version, and a hashtag to identify the build.</li>
-<li>The <code>UPGRADE STATUS</code> reflects whether the version of <code>vic-machine</code> that you are using is the same as the version of the virtual container host. If the version or build number of the virtual container host does not match that of <code>vic-machine</code>, <code>UPGRADE STATUS</code> is <code>Upgradeable to vch_version-vch_build-tag</code>.</li>
-</ul>
+<h3 id="error">Error</h3>
+<p>The License status is yellow.</p>
+<h4 id="cause">Cause</h4>
+<p>The management network is down, or the virtual container host endpoint VM is unable to connect to vSphere.</p>
+<h4 id="solution">Solution</h4>
+<p>Restore the connection to the management network.</p>
 
                     
                     </section>
@@ -558,10 +584,10 @@ vm-<i>n</i>       <i>path</i>     <i>vch_n</i>   <i>vch_version</i>-<i>vch_build
         </div>
 
         
-        <a href="./common_vic_options.html" class="navigation navigation-prev " aria-label="Previous page: Common `vic-machine` Options"><i class="fa fa-angle-left"></i></a>
+        <a href="./access_vicadmin.html" class="navigation navigation-prev " aria-label="Previous page: Access the Administration Portal for a Virtual Container Host"><i class="fa fa-angle-left"></i></a>
         
         
-        <a href="./inspect_vch.html" class="navigation navigation-next " aria-label="Next page: Obtain Information About a Virtual Container Host"><i class="fa fa-angle-right"></i></a>
+        <a href="./troubleshoot_vic_admin.html" class="navigation navigation-next " aria-label="Next page: Troubleshooting vSphere Integrated Containers Engine Administration"><i class="fa fa-angle-right"></i></a>
         
     </div>
 </div>

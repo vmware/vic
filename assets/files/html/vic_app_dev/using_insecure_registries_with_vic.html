@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Using Insecure Private Registry Servers with vSphere Integrated Containers Engine | Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.6.0</title>
+        <title>Using Insecure Private Registry Servers with vSphere Integrated Containers Engine | Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.7.0</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -53,7 +53,7 @@
         data-chapter-title="Using Insecure Private Registry Servers with vSphere Integrated Containers Engine"
         data-filepath="using_insecure_registries_with_vic.md"
         data-basepath="."
-        data-revision="Mon Oct 03 2016 13:10:31 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Mon Nov 07 2016 16:39:02 GMT+0100 (W. Europe Standard Time)"
         data-innerlanguage="">
     
 
@@ -225,7 +225,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.6.0</a>
+        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.7.0</a>
     </h1>
 </div>
 
@@ -237,9 +237,10 @@
                     
                         <h1 id="using-insecure-private-registry-servers-with-vsphere-integrated-containers-engine">Using Insecure Private Registry Servers with vSphere Integrated Containers Engine</h1>
 <p>An insecure private registry server is a private registry server that is secured by self-signed certificates rather than by TLS.</p>
-<p>If your Docker environment stores Docker images in an insecure private registry server, you or the vSphere administrator must have set the <code>vic-machine  create --docker-insecure-registry</code> option when creating the virtual container host. Setting the <code>docker-insecure-registry</code> option on a virtual container host informs that virtual container host that it is permitted to pull images from the designated insecure registry server. </p>
-<p>For information about how to use the <code>vic-machine create --docker-insecure-registry</code> option, see the section on <code>docker-insecure-registry</code> in <a href="../vic_installation/vch_installer_options.html#registry">Virtual Container Host Deployment Options</a> in <em>vSphere Integrated Containers Engine Installation</em>. </p>
+<p>If your Docker environment stores Docker images in an insecure private registry server, you or the vSphere administrator must have set the <code>vic-machine  create --insecure-registry</code> option when creating the virtual container host. Setting the <code>insecure-registry</code> option on a virtual container host informs that virtual container host that it is permitted to pull images from the designated insecure registry server. </p>
+<p>For information about how to use the <code>vic-machine create --insecure-registry</code> option, see the section on <code>insecure-registry</code> in <a href="../vic_installation/vch_installer_options.html#registry">Virtual Container Host Deployment Options</a> in <em>vSphere Integrated Containers Engine Installation</em>. </p>
 <h2 id="pull-a-container-image-from-an-insecure-private-registry-server">Pull a Container Image from an Insecure Private Registry Server</h2>
+<p>For simplicity, the examples in this topic assume that the virtual container hosts implement TLS authentication with self-signed untrusted certificates, with no client verification.</p>
 <p>To pull a container image from an insecure private registry server, run the following Docker command. </p>
 <pre>docker -H <i>vch_address</i>:2376 --tls 
 pull <i>registry_server_address</i>/path/to/image/<i>image_name</i>:<i>image_version</i></pre>

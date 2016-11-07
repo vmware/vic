@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>Using Volumes with vSphere Integrated Containers Engine | Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.6.0</title>
+        <title>Using Volumes with vSphere Integrated Containers Engine | Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.7.0</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -53,7 +53,7 @@
         data-chapter-title="Using Volumes with vSphere Integrated Containers Engine"
         data-filepath="using_volumes_with_vic.md"
         data-basepath="."
-        data-revision="Mon Oct 03 2016 13:10:31 GMT+0200 (W. Europe Daylight Time)"
+        data-revision="Mon Nov 07 2016 16:39:02 GMT+0100 (W. Europe Standard Time)"
         data-innerlanguage="">
     
 
@@ -225,7 +225,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.6.0</a>
+        <a href="./" >Developing Container Applications with VMware vSphere Integrated Containers Engine, version 0.7.0</a>
     </h1>
 </div>
 
@@ -241,10 +241,13 @@
 <li><a href="#list_vs">Obtain the List of Available Volume Stores</a> </li>
 <li><a href="#list_vols">Obtain the List of Available Volumes</a></li>
 <li><a href="#create_vol">Create a Volume in a Volume Store</a></li>
+<li><a href="#image_volumes">Creating Volumes from Images</a></li>
 <li><a href="#create_container">Create a Container and Attach it to an Anonymous or Named Volume</a></li>
 <li><a href="#attach">Attach an Existing Volume to a Container</a></li>
+<li><a href="#inspect_vol">Obtain Information About a Volume</a> </li>
 <li><a href="#delete_vol">Delete a Named Volume from a Volume Store</a> </li>
 </ul>
+<p>For simplicity, the examples in this topic assume that the virtual container hosts implement TLS authentication with self-signed untrusted certificates, with no client verification.</p>
 <p><a name="list_vs"></a></p>
 <h2 id="obtain-the-list-of-available-volume-stores">Obtain the List of Available Volume Stores</h2>
 <p>To obtain the list of volume stores that are available on a virtual container host, run <code>docker info</code>.</p>
@@ -301,7 +304,11 @@ create -v /<i>volume_name</i> busybox</pre>
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
 run -v /<i>volume_name</i> busybox</pre>
 
-<p><strong>NOTE</strong>: When using a vSphere Integrated Containers Engine virtual container host as your Docker endpoint, the storage driver is always the vSphere Integrated Containers Engine Backend Engine. If you specify the <code>docker volume create --driver</code> option, it is ignored.</p>
+<p><strong>NOTE</strong>: When using a vSphere Integrated Containers Engine virtual container host as your Docker endpoint, the storage driver is always the vSphere Integrated Containers Engine Backend Engine. If you specify the <code>docker volume create --driver</code> option an error stating that a bad driver has been selected will occur.</p>
+<p><a name="image_volumes"></a></p>
+<h2 id="creating-volumes-from-images">Creating Volumes from Images</h2>
+<p>Some images, for example, <code>mongo</code> or <code>redis:alpine</code>, contain volume bind information in their metadata. vSphere Integrated Containers Engine creates such volumes with the default parameters and treats them as anonymous volumes. vSphere Integrated Containers Engine treats all volume mount paths as unique, in the same way that Docker does. This should be kept in mind if you attempt to bind other volumes to the same location as anonymous or image volumes. A specified volume always takes priority over an anonymous volume.</p>
+<p>If you require an image volume with a different volume capacity to the default, create a named volume with the required capacity. You can mount that named volume to the location that the image metadata specifies. You can find the location by running <code>docker inspect image_name</code> and consulting the <code>Volumes</code> section of the output. The resulting container has the required storage capacity and the endpoint.  </p>
 <p><a name="create_container"></a></p>
 <h2 id="create-a-container-and-attach-it-to-an-anonymous-or-named-volume">Create a Container and Attach it to an Anonymous or Named Volume</h2>
 <p>If you intend to create named or anonymous volumes by using <code>docker create -v</code> when creating containers, a volume store named <code>default</code> must exist in the virtual container host. In this case, you include the path to the destination at which you want to mount an anonymous volume in the <code>docker create -v</code> command. Docker creates the anonymous volume in the <code>default</code> volume store, if it exists. The virtual container host attaches the anonymous volume to the container.</p>
@@ -310,7 +317,7 @@ run -v /<i>volume_name</i> busybox</pre>
 create -v /volumes busybox</pre>
 
 <p>You can create containers that are attached to named volumes by using <code>docker create -v</code> and specifying a volume name. When you create containers that are attached to named volumes, the virtual container host checks whether the volume exists in the volume store, and if it does not, creates it. The virtual container host attaches the existing or new volume to the container.</p>
-<p>For example, to create a busybox container that is mounted to the <code>volumes</code> folder of a volume named <code>volume_1</code> in the default volume store, run the following command:</p>
+<p>For example, to create a busybox container that is mounted to the <code>volumes</code> folder of a volume named <code>volume_1</code> in the default volume store with default capacity, run the following command:</p>
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
 create -v volume_1:/volumes busybox</pre>
 
@@ -344,13 +351,19 @@ docker attach container2
 [Perform container operations with the same volume that was 
 previously mounted to container1]</pre>
 
+<p><a name="inspect_vol"></a></p>
+<h2 id="obtain-information-about-a-volume">Obtain Information About a Volume</h2>
+<p>To get information about a volume, run <code>docker volume inspect</code> and specify the name of the volume.</p>
+<pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
+volume inspect <i>volume_name</i></pre>
+
 <p><a name="delete_vol"></a></p>
 <h2 id="delete-a-named-volume-from-a-volume-store">Delete a Named Volume from a Volume Store</h2>
 <p>To delete a volume, run <code>docker volume rm</code> and specify the name of the volume to delete.</p>
 <pre>docker -H <i>virtual_container_host_address</i>:2376 --tls 
 volume rm <i>volume_name</i></pre>
 
-<p><strong>NOTE</strong>: In the current builds, <code>docker volume rm</code> is not yet supported.</p>
+
 
                     
                     </section>
