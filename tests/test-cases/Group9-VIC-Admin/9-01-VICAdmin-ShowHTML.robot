@@ -13,18 +13,22 @@ Get Login Page
 While Logged Out Fail To Display HTML
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk ${vic-admin}
     Should not contain  ${output}  <title>VIC: ${vch-name}</title>
+    Should Contain  ${output}  <a href="/authentication">Temporary Redirect</a>.
 
 While Logged Out Fail To Get Portlayer Log
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk ${vic-admin}/logs/port-layer.log
     Should Not Contain  ${output}  Launching portlayer server
+    Should Contain  ${output}  <a href="/authentication">Temporary Redirect</a>.
 
 While Logged Out Fail To Get VCH-Init Log
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk ${vic-admin}/logs/init.log
     Should not contain  ${output}  reaping child processes
+    Should Contain  ${output}  <a href="/authentication">Temporary Redirect</a>.
 
 While Logged Out Fail To Get Docker Personality Log
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk ${vic-admin}/logs/docker-personality.log
     Should not contain  ${output}  docker personality
+    Should Contain  ${output}  <a href="/authentication">Temporary Redirect</a>.
 
 While Logged Out Fail To Get Container Logs
     ${rc}  ${output}=  Run And Return Rc and Output  docker ${params} pull busybox
@@ -38,6 +42,7 @@ While Logged Out Fail To Get Container Logs
     Should Not Contain  ${output}  Error
     ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz | tar tvzf -
     Should not Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  gzip: stdin: not in gzip format
     Log  ${output}
     Should not Contain  ${output}  ${container}/vmware.log
     Should not Contain  ${output}  ${container}/tether.debug
@@ -46,6 +51,7 @@ While Logged Out Fail To Get VICAdmin Log
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk ${vic-admin}/logs/vicadmin.log
     Log  ${output}
     Should not contain  ${output}  Launching vicadmin pprof server
+    Should Contain  ${output}  <a href="/authentication">Temporary Redirect</a>.
 
 Login
     ${rc}  ${output}=  Run And Return Rc And Output  curl -sk ${vic-admin}/authentication -XPOST -F username=%{GOVC_USERNAME} -F password=%{GOVC_PASSWORD} -D /tmp/cookies-${vch-name}

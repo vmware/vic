@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"golang.org/x/net/context"
@@ -59,6 +60,7 @@ const (
 	sessionCookieKey       = "session-data"
 	sessionCreationTimeKey = "created"
 	sessionKey             = "session-id"
+	ipAddressKey           = "ip"
 	loginPagePath          = "/authentication"
 	authFailure            = loginPagePath + "?unauthorized"
 	genericErrorMessage    = "Internal Server Error; see /var/log/vic/vicadmin.log for details" // for http errors that shouldn't be displayed in the browser to the user
@@ -159,6 +161,13 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 
 			websession.Values[sessionCreationTimeKey] = string(timeNow)
 			websession.Values[sessionKey] = websession.ID
+			remoteAddr := strings.SplitN(r.RemoteAddr, ":", 2)
+			if len(remoteAddr) != 2 { // TODO: ctrl+f RemoteAddr and move this routine to helper
+				log.Errorf("Format of IP address %s (should be IP:PORT) not recognized", r.RemoteAddr)
+				http.Error(w, genericErrorMessage, http.StatusInternalServerError)
+				return
+			}
+			websession.Values[ipAddressKey] = remoteAddr[0]
 			err = websession.Save(r, w)
 			if err != nil {
 				log.Errorf("Could not create session for user authenticated via client certificate due to error \"%s\"", err.Error())
@@ -173,7 +182,7 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 
 		c := websession.Values[sessionCreationTimeKey]
 		if c == nil { // no cookie, so redirect to login
-			log.Errorf("No authentication token: %+v", websession.Values)
+			log.Infof("No authentication token: %+v", websession.Values)
 			http.Redirect(w, r, loginPagePath, http.StatusTemporaryRedirect)
 			return
 		}
@@ -192,11 +201,31 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 
 		// cookie exists but is expired
 		if time.Since(created) > sessionExpiration {
-			http.Redirect(w, r, loginPagePath+"?expired", http.StatusTemporaryRedirect)
+			http.Redirect(w, r, loginPagePath, http.StatusTemporaryRedirect)
 			return
 		}
 
-		// if the date on the cookie was valid, then the user is authenticated
+		// verify that the auth token is being used by the same IP it was created for
+		c = websession.Values[ipAddressKey]
+		if c == nil {
+			log.Errorf("Couldn't get IP address out of cookie for user connecting from %s at %s", r.RemoteAddr, time.Now())
+			http.Redirect(w, r, loginPagePath, http.StatusTemporaryRedirect)
+			return
+		}
+
+		connectingAddr := strings.SplitN(r.RemoteAddr, ":", 2)
+		if len(connectingAddr) != 2 { // TODO: ctrl+f r.RemoteAddr and move this routine to helper
+			log.Errorf("Format of IP address %s (should be IP:PORT) not recognized", r.RemoteAddr)
+			http.Error(w, genericErrorMessage, http.StatusInternalServerError)
+			return
+		}
+		if c.(string) != connectingAddr[0] {
+			log.Warnf("User with a valid auth cookie from %s has reappeared at %s. Their token will be expired.", c.(string), connectingAddr[0])
+			s.logoutHandler(w, r)
+			return
+		}
+
+		// if the date & remote IP on the cookie were valid, then the user is authenticated
 		handler(w, r)
 	}
 	s.mux.Handle(link, gorillacontext.ClearHandler(http.HandlerFunc(authHandler)))
@@ -265,6 +294,15 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 
 		websession.Values[sessionCreationTimeKey] = string(timeNow)
 		websession.Values[sessionKey] = websession.ID
+
+		remoteAddr := strings.SplitN(req.RemoteAddr, ":", 2)
+		if len(remoteAddr) != 2 { // TODO: ctrl+f RemoteAddr and move this routine to helper
+			log.Errorf("Format of IP address %s (should be IP:PORT) not recognized", req.RemoteAddr)
+			http.Error(res, genericErrorMessage, http.StatusInternalServerError)
+			return
+		}
+		websession.Values[ipAddressKey] = remoteAddr[0]
+
 		if err := websession.Save(req, res); err != nil {
 			log.Errorf("\"%s\" occurred while trying to save session to browser", err.Error())
 			http.Error(res, genericErrorMessage, http.StatusInternalServerError)
