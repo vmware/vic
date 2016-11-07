@@ -69,7 +69,6 @@ func (v *Validator) getEndpoint(ctx context.Context, conf *config.VirtualContain
 	if staticIP != nil {
 		e.Static = true
 	}
-	log.Debugf("NetworkEndpoint: %v", e)
 
 	return e, nil
 }
@@ -216,11 +215,6 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 	}
 	v.checkNetworkConflict(input.BridgeNetworkName, input.ManagementNetwork.Name, "management")
 	conf.AddNetwork(e)
-
-	log.Debug("Network configuration:")
-	for net, val := range conf.ExecutorConfig.Networks {
-		log.Debugf("\tNetwork: %s NetworkEndpoint: %v", net, val)
-	}
 
 	// Bridge net -
 	//   vCenter: must exist and must be a DPG
