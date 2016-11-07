@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>List Virtual Container Hosts and Obtain Their IDs | VMware vSphere Integrated Containers Engine for vSphere Administrators, version 0.7.0</title>
+        <title>Virtual Container Host Debug Options | VMware vSphere Integrated Containers Engine for vSphere Administrators, version 0.7.0</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -37,10 +37,10 @@
         
     
     
-    <link rel="next" href="./inspect_vch.html" />
+    <link rel="next" href="./vch_portlet_ui.html" />
     
     
-    <link rel="prev" href="./common_vic_options.html" />
+    <link rel="prev" href="./vch_ssh_access.html" />
     
 
         
@@ -49,9 +49,9 @@
         
         
     <div class="book"
-        data-level="3.3"
-        data-chapter-title="List Virtual Container Hosts and Obtain Their IDs"
-        data-filepath="list_vch.md"
+        data-level="3.7.1"
+        data-chapter-title="Virtual Container Host Debug Options"
+        data-filepath="debug_vch_options.md"
         data-basepath="."
         data-revision="Mon Nov 07 2016 16:38:43 GMT+0100 (W. Europe Standard Time)"
         data-innerlanguage="">
@@ -158,7 +158,7 @@
             
         </li>
     
-        <li class="chapter active" data-level="3.3" data-path="list_vch.html">
+        <li class="chapter " data-level="3.3" data-path="list_vch.html">
             
                 
                     <a href="./list_vch.html">
@@ -276,7 +276,7 @@
             <ul class="articles">
                 
     
-        <li class="chapter " data-level="3.7.1" data-path="debug_vch_options.html">
+        <li class="chapter active" data-level="3.7.1" data-path="debug_vch_options.html">
             
                 
                     <a href="./debug_vch_options.html">
@@ -496,59 +496,27 @@
                 
                     <section class="normal" id="section-">
                     
-                        <h1 id="list-virtual-container-hosts-and-obtain-their-ids">List Virtual Container Hosts and Obtain Their IDs</h1>
-<p>You can obtain a list of the virtual container hosts that are running in vCenter Server or on an ESXi host by using the <code>vic-machine ls</code> command. </p>
-<p>The <code>vic-machine ls</code> command lists virtual container hosts with their IDs, names, and versions. The <code>vic-machine ls</code> command informs you whether upgrades are available for the virtual container hosts.</p>
-<p>The <code>vic-machine ls</code> command does not include any options in addition to the common options described in <a href="common_vic_options.html">Common <code>vic-machine</code> Options</a>.</p>
-<p><strong>Prerequisites</strong></p>
-<p>You have deployed at least one virtual container host.</p>
-<p><strong>Procedure</strong></p>
-<ol>
-<li>On the system on which you run <code>vic-machine</code>, navigate to the directory that contains the <code>vic-machine</code> utility.</li>
-<li><p>Run the <code>vic-machine ls</code> command. </p>
-<ul>
-<li>To obtain a list of all virtual container hosts that are running on an ESXi host or vCenter Server instance, you must provide the address of the target ESXi host or vCenter Server. </li>
-<li>You must specify the username and optionally the password, either in the <code>--target</code> option or separately in the <code>--user</code> and <code>--password</code> options. </li>
-<li>If your vSphere environment uses untrusted, self-signed certificates, you must also specify the thumbprint of the vCenter Server instance or ESXi host in the <code>--thumbprint</code> option. To obtain the thumbprint of the vCenter Server or ESXi host certificate, run <code>vic-machine</code> without the specifying the <code>--thumbprint</code> option. The listing of the virtual container hosts fails, but the resulting error message includes the required certificate thumbprint. You can copy the thumbprint from the error message and run <code>vic-machine</code> again, including the <code>--thumbprint</code> option.</li>
-</ul>
-<pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> ls
---target <i>esxi_host_address</i>
---user root
---password <i>esxi_host_password</i>
---thumbprint <i>certificate_thumbprint</i>
-</pre>
+                        <h1 id="virtual-container-host-debug-options">Virtual Container Host Debug Options</h1>
+<p>The command line utility for vSphere Integrated Containers Engine, <code>vic-machine</code>, provides a <code>debug</code> command that allows you to enable SSH access to the virtual container host endpoint VM, set a password for the root user account, and upload a key file for automatic public key authentication. </p>
+<p>If you authorize SSH access to the virtual container host endpoint VM, you can edit system configuration files that you cannot edit by running <code>vic-machine</code> commands.</p>
+<p><strong>NOTE</strong>: Modifications that you make to the configuration of the virtual container host endpoint VM do not persist if you reboot the VM.</p>
+<p>The <code>vic-machine debug</code> command includes the following options in addition to the common options described in <a href="common_vic_options.html">Common <code>vic-machine</code> Options</a>.</p>
+<h3 id="enablessh"><code>--enable-ssh</code></h3>
+<p>Short name: <code>--ssh</code></p>
+<p>Enable an SSH server in the virtual container host endpoint VM. The <code>sshd</code> service runs until the virtual container host endpoint VM reboots. The <code>--enable-ssh</code> takes no arguments.</p>
+<pre>--enable-ssh</pre>
 
-<pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> ls
---target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
---thumbprint <i>certificate_thumbprint</i>
-</pre>
+<h3 id="rootpw"><code>--rootpw</code></h3>
+<p>Short name: <code>--pw</code></p>
+<p>Set a new password for the root user account on the virtual container host endpoint VM.</p>
+<p><strong>IMPORTANT</strong>: If you set a password for the virtual container host endpoint VM, this password does not persist if you reboot the VM. You must run vic-machine debug to reset the password each time you reboot the virtual container host endpoint VM.</p>
+<p>Wrap the password in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes special characters.</p>
+<pre>--rootpw &apos;<i>new_p@ssword</i>&apos;</pre>
 
-
-</li>
-</ol>
-<p><strong>Result</strong></p>
-<p>The <code>vic-machine ls</code> command lists the virtual container hosts that are running on the ESXi host or vCenter Server instance that you specified.</p>
-<pre>ID         PATH     NAME    VERSION                     UPGRADE STATUS
-vm-101     <i>path</i>     <i>vch_1</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
-vm-102     <i>path</i>     <i>vch_2</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
-[...]
-vm-<i>n</i>       <i>path</i>     <i>vch_n</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
-</pre>
-
-<ul>
-<li>The IDs are the vSphere Managed Object References, or morefs, for the virtual container host endpoint VMs. You can use virtual container host IDs when you run the  <code>vic-machine inspect</code>, <code>upgrade</code>, <code>debug</code>, and <code>delete</code> commands. Using virtual container host IDs reduces the number of options that you need to specify when you run those commands.</li>
-<li><p>The <code>PATH</code> value depends on where the virtual container host is deployed:</p>
-<ul>
-<li>ESXi host that is not managed by vCenter Server:<pre>/ha-datacenter/host/<i>host_name</i>/Resources</pre></li>
-<li>Standalone host that is managed by vCenter Server: <pre>/<i>datacenter</i>/host/<i>host_address</i>/Resources</pre></li>
-<li>vCenter Server cluster:<pre>/<i>datacenter</i>/host/<i>cluster_name</i>/Resources</pre></li>
-<li>If virtual container hosts are deployed in resource pools on hosts or clusters, the resource pool names appear after <code>Resources</code> in the path.</li>
-</ul>
-</li>
-<li>The <code>VERSION</code> value includes the version of <code>vic-machine</code>  that was used to create the virtual container host, the build number of this version, and a hashtag to identify the build.</li>
-<li>The <code>UPGRADE STATUS</code> reflects whether the version of <code>vic-machine</code> that you are using is the same as the version of the virtual container host. If the version or build number of the virtual container host does not match that of <code>vic-machine</code>, <code>UPGRADE STATUS</code> is <code>Upgradeable to vch_version-vch_build-tag</code>.</li>
-</ul>
-
+<h3 id="authorizedkey"><code>--authorized-key</code></h3>
+<p>Short name: <code>--key</code></p>
+<p>Upload a public key file to <code>/root/.ssh/authorized_keys</code> folder in the endpoint VM to implement public authentication when accessing the virtual container host endpoint VM. Include the name of the <code>*.pub</code> file in the path.</p>
+<pre>--authorized-key <i>path_to_public_key_file</i>/<i>key_file</i>.pub</pre>
                     
                     </section>
                 
@@ -558,10 +526,10 @@ vm-<i>n</i>       <i>path</i>     <i>vch_n</i>   <i>vch_version</i>-<i>vch_build
         </div>
 
         
-        <a href="./common_vic_options.html" class="navigation navigation-prev " aria-label="Previous page: Common `vic-machine` Options"><i class="fa fa-angle-left"></i></a>
+        <a href="./vch_ssh_access.html" class="navigation navigation-prev " aria-label="Previous page: Authorize SSH Access to the Virtual Container Host Endpoint VM"><i class="fa fa-angle-left"></i></a>
         
         
-        <a href="./inspect_vch.html" class="navigation navigation-next " aria-label="Next page: Obtain Information About a Virtual Container Host"><i class="fa fa-angle-right"></i></a>
+        <a href="./vch_portlet_ui.html" class="navigation navigation-next " aria-label="Next page: Find Virtual Container Host Information in the vSphere Web Client"><i class="fa fa-angle-right"></i></a>
         
     </div>
 </div>

@@ -5,7 +5,7 @@
         
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <title>List Virtual Container Hosts and Obtain Their IDs | VMware vSphere Integrated Containers Engine for vSphere Administrators, version 0.7.0</title>
+        <title>Upgrade a Virtual Container Host | VMware vSphere Integrated Containers Engine for vSphere Administrators, version 0.7.0</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="generator" content="GitBook 2.6.7">
@@ -37,10 +37,10 @@
         
     
     
-    <link rel="next" href="./inspect_vch.html" />
+    <link rel="next" href="./upgrade_vch_options.html" />
     
     
-    <link rel="prev" href="./common_vic_options.html" />
+    <link rel="prev" href="./delete_vch_options.html" />
     
 
         
@@ -49,9 +49,9 @@
         
         
     <div class="book"
-        data-level="3.3"
-        data-chapter-title="List Virtual Container Hosts and Obtain Their IDs"
-        data-filepath="list_vch.md"
+        data-level="3.6"
+        data-chapter-title="Upgrade a Virtual Container Host"
+        data-filepath="upgrade_vch.md"
         data-basepath="."
         data-revision="Mon Nov 07 2016 16:38:43 GMT+0100 (W. Europe Standard Time)"
         data-innerlanguage="">
@@ -158,7 +158,7 @@
             
         </li>
     
-        <li class="chapter active" data-level="3.3" data-path="list_vch.html">
+        <li class="chapter " data-level="3.3" data-path="list_vch.html">
             
                 
                     <a href="./list_vch.html">
@@ -224,7 +224,7 @@
             
         </li>
     
-        <li class="chapter " data-level="3.6" data-path="upgrade_vch.html">
+        <li class="chapter active" data-level="3.6" data-path="upgrade_vch.html">
             
                 
                     <a href="./upgrade_vch.html">
@@ -496,58 +496,53 @@
                 
                     <section class="normal" id="section-">
                     
-                        <h1 id="list-virtual-container-hosts-and-obtain-their-ids">List Virtual Container Hosts and Obtain Their IDs</h1>
-<p>You can obtain a list of the virtual container hosts that are running in vCenter Server or on an ESXi host by using the <code>vic-machine ls</code> command. </p>
-<p>The <code>vic-machine ls</code> command lists virtual container hosts with their IDs, names, and versions. The <code>vic-machine ls</code> command informs you whether upgrades are available for the virtual container hosts.</p>
-<p>The <code>vic-machine ls</code> command does not include any options in addition to the common options described in <a href="common_vic_options.html">Common <code>vic-machine</code> Options</a>.</p>
+                        <h1 id="upgrade-a-virtual-container-host">Upgrade a Virtual Container Host</h1>
+<p>You upgrade virtual container hosts by downloading a new version of vSphere Integrated Containers Engine and running the <code>vic-machine upgrade</code> command.</p>
+<p><strong>IMPORTANT</strong>: Due to the substantial changes in vSphere Integrated Containers version 0.7, you cannot use <code>vic-machine upgrade</code> to upgrade from version 0.6 to version 0.7. You can use <code>vic-machine upgrade</code> to upgrade from more recent builds to version 0.7.</p>
+<p>For descriptions of the options that <code>vic-machine upgrade</code> includes in addition to the <a href="common_vic_options.html">Common <code>vic-machine</code> Options</a> , see <a href="upgrade_vch_options.html">Virtual Container Host Upgrade Options</a>.</p>
 <p><strong>Prerequisites</strong></p>
-<p>You have deployed at least one virtual container host.</p>
+<ul>
+<li>You deployed one or more virtual container hosts with an older version of the <code>vic-machine create</code> command.</li>
+<li>You downloaded a new version of the vSphere Integrated Containers Engine bundle.</li>
+<li>Run the <code>vic-machine ls</code> command by using the new version of <code>vic-machine</code> to see the upgrade status of all of the virtual container hosts that are running on a vCenter Server instance or ESXi host. For information about running <code>vic-machine ls</code>, see <a href="list_vch.html">List Virtual Container Hosts and Obtain Their IDs</a>.</li>
+<li>Optionally note the IDs of the virtual container hosts.</li>
+</ul>
 <p><strong>Procedure</strong></p>
 <ol>
-<li>On the system on which you run <code>vic-machine</code>, navigate to the directory that contains the <code>vic-machine</code> utility.</li>
-<li><p>Run the <code>vic-machine ls</code> command. </p>
+<li>On the system on which you run <code>vic-machine</code>, navigate to the directory that contains the new version of the <code>vic-machine</code> utility.</li>
+<li><p>Run the <code>vic-machine upgrade</code> command. </p>
+<p>The following example includes the options required to upgrade a virtual container host in a simple vCenter Server environment. </p>
 <ul>
-<li>To obtain a list of all virtual container hosts that are running on an ESXi host or vCenter Server instance, you must provide the address of the target ESXi host or vCenter Server. </li>
-<li>You must specify the username and optionally the password, either in the <code>--target</code> option or separately in the <code>--user</code> and <code>--password</code> options. </li>
-<li>If your vSphere environment uses untrusted, self-signed certificates, you must also specify the thumbprint of the vCenter Server instance or ESXi host in the <code>--thumbprint</code> option. To obtain the thumbprint of the vCenter Server or ESXi host certificate, run <code>vic-machine</code> without the specifying the <code>--thumbprint</code> option. The listing of the virtual container hosts fails, but the resulting error message includes the required certificate thumbprint. You can copy the thumbprint from the error message and run <code>vic-machine</code> again, including the <code>--thumbprint</code> option.</li>
+<li>You must specify the username and optionally the password, either in the <code>target</code> option or separately in the <code>--user</code> and <code>--password</code> options. </li>
+<li>If the virtual container host has a name other than the default name, <code>virtual-container-host</code>, you must specify the <code>--name</code> or <code>--id</code> option. </li>
+<li>If multiple compute resources exist in the datacenter, you must specify the <code>--compute-resource</code> or <code>--id</code> option. </li>
+<li>If your vSphere environment uses untrusted, self-signed certificates, you must also specify the thumbprint of the vCenter Server instance or ESXi host in the <code>--thumbprint</code> option. To obtain the thumbprint of the vCenter Server or ESXi host certificate, run <code>vic-machine</code> without the specifying the <code>--thumbprint</code> or <code>--force</code> options. The upgrade of the virtual container host fails, but the resulting error message includes the required certificate thumbprint. You can copy the thumbprint from the error message and run <code>vic-machine</code> again, including the <code>--thumbprint</code> option.</li>
 </ul>
-<pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> ls
---target <i>esxi_host_address</i>
---user root
---password <i>esxi_host_password</i>
---thumbprint <i>certificate_thumbprint</i>
-</pre>
-
-<pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> ls
+<pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> upgrade
 --target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
 --thumbprint <i>certificate_thumbprint</i>
-</pre>
-
+--name <i>vch_name</i></pre>
+</li>
+<li><p>If the upgrade operation fails with error messages, run <code>vic-machine upgrade</code> again with the <code>--force</code> option.</p>
+<p>If your vSphere environment uses untrusted, self-signed certificates, running <code>vic-machine upgrade</code> with the <code>--force</code> option allows you to omit the <code>--thumbprint</code> option.</p>
+<pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> upgrade
+--target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
+--name <i>cluster_name</i>
+--force</pre>
 
 </li>
 </ol>
 <p><strong>Result</strong></p>
-<p>The <code>vic-machine ls</code> command lists the virtual container hosts that are running on the ESXi host or vCenter Server instance that you specified.</p>
-<pre>ID         PATH     NAME    VERSION                     UPGRADE STATUS
-vm-101     <i>path</i>     <i>vch_1</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
-vm-102     <i>path</i>     <i>vch_2</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
-[...]
-vm-<i>n</i>       <i>path</i>     <i>vch_n</i>   <i>vch_version</i>-<i>vch_build</i>-<i>tag</i>   Up to date
-</pre>
-
+<p>During the upgrade process, <code>vic-machine upgrade</code> performs the following operations:</p>
 <ul>
-<li>The IDs are the vSphere Managed Object References, or morefs, for the virtual container host endpoint VMs. You can use virtual container host IDs when you run the  <code>vic-machine inspect</code>, <code>upgrade</code>, <code>debug</code>, and <code>delete</code> commands. Using virtual container host IDs reduces the number of options that you need to specify when you run those commands.</li>
-<li><p>The <code>PATH</code> value depends on where the virtual container host is deployed:</p>
-<ul>
-<li>ESXi host that is not managed by vCenter Server:<pre>/ha-datacenter/host/<i>host_name</i>/Resources</pre></li>
-<li>Standalone host that is managed by vCenter Server: <pre>/<i>datacenter</i>/host/<i>host_address</i>/Resources</pre></li>
-<li>vCenter Server cluster:<pre>/<i>datacenter</i>/host/<i>cluster_name</i>/Resources</pre></li>
-<li>If virtual container hosts are deployed in resource pools on hosts or clusters, the resource pool names appear after <code>Resources</code> in the path.</li>
+<li>Validates whether the configuration of the existing virtual container host is compatible the new version. If not, the upgrade fails. </li>
+<li>Uploads the new versions of the <code>appliance.iso</code> and <code>bootstrap.iso</code> files to the virtual container host.</li>
+<li>Creates a snapshot of the virtual container host endpoint VM, to use in case the upgrade fails and has to roll back.</li>
+<li>Boots the virtual container host by using the new version of the <code>appliance.iso</code> file.</li>
+<li>Deletes the snapshot of the virtual container host endpoint VM once the upgrade has succeeded.</li>
+<li>After you upgrade a virtual container host, any new container VMs will boot from the new version of the <code>bootstrap.iso</code> file.</li>
 </ul>
-</li>
-<li>The <code>VERSION</code> value includes the version of <code>vic-machine</code>  that was used to create the virtual container host, the build number of this version, and a hashtag to identify the build.</li>
-<li>The <code>UPGRADE STATUS</code> reflects whether the version of <code>vic-machine</code> that you are using is the same as the version of the virtual container host. If the version or build number of the virtual container host does not match that of <code>vic-machine</code>, <code>UPGRADE STATUS</code> is <code>Upgradeable to vch_version-vch_build-tag</code>.</li>
-</ul>
+<p><strong>NOTE</strong>:  Upgrading a virtual container host does not upgrade any  existing container VMs that are running in the virtual container host. For container VMs to boot from the latest version of <code>bootstrap.iso</code>, container developers must recreate them.</p>
 
                     
                     </section>
@@ -558,10 +553,10 @@ vm-<i>n</i>       <i>path</i>     <i>vch_n</i>   <i>vch_version</i>-<i>vch_build
         </div>
 
         
-        <a href="./common_vic_options.html" class="navigation navigation-prev " aria-label="Previous page: Common `vic-machine` Options"><i class="fa fa-angle-left"></i></a>
+        <a href="./delete_vch_options.html" class="navigation navigation-prev " aria-label="Previous page: Virtual Container Host Delete Options"><i class="fa fa-angle-left"></i></a>
         
         
-        <a href="./inspect_vch.html" class="navigation navigation-next " aria-label="Next page: Obtain Information About a Virtual Container Host"><i class="fa fa-angle-right"></i></a>
+        <a href="./upgrade_vch_options.html" class="navigation navigation-next " aria-label="Next page: Virtual Container Host Upgrade Options"><i class="fa fa-angle-right"></i></a>
         
     </div>
 </div>
