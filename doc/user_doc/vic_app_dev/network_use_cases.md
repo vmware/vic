@@ -1,4 +1,4 @@
-#Network Port Use Cases #
+# Network Port Use Cases #
 
 These are some use cases of containers using network ports to communicate with each other.
 
@@ -71,7 +71,7 @@ Connect two containers on a bridge network and set up one of the containers to p
 #### Outcome
 Server and Client can ping each other by name. You can connect to the server on port 5000 from the client container and to port 5000 on the virtual container host external interface.
 
-###Containers on Multiple Bridge Networks
+### Containers on Multiple Bridge Networks
 
 Create containers on multiple bridge networks by mapping ports through the Docker server. The virtual container host must have an IP address on the relevant bridge networks. To create bridge networks, use  `network create`
 
