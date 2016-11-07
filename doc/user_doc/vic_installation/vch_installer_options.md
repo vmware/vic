@@ -280,6 +280,8 @@ The label that you specify is the volume store name that Docker uses. For exampl
 ## Networking Options ##
 The `vic-machine create` utility allows you to specify different networks for the different types of traffic between containers, the virtual container host, the external internet, and your vSphere environment. For information about the different networks that virtual container hosts use, see [Networks Used by vSphere Integrated Containers Engine](networks.md).
 
+**IMPORTANT**: A virtual container host supports a maximum of 3 distinct networks. Because the bridge and container networks require  their own distributed port groups, at least two of the external, client, and management networks must share a network.
+
 By default, `vic-machine create` obtains IP addresses for virtual container host endpoint VMs by using DHCP. For information about how to specify a static IP address for the virtual container host endpoint VM on the client, external, and management networks, see [Specify a Static IP Address for the Virtual Container Host Endpoint VM](#static-ip) in Advanced Options.
 
 <a name="bridge"></a>
