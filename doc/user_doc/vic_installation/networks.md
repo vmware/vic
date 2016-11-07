@@ -8,6 +8,8 @@ Virtual container hosts connect to different types of network.
 
 This topic provides an overview of the different network types. 
 
+**IMPORTANT**: A virtual container host supports a maximum of 3 distinct networks. Because the bridge and container networks require  their own distributed port groups, at least two of the external, client, and management networks must share a network.
+
 ## Container Bridge Networks ##
 The network or networks that container VMs use to communicate with each other. Each virtual container host requires a unique bridge network.
 

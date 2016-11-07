@@ -2,26 +2,27 @@
 
 This topic provides examples of the options of the `vic-machine create` command to use when deploying virtual container hosts in different vSphere configurations.
 
-- [Deploy a Virtual Container Host Directly on an ESXi Host with no Resource Pools and a Single Datastore](#esxi)
-- [Deploy a Virtual Container Host in a vCenter Server Cluster](#cluster)
-- [Deploy a Virtual Container Host to a Cluster and Specify External, Management, Client, and Container Networks](#networks)
-- [Deploy a Virtual Container Host and Configure a Non-DHCP Container Network](#ip-range)
-- [Deploy a Virtual Container Host with a Static IP Address on the Different Networks](#static-ip)
-- [Deploy a Virtual Container Host and Specify One or More Volume Stores](#volume-stores)
-- [Deploy a Virtual Container Host on a Standalone Host in vCenter Server](#standalone)
-- [Deploy a Virtual Container Host in a Resource Pool on an ESXi Host](#rp_host)
-- [Deploy a Virtual Container Host in a Resource Pool in a vCenter Server Cluster](#rp_cluster)
-- [Deploy a Virtual Container Host for Use with Auto-Generated Trusted CA Certificates](#auto_cert)
-- [Deploy a Virtual Container Host for Use with Custom Trusted CA Certificates](#custom_cert)
-- [Deploy a Virtual Container Host with Limits on Resource Use](#customized)
-- [Deploy a Virtual Container Host and Authorize Access to an Insecure Private Registry Server](#registry)
+- [Deploy to an ESXi Host with no Resource Pools and a Single Datastore](#esxi)
+- [Deploy to a vCenter Server Cluster](#cluster)
+- [Specify External, Management, Client, and Container Networks](#networks)
+- [Configure a Non-DHCP Container Network](#ip-range)
+- [Set a Static IP Address on the Different Networks](#static-ip)
+- [Specify One or More Volume Stores](#volume-stores)
+- [Deploy to a Standalone Host in vCenter Server](#standalone)
+- [Deploy to a Resource Pool on an ESXi Host](#rp_host)
+- [Deploy to a Resource Pool in a vCenter Server Cluster](#rp_cluster)
+- [Use Auto-Generated Trusted CA Certificates](#auto_cert)
+- [Use Custom Trusted CA Certificates](#custom_cert)
+- [Limit Resource Use](#customized)
+- [Authorize Access to an Insecure Private Registry Server](#registry)
+- [Configure a Proxy Server](#proxy)
 
 For simplicity, unless stated otherwise, these examples assume that the vSphere environment uses trusted certificates signed by a known Certificate Authority (CA), so the `--thumbprint` option is not specified.
 
 For detailed descriptions of all of the `vic-machine create` options, see [Virtual Container Host Deployment Options](vch_installer_options.md).
 
 <a name="esxi"></a>
-## Deploy a Virtual Container Host Directly on an ESXi Host with no Resource Pools and a Single Datastore##
+## Deploy to an ESXi Host with no Resource Pools and a Single Datastore##
 
 You can deploy a virtual container host directly on an ESXi host that is not managed by a vCenter Server instance. This example provides the minimum options required to deploy a virtual container host, namely the `--target` and `--user` options and an authentication option. The `vic-machine create` command prompts you for the password for the ESXi host and deploys a virtual container host with the default name `virtual-container-host`. If there is only one datastore on the host and there are no resource pools, you do not need to specify the `--image-store` or `--compute-resource` options. When deploying to an ESXi host, `vic-machine create` creates a standard virtual switch and a distributed port group, so you do not need to specify any network options if you do not have specific network requirements. The example uses the `--no-tlsverify` option to implement TLS authentication with self-signed untrusted certificates, with no client verification.
 
@@ -32,7 +33,7 @@ You can deploy a virtual container host directly on an ESXi host that is not man
 </pre>
 
 <a name="cluster"></a>
-## Deploy a Virtual Container Host in a vCenter Server Cluster ##
+## Deploy to a vCenter Server Cluster ##
 
 If vCenter Server has more than one datacenter, you specify the datacenter in the `--target` option.
 
@@ -58,7 +59,7 @@ This example deploys a virtual container host with the following configuration:
 </pre>
 
 <a name="networks"></a>
-## Deploy a Virtual Container Host to a Cluster and Specify External, Management, Client, and Container Networks ##
+## Specify External, Management, Client, and Container Networks ##
 
 In addition to the mandatory bridge network, if your vCenter Server environment includes multiple networks, you can direct different types of traffic to different networks. 
 
@@ -69,7 +70,7 @@ In addition to the mandatory bridge network, if your vCenter Server environment 
 
 This example deploys a virtual container host with the following configuration:
 
-- Specifies the user name, password, datacenter, cluster, thumbprint, image store, bridge network, and name for the virtual container host.
+- Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the virtual container host.
 - Directs external, management, and Docker API traffic to network 1, network 2, and network 3 respectively. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 - Designates a distributed port group named `vic-containers` for use by container VMs that are run with the `--net` option.
 - Gives the container network the name `vic-container-network`, for use by Docker.  
@@ -91,13 +92,13 @@ This example deploys a virtual container host with the following configuration:
 For more information about the networking options, see the [Networking Options section](vch_installer_options.md#networking) in Virtual Container Host Deployment Options.
 
 <a name="ip-range"></a>
-## Deploy a Virtual Container Host and Configure a Non-DHCP Container Network ##
+## Configure a Non-DHCP Container Network ##
 
 If the network that you designate as the container network in the `--container-network` option does not support DHCP, you can configure the gateway, DNS server, and a range of IP addresses for container VMs to use. 
 
 This example deploys a virtual container host with the following configuration:
 
-- Specifies the user name, password, datacenter, cluster, thumbprint, image store, bridge network, and name for the virtual container host.
+- Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the virtual container host.
 - Uses the default VM Network for the external, management, and client networks.
 - Designates a distributed port group named `vic-containers` for use by container VMs that are run with the `--net` option.
 - Gives the container network the name `vic-container-network`, for use by Docker. 
@@ -121,13 +122,13 @@ This example deploys a virtual container host with the following configuration:
 For more information about the container network options, see the [container network section](vch_installer_options.md#container-network) in Virtual Container Host Deployment Options.
 
 <a name="static-ip"></a>
-## Deploy a Virtual Container Host with a Static IP Address on the Different Networks ##
+## Set a Static IP Address on the Different Networks ##
 
 If you specify networks for any or all of the external, management, and client networks, you can deploy the virtual container host so that the virtual container host endpoint VM has a static IP address on those networks. 
 
 This example deploys a virtual container host with the following configuration:
 
-- Specifies the user name, password, datacenter, cluster, thumbprint, image store, bridge network, and name for the virtual container host.
+- Specifies the user name, password, datacenter, cluster, image store, bridge network, and name for the virtual container host.
 - Directs external, management, and Docker API traffic to network 1, network 2, and network 3 respectively. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 - Sets a DNS server for use by the virtual container host.
 - Sets a static IP address for the virtual container host endpoint VM on each of the external, management, and client networks. 
@@ -150,12 +151,13 @@ This example deploys a virtual container host with the following configuration:
 --client-network-ip 192.168.3.10/24
 --dns-server <i>dns_server_address</i>
 --name vch1
+--no-tlsverify
 </pre>
 
 For more information about the networking options, see the [Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM](vch_installer_options.md#static-ip) in Virtual Container Host Deployment Options.
 
 <a name="volume-stores"></a>
-## Deploy a Virtual Container Host and Specify One or More Volume Stores ##
+## Specify One or More Volume Stores ##
 
 If container application developers will use the `docker volume create` command to create containers that use volumes, you must create volume stores when you deploy virtual container hosts. You specify volume stores in the `--volume-store` option. You can specify `--volume-store` multiple times to create multiple volume stores. 
 
@@ -183,7 +185,7 @@ This example deploys a virtual container host with the following configuration:
 For more information about volume stores, see the [volume-store section](vch_installer_options.md#volume-store) in Virtual Container Host Deployment Options. 
 
 <a name="standalone"></a> 
-## Deploy a Virtual Container Host on a Standalone Host in vCenter Server ##
+## Deploy to a Standalone Host in vCenter Server ##
 
 If vCenter Server manages multiple standalone ESXi hosts that are not part of a cluster, you use the `--compute-resource` option to specify the address of the ESXi host to which to deploy the virtual container host.
 
@@ -203,7 +205,7 @@ This example deploys a virtual container host with the following configuration:
 </pre>
 
 <a name="rp_host"></a>
-## Deploy a Virtual Container Host in a Resource Pool on an ESXi Host ##
+## Deploy to a Resource Pool on an ESXi Host ##
 
 To deploy a virtual container host in a specific resource pool on an ESXi host that is not managed by vCenter Server, you specify the resource pool name in the `--compute-resource` option. 
 
@@ -221,7 +223,7 @@ This example deploys a virtual container host with the following configuration:
 </pre>
 
 <a name="rp_cluster"></a>
-## Deploy a Virtual Container Host in a Resource Pool in a vCenter Server Cluster ##
+## Deploy to a Resource Pool in a vCenter Server Cluster ##
 
 To deploy a virtual container host in a resource pool in a vCenter Server cluster, you specify the names of the cluster and resource pool in the `compute-resource` option.
 
@@ -241,7 +243,7 @@ This example deploys a virtual container host with the following configuration:
 </pre>
 
 <a name="auto_cert"></a>
-## Deploy a Virtual Container Host for Use with Auto-Generated Trusted CA Certificates ##
+##  Use Auto-Generated Trusted CA Certificates ##
 
 You can deploy a virtual container host that implements two-way authentication with trusted auto-generated TLS certificates that are signed by a Certificate Authority (CA). To automatically generate a trusted CA certificate, you provide information that `vic-machine create` uses to populate the fields of a certificate request. At a minimum, you must specify the FQDN or the name of the domain in which the virtual container host will run in the `--tls-cname` option. `vic-machine create` uses the name as the Common Name in the certificate request. You can also optionally specify a CA file, an organization name, and a size for the certificate key. 
 
@@ -264,7 +266,7 @@ This example deploys a virtual container host with the following configuration:
 For more information about using auto-generated CA certificates, see the [Security Options section](vch_installer_options.md#security) in Virtual Container Host Deployment Options.
 
 <a name="custom_cert"></a>
-## Deploy a Virtual Container Host for Use with Custom Trusted CA Certificates ##
+## Use Custom Trusted CA Certificates ##
 
 If your development environment uses custom CA certificates to authenticate connections between Docker clients and virtual container hosts, use the `--cert` and `--key` options to provide the paths to a custom X.509 certificate and its key when you deploy a virtual container host. The paths to the certificate and key files must be relative to the location from which you are running `vic-machine create`.
 
@@ -286,13 +288,13 @@ This example deploys a virtual container host with the following configuration:
 For more information about using custom CA certificates, see the [Advanced Security Options section](vch_installer_options.md#adv-security) in Virtual Container Host Deployment Options.
 
 <a name="customized"></a>
-## Deploy a Virtual Container Host with Limits on Resource Use ##
+## Limit Resource Use ##
 
 To limit the amount of system resources that the container VMs in a virtual container host can use, you can set resource limits on the virtual container host vApp. 
 
 This example deploys a virtual container host with the following configuration:
 
-- Specifies the user name, password, thumbprint, image store, cluster, bridge network, and name for the virtual container host.
+- Specifies the user name, password, image store, cluster, bridge network, and name for the virtual container host.
 - Sets resource limits on the virtual container host by imposing memory and CPU reservations, limits, and shares.
 - Uses the `--no-tlsverify` option to implement TLS authentication with self-signed untrusted certificates, with no client verification.
 
@@ -314,13 +316,13 @@ This example deploys a virtual container host with the following configuration:
 For more information about setting resource use limitations on virtual container hosts, see the [vApp Deployment Options](vch_installer_options.md#deployment) and [Advanced Resource Management Options](vch_installer_options.md#adv-mgmt) sections in Virtual Container Host Deployment Options.
 
 <a name="registry"></a>
-## Deploy a Virtual Container Host and Authorize Access to an Insecure Private Registry Server ##
+## Authorize Access to an Insecure Private Registry Server ##
 
 An insecure private registry server is a private registry server for Docker images that is secured by self-signed certificates rather than by TLS. To authorize connections from a virtual container host to an insecure private registry server, set the `insecure-registry` option. You can specify `insecure-registry` multiple times to allow connections from the virtual container host to multiple insecure private registry servers.
 
 This example deploys a virtual container host with the following configuration:
 
-- Specifies the user name, password, thumbprint, image store, cluster, bridge network, and name for the virtual container host.
+- Specifies the user name, password, image store, cluster, bridge network, and name for the virtual container host.
 - Authorizes the virtual container host to pull Docker images from the insecure private registry servers located at the URLs <i>registry_URL_1</i> and <i>registry_URL_2</i>.
 - The registry server at <i>registry_URL_2</i> listens for connections on port 5000. 
 - Uses the `--no-tlsverify` option to implement TLS authentication with self-signed untrusted certificates, with no client verification.
@@ -340,3 +342,23 @@ For more information about configuring virtual container hosts to connect to ins
 
 **NOTE**: The current builds of vSphere Integrated Containers do not yet support private registry servers that you secure by using TLS certificates.
 
+<a name="proxy"></a>
+## Configure a Proxy Server ##
+
+If your network access is controlled by a proxy server, you must   configure a virtual container host to connect to the proxy server when you deploy it.
+
+This example deploys a virtual container host with the following configuration:
+
+- Specifies the user name, password, image store, cluster, bridge network, and name for the virtual container host.
+- Configures the virtual container host to access the network via an HTTPS proxy server.
+- Uses the `--no-tlsverify` option to implement TLS authentication with self-signed untrusted certificates, with no client verification.
+
+<pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
+--target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
+--compute-resource cluster1
+--image-store datastore1
+--bridge-network vic-bridge
+--https-proxy https://<i>proxy_server_address</i>:<i>port</i>
+--name vch1
+--no-tlsverify
+</pre>

@@ -13,6 +13,7 @@ To allow you to fine-tune the deployment of virtual container hosts, `vic-machin
 - [Advanced Security Options](#adv-security)
 - [Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM](#static-ip)
 - [Options for Configuring a Non-DHCP Network for Container Traffic](#adv-container-net)
+- [Options to Configure Virtual Container Hosts to Use Proxy Servers](#proxy)
 - [Advanced Resource Management Options](#adv-mgmt)
 - [Other Advanced Options](#adv-other)
 
@@ -220,13 +221,13 @@ If you are deploying the virtual container host to a vCenter Server cluster, the
 When you deploy a virtual container host, `vic-machine` creates a set of folders in the target datastore: 
 
 - A folder with the same name as the virtual container host, at the top level of the datastore. This folder contains the VM files for the virtual container host appliance.
-- A folder named `VIC` inside the virtual container host folder. The `VIC` folder contains a subfolder named `images`, in which to store all of the container images that you pull into a virtual container host. 
+- A folder named `VIC` inside the virtual container host folder. The `VIC` folder contains a folder that uses the UUID of the virtual container host endpoint VM as its name. The <code>VIC/<i>vch_uuid</i></code> folder contains a subfolder named `images`, in which to store all of the container images that you pull into the virtual container host. 
 
-You can specify a datastore folder to use as the image store in the format <code><i>datastore_name</i>/<i>path</i></code>. If the folder that you specify does not already exist, `vic-machine create` creates it. In this case, `vic-machine` still creates the folder for the files of the virtual container host appliance at the top level of the datastore. However, `vic-machine create` creates the `VIC` and `images` folders inside the <code><i>datastore_name</i>/<i>path</i></code> folder, rather than in the same folder as the virtual container host files.
+You can specify a datastore folder to use as the image store in the format <code><i>datastore_name</i>/<i>path</i></code>. If the path to the folder that you specify does not already exist, `vic-machine create` creates it. In this case, `vic-machine` still creates the folder for the files of the virtual container host appliance at the top level of the datastore. However, `vic-machine create` creates the `VIC` folder inside the <code><i>datastore_name</i>/<i>path</i></code> folder, rather than in the same folder as the virtual container host files. 
 
-By specifying the path to a datastore folder in the `--image-store` option, you can designate the same datastore folder as the image store for multiple virtual container hosts. In this way, only one `VIC` folder is created in the datastore. Container image files are made available to all of the virtual container hosts that use that image store.
+By specifying the path to a datastore folder in the `--image-store` option, you can designate the same datastore folder as the image store for multiple virtual container hosts. In this way, `vic-machine create` creates only one `VIC` folder in the datastore, at the path that you specify. The `VIC` folder contains one <code><i>vch_uuid</i>/images</code> folder for each virtual container host that you deploy. By creating one <code><i>vch_uuid</i>/images</code> folder for each virtual container host, vSphere Integrated Containers Engine limits the potential for conflicts of image use between virtual container hosts, even if you share the same image store folder between multiple hosts.
 
-**NOTE**: In the current builds of vSphere Integrated Containers Engine, sharing an image store between multiple virtual container hosts can lead to inconsistent behavior. Designate a different folder for the image store for each virtual container host, or omit the datastore folder from the `--image-store` option.
+**NOTE**: In the current builds of vSphere Integrated Containers Engine, sharing an image store folder between multiple virtual container hosts can lead to inconsistent behavior. Designate a different folder for the image store for each virtual container host, or omit the datastore folder from the `--image-store` option.
 
 When container developers create containers, vSphere Integrated Containers Engine stores the files for container VMs at the top level of the image store, in folders that have the same name as the containers.
 
@@ -280,7 +281,11 @@ The label that you specify is the volume store name that Docker uses. For exampl
 ## Networking Options ##
 The `vic-machine create` utility allows you to specify different networks for the different types of traffic between containers, the virtual container host, the external internet, and your vSphere environment. For information about the different networks that virtual container hosts use, see [Networks Used by vSphere Integrated Containers Engine](networks.md).
 
+**IMPORTANT**: A virtual container host supports a maximum of 3 distinct networks. Because the bridge and container networks require  their own distributed port groups, at least two of the external, client, and management networks must share a network.
+
 By default, `vic-machine create` obtains IP addresses for virtual container host endpoint VMs by using DHCP. For information about how to specify a static IP address for the virtual container host endpoint VM on the client, external, and management networks, see [Specify a Static IP Address for the Virtual Container Host Endpoint VM](#static-ip) in Advanced Options.
+
+If your network access is controlled by a proxy server, see [Options to Configure Virtual Container Hosts to Use Proxy Servers](#proxy) in Advanced Options. 
 
 <a name="bridge"></a>
 ### `--bridge-network` ###
@@ -641,6 +646,28 @@ Wrap the distributed port group name in single quotes (Linux or Mac OS) or doubl
 
 <pre>--container-network-ip-range '<i>distributed port group name</i>':192.168.100.0/24</pre>
 
+<a name="proxy"></a>
+## Options to Configure Virtual Container Hosts to Use Proxy Servers ##
+
+If your network access is controlled by a proxy server, you must   configure a virtual container host to connect to the proxy server when you deploy it.
+
+**IMPORTANT**: Configuring a virtual container host to use a proxy server does not configure proxy support on the containers that this virtual container host runs. Container developers must configure proxy servers on containers when they create them. 
+
+### `--http-proxy` ###
+
+Short name: `--hproxy`
+
+The address of the HTTP proxy server through which the virtual container host accesses the network. Specify the address of the proxy server as either an FQDN or an IP address.
+
+<pre>--http-proxy http://<i>proxy_server_address</i>:<i>port</i></pre>
+
+### `--https-proxy` ###
+
+Short name: `--sproxy`
+
+The address of the HTTPS proxy server through which the virtual container host accesses the network. Specify the address of the proxy server as either an FQDN or an IP address.
+
+<pre>--https-proxy https://<i>proxy_server_address</i>:<i>port</i></pre>
 
 <a name="adv-mgmt"></a>
 ## Advanced Resource Management Options ##
