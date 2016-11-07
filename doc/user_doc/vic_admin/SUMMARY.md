@@ -16,6 +16,7 @@
     * [Virtual Container Host Debug Options](debug_vch_options.md)
 * [Find Virtual Container Host Information in the vSphere Web Client](vch_portlet_ui.md)
 * [Find Container Information in the vSphere Web Client](container_portlet_ui.md)
+* [Upgrade the vSphere Integrated Containers Engine Plug-In](upgrade_ui_plugin.md)
 * [Access the Administration Portal for a Virtual Container Host](access_vicadmin.md)
   * [Virtual Container Host Status Reference](vicadmin_status_ref.md)
 * [Troubleshooting vSphere Integrated Containers Engine Administration](troubleshoot_vic_admin.md)
