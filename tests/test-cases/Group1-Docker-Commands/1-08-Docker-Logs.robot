@@ -69,6 +69,24 @@ Docker logs with follow and tail
     ${linecount}=  Get Line Count  ${output}
     Should Be Equal As Integers  ${linecount}  15
 
+Docker logs follow shutdown
+    # Test that logs --follow reads all data following a close (shutdown) event.
+    # Keys to this test:
+    # - The container VM shutdown event happens while the (HTTP) log follow poller is asleep.
+    # - The container VM log accumulates > interaction layer buffer size data while log follow poller was alseep.
+    # Note that the interaction layer currently uses an extra super tiny buffer size of 64 bytes.
+    ${rc}  ${buffer}=  Run And Return Rc And Output  bash -c "printf '=%.0s' {1..65}"
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${id}=  Run And Return Rc And Output  docker ${params} create busybox sh -c 'echo ${buffer}; sleep .5; echo ${buffer}'
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start ${id}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow ${id}
+    Should Be Equal As Integers  ${rc}  0
+    Should Be Equal  ${output}  ${buffer}\n${buffer}
+
 Docker logs with timestamps and since certain time
     ${status}=  Get State Of Github Issue  1738
     Run Keyword If  '${status}' == 'closed'  Fail  Test 1-8-Docker-Logs.robot needs to be updated now that Issue #366 has been resolved
