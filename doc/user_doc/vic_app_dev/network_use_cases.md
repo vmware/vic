@@ -2,7 +2,7 @@
 
 These are some use cases of containers using network ports to communicate with each other.
 
-#### Container with a Published Port
+### Container with a Published Port
 
 Launch a container and expose a port: `run -p`
 
@@ -10,11 +10,11 @@ Connect the container with the external mapped port on the external surface of t
 
 `$ docker run -p 8080:80 --name test1 my_container my_app`
 
-##### Outcome
+#### Outcome
 
 You can access Port 80 on test1 from the external network interface on the virtual container host at port 8080.
 
-#### Simple Bridge Network
+### Container on a Simple Bridge Network
 
 Create a new non-default bridge network and set up two containers on the network. Verify that the containers can locate and communicate with each other.
 
@@ -33,11 +33,11 @@ Create a new non-default bridge network and set up two containers on the network
     64 bytes from 172.18.0.2: seq=1 ttl=64 time=0.092 ms
     64 bytes from 172.18.0.2: seq=2 ttl=64 time=0.088 ms
 
-##### Outcome
+#### Outcome
 
 Server and Client can ping each other by name.
 
-#### Bridged Containers with Exposed Port
+### Bridged Containers with Exposed Port
 
 Connect two containers on a bridge network and set up one of the containers to publish a port via the virtual container host. Assume server_app binds to port 5000.
 
@@ -68,18 +68,33 @@ Connect two containers on a bridge network and set up one of the containers to p
 
     Hello world!Connection closed by foreign host.
 
-##### Outcome
+#### Outcome
 Server and Client can ping each other by name. You can connect to the server on port 5000 from the client container and to port 5000 on the virtual container host external interface.
 
-#### Containers using External Network
+###Containers on Multiple Bridge Networks
+
+Create containers on multiple bridge networks by mapping ports through the Docker server. The virtual container host must have an IP address on the relevant bridge networks. To create bridge networks, use  `network create`
+
+Example:
+Run a container:
+ `docker run -it --net net1 --net net2 busybox`
+For this container to reach both networks or containers connected to only those networks:
+
+	docker run -it --net net1 --name n1 busybox
+	docker run -it --net net2 --name n2 busybox
+	docker run -it --net net1 --net net2 --name n12 busybox
+
+#### Outcome
+n1 and n2 cannot talk to each other<br>
+n12 can talk to both n1 and n2
+
+### Containers using External Network
 
 Configure two external networks in vSphere:
 `default-external` is `10.2.0.0/16` with gateway `10.2.0.1`  
 `vic-production` is `208.91.3.0/24` with gateway `208.91.3.1`  
 
-Associate a virtual container host, then set up the virtual container host to the default external network.
-
-Attach the virtual container host to the default-external network at 08.91.3.2.
+Associate a virtual container host, then set up the virtual container host to the default external network at 208.91.3.2.
 
 `docker network ls` shows:
 
@@ -154,6 +169,45 @@ Set up a server on the vic-production network:
 **NOTE:** You can also use `-p 80` or `-p 80:80` instead of
 `--expose=80`. If you try to map to different ports with `-p`, you get a configuration error.
 
-##### Outcome
+#### Outcome
 
 The server container port is exposed on the external network vic-production.
+
+### Containers Using Multiple External Networks
+Create external networks only using `vic-machine`.
+
+Example:
+
+    ./vic-machine-darwin create --target 172.16.252.131 --image-store datastore1 --name vic-demo --user root --password 'Vmware!23' --compute-resource /ha-datacenter/host/*/Resources --cn pg1:pg1 --cn pg2:pg2 --cn pg3:pg3
+
+pg1-3 are port groups on the ESX Server that are now mapped into docker network ls.
+
+    $ docker -H 172.16.252.150:2376 --tls network ls
+    NETWORK ID   NAME   DRIVER
+    903b61edec66 bridge bridge
+    95a91e11b1a8 pg1    external
+    ab84ba2a326b pg2    external
+    2df4101caac2 pg3    external
+
+
+If a container is connected to an external network, the traffic to and from that network does not go through the appliance VM.
+
+You also can create more bridge networks via the docker API. These are all backed by the same port group as the default bridge, but those networks are isolated via IP address management.
+
+    Example:
+    $ docker -H 172.16.252.150:2376 --tls network create mikes
+    0848ee433797c746b466ffeb57581c301d8e96b7e82a4d524e0fa0222860ba44
+    $ docker -H 172.16.252.150:2376 --tls network create bob
+    316e34ff3b7b19501fe14982791ee139ce98e62d060203125c5dbdc8543ff641
+    $ docker -H 172.16.252.150:2376 --tls network ls
+    NETWORK ID   NAME   DRIVER
+    316e34ff3b7b bob    bridge
+    903b61edec66 bridge bridge
+    0848ee433797 mikes  bridge
+    95a91e11b1a8 pg1    external
+    ab84ba2a326b pg2    external
+    2df4101caac2 pg3    external
+
+#### Outcome
+
+You can create containers with --net mikes or --net pg1 and be on the correct network. With docker you can combine them and attach multiple networks.
