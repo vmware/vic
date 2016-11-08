@@ -326,7 +326,7 @@ func (t *tether) processSessions() error {
 
 				// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
 				// currently sure how to expose it neatly via a utility function
-				extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo.vice..sessions|%s", id))
+				extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo.vice..sessions%s%s", extraconfig.Separator, id))
 				log.Warnf("Re-launching process for session %s (count: %d)", id, session.Diagnostics.ResurrectionCount)
 				session.Cmd = *restartableCmd(&session.Cmd)
 			}
@@ -478,7 +478,7 @@ func (t *tether) handleSessionExit(session *SessionConfig) {
 
 	// FIXME: we cannot have this embedded knowledge of the extraconfig encoding pattern, but not
 	// currently sure how to expose it neatly via a utility function
-	extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo.vice..sessions|%s", session.ID))
+	extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo.vice..sessions%s%s", extraconfig.Separator, session.ID))
 
 	if f != nil {
 		f()
@@ -492,7 +492,7 @@ func (t *tether) launch(session *SessionConfig) error {
 
 	// encode the result whether success or error
 	defer func() {
-		extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo.vice..sessions|%s", session.ID))
+		extraconfig.EncodeWithPrefix(t.sink, session, fmt.Sprintf("guestinfo.vice..sessions%s%s", extraconfig.Separator, session.ID))
 	}()
 
 	session.Lock()
