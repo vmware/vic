@@ -47,23 +47,6 @@ func TestCreateVm(t *testing.T) {
 
 		p := property.DefaultCollector(c.Client)
 
-		spec := types.VirtualMachineConfigSpec{
-			// Note: real ESX allows the VM to be created without a GuestId,
-			// but will power on will fail.
-			GuestId: string(types.VirtualMachineGuestOsIdentifierOtherGuest),
-		}
-
-		steps := []func(){
-			func() {
-				spec.Name = "test"
-			},
-			func() {
-				spec.Files = &types.VirtualMachineFileInfo{
-					VmPathName: fmt.Sprintf("[LocalDS_0] %s/%s.vmx", spec.Name, spec.Name),
-				}
-			},
-		}
-
 		finder := find.NewFinder(c.Client, false)
 
 		dc, err := finder.DefaultDatacenter(ctx)
@@ -74,6 +57,11 @@ func TestCreateVm(t *testing.T) {
 		finder.SetDatacenter(dc)
 
 		folders, err := dc.Folders(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		ds, err := finder.DefaultDatastore(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -96,6 +84,27 @@ func TestCreateVm(t *testing.T) {
 		}
 
 		vmFolder := folders.VmFolder
+
+		var vmx string
+
+		spec := types.VirtualMachineConfigSpec{
+			// Note: real ESX allows the VM to be created without a GuestId,
+			// but will power on will fail.
+			GuestId: string(types.VirtualMachineGuestOsIdentifierOtherGuest),
+		}
+
+		steps := []func(){
+			func() {
+				spec.Name = "test"
+				vmx = fmt.Sprintf("%s/%s.vmx", spec.Name, spec.Name)
+			},
+			func() {
+				spec.Files = &types.VirtualMachineFileInfo{
+					VmPathName: fmt.Sprintf("[%s] %s", ds.Name(), vmx),
+				}
+			},
+		}
+
 		// expecting CreateVM to fail until all steps are taken
 		for _, step := range steps {
 			task, cerr := vmFolder.CreateVM(ctx, spec, pool, host)
@@ -103,7 +112,7 @@ func TestCreateVm(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			_, cerr = task.WaitForResult(ctx, nil)
+			cerr = task.Wait(ctx)
 			if cerr == nil {
 				t.Error("expected error")
 			}
@@ -117,6 +126,12 @@ func TestCreateVm(t *testing.T) {
 		}
 
 		info, err := task.WaitForResult(ctx, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Test that datastore files were created
+		_, err = ds.Stat(ctx, vmx)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -212,6 +227,12 @@ func TestCreateVm(t *testing.T) {
 					return false
 				})
 			}
+		}
+
+		// Test that datastore files were removed
+		_, err = ds.Stat(ctx, vmx)
+		if err == nil {
+			t.Error("expected error")
 		}
 	}
 }

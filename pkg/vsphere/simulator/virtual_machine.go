@@ -37,6 +37,7 @@ type VirtualMachine struct {
 	mo.VirtualMachine
 
 	log *log.Logger
+	out io.Closer
 }
 
 func NewVirtualMachine(spec *types.VirtualMachineConfigSpec) (*VirtualMachine, types.BaseMethodFault) {
@@ -151,11 +152,12 @@ func (vm *VirtualMachine) useDatastore(name string) *Datastore {
 	return ds
 }
 
-func (vm *VirtualMachine) setLog(w io.Writer) {
+func (vm *VirtualMachine) setLog(w io.WriteCloser) {
+	vm.out = w
 	vm.log = log.New(w, "vmx ", log.Flags())
 }
 
-func (vm *VirtualMachine) createFile(spec string, name string) (*os.File, types.BaseMethodFault) {
+func (vm *VirtualMachine) createFile(spec string, name string, register bool) (*os.File, types.BaseMethodFault) {
 	p, fault := parseDatastorePath(spec)
 	if fault != nil {
 		return nil, fault
@@ -171,6 +173,20 @@ func (vm *VirtualMachine) createFile(spec string, name string) (*os.File, types.
 		}
 
 		file = path.Join(file, name)
+	}
+
+	if register {
+		f, err := os.Open(file)
+		if err != nil {
+			log.Printf("register %s: %s", vm.Reference(), err)
+			if os.IsNotExist(err) {
+				return nil, &types.NotFound{}
+			}
+
+			return nil, &types.InvalidArgument{}
+		}
+
+		return f, nil
 	}
 
 	dir := path.Dir(file)
@@ -196,11 +212,11 @@ func (vm *VirtualMachine) createFile(spec string, name string) (*os.File, types.
 	return f, nil
 }
 
-func (vm *VirtualMachine) create(spec *types.VirtualMachineConfigSpec) types.BaseMethodFault {
+func (vm *VirtualMachine) create(spec *types.VirtualMachineConfigSpec, register bool) types.BaseMethodFault {
 	files := []struct {
 		spec string
 		name string
-		use  func(w io.Writer)
+		use  func(w io.WriteCloser)
 	}{
 		{vm.Config.Files.VmPathName, "", nil},
 		{vm.Config.Files.VmPathName, fmt.Sprintf("%s.nvram", vm.Name), nil},
@@ -208,7 +224,7 @@ func (vm *VirtualMachine) create(spec *types.VirtualMachineConfigSpec) types.Bas
 	}
 
 	for _, file := range files {
-		f, err := vm.createFile(file.spec, file.name)
+		f, err := vm.createFile(file.spec, file.name, register)
 		if err != nil {
 			return err
 		}
@@ -311,15 +327,23 @@ type destroyVMTask struct {
 }
 
 func (c *destroyVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
-	if c.VirtualMachine.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
-		return nil, &types.InvalidPowerState{
-			RequestedState: types.VirtualMachinePowerStatePoweredOff,
-			ExistingState:  c.VirtualMachine.Runtime.PowerState,
-		}
+	r := c.VirtualMachine.UnregisterVM(&types.UnregisterVM{
+		This: c.VirtualMachine.Reference(),
+	})
+
+	if r.Fault() != nil {
+		return nil, r.Fault().VimFault().(types.BaseMethodFault)
 	}
 
-	// TODO: remove references from HostSystem and Datastore
-	Map.Remove(c.Reference())
+	// Delete VM files from the datastore (ignoring result for now)
+	m := Map.FileManager()
+	dc := Map.getEntityDatacenter(c.VirtualMachine).Reference()
+
+	_ = m.DeleteDatastoreFileTask(&types.DeleteDatastoreFile_Task{
+		This:       m.Reference(),
+		Name:       c.VirtualMachine.Config.Files.LogDirectory,
+		Datacenter: &dc,
+	})
 
 	return nil, nil
 }
@@ -334,6 +358,29 @@ func (vm *VirtualMachine) DestroyTask(c *types.Destroy_Task) soap.HasFault {
 	}
 
 	task.Run()
+
+	return r
+}
+
+func (vm *VirtualMachine) UnregisterVM(c *types.UnregisterVM) soap.HasFault {
+	r := &methods.UnregisterVMBody{}
+
+	if vm.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
+		r.Fault_ = Fault("", &types.InvalidPowerState{
+			RequestedState: types.VirtualMachinePowerStatePoweredOff,
+			ExistingState:  vm.Runtime.PowerState,
+		})
+
+		return r
+	}
+
+	_ = vm.out.Close() // Close log fd
+
+	Map.getEntityParent(vm, "Folder").(*Folder).removeChild(c.This)
+
+	// TODO: remove references from HostSystem and Datastore
+
+	r.Res = new(types.UnregisterVMResponse)
 
 	return r
 }
