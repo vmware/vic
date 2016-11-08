@@ -15,6 +15,7 @@ build:
       BIN: bin
       GOPATH: /drone
       SHELL: /bin/bash
+      TEST_URL_ARRAY:  $$TEST_URL_ARRAY
       DRONE_SERVER:  $$DRONE_SERVER
       DRONE_TOKEN:  $$DRONE_TOKEN
     commands:
