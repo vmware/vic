@@ -512,21 +512,15 @@ func (vm *VirtualMachine) fixVM(ctx context.Context) error {
 }
 
 func (vm *VirtualMachine) needsFix(ctx context.Context, err error) bool {
-	f, ok := err.(types.HasFault)
-	if !ok {
+	if err == nil {
 		return false
 	}
-	switch f.Fault().(type) {
-	case *types.InvalidState:
+	if vm.IsInvalidState(ctx) {
+		log.Debugf("vm %s is invalid", vm.Reference())
 		return true
-	default:
-		if vm.IsInvalidState(ctx) {
-			log.Debugf("vm %s is invalid", vm.Reference())
-			return true
-		}
-		log.Debugf("Do not fix non invalid state error")
-		return false
 	}
+	log.Debugf("Do not fix non invalid state error")
+	return false
 }
 
 func (vm *VirtualMachine) IsInvalidState(ctx context.Context) bool {
@@ -548,6 +542,7 @@ func (vm *VirtualMachine) WaitForResult(ctx context.Context, f func(context.Cont
 	if err == nil || !vm.needsFix(ctx, err) {
 		return info, err
 	}
+
 	log.Debugf("Try to fix task failure %s", err)
 	if nerr := vm.fixVM(ctx); nerr != nil {
 		log.Errorf("Failed to fix task failure: %s", nerr)

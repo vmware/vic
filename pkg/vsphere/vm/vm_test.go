@@ -26,6 +26,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/vmware/govmomi"
+	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
@@ -33,7 +35,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/simulator"
 	"github.com/vmware/vic/pkg/vsphere/sys"
-
+	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/test"
 )
 
@@ -443,4 +445,146 @@ func TestBfsSnapshotTree(t *testing.T) {
 	if found != nil {
 		t.Errorf("Should not found snapshot")
 	}
+}
+
+// TestProperties test vm.properties happy path and fix vm path
+func TestProperties(t *testing.T) {
+	ctx := context.Background()
+
+	// Nothing VC specific in this test, so we use the simpler ESX model
+	model := simulator.ESX()
+	defer model.Remove()
+	err := model.Create()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server := model.Service.NewServer()
+	defer server.Close()
+
+	client, err := govmomi.NewClient(ctx, server.URL, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Any VM will do
+	finder := find.NewFinder(client.Client, false)
+	vmo, err := finder.VirtualMachine(ctx, "/ha-datacenter/vm/*_VM0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config := &session.Config{
+		Service:        server.URL.String(),
+		Insecure:       true,
+		Keepalive:      time.Duration(5) * time.Minute,
+		DatacenterPath: "",
+		DatastorePath:  "/ha-datacenter/datastore/*",
+		HostPath:       "/ha-datacenter/host/*/*",
+		PoolPath:       "/ha-datacenter/host/*/Resources",
+	}
+
+	s, err := session.NewSession(config).Create(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vmm := NewVirtualMachine(ctx, s, vmo.Reference())
+	// Test the success path
+	var o mo.VirtualMachine
+	err = vmm.Properties(ctx, vmo.Reference(), []string{"config", "summary", "resourcePool", "parentVApp"}, &o)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//	// Inject invalid connection state to vm
+	ref := simulator.Map.Get(vmo.Reference()).(*simulator.VirtualMachine)
+	ref.Summary.Config.VmPathName = ref.Config.Files.VmPathName
+	ref.Summary.Runtime.ConnectionState = types.VirtualMachineConnectionStateInvalid
+
+	err = vmm.Properties(ctx, vmo.Reference(), []string{"config", "summary"}, &o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.True(t, o.Summary.Runtime.ConnectionState != types.VirtualMachineConnectionStateInvalid, "vm state should be fixed")
+}
+
+// TestWaitForResult covers the success path and invalid vm fix path
+func TestWaitForResult(t *testing.T) {
+	ctx := context.Background()
+
+	// Nothing VC specific in this test, so we use the simpler ESX model
+	model := simulator.ESX()
+	defer model.Remove()
+	err := model.Create()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server := model.Service.NewServer()
+	defer server.Close()
+
+	client, err := govmomi.NewClient(ctx, server.URL, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Any VM will do
+	finder := find.NewFinder(client.Client, false)
+	vmo, err := finder.VirtualMachine(ctx, "/ha-datacenter/vm/*_VM0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config := &session.Config{
+		Service:        server.URL.String(),
+		Insecure:       true,
+		Keepalive:      time.Duration(5) * time.Minute,
+		DatacenterPath: "",
+		DatastorePath:  "/ha-datacenter/datastore/*",
+		HostPath:       "/ha-datacenter/host/*/*",
+		PoolPath:       "/ha-datacenter/host/*/Resources",
+	}
+
+	s, err := session.NewSession(config).Create(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vmm := NewVirtualMachine(ctx, s, vmo.Reference())
+	// Test the success path
+	_, err = vmm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+		return vmm.PowerOn(ctx)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = vmm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+		return vmm.PowerOff(ctx)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ref := simulator.Map.Get(vmm.Reference()).(*simulator.VirtualMachine)
+
+	// Test task failed, but vm is not in invalid state
+	called := 0
+	_, err = vmm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+		called++
+		return vmm.PowerOff(ctx)
+	})
+	if err == nil {
+		t.Fatal("Should have error")
+	}
+	assert.True(t, called == 1, "task should not be retried")
+
+	// Test task failure with invalid state vm
+	ref.Summary.Config.VmPathName = ref.Config.Files.VmPathName
+	ref.Summary.Runtime.ConnectionState = types.VirtualMachineConnectionStateInvalid
+	called = 0
+	_, err = vmm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+		called++
+		return vmm.PowerOff(ctx)
+	})
+	assert.True(t, called == 2, "task should be retried once")
+	assert.True(t, !vmm.IsInvalidState(ctx), "vm state should be fixed")
 }
