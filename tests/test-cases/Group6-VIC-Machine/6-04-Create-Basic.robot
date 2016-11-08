@@ -179,6 +179,11 @@ Create VCH - Existing vApp on vCenter
     Pass execution  Test not implemented
 
 Create VCH - defaults with --no-tls
+    ${status}=  Get State Of Github Issue  3063
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 6-04-Create-Basic.robot needs to be updated now that Issue #3063 has been resolved
+    Log  Issue \#3063 is blocking implementation  WARN
+    Pass Execution  Issue \#3063 is blocking implementation
+
     Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
