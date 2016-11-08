@@ -49,7 +49,7 @@ import (
 // Config contains the configuration used to create a Session.
 type Config struct {
 	// SDK URL or proxy
-	// TODO make sure this doesn't contain credentials
+	// NOTE contains username/password if ExtensionCert not used
 	Service string
 	// Allow insecure connection to Service
 	Insecure bool
@@ -182,13 +182,13 @@ func (s *Session) Connect(ctx context.Context) (*Session, error) {
 		}
 
 		soapClient.SetCertificate(cert)
-		log.Debugf("Using login by extension %s certificate", s.ExtensionName)
+		log.Debugf("Logging in via extension %s certificate", s.ExtensionName)
 
 		login = func(ctx context.Context) error {
 			return s.LoginExtensionByCertificate(ctx, s.ExtensionName, "")
 		}
 	} else {
-		log.Debugf("Using to login by username/password")
+		log.Debugf("Logging in via username/password")
 
 		login = func(ctx context.Context) error {
 			return s.Client.Login(ctx, soapURL.User)
