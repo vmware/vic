@@ -354,10 +354,6 @@ func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 			log.Errorf("Failed to acquire reference to datastore %s: %s", logfile.URL.Host, err)
 			continue
 		}
-		//build path of applianceVM vmware.log
-		vmwareLogPath, _ := os.Hostname()
-		vmwareLogPath = strings.Title(vmwareLogPath)
-		vmwareLogPath = vmwareLogPath + "/vmware.log"
 
 		// generate the full paths to collect
 		for _, file := range vmFiles {
@@ -365,16 +361,12 @@ func findDatastoreLogs(c *session.Session) (map[string]entryReader, error) {
 			rpath := fmt.Sprintf("%s/%s", logfile.URL.Path, file)
 			log.Infof("Processed File read Path : %s", rpath)
 			log.Infof("Processed File write Path : %s", wpath)
-			rpathString := strings.Title(rpath)
-			pathEquals := strings.EqualFold(rpathString, vmwareLogPath)
-			if !pathEquals {
-				readers[wpath] = datastoreReader{
-					ds:   ds,
-					path: rpath,
-				}
-
-				log.Debugf("Added log file for collection: %s", logfile.URL.String())
+			readers[wpath] = datastoreReader{
+				ds:   ds,
+				path: rpath,
 			}
+
+			log.Debugf("Added log file for collection: %s", logfile.URL.String())
 		}
 	}
 
