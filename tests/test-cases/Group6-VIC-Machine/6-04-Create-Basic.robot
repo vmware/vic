@@ -153,9 +153,7 @@ Create VCH - Existing VM name
     Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
     ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy ${vch-name}
     Should Be Equal As Integers  ${rc}  0
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${vch-name}-bridge
-    ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info
-    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  ${vch-name}-bridge
+    Cleanup VCH Bridge Network  ${vch-name}
 
 Create VCH - Existing RP on ESX
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Pass Execution  Test skipped on VC
