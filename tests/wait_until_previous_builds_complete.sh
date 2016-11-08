@@ -15,8 +15,9 @@
 
 DRONE_BUILD_NUM=${DRONE_BUILD_NUM:=0}
 prevBuildStatus=`drone build info vmware/vic $(( $DRONE_BUILD_NUM-8 ))`
+outArray=($prevBuildStatus)
 
-while [[ ${prevBuildStatus} == *"running"* ]]; do
+while [[ ${outArray[2]} == *"running"* ]]; do
     echo "Waiting 5 minutes for previous build to complete";
     sleep 300;
 done
