@@ -54,6 +54,7 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 	if len(spl.Config.ImageStores) == 0 {
 		log.Panicf("No image stores provided; unable to instantiate storage layer")
 	}
+
 	imageStoreURL := spl.Config.ImageStores[0]
 	// TODO: support multiple image stores. Right now we only support the first one
 	if len(spl.Config.ImageStores) > 1 {
@@ -79,7 +80,7 @@ func (h *StorageHandlersImpl) Configure(api *operations.PortLayerAPI, handlerCtx
 
 	// Get the datastores for volumes.
 	// Each volume store name maps to a datastore + path, which can be referred to by the name.
-	dstores, err := datastore.GetDatastores(context.TODO(), handlerCtx.Session, spl.Config.VolumeLocations)
+	dstores, err := datastore.GetDatastores(op, handlerCtx.Session, spl.Config.VolumeLocations)
 	if err != nil {
 		log.Panicf("Cannot find datastores: %s", err)
 	}
