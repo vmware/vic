@@ -103,7 +103,7 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 	}
 
 	log.Infof("")
-	log.Infof("vic-admin portal:")
+	log.Infof("VCH Admin Portal:")
 	log.Infof("%s://%s:2378", d.VICAdminProto, d.HostIP)
 
 	log.Infof("")
