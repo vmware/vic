@@ -9,55 +9,62 @@ The intent is that vSphere Integrated Containers Engine (VIC Engine) should not 
 - ESXi/vCenter - the target virtualization environment.
    - ESXi - Enterprise license
    - vCenter - Enterprise plus license, only very simple configurations have been tested.
-- DHCP - the VCH currently requires there be DHCP on all networks other than the bridge. The external network can be set via -external-network and will default to "VM Network" and the client and management roles will share external network NIC if not explicitly configured.
 - Bridge network - when installed in a vCenter environment vic-machine does not automatically create a bridge network. An existing vSwitch or Distributed Portgroup should be specified via the -bridge-network flag, should not be the same as the external network, and should not have DHCP.
 
-Replace the `<fields>` in the example with values specific to your environment - this will install VCH to the specified resource pool of ESXi or vCenter, and the container VMs will be created under that resource pool.
+Replace the `<fields>` in the following example with values specific to your environment - this will install VCH to the specified resource pool of ESXi or vCenter, and the container VMs will be created under that resource pool. This example will use DHCP for the API endpoint and will not configure client authentication.  
 
 - --target is the URL of the destination vSphere environment in the form `https://user:password@ip-or-fqdn/datacenter-name`. Protocol, user, and password are OPTIONAL. Datacenter is OPTIONAL if targeting ESXi or only one datacenter is configured.
 - --compute-resource is the resource pool where VCH will be deployed to. For vCenter this should start with the cluster, followed by the resource pool path, e.g. `mycluster/a/resource/pool/path` (vCenter), or `/a/resource/pool` (ESXi) .
-- --force flag is to remove an existing datastore folder or VM with the same name.
+- --thumbprint is the thumbprint of the server's certificate, required if the certificate cannot be validated with a trusted certificate authority (`--force` will accept whatever certificate is presented)
 
 ```
-vic-machine-linux create --target target-host[/datacenter] --image-store <datastore name> --name <vch-name> --user root --password <password> --compute-resource <resource pool path> --no-tlsverify
+vic-machine-linux create --target <target-host>[/datacenter] --user <root> --password <password> --thumbprint <certificate thumbprint> --compute-resource <resource pool path> --image-store <datastore name> --name <vch-name> --no-tlsverify
 ```
-This will, if successful, produce output similar to the following when deploying VIC Engine onto an ESXi:
-```
-INFO[2016-10-08T23:37:34Z] Generating self-signed certificate/key pair - private key in ./XXX/key.pem
-WARN[2016-10-08T23:37:34Z] Configuring without TLS verify - client authentication disabled
-INFO[2016-10-08T23:37:34Z] ### Installing VCH ####
-INFO[2016-10-08T23:37:34Z] Validating supplied configuration
-INFO[2016-10-08T23:37:34Z] Firewall status: DISABLED on "/ha-datacenter/host/esx-a.localdomain/esx-a.localdomain"
-WARN[2016-10-08T23:37:34Z] Firewall configuration will be incorrect if firewall is reenabled on hosts:
-WARN[2016-10-08T23:37:34Z]   "/ha-datacenter/host/esx-a.localdomain/esx-a.localdomain"
-WARN[2016-10-08T23:37:34Z] Firewall must permit 2377/tcp outbound if firewall is reenabled
-INFO[2016-10-08T23:37:34Z] License check OK
-INFO[2016-10-08T23:37:34Z] DRS check SKIPPED - target is standalone host
-INFO[2016-10-08T23:37:34Z] Creating Resource Pool "XXX"
-INFO[2016-10-08T23:37:35Z] Creating directory [datastore1] volumes
-INFO[2016-10-08T23:37:35Z] Datastore path is [datastore1] volumes
-INFO[2016-10-08T23:37:35Z] Creating appliance on target
-INFO[2016-10-08T23:37:35Z] Network role "management" is sharing NIC with "client"
-INFO[2016-10-08T23:37:35Z] Network role "external" is sharing NIC with "client"
-INFO[2016-10-08T23:37:35Z] Uploading images for container
-INFO[2016-10-08T23:37:35Z]      "bootstrap.iso"
-INFO[2016-10-08T23:37:35Z]      "appliance.iso"
-INFO[2016-10-08T23:37:39Z] Waiting for IP information
-INFO[2016-10-08T23:37:51Z] Waiting for major appliance components to launch
-INFO[2016-10-08T23:38:01Z] Initialization of appliance successful
-INFO[2016-10-08T23:38:01Z]
-INFO[2016-10-08T23:38:01Z] vic-admin portal:
-INFO[2016-10-08T23:38:01Z] https://x.x.x.x:2378
-INFO[2016-10-08T23:38:01Z]
-INFO[2016-10-08T23:38:01Z] Docker environment variables:
-INFO[2016-10-08T23:38:01Z]   DOCKER_HOST=x.x.x.x:2376
-INFO[2016-10-08T23:38:01Z]
-INFO[2016-10-08T23:38:01Z] Environment saved in XXX/XXX.env
-INFO[2016-10-08T23:38:01Z]
-INFO[2016-10-08T23:38:01Z] Connect to docker:
-INFO[2016-10-08T23:38:01Z] docker -H x.x.x.x:2376 --tls info
-INFO[2016-10-08T23:38:01Z] Installer completed successfully
 
+This will, if successful, produce output similar to the following when deploying VIC Engine onto an ESXi (output was generated with --client-network-ip specified):
+```
+INFO[2016-11-07T22:01:22Z] Using client-network-ip as cname for server certificates - use --tls-cname to override: x.x.x.x
+INFO[2016-11-07T22:01:22Z] Generating CA certificate/key pair - private key in ./XXX/ca-key.pem
+INFO[2016-11-07T22:01:22Z] Generating server certificate/key pair - private key in ./XXX/server-key.pem
+INFO[2016-11-07T22:01:22Z] Generating client certificate/key pair - private key in ./XXX/key.pem
+INFO[2016-11-07T22:01:22Z] Generated browser friendly PFX client certificate - certificate in ./XXX/cert.pfx
+INFO[2016-11-07T22:01:22Z] ### Installing VCH ####
+INFO[2016-11-07T22:01:22Z] Validating supplied configuration
+INFO[2016-11-07T22:01:22Z] Configuring static IP for additional networks using port group "VM Network"
+INFO[2016-11-07T22:01:23Z] Firewall status: DISABLED on "/ha-datacenter/host/esx.localdomain/esx.localdomain"
+WARN[2016-11-07T22:01:23Z] Firewall configuration will be incorrect if firewall is reenabled on hosts:
+WARN[2016-11-07T22:01:23Z]   "/ha-datacenter/host/esx.localdomain/esx.localdomain"
+WARN[2016-11-07T22:01:23Z] Firewall must permit 2377/tcp outbound if firewall is reenabled
+INFO[2016-11-07T22:01:23Z] License check OK
+INFO[2016-11-07T22:01:23Z] DRS check SKIPPED - target is standalone host
+INFO[2016-11-07T22:01:23Z]
+INFO[2016-11-07T22:01:23Z] Creating Resource Pool "ghicken-test"
+INFO[2016-11-07T22:01:23Z] Creating directory [datastore1] volumes
+INFO[2016-11-07T22:01:23Z] Datastore path is [datastore1] volumes
+INFO[2016-11-07T22:01:23Z] Creating appliance on target
+INFO[2016-11-07T22:01:23Z] Network role "management" is sharing NIC with "client"
+INFO[2016-11-07T22:01:23Z] Network role "external" is sharing NIC with "client"
+INFO[2016-11-07T22:01:23Z] Uploading images for container
+INFO[2016-11-07T22:01:23Z]      "bootstrap.iso"
+INFO[2016-11-07T22:01:23Z]      "appliance.iso"
+INFO[2016-11-07T22:01:30Z] Waiting for IP information
+INFO[2016-11-07T22:01:44Z] Waiting for major appliance components to launch
+INFO[2016-11-07T22:01:54Z] Initialization of appliance successful
+INFO[2016-11-07T22:01:54Z]
+INFO[2016-11-07T22:01:54Z] vic-admin portal:
+INFO[2016-11-07T22:01:54Z] https://x.x.x.x:2378
+INFO[2016-11-07T22:01:54Z]
+INFO[2016-11-07T22:01:54Z] Published ports can be reached at:
+INFO[2016-11-07T22:01:54Z] x.x.x.x
+INFO[2016-11-07T22:01:54Z]
+INFO[2016-11-07T22:01:54Z] Docker environment variables:
+INFO[2016-11-07T22:01:54Z] DOCKER_TLS_VERIFY=1 DOCKER_CERT_PATH=/home/vagrant/vicsmb/src/github.com/vmware/vic/bin/ghicken-test DOCKER_HOST=x.x.x.x:2376
+INFO[2016-11-07T22:01:54Z]
+INFO[2016-11-07T22:01:54Z] Environment saved in XXX/XXX.env
+INFO[2016-11-07T22:01:54Z]
+INFO[2016-11-07T22:01:54Z] Connect to docker:
+INFO[2016-11-07T22:01:54Z] docker -H x.x.x.x:2376 --tlsverify --tlscacert="./XXX/ca.pem" --tlscert="./XXX/cert.pem" --tlskey="./XXX/key.pem" info
+INFO[2016-11-07T22:01:54Z] Installer completed successfully
 ```
 
 
@@ -66,7 +73,7 @@ INFO[2016-10-08T23:38:01Z] Installer completed successfully
 Specify the same resource pool and VCH name used to create a VCH, then the VCH will removed, together with the created containers, images, and volumes, if --force is provided. Here is an example command and output - replace the `<fields>` in the example with values specific to your environment.
 
 ```
-vic-machine-linux delete --target target-host[/datacenter] --user root --password <password> --compute-resource <resource pool path> --name <vch-name>
+vic-machine-linux delete --target <target-host>[/datacenter] --user <root> --password <password> --compute-resource <resource pool path> --name <vch-name>
 INFO[2016-06-27T00:09:25Z] ### Removing VCH ####
 INFO[2016-06-27T00:09:26Z] Removing VMs
 INFO[2016-06-27T00:09:26Z] Removing images
@@ -84,7 +91,7 @@ INFO[2016-06-27T00:09:27Z] Completed successfully
 Specify the same resource pool and VCH name used to create a VCH, vic-machine inspect can show the VCH information.
 
 ```
-vic-machine-linux inspect --target target-host[/datacenter] --user root --password <password> --compute-resource <resource pool path> --name <vch-name>
+vic-machine-linux inspect --target <target-host>[/datacenter] --user <root> --password <password> --compute-resource <resource pool path> --name <vch-name>
 INFO[2016-10-08T23:40:28Z] ### Inspecting VCH ####
 INFO[2016-10-08T23:40:29Z]
 INFO[2016-10-08T23:40:29Z] VCH ID: VirtualMachine:286
@@ -113,7 +120,7 @@ INFO[2016-10-08T23:40:29Z] Completed successfully
 Specify the same resource pool and VCH name used to create a VCH, vic-machine debug will enable SSH on the appliance VM and then display the VCH information, now with SSH entry.
 
 ```
-vic-machine-linux debug --target target-host[/datacenter] --user root --password <password> --compute-resource <resource pool path> --name <vch-name> --enable-ssh --rootpw <other password> --authorized-key <keyfile>
+vic-machine-linux debug --target <target-host>[/datacenter] --user <root> --password <password> --compute-resource <resource pool path> --name <vch-name> --enable-ssh --rootpw <other password> --authorized-key <keyfile>
 INFO[2016-10-08T23:41:16Z] ### Configuring VCH for debug ####
 INFO[2016-10-08T23:41:16Z]
 INFO[2016-10-08T23:41:16Z] VCH ID: VirtualMachine:286
@@ -140,15 +147,16 @@ INFO[2016-10-08T23:41:16Z] Completed successfully
 
 vic-machine ls can list all VCHs in your VC/ESXi, or list all VCHs under the provided resource pool by compute-resource parameter.
 ```
-vic-machine-linux ls --target target-host --user root --password <password>
+vic-machine-linux ls --target <target-host> --user <root> --password <password>
 INFO[2016-08-08T16:21:57-05:00] ### Listing VCHs ####
 
 ID                           PATH                                                   NAME
 VirtualMachine:vm-189        /dc1/host/cluster1/Resources/test1/test1-2        test1-2-1
 VirtualMachine:vm-189        /dc2/host/cluster2/Resources/test2/test2-2        test2-2-1
+```
 
-
-vic-machine-linux ls --target target-host/dc1 --user root --password <password> --compute-resource cluster1/test1
+```
+vic-machine-linux ls --target <target-host>/dc1 --user <root> --password <password> --compute-resource cluster1/test1
 INFO[2016-08-08T16:25:50-02:00] ### Listing VCHs ####
 
 ID                           PATH                                                   NAME
@@ -170,7 +178,7 @@ The volume store to use is specified via driver optons when creating volumes (ca
 docker volume create --name=reports --opts VolumeStore=fast --opt Capacity=1024
 ```
 
-Providing a volume store named `default` allows the driver options to be omitted in the example above and enables anoymous volumes, e.g.:
+Providing a volume store named `default` allows the driver options to be omitted in the example above and enables anoymous volumes including those defined in Dockerfiles, e.g.:
 ```
 docker run -v /var/lib/data -it busybox 
 ```
@@ -178,7 +186,7 @@ docker run -v /var/lib/data -it busybox
 
 ## Exposing vSphere networks within a Virtual Container Host
 
-vSphere networks can be directly mapped into the VCH for use by containers. This allows a container to expose services to the wider world without using port-forwarding (which is not yet implemented):
+vSphere networks can be directly mapped into the VCH for use by containers. This allows a container to expose services to the wider world without using port-forwarding:
 
 ```
 vic-machine-linux create --container-network=vpshere-network:descriptive-name
@@ -190,6 +198,60 @@ docker create --net=descriptive-name haproxy
 docker network connect bridge <container-id>
 ```
 
-Currently the container does **not** have a firewall configured [#692](https://github.com/vmware/vic/issues/692) in this circumstance.
+Currently the container does **not** have a firewall configured in this circumstance ([#692](https://github.com/vmware/vic/issues/692)).
+
+
+## TLS configuration
+
+There are three TLS configurations available for the API endpoint - the default configuration is _mutual authentication_.
+If there is insufficient information via the create options to use that configuraiton you will see the following help output:
+```
+ERRO[2016-11-07T19:53:44Z] Common Name must be provided when generating certificates for client authentication:
+INFO[2016-11-07T19:53:44Z]   --tls-cname=<FQDN or static IP> # for the appliance VM
+INFO[2016-11-07T19:53:44Z]   --tls-cname=<*.yourdomain.com>  # if DNS has entries in that form for DHCP addresses (less secure)
+INFO[2016-11-07T19:53:44Z]   --no-tlsverify                  # disables client authentication (anyone can connect to the VCH)
+INFO[2016-11-07T19:53:44Z]   --no-tls                        # disables TLS entirely
+INFO[2016-11-07T19:53:44Z]
+ERRO[2016-11-07T19:53:44Z] Create cannot continue: unable to generate certificates
+ERRO[2016-11-07T19:53:44Z] --------------------
+ERRO[2016-11-07T19:53:44Z] vic-machine-linux failed: provide Common Name for server certificate
+```
+
+#### Disabled, `--no-tls`
+Disabling TLS completely is strongly discouraged as it allows trivial snooping of API traffic for entities on the same network. When using this option the API will be served over HTTP, not HTTPS.
+
+
+#### Server authentication, `--no-tlsverify`
+In this configuration the API endpoint has a certificate that clients will use to validate the identity of the server. This allows the client to trust the server, but the server does not require
+authentication or authorization of the client. If no certificate is provided then a self-signed certificate will be generated.
+
+If using a pre-generated certificate, the following options are used:
+- `--key` - path to key file in PEM format
+- `--cert` - path to certificate file in PEM format
+
+
+#### Mutual authentication (tlsverify)
+
+Mutual authentication, also referred to as _tlsverify_, means that the client must authenticate by presenting a certificate to the server in addition to the server authentication with the client.
+In this configuration the vicadmin server also requires authentication, which can be via client certificate.
+
+If using pre-generated certificates the following option must be provided in addition to the server authentication options above.
+- `--tls-ca` - path to certificate authority to vet client certificates against in PEM format. May be specified multiple times.
+
+As a convenience, vic-machine will generate authority, server, and client certificates if a Common Name is provided.
+- `--tls-cname` - FQDN or static IP of the API endpoint. This can be an FQDN wildcard to allow use with DHCP if DNS has entries for the DHCP allocated addresses.
+
+These are self-signed certificates and therefore clients will need to be explicit about the certificate authority in order to perform validation.
+See [the docker documentation](https://docs.docker.com/engine/security/https/) about TLSVERIFY for details of docker client
+configuration (note that the _DOCKER_TLS_VERIFY_ environment variable must be removed from the environment completely to prevent it taking effect)
+
+The following can be used for minimal customization of the generated certificates:
+- `--organisation` - shown to clients to help distinguish certificates
+- `--certificate-key-size`
+
+If using a static IP for the API endpoint via the following option, a server certificate will be generated using that IP address as the Common Name unless certificates are provided
+or `--no-tlsverify` is specifed.
+- `--client-network-ip` - IP or FQDN to use for the API endpoint
+
 
 [Issues relating to Virtual Container Host deployment](https://github.com/vmware/vic/labels/component%2Fvic-machine)

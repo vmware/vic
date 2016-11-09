@@ -19,13 +19,9 @@ VIC Engine now provides:
 * logs command - follow is available however timestamps and corresponding filtering are not
 * client authentication - basic authentication via client certificates known as _tlsverify_
 
-
-The function is still somewhat basic and there is one limitation worth pulling out as it's on common paths:
-* `run` does not block the process from starting until attach is complete so may result in missed output and attempt to attach to stopped container
-
 We are working hard to add functionality while building out our [foundation](doc/design/arch/arch.md#port-layer-abstractions) so continue to watch the repo for new features. Initial focus is on the production end of the CI pipeline, building backwards towards developer laptop scenarios.
 
-This extremely limited set of current capabilities may come as a surprise to people who are familiar with [Project Bonneville](http://blogs.vmware.com/cloudnative/introducing-project-bonneville/) that was [reasonably fully featured](https://www.youtube.com/watch?v=XkFQw8ueT1w) when demonstrated at VMworld in 2015.
+This limited set of current capabilities may come as a surprise to people who are familiar with [Project Bonneville](http://blogs.vmware.com/cloudnative/introducing-project-bonneville/) that was [reasonably fully featured](https://www.youtube.com/watch?v=XkFQw8ueT1w) when demonstrated at VMworld in 2015.
 Project Bonneville was research aimed at determining best approaches to enabling container workflows in a vSphere environment and therefore enabled a broad set of features, but not in a manner that made it a viable product for large scale consumption. Building on top of research code is a great shortcut for fast time-to-market, but does not provide a good foundation for an enterprise quality product. vSphere Integrated Containers Engine is a full re-architecture and re-write, building off the knowledge gained during Project Bonneville while keeping almost zero code.
 
 
@@ -34,7 +30,7 @@ Project Bonneville was research aimed at determining best approaches to enabling
 Once built, pick up the correct binary based on your OS, and then the result can be installed with the following command.
 
 ```
-bin/vic-machine-linux create --target target-host[/datacenter] --image-store <datastore name> --name <vch-name> --user <username> --password <password> --compute-resource <cluster/a/resource/pool/path> --tls-cname <FQDN, *.wildcard.domain, or static IP>
+bin/vic-machine-linux create --target <target-host>[/datacenter] --image-store <datastore name> --name <vch-name> --user <username> --password <password> --thumbprint <certificate thumbprint> --compute-resource <cluster/a/resource/pool/path> --tls-cname <FQDN, *.wildcard.domain, or static IP>
 ```
 
 See `vic-machine-XXX create --help` for usage information.
