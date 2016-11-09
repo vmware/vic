@@ -42,6 +42,7 @@ build:
       - make sincemark
       - make mark
       - ls vendor/github.com/vmware/govmomi/vim25/methods
+      - ls vendor/github.com/vmware/govmomi/vim25/types
       - export VIC_ESX_URL_ARRAY=`tests/get_test_url.sh`
       - make -j3 test
       - make sincemark
