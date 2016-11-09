@@ -20,13 +20,7 @@ set +x
 
 dpkg -l > package.list
 
-if [ $DRONE_BRANCH = "master" ] && [ $DRONE_REPO = "vmware/vic" ]; then
-    pybot --removekeywords TAG:secret --exclude skip tests/test-cases
-elif grep -q "\[full ci\]" <(drone build info vmware/vic $DRONE_BUILD_NUMBER); then
-    pybot --removekeywords TAG:secret --exclude skip tests/test-cases
-else
-    pybot --removekeywords TAG:secret --exclude skip --include regression tests/test-cases
-fi
+pybot --removekeywords TAG:secret --exclude skip --include regression tests/test-cases/Group9-VIC-Admin/9-03-VICAdmin-Log-Failed-Attempts.robot
 
 rc="$?"
 
