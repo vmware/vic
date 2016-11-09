@@ -53,7 +53,7 @@
         data-chapter-title="vSphere Integrated Containers Engine Plug-In Does Not Appear in the vSphere Web Client"
         data-filepath="ts_ui_not_appearing.md"
         data-basepath="."
-        data-revision="Mon Nov 07 2016 16:38:24 GMT+0100 (W. Europe Standard Time)"
+        data-revision="Wed Nov 09 2016 15:19:06 GMT+0100 (W. Europe Standard Time)"
         data-innerlanguage="">
     
 
@@ -440,11 +440,14 @@
                     <section class="normal" id="section-">
                     
                         <h1 id="vsphere-integrated-containers-engine-plugin-does-not-appear-in-the-vsphere-web-client">vSphere Integrated Containers Engine Plug-In Does Not Appear in the vSphere Web Client</h1>
-<p>After you have installed the vSphere Web Client plug-in for vSphere Integrated Containers Engine, the plug-in does not appear in the vSphere Web Client.</p>
+<p>After you have installed or upgraded the vSphere Web Client plug-in for vSphere Integrated Containers Engine, the plug-in does not appear in the vSphere Web Client, or the upgraded version does not appear.</p>
 <h2 id="problem">Problem</h2>
-<p>The UI plug-in installer reported success, but the Virtual Container Host portlet does not appear in the <strong>Summary</strong> tab for the virtual container host endpoint VM. Logging out of the vSphere Web Client and logging back in again does not resolve the issue.</p>
+<p>The UI plug-in installer reported success, but the Virtual Container Host portlet, or its upgraded version, does not appear in the <strong>Summary</strong> tab for the virtual container host endpoint VM. Logging out of the vSphere Web Client and logging back in again does not resolve the issue.</p>
 <h2 id="cause">Cause</h2>
-<p>If a previous attempt at installing the vSphere Integrated Containers engine plug-in failed, the failed installation state is retained in the vSphere Web Client cache.</p>
+<ul>
+<li>If a previous attempt at installing the vSphere Integrated Containers Engine plug-in failed, the failed installation state is retained in the vSphere Web Client cache.</li>
+<li>You installed a new version of the vSphere Integrated Containers Engine plug-in that has the same version number as the previous version, for example a hot patch.</li>
+</ul>
 <h2 id="solution">Solution</h2>
 <p>Restart the vSphere Web Client service.</p>
 <h3 id="vcenter-server-on-windows">vCenter Server on Windows</h3>
