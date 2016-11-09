@@ -20,7 +20,7 @@ set +x
 
 dpkg -l > package.list
 
-pybot --removekeywords TAG:secret --exclude skip --include regression tests/test-cases/Group9-VIC-Admin/9-03-VICAdmin-Log-Failed-Attempts.robot
+pybot --removekeywords TAG:secret tests/test-cases/Group9-VIC-Admin/9-03-VICAdmin-Log-Failed-Attempts.robot
 
 rc="$?"
 
