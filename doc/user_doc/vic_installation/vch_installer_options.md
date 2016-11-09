@@ -555,8 +555,8 @@ If you use a mixture of static and DHCP addresses for the virtual container host
 
 If you specify static IP address for the virtual container host on any of the client, external, and management networks and you do not specify `dns-server`, the DNS server defaults to 8.8.8.8 and 8.8.4.4. 
 
-<pre>--dns=172.16.10.10
---dns=172.16.10.11
+<pre>--dns-server=172.16.10.10
+--dns-server=172.16.10.11
 </pre>
 
 ### `--client-network-ip`, `--external-network-ip`, `--management-network-ip` ###
