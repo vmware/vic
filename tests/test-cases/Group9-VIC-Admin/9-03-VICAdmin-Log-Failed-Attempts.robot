@@ -11,7 +11,7 @@ Verify Temporary Redirect
 
 Verify Failed Log Attempts
     #Save the first appliance certs and cleanup the first appliance
-    Set Variable  ${old-certs}  %{DOCKER_CERT_PATH}
+    ${old-certs}=  Set Variable  %{DOCKER_CERT_PATH}
     Cleanup VIC Appliance On Test Server
     
     #Install a second appliance
