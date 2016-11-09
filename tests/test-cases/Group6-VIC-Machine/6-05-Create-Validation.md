@@ -14,6 +14,34 @@ This test requires that a vSphere server is running and available
 Test Cases: - suggest resources
 ======
 
+## Invalid datacenter
+1. Prepare vCenter environment with multiple datacenters
+2. Create with --target specifying a datacenter that does not exist
+
+### Expected Outcome:
+* Output contains message indicating datacenter must be specified
+* Output suggests available datacenter values
+* Deployment fails
+
+## Invalid target path
+1. Prepare vCenter environment
+2. Create with --target specifying a datacenter and resource pool
+
+### Expected Outcome:
+* Output contains message indicating that onlydatacenter must be specified in --target
+* Output suggests available datacenter values
+* Deployment fails
+
+## Create VCH - target thumbprint verification
+1. Issue the following command:
+```
+vic-machine-linux create --thumbprint=NOPE --name=${vch-name} \
+    --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --image-store=ENOENT ${vicmachinetls}
+```
+
+### Expected Outcome:
+* Output contains message that thumbprint does not match
+
 ## Resource pools
 1. Create with wrong compute-resource: not exist resource pool, not existed vc cluster, not existed datacenter.
 2. Create with wrong compute-resource format
@@ -36,24 +64,6 @@ Test Cases: - suggest resources
 
 ### Expected Outcome:
 * Output contains message indicating datacenter must be specified
-* Output suggests available datacenter values
-* Deployment fails
-
-## Invalid datacenter
-1. Prepare vCenter environment with multiple datacenters
-2. Create with --target specifying a datacenter that does not exist
-
-### Expected Outcome:
-* Output contains message indicating datacenter must be specified
-* Output suggests available datacenter values
-* Deployment fails
-
-## Invalid target path
-1. Prepare vCenter environment
-2. Create with --target specifying a datacenter and resource pool
-
-### Expected Outcome:
-* Output contains message indicating that onlydatacenter must be specified in --target
 * Output suggests available datacenter values
 * Deployment fails
 
@@ -147,6 +157,21 @@ Test Cases: - storage
 ## Default image datastore
 1. Prepare env with one datastore
 2. Issue `vic-machine create` without specifying `--image-store`
+3. Run regression tests
 
 ### Expected Outcome:
 * Deployment succeeds
+* Regression tests pass
+
+## Custom image datastore
+1. Issue the following command:
+```
+vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} \
+    --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --password=%{TEST_PASSWORD} \
+    --image-store=%{TEST_DATASTORE}/long/weird/path ${vicmachinetls}
+```
+2. Run regression tests
+
+### Expected Outcome:
+* Deployment succeeds
+* Regression tests pass

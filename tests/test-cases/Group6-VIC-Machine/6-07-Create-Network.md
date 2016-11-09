@@ -1,155 +1,163 @@
 Test 6-07 - Verify vic-machine create network function
 =======
 
-#Purpose:
+# Purpose:
 Verify vic-machine create external, management, bridge network and container networks functions
 
-#References:
+# References:
 * vic-machine-linux create -h
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Cases: - external network
 
-#Test Steps
+
+# External network
+
+## External network - default
 1. Create without external network provided
 2. Verify "VM Network" is connected in VCH VM
 3. Integration test passed
 
-#Test Steps
+## External network - invalid
 1. Create with wrong network name provided for external network
 2. Verify create failed for network is not found
-3. Create with distribute virtual switch as external network name
-4. Verify create failed for network type is wrong
 
-#Test Steps
+## External network - invalid vCenter
+1. Create with distribute virtual switch as external network name
+2. Verify create failed for network type is wrong
+
+## External network - DHCP
 1. Create with network name no DHCP availabile for external network
 2. Verify VCH created but without ip address
 3. Verify VCH can be deleted without anything wrong through vic-machine delete
 
-#Test Steps
+## External network - valid
 1. Create with DPG as external network in VC and correct switch in ESXi
 2. Verify create passed
 3. Verify integration test passed
 
-#Test Cases: - management network
+# Management network
 
-#Test Steps
+## Management network - none
 1. Create without management network provided, but external network correctly set
 2. Verify warning message set for management network and client network sharing the same network
 3. No multiple attachement in VM network to same vSphere virtual switch (or DPG)
 4. Integration test passed
 
-#Test Steps
+## Management network - invalid
 1. Create with wrong network name provided for management network
 2. Verify create failed for network is not found
-3. Create with distribute virtual switch as management network name
-4. Verify create failed for network type is wrong
 
-#Test Steps
+## Management network - invalid vCenter
+1. Create with distribute virtual switch as management network name
+2. Verify create failed for network type is wrong
+
+## Management network - unreachable
 1. Create with network unreachable for vSphere or VC as management network
 2. Verify VCH created but VC or vSphere is unreachable
 3. Make sure vic-machine failed with user-friendly error message
 
-#Test Steps
-1. Create with DPG as management network in VC and correct switch in ESXi
+## Management network - valid
+1. Create with correct management network (switch for ESX, DPG for vCenter)
 2. Verify create passed
 3. Verify integration test passed
 
-#Test Cases: - bridge network
 
-#Test Steps
+
+# Bridge network
+
+## Bridge network - vCenter none
 1. Create without bridge network provided in VC
 2. Create failed for bridge network should be specified in VC
 
-#Test Steps
+## Bridge network - ESX none
 1. Create without bridge network provided in ESXi
 2. Integration test pass
 
-#Test Steps
+## Bridge network - invalid
 1. Create with wrong network name provided for bridge network
 2. Verify create failed for network is not found
+
+## Bridge network - invalid vCenter
 3. Create with distribute virtual switch as bridge network name
 4. Verify create failed for network type is wrong
 
-#Test Steps
+## Bridge network - non-DPG
 1. Create with standard network in VC as bridge network
 2. vic-machine failed for DPG is required for bridge network
 
-#Test Steps
-1. Create with DPG as management network in VC and correct switch in ESXi
+## Bridge network - valid
+1. Create with DPG in VC and switch in ESXi
 2. Verify create passed
 3. Verify integration test passed
 
-#Test Steps
+## Bridge network - reused port group
 1. Create with same network for bridge and external network
 2. Verify create failed for same network with external network
 3. Same case with management network
 4. Same case with container network
 
-#Test Steps
+## Bridge network - invalid IP settings
 1. Create with bridge network correctly set
 2. Set bridge network ip range with wrong format
 3. Verify create failed with user-friendly error message
 
-#Test Steps
+## Bridge network - valid
 1. Create with bridge network correctly set
 2. Set bridge network ip range correctly
 3. Verify create passed
 4. Regression test passed
 5. docker create container, with ip address correctly set in the above ip range
 
-#Test Cases:
 
-#Test Steps
+
+# Container network
+
+## Container network invalid 1
 1. Create with invalid container network: <WrongNet>:alias
 2. Verify create failed with WrongNet is not found
 
-#Test Steps
-1. Create with container network: <stand switch network name>:alias in VC
+## Container network invalid 2
+1. Create with container network: <standard switch network name>:alias in VC
 2. Verify create failed with standard network is not supported
 
-#Test Steps
-1. Create with container network: <dpg name>:net1 in VC or <stand switch network name>:net1 in ESXi
+## Container network 1
+1. Create with container network: <dpg name>:net1 in VC or <standard switch network name>:net1 in ESXi
 2. Verify create passed
 3. Regression test passed
 4. Verify docker network ls command to show net1 network
 
-#Test Steps
-1. Create with container network: <dpg name> in VC or <stand switch network name> in ESXi
+## Container network 2
+1. Create with container network: <dpg name> in VC or <standard switch network name> in ESXi
 2. Verify create passed
 3. Regression test passed
 4. Verify docker network ls command to show the <vsphere network name> network
 
-#Test Steps
+## Network mapping invalid
 1. Create with two container network map to same alias
 2. Verify create failed with two different vsphere network map to same docker network
 
-#Test Steps
-1. Create with two container network map to same alias
-2. Verify create failed with two different vsphere network map to same docker network
-
-#Test Steps
+## Network mapping gateway invalid
 1. Create with container network mapping
 2. Set container network gateway as <dpg name>:1.1.1.1/24
 3. Set container network gateway as <dpg name>:192.168.1.0/24
 4. Set container network gateway as <wrong name>:192.168.1.0/24
 5. Verify create failed for wrong vsphere network name or gateway is not routable
 
-#Test Steps
+## Network mapping IP invalid
 1. Create with container network mapping
 2. Set container ip range as <wrong name>:192.168.2.1-192.168.2.100
 3. Set container network gateway as <dpg name>:192.168.1.1/24, and container ip range as <dpg name>:192.168.2.1-192.168.2.100
 4. Verify create failed for wrong vsphere network name or ip range is wrong
 
-#Test Steps
+## DNS format invalid
 1. Create with container network mapping
 2. Set container DNS as <wrong name>:8.8.8.8
 3. Set container DNS as <dpg name>:abcdefg
 4. Verify create failed for wrong vsphere name or wrong dns format
 
-#Test Steps
+## Network mapping
 1. Create with container network mapping <dpg name>:net1
 2. Set container network gateway as <dpg name>:192.168.1.1/24
 3. Set container ip range as <dpg name>:192.168.1.2-192.168.1.100
@@ -161,43 +169,44 @@ This test requires that a vSphere server is running and available
 9. Docker create another container, and link to previous one, can talk to the the first container successfully
 
 
-# Test Cases: VCH static IP
 
-# Test Steps
+# VCH static IP
+
+## VCH static IP - Static external
 1. Create with static IP address for external network (client and management networks unspecified
    default to same port group as external network)
 2. Verify debug output shows specified static IP address correctly assigned and copied to client and
    management networks
 
-# Test Steps
+## VCH static IP - Static client
 1. Create with static IP address for client network and specify client, external, and management
    networks to be on same port group
 2. Verify debug output shows specified static IP address correctly assigned and copied to external
    and management networks
 
-# Test Steps
+## VCH static IP - Static management
 1. Create with static IP address for management network and specify client, external, and management
    networks to be on the same port group
 2. Verify debug output shows specified static IP address correctly assigned and copied to client
    and external management networks
 
-# Test Steps
+## VCH static IP - different port groups 1
 1. Create with static IP address for external network and specify client and management networks to
    be on different port group
 2. Verify debug output shows specified static IP address correctly assigned
 3. Verify debug output shows client and management networks set to DHCP
 
-# Test Steps
+## VCH static IP - different port groups 2
 1. Create with static IP address for external network on `external-network` port group and a static
    IP address for client network on `client-network` port group
 2. Verify debug output shows correct IP address assigned to each interface
 
-# Test Steps
+## VCH static IP - same port group
 1. Create with static IP address for each external network and client network and specify both to be
    on the same port group
 2. Verify output shows configuration error and install does not proceed
 
-# Test Steps
+## VCH static IP - same subnet for multiple port groups
 1. Create with static IP address for external network and a static IP address for client network.
    Specify the addresses to be on the same subnet, but assign each network to a different port
    group
