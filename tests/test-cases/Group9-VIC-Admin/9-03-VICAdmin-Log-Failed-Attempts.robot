@@ -5,8 +5,19 @@ Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
-Test
+Verify Temporary Redirect
     ${out}=  Run  wget --tries=3 --connect-timeout=10 --certificate=%{DOCKER_CERT_PATH}/fakeCert.pem --private-key=%{DOCKER_CERT_PATH}/fakeKey.pem --no-check-certificate ${vic-admin}/logs/vicadmin.log -O failure.log
+    Should Contain  ${out}  HTTP request sent, awaiting response... 307 Temporary Redirect
+
+Verify Failed Log Attempts
+    #Save the first appliance certs and cleanup the first appliance
+    Set Variable  ${old-certs}  %{DOCKER_CERT_PATH}
+    Cleanup VIC Appliance On Test Server
+    
+    #Install a second appliance
+    Install VIC Appliance To Test Server
+    
+    ${out}=  Run  wget --tries=3 --connect-timeout=10 --certificate=${old-certs}/fakeCert.pem --private-key=${old-certs}/fakeKey.pem --no-check-certificate ${vic-admin}/logs/vicadmin.log -O failure.log
     Log  ${out}
 
     ${out}=  Run  wget --tries=3 --connect-timeout=10 --certificate=%{DOCKER_CERT_PATH}/cert.pem --private-key=%{DOCKER_CERT_PATH}/key.pem --no-check-certificate ${vic-admin}/logs/vicadmin.log -O success.log
