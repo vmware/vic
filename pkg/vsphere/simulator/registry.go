@@ -181,3 +181,17 @@ func RemoveReference(ref types.ManagedObjectReference, refs []types.ManagedObjec
 
 	return result
 }
+
+func (r *Registry) content() types.ServiceContent {
+	return r.Get(serviceInstance).(*ServiceInstance).Content
+}
+
+// SearchIndex returns the SearchIndex singleton
+func (r *Registry) SearchIndex() *SearchIndex {
+	return r.Get(r.content().SearchIndex.Reference()).(*SearchIndex)
+}
+
+// FileManager returns the FileManager singleton
+func (r *Registry) FileManager() *FileManager {
+	return r.Get(r.content().FileManager.Reference()).(*FileManager)
+}
