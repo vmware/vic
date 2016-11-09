@@ -1,20 +1,22 @@
 Test 6-01 - Verify Help
 =======
 
-#Purpose:
+# Purpose:
 Verify vic-machine delete help
 
-#References:
+# References:
 * vic-machine-linux delete -h
 
-#Environment:
+# Environment:
 Standalone test requires nothing but vic-machine to be built
 
-#Test Steps:
+# Test Cases
+
+## Delete help basic
 1. Issue the following command:
 ```
 * vic-machine-linux delete -h
 ```
 
-#Expected Outcome:
+### Expected Outcome:
 * Command should output Usage of vic-machine delete -h:

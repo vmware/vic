@@ -125,7 +125,7 @@ Install VIC Appliance To Test Server
     ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}
     Log  ${output}
     Get Docker Params  ${output}  ${certs}
-    Log To Console  Installer completed successfully: ${vch-name}...
+    Log To Console  Installer completed successfully: ${vch-name}
 
 Run VIC Machine Command
     [Tags]  secret
@@ -139,14 +139,18 @@ Run VIC Machine Command
     [Return]  ${output}
 
 Cleanup VIC Appliance On Test Server
-    Log To Console  Gathering logs from the test server...
+    Log To Console  Gathering logs from the test server ${vch-name}
     Gather Logs From Test Server
-    Log To Console  Deleting the VCH appliance...
+    Log To Console  Deleting the VCH appliance ${vch-name}
     ${output}=  Run VIC Machine Delete Command
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  ${vch-name}
+    [Return]  ${output}
+
+Cleanup VCH Bridge Network
+    [Arguments]  ${vch-name}
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${vch-name}-bridge
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  ${vch-name}-bridge
-    [Return]  ${output}
 
 Check Delete Success
     [Arguments]  ${vch-name}
@@ -366,6 +370,12 @@ Get VM Host Name
     ${out}=  Split To Lines  ${out}
     ${host}=  Fetch From Right  @{out}[-1]  ${SPACE}
     [Return]  ${host}
+
+Get VM Info
+    [Arguments]  ${vm}
+    ${rc}  ${out}=  Run And Return Rc And Output  govc vm.info -r ${vm}
+    Should Be Equal As Integers  ${rc}  0
+    [Return]  ${out}
 
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox

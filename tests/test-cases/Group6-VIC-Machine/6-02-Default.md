@@ -1,17 +1,19 @@
 Test 6-02 - Verify default parameters
 =======
 
-#Purpose:
+# Purpose:
 Verify vic-machine delete default parameters of compute-resource and name
 
-#References:
+# References:
 * vic-machine-linux delete -h
 
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Cases
+
+## Delete with defaults
 1. Delete VCH without compute-resource and name specified
 
-#Expected Outcome:
+### Expected Outcome:
 * Command should fail for resource pool /Resources/virtual-container-host is not found
