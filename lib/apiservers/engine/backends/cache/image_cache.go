@@ -300,9 +300,18 @@ func copyImageConfig(image *metadata.ImageConfig) *metadata.ImageConfig {
 	newConfig := *image.Config
 	newImage.Config = &newConfig
 
-	// add tags & digests from the repo cache
-	newImage.Tags = RepositoryCache().Tags(newImage.ImageID)
-	newImage.Digests = RepositoryCache().Digests(newImage.ImageID)
+	// get tags and digests from repo
+	tags := RepositoryCache().Tags(newImage.ImageID)
+	digests := RepositoryCache().Digests(newImage.ImageID)
+
+	// if image has neither then set <none> vals
+	if len(tags) == 0 && len(digests) == 0 {
+		tags = append(tags, "<none>:<none>")
+		digests = append(digests, "<none>@<none>")
+	}
+
+	newImage.Tags = tags
+	newImage.Digests = digests
 
 	return &newImage
 }
