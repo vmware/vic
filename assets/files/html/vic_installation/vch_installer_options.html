@@ -53,7 +53,7 @@
         data-chapter-title="Virtual Container Host Deployment Options"
         data-filepath="vch_installer_options.md"
         data-basepath="."
-        data-revision="Mon Nov 07 2016 16:38:24 GMT+0100 (W. Europe Standard Time)"
+        data-revision="Wed Nov 09 2016 15:19:06 GMT+0100 (W. Europe Standard Time)"
         data-innerlanguage="">
     
 
@@ -630,9 +630,9 @@ may not work as intended.</pre> </li>
 <p><a name="volume-store"></a></p>
 <h3 id="volumestore"><code>--volume-store</code></h3>
 <p>Short name: <code>--vs</code></p>
-<p>The datastore in which to create volumes when container developers use the <code>docker volume create</code> or <code>docker create -v</code> commands. When you specify the <code>volume-store</code> option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If you specify an invalid datastore name, <code>vic-machine create</code> fails and suggests valid datastores. </p>
+<p>The datastore in which to create volumes when container developers use the <code>docker volume create</code> or <code>docker create -v</code> commands. When you specify the <code>volume-store</code> option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If the folders that you specify in the path do not already exist on the datastore, <code>vic-machine create</code> creates the appropriate folder structure. If you specify an invalid datastore name, <code>vic-machine create</code> fails and suggests valid datastores. </p>
+<p><strong>IMPORTANT</strong>: If multiple virtual container hosts will use the same datastore for their volume stores, specify a different datastore folder for each virtual container host. Do not designate the same datastore folder as the volume store for multiple virtual container hosts.</p>
 <p>If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the <code>volume-store</code> option should be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible and <code>vic-machine create</code> succeeds, but it issues a warning that this configuration limits the use of vSphere features such as vSphere vMotion and DRS.</p>
-<p>You can designate the same datastore as the volume store for multiple virtual container hosts.</p>
 <p>The label that you specify is the volume store name that Docker uses. For example, the volume store label appears in the information for a virtual container host when container developers run <code>docker info</code>. Container developers specify the volume store label in the <code>docker volume create --opt VolumeStore=volume_store_label</code> option when they create a volume.</p>
 <p><strong>IMPORTANT</strong> If you do not specify the <code>volume-store</code> option, no  volume store is created and container developers cannot use the <code>docker volume create</code> or <code>docker create -v</code> commands.</p>
 <ul>
@@ -640,9 +640,9 @@ may not work as intended.</pre> </li>
 <p><strong>NOTE</strong>: If container developers intend to use <code>docker create -v</code> to create containers that are attached to anonymous or named volumes, you must create a volume store with a label of <code>default</code>.</p>
 <pre>--volume-store <i>datastore_name</i>:default</pre>
 </li>
-<li><p>If you specify the target datastore and the volume store label, <code>vic-machine create</code> creates a folder named <code>volumes</code> under the <code>VIC</code> folder on the target datastore. Any volumes that container developers create will appear in the <code>volumes</code> folder.</p>
+<li><p>If you specify the target datastore and the volume store label, <code>vic-machine create</code> creates a folder named <code>VIC/volumes</code> at the top level of the target datastore. Any volumes that container developers create will appear in the <code>VIC/volumes</code> folder.</p>
 <pre>--volume-store <i>datastore_name</i>:<i>volume_store_label</i></pre></li>
-<li><p>If you specify the target datastore, a datastore path, and the volume store label, <code>vic-machine create</code> creates a folder named <code>VIC/volumes</code> in the location that you specify in the datastore path. If the folders that you specify in the path do not already exist on the datastore, <code>vic-machine create</code> creates the appropriate folder structure. Any volumes that container developers create will appear in the <code>path/VIC/volumes</code> folder.</p>
+<li><p>If you specify the target datastore, a datastore path, and the volume store label, <code>vic-machine create</code> creates a folder named <code>volumes</code> in the location that you specify in the datastore path. Any volumes that container developers create will appear in the <code>path/volumes</code> folder.</p>
 <pre>--volume-store <i>datastore_name</i>/<i>datastore_path</i>:<i>volume_store_label</i></pre></li>
 <li><p>Wrap the datastore name and path in single quotes (&apos;) on Mac OS and Linux and in double quotes (&quot;) on Windows if they include spaces. The volume store label cannot include spaces.</p>
 <pre>--volume-store &apos;<i>datastore name</i>&apos;/&apos;<i>datastore path</i>&apos;:<i>volume_store_label</i></pre></li>
@@ -844,8 +844,8 @@ may not work as intended.</pre> </li>
 <p>If you specify <code>dns-server</code> but you do not specify a static IP address for one or more of the client, external, and management networks, <code>vic-machine create</code> ignores the <code>dns-server</code> setting for that network and uses the DNS servers that are provided by DHCP. </p>
 <p>If you use a mixture of static and DHCP addresses for the virtual container host on the different networks, the virtual container host uses the DNS servers that you specify in <code>dns-server</code> and those that DHCP provides.</p>
 <p>If you specify static IP address for the virtual container host on any of the client, external, and management networks and you do not specify <code>dns-server</code>, the DNS server defaults to 8.8.8.8 and 8.8.4.4. </p>
-<pre>--dns=172.16.10.10
---dns=172.16.10.11
+<pre>--dns-server=172.16.10.10
+--dns-server=172.16.10.11
 </pre>
 
 <h3 id="clientnetworkip-externalnetworkip-managementnetworkip"><code>--client-network-ip</code>, <code>--external-network-ip</code>, <code>--management-network-ip</code></h3>
