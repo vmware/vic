@@ -21,8 +21,6 @@ import (
 	"path"
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/portlayer/exec"
 	"github.com/vmware/vic/lib/portlayer/storage"
@@ -199,13 +197,13 @@ func (v *VolumeStore) VolumeCreate(op trace.Operation, ID string, store *url.URL
 		return nil, err
 	}
 
-	log.Infof("volumestore: %s (%s)", ID, vol.SelfLink)
+	op.Infof("volumestore: %s (%s)", ID, vol.SelfLink)
 	return vol, nil
 }
 
 func (v *VolumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume) error {
 	if err := volumeInUse(vol.ID); err != nil {
-		log.Errorf("VolumeStore: delete error: %s", err.Error())
+		op.Errorf("VolumeStore: delete error: %s", err.Error())
 		return err
 	}
 
@@ -216,9 +214,9 @@ func (v *VolumeStore) VolumeDestroy(op trace.Operation, vol *storage.Volume) err
 		return err
 	}
 
-	log.Infof("VolumeStore: Deleting %s", volDir)
+	op.Infof("VolumeStore: Deleting %s", volDir)
 	if err := dstore.Rm(op, volDir); err != nil {
-		log.Errorf("VolumeStore: delete error: %s", err.Error())
+		op.Errorf("VolumeStore: delete error: %s", err.Error())
 		return err
 	}
 

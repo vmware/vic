@@ -623,21 +623,23 @@ func unrollPortMap(portMap nat.PortMap) ([]*portMapping, error) {
 		}
 
 		// iterate over all the ports in pb []nat.PortBinding
-		for _, p := range pb {
+		for i := range pb {
 			var hostPort int
 			var hPort string
-			if p.HostPort == "" {
+			if pb[i].HostPort == "" {
 				// use a random port since no host port is specified
 				hostPort, err = requestHostPort(proto)
 				if err != nil {
 					log.Errorf("could not find available port on host")
 					return nil, err
 				}
+				log.Infof("using port %d on the host for port mapping", hostPort)
+
 				// update the hostconfig
-				p.HostPort = strconv.Itoa(hostPort)
+				pb[i].HostPort = strconv.Itoa(hostPort)
 
 			} else {
-				hostPort, err = strconv.Atoi(p.HostPort)
+				hostPort, err = strconv.Atoi(pb[i].HostPort)
 				if err != nil {
 					return nil, err
 				}

@@ -22,6 +22,7 @@ Use ./local-integration-test.sh
     TEST_TIMEOUT: 60s
     VIC_ESX_TEST_DATASTORE: <datastore path, e.g. /ha-datacenter/datastore/datastore1>
     VIC_ESX_TEST_URL: <user:password@IP address of your test server>
+    DOMAIN: <domain for TLS cert generation, may be blank>
   ```
 
 If you are using a vSAN environment or non-default ESX install, then you can also specify the two networks to use with the following command (make sure to add them to the yaml file in Step 2 below as well):

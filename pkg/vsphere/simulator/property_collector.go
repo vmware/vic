@@ -252,7 +252,13 @@ func (rr *retrieveResult) collect(ref types.ManagedObjectReference) {
 		Obj: ref,
 	}
 
-	rval, _ := getObject(ref)
+	rval, ok := getObject(ref)
+	if !ok {
+		// Possible if a test uses Map.Remove instead of Destroy_Task
+		log.Printf("object %s no longer exists", ref)
+		return
+	}
+
 	rtype := rval.Type()
 
 	var refs []types.ManagedObjectReference

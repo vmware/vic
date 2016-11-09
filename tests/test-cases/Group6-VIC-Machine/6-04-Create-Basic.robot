@@ -5,18 +5,15 @@ Test Teardown  Run Keyword If Test Failed  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Create VCH - custom base disk
-    Log To Console  \nRunning vic-machine create - custom base image size
     Set Test Environment Variables
     # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-    Set Test VCH Name
 
-    Log To Console  \nInstalling VCH to test server...
     ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --base-image-size=6GB ${vicmachinetls}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: ${vch-name}...
+    Log To Console  Installer completed successfully: ${vch-name}
 
     ${output}=  Run  docker ${params} logs $(docker ${params} start $(docker ${params} create busybox /bin/df -h) && sleep 10) | grep /dev/sda | awk '{print $2}'
     # df shows GiB and vic-machine takes in GB so 6GB on cmd line == 5.5GB in df
@@ -25,103 +22,85 @@ Create VCH - custom base disk
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
-Create VCH - defaults
-    Log To Console  \nRunning vic-machine create - defaults
+Create VCH - URL without user and password
     Set Test Environment Variables
-    # Attempt to cleanup old/canceled tests
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-    Set Test VCH Name
 
-    Log To Console  \nInstalling VCH to test server...
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls}
+    Should Contain  ${output}  vSphere user must be specified
+
+    # Delete the portgroup added by env vars keyword
+    Cleanup VCH Bridge Network  ${vch-name}
+
+Create VCH - target URL
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls}
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: ${vch-name}
+
+    Run Regression Tests
+    Cleanup VIC Appliance On Test Server
+
+Create VCH - specified datacenter
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Pass Execution  Requires vCenter environment
+
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls} --compute-resource=%{TEST_DATACENTER}
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: ${vch-name}
+
+    Run Regression Tests
+    Cleanup VIC Appliance On Test Server
+
+
+Create VCH - defaults
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
     ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls}
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Contain  ${output}  Installer completed successfully
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Get Docker Params  ${output}  ${true}
     ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --password=%{TEST_PASSWORD} ${vicmachinetls}
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Contain  ${output}  Installer completed successfully
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: ${vch-name}...
-
-    Run Regression Tests
-    Cleanup VIC Appliance On Test Server
-
-Create VCH - defaults with --no-tls
-    Log To Console  \nRunning vic-machine create - defaults with --no-tls
-    Set Test Environment Variables
-    # Attempt to cleanup old/canceled tests
-    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-    Set Test VCH Name
-
-    Install VIC Appliance To Test Server  certs=${false}
-    Run Regression Tests
-    Cleanup VIC Appliance On Test Server
-
-Create VCH - target URL
-    Log To Console  \nRunning vic-machine create - target URL
-    Set Test Environment Variables
-    # Attempt to cleanup old/canceled tests
-    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-    Set Test VCH Name
-
-    Log To Console  \nInstalling VCH to test server...
-    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls}
-    Should Contain  ${output}  Installer completed successfully
-    Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: ${vch-name}...
-
-    Run Regression Tests
-    Cleanup VIC Appliance On Test Server
-
-Create VCH - force accept target thumbprint
-    Set Test Environment Variables
-    # Attempt to cleanup old/canceled tests
-    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
-    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-    Set Test VCH Name
-
-    Log To Console  \nInstalling VCH to test server...
-    # Test that --force without --thumbprint accepts the --target thumbprint
-    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --force --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls}
-    Should Contain  ${output}  Installer completed successfully
-    Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: ${vch-name}...
+    Log To Console  Installer completed successfully: ${vch-name}
 
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
 Create VCH - full params
-    Log To Console  \nRunning vic-machine create
-    # Attempt to cleanup old/canceled tests
+    Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-    Set Test Environment Variables
-    Set Test VCH Name
 
-    Log To Console  \nInstalling VCH to test server...
     ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:default ${vicmachinetls}
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: ${vch-name}...
+    Log To Console  Installer completed successfully: ${vch-name}
 
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
 
 Create VCH - custom image store directory
-    Log To Console  \nRunning vic-machine create
-    # Attempt to cleanup old/canceled tests
+    Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
-    Set Test Environment Variables
-    Set Test VCH Name
 
-    Log To Console  \nInstalling VCH to test server...
     ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target=%{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store %{TEST_DATASTORE}/vic-machine-test-images --appliance-iso=bin/appliance.iso --bootstrap-iso=bin/bootstrap.iso --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} ${vicmachinetls}
 
     Should Contain  ${output}  Installer completed successfully
     Get Docker Params  ${output}  ${true}
-    Log To Console  Installer completed successfully: ${vch-name}...
+    Log To Console  Installer completed successfully: ${vch-name}
     ${output}=  Run  GOVC_DATASTORE=%{TEST_DATASTORE} govc datastore.ls
     Should Contain  ${output}  vic-machine-test-images
 
@@ -129,3 +108,181 @@ Create VCH - custom image store directory
     Cleanup VIC Appliance On Test Server
     ${output}=  Run  GOVC_DATASTORE=%{TEST_DATASTORE} govc datastore.ls
     Should Not Contain  ${output}  vic-machine-test-images
+
+Create VCH - long VCH name
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name}-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls}
+    Should Contain  ${output}  exceeds the permitted 31 characters limit
+
+    # Delete the portgroup added by env vars keyword
+    Cleanup VCH Bridge Network  ${vch-name}
+
+Create VCH - Existing VCH name
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls}
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: ${vch-name}
+
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls}
+    Should Contain  ${output}  exists, to install with same name, please delete it first
+
+    Cleanup VIC Appliance On Test Server
+
+Create VCH - Existing VM name
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    # Create dummy VM
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.create -net=%{EXTERNAL_NETWORK} ${vch-name}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls}
+    Get Docker Params  ${output}  ${true}
+    Log  ${output}
+    Should Contain  ${output}  Installer completed successfully
+    Log To Console  Installer completed successfully: ${vch-name}
+
+    Run Keyword And Ignore Error  Cleanup VIC Appliance On Test Server
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.destroy ${vch-name}
+    Should Be Equal As Integers  ${rc}  0
+    Cleanup VCH Bridge Network  ${vch-name}
+
+Create VCH - Existing RP on ESX
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Pass Execution  Test skipped on VC
+
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    # Create dummy RP
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.create %{TEST_RESOURCE}/${vch-name}
+    Should Be Equal As Integers  ${rc}  0
+
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls} --compute-resource=%{TEST_RESOURCE}
+    Should Contain  ${output}  Installer completed successfully
+    Log  Installer completed successfully: ${vch-name}
+
+    Cleanup VIC Appliance On Test Server
+
+    ${rc}  ${output}=  Run And Return Rc And Output  govc pool.destroy %{TEST_RESOURCE}/${vch-name}
+    Should Be Equal As Integers  ${rc}  0
+
+Create VCH - Existing vApp on vCenter
+    Pass execution  Test not implemented
+
+Create VCH - defaults with --no-tls
+    ${status}=  Get State Of Github Issue  3063
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 6-04-Create-Basic.robot needs to be updated now that Issue #3063 has been resolved
+    Log  Issue \#3063 is blocking implementation  WARN
+    Pass Execution  Issue \#3063 is blocking implementation
+
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --no-tls
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: ${vch-name}
+
+
+    Run Regression Tests
+    Cleanup VIC Appliance On Test Server
+
+Create VCH - force accept target thumbprint
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    # Test that --force without --thumbprint accepts the --target thumbprint
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --force --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls}
+    Should Contain  ${output}  Installer completed successfully
+    Get Docker Params  ${output}  ${true}
+    Log To Console  Installer completed successfully: ${vch-name}
+
+    Run Regression Tests
+    Cleanup VIC Appliance On Test Server
+
+Create VCH - Specified keys
+    Pass execution  Test not implemented until vic-machine can poll status correctly
+
+Create VCH - Invalid keys
+    ${domain}=  Get Environment Variable  DOMAIN  ''
+    Run Keyword If  '${domain}' == ''  Pass Execution  Skipping test - domain not set, won't generate keys
+
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls}
+
+    # Invalid server key
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls} --tls-ca="./${vch-name}/ca.pem" --cert="./${vch-name}/server-cert.pem" --key="./${vch-name}/ca.pem"
+    Should Contain  ${output}  found a certificate rather than a key in the PEM for the private key
+
+    # Invalid server cert
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls} --tls-ca="./${vch-name}/ca.pem" --cert="./${vch-name}/server-key.pem" --key="./${vch-name}/server-key.pem"
+    Should Contain  ${output}  did find a private key; PEM inputs may have been switched
+
+    # Invalid CA
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls} --tls-ca="./${vch-name}/key.pem" --cert="./${vch-name}/server-cert.pem" --key="./${vch-name}/server-key.pem"
+    Should Contain  ${output}  Unable to load certificate authority data
+
+    Cleanup VIC Appliance On Test Server
+
+Basic timeout
+    Set Test Environment Variables
+    Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
+    Run Keyword And Ignore Error  Cleanup Datastore On Test Server
+
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --timeout 1s ${vicmachinetls}
+    Should Contain  ${output}  Create timed out
+
+    Cleanup VIC Appliance On Test Server
+
+Basic VCH resource config
+    Pass execution  Test not implemented
+
+Invalid VCH resource config
+    Pass execution  Test not implemented
+
+Use resource pool
+    Pass execution  Test not implemented
+
+CPU reservation shares invalid
+    Pass execution  Test not implemented
+
+CPU reservation invalid
+    Pass execution  Test not implemented
+
+CPU reservation valid
+    Pass execution  Test not implemented
+
+Memory reservation shares invalid
+    Pass execution  Test not implemented
+
+Memory reservation invalid 1
+    Pass execution  Test not implemented
+
+Memory reservation invalid 2
+    Pass execution  Test not implemented
+
+Memory reservation invalid 3
+    Pass execution  Test not implemented
+
+Memory reservation valid
+    Pass execution  Test not implemented
+
+Extension installation
+    Pass execution  Test not implemented
+
+Install existing extension
+    Pass execution  Test not implemented

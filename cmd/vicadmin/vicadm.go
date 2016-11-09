@@ -52,6 +52,12 @@ const (
 	timeout = time.Duration(2 * time.Second)
 )
 
+type vicAdminConfig struct {
+	session.Config
+	addr string
+	tls  bool
+}
+
 var (
 	logFileDir  = "/var/log/vic"
 	logFileList = []string{
@@ -68,11 +74,9 @@ var (
 		"tether.debug",
 	}
 
-	config struct {
-		session.Config
-		addr string
-		tls  bool
-	}
+	// this struct holds root credentials or vSphere extension private key instead if available
+	// if you are exposing log information to a user, create a new session for that user, do not use this one
+	rootConfig vicAdminConfig
 
 	resources vchconfig.Resources
 
@@ -106,12 +110,12 @@ func init() {
 	// os.Exit(1)
 	// }
 
-	flag.StringVar(&config.addr, "l", "client.localhost:2378", "Listen address")
+	flag.StringVar(&rootConfig.addr, "l", "client.localhost:2378", "Listen address")
 
 	// TODO: This should all be pulled from the config
-	flag.StringVar(&config.DatacenterPath, "dc", "", "Path of the datacenter")
-	flag.StringVar(&config.ClusterPath, "cluster", "", "Path of the cluster")
-	flag.StringVar(&config.PoolPath, "pool", "", "Path of the resource pool")
+	flag.StringVar(&rootConfig.DatacenterPath, "dc", "", "Path of the datacenter")
+	flag.StringVar(&rootConfig.ClusterPath, "cluster", "", "Path of the cluster")
+	flag.StringVar(&rootConfig.PoolPath, "pool", "", "Path of the resource pool")
 
 	// load the vch config
 	src, err := extraconfig.GuestInfoSource()
@@ -388,14 +392,9 @@ func (r datastoreReader) open() (entry, error) {
 	return httpEntry(r.path, res)
 }
 
-func client() (*session.Session, error) {
-	defer trace.End(trace.Begin(""))
-
+func vSphereSessionGet(sessconfig *session.Config) (*session.Session, error) {
+	session := session.NewSession(sessconfig)
 	ctx := context.Background()
-
-	// TODO: this should be replaced with session.Create so we're
-	// not overriding the parameters from vchconfig
-	session := session.NewSession(&config.Config)
 	_, err := session.Connect(ctx)
 	if err != nil {
 		log.Warnf("Unable to connect: %s", err)
@@ -404,17 +403,38 @@ func client() (*session.Session, error) {
 
 	_, err = session.Populate(ctx)
 	if err != nil {
-		// no a critical error for vicadmin
+		// not a critical error for vicadmin
 		log.Warnf("Unable to populate session: %s", err)
 	}
-
 	return session, nil
+}
+
+func (s *server) getSessionFromRequest(r *http.Request) (*session.Session, error) {
+	sessionData, err := s.uss.cookies.Get(r, sessionCookieKey)
+	if err != nil {
+		return nil, err
+	}
+
+	c, err := s.uss.VSphere(sessionData.ID)
+	if err != nil {
+		return nil, err
+	}
+	return c, err
+}
+
+func client(config *vicAdminConfig) (*session.Session, error) {
+	defer trace.End(trace.Begin(""))
+	sess, err := vSphereSessionGet(&config.Config)
+	if err != nil {
+		return nil, err
+	}
+	return sess, nil
 }
 
 func findDatastore() error {
 	defer trace.End(trace.Begin(""))
 
-	session, err := client()
+	session, err := client(&rootConfig)
 	if err != nil {
 		return err
 	}
@@ -457,23 +477,23 @@ func main() {
 	}
 
 	// FIXME: these should just be consumed directly inside Session
-	config.Service = vchConfig.Target.String()
-	config.ExtensionCert = vchConfig.ExtensionCert
-	config.ExtensionKey = vchConfig.ExtensionKey
-	config.ExtensionName = vchConfig.ExtensionName
-	config.Thumbprint = vchConfig.TargetThumbprint
-	config.DatastorePath = vchConfig.Storage.ImageStores[0].Host
+	rootConfig.Service = vchConfig.Target.String()
+	rootConfig.ExtensionCert = vchConfig.ExtensionCert
+	rootConfig.ExtensionKey = vchConfig.ExtensionKey
+	rootConfig.ExtensionName = vchConfig.ExtensionName
+	rootConfig.Thumbprint = vchConfig.TargetThumbprint
+	rootConfig.DatastorePath = vchConfig.Storage.ImageStores[0].Host
 
 	if vchConfig.Diagnostics.DebugLevel > 2 {
-		config.addr = "0.0.0.0:2378"
+		rootConfig.addr = "0.0.0.0:2378"
 		log.Warn("Listening on all networks because of debug level")
 	}
-
 	s := &server{
-		addr: config.addr,
+		addr: rootConfig.addr,
 	}
 
 	err := s.listen()
+
 	if err != nil {
 		log.Fatal(err)
 	}

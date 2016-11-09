@@ -125,7 +125,7 @@ Install VIC Appliance To Test Server
     ${output}=  Run VIC Machine Command  ${vic-machine}  ${appliance-iso}  ${bootstrap-iso}  ${certs}  ${vol}
     Log  ${output}
     Get Docker Params  ${output}  ${certs}
-    Log To Console  Installer completed successfully: ${vch-name}...
+    Log To Console  Installer completed successfully: ${vch-name}
 
 Run VIC Machine Command
     [Tags]  secret
@@ -134,19 +134,23 @@ Run VIC Machine Command
     Run Keyword If  ${certs}  Should Contain  ${output}  Installer completed successfully
     Return From Keyword If  ${certs}  ${output}
 
-    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug 1 --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} --no-tls
+    ${output}=  Run Keyword Unless  ${certs}  Run  ${vic-machine} create --debug 1 --name=${vch-name} --target=%{TEST_URL}%{TEST_DATACENTER} --thumbprint=%{TEST_THUMBPRINT} --user=%{TEST_USERNAME} --image-store=%{TEST_DATASTORE} --appliance-iso=${appliance-iso} --bootstrap-iso=${bootstrap-iso} --password=%{TEST_PASSWORD} --force=true --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --compute-resource=%{TEST_RESOURCE} --timeout %{TEST_TIMEOUT} --volume-store=%{TEST_DATASTORE}/test:${vol} --no-tlsverify
     Run Keyword Unless  ${certs}  Should Contain  ${output}  Installer completed successfully
     [Return]  ${output}
 
 Cleanup VIC Appliance On Test Server
-    Log To Console  Gathering logs from the test server...
+    Log To Console  Gathering logs from the test server ${vch-name}
     Gather Logs From Test Server
-    Log To Console  Deleting the VCH appliance...
+    Log To Console  Deleting the VCH appliance ${vch-name}
     ${output}=  Run VIC Machine Delete Command
+    Run Keyword And Ignore Error  Cleanup VCH Bridge Network  ${vch-name}
+    [Return]  ${output}
+
+Cleanup VCH Bridge Network
+    [Arguments]  ${vch-name}
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.remove ${vch-name}-bridge
     ${out}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run  govc host.portgroup.info
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Not Contain  ${out}  ${vch-name}-bridge
-    [Return]  ${output}
 
 Check Delete Success
     [Arguments]  ${vch-name}
@@ -367,6 +371,12 @@ Get VM Host Name
     ${host}=  Fetch From Right  @{out}[-1]  ${SPACE}
     [Return]  ${host}
 
+Get VM Info
+    [Arguments]  ${vm}
+    ${rc}  ${out}=  Run And Return Rc And Output  govc vm.info -r ${vm}
+    Should Be Equal As Integers  ${rc}  0
+    [Return]  ${out}
+
 Run Regression Tests
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
     Should Be Equal As Integers  ${rc}  0
@@ -391,9 +401,9 @@ Run Regression Tests
     Should Contain  ${output}  Exited
     # get docker_cert_path or empty string if it's unset
     ${docker_cert_path}=  Get Environment Variable  DOCKER_CERT_PATH  ${EMPTY}
-    ${curl_args}=  Set Variable If  '${docker_cert_path}' == ''  ${EMPTY}  --key %{DOCKER_CERT_PATH}/key.pem --cert %{DOCKER_CERT_PATH}/cert.pem
     # Ensure container logs are correctly being gathered for debugging purposes
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${curl_args} ${vic-admin}/container-logs.tar.gz | tar tvzf -
+    Run  curl -sk ${vic-admin}/authentication -XPOST -F username=%{GOVC_USERNAME} -F password=%{GOVC_PASSWORD} -D /tmp/cookies-${vch-name}
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz -b /tmp/cookies-${vch-name} | tar tvzf -
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
     Should Contain  ${output}  ${container}/output.log
@@ -473,3 +483,10 @@ Power On VM OOB
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
     Log To Console  Waiting for VM to power on ...
     Wait Until VM Powers On  ${vm}
+
+Destroy VM OOB
+    [Arguments]  ${vm}
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'VC'  Run And Return Rc And Output  govc vm.destroy ${vch-name}/"*-${vm}"
+    Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "*-${vm}"
+    Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
