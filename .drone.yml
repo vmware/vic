@@ -8,6 +8,19 @@ clone:
   tags: true
 
 build:
+  prevent-concurrent-builds:
+    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.14}
+    pull: true
+    environment:
+      BIN: bin
+      GOPATH: /drone
+      SHELL: /bin/bash
+      TEST_URL_ARRAY:  $$TEST_URL_ARRAY
+      DRONE_SERVER:  $$DRONE_SERVER
+      DRONE_TOKEN:  $$DRONE_TOKEN
+    commands:
+      - tests/wait_until_previous_builds_complete.sh
+
   vic:
     image: golang:1.7
     pull: true
