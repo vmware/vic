@@ -17,7 +17,7 @@ Verify Failed Log Attempts
     #Install a second appliance
     Install VIC Appliance To Test Server
     
-    ${out}=  Run  wget --tries=3 --connect-timeout=10 --certificate=${old-certs}/fakeCert.pem --private-key=${old-certs}/fakeKey.pem --no-check-certificate ${vic-admin}/logs/vicadmin.log -O failure.log
+    ${out}=  Run  wget --tries=3 --connect-timeout=10 --certificate=${old-certs}/cert.pem --private-key=${old-certs}/key.pem --no-check-certificate ${vic-admin}/logs/vicadmin.log -O failure.log
     Log  ${out}
 
     ${out}=  Run  wget --tries=3 --connect-timeout=10 --certificate=%{DOCKER_CERT_PATH}/cert.pem --private-key=%{DOCKER_CERT_PATH}/key.pem --no-check-certificate ${vic-admin}/logs/vicadmin.log -O success.log
