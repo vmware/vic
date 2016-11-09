@@ -88,7 +88,7 @@ func GetDatastores(ctx context.Context, s *session.Session, dsURLs map[string]*u
 	fm := object.NewFileManager(s.Vim25())
 	for name, dsURL := range dsURLs {
 
-		vsDs, err := s.Finder.DatastoreOrDefault(ctx, s.DatastorePath)
+		vsDs, err := s.Finder.DatastoreOrDefault(ctx, dsURL.Host)
 		if err != nil {
 			return nil, err
 		}

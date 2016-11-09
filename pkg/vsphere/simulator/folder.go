@@ -17,6 +17,7 @@ package simulator
 import (
 	"fmt"
 	"math/rand"
+	"path"
 	"sync"
 
 	"github.com/vmware/govmomi/vim25/methods"
@@ -38,6 +39,15 @@ func (f *Folder) putChild(o mo.Entity) {
 	defer f.m.Unlock()
 
 	f.ChildEntity = append(f.ChildEntity, o.Reference())
+}
+
+func (f *Folder) removeChild(o mo.Reference) {
+	Map.Remove(o.Reference())
+
+	f.m.Lock()
+	defer f.m.Unlock()
+
+	f.ChildEntity = RemoveReference(o.Reference(), f.ChildEntity)
 }
 
 func (f *Folder) hasChildType(kind string) bool {
@@ -157,6 +167,8 @@ type createVMTask struct {
 	*Folder
 
 	req *types.CreateVM_Task
+
+	register bool
 }
 
 func (c *createVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
@@ -188,7 +200,7 @@ func (c *createVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 
 	vm.Summary.Runtime.Host = vm.Runtime.Host
 
-	err = vm.create(&c.req.Config)
+	err = vm.create(&c.req.Config, c.register)
 	if err != nil {
 		return nil, err
 	}
@@ -204,9 +216,88 @@ func (c *createVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
 func (f *Folder) CreateVMTask(c *types.CreateVM_Task) soap.HasFault {
 	r := &methods.CreateVM_TaskBody{}
 
-	task := NewTask(&createVMTask{f, c})
+	task := NewTask(&createVMTask{f, c, false})
 
 	r.Res = &types.CreateVM_TaskResponse{
+		Returnval: task.Self,
+	}
+
+	task.Run()
+
+	return r
+}
+
+type registerVMTask struct {
+	*Folder
+
+	req *types.RegisterVM_Task
+}
+
+func (c *registerVMTask) Run(task *Task) (types.AnyType, types.BaseMethodFault) {
+	if c.req.AsTemplate {
+		return nil, &types.NotSupported{}
+	}
+
+	if c.req.Pool == nil {
+		return nil, &types.InvalidArgument{InvalidProperty: "pool"}
+	}
+
+	if c.req.Path == "" {
+		return nil, &types.InvalidArgument{InvalidProperty: "path"}
+	}
+
+	p := Map.Get(*c.req.Pool).(mo.Entity)
+	s := Map.SearchIndex()
+	r := s.FindByDatastorePath(&types.FindByDatastorePath{
+		This:       s.Reference(),
+		Path:       c.req.Path,
+		Datacenter: Map.getEntityDatacenter(p).Reference(),
+	})
+
+	if ref := r.(*methods.FindByDatastorePathBody).Res.Returnval; ref != nil {
+		return nil, &types.AlreadyExists{Name: ref.Value}
+	}
+
+	if c.req.Name == "" {
+		p, err := parseDatastorePath(c.req.Path)
+		if err != nil {
+			return nil, err
+		}
+
+		c.req.Name = path.Dir(p.Path)
+	}
+
+	create := NewTask(&createVMTask{
+		Folder:   c.Folder,
+		register: true,
+		req: &types.CreateVM_Task{
+			This: c.Folder.Reference(),
+			Config: types.VirtualMachineConfigSpec{
+				Name: c.req.Name,
+				Files: &types.VirtualMachineFileInfo{
+					VmPathName: c.req.Path,
+				},
+			},
+			Pool: *c.req.Pool,
+			Host: c.req.Host,
+		},
+	})
+
+	create.Run()
+
+	if create.Info.Error != nil {
+		return nil, create.Info.Error.Fault
+	}
+
+	return create.Info.Result, nil
+}
+
+func (f *Folder) RegisterVMTask(c *types.RegisterVM_Task) soap.HasFault {
+	r := &methods.RegisterVM_TaskBody{}
+
+	task := NewTask(&registerVMTask{f, c})
+
+	r.Res = &types.RegisterVM_TaskResponse{
 		Returnval: task.Self,
 	}
 

@@ -16,6 +16,7 @@ package simulator
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/vmware/govmomi"
@@ -23,6 +24,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/pkg/vsphere/simulator/esx"
 	"github.com/vmware/vic/pkg/vsphere/simulator/vc"
@@ -202,5 +204,144 @@ func TestFolderFaults(t *testing.T) {
 
 	if f.CreateDatacenter(nil).Fault() == nil {
 		t.Error("expected fault")
+	}
+}
+
+func TestRegisterVm(t *testing.T) {
+	ctx := context.Background()
+
+	for _, model := range []*Model{ESX(), VPX()} {
+		defer model.Remove()
+		err := model.Create()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		s := model.Service.NewServer()
+		defer s.Close()
+
+		c, err := govmomi.NewClient(ctx, s.URL, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		finder := find.NewFinder(c.Client, false)
+		dc, err := finder.DefaultDatacenter(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		finder.SetDatacenter(dc)
+
+		folders, err := dc.Folders(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		vmFolder := folders.VmFolder
+
+		vms, err := finder.VirtualMachineList(ctx, "*")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		vm := Map.Get(vms[0].Reference()).(*VirtualMachine)
+
+		req := types.RegisterVM_Task{
+			This:       vmFolder.Reference(),
+			AsTemplate: true,
+		}
+
+		steps := []struct {
+			e interface{}
+			f func()
+		}{
+			{
+				new(types.NotSupported), func() { req.AsTemplate = false },
+			},
+			{
+				new(types.InvalidArgument), func() { req.Pool = vm.ResourcePool },
+			},
+			{
+				new(types.InvalidArgument), func() { req.Path = "enoent" },
+			},
+			{
+				new(types.InvalidDatastorePath), func() { req.Path = vm.Config.Files.VmPathName + "-enoent" },
+			},
+			{
+				new(types.NotFound), func() { req.Path = vm.Config.Files.VmPathName },
+			},
+			{
+				new(types.AlreadyExists), func() { Map.Remove(vm.Reference()) },
+			},
+			{
+				nil, func() {},
+			},
+		}
+
+		for _, step := range steps {
+			res, err := methods.RegisterVM_Task(ctx, c.Client, &req)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			rt := Map.Get(res.Returnval).(*Task)
+
+			if step.e != nil {
+				fault := rt.Info.Error.Fault
+				if reflect.TypeOf(fault) != reflect.TypeOf(step.e) {
+					t.Errorf("%T != %T", fault, step.e)
+				}
+			} else {
+				if rt.Info.Error != nil {
+					t.Errorf("unexpected error: %#v", rt.Info.Error)
+				}
+			}
+
+			step.f()
+		}
+
+		nvm, err := finder.VirtualMachine(ctx, vm.Name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if nvm.Reference() == vm.Reference() {
+			t.Error("expected new moref")
+		}
+
+		_, _ = nvm.PowerOn(ctx)
+
+		steps = []struct {
+			e interface{}
+			f func()
+		}{
+			{
+				types.InvalidPowerState{}, func() { _, _ = nvm.PowerOff(ctx) },
+			},
+			{
+				nil, func() {},
+			},
+			{
+				types.ManagedObjectNotFound{}, func() {},
+			},
+		}
+
+		for _, step := range steps {
+			err = nvm.Unregister(ctx)
+
+			if step.e != nil {
+				fault := soap.ToSoapFault(err).VimFault()
+				if reflect.TypeOf(fault) != reflect.TypeOf(step.e) {
+					t.Errorf("%T != %T", fault, step.e)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %#v", err)
+				}
+			}
+
+			step.f()
+		}
 	}
 }

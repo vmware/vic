@@ -278,7 +278,7 @@ func updateRepositoryCache(ic *ImageC) error {
 	}
 	// AddReference will add the tag / digest as appropriate and will persist
 	// to the portlayer k/v
-	err = repoCache.AddReference(ref, ic.ImageID, false, imageLayerID, true)
+	err = repoCache.AddReference(ref, ic.ImageID, true, imageLayerID, true)
 	if err != nil {
 		return fmt.Errorf("Unable to Add Image Reference(%s): %s", ref.String(), err.Error())
 	}

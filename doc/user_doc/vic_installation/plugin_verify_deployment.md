@@ -1,11 +1,11 @@
 # Verify the Deployment of the vSphere Integrated Containers Engine Plug-In #
 
-After you have installed the vSphere Web Client plug-in for vSphere Integrated Containers Engine, verify the deployment of the plug-in in the vSphere Web Client.
+After you have installed or upgraded the vSphere Web Client plug-in for vSphere Integrated Containers Engine, verify the deployment of the plug-in in the vSphere Web Client.
 
 **Prerequisites**
 
 - You deployed a virtual container host.
-- You installed the vSphere Web Client plug-in for vSphere Integrated Containers Engine.
+- You installed or upgraded the vSphere Web Client plug-in for vSphere Integrated Containers Engine.
 - You logged out of the vSphere Web Client after deploying the plug-in, and logged back in.
 
 **Procedure**
@@ -24,4 +24,4 @@ Information about the virtual container host appears in the Virtual Container Ho
 
 **What to Do Next**
 
-If the Virtual Container Host portlet does not appear in the **Summary** tab for the virtual container host endpoint VM, restart the vSphere Web Client service. For instructions about how to restart the vSphere Web Client service, see [vSphere Integrated Containers Engine Plug-In Does Not Appear in the vSphere Web Client](ts_ui_not_appearing.md).
+If the Virtual Container Host portlet still does not appear in the **Summary** tab for the virtual container host endpoint VM, restart the vSphere Web Client service. For instructions about how to restart the vSphere Web Client service, see [vSphere Integrated Containers Engine Plug-In Does Not Appear in the vSphere Web Client](ts_ui_not_appearing.md).

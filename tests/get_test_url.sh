@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-DRONE_BUILD_NUM=${DRONE_BUILD_NUM:=0}
+DRONE_BUILD_NUMBER=${DRONE_BUILD_NUMBER:=0}
 unit_test_array=($TEST_URL_ARRAY)
 arrLen=${#unit_test_array[@]}
 
-echo $TEST_USERNAME:$TEST_PASSWORD@${unit_test_array[$(($DRONE_BUILD_NUM % $arrLen))]}
+echo $TEST_USERNAME:$TEST_PASSWORD@${unit_test_array[$(($DRONE_BUILD_NUMBER % $arrLen))]}

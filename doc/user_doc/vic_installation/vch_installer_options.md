@@ -244,11 +244,11 @@ If you specify an invalid datastore name, `vic-machine create` fails and suggest
 
 Short name: `--vs`
 
-The datastore in which to create volumes when container developers use the `docker volume create` or `docker create -v` commands. When you specify the `volume-store` option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores. 
+The datastore in which to create volumes when container developers use the `docker volume create` or `docker create -v` commands. When you specify the `volume-store` option, you  provide the name of the target datastore and a label for the volume store. You can optionally provide a path to a specific folder in the datastore in which to create the volume store. If the folders that you specify in the path do not already exist on the datastore, `vic-machine create` creates the appropriate folder structure. If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores. 
+
+**IMPORTANT**: If multiple virtual container hosts will use the same datastore for their volume stores, specify a different datastore folder for each virtual container host. Do not designate the same datastore folder as the volume store for multiple virtual container hosts.
 
 If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `volume-store` option should be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible and `vic-machine create` succeeds, but it issues a warning that this configuration limits the use of vSphere features such as vSphere vMotion and DRS.
-
-You can designate the same datastore as the volume store for multiple virtual container hosts.
 
 The label that you specify is the volume store name that Docker uses. For example, the volume store label appears in the information for a virtual container host when container developers run `docker info`. Container developers specify the volume store label in the <code>docker volume create --opt VolumeStore=<i>volume_store_label</i></code> option when they create a volume.
 
@@ -260,10 +260,10 @@ The label that you specify is the volume store name that Docker uses. For exampl
 
   <pre>--volume-store <i>datastore_name</i>:default</pre>
  
-- If you specify the target datastore and the volume store label, `vic-machine create` creates a folder named `volumes` under the `VIC` folder on the target datastore. Any volumes that container developers create will appear in the `volumes` folder.
+- If you specify the target datastore and the volume store label, `vic-machine create` creates a folder named `VIC/volumes` at the top level of the target datastore. Any volumes that container developers create will appear in the `VIC/volumes` folder.
 
   <pre>--volume-store <i>datastore_name</i>:<i>volume_store_label</i></pre>
-- If you specify the target datastore, a datastore path, and the volume store label, `vic-machine create` creates a folder named `VIC/volumes` in the location that you specify in the datastore path. If the folders that you specify in the path do not already exist on the datastore, `vic-machine create` creates the appropriate folder structure. Any volumes that container developers create will appear in the <code><i>path</i>/VIC/volumes</code> folder.
+- If you specify the target datastore, a datastore path, and the volume store label, `vic-machine create` creates a folder named `volumes` in the location that you specify in the datastore path. Any volumes that container developers create will appear in the <code><i>path</i>/volumes</code> folder.
 
   <pre>--volume-store <i>datastore_name</i>/<i>datastore_path</i>:<i>volume_store_label</i></pre>
 - Wrap the datastore name and path in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if they include spaces. The volume store label cannot include spaces.
@@ -555,8 +555,8 @@ If you use a mixture of static and DHCP addresses for the virtual container host
 
 If you specify static IP address for the virtual container host on any of the client, external, and management networks and you do not specify `dns-server`, the DNS server defaults to 8.8.8.8 and 8.8.4.4. 
 
-<pre>--dns=172.16.10.10
---dns=172.16.10.11
+<pre>--dns-server=172.16.10.10
+--dns-server=172.16.10.11
 </pre>
 
 ### `--client-network-ip`, `--external-network-ip`, `--management-network-ip` ###
