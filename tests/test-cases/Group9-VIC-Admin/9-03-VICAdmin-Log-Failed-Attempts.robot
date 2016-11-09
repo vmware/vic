@@ -16,7 +16,8 @@ Verify Failed Log Attempts
     
     #Install a second appliance
     Install VIC Appliance To Test Server
-    
+    OperatingSystem.File Should Exist  ${old-certs}/cert.pem
+    OperatingSystem.File Should Exist  ${old-certs}/key.pem
     ${out}=  Run  wget --tries=3 --connect-timeout=10 --certificate=${old-certs}/cert.pem --private-key=${old-certs}/key.pem --no-check-certificate ${vic-admin}/logs/vicadmin.log -O failure.log
     Log  ${out}
 
