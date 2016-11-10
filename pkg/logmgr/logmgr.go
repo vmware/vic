@@ -29,14 +29,20 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
+// RotateInterval defines a type for a log rotate frequency.
 type RotateInterval uint32
 
+// LogRotateBinary points to a logrotate path in the system.
 const LogRotateBinary = "/usr/sbin/logrotate"
 
 const (
+	// Daily to trim logs daily.
 	Daily RotateInterval = iota
+	// Hourly to trim logs hourly.
 	Hourly
+	// Weekly to trim logs weekly.
 	Weekly
+	// Monthly to trim logs monthly.
 	Monthly
 )
 
@@ -92,7 +98,7 @@ func (lrc *logRotateConfig) ConfigFileContent() string {
 // LogManager runs logrotate for specified log files.
 // TODO: Upload compressed logs into vSphere storage.
 // TODO: Upload all logs into vSphere storage during graceful shutdown.
-type logManager struct {
+type LogManager struct {
 	// Frequency of running log rotate.
 	runInterval time.Duration
 
@@ -105,15 +111,15 @@ type logManager struct {
 
 	// used to wait until logrotate goroutine stops.
 	wg sync.WaitGroup
-	// just to make sure start is not called twice accidentaly.
+	// just to make sure start is not called twice accidentally.
 	once sync.Once
 
 	logConfig string
 }
 
 // NewLogManager creates a new log manager instance.
-func NewLogManager(runInterval time.Duration) (*logManager, error) {
-	lm := &logManager{
+func NewLogManager(runInterval time.Duration) (*LogManager, error) {
+	lm := &LogManager{
 		runInterval: runInterval,
 		op:          trace.NewOperation(context.Background(), "logrotate"),
 	}
@@ -124,7 +130,7 @@ func NewLogManager(runInterval time.Duration) (*logManager, error) {
 }
 
 // AddLogRotate adds a log to rotate.
-func (lm *logManager) AddLogRotate(logFilePath string, ri RotateInterval, maxSize, maxLogFiles int64, compress bool) {
+func (lm *LogManager) AddLogRotate(logFilePath string, ri RotateInterval, maxSize, maxLogFiles int64, compress bool) {
 	lm.logFiles = append(lm.logFiles, &logRotateConfig{
 		rotateInterval: ri,
 		logFilePath:    logFilePath,
@@ -136,10 +142,10 @@ func (lm *logManager) AddLogRotate(logFilePath string, ri RotateInterval, maxSiz
 }
 
 // Reload - just to satisfy Tether interface.
-func (lm *logManager) Reload(*tether.ExecutorConfig) error { return nil }
+func (lm *LogManager) Reload(*tether.ExecutorConfig) error { return nil }
 
 // Start log rotate loop.
-func (lm *logManager) Start() error {
+func (lm *LogManager) Start() error {
 	if len(lm.logFiles) == 0 {
 		lm.op.Errorf("Attempt to start logrotate with no log files configured.")
 		return nil
@@ -166,7 +172,7 @@ func (lm *logManager) Start() error {
 }
 
 // Stop loop.
-func (lm *logManager) Stop() error {
+func (lm *LogManager) Stop() error {
 	select {
 	case <-lm.closed:
 	default:
@@ -176,7 +182,7 @@ func (lm *logManager) Stop() error {
 	return nil
 }
 
-func (lm *logManager) saveConfig(logConf string) string {
+func (lm *LogManager) saveConfig(logConf string) string {
 	tf, err := ioutil.TempFile("", "vic-logrotate-conf-")
 	if err != nil {
 		lm.op.Errorf("Failed to create temp file for logrotate: %v", err)
@@ -202,7 +208,7 @@ func (lm *logManager) saveConfig(logConf string) string {
 	return tempFilePath
 }
 
-func (lm *logManager) buildConfig() string {
+func (lm *LogManager) buildConfig() string {
 	c := make([]string, 0, len(lm.logFiles))
 	for _, v := range lm.logFiles {
 		c = append(c, v.ConfigFileContent())
@@ -210,7 +216,7 @@ func (lm *logManager) buildConfig() string {
 	return strings.Join(c, "\n")
 }
 
-func (lm *logManager) rotateLogs() {
+func (lm *LogManager) rotateLogs() {
 	// Check if logrotate config exists, create one
 	configFile := lm.saveConfig(lm.logConfig)
 
