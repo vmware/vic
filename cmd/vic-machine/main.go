@@ -19,6 +19,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	runtime "runtime/debug"
 
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/urfave/cli.v1"
@@ -109,6 +110,13 @@ func main() {
 	log.SetFormatter(&log.TextFormatter{ForceColors: true, FullTimestamp: true})
 	// SetOutput to io.MultiWriter so that we can log to stdout and a file
 	log.SetOutput(io.MultiWriter(logs...))
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("--------------------")
+			log.Errorf("%s failed, please check log file %s for details", app.Name, LogFile)
+			fmt.Fprintf(f, "%s", runtime.Stack())
+		}
+	}()
 
 	app.Run(os.Args)
 }
