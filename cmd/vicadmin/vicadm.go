@@ -435,16 +435,7 @@ func (s *server) getSessionFromRequest(r *http.Request) (*session.Session, error
 	if err != nil {
 		return nil, err
 	}
-	return c, err
-}
-
-func client(config *vicAdminConfig) (*session.Session, error) {
-	defer trace.End(trace.Begin(""))
-	sess, err := vSphereSessionGet(&config.Config)
-	if err != nil {
-		return nil, err
-	}
-	return sess, nil
+	return c, nil
 }
 
 type flushWriter struct {

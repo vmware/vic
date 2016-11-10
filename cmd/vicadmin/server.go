@@ -19,10 +19,12 @@ import (
 	"compress/gzip"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"html/template"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -46,11 +48,18 @@ type server struct {
 	uss  *UserSessionStore
 }
 
+// LoginPageData contains items needed to render the login page template
+type LoginPageData struct {
+	Hostname   string
+	SystemTime string
+}
+
 type format int
 
 const (
 	formatTGZ format = iota
 	formatZip
+	VCHUnreachableMsg = " is not functioning: unable to connect to vSphere."
 )
 
 var beginningOfTime = time.Unix(0, 0).Format(time.RFC3339)
@@ -246,7 +255,7 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 // renders the page for login and handles authorization requests
 func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
-	ctx := context.Background()
+
 	if req.Method == "POST" {
 		// take the form data and use it to try to authenticate with vsphere
 
@@ -278,7 +287,7 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 		if err != nil || usersession == nil {
 			// something went wrong or we could not authenticate
 			log.Warnf("User %s from %s failed to authenticated at %s", user, req.RemoteAddr, time.Now())
-			http.Error(res, "Authentication failed due to incorrect credential(s)", 400)
+			http.Error(res, "Authentication failed due to incorrect credential(s)", http.StatusBadRequest)
 			return
 		}
 
@@ -326,16 +335,15 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Render login page (shows up on non-POST requests):
-	sess, err := client(&rootConfig)
-	if err != nil {
-		log.Errorf("Could not render login page due to vSphere connection error: %s", err.Error())
-		http.Error(res, genericErrorMessage, http.StatusInternalServerError)
-		return
+	// Render login page (shows up on non-POST requests)
+	hostName, _ := os.Hostname()
+	loginPageData := &LoginPageData{
+		Hostname:   hostName,
+		SystemTime: time.Now().Format(time.UnixDate),
 	}
-	v := vicadmin.NewValidator(ctx, &vchConfig, sess)
+
 	tmpl, err := template.ParseFiles("auth.html")
-	err = tmpl.ExecuteTemplate(res, "auth.html", v)
+	err = tmpl.ExecuteTemplate(res, "auth.html", loginPageData)
 	if err != nil {
 		log.Errorf("Error parsing template: %s", err)
 		http.Error(res, genericErrorMessage, http.StatusInternalServerError)
@@ -511,11 +519,40 @@ func (s *server) tailFiles(res http.ResponseWriter, req *http.Request, names []s
 	}
 }
 
+// deriveDisplayError takes a vSphere session error and returns
+// an error string that is safe to display on the vicadmin page.
+func deriveDisplayError(err error) string {
+	var displayErrStr string
+
+	if err != nil {
+		switch err := err.(type) {
+		case session.SDKURLError:
+			displayErrStr = fmt.Sprintf("SDK URL could not be parsed: %s", err.Err)
+		case session.SoapClientError:
+			displayErrStr = "unable to obtain a vim client"
+		case session.UserPassLoginError:
+			displayErrStr = "unable to log in with username and password"
+		default:
+			displayErrStr = err.Error()
+		}
+	}
+
+	return displayErrStr
+}
+
 func (s *server) index(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 	ctx := context.Background()
 	sess, err := s.getSessionFromRequest(req)
 	v := vicadmin.NewValidator(ctx, &vchConfig, sess)
+
+	if sess == nil {
+		// We're unable to connect to vSphere, so display an error message
+		displayErrStr := deriveDisplayError(err)
+		v.VCHIssues = template.HTML(fmt.Sprintf(
+			"<span class=\"error-message\">%s Error: %s</span>\n",
+			v.Hostname+VCHUnreachableMsg, displayErrStr))
+	}
 
 	tmpl, err := template.ParseFiles("dashboard.html")
 	err = tmpl.ExecuteTemplate(res, "dashboard.html", v)

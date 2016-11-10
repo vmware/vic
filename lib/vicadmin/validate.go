@@ -23,9 +23,9 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
-
 	"github.com/docker/docker/opts"
 	"golang.org/x/net/context"
 
@@ -55,6 +55,9 @@ type Validator struct {
 	DockerPort       string
 	VCHStatus        template.HTML
 	VCHIssues        template.HTML
+	VCHReachable     bool
+	VCHUnreachable   bool
+	SystemTime       string
 }
 
 const (
@@ -107,49 +110,68 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	}
 	log.Infof("Setting version to %s", v.Version)
 
-	//VCH Name
+	// VCH Name
 	v.Hostname, _ = os.Hostname()
 	v.Hostname = strings.Title(v.Hostname)
 	log.Infof("Setting hostname to %s", v.Hostname)
 
-	//Firewall Status Check
-	v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
-	mgmtIP := GetMgmtIP()
-	log.Infof("Using management IP %s for firewall check", mgmtIP)
-	fwStatus := v2.CheckFirewallForTether(ctx, mgmtIP)
-	v2.FirewallCheckOutput(fwStatus)
-	firewallIssues := v2.GetIssues()
+	// System time
+	v.SystemTime = time.Now().Format(time.UnixDate)
 
-	if len(firewallIssues) == 0 {
-		v.FirewallStatus = GoodStatus
-		v.FirewallIssues = template.HTML("")
-	} else {
+	if sess == nil {
+		// We can't connect to vSphere
+		v.VCHReachable = false
+		v.VCHUnreachable = true
 		v.FirewallStatus = BadStatus
-		for _, err := range firewallIssues {
-			v.FirewallIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.FirewallIssues, err))
+		v.FirewallIssues = template.HTML("")
+
+		v.LicenseStatus = BadStatus
+		v.LicenseIssues = template.HTML("")
+	} else {
+
+		v.VCHReachable = true
+		v.VCHUnreachable = false
+
+		// Firewall status check
+		v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
+		mgmtIP := GetMgmtIP()
+		log.Infof("Using management IP %s for firewall check", mgmtIP)
+		fwStatus := v2.CheckFirewallForTether(ctx, mgmtIP)
+		v2.FirewallCheckOutput(fwStatus)
+
+		firewallIssues := v2.GetIssues()
+
+		if len(firewallIssues) == 0 {
+			v.FirewallStatus = GoodStatus
+			v.FirewallIssues = template.HTML("")
+		} else {
+			v.FirewallStatus = BadStatus
+			for _, err := range firewallIssues {
+				v.FirewallIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.FirewallIssues, err))
+			}
+		}
+
+		// License status check
+		v2.ClearIssues()
+		v2.CheckLicense(ctx)
+		licenseIssues := v2.GetIssues()
+
+		if len(licenseIssues) == 0 {
+			v.LicenseStatus = GoodStatus
+			v.LicenseIssues = template.HTML("")
+		} else {
+			v.LicenseStatus = BadStatus
+			for _, err := range licenseIssues {
+				v.LicenseIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.LicenseIssues, err))
+			}
 		}
 	}
 	log.Infof("FirewallStatus set to: %s", v.FirewallStatus)
 	log.Infof("FirewallIssues set to: %s", v.FirewallIssues)
-
-	//License Check
-	v2.ClearIssues()
-	v2.CheckLicense(ctx)
-	licenseIssues := v2.GetIssues()
-
-	if len(licenseIssues) == 0 {
-		v.LicenseStatus = GoodStatus
-		v.LicenseIssues = template.HTML("")
-	} else {
-		v.LicenseStatus = BadStatus
-		for _, err := range licenseIssues {
-			v.LicenseIssues = template.HTML(fmt.Sprintf("%s<span class=\"error-message\">%s</span>\n", v.LicenseIssues, err))
-		}
-	}
 	log.Infof("LicenseStatus set to: %s", v.LicenseStatus)
 	log.Infof("LicenseIssues set to: %s", v.LicenseIssues)
 
-	//Network Connection Check
+	// Network Connection Check
 	hosts := []string{
 		"google.com:80",
 		"docker.io:443",
@@ -173,12 +195,11 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	} else {
 		v.NetworkStatus = GoodStatus
 		v.NetworkIssues = template.HTML("")
-
 	}
 	log.Infof("NetworkStatus set to: %s", v.NetworkStatus)
 	log.Infof("NetworkIssues set to: %s", v.NetworkIssues)
 
-	//Retrieve Host IP Information and Set Docker Endpoint
+	// Retrieve Host IP Information and Set Docker Endpoint
 	v.HostIP = vch.ExecutorConfig.Networks["client"].Assigned.IP.String()
 
 	if vch.HostCertificate.IsNil() {
@@ -188,7 +209,7 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	}
 
 	v.QueryDatastore(ctx, vch, sess)
-	v.QueryVCHStatus(vch)
+	v.QueryVCHStatus(vch, sess)
 	return v
 }
 
@@ -199,6 +220,12 @@ func (d dsList) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
 func (d dsList) Less(i, j int) bool { return d[i].Name < d[j].Name }
 
 func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) {
+	if sess == nil {
+		// If we can't connect to vSphere, don't display datastore info
+		v.StorageRemaining = template.HTML("")
+		return
+	}
+
 	var dataStores dsList
 	dsNames := make(map[string]bool)
 
@@ -245,8 +272,15 @@ func (v *Validator) QueryDatastore(ctx context.Context, vch *config.VirtualConta
 	}
 }
 
-func (v *Validator) QueryVCHStatus(vch *config.VirtualContainerHostConfigSpec) {
+func (v *Validator) QueryVCHStatus(vch *config.VirtualContainerHostConfigSpec, sess *session.Session) {
 	defer trace.End(trace.Begin(""))
+
+	if sess == nil {
+		// We can't connect to vSphere
+		v.VCHStatus = BadStatus
+		return
+	}
+
 	v.VCHIssues = template.HTML("")
 	v.VCHStatus = GoodStatus
 
