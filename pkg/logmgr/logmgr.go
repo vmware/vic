@@ -74,7 +74,7 @@ func (lrc *logRotateConfig) ConfigFileContent() string {
 		b = append(b, fmt.Sprintf("size %d", lrc.maxLogSize))
 	}
 
-	if lrc.maxLogSize > 1 {
+	if lrc.maxLogSize > 2 {
 		b = append(b, fmt.Sprintf("minsize %d", lrc.maxLogSize-1))
 	}
 
@@ -160,7 +160,6 @@ func (lm *logManager) Start() error {
 					return
 				}
 			}
-
 		}()
 	})
 	return nil
