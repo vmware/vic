@@ -53,7 +53,7 @@
         data-chapter-title="Virtual Container Host Deployment Options"
         data-filepath="vch_installer_options.md"
         data-basepath="."
-        data-revision="Wed Nov 09 2016 15:19:06 GMT+0100 (W. Europe Standard Time)"
+        data-revision="Thu Nov 10 2016 17:03:44 GMT+0100 (W. Europe Standard Time)"
         data-innerlanguage="">
     
 
@@ -910,7 +910,7 @@ may not work as intended.</pre> </li>
 
 <p><a name="proxy"></a></p>
 <h2 id="options-to-configure-virtual-container-hosts-to-use-proxy-servers">Options to Configure Virtual Container Hosts to Use Proxy Servers</h2>
-<p>If your network access is controlled by a proxy server, you must   configure a virtual container host to connect to the proxy server when you deploy it.</p>
+<p>If your network access is controlled by a proxy server, you must   configure a virtual container host to connect to the proxy server when you deploy it. The proxy that you specify serves exclusively for pulling images into the virtual container host from an external source, and is not used for any other purpose.</p>
 <p><strong>IMPORTANT</strong>: Configuring a virtual container host to use a proxy server does not configure proxy support on the containers that this virtual container host runs. Container developers must configure proxy servers on containers when they create them. </p>
 <h3 id="httpproxy"><code>--http-proxy</code></h3>
 <p>Short name: <code>--hproxy</code></p>

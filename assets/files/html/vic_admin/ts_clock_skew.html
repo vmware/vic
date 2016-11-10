@@ -51,7 +51,7 @@
         data-chapter-title="Connections Fail with Certificate Errors when Using Full TLS Authentication with Trusted Certificates"
         data-filepath="ts_clock_skew.md"
         data-basepath="."
-        data-revision="Mon Nov 07 2016 16:38:43 GMT+0100 (W. Europe Standard Time)"
+        data-revision="Thu Nov 10 2016 17:04:36 GMT+0100 (W. Europe Standard Time)"
         data-innerlanguage="">
     
 
@@ -504,6 +504,7 @@ Collecting host-227 hostd.log
 vic-machine-windows.exe failed: tls: bad certificate
 </pre></li>
 <li>Connections to the VCH Admin portal for the virtual container host fail with an <code>ERR_CERT_DATE_INVALID</code> error.</li>
+<li>Connections to the virtual container host from Docker clients fail with a <code>bad certificate</code> error.</li>
 </ul>
 <h2 id="cause">Cause</h2>
 <p>There is a clock skew between the virtual container host and the system from which you are connecting to the virtual container host.</p>
