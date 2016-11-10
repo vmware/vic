@@ -145,16 +145,11 @@ type Certificate struct {
 // Connection holds the vSphere connection configuration
 type Connection struct {
 	// The sdk URL
-	Target url.URL `vic:"0.1" scope:"read-only" key:"target"`
-	// User/Password (For ESXi only)
-	// Required because url.URL does not Marshal the UserInfo field
-	UserPassword string `vic:"0.1" scope:"secret" key:"userpw"`
-	// Certificate for authentication as vSphere Extension
-	ExtensionCert string `vic:"0.1" scope:"read-only" key:"extension_cert"`
-	ExtensionKey  string `vic:"0.1" scope:"read-only" key:"extension_key"`
-	ExtensionName string `vic:"0.1" scope:"read-only" key:"extension_name"`
-	// Whether the session connection is secure
-	Insecure bool `vic:"0.1" scope:"read-only" key:"insecure"`
+	Target string `vic:"0.1" scope:"read-only" key:"target"`
+	// Username for target login
+	Username string `vic:"0.1" scope:"read-only" key:"username"`
+	// Token is an SSO token or password
+	Token string `vic:"0.1" scope:"secret" key:"token"`
 	// TargetThumbprint is the SHA-1 digest of the Target's public certificate
 	TargetThumbprint string `vic:"0.1" scope:"read-only" key:"target_thumbprint"`
 	// The session timeout
@@ -277,12 +272,6 @@ func (t *VirtualContainerHostConfigSpec) AddVolumeLocation(name string, u *url.U
 func (t *VirtualContainerHostConfigSpec) AddComputeResource(pool *types.ManagedObjectReference) {
 	if pool != nil {
 		t.ComputeResources = append(t.ComputeResources, *pool)
-	}
-}
-
-func (t *VirtualContainerHostConfigSpec) SetvSphereTarget(url *url.URL) {
-	if url != nil {
-		t.Target = *url
 	}
 }
 

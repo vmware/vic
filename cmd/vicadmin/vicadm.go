@@ -85,8 +85,6 @@ var (
 	defaultReaders map[string]entryReader
 
 	datastore types.ManagedObjectReference
-
-	datastoreInventoryPath string
 )
 
 type logfile struct {
@@ -394,6 +392,7 @@ func (r datastoreReader) open() (entry, error) {
 
 func vSphereSessionGet(sessconfig *session.Config) (*session.Session, error) {
 	session := session.NewSession(sessconfig)
+	session.UserAgent = version.UserAgent("vic-admin")
 	ctx := context.Background()
 	_, err := session.Connect(ctx)
 	if err != nil {
@@ -431,21 +430,6 @@ func client(config *vicAdminConfig) (*session.Session, error) {
 	return sess, nil
 }
 
-func findDatastore() error {
-	defer trace.End(trace.Begin(""))
-
-	session, err := client(&rootConfig)
-	if err != nil {
-		return err
-	}
-	defer session.Client.Logout(context.Background())
-
-	datastore = session.Datastore.Reference()
-	datastoreInventoryPath = session.Datastore.InventoryPath
-
-	return nil
-}
-
 type flushWriter struct {
 	f http.Flusher
 	w io.Writer
@@ -465,22 +449,9 @@ func main() {
 		return
 	}
 
-	// If we're in an ESXi environment, then we need
-	// to extract the userid/password from UserPassword
-	if vchConfig.UserPassword != "" {
-		newurl, _ := url.Parse(fmt.Sprintf("%s://%s@%s%s",
-			vchConfig.Target.Scheme,
-			vchConfig.UserPassword,
-			vchConfig.Target.Host,
-			vchConfig.Target.Path))
-		vchConfig.Target = *newurl
-	}
-
 	// FIXME: these should just be consumed directly inside Session
-	rootConfig.Service = vchConfig.Target.String()
-	rootConfig.ExtensionCert = vchConfig.ExtensionCert
-	rootConfig.ExtensionKey = vchConfig.ExtensionKey
-	rootConfig.ExtensionName = vchConfig.ExtensionName
+	rootConfig.Service = vchConfig.Target
+	rootConfig.User = url.UserPassword(vchConfig.Username, vchConfig.Token)
 	rootConfig.Thumbprint = vchConfig.TargetThumbprint
 	rootConfig.DatastorePath = vchConfig.Storage.ImageStores[0].Host
 
