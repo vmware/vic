@@ -11,6 +11,7 @@ Collecting host-227 hostd.log
 vic-machine-windows.exe failed: tls: bad certificate
 </pre>
 - Connections to the VCH Admin portal for the virtual container host fail with an `ERR_CERT_DATE_INVALID` error.
+- Connections to the virtual container host from Docker clients fail with a `bad certificate` error.
 
 ## Cause ##
 There is a clock skew between the virtual container host and the system from which you are connecting to the virtual container host.
