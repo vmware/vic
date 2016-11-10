@@ -52,7 +52,9 @@ Management network - none
 
     ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} ${vicmachinetls}
     Should Contain  ${output}  Installer completed successfully
-    Should Contain  ${output}  Network role "management" is sharing NIC with "external"
+    ${status}=  Run Keyword And Return Status  Should Contain  ${output}  Network role "management" is sharing NIC with "external"
+    ${status2}=  Run Keyword And Return Status  Should Contain  ${output}  Network role "external" is sharing NIC with "management"
+    Should Be True  ${status} | ${status2}
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: ${vch-name}
 
