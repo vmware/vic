@@ -582,3 +582,26 @@ func (vm *VirtualMachine) Properties(ctx context.Context, r types.ManagedObjectR
 	log.Debugf("Retry properties query %s of vm %s", ps, vm.Reference())
 	return vm.VirtualMachine.Properties(ctx, vm.Reference(), ps, o)
 }
+
+func (vm *VirtualMachine) Parent(ctx context.Context) (*types.ManagedObjectReference, error) {
+	var mvm mo.VirtualMachine
+
+	if err := vm.Properties(ctx, vm.Reference(), []string{"parentVApp", "resourcePool"}, &mvm); err != nil {
+		log.Errorf("Unable to get VM parent: %s", err)
+		return nil, err
+	}
+	if mvm.ParentVApp != nil {
+		return mvm.ParentVApp, nil
+	}
+	return mvm.ResourcePool, nil
+}
+
+func (vm *VirtualMachine) DatastoreReference(ctx context.Context) ([]types.ManagedObjectReference, error) {
+	var mvm mo.VirtualMachine
+
+	if err := vm.Properties(ctx, vm.Reference(), []string{"datastore"}, &mvm); err != nil {
+		log.Errorf("Unable to get VM datastore: %s", err)
+		return nil, err
+	}
+	return mvm.Datastore, nil
+}

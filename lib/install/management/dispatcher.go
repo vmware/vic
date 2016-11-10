@@ -57,7 +57,8 @@ type Dispatcher struct {
 
 	oldApplianceISO string
 
-	sshEnabled bool
+	sshEnabled         bool
+	parentResourcepool *compute.ResourcePool
 }
 
 type diagnosticLog struct {
@@ -100,6 +101,11 @@ func (d *Dispatcher) InitDiagnosticLogs(conf *config.VirtualContainerHostConfigS
 
 	var err error
 	if d.session.Datastore == nil {
+		if len(conf.ImageStores) == 0 {
+			log.Errorf("Image datastore is empty")
+			return
+
+		}
 		if d.session.Datastore, err = d.session.Finder.DatastoreOrDefault(d.ctx, conf.ImageStores[0].Host); err != nil {
 			log.Errorf("Failure finding image store from VCH config (%s): %s", conf.ImageStores[0].Host, err.Error())
 			return
