@@ -309,7 +309,7 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 				}
 			}
 
-			v.ds.Rm(op, imageDir)
+			v.deleteImage(op, storeName, ID)
 		}
 	}()
 
@@ -397,6 +397,8 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 	// Create the disk
 	vmdisk, err := v.dm.CreateAndAttach(op, imageDiskDsURI, "", size, os.O_RDWR)
 	if err != nil {
+		op.Errorf("CreateAndAttach(%s) error: %s", imageDiskDsURI, err)
+		v.deleteImage(op, storeName, portlayer.Scratch.ID)
 		return err
 	}
 	defer func() {
