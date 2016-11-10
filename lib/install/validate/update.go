@@ -57,14 +57,17 @@ func (v *Validator) assertDatastore(conf *config.VirtualContainerHostConfigSpec)
 
 func (v *Validator) assertTarget(conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
-	if conf.Target.User != nil {
-		if _, set := conf.Target.User.Password(); set {
-			v.NoteIssue(errors.New("Password should not be set in target URL"))
-		}
+
+	if conf.Target == "" {
+		v.NoteIssue(errors.New("target is not set"))
 	}
 
-	if !v.IsVC() && conf.UserPassword == "" {
-		v.NoteIssue(errors.New("ESX credential is not set"))
+	if conf.Username == "" {
+		v.NoteIssue(errors.New("target username is not set"))
+	}
+
+	if conf.Token == "" {
+		v.NoteIssue(errors.New("target token is not set"))
 	}
 }
 

@@ -146,3 +146,15 @@ func TestIsNewer(t *testing.T) {
 		}
 	}
 }
+
+func TestUserAgent(t *testing.T) {
+	for _, v := range []string{"0.0.1", "v0.0.1"} {
+		Version = v
+
+		a := UserAgent("foo")
+		if a != "foo/0.0.1" {
+			t.Error(a)
+		}
+	}
+
+}

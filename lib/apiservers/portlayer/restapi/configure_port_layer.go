@@ -28,6 +28,7 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/restapi/options"
 	"github.com/vmware/vic/lib/portlayer"
 	"github.com/vmware/vic/pkg/trace"
+	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/session"
 
 	"golang.org/x/net/context"
@@ -78,6 +79,7 @@ func configureAPI(api *operations.PortLayerAPI) http.Handler {
 		ClusterPath:    options.PortLayerOptions.ClusterPath,
 		PoolPath:       options.PortLayerOptions.PoolPath,
 		DatastorePath:  options.PortLayerOptions.DatastorePath,
+		UserAgent:      version.UserAgent("vic-engine"),
 	}
 
 	sess, err := session.NewSession(sessionconfig).Create(ctx)
