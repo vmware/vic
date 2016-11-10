@@ -500,23 +500,31 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
 	}
 
+	personality := executor.Cmd{
+		Path: "/sbin/docker-engine-server",
+		Args: []string{
+			"/sbin/docker-engine-server",
+			//FIXME: hack during config migration
+			"-port=" + d.DockerPort,
+			fmt.Sprintf("-port-layer-port=%d", portLayerPort),
+		},
+		Env: []string{
+			"PATH=/sbin",
+			"GOTRACEBACK=all",
+		},
+	}
+	if settings.HTTPProxy != nil {
+		personality.Env = append(personality.Env, fmt.Sprintf("HTTP_PROXY=%s", settings.HTTPProxy.String()))
+	}
+	if settings.HTTPSProxy != nil {
+		personality.Env = append(personality.Env, fmt.Sprintf("HTTPS_PROXY=%s", settings.HTTPSProxy.String()))
+	}
+
 	conf.AddComponent("docker-personality", &executor.SessionConfig{
 		// currently needed for iptables interaction
 		// User:  "nobody",
 		// Group: "nobody",
-		Cmd: executor.Cmd{
-			Path: "/sbin/docker-engine-server",
-			Args: []string{
-				"/sbin/docker-engine-server",
-				//FIXME: hack during config migration
-				"-port=" + d.DockerPort,
-				fmt.Sprintf("-port-layer-port=%d", portLayerPort),
-			},
-			Env: []string{
-				"PATH=/sbin",
-				"GOTRACEBACK=all",
-			},
-		},
+		Cmd:     personality,
 		Restart: true,
 	},
 	)

@@ -14,10 +14,30 @@
 # limitations under the License.
 #
 
+nightly_list_var="5-1-Distributed-Switch \
+5-2-Cluster \
+5-3-Enhanced-Linked-Mode \
+5-5-Heterogenous-ESXi \
+5-6-1-VSAN-Simple \
+5-6-2-VSAN-Complex \
+5-7-NSX \
+5-8-DRS \
+5-10-Multiple-Datacenter \
+5-11-Multiple-Cluster \
+5-12-Multiple-VLAN \
+5-13-Invalid-ESXi-Install \
+5-14-Remove-Container-OOB"
+
 echo "Removing VIC directory if present"
 echo "Cleanup logs from previous run"
-rm -rf bin 5-1-DistributedSwitch 5-2-Cluster 5-3-EnhancedLinkedMode 5-5-Heterogenous-ESXi 5-6-1-VSAN-Simple 5-6-2-VSAN-Complex 5-7-NSX 5-8-DRS 5-10-Multiple-Datacenter 5-11-MultipleCluster
+
 rm -rf *.zip *.log
+rm -rf bin
+
+for i in $nightly_list_var; do
+    echo "Removing folder $i"
+    rm -rf $i
+done
 
 input=$(wget -O - https://vmware.bintray.com/vic-repo |tail -n5 |head -n1 |cut -d':' -f 2 |cut -d'.' -f 3| cut -d'>' -f 2)
 buildNumber=${input:4}
@@ -33,140 +53,40 @@ tar xvzf $input.tar.gz -C bin/ --strip 1
 echo "Deleting .tar.gz vic file"
 rm $input.tar.gz
 
-drone exec --trusted -e test="pybot -d 5-1-DistributedSwitch tests/manual-test-cases/Group5-Functional-Tests/5-1-Distributed-Switch.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+nightlystatus=()
+count=0
 
-if [ $? -eq 0 ]
-then
-echo "Passed"
-DistributedSwitchStatus="Passed"
-else
-echo "Failed"
-DistributedSwitchStatus="FAILED!"
-fi
+for i in $nightly_list_var; do
+    echo "Executing nightly test $i"
+    $test_var="pybot -d $i tests/manual-test-cases/Group5-Functional-Tests/$i.robot"
+    drone exec --trusted -e test=$test_var -E nightly_test_secrets.yml --yaml .drone.nightly.yml
 
-mv *.log 5-1-DistributedSwitch
-mv *.zip 5-1-DistributedSwitch
+    if [ $? -eq 0 ]
+    then
+    echo "Passed"
+    nightlystatus[$count]="Passed"
+    else
+    echo "Failed"
+    nightlystatus[$count]="FAILED!"
+    fi
 
-drone exec --trusted -e test="pybot -d 5-2-Cluster tests/manual-test-cases/Group5-Functional-Tests/5-2-Cluster.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
+    mv *.log $i
+    mv *.zip $i
+    ((count++))
+    echo $count
+done
 
-if [ $? -eq 0 ]
-then
-ClusterStatus="Passed"
-else
-ClusterStatus="FAILED!"
-fi
+for i in $nightlystatus; do
+    if [ $i = "Passed" ]
+    then
+    buildStatus=0
+    else
+    buildStatus=1
+    echo "Test failed, setting global test status to Failed!"
+    break
+    fi	
+done
 
-mv *.log 5-2-Cluster
-mv *.zip 5-2-Cluster
-
-drone exec --trusted -e test="pybot -d 5-3-EnhancedLinkedMode tests/manual-test-cases/Group5-Functional-Tests/5-3-Enhanced-Linked-Mode.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
-
-if [ $? -eq 0 ]
-then
-EnhancedLinkedModeStatus="Passed"
-else
-EnhancedLinkedModeStatus="FAILED!"
-fi
-
-mv *.log 5-3-EnhancedLinkedMode
-mv *.zip 5-3-EnhancedLinkedMode
-
-<<'Comment'
-drone exec --trusted -e test="pybot -d 5-4-High-Availability tests/manual-test-cases/Group5-Functional-Tests/5-4-High-Availability.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
-if [ $? -eq 0 ]
-then
-HighAvailabilityStatus="Passed"
-else
-HighAvailabilityStatus="FAILED!"
-fi
-
-mv *.log 5-4-High-Availability
-mv *.zip 5-4-High-Availability
-Comment
-
-drone exec --trusted -e test="pybot -d 5-5-Heterogenous-ESXi tests/manual-test-cases/Group5-Functional-Tests/5-5-Heterogenous-ESXi.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
-if [ $? -eq 0 ]
-then
-HeterogenousStatus="Passed"
-else
-HeterogenousStatus="FAILED!"
-fi
-
-mv *.log 5-5-Heterogenous-ESXi
-mv *.zip 5-5-Heterogenous-ESXi
-
-drone exec --trusted -e test="pybot -d 5-6-1-VSAN-Simple tests/manual-test-cases/Group5-Functional-Tests/5-6-1-VSAN-Simple.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
-if [ $? -eq 0 ]
-then
-VSANStatus="Passed"
-else
-VSANStatus="FAILED!"
-fi
-
-mv *.log 5-6-1-VSAN-Simple
-mv *.zip 5-6-1-VSAN-Simple
-
-drone exec --trusted -e test="pybot -d 5-6-2-VSAN-Complex tests/manual-test-cases/Group5-Functional-Tests/5-6-2-VSAN-Complex.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
-if [ $? -eq 0 ]
-then
-VSANComplexStatus="Passed"
-else
-VSANComplexStatus="FAILED!"
-fi
-
-mv *.log 5-6-2-VSAN-Complex
-mv *.zip 5-6-2-VSAN-Complex
-
-drone exec --trusted -e test="pybot -d 5-7-NSX tests/manual-test-cases/Group5-Functional-Tests/5-7-NSX.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
-if [ $? -eq 0 ]
-then
-NSXStatus="Passed"
-else
-NSXStatus="FAILED!"
-fi
-
-mv *.log 5-7-NSX
-mv *.zip 5-7-NSX
-
-drone exec --trusted -e test="pybot -d 5-8-DRS tests/manual-test-cases/Group5-Functional-Tests/5-8-DRS.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
-if [ $? -eq 0 ]
-then
-DRSStatus="Passed"
-else
-DRSStatus="FAILED!"
-fi
-
-mv *.log 5-8-DRS
-mv *.zip 5-8-DRS
-
-drone exec --trusted -e test="pybot -d 5-10-Multiple-Datacenter tests/manual-test-cases/Group5-Functional-Tests/5-10-Multiple-Datacenter.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
-if [ $? -eq 0 ]
-then
-MultipleDCStatus="Passed"
-else
-MultipleDCStatus="FAILED!"
-fi
-
-mv *.log 5-10-Multiple-Datacenter
-mv *.zip 5-10-Multiple-Datacenter
-
-drone exec --trusted -e test="pybot -d 5-11-MultipleCluster tests/manual-test-cases/Group5-Functional-Tests/5-11-Multiple-Cluster.robot" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
-if [ $? -eq 0 ]
-then
-MultipleClusterStatus="Passed"
-else
-MultipleClusterStatus="FAILED!"
-fi
-
-mv *.log 5-11-MultipleCluster
-mv *.zip 5-11-MultipleCluster
-
-if [[ $DistributedSwitchStatus = "Passed" && $ClusterStatus = "Passed" && $EnhancedLinkedModeStatus = "Passed" && $HeterogenousStatus = "Passed" && $VSANStatus = "Passed" && $VSANComplexStatus = "Passed" && $NSXStatus = "Passed" &&  $DRSStatus = "Passed" && $MultipleDCStatus =  "Passed" && $MultipleClusterStatus = "Passed" ]]
-then
-buildStatus=0
-else
-buildStatus=1
-fi
 echo "Global Nightly Test Status $buildStatus"
 
 drone exec --trusted -e test="sh tests/nightly/upload-logs.sh $input" -E nightly_test_secrets.yml --yaml .drone.nightly.yml
@@ -406,7 +326,7 @@ Content-Type: text/html
                         Distributed Switch:
                       </td>
                       <td>
-                        $DistributedSwitchStatus
+                        ${nightlystatus[0]}
                       </td>
                     </tr>
                     <tr>
@@ -414,7 +334,7 @@ Content-Type: text/html
                         Cluster:
                       </td>
                       <td>
-                        $ClusterStatus
+                        ${nightlystatus[1]}
                       </td>
                     </tr>
                     <tr>
@@ -422,7 +342,7 @@ Content-Type: text/html
                         Enhanced Linked Mode:
                       </td>
                       <td>
-                        $EnhancedLinkedModeStatus
+                        ${nightlystatus[2]}
                       </td>
                     </tr>
                     <tr>
@@ -430,7 +350,7 @@ Content-Type: text/html
                         Heterogenous:
                       </td>
                       <td>
-                        $HeterogenousStatus
+                        ${nightlystatus[3]}
                       </td>
                     </tr>
 		    <tr>
@@ -438,7 +358,7 @@ Content-Type: text/html
                         VSAN Simple:
                       </td>
                       <td>
-                        $VSANStatus
+                        ${nightlystatus[4]}
                       </td>
                     </tr>
                     <tr>
@@ -446,7 +366,7 @@ Content-Type: text/html
                         VSAN Complex:
                       </td>
                       <td>
-                        $VSANComplexStatus
+                        ${nightlystatus[5]}
                       </td>
                     </tr>
                     <tr>
@@ -454,7 +374,7 @@ Content-Type: text/html
                         NSX:
                       </td>
                       <td>
-                        $NSXStatus
+                        ${nightlystatus[6]}
                       </td>
                     </tr>
                     <tr>
@@ -462,7 +382,7 @@ Content-Type: text/html
                         DRS:
                       </td>
                       <td>
-                        $DRSStatus
+                        ${nightlystatus[7]}
                       </td>
                     </tr>
                     <tr>
@@ -470,7 +390,7 @@ Content-Type: text/html
                         Multiple Datacenter:
                       </td>
                       <td>
-                        $MultipleDCStatus
+                        ${nightlystatus[8]}
                       </td>
                     </tr>
                     <tr>
@@ -478,7 +398,31 @@ Content-Type: text/html
                         Multiple Cluster:
                       </td>
                       <td>
-                        $MultipleClusterStatus
+                        ${nightlystatus[9]}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        Multiple VLAN:
+                      </td>
+                      <td>
+                        ${nightlystatus[10]}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        Invalid ESXi Install:
+                      </td>
+                      <td>
+                        ${nightlystatus[11]}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        Remove Container OOB:
+                      </td>
+                      <td>
+                        ${nightlystatus[12]}
                       </td>
                     </tr>
                   </table>
@@ -733,7 +677,7 @@ Content-Type: text/html
                         Distributed Switch:
                       </td>
                       <td>
-                        $DistributedSwitchStatus
+                        ${nightlystatus[0]}
                       </td>
                     </tr>
                     <tr>
@@ -741,7 +685,7 @@ Content-Type: text/html
                         Cluster:
                       </td>
                       <td>
-                        $ClusterStatus
+                        ${nightlystatus[1]}
                       </td>
                     </tr>
                     <tr>
@@ -749,7 +693,7 @@ Content-Type: text/html
                         Enhanced Linked Mode:
                       </td>
                       <td>
-                        $EnhancedLinkedModeStatus
+                        ${nightlystatus[2]}
                       </td>
                     </tr>
                     <tr>
@@ -757,7 +701,7 @@ Content-Type: text/html
                         Heterogenous:
                       </td>
                       <td>
-                        $HeterogenousStatus
+                        ${nightlystatus[3]}
                       </td>
                     </tr>
                     <tr>
@@ -765,7 +709,7 @@ Content-Type: text/html
                         VSAN Simple:
                       </td>
                       <td>
-                        $VSANStatus
+                        ${nightlystatus[4]}
                       </td>
                     </tr>
                     <tr>
@@ -773,7 +717,7 @@ Content-Type: text/html
                         VSAN Complex:
                       </td>
                       <td>
-                        $VSANComplexStatus
+                        ${nightlystatus[5]}
                       </td>
                     </tr>
                     <tr>
@@ -781,7 +725,7 @@ Content-Type: text/html
                         NSX:
                       </td>
                       <td>
-                        $NSXStatus
+                        ${nightlystatus[6]}
                       </td>
                     </tr>
                     <tr>
@@ -789,7 +733,7 @@ Content-Type: text/html
                         DRS:
                       </td>
                       <td>
-                        $DRSStatus
+                        ${nightlystatus[7]}
                       </td>
                     </tr>
                     <tr>
@@ -797,7 +741,7 @@ Content-Type: text/html
                         Multiple Datacenter:
                       </td>
                       <td>
-                        $MultipleDCStatus
+                        ${nightlystatus[8]}
                       </td>
                     </tr>
                     <tr>
@@ -805,7 +749,31 @@ Content-Type: text/html
                         Multiple Cluster:
                       </td>
                       <td>
-                        $MultipleClusterStatus
+                        ${nightlystatus[9]}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        Multiple VLAN:
+                      </td>
+                      <td>
+                        ${nightlystatus[10]}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        Invalid ESXi Install:
+                      </td>
+                      <td>
+                        ${nightlystatus[11]}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        Remove Container OOB:
+                      </td>
+                      <td>
+                        ${nightlystatus[12]}
                       </td>
                     </tr>
                   </table>

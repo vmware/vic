@@ -34,6 +34,11 @@ This test requires that a vSphere server is running and available
 21. Create a container, rm the container, then create another container
 22. Create a container directly without pulling the image first for an image that hasn't been pulled yet
 23. Create a container without specifying a command
+24. Create a container with a custom amount of CPUs
+25. Create a container with a custom amount of Memory in GB
+26. Create a container with a custom amount of Memory in MB
+27. Create a container with a custom amount of Memory in KB
+28. Create a container with a custom amount of Memory in Bytes
 
 #Expected Outcome:
 * Steps 3-7 should all return without error and printing the container ID on return
@@ -47,6 +52,7 @@ This test requires that a vSphere server is running and available
 * Step 21 should result in success for all three parts
 * Step 22 should return without error
 * Step 23 should return with the following error message - Error response from daemon: No command specified
+* Steps 24-28 should return without error.
 
 #Possible Problems:
 None

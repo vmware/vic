@@ -109,6 +109,12 @@ Docker ps ports output
     Should Contain  ${output}  :8000->80/tcp
     Should Contain  ${output}  :8443->443/tcp
 
+    ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} run -d -p 6379 redis:alpine
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} ps
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  ->6379/tcp
+
 Docker ps Remove container OOB
     ${rc}  ${container}=  Run And Return Rc And Output  docker ${params} create --name lolo busybox /bin/top
     Should Be Equal As Integers  ${rc}  0

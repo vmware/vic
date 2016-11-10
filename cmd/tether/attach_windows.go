@@ -18,9 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
-
-	"golang.org/x/crypto/ssh"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -60,9 +57,5 @@ func (t *attachServerSSH) Start() error {
 }
 
 func resizePty(pty uintptr, winSize *msgs.WindowChangeMsg) error {
-	return errors.New("not supported on windows")
-}
-
-func signalProcess(process *os.Process, sig ssh.Signal) error {
 	return errors.New("not supported on windows")
 }

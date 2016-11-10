@@ -33,7 +33,7 @@ The virtual container host allows you to use an ESXi host or vCenter Server inst
  * If you built the vSphere Integrated Containers Engine binaries, go to <code><i>installation_dir</i>/vic/bin</code>.
 2. Run the `create` command of the `vic-machine` utility. 
 
-   The following examples include the fewest possible options for installation in a simple vCenter Server environment with a cluster.
+   The following examples include the fewest possible options for installation in a simple vCenter Server environment with a cluster. For simplicity, these examples assume that the vSphere environment uses trusted certificates signed by a known Certificate Authority (CA), so the `--thumbprint option` is not specified, and verification of client TLS certificates is disabled.
 
    Deploy a virtual container host from a Mac OS system:
 
@@ -41,7 +41,8 @@ The virtual container host allows you to use an ESXi host or vCenter Server inst
 --target <i>vcenter_server_address</i>
 --image-store <i>datastore_name</i> 
 --user <i>username</i>
---bridge-network <i>network_name</i></pre>  
+--bridge-network <i>network_name</i>
+--no-tlsverify</pre>  
 
    Deploy a virtual container host from a Linux OS system:
 
@@ -49,7 +50,8 @@ The virtual container host allows you to use an ESXi host or vCenter Server inst
 --target <i>vcenter_server_address</i>
 --image-store <i>datastore_name</i> 
 --user <i>username</i>
---bridge-network <i>network_name</i></pre> 
+--bridge-network <i>network_name</i>
+--no-tlsverify</pre> 
 
    Deploy a virtual container host from a Windows system:
 
@@ -57,24 +59,30 @@ The virtual container host allows you to use an ESXi host or vCenter Server inst
 --target <i>vcenter_server_address</i>
 --image-store <i>datastore_name</i> 
 --user <i>username</i>
---bridge-network <i>network_name</i></pre> 
+--bridge-network <i>network_name</i>
+--no-tlsverify</pre> 
 
-   At the end of a successful installation, `vic-machine` displays a success message:
+
+**Result**
+
+At the end of a successful installation, `vic-machine` displays information about the new virtual container host:
    
-   <pre>Initialization of appliance successful
+<pre>Initialization of appliance successful
 vic-admin portal:
 https://<i>vch_address</i>:2378
+Published ports can be reached at:
+<i>vch_address</i>
+Docker environment variables:
 DOCKER_HOST=<i>vch_address</i>:2376
+Environment saved in <i>vch_name</i>/<i>vch_name</i>.env
 Connect to docker:
 docker -H <i>vch_address</i>:2376 --tls info
 Installer completed successfully</pre>
 
-3. (Optional) Copy the generated certificate and key files to the Docker client system.
-
-  If you did not explicitly disable TLS certificate generation by using the `no-tls` option, and if your Docker client is not on the same system as the one that you used to run `vic-machine`, you must copy the <code><i>vch_name</i>-cert.pem</code> and <code><i>vch_name</i>-key.pem</code> files to the Docker client system.
-
 **What to Do Next** 
 
-To test your virtual container host, see [Verify the Deployment of a Virtual Container Host to vCenter Server](verify_vch_deployment.md) or [Verify the Deployment of a Virtual Container Host to an ESXi Host](verify_vch_deployment_esx.md).
+If you did not explicitly disable TLS certificate generation by using the `no-tls` option, and if your Docker client is not on the same system as the one that you used to run `vic-machine`, you must copy  all of the generated <code>*.pem</code> certificate files to the Docker client system.
+
+To test your virtual container host, see [Verify the Deployment of a Virtual Container Host](verify_vch_deployment.md).
     
     

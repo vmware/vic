@@ -21,7 +21,6 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -70,6 +69,9 @@ type attachServerSSH struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
+	// Used for ordering events between global mux and channel mux
+	askedAndAnswered chan struct{}
+
 	// INTERNAL: must set by testAttachServer only
 	testing bool
 }
@@ -108,18 +110,18 @@ func (t *attachServerSSH) Reload(config *tether.ExecutorConfig) error {
 	return nil
 }
 
-// Enabled sets the enabled to true
-func (t *attachServerSSH) Enabled() {
+// Enable sets the enabled to true
+func (t *attachServerSSH) Enable() {
 	atomic.StoreInt32(&t.enabled, 1)
 }
 
-// Disabled sets the enabled to false
-func (t *attachServerSSH) Disabled() {
+// Disable sets the enabled to false
+func (t *attachServerSSH) Disable() {
 	atomic.StoreInt32(&t.enabled, 0)
 }
 
-// IsEnabled returns whether the enabled is true
-func (t *attachServerSSH) IsEnabled() bool {
+// Enabled returns whether the enabled is true
+func (t *attachServerSSH) Enabled() bool {
 	return atomic.LoadInt32(&t.enabled) == 1
 }
 
@@ -145,7 +147,7 @@ func (t *attachServerSSH) start() error {
 		return err
 	}
 
-	if t.IsEnabled() {
+	if t.Enabled() {
 		err := fmt.Errorf("attach server is already enabled")
 		log.Error(err)
 		return err
@@ -179,7 +181,8 @@ func (t *attachServerSSH) start() error {
 	}
 	t.sshConfig.AddHostKey(pkey)
 
-	t.Enabled()
+	// enable the server and start it
+	t.Enable()
 	go t.run()
 
 	return nil
@@ -195,20 +198,20 @@ func (t *attachServerSSH) stop() error {
 		return err
 	}
 
-	if !t.IsEnabled() {
+	if !t.Enabled() {
 		err := fmt.Errorf("attach server is not enabled")
 		log.Error(err)
 		return err
 	}
 
-	log.Debugf("Setting enabled to false")
-	t.Disabled()
+	// disable the server
+	t.Disable()
 
 	// This context is used by backchannel only. We need to cancel it before
 	// trying to obtain the following lock so that backchannel interrupts the
 	// underlying Read call by calling Close on it.
 	// The lock is  held by backchannel's caller and not released until it returns
-	log.Debugf("Canceling the context")
+	log.Debugf("Canceling AttachServer's context")
 	t.cancel()
 
 	log.Debugf("Acquiring the connection lock")
@@ -292,14 +295,14 @@ func (t *attachServerSSH) run() error {
 	var reqs <-chan *ssh.Request
 	var err error
 
-	for t.IsEnabled() {
+	for t.Enabled() {
 		serverConn.Lock()
 		established = serverConn.ServerConn != nil
 		serverConn.Unlock()
 
 		// keep waiting for the connection to establish
-		for !established && t.IsEnabled() {
-			log.Debugf("Trying to establish a connection")
+		for !established && t.Enabled() {
+			log.Infof("Trying to establish a connection")
 
 			establishFn := func() error {
 				// we hold the t.conn.Lock during the scope of this function
@@ -360,14 +363,14 @@ func (t *attachServerSSH) run() error {
 		// Global requests
 		go t.globalMux(reqs)
 
-		log.Println("ready to service attach requests")
+		log.Infof("Ready to service attach requests")
 		// Service the incoming channels
 		for attachchan := range chans {
 			// The only channel type we'll support is attach
 			if attachchan.ChannelType() != attachChannelType {
 				detail := fmt.Sprintf("unknown channel type %s", attachchan.ChannelType())
+				attachchan.Reject(ssh.UnknownChannelType, detail)
 				log.Error(detail)
-				attachchan.Reject(ssh.UnknownChannelType, "unknown channel type")
 				continue
 			}
 
@@ -375,33 +378,21 @@ func (t *attachServerSSH) run() error {
 			bytes := attachchan.ExtraData()
 			if bytes == nil {
 				detail := "attach channel requires ID in ExtraData"
-				log.Error(detail)
 				attachchan.Reject(ssh.Prohibited, detail)
+				log.Error(detail)
 				continue
 			}
 
 			sessionid := string(bytes)
 			session, ok := t.config.Sessions[sessionid]
-
-			reason := ""
 			if !ok {
-				reason = "is unknown"
-			} else if session.Cmd.Process == nil {
-				reason = "process has not been launched"
-			} else if session.Cmd.Process.Signal(syscall.Signal(0)) != nil {
-				reason = "process has exited"
-			}
-
-			if reason != "" {
-				detail := fmt.Sprintf("attach request: session %s %s", sessionid, reason)
-				log.Error(detail)
+				detail := fmt.Sprintf("session %s is invalid", sessionid)
 				attachchan.Reject(ssh.Prohibited, detail)
+				log.Error(detail)
 				continue
 			}
 
-			log.Infof("accepting incoming channel for %s", sessionid)
 			channel, requests, err := attachchan.Accept()
-			log.Debugf("accepted incoming channel for %s", sessionid)
 			if err != nil {
 				detail := fmt.Sprintf("could not accept channel: %s", err)
 				log.Errorf(detail)
@@ -410,14 +401,20 @@ func (t *attachServerSSH) run() error {
 
 			// bind the channel to the Session
 			log.Debugf("binding reader/writers for channel for %s", sessionid)
+
+			log.Debugf("Adding [%p] to Outwriter", channel)
 			session.Outwriter.Add(channel)
+			log.Debugf("Adding [%p] to Reader", channel)
 			session.Reader.Add(channel)
 
 			// cleanup on detach from the session
-			detach := func() {
-				log.Debugf("cleanup on detach from the session")
+			cleanup := func() {
+				log.Debugf("Cleanup on detach from the session")
 
+				log.Debugf("Removing [%p] from Outwriter", channel)
 				session.Outwriter.Remove(channel)
+
+				log.Debugf("Removing [%p] from Reader", channel)
 				session.Reader.Remove(channel)
 
 				channel.Close()
@@ -427,38 +424,48 @@ func (t *attachServerSSH) run() error {
 				serverConn.Unlock()
 			}
 
-			// tty's merge stdout and stderr so we don't bind an additional reader in that case
-			// but we need to do so for non-tty
-			if session.Pty == nil {
-				session.Errwriter.Add(channel.Stderr())
+			detach := cleanup
+			// tty's merge stdout and stderr so we don't bind an additional reader in that case but we need to do so for non-tty
+			if !session.Tty {
+				// persist the value as we end up with different values each time we access it
+				stderr := channel.Stderr()
 
-				// no good way to function chain, so reimplement appropriately
+				log.Debugf("Adding [%p] to Errwriter", stderr)
+				session.Errwriter.Add(stderr)
+
 				detach = func() {
-					log.Debugf("cleanup on detach from the session")
+					log.Debugf("Cleanup on detach from the session (non-tty)")
 
-					session.Outwriter.Remove(channel)
-					session.Reader.Remove(channel)
-					session.Errwriter.Remove(channel)
+					log.Debugf("Removing [%p] from Errwriter", stderr)
+					session.Errwriter.Remove(stderr)
 
-					channel.Close()
-
-					serverConn.Lock()
-					serverConn.ServerConn = nil
-					serverConn.Unlock()
+					cleanup()
 				}
 			}
 			log.Debugf("reader/writers bound for channel for %s", sessionid)
 
 			go t.channelMux(requests, session, detach)
-		}
 
-		log.Info("incoming attach channel closed")
+			if session.RunBlock && session.ClearToLaunch != nil && session.Started != "true" {
+				log.Debugf("Unblocking the launch of %s", sessionid)
+				// make sure that portlayer received the container id back
+				session.ClearToLaunch <- <-t.askedAndAnswered
+				log.Debugf("Unblocked the launch of %s", sessionid)
+			}
+		}
+		log.Info("Incoming attach channel closed")
 	}
 	return nil
 }
 
 func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 	defer trace.End(trace.Begin("attach server global request handler"))
+
+	// to make sure we close the channel once
+	var once sync.Once
+
+	// ContainersReq will close this channel
+	t.askedAndAnswered = make(chan struct{})
 
 	for req := range reqchan {
 		var pendingFn func()
@@ -477,6 +484,13 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 			}
 			msg := msgs.ContainersMsg{IDs: keys}
 			payload = msg.Marshal()
+
+			// unblock ^ (above)
+			pendingFn = func() {
+				once.Do(func() {
+					close(t.askedAndAnswered)
+				})
+			}
 		default:
 			ok = false
 			payload = []byte("unknown global request type: " + req.Type)
@@ -486,78 +500,76 @@ func (t *attachServerSSH) globalMux(reqchan <-chan *ssh.Request) {
 
 		// make sure that errors get send back if we failed
 		if req.WantReply {
-			req.Reply(ok, payload)
+			log.Debugf("Sending global request reply %t back with %#v", ok, payload)
+			if err := req.Reply(ok, payload); err != nil {
+				log.Warnf("Failed to reply a global request back")
+			}
 		}
 
 		// run any pending work now that a reply has been sent
 		if pendingFn != nil {
-			log.Debug("Invoking pending work")
+			log.Debug("Invoking pending work for global mux")
 			go pendingFn()
 			pendingFn = nil
 		}
 	}
 }
 
-func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.SessionConfig, detach func()) {
+func (t *attachServerSSH) channelMux(in <-chan *ssh.Request, session *tether.SessionConfig, cleanup func()) {
 	defer trace.End(trace.Begin("attach server channel request handler"))
 
-	// detach
-	defer detach()
+	// for the actions after we process the request
+	var pendingFn func()
 
-	process := session.Cmd.Process
-	pty := session.Pty
+	// cleanup function passed by the caller
+	defer cleanup()
 
-	var err error
 	for req := range in {
-		var pendingFn func()
 		ok := true
 
 		switch req.Type {
 		case msgs.WindowChangeReq:
+			session.Lock()
+			pty := session.Pty
+			session.Unlock()
+
 			msg := msgs.WindowChangeMsg{}
 			if pty == nil {
 				ok = false
 				log.Errorf("illegal window-change request for non-tty")
-			} else if err = msg.Unmarshal(req.Payload); err != nil {
+			} else if err := msg.Unmarshal(req.Payload); err != nil {
 				ok = false
 				log.Errorf(err.Error())
-			} else if err = resizePty(pty.Fd(), &msg); err != nil {
+			} else if err := resizePty(pty.Fd(), &msg); err != nil {
 				ok = false
 				log.Errorf(err.Error())
-			}
-		case msgs.SignalReq:
-			msg := msgs.SignalMsg{}
-			if err = msg.Unmarshal(req.Payload); err != nil {
-				ok = false
-				log.Errorf(err.Error())
-			} else {
-				log.Infof("Sending signal %s to container process, pid=%d\n", string(msg.Signal), process.Pid)
-				err = signalProcess(process, msg.Signal)
-				if err != nil {
-					log.Errorf("Failed to dispatch signal to process: %s\n", err)
-				}
 			}
 		case msgs.CloseStdinReq:
 			// call Close as the pendingFn so that we can send reply back before closing the channel
 			pendingFn = func() {
+				session.Lock()
+				defer session.Unlock()
+
 				log.Debugf("Closing stdin for %s", session.ID)
 				session.Reader.Close()
 			}
 		default:
 			ok = false
-			err = fmt.Errorf("ssh request type %s is not supported", req.Type)
+			err := fmt.Errorf("ssh request type %s is not supported", req.Type)
 			log.Error(err.Error())
 		}
 
 		// payload is ignored on channel specific replies.  The ok is passed, however.
 		if req.WantReply {
-			log.Debugf("Sending reply %t back", ok)
-			req.Reply(ok, nil)
+			log.Debugf("Sending channel request reply %t back", ok)
+			if err := req.Reply(ok, nil); err != nil {
+				log.Warnf("Failed to reply a channel request back")
+			}
 		}
 
 		// run any pending work now that a reply has been sent
 		if pendingFn != nil {
-			log.Debug("Invoking pending work")
+			log.Debug("Invoking pending work for channel mux")
 			go pendingFn()
 			pendingFn = nil
 		}

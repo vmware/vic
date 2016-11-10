@@ -129,14 +129,14 @@ func TestHandshakeServerNormalCaseScenario(t *testing.T) {
 
 func TestHandshakeServerLotsOfTrashOnTheLine(t *testing.T) {
 	log.SetLevel(log.InfoLevel)
-	clientConn, serverConn := NewFakeConnection(time.Second * 3)
+	clientConn, serverConn := NewFakeConnection(time.Second * 10)
 
 	go func() {
 		buf := make([]byte, 10)
 
 		// Do not send too many bytes, otherwise "write" will block on server side due too many flagNak.
 		x := "sdfkgn sdflkjsfdfdgis dfgs"
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 5; i++ {
 			x += x
 		}
 		clientConn.Write([]byte(x))

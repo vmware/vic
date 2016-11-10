@@ -8,6 +8,19 @@ clone:
   tags: true
 
 build:
+  prevent-concurrent-builds:
+    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.15}
+    pull: true
+    environment:
+      BIN: bin
+      GOPATH: /drone
+      SHELL: /bin/bash
+      TEST_URL_ARRAY:  $$TEST_URL_ARRAY
+      DRONE_SERVER:  $$DRONE_SERVER
+      DRONE_TOKEN:  $$DRONE_TOKEN
+    commands:
+      - tests/wait_until_previous_builds_complete.sh
+
   vic:
     image: golang:1.7
     pull: true
@@ -29,12 +42,13 @@ build:
       - make sincemark
       - make mark
       - ls vendor/github.com/vmware/govmomi/vim25/methods
+      - ls vendor/github.com/vmware/govmomi/vim25/types
       - export VIC_ESX_URL_ARRAY=`tests/get_test_url.sh`
       - make -j3 test
       - make sincemark
 
   integration-test-on-pr:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.13}
+    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.15}
     pull: true
     environment:
       BIN: bin
@@ -70,7 +84,7 @@ build:
       success: true
 
   vicui:
-    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.13}
+    image: $${TEST_BUILD_IMAGE=vmware-docker-ci-repo.bintray.io/integration/vic-test:1.15}
     pull: true
     environment:
       BIN: bin
@@ -137,13 +151,6 @@ notify:
       failure: true
 
 publish:
-  coverage:
-    server: https://coverage.vmware.run
-    token: $$GITHUB_AUTOMATION_API_KEY
-    when:
-      repo: vmware/vic
-      branch: master
-      success: true
   bintray:
     username: $$BINTRAY_USERNAME
     api_key: $$BINTRAY_API_KEY
@@ -156,6 +163,13 @@ publish:
         version: $$BUILD_NUMBER
         target: vic_$$BUILD_NUMBER.tar.gz
         publish: true
+    when:
+      repo: vmware/vic
+      branch: master
+      success: true
+  coverage:
+    server: https://coverage.vmware.run
+    token: $$GITHUB_AUTOMATION_API_KEY
     when:
       repo: vmware/vic
       branch: master

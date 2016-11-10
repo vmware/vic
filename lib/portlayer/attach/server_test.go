@@ -39,25 +39,25 @@ func TestAttachStartStop(t *testing.T) {
 	wg := &sync.WaitGroup{}
 
 	dial := func() {
+		defer wg.Done()
+
 		c, err := net.Dial("tcp", s.l.Addr().String())
-		c.SetReadDeadline(time.Now().Add(time.Second))
 		assert.NoError(t, err)
 		assert.NotNil(t, c)
+		defer c.Close()
 
 		buf := make([]byte, 1)
+		c.SetReadDeadline(time.Now().Add(time.Second))
 		c.Read(buf)
-		if !assert.Error(t, serial.HandshakeServer(c)) {
+
+		// This will pass if the client has written a second syn packet by the time it's called. As such we set an
+		// unbounded readdeadline on the connection.
+		// We can assert behaviours that take a while, but cannot reliably assert behaviours that require fast scheduling
+		// of lots of threads on all systems running the CI.
+		c.SetReadDeadline(time.Time{})
+		if !assert.NoError(t, serial.HandshakeServer(c), "Expected handshake to succeed on 2nd syn packet from client") {
 			return
 		}
-
-		c, err = net.Dial("tcp", s.l.Addr().String())
-		assert.NoError(t, err)
-		assert.NotNil(t, c)
-		if !assert.NoError(t, serial.HandshakeServer(c)) {
-			return
-		}
-
-		wg.Done()
 	}
 
 	assert.NoError(t, s.Start(true))

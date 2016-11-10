@@ -63,21 +63,21 @@ Create and start named container
     Should Not Contain  ${output}  Error
 
 Create linked containers that can ping
-    ${status}=  Get State Of Github Issue  2669
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-06-Docker-Create.robot needs to be updated now that Issue #2669 has been resolved
-    Log  Issue \#2669 is blocking implementation  WARN
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull debian
-#    Should Be Equal As Integers  ${rc}  0
-#
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create --link busy1:busy1 --name busy2 debian ping -c2 busy1
-#    Should Be Equal As Integers  ${rc}  0
-#    Should Not Contain  ${output}  Error
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start busy2
-#    Should Be Equal As Integers  ${rc}  0
-#    Should Not Contain  ${output}  Error
-#    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs --follow busy2
-#    Should Be Equal As Integers  ${rc}  0
-#    Should Contain  ${output}  2 packets transmitted, 2 packets received
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull debian
+    Should Be Equal As Integers  ${rc}  0
+
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create --link busy1:busy1 --name busy2 debian ping -c2 busy1
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} start busy2
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} wait busy2
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  Error
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} logs busy2
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  2 packets transmitted, 2 packets received
 
 Create a container after the last container is removed
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull busybox
@@ -102,3 +102,48 @@ Create a container with no command specified
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create alpine
     Should Be Equal As Integers  ${rc}  1
     Should Contain  ${output}  Error response from daemon: No command specified
+
+Create a container with custom CPU count
+    ${rc}  ${id}=  Run And Return Rc And Output  docker ${params} create -it --cpuset-cpus 3 busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${id}=  Run And Return Rc And Output  govc datastore.ls |grep ${id}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info ${id} |awk '/CPU:/ {print $2}'
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  3
+
+Create a container with custom amount of memory in GB
+    ${rc}  ${id}=  Run And Return Rc And Output  docker ${params} create -it -m 4G busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${id}=  Run And Return Rc And Output  govc datastore.ls |grep ${id}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info ${id} |awk '/Memory:/ {print $2}'
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  4096MB
+
+Create a container with custom amount of memory in MB
+    ${rc}  ${id}=  Run And Return Rc And Output  docker ${params} create -it -m 2048M busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${id}=  Run And Return Rc And Output  govc datastore.ls |grep ${id}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info ${id} |awk '/Memory:/ {print $2}'
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  2048MB
+
+Create a container with custom amount of memory in KB
+    ${rc}  ${id}=  Run And Return Rc And Output  docker ${params} create -it -m 2097152K busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${id}=  Run And Return Rc And Output  govc datastore.ls |grep ${id}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info ${id} |awk '/Memory:/ {print $2}'
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  2048MB
+
+Create a container with custom amount of memory in Bytes
+    ${rc}  ${id}=  Run And Return Rc And Output  docker ${params} create -it -m 2147483648B busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${id}=  Run And Return Rc And Output  govc datastore.ls |grep ${id}
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  govc vm.info ${id} |awk '/Memory:/ {print $2}'
+    Should Be Equal As Integers  ${rc}  0
+    Should Contain  ${output}  2048MB

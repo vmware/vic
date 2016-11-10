@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"os"
 	"runtime"
 	"testing"
@@ -70,11 +69,6 @@ type Mocker struct {
 
 // Start implements the extension method
 func (t *Mocker) Start() error {
-	// TODO: enabled for initial dev debugging only
-	go func() {
-		log.Info(http.ListenAndServe("0.0.0.0:6060", nil))
-	}()
-
 	return nil
 }
 
@@ -109,8 +103,8 @@ func (t *Mocker) Log() (io.Writer, error) {
 	return &t.LogBuffer, nil
 }
 
-func (t *Mocker) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, error) {
-	return dio.MultiWriter(&t.SessionLogBuffer), nil
+func (t *Mocker) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, dio.DynamicMultiWriter, error) {
+	return dio.MultiWriter(&t.SessionLogBuffer), dio.MultiWriter(&t.SessionLogBuffer), nil
 }
 
 func (t *Mocker) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) func() {
@@ -191,9 +185,9 @@ func StartTether(t *testing.T, cfg *executor.ExecutorConfig) (tether.Tether, ext
 
 	// run the tether to service the attach
 	go func() {
-		erR := tthr.Start()
-		if erR != nil {
-			t.Error(erR)
+		err := tthr.Start()
+		if err != nil {
+			t.Error(err)
 		}
 	}()
 
@@ -244,10 +238,10 @@ func testSetup(t *testing.T) {
 
 func testTeardown(t *testing.T) {
 	// cleanup
-	// os.RemoveAll(pathPrefix)
-	log.SetOutput(os.Stdout)
-
 	<-Mocked.Cleaned
+
+	os.RemoveAll(pathPrefix)
+	log.SetOutput(os.Stdout)
 
 	pc, _, _, _ := runtime.Caller(1)
 	name := runtime.FuncForPC(pc).Name()

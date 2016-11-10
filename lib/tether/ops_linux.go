@@ -30,6 +30,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/d2g/dhcp4"
 	"github.com/vishvananda/netlink"
 
 	"github.com/vmware/vic/lib/dhcp"
@@ -49,8 +50,7 @@ const (
 )
 
 type BaseOperations struct {
-	dhcpClient   client.Client
-	dhcpLoops    map[string]chan bool
+	dhcpLoops    map[string]chan struct{}
 	dynEndpoints map[string][]*NetworkEndpoint
 	config       Config
 }
@@ -267,22 +267,33 @@ func renameLink(t Netlink, link netlink.Link, slot int32, endpoint *NetworkEndpo
 	return link, nil
 }
 
-func getDynamicIP(t Netlink, link netlink.Link, dc client.Client) (*dhcp.Packet, error) {
+func getDynamicIP(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) (client.Client, error) {
 	var ack *dhcp.Packet
 	var err error
 
 	// use dhcp to acquire address
-	id, err := client.NewID(link.Attrs().Index, link.Attrs().HardwareAddr)
+	dc, err := client.NewClient(link.Attrs().Index, link.Attrs().HardwareAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	ack, err = dc.Request(id)
+	params := []byte{byte(dhcp4.OptionSubnetMask)}
+	if ip.IsUnspecifiedIP(endpoint.Network.Gateway.IP) {
+		params = append(params, byte(dhcp4.OptionRouter))
+	}
+	if len(endpoint.Network.Nameservers) == 0 {
+		params = append(params, byte(dhcp4.OptionDomainNameServer))
+	}
+
+	dc.SetParameterRequestList(params...)
+
+	err = dc.Request()
 	if err != nil {
 		log.Errorf("error sending dhcp request: %s", err)
 		return nil, err
 	}
 
+	ack = dc.LastAck()
 	if ack.YourIP() == nil || ack.SubnetMask() == nil {
 		err = fmt.Errorf("dhcp assigned nil ip or subnet mask")
 		log.Error(err)
@@ -292,11 +303,11 @@ func getDynamicIP(t Netlink, link netlink.Link, dc client.Client) (*dhcp.Packet,
 	log.Infof("DHCP response: IP=%s, SubnetMask=%s, Gateway=%s, DNS=%s, Lease Time=%s", ack.YourIP(), ack.SubnetMask(), ack.Gateway(), ack.DNS(), ack.LeaseTime())
 	defer func() {
 		if err != nil && ack != nil {
-			dc.Release(ack)
+			dc.Release()
 		}
 	}()
 
-	return ack, nil
+	return dc, nil
 }
 
 func updateEndpoint(newIP *net.IPNet, endpoint *NetworkEndpoint) {
@@ -414,29 +425,40 @@ func (t *BaseOperations) Apply(endpoint *NetworkEndpoint) error {
 }
 
 func apply(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
+	if endpoint.applied {
+		log.Infof("skipping applying config for network %s as it has been applied already", endpoint.Network.Name)
+		return nil // already applied
+	}
+
 	// Locate interface
 	slot, err := strconv.Atoi(endpoint.ID)
 	if err != nil {
-		detail := fmt.Sprintf("endpoint ID must be a base10 numeric pci slot identifier: %s", err)
-		return errors.New(detail)
+		return fmt.Errorf("endpoint ID must be a base10 numeric pci slot identifier: %s", err)
 	}
-	link, err := nl.LinkBySlot(int32(slot))
+
+	defer func() {
+		if err == nil {
+			log.Infof("successfully applied config for network %s", endpoint.Network.Name)
+			endpoint.applied = true
+		}
+	}()
+
+	var link netlink.Link
+	link, err = nl.LinkBySlot(int32(slot))
 	if err != nil {
-		detail := fmt.Sprintf("unable to acquire reference to link %s: %s", endpoint.ID, err)
-		return errors.New(detail)
+		return fmt.Errorf("unable to acquire reference to link %s: %s", endpoint.ID, err)
 	}
 
 	// rename the link if needed
 	link, err = renameLink(nl, link, int32(slot), endpoint)
 	if err != nil {
-		detail := fmt.Sprintf("unable to reacquire link %s after rename pass: %s", endpoint.ID, err)
-		return errors.New(detail)
+		return fmt.Errorf("unable to reacquire link %s after rename pass: %s", endpoint.ID, err)
 	}
 
-	var ack *dhcp.Packet
+	var dc client.Client
 	defer func() {
-		if err != nil && ack != nil {
-			t.dhcpClient.Release(ack)
+		if err != nil && dc != nil {
+			dc.Release()
 		}
 	}()
 
@@ -452,11 +474,12 @@ func apply(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
 	log.Debugf("%+v", endpoint)
 	if endpoint.IsDynamic() {
 		if endpoint.DHCP == nil {
-			ack, err = getDynamicIP(nl, link, t.dhcpClient)
+			dc, err = getDynamicIP(nl, link, endpoint)
 			if err != nil {
 				return err
 			}
 
+			ack := dc.LastAck()
 			endpoint.DHCP = &DHCPInfo{
 				Assigned:    net.IPNet{IP: ack.YourIP(), Mask: ack.SubnetMask()},
 				Nameservers: ack.DNS(),
@@ -513,15 +536,14 @@ func apply(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
 	}
 
 	// add renew/release loop if necessary
-	if ack != nil {
+	if dc != nil {
 		if _, ok := t.dhcpLoops[endpoint.ID]; !ok {
-			stop := make(chan bool)
-			id, err := client.NewID(link.Attrs().Index, link.Attrs().HardwareAddr)
+			stop := make(chan struct{})
 			if err != nil {
 				log.Errorf("could not make DHCP client id for link %s: %s", link.Attrs().Name, err)
 			} else {
-				go t.dhcpLoop(stop, endpoint, ack, id)
 				t.dhcpLoops[endpoint.ID] = stop
+				go t.dhcpLoop(stop, endpoint, dc)
 			}
 		}
 	}
@@ -529,25 +551,25 @@ func apply(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
 	return nil
 }
 
-func (t *BaseOperations) dhcpLoop(stop chan bool, e *NetworkEndpoint, ack *dhcp.Packet, id client.ID) {
-	exp := time.After(ack.LeaseTime() / 2)
+func (t *BaseOperations) dhcpLoop(stop chan struct{}, e *NetworkEndpoint, dc client.Client) {
+	exp := time.After(dc.LastAck().LeaseTime() / 2)
 	for {
 		select {
 		case <-stop:
 			// release the ip
 			log.Infof("releasing IP address for network %s", e.Name)
-			t.dhcpClient.Release(ack)
+			dc.Release()
 			return
 
 		case <-exp:
 			log.Infof("renewing IP address for network %s", e.Name)
-			newack, err := t.dhcpClient.Renew(id, ack)
+			err := dc.Renew()
 			if err != nil {
 				log.Errorf("failed to renew ip address for network %s: %s", e.Name, err)
 				continue
 			}
 
-			ack = newack
+			ack := dc.LastAck()
 			log.Infof("successfully renewed ip address: IP=%s, SubnetMask=%s, Gateway=%s, DNS=%s, Lease Time=%s", ack.YourIP(), ack.SubnetMask(), ack.Gateway(), ack.DNS(), ack.LeaseTime())
 
 			e.DHCP = &DHCPInfo{
@@ -666,12 +688,8 @@ func (t *BaseOperations) Fork() error {
 }
 
 func (t *BaseOperations) Setup(config Config) error {
-	c, err := client.NewClient()
+	err := Sys.Hosts.Load()
 	if err != nil {
-		return err
-	}
-
-	if err = Sys.Hosts.Load(); err != nil {
 		return err
 	}
 
@@ -698,8 +716,7 @@ func (t *BaseOperations) Setup(config Config) error {
 	}
 
 	t.dynEndpoints = make(map[string][]*NetworkEndpoint)
-	t.dhcpLoops = make(map[string]chan bool)
-	t.dhcpClient = c
+	t.dhcpLoops = make(map[string]chan struct{})
 	t.config = config
 
 	return nil
@@ -707,7 +724,7 @@ func (t *BaseOperations) Setup(config Config) error {
 
 func (t *BaseOperations) Cleanup() error {
 	for _, stop := range t.dhcpLoops {
-		stop <- true
+		close(stop)
 	}
 
 	return nil

@@ -15,7 +15,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"runtime/debug"
@@ -74,8 +73,10 @@ func main() {
 		return
 	}
 
-	// create the tether and register the attach extension
+	// create the tether
 	tthr = tether.New(src, sink, &operations{})
+
+	// register the attach extension
 	tthr.Register("Attach", sshserver)
 
 	err = tthr.Start()
@@ -99,8 +100,7 @@ func createDevices() error {
 		minor := 64 + i
 		err = syscall.Mknod(path, syscall.S_IFCHR|uint32(os.FileMode(0660)), tether.Mkdev(4, minor))
 		if err != nil {
-			detail := fmt.Sprintf("failed to create %s for com%d: %s", path, i+1, err)
-			return errors.New(detail)
+			return fmt.Errorf("failed to create %s for com%d: %s", path, i+1, err)
 		}
 	}
 
@@ -108,8 +108,7 @@ func createDevices() error {
 	path := fmt.Sprintf("%s/urandom", pathPrefix)
 	err = syscall.Mknod(path, syscall.S_IFCHR|uint32(os.FileMode(0444)), tether.Mkdev(1, 9))
 	if err != nil {
-		detail := fmt.Sprintf("failed to create urandom access %s: %s", path, err)
-		return errors.New(detail)
+		return fmt.Errorf("failed to create urandom access %s: %s", path, err)
 	}
 
 	return nil

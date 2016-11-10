@@ -1,6 +1,6 @@
 # vSphere Integrated Containers Engine Installation
 
-*vSphere Integrated Containers Engine Installation* provides information about how to install and configure VMware vSphere Integrated Containers Engine.
+*vSphere Integrated Containers Engine Installation* provides information about how to install and configure VMware vSphere&reg; Integrated Containers&trade; Engine.
 
 **Product version: 0.7.0**
 

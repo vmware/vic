@@ -100,3 +100,19 @@ Re-pull a previously rmi'd image
     ${newsize}=  Get From List  ${words}  -2
     Should Be Equal  ${id}  ${newid}
     Should Be Equal  ${size}  ${newsize}
+
+Pull image by multiple tags
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  busybox:1.25.1
+    Wait Until Keyword Succeeds  5x  15 seconds  Pull image  busybox:1.25
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images |grep -E busybox.*1.25
+    Should Be Equal As Integers  ${rc}  0
+    ${lines}=  Split To Lines  ${output}
+    # one for 1.25.1 and one for 1.25
+    Length Should Be  ${lines}  2
+    ${line1}=  Get From List  ${lines}  0
+    ${line2}=  Get From List  ${lines}  -1
+    ${words1}=  Split String  ${line1}
+    ${words2}=  Split String  ${line2}
+    ${id1}=  Get From List  ${words1}  2
+    ${id2}=  Get From List  ${words2}  2
+    Should Be Equal  ${id1}  ${id2}

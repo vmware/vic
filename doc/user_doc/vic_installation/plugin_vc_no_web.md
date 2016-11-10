@@ -10,7 +10,7 @@ You can install the vSphere Web Client plug-in for vSphere Integrated Containers
 **Procedure**
 
 1. On the Windows system on which you have downloaded and unpacked vSphere Integrated Containers Engine, navigate to the folder that contains the `vic-machine` utility and open the `ui` folder.
-2. Copy the `com.vmware.vicui.Vicui-0.0.1` folder into the folder on the vCenter Server system that contains the vSphere Web Client packages.
+2. Copy the <code>com.vmware.vicui.Vicui-<i>version</i></code> folder into the folder on the vCenter Server system that contains the vSphere Web Client packages.
   
   - Source location on `vic-machine` system: <pre><i>vic_unpack_dir</i>\vic\ui\vsphere-client-serenity</pre>
   - Destination location on vCenter Server Windows system: <pre><i>instl_dir</i>\vCenterServer\cfg\vsphere-client\vc-packages\vsphere-client-serenity</pre>

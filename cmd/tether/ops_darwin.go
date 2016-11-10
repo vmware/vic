@@ -33,8 +33,8 @@ func (t *operations) Log() (io.Writer, error) {
 }
 
 // sessionLogWriter returns a writer that will persist the session output
-func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, error) {
-	return nil, errors.New("not implemented on OSX")
+func (t *operations) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, dio.DynamicMultiWriter, error) {
+	return nil, nil, errors.New("not implemented on OSX")
 }
 
 func (t *operations) Setup(sink tether.Config) error {

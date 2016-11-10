@@ -1,10 +1,14 @@
-# vSphere Integrated Containers Engine Networking Overview #
+# Networks Used by vSphere Integrated Containers Engine #
+
+You can configure networks that are tied into the vSphere infrastructure. Pre-configured networks available to a virtual container host are determined by the networks that you define when you configure the virtual container host.
 
 Virtual container hosts connect to different types of network. 
 
  ![vSphere Container Host Management Network](graphics/vch-net.png)
 
 This topic provides an overview of the different network types. 
+
+**IMPORTANT**: A virtual container host supports a maximum of 3 distinct networks. Because the bridge and container networks require  their own distributed port groups, at least two of the external, client, and management networks must share a network.
 
 ## Container Bridge Networks ##
 The network or networks that container VMs use to communicate with each other. Each virtual container host requires a unique bridge network.
@@ -40,21 +44,4 @@ You define the Docker management endpoint network by setting the `client-network
 
 ## Container Networks ##
 
-Networks for container VMs to use for external communication when container developers  run `docker run` or `docker create` with the `--net` option. For  more detailed information about setting up container networks, see the sections on the `container-network-xxx` options in [Virtual Container Host Deployment Options](vch_installer_options.md#container-network).
-
-
-## The Port Layer
-
-You can configure networks that are tied into the vSphere infrastructure. Pre-configured networks available to a virtual container host are determined by the networks that you define when you configure the virtual container host.
-
-The port layer augments the vSphere API with low level, platform-specific primitives to allow you to implement a simple container engine:
-
-- Port Layer Execution: Handles container management, such as create, start, and stop. 
-- Port Layer Interaction: Handles interaction with a running container. 
-- Port Layer Networking: Handles specific vSphere network mappings into the Docker network namespace as well as mapping existing network entities such as database servers into the Docker container namespace with defined aliases.
-- Port Layer Storage: Provides storage manipulation, including container image storage, layering with volume creation and manipulation. imagec, the docker registry client library, uses this component to translate registry images into a layered format that VMDK disk chains can use directly.
-
-
-## Tether Process ##
-
-The tether process is a minimal agent in the container VM that starts and stops processes and provides monitoring statistics. 
+Networks for container VMs to use for external communication when container developers  run `docker run` or `docker create` with the `--net` option. For  more detailed information about setting up container networks, see the sections on the `container-network-xxx` options in [Virtual Container Host Deployment Options](vch_installer_options.md#container-network). 

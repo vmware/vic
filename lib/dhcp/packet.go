@@ -33,7 +33,10 @@ type Packet struct {
 }
 
 func NewPacket(p []byte) *Packet {
-	return &Packet{Packet: p, Options: Options(dhcp4.Packet(p).ParseOptions())}
+	return &Packet{
+		Packet:  p,
+		Options: Options(dhcp4.Packet(p).ParseOptions()),
+	}
 }
 
 // YourIP returns the YIP field in the packet (this is IP assigned by server to the client)

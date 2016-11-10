@@ -16,9 +16,6 @@ package tether
 
 import (
 	"errors"
-	"os"
-
-	"golang.org/x/crypto/ssh"
 
 	"github.com/vmware/vic/pkg/trace"
 )
@@ -38,10 +35,6 @@ func (t *tether) stopReaper() {
 
 func lookPath(file string, env []string, dir string) (string, error) {
 	return "", errors.New("unimplemented on windows")
-}
-
-func signalProcess(process *os.Process, sig ssh.Signal) error {
-	return errors.New("unimplemented on windows")
 }
 
 func establishPty(session *SessionConfig) error {

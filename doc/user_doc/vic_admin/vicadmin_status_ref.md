@@ -2,14 +2,14 @@
 
 The Web-based administration portal for virtual container hosts, VCH Admin, presents status information about a virtual container host.
 
-If the vSphere environment in which you are deploying a virtual container host does not meet the requirements, the deployment does not succeed. However, a successfully deployed virtual container host can stop functioning if the vSphere environment changes after the deployment. If environment changes adversely affect the virtual container host, the status of the affected component changes from green to yellow or red.
+If the vSphere environment in which you are deploying a virtual container host does not meet the requirements, the deployment does not succeed. However, a successfully deployed virtual container host can stop functioning if the vSphere environment changes after the deployment. If environment changes adversely affect the virtual container host, the status of the affected component changes from green to yellow.
 
 ## Virtual Container Host (VCH) ##
 
 VCH Admin checks the status of the processes that the virtual container host runs:
 
 - The port layer server, that presents an API of low-level container primitive operations, and implements those container operations via the vSphere APIs.
-- VIC Admin server, that runs the VCH Admin portal. 
+- VCH Admin server, that runs the VCH Admin portal. 
 - The vSphere Integrated Containers Engine initialization service and watchdog service for the other components. 
 - The Docker engine server, that exposes the Docker API and semantics, translating those composite operations into port layer primitives.
 
@@ -23,7 +23,7 @@ One or more of the virtual container host processes is not running correctly.
 
 #### Solution ####
 
-1. In the VCH Admin portal for the virtual container host, click the link for the **VIC Admin Server** log.
+1. In the VCH Admin portal for the virtual container host, click the link for the **VCH Admin Server** log.
 2. Search the log for references to the different virtual container host processes.
 
   The different processes are identified in the log by the following names:
@@ -41,7 +41,7 @@ VCH Admin checks external network connectivity by attempting to connect from the
 
 ### Error ###
 
-The Network Connectivity status is red.
+The Network Connectivity status is yellow.
 
 #### Cause ####
 
@@ -49,7 +49,7 @@ The external network connection is down.
 
 #### Solution ####
 
-1. In the VCH Admin portal for the virtual container host, click the link for the **VIC Admin Server** log.
+1. In the VCH Admin portal for the virtual container host, click the link for the **VCH Admin Server** log.
 2. Search the log for references to network issues.
 3. In the vSphere Web Client, remediate the network issues as required.
 

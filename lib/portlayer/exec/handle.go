@@ -39,12 +39,19 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
 
+// Resources describes the resource allocation for the containerVM
+type Resources struct {
+	NumCPUs  int64
+	MemoryMB int64
+}
+
 // ContainerCreateConfig defines the parameters for Create call
 type ContainerCreateConfig struct {
 	Metadata *executor.ExecutorConfig
 
 	ParentImageID  string
 	ImageStoreName string
+	Resources      Resources
 }
 
 var handles *lru.Cache
@@ -244,9 +251,8 @@ func Create(ctx context.Context, sess *session.Session, config *ContainerCreateC
 	}
 
 	specconfig := &spec.VirtualMachineConfigSpecConfig{
-		// FIXME: hardcoded values
-		NumCPUs:  2,
-		MemoryMB: 2048,
+		NumCPUs:  int32(config.Resources.NumCPUs),
+		MemoryMB: config.Resources.MemoryMB,
 
 		ID:       config.Metadata.ID,
 		Name:     config.Metadata.Name,

@@ -1,0 +1,53 @@
+# Upgrade a Virtual Container Host #
+
+You upgrade virtual container hosts by downloading a new version of vSphere Integrated Containers Engine and running the `vic-machine upgrade` command.
+
+**IMPORTANT**: Due to the substantial changes in vSphere Integrated Containers version 0.7, you cannot use `vic-machine upgrade` to upgrade from version 0.6 to version 0.7. You can use `vic-machine upgrade` to upgrade from more recent builds to version 0.7.
+
+For descriptions of the options that `vic-machine upgrade` includes in addition to the [Common `vic-machine` Options](common_vic_options.md) , see [Virtual Container Host Upgrade Options](upgrade_vch_options.md).
+
+**Prerequisites**
+
+- You deployed one or more virtual container hosts with an older version of the `vic-machine create` command.
+- You downloaded a new version of the vSphere Integrated Containers Engine bundle.
+- Run the `vic-machine ls` command by using the new version of `vic-machine` to see the upgrade status of all of the virtual container hosts that are running on a vCenter Server instance or ESXi host. For information about running `vic-machine ls`, see [List Virtual Container Hosts and Obtain Their IDs](list_vch.md).
+- Optionally note the IDs of the virtual container hosts.
+
+**Procedure**
+
+1. On the system on which you run `vic-machine`, navigate to the directory that contains the new version of the `vic-machine` utility.
+2. Run the `vic-machine upgrade` command. 
+
+   The following example includes the options required to upgrade a virtual container host in a simple vCenter Server environment. 
+
+  - You must specify the username and optionally the password, either in the `target` option or separately in the `--user` and `--password` options. 
+  - If the virtual container host has a name other than the default name, `virtual-container-host`, you must specify the `--name` or `--id` option. 
+  - If multiple compute resources exist in the datacenter, you must specify the `--compute-resource` or `--id` option. 
+  - If your vSphere environment uses untrusted, self-signed certificates, you must also specify the thumbprint of the vCenter Server instance or ESXi host in the `--thumbprint` option. To obtain the thumbprint of the vCenter Server or ESXi host certificate, run `vic-machine` without the specifying the `--thumbprint` or `--force` options. The upgrade of the virtual container host fails, but the resulting error message includes the required certificate thumbprint. You can copy the thumbprint from the error message and run `vic-machine` again, including the `--thumbprint` option.
+
+   <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> upgrade
+--target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
+--thumbprint <i>certificate_thumbprint</i>
+--name <i>vch_name</i></pre>
+
+3. If the upgrade operation fails with error messages, run `vic-machine upgrade` again with the `--force` option.
+
+  If your vSphere environment uses untrusted, self-signed certificates, running `vic-machine upgrade` with the `--force` option allows you to omit the `--thumbprint` option.
+
+   <pre>$ vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> upgrade
+--target <i>vcenter_server_username</i>:<i>password</i>@<i>vcenter_server_address</i>
+--name <i>cluster_name</i></i>
+--force</pre>
+
+**Result**
+
+During the upgrade process, `vic-machine upgrade` performs the following operations:
+
+- Validates whether the configuration of the existing virtual container host is compatible the new version. If not, the upgrade fails. 
+- Uploads the new versions of the `appliance.iso` and `bootstrap.iso` files to the virtual container host.
+- Creates a snapshot of the virtual container host endpoint VM, to use in case the upgrade fails and has to roll back.
+- Boots the virtual container host by using the new version of the `appliance.iso` file.
+- Deletes the snapshot of the virtual container host endpoint VM once the upgrade has succeeded.
+- After you upgrade a virtual container host, any new container VMs will boot from the new version of the `bootstrap.iso` file.
+
+**NOTE**:  Upgrading a virtual container host does not upgrade any  existing container VMs that are running in the virtual container host. For container VMs to boot from the latest version of `bootstrap.iso`, container developers must recreate them.

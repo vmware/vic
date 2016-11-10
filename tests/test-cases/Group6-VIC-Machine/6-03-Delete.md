@@ -1,15 +1,17 @@
 Test 6-03 - Verify delete clean up all resources
 =======
 
-#Purpose:
+# Purpose:
 Verify vic-machine delete can delete vch installed by vic-machine create
 
-#References:
+# References:
 * vic-machine-linux delete -h
-#Environment:
+# Environment:
 This test requires that a vSphere server is running and available
 
-#Test Steps:
+# Test Cases
+
+## Delete VCH and verify
 1. Create VCH through vic-machine create
 2. Create container
 3. Make sure container VM is powered on
@@ -17,7 +19,7 @@ This test requires that a vSphere server is running and available
 5. Delete VCH with --force, to get delete success
 6. Check vSphere through govc to make sure all resources are deleted correctly
 
-#Expected Outcome:
+### Expected Outcome:
 * Step 4 should fail for VM is powered on
 * Step 5 should success
 * Step 6 should not find any resources created by vic-machine and VCH

@@ -58,6 +58,17 @@ import (
 
 const (
 	bridgeIfaceName = "bridge"
+
+	// MemoryAlignMB is the value to which container VM memory must align in order for hotadd to work
+	MemoryAlignMB = 128
+	// MemoryMinMB - the minimum allowable container memory size
+	MemoryMinMB = 512
+	// MemoryDefaultMB - the default container VM memory size
+	MemoryDefaultMB = 2048
+	// MinCPUs - the minimum number of allowable CPUs the container can use
+	MinCPUs = 1
+	// DefaultCPUs - the default number of container VM CPUs
+	DefaultCPUs = 2
 )
 
 var (
@@ -612,21 +623,23 @@ func unrollPortMap(portMap nat.PortMap) ([]*portMapping, error) {
 		}
 
 		// iterate over all the ports in pb []nat.PortBinding
-		for _, p := range pb {
+		for i := range pb {
 			var hostPort int
 			var hPort string
-			if p.HostPort == "" {
+			if pb[i].HostPort == "" {
 				// use a random port since no host port is specified
 				hostPort, err = requestHostPort(proto)
 				if err != nil {
 					log.Errorf("could not find available port on host")
 					return nil, err
 				}
+				log.Infof("using port %d on the host for port mapping", hostPort)
+
 				// update the hostconfig
-				p.HostPort = strconv.Itoa(hostPort)
+				pb[i].HostPort = strconv.Itoa(hostPort)
 
 			} else {
-				hostPort, err = strconv.Atoi(p.HostPort)
+				hostPort, err = strconv.Atoi(pb[i].HostPort)
 				if err != nil {
 					return nil, err
 				}
@@ -1076,21 +1089,6 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 	}
 	id := vc.ContainerID
 
-	clStdin, clStdout, clStderr, err := ca.GetStreams()
-	if err != nil {
-		return InternalServerError("Unable to get stdio streams for calling client")
-	}
-
-	if !vc.Config.Tty && ca.MuxStreams {
-		// replace the stdout/stderr with Docker's multiplex stream
-		if ca.UseStdout {
-			clStderr = stdcopy.NewStdWriter(clStderr, stdcopy.Stderr)
-		}
-		if ca.UseStderr {
-			clStdout = stdcopy.NewStdWriter(clStdout, stdcopy.Stdout)
-		}
-	}
-
 	client := c.containerProxy.Client()
 	handle, err := c.Handle(id, name)
 	if err != nil {
@@ -1121,6 +1119,22 @@ func (c *Container) ContainerAttach(name string, ca *backend.ContainerAttachConf
 			return InternalServerError(err.Payload.Message)
 		default:
 			return InternalServerError(err.Error())
+		}
+	}
+
+	clStdin, clStdout, clStderr, err := ca.GetStreams()
+	if err != nil {
+		return InternalServerError("Unable to get stdio streams for calling client")
+	}
+	defer clStdin.Close()
+
+	if !vc.Config.Tty && ca.MuxStreams {
+		// replace the stdout/stderr with Docker's multiplex stream
+		if ca.UseStdout {
+			clStderr = stdcopy.NewStdWriter(clStderr, stdcopy.Stderr)
+		}
+		if ca.UseStderr {
+			clStdout = stdcopy.NewStdWriter(clStdout, stdcopy.Stdout)
 		}
 	}
 
@@ -1276,6 +1290,48 @@ func setPathFromImageConfig(config, imageConfig *containertypes.Config) {
 // It may "fix up" the config param passed into ConntainerCreate() if needed.
 func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	defer trace.End(trace.Begin("Container.validateCreateConfig"))
+
+	// process cpucount here
+	var cpuCount int64 = DefaultCPUs
+
+	// support windows client
+	if config.HostConfig.CPUCount > 0 {
+		cpuCount = config.HostConfig.CPUCount
+	} else {
+		// we hijack --cpuset-cpus in the non-windows case
+		if config.HostConfig.CpusetCpus != "" {
+			cpus := strings.Split(config.HostConfig.CpusetCpus, ",")
+			if c, err := strconv.Atoi(cpus[0]); err == nil {
+				cpuCount = int64(c)
+			} else {
+				return fmt.Errorf("Error parsing CPU count: %s", err)
+			}
+		}
+	}
+	config.HostConfig.CPUCount = cpuCount
+
+	// fix-up cpu/memory settings here
+	if cpuCount < MinCPUs {
+		config.HostConfig.CPUCount = MinCPUs
+	}
+	log.Infof("Container CPU count: %d", config.HostConfig.CPUCount)
+
+	// convert from bytes to MiB for vsphere
+	memoryMB := config.HostConfig.Memory / units.MiB
+	if memoryMB == 0 {
+		memoryMB = MemoryDefaultMB
+	} else if memoryMB < MemoryMinMB {
+		memoryMB = MemoryMinMB
+	}
+
+	// check that memory is aligned
+	if remainder := memoryMB % MemoryAlignMB; remainder != 0 {
+		log.Warnf("Default container VM memory must be %d aligned for hotadd, rounding up.", MemoryAlignMB)
+		memoryMB += MemoryAlignMB - remainder
+	}
+
+	config.HostConfig.Memory = memoryMB
+	log.Infof("Container memory: %d MB", config.HostConfig.Memory)
 
 	if config.NetworkingConfig == nil {
 		config.NetworkingConfig = &dnetwork.NetworkingConfig{}

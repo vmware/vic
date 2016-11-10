@@ -99,8 +99,8 @@ func (t *Mocker) Log() (io.Writer, error) {
 	return &t.LogBuffer, nil
 }
 
-func (t *Mocker) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, error) {
-	return dio.MultiWriter(&t.SessionLogBuffer), nil
+func (t *Mocker) SessionLog(session *tether.SessionConfig) (dio.DynamicMultiWriter, dio.DynamicMultiWriter, error) {
+	return dio.MultiWriter(&t.SessionLogBuffer), dio.MultiWriter(&t.SessionLogBuffer), nil
 }
 
 func (t *Mocker) HandleSessionExit(config *tether.ExecutorConfig, session *tether.SessionConfig) func() {
@@ -217,11 +217,11 @@ func tetherTestSetup(t *testing.T) (string, *Mocker) {
 }
 
 func tetherTestTeardown(t *testing.T, mocker *Mocker) string {
+	<-mocker.Cleaned
+
 	// cleanup
 	os.RemoveAll(pathPrefix)
 	log.SetOutput(os.Stdout)
-
-	<-mocker.Cleaned
 
 	pc, _, _, _ := runtime.Caller(2)
 	name := runtime.FuncForPC(pc).Name()

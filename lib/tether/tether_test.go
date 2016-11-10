@@ -20,13 +20,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"runtime"
-	"sync"
 	"testing"
-
-	_ "net/http/pprof"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -71,16 +67,8 @@ type Mocker struct {
 	Signal    ssh.Signal
 }
 
-var once sync.Once
-
 // Start implements the extension method
 func (t *Mocker) Start() error {
-	// TODO: enabled for initial dev debugging only
-	fn := func() {
-		go http.ListenAndServe("0.0.0.0:6060", nil)
-	}
-
-	once.Do(fn)
 	return nil
 }
 
@@ -115,8 +103,8 @@ func (t *Mocker) Log() (io.Writer, error) {
 	return &t.LogBuffer, nil
 }
 
-func (t *Mocker) SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, error) {
-	return dio.MultiWriter(&t.SessionLogBuffer), nil
+func (t *Mocker) SessionLog(session *SessionConfig) (dio.DynamicMultiWriter, dio.DynamicMultiWriter, error) {
+	return dio.MultiWriter(&t.SessionLogBuffer), dio.MultiWriter(&t.SessionLogBuffer), nil
 }
 
 func (t *Mocker) HandleSessionExit(config *ExecutorConfig, session *SessionConfig) func() {

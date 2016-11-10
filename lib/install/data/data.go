@@ -64,6 +64,9 @@ type Data struct {
 
 	InsecureRegistries []url.URL
 
+	HTTPSProxy *url.URL
+	HTTPProxy  *url.URL
+
 	NumCPUs  int
 	MemoryMB int
 
@@ -116,6 +119,9 @@ type InstallerData struct {
 
 	Extension types.Extension
 	UseRP     bool
+
+	HTTPSProxy *url.URL
+	HTTPProxy  *url.URL
 }
 
 func NewData() *Data {
