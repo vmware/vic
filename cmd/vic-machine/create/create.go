@@ -15,7 +15,6 @@
 package create
 
 import (
-	"bytes"
 	"crypto/tls"
 	"encoding"
 	"fmt"
@@ -989,15 +988,6 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 	vConfig.HTTPSProxy = c.HTTPSProxy
 
 	vchConfig.InsecureRegistries = c.Data.InsecureRegistries
-
-	if validator.Session.IsVC() { // create certificates for VCH extension
-		var certbuffer, keybuffer bytes.Buffer
-		if certbuffer, keybuffer, err = certificate.CreateSelfSigned("", []string{"VMware Inc."}, 2048); err != nil {
-			return errors.Errorf("Failed to create certificate for VIC vSphere extension: %s", err)
-		}
-		vchConfig.ExtensionCert = certbuffer.String()
-		vchConfig.ExtensionKey = keybuffer.String()
-	}
 
 	// separate initial validation from dispatch of creation task
 	log.Info("")
