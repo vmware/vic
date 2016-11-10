@@ -130,6 +130,7 @@ func CreateNoDCCheck(ctx context.Context, input *data.Data) (*Validator, error) 
 	sessionconfig.Service = tURL.String()
 
 	v.Session = session.NewSession(sessionconfig)
+	v.Session.UserAgent = version.UserAgent("vic-machine")
 	v.Session, err = v.Session.Connect(v.Context)
 	if err != nil {
 		return nil, err
@@ -310,24 +311,20 @@ func (v *Validator) sessionValid(errMsg string) bool {
 func (v *Validator) target(ctx context.Context, input *data.Data, conf *config.VirtualContainerHostConfigSpec) {
 	defer trace.End(trace.Begin(""))
 
-	targetURL := input.Target.URLWithoutPassword()
-	if !v.IsVC() {
-		var err error
-		targetURL, err = url.Parse(v.Session.Service)
-		if err != nil {
-			v.NoteIssue(fmt.Errorf("Error processing target after transformation to SOAP endpoint: %q: %s", v.Session.Service, err))
-			return
-		}
-
-		// ESXi requires user/password to be encoded in the Target URL
-		// However, this gets lost when the URL is Marshaled
-		conf.UserPassword = targetURL.User.String()
-	}
-
 	// check if host is managed by VC
 	v.managedbyVC(ctx)
 
-	conf.Target = *targetURL
+	u := input.Target.URL
+
+	// Discard anything other than these URL fields for the target
+	conf.Target = (&url.URL{
+		Scheme: u.Scheme,
+		Host:   u.Host,
+		Path:   u.Path,
+	}).String()
+
+	conf.Username = u.User.Username()
+	conf.Token, _ = u.User.Password()
 	conf.TargetThumbprint = input.Thumbprint
 
 	// TODO: more checks needed here if specifying service account for VCH

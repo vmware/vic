@@ -402,7 +402,8 @@ Run Regression Tests
     # get docker_cert_path or empty string if it's unset
     ${docker_cert_path}=  Get Environment Variable  DOCKER_CERT_PATH  ${EMPTY}
     # Ensure container logs are correctly being gathered for debugging purposes
-    Run  curl -sk ${vic-admin}/authentication -XPOST -F username=%{GOVC_USERNAME} -F password=%{GOVC_PASSWORD} -D /tmp/cookies-${vch-name}
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/authentication -XPOST -F username=%{TEST_USERNAME} -F password=%{TEST_PASSWORD} -D /tmp/cookies-${vch-name}
+    Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz -b /tmp/cookies-${vch-name} | tar tvzf -
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
@@ -429,11 +430,11 @@ Run Regression Tests
     ${rc}=  Run And Return Rc  docker ${params} rm ${container2}
     Should Be Equal As Integers  ${rc}  0
 
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rmi busybox
-    #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Not Contain  ${output}  busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rmi busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  busybox
 
 Put Host Into Maintenance Mode
     ${rc}  ${output}=  Run And Return Rc And Output  govc host.maintenance.enter -host.ip=%{TEST_URL}
