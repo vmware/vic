@@ -17,7 +17,7 @@ This topic provides examples of the options of the `vic-machine create` command 
 - [Authorize Access to an Insecure Private Registry Server](#registry)
 - [Configure a Proxy Server](#proxy)
 
-For simplicity, unless stated otherwise, these examples assume that the vSphere environment uses trusted certificates signed by a known Certificate Authority (CA), so the `--thumbprint` option is not specified.
+For simplicity, unless stated otherwise, these examples assume that the vSphere environment uses trusted certificates signed by a known Certificate Authority (CA), so the `--thumbprint` option is not specified. Similarly, all examples that do not relate explicitly to certificate use specify the `--tls-noverify` option.
 
 For detailed descriptions of all of the `vic-machine create` options, see [Virtual Container Host Deployment Options](vch_installer_options.md).
 
@@ -47,7 +47,6 @@ This example deploys a virtual container host with the following configuration:
 - Deploys a virtual container host named `vch1` to the cluster `cluster1` in datacenter `dc1`. 
 - Uses a distributed port group named `vic-bridge` for the bridge network. 
 - Designates `datastore1` as the datastore in which to store container images, the files for the virtual container host appliance, and container VMs. 
-- Uses the `--no-tlsverify` option to implement TLS authentication with self-signed untrusted certificates, with no client verification.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
@@ -74,7 +73,6 @@ This example deploys a virtual container host with the following configuration:
 - Directs external, management, and Docker API traffic to network 1, network 2, and network 3 respectively. Note that the network names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
 - Designates a distributed port group named `vic-containers` for use by container VMs that are run with the `--net` option.
 - Gives the container network the name `vic-container-network`, for use by Docker.  
-- Uses the `--no-tlsverify` option to implement TLS authentication with self-signed untrusted certificates, with no client verification.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
@@ -103,7 +101,6 @@ This example deploys a virtual container host with the following configuration:
 - Designates a distributed port group named `vic-containers` for use by container VMs that are run with the `--net` option.
 - Gives the container network the name `vic-container-network`, for use by Docker. 
 - Specifies the gateway, two DNS servers, and a range of IP addresses on the container network for container VMs to use.
-- Uses the `--no-tlsverify` option to implement TLS authentication with self-signed untrusted certificates, with no client verification.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
@@ -151,7 +148,6 @@ This example deploys a virtual container host with the following configuration:
 --client-network-ip 192.168.3.10/24
 --dns-server <i>dns_server_address</i>
 --name vch1
---no-tlsverify
 </pre>
 
 For more information about the networking options, see the [Options for Specifying a Static IP Address for the Virtual Container Host Endpoint VM](vch_installer_options.md#static-ip) in Virtual Container Host Deployment Options.
@@ -169,7 +165,6 @@ This example deploys a virtual container host with the following configuration:
 - Specifies the `volumes` folder on `datastore 1` as the default volume store. Creating a volume store named `default` allows container application developers to create anonymous or named volumes by using `docker create -v`. 
 - Specifies a second volume store named `volume_store_2` in the `volumes` folder on `datastore 2`. 
 - Note that the datastore names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
-- Uses the `--no-tlsverify` option to implement TLS authentication with self-signed untrusted certificates, with no client verification.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
@@ -193,7 +188,6 @@ This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, image store, bridge network, and name for the virtual container host.
 - Deploys the virtual container host on the ESXi host with the FQDN `esxihost1.organization.company.com` in the datacenter `dc1`. You can also specify an IP address.
-- Uses the `--no-tlsverify` option to implement TLS authentication with self-signed untrusted certificates, with no client verification.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
@@ -213,7 +207,6 @@ This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name and password, and a name for the virtual container host.
 - Designates `rp 1` as the resource pool in which to place the virtual container host. Note that the resource pool name is wrapped in quotes, because it contains a space. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
-- Uses the `--no-tlsverify` option to implement TLS authentication with self-signed untrusted certificates, with no client verification.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target root:<i>password</i>@<i>esxi_host_address</i>
@@ -231,7 +224,6 @@ This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, datacenter, image store, bridge network, and name for the virtual container host.
 - Designates `rp 1` in cluster `cluster 1` as the resource pool in which to place the virtual container host. Note that the resource pool and cluster names are wrapped in quotes, because they contain spaces. Use single quotes if you are using `vic-machine` on a Linux or Mac OS system and double quotes on a Windows system.
-- Uses the `--no-tlsverify` option to implement TLS authentication with self-signed untrusted certificates, with no client verification.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
@@ -296,7 +288,6 @@ This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, image store, cluster, bridge network, and name for the virtual container host.
 - Sets resource limits on the virtual container host by imposing memory and CPU reservations, limits, and shares.
-- Uses the `--no-tlsverify` option to implement TLS authentication with self-signed untrusted certificates, with no client verification.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
@@ -325,7 +316,6 @@ This example deploys a virtual container host with the following configuration:
 - Specifies the user name, password, image store, cluster, bridge network, and name for the virtual container host.
 - Authorizes the virtual container host to pull Docker images from the insecure private registry servers located at the URLs <i>registry_URL_1</i> and <i>registry_URL_2</i>.
 - The registry server at <i>registry_URL_2</i> listens for connections on port 5000. 
-- Uses the `--no-tlsverify` option to implement TLS authentication with self-signed untrusted certificates, with no client verification.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
@@ -345,13 +335,12 @@ For more information about configuring virtual container hosts to connect to ins
 <a name="proxy"></a>
 ## Configure a Proxy Server ##
 
-If your network access is controlled by a proxy server, you must   configure a virtual container host to connect to the proxy server when you deploy it.
+If your network access is controlled by a proxy server, you must   configure a virtual container host to connect to the proxy server when you deploy it, so that it can pull images from external sources.
 
 This example deploys a virtual container host with the following configuration:
 
 - Specifies the user name, password, image store, cluster, bridge network, and name for the virtual container host.
 - Configures the virtual container host to access the network via an HTTPS proxy server.
-- Uses the `--no-tlsverify` option to implement TLS authentication with self-signed untrusted certificates, with no client verification.
 
 <pre>vic-machine<i>-darwin</i><i>-linux</i><i>-windows</i> create
 --target 'Administrator@vsphere.local':<i>password</i>@<i>vcenter_server_address</i>/dc1
