@@ -32,6 +32,8 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 )
 
+const ManagementNetworkName string = "management"
+
 type FirewallStatus struct {
 	Rule                          types.HostFirewallRule
 	MisconfiguredEnabled          []string
@@ -84,6 +86,7 @@ func (v *Validator) CheckFirewall(ctx context.Context, conf *config.VirtualConta
 	defer trace.End(trace.Begin(""))
 
 	mgmtIP := v.GetMgmtIP(conf)
+	log.Debugf("Checking firewall with management network IP %s", mgmtIP)
 	fwStatus := v.CheckFirewallForTether(ctx, mgmtIP)
 
 	// log the results
@@ -124,6 +127,9 @@ func (v *Validator) CheckFirewallForTether(ctx context.Context, mgmtIP net.IPNet
 		}
 
 		mgmtAllowed, err := v.ManagementNetAllowed(ctx, mgmtIP, host, requiredRule)
+		if mgmtAllowed && err == nil {
+			status.Correct = append(status.Correct, host.InventoryPath)
+		}
 		if err != nil {
 			switch err.(type) {
 			case *FirewallMisconfiguredError:
@@ -157,9 +163,6 @@ func (v *Validator) CheckFirewallForTether(ctx context.Context, mgmtIP net.IPNet
 				v.NoteIssue(err)
 			}
 			continue
-		}
-		if mgmtAllowed {
-			status.Correct = append(status.Correct, host.InventoryPath)
 		}
 	}
 
@@ -271,13 +274,12 @@ func (v *Validator) FirewallEnabled(host *object.HostSystem) (bool, error) {
 func (v *Validator) GetMgmtIP(conf *config.VirtualContainerHostConfigSpec) net.IPNet {
 	var mgmtIP net.IPNet
 	if conf != nil {
-		for _, n := range conf.ExecutorConfig.Networks {
-			if n.Network.Common.Name == "management" {
-				if n.IP != nil {
-					mgmtIP = *n.IP
-					return mgmtIP
-				}
+		n := conf.ExecutorConfig.Networks[ManagementNetworkName]
+		if n != nil && n.Network.Common.Name == ManagementNetworkName {
+			if n.IP != nil {
+				mgmtIP = *n.IP
 			}
+			return mgmtIP
 		}
 	}
 	return mgmtIP
@@ -322,6 +324,7 @@ func (v *Validator) ManagementNetAllowed(ctx context.Context, mgmtIP net.IPNet,
 			allowedNets = append(allowedNets, s)
 		}
 	}
+
 	if mgmtIP.IP == nil { // DHCP
 		if len(allowedIPs) > 0 || len(allowedNets) > 0 {
 			return false, &FirewallUnknownDHCPAllowedIPError{AllowedIPs: append(allowedNets, allowedIPs...),

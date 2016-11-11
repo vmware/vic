@@ -66,13 +66,7 @@ const (
 func GetMgmtIP() net.IPNet {
 	var mgmtIP net.IPNet
 	// management alias may not be present, try others if not found
-	link := LinkByNameOrAlias("management")
-	if link == nil {
-		link = LinkByNameOrAlias("external")
-	}
-	if link == nil {
-		link = LinkByNameOrAlias("client")
-	}
+	link := LinkByOneOfNameOrAlias(validate.ManagementNetworkName, "external", "client")
 	if link == nil {
 		log.Error("unable to find any interfaces when searching for mgmt IP")
 		return mgmtIP
@@ -93,15 +87,16 @@ func GetMgmtIP() net.IPNet {
 	return *addrs[0].IPNet
 }
 
-func LinkByNameOrAlias(name string) netlink.Link {
-	l, err := netlink.LinkByName(name)
-	if l == nil {
-		l, err = netlink.LinkByAlias(name)
-		if err != nil {
-			log.Errorf("interface %s not found", name)
+func LinkByOneOfNameOrAlias(name ...string) netlink.Link {
+	for _, n := range name {
+		if l, _ := netlink.LinkByName(n); l != nil {
+			return l
+		}
+		if l, _ := netlink.LinkByAlias(n); l != nil {
+			return l
 		}
 	}
-	return l
+	return nil
 }
 
 func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) *Validator {
