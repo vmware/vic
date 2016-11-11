@@ -946,7 +946,7 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		return err
 	}
 
-        log.Infof("Supplied install parameters: %s", c.Data);
+        log.Infof("Supplied install parameters: %s", c.Data)
 
 	var images map[string]string
 	if images, err = c.CheckImagesFiles(c.Force); err != nil {
