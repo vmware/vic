@@ -15,7 +15,7 @@
 package main
 
 import (
-	"archive/tar"
+	"archive/zip"
 	"compress/gzip"
 	"crypto/tls"
 	"flag"
@@ -101,7 +101,7 @@ func testLogTar(t *testing.T, plainHTTP bool) {
 	defer s.stop()
 
 	var res *http.Response
-	res, err = insecureClient.Get(fmt.Sprintf("https://root:thisisinsecure@localhost:%d/container-logs.tar.gz", port))
+	res, err = insecureClient.Get(fmt.Sprintf("https://root:thisisinsecure@localhost:%d/container-logs.zip", port))
 	if err != nil {
 		t.Fatal(err)
 	}
