@@ -95,7 +95,6 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 	}
 
 	// if we're stopping the VM, do so before the reconfigure to preserve the extraconfig
-	refresh := true
 	if h.TargetState() == StateStopped {
 		if h.Runtime == nil {
 			log.Warnf("Commit called with incomplete runtime state for %s", h.ExecConfig.ID)
@@ -123,8 +122,6 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 			}
 			h.Runtime = base.Runtime
 			h.Config = base.Config
-
-			refresh = false
 		}
 	}
 
@@ -138,45 +135,34 @@ func Commit(ctx context.Context, sess *session.Session, h *Handle, waitTime *int
 			// NOTE: this inline refresh can be removed when switching away from guestinfo where we have non-persistence issues
 			// when updating ExtraConfig via the API with a powered on VM - we therefore have to be absolutely certain about the
 			// power state to decide if we can continue without nilifying extraconfig
+			s := h.Spec.Spec()
 
-			for s := h.Spec.Spec(); ; refresh, s = true, h.Spec.Spec() {
-				// FIXME!!! this is a temporary hack until the concurrent modification retry logic is in place
-				if refresh {
-					base, err := h.updates(ctx)
-					if err == nil {
-						h.Runtime = base.Runtime
-						h.Config = base.Config
+			// poor man's test and set
+			s.ChangeVersion = h.Config.ChangeVersion
+			log.Debugf("ChangeVersion is %s", s.ChangeVersion)
+
+			// nilify ExtraConfig if vm is running
+			if h.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
+				log.Debugf("Nilifying ExtraConfig as we are running")
+				s.ExtraConfig = nil
+			}
+
+			_, err := h.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
+				return h.vm.Reconfigure(ctx, *s)
+			})
+			if err != nil {
+				log.Errorf("Reconfigure failed with %#+v", err)
+
+				// Check whether we get ConcurrentAccess and wrap it if needed
+				if f, ok := err.(types.HasFault); ok {
+					switch f.Fault().(type) {
+					case *types.ConcurrentAccess:
+						log.Errorf("We have ConcurrentAccess for version %s", s.ChangeVersion)
+
+						return ConcurrentAccessError{err}
 					}
 				}
-
-				s.ChangeVersion = h.Config.ChangeVersion
-
-				// nilify ExtraConfig if vm is running
-				if h.Runtime.PowerState == types.VirtualMachinePowerStatePoweredOn {
-					log.Errorf("Nilifying ExtraConfig as we are running")
-					s.ExtraConfig = nil
-				}
-
-				_, err := h.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-					return h.vm.Reconfigure(ctx, *s)
-				})
-				if err != nil {
-					log.Errorf("Reconfigure failed with %#+v", err)
-
-					// Check whether we get ConcurrentAccess and wrap it if needed
-					if f, ok := err.(types.HasFault); ok {
-						switch f.Fault().(type) {
-						case *types.ConcurrentAccess:
-							log.Errorf("We have ConcurrentAccess for version %s", s.ChangeVersion)
-
-							continue
-							// return ConcurrentAccessError{err}
-						}
-					}
-					return err
-				}
-
-				break
+				return err
 			}
 		}
 	}
