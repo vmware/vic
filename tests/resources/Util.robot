@@ -430,11 +430,11 @@ Run Regression Tests
     ${rc}=  Run And Return Rc  docker ${params} rm ${container2}
     Should Be Equal As Integers  ${rc}  0
 
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rmi busybox
-    #Should Be Equal As Integers  ${rc}  0
-    #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
-    #Should Be Equal As Integers  ${rc}  0
-    #Should Not Contain  ${output}  busybox
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rmi busybox
+    Should Be Equal As Integers  ${rc}  0
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} images
+    Should Be Equal As Integers  ${rc}  0
+    Should Not Contain  ${output}  busybox
 
 Put Host Into Maintenance Mode
     ${rc}  ${output}=  Run And Return Rc And Output  govc host.maintenance.enter -host.ip=%{TEST_URL}
