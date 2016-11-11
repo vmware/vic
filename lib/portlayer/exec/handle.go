@@ -24,9 +24,10 @@ import (
 	"sync"
 	"time"
 
+	"context"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/golang/groupcache/lru"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"

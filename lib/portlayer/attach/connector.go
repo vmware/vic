@@ -15,6 +15,7 @@
 package attach
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -28,7 +29,6 @@ import (
 	"github.com/vmware/vic/pkg/trace"
 
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/context"
 )
 
 // Connection represents a communication channel initiated by the client TO the
@@ -168,6 +168,8 @@ func (c *Connector) processIncoming(conn net.Conn) {
 		// 2 or more bytes it will just wait, so client should timeout.
 		// However, if timeout is too short, client will flood server with Syn requests.
 		ctx, cancel := context.WithTimeout(context.TODO(), time.Second)
+		defer cancel()
+
 		deadline, ok := ctx.Deadline()
 		if ok {
 			conn.SetReadDeadline(deadline)

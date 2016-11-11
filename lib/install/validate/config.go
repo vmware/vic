@@ -18,8 +18,9 @@ import (
 	"fmt"
 	"net"
 
+	"context"
+
 	log "github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/govc/host/esxcli"
 	"github.com/vmware/govmomi/license"

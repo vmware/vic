@@ -25,7 +25,7 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/cenkalti/backoff"

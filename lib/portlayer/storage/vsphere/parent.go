@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/datastore"
 )

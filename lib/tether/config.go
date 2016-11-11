@@ -15,6 +15,7 @@
 package tether
 
 import (
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -82,6 +83,8 @@ type SessionConfig struct {
 	// Allow attach
 	Attach bool `vic:"0.1" scope:"read-only" key:"attach"`
 
+	OpenStdin bool `vic:"0.1" scope:"read-only" key:"openstdin"`
+
 	// Delay launching the Cmd until an attach request comes
 	RunBlock bool `vic:"0.1" scope:"read-only" key:"runblock"`
 
@@ -103,6 +106,10 @@ type SessionConfig struct {
 	Outwriter dio.DynamicMultiWriter `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	Errwriter dio.DynamicMultiWriter `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 	Reader    dio.DynamicMultiReader `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+
+	StdinPipe  io.WriteCloser `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	StdoutPipe io.ReadCloser  `vic:"0.1" scope:"read-only" recurse:"depth=0"`
+	StderrPipe io.ReadCloser  `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 
 	wait *sync.WaitGroup `vic:"0.1" scope:"read-only" recurse:"depth=0"`
 

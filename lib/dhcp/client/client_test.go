@@ -21,6 +21,7 @@ import (
 	"github.com/d2g/dhcp4"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+
 	"github.com/vmware/vic/lib/system"
 )
 

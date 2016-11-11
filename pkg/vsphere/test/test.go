@@ -26,7 +26,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/test/env"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // Session returns a session.Session struct

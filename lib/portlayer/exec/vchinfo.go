@@ -15,7 +15,7 @@
 package exec
 
 import (
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"

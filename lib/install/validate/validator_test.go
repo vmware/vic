@@ -31,7 +31,7 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/session"
 	"github.com/vmware/vic/pkg/vsphere/simulator"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 type TestValidator struct {

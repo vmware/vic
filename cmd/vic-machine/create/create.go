@@ -31,6 +31,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
+
 	"github.com/vmware/vic/lib/install/data"
 	"github.com/vmware/vic/lib/install/management"
 	"github.com/vmware/vic/lib/install/validate"

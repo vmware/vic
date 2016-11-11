@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"golang.org/x/net/context"
+	"context"
 
 	log "github.com/Sirupsen/logrus"
 

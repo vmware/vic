@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/vic/pkg/vsphere/simulator"

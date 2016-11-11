@@ -21,7 +21,7 @@ import (
 	"net/http"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -45,6 +45,10 @@ type InteractionHandlersImpl struct {
 const (
 	interactionTimeout    time.Duration = 30 * time.Second
 	attachStdinInitString               = "v1c#>"
+
+	// in sync with lib/tether/tether_linux.go
+	// 115200 bps is 14.4 KB/s so use that
+	ioCopyBufferSize = 14 * 1024
 )
 
 func (i *InteractionHandlersImpl) Configure(api *operations.PortLayerAPI, _ *HandlerContext) {
@@ -208,9 +212,20 @@ func (i *InteractionHandlersImpl) ContainerSetStdinHandler(params interaction.Co
 	detachableIn := NewFlushingReaderWithInitBytes(params.RawStream, []byte(attachStdinInitString))
 	_, err = io.Copy(session.Stdin(), detachableIn)
 	if err != nil {
-		log.Errorf("%s", err.Error())
+		log.Errorf("Copy@ContainerSetStdinHandler returned %s", err.Error())
+		/*
+			// FIXME(caglar10ur): need a way to differentiate detach from pipe
+			// Close the stdin if we get an EOF in the middle of the stream
+			if err == io.ErrUnexpectedEOF {
+				if err = session.CloseStdin(); err != nil {
+					log.Errorf("CloseStdin@ContainerSetStdinHandler failed with %s", err.Error())
+				} else {
+					log.Infof("CloseStdin@ContainerSetStdinHandler succeded")
+				}
+			}
+		*/
 
-		// FIXME (caglar10ur): Do not return an error here - https://github.com/vmware/vic/issues/2594
+		// FIXME(caglar10ur): Do not return an error here - https://github.com/vmware/vic/issues/2594
 		/*
 			e := &models.Error{
 				Message: fmt.Sprintf("Error copying stdin (id: %s): %s", params.ID, err.Error()),
@@ -419,7 +434,7 @@ func (d *FlushingReader) readDetectInit(buf []byte) (int, error) {
 // screen doesn't reach the docker engine api server.  The flush solves that
 // issue.
 func (d *FlushingReader) WriteTo(w io.Writer) (written int64, err error) {
-	buf := make([]byte, 64)
+	buf := make([]byte, ioCopyBufferSize)
 
 	nr, er := d.readDetectInit(buf)
 	for {
@@ -478,8 +493,8 @@ func (c *ContainerOutputHandler) WriteResponse(rw http.ResponseWriter, producer 
 		f.Flush()
 		c.outputStream.AddFlusher(f)
 	}
-	_, err := io.Copy(rw, c.outputStream)
 
+	_, err := io.Copy(rw, c.outputStream)
 	if err != nil {
 		log.Debugf("Error copying %s stream for container %s: %s", c.outputName, c.containerID, err)
 	} else {

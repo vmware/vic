@@ -17,7 +17,7 @@ package exec
 import (
 	"sync"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/session"

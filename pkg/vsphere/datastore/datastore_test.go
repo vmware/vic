@@ -22,8 +22,9 @@ import (
 	"testing"
 	"time"
 
+	"context"
+
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
 )
 
 // test if we can get a Datastore via the rooturl

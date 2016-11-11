@@ -28,9 +28,10 @@ import (
 	"sync"
 	"time"
 
+	"context"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/hpcloud/tail"
-	"golang.org/x/net/context"
 
 	"path/filepath"
 

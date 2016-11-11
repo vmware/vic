@@ -23,8 +23,9 @@ import (
 	"github.com/vmware/vic/lib/apiservers/portlayer/models"
 	"github.com/vmware/vic/pkg/trace"
 
+	"context"
+
 	log "github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 const (

@@ -17,7 +17,7 @@ package imagec
 import (
 	"io"
 
-	"golang.org/x/net/context"
+	"context"
 
 	log "github.com/Sirupsen/logrus"
 

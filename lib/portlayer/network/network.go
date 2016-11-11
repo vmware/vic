@@ -15,6 +15,7 @@
 package network
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -32,7 +33,6 @@ import (
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
-	"golang.org/x/net/context"
 )
 
 var (

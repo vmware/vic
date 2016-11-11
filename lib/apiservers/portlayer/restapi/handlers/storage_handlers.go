@@ -35,7 +35,7 @@ import (
 	vsphereSpl "github.com/vmware/vic/lib/portlayer/storage/vsphere"
 	"github.com/vmware/vic/lib/portlayer/util"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // StorageHandlersImpl is the receiver for all of the storage handler methods

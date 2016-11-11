@@ -19,7 +19,7 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/pkg/vsphere/session"

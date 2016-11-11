@@ -29,9 +29,10 @@ import (
 	"sync"
 	"testing"
 
+	"context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"

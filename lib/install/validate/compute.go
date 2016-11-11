@@ -21,8 +21,9 @@ import (
 	"sort"
 	"strings"
 
+	"context"
+
 	log "github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"

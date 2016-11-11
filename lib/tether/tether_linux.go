@@ -22,7 +22,6 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"strings"
-	"sync"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
@@ -35,6 +34,10 @@ const (
 	//https://github.com/golang/go/blob/master/src/syscall/zerrors_linux_arm64.go#L919
 	SetChildSubreaper = 0x24
 	pidFilePath       = "var/run"
+
+	// in sync with lib/apiservers/portlayer/handlers/interaction_handler.go
+	// 115200 bps is 14.4 KB/s so use that
+	ioCopyBufferSize = 14 * 1024
 )
 
 // Mkdev will hopefully get rolled into go.sys at some point
@@ -117,9 +120,9 @@ func (t *tether) childReaper() error {
 					if ok {
 						session.Lock()
 						session.ExitStatus = status.ExitStatus()
-						session.Unlock()
 
 						t.handleSessionExit(session)
+						session.Unlock()
 					} else {
 						// This is an adopted zombie. The Wait4 call already clean it up from the kernel
 						log.Warnf("Reaped zombie process PID %d", pid)
@@ -213,29 +216,104 @@ func lookPath(file string, env []string, dir string) (string, error) {
 func establishPty(session *SessionConfig) error {
 	defer trace.End(trace.Begin("initializing pty handling for session " + session.ID))
 
-	// TODO: if we want to allow raw output to the log so that subsequent tty enabled
-	// processing receives the control characters then we should be binding the PTY
-	// during attach, and using the same path we have for non-tty here
-	session.wait = &sync.WaitGroup{}
-
 	var err error
 	session.Pty, err = pty.Start(&session.Cmd)
-	if session.Pty != nil {
-		session.wait.Add(1)
+	if err != nil {
+		return err
+	}
 
-		// TODO: do we need to ensure all reads have completed before calling Wait on the process?
-		// it frees up all resources - does that mean it frees the output buffers?
-		go func() {
-			_, gerr := io.Copy(session.Outwriter, session.Pty)
-			log.Debugf("PTY stdout copy: %s", gerr)
+	session.wait.Add(1)
+	go func() {
+		_, gerr := io.CopyBuffer(session.Outwriter, session.Pty, make([]byte, ioCopyBufferSize))
+		log.Debugf("PTY stdout copy: %s", gerr)
 
-			session.wait.Done()
-		}()
+		session.wait.Done()
+	}()
+
+	go func() {
+		_, gerr := io.CopyBuffer(session.Pty, session.Reader, make([]byte, ioCopyBufferSize))
+		log.Debugf("PTY stdin copy: %s", gerr)
+	}()
+
+	return nil
+}
+
+func establishNonPty(session *SessionConfig) error {
+	defer trace.End(trace.Begin("initializing nonpty handling for session " + session.ID))
+	var err error
+
+	if session.OpenStdin {
+		log.Debugf("Setting StdinPipe")
+		if session.StdinPipe, err = session.Cmd.StdinPipe(); err != nil {
+			log.Errorf("StdinPipe failed with %s", err)
+			return err
+		}
+	}
+
+	log.Debugf("Setting StdoutPipe")
+	if session.StdoutPipe, err = session.Cmd.StdoutPipe(); err != nil {
+		log.Errorf("Setting StdoutPipe failed with %s", err)
+		return err
+	}
+
+	log.Debugf("Setting StderrPipe")
+	if session.StderrPipe, err = session.Cmd.StderrPipe(); err != nil {
+		log.Errorf("Setting StderrPipe failed with %s", err)
+		return err
+	}
+
+	if session.OpenStdin {
 		go func() {
-			_, gerr := io.Copy(session.Pty, session.Reader)
-			log.Debugf("PTY stdin copy: %s", gerr)
+			_, gerr := io.CopyBuffer(session.StdinPipe, session.Reader, make([]byte, ioCopyBufferSize))
+			log.Debugf("Reader stdin returned: %s", gerr)
+
+			if gerr == nil {
+				if cerr := session.StdinPipe.Close(); cerr != nil {
+					log.Errorf("(stdin): Close StdinPipe failed with %s", cerr)
+				}
+			}
 		}()
 	}
 
-	return err
+	// Add 2 for Std{out|err}
+	session.wait.Add(2)
+	go func() {
+		_, gerr := io.CopyBuffer(session.Outwriter, session.StdoutPipe, make([]byte, ioCopyBufferSize))
+		log.Debugf("Writer goroutine for stdout returned: %s", gerr)
+
+		if session.StdinPipe != nil {
+			log.Debugf("(stdout): Writing zero byte to stdin pipe")
+			n, werr := session.StdinPipe.Write([]byte{})
+			if n == 0 && werr != nil && werr.Error() == "write |1: bad file descriptor" {
+				log.Debugf("(stdout): Closing stdin pipe")
+				if cerr := session.StdinPipe.Close(); cerr != nil {
+					log.Errorf("Close failed with %s", cerr)
+				}
+			}
+		}
+		log.Debugf("Writer goroutine for stdout exiting")
+
+		session.wait.Done()
+	}()
+
+	go func() {
+		_, gerr := io.CopyBuffer(session.Errwriter, session.StderrPipe, make([]byte, ioCopyBufferSize))
+		log.Debugf("Writer goroutine for stderr returned: %s", gerr)
+
+		if session.StdinPipe != nil {
+			log.Debugf("(stderr): Writing zero byte to stdin pipe")
+			n, werr := session.StdinPipe.Write([]byte{})
+			if n == 0 && werr != nil && werr.Error() == "write |1: bad file descriptor" {
+				log.Debugf("(stderr): Closing stdin pipe")
+				if cerr := session.StdinPipe.Close(); cerr != nil {
+					log.Errorf("Close failed with %s", cerr)
+				}
+			}
+		}
+		log.Debugf("Writer goroutine for stderr exiting")
+
+		session.wait.Done()
+	}()
+
+	return session.Cmd.Start()
 }

@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"testing"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"

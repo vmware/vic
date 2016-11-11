@@ -20,8 +20,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"context"
+
 	"github.com/urfave/cli"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/vic/cmd/vic-machine/common"
 	"github.com/vmware/vic/lib/install/plugin"

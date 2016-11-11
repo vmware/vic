@@ -17,7 +17,7 @@ package spec
 import (
 	"fmt"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
