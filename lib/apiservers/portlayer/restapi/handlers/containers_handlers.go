@@ -147,7 +147,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 
 // StateChangeHandler changes the state of a container
 func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.StateChangeParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), "handle(%s)", params.Handle)
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("handle(%s)", params.Handle))
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {
@@ -171,7 +171,7 @@ func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.Stat
 }
 
 func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStateParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), "handle(%s)", params.Handle)
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("handle(%s)", params.Handle))
 
 	// NOTE: I've no idea why GetStateHandler takes a handle instead of an ID - hopefully there was a reason for an inspection
 	// operation to take this path
@@ -204,9 +204,9 @@ func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStat
 }
 
 func (handler *ContainersHandlersImpl) GetHandler(params containers.GetParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), "container(%s)", params.ID)
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("container(%s)", params.ID))
 
-	h := exec.GetContainer(context.Background(), uid.Parse(params.ID))
+	h := exec.GetContainer(op, uid.Parse(params.ID))
 	if h == nil {
 		return containers.NewGetNotFound().WithPayload(&models.Error{Message: fmt.Sprintf("container %s not found", params.ID)})
 	}
@@ -215,7 +215,7 @@ func (handler *ContainersHandlersImpl) GetHandler(params containers.GetParams) m
 }
 
 func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), "handle(%s)", params.Handle)
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("handle(%s)", params.Handle))
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {
@@ -236,7 +236,7 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 }
 
 func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.ContainerRemoveParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), "container(%s)", params.ID)
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("container(%s)", params.ID))
 
 	// get the indicated container for removal
 	cID := uid.Parse(params.ID)
@@ -251,7 +251,7 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 	}
 
 	// NOTE: this should allowing batching of operations, as with Create, Start, Stop, et al
-	err := container.Remove(context.Background(), handler.handlerCtx.Session)
+	err := container.Remove(op, handler.handlerCtx.Session)
 	if err != nil {
 		switch err := err.(type) {
 		case exec.NotFoundError:
@@ -267,7 +267,7 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 }
 
 func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers.GetContainerInfoParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), "container(%s)", params.ID)
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("container(%s)", params.ID))
 
 	container := exec.Containers.Container(params.ID)
 	if container == nil {
@@ -283,7 +283,7 @@ func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers
 }
 
 func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers.GetContainerListParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), "containerList(%s)", params.All)
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("containerList(%s)", params.ID))
 
 	var state *exec.State
 	if params.All != nil && !*params.All {
@@ -303,7 +303,7 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 }
 
 func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.ContainerSignalParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), "container(%s)", params.ID)
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("container(%s)", params.ID))
 
 	// NOTE: I feel that this should be in a Commit path for consistency
 	// it would allow phrasings such as:
@@ -324,7 +324,7 @@ func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.
 }
 
 func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers.GetContainerLogsParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), "container(%s)", params.ID)
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("container(%s)", params.ID))
 
 	container := exec.Containers.Container(params.ID)
 	if container == nil {
@@ -344,7 +344,7 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 		tail = int(*params.Taillines)
 	}
 
-	reader, err := container.LogReader(op.Context, tail, follow)
+	reader, err := container.LogReader(op, tail, follow)
 	if err != nil {
 		return containers.NewGetContainerLogsInternalServerError().WithPayload(&models.Error{Message: err.Error()})
 	}
@@ -355,7 +355,7 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 }
 
 func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.ContainerWaitParams) middleware.Responder {
-	op := trace.NewOperation(context.Background(), "%s:%d", params.ID, params.Timeout)
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("%s:%d", params.ID, params.Timeout))
 
 	// default context timeout in seconds
 	defaultTimeout := int64(containerWaitTimeout.Seconds())
@@ -367,7 +367,7 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 
 	timeout := time.Duration(defaultTimeout) * time.Second
 
-	ctx, cancel := context.WithTimeout(op.Context, timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	c := exec.Containers.Container(uid.Parse(params.ID).String())
@@ -381,7 +381,6 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 	case <-c.WaitForState(exec.StateStopped):
 		c.Refresh(op.Context)
 		containerInfo := convertContainerToContainerInfo(c.Info())
-
 		return containers.NewContainerWaitOK().WithPayload(containerInfo)
 	case <-ctx.Done():
 		return containers.NewContainerWaitInternalServerError().WithPayload(&models.Error{
