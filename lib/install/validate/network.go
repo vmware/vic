@@ -69,7 +69,6 @@ func (v *Validator) getEndpoint(ctx context.Context, conf *config.VirtualContain
 	if staticIP != nil {
 		e.Static = true
 	}
-	log.Debugf("NetworkEndpoint: %v", e)
 
 	return e, nil
 }
