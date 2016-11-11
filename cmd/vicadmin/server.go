@@ -373,8 +373,6 @@ func (s *server) serve() error {
 		Handler: s.mux,
 	}
 
-	defaultReaders = configureReaders()
-
 	return server.Serve(s.l)
 }
 
@@ -406,7 +404,7 @@ func (s *server) logoutHandler(res http.ResponseWriter, req *http.Request) {
 func (s *server) bundleContainerLogs(res http.ResponseWriter, req *http.Request, f format) {
 	defer trace.End(trace.Begin(""))
 
-	readers := defaultReaders
+	readers := configureReaders()
 	c, err := s.getSessionFromRequest(req)
 	if err != nil {
 		log.Errorf("Failed to get vSphere session while bundling container logs due to error: %s", err.Error())
@@ -441,12 +439,12 @@ func (s *server) bundleContainerLogs(res http.ResponseWriter, req *http.Request,
 func (s *server) tarDefaultLogs(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 
-	s.bundleLogs(res, req, defaultReaders, formatTGZ)
+	s.bundleLogs(res, req, configureReaders(), formatTGZ)
 }
 func (s *server) zipDefaultLogs(res http.ResponseWriter, req *http.Request) {
 	defer trace.End(trace.Begin(""))
 
-	s.bundleLogs(res, req, defaultReaders, formatZip)
+	s.bundleLogs(res, req, configureReaders(), formatZip)
 }
 
 func (s *server) bundleLogs(res http.ResponseWriter, req *http.Request, readers map[string]entryReader, f format) {
