@@ -29,6 +29,8 @@ import (
 	"github.com/vmware/vic/lib/portlayer/event"
 	"github.com/vmware/vic/lib/portlayer/event/collector/vsphere"
 	"github.com/vmware/vic/lib/portlayer/event/events"
+	"github.com/vmware/vic/pkg/backoff"
+	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -39,6 +41,15 @@ var (
 		once sync.Once
 	}
 )
+
+// ConcurrentAccessError is returned when concurrent calls tries to modify same object
+type retryError struct {
+	err error
+}
+
+func (r retryError) Error() string {
+	return r.err.Error()
+}
 
 func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSource, _ extraconfig.DataSink) error {
 	initializer.once.Do(func() {
@@ -102,7 +113,8 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 		Config.EventManager.Subscribe(events.NewEventType(vsphere.VMEvent{}).Topic(), "registeredVMEvent", func(ie events.Event) {
 			registeredVMCallback(sess, ie)
 		})
-
+		// subscribe callbak to add container stopTime if not set by tether
+		Config.EventManager.Subscribe(events.NewEventType(events.ContainerEvent{}).Topic(), "stopTime", stopTimeCallback)
 		// instantiate the container cache now
 		NewContainerCache()
 
@@ -168,6 +180,67 @@ func eventCallback(ie events.Event) {
 			}
 		}
 	}
+	return
+}
+
+func stopTimeCallback(ie events.Event) {
+	switch ie.String() {
+	case events.ContainerPoweredOff:
+		// update container state if stoptime is not set by tether
+		ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
+		defer cancel()
+
+		operation := func() error {
+			log.Debugf("Updating container(%s) stopTime", ie.Reference())
+			h := GetContainer(ctx, uid.Parse(ie.Reference()))
+			if h == nil {
+				log.Errorf("Failed to get handle of container(%s), stop retry", ie.Reference())
+				return nil
+			}
+			defer h.Close()
+
+			if h.vm == nil {
+				log.Errorf("Event update failed for container(%s) for vm is not found", h.ExecConfig.ID)
+				return nil
+			}
+
+			var update bool
+			if h.ExecConfig == nil {
+				return &retryError{fmt.Errorf("Failed to get container(%s) configuration, retry later", h.ExecConfig.ID)}
+			}
+			if h.Runtime.PowerState != types.VirtualMachinePowerStatePoweredOff {
+				log.Debugf("container(%s) power state is changed to %s, stop configuration updating for powered off event", h.ExecConfig.ID, h.Runtime.PowerState)
+				return nil
+			}
+			for _, sc := range h.ExecConfig.Sessions {
+				if sc.StopTime == 0 {
+					sc.StopTime = time.Now().UTC().Unix()
+					log.Debugf("Container(%s) session %s stop time is set to %s", h.ExecConfig.ID, sc.ID, time.Unix(sc.StopTime, 0))
+					update = true
+				}
+			}
+			if !update {
+				log.Debugf("No need to update container(%s) configuration", h.ExecConfig.ID)
+				return nil
+			}
+			log.Debugf("commit container(%s)", h.ExecConfig.ID)
+			// set waittime to 0 for vm is already stopped, no need to wait again
+			return h.Commit(ctx, h.vm.Session, new(int32))
+		}
+		retryOnError := func(err error) bool {
+			switch err.(type) {
+			case ConcurrentAccessError, retryError:
+				log.Debugf("Retry container commit")
+				return true
+			default:
+				return false
+			}
+		}
+		if err := backoff.Retry(operation, retryOnError); err != nil {
+			log.Errorf("Event driven container update failed: %s", err)
+		}
+	}
+
 	return
 }
 

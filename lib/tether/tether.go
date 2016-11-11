@@ -493,6 +493,10 @@ func (t *tether) launch(session *SessionConfig) error {
 
 	session.Lock()
 	defer session.Unlock()
+	session.StartTime = time.Now().UTC().Unix()
+	session.Started = ""
+	session.StopTime = 0
+	session.ExitStatus = 0
 
 	// Special case here because UID/GID lookup need to be done
 	// on the appliance...
