@@ -115,6 +115,9 @@ func templateAsClientOnly(template *x509.Certificate) *x509.Certificate {
 func templateWithServer(template *x509.Certificate, domain string) *x509.Certificate {
 	template.ExtKeyUsage = append(template.ExtKeyUsage, x509.ExtKeyUsageServerAuth)
 
+	// the specified domain is always the primary
+	template.Subject.CommonName = domain
+
 	// abide by the spec - if CN is an IP, put it in the subjectAltName as well
 	ip := net.ParseIP(domain)
 	if ip != nil {
@@ -130,8 +133,13 @@ func templateWithServer(template *x509.Certificate, domain string) *x509.Certifi
 	}
 
 	if domain != "" {
-		template.Subject.CommonName = domain
 		template.DNSNames = []string{domain}
+
+		// try best guess at IPAddresses entries
+		ips, err := net.LookupIP(domain)
+		if err == nil && len(ips) > 0 {
+			template.IPAddresses = ips
+		}
 	}
 
 	return template

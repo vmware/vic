@@ -71,9 +71,9 @@ Docker run check exit codes
 
 Docker run ps password check
     [Tags]  secret
-    ${status}=  Get State Of Github Issue  2894
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-6-Docker-Run.robot needs to be updated now that Issue #2894 has been resolved
-    Log  Issue \#2894 is blocking implementation  WARN
+    ${status}=  Get State Of Github Issue  2660
+    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-6-Docker-Run.robot needs to be updated now that Issue #2660 has been resolved
+    Log  Issue \#2660 is blocking implementation  WARN
     #${rc}  ${output}=  Run And Return Rc And Output  docker ${params} run busybox ps auxww
     #Should Be Equal As Integers  ${rc}  0
     #Should Contain  ${output}  ps auxww

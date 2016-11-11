@@ -54,7 +54,9 @@ Management network - none
     Should Contain  ${output}  Installer completed successfully
     ${status}=  Run Keyword And Return Status  Should Contain  ${output}  Network role "management" is sharing NIC with "external"
     ${status2}=  Run Keyword And Return Status  Should Contain  ${output}  Network role "external" is sharing NIC with "management"
-    Should Be True  ${status} | ${status2}
+    ${status3}=  Run Keyword And Return Status  Should Contain  ${output}  Network role "external" is sharing NIC with "client"
+    ${status4}=  Run Keyword And Return Status  Should Contain  ${output}  Network role "management" is sharing NIC with "client"
+    Should Be True  ${status} | ${status2} | ${status3} | ${status4}
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: ${vch-name}
 

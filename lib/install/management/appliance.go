@@ -37,7 +37,6 @@ import (
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
-	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/config/executor"
@@ -361,20 +360,6 @@ func (d *Dispatcher) findApplianceByID(conf *config.VirtualContainerHostConfigSp
 	return vmm, nil
 }
 
-// retrieves the uuid of the appliance vm to create a unique vsphere extension name
-func (d *Dispatcher) GenerateExtensionName(conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine) error {
-	defer trace.End(trace.Begin(conf.ExtensionName))
-
-	var o mo.VirtualMachine
-	err := vm.Properties(d.ctx, vm.Reference(), []string{"config.uuid"}, &o)
-	if err != nil {
-		return errors.Errorf("Could not get VM UUID from appliance VM due to error: %s", err)
-	}
-
-	conf.ExtensionName = "com.vmware.vic." + o.Config.Uuid
-	return nil
-}
-
 func (d *Dispatcher) configIso(conf *config.VirtualContainerHostConfigSpec, vm *vm.VirtualMachine, settings *data.InstallerData) (object.VirtualDeviceList, error) {
 	defer trace.End(trace.Begin(""))
 
@@ -456,21 +441,6 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	log.Debugf("vm folder name: %q", d.vmPathName)
 	log.Debugf("vm inventory path: %q", vm2.InventoryPath)
 
-	// create an extension to register the appliance as
-	if err = d.GenerateExtensionName(conf, vm2); err != nil {
-		return errors.Errorf("Could not generate extension name during appliance creation due to error: %s", err)
-	}
-
-	settings.Extension = types.Extension{
-		Description: &types.Description{
-			Label:   "VIC",
-			Summary: "vSphere Integrated Containers Virtual Container Host",
-		},
-		Company: "VMware, Inc.",
-		Version: "0.0",
-		Key:     conf.ExtensionName,
-	}
-
 	conf.AddComponent("vicadmin", &executor.SessionConfig{
 		User:  "vicadmin",
 		Group: "vicadmin",
@@ -539,7 +509,7 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 			},
 			Env: []string{
 				//FIXME: hack during config migration
-				"VC_URL=" + conf.Target.String(),
+				"VC_URL=" + conf.Target,
 				"DC_PATH=" + settings.DatacenterName,
 				"CS_PATH=" + settings.ClusterPath,
 				"POOL_PATH=" + settings.ResourcePoolPath,
