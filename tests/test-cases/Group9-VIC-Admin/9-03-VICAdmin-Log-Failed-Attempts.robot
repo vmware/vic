@@ -25,6 +25,8 @@ Verify Failed Log Attempts
     ${out}=  Run  wget --tries=3 --connect-timeout=10 --certificate=%{DOCKER_CERT_PATH}/cert.pem --private-key=%{DOCKER_CERT_PATH}/key.pem --no-check-certificate ${vic-admin}/logs/vicadmin.log -O success.log
     Log  ${out}
 
+    ${out}=  Run  cat success.log
+    Log  ${out}
     ${out}=  Run  grep -i fail success.log
     Log  ${out}
     Should Contain  ${out}  tls: failed to verify client's certificate: x509: certificate signed by unknown authority
