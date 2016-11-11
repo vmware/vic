@@ -19,10 +19,10 @@ Verify Failed Log Attempts
     OperatingSystem.File Should Exist  ${old-certs}/cert.pem
     OperatingSystem.File Should Exist  ${old-certs}/key.pem
     Sleep  1 minute
-    ${out}=  Run  wget --tries=3 --connect-timeout=10 --certificate=${old-certs}/cert.pem --private-key=${old-certs}/key.pem --no-check-certificate ${vic-admin}/logs/vicadmin.log -O failure.log
+    ${out}=  Run  wget -v --tries=3 --connect-timeout=10 --certificate=${old-certs}/cert.pem --private-key=${old-certs}/key.pem --no-check-certificate ${vic-admin}/logs/vicadmin.log -O failure.log
     Log  ${out}
 
-    ${out}=  Run  wget --tries=3 --connect-timeout=10 --certificate=%{DOCKER_CERT_PATH}/cert.pem --private-key=%{DOCKER_CERT_PATH}/key.pem --no-check-certificate ${vic-admin}/logs/vicadmin.log -O success.log
+    ${out}=  Run  wget -v --tries=3 --connect-timeout=10 --certificate=%{DOCKER_CERT_PATH}/cert.pem --private-key=%{DOCKER_CERT_PATH}/key.pem --no-check-certificate ${vic-admin}/logs/vicadmin.log -O success.log
     Log  ${out}
 
     ${out}=  Run  cat success.log
