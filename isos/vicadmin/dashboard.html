@@ -101,8 +101,7 @@
                   <div class="sixty"><a href="/logs/vicadmin.log">Admin Server</a></div>
                   <div class="forty"><a href="/logs/tail/vicadmin.log">Live Log</a></div>
                 </div>
-                {{end}}
-                {{if .VCHUnreachable}}
+                {{else}}
                 <div class="row">
                   <div class="sixty">
                     <span class="error-message">Other logs are unavailable due to vSphere connection issues.

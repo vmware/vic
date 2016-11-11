@@ -56,7 +56,6 @@ type Validator struct {
 	VCHStatus        template.HTML
 	VCHIssues        template.HTML
 	VCHReachable     bool
-	VCHUnreachable   bool
 	SystemTime       string
 }
 
@@ -121,17 +120,13 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 	if sess == nil {
 		// We can't connect to vSphere
 		v.VCHReachable = false
-		v.VCHUnreachable = true
 		v.FirewallStatus = BadStatus
 		v.FirewallIssues = template.HTML("")
-
 		v.LicenseStatus = BadStatus
 		v.LicenseIssues = template.HTML("")
 	} else {
 
 		v.VCHReachable = true
-		v.VCHUnreachable = false
-
 		// Firewall status check
 		v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
 		mgmtIP := GetMgmtIP()

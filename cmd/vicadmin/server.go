@@ -286,8 +286,8 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 		usersession, err := vSphereSessionGet(&userconfig)
 		if err != nil || usersession == nil {
 			// something went wrong or we could not authenticate
-			log.Warnf("User %s from %s failed to authenticated at %s", user, req.RemoteAddr, time.Now())
-			http.Error(res, "Authentication failed due to incorrect credential(s)", http.StatusBadRequest)
+			log.Warnf("User %s from %s failed to authenticate at %s", user, req.RemoteAddr, time.Now())
+			http.Error(res, "Authentication failed due to incorrect credential(s)", http.StatusUnauthorized)
 			return
 		}
 
@@ -522,22 +522,20 @@ func (s *server) tailFiles(res http.ResponseWriter, req *http.Request, names []s
 // deriveDisplayError takes a vSphere session error and returns
 // an error string that is safe to display on the vicadmin page.
 func deriveDisplayError(err error) string {
-	var displayErrStr string
-
 	if err != nil {
 		switch err := err.(type) {
 		case session.SDKURLError:
-			displayErrStr = fmt.Sprintf("SDK URL could not be parsed: %s", err.Err)
+			return fmt.Sprintf("SDK URL could not be parsed: %s", err.Err)
 		case session.SoapClientError:
-			displayErrStr = "unable to obtain a vim client"
+			return "unable to obtain a vim client"
 		case session.UserPassLoginError:
-			displayErrStr = "unable to log in with username and password"
+			return "unable to log in with username and password"
 		default:
-			displayErrStr = err.Error()
+			return err.Error()
 		}
 	}
 
-	return displayErrStr
+	return ""
 }
 
 func (s *server) index(res http.ResponseWriter, req *http.Request) {
