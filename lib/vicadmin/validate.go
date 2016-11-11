@@ -30,6 +30,7 @@ import (
 	"github.com/docker/docker/opts"
 	"golang.org/x/net/context"
 
+	"github.com/vishvananda/netlink"
 	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
@@ -62,6 +63,42 @@ const (
 	BadStatus  = template.HTML(`<i class="icon-attention"></i>`)
 )
 
+func GetMgmtIP() net.IPNet {
+	var mgmtIP net.IPNet
+	// management alias may not be present, try others if not found
+	link := LinkByOneOfNameOrAlias(validate.ManagementNetworkName, "external", "client")
+	if link == nil {
+		log.Error("unable to find any interfaces when searching for mgmt IP")
+		return mgmtIP
+	}
+
+	addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
+	if err != nil {
+		log.Errorf("error getting address list: %s", err)
+		return mgmtIP
+	}
+	if len(addrs) == 0 {
+		log.Warnf("no addresses on interface when searching for mgmt IP")
+		return mgmtIP
+	}
+	if len(addrs) > 1 {
+		log.Warnf("multiple addresses on interface when searching for mgmt IP, using first")
+	}
+	return *addrs[0].IPNet
+}
+
+func LinkByOneOfNameOrAlias(name ...string) netlink.Link {
+	for _, n := range name {
+		if l, _ := netlink.LinkByName(n); l != nil {
+			return l
+		}
+		if l, _ := netlink.LinkByAlias(n); l != nil {
+			return l
+		}
+	}
+	return nil
+}
+
 func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpec, sess *session.Session) *Validator {
 	defer trace.End(trace.Begin(""))
 	log.Infof("Creating new validator")
@@ -78,7 +115,10 @@ func NewValidator(ctx context.Context, vch *config.VirtualContainerHostConfigSpe
 
 	//Firewall Status Check
 	v2, _ := validate.CreateFromVCHConfig(ctx, vch, sess)
-	v2.CheckFirewall(ctx)
+	mgmtIP := GetMgmtIP()
+	log.Infof("Using management IP %s for firewall check", mgmtIP)
+	fwStatus := v2.CheckFirewallForTether(ctx, mgmtIP)
+	v2.FirewallCheckOutput(fwStatus)
 	firewallIssues := v2.GetIssues()
 
 	if len(firewallIssues) == 0 {

@@ -15,9 +15,11 @@ Create VCH - custom base disk
     Get Docker Params  ${output}  ${true}
     Log To Console  Installer completed successfully: ${vch-name}
 
-    ${output}=  Run  docker ${params} logs $(docker ${params} start $(docker ${params} create busybox /bin/df -h) && sleep 10) | grep /dev/sda | awk '{print $2}'
+    ${output}=  Run  docker ${params} logs $(docker ${params} start $(docker ${params} create --name customDiskContainer busybox /bin/df -h) && sleep 10) | grep /dev/sda | awk '{print $2}'
     # df shows GiB and vic-machine takes in GB so 6GB on cmd line == 5.5GB in df
     Should Be Equal As Strings  ${output}  5.5G
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm -f customDiskContainer
+    Should Be Equal As Integers  ${rc}  0
 
     Run Regression Tests
     Cleanup VIC Appliance On Test Server
@@ -180,9 +182,6 @@ Create VCH - Existing vApp on vCenter
 
 Create VCH - defaults with --no-tls
     ${status}=  Get State Of Github Issue  3063
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 6-04-Create-Basic.robot needs to be updated now that Issue #3063 has been resolved
-    Log  Issue \#3063 is blocking implementation  WARN
-    Pass Execution  Issue \#3063 is blocking implementation
 
     Set Test Environment Variables
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
@@ -243,10 +242,13 @@ Basic timeout
     Run Keyword And Ignore Error  Cleanup Dangling VMs On Test Server
     Run Keyword And Ignore Error  Cleanup Datastore On Test Server
 
-    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --timeout 1s ${vicmachinetls}
+    ${output}=  Run  bin/vic-machine-linux create --name=${vch-name} --target="%{TEST_USERNAME}:%{TEST_PASSWORD}@%{TEST_URL}" --thumbprint=%{TEST_THUMBPRINT} --image-store=%{TEST_DATASTORE} --bridge-network=%{BRIDGE_NETWORK} --external-network=%{EXTERNAL_NETWORK} --timeout 30s ${vicmachinetls} --external-network-ip=172.16.5.5/24 --external-network-gateway=172.16.5.1/24
     Should Contain  ${output}  Create timed out
 
-    Cleanup VIC Appliance On Test Server
+    ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name ${vch-name}
+    Should Contain  ${ret}  Completed successfully
+    ${out}=  Run  govc ls vm
+    Should Not Contain  ${out}  ${vch-name}
 
 Basic VCH resource config
     Pass execution  Test not implemented

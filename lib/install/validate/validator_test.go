@@ -240,15 +240,11 @@ func testCompute(v *Validator, input *data.Data, t *testing.T) *config.VirtualCo
 
 func testTargets(v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {
 	v.target(v.Context, input, conf)
-	pass, set := conf.Target.User.Password()
-	t.Logf("target: %+v", conf.Target)
-	if v.isVC {
-		assert.Equal(t, pass, "")
-		assert.False(t, set, "Should not contain password")
-	} else {
-		assert.Equal(t, pass, "pass")
-		assert.True(t, set, "Should contain password in ESXi")
-	}
+	u, err := url.Parse(conf.Target)
+	assert.NoError(t, err)
+	assert.Nil(t, u.User)
+	assert.NotEmpty(t, conf.Token)
+	assert.NotEmpty(t, conf.Username)
 }
 
 func testStorage(v *Validator, input *data.Data, conf *config.VirtualContainerHostConfigSpec, t *testing.T) {

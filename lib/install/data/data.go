@@ -117,8 +117,7 @@ type InstallerData struct {
 	PreUpgradeVersion string
 	RollbackTimeout   time.Duration
 
-	Extension types.Extension
-	UseRP     bool
+	UseRP bool
 
 	HTTPSProxy *url.URL
 	HTTPProxy  *url.URL

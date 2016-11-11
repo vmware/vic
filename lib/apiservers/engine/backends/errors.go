@@ -93,3 +93,14 @@ func IsNotFoundError(err error) bool {
 
 	return false
 }
+
+func IsConflictError(err error) bool {
+	// if error was created with the docker error function, check the status code
+	if httpErr, ok := err.(httpStatusError); ok {
+		if httpErr.HTTPErrorStatusCode() == http.StatusConflict {
+			return true
+		}
+	}
+
+	return false
+}

@@ -32,14 +32,6 @@ func TestFlags(t *testing.T) {
 	}
 }
 
-func TestURLWithoutPassword(t *testing.T) {
-	target := NewTarget()
-	target.URL, _ = soap.ParseURL("root:pass@127.0.0.1")
-	if target.URLWithoutPassword().String() != "https://root@127.0.0.1/sdk" {
-		t.Errorf("Unexpected return of without password URL string, %s", target.URLWithoutPassword().String())
-	}
-}
-
 func TestProcess(t *testing.T) {
 	passwd := "pass"
 	url1, _ := soap.ParseURL("127.0.0.1")
