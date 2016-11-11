@@ -144,11 +144,11 @@ func (d *Uninstall) Run(cli *cli.Context) (err error) {
 	installerBuild := version.GetBuild()
 	if vchConfig.Version == nil || !installerBuild.Equal(vchConfig.Version) {
 		if !d.Data.Force {
-			log.Errorf("VCH version %q is different with installer version %s. Specify --force to force delete", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
+			log.Errorf("VCH version %q is different than installer version %s. Specify --force to force delete", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
 			return errors.New("delete failed")
 		}
 
-		log.Warnf("VCH version %q is different with installer version %s. Force delete will try best to delete everything found.", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
+		log.Warnf("VCH version %q is different than installer version %s. Force delete will attempt to remove everything related to the installed VCH", vchConfig.Version.ShortVersion(), installerBuild.ShortVersion())
 	}
 	executor.InitDiagnosticLogs(vchConfig)
 

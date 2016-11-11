@@ -88,7 +88,7 @@ func (d *Dispatcher) getComputeResource(vmm *vm.VirtualMachine, conf *config.Vir
 			err = errors.Errorf("Cannot find compute resources from configuration")
 			return nil, err
 		}
-		log.Warnf("Cannot find compute resources from configuration, try to delete under parent resource pool")
+		log.Warnf("Cannot find compute resources from configuration, attempting to delete under parent resource pool")
 		parent, err := vmm.Parent(d.ctx)
 		if err != nil {
 			return nil, err
@@ -127,7 +127,7 @@ func (d *Dispatcher) getImageDatastore(vmm *vm.VirtualMachine, conf *config.Virt
 			err = errors.Errorf("Cannot find image stores from configuration")
 			return nil, err
 		}
-		log.Warnf("Cannot find image stores from configuration, try to delete from vm datastore")
+		log.Warnf("Cannot find image stores from configuration, attempting to delete from vm datastore")
 		dss, err := vmm.DatastoreReference(d.ctx)
 		if err != nil {
 			return nil, errors.Errorf("Failed to query vm datastore: %s", err)
