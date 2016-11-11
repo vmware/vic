@@ -63,6 +63,7 @@ func CreateFromVCHConfig(ctx context.Context, vch *config.VirtualContainerHostCo
 	v := &Validator{}
 	v.Session = sess
 	v.Context = ctx
+	v.isVC = v.Session.IsVC()
 
 	return v, nil
 }
