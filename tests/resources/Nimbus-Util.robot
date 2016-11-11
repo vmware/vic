@@ -1,6 +1,6 @@
 *** Variables ***
-${ESX_VERSION}  4531672  #6.5 super main
-${VC_VERSION}  4531673   #6.5 super main
+${ESX_VERSION}  4564106  #6.5 RTM
+${VC_VERSION}  4602587   #6.5 RTM
 
 *** Keywords ***
 Deploy Nimbus ESXi Server
