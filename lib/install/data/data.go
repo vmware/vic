@@ -80,9 +80,10 @@ type Data struct {
 
 // NetworkConfig is used to set IP addr for each network
 type NetworkConfig struct {
-	Name    string
-	Gateway net.IPNet
-	IP      net.IPNet
+	Name         string
+	Destinations []net.IPNet
+	Gateway      net.IPNet
+	IP           net.IPNet
 }
 
 // Empty determines if ip and gateway are unset
