@@ -58,10 +58,8 @@ func (d *Dispatcher) Upgrade(vch *vm.VirtualMachine, conf *config.VirtualContain
 	}
 	d.session.Datastore = ds
 	if !conf.HostCertificate.IsNil() {
-		d.VICAdminProto = "https"
 		d.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
 	} else {
-		d.VICAdminProto = "http"
 		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
 	}
 

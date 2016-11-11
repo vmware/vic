@@ -463,10 +463,8 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	)
 
 	if conf.HostCertificate != nil {
-		d.VICAdminProto = "https"
 		d.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
 	} else {
-		d.VICAdminProto = "http"
 		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
 	}
 
