@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	// "github.com/vmware/govmomi/vim25/types"
 
 	"github.com/docker/docker/opts"
 	"golang.org/x/net/context"
