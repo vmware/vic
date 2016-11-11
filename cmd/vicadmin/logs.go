@@ -257,6 +257,8 @@ func zipEntries(readers map[string]entryReader, out *zip.Writer) error {
 	defer out.Close()
 	defer out.Flush()
 
+	log.Infof("Readers output: %s", readers)
+
 	for name, r := range readers {
 		log.Infof("Collecting log with reader %s(%#v)", name, r)
 

@@ -40,7 +40,7 @@ While Logged Out Fail To Get Container Logs
     ${rc}  ${output}=  Run And Return Rc and Output  docker ${params} start ${container}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz | tar tvzf -
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.zip | unzip -t -
     Should not Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  gzip: stdin: not in gzip format
     Log  ${output}
@@ -83,7 +83,7 @@ Get Container Logs
     ${rc}  ${output}=  Run And Return Rc and Output  docker ${params} start ${container}
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
-    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.tar.gz -b /tmp/cookies-${vch-name} | tar tvzf -
+    ${rc}  ${output}=  Run And Return Rc and Output  curl -sk ${vic-admin}/container-logs.zip -b /tmp/cookies-${vch-name} | unzip -t -
     Should Be Equal As Integers  ${rc}  0
     Log  ${output}
     Should Contain  ${output}  ${container}/vmware.log
