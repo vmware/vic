@@ -133,8 +133,6 @@ func verifyParavirtualScsiController(op trace.Operation, vm *vm.VirtualMachine) 
 		return nil, "", errors.Trace(err)
 	}
 
-	op.Infof("controller = %#v", controller)
-
 	// build the base path
 	// first we determine which label we're looking for (requires VMW hardware version >=10)
 	controllerLabel := fmt.Sprintf("SCSI%d", controller.BusNumber)

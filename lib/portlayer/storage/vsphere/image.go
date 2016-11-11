@@ -261,6 +261,25 @@ func (v *ImageStore) WriteImage(op trace.Operation, parent *portlayer.Image, ID 
 	return newImage, nil
 }
 
+// cleanup safely on error
+func (v *ImageStore) cleanupDisk(op trace.Operation, ID, storeName string, vmdisk *disk.VirtualDisk) {
+	op.Errorf("Cleaning up failed image %s", ID)
+
+	if vmdisk != nil {
+		if vmdisk.Mounted() {
+			op.Debugf("Unmounting abandoned disk")
+			vmdisk.Unmount()
+		}
+
+		if vmdisk.Attached() {
+			op.Debugf("Detaching abandoned disk")
+			v.dm.Detach(op, vmdisk)
+		}
+	}
+
+	v.deleteImage(op, storeName, ID)
+}
+
 // Create the image directory, create a temp vmdk in this directory,
 // attach/mount the disk, unpack the tar, check the checksum.  If the data
 // doesn't match the expected checksum, abort by nuking the image directory.
@@ -291,26 +310,12 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 	op.Infof("Creating image %s (%s)", ID, diskDsURI)
 
 	var vmdisk *disk.VirtualDisk
-
 	// On error, unmount if mounted, detach if attached, and nuke the image directory
 	defer func() {
-		if err != nil {
-			op.Errorf("Cleaning up failed WriteImage directory %s", imageDir)
-
-			if vmdisk != nil {
-				if vmdisk.Mounted() {
-					op.Debugf("Unmounting abandoned disk")
-					vmdisk.Unmount()
-				}
-
-				if vmdisk.Attached() {
-					op.Debugf("Detaching abandoned disk")
-					v.dm.Detach(op, vmdisk)
-				}
-			}
-
-			v.deleteImage(op, storeName, ID)
+		if err == nil {
+			return
 		}
+		v.cleanupDisk(op, ID, storeName, vmdisk)
 	}()
 
 	// Create the disk
@@ -372,6 +377,11 @@ func (v *ImageStore) writeImage(op trace.Operation, storeName, parentID, ID stri
 }
 
 func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
+	var (
+		vmdisk *disk.VirtualDisk
+		size   int64
+		err    error
+	)
 
 	// Create the image directory in the store.
 	imageDir := v.imageDirPath(storeName, portlayer.Scratch.ID)
@@ -388,24 +398,24 @@ func (v *ImageStore) scratch(op trace.Operation, storeName string) error {
 	imageDiskDsURI := v.imageDiskDSPath(storeName, portlayer.Scratch.ID)
 	op.Infof("Creating image %s (%s)", portlayer.Scratch.ID, imageDiskDsURI)
 
-	var size int64
 	size = defaultDiskSize
 	if portlayer.Config.ScratchSize != 0 {
 		size = portlayer.Config.ScratchSize
 	}
 
+	defer func() {
+		if err == nil {
+			return
+		}
+		v.cleanupDisk(op, portlayer.Scratch.ID, storeName, vmdisk)
+	}()
+
 	// Create the disk
-	vmdisk, err := v.dm.CreateAndAttach(op, imageDiskDsURI, "", size, os.O_RDWR)
+	vmdisk, err = v.dm.CreateAndAttach(op, imageDiskDsURI, "", size, os.O_RDWR)
 	if err != nil {
 		op.Errorf("CreateAndAttach(%s) error: %s", imageDiskDsURI, err)
-		v.deleteImage(op, storeName, portlayer.Scratch.ID)
 		return err
 	}
-	defer func() {
-		if vmdisk.Attached() {
-			v.dm.Detach(op, vmdisk)
-		}
-	}()
 	op.Debugf("Scratch disk created with size %d", portlayer.Config.ScratchSize)
 
 	// Make the filesystem and set its label to defaultDiskLabel
