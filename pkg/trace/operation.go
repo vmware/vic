@@ -122,6 +122,10 @@ func (o *Operation) Errorf(format string, args ...interface{}) {
 	Logger.Errorf("%s: %s", o.header(), fmt.Sprintf(format, args...))
 }
 
+func (o *Operation) Warnf(format string, args ...interface{}) {
+	Logger.Warnf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+}
+
 func (o *Operation) newChild(ctx context.Context, msg string) Operation {
 	child := newOperation(ctx, o.id, 4, msg)
 	child.t = append(child.t, o.t...)
@@ -169,7 +173,7 @@ func FromContext(ctx context.Context) (Operation, error) {
 	case operation:
 		o.operation = val
 	default:
-		return Operation{}, fmt.Errorf("not an Operation")
+		return Operation{Context: context.Background()}, fmt.Errorf("not an Operation")
 	}
 
 	return o, nil

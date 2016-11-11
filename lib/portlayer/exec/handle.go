@@ -26,7 +26,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/golang/groupcache/lru"
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/vim25/types"
 	"github.com/vmware/vic/lib/config/executor"
@@ -174,7 +173,7 @@ func (h *Handle) String() string {
 	return h.key
 }
 
-func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *int32) error {
+func (h *Handle) Commit(op trace.Operation, sess *session.Session, waitTime *int32) error {
 	cfg := make(map[string]string)
 
 	// Set timestamps based on target state
@@ -195,7 +194,7 @@ func (h *Handle) Commit(ctx context.Context, sess *session.Session, waitTime *in
 	s := h.Spec.Spec()
 	s.ExtraConfig = append(s.ExtraConfig, vmomi.OptionValueFromMap(cfg)...)
 
-	if err := Commit(ctx, sess, h, waitTime); err != nil {
+	if err := Commit(op, sess, h, waitTime); err != nil {
 		return err
 	}
 
@@ -212,8 +211,8 @@ func (h *Handle) Close() {
 //
 // TODO: either deep copy the configuration, or provide an alternative means of passing the data that
 // avoids the need for the caller to unpack/repack the parameters
-func Create(ctx context.Context, sess *session.Session, config *ContainerCreateConfig) (*Handle, error) {
-	defer trace.End(trace.Begin("Handle.Create"))
+func Create(op trace.Operation, sess *session.Session, config *ContainerCreateConfig) (*Handle, error) {
+	op.Debugf("handle.create")
 
 	h := &Handle{
 		key:         newHandleKey(),
@@ -229,24 +228,24 @@ func Create(ctx context.Context, sess *session.Session, config *ContainerCreateC
 	// Convert the management hostname to IP
 	ips, err := net.LookupIP(constants.ManagementHostName)
 	if err != nil {
-		log.Errorf("Unable to look up %s during create of %s: %s", constants.ManagementHostName, config.Metadata.ID, err)
+		op.Errorf("Unable to look up %s during create of %s: %s", constants.ManagementHostName, config.Metadata.ID, err)
 		return nil, err
 	}
 
 	if len(ips) == 0 {
-		log.Errorf("No IP found for %s during create of %s", constants.ManagementHostName, config.Metadata.ID)
+		op.Errorf("No IP found for %s during create of %s", constants.ManagementHostName, config.Metadata.ID)
 		return nil, fmt.Errorf("No IP found on %s", constants.ManagementHostName)
 	}
 
 	if len(ips) > 1 {
-		log.Errorf("Multiple IPs found for %s during create of %s: %v", constants.ManagementHostName, config.Metadata.ID, ips)
+		op.Errorf("Multiple IPs found for %s during create of %s: %v", constants.ManagementHostName, config.Metadata.ID, ips)
 		return nil, fmt.Errorf("Multiple IPs found on %s: %#v", constants.ManagementHostName, ips)
 	}
 
 	uuid, err := instanceUUID(config.Metadata.ID)
 	if err != nil {
 		detail := fmt.Sprintf("unable to get instance UUID: %s", err)
-		log.Error(detail)
+		op.Errorf("%s", detail)
 		return nil, errors.New(detail)
 	}
 
@@ -267,12 +266,12 @@ func Create(ctx context.Context, sess *session.Session, config *ContainerCreateC
 
 		Metadata: config.Metadata,
 	}
-	log.Debugf("Config: %#v", specconfig)
+	op.Debugf("Config: %#v", specconfig)
 
 	// Create a linux guest
-	linux, err := guest.NewLinuxGuest(ctx, sess, specconfig)
+	linux, err := guest.NewLinuxGuest(op.Context, sess, specconfig)
 	if err != nil {
-		log.Errorf("Failed during linux specific spec generation during create of %s: %s", config.Metadata.ID, err)
+		op.Errorf("Failed during linux specific spec generation during create of %s: %s", config.Metadata.ID, err)
 		return nil, err
 	}
 

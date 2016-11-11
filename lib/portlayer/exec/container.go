@@ -173,7 +173,8 @@ func newContainer(base *containerBase) *Container {
 	return c
 }
 
-func GetContainer(ctx context.Context, id uid.UID) *Handle {
+func GetContainer(op trace.Operation, id uid.UID) *Handle {
+	op.Debugf("exec.container.GetContainer(%s)", id)
 	// get from the cache
 	container := Containers.Container(id.String())
 	if container != nil {
@@ -251,12 +252,13 @@ func (c *Container) WaitForState(s State) <-chan struct{} {
 	return eventChan
 }
 
-func (c *Container) NewHandle(ctx context.Context) *Handle {
+func (c *Container) NewHandle(op trace.Operation) *Handle {
+	op.Debugf("exec.container.NewHandle")
 	// Call property collector to fill the data
 	if c.vm != nil {
 		// FIXME: this should be calling the cache to decide if a refresh is needed
-		if err := c.Refresh(ctx); err != nil {
-			log.Errorf("refreshing container %s failed: %s", c.ExecConfig.ID, err)
+		if err := c.Refresh(op.Context); err != nil {
+			op.Errorf("refreshing container %s failed: %s", c.ExecConfig.ID, err)
 			return nil // nil indicates error
 		}
 	}
@@ -268,12 +270,12 @@ func (c *Container) NewHandle(ctx context.Context) *Handle {
 
 // Refresh updates config and runtime info, holding a lock only while swapping
 // the new data for the old
-func (c *Container) Refresh(ctx context.Context) error {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
+func (c *Container) Refresh(op trace.Operation) error {
+	op.Debugf("exec.Container.Refresh(%s)", c.ExecConfig.ID)
 
-	base, err := c.updates(ctx)
+	base, err := c.updates(op)
 	if err != nil {
-		log.Errorf("Unable to update container %s", c.ExecConfig.ID)
+		op.Errorf("Unable to update container %s", c.ExecConfig.ID)
 		return err
 	}
 
@@ -287,25 +289,24 @@ func (c *Container) Refresh(ctx context.Context) error {
 
 // Refresh updates config and runtime info, holding a lock only while swapping
 // the new data for the old
-func (c *Container) RefreshFromHandle(ctx context.Context, h *Handle) {
-	defer trace.End(trace.Begin(h.String()))
-
+func (c *Container) RefreshFromHandle(op trace.Operation, h *Handle) {
+	op.Debugf("exec.Container.RefreshFromHandle(%s)", h.String())
 	c.m.Lock()
 	defer c.m.Unlock()
 
 	if c.Config != nil && (h.Config == nil || h.Config.ChangeVersion != c.Config.ChangeVersion) {
-		log.Warnf("container and handle ChangeVersions do not match: %s != %s", c.Config.ChangeVersion, h.Config.ChangeVersion)
+		op.Warnf("container and handle ChangeVersions do not match: %s != %s", c.Config.ChangeVersion, h.Config.ChangeVersion)
 		return
 	}
 
 	// copy over the new state
 	c.containerBase = h.containerBase
-	log.Debugf("container refreshed - ChangeVersion: %s", c.Config.ChangeVersion)
+	op.Debugf("container refreshed - ChangeVersion: %s", c.Config.ChangeVersion)
 }
 
 // Start starts a container vm with the given params
-func (c *Container) start(ctx context.Context) error {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
+func (c *Container) start(op trace.Operation) error {
+	op.Debugf("exec.Container.start(%s)", c.ExecConfig.ID)
 
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
@@ -315,7 +316,7 @@ func (c *Container) start(ctx context.Context) error {
 	finalState := c.updateState(StateStarting)
 	defer func() { c.updateState(finalState) }()
 
-	err := c.containerBase.start(ctx)
+	err := c.containerBase.start(op)
 	if err != nil {
 		// leave this in state starting - if it powers off then the event
 		// will cause transition to StateStopped which is likely our original state
@@ -332,8 +333,8 @@ func (c *Container) start(ctx context.Context) error {
 	return err
 }
 
-func (c *Container) stop(ctx context.Context, waitTime *int32) error {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
+func (c *Container) stop(op trace.Operation, waitTime *int32) error {
+	op.Debugf("exec.container.stop(%s)", c.ExecConfig.ID)
 
 	defer c.onStop()
 
@@ -342,7 +343,7 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 	finalState := c.updateState(StateStopping)
 	defer func() { c.updateState(finalState) }()
 
-	err := c.containerBase.stop(ctx, waitTime)
+	err := c.containerBase.stop(op, waitTime)
 
 	if err != nil {
 		// we've got no idea what state the container is in at this point
@@ -354,8 +355,8 @@ func (c *Container) stop(ctx context.Context, waitTime *int32) error {
 	return nil
 }
 
-func (c *Container) Signal(ctx context.Context, num int64) error {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
+func (c *Container) Signal(op trace.Operation, num int64) error {
+	op.Debugf("Container.Signal(%s)", c.ExecConfig.ID)
 
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
@@ -365,7 +366,7 @@ func (c *Container) Signal(ctx context.Context, num int64) error {
 		return c.containerBase.kill(ctx)
 	}
 
-	return c.startGuestProgram(ctx, "kill", fmt.Sprintf("%d", num))
+	return c.startGuestProgram(op.Context, "kill", fmt.Sprintf("%d", num))
 }
 
 func (c *Container) onStop() {
@@ -378,8 +379,9 @@ func (c *Container) onStop() {
 	}
 }
 
-func (c *Container) LogReader(ctx context.Context, tail int, follow bool) (io.ReadCloser, error) {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
+func (c *Container) LogReader(op trace.Operation, tail int, follow bool) (io.ReadCloser, error) {
+	op.Debugf("Container.LogReader(%s)", c.ExecConfig.ID)
+
 	c.m.Lock()
 	defer c.m.Unlock()
 
@@ -394,7 +396,7 @@ func (c *Container) LogReader(ctx context.Context, tail int, follow bool) (io.Re
 
 	name := fmt.Sprintf("%s/%s", url.Path, containerLogName)
 
-	log.Infof("pulling %s", name)
+	op.Infof("pulling %s", name)
 
 	file, err := c.vm.Datastore.Open(ctx, name)
 	if err != nil {
@@ -420,8 +422,9 @@ func (c *Container) LogReader(ctx context.Context, tail int, follow bool) (io.Re
 }
 
 // Remove removes a containerVM after detaching the disks
-func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
+func (c *Container) Remove(op trace.Operation, sess *session.Session) error {
+	op.Debugf("Container.Remove(%s)", c.ExecConfig.ID)
+
 	c.m.Lock()
 	defer c.m.Unlock()
 
@@ -439,7 +442,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	existingState := c.updateState(StateRemoving)
 
 	// get the folder the VM is in
-	url, err := c.vm.DSPath(ctx)
+	url, err := c.vm.DSPath(op.Context)
 	if err != nil {
 
 		// handle the out-of-band removal case
@@ -451,7 +454,7 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 			}
 		}
 
-		log.Errorf("Failed to get datastore path for %s: %s", c.ExecConfig.ID, err)
+		op.Errorf("Failed to get datastore path for %s: %s", c.ExecConfig.ID, err)
 		c.updateState(existingState)
 		return err
 	}
@@ -460,8 +463,8 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	dsPath := fmt.Sprintf("[%s] %s", url.Host, url.Path)
 
 	//removes the vm from vsphere, but detaches the disks first
-	_, err = c.vm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-		return c.vm.DeleteExceptDisks(ctx)
+	_, err = c.vm.WaitForResult(op.Context, func(ctx context.Context) (tasks.Task, error) {
+		return c.vm.DeleteExceptDisks(op.Context)
 	})
 	if err != nil {
 		f, ok := err.(types.HasFault)
@@ -471,13 +474,13 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 		}
 		switch f.Fault().(type) {
 		case *types.InvalidState:
-			log.Warnf("container VM is in invalid state, unregistering")
-			if err := c.vm.Unregister(ctx); err != nil {
-				log.Errorf("Error while attempting to unregister container VM: %s", err)
+			op.Warnf("container VM is in invalid state, unregistering")
+			if err := c.vm.Unregister(op.Context); err != nil {
+				op.Errorf("Error while attempting to unregister container VM: %s", err)
 				return err
 			}
 		default:
-			log.Debugf("Fault while attempting to destroy vm: %#v", f.Fault())
+			op.Debugf("Fault while attempting to destroy vm: %#v", f.Fault())
 			c.updateState(existingState)
 			return err
 		}
@@ -486,11 +489,11 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 	// remove from datastore
 	fm := object.NewFileManager(c.vm.Client.Client)
 
-	if _, err = tasks.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
-		return fm.DeleteDatastoreFile(ctx, dsPath, sess.Datacenter)
+	if _, err = tasks.WaitForResult(op.Context, func(ctx context.Context) (tasks.Task, error) {
+		return fm.DeleteDatastoreFile(op.Context, dsPath, sess.Datacenter)
 	}); err != nil {
 		// at this phase error doesn't matter. Just log it.
-		log.Debugf("Failed to delete %s, %s", dsPath, err)
+		op.Debugf("Failed to delete %s, %s", dsPath, err)
 	}
 
 	//remove container from cache
@@ -499,22 +502,22 @@ func (c *Container) Remove(ctx context.Context, sess *session.Session) error {
 }
 
 // get the containerVMs from infrastructure for this resource pool
-func infraContainers(ctx context.Context, sess *session.Session) ([]*Container, error) {
-	defer trace.End(trace.Begin(""))
+func infraContainers(op trace.Operation, sess *session.Session) ([]*Container, error) {
+	op.Debugf("%s", "container.infraContainers")
 	var rp mo.ResourcePool
 
 	// popluate the vm property of the vch resource pool
-	if err := Config.ResourcePool.Properties(ctx, Config.ResourcePool.Reference(), []string{"vm"}, &rp); err != nil {
+	if err := Config.ResourcePool.Properties(op.Context, Config.ResourcePool.Reference(), []string{"vm"}, &rp); err != nil {
 		name := Config.ResourcePool.Name()
-		log.Errorf("List failed to get %s resource pool child vms: %s", name, err)
+		op.Errorf("List failed to get %s resource pool child vms: %s", name, err)
 		return nil, err
 	}
-	vms, err := populateVMAttributes(ctx, sess, rp.Vm)
+	vms, err := populateVMAttributes(op.Context, sess, rp.Vm)
 	if err != nil {
 		return nil, err
 	}
 
-	return convertInfraContainers(ctx, sess, vms), nil
+	return convertInfraContainers(op.Context, sess, vms), nil
 }
 
 func instanceUUID(id string) (string, error) {
@@ -531,8 +534,9 @@ func instanceUUID(id string) (string, error) {
 }
 
 // populate the vm attributes for the specified morefs
-func populateVMAttributes(ctx context.Context, sess *session.Session, refs []types.ManagedObjectReference) ([]mo.VirtualMachine, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("populating %d refs", len(refs))))
+func populateVMAttributes(op trace.Operation, sess *session.Session, refs []types.ManagedObjectReference) ([]mo.VirtualMachine, error) {
+	op.Debugf("populating %d refs", len(refs))
+
 	var vms []mo.VirtualMachine
 
 	// current attributes we care about
@@ -544,18 +548,18 @@ func populateVMAttributes(ctx context.Context, sess *session.Session, refs []typ
 }
 
 // convert the infra containers to a container object
-func convertInfraContainers(ctx context.Context, sess *session.Session, vms []mo.VirtualMachine) []*Container {
-	defer trace.End(trace.Begin(fmt.Sprintf("converting %d containers", len(vms))))
+func convertInfraContainers(op trace.Operation, sess *session.Session, vms []mo.VirtualMachine) []*Container {
+	op.Debugf("converting %d containers", len(vms))
 	var cons []*Container
 
 	for _, v := range vms {
-		vm := vm.NewVirtualMachine(ctx, sess, v.Reference())
+		vm := vm.NewVirtualMachine(op.Context, sess, v.Reference())
 		base := newBase(vm, v.Config, &v.Runtime)
 		c := newContainer(base)
 
 		id := uid.Parse(c.ExecConfig.ID)
 		if id == uid.NilUID {
-			log.Warnf("skipping converting container VM %s: could not parse id", v.Reference())
+			op.Warnf("skipping converting container VM %s: could not parse id", v.Reference())
 			continue
 		}
 
