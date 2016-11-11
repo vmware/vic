@@ -132,7 +132,7 @@ func init() {
 
 	extraconfig.Decode(src, &vchConfig)
 	if vchConfig.HostCertificate == nil {
-		log.Infoln("--no-tls is enabled")
+		log.Infoln("--no-tls is enabled on the personality")
 		rootConfig.serverCert = &ServerCertificate{}
 		rootConfig.serverCert.Cert, rootConfig.serverCert.Key, err = certificate.CreateSelfSigned(rootConfig.addr, []string{"VMware, Inc."}, 2048)
 		if err != nil {
