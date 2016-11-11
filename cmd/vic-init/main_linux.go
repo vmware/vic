@@ -96,12 +96,12 @@ func main() {
 	// The history size we keep is 2 previous files in a compressed form.
 	// TODO: Check available memory to tune log size and history length for log files.
 	logrotate, err := logmgr.NewLogManager(time.Second * 300)
-	const maxLogSize = 20 * 1024 * 1024
+	const maxLogSizeBytes = 20 * 1024 * 1024
 	if err == nil {
-		logrotate.AddLogRotate("/var/log/vic/port-layer.log", logmgr.Daily, maxLogSize, 2, true)
-		logrotate.AddLogRotate("/var/log/vic/init.log", logmgr.Daily, maxLogSize, 2, true)
-		logrotate.AddLogRotate("/var/log/vic/docker-personality.log", logmgr.Daily, maxLogSize, 2, true)
-		logrotate.AddLogRotate("/var/log/vic/vicadmin.log", logmgr.Daily, maxLogSize, 2, true)
+		logrotate.AddLogRotate("/var/log/vic/port-layer.log", logmgr.Daily, maxLogSizeBytes, 2, true)
+		logrotate.AddLogRotate("/var/log/vic/init.log", logmgr.Daily, maxLogSizeBytes, 2, true)
+		logrotate.AddLogRotate("/var/log/vic/docker-personality.log", logmgr.Daily, maxLogSizeBytes, 2, true)
+		logrotate.AddLogRotate("/var/log/vic/vicadmin.log", logmgr.Daily, maxLogSizeBytes, 2, true)
 		tthr.Register("logrotate", logrotate)
 	} else {
 		log.Error(err)

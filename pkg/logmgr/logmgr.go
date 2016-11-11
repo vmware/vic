@@ -32,8 +32,8 @@ import (
 // RotateInterval defines a type for a log rotate frequency.
 type RotateInterval uint32
 
-// LogRotateBinary points to a logrotate path in the system.
-const LogRotateBinary = "/usr/sbin/logrotate"
+// LogRotateBinary points to a logrotate path in the system. For testing purposes it should be overwritten to be empty.
+var LogRotateBinary = "/usr/sbin/logrotate"
 
 const (
 	// Daily to trim logs daily.
@@ -47,12 +47,12 @@ const (
 )
 
 type logRotateConfig struct {
-	rotateInterval RotateInterval
-	logFilePath    string
-	logFileName    string
-	maxLogSize     int64
-	maxLogFiles    int64
-	compress       bool
+	rotateInterval  RotateInterval
+	logFilePath     string
+	logFileName     string
+	maxLogSizeBytes int64
+	maxLogFiles     int64
+	compress        bool
 }
 
 // ConfigFileContent formats log configuration according to logrotate requirements.
@@ -76,12 +76,12 @@ func (lrc *logRotateConfig) ConfigFileContent() string {
 	}
 
 	b = append(b, fmt.Sprintf("rotate %d", lrc.maxLogFiles))
-	if lrc.maxLogSize > 0 {
-		b = append(b, fmt.Sprintf("size %d", lrc.maxLogSize))
+	if lrc.maxLogSizeBytes > 0 {
+		b = append(b, fmt.Sprintf("size %d", lrc.maxLogSizeBytes))
 	}
 
-	if lrc.maxLogSize > 2 {
-		b = append(b, fmt.Sprintf("minsize %d", lrc.maxLogSize-1))
+	if lrc.maxLogSizeBytes > 2 {
+		b = append(b, fmt.Sprintf("minsize %d", lrc.maxLogSizeBytes-1))
 	}
 
 	b = append(b, "copytruncate")
@@ -92,7 +92,7 @@ func (lrc *logRotateConfig) ConfigFileContent() string {
 		b[i] = "    " + v
 	}
 
-	return fmt.Sprintf("%s {\n %s\n}\n", lrc.logFilePath, strings.Join(b, "\n"))
+	return fmt.Sprintf("%s {\n%s\n}\n", lrc.logFilePath, strings.Join(b, "\n"))
 }
 
 // LogManager runs logrotate for specified log files.
@@ -115,6 +115,10 @@ type LogManager struct {
 	once sync.Once
 
 	logConfig string
+
+	// Mostly for debug purposes to insure log rotate loop is running.
+	// It also will log on debug level periodically that it runs.
+	loopsCount uint64
 }
 
 // NewLogManager creates a new log manager instance.
@@ -122,8 +126,11 @@ func NewLogManager(runInterval time.Duration) (*LogManager, error) {
 	lm := &LogManager{
 		runInterval: runInterval,
 		op:          trace.NewOperation(context.Background(), "logrotate"),
+		closed:      make(chan struct{}),
 	}
-	if s, err := os.Stat(LogRotateBinary); err != nil || s.IsDir() {
+
+	// LogRotateBinary is set to empty during unit testing.
+	if s, err := os.Stat(LogRotateBinary); (err != nil || s.IsDir()) && LogRotateBinary != "" {
 		return nil, fmt.Errorf("logrotate is not available at %s, without it logs will not be rotated", LogRotateBinary)
 	}
 	return lm, nil
@@ -132,12 +139,12 @@ func NewLogManager(runInterval time.Duration) (*LogManager, error) {
 // AddLogRotate adds a log to rotate.
 func (lm *LogManager) AddLogRotate(logFilePath string, ri RotateInterval, maxSize, maxLogFiles int64, compress bool) {
 	lm.logFiles = append(lm.logFiles, &logRotateConfig{
-		rotateInterval: ri,
-		logFilePath:    logFilePath,
-		logFileName:    filepath.Base(logFilePath),
-		maxLogSize:     maxSize,
-		maxLogFiles:    maxLogFiles,
-		compress:       compress,
+		rotateInterval:  ri,
+		logFilePath:     logFilePath,
+		logFileName:     filepath.Base(logFilePath),
+		maxLogSizeBytes: maxSize,
+		maxLogFiles:     maxLogFiles,
+		compress:        compress,
 	})
 }
 
@@ -157,6 +164,10 @@ func (lm *LogManager) Start() error {
 
 		go func() {
 			for {
+				lm.loopsCount++
+				if lm.loopsCount%10 == 0 {
+					lm.op.Debugf("logrotate has been run %s times")
+				}
 				lm.rotateLogs()
 				select {
 				case <-time.After(lm.runInterval):
@@ -229,6 +240,10 @@ func (lm *LogManager) rotateLogs() {
 
 	lm.op.Debugf("Running logrotate: %s %s", LogRotateBinary, configFile)
 
+	if LogRotateBinary == "" {
+		lm.op.Debugf("logrotate is not defined. Skipping.")
+		return
+	}
 	if err := exec.Command(LogRotateBinary, configFile).Run(); err == nil {
 		lm.op.Debugf("logrotate finished succesfully")
 	} else {
