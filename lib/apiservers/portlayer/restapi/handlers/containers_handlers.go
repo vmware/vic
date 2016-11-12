@@ -66,7 +66,7 @@ func (handler *ContainersHandlersImpl) Configure(api *operations.PortLayerAPI, h
 
 // CreateHandler creates a new container
 func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreateParams) middleware.Responder {
-	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("CreateContainer(%s)", id))
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("Containers_Handlers.CreateContainer(container%s)", id))
 	session := handler.handlerCtx.Session
 
 	op.Debugf("Path: %#v", params.CreateConfig.Path)
@@ -147,7 +147,7 @@ func (handler *ContainersHandlersImpl) CreateHandler(params containers.CreatePar
 
 // StateChangeHandler changes the state of a container
 func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.StateChangeParams) middleware.Responder {
-	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("handle(%s)", params.Handle))
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("Containers_Handlers.StateChangeHandler(handle(%s))", params.Handle))
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {
@@ -171,7 +171,7 @@ func (handler *ContainersHandlersImpl) StateChangeHandler(params containers.Stat
 }
 
 func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStateParams) middleware.Responder {
-	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("handle(%s)", params.Handle))
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("Containers_Handlers.GetStateHandler(handle(%s))", params.Handle))
 
 	// NOTE: I've no idea why GetStateHandler takes a handle instead of an ID - hopefully there was a reason for an inspection
 	// operation to take this path
@@ -204,7 +204,7 @@ func (handler *ContainersHandlersImpl) GetStateHandler(params containers.GetStat
 }
 
 func (handler *ContainersHandlersImpl) GetHandler(params containers.GetParams) middleware.Responder {
-	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("container(%s)", params.ID))
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("Containers_Handlers.GetHandler(container(%s))", params.ID))
 
 	h := exec.GetContainer(op, uid.Parse(params.ID))
 	if h == nil {
@@ -215,7 +215,7 @@ func (handler *ContainersHandlersImpl) GetHandler(params containers.GetParams) m
 }
 
 func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitParams) middleware.Responder {
-	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("handle(%s)", params.Handle))
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("Containers_Handlers.CommitHandler(handle(%s))", params.Handle))
 
 	h := exec.GetHandle(params.Handle)
 	if h == nil {
@@ -236,7 +236,7 @@ func (handler *ContainersHandlersImpl) CommitHandler(params containers.CommitPar
 }
 
 func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.ContainerRemoveParams) middleware.Responder {
-	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("container(%s)", params.ID))
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("Containers_Handlers.RemoveContainerHandler(container(%s))", params.ID))
 
 	// get the indicated container for removal
 	cID := uid.Parse(params.ID)
@@ -267,7 +267,7 @@ func (handler *ContainersHandlersImpl) RemoveContainerHandler(params containers.
 }
 
 func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers.GetContainerInfoParams) middleware.Responder {
-	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("container(%s)", params.ID))
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("Containers_Handlers.GetContainerInfoHandler(container(%s))", params.ID))
 
 	container := exec.Containers.Container(params.ID)
 	if container == nil {
@@ -283,7 +283,7 @@ func (handler *ContainersHandlersImpl) GetContainerInfoHandler(params containers
 }
 
 func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers.GetContainerListParams) middleware.Responder {
-	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("containerList(%s)", params.ID))
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("Containers_Handlers.GetContainerListHandler(bool(%t))", *params.All))
 
 	var state *exec.State
 	if params.All != nil && !*params.All {
@@ -303,7 +303,7 @@ func (handler *ContainersHandlersImpl) GetContainerListHandler(params containers
 }
 
 func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.ContainerSignalParams) middleware.Responder {
-	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("container(%s)", params.ID))
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("Containers_Handlers.ContainerSignalHandler(container(%s))", params.ID))
 
 	// NOTE: I feel that this should be in a Commit path for consistency
 	// it would allow phrasings such as:
@@ -324,7 +324,7 @@ func (handler *ContainersHandlersImpl) ContainerSignalHandler(params containers.
 }
 
 func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers.GetContainerLogsParams) middleware.Responder {
-	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("container(%s)", params.ID))
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("Containers_Handlers.GetContainerLogsHandler(container(%s))", params.ID))
 
 	container := exec.Containers.Container(params.ID)
 	if container == nil {
@@ -355,7 +355,7 @@ func (handler *ContainersHandlersImpl) GetContainerLogsHandler(params containers
 }
 
 func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.ContainerWaitParams) middleware.Responder {
-	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("%s:%d", params.ID, params.Timeout))
+	op := setupOperation(params.HTTPRequest.Context(), fmt.Sprintf("Containers_Handlers.ContainerWaitHandler(container(%s),timeout(%d))", params.ID, params.Timeout))
 
 	// default context timeout in seconds
 	defaultTimeout := int64(containerWaitTimeout.Seconds())
