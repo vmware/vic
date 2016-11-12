@@ -461,7 +461,6 @@ func TestProperties(t *testing.T) {
 
 	server := model.Service.NewServer()
 	defer server.Close()
-
 	client, err := govmomi.NewClient(ctx, server.URL, true)
 	if err != nil {
 		t.Fatal(err)
@@ -484,10 +483,11 @@ func TestProperties(t *testing.T) {
 		PoolPath:       "/ha-datacenter/host/*/Resources",
 	}
 
-	s, err := session.NewSession(config).Create(ctx)
+	s, err := session.NewSession(config).Connect(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+	s.Populate(ctx)
 	vmm := NewVirtualMachine(ctx, s, vmo.Reference())
 	// Test the success path
 	var o mo.VirtualMachine
@@ -545,10 +545,11 @@ func TestWaitForResult(t *testing.T) {
 		PoolPath:       "/ha-datacenter/host/*/Resources",
 	}
 
-	s, err := session.NewSession(config).Create(ctx)
+	s, err := session.NewSession(config).Connect(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+	s.Populate(ctx)
 	vmm := NewVirtualMachine(ctx, s, vmo.Reference())
 	// Test the success path
 	_, err = vmm.WaitForResult(ctx, func(ctx context.Context) (tasks.Task, error) {
