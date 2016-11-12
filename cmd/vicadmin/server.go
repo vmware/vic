@@ -35,6 +35,7 @@ import (
 
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/vic/lib/vicadmin"
+	"github.com/vmware/vic/pkg/filelock"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -403,6 +404,12 @@ func (s *server) logoutHandler(res http.ResponseWriter, req *http.Request) {
 
 func (s *server) bundleContainerLogs(res http.ResponseWriter, req *http.Request, f format) {
 	defer trace.End(trace.Begin(""))
+	logrotateLock := filelock.NewFileLock(filelock.LogRotateLockName)
+	if err := logrotateLock.Acquire(); err != nil {
+		log.Errorf("Failed to acquire logrotate lock: %s", err)
+	} else {
+		defer func() { logrotateLock.Release() }()
+	}
 
 	readers := configureReaders()
 	c, err := s.getSessionFromRequest(req)

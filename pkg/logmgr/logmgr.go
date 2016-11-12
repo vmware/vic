@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/vmware/vic/lib/tether"
+	"github.com/vmware/vic/pkg/filelock"
 	"github.com/vmware/vic/pkg/trace"
 )
 
@@ -230,6 +231,14 @@ func (lm *LogManager) buildConfig() string {
 func (lm *LogManager) rotateLogs() {
 	// Check if logrotate config exists, create one
 	configFile := lm.saveConfig(lm.logConfig)
+	logrotateLock := filelock.NewFileLock(filelock.LogRotateLockName)
+
+	// This lock is necessary to avoid race condition when user requests log bundle.
+	if err := logrotateLock.Acquire(); err != nil {
+		lm.op.Errorf("Failed to acquire logrotate lock: %v", err)
+	} else {
+		defer func() { logrotateLock.Release() }()
+	}
 
 	if configFile == "" {
 		lm.op.Errorf("Can not run logrotate dues to missing logrotate config")
