@@ -44,7 +44,7 @@ type LinuxGuestType struct {
 }
 
 // NewLinuxGuest returns a new Linux guest spec with predefined values
-func NewLinuxGuest(op trace.Operation, session *session.Session, config *spec.VirtualMachineConfigSpecConfig) (Guest, error) {
+func NewLinuxGuest(ctx context.Context, session *session.Session, config *spec.VirtualMachineConfigSpecConfig) (Guest, error) {
 	s, err := spec.NewVirtualMachineConfigSpec(ctx, session, config)
 	if err != nil {
 		return nil, err
