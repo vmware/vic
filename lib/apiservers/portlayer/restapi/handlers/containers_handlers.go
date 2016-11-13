@@ -505,6 +505,7 @@ func setupOperation(ctx context.Context, traceMsg string) trace.Operation {
 	op, err := trace.FromContext(ctx)
 	if err != nil {
 		op = trace.NewOperation(ctx, traceMsg)
+		op.Debugf("No existing opID found in context, new operation created.")
 	} else {
 		op.Debugf("%s", traceMsg)
 	}

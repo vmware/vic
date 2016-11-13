@@ -79,17 +79,17 @@ import (
 
 // VicContainerProxy interface
 type VicContainerProxy interface {
-	CreateContainerHandle(imageID string, config types.ContainerCreateConfig) (string, string, error)
-	AddContainerToScope(handle string, config types.ContainerCreateConfig) (string, error)
-	AddVolumesToContainer(handle string, config types.ContainerCreateConfig) (string, error)
-	AddLoggingToContainer(handle string, config types.ContainerCreateConfig) (string, error)
-	AddInteractionToContainer(handle string, config types.ContainerCreateConfig) (string, error)
-	CommitContainerHandle(handle, containerID string, waitTime int32) error
+	CreateContainerHandle(op trace.Operation, imageID string, config types.ContainerCreateConfig) (string, string, error)
+	AddContainerToScope(op trace.Operation, handle string, config types.ContainerCreateConfig) (string, error)
+	AddVolumesToContainer(op trace.Operation, handle string, config types.ContainerCreateConfig) (string, error)
+	AddLoggingToContainer(op trace.Operation, handle string, config types.ContainerCreateConfig) (string, error)
+	AddInteractionToContainer(op trace.Operation, handle string, config types.ContainerCreateConfig) (string, error)
+	CommitContainerHandle(op trace.Operation, handle, containerID string, waitTime int32) error
 	StreamContainerLogs(name string, out io.Writer, started chan struct{}, showTimestamps bool, followLogs bool, since int64, tailLines int64) error
 
-	Stop(vc *viccontainer.VicContainer, name string, seconds int, unbound bool) error
+	Stop(op trace.Operation, vc *viccontainer.VicContainer, name string, seconds int, unbound bool) error
 	IsRunning(vc *viccontainer.VicContainer) (bool, error)
-	Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error)
+	Wait(op trace.Operation, vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error)
 	Signal(vc *viccontainer.VicContainer, sig uint64) error
 	Resize(vc *viccontainer.VicContainer, height, width int32) error
 	AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error
@@ -167,8 +167,8 @@ func (c *ContainerProxy) Client() *client.PortLayer {
 //
 // returns:
 //	(containerID, containerHandle, error)
-func (c *ContainerProxy) CreateContainerHandle(imageID string, config types.ContainerCreateConfig) (string, string, error) {
-	defer trace.End(trace.Begin(imageID))
+func (c *ContainerProxy) CreateContainerHandle(op trace.Operation, imageID string, config types.ContainerCreateConfig) (string, string, error) {
+	op.Debugf("Container_Proxy.CreateContainerHandle(image(%s))", imageID)
 
 	if c.client == nil {
 		return "", "", InternalServerError("ContainerProxy.CreateContainerHandle failed to create a portlayer client")
@@ -189,7 +189,7 @@ func (c *ContainerProxy) CreateContainerHandle(imageID string, config types.Cont
 	if err != nil {
 		if _, ok := err.(*containers.CreateNotFound); ok {
 			cerr := fmt.Errorf("No such image: %s", imageID)
-			log.Errorf("%s (%s)", cerr, err)
+			op.Errorf("%s (%s)", cerr, err)
 			return "", "", NotFoundError(cerr.Error())
 		}
 
@@ -208,14 +208,14 @@ func (c *ContainerProxy) CreateContainerHandle(imageID string, config types.Cont
 //
 // returns:
 //	modified handle
-func (c *ContainerProxy) AddContainerToScope(handle string, config types.ContainerCreateConfig) (string, error) {
-	defer trace.End(trace.Begin(handle))
+func (c *ContainerProxy) AddContainerToScope(op trace.Operation, handle string, config types.ContainerCreateConfig) (string, error) {
+	op.Debugf("Container_proxy.AddContainerToScope(handle(%s))", handle)
 
 	if c.client == nil {
 		return "", InternalServerError("ContainerProxy.AddContainerToScope failed to create a portlayer client")
 	}
 
-	log.Debugf("Network Configuration Section - Container Create")
+	op.Debugf("Network Configuration Section - Container Create")
 	// configure networking
 	netConf := toModelsNetworkConfig(config)
 	if netConf != nil {
@@ -227,7 +227,7 @@ func (c *ContainerProxy) AddContainerToScope(handle string, config types.Contain
 			}))
 
 		if err != nil {
-			log.Errorf("ContainerProxy.AddContainerToScope: Scopes error: %s", err.Error())
+			op.Errorf("ContainerProxy.AddContainerToScope: Scopes error: %s", err.Error())
 			return handle, InternalServerError(err.Error())
 		}
 
@@ -237,7 +237,7 @@ func (c *ContainerProxy) AddContainerToScope(handle string, config types.Contain
 			}
 			// roll back the AddContainer call
 			if _, err2 := c.client.Scopes.RemoveContainer(scopes.NewRemoveContainerParamsWithContext(ctx).WithHandle(handle).WithScope(netConf.NetworkName)); err2 != nil {
-				log.Warnf("could not roll back container add: %s", err2)
+				op.Warnf("could not roll back container add: %s", err2)
 			}
 		}()
 
@@ -252,16 +252,16 @@ func (c *ContainerProxy) AddContainerToScope(handle string, config types.Contain
 //
 // returns:
 //	modified handle
-func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.ContainerCreateConfig) (string, error) {
-	defer trace.End(trace.Begin(handle))
+func (c *ContainerProxy) AddVolumesToContainer(op trace.Operation, handle string, config types.ContainerCreateConfig) (string, error) {
+	op.Debugf("Container_Proxy.AddVolumesToContainer(handle(%s))", handle)
 
 	if c.client == nil {
 		return "", InternalServerError("ContainerProxy.AddVolumesToContainer failed to create a portlayer client")
 	}
 
 	//Volume Attachment Section
-	log.Debugf("ContainerProxy.AddVolumesToContainer - VolumeSection")
-	log.Debugf("Raw Volume arguments : binds:  %#v : volumes : %#v", config.HostConfig.Binds, config.Config.Volumes)
+	op.Debugf("ContainerProxy.AddVolumesToContainer - VolumeSection")
+	op.Debugf("Raw Volume arguments : binds:  %#v : volumes : %#v", config.HostConfig.Binds, config.Config.Volumes)
 
 	// Collect all volume mappings. In a docker create/run, they
 	// can be anonymous (-v /dir) or specific (-v vol-name:/dir).
@@ -277,7 +277,7 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 		return handle, BadRequestError(err.Error())
 	}
 
-	log.Infof("Finalized Volume list : %#v", volList)
+	op.Infof("Finalized Volume list : %#v", volList)
 
 	// Create and join volumes.
 	for _, fields := range volList {
@@ -298,14 +298,14 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 			case *storage.CreateVolumeConflict:
 				// Implicitly ignore the error where a volume with the same name
 				// already exists. We can just join the said volume to the container.
-				log.Infof("a volume with the name %s already exists", fields.ID)
+				op.Infof("a volume with the name %s already exists", fields.ID)
 			case *storage.CreateVolumeNotFound:
 				return handle, VolumeCreateNotFoundError(volumeStore(volumeData))
 			default:
 				return handle, InternalServerError(err.Error())
 			}
 		} else {
-			log.Infof("volumeCreate succeeded. Volume mount section ID: %s", fields.ID)
+			op.Infof("volumeCreate succeeded. Volume mount section ID: %s", fields.ID)
 		}
 
 		flags := make(map[string]string)
@@ -342,8 +342,8 @@ func (c *ContainerProxy) AddVolumesToContainer(handle string, config types.Conta
 //
 // returns:
 //	modified handle
-func (c *ContainerProxy) AddLoggingToContainer(handle string, config types.ContainerCreateConfig) (string, error) {
-	defer trace.End(trace.Begin(handle))
+func (c *ContainerProxy) AddLoggingToContainer(op trace.Operation, handle string, config types.ContainerCreateConfig) (string, error) {
+	op.Debugf("Container_Proxy.AddLoggingToContainer")
 
 	if c.client == nil {
 		return "", InternalServerError("ContainerProxy.AddLoggingToContainer failed to get the portlayer client")
@@ -369,8 +369,8 @@ func (c *ContainerProxy) AddLoggingToContainer(handle string, config types.Conta
 //
 // returns:
 //	modified handle
-func (c *ContainerProxy) AddInteractionToContainer(handle string, config types.ContainerCreateConfig) (string, error) {
-	defer trace.End(trace.Begin(handle))
+func (c *ContainerProxy) AddInteractionToContainer(op trace.Operation, handle string, config types.ContainerCreateConfig) (string, error) {
+	op.Debugf("container_proxy.AddInteractionToContainer(handle(%s))", handle)
 
 	if c.client == nil {
 		return "", InternalServerError("ContainerProxy.AddInteractionToContainer failed to get the portlayer client")
@@ -395,8 +395,8 @@ func (c *ContainerProxy) AddInteractionToContainer(handle string, config types.C
 //
 // Args:
 //	waitTime <= 0 means no wait time
-func (c *ContainerProxy) CommitContainerHandle(handle, containerID string, waitTime int32) error {
-	defer trace.End(trace.Begin(handle))
+func (c *ContainerProxy) CommitContainerHandle(op trace.Operation, handle, containerID string, waitTime int32) error {
+	op.Debugf("Container_Proxy.CommitContainerHandle(handle(%s))", handle)
 
 	if c.client == nil {
 		return InternalServerError("ContainerProxy.CommitContainerHandle failed to get a portlayer client")
@@ -466,8 +466,8 @@ func (c *ContainerProxy) StreamContainerLogs(name string, out io.Writer, started
 //
 // returns
 //	error
-func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, seconds int, unbound bool) error {
-	defer trace.End(trace.Begin(vc.ContainerID))
+func (c *ContainerProxy) Stop(op trace.Operation, vc *viccontainer.VicContainer, name string, seconds int, unbound bool) error {
+	op.Debugf("Container_Proxy.Stop(container(%s))", name)
 
 	if c.client == nil {
 		return InternalServerError("ContainerProxy.Stop failed to get a portlayer client")
@@ -498,7 +498,7 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 			switch err := err.(type) {
 			case *scopes.UnbindContainerNotFound:
 				// ignore error
-				log.Warnf("Container %s not found by network unbind", vc.ContainerID)
+				op.Warnf("Container %s not found by network unbind", vc.ContainerID)
 			case *scopes.UnbindContainerInternalServerError:
 				return InternalServerError(err.Payload.Message)
 			default:
@@ -531,7 +531,7 @@ func (c *ContainerProxy) Stop(vc *viccontainer.VicContainer, name string, second
 
 	handle = stateChangeResponse.Payload
 	wait := int32(seconds)
-	err = c.CommitContainerHandle(handle, vc.ContainerID, wait)
+	err = c.CommitContainerHandle(op, handle, vc.ContainerID, wait)
 	if err != nil {
 		if IsNotFoundError(err) {
 			cache.ContainerCache().DeleteContainer(vc.ContainerID)
@@ -571,8 +571,8 @@ func (c *ContainerProxy) IsRunning(vc *viccontainer.VicContainer) (bool, error) 
 	return inspectJSON.State.Running, nil
 }
 
-func (c *ContainerProxy) Wait(vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error) {
-	defer trace.End(trace.Begin(vc.ContainerID))
+func (c *ContainerProxy) Wait(op trace.Operation, vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error) {
+	op.Debugf("Container_Proxy.Wait(container(%s), timeout(%s))", vc.Name, timeout)
 
 	if vc == nil {
 		reterr = InternalServerError("Wait bad arguments")

@@ -84,6 +84,8 @@ var (
 	cbpLock         sync.Mutex
 	containerByPort map[string]string // port:containerID
 
+	//FIXME: this should not be global, contexts are attached to operation logging and can store state.
+	//       the context should be provided to the proxy calls and created in the handler at the entry point time.
 	ctx = context.TODO()
 )
 
@@ -216,14 +218,14 @@ func (c *Container) ContainerStatPath(name string, path string) (stat *types.Con
 
 // ContainerCreate creates a container.
 func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.ContainerCreateResponse, error) {
-	defer trace.End(trace.Begin(""))
+	op := trace.NewOperation(context.Background(), "Container.ContainerCreate")
 
 	var err error
 
 	// bail early if container name already exists
 	if exists := cache.ContainerCache().GetContainer(config.Name); exists != nil {
 		err := fmt.Errorf("Conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to re use that name.", config.Name, exists.ContainerID)
-		log.Errorf("%s", err.Error())
+		op.Errorf("%s", err.Error())
 		return types.ContainerCreateResponse{}, derr.NewRequestConflictError(err)
 	}
 
@@ -232,14 +234,14 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	if err != nil {
 		// if no image found then error thrown and a pull
 		// will be initiated by the docker client
-		log.Errorf("ContainerCreate: image %s error: %s", config.Config.Image, err.Error())
+		op.Errorf("ContainerCreate: image %s error: %s", config.Config.Image, err.Error())
 		return types.ContainerCreateResponse{}, derr.NewRequestNotFoundError(err)
 	}
 
 	setCreateConfigOptions(config.Config, image.Config)
 
-	log.Debugf("config.Config = %+v", config.Config)
-	if err = validateCreateConfig(&config); err != nil {
+	op.Debugf("config.Config = %+v", config.Config)
+	if err = validateCreateConfig(op, &config); err != nil {
 		return types.ContainerCreateResponse{}, err
 	}
 
@@ -251,7 +253,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	}
 
 	// Create an actualized container in the VIC port layer
-	id, err := c.containerCreate(container, config)
+	id, err := c.containerCreate(op, container, config)
 	if err != nil {
 		return types.ContainerCreateResponse{}, err
 	}
@@ -262,7 +264,7 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 	container.ContainerID = id
 	cache.ContainerCache().AddContainer(container)
 
-	log.Debugf("Container create - name(%s), containerID(%s), config(%#v), host(%#v)",
+	op.Debugf("Container create - name(%s), containerID(%s), config(%#v), host(%#v)",
 		container.Name, container.ContainerID, container.Config, container.HostConfig)
 
 	return types.ContainerCreateResponse{ID: id}, nil
@@ -273,8 +275,8 @@ func (c *Container) ContainerCreate(config types.ContainerCreateConfig) (types.C
 //
 // returns:
 //	(container id, error)
-func (c *Container) containerCreate(vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, error) {
-	defer trace.End(trace.Begin("Container.containerCreate"))
+func (c *Container) containerCreate(op trace.Operation, vc *viccontainer.VicContainer, config types.ContainerCreateConfig) (string, error) {
+	op.Debugf("Container.containerCreate")
 
 	if vc == nil {
 		return "", InternalServerError("Failed to create container")
@@ -282,32 +284,33 @@ func (c *Container) containerCreate(vc *viccontainer.VicContainer, config types.
 
 	imageID := vc.ImageID
 
-	id, h, err := c.containerProxy.CreateContainerHandle(imageID, config)
+	id, h, err := c.containerProxy.CreateContainerHandle(op, imageID, config)
 	if err != nil {
 		return "", err
 	}
+	op.Debugf("new container created with id: %s", id)
 
-	h, err = c.containerProxy.AddContainerToScope(h, config)
+	h, err = c.containerProxy.AddContainerToScope(op, h, config)
 	if err != nil {
 		return id, err
 	}
 
-	h, err = c.containerProxy.AddInteractionToContainer(h, config)
+	h, err = c.containerProxy.AddInteractionToContainer(op, h, config)
 	if err != nil {
 		return id, err
 	}
 
-	h, err = c.containerProxy.AddLoggingToContainer(h, config)
+	h, err = c.containerProxy.AddLoggingToContainer(op, h, config)
 	if err != nil {
 		return id, err
 	}
 
-	h, err = c.containerProxy.AddVolumesToContainer(h, config)
+	h, err = c.containerProxy.AddVolumesToContainer(op, h, config)
 	if err != nil {
 		return id, err
 	}
 
-	err = c.containerProxy.CommitContainerHandle(h, id, -1)
+	err = c.containerProxy.CommitContainerHandle(op, h, id, -1)
 	if err != nil {
 		return id, err
 	}
@@ -321,6 +324,7 @@ func (c *Container) containerCreate(vc *viccontainer.VicContainer, config types.
 // If a signal is given, then just send it to the container and return.
 func (c *Container) ContainerKill(name string, sig uint64) error {
 	defer trace.End(trace.Begin(fmt.Sprintf("%s, %d", name, sig)))
+	op := trace.NewOperation(context.Background(), "Container.ContainerKill(container(%s))", name)
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -348,7 +352,7 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 // ContainerResize changes the size of the TTY of the process running
 // in the container with the given name to the given height and width.
 func (c *Container) ContainerResize(name string, height, width int) error {
-	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "Container.ContainerResize(container(%s))", name)
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -370,8 +374,7 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 // stop. Returns an error if the container cannot be found, or if
 // there is an underlying error at any stage of the restart.
 func (c *Container) ContainerRestart(name string, seconds int) error {
-	defer trace.End(trace.Begin(name))
-
+	op := trace.NewOperation(context.Background(), "Container.ContainerRestart(container(%s))", name)
 	// Look up the container name in the metadata cache ot get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
@@ -397,6 +400,7 @@ func (c *Container) ContainerRestart(name string, seconds int) error {
 // network links are removed.
 func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) error {
 	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "container.ContainerRm(container(%s))", name)
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -413,7 +417,7 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 
 	// Use the force and stop the container first
 	if config.ForceRemove {
-		c.containerProxy.Stop(vc, name, 0, true)
+		c.containerProxy.Stop(op, vc, name, 0, true)
 	}
 
 	//call the remove directly on the name. No need for using a handle.
@@ -479,11 +483,12 @@ func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
 
 // ContainerStart starts a container.
 func (c *Container) ContainerStart(name string, hostConfig *containertypes.HostConfig) error {
-	defer trace.End(trace.Begin(name))
-	return c.containerStart(name, hostConfig, true)
+	op := trace.NewOperation(context.Background(), "Container.ContainerStart(container(%s))", name)
+	return c.containerStart(op, name, hostConfig, true)
 }
 
-func (c *Container) containerStart(name string, hostConfig *containertypes.HostConfig, bind bool) error {
+func (c *Container) containerStart(op trace.Operation, name string, hostConfig *containertypes.HostConfig, bind bool) error {
+	op.Debugf("Container.containerStart(container(%s))", name)
 	var err error
 
 	// Get an API client to the portlayer
@@ -656,8 +661,9 @@ func unrollPortMap(portMap nat.PortMap) ([]*portMapping, error) {
 }
 
 // MapPorts maps ports defined in hostconfig for containerID
-func MapPorts(hostconfig *containertypes.HostConfig, endpoint *models.EndpointConfig, containerID string) error {
-	log.Debugf("mapPorts for %q: %v", containerID, hostconfig.PortBindings)
+func MapPorts(op trace.Operation, hostconfig *containertypes.HostConfig, endpoint *models.EndpointConfig, containerID string) error {
+	op.Debugf("Container.MapPorts(container(%s))", containerID)
+	op.Debugf("mapPorts for %q: %v", containerID, hostconfig.PortBindings)
 
 	if len(hostconfig.PortBindings) == 0 {
 		return nil
@@ -686,14 +692,15 @@ func MapPorts(hostconfig *containertypes.HostConfig, endpoint *models.EndpointCo
 
 		// update mapped ports
 		containerByPort[p.strHostPort] = containerID
-		log.Debugf("mapped port %s for container %s", p.strHostPort, containerID)
+		op.Debugf("mapped port %s for container %s", p.strHostPort, containerID)
 	}
 	return nil
 }
 
 // UnmapPorts unmaps ports defined in hostconfig
-func UnmapPorts(hostconfig *containertypes.HostConfig) error {
-	log.Debugf("UnmapPorts: %v", hostconfig.PortBindings)
+func UnmapPorts(op trace.Operation, hostconfig *containertypes.HostConfig) error {
+	op.Debugf("Container.UnmapPorts")
+	op.Debugf("UnmapPorts: %v", hostconfig.PortBindings)
 
 	if len(hostconfig.PortBindings) == 0 {
 		return nil
@@ -710,7 +717,7 @@ func UnmapPorts(hostconfig *containertypes.HostConfig) error {
 		// check if we should actually unmap based on current mappings
 		_, mapped := containerByPort[p.strHostPort]
 		if !mapped {
-			log.Debugf("skipping already unmapped %s", p.strHostPort)
+			op.Debugf("skipping already unmapped %s", p.strHostPort)
 			continue
 		}
 
@@ -720,7 +727,7 @@ func UnmapPorts(hostconfig *containertypes.HostConfig) error {
 
 		// update mapped ports
 		delete(containerByPort, p.strHostPort)
-		log.Debugf("unmapped port %s", p.strHostPort)
+		op.Debugf("unmapped port %s", p.strHostPort)
 	}
 	return nil
 }
@@ -783,7 +790,7 @@ func (c *Container) findPortBoundNetworkEndpoint(hostconfig *containertypes.Host
 // container is not found, is already stopped, or if there is a
 // problem stopping the container.
 func (c *Container) ContainerStop(name string, seconds int) error {
-	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "Container.ContainerStop(container(%s))", name)
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -791,7 +798,7 @@ func (c *Container) ContainerStop(name string, seconds int) error {
 		return NotFoundError(name)
 	}
 
-	return c.containerProxy.Stop(vc, name, seconds, true)
+	return c.containerProxy.Stop(op, vc, name, seconds, true)
 }
 
 // ContainerUnpause unpauses a container
@@ -810,7 +817,7 @@ func (c *Container) ContainerUpdate(name string, hostConfig *containertypes.Host
 // timeout, an error is returned. If you want to wait forever, supply
 // a negative duration for the timeout.
 func (c *Container) ContainerWait(name string, timeout time.Duration) (int, error) {
-	defer trace.End(trace.Begin(fmt.Sprintf("name(%s):timeout(%s)", name, timeout)))
+	op := trace.NewOperation(context.Background(), "Container.ContainerWait(container(%s),timeout(%s))", name, timeout)
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -818,7 +825,7 @@ func (c *Container) ContainerWait(name string, timeout time.Duration) (int, erro
 		return -1, NotFoundError(name)
 	}
 
-	processExitCode, processStatus, containerState, err := c.containerProxy.Wait(vc, timeout)
+	processExitCode, processStatus, containerState, err := c.containerProxy.Wait(op, vc, timeout)
 	if err != nil {
 		return -1, err
 	}
@@ -886,7 +893,7 @@ func (c *Container) ContainerChanges(name string) ([]archive.Change, error) {
 // there is an error getting the data.
 func (c *Container) ContainerInspect(name string, size bool, version version.Version) (interface{}, error) {
 	// Ignore version.  We're supporting post-1.20 version.
-	defer trace.End(trace.Begin(name))
+	op := trace.NewOperation(context.Background(), "Container.ContainerInspect(container(%s))", name)
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -894,7 +901,7 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 		return nil, NotFoundError(name)
 	}
 	id := vc.ContainerID
-	log.Debugf("Found %q in cache as %q", id, vc.ContainerID)
+	op.Debugf("Found %q in cache as %q", id, vc.ContainerID)
 
 	client := c.containerProxy.Client()
 
@@ -931,15 +938,15 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 
 	inspectJSON, err := ContainerInfoToDockerContainerInspect(vc, results.Payload, PortLayerName())
 	if err != nil {
-		log.Errorf("containerInfoToDockerContainerInspect failed with %s", err)
+		op.Errorf("containerInfoToDockerContainerInspect failed with %s", err)
 		return nil, err
 	}
 
-	log.Debugf("ContainerInspect json config = %+v\n", inspectJSON.Config)
+	op.Debugf("ContainerInspect json config = %+v\n", inspectJSON.Config)
 	if inspectJSON.NetworkSettings != nil {
-		log.Debugf("Docker inspect - network settings = %#v", inspectJSON.NetworkSettings)
+		op.Debugf("Docker inspect - network settings = %#v", inspectJSON.NetworkSettings)
 	} else {
-		log.Debugf("Docker inspect - network settings = null")
+		op.Debugf("Docker inspect - network settings = null")
 	}
 
 	return inspectJSON, nil
@@ -948,7 +955,7 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 // ContainerLogs hooks up a container's stdout and stderr streams
 // configured with the given struct.
 func (c *Container) ContainerLogs(name string, config *backend.ContainerLogsConfig, started chan struct{}) error {
-	defer trace.End(trace.Begin(""))
+	op := trace.NewOperation(context.Background(), "Container.ContainerLogs(container(%s))", name)
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -1288,8 +1295,8 @@ func setPathFromImageConfig(config, imageConfig *containertypes.Config) {
 
 // validateCreateConfig() checks the parameters for ContainerCreate().
 // It may "fix up" the config param passed into ConntainerCreate() if needed.
-func validateCreateConfig(config *types.ContainerCreateConfig) error {
-	defer trace.End(trace.Begin("Container.validateCreateConfig"))
+func validateCreateConfig(op trace.Operation, config *types.ContainerCreateConfig) error {
+	op.Debugf("Container.validateCreateConfig")
 
 	// process cpucount here
 	var cpuCount int64 = DefaultCPUs
@@ -1314,7 +1321,7 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	if cpuCount < MinCPUs {
 		config.HostConfig.CPUCount = MinCPUs
 	}
-	log.Infof("Container CPU count: %d", config.HostConfig.CPUCount)
+	op.Infof("Container CPU count: %d", config.HostConfig.CPUCount)
 
 	// convert from bytes to MiB for vsphere
 	memoryMB := config.HostConfig.Memory / units.MiB
@@ -1326,12 +1333,12 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 
 	// check that memory is aligned
 	if remainder := memoryMB % MemoryAlignMB; remainder != 0 {
-		log.Warnf("Default container VM memory must be %d aligned for hotadd, rounding up.", MemoryAlignMB)
+		op.Warnf("Default container VM memory must be %d aligned for hotadd, rounding up.", MemoryAlignMB)
 		memoryMB += MemoryAlignMB - remainder
 	}
 
 	config.HostConfig.Memory = memoryMB
-	log.Infof("Container memory: %d MB", config.HostConfig.Memory)
+	op.Infof("Container memory: %d MB", config.HostConfig.Memory)
 
 	if config.NetworkingConfig == nil {
 		config.NetworkingConfig = &dnetwork.NetworkingConfig{}
@@ -1345,7 +1352,7 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	if config.HostConfig != nil {
 		var ips []string
 		if addrs, err := externalIPv4Addrs(); err != nil {
-			log.Warnf("could not get address for external interface: %s", err)
+			op.Warnf("could not get address for external interface: %s", err)
 		} else {
 			ips = make([]string, len(addrs))
 			for i := range addrs {
