@@ -71,8 +71,20 @@ func (s *server) listen() error {
 	defer trace.End(trace.Begin(""))
 
 	var err error
+	var certificate *tls.Certificate
 	s.uss = NewUserSessionStore()
-	certificate, err := vchConfig.HostCertificate.Certificate()
+	if vchConfig.HostCertificate != nil {
+		certificate, err = vchConfig.HostCertificate.Certificate()
+	} else {
+		var c tls.Certificate
+		if c, err = tls.X509KeyPair(
+			rootConfig.serverCert.Cert.Bytes(),
+			rootConfig.serverCert.Key.Bytes()); err != nil {
+			log.Errorf("Could not generate self-signed certificate for vicadmin running with due to error %s", err.Error())
+			return err
+		}
+		certificate = &c
+	}
 	if err != nil {
 		log.Errorf("Could not load certificate from config - running without TLS: %s", err)
 

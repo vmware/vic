@@ -40,6 +40,7 @@ import (
 	vchconfig "github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/guest"
 	"github.com/vmware/vic/lib/pprof"
+	"github.com/vmware/vic/pkg/certificate"
 	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/version"
 	"github.com/vmware/vic/pkg/vsphere/compute"
@@ -52,10 +53,16 @@ const (
 	timeout = time.Duration(2 * time.Second)
 )
 
+type ServerCertificate struct {
+	Key  bytes.Buffer
+	Cert bytes.Buffer
+}
+
 type vicAdminConfig struct {
 	session.Config
-	addr string
-	tls  bool
+	addr       string
+	tls        bool
+	serverCert *ServerCertificate
 }
 
 var (
@@ -76,6 +83,7 @@ var (
 
 	// this struct holds root credentials or vSphere extension private key instead if available
 	// if you are exposing log information to a user, create a new session for that user, do not use this one
+	// also, 'root' is a pun -- this is both the "root" config, e.g., the base config, and the one w/ root creds
 	rootConfig vicAdminConfig
 
 	resources vchconfig.Resources
@@ -121,6 +129,15 @@ func init() {
 	}
 
 	extraconfig.Decode(src, &vchConfig)
+	if vchConfig.HostCertificate == nil {
+		log.Infoln("--no-tls is enabled on the personality")
+		rootConfig.serverCert = &ServerCertificate{}
+		rootConfig.serverCert.Cert, rootConfig.serverCert.Key, err = certificate.CreateSelfSigned(rootConfig.addr, []string{"VMware, Inc."}, 2048)
+		if err != nil {
+			log.Errorf("--no-tls was specified but we couldn't generate a self-signed cert for vic admin due to error %s so vicadmin will not run", err.Error())
+			return
+		}
+	}
 
 	// FIXME: pull the rest from flags
 	flag.Parse()
@@ -452,6 +469,11 @@ func main() {
 	rootConfig.User = url.UserPassword(vchConfig.Username, vchConfig.Token)
 	rootConfig.Thumbprint = vchConfig.TargetThumbprint
 	rootConfig.DatastorePath = vchConfig.Storage.ImageStores[0].Host
+
+	if vchConfig.Diagnostics.DebugLevel > 0 {
+		log.SetLevel(log.DebugLevel)
+		log.Info("Setting debug logging")
+	}
 
 	if vchConfig.Diagnostics.DebugLevel > 2 {
 		rootConfig.addr = "0.0.0.0:2378"

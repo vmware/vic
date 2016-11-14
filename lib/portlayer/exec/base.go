@@ -163,7 +163,7 @@ func (c *containerBase) start(ctx context.Context) error {
 	}
 
 	// guestinfo key that we want to wait for
-	key := fmt.Sprintf("guestinfo.vice..sessions|%s.started", c.ExecConfig.ID)
+	key := extraconfig.CalculateKeys(c.ExecConfig, fmt.Sprintf("Sessions.%s.Started", c.ExecConfig.ID), "")[0]
 	var detail string
 
 	// Wait some before giving up...

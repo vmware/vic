@@ -358,6 +358,31 @@ func linkAddrUpdate(old, new *net.IPNet, t Netlink, link netlink.Link) error {
 	return nil
 }
 
+func updateRoutes(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) error {
+	gw := endpoint.Network.Gateway
+	if ip.IsUnspecifiedIP(gw.IP) {
+		return nil
+	}
+
+	if endpoint.Network.Default {
+		return updateDefaultRoute(t, link, endpoint)
+	}
+
+	for _, d := range endpoint.Network.Destinations {
+		r := &netlink.Route{
+			LinkIndex: link.Attrs().Index,
+			Dst:       &d,
+			Gw:        gw.IP,
+		}
+
+		if err := t.RouteAdd(r); err != nil && !os.IsNotExist(err) {
+			log.Errorf("failed to add route for destination %s via gateway %s", d, gw.IP)
+		}
+	}
+
+	return nil
+}
+
 func updateDefaultRoute(t Netlink, link netlink.Link, endpoint *NetworkEndpoint) error {
 	// Add routes
 	if !endpoint.Network.Default || ip.IsUnspecifiedIP(endpoint.Network.Gateway.IP) {
@@ -376,8 +401,7 @@ func updateDefaultRoute(t Netlink, link netlink.Link, endpoint *NetworkEndpoint)
 	log.Infof("Setting default gateway to %s", endpoint.Network.Gateway.IP)
 	route := &netlink.Route{LinkIndex: link.Attrs().Index, Dst: defaultNet, Gw: endpoint.Network.Gateway.IP}
 	if err := t.RouteAdd(route); err != nil {
-		detail := fmt.Sprintf("failed to add gateway route for endpoint %s: %s", endpoint.Network.Name, err)
-		return errors.New(detail)
+		return fmt.Errorf("failed to add gateway route for endpoint %s: %s", endpoint.Network.Name, err)
 	}
 
 	log.Infof("updated default route to %s interface, gateway: %s", endpoint.Network.Name, endpoint.Network.Gateway.IP)
@@ -506,7 +530,7 @@ func apply(nl Netlink, t *BaseOperations, endpoint *NetworkEndpoint) error {
 
 	updateEndpoint(newIP, endpoint)
 
-	if err = updateDefaultRoute(nl, link, endpoint); err != nil {
+	if err = updateRoutes(nl, link, endpoint); err != nil {
 		return err
 	}
 

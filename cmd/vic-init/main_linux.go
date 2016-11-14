@@ -118,11 +118,9 @@ func main() {
 
 func setLogLevels() {
 	if debugLevel > 0 {
-		extraconfig.DecodeLogLevel = log.DebugLevel
-		extraconfig.EncodeLogLevel = log.DebugLevel
-
 		log.SetLevel(log.DebugLevel)
 	}
+
 }
 
 // exit cleanly shuts down the system
