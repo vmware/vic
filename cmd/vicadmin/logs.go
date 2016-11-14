@@ -218,6 +218,7 @@ func findDiagnosticLogs(c *session.Session) (map[string]entryReader, error) {
 
 	return logs, nil
 }
+
 func tarEntries(readers map[string]entryReader, out io.Writer) error {
 	defer trace.End(trace.Begin(""))
 
@@ -277,6 +278,7 @@ func tarEntries(readers map[string]entryReader, out io.Writer) error {
 
 	return nil
 }
+
 func zipEntries(readers map[string]entryReader, out *zip.Writer) error {
 	defer trace.End(trace.Begin(""))
 	defer out.Close()
