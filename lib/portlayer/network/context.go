@@ -574,8 +574,8 @@ func (c *Context) findScopes(idName *string) ([]*Scope, error) {
 	return _scopes, nil
 }
 
-func (c *Context) Scopes(ctx context.Context, idName *string) ([]*Scope, error) {
-	defer trace.End(trace.Begin(""))
+func (c *Context) Scopes(op trace.Operation, idName *string) ([]*Scope, error) {
+	defer trace.End(trace.Begin(op.SPrintf("idName(%s)", *idName)))
 
 	c.Lock()
 	defer c.Unlock()
@@ -598,7 +598,7 @@ func (c *Context) Scopes(ctx context.Context, idName *string) ([]*Scope, error) 
 	}
 
 	for _, c := range containers {
-		c.Refresh(ctx)
+		c.Refresh(op)
 	}
 
 	return scopes, nil
@@ -609,7 +609,7 @@ func (c *Context) DefaultScope() *Scope {
 }
 
 func (c *Context) BindContainer(h *exec.Handle) ([]*Endpoint, error) {
-	defer trace.End(trace.Begin(""))
+	defer trace.End(trace.Begin(fmt.Sprintf("handle(%s)", h)))
 	c.Lock()
 	defer c.Unlock()
 

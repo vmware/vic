@@ -120,19 +120,21 @@ func Init(ctx context.Context, sess *session.Session, source extraconfig.DataSou
 func handleEvent(netctx *Context, ie events.Event) {
 	switch ie.String() {
 	case events.ContainerPoweredOff:
-		handle := exec.GetContainer(context.Background(), uid.Parse(ie.Reference()))
+		id := uid.Parse(ie.Reference())
+		op := trace.NewOperation(context.Background(), "Power Off event detected for %s", id)
+		handle := exec.GetContainer(op, id)
 		if handle == nil {
-			log.Errorf("Container %s not found - unable to UnbindContainer", ie.Reference())
+			op.Errorf("Container %s not found - unable to UnbindContainer", id)
 			return
 		}
 		defer handle.Close()
 		if _, err := netctx.UnbindContainer(handle); err != nil {
-			log.Warnf("Failed to unbind container %s: %s", ie.Reference(), err)
+			op.Warnf("Failed to unbind container %s: %s", id, err)
 			return
 		}
 
-		if err := handle.Commit(context.Background(), nil, nil); err != nil {
-			log.Warnf("Failed to commit handle after network unbind for container %s: %s", ie.Reference(), err)
+		if err := handle.Commit(op, nil, nil); err != nil {
+			op.Warnf("Failed to commit handle after network unbind for container %s: %s", id, err)
 		}
 
 	}
@@ -171,8 +173,8 @@ func engageContext(ctx context.Context, netctx *Context, em event.EventManager) 
 	}()
 
 	for _, c := range exec.Containers.Containers(nil) {
-		log.Debugf("adding container %s", c.ExecConfig.ID)
-		h := c.NewHandle(ctx)
+		op := trace.NewOperation(ctx, "adding container %s", c.ExecConfig.ID)
+		h := c.NewHandle(op)
 		defer h.Close()
 
 		// add any user created networks that show up in container's config
@@ -194,7 +196,7 @@ func engageContext(ctx context.Context, netctx *Context, em event.EventManager) 
 				pools[i] = ne.Network.Pools[i].String()
 			}
 
-			log.Debugf("adding scope %s", n)
+			op.Debugf("adding scope %s", n)
 			if _, err = netctx.newScope(ne.Network.Type, n, &ne.Network.Gateway, ne.Network.Gateway.IP, ne.Network.Nameservers, pools); err != nil {
 				return err
 			}

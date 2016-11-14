@@ -19,8 +19,8 @@ import (
 	"sync"
 
 	"github.com/vmware/vic/lib/portlayer/exec"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
-	"golang.org/x/net/context"
 )
 
 type Container struct {
@@ -93,13 +93,15 @@ func (c *Container) removeEndpoint(e *Endpoint) {
 	c.endpoints = removeEndpointHelper(e, c.endpoints)
 }
 
-func (c *Container) Refresh(ctx context.Context) error {
+func (c *Container) Refresh(op trace.Operation) error {
+	defer trace.End(trace.Begin(op.SPrintf("container(%s)", c.ID())))
+
 	c.Lock()
 	defer c.Unlock()
 
 	// this will "refresh" the container executor config that contains
 	// the current ip addresses
-	h := exec.GetContainer(ctx, c.ID())
+	h := exec.GetContainer(op, c.ID())
 	if h == nil {
 		return fmt.Errorf("could not find container %s", c.ID())
 	}

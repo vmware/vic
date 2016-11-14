@@ -82,9 +82,9 @@ func parseScopeConfig(cfg *models.ScopeConfig) (subnet *net.IPNet, gateway net.I
 	return
 }
 
-func (handler *ScopesHandlersImpl) listScopes(idName string) ([]*models.ScopeConfig, error) {
-	defer trace.End(trace.Begin(idName))
-	scs, err := handler.netCtx.Scopes(context.Background(), &idName)
+func (handler *ScopesHandlersImpl) listScopes(op trace.Operation, idName string) ([]*models.ScopeConfig, error) {
+	defer trace.End(trace.Begin(op.SPrintf("idName(%s)", idName)))
+	scs, err := handler.netCtx.Scopes(op, &idName)
 	if err != nil {
 		return nil, err
 	}
@@ -143,9 +143,10 @@ func (handler *ScopesHandlersImpl) ScopesDelete(params scopes.DeleteScopeParams)
 }
 
 func (handler *ScopesHandlersImpl) ScopesListAll() middleware.Responder {
-	defer trace.End(trace.Begin(""))
+	op := trace.NewOperation(context.Background(), "")
+	defer trace.End(trace.Begin(op.SPrintf("")))
 
-	cfgs, err := handler.listScopes("")
+	cfgs, err := handler.listScopes(op, "")
 	if err != nil {
 		return scopes.NewListDefault(http.StatusServiceUnavailable).WithPayload(errorPayload(err))
 	}
@@ -154,9 +155,10 @@ func (handler *ScopesHandlersImpl) ScopesListAll() middleware.Responder {
 }
 
 func (handler *ScopesHandlersImpl) ScopesList(params scopes.ListParams) middleware.Responder {
-	defer trace.End(trace.Begin("ScopesList"))
+	op := trace.NewOperation(context.Background(), "")
+	defer trace.End(trace.Begin(op.SPrintf("IDName(%s)", params.IDName)))
 
-	cfgs, err := handler.listScopes(params.IDName)
+	cfgs, err := handler.listScopes(op, params.IDName)
 	if _, ok := err.(network.ResourceNotFoundError); ok {
 		return scopes.NewListNotFound().WithPayload(errorPayload(err))
 	}

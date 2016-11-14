@@ -32,8 +32,6 @@ import (
 	"github.com/vmware/vic/pkg/vsphere/extraconfig/vmomi"
 	"github.com/vmware/vic/pkg/vsphere/tasks"
 	"github.com/vmware/vic/pkg/vsphere/vm"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 // NotYetExistError is returned when a call that requires a VM exist is made
@@ -79,12 +77,12 @@ func newBase(vm *vm.VirtualMachine, c *types.VirtualMachineConfigInfo, r *types.
 }
 
 // unlocked refresh of container state
-func (c *containerBase) refresh(ctx context.Context) error {
-	defer trace.End(trace.Begin(c.ExecConfig.ID))
+func (c *containerBase) refresh(op trace.Operation) error {
+	defer trace.End(trace.Begin(op.SPrintf("container(%s)", c.ExecConfig.ID)))
 
-	base, err := c.updates(ctx)
+	base, err := c.updates(op)
 	if err != nil {
-		log.Errorf("Unable to update container %s", c.ExecConfig.ID)
+		op.Errorf("Unable to update container %s", c.ExecConfig.ID)
 		return err
 	}
 
@@ -95,7 +93,7 @@ func (c *containerBase) refresh(ctx context.Context) error {
 
 // updates acquires updates from the infrastructure without holding a lock
 func (c *containerBase) updates(op trace.Operation) (*containerBase, error) {
-	op.Debugf("exec.base.updates(%s)", c.ExecConfig.ID)
+	defer trace.End(trace.Begin(op.SPrintf("container(%s)", c.ExecConfig.ID)))
 
 	var o mo.VirtualMachine
 
@@ -104,7 +102,7 @@ func (c *containerBase) updates(op trace.Operation) (*containerBase, error) {
 		return nil, NotYetExistError{c.ExecConfig.ID}
 	}
 
-	if err := c.vm.Properties(ctx, c.vm.Reference(), []string{"config", "runtime"}, &o); err != nil {
+	if err := c.vm.Properties(op.Context, c.vm.Reference(), []string{"config", "runtime"}, &o); err != nil {
 		return nil, err
 	}
 
@@ -122,7 +120,7 @@ func (c *containerBase) updates(op trace.Operation) (*containerBase, error) {
 }
 
 func (c *containerBase) startGuestProgram(op trace.Operation, name string, args string) error {
-	op.Debugf("exec.base.startGuestProgram(%s,%s)", name, args)
+	defer trace.End(trace.Begin(op.SPrintf("container(%s), arguments(%s)", name, args)))
 	// make sure we have vm
 	if c.vm == nil {
 		return NotYetExistError{c.ExecConfig.ID}
@@ -130,7 +128,7 @@ func (c *containerBase) startGuestProgram(op trace.Operation, name string, args 
 
 	defer trace.End(trace.Begin(c.ExecConfig.ID))
 	o := guest.NewOperationsManager(c.vm.Client.Client, c.vm.Reference())
-	m, err := o.ProcessManager(ctx)
+	m, err := o.ProcessManager(op.Context)
 	if err != nil {
 		return err
 	}
@@ -195,7 +193,7 @@ func (c *containerBase) stop(op trace.Operation, waitTime *int32) error {
 	// get existing state and set to stopping
 	// if there's a failure we'll revert to existing
 
-	err := c.shutdown(ctx, waitTime)
+	err := c.shutdown(op, waitTime)
 	if err == nil {
 		return nil
 	}
@@ -205,7 +203,8 @@ func (c *containerBase) stop(op trace.Operation, waitTime *int32) error {
 	return c.poweroff(op)
 }
 
-func (c *containerBase) kill(ctx context.Context) error {
+func (c *containerBase) kill(op trace.Operation) error {
+	defer trace.End(trace.Begin(op.SPrintf("container(%s)", c.ExecConfig.ID)))
 	// make sure we have vm
 	if c.vm == nil {
 		return NotYetExistError{c.ExecConfig.ID}
@@ -213,31 +212,32 @@ func (c *containerBase) kill(ctx context.Context) error {
 
 	wait := 10 * time.Second // default
 	sig := string(ssh.SIGKILL)
-	log.Infof("sending kill -%s %s", sig, c.ExecConfig.ID)
+	op.Infof("sending kill -%s %s", sig, c.ExecConfig.ID)
 
-	err := c.startGuestProgram(ctx, "kill", sig)
+	err := c.startGuestProgram(op, "kill", sig)
 	if err == nil {
-		log.Infof("waiting %s for %s to power off", wait, c.ExecConfig.ID)
-		timeout, err := c.waitForPowerState(ctx, wait, types.VirtualMachinePowerStatePoweredOff)
+		op.Infof("waiting %s for %s to power off", wait, c.ExecConfig.ID)
+		timeout, err := c.waitForPowerState(op.Context, wait, types.VirtualMachinePowerStatePoweredOff)
 		if err == nil {
 			return nil // VM has powered off
 		}
 
 		if timeout {
-			log.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c.ExecConfig.ID, sig)
+			op.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c.ExecConfig.ID, sig)
 		}
 	}
 
 	if err != nil {
-		log.Warnf("killing %s attempt resulted in: %s", c.ExecConfig.ID, err)
+		op.Warnf("killing %s attempt resulted in: %s", c.ExecConfig.ID, err)
 	}
 
-	log.Warnf("killing %s via hard power off", c.ExecConfig.ID)
+	op.Warnf("killing %s via hard power off", c.ExecConfig.ID)
 
-	return c.poweroff(ctx)
+	return c.poweroff(op)
 }
 
-func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
+func (c *containerBase) shutdown(op trace.Operation, waitTime *int32) error {
+	defer trace.End(trace.Begin(op.SPrintf("container(%s), waitTime(%d)", c.ExecConfig.ID, waitTime)))
 	// make sure we have vm
 	if c.vm == nil {
 		return NotYetExistError{c.ExecConfig.ID}
@@ -256,15 +256,15 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 
 	for _, sig := range stop {
 		msg := fmt.Sprintf("sending kill -%s %s", sig, c.ExecConfig.ID)
-		log.Info(msg)
+		op.Infof("%s", msg)
 
-		err := c.startGuestProgram(ctx, "kill", sig)
+		err := c.startGuestProgram(op, "kill", sig)
 		if err != nil {
 			return fmt.Errorf("%s: %s", msg, err)
 		}
 
-		log.Infof("waiting %s for %s to power off", wait, c.ExecConfig.ID)
-		timeout, err := c.waitForPowerState(ctx, wait, types.VirtualMachinePowerStatePoweredOff)
+		op.Infof("waiting %s for %s to power off", wait, c.ExecConfig.ID)
+		timeout, err := c.waitForPowerState(op.Context, wait, types.VirtualMachinePowerStatePoweredOff)
 		if err == nil {
 			return nil // VM has powered off
 		}
@@ -273,7 +273,7 @@ func (c *containerBase) shutdown(ctx context.Context, waitTime *int32) error {
 			return err // error other than timeout
 		}
 
-		log.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c.ExecConfig.ID, sig)
+		op.Warnf("timeout (%s) waiting for %s to power off via SIG%s", wait, c.ExecConfig.ID, sig)
 	}
 
 	return fmt.Errorf("failed to shutdown %s via kill signals %s", c.ExecConfig.ID, stop)

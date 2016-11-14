@@ -19,6 +19,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/uid"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -109,7 +110,8 @@ func (conCache *containerCache) sync(ctx context.Context, sess *session.Session)
 	conCache.m.Lock()
 	defer conCache.m.Unlock()
 
-	cons, err := infraContainers(ctx, sess)
+	op := trace.NewOperation(ctx, "Syncing container cache")
+	cons, err := infraContainers(op, sess)
 	if err != nil {
 		return err
 	}

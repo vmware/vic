@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/vic/lib/portlayer/event"
 	"github.com/vmware/vic/lib/portlayer/event/collector/vsphere"
 	"github.com/vmware/vic/lib/portlayer/event/events"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/extraconfig"
 	"github.com/vmware/vic/pkg/vsphere/session"
 )
@@ -153,7 +154,8 @@ func eventCallback(ie events.Event) {
 					ctx, cancel := context.WithTimeout(context.Background(), propertyCollectorTimeout)
 					defer cancel()
 
-					err := container.Refresh(ctx)
+					op := trace.NewOperation(ctx, "Refreshing container %s", container.ExecConfig.ID)
+					err := container.Refresh(op)
 					if err != nil {
 						log.Errorf("Event driven container update failed: %s", err.Error())
 					}
@@ -190,17 +192,16 @@ func registeredVMCallback(sess *session.Session, ie events.Event) {
 		if !isManagedbyVCH(sess, *moref) {
 			return
 		}
-		log.Debugf("Register container VM %s", moref)
-		ctx := context.Background()
-		vms, err := populateVMAttributes(ctx, sess, []types.ManagedObjectReference{*moref})
+		op := trace.NewOperation(context.Background(), "Register container VM %s", moref)
+		vms, err := populateVMAttributes(op, sess, []types.ManagedObjectReference{*moref})
 		if err != nil {
 			log.Error(err)
 			return
 		}
-		registeredContainers := convertInfraContainers(ctx, sess, vms)
+		registeredContainers := convertInfraContainers(op, sess, vms)
 		for i := range registeredContainers {
 			Containers.put(registeredContainers[i])
-			log.Debugf("Registered container %q", registeredContainers[i].Config.Name)
+			op.Debugf("Registered container %q", registeredContainers[i].Config.Name)
 		}
 	}
 	return
