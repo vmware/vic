@@ -59,7 +59,6 @@ type format int
 const (
 	formatTGZ format = iota
 	formatZip
-	VCHUnreachableMsg = " is not functioning: unable to connect to vSphere."
 )
 
 var beginningOfTime = time.Unix(0, 0).Format(time.RFC3339)
@@ -336,7 +335,10 @@ func (s *server) loginPage(res http.ResponseWriter, req *http.Request) {
 	}
 
 	// Render login page (shows up on non-POST requests)
-	hostName, _ := os.Hostname()
+	hostName, err := os.Hostname()
+	if err != nil {
+		hostName = "VCH"
+	}
 	loginPageData := &LoginPageData{
 		Hostname:   hostName,
 		SystemTime: time.Now().Format(time.UnixDate),
@@ -519,9 +521,9 @@ func (s *server) tailFiles(res http.ResponseWriter, req *http.Request, names []s
 	}
 }
 
-// deriveDisplayError takes a vSphere session error and returns
+// deriveErrorMessage takes a vSphere session error and returns
 // an error string that is safe to display on the vicadmin page.
-func deriveDisplayError(err error) string {
+func deriveErrorMessage(err error) string {
 	if err != nil {
 		switch err := err.(type) {
 		case session.SDKURLError:
@@ -546,10 +548,11 @@ func (s *server) index(res http.ResponseWriter, req *http.Request) {
 
 	if sess == nil {
 		// We're unable to connect to vSphere, so display an error message
-		displayErrStr := deriveDisplayError(err)
-		v.VCHIssues = template.HTML(fmt.Sprintf(
-			"<span class=\"error-message\">%s Error: %s</span>\n",
-			v.Hostname+VCHUnreachableMsg, displayErrStr))
+		errMessage := deriveErrorMessage(err)
+		vchIssues := fmt.Sprintf("<span class=\"error-message\">%s Error: %s</span>\n",
+			v.Hostname+" is not functioning: unable to connect to vSphere.", errMessage)
+
+		v.VCHIssues = template.HTML(vchIssues)
 	}
 
 	tmpl, err := template.ParseFiles("dashboard.html")
