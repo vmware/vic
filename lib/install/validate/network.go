@@ -207,6 +207,15 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 	err = v.configureSharedPortGroups(input, c, i)
 	v.NoteIssue(err)
 
+	// check if static IP on all networks and no user provided DNS servers
+	specifiedDNS := len(input.DNS) > 0
+	usingDHCP := ip.IsUnspecifiedIP(input.ClientNetwork.IP.IP) || ip.IsUnspecifiedIP(input.ExternalNetwork.IP.IP) || ip.IsUnspecifiedIP(input.ManagementNetwork.IP.IP)
+
+	if !usingDHCP && !specifiedDNS { // Set default DNS servers
+		log.Debug("Setting default DNS servers 8.8.8.8 and 8.8.4.4")
+		input.DNS = []net.IP{net.ParseIP("8.8.8.8"), net.ParseIP("8.8.4.4")}
+	}
+
 	// External net
 	// external network is default for appliance
 	e, err = v.getEndpoint(ctx, conf, input.ExternalNetwork, "external", "external", true, input.DNS)
