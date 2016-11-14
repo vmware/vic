@@ -472,6 +472,11 @@ func main() {
 	rootConfig.Thumbprint = vchConfig.TargetThumbprint
 	rootConfig.DatastorePath = vchConfig.Storage.ImageStores[0].Host
 
+	if vchConfig.Diagnostics.DebugLevel > 0 {
+		log.SetLevel(log.DebugLevel)
+		log.Info("Setting debug logging")
+	}
+
 	if vchConfig.Diagnostics.DebugLevel > 2 {
 		rootConfig.addr = "0.0.0.0:2378"
 		log.Warn("Listening on all networks because of debug level")

@@ -55,9 +55,13 @@ type ContainerNetwork struct {
 
 	Type string `vic:"0.1" scope:"read-write" key:"type"`
 
+	// Destinations is a list of CIDRs used for routing traffic to the gateway
+	Destinations []net.IPNet `vic:"0.1" scope:"read-only" key:"destinations"`
+
 	// The network scope the IP belongs to.
 	// The IP address is the default gateway
 	Gateway net.IPNet `vic:"0.1" scope:"read-write" key:"gateway"`
+
 	// Should this gateway be the default route for containers on the network
 	Default bool `vic:"0.1" scope:"read-only" key:"default"`
 
