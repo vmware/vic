@@ -122,12 +122,6 @@ Remap mapped ports after OOB Stop
     Should Not Contain  ${output}  Error
 
 Container to container traffic via VCH external interface
-
-    ${status}=  Get State Of Github Issue  2985
-    Run Keyword If  '${status}' == 'closed'  Fail  Test 1-25-Docker-Port-Map.robot needs to be updated now that Issue #2985 has been resolved
-    Log  Issue \#2985 is blocking implementation  WARN
-    Pass Execution  Skipped
-
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm -f $(docker ${params} ps -aq)
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull nginx

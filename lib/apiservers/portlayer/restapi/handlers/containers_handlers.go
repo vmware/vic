@@ -384,7 +384,6 @@ func (handler *ContainersHandlersImpl) ContainerWaitHandler(params containers.Co
 
 	select {
 	case <-c.WaitForState(exec.StateStopped):
-		c.Refresh(context.Background())
 		containerInfo := convertContainerToContainerInfo(c.Info())
 
 		return containers.NewContainerWaitOK().WithPayload(containerInfo)
@@ -418,14 +417,6 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 	restart := int32(container.ExecConfig.Diagnostics.ResurrectionCount)
 	info.ContainerConfig.RestartCount = &restart
 
-	tty := container.ExecConfig.Sessions[ccid].Tty
-	info.ContainerConfig.Tty = &tty
-
-	attach := container.ExecConfig.Sessions[ccid].Attach
-	info.ContainerConfig.AttachStdin = &attach
-	info.ContainerConfig.AttachStdout = &attach
-	info.ContainerConfig.AttachStderr = &attach
-
 	info.ContainerConfig.StorageSize = &container.VMUnsharedDisk
 
 	if container.ExecConfig.Annotations != nil && len(container.ExecConfig.Annotations) > 0 {
@@ -436,28 +427,50 @@ func convertContainerToContainerInfo(container *exec.ContainerInfo) *models.Cont
 		}
 	}
 
-	path := container.ExecConfig.Sessions[ccid].Cmd.Path
-	info.ProcessConfig.ExecPath = &path
+	// in heavily loaded environments we were seeing a panic due to a missing
+	// session id in execConfig -- this has only manifested itself in short lived containers
+	// that were initilized via run
+	if session, exists := container.ExecConfig.Sessions[ccid]; exists {
+		tty := session.Tty
+		info.ContainerConfig.Tty = &tty
 
-	dir := container.ExecConfig.Sessions[ccid].Cmd.Dir
-	info.ProcessConfig.WorkingDir = &dir
+		attach := session.Attach
+		info.ContainerConfig.AttachStdin = &attach
+		info.ContainerConfig.AttachStdout = &attach
+		info.ContainerConfig.AttachStderr = &attach
 
-	info.ProcessConfig.ExecArgs = container.ExecConfig.Sessions[ccid].Cmd.Args
-	info.ProcessConfig.Env = container.ExecConfig.Sessions[ccid].Cmd.Env
+		path := session.Cmd.Path
+		info.ProcessConfig.ExecPath = &path
 
-	exitcode := int32(container.ExecConfig.Sessions[ccid].ExitStatus)
-	info.ProcessConfig.ExitCode = &exitcode
+		dir := session.Cmd.Dir
+		info.ProcessConfig.WorkingDir = &dir
 
-	startTime := container.ExecConfig.Sessions[ccid].StartTime
-	info.ProcessConfig.StartTime = &startTime
+		info.ProcessConfig.ExecArgs = session.Cmd.Args
+		info.ProcessConfig.Env = session.Cmd.Env
 
-	stopTime := container.ExecConfig.Sessions[ccid].StopTime
-	info.ProcessConfig.StopTime = &stopTime
+		exitcode := int32(session.ExitStatus)
+		info.ProcessConfig.ExitCode = &exitcode
 
-	// started is a string in the vmx that is not to be confused
-	// with started the datetime in the models.ContainerInfo
-	status := container.ExecConfig.Sessions[ccid].Started
-	info.ProcessConfig.Status = &status
+		startTime := session.StartTime
+		info.ProcessConfig.StartTime = &startTime
+
+		stopTime := session.StopTime
+		info.ProcessConfig.StopTime = &stopTime
+
+		// started is a string in the vmx that is not to be confused
+		// with started the datetime in the models.ContainerInfo
+		status := session.Started
+		info.ProcessConfig.Status = &status
+	} else {
+		// log that sessionID is missing and print the ExecConfig
+		log.Errorf("Session ID is missing from execConfig: %#v", container.ExecConfig)
+
+		// panic if we are in debug / hopefully CI
+		if log.DebugLevel > 0 {
+			panic("nil session id")
+		}
+
+	}
 
 	info.HostConfig = &models.HostConfig{}
 	for _, endpoint := range container.ExecConfig.Networks {
