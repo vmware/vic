@@ -44,13 +44,13 @@ Create container with port range
 Create container with host ip
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p 10.10.10.10:8088:80 --name webserver5 nginx
     Should Not Be Equal As Integers  ${rc}  0
-    Should Contain  ${output}  host IP for port bindings is only supported for 0.0.0.0 and the external interface IP address
+    Should Contain  ${output}  host IP for port bindings is only supported for 0.0.0.0 and the public interface IP address
 
 Create container with host ip equal to 0.0.0.0
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p 0.0.0.0:8088:80 --name webserver5 nginx
     Should Be Equal As Integers  ${rc}  0
 
-Create container with host ip equal to external IP
+Create container with host ip equal to public IP
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} create -it -p ${ext-ip}:8089:80 --name webserver6 nginx
     Should Be Equal As Integers  ${rc}  0
 
@@ -121,7 +121,7 @@ Remap mapped ports after OOB Stop
     Should Be Equal As Integers  ${rc}  0
     Should Not Contain  ${output}  Error
 
-Container to container traffic via VCH external interface
+Container to container traffic via VCH public interface
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} rm -f $(docker ${params} ps -aq)
 
     ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull nginx

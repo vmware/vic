@@ -208,8 +208,8 @@ func (c *Create) Flags() []cli.Flag {
 
 		// public
 		cli.StringFlag{
-			Name:        "public-network, en",
-			Value:       "",
+			Name:        "public-network, pn",
+			Value:       "VM Network",
 			Usage:       "The public network port group name (port forwarding and default route). Defaults to 'VM Network' and DHCP -- see advanced help (-x)",
 			Destination: &c.publicNetworkName,
 		},

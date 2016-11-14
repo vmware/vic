@@ -123,7 +123,7 @@ func (v *Validator) checkPortGroups(input *data.Data, counts map[string]int, ips
 		"client":     &input.ClientNetwork,
 		"management": &input.ManagementNetwork,
 	} {
-		if n.Name == input.ExternalNetwork.Name && !n.Empty() {
+		if n.Name == input.PublicNetwork.Name && !n.Empty() {
 			log.Errorf("%s network shares port group with public network, but has static IP configuration", nn)
 			log.Errorf("To resolve this, configure static IP for public network and assign %s network to same port group", nn)
 			log.Error("The static IP will be automatically configured for networks sharing the port group")
@@ -216,7 +216,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 		"client":     &input.ClientNetwork,
 		"management": &input.ManagementNetwork,
 	} {
-		if n.Name == input.ExternalNetwork.Name {
+		if n.Name == input.PublicNetwork.Name {
 			// no Destinations required if sharing with PublicNetwork
 			continue
 		}
@@ -225,10 +225,10 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 		}
 	}
 
-	// external network should not have any routing destinations specified
+	// public network should not have any routing destinations specified
 	// if a gateway was specified
-	if !ip.IsUnspecifiedIP(input.ExternalNetwork.Gateway.IP) && len(input.ExternalNetwork.Destinations) > 0 {
-		v.NoteIssue(errors.New("external network has the default route and must not have any routing destinations specified for gateway"))
+	if !ip.IsUnspecifiedIP(input.PublicNetwork.Gateway.IP) && len(input.PublicNetwork.Destinations) > 0 {
+		v.NoteIssue(errors.New("public network has the default route and must not have any routing destinations specified for gateway"))
 	}
 
 	// check if static IP on all networks and no user provided DNS servers
@@ -251,7 +251,7 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 	v.checkNetworkConflict(input.BridgeNetworkName, input.PublicNetwork.Name, "public")
 	conf.AddNetwork(e)
 
-	// Client net - defaults to connect to same portgroup as external
+	// Client net - defaults to connect to same portgroup as public
 	e, err = v.getEndpoint(ctx, conf, input.ClientNetwork, "client", "client", false, input.DNS)
 	if err != nil {
 		v.NoteIssue(fmt.Errorf("Error checking network for --client-network: %s", err))

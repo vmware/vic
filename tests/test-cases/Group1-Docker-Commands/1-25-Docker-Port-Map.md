@@ -84,7 +84,7 @@ This test requires that a vSphere server is running and available
 * All steps should return without without error
 
 
-## Container to container traffic via VCH external interface
+## Container to container traffic via VCH public interface
 1. Deploy VIC appliance to vSphere server
 2. Issue `docker create -p 8080:80 --net bridge nginx`
 3. Issue `docker start <containerID>` to the VIC appliance

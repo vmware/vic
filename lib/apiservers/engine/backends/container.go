@@ -1430,7 +1430,7 @@ func validateCreateConfig(config *types.ContainerCreateConfig) error {
 	if config.HostConfig != nil {
 		var ips []string
 		if addrs, err := publicIPv4Addrs(); err != nil {
-			log.Warnf("could not get address for external interface: %s", err)
+			log.Warnf("could not get address for public interface: %s", err)
 		} else {
 			ips = make([]string, len(addrs))
 			for i := range addrs {
@@ -1503,7 +1503,7 @@ func copyConfigOverrides(vc *viccontainer.VicContainer, config types.ContainerCr
 func publicIPv4Addrs() ([]netlink.Addr, error) {
 	l, err := netlink.LinkByName(publicIfaceName)
 	if err != nil {
-		return nil, fmt.Errorf("Could not look up link from client interface name %s due to error %s",
+		return nil, fmt.Errorf("Could not look up link from public interface name %s due to error %s",
 			publicIfaceName, err.Error())
 	}
 	ips, err := netlink.AddrList(l, netlink.FAMILY_V4)

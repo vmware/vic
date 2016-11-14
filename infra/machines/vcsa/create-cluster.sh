@@ -79,8 +79,8 @@ if [ -z "$(govc ls "$dvs_path")" ] ; then
     govc dvs.create -product-version 5.5.0 -folder "$(dirname "$dvs_path")" "$(basename "$dvs_path")"
 fi
 
-if [ -z "$(govc ls "$pubilc_network")" ] ; then
-    govc dvs.portgroup.add -dvs "$dvs_path" -type earlyBinding -nports 16 "$(basename "$pubilc_network")"
+if [ -z "$(govc ls "$public_network")" ] ; then
+    govc dvs.portgroup.add -dvs "$dvs_path" -type earlyBinding -nports 16 "$(basename "$public_network")"
 fi
 
 if [ -z "$(govc ls "$internal_network")" ] ; then

@@ -41,7 +41,7 @@ Test
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
-    Set Environment Variable  EXTERNAL_NETWORK  vm-network
+    Set Environment Variable  PUBLIC_NETWORK  vm-network
     Set Environment Variable  TEST_RESOURCE  /ha-datacenter/host/${esx1-ip}/Resources
     Set Environment Variable  TEST_TIMEOUT  30m
 
