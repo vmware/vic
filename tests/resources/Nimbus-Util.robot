@@ -46,9 +46,9 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     Login  ${user}  ${password}
 
     ${out}=  Execute Command  nimbus-esxdeploy ${name1} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version} & nimbus-esxdeploy ${name2} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version} & nimbus-esxdeploy ${name3} --disk=48000000 --ssd=24000000 --memory=8192 --nics 2 ${version}
-    
+
     ${out}=  Execute Command  nimbus-ctl ip ${user}-${name1}
-    
+
     @{out}=  Split To Lines  ${out}
     :FOR  ${item}  IN  @{out}
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  ${user}-${name1}
@@ -57,7 +57,7 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     ${ip1}=  Remove String  @{gotIP}[2]
 
     ${out}=  Execute Command  nimbus-ctl ip ${user}-${name2}
-    
+
     @{out}=  Split To Lines  ${out}
     :FOR  ${item}  IN  @{out}
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  ${user}-${name2}
@@ -66,16 +66,16 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     ${ip2}=  Remove String  @{gotIP}[2]
 
     ${out}=  Execute Command  nimbus-ctl ip ${user}-${name3}
-    
+
     @{out}=  Split To Lines  ${out}
     :FOR  ${item}  IN  @{out}
     \   ${status}  ${message}=  Run Keyword And Ignore Error  Should Contain  ${item}  ${user}-${name3}
     \   Run Keyword If  '${status}' == 'PASS'  Set Suite Variable  ${line}  ${item}
     @{gotIP}=  Split String  ${line}  ${SPACE}
     ${ip3}=  Remove String  @{gotIP}[2]
-    
+
     Log To Console  \nDeploying Nimbus ESXi server: ${gotIP}
-    
+
     # Let's set a password so govc doesn't complain
     Remove Environment Variable  GOVC_PASSWORD
     Remove Environment Variable  GOVC_USERNAME
@@ -86,7 +86,7 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     Disable TLS On ESX Host
     Log To Console  Successfully deployed new ESXi server - ${user}-${name1}
     Log To Console  \nNimbus ESXi server IP: ${ip1}
-    
+
     Remove Environment Variable  GOVC_PASSWORD
     Remove Environment Variable  GOVC_USERNAME
     Set Environment Variable  GOVC_INSECURE  1
@@ -106,7 +106,7 @@ Deploy Multiple Nimbus ESXi Servers in Parallel
     Disable TLS On ESX Host
     Log To Console  Successfully deployed new ESXi server - ${user}-${name3}
     Log To Console  \nNimbus VC server IP: ${ip3}
-    
+
     Close connection
     [Return]  ${user}-${name1}  ${ip1}  ${user}-${name2}  ${ip2}  ${user}-${name3}  ${ip3}
 
@@ -209,11 +209,11 @@ Create a VSAN Cluster
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
-    Set Environment Variable  EXTERNAL_NETWORK  vm-network
+    Set Environment Variable  PUBLIC_NETWORK  vm-network
     Set Environment Variable  TEST_DATASTORE  vsanDatastore
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m
-    
+
     Gather Host IPs
 
 Create a Simple VC Cluster
@@ -269,18 +269,18 @@ Create a Simple VC Cluster
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
-    Set Environment Variable  EXTERNAL_NETWORK  vm-network
+    Set Environment Variable  PUBLIC_NETWORK  vm-network
     Set Environment Variable  TEST_DATASTORE  datastore1
     Set Environment Variable  TEST_RESOURCE  ${cluster}
     Set Environment Variable  TEST_TIMEOUT  30m
     [Return]  ${vc-ip}
-    
+
 Create A Distributed Switch
     [Arguments]  ${datacenter}  ${dvs}=test-ds
     Log To Console  \nCreate a distributed switch
     ${out}=  Run  govc dvs.create -product-version 5.5.0 -dc=${datacenter} ${dvs}
     Should Contain  ${out}  OK
-    
+
 Create Three Distributed Port Groups
     [Arguments]  ${datacenter}  ${dvs}=test-ds
     Log To Console  \nCreate three new distributed switch port groups for management and vm network traffic
@@ -290,13 +290,13 @@ Create Three Distributed Port Groups
     Should Contain  ${out}  OK
     ${out}=  Run  govc dvs.portgroup.add -nports 12 -dc=${datacenter} -dvs=${dvs} bridge
     Should Contain  ${out}  OK
-    
+
 Add Host To Distributed Switch
     [Arguments]  ${host}  ${dvs}=test-ds
     Log To Console  \nAdd host(s) to the distributed switch
     ${out}=  Run  govc dvs.add -dvs=${dvs} -pnic=vmnic1 ${host}
     Should Contain  ${out}  OK
-    
+
 Disable TLS On ESX Host
     Log To Console  \nDisable TLS on the host
     ${ver}=  Get Vsphere Version

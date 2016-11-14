@@ -47,7 +47,7 @@ Test
     Set Environment Variable  TEST_USERNAME  Administrator@vsphere.local
     Set Environment Variable  TEST_PASSWORD  Admin\!23
     Set Environment Variable  BRIDGE_NETWORK  bridge
-    Set Environment Variable  EXTERNAL_NETWORK  vm-network
+    Set Environment Variable  PUBLIC_NETWORK  vm-network
     Set Environment Variable  TEST_DATASTORE  datastore1
     Set Environment Variable  TEST_RESOURCE  cls
     Set Environment Variable  TEST_TIMEOUT  30m

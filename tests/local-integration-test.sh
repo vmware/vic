@@ -67,7 +67,7 @@ build:
       TEST_DATASTORE:   ${GOVC_DATASTORE:-$(basename "$(govc ls datastore)")}
       TEST_RESOURCE:    ${GOVC_RESOURCE_POOL:-$(govc ls host/*/Resources)}
       BRIDGE_NETWORK:   $BRIDGE_NETWORK
-      EXTERNAL_NETWORK: $EXTERNAL_NETWORK
+      PUBLIC_NETWORK: $PUBLIC_NETWORK
       DOMAIN:           $DOMAIN
       BIN: bin
       GOPATH: /drone
