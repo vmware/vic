@@ -285,6 +285,12 @@ By default, `vic-machine create` obtains IP addresses for virtual container host
 
 If your network access is controlled by a proxy server, see [Options to Configure Virtual Container Hosts to Use Proxy Servers](#proxy) in Advanced Options. 
 
+When you specify different network interfaces for the different types of traffic, `vic-machine create` checks that the firewalls on the ESXi hosts allow connections to port 2377 from those networks. If access to port 2377 on one or more ESXi hosts is subject to IP address restrictions, and if those restrictions block access to the network interfaces that you specify, `vic-machine create` fails with a firewall configuration error:
+<pre>Firewall configuration incorrect due to allowed IP restrictions on hosts: 
+"/ha-datacenter/host/localhost.localdomain/localhost.localdomain" 
+Firewall must permit dst 2377/tcp outbound to the VCH management interface
+</pre>
+
 <a name="bridge"></a>
 ### `--bridge-network` ###
 
