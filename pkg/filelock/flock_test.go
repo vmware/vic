@@ -77,12 +77,38 @@ func TestManyLocks(t *testing.T) {
 			l := NewFileLock(lockName)
 			if err := l.Acquire(); err != nil {
 				t.Error(err)
+			} else {
+				cnt++
+				l.Release()
 			}
-			cnt++
-			l.Release()
 		}()
 	}
 	baseLock.Release()
+	wg.Wait()
+	assert.Equal(t, locksCount, cnt)
+}
+
+func TestManyLocksWithNoBaseLock(t *testing.T) {
+	lockName := "test_lock" + strconv.FormatInt(time.Now().UnixNano(), 10)
+
+	var wg sync.WaitGroup
+
+	locksCount := 200
+	cnt := 0
+	for i := 0; i < locksCount; i++ {
+		wg.Add(1)
+		go func() {
+			time.Sleep(time.Millisecond)
+			defer wg.Done()
+			l := NewFileLock(lockName)
+			if err := l.Acquire(); err != nil {
+				t.Error(err)
+			} else {
+				cnt++
+				l.Release()
+			}
+		}()
+	}
 	wg.Wait()
 	assert.Equal(t, locksCount, cnt)
 }
