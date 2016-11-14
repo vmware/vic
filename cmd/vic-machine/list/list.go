@@ -156,7 +156,7 @@ func (l *List) Run(cli *cli.Context) (err error) {
 		}
 	}()
 
-        validator, err := validate.NewValidator(ctx, l.Data)
+       validator, err := validate.NewValidator(ctx, l.Data)
 
 	if err != nil {
 		log.Errorf("List cannot continue - failed to create validator: %s", err)
