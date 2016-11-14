@@ -85,6 +85,8 @@ func (lrc *logRotateConfig) ConfigFileContent() string {
 		b = append(b, fmt.Sprintf("minsize %d", lrc.maxLogSizeBytes-1))
 	}
 
+	// VIC doesn't support HUP yet, thus we are using logrotate copytruncate option that
+	// will copy and truncate log file.
 	b = append(b, "copytruncate")
 	b = append(b, "dateext")
 	b = append(b, "dateformat -%Y%m%d-%s")
