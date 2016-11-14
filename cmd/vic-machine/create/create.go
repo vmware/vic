@@ -980,7 +980,7 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		return err
 	}
 
-	log.Infof("Supplied install parameters: --compute-resource %s --image-store %s --volumes %s --bridge-network %s --client-network %s --external-network %s", c.Data.Compute, c.Data.ImageDatastorePath, c.Data.VolumeLocations, c.Data.BridgeNetworkName, c.Data.ClientNetwork, c.Data.ExternalNetwork)
+	log.Infof("Supplied install parameters: --compute-resource %s --image-store %s --volumes %s --bridge-network %s --client-network %s --external-network %s --http-proxy %s --https-proxy %s", c.Data.Compute, c.Data.ImageDatastorePath, c.Data.VolumeLocations, c.Data.BridgeNetworkName, c.Data.ClientNetwork, c.Data.ExternalNetwork, c.Data.HTTPSProxy, c.Data.HTTPProxy)
 
 	var images map[string]string
 	if images, err = c.CheckImagesFiles(c.Force); err != nil {
