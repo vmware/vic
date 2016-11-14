@@ -90,7 +90,7 @@ type VicContainerProxy interface {
 	Stop(op trace.Operation, vc *viccontainer.VicContainer, name string, seconds int, unbound bool) error
 	IsRunning(vc *viccontainer.VicContainer) (bool, error)
 	Wait(op trace.Operation, vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error)
-	Signal(vc *viccontainer.VicContainer, sig uint64) error
+	Signal(op trace.Operation, vc *viccontainer.VicContainer, sig uint64) error
 	Resize(vc *viccontainer.VicContainer, height, width int32) error
 	AttachStreams(ctx context.Context, vc *viccontainer.VicContainer, clStdin io.ReadCloser, clStdout, clStderr io.Writer, ca *backend.ContainerAttachConfig) error
 
@@ -509,13 +509,13 @@ func (c *ContainerProxy) Stop(op trace.Operation, vc *viccontainer.VicContainer,
 		}
 
 		// unmap ports
-		if err = UnmapPorts(vc.HostConfig); err != nil {
+		if err = UnmapPorts(op, vc.HostConfig); err != nil {
 			return err
 		}
 	}
 
 	// change the state of the container
-	changeParams := containers.NewStateChangeParamsWithContext(ctx).WithHandle(handle).WithState("STOPPED")
+	changeParams := containers.NewStateChangeParamsWithContext(op.Context).WithHandle(handle).WithState("STOPPED")
 	stateChangeResponse, err := c.client.Containers.StateChange(changeParams)
 	if err != nil {
 		switch err := err.(type) {
@@ -616,8 +616,8 @@ func (c *ContainerProxy) Wait(op trace.Operation, vc *viccontainer.VicContainer,
 	return *containerInfo.ProcessConfig.ExitCode, *containerInfo.ProcessConfig.Status, *containerInfo.ContainerConfig.State, nil
 }
 
-func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error {
-	defer trace.End(trace.Begin(vc.ContainerID))
+func (c *ContainerProxy) Signal(op trace.Operation, vc *viccontainer.VicContainer, sig uint64) error {
+	defer trace.End(trace.Begin(op.SPrintf("container(%s)", vc.Name)))
 
 	if vc == nil {
 		return InternalServerError("Signal bad arguments")
@@ -648,7 +648,7 @@ func (c *ContainerProxy) Signal(vc *viccontainer.VicContainer, sig uint64) error
 
 	if running, err := c.IsRunning(vc); !running && err == nil {
 		// unmap ports
-		if err = UnmapPorts(vc.HostConfig); err != nil {
+		if err = UnmapPorts(op, vc.HostConfig); err != nil {
 			return err
 		}
 	}

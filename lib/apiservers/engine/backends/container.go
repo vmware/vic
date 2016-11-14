@@ -323,8 +323,8 @@ func (c *Container) containerCreate(op trace.Operation, vc *viccontainer.VicCont
 // for the container to exit.
 // If a signal is given, then just send it to the container and return.
 func (c *Container) ContainerKill(name string, sig uint64) error {
-	defer trace.End(trace.Begin(fmt.Sprintf("%s, %d", name, sig)))
-	op := trace.NewOperation(context.Background(), "Container.ContainerKill(container(%s))", name)
+	op := trace.NewOperation(context.Background(), "")
+	defer trace.End(trace.Begin(fmt.Sprintf("container(%s), sig(%d)", name, sig)))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -332,7 +332,7 @@ func (c *Container) ContainerKill(name string, sig uint64) error {
 		return NotFoundError(name)
 	}
 
-	err := c.containerProxy.Signal(vc, sig)
+	err := c.containerProxy.Signal(op, vc, sig)
 
 	return err
 }
@@ -352,7 +352,8 @@ func (c *Container) ContainerRename(oldName, newName string) error {
 // ContainerResize changes the size of the TTY of the process running
 // in the container with the given name to the given height and width.
 func (c *Container) ContainerResize(name string, height, width int) error {
-	op := trace.NewOperation(context.Background(), "Container.ContainerResize(container(%s))", name)
+	op := trace.NewOperation(context.Background(), "")
+	defer trace.End(trace.Begin(op.SPrintf("container(%s), height(%d), width(%d)", name, height, width)))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)
@@ -374,19 +375,21 @@ func (c *Container) ContainerResize(name string, height, width int) error {
 // stop. Returns an error if the container cannot be found, or if
 // there is an underlying error at any stage of the restart.
 func (c *Container) ContainerRestart(name string, seconds int) error {
-	op := trace.NewOperation(context.Background(), "Container.ContainerRestart(container(%s))", name)
+	op := trace.NewOperation(context.Background(), "")
+	defer trace.End(trace.Begin(op.SPrintf("container(%s)", name)))
+
 	// Look up the container name in the metadata cache ot get long ID
 	vc := cache.ContainerCache().GetContainer(name)
 	if vc == nil {
 		return NotFoundError(name)
 	}
 
-	err := c.containerProxy.Stop(vc, name, seconds, false)
+	err := c.containerProxy.Stop(op, vc, name, seconds, false)
 	if err != nil {
 		return InternalServerError(fmt.Sprintf("Stop failed with: %s", err))
 	}
 
-	err = c.containerStart(name, nil, false)
+	err = c.containerStart(op, name, nil, false)
 	if err != nil {
 		return InternalServerError(fmt.Sprintf("Start failed with: %s", err))
 	}
@@ -442,7 +445,9 @@ func (c *Container) ContainerRm(name string, config *types.ContainerRmConfig) er
 
 // cleanupPortBindings gets port bindings for the container and
 // unmaps ports if the cVM that previously bound them isn't powered on
-func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
+func (c *Container) cleanupPortBindings(op trace.Operation, vc *viccontainer.VicContainer) error {
+	defer trace.End(trace.Begin(op.SPrintf("container(%s)", vc.Name)))
+
 	for ctrPort, hostPorts := range vc.HostConfig.PortBindings {
 		for _, hostPort := range hostPorts {
 			hPort := hostPort.HostPort
@@ -454,7 +459,7 @@ func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
 				continue
 			}
 
-			log.Debugf("Container %q maps host port %s to container port %s", mappedCtr, hPort, ctrPort)
+			op.Debugf("Container %q maps host port %s to container port %s", mappedCtr, hPort, ctrPort)
 			// check state of the previously bound container with PL
 			cc := cache.ContainerCache().GetContainer(mappedCtr)
 			if cc == nil {
@@ -466,12 +471,12 @@ func (c *Container) cleanupPortBindings(vc *viccontainer.VicContainer) error {
 					mappedCtr, err)
 			}
 			if running {
-				log.Debugf("Running container %q still holds port %s", mappedCtr, hPort)
+				op.Debugf("Running container %q still holds port %s", mappedCtr, hPort)
 				continue
 			}
 
-			log.Debugf("Unmapping ports for powered off container %q", mappedCtr)
-			err = UnmapPorts(cc.HostConfig)
+			op.Debugf("Unmapping ports for powered off container %q", mappedCtr)
+			err = UnmapPorts(op, cc.HostConfig)
 			if err != nil {
 				return fmt.Errorf("Failed to unmap host port %s for container %q: %s",
 					hPort, mappedCtr, err)
@@ -547,7 +552,7 @@ func (c *Container) containerStart(op trace.Operation, name string, hostConfig *
 		}()
 
 		// unmap ports that vc needs if they're not being used by previously mapped container
-		err = c.cleanupPortBindings(vc)
+		err = c.cleanupPortBindings(op, vc)
 		if err != nil {
 			return err
 		}
@@ -574,13 +579,13 @@ func (c *Container) containerStart(op trace.Operation, name string, hostConfig *
 	// map ports
 	if bind {
 		e := c.findPortBoundNetworkEndpoint(hostConfig, endpoints)
-		if err = MapPorts(hostConfig, e, id); err != nil {
+		if err = MapPorts(op, hostConfig, e, id); err != nil {
 			return InternalServerError(fmt.Sprintf("error mapping ports: %s", err))
 		}
 
 		defer func() {
 			if err != nil {
-				UnmapPorts(hostConfig)
+				UnmapPorts(op, hostConfig)
 			}
 		}()
 	}
@@ -955,7 +960,8 @@ func (c *Container) ContainerInspect(name string, size bool, version version.Ver
 // ContainerLogs hooks up a container's stdout and stderr streams
 // configured with the given struct.
 func (c *Container) ContainerLogs(name string, config *backend.ContainerLogsConfig, started chan struct{}) error {
-	op := trace.NewOperation(context.Background(), "Container.ContainerLogs(container(%s))", name)
+	op := trace.NewOperation(context.Background(), "")
+	defer trace.End(trace.Begin(op.SPrintf("container(%s)", name)))
 
 	// Look up the container name in the metadata cache to get long ID
 	vc := cache.ContainerCache().GetContainer(name)

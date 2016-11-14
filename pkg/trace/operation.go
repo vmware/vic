@@ -126,6 +126,10 @@ func (o *Operation) Warnf(format string, args ...interface{}) {
 	Logger.Warnf("%s: %s", o.header(), fmt.Sprintf(format, args...))
 }
 
+func (o *Operation) SPrintf(format string, args ...interface{}) string {
+	return fmt.Sprintf("%s: %s", o.header(), fmt.Sprintf(format, args...))
+}
+
 func (o *Operation) newChild(ctx context.Context, msg string) Operation {
 	child := newOperation(ctx, o.id, 4, msg)
 	child.t = append(child.t, o.t...)

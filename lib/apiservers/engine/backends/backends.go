@@ -39,6 +39,7 @@ import (
 	"github.com/vmware/vic/lib/config"
 	"github.com/vmware/vic/lib/imagec"
 	"github.com/vmware/vic/pkg/errors"
+	"github.com/vmware/vic/pkg/trace"
 	"github.com/vmware/vic/pkg/vsphere/sys"
 )
 
@@ -256,7 +257,8 @@ func InsecureRegistries() []string {
 
 // syncContainerCache runs once at startup to populate the container cache
 func syncContainerCache() error {
-	log.Debugf("Updating container cache")
+	op := trace.NewOperation(context.Background(), "")
+	defer trace.End(trace.Begin(op.SPrintf("Updating container cache")))
 
 	backend := NewContainerBackend()
 	client := backend.containerProxy.Client()
@@ -267,13 +269,13 @@ func syncContainerCache() error {
 		return errors.Errorf("Failed to retrieve container list from portlayer: %s", err)
 	}
 
-	log.Debugf("Found %d containers", len(containme.Payload))
+	op.Debugf("Found %d containers", len(containme.Payload))
 	cc := cache.ContainerCache()
 	var errs []string
 	for _, info := range containme.Payload {
 		container := ContainerInfoToVicContainer(*info)
 		cc.AddContainer(container)
-		if err = setPortMapping(info, backend, container); err != nil {
+		if err = setPortMapping(op, info, backend, container); err != nil {
 			errs = append(errs, err.Error())
 		}
 	}
@@ -283,27 +285,29 @@ func syncContainerCache() error {
 	return nil
 }
 
-func setPortMapping(info *models.ContainerInfo, backend *Container, container *container.VicContainer) error {
+func setPortMapping(op trace.Operation, info *models.ContainerInfo, backend *Container, container *container.VicContainer) error {
+	defer trace.End(trace.Begin(op.SPrintf("container(%s)", container.Name)))
+
 	if info.ContainerConfig.State == nil {
-		log.Infof("container state is nil")
+		op.Infof("container state is nil")
 		return nil
 	}
 	if *info.ContainerConfig.State != "Running" || len(container.HostConfig.PortBindings) == 0 {
-		log.Infof("Container info state: %s", *info.ContainerConfig.State)
-		log.Infof("container portbinding: %+v", container.HostConfig.PortBindings)
+		op.Infof("Container info state: %s", *info.ContainerConfig.State)
+		op.Infof("container portbinding: %+v", container.HostConfig.PortBindings)
 		return nil
 	}
 
-	log.Debugf("Set port mapping for container %q, portmapping %+v", container.Name, container.HostConfig.PortBindings)
+	op.Debugf("Set port mapping for container %q, portmapping %+v", container.Name, container.HostConfig.PortBindings)
 	client := backend.containerProxy.Client()
 	endpointsOK, err := client.Scopes.GetContainerEndpoints(
-		scopes.NewGetContainerEndpointsParamsWithContext(ctx).WithHandleOrID(container.ContainerID))
+		scopes.NewGetContainerEndpointsParamsWithContext(op.Context).WithHandleOrID(container.ContainerID))
 	if err != nil {
 		return err
 	}
 	for _, e := range endpointsOK.Payload {
 		if len(e.Ports) > 0 {
-			if err = MapPorts(container.HostConfig, e, container.ContainerID); err != nil {
+			if err = MapPorts(op, container.HostConfig, e, container.ContainerID); err != nil {
 				return err
 			}
 		}
