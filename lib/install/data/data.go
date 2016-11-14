@@ -44,7 +44,7 @@ type Data struct {
 
 	BridgeNetworkName string
 	ClientNetwork     NetworkConfig
-	ExternalNetwork   NetworkConfig
+	PublicNetwork     NetworkConfig
 	ManagementNetwork NetworkConfig
 	DNS               []net.IP
 
