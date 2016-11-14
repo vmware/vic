@@ -20,15 +20,19 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/hpcloud/tail"
 	"golang.org/x/net/context"
+
+	"path/filepath"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/vic/lib/pprof"
@@ -86,12 +90,33 @@ func (r dlogReader) open() (entry, error) {
 	return newBytesEntry(name+".log", buf.Bytes()), nil
 }
 
+// logFiles has a potential race condition since logrotation can rotate files this moment of time.
+// however, the likely hood of this race is so low that it doesn't worth investing the time to do
+// cross process synchronization.
 func logFiles() []string {
 	defer trace.End(trace.Begin(""))
+	files, err := ioutil.ReadDir(logFileDir)
+	if err != nil {
+		log.Errorf("Failed to get a list of log files: %s", err)
+		return nil
+	}
 
 	names := []string{}
-	for _, f := range logFileList {
-		names = append(names, fmt.Sprintf("%s/%s", logFileDir, f))
+	for _, fileInfo := range files {
+		if fileInfo.IsDir() {
+			continue
+		}
+		fname := fileInfo.Name()
+		log.Debugf("Found potential file for export: %s", fname)
+
+		for _, f := range logFileListPrefixes {
+			if strings.HasPrefix(fname, f) {
+				fp := filepath.Join(logFileDir, fname)
+				log.Debugf("Adding file for export: %s", fp)
+				names = append(names, fp)
+				break
+			}
+		}
 	}
 
 	return names
@@ -193,6 +218,7 @@ func findDiagnosticLogs(c *session.Session) (map[string]entryReader, error) {
 
 	return logs, nil
 }
+
 func tarEntries(readers map[string]entryReader, out io.Writer) error {
 	defer trace.End(trace.Begin(""))
 
@@ -252,6 +278,7 @@ func tarEntries(readers map[string]entryReader, out io.Writer) error {
 
 	return nil
 }
+
 func zipEntries(readers map[string]entryReader, out *zip.Writer) error {
 	defer trace.End(trace.Begin(""))
 	defer out.Close()

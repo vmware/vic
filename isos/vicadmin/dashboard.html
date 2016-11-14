@@ -53,9 +53,10 @@
                   <div class="forty">{{.VCHStatus}}</div>
                 </div>
                 <div class="row">
-                  <div class="sixty">Network Connectivity{{.NetworkIssues}}</div>
+                  <div class="sixty">Registry and Internet Connectivity{{.NetworkIssues}}</div>
                   <div class="forty">{{.NetworkStatus}}</div>
                 </div>
+                {{if .VCHReachable}}
                 <div class="row">
                   <div class="sixty">Firewall{{.FirewallIssues}}</div>
                   <div class="forty">{{.FirewallStatus}}</div>
@@ -64,11 +65,13 @@
                   <div class="sixty">License{{.LicenseIssues}}</div>
                   <div class="forty">{{.LicenseStatus}}</div>
                 </div>
+                {{end}}
               </div>
 
               <div class="card card-block">
                 <h3 class="card-title">Virtual Container Host Info</h3>
                 <p class="card-text">Docker Endpoint: {{.HostIP}}:{{.DockerPort}}</p>
+                <p class="card-text">System Time: {{.SystemTime}}</p>
                 {{.StorageRemaining}}
               </div>
             </div>
@@ -78,6 +81,7 @@
                 <div class="row">
                   <div class="sixty"><a href="/logs.zip">Log Bundle</a></div>
                 </div>
+                {{if .VCHReachable}}
                 <div class="row">
                   <div class="sixty"><a href="/container-logs.zip">Log Bundle with container logs</a></div>
                 </div>
@@ -97,6 +101,17 @@
                   <div class="sixty"><a href="/logs/vicadmin.log">Admin Server</a></div>
                   <div class="forty"><a href="/logs/tail/vicadmin.log">Live Log</a></div>
                 </div>
+                {{else}}
+                <div class="row">
+                  <div class="sixty">
+                    <span class="error-message">Other logs are unavailable due to vSphere connection issues.
+                      Please see the log bundle and
+                    <a href="https://vmware.github.io/vic/assets/files/html/vic_admin/vicadmin_status_ref.html">documentation</a>
+                    to troubleshoot the issue.
+                  </span>
+                  </div>
+                </div>
+                {{end}}
               </div>
             </div>
           </div>
