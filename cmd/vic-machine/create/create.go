@@ -243,7 +243,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringSliceFlag{
 			Name:   "dns-server",
 			Value:  &c.dns,
-			Usage:  "DNS server for the client, external, and management networks. Defaults to 8.8.8.8 and 8.8.4.4 when not using DHCP",
+			Usage:  "DNS server for the client, external, and management networks. Defaults to 8.8.8.8 and 8.8.4.4 when VCH uses static IP",
 			Hidden: true,
 		},
 
@@ -743,10 +743,6 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 
 // processDNSServers parses DNS servers used for client, external, mgmt networks
 func (c *Create) processDNSServers() error {
-	if len(c.dns) == 0 {
-		return nil
-	}
-
 	for _, d := range c.dns {
 		s := net.ParseIP(d)
 		if s == nil {
@@ -756,12 +752,9 @@ func (c *Create) processDNSServers() error {
 	}
 
 	if len(c.Data.DNS) > 3 {
-		log.Warn("Maximum of 3 DNS servers. Additional servers specified will be ignored.")
+		log.Warn("Maximum of 3 DNS servers allowed. Additional servers specified will be ignored.")
 	}
 
-	if c.Data.ClientNetwork.Empty() && c.Data.ExternalNetwork.Empty() && c.Data.ManagementNetwork.Empty() {
-		log.Warn("Specified DNS servers are ignored if static IP is not set on any networks. VCH will use DNS servers provided by DHCP.")
-	}
 	log.Debugf("VCH DNS servers: %s", c.Data.DNS)
 	return nil
 }
