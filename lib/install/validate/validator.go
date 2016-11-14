@@ -85,6 +85,9 @@ func CreateNoDCCheck(ctx context.Context, input *data.Data) (*Validator, error) 
 	v.Context = ctx
 	tURL := input.URL
 
+    // normalize the path - strip trailing /
+	tURL.Path = strings.TrimSuffix(tURL.Path, "/")
+
 	// default to https scheme
 	if tURL.Scheme == "" {
 		tURL.Scheme = "https"
