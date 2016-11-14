@@ -61,7 +61,7 @@ List suggest compute resource
     Should Contain  ${ret}  Suggested values for --compute-resource:
 
 List suggest valid datacenter
-    ${ret}=  Run  bin/vic-machine-linux ls --target %{TEST_URL}/fakeDatacenter --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD}
+    ${ret}=  Run  bin/vic-machine-linux ls --target %{TEST_URL}/fakeDatacenter --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource %{TEST_RESOURCE}
     Should Contain  ${ret}  Suggesting valid values for datacenter in --target
 
 List with valid datacenter

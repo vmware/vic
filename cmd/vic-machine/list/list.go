@@ -156,7 +156,12 @@ func (l *List) Run(cli *cli.Context) (err error) {
 		}
 	}()
 
-       validator, err := validate.NewValidator(ctx, l.Data)
+    var validator *validate.Validator
+    if l.Data.ComputeResourcePath == "" {
+        validator, err = validate.CreateNoDCCheck(ctx, l.Data)
+    } else {
+        validator, err = validate.NewValidator(ctx, l.Data)
+    }
 
 	if err != nil {
 		log.Errorf("List cannot continue - failed to create validator: %s", err)

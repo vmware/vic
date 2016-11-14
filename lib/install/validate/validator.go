@@ -85,7 +85,7 @@ func CreateNoDCCheck(ctx context.Context, input *data.Data) (*Validator, error) 
 	v.Context = ctx
 	tURL := input.URL
 
-        // normalize the path - strip trailing /
+	// normalize the path - strip trailing /
 	tURL.Path = strings.TrimSuffix(tURL.Path, "/")
 
 	// default to https scheme
@@ -147,7 +147,7 @@ func CreateNoDCCheck(ctx context.Context, input *data.Data) (*Validator, error) 
 
 	v.Session.Populate(ctx)
 
-	// only allow the datacenter to be specified in the taget url, if any
+	// only allow the datacenter to be specified in the target url, if any
 	pElems := strings.Split(v.DatacenterPath, "/")
 	if len(pElems) > 2 {
 		detail := "--target should only specify datacenter in the path (e.g. https://addr/datacenter) - specify cluster, resource pool, or folder with --compute-resource"
