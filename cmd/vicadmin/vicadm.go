@@ -66,8 +66,8 @@ type vicAdminConfig struct {
 }
 
 var (
-	logFileDir  = "/var/log/vic"
-	logFileList = []string{
+	logFileDir          = "/var/log/vic"
+	logFileListPrefixes = []string{
 		"docker-personality.log",
 		"port-layer.log",
 		"vicadmin.log",
@@ -89,8 +89,6 @@ var (
 	resources vchconfig.Resources
 
 	vchConfig vchconfig.VirtualContainerHostConfigSpec
-
-	defaultReaders map[string]entryReader
 
 	datastore types.ManagedObjectReference
 )
