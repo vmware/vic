@@ -220,14 +220,12 @@ If you are deploying the virtual container host to a vCenter Server cluster, the
 
 When you deploy a virtual container host, `vic-machine` creates a set of folders in the target datastore: 
 
-- A folder with the same name as the virtual container host, at the top level of the datastore. This folder contains the VM files for the virtual container host appliance.
+- A folder with the same name as the virtual container host, at the top level of the datastore. This folder contains the VM files for the virtual container host appliance. It also contains a key-value store folder for the virtual container host, named `kvStores`.
 - A folder named `VIC` inside the virtual container host folder. The `VIC` folder contains a folder that uses the UUID of the virtual container host endpoint VM as its name. The <code>VIC/<i>vch_uuid</i></code> folder contains a subfolder named `images`, in which to store all of the container images that you pull into the virtual container host. 
 
-You can specify a datastore folder to use as the image store in the format <code><i>datastore_name</i>/<i>path</i></code>. If the path to the folder that you specify does not already exist, `vic-machine create` creates it. In this case, `vic-machine` still creates the folder for the files of the virtual container host appliance at the top level of the datastore. However, `vic-machine create` creates the `VIC` folder inside the <code><i>datastore_name</i>/<i>path</i></code> folder, rather than in the same folder as the virtual container host files. 
+You can specify a datastore folder to use as the image store in the format <code><i>datastore_name</i>/<i>path</i></code>. If the path to the folder that you specify does not already exist, `vic-machine create` creates it. In this case, `vic-machine` still creates the folder for the files of the virtual container host appliance and the key-value store at the top level of the datastore. However, `vic-machine create` creates the `VIC` folder inside the <code><i>datastore_name</i>/<i>path</i></code> folder, rather than in the same folder as the virtual container host files. 
 
 By specifying the path to a datastore folder in the `--image-store` option, you can designate the same datastore folder as the image store for multiple virtual container hosts. In this way, `vic-machine create` creates only one `VIC` folder in the datastore, at the path that you specify. The `VIC` folder contains one <code><i>vch_uuid</i>/images</code> folder for each virtual container host that you deploy. By creating one <code><i>vch_uuid</i>/images</code> folder for each virtual container host, vSphere Integrated Containers Engine limits the potential for conflicts of image use between virtual container hosts, even if you share the same image store folder between multiple hosts.
-
-**NOTE**: In the current builds of vSphere Integrated Containers Engine, sharing an image store folder between multiple virtual container hosts can lead to inconsistent behavior. Designate a different folder for the image store for each virtual container host, or omit the datastore folder from the `--image-store` option.
 
 When container developers create containers, vSphere Integrated Containers Engine stores the files for container VMs at the top level of the image store, in folders that have the same name as the containers.
 
