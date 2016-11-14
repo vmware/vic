@@ -263,12 +263,12 @@ echo "Setting hostname for ${name}..."
 govc host.esxcli system hostname set -H "$name"
 
 if which sshpass >/dev/null && [ -e ~/.ssh/id_rsa.pub ] ; then
+    opts=(-oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -oLogLevel=error)
     echo "Adding ssh authorized key to ${name}..."
-    sshpass -p "$password" scp \
-            -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -oLogLevel=error \
+    sshpass -p "$password" scp "${opts[@]}" \
             ~/.ssh/id_rsa.pub "root@$vm_ip:/etc/ssh/keys-root/authorized_keys"
     # Prefer esxcli over ssh as vib install resets the hostd connection
-    esxcli=(ssh -l root $vm_ip esxcli)
+    esxcli=(ssh "${opts[@]}" -l root $vm_ip esxcli)
 else
     esxcli=(govc host.esxcli)
 fi
