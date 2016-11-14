@@ -183,7 +183,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "client-network-gateway",
 			Value:       "",
-			Usage:       "Gateway for the VCH on the client network, e.g. 10.0.0.1/24",
+			Usage:       "Gateway for the VCH on the client network, including one or more routing destinations in a comma separated list, e.g. 10.1.0.0/16,10.2.0.0/16:10.0.0.1/24",
 			Destination: &c.clientNetworkGateway,
 			Hidden:      true,
 		},
@@ -205,7 +205,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "external-network-gateway",
 			Value:       "",
-			Usage:       "Gateway for the VCH on the external network, e.g. 10.0.1.1/24",
+			Usage:       "Gateway for the VCH on the external network, e.g. 10.0.0.1/24",
 			Destination: &c.externalNetworkGateway,
 			Hidden:      true,
 		},
@@ -227,7 +227,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringFlag{
 			Name:        "management-network-gateway",
 			Value:       "",
-			Usage:       "Gateway for the VCH on the management network, e.g. 10.0.2.1/24",
+			Usage:       "Gateway for the VCH on the management network, including one or more routing destinations in a comma separated list, e.g. 10.1.0.0/16,10.2.0.0/16:10.0.0.1/24",
 			Destination: &c.managementNetworkGateway,
 			Hidden:      true,
 		},
@@ -649,6 +649,40 @@ func (c *Create) processContainerNetworks() error {
 	return nil
 }
 
+func parseGatewaySpec(gw string) (cidrs []net.IPNet, gwIP net.IPNet, err error) {
+	ss := strings.Split(gw, ":")
+	if len(ss) > 2 {
+		err = fmt.Errorf("gateway %s specified incorrectly", gw)
+		return
+	}
+
+	gwStr := ss[0]
+	cidrsStr := ""
+	if len(ss) > 1 {
+		gwStr = ss[1]
+		cidrsStr = ss[0]
+	}
+
+	gwIP, err = ip.ParseIPandMask(gwStr)
+	if err != nil {
+		return
+	}
+
+	if cidrsStr != "" {
+		for _, c := range strings.Split(cidrsStr, ",") {
+			var ipnet *net.IPNet
+			_, ipnet, err = net.ParseCIDR(c)
+			if err != nil {
+				err = fmt.Errorf("invalid CIDR in gateway specification: %s", err)
+				return
+			}
+			cidrs = append(cidrs, *ipnet)
+		}
+	}
+
+	return
+}
+
 // processNetwork parses network args if present
 func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, staticIP, gateway string) error {
 	network.Name = pgName
@@ -670,7 +704,7 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 		}
 	}(network)
 
-	network.Gateway, err = ip.ParseIPandMask(gateway)
+	network.Destinations, network.Gateway, err = parseGatewaySpec(gateway)
 	if err != nil {
 		return fmt.Errorf("Invalid %s network gateway: %s", netName, err)
 	}

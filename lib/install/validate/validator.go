@@ -63,6 +63,7 @@ func CreateFromVCHConfig(ctx context.Context, vch *config.VirtualContainerHostCo
 	v := &Validator{}
 	v.Session = sess
 	v.Context = ctx
+	v.isVC = v.Session.IsVC()
 
 	return v, nil
 }
@@ -240,7 +241,7 @@ func (v *Validator) Validate(ctx context.Context, input *data.Data) (*config.Vir
 	v.compute(ctx, input, conf)
 	v.storage(ctx, input, conf)
 	v.network(ctx, input, conf)
-	v.CheckFirewall(ctx)
+	v.CheckFirewall(ctx, conf)
 	v.CheckLicense(ctx)
 	v.CheckDrs(ctx)
 

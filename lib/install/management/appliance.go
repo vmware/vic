@@ -463,10 +463,8 @@ func (d *Dispatcher) createAppliance(conf *config.VirtualContainerHostConfigSpec
 	)
 
 	if conf.HostCertificate != nil {
-		d.VICAdminProto = "https"
 		d.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
 	} else {
-		d.VICAdminProto = "http"
 		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
 	}
 
@@ -831,17 +829,14 @@ func (d *Dispatcher) ensureApplianceInitializes(conf *config.VirtualContainerHos
 	}
 
 	log.Infof("Waiting for IP information")
-	d.waitForKey("guestinfo.vice..init.networks|client.assigned.IP")
+	d.waitForKey(extraconfig.CalculateKeys(conf, "ExecutorConfig.Networks.client.Assigned.IP", "")[0])
 	ctxerr := d.ctx.Err()
 
 	if ctxerr == nil {
 		log.Info("Waiting for major appliance components to launch")
-		log.Debug("waiting for vicadmin to start")
-		d.waitForKey("guestinfo.vice..init.sessions|vicadmin.started")
-		log.Debug("waiting for docker personality to start")
-		d.waitForKey("guestinfo.vice..init.sessions|docker-personality.started")
-		log.Debug("waiting for port layer to start")
-		d.waitForKey("guestinfo.vice..init.sessions|port-layer.started")
+		for _, k := range extraconfig.CalculateKeys(conf, "ExecutorConfig.Sessions.*.Started", "") {
+			d.waitForKey(k)
+		}
 	}
 
 	// at this point either everything has succeeded or we're going into diagnostics, ignore error

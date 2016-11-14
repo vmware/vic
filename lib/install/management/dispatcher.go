@@ -48,9 +48,8 @@ type Dispatcher struct {
 	vmPathName    string
 	dockertlsargs string
 
-	DockerPort    string
-	HostIP        string
-	VICAdminProto string
+	DockerPort string
+	HostIP     string
 
 	vchPool   *object.ResourcePool
 	vchVapp   *object.VirtualApp

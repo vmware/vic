@@ -65,10 +65,8 @@ func (d *Dispatcher) InspectVCH(vch *vm.VirtualMachine, conf *config.VirtualCont
 	d.HostIP = clientIP.String()
 	log.Debugf("IP address for client interface: %s", d.HostIP)
 	if !conf.HostCertificate.IsNil() {
-		d.VICAdminProto = "https"
 		d.DockerPort = fmt.Sprintf("%d", opts.DefaultTLSHTTPPort)
 	} else {
-		d.VICAdminProto = "http"
 		d.DockerPort = fmt.Sprintf("%d", opts.DefaultHTTPPort)
 	}
 
@@ -104,7 +102,7 @@ func (d *Dispatcher) ShowVCH(conf *config.VirtualContainerHostConfigSpec, key st
 
 	log.Infof("")
 	log.Infof("VCH Admin Portal:")
-	log.Infof("%s://%s:2378", d.VICAdminProto, d.HostIP)
+	log.Infof("https://%s:2378", d.HostIP)
 
 	log.Infof("")
 	externalIP := conf.ExecutorConfig.Networks["external"].Assigned.IP
