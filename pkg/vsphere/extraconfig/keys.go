@@ -262,3 +262,144 @@ func addPrefixToKey(header, prefix, key string) string {
 	// guestinfoPrefix is const so adding it to the format string directly
 	return fmt.Sprintf(header+"%c%s%s", separator, modifiedPrefix, base)
 }
+
+func calculateKeys(v reflect.Value, field string, prefix string) []string {
+	log.Debugf("v=%#v, field=%#v, prefix=%#v", v, field, prefix)
+	if v.Kind() == reflect.Ptr {
+		return calculateKeys(v.Elem(), field, prefix)
+	}
+
+	if field == "" {
+		return []string{prefix}
+	}
+
+	s := strings.SplitN(field, ".", 2)
+	field = ""
+	iterate := false
+	if s[0] == "*" {
+		iterate = true
+	}
+
+	if len(s) > 1 {
+		field = s[1]
+	}
+
+	if !iterate {
+		switch v.Kind() {
+		case reflect.Map:
+			found := false
+			for _, k := range v.MapKeys() {
+				sk := k.Convert(reflect.TypeOf(""))
+				if sk.String() == s[0] {
+					v = v.MapIndex(k)
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				panic(fmt.Sprintf("could not find map key %s", s[0]))
+			}
+			prefix = fmt.Sprintf("%s|%s", prefix, s[0])
+		case reflect.Array, reflect.Slice:
+			i, err := strconv.Atoi(s[0])
+			if err != nil {
+				panic(fmt.Sprintf("bad array index %s: %s", s[0], err))
+			}
+			switch v.Type().Elem().Kind() {
+			case reflect.Struct:
+				prefix = fmt.Sprintf("%s|%d", prefix, i)
+			case reflect.Uint8:
+				return []string{prefix}
+			default:
+				return []string{fmt.Sprintf("%s~", prefix)}
+			}
+			v = v.Index(i)
+		case reflect.Struct:
+			f, found := v.Type().FieldByName(s[0])
+			if !found {
+				panic(fmt.Sprintf("could not find field %s", s[0]))
+			}
+			prefix, _ = calculateKeyFromField(f, prefix, recursion{})
+			v = v.FieldByIndex(f.Index)
+		default:
+			panic(fmt.Sprintf("cannot get field from type %s", v.Type()))
+		}
+
+		return calculateKeys(v, field, prefix)
+	}
+
+	var out []string
+	switch v.Kind() {
+	case reflect.Map:
+		for _, k := range v.MapKeys() {
+			sk := k.Convert(reflect.TypeOf(""))
+			prefix := fmt.Sprintf("%s|%s", prefix, sk.String())
+			out = append(out, calculateKeys(v.MapIndex(k), field, prefix)...)
+		}
+	case reflect.Array, reflect.Slice:
+		switch v.Type().Elem().Kind() {
+		case reflect.Struct:
+			for i := 0; i < v.Len(); i++ {
+				prefix := fmt.Sprintf("%s|%d", prefix, i)
+				out = append(out, calculateKeys(v.Index(i), field, prefix)...)
+			}
+		case reflect.Uint8:
+			return []string{prefix}
+		default:
+			return []string{fmt.Sprintf("%s~", prefix)}
+		}
+	case reflect.Struct:
+		for i := 0; i < v.NumField(); i++ {
+			prefix, _ := calculateKeyFromField(v.Type().Field(i), prefix, recursion{})
+			out = append(out, calculateKeys(v.Field(i), field, prefix)...)
+		}
+	default:
+		panic(fmt.Sprintf("can't iterate type %s", v.Type().String()))
+	}
+
+	return out
+
+}
+
+// CalculateKeys gets the keys in extraconfig corresponding to the field
+// specification passed in for obj. Examples:
+//
+//	  type struct A {
+//	      I   int    `vic:"0.1" scope:"read-only" key:"i"`
+//	      Str string `vic:"0.1" scope:"read-only" key:"str"`
+//	  }
+//
+//	  type struct B {
+//	      A A                      `vic:"0.1" scope:"read-only" key:"a"`
+//	      Array []A                `vic:"0.1" scope:"read-only" key:"array"`
+//	      Map   map[string]string  `vic:"0.1" scope:"read-only" key:"map"`
+//	  }
+//
+//	  b := B{}
+//	  b.Array = []A{A{}}
+//	  b.Map = map[string]string{"foo": "", "bar": ""}
+//	  // returns []string{"a/str"}
+//	  CalculateKeys(b, "A.Str", "")
+//
+//	  // returns []string{"array|0"}
+//	  CalculateKeys(b, "Array.0", "")
+//
+//	  // returns []string{"array|0"}
+//	  CalculateKeys(b, "Array.*", "")
+//
+//	  // returns []string{"map|foo", "map|bar"}
+//	  CalculateKeys(b, "Map.*", "")
+//
+//	  // returns []string{"map|foo"}
+//	  CalculateKeys(b, "Map.foo", "")
+//
+//	  // returns []string{"map|foo/str"}
+//	  CalculateKeys(b, "Map.foo.str", "")
+//
+func CalculateKeys(obj interface{}, field string, prefix string) []string {
+	defer log.SetLevel(log.GetLevel())
+	log.SetLevel(EncodeLogLevel)
+
+	return calculateKeys(reflect.ValueOf(obj), field, prefix)
+}

@@ -76,7 +76,7 @@ fi
 
 if [ -z "$(govc ls "$dvs_path")" ] ; then
     echo "Creating dvs ${dvs_path}..."
-    govc dvs.create -folder "$(dirname "$dvs_path")" "$(basename "$dvs_path")"
+    govc dvs.create -product-version 5.5.0 -folder "$(dirname "$dvs_path")" "$(basename "$dvs_path")"
 fi
 
 if [ -z "$(govc ls "$external_network")" ] ; then
@@ -100,11 +100,13 @@ for host_ip in "$@" ; do
              -hostname "$host_ip" -username root -password "$GOVC_PASSWORD"
     fi
 
-    unclaimed=$(govc host.storage.info -host "$host_path" -unclaimed | wc -l)
+    unclaimed=$(govc host.storage.info -host "$host_path" -unclaimed | tail -n+2 | wc -l)
     if [ "$unclaimed" -eq 2 ] ; then
         echo "Enabling vSAN traffic on ${vsan_vnic} for ${host_path}..."
         govc host.vnic.service -host "$host_path" -enable vsan "$vsan_vnic"
         vsan_hosts+=($host_path)
+    else
+        echo "Skipping vSAN configuration for ${host_path}: $unclaimed unclaimed disks"
     fi
 done
 
