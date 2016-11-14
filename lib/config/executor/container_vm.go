@@ -135,7 +135,7 @@ type ExecutorConfig struct {
 	LayerID string `vic:"0.1" scope:"read-only" key:"layerid"`
 
 	// Blob metadata for the caller
-	Annotations map[string]string `vic:"0.1" scope:"hidden" key:"annotation"`
+	Annotations map[string]string `vic:"0.1" scope:"hidden" key:"annotations"`
 
 	// Repository requested by user
 	// TODO: a bit docker specific
