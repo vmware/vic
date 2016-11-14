@@ -38,11 +38,13 @@ import (
 func (v *Validator) getEndpoint(ctx context.Context, conf *config.VirtualContainerHostConfigSpec, network data.NetworkConfig, epName, contNetName string, def bool, ns []net.IP) (*executor.NetworkEndpoint, error) {
 	defer trace.End(trace.Begin(""))
 	var gw net.IPNet
+	var dest []net.IPNet
 	var staticIP *net.IPNet
 
 	if !network.Empty() {
 		log.Debugf("Setting static IP for %q on port group %q", contNetName, network.Name)
 		gw = network.Gateway
+		dest = network.Destinations
 		staticIP = &network.IP
 	}
 
@@ -60,9 +62,10 @@ func (v *Validator) getEndpoint(ctx context.Context, conf *config.VirtualContain
 				Name: contNetName,
 				ID:   moid,
 			},
-			Default:     def,
-			Gateway:     gw,
-			Nameservers: ns,
+			Default:      def,
+			Destinations: dest,
+			Gateway:      gw,
+			Nameservers:  ns,
 		},
 		IP: staticIP,
 	}
@@ -168,6 +171,23 @@ func (v *Validator) network(ctx context.Context, input *data.Data, conf *config.
 
 	var e *executor.NetworkEndpoint
 	var err error
+
+	// client and management networks need to have at least one
+	// routing destination if gateway was specified
+	for nn, n := range map[string]*data.NetworkConfig{
+		"client":     &input.ClientNetwork,
+		"management": &input.ManagementNetwork,
+	} {
+		if !ip.IsUnspecifiedIP(n.Gateway.IP) && len(n.Destinations) == 0 {
+			v.NoteIssue(fmt.Errorf("%s network gateway specified without at least one routing destination", nn))
+		}
+	}
+
+	// external network should not have any routing destinations specified
+	// if a gateway was specified
+	if !ip.IsUnspecifiedIP(input.ExternalNetwork.Gateway.IP) && len(input.ExternalNetwork.Destinations) > 0 {
+		v.NoteIssue(errors.New("external network has the default route and must not have any routing destinations specified for gateway"))
+	}
 
 	// set default portgroup if user input not provided
 	if input.ClientNetwork.Name == "" {

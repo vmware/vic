@@ -20,6 +20,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/vmware/vic/pkg/ip"
 )
 
@@ -206,6 +207,55 @@ func TestParseContainerNetworkDNS(t *testing.T) {
 					}
 				}
 			}
+		}
+	}
+}
+
+func TestParseGatewaySpec(t *testing.T) {
+	var tests = []struct {
+		in   string
+		dest []string
+		gw   string
+		err  error
+	}{
+		{
+			in: "10.10.10.10/24",
+			gw: "10.10.10.10/24",
+		},
+		{
+			in:   "10.12.0.0/16:10.10.10.10/16",
+			dest: []string{"10.12.0.0/16"},
+			gw:   "10.10.10.10/16",
+		},
+		{
+			in:   "10.13.0.0/16,10.12.0.0/16:10.10.10.10/16",
+			dest: []string{"10.13.0.0/16", "10.12.0.0/16"},
+			gw:   "10.10.10.10/16",
+		},
+	}
+
+	for _, te := range tests {
+		dest, gw, err := parseGatewaySpec(te.in)
+		if te.err != nil {
+			assert.EqualError(t, err, te.err.Error())
+		} else {
+			assert.NoError(t, err)
+		}
+
+		assert.NotNil(t, gw)
+		assert.Equal(t, te.gw, gw.String())
+
+		assert.Equal(t, len(te.dest), len(dest))
+		for _, d := range te.dest {
+			found := false
+			for _, d2 := range dest {
+				if d2.String() == d {
+					found = true
+					break
+				}
+			}
+
+			assert.True(t, found)
 		}
 	}
 }

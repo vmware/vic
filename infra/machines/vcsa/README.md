@@ -51,6 +51,12 @@ authentication.  No password is used in this case, but the script will still use
 GOVC_NETWORK=NAT ./create-esxi-vm.sh -d 16 -m 4 -s :password-for-esx60@localhost esxbox
 ```
 
+For use against Fusion, use `.` as the hostname:
+
+```
+./create-esxi-vm.sh -d 16 -m 4 -s root:password-for-esx60@. esxbox
+```
+
 ### create-vcsa-vm.sh
 
 This script creates a VM with VCSA (Virtual Center Server Appliance)

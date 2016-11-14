@@ -1,6 +1,6 @@
 *** Variables ***
-${ESX_VERSION}  4531672  #6.5 super main
-${VC_VERSION}  4531673   #6.5 super main
+${ESX_VERSION}  4564106  #6.5 RTM
+${VC_VERSION}  4602587   #6.5 RTM
 
 *** Keywords ***
 Deploy Nimbus ESXi Server
@@ -278,7 +278,7 @@ Create a Simple VC Cluster
 Create A Distributed Switch
     [Arguments]  ${datacenter}  ${dvs}=test-ds
     Log To Console  \nCreate a distributed switch
-    ${out}=  Run  govc dvs.create -dc=${datacenter} ${dvs}
+    ${out}=  Run  govc dvs.create -product-version 5.5.0 -dc=${datacenter} ${dvs}
     Should Contain  ${out}  OK
     
 Create Three Distributed Port Groups
