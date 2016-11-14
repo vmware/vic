@@ -148,7 +148,7 @@ func (c *containerBase) startGuestProgram(op trace.Operation, name string, args 
 }
 
 func (c *containerBase) start(op trace.Operation) error {
-	op.Debugf("exec.base.start(%s)", c.ExecConfig.ID)
+	defer trace.End(trace.Begin(op.SPrintf("container(%s)", c.ExecConfig.ID)))
 
 	// make sure we have vm
 	if c.vm == nil {
@@ -184,7 +184,8 @@ func (c *containerBase) start(op trace.Operation) error {
 }
 
 func (c *containerBase) stop(op trace.Operation, waitTime *int32) error {
-	op.Debugf("exec.base.stop(%s)", c.ExecConfig.ID)
+	defer trace.End(trace.Begin(op.SPrintf("container(%s)", c.ExecConfig.ID)))
+
 	// make sure we have vm
 	if c.vm == nil {
 		return NotYetExistError{c.ExecConfig.ID}
@@ -280,7 +281,8 @@ func (c *containerBase) shutdown(op trace.Operation, waitTime *int32) error {
 }
 
 func (c *containerBase) poweroff(op trace.Operation) error {
-	op.Debugf("exec.base.poweroff(%s)", c.ExecConfig.ID)
+	defer trace.End(trace.Begin(op.SPrintf("container(%s)", c.ExecConfig.ID)))
+
 	// make sure we have vm
 	if c.vm == nil {
 		return NotYetExistError{c.ExecConfig.ID}

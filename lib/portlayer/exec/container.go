@@ -290,7 +290,8 @@ func (c *Container) Refresh(op trace.Operation) error {
 // Refresh updates config and runtime info, holding a lock only while swapping
 // the new data for the old
 func (c *Container) RefreshFromHandle(op trace.Operation, h *Handle) {
-	op.Debugf("exec.Container.RefreshFromHandle(%s)", h.String())
+	defer trace.End(trace.Begin(op.SPrintf("handle(%s), container(%s)", h, c.ExecConfig.ID)))
+
 	c.m.Lock()
 	defer c.m.Unlock()
 
@@ -306,7 +307,7 @@ func (c *Container) RefreshFromHandle(op trace.Operation, h *Handle) {
 
 // Start starts a container vm with the given params
 func (c *Container) start(op trace.Operation) error {
-	op.Debugf("exec.Container.start(%s)", c.ExecConfig.ID)
+	defer trace.End(trace.Begin(op.SPrintf("container(%s)", c.ExecConfig.ID)))
 
 	if c.vm == nil {
 		return fmt.Errorf("vm not set")
@@ -370,7 +371,6 @@ func (c *Container) Signal(op trace.Operation, num int64) error {
 
 func (c *Container) onStop() {
 	lf := c.logFollowers
-	log.Debugf("%s", "container.infraContainers")
 	c.logFollowers = nil
 
 	log.Debugf("Container(%s) closing %d log followers", c.ExecConfig.ID, len(lf))
@@ -548,7 +548,7 @@ func populateVMAttributes(op trace.Operation, sess *session.Session, refs []type
 
 // convert the infra containers to a container object
 func convertInfraContainers(op trace.Operation, sess *session.Session, vms []mo.VirtualMachine) []*Container {
-	op.Debugf("converting %d containers", len(vms))
+	defer trace.End(trace.Begin(op.SPrintf("converting %d containers", len(vms))))
 	var cons []*Container
 
 	for _, v := range vms {

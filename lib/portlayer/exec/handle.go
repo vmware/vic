@@ -174,6 +174,7 @@ func (h *Handle) String() string {
 }
 
 func (h *Handle) Commit(op trace.Operation, sess *session.Session, waitTime *int32) error {
+	defer trace.End(trace.Begin(op.SPrintf("handle(%s), container(%s), waitTime(%d)", h.String(), h.containerBase.ExecConfig.ID, waitTime)))
 	cfg := make(map[string]string)
 
 	// Set timestamps based on target state
@@ -212,7 +213,7 @@ func (h *Handle) Close() {
 // TODO: either deep copy the configuration, or provide an alternative means of passing the data that
 // avoids the need for the caller to unpack/repack the parameters
 func Create(op trace.Operation, sess *session.Session, config *ContainerCreateConfig) (*Handle, error) {
-	op.Debugf("handle.create")
+	defer trace.End(trace.Begin(op.SPrintf("container(%s)", config.Metadata.ID)))
 
 	h := &Handle{
 		key:         newHandleKey(),

@@ -168,7 +168,7 @@ func (c *ContainerProxy) Client() *client.PortLayer {
 // returns:
 //	(containerID, containerHandle, error)
 func (c *ContainerProxy) CreateContainerHandle(op trace.Operation, imageID string, config types.ContainerCreateConfig) (string, string, error) {
-	op.Debugf("Container_Proxy.CreateContainerHandle(image(%s))", imageID)
+	defer trace.End(trace.Begin(op.SPrintf("image(%s)", imageID)))
 
 	if c.client == nil {
 		return "", "", InternalServerError("ContainerProxy.CreateContainerHandle failed to create a portlayer client")
@@ -209,7 +209,7 @@ func (c *ContainerProxy) CreateContainerHandle(op trace.Operation, imageID strin
 // returns:
 //	modified handle
 func (c *ContainerProxy) AddContainerToScope(op trace.Operation, handle string, config types.ContainerCreateConfig) (string, error) {
-	op.Debugf("Container_proxy.AddContainerToScope(handle(%s))", handle)
+	defer trace.End(trace.Begin(op.SPrintf("handle(%s)", handle)))
 
 	if c.client == nil {
 		return "", InternalServerError("ContainerProxy.AddContainerToScope failed to create a portlayer client")
@@ -253,7 +253,7 @@ func (c *ContainerProxy) AddContainerToScope(op trace.Operation, handle string, 
 // returns:
 //	modified handle
 func (c *ContainerProxy) AddVolumesToContainer(op trace.Operation, handle string, config types.ContainerCreateConfig) (string, error) {
-	op.Debugf("Container_Proxy.AddVolumesToContainer(handle(%s))", handle)
+	defer trace.End(trace.Begin(op.SPrintf("handle(%s)", handle)))
 
 	if c.client == nil {
 		return "", InternalServerError("ContainerProxy.AddVolumesToContainer failed to create a portlayer client")
@@ -343,7 +343,7 @@ func (c *ContainerProxy) AddVolumesToContainer(op trace.Operation, handle string
 // returns:
 //	modified handle
 func (c *ContainerProxy) AddLoggingToContainer(op trace.Operation, handle string, config types.ContainerCreateConfig) (string, error) {
-	op.Debugf("Container_Proxy.AddLoggingToContainer")
+	defer trace.End(trace.Begin(op.SPrintf("")))
 
 	if c.client == nil {
 		return "", InternalServerError("ContainerProxy.AddLoggingToContainer failed to get the portlayer client")
@@ -370,7 +370,7 @@ func (c *ContainerProxy) AddLoggingToContainer(op trace.Operation, handle string
 // returns:
 //	modified handle
 func (c *ContainerProxy) AddInteractionToContainer(op trace.Operation, handle string, config types.ContainerCreateConfig) (string, error) {
-	op.Debugf("container_proxy.AddInteractionToContainer(handle(%s))", handle)
+	defer trace.End(trace.Begin(op.SPrintf("handle(%s)", handle)))
 
 	if c.client == nil {
 		return "", InternalServerError("ContainerProxy.AddInteractionToContainer failed to get the portlayer client")
@@ -396,7 +396,7 @@ func (c *ContainerProxy) AddInteractionToContainer(op trace.Operation, handle st
 // Args:
 //	waitTime <= 0 means no wait time
 func (c *ContainerProxy) CommitContainerHandle(op trace.Operation, handle, containerID string, waitTime int32) error {
-	op.Debugf("Container_Proxy.CommitContainerHandle(handle(%s))", handle)
+	defer trace.End(trace.Begin(op.SPrintf("handle(%s), container(%s), waitTime(%d)", handle, containerID, waitTime)))
 
 	if c.client == nil {
 		return InternalServerError("ContainerProxy.CommitContainerHandle failed to get a portlayer client")
@@ -467,7 +467,7 @@ func (c *ContainerProxy) StreamContainerLogs(name string, out io.Writer, started
 // returns
 //	error
 func (c *ContainerProxy) Stop(op trace.Operation, vc *viccontainer.VicContainer, name string, seconds int, unbound bool) error {
-	op.Debugf("Container_Proxy.Stop(container(%s))", name)
+	defer trace.End(trace.Begin(op.SPrintf("container(%s), waitTime(%d)", vc.Name, seconds)))
 
 	if c.client == nil {
 		return InternalServerError("ContainerProxy.Stop failed to get a portlayer client")
@@ -572,7 +572,7 @@ func (c *ContainerProxy) IsRunning(vc *viccontainer.VicContainer) (bool, error) 
 }
 
 func (c *ContainerProxy) Wait(op trace.Operation, vc *viccontainer.VicContainer, timeout time.Duration) (exitCode int32, processStatus string, containerState string, reterr error) {
-	op.Debugf("Container_Proxy.Wait(container(%s), timeout(%s))", vc.Name, timeout)
+	defer trace.End(trace.Begin(op.SPrintf("container(%s), timeout(%s)", vc.Name, timeout)))
 
 	if vc == nil {
 		reterr = InternalServerError("Wait bad arguments")
