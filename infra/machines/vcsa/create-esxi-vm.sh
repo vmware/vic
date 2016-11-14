@@ -30,14 +30,10 @@ EOF
 disk=48
 mem=16
 iso=VMware-VMvisor-6.0.0-3620759.x86_64.iso # 6.0u2
-vib=http://download3.vmware.com/software/vmw-tools/esxui/esxui-signed-4493986.vib
 
-while getopts c:d:hi:m:s flag
+while getopts d:hi:m:s flag
 do
     case $flag in
-        c)
-            vib=$OPTARG
-            ;;
         d)
             disk=$OPTARG
             ;;
@@ -267,18 +263,6 @@ if which sshpass >/dev/null && [ -e ~/.ssh/id_rsa.pub ] ; then
     sshpass -p "$password" scp \
             -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -oLogLevel=error \
             ~/.ssh/id_rsa.pub "root@$vm_ip:/etc/ssh/keys-root/authorized_keys"
-    # Prefer esxcli over ssh as vib install resets the hostd connection
-    esxcli=(ssh -l root $vm_ip esxcli)
-else
-    esxcli=(govc host.esxcli)
-fi
-
-if [ -n "$vib" ] ; then
-    echo "Installing host client on ${name} ($(basename "$vib"))..."
-
-    if "${esxcli[@]}" software vib install -v "$vib" 1>/dev/null 2>&1 ; then
-        echo "esx-ui version=$(govc host.esxcli -json software vib get -n esx-ui | jq -r .Values[].Version[0])"
-    fi
 fi
 
 echo "Done: GOVC_URL=${username}:${password}@${vm_ip}"
