@@ -22,9 +22,9 @@ Short name: `--pw`
 
 Set a new password for the root user account on the virtual container host endpoint VM.
 
-**IMPORTANT**: If you set a password for the virtual container host endpoint VM, this password does not persist if you reboot the VM. You must run vic-machine debug to reset the password each time you reboot the virtual container host endpoint VM.
+**IMPORTANT**: If you set a password for the virtual container host endpoint VM, this password does not persist if you reboot the VM. You must run vic-machine debug to reset the password each time that the virtual container host endpoint VM reboots.
 
-Wrap the password in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes special characters.
+Wrap the password in single quotes (Linux or Mac OS) or double quotes (Windows) if it includes special characters. If not specified, the default root password is `password`. It is strongly recommended that you use `--rootpw` to set a new password rather than leaving the default.
 
 <pre>--rootpw '<i>new_p@ssword</i>'</pre>
 
