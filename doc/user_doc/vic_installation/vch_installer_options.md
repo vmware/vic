@@ -88,7 +88,7 @@ You specify the `compute-resource` option in the following circumstances:
 - An ESXi host includes multiple resource pools. 
 - You want to deploy the virtual container host to a specific resource pool in your environment. 
 
-If you do not specify the `compute-resource` option and multiple possible resources exist, `vic-machine create` fails and suggests valid targets for `compute-resource` in the failure message. 
+If you do not specify the `compute-resource` option and multiple possible resources exist, or if you specify an invalid resource name, `vic-machine create` fails and suggests valid targets for `compute-resource` in the failure message. 
 
 * To deploy to a specific resource pool on an ESXi host, specify the name of the resource pool: <pre>--compute-resource  <i>resource_pool_name</i></pre>
 * To deploy to a vCenter Server instance that has more than one standalone host that are not part of a cluster, specify the IPv4 address or fully qualified domain name (FQDN) of the target host:<pre>--compute-resource <i>host_address</i></pre>
@@ -216,6 +216,8 @@ Short name: `-i`
 
 The datastore in which to store container image files, container VM files, and the files for the virtual container host appliance. The `--image-store` option is **mandatory** if there is more than one datastore in your vSphere environment. If there is only one datastore in your vSphere environment, the `--image-store` option is not required. 
 
+If you do not specify the `--image-store` option and multiple possible datastores exist, or if you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores in the failure message. 
+
 If you are deploying the virtual container host to a vCenter Server cluster, the datastore that you designate in the `image-store` option must be shared by at least two ESXi hosts in the cluster. Using non-shared datastores is possible, but limits the use of vSphere features such as vSphere vMotion&reg; and VMware vSphere Distributed Resource Scheduler&trade; (DRS).
 
 When you deploy a virtual container host, `vic-machine` creates a set of folders in the target datastore: 
@@ -234,8 +236,6 @@ vSphere Integrated Containers Engine supports all alphanumeric characters, hyphe
 - Specify a datastore as the image store:<pre>--image-store <i>datastore_name</i></pre> 
 - Specify a datastore folder as the image store:<pre>--image-store <i>datastore_name</i>/<i>path</i></pre> 
 - Wrap the datastore name and path in single quotes (') on Mac OS and Linux and in double quotes (") on Windows if they include spaces:  <pre>--image-store '<i>datastore name</i>'/'<i>datastore path</i>'</pre> 
-
-If you specify an invalid datastore name, `vic-machine create` fails and suggests valid datastores.
 
 <a name="volume-store"></a>
 ### `--volume-store` ###
@@ -302,7 +302,7 @@ You pass the name of the distributed port group to the `bridge-network` option. 
 - Do not assign the same `bridge-network` distributed port group to multiple virtual container hosts. Sharing a distributed port group between virtual container hosts might result in multiple container VMs being assigned the same IP address. 
 - Do not use the `bridge-network` distributed port group as the target for any of the other `vic-machine create` networking options.
 
-If you specify an invalid network name, `vic-machine create` fails and suggests valid networks.
+If you specify an invalid port group name, `vic-machine create` fails and suggests valid port groups.
 
 The `bridge-network` option is **optional** when you are deploying a virtual container host to an ESXi host with no vCenter Server. In this case, if you do not specify `bridge-network`, `vic-machine` creates a  virtual switch and a port group that each have the same name as the virtual container host. You can optionally specify this option to assign an existing port group for use as the bridge network for container VMs. You can also optionally specify this option to create a new virtual switch and port group that have a different name to the virtual container host.
 
