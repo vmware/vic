@@ -5,8 +5,14 @@ Suite Setup  Install VIC Appliance To Test Server
 Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
+Verify Unable To Verify
+    ${out}=  Run  wget --tries=3 --connect-timeout=10 ${vic-admin}/logs/vicadmin.log -O failure.log
+    Should Contain  ${out}  ERROR: cannot verify
+    Should Contain  ${out}  certificate, issued by
+    Should Contain  ${out}  Unable to locally verify the issuer's authority.
+    
 Verify Temporary Redirect
-    ${out}=  Run  wget --tries=3 --connect-timeout=10 --certificate=%{DOCKER_CERT_PATH}/fakeCert.pem --private-key=%{DOCKER_CERT_PATH}/fakeKey.pem --no-check-certificate ${vic-admin}/logs/vicadmin.log -O failure.log
+    ${out}=  Run  wget --tries=3 --connect-timeout=10 --no-check-certificate ${vic-admin}/logs/vicadmin.log -O failure.log
     Should Contain  ${out}  HTTP request sent, awaiting response... 307 Temporary Redirect
 
 Verify Failed Log Attempts
