@@ -6,6 +6,9 @@ Suite Teardown  Cleanup VIC Appliance On Test Server
 
 *** Test Cases ***
 Verify Unable To Verify
+    Run  wget http://mirrors.kernel.org/ubuntu/pool/main/w/wget/wget_1.18-2ubuntu1_amd64.deb
+    Run  dpkg -i wget_1.18-2ubuntu1_amd64.deb 
+
     ${out}=  Run  wget --tries=3 --connect-timeout=10 ${vic-admin}/logs/vicadmin.log -O failure.log
     Should Contain  ${out}  ERROR: cannot verify
     Should Contain  ${out}  certificate, issued by
