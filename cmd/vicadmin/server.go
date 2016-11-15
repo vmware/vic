@@ -248,6 +248,7 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 		}
 
 		// if the date & remote IP on the cookie were valid, then the user is authenticated
+		log.Infof("User with a valid auth cookie at %s is authenticated.", connectingAddr[0])
 		handler(w, r)
 	}
 	s.mux.Handle(link, gorillacontext.ClearHandler(http.HandlerFunc(authHandler)))
