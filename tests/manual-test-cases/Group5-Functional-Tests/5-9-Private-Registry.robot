@@ -1,13 +1,11 @@
 *** Settings ***
 Documentation  Test 5-9 - Private Registry
 Resource  ../../resources/Util.robot
-Suite Setup  Private Registry Setup
-Suite Teardown  Private Registry Cleanup
+Test Teardown  Run Keyword If Test Failed  Private Registry Cleanup
 
 *** Keywords ***
 Private Registry Setup
-    Install VIC Appliance To Test Server  vol=default --insecure-registry 172.17.0.1:5000
-    ${dockerHost}=  Get Environment Variable  DOCKER_HOST
+    ${dockerHost}=  Get Environment Variable  DOCKER_HOST  ${SPACE}
     Remove Environment Variable  DOCKER_HOST
     ${rc}  ${output}=  Run And Return Rc And Output  docker run -d -p 5000:5000 --name registry registry
     Should Be Equal As Integers  ${rc}  0
@@ -20,8 +18,7 @@ Private Registry Setup
     Set Environment Variable  DOCKER_HOST  ${dockerHost}
 
 Private Registry Cleanup
-    Cleanup VIC Appliance On Test Server
-    ${dockerHost}=  Get Environment Variable  DOCKER_HOST
+    ${dockerHost}=  Get Environment Variable  DOCKER_HOST  ${SPACE}
     Remove Environment Variable  DOCKER_HOST
     ${rc}  ${output}=  Run And Return Rc And Output  docker rm -f registry
     Should Be Equal As Integers  ${rc}  0
@@ -39,4 +36,15 @@ Pull image
 
 *** Test Cases ***
 Pull an image from non-default repo
+    Private Registry Setup
+    Install VIC Appliance To Test Server  vol=default --insecure-registry 172.17.0.1:5000
     Wait Until Keyword Succeeds  5x  15 seconds  Pull image  172.17.0.1:5000/busybox
+    Cleanup VIC Appliance On Test Server
+    Private Registry Cleanup
+
+Pull image from non-whitelisted repo
+    Private Registry Setup
+    Install VIC Appliance To Test Server  vol=default
+    ${rc}  ${output}=  Run And Return Rc And Output  docker ${params} pull 172.17.0.1:5000/busybox
+    Should Contain  ${output}  Error response from daemon: Head https://172.17.0.1:5000/v2/: http: server gave HTTP response to HTTPS client
+    Private Registry Cleanup
