@@ -175,7 +175,6 @@ Run VIC Machine Delete Command
     Wait Until Keyword Succeeds  6x  5s  Check Delete Success  ${vch-name}
     Should Be Equal As Integers  ${rc}  0
     Should Contain  ${output}  Completed successfully
-    ${output}=  Run  rm -f ${vch-name}-*.pem
     [Return]  ${output}
 
 Cleanup Datastore On Test Server

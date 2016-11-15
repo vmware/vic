@@ -34,3 +34,6 @@ RUN chmod +x /usr/local/bin/docker-compose
 
 COPY vmware-ovftool /usr/lib/vmware-ovftool
 RUN ln -s /usr/lib/vmware-ovftool/ovftool /usr/local/bin/ovftool
+
+RUN  wget http://mirrors.kernel.org/ubuntu/pool/main/w/wget/wget_1.18-2ubuntu1_amd64.deb
+RUN  dpkg -i wget_1.18-2ubuntu1_amd64.deb
