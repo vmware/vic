@@ -491,3 +491,9 @@ Destroy VM OOB
     Run Keyword If  '%{HOST_TYPE}' == 'VC'  Should Be Equal As Integers  ${rc}  0
     ${rc}  ${output}=  Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Run And Return Rc And Output  govc vm.destroy "*-${vm}"
     Run Keyword If  '%{HOST_TYPE}' == 'ESXi'  Should Be Equal As Integers  ${rc}  0
+
+Get Datacenter Name
+    ${out}=  Run  govc datacenter.info
+    ${out}=  Split To Lines  ${out}
+    ${name}=  Fetch From Right  @{out}[0]  ${SPACE}
+    [Return]  ${name}
