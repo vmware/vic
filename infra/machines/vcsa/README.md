@@ -76,7 +76,7 @@ The script then creates the following managed objects:
 
 * DistributedVirtualSwitch (DSwitch)
 
-* DistributedVirtualPortgroup (ExternalNetwork)
+* DistributedVirtualPortgroup (PublicNetwork)
 
 * DistributedVirtualPortgroup (InternalNetwork)
 

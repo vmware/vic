@@ -181,7 +181,7 @@ func (p *portMapper) forward(action iptables.Action, ip net.IP, port int, proto,
 		savedArgs = append(savedArgs, args)
 		p.bindings[key] = savedArgs
 
-		// allow traffic from container to container via vch external interface
+		// allow traffic from container to container via vch public interface
 		args = []string{"VIC", "-t", string(iptables.Nat),
 			"-i", destIface,
 			"-p", proto,

@@ -52,7 +52,7 @@ vic-machine-linux create --thumbprint=NOPE --name=${vch-name} \
 
 ## Networks
 1. Create with nonexistent bridge network
-2. Create with nonexistent external network
+2. Create with nonexistent public network
 
 ### Expected Outcome:
 * Verify resource suggestion successfully show available values
@@ -144,8 +144,8 @@ vic-machine create --name=<VCH_NAME> --target=<TEST_URL> \
 * Output contains message indicating vDS configuration is incorrect with user-friendly error message
 * Deployment fails
 
-## Bridge network same as external network
-1. Create with bridge network the same as external network
+## Bridge network same as public network
+1. Create with bridge network the same as public network
 
 ### Expected Outcome:
 * Output contains message indicating invalid network configuration

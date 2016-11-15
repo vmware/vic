@@ -99,9 +99,9 @@ type Create struct {
 	clientNetworkName         string
 	clientNetworkGateway      string
 	clientNetworkIP           string
-	externalNetworkName       string
-	externalNetworkGateway    string
-	externalNetworkIP         string
+	publicNetworkName         string
+	publicNetworkGateway      string
+	publicNetworkIP           string
 	managementNetworkName     string
 	managementNetworkGateway  string
 	managementNetworkIP       string
@@ -195,25 +195,25 @@ func (c *Create) Flags() []cli.Flag {
 			Hidden:      true,
 		},
 
-		// external
+		// public
 		cli.StringFlag{
-			Name:        "external-network, en",
+			Name:        "public-network, en",
 			Value:       "",
-			Usage:       "The external network port group name (port forwarding and default route). Defaults to 'VM Network' and DHCP -- see advanced help (-x)",
-			Destination: &c.externalNetworkName,
+			Usage:       "The public network port group name (port forwarding and default route). Defaults to 'VM Network' and DHCP -- see advanced help (-x)",
+			Destination: &c.publicNetworkName,
 		},
 		cli.StringFlag{
-			Name:        "external-network-gateway",
+			Name:        "public-network-gateway",
 			Value:       "",
-			Usage:       "Gateway for the VCH on the external network, e.g. 10.0.0.1/24",
-			Destination: &c.externalNetworkGateway,
+			Usage:       "Gateway for the VCH on the public network, e.g. 10.0.0.1/24",
+			Destination: &c.publicNetworkGateway,
 			Hidden:      true,
 		},
 		cli.StringFlag{
-			Name:        "external-network-ip",
+			Name:        "public-network-ip",
 			Value:       "",
-			Usage:       "IP address for the VCH on the external network, e.g. 10.0.1.2/24",
-			Destination: &c.externalNetworkIP,
+			Usage:       "IP address for the VCH on the public network, e.g. 10.0.1.2/24",
+			Destination: &c.publicNetworkIP,
 			Hidden:      true,
 		},
 
@@ -243,7 +243,7 @@ func (c *Create) Flags() []cli.Flag {
 		cli.StringSliceFlag{
 			Name:   "dns-server",
 			Value:  &c.dns,
-			Usage:  "DNS server for the client, external, and management networks. Defaults to 8.8.8.8 and 8.8.4.4 when VCH uses static IP",
+			Usage:  "DNS server for the client, public, and management networks. Defaults to 8.8.8.8 and 8.8.4.4 when VCH uses static IP",
 			Hidden: true,
 		},
 
@@ -464,8 +464,8 @@ func (c *Create) processParams() error {
 		return cli.NewExitError("key and cert should be specified at the same time", 1)
 	}
 
-	if c.externalNetworkName == "" {
-		c.externalNetworkName = "VM Network"
+	if c.publicNetworkName == "" {
+		c.publicNetworkName = "VM Network"
 	}
 
 	if c.BridgeNetworkName == "" {
@@ -489,8 +489,8 @@ func (c *Create) processParams() error {
 		return err
 	}
 
-	if err := c.processNetwork(&c.Data.ExternalNetwork, "external", c.externalNetworkName,
-		c.externalNetworkIP, c.externalNetworkGateway); err != nil {
+	if err := c.processNetwork(&c.Data.PublicNetwork, "public", c.publicNetworkName,
+		c.publicNetworkIP, c.publicNetworkGateway); err != nil {
 		return err
 	}
 
@@ -741,7 +741,7 @@ func (c *Create) processNetwork(network *data.NetworkConfig, netName, pgName, st
 	return fmt.Errorf("Invalid %s network address: %s does not resolve to a gateway compatible IP", netName, staticIP)
 }
 
-// processDNSServers parses DNS servers used for client, external, mgmt networks
+// processDNSServers parses DNS servers used for client, public, mgmt networks
 func (c *Create) processDNSServers() error {
 	for _, d := range c.dns {
 		s := net.ParseIP(d)
@@ -973,7 +973,7 @@ func (c *Create) Run(cliContext *cli.Context) (err error) {
 		return err
 	}
 
-	log.Infof("Supplied install parameters: --compute-resource %s --image-store %s --volumes %s --bridge-network %s --client-network %s --external-network %s --http-proxy %s --https-proxy %s", c.Data.Compute, c.Data.ImageDatastorePath, c.Data.VolumeLocations, c.Data.BridgeNetworkName, c.Data.ClientNetwork, c.Data.ExternalNetwork, c.Data.HTTPSProxy, c.Data.HTTPProxy)
+	log.Infof("Supplied install parameters: --compute-resource %s --image-store %s --volumes %s --bridge-network %s --client-network %s --public-network %s --http-proxy %s --https-proxy %s", c.Data.Compute, c.Data.ImageDatastorePath, c.Data.VolumeLocations, c.Data.BridgeNetworkName, c.Data.ClientNetwork, c.Data.PublicNetwork, c.Data.HTTPSProxy, c.Data.HTTPProxy)
 
 	var images map[string]string
 	if images, err = c.CheckImagesFiles(c.Force); err != nil {
