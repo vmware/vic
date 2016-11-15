@@ -78,7 +78,7 @@ Delete VCH with new vic-machine
     Run Keyword And Ignore Error  Gather Logs From Test Server
     ${uuid}=  Run  govc vm.info -json\=true ${vch-name} | jq -r '.VirtualMachines[0].Config.Uuid'
     ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --thumbprint=%{TEST_THUMBPRINT} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name ${vch-name}
-    Should Contain  ${ret}  is different with installer version
+    Should Contain  ${ret}  is different than installer version
 
     # Delete with force
     ${ret}=  Run  bin/vic-machine-linux delete --target %{TEST_URL} --user %{TEST_USERNAME} --password=%{TEST_PASSWORD} --compute-resource=%{TEST_RESOURCE} --name ${vch-name} --force
