@@ -169,6 +169,7 @@ func (s *server) Authenticated(link string, handler func(http.ResponseWriter, *h
 		websession, _ := s.uss.cookies.Get(r, sessionCookieKey) // ignore error because it is okay if it doesn't exist
 
 		if len(r.TLS.PeerCertificates) > 0 { // the user is authenticated by certificate at connection time
+			log.Infof("Authenticated connection via client certificate with serial %s from %s", r.TLS.PeerCertificates[0].SerialNumber, r.RemoteAddr)
 			usersess := s.uss.Add(websession.ID, &rootConfig.Config)
 
 			timeNow, err := usersess.created.MarshalText()
